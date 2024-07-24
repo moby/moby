@@ -1,6 +1,7 @@
 package errdefs
 
 import (
+	"fmt"
 	"net/http"
 )
 
@@ -8,6 +9,9 @@ import (
 func FromStatusCode(err error, statusCode int) error {
 	if err == nil {
 		return nil
+	}
+	if debug != "" {
+		fmt.Printf("%s: FromStatusCode: %T, %#v, %d\n", debug, err, err, statusCode)
 	}
 	switch statusCode {
 	case http.StatusNotFound:

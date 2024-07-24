@@ -3,6 +3,7 @@ package errdefs
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 type causer interface {
@@ -11,6 +12,12 @@ type causer interface {
 
 type wrapErr interface {
 	Unwrap() error
+}
+
+var debug string
+
+func Debug(val string) {
+	debug = val
 }
 
 func getImplementer(err error) error {
@@ -45,9 +52,14 @@ func IsNotFound(err error) bool {
 	return ok
 }
 
-// IsInvalidParameter returns if the passed in error is an ErrInvalidParameter
+// IsInvalidParameter returns if the passed in error is an ErrInvalidParameter.
 func IsInvalidParameter(err error) bool {
-	_, ok := getImplementer(err).(ErrInvalidParameter)
+	v := getImplementer(err)
+	_, ok := v.(ErrInvalidParameter)
+	if debug != "" {
+		fmt.Printf("%s: %T : %#v = %v\n", debug, v, v, ok)
+	}
+
 	return ok
 }
 

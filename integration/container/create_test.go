@@ -510,6 +510,10 @@ func TestCreateVolumesFromNonExistingContainer(t *testing.T) {
 	ctx := setupTest(t)
 	cli := testEnv.APIClient()
 
+	errdefs.Debug("TestCreateVolumesFromNonExistingContainer")
+	defer func() {
+		errdefs.Debug("")
+	}()
 	_, err := cli.ContainerCreate(
 		ctx,
 		&container.Config{Image: "busybox"},
