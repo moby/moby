@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
@@ -72,6 +73,7 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 		"--default-address-pool", "base=175.30.0.0/16,size=16",
 		"--default-address-pool", "base=175.33.0.0/16,size=24",
 	)
+	defer delInterface(ctx, t, defaultNetworkBridge)
 
 	c := d.NewClientT(t)
 	defer c.Close()
@@ -86,19 +88,20 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 	network.CreateNoError(ctx, t, c, name,
 		network.WithDriver("bridge"),
 	)
+	defer network.RemoveNoError(ctx, t, c, name)
 	out, err = c.NetworkInspect(ctx, name, networktypes.InspectOptions{})
 	assert.NilError(t, err)
-	assert.Equal(t, out.IPAM.Config[0].Subnet, "175.33.0.0/24")
+	assert.Check(t, is.Equal(out.IPAM.Config[0].Subnet, "175.33.0.0/24"))
 
 	// Create a bridge network and verify its subnet is the third default pool
 	name = "saanvi" + t.Name()
 	network.CreateNoError(ctx, t, c, name,
 		network.WithDriver("bridge"),
 	)
+	defer network.RemoveNoError(ctx, t, c, name)
 	out, err = c.NetworkInspect(ctx, name, networktypes.InspectOptions{})
 	assert.NilError(t, err)
-	assert.Equal(t, out.IPAM.Config[0].Subnet, "175.33.1.0/24")
-	delInterface(ctx, t, defaultNetworkBridge)
+	assert.Check(t, is.Equal(out.IPAM.Config[0].Subnet, "175.33.1.0/24"))
 }
 
 func TestDaemonRestartWithExistingNetwork(t *testing.T) {
@@ -107,7 +110,6 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 	ctx := testutil.StartSpan(baseContext, t)
 
-	defaultNetworkBridge := "docker0"
 	d := daemon.New(t)
 	d.Start(t)
 	defer d.Stop(t)
@@ -119,6 +121,7 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 	network.CreateNoError(ctx, t, c, name,
 		network.WithDriver("bridge"),
 	)
+	defer network.RemoveNoError(ctx, t, c, name)
 
 	// Verify bridge network's subnet
 	out, err := c.NetworkInspect(ctx, name, networktypes.InspectOptions{})
@@ -129,11 +132,11 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 	d.Restart(t,
 		"--default-address-pool", "base=175.30.0.0/16,size=16",
 		"--default-address-pool", "base=175.33.0.0/16,size=24")
+	defer delInterface(ctx, t, "docker0")
 
 	out1, err := c.NetworkInspect(ctx, name, networktypes.InspectOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, out1.IPAM.Config[0].Subnet, networkip)
-	delInterface(ctx, t, defaultNetworkBridge)
 }
 
 func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
@@ -143,7 +146,6 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	defaultNetworkBridge := "docker0"
 	d := daemon.New(t)
 	d.Start(t)
 	defer d.Stop(t)
@@ -155,6 +157,7 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 	network.CreateNoError(ctx, t, c, name,
 		network.WithDriver("bridge"),
 	)
+	defer network.RemoveNoError(ctx, t, c, name)
 
 	// Verify bridge network's subnet
 	out, err := c.NetworkInspect(ctx, name, networktypes.InspectOptions{})
@@ -166,6 +169,7 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 	network.CreateNoError(ctx, t, c, name,
 		network.WithDriver("bridge"),
 	)
+	defer network.RemoveNoError(ctx, t, c, name)
 	out, err = c.NetworkInspect(ctx, name, networktypes.InspectOptions{})
 	assert.NilError(t, err)
 	networkip2 := out.IPAM.Config[0].Subnet
@@ -175,18 +179,19 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 		"--default-address-pool", "base=175.18.0.0/16,size=16",
 		"--default-address-pool", "base=175.19.0.0/16,size=24",
 	)
+	defer delInterface(ctx, t, "docker0")
 
 	// Create a bridge network
 	name = "saanvi" + t.Name()
 	network.CreateNoError(ctx, t, c, name,
 		network.WithDriver("bridge"),
 	)
+	defer network.RemoveNoError(ctx, t, c, name)
 	out1, err := c.NetworkInspect(ctx, name, networktypes.InspectOptions{})
 	assert.NilError(t, err)
 
 	assert.Check(t, out1.IPAM.Config[0].Subnet != networkip)
 	assert.Check(t, out1.IPAM.Config[0].Subnet != networkip2)
-	delInterface(ctx, t, defaultNetworkBridge)
 }
 
 func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
@@ -196,7 +201,6 @@ func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	defaultNetworkBridge := "docker0"
 	d := daemon.New(t)
 	defer d.Stop(t)
 	d.Start(t,
@@ -204,6 +208,7 @@ func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
 		"--default-address-pool", "base=175.30.0.0/16,size=16",
 		"--default-address-pool", "base=175.33.0.0/16,size=24",
 	)
+	defer delInterface(ctx, t, "docker0")
 
 	c := d.NewClientT(t)
 	defer c.Close()
@@ -213,7 +218,6 @@ func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
 	assert.NilError(t, err)
 	// Make sure BIP IP doesn't get override with new default address pool .
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "172.60.0.0/16")
-	delInterface(ctx, t, defaultNetworkBridge)
 }
 
 func TestServiceWithPredefinedNetwork(t *testing.T) {

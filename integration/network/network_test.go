@@ -179,6 +179,7 @@ func TestHostIPv4BridgeLabel(t *testing.T) {
 		network.WithOption("com.docker.network.host_ipv4", ipv4SNATAddr),
 		network.WithOption("com.docker.network.bridge.name", bridgeName),
 	)
+	defer network.RemoveNoError(ctx, t, c, bridgeName)
 	out, err := c.NetworkInspect(ctx, bridgeName, networktypes.InspectOptions{Verbose: true})
 	assert.NilError(t, err)
 	assert.Assert(t, len(out.IPAM.Config) > 0)
@@ -281,6 +282,7 @@ func TestForbidDuplicateNetworkNames(t *testing.T) {
 	defer c.Close()
 
 	network.CreateNoError(ctx, t, c, "testnet")
+	defer network.RemoveNoError(ctx, t, c, "testnet")
 
 	_, err := c.NetworkCreate(ctx, "testnet", networktypes.CreateOptions{})
 	assert.Error(t, err, "Error response from daemon: network with name testnet already exists", "2nd NetworkCreate call should have failed")
