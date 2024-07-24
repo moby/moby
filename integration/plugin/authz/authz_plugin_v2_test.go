@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
@@ -75,7 +75,7 @@ func TestAuthZPluginV2Disable(t *testing.T) {
 	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
 	// disable the plugin
-	err = c.PluginDisable(ctx, authzPluginNameWithTag, types.PluginDisableOptions{})
+	err = c.PluginDisable(ctx, authzPluginNameWithTag, plugin.DisableOptions{})
 	assert.NilError(t, err)
 
 	// now test to see if the docker api works.
@@ -148,11 +148,10 @@ func TestAuthZPluginV2NonexistentFailsDaemonStart(t *testing.T) {
 }
 
 func pluginInstallGrantAllPermissions(ctx context.Context, client client.APIClient, name string) error {
-	options := types.PluginInstallOptions{
+	responseReader, err := client.PluginInstall(ctx, "", plugin.InstallOptions{
 		RemoteRef:            name,
 		AcceptAllPermissions: true,
-	}
-	responseReader, err := client.PluginInstall(ctx, "", options)
+	})
 	if err != nil {
 		return err
 	}
