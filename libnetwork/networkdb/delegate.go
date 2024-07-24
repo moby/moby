@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/gogo/protobuf/proto"
 )
 
@@ -219,17 +220,23 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 		return network.inSync && e.reapTime > nDB.config.reapEntryInterval/6
 	}
 
-	var op opType
+	var op driverapi.EventType
 	switch tEvent.Type {
 	case TableEventTypeCreate:
-		op = opCreate
+		op = driverapi.Create
 	case TableEventTypeUpdate:
-		op = opUpdate
+		op = driverapi.Update
 	case TableEventTypeDelete:
-		op = opDelete
+		op = driverapi.Delete
 	}
 
-	nDB.broadcaster.Write(makeEvent(op, tEvent.TableName, tEvent.NetworkID, tEvent.Key, tEvent.Value))
+	_ = nDB.broadcaster.Write(Event{
+		Type:      op,
+		Table:     tEvent.TableName,
+		NetworkID: tEvent.NetworkID,
+		Key:       tEvent.Key,
+		Value:     tEvent.Value,
+	})
 	return network.inSync
 }
 
