@@ -13,6 +13,19 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.47 API changes
+
+[Docker Engine API v1.47](https://docs.docker.com/engine/api/v1.47/) documentation
+
+* Add `POST /images/convert` endpoint that allows to create new images by
+  filtering the index of the source image. Supported options are:
+  - `OnlyAvailablePlatforms` - discard image manifests for platforms that are
+	not available locally
+  - `Platforms` - discard image manifests that don't match any of the selected
+  - `NoAttestations` - discard any build attestations
+  WARNING: This is experimental and may change at any time without any backward
+  compatibility.
+
 
 ## v1.46 API changes
 
