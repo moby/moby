@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/api/types/storage"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/dockerversion"
@@ -303,14 +302,18 @@ func (ir *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, 
 }
 
 func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	img, err := ir.backend.GetImage(ctx, vars["name"], backend.GetImageOpts{Details: true})
+	imageInspect, err := ir.backend.ImageInspect(ctx, vars["name"], backend.ImageInspectOpts{})
 	if err != nil {
 		return err
 	}
 
-	imageInspect, err := ir.toImageInspect(img)
-	if err != nil {
-		return err
+	// Make sure we output empty arrays instead of nil. While Go nil slice is functionally equivalent to an empty slice,
+	// it matters for the JSON representation.
+	if imageInspect.RepoTags == nil {
+		imageInspect.RepoTags = []string{}
+	}
+	if imageInspect.RepoDigests == nil {
+		imageInspect.RepoDigests = []string{}
 	}
 
 	version := httputils.VersionFromContext(ctx)
@@ -328,74 +331,6 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 		imageInspect.ContainerConfig = nil //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.45.
 	}
 	return httputils.WriteJSON(w, http.StatusOK, imageInspect)
-}
-
-func (ir *imageRouter) toImageInspect(img *image.Image) (*imagetypes.InspectResponse, error) {
-	var repoTags, repoDigests []string
-	for _, ref := range img.Details.References {
-		switch ref.(type) {
-		case reference.NamedTagged:
-			repoTags = append(repoTags, reference.FamiliarString(ref))
-		case reference.Canonical:
-			repoDigests = append(repoDigests, reference.FamiliarString(ref))
-		}
-	}
-
-	comment := img.Comment
-	if len(comment) == 0 && len(img.History) > 0 {
-		comment = img.History[len(img.History)-1].Comment
-	}
-
-	// Make sure we output empty arrays instead of nil.
-	if repoTags == nil {
-		repoTags = []string{}
-	}
-	if repoDigests == nil {
-		repoDigests = []string{}
-	}
-
-	var created string
-	if img.Created != nil {
-		created = img.Created.Format(time.RFC3339Nano)
-	}
-
-	return &imagetypes.InspectResponse{
-		ID:              img.ID().String(),
-		RepoTags:        repoTags,
-		RepoDigests:     repoDigests,
-		Parent:          img.Parent.String(),
-		Comment:         comment,
-		Created:         created,
-		Container:       img.Container,        //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.45.
-		ContainerConfig: &img.ContainerConfig, //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.45.
-		DockerVersion:   img.DockerVersion,
-		Author:          img.Author,
-		Config:          img.Config,
-		Architecture:    img.Architecture,
-		Variant:         img.Variant,
-		Os:              img.OperatingSystem(),
-		OsVersion:       img.OSVersion,
-		Size:            img.Details.Size,
-		GraphDriver: storage.DriverData{
-			Name: img.Details.Driver,
-			Data: img.Details.Metadata,
-		},
-		RootFS: rootFSToAPIType(img.RootFS),
-		Metadata: imagetypes.Metadata{
-			LastTagTime: img.Details.LastUpdated,
-		},
-	}, nil
-}
-
-func rootFSToAPIType(rootfs *image.RootFS) imagetypes.RootFS {
-	var layers []string
-	for _, l := range rootfs.DiffIDs {
-		layers = append(layers, l.String())
-	}
-	return imagetypes.RootFS{
-		Type:   rootfs.Type,
-		Layers: layers,
-	}
 }
 
 func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
