@@ -14,7 +14,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
@@ -32,6 +31,7 @@ import (
 	units "github.com/docker/go-units"
 	"github.com/moby/locker"
 	"github.com/moby/sys/mount"
+	"github.com/moby/sys/user/userns"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"golang.org/x/sys/unix"
 )

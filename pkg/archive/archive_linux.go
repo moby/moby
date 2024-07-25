@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/system"
+	"github.com/moby/sys/user/userns"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
