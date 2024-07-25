@@ -384,9 +384,10 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 			if err1 != nil {
 				// don't replace the build error with this import error
 				bklog.G(ctx).Errorf("failed to import error to build record: %+v", err1)
+			} else {
+				releasers = append(releasers, release)
 			}
 			rec.ExternalError = desc
-			releasers = append(releasers, release)
 			rec.Error = status
 		}
 
