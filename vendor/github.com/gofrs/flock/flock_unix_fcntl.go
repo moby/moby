@@ -112,7 +112,7 @@ func (f *Flock) lock(locked *bool, flag lockType) error {
 	}
 
 	if f.fh == nil {
-		if err := f.setFh(); err != nil {
+		if err := f.setFh(f.flag); err != nil {
 			return err
 		}
 
@@ -359,7 +359,7 @@ func (f *Flock) try(locked *bool, flag lockType) (bool, error) {
 	}
 
 	if f.fh == nil {
-		if err := f.setFh(); err != nil {
+		if err := f.setFh(f.flag); err != nil {
 			return false, err
 		}
 
