@@ -34,7 +34,7 @@ const (
 )
 
 type remote struct {
-	config.Config
+	config config.Config
 
 	// configFile is the location where the generated containerd configuration
 	// file is saved.
@@ -65,7 +65,7 @@ type DaemonOpt func(c *remote) error
 // Start starts a containerd daemon and monitors it
 func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Daemon, error) {
 	r := &remote{
-		Config: config.Config{
+		config: config.Config{
 			Version: 2,
 			Root:    filepath.Join(rootDir, "daemon"),
 			State:   filepath.Join(stateDir, "daemon"),
@@ -127,7 +127,7 @@ func (r *remote) WaitTimeout(d time.Duration) error {
 }
 
 func (r *remote) Address() string {
-	return r.GRPC.Address
+	return r.config.GRPC.Address
 }
 
 func (r *remote) getContainerdConfig() (string, error) {
@@ -271,7 +271,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				}
 			}
 
-			os.RemoveAll(r.GRPC.Address)
+			os.RemoveAll(r.config.GRPC.Address)
 			if err := r.startContainerd(); err != nil {
 				if !started {
 					r.daemonStartCh <- err
@@ -283,7 +283,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 			}
 
 			client, err = containerd.New(
-				r.GRPC.Address,
+				r.config.GRPC.Address,
 				containerd.WithTimeout(60*time.Second),
 				containerd.WithDialOpts([]grpc.DialOption{
 					grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
@@ -298,7 +298,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				delay = 100 * time.Millisecond
 				continue
 			}
-			r.logger.WithField("address", r.GRPC.Address).Debug("created containerd monitoring client")
+			r.logger.WithField("address", r.config.GRPC.Address).Debug("created containerd monitoring client")
 		}
 
 		if client != nil {
