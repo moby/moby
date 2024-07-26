@@ -61,7 +61,9 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 	}
 	defer func() {
 		if retErr != nil {
-			_ = daemon.Unmount(ctr)
+			if err := daemon.Unmount(ctr); err != nil {
+				log.G(ctx).WithError(err).Debug("Failed to unmount container after failure")
+			}
 		}
 	}()
 
@@ -71,9 +73,13 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 	}
 	defer func() {
 		ctx := context.WithoutCancel(ctx)
-		cleanup(ctx)
+		if err := cleanup(ctx); err != nil {
+			log.G(ctx).WithError(err).Debug("Failed to cleanup container mounts")
+		}
 		if retErr != nil {
-			_ = ctr.UnmountVolumes(ctx, daemon.LogVolumeEvent)
+			if err := ctr.UnmountVolumes(ctx, daemon.LogVolumeEvent); err != nil {
+				log.G(ctx).WithError(err).Debug("Failed to unmount container volumes after failure")
+			}
 		}
 	}()
 
