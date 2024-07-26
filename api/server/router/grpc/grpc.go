@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/router"
 	"github.com/moby/buildkit/util/grpcerrors"
@@ -32,6 +33,8 @@ func NewRouter(backends ...Backend) router.Router {
 		grpc.StatsHandler(tracing.ServerStatsHandler(otelgrpc.WithTracerProvider(otel.GetTracerProvider()))),
 		grpc.ChainUnaryInterceptor(unaryInterceptor, grpcerrors.UnaryServerInterceptor),
 		grpc.StreamInterceptor(grpcerrors.StreamServerInterceptor),
+		grpc.MaxRecvMsgSize(defaults.DefaultMaxRecvMsgSize),
+		grpc.MaxSendMsgSize(defaults.DefaultMaxSendMsgSize),
 	}
 
 	r := &grpcRouter{
