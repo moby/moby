@@ -75,7 +75,8 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 
 	// Deprecated flags / options
 
-	flags.StringVar(&conf.CorsHeaders, "api-cors-header", "", "Set CORS headers in the Engine API; deprecated, and will be removed in the next release")
+	// TODO(thaJeztah): option is used to produce error when used; remove in next release
+	flags.StringVar(&conf.CorsHeaders, "api-cors-header", "", "Set CORS headers in the Engine API; deprecated: this feature was deprecated in 27.0, and now removed")
 	_ = flags.MarkDeprecated("api-cors-header", "accessing Docker API through a browser is insecure; use a reverse proxy if you need CORS headers")
 	flags.BoolVarP(&conf.AutoRestart, "restart", "r", true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")
 	_ = flags.MarkDeprecated("restart", "Please use a restart policy on docker run")
