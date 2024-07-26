@@ -48,8 +48,6 @@ type remote struct {
 	daemonStartCh chan error
 	daemonStopCh  chan struct{}
 
-	stateDir string
-
 	// logLevel overrides the containerd logging-level through the --log-level
 	// command-line option.
 	logLevel string
@@ -67,11 +65,18 @@ type DaemonOpt func(c *remote) error
 // Start starts a containerd daemon and monitors it
 func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Daemon, error) {
 	r := &remote{
-		stateDir: stateDir,
 		Config: config.Config{
 			Version: 2,
 			Root:    filepath.Join(rootDir, "daemon"),
 			State:   filepath.Join(stateDir, "daemon"),
+			GRPC: config.GRPCConfig{
+				Address:        defaultGRPCAddress(stateDir),
+				MaxRecvMsgSize: defaults.DefaultMaxRecvMsgSize,
+				MaxSendMsgSize: defaults.DefaultMaxSendMsgSize,
+			},
+			Debug: config.Debug{
+				Address: defaultDebugAddress(stateDir),
+			},
 		},
 		configFile:    filepath.Join(stateDir, configFile),
 		daemonPid:     -1,
@@ -86,7 +91,6 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 			return nil, err
 		}
 	}
-	r.setDefaults()
 
 	if err := system.MkdirAll(stateDir, 0o700); err != nil {
 		return nil, err
