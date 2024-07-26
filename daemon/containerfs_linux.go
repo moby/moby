@@ -50,6 +50,20 @@ type containerFSView struct {
 	ctr  *container.Container
 	todo chan future
 	done chan error
+	// unmountIDs should be passed to `Container.UnmountVolumes` to unmount this `containerFSView`
+	unmountIDs map[string]string
+}
+
+// TODO Q: besides this file, `toUnmountIDs` is also used in daemon/start.go. Where is a good place to put its code?
+
+// toUnmountIDs converts an array of mounts, as returned by `Daemon.setupMounts`, to a map
+// from mount destination to the mount id, as accepted by `Container.UnmountVolumes`
+func toUnmountIDs(mounts []container.Mount) map[string]string {
+	ret := make(map[string]string)
+	for _, mnt := range mounts {
+		ret[mnt.Destination] = mnt.ID
+	}
+	return ret
 }
 
 // openContainerFS opens a new view of the container's filesystem.
@@ -65,7 +79,7 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 		}
 	}()
 
-	mounts, cleanup, err := daemon.setupMounts(ctx, ctr)
+	mounts, cleanup, err := daemon.setupMounts(ctx, ctr, false /* mounting for external access => non-primary */)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +87,7 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 		ctx := context.WithoutCancel(ctx)
 		cleanup(ctx)
 		if err != nil {
-			_ = ctr.UnmountVolumes(ctx, daemon.LogVolumeEvent)
+			_ = ctr.UnmountVolumes(ctx, daemon.LogVolumeEvent, toUnmountIDs(mounts))
 		}
 	}()
 
@@ -166,10 +180,11 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 		return nil, err
 	}
 	vw := &containerFSView{
-		d:    daemon,
-		ctr:  ctr,
-		todo: todo,
-		done: done,
+		d:          daemon,
+		ctr:        ctr,
+		todo:       todo,
+		done:       done,
+		unmountIDs: toUnmountIDs(mounts),
 	}
 	runtime.SetFinalizer(vw, (*containerFSView).Close)
 	return vw, nil
@@ -211,7 +226,7 @@ func (vw *containerFSView) Close() error {
 	runtime.SetFinalizer(vw, nil)
 	close(vw.todo)
 	err := multierror.Append(nil, <-vw.done)
-	err = multierror.Append(err, vw.ctr.UnmountVolumes(context.TODO(), vw.d.LogVolumeEvent))
+	err = multierror.Append(err, vw.ctr.UnmountVolumes(context.TODO(), vw.d.LogVolumeEvent, vw.unmountIDs))
 	err = multierror.Append(err, vw.d.Unmount(vw.ctr))
 	return err.ErrorOrNil()
 }
