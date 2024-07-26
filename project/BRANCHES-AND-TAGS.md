@@ -13,12 +13,12 @@ Keep in mind that release branches only accept bug and security fixes; new featu
 
 Currently (and previously) maintained release branches are documented in the table below:
 
-| Branch Name                                    | Sponsoring Maintainer(s)                       | Contribution Status   | Expected End of Maintenance  | Known Distributors                                                   |
-|------------------------------------------------|------------------------------------------------|-----------------------|------------------------------|----------------------------------------------------------------------|
-| master (development branch)                    | The Moby Project [MAINTAINERS](../MAINTAINERS) | N/A                   | -                            | N/A                                                                  |
-| 24.0                                           | @thaJeztah, @rumpl, @neersighted               | Maintained            | TBD                          | [Docker, Inc.](https://docker.com)                                   |
-| 23.0                                           | @corhere, @cpuguy83                            | Maintained            | TBD                          | [Mirantis](https://mirantis.com), [Microsoft](https://microsoft.com) |
-| 20.10                                          | @corhere, @cpuguy83                            | Maintained (security) | December 2023                | [Mirantis](https://mirantis.com), [Microsoft](https://microsoft.com) |
+| Branch Name                       | Sponsoring Maintainer(s)                                | Contribution Status   | Expected End of Maintenance  | Known Distributors                  |
+|-----------------------------------|---------------------------------------------------------|-----------------------|------------------------------|-------------------------------------|
+| master (development branch)       | The Moby Project [MAINTAINERS](../MAINTAINERS)          | N/A                   | -                            | N/A                                 |
+| 27.x                              | The Moby Project [MAINTAINERS](../MAINTAINERS)          | Maintained            | After 28.x                   | [Docker, Inc.](https://docker.com)  |
+| 26.1                              | @cpuguy83                                               | Maintained (security) | TBD                          | [Microsoft](https://microsoft.com)  |
+| 23.0                              | @corhere                                                | Maintained            | February 2025                | [Mirantis](https://mirantis.com)    |
 
 > Note: The Moby Project provides source code releases. Binary distributions are available from multiple contributing parties, and known distributions can be discovered in [PACKAGERS.md](PACKAGERS.md).
 
