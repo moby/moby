@@ -2,7 +2,6 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
-	"sort"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/mount"
@@ -49,8 +48,7 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 		})
 	}
 
-	sort.Sort(mounts(mnts))
-	return mnts, mntCleanups.Release(), nil
+	return sortMounts(mnts), mntCleanups.Release(), nil
 }
 
 // setBindModeIfNull is platform specific processing which is a no-op on

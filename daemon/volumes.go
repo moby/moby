@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -45,6 +46,14 @@ func (m mounts) Swap(i, j int) {
 // parts returns the number of parts in the destination of a mount. Used in sorting.
 func (m mounts) parts(i int) int {
 	return strings.Count(filepath.Clean(m[i].Destination), string(os.PathSeparator))
+}
+
+// sortMounts sorts an array of mounts in lexicographic order. This ensure that
+// when mounting, the mounts don't shadow other mounts. For example, if mounting
+// /etc and /etc/resolv.conf, /etc/resolv.conf must not be mounted first.
+func sortMounts(m []container.Mount) []container.Mount {
+	sort.Sort(mounts(m))
+	return m
 }
 
 // registerMountPoints initializes the container mount points with the configured volumes and bind mounts.

@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -119,14 +118,6 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 		}
 	}
 	return append(mounts, netMounts...), cleanups.Release(), nil
-}
-
-// sortMounts sorts an array of mounts in lexicographic order. This ensure that
-// when mounting, the mounts don't shadow other mounts. For example, if mounting
-// /etc and /etc/resolv.conf, /etc/resolv.conf must not be mounted first.
-func sortMounts(m []container.Mount) []container.Mount {
-	sort.Sort(mounts(m))
-	return m
 }
 
 // setBindModeIfNull is platform specific processing to ensure the
