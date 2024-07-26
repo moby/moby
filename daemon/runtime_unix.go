@@ -17,7 +17,6 @@ import (
 
 	"github.com/containerd/containerd/plugin"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
-	"github.com/containerd/containerd/runtime/v2/shim"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
@@ -265,6 +264,17 @@ func isPermissibleC8dRuntimeName(name string) bool {
 	//     "containerd-shim---".
 	//
 	// https://github.com/containerd/containerd/blob/11ded166c15f92450958078cd13c6d87131ec563/runtime/v2/manager.go#L297-L317
-	// https://github.com/containerd/containerd/blob/11ded166c15f92450958078cd13c6d87131ec563/runtime/v2/shim/util.go#L83-L93
-	return !filepath.IsAbs(name) && !strings.ContainsRune(name, '/') && shim.BinaryName(name) != ""
+	if filepath.IsAbs(name) || strings.ContainsRune(name, '/') {
+		return false
+	}
+
+	// runtime name should format like $prefix.name.version
+	// see: https://github.com/containerd/containerd/blob/11ded166c15f92450958078cd13c6d87131ec563/runtime/v2/shim/util.go#L83-L93
+	//
+	// FIXME(thaJeztah): add a utility to the containerd module for this; some parts (like [shim.BinaryName]) are in the shim package, which comes with a large number of dependencies.
+	if prefix, _, ok := strings.Cut(name, "."); !ok || prefix == "" {
+		return false
+	}
+
+	return true
 }
