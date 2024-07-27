@@ -121,11 +121,17 @@ func adjustForAPIVersion(cliVersion string, service *swarm.ServiceSpec) {
 	}
 
 	if versions.LessThan(cliVersion, "1.44") {
-		// seccomp, apparmor, and no_new_privs were added in 1.44.
-		if service.TaskTemplate.ContainerSpec != nil && service.TaskTemplate.ContainerSpec.Privileges != nil {
-			service.TaskTemplate.ContainerSpec.Privileges.Seccomp = nil
-			service.TaskTemplate.ContainerSpec.Privileges.AppArmor = nil
-			service.TaskTemplate.ContainerSpec.Privileges.NoNewPrivileges = false
+		if service.TaskTemplate.ContainerSpec != nil {
+			// seccomp, apparmor, and no_new_privs were added in 1.44.
+			if service.TaskTemplate.ContainerSpec.Privileges != nil {
+				service.TaskTemplate.ContainerSpec.Privileges.Seccomp = nil
+				service.TaskTemplate.ContainerSpec.Privileges.AppArmor = nil
+				service.TaskTemplate.ContainerSpec.Privileges.NoNewPrivileges = false
+			}
+			if service.TaskTemplate.ContainerSpec.Healthcheck != nil {
+				// StartInterval was added in API 1.44
+				service.TaskTemplate.ContainerSpec.Healthcheck.StartInterval = 0
+			}
 		}
 	}
 }
