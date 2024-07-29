@@ -53,15 +53,17 @@ type containerFSView struct {
 }
 
 // openContainerFS opens a new view of the container's filesystem.
-func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSView, err error) {
+func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSView, retErr error) {
 	ctx := context.TODO()
 
 	if err := daemon.Mount(ctr); err != nil {
 		return nil, err
 	}
 	defer func() {
-		if err != nil {
-			_ = daemon.Unmount(ctr)
+		if retErr != nil {
+			if err := daemon.Unmount(ctr); err != nil {
+				log.G(ctx).WithError(err).Debug("Failed to unmount container after failure")
+			}
 		}
 	}()
 
@@ -71,9 +73,13 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 	}
 	defer func() {
 		ctx := context.WithoutCancel(ctx)
-		cleanup(ctx)
-		if err != nil {
-			_ = ctr.UnmountVolumes(ctx, daemon.LogVolumeEvent)
+		if err := cleanup(ctx); err != nil {
+			log.G(ctx).WithError(err).Debug("Failed to cleanup container mounts")
+		}
+		if retErr != nil {
+			if err := ctr.UnmountVolumes(ctx, daemon.LogVolumeEvent); err != nil {
+				log.G(ctx).WithError(err).Debug("Failed to unmount container volumes after failure")
+			}
 		}
 	}()
 

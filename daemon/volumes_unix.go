@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -37,9 +36,9 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 		tmpfsMounts[m.Destination] = true
 	}
 
-	cleanups := cleanups.Composite{}
+	mntCleanups := cleanups.Composite{}
 	defer func() {
-		if err := cleanups.Call(context.WithoutCancel(ctx)); err != nil {
+		if err := mntCleanups.Call(context.WithoutCancel(ctx)); err != nil {
 			log.G(ctx).WithError(err).Warn("failed to cleanup temporary mounts created by MountPoint.Setup")
 		}
 	}()
@@ -66,7 +65,7 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 		if err != nil {
 			return nil, nil, err
 		}
-		cleanups.Add(clean)
+		mntCleanups.Add(clean)
 
 		if !c.TrySetNetworkMount(m.Destination, path) {
 			mnt := container.Mount{
@@ -118,15 +117,7 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 			}
 		}
 	}
-	return append(mounts, netMounts...), cleanups.Release(), nil
-}
-
-// sortMounts sorts an array of mounts in lexicographic order. This ensure that
-// when mounting, the mounts don't shadow other mounts. For example, if mounting
-// /etc and /etc/resolv.conf, /etc/resolv.conf must not be mounted first.
-func sortMounts(m []container.Mount) []container.Mount {
-	sort.Sort(mounts(m))
-	return m
+	return append(mounts, netMounts...), mntCleanups.Release(), nil
 }
 
 // setBindModeIfNull is platform specific processing to ensure the

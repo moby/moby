@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -507,11 +506,9 @@ func inSlice(slice []string, s string) bool {
 }
 
 // withMounts sets the container's mounts
-func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container, ms []container.Mount) coci.SpecOpts {
+func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container, mounts []container.Mount) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) (err error) {
-		sort.Sort(mounts(ms))
-
-		mounts := ms
+		sortMounts(mounts)
 
 		userMounts := make(map[string]struct{})
 		for _, m := range mounts {
