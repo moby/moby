@@ -161,6 +161,8 @@ func (sb *Sandbox) SetKey(ctx context.Context, basePath string) error {
 	sb.osSbox = osSbox
 	sb.mu.Unlock()
 
+	osSbox.ApplyOSTweaks(sb.oslTypes)
+
 	// If the resolver was setup before stop it and set it up in the
 	// new osl sandbox.
 	if oldosSbox != nil && sb.resolver != nil {
