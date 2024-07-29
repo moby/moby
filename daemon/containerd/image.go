@@ -7,8 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync/atomic"
-	"time"
 
 	containerdimages "github.com/containerd/containerd/images"
 	cerrdefs "github.com/containerd/errdefs"
@@ -23,7 +21,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"golang.org/x/sync/semaphore"
 )
 
 var errInconsistentData error = errors.New("consistency error: data changed during operation, retry")
@@ -44,8 +41,8 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 	if err != nil {
 		return nil, err
 	}
-	ociImage := presentImages[0]
 
+	ociImage := presentImages[0]
 	img := dockerOciImageToDockerImagePartial(image.ID(desc.Target.Digest), ociImage)
 
 	parent, err := i.getImageLabelByDigest(ctx, desc.Target.Digest, imageLabelClassicBuilderParent)
@@ -53,68 +50,6 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 		log.G(ctx).WithError(err).Warn("failed to determine Parent property")
 	} else {
 		img.Parent = image.ID(parent)
-	}
-
-	if options.Details {
-		lastUpdated := time.Unix(0, 0)
-		size, err := i.size(ctx, desc.Target, platform)
-		if err != nil {
-			return nil, err
-		}
-
-		tagged, err := i.images.List(ctx, "target.digest=="+desc.Target.Digest.String())
-		if err != nil {
-			return nil, err
-		}
-
-		// Usually each image will result in 2 references (named and digested).
-		refs := make([]reference.Named, 0, len(tagged)*2)
-		for _, i := range tagged {
-			if i.UpdatedAt.After(lastUpdated) {
-				lastUpdated = i.UpdatedAt
-			}
-			if isDanglingImage(i) {
-				if len(tagged) > 1 {
-					// This is unexpected - dangling image should be deleted
-					// as soon as another image with the same target is created.
-					// Log a warning, but don't error out the whole operation.
-					log.G(ctx).WithField("refs", tagged).Warn("multiple images have the same target, but one of them is still dangling")
-				}
-				continue
-			}
-
-			name, err := reference.ParseNamed(i.Name)
-			if err != nil {
-				// This is inconsistent with `docker image ls` which will
-				// still include the malformed name in RepoTags.
-				log.G(ctx).WithField("name", name).WithError(err).Error("failed to parse image name as reference")
-				continue
-			}
-			refs = append(refs, name)
-
-			if _, ok := name.(reference.Digested); ok {
-				// Image name already contains a digest, so no need to create a digested reference.
-				continue
-			}
-
-			digested, err := reference.WithDigest(reference.TrimNamed(name), desc.Target.Digest)
-			if err != nil {
-				// This could only happen if digest is invalid, but considering that
-				// we get it from the Descriptor it's highly unlikely.
-				// Log error just in case.
-				log.G(ctx).WithError(err).Error("failed to create digested reference")
-				continue
-			}
-			refs = append(refs, digested)
-		}
-
-		img.Details = &image.Details{
-			References:  refs,
-			Size:        size,
-			Metadata:    nil,
-			Driver:      i.snapshotter,
-			LastUpdated: lastUpdated,
-		}
 	}
 
 	return img, nil
@@ -229,34 +164,6 @@ func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, opt
 	}
 
 	return nil, errdefs.NotFound(errors.New("failed to find manifest"))
-}
-
-// size returns the total size of the image's packed resources.
-func (i *ImageService) size(ctx context.Context, desc ocispec.Descriptor, platform platforms.MatchComparer) (int64, error) {
-	var size atomic.Int64
-
-	cs := i.content
-	handler := containerdimages.LimitManifests(containerdimages.ChildrenHandler(cs), platform, 1)
-
-	var wh containerdimages.HandlerFunc = func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-		children, err := handler(ctx, desc)
-		if err != nil {
-			if !cerrdefs.IsNotFound(err) {
-				return nil, err
-			}
-		}
-
-		size.Add(desc.Size)
-
-		return children, nil
-	}
-
-	l := semaphore.NewWeighted(3)
-	if err := containerdimages.Dispatch(ctx, wh, l, desc); err != nil {
-		return 0, err
-	}
-
-	return size.Load(), nil
 }
 
 // resolveDescriptor searches for a descriptor based on the given
