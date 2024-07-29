@@ -12,7 +12,6 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/services/server/config"
-	"github.com/containerd/containerd/sys"
 	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/process"
@@ -50,9 +49,6 @@ type remote struct {
 	daemonStopCh  chan struct{}
 
 	stateDir string
-
-	// oomScore adjusts the OOM score for the containerd process.
-	oomScore int
 
 	// logLevel overrides the containerd logging-level through the --log-level
 	// command-line option.
@@ -209,10 +205,6 @@ func (r *remote) startContainerd() error {
 
 	r.daemonPid = cmd.Process.Pid
 
-	if err := r.adjustOOMScore(); err != nil {
-		r.logger.WithError(err).Warn("failed to adjust OOM score")
-	}
-
 	if err := pidfile.Write(r.pidFile, r.daemonPid); err != nil {
 		_ = process.Kill(r.daemonPid)
 		return errors.Wrap(err, "libcontainerd: failed to save daemon pid to disk")
@@ -220,18 +212,6 @@ func (r *remote) startContainerd() error {
 
 	r.logger.WithField("pid", r.daemonPid).WithField("address", r.Address()).Infof("started new %s process", binaryName)
 
-	return nil
-}
-
-func (r *remote) adjustOOMScore() error {
-	if r.oomScore == 0 || r.daemonPid <= 1 {
-		// no score configured, or daemonPid contains an invalid PID (we don't
-		// expect containerd to be running as PID 1 :)).
-		return nil
-	}
-	if err := sys.SetOOMScore(r.daemonPid, r.oomScore); err != nil {
-		return errors.Wrap(err, "failed to adjust OOM score for containerd process")
-	}
 	return nil
 }
 
