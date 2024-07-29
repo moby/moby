@@ -204,27 +204,67 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 	return summaries, nil
 }
 
+type multiplatformImageSummary struct {
+	Manifests []imagetypes.ManifestSummary
+
+	// Total size of the image including all its platform
+	TotalSize int64
+
+	// ChainIDs of all the layers of the image (including all its platform)
+	AllChainsIDs []digest.Digest
+
+	// Count of containers using the image
+	ContainersCount int64
+
+	// Single platform image manifest preferred by the platform matcher
+	Best         *ImageManifest
+	BestPlatform ocispec.Platform
+}
+
 // imageSummary returns a summary of the image, including the total size of the image and all its platforms.
 // It also returns the chainIDs of all the layers of the image (including all its platforms).
 // All return values will be nil if the image should be skipped.
 func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platformMatcher platforms.MatchComparer,
 	opts imagetypes.ListOptions, tagsByDigest map[digest.Digest][]string,
 ) (_ *imagetypes.Summary, allChainIDs []digest.Digest, _ error) {
-	var manifestSummaries []imagetypes.ManifestSummary
+	multiImage, err := i.multiPlatformImage(ctx, img, platformMatcher, opts)
+	if err != nil {
+		if errors.Is(err, errNotManifestOrIndex) {
+			log.G(ctx).WithFields(log.Fields{
+				"error": err,
+				"image": img.Name,
+			}).Warn("unexpected image target (neither a manifest nor index)")
+			return nil, nil, nil
+		}
+		return nil, nil, err
+	}
 
-	// Total size of the image including all its platform
-	var totalSize int64
+	best := multiImage.Best
+	if best == nil {
+		// TODO we should probably show *something* for images we've pulled
+		// but are 100% shallow or an empty manifest list/index
+		// ("tianon/scratch:index" is an empty example image index and
+		// "tianon/scratch:list" is an empty example manifest list)
+		return nil, nil, nil
+	}
 
-	// ChainIDs of all the layers of the image (including all its platform)
-	var allChainsIDs []digest.Digest
+	image, err := i.singlePlatformImage(ctx, i.content, tagsByDigest[best.RealTarget.Digest], best)
+	if err != nil {
+		return nil, nil, err
+	}
+	image.Size = multiImage.TotalSize
+	image.Manifests = multiImage.Manifests
 
-	// Count of containers using the image
-	var containersCount int64
+	if opts.ContainerCount {
+		image.Containers = multiImage.ContainersCount
+	}
+	return image, multiImage.AllChainsIDs, nil
+}
 
-	// Single platform image manifest preferred by the platform matcher
-	var best *ImageManifest
-	var bestPlatform ocispec.Platform
-
+func (i *ImageService) multiPlatformImage(ctx context.Context, img images.Image,
+	platformMatcher platforms.MatchComparer, opts imagetypes.ListOptions,
+) (multiplatformImageSummary, error) {
+	var summary multiplatformImageSummary
 	err := i.walkReachableImageManifests(ctx, img, func(img *ImageManifest) error {
 		target := img.Target()
 
@@ -252,9 +292,9 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 				// If the platform is available, prepend it to the list of platforms
 				// otherwise append it at the end.
 				if available {
-					manifestSummaries = append([]imagetypes.ManifestSummary{mfstSummary}, manifestSummaries...)
+					summary.Manifests = append([]imagetypes.ManifestSummary{mfstSummary}, summary.Manifests...)
 				} else {
-					manifestSummaries = append(manifestSummaries, mfstSummary)
+					summary.Manifests = append(summary.Manifests, mfstSummary)
 				}
 			}()
 		}
@@ -266,8 +306,8 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 			}
 		} else {
 			mfstSummary.Size.Content = contentSize
-			totalSize += contentSize
 			mfstSummary.Size.Total += contentSize
+			summary.TotalSize += contentSize
 		}
 
 		isPseudo, err := img.IsPseudoImage(ctx)
@@ -343,21 +383,21 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 			// contentSize was already added to total, adjust it by the difference
 			// between the newly calculated size and the old size.
 			d := imgContentSize - contentSize
-			totalSize += d
+			summary.TotalSize += d
 			mfstSummary.Size.Total += d
 		}
 
 		mfstSummary.ImageData.Size.Unpacked = unpackedSize
 		mfstSummary.Size.Total += unpackedSize
-		totalSize += unpackedSize
+		summary.TotalSize += unpackedSize
 
-		allChainsIDs = append(allChainsIDs, chainIDs...)
+		summary.AllChainsIDs = append(summary.AllChainsIDs, chainIDs...)
 
 		if opts.ContainerCount {
 			i.containers.ApplyAll(func(c *container.Container) {
 				if c.ImageManifest != nil && c.ImageManifest.Digest == target.Digest {
 					mfstSummary.ImageData.Containers = append(mfstSummary.ImageData.Containers, c.ID)
-					containersCount++
+					summary.ContainersCount++
 				}
 			})
 		}
@@ -371,43 +411,14 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 			return nil
 		}
 
-		if best == nil || platformMatcher.Less(platform, bestPlatform) {
-			best = img
-			bestPlatform = platform
+		if summary.Best == nil || platformMatcher.Less(platform, summary.BestPlatform) {
+			summary.Best = img
+			summary.BestPlatform = platform
 		}
 
 		return nil
 	})
-	if err != nil {
-		if errors.Is(err, errNotManifestOrIndex) {
-			log.G(ctx).WithFields(log.Fields{
-				"error": err,
-				"image": img.Name,
-			}).Warn("unexpected image target (neither a manifest nor index)")
-			return nil, nil, nil
-		}
-		return nil, nil, err
-	}
-
-	if best == nil {
-		// TODO we should probably show *something* for images we've pulled
-		// but are 100% shallow or an empty manifest list/index
-		// ("tianon/scratch:index" is an empty example image index and
-		// "tianon/scratch:list" is an empty example manifest list)
-		return nil, nil, nil
-	}
-
-	image, err := i.singlePlatformImage(ctx, i.content, tagsByDigest[best.RealTarget.Digest], best)
-	if err != nil {
-		return nil, nil, err
-	}
-	image.Size = totalSize
-	image.Manifests = manifestSummaries
-
-	if opts.ContainerCount {
-		image.Containers = containersCount
-	}
-	return image, allChainsIDs, nil
+	return summary, err
 }
 
 func (i *ImageService) singlePlatformSize(ctx context.Context, imgMfst *ImageManifest) (unpackedSize int64, contentSize int64, _ error) {
