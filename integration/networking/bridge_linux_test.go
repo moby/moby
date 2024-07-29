@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os/exec"
 	"regexp"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -32,8 +31,6 @@ import (
 // 1. DNS resolution ; 2. ARP/NDP ; 3. whether containers can communicate with each other ; 4. kernel-assigned SLAAC
 // addresses.
 func TestBridgeICC(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
@@ -216,70 +213,8 @@ func TestBridgeICC(t *testing.T) {
 	}
 }
 
-// TestBridgeICCWindows tries to ping container ctr1 from container ctr2 using its hostname.
-// Checks DNS resolution, and whether containers can communicate with each other.
-// Regression test for https://github.com/moby/moby/issues/47370
-func TestBridgeICCWindows(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
-
-	ctx := setupTest(t)
-	c := testEnv.APIClient()
-
-	testcases := []struct {
-		name    string
-		netName string
-	}{
-		{
-			name:    "Default nat network",
-			netName: "nat",
-		},
-		{
-			name:    "User defined nat network",
-			netName: "mynat",
-		},
-	}
-
-	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := testutil.StartSpan(ctx, t)
-
-			if tc.netName != "nat" {
-				network.CreateNoError(ctx, t, c, tc.netName,
-					network.WithDriver("nat"),
-				)
-				defer network.RemoveNoError(ctx, t, c, tc.netName)
-			}
-
-			const ctr1Name = "ctr1"
-			id1 := container.Run(ctx, t, c,
-				container.WithName(ctr1Name),
-				container.WithNetworkMode(tc.netName),
-			)
-			defer c.ContainerRemove(ctx, id1, containertypes.RemoveOptions{Force: true})
-
-			pingCmd := []string{"ping", "-n", "1", "-w", "3000", ctr1Name}
-
-			const ctr2Name = "ctr2"
-			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
-			res := container.RunAttach(attachCtx, t, c,
-				container.WithName(ctr2Name),
-				container.WithCmd(pingCmd...),
-				container.WithNetworkMode(tc.netName),
-			)
-			defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
-
-			assert.Check(t, is.Equal(res.ExitCode, 0))
-			assert.Check(t, is.Equal(res.Stderr.Len(), 0))
-			assert.Check(t, is.Contains(res.Stdout.String(), "Sent = 1, Received = 1, Lost = 0"))
-		})
-	}
-}
-
 // TestBridgeINC makes sure two containers on two different bridge networks can't communicate with each other.
 func TestBridgeINC(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
@@ -405,8 +340,6 @@ func TestBridgeINC(t *testing.T) {
 }
 
 func TestDefaultBridgeIPv6(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 
 	testcases := []struct {
@@ -472,8 +405,6 @@ func TestDefaultBridgeIPv6(t *testing.T) {
 
 // Check that it's possible to change 'fixed-cidr-v6' and restart the daemon.
 func TestDefaultBridgeAddresses(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 
 	type testStep struct {
@@ -575,8 +506,6 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 // subnet, and it's in the host's namespace).
 // Regression test for https://github.com/moby/moby/issues/47329
 func TestInternalNwConnectivity(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
@@ -630,8 +559,6 @@ func TestInternalNwConnectivity(t *testing.T) {
 // Check that the container's interfaces have no IPv6 address when IPv6 is
 // disabled in a container via sysctl (including 'lo').
 func TestDisableIPv6Addrs(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t)
@@ -696,8 +623,6 @@ func TestDisableIPv6Addrs(t *testing.T) {
 // address - either IPAM assigned, or kernel-assigned LL, but the loopback
 // interface does still have an IPv6 address ('::1').
 func TestNonIPv6Network(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t)
@@ -729,7 +654,6 @@ func TestNonIPv6Network(t *testing.T) {
 // Check that starting the daemon with '--ip6tables=false' means no ip6tables
 // rules get set up for an IPv6 bridge network.
 func TestNoIP6Tables(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRootless)
 
 	ctx := setupTest(t)
@@ -794,8 +718,6 @@ func TestNoIP6Tables(t *testing.T) {
 // must be set using driver option 'com.docker.network.endpoint.sysctls').
 // Regression test for https://github.com/moby/moby/issues/47619
 func TestSetInterfaceSysctl(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "no sysctl on Windows")
-
 	ctx := setupTest(t)
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t)
@@ -824,8 +746,6 @@ func TestSetInterfaceSysctl(t *testing.T) {
 // container interface, container creation fails.
 // Regression test for https://github.com/moby/moby/issues/47751
 func TestReadOnlySlashProc(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 
 	testcases := []struct {
@@ -889,8 +809,6 @@ func TestReadOnlySlashProc(t *testing.T) {
 // Test that it's possible to set a sysctl on an interface in the container
 // using DriverOpts.
 func TestSetEndpointSysctl(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "no sysctl on Windows")
-
 	ctx := setupTest(t)
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t)
@@ -922,8 +840,6 @@ func TestSetEndpointSysctl(t *testing.T) {
 }
 
 func TestDisableNAT(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "bridge driver option doesn't apply to Windows")
-
 	ctx := setupTest(t)
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t)
@@ -1002,28 +918,17 @@ func TestDisableNAT(t *testing.T) {
 	}
 }
 
-// Check that a container on one network (bridge or Windows nat) can reach a
-// service in a container on another network, via a mapped port on the host.
+// Check that a container on one network can reach a service in a container on
+// another network, via a mapped port on the host.
 func TestPortMappedHairpin(t *testing.T) {
 	skip.If(t, testEnv.IsRootless)
 
 	ctx := setupTest(t)
-
-	var c client.APIClient
-	var driverName string
-
-	if runtime.GOOS == "windows" {
-		c = testEnv.APIClient()
-		driverName = "nat"
-	} else {
-		d := daemon.New(t)
-		d.StartWithBusybox(ctx, t)
-		defer d.Stop(t)
-
-		c = d.NewClientT(t)
-		defer c.Close()
-		driverName = "bridge"
-	}
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
 
 	// Find an address on the test host.
 	conn, err := net.Dial("tcp4", "hub.docker.com:80")
@@ -1032,10 +937,10 @@ func TestPortMappedHairpin(t *testing.T) {
 	conn.Close()
 
 	const serverNetName = "servernet"
-	network.CreateNoError(ctx, t, c, serverNetName, network.WithDriver(driverName))
+	network.CreateNoError(ctx, t, c, serverNetName)
 	defer network.RemoveNoError(ctx, t, c, serverNetName)
 	const clientNetName = "clientnet"
-	network.CreateNoError(ctx, t, c, clientNetName, network.WithDriver(driverName))
+	network.CreateNoError(ctx, t, c, clientNetName)
 	defer network.RemoveNoError(ctx, t, c, clientNetName)
 
 	serverId := container.Run(ctx, t, c,
@@ -1064,7 +969,6 @@ func TestPortMappedHairpin(t *testing.T) {
 // Regression test for https://github.com/moby/moby/issues/48067 (which
 // is about incorrectly reporting this as invalid config).
 func TestProxy4To6(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "uses bridge network and docker-proxy")
 	skip.If(t, testEnv.IsRootless)
 
 	ctx := setupTest(t)
