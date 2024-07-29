@@ -293,7 +293,6 @@ github.com/containerd/containerd/mount
 github.com/containerd/containerd/namespaces
 github.com/containerd/containerd/oci
 github.com/containerd/containerd/pkg/apparmor
-github.com/containerd/containerd/pkg/atomicfile
 github.com/containerd/containerd/pkg/cap
 github.com/containerd/containerd/pkg/cleanup
 github.com/containerd/containerd/pkg/deprecation
@@ -303,13 +302,11 @@ github.com/containerd/containerd/pkg/kmutex
 github.com/containerd/containerd/pkg/randutil
 github.com/containerd/containerd/pkg/runtimeoptions/v1
 github.com/containerd/containerd/pkg/seccomp
-github.com/containerd/containerd/pkg/shutdown
 github.com/containerd/containerd/pkg/snapshotters
 github.com/containerd/containerd/pkg/streaming
 github.com/containerd/containerd/pkg/transfer
 github.com/containerd/containerd/pkg/transfer/proxy
 github.com/containerd/containerd/pkg/transfer/streaming
-github.com/containerd/containerd/pkg/ttrpcutil
 github.com/containerd/containerd/pkg/unpack
 github.com/containerd/containerd/pkg/userns
 github.com/containerd/containerd/plugin
@@ -325,7 +322,6 @@ github.com/containerd/containerd/remotes/errors
 github.com/containerd/containerd/rootfs
 github.com/containerd/containerd/runtime/linux/runctypes
 github.com/containerd/containerd/runtime/v2/runc/options
-github.com/containerd/containerd/runtime/v2/shim
 github.com/containerd/containerd/sandbox
 github.com/containerd/containerd/sandbox/proxy
 github.com/containerd/containerd/services
@@ -337,14 +333,12 @@ github.com/containerd/containerd/snapshots
 github.com/containerd/containerd/snapshots/overlay/overlayutils
 github.com/containerd/containerd/snapshots/proxy
 github.com/containerd/containerd/sys
-github.com/containerd/containerd/sys/reaper
 github.com/containerd/containerd/tracing
 github.com/containerd/containerd/version
 # github.com/containerd/containerd/api v1.7.19
 ## explicit; go 1.21
 github.com/containerd/containerd/api/events
 github.com/containerd/containerd/api/runtime/sandbox/v1
-github.com/containerd/containerd/api/runtime/task/v2
 github.com/containerd/containerd/api/services/containers/v1
 github.com/containerd/containerd/api/services/content/v1
 github.com/containerd/containerd/api/services/diff/v1
@@ -358,7 +352,6 @@ github.com/containerd/containerd/api/services/snapshots/v1
 github.com/containerd/containerd/api/services/streaming/v1
 github.com/containerd/containerd/api/services/tasks/v1
 github.com/containerd/containerd/api/services/transfer/v1
-github.com/containerd/containerd/api/services/ttrpc/events/v1
 github.com/containerd/containerd/api/services/version/v1
 github.com/containerd/containerd/api/types
 github.com/containerd/containerd/api/types/task
