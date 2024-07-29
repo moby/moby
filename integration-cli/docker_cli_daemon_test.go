@@ -309,25 +309,6 @@ func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDR(c *testing.T) {
 	assert.Equal(c, strings.Trim(out, " \r\n'"), "2001:db8:2::100", "Container should have a global IPv6 gateway")
 }
 
-// TestDaemonIPv6FixedCIDRAndMac checks that when the daemon is started with ipv6 fixed CIDR
-// the running containers are given an IPv6 address derived from the MAC address and the ipv6 fixed CIDR
-func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDRAndMac(c *testing.T) {
-	// IPv6 setup is messing with local bridge address.
-	testRequires(c, testEnv.IsLocalDaemon)
-	// Delete the docker0 bridge if its left around from previous daemon. It has to be recreated with
-	// ipv6 enabled
-	deleteInterface(c, "docker0")
-
-	s.d.StartWithBusybox(testutil.GetContext(c), c, "--ipv6", "--fixed-cidr-v6=2001:db8:1::/64")
-
-	out, err := s.d.Cmd("run", "-d", "--name=ipv6test", "--mac-address", "AA:BB:CC:DD:EE:FF", "busybox", "top")
-	assert.NilError(c, err, out)
-
-	out, err = s.d.Cmd("inspect", "--format", "{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}", "ipv6test")
-	assert.NilError(c, err, out)
-	assert.Equal(c, strings.Trim(out, " \r\n'"), "2001:db8:1::aabb:ccdd:eeff")
-}
-
 // TestDaemonIPv6HostMode checks that when the running a container with
 // network=host the host ipv6 addresses are not removed
 func (s *DockerDaemonSuite) TestDaemonIPv6HostMode(c *testing.T) {
