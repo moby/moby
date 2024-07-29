@@ -141,12 +141,13 @@ func TestPortMappingV6Config(t *testing.T) {
 	netOptions[netlabel.GenericData] = netConfig
 
 	ipdList4 := getIPv4Data(t)
-	err := d.CreateNetwork("dummy", netOptions, nil, ipdList4, getIPv6Data(t))
+	ipdList6 := getIPv6Data(t)
+	err := d.CreateNetwork("dummy", netOptions, nil, ipdList4, ipdList6)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	te := newTestEndpoint(ipdList4[0].Pool, 11)
+	te := newTestEndpoint46(ipdList4[0].Pool, ipdList6[0].Pool, 11)
 	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create the endpoint: %s", err.Error())

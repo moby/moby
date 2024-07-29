@@ -189,7 +189,6 @@ type Network struct {
 	ipamV6Info       []*IpamInfo
 	enableIPv4       bool
 	enableIPv6       bool
-	postIPv6         bool
 	epCnt            *endpointCnt
 	generic          options.Generic
 	dbIndex          uint64
@@ -461,7 +460,6 @@ func (n *Network) CopyTo(o datastore.KVObject) error {
 	dstN.enableIPv4 = n.enableIPv4
 	dstN.enableIPv6 = n.enableIPv6
 	dstN.persist = n.persist
-	dstN.postIPv6 = n.postIPv6
 	dstN.dbIndex = n.dbIndex
 	dstN.dbExists = n.dbExists
 	dstN.drvOnce = n.drvOnce
@@ -585,7 +583,6 @@ func (n *Network) MarshalJSON() ([]byte, error) {
 		netMap["generic"] = n.generic
 	}
 	netMap["persist"] = n.persist
-	netMap["postIPv6"] = n.postIPv6
 	if len(n.ipamV4Config) > 0 {
 		ics, err := json.Marshal(n.ipamV4Config)
 		if err != nil {
@@ -687,9 +684,6 @@ func (n *Network) UnmarshalJSON(b []byte) (err error) {
 	}
 	if v, ok := netMap["persist"]; ok {
 		n.persist = v.(bool)
-	}
-	if v, ok := netMap["postIPv6"]; ok {
-		n.postIPv6 = v.(bool)
 	}
 	if v, ok := netMap["ipamType"]; ok {
 		n.ipamType = v.(string)
@@ -895,16 +889,6 @@ func NetworkOptionLabels(labels map[string]string) NetworkOption {
 func NetworkOptionDynamic() NetworkOption {
 	return func(n *Network) {
 		n.dynamic = true
-	}
-}
-
-// NetworkOptionDeferIPv6Alloc instructs the network to defer the IPV6 address allocation until after the endpoint has been created
-// It is being provided to support the specific docker daemon flags where user can deterministically assign an IPv6 address
-// to a container as combination of fixed-cidr-v6 + mac-address
-// TODO: Remove this option setter once we support endpoint ipam options
-func NetworkOptionDeferIPv6Alloc(enable bool) NetworkOption {
-	return func(n *Network) {
-		n.postIPv6 = enable
 	}
 }
 
@@ -1256,7 +1240,7 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 
 	wantIPv6 := n.enableIPv6 && !ep.disableIPv6
 
-	if err = ep.assignAddress(ipam, n.enableIPv4, wantIPv6 && !n.postIPv6); err != nil {
+	if err = ep.assignAddress(ipam, n.enableIPv4, wantIPv6); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -1288,14 +1272,6 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 			}
 		}
 	}()
-
-	if wantIPv6 {
-		if err = ep.assignAddress(ipam, false, n.postIPv6); err != nil {
-			return nil, err
-		}
-	} else {
-		ep.iface.addrv6 = nil
-	}
 
 	if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
 		n.updateSvcRecord(context.WithoutCancel(ctx), ep, true)

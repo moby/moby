@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"net"
-	"net/netip"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -540,17 +539,6 @@ func TestDefaultBridgeIPv6(t *testing.T) {
 			const networkName = "bridge"
 			inspect := container.Inspect(ctx, t, c, cID)
 			gIPv6 := inspect.NetworkSettings.Networks[networkName].GlobalIPv6Address
-
-			// The container's MAC and IPv6 addresses should be derived from the
-			// IPAM-allocated IPv4 address.
-			addr4, err := netip.ParseAddr(inspect.NetworkSettings.Networks[networkName].IPAddress)
-			assert.NilError(t, err)
-			mac, err := net.ParseMAC(inspect.NetworkSettings.Networks[networkName].MacAddress)
-			assert.NilError(t, err)
-			assert.Check(t, is.DeepEqual(addr4.AsSlice(), []byte(mac)[2:]))
-			addr6, err := netip.ParseAddr(gIPv6)
-			assert.NilError(t, err)
-			assert.Check(t, is.DeepEqual(addr4.AsSlice(), addr6.AsSlice()[12:]))
 
 			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()

@@ -1230,17 +1230,8 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	endpoint.addr = ifInfo.Address()
 	endpoint.addrv6 = ifInfo.AddressIPv6()
 
-	// We assign a default MAC address derived from the IP address to make sure
-	// that if a container is disconnected and reconnected in a short timeframe,
-	// stale ARP entries will still point to the right container.
 	if endpoint.macAddress == nil {
-		if endpoint.addr != nil {
-			endpoint.macAddress = netutils.GenerateMACFromIP(endpoint.addr.IP)
-		} else {
-			// TODO(robmry) - generate unsolicited Neighbour Advertisement to
-			//  associate this MAC address with the IPv6 address.
-			endpoint.macAddress = netutils.GenerateRandomMAC()
-		}
+		endpoint.macAddress = netutils.GenerateRandomMAC()
 		if err := ifInfo.SetMacAddress(endpoint.macAddress); err != nil {
 			return err
 		}
@@ -1254,33 +1245,6 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		"hostifname": host.Attrs().Name,
 		"ifi":        host.Attrs().Index,
 	}).Debug("bridge endpoint host link is up")
-
-	// Generate a MAC-address-based IPv6 address, which may be used by the default
-	// bridge network instead of an IPAM allocated address.
-	if endpoint.addrv6 == nil && config.EnableIPv6 {
-		var ip6 net.IP
-		network := n.bridge.bridgeIPv6
-		if config.AddressIPv6 != nil {
-			network = config.AddressIPv6
-		}
-		// If there are fewer than 48 host-bits in the network, it's not possible to
-		// generate an IPv6 address from the MAC address. The network size has already
-		// been checked, so we can safely assume this endpoint must not need a MAC-based
-		// IPv6 address.
-		ones, _ := network.Mask.Size()
-		if ones <= 80 {
-			ip6 = make(net.IP, len(network.IP))
-			copy(ip6, network.IP)
-			for i, h := range endpoint.macAddress {
-				ip6[i+10] = h
-			}
-
-			endpoint.addrv6 = &net.IPNet{IP: ip6, Mask: network.Mask}
-			if err = ifInfo.SetIPAddress(endpoint.addrv6); err != nil {
-				return err
-			}
-		}
-	}
 
 	if err = d.storeUpdate(ctx, endpoint); err != nil {
 		return fmt.Errorf("failed to save bridge endpoint %.7s to store: %v", endpoint.id, err)
