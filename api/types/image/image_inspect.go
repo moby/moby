@@ -119,4 +119,14 @@ type InspectResponse struct {
 	//
 	// This information is local to the daemon, and not part of the image itself.
 	Metadata Metadata
+
+	// Manifests is a list of image manifests available in this image.  It
+	// provides a more detailed view of the platform-specific image manifests or
+	// other image-attached data like build attestations.
+	//
+	// Only available with the containerd image service backend.
+	//
+	// WARNING: This is experimental and may change at any time without any backward
+	// compatibility.
+	Manifests []ManifestSummary `json:"Manifests,omitempty"`
 }
