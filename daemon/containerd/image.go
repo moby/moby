@@ -27,40 +27,43 @@ var errInconsistentData error = errors.New("consistency error: data changed duri
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
 func (i *ImageService) GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*image.Image, error) {
-	desc, err := i.resolveImage(ctx, refOrID)
+	img, err := i.resolveImage(ctx, refOrID)
 	if err != nil {
 		return nil, err
 	}
-
-	platform := matchAllWithPreference(platforms.Default())
+	pm := matchAllWithPreference(platforms.Default())
 	if options.Platform != nil {
-		platform = platforms.OnlyStrict(*options.Platform)
+		pm = platforms.OnlyStrict(*options.Platform)
 	}
+	return i.getImageV1(ctx, img, pm)
+}
 
-	presentImages, err := i.presentImages(ctx, desc, refOrID, platform)
+// getImageV1 gets the containerd image as a docker v1 image struct.
+func (i *ImageService) getImageV1(ctx context.Context, img containerdimages.Image, platform platforms.MatchComparer) (*image.Image, error) {
+	presentImages, err := i.presentImages(ctx, img, platform)
 	if err != nil {
 		return nil, err
 	}
 
 	ociImage := presentImages[0]
-	img := dockerOciImageToDockerImagePartial(image.ID(desc.Target.Digest), ociImage)
+	imgV1 := dockerOciImageToDockerImagePartial(image.ID(img.Target.Digest), ociImage)
 
-	parent, err := i.getImageLabelByDigest(ctx, desc.Target.Digest, imageLabelClassicBuilderParent)
+	parent, err := i.getImageLabelByDigest(ctx, img.Target.Digest, imageLabelClassicBuilderParent)
 	if err != nil {
 		log.G(ctx).WithError(err).Warn("failed to determine Parent property")
 	} else {
-		img.Parent = image.ID(parent)
+		imgV1.Parent = image.ID(parent)
 	}
 
-	return img, nil
+	return imgV1, nil
 }
 
 // presentImages returns the images that are present in the content store,
 // manifests without a config are ignored.
 // The images are filtered and sorted by platform preference.
-func (i *ImageService) presentImages(ctx context.Context, desc containerdimages.Image, refOrID string, platform platforms.MatchComparer) ([]imagespec.DockerOCIImage, error) {
+func (i *ImageService) presentImages(ctx context.Context, img containerdimages.Image, platform platforms.MatchComparer) ([]imagespec.DockerOCIImage, error) {
 	var presentImages []imagespec.DockerOCIImage
-	err := i.walkImageManifests(ctx, desc, func(img *ImageManifest) error {
+	err := i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
 		conf, err := img.Config(ctx)
 		if err != nil {
 			if cerrdefs.IsNotFound(err) {
@@ -94,8 +97,7 @@ func (i *ImageService) presentImages(ctx context.Context, desc containerdimages.
 		return nil, err
 	}
 	if len(presentImages) == 0 {
-		ref, _ := reference.ParseAnyReference(refOrID)
-		return nil, images.ErrImageDoesNotExist{Ref: ref}
+		return nil, errdefs.NotFound(errors.New("no matching image found"))
 	}
 
 	sort.SliceStable(presentImages, func(i, j int) bool {

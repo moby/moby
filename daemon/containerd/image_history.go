@@ -9,7 +9,9 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	imagetype "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/daemon/images"
 	dimages "github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/pkg/errors"
@@ -27,8 +29,12 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 	// TODO: pass platform in from the CLI
 	platform := matchAllWithPreference(platforms.Default())
 
-	presentImages, err := i.presentImages(ctx, img, name, platform)
+	presentImages, err := i.presentImages(ctx, img, platform)
 	if err != nil {
+		if errdefs.IsNotFound(err) {
+			r, _ := reference.ParseAnyReference(name)
+			return nil, images.ErrImageDoesNotExist{Ref: r}
+		}
 		return nil, err
 	}
 	ociImage := presentImages[0]
