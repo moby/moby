@@ -481,7 +481,7 @@ func (ep *Endpoint) Join(ctx context.Context, sb *Sandbox, options ...EndpointOp
 	return ep.sbJoin(ctx, sb, options...)
 }
 
-func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...EndpointOption) (err error) {
+func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...EndpointOption) (retErr error) {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.sbJoin")
 	defer span.End()
 
@@ -506,7 +506,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	epid := ep.id
 	ep.mu.Unlock()
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			ep.mu.Lock()
 			ep.sandboxID = ""
 			ep.mu.Unlock()
@@ -522,12 +522,11 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		return fmt.Errorf("failed to get driver during join: %v", err)
 	}
 
-	err = d.Join(ctx, nid, epid, sb.Key(), ep, sb.Labels())
-	if err != nil {
+	if err := d.Join(ctx, nid, epid, sb.Key(), ep, sb.Labels()); err != nil {
 		return err
 	}
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			if e := d.Leave(nid, epid); e != nil {
 				log.G(ctx).Warnf("driver leave failed while rolling back join: %v", e)
 			}
@@ -543,7 +542,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	if err := sb.updateHostsFile(ctx, ep.getEtcHostsAddrs()); err != nil {
 		return err
 	}
-	if err = sb.updateDNS(n.enableIPv6); err != nil {
+	if err := sb.updateDNS(n.enableIPv6); err != nil {
 		return err
 	}
 
@@ -552,29 +551,29 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 
 	sb.addEndpoint(ep)
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			sb.removeEndpoint(ep)
 		}
 	}()
 
-	if err = sb.populateNetworkResources(ctx, ep); err != nil {
+	if err := sb.populateNetworkResources(ctx, ep); err != nil {
 		return err
 	}
 
-	if err = addEpToResolver(ctx, n.Name(), ep.Name(), &sb.config, ep.iface, n.Resolvers()); err != nil {
+	if err := addEpToResolver(ctx, n.Name(), ep.Name(), &sb.config, ep.iface, n.Resolvers()); err != nil {
 		return errdefs.System(err)
 	}
 
-	if err = n.getController().updateToStore(ctx, ep); err != nil {
+	if err := n.getController().updateToStore(ctx, ep); err != nil {
 		return err
 	}
 
-	if err = ep.addDriverInfoToCluster(); err != nil {
+	if err := ep.addDriverInfoToCluster(); err != nil {
 		return err
 	}
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			if e := ep.deleteDriverInfoFromCluster(); e != nil {
 				log.G(ctx).Errorf("Could not delete endpoint state for endpoint %s from cluster on join failure: %v", ep.Name(), e)
 			}
@@ -609,13 +608,13 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 			if err != nil {
 				return fmt.Errorf("failed to get driver for revoking external connectivity during join: %v", err)
 			}
-			if err = extD.RevokeExternalConnectivity(extEp.network.ID(), extEp.ID()); err != nil {
+			if err := extD.RevokeExternalConnectivity(extEp.network.ID(), extEp.ID()); err != nil {
 				return types.InternalErrorf(
 					"driver failed revoking external connectivity on endpoint %s (%s): %v",
 					extEp.Name(), extEp.ID(), err)
 			}
 			defer func() {
-				if err != nil {
+				if retErr != nil {
 					if e := extD.ProgramExternalConnectivity(context.WithoutCancel(ctx), extEp.network.ID(), extEp.ID(), sb.Labels()); e != nil {
 						log.G(ctx).Warnf("Failed to roll-back external connectivity on endpoint %s (%s): %v",
 							extEp.Name(), extEp.ID(), e)
@@ -625,7 +624,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		}
 		if !n.internal {
 			log.G(ctx).Debugf("Programming external connectivity on endpoint %s (%s)", ep.Name(), ep.ID())
-			if err = d.ProgramExternalConnectivity(ctx, n.ID(), ep.ID(), sb.Labels()); err != nil {
+			if err := d.ProgramExternalConnectivity(ctx, n.ID(), ep.ID(), sb.Labels()); err != nil {
 				return types.InternalErrorf(
 					"driver failed programming external connectivity on endpoint %s (%s): %v",
 					ep.Name(), ep.ID(), err)
@@ -1075,8 +1074,6 @@ func JoinOptionPriority(prio int) EndpointOption {
 }
 
 func (ep *Endpoint) assignAddress(ipam ipamapi.Ipam, assignIPv4, assignIPv6 bool) error {
-	var err error
-
 	n := ep.getNetwork()
 	if n.hasSpecialDriver() {
 		return nil
@@ -1085,16 +1082,18 @@ func (ep *Endpoint) assignAddress(ipam ipamapi.Ipam, assignIPv4, assignIPv6 bool
 	log.G(context.TODO()).Debugf("Assigning addresses for endpoint %s's interface on network %s", ep.Name(), n.Name())
 
 	if assignIPv4 {
-		if err = ep.assignAddressVersion(4, ipam); err != nil {
+		if err := ep.assignAddressVersion(4, ipam); err != nil {
 			return err
 		}
 	}
 
 	if assignIPv6 {
-		err = ep.assignAddressVersion(6, ipam)
+		if err := ep.assignAddressVersion(6, ipam); err != nil {
+			return err
+		}
 	}
 
-	return err
+	return nil
 }
 
 func (ep *Endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
