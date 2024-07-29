@@ -1006,10 +1006,7 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		ipamV4Conf.AuxAddresses["DefaultGatewayIPv4"] = cfg.DefaultGatewayIPv4.String()
 	}
 
-	var (
-		deferIPv6Alloc bool
-		ipamV6Conf     *libnetwork.IpamConf
-	)
+	var ipamV6Conf *libnetwork.IpamConf
 
 	if cfg.EnableIPv6 && cfg.FixedCIDRv6 == "" {
 		return errdefs.InvalidParameter(errors.New("IPv6 is enabled for the default bridge, but no subnet is configured. Specify an IPv6 subnet using --fixed-cidr-v6"))
@@ -1018,15 +1015,6 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		if err != nil {
 			return err
 		}
-
-		// In case user has specified the daemon flag --fixed-cidr-v6 and the passed network has
-		// at least 48 host bits, we need to guarantee the current behavior where the containers'
-		// IPv6 addresses will be constructed based on the containers' interface MAC address.
-		// We do so by telling libnetwork to defer the IPv6 address allocation for the endpoints
-		// on this network until after the driver has created the endpoint and returned the
-		// constructed address. Libnetwork will then reserve this address with the ipam driver.
-		ones, _ := fCIDRv6.Mask.Size()
-		deferIPv6Alloc = ones <= 80
 
 		ipamV6Conf = &libnetwork.IpamConf{
 			AuxAddresses:  make(map[string]string),
@@ -1062,7 +1050,7 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		libnetwork.NetworkOptionEnableIPv6(cfg.EnableIPv6),
 		libnetwork.NetworkOptionDriverOpts(netOption),
 		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
-		libnetwork.NetworkOptionDeferIPv6Alloc(deferIPv6Alloc))
+	)
 	if err != nil {
 		return fmt.Errorf(`error creating default %q network: %v`, network.NetworkBridge, err)
 	}
