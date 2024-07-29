@@ -545,10 +545,6 @@ func (daemon *Daemon) setDefaultIsolation(config *config.Config) error {
 	return nil
 }
 
-func setMayDetachMounts() error {
-	return nil
-}
-
 func (daemon *Daemon) setupSeccompProfile(*config.Config) error {
 	return nil
 }
