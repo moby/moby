@@ -30,10 +30,10 @@ import (
 // backend resolver.
 type DNSBackend interface {
 	// ResolveName resolves a service name to an IPv4 or IPv6 address by searching
-	// the networks the sandbox is connected to. For IPv6 queries, second return
-	// value will be true if the name exists in docker domain but doesn't have an
-	// IPv6 address. Such queries shouldn't be forwarded to external nameservers.
-	ResolveName(ctx context.Context, name string, iplen int) ([]net.IP, bool)
+	// the networks the sandbox is connected to. The second return value will be
+	// true if the name exists in docker domain, even if there are no addresses of
+	// the required type. Such queries shouldn't be forwarded to external nameservers.
+	ResolveName(ctx context.Context, name string, ipType int) ([]net.IP, bool)
 	// ResolveIP returns the service name for the passed in IP. IP is in reverse dotted
 	// notation; the format used for DNS PTR records
 	ResolveIP(ctx context.Context, name string) string
@@ -311,20 +311,9 @@ func (r *Resolver) handleMXQuery(ctx context.Context, query *dns.Msg) (*dns.Msg,
 }
 
 func (r *Resolver) handleIPQuery(ctx context.Context, query *dns.Msg, ipType int) (*dns.Msg, error) {
-	var (
-		addr     []net.IP
-		ipv6Miss bool
-		name     = query.Question[0].Name
-	)
-	addr, ipv6Miss = r.backend.ResolveName(ctx, name, ipType)
-
-	if addr == nil && ipv6Miss {
-		// Send a reply without any Answer sections
-		r.log(ctx).Debugf("[resolver] lookup name %s present without IPv6 address", name)
-		resp := createRespMsg(query)
-		return resp, nil
-	}
-	if addr == nil {
+	name := query.Question[0].Name
+	addr, ok := r.backend.ResolveName(ctx, name, ipType)
+	if !ok {
 		return nil, nil
 	}
 
