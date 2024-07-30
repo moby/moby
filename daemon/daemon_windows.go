@@ -386,6 +386,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 		_, err := daemon.netController.NewNetwork(strings.ToLower(v.Type), name, nid,
 			libnetwork.NetworkOptionGeneric(options.Generic{
 				netlabel.GenericData: netOption,
+				netlabel.EnableIPv4:  true,
 			}),
 			libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
 		)
@@ -430,6 +431,7 @@ func initBridgeDriver(controller *libnetwork.Controller, config config.BridgeCon
 	_, err := controller.NewNetwork(network.DefaultNetwork, network.DefaultNetwork, "",
 		libnetwork.NetworkOptionGeneric(options.Generic{
 			netlabel.GenericData: netOption,
+			netlabel.EnableIPv4:  true,
 		}),
 		ipamOption,
 	)

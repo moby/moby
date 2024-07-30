@@ -20,6 +20,7 @@ func (c *Controller) createGWNetwork() (*Network, error) {
 			bridge.EnableICC:          strconv.FormatBool(false),
 			bridge.EnableIPMasquerade: strconv.FormatBool(true),
 		}),
+		NetworkOptionEnableIPv4(true),
 		NetworkOptionEnableIPv6(false),
 	)
 	if err != nil {
