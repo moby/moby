@@ -212,6 +212,13 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		return libnetwork.NetworkNameError(create.Name)
 	}
 
+	version := httputils.VersionFromContext(ctx)
+
+	// EnableIPv4 was introduced in API 1.47.
+	if versions.LessThan(version, "1.47") {
+		create.EnableIPv4 = nil
+	}
+
 	// For a Swarm-scoped network, this call to backend.CreateNetwork is used to
 	// validate the configuration. The network will not be created but, if the
 	// configuration is valid, ManagerRedirectError will be returned and handled
