@@ -223,12 +223,18 @@ func (m *ImageManifest) ImagePlatform(ctx context.Context) (ocispec.Platform, er
 		return *target.Platform, nil
 	}
 
+	var out ocispec.Platform
+	err := m.ReadConfig(ctx, &out)
+	return out, err
+}
+
+// ReadConfig gets the image config and unmarshals it into the provided struct.
+// The provided struct should be a pointer to the config struct or its subset.
+func (m *ImageManifest) ReadConfig(ctx context.Context, outConfig interface{}) error {
 	configDesc, err := m.Config(ctx)
 	if err != nil {
-		return ocispec.Platform{}, err
+		return err
 	}
 
-	var out ocispec.Platform
-	err = readConfig(ctx, m.ContentStore(), configDesc, &out)
-	return out, err
+	return readConfig(ctx, m.ContentStore(), configDesc, outConfig)
 }

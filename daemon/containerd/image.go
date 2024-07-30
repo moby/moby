@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -69,12 +68,16 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 
 // getImageV1 gets the containerd image as a docker v1 image struct.
 func (i *ImageService) getImageV1(ctx context.Context, img containerdimages.Image, platform platforms.MatchComparer) (*image.Image, error) {
-	presentImages, err := i.presentImages(ctx, img, platform)
+	im, err := i.getBestPresentImageManifest(ctx, img, platform)
 	if err != nil {
 		return nil, err
 	}
 
-	ociImage := presentImages[0]
+	var ociImage imagespec.DockerOCIImage
+	err = im.ReadConfig(ctx, &ociImage)
+	if err != nil {
+		return nil, err
+	}
 	imgV1 := dockerOciImageToDockerImagePartial(image.ID(img.Target.Digest), ociImage)
 
 	parent, err := i.getImageLabelByDigest(ctx, img.Target.Digest, imageLabelClassicBuilderParent)
@@ -87,116 +90,56 @@ func (i *ImageService) getImageV1(ctx context.Context, img containerdimages.Imag
 	return imgV1, nil
 }
 
-// presentImages returns the images that are present in the content store,
-// manifests without a config are ignored.
-// The images are filtered and sorted by platform preference.
-func (i *ImageService) presentImages(ctx context.Context, img containerdimages.Image, platform platforms.MatchComparer) ([]imagespec.DockerOCIImage, error) {
-	var presentImages []imagespec.DockerOCIImage
-	err := i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
-		conf, err := img.Config(ctx)
-		if err != nil {
-			if cerrdefs.IsNotFound(err) {
-				log.G(ctx).WithFields(log.Fields{
-					"manifestDescriptor": img.Target(),
-				}).Debug("manifest was present, but accessing its config failed, ignoring")
-				return nil
-			}
-			return errdefs.System(fmt.Errorf("failed to get config descriptor: %w", err))
-		}
-
-		var ociimage imagespec.DockerOCIImage
-		if err := readConfig(ctx, i.content, conf, &ociimage); err != nil {
-			if errdefs.IsNotFound(err) {
-				log.G(ctx).WithFields(log.Fields{
-					"manifestDescriptor": img.Target(),
-					"configDescriptor":   conf,
-				}).Debug("manifest present, but its config is missing, ignoring")
-				return nil
-			}
-			return errdefs.System(fmt.Errorf("failed to read config of the manifest %v: %w", img.Target().Digest, err))
-		}
-
-		if platform.Match(ociimage.Platform) {
-			presentImages = append(presentImages, ociimage)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(presentImages) == 0 {
-		return nil, &errPlatformNotFound{
-			imageRef: img.Name,
-		}
-	}
-
-	sort.SliceStable(presentImages, func(i, j int) bool {
-		return platform.Less(presentImages[i].Platform, presentImages[j].Platform)
-	})
-
-	return presentImages, nil
-}
-
 func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, options backend.GetImageOpts) (*ocispec.Descriptor, error) {
-	platform := matchAllWithPreference(platforms.Default())
-	if options.Platform != nil {
-		platform = platforms.Only(*options.Platform)
-	}
-
-	cs := i.content
-
 	img, err := i.resolveImage(ctx, refOrID)
 	if err != nil {
 		return nil, err
 	}
 
-	desc := img.Target
-	if containerdimages.IsManifestType(desc.MediaType) {
-		plat := desc.Platform
-		if plat == nil {
-			config, err := img.Config(ctx, cs, platform)
-			if err != nil {
-				return nil, err
-			}
-			var configPlatform ocispec.Platform
-			if err := readConfig(ctx, cs, config, &configPlatform); err != nil {
-				return nil, err
-			}
-
-			plat = &configPlatform
-		}
-
-		if options.Platform != nil {
-			if plat == nil {
-				return nil, errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: nil", refOrID, platforms.Format(*options.Platform)))
-			} else if !platform.Match(*plat) {
-				return nil, errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, platforms.Format(*options.Platform), platforms.Format(*plat)))
-			}
-		}
-
-		return &desc, nil
+	pm := matchAllWithPreference(platforms.Default())
+	if options.Platform != nil {
+		pm = platforms.Only(*options.Platform)
 	}
 
-	if containerdimages.IsIndexType(desc.MediaType) {
-		childManifests, err := containerdimages.LimitManifests(containerdimages.ChildrenHandler(cs), platform, 1)(ctx, desc)
+	im, err := i.getBestPresentImageManifest(ctx, img, pm)
+	if err != nil {
+		return nil, err
+	}
+
+	desc := im.Target()
+	return &desc, nil
+}
+
+// getBestPresentImageManifest returns a platform-specific image manifest that best matches the provided platform matcher.
+// Only locally available platform images are considered.
+// If no image manifest matches the platform, an error is returned.
+func (i *ImageService) getBestPresentImageManifest(ctx context.Context, img containerdimages.Image, pm platforms.MatchComparer) (*ImageManifest, error) {
+	var best *ImageManifest
+	var bestPlatform ocispec.Platform
+
+	err := i.walkImageManifests(ctx, img, func(im *ImageManifest) error {
+		imPlatform, err := im.ImagePlatform(ctx)
 		if err != nil {
-			if cerrdefs.IsNotFound(err) {
-				return nil, errdefs.NotFound(err)
+			return err
+		}
+
+		if pm.Match(imPlatform) {
+			if best == nil || pm.Less(imPlatform, bestPlatform) {
+				best = im
+				bestPlatform = imPlatform
 			}
-			return nil, errdefs.System(err)
 		}
-
-		// len(childManifests) == 1 since we requested 1 and if none
-		// were found LimitManifests would have thrown an error
-		if !containerdimages.IsManifestType(childManifests[0].MediaType) {
-			return nil, errdefs.NotFound(fmt.Errorf("manifest has incorrect mediatype: %s", childManifests[0].MediaType))
-		}
-
-		return &childManifests[0], nil
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, errdefs.NotFound(errors.New("failed to find manifest"))
+	if best == nil {
+		return nil, &errPlatformNotFound{imageRef: imageFamiliarName(img)}
+	}
+
+	return best, nil
 }
 
 // resolveDescriptor searches for a descriptor based on the given

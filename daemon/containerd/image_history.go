@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	v1 "github.com/moby/docker-image-spec/specs-go/v1"
 	"time"
 
 	containerdimages "github.com/containerd/containerd/images"
@@ -27,7 +28,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 	// TODO: pass platform in from the CLI
 	platform := matchAllWithPreference(platforms.Default())
 
-	presentImages, err := i.presentImages(ctx, img, platform)
+	im, err := i.getBestPresentImageManifest(ctx, img, platform)
 	if err != nil {
 		var e *errPlatformNotFound
 		if errors.As(err, &e) {
@@ -35,7 +36,12 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 		}
 		return nil, err
 	}
-	ociImage := presentImages[0]
+
+	var ociImage v1.DockerOCIImage
+	err = im.ReadConfig(ctx, &ociImage)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		history []*imagetype.HistoryResponseItem
