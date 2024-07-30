@@ -2,7 +2,6 @@ package containerd
 
 import (
 	"context"
-	v1 "github.com/moby/docker-image-spec/specs-go/v1"
 	"time"
 
 	containerdimages "github.com/containerd/containerd/images"
@@ -13,6 +12,7 @@ import (
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -37,7 +37,11 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 		return nil, err
 	}
 
-	var ociImage v1.DockerOCIImage
+	// Subset of ocispec.Image
+	var ociImage struct {
+		RootFS  ocispec.RootFS    `json:"rootfs"`
+		History []ocispec.History `json:"history,omitempty"`
+	}
 	err = im.ReadConfig(ctx, &ociImage)
 	if err != nil {
 		return nil, err
