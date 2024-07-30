@@ -1,5 +1,0 @@
-nameserver 127.0.0.11
-
-# Based on host file: '/etc/resolv.conf' (internal resolver)
-# ExtServers: [host(127.0.0.53) host(fd3e:2d1a:1f5a::1)]
-# Overrides: []

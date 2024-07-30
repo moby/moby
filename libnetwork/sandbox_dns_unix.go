@@ -336,21 +336,6 @@ func (sb *Sandbox) rebuildDNS() error {
 		return err
 	}
 
-	// Check for IPv6 endpoints in this sandbox. If there are any, and the container has
-	// IPv6 enabled, upstream requests from the internal DNS resolver can be made from
-	// the container's namespace.
-	// TODO(robmry) - this can only check networks connected when the resolver is set up,
-	//  the configuration won't be updated if the container gets an IPv6 address later.
-	ipv6 := false
-	for _, ep := range sb.endpoints {
-		if ep.network.enableIPv6 {
-			if en, ok := sb.ipv6Enabled(); ok {
-				ipv6 = en
-			}
-			break
-		}
-	}
-
 	intNS := sb.resolver.NameServer()
 	if !intNS.IsValid() {
 		return fmt.Errorf("no listen-address for internal resolver")
@@ -360,7 +345,7 @@ func (sb *Sandbox) rebuildDNS() error {
 	_, sb.ndotsSet = rc.Option("ndots")
 	// Swap nameservers for the internal one, and make sure the required options are set.
 	var extNameServers []resolvconf.ExtDNSEntry
-	extNameServers, err = rc.TransformForIntNS(ipv6, intNS, sb.resolver.ResolverOptions())
+	extNameServers, err = rc.TransformForIntNS(intNS, sb.resolver.ResolverOptions())
 	if err != nil {
 		return err
 	}

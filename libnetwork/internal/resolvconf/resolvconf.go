@@ -245,7 +245,6 @@ func (rc *ResolvConf) TransformForLegacyNw(ipv6 bool) {
 //     option includes a ':', and an option with a matching prefix exists, it
 //     is not modified.
 func (rc *ResolvConf) TransformForIntNS(
-	ipv6 bool,
 	internalNS netip.Addr,
 	reqdOptions []string,
 ) ([]ExtDNSEntry, error) {
@@ -264,16 +263,6 @@ func (rc *ResolvConf) TransformForIntNS(
 
 	// The transformed config only lists the internal nameserver.
 	rc.nameServers = []netip.Addr{internalNS}
-
-	// If there are no external nameservers, and the only nameserver left is the
-	// internal resolver, use the defaults as ext nameservers.
-	if len(rc.md.ExtNameServers) == 0 && len(rc.nameServers) == 1 {
-		log.G(context.TODO()).Info("No non-localhost DNS nameservers are left in resolv.conf. Using default external servers")
-		for _, addr := range defaultNSAddrs(ipv6) {
-			rc.md.ExtNameServers = append(rc.md.ExtNameServers, ExtDNSEntry{Addr: addr})
-		}
-		rc.md.UsedDefaultNS = true
-	}
 
 	// For each option required by the nameserver, add it if not already present. If
 	// the option is already present, don't override it. Apart from ndots - if the
