@@ -9,13 +9,13 @@ set -e
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 tidy() (
-		set -x
-		"${SCRIPTDIR}"/with-go-mod.sh go mod tidy -modfile vendor.mod
+	set -x
+	"${SCRIPTDIR}"/with-go-mod.sh go mod tidy -modfile vendor.mod
 )
 
 vendor() (
-		set -x
-		"${SCRIPTDIR}"/with-go-mod.sh go mod vendor -modfile vendor.mod
+	set -x
+	"${SCRIPTDIR}"/with-go-mod.sh go mod vendor -modfile vendor.mod
 )
 
 help() {
@@ -29,6 +29,6 @@ help() {
 case "$1" in
 	tidy) tidy ;;
 	vendor) vendor ;;
-	""|all) tidy && vendor ;;
+	"" | all) tidy && vendor ;;
 	*) help ;;
 esac
