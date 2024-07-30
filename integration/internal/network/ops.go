@@ -11,6 +11,14 @@ func WithDriver(driver string) func(*network.CreateOptions) {
 	}
 }
 
+// WithIPv4 enables/disables IPv4 on the network
+func WithIPv4(enable bool) func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
+		enableIPv4 := enable
+		n.EnableIPv4 = &enableIPv4
+	}
+}
+
 // WithIPv6 Enables IPv6 on the network
 func WithIPv6() func(*network.CreateOptions) {
 	return func(n *network.CreateOptions) {

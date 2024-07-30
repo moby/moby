@@ -30,6 +30,9 @@ const (
 	// where the interface name is represented by the string "IFNAME".
 	EndpointSysctls = Prefix + ".endpoint.sysctls"
 
+	// EnableIPv4 constant represents enabling IPV4 at network level
+	EnableIPv4 = Prefix + ".enable_ipv4"
+
 	// EnableIPv6 constant represents enabling IPV6 at network level
 	EnableIPv6 = Prefix + ".enable_ipv6"
 
