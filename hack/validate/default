@@ -3,15 +3,22 @@
 # Run default validation, exclude vendor because it's slow
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS=(
+	# Skip DCO check here, as it's already checked in a separate stage in the Jenkinsfile
+	# dco
+	default-seccomp
+	pkg-imports
+	yamllint
+	swagger
+	swagger-gen
+	toml
+	deprecate-integration-cli
+	golangci-lint
+	shfmt
+)
 
-# Skip DCO check here, as it's already checked in a separate stage in the Jenkinsfile
-#. "${SCRIPTDIR}"/dco
-. "${SCRIPTDIR}"/default-seccomp
-. "${SCRIPTDIR}"/pkg-imports
-. "${SCRIPTDIR}"/yamllint
-. "${SCRIPTDIR}"/swagger
-. "${SCRIPTDIR}"/swagger-gen
-. "${SCRIPTDIR}"/toml
-. "${SCRIPTDIR}"/deprecate-integration-cli
-. "${SCRIPTDIR}"/golangci-lint
-. "${SCRIPTDIR}"/shfmt
+RET=0
+for SCR in "${SCRIPTS[@]}"; do
+	"$SCRIPTDIR/$SCR" || RET=$?
+done
+exit $RET
