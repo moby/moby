@@ -3,8 +3,8 @@ set -e -o pipefail
 
 shfmtflags=(-bn -ci -sr)
 # NOTE: `git grep '^#!'` may also pick up non-shell script files.
-# Add exceptional files to `egrep -v` if any false-positive is detected.
-if git grep --name-only '^#!' | egrep -v '(vendor|\.go|Jenkinsfile|\.py|\.bats)' \
+# Add exceptional files to `grep -v` if any false-positive is detected.
+if git grep --name-only '^#!' | grep -E -v '(vendor|\.go|Jenkinsfile|\.py|\.bats)' \
 	| xargs shfmt -d "${shfmtflags[@]}"; then
 	echo 'Congratulations! The shell scripts are properly formatted.'
 else
