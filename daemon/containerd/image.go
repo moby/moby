@@ -25,17 +25,46 @@ import (
 
 var errInconsistentData error = errors.New("consistency error: data changed during operation, retry")
 
+type errPlatformNotFound struct {
+	wanted   ocispec.Platform
+	imageRef string
+}
+
+func (e *errPlatformNotFound) NotFound() {}
+func (e *errPlatformNotFound) Error() string {
+	msg := "image with reference " + e.imageRef + " was found but does not match the specified platform"
+	if e.wanted.OS != "" {
+		msg += ": wanted " + platforms.Format(e.wanted)
+	}
+	return msg
+}
+
 // GetImage returns an image corresponding to the image referred to by refOrID.
 func (i *ImageService) GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*image.Image, error) {
 	img, err := i.resolveImage(ctx, refOrID)
 	if err != nil {
 		return nil, err
 	}
+
 	pm := matchAllWithPreference(platforms.Default())
 	if options.Platform != nil {
 		pm = platforms.OnlyStrict(*options.Platform)
 	}
-	return i.getImageV1(ctx, img, pm)
+
+	imgV1, err := i.getImageV1(ctx, img, pm)
+	if err != nil {
+		var e *errPlatformNotFound
+		if errors.As(err, &e) {
+			if options.Platform != nil {
+				e.wanted = *options.Platform
+			} else {
+				e.wanted = platforms.DefaultSpec()
+			}
+		}
+		return nil, err
+	}
+
+	return imgV1, nil
 }
 
 // getImageV1 gets the containerd image as a docker v1 image struct.
@@ -97,7 +126,9 @@ func (i *ImageService) presentImages(ctx context.Context, img containerdimages.I
 		return nil, err
 	}
 	if len(presentImages) == 0 {
-		return nil, errdefs.NotFound(errors.New("no matching image found"))
+		return nil, &errPlatformNotFound{
+			imageRef: img.Name,
+		}
 	}
 
 	sort.SliceStable(presentImages, func(i, j int) bool {

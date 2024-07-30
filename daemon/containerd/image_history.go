@@ -9,9 +9,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	imagetype "github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/daemon/images"
 	dimages "github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/pkg/errors"
@@ -31,9 +29,9 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 
 	presentImages, err := i.presentImages(ctx, img, platform)
 	if err != nil {
-		if errdefs.IsNotFound(err) {
-			r, _ := reference.ParseAnyReference(name)
-			return nil, images.ErrImageDoesNotExist{Ref: r}
+		var e *errPlatformNotFound
+		if errors.As(err, &e) {
+			e.wanted = platforms.DefaultSpec()
 		}
 		return nil, err
 	}
