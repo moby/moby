@@ -350,15 +350,15 @@ func TestRCTransformForIntNS(t *testing.T) {
 		{
 			name:          "IPv4 only",
 			input:         "nameserver 10.0.0.1",
-			expExtServers: []ExtDNSEntry{mke("10.0.0.1", false)},
+			expExtServers: []ExtDNSEntry{mke("10.0.0.1", true)},
 		},
 		{
 			name:  "IPv4 and IPv6, ipv6 enabled",
 			input: "nameserver 10.0.0.1\nnameserver fdb6:b8fe:b528::1",
 			ipv6:  true,
 			expExtServers: []ExtDNSEntry{
-				mke("10.0.0.1", false),
-				mke("fdb6:b8fe:b528::1", false),
+				mke("10.0.0.1", true),
+				mke("fdb6:b8fe:b528::1", true),
 			},
 		},
 		{
@@ -366,7 +366,7 @@ func TestRCTransformForIntNS(t *testing.T) {
 			input: "nameserver 10.0.0.1\nnameserver fdb6:b8fe:b528::1",
 			ipv6:  false,
 			expExtServers: []ExtDNSEntry{
-				mke("10.0.0.1", false),
+				mke("10.0.0.1", true),
 				mke("fdb6:b8fe:b528::1", true),
 			},
 		},
@@ -395,7 +395,7 @@ func TestRCTransformForIntNS(t *testing.T) {
 			name:          "IPv6 addr, IPv6 enabled",
 			input:         "nameserver fd14:6e0e:f855::1",
 			ipv6:          true,
-			expExtServers: []ExtDNSEntry{mke("fd14:6e0e:f855::1", false)},
+			expExtServers: []ExtDNSEntry{mke("fd14:6e0e:f855::1", true)},
 		},
 		{
 			name:  "IPv4 and IPv6 localhost, IPv6 disabled",
@@ -421,7 +421,7 @@ func TestRCTransformForIntNS(t *testing.T) {
 			ipv6:  true,
 			expExtServers: []ExtDNSEntry{
 				mke("127.0.0.53", true),
-				mke("fd3e:2d1a:1f5a::1", false),
+				mke("fd3e:2d1a:1f5a::1", true),
 			},
 		},
 		{

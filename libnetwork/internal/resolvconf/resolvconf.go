@@ -239,10 +239,8 @@ func (rc *ResolvConf) TransformForLegacyNw(ipv6 bool) {
 //   - Add internalNS as a nameserver.
 //   - Remove other nameservers, stashing them as ExtNameServers for the
 //     internal resolver to use.
-//   - Mark ExtNameServers that must be used in the host namespace.
+//   - Mark ExtNameServers that must be accessed from the host namespace.
 //   - If no ExtNameServer addresses are found, use the defaults.
-//   - Return an error if an "ndots" option inherited from the host's config, or
-//     supplied in an override is not valid.
 //   - Ensure there's an 'options' value for each entry in reqdOptions. If the
 //     option includes a ':', and an option with a matching prefix exists, it
 //     is not modified.
@@ -251,24 +249,21 @@ func (rc *ResolvConf) TransformForIntNS(
 	internalNS netip.Addr,
 	reqdOptions []string,
 ) ([]ExtDNSEntry, error) {
-	// The transformed config must list the internal nameserver.
-	newNSs := []netip.Addr{internalNS}
-	// Filter out other nameservers, keeping them for use as upstream nameservers by the
-	// internal nameserver.
+	// Add each of the nameservers read from the host's /etc/hosts or supplied as an
+	// override to ExtNameServers, for the internal resolver to talk to. Addresses
+	// read from host config should be accessed from the host's network namespace
+	// (HostLoopback=true). Addresses supplied as overrides are accessed from the
+	// container's namespace.
 	rc.md.ExtNameServers = nil
 	for _, addr := range rc.nameServers {
-		// Extract this NS. Mark addresses that did not come from an override, but will
-		// definitely not work in the container's namespace as 'HostLoopback'. Upstream
-		// requests for these servers will be made in the host's network namespace. (So,
-		// '--dns 127.0.0.53' means use a nameserver listening on the container's
-		// loopback interface. But, if the host's resolv.conf contains 'nameserver
-		// 127.0.0.53', the host's resolver will be used.)
 		rc.md.ExtNameServers = append(rc.md.ExtNameServers, ExtDNSEntry{
 			Addr:         addr,
-			HostLoopback: !rc.md.NSOverride && (addr.IsLoopback() || (addr.Is6() && !ipv6) || addr.Zone() != ""),
+			HostLoopback: !rc.md.NSOverride,
 		})
 	}
-	rc.nameServers = newNSs
+
+	// The transformed config only lists the internal nameserver.
+	rc.nameServers = []netip.Addr{internalNS}
 
 	// If there are no external nameservers, and the only nameserver left is the
 	// internal resolver, use the defaults as ext nameservers.
