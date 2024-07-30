@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
-shfmtflags=(-bn -ci -sr)
+shfmtflags=(-bn -ci -sr -d "$@") # Allows to specify additional flags.
 # NOTE: `git grep '^#!'` may also pick up non-shell script files.
 # Add exceptional files to `grep -v` if any false-positive is detected.
 if git grep --name-only '^#!' | grep -E -v '(vendor|\.go|Jenkinsfile|\.py|\.bats)' \
-	| xargs shfmt -d "${shfmtflags[@]}"; then
+	| xargs shfmt "${shfmtflags[@]}"; then
 	echo 'Congratulations! The shell scripts are properly formatted.'
 else
-	echo "Please reformat the shell scripts with \`shfmt -w ${shfmtflags[*]}\`."
+	echo "Please reformat the shell scripts with \`$0 -w\`."
 	exit 1
 fi
