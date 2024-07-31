@@ -624,7 +624,7 @@ func TestDisableIPv6Addrs(t *testing.T) {
 // IPv4 addresses.
 func TestDisableIPv4(t *testing.T) {
 	ctx := setupTest(t)
-	d := daemon.New(t, daemon.WithExperimental())
+	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
@@ -970,7 +970,7 @@ func TestGatewaySelection(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "proxies run in child namespace")
 
 	ctx := setupTest(t)
-	d := daemon.New(t, daemon.WithExperimental())
+	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
