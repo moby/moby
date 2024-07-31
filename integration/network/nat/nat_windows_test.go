@@ -16,9 +16,5 @@ func TestWindowsNoDisableIPv4(t *testing.T) {
 		network.WithDriver("nat"),
 		network.WithIPv4(false),
 	)
-	// This error message should change to "IPv4 cannot be disabled on Windows"
-	// when "--experimental" is no longer required to disable IPv4. But, there's
-	// no way to start a second daemon with "--experimental" in Windows CI.
-	assert.Check(t, is.ErrorContains(err,
-		"IPv4 can only be disabled if experimental features are enabled"))
+	assert.Check(t, is.ErrorContains(err, "IPv4 cannot be disabled on Windows"))
 }
