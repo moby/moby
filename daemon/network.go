@@ -316,18 +316,33 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create networktypes.Crea
 		}
 	}
 
+	enableIPv4 := create.ConfigFrom == nil
+	if create.EnableIPv4 != nil {
+		enableIPv4 = *create.EnableIPv4
+	} else if v, ok := networkOptions[netlabel.EnableIPv4]; ok {
+		var err error
+		if enableIPv4, err = strconv.ParseBool(v); err != nil {
+			return nil, errdefs.InvalidParameter(fmt.Errorf("driver-opt %q is not a valid bool", netlabel.EnableIPv4))
+		}
+	}
+	if !enableIPv4 && !daemon.config().Experimental && create.ConfigFrom == nil {
+		return nil, errdefs.InvalidParameter(
+			errors.New("IPv4 can only be disabled if experimental features are enabled"),
+		)
+	}
+
 	var enableIPv6 bool
 	if create.EnableIPv6 != nil {
 		enableIPv6 = *create.EnableIPv6
-	} else {
+	} else if v, ok := networkOptions[netlabel.EnableIPv6]; ok {
 		var err error
-		v, ok := networkOptions[netlabel.EnableIPv6]
-		if enableIPv6, err = strconv.ParseBool(v); ok && err != nil {
+		if enableIPv6, err = strconv.ParseBool(v); err != nil {
 			return nil, errdefs.InvalidParameter(fmt.Errorf("driver-opt %q is not a valid bool", netlabel.EnableIPv6))
 		}
 	}
 
 	nwOptions := []libnetwork.NetworkOption{
+		libnetwork.NetworkOptionEnableIPv4(enableIPv4),
 		libnetwork.NetworkOptionEnableIPv6(enableIPv6),
 		libnetwork.NetworkOptionDriverOpts(networkOptions),
 		libnetwork.NetworkOptionLabels(create.Labels),
@@ -620,6 +635,7 @@ func buildNetworkResource(nw *libnetwork.Network) networktypes.Inspect {
 		Created:    nw.Created(),
 		Scope:      nw.Scope(),
 		Driver:     nw.Type(),
+		EnableIPv4: nw.IPv4Enabled(),
 		EnableIPv6: nw.IPv6Enabled(),
 		IPAM:       buildIPAMResources(nw),
 		Internal:   nw.Internal(),

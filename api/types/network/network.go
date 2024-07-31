@@ -33,6 +33,7 @@ type CreateRequest struct {
 type CreateOptions struct {
 	Driver     string            // Driver is the driver-name used to create the network (e.g. `bridge`, `overlay`)
 	Scope      string            // Scope describes the level at which the network exists (e.g. `swarm` for cluster-wide or `local` for machine level).
+	EnableIPv4 *bool             `json:",omitempty"` // EnableIPv4 represents whether to enable IPv4.
 	EnableIPv6 *bool             `json:",omitempty"` // EnableIPv6 represents whether to enable IPv6.
 	IPAM       *IPAM             // IPAM is the network's IP Address Management.
 	Internal   bool              // Internal represents if the network is used internal only.
@@ -76,7 +77,8 @@ type Inspect struct {
 	Created    time.Time                   // Created is the time the network created
 	Scope      string                      // Scope describes the level at which the network exists (e.g. `swarm` for cluster-wide or `local` for machine level)
 	Driver     string                      // Driver is the Driver name used to create the network (e.g. `bridge`, `overlay`)
-	EnableIPv6 bool                        // EnableIPv6 represents whether to enable IPv6
+	EnableIPv4 bool                        // EnableIPv4 represents whether IPv4 is enabled
+	EnableIPv6 bool                        // EnableIPv6 represents whether IPv6 is enabled
 	IPAM       IPAM                        // IPAM is the network's IP Address Management
 	Internal   bool                        // Internal represents if the network is used internal only
 	Attachable bool                        // Attachable represents if the global scope is manually attachable by regular containers from workers in swarm mode.
