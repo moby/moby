@@ -1100,3 +1100,85 @@ func checkProxies(ctx context.Context, t *testing.T, c *client.Client, daemonPid
 
 	assert.DeepEqual(t, gotProxies, wantProxies)
 }
+
+// Check that a gratuitous ARP / neighbour advertisement is sent for a new
+// container's addresses.
+// - start ctr1, ctr2
+// - ping ctr2 from ctr1, ctr1's arp/neighbour caches learns ctr2's addresses.
+// - restart ctr2 with the same IP addresses, it should get new random MAC addresses.
+// - check that ctr1's arp/neighbour caches are updated.
+func TestGratuitousARP(t *testing.T) {
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const netName = "dsnet"
+	network.CreateNoError(ctx, t, c, netName,
+		network.WithIPv6(),
+		network.WithIPAM("172.22.22.0/24", "172.22.22.1"),
+		network.WithIPAM("fd3c:e70a:962c::/64", "fd3c:e70a:962c::1"),
+	)
+	defer network.RemoveNoError(ctx, t, c, netName)
+	const ctr2Addr4 = "172.22.22.22"
+	const ctr2Addr6 = "fd3c:e70a:962c::2222"
+
+	ctr1Id := container.Run(ctx, t, c, container.WithName("ctr1"), container.WithNetworkMode(netName))
+	defer c.ContainerRemove(ctx, ctr1Id, containertypes.RemoveOptions{Force: true})
+	const ctr2Name = "ctr2"
+	ctr2Id := container.Run(ctx, t, c,
+		container.WithName(ctr2Name),
+		container.WithNetworkMode(netName),
+		container.WithIPv4(netName, ctr2Addr4),
+		container.WithIPv6(netName, ctr2Addr6),
+	)
+	// Defer a closure so the updated ctr2Id is used after the container's restarted.
+	defer func() { c.ContainerRemove(ctx, ctr2Id, containertypes.RemoveOptions{Force: true}) }()
+
+	// Ping from ctr1 to ctr2 using both IPv4 and IPv6, to populate ctr1's arp/neighbour caches.
+	pingRes := container.ExecT(ctx, t, c, ctr1Id, []string{"ping", "-4", "-c1", ctr2Name})
+	assert.Assert(t, is.Equal(pingRes.ExitCode, 0))
+	pingRes = container.ExecT(ctx, t, c, ctr1Id, []string{"ping", "-6", "-c1", ctr2Name})
+	assert.Assert(t, is.Equal(pingRes.ExitCode, 0))
+
+	// Search the output from "ip neigh show" for entries for ip, return
+	// the associated MAC address.
+	getMAC := func(neighOut, ip string) string {
+		for _, line := range strings.Split(neighOut, "\n") {
+			// Lines look like ...
+			// 172.22.22.22 dev eth0 lladdr 36:bc:ce:67:f3:e4 ref 1 used 0/7/0 probes 1 DELAY
+			fields := strings.Fields(line)
+			if len(fields) >= 5 && fields[0] == ip {
+				return fields[4]
+			}
+		}
+		t.Fatalf("No entry for %s in %s", ip, neighOut)
+		return ""
+	}
+
+	// ctr2 should now have arp/neighbour entries for ctr1
+	neighRes := container.ExecT(ctx, t, c, ctr1Id, []string{"ip", "neigh", "show"})
+	assert.Assert(t, is.Equal(neighRes.ExitCode, 0))
+	macBefore := getMAC(neighRes.Stdout(), ctr2Addr4)
+	assert.Equal(t, macBefore, getMAC(neighRes.Stdout(), ctr2Addr6))
+
+	// Stop ctr2, start a new container with the same addresses.
+	c.ContainerRemove(ctx, ctr2Id, containertypes.RemoveOptions{Force: true})
+	ctr2Id = container.Run(ctx, t, c,
+		container.WithName(ctr2Name),
+		container.WithNetworkMode(netName),
+		container.WithIPv4(netName, ctr2Addr4),
+		container.WithIPv6(netName, ctr2Addr6),
+	)
+	// The original defer will stop ctr2Id.
+
+	// The new ctr2's interface should have a new random MAC address, and ctr1's
+	// arp/neigh caches should have been updated by ctr2's gratuitous ARP/NA.
+	neighRes = container.ExecT(ctx, t, c, ctr1Id, []string{"ip", "neigh", "show"})
+	assert.Assert(t, is.Equal(neighRes.ExitCode, 0))
+	macAfter := getMAC(neighRes.Stdout(), ctr2Addr4)
+	assert.Equal(t, macAfter, getMAC(neighRes.Stdout(), ctr2Addr6))
+	assert.Check(t, macBefore != macAfter, "Expected ctr1's ARP/ND cache to have updated")
+}
