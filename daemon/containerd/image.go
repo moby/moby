@@ -96,13 +96,25 @@ func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, opt
 		return nil, err
 	}
 
-	pm := matchAllWithPreference(platforms.Default())
-	if options.Platform != nil {
-		pm = platforms.Only(*options.Platform)
+	platform := options.Platform
+	var pm platforms.MatchComparer
+	if platform != nil {
+		pm = platforms.Only(*platform)
+	} else {
+		pm = matchAllWithPreference(platforms.Default())
 	}
 
 	im, err := i.getBestPresentImageManifest(ctx, img, pm)
 	if err != nil {
+		var e *errPlatformNotFound
+		if errors.As(err, &e) {
+			if platform != nil {
+				e.wanted = *platform
+			} else {
+				e.wanted = platforms.DefaultSpec()
+			}
+			return nil, e
+		}
 		return nil, err
 	}
 
