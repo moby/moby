@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
-	iradix "github.com/hashicorp/go-immutable-radix"
+	iradix "github.com/hashicorp/go-immutable-radix/v2"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/serf"
 )
@@ -44,7 +44,7 @@ type NetworkDB struct {
 
 	// All the tree index (byTable, byNetwork) that we maintain
 	// the db.
-	indexes map[int]*iradix.Tree
+	indexes map[int]*iradix.Tree[*entry]
 
 	// Memberlist we use to drive the cluster.
 	memberlist *memberlist.Memberlist
@@ -256,7 +256,7 @@ func New(c *Config) (*NetworkDB, error) {
 
 	nDB := &NetworkDB{
 		config:         c,
-		indexes:        make(map[int]*iradix.Tree),
+		indexes:        make(map[int]*iradix.Tree[*entry]),
 		networks:       make(map[string]map[string]*network),
 		nodes:          make(map[string]*node),
 		failedNodes:    make(map[string]*node),
@@ -266,8 +266,8 @@ func New(c *Config) (*NetworkDB, error) {
 		broadcaster:    events.NewBroadcaster(),
 	}
 
-	nDB.indexes[byTable] = iradix.New()
-	nDB.indexes[byNetwork] = iradix.New()
+	nDB.indexes[byTable] = iradix.New[*entry]()
+	nDB.indexes[byNetwork] = iradix.New[*entry]()
 
 	log.G(context.TODO()).Infof("New memberlist node - Node:%v will use memberlist nodeID:%v with config:%+v", c.Hostname, c.NodeID, c)
 	if err := nDB.clusterInit(); err != nil {
@@ -337,15 +337,19 @@ func (nDB *NetworkDB) Peers(nid string) []PeerInfo {
 func (nDB *NetworkDB) GetEntry(tname, nid, key string) ([]byte, error) {
 	nDB.RLock()
 	defer nDB.RUnlock()
-	entry, err := nDB.getEntry(tname, nid, key)
+	v, err := nDB.getEntry(tname, nid, key)
 	if err != nil {
 		return nil, err
 	}
-	if entry != nil && entry.deleting {
+	if v != nil && v.deleting {
 		return nil, types.NotFoundErrorf("entry in table %s network id %s and key %s deleted and pending garbage collection", tname, nid, key)
 	}
 
-	return entry.value, nil
+	// note: this panics if a nil entry was stored in the table; after
+	// discussion, we decided to not gracefully handle this situation as
+	// this would be an unexpected situation;
+	// see https://github.com/moby/moby/pull/48157#discussion_r1674428635
+	return v.value, nil
 }
 
 func (nDB *NetworkDB) getEntry(tname, nid, key string) (*entry, error) {
@@ -354,7 +358,7 @@ func (nDB *NetworkDB) getEntry(tname, nid, key string) (*entry, error) {
 		return nil, types.NotFoundErrorf("could not get entry in table %s with network id %s and key %s", tname, nid, key)
 	}
 
-	return e.(*entry), nil
+	return e, nil
 }
 
 // CreateEntry creates a table entry in NetworkDB for given (network,
@@ -423,14 +427,13 @@ type TableElem struct {
 // returns a map of keys and values
 func (nDB *NetworkDB) GetTableByNetwork(tname, nid string) map[string]*TableElem {
 	entries := make(map[string]*TableElem)
-	nDB.indexes[byTable].Root().WalkPrefix([]byte(fmt.Sprintf("/%s/%s", tname, nid)), func(k []byte, v interface{}) bool {
-		entry := v.(*entry)
-		if entry.deleting {
+	nDB.indexes[byTable].Root().WalkPrefix([]byte(fmt.Sprintf("/%s/%s", tname, nid)), func(k []byte, v *entry) bool {
+		if v.deleting {
 			return false
 		}
 		key := string(k)
 		key = key[strings.LastIndex(key, "/")+1:]
-		entries[key] = &TableElem{Value: entry.value, owner: entry.node}
+		entries[key] = &TableElem{Value: v.value, owner: v.node}
 		return false
 	})
 	return entries
@@ -502,8 +505,8 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 	isNodeLocal := node == nDB.config.NodeID
 
 	nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid),
-		func(path []byte, v interface{}) bool {
-			oldEntry := v.(*entry)
+		func(path []byte, v *entry) bool {
+			oldEntry := v
 			params := strings.Split(string(path[1:]), "/")
 			nid := params[0]
 			tname := params[1]
@@ -521,7 +524,7 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 				return false
 			}
 
-			entry := &entry{
+			newEntry := &entry{
 				ltime:    oldEntry.ltime,
 				node:     oldEntry.node,
 				value:    oldEntry.value,
@@ -536,11 +539,11 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 				if isNodeLocal {
 					// TODO fcrisciani: this can be removed if there is no way to leave the network
 					// without doing a delete of all the objects
-					entry.ltime++
+					newEntry.ltime++
 				}
 
 				if !oldEntry.deleting {
-					nDB.createOrUpdateEntry(nid, tname, key, entry)
+					nDB.createOrUpdateEntry(nid, tname, key, newEntry)
 				}
 			} else {
 				// the local node is leaving the network, all the entries of remote nodes can be safely removed
@@ -549,15 +552,15 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 
 			// Notify to the upper layer only entries not already marked for deletion
 			if !oldEntry.deleting {
-				nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, entry.value))
+				nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, newEntry.value))
 			}
 			return false
 		})
 }
 
 func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
-	nDB.indexes[byTable].Root().Walk(func(path []byte, v interface{}) bool {
-		oldEntry := v.(*entry)
+	nDB.indexes[byTable].Root().Walk(func(path []byte, v *entry) bool {
+		oldEntry := v
 		if oldEntry.node != node {
 			return false
 		}
@@ -581,8 +584,8 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 // value. The walk stops if the passed function returns a true.
 func (nDB *NetworkDB) WalkTable(tname string, fn func(string, string, []byte, bool) bool) error {
 	nDB.RLock()
-	values := make(map[string]interface{})
-	nDB.indexes[byTable].Root().WalkPrefix([]byte("/"+tname), func(path []byte, v interface{}) bool {
+	values := make(map[string]*entry)
+	nDB.indexes[byTable].Root().WalkPrefix([]byte("/"+tname), func(path []byte, v *entry) bool {
 		values[string(path)] = v
 		return false
 	})
@@ -592,7 +595,7 @@ func (nDB *NetworkDB) WalkTable(tname string, fn func(string, string, []byte, bo
 		params := strings.Split(k[1:], "/")
 		nid := params[1]
 		key := params[2]
-		if fn(nid, key, v.(*entry).value, v.(*entry).deleting) {
+		if fn(nid, key, v.value, v.deleting) {
 			return nil
 		}
 	}
@@ -754,9 +757,9 @@ func (nDB *NetworkDB) updateLocalNetworkTime() {
 
 // createOrUpdateEntry this function handles the creation or update of entries into the local
 // tree store. It is also used to keep in sync the entries number of the network (all tables are aggregated)
-func (nDB *NetworkDB) createOrUpdateEntry(nid, tname, key string, entry interface{}) (okTable bool, okNetwork bool) {
-	nDB.indexes[byTable], _, okTable = nDB.indexes[byTable].Insert([]byte(fmt.Sprintf("/%s/%s/%s", tname, nid, key)), entry)
-	nDB.indexes[byNetwork], _, okNetwork = nDB.indexes[byNetwork].Insert([]byte(fmt.Sprintf("/%s/%s/%s", nid, tname, key)), entry)
+func (nDB *NetworkDB) createOrUpdateEntry(nid, tname, key string, v *entry) (okTable bool, okNetwork bool) {
+	nDB.indexes[byTable], _, okTable = nDB.indexes[byTable].Insert([]byte(fmt.Sprintf("/%s/%s/%s", tname, nid, key)), v)
+	nDB.indexes[byNetwork], _, okNetwork = nDB.indexes[byNetwork].Insert([]byte(fmt.Sprintf("/%s/%s/%s", nid, tname, key)), v)
 	if !okNetwork {
 		// Add only if it is an insert not an update
 		n, ok := nDB.networks[nDB.config.NodeID][nid]
