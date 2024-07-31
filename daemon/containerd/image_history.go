@@ -26,9 +26,9 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 	}
 
 	// TODO: pass platform in from the CLI
-	platform := matchAllWithPreference(platforms.Default())
+	pm := matchAllWithPreference(platforms.Default())
 
-	im, err := i.getBestPresentImageManifest(ctx, img, platform)
+	im, err := i.getBestPresentImageManifest(ctx, img, pm)
 	if err != nil {
 		var e *errPlatformNotFound
 		if errors.As(err, &e) {

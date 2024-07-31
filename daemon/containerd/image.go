@@ -45,10 +45,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 		return nil, err
 	}
 
-	pm := matchAllWithPreference(platforms.Default())
-	if options.Platform != nil {
-		pm = platforms.OnlyStrict(*options.Platform)
-	}
+	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, options.Platform)
 
 	imgV1, err := i.getImageV1(ctx, img, pm)
 	if err != nil {
@@ -96,20 +93,14 @@ func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, opt
 		return nil, err
 	}
 
-	platform := options.Platform
-	var pm platforms.MatchComparer
-	if platform != nil {
-		pm = platforms.Only(*platform)
-	} else {
-		pm = matchAllWithPreference(platforms.Default())
-	}
+	pm := i.matchRequestedOrDefault(platforms.Only, options.Platform)
 
 	im, err := i.getBestPresentImageManifest(ctx, img, pm)
 	if err != nil {
 		var e *errPlatformNotFound
 		if errors.As(err, &e) {
-			if platform != nil {
-				e.wanted = *platform
+			if options.Platform != nil {
+				e.wanted = *options.Platform
 			} else {
 				e.wanted = platforms.DefaultSpec()
 			}
