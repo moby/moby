@@ -11285,9 +11285,7 @@ paths:
                 description: "Optional custom IP scheme for the network."
                 $ref: "#/definitions/IPAM"
               EnableIPv4:
-                description: |
-                  Enable IPv4 on the network.
-                  To disable IPv4, the daemon must be started with experimental features enabled.
+                description: "Enable IPv4 on the network."
                 type: "boolean"
                 example: true
               EnableIPv6:

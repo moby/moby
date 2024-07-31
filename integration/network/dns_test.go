@@ -104,7 +104,6 @@ func TestExtDNSInIPv6OnlyNw(t *testing.T) {
 	// Set up a temp resolv.conf pointing at that DNS server, and a daemon using it.
 	d := daemon.New(t,
 		daemon.WithResolvConf(network.GenResolvConf("127.0.0.1")),
-		daemon.WithExperimental(),
 	)
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)

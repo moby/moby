@@ -90,9 +90,6 @@ func TestDockerNetworkMacvlan(t *testing.T) {
 		}, {
 			name: "Addressing",
 			test: testMacvlanAddressing,
-		}, {
-			name: "MacvlanExperimentalV4Only",
-			test: testMacvlanExperimentalV4Only,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -440,18 +437,6 @@ func testMacvlanAddressing(t *testing.T, ctx context.Context, client client.APIC
 	assert.Check(t, is.Contains(result.Combined(), "default via 2001:db8:abca::254 dev eth0"))
 }
 
-// Check that '--ipv4=false' is only allowed with '--experimental'.
-// (Remember to remove `--experimental' from TestMacvlanIPAM when it's
-// no longer needed, and maybe use a single daemon for all of its tests.)
-func testMacvlanExperimentalV4Only(t *testing.T, ctx context.Context, client client.APIClient) {
-	_, err := net.Create(ctx, client, "testnet",
-		net.WithMacvlan(""),
-		net.WithIPv4(false),
-	)
-	defer client.NetworkRemove(ctx, "testnet")
-	assert.ErrorContains(t, err, "IPv4 can only be disabled if experimental features are enabled")
-}
-
 // Check that a macvlan interface with '--ipv6=false' doesn't get kernel-assigned
 // IPv6 addresses, but the loopback interface does still have an IPv6 address ('::1').
 // Also check that with '--ipv4=false', there's no IPAM-assigned IPv4 address.
@@ -460,6 +445,9 @@ func TestMacvlanIPAM(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
 	ctx := testutil.StartSpan(baseContext, t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
 
 	testcases := []struct {
 		name       string
@@ -495,14 +483,6 @@ func TestMacvlanIPAM(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
-
-			var daemonOpts []daemon.Option
-			if !tc.enableIPv4 {
-				daemonOpts = append(daemonOpts, daemon.WithExperimental())
-			}
-			d := daemon.New(t, daemonOpts...)
-			d.StartWithBusybox(ctx, t)
-			t.Cleanup(func() { d.Stop(t) })
 			c := d.NewClientT(t, client.WithVersion(tc.apiVersion))
 
 			netOpts := []func(*network.CreateOptions){

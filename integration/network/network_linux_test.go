@@ -438,8 +438,7 @@ func TestMixL3IPVlanAndBridge(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 
-			// experimental is needed for a WithIPv4(false) network.
-			d := daemon.New(t, daemon.WithExperimental())
+			d := daemon.New(t)
 			var daemonArgs []string
 			if tc.liveRestore {
 				daemonArgs = append(daemonArgs, "--live-restore")
