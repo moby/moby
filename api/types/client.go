@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/api/types/registry"
 )
 
-// NewHijackedResponse intializes a HijackedResponse type
+// NewHijackedResponse initializes a [HijackedResponse] type.
 func NewHijackedResponse(conn net.Conn, mediaType string) HijackedResponse {
 	return HijackedResponse{Conn: conn, Reader: bufio.NewReader(conn), mediaType: mediaType}
 }
