@@ -62,21 +62,34 @@ func (n *Network) startResolver() {
 		}
 
 		for _, subnet := range hnsresponse.Subnets {
-			if subnet.GatewayAddress != "" {
-				for i := 0; i < 3; i++ {
-					resolver := NewResolver(subnet.GatewayAddress, true, n)
-					log.G(context.TODO()).Debugf("Binding a resolver on network %s gateway %s", n.Name(), subnet.GatewayAddress)
-					n.dnsCompartment = hnsresponse.DNSServerCompartment
-					n.ExecFunc(resolver.SetupFunc(53))
+			if subnet.GatewayAddress == "" {
+				continue
+			}
 
-					if err = resolver.Start(); err != nil {
-						log.G(context.TODO()).Errorf("Resolver Setup/Start failed for container %s, %q", n.Name(), err)
-						time.Sleep(1 * time.Second)
-					} else {
-						log.G(context.TODO()).Debugf("Resolver bound successfully for network %s", n.Name())
-						n.resolver = append(n.resolver, resolver)
-						break
-					}
+			gwAddr, err := netip.ParseAddr(subnet.GatewayAddress)
+			if err != nil {
+				log.G(context.TODO()).Warnf("HNS returned an invalid gateway address while starting the DNS resolver: %v", err)
+				continue
+			}
+
+			// HNS always appends a zone ID to GatewayAddress, even for non-LL
+			// addresses. We need to delete it otherwise the resolver won't
+			// start.
+			gwAddr = gwAddr.WithZone("")
+
+			for i := 0; i < 3; i++ {
+				resolver := NewResolver(gwAddr.String(), true, n)
+				log.G(context.TODO()).Debugf("Binding a resolver on network %s gateway %s", n.Name(), gwAddr)
+				n.dnsCompartment = hnsresponse.DNSServerCompartment
+				n.ExecFunc(resolver.SetupFunc(53))
+
+				if err = resolver.Start(); err != nil {
+					log.G(context.TODO()).Errorf("Resolver Setup/Start failed for container %s, %q", n.Name(), err)
+					time.Sleep(1 * time.Second)
+				} else {
+					log.G(context.TODO()).Debugf("Resolver bound successfully for network %s", n.Name())
+					n.resolver = append(n.resolver, resolver)
+					break
 				}
 			}
 		}
