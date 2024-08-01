@@ -17,8 +17,6 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.47](https://docs.docker.com/engine/api/v1.47/) documentation
 
-* `Sysctls` in `HostConfig` (top level `--sysctl` settings) for `eth0` are no
-  longer migrated to `DriverOpts`, as described in the changes for v1.46.
 * `POST /networks/create` now has an `EnableIPv4` field. Setting it to `false`
   disables IPv4 IPAM for the network. It can only be set to `false` if the
   daemon has experimental features enabled.
