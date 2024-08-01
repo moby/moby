@@ -21,7 +21,10 @@ const (
 // DefaultIPAM defines the default ipam-driver for local-scoped windows networks
 const DefaultIPAM = "windows"
 
-var defaultPool = netip.MustParsePrefix("0.0.0.0/0")
+var (
+	defaultPoolV4 = netip.MustParsePrefix("0.0.0.0/0")
+	defaultPoolV6 = netip.MustParsePrefix("::/0")
+)
 
 type allocator struct{}
 
@@ -38,11 +41,15 @@ func (a *allocator) GetDefaultAddressSpaces() (string, string, error) {
 // subnet user asked and does not validate anything. Doesn't support subpool allocation
 func (a *allocator) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool, error) {
 	log.G(context.TODO()).Debugf("RequestPool: %+v", req)
-	if req.SubPool != "" || req.V6 {
+	if req.SubPool != "" {
 		return ipamapi.AllocatedPool{}, types.InternalErrorf("this request is not supported by the 'windows' ipam driver")
 	}
 
-	pool := defaultPool
+	pool := defaultPoolV4
+	if req.V6 {
+		pool = defaultPoolV6
+	}
+
 	if req.Pool != "" {
 		var err error
 		if pool, err = netip.ParsePrefix(req.Pool); err != nil {

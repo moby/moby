@@ -71,8 +71,15 @@ func TestRequestPool(t *testing.T) {
 		{
 			req: ipamapi.PoolRequest{AddressSpace: localAddressSpace},
 			expAlloc: ipamapi.AllocatedPool{
-				PoolID: defaultPool.String(),
-				Pool:   defaultPool,
+				PoolID: defaultPoolV4.String(),
+				Pool:   defaultPoolV4,
+			},
+		},
+		{
+			req: ipamapi.PoolRequest{AddressSpace: localAddressSpace, V6: true},
+			expAlloc: ipamapi.AllocatedPool{
+				PoolID: defaultPoolV6.String(),
+				Pool:   defaultPoolV6,
 			},
 		},
 		{
@@ -83,11 +90,18 @@ func TestRequestPool(t *testing.T) {
 			},
 		},
 		{
+			req: ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "fdf7:50::/64", V6: true},
+			expAlloc: ipamapi.AllocatedPool{
+				PoolID: "fdf7:50::/64",
+				Pool:   netip.MustParsePrefix("fdf7:50::/64"),
+			},
+		},
+		{
 			req:    ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "192.168.0.0/16", SubPool: "192.168.0.0/16"},
 			expErr: errors.New("this request is not supported by the 'windows' ipam driver"),
 		},
 		{
-			req:    ipamapi.PoolRequest{AddressSpace: localAddressSpace, V6: true},
+			req:    ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "fdf7:50::/64", SubPool: "fdf7:50::/64", V6: true},
 			expErr: errors.New("this request is not supported by the 'windows' ipam driver"),
 		},
 	}
