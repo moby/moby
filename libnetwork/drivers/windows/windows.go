@@ -285,6 +285,12 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		return fmt.Errorf("Unknown generic data option")
 	}
 
+	if v, ok := option[netlabel.EnableIPv4]; ok {
+		if enable_IPv4, ok := v.(bool); ok && !enable_IPv4 {
+			return types.InvalidParameterErrorf("IPv4 cannot be disabled on Windows")
+		}
+	}
+
 	// Parse and validate the config. It should not conflict with existing networks' config
 	config, err := d.parseNetworkOptions(id, genData)
 	if err != nil {
