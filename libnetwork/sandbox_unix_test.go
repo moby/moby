@@ -117,9 +117,18 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
 	opts := [][]NetworkOption{
-		{NetworkOptionEnableIPv6(true), NetworkOptionIpam(defaultipam.DriverName, "", nil, []*IpamConf{{PreferredPool: "fe90::/64"}}, nil)},
-		{NetworkOptionInternalNetwork()},
-		{},
+		{
+			NetworkOptionEnableIPv4(true),
+			NetworkOptionEnableIPv6(true),
+			NetworkOptionIpam(defaultipam.DriverName, "", nil, []*IpamConf{{PreferredPool: "fe90::/64"}}, nil),
+		},
+		{
+			NetworkOptionEnableIPv4(true),
+			NetworkOptionInternalNetwork(),
+		},
+		{
+			NetworkOptionEnableIPv4(true),
+		},
 	}
 
 	ctrlr, nws := getTestEnv(t, opts...)
@@ -201,10 +210,21 @@ func TestSandboxAddSamePrio(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
 	opts := [][]NetworkOption{
-		{},
-		{},
-		{NetworkOptionEnableIPv6(true), NetworkOptionIpam(defaultipam.DriverName, "", nil, []*IpamConf{{PreferredPool: "fe90::/64"}}, nil)},
-		{NetworkOptionInternalNetwork()},
+		{
+			NetworkOptionEnableIPv4(true),
+		},
+		{
+			NetworkOptionEnableIPv4(true),
+		},
+		{
+			NetworkOptionEnableIPv4(true),
+			NetworkOptionEnableIPv6(true),
+			NetworkOptionIpam(defaultipam.DriverName, "", nil, []*IpamConf{{PreferredPool: "fe90::/64"}}, nil),
+		},
+		{
+			NetworkOptionEnableIPv4(true),
+			NetworkOptionInternalNetwork(),
+		},
 	}
 
 	ctrlr, nws := getTestEnv(t, opts...)

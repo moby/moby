@@ -25,10 +25,13 @@ ff02::2	ip6-allrouters
 fe90::2	somehost.example.com somehost
 `
 
-	opts := []NetworkOption{NetworkOptionEnableIPv6(true), NetworkOptionIpam(defaultipam.DriverName, "",
-		[]*IpamConf{{PreferredPool: "192.168.222.0/24", Gateway: "192.168.222.1"}},
-		[]*IpamConf{{PreferredPool: "fe90::/64", Gateway: "fe90::1"}},
-		nil)}
+	opts := []NetworkOption{
+		NetworkOptionEnableIPv4(true),
+		NetworkOptionEnableIPv6(true),
+		NetworkOptionIpam(defaultipam.DriverName, "",
+			[]*IpamConf{{PreferredPool: "192.168.222.0/24", Gateway: "192.168.222.1"}},
+			[]*IpamConf{{PreferredPool: "fe90::/64", Gateway: "fe90::1"}}, nil),
+	}
 
 	ctrlr, nws := getTestEnv(t, opts)
 
