@@ -39,6 +39,9 @@
         "appengine": {
             "component": "appengine"
         },
+        "apps": {
+            "component": "apps"
+        },
         "area120": {
             "component": "area120"
         },
@@ -80,6 +83,12 @@
         },
         "clouddms": {
             "component": "clouddms"
+        },
+        "cloudprofiler": {
+            "component": "cloudprofiler"
+        },
+        "cloudquotas": {
+            "component": "cloudquotas"
         },
         "cloudtasks": {
             "component": "cloudtasks"
@@ -155,6 +164,9 @@
         },
         "edgecontainer": {
             "component": "edgecontainer"
+        },
+        "edgenetwork": {
+            "component": "edgenetwork"
         },
         "essentialcontacts": {
             "component": "essentialcontacts"
@@ -315,6 +327,9 @@
         "securitycenter": {
             "component": "securitycenter"
         },
+        "securitycentermanagement": {
+            "component": "securitycentermanagement"
+        },
         "servicecontrol": {
             "component": "servicecontrol"
         },
@@ -347,6 +362,9 @@
         },
         "talent": {
             "component": "talent"
+        },
+        "telcoautomation": {
+            "component": "telcoautomation"
         },
         "texttospeech": {
             "component": "texttospeech"
