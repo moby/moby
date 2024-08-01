@@ -1524,16 +1524,18 @@ func (n *Network) ipamAllocate() error {
 		}
 	}
 
-	err = n.ipamAllocateVersion(4, ipam)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
+	if n.enableIPv4 {
+		err = n.ipamAllocateVersion(4, ipam)
 		if err != nil {
-			n.ipamReleaseVersion(4, ipam)
+			return err
 		}
-	}()
+
+		defer func() {
+			if err != nil {
+				n.ipamReleaseVersion(4, ipam)
+			}
+		}()
+	}
 
 	if !n.enableIPv6 {
 		return nil
