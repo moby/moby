@@ -86,7 +86,7 @@ type hnsEndpoint struct {
 	epConnectivity *EndpointConnectivity // User specified parameters
 	portMapping    []types.PortBinding   // Operation port bindings
 	addr           *net.IPNet
-	gateway        net.IP
+	gatewayV4      net.IP
 	dbIndex        uint64
 	dbExists       bool
 }
@@ -240,10 +240,6 @@ func (d *driver) parseNetworkOptions(id string, genericOptions map[string]string
 }
 
 func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []driverapi.IPAMData) error {
-	if len(ipamV6Data) > 0 {
-		return types.ForbiddenErrorf("windowsshim driver doesn't support v6 subnets")
-	}
-
 	if len(ipamV4Data) == 0 {
 		return types.InvalidParameterErrorf("network %s requires ipv4 configuration", id)
 	}
@@ -737,7 +733,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	}
 
 	if hnsresponse.GatewayAddress != "" {
-		endpoint.gateway = net.ParseIP(hnsresponse.GatewayAddress)
+		endpoint.gatewayV4 = net.ParseIP(hnsresponse.GatewayAddress)
 	}
 
 	endpoint.profileID = hnsresponse.Id
@@ -858,7 +854,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		return err
 	}
 
-	err = jinfo.SetGateway(endpoint.gateway)
+	err = jinfo.SetGateway(endpoint.gatewayV4)
 	if err != nil {
 		return err
 	}
