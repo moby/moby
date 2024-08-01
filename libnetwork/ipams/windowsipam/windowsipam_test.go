@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -25,27 +24,19 @@ func TestWindowsIPAM(t *testing.T) {
 		Pool:         "192.168.0.0/16",
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(alloc.PoolID, "192.168.0.0/16"))
-	assert.Check(t, is.Equal(alloc.Pool.String(), "192.168.0.0/16"))
 
-	requestPool, _ := types.ParseCIDR("192.168.0.0/16")
 	requestAddress := net.ParseIP("192.168.1.1")
 
-	err = a.ReleasePool(requestPool.String())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ip, _, err := a.RequestAddress(requestPool.String(), nil, map[string]string{})
+	ip, _, err := a.RequestAddress(alloc.PoolID, nil, map[string]string{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if ip != nil {
-		t.Fatalf("Unexpected data returned. Expected %v . Got: %v ", requestPool, ip)
+		t.Fatalf("Unexpected data returned. Expected %v . Got: %v ", alloc.PoolID, ip)
 	}
 
-	ip, _, err = a.RequestAddress(requestPool.String(), requestAddress, map[string]string{})
+	ip, _, err = a.RequestAddress(alloc.PoolID, requestAddress, map[string]string{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +47,7 @@ func TestWindowsIPAM(t *testing.T) {
 
 	requestOptions := map[string]string{}
 	requestOptions[ipamapi.RequestAddressType] = netlabel.Gateway
-	ip, _, err = a.RequestAddress(requestPool.String(), requestAddress, requestOptions)
+	ip, _, err = a.RequestAddress(alloc.PoolID, requestAddress, requestOptions)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +56,7 @@ func TestWindowsIPAM(t *testing.T) {
 		t.Fatalf("Unexpected data returned. Expected %v . Got: %v ", requestAddress, ip.IP)
 	}
 
-	err = a.ReleaseAddress(requestPool.String(), requestAddress)
+	err = a.ReleaseAddress(alloc.PoolID, requestAddress)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,4 +108,19 @@ func TestRequestPool(t *testing.T) {
 			assert.Equal(t, alloc.PoolID, tc.expAlloc.PoolID)
 		})
 	}
+}
+
+func TestReleasePool(t *testing.T) {
+	a := &allocator{}
+
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{
+		AddressSpace: localAddressSpace,
+		Pool:         "192.168.0.0/16",
+	})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(alloc.PoolID, "192.168.0.0/16"))
+	assert.Check(t, is.Equal(alloc.Pool.String(), "192.168.0.0/16"))
+
+	err = a.ReleasePool(alloc.PoolID)
+	assert.NilError(t, err)
 }
