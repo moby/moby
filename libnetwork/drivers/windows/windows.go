@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,6 +25,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/docker/docker/libnetwork/scope"
@@ -318,6 +320,18 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 			subnets = append(subnets, subnet)
 		}
 
+		for _, ipData := range ipV6Data {
+			subnet := hcsshim.Subnet{
+				AddressPrefix: ipData.Pool.String(),
+			}
+
+			if ipData.Gateway != nil {
+				subnet.GatewayAddress = ipData.Gateway.IP.String()
+			}
+
+			subnets = append(subnets, subnet)
+		}
+
 		network := &hcsshim.HNSNetwork{
 			Name:               config.Name,
 			Type:               d.name,
@@ -381,18 +395,25 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		hnsIPv4Data := make([]driverapi.IPAMData, len(hnsresponse.Subnets))
 
 		for i, subnet := range hnsresponse.Subnets {
-			var gwIP, subnetIP *net.IPNet
-
-			// The gateway returned from HNS is an IPAddress.
-			// We need to convert it to an IPNet to use as the Gateway of driverapi.IPAMData struct
-			gwCIDR := subnet.GatewayAddress + "/32"
-			_, gwIP, err = net.ParseCIDR(gwCIDR)
+			// The gateway returned from HNS is an IPAddress. We need to
+			// convert it to an IPNet to use as the Gateway of driverapi.IPAMData
+			// struct.
+			// For IPv6, HNS returns a GatewayAddress containing a zone
+			// identifier, even for non-LL addrs. Package 'net' doesn't
+			// understand zone identifiers. netip.PrefixFrom takes care of
+			// stripping it.
+			gwAddr, err := netip.ParseAddr(subnet.GatewayAddress)
 			if err != nil {
-				return err
+				return fmt.Errorf("HNS returned an invalid gateway address: %w", err)
 			}
 
-			hnsIPv4Data[i].Gateway = gwIP
-			_, subnetIP, err = net.ParseCIDR(subnet.AddressPrefix)
+			if gwAddr.Is4() {
+				hnsIPv4Data[i].Gateway = netiputil.ToIPNet(netip.PrefixFrom(gwAddr, 32))
+			} else {
+				hnsIPv4Data[i].Gateway = netiputil.ToIPNet(netip.PrefixFrom(gwAddr, 128))
+			}
+
+			_, subnetIP, err := net.ParseCIDR(subnet.AddressPrefix)
 			if err != nil {
 				return err
 			}

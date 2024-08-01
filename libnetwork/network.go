@@ -1921,19 +1921,25 @@ func (n *Network) TableEventRegister(tableName string, objType driverapi.ObjectT
 	return nil
 }
 
-func (n *Network) UpdateIpamConfig(ipV4Data []driverapi.IPAMData) {
-	ipamV4Config := make([]*IpamConf, len(ipV4Data))
+func (n *Network) UpdateIpamConfig(ipams []driverapi.IPAMData) {
+	var ipamV4Config, ipamV6Config []*IpamConf
 
-	for i, data := range ipV4Data {
+	for _, data := range ipams {
 		ic := &IpamConf{}
 		ic.PreferredPool = data.Pool.String()
 		ic.Gateway = data.Gateway.IP.String()
-		ipamV4Config[i] = ic
+
+		if len(data.Pool.IP) == 4 {
+			ipamV4Config = append(ipamV4Config, ic)
+		} else {
+			ipamV6Config = append(ipamV6Config, ic)
+		}
 	}
 
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.ipamV4Config = ipamV4Config
+	n.ipamV6Config = ipamV6Config
 }
 
 // Special drivers are ones which do not need to perform any Network plumbing
