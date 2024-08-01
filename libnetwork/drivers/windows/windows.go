@@ -275,7 +275,7 @@ func (d *driver) createNetwork(config *networkConfiguration) *hnsNetwork {
 }
 
 // Create a new network
-func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) (retErr error) {
 	if _, err := d.getNetwork(id); err == nil {
 		return types.ForbiddenErrorf("network %s exists", id)
 	}
@@ -377,7 +377,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		n.created = true
 
 		defer func() {
-			if err != nil {
+			if retErr != nil {
 				d.DeleteNetwork(n.id)
 			}
 		}()
