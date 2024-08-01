@@ -30,10 +30,6 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 
 	im, err := i.getBestPresentImageManifest(ctx, img, pm)
 	if err != nil {
-		var e *errPlatformNotFound
-		if errors.As(err, &e) {
-			e.wanted = platforms.DefaultSpec()
-		}
 		return nil, err
 	}
 

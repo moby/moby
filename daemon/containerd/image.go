@@ -33,7 +33,7 @@ func (e *errPlatformNotFound) NotFound() {}
 func (e *errPlatformNotFound) Error() string {
 	msg := "image with reference " + e.imageRef + " was found but does not match the specified platform"
 	if e.wanted.OS != "" {
-		msg += ": wanted " + platforms.Format(e.wanted)
+		msg += ": wanted " + platforms.FormatAll(e.wanted)
 	}
 	return msg
 }
@@ -49,14 +49,6 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 
 	imgV1, err := i.getImageV1(ctx, img, pm)
 	if err != nil {
-		var e *errPlatformNotFound
-		if errors.As(err, &e) {
-			if options.Platform != nil {
-				e.wanted = *options.Platform
-			} else {
-				e.wanted = platforms.DefaultSpec()
-			}
-		}
 		return nil, err
 	}
 
@@ -97,15 +89,6 @@ func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, opt
 
 	im, err := i.getBestPresentImageManifest(ctx, img, pm)
 	if err != nil {
-		var e *errPlatformNotFound
-		if errors.As(err, &e) {
-			if options.Platform != nil {
-				e.wanted = *options.Platform
-			} else {
-				e.wanted = platforms.DefaultSpec()
-			}
-			return nil, e
-		}
 		return nil, err
 	}
 
@@ -139,7 +122,11 @@ func (i *ImageService) getBestPresentImageManifest(ctx context.Context, img cont
 	}
 
 	if best == nil {
-		return nil, &errPlatformNotFound{imageRef: imageFamiliarName(img)}
+		err := &errPlatformNotFound{imageRef: imageFamiliarName(img)}
+		if p, ok := pm.(platformMatcherWithRequestedPlatform); ok && p.Requested != nil {
+			err.wanted = *p.Requested
+		}
+		return nil, err
 	}
 
 	return best, nil
