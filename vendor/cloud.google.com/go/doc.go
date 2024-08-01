@@ -250,7 +250,7 @@ situations, including:
 [testing against fake servers]: https://github.com/googleapis/google-cloud-go/blob/main/testing.md#testing-grpc-services-using-fakes
 [Vertex AI - Locations]: https://cloud.google.com/vertex-ai/docs/general/locations
 [Google Application Default Credentials]: https://cloud.google.com/docs/authentication/external/set-up-adc
-[Debugging Guide]: https://github.com/googleapis/google-cloud-go/blob/main/debug.md
+[Logging, Debugging and Telemetry Guide]: https://github.com/googleapis/google-cloud-go/blob/main/debug.md
 [Testing Guide]: https://github.com/googleapis/google-cloud-go/blob/main/testing.md
 */
 package cloud // import "cloud.google.com/go"

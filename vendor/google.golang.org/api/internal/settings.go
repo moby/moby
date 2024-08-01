@@ -27,6 +27,7 @@ const (
 type DialSettings struct {
 	Endpoint                      string
 	DefaultEndpoint               string
+	DefaultEndpointTemplate       string
 	DefaultMTLSEndpoint           string
 	Scopes                        []string
 	DefaultScopes                 []string
@@ -55,6 +56,8 @@ type DialSettings struct {
 	EnableDirectPathXds           bool
 	EnableNewAuthLibrary          bool
 	AllowNonDefaultServiceAccount bool
+	UniverseDomain                string
+	DefaultUniverseDomain         string
 
 	// Google API system parameters. For more information please read:
 	// https://cloud.google.com/apis/docs/system-parameters

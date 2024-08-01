@@ -62,10 +62,14 @@ intend only to run integration tests on a single package.
 
 #### GCP Setup
 
-To run the integrations tests, creation and configuration of two projects in
+To run the integrations tests, creation and configuration of three projects in
 the Google Developers Console is required: one specifically for Firestore
-integration tests, and another for all other integration tests. We'll refer to
-these projects as "general project" and "Firestore project".
+integration tests, one specifically for Bigtable integration tests, and another 
+for all other integration tests. We'll refer to these projects as 
+"Firestore project", "Bigtable project" and "general project".
+
+Note: You can skip setting up Bigtable project if you do not plan working on or running a few Bigtable
+tests that require a secondary project
 
 After creating each project, you must [create a service account](https://developers.google.com/identity/protocols/OAuth2ServiceAccount#creatinganaccount)
 for each project. Ensure the project-level **Owner**
@@ -118,7 +122,7 @@ Finally, in the general project, create an API key for the translate API:
 
 #### Local Setup
 
-Once the two projects are created and configured, set the following environment
+Once the three projects are created and configured, set the following environment
 variables:
 
 - `GCLOUD_TESTS_GOLANG_PROJECT_ID`: Developers Console project's ID (e.g.
@@ -132,6 +136,7 @@ project's service account.
 - `GCLOUD_TESTS_GOLANG_FIRESTORE_KEY`: The path to the JSON key file of the
 Firestore project's service account.
 - `GCLOUD_TESTS_API_KEY`: API key for using the Translate API created above.
+- `GCLOUD_TESTS_GOLANG_SECONDARY_BIGTABLE_PROJECT_ID`: Developers Console project's ID (e.g. doorway-cliff-677) for Bigtable optional secondary project. This can be same as Firestore project or any project other than the general project.
 
 As part of the setup that follows, the following variables will be configured:
 
@@ -218,6 +223,9 @@ For instance, in `.zshrc`:
 #### START GO SDK Test Variables
 # Developers Console project's ID (e.g. bamboo-shift-455) for the general project.
 export GCLOUD_TESTS_GOLANG_PROJECT_ID=your-project
+
+# Developers Console project's ID (e.g. bamboo-shift-455) for the Bigtable project.
+export GCLOUD_TESTS_GOLANG_SECONDARY_BIGTABLE_PROJECT_ID=your-bigtable-optional-secondary-project
 
 # The path to the JSON key file of the general project's service account.
 export GCLOUD_TESTS_GOLANG_KEY=~/directory/your-project-abcd1234.json
