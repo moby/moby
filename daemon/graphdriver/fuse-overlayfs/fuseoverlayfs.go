@@ -23,7 +23,6 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/moby/locker"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/user/userns"
@@ -77,9 +76,6 @@ func init() {
 func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdriver.Driver, error) {
 	if _, err := exec.LookPath(binary); err != nil {
 		logger.Error(err)
-		return nil, graphdriver.ErrNotSupported
-	}
-	if !kernel.CheckKernelVersion(4, 18, 0) {
 		return nil, graphdriver.ErrNotSupported
 	}
 
