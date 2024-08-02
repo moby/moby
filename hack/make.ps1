@@ -179,7 +179,7 @@ Function Execute-Build($type, $additionalBuildTags, $directory, $ldflags) {
     if ($Noisy)                     { $verboseParm=" -v" }
     if ($Race)                      { Write-Warning "Using race detector"; $raceParm=" -race"}
     if ($ForceBuildAll)             { $allParm=" -a" }
-    if ($NoOpt)                     { $optParm=" -gcflags "+""""+"-N -l"+"""" }
+    if ($NoOpt)                     { $optParm=" -gcflags "+""""+"all=-N -l"+"""" }
     if ($additionalBuildTags -ne "") { $buildTags += $(" " + $additionalBuildTags) }
 
     # Do the go build in the appropriate directory
