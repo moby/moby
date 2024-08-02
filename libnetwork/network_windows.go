@@ -236,8 +236,8 @@ func deleteEpFromResolverImpl(
 
 func findHNSEp(ip4, ip6 *net.IPNet, hnsEndpoints []hcsshim.HNSEndpoint) *hcsshim.HNSEndpoint {
 	for _, hnsEp := range hnsEndpoints {
-		if (hnsEp.IPAddress != nil && hnsEp.IPAddress.Equal(ip4.IP)) ||
-			(hnsEp.IPv6Address != nil && hnsEp.IPv6Address.Equal(ip6.IP)) {
+		if (hnsEp.IPAddress != nil && ip4 != nil && hnsEp.IPAddress.Equal(ip4.IP)) ||
+			(hnsEp.IPv6Address != nil && ip6 != nil && hnsEp.IPv6Address.Equal(ip6.IP)) {
 			return &hnsEp
 		}
 	}
