@@ -25,10 +25,11 @@ import (
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/content/local"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/images/converter"
 	"github.com/containerd/containerd/labels"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/fifo"
 	"github.com/klauspost/compress/zstd"
 	"github.com/opencontainers/go-digest"
@@ -108,7 +109,7 @@ func unpackOciTar(ctx context.Context, dst string, reader io.Reader) error {
 		ctx,
 		dst,
 		ds,
-		archive.WithConvertWhiteout(func(hdr *tar.Header, file string) (bool, error) {
+		archive.WithConvertWhiteout(func(_ *tar.Header, _ string) (bool, error) {
 			// Keep to extract all whiteout files.
 			return true, nil
 		}),
@@ -624,13 +625,23 @@ func Merge(ctx context.Context, layers []Layer, dest io.Writer, opt MergeOption)
 		return nil, errors.Wrap(err, "merge bootstrap")
 	}
 
+	bootstrapRa, err := local.OpenReader(targetBootstrapPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "open bootstrap reader")
+	}
+	defer bootstrapRa.Close()
+
+	files := append([]File{
+		{
+			Name:   EntryBootstrap,
+			Reader: content.NewReader(bootstrapRa),
+			Size:   bootstrapRa.Size(),
+		},
+	}, opt.AppendFiles...)
 	var rc io.ReadCloser
 
 	if opt.WithTar {
-		rc, err = packToTar(targetBootstrapPath, fmt.Sprintf("image/%s", EntryBootstrap), false)
-		if err != nil {
-			return nil, errors.Wrap(err, "pack bootstrap to tar")
-		}
+		rc = packToTar(files, false)
 	} else {
 		rc, err = os.Open(targetBootstrapPath)
 		if err != nil {
