@@ -1508,7 +1508,7 @@ func (n *Network) getController() *Controller {
 	return n.ctrlr
 }
 
-func (n *Network) ipamAllocate() error {
+func (n *Network) ipamAllocate() (retErr error) {
 	if n.hasSpecialDriver() {
 		return nil
 	}
@@ -1525,24 +1525,23 @@ func (n *Network) ipamAllocate() error {
 	}
 
 	if n.enableIPv4 {
-		err = n.ipamAllocateVersion(4, ipam)
-		if err != nil {
+		if err := n.ipamAllocateVersion(4, ipam); err != nil {
 			return err
 		}
-
 		defer func() {
-			if err != nil {
+			if retErr != nil {
 				n.ipamReleaseVersion(4, ipam)
 			}
 		}()
 	}
 
-	if !n.enableIPv6 {
-		return nil
+	if n.enableIPv6 {
+		if err := n.ipamAllocateVersion(6, ipam); err != nil {
+			return err
+		}
 	}
 
-	err = n.ipamAllocateVersion(6, ipam)
-	return err
+	return nil
 }
 
 func (n *Network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
