@@ -125,6 +125,8 @@ type MergeOption struct {
 	Timeout *time.Duration
 	// Encrypt encrypts the bootstrap layer if it's specified.
 	Encrypt Encrypter
+	// AppendFiles specifies the files that need to be appended to the bootstrap layer.
+	AppendFiles []File
 }
 
 type UnpackOption struct {
