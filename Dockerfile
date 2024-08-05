@@ -620,7 +620,7 @@ RUN --mount=type=bind,target=.,rw \
   xx-go --wrap
   PKG_CONFIG=$(xx-go env PKG_CONFIG) ./hack/make.sh $target
   xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /tmp/bundles/${target}-daemon/dockerd$([ "$(xx-info os)" = "windows" ] && echo ".exe")
-  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /tmp/bundles/${target}-daemon/docker-proxy$([ "$(xx-info os)" = "windows" ] && echo ".exe")
+  [ "$(xx-info os)" != "linux" ] || xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /tmp/bundles/${target}-daemon/docker-proxy
   mkdir /build
   mv /tmp/bundles/${target}-daemon/* /build/
 EOT
