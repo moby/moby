@@ -4,6 +4,21 @@ import (
 	"github.com/containerd/log"
 )
 
+// WithCustomConfigFile configures the supervisor to use a custom containerd.toml
+// configuration file instead of producing a generated config.
+func WithCustomConfigFile(fileName string) DaemonOpt {
+	return func(r *remote) error {
+		conf, err := LoadConfigFile(fileName)
+		if err != nil {
+			return err
+		}
+		r.Config = *conf
+		r.configFile = fileName
+		r.managedConfig = false
+		return nil
+	}
+}
+
 // WithLogLevel defines which log level to start containerd with.
 func WithLogLevel(lvl string) DaemonOpt {
 	return func(r *remote) error {
@@ -32,4 +47,18 @@ func WithCRIDisabled() DaemonOpt {
 		r.DisabledPlugins = append(r.DisabledPlugins, "io.containerd.grpc.v1.cri")
 		return nil
 	}
+}
+
+// WithPIDFile overrides the default location of the PID-file that's used by
+// the supervisor.
+func WithPIDFile(fileName string) DaemonOpt {
+	return func(r *remote) error {
+		r.pidFile = fileName
+		return nil
+	}
+}
+
+// WithPlatformDefaults sets the default options for the platform.
+func WithPlatformDefaults(rootDir string) DaemonOpt {
+	return withPlatformDefaults(rootDir)
 }
