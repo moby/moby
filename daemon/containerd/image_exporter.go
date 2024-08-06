@@ -308,12 +308,14 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 			logger.WithField("alreadyUnpacked", unpacked).WithError(err).Debug("unpack")
 			return nil
 		})
-		if err != nil {
-			return errors.Wrap(err, "failed to unpack loaded image")
-		}
 
 		fmt.Fprintf(progress, "%s: %s\n", loadedMsg, name)
 		i.LogImageEvent(img.Target.Digest.String(), img.Target.Digest.String(), events.ActionLoad)
+
+		if err != nil {
+			// The image failed to unpack, but is already imported, log the error but don't fail the whole load.
+			fmt.Fprintf(progress, "Error unpacking image %s: %v\n", name, err)
+		}
 	}
 
 	return nil
