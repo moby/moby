@@ -278,6 +278,9 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 			name = reference.FamiliarString(reference.TagNameOnly(named))
 		}
 
+		fmt.Fprintf(progress, "%s: %s\n", loadedMsg, name)
+		i.LogImageEvent(img.Target.Digest.String(), img.Target.Digest.String(), events.ActionLoad)
+
 		err = i.walkImageManifests(ctx, img, func(platformImg *ImageManifest) error {
 			logger := log.G(ctx).WithFields(log.Fields{
 				"image":    name,
@@ -311,9 +314,6 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 		if err != nil {
 			return errors.Wrap(err, "failed to unpack loaded image")
 		}
-
-		fmt.Fprintf(progress, "%s: %s\n", loadedMsg, name)
-		i.LogImageEvent(img.Target.Digest.String(), img.Target.Digest.String(), events.ActionLoad)
 	}
 
 	return nil
