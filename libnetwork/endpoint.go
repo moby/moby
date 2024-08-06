@@ -1119,10 +1119,8 @@ func (ep *Endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 	}
 
 	ipInfo := n.getIPInfo(ipVer)
-
-	// ipv6 address is not mandatory
-	if len(ipInfo) == 0 && ipVer == 6 {
-		return nil
+	if len(ipInfo) == 0 {
+		return fmt.Errorf("no IPv%d information available for endpoint %s", ipVer, ep.Name())
 	}
 
 	// The address to program may be chosen by the user or by the network driver in one specific

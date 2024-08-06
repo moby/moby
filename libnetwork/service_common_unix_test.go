@@ -24,11 +24,11 @@ func TestCleanupServiceDiscovery(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	n1, err := c.NewNetwork("bridge", "net1", "", nil)
+	n1, err := c.NewNetwork("bridge", "net1", "", NetworkOptionEnableIPv4(true))
 	assert.NilError(t, err)
 	defer cleanup(n1)
 
-	n2, err := c.NewNetwork("bridge", "net2", "", nil)
+	n2, err := c.NewNetwork("bridge", "net2", "", NetworkOptionEnableIPv4(true))
 	assert.NilError(t, err)
 	defer cleanup(n2)
 

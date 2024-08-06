@@ -177,6 +177,7 @@ func TestNetworkName(t *testing.T) {
 	controller := newController(t)
 
 	netOption := options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "testnetwork",
 		},
@@ -212,6 +213,7 @@ func TestNetworkType(t *testing.T) {
 	controller := newController(t)
 
 	netOption := options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "testnetwork",
 		},
@@ -237,6 +239,7 @@ func TestNetworkID(t *testing.T) {
 	controller := newController(t)
 
 	netOption := options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "testnetwork",
 		},
@@ -265,6 +268,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 		"BridgeName": "testnetwork",
 	}
 	option := options.Generic{
+		netlabel.EnableIPv4:  true,
 		netlabel.GenericData: netOption,
 	}
 
@@ -304,7 +308,8 @@ func TestNetworkConfig(t *testing.T) {
 	// Verify config network cannot inherit another config network
 	_, err := controller.NewNetwork("bridge", "config_network0", "",
 		libnetwork.NetworkOptionConfigOnly(),
-		libnetwork.NetworkOptionConfigFrom("anotherConfigNw"))
+		libnetwork.NetworkOptionConfigFrom("anotherConfigNw"),
+	)
 
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
@@ -325,6 +330,7 @@ func TestNetworkConfig(t *testing.T) {
 
 	netOptions := []libnetwork.NetworkOption{
 		libnetwork.NetworkOptionConfigOnly(),
+		libnetwork.NetworkOptionEnableIPv4(true),
 		libnetwork.NetworkOptionEnableIPv6(true),
 		libnetwork.NetworkOptionGeneric(option),
 		libnetwork.NetworkOptionIpam("default", "", ipamV4ConfList, ipamV6ConfList, nil),
@@ -353,6 +359,7 @@ func TestNetworkConfig(t *testing.T) {
 
 	// Verify a network cannot be created with both config-from and network specific configurations
 	for i, opt := range []libnetwork.NetworkOption{
+		libnetwork.NetworkOptionEnableIPv4(true),
 		libnetwork.NetworkOptionEnableIPv6(true),
 		libnetwork.NetworkOptionIpam("my-ipam", "", nil, nil, nil),
 		libnetwork.NetworkOptionIpam("", "", ipamV4ConfList, nil, nil),
@@ -406,6 +413,7 @@ func TestUnknownNetwork(t *testing.T) {
 		"BridgeName": "testnetwork",
 	}
 	option := options.Generic{
+		netlabel.EnableIPv4:  true,
 		netlabel.GenericData: netOption,
 	}
 
@@ -437,6 +445,7 @@ func TestUnknownEndpoint(t *testing.T) {
 		"BridgeName": "testnetwork",
 	}
 	option := options.Generic{
+		netlabel.EnableIPv4:  true,
 		netlabel.GenericData: netOption,
 	}
 	ipamV4ConfList := []*libnetwork.IpamConf{{PreferredPool: "192.168.100.0/24"}}
@@ -476,6 +485,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 
 	// Create network 1 and add 2 endpoint: ep11, ep12
 	netOption := options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "network1",
 		},
@@ -549,6 +559,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 
 	// Create network 2
 	netOption = options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "network2",
 		},
@@ -605,6 +616,7 @@ func TestDuplicateEndpoint(t *testing.T) {
 	controller := newController(t)
 
 	netOption := options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "testnetwork",
 		},
@@ -654,6 +666,7 @@ func TestControllerQuery(t *testing.T) {
 
 	// Create network 1
 	netOption := options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "network1",
 		},
@@ -670,6 +683,7 @@ func TestControllerQuery(t *testing.T) {
 
 	// Create network 2
 	netOption = options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "network2",
 		},
@@ -755,6 +769,7 @@ func TestNetworkQuery(t *testing.T) {
 
 	// Create network 1 and add 2 endpoint: ep11, ep12
 	netOption := options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "network1",
 		},
@@ -840,6 +855,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	controller := newController(t)
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "testnetwork",
 		},
@@ -854,6 +870,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	}()
 
 	n2, err := createTestNetwork(controller, bridgeNetType, "testnetwork2", options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "testnetwork2",
 		},
@@ -914,6 +931,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 	controller := newController(t)
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testmultiple", options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "testmultiple",
 		},
@@ -987,6 +1005,7 @@ func TestLeaveAll(t *testing.T) {
 	controller := newController(t)
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "testnetwork",
 		},
@@ -1002,6 +1021,7 @@ func TestLeaveAll(t *testing.T) {
 	}()
 
 	n2, err := createTestNetwork(controller, bridgeNetType, "testnetwork2", options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "testnetwork2",
 		},
@@ -1051,6 +1071,7 @@ func TestContainerInvalidLeave(t *testing.T) {
 	controller := newController(t)
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "testnetwork",
 		},
@@ -1116,6 +1137,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 	controller := newController(t)
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "testnetwork",
 		},
@@ -1287,6 +1309,7 @@ func makeTesthostNetwork(t *testing.T, c *libnetwork.Controller) *libnetwork.Net
 func makeTestIPv6Network(t *testing.T, c *libnetwork.Controller) *libnetwork.Network {
 	t.Helper()
 	netOptions := options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.EnableIPv6: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "testnetwork",
@@ -1423,6 +1446,7 @@ func TestBridgeIpv6FromMac(t *testing.T) {
 
 	network, err := controller.NewNetwork(bridgeNetType, "testipv6mac", "",
 		libnetwork.NetworkOptionGeneric(netOption),
+		libnetwork.NetworkOptionEnableIPv4(true),
 		libnetwork.NetworkOptionEnableIPv6(true),
 		libnetwork.NetworkOptionIpam(defaultipam.DriverName, "", ipamV4ConfList, ipamV6ConfList, nil),
 		libnetwork.NetworkOptionDeferIPv6Alloc(true))
@@ -1497,6 +1521,7 @@ func TestEndpointJoin(t *testing.T) {
 	ipamV6ConfList := []*libnetwork.IpamConf{{PreferredPool: "fe90::/64", Gateway: "fe90::22"}}
 	n1, err := controller.NewNetwork(bridgeNetType, "testnetwork1", "",
 		libnetwork.NetworkOptionGeneric(netOption),
+		libnetwork.NetworkOptionEnableIPv4(true),
 		libnetwork.NetworkOptionEnableIPv6(true),
 		libnetwork.NetworkOptionIpam(defaultipam.DriverName, "", nil, ipamV6ConfList, nil),
 		libnetwork.NetworkOptionDeferIPv6Alloc(true))
@@ -1612,6 +1637,7 @@ func TestEndpointJoin(t *testing.T) {
 	// Now test the container joining another network
 	n2, err := createTestNetwork(controller, bridgeNetType, "testnetwork2",
 		options.Generic{
+			netlabel.EnableIPv4: true,
 			netlabel.GenericData: options.Generic{
 				"BridgeName": "testnetwork2",
 			},
@@ -1662,6 +1688,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	controller := newController(t)
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "testnetwork",
 		},
@@ -1676,6 +1703,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	}()
 
 	n2, err := createTestNetwork(controller, bridgeNetType, "testnetwork2", options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "testnetwork2",
 		},
@@ -1973,6 +2001,7 @@ func TestParallel(t *testing.T) {
 	controller := newController(t)
 
 	netOption := options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "network",
 		},
@@ -2034,6 +2063,7 @@ func TestBridge(t *testing.T) {
 	controller := newController(t)
 
 	netOption := options.Generic{
+		netlabel.EnableIPv4: true,
 		netlabel.EnableIPv6: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName":         "testnetwork",

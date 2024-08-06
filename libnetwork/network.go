@@ -1209,7 +1209,7 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 		ep.ipamOptions[netlabel.MacAddress] = ep.iface.mac.String()
 	}
 
-	if err = ep.assignAddress(ipam, true, n.enableIPv6 && !n.postIPv6); err != nil {
+	if err = ep.assignAddress(ipam, n.enableIPv4, n.enableIPv6 && !n.postIPv6); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -1508,7 +1508,7 @@ func (n *Network) getController() *Controller {
 	return n.ctrlr
 }
 
-func (n *Network) ipamAllocate() error {
+func (n *Network) ipamAllocate() (retErr error) {
 	if n.hasSpecialDriver() {
 		return nil
 	}
@@ -1524,23 +1524,24 @@ func (n *Network) ipamAllocate() error {
 		}
 	}
 
-	err = n.ipamAllocateVersion(4, ipam)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		if err != nil {
-			n.ipamReleaseVersion(4, ipam)
+	if n.enableIPv4 {
+		if err := n.ipamAllocateVersion(4, ipam); err != nil {
+			return err
 		}
-	}()
-
-	if !n.enableIPv6 {
-		return nil
+		defer func() {
+			if retErr != nil {
+				n.ipamReleaseVersion(4, ipam)
+			}
+		}()
 	}
 
-	err = n.ipamAllocateVersion(6, ipam)
-	return err
+	if n.enableIPv6 {
+		if err := n.ipamAllocateVersion(6, ipam); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (n *Network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {

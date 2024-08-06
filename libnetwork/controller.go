@@ -747,16 +747,18 @@ func (c *Controller) reservePools() {
 		// Construct pseudo configs for the auto IP case
 		autoIPv4 := (len(n.ipamV4Config) == 0 || (len(n.ipamV4Config) == 1 && n.ipamV4Config[0].PreferredPool == "")) && len(n.ipamV4Info) > 0
 		autoIPv6 := (len(n.ipamV6Config) == 0 || (len(n.ipamV6Config) == 1 && n.ipamV6Config[0].PreferredPool == "")) && len(n.ipamV6Info) > 0
-		if autoIPv4 {
+		if n.enableIPv4 && autoIPv4 {
 			n.ipamV4Config = []*IpamConf{{PreferredPool: n.ipamV4Info[0].Pool.String()}}
 		}
 		if n.enableIPv6 && autoIPv6 {
 			n.ipamV6Config = []*IpamConf{{PreferredPool: n.ipamV6Info[0].Pool.String()}}
 		}
 		// Account current network gateways
-		for i, cfg := range n.ipamV4Config {
-			if cfg.Gateway == "" && n.ipamV4Info[i].Gateway != nil {
-				cfg.Gateway = n.ipamV4Info[i].Gateway.IP.String()
+		if n.enableIPv4 {
+			for i, cfg := range n.ipamV4Config {
+				if cfg.Gateway == "" && n.ipamV4Info[i].Gateway != nil {
+					cfg.Gateway = n.ipamV4Info[i].Gateway.IP.String()
+				}
 			}
 		}
 		if n.enableIPv6 {
@@ -786,7 +788,7 @@ func (c *Controller) reservePools() {
 				log.G(context.TODO()).Warnf("endpoint interface is empty for %q (%s)", ep.Name(), ep.ID())
 				continue
 			}
-			if err := ep.assignAddress(ipam, true, ep.Iface().AddressIPv6() != nil); err != nil {
+			if err := ep.assignAddress(ipam, ep.Iface().Address() != nil, ep.Iface().AddressIPv6() != nil); err != nil {
 				log.G(context.TODO()).Warnf("Failed to reserve current address for endpoint %q (%s) on network %q (%s)",
 					ep.Name(), ep.ID(), n.Name(), n.ID())
 			}

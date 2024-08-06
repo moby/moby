@@ -23,7 +23,7 @@ func TestDNSIPQuery(t *testing.T) {
 	}
 	defer c.Stop()
 
-	n, err := c.NewNetwork("bridge", "dtnet1", "", nil)
+	n, err := c.NewNetwork("bridge", "dtnet1", "", NetworkOptionEnableIPv4(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestDNSProxyServFail(t *testing.T) {
 	}
 	defer c.Stop()
 
-	n, err := c.NewNetwork("bridge", "dtnet2", "", nil)
+	n, err := c.NewNetwork("bridge", "dtnet2", "", NetworkOptionEnableIPv4(true))
 	if err != nil {
 		t.Fatal(err)
 	}
