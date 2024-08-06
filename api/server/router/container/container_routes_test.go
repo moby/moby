@@ -273,15 +273,17 @@ func TestHandleSysctlBC(t *testing.T) {
 				"net.ipv6.conf.all.disable_ipv6": "0",
 			},
 		},
+		/* TODO(robmry) - enable this test for the API version used in 28.0.0
 		{
 			name:        "migration disabled for newer api",
-			apiVersion:  "1.47",
+			apiVersion:  "1.??",
 			networkMode: "mynet",
 			sysctls: map[string]string{
 				"net.ipv6.conf.eth0.accept_ra": "2",
 			},
 			expError: "must be supplied using driver option 'com.docker.network.endpoint.sysctls'",
 		},
+		*/
 		{
 			name:        "only migrate eth0",
 			apiVersion:  "1.46",
