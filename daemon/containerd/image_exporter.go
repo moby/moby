@@ -290,6 +290,17 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 				return nil
 			}
 
+			imgPlat, err := platformImg.ImagePlatform(ctx)
+			if err != nil {
+				logger.WithError(err).Warn("failed to read image platform, skipping unpack")
+				return nil
+			}
+
+			// Only unpack the image if it matches the host platform
+			if !i.hostPlatformMatcher().Match(imgPlat) {
+				return nil
+			}
+
 			unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
 			if err != nil {
 				logger.WithError(err).Warn("failed to check if image is unpacked")
