@@ -216,16 +216,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 }
 
 func (i *ImageService) getPushDescriptor(ctx context.Context, img containerdimages.Image, platform *ocispec.Platform) (ocispec.Descriptor, error) {
-	// Allow to override the host platform for testing purposes.
-	hostPlatform := i.defaultPlatformOverride
-	if hostPlatform == nil {
-		hostPlatform = platforms.Default()
-	}
-
-	pm := matchAllWithPreference(hostPlatform)
-	if platform != nil {
-		pm = platforms.OnlyStrict(*platform)
-	}
+	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, platform)
 
 	anyMissing := false
 
@@ -295,7 +286,7 @@ func (i *ImageService) getPushDescriptor(ctx context.Context, img containerdimag
 
 			// No specific platform requested and not all manifests are available.
 			// Select the manifest that matches the host platform the best.
-			if bestMatch != nil && hostPlatform.Match(bestMatchPlatform) {
+			if bestMatch != nil && i.hostPlatformMatcher().Match(bestMatchPlatform) {
 				return bestMatch.Target(), nil
 			}
 

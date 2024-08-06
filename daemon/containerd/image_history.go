@@ -12,6 +12,7 @@ import (
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -25,13 +26,22 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 	}
 
 	// TODO: pass platform in from the CLI
-	platform := matchAllWithPreference(platforms.Default())
+	pm := matchAllWithPreference(platforms.Default())
 
-	presentImages, err := i.presentImages(ctx, img, name, platform)
+	im, err := i.getBestPresentImageManifest(ctx, img, pm)
 	if err != nil {
 		return nil, err
 	}
-	ociImage := presentImages[0]
+
+	// Subset of ocispec.Image
+	var ociImage struct {
+		RootFS  ocispec.RootFS    `json:"rootfs"`
+		History []ocispec.History `json:"history,omitempty"`
+	}
+	err = im.ReadConfig(ctx, &ociImage)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		history []*imagetype.HistoryResponseItem

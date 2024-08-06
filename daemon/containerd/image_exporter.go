@@ -48,7 +48,10 @@ func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Conta
 //
 // TODO(thaJeztah): produce JSON stream progress response and image events; see https://github.com/moby/moby/issues/43910
 func (i *ImageService) ExportImage(ctx context.Context, names []string, outStream io.Writer) error {
-	platform := matchAllWithPreference(platforms.Default())
+	// TODO: Pass as argument
+	var requestedPlatform *ocispec.Platform
+	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, requestedPlatform)
+
 	opts := []archive.ExportOpt{
 		archive.WithSkipNonDistributableBlobs(),
 
@@ -61,9 +64,9 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 		//  Daemon is running on linux/arm64
 		//  When we export linux/amd64 and linux/arm64, manifest.json will point to linux/arm64.
 		//  When we export linux/amd64 only, manifest.json will point to linux/amd64.
-		// Note: This is only applicable if importing this archive into non-containerd Docker.
+		// Note: This only matters when importing this archive into non-containerd Docker.
 		// Importing the same archive into containerd, will not restrict the platforms.
-		archive.WithPlatform(platform),
+		archive.WithPlatform(pm),
 		archive.WithSkipMissing(i.content),
 	}
 

@@ -28,10 +28,7 @@ func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentIma
 
 		cs := i.content
 
-		matcher := matchAllWithPreference(platforms.Default())
-		if platform != nil {
-			matcher = platforms.Only(*platform)
-		}
+		matcher := i.matchRequestedOrDefault(platforms.Only, platform)
 
 		platformImg := containerd.NewImageWithPlatform(i.client, img, matcher)
 		unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
