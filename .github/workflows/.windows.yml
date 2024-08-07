@@ -3,6 +3,15 @@ name: .windows
 
 # TODO: hide reusable workflow from the UI. Tracked in https://github.com/community/community/discussions/12025
 
+# Default to 'contents: read', which grants actions to read commits.
+#
+# If any permission is set, any permission not included in the list is
+# implicitly set to "none".
+#
+# see https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions
+permissions:
+  contents: read
+
 on:
   workflow_call:
     inputs:
