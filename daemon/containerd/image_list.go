@@ -241,24 +241,19 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 			return nil
 		}
 
-		conf, err := img.Config(ctx)
-		if err != nil {
-			return err
-		}
-
 		var dockerImage dockerspec.DockerOCIImage
-		if err := readConfig(ctx, i.content, conf, &dockerImage); err != nil {
-			return err
-		}
-
 		target := img.Target()
 
-		diffIDs, err := img.RootFS(ctx)
-		if err != nil {
-			return err
+		if err := img.ReadConfig(ctx, &dockerImage); err != nil {
+			log.G(ctx).WithFields(log.Fields{
+				"error":    err,
+				"manifest": img.Target(),
+				"image":    img.Name(),
+			}).Warn("failed to read image config")
+			return nil
 		}
 
-		chainIDs := identity.ChainIDs(diffIDs)
+		chainIDs := identity.ChainIDs(dockerImage.RootFS.DiffIDs)
 
 		ts, _, err := i.singlePlatformSize(ctx, img)
 		if err != nil {
