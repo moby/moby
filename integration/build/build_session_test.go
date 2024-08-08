@@ -93,7 +93,7 @@ func TestBuildWithSession(t *testing.T) {
 
 //nolint:unused // false positive: linter detects this as "unused"
 func testBuildWithSession(ctx context.Context, t *testing.T, client dclient.APIClient, daemonHost string, dir, dockerfile string) (outStr string) {
-	sess, err := session.NewSession(ctx, "foo1", "foo")
+	sess, err := session.NewSession(ctx, "foo")
 	assert.Check(t, err)
 
 	fs, err := fsutil.NewFS(dir)
