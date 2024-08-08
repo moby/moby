@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/system"
-	"github.com/moby/sys/user/userns"
+	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
