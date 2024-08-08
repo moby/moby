@@ -122,9 +122,12 @@ type Mount struct {
 	CacheID      string
 	CacheSharing ShareMode
 	Required     bool
-	Mode         *uint64
-	UID          *uint64
-	GID          *uint64
+	// Env optionally specifies the name of the environment variable for a secret.
+	// A pointer to an empty value uses the default
+	Env  *string
+	Mode *uint64
+	UID  *uint64
+	GID  *uint64
 }
 
 func parseMount(val string, expander SingleWordExpander) (*Mount, error) {
@@ -252,9 +255,11 @@ func parseMount(val string, expander SingleWordExpander) (*Mount, error) {
 				return nil, errors.Errorf("invalid value %s for gid", value)
 			}
 			m.GID = &gid
+		case "env":
+			m.Env = &value
 		default:
 			allKeys := []string{
-				"type", "from", "source", "target", "readonly", "id", "sharing", "required", "mode", "uid", "gid", "src", "dst", "ro", "rw", "readwrite",
+				"type", "from", "source", "target", "readonly", "id", "sharing", "required", "size", "mode", "uid", "gid", "src", "dst", "destination", "ro", "rw", "readwrite", "env",
 			}
 			return nil, suggest.WrapError(errors.Errorf("unexpected key '%s' in '%s'", key, field), key, allKeys, true)
 		}

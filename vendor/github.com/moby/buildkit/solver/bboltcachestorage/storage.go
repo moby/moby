@@ -9,6 +9,8 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/db"
+	"github.com/moby/buildkit/util/db/boltutil"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
@@ -22,11 +24,13 @@ const (
 )
 
 type Store struct {
-	db *bolt.DB
+	db db.DB
 }
 
 func NewStore(dbPath string) (*Store, error) {
-	db, err := safeOpenDB(dbPath)
+	db, err := safeOpenDB(dbPath, &bolt.Options{
+		NoSync: true,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +46,6 @@ func NewStore(dbPath string) (*Store, error) {
 	}); err != nil {
 		return nil, err
 	}
-	db.NoSync = true
 	return &Store{db: db}, nil
 }
 
@@ -465,7 +468,7 @@ func isEmptyBucket(b *bolt.Bucket) bool {
 
 // safeOpenDB opens a bolt database and recovers from panic that
 // can be caused by a corrupted database file.
-func safeOpenDB(dbPath string) (db *bolt.DB, err error) {
+func safeOpenDB(dbPath string, opts *bolt.Options) (db db.DB, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.Errorf("%v", r)
@@ -476,16 +479,16 @@ func safeOpenDB(dbPath string) (db *bolt.DB, err error) {
 		// then fallback to resetting the database since the database
 		// may be corrupt.
 		if err != nil && fileHasContent(dbPath) {
-			db, err = fallbackOpenDB(dbPath, err)
+			db, err = fallbackOpenDB(dbPath, opts, err)
 		}
 	}()
-	return openDB(dbPath)
+	return openDB(dbPath, opts)
 }
 
 // fallbackOpenDB performs database recovery and opens the new database
 // file when the database fails to open. Called after the first database
 // open fails.
-func fallbackOpenDB(dbPath string, openErr error) (*bolt.DB, error) {
+func fallbackOpenDB(dbPath string, opts *bolt.Options, openErr error) (db.DB, error) {
 	backupPath := dbPath + "." + identity.NewID() + ".bak"
 	bklog.L.Errorf("failed to open database file %s, resetting to empty. Old database is backed up to %s. "+
 		"This error signifies that buildkitd likely crashed or was sigkilled abrubtly, leaving the database corrupted. "+
@@ -496,12 +499,12 @@ func fallbackOpenDB(dbPath string, openErr error) (*bolt.DB, error) {
 
 	// Attempt to open the database again. This should be a new database.
 	// If this fails, it is a permanent error.
-	return openDB(dbPath)
+	return openDB(dbPath, opts)
 }
 
 // openDB opens a bolt database in user-only read/write mode.
-func openDB(dbPath string) (*bolt.DB, error) {
-	return bolt.Open(dbPath, 0600, nil)
+func openDB(dbPath string, opts *bolt.Options) (db.DB, error) {
+	return boltutil.Open(dbPath, 0600, opts)
 }
 
 // fileHasContent checks if we have access to the file with appropriate

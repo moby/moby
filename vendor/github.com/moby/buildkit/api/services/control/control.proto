@@ -212,6 +212,7 @@ message BuildHistoryRecord {
 	int32 numTotalSteps = 16;
 	int32 numCompletedSteps = 17;
 	Descriptor externalError = 18;
+	int32 numWarnings = 19;
 	// TODO: tags
 	// TODO: unclipped logs
 }

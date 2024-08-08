@@ -51,10 +51,10 @@ func withGetUserInfoMount() oci.SpecOpts {
 	}
 }
 
-func generateMountOpts(_, _ string) ([]oci.SpecOpts, error) {
+func generateMountOpts(_, _ string) []oci.SpecOpts {
 	return []oci.SpecOpts{
 		withGetUserInfoMount(),
-	}, nil
+	}
 }
 
 // generateSecurityOpts may affect mounts, so must be called after generateMountOpts

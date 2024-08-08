@@ -255,6 +255,12 @@ func (c *AddCommand) Expand(expander SingleWordExpander) error {
 	}
 	c.Chown = expandedChown
 
+	expandedChmod, err := expander(c.Chmod)
+	if err != nil {
+		return err
+	}
+	c.Chmod = expandedChmod
+
 	expandedChecksum, err := expander(c.Checksum)
 	if err != nil {
 		return err
@@ -286,6 +292,12 @@ func (c *CopyCommand) Expand(expander SingleWordExpander) error {
 		return err
 	}
 	c.Chown = expandedChown
+
+	expandedChmod, err := expander(c.Chmod)
+	if err != nil {
+		return err
+	}
+	c.Chmod = expandedChmod
 
 	return c.SourcesAndDest.Expand(expander)
 }
@@ -494,6 +506,7 @@ type ShellCommand struct {
 type Stage struct {
 	Name     string    // name of the stage
 	Commands []Command // commands contained within the stage
+	OrigCmd  string    // original FROM command, used for rule checks
 	BaseName string    // name of the base stage or source
 	Platform string    // platform of base source to use
 

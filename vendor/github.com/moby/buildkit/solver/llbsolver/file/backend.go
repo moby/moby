@@ -27,10 +27,17 @@ func timestampToTime(ts int64) *time.Time {
 	return &tm
 }
 
-func mkdir(d string, action pb.FileActionMkDir, user *copy.User, idmap *idtools.IdentityMapping) error {
+func mkdir(d string, action pb.FileActionMkDir, user *copy.User, idmap *idtools.IdentityMapping) (err error) {
+	defer func() {
+		var osErr *os.PathError
+		if errors.As(err, &osErr) {
+			osErr.Path = strings.TrimPrefix(osErr.Path, d)
+		}
+	}()
+
 	p, err := fs.RootPath(d, action.Path)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	ch, err := mapUserToChowner(user, idmap)
@@ -47,23 +54,31 @@ func mkdir(d string, action pb.FileActionMkDir, user *copy.User, idmap *idtools.
 			if errors.Is(err, os.ErrExist) {
 				return nil
 			}
-			return err
+			return errors.WithStack(err)
 		}
 		if err := copy.Chown(p, nil, ch); err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		if err := copy.Utimes(p, timestampToTime(action.Timestamp)); err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 	}
 
 	return nil
 }
 
-func mkfile(d string, action pb.FileActionMkFile, user *copy.User, idmap *idtools.IdentityMapping) error {
+func mkfile(d string, action pb.FileActionMkFile, user *copy.User, idmap *idtools.IdentityMapping) (err error) {
+	defer func() {
+		var osErr *os.PathError
+		if errors.As(err, &osErr) {
+			// remove system root from error path if present
+			osErr.Path = strings.TrimPrefix(osErr.Path, d)
+		}
+	}()
+
 	p, err := fs.RootPath(d, filepath.Join("/", action.Path))
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	ch, err := mapUserToChowner(user, idmap)
@@ -72,21 +87,29 @@ func mkfile(d string, action pb.FileActionMkFile, user *copy.User, idmap *idtool
 	}
 
 	if err := os.WriteFile(p, action.Data, os.FileMode(action.Mode)&0777); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	if err := copy.Chown(p, nil, ch); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	if err := copy.Utimes(p, timestampToTime(action.Timestamp)); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	return nil
 }
 
-func rm(d string, action pb.FileActionRm) error {
+func rm(d string, action pb.FileActionRm) (err error) {
+	defer func() {
+		var osErr *os.PathError
+		if errors.As(err, &osErr) {
+			// remove system root from error path if present
+			osErr.Path = strings.TrimPrefix(osErr.Path, d)
+		}
+	}()
+
 	if action.AllowWildcard {
 		src, err := cleanPath(action.Path)
 		if err != nil {
@@ -94,7 +117,7 @@ func rm(d string, action pb.FileActionRm) error {
 		}
 		m, err := copy.ResolveWildcards(d, src, false)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 
 		for _, s := range m {
@@ -117,7 +140,7 @@ func rmPath(root, src string, allowNotFound bool) error {
 	}
 	dir, err := fs.RootPath(root, filepath.Join("/", dir))
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	p := filepath.Join(dir, base)
 
@@ -125,14 +148,14 @@ func rmPath(root, src string, allowNotFound bool) error {
 		_, err := os.Stat(p)
 
 		if errors.Is(err, os.ErrNotExist) {
-			return err
+			return errors.WithStack(err)
 		}
 	}
 
-	return os.RemoveAll(p)
+	return errors.WithStack(os.RemoveAll(p))
 }
 
-func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *copy.User, idmap *idtools.IdentityMapping) error {
+func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *copy.User, idmap *idtools.IdentityMapping) (err error) {
 	srcPath, err := cleanPath(action.Src)
 	if err != nil {
 		return errors.Wrap(err, "cleaning source path")
@@ -144,7 +167,7 @@ func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *
 	if !action.CreateDestPath {
 		p, err := fs.RootPath(dest, filepath.Join("/", action.Dest))
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		if _, err := os.Lstat(filepath.Dir(p)); err != nil {
 			return errors.Wrapf(err, "failed to stat %s", action.Dest)
@@ -177,6 +200,15 @@ func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *
 		copy.WithXAttrErrorHandler(xattrErrorHandler),
 	}
 
+	defer func() {
+		var osErr *os.PathError
+		if errors.As(err, &osErr) {
+			// remove system root from error path if present
+			osErr.Path = strings.TrimPrefix(osErr.Path, src)
+			osErr.Path = strings.TrimPrefix(osErr.Path, dest)
+		}
+	}()
+
 	var m []string
 	if !action.AllowWildcard {
 		m = []string{srcPath}
@@ -184,7 +216,7 @@ func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *
 		var err error
 		m, err = copy.ResolveWildcards(src, srcPath, action.FollowSymlink)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 
 		if len(m) == 0 {
@@ -198,13 +230,13 @@ func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *
 	for _, s := range m {
 		if action.AttemptUnpackDockerCompatibility {
 			if ok, err := unpack(src, s, dest, destPath, ch, timestampToTime(action.Timestamp), idmap); err != nil {
-				return err
+				return errors.WithStack(err)
 			} else if ok {
 				continue
 			}
 		}
 		if err := copy.Copy(ctx, src, s, dest, destPath, opt...); err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 	}
 
