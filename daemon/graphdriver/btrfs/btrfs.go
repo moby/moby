@@ -42,7 +42,7 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	units "github.com/docker/go-units"
 	"github.com/moby/sys/mount"
-	"github.com/moby/sys/user/userns"
+	"github.com/moby/sys/userns"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
