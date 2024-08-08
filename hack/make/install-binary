@@ -15,7 +15,6 @@ source "${MAKEDIR}/.install"
 	install_binary "${DEST}/docker-proxy"
 	install_binary "${DEST}/docker-init"
 	install_binary "${DEST}/rootlesskit"
-	install_binary "${DEST}/rootlesskit-docker-proxy"
 	install_binary "${DEST}/dockerd-rootless.sh"
 	install_binary "${DEST}/dockerd-rootless-setuptool.sh"
 	if [ -f "${DEST}/vpnkit" ]; then

@@ -18,18 +18,7 @@ type SCTPProxy struct {
 }
 
 // NewSCTPProxy creates a new SCTPProxy.
-func NewSCTPProxy(frontendAddr, backendAddr *sctp.SCTPAddr) (*SCTPProxy, error) {
-	// detect version of hostIP to bind only to correct version
-	ipVersion := ipv4
-	if frontendAddr.IPAddrs[0].IP.To4() == nil {
-		ipVersion = ipv6
-	}
-	listener, err := sctp.ListenSCTP("sctp"+string(ipVersion), frontendAddr)
-	if err != nil {
-		return nil, err
-	}
-	// If the port in frontendAddr was 0 then ListenSCTP will have a picked
-	// a port to listen on, hence the call to Addr to get that actual port:
+func NewSCTPProxy(listener *sctp.SCTPListener, backendAddr *sctp.SCTPAddr) (*SCTPProxy, error) {
 	return &SCTPProxy{
 		listener:     listener,
 		frontendAddr: listener.Addr().(*sctp.SCTPAddr),
@@ -90,9 +79,3 @@ func (proxy *SCTPProxy) Run() {
 
 // Close stops forwarding the traffic.
 func (proxy *SCTPProxy) Close() { proxy.listener.Close() }
-
-// FrontendAddr returns the SCTP address on which the proxy is listening.
-func (proxy *SCTPProxy) FrontendAddr() net.Addr { return proxy.frontendAddr }
-
-// BackendAddr returns the SCTP proxied address.
-func (proxy *SCTPProxy) BackendAddr() net.Addr { return proxy.backendAddr }

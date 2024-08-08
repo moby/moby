@@ -54,16 +54,7 @@ type UDPProxy struct {
 }
 
 // NewUDPProxy creates a new UDPProxy.
-func NewUDPProxy(frontendAddr, backendAddr *net.UDPAddr) (*UDPProxy, error) {
-	// detect version of hostIP to bind only to correct version
-	ipVersion := ipv4
-	if frontendAddr.IP.To4() == nil {
-		ipVersion = ipv6
-	}
-	listener, err := net.ListenUDP("udp"+string(ipVersion), frontendAddr)
-	if err != nil {
-		return nil, err
-	}
+func NewUDPProxy(listener *net.UDPConn, backendAddr *net.UDPAddr) (*UDPProxy, error) {
 	return &UDPProxy{
 		listener:       listener,
 		frontendAddr:   listener.LocalAddr().(*net.UDPAddr),
@@ -155,12 +146,6 @@ func (proxy *UDPProxy) Close() {
 		conn.Close()
 	}
 }
-
-// FrontendAddr returns the UDP address on which the proxy is listening.
-func (proxy *UDPProxy) FrontendAddr() net.Addr { return proxy.frontendAddr }
-
-// BackendAddr returns the proxied UDP address.
-func (proxy *UDPProxy) BackendAddr() net.Addr { return proxy.backendAddr }
 
 func isClosedError(err error) bool {
 	/* This comparison is ugly, but unfortunately, net.go doesn't export errClosing.

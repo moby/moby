@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/drivers/bridge/internal/rlkclient"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -56,6 +57,7 @@ type configuration struct {
 	EnableIP6Tables     bool
 	EnableUserlandProxy bool
 	UserlandProxyPath   string
+	Rootless            bool
 }
 
 // networkConfiguration for network specific configuration
@@ -131,6 +133,16 @@ type bridgeNetwork struct {
 	sync.Mutex
 }
 
+type portDriverClient interface {
+	ChildHostIP(hostIP netip.Addr) netip.Addr
+	AddPort(ctx context.Context, proto string, hostIP, childIP netip.Addr, hostPort int) (func() error, error)
+}
+
+// Allow unit tests to supply a dummy RootlessKit port driver client.
+var newPortDriverClient = func(ctx context.Context) (portDriverClient, error) {
+	return rlkclient.NewPortDriverClient(ctx)
+}
+
 type driver struct {
 	config            configuration
 	natChain          *iptables.ChainInfo
@@ -144,6 +156,7 @@ type driver struct {
 	networks          map[string]*bridgeNetwork
 	store             *datastore.Store
 	nlh               *netlink.Handle
+	portDriverClient  portDriverClient
 	configNetwork     sync.Mutex
 	sync.Mutex
 }
@@ -414,6 +427,15 @@ func (n *bridgeNetwork) userlandProxyPath() string {
 	return n.driver.userlandProxyPath()
 }
 
+func (n *bridgeNetwork) getPortDriverClient() portDriverClient {
+	n.Lock()
+	defer n.Unlock()
+	if n.driver == nil {
+		return nil
+	}
+	return n.driver.getPortDriverClient()
+}
+
 func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 	if eid == "" {
 		return nil, InvalidEndpointIDError(eid)
@@ -465,6 +487,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 		filterChainV6     *iptables.ChainInfo
 		isolationChain1V6 *iptables.ChainInfo
 		isolationChain2V6 *iptables.ChainInfo
+		pdc               portDriverClient
 	)
 
 	switch opt := option[netlabel.GenericData].(type) {
@@ -537,6 +560,14 @@ func (d *driver) configure(option map[string]interface{}) error {
 		}
 	}
 
+	if config.Rootless {
+		var err error
+		pdc, err = newPortDriverClient(context.TODO())
+		if err != nil {
+			return err
+		}
+	}
+
 	d.Lock()
 	d.natChain = natChain
 	d.filterChain = filterChain
@@ -546,6 +577,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 	d.filterChainV6 = filterChainV6
 	d.isolationChain1V6 = isolationChain1V6
 	d.isolationChain2V6 = isolationChain2V6
+	d.portDriverClient = pdc
 	d.config = config
 	d.Unlock()
 
@@ -575,6 +607,12 @@ func (d *driver) userlandProxyPath() string {
 		return d.config.UserlandProxyPath
 	}
 	return ""
+}
+
+func (d *driver) getPortDriverClient() portDriverClient {
+	d.Lock()
+	defer d.Unlock()
+	return d.portDriverClient
 }
 
 func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error) {

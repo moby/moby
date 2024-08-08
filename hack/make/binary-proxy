@@ -2,7 +2,8 @@
 
 set -e
 
-(
+# docker-proxy is Linux only
+[ "$(go env GOOS)" != 'linux' ] || (
 	export CGO_ENABLED=0
 
 	DOCKER_STATIC=1
