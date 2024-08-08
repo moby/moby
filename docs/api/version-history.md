@@ -32,6 +32,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /images/{name}/history` now supports a `platform` parameter (JSON
   encoded OCI Platform type) that allows to specify a platform to show the
   history of.
+* `POST /images/{name}/load` and `GET /images/{name}/get` now support a
+  `platform` parameter (JSON encoded OCI Platform type) that allows to specify
+  a platform to load/save. Not passing this parameter will result in
+  loading/saving the full multi-platform image.
 
 ## v1.46 API changes
 

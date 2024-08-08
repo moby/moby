@@ -94,18 +94,24 @@ type ImageAPIClient interface {
 	ImageImport(ctx context.Context, source image.ImportSource, ref string, options image.ImportOptions) (io.ReadCloser, error)
 	ImageInspectWithRaw(ctx context.Context, image string) (image.InspectResponse, []byte, error)
 	ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
-	ImageLoad(ctx context.Context, input io.Reader, quiet bool) (image.LoadResponse, error)
 	ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
 	ImagePush(ctx context.Context, ref string, options image.PushOptions) (io.ReadCloser, error)
 	ImageRemove(ctx context.Context, image string, options image.RemoveOptions) ([]image.DeleteResponse, error)
 	ImageSearch(ctx context.Context, term string, options registry.SearchOptions) ([]registry.SearchResult, error)
-	ImageSave(ctx context.Context, images []string) (io.ReadCloser, error)
 	ImageTag(ctx context.Context, image, ref string) error
 	ImagesPrune(ctx context.Context, pruneFilter filters.Args) (image.PruneReport, error)
 
 	// Note: In future release, signature will be changed to
 	// ImageHistory(ctx context.Context, image string, opts image.HistoryOptions) ([]image.HistoryResponseItem, error)
 	ImageHistory(ctx context.Context, image string) ([]image.HistoryResponseItem, error)
+
+	// Note: In future release, signature will be changed to
+	// ImageLoad(ctx context.Context, input io.Reader, opts image.LoadOptions) (image.LoadResponse, error)
+	ImageLoad(ctx context.Context, input io.Reader, quiet bool) (image.LoadResponse, error)
+
+	// Note: In future release, signature will be changed to
+	// ImageSave(ctx context.Context, images []string, opts image.SaveOptions) (io.ReadCloser, error)
+	ImageSave(ctx context.Context, images []string) (io.ReadCloser, error)
 }
 
 // NetworkAPIClient defines API client methods for the networks
