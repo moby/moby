@@ -47,10 +47,8 @@ func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Conta
 // outStream is the writer which the images are written to.
 //
 // TODO(thaJeztah): produce JSON stream progress response and image events; see https://github.com/moby/moby/issues/43910
-func (i *ImageService) ExportImage(ctx context.Context, names []string, outStream io.Writer) error {
-	// TODO: Pass as argument
-	var requestedPlatform *ocispec.Platform
-	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, requestedPlatform)
+func (i *ImageService) ExportImage(ctx context.Context, names []string, platform *ocispec.Platform, outStream io.Writer) error {
+	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, platform)
 
 	opts := []archive.ExportOpt{
 		archive.WithSkipNonDistributableBlobs(),
@@ -85,7 +83,17 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 		return leaseContent(ctx, i.content, leasesManager, lease, target)
 	}
 
-	exportImage := func(ctx context.Context, target ocispec.Descriptor, ref reference.Named) error {
+	exportImage := func(ctx context.Context, img containerdimages.Image, ref reference.Named) error {
+		target := img.Target
+
+		if platform != nil {
+			newTarget, err := i.getPushDescriptor(ctx, img, platform)
+			if err != nil {
+				return errors.Wrap(err, "no suitable export target found for platform "+platforms.FormatAll(*platform))
+			}
+			target = newTarget
+		}
+
 		if err := addLease(ctx, target); err != nil {
 			return err
 		}
@@ -142,7 +150,7 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 				continue
 			}
 
-			if err := exportImage(ctx, img.Target, ref); err != nil {
+			if err := exportImage(ctx, img, ref); err != nil {
 				return err
 			}
 		}
@@ -151,19 +159,20 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 	}
 
 	for _, name := range names {
-		target, resolveErr := i.resolveDescriptor(ctx, name)
+		img, resolveErr := i.resolveImage(ctx, name)
 
 		// Check if the requested name is a truncated digest of the resolved descriptor.
 		// If yes, that means that the user specified a specific image ID so
 		// it's not referencing a repository.
 		specificDigestResolved := false
 		if resolveErr == nil {
-			nameWithoutDigestAlgorithm := strings.TrimPrefix(name, target.Digest.Algorithm().String()+":")
-			specificDigestResolved = strings.HasPrefix(target.Digest.Encoded(), nameWithoutDigestAlgorithm)
+			nameWithoutDigestAlgorithm := strings.TrimPrefix(name, img.Target.Digest.Algorithm().String()+":")
+			specificDigestResolved = strings.HasPrefix(img.Target.Digest.Encoded(), nameWithoutDigestAlgorithm)
 		}
 
 		log.G(ctx).WithFields(log.Fields{
 			"name":                   name,
+			"img":                    img,
 			"resolveErr":             resolveErr,
 			"specificDigestResolved": specificDigestResolved,
 		}).Debug("export requested")
@@ -199,7 +208,8 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 		if specificDigestResolved {
 			ref = nil
 		}
-		if err := exportImage(ctx, target, ref); err != nil {
+
+		if err := exportImage(ctx, img, ref); err != nil {
 			return err
 		}
 	}
@@ -234,16 +244,17 @@ func leaseContent(ctx context.Context, store content.Store, leasesManager leases
 // LoadImage uploads a set of images into the repository. This is the
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
-func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
+func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platform *ocispec.Platform, outStream io.Writer, quiet bool) error {
 	decompressed, err := dockerarchive.DecompressStream(inTar)
 	if err != nil {
 		return errors.Wrap(err, "failed to decompress input tar archive")
 	}
 	defer decompressed.Close()
 
+	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, platform)
+
 	opts := []containerd.ImportOpt{
-		// TODO(vvoland): Allow user to pass platform
-		containerd.WithImportPlatform(platforms.All),
+		containerd.WithImportPlatform(pm),
 
 		containerd.WithSkipMissing(),
 
