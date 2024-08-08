@@ -1,6 +1,7 @@
 package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
+	"context"
 	"encoding/binary"
 	"io"
 	"sync"
@@ -154,7 +155,7 @@ func TestAdapterReadLogs(t *testing.T) {
 	lr, ok := l.(LogReader)
 	assert.Check(t, ok, "Logger does not implement LogReader")
 
-	lw := lr.ReadLogs(ReadConfig{})
+	lw := lr.ReadLogs(context.TODO(), ReadConfig{})
 
 	for _, x := range testMsg {
 		select {
@@ -173,7 +174,7 @@ func TestAdapterReadLogs(t *testing.T) {
 	}
 	lw.ConsumerGone()
 
-	lw = lr.ReadLogs(ReadConfig{Follow: true})
+	lw = lr.ReadLogs(context.TODO(), ReadConfig{Follow: true})
 	for _, x := range testMsg {
 		select {
 		case msg := <-lw.Msg:

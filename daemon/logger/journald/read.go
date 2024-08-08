@@ -20,6 +20,8 @@ const (
 	waitInterval       = 250 * time.Millisecond
 )
 
+var _ logger.LogReader = (*journald)(nil)
+
 // Fields which we know are not user-provided attribute fields.
 var wellKnownFields = map[string]bool{
 	"MESSAGE":             true,
@@ -190,11 +192,20 @@ func (r *reader) initialSeekTail() (bool, error) {
 
 // wait blocks until the journal has new data to read, the reader's drain
 // deadline is exceeded, or the log reading consumer is gone.
-func (r *reader) wait() (bool, error) {
+func (r *reader) wait(ctx context.Context) (bool, error) {
+	deadline := r.drainDeadline
+	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
+		deadline = d
+	}
+
 	for {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+
 		dur := waitInterval
-		if !r.drainDeadline.IsZero() {
-			dur = time.Until(r.drainDeadline)
+		if !deadline.IsZero() {
+			dur = time.Until(deadline)
 			if dur < 0 {
 				// Container is gone but we haven't found the end of the
 				// logs before the deadline. Maybe it was dropped by
@@ -213,6 +224,8 @@ func (r *reader) wait() (bool, error) {
 		select {
 		case <-r.logWatcher.WatchConsumerGone():
 			return false, nil
+		case <-ctx.Done():
+			return false, ctx.Err()
 		case <-r.s.closed:
 			// Container is gone; don't wait indefinitely for journal entries that will never arrive.
 			if r.maxOrdinal >= r.s.ordinal.Load() {
@@ -228,12 +241,15 @@ func (r *reader) wait() (bool, error) {
 
 // nextWait blocks until there is a new journal entry to read, and advances the
 // journal read pointer to it.
-func (r *reader) nextWait() (bool, error) {
+func (r *reader) nextWait(ctx context.Context) (bool, error) {
 	for {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
 		if ok, err := r.j.Next(); err != nil || ok {
 			return ok, err
 		}
-		if ok, err := r.wait(); err != nil || !ok {
+		if ok, err := r.wait(ctx); err != nil || !ok {
 			return false, err
 		}
 	}
@@ -247,7 +263,7 @@ func (r *reader) nextWait() (bool, error) {
 //   - the watch consumer is gone, or
 //   - (if until is nonzero) a log entry is read which has a timestamp after
 //     until
-func (r *reader) drainJournal() (bool, error) {
+func (r *reader) drainJournal(ctx context.Context) (bool, error) {
 	for i := 0; ; i++ {
 		// Read the entry's timestamp.
 		timestamp, err := r.j.Realtime()
@@ -297,6 +313,8 @@ func (r *reader) drainJournal() (bool, error) {
 			select {
 			case <-r.logWatcher.WatchConsumerGone():
 				return false, nil
+			case <-ctx.Done():
+				return false, ctx.Err()
 			case r.logWatcher.Msg <- msg:
 			}
 		}
@@ -306,10 +324,14 @@ func (r *reader) drainJournal() (bool, error) {
 		if i != 0 && i%1024 == 0 {
 			if _, err := r.j.Process(); err != nil {
 				// log a warning but ignore it for now
-				log.G(context.TODO()).WithField("container", r.s.vars[fieldContainerIDFull]).
+				log.G(ctx).WithField("container", r.s.vars[fieldContainerIDFull]).
 					WithField("error", err).
 					Warn("journald: error processing journal")
 			}
+		}
+
+		if err := ctx.Err(); err != nil {
+			return false, err
 		}
 
 		if ok, err := r.j.Next(); err != nil || !ok {
@@ -318,9 +340,9 @@ func (r *reader) drainJournal() (bool, error) {
 	}
 }
 
-func (r *reader) readJournal() error {
+func (r *reader) readJournal(ctx context.Context) error {
 	caughtUp := r.s.ordinal.Load()
-	if more, err := r.drainJournal(); err != nil || !more {
+	if more, err := r.drainJournal(ctx); err != nil || !more {
 		return err
 	}
 
@@ -343,10 +365,10 @@ func (r *reader) readJournal() error {
 		default:
 		}
 
-		if more, err := r.nextWait(); err != nil || !more {
+		if more, err := r.nextWait(ctx); err != nil || !more {
 			return err
 		}
-		if more, err := r.drainJournal(); err != nil || !more {
+		if more, err := r.drainJournal(ctx); err != nil || !more {
 			return err
 		}
 		if !r.config.Follow && r.s.readSyncTimeout > 0 && r.maxOrdinal >= caughtUp {
@@ -355,7 +377,7 @@ func (r *reader) readJournal() error {
 	}
 }
 
-func (r *reader) readLogs() {
+func (r *reader) readLogs(ctx context.Context) {
 	defer close(r.logWatcher.Msg)
 
 	// Make sure the ready channel is closed in the event of an early
@@ -425,7 +447,7 @@ func (r *reader) readLogs() {
 		// which case the position will be unaffected by subsequent logging, or
 		// the read pointer is in the conceptual position corresponding to the
 		// first journal entry to send once it is logged in the future.
-		if more, err := r.nextWait(); err != nil || !more {
+		if more, err := r.nextWait(ctx); err != nil || !more {
 			if err != nil {
 				r.logWatcher.Err <- err
 			}
@@ -433,7 +455,7 @@ func (r *reader) readLogs() {
 		}
 	}
 
-	if err := r.readJournal(); err != nil {
+	if err := r.readJournal(ctx); err != nil {
 		r.logWatcher.Err <- err
 		return
 	}
@@ -447,14 +469,14 @@ func (r *reader) signalReady() {
 	}
 }
 
-func (s *journald) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
+func (s *journald) ReadLogs(ctx context.Context, config logger.ReadConfig) *logger.LogWatcher {
 	r := &reader{
 		s:          s,
 		logWatcher: logger.NewLogWatcher(),
 		config:     config,
 		ready:      make(chan struct{}),
 	}
-	go r.readLogs()
+	go r.readLogs(ctx)
 	// Block until the reader is in position to read from the current config
 	// location to prevent race conditions in tests.
 	<-r.ready

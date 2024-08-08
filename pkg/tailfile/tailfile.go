@@ -48,7 +48,7 @@ type SizeReaderAt interface {
 }
 
 // NewTailReader scopes the passed in reader to just the last N lines passed in
-func NewTailReader(ctx context.Context, r SizeReaderAt, reqLines int) (io.Reader, int, error) {
+func NewTailReader(ctx context.Context, r SizeReaderAt, reqLines int) (*io.SectionReader, int, error) {
 	return NewTailReaderWithDelimiter(ctx, r, reqLines, eol)
 }
 
@@ -56,7 +56,7 @@ func NewTailReader(ctx context.Context, r SizeReaderAt, reqLines int) (io.Reader
 // In this case a "line" is defined by the passed in delimiter.
 //
 // Delimiter lengths should be generally small, no more than 12 bytes
-func NewTailReaderWithDelimiter(ctx context.Context, r SizeReaderAt, reqLines int, delimiter []byte) (io.Reader, int, error) {
+func NewTailReaderWithDelimiter(ctx context.Context, r SizeReaderAt, reqLines int, delimiter []byte) (*io.SectionReader, int, error) {
 	if reqLines < 1 {
 		return nil, 0, ErrNonPositiveLinesNumber
 	}
@@ -71,7 +71,7 @@ func NewTailReaderWithDelimiter(ctx context.Context, r SizeReaderAt, reqLines in
 	)
 
 	if int64(len(delimiter)) >= size {
-		return bytes.NewReader(nil), 0, nil
+		return io.NewSectionReader(bytes.NewReader(nil), 0, 0), 0, nil
 	}
 
 	scanner := newScanner(r, delimiter)
@@ -92,7 +92,7 @@ func NewTailReaderWithDelimiter(ctx context.Context, r SizeReaderAt, reqLines in
 	tailStart = scanner.Start(ctx)
 
 	if found == 0 {
-		return bytes.NewReader(nil), 0, nil
+		return io.NewSectionReader(bytes.NewReader(nil), 0, 0), 0, nil
 	}
 
 	if found < reqLines && tailStart != 0 {
