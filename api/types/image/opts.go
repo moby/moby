@@ -76,6 +76,9 @@ type ListOptions struct {
 
 	// ContainerCount indicates whether container count should be computed.
 	ContainerCount bool
+
+	// Manifests indicates whether the image manifests should be returned.
+	Manifests bool
 }
 
 // RemoveOptions holds parameters to remove images.

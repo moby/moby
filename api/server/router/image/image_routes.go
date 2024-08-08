@@ -358,10 +358,16 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		sharedSize = httputils.BoolValue(r, "shared-size")
 	}
 
+	var manifests bool
+	if versions.GreaterThanOrEqualTo(version, "1.47") {
+		manifests = httputils.BoolValue(r, "manifests")
+	}
+
 	images, err := ir.backend.Images(ctx, imagetypes.ListOptions{
 		All:        httputils.BoolValue(r, "all"),
 		Filters:    imageFilters,
 		SharedSize: sharedSize,
+		Manifests:  manifests,
 	})
 	if err != nil {
 		return err
