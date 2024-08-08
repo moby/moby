@@ -9238,6 +9238,19 @@ paths:
           in: "query"
           description: "The tag to associate with the image on the registry."
           type: "string"
+        - name: "platform"
+          type: "string"
+          in: "query"
+          description: |
+            JSON encoded OCI Platform to select a platform-specific manifest
+            matching this platform to be pushed.
+            If not provided, full multi-platform image will be pushed.
+            Note: Selection is only supported with the containerd image store.
+              With graphdrivers image store, it will only check that the actual
+              platform of the image matches the provided platform and error out
+              otherwise.
+
+            Example: {"os": "linux", "architecture": "arm", "variant": "v5"}
         - name: "X-Registry-Auth"
           in: "header"
           description: |
@@ -9247,11 +9260,6 @@ paths:
             details.
           type: "string"
           required: true
-        - name: "platform"
-          in: "query"
-          description: "Select a platform-specific manifest to be pushed. OCI platform (JSON encoded)"
-          type: "string"
-          x-nullable: true
       tags: ["Image"]
   /images/{name}/tag:
     post:
