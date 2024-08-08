@@ -83,6 +83,10 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 			log.G(ctx).Debugf("Macvlan Endpoint Joined with IPv6_Addr: %s Gateway: %s MacVlan_Mode: %s, Parent: %s",
 				ep.addrv6.IP.String(), v6gw.String(), n.config.MacvlanMode, n.config.Parent)
 		}
+		if len(n.config.Ipv4Subnets) == 0 && len(n.config.Ipv6Subnets) == 0 {
+			// With no addresses, don't need a gateway.
+			jinfo.DisableGatewayService()
+		}
 	} else {
 		if len(n.config.Ipv4Subnets) > 0 {
 			log.G(ctx).Debugf("Macvlan Endpoint Joined with IPv4_Addr: %s, MacVlan_Mode: %s, Parent: %s",

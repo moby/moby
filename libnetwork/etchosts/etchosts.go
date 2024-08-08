@@ -143,6 +143,10 @@ func mergeRecords(path string, recs []Record) ([]byte, error) {
 }
 
 // Delete deletes an arbitrary number of Records already existing in /etc/hosts file
+//
+// FIXME(robmry) - this only matches on hostname, not address. So, if a container
+// is connected to two networks then disconnected from one of them, the hosts
+// entries for both networks are deleted.
 func Delete(path string, recs []Record) error {
 	defer pathLock(path)()
 
