@@ -7,7 +7,6 @@ import (
 	"io"
 	"maps"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -120,7 +119,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 		if opt.SessionPreInitialized {
 			return nil, errors.Errorf("no session provided for preinitialized option")
 		}
-		s, err = session.NewSession(statusContext, defaultSessionName(), opt.SharedKey)
+		s, err = session.NewSession(statusContext, opt.SharedKey)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create session")
 		}
@@ -417,14 +416,6 @@ func prepareSyncedFiles(def *llb.Definition, localMounts map[string]fsutil.FS) (
 		}
 	}
 	return result, nil
-}
-
-func defaultSessionName() string {
-	wd, err := os.Getwd()
-	if err != nil {
-		return "unknown"
-	}
-	return filepath.Base(wd)
 }
 
 type cacheOptions struct {

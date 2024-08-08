@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -30,7 +31,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp/internal"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp/internal/oconf"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp/internal/retry"
@@ -89,7 +89,7 @@ func newClient(cfg oconf.Config) (*client, error) {
 		return nil, err
 	}
 
-	userAgent := "OTel OTLP Exporter Go/" + otlpmetric.Version()
+	userAgent := "OTel Go OTLP over HTTP/protobuf metrics exporter/" + Version()
 	req.Header.Set("User-Agent", userAgent)
 
 	if n := len(cfg.Metrics.Headers); n > 0 {
@@ -148,6 +148,10 @@ func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.Resou
 
 		request.reset(iCtx)
 		resp, err := c.httpClient.Do(request.Request)
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) && urlErr.Temporary() {
+			return newResponseError(http.Header{})
+		}
 		if err != nil {
 			return err
 		}
@@ -162,8 +166,11 @@ func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.Resou
 			if _, err := io.Copy(&respData, resp.Body); err != nil {
 				return err
 			}
+			if respData.Len() == 0 {
+				return nil
+			}
 
-			if respData.Len() != 0 {
+			if resp.Header.Get("Content-Type") == "application/x-protobuf" {
 				var respProto colmetricpb.ExportMetricsServiceResponse
 				if err := proto.Unmarshal(respData.Bytes(), &respProto); err != nil {
 					return err
@@ -179,7 +186,10 @@ func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.Resou
 				}
 			}
 			return nil
-		case sc == http.StatusTooManyRequests, sc == http.StatusServiceUnavailable:
+		case sc == http.StatusTooManyRequests,
+			sc == http.StatusBadGateway,
+			sc == http.StatusServiceUnavailable,
+			sc == http.StatusGatewayTimeout:
 			// Retry-able failure.
 			rErr = newResponseError(resp.Header)
 

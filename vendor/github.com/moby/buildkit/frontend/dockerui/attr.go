@@ -125,6 +125,16 @@ func parseSourceDateEpoch(v string) (*time.Time, error) {
 	return &tm, nil
 }
 
+func parseLocalSessionIDs(opt map[string]string) map[string]string {
+	m := map[string]string{}
+	for k, v := range opt {
+		if strings.HasPrefix(k, localSessionIDPrefix) {
+			m[strings.TrimPrefix(k, localSessionIDPrefix)] = v
+		}
+	}
+	return m
+}
+
 func filter(opt map[string]string, key string) map[string]string {
 	m := map[string]string{}
 	for k, v := range opt {

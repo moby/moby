@@ -5,6 +5,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/moby/buildkit/errdefs"
 	"github.com/moby/buildkit/solver/internal/pipe"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/cond"
@@ -403,7 +404,7 @@ func (pf *pipeFactory) NewInputRequest(ee Edge, req *edgeRequest) pipe.Receiver 
 			WithField("edge_index", ee.Index).
 			Error("failed to get edge: inconsistent graph state")
 		return pf.NewFuncRequest(func(_ context.Context) (interface{}, error) {
-			return nil, errors.Errorf("failed to get edge: inconsistent graph state in edge %s %s %d", ee.Vertex.Name(), ee.Vertex.Digest(), ee.Index)
+			return nil, errdefs.Internal(errors.Errorf("failed to get edge: inconsistent graph state in edge %s %s %d", ee.Vertex.Name(), ee.Vertex.Digest(), ee.Index))
 		})
 	}
 	p := pf.s.newPipe(target, pf.e, pipe.Request{Payload: req})

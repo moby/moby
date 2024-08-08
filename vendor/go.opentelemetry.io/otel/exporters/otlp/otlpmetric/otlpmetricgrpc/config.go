@@ -109,13 +109,7 @@ func compressorToCompression(compressor string) oconf.Compression {
 }
 
 // WithCompressor sets the compressor the gRPC client uses.
-//
-// It is the responsibility of the caller to ensure that the compressor set
-// has been registered with google.golang.org/grpc/encoding (see
-// encoding.RegisterCompressor for more information). For example, to register
-// the gzip compressor import the package:
-//
-//	import _ "google.golang.org/grpc/encoding/gzip"
+// Supported compressor values: "gzip".
 //
 // If the OTEL_EXPORTER_OTLP_COMPRESSION or
 // OTEL_EXPORTER_OTLP_METRICS_COMPRESSION environment variable is set, and

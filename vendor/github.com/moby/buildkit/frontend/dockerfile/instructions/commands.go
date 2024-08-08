@@ -255,6 +255,12 @@ func (c *AddCommand) Expand(expander SingleWordExpander) error {
 	}
 	c.Chown = expandedChown
 
+	expandedChmod, err := expander(c.Chmod)
+	if err != nil {
+		return err
+	}
+	c.Chmod = expandedChmod
+
 	expandedChecksum, err := expander(c.Checksum)
 	if err != nil {
 		return err
@@ -286,6 +292,12 @@ func (c *CopyCommand) Expand(expander SingleWordExpander) error {
 		return err
 	}
 	c.Chown = expandedChown
+
+	expandedChmod, err := expander(c.Chmod)
+	if err != nil {
+		return err
+	}
+	c.Chmod = expandedChmod
 
 	return c.SourcesAndDest.Expand(expander)
 }

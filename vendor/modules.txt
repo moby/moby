@@ -381,7 +381,6 @@ github.com/containerd/log/logtest
 ## explicit; go 1.21
 github.com/containerd/nydus-snapshotter/pkg/converter
 github.com/containerd/nydus-snapshotter/pkg/converter/tool
-github.com/containerd/nydus-snapshotter/pkg/errdefs
 github.com/containerd/nydus-snapshotter/pkg/label
 # github.com/containerd/platforms v0.2.1
 ## explicit; go 1.20
@@ -708,7 +707,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.15.1
+# github.com/moby/buildkit v0.15.1-0.20240808092756-a708e3433010
 ## explicit; go 1.21.0
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -733,6 +732,7 @@ github.com/moby/buildkit/client/ociindex
 github.com/moby/buildkit/cmd/buildkitd/config
 github.com/moby/buildkit/control
 github.com/moby/buildkit/control/gateway
+github.com/moby/buildkit/errdefs
 github.com/moby/buildkit/executor
 github.com/moby/buildkit/executor/containerdexecutor
 github.com/moby/buildkit/executor/oci
@@ -817,6 +817,8 @@ github.com/moby/buildkit/util/cond
 github.com/moby/buildkit/util/contentutil
 github.com/moby/buildkit/util/converter
 github.com/moby/buildkit/util/converter/tarconverter
+github.com/moby/buildkit/util/db
+github.com/moby/buildkit/util/db/boltutil
 github.com/moby/buildkit/util/entitlements
 github.com/moby/buildkit/util/entitlements/security
 github.com/moby/buildkit/util/estargz
@@ -1214,10 +1216,7 @@ go.opentelemetry.io/otel/internal/global
 go.opentelemetry.io/otel/propagation
 go.opentelemetry.io/otel/semconv/v1.17.0
 go.opentelemetry.io/otel/semconv/v1.21.0
-# go.opentelemetry.io/otel/exporters/otlp/otlpmetric v0.42.0
-## explicit; go 1.20
-go.opentelemetry.io/otel/exporters/otlp/otlpmetric
-# go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v0.42.0
+# go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v0.44.0
 ## explicit; go 1.20
 go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc
 go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc/internal
@@ -1225,7 +1224,7 @@ go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc/internal/envco
 go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc/internal/oconf
 go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc/internal/retry
 go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc/internal/transform
-# go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v0.42.0
+# go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v0.44.0
 ## explicit; go 1.20
 go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp
 go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp/internal
