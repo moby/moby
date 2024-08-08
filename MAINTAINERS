@@ -69,6 +69,7 @@
 		people = [
 			"alexellis",
 			"andrewhsu",
+			"austinvazquez",
 			"bsousaa",
 			"dmcgowan",
 			"fntlnz",
@@ -313,6 +314,11 @@
 	Name = "Andrew Hsu"
 	Email = "andrewhsu@docker.com"
 	GitHub = "andrewhsu"
+
+	[people.austinvazquez]
+	Name = "Austin Vazquez"
+	Email = "macedonv@amazon.com"
+	GitHub = "austinvazquez"
 
 	[people.anusha]
 	Name = "Anusha Ragunathan"
