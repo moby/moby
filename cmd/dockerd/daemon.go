@@ -311,6 +311,13 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return err
 	}
 
+	if runtime.GOOS == "windows" {
+		features := routerOpts.features()
+		if enabled, ok := features["buildkit"]; ok && enabled {
+			log.G(ctx).Warn("Buildkit feature is enabled in the daemon.json configuration file. Support for BuildKit on Windows is experimental, and enabling this feature may not work. Use at your own risk!")
+		}
+	}
+
 	httpServer.Handler = apiServer.CreateMux(routerOpts.Build()...)
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
