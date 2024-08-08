@@ -61,7 +61,7 @@ import (
 	"unsafe"
 
 	"github.com/containerd/log"
-	"github.com/moby/sys/user/userns"
+	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )

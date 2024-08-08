@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/moby/sys/user/userns"
+	"github.com/moby/sys/userns"
 )
 
 // applyLayerHandler parses a diff in the standard layer format from `layer`, and
