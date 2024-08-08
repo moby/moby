@@ -17,6 +17,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.48](https://docs.docker.com/engine/api/v1.48/) documentation
 
+* `GET /images/{name}/history` now supports a `platform` parameter (JSON
+  encoded OCI Platform type) that allows to specify a platform to show the
+  history of.
+
 ## v1.47 API changes
 
 [Docker Engine API v1.47](https://docs.docker.com/engine/api/v1.47/) documentation
