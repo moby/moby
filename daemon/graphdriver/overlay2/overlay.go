@@ -29,7 +29,6 @@ import (
 	units "github.com/docker/go-units"
 	"github.com/moby/locker"
 	"github.com/moby/sys/mount"
-	"github.com/moby/sys/user/userns"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"golang.org/x/sys/unix"
 )
