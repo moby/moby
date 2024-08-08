@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/system"
-	"github.com/moby/sys/user/userns"
+	"github.com/moby/sys/userns"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
