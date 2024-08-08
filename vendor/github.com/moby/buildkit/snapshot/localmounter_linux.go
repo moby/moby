@@ -6,8 +6,8 @@ import (
 	"syscall"
 
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/pkg/userns"
 	rootlessmountopts "github.com/moby/buildkit/util/rootless/mountopts"
+	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
 )
 

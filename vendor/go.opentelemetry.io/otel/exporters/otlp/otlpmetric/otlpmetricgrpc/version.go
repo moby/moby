@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otlpmetric // import "go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
+package otlpmetricgrpc // import "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 
-// Version is the current release version of the OpenTelemetry OTLP metrics exporter in use.
+// Version is the current release version of the OpenTelemetry OTLP over gRPC metrics exporter in use.
 func Version() string {
-	return "0.42.0"
+	return "0.44.0"
 }

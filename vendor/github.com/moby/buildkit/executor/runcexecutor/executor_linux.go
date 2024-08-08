@@ -1,14 +1,19 @@
 package runcexecutor
 
 import (
+	"bufio"
 	"context"
 	"io"
 	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/containerd/console"
 	runc "github.com/containerd/go-runc"
 	"github.com/moby/buildkit/executor"
+	gatewayapi "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/sys/signal"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -171,4 +176,45 @@ func (w *runcExecutor) callWithIO(ctx context.Context, process executor.ProcessI
 	}
 
 	return call(ctx, startedCh, runcIO, killer.pidfile)
+}
+
+func detectOOM(ctx context.Context, ns string, gwErr *gatewayapi.ExitError) {
+	const defaultCgroupMountpoint = "/sys/fs/cgroup"
+
+	if ns == "" {
+		return
+	}
+
+	count, err := readMemoryEvent(filepath.Join(defaultCgroupMountpoint, ns), "oom_kill")
+	if err != nil {
+		bklog.G(ctx).WithError(err).Warn("failed to read oom_kill event")
+		return
+	}
+	if count > 0 {
+		gwErr.Err = syscall.ENOMEM
+	}
+}
+
+func readMemoryEvent(fp string, event string) (uint64, error) {
+	f, err := os.Open(filepath.Join(fp, "memory.events"))
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		parts := strings.Fields(s.Text())
+		if len(parts) != 2 {
+			continue
+		}
+		if parts[0] != event {
+			continue
+		}
+		v, err := strconv.ParseUint(parts[1], 10, 64)
+		if err == nil {
+			return v, nil
+		}
+	}
+	return 0, s.Err()
 }

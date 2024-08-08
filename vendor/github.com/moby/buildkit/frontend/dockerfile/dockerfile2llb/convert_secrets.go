@@ -22,9 +22,17 @@ func dispatchSecret(d *dispatchState, m *instructions.Mount, loc []parser.Range)
 		id = path.Base(m.Target)
 	}
 
-	target := m.Target
-	if target == "" {
-		target = "/run/secrets/" + path.Base(id)
+	var target *string
+	if m.Target != "" {
+		target = &m.Target
+	}
+
+	if m.Env == nil {
+		dest := m.Target
+		if dest == "" {
+			dest = "/run/secrets/" + path.Base(id)
+		}
+		target = &dest
 	}
 
 	if _, ok := d.outline.secrets[id]; !ok {
@@ -38,6 +46,9 @@ func dispatchSecret(d *dispatchState, m *instructions.Mount, loc []parser.Range)
 
 	if !m.Required {
 		opts = append(opts, llb.SecretOptional)
+	}
+	if m.Env != nil {
+		opts = append(opts, llb.SecretAsEnvName(*m.Env))
 	}
 
 	if m.UID != nil || m.GID != nil || m.Mode != nil {
@@ -56,5 +67,5 @@ func dispatchSecret(d *dispatchState, m *instructions.Mount, loc []parser.Range)
 		opts = append(opts, llb.SecretFileOpt(uid, gid, mode))
 	}
 
-	return llb.AddSecret(target, opts...), nil
+	return llb.AddSecretWithDest(id, target, opts...), nil
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/buildkit/util/pull"
 	"github.com/moby/buildkit/util/resolver"
+	"github.com/moby/buildkit/util/tracing"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -148,7 +149,12 @@ func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session
 	return p, nil
 }
 
-func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt, sm *session.Manager, g session.Group) (digest.Digest, []byte, error) {
+func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt, sm *session.Manager, g session.Group) (digest digest.Digest, config []byte, retErr error) {
+	span, ctx := tracing.StartSpan(ctx, "resolving "+ref)
+	defer func() {
+		tracing.FinishWithError(span, retErr)
+	}()
+
 	key := ref
 	var (
 		rm    resolver.ResolveMode

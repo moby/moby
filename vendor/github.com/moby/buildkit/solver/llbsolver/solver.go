@@ -18,6 +18,7 @@ import (
 	"github.com/moby/buildkit/cache/remotecache"
 	"github.com/moby/buildkit/client"
 	controlgateway "github.com/moby/buildkit/control/gateway"
+	"github.com/moby/buildkit/errdefs"
 	"github.com/moby/buildkit/executor/resources"
 	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/exporter"
@@ -158,7 +159,7 @@ func (s *Solver) Bridge(b solver.Builder) frontend.FrontendLLBBridge {
 func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend.SolveRequest, exp ExporterRequest, j *solver.Job, usage *resources.SysSampler) (func(context.Context, *Result, []exporter.DescriptorReference, error) error, error) {
 	stopTrace, err := detect.Recorder.Record(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errdefs.Internal(err)
 	}
 
 	st := time.Now()
@@ -183,7 +184,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 		if stopTrace != nil {
 			stopTrace()
 		}
-		return nil, err
+		return nil, errdefs.Internal(err)
 	}
 
 	return func(ctx context.Context, res *Result, descrefs []exporter.DescriptorReference, err error) error {
@@ -329,6 +330,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 			rec.NumCachedSteps = int32(st.NumCachedSteps)
 			rec.NumCompletedSteps = int32(st.NumCompletedSteps)
 			rec.NumTotalSteps = int32(st.NumTotalSteps)
+			rec.NumWarnings = int32(st.NumWarnings)
 			mu.Unlock()
 			return nil
 		})
@@ -370,7 +372,8 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 			})
 		}
 		if err1 := eg.Wait(); err == nil {
-			err = err1
+			// any error from exporting history record is internal
+			err = errdefs.Internal(err1)
 		}
 
 		defer func() {
@@ -398,7 +401,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 			Record: rec,
 		}); err1 != nil {
 			if err == nil {
-				err = err1
+				err = errdefs.Internal(err1)
 			}
 		}
 

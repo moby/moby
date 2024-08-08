@@ -44,6 +44,10 @@ func Helper() {
 }
 
 func Traces(err error) []*Stack {
+	return compressStacks(traces(err))
+}
+
+func traces(err error) []*Stack {
 	var st []*Stack
 
 	switch e := err.(type) {

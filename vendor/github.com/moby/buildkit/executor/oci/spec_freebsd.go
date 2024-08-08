@@ -14,8 +14,8 @@ func withProcessArgs(args ...string) oci.SpecOpts {
 	return oci.WithProcessArgs(args...)
 }
 
-func generateMountOpts(_, _ string) ([]oci.SpecOpts, error) {
-	return nil, nil
+func generateMountOpts(_, _ string) []oci.SpecOpts {
+	return nil
 }
 
 // generateSecurityOpts may affect mounts, so must be called after generateMountOpts

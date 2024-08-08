@@ -27,6 +27,7 @@ import (
 	gogoproto "github.com/gogo/protobuf/proto"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 var (
@@ -122,6 +123,9 @@ func TypeURL(v interface{}) (string, error) {
 
 // Is returns true if the type of the Any is the same as v.
 func Is(any Any, v interface{}) bool {
+	if any == nil {
+		return false
+	}
 	// call to check that v is a pointer
 	tryDereference(v)
 	url, err := TypeURL(v)
@@ -191,6 +195,31 @@ func UnmarshalTo(any Any, out interface{}) error {
 func UnmarshalToByTypeURL(typeURL string, value []byte, out interface{}) error {
 	_, err := unmarshal(typeURL, value, out)
 	return err
+}
+
+// MarshalProto converts typeurl.Any to google.golang.org/protobuf/types/known/anypb.Any.
+func MarshalProto(from Any) *anypb.Any {
+	if from == nil {
+		return nil
+	}
+
+	if pbany, ok := from.(*anypb.Any); ok {
+		return pbany
+	}
+
+	return &anypb.Any{
+		TypeUrl: from.GetTypeUrl(),
+		Value:   from.GetValue(),
+	}
+}
+
+// MarshalAnyToProto converts an arbitrary interface to google.golang.org/protobuf/types/known/anypb.Any.
+func MarshalAnyToProto(from interface{}) (*anypb.Any, error) {
+	anyType, err := MarshalAny(from)
+	if err != nil {
+		return nil, err
+	}
+	return MarshalProto(anyType), nil
 }
 
 func unmarshal(typeURL string, value []byte, v interface{}) (interface{}, error) {

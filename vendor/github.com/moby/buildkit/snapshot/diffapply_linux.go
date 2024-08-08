@@ -1,6 +1,3 @@
-//go:build !windows && !freebsd
-// +build !windows,!freebsd
-
 package snapshot
 
 import (
