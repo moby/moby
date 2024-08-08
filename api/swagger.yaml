@@ -9210,9 +9210,14 @@ paths:
           type: "string"
           in: "query"
           description: |
-            JSON encoded OCI platform describing platform to show the history for.
-            If not provided, the host platform will be used. If it's not
-            available, any present platform will be picked.
+            JSON-encoded OCI platform to select the platform-variant.
+            If omitted, it defaults to any locally available platform,
+            prioritizing the daemon's host platform.
+
+            If the daemon provides a multi-platform image store, this selects
+            the platform-variant to show the history for. If the image is
+            a single-platform image, or if the multi-platform image does not
+            provide a variant matching the given platform, an error is returned.
 
             Example: `{"os": "linux", "architecture": "arm", "variant": "v5"}`
       tags: ["Image"]
@@ -9262,6 +9267,19 @@ paths:
             all tags of the given image that are present in the local image store
             are pushed.
           type: "string"
+        - name: "platform"
+          type: "string"
+          in: "query"
+          description: |
+            JSON-encoded OCI platform to select the platform-variant to push.
+            If not provided, all available variants will attempt to be pushed.
+
+            If the daemon provides a multi-platform image store, this selects
+            the platform-variant to push to the registry. If the image is
+            a single-platform image, or if the multi-platform image does not
+            provide a variant matching the given platform, an error is returned.
+
+            Example: `{"os": "linux", "architecture": "arm", "variant": "v5"}`
         - name: "X-Registry-Auth"
           in: "header"
           description: |
@@ -9271,11 +9289,6 @@ paths:
             details.
           type: "string"
           required: true
-        - name: "platform"
-          in: "query"
-          description: "Select a platform-specific manifest to be pushed. OCI platform (JSON encoded)"
-          type: "string"
-          x-nullable: true
       tags: ["Image"]
   /images/{name}/tag:
     post:
