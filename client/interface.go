@@ -91,7 +91,6 @@ type ImageAPIClient interface {
 	BuildCachePrune(ctx context.Context, opts types.BuildCachePruneOptions) (*types.BuildCachePruneReport, error)
 	BuildCancel(ctx context.Context, id string) error
 	ImageCreate(ctx context.Context, parentReference string, options image.CreateOptions) (io.ReadCloser, error)
-	ImageHistory(ctx context.Context, image string) ([]image.HistoryResponseItem, error)
 	ImageImport(ctx context.Context, source image.ImportSource, ref string, options image.ImportOptions) (io.ReadCloser, error)
 	ImageInspectWithRaw(ctx context.Context, image string) (image.InspectResponse, []byte, error)
 	ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
@@ -103,6 +102,10 @@ type ImageAPIClient interface {
 	ImageSave(ctx context.Context, images []string) (io.ReadCloser, error)
 	ImageTag(ctx context.Context, image, ref string) error
 	ImagesPrune(ctx context.Context, pruneFilter filters.Args) (image.PruneReport, error)
+
+	// Note: In future release, signature will be changed to
+	// ImageHistory(ctx context.Context, image string, opts image.HistoryOptions) ([]image.HistoryResponseItem, error)
+	ImageHistory(ctx context.Context, image string) ([]image.HistoryResponseItem, error)
 }
 
 // NetworkAPIClient defines API client methods for the networks

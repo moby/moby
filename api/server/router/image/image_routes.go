@@ -398,7 +398,21 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 }
 
 func (ir *imageRouter) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	history, err := ir.backend.ImageHistory(ctx, vars["name"])
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	var platform *ocispec.Platform
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.47") {
+		if formPlatform := r.Form.Get("platform"); formPlatform != "" {
+			p, err := httputils.DecodePlatform(formPlatform)
+			if err != nil {
+				return err
+			}
+			platform = p
+		}
+	}
+	history, err := ir.backend.ImageHistory(ctx, vars["name"], platform)
 	if err != nil {
 		return err
 	}

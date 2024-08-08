@@ -29,6 +29,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   query parameter to `true`.
   WARNING: This is experimental and may change at any time without any backward
   compatibility.
+* `GET /images/{name}/history` now supports a `platform` parameter (JSON
+  encoded OCI Platform type) that allows to specify a platform to show the
+  history of.
 
 ## v1.46 API changes
 

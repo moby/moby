@@ -9202,6 +9202,15 @@ paths:
           description: "Image name or ID"
           type: "string"
           required: true
+        - name: "platform"
+          type: "string"
+          in: "query"
+          description: |
+            JSON encoded OCI platform describing platform to show the history for.
+            If not provided, the host platform will be used. If it's not
+            available, any present platform will be picked.
+
+            Example: {"os": "linux", "architecture": "arm", "variant": "v5"}
       tags: ["Image"]
   /images/{name}/push:
     post:

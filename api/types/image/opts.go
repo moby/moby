@@ -86,3 +86,9 @@ type RemoveOptions struct {
 	Force         bool
 	PruneChildren bool
 }
+
+// HistoryOptions holds parameters to get image history.
+type HistoryOptions struct {
+	// Platform from the manifest list to use for history.
+	Platform *ocispec.Platform
+}
