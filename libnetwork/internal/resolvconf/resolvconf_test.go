@@ -340,7 +340,6 @@ func TestRCTransformForIntNS(t *testing.T) {
 		name            string
 		input           string
 		intNameServer   string
-		ipv6            bool
 		overrideNS      []string
 		overrideOptions []string
 		reqdOptions     []string
@@ -350,30 +349,19 @@ func TestRCTransformForIntNS(t *testing.T) {
 		{
 			name:          "IPv4 only",
 			input:         "nameserver 10.0.0.1",
-			expExtServers: []ExtDNSEntry{mke("10.0.0.1", false)},
+			expExtServers: []ExtDNSEntry{mke("10.0.0.1", true)},
 		},
 		{
 			name:  "IPv4 and IPv6, ipv6 enabled",
 			input: "nameserver 10.0.0.1\nnameserver fdb6:b8fe:b528::1",
-			ipv6:  true,
 			expExtServers: []ExtDNSEntry{
-				mke("10.0.0.1", false),
-				mke("fdb6:b8fe:b528::1", false),
-			},
-		},
-		{
-			name:  "IPv4 and IPv6, ipv6 disabled",
-			input: "nameserver 10.0.0.1\nnameserver fdb6:b8fe:b528::1",
-			ipv6:  false,
-			expExtServers: []ExtDNSEntry{
-				mke("10.0.0.1", false),
+				mke("10.0.0.1", true),
 				mke("fdb6:b8fe:b528::1", true),
 			},
 		},
 		{
 			name:          "IPv4 localhost",
 			input:         "nameserver 127.0.0.53",
-			ipv6:          false,
 			expExtServers: []ExtDNSEntry{mke("127.0.0.53", true)},
 		},
 		{
@@ -381,76 +369,20 @@ func TestRCTransformForIntNS(t *testing.T) {
 			// loopback interface, not the host's.
 			name:          "IPv4 localhost override",
 			input:         "nameserver 10.0.0.1",
-			ipv6:          false,
 			overrideNS:    []string{"127.0.0.53"},
 			expExtServers: []ExtDNSEntry{mke("127.0.0.53", false)},
 		},
 		{
-			name:          "IPv4 localhost, ipv6 enabled",
-			input:         "nameserver 127.0.0.53",
-			ipv6:          true,
-			expExtServers: []ExtDNSEntry{mke("127.0.0.53", true)},
-		},
-		{
-			name:          "IPv6 addr, IPv6 enabled",
+			name:          "IPv6 only",
 			input:         "nameserver fd14:6e0e:f855::1",
-			ipv6:          true,
-			expExtServers: []ExtDNSEntry{mke("fd14:6e0e:f855::1", false)},
+			expExtServers: []ExtDNSEntry{mke("fd14:6e0e:f855::1", true)},
 		},
 		{
-			name:  "IPv4 and IPv6 localhost, IPv6 disabled",
+			name:  "IPv4 and IPv6 localhost",
 			input: "nameserver 127.0.0.53\nnameserver ::1",
-			ipv6:  false,
 			expExtServers: []ExtDNSEntry{
 				mke("127.0.0.53", true),
 				mke("::1", true),
-			},
-		},
-		{
-			name:  "IPv4 and IPv6 localhost, ipv6 enabled",
-			input: "nameserver 127.0.0.53\nnameserver ::1",
-			ipv6:  true,
-			expExtServers: []ExtDNSEntry{
-				mke("127.0.0.53", true),
-				mke("::1", true),
-			},
-		},
-		{
-			name:  "IPv4 localhost, IPv6 private, IPv6 enabled",
-			input: "nameserver 127.0.0.53\nnameserver fd3e:2d1a:1f5a::1",
-			ipv6:  true,
-			expExtServers: []ExtDNSEntry{
-				mke("127.0.0.53", true),
-				mke("fd3e:2d1a:1f5a::1", false),
-			},
-		},
-		{
-			name:  "IPv4 localhost, IPv6 private, IPv6 disabled",
-			input: "nameserver 127.0.0.53\nnameserver fd3e:2d1a:1f5a::1",
-			ipv6:  false,
-			expExtServers: []ExtDNSEntry{
-				mke("127.0.0.53", true),
-				mke("fd3e:2d1a:1f5a::1", true),
-			},
-		},
-		{
-			name:  "No host nameserver, no iv6",
-			input: "",
-			ipv6:  false,
-			expExtServers: []ExtDNSEntry{
-				mke("8.8.8.8", false),
-				mke("8.8.4.4", false),
-			},
-		},
-		{
-			name:  "No host nameserver, iv6",
-			input: "",
-			ipv6:  true,
-			expExtServers: []ExtDNSEntry{
-				mke("8.8.8.8", false),
-				mke("8.8.4.4", false),
-				mke("2001:4860:4860::8888", false),
-				mke("2001:4860:4860::8844", false),
 			},
 		},
 		{
@@ -496,7 +428,7 @@ func TestRCTransformForIntNS(t *testing.T) {
 				rc.OverrideOptions(tc.overrideOptions)
 			}
 			intNS := netip.MustParseAddr(tc.intNameServer)
-			extNameServers, err := rc.TransformForIntNS(tc.ipv6, intNS, tc.reqdOptions)
+			extNameServers, err := rc.TransformForIntNS(intNS, tc.reqdOptions)
 			if tc.expErr != "" {
 				assert.Check(t, is.ErrorContains(err, tc.expErr))
 				return
@@ -559,7 +491,7 @@ func TestRCTransformForIntNSInvalidNdots(t *testing.T) {
 			content := "nameserver 8.8.8.8\n" + tc.options
 			rc, err := Parse(bytes.NewBuffer([]byte(content)), "/etc/resolv.conf")
 			assert.NilError(t, err)
-			_, err = rc.TransformForIntNS(false, netip.MustParseAddr("127.0.0.11"), tc.reqdOptions)
+			_, err = rc.TransformForIntNS(netip.MustParseAddr("127.0.0.11"), tc.reqdOptions)
 			assert.NilError(t, err)
 
 			val, found := rc.Option("ndots")
