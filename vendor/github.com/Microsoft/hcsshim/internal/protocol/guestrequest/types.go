@@ -5,7 +5,7 @@ package guestrequest
 type RequestType string
 type ResourceType string
 
-// RequestType const
+// RequestType const.
 const (
 	RequestTypeAdd    RequestType = "Add"
 	RequestTypeRemove RequestType = "Remove"
@@ -53,4 +53,24 @@ var (
 		"b5d2d8d4-3a75-51bf-945b-3444dc6b8579",
 		"305891a9-b251-5dfe-91a2-c25d9212275b",
 	}
+)
+
+// constants for v2 schema ProcessModifyRequest
+
+// Operation type for [hcsschema.ProcessModifyRequest].
+type ProcessModifyOperation string
+
+const (
+	ModifyProcessConsoleSize ProcessModifyOperation = "ConsoleSize"
+	CloseProcessHandle       ProcessModifyOperation = "CloseHandle"
+)
+
+// Standard IO handle(s) to close for [hcsschema.CloseHandle] in [hcsschema.ProcessModifyRequest].
+type STDIOHandle string
+
+const (
+	STDInHandle  STDIOHandle = "StdIn"
+	STDOutHandle STDIOHandle = "StdOut"
+	STDErrHandle STDIOHandle = "StdErr"
+	AllHandles   STDIOHandle = "All"
 )
