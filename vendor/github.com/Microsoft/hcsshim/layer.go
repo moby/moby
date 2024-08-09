@@ -32,6 +32,7 @@ func CreateScratchLayer(info DriverInfo, layerId, parentId string, parentLayerPa
 func DeactivateLayer(info DriverInfo, id string) error {
 	return wclayer.DeactivateLayer(context.Background(), layerPath(&info, id))
 }
+
 func DestroyLayer(info DriverInfo, id string) error {
 	return wclayer.DestroyLayer(context.Background(), layerPath(&info, id))
 }
