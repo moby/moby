@@ -5848,13 +5848,13 @@ definitions:
           - "/var/run/cdi"
       Containerd:
         $ref: "#/definitions/ContainerdInfo"
-        x-nullable: true
 
   ContainerdInfo:
     description: |
       Information for connecting to the containerd instance that is used by the daemon.
       This is included for debugging purposes only.
     type: "object"
+    x-nullable: true
     properties:
       Address:
         description: "The address of the containerd socket."
