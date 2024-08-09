@@ -18,15 +18,14 @@ import (
 
 // ImageHistory returns a slice of HistoryResponseItem structures for the
 // specified image name by walking the image lineage.
-func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imagetype.HistoryResponseItem, error) {
+func (i *ImageService) ImageHistory(ctx context.Context, name string, platform *ocispec.Platform) ([]*imagetype.HistoryResponseItem, error) {
 	start := time.Now()
 	img, err := i.resolveImage(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: pass platform in from the CLI
-	pm := matchAllWithPreference(platforms.Default())
+	pm := i.matchRequestedOrDefault(platforms.Only, platform)
 
 	im, err := i.getBestPresentImageManifest(ctx, img, pm)
 	if err != nil {

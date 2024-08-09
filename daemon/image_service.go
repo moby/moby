@@ -30,9 +30,9 @@ type ImageService interface {
 	PushImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
 	CreateImage(ctx context.Context, config []byte, parent string, contentStoreDigest digest.Digest) (builder.Image, error)
 	ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]imagetype.DeleteResponse, error)
-	ExportImage(ctx context.Context, names []string, outStream io.Writer) error
+	ExportImage(ctx context.Context, names []string, platform *ocispec.Platform, outStream io.Writer) error
 	PerformWithBaseFS(ctx context.Context, c *container.Container, fn func(string) error) error
-	LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error
+	LoadImage(ctx context.Context, inTar io.ReadCloser, platform *ocispec.Platform, outStream io.Writer, quiet bool) error
 	Images(ctx context.Context, opts imagetype.ListOptions) ([]*imagetype.Summary, error)
 	LogImageEvent(imageID, refName string, action events.Action)
 	CountImages(ctx context.Context) int
@@ -40,7 +40,7 @@ type ImageService interface {
 	ImportImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error)
 	TagImage(ctx context.Context, imageID image.ID, newTag reference.Named) error
 	GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*image.Image, error)
-	ImageHistory(ctx context.Context, name string) ([]*imagetype.HistoryResponseItem, error)
+	ImageHistory(ctx context.Context, name string, platform *ocispec.Platform) ([]*imagetype.HistoryResponseItem, error)
 	CommitImage(ctx context.Context, c backend.CommitConfig) (image.ID, error)
 	SquashImage(id, parent string) (string, error)
 	ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetype.InspectResponse, error)

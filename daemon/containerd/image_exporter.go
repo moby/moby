@@ -47,10 +47,8 @@ func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Conta
 // outStream is the writer which the images are written to.
 //
 // TODO(thaJeztah): produce JSON stream progress response and image events; see https://github.com/moby/moby/issues/43910
-func (i *ImageService) ExportImage(ctx context.Context, names []string, outStream io.Writer) error {
-	// TODO: Pass as argument
-	var requestedPlatform *ocispec.Platform
-	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, requestedPlatform)
+func (i *ImageService) ExportImage(ctx context.Context, names []string, platform *ocispec.Platform, outStream io.Writer) error {
+	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, platform)
 
 	opts := []archive.ExportOpt{
 		archive.WithSkipNonDistributableBlobs(),
@@ -234,16 +232,17 @@ func leaseContent(ctx context.Context, store content.Store, leasesManager leases
 // LoadImage uploads a set of images into the repository. This is the
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
-func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
+func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platform *ocispec.Platform, outStream io.Writer, quiet bool) error {
 	decompressed, err := dockerarchive.DecompressStream(inTar)
 	if err != nil {
 		return errors.Wrap(err, "failed to decompress input tar archive")
 	}
 	defer decompressed.Close()
 
+	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, platform)
+
 	opts := []containerd.ImportOpt{
-		// TODO(vvoland): Allow user to pass platform
-		containerd.WithImportPlatform(platforms.All),
+		containerd.WithImportPlatform(pm),
 
 		containerd.WithSkipMissing(),
 

@@ -9202,6 +9202,15 @@ paths:
           description: "Image name or ID"
           type: "string"
           required: true
+        - name: "platform"
+          type: "string"
+          in: "query"
+          description: |
+            JSON encoded OCI platform describing platform to show the history for.
+            If not provided, the host platform will be used. If it's not
+            available, any present platform will be picked.
+
+            Example: {"os": "linux", "architecture": "arm", "variant": "v5"}
       tags: ["Image"]
   /images/{name}/push:
     post:
@@ -9238,6 +9247,15 @@ paths:
           in: "query"
           description: "The tag to associate with the image on the registry."
           type: "string"
+        - name: "platform"
+          type: "string"
+          in: "query"
+          description: |
+            JSON encoded OCI Platform to select a platform-specific manifest
+            matching this platform to be pushed.
+            If not provided, full multi-platform image will be pushed.
+
+            Example: {"os": "linux", "architecture": "arm", "variant": "v5"}
         - name: "X-Registry-Auth"
           in: "header"
           description: |
@@ -9247,11 +9265,6 @@ paths:
             details.
           type: "string"
           required: true
-        - name: "platform"
-          in: "query"
-          description: "Select a platform-specific manifest to be pushed. OCI platform (JSON encoded)"
-          type: "string"
-          x-nullable: true
       tags: ["Image"]
   /images/{name}/tag:
     post:
@@ -9936,7 +9949,16 @@ paths:
           description: "Image name or ID"
           type: "string"
           required: true
-      tags: ["Image"]
+        - name: "platform"
+          type: "string"
+          in: "query"
+          description: |
+            JSON encoded OCI platform describing a platform which will be used
+            to select a platform-specific image to be saved if the image is
+            multi-platform.
+            If not provided, full multi-platform image will be saved.
+
+            Example: {"os": "linux", "architecture": "arm", "variant": "v5"}
   /images/get:
     get:
       summary: "Export several images"
@@ -10003,6 +10025,16 @@ paths:
           description: "Suppress progress details during load."
           type: "boolean"
           default: false
+        - name: "platform"
+          type: "string"
+          in: "query"
+          description: |
+            JSON encoded OCI platform describing a platform which will be used
+            to select a platform-specific image to be load if the image is
+            multi-platform.
+            If not provided, full multi-platform image will be loaded.
+
+            Example: {"os": "linux", "architecture": "arm", "variant": "v5"}
       tags: ["Image"]
   /containers/{id}/exec:
     post:

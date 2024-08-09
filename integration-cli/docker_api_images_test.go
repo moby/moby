@@ -73,7 +73,7 @@ func (s *DockerAPISuite) TestAPIImagesHistory(c *testing.T) {
 	buildImageSuccessfully(c, name, build.WithDockerfile("FROM busybox\nENV FOO bar"))
 	id := getIDByName(c, name)
 
-	historydata, err := apiClient.ImageHistory(testutil.GetContext(c), id)
+	historydata, err := apiClient.ImageHistory(testutil.GetContext(c), id, image.HistoryOptions{})
 	assert.NilError(c, err)
 
 	assert.Assert(c, len(historydata) != 0)
