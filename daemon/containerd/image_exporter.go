@@ -278,6 +278,9 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 			name = reference.FamiliarString(reference.TagNameOnly(named))
 		}
 
+		fmt.Fprintf(progress, "%s: %s\n", loadedMsg, name)
+		i.LogImageEvent(img.Target.Digest.String(), img.Target.Digest.String(), events.ActionLoad)
+
 		err = i.walkImageManifests(ctx, img, func(platformImg *ImageManifest) error {
 			logger := log.G(ctx).WithFields(log.Fields{
 				"image":    name,
@@ -290,6 +293,17 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 				} else {
 					logger.Debug("don't unpack non-image manifest")
 				}
+				return nil
+			}
+
+			imgPlat, err := platformImg.ImagePlatform(ctx)
+			if err != nil {
+				logger.WithError(err).Warn("failed to read image platform, skipping unpack")
+				return nil
+			}
+
+			// Only unpack the image if it matches the host platform
+			if !i.hostPlatformMatcher().Match(imgPlat) {
 				return nil
 			}
 
@@ -309,11 +323,9 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 			return nil
 		})
 		if err != nil {
-			return errors.Wrap(err, "failed to unpack loaded image")
+			// The image failed to unpack, but is already imported, log the error but don't fail the whole load.
+			fmt.Fprintf(progress, "Error unpacking image %s: %v\n", name, err)
 		}
-
-		fmt.Fprintf(progress, "%s: %s\n", loadedMsg, name)
-		i.LogImageEvent(img.Target.Digest.String(), img.Target.Digest.String(), events.ActionLoad)
 	}
 
 	return nil
