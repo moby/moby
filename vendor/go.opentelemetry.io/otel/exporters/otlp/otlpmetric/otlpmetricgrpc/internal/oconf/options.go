@@ -30,7 +30,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/encoding/gzip"
 
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc/internal/retry"
 	"go.opentelemetry.io/otel/sdk/metric"
 )
@@ -122,7 +121,6 @@ func cleanPath(urlPath string, defaultPath string) string {
 // NewGRPCConfig returns a new Config with all settings applied from opts and
 // any unset setting using the default gRPC config values.
 func NewGRPCConfig(opts ...GRPCOption) Config {
-	userAgent := "OTel OTLP Exporter Go/" + otlpmetric.Version()
 	cfg := Config{
 		Metrics: SignalConfig{
 			Endpoint:    fmt.Sprintf("%s:%d", DefaultCollectorHost, DefaultCollectorGRPCPort),
@@ -134,7 +132,6 @@ func NewGRPCConfig(opts ...GRPCOption) Config {
 			AggregationSelector: metric.DefaultAggregationSelector,
 		},
 		RetryConfig: retry.DefaultConfig,
-		DialOptions: []grpc.DialOption{grpc.WithUserAgent(userAgent)},
 	}
 	cfg = ApplyGRPCEnvConfigs(cfg)
 	for _, opt := range opts {
@@ -157,9 +154,6 @@ func NewGRPCConfig(opts ...GRPCOption) Config {
 	}
 	if cfg.Metrics.Compression == GzipCompression {
 		cfg.DialOptions = append(cfg.DialOptions, grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)))
-	}
-	if len(cfg.DialOptions) != 0 {
-		cfg.DialOptions = append(cfg.DialOptions, cfg.DialOptions...)
 	}
 	if cfg.ReconnectionPeriod != 0 {
 		p := grpc.ConnectParams{

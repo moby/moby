@@ -26,8 +26,9 @@ import (
 )
 
 const (
-	buildArgPrefix = "build-arg:"
-	labelPrefix    = "label:"
+	buildArgPrefix       = "build-arg:"
+	labelPrefix          = "label:"
+	localSessionIDPrefix = "local-sessionid:"
 
 	keyTarget           = "target"
 	keyCgroupParent     = "cgroup-parent"
@@ -79,10 +80,11 @@ type Config struct {
 
 type Client struct {
 	Config
-	client      client.Client
-	ignoreCache []string
-	g           flightcontrol.CachedGroup[*buildContext]
-	bopts       client.BuildOpts
+	client           client.Client
+	ignoreCache      []string
+	g                flightcontrol.CachedGroup[*buildContext]
+	bopts            client.BuildOpts
+	localsSessionIDs map[string]string
 
 	dockerignore     []byte
 	dockerignoreName string
@@ -298,6 +300,9 @@ func (bc *Client) init() error {
 			return errors.Wrapf(err, "failed to parse %s", keyCopyIgnoredCheckEnabled)
 		}
 	}
+
+	bc.localsSessionIDs = parseLocalSessionIDs(opts)
+
 	return nil
 }
 
@@ -331,9 +336,14 @@ func (bc *Client) ReadEntrypoint(ctx context.Context, lang string, opts ...llb.L
 			filenames = append(filenames, path.Join(path.Dir(bctx.filename), strings.ToLower(DefaultDockerfileName)))
 		}
 
+		sessionID := bc.bopts.SessionID
+		if v, ok := bc.localsSessionIDs[bctx.dockerfileLocalName]; ok {
+			sessionID = v
+		}
+
 		opts = append([]llb.LocalOption{
 			llb.FollowPaths(filenames),
-			llb.SessionID(bc.bopts.SessionID),
+			llb.SessionID(sessionID),
 			llb.SharedKeyHint(bctx.dockerfileLocalName),
 			WithInternalName(name),
 			llb.Differ(llb.DiffNone, false),
@@ -427,8 +437,13 @@ func (bc *Client) MainContext(ctx context.Context, opts ...llb.LocalOption) (*ll
 		return nil, errors.Wrapf(err, "failed to read dockerignore patterns")
 	}
 
+	sessionID := bc.bopts.SessionID
+	if v, ok := bc.localsSessionIDs[bctx.contextLocalName]; ok {
+		sessionID = v
+	}
+
 	opts = append([]llb.LocalOption{
-		llb.SessionID(bc.bopts.SessionID),
+		llb.SessionID(sessionID),
 		llb.ExcludePatterns(excludes),
 		llb.SharedKeyHint(bctx.contextLocalName),
 		WithInternalName("load build context"),
@@ -500,8 +515,12 @@ func WithInternalName(name string) llb.ConstraintsOpt {
 
 func (bc *Client) dockerIgnorePatterns(ctx context.Context, bctx *buildContext) ([]string, error) {
 	if bc.dockerignore == nil {
+		sessionID := bc.bopts.SessionID
+		if v, ok := bc.localsSessionIDs[bctx.contextLocalName]; ok {
+			sessionID = v
+		}
 		st := llb.Local(bctx.contextLocalName,
-			llb.SessionID(bc.bopts.SessionID),
+			llb.SessionID(sessionID),
 			llb.FollowPaths([]string{DefaultDockerignoreName}),
 			llb.SharedKeyHint(bctx.contextLocalName+"-"+DefaultDockerignoreName),
 			WithInternalName("load "+DefaultDockerignoreName),

@@ -12,6 +12,7 @@ import (
 	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/imageutil"
+	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/buildkit/version"
 	"github.com/moby/locker"
 	digest "github.com/opencontainers/go-digest"
@@ -75,7 +76,12 @@ type resolveResult struct {
 	dgst   digest.Digest
 }
 
-func (imr *imageMetaResolver) ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt) (string, digest.Digest, []byte, error) {
+func (imr *imageMetaResolver) ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt) (resolvedRef string, digest digest.Digest, config []byte, retErr error) {
+	span, ctx := tracing.StartSpan(ctx, "resolving "+ref)
+	defer func() {
+		tracing.FinishWithError(span, retErr)
+	}()
+
 	imr.locker.Lock(ref)
 	defer imr.locker.Unlock(ref)
 

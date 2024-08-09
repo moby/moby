@@ -10,6 +10,7 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/golang/protobuf/ptypes/any"
+	"github.com/moby/buildkit/errdefs"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/stack"
 	spb "google.golang.org/genproto/googleapis/rpc/status"
@@ -94,6 +95,10 @@ func withDetails(ctx context.Context, s *status.Status, details ...proto.Message
 }
 
 func Code(err error) codes.Code {
+	if errdefs.IsInternal(err) {
+		return codes.Internal
+	}
+
 	if se, ok := err.(interface {
 		Code() codes.Code
 	}); ok {
