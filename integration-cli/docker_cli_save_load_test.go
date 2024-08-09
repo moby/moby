@@ -190,6 +190,19 @@ func (s *DockerCLISaveLoadSuite) TestSaveAndLoadRepoFlags(c *testing.T) {
 		// was loaded into a different daemon (which should be the case in a
 		// real-world scenario).
 		before[0].Metadata.LastTagTime = after[0].Metadata.LastTagTime
+
+		// Docker save also includes the image name and ref name in the annotations
+		// in index.json and docker load will not strip them.
+		afterAnnotations := after[0].Manifests[0].Descriptor.Annotations
+		delete(afterAnnotations, "io.containerd.image.name")
+		delete(afterAnnotations, "org.opencontainers.image.ref.name")
+
+		beforeAnnotations := before[0].Manifests[0].Descriptor.Annotations
+		if len(afterAnnotations) == 0 && len(beforeAnnotations) == 0 {
+			// Don't error out on nil vs empty map
+			after[0].Manifests[0].Descriptor.Annotations = nil
+			before[0].Manifests[0].Descriptor.Annotations = nil
+		}
 	}
 
 	assert.Check(c, is.DeepEqual(before, after), "inspect is not the same after a save / load")
