@@ -11,13 +11,12 @@ const (
 	debugPipeName = `\\.\pipe\containerd-debug`
 )
 
-func (r *remote) setDefaults() {
-	if r.GRPC.Address == "" {
-		r.GRPC.Address = grpcPipeName
-	}
-	if r.Debug.Address == "" {
-		r.Debug.Address = debugPipeName
-	}
+func defaultGRPCAddress(stateDir string) string {
+	return grpcPipeName
+}
+
+func defaultDebugAddress(stateDir string) string {
+	return debugPipeName
 }
 
 func (r *remote) stopDaemon() {

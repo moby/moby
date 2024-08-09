@@ -34,7 +34,7 @@ const (
 )
 
 type remote struct {
-	config.Config
+	config config.Config
 
 	// configFile is the location where the generated containerd configuration
 	// file is saved.
@@ -47,12 +47,6 @@ type remote struct {
 	daemonWaitCh  chan struct{}
 	daemonStartCh chan error
 	daemonStopCh  chan struct{}
-
-	stateDir string
-
-	// logLevel overrides the containerd logging-level through the --log-level
-	// command-line option.
-	logLevel string
 }
 
 // Daemon represents a running containerd daemon
@@ -67,11 +61,18 @@ type DaemonOpt func(c *remote) error
 // Start starts a containerd daemon and monitors it
 func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Daemon, error) {
 	r := &remote{
-		stateDir: stateDir,
-		Config: config.Config{
+		config: config.Config{
 			Version: 2,
 			Root:    filepath.Join(rootDir, "daemon"),
 			State:   filepath.Join(stateDir, "daemon"),
+			GRPC: config.GRPCConfig{
+				Address:        defaultGRPCAddress(stateDir),
+				MaxRecvMsgSize: defaults.DefaultMaxRecvMsgSize,
+				MaxSendMsgSize: defaults.DefaultMaxSendMsgSize,
+			},
+			Debug: config.Debug{
+				Address: defaultDebugAddress(stateDir),
+			},
 		},
 		configFile:    filepath.Join(stateDir, configFile),
 		daemonPid:     -1,
@@ -86,7 +87,6 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 			return nil, err
 		}
 	}
-	r.setDefaults()
 
 	if err := system.MkdirAll(stateDir, 0o700); err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func (r *remote) WaitTimeout(d time.Duration) error {
 }
 
 func (r *remote) Address() string {
-	return r.GRPC.Address
+	return r.config.GRPC.Address
 }
 
 func (r *remote) getContainerdConfig() (string, error) {
@@ -155,13 +155,8 @@ func (r *remote) startContainerd() error {
 	if err != nil {
 		return err
 	}
-	args := []string{"--config", cfgFile}
 
-	if r.logLevel != "" {
-		args = append(args, "--log-level", r.logLevel)
-	}
-
-	cmd := exec.Command(binaryName, args...)
+	cmd := exec.Command(binaryName, "--config", cfgFile)
 	// redirect containerd logs to docker logs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -267,7 +262,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				}
 			}
 
-			os.RemoveAll(r.GRPC.Address)
+			os.RemoveAll(r.config.GRPC.Address)
 			if err := r.startContainerd(); err != nil {
 				if !started {
 					r.daemonStartCh <- err
@@ -279,7 +274,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 			}
 
 			client, err = containerd.New(
-				r.GRPC.Address,
+				r.config.GRPC.Address,
 				containerd.WithTimeout(60*time.Second),
 				containerd.WithDialOpts([]grpc.DialOption{
 					grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
@@ -294,7 +289,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				delay = 100 * time.Millisecond
 				continue
 			}
-			r.logger.WithField("address", r.GRPC.Address).Debug("created containerd monitoring client")
+			r.logger.WithField("address", r.config.GRPC.Address).Debug("created containerd monitoring client")
 		}
 
 		if client != nil {
