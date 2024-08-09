@@ -106,7 +106,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 			if err := container.CheckpointTo(context.WithoutCancel(ctx), daemon.containersReplica); err != nil {
 				log.G(ctx).Errorf("%s: failed saving state on start failure: %v", container.ID, err)
 			}
-			container.Reset(false)
+			container.Reset(ctx, false)
 
 			daemon.Cleanup(context.WithoutCancel(ctx), container)
 			// if containers AutoRemove flag is set, remove it after clean up
