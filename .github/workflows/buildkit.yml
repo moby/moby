@@ -32,7 +32,7 @@ jobs:
     uses: ./.github/workflows/.dco.yml
 
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs:
       - validate-dco
     steps:
@@ -61,7 +61,7 @@ jobs:
           retention-days: 1
 
   test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     needs:
       - build

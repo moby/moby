@@ -39,7 +39,7 @@ jobs:
     uses: ./.github/workflows/.dco.yml
 
   prepare:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     outputs:
       platforms: ${{ steps.platforms.outputs.matrix }}
     steps:
@@ -91,7 +91,7 @@ jobs:
           echo "matrix=$(docker buildx bake bin-image-cross --print | jq -cr '.target."bin-image-cross".platforms')" >>${GITHUB_OUTPUT}
 
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs:
       - validate-dco
       - prepare
@@ -165,7 +165,7 @@ jobs:
           retention-days: 1
 
   merge:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs:
       - build
     if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && github.event_name != 'pull_request' && github.repository == 'moby/moby'

@@ -31,7 +31,7 @@ jobs:
     uses: ./.github/workflows/.dco.yml
 
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs:
       - validate-dco
     strategy:
@@ -68,7 +68,7 @@ jobs:
           find ${{ env.DESTDIR }} -type f -exec file -e ascii -- {} +
 
   prepare-cross:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - validate-dco
     outputs:
@@ -89,7 +89,7 @@ jobs:
           echo ${{ steps.platforms.outputs.matrix }}
 
   cross:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs:
       - validate-dco
       - prepare-cross
