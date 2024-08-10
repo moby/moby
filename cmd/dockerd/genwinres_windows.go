@@ -1,4 +1,4 @@
-//go:generate go-winres make --arch=386,amd64,arm,arm64 --in=winresources/winres.json --out=winresources/resource
+//go:generate go-winres make --arch=386,amd64,arm,arm64 --in=../winresources/winres.json --out=../winresources/resource
 
 package main
 
