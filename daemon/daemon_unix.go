@@ -962,6 +962,13 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		}
 	} else {
 		bIP, bIPNet = selectBIP(nwList, fCidrIP, fCidrIPNet)
+		// If the bridge is docker-managed (docker0) and fixed-cidr is not
+		// inside a subnet belonging to any existing bridge IP, ignore the
+		// bridge IP.
+		if !userManagedBridge && fCidrIP != nil && bIPNet != nil && !bIPNet.Contains(fCidrIP) {
+			bIP = nil
+			bIPNet = nil
+		}
 	}
 
 	ipamV4Conf := &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}

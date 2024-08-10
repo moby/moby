@@ -126,13 +126,19 @@ func TestDaemonDefaultBridgeIPAM_Docker0(t *testing.T) {
 			name:               "old bridge subnet outside fixed-cidr",
 			initialBridgeAddrs: []string{"192.168.176.88/24"},
 			daemonArgs:         []string{"--fixed-cidr", "192.168.177.0/24"},
+			// The bridge's address/subnet should be ignored, this is a change
+			// of fixed-cidr.
 			expIPAMConfig: []network.IPAMConfig{
 				{
-					// FIXME(robmry) - subnet and bridge address haven't changed,
-					//   and the allocatable range is outside the subnet.
-					Subnet:  "192.168.176.0/24",
+					Subnet:  "192.168.177.0/24",
 					IPRange: "192.168.177.0/24",
-					Gateway: "192.168.176.88",
+					// No Gateway is configured, because the address could not be learnt from the
+					// bridge. An address will have been allocated but, because there's config (the
+					// fixed-cidr), inspect shows just the config. (Surprisingly, when there's no
+					// config at all, the inspect output still says its showing config but actually
+					// shows the running state.) When the daemon is restarted, after a gateway
+					// address has been assigned to the bridge, that address will become config - so
+					// a Gateway address will show up in the inspect output.
 				},
 			},
 		},
