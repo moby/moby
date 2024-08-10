@@ -996,6 +996,23 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		ipamV4Conf.SubPool = fCidrIPNet.String()
 		if ipamV4Conf.PreferredPool == "" {
 			ipamV4Conf.PreferredPool = fCidrIPNet.String()
+		} else if userManagedBridge && bIPNet != nil {
+			fCidrOnes, _ := fCidrIPNet.Mask.Size()
+			bIPOnes, _ := bIPNet.Mask.Size()
+			if !bIPNet.Contains(fCidrIP) || (fCidrOnes < bIPOnes) {
+				// Don't allow SubPool (the range of allocatable addresses) to be outside, or
+				// bigger than, the network itself. This is a configuration error, either the
+				// user-managed bridge is missing an address to match fixed-cidr, or fixed-cidr
+				// is wrong. But, just log rather than raise an error that would cause daemon
+				// startup to fail, because this has been allowed by earlier versions. Remove
+				// the SubPool, so that addresses are allocated from the whole of PreferredPool.
+				log.G(context.TODO()).WithFields(log.Fields{
+					"bridge":         bridgeName,
+					"fixed-cidr":     cfg.FixedCIDR,
+					"bridge-network": bIPNet.String(),
+				}).Warn("fixed-cidr is outside the subnet implied by addresses on the user-managed default bridge, this may be treated as an error in a future release")
+				ipamV4Conf.SubPool = ""
+			}
 		}
 	}
 

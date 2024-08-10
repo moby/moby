@@ -215,11 +215,15 @@ func TestDaemonDefaultBridgeIPAM_UserBr(t *testing.T) {
 			name:               "fixed-cidr bigger than bridge subnet",
 			initialBridgeAddrs: []string{"192.168.176.88/24"},
 			daemonArgs:         []string{"--fixed-cidr", "192.168.176.0/20"},
+			// fixed-cidr (the range of allocatable addresses) is bigger than the
+			// bridge subnet - this is a configuration error, but has historically
+			// been allowed. Because IPRange is treated as an offset into Subnet, it
+			// would normally result in a docker network that allocated addresses
+			// within the selected subnet. So, fixed-cidr is dropped, making the
+			// whole subnet allocatable.
 			expIPAMConfig: []network.IPAMConfig{
 				{
-					Subnet: "192.168.176.0/24",
-					// FIXME(robmry) - allocatable range is bigger than the subnet.
-					IPRange: "192.168.176.0/20",
+					Subnet:  "192.168.176.0/24",
 					Gateway: "192.168.176.88",
 				},
 			},
@@ -228,12 +232,15 @@ func TestDaemonDefaultBridgeIPAM_UserBr(t *testing.T) {
 			name:               "no bridge ip within fixed-cidr",
 			initialBridgeAddrs: []string{"192.168.160.88/20", "192.168.192.88/20"},
 			daemonArgs:         []string{"--fixed-cidr", "192.168.176.0/24"},
-			// Selected bip should be the one within fixed-cidr
+			// fixed-cidr (the range of allocatable addresses) is outside the bridge
+			// subnet - this is a configuration error, but has historically been
+			// allowed. Because IPRange is treated as an offset into Subnet, it
+			// would normally result in a docker network that allocated addresses
+			// within the selected subnet. So, fixed-cidr is dropped, making the
+			// whole subnet allocatable.
 			expIPAMConfig: []network.IPAMConfig{
 				{
-					// FIXME(robmry) - allocatable range outside subnet.
 					Subnet:  "192.168.160.0/20",
-					IPRange: "192.168.176.0/24",
 					Gateway: "192.168.160.88",
 				},
 			},
@@ -242,11 +249,16 @@ func TestDaemonDefaultBridgeIPAM_UserBr(t *testing.T) {
 			name:               "fixed-cidr contains bridge subnet",
 			initialBridgeAddrs: []string{"192.168.177.1/24"},
 			daemonArgs:         []string{"--fixed-cidr", "192.168.176.0/20"},
+			// fixed-cidr (the range of allocatable addresses) is bigger than the
+			// bridge subnet, and the bridge's address is not within fixed-cidr.
+			// This is a configuration error, but has historically been allowed.
+			// Because IPRange is treated as an offset into Subnet, it would
+			// normally result in a docker network that allocated addresses
+			// within the selected subnet. So, fixed-cidr is dropped, making the
+			// whole subnet allocatable.
 			expIPAMConfig: []network.IPAMConfig{
 				{
-					Subnet: "192.168.177.0/24",
-					// FIXME(robmry) - allocatable range is bigger than subnet
-					IPRange: "192.168.176.0/20",
+					Subnet:  "192.168.177.0/24",
 					Gateway: "192.168.177.1",
 				},
 			},
