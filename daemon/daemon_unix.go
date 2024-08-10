@@ -962,12 +962,25 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		}
 	} else {
 		bIP, bIPNet = selectBIP(nwList, fCidrIP, fCidrIPNet)
-		// If the bridge is docker-managed (docker0) and fixed-cidr is not
-		// inside a subnet belonging to any existing bridge IP, ignore the
-		// bridge IP.
-		if !userManagedBridge && fCidrIP != nil && bIPNet != nil && !bIPNet.Contains(fCidrIP) {
-			bIP = nil
-			bIPNet = nil
+		if !userManagedBridge && fCidrIP != nil && bIPNet != nil {
+			if !bIPNet.Contains(fCidrIP) {
+				// The bridge is docker-managed (docker0) and fixed-cidr is not
+				// inside a subnet belonging to any existing bridge IP. (fixed-cidr
+				// has changed.) So, ignore the existing bridge IP.
+				bIP = nil
+				bIPNet = nil
+			} else {
+				fCidrOnes, _ := fCidrIPNet.Mask.Size()
+				bIPOnes, _ := bIPNet.Mask.Size()
+				if fCidrOnes < bIPOnes {
+					// The bridge is docker-managed (docker0) and fixed-cidr (the
+					// allocatable address range) is bigger than the subnet implied
+					// by the bridge's current address. (fixed-cidr has changed.)
+					// The bridge's address is ok, but its subnet needs to be updated.
+					bIPNet.IP = bIPNet.IP.Mask(fCidrIPNet.Mask)
+					bIPNet.Mask = fCidrIPNet.Mask
+				}
+			}
 		}
 	}
 
