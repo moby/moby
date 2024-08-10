@@ -10,6 +10,7 @@ dockerd - Enable daemon mode
 [**--authorization-plugin**[=*[]*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
 [**--bip**[=*BIP*]]
+[**--bip6**[=*BIP*]]
 [**--cgroup-parent**[=*[]*]]
 [**--config-file**[=*path*]]
 [**--containerd**[=*SOCKET-PATH*]]
@@ -146,7 +147,11 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
   container networking
 
 **--bip**=""
-  Use the provided CIDR notation address for the dynamically created bridge
+  Use the provided CIDR notation IPv4 address for the dynamically created bridge
+  (docker0); Mutually exclusive of \-b
+
+**--bip6**=""
+  Use the provided CIDR notation IPv6 address for the dynamically created bridge
   (docker0); Mutually exclusive of \-b
 
 **--cgroup-parent**=""

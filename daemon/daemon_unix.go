@@ -737,6 +737,9 @@ func verifyDaemonSettings(conf *config.Config) error {
 	if conf.BridgeConfig.Iface != "" && conf.BridgeConfig.IP != "" {
 		return fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one")
 	}
+	if conf.BridgeConfig.Iface != "" && conf.BridgeConfig.IP6 != "" {
+		return fmt.Errorf("You specified -b & --bip6, mutually exclusive options. Please specify only one")
+	}
 	if !conf.BridgeConfig.InterContainerCommunication {
 		if !conf.BridgeConfig.EnableIPTables {
 			return fmt.Errorf("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true")
@@ -926,6 +929,47 @@ func driverOptions(config *config.Config) nwconfig.Option {
 	})
 }
 
+type defBrOptsV4 struct {
+	cfg config.BridgeConfig
+}
+
+func (o defBrOptsV4) nlFamily() int {
+	return netlink.FAMILY_V4
+}
+func (o defBrOptsV4) fixedCIDR() (fCIDR, optName string) {
+	return o.cfg.FixedCIDR, "fixed-cidr"
+}
+func (o defBrOptsV4) bip() (bip, optName string) {
+	return o.cfg.IP, "bip"
+}
+func (o defBrOptsV4) defGw() (gw net.IP, optName, auxAddrLabel string) {
+	return o.cfg.DefaultGatewayIPv4, "default-gateway", "DefaultGatewayIPv4"
+}
+
+type defBrOptsV6 struct {
+	cfg config.BridgeConfig
+}
+
+func (o defBrOptsV6) nlFamily() int {
+	return netlink.FAMILY_V6
+}
+func (o defBrOptsV6) fixedCIDR() (fCIDR, optName string) {
+	return o.cfg.FixedCIDRv6, "fixed-cidr-v6"
+}
+func (o defBrOptsV6) bip() (bip, optName string) {
+	return o.cfg.IP6, "bip6"
+}
+func (o defBrOptsV6) defGw() (gw net.IP, optName, auxAddrLabel string) {
+	return o.cfg.DefaultGatewayIPv6, "default-gateway-v6", "DefaultGatewayIPv6"
+}
+
+type defBrOpts interface {
+	nlFamily() int
+	fixedCIDR() (fCIDR, optName string)
+	bip() (bip, optName string)
+	defGw() (gw net.IP, optName, auxAddrLabel string)
+}
+
 func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig) error {
 	bridgeName, userManagedBridge := getDefaultBridgeName(cfg)
 	netOption := map[string]string{
@@ -940,70 +984,43 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		netOption[bridge.DefaultBindingIP] = cfg.DefaultIP.String()
 	}
 
-	ipamV4Conf, err := getDefaultBridgeIPAMConf(bridgeName, userManagedBridge, cfg, netlink.FAMILY_V4)
+	ipamV4Conf, err := getDefaultBridgeIPAMConf(bridgeName, userManagedBridge, defBrOptsV4{cfg})
 	if err != nil {
 		return err
 	}
 
-	var (
-		deferIPv6Alloc bool
-		ipamV6Conf     *libnetwork.IpamConf
-	)
-
-	if cfg.EnableIPv6 && cfg.FixedCIDRv6 == "" {
-		return errdefs.InvalidParameter(errors.New("IPv6 is enabled for the default bridge, but no subnet is configured. Specify an IPv6 subnet using --fixed-cidr-v6"))
-	} else if cfg.FixedCIDRv6 != "" {
-		_, fCIDRv6, err := net.ParseCIDR(cfg.FixedCIDRv6)
+	var deferIPv6Alloc bool
+	var ipamV6Conf []*libnetwork.IpamConf
+	if cfg.EnableIPv6 {
+		ipamV6Conf, err = getDefaultBridgeIPAMConf(bridgeName, userManagedBridge, defBrOptsV6{cfg})
 		if err != nil {
 			return err
 		}
-
-		// In case user has specified the daemon flag --fixed-cidr-v6 and the passed network has
-		// at least 48 host bits, we need to guarantee the current behavior where the containers'
-		// IPv6 addresses will be constructed based on the containers' interface MAC address.
-		// We do so by telling libnetwork to defer the IPv6 address allocation for the endpoints
-		// on this network until after the driver has created the endpoint and returned the
-		// constructed address. Libnetwork will then reserve this address with the ipam driver.
-		ones, _ := fCIDRv6.Mask.Size()
-		deferIPv6Alloc = ones <= 80
-
-		ipamV6Conf = &libnetwork.IpamConf{
-			AuxAddresses:  make(map[string]string),
-			PreferredPool: fCIDRv6.String(),
-		}
-
-		// In case the --fixed-cidr-v6 is specified and the current docker0 bridge IPv6
-		// address belongs to the same network, we need to inform libnetwork about it, so
-		// that it can be reserved with IPAM and it will not be given away to somebody else
-		nw6List, err := ifaceAddrs(bridgeName, netlink.FAMILY_V6)
-		if err != nil {
-			return errors.Wrap(err, "list bridge IPv6 addresses failed")
-		}
-		for _, nw6 := range nw6List {
-			if fCIDRv6.Contains(nw6.IP) {
-				ipamV6Conf.Gateway = nw6.IP.String()
-				break
+		// If the subnet has at least 48 host bits, preserve the legacy default bridge
+		// behaviour of constructing a MAC address from the IPv4 address, then
+		// constructing an IPv6 addresses based on that MAC address. Tell libnetwork to
+		// defer the IPv6 address allocation for endpoints on this network until after
+		// the driver has created the endpoint and proposed an IPv4 address. Libnetwork
+		// will then reserve this address with the ipam driver. If no preferred pool has
+		// been set the built-in ULA prefix will be used, assume it has at-least 48-bits.
+		if len(ipamV6Conf) == 0 || ipamV6Conf[0].PreferredPool == "" {
+			deferIPv6Alloc = true
+		} else {
+			_, ppNet, err := net.ParseCIDR(ipamV6Conf[0].PreferredPool)
+			if err != nil {
+				return err
 			}
+			ones, _ := ppNet.Mask.Size()
+			deferIPv6Alloc = ones <= 80
 		}
 	}
 
-	if cfg.DefaultGatewayIPv6 != nil {
-		if ipamV6Conf == nil {
-			ipamV6Conf = &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
-		}
-		ipamV6Conf.AuxAddresses["DefaultGatewayIPv6"] = cfg.DefaultGatewayIPv6.String()
-	}
-
-	v6Conf := []*libnetwork.IpamConf{}
-	if ipamV6Conf != nil {
-		v6Conf = append(v6Conf, ipamV6Conf)
-	}
 	// Initialize default network on "bridge" with the same name
 	_, err = controller.NewNetwork("bridge", network.NetworkBridge, "",
 		libnetwork.NetworkOptionEnableIPv4(true),
 		libnetwork.NetworkOptionEnableIPv6(cfg.EnableIPv6),
 		libnetwork.NetworkOptionDriverOpts(netOption),
-		libnetwork.NetworkOptionIpam("default", "", ipamV4Conf, v6Conf, nil),
+		libnetwork.NetworkOptionIpam("default", "", ipamV4Conf, ipamV6Conf, nil),
 		libnetwork.NetworkOptionDeferIPv6Alloc(deferIPv6Alloc))
 	if err != nil {
 		return fmt.Errorf(`error creating default %q network: %v`, network.NetworkBridge, err)
@@ -1084,8 +1101,7 @@ func getDefaultBridgeName(cfg config.BridgeConfig) (bridgeName string, userManag
 func getDefaultBridgeIPAMConf(
 	bridgeName string,
 	userManagedBridge bool,
-	cfg config.BridgeConfig,
-	family int,
+	opts defBrOpts,
 ) ([]*libnetwork.IpamConf, error) {
 	var (
 		fCidrIP, bIP       net.IP
@@ -1093,18 +1109,18 @@ func getDefaultBridgeIPAMConf(
 		err                error
 	)
 
-	if cfg.FixedCIDR != "" {
-		if fCidrIP, fCidrIPNet, err = net.ParseCIDR(cfg.FixedCIDR); err != nil {
-			return nil, errors.Wrap(err, "parse fixed-cidr failed")
+	if fixedCIDR, fixedCIDROpt := opts.fixedCIDR(); fixedCIDR != "" {
+		if fCidrIP, fCidrIPNet, err = net.ParseCIDR(fixedCIDR); err != nil {
+			return nil, errors.Wrap(err, "parse "+fixedCIDROpt+" failed")
 		}
 	}
 
-	if cfg.IP != "" {
-		if bIP, bIPNet, err = net.ParseCIDR(cfg.IP); err != nil {
-			return nil, err
+	if cfgBIP, cfgBIPOpt := opts.bip(); cfgBIP != "" {
+		if bIP, bIPNet, err = net.ParseCIDR(cfgBIP); err != nil {
+			return nil, errors.Wrap(err, "parse "+cfgBIPOpt+" failed")
 		}
 	} else {
-		if bIP, bIPNet, err = selectBIP(userManagedBridge, bridgeName, family, fCidrIP, fCidrIPNet); err != nil {
+		if bIP, bIPNet, err = selectBIP(userManagedBridge, bridgeName, opts.nlFamily(), fCidrIP, fCidrIPNet); err != nil {
 			return nil, err
 		}
 	}
@@ -1114,7 +1130,8 @@ func getDefaultBridgeIPAMConf(
 		ipamConf.PreferredPool = bIPNet.String()
 		ipamConf.Gateway = bIP.String()
 	} else if !userManagedBridge && ipamConf.PreferredPool != "" {
-		log.G(context.TODO()).Infof("Default bridge (%s) is assigned with an IP address %s. Daemon option --bip can be used to set a preferred IP address", bridgeName, ipamConf.PreferredPool)
+		_, bipOptName := opts.bip()
+		log.G(context.TODO()).Infof("Default bridge (%s) is assigned with an IP address %s. Daemon option --"+bipOptName+" can be used to set a preferred IP address", bridgeName, ipamConf.PreferredPool)
 	}
 
 	if fCidrIP != nil && fCidrIPNet != nil {
@@ -1128,21 +1145,27 @@ func getDefaultBridgeIPAMConf(
 				// Don't allow SubPool (the range of allocatable addresses) to be outside, or
 				// bigger than, the network itself. This is a configuration error, either the
 				// user-managed bridge is missing an address to match fixed-cidr, or fixed-cidr
-				// is wrong. But, just log rather than raise an error that would cause daemon
+				// is wrong.
+				fixedCIDR, fixedCIDROpt := opts.fixedCIDR()
+				if opts.nlFamily() == netlink.FAMILY_V6 {
+					return nil, fmt.Errorf("%s=%s is outside any subnet implied by addresses on the user-managed default bridge",
+						fixedCIDROpt, fixedCIDR)
+				}
+				// For IPv4, just log rather than raise an error that would cause daemon
 				// startup to fail, because this has been allowed by earlier versions. Remove
 				// the SubPool, so that addresses are allocated from the whole of PreferredPool.
 				log.G(context.TODO()).WithFields(log.Fields{
 					"bridge":         bridgeName,
-					"fixed-cidr":     cfg.FixedCIDR,
+					fixedCIDROpt:     fixedCIDR,
 					"bridge-network": bIPNet.String(),
-				}).Warn("fixed-cidr is outside the subnet implied by addresses on the user-managed default bridge, this may be treated as an error in a future release")
+				}).Warn(fixedCIDROpt + " is outside any subnet implied by addresses on the user-managed default bridge, this may be treated as an error in a future release")
 				ipamConf.SubPool = ""
 			}
 		}
 	}
 
-	if cfg.DefaultGatewayIPv4 != nil {
-		ipamConf.AuxAddresses["DefaultGatewayIPv4"] = cfg.DefaultGatewayIPv4.String()
+	if defGw, _, auxAddrLabel := opts.defGw(); defGw != nil {
+		ipamConf.AuxAddresses[auxAddrLabel] = defGw.String()
 	}
 
 	return []*libnetwork.IpamConf{ipamConf}, nil
