@@ -969,10 +969,7 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		}
 
 		ipamV4Conf.PreferredPool = lntypes.GetIPNetCanonical(nw).String()
-		hip, _ := lntypes.GetHostPartIP(nw.IP, nw.Mask)
-		if hip.IsGlobalUnicast() {
-			ipamV4Conf.Gateway = nw.IP.String()
-		}
+		ipamV4Conf.Gateway = nw.IP.String()
 	}
 
 	if cfg.IP != "" {
