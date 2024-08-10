@@ -149,3 +149,29 @@ func TestGetOrphan(t *testing.T) {
 		t.Fatalf("Expected to have one orphan layer")
 	}
 }
+
+func TestIsValidID(t *testing.T) {
+	testCases := []struct {
+		name     string
+		id       string
+		expected bool
+	}{
+		{"Valid 64-char hexadecimal", "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", true},
+		{"Valid 64-char hexadecimal with -init suffix", "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef-init", true},
+		{"Invalid: too short", "1234567890abcdef", false},
+		{"Invalid: too long", "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef00", false},
+		{"Invalid: contains uppercase letter", "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdeF", false},
+		{"Invalid: contains non-hexadecimal character", "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdeg", false},
+		{"Invalid: empty string", "", false},
+		{"Invalid: only -init suffix", "-init", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := isValidID(tc.id)
+			if result != tc.expected {
+				t.Errorf("isValidID(%q): got %v, want %v", tc.id, result, tc.expected)
+			}
+		})
+	}
+}
