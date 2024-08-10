@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"regexp"
 	"strings"
@@ -148,42 +147,20 @@ func setupResolvConf(config *config.Config) {
 	config.ResolvConf = resolvconf.Path()
 }
 
-// ifaceAddrs returns the IPv4 and IPv6 addresses assigned to the network
+// ifaceAddrs returns the addresses from family assigned to the network
 // interface with name linkName.
 //
 // No error is returned if the named interface does not exist.
-func ifaceAddrs(linkName string) (v4, v6 []*net.IPNet, err error) {
+func ifaceAddrs(linkName string, family int) ([]netlink.Addr, error) {
 	nl := ns.NlHandle()
 	link, err := nl.LinkByName(linkName)
 	if err != nil {
 		if !errors.As(err, new(netlink.LinkNotFoundError)) {
-			return nil, nil, err
-		}
-		return nil, nil, nil
-	}
-
-	get := func(family int) ([]*net.IPNet, error) {
-		addrs, err := nl.AddrList(link, family)
-		if err != nil {
 			return nil, err
 		}
-
-		ipnets := make([]*net.IPNet, len(addrs))
-		for i := range addrs {
-			ipnets[i] = addrs[i].IPNet
-		}
-		return ipnets, nil
+		return nil, nil
 	}
-
-	v4, err = get(netlink.FAMILY_V4)
-	if err != nil {
-		return nil, nil, err
-	}
-	v6, err = get(netlink.FAMILY_V6)
-	if err != nil {
-		return nil, nil, err
-	}
-	return v4, v6, nil
+	return nl.AddrList(link, family)
 }
 
 var (
