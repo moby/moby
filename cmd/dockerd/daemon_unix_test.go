@@ -33,7 +33,7 @@ func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {
 }
 
 func TestLoadDaemonConfigWithNetwork(t *testing.T) {
-	content := `{"bip": "127.0.0.2", "ip": "127.0.0.1"}`
+	content := `{"bip": "127.0.0.2/8", "bip6": "fd98:e5f2:e637::1/64", "ip": "127.0.0.1"}`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
 	defer tempFile.Remove()
 
@@ -42,8 +42,9 @@ func TestLoadDaemonConfigWithNetwork(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
 
-	assert.Check(t, is.Equal("127.0.0.2", loadedConfig.IP))
-	assert.Check(t, is.Equal("127.0.0.1", loadedConfig.DefaultIP.String()))
+	assert.Check(t, is.Equal(loadedConfig.IP, "127.0.0.2/8"))
+	assert.Check(t, is.Equal(loadedConfig.IP6, "fd98:e5f2:e637::1/64"))
+	assert.Check(t, is.Equal(loadedConfig.DefaultIP.String(), "127.0.0.1"))
 }
 
 func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
