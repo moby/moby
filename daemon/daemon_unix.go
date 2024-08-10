@@ -953,17 +953,25 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 	}
 
 	if len(nwList) > 0 {
+		// Pick any address from the bridge as a starting point.
 		nw := nwList[0]
 		if len(nwList) > 1 && cfg.FixedCIDR != "" {
-			_, fCIDR, err := net.ParseCIDR(cfg.FixedCIDR)
+			fCidrIP, fCidrNet, err := net.ParseCIDR(cfg.FixedCIDR)
 			if err != nil {
-				return errors.Wrap(err, "parse CIDR failed")
+				return errors.Wrap(err, "parse fixed-cidr failed")
 			}
-			// Iterate through in case there are multiple addresses for the bridge
+			// If there's an address with a subnet that contains fixed-cidr, use it.
 			for _, entry := range nwList {
-				if fCIDR.Contains(entry.IP) {
+				if entry.Contains(fCidrIP) {
 					nw = entry
 					break
+				}
+				// For backwards compatibility - prefer the first bridge address within
+				// fixed-cidr. If fixed-cidr has a bigger subnet than nw.IP, this doesn't really
+				// make sense - the allocatable range (fixed-cidr) will be bigger than the subnet
+				// (entry.IPNet).
+				if fCidrNet.Contains(entry.IP) && !fCidrNet.Contains(nw.IP) {
+					nw = entry
 				}
 			}
 		}

@@ -198,13 +198,12 @@ func TestDaemonDefaultBridgeIPAM_UserBr(t *testing.T) {
 			name:               "fcidr in bridge subnet and bridge ip not in fcidr",
 			initialBridgeAddrs: []string{"192.168.160.88/20", "192.168.176.88/20", "192.168.192.88/20"},
 			daemonArgs:         []string{"--fixed-cidr", "192.168.177.0/24"},
+			// Selected bridge subnet should be the one that encompasses fixed-cidr.
 			expIPAMConfig: []network.IPAMConfig{
 				{
-					// FIXME(robmry) - selected subnet should be the one that encompasses
-					//  fixed-cidr, allocatable range is outside the subnet.
-					Subnet:  "192.168.160.0/20",
+					Subnet:  "192.168.176.0/20",
 					IPRange: "192.168.177.0/24",
-					Gateway: "192.168.160.88",
+					Gateway: "192.168.176.88",
 				},
 			},
 		},
