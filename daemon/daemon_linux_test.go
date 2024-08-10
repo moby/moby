@@ -363,12 +363,20 @@ func TestIfaceAddrs(t *testing.T) {
 
 			createBridge(t, "test", tt.nws...)
 
-			ipv4Nw, ipv6Nw, err := ifaceAddrs("test")
+			ipv4Nw, err := ifaceAddrs("test", netlink.FAMILY_V4)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ipv6Nw, err := ifaceAddrs("test", netlink.FAMILY_V6)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			assert.Check(t, is.DeepEqual(tt.nws, ipv4Nw,
+			ipnets := make([]*net.IPNet, len(ipv4Nw))
+			for i := range ipv4Nw {
+				ipnets[i] = ipv4Nw[i].IPNet
+			}
+			assert.Check(t, is.DeepEqual(ipnets, tt.nws,
 				cmpopts.SortSlices(func(a, b *net.IPNet) bool { return a.String() < b.String() })))
 			// IPv6 link-local address
 			assert.Check(t, is.Len(ipv6Nw, 1))
