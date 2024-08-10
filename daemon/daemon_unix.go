@@ -940,66 +940,42 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		netOption[bridge.DefaultBindingIP] = cfg.DefaultIP.String()
 	}
 
-	ipamV4Conf := &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
-
-	// By default, libnetwork will request an arbitrary available address
-	// pool for the network from the configured IPAM allocator.
-	// Configure it to use the IPv4 network ranges of the existing bridge
-	// interface if one exists with IPv4 addresses assigned to it.
-
 	nwList, nw6List, err := ifaceAddrs(bridgeName)
 	if err != nil {
 		return errors.Wrap(err, "list bridge addresses failed")
 	}
 
-	if len(nwList) > 0 {
-		// Pick any address from the bridge as a starting point.
-		nw := nwList[0]
-		if len(nwList) > 1 && cfg.FixedCIDR != "" {
-			fCidrIP, fCidrNet, err := net.ParseCIDR(cfg.FixedCIDR)
-			if err != nil {
-				return errors.Wrap(err, "parse fixed-cidr failed")
-			}
-			// If there's an address with a subnet that contains fixed-cidr, use it.
-			for _, entry := range nwList {
-				if entry.Contains(fCidrIP) {
-					nw = entry
-					break
-				}
-				// For backwards compatibility - prefer the first bridge address within
-				// fixed-cidr. If fixed-cidr has a bigger subnet than nw.IP, this doesn't really
-				// make sense - the allocatable range (fixed-cidr) will be bigger than the subnet
-				// (entry.IPNet).
-				if fCidrNet.Contains(entry.IP) && !fCidrNet.Contains(nw.IP) {
-					nw = entry
-				}
-			}
-		}
+	var (
+		fCidrIP, bIP       net.IP
+		fCidrIPNet, bIPNet *net.IPNet
+	)
 
-		ipamV4Conf.PreferredPool = lntypes.GetIPNetCanonical(nw).String()
-		ipamV4Conf.Gateway = nw.IP.String()
+	if cfg.FixedCIDR != "" {
+		if fCidrIP, fCidrIPNet, err = net.ParseCIDR(cfg.FixedCIDR); err != nil {
+			return errors.Wrap(err, "parse fixed-cidr failed")
+		}
 	}
 
 	if cfg.IP != "" {
-		ip, ipNet, err := net.ParseCIDR(cfg.IP)
-		if err != nil {
+		if bIP, bIPNet, err = net.ParseCIDR(cfg.IP); err != nil {
 			return err
 		}
-		ipamV4Conf.PreferredPool = ipNet.String()
-		ipamV4Conf.Gateway = ip.String()
+	} else {
+		bIP, bIPNet = selectBIP(nwList, fCidrIP, fCidrIPNet)
+	}
+
+	ipamV4Conf := &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
+	if bIP != nil {
+		ipamV4Conf.PreferredPool = bIPNet.String()
+		ipamV4Conf.Gateway = bIP.String()
 	} else if !userManagedBridge && ipamV4Conf.PreferredPool != "" {
 		log.G(context.TODO()).Infof("Default bridge (%s) is assigned with an IP address %s. Daemon option --bip can be used to set a preferred IP address", bridgeName, ipamV4Conf.PreferredPool)
 	}
 
-	if cfg.FixedCIDR != "" {
-		_, fCIDR, err := net.ParseCIDR(cfg.FixedCIDR)
-		if err != nil {
-			return err
-		}
-
-		ipamV4Conf.SubPool = fCIDR.String()
+	if fCidrIP != nil {
+		ipamV4Conf.SubPool = fCidrIPNet.String()
 		if ipamV4Conf.PreferredPool == "" {
-			ipamV4Conf.PreferredPool = fCIDR.String()
+			ipamV4Conf.PreferredPool = fCidrIPNet.String()
 		}
 	}
 
@@ -1090,6 +1066,43 @@ func getDefaultBridgeName(cfg config.BridgeConfig) (bridgeName string, userManag
 		return bn, false
 	}
 	return bridge.DefaultBridgeName, false
+}
+
+// selectBIP searches bridgeNws for:
+// - An address that encompasses fCidrNet if there is one.
+// - Else, an address that is within fCidrNet if there is one.
+// - Else, any address, if there is one.
+// If an address is found, it's returned as bIP, with its subnet in canonical
+// form in bIPNet.
+func selectBIP(
+	bridgeNws []*net.IPNet,
+	fCidrIP net.IP,
+	fCidrNet *net.IPNet,
+) (bIP net.IP, bIPNet *net.IPNet) {
+	if len(bridgeNws) > 0 {
+		// Pick any address from the bridge as a starting point.
+		nw := bridgeNws[0]
+		if len(bridgeNws) > 1 && fCidrNet != nil {
+			// If there's an address with a subnet that contains fixed-cidr, use it.
+			for _, entry := range bridgeNws {
+				if entry.Contains(fCidrIP) {
+					nw = entry
+					break
+				}
+				// For backwards compatibility - prefer the first bridge address within
+				// fixed-cidr. If fixed-cidr has a bigger subnet than nw.IP, this doesn't really
+				// make sense - the allocatable range (fixed-cidr) will be bigger than the subnet
+				// (entry.IPNet).
+				if fCidrNet.Contains(entry.IP) && !fCidrNet.Contains(nw.IP) {
+					nw = entry
+				}
+			}
+		}
+
+		bIP = nw.IP
+		bIPNet = lntypes.GetIPNetCanonical(nw)
+	}
+	return bIP, bIPNet
 }
 
 // Remove default bridge interface if present (--bridge=none use case)
