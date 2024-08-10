@@ -114,9 +114,7 @@ func TestDaemonDefaultBridgeIPAM_Docker0(t *testing.T) {
 			daemonArgs:         []string{"--fixed-cidr", "192.168.176.0/20"},
 			expIPAMConfig: []network.IPAMConfig{
 				{
-					// FIXME(robmry) - subnet didn't change, allocatable range
-					//   is bigger than the subnet.
-					Subnet:  "192.168.176.0/24",
+					Subnet:  "192.168.176.0/20",
 					IPRange: "192.168.176.0/20",
 					Gateway: "192.168.176.88",
 				},
