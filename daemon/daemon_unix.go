@@ -927,10 +927,7 @@ func driverOptions(config *config.Config) nwconfig.Option {
 }
 
 func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig) error {
-	bridgeName := bridge.DefaultBridgeName
-	if cfg.Iface != "" {
-		bridgeName = cfg.Iface
-	}
+	bridgeName, userManagedBridge := getDefaultBridgeName(cfg)
 	netOption := map[string]string{
 		bridge.BridgeName:         bridgeName,
 		bridge.DefaultBridge:      strconv.FormatBool(true),
@@ -938,7 +935,6 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		bridge.EnableIPMasquerade: strconv.FormatBool(cfg.EnableIPMasq),
 		bridge.EnableICC:          strconv.FormatBool(cfg.InterContainerCommunication),
 	}
-
 	// --ip processing
 	if cfg.DefaultIP != nil {
 		netOption[bridge.DefaultBindingIP] = cfg.DefaultIP.String()
@@ -986,7 +982,7 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		}
 		ipamV4Conf.PreferredPool = ipNet.String()
 		ipamV4Conf.Gateway = ip.String()
-	} else if bridgeName == bridge.DefaultBridgeName && ipamV4Conf.PreferredPool != "" {
+	} else if !userManagedBridge && ipamV4Conf.PreferredPool != "" {
 		log.G(context.TODO()).Infof("Default bridge (%s) is assigned with an IP address %s. Daemon option --bip can be used to set a preferred IP address", bridgeName, ipamV4Conf.PreferredPool)
 	}
 
@@ -1067,6 +1063,28 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		return fmt.Errorf(`error creating default %q network: %v`, network.NetworkBridge, err)
 	}
 	return nil
+}
+
+func getDefaultBridgeName(cfg config.BridgeConfig) (bridgeName string, userManagedBridge bool) {
+	// cfg.Iface is --bridge, the option to supply a user-managed bridge.
+	if cfg.Iface != "" {
+		// The default network will use a user-managed bridge, the daemon will not
+		// create it, and it is not possible to supply an address using --bip.
+		return cfg.Iface, true
+	}
+	// Without a --bridge, the bridge is "docker0", created and managed by the
+	// daemon. A --bip (cidr) can be supplied to define the bridge's IP address
+	// and the network's subnet.
+	//
+	// Env var DOCKER_TEST_CREATE_DEFAULT_BRIDGE env var modifies the default
+	// bridge name. Unlike '--bridge', the bridge does not need to be created
+	// outside the daemon, and it's still possible to use '--bip'. It is
+	// intended only for use in moby tests; it may be removed, its behaviour
+	// may be modified, and it may not do what you want anyway!
+	if bn := os.Getenv("DOCKER_TEST_CREATE_DEFAULT_BRIDGE"); bn != "" {
+		return bn, false
+	}
+	return bridge.DefaultBridgeName, false
 }
 
 // Remove default bridge interface if present (--bridge=none use case)
