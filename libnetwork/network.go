@@ -1329,11 +1329,14 @@ func (n *Network) updateSvcRecord(ctx context.Context, ep *Endpoint, isAdd bool)
 	defer span.End()
 
 	iface := ep.Iface()
-	if iface == nil || iface.Address() == nil {
+	if iface == nil {
 		return
 	}
 
-	var ipv6 net.IP
+	var ipv4, ipv6 net.IP
+	if iface.Address() != nil {
+		ipv4 = iface.Address().IP
+	}
 	if iface.AddressIPv6() != nil {
 		ipv6 = iface.AddressIPv6().IP
 	}
@@ -1347,12 +1350,12 @@ func (n *Network) updateSvcRecord(ctx context.Context, ep *Endpoint, isAdd bool)
 	if isAdd {
 		for i, dnsName := range dnsNames {
 			ipMapUpdate := i == 0 // ipMapUpdate indicates whether PTR records should be updated.
-			n.addSvcRecords(ep.ID(), dnsName, serviceID, iface.Address().IP, ipv6, ipMapUpdate, "updateSvcRecord")
+			n.addSvcRecords(ep.ID(), dnsName, serviceID, ipv4, ipv6, ipMapUpdate, "updateSvcRecord")
 		}
 	} else {
 		for i, dnsName := range dnsNames {
 			ipMapUpdate := i == 0 // ipMapUpdate indicates whether PTR records should be updated.
-			n.deleteSvcRecords(ep.ID(), dnsName, serviceID, iface.Address().IP, ipv6, ipMapUpdate, "updateSvcRecord")
+			n.deleteSvcRecords(ep.ID(), dnsName, serviceID, ipv4, ipv6, ipMapUpdate, "updateSvcRecord")
 		}
 	}
 }
@@ -1392,14 +1395,14 @@ func delNameToIP(svcMap *setmatrix.SetMatrix[svcMapEntry], name, serviceID strin
 }
 
 // TODO(aker): remove ipMapUpdate param and add a proper method dedicated to update PTR records.
-func (n *Network) addSvcRecords(eID, name, serviceID string, epIP, epIPv6 net.IP, ipMapUpdate bool, method string) {
+func (n *Network) addSvcRecords(eID, name, serviceID string, epIPv4, epIPv6 net.IP, ipMapUpdate bool, method string) {
 	// Do not add service names for ingress network as this is a
 	// routing only network
 	if n.ingress {
 		return
 	}
 	networkID := n.ID()
-	log.G(context.TODO()).Debugf("%s (%.7s).addSvcRecords(%s, %s, %s, %t) %s sid:%s", eID, networkID, name, epIP, epIPv6, ipMapUpdate, method, serviceID)
+	log.G(context.TODO()).Debugf("%s (%.7s).addSvcRecords(%s, %s, %s, %t) %s sid:%s", eID, networkID, name, epIPv4, epIPv6, ipMapUpdate, method, serviceID)
 
 	c := n.getController()
 	c.mu.Lock()
@@ -1412,26 +1415,30 @@ func (n *Network) addSvcRecords(eID, name, serviceID string, epIP, epIPv6 net.IP
 	}
 
 	if ipMapUpdate {
-		addIPToName(&sr.ipMap, name, serviceID, epIP)
+		if epIPv4 != nil {
+			addIPToName(&sr.ipMap, name, serviceID, epIPv4)
+		}
 		if epIPv6 != nil {
 			addIPToName(&sr.ipMap, name, serviceID, epIPv6)
 		}
 	}
 
-	addNameToIP(&sr.svcMap, name, serviceID, epIP)
+	if epIPv4 != nil {
+		addNameToIP(&sr.svcMap, name, serviceID, epIPv4)
+	}
 	if epIPv6 != nil {
 		addNameToIP(&sr.svcIPv6Map, name, serviceID, epIPv6)
 	}
 }
 
-func (n *Network) deleteSvcRecords(eID, name, serviceID string, epIP net.IP, epIPv6 net.IP, ipMapUpdate bool, method string) {
+func (n *Network) deleteSvcRecords(eID, name, serviceID string, epIPv4, epIPv6 net.IP, ipMapUpdate bool, method string) {
 	// Do not delete service names from ingress network as this is a
 	// routing only network
 	if n.ingress {
 		return
 	}
 	networkID := n.ID()
-	log.G(context.TODO()).Debugf("%s (%.7s).deleteSvcRecords(%s, %s, %s, %t) %s sid:%s ", eID, networkID, name, epIP, epIPv6, ipMapUpdate, method, serviceID)
+	log.G(context.TODO()).Debugf("%s (%.7s).deleteSvcRecords(%s, %s, %s, %t) %s sid:%s ", eID, networkID, name, epIPv4, epIPv6, ipMapUpdate, method, serviceID)
 
 	c := n.getController()
 	c.mu.Lock()
@@ -1443,15 +1450,17 @@ func (n *Network) deleteSvcRecords(eID, name, serviceID string, epIP net.IP, epI
 	}
 
 	if ipMapUpdate {
-		delIPToName(&sr.ipMap, name, serviceID, epIP)
-
+		if epIPv4 != nil {
+			delIPToName(&sr.ipMap, name, serviceID, epIPv4)
+		}
 		if epIPv6 != nil {
 			delIPToName(&sr.ipMap, name, serviceID, epIPv6)
 		}
 	}
 
-	delNameToIP(&sr.svcMap, name, serviceID, epIP)
-
+	if epIPv4 != nil {
+		delNameToIP(&sr.svcMap, name, serviceID, epIPv4)
+	}
 	if epIPv6 != nil {
 		delNameToIP(&sr.svcIPv6Map, name, serviceID, epIPv6)
 	}
@@ -1476,27 +1485,29 @@ func (n *Network) getSvcRecords(ep *Endpoint) []etchosts.Record {
 		return nil
 	}
 
-	svcMapKeys := sr.svcMap.Keys()
-	// Loop on service names on this network
-	for _, k := range svcMapKeys {
-		if strings.Split(k, ".")[0] == epName {
-			continue
-		}
-		// Get all the IPs associated to this service
-		mapEntryList, ok := sr.svcMap.Get(k)
-		if !ok {
-			// The key got deleted
-			continue
-		}
-		if len(mapEntryList) == 0 {
-			log.G(context.TODO()).Warnf("Found empty list of IP addresses for service %s on network %s (%s)", k, n.name, n.id)
-			continue
-		}
+	for _, svcMap := range []*setmatrix.SetMatrix[svcMapEntry]{&sr.svcMap, &sr.svcIPv6Map} {
+		svcMapKeys := svcMap.Keys()
+		// Loop on service names on this network
+		for _, k := range svcMapKeys {
+			if strings.Split(k, ".")[0] == epName {
+				continue
+			}
+			// Get all the IPs associated to this service
+			mapEntryList, ok := svcMap.Get(k)
+			if !ok {
+				// The key got deleted
+				continue
+			}
+			if len(mapEntryList) == 0 {
+				log.G(context.TODO()).Warnf("Found empty list of IP addresses for service %s on network %s (%s)", k, n.name, n.id)
+				continue
+			}
 
-		recs = append(recs, etchosts.Record{
-			Hosts: k,
-			IP:    mapEntryList[0].ip,
-		})
+			recs = append(recs, etchosts.Record{
+				Hosts: k,
+				IP:    mapEntryList[0].ip,
+			})
+		}
 	}
 
 	return recs
