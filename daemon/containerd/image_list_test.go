@@ -89,6 +89,76 @@ func BenchmarkImageList(b *testing.B) {
 	}
 }
 
+func TestImageListCheckTotalSize(t *testing.T) {
+	ctx := namespaces.WithNamespace(context.TODO(), "testing")
+
+	blobsDir := t.TempDir()
+	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
+
+	twoplatform, mfstsDescs, err := specialimage.MultiPlatform(blobsDir, "test:latest", []ocispec.Platform{
+		{OS: "linux", Architecture: "arm64"},
+		{OS: "linux", Architecture: "amd64"},
+	})
+	assert.NilError(t, err)
+
+	ctx = logtest.WithT(ctx, t)
+	service := fakeImageService(t, ctx, cs)
+
+	_, err = service.images.Create(ctx, imagesFromIndex(twoplatform)[0])
+	assert.NilError(t, err)
+
+	all, err := service.Images(ctx, imagetypes.ListOptions{Manifests: true})
+	assert.NilError(t, err)
+
+	assert.Check(t, is.Len(all, 1))
+	assert.Check(t, is.Len(all[0].Manifests, 2))
+
+	// TODO: The test snapshotter doesn't do anything, so the size is always 0.
+	assert.Check(t, is.Equal(all[0].Manifests[0].ImageData.Size.Unpacked, int64(0)))
+	assert.Check(t, is.Equal(all[0].Manifests[1].ImageData.Size.Unpacked, int64(0)))
+
+	mfstArm64 := mfstsDescs[0]
+	mfstAmd64 := mfstsDescs[1]
+
+	indexSize := blobSize(t, ctx, cs, twoplatform.Manifests[0].Digest)
+	arm64ManifestSize := blobSize(t, ctx, cs, mfstArm64.Digest)
+	amd64ManifestSize := blobSize(t, ctx, cs, mfstAmd64.Digest)
+
+	var arm64Mfst, amd64Mfst ocispec.Manifest
+	assert.NilError(t, readJSON(ctx, cs, mfstArm64, &arm64Mfst))
+	assert.NilError(t, readJSON(ctx, cs, mfstAmd64, &amd64Mfst))
+
+	// MultiPlatform should produce a single layer. If these fail, the test needs to be adjusted.
+	assert.Assert(t, is.Len(arm64Mfst.Layers, 1))
+	assert.Assert(t, is.Len(amd64Mfst.Layers, 1))
+
+	arm64ConfigSize := blobSize(t, ctx, cs, arm64Mfst.Config.Digest)
+	amd64ConfigSize := blobSize(t, ctx, cs, amd64Mfst.Config.Digest)
+
+	arm64LayerSize := blobSize(t, ctx, cs, arm64Mfst.Layers[0].Digest)
+	amd64LayerSize := blobSize(t, ctx, cs, amd64Mfst.Layers[0].Digest)
+
+	allTotalSize := indexSize +
+		arm64ManifestSize + amd64ManifestSize +
+		arm64ConfigSize + amd64ConfigSize +
+		arm64LayerSize + amd64LayerSize
+
+	assert.Check(t, is.Equal(all[0].Size, allTotalSize-indexSize))
+
+	assert.Check(t, is.Equal(all[0].Manifests[0].Size.Content, arm64ManifestSize+arm64ConfigSize+arm64LayerSize))
+	assert.Check(t, is.Equal(all[0].Manifests[1].Size.Content, amd64ManifestSize+amd64ConfigSize+amd64LayerSize))
+
+	// TODO: This should also include the Size.Unpacked, but the test snapshotter doesn't do anything yet
+	assert.Check(t, is.Equal(all[0].Manifests[0].Size.Total, amd64ManifestSize+amd64ConfigSize+amd64LayerSize))
+	assert.Check(t, is.Equal(all[0].Manifests[1].Size.Total, amd64ManifestSize+amd64ConfigSize+amd64LayerSize))
+}
+
+func blobSize(t *testing.T, ctx context.Context, cs content.Store, dgst digest.Digest) int64 {
+	info, err := cs.Info(ctx, dgst)
+	assert.NilError(t, err)
+	return info.Size
+}
+
 func TestImageList(t *testing.T) {
 	ctx := namespaces.WithNamespace(context.TODO(), "testing")
 

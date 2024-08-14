@@ -236,5 +236,5 @@ func (m *ImageManifest) ReadConfig(ctx context.Context, outConfig interface{}) e
 		return err
 	}
 
-	return readConfig(ctx, m.ContentStore(), configDesc, outConfig)
+	return readJSON(ctx, m.ContentStore(), configDesc, outConfig)
 }

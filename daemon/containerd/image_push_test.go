@@ -204,7 +204,7 @@ func TestImagePushIndex(t *testing.T) {
 				imgSvc.defaultPlatformOverride = platforms.Only(defaultDaemonPlatform)
 			}
 
-			idx, err := specialimage.MultiPlatform(csDir, "multiplatform:latest", tc.indexPlatforms)
+			idx, _, err := specialimage.MultiPlatform(csDir, "multiplatform:latest", tc.indexPlatforms)
 			assert.NilError(t, err)
 
 			imgs := imagesFromIndex(idx)
