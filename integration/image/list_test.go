@@ -251,7 +251,8 @@ func TestAPIImagesListManifests(t *testing.T) {
 		{OS: "darwin", Architecture: "arm64"},
 	}
 	specialimage.Load(ctx, t, apiClient, func(dir string) (*ocispec.Index, error) {
-		return specialimage.MultiPlatform(dir, "multiplatform:latest", testPlatforms)
+		idx, _, err := specialimage.MultiPlatform(dir, "multiplatform:latest", testPlatforms)
+		return idx, err
 	})
 
 	t.Run("unsupported before 1.47", func(t *testing.T) {
