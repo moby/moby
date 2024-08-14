@@ -84,7 +84,7 @@ func (c cacheAdaptor) Get(id image.ID) (*image.Image, error) {
 			}
 
 			var config container.Config
-			if err := readConfig(ctx, c.is.content, configDesc, &config); err != nil {
+			if err := readJSON(ctx, c.is.content, configDesc, &config); err != nil {
 				if !errdefs.IsNotFound(err) {
 					log.G(ctx).WithFields(log.Fields{
 						"configDigest": dgst,

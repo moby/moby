@@ -125,8 +125,8 @@ func TestImageListCheckTotalSize(t *testing.T) {
 	amd64ManifestSize := blobSize(t, ctx, cs, mfstAmd64.Digest)
 
 	var arm64Mfst, amd64Mfst ocispec.Manifest
-	assert.NilError(t, readConfig(ctx, cs, mfstArm64, &arm64Mfst))
-	assert.NilError(t, readConfig(ctx, cs, mfstAmd64, &amd64Mfst))
+	assert.NilError(t, readJSON(ctx, cs, mfstArm64, &arm64Mfst))
+	assert.NilError(t, readJSON(ctx, cs, mfstAmd64, &amd64Mfst))
 
 	// MultiPlatform should produce a single layer. If these fail, the test needs to be adjusted.
 	assert.Assert(t, is.Len(arm64Mfst.Layers, 1))

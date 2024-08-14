@@ -474,7 +474,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		return nil, err
 	}
 	var cfg configLabels
-	if err := readConfig(ctx, contentStore, cfgDesc, &cfg); err != nil {
+	if err := readJSON(ctx, contentStore, cfgDesc, &cfg); err != nil {
 		return nil, err
 	}
 
@@ -676,7 +676,7 @@ func setupLabelFilter(ctx context.Context, store content.Store, fltrs filters.Ar
 				return nil, nil
 			}
 			var cfg configLabels
-			if err := readConfig(ctx, store, desc, &cfg); err != nil {
+			if err := readJSON(ctx, store, desc, &cfg); err != nil {
 				if errdefs.IsNotFound(err) {
 					return nil, nil
 				}
@@ -751,8 +751,8 @@ func computeSharedSize(chainIDs []digest.Digest, layers map[digest.Digest]int, s
 	return sharedSize, nil
 }
 
-// readConfig reads content pointed by the descriptor and unmarshals it into a specified output.
-func readConfig(ctx context.Context, store content.Provider, desc ocispec.Descriptor, out interface{}) error {
+// readJSON reads content pointed by the descriptor and unmarshals it into a specified output.
+func readJSON(ctx context.Context, store content.Provider, desc ocispec.Descriptor, out interface{}) error {
 	data, err := content.ReadBlob(ctx, store, desc)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to read config content")
