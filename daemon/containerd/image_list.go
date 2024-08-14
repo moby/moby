@@ -267,7 +267,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 		} else {
 			mfstSummary.Size.Content = contentSize
 			totalSize += contentSize
-			mfstSummary.Size.Total = totalSize
+			mfstSummary.Size.Total += contentSize
 		}
 
 		isPseudo, err := img.IsPseudoImage(ctx)
@@ -334,8 +334,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 
 		chainIDs := identity.ChainIDs(diffIDs)
 
-		prevContentSize := contentSize
-		unpackedSize, contentSize, err := i.singlePlatformSize(ctx, img)
+		unpackedSize, imgContentSize, err := i.singlePlatformSize(ctx, img)
 		if err != nil {
 			logger.WithError(err).Warn("failed to determine platform specific size")
 			return nil
@@ -343,18 +342,26 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 
 		// If the image-specific content size calculation produces different result
 		// than the "generic" one, adjust the total size with the difference.
-		if prevContentSize != contentSize {
+		// Note: This shouldn't happen unless the implementation changes or the
+		// content is added/removed during the list operation.
+		if contentSize != imgContentSize {
 			logger.WithFields(log.Fields{
-				"prevSize":    prevContentSize,
-				"contentSize": contentSize,
-			}).Debug("content size calculation mismatch")
+				"contentSize":    contentSize,
+				"imgContentSize": imgContentSize,
+			}).Warn("content size calculation mismatch")
 
-			totalSize += contentSize - prevContentSize
+			mfstSummary.Size.Content = contentSize
+
+			// contentSize was already added to total, adjust it by the difference
+			// between the newly calculated size and the old size.
+			d := imgContentSize - contentSize
+			totalSize += d
+			mfstSummary.Size.Total += d
 		}
 
-		totalSize += unpackedSize
-		mfstSummary.Size.Total = totalSize
 		mfstSummary.ImageData.Size.Unpacked = unpackedSize
+		mfstSummary.Size.Total += unpackedSize
+		totalSize += unpackedSize
 
 		allChainsIDs = append(allChainsIDs, chainIDs...)
 
