@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/rootfs"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	imageadapter "github.com/docker/docker/builder/builder-next/adapters/containerimage"
@@ -572,5 +573,5 @@ func (p *emptyProvider) ReaderAt(ctx context.Context, dec ocispec.Descriptor) (c
 }
 
 func (p *emptyProvider) Info(ctx context.Context, d digest.Digest) (content.Info, error) {
-	return content.Info{}, errors.Errorf("Info not implemented for empty provider")
+	return content.Info{}, errors.Wrapf(cerrdefs.ErrNotImplemented, "Info not implemented for empty provider")
 }
