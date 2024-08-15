@@ -381,7 +381,6 @@ github.com/containerd/log/logtest
 ## explicit; go 1.21
 github.com/containerd/nydus-snapshotter/pkg/converter
 github.com/containerd/nydus-snapshotter/pkg/converter/tool
-github.com/containerd/nydus-snapshotter/pkg/errdefs
 github.com/containerd/nydus-snapshotter/pkg/label
 # github.com/containerd/platforms v0.2.1
 ## explicit; go 1.20
@@ -708,7 +707,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.15.1
+# github.com/moby/buildkit v0.15.2
 ## explicit; go 1.21.0
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
