@@ -254,7 +254,6 @@ func TestImageDelete(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 type testContainerStore struct{}

@@ -99,7 +99,6 @@ func TestDockerNetworkIpvlan(t *testing.T) {
 			test: testIpvlanNoIPv6,
 		},
 	} {
-
 		t.Run(tc.name, func(t *testing.T) {
 			testutil.StartSpan(ctx, t)
 			d := daemon.New(t)

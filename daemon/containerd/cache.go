@@ -44,7 +44,7 @@ func (c cacheAdaptor) Get(id image.ID) (*image.Image, error) {
 		return nil, fmt.Errorf("resolveImage: %w", err)
 	}
 
-	var errFound = errors.New("success")
+	errFound := errors.New("success")
 	err = c.is.walkImageManifests(ctx, c8dImg, func(img *ImageManifest) error {
 		desc, err := img.Config(ctx)
 		if err != nil {

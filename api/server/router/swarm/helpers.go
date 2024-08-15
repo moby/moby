@@ -151,5 +151,4 @@ func adjustForAPIVersion(cliVersion string, service *swarm.ServiceSpec) {
 			service.TaskTemplate.ContainerSpec.OomScoreAdj = 0
 		}
 	}
-
 }

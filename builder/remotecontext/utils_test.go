@@ -17,7 +17,6 @@ func createTestTempDir(t *testing.T, dir, prefix string) (string, func()) {
 
 	return path, func() {
 		err = os.RemoveAll(path)
-
 		if err != nil {
 			t.Fatalf("Error when removing directory %s: %s", path, err)
 		}

@@ -2050,7 +2050,7 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *testing.T)
 
 	// daemon config file
 	const configFilePath = "test-daemon.json"
-	err := os.WriteFile(configFilePath, []byte(`{ "max-concurrent-downloads" : 8 }`), 0666)
+	err := os.WriteFile(configFilePath, []byte(`{ "max-concurrent-downloads" : 8 }`), 0o666)
 	assert.NilError(c, err)
 	defer os.Remove(configFilePath)
 	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
@@ -2061,7 +2061,7 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *testing.T)
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentUploads))
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentDownloads))
-	err = os.WriteFile(configFilePath, []byte(`{ "max-concurrent-uploads" : 7, "max-concurrent-downloads" : 9 }`), 0666)
+	err = os.WriteFile(configFilePath, []byte(`{ "max-concurrent-uploads" : 7, "max-concurrent-downloads" : 9 }`), 0o666)
 	assert.NilError(c, err)
 	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 	// unix.Kill(s.d.cmd.Process.Pid, unix.SIGHUP)
@@ -2084,7 +2084,7 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 
 	// daemon config file
 	const configFilePath = "test-daemon.json"
-	err := os.WriteFile(configFilePath, []byte(`{ "max-concurrent-uploads" : null }`), 0666)
+	err := os.WriteFile(configFilePath, []byte(`{ "max-concurrent-uploads" : null }`), 0o666)
 	assert.NilError(c, err)
 	defer os.Remove(configFilePath)
 
@@ -2096,7 +2096,7 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentUploads))
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentDownloads))
-	err = os.WriteFile(configFilePath, []byte(`{ "max-concurrent-uploads" : 1, "max-concurrent-downloads" : null }`), 0666)
+	err = os.WriteFile(configFilePath, []byte(`{ "max-concurrent-uploads" : 1, "max-concurrent-downloads" : null }`), 0o666)
 	assert.NilError(c, err)
 
 	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
@@ -2110,7 +2110,7 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentUploads))
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentDownloads))
-	err = os.WriteFile(configFilePath, []byte(`{ "labels":["foo=bar"] }`), 0666)
+	err = os.WriteFile(configFilePath, []byte(`{ "labels":["foo=bar"] }`), 0o666)
 	assert.NilError(c, err)
 
 	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
@@ -2451,13 +2451,13 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeoutWithConfigFile(c *testing.T
 
 	// daemon config file
 	const configFilePath = "test-daemon.json"
-	err := os.WriteFile(configFilePath, []byte(`{ "shutdown-timeout" : 8 }`), 0666)
+	err := os.WriteFile(configFilePath, []byte(`{ "shutdown-timeout" : 8 }`), 0o666)
 	assert.NilError(c, err)
 	defer os.Remove(configFilePath)
 
 	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
 
-	err = os.WriteFile(configFilePath, []byte(`{ "shutdown-timeout" : 5 }`), 0666)
+	err = os.WriteFile(configFilePath, []byte(`{ "shutdown-timeout" : 5 }`), 0o666)
 	assert.NilError(c, err)
 
 	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)

@@ -102,7 +102,6 @@ func TestEndpointIPAMConfigWithOutOfRangeAddrs(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestEndpointIPAMConfigWithInvalidConfig(t *testing.T) {

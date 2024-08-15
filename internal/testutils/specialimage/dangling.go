@@ -8,8 +8,10 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-const danglingImageManifestDigest = "sha256:16d365089e5c10e1673ee82ab5bba38ade9b763296ad918bd24b42a1156c5456" // #nosec G101 -- ignoring: Potential hardcoded credentials (gosec)
-const danglingImageConfigDigest = "sha256:0df1207206e5288f4a989a2f13d1f5b3c4e70467702c1d5d21dfc9f002b7bd43"   // #nosec G101 -- ignoring: Potential hardcoded credentials (gosec)
+const (
+	danglingImageManifestDigest = "sha256:16d365089e5c10e1673ee82ab5bba38ade9b763296ad918bd24b42a1156c5456" // #nosec G101 -- ignoring: Potential hardcoded credentials (gosec)
+	danglingImageConfigDigest   = "sha256:0df1207206e5288f4a989a2f13d1f5b3c4e70467702c1d5d21dfc9f002b7bd43" // #nosec G101 -- ignoring: Potential hardcoded credentials (gosec)
+)
 
 // Dangling creates an image with no layers and no tag.
 // It also has an extra org.mobyproject.test.specialimage=1 label set.

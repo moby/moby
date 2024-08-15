@@ -51,7 +51,7 @@ func TestAddEpToResolver(t *testing.T) {
 			IPAddress:      net.ParseIP(epNoIntDNS),
 			GatewayAddress: gw1v4,
 			DNSServerList:  gw1v4 + "," + dns1v4,
-			//EnableInternalDNS: false,
+			// EnableInternalDNS: false,
 		},
 		ep1v6: {
 			IPv6Address:       net.ParseIP(ep1v6),

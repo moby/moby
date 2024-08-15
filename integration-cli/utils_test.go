@@ -78,7 +78,6 @@ func RunCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, err error) 
 		if i > 0 {
 			prevCmd := cmds[i-1]
 			cmd.Stdin, err = prevCmd.StdoutPipe()
-
 			if err != nil {
 				return "", fmt.Errorf("cannot set stdout pipe for %s: %v", cmd.Path, err)
 			}

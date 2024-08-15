@@ -99,7 +99,7 @@ func TestRCWrite(t *testing.T) {
 		{
 			name:     "Write perm",
 			fileName: "testfile",
-			perm:     0640,
+			perm:     0o640,
 		},
 	}
 
@@ -116,7 +116,7 @@ func TestRCWrite(t *testing.T) {
 				hashPath = filepath.Join(d, tc.hashFileName)
 			}
 			if tc.perm == 0 {
-				tc.perm = 0644
+				tc.perm = 0o644
 			}
 			err := rc.WriteFile(path, hashPath, tc.perm)
 			assert.NilError(t, err)
@@ -129,7 +129,7 @@ func TestRCWrite(t *testing.T) {
 			}
 
 			if tc.modify {
-				err := os.WriteFile(path, []byte("modified"), 0644)
+				err := os.WriteFile(path, []byte("modified"), 0o644)
 				assert.NilError(t, err)
 			}
 
@@ -140,8 +140,10 @@ func TestRCWrite(t *testing.T) {
 	}
 }
 
-var a2s = sliceutil.Mapper(netip.Addr.String)
-var s2a = sliceutil.Mapper(netip.MustParseAddr)
+var (
+	a2s = sliceutil.Mapper(netip.Addr.String)
+	s2a = sliceutil.Mapper(netip.MustParseAddr)
+)
 
 // Test that a resolv.conf file can be modified using OverrideXXX() methods
 // to modify nameservers/search/options directives, and tha options can be
@@ -234,7 +236,7 @@ func TestRCModify(t *testing.T) {
 
 			d := t.TempDir()
 			path := filepath.Join(d, "resolv.conf")
-			err = rc.WriteFile(path, "", 0644)
+			err = rc.WriteFile(path, "", 0o644)
 			assert.NilError(t, err)
 
 			content, err := os.ReadFile(path)
@@ -316,7 +318,7 @@ func TestRCTransformForLegacyNw(t *testing.T) {
 
 			d := t.TempDir()
 			path := filepath.Join(d, "resolv.conf")
-			err = rc.WriteFile(path, "", 0644)
+			err = rc.WriteFile(path, "", 0o644)
 			assert.NilError(t, err)
 
 			content, err := os.ReadFile(path)
@@ -503,7 +505,7 @@ func TestRCTransformForIntNS(t *testing.T) {
 
 			d := t.TempDir()
 			path := filepath.Join(d, "resolv.conf")
-			err = rc.WriteFile(path, "", 0644)
+			err = rc.WriteFile(path, "", 0o644)
 			assert.NilError(t, err)
 
 			content, err := os.ReadFile(path)
@@ -577,7 +579,7 @@ func TestRCRead(t *testing.T) {
 	_, err := Load(path)
 	assert.Check(t, is.ErrorIs(err, fs.ErrNotExist))
 
-	err = os.WriteFile(path, []byte("options edns0"), 0644)
+	err = os.WriteFile(path, []byte("options edns0"), 0o644)
 	assert.NilError(t, err)
 
 	// Read that file in the constructor.
@@ -602,7 +604,7 @@ func TestRCInvalidNS(t *testing.T) {
 	assert.NilError(t, err)
 
 	path := filepath.Join(d, "resolv.conf")
-	err = rc.WriteFile(path, "", 0644)
+	err = rc.WriteFile(path, "", 0o644)
 	assert.NilError(t, err)
 
 	content, err := os.ReadFile(path)
@@ -617,7 +619,7 @@ func TestRCSetHeader(t *testing.T) {
 	rc.SetHeader("# This is a comment.")
 	d := t.TempDir()
 	path := filepath.Join(d, "resolv.conf")
-	err = rc.WriteFile(path, "", 0644)
+	err = rc.WriteFile(path, "", 0o644)
 	assert.NilError(t, err)
 
 	content, err := os.ReadFile(path)
@@ -637,7 +639,7 @@ unrecognised thing
 
 	d := t.TempDir()
 	path := filepath.Join(d, "resolv.conf")
-	err = rc.WriteFile(path, "", 0644)
+	err = rc.WriteFile(path, "", 0o644)
 	assert.NilError(t, err)
 
 	content, err := os.ReadFile(path)
