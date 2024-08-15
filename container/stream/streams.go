@@ -119,30 +119,35 @@ func (c *Config) CopyToPipe(iop *cio.DirectIO) {
 	ctx := context.TODO()
 
 	c.dio = iop
-	copyFunc := func(w io.Writer, r io.ReadCloser) {
+	copyFunc := func(name string, w io.Writer, r io.ReadCloser) {
 		c.wg.Add(1)
 		go func() {
 			if _, err := pools.Copy(w, r); err != nil {
-				log.G(ctx).Errorf("stream copy error: %v", err)
+				log.G(ctx).WithFields(log.Fields{"stream": name, "error": err}).Error("copy stream failed")
 			}
-			r.Close()
+			if err := r.Close(); err != nil {
+				log.G(ctx).WithFields(log.Fields{"stream": name, "error": err}).Warn("close stream failed")
+			}
 			c.wg.Done()
 		}()
 	}
 
 	if iop.Stdout != nil {
-		copyFunc(c.Stdout(), iop.Stdout)
+		copyFunc("stdout", c.Stdout(), iop.Stdout)
 	}
 	if iop.Stderr != nil {
-		copyFunc(c.Stderr(), iop.Stderr)
+		copyFunc("stderr", c.Stderr(), iop.Stderr)
 	}
 
 	if stdin := c.Stdin(); stdin != nil {
 		if iop.Stdin != nil {
 			go func() {
-				pools.Copy(iop.Stdin, stdin)
+				_, err := pools.Copy(iop.Stdin, stdin)
+				if err != nil {
+					log.G(ctx).WithFields(log.Fields{"stream": "stdin", "error": err}).Error("copy stream failed")
+				}
 				if err := iop.Stdin.Close(); err != nil {
-					log.G(ctx).Warnf("failed to close stdin: %v", err)
+					log.G(ctx).WithFields(log.Fields{"stream": "stdin", "error": err}).Warn("close stream failed")
 				}
 			}()
 		}
