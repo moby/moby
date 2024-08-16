@@ -19,10 +19,10 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.46"
+basePath: "/v1.47"
 info:
   title: "Docker Engine API"
-  version: "1.46"
+  version: "1.47"
   x-logo:
     url: "https://docs.docker.com/assets/images/logo-docker-main.png"
   description: |
@@ -55,8 +55,8 @@ info:
     the URL is not supported by the daemon, a HTTP `400 Bad Request` error message
     is returned.
 
-    If you omit the version-prefix, the current version of the API (v1.46) is used.
-    For example, calling `/info` is the same as calling `/v1.46/info`. Using the
+    If you omit the version-prefix, the current version of the API (v1.47) is used.
+    For example, calling `/info` is the same as calling `/v1.47/info`. Using the
     API without a version-prefix is deprecated and will be removed in a future release.
 
     Engine releases in the near future should support this version of the API,
@@ -2265,6 +2265,19 @@ definitions:
         x-nullable: false
         type: "integer"
         example: 2
+      Manifests:
+        description: |
+          Manifests is a list of manifests available in this image.
+          It provides a more detailed view of the platform-specific image manifests
+          or other image-attached data like build attestations.
+
+          WARNING: This is experimental and may change at any time without any backward
+          compatibility.
+        type: "array"
+        x-nullable: false
+        x-omitempty: true
+        items:
+          $ref: "#/definitions/ImageManifestSummary"
 
   AuthConfig:
     type: "object"
@@ -5318,7 +5331,7 @@ definitions:
         description: |
           The default (and highest) API version that is supported by the daemon
         type: "string"
-        example: "1.46"
+        example: "1.47"
       MinAPIVersion:
         description: |
           The minimum API version that is supported by the daemon
@@ -6643,6 +6656,120 @@ definitions:
     type: "object"
     additionalProperties:
       type: "string"
+
+  ImageManifestSummary:
+    x-go-name: "ManifestSummary"
+    description: |
+      ImageManifestSummary represents a summary of an image manifest.
+    type: "object"
+    required: ["ID", "Descriptor", "Available", "Size", "Kind"]
+    properties:
+      ID:
+        description: |
+          ID is the content-addressable ID of an image and is the same as the
+          digest of the image manifest.
+        type: "string"
+        example: "sha256:95869fbcf224d947ace8d61d0e931d49e31bb7fc67fffbbe9c3198c33aa8e93f"
+      Descriptor:
+        $ref: "#/definitions/OCIDescriptor"
+      Available:
+        description: Indicates whether all the child content (image config, layers) is fully available locally.
+        type: "boolean"
+        example: true
+      Size:
+        type: "object"
+        x-nullable: false
+        required: ["Content", "Total"]
+        properties:
+          Total:
+            type: "integer"
+            format: "int64"
+            example: 8213251
+            description: |
+              Total is the total size (in bytes) of all the locally present
+              data (both distributable and non-distributable) that's related to
+              this manifest and its children.
+              This equal to the sum of [Content] size AND all the sizes in the
+              [Size] struct present in the Kind-specific data struct.
+              For example, for an image kind (Kind == "image")
+              this would include the size of the image content and unpacked
+              image snapshots ([Size.Content] + [ImageData.Size.Unpacked]).
+          Content:
+            description: |
+              Content is the size (in bytes) of all the locally present
+              content in the content store (e.g. image config, layers)
+              referenced by this manifest and its children.
+              This only includes blobs in the content store.
+            type: "integer"
+            format: "int64"
+            example: 3987495
+      Kind:
+        type: "string"
+        example: "image"
+        enum:
+          - "image"
+          - "attestation"
+          - "unknown"
+        description: |
+          The kind of the manifest.
+
+          kind         | description
+          -------------|-----------------------------------------------------------
+          image        | Image manifest that can be used to start a container.
+          attestation  | Attestation manifest produced by the Buildkit builder for a specific image manifest.
+      ImageData:
+        description: |
+          The image data for the image manifest.
+          This field is only populated when Kind is "image".
+        type: "object"
+        x-nullable: true
+        x-omitempty: true
+        required: ["Platform", "Containers", "Size", "UnpackedSize"]
+        properties:
+          Platform:
+            $ref: "#/definitions/OCIPlatform"
+            description: |
+              OCI platform of the image. This will be the platform specified in the
+              manifest descriptor from the index/manifest list.
+              If it's not available, it will be obtained from the image config.
+          Containers:
+            description: |
+              The IDs of the containers that are using this image.
+            type: "array"
+            items:
+              type: "string"
+            example: ["ede54ee1fda366ab42f824e8a5ffd195155d853ceaec74a927f249ea270c7430", "abadbce344c096744d8d6071a90d474d28af8f1034b5ea9fb03c3f4bfc6d005e"]
+          Size:
+            type: "object"
+            x-nullable: false
+            required: ["Unpacked"]
+            properties:
+              Unpacked:
+                type: "integer"
+                format: "int64"
+                example: 3987495
+                description: |
+                  Unpacked is the size (in bytes) of the locally unpacked
+                  (uncompressed) image content that's directly usable by the containers
+                  running this image.
+                  It's independent of the distributable content - e.g.
+                  the image might still have an unpacked data that's still used by
+                  some container even when the distributable/compressed content is
+                  already gone.
+      AttestationData:
+        description: |
+          The image data for the attestation manifest.
+          This field is only populated when Kind is "attestation".
+        type: "object"
+        x-nullable: true
+        x-omitempty: true
+        required: ["For"]
+        properties:
+          For:
+            description: |
+              The digest of the image manifest that this attestation is for.
+            type: "string"
+            example: "sha256:95869fbcf224d947ace8d61d0e931d49e31bb7fc67fffbbe9c3198c33aa8e93f"
 
 paths:
   /containers/json:
@@ -8620,6 +8747,11 @@ paths:
         - name: "digests"
           in: "query"
           description: "Show digest information as a `RepoDigests` field on each image."
+          type: "boolean"
+          default: false
+        - name: "manifests"
+          in: "query"
+          description: "Include `Manifests` in the image summary."
           type: "boolean"
           default: false
       tags: ["Image"]
