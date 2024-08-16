@@ -353,14 +353,12 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 
 		allChainsIDs = append(allChainsIDs, chainIDs...)
 
-		if opts.ContainerCount {
-			i.containers.ApplyAll(func(c *container.Container) {
-				if c.ImageManifest != nil && c.ImageManifest.Digest == target.Digest {
-					mfstSummary.ImageData.Containers = append(mfstSummary.ImageData.Containers, c.ID)
-					containersCount++
-				}
-			})
-		}
+		i.containers.ApplyAll(func(c *container.Container) {
+			if c.ImageManifest != nil && c.ImageManifest.Digest == target.Digest {
+				mfstSummary.ImageData.Containers = append(mfstSummary.ImageData.Containers, c.ID)
+				containersCount++
+			}
+		})
 
 		platform := mfstSummary.ImageData.Platform
 		// Filter out platforms that don't match the requested platform.  Do it
