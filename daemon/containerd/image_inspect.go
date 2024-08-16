@@ -18,14 +18,12 @@ import (
 )
 
 func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
-	img, err := i.GetImage(ctx, refOrID, backend.GetImageOpts{})
+	c8dImg, err := i.resolveImage(ctx, refOrID)
 	if err != nil {
 		return nil, err
 	}
 
-	lastUpdated := time.Unix(0, 0)
-
-	tagged, err := i.images.List(ctx, "target.digest=="+img.ImageID())
+	tagged, err := i.images.List(ctx, "target.digest=="+c8dImg.Target.Digest.String())
 	if err != nil {
 		return nil, err
 	}
@@ -37,14 +35,16 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 
 	platform := matchAllWithPreference(platforms.Default())
 
-	size, err := i.size(ctx, tagged[0].Target, platform)
+	size, err := i.size(ctx, c8dImg.Target, platform)
 	if err != nil {
 		return nil, err
 	}
-	imgDgst := tagged[0].Target.Digest
+	imgDgst := c8dImg.Target.Digest
 
 	repoTags := make([]string, 0, len(tagged))
 	repoDigests := make([]string, 0, len(tagged))
+	lastUpdated := time.Unix(0, 0)
+
 	for _, i := range tagged {
 		if i.UpdatedAt.After(lastUpdated) {
 			lastUpdated = i.UpdatedAt
@@ -85,6 +85,11 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 		repoDigests = append(repoDigests, reference.FamiliarString(digested))
 	}
 
+	img, err := i.getImageV1(ctx, c8dImg, platform)
+	if err != nil {
+		return nil, err
+	}
+
 	var comment string
 	if len(comment) == 0 && len(img.History) > 0 {
 		comment = img.History[len(img.History)-1].Comment
@@ -98,6 +103,11 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 	var layers []string
 	for _, layer := range img.RootFS.DiffIDs {
 		layers = append(layers, layer.String())
+	}
+
+	multi, err := i.multiPlatformImage(ctx, c8dImg, platform, imagetypes.ListOptions{Manifests: true})
+	if err != nil {
+		return nil, err
 	}
 
 	return &imagetypes.InspectResponse{
@@ -126,6 +136,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 		Metadata: imagetypes.Metadata{
 			LastTagTime: lastUpdated,
 		},
+		Manifests: multi.Manifests,
 	}, nil
 }
 

@@ -27,6 +27,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   includes things like platform-specific manifests and build attestations.
   The new field will only be populated if the request also sets the `manifests`
   query parameter to `true`.
+* `GET /images/{name}/json` response now includes `Manifests` field, which
+  contains information about the sub-manifests included in the image index.
+  This includes things like platform-specific manifests and build attestations.
   WARNING: This is experimental and may change at any time without any backward
   compatibility.
 
