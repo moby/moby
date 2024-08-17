@@ -82,7 +82,7 @@ func TestTagOfficialNames(t *testing.T) {
 			// ensure we don't have multiple tag names.
 			insp, _, err := client.ImageInspectWithRaw(ctx, "busybox")
 			assert.NilError(t, err)
-			// TODO(vvoland): Not sure what's actually being tested here. Is is still doing anything useful?
+			// TODO(vvoland): Not sure what's actually being tested here. Is it still doing anything useful?
 			assert.Assert(t, !is.Contains(insp.RepoTags, name)().Success())
 
 			err = client.ImageTag(ctx, name+":latest", "test-tag-official-names/foobar:latest")
