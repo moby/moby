@@ -24,21 +24,32 @@ import (
 )
 
 const (
+	// ConfigFile is the name of the containerd config-file.
+	ConfigFile = "containerd.toml"
+
+	// PIDFile is the name of the PID file used when starting a managed
+	// containerd instance.
+	PIDFile = "containerd.pid"
+
 	maxConnectionRetryCount = 3
 	healthCheckTimeout      = 3 * time.Second
 	shutdownTimeout         = 15 * time.Second
 	startupTimeout          = 15 * time.Second
-	configFile              = "containerd.toml"
 	binaryName              = "containerd"
-	pidFile                 = "containerd.pid"
 )
 
 type remote struct {
 	config.Config
 
-	// configFile is the location where the generated containerd configuration
-	// file is saved.
+	// configFile is the location of the containerd configuration file, this
+	// can be either a custom configuration file (managedConfig=false) or
+	// a generated configuration file (managedConfig=true).
 	configFile string
+
+	// managedConfig indicates if the containerd configuration file should be
+	// managed by the daemon. If false, the configuration file is user-provided,
+	// and should not be managed.
+	managedConfig bool
 
 	daemonPid int
 	pidFile   string
@@ -65,17 +76,15 @@ type Daemon interface {
 type DaemonOpt func(c *remote) error
 
 // Start starts a containerd daemon and monitors it
-func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Daemon, error) {
+func Start(ctx context.Context, stateDir string, opts ...DaemonOpt) (Daemon, error) {
+	// TODO(thaJeztah) consider putting the PIDFile (and sockets) directly under
+	// cli.ExecRoot so that we don't have to create the "containerd" subdirectory,
+	// and to have a consistent location for the PIDFile.
 	r := &remote{
-		stateDir: stateDir,
-		Config: config.Config{
-			Version: 2,
-			Root:    filepath.Join(rootDir, "daemon"),
-			State:   filepath.Join(stateDir, "daemon"),
-		},
-		configFile:    filepath.Join(stateDir, configFile),
+		stateDir:      stateDir,
+		configFile:    filepath.Join(stateDir, ConfigFile),
 		daemonPid:     -1,
-		pidFile:       filepath.Join(stateDir, pidFile),
+		pidFile:       filepath.Join(stateDir, PIDFile),
 		logger:        log.G(ctx).WithField("module", "libcontainerd"),
 		daemonStartCh: make(chan error, 1),
 		daemonStopCh:  make(chan struct{}),
@@ -86,10 +95,11 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 			return nil, err
 		}
 	}
-	r.setDefaults()
 
-	if err := system.MkdirAll(stateDir, 0o700); err != nil {
-		return nil, err
+	if r.managedConfig {
+		if err := system.MkdirAll(r.stateDir, 0o700); err != nil {
+			return nil, err
+		}
 	}
 
 	go r.monitorDaemon(ctx)
@@ -127,6 +137,13 @@ func (r *remote) Address() string {
 }
 
 func (r *remote) getContainerdConfig() (string, error) {
+	if !r.managedConfig && r.configFile != "" {
+		// custom configuration file is used; don't generate and save config.
+		if _, err := os.Stat(r.configFile); err != nil {
+			return "", errors.Wrapf(err, "failed to open containerd config file at %s", r.configFile)
+		}
+		return r.configFile, nil
+	}
 	f, err := os.OpenFile(r.configFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to open containerd config file (%s)", r.configFile)
@@ -340,4 +357,33 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 		delay = 0
 		transientFailureCount = 0
 	}
+}
+
+// LoadConfigFile loads the containerd daemon config from a pre-existing
+// configuration file. While it loads the whole containerd configuration,
+// the daemon only needs the GRPC address (socket) to make a connection.
+// If the configuration does not have a GRPC address, an error is returned.
+func LoadConfigFile(fileName string) (*config.Config, error) {
+	f, err := os.Open(fileName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to read containerd config file (%s)", fileName)
+	}
+	defer f.Close()
+
+	cfg := &config.Config{}
+	err = toml.NewDecoder(f).Decode(cfg)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to load containerd config file (%s)", fileName)
+	}
+
+	if cfg.GRPC.Address == "" {
+		return nil, errors.Wrapf(err, "containerd config file (%s) must have GRPC.Address set", fileName)
+	}
+	if cfg.Root == "" {
+		cfg.Root = defaults.DefaultRootDir
+	}
+	if cfg.State == "" {
+		cfg.Root = defaults.DefaultStateDir
+	}
+	return cfg, nil
 }
