@@ -28,6 +28,7 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type process struct {
@@ -941,7 +942,7 @@ func (t *task) Summary(_ context.Context) ([]libcontainerdtypes.Summary, error) 
 	for i := range p {
 		pl[i] = libcontainerdtypes.Summary{
 			ImageName:                    p[i].ImageName,
-			CreatedAt:                    p[i].CreateTimestamp,
+			CreatedAt:                    timestamppb.New(p[i].CreateTimestamp),
 			KernelTime_100Ns:             p[i].KernelTime100ns,
 			MemoryCommitBytes:            p[i].MemoryCommitBytes,
 			MemoryWorkingSetPrivateBytes: p[i].MemoryWorkingSetPrivateBytes,

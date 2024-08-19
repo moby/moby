@@ -2,10 +2,9 @@ syntax = "proto3";
 
 package containerd.runhcs.v1;
 
-import weak "gogoproto/gogo.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options;options";
+option go_package = "github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options";
 
 // Options are the set of customizations that can be passed at Create time.
 message Options {
@@ -114,7 +113,7 @@ message Options {
 // info returned in the Pids query.
 message ProcessDetails {
 	string image_name = 1;
-	google.protobuf.Timestamp created_at = 2 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp created_at = 2;
 	uint64 kernel_time_100_ns = 3;
 	uint64 memory_commit_bytes = 4;
 	uint64 memory_working_set_private_bytes = 5;
