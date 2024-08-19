@@ -377,8 +377,7 @@ func (rc *ResolvConf) WriteFile(path, hashPath string, perm os.FileMode) error {
 		}
 		defer hashFile.Close()
 
-		digest := digest.FromBytes(content)
-		if _, err = hashFile.Write([]byte(digest)); err != nil {
+		if _, err = hashFile.Write([]byte(digest.FromBytes(content))); err != nil {
 			return err
 		}
 	}
