@@ -95,7 +95,7 @@ func (d *FakeDriver) Name() string { return d.name }
 // It returns an error if the options include an "error" key with a message
 func (d *FakeDriver) Create(name string, opts map[string]string) (volume.Volume, error) {
 	if opts != nil && opts["error"] != "" {
-		return nil, fmt.Errorf(opts["error"])
+		return nil, errors.New(opts["error"])
 	}
 	v := NewFakeVolume(name, d.name)
 	d.vols[name] = v
@@ -105,7 +105,7 @@ func (d *FakeDriver) Create(name string, opts map[string]string) (volume.Volume,
 // Remove deletes a volume.
 func (d *FakeDriver) Remove(v volume.Volume) error {
 	if _, exists := d.vols[v.Name()]; !exists {
-		return fmt.Errorf("no such volume")
+		return errors.New("no such volume")
 	}
 	delete(d.vols, v.Name())
 	return nil
@@ -125,7 +125,7 @@ func (d *FakeDriver) Get(name string) (volume.Volume, error) {
 	if v, exists := d.vols[name]; exists {
 		return v, nil
 	}
-	return nil, fmt.Errorf("no such volume")
+	return nil, errors.New("no such volume")
 }
 
 // Scope returns the local scope
