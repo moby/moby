@@ -2,6 +2,7 @@ package stream // import "github.com/docker/docker/container/stream"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -91,24 +92,24 @@ func (c *Config) NewNopInputPipe() {
 
 // CloseStreams ensures that the configured streams are properly closed.
 func (c *Config) CloseStreams() error {
-	var errors []string
+	var errs []string
 
 	if c.stdin != nil {
 		if err := c.stdin.Close(); err != nil {
-			errors = append(errors, fmt.Sprintf("error close stdin: %s", err))
+			errs = append(errs, fmt.Sprintf("error close stdin: %s", err))
 		}
 	}
 
 	if err := c.stdout.Clean(); err != nil {
-		errors = append(errors, fmt.Sprintf("error close stdout: %s", err))
+		errs = append(errs, fmt.Sprintf("error close stdout: %s", err))
 	}
 
 	if err := c.stderr.Clean(); err != nil {
-		errors = append(errors, fmt.Sprintf("error close stderr: %s", err))
+		errs = append(errs, fmt.Sprintf("error close stderr: %s", err))
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "\n"))
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "\n"))
 	}
 
 	return nil
