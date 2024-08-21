@@ -1,6 +1,7 @@
 package container // import "github.com/docker/docker/api/types/container"
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -325,12 +326,12 @@ func ValidateRestartPolicy(policy RestartPolicy) error {
 			if policy.MaximumRetryCount < 0 {
 				msg += " and cannot be negative"
 			}
-			return &errInvalidParameter{fmt.Errorf(msg)}
+			return &errInvalidParameter{errors.New(msg)}
 		}
 		return nil
 	case RestartPolicyOnFailure:
 		if policy.MaximumRetryCount < 0 {
-			return &errInvalidParameter{fmt.Errorf("invalid restart policy: maximum retry count cannot be negative")}
+			return &errInvalidParameter{errors.New("invalid restart policy: maximum retry count cannot be negative")}
 		}
 		return nil
 	case "":
