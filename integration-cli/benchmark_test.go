@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"os"
 	"runtime"
 	"strings"
@@ -44,7 +44,7 @@ func (s *DockerBenchmarkSuite) BenchmarkConcurrentContainerActions(c *testing.B)
 					args = append(args, sleepCommandForDaemonPlatform()...)
 					out, _, err := dockerCmdWithError(args...)
 					if err != nil {
-						chErr <- fmt.Errorf(out)
+						chErr <- errors.New(out)
 						return
 					}
 
@@ -57,29 +57,29 @@ func (s *DockerBenchmarkSuite) BenchmarkConcurrentContainerActions(c *testing.B)
 					defer os.RemoveAll(tmpDir)
 					out, _, err = dockerCmdWithError("cp", id+":/tmp", tmpDir)
 					if err != nil {
-						chErr <- fmt.Errorf(out)
+						chErr <- errors.New(out)
 						return
 					}
 
 					out, _, err = dockerCmdWithError("kill", id)
 					if err != nil {
-						chErr <- fmt.Errorf(out)
+						chErr <- errors.New(out)
 					}
 
 					out, _, err = dockerCmdWithError("start", id)
 					if err != nil {
-						chErr <- fmt.Errorf(out)
+						chErr <- errors.New(out)
 					}
 
 					out, _, err = dockerCmdWithError("kill", id)
 					if err != nil {
-						chErr <- fmt.Errorf(out)
+						chErr <- errors.New(out)
 					}
 
 					// don't do an rm -f here since it can potentially ignore errors from the graphdriver
 					out, _, err = dockerCmdWithError("rm", id)
 					if err != nil {
-						chErr <- fmt.Errorf(out)
+						chErr <- errors.New(out)
 					}
 				}
 			}()
@@ -89,7 +89,7 @@ func (s *DockerBenchmarkSuite) BenchmarkConcurrentContainerActions(c *testing.B)
 				for i := 0; i < numIterations; i++ {
 					out, _, err := dockerCmdWithError("ps")
 					if err != nil {
-						chErr <- fmt.Errorf(out)
+						chErr <- errors.New(out)
 					}
 				}
 			}()
@@ -114,7 +114,7 @@ func (s *DockerBenchmarkSuite) BenchmarkLogsCLIRotateFollow(c *testing.B) {
 		ch <- nil
 		out, _, _ := dockerCmdWithError("logs", "-f", id)
 		// if this returns at all, it's an error
-		ch <- fmt.Errorf(out)
+		ch <- errors.New(out)
 	}()
 
 	<-ch

@@ -364,7 +364,7 @@ func setINC(version iptables.IPVersion, iface string, enable bool) error {
 						logrus.Warnf("Failed to rollback iptables rule after failure (%v): %v", err, err2)
 					}
 				}
-				return fmt.Errorf(msg)
+				return errors.New(msg)
 			}
 			logrus.Warn(msg)
 		}
