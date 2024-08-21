@@ -940,9 +940,11 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 			if multiplexed && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
 				contentType = types.MediaTypeMultiplexedStream
 			}
-			fmt.Fprintf(conn, "HTTP/1.1 101 UPGRADED\r\nContent-Type: "+contentType+"\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
+			// FIXME(thaJeztah): we should not ignore errors here; see https://github.com/moby/moby/pull/48359#discussion_r1725562802
+			fmt.Fprintf(conn, "HTTP/1.1 101 UPGRADED\r\nContent-Type: %v\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n", contentType)
 		} else {
-			fmt.Fprintf(conn, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
+			// FIXME(thaJeztah): we should not ignore errors here; see https://github.com/moby/moby/pull/48359#discussion_r1725562802
+			fmt.Fprint(conn, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 		}
 
 		go notifyClosed(ctx, conn, cancel)
