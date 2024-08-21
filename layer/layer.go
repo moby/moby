@@ -199,11 +199,11 @@ func createChainIDFromParent(parent ChainID, dgsts ...DiffID) ChainID {
 		return parent
 	}
 	if parent == "" {
-		return createChainIDFromParent(ChainID(dgsts[0]), dgsts[1:]...)
+		return createChainIDFromParent(ChainID(dgsts[0]), dgsts[1:]...) // #nosec G602 -- slice index out of range, which is a false positive
 	}
 	// H = "H(n-1) SHA256(n)"
-	dgst := digest.FromBytes([]byte(string(parent) + " " + string(dgsts[0])))
-	return createChainIDFromParent(ChainID(dgst), dgsts[1:]...)
+	dgst := digest.FromBytes([]byte(string(parent) + " " + string(dgsts[0]))) // #nosec G602 -- slice index out of range, which is a false positive
+	return createChainIDFromParent(ChainID(dgst), dgsts[1:]...)               // #nosec G602 -- slice index out of range, which is a false positive
 }
 
 // ReleaseAndLog releases the provided layer from the given layer
