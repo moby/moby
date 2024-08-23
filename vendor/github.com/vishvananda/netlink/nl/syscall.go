@@ -46,6 +46,7 @@ const (
 // socket diags related
 const (
 	SOCK_DIAG_BY_FAMILY = 20         /* linux.sock_diag.h */
+	SOCK_DESTROY	    = 21
 	TCPDIAG_NOCOOKIE    = 0xFFFFFFFF /* TCPDIAG_NOCOOKIE in net/ipv4/tcp_diag.h*/
 )
 
