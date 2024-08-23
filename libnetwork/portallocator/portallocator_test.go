@@ -166,9 +166,7 @@ func BenchmarkAllocatePorts(b *testing.B) {
 				b.Fatalf("Expected port %d got %d", expected, port)
 			}
 		}
-		if err := p.ReleaseAll(); err != nil {
-			b.Fatal(err)
-		}
+		p.ReleaseAll()
 	}
 }
 

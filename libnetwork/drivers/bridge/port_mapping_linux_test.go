@@ -876,8 +876,7 @@ func TestAddPortMappings(t *testing.T) {
 				return net.ParseIP("127.0.0.1")
 			}
 
-			err = portallocator.Get().ReleaseAll()
-			assert.NilError(t, err)
+			portallocator.Get().ReleaseAll()
 
 			pbs, err := n.addPortMappings(tc.epAddrV4, tc.epAddrV6, tc.cfg, tc.defHostIP)
 			if tc.expErr != "" {

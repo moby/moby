@@ -221,11 +221,10 @@ func (p *PortAllocator) newPortMap() *portMap {
 }
 
 // ReleaseAll releases all ports for all ips.
-func (p *PortAllocator) ReleaseAll() error {
+func (p *PortAllocator) ReleaseAll() {
 	p.mutex.Lock()
 	p.ipMap = ipMapping{}
 	p.mutex.Unlock()
-	return nil
 }
 
 func getRangeKey(portStart, portEnd int) string {
