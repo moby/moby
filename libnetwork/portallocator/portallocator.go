@@ -109,9 +109,9 @@ func (p *PortAllocator) RequestPort(ip net.IP, proto string, port int) (int, err
 	return p.RequestPortInRange(ip, proto, port, port)
 }
 
-// RequestPortInRange is equivalent to [RequestPortsInRange] with a single IP address.
-//
-// If ip is nil, a port is instead requested for the defaultIP.
+// RequestPortInRange is equivalent to [PortAllocator.RequestPortsInRange] with
+// a single IP address. If ip is nil, a port is instead requested for the
+// default IP (0.0.0.0).
 func (p *PortAllocator) RequestPortInRange(ip net.IP, proto string, portStart, portEnd int) (int, error) {
 	if ip == nil {
 		ip = defaultIP
