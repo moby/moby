@@ -12,7 +12,7 @@ func WithLogLevel(lvl string) DaemonOpt {
 			// so don't pass the default.
 			lvl = ""
 		}
-		r.logLevel = lvl
+		r.Config.Debug.Level = lvl
 		return nil
 	}
 }
