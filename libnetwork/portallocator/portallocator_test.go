@@ -16,7 +16,7 @@ func TestRequestNewPort(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if expected := p.Begin; port != expected {
+	if expected := p.begin; port != expected {
 		t.Fatalf("Expected port %d got %d", expected, port)
 	}
 }
@@ -101,13 +101,13 @@ func TestUnknowProtocol(t *testing.T) {
 func TestAllocateAllPorts(t *testing.T) {
 	p := newInstance()
 
-	for i := 0; i <= p.End-p.Begin; i++ {
+	for i := 0; i <= p.end-p.begin; i++ {
 		port, err := p.RequestPort(net.IPv4zero, "tcp", 0)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if expected := p.Begin + i; port != expected {
+		if expected := p.begin + i; port != expected {
 			t.Fatalf("Expected port %d got %d", expected, port)
 		}
 	}
@@ -122,7 +122,7 @@ func TestAllocateAllPorts(t *testing.T) {
 	}
 
 	// release a port in the middle and ensure we get another tcp port
-	port := p.Begin + 5
+	port := p.begin + 5
 	p.ReleasePort(net.IPv4zero, "tcp", port)
 	newPort, err := p.RequestPort(net.IPv4zero, "tcp", 0)
 	if err != nil {
@@ -148,13 +148,13 @@ func BenchmarkAllocatePorts(b *testing.B) {
 	p := newInstance()
 
 	for i := 0; i < b.N; i++ {
-		for i := 0; i <= p.End-p.Begin; i++ {
+		for i := 0; i <= p.end-p.begin; i++ {
 			port, err := p.RequestPort(net.IPv4zero, "tcp", 0)
 			if err != nil {
 				b.Fatal(err)
 			}
 
-			if expected := p.Begin + i; port != expected {
+			if expected := p.begin + i; port != expected {
 				b.Fatalf("Expected port %d got %d", expected, port)
 			}
 		}
@@ -289,15 +289,15 @@ func TestPortAllocationWithCustomRange(t *testing.T) {
 func TestNoDuplicateBPR(t *testing.T) {
 	p := newInstance()
 
-	if port, err := p.RequestPort(net.IPv4zero, "tcp", p.Begin); err != nil {
+	if port, err := p.RequestPort(net.IPv4zero, "tcp", p.begin); err != nil {
 		t.Fatal(err)
-	} else if port != p.Begin {
-		t.Fatalf("Expected port %d got %d", p.Begin, port)
+	} else if port != p.begin {
+		t.Fatalf("Expected port %d got %d", p.begin, port)
 	}
 
 	if port, err := p.RequestPort(net.IPv4zero, "tcp", 0); err != nil {
 		t.Fatal(err)
-	} else if port == p.Begin {
+	} else if port == p.begin {
 		t.Fatalf("Acquire(0) allocated the same port twice: %d", port)
 	}
 }
@@ -310,7 +310,7 @@ func TestRequestPortForMultipleIPs(t *testing.T) {
 	// Default port range.
 	port, err := p.RequestPortsInRange(addrs, "tcp", 0, 0)
 	assert.Check(t, err)
-	assert.Check(t, is.Equal(port, p.Begin))
+	assert.Check(t, is.Equal(port, p.begin))
 
 	// Single-port range.
 	port, err = p.RequestPortsInRange(addrs, "tcp", 10000, 10000)

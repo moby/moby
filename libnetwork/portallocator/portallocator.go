@@ -64,8 +64,8 @@ type (
 		mutex     sync.Mutex
 		defaultIP net.IP
 		ipMap     ipMapping
-		Begin     int
-		End       int
+		begin     int
+		end       int
 	}
 	portRange struct {
 		begin int
@@ -79,6 +79,15 @@ type (
 	}
 	protoMap map[string]*portMap
 )
+
+// GetPortRange returns the PortAllocator's default port range.
+//
+// This function is for internal use in tests, and must not be used
+// for other purposes.
+func GetPortRange() (start, end uint16) {
+	p := Get()
+	return uint16(p.begin), uint16(p.end)
+}
 
 // Get returns the PortAllocator
 func Get() *PortAllocator {
@@ -98,8 +107,8 @@ func newInstance() *PortAllocator {
 	return &PortAllocator{
 		ipMap:     ipMapping{},
 		defaultIP: net.IPv4zero,
-		Begin:     start,
-		End:       end,
+		begin:     start,
+		end:       end,
 	}
 }
 
@@ -148,9 +157,9 @@ func (p *PortAllocator) RequestPortsInRange(ips []net.IP, proto string, portStar
 		ipstr := ip.String()
 		if _, ok := p.ipMap[ipstr]; !ok {
 			p.ipMap[ipstr] = protoMap{
-				"tcp":  newPortMap(p.Begin, p.End),
-				"udp":  newPortMap(p.Begin, p.End),
-				"sctp": newPortMap(p.Begin, p.End),
+				"tcp":  newPortMap(p.begin, p.end),
+				"udp":  newPortMap(p.begin, p.end),
+				"sctp": newPortMap(p.begin, p.end),
 			}
 		}
 		pMaps[i] = p.ipMap[ipstr][proto]
