@@ -287,7 +287,7 @@ RUN git init . && git remote add origin "https://github.com/opencontainers/runc.
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged. When updating RUNC_VERSION,
 # consider updating runc in vendor.mod accordingly.
-ARG RUNC_VERSION=1950892f69597aa844cbf000fbdf77610dda3a44
+ARG RUNC_VERSION=823636c3ddd07241e586e44ea5e6fa9c0546b34b
 RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS runc-build
@@ -309,9 +309,7 @@ RUN --mount=from=runc-src,src=/usr/src/runc,rw \
   export CC=$(xx-info)-gcc
   export STRIP=$(xx-info)-strip
   xx-go --wrap
-  CGO_ENABLED=1 make "$([ "$DOCKER_STATIC" = "1" ] && echo "static" || echo "runc")"
-  # Only verify runc-dmz, no need to copy (already embedded into runc). Must always be static.
-  xx-verify --static libcontainer/dmz/binary/runc-dmz
+  CGO_ENABLED=1 EXTRA_BUILDTAGS="runc_nodmz" make "$([ "$DOCKER_STATIC" = "1" ] && echo "static" || echo "runc")"
   xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") runc
   mkdir /build
   mv runc /build/
