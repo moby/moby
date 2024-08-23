@@ -141,9 +141,9 @@ func (p *PortAllocator) RequestPortsInRange(ips []net.IP, proto string, portStar
 		ipstr := ip.String()
 		if _, ok := p.ipMap[ipstr]; !ok {
 			p.ipMap[ipstr] = protoMap{
-				"tcp":  p.newPortMap(),
-				"udp":  p.newPortMap(),
-				"sctp": p.newPortMap(),
+				"tcp":  newPortMap(p.Begin, p.End),
+				"udp":  newPortMap(p.Begin, p.End),
+				"sctp": newPortMap(p.Begin, p.End),
 			}
 		}
 		pMaps[i] = p.ipMap[ipstr][proto]
@@ -212,18 +212,6 @@ func (p *PortAllocator) ReleasePort(ip net.IP, proto string, port int) {
 	delete(protomap[proto].p, port)
 }
 
-func (p *PortAllocator) newPortMap() *portMap {
-	defaultKey := getRangeKey(p.Begin, p.End)
-	pm := &portMap{
-		p:            map[int]struct{}{},
-		defaultRange: defaultKey,
-		portRanges: map[string]*portRange{
-			defaultKey: newPortRange(p.Begin, p.End),
-		},
-	}
-	return pm
-}
-
 // ReleaseAll releases all ports for all ips.
 func (p *PortAllocator) ReleaseAll() {
 	p.mutex.Lock()
@@ -240,6 +228,17 @@ func newPortRange(portStart, portEnd int) *portRange {
 		begin: portStart,
 		end:   portEnd,
 		last:  portEnd,
+	}
+}
+
+func newPortMap(portStart, portEnd int) *portMap {
+	defaultKey := getRangeKey(portStart, portEnd)
+	return &portMap{
+		p:            map[int]struct{}{},
+		defaultRange: defaultKey,
+		portRanges: map[string]*portRange{
+			defaultKey: newPortRange(portStart, portEnd),
+		},
 	}
 }
 
