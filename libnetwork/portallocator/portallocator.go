@@ -133,6 +133,13 @@ func (p *PortAllocator) RequestPortsInRange(ips []net.IP, proto string, portStar
 		return 0, ErrUnknownProtocol
 	}
 
+	if portStart != 0 || portEnd != 0 {
+		// Validate custom port-range
+		if portStart == 0 || portEnd == 0 || portEnd < portStart {
+			return 0, fmt.Errorf("invalid port range: %d-%d", portStart, portEnd)
+		}
+	}
+
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -167,11 +174,7 @@ func (p *PortAllocator) RequestPortsInRange(ips []net.IP, proto string, portStar
 	// Create/fetch ranges for each portMap.
 	pRanges := make([]*portRange, len(pMaps))
 	for i, pMap := range pMaps {
-		var err error
-		pRanges[i], err = pMap.getPortRange(portStart, portEnd)
-		if err != nil {
-			return 0, err
-		}
+		pRanges[i] = pMap.getPortRange(portStart, portEnd)
 	}
 
 	// Starting after the last port allocated for the first address, search
@@ -242,26 +245,21 @@ func newPortMap(portStart, portEnd int) *portMap {
 	}
 }
 
-func (pm *portMap) getPortRange(portStart, portEnd int) (*portRange, error) {
+func (pm *portMap) getPortRange(portStart, portEnd int) *portRange {
 	var key string
 	if portStart == 0 && portEnd == 0 {
 		key = pm.defaultRange
 	} else {
 		key = getRangeKey(portStart, portEnd)
-		if portStart == portEnd ||
-			portStart == 0 || portEnd == 0 ||
-			portEnd < portStart {
-			return nil, fmt.Errorf("invalid port range: %s", key)
-		}
 	}
 
 	// Return existing port range, if already known.
 	if pr, exists := pm.portRanges[key]; exists {
-		return pr, nil
+		return pr
 	}
 
 	// Otherwise create a new port range.
 	pr := newPortRange(portStart, portEnd)
 	pm.portRanges[key] = pr
-	return pr, nil
+	return pr
 }
