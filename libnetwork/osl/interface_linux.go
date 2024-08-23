@@ -531,7 +531,7 @@ func checkRouteConflict(nlh *netlink.Handle, address *net.IPNet, family int) err
 		return err
 	}
 	for _, route := range routes {
-		if route.Dst != nil {
+		if route.Dst != nil && !route.Dst.IP.IsUnspecified() {
 			if route.Dst.Contains(address.IP) || address.Contains(route.Dst.IP) {
 				return fmt.Errorf("cannot program address %v in sandbox interface because it conflicts with existing route %s",
 					address, route)

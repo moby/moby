@@ -86,7 +86,7 @@ func queryOnLinkRoutes() []netip.Prefix {
 
 	var prefixes []netip.Prefix
 	for _, route := range routes {
-		if route.Dst != nil && route.Scope == netlink.SCOPE_LINK {
+		if route.Scope == netlink.SCOPE_LINK && route.Dst != nil && !route.Dst.IP.IsUnspecified() {
 			if p, ok := netiputil.ToPrefix(route.Dst); ok {
 				prefixes = append(prefixes, p)
 			}
