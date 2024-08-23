@@ -107,7 +107,10 @@ func newInstance() *PortAllocator {
 // If port is 0 it returns first free port. Otherwise it checks port availability
 // in proto's pool and returns that port or error if port is already busy.
 func (p *PortAllocator) RequestPort(ip net.IP, proto string, port int) (int, error) {
-	return p.RequestPortInRange(ip, proto, port, port)
+	if ip == nil {
+		ip = p.defaultIP // FIXME(thaJeztah): consider making this a required argument and producing an error instead, or set default when constructing.
+	}
+	return p.RequestPortsInRange([]net.IP{ip}, proto, port, port)
 }
 
 // RequestPortInRange is equivalent to [PortAllocator.RequestPortsInRange] with
