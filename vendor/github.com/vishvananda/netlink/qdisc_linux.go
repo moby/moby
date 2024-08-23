@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
@@ -17,6 +18,7 @@ func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
 	var lossCorr, delayCorr, duplicateCorr uint32
 	var reorderProb, reorderCorr uint32
 	var corruptProb, corruptCorr uint32
+	var rate64 uint64
 
 	latency := nattrs.Latency
 	loss := Percentage2u32(nattrs.Loss)
@@ -57,6 +59,7 @@ func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
 
 	corruptProb = Percentage2u32(nattrs.CorruptProb)
 	corruptCorr = Percentage2u32(nattrs.CorruptCorr)
+	rate64 = nattrs.Rate64
 
 	return &Netem{
 		QdiscAttrs:    attrs,
@@ -73,6 +76,7 @@ func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
 		ReorderCorr:   reorderCorr,
 		CorruptProb:   corruptProb,
 		CorruptCorr:   corruptCorr,
+		Rate64:        rate64,
 	}
 }
 
@@ -159,6 +163,9 @@ func (h *Handle) qdiscModify(cmd, flags int, qdisc Qdisc) error {
 func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 
 	req.AddData(nl.NewRtAttr(nl.TCA_KIND, nl.ZeroTerminated(qdisc.Type())))
+	if qdisc.Attrs().IngressBlock != nil {
+		req.AddData(nl.NewRtAttr(nl.TCA_INGRESS_BLOCK, nl.Uint32Attr(*qdisc.Attrs().IngressBlock)))
+	}
 
 	options := nl.NewRtAttr(nl.TCA_OPTIONS, nil)
 
@@ -194,7 +201,9 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		opt.Debug = qdisc.Debug
 		opt.DirectPkts = qdisc.DirectPkts
 		options.AddRtAttr(nl.TCA_HTB_INIT, opt.Serialize())
-		// options.AddRtAttr(nl.TCA_HTB_DIRECT_QLEN, opt.Serialize())
+		if qdisc.DirectQlen != nil {
+			options.AddRtAttr(nl.TCA_HTB_DIRECT_QLEN, nl.Uint32Attr(*qdisc.DirectQlen))
+		}
 	case *Hfsc:
 		opt := nl.TcHfscOpt{}
 		opt.Defcls = qdisc.Defcls
@@ -231,6 +240,19 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		if reorder.Probability > 0 {
 			options.AddRtAttr(nl.TCA_NETEM_REORDER, reorder.Serialize())
 		}
+		// Rate
+		if qdisc.Rate64 > 0 {
+			rate := nl.TcNetemRate{}
+			if qdisc.Rate64 >= uint64(1<<32) {
+				options.AddRtAttr(nl.TCA_NETEM_RATE64, nl.Uint64Attr(qdisc.Rate64))
+				rate.Rate = ^uint32(0)
+			} else {
+				rate.Rate = uint32(qdisc.Rate64)
+			}
+			options.AddRtAttr(nl.TCA_NETEM_RATE, rate.Serialize())
+		}
+	case *Clsact:
+		options = nil
 	case *Ingress:
 		// ingress filters must use the proper handle
 		if qdisc.Attrs().Parent != HANDLE_INGRESS {
@@ -265,6 +287,9 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		if qdisc.Buckets > 0 {
 			options.AddRtAttr(nl.TCA_FQ_BUCKETS_LOG, nl.Uint32Attr((uint32(qdisc.Buckets))))
 		}
+		if qdisc.PacketLimit > 0 {
+			options.AddRtAttr(nl.TCA_FQ_PLIMIT, nl.Uint32Attr((uint32(qdisc.PacketLimit))))
+		}
 		if qdisc.LowRateThreshold > 0 {
 			options.AddRtAttr(nl.TCA_FQ_LOW_RATE_THRESHOLD, nl.Uint32Attr((uint32(qdisc.LowRateThreshold))))
 		}
@@ -285,6 +310,12 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		}
 		if qdisc.FlowDefaultRate > 0 {
 			options.AddRtAttr(nl.TCA_FQ_FLOW_DEFAULT_RATE, nl.Uint32Attr((uint32(qdisc.FlowDefaultRate))))
+		}
+		if qdisc.Horizon > 0 {
+			options.AddRtAttr(nl.TCA_FQ_HORIZON, nl.Uint32Attr(qdisc.Horizon))
+		}
+		if qdisc.HorizonDropPolicy != HORIZON_DROP_POLICY_DEFAULT {
+			options.AddRtAttr(nl.TCA_FQ_HORIZON_DROP, nl.Uint8Attr(qdisc.HorizonDropPolicy))
 		}
 	case *Sfq:
 		opt := nl.TcSfqQoptV1{}
@@ -380,6 +411,8 @@ func (h *Handle) QdiscList(link Link) ([]Qdisc, error) {
 					qdisc = &Netem{}
 				case "sfq":
 					qdisc = &Sfq{}
+				case "clsact":
+					qdisc = &Clsact{}
 				default:
 					qdisc = &GenericQdisc{QdiscType: qdiscType}
 				}
@@ -442,6 +475,22 @@ func (h *Handle) QdiscList(link Link) ([]Qdisc, error) {
 
 					// no options for ingress
 				}
+			case nl.TCA_INGRESS_BLOCK:
+				ingressBlock := new(uint32)
+				*ingressBlock = native.Uint32(attr.Value)
+				base.IngressBlock = ingressBlock
+			case nl.TCA_STATS:
+				s, err := parseTcStats(attr.Value)
+				if err != nil {
+					return nil, err
+				}
+				base.Statistics = (*QdiscStatistics)(s)
+			case nl.TCA_STATS2:
+				s, err := parseTcStats2(attr.Value)
+				if err != nil {
+					return nil, err
+				}
+				base.Statistics = (*QdiscStatistics)(s)
 			}
 		}
 		*qdisc.Attrs() = base
@@ -479,8 +528,8 @@ func parseHtbData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 			htb.Debug = opt.Debug
 			htb.DirectPkts = opt.DirectPkts
 		case nl.TCA_HTB_DIRECT_QLEN:
-			// TODO
-			//htb.DirectQlen = native.uint32(datum.Value)
+			directQlen := native.Uint32(datum.Value)
+			htb.DirectQlen = &directQlen
 		}
 	}
 	return nil
@@ -546,6 +595,11 @@ func parseFqData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 			fq.FlowMaxRate = native.Uint32(datum.Value)
 		case nl.TCA_FQ_FLOW_DEFAULT_RATE:
 			fq.FlowDefaultRate = native.Uint32(datum.Value)
+		case nl.TCA_FQ_HORIZON:
+			fq.Horizon = native.Uint32(datum.Value)
+		case nl.TCA_FQ_HORIZON_DROP:
+			fq.HorizonDropPolicy = datum.Value[0]
+
 		}
 	}
 	return nil
@@ -564,6 +618,8 @@ func parseNetemData(qdisc Qdisc, value []byte) error {
 	if err != nil {
 		return err
 	}
+	var rate *nl.TcNetemRate
+	var rate64 uint64
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.TCA_NETEM_CORR:
@@ -579,8 +635,19 @@ func parseNetemData(qdisc Qdisc, value []byte) error {
 			opt := nl.DeserializeTcNetemReorder(datum.Value)
 			netem.ReorderProb = opt.Probability
 			netem.ReorderCorr = opt.Correlation
+		case nl.TCA_NETEM_RATE:
+			rate = nl.DeserializeTcNetemRate(datum.Value)
+		case nl.TCA_NETEM_RATE64:
+			rate64 = native.Uint64(datum.Value)
 		}
 	}
+	if rate != nil {
+		netem.Rate64 = uint64(rate.Rate)
+		if rate64 > 0 {
+			netem.Rate64 = rate64
+		}
+	}
+
 	return nil
 }
 
@@ -624,6 +691,9 @@ var (
 	tickInUsec  float64
 	clockFactor float64
 	hz          float64
+
+	// Without this, the go race detector may report races.
+	initClockMutex sync.Mutex
 )
 
 func initClock() {
@@ -658,6 +728,8 @@ func initClock() {
 }
 
 func TickInUsec() float64 {
+	initClockMutex.Lock()
+	defer initClockMutex.Unlock()
 	if tickInUsec == 0.0 {
 		initClock()
 	}
@@ -665,6 +737,8 @@ func TickInUsec() float64 {
 }
 
 func ClockFactor() float64 {
+	initClockMutex.Lock()
+	defer initClockMutex.Unlock()
 	if clockFactor == 0.0 {
 		initClock()
 	}
@@ -672,6 +746,8 @@ func ClockFactor() float64 {
 }
 
 func Hz() float64 {
+	initClockMutex.Lock()
+	defer initClockMutex.Unlock()
 	if hz == 0.0 {
 		initClock()
 	}

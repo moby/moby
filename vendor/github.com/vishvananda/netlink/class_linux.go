@@ -388,6 +388,11 @@ func parseTcStats2(data []byte) (*ClassStatistics, error) {
 				return nil, fmt.Errorf("Failed to parse ClassStatistics.RateEst with: %v\n%s",
 					err, hex.Dump(datum.Value))
 			}
+		case nl.TCA_STATS_BASIC_HW:
+			if err := parseGnetStats(datum.Value, stats.BasicHw); err != nil {
+				return nil, fmt.Errorf("Failed to parse ClassStatistics.BasicHw with: %v\n%s",
+					err, hex.Dump(datum.Value))
+			}
 		}
 	}
 
