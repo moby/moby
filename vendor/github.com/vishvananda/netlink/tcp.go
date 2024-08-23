@@ -82,3 +82,11 @@ type TCPBBRInfo struct {
 	BBRPacingGain uint32
 	BBRCwndGain   uint32
 }
+
+// According to https://man7.org/linux/man-pages/man7/sock_diag.7.html
+type MemInfo struct {
+	RMem uint32
+	WMem uint32
+	FMem uint32
+	TMem uint32
+}
