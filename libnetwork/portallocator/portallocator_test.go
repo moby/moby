@@ -8,13 +8,8 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func resetPortAllocator() {
-	instance = newInstance()
-}
-
 func TestRequestNewPort(t *testing.T) {
-	p := Get()
-	defer resetPortAllocator()
+	p := newInstance()
 
 	port, err := p.RequestPort(defaultIP, "tcp", 0)
 	if err != nil {
@@ -27,8 +22,7 @@ func TestRequestNewPort(t *testing.T) {
 }
 
 func TestRequestSpecificPort(t *testing.T) {
-	p := Get()
-	defer resetPortAllocator()
+	p := newInstance()
 
 	port, err := p.RequestPort(defaultIP, "tcp", 5000)
 	if err != nil {
@@ -41,7 +35,7 @@ func TestRequestSpecificPort(t *testing.T) {
 }
 
 func TestReleasePort(t *testing.T) {
-	p := Get()
+	p := newInstance()
 
 	port, err := p.RequestPort(defaultIP, "tcp", 5000)
 	if err != nil {
@@ -55,8 +49,7 @@ func TestReleasePort(t *testing.T) {
 }
 
 func TestReuseReleasedPort(t *testing.T) {
-	p := Get()
-	defer resetPortAllocator()
+	p := newInstance()
 
 	port, err := p.RequestPort(defaultIP, "tcp", 5000)
 	if err != nil {
@@ -78,8 +71,7 @@ func TestReuseReleasedPort(t *testing.T) {
 }
 
 func TestReleaseUnreadledPort(t *testing.T) {
-	p := Get()
-	defer resetPortAllocator()
+	p := newInstance()
 
 	port, err := p.RequestPort(defaultIP, "tcp", 5000)
 	if err != nil {
@@ -99,14 +91,15 @@ func TestReleaseUnreadledPort(t *testing.T) {
 }
 
 func TestUnknowProtocol(t *testing.T) {
-	if _, err := Get().RequestPort(defaultIP, "tcpp", 0); err != ErrUnknownProtocol {
+	p := newInstance()
+
+	if _, err := p.RequestPort(defaultIP, "tcpp", 0); err != ErrUnknownProtocol {
 		t.Fatalf("Expected error %s got %s", ErrUnknownProtocol, err)
 	}
 }
 
 func TestAllocateAllPorts(t *testing.T) {
-	p := Get()
-	defer resetPortAllocator()
+	p := newInstance()
 
 	for i := 0; i <= p.End-p.Begin; i++ {
 		port, err := p.RequestPort(defaultIP, "tcp", 0)
@@ -152,8 +145,7 @@ func TestAllocateAllPorts(t *testing.T) {
 }
 
 func BenchmarkAllocatePorts(b *testing.B) {
-	p := Get()
-	defer resetPortAllocator()
+	p := newInstance()
 
 	for i := 0; i < b.N; i++ {
 		for i := 0; i <= p.End-p.Begin; i++ {
@@ -171,8 +163,7 @@ func BenchmarkAllocatePorts(b *testing.B) {
 }
 
 func TestPortAllocation(t *testing.T) {
-	p := Get()
-	defer resetPortAllocator()
+	p := newInstance()
 
 	ip := net.ParseIP("192.168.0.1")
 	ip2 := net.ParseIP("192.168.0.2")
@@ -231,8 +222,7 @@ func TestPortAllocation(t *testing.T) {
 }
 
 func TestPortAllocationWithCustomRange(t *testing.T) {
-	p := Get()
-	defer resetPortAllocator()
+	p := newInstance()
 
 	start, end := 8081, 8082
 	specificPort := 8000
@@ -297,8 +287,7 @@ func TestPortAllocationWithCustomRange(t *testing.T) {
 }
 
 func TestNoDuplicateBPR(t *testing.T) {
-	p := Get()
-	defer resetPortAllocator()
+	p := newInstance()
 
 	if port, err := p.RequestPort(defaultIP, "tcp", p.Begin); err != nil {
 		t.Fatal(err)
@@ -314,8 +303,7 @@ func TestNoDuplicateBPR(t *testing.T) {
 }
 
 func TestRequestPortForMultipleIPs(t *testing.T) {
-	p := Get()
-	defer resetPortAllocator()
+	p := newInstance()
 
 	addrs := []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::")}
 
