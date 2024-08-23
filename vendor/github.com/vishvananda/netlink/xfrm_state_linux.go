@@ -2,12 +2,154 @@ package netlink
 
 import (
 	"fmt"
+	"net"
+	"time"
 	"unsafe"
 
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 )
 
+// XfrmStateAlgo represents the algorithm to use for the ipsec encryption.
+type XfrmStateAlgo struct {
+	Name        string
+	Key         []byte
+	TruncateLen int // Auth only
+	ICVLen      int // AEAD only
+}
+
+func (a XfrmStateAlgo) String() string {
+	base := fmt.Sprintf("{Name: %s, Key: 0x%x", a.Name, a.Key)
+	if a.TruncateLen != 0 {
+		base = fmt.Sprintf("%s, Truncate length: %d", base, a.TruncateLen)
+	}
+	if a.ICVLen != 0 {
+		base = fmt.Sprintf("%s, ICV length: %d", base, a.ICVLen)
+	}
+	return fmt.Sprintf("%s}", base)
+}
+
+// EncapType is an enum representing the optional packet encapsulation.
+type EncapType uint8
+
+const (
+	XFRM_ENCAP_ESPINUDP_NONIKE EncapType = iota + 1
+	XFRM_ENCAP_ESPINUDP
+)
+
+func (e EncapType) String() string {
+	switch e {
+	case XFRM_ENCAP_ESPINUDP_NONIKE:
+		return "espinudp-non-ike"
+	case XFRM_ENCAP_ESPINUDP:
+		return "espinudp"
+	}
+	return "unknown"
+}
+
+// XfrmStateEncap represents the encapsulation to use for the ipsec encryption.
+type XfrmStateEncap struct {
+	Type            EncapType
+	SrcPort         int
+	DstPort         int
+	OriginalAddress net.IP
+}
+
+func (e XfrmStateEncap) String() string {
+	return fmt.Sprintf("{Type: %s, Srcport: %d, DstPort: %d, OriginalAddress: %v}",
+		e.Type, e.SrcPort, e.DstPort, e.OriginalAddress)
+}
+
+// XfrmStateLimits represents the configured limits for the state.
+type XfrmStateLimits struct {
+	ByteSoft    uint64
+	ByteHard    uint64
+	PacketSoft  uint64
+	PacketHard  uint64
+	TimeSoft    uint64
+	TimeHard    uint64
+	TimeUseSoft uint64
+	TimeUseHard uint64
+}
+
+// XfrmStateStats represents the current number of bytes/packets
+// processed by this State, the State's installation and first use
+// time and the replay window counters.
+type XfrmStateStats struct {
+	ReplayWindow uint32
+	Replay       uint32
+	Failed       uint32
+	Bytes        uint64
+	Packets      uint64
+	AddTime      uint64
+	UseTime      uint64
+}
+
+// XfrmReplayState represents the sequence number states for
+// "legacy" anti-replay mode.
+type XfrmReplayState struct {
+	OSeq   uint32
+	Seq    uint32
+	BitMap uint32
+}
+
+func (r XfrmReplayState) String() string {
+	return fmt.Sprintf("{OSeq: 0x%x, Seq: 0x%x, BitMap: 0x%x}",
+		r.OSeq, r.Seq, r.BitMap)
+}
+
+// XfrmState represents the state of an ipsec policy. It optionally
+// contains an XfrmStateAlgo for encryption and one for authentication.
+type XfrmState struct {
+	Dst           net.IP
+	Src           net.IP
+	Proto         Proto
+	Mode          Mode
+	Spi           int
+	Reqid         int
+	ReplayWindow  int
+	Limits        XfrmStateLimits
+	Statistics    XfrmStateStats
+	Mark          *XfrmMark
+	OutputMark    *XfrmMark
+	Ifid          int
+	Auth          *XfrmStateAlgo
+	Crypt         *XfrmStateAlgo
+	Aead          *XfrmStateAlgo
+	Encap         *XfrmStateEncap
+	ESN           bool
+	DontEncapDSCP bool
+	OSeqMayWrap   bool
+	Replay        *XfrmReplayState
+	Selector      *XfrmPolicy
+}
+
+func (sa XfrmState) String() string {
+	return fmt.Sprintf("Dst: %v, Src: %v, Proto: %s, Mode: %s, SPI: 0x%x, ReqID: 0x%x, ReplayWindow: %d, Mark: %v, OutputMark: %v, Ifid: %d, Auth: %v, Crypt: %v, Aead: %v, Encap: %v, ESN: %t, DontEncapDSCP: %t, OSeqMayWrap: %t, Replay: %v",
+		sa.Dst, sa.Src, sa.Proto, sa.Mode, sa.Spi, sa.Reqid, sa.ReplayWindow, sa.Mark, sa.OutputMark, sa.Ifid, sa.Auth, sa.Crypt, sa.Aead, sa.Encap, sa.ESN, sa.DontEncapDSCP, sa.OSeqMayWrap, sa.Replay)
+}
+func (sa XfrmState) Print(stats bool) string {
+	if !stats {
+		return sa.String()
+	}
+	at := time.Unix(int64(sa.Statistics.AddTime), 0).Format(time.UnixDate)
+	ut := "-"
+	if sa.Statistics.UseTime > 0 {
+		ut = time.Unix(int64(sa.Statistics.UseTime), 0).Format(time.UnixDate)
+	}
+	return fmt.Sprintf("%s, ByteSoft: %s, ByteHard: %s, PacketSoft: %s, PacketHard: %s, TimeSoft: %d, TimeHard: %d, TimeUseSoft: %d, TimeUseHard: %d, Bytes: %d, Packets: %d, "+
+		"AddTime: %s, UseTime: %s, ReplayWindow: %d, Replay: %d, Failed: %d",
+		sa.String(), printLimit(sa.Limits.ByteSoft), printLimit(sa.Limits.ByteHard), printLimit(sa.Limits.PacketSoft), printLimit(sa.Limits.PacketHard),
+		sa.Limits.TimeSoft, sa.Limits.TimeHard, sa.Limits.TimeUseSoft, sa.Limits.TimeUseHard, sa.Statistics.Bytes, sa.Statistics.Packets, at, ut,
+		sa.Statistics.ReplayWindow, sa.Statistics.Replay, sa.Statistics.Failed)
+}
+
+func printLimit(lmt uint64) string {
+	if lmt == ^uint64(0) {
+		return "(INF)"
+	}
+	return fmt.Sprintf("%d", lmt)
+}
 func writeStateAlgo(a *XfrmStateAlgo) []byte {
 	algo := nl.XfrmAlgo{
 		AlgKeyLen: uint32(len(a.Key) * 8),
@@ -75,6 +217,14 @@ func writeReplayEsn(replayWindow int) []byte {
 	replayEsn.BmpLen = uint32((replayWindow + (bytesPerElem * 8) - 1) / (bytesPerElem * 8))
 
 	return replayEsn.Serialize()
+}
+
+func writeReplay(r *XfrmReplayState) []byte {
+	return (&nl.XfrmReplayState{
+		OSeq:   r.OSeq,
+		Seq:    r.Seq,
+		BitMap: r.BitMap,
+	}).Serialize()
 }
 
 // XfrmStateAdd will add an xfrm state to the system.
@@ -166,6 +316,21 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 			req.AddData(out)
 		}
 	}
+	if state.OSeqMayWrap || state.DontEncapDSCP {
+		var flags uint32
+		if state.DontEncapDSCP {
+			flags |= nl.XFRM_SA_XFLAG_DONT_ENCAP_DSCP
+		}
+		if state.OSeqMayWrap {
+			flags |= nl.XFRM_SA_XFLAG_OSEQ_MAY_WRAP
+		}
+		out := nl.NewRtAttr(nl.XFRMA_SA_EXTRA_FLAGS, nl.Uint32Attr(flags))
+		req.AddData(out)
+	}
+	if state.Replay != nil {
+		out := nl.NewRtAttr(nl.XFRMA_REPLAY_VAL, writeReplay(state.Replay))
+		req.AddData(out)
+	}
 
 	if state.Ifid != 0 {
 		ifId := nl.NewRtAttr(nl.XFRMA_IF_ID, nl.Uint32Attr(uint32(state.Ifid)))
@@ -186,7 +351,6 @@ func (h *Handle) xfrmStateAllocSpi(state *XfrmState) (*XfrmState, error) {
 	msg.Min = 0x100
 	msg.Max = 0xffffffff
 	req.AddData(msg)
-
 	if state.Mark != nil {
 		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(state.Mark))
 		req.AddData(out)
@@ -314,7 +478,6 @@ var familyError = fmt.Errorf("family error")
 
 func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
 	var state XfrmState
-
 	state.Dst = msg.Id.Daddr.ToIP()
 	state.Src = msg.Saddr.ToIP()
 	state.Proto = Proto(msg.Id.Proto)
@@ -324,20 +487,25 @@ func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
 	state.ReplayWindow = int(msg.ReplayWindow)
 	lftToLimits(&msg.Lft, &state.Limits)
 	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
+	state.Selector = &XfrmPolicy{
+		Dst:     msg.Sel.Daddr.ToIPNet(msg.Sel.PrefixlenD, msg.Sel.Family),
+		Src:     msg.Sel.Saddr.ToIPNet(msg.Sel.PrefixlenS, msg.Sel.Family),
+		Proto:   Proto(msg.Sel.Proto),
+		DstPort: int(nl.Swap16(msg.Sel.Dport)),
+		SrcPort: int(nl.Swap16(msg.Sel.Sport)),
+		Ifindex: int(msg.Sel.Ifindex),
+	}
 
 	return &state
 }
 
 func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 	msg := nl.DeserializeXfrmUsersaInfo(m)
-
 	// This is mainly for the state dump
 	if family != FAMILY_ALL && family != int(msg.Family) {
 		return nil, familyError
 	}
-
 	state := xfrmStateFromXfrmUsersaInfo(msg)
-
 	attrs, err := nl.ParseRouteAttr(m[nl.SizeofXfrmUsersaInfo:])
 	if err != nil {
 		return nil, err
@@ -385,6 +553,14 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 			state.Mark = new(XfrmMark)
 			state.Mark.Value = mark.Value
 			state.Mark.Mask = mark.Mask
+		case nl.XFRMA_SA_EXTRA_FLAGS:
+			flags := native.Uint32(attr.Value)
+			if (flags & nl.XFRM_SA_XFLAG_DONT_ENCAP_DSCP) != 0 {
+				state.DontEncapDSCP = true
+			}
+			if (flags & nl.XFRM_SA_XFLAG_OSEQ_MAY_WRAP) != 0 {
+				state.OSeqMayWrap = true
+			}
 		case nl.XFRMA_SET_MARK:
 			if state.OutputMark == nil {
 				state.OutputMark = new(XfrmMark)
@@ -400,6 +576,14 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 			}
 		case nl.XFRMA_IF_ID:
 			state.Ifid = int(native.Uint32(attr.Value))
+		case nl.XFRMA_REPLAY_VAL:
+			if state.Replay == nil {
+				state.Replay = new(XfrmReplayState)
+			}
+			replay := nl.DeserializeXfrmReplayState(attr.Value[:])
+			state.Replay.OSeq = replay.OSeq
+			state.Replay.Seq = replay.Seq
+			state.Replay.BitMap = replay.BitMap
 		}
 	}
 
@@ -476,6 +660,9 @@ func xfrmUsersaInfoFromXfrmState(state *XfrmState) *nl.XfrmUsersaInfo {
 	msg.Id.Spi = nl.Swap32(uint32(state.Spi))
 	msg.Reqid = uint32(state.Reqid)
 	msg.ReplayWindow = uint8(state.ReplayWindow)
-
+	msg.Sel = nl.XfrmSelector{}
+	if state.Selector != nil {
+		selFromPolicy(&msg.Sel, state.Selector)
+	}
 	return msg
 }

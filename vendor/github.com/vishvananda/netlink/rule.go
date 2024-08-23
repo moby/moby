@@ -10,8 +10,8 @@ type Rule struct {
 	Priority          int
 	Family            int
 	Table             int
-	Mark              int
-	Mask              int
+	Mark              uint32
+	Mask              *uint32
 	Tos               uint
 	TunID             uint
 	Goto              int
@@ -26,6 +26,8 @@ type Rule struct {
 	Dport             *RulePortRange
 	Sport             *RulePortRange
 	IPProto           int
+	UIDRange          *RuleUIDRange
+	Protocol          uint8
 }
 
 func (r Rule) String() string {
@@ -49,8 +51,8 @@ func NewRule() *Rule {
 		SuppressIfgroup:   -1,
 		SuppressPrefixlen: -1,
 		Priority:          -1,
-		Mark:              -1,
-		Mask:              -1,
+		Mark:              0,
+		Mask:              nil,
 		Goto:              -1,
 		Flow:              -1,
 	}
@@ -65,4 +67,15 @@ func NewRulePortRange(start, end uint16) *RulePortRange {
 type RulePortRange struct {
 	Start uint16
 	End   uint16
+}
+
+// NewRuleUIDRange creates rule uid range.
+func NewRuleUIDRange(start, end uint32) *RuleUIDRange {
+	return &RuleUIDRange{Start: start, End: end}
+}
+
+// RuleUIDRange represents rule uid range.
+type RuleUIDRange struct {
+	Start uint32
+	End   uint32
 }
