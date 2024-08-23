@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	imagetypes "github.com/docker/docker/api/types/image"
 	timetypes "github.com/docker/docker/api/types/time"
-	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/moby/buildkit/util/attestation"
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
@@ -353,12 +352,12 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 
 		allChainsIDs = append(allChainsIDs, chainIDs...)
 
-		i.containers.ApplyAll(func(c *container.Container) {
+		for _, c := range i.containers.List() {
 			if c.ImageManifest != nil && c.ImageManifest.Digest == target.Digest {
 				mfstSummary.ImageData.Containers = append(mfstSummary.ImageData.Containers, c.ID)
 				containersCount++
 			}
-		})
+		}
 
 		platform := mfstSummary.ImageData.Platform
 		// Filter out platforms that don't match the requested platform.  Do it
