@@ -21,7 +21,6 @@ var (
 	ErrAllPortsAllocated = errors.New("all ports are allocated")
 	// ErrUnknownProtocol is returned when an unknown protocol was specified
 	ErrUnknownProtocol = errors.New("unknown protocol")
-	defaultIP          = net.ParseIP("0.0.0.0")
 	once               sync.Once
 	instance           *PortAllocator
 )
@@ -62,10 +61,11 @@ func (e ErrPortAlreadyAllocated) Error() string {
 type (
 	// PortAllocator manages the transport ports database
 	PortAllocator struct {
-		mutex sync.Mutex
-		ipMap ipMapping
-		Begin int
-		End   int
+		mutex     sync.Mutex
+		defaultIP net.IP
+		ipMap     ipMapping
+		Begin     int
+		End       int
 	}
 	portRange struct {
 		begin int
@@ -96,9 +96,10 @@ func newInstance() *PortAllocator {
 		start, end = defaultPortRangeStart, defaultPortRangeEnd
 	}
 	return &PortAllocator{
-		ipMap: ipMapping{},
-		Begin: start,
-		End:   end,
+		ipMap:     ipMapping{},
+		defaultIP: net.IPv4zero,
+		Begin:     start,
+		End:       end,
 	}
 }
 
@@ -114,7 +115,7 @@ func (p *PortAllocator) RequestPort(ip net.IP, proto string, port int) (int, err
 // default IP (0.0.0.0).
 func (p *PortAllocator) RequestPortInRange(ip net.IP, proto string, portStart, portEnd int) (int, error) {
 	if ip == nil {
-		ip = defaultIP
+		ip = p.defaultIP // FIXME(thaJeztah): consider making this a required argument and producing an error instead, or set default when constructing.
 	}
 	return p.RequestPortsInRange([]net.IP{ip}, proto, portStart, portEnd)
 }
@@ -199,7 +200,7 @@ func (p *PortAllocator) ReleasePort(ip net.IP, proto string, port int) {
 	defer p.mutex.Unlock()
 
 	if ip == nil {
-		ip = defaultIP
+		ip = p.defaultIP // FIXME(thaJeztah): consider making this a required argument and producing an error instead, or set default when constructing.
 	}
 	protomap, ok := p.ipMap[ip.String()]
 	if !ok {
