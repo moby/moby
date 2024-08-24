@@ -9,7 +9,7 @@ set -e
 # the containerd project first, and update both after that is merged.
 #
 # When updating RUNC_VERSION, consider updating runc in vendor.mod accordingly
-: "${RUNC_VERSION:=f2f16213e174fb63e931fe0546bbbad1d9bbed6f}"
+: "${RUNC_VERSION:=8e1cd2f56d518f8d6292b8bb39f0d0932e4b6c2a}"
 
 install_runc() {
 	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"runc_nodmz"}"
