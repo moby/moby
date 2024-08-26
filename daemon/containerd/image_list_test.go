@@ -22,6 +22,7 @@ import (
 	"github.com/containerd/log/logtest"
 	"github.com/containerd/platforms"
 	imagetypes "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/opencontainers/go-digest"
@@ -44,7 +45,13 @@ func imagesFromIndex(index ...*ocispec.Index) []images.Image {
 }
 
 func BenchmarkImageList(b *testing.B) {
-	populateStore := func(ctx context.Context, is *ImageService, dir string, count int) {
+	populateStore := func(ctx context.Context, is *ImageService, dir string,
+		count int,
+		// % chance for each image to spawn containers
+		containerChance int,
+		// Maximum container count if the image is decided to spawn containers (chance above)
+		maxContainerCount int,
+	) {
 		// Use constant seed for reproducibility
 		src := rand.NewSource(1982731263716)
 
@@ -59,15 +66,34 @@ func BenchmarkImageList(b *testing.B) {
 			idx, err := specialimage.RandomSinglePlatform(dir, platform, src)
 			assert.NilError(b, err)
 
+			r1 := int(src.Int63())
+			r2 := int(src.Int63())
+
 			imgs := imagesFromIndex(idx)
 			for _, desc := range imgs {
 				_, err := is.images.Create(ctx, desc)
 				assert.NilError(b, err)
+
+				if r1%100 >= containerChance {
+					continue
+				}
+
+				containersCount := r2 % maxContainerCount
+				for j := 0; j < containersCount; j++ {
+					id := digest.FromString(desc.Name + strconv.Itoa(i)).String()
+
+					target := desc.Target
+					is.containers.Add(id, &container.Container{
+						ID:            id,
+						ImageManifest: &target,
+					})
+				}
 			}
 		}
 	}
 
 	for _, count := range []int{10, 100, 1000} {
+		count := count
 		csDir := b.TempDir()
 
 		ctx := namespaces.WithNamespace(context.TODO(), "testing-"+strconv.Itoa(count))
@@ -78,7 +104,11 @@ func BenchmarkImageList(b *testing.B) {
 		}
 
 		is := fakeImageService(b, ctx, cs)
-		populateStore(ctx, is, csDir, count)
+
+		// Every generated image has a 10% chance to spawn up to 5 containers
+		const containerChance = 10
+		const maxContainerCount = 5
+		populateStore(ctx, is, csDir, count, containerChance, maxContainerCount)
 
 		b.Run(strconv.Itoa(count)+"-images", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -301,7 +331,7 @@ func fakeImageService(t testing.TB, ctx context.Context, cs content.Store) *Imag
 
 	service := &ImageService{
 		images:              metadata.NewImageStore(mdb),
-		containers:          emptyTestContainerStore(),
+		containers:          container.NewMemoryStore(),
 		content:             cs,
 		eventsService:       daemonevents.New(),
 		snapshotterServices: snapshotters,
