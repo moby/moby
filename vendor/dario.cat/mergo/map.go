@@ -58,7 +58,7 @@ func deepMap(dst, src reflect.Value, visited map[uintptr]*visit, depth int, conf
 			}
 			fieldName := field.Name
 			fieldName = changeInitialCase(fieldName, unicode.ToLower)
-			if v, ok := dstMap[fieldName]; !ok || (isEmptyValue(reflect.ValueOf(v), !config.ShouldNotDereference) || overwrite) {
+			if _, ok := dstMap[fieldName]; !ok || (!isEmptyValue(reflect.ValueOf(src.Field(i).Interface()), !config.ShouldNotDereference) && overwrite) || config.overwriteWithEmptyValue {
 				dstMap[fieldName] = src.Field(i).Interface()
 			}
 		}
