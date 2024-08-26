@@ -31,7 +31,6 @@ import (
 	"text/template"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -120,7 +119,7 @@ func Parse(reader io.Reader, path string) (ResolvConf, error) {
 		rc.processLine(scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
-		return ResolvConf{}, errdefs.System(err)
+		return ResolvConf{}, errSystem{err}
 	}
 	if _, ok := rc.Option("ndots"); ok {
 		rc.md.NDotsFrom = "host"
@@ -346,10 +345,10 @@ options {{join . " "}}
 	var buf bytes.Buffer
 	templ, err := template.New("summary").Funcs(funcs).Parse(templateText)
 	if err != nil {
-		return nil, errdefs.System(err)
+		return nil, errSystem{err}
 	}
 	if err := templ.Execute(&buf, s); err != nil {
-		return nil, errdefs.System(err)
+		return nil, errSystem{err}
 	}
 	return buf.Bytes(), nil
 }
@@ -366,19 +365,18 @@ func (rc *ResolvConf) WriteFile(path, hashPath string, perm os.FileMode) error {
 	// Write the resolv.conf file - it's bind-mounted into the container, so can't
 	// move a temp file into place, just have to truncate and write it.
 	if err := os.WriteFile(path, content, perm); err != nil {
-		return errdefs.System(err)
+		return errSystem{err}
 	}
 
 	// Write the hash file.
 	if hashPath != "" {
 		hashFile, err := ioutils.NewAtomicFileWriter(hashPath, perm)
 		if err != nil {
-			return errdefs.System(err)
+			return errSystem{err}
 		}
 		defer hashFile.Close()
 
-		digest := digest.FromBytes(content)
-		if _, err = hashFile.Write([]byte(digest)); err != nil {
+		if _, err = hashFile.Write([]byte(digest.FromBytes(content))); err != nil {
 			return err
 		}
 	}
@@ -481,4 +479,17 @@ func removeInvalidNDots(options []string) []string {
 	}
 	clear(options[n:]) // Zero out the obsolete elements, for GC.
 	return options[:n]
+}
+
+// errSystem implements [github.com/docker/docker/errdefs.ErrSystem].
+//
+// We don't use the errdefs helpers here, because the resolvconf package
+// is imported in BuildKit, and this is the only location that used the
+// errdefs package outside of the client.
+type errSystem struct{ error }
+
+func (errSystem) System() {}
+
+func (e errSystem) Unwrap() error {
+	return e.error
 }
