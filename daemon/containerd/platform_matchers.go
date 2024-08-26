@@ -24,3 +24,11 @@ func (c allPlatformsWithPreferenceMatcher) Match(_ ocispec.Platform) bool {
 func (c allPlatformsWithPreferenceMatcher) Less(p1, p2 ocispec.Platform) bool {
 	return c.preferred.Less(p1, p2)
 }
+
+func (i *ImageService) hostPlatformMatcher() platforms.MatchComparer {
+	// Allow to override the host platform for testing purposes.
+	if i.defaultPlatformOverride != nil {
+		return i.defaultPlatformOverride
+	}
+	return platforms.Default()
+}
