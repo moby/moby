@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/opencontainers/go-digest"
@@ -18,7 +18,7 @@ import (
 // Plugin represents an individual plugin.
 type Plugin struct {
 	mu        sync.RWMutex
-	PluginObj types.Plugin `json:"plugin"` // todo: embed struct
+	PluginObj plugin.Plugin `json:"plugin"` // todo: embed struct
 	pClient   *plugins.Client
 	refCount  int
 	Rootfs    string // TODO: make private
@@ -97,9 +97,9 @@ func (p *Plugin) FilterByCap(capability string) (*Plugin, error) {
 
 // InitEmptySettings initializes empty settings for a plugin.
 func (p *Plugin) InitEmptySettings() {
-	p.PluginObj.Settings.Mounts = make([]types.PluginMount, len(p.PluginObj.Config.Mounts))
+	p.PluginObj.Settings.Mounts = make([]plugin.Mount, len(p.PluginObj.Config.Mounts))
 	copy(p.PluginObj.Settings.Mounts, p.PluginObj.Config.Mounts)
-	p.PluginObj.Settings.Devices = make([]types.PluginDevice, len(p.PluginObj.Config.Linux.Devices))
+	p.PluginObj.Settings.Devices = make([]plugin.Device, len(p.PluginObj.Config.Linux.Devices))
 	copy(p.PluginObj.Settings.Devices, p.PluginObj.Config.Linux.Devices)
 	p.PluginObj.Settings.Env = make([]string, 0, len(p.PluginObj.Config.Env))
 	for _, env := range p.PluginObj.Config.Env {
@@ -232,7 +232,7 @@ func (p *Plugin) GetSocket() string {
 }
 
 // GetTypes returns the interface types of a plugin.
-func (p *Plugin) GetTypes() []types.PluginInterfaceType {
+func (p *Plugin) GetTypes() []plugin.InterfaceType {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	plugintypes "github.com/docker/docker/api/types/plugin"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/swarm/runtime"
 	"github.com/docker/docker/integration/internal/swarm"
@@ -41,7 +41,7 @@ func TestServicePlugin(t *testing.T) {
 	assert.NilError(t, err)
 	_, err = io.Copy(io.Discard, r)
 	assert.NilError(t, err)
-	err = apiclient.PluginRemove(ctx, repo, types.PluginRemoveOptions{})
+	err = apiclient.PluginRemove(ctx, repo, plugintypes.RemoveOptions{})
 	assert.NilError(t, err)
 	err = plugin.Create(ctx, apiclient, repo2)
 	assert.NilError(t, err)
@@ -49,7 +49,7 @@ func TestServicePlugin(t *testing.T) {
 	assert.NilError(t, err)
 	_, err = io.Copy(io.Discard, r)
 	assert.NilError(t, err)
-	err = apiclient.PluginRemove(ctx, repo2, types.PluginRemoveOptions{})
+	err = apiclient.PluginRemove(ctx, repo2, plugintypes.RemoveOptions{})
 	assert.NilError(t, err)
 	d.Stop(t)
 
@@ -74,10 +74,10 @@ func TestServicePlugin(t *testing.T) {
 		t.Log("No tasks found for plugin service")
 		t.Fail()
 	}
-	plugin, _, err := d1.NewClientT(t).PluginInspectWithRaw(ctx, name)
+	p, _, err := d1.NewClientT(t).PluginInspectWithRaw(ctx, name)
 	assert.NilError(t, err, "Error inspecting service plugin")
 	found := false
-	for _, env := range plugin.Settings.Env {
+	for _, env := range p.Settings.Env {
 		assert.Equal(t, strings.HasPrefix(env, "baz"), false, "Environment variable entry %q is invalid and should not be present", "baz")
 		if strings.HasPrefix(env, "foo=") {
 			found = true
