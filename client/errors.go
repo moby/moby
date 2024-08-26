@@ -2,11 +2,11 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 )
 
 // errConnectionFailed implements an error returned when connection failed.
