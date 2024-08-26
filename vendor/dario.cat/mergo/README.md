@@ -44,13 +44,21 @@ Also a lovely [comune](http://en.wikipedia.org/wiki/Mergo) (municipality) in the
 
 ## Status
 
-It is ready for production use. [It is used in several projects by Docker, Google, The Linux Foundation, VMWare, Shopify, Microsoft, etc](https://github.com/imdario/mergo#mergo-in-the-wild).
+Mergo is stable and frozen, ready for production. Check a short list of the projects using at large scale it [here](https://github.com/imdario/mergo#mergo-in-the-wild).
+
+No new features are accepted. They will be considered for a future v2 that improves the implementation and fixes bugs for corner cases.
 
 ### Important notes
 
 #### 1.0.0
 
-In [1.0.0](//github.com/imdario/mergo/releases/tag/1.0.0) Mergo moves to a vanity URL `dario.cat/mergo`.
+In [1.0.0](//github.com/imdario/mergo/releases/tag/1.0.0) Mergo moves to a vanity URL `dario.cat/mergo`. No more v1 versions will be released.
+
+If the vanity URL is causing issues in your project due to a dependency pulling Mergo - it isn't a direct dependency in your project - it is recommended to use [replace](https://github.com/golang/go/wiki/Modules#when-should-i-use-the-replace-directive) to pin the version to the last one with the old import URL:
+
+```
+replace github.com/imdario/mergo => github.com/imdario/mergo v0.3.16
+```
 
 #### 0.3.9
 
@@ -64,55 +72,24 @@ If you were using Mergo before April 6th, 2015, please check your project works 
 
 If Mergo is useful to you, consider buying me a coffee, a beer, or making a monthly donation to allow me to keep building great free software. :heart_eyes:
 
-<a href='https://ko-fi.com/B0B58839' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://az743702.vo.msecnd.net/cdn/kofi1.png?v=0' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
 <a href="https://liberapay.com/dario/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a>
 <a href='https://github.com/sponsors/imdario' target='_blank'><img alt="Become my sponsor" src="https://img.shields.io/github/sponsors/imdario?style=for-the-badge" /></a>
 
 ### Mergo in the wild
 
-- [moby/moby](https://github.com/moby/moby)
-- [kubernetes/kubernetes](https://github.com/kubernetes/kubernetes)
-- [vmware/dispatch](https://github.com/vmware/dispatch)
-- [Shopify/themekit](https://github.com/Shopify/themekit)
-- [imdario/zas](https://github.com/imdario/zas)
-- [matcornic/hermes](https://github.com/matcornic/hermes)
-- [OpenBazaar/openbazaar-go](https://github.com/OpenBazaar/openbazaar-go)
-- [kataras/iris](https://github.com/kataras/iris)
-- [michaelsauter/crane](https://github.com/michaelsauter/crane)
-- [go-task/task](https://github.com/go-task/task)
-- [sensu/uchiwa](https://github.com/sensu/uchiwa)
-- [ory/hydra](https://github.com/ory/hydra)
-- [sisatech/vcli](https://github.com/sisatech/vcli)
-- [dairycart/dairycart](https://github.com/dairycart/dairycart)
-- [projectcalico/felix](https://github.com/projectcalico/felix)
-- [resin-os/balena](https://github.com/resin-os/balena)
-- [go-kivik/kivik](https://github.com/go-kivik/kivik)
-- [Telefonica/govice](https://github.com/Telefonica/govice)
-- [supergiant/supergiant](supergiant/supergiant)
-- [SergeyTsalkov/brooce](https://github.com/SergeyTsalkov/brooce)
-- [soniah/dnsmadeeasy](https://github.com/soniah/dnsmadeeasy)
-- [ohsu-comp-bio/funnel](https://github.com/ohsu-comp-bio/funnel)
-- [EagerIO/Stout](https://github.com/EagerIO/Stout)
-- [lynndylanhurley/defsynth-api](https://github.com/lynndylanhurley/defsynth-api)
-- [russross/canvasassignments](https://github.com/russross/canvasassignments)
-- [rdegges/cryptly-api](https://github.com/rdegges/cryptly-api)
-- [casualjim/exeggutor](https://github.com/casualjim/exeggutor)
-- [divshot/gitling](https://github.com/divshot/gitling)
-- [RWJMurphy/gorl](https://github.com/RWJMurphy/gorl)
-- [andrerocker/deploy42](https://github.com/andrerocker/deploy42)
-- [elwinar/rambler](https://github.com/elwinar/rambler)
-- [tmaiaroto/gopartman](https://github.com/tmaiaroto/gopartman)
-- [jfbus/impressionist](https://github.com/jfbus/impressionist)
-- [Jmeyering/zealot](https://github.com/Jmeyering/zealot)
-- [godep-migrator/rigger-host](https://github.com/godep-migrator/rigger-host)
-- [Dronevery/MultiwaySwitch-Go](https://github.com/Dronevery/MultiwaySwitch-Go)
-- [thoas/picfit](https://github.com/thoas/picfit)
-- [mantasmatelis/whooplist-server](https://github.com/mantasmatelis/whooplist-server)
-- [jnuthong/item_search](https://github.com/jnuthong/item_search)
-- [bukalapak/snowboard](https://github.com/bukalapak/snowboard)
-- [containerssh/containerssh](https://github.com/containerssh/containerssh)
-- [goreleaser/goreleaser](https://github.com/goreleaser/goreleaser)
-- [tjpnz/structbot](https://github.com/tjpnz/structbot)
+Mergo is used by [thousands](https://deps.dev/go/dario.cat%2Fmergo/v1.0.0/dependents) [of](https://deps.dev/go/github.com%2Fimdario%2Fmergo/v0.3.16/dependents) [projects](https://deps.dev/go/github.com%2Fimdario%2Fmergo/v0.3.12), including:
+
+* [containerd/containerd](https://github.com/containerd/containerd)
+* [datadog/datadog-agent](https://github.com/datadog/datadog-agent)
+* [docker/cli/](https://github.com/docker/cli/)
+* [goreleaser/goreleaser](https://github.com/goreleaser/goreleaser)
+* [go-micro/go-micro](https://github.com/go-micro/go-micro)
+* [grafana/loki](https://github.com/grafana/loki)
+* [kubernetes/kubernetes](https://github.com/kubernetes/kubernetes)
+* [masterminds/sprig](github.com/Masterminds/sprig)
+* [moby/moby](https://github.com/moby/moby)
+* [slackhq/nebula](https://github.com/slackhq/nebula)
+* [volcano-sh/volcano](https://github.com/volcano-sh/volcano)
 
 ## Install
 
@@ -138,6 +115,39 @@ Also, you can merge overwriting values using the transformer `WithOverride`.
 ```go
 if err := mergo.Merge(&dst, src, mergo.WithOverride); err != nil {
     // ...
+}
+```
+
+If you need to override pointers, so the source pointer's value is assigned to the destination's pointer, you must use `WithoutDereference`:
+
+```go
+package main
+
+import (
+	"fmt"
+
+	"dario.cat/mergo"
+)
+
+type Foo struct {
+	A *string
+	B int64
+}
+
+func main() {
+	first := "first"
+	second := "second"
+	src := Foo{
+		A: &first,
+		B: 2,
+	}
+
+	dest := Foo{
+		A: &second,
+		B: 1,
+	}
+
+	mergo.Merge(&dest, src, mergo.WithOverride, mergo.WithoutDereference)
 }
 ```
 
