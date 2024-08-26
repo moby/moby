@@ -293,6 +293,17 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 				return nil
 			}
 
+			imgPlat, err := platformImg.ImagePlatform(ctx)
+			if err != nil {
+				logger.WithError(err).Warn("failed to read image platform, skipping unpack")
+				return nil
+			}
+
+			// Only unpack the image if it matches the host platform
+			if !i.hostPlatformMatcher().Match(imgPlat) {
+				return nil
+			}
+
 			unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
 			if err != nil {
 				logger.WithError(err).Warn("failed to check if image is unpacked")
@@ -308,12 +319,14 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 			logger.WithField("alreadyUnpacked", unpacked).WithError(err).Debug("unpack")
 			return nil
 		})
-		if err != nil {
-			return errors.Wrap(err, "failed to unpack loaded image")
-		}
 
 		fmt.Fprintf(progress, "%s: %s\n", loadedMsg, name)
 		i.LogImageEvent(img.Target.Digest.String(), img.Target.Digest.String(), events.ActionLoad)
+
+		if err != nil {
+			// The image failed to unpack, but is already imported, log the error but don't fail the whole load.
+			fmt.Fprintf(progress, "Error unpacking image %s: %v\n", name, err)
+		}
 	}
 
 	return nil
