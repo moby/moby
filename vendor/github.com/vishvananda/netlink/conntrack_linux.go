@@ -69,6 +69,8 @@ func ConntrackUpdate(table ConntrackTableType, family InetFamily, flow *Conntrac
 
 // ConntrackDeleteFilter deletes entries on the specified table on the base of the filter
 // conntrack -D [table] parameters         Delete conntrack or expectation
+//
+// Deprecated: use [ConntrackDeleteFilter] instead.
 func ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter CustomConntrackFilter) (uint, error) {
 	return pkgHandle.ConntrackDeleteFilters(table, family, filter)
 }
@@ -137,6 +139,14 @@ func (h *Handle) ConntrackUpdate(table ConntrackTableType, family InetFamily, fl
 
 	_, err = req.Execute(unix.NETLINK_NETFILTER, 0)
 	return err
+}
+
+// ConntrackDeleteFilter deletes entries on the specified table on the base of the filter using the netlink handle passed
+// conntrack -D [table] parameters         Delete conntrack or expectation
+//
+// Deprecated: use [Handle.ConntrackDeleteFilters] instead.
+func (h *Handle) ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter CustomConntrackFilter) (uint, error) {
+	return h.ConntrackDeleteFilters(table, family, filter)
 }
 
 // ConntrackDeleteFilters deletes entries on the specified table matching any of the specified filters using the netlink handle passed

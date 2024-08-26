@@ -43,8 +43,8 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 	msg.Protocol = unix.RTPROT_BOOT
 	msg.Scope = unix.RT_SCOPE_UNIVERSE
 	msg.Table = unix.RT_TABLE_UNSPEC
-	msg.Type = unix.RTN_UNSPEC
-	if req.NlMsghdr.Flags&unix.NLM_F_CREATE > 0 {
+	msg.Type = rule.Type // usually 0, same as unix.RTN_UNSPEC
+	if msg.Type == 0 && req.NlMsghdr.Flags&unix.NLM_F_CREATE > 0 {
 		msg.Type = unix.RTN_UNICAST
 	}
 	if rule.Invert {
@@ -331,4 +331,35 @@ func ptrEqual(a, b *uint32) bool {
 		return false
 	}
 	return *a == *b
+}
+
+func (r Rule) typeString() string {
+	switch r.Type {
+	case unix.RTN_UNSPEC: // zero
+		return ""
+	case unix.RTN_UNICAST:
+		return ""
+	case unix.RTN_LOCAL:
+		return "local"
+	case unix.RTN_BROADCAST:
+		return "broadcast"
+	case unix.RTN_ANYCAST:
+		return "anycast"
+	case unix.RTN_MULTICAST:
+		return "multicast"
+	case unix.RTN_BLACKHOLE:
+		return "blackhole"
+	case unix.RTN_UNREACHABLE:
+		return "unreachable"
+	case unix.RTN_PROHIBIT:
+		return "prohibit"
+	case unix.RTN_THROW:
+		return "throw"
+	case unix.RTN_NAT:
+		return "nat"
+	case unix.RTN_XRESOLVE:
+		return "xresolve"
+	default:
+		return fmt.Sprintf("type(0x%x)", r.Type)
+	}
 }
