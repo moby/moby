@@ -1,6 +1,7 @@
 package image
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
@@ -194,4 +196,42 @@ func TestImagePullNonExisting(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestImagePullKeepOldAsDangling(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Can't run new daemons on Windows")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Cleanup(t)
+
+	apiClient := d.NewClientT(t)
+
+	inspect1, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox:latest")
+	assert.NilError(t, err)
+
+	prevID := inspect1.ID
+
+	t.Log(inspect1)
+
+	assert.NilError(t, apiClient.ImageTag(ctx, "busybox:latest", "alpine:latest"))
+
+	_, err = apiClient.ImageRemove(ctx, "busybox:latest", image.RemoveOptions{})
+	assert.NilError(t, err)
+
+	rc, err := apiClient.ImagePull(ctx, "alpine:latest", image.PullOptions{})
+	assert.NilError(t, err)
+
+	defer rc.Close()
+
+	var b bytes.Buffer
+	_, _ = io.Copy(&b, rc)
+
+	t.Log(b.String())
+
+	_, _, err = apiClient.ImageInspectWithRaw(ctx, prevID)
+	assert.NilError(t, err)
 }
