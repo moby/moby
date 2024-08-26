@@ -86,7 +86,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	}
 
 	// Will be set to the new image after pull succeeds.
-	var outNewImg *containerd.Image
+	var outNewImg containerd.Image
 
 	if oldImage.Target.Digest != "" {
 		// Lease the old image content to prevent it from being garbage collected until we keep it as dangling image.
@@ -104,8 +104,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 		// If the pulled image is different than the old image, we will keep the old image as a dangling image.
 		defer func() {
 			if outNewImg != nil {
-				img := *outNewImg
-				if img.Target().Digest != oldImage.Target.Digest {
+				if outNewImg.Target().Digest != oldImage.Target.Digest {
 					if err := i.ensureDanglingImage(ctx, oldImage); err != nil {
 						log.G(ctx).WithError(err).Warn("failed to keep the previous image as dangling")
 					}
@@ -147,7 +146,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 		// Status: Downloaded newer image for hello-world:latest
 		// docker.io/library/hello-world:latest
 		if outNewImg != nil {
-			img := *outNewImg
+			img := outNewImg
 			progress.Message(out, "", "Digest: "+img.Target().Digest.String())
 			newer := oldImage.Target.Digest != img.Target().Digest
 			writeStatus(out, reference.FamiliarString(ref), newer)
@@ -236,7 +235,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	}
 
 	i.LogImageEvent(reference.FamiliarString(ref), reference.FamiliarName(ref), events.ActionPull)
-	outNewImg = &img
+	outNewImg = img
 	return nil
 }
 
