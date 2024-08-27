@@ -359,7 +359,7 @@ func hasScheme(reposName string) bool {
 }
 
 func validateHostPort(s string) error {
-	// Split host and port, and in case s can not be splitted, assume host only
+	// Split host and port, and in case s can not be split, assume host only
 	host, port, err := net.SplitHostPort(s)
 	if err != nil {
 		host = s

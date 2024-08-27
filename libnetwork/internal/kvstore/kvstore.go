@@ -59,7 +59,7 @@ type Store interface {
 	Close()
 }
 
-// KVPair represents {Key, Value, Lastindex} tuple
+// KVPair represents {Key, Value, LastIndex} tuple
 type KVPair struct {
 	Key       string
 	Value     []byte

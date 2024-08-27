@@ -293,7 +293,7 @@ func TestCreateWithOpts(t *testing.T) {
 	}
 }
 
-func TestRelaodNoOpts(t *testing.T) {
+func TestReloadNoOpts(t *testing.T) {
 	rootDir, err := os.MkdirTemp("", "volume-test-reload-no-opts")
 	if err != nil {
 		t.Fatal(err)

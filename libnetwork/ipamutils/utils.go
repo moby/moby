@@ -44,7 +44,7 @@ func (n NetworkToSplit) Overlaps(p netip.Prefix) bool {
 	return n.Base.Overlaps(p)
 }
 
-// GetGlobalScopeDefaultNetworks returns a copy of the global-sopce network list.
+// GetGlobalScopeDefaultNetworks returns a copy of the global-scope network list.
 func GetGlobalScopeDefaultNetworks() []*NetworkToSplit {
 	return slices.Clone(globalScopeDefaultNetworks)
 }

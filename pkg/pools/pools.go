@@ -124,7 +124,7 @@ func (bufPool *BufioWriterPool) Put(b *bufio.Writer) {
 }
 
 // NewWriteCloserWrapper returns a wrapper which puts the bufio.Writer back
-// into the pool and closes the writer if it's an io.Writecloser.
+// into the pool and closes the writer if it's an io.WriteCloser.
 func (bufPool *BufioWriterPool) NewWriteCloserWrapper(buf *bufio.Writer, w io.Writer) io.WriteCloser {
 	return ioutils.NewWriteCloserWrapper(w, func() error {
 		buf.Flush()

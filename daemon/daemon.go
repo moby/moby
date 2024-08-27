@@ -266,7 +266,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 	}
 
 	// parallelLimit is the maximum number of parallel startup jobs that we
-	// allow (this is the limited used for all startup semaphores). The multipler
+	// allow (this is the limited used for all startup semaphores). The multiplier
 	// (128) was chosen after some fairly significant benchmarking -- don't change
 	// it unless you've tested it significantly (this value is adjusted if
 	// RLIMIT_NOFILE is small to avoid EMFILE).
@@ -712,7 +712,7 @@ func (daemon *Daemon) RestartSwarmContainers() {
 
 func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configStore) {
 	// parallelLimit is the maximum number of parallel startup jobs that we
-	// allow (this is the limited used for all startup semaphores). The multipler
+	// allow (this is the limited used for all startup semaphores). The multiplier
 	// (128) was chosen after some fairly significant benchmarking -- don't change
 	// it unless you've tested it significantly (this value is adjusted if
 	// RLIMIT_NOFILE is small to avoid EMFILE).

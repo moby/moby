@@ -44,7 +44,7 @@ func setupIPv6BridgeNetFiltering(config *networkConfiguration, _ *bridgeInterfac
 	return nil
 }
 
-// Enable bridge net filtering if not already enabled. See github issue #11404
+// Enable bridge net filtering if not already enabled. See GitHub issue #11404
 func enableBridgeNetFiltering(nfParam string) error {
 	enabled, err := getKernelBoolParam(nfParam)
 	if err != nil {

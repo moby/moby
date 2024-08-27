@@ -1440,7 +1440,7 @@ func (s *DockerCLIRunSuite) TestRunResolvconfUpdate(c *testing.T) {
 	}
 
 	// This test case is meant to test monitoring resolv.conf when it is
-	// a regular file not a bind mounc. So we unmount resolv.conf and replace
+	// a regular file not a bind mount. So we unmount resolv.conf and replace
 	// it with a file containing the original settings.
 	mounted, err := mountinfo.Mounted("/etc/resolv.conf")
 	if err != nil {
@@ -2089,7 +2089,7 @@ func (s *DockerCLIRunSuite) TestRunMountOrdering(c *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir2)
 
-	// Create a temporary tmpfs mounc.
+	// Create a temporary tmpfs mount.
 	fooDir := filepath.Join(tmpDir, "foo")
 	if err := os.MkdirAll(filepath.Join(tmpDir, "foo"), 0o755); err != nil {
 		c.Fatalf("failed to mkdir at %s - %s", fooDir, err)

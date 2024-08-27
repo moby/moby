@@ -879,7 +879,7 @@ func TestNetworkDBIslands(t *testing.T) {
 
 	// Give some time to let the system propagate the messages and free up the ports
 	check := func(t poll.LogT) poll.Result {
-		// Verify that the nodes are actually all gone and marked appropiately
+		// Verify that the nodes are actually all gone and marked appropriately
 		for name, db := range checkDBs {
 			db.RLock()
 			if (len(db.leftNodes) != 3) || (len(db.failedNodes) != 0) {

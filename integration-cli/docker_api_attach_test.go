@@ -224,7 +224,7 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 	assert.Equal(c, outBuf.String(), "hello\nsuccess")
 }
 
-// requestHijack create a http requst to specified host with `Upgrade` header (with method
+// requestHijack create a http request to specified host with `Upgrade` header (with method
 // , contenttype, …), if receive a successful "101 Switching Protocols" response return
 // a `io.WriteCloser` and `bufio.Reader`
 func requestHijack(method, endpoint string, data io.Reader, ct, daemon string, modifiers ...func(*http.Request)) (io.WriteCloser, *bufio.Reader, error) {

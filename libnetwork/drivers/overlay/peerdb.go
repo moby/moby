@@ -299,7 +299,7 @@ func (d *driver) peerAddOp(nid, eid string, peerIP net.IP, peerIPMask net.IPMask
 	sbox := n.sandbox()
 	if sbox == nil {
 		// We are hitting this case for all the events that are arriving before that the sandbox
-		// is being created. The peer got already added into the database and the sanbox init will
+		// is being created. The peer got already added into the database and the sandbox init will
 		// call the peerDbUpdateSandbox that will configure all these peers from the database
 		return nil
 	}

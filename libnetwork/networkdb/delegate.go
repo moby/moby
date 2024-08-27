@@ -213,7 +213,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 		// 2) the residual reapTime is higher than 1/6 of the total reapTime.
 		// If the residual reapTime is lower or equal to 1/6 of the total reapTime don't bother broadcasting it around
 		// most likely the cluster is already aware of it
-		// This also reduce the possibility that deletion of entries close to their garbage collection ends up circuling around
+		// This also reduce the possibility that deletion of entries close to their garbage collection ends up circling around
 		// forever
 		// log.G(ctx).Infof("exiting on delete not knowing the obj with rebroadcast:%t", network.inSync)
 		return network.inSync && e.reapTime > nDB.config.reapEntryInterval/6

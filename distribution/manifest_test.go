@@ -240,7 +240,7 @@ func TestManifestStore(t *testing.T) {
 		ref, desc, mg, store, cs, teardown := setupTest(t)
 		defer teardown(t)
 
-		// first add the manifest to the coontent store
+		// first add the manifest to the content store
 		writeManifest(t, cs, desc)
 
 		// now do the get

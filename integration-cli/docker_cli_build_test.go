@@ -3521,7 +3521,7 @@ func (s *DockerCLIBuildSuite) TestBuildNotVerboseFailureRemote(c *testing.T) {
 
 	// An error message should contain name server IP and port, like this:
 	//  "dial tcp: lookup something.invalid on 172.29.128.11:53: no such host"
-	// The IP:port need to be removed in order to not trigger a test failur
+	// The IP:port need to be removed in order to not trigger a test failure
 	// when more than one nameserver is configured.
 	// While at it, also strip excessive newlines.
 	normalize := func(msg string) string {

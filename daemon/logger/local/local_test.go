@@ -36,7 +36,7 @@ func TestWriteLog(t *testing.T) {
 	m2 := logger.Message{Source: "stdout", Timestamp: time.Now().Add(-1 * 20 * time.Minute), Line: []byte("message 2"), PLogMetaData: &backend.PartialLogMetaData{Last: true, ID: "0001", Ordinal: 1}}
 	m3 := logger.Message{Source: "stderr", Timestamp: time.Now().Add(-1 * 10 * time.Minute), Line: []byte("message 3")}
 
-	// copy the log message because the underying log writer resets the log message and returns it to a buffer pool
+	// copy the log message because the underlying log writer resets the log message and returns it to a buffer pool
 	err = l.Log(copyLogMessage(&m1))
 	assert.NilError(t, err)
 	err = l.Log(copyLogMessage(&m2))

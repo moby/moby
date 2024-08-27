@@ -144,7 +144,7 @@ are not part of the underlying image's Config, and deprecated:
   interval for health checks during the start period.
 * `GET /info` now includes a `CDISpecDirs` field indicating the configured CDI
   specifications directories. The use of the applied setting requires the daemon
-  to have expermental enabled, and for non-experimental daemons an empty list is
+  to have experimental enabled, and for non-experimental daemons an empty list is
   always returned.
 * `POST /networks/create` now returns a 400 if the `IPAMConfig` has invalid
   values. Note that this change is _unversioned_ and applied to all API
@@ -430,7 +430,7 @@ are not part of the underlying image's Config, and deprecated:
   to return those without the specified labels.
 * `POST /containers/create` now accepts a `fluentd-async` option in `HostConfig.LogConfig.Config`
   when using the Fluentd logging driver. This option deprecates the `fluentd-async-connect`
-  option, which remains funtional, but will be removed in a future release. Users
+  option, which remains functional, but will be removed in a future release. Users
   are encouraged to use the `fluentd-async` option going forward. This change is
   not versioned, and affects all API versions if the daemon has this patch.
 * `POST /containers/create` now accepts a `fluentd-request-ack` option in

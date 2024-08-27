@@ -270,7 +270,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	}
 
 	// Note that CDI is not inherently linux-specific, there are some linux-specific assumptions / implementations in the code that
-	// queries the properties of device on the host as wel as performs the injection of device nodes and their access permissions into the OCI spec.
+	// queries the properties of device on the host as well as performs the injection of device nodes and their access permissions into the OCI spec.
 	//
 	// In order to lift this restriction the following would have to be addressed:
 	// - Support needs to be added to the cdi package for injecting Windows devices: https://tags.cncf.io/container-device-interface/issues/28

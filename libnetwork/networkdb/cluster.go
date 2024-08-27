@@ -294,7 +294,7 @@ func (nDB *NetworkDB) rejoinClusterBootStrap() {
 	}
 	bootStrapIPs := make([]string, 0, len(nDB.bootStrapIP))
 	for _, bootIP := range nDB.bootStrapIP {
-		// botostrap IPs are usually IP:port from the Join
+		// bootstrap IPs are usually IP:port from the Join
 		var bootstrapIP net.IP
 		ipStr, _, err := net.SplitHostPort(bootIP)
 		if err != nil {
