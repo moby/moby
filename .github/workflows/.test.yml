@@ -24,7 +24,7 @@ env:
   GO_VERSION: "1.21.13"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
-  ITG_CLI_MATRIX_SIZE: 6
+  ITG_CLI_MATRIX_SIZE: 15
   DOCKER_EXPERIMENTAL: 1
   DOCKER_GRAPHDRIVER: ${{ inputs.storage == 'snapshotter' && 'overlayfs' || 'overlay2' }}
   TEST_INTEGRATION_USE_SNAPSHOTTER: ${{ inputs.storage == 'snapshotter' && '1' || '' }}
