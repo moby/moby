@@ -35,7 +35,9 @@ man%:
 
 .PHONY: install
 install: all
+	@set -ex; \
 	for sec in $(sections); do \
+		$(INSTALL) -d $(DESTDIR)$(mandir)/man$$sec && \
 		$(INSTALL_DATA) man$$sec/* $(DESTDIR)$(mandir)/man$$sec; \
 	done
 
