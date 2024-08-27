@@ -73,11 +73,11 @@ var messages = map[Warning]string{
 		"Use a v2 runtime and `options` instead.",
 	CRIRuntimeRoot: "The `runtime_root` property of [plugins.\"io.containerd.grpc.v1.cri\".containerd.runtimes.*] is deprecated since containerd v1.3 and will be removed in containerd v2.0. " +
 		"Use a v2 runtime and `options.Root` instead.",
-	CRIRegistryMirrors: "The `mirrors` property of `[plugins.\"io.containerd.grpc.v1.cri\".registry]` is deprecated since containerd v1.5 and will be removed in containerd v2.0. " +
+	CRIRegistryMirrors: "The `mirrors` property of `[plugins.\"io.containerd.grpc.v1.cri\".registry]` is deprecated since containerd v1.5 and will be removed in containerd v2.1. " +
 		"Use `config_path` instead.",
-	CRIRegistryAuths: "The `auths` property of `[plugins.\"io.containerd.grpc.v1.cri\".registry]` is deprecated since containerd v1.3 and will be removed in containerd v2.0. " +
+	CRIRegistryAuths: "The `auths` property of `[plugins.\"io.containerd.grpc.v1.cri\".registry]` is deprecated since containerd v1.3 and will be removed in containerd v2.1. " +
 		"Use `ImagePullSecrets` instead.",
-	CRIRegistryConfigs: "The `configs` property of `[plugins.\"io.containerd.grpc.v1.cri\".registry]` is deprecated since containerd v1.5 and will be removed in containerd v2.0. " +
+	CRIRegistryConfigs: "The `configs` property of `[plugins.\"io.containerd.grpc.v1.cri\".registry]` is deprecated since containerd v1.5 and will be removed in containerd v2.1. " +
 		"Use `config_path` instead.",
 	CRIAPIV1Alpha2:  "CRI API v1alpha2 is deprecated since containerd v1.7 and removed in containerd v2.0. Use CRI API v1 instead.",
 	AUFSSnapshotter: "The aufs snapshotter is deprecated since containerd v1.5 and removed in containerd v2.0. Use the overlay snapshotter instead.",

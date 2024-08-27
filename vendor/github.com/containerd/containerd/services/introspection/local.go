@@ -163,6 +163,9 @@ func (l *Local) getUUID() (string, error) {
 		}
 		return "", err
 	}
+	if len(data) == 0 {
+		return l.generateUUID()
+	}
 	u := string(data)
 	if _, err := uuid.Parse(u); err != nil {
 		return "", err
