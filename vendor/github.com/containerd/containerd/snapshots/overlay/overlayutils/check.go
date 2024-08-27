@@ -24,9 +24,10 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/moby/sys/userns"
+
 	kernel "github.com/containerd/containerd/contrib/seccomp/kernelversion"
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/log"
 )
