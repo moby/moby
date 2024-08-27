@@ -18,7 +18,7 @@ func main() {
 	server := http.Server{
 		Addr:              l.Addr().String(),
 		Handler:           mux,
-		ReadHeaderTimeout: 2 * time.Second, // This server is not for production code; picked an arbitrary timeout to statisfy gosec (G112: Potential Slowloris Attack)
+		ReadHeaderTimeout: 2 * time.Second, // This server is not for production code; picked an arbitrary timeout to satisfy gosec (G112: Potential Slowloris Attack)
 	}
 	server.Serve(l)
 }

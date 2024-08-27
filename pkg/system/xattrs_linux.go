@@ -6,7 +6,7 @@ import (
 
 // Lgetxattr retrieves the value of the extended attribute identified by attr
 // and associated with the given path in the file system.
-// It will returns a nil slice and nil error if the xattr is not set.
+// It returns a nil slice and nil error if the xattr is not set.
 func Lgetxattr(path string, attr string) ([]byte, error) {
 	sysErr := func(err error) ([]byte, error) {
 		return nil, &XattrError{Op: "lgetxattr", Attr: attr, Path: path, Err: err}

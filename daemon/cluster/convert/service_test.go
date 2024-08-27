@@ -396,7 +396,7 @@ func TestServiceConvertFromGRPCCredentialSpec(t *testing.T) {
 	}
 }
 
-func TestServiceConvertToGRPCNetworkAtachmentRuntime(t *testing.T) {
+func TestServiceConvertToGRPCNetworkAttachmentRuntime(t *testing.T) {
 	someid := "asfjkl"
 	s := swarmtypes.ServiceSpec{
 		TaskTemplate: swarmtypes.TaskSpec{

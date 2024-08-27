@@ -325,7 +325,7 @@ func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity)
 }
 
 // GetResourcePath evaluates `path` in the scope of the container's BaseFS, with proper path
-// sanitisation. Symlinks are all scoped to the BaseFS of the container, as
+// sanitization. Symlinks are all scoped to the BaseFS of the container, as
 // though the container's BaseFS was `/`.
 //
 // The BaseFS of a container is the host-facing path which is bind-mounted as
@@ -368,7 +368,7 @@ func cleanScopedPath(path string) string {
 }
 
 // GetRootResourcePath evaluates `path` in the scope of the container's root, with proper path
-// sanitisation. Symlinks are all scoped to the root of the container, as
+// sanitization. Symlinks are all scoped to the root of the container, as
 // though the container's root was `/`.
 //
 // The root of a container is the host-facing configuration metadata directory.

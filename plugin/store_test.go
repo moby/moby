@@ -46,7 +46,7 @@ func TestStoreGetPluginNotMatchCapRefs(t *testing.T) {
 	}
 
 	if _, err := s.Get("test", "volumedriver", plugingetter.Acquire); err == nil {
-		t.Fatal("exepcted error when getting plugin that doesn't match the passed in capability")
+		t.Fatal("expected error when getting plugin that doesn't match the passed in capability")
 	}
 
 	if refs := p.GetRefCount(); refs != 0 {
@@ -55,7 +55,7 @@ func TestStoreGetPluginNotMatchCapRefs(t *testing.T) {
 
 	p.PluginObj.Enabled = true
 	if _, err := s.Get("test", "volumedriver", plugingetter.Acquire); err == nil {
-		t.Fatal("exepcted error when getting plugin that doesn't match the passed in capability")
+		t.Fatal("expected error when getting plugin that doesn't match the passed in capability")
 	}
 
 	if refs := p.GetRefCount(); refs != 0 {

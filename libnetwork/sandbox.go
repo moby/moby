@@ -161,7 +161,7 @@ func (sb *Sandbox) delete(ctx context.Context, force bool) error {
 		if ep.endpointInGWNetwork() && !force {
 			continue
 		}
-		// Retain the sanbdox if we can't obtain the network from store.
+		// Retain the sandbox if we can't obtain the network from store.
 		if _, err := c.getNetworkFromStore(ep.getNetwork().ID()); err != nil {
 			if !c.isSwarmNode() {
 				retain = true

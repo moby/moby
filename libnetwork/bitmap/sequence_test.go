@@ -1109,7 +1109,7 @@ func testSetRollover(t *testing.T, serial bool) {
 			t.Fatalf("Unexpected failure on allocation %d: %v\nSeed: %d\n%s", i, err, seed, hnd)
 		}
 	}
-	// Now requesting to allocate the unallocated random bits (qurter of the number of bits) should
+	// Now requesting to allocate the unallocated random bits (quarter of the number of bits) should
 	// leave no more bits that can be allocated.
 	if hnd.Unselected() != 0 {
 		t.Fatalf("Unexpected number of unselected bits %d, Expected %d", hnd.Unselected(), 0)

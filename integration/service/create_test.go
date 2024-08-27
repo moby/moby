@@ -120,7 +120,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	// we can't just wait on no tasks for the service, counter-intuitively.
 	// Tasks may briefly exist but not show up, if they are in the process
 	// of being deallocated. To avoid this case, we should retry network remove
-	// a few times, to give tasks time to be deallcoated
+	// a few times, to give tasks time to be deallocated
 	poll.WaitOn(t, swarm.NoTasksForService(ctx, client, serviceID2), swarm.ServicePoll)
 
 	for retry := 0; retry < 5; retry++ {
@@ -336,7 +336,7 @@ func TestCreateServiceSysctls(t *testing.T) {
 	client := d.NewClientT(t)
 	defer client.Close()
 
-	// run thie block twice, so that no matter what the default value of
+	// run this block twice, so that no matter what the default value of
 	// net.ipv4.ip_nonlocal_bind is, we can verify that setting the sysctl
 	// options works
 	for _, expected := range []string{"0", "1"} {

@@ -72,7 +72,7 @@ type EndpointRecord struct {
 	Aliases []string `protobuf:"bytes,7,rep,name=aliases,proto3" json:"aliases,omitempty"`
 	// List of aliases task specific aliases
 	TaskAliases []string `protobuf:"bytes,8,rep,name=task_aliases,json=taskAliases,proto3" json:"task_aliases,omitempty"`
-	// Whether this enpoint's service has been disabled
+	// Whether this endpoint's service has been disabled
 	ServiceDisabled bool `protobuf:"varint,9,opt,name=service_disabled,json=serviceDisabled,proto3" json:"service_disabled,omitempty"`
 }
 

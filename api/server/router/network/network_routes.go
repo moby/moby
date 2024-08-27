@@ -75,13 +75,13 @@ func (e invalidRequestError) Error() string {
 
 func (e invalidRequestError) InvalidParameter() {}
 
-type ambigousResultsError string
+type ambiguousResultsError string
 
-func (e ambigousResultsError) Error() string {
+func (e ambiguousResultsError) Error() string {
 	return "network " + string(e) + " is ambiguous"
 }
 
-func (ambigousResultsError) InvalidParameter() {}
+func (ambiguousResultsError) InvalidParameter() {}
 
 func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
@@ -182,7 +182,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		}
 	}
 	if len(listByFullName) > 1 {
-		return errors.Wrapf(ambigousResultsError(term), "%d matches found based on name", len(listByFullName))
+		return errors.Wrapf(ambiguousResultsError(term), "%d matches found based on name", len(listByFullName))
 	}
 
 	// Find based on partial ID, returns true only if no duplicates
@@ -192,7 +192,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		}
 	}
 	if len(listByPartialID) > 1 {
-		return errors.Wrapf(ambigousResultsError(term), "%d matches found based on ID prefix", len(listByPartialID))
+		return errors.Wrapf(ambiguousResultsError(term), "%d matches found based on ID prefix", len(listByPartialID))
 	}
 
 	return libnetwork.ErrNoSuchNetwork(term)

@@ -38,7 +38,7 @@ message EndpointRecord {
 	// List of aliases task specific aliases
 	repeated string task_aliases = 8;
 
-	// Whether this enpoint's service has been disabled
+	// Whether this endpoint's service has been disabled
 	bool service_disabled = 9;
 }
 

@@ -34,7 +34,7 @@ func newCDIDeviceDriver(cdiSpecDirs ...string) *deviceDriver {
 		// We create a spec updater that always returns an error.
 		// This error will be returned only when a CDI device is requested.
 		// This ensures that daemon startup is not blocked by a CDI registry initialization failure or being disabled
-		// by configuratrion.
+		// by configuration.
 		errorOnUpdateSpec := func(s *specs.Spec, dev *deviceInstance) error {
 			return fmt.Errorf("CDI device injection failed: %w", err)
 		}
