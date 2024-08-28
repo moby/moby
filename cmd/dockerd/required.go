@@ -14,7 +14,7 @@ func NoArgs(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmd.HasSubCommands() {
-		return errors.Errorf("\n" + strings.TrimRight(cmd.UsageString(), "\n"))
+		return errors.New("\n" + strings.TrimRight(cmd.UsageString(), "\n"))
 	}
 
 	return errors.Errorf(
