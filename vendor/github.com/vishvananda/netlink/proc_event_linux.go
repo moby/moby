@@ -63,15 +63,6 @@ type ExitProcEvent struct {
 	ParentTgid  uint32
 }
 
-type ExitProcEvent2 struct {
-	ProcessPid  uint32
-	ProcessTgid uint32
-	ExitCode    uint32
-	ExitSignal  uint32
-	ParentPid   uint32
-	ParentTgid  uint32
-}
-
 func (e *ExitProcEvent) Pid() uint32 {
 	return e.ProcessPid
 }

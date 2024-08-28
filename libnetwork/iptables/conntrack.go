@@ -75,13 +75,13 @@ func DeleteConntrackEntriesByPort(nlh *netlink.Handle, proto types.Protocol, por
 			continue
 		}
 
-		v4FlowPurged, err := nlh.ConntrackDeleteFilter(netlink.ConntrackTable, syscall.AF_INET, filter)
+		v4FlowPurged, err := nlh.ConntrackDeleteFilters(netlink.ConntrackTable, syscall.AF_INET, filter)
 		if err != nil {
 			log.G(context.TODO()).Warnf("Failed to delete conntrack state for IPv4 %s port %d: %v", proto.String(), port, err)
 		}
 		totalIPv4FlowPurged += v4FlowPurged
 
-		v6FlowPurged, err := nlh.ConntrackDeleteFilter(netlink.ConntrackTable, syscall.AF_INET6, filter)
+		v6FlowPurged, err := nlh.ConntrackDeleteFilters(netlink.ConntrackTable, syscall.AF_INET6, filter)
 		if err != nil {
 			log.G(context.TODO()).Warnf("Failed to delete conntrack state for IPv6 %s port %d: %v", proto.String(), port, err)
 		}
@@ -102,5 +102,5 @@ func purgeConntrackState(nlh *netlink.Handle, family netlink.InetFamily, ipAddre
 	if err := filter.AddIP(netlink.ConntrackNatAnyIP, ipAddress); err != nil {
 		return 0, err
 	}
-	return nlh.ConntrackDeleteFilter(netlink.ConntrackTable, family, filter)
+	return nlh.ConntrackDeleteFilters(netlink.ConntrackTable, family, filter)
 }
