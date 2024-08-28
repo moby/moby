@@ -27,25 +27,25 @@ func parseChownFlag(ctx context.Context, builder *Builder, state *dispatchState,
 
 	passwdPath, err := symlink.FollowSymlinkInScope(filepath.Join(ctrRootPath, "etc", "passwd"), ctrRootPath)
 	if err != nil {
-		return idtools.Identity{}, errors.Wrapf(err, "can't resolve /etc/passwd path in container rootfs")
+		return idtools.Identity{}, errors.Wrap(err, "can't resolve /etc/passwd path in container rootfs")
 	}
 	groupPath, err := symlink.FollowSymlinkInScope(filepath.Join(ctrRootPath, "etc", "group"), ctrRootPath)
 	if err != nil {
-		return idtools.Identity{}, errors.Wrapf(err, "can't resolve /etc/group path in container rootfs")
+		return idtools.Identity{}, errors.Wrap(err, "can't resolve /etc/group path in container rootfs")
 	}
 	uid, err := lookupUser(userStr, passwdPath)
 	if err != nil {
-		return idtools.Identity{}, errors.Wrapf(err, "can't find uid for user "+userStr)
+		return idtools.Identity{}, errors.Wrap(err, "can't find uid for user "+userStr)
 	}
 	gid, err := lookupGroup(grpStr, groupPath)
 	if err != nil {
-		return idtools.Identity{}, errors.Wrapf(err, "can't find gid for group "+grpStr)
+		return idtools.Identity{}, errors.Wrap(err, "can't find gid for group "+grpStr)
 	}
 
 	// convert as necessary because of user namespaces
 	chownPair, err := identityMapping.ToHost(idtools.Identity{UID: uid, GID: gid})
 	if err != nil {
-		return idtools.Identity{}, errors.Wrapf(err, "unable to convert uid/gid to host mapping")
+		return idtools.Identity{}, errors.Wrap(err, "unable to convert uid/gid to host mapping")
 	}
 	return chownPair, nil
 }

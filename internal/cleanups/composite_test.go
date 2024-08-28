@@ -43,7 +43,7 @@ func TestCall(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, errZ.Error()))
 	assert.Check(t, is.ErrorContains(err, "something happened: "+err2.Error()))
 
-	t.Logf(err.Error())
+	t.Log(err)
 	assert.Assert(t, is.Len(errs, 3))
 
 	// Cleanups executed in reverse order.

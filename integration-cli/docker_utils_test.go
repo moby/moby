@@ -440,7 +440,7 @@ func pollCheck(t *testing.T, f checkF, compare func(x interface{}) assert.BoolOr
 		default:
 			panic(fmt.Errorf("pollCheck: type %T not implemented", r))
 		}
-		return poll.Continue(comment)
+		return poll.Continue("%v", comment)
 	}
 }
 

@@ -1051,7 +1051,7 @@ func (c *Controller) loadDriver(networkType string) error {
 
 	if err != nil {
 		if errors.Cause(err) == plugins.ErrNotFound {
-			return types.NotFoundErrorf(err.Error())
+			return types.NotFoundErrorf("%v", err)
 		}
 		return err
 	}
@@ -1070,7 +1070,7 @@ func (c *Controller) loadIPAMDriver(name string) error {
 
 	if err != nil {
 		if errors.Cause(err) == plugins.ErrNotFound {
-			return types.NotFoundErrorf(err.Error())
+			return types.NotFoundErrorf("%v", err)
 		}
 		return err
 	}

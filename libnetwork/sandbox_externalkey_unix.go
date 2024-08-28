@@ -110,7 +110,7 @@ func processReturn(r io.Reader) error {
 		return fmt.Errorf("failed to read buf in processReturn : %v", err)
 	}
 	if string(buf[0:n]) != success {
-		return fmt.Errorf(string(buf[0:n]))
+		return fmt.Errorf("%s", buf[0:n])
 	}
 	return nil
 }

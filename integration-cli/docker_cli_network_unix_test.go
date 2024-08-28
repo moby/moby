@@ -60,16 +60,18 @@ func (s *DockerNetworkSuite) SetUpSuite(ctx context.Context, c *testing.T) {
 	setupRemoteNetworkDrivers(c, mux, s.server.URL, dummyNetworkDriver, dummyIPAMDriver)
 }
 
-func setupRemoteNetworkDrivers(c *testing.T, mux *http.ServeMux, url, netDrv, ipamDrv string) {
+func setupRemoteNetworkDrivers(t *testing.T, mux *http.ServeMux, url, netDrv, ipamDrv string) {
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		fmt.Fprintf(w, `{"Implements": ["%s", "%s"]}`, driverapi.NetworkPluginEndpointType, ipamapi.PluginEndpointType)
+		_, err := fmt.Fprintf(w, `{"Implements": ["%s", "%s"]}`, driverapi.NetworkPluginEndpointType, ipamapi.PluginEndpointType)
+		assert.NilError(t, err)
 	})
 
 	// Network driver implementation
 	mux.HandleFunc(fmt.Sprintf("/%s.GetCapabilities", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		fmt.Fprintf(w, `{"Scope":"local"}`)
+		_, err := fmt.Fprint(w, `{"Scope":"local"}`)
+		assert.NilError(t, err)
 	})
 
 	mux.HandleFunc(fmt.Sprintf("/%s.CreateNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
@@ -79,17 +81,20 @@ func setupRemoteNetworkDrivers(c *testing.T, mux *http.ServeMux, url, netDrv, ip
 			return
 		}
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		fmt.Fprintf(w, "null")
+		_, err = fmt.Fprint(w, "null")
+		assert.NilError(t, err)
 	})
 
 	mux.HandleFunc(fmt.Sprintf("/%s.DeleteNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		fmt.Fprintf(w, "null")
+		_, err := fmt.Fprint(w, "null")
+		assert.NilError(t, err)
 	})
 
 	mux.HandleFunc(fmt.Sprintf("/%s.CreateEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		fmt.Fprintf(w, `{"Interface":{"MacAddress":"a0:b1:c2:d3:e4:f5"}}`)
+		_, err := fmt.Fprint(w, `{"Interface":{"MacAddress":"a0:b1:c2:d3:e4:f5"}}`)
+		assert.NilError(t, err)
 	})
 
 	mux.HandleFunc(fmt.Sprintf("/%s.Join", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
@@ -99,23 +104,28 @@ func setupRemoteNetworkDrivers(c *testing.T, mux *http.ServeMux, url, netDrv, ip
 			LinkAttrs: netlink.LinkAttrs{Name: "randomIfName", TxQLen: 0}, PeerName: "cnt0",
 		}
 		if err := netlink.LinkAdd(veth); err != nil {
-			fmt.Fprintf(w, `{"Error":"failed to add veth pair: `+err.Error()+`"}`)
+			_, err = fmt.Fprintf(w, `{"Error":"failed to add veth pair: %v"}`, err)
+			assert.NilError(t, err)
 		} else {
-			fmt.Fprintf(w, `{"InterfaceName":{ "SrcName":"cnt0", "DstPrefix":"veth"}}`)
+			_, err = fmt.Fprint(w, `{"InterfaceName":{ "SrcName":"cnt0", "DstPrefix":"veth"}}`)
+			assert.NilError(t, err)
 		}
 	})
 
 	mux.HandleFunc(fmt.Sprintf("/%s.Leave", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		fmt.Fprintf(w, "null")
+		_, err := fmt.Fprint(w, "null")
+		assert.NilError(t, err)
 	})
 
 	mux.HandleFunc(fmt.Sprintf("/%s.DeleteEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		if link, err := netlink.LinkByName("cnt0"); err == nil {
-			netlink.LinkDel(link)
+			err = netlink.LinkDel(link)
+			assert.NilError(t, err)
 		}
-		fmt.Fprintf(w, "null")
+		_, err := fmt.Fprint(w, "null")
+		assert.NilError(t, err)
 	})
 
 	// IPAM Driver implementation
@@ -124,16 +134,19 @@ func setupRemoteNetworkDrivers(c *testing.T, mux *http.ServeMux, url, netDrv, ip
 		poolReleaseReq    remoteipam.ReleasePoolRequest
 		addressRequest    remoteipam.RequestAddressRequest
 		addressReleaseReq remoteipam.ReleaseAddressRequest
-		lAS               = "localAS"
-		gAS               = "globalAS"
-		pool              = "172.28.0.0/16"
-		poolID            = lAS + "/" + pool
-		gw                = "172.28.255.254/16"
+	)
+	const (
+		lAS    = "localAS"
+		gAS    = "globalAS"
+		pool   = "172.28.0.0/16"
+		poolID = lAS + "/" + pool
+		gw     = "172.28.255.254/16"
 	)
 
 	mux.HandleFunc(fmt.Sprintf("/%s.GetDefaultAddressSpaces", ipamapi.PluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		fmt.Fprintf(w, `{"LocalDefaultAddressSpace":"`+lAS+`", "GlobalDefaultAddressSpace": "`+gAS+`"}`)
+		_, err := fmt.Fprint(w, `{"LocalDefaultAddressSpace":"`+lAS+`", "GlobalDefaultAddressSpace": "`+gAS+`"}`)
+		assert.NilError(t, err)
 	})
 
 	mux.HandleFunc(fmt.Sprintf("/%s.RequestPool", ipamapi.PluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
@@ -144,11 +157,14 @@ func setupRemoteNetworkDrivers(c *testing.T, mux *http.ServeMux, url, netDrv, ip
 		}
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		if poolRequest.AddressSpace != lAS && poolRequest.AddressSpace != gAS {
-			fmt.Fprintf(w, `{"Error":"Unknown address space in pool request: `+poolRequest.AddressSpace+`"}`)
+			_, err := fmt.Fprint(w, `{"Error":"Unknown address space in pool request: `+poolRequest.AddressSpace+`"}`)
+			assert.NilError(t, err)
 		} else if poolRequest.Pool != "" && poolRequest.Pool != pool {
-			fmt.Fprintf(w, `{"Error":"Cannot handle explicit pool requests yet"}`)
+			_, err := fmt.Fprint(w, `{"Error":"Cannot handle explicit pool requests yet"}`)
+			assert.NilError(t, err)
 		} else {
-			fmt.Fprintf(w, `{"PoolID":"`+poolID+`", "Pool":"`+pool+`"}`)
+			_, err := fmt.Fprint(w, `{"PoolID":"`+poolID+`", "Pool":"`+pool+`"}`)
+			assert.NilError(t, err)
 		}
 	})
 
@@ -161,11 +177,14 @@ func setupRemoteNetworkDrivers(c *testing.T, mux *http.ServeMux, url, netDrv, ip
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		// make sure libnetwork is now querying on the expected pool id
 		if addressRequest.PoolID != poolID {
-			fmt.Fprintf(w, `{"Error":"unknown pool id"}`)
+			_, err := fmt.Fprint(w, `{"Error":"unknown pool id"}`)
+			assert.NilError(t, err)
 		} else if addressRequest.Address != "" {
-			fmt.Fprintf(w, `{"Error":"Cannot handle explicit address requests yet"}`)
+			_, err := fmt.Fprint(w, `{"Error":"Cannot handle explicit address requests yet"}`)
+			assert.NilError(t, err)
 		} else {
-			fmt.Fprintf(w, `{"Address":"`+gw+`"}`)
+			_, err := fmt.Fprint(w, `{"Address":"`+gw+`"}`)
+			assert.NilError(t, err)
 		}
 	})
 
@@ -178,11 +197,14 @@ func setupRemoteNetworkDrivers(c *testing.T, mux *http.ServeMux, url, netDrv, ip
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		// make sure libnetwork is now asking to release the expected address from the expected poolid
 		if addressRequest.PoolID != poolID {
-			fmt.Fprintf(w, `{"Error":"unknown pool id"}`)
+			_, err := fmt.Fprint(w, `{"Error":"unknown pool id"}`)
+			assert.NilError(t, err)
 		} else if addressReleaseReq.Address != gw {
-			fmt.Fprintf(w, `{"Error":"unknown address"}`)
+			_, err := fmt.Fprint(w, `{"Error":"unknown address"}`)
+			assert.NilError(t, err)
 		} else {
-			fmt.Fprintf(w, "null")
+			_, err := fmt.Fprint(w, "null")
+			assert.NilError(t, err)
 		}
 	})
 
@@ -195,22 +217,24 @@ func setupRemoteNetworkDrivers(c *testing.T, mux *http.ServeMux, url, netDrv, ip
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		// make sure libnetwork is now asking to release the expected poolid
 		if addressRequest.PoolID != poolID {
-			fmt.Fprintf(w, `{"Error":"unknown pool id"}`)
+			_, err := fmt.Fprint(w, `{"Error":"unknown pool id"}`)
+			assert.NilError(t, err)
 		} else {
-			fmt.Fprintf(w, "null")
+			_, err := fmt.Fprint(w, "null")
+			assert.NilError(t, err)
 		}
 	})
 
 	err := os.MkdirAll("/etc/docker/plugins", 0o755)
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 
 	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", netDrv)
 	err = os.WriteFile(fileName, []byte(url), 0o644)
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 
 	ipamFileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", ipamDrv)
 	err = os.WriteFile(ipamFileName, []byte(url), 0o644)
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 }
 
 func (s *DockerNetworkSuite) TearDownSuite(ctx context.Context, c *testing.T) {
@@ -509,9 +533,9 @@ func (s *DockerCLINetworkSuite) TestDockerInspectNetworkWithContainerName(c *tes
 	err := json.Unmarshal([]byte(out), &networkResources)
 	assert.NilError(c, err)
 	assert.Equal(c, len(networkResources), 1)
-	container, ok := networkResources[0].Containers[containerID]
+	ctr, ok := networkResources[0].Containers[containerID]
 	assert.Assert(c, ok)
-	assert.Equal(c, container.Name, "testNetInspect1")
+	assert.Equal(c, ctr.Name, "testNetInspect1")
 
 	// rename container and check docker inspect output update
 	newName := "HappyNewName"
@@ -826,12 +850,12 @@ func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *
 	assert.NilError(c, err)
 	assert.Equal(c, hosts, hostsPost, fmt.Sprintf("Unexpected %s change on second container creation", hostsFile))
 	// but discovery is on when connecting to non default bridge network
-	network := "anotherbridge"
-	out, err = s.d.Cmd("network", "create", network)
+	nw := "anotherbridge"
+	out, err = s.d.Cmd("network", "create", nw)
 	assert.NilError(c, err, out)
-	defer s.d.Cmd("network", "rm", network)
+	defer s.d.Cmd("network", "rm", nw)
 
-	out, err = s.d.Cmd("network", "connect", network, cid1)
+	out, err = s.d.Cmd("network", "connect", nw, cid1)
 	assert.NilError(c, err, out)
 
 	hosts, err = s.d.Cmd("exec", cid1, "cat", hostsFile)
@@ -898,15 +922,15 @@ func (s *DockerNetworkSuite) TestDockerNetworkLinkOnDefaultNetworkOnly(c *testin
 	// Legacy Link feature must work only on default network, and not across networks
 	cnt1 := "container1"
 	cnt2 := "container2"
-	network := "anotherbridge"
+	nw := "anotherbridge"
 
 	// Run first container on default network
 	cli.DockerCmd(c, "run", "-d", "--name", cnt1, "busybox", "top")
 
 	// Create another network and run the second container on it
-	cli.DockerCmd(c, "network", "create", network)
-	assertNwIsAvailable(c, network)
-	cli.DockerCmd(c, "run", "-d", "--net", network, "--name", cnt2, "busybox", "top")
+	cli.DockerCmd(c, "network", "create", nw)
+	assertNwIsAvailable(c, nw)
+	cli.DockerCmd(c, "run", "-d", "--net", nw, "--name", cnt2, "busybox", "top")
 
 	// Try launching a container on default network, linking to the first container. Must succeed
 	cli.DockerCmd(c, "run", "-d", "--link", fmt.Sprintf("%s:%s", cnt1, cnt1), "busybox", "top")
@@ -1727,12 +1751,12 @@ func (s *DockerNetworkSuite) TestDockerNetworkValidateIP(c *testing.T) {
 // Test case for 26220
 func (s *DockerNetworkSuite) TestDockerNetworkDisconnectFromBridge(c *testing.T) {
 	out := cli.DockerCmd(c, "network", "inspect", "--format", "{{.Id}}", "bridge").Stdout()
-	network := strings.TrimSpace(out)
+	nw := strings.TrimSpace(out)
 
 	name := "test"
 	cli.DockerCmd(c, "create", "--name", name, "busybox", "top")
 
-	_, _, err := dockerCmdWithError("network", "disconnect", network, name)
+	_, _, err := dockerCmdWithError("network", "disconnect", nw, name)
 	assert.NilError(c, err)
 }
 

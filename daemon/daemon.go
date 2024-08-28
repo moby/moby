@@ -939,7 +939,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	// ensureDefaultAppArmorProfile does nothing if apparmor is disabled
 	if err := ensureDefaultAppArmorProfile(); err != nil {
-		log.G(ctx).Errorf(err.Error())
+		log.G(ctx).WithError(err).Error("Failed to ensure default apparmor profile is loaded")
 	}
 
 	daemonRepo := filepath.Join(cfgStore.Root, "containers")

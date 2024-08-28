@@ -4,18 +4,14 @@ package libnetwork
 
 import (
 	"context"
-	"runtime"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 func TestDNSOptions(t *testing.T) {
-	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
-
 	c, err := New(OptionBoltdbWithRandomDBFile(t))
 	assert.NilError(t, err)
 
