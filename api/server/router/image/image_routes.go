@@ -95,7 +95,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		}
 
 		if err := validateRepoName(ref); err != nil {
-			return err
+			return errdefs.Forbidden(err)
 		}
 
 		// For a pull it is not an error if no auth was given. Ignore invalid
@@ -287,7 +287,7 @@ func (ir *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, 
 	name := vars["name"]
 
 	if strings.TrimSpace(name) == "" {
-		return errdefs.InvalidParameter(missingImageError{})
+		return missingImageError{}
 	}
 
 	force := httputils.BoolValue(r, "force")
@@ -340,7 +340,7 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 
 	imageFilters, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return err
 	}
 
 	version := httputils.VersionFromContext(ctx)
@@ -448,7 +448,7 @@ func (ir *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWrite
 	}
 	searchFilters, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return err
 	}
 
 	// For a search it is not an error if no auth was given. Ignore invalid
