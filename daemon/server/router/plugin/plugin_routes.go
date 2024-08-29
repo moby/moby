@@ -71,7 +71,7 @@ func (pr *pluginRouter) getPrivileges(ctx context.Context, w http.ResponseWriter
 
 	ref, _, err := parseRemoteRef(r.FormValue("remote"))
 	if err != nil {
-		return err
+		return errdefs.InvalidParameter(err)
 	}
 
 	privileges, err := pr.backend.Privileges(ctx, ref, metaHeaders, authConfig)
