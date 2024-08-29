@@ -413,7 +413,7 @@ func TestAddPortMappings(t *testing.T) {
 	ctrIP4 := newIPNet(t, "172.19.0.2/16")
 	ctrIP4Mapped := newIPNet(t, "::ffff:172.19.0.2/112")
 	ctrIP6 := newIPNet(t, "fdf8:b88e:bb5c:3483::2/64")
-	firstEphemPort := uint16(portallocator.Get().Begin)
+	firstEphemPort, _ := portallocator.GetPortRange()
 
 	testcases := []struct {
 		name         string
@@ -876,8 +876,7 @@ func TestAddPortMappings(t *testing.T) {
 				return net.ParseIP("127.0.0.1")
 			}
 
-			err = portallocator.Get().ReleaseAll()
-			assert.NilError(t, err)
+			portallocator.Get().ReleaseAll()
 
 			pbs, err := n.addPortMappings(tc.epAddrV4, tc.epAddrV6, tc.cfg, tc.defHostIP)
 			if tc.expErr != "" {
