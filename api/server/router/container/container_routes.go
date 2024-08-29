@@ -94,7 +94,7 @@ func (s *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 	if tmpLimit := r.Form.Get("limit"); tmpLimit != "" {
 		limit, err := strconv.Atoi(tmpLimit)
 		if err != nil {
-			return err
+			return errdefs.InvalidParameter(err)
 		}
 		config.Limit = limit
 	}
@@ -239,7 +239,7 @@ func (s *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 	if tmpSeconds := r.Form.Get("t"); tmpSeconds != "" {
 		valSeconds, err := strconv.Atoi(tmpSeconds)
 		if err != nil {
-			return err
+			return errdefs.InvalidParameter(err)
 		}
 		options.Timeout = &valSeconds
 	}

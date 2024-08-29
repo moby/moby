@@ -7931,6 +7931,10 @@ paths:
           description: "no error"
         304:
           description: "container already stopped"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such container"
           schema:
@@ -9926,6 +9930,10 @@ paths:
           schema:
             type: "string"
             format: "binary"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
           schema:
@@ -9960,6 +9968,10 @@ paths:
           schema:
             type: "string"
             format: "binary"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse" 
         500:
           description: "server error"
           schema:
@@ -10953,6 +10965,10 @@ paths:
                 Description: ""
                 Value:
                   - "/dev/cpu_dma_latency"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
           schema:
@@ -11096,6 +11112,10 @@ paths:
       responses:
         200:
           description: "no error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "plugin is not installed"
           schema:
@@ -12107,6 +12127,10 @@ paths:
           schema:
             type: "string"
             format: "binary"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such service"
           schema:
@@ -12364,6 +12388,10 @@ paths:
           schema:
             type: "string"
             format: "binary"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such task"
           schema:

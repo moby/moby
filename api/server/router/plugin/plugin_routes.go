@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/pkg/errors"
@@ -69,7 +70,7 @@ func (pr *pluginRouter) getPrivileges(ctx context.Context, w http.ResponseWriter
 
 	ref, _, err := parseRemoteRef(r.FormValue("remote"))
 	if err != nil {
-		return err
+		return errdefs.InvalidParameter(err)
 	}
 
 	privileges, err := pr.backend.Privileges(ctx, ref, metaHeaders, authConfig)
@@ -206,7 +207,7 @@ func (pr *pluginRouter) enablePlugin(ctx context.Context, w http.ResponseWriter,
 	name := vars["name"]
 	timeout, err := strconv.Atoi(r.Form.Get("timeout"))
 	if err != nil {
-		return err
+		return errdefs.InvalidParameter(err)
 	}
 	config := &backend.PluginEnableConfig{Timeout: timeout}
 
