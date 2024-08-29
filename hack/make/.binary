@@ -80,6 +80,10 @@ source "${MAKEDIR}/.go-autogen"
 		# we can set the correct option manually.
 		CGO_CFLAGS+=" -Wno-atomic-alignment"
 		export CGO_CFLAGS
+
+		# Make sure libatomic is included on arm/v5, because clang does not auto-link it.
+		# see https://github.com/moby/moby/pull/46982#issuecomment-2206992611
+		export CGO_LDFLAGS="-latomic"
 	fi
 
 	echo "Building $([ "$DOCKER_STATIC" = "1" ] && echo "static" || echo "dynamic") $DEST/$BINARY_FULLNAME ($PLATFORM_NAME)..."
