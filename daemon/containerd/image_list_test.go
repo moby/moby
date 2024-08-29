@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"testing"
@@ -206,6 +207,9 @@ func TestImageList(t *testing.T) {
 	configTarget, err := specialimage.ConfigTarget(blobsDir)
 	assert.NilError(t, err)
 
+	textplain, err := specialimage.TextPlain(blobsDir)
+	assert.NilError(t, err)
+
 	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
 
 	for _, tc := range []struct {
@@ -276,17 +280,34 @@ func TestImageList(t *testing.T) {
 			name:   "three images, one is an empty index",
 			images: imagesFromIndex(multilayer, emptyIndex, twoplatform),
 			check: func(t *testing.T, all []*imagetypes.Summary) {
-				assert.Check(t, is.Len(all, 2))
+				assert.Check(t, is.Len(all, 3))
 			},
 		},
 		{
-			// Make sure an invalid image target doesn't break the whole operation
 			name:   "one good image, second has config as a target",
 			images: imagesFromIndex(multilayer, configTarget),
 			check: func(t *testing.T, all []*imagetypes.Summary) {
-				assert.Check(t, is.Len(all, 1))
+				assert.Check(t, is.Len(all, 2))
+
+				sort.Slice(all, func(i, j int) bool {
+					return slices.Contains(all[i].RepoTags, "multilayer:latest")
+				})
 
 				assert.Check(t, is.Equal(all[0].ID, multilayer.Manifests[0].Digest.String()))
+				assert.Check(t, is.Len(all[0].Manifests, 1))
+
+				assert.Check(t, is.Equal(all[1].ID, configTarget.Manifests[0].Digest.String()))
+				assert.Check(t, is.Len(all[1].Manifests, 0))
+			},
+		},
+		{
+			name:   "a non-container image manifest",
+			images: imagesFromIndex(textplain),
+			check: func(t *testing.T, all []*imagetypes.Summary) {
+				assert.Check(t, is.Len(all, 1))
+				assert.Check(t, is.Equal(all[0].ID, textplain.Manifests[0].Digest.String()))
+
+				assert.Assert(t, is.Len(all[0].Manifests, 0))
 			},
 		},
 	} {

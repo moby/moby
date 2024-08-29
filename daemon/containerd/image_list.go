@@ -381,17 +381,25 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 				"error": err,
 				"image": img.Name,
 			}).Warn("unexpected image target (neither a manifest nor index)")
-			return nil, nil, nil
+		} else {
+			return nil, nil, err
 		}
-		return nil, nil, err
 	}
 
 	if best == nil {
-		// TODO we should probably show *something* for images we've pulled
-		// but are 100% shallow or an empty manifest list/index
-		// ("tianon/scratch:index" is an empty example image index and
-		// "tianon/scratch:list" is an empty example manifest list)
-		return nil, nil, nil
+		target := img.Target
+		return &imagetypes.Summary{
+			ID:          target.Digest.String(),
+			RepoDigests: []string{target.Digest.String()},
+			RepoTags:    tagsByDigest[target.Digest],
+			Size:        totalSize,
+			// -1 indicates that the value has not been set (avoids ambiguity
+			// between 0 (default) and "not set". We cannot use a pointer (nil)
+			// for this, as the JSON representation uses "omitempty", which would
+			// consider both "0" and "nil" to be "empty".
+			SharedSize: -1,
+			Containers: -1,
+		}, nil, nil
 	}
 
 	image, err := i.singlePlatformImage(ctx, i.content, tagsByDigest[best.RealTarget.Digest], best)
