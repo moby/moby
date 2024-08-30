@@ -40,6 +40,7 @@ func TestNetworkNat(t *testing.T) {
 
 func TestNetworkLocalhostTCPNat(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.GitHubActions, "FIXME: https://github.com/moby/moby/issues/41561")
 
 	ctx := setupTest(t)
 
