@@ -9930,10 +9930,6 @@ paths:
           schema:
             type: "string"
             format: "binary"
-        400:
-          description: "bad parameter"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
           schema:
@@ -9968,10 +9964,6 @@ paths:
           schema:
             type: "string"
             format: "binary"
-        400:
-          description: "bad parameter"
-          schema:
-            $ref: "#/definitions/ErrorResponse" 
         500:
           description: "server error"
           schema:
