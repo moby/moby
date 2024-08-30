@@ -95,7 +95,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		}
 
 		if err := validateRepoName(ref); err != nil {
-			return errdefs.Forbidden(err)
+			return err
 		}
 
 		// For a pull it is not an error if no auth was given. Ignore invalid
@@ -273,7 +273,7 @@ func (ir *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, 
 
 	if err := ir.backend.ExportImage(ctx, names, platformList, output); err != nil {
 		if !output.Flushed() {
-			return errdefs.InvalidParameter(err)
+			return err
 		}
 		_, _ = output.Write(streamformatter.FormatError(err))
 	}
@@ -665,7 +665,7 @@ const noBaseImageSpecifier = "scratch"
 func validateRepoName(name reference.Named) error {
 	familiarName := reference.FamiliarName(name)
 	if familiarName == noBaseImageSpecifier {
-		return fmt.Errorf("'%s' is a reserved name", familiarName)
+		return errdefs.InvalidParameter(fmt.Errorf("'%s' is a reserved name", familiarName))
 	}
 	return nil
 }

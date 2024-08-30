@@ -52,7 +52,7 @@ func parseRemoteRef(remote string) (reference.Named, string, error) {
 	if canonical, ok := remoteRef.(canonicalWithTag); ok {
 		remoteRef, err = reference.WithDigest(reference.TrimNamed(remoteRef), canonical.Digest())
 		if err != nil {
-			return nil, "", err
+			return nil, "", errdefs.InvalidParameter(err)
 		}
 		return remoteRef, canonical.Tag(), nil
 	}
@@ -71,7 +71,7 @@ func (pr *pluginRouter) getPrivileges(ctx context.Context, w http.ResponseWriter
 
 	ref, _, err := parseRemoteRef(r.FormValue("remote"))
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return err
 	}
 
 	privileges, err := pr.backend.Privileges(ctx, ref, metaHeaders, authConfig)
