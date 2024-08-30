@@ -10,11 +10,12 @@ import (
 type SearchOptions struct {
 	RegistryAuth string
 
-	// PrivilegeFunc is a [types.RequestPrivilegeFunc] the client can
-	// supply to retry operations after getting an authorization error.
+	// PrivilegeFunc is a function that clients can supply to retry operations
+	// after getting an authorization error. This function returns the registry
+	// authentication header value in base64 encoded format, or an error if the
+	// privilege request fails.
 	//
-	// It must return the registry authentication header value in base64
-	// format, or an error if the privilege request fails.
+	// For details, refer to [github.com/docker/docker/api/types/registry.RequestAuthConfig].
 	PrivilegeFunc func(context.Context) (string, error)
 	Filters       filters.Args
 	Limit         int
