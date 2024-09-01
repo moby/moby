@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
@@ -263,7 +262,7 @@ func TestAPIImagesListManifests(t *testing.T) {
 
 	t.Run("unsupported before 1.47", func(t *testing.T) {
 		// TODO: Remove when MinSupportedAPIVersion >= 1.47
-		c := d.NewClientT(t, client.WithVersion(api.MinSupportedAPIVersion))
+		c := d.NewClientT(t, client.WithVersion(versions.Min))
 
 		images, err := c.ImageList(ctx, image.ListOptions{Manifests: true})
 		assert.NilError(t, err)

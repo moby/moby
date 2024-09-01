@@ -8,17 +8,16 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"gotest.tools/v3/assert"
-
-	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume/service/opts"
+	"gotest.tools/v3/assert"
 )
 
 func callGetVolume(v *volumeRouter, name string) (*httptest.ResponseRecorder, error) {
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	vars := map[string]string{"name": name}
 	req := httptest.NewRequest("GET", fmt.Sprintf("/volumes/%s", name), nil)
 	resp := httptest.NewRecorder()
@@ -28,7 +27,7 @@ func callGetVolume(v *volumeRouter, name string) (*httptest.ResponseRecorder, er
 }
 
 func callListVolumes(v *volumeRouter) (*httptest.ResponseRecorder, error) {
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	vars := map[string]string{}
 	req := httptest.NewRequest("GET", "/volumes", nil)
 	resp := httptest.NewRecorder()
@@ -192,7 +191,7 @@ func TestCreateRegularVolume(t *testing.T) {
 	e := json.NewEncoder(&buf)
 	e.Encode(volumeCreate)
 
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	req := httptest.NewRequest("POST", "/volumes/create", &buf)
 	req.Header.Add("Content-Type", "application/json")
 
@@ -230,7 +229,7 @@ func TestCreateSwarmVolumeNoSwarm(t *testing.T) {
 	buf := bytes.Buffer{}
 	json.NewEncoder(&buf).Encode(volumeCreate)
 
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	req := httptest.NewRequest("POST", "/volumes/create", &buf)
 	req.Header.Add("Content-Type", "application/json")
 
@@ -259,7 +258,7 @@ func TestCreateSwarmVolumeNotManager(t *testing.T) {
 	buf := bytes.Buffer{}
 	json.NewEncoder(&buf).Encode(volumeCreate)
 
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	req := httptest.NewRequest("POST", "/volumes/create", &buf)
 	req.Header.Add("Content-Type", "application/json")
 
@@ -291,7 +290,7 @@ func TestCreateVolumeCluster(t *testing.T) {
 	buf := bytes.Buffer{}
 	json.NewEncoder(&buf).Encode(volumeCreate)
 
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	req := httptest.NewRequest("POST", "/volumes/create", &buf)
 	req.Header.Add("Content-Type", "application/json")
 
@@ -337,7 +336,7 @@ func TestUpdateVolume(t *testing.T) {
 
 	buf := bytes.Buffer{}
 	json.NewEncoder(&buf).Encode(volumeUpdate)
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	req := httptest.NewRequest("POST", "/volumes/vol1/update?version=0", &buf)
 	req.Header.Add("Content-Type", "application/json")
 
@@ -364,7 +363,7 @@ func TestUpdateVolumeNoSwarm(t *testing.T) {
 
 	buf := bytes.Buffer{}
 	json.NewEncoder(&buf).Encode(volumeUpdate)
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	req := httptest.NewRequest("POST", "/volumes/vol1/update?version=0", &buf)
 	req.Header.Add("Content-Type", "application/json")
 
@@ -394,7 +393,7 @@ func TestUpdateVolumeNotFound(t *testing.T) {
 
 	buf := bytes.Buffer{}
 	json.NewEncoder(&buf).Encode(volumeUpdate)
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	req := httptest.NewRequest("POST", "/volumes/vol1/update?version=0", &buf)
 	req.Header.Add("Content-Type", "application/json")
 
@@ -420,7 +419,7 @@ func TestVolumeRemove(t *testing.T) {
 		cluster: c,
 	}
 
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	req := httptest.NewRequest("DELETE", "/volumes/vol1", nil)
 	resp := httptest.NewRecorder()
 
@@ -447,7 +446,7 @@ func TestVolumeRemoveSwarm(t *testing.T) {
 		cluster: c,
 	}
 
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	req := httptest.NewRequest("DELETE", "/volumes/vol1", nil)
 	resp := httptest.NewRecorder()
 
@@ -464,7 +463,7 @@ func TestVolumeRemoveNotFoundNoSwarm(t *testing.T) {
 		cluster: c,
 	}
 
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	req := httptest.NewRequest("DELETE", "/volumes/vol1", nil)
 	resp := httptest.NewRecorder()
 
@@ -481,7 +480,7 @@ func TestVolumeRemoveNotFoundNoManager(t *testing.T) {
 		cluster: c,
 	}
 
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	req := httptest.NewRequest("DELETE", "/volumes/vol1", nil)
 	resp := httptest.NewRecorder()
 
@@ -505,7 +504,7 @@ func TestVolumeRemoveFoundNoSwarm(t *testing.T) {
 		cluster: c,
 	}
 
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	req := httptest.NewRequest("DELETE", "/volumes/vol1", nil)
 	resp := httptest.NewRecorder()
 
@@ -528,7 +527,7 @@ func TestVolumeRemoveNoSwarmInUse(t *testing.T) {
 		cluster: c,
 	}
 
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	req := httptest.NewRequest("DELETE", "/volumes/inuse", nil)
 	resp := httptest.NewRecorder()
 
@@ -556,7 +555,7 @@ func TestVolumeRemoveSwarmForce(t *testing.T) {
 		cluster: c,
 	}
 
-	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx := versions.WithVersion(context.Background(), clusterVolumesVersion)
 	req := httptest.NewRequest("DELETE", "/volumes/vol1", nil)
 	resp := httptest.NewRecorder()
 
@@ -565,7 +564,7 @@ func TestVolumeRemoveSwarmForce(t *testing.T) {
 	assert.Assert(t, err != nil)
 	assert.Assert(t, errdefs.IsConflict(err))
 
-	ctx = context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
+	ctx = versions.WithVersion(context.Background(), clusterVolumesVersion)
 	req = httptest.NewRequest("DELETE", "/volumes/vol1?force=1", nil)
 	resp = httptest.NewRecorder()
 

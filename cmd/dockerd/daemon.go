@@ -17,7 +17,6 @@ import (
 	containerddefaults "github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/tracing"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api"
 	apiserver "github.com/docker/docker/api/server"
 	buildbackend "github.com/docker/docker/api/server/backend/build"
 	"github.com/docker/docker/api/server/middleware"
@@ -34,6 +33,7 @@ import (
 	swarmrouter "github.com/docker/docker/api/server/router/swarm"
 	systemrouter "github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
+	"github.com/docker/docker/api/types/versions"
 	buildkit "github.com/docker/docker/builder/builder-next"
 	"github.com/docker/docker/builder/builder-next/exporter"
 	"github.com/docker/docker/builder/dockerfile"
@@ -739,7 +739,7 @@ func initMiddlewares(_ context.Context, s *apiserver.Server, cfg *config.Config,
 	exp := middleware.NewExperimentalMiddleware(cfg.Experimental)
 	s.UseMiddleware(exp)
 
-	vm, err := middleware.NewVersionMiddleware(dockerversion.Version, api.DefaultVersion, cfg.MinAPIVersion)
+	vm, err := middleware.NewVersionMiddleware(dockerversion.Version, versions.Default, versions.Min)
 	if err != nil {
 		return nil, err
 	}

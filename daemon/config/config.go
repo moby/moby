@@ -12,7 +12,6 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
@@ -58,7 +57,7 @@ const (
 	// This version can be overridden through the "DOCKER_MIN_API_VERSION"
 	// environment variable. It currently defaults to the minimum API version
 	// supported by the API server.
-	defaultMinAPIVersion = api.MinSupportedAPIVersion
+	defaultMinAPIVersion = versions.Min
 	// SeccompProfileDefault is the built-in default seccomp profile.
 	SeccompProfileDefault = "builtin"
 	// SeccompProfileUnconfined is a special profile name for seccomp to use an
@@ -613,8 +612,8 @@ func ValidateMinAPIVersion(ver string) error {
 	if versions.LessThan(ver, defaultMinAPIVersion) {
 		return errors.Errorf(`minimum supported API version is %s: %s`, defaultMinAPIVersion, ver)
 	}
-	if versions.GreaterThan(ver, api.DefaultVersion) {
-		return errors.Errorf(`maximum supported API version is %s: %s`, api.DefaultVersion, ver)
+	if versions.GreaterThan(ver, versions.Default) {
+		return errors.Errorf(`maximum supported API version is %s: %s`, versions.Default, ver)
 	}
 	return nil
 }

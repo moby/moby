@@ -104,7 +104,7 @@ func (s *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 		return err
 	}
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 
 	if versions.LessThan(version, "1.46") {
 		for _, c := range containers {
@@ -126,7 +126,7 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 		w.Header().Set("Content-Type", "application/json")
 	}
 	var oneShot bool
-	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.41") {
+	if versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.41") {
 		oneShot = httputils.BoolValueOrDefault(r, "one-shot", false)
 	}
 
@@ -179,7 +179,7 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	}
 
 	contentType := types.MediaTypeRawStream
-	if !tty && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
+	if !tty && versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.42") {
 		contentType = types.MediaTypeMultiplexedStream
 	}
 	w.Header().Set("Content-Type", contentType)
@@ -231,7 +231,7 @@ func (s *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 
 	var (
 		options container.StopOptions
-		version = httputils.VersionFromContext(ctx)
+		version = versions.FromContext(ctx)
 	)
 	if versions.GreaterThanOrEqualTo(version, "1.42") {
 		options.Signal = r.Form.Get("signal")
@@ -273,7 +273,7 @@ func (s *containerRouter) postContainersRestart(ctx context.Context, w http.Resp
 
 	var (
 		options container.StopOptions
-		version = httputils.VersionFromContext(ctx)
+		version = versions.FromContext(ctx)
 	)
 	if versions.GreaterThanOrEqualTo(version, "1.42") {
 		options.Signal = r.Form.Get("signal")
@@ -325,7 +325,7 @@ func (s *containerRouter) postContainersUnpause(ctx context.Context, w http.Resp
 func (s *containerRouter) postContainersWait(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	// Behavior changed in version 1.30 to handle wait condition and to
 	// return headers immediately.
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	legacyBehaviorPre130 := versions.LessThan(version, "1.30")
 	legacyRemovalWaitPre134 := false
 
@@ -432,11 +432,11 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	if err := httputils.ReadJSON(r, &updateConfig); err != nil {
 		return err
 	}
-	if versions.LessThan(httputils.VersionFromContext(ctx), "1.40") {
+	if versions.LessThan(versions.FromContext(ctx), "1.40") {
 		updateConfig.PidsLimit = nil
 	}
 
-	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
+	if versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.42") {
 		// Ignore KernelMemory removed in API 1.42.
 		updateConfig.KernelMemory = 0
 	}
@@ -509,7 +509,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 	}
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 
 	// When using API 1.24 and under, the client is responsible for removing the container
 	if versions.LessThan(version, "1.25") {
@@ -937,7 +937,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		conn.Write([]byte{})
 
 		if upgrade {
-			if multiplexed && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
+			if multiplexed && versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.42") {
 				contentType = types.MediaTypeMultiplexedStream
 			}
 			// FIXME(thaJeztah): we should not ignore errors here; see https://github.com/moby/moby/pull/48359#discussion_r1725562802
@@ -995,7 +995,7 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 	done := make(chan struct{})
 	started := make(chan struct{})
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 
 	setupStreams := func(multiplexed bool, cancel func()) (io.ReadCloser, io.Writer, io.Writer, error) {
 		wsChan := make(chan *websocket.Conn)

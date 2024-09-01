@@ -53,7 +53,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/go-connections/sockets"
@@ -196,7 +195,7 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 	}
 	c := &Client{
 		host:    DefaultDockerHost,
-		version: api.DefaultVersion,
+		version: versions.Default,
 		client:  client,
 		proto:   hostURL.Scheme,
 		addr:    hostURL.Host,
@@ -372,7 +371,7 @@ func (cli *Client) negotiateAPIVersionPing(pingResponse types.Ping) {
 
 	// if the client is not initialized with a version, start with the latest supported version
 	if cli.version == "" {
-		cli.version = api.DefaultVersion
+		cli.version = versions.Default
 	}
 
 	// if server version is lower than the client version, downgrade
