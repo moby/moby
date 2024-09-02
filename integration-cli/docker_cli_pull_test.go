@@ -208,12 +208,7 @@ func (s *DockerCLIPullSuite) TestPullLinuxImageFailsOnWindows(c *testing.T) {
 	testRequires(c, DaemonIsWindows, Network)
 	_, _, err := dockerCmdWithError("pull", "ubuntu")
 
-	errorMessage := "no matching manifest for windows"
-	if testEnv.UsingSnapshotter() {
-		errorMessage = "no match for platform in manifest"
-	}
-
-	assert.ErrorContains(c, err, errorMessage)
+	assert.ErrorContains(c, err, "no matching manifest for windows")
 }
 
 // Regression test for https://github.com/docker/docker/issues/28892
@@ -221,10 +216,5 @@ func (s *DockerCLIPullSuite) TestPullWindowsImageFailsOnLinux(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Network)
 	_, _, err := dockerCmdWithError("pull", "mcr.microsoft.com/windows/servercore:ltsc2022")
 
-	errorMessage := "no matching manifest for linux"
-	if testEnv.UsingSnapshotter() {
-		errorMessage = "no match for platform in manifest"
-	}
-
-	assert.ErrorContains(c, err, errorMessage)
+	assert.ErrorContains(c, err, "no matching manifest for linux")
 }
