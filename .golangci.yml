@@ -52,6 +52,11 @@ linters-settings:
 
   govet:
     check-shadowing: false
+
+  gosec:
+    excludes:
+      - G115 # FIXME temporarily suppress 'G115: integer overflow conversion': it produces many hits, some of which may be false positives, and need to be looked at; see https://github.com/moby/moby/issues/48358
+
   depguard:
     rules:
       main:
