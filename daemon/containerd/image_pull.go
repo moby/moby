@@ -217,6 +217,18 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 			}
 			return errdefs.NotFound(fmt.Errorf("pull access denied for %s, repository does not exist or may require 'docker login'", reference.FamiliarName(ref)))
 		}
+		if cerrdefs.IsNotFound(err) {
+			// Transform "no match for platform in manifest" error returned by containerd into
+			// the same message as the graphdrivers backend.
+			// The one returned by containerd doesn't contain the platform and is much less informative.
+			if strings.Contains(err.Error(), "platform") {
+				platformStr := platforms.DefaultString()
+				if platform != nil {
+					platformStr = platforms.Format(*platform)
+				}
+				return errdefs.NotFound(fmt.Errorf("no matching manifest for %s in the manifest list entries: %w", platformStr, err))
+			}
+		}
 		return err
 	}
 
