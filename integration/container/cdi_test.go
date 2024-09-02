@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
@@ -16,6 +17,7 @@ import (
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -54,6 +56,7 @@ func TestCreateWithCDIDevices(t *testing.T) {
 	}
 	assert.Check(t, is.DeepEqual(inspect.HostConfig.DeviceRequests, expectedRequests))
 
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, id), poll.WithDelay(100*time.Millisecond))
 	reader, err := apiClient.ContainerLogs(ctx, id, containertypes.LogsOptions{
 		ShowStdout: true,
 	})

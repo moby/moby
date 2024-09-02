@@ -207,7 +207,7 @@ func TestWaitRestartedContainer(t *testing.T) {
 			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
 			containerID := container.Run(ctx, t, cli,
-				container.WithCmd("sh", "-c", "trap 'exit 5' SIGTERM; while true; do sleep 0.1; done"),
+				container.WithCmd("sh", "-c", "trap 'exit 5' SIGTERM; while true; do sleep 0.01; done"),
 			)
 			defer cli.ContainerRemove(ctx, containerID, containertypes.RemoveOptions{Force: true})
 

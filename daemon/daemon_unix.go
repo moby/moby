@@ -945,8 +945,12 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 	// Configure it to use the IPv4 network ranges of the existing bridge
 	// interface if one exists with IPv4 addresses assigned to it.
 
+retry:
 	nwList, nw6List, err := ifaceAddrs(bridgeName)
 	if err != nil {
+		if errors.Is(err, unix.EINTR) {
+			goto retry
+		}
 		return errors.Wrap(err, "list bridge addresses failed")
 	}
 

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -484,6 +485,8 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 			}
 			cID := container.Run(ctx, t, c, container.WithMount(m), container.WithCmd("top"), container.WithRestartPolicy(policy))
 			defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
+
+			poll.WaitOn(t, container.IsInState(ctx, c, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 			// Stop the daemon
 			d.Restart(t, "--live-restore", "--iptables=false", "--ip6tables=false")

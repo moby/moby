@@ -29,7 +29,15 @@ func TestNetworkNat(t *testing.T) {
 	startServerContainer(ctx, t, msg, 8080)
 
 	endpoint := getExternalAddress(t)
-	conn, err := net.Dial("tcp", net.JoinHostPort(endpoint.String(), "8080"))
+	var err error
+	var conn net.Conn
+	for retry := 0; retry < 10; retry++ {
+		conn, err = net.Dial("tcp", net.JoinHostPort(endpoint.String(), "8080"))
+		if err == nil {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
 	assert.NilError(t, err)
 	defer conn.Close()
 
@@ -40,13 +48,23 @@ func TestNetworkNat(t *testing.T) {
 
 func TestNetworkLocalhostTCPNat(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.GitHubActions, "FIXME: https://github.com/moby/moby/issues/41561")
 
 	ctx := setupTest(t)
 
 	msg := "hi yall"
 	startServerContainer(ctx, t, msg, 8081)
 
-	conn, err := net.Dial("tcp", "localhost:8081")
+	var err error
+	var conn net.Conn
+	for retry := 0; retry < 10; retry++ {
+		conn, err = net.Dial("tcp", "localhost:8081")
+		if err == nil {
+			break
+		}
+		// The snapshotter driver can take longer to initialize, for some reason.
+		time.Sleep(1 * time.Second)
+	}
 	assert.NilError(t, err)
 	defer conn.Close()
 
@@ -94,7 +112,7 @@ func startServerContainer(ctx context.Context, t *testing.T, msg string, port in
 	t.Helper()
 	apiClient := testEnv.APIClient()
 
-	return container.Run(ctx, t, apiClient,
+	id := container.Run(ctx, t, apiClient,
 		container.WithName("server-"+t.Name()),
 		container.WithCmd("sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port)),
 		container.WithExposedPorts(fmt.Sprintf("%d/tcp", port)),
@@ -108,6 +126,9 @@ func startServerContainer(ctx context.Context, t *testing.T, msg string, port in
 			}
 		},
 	)
+
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, id, "running"), poll.WithDelay(100*time.Millisecond))
+	return id
 }
 
 // getExternalAddress() returns the external IP-address from eth0. If eth0 has
