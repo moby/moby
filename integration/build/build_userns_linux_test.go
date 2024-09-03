@@ -5,14 +5,11 @@ import (
 	"bytes"
 	"io"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
@@ -115,19 +112,14 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 
 	cid := container.Run(ctx, t, clientNoUserRemap,
 		container.WithImage(imageTag),
-		container.WithCmd("/sbin/getcap", "-n", "/bin/sleep"),
 	)
-	logReader, err := clientNoUserRemap.ContainerLogs(ctx, cid, containertypes.LogsOptions{
-		ShowStdout: true,
-	})
+	res, err := container.Exec(ctx, clientNoUserRemap, cid,
+		[]string{"/sbin/getcap", "-n", "/bin/sleep"})
 	assert.NilError(t, err)
-	defer logReader.Close()
+	assert.Equal(t, "", res.Stderr())
+	assert.Equal(t, 0, res.ExitCode)
 
-	actualStdout := new(bytes.Buffer)
-	actualStderr := io.Discard
-	_, err = stdcopy.StdCopy(actualStdout, actualStderr, logReader)
-	assert.NilError(t, err)
-	if strings.TrimSpace(actualStdout.String()) != "/bin/sleep cap_net_bind_service=eip" {
-		t.Fatalf("run produced invalid output: %q, expected %q", actualStdout.String(), "/bin/sleep cap_net_bind_service=eip")
-	}
+	want := "/bin/sleep cap_net_bind_service=eip"
+	got := res.Stdout()
+	assert.Equal(t, want, got)
 }
