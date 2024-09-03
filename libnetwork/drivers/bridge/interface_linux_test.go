@@ -5,6 +5,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -28,7 +29,7 @@ func addAddr(t *testing.T, link netlink.Link, addr string) {
 
 func prepTestBridge(t *testing.T, nc *networkConfiguration) *bridgeInterface {
 	t.Helper()
-	nh, err := netlink.NewHandle()
+	nh, err := nlwrap.NewHandle()
 	assert.Assert(t, err)
 	i, err := newInterface(nh, nc)
 	assert.Assert(t, err)
@@ -40,7 +41,7 @@ func prepTestBridge(t *testing.T, nc *networkConfiguration) *bridgeInterface {
 func TestInterfaceDefaultName(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	nh, err := netlink.NewHandle()
+	nh, err := nlwrap.NewHandle()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +61,7 @@ func TestAddressesNoInterface(t *testing.T) {
 func TestAddressesEmptyInterface(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	nh, err := netlink.NewHandle()
+	nh, err := nlwrap.NewHandle()
 	assert.NilError(t, err)
 
 	inf, err := newInterface(nh, &networkConfiguration{})

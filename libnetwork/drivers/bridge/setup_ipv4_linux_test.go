@@ -4,11 +4,12 @@ import (
 	"net"
 	"testing"
 
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
 )
 
-func setupTestInterface(t *testing.T, nh *netlink.Handle) (*networkConfiguration, *bridgeInterface) {
+func setupTestInterface(t *testing.T, nh nlwrap.Handle) (*networkConfiguration, *bridgeInterface) {
 	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName,
 	}
@@ -28,7 +29,7 @@ func TestSetupBridgeIPv4Fixed(t *testing.T) {
 		t.Fatalf("Failed to parse bridge IPv4: %v", err)
 	}
 
-	nh, err := netlink.NewHandle()
+	nh, err := nlwrap.NewHandle()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +62,7 @@ func TestSetupBridgeIPv4Fixed(t *testing.T) {
 func TestSetupGatewayIPv4(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	nh, err := netlink.NewHandle()
+	nh, err := nlwrap.NewHandle()
 	if err != nil {
 		t.Fatal(err)
 	}

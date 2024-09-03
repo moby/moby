@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/pkg/errors"
@@ -162,7 +163,7 @@ func (n *Namespace) findDst(srcName string, isBridge bool) string {
 	return ""
 }
 
-func moveLink(ctx context.Context, nlhHost *netlink.Handle, iface netlink.Link, i *Interface, path string) error {
+func moveLink(ctx context.Context, nlhHost nlwrap.Handle, iface netlink.Link, i *Interface, path string) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.moveLink", trace.WithAttributes(
 		attribute.String("ifaceName", i.DstName())))
 	defer span.End()
@@ -340,14 +341,14 @@ func (n *Namespace) RemoveInterface(i *Interface) error {
 	return nil
 }
 
-func (n *Namespace) configureInterface(ctx context.Context, nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func (n *Namespace) configureInterface(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.configureInterface", trace.WithAttributes(
 		attribute.String("ifaceName", iface.Attrs().Name)))
 	defer span.End()
 
 	ifaceName := iface.Attrs().Name
 	ifaceConfigurators := []struct {
-		Fn         func(context.Context, *netlink.Handle, netlink.Link, *Interface) error
+		Fn         func(context.Context, nlwrap.Handle, netlink.Link, *Interface) error
 		ErrMessage string
 	}{
 		{setInterfaceName, fmt.Sprintf("error renaming interface %q to %q", ifaceName, i.DstName())},
@@ -371,7 +372,7 @@ func (n *Namespace) configureInterface(ctx context.Context, nlh *netlink.Handle,
 	return nil
 }
 
-func setInterfaceMaster(ctx context.Context, nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func setInterfaceMaster(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	if i.DstMaster() == "" {
 		return nil
 	}
@@ -386,7 +387,7 @@ func setInterfaceMaster(ctx context.Context, nlh *netlink.Handle, iface netlink.
 	})
 }
 
-func setInterfaceMAC(ctx context.Context, nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func setInterfaceMAC(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	if i.MacAddress() == nil {
 		return nil
 	}
@@ -399,7 +400,7 @@ func setInterfaceMAC(ctx context.Context, nlh *netlink.Handle, iface netlink.Lin
 	return nlh.LinkSetHardwareAddr(iface, i.MacAddress())
 }
 
-func setInterfaceIP(ctx context.Context, nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func setInterfaceIP(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	if i.Address() == nil {
 		return nil
 	}
@@ -416,7 +417,7 @@ func setInterfaceIP(ctx context.Context, nlh *netlink.Handle, iface netlink.Link
 	return nlh.AddrAdd(iface, ipAddr)
 }
 
-func setInterfaceIPv6(ctx context.Context, nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func setInterfaceIPv6(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	addr := i.AddressIPv6()
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.setInterfaceIPv6", trace.WithAttributes(
 		attribute.String("i.SrcName", i.SrcName()),
@@ -443,7 +444,7 @@ func setInterfaceIPv6(ctx context.Context, nlh *netlink.Handle, iface netlink.Li
 	return nlh.AddrAdd(iface, nlAddr)
 }
 
-func setInterfaceLinkLocalIPs(ctx context.Context, nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func setInterfaceLinkLocalIPs(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.setInterfaceLinkLocalIPs", trace.WithAttributes(
 		attribute.String("i.SrcName", i.SrcName()),
 		attribute.String("i.DstName", i.DstName())))
@@ -498,7 +499,7 @@ func (n *Namespace) setSysctls(ctx context.Context, ifName string, sysctls []str
 	return nil
 }
 
-func setInterfaceName(ctx context.Context, nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func setInterfaceName(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.setInterfaceName", trace.WithAttributes(
 		attribute.String("ifaceName", iface.Attrs().Name)))
 	defer span.End()
@@ -506,7 +507,7 @@ func setInterfaceName(ctx context.Context, nlh *netlink.Handle, iface netlink.Li
 	return nlh.LinkSetName(iface, i.DstName())
 }
 
-func setInterfaceRoutes(ctx context.Context, nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func setInterfaceRoutes(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.setInterfaceRoutes", trace.WithAttributes(
 		attribute.String("i.SrcName", i.SrcName()),
 		attribute.String("i.DstName", i.DstName())))
@@ -525,7 +526,7 @@ func setInterfaceRoutes(ctx context.Context, nlh *netlink.Handle, iface netlink.
 	return nil
 }
 
-func checkRouteConflict(nlh *netlink.Handle, address *net.IPNet, family int) error {
+func checkRouteConflict(nlh nlwrap.Handle, address *net.IPNet, family int) error {
 	routes, err := nlh.RouteList(nil, family)
 	if err != nil {
 		return err
