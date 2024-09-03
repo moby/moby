@@ -9,14 +9,18 @@ import (
 	"io/fs"
 	"math"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/containerd/containerd/tracing"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // rotateFileMetadata is a metadata of the gzip header of the compressed log file
@@ -107,16 +111,11 @@ type SizeReaderAt interface {
 	Size() int64
 }
 
-type readAtCloser interface {
-	io.ReaderAt
-	io.Closer
-}
-
 // GetTailReaderFunc is used to truncate a reader to only read as much as is required
 // in order to get the passed in number of log lines.
 // It returns the sectioned reader, the number of lines that the section reader
 // contains, and any error that occurs.
-type GetTailReaderFunc func(ctx context.Context, f SizeReaderAt, nLogLines int) (rdr io.Reader, nLines int, err error)
+type GetTailReaderFunc func(ctx context.Context, f SizeReaderAt, nLogLines int) (rdr SizeReaderAt, nLines int, err error)
 
 // NewLogFile creates new LogFile
 func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, decodeFunc MakeDecoderFn, perms os.FileMode, getTailReader GetTailReaderFunc) (*LogFile, error) {
@@ -377,7 +376,12 @@ func (w *LogFile) Close() error {
 // ReadLogs decodes entries from log files.
 //
 // It is the caller's responsibility to call ConsumerGone on the LogWatcher.
-func (w *LogFile) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
+func (w *LogFile) ReadLogs(ctx context.Context, config logger.ReadConfig) *logger.LogWatcher {
+	ctx, span := tracing.StartSpan(ctx, "logger.LogFile.ReadLogs")
+	defer span.End()
+
+	span.SetAttributes(tracing.Attribute("config", config))
+
 	watcher := logger.NewLogWatcher()
 	// Lock out filesystem operations so that we can capture the read
 	// position and atomically open the corresponding log file, without the
@@ -389,19 +393,104 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
 	st := <-w.read
 	pos := st.pos
 	w.read <- st
-	go w.readLogsLocked(pos, config, watcher)
+	go w.readLogsLocked(ctx, pos, config, watcher)
 	return watcher
+}
+
+// tailFiles must be called with w.fsopMu locked for reads.
+// w.fsopMu.RUnlock() is called before returning.
+func (w *LogFile) tailFiles(ctx context.Context, config logger.ReadConfig, watcher *logger.LogWatcher, current SizeReaderAt, dec Decoder, fwd *forwarder) (cont bool) {
+	if config.Tail == 0 {
+		w.fsopMu.RUnlock()
+		return true
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "logger.Logfile.TailLogs")
+	defer func() {
+		span.SetAttributes(attribute.Bool("continue", cont))
+		span.End()
+	}()
+
+	files, err := w.openRotatedFiles(ctx, config)
+	w.fsopMu.RUnlock()
+
+	if err != nil {
+		// TODO: Should we allow this to continue (as in set `cont=true`) and not error out the log stream?
+		err = errors.Wrap(err, "error opening rotated log files")
+		span.SetStatus(err)
+		watcher.Err <- err
+		return false
+	}
+
+	if current.Size() > 0 {
+		files = append(files, &sizeReaderAtOpener{current, "current"})
+	}
+
+	return tailFiles(ctx, files, watcher, dec, w.getTailReader, config.Tail, fwd)
+}
+
+type sizeReaderAtOpener struct {
+	SizeReaderAt
+	ref string
+}
+
+func (o *sizeReaderAtOpener) ReaderAt(context.Context) (sizeReaderAtCloser, error) {
+	return &sizeReaderAtWithCloser{o, nil}, nil
+}
+
+func (o *sizeReaderAtOpener) Close() {}
+
+func (o *sizeReaderAtOpener) Ref() string {
+	return o.ref
+}
+
+type sizeReaderAtWithCloser struct {
+	SizeReaderAt
+	close func() error
+}
+
+func (r *sizeReaderAtWithCloser) ReadAt(p []byte, offset int64) (int, error) {
+	if r.SizeReaderAt == nil {
+		return 0, io.EOF
+	}
+	return r.SizeReaderAt.ReadAt(p, offset)
+}
+
+func (r *sizeReaderAtWithCloser) Read(p []byte) (int, error) {
+	if r.SizeReaderAt == nil {
+		return 0, io.EOF
+	}
+	return r.SizeReaderAt.Read(p)
+}
+
+func (r *sizeReaderAtWithCloser) Size() int64 {
+	if r.SizeReaderAt == nil {
+		return 0
+	}
+	return r.SizeReaderAt.Size()
+}
+
+func (r *sizeReaderAtWithCloser) Close() error {
+	if r.close != nil {
+		return r.close()
+	}
+	return nil
 }
 
 // readLogsLocked is the bulk of the implementation of ReadLogs.
 //
 // w.fsopMu must be locked for reading when calling this method.
 // w.fsopMu.RUnlock() is called before returning.
-func (w *LogFile) readLogsLocked(currentPos logPos, config logger.ReadConfig, watcher *logger.LogWatcher) {
+func (w *LogFile) readLogsLocked(ctx context.Context, currentPos logPos, config logger.ReadConfig, watcher *logger.LogWatcher) {
+	ctx, span := tracing.StartSpan(ctx, "logger.Logfile.ReadLogsLocked")
+	defer span.End()
+
 	defer close(watcher.Msg)
 
 	currentFile, err := open(w.f.Name())
 	if err != nil {
+		w.fsopMu.RUnlock()
+		span.SetStatus(err)
 		watcher.Err <- err
 		return
 	}
@@ -410,53 +499,13 @@ func (w *LogFile) readLogsLocked(currentPos logPos, config logger.ReadConfig, wa
 	dec := w.createDecoder(nil)
 	defer dec.Close()
 
-	currentChunk := io.NewSectionReader(currentFile, 0, currentPos.size)
 	fwd := newForwarder(config)
 
-	if config.Tail != 0 {
-		// TODO(@cpuguy83): Instead of opening every file, only get the files which
-		// are needed to tail.
-		// This is especially costly when compression is enabled.
-		files, err := w.openRotatedFiles(config)
-		if err != nil {
-			watcher.Err <- err
-			return
-		}
+	// At this point, w.tailFiles is responsible for unlocking w.fsopmu
+	ok := w.tailFiles(ctx, config, watcher, io.NewSectionReader(currentFile, 0, currentPos.size), dec, fwd)
 
-		closeFiles := func() {
-			for _, f := range files {
-				f.Close()
-			}
-		}
-
-		readers := make([]SizeReaderAt, 0, len(files)+1)
-		for _, f := range files {
-			switch ff := f.(type) {
-			case SizeReaderAt:
-				readers = append(readers, ff)
-			case interface{ Stat() (fs.FileInfo, error) }:
-				stat, err := ff.Stat()
-				if err != nil {
-					watcher.Err <- errors.Wrap(err, "error reading size of rotated file")
-					closeFiles()
-					return
-				}
-				readers = append(readers, io.NewSectionReader(f, 0, stat.Size()))
-			default:
-				panic(fmt.Errorf("rotated file value %#v (%[1]T) has neither Size() nor Stat() methods", f))
-			}
-		}
-		if currentChunk.Size() > 0 {
-			readers = append(readers, currentChunk)
-		}
-
-		ok := tailFiles(readers, watcher, dec, w.getTailReader, config.Tail, fwd)
-		closeFiles()
-		if !ok {
-			return
-		}
-	} else {
-		w.fsopMu.RUnlock()
+	if !ok {
+		return
 	}
 
 	if !config.Follow {
@@ -468,96 +517,47 @@ func (w *LogFile) readLogsLocked(currentPos logPos, config logger.ReadConfig, wa
 		Watcher:   watcher,
 		Decoder:   dec,
 		Forwarder: fwd,
-	}).Do(currentFile, currentPos)
+	}).Do(ctx, currentFile, currentPos)
 }
 
-// openRotatedFiles returns a slice of files open for reading, in order from
-// oldest to newest, and calls w.fsopMu.RUnlock() before returning.
-//
-// This method must only be called with w.fsopMu locked for reading.
-func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []readAtCloser, err error) {
-	type rotatedFile struct {
-		f          *os.File
-		compressed bool
+type fileOpener interface {
+	ReaderAt(context.Context) (ra sizeReaderAtCloser, err error)
+	Close()
+	Ref() string
+}
+
+// simpleFileOpener just holds a reference to an already open file
+type simpleFileOpener struct {
+	f      *os.File
+	sz     int64
+	closed bool
+}
+
+func (o *simpleFileOpener) ReaderAt(context.Context) (sizeReaderAtCloser, error) {
+	if o.closed {
+		return nil, errors.New("file is closed")
 	}
 
-	var q []rotatedFile
-	defer func() {
+	if o.sz == 0 {
+		stat, err := o.f.Stat()
 		if err != nil {
-			for _, qq := range q {
-				qq.f.Close()
-			}
-			for _, f := range files {
-				f.Close()
-			}
+			return nil, errors.Wrap(err, "error stating file")
 		}
-	}()
-
-	q, err = func() (q []rotatedFile, err error) {
-		defer w.fsopMu.RUnlock()
-
-		q = make([]rotatedFile, 0, w.maxFiles)
-		for i := w.maxFiles; i > 1; i-- {
-			var f rotatedFile
-			f.f, err = open(fmt.Sprintf("%s.%d", w.f.Name(), i-1))
-			if err != nil {
-				if !errors.Is(err, fs.ErrNotExist) {
-					return nil, errors.Wrap(err, "error opening rotated log file")
-				}
-				f.compressed = true
-				f.f, err = open(fmt.Sprintf("%s.%d.gz", w.f.Name(), i-1))
-				if err != nil {
-					if !errors.Is(err, fs.ErrNotExist) {
-						return nil, errors.Wrap(err, "error opening file for decompression")
-					}
-					continue
-				}
-			}
-			q = append(q, f)
-		}
-		return q, nil
-	}()
-	if err != nil {
-		return nil, err
+		o.sz = stat.Size()
 	}
-
-	for len(q) > 0 {
-		qq := q[0]
-		q = q[1:]
-		if qq.compressed {
-			defer qq.f.Close()
-			f, err := w.maybeDecompressFile(qq.f, config)
-			if err != nil {
-				return nil, err
-			}
-			if f != nil {
-				// The log before `config.Since` does not need to read
-				files = append(files, f)
-			}
-		} else {
-			files = append(files, qq.f)
-		}
-	}
-	return files, nil
+	return &sizeReaderAtWithCloser{io.NewSectionReader(o.f, 0, o.sz), nil}, nil
 }
 
-func (w *LogFile) maybeDecompressFile(cf *os.File, config logger.ReadConfig) (readAtCloser, error) {
-	rc, err := gzip.NewReader(cf)
-	if err != nil {
-		return nil, errors.Wrap(err, "error making gzip reader for compressed log file")
-	}
-	defer rc.Close()
-
-	// Extract the last log entry timestramp from the gzip header
-	extra := &rotateFileMetadata{}
-	err = json.Unmarshal(rc.Header.Extra, extra)
-	if err == nil && !extra.LastTime.IsZero() && extra.LastTime.Before(config.Since) {
-		return nil, nil
-	}
-	tmpf, err := w.decompress.Do(cf)
-	return tmpf, errors.Wrap(err, "error decompressing log file")
+func (o *simpleFileOpener) Ref() string {
+	return o.f.Name()
 }
 
+func (o *simpleFileOpener) Close() {
+	_ = o.f.Close()
+	o.closed = true
+}
+
+// converter function used by shareTempFileConverter
 func decompress(dst io.WriteSeeker, src io.ReadSeeker) error {
 	if _, err := src.Seek(0, io.SeekStart); err != nil {
 		return err
@@ -573,12 +573,209 @@ func decompress(dst io.WriteSeeker, src io.ReadSeeker) error {
 	return rc.Close()
 }
 
-func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, dec Decoder, getTailReader GetTailReaderFunc, nLines int, fwd *forwarder) (cont bool) {
-	ctx, cancel := context.WithCancel(context.Background())
+// compressedFileOpener holds a reference to compressed a log file and will
+// lazily open a decompressed version of the file.
+type compressedFileOpener struct {
+	closed bool
+
+	f *os.File
+
+	lf       *LogFile
+	ifBefore time.Time
+}
+
+func (cfo *compressedFileOpener) ReaderAt(ctx context.Context) (_ sizeReaderAtCloser, retErr error) {
+	_, span := tracing.StartSpan(ctx, "logger.Logfile.Compressed.ReaderAt")
+	defer func() {
+		if retErr != nil {
+			span.SetStatus(retErr)
+		}
+		span.End()
+	}()
+
+	span.SetAttributes(attribute.String("file", cfo.f.Name()))
+
+	if cfo.closed {
+		return nil, errors.New("compressed file closed")
+	}
+
+	gzr, err := gzip.NewReader(cfo.f)
+	if err != nil {
+		return nil, err
+	}
+	defer gzr.Close()
+
+	// Extract the last log entry timestamp from the gzip header
+	// Use this to determine if we even need to read this file based on inputs
+	extra := &rotateFileMetadata{}
+	err = json.Unmarshal(gzr.Header.Extra, extra)
+	if err == nil && !extra.LastTime.IsZero() && extra.LastTime.Before(cfo.ifBefore) {
+		span.SetAttributes(attribute.Bool("skip", true))
+		return &sizeReaderAtWithCloser{}, nil
+	}
+	if err == nil {
+		span.SetAttributes(attribute.Stringer("lastLogTime", extra.LastTime))
+	}
+
+	span.AddEvent("Start decompress")
+	return cfo.lf.decompress.Do(cfo.f)
+}
+
+func (cfo *compressedFileOpener) Close() {
+	cfo.closed = true
+	cfo.f.Close()
+}
+
+func (cfo *compressedFileOpener) Ref() string {
+	return cfo.f.Name()
+}
+
+type emptyFileOpener struct{}
+
+func (emptyFileOpener) ReaderAt(context.Context) (sizeReaderAtCloser, error) {
+	return &sizeReaderAtWithCloser{}, nil
+}
+
+func (emptyFileOpener) Close() {}
+
+func (emptyFileOpener) Ref() string {
+	return "null"
+}
+
+// openRotatedFiles returns a slice of files open for reading, in order from
+// oldest to newest, and calls w.fsopMu.RUnlock() before returning.
+//
+// This method must only be called with w.fsopMu locked for reading.
+func (w *LogFile) openRotatedFiles(ctx context.Context, config logger.ReadConfig) (_ []fileOpener, retErr error) {
+	var out []fileOpener
+
+	defer func() {
+		if retErr != nil {
+			for _, fo := range out {
+				fo.Close()
+			}
+		}
+	}()
+
+	for i := w.maxFiles; i > 1; i-- {
+		fo, err := w.openRotatedFile(ctx, i-1, config)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, fo)
+	}
+
+	return out, nil
+}
+
+func (w *LogFile) openRotatedFile(ctx context.Context, i int, config logger.ReadConfig) (fileOpener, error) {
+	f, err := open(fmt.Sprintf("%s.%d", w.f.Name(), i))
+	if err == nil {
+		return &simpleFileOpener{
+			f: f,
+		}, nil
+	}
+
+	if !errors.Is(err, fs.ErrNotExist) {
+		return nil, errors.Wrap(err, "error opening rotated log file")
+	}
+
+	f, err = open(fmt.Sprintf("%s.%d.gz", w.f.Name(), i))
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			return nil, errors.Wrap(err, "error opening file for decompression")
+		}
+		return &emptyFileOpener{}, nil
+	}
+
+	return &compressedFileOpener{
+		f:        f,
+		lf:       w,
+		ifBefore: config.Since,
+	}, nil
+}
+
+// This is used to improve type safety around tailing logs
+// Some log readers require the log file to be closed, so this makes sure all
+// implementers have a closer even if it may be a no-op.
+// This is opposed to asserting a type.
+type sizeReaderAtCloser interface {
+	SizeReaderAt
+	io.Closer
+}
+
+func getTailFiles(ctx context.Context, files []fileOpener, nLines int, getTailReader GetTailReaderFunc) (_ []sizeReaderAtCloser, retErr error) {
+	ctx, span := tracing.StartSpan(ctx, "logger.Logfile.CollectTailFiles")
+	span.SetAttributes(attribute.Int("requested_lines", nLines))
+
+	defer func() {
+		if retErr != nil {
+			span.SetStatus(retErr)
+		}
+		span.End()
+	}()
+	out := make([]sizeReaderAtCloser, 0, len(files))
+
+	defer func() {
+		if retErr != nil {
+			for _, ra := range out {
+				if err := ra.Close(); err != nil {
+					log.G(ctx).WithError(err).Warn("Error closing log reader")
+				}
+			}
+		}
+	}()
+
+	if nLines <= 0 {
+		for _, fo := range files {
+			span.AddEvent("Open file", trace.WithAttributes(attribute.String("file", fo.Ref())))
+
+			ra, err := fo.ReaderAt(ctx)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, ra)
+
+		}
+		return out, nil
+	}
+
+	for i := len(files) - 1; i >= 0 && nLines > 0; i-- {
+		if err := ctx.Err(); err != nil {
+			return nil, errors.Wrap(err, "stopping parsing files to tail due to error")
+		}
+
+		fo := files[i]
+
+		fileAttr := attribute.String("file", fo.Ref())
+		span.AddEvent("Open file", trace.WithAttributes(fileAttr))
+
+		ra, err := fo.ReaderAt(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		span.AddEvent("Scan file to tail", trace.WithAttributes(fileAttr, attribute.Int("remaining_lines", nLines)))
+
+		tail, n, err := getTailReader(ctx, ra, nLines)
+		if err != nil {
+			ra.Close()
+			log.G(ctx).WithError(err).Warn("Error scanning log file for tail file request, skipping")
+			continue
+		}
+		nLines -= n
+		out = append(out, &sizeReaderAtWithCloser{tail, ra.Close})
+	}
+
+	slices.Reverse(out)
+
+	return out, nil
+}
+
+func tailFiles(ctx context.Context, files []fileOpener, watcher *logger.LogWatcher, dec Decoder, getTailReader GetTailReaderFunc, nLines int, fwd *forwarder) (cont bool) {
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	cont = true
-	// TODO(@cpuguy83): we should plumb a context through instead of dealing with `WatchClose()` here.
 	go func() {
 		select {
 		case <-ctx.Done():
@@ -587,27 +784,64 @@ func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, dec Decoder, ge
 		}
 	}()
 
-	readers := make([]io.Reader, 0, len(files))
+	readers, err := getTailFiles(ctx, files, nLines, getTailReader)
+	if err != nil {
+		watcher.Err <- err
+		return false
+	}
 
-	if nLines > 0 {
-		for i := len(files) - 1; i >= 0 && nLines > 0; i-- {
-			tail, n, err := getTailReader(ctx, files[i], nLines)
-			if err != nil {
-				watcher.Err <- errors.Wrap(err, "error finding file position to start log tailing")
-				return false
+	var idx int
+	defer func() {
+		// Make sure all are released if there is an early return.
+		if !cont {
+			for _, r := range readers[idx:] {
+				if err := r.Close(); err != nil {
+					log.G(ctx).WithError(err).Debug("Error closing log reader")
+				}
 			}
-			nLines -= n
-			readers = append([]io.Reader{tail}, readers...)
 		}
-	} else {
-		for _, r := range files {
-			readers = append(readers, r)
+	}()
+
+	for _, ra := range readers {
+		ra := ra
+		select {
+		case <-watcher.WatchConsumerGone():
+			return false
+		case <-ctx.Done():
+			return false
+		default:
+		}
+
+		dec.Reset(ra)
+
+		cancel := context.AfterFunc(ctx, func() {
+			if err := ra.Close(); err != nil {
+				log.G(ctx).WithError(err).Debug("Error closing log reader")
+			}
+		})
+
+		ok := fwd.Do(ctx, watcher, func() (*logger.Message, error) {
+			msg, err := dec.Decode()
+			if err != nil && !errors.Is(err, io.EOF) {
+				// We have an error decoding the stream, but we don't want to error out
+				// the whole log reader.
+				// If we return anything other than EOF then the forwarder will return
+				// false and we'll exit the loop.
+				// Instead just log the error here and return an EOF so we can move to
+				// the next file.
+				log.G(ctx).WithError(err).Warn("Error decoding log file")
+				return nil, io.EOF
+			}
+			return msg, err
+		})
+		cancel()
+		idx++
+		if !ok {
+			return false
 		}
 	}
 
-	rdr := io.MultiReader(readers...)
-	dec.Reset(rdr)
-	return fwd.Do(watcher, dec)
+	return true
 }
 
 type forwarder struct {
@@ -622,16 +856,35 @@ func newForwarder(config logger.ReadConfig) *forwarder {
 // conditions to watcher. Do returns cont=true iff it has read all messages from
 // dec without encountering a message with a timestamp which is after the
 // configured until time.
-func (fwd *forwarder) Do(watcher *logger.LogWatcher, dec Decoder) (cont bool) {
+func (fwd *forwarder) Do(ctx context.Context, watcher *logger.LogWatcher, next func() (*logger.Message, error)) (cont bool) {
+	ctx, span := tracing.StartSpan(ctx, "logger.Logfile.Forward")
+	defer func() {
+		span.SetAttributes(attribute.Bool("continue", cont))
+		span.End()
+	}()
+
 	for {
-		msg, err := dec.Decode()
+		select {
+		case <-watcher.WatchConsumerGone():
+			span.AddEvent("watch consumer gone")
+			return false
+		case <-ctx.Done():
+			span.AddEvent(ctx.Err().Error())
+			return false
+		default:
+		}
+
+		msg, err := next()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
+				span.AddEvent("EOF")
 				return true
 			}
-			watcher.Err <- err
+			span.SetStatus(err)
+			log.G(ctx).WithError(err).Debug("Error while decoding log entry, not continuing")
 			return false
 		}
+
 		if !fwd.since.IsZero() {
 			if msg.Timestamp.Before(fwd.since) {
 				continue
@@ -643,10 +896,16 @@ func (fwd *forwarder) Do(watcher *logger.LogWatcher, dec Decoder) (cont bool) {
 			fwd.since = time.Time{}
 		}
 		if !fwd.until.IsZero() && msg.Timestamp.After(fwd.until) {
+			log.G(ctx).Debug("Log is newer than requested window, skipping remaining logs")
 			return false
 		}
+
 		select {
+		case <-ctx.Done():
+			span.AddEvent(ctx.Err().Error())
+			return false
 		case <-watcher.WatchConsumerGone():
+			span.AddEvent("watch consumer gone")
 			return false
 		case watcher.Msg <- msg:
 		}

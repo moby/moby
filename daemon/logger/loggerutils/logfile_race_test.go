@@ -27,7 +27,7 @@ func TestConcurrentLogging(t *testing.T) {
 		maxFiles = 3
 		compress = true
 	)
-	getTailReader := func(ctx context.Context, r SizeReaderAt, lines int) (io.Reader, int, error) {
+	getTailReader := func(ctx context.Context, r SizeReaderAt, lines int) (SizeReaderAt, int, error) {
 		return tailfile.NewTailReader(ctx, r, lines)
 	}
 	createDecoder := func(io.Reader) Decoder {

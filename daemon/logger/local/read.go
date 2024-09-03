@@ -18,11 +18,11 @@ import (
 // logger.defaultBufSize caps the size of Line field.
 const maxMsgLen int = 1e6 // 1MB.
 
-func (d *driver) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
-	return d.logfile.ReadLogs(config)
+func (d *driver) ReadLogs(ctx context.Context, config logger.ReadConfig) *logger.LogWatcher {
+	return d.logfile.ReadLogs(ctx, config)
 }
 
-func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (io.Reader, int, error) {
+func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (loggerutils.SizeReaderAt, int, error) {
 	size := r.Size()
 	if req < 0 {
 		return nil, 0, errdefs.InvalidParameter(errors.Errorf("invalid number of lines to tail: %d", req))
