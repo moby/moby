@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -163,25 +164,33 @@ func TestClientScheme(t *testing.T) {
 
 func TestNewClientWithTimeout(t *testing.T) {
 	t.Parallel()
-	mux, addr := setupRemotePluginServer(t)
 
-	m := Manifest{[]string{"VolumeDriver", "NetworkDriver"}}
+	// run the actual test multiple times to test flakiness
+	for i := 0; i < 100; i++ {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
 
-	mux.HandleFunc("/Test.Echo", func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(50 * time.Millisecond)
-		io.Copy(w, r.Body)
-	})
+			mux, addr := setupRemotePluginServer(t)
 
-	timeout := 10 * time.Millisecond
-	c, _ := NewClientWithTimeout(addr, &tlsconfig.Options{InsecureSkipVerify: true}, timeout)
-	var output Manifest
+			m := Manifest{[]string{"VolumeDriver", "NetworkDriver"}}
 
-	err := c.CallWithOptions("Test.Echo", m, &output, func(opts *RequestOpts) { opts.testTimeOut = 1 })
-	var tErr interface {
-		Timeout() bool
-	}
-	if assert.Check(t, errors.As(err, &tErr), "want timeout error, got %T", err) {
-		assert.Check(t, tErr.Timeout())
+			mux.HandleFunc("/Test.Echo", func(w http.ResponseWriter, r *http.Request) {
+				time.Sleep(50 * time.Millisecond)
+				io.Copy(w, r.Body)
+			})
+
+			timeout := 10 * time.Millisecond
+			c, _ := NewClientWithTimeout(addr, &tlsconfig.Options{InsecureSkipVerify: true}, timeout)
+			var output Manifest
+
+			err := c.CallWithOptions("Test.Echo", m, &output, func(opts *RequestOpts) { opts.testTimeOut = 1 })
+			var tErr interface {
+				Timeout() bool
+			}
+			if assert.Check(t, errors.As(err, &tErr), "want timeout error, got %T", err) {
+				assert.Check(t, tErr.Timeout())
+			}
+		})
 	}
 }
 
