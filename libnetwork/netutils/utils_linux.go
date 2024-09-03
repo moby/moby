@@ -8,6 +8,7 @@ import (
 	"os"
 	"slices"
 
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/resolvconf"
@@ -99,17 +100,17 @@ func queryOnLinkRoutes() []netip.Prefix {
 // GenerateIfaceName returns an interface name using the passed in
 // prefix and the length of random bytes. The api ensures that the
 // there are is no interface which exists with that name.
-func GenerateIfaceName(nlh *netlink.Handle, prefix string, len int) (string, error) {
-	linkByName := netlink.LinkByName
-	if nlh != nil {
-		linkByName = nlh.LinkByName
-	}
+func GenerateIfaceName(nlh nlwrap.Handle, prefix string, len int) (string, error) {
 	for i := 0; i < 3; i++ {
 		name, err := GenerateRandomName(prefix, len)
 		if err != nil {
 			return "", err
 		}
-		_, err = linkByName(name)
+		if nlh.Handle == nil {
+			_, err = nlwrap.LinkByName(name)
+		} else {
+			_, err = nlh.LinkByName(name)
+		}
 		if err != nil {
 			if errors.As(err, &netlink.LinkNotFoundError{}) {
 				return name, nil

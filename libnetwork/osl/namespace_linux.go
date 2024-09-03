@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/unshare"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl/kernel"
@@ -198,7 +199,7 @@ func NewSandbox(key string, osCreate, isRestore bool) (*Namespace, error) {
 	}
 	defer sboxNs.Close()
 
-	n.nlHandle, err = netlink.NewHandleAt(sboxNs, syscall.NETLINK_ROUTE)
+	n.nlHandle, err = nlwrap.NewHandleAt(sboxNs, syscall.NETLINK_ROUTE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a netlink handle: %v", err)
 	}
@@ -241,7 +242,7 @@ func GetSandboxForExternalKey(basePath string, key string) (*Namespace, error) {
 	}
 	defer sboxNs.Close()
 
-	n.nlHandle, err = netlink.NewHandleAt(sboxNs, syscall.NETLINK_ROUTE)
+	n.nlHandle, err = nlwrap.NewHandleAt(sboxNs, syscall.NETLINK_ROUTE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a netlink handle: %v", err)
 	}
@@ -320,7 +321,7 @@ type Namespace struct {
 	isDefault           bool
 	ipv6LoEnabledOnce   sync.Once
 	ipv6LoEnabledCached bool
-	nlHandle            *netlink.Handle
+	nlHandle            nlwrap.Handle
 	mu                  sync.Mutex
 }
 
@@ -456,9 +457,7 @@ func (n *Namespace) Key() string {
 
 // Destroy destroys the sandbox.
 func (n *Namespace) Destroy() error {
-	if n.nlHandle != nil {
-		n.nlHandle.Close()
-	}
+	n.nlHandle.Handle.Close()
 	// Assuming no running process is executing in this network namespace,
 	// unmounting is sufficient to destroy it.
 	if err := syscall.Unmount(n.path, syscall.MNT_DETACH); err != nil {
