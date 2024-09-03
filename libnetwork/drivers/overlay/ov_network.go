@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -351,7 +352,7 @@ func populateVNITbl() {
 			}
 			defer n.Close()
 
-			nlh, err := netlink.NewHandleAt(n, unix.NETLINK_ROUTE)
+			nlh, err := nlwrap.NewHandleAt(n, unix.NETLINK_ROUTE)
 			if err != nil {
 				log.G(context.TODO()).Errorf("Could not open netlink handle during vni population for ns %s: %v", path, err)
 				return nil

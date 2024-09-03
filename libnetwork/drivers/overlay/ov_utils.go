@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
@@ -110,7 +111,7 @@ func deleteVxlanByVNI(path string, vni uint32) error {
 		}
 		defer ns.Close()
 
-		nlh, err = netlink.NewHandleAt(ns, syscall.NETLINK_ROUTE)
+		nlh, err = nlwrap.NewHandleAt(ns, syscall.NETLINK_ROUTE)
 		if err != nil {
 			return fmt.Errorf("failed to get netlink handle for ns %s: %v", path, err)
 		}

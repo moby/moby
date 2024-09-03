@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
@@ -316,10 +317,10 @@ func (n *Namespace) RemoveInterface(i *Interface) error {
 	return nil
 }
 
-func configureInterface(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func configureInterface(nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	ifaceName := iface.Attrs().Name
 	ifaceConfigurators := []struct {
-		Fn         func(*netlink.Handle, netlink.Link, *Interface) error
+		Fn         func(nlwrap.Handle, netlink.Link, *Interface) error
 		ErrMessage string
 	}{
 		{setInterfaceName, fmt.Sprintf("error renaming interface %q to %q", ifaceName, i.DstName())},
@@ -338,7 +339,7 @@ func configureInterface(nlh *netlink.Handle, iface netlink.Link, i *Interface) e
 	return nil
 }
 
-func setInterfaceMaster(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func setInterfaceMaster(nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	if i.DstMaster() == "" {
 		return nil
 	}
@@ -348,14 +349,14 @@ func setInterfaceMaster(nlh *netlink.Handle, iface netlink.Link, i *Interface) e
 	})
 }
 
-func setInterfaceMAC(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func setInterfaceMAC(nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	if i.MacAddress() == nil {
 		return nil
 	}
 	return nlh.LinkSetHardwareAddr(iface, i.MacAddress())
 }
 
-func setInterfaceIP(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func setInterfaceIP(nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	if i.Address() == nil {
 		return nil
 	}
@@ -366,7 +367,7 @@ func setInterfaceIP(nlh *netlink.Handle, iface netlink.Link, i *Interface) error
 	return nlh.AddrAdd(iface, ipAddr)
 }
 
-func setInterfaceIPv6(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func setInterfaceIPv6(nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	if i.AddressIPv6() == nil {
 		return nil
 	}
@@ -380,7 +381,7 @@ func setInterfaceIPv6(nlh *netlink.Handle, iface netlink.Link, i *Interface) err
 	return nlh.AddrAdd(iface, ipAddr)
 }
 
-func setInterfaceLinkLocalIPs(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func setInterfaceLinkLocalIPs(nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	for _, llIP := range i.LinkLocalAddresses() {
 		ipAddr := &netlink.Addr{IPNet: llIP}
 		if err := nlh.AddrAdd(iface, ipAddr); err != nil {
@@ -390,11 +391,11 @@ func setInterfaceLinkLocalIPs(nlh *netlink.Handle, iface netlink.Link, i *Interf
 	return nil
 }
 
-func setInterfaceName(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func setInterfaceName(nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	return nlh.LinkSetName(iface, i.DstName())
 }
 
-func setInterfaceRoutes(nlh *netlink.Handle, iface netlink.Link, i *Interface) error {
+func setInterfaceRoutes(nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	for _, route := range i.Routes() {
 		err := nlh.RouteAdd(&netlink.Route{
 			Scope:     netlink.SCOPE_LINK,
@@ -408,7 +409,7 @@ func setInterfaceRoutes(nlh *netlink.Handle, iface netlink.Link, i *Interface) e
 	return nil
 }
 
-func checkRouteConflict(nlh *netlink.Handle, address *net.IPNet, family int) error {
+func checkRouteConflict(nlh nlwrap.Handle, address *net.IPNet, family int) error {
 	routes, err := nlh.RouteList(nil, family)
 	if err != nil {
 		return err

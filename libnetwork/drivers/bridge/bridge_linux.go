@@ -12,6 +12,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/iptables"
@@ -147,7 +148,7 @@ type driver struct {
 	isolationChain2V6 *iptables.ChainInfo
 	networks          map[string]*bridgeNetwork
 	store             *datastore.Store
-	nlh               *netlink.Handle
+	nlh               nlwrap.Handle
 	configNetwork     sync.Mutex
 	portAllocator     *portallocator.PortAllocator // Overridable for tests.
 	sync.Mutex
@@ -694,7 +695,7 @@ func (d *driver) checkConflict(config *networkConfiguration) error {
 func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 	// Initialize handle when needed
 	d.Lock()
-	if d.nlh == nil {
+	if d.nlh.Handle == nil {
 		d.nlh = ns.NlHandle()
 	}
 	d.Unlock()
@@ -905,7 +906,7 @@ func (d *driver) deleteNetwork(nid string) error {
 	return d.storeDelete(config)
 }
 
-func addToBridge(nlh *netlink.Handle, ifaceName, bridgeName string) error {
+func addToBridge(nlh nlwrap.Handle, ifaceName, bridgeName string) error {
 	lnk, err := nlh.LinkByName(ifaceName)
 	if err != nil {
 		return fmt.Errorf("could not find interface %s: %v", ifaceName, err)
@@ -917,7 +918,7 @@ func addToBridge(nlh *netlink.Handle, ifaceName, bridgeName string) error {
 	return nil
 }
 
-func setHairpinMode(nlh *netlink.Handle, link netlink.Link, enable bool) error {
+func setHairpinMode(nlh nlwrap.Handle, link netlink.Link, enable bool) error {
 	err := nlh.LinkSetHairpin(link, enable)
 	if err != nil {
 		return fmt.Errorf("unable to set hairpin mode on %s via netlink: %v",

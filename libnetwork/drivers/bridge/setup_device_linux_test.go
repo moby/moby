@@ -6,16 +6,16 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/netutils"
-	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 )
 
 func TestSetupNewBridge(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	nh, err := netlink.NewHandle()
+	nh, err := nlwrap.NewHandle()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestSetupNewBridge(t *testing.T) {
 func TestSetupNewNonDefaultBridge(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	nh, err := netlink.NewHandle()
+	nh, err := nlwrap.NewHandle()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestSetupNewNonDefaultBridge(t *testing.T) {
 func TestSetupDeviceUp(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	nh, err := netlink.NewHandle()
+	nh, err := nlwrap.NewHandle()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestGenerateRandomMAC(t *testing.T) {
 func TestMTUBiggerThan1500(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	nh, err := netlink.NewHandle()
+	nh, err := nlwrap.NewHandle()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestMTUBiggerThan1500(t *testing.T) {
 func TestMTUBiggerThan64K(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	nh, err := netlink.NewHandle()
+	nh, err := nlwrap.NewHandle()
 	if err != nil {
 		t.Fatal(err)
 	}

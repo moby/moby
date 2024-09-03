@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/config"
@@ -29,7 +30,6 @@ import (
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/pkg/errors"
-	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sync/errgroup"
 )
@@ -1438,7 +1438,7 @@ func checkSandbox(t *testing.T, info libnetwork.EndpointInfo) {
 	}
 	defer sbNs.Close()
 
-	nh, err := netlink.NewHandleAt(sbNs)
+	nh, err := nlwrap.NewHandleAt(sbNs)
 	if err != nil {
 		t.Fatal(err)
 	}
