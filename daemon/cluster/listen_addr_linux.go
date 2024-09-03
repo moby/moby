@@ -3,13 +3,14 @@ package cluster // import "github.com/docker/docker/daemon/cluster"
 import (
 	"net"
 
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/vishvananda/netlink"
 )
 
 func (c *Cluster) resolveSystemAddr() (net.IP, error) {
 	// Use the system's only device IP address, or fail if there are
 	// multiple addresses to choose from.
-	interfaces, err := netlink.LinkList()
+	interfaces, err := nlwrap.LinkList()
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +27,7 @@ func (c *Cluster) resolveSystemAddr() (net.IP, error) {
 			continue
 		}
 
-		addrs, err := netlink.AddrList(intf, netlink.FAMILY_ALL)
+		addrs, err := nlwrap.AddrList(intf, netlink.FAMILY_ALL)
 		if err != nil {
 			continue
 		}

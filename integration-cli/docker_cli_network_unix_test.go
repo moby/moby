@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/driverapi"
 	remoteapi "github.com/docker/docker/libnetwork/drivers/remote/api"
 	"github.com/docker/docker/libnetwork/ipamapi"
@@ -120,7 +121,7 @@ func setupRemoteNetworkDrivers(t *testing.T, mux *http.ServeMux, url, netDrv, ip
 
 	mux.HandleFunc(fmt.Sprintf("/%s.DeleteEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		if link, err := netlink.LinkByName("cnt0"); err == nil {
+		if link, err := nlwrap.LinkByName("cnt0"); err == nil {
 			err = netlink.LinkDel(link)
 			assert.NilError(t, err)
 		}
@@ -1778,7 +1779,7 @@ func (s *DockerNetworkSuite) TestConntrackFlowsLeak(c *testing.T) {
 	cli.DockerCmd(c, "run", "-d", "--name", "client", "--net=host", "busybox", "sh", "-c", cmd)
 
 	// Get all the flows using netlink
-	flows, err := netlink.ConntrackTableList(netlink.ConntrackTable, unix.AF_INET)
+	flows, err := nlwrap.ConntrackTableList(netlink.ConntrackTable, unix.AF_INET)
 	assert.NilError(c, err)
 	var flowMatch int
 	for _, flow := range flows {
@@ -1796,7 +1797,7 @@ func (s *DockerNetworkSuite) TestConntrackFlowsLeak(c *testing.T) {
 	cli.DockerCmd(c, "rm", "-fv", "server")
 
 	// Fetch again all the flows and validate that there is no server flow in the conntrack laying around
-	flows, err = netlink.ConntrackTableList(netlink.ConntrackTable, unix.AF_INET)
+	flows, err = nlwrap.ConntrackTableList(netlink.ConntrackTable, unix.AF_INET)
 	assert.NilError(c, err)
 	flowMatch = 0
 	for _, flow := range flows {
