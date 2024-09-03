@@ -66,7 +66,7 @@ func retryOnIntr(f func() error) {
 // AddrList calls nlh.LinkList, retrying if necessary.
 func (nlh Handle) AddrList(link netlink.Link, family int) (addrs []netlink.Addr, err error) {
 	retryOnIntr(func() error {
-		addrs, err = nlh.Handle.AddrList(link, family)
+		addrs, err = nlh.Handle.AddrList(link, family) //nolint:forbidigo
 		return err
 	})
 	return addrs, err
@@ -75,7 +75,7 @@ func (nlh Handle) AddrList(link netlink.Link, family int) (addrs []netlink.Addr,
 // AddrList calls netlink.LinkList, retrying if necessary.
 func AddrList(link netlink.Link, family int) (addrs []netlink.Addr, err error) {
 	retryOnIntr(func() error {
-		addrs, err = netlink.AddrList(link, family)
+		addrs, err = netlink.AddrList(link, family) //nolint:forbidigo
 		return err
 	})
 	return addrs, err
@@ -88,7 +88,7 @@ func (nlh Handle) ConntrackDeleteFilters(
 	filters ...netlink.CustomConntrackFilter,
 ) (matched uint, err error) {
 	retryOnIntr(func() error {
-		matched, err = nlh.Handle.ConntrackDeleteFilters(table, family, filters...)
+		matched, err = nlh.Handle.ConntrackDeleteFilters(table, family, filters...) //nolint:forbidigo
 		return err
 	})
 	return matched, err
@@ -100,7 +100,7 @@ func ConntrackTableList(
 	family netlink.InetFamily,
 ) (flows []*netlink.ConntrackFlow, err error) {
 	retryOnIntr(func() error {
-		flows, err = netlink.ConntrackTableList(table, family)
+		flows, err = netlink.ConntrackTableList(table, family) //nolint:forbidigo
 		return err
 	})
 	return flows, err
@@ -111,7 +111,7 @@ func ConntrackTableList(
 // will do as a fallback and that dump may get inconsistent results.
 func (nlh Handle) LinkByName(name string) (link netlink.Link, err error) {
 	retryOnIntr(func() error {
-		link, err = nlh.Handle.LinkByName(name)
+		link, err = nlh.Handle.LinkByName(name) //nolint:forbidigo
 		return err
 	})
 	return link, err
@@ -122,7 +122,7 @@ func (nlh Handle) LinkByName(name string) (link netlink.Link, err error) {
 // kernel, it will do as a fallback and that dump may get inconsistent results.
 func LinkByName(name string) (link netlink.Link, err error) {
 	retryOnIntr(func() error {
-		link, err = netlink.LinkByName(name)
+		link, err = netlink.LinkByName(name) //nolint:forbidigo
 		return err
 	})
 	return link, err
@@ -131,7 +131,7 @@ func LinkByName(name string) (link netlink.Link, err error) {
 // LinkList calls nlh.LinkList, retrying if necessary.
 func (nlh Handle) LinkList() (links []netlink.Link, err error) {
 	retryOnIntr(func() error {
-		links, err = nlh.Handle.LinkList()
+		links, err = nlh.Handle.LinkList() //nolint:forbidigo
 		return err
 	})
 	return links, err
@@ -140,7 +140,7 @@ func (nlh Handle) LinkList() (links []netlink.Link, err error) {
 // LinkList calls netlink.LinkList, retrying if necessary.
 func LinkList() (links []netlink.Link, err error) {
 	retryOnIntr(func() error {
-		links, err = netlink.LinkList()
+		links, err = netlink.LinkList() //nolint:forbidigo
 		return err
 	})
 	return links, err
@@ -149,7 +149,7 @@ func LinkList() (links []netlink.Link, err error) {
 // RouteList calls nlh.RouteList, retrying if necessary.
 func (nlh Handle) RouteList(link netlink.Link, family int) (routes []netlink.Route, err error) {
 	retryOnIntr(func() error {
-		routes, err = nlh.Handle.RouteList(link, family)
+		routes, err = nlh.Handle.RouteList(link, family) //nolint:forbidigo
 		return err
 	})
 	return routes, err
@@ -157,7 +157,7 @@ func (nlh Handle) RouteList(link netlink.Link, family int) (routes []netlink.Rou
 
 func (nlh Handle) XfrmPolicyList(family int) (policies []netlink.XfrmPolicy, err error) {
 	retryOnIntr(func() error {
-		policies, err = nlh.Handle.XfrmPolicyList(family)
+		policies, err = nlh.Handle.XfrmPolicyList(family) //nolint:forbidigo
 		return err
 	})
 	return policies, err
@@ -165,7 +165,7 @@ func (nlh Handle) XfrmPolicyList(family int) (policies []netlink.XfrmPolicy, err
 
 func (nlh Handle) XfrmStateList(family int) (states []netlink.XfrmState, err error) {
 	retryOnIntr(func() error {
-		states, err = nlh.Handle.XfrmStateList(family)
+		states, err = nlh.Handle.XfrmStateList(family) //nolint:forbidigo
 		return err
 	})
 	return states, err
