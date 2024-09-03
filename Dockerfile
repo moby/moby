@@ -287,7 +287,7 @@ RUN git init . && git remote add origin "https://github.com/opencontainers/runc.
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged. When updating RUNC_VERSION,
 # consider updating runc in vendor.mod accordingly.
-ARG RUNC_VERSION=v1.1.13
+ARG RUNC_VERSION=v1.2.0-rc.2
 RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS runc-build
@@ -306,7 +306,7 @@ RUN --mount=from=runc-src,src=/usr/src/runc,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=runc-build-$TARGETPLATFORM <<EOT
   set -e
   xx-go --wrap
-  CGO_ENABLED=1 make "$([ "$DOCKER_STATIC" = "1" ] && echo "static" || echo "runc")"
+  CGO_ENABLED=1 make BUILDTAGS="secccomp runc_nodmz" "$([ "$DOCKER_STATIC" = "1" ] && echo "static" || echo "runc")"
   xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") runc
   mkdir /build
   mv runc /build/
