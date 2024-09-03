@@ -37,13 +37,14 @@ source "${MAKEDIR}/.go-autogen"
 		fi
 	fi
 
-	# -buildmode=pie is not supported on Windows arm64 and Linux mips*, ppc64be
-	# https://github.com/golang/go/blob/go1.19.4/src/cmd/internal/sys/supported.go#L125-L132
 	if ! [ "$DOCKER_STATIC" = "1" ]; then
 		# -buildmode=pie not supported when -race is enabled
 		if [[ " $BUILDFLAGS " != *" -race "* ]]; then
 			case "$(go env GOOS)/$(go env GOARCH)" in
-				windows/arm64 | linux/mips* | linux/ppc64) ;;
+				linux/mips* | linux/ppc64)
+					# -buildmode=pie is not supported on Linux mips*, ppc64be
+					# https://github.com/golang/go/blob/go1.23.0/src/internal/platform/supported.go#L189-L197
+					;;
 				*)
 					BUILDFLAGS+=("-buildmode=pie")
 					;;
