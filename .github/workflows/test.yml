@@ -22,7 +22,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.22.6"
+  GO_VERSION: "1.22.7"
   GIT_PAGER: "cat"
   PAGER: "cat"
   SETUP_BUILDX_VERSION: latest
