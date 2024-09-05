@@ -51,7 +51,7 @@ func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os
 			wo = &tar.Header{
 				Typeflag:   tar.TypeReg,
 				Mode:       hdr.Mode & int64(os.ModePerm),
-				Name:       filepath.Join(hdr.Name, WhiteoutOpaqueDir),
+				Name:       filepath.Join(hdr.Name, WhiteoutOpaqueDir), // #nosec G305 -- An archive is being created, not extracted.
 				Size:       0,
 				Uid:        hdr.Uid,
 				Uname:      hdr.Uname,
@@ -59,7 +59,7 @@ func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os
 				Gname:      hdr.Gname,
 				AccessTime: hdr.AccessTime,
 				ChangeTime: hdr.ChangeTime,
-			} //#nosec G305 -- An archive is being created, not extracted.
+			}
 		}
 	}
 
