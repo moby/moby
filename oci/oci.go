@@ -2,9 +2,9 @@ package oci // import "github.com/docker/docker/oci"
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 
+	"github.com/docker/docker/internal/lazyregexp"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -15,7 +15,7 @@ import (
 // that *only* passes `a` as value: `echo a > /sys/fs/cgroup/1/devices.allow, which would be
 // the "implicit" equivalent of "a *:* rwm". Source-code also looks to confirm this, and returns
 // early for "a" (all); https://github.com/torvalds/linux/blob/v5.10/security/device_cgroup.c#L614-L642
-var deviceCgroupRuleRegex = regexp.MustCompile("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$") //nolint: gosimple
+var deviceCgroupRuleRegex = lazyregexp.CompileOnce("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$") //nolint: gosimple
 
 // SetCapabilities sets the provided capabilities on the spec
 // All capabilities are added if privileged is true.
@@ -34,7 +34,7 @@ func SetCapabilities(s *specs.Spec, caplist []string) error {
 // AppendDevicePermissionsFromCgroupRules takes rules for the devices cgroup to append to the default set
 func AppendDevicePermissionsFromCgroupRules(devPermissions []specs.LinuxDeviceCgroup, rules []string) ([]specs.LinuxDeviceCgroup, error) {
 	for _, deviceCgroupRule := range rules {
-		ss := deviceCgroupRuleRegex.FindAllStringSubmatch(deviceCgroupRule, -1)
+		ss := deviceCgroupRuleRegex().FindAllStringSubmatch(deviceCgroupRule, -1)
 		if len(ss) == 0 || len(ss[0]) != 5 {
 			return nil, fmt.Errorf("invalid device cgroup rule format: '%s'", deviceCgroupRule)
 		}

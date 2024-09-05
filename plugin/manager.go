@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -19,6 +18,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/internal/containerfs"
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/ioutils"
 	v2 "github.com/docker/docker/plugin/v2"
@@ -35,7 +35,7 @@ const (
 	rootFSFileName = "rootfs"
 )
 
-var validFullID = regexp.MustCompile(`^([a-f0-9]{64})$`)
+var validFullID = lazyregexp.CompileOnce(`^([a-f0-9]{64})$`)
 
 // Executor is the interface that the plugin manager uses to interact with for starting/stopping plugins
 type Executor interface {
@@ -175,7 +175,7 @@ func (pm *Manager) reload() error { // todo: restore
 	}
 	plugins := make(map[string]*v2.Plugin)
 	for _, v := range dir {
-		if validFullID.MatchString(v.Name()) {
+		if validFullID().MatchString(v.Name()) {
 			p, err := pm.loadPlugin(v.Name())
 			if err != nil {
 				handleLoadError(err, v.Name())
@@ -183,7 +183,7 @@ func (pm *Manager) reload() error { // todo: restore
 			}
 			plugins[p.GetID()] = p
 		} else {
-			if validFullID.MatchString(strings.TrimSuffix(v.Name(), "-removing")) {
+			if validFullID().MatchString(strings.TrimSuffix(v.Name(), "-removing")) {
 				// There was likely some error while removing this plugin, let's try to remove again here
 				if err := containerfs.EnsureRemoveAll(v.Name()); err != nil {
 					log.G(context.TODO()).WithError(err).WithField("id", v.Name()).Warn("error while attempting to clean up previously removed plugin")

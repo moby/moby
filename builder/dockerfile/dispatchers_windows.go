@@ -6,15 +6,15 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 )
 
-var pattern = regexp.MustCompile(`^[a-zA-Z]:\.$`)
+var pattern = lazyregexp.CompileOnce(`^[a-zA-Z]:\.$`)
 
 // normalizeWorkdir normalizes a user requested working directory in a
 // platform semantically consistent way.
@@ -64,10 +64,10 @@ func normalizeWorkdirWindows(current string, requested string) (string, error) {
 	// refers to `current directory on drive C:`
 	// Since filepath.Clean() will automatically normalize the above
 	// to `C:.`, we only need to check the last format
-	if pattern.MatchString(current) {
+	if pattern().MatchString(current) {
 		return "", fmt.Errorf("%s is not a directory. If you are specifying a drive letter, please add a trailing '\\'", current)
 	}
-	if pattern.MatchString(requested) {
+	if pattern().MatchString(requested) {
 		return "", fmt.Errorf("%s is not a directory. If you are specifying a drive letter, please add a trailing '\\'", requested)
 	}
 

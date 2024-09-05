@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"path"
-	"regexp"
 	"strings"
 
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/internal/lazyregexp"
 )
 
 // NewLCOWParser creates a parser with Linux Containers on Windows semantics.
@@ -28,8 +28,8 @@ func NewLCOWParser() Parser {
 const rxLCOWDestination = `(?P<destination>/(?:[^\\/:*?"<>\r\n]+[/]?)*)`
 
 var (
-	lcowMountDestinationRegex = regexp.MustCompile(`^` + rxLCOWDestination + `$`)
-	lcowSplitRawSpec          = regexp.MustCompile(`^` + rxSource + rxLCOWDestination + rxMode + `$`)
+	lcowMountDestinationRegex = lazyregexp.CompileOnce(`^` + rxLCOWDestination + `$`)
+	lcowSplitRawSpec          = lazyregexp.CompileOnce(`^` + rxSource + rxLCOWDestination + rxMode + `$`)
 )
 
 var lcowValidators mountValidator = func(m *mount.Mount) error {
@@ -39,7 +39,7 @@ var lcowValidators mountValidator = func(m *mount.Mount) error {
 	if m.Type == mount.TypeNamedPipe {
 		return errors.New("Linux containers on Windows do not support named pipe mounts")
 	}
-	if !lcowMountDestinationRegex.MatchString(strings.ToLower(m.Target)) {
+	if !lcowMountDestinationRegex().MatchString(strings.ToLower(m.Target)) {
 		return fmt.Errorf("invalid mount path: '%s'", m.Target)
 	}
 	return nil
@@ -54,7 +54,7 @@ func (p *lcowParser) ValidateMountConfig(mnt *mount.Mount) error {
 }
 
 func (p *lcowParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
-	arr, err := p.splitRawSpec(raw, lcowSplitRawSpec)
+	arr, err := p.splitRawSpec(raw, lcowSplitRawSpec())
 	if err != nil {
 		return nil, err
 	}
