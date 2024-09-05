@@ -21,6 +21,7 @@ type manifestItem struct {
 	Layers       []string
 	Parent       image.ID                                 `json:",omitempty"`
 	LayerSources map[layer.DiffID]distribution.Descriptor `json:",omitempty"`
+	LayersRoot   string                                   `json:",omitempty"`
 }
 
 type tarexporter struct {
