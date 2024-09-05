@@ -5,7 +5,9 @@ import (
 	"expvar"
 	"net/http"
 	"net/http/pprof"
+	"runtime"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/router"
 )
@@ -31,6 +33,10 @@ func (r *debugRouter) initRoutes() {
 		router.NewGetRoute("/pprof/symbol", frameworkAdaptHandlerFunc(pprof.Symbol)),
 		router.NewGetRoute("/pprof/trace", frameworkAdaptHandlerFunc(pprof.Trace)),
 		router.NewGetRoute("/pprof/{name}", handlePprof),
+		router.NewGetRoute("/gc", frameworkAdaptHandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			runtime.GC()
+			log.G(req.Context()).Debugf("triggered GC from debug endpoint")
+		})),
 	}
 }
 
