@@ -57,7 +57,7 @@ jobs:
           ## push semver tag v23.0.0
           # moby/moby-bin:23.0.0
           # moby/moby-bin:latest
-          ## push semver prelease tag v23.0.0-beta.1
+          ## push semver prerelease tag v23.0.0-beta.1
           # moby/moby-bin:23.0.0-beta.1
           ## push on master
           # moby/moby-bin:master

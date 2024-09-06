@@ -68,7 +68,7 @@ const AnonymousLabel = "com.docker.volume.anonymous"
 // This reference ID will protect this volume from removal.
 //
 // A good example for a reference ID is a container's ID.
-// When whatever is going to reference this volume is removed the caller should defeference the volume by calling `Release`.
+// When whatever is going to reference this volume is removed the caller should dereference the volume by calling `Release`.
 func (s *VolumesService) Create(ctx context.Context, name, driverName string, options ...opts.CreateOption) (*volumetypes.Volume, error) {
 	if name == "" {
 		name = stringid.GenerateRandomID()
@@ -103,7 +103,7 @@ func (s *VolumesService) Get(ctx context.Context, name string, getOpts ...opts.G
 }
 
 // Mount mounts the volume
-// Callers should specify a uniqe reference for each Mount/Unmount pair.
+// Callers should specify a unique reference for each Mount/Unmount pair.
 //
 // Example:
 // ```go

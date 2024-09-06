@@ -78,7 +78,7 @@ info:
 # The tags on paths define the menu sections in the ReDoc documentation, so
 # the usage of tags must make sense for that:
 # - They should be singular, not plural.
-# - There should not be too many tags, or the menu becomes unwieldly. For
+# - There should not be too many tags, or the menu becomes unwieldy. For
 #   example, it is preferable to add a path to the "System" tag instead of
 #   creating a tag with a single path in it.
 # - The order of tags in this list defines the order in the menu.
@@ -1588,7 +1588,7 @@ definitions:
       may not be applied if the version number has changed from the last read. In other words,
       if two update requests specify the same base version, only one of the requests can succeed.
       As a result, two separate update requests that happen at the same time will not
-      unintentially overwrite each other.
+      unintentionally overwrite each other.
     type: "object"
     properties:
       Index:

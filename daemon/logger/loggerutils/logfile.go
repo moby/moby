@@ -97,7 +97,7 @@ type Decoder interface {
 	// Reset resets the decoder
 	// Reset is called for certain events, such as log rotations
 	Reset(io.Reader)
-	// Decode decodes the next log messeage from the stream
+	// Decode decodes the next log message from the stream
 	Decode() (*logger.Message, error)
 	// Close signals to the decoder that it can release whatever resources it was using.
 	Close()

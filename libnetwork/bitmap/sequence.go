@@ -505,7 +505,7 @@ func pushReservation(bytePos, bitPos uint64, head *sequence, release bool) *sequ
 		return newHead
 	}
 
-	// Current sequence inevitably looses one block, upadate count
+	// Current sequence inevitably looses one block, update count
 	current.count--
 
 	// Create new sequence

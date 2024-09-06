@@ -759,7 +759,7 @@ func doWriteWaitLeaveJoin(ips []string, args []string) {
 	fmt.Fprintf(os.Stderr, "doWriteWaitLeaveJoin succeeded in %d msec", opTime)
 }
 
-var cmdArgChec = map[string]int{
+var cmdArgCheck = map[string]int{
 	"debug":                    0,
 	"fail":                     0,
 	"ready":                    2,
@@ -777,8 +777,8 @@ func Client(args []string) {
 	log.G(context.TODO()).Infof("[CLIENT] Starting with arguments %v", args)
 	command := args[0]
 
-	if len(args) < cmdArgChec[command] {
-		log.G(context.TODO()).Fatalf("Command %s requires %d arguments, passed %d, aborting...", command, cmdArgChec[command], len(args))
+	if len(args) < cmdArgCheck[command] {
+		log.G(context.TODO()).Fatalf("Command %s requires %d arguments, passed %d, aborting...", command, cmdArgCheck[command], len(args))
 	}
 
 	switch command {

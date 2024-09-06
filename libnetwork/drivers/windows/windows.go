@@ -448,7 +448,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	delete(d.networks, nid)
 	d.Unlock()
 
-	// delele endpoints belong to this network
+	// delete endpoints belong to this network
 	for _, ep := range n.endpoints {
 		if err := d.storeDelete(ep); err != nil {
 			log.G(context.TODO()).Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)

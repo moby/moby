@@ -775,7 +775,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 	}
 
 	// Update the store about the sandbox detach only after we
-	// have completed sb.clearNetworkresources above to avoid
+	// have completed sb.clearNetworkResources above to avoid
 	// spurious logs when cleaning up the sandbox when the daemon
 	// ungracefully exits and restarts before completing sandbox
 	// detach but after store has been updated.

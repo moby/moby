@@ -689,7 +689,7 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 	log.G(context.TODO()).Debugf("deleteServiceInfoFromCluster from %s START for %s %s", method, ep.svcName, ep.ID())
 
 	// Avoid a race w/ with a container that aborts preemptively.  This would
-	// get caught in disableServceInNetworkDB, but we check here to make the
+	// get caught in disableServiceInNetworkDB, but we check here to make the
 	// nature of the condition more clear.
 	// See comment in addServiceInfoToCluster()
 	if err := sb.GetEndpoint(ep.ID()); err == nil {
@@ -779,7 +779,7 @@ func (n *Network) addDriverWatches() {
 		go c.handleTableEvents(ch, n.handleDriverTableEvent)
 		d, err := n.driver(false)
 		if err != nil {
-			log.G(context.TODO()).Errorf("Could not resolve driver %s while walking driver tabl: %v", n.networkType, err)
+			log.G(context.TODO()).Errorf("Could not resolve driver %s while walking driver table: %v", n.networkType, err)
 			return
 		}
 

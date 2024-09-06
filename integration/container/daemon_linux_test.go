@@ -181,7 +181,7 @@ func TestDaemonHostGatewayIP(t *testing.T) {
 // In this test we'll change the container state to "restarting".
 // This means that the container will not be 'alive' when we attempt to restore in on daemon startup.
 //
-// We could do the same with `docker run -d --resetart=always busybox:latest exit 1`, and then
+// We could do the same with `docker run -d --restart=always busybox:latest exit 1`, and then
 // `kill -9` dockerd while the container is in "restarting" state. This is difficult to reproduce reliably
 // in an automated test, so we manipulate on disk state instead.
 func TestRestartDaemonWithRestartingContainer(t *testing.T) {

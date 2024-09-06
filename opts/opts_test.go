@@ -142,7 +142,7 @@ func TestListOptsWithoutValidator(t *testing.T) {
 }
 
 func TestListOptsWithValidator(t *testing.T) {
-	// Re-using logOptsvalidator (used by MapOpts)
+	// Re-using logOptsValidator (used by MapOpts)
 	o := NewListOpts(logOptsValidator)
 	o.Set("foo")
 	if o.String() != "" {
@@ -233,7 +233,7 @@ func TestValidateLabel(t *testing.T) {
 		expectedErr    string
 	}{
 		{
-			name:        "lable with bad attribute format",
+			name:        "label with bad attribute format",
 			label:       "label",
 			expectedErr: "bad attribute format: label",
 		},

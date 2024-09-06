@@ -964,7 +964,7 @@ func (d *driver) deleteNetwork(nid string) error {
 	config := n.config
 	n.Unlock()
 
-	// delele endpoints belong to this network
+	// delete endpoints belong to this network
 	for _, ep := range n.endpoints {
 		if err := n.releasePorts(ep); err != nil {
 			log.G(context.TODO()).Warn(err)

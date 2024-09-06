@@ -12,7 +12,7 @@ type Summary struct {
 	Containers int64 `json:"Containers"`
 
 	// Date and time at which the image was created as a Unix timestamp
-	// (number of seconds sinds EPOCH).
+	// (number of seconds since EPOCH).
 	//
 	// Required: true
 	Created int64 `json:"Created"`

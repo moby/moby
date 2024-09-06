@@ -468,7 +468,7 @@ func (s *DockerCLIPluginsSuite) TestPluginMetricsCollector(c *testing.T) {
 	r := cli.Docker(cli.Args("plugin", "install", "--grant-all-permissions", name), cli.Daemon(d))
 	assert.Assert(c, r.Error == nil, r.Combined())
 
-	// plugin lisens on localhost:19393 and proxies the metrics
+	// plugin listens on localhost:19393 and proxies the metrics
 	resp, err := http.Get("http://localhost:19393/metrics")
 	assert.NilError(c, err)
 	defer resp.Body.Close()

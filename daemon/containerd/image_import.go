@@ -327,7 +327,7 @@ func (i *ImageService) unpackImage(ctx context.Context, snapshotter string, img 
 	return nil
 }
 
-// detectCompression dectects the reader compression type.
+// detectCompression detects the reader compression type.
 func detectCompression(bufRd *bufio.Reader) (archive.Compression, error) {
 	bs, err := bufRd.Peek(10)
 	if err != nil && err != io.EOF {

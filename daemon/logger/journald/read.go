@@ -160,7 +160,7 @@ func (r *reader) initialSeekTail() (bool, error) {
 		// The (filtered) journal has no entries. The tail is the head: all new
 		// entries which get written into the journal from this point forward
 		// should be read from the journal. However the read pointer is
-		// positioned at a conceptual position which is not condusive to reading
+		// positioned at a conceptual position which is not conducive to reading
 		// those entries. The tail of the journal is resolved to the last entry
 		// in the journal _at the time of the first successful Previous() call_,
 		// which means that an arbitrary number of journal entries added in the

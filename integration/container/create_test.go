@@ -702,7 +702,7 @@ func TestContainerdContainerImageInfo(t *testing.T) {
 	if testEnv.UsingSnapshotter() {
 		assert.Equal(t, ctr.Image, "docker.io/library/busybox:latest")
 	} else {
-		// This field is not set when not using contianerd backed storage.
+		// This field is not set when not using containerd backed storage.
 		assert.Equal(t, ctr.Image, "")
 	}
 }

@@ -94,7 +94,7 @@ issues:
     # (unlike the "include" option), the "exclude" option does not take exclusion
     # ID's.
     #
-    # These exclusion patterns are copied from the default excluses at:
+    # These exclusion patterns are copied from the default excludes at:
     # https://github.com/golangci/golangci-lint/blob/v1.46.2/pkg/config/issues.go#L10-L104
 
     # EXC0001

@@ -2050,7 +2050,7 @@ func (n *Network) ResolveIP(_ context.Context, ip string) string {
 	// because of interleave of different events from different sources (local container create vs
 	// network db notifications)
 	// In such cases the resolution will be based on the first element of the set, and can vary
-	// during the system stabilitation
+	// during the system stabilization
 	elem := elemSet[0]
 	if elem.extResolver {
 		return ""

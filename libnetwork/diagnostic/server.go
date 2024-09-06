@@ -101,7 +101,7 @@ func (s *Server) EnableDiagnostic(ip string, port int) {
 	}(s)
 }
 
-// DisableDiagnostic stop the dubug and closes the tcp socket
+// DisableDiagnostic stop the debug and closes the tcp socket
 func (s *Server) DisableDiagnostic() {
 	s.mu.Lock()
 	defer s.mu.Unlock()

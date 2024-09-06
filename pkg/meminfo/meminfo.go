@@ -1,4 +1,4 @@
-// Package meminfo provides utilites to retrieve memory statistics of
+// Package meminfo provides utilities to retrieve memory statistics of
 // the host system.
 package meminfo
 

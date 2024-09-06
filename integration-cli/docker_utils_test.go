@@ -400,7 +400,7 @@ func checkGoroutineCount(ctx context.Context, apiClient client.APIClient, expect
 				t.Log("Waiting for goroutines to stabilize")
 				first = false
 			}
-			return poll.Continue("exepcted %d goroutines, got %d", expected, n)
+			return poll.Continue("expected %d goroutines, got %d", expected, n)
 		}
 		return poll.Success()
 	}

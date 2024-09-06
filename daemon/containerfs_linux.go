@@ -181,7 +181,7 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 	return vw, nil
 }
 
-// RunInFS synchronously runs fn in the context of the container filesytem and
+// RunInFS synchronously runs fn in the context of the container filesystem and
 // passes through its return value.
 //
 // The container filesystem is only visible to functions called in the same
