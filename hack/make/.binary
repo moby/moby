@@ -78,6 +78,18 @@ source "${MAKEDIR}/.go-autogen"
 		GCFLAGS="all=-N -l"
 	fi
 
+	if [ "$(go env GOARCH)" = "arm" ] && [ "$(go env GOARM)" = "5" ]; then
+		# cross-compiling for arm/v5 fails on go1.22; a fix is included for this
+		# in go1.23 (https://github.com/golang/go/issues/65290), but for go1.22
+		# we can set the correct option manually.
+		CGO_CFLAGS+=" -Wno-atomic-alignment"
+		export CGO_CFLAGS
+
+		# Make sure libatomic is included on arm/v5, because clang does not auto-link it.
+		# see https://github.com/moby/moby/pull/46982#issuecomment-2206992611
+		export CGO_LDFLAGS="-latomic"
+	fi
+
 	echo "Building $([ "$DOCKER_STATIC" = "1" ] && echo "static" || echo "dynamic") $DEST/$BINARY_FULLNAME ($PLATFORM_NAME)..."
 	if [ -n "$DOCKER_DEBUG" ]; then
 		set -x

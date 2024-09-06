@@ -373,7 +373,7 @@ func setINC(version iptables.IPVersion, iface string, enable bool) error {
 						log.G(context.TODO()).Warnf("Failed to rollback iptables rule after failure (%v): %v", err, err2)
 					}
 				}
-				return fmt.Errorf(msg)
+				return errors.New(msg)
 			}
 			log.G(context.TODO()).Warn(msg)
 		}
