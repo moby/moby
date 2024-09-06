@@ -1,7 +1,3 @@
-run:
-  skip-dirs:
-    - pkg/etw/sample
-
 linters:
   enable:
     # style
@@ -20,9 +16,13 @@ linters:
     - gofmt # files are gofmt'ed
     - gosec # security
     - nilerr # returns nil even with non-nil error
+    - thelper #  test helpers without t.Helper()
     - unparam # unused function params
 
 issues:
+  exclude-dirs:
+    - pkg/etw/sample
+
   exclude-rules:
     # err is very often shadowed in nested scopes
     - linters:
@@ -69,9 +69,7 @@ linters-settings:
       # struct order is often for Win32 compat
       # also, ignore pointer bytes/GC issues for now until performance becomes an issue
       - fieldalignment
-    check-shadowing: true
   nolintlint:
-    allow-leading-space: false
     require-explanation: true
     require-specific: true
   revive:

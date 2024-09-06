@@ -62,7 +62,7 @@ func (b *WString) Free() {
 // ResizeTo grows the buffer to at least c and returns the new capacity, freeing the
 // previous buffer back into pool.
 func (b *WString) ResizeTo(c uint32) uint32 {
-	// allready sufficient (or n is 0)
+	// already sufficient (or n is 0)
 	if c <= b.Cap() {
 		return b.Cap()
 	}
