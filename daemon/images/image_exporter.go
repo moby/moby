@@ -6,10 +6,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image/tarexport"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // ExportImage exports a list of images to the given output stream. The
@@ -18,10 +16,7 @@ import (
 // the same tag are exported. names is the set of tags to export, and
 // outStream is the writer which the images are written to.
 func (i *ImageService) ExportImage(ctx context.Context, names []string, platform *ocispec.Platform, outStream io.Writer) error {
-	if platform != nil {
-		return errdefs.NotImplemented(errors.New("platform parameter is not supported with the graphdriver image store"))
-	}
-	imageExporter := tarexport.NewTarExporter(i.imageStore, i.layerStore, i.referenceStore, i)
+	imageExporter := tarexport.NewTarExporter(i.imageStore, i.layerStore, i.referenceStore, i, platform)
 	return imageExporter.Save(ctx, names, outStream)
 }
 
@@ -51,9 +46,6 @@ func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Conta
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
 func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platform *ocispec.Platform, outStream io.Writer, quiet bool) error {
-	if platform != nil {
-		return errdefs.NotImplemented(errors.New("platform parameter is not supported with the graphdriver image store"))
-	}
-	imageExporter := tarexport.NewTarExporter(i.imageStore, i.layerStore, i.referenceStore, i)
+	imageExporter := tarexport.NewTarExporter(i.imageStore, i.layerStore, i.referenceStore, i, platform)
 	return imageExporter.Load(ctx, inTar, outStream, quiet)
 }

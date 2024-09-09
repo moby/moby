@@ -101,6 +101,9 @@ func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream i
 		if err := image.CheckOS(img.OperatingSystem()); err != nil {
 			return fmt.Errorf("cannot load %s image on %s", img.OperatingSystem(), runtime.GOOS)
 		}
+		if l.platformMatcher != nil && !l.platformMatcher.Match(img.Platform()) {
+			continue
+		}
 		rootFS := *img.RootFS
 		rootFS.DiffIDs = nil
 

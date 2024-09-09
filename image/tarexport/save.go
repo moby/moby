@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/tracing"
 	"github.com/containerd/log"
+	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/api/types/events"
@@ -163,6 +164,11 @@ func (l *tarexporter) takeLayerReference(id image.ID, imgDescr *imageDescriptor)
 	}
 	if err := image.CheckOS(img.OperatingSystem()); err != nil {
 		return fmt.Errorf("os %q is not supported", img.OperatingSystem())
+	}
+	if l.platform != nil {
+		if !l.platformMatcher.Match(img.Platform()) {
+			return errors.New("no suitable export target found for platform " + platforms.FormatAll(*l.platform))
+		}
 	}
 	imgDescr.image = img
 	topLayerID := img.RootFS.ChainID()
