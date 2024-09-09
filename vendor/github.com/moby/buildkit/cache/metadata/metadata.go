@@ -83,7 +83,7 @@ func (s *Store) Probe(index string) (bool, error) {
 	return exists, errors.WithStack(err)
 }
 
-func (s *Store) Search(ctx context.Context, index string) ([]*StorageItem, error) {
+func (s *Store) Search(ctx context.Context, index string, prefix bool) ([]*StorageItem, error) {
 	var out []*StorageItem
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(indexBucket))
@@ -94,12 +94,18 @@ func (s *Store) Search(ctx context.Context, index string) ([]*StorageItem, error
 		if main == nil {
 			return nil
 		}
-		index = indexKey(index, "")
+		if !prefix {
+			index = indexKey(index, "")
+		}
 		c := b.Cursor()
 		k, _ := c.Seek([]byte(index))
 		for {
 			if k != nil && strings.HasPrefix(string(k), index) {
-				itemID := strings.TrimPrefix(string(k), index)
+				idx := strings.LastIndex(string(k), "::")
+				if idx == -1 {
+					continue
+				}
+				itemID := string(k[idx+2:])
 				k, _ = c.Next()
 				b := main.Bucket([]byte(itemID))
 				if b == nil {
