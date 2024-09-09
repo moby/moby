@@ -251,8 +251,6 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		}
 	}
 
-	validateCommandCasing(dockerfile, lint)
-
 	proxyEnv := proxyEnvFromBuildArgs(opt.BuildArgs)
 
 	stages, metaArgs, err := instructions.Parse(dockerfile.AST, lint)
@@ -263,6 +261,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		return nil, errors.New("dockerfile contains no stages to build")
 	}
 	validateStageNames(stages, lint)
+	validateCommandCasing(stages, lint)
 
 	shlex := shell.NewLex(dockerfile.EscapeToken)
 	outline := newOutlineCapture()
@@ -596,7 +595,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 	ctxPaths := map[string]struct{}{}
 
 	var dockerIgnoreMatcher *patternmatcher.PatternMatcher
-	if opt.Client != nil && opt.Client.CopyIgnoredCheckEnabled {
+	if opt.Client != nil {
 		dockerIgnorePatterns, err := opt.Client.DockerIgnorePatterns(ctx)
 		if err != nil {
 			return nil, err
@@ -1363,10 +1362,11 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 	var mode *os.FileMode
 	if cfg.chmod != "" {
 		p, err := strconv.ParseUint(cfg.chmod, 8, 32)
-		if err == nil {
-			perm := os.FileMode(p)
-			mode = &perm
+		if err != nil || p > 0o7777 {
+			return errors.Errorf("invalid chmod parameter: '%v'. it should be octal string and between 0 and 07777", cfg.chmod)
 		}
+		perm := os.FileMode(p)
+		mode = &perm
 	}
 
 	if cfg.checksum != "" {
@@ -2198,32 +2198,49 @@ func isSelfConsistentCasing(s string) bool {
 	return s == strings.ToLower(s) || s == strings.ToUpper(s)
 }
 
-func validateCommandCasing(dockerfile *parser.Result, lint *linter.Linter) {
+func validateCaseMatch(name string, isMajorityLower bool, location []parser.Range, lint *linter.Linter) {
+	var correctCasing string
+	if isMajorityLower && strings.ToLower(name) != name {
+		correctCasing = "lowercase"
+	} else if !isMajorityLower && strings.ToUpper(name) != name {
+		correctCasing = "uppercase"
+	}
+	if correctCasing != "" {
+		msg := linter.RuleConsistentInstructionCasing.Format(name, correctCasing)
+		lint.Run(&linter.RuleConsistentInstructionCasing, location, msg)
+	}
+}
+
+func validateCommandCasing(stages []instructions.Stage, lint *linter.Linter) {
 	var lowerCount, upperCount int
-	for _, node := range dockerfile.AST.Children {
-		if isSelfConsistentCasing(node.Value) {
-			if strings.ToLower(node.Value) == node.Value {
+	for _, stage := range stages {
+		if isSelfConsistentCasing(stage.OrigCmd) {
+			if strings.ToLower(stage.OrigCmd) == stage.OrigCmd {
 				lowerCount++
 			} else {
 				upperCount++
 			}
 		}
+		for _, cmd := range stage.Commands {
+			cmdName := cmd.Name()
+			if isSelfConsistentCasing(cmdName) {
+				if strings.ToLower(cmdName) == cmdName {
+					lowerCount++
+				} else {
+					upperCount++
+				}
+			}
+		}
 	}
 
 	isMajorityLower := lowerCount > upperCount
-	for _, node := range dockerfile.AST.Children {
+	for _, stage := range stages {
 		// Here, we check both if the command is consistent per command (ie, "CMD" or "cmd", not "Cmd")
 		// as well as ensuring that the casing is consistent throughout the dockerfile by comparing the
 		// command to the casing of the majority of commands.
-		var correctCasing string
-		if isMajorityLower && strings.ToLower(node.Value) != node.Value {
-			correctCasing = "lowercase"
-		} else if !isMajorityLower && strings.ToUpper(node.Value) != node.Value {
-			correctCasing = "uppercase"
-		}
-		if correctCasing != "" {
-			msg := linter.RuleConsistentInstructionCasing.Format(node.Value, correctCasing)
-			lint.Run(&linter.RuleConsistentInstructionCasing, node.Location(), msg)
+		validateCaseMatch(stage.OrigCmd, isMajorityLower, stage.Location, lint)
+		for _, cmd := range stage.Commands {
+			validateCaseMatch(cmd.Name(), isMajorityLower, cmd.Location(), lint)
 		}
 	}
 }

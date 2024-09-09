@@ -22,6 +22,7 @@ import (
 	"github.com/moby/buildkit/cmd/buildkitd/config"
 	"github.com/moby/buildkit/identity"
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
+	"github.com/moby/buildkit/util/db"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/iohelper"
 	"github.com/moby/buildkit/util/leaseutil"
@@ -39,7 +40,7 @@ const (
 )
 
 type HistoryQueueOpt struct {
-	DB           *bolt.DB
+	DB           db.Transactor
 	LeaseManager *leaseutil.Manager
 	ContentStore *containerdsnapshot.Store
 	CleanConfig  *config.HistoryConfig
@@ -71,6 +72,7 @@ type StatusImportResult struct {
 	NumCachedSteps    int
 	NumCompletedSteps int
 	NumTotalSteps     int
+	NumWarnings       int
 }
 
 func NewHistoryQueue(opt HistoryQueueOpt) (*HistoryQueue, error) {
@@ -779,9 +781,11 @@ func (h *HistoryQueue) ImportStatus(ctx context.Context, ch chan *client.SolveSt
 		completed bool
 	}
 	vtxMap := make(map[digest.Digest]*vtxInfo)
+	var numWarnings int
 
 	buf := make([]byte, 32*1024)
 	for st := range ch {
+		numWarnings += len(st.Warnings)
 		for _, vtx := range st.Vertexes {
 			if _, ok := vtxMap[vtx.Digest]; !ok {
 				vtxMap[vtx.Digest] = &vtxInfo{}
@@ -837,6 +841,7 @@ func (h *HistoryQueue) ImportStatus(ctx context.Context, ch chan *client.SolveSt
 		NumCachedSteps:    numCached,
 		NumCompletedSteps: numCompleted,
 		NumTotalSteps:     len(vtxMap),
+		NumWarnings:       numWarnings,
 	}, release, nil
 }
 

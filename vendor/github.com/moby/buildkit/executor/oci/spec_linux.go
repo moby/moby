@@ -38,14 +38,14 @@ func withProcessArgs(args ...string) oci.SpecOpts {
 	return oci.WithProcessArgs(args...)
 }
 
-func generateMountOpts(resolvConf, hostsFile string) ([]oci.SpecOpts, error) {
+func generateMountOpts(resolvConf, hostsFile string) []oci.SpecOpts {
 	return []oci.SpecOpts{
 		// https://github.com/moby/buildkit/issues/429
 		withRemovedMount("/run"),
 		withROBind(resolvConf, "/etc/resolv.conf"),
 		withROBind(hostsFile, "/etc/hosts"),
 		withCGroup(),
-	}, nil
+	}
 }
 
 // generateSecurityOpts may affect mounts, so must be called after generateMountOpts
@@ -260,13 +260,13 @@ func sub(m mount.Mount, subPath string) (mount.Mount, func() error, error) {
 		// similar to runc.WithProcfd
 		fh, err := os.OpenFile(src, unix.O_PATH|unix.O_CLOEXEC, 0)
 		if err != nil {
-			return mount.Mount{}, nil, err
+			return mount.Mount{}, nil, errors.WithStack(err)
 		}
 
 		fdPath := "/proc/self/fd/" + strconv.Itoa(int(fh.Fd()))
 		if resolved, err := os.Readlink(fdPath); err != nil {
 			fh.Close()
-			return mount.Mount{}, nil, err
+			return mount.Mount{}, nil, errors.WithStack(err)
 		} else if resolved != src {
 			retries--
 			if retries <= 0 {

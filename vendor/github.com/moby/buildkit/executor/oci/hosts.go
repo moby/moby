@@ -40,34 +40,34 @@ func makeHostsFile(stateDir string, extraHosts []executor.HostIP, idmap *idtools
 		return "", func() {}, nil
 	}
 	if !errors.Is(err, os.ErrNotExist) {
-		return "", nil, err
+		return "", nil, errors.WithStack(err)
 	}
 
 	b := &bytes.Buffer{}
 	if _, err := b.Write([]byte(initHostsFile(hostname))); err != nil {
-		return "", nil, err
+		return "", nil, errors.WithStack(err)
 	}
 
 	for _, h := range extraHosts {
 		if _, err := b.Write([]byte(fmt.Sprintf("%s\t%s\n", h.IP.String(), h.Host))); err != nil {
-			return "", nil, err
+			return "", nil, errors.WithStack(err)
 		}
 	}
 
 	tmpPath := p + ".tmp"
 	if err := os.WriteFile(tmpPath, b.Bytes(), 0644); err != nil {
-		return "", nil, err
+		return "", nil, errors.WithStack(err)
 	}
 
 	if idmap != nil {
 		root := idmap.RootPair()
 		if err := os.Chown(tmpPath, root.UID, root.GID); err != nil {
-			return "", nil, err
+			return "", nil, errors.WithStack(err)
 		}
 	}
 
 	if err := os.Rename(tmpPath, p); err != nil {
-		return "", nil, err
+		return "", nil, errors.WithStack(err)
 	}
 	return p, func() {
 		os.RemoveAll(p)

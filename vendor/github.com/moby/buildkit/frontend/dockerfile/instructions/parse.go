@@ -398,6 +398,7 @@ func parseFrom(req parseRequest) (*Stage, error) {
 	code := strings.TrimSpace(req.original)
 	return &Stage{
 		BaseName:   req.args[0],
+		OrigCmd:    req.command,
 		Name:       stageName,
 		SourceCode: code,
 		Commands:   []Command{},
