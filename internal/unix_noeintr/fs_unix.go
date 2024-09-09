@@ -1,8 +1,8 @@
 //go:build !windows
 
-// Wrappers for unix syscalls that retry on EINTR
-// TODO: Consider moving (for example to moby/sys) and making the wrappers
-// auto-generated.
+// Package unix_noeintr provides wrappers for unix syscalls that retry on EINTR.
+//
+// TODO: Consider moving (for example to moby/sys) and making the wrappers auto-generated.
 package unix_noeintr
 
 import (
