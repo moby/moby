@@ -354,13 +354,13 @@ func (w *Worker) GetRemotes(ctx context.Context, ref cache.ImmutableRef, createI
 }
 
 // PruneCacheMounts removes the current cache snapshots for specified IDs
-func (w *Worker) PruneCacheMounts(ctx context.Context, ids []string) error {
+func (w *Worker) PruneCacheMounts(ctx context.Context, ids map[string]bool) error {
 	mu := mounts.CacheMountsLocker()
 	mu.Lock()
 	defer mu.Unlock()
 
-	for _, id := range ids {
-		mds, err := mounts.SearchCacheDir(ctx, w.CacheManager(), id)
+	for id, nested := range ids {
+		mds, err := mounts.SearchCacheDir(ctx, w.CacheManager(), id, nested)
 		if err != nil {
 			return err
 		}
