@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"sync"
 
 	"github.com/containerd/containerd/cio"
@@ -92,27 +91,23 @@ func (c *Config) NewNopInputPipe() {
 
 // CloseStreams ensures that the configured streams are properly closed.
 func (c *Config) CloseStreams() error {
-	var errs []string
+	var errs error
 
 	if c.stdin != nil {
 		if err := c.stdin.Close(); err != nil {
-			errs = append(errs, fmt.Sprintf("error close stdin: %s", err))
+			errs = errors.Join(errs, fmt.Errorf("error close stdin: %w", err))
 		}
 	}
 
 	if err := c.stdout.Clean(); err != nil {
-		errs = append(errs, fmt.Sprintf("error close stdout: %s", err))
+		errs = errors.Join(errs, fmt.Errorf("error close stdout: %w", err))
 	}
 
 	if err := c.stderr.Clean(); err != nil {
-		errs = append(errs, fmt.Sprintf("error close stderr: %s", err))
+		errs = errors.Join(errs, fmt.Errorf("error close stderr: %w", err))
 	}
 
-	if len(errs) > 0 {
-		return errors.New(strings.Join(errs, "\n"))
-	}
-
-	return nil
+	return errs
 }
 
 // CopyToPipe connects streamconfig with a libcontainerd.IOPipe
