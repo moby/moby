@@ -39,6 +39,7 @@ var nativeToSeccomp = map[string]specs.Arch{
 	"ppc":         specs.ArchPPC,
 	"ppc64":       specs.ArchPPC64,
 	"ppc64le":     specs.ArchPPC64LE,
+	"riscv64":     specs.ArchRISCV64,
 	"s390":        specs.ArchS390,
 	"s390x":       specs.ArchS390X,
 }
@@ -57,6 +58,7 @@ var goToNative = map[string]string{
 	"ppc":         "ppc",
 	"ppc64":       "ppc64",
 	"ppc64le":     "ppc64le",
+	"riscv64":     "riscv64",
 	"s390":        "s390",
 	"s390x":       "s390x",
 }
