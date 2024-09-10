@@ -180,7 +180,7 @@ func (results *LintResults) PrintTo(w io.Writer, scb SourceInfoMap) error {
 	return nil
 }
 
-func (results *LintResults) PrintErrorTo(w io.Writer) {
+func (results *LintResults) PrintErrorTo(w io.Writer, scb SourceInfoMap) {
 	// This prints out the error in LintResults to the writer in a format that
 	// is consistent with the warnings for easier downstream consumption.
 	if results.Error == nil {
@@ -189,6 +189,9 @@ func (results *LintResults) PrintErrorTo(w io.Writer) {
 
 	fmt.Fprintln(w, results.Error.Message)
 	sourceInfo := results.Sources[results.Error.Location.SourceIndex]
+	if scb != nil {
+		sourceInfo = scb(sourceInfo)
+	}
 	source := errdefs.Source{
 		Info:   sourceInfo,
 		Ranges: results.Error.Location.Ranges,

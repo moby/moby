@@ -334,7 +334,7 @@ const sharedKeyIndex = keySharedKey + ":"
 
 func searchSharedKey(ctx context.Context, store cache.MetadataStore, k string) ([]cacheRefMetadata, error) {
 	var results []cacheRefMetadata
-	mds, err := store.Search(ctx, sharedKeyIndex+k)
+	mds, err := store.Search(ctx, sharedKeyIndex+k, false)
 	if err != nil {
 		return nil, err
 	}

@@ -35,7 +35,7 @@ type Worker interface {
 	Exporter(name string, sm *session.Manager) (exporter.Exporter, error)
 	Prune(ctx context.Context, ch chan client.UsageInfo, opt ...client.PruneInfo) error
 	FromRemote(ctx context.Context, remote *solver.Remote) (cache.ImmutableRef, error)
-	PruneCacheMounts(ctx context.Context, ids []string) error
+	PruneCacheMounts(ctx context.Context, ids map[string]bool) error
 	ContentStore() *containerdsnapshot.Store
 	Executor() executor.Executor
 	CacheManager() cache.Manager

@@ -341,13 +341,13 @@ func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *se
 	return nil, errors.Errorf("could not resolve %v", v)
 }
 
-func (w *Worker) PruneCacheMounts(ctx context.Context, ids []string) error {
+func (w *Worker) PruneCacheMounts(ctx context.Context, ids map[string]bool) error {
 	mu := mounts.CacheMountsLocker()
 	mu.Lock()
 	defer mu.Unlock()
 
-	for _, id := range ids {
-		mds, err := mounts.SearchCacheDir(ctx, w.CacheMgr, id)
+	for id, nested := range ids {
+		mds, err := mounts.SearchCacheDir(ctx, w.CacheMgr, id, nested)
 		if err != nil {
 			return err
 		}

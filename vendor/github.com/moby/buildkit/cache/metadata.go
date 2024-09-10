@@ -44,7 +44,7 @@ const blobchainIndex = "blobchainid:"
 const chainIndex = "chainid:"
 
 type MetadataStore interface {
-	Search(context.Context, string) ([]RefMetadata, error)
+	Search(context.Context, string, bool) ([]RefMetadata, error)
 }
 
 type RefMetadata interface {
@@ -71,6 +71,7 @@ type RefMetadata interface {
 
 	// generic getters/setters for external packages
 	GetString(string) string
+	Get(string) *metadata.Value
 	SetString(key, val, index string) error
 
 	GetExternal(string) ([]byte, error)
@@ -79,15 +80,15 @@ type RefMetadata interface {
 	ClearValueAndIndex(string, string) error
 }
 
-func (cm *cacheManager) Search(ctx context.Context, idx string) ([]RefMetadata, error) {
+func (cm *cacheManager) Search(ctx context.Context, idx string, prefixOnly bool) ([]RefMetadata, error) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
-	return cm.search(ctx, idx)
+	return cm.search(ctx, idx, prefixOnly)
 }
 
 // callers must hold cm.mu lock
-func (cm *cacheManager) search(ctx context.Context, idx string) ([]RefMetadata, error) {
-	sis, err := cm.MetadataStore.Search(ctx, idx)
+func (cm *cacheManager) search(ctx context.Context, idx string, prefixOnly bool) ([]RefMetadata, error) {
+	sis, err := cm.MetadataStore.Search(ctx, idx, prefixOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -119,12 +120,12 @@ func (cm *cacheManager) getMetadata(id string) (*cacheMetadata, bool) {
 
 // callers must hold cm.mu lock
 func (cm *cacheManager) searchBlobchain(ctx context.Context, id digest.Digest) ([]RefMetadata, error) {
-	return cm.search(ctx, blobchainIndex+id.String())
+	return cm.search(ctx, blobchainIndex+id.String(), false)
 }
 
 // callers must hold cm.mu lock
 func (cm *cacheManager) searchChain(ctx context.Context, id digest.Digest) ([]RefMetadata, error) {
-	return cm.search(ctx, chainIndex+id.String())
+	return cm.search(ctx, chainIndex+id.String(), false)
 }
 
 type cacheMetadata struct {
@@ -484,6 +485,10 @@ func (md *cacheMetadata) GetString(key string) string {
 		return ""
 	}
 	return str
+}
+
+func (md *cacheMetadata) Get(key string) *metadata.Value {
+	return md.si.Get(key)
 }
 
 func (md *cacheMetadata) GetStringSlice(key string) []string {
