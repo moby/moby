@@ -100,6 +100,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 		layers = append(layers, layer.String())
 	}
 
+	imgConfig := containerConfigToDockerOCIImageConfig(img.Config)
 	return &imagetypes.InspectResponse{
 		ID:            img.ImageID(),
 		RepoTags:      repoTags,
@@ -109,7 +110,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 		Created:       created,
 		DockerVersion: "",
 		Author:        img.Author,
-		Config:        img.Config,
+		Config:        &imgConfig,
 		Architecture:  img.Architecture,
 		Variant:       img.Variant,
 		Os:            img.OS,
