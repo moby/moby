@@ -45,14 +45,14 @@ type saveSession struct {
 }
 
 func (l *tarexporter) Save(ctx context.Context, names []string, outStream io.Writer) error {
-	images, err := l.parseNames(ctx, names)
+	imgDescriptors, err := l.parseNames(ctx, names)
 	if err != nil {
 		return err
 	}
 
 	// Release all the image top layer references
-	defer l.releaseLayerReferences(images)
-	return (&saveSession{tarexporter: l, images: images}).save(ctx, outStream)
+	defer l.releaseLayerReferences(imgDescriptors)
+	return (&saveSession{tarexporter: l, images: imgDescriptors}).save(ctx, outStream)
 }
 
 // parseNames will parse the image names to a map which contains image.ID to *imageDescriptor.
@@ -169,11 +169,11 @@ func (l *tarexporter) takeLayerReference(id image.ID, imgDescr *imageDescriptor)
 	if topLayerID == "" {
 		return nil
 	}
-	layer, err := l.lss.Get(topLayerID)
+	topLayer, err := l.lss.Get(topLayerID)
 	if err != nil {
 		return err
 	}
-	imgDescr.layerRef = layer
+	imgDescr.layerRef = topLayer
 	return nil
 }
 
