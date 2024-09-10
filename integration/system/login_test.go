@@ -17,13 +17,12 @@ func TestLoginFailsWithBadCredentials(t *testing.T) {
 	skip.If(t, !requirement.HasHubConnectivity(t))
 
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	config := registry.AuthConfig{
+	_, err := apiClient.RegistryLogin(ctx, registry.AuthConfig{
 		Username: "no-user",
 		Password: "no-password",
-	}
-	_, err := client.RegistryLogin(ctx, config)
+	})
 	assert.Assert(t, err != nil)
 	assert.Check(t, is.ErrorContains(err, "unauthorized: incorrect username or password"))
 	assert.Check(t, is.ErrorContains(err, fmt.Sprintf("https://%s/v2/", registrypkg.DefaultRegistryHost)))

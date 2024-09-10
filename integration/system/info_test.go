@@ -15,9 +15,9 @@ import (
 
 func TestInfoAPI(t *testing.T) {
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	info, err := client.Info(ctx)
+	info, err := apiClient.Info(ctx)
 	assert.NilError(t, err)
 
 	// TODO(thaJeztah): make sure we have other tests that run a local daemon and check other fields based on known state.

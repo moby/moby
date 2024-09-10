@@ -9,9 +9,9 @@ import (
 
 func TestVersion(t *testing.T) {
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	version, err := client.ServerVersion(ctx)
+	version, err := apiClient.ServerVersion(ctx)
 	assert.NilError(t, err)
 
 	assert.Check(t, version.APIVersion != "")

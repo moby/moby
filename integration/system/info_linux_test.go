@@ -11,9 +11,9 @@ import (
 
 func TestInfoBinaryCommits(t *testing.T) {
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	info, err := client.Info(ctx)
+	info, err := apiClient.Info(ctx)
 	assert.NilError(t, err)
 
 	assert.Check(t, "N/A" != info.ContainerdCommit.ID)
