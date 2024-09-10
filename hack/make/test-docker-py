@@ -22,6 +22,9 @@ if [ -n "$TEST_INTEGRATION_USE_SNAPSHOTTER" ]; then
 	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_build_test.py::BuildTest::test_build_squash"
 fi
 
+# TODO(thaJeztah) re-enable after https://github.com/docker/docker-py/pull/3336 is in the DOCKER_PY_COMMIT release.
+PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_build_test.py::BuildTest::test_build_container_with_target"
+
 # TODO(vvoland): re-enable after https://github.com/docker/docker-py/pull/3203 is included in the DOCKER_PY_COMMIT release.
 PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_image_test.py::CommitTest::test_commit"
 PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_image_test.py::CommitTest::test_commit_with_changes"
