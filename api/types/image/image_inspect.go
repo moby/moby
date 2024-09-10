@@ -3,6 +3,7 @@ package image
 import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/storage"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -84,7 +85,7 @@ type InspectResponse struct {
 	// Author is the name of the author that was specified when committing the
 	// image, or as specified through MAINTAINER (deprecated) in the Dockerfile.
 	Author string
-	Config *container.Config
+	Config *dockerspec.DockerOCIImageConfig
 
 	// Architecture is the hardware CPU architecture that the image runs on.
 	Architecture string

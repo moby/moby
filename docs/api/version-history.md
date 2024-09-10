@@ -24,6 +24,14 @@ keywords: "API, Docker, rcli, REST, documentation"
 * Deprecated: The `BridgeNfIptables` and `BridgeNfIp6tables` fields in the
   `GET /info` response were deprecated in API v1.48, and are now omitted
   in API v1.50.
+* Deprecated: `GET /images/{name}/json` no longer returns the following `Config`
+  fields; `Hostname`, `Domainname`, `AttachStdin`, `AttachStdout`, `AttachStderr`
+  `Tty`, `OpenStdin`, `StdinOnce`, `Image`, `NetworkDisabled` (already omitted unless set),
+  `MacAddress` (already omitted unless set), `StopTimeout` (already omitted unless set).
+  These additional fields were included in the response due to an implementation
+  detail but not part of the image's Configuration. These fields were marked
+  deprecated in API v1.46, and are now omitted. Older versions of the API still
+  return these fields, but they are always empty.
 
 ## v1.49 API changes
 

@@ -166,7 +166,6 @@ func (s *DockerRegistrySuite) TestRemoveImageByDigest(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestBuildByDigest(c *testing.T) {
-	skip.If(c, testEnv.UsingSnapshotter(), "Config.Image is not created with containerd, buildkit doesn't set it either")
 	imgDigest, err := setupImage(c)
 	assert.NilError(c, err, "error setting up image")
 
@@ -175,9 +174,6 @@ func (s *DockerRegistrySuite) TestBuildByDigest(c *testing.T) {
 	// pull from the registry using the <name>@<digest> reference
 	cli.DockerCmd(c, "pull", imageReference)
 
-	// get the image id
-	imageID := inspectField(c, imageReference, "Id")
-
 	// do the build
 	const name = "buildbydigest"
 	buildImageSuccessfully(c, name, build.WithDockerfile(fmt.Sprintf(
@@ -185,10 +181,9 @@ func (s *DockerRegistrySuite) TestBuildByDigest(c *testing.T) {
      CMD ["/bin/echo", "Hello World"]`, imageReference)))
 	assert.NilError(c, err)
 
-	// get the build's image id
-	res := inspectField(c, name, "Config.Image")
-	// make sure they match
-	assert.Equal(c, res, imageID)
+	// verify the build was ok
+	res := inspectField(c, name, "Config.Cmd")
+	assert.Equal(c, res, `[/bin/echo Hello World]`)
 }
 
 func (s *DockerRegistrySuite) TestTagByDigest(c *testing.T) {
