@@ -237,7 +237,7 @@ func (s *saveSession) save(ctx context.Context, outStream io.Writer) error {
 			})
 		}
 
-		m := ocispec.Manifest{
+		data, err := json.Marshal(ocispec.Manifest{
 			Versioned: specs.Versioned{
 				SchemaVersion: 2,
 			},
@@ -248,9 +248,7 @@ func (s *saveSession) save(ctx context.Context, outStream io.Writer) error {
 				Size:      int64(len(imageDescr.image.RawJSON())),
 			},
 			Layers: foreign,
-		}
-
-		data, err := json.Marshal(m)
+		})
 		if err != nil {
 			return errors.Wrap(err, "error marshaling manifest")
 		}
@@ -269,12 +267,11 @@ func (s *saveSession) save(ctx context.Context, outStream io.Writer) error {
 		if err := system.Chtimes(mFile, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
 			return errors.Wrap(err, "error setting blob directory timestamps")
 		}
-		size := int64(len(data))
 
 		untaggedMfstDesc := ocispec.Descriptor{
 			MediaType: ocispec.MediaTypeImageManifest,
 			Digest:    dgst,
-			Size:      size,
+			Size:      int64(len(data)),
 		}
 		for _, ref := range imageDescr.refs {
 			familiarName := reference.FamiliarName(ref)
