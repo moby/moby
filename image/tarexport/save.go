@@ -275,7 +275,6 @@ func (s *saveSession) save(ctx context.Context, outStream io.Writer) error {
 			MediaType: ocispec.MediaTypeImageManifest,
 			Digest:    dgst,
 			Size:      size,
-			Platform:  m.Config.Platform,
 		}
 		for _, ref := range imageDescr.refs {
 			familiarName := reference.FamiliarName(ref)
