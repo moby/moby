@@ -14,13 +14,9 @@ Table `filter`:
 
 </details>
 
-The FORWARD chain's policy shown above is ACCEPT. However:
-
-   - For IPv4, [setupIPForwarding][1] sets the POLICY to DROP if the sysctl
-     net.ipv4.ip_forward was not set to '1', and the daemon set it itself.
-   - For IPv6, the policy is always DROP.
-
-[1]: https://github.com/moby/moby/blob/cff4f20c44a3a7c882ed73934dec6a77246c6323/libnetwork/drivers/bridge/setup_ip_forwarding.go#L44
+The FORWARD chain's policy shown above is ACCEPT. However, docker (no longer) modifies
+the policy, the behaviour of its rules must not be affected by the user's choice to
+ACCEPT/DROP.
 
 The FORWARD chain rules are numbered in the output above, they are:
 
