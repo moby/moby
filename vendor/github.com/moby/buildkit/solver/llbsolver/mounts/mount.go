@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/moby/buildkit/util/bklog"
 
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client"
@@ -23,6 +23,7 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/locker"
+	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 )
@@ -116,7 +117,7 @@ func (g *cacheRefGetter) getRefCacheDirNoCache(ctx context.Context, key string, 
 	cacheRefsLocker.Lock(key)
 	defer cacheRefsLocker.Unlock(key)
 	for {
-		sis, err := SearchCacheDir(ctx, g.cm, key)
+		sis, err := SearchCacheDir(ctx, g.cm, key, false)
 		if err != nil {
 			return nil, err
 		}
@@ -542,13 +543,24 @@ func (r *cacheRef) Release(ctx context.Context) error {
 const keyCacheDir = "cache-dir"
 const cacheDirIndex = keyCacheDir + ":"
 
-func SearchCacheDir(ctx context.Context, store cache.MetadataStore, id string) ([]CacheRefMetadata, error) {
+func SearchCacheDir(ctx context.Context, store cache.MetadataStore, id string, withNested bool) ([]CacheRefMetadata, error) {
 	var results []CacheRefMetadata
-	mds, err := store.Search(ctx, cacheDirIndex+id)
+	key := cacheDirIndex + id
+	if withNested {
+		key += ":"
+	}
+	mds, err := store.Search(ctx, key, withNested)
 	if err != nil {
 		return nil, err
 	}
 	for _, md := range mds {
+		if withNested {
+			v := md.Get(keyCacheDir)
+			// skip partial ids but allow id without ref ID
+			if v == nil || v.Index != key && !strings.HasPrefix(v.Index, key) {
+				continue
+			}
+		}
 		results = append(results, CacheRefMetadata{md})
 	}
 	return results, nil

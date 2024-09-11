@@ -187,8 +187,12 @@ func (bc *Client) namedContextRecursive(ctx context.Context, name string, nameWi
 		}
 		return &st, &img, nil
 	case "local":
+		sessionID := bc.bopts.SessionID
+		if v, ok := bc.localsSessionIDs[vv[1]]; ok {
+			sessionID = v
+		}
 		st := llb.Local(vv[1],
-			llb.SessionID(bc.bopts.SessionID),
+			llb.SessionID(sessionID),
 			llb.FollowPaths([]string{DefaultDockerignoreName}),
 			llb.SharedKeyHint("context:"+nameWithPlatform+"-"+DefaultDockerignoreName),
 			llb.WithCustomName("[context "+nameWithPlatform+"] load "+DefaultDockerignoreName),
@@ -226,7 +230,7 @@ func (bc *Client) namedContextRecursive(ctx context.Context, name string, nameWi
 		localOutput := &asyncLocalOutput{
 			name:             vv[1],
 			nameWithPlatform: nameWithPlatform,
-			sessionID:        bc.bopts.SessionID,
+			sessionID:        sessionID,
 			excludes:         excludes,
 			extraOpts:        opt.AsyncLocalOpts,
 		}

@@ -14,13 +14,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 
 	"github.com/containerd/containerd/content"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
+
+type File struct {
+	Name   string
+	Reader io.Reader
+	Size   int64
+}
 
 type writeCloser struct {
 	closed bool
@@ -83,39 +88,27 @@ func newSeekReader(ra io.ReaderAt) *seekReader {
 	}
 }
 
-// packToTar makes .tar(.gz) stream of file named `name` and return reader.
-func packToTar(src string, name string, compress bool) (io.ReadCloser, error) {
-	fi, err := os.Stat(src)
-	if err != nil {
-		return nil, err
-	}
-
+// packToTar packs files to .tar(.gz) stream then return reader.
+func packToTar(files []File, compress bool) io.ReadCloser {
 	dirHdr := &tar.Header{
-		Name:     filepath.Dir(name),
+		Name:     "image",
 		Mode:     0755,
 		Typeflag: tar.TypeDir,
 	}
 
-	hdr := &tar.Header{
-		Name: name,
-		Mode: 0444,
-		Size: fi.Size(),
-	}
-
-	reader, writer := io.Pipe()
+	pr, pw := io.Pipe()
 
 	go func() {
 		// Prepare targz writer
 		var tw *tar.Writer
 		var gw *gzip.Writer
 		var err error
-		var file *os.File
 
 		if compress {
-			gw = gzip.NewWriter(writer)
+			gw = gzip.NewWriter(pw)
 			tw = tar.NewWriter(gw)
 		} else {
-			tw = tar.NewWriter(writer)
+			tw = tar.NewWriter(pw)
 		}
 
 		defer func() {
@@ -137,30 +130,30 @@ func packToTar(src string, name string, compress bool) (io.ReadCloser, error) {
 				finalErr = err2
 			}
 
-			writer.CloseWithError(finalErr)
+			pw.CloseWithError(finalErr)
 		}()
-
-		file, err = os.Open(src)
-		if err != nil {
-			return
-		}
-		defer file.Close()
 
 		// Write targz stream
 		if err = tw.WriteHeader(dirHdr); err != nil {
 			return
 		}
 
-		if err = tw.WriteHeader(hdr); err != nil {
-			return
-		}
-
-		if _, err = io.Copy(tw, file); err != nil {
-			return
+		for _, file := range files {
+			hdr := tar.Header{
+				Name: filepath.Join("image", file.Name),
+				Mode: 0444,
+				Size: file.Size,
+			}
+			if err = tw.WriteHeader(&hdr); err != nil {
+				return
+			}
+			if _, err = io.Copy(tw, file.Reader); err != nil {
+				return
+			}
 		}
 	}()
 
-	return reader, nil
+	return pr
 }
 
 // Copied from containerd/containerd project, copyright The containerd Authors.

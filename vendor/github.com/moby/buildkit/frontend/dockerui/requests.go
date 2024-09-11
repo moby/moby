@@ -66,7 +66,7 @@ func (bc *Client) HandleSubrequest(ctx context.Context, h RequestHandler) (*clie
 			if warnings == nil {
 				return nil, true, nil
 			}
-			res, err := warnings.ToResult()
+			res, err := warnings.ToResult(nil)
 			return res, true, err
 		}
 	}

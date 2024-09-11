@@ -125,7 +125,7 @@ func ValidateEntitlements(ent entitlements.Set) LoadOpt {
 }
 
 type detectPrunedCacheID struct {
-	ids map[string]struct{}
+	ids map[string]bool
 }
 
 func (dpc *detectPrunedCacheID) Load(op *pb.Op, md *pb.OpMetadata, opt *solver.VertexOptions) error {
@@ -142,9 +142,10 @@ func (dpc *detectPrunedCacheID) Load(op *pb.Op, md *pb.OpMetadata, opt *solver.V
 						id = m.Dest
 					}
 					if dpc.ids == nil {
-						dpc.ids = map[string]struct{}{}
+						dpc.ids = map[string]bool{}
 					}
-					dpc.ids[id] = struct{}{}
+					// value shows in mount is on top of a ref
+					dpc.ids[id] = m.Input != -1
 				}
 			}
 		}

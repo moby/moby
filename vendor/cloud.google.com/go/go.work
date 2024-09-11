@@ -14,6 +14,7 @@ use (
 	./apigeeregistry
 	./apikeys
 	./appengine
+	./apps
 	./area120
 	./artifactregistry
 	./asset
@@ -32,6 +33,8 @@ use (
 	./channel
 	./cloudbuild
 	./clouddms
+	./cloudprofiler
+	./cloudquotas
 	./cloudtasks
 	./commerce
 	./compute
@@ -58,6 +61,7 @@ use (
 	./documentai
 	./domains
 	./edgecontainer
+	./edgenetwork
 	./errorreporting
 	./essentialcontacts
 	./eventarc
@@ -127,6 +131,7 @@ use (
 	./securesourcemanager
 	./security
 	./securitycenter
+	./securitycentermanagement
 	./servicecontrol
 	./servicedirectory
 	./servicemanagement
@@ -141,10 +146,12 @@ use (
 	./storagetransfer
 	./support
 	./talent
+	./telcoautomation
 	./texttospeech
 	./tpu
 	./trace
 	./translate
+	./vertexai
 	./video
 	./videointelligence
 	./vision

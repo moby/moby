@@ -57,7 +57,7 @@ func setCacheUIDGID(m *instructions.Mount, st llb.State) llb.State {
 	if m.Mode != nil {
 		mode = os.FileMode(*m.Mode)
 	}
-	return st.File(llb.Mkdir("/cache", mode, llb.WithUIDGID(uid, gid)), llb.WithCustomName("[internal] settings cache mount permissions"))
+	return st.File(llb.Mkdir("/cache", mode, llb.WithUIDGID(uid, gid)), llb.WithCustomName("[internal] setting cache mount permissions"))
 }
 
 func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*dispatchState, opt dispatchOpt) ([]llb.RunOption, error) {

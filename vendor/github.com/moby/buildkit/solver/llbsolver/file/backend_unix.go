@@ -5,6 +5,7 @@ package file
 
 import (
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/pkg/errors"
 	copy "github.com/tonistiigi/fsutil/copy"
 )
 
@@ -23,7 +24,7 @@ func mapUserToChowner(user *copy.User, idmap *idtools.IdentityMapping) (copy.Cho
 						GID: old.GID,
 					})
 					if err != nil {
-						return nil, err
+						return nil, errors.WithStack(err)
 					}
 					return &copy.User{UID: identity.UID, GID: identity.GID}, nil
 				}
@@ -38,7 +39,7 @@ func mapUserToChowner(user *copy.User, idmap *idtools.IdentityMapping) (copy.Cho
 			GID: user.GID,
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.WithStack(err)
 		}
 		u.UID = identity.UID
 		u.GID = identity.GID

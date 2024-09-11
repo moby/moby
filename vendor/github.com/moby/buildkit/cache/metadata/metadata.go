@@ -8,6 +8,8 @@ import (
 	"sync"
 
 	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/db"
+	"github.com/moby/buildkit/util/db/boltutil"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
@@ -21,18 +23,18 @@ const (
 var errNotFound = errors.Errorf("not found")
 
 type Store struct {
-	db *bolt.DB
+	db db.DB
 }
 
 func NewStore(dbPath string) (*Store, error) {
-	db, err := bolt.Open(dbPath, 0600, nil)
+	db, err := boltutil.Open(dbPath, 0600, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to open database file %s", dbPath)
 	}
 	return &Store{db: db}, nil
 }
 
-func (s *Store) DB() *bolt.DB {
+func (s *Store) DB() db.Transactor {
 	return s.db
 }
 
@@ -81,7 +83,7 @@ func (s *Store) Probe(index string) (bool, error) {
 	return exists, errors.WithStack(err)
 }
 
-func (s *Store) Search(ctx context.Context, index string) ([]*StorageItem, error) {
+func (s *Store) Search(ctx context.Context, index string, prefix bool) ([]*StorageItem, error) {
 	var out []*StorageItem
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(indexBucket))
@@ -92,12 +94,18 @@ func (s *Store) Search(ctx context.Context, index string) ([]*StorageItem, error
 		if main == nil {
 			return nil
 		}
-		index = indexKey(index, "")
+		if !prefix {
+			index = indexKey(index, "")
+		}
 		c := b.Cursor()
 		k, _ := c.Seek([]byte(index))
 		for {
 			if k != nil && strings.HasPrefix(string(k), index) {
-				itemID := strings.TrimPrefix(string(k), index)
+				idx := strings.LastIndex(string(k), "::")
+				if idx == -1 {
+					continue
+				}
+				itemID := string(k[idx+2:])
 				k, _ = c.Next()
 				b := main.Bucket([]byte(itemID))
 				if b == nil {
@@ -183,21 +191,28 @@ func (s *Store) Get(id string) (*StorageItem, bool) {
 		si, _ := newStorageItem(id, nil, s)
 		return si
 	}
-	tx, err := s.db.Begin(false)
-	if err != nil {
+
+	var si *StorageItem
+	if err := s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(mainBucket))
+		if b == nil {
+			return nil
+		}
+		b = b.Bucket([]byte(id))
+		if b == nil {
+			return nil
+		}
+		si, _ = newStorageItem(id, b, s)
+		return nil
+	}); err != nil {
 		return empty(), false
 	}
-	defer tx.Rollback()
-	b := tx.Bucket([]byte(mainBucket))
-	if b == nil {
-		return empty(), false
+
+	if si != nil {
+		return si, true
 	}
-	b = b.Bucket([]byte(id))
-	if b == nil {
-		return empty(), false
-	}
-	si, _ := newStorageItem(id, b, s)
-	return si, true
+
+	return empty(), false
 }
 
 func (s *Store) Close() error {
