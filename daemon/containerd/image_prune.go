@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	containerdimages "github.com/containerd/containerd/images"
@@ -107,8 +108,16 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 
 	usedDigests := filterImagesUsedByContainers(ctx, i.containers.List(), imagesToPrune)
 
+	// Sort images by name to make the behavior deterministic and consistent with graphdrivers.
+	sorted := make([]string, 0, len(imagesToPrune))
+	for name := range imagesToPrune {
+		sorted = append(sorted, name)
+	}
+	sort.Strings(sorted)
+
 	// Make sure we don't delete the last image of a particular digest used by any container.
-	for name, img := range imagesToPrune {
+	for _, name := range sorted {
+		img := imagesToPrune[name]
 		dgst := img.Target.Digest
 
 		if digestRefCount[dgst] > 1 {
