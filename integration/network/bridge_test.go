@@ -193,7 +193,7 @@ func TestIPRangeAt64BitLimit(t *testing.T) {
 			err := c.ContainerStart(ctx, id, containertypes.StartOptions{})
 			if tc.expCtrFail {
 				assert.Assert(t, err != nil)
-				t.Skipf("XFAIL: Container startup failed with error: %v", err)
+				t.Skipf("XFAIL Container startup failed with error: %v", err)
 			} else {
 				assert.NilError(t, err)
 			}
