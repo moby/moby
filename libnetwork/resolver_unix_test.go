@@ -56,11 +56,11 @@ func TestDNSIPQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// add service records which are used to resolve names. These are the real targets for the DNS querries
+	// add service records which are used to resolve names. These are the real targets for the DNS queries
 	n.addSvcRecords("ep1", "name1", "svc1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
 
 	w := new(tstwriter)
-	// the unit tests right now will focus on non-proxyed DNS requests
+	// the unit tests right now will focus on non-proxied DNS requests
 	r := NewResolver(resolverIPSandbox, false, sb)
 
 	// test name1's IP is resolved correctly with the default A type query
@@ -177,7 +177,7 @@ func TestDNSProxyServFail(t *testing.T) {
 	r.SetExtServers(localDNSEntries)
 	r.serveDNS(w, q)
 	if nRequests != 2 {
-		t.Fatalf("Expected 2 DNS querries. Found: %d", nRequests)
+		t.Fatalf("Expected 2 DNS queries. Found: %d", nRequests)
 	}
 	t.Logf("Expected number of DNS requests generated")
 }

@@ -65,7 +65,7 @@ func testVolWithQuota(t *testing.T, mountPoint, backingFsDev, testDir string) {
 	assert.NilError(t, os.WriteFile(testfile, make([]byte, quotaSize/2), 0o644))
 	assert.NilError(t, os.Remove(testfile))
 
-	// test writing fiel larger than quota
+	// test writing file larger than quota
 	err = os.WriteFile(testfile, make([]byte, quotaSize+1), 0o644)
 	assert.ErrorContains(t, err, "")
 	if _, err := os.Stat(testfile); err == nil {

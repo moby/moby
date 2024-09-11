@@ -21,7 +21,7 @@ var (
 	knownCaps map[string]*struct{}
 )
 
-// GetAllCapabilities returns all capabilities that are availeble in the current
+// GetAllCapabilities returns all capabilities that are available in the current
 // environment.
 func GetAllCapabilities() []string {
 	initCaps()

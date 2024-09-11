@@ -23,7 +23,7 @@ func imageKey(dgst string) string {
 }
 
 // imageStoreWithLease wraps the configured image store with one that deletes the lease
-// reigstered for a given image ID, if one exists
+// registered for a given image ID, if one exists
 //
 // This is used by the main image service to wrap delete calls to the real image store.
 type imageStoreWithLease struct {
@@ -43,7 +43,7 @@ func (s *imageStoreWithLease) Delete(id image.ID) ([]layer.Metadata, error) {
 	return s.Store.Delete(id)
 }
 
-// iamgeStoreForPull is created for each pull It wraps an underlying image store
+// imageStoreForPull is created for each pull It wraps an underlying image store
 // to handle registering leases for content fetched in a single image pull.
 type imageStoreForPull struct {
 	distribution.ImageConfigStore
@@ -98,7 +98,7 @@ func (s *imageStoreForPull) updateLease(ctx context.Context, dgst digest.Digest)
 // contentStoreForPull is used to wrap the configured content store to
 // add lease management for a single `pull`
 // It stores all committed digests so that `imageStoreForPull` can add
-// the digsted resources to the lease for an image.
+// the digested resources to the lease for an image.
 type contentStoreForPull struct {
 	distribution.ContentStore
 	leases leases.Manager

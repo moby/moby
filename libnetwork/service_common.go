@@ -216,7 +216,7 @@ func (c *Controller) cleanupServiceBindings(cleanupNID string) {
 func makeServiceCleanupFunc(c *Controller, s *service, nID, eID string, vip net.IP, ip net.IP) func() {
 	// ContainerName and taskAliases are not available here, this is still fine because the Service discovery
 	// cleanup already happened before. The only thing that rmServiceBinding is still doing here a part from the Load
-	// Balancer bookeeping, is to keep consistent the mapping of endpoint to IP.
+	// Balancer bookkeeping, is to keep consistent the mapping of endpoint to IP.
 	return func() {
 		if err := c.rmServiceBinding(s.name, s.id, nID, eID, "", vip, s.ingressPorts, s.aliases, []string{}, ip, "cleanupServiceBindings", false, true); err != nil {
 			log.G(context.TODO()).Errorf("Failed to remove service bindings for service %s network %s endpoint %s while cleanup: %v", s.id, nID, eID, err)

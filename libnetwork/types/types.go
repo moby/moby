@@ -40,7 +40,7 @@ type TransportPort struct {
 	Port  uint16
 }
 
-// Equal checks if this instance of Transportport is equal to the passed one
+// Equal checks if this instance of TransportPort is equal to the passed one
 func (t *TransportPort) Equal(o *TransportPort) bool {
 	if t == o {
 		return true

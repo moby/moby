@@ -66,7 +66,7 @@ type Sender struct {
 	// specified by the SYSLOG_TIMESTAMP variable value. This is roughly
 	// analogous to journald receiving the event and assigning it a
 	// timestamp in zero time after the SYSLOG_TIMESTAMP value was set,
-	// which is higly unrealistic in practice.
+	// which is highly unrealistic in practice.
 	AssignEventTimestampFromSyslogTimestamp bool
 	// Boot ID for journal entries. Required by systemd-journal-remote as of
 	// https://github.com/systemd/systemd/commit/1eede158519e4e5ed22738c90cb57a91dbecb7f2

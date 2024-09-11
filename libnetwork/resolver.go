@@ -91,7 +91,7 @@ type Resolver struct {
 	logger        *log.Entry
 
 	fwdSem      *semaphore.Weighted // Limit the number of concurrent external DNS requests in-flight
-	logInverval rate.Sometimes      // Rate-limit logging about hitting the fwdSem limit
+	logInterval rate.Sometimes      // Rate-limit logging about hitting the fwdSem limit
 }
 
 // NewResolver creates a new instance of the Resolver
@@ -101,7 +101,7 @@ func NewResolver(address string, proxyDNS bool, backend DNSBackend) *Resolver {
 		err:         fmt.Errorf("setup not done yet"),
 		startCh:     make(chan struct{}, 1),
 		fwdSem:      semaphore.NewWeighted(maxConcurrent),
-		logInverval: rate.Sometimes{Interval: logInterval},
+		logInterval: rate.Sometimes{Interval: logInterval},
 	}
 	r.listenAddress, _ = netip.ParseAddr(address)
 	r.proxyDNS.Store(proxyDNS)
@@ -559,7 +559,7 @@ func (r *Resolver) forwardExtDNS(ctx context.Context, proto string, remoteAddr n
 
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
-				r.logInverval.Do(func() {
+				r.logInterval.Do(func() {
 					r.log(ctx).Errorf("[resolver] more than %v concurrent queries", maxConcurrent)
 				})
 			}
@@ -647,7 +647,7 @@ func (r *Resolver) exchange(ctx context.Context, proto string, extDNS extDNSEntr
 		// truncating them on our end to forward verbatim to the client.
 		// Some DNS servers (e.g. Mikrotik RouterOS) don't support
 		// EDNS(0) and may send replies over UDP longer than 512 bytes
-		// regardless of what size limit, if any, was advertized in the
+		// regardless of what size limit, if any, was advertised in the
 		// query message. Note that ExchangeWithConn will override this
 		// value if it detects an EDNS OPT record in query so only
 		// oversized replies to non-EDNS queries will benefit.

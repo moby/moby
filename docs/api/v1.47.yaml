@@ -393,7 +393,7 @@ definitions:
                Make the mount non-recursively read-only, but still leave the mount recursive
                (unless NonRecursive is set to `true` in conjunction).
 
-               Addded in v1.44, before that version all read-only mounts were
+               Added in v1.44, before that version all read-only mounts were
                non-recursive by default. To match the previous behaviour this
                will default to `true` for clients on versions prior to v1.44.
             type: "boolean"
@@ -2216,7 +2216,7 @@ definitions:
       Created:
         description: |
           Date and time at which the image was created as a Unix timestamp
-          (number of seconds sinds EPOCH).
+          (number of seconds since EPOCH).
         type: "integer"
         x-nullable: false
         example: "1644009612"
@@ -2518,7 +2518,7 @@ definitions:
         example: false
       Attachable:
         description: |
-          Wheter a global / swarm scope network is manually attachable by regular
+          Whether a global / swarm scope network is manually attachable by regular
           containers from workers in swarm mode.
         type: "boolean"
         default: false
@@ -3741,7 +3741,7 @@ definitions:
                 example: "json-file"
               Options:
                 description: |
-                  Driver-specific options for the selectd log driver, specified
+                  Driver-specific options for the selected log driver, specified
                   as key/value pairs.
                 type: "object"
                 additionalProperties:
@@ -7717,7 +7717,7 @@ paths:
         * Memory usage % = `(used_memory / available_memory) * 100.0`
         * cpu_delta = `cpu_stats.cpu_usage.total_usage - precpu_stats.cpu_usage.total_usage`
         * system_cpu_delta = `cpu_stats.system_cpu_usage - precpu_stats.system_cpu_usage`
-        * number_cpus = `lenght(cpu_stats.cpu_usage.percpu_usage)` or `cpu_stats.online_cpus`
+        * number_cpus = `length(cpu_stats.cpu_usage.percpu_usage)` or `cpu_stats.online_cpus`
         * CPU usage % = `(cpu_delta / system_cpu_delta) * number_cpus * 100.0`
       operationId: "ContainerStats"
       produces: ["application/json"]

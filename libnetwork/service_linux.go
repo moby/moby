@@ -77,7 +77,7 @@ func findIfaceDstName(sb *Sandbox, ep *Endpoint) string {
 	return ""
 }
 
-// Add loadbalancer backend to the loadbalncer sandbox for the network.
+// Add loadbalancer backend to the loadbalancer sandbox for the network.
 // If needed add the service as well.
 func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	if len(lb.vip) == 0 {

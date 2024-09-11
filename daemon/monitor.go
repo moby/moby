@@ -205,7 +205,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			// with daemon.ContainerExecStart() removing the exec from
 			// c.ExecCommands. If we win the race, we will find that there is no
 			// process to clean up. (And ContainerExecStart will clobber the
-			// exit code we set.) Prevent a nil-dereferenc panic in that
+			// exit code we set.) Prevent a nil-dereference panic in that
 			// situation to restore the status quo where this is merely a
 			// logical race condition.
 			if execConfig.Process != nil {

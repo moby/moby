@@ -116,7 +116,7 @@ func TestBufioWriterPoolPutAndGet(t *testing.T) {
 	// recover it
 	defer func() {
 		if r := recover(); r == nil {
-			t.Fatal("Trying to flush the writter should have 'paniced', did not.")
+			t.Fatal("Trying to flush the writter should have 'panicked', did not.")
 		}
 	}()
 	writer.Flush()

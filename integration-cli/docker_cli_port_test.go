@@ -166,7 +166,7 @@ func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 func assertPortList(c *testing.T, out string, expected []string) {
 	c.Helper()
 	lines := strings.Split(strings.Trim(out, "\n "), "\n")
-	assert.Assert(c, is.Len(lines, len(expected)), "exepcted: %s", strings.Join(expected, ", "))
+	assert.Assert(c, is.Len(lines, len(expected)), "expected: %s", strings.Join(expected, ", "))
 
 	sort.Strings(lines)
 	sort.Strings(expected)

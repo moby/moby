@@ -196,7 +196,7 @@ func (args Args) Match(field, source string) bool {
 }
 
 // GetBoolOrDefault returns a boolean value of the key if the key is present
-// and is intepretable as a boolean value. Otherwise the default value is returned.
+// and is interpretable as a boolean value. Otherwise the default value is returned.
 // Error is not nil only if the filter values are not valid boolean or are conflicting.
 func (args Args) GetBoolOrDefault(key string, defaultValue bool) (bool, error) {
 	fieldValues, ok := args.fields[key]

@@ -95,7 +95,7 @@ func handleTableEvents(tableName string, ch *events.Channel) {
 			return
 
 		case evt := <-ch.C:
-			log.G(context.TODO()).Infof("Recevied new event on:%s", tableName)
+			log.G(context.TODO()).Infof("Received new event on:%s", tableName)
 			switch event := evt.(type) {
 			case networkdb.CreateEvent:
 				// nid = event.NetworkID

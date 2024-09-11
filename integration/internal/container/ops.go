@@ -34,7 +34,7 @@ func WithImage(image string) func(*TestContainerConfig) {
 	}
 }
 
-// WithCmd sets the comannds of the container
+// WithCmd sets the commands of the container
 func WithCmd(cmds ...string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		c.Config.Cmd = strslice.StrSlice(cmds)
