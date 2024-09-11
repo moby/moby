@@ -408,9 +408,6 @@ func (ls *layerStore) deleteLayer(layer *roLayer, metadata *Metadata) error {
 	metadata.DiffID = layer.diffID
 	metadata.ChainID = layer.chainID
 	metadata.Size = layer.Size()
-	if err != nil {
-		return err
-	}
 	metadata.DiffSize = layer.size
 
 	return nil
