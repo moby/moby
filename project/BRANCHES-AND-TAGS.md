@@ -18,7 +18,11 @@ Currently (and previously) maintained release branches are documented in the tab
 | master (development branch)       | The Moby Project [MAINTAINERS](../MAINTAINERS)          | N/A                   | -                            | N/A                                 |
 | 27.x                              | The Moby Project [MAINTAINERS](../MAINTAINERS)          | Maintained            | After 28.x                   | [Docker, Inc.](https://docker.com)  |
 | 26.1                              | @cpuguy83                                               | Maintained (security) | TBD                          | [Microsoft](https://microsoft.com)  |
-| 23.0                              | @corhere                                                | Maintained            | February 2025                | [Mirantis](https://mirantis.com)    |
+| 25.0                              | @corhere                                                | Maintained            | TBD                          | [Amazon][al2023]                    |
+| 23.0                              | @corhere                                                | Maintained            | [2025-05-19][mcr23-maint]    | [Mirantis](https://mirantis.com)    |
+
+[al2023]: https://docs.aws.amazon.com/linux/
+[mcr23-maint]: https://docs.mirantis.com/mcr/23.0/compat-matrix/maintenance-lifecycle.html
 
 > Note: The Moby Project provides source code releases. Binary distributions are available from multiple contributing parties, and known distributions can be discovered in [PACKAGERS.md](PACKAGERS.md).
 
