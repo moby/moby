@@ -137,8 +137,13 @@ type PluginsInfo struct {
 // Commit holds the Git-commit (SHA1) that a binary was built from, as reported
 // in the version-string of external tools, such as containerd, or runC.
 type Commit struct {
-	ID       string // ID is the actual commit ID of external tool.
-	Expected string // Expected is the commit ID of external tool expected by dockerd as set at build time.
+	// ID is the actual commit ID or version of external tool.
+	ID string
+
+	// Expected is the commit ID of external tool expected by dockerd as set at build time.
+	//
+	// Deprecated: this field is no longer used in API v1.49, but kept for backward-compatibility with older API versions.
+	Expected string
 }
 
 // NetworkAddressPool is a temp struct used by [Info] struct.

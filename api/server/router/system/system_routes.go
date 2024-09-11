@@ -100,6 +100,12 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 			// Containerd field introduced in API v1.46.
 			info.Containerd = nil
 		}
+
+		// TODO(thaJeztah): Expected commits are deprecated, and should no longer be set in API 1.49.
+		info.ContainerdCommit.Expected = info.ContainerdCommit.ID //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
+		info.RuncCommit.Expected = info.RuncCommit.ID             //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
+		info.InitCommit.Expected = info.InitCommit.ID             //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
+
 		if versions.GreaterThanOrEqualTo(version, "1.42") {
 			info.KernelMemory = false
 		}
