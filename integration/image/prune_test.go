@@ -53,6 +53,51 @@ func TestPruneDontDeleteUsedDangling(t *testing.T) {
 	assert.NilError(t, err, "Test dangling image should still exist")
 }
 
+func TestPruneLexographicalOrder(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot start multiple daemons on windows")
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.Start(t)
+	defer d.Stop(t)
+
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	d.LoadBusybox(ctx, t)
+
+	inspect, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox:latest")
+	assert.NilError(t, err)
+
+	id := inspect.ID
+
+	var tags = []string{"h", "a", "j", "o", "s", "q", "w", "e", "r", "t"}
+	for _, tag := range tags {
+		err = apiClient.ImageTag(ctx, id, "busybox:"+tag)
+		assert.NilError(t, err)
+	}
+	err = apiClient.ImageTag(ctx, id, "busybox:z")
+	assert.NilError(t, err)
+
+	_, err = apiClient.ImageRemove(ctx, "busybox:latest", image.RemoveOptions{Force: true})
+	assert.NilError(t, err)
+
+	// run container
+	cid := container.Create(ctx, t, apiClient, container.WithImage(id))
+	defer container.Remove(ctx, t, apiClient, cid, containertypes.RemoveOptions{Force: true})
+
+	pruned, err := apiClient.ImagesPrune(ctx, filters.NewArgs(filters.Arg("dangling", "false")))
+	assert.NilError(t, err)
+
+	assert.Check(t, is.Len(pruned.ImagesDeleted, len(tags)))
+	for _, p := range pruned.ImagesDeleted {
+		assert.Check(t, is.Equal(p.Deleted, ""))
+		assert.Check(t, p.Untagged != "busybox:z")
+	}
+}
+
 // Regression test for https://github.com/moby/moby/issues/48063
 func TestPruneDontDeleteUsedImage(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot start multiple daemons on windows")
@@ -81,18 +126,19 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 			// busybox:other tag pointing to the same image.
 			name: "two tags",
 			prepare: func(t *testing.T, d *daemon.Daemon, apiClient *client.Client) error {
-				return apiClient.ImageTag(ctx, "busybox:latest", "busybox:other")
+				return apiClient.ImageTag(ctx, "busybox:latest", "busybox:a")
 			},
 			check: func(t *testing.T, apiClient *client.Client, pruned image.PruneReport) {
 				if assert.Check(t, is.Len(pruned.ImagesDeleted, 1)) {
 					assert.Check(t, is.Equal(pruned.ImagesDeleted[0].Deleted, ""))
-					t.Log("Untagged", pruned.ImagesDeleted[0].Untagged)
+					assert.Check(t, is.Equal(pruned.ImagesDeleted[0].Untagged, "busybox:a"))
 				}
 
-				_, _, err1 := apiClient.ImageInspectWithRaw(ctx, "busybox:latest")
-				_, _, err2 := apiClient.ImageInspectWithRaw(ctx, "busybox:other")
+				_, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox:a")
+				assert.Check(t, err != nil, "Busybox:a image should be deleted")
 
-				assert.Check(t, err1 != err2 && (err1 == nil || err2 == nil), "One of the images should still exist")
+				_, _, err = apiClient.ImageInspectWithRaw(ctx, "busybox:latest")
+				assert.Check(t, err == nil, "Busybox:latest image should still exist")
 			},
 		},
 	} {
