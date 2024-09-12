@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -19,7 +20,7 @@ func TestImageSaveError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImageSave(context.Background(), []string{"nothing"})
+	_, err := client.ImageSave(context.Background(), []string{"nothing"}, image.SaveOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -43,7 +44,7 @@ func TestImageSave(t *testing.T) {
 			}, nil
 		}),
 	}
-	saveResponse, err := client.ImageSave(context.Background(), []string{"image_id1", "image_id2"})
+	saveResponse, err := client.ImageSave(context.Background(), []string{"image_id1", "image_id2"}, image.SaveOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

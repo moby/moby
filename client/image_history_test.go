@@ -20,7 +20,7 @@ func TestImageHistoryError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImageHistory(context.Background(), "nothing")
+	_, err := client.ImageHistory(context.Background(), "nothing", image.HistoryOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -51,7 +51,7 @@ func TestImageHistory(t *testing.T) {
 			}, nil
 		}),
 	}
-	imageHistories, err := client.ImageHistory(context.Background(), "image_id")
+	imageHistories, err := client.ImageHistory(context.Background(), "image_id", image.HistoryOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

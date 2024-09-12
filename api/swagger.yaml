@@ -9202,6 +9202,15 @@ paths:
           description: "Image name or ID"
           type: "string"
           required: true
+        - name: "platform"
+          type: "string"
+          in: "query"
+          description: |
+            JSON encoded OCI platform describing platform to show the history for.
+            If not provided, the host platform will be used. If it's not
+            available, any present platform will be picked.
+
+            Example: `{"os": "linux", "architecture": "arm", "variant": "v5"}`
       tags: ["Image"]
   /images/{name}/push:
     post:
@@ -9947,7 +9956,16 @@ paths:
           description: "Image name or ID"
           type: "string"
           required: true
-      tags: ["Image"]
+        - name: "platform"
+          type: "string"
+          in: "query"
+          description: |
+            JSON encoded OCI platform describing a platform which will be used
+            to select a platform-specific image to be saved if the image is
+            multi-platform.
+            If not provided, the full multi-platform image will be saved.
+
+            Example: `{"os": "linux", "architecture": "arm", "variant": "v5"}`
   /images/get:
     get:
       summary: "Export several images"
@@ -10014,6 +10032,16 @@ paths:
           description: "Suppress progress details during load."
           type: "boolean"
           default: false
+        - name: "platform"
+          type: "string"
+          in: "query"
+          description: |
+            JSON encoded OCI platform describing a platform which will be used
+            to select a platform-specific image to be load if the image is
+            multi-platform.
+            If not provided, the full multi-platform image will be loaded.
+
+            Example: `{"os": "linux", "architecture": "arm", "variant": "v5"}`
       tags: ["Image"]
   /containers/{id}/exec:
     post:

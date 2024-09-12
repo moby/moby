@@ -15,6 +15,7 @@ import (
 
 	"github.com/cpuguy83/tar2go"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
@@ -63,7 +64,7 @@ func TestSaveCheckTimes(t *testing.T) {
 	img, _, err := client.ImageInspectWithRaw(ctx, repoName)
 	assert.NilError(t, err)
 
-	rdr, err := client.ImageSave(ctx, []string{repoName})
+	rdr, err := client.ImageSave(ctx, []string{repoName}, image.SaveOptions{})
 	assert.NilError(t, err)
 
 	tarfs := tarIndexFS(t, rdr)
@@ -138,7 +139,7 @@ func TestSaveOCI(t *testing.T) {
 			inspect, _, err := client.ImageInspectWithRaw(ctx, tc.image)
 			assert.NilError(t, err)
 
-			rdr, err := client.ImageSave(ctx, []string{tc.image})
+			rdr, err := client.ImageSave(ctx, []string{tc.image}, image.SaveOptions{})
 			assert.NilError(t, err)
 			defer rdr.Close()
 
@@ -242,7 +243,7 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 	idBar := makeImage("busybox:latest", tagBar)
 	idBusybox := busyboxImg.ID
 
-	rdr, err := client.ImageSave(ctx, []string{repoName, "busybox:latest"})
+	rdr, err := client.ImageSave(ctx, []string{repoName, "busybox:latest"}, image.SaveOptions{})
 	assert.NilError(t, err)
 	defer rdr.Close()
 
@@ -299,7 +300,7 @@ RUN touch /opt/a/b/c && chown user:user /opt/a/b/c`
 
 	imgID := build.Do(ctx, t, client, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)))
 
-	rdr, err := client.ImageSave(ctx, []string{imgID})
+	rdr, err := client.ImageSave(ctx, []string{imgID}, image.SaveOptions{})
 	assert.NilError(t, err)
 	defer rdr.Close()
 

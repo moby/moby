@@ -256,7 +256,7 @@ func (i *ImageService) getPushDescriptor(ctx context.Context, img containerdimag
 		return nil
 	})
 	if err != nil {
-		return ocispec.Descriptor{}, err
+		return ocispec.Descriptor{}, errdefs.System(err)
 	}
 
 	switch len(presentMatchingManifests) {

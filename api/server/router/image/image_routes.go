@@ -246,7 +246,18 @@ func (ir *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, 
 		names = r.Form["names"]
 	}
 
-	if err := ir.backend.ExportImage(ctx, names, output); err != nil {
+	var platform *ocispec.Platform
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.48") {
+		if formPlatform := r.Form.Get("platform"); formPlatform != "" {
+			p, err := httputils.DecodePlatform(formPlatform)
+			if err != nil {
+				return err
+			}
+			platform = p
+		}
+	}
+
+	if err := ir.backend.ExportImage(ctx, names, platform, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -259,13 +270,24 @@ func (ir *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
+
+	var platform *ocispec.Platform
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.47") {
+		if formPlatform := r.Form.Get("platform"); formPlatform != "" {
+			p, err := httputils.DecodePlatform(formPlatform)
+			if err != nil {
+				return err
+			}
+			platform = p
+		}
+	}
 	quiet := httputils.BoolValueOrDefault(r, "quiet", true)
 
 	w.Header().Set("Content-Type", "application/json")
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
-	if err := ir.backend.LoadImage(ctx, r.Body, output, quiet); err != nil {
+	if err := ir.backend.LoadImage(ctx, r.Body, platform, output, quiet); err != nil {
 		_, _ = output.Write(streamformatter.FormatError(err))
 	}
 	return nil
@@ -398,7 +420,21 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 }
 
 func (ir *imageRouter) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	history, err := ir.backend.ImageHistory(ctx, vars["name"])
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	var platform *ocispec.Platform
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.48") {
+		if formPlatform := r.Form.Get("platform"); formPlatform != "" {
+			p, err := httputils.DecodePlatform(formPlatform)
+			if err != nil {
+				return err
+			}
+			platform = p
+		}
+	}
+	history, err := ir.backend.ImageHistory(ctx, vars["name"], platform)
 	if err != nil {
 		return err
 	}

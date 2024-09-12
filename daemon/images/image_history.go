@@ -9,13 +9,14 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/layer"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image
 // name by walking the image lineage.
-func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*image.HistoryResponseItem, error) {
+func (i *ImageService) ImageHistory(ctx context.Context, name string, platform *ocispec.Platform) ([]*image.HistoryResponseItem, error) {
 	start := time.Now()
-	img, err := i.GetImage(ctx, name, backend.GetImageOpts{})
+	img, err := i.GetImage(ctx, name, backend.GetImageOpts{Platform: platform})
 	if err != nil {
 		return nil, err
 	}
