@@ -51,12 +51,15 @@ func setNvidiaGPUs(s *specs.Spec, dev *deviceInstance) error {
 		return errConflictCountDeviceIDs
 	}
 
-	if len(req.DeviceIDs) > 0 {
+	switch {
+	case len(req.DeviceIDs) > 0:
 		s.Process.Env = append(s.Process.Env, "NVIDIA_VISIBLE_DEVICES="+strings.Join(req.DeviceIDs, ","))
-	} else if req.Count > 0 {
+	case req.Count > 0:
 		s.Process.Env = append(s.Process.Env, "NVIDIA_VISIBLE_DEVICES="+countToDevices(req.Count))
-	} else if req.Count < 0 {
+	case req.Count < 0:
 		s.Process.Env = append(s.Process.Env, "NVIDIA_VISIBLE_DEVICES=all")
+	case req.Count == 0:
+		s.Process.Env = append(s.Process.Env, "NVIDIA_VISIBLE_DEVICES=void")
 	}
 
 	var nvidiaCaps []string
