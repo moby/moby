@@ -4,6 +4,7 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/daemon/config"
+	dopts "github.com/docker/docker/internal/opts"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/pflag"
@@ -28,6 +29,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.StringVar(&conf.ExecRoot, "exec-root", conf.ExecRoot, "Root directory for execution state files")
 	flags.StringVar(&conf.ContainerdAddr, "containerd", "", "containerd grpc address")
 	flags.BoolVar(&conf.CriContainerd, "cri-containerd", false, "start containerd with cri")
+	flags.Var(dopts.NewNamedSetOpts("features", conf.Features), "feature", "Enable feature in the daemon")
 
 	flags.Var(opts.NewNamedMapMapOpts("default-network-opts", conf.DefaultNetworkOpts, nil), "default-network-opt", "Default network options")
 	flags.IntVar(&conf.MTU, "mtu", conf.MTU, `Set the MTU for the default "bridge" network`)

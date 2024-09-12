@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
+	dopts "github.com/docker/docker/internal/opts"
 	"github.com/docker/docker/opts"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
@@ -119,6 +120,72 @@ func TestDaemonConfigurationMergeShmSize(t *testing.T) {
 
 	expectedValue := 1 * 1024 * 1024 * 1024
 	assert.Check(t, is.Equal(int64(expectedValue), cc.ShmSize.Value()))
+}
+
+func TestDaemonConfigurationFeatures(t *testing.T) {
+	tests := []struct {
+		name, config, flags string
+		expectedValue       map[string]bool
+		expectedErr         string
+	}{
+		{
+			name:          "enable from file",
+			config:        `{"features": {"containerd-snapshotter": true}}`,
+			expectedValue: map[string]bool{"containerd-snapshotter": true},
+		},
+		{
+			name:          "enable from flags",
+			config:        `{}`,
+			flags:         "containerd-snapshotter=true",
+			expectedValue: map[string]bool{"containerd-snapshotter": true},
+		},
+		{
+			name:          "disable from file",
+			config:        `{"features": {"containerd-snapshotter": false}}`,
+			expectedValue: map[string]bool{"containerd-snapshotter": false},
+		},
+		{
+			name:          "disable from flags",
+			config:        `{}`,
+			flags:         "containerd-snapshotter=false",
+			expectedValue: map[string]bool{"containerd-snapshotter": false},
+		},
+		{
+			name:        "conflict",
+			config:      `{"features": {"containerd-snapshotter": true}}`,
+			flags:       "containerd-snapshotter=true",
+			expectedErr: `the following directives are specified both as a flag and in the configuration file: features: (from flag: map[containerd-snapshotter:true], from file: map[containerd-snapshotter:true])`,
+		},
+		{
+			name:        "invalid config value",
+			config:      `{"features": {"containerd-snapshotter": "not-a-boolean"}}`,
+			expectedErr: `json: cannot unmarshal string into Go struct field Config.features of type bool`,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := New()
+			assert.NilError(t, err)
+
+			configFile := makeConfigFile(t, tc.config)
+			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			flags.Var(dopts.NewNamedSetOpts("features", c.Features), "feature", "Enable feature in the daemon")
+			if tc.flags != "" {
+				err = flags.Set("feature", tc.flags)
+				assert.NilError(t, err)
+			}
+			cc, err := MergeDaemonConfigurations(c, flags, configFile)
+			if tc.expectedErr != "" {
+				assert.Error(t, err, tc.expectedErr)
+			} else {
+				assert.NilError(t, err)
+				assert.Check(t, is.DeepEqual(tc.expectedValue, cc.Features))
+			}
+		})
+	}
 }
 
 func TestUnixGetInitPath(t *testing.T) {
