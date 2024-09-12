@@ -2,14 +2,17 @@ package containerd
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	containerdimages "github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/tracing"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/hashicorp/go-multierror"
 	"github.com/opencontainers/go-digest"
@@ -60,8 +63,23 @@ func (i *ImageService) ImagesPrune(ctx context.Context, fltrs filters.Args) (*im
 	return i.pruneUnused(ctx, filterFunc, danglingOnly)
 }
 
+// pruneUnused deletes images that are dangling or unused by any container.
+// The behavior is controlled by the danglingOnly parameter.
+// If danglingOnly is true, only dangling images are deleted.
+// Otherwise, all images unused by any container are deleted.
+//
+// Additionally, the filterFunc parameter is used to filter images that should
+// be considered for deletion.
+//
+// Container created with images specified by an ID only (e.g. `docker run 82d1e9d`)
+// will keep at least one image tag with that ID.
+//
+// In case a digested and tagged reference was used (e.g. `docker run alpine:latest@sha256:82d1e9d7ed48a7523bdebc18cf6290bdb97b82302a8a9c27d4fe885949ea94d1`),
+// the alpine:latest image will be kept.
 func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFunc, danglingOnly bool) (*image.PruneReport, error) {
-	report := image.PruneReport{}
+	ctx, span := tracing.StartSpan(ctx, "ImageService.pruneUnused")
+	span.SetAttributes(tracing.Attribute("danglingOnly", danglingOnly))
+	defer span.End()
 
 	allImages, err := i.images.List(ctx)
 	if err != nil {
@@ -85,16 +103,52 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 			if canBePruned {
 				imagesToPrune[img.Name] = img
 			}
-
 		}
 	}
 
+	usedDigests := filterImagesUsedByContainers(ctx, i.containers.List(), imagesToPrune)
+
+	// Sort images by name to make the behavior deterministic and consistent with graphdrivers.
+	sorted := make([]string, 0, len(imagesToPrune))
+	for name := range imagesToPrune {
+		sorted = append(sorted, name)
+	}
+	sort.Strings(sorted)
+
+	// Make sure we don't delete the last image of a particular digest used by any container.
+	for _, name := range sorted {
+		img := imagesToPrune[name]
+		dgst := img.Target.Digest
+
+		if digestRefCount[dgst] > 1 {
+			digestRefCount[dgst] -= 1
+			continue
+		}
+
+		if _, isUsed := usedDigests[dgst]; isUsed {
+			delete(imagesToPrune, name)
+		}
+	}
+
+	return i.pruneAll(ctx, imagesToPrune)
+}
+
+// filterImagesUsedByContainers removes image names that are used by containers
+// and returns a map of used image digests.
+func filterImagesUsedByContainers(ctx context.Context,
+	allContainers []*container.Container,
+	imagesToPrune map[string]containerdimages.Image,
+) (usedDigests map[digest.Digest]struct{}) {
+	ctx, span := tracing.StartSpan(ctx, "filterImagesUsedByContainers")
+	span.SetAttributes(tracing.Attribute("count", len(allContainers)))
+	defer span.End()
+
 	// Image specified by digests that are used by containers.
-	usedDigests := map[digest.Digest]struct{}{}
+	usedDigests = map[digest.Digest]struct{}{}
 
 	// Exclude images used by existing containers
-	for _, ctr := range i.containers.List() {
-		// If the original image was deleted, make sure we don't delete the dangling image
+	for _, ctr := range allContainers {
+		// If the original image was force deleted, make sure we don't delete the dangling image
 		delete(imagesToPrune, danglingImageName(ctr.ImageID.Digest()))
 
 		// Config.Image is the image reference passed by user.
@@ -105,40 +159,47 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 		// but both will have ImageID="sha256:82d1e9d7ed48a7523bdebc18cf6290bdb97b82302a8a9c27d4fe885949ea94d1"
 		imageDgst := ctr.ImageID.Digest()
 
-		// If user didn't specify an explicit image, mark the digest as used.
+		// If user used an full or truncated ID instead of an explicit image name, mark the digest as used.
 		normalizedImageID := "sha256:" + strings.TrimPrefix(ctr.Config.Image, "sha256:")
-		if strings.HasPrefix(imageDgst.String(), normalizedImageID) {
+		fullOrTruncatedID := strings.HasPrefix(imageDgst.String(), normalizedImageID)
+		digestedRef := strings.HasSuffix(ctr.Config.Image, "@"+imageDgst.String())
+		if fullOrTruncatedID || digestedRef {
 			usedDigests[imageDgst] = struct{}{}
-			continue
 		}
 
 		ref, err := reference.ParseNormalizedNamed(ctr.Config.Image)
 		log.G(ctx).WithFields(log.Fields{
 			"ctr":          ctr.ID,
-			"image":        ref,
+			"imageRef":     ref,
+			"imageID":      imageDgst,
 			"nameParseErr": err,
 		}).Debug("filtering container's image")
-
 		if err == nil {
 			// If user provided a specific image name, exclude that image.
 			name := reference.TagNameOnly(ref)
 			delete(imagesToPrune, name.String())
-		}
-	}
 
-	// Create dangling images for images that will be deleted but are still in use.
-	for _, img := range imagesToPrune {
-		dgst := img.Target.Digest
-
-		digestRefCount[dgst] -= 1
-		if digestRefCount[dgst] == 0 {
-			if _, isUsed := usedDigests[dgst]; isUsed {
-				if err := i.ensureDanglingImage(ctx, img); err != nil {
-					return &report, errors.Wrapf(err, "failed to create ensure dangling image for %s", img.Name)
-				}
+			// Also exclude repo:tag image if repo:tag@sha256:digest reference was used.
+			_, isDigested := name.(reference.Digested)
+			tagged, isTagged := name.(reference.NamedTagged)
+			if isDigested && isTagged {
+				named, _ := reference.ParseNormalizedNamed(tagged.Name())
+				namedTagged, _ := reference.WithTag(named, tagged.Tag())
+				delete(imagesToPrune, namedTagged.String())
 			}
 		}
 	}
+
+	return usedDigests
+}
+
+// pruneAll deletes all images in the imagesToPrune map.
+func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]containerdimages.Image) (*image.PruneReport, error) {
+	report := image.PruneReport{}
+
+	ctx, span := tracing.StartSpan(ctx, "ImageService.pruneAll")
+	span.SetAttributes(tracing.Attribute("count", len(imagesToPrune)))
+	defer span.End()
 
 	possiblyDeletedConfigs := map[digest.Digest]struct{}{}
 	var errs error
