@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
@@ -98,29 +99,29 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 	} {
 		for _, tc := range []struct {
 			name    string
-			imageID func(t *testing.T, inspect image.InspectResponse) string
+			imageID func(t *testing.T, inspect types.ImageInspect) string
 		}{
 			{
 				name: "full id",
-				imageID: func(t *testing.T, inspect image.InspectResponse) string {
+				imageID: func(t *testing.T, inspect types.ImageInspect) string {
 					return inspect.ID
 				},
 			},
 			{
 				name: "full id without sha256 prefix",
-				imageID: func(t *testing.T, inspect image.InspectResponse) string {
+				imageID: func(t *testing.T, inspect types.ImageInspect) string {
 					return strings.TrimPrefix(inspect.ID, "sha256:")
 				},
 			},
 			{
 				name: "truncated id (without sha256 prefix)",
-				imageID: func(t *testing.T, inspect image.InspectResponse) string {
+				imageID: func(t *testing.T, inspect types.ImageInspect) string {
 					return strings.TrimPrefix(inspect.ID, "sha256:")[:8]
 				},
 			},
 			{
 				name: "repo and digest without tag",
-				imageID: func(t *testing.T, inspect image.InspectResponse) string {
+				imageID: func(t *testing.T, inspect types.ImageInspect) string {
 					skip.If(t, !testEnv.UsingSnapshotter())
 
 					return "busybox@" + inspect.ID
@@ -128,7 +129,7 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 			},
 			{
 				name: "tagged and digested",
-				imageID: func(t *testing.T, inspect image.InspectResponse) string {
+				imageID: func(t *testing.T, inspect types.ImageInspect) string {
 					skip.If(t, !testEnv.UsingSnapshotter())
 
 					return "busybox:latest@" + inspect.ID
@@ -136,7 +137,7 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 			},
 			{
 				name: "repo digest",
-				imageID: func(t *testing.T, inspect image.InspectResponse) string {
+				imageID: func(t *testing.T, inspect types.ImageInspect) string {
 					// graphdriver won't have a repo digest
 					skip.If(t, len(inspect.RepoDigests) == 0, "no repo digest")
 
