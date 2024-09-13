@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
@@ -16,10 +17,19 @@ import (
 
 // CreateNetwork the network for the specified driver type
 func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
-	// reject a null v4 network
-	if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
-		return fmt.Errorf("ipv4 pool is empty")
+	// reject a null v4 network if ipv4 is required
+	if v, ok := option[netlabel.EnableIPv4]; ok && v.(bool) {
+		if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
+			return errdefs.InvalidParameter(fmt.Errorf("ipv4 pool is empty"))
+		}
 	}
+	// reject a null v6 network if ipv6 is required
+	if v, ok := option[netlabel.EnableIPv6]; ok && v.(bool) {
+		if len(ipV6Data) == 0 || ipV6Data[0].Pool.String() == "::/0" {
+			return errdefs.InvalidParameter(fmt.Errorf("ipv6 pool is empty"))
+		}
+	}
+
 	// parse and validate the config and bind to networkConfiguration
 	config, err := parseNetworkOptions(nid, option)
 	if err != nil {

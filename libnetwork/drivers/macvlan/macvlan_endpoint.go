@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/netutils"
@@ -21,7 +22,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	}
 	n, err := d.getNetwork(nid)
 	if err != nil {
-		return fmt.Errorf("network id %q not found", nid)
+		return errdefs.System(fmt.Errorf("network id %q not found", nid))
 	}
 	ep := &endpoint{
 		id:     eid,
@@ -30,11 +31,14 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		addrv6: ifInfo.AddressIPv6(),
 		mac:    ifInfo.MacAddress(),
 	}
-	if ep.addr == nil {
-		return fmt.Errorf("create endpoint was not passed an IP address")
-	}
 	if ep.mac == nil {
-		ep.mac = netutils.GenerateMACFromIP(ep.addr.IP)
+		if ep.addr != nil {
+			ep.mac = netutils.GenerateMACFromIP(ep.addr.IP)
+		} else {
+			// TODO(robmry) - generate an unsolicited Neighbor Advertisement to
+			//  associate this MAC address with the IP.
+			ep.mac = netutils.GenerateRandomMAC()
+		}
 		if err := ifInfo.SetMacAddress(ep.mac); err != nil {
 			return err
 		}
