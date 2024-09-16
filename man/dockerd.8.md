@@ -52,6 +52,7 @@ dockerd - Enable daemon mode
 [**--label**[=*[]*]]
 [**--live-restore**[=**false**]]
 [**--log-driver**[=*json-file*]]
+[**--log-format**="*text*|*json*"]
 [**--log-opt**[=*map[]*]]
 [**--mtu**[=*0*]]
 [**--max-concurrent-downloads**[=*3*]]
@@ -323,6 +324,9 @@ unix://[/path/to/socket] to use.
 **--log-driver**="**json-file**|**syslog**|**journald**|**gelf**|**fluentd**|**awslogs**|**splunk**|**etwlogs**|**gcplogs**|**none**"
   Default driver for container logs. Default is **json-file**.
   **Warning**: **docker logs** command works only for **json-file** logging driver.
+
+**--log-format**="*text*|*json*"
+  Set the format for logs produced by the daemon. Default is "text".
 
 **--log-opt**=[]
   Logging driver specific options.
