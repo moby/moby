@@ -14,11 +14,12 @@ func TestSetOpts(t *testing.T) {
 	assert.NilError(t, o.Set("feature-b=true"))
 	assert.NilError(t, o.Set("feature-c=0"))
 	assert.NilError(t, o.Set("feature-d=false"))
+	assert.NilError(t, o.Set("feature-e"))
 
-	expected := "map[feature-a:true feature-b:true feature-c:false feature-d:false]"
+	expected := "map[feature-a:true feature-b:true feature-c:false feature-d:false feature-e:true]"
 	assert.Check(t, is.Equal(expected, o.String()))
 
-	expectedValue := map[string]bool{"feature-a": true, "feature-b": true, "feature-c": false, "feature-d": false}
+	expectedValue := map[string]bool{"feature-a": true, "feature-b": true, "feature-c": false, "feature-d": false, "feature-e": true}
 	assert.Check(t, is.DeepEqual(expectedValue, o.GetAll()))
 
 	err := o.Set("feature=not-a-bool")
@@ -34,11 +35,12 @@ func TestNamedSetOpts(t *testing.T) {
 	assert.NilError(t, o.Set("feature-b=true"))
 	assert.NilError(t, o.Set("feature-c=0"))
 	assert.NilError(t, o.Set("feature-d=false"))
+	assert.NilError(t, o.Set("feature-e"))
 
-	expected := "map[feature-a:true feature-b:true feature-c:false feature-d:false]"
+	expected := "map[feature-a:true feature-b:true feature-c:false feature-d:false feature-e:true]"
 	assert.Check(t, is.Equal(expected, o.String()))
 
-	expectedValue := map[string]bool{"feature-a": true, "feature-b": true, "feature-c": false, "feature-d": false}
+	expectedValue := map[string]bool{"feature-a": true, "feature-b": true, "feature-c": false, "feature-d": false, "feature-e": true}
 	assert.Check(t, is.DeepEqual(expectedValue, o.GetAll()))
 
 	err := o.Set("feature=not-a-bool")
