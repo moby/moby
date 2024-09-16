@@ -256,17 +256,19 @@ func TestCreateFullOptions(t *testing.T) {
 	br, _ := types.ParseCIDR("172.16.0.1/16")
 	defgw, _ := types.ParseCIDR("172.16.0.100/16")
 
-	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = config
+	genericOption := map[string]interface{}{
+		netlabel.GenericData: config,
+	}
 
 	if err := d.configure(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	netOption := make(map[string]interface{})
-	netOption[netlabel.EnableIPv6] = true
-	netOption[netlabel.GenericData] = &networkConfiguration{
-		BridgeName: DefaultBridgeName,
+	netOption := map[string]interface{}{
+		netlabel.EnableIPv6: true,
+		netlabel.GenericData: map[string]string{
+			BridgeName: DefaultBridgeName,
+		},
 	}
 
 	ipdList := []driverapi.IPAMData{
@@ -298,9 +300,11 @@ func TestCreateNoConfig(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
-	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName}
-	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = netconfig
+	genericOption := map[string]interface{}{
+		netlabel.GenericData: map[string]string{
+			BridgeName: DefaultBridgeName,
+		},
+	}
 
 	if err := d.CreateNetwork("dummy", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
@@ -421,9 +425,11 @@ func TestCreate(t *testing.T) {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName}
-	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = netconfig
+	genericOption := map[string]interface{}{
+		netlabel.GenericData: map[string]string{
+			BridgeName: DefaultBridgeName,
+		},
+	}
 
 	if err := d.CreateNetwork("dummy", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
@@ -1097,11 +1103,13 @@ func TestSetDefaultGw(t *testing.T) {
 		AddressIPv6:        subnetv6,
 		DefaultGatewayIPv4: gw4,
 		DefaultGatewayIPv6: gw6,
+		EnableICC:          true,
 	}
 
-	genericOption := make(map[string]interface{})
-	genericOption[netlabel.EnableIPv6] = true
-	genericOption[netlabel.GenericData] = config
+	genericOption := map[string]interface{}{
+		netlabel.EnableIPv6:  true,
+		netlabel.GenericData: config,
+	}
 
 	err := d.CreateNetwork("dummy", genericOption, nil, ipdList, nil)
 	if err != nil {
@@ -1193,9 +1201,11 @@ func TestCreateWithExistingBridge(t *testing.T) {
 		t.Fatalf("Failed to add IP address to bridge: %v", err)
 	}
 
-	netconfig := &networkConfiguration{BridgeName: brName}
-	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = netconfig
+	genericOption := map[string]interface{}{
+		netlabel.GenericData: map[string]string{
+			BridgeName: brName,
+		},
+	}
 
 	ipv4Data := []driverapi.IPAMData{{
 		AddressSpace: "full",
@@ -1249,9 +1259,11 @@ func TestCreateParallel(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		name := "net" + strconv.Itoa(i)
 		c.Go(t, func() {
-			config := &networkConfiguration{BridgeName: name}
-			genericOption := make(map[string]interface{})
-			genericOption[netlabel.GenericData] = config
+			genericOption := map[string]interface{}{
+				netlabel.GenericData: map[string]string{
+					BridgeName: name,
+				},
+			}
 			if err := d.CreateNetwork(name, genericOption, nil, ipV4Data, nil); err != nil {
 				ch <- fmt.Errorf("failed to create %s", name)
 				return
