@@ -24,6 +24,10 @@ func TestSetOpts(t *testing.T) {
 
 	err := o.Set("feature=not-a-bool")
 	assert.Check(t, is.Error(err, `strconv.ParseBool: parsing "not-a-bool": invalid syntax`))
+	err = o.Set("feature=")
+	assert.Check(t, is.Error(err, `strconv.ParseBool: parsing "": invalid syntax`))
+	err = o.Set("=true")
+	assert.Check(t, is.Error(err, `invalid option name: =true`))
 }
 
 func TestNamedSetOpts(t *testing.T) {
@@ -45,4 +49,8 @@ func TestNamedSetOpts(t *testing.T) {
 
 	err := o.Set("feature=not-a-bool")
 	assert.Check(t, is.Error(err, `strconv.ParseBool: parsing "not-a-bool": invalid syntax`))
+	err = o.Set("feature=")
+	assert.Check(t, is.Error(err, `strconv.ParseBool: parsing "": invalid syntax`))
+	err = o.Set("=true")
+	assert.Check(t, is.Error(err, `invalid option name: =true`))
 }
