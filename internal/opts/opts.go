@@ -20,7 +20,6 @@ func (opts *SetOpts) Set(value string) error {
 	var isSet bool
 	if !found {
 		isSet = true
-		k = value
 	} else {
 		var err error
 		isSet, err = strconv.ParseBool(v)
