@@ -1,6 +1,7 @@
 package opts
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -17,10 +18,12 @@ type SetOpts struct {
 // internal map, by splitting on '='.
 func (opts *SetOpts) Set(value string) error {
 	k, v, found := strings.Cut(value, "=")
+	if k == "" {
+		return errors.New("invalid option name: " + value)
+	}
 	var isSet bool
 	if !found {
 		isSet = true
-		k = value
 	} else {
 		var err error
 		isSet, err = strconv.ParseBool(v)
