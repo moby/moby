@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"syscall"
 
 	"github.com/containerd/log"
@@ -46,6 +47,12 @@ func setupIPv6BridgeNetFiltering(config *networkConfiguration, _ *bridgeInterfac
 
 // Enable bridge net filtering if not already enabled. See GitHub issue #11404
 func enableBridgeNetFiltering(nfParam string) error {
+	if _, err := os.Stat("/proc/sys/net/bridge"); err != nil {
+		if out, err := exec.Command("modprobe", "-va", "bridge", "br_netfilter").CombinedOutput(); err != nil {
+			log.G(context.TODO()).WithError(err).Errorf("Running modprobe bridge br_netfilter failed with message: %s", out)
+			return fmt.Errorf("cannot restrict inter-container communication: modprobe br_netfilter failed: %w", err)
+		}
+	}
 	enabled, err := getKernelBoolParam(nfParam)
 	if err != nil {
 		var pathErr *os.PathError

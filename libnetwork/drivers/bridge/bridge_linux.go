@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"os"
-	"os/exec"
 	"strconv"
 	"sync"
 
@@ -480,14 +478,6 @@ func (d *driver) configure(option map[string]interface{}) error {
 		// No GenericData option set. Use defaults.
 	default:
 		return &ErrInvalidDriverConfig{}
-	}
-
-	if config.EnableIPTables || config.EnableIP6Tables {
-		if _, err := os.Stat("/proc/sys/net/bridge"); err != nil {
-			if out, err := exec.Command("modprobe", "-va", "bridge", "br_netfilter").CombinedOutput(); err != nil {
-				log.G(context.TODO()).Warnf("Running modprobe bridge br_netfilter failed with message: %s, error: %v", out, err)
-			}
-		}
 	}
 
 	if config.EnableIPTables {
