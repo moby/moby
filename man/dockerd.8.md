@@ -224,7 +224,7 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
   Enable the daemon experimental features.
 
 **--feature**=*NAME*=**true**|**false**
-  Enable or disable feature feature in the daemon. This option corresponds
+  Enable or disable a feature in the daemon. This option corresponds
   with the "features" field in the daemon.json configuration file. Using
   both the command-line option and the "features" field in the configuration
   file produces an error. The feature option can be specified multiple times
