@@ -7,7 +7,6 @@ dockerd - Enable daemon mode
 **dockerd**
 [**--add-runtime**[=*[]*]]
 [**--allow-nondistributable-artifacts**[=*[]*]]
-[**--api-cors-header**=[=*API-CORS-HEADER*]]
 [**--authorization-plugin**[=*[]*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
 [**--bip**[=*BIP*]]
@@ -137,10 +136,6 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
   and where they can be distributed and shared. Only use this feature to push
   artifacts to private registries and ensure that you are in compliance with
   any terms that cover redistributing nondistributable artifacts.
-
-**--api-cors-header**=""
-  Set CORS headers in the Engine API. Default is cors disabled. Give urls like
-  "http://foo, http://bar, ...". Give "\*" to allow all.
 
 **--authorization-plugin**=""
   Set authorization plugins to load
