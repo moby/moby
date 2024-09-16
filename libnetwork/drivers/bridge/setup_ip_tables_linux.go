@@ -9,9 +9,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/vishvananda/netlink"
 )
 
 // DockerChain: DOCKER iptable chain name
@@ -482,7 +482,7 @@ func setupInternalNetworkRules(bridgeIface string, addr *net.IPNet, icc, insert 
 // As such, we need to flush all those conntrack entries to make sure NAT rules
 // are correctly applied to all packets.
 // See: #8795, #44688 & #44742.
-func clearConntrackEntries(nlh *netlink.Handle, ep *bridgeEndpoint) {
+func clearConntrackEntries(nlh nlwrap.Handle, ep *bridgeEndpoint) {
 	var ipv4List []net.IP
 	var ipv6List []net.IP
 	var udpPorts []uint16

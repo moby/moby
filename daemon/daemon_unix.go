@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/initlayer"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libcontainerd/remote"
 	"github.com/docker/docker/libnetwork"
 	nwconfig "github.com/docker/docker/libnetwork/config"
@@ -1065,7 +1066,7 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 
 // Remove default bridge interface if present (--bridge=none use case)
 func removeDefaultBridgeInterface() {
-	if lnk, err := netlink.LinkByName(bridge.DefaultBridgeName); err == nil {
+	if lnk, err := nlwrap.LinkByName(bridge.DefaultBridgeName); err == nil {
 		if err := netlink.LinkDel(lnk); err != nil {
 			log.G(context.TODO()).Warnf("Failed to remove bridge interface (%s): %v", bridge.DefaultBridgeName, err)
 		}
