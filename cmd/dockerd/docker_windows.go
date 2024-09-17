@@ -2,25 +2,13 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
-	"os"
 
 	"github.com/Microsoft/go-winio/pkg/etwlogrus"
 	"github.com/containerd/log"
 )
 
-func runDaemon(ctx context.Context, opts *daemonOptions) error {
-	cli, err := newDaemonCLI(opts)
-	if err != nil {
-		return err
-	}
-	if opts.Validate {
-		// If config wasn't OK we wouldn't have made it this far.
-		_, _ = fmt.Fprintln(os.Stderr, "configuration OK")
-		return nil
-	}
-
+func runDaemon(ctx context.Context, cli *daemonCLI) error {
 	// On Windows, this may be launching as a service or with an option to
 	// register the service.
 	stop, runAsService, err := initService(cli)
