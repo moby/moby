@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/pkg/apparmor"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/oci"
@@ -72,6 +73,10 @@ func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string, selinuxB
 			opts = append(opts, withDefaultProfile())
 		}
 		if apparmorProfile != "" {
+			if !apparmor.HostSupports() {
+				return nil, errors.New("AppArmor is not supported on this host, but the profile '" + apparmorProfile + "' was specified")
+			}
+
 			opts = append(opts, oci.WithApparmorProfile(apparmorProfile))
 		}
 		opts = append(opts, func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {

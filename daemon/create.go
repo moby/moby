@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/pkg/apparmor"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/api/types/backend"
@@ -64,6 +65,32 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 	// TODO(thaJeztah): remove logentries check and migration code in release v26.0.0.
 	if opts.params.HostConfig != nil && opts.params.HostConfig.LogConfig.Type == "logentries" {
 		return containertypes.CreateResponse{}, errdefs.InvalidParameter(fmt.Errorf("the logentries logging driver has been deprecated and removed"))
+	}
+
+	var apparmorProfile string
+	for _, opt := range opts.params.HostConfig.SecurityOpt {
+		if strings.HasPrefix(opt, "apparmor") {
+			var value string
+			var ok bool
+
+			if strings.Contains(opt, "=") {
+				_, value, ok = strings.Cut(opt, "=")
+			} else if strings.Contains(opt, ":") {
+				_, value, ok = strings.Cut(opt, ":")
+			}
+
+			if !ok {
+				return containertypes.CreateResponse{}, fmt.Errorf("invalid apparmor security option: %s", opt)
+			}
+
+			apparmorProfile = value
+
+			break
+		}
+	}
+
+	if apparmorProfile != "" && !apparmor.HostSupports() {
+		return containertypes.CreateResponse{}, fmt.Errorf("AppArmor is not supported on this host, but the profile %s was specified", apparmorProfile)
 	}
 
 	// Normalize some defaults. Doing this "ad-hoc" here for now, as there's
