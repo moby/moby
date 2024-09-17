@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/vishvananda/netlink"
 )
 
 // DockerChain: DOCKER iptable chain name
@@ -569,7 +570,7 @@ func insertMirroredWSL2Rule(config configuration) bool {
 	if !config.EnableUserlandProxy || config.UserlandProxyPath == "" {
 		return false
 	}
-	if _, err := netlink.LinkByName("loopback0"); err != nil {
+	if _, err := nlwrap.LinkByName("loopback0"); err != nil {
 		if !errors.As(err, &netlink.LinkNotFoundError{}) {
 			log.G(context.TODO()).WithError(err).Warn("Failed to check for WSL interface")
 		}
