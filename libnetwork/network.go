@@ -609,7 +609,7 @@ func (n *Network) UnmarshalJSON(b []byte) (err error) {
 		n.enableIPv4 = v.(bool)
 	} else {
 		// Set enableIPv4 for IPv4 networks created before the option was added.
-		n.enableIPv4 = len(n.ipamV4Info) > 0
+		_, n.enableIPv4 = netMap["ipamV4Info"]
 	}
 	n.enableIPv6 = netMap["enableIPv6"].(bool)
 
