@@ -26,7 +26,8 @@ func setPlatformOptions(conf *config.Config) error {
 }
 
 // preNotifyReady sends a message to the host when the API is active, but before the daemon is
-func preNotifyReady() {
+func preNotifyReady() error {
+	return nil
 }
 
 // notifyReady sends a message to the host when the server is ready to be used

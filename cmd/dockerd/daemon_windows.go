@@ -41,15 +41,16 @@ func setDefaultUmask() error {
 }
 
 // preNotifyReady sends a message to the host when the API is active, but before the daemon is
-func preNotifyReady() {
+func preNotifyReady() error {
 	// start the service now to prevent timeouts waiting for daemon to start
 	// but still (eventually) complete all requests that are sent after this
 	if service != nil {
 		err := service.started()
 		if err != nil {
-			log.G(context.TODO()).Fatal(err)
+			return err
 		}
 	}
+	return nil
 }
 
 // notifyReady sends a message to the host when the server is ready to be used
@@ -63,9 +64,6 @@ func notifyStopping() {
 // notifyShutdown is called after the daemon shuts down but before the process exits.
 func notifyShutdown(err error) {
 	if service != nil {
-		if err != nil {
-			log.G(context.TODO()).Fatal(err)
-		}
 		service.stopped(err)
 	}
 }

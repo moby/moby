@@ -38,6 +38,11 @@ func runDaemon(ctx context.Context, opts *daemonOptions) error {
 	}
 
 	err = cli.start(ctx)
+	if service != nil {
+		// When running as a service, log the error, so that it's sent to
+		// the event-log.
+		log.G(ctx).Error(err)
+	}
 	notifyShutdown(err)
 	return err
 }

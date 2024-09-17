@@ -227,7 +227,9 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	}()
 
 	// Notify that the API is active, but before daemon is set up.
-	preNotifyReady()
+	if err := preNotifyReady(); err != nil {
+		return err
+	}
 
 	const otelServiceNameEnv = "OTEL_SERVICE_NAME"
 	if _, ok := os.LookupEnv(otelServiceNameEnv); !ok {
