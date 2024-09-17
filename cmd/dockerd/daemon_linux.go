@@ -9,8 +9,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// loadCLIPlatformConfig loads the platform specific CLI configuration
-func loadCLIPlatformConfig(conf *config.Config) error {
+// setPlatformOptions applies platform-specific CLI configuration options.
+func setPlatformOptions(conf *config.Config) error {
 	if conf.RemappedRoot == "" {
 		return nil
 	}

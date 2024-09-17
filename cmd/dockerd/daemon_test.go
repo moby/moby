@@ -19,9 +19,7 @@ func defaultOptions(t *testing.T, configFile string) *daemonOptions {
 	opts.flags = &pflag.FlagSet{}
 	opts.installFlags(opts.flags)
 	installConfigFlags(opts.daemonConfig, opts.flags)
-	defaultDaemonConfigFile, err := getDefaultDaemonConfigFile()
-	assert.NilError(t, err)
-	opts.flags.StringVar(&opts.configFile, "config-file", defaultDaemonConfigFile, "")
+	opts.flags.StringVar(&opts.configFile, "config-file", opts.configFile, "")
 	opts.configFile = configFile
 	err = opts.flags.Parse([]string{})
 	assert.NilError(t, err)

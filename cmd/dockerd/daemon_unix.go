@@ -21,26 +21,26 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func getDefaultDaemonConfigDir() (string, error) {
+func getDefaultDaemonConfigDir() string {
 	if !honorXDG {
-		return "/etc/docker", nil
+		return "/etc/docker"
 	}
 	// NOTE: CLI uses ~/.docker while the daemon uses ~/.config/docker, because
 	// ~/.docker was not designed to store daemon configurations.
 	// In future, the daemon directory may be renamed to ~/.config/moby-engine (?).
 	configHome, err := homedir.GetConfigHome()
 	if err != nil {
-		return "", nil
+		return ""
 	}
-	return filepath.Join(configHome, "docker"), nil
+	return filepath.Join(configHome, "docker")
 }
 
-func getDefaultDaemonConfigFile() (string, error) {
-	dir, err := getDefaultDaemonConfigDir()
-	if err != nil {
-		return "", err
+func getDefaultDaemonConfigFile() string {
+	dir := getDefaultDaemonConfigDir()
+	if dir == "" {
+		return ""
 	}
-	return filepath.Join(dir, "daemon.json"), nil
+	return filepath.Join(dir, "daemon.json")
 }
 
 // setDefaultUmask sets the umask to 0022 to avoid problems
@@ -56,7 +56,7 @@ func setDefaultUmask() error {
 }
 
 // setupConfigReloadTrap configures the SIGHUP signal to reload the configuration.
-func (cli *DaemonCli) setupConfigReloadTrap() {
+func (cli *daemonCLI) setupConfigReloadTrap() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, unix.SIGHUP)
 	go func() {
@@ -68,7 +68,7 @@ func (cli *DaemonCli) setupConfigReloadTrap() {
 
 // getSwarmRunRoot gets the root directory for swarm to store runtime state
 // For example, the control socket
-func (cli *DaemonCli) getSwarmRunRoot() string {
+func (cli *daemonCLI) getSwarmRunRoot() string {
 	return filepath.Join(cli.Config.ExecRoot, "swarm")
 }
 
@@ -116,7 +116,7 @@ func newCgroupParent(config *config.Config) string {
 	return cgroupParent
 }
 
-func (cli *DaemonCli) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
+func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
 	if cli.ContainerdAddr != "" {
 		// use system containerd at the given address.
 		return nil, nil

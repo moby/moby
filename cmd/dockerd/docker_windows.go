@@ -1,19 +1,29 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"io"
-	"path/filepath"
+	"os"
 
 	"github.com/Microsoft/go-winio/pkg/etwlogrus"
 	"github.com/containerd/log"
 )
 
-func runDaemon(opts *daemonOptions) error {
-	daemonCli := NewDaemonCli()
+func runDaemon(ctx context.Context, opts *daemonOptions) error {
+	cli, err := newDaemonCLI(opts)
+	if err != nil {
+		return err
+	}
+	if opts.Validate {
+		// If config wasn't OK we wouldn't have made it this far.
+		_, _ = fmt.Fprintln(os.Stderr, "configuration OK")
+		return nil
+	}
 
 	// On Windows, this may be launching as a service or with an option to
 	// register the service.
-	stop, runAsService, err := initService(daemonCli)
+	stop, runAsService, err := initService(cli)
 	if err != nil {
 		return err
 	}
@@ -22,18 +32,12 @@ func runDaemon(opts *daemonOptions) error {
 		return nil
 	}
 
-	// Windows specific settings as these are not defaulted.
-	if opts.configFile == "" {
-		opts.configFile = filepath.Join(opts.daemonConfig.Root, "config", "daemon.json")
-	}
 	if runAsService {
 		// If Windows SCM manages the service - no need for PID files
-		opts.daemonConfig.Pidfile = ""
-	} else if opts.daemonConfig.Pidfile == "" {
-		opts.daemonConfig.Pidfile = filepath.Join(opts.daemonConfig.Root, "docker.pid")
+		cli.Config.Pidfile = ""
 	}
 
-	err = daemonCli.start(opts)
+	err = cli.start(ctx)
 	notifyShutdown(err)
 	return err
 }
