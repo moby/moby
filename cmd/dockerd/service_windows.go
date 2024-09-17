@@ -303,7 +303,7 @@ func (h *handler) Execute(_ []string, r <-chan svc.ChangeRequest, s chan<- svc.S
 		return true, 1
 	}
 
-	s <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown | svc.Accepted(windows.SERVICE_ACCEPT_PARAMCHANGE)}
+	s <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown | svc.AcceptParamChange}
 	log.G(context.TODO()).Debug("Service running")
 Loop:
 	for {
@@ -312,7 +312,7 @@ Loop:
 			break Loop
 		case c := <-r:
 			switch c.Cmd {
-			case svc.Cmd(windows.SERVICE_CONTROL_PARAMCHANGE):
+			case svc.ParamChange:
 				h.daemonCLI.reloadConfig()
 			case svc.Interrogate:
 				s <- c.CurrentStatus
