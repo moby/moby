@@ -35,7 +35,18 @@ func newDaemonCommand() (*cobra.Command, error) {
 		Args:          NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.flags = cmd.Flags()
-			return runDaemon(cmd.Context(), opts)
+
+			cli, err := newDaemonCLI(opts)
+			if err != nil {
+				return err
+			}
+			if opts.Validate {
+				// If config wasn't OK we wouldn't have made it this far.
+				_, _ = fmt.Fprintln(os.Stderr, "configuration OK")
+				return nil
+			}
+
+			return runDaemon(cmd.Context(), cli)
 		},
 		DisableFlagsInUseLine: true,
 		Version:               fmt.Sprintf("%s, build %s", dockerversion.Version, dockerversion.GitCommit),

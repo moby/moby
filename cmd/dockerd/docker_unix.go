@@ -4,23 +4,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
-	"os"
 
 	"github.com/containerd/log"
 )
 
-func runDaemon(ctx context.Context, opts *daemonOptions) error {
-	cli, err := newDaemonCLI(opts)
-	if err != nil {
-		return err
-	}
-	if opts.Validate {
-		// If config wasn't OK we wouldn't have made it this far.
-		_, _ = fmt.Fprintln(os.Stderr, "configuration OK")
-		return nil
-	}
+func runDaemon(ctx context.Context, cli *daemonCLI) error {
 	return cli.start(ctx)
 }
 
