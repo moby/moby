@@ -361,6 +361,17 @@ func (d *Driver) Remove(id string) error {
 	name := d.zfsPath(id)
 	dataset := zfs.Dataset{Name: name}
 	err := dataset.Destroy(zfs.DestroyRecursive)
+	if err != nil {
+		var errZfs *zfs.Error
+		isZfsError := errors.As(err, &errZfs)
+		if isZfsError && strings.HasSuffix(strings.TrimSpace(errZfs.Stderr), "dataset does not exist") {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error":          err,
+				"storage-driver": "zfs",
+			}).Warnf("Tried to destroy inexistent dataset %q", name)
+			err = nil
+		}
+	}
 	if err == nil {
 		d.Lock()
 		delete(d.filesystemsCache, name)
