@@ -136,6 +136,8 @@ jobs:
     permissions:
       # required to write sarif report
       security-events: write
+      # required to check out the repository
+      contents: read
     steps:
       -
         name: Checkout
