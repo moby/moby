@@ -1,11 +1,12 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"testing"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -16,7 +17,7 @@ func getMockImageSource(getImageImage builder.Image, getImageLayer builder.ROLay
 	return &imageSources{
 		byImageID: make(map[string]*imageMount),
 		mounts:    []*imageMount{},
-		getImage: func(name string, localOnly bool, platform *ocispec.Platform) (builder.Image, builder.ROLayer, error) {
+		getImage: func(_ context.Context, name string, localOnly bool, platform *ocispec.Platform) (builder.Image, builder.ROLayer, error) {
 			return getImageImage, getImageLayer, getImageError
 		},
 	}
@@ -100,7 +101,8 @@ func TestAddFromScratchPopulatesPlatformIfNil(t *testing.T) {
 
 func TestImageSourceGetAddsToMounts(t *testing.T) {
 	is := getMockImageSource(nil, nil, nil)
-	_, err := is.Get("test", false, nil)
+	ctx := context.Background()
+	_, err := is.Get(ctx, "test", false, nil)
 	assert.NilError(t, err)
 	assert.Equal(t, len(is.mounts), 1)
 }

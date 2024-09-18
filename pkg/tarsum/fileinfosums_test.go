@@ -58,5 +58,4 @@ func TestSortFileInfoSums(t *testing.T) {
 	if fis.GetFile("noPresent") != nil {
 		t.Error("Should have return nil if name not found.")
 	}
-
 }

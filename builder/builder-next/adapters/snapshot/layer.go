@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/longpath"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sync/errgroup"
@@ -22,6 +22,9 @@ func (s *snapshotter) GetDiffIDs(ctx context.Context, key string) ([]layer.DiffI
 }
 
 func (s *snapshotter) EnsureLayer(ctx context.Context, key string) ([]layer.DiffID, error) {
+	s.layerCreateLocker.Lock(key)
+	defer s.layerCreateLocker.Unlock(key)
+
 	diffIDs, err := s.GetDiffIDs(ctx, key)
 	if err != nil {
 		return nil, err
@@ -55,7 +58,7 @@ func (s *snapshotter) EnsureLayer(ctx context.Context, key string) ([]layer.Diff
 		})
 	}
 
-	tmpDir, err := ioutils.TempDir("", "docker-tarsplit")
+	tmpDir, err := longpath.MkdirTemp("", "docker-tarsplit")
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +81,7 @@ func (s *snapshotter) EnsureLayer(ctx context.Context, key string) ([]layer.Diff
 				parent, _ = s.getGraphDriverID(info.Parent)
 			}
 		}
-		diffID, size, err = s.reg.ChecksumForGraphID(id, parent, "", tarSplitPath)
+		diffID, size, err = s.reg.ChecksumForGraphID(id, parent, tarSplitPath)
 		return err
 	})
 

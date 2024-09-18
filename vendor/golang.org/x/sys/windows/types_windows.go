@@ -160,6 +160,10 @@ const (
 
 	MAX_COMPUTERNAME_LENGTH = 15
 
+	MAX_DHCPV6_DUID_LENGTH = 130
+
+	MAX_DNS_SUFFIX_STRING_LENGTH = 256
+
 	TIME_ZONE_ID_UNKNOWN  = 0
 	TIME_ZONE_ID_STANDARD = 1
 
@@ -243,6 +247,7 @@ const (
 	PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY = 0x00020007
 	PROC_THREAD_ATTRIBUTE_UMS_THREAD        = 0x00030006
 	PROC_THREAD_ATTRIBUTE_PROTECTION_LEVEL  = 0x0002000b
+	PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE     = 0x00020016
 )
 
 const (
@@ -1089,7 +1094,33 @@ const (
 
 	SOMAXCONN = 0x7fffffff
 
-	TCP_NODELAY = 1
+	TCP_NODELAY                    = 1
+	TCP_EXPEDITED_1122             = 2
+	TCP_KEEPALIVE                  = 3
+	TCP_MAXSEG                     = 4
+	TCP_MAXRT                      = 5
+	TCP_STDURG                     = 6
+	TCP_NOURG                      = 7
+	TCP_ATMARK                     = 8
+	TCP_NOSYNRETRIES               = 9
+	TCP_TIMESTAMPS                 = 10
+	TCP_OFFLOAD_PREFERENCE         = 11
+	TCP_CONGESTION_ALGORITHM       = 12
+	TCP_DELAY_FIN_ACK              = 13
+	TCP_MAXRTMS                    = 14
+	TCP_FASTOPEN                   = 15
+	TCP_KEEPCNT                    = 16
+	TCP_KEEPIDLE                   = TCP_KEEPALIVE
+	TCP_KEEPINTVL                  = 17
+	TCP_FAIL_CONNECT_ON_ICMP_ERROR = 18
+	TCP_ICMP_ERROR_INFO            = 19
+
+	UDP_NOCHECKSUM              = 1
+	UDP_SEND_MSG_SIZE           = 2
+	UDP_RECV_MAX_COALESCED_SIZE = 3
+	UDP_CHECKSUM_COVERAGE       = 20
+
+	UDP_COALESCED_INFO = 3
 
 	SHUT_RD   = 0
 	SHUT_WR   = 1
@@ -1237,6 +1268,51 @@ const (
 	DnsSectionAnswer     = 0x0001
 	DnsSectionAuthority  = 0x0002
 	DnsSectionAdditional = 0x0003
+)
+
+const (
+	// flags of WSALookupService
+	LUP_DEEP                = 0x0001
+	LUP_CONTAINERS          = 0x0002
+	LUP_NOCONTAINERS        = 0x0004
+	LUP_NEAREST             = 0x0008
+	LUP_RETURN_NAME         = 0x0010
+	LUP_RETURN_TYPE         = 0x0020
+	LUP_RETURN_VERSION      = 0x0040
+	LUP_RETURN_COMMENT      = 0x0080
+	LUP_RETURN_ADDR         = 0x0100
+	LUP_RETURN_BLOB         = 0x0200
+	LUP_RETURN_ALIASES      = 0x0400
+	LUP_RETURN_QUERY_STRING = 0x0800
+	LUP_RETURN_ALL          = 0x0FF0
+	LUP_RES_SERVICE         = 0x8000
+
+	LUP_FLUSHCACHE    = 0x1000
+	LUP_FLUSHPREVIOUS = 0x2000
+
+	LUP_NON_AUTHORITATIVE      = 0x4000
+	LUP_SECURE                 = 0x8000
+	LUP_RETURN_PREFERRED_NAMES = 0x10000
+	LUP_DNS_ONLY               = 0x20000
+
+	LUP_ADDRCONFIG           = 0x100000
+	LUP_DUAL_ADDR            = 0x200000
+	LUP_FILESERVER           = 0x400000
+	LUP_DISABLE_IDN_ENCODING = 0x00800000
+	LUP_API_ANSI             = 0x01000000
+
+	LUP_RESOLUTION_HANDLE = 0x80000000
+)
+
+const (
+	// values of WSAQUERYSET's namespace
+	NS_ALL       = 0
+	NS_DNS       = 12
+	NS_NLA       = 15
+	NS_BTH       = 16
+	NS_EMAIL     = 37
+	NS_PNRPNAME  = 38
+	NS_PNRPCLOUD = 39
 )
 
 type DNSSRVData struct {
@@ -1927,7 +2003,21 @@ const (
 	MOVEFILE_FAIL_IF_NOT_TRACKABLE = 0x20
 )
 
-const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
+// Flags for GetAdaptersAddresses, see
+// https://learn.microsoft.com/en-us/windows/win32/api/iphlpapi/nf-iphlpapi-getadaptersaddresses.
+const (
+	GAA_FLAG_SKIP_UNICAST                = 0x1
+	GAA_FLAG_SKIP_ANYCAST                = 0x2
+	GAA_FLAG_SKIP_MULTICAST              = 0x4
+	GAA_FLAG_SKIP_DNS_SERVER             = 0x8
+	GAA_FLAG_INCLUDE_PREFIX              = 0x10
+	GAA_FLAG_SKIP_FRIENDLY_NAME          = 0x20
+	GAA_FLAG_INCLUDE_WINS_INFO           = 0x40
+	GAA_FLAG_INCLUDE_GATEWAYS            = 0x80
+	GAA_FLAG_INCLUDE_ALL_INTERFACES      = 0x100
+	GAA_FLAG_INCLUDE_ALL_COMPARTMENTS    = 0x200
+	GAA_FLAG_INCLUDE_TUNNEL_BINDINGORDER = 0x400
+)
 
 const (
 	IF_TYPE_OTHER              = 1
@@ -1939,6 +2029,50 @@ const (
 	IF_TYPE_IEEE80211          = 71
 	IF_TYPE_TUNNEL             = 131
 	IF_TYPE_IEEE1394           = 144
+)
+
+// Enum NL_PREFIX_ORIGIN for [IpAdapterUnicastAddress], see
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_prefix_origin
+const (
+	IpPrefixOriginOther               = 0
+	IpPrefixOriginManual              = 1
+	IpPrefixOriginWellKnown           = 2
+	IpPrefixOriginDhcp                = 3
+	IpPrefixOriginRouterAdvertisement = 4
+	IpPrefixOriginUnchanged           = 1 << 4
+)
+
+// Enum NL_SUFFIX_ORIGIN for [IpAdapterUnicastAddress], see
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_suffix_origin
+const (
+	NlsoOther                      = 0
+	NlsoManual                     = 1
+	NlsoWellKnown                  = 2
+	NlsoDhcp                       = 3
+	NlsoLinkLayerAddress           = 4
+	NlsoRandom                     = 5
+	IpSuffixOriginOther            = 0
+	IpSuffixOriginManual           = 1
+	IpSuffixOriginWellKnown        = 2
+	IpSuffixOriginDhcp             = 3
+	IpSuffixOriginLinkLayerAddress = 4
+	IpSuffixOriginRandom           = 5
+	IpSuffixOriginUnchanged        = 1 << 4
+)
+
+// Enum NL_DAD_STATE for [IpAdapterUnicastAddress], see
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_dad_state
+const (
+	NldsInvalid          = 0
+	NldsTentative        = 1
+	NldsDuplicate        = 2
+	NldsDeprecated       = 3
+	NldsPreferred        = 4
+	IpDadStateInvalid    = 0
+	IpDadStateTentative  = 1
+	IpDadStateDuplicate  = 2
+	IpDadStateDeprecated = 3
+	IpDadStatePreferred  = 4
 )
 
 type SocketAddress struct {
@@ -2000,27 +2134,62 @@ type IpAdapterPrefix struct {
 }
 
 type IpAdapterAddresses struct {
-	Length                uint32
-	IfIndex               uint32
-	Next                  *IpAdapterAddresses
-	AdapterName           *byte
-	FirstUnicastAddress   *IpAdapterUnicastAddress
-	FirstAnycastAddress   *IpAdapterAnycastAddress
-	FirstMulticastAddress *IpAdapterMulticastAddress
-	FirstDnsServerAddress *IpAdapterDnsServerAdapter
-	DnsSuffix             *uint16
-	Description           *uint16
-	FriendlyName          *uint16
-	PhysicalAddress       [syscall.MAX_ADAPTER_ADDRESS_LENGTH]byte
-	PhysicalAddressLength uint32
-	Flags                 uint32
-	Mtu                   uint32
-	IfType                uint32
-	OperStatus            uint32
-	Ipv6IfIndex           uint32
-	ZoneIndices           [16]uint32
-	FirstPrefix           *IpAdapterPrefix
-	/* more fields might be present here. */
+	Length                 uint32
+	IfIndex                uint32
+	Next                   *IpAdapterAddresses
+	AdapterName            *byte
+	FirstUnicastAddress    *IpAdapterUnicastAddress
+	FirstAnycastAddress    *IpAdapterAnycastAddress
+	FirstMulticastAddress  *IpAdapterMulticastAddress
+	FirstDnsServerAddress  *IpAdapterDnsServerAdapter
+	DnsSuffix              *uint16
+	Description            *uint16
+	FriendlyName           *uint16
+	PhysicalAddress        [syscall.MAX_ADAPTER_ADDRESS_LENGTH]byte
+	PhysicalAddressLength  uint32
+	Flags                  uint32
+	Mtu                    uint32
+	IfType                 uint32
+	OperStatus             uint32
+	Ipv6IfIndex            uint32
+	ZoneIndices            [16]uint32
+	FirstPrefix            *IpAdapterPrefix
+	TransmitLinkSpeed      uint64
+	ReceiveLinkSpeed       uint64
+	FirstWinsServerAddress *IpAdapterWinsServerAddress
+	FirstGatewayAddress    *IpAdapterGatewayAddress
+	Ipv4Metric             uint32
+	Ipv6Metric             uint32
+	Luid                   uint64
+	Dhcpv4Server           SocketAddress
+	CompartmentId          uint32
+	NetworkGuid            GUID
+	ConnectionType         uint32
+	TunnelType             uint32
+	Dhcpv6Server           SocketAddress
+	Dhcpv6ClientDuid       [MAX_DHCPV6_DUID_LENGTH]byte
+	Dhcpv6ClientDuidLength uint32
+	Dhcpv6Iaid             uint32
+	FirstDnsSuffix         *IpAdapterDNSSuffix
+}
+
+type IpAdapterWinsServerAddress struct {
+	Length   uint32
+	Reserved uint32
+	Next     *IpAdapterWinsServerAddress
+	Address  SocketAddress
+}
+
+type IpAdapterGatewayAddress struct {
+	Length   uint32
+	Reserved uint32
+	Next     *IpAdapterGatewayAddress
+	Address  SocketAddress
+}
+
+type IpAdapterDNSSuffix struct {
+	Next   *IpAdapterDNSSuffix
+	String [MAX_DNS_SUFFIX_STRING_LENGTH]uint16
 }
 
 const (
@@ -2053,6 +2222,12 @@ const (
 	ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x4
 	DISABLE_NEWLINE_AUTO_RETURN        = 0x8
 	ENABLE_LVB_GRID_WORLDWIDE          = 0x10
+)
+
+// Pseudo console related constants used for the flags parameter to
+// CreatePseudoConsole. See: https://learn.microsoft.com/en-us/windows/console/createpseudoconsole
+const (
+	PSEUDOCONSOLE_INHERIT_CURSOR = 0x1
 )
 
 type Coord struct {
@@ -2136,19 +2311,23 @@ type JOBOBJECT_BASIC_UI_RESTRICTIONS struct {
 }
 
 const (
-	// JobObjectInformationClass
+	// JobObjectInformationClass for QueryInformationJobObject and SetInformationJobObject
 	JobObjectAssociateCompletionPortInformation = 7
+	JobObjectBasicAccountingInformation         = 1
+	JobObjectBasicAndIoAccountingInformation    = 8
 	JobObjectBasicLimitInformation              = 2
+	JobObjectBasicProcessIdList                 = 3
 	JobObjectBasicUIRestrictions                = 4
 	JobObjectCpuRateControlInformation          = 15
 	JobObjectEndOfJobTimeInformation            = 6
 	JobObjectExtendedLimitInformation           = 9
 	JobObjectGroupInformation                   = 11
 	JobObjectGroupInformationEx                 = 14
-	JobObjectLimitViolationInformation2         = 35
+	JobObjectLimitViolationInformation          = 13
+	JobObjectLimitViolationInformation2         = 34
 	JobObjectNetRateControlInformation          = 32
 	JobObjectNotificationLimitInformation       = 12
-	JobObjectNotificationLimitInformation2      = 34
+	JobObjectNotificationLimitInformation2      = 33
 	JobObjectSecurityLimitInformation           = 5
 )
 
@@ -3174,3 +3353,123 @@ type ModuleInfo struct {
 }
 
 const ALL_PROCESSOR_GROUPS = 0xFFFF
+
+type Rect struct {
+	Left   int32
+	Top    int32
+	Right  int32
+	Bottom int32
+}
+
+type GUIThreadInfo struct {
+	Size        uint32
+	Flags       uint32
+	Active      HWND
+	Focus       HWND
+	Capture     HWND
+	MenuOwner   HWND
+	MoveSize    HWND
+	CaretHandle HWND
+	CaretRect   Rect
+}
+
+const (
+	DWMWA_NCRENDERING_ENABLED            = 1
+	DWMWA_NCRENDERING_POLICY             = 2
+	DWMWA_TRANSITIONS_FORCEDISABLED      = 3
+	DWMWA_ALLOW_NCPAINT                  = 4
+	DWMWA_CAPTION_BUTTON_BOUNDS          = 5
+	DWMWA_NONCLIENT_RTL_LAYOUT           = 6
+	DWMWA_FORCE_ICONIC_REPRESENTATION    = 7
+	DWMWA_FLIP3D_POLICY                  = 8
+	DWMWA_EXTENDED_FRAME_BOUNDS          = 9
+	DWMWA_HAS_ICONIC_BITMAP              = 10
+	DWMWA_DISALLOW_PEEK                  = 11
+	DWMWA_EXCLUDED_FROM_PEEK             = 12
+	DWMWA_CLOAK                          = 13
+	DWMWA_CLOAKED                        = 14
+	DWMWA_FREEZE_REPRESENTATION          = 15
+	DWMWA_PASSIVE_UPDATE_MODE            = 16
+	DWMWA_USE_HOSTBACKDROPBRUSH          = 17
+	DWMWA_USE_IMMERSIVE_DARK_MODE        = 20
+	DWMWA_WINDOW_CORNER_PREFERENCE       = 33
+	DWMWA_BORDER_COLOR                   = 34
+	DWMWA_CAPTION_COLOR                  = 35
+	DWMWA_TEXT_COLOR                     = 36
+	DWMWA_VISIBLE_FRAME_BORDER_THICKNESS = 37
+)
+
+type WSAQUERYSET struct {
+	Size                uint32
+	ServiceInstanceName *uint16
+	ServiceClassId      *GUID
+	Version             *WSAVersion
+	Comment             *uint16
+	NameSpace           uint32
+	NSProviderId        *GUID
+	Context             *uint16
+	NumberOfProtocols   uint32
+	AfpProtocols        *AFProtocols
+	QueryString         *uint16
+	NumberOfCsAddrs     uint32
+	SaBuffer            *CSAddrInfo
+	OutputFlags         uint32
+	Blob                *BLOB
+}
+
+type WSAVersion struct {
+	Version                 uint32
+	EnumerationOfComparison int32
+}
+
+type AFProtocols struct {
+	AddressFamily int32
+	Protocol      int32
+}
+
+type CSAddrInfo struct {
+	LocalAddr  SocketAddress
+	RemoteAddr SocketAddress
+	SocketType int32
+	Protocol   int32
+}
+
+type BLOB struct {
+	Size     uint32
+	BlobData *byte
+}
+
+type ComStat struct {
+	Flags    uint32
+	CBInQue  uint32
+	CBOutQue uint32
+}
+
+type DCB struct {
+	DCBlength  uint32
+	BaudRate   uint32
+	Flags      uint32
+	wReserved  uint16
+	XonLim     uint16
+	XoffLim    uint16
+	ByteSize   uint8
+	Parity     uint8
+	StopBits   uint8
+	XonChar    byte
+	XoffChar   byte
+	ErrorChar  byte
+	EofChar    byte
+	EvtChar    byte
+	wReserved1 uint16
+}
+
+// Keyboard Layout Flags.
+// See https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadkeyboardlayoutw
+const (
+	KLF_ACTIVATE      = 0x00000001
+	KLF_SUBSTITUTE_OK = 0x00000002
+	KLF_REORDER       = 0x00000008
+	KLF_REPLACELANG   = 0x00000010
+	KLF_NOTELLSHELL   = 0x00000080
+	KLF_SETFORPROCESS = 0x00000100
+)

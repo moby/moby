@@ -488,6 +488,18 @@ func (s *Scheduler) tick(ctx context.Context) {
 }
 
 func (s *Scheduler) applySchedulingDecisions(ctx context.Context, schedulingDecisions map[string]schedulingDecision) (successful, failed []schedulingDecision) {
+	// applySchedulingDecisions is the only place where we make store
+	// transactions in the scheduler. the scheduler is responsible for freeing
+	// volumes that are no longer in use. this means that volumes should be
+	// freed in this function. sometimes, there are no scheduling decisions to
+	// be made, so we return early in the if statement below.
+	//
+	// however, in all cases, any activity that results in a tick could result
+	// in needing volumes to be freed, even if nothing new is scheduled. this
+	// freeing of volumes should always happen *after* all of the scheduling
+	// decisions have been committed, hence the defer.
+	defer s.store.Batch(s.volumes.freeVolumes)
+
 	if len(schedulingDecisions) == 0 {
 		return
 	}
@@ -619,9 +631,7 @@ func (s *Scheduler) applySchedulingDecisions(ctx context.Context, schedulingDeci
 		}
 		// finally, every time we make new scheduling decisions, take the
 		// opportunity to release volumes.
-		return batch.Update(func(tx store.Tx) error {
-			return s.volumes.freeVolumes(tx)
-		})
+		return nil
 	})
 
 	if err != nil {

@@ -5,7 +5,7 @@
 // Package ocsp parses OCSP responses as specified in RFC 2560. OCSP responses
 // are signed messages attesting to the validity of a certificate for a small
 // period of time. This is used to manage revocation for X.509 certificates.
-package ocsp // import "golang.org/x/crypto/ocsp"
+package ocsp
 
 import (
 	"crypto"
@@ -279,21 +279,22 @@ func getOIDFromHashAlgorithm(target crypto.Hash) asn1.ObjectIdentifier {
 
 // This is the exposed reflection of the internal OCSP structures.
 
-// The status values that can be expressed in OCSP.  See RFC 6960.
+// The status values that can be expressed in OCSP. See RFC 6960.
+// These are used for the Response.Status field.
 const (
 	// Good means that the certificate is valid.
-	Good = iota
+	Good = 0
 	// Revoked means that the certificate has been deliberately revoked.
-	Revoked
+	Revoked = 1
 	// Unknown means that the OCSP responder doesn't know about the certificate.
-	Unknown
+	Unknown = 2
 	// ServerFailed is unused and was never used (see
 	// https://go-review.googlesource.com/#/c/18944). ParseResponse will
 	// return a ResponseError when an error response is parsed.
-	ServerFailed
+	ServerFailed = 3
 )
 
-// The enumerated reasons for revoking a certificate.  See RFC 5280.
+// The enumerated reasons for revoking a certificate. See RFC 5280.
 const (
 	Unspecified          = 0
 	KeyCompromise        = 1
@@ -345,6 +346,8 @@ func (req *Request) Marshal() ([]byte, error) {
 // Response represents an OCSP response containing a single SingleResponse. See
 // RFC 6960.
 type Response struct {
+	Raw []byte
+
 	// Status is one of {Good, Revoked, Unknown}
 	Status                                        int
 	SerialNumber                                  *big.Int
@@ -518,6 +521,7 @@ func ParseResponseForCert(bytes []byte, cert, issuer *x509.Certificate) (*Respon
 	}
 
 	ret := &Response{
+		Raw:                bytes,
 		TBSResponseData:    basicResp.TBSResponseData.Raw,
 		Signature:          basicResp.Signature.RightAlign(),
 		SignatureAlgorithm: getSignatureAlgorithmFromOID(basicResp.SignatureAlgorithm.Algorithm),

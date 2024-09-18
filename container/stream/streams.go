@@ -2,16 +2,16 @@ package stream // import "github.com/docker/docker/container/stream"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"sync"
 
 	"github.com/containerd/containerd/cio"
+	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/broadcaster"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
-	"github.com/sirupsen/logrus"
 )
 
 // Config holds information about I/O streams managed together.
@@ -91,56 +91,59 @@ func (c *Config) NewNopInputPipe() {
 
 // CloseStreams ensures that the configured streams are properly closed.
 func (c *Config) CloseStreams() error {
-	var errors []string
+	var errs error
 
 	if c.stdin != nil {
 		if err := c.stdin.Close(); err != nil {
-			errors = append(errors, fmt.Sprintf("error close stdin: %s", err))
+			errs = errors.Join(errs, fmt.Errorf("error close stdin: %w", err))
 		}
 	}
 
 	if err := c.stdout.Clean(); err != nil {
-		errors = append(errors, fmt.Sprintf("error close stdout: %s", err))
+		errs = errors.Join(errs, fmt.Errorf("error close stdout: %w", err))
 	}
 
 	if err := c.stderr.Clean(); err != nil {
-		errors = append(errors, fmt.Sprintf("error close stderr: %s", err))
+		errs = errors.Join(errs, fmt.Errorf("error close stderr: %w", err))
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "\n"))
-	}
-
-	return nil
+	return errs
 }
 
 // CopyToPipe connects streamconfig with a libcontainerd.IOPipe
 func (c *Config) CopyToPipe(iop *cio.DirectIO) {
+	ctx := context.TODO()
+
 	c.dio = iop
-	copyFunc := func(w io.Writer, r io.ReadCloser) {
+	copyFunc := func(name string, w io.Writer, r io.ReadCloser) {
 		c.wg.Add(1)
 		go func() {
 			if _, err := pools.Copy(w, r); err != nil {
-				logrus.Errorf("stream copy error: %v", err)
+				log.G(ctx).WithFields(log.Fields{"stream": name, "error": err}).Error("copy stream failed")
 			}
-			r.Close()
+			if err := r.Close(); err != nil {
+				log.G(ctx).WithFields(log.Fields{"stream": name, "error": err}).Warn("close stream failed")
+			}
 			c.wg.Done()
 		}()
 	}
 
 	if iop.Stdout != nil {
-		copyFunc(c.Stdout(), iop.Stdout)
+		copyFunc("stdout", c.Stdout(), iop.Stdout)
 	}
 	if iop.Stderr != nil {
-		copyFunc(c.Stderr(), iop.Stderr)
+		copyFunc("stderr", c.Stderr(), iop.Stderr)
 	}
 
 	if stdin := c.Stdin(); stdin != nil {
 		if iop.Stdin != nil {
 			go func() {
-				pools.Copy(iop.Stdin, stdin)
+				_, err := pools.Copy(iop.Stdin, stdin)
+				if err != nil {
+					log.G(ctx).WithFields(log.Fields{"stream": "stdin", "error": err}).Error("copy stream failed")
+				}
 				if err := iop.Stdin.Close(); err != nil {
-					logrus.Warnf("failed to close stdin: %v", err)
+					log.G(ctx).WithFields(log.Fields{"stream": "stdin", "error": err}).Warn("close stream failed")
 				}
 			}()
 		}

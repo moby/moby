@@ -3,12 +3,13 @@ package cache
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/url"
 	"strings"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/reference"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
@@ -18,6 +19,7 @@ import (
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/progress/logs"
 	"github.com/moby/buildkit/util/pull/pullprogress"
+	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -38,7 +40,7 @@ func (sr *immutableRef) GetRemotes(ctx context.Context, createIfNeeded bool, ref
 	if err != nil {
 		return nil, err
 	}
-	defer done(ctx)
+	defer done(context.WithoutCancel(ctx))
 
 	// fast path if compression variants aren't required
 	// NOTE: compressionopt is applied only to *newly created layers* if Force != true.
@@ -51,7 +53,7 @@ func (sr *immutableRef) GetRemotes(ctx context.Context, createIfNeeded bool, ref
 	}
 
 	// Search all available remotes that has the topmost blob with the specified
-	// compression with all combination of copmressions
+	// compression with all combination of compressions
 	res := []*solver.Remote{remote}
 	topmost, parentChain := remote.Descriptors[len(remote.Descriptors)-1], remote.Descriptors[:len(remote.Descriptors)-1]
 	vDesc, err := getBlobWithCompression(ctx, sr.cm.ContentStore, topmost, refCfg.Compression.Type)
@@ -85,7 +87,7 @@ func (sr *immutableRef) GetRemotes(ctx context.Context, createIfNeeded bool, ref
 	return res, nil
 }
 
-func appendRemote(parents []*solver.Remote, desc ocispecs.Descriptor, p content.Provider) (res []*solver.Remote) {
+func appendRemote(parents []*solver.Remote, desc ocispecs.Descriptor, p content.InfoReaderProvider) (res []*solver.Remote) {
 	for _, pRemote := range parents {
 		provider := contentutil.NewMultiProvider(pRemote.Provider)
 		provider.Add(desc.Digest, p)
@@ -213,7 +215,7 @@ func (sr *immutableRef) getRemote(ctx context.Context, createIfNeeded bool, refC
 		}
 
 		if refCfg.Compression.Force {
-			if needs, err := needsConversion(ctx, sr.cm.ContentStore, desc, refCfg.Compression.Type); err != nil {
+			if needs, err := refCfg.Compression.Type.NeedsConversion(ctx, sr.cm.ContentStore, desc); err != nil {
 				return nil, err
 			} else if needs {
 				// ensure the compression type.
@@ -228,15 +230,13 @@ func (sr *immutableRef) getRemote(ctx context.Context, createIfNeeded bool, refC
 				newDesc.Size = blobDesc.Size
 				newDesc.URLs = blobDesc.URLs
 				newDesc.Annotations = nil
+				if len(addAnnotations) > 0 || len(blobDesc.Annotations) > 0 {
+					newDesc.Annotations = make(map[string]string)
+				}
 				for _, k := range addAnnotations {
 					newDesc.Annotations[k] = desc.Annotations[k]
 				}
-				for k, v := range blobDesc.Annotations {
-					if newDesc.Annotations == nil {
-						newDesc.Annotations = make(map[string]string)
-					}
-					newDesc.Annotations[k] = v
-				}
+				maps.Copy(newDesc.Annotations, blobDesc.Annotations)
 				desc = newDesc
 			}
 		}
@@ -276,6 +276,10 @@ func (mp *lazyMultiProvider) ReaderAt(ctx context.Context, desc ocispecs.Descrip
 	return mp.mprovider.ReaderAt(ctx, desc)
 }
 
+func (mp *lazyMultiProvider) Info(ctx context.Context, dgst digest.Digest) (content.Info, error) {
+	return mp.mprovider.Info(ctx, dgst)
+}
+
 func (mp *lazyMultiProvider) Unlazy(ctx context.Context) error {
 	eg, egctx := errgroup.WithContext(ctx)
 	for _, p := range mp.plist {
@@ -296,7 +300,7 @@ type lazyRefProvider struct {
 
 func (p lazyRefProvider) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (content.ReaderAt, error) {
 	if desc.Digest != p.desc.Digest {
-		return nil, errdefs.ErrNotFound
+		return nil, cerrdefs.ErrNotFound
 	}
 	if err := p.Unlazy(ctx); err != nil {
 		return nil, err
@@ -304,12 +308,34 @@ func (p lazyRefProvider) ReaderAt(ctx context.Context, desc ocispecs.Descriptor)
 	return p.ref.cm.ContentStore.ReaderAt(ctx, desc)
 }
 
+func (p lazyRefProvider) Info(ctx context.Context, dgst digest.Digest) (content.Info, error) {
+	if dgst != p.desc.Digest {
+		return content.Info{}, cerrdefs.ErrNotFound
+	}
+	info, err := p.ref.cm.ContentStore.Info(ctx, dgst)
+	if err == nil {
+		return info, nil
+	}
+
+	if isLazy, err1 := p.ref.isLazy(ctx); err1 != nil {
+		return content.Info{}, err1
+	} else if !isLazy {
+		return content.Info{}, err
+	}
+
+	// for lazy records don't unlazy without read request
+	return content.Info{
+		Digest: p.desc.Digest,
+		Size:   p.desc.Size,
+	}, nil
+}
+
 func (p lazyRefProvider) Unlazy(ctx context.Context) error {
-	_, err := p.ref.cm.unlazyG.Do(ctx, string(p.desc.Digest), func(ctx context.Context) (_ interface{}, rerr error) {
+	_, err := p.ref.cm.unlazyG.Do(ctx, string(p.desc.Digest), func(ctx context.Context) (_ struct{}, rerr error) {
 		if isLazy, err := p.ref.isLazy(ctx); err != nil {
-			return nil, err
+			return struct{}{}, err
 		} else if !isLazy {
-			return nil, nil
+			return struct{}{}, nil
 		}
 		defer func() {
 			if rerr == nil {
@@ -320,7 +346,7 @@ func (p lazyRefProvider) Unlazy(ctx context.Context) error {
 		if p.dh == nil {
 			// shouldn't happen, if you have a lazy immutable ref it already should be validated
 			// that descriptor handlers exist for it
-			return nil, errors.New("unexpected nil descriptor handler")
+			return struct{}{}, errors.New("unexpected nil descriptor handler")
 		}
 
 		if p.dh.Progress != nil {
@@ -337,7 +363,7 @@ func (p lazyRefProvider) Unlazy(ctx context.Context) error {
 			Manager:  p.ref.cm.ContentStore,
 		}, p.desc, p.dh.Ref, logs.LoggerFromContext(ctx))
 		if err != nil {
-			return nil, err
+			return struct{}{}, err
 		}
 
 		if imageRefs := p.ref.getImageRefs(); len(imageRefs) > 0 {
@@ -345,12 +371,12 @@ func (p lazyRefProvider) Unlazy(ctx context.Context) error {
 			imageRef := imageRefs[0]
 			if p.ref.GetDescription() == "" {
 				if err := p.ref.SetDescription("pulled from " + imageRef); err != nil {
-					return nil, err
+					return struct{}{}, err
 				}
 			}
 		}
 
-		return nil, nil
+		return struct{}{}, nil
 	})
 	return err
 }

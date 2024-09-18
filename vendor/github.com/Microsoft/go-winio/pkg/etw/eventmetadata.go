@@ -1,3 +1,5 @@
+//go:build windows
+
 package etw
 
 import (
@@ -10,6 +12,8 @@ type inType byte
 
 // Various inType definitions for TraceLogging. These must match the definitions
 // found in TraceLoggingProvider.h in the Windows SDK.
+//
+//nolint:deadcode,varcheck // keep unused constants for potential future use
 const (
 	inTypeNull inType = iota
 	inTypeUnicodeString
@@ -47,6 +51,8 @@ type outType byte
 
 // Various outType definitions for TraceLogging. These must match the
 // definitions found in TraceLoggingProvider.h in the Windows SDK.
+//
+//nolint:deadcode,varcheck // keep unused constants for potential future use
 const (
 	// outTypeDefault indicates that the default formatting for the inType will
 	// be used by the event decoder.
@@ -81,11 +87,11 @@ type eventMetadata struct {
 	buffer bytes.Buffer
 }
 
-// bytes returns the raw binary data containing the event metadata. Before being
+// toBytes returns the raw binary data containing the event metadata. Before being
 // returned, the current size of the buffer is written to the start of the
 // buffer. The returned value is not copied from the internal buffer, so it can
 // be mutated by the eventMetadata object after it is returned.
-func (em *eventMetadata) bytes() []byte {
+func (em *eventMetadata) toBytes() []byte {
 	// Finalize the event metadata buffer by filling in the buffer length at the
 	// beginning.
 	binary.LittleEndian.PutUint16(em.buffer.Bytes(), uint16(em.buffer.Len()))
@@ -95,7 +101,7 @@ func (em *eventMetadata) bytes() []byte {
 // writeEventHeader writes the metadata for the start of an event to the buffer.
 // This specifies the event name and tags.
 func (em *eventMetadata) writeEventHeader(name string, tags uint32) {
-	binary.Write(&em.buffer, binary.LittleEndian, uint16(0)) // Length placeholder
+	_ = binary.Write(&em.buffer, binary.LittleEndian, uint16(0)) // Length placeholder
 	em.writeTags(tags)
 	em.buffer.WriteString(name)
 	em.buffer.WriteByte(0) // Null terminator for name
@@ -118,7 +124,7 @@ func (em *eventMetadata) writeFieldInner(name string, inType inType, outType out
 	}
 
 	if arrSize != 0 {
-		binary.Write(&em.buffer, binary.LittleEndian, arrSize)
+		_ = binary.Write(&em.buffer, binary.LittleEndian, arrSize)
 	}
 }
 
@@ -151,13 +157,17 @@ func (em *eventMetadata) writeTags(tags uint32) {
 }
 
 // writeField writes the metadata for a simple field to the buffer.
+//
+//nolint:unparam // tags is currently always 0, may change in the future
 func (em *eventMetadata) writeField(name string, inType inType, outType outType, tags uint32) {
 	em.writeFieldInner(name, inType, outType, tags, 0)
 }
 
 // writeArray writes the metadata for an array field to the buffer. The number
 // of elements in the array must be written as a uint16 in the event data,
-// immediately preceeding the event data.
+// immediately preceding the event data.
+//
+//nolint:unparam // tags is currently always 0, may change in the future
 func (em *eventMetadata) writeArray(name string, inType inType, outType outType, tags uint32) {
 	em.writeFieldInner(name, inType|inTypeArray, outType, tags, 0)
 }
@@ -165,6 +175,8 @@ func (em *eventMetadata) writeArray(name string, inType inType, outType outType,
 // writeCountedArray writes the metadata for an array field to the buffer. The
 // size of a counted array is fixed, and the size is written into the metadata
 // directly.
+//
+//nolint:unused // keep for future use
 func (em *eventMetadata) writeCountedArray(name string, count uint16, inType inType, outType outType, tags uint32) {
 	em.writeFieldInner(name, inType|inTypeCountedArray, outType, tags, count)
 }

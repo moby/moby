@@ -18,10 +18,11 @@ package local
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/errdefs"
 )
 
 // readerat implements io.ReaderAt in a completely stateless manner by opening
@@ -64,4 +65,8 @@ func (ra sizeReaderAt) Size() int64 {
 
 func (ra sizeReaderAt) Close() error {
 	return ra.fp.Close()
+}
+
+func (ra sizeReaderAt) Reader() io.Reader {
+	return io.LimitReader(ra.fp, ra.size)
 }

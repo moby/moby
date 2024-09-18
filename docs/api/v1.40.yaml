@@ -24,7 +24,7 @@ info:
   title: "Docker Engine API"
   version: "1.40"
   x-logo:
-    url: "https://docs.docker.com/images/logo-docker-main.png"
+    url: "https://docs.docker.com/assets/images/logo-docker-main.png"
   description: |
     The Engine API is an HTTP API served by Docker Engine. It is the API the
     Docker client uses to communicate with the Engine, so everything the Docker
@@ -746,11 +746,13 @@ definitions:
           The time to wait between checks in nanoseconds. It should be 0 or at
           least 1000000 (1 ms). 0 means inherit.
         type: "integer"
+        format: "int64"
       Timeout:
         description: |
           The time to wait before considering the check to have hung. It should
           be 0 or at least 1000000 (1 ms). 0 means inherit.
         type: "integer"
+        format: "int64"
       Retries:
         description: |
           The number of consecutive failures needed to consider a container as
@@ -762,11 +764,13 @@ definitions:
           health-retries countdown in nanoseconds. It should be 0 or at least
           1000000 (1 ms). 0 means inherit.
         type: "integer"
+        format: "int64"
 
   Health:
     description: |
       Health stores information about the container's healthcheck results.
     type: "object"
+    x-nullable: true
     properties:
       Status:
         description: |
@@ -792,13 +796,13 @@ definitions:
         description: |
           Log contains the last few results (oldest first)
         items:
-          x-nullable: true
           $ref: "#/definitions/HealthcheckResult"
 
   HealthcheckResult:
     description: |
       HealthcheckResult stores information about a single run of a healthcheck probe
     type: "object"
+    x-nullable: true
     properties:
       Start:
         description: |
@@ -1075,6 +1079,7 @@ definitions:
               remapping option is enabled.
           ShmSize:
             type: "integer"
+            format: "int64"
             description: |
               Size of `/dev/shm` in bytes. If omitted, the system uses 64MB.
             minimum: 0
@@ -1289,6 +1294,277 @@ definitions:
         items:
           type: "string"
         example: ["/bin/sh", "-c"]
+
+  ImageConfig:
+    description: |
+      Configuration of the image. These fields are used as defaults
+      when starting a container from the image.
+    type: "object"
+    properties:
+      Hostname:
+        description: |
+          The hostname to use for the container, as a valid RFC 1123 hostname.
+
+          <p><br /></p>
+
+          > **Note**: this field is always empty and must not be used.
+        type: "string"
+        example: ""
+      Domainname:
+        description: |
+          The domain name to use for the container.
+
+          <p><br /></p>
+
+          > **Note**: this field is always empty and must not be used.
+        type: "string"
+        example: ""
+      User:
+        description: "The user that commands are run as inside the container."
+        type: "string"
+        example: "web:web"
+      AttachStdin:
+        description: |
+          Whether to attach to `stdin`.
+
+          <p><br /></p>
+
+          > **Note**: this field is always false and must not be used.
+        type: "boolean"
+        default: false
+        example: false
+      AttachStdout:
+        description: |
+          Whether to attach to `stdout`.
+
+          <p><br /></p>
+
+          > **Note**: this field is always false and must not be used.
+        type: "boolean"
+        default: false
+        example: false
+      AttachStderr:
+        description: |
+          Whether to attach to `stderr`.
+
+          <p><br /></p>
+
+          > **Note**: this field is always false and must not be used.
+        type: "boolean"
+        default: false
+        example: false
+      ExposedPorts:
+        description: |
+          An object mapping ports to an empty object in the form:
+
+          `{"<port>/<tcp|udp|sctp>": {}}`
+        type: "object"
+        x-nullable: true
+        additionalProperties:
+          type: "object"
+          enum:
+            - {}
+          default: {}
+        example: {
+          "80/tcp": {},
+          "443/tcp": {}
+        }
+      Tty:
+        description: |
+          Attach standard streams to a TTY, including `stdin` if it is not closed.
+
+          <p><br /></p>
+
+          > **Note**: this field is always false and must not be used.
+        type: "boolean"
+        default: false
+        example: false
+      OpenStdin:
+        description: |
+          Open `stdin`
+
+          <p><br /></p>
+
+          > **Note**: this field is always false and must not be used.
+        type: "boolean"
+        default: false
+        example: false
+      StdinOnce:
+        description: |
+          Close `stdin` after one attached client disconnects.
+
+          <p><br /></p>
+
+          > **Note**: this field is always false and must not be used.
+        type: "boolean"
+        default: false
+        example: false
+      Env:
+        description: |
+          A list of environment variables to set inside the container in the
+          form `["VAR=value", ...]`. A variable without `=` is removed from the
+          environment, rather than to have an empty value.
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      Cmd:
+        description: |
+          Command to run specified as a string or an array of strings.
+        type: "array"
+        items:
+          type: "string"
+        example: ["/bin/sh"]
+      Healthcheck:
+        $ref: "#/definitions/HealthConfig"
+      ArgsEscaped:
+        description: "Command is already escaped (Windows only)"
+        type: "boolean"
+        default: false
+        example: false
+        x-nullable: true
+      Image:
+        description: |
+          The name (or reference) of the image to use when creating the container,
+          or which was used when the container was created.
+
+          <p><br /></p>
+
+          > **Note**: this field is always empty and must not be used.
+        type: "string"
+        default: ""
+        example: ""
+      Volumes:
+        description: |
+          An object mapping mount point paths inside the container to empty
+          objects.
+        type: "object"
+        additionalProperties:
+          type: "object"
+          enum:
+            - {}
+          default: {}
+        example:
+          "/app/data": {}
+          "/app/config": {}
+      WorkingDir:
+        description: "The working directory for commands to run in."
+        type: "string"
+        example: "/public/"
+      Entrypoint:
+        description: |
+          The entry point for the container as a string or an array of strings.
+
+          If the array consists of exactly one empty string (`[""]`) then the
+          entry point is reset to system default (i.e., the entry point used by
+          docker when there is no `ENTRYPOINT` instruction in the `Dockerfile`).
+        type: "array"
+        items:
+          type: "string"
+        example: []
+      NetworkDisabled:
+        description: |
+          Disable networking for the container.
+
+          <p><br /></p>
+
+          > **Note**: this field is always omitted and must not be used.
+        type: "boolean"
+        default: false
+        example: false
+        x-nullable: true
+      MacAddress:
+        description: |
+          MAC address of the container.
+
+          <p><br /></p>
+
+          > **Note**: this field is always omitted and must not be used.
+        type: "string"
+        default: ""
+        example: ""
+        x-nullable: true
+      OnBuild:
+        description: |
+          `ONBUILD` metadata that were defined in the image's `Dockerfile`.
+        type: "array"
+        x-nullable: true
+        items:
+          type: "string"
+        example: []
+      Labels:
+        description: "User-defined key/value metadata."
+        type: "object"
+        additionalProperties:
+          type: "string"
+        example:
+          com.example.some-label: "some-value"
+          com.example.some-other-label: "some-other-value"
+      StopSignal:
+        description: |
+          Signal to stop a container as a string or unsigned integer.
+        type: "string"
+        example: "SIGTERM"
+        x-nullable: true
+      StopTimeout:
+        description: |
+          Timeout to stop a container in seconds.
+
+          <p><br /></p>
+
+          > **Note**: this field is always omitted and must not be used.
+        type: "integer"
+        default: 10
+        x-nullable: true
+      Shell:
+        description: |
+          Shell for when `RUN`, `CMD`, and `ENTRYPOINT` uses a shell.
+        type: "array"
+        x-nullable: true
+        items:
+          type: "string"
+        example: ["/bin/sh", "-c"]
+    # FIXME(thaJeztah): temporarily using a full example to remove some "omitempty" fields. Remove once the fields are removed.
+    example:
+      "Hostname": ""
+      "Domainname": ""
+      "User": "web:web"
+      "AttachStdin": false
+      "AttachStdout": false
+      "AttachStderr": false
+      "ExposedPorts": {
+        "80/tcp": {},
+        "443/tcp": {}
+      }
+      "Tty": false
+      "OpenStdin": false
+      "StdinOnce": false
+      "Env": ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"]
+      "Cmd": ["/bin/sh"]
+      "Healthcheck": {
+        "Test": ["string"],
+        "Interval": 0,
+        "Timeout": 0,
+        "Retries": 0,
+        "StartPeriod": 0,
+        "StartInterval": 0
+      }
+      "ArgsEscaped": true
+      "Image": ""
+      "Volumes": {
+        "/app/data": {},
+        "/app/config": {}
+      }
+      "WorkingDir": "/public/"
+      "Entrypoint": []
+      "OnBuild": []
+      "Labels": {
+        "com.example.some-label": "some-value",
+        "com.example.some-other-label": "some-other-value"
+      }
+      "StopSignal": "SIGTERM"
+      "Shell": ["/bin/sh", "-c"]
 
   NetworkingConfig:
     description: |
@@ -1595,7 +1871,7 @@ definitions:
           List of image names/tags in the local image cache that reference this
           image.
 
-          Multiple image tags can refer to the same imagem and this list may be
+          Multiple image tags can refer to the same image, and this list may be
           empty if no tags reference the image, in which case the image is
           "untagged", in which case it can still be referenced by its ID.
         type: "array"
@@ -1670,7 +1946,7 @@ definitions:
         x-nullable: false
         example: ""
       Config:
-        $ref: "#/definitions/ContainerConfig"
+        $ref: "#/definitions/ImageConfig"
       Architecture:
         description: |
           Hardware CPU architecture that the image runs on.
@@ -1796,7 +2072,7 @@ definitions:
           List of image names/tags in the local image cache that reference this
           image.
 
-          Multiple image tags can refer to the same imagem and this list may be
+          Multiple image tags can refer to the same image, and this list may be
           empty if no tags reference the image, in which case the image is
           "untagged", in which case it can still be referenced by its ID.
         type: "array"
@@ -1827,7 +2103,7 @@ definitions:
       Created:
         description: |
           Date and time at which the image was created as a Unix timestamp
-          (number of seconds sinds EPOCH).
+          (number of seconds since EPOCH).
         type: "integer"
         x-nullable: false
         example: "1644009612"
@@ -1846,6 +2122,7 @@ definitions:
           This size is not calculated by default. `-1` indicates that the value
           has not been set / calculated.
         type: "integer"
+        format: "int64"
         x-nullable: false
         example: 1239828
       VirtualSize:
@@ -1990,6 +2267,7 @@ definitions:
         properties:
           Size:
             type: "integer"
+            format: "int64"
             default: -1
             description: |
               Amount of disk space used by the volume (in bytes). This information
@@ -1999,6 +2277,7 @@ definitions:
             x-nullable: false
           RefCount:
             type: "integer"
+            format: "int64"
             default: -1
             description: |
               The number of containers referencing this volume. This field
@@ -2274,6 +2553,8 @@ definitions:
         type: "string"
       error:
         type: "string"
+      errorDetail:
+        $ref: "#/definitions/ErrorDetail"
       status:
         type: "string"
       progress:
@@ -2909,8 +3190,6 @@ definitions:
           - Type: "Log"
             Name: "json-file"
           - Type: "Log"
-            Name: "logentries"
-          - Type: "Log"
             Name: "splunk"
           - Type: "Log"
             Name: "syslog"
@@ -3193,7 +3472,7 @@ definitions:
                 example: "json-file"
               Options:
                 description: |
-                  Driver-specific options for the selectd log driver, specified
+                  Driver-specific options for the selected log driver, specified
                   as key/value pairs.
                 type: "object"
                 additionalProperties:
@@ -4426,6 +4705,7 @@ definitions:
       ContainerState stores container's running state. It's part of ContainerJSONBase
       and will be returned by the "inspect" command.
     type: "object"
+    x-nullable: true
     properties:
       Status:
         description: |
@@ -4483,7 +4763,6 @@ definitions:
         type: "string"
         example: "2020-01-06T09:07:59.461876391Z"
       Health:
-        x-nullable: true
         $ref: "#/definitions/Health"
 
   ContainerWaitResponse:
@@ -4496,6 +4775,7 @@ definitions:
       StatusCode:
         description: "Exit code of the container"
         type: "integer"
+        format: "int64"
         x-nullable: false
       Error:
         $ref: "#/definitions/ContainerWaitExitError"
@@ -4844,7 +5124,7 @@ definitions:
           Go runtime (`GOOS`).
 
           Currently returned values are "linux" and "windows". A full list of
-          possible values can be found in the [Go documentation](https://golang.org/doc/install/source#environment).
+          possible values can be found in the [Go documentation](https://go.dev/doc/install/source#environment).
         type: "string"
         example: "linux"
       Architecture:
@@ -4852,7 +5132,7 @@ definitions:
           Hardware architecture of the host, as returned by the Go runtime
           (`GOARCH`).
 
-          A full list of possible values can be found in the [Go documentation](https://golang.org/doc/install/source#environment).
+          A full list of possible values can be found in the [Go documentation](https://go.dev/doc/install/source#environment).
         type: "string"
         example: "x86_64"
       NCPU:
@@ -4938,10 +5218,6 @@ definitions:
       ServerVersion:
         description: |
           Version string of the daemon.
-
-          > **Note**: the [standalone Swarm API](https://docs.docker.com/swarm/swarm-api/)
-          > returns the Swarm version instead of the daemon  version, for example
-          > `swarm/1.2.8`.
         type: "string"
         example: "17.06.0-ce"
       ClusterStore:
@@ -5124,7 +5400,7 @@ definitions:
         type: "array"
         items:
           type: "string"
-        example: ["awslogs", "fluentd", "gcplogs", "gelf", "journald", "json-file", "logentries", "splunk", "syslog"]
+        example: ["awslogs", "fluentd", "gcplogs", "gelf", "journald", "json-file", "splunk", "syslog"]
 
 
   RegistryServiceConfig:
@@ -6023,7 +6299,6 @@ paths:
                 items:
                   type: "string"
               State:
-                x-nullable: true
                 $ref: "#/definitions/ContainerState"
               Image:
                 description: "The container's image ID"
@@ -6036,9 +6311,6 @@ paths:
                 type: "string"
               LogPath:
                 type: "string"
-              Node:
-                description: "TODO"
-                type: "object"
               Name:
                 type: "string"
               RestartCount:
@@ -6118,7 +6390,7 @@ paths:
                 StopSignal: "SIGTERM"
                 StopTimeout: 10
               Created: "2015-01-06T15:47:31.485331387Z"
-              Driver: "devicemapper"
+              Driver: "overlay2"
               ExecIDs:
                 - "b35395de42bc8abd327f9dd65d913b9ba28c74d2f0734eeeae84fa1c616a0fca"
                 - "3fc1232e5cd20c8de182ed81178503dc6437f4e7ef12b52cc5e8de020652f1c4"
@@ -6531,7 +6803,7 @@ paths:
         * Memory usage % = `(used_memory / available_memory) * 100.0`
         * cpu_delta = `cpu_stats.cpu_usage.total_usage - precpu_stats.cpu_usage.total_usage`
         * system_cpu_delta = `cpu_stats.system_cpu_usage - precpu_stats.system_cpu_usage`
-        * number_cpus = `lenght(cpu_stats.cpu_usage.percpu_usage)` or `cpu_stats.online_cpus`
+        * number_cpus = `length(cpu_stats.cpu_usage.percpu_usage)` or `cpu_stats.online_cpus`
         * CPU usage % = `(cpu_delta / system_cpu_delta) * number_cpus * 100.0`
       operationId: "ContainerStats"
       produces: ["application/json"]
@@ -6825,7 +7097,8 @@ paths:
           type: "string"
         - name: "signal"
           in: "query"
-          description: "Signal to send to the container as an integer or string (e.g. `SIGINT`)"
+          description: |
+            Signal to send to the container as an integer or string (e.g. `SIGINT`).
           type: "string"
           default: "SIGKILL"
       tags: ["Container"]
@@ -7699,6 +7972,16 @@ paths:
           description: "BuildKit output configuration"
           type: "string"
           default: ""
+        - name: "version"
+          in: "query"
+          type: "string"
+          default: "1"
+          enum: ["1", "2"]
+          description: |
+            Version of the builder backend to use.
+
+            - `1` is the first generation classic (deprecated) builder in the Docker daemon (default)
+            - `2` is [BuildKit](https://github.com/moby/buildkit)
       responses:
         200:
           description: "no error"
@@ -7975,12 +8258,23 @@ paths:
       parameters:
         - name: "name"
           in: "path"
-          description: "Image name or ID."
+          description: |
+            Name of the image to push. For example, `registry.example.com/myimage`.
+            The image must be present in the local image store with the same name.
+
+            The name should be provided without tag; if a tag is provided, it
+            is ignored. For example, `registry.example.com/myimage:latest` is
+            considered equivalent to `registry.example.com/myimage`.
+
+            Use the `tag` parameter to specify the tag to push.
           type: "string"
           required: true
         - name: "tag"
           in: "query"
-          description: "The tag to associate with the image on the registry."
+          description: |
+            Tag of the image to push. For example, `latest`. If no tag is provided,
+            all tags of the given image that are present in the local image store
+            are pushed.
           type: "string"
         - name: "X-Registry-Auth"
           in: "header"
@@ -8220,6 +8514,10 @@ paths:
               IdentityToken: "9cbaf023786cd7..."
         204:
           description: "No error"
+        401:
+          description: "Auth error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         500:
           description: "Server error"
           schema:
@@ -9065,6 +9363,7 @@ paths:
           type: "boolean"
           default: false
       tags: ["Volume"]
+
   /volumes/prune:
     post:
       summary: "Delete unused volumes"
@@ -9283,6 +9582,10 @@ paths:
             example:
               Id: "22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30"
               Warning: ""
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         403:
           description: "operation not supported for pre-defined networks"
           schema:
@@ -9747,6 +10050,12 @@ paths:
             default if omitted.
           required: true
           type: "string"
+        - name: "force"
+          in: "query"
+          description: |
+            Force disable a plugin even if still in use.
+          required: false
+          type: "boolean"
       tags: ["Plugin"]
   /plugins/{name}/upgrade:
     post:
@@ -10083,7 +10392,7 @@ paths:
           required: true
           schema:
             type: "object"
-            title: "SwarmJoinRequest"
+            title: "SwarmInitRequest"
             properties:
               ListenAddr:
                 description: |
@@ -10182,7 +10491,7 @@ paths:
           required: true
           schema:
             type: "object"
-            title: "SwarmInitRequest"
+            title: "SwarmJoinRequest"
             properties:
               ListenAddr:
                 description: |

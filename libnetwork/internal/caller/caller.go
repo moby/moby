@@ -22,8 +22,8 @@ func callerInfo(i int) string {
 	return fName
 }
 
-// Name returns the name of the function at the specified level
-// level == 0 means current method name
+// Name returns the name of the function at the specified level.
+// (level == 0 means current method name).
 func Name(level int) string {
 	return callerInfo(2 + level)
 }

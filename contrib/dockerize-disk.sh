@@ -103,8 +103,8 @@ cat > $builddir/result/$new_image_id/json <<- EOS
 EOS
 
 if [ -n "$docker_base_image" ]; then
- image_id=$(docker inspect -f "{{.Id}}" "$docker_base_image")
- echo ", \"parent\": \"$image_id\"" >> $builddir/result/$new_image_id/json
+	image_id=$(docker inspect -f "{{.Id}}" "$docker_base_image")
+	echo ", \"parent\": \"$image_id\"" >> $builddir/result/$new_image_id/json
 fi
 
 echo "}" >> $builddir/result/$new_image_id/json

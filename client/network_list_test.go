@@ -10,9 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestNetworkListError(t *testing.T) {
@@ -20,49 +22,39 @@ func TestNetworkListError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.NetworkList(context.Background(), types.NetworkListOptions{
-		Filters: filters.NewArgs(),
-	})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	_, err := client.NetworkList(context.Background(), network.ListOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestNetworkList(t *testing.T) {
-	expectedURL := "/networks"
-
-	noDanglingFilters := filters.NewArgs()
-	noDanglingFilters.Add("dangling", "false")
-
-	danglingFilters := filters.NewArgs()
-	danglingFilters.Add("dangling", "true")
-
-	labelFilters := filters.NewArgs()
-	labelFilters.Add("label", "label1")
-	labelFilters.Add("label", "label2")
+	const expectedURL = "/networks"
 
 	listCases := []struct {
-		options         types.NetworkListOptions
+		options         network.ListOptions
 		expectedFilters string
 	}{
 		{
-			options: types.NetworkListOptions{
-				Filters: filters.NewArgs(),
-			},
+			options:         network.ListOptions{},
 			expectedFilters: "",
-		}, {
-			options: types.NetworkListOptions{
-				Filters: noDanglingFilters,
+		},
+		{
+			options: network.ListOptions{
+				Filters: filters.NewArgs(filters.Arg("dangling", "false")),
 			},
 			expectedFilters: `{"dangling":{"false":true}}`,
-		}, {
-			options: types.NetworkListOptions{
-				Filters: danglingFilters,
+		},
+		{
+			options: network.ListOptions{
+				Filters: filters.NewArgs(filters.Arg("dangling", "true")),
 			},
 			expectedFilters: `{"dangling":{"true":true}}`,
-		}, {
-			options: types.NetworkListOptions{
-				Filters: labelFilters,
+		},
+		{
+			options: network.ListOptions{
+				Filters: filters.NewArgs(
+					filters.Arg("label", "label1"),
+					filters.Arg("label", "label2"),
+				),
 			},
 			expectedFilters: `{"label":{"label1":true,"label2":true}}`,
 		},
@@ -82,7 +74,7 @@ func TestNetworkList(t *testing.T) {
 				if actualFilters != listCase.expectedFilters {
 					return nil, fmt.Errorf("filters not set in URL query properly. Expected '%s', got %s", listCase.expectedFilters, actualFilters)
 				}
-				content, err := json.Marshal([]types.NetworkResource{
+				content, err := json.Marshal([]network.Summary{
 					{
 						Name:   "network",
 						Driver: "bridge",

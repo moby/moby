@@ -1,18 +1,21 @@
 package fsutil
 
 import (
-	"io/ioutil"
+	"context"
+	gofs "io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	strings "strings"
+	"syscall"
 
 	"github.com/pkg/errors"
+	"github.com/tonistiigi/fsutil/types"
 )
 
-func FollowLinks(root string, paths []string) ([]string, error) {
-	r := &symlinkResolver{root: root, resolved: map[string]struct{}{}}
+func FollowLinks(fs FS, paths []string) ([]string, error) {
+	r := &symlinkResolver{fs: fs, resolved: map[string]struct{}{}}
 	for _, p := range paths {
 		if err := r.append(p); err != nil {
 			return nil, err
@@ -20,18 +23,24 @@ func FollowLinks(root string, paths []string) ([]string, error) {
 	}
 	res := make([]string, 0, len(r.resolved))
 	for r := range r.resolved {
-		res = append(res, r)
+		res = append(res, filepath.ToSlash(r))
 	}
 	sort.Strings(res)
 	return dedupePaths(res), nil
 }
 
 type symlinkResolver struct {
-	root     string
+	fs       FS
 	resolved map[string]struct{}
 }
 
 func (r *symlinkResolver) append(p string) error {
+	if runtime.GOOS == "windows" && filepath.IsAbs(filepath.FromSlash(p)) {
+		absParts := strings.SplitN(p, ":", 2)
+		if len(absParts) == 2 {
+			p = absParts[1]
+		}
+	}
 	p = filepath.Join(".", p)
 	current := "."
 	for {
@@ -42,7 +51,6 @@ func (r *symlinkResolver) append(p string) error {
 		if err != nil {
 			return err
 		}
-
 		p = ""
 		if len(parts) == 2 {
 			p = parts[1]
@@ -72,12 +80,11 @@ func (r *symlinkResolver) append(p string) error {
 }
 
 func (r *symlinkResolver) readSymlink(p string, allowWildcard bool) ([]string, error) {
-	realPath := filepath.Join(r.root, p)
 	base := filepath.Base(p)
 	if allowWildcard && containsWildcards(base) {
-		fis, err := ioutil.ReadDir(filepath.Dir(realPath))
+		fis, err := readDir(r.fs, filepath.Dir(p))
 		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
+			if isNotFound(err) {
 				return nil, nil
 			}
 			return nil, errors.Wrap(err, "readdir")
@@ -95,27 +102,106 @@ func (r *symlinkResolver) readSymlink(p string, allowWildcard bool) ([]string, e
 		return out, nil
 	}
 
-	fi, err := os.Lstat(realPath)
+	entry, err := statFile(r.fs, p)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+		if isNotFound(err) {
 			return nil, nil
 		}
 		return nil, errors.WithStack(err)
 	}
-	if fi.Mode()&os.ModeSymlink == 0 {
+	if entry == nil {
 		return nil, nil
 	}
-	link, err := os.Readlink(realPath)
+	if entry.Type()&os.ModeSymlink == 0 {
+		return nil, nil
+	}
+
+	fi, err := entry.Info()
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	link = filepath.Clean(link)
+	stat, ok := fi.Sys().(*types.Stat)
+	if !ok {
+		return nil, errors.WithStack(&os.PathError{Path: p, Err: syscall.EBADMSG, Op: "fileinfo without stat info"})
+	}
+
+	link := filepath.Clean(stat.Linkname)
 	if filepath.IsAbs(link) {
 		return []string{link}, nil
 	}
 	return []string{
 		filepath.Join(string(filepath.Separator), filepath.Join(filepath.Dir(p), link)),
 	}, nil
+}
+
+func statFile(fs FS, root string) (os.DirEntry, error) {
+	var out os.DirEntry
+
+	root = filepath.FromSlash(filepath.Clean(root))
+	if root == string(filepath.Separator) || root == "." {
+		return nil, nil
+	}
+
+	err := fs.Walk(context.TODO(), root, func(p string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if p != root {
+			return errors.Errorf("expected single entry %q but got %q", root, p)
+		}
+		out = entry
+		if entry.IsDir() {
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if out == nil {
+		return nil, errors.Wrapf(os.ErrNotExist, "readFile %s", root)
+	}
+	return out, nil
+}
+
+func readDir(fs FS, root string) ([]os.DirEntry, error) {
+	var out []os.DirEntry
+
+	root = filepath.FromSlash(filepath.Clean(root))
+	if root == string(filepath.Separator) || root == "." {
+		root = "."
+		out = make([]gofs.DirEntry, 0)
+	}
+
+	err := fs.Walk(context.TODO(), root, func(p string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if p == root {
+			if !entry.IsDir() {
+				return errors.WithStack(&os.PathError{Op: "walk", Path: root, Err: syscall.ENOTDIR})
+			}
+			out = make([]gofs.DirEntry, 0)
+			return nil
+		}
+		if out == nil {
+			return errors.Errorf("expected to read parent entry %q before child %q", root, p)
+		}
+		out = append(out, entry)
+		if entry.IsDir() {
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if out == nil && root != "." {
+		return nil, errors.Wrapf(os.ErrNotExist, "readDir %s", root)
+	}
+	return out, nil
 }
 
 func containsWildcards(name string) bool {
@@ -140,7 +226,7 @@ func dedupePaths(in []string) []string {
 		if s == "." {
 			return nil
 		}
-		if strings.HasPrefix(s, last+string(filepath.Separator)) {
+		if strings.HasPrefix(s, last+"/") {
 			continue
 		}
 		out = append(out, s)

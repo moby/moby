@@ -3,7 +3,6 @@
 before:
   hooks:
     - ./gen.sh
-    - go install mvdan.cc/garble@latest
 
 builds:
   -
@@ -32,7 +31,6 @@ builds:
       - mips64le
     goarm:
       - 7
-    gobinary: garble
   -
     id: "s2d"
     binary: s2d
@@ -59,7 +57,6 @@ builds:
       - mips64le
     goarm:
       - 7
-    gobinary: garble
   -
     id: "s2sx"
     binary: s2sx
@@ -87,21 +84,11 @@ builds:
       - mips64le
     goarm:
       - 7
-    gobinary: garble
 
 archives:
   -
     id: s2-binaries
-    name_template: "s2-{{ .Os }}_{{ .Arch }}_{{ .Version }}"
-    replacements:
-      aix: AIX
-      darwin: OSX
-      linux: Linux
-      windows: Windows
-      386: i386
-      amd64: x86_64
-      freebsd: FreeBSD
-      netbsd: NetBSD
+    name_template: "s2-{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     format_overrides:
       - goos: windows
         format: zip
@@ -125,7 +112,7 @@ changelog:
 
 nfpms:
   -
-    file_name_template: "s2_package_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    file_name_template: "s2_package__{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     vendor: Klaus Post
     homepage: https://github.com/klauspost/compress
     maintainer: Klaus Post <klauspost@gmail.com>
@@ -134,8 +121,3 @@ nfpms:
     formats:
       - deb
       - rpm
-    replacements:
-      darwin: Darwin
-      linux: Linux
-      freebsd: FreeBSD
-      amd64: x86_64

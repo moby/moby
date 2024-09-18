@@ -25,9 +25,9 @@ and [much faster][v2-bench]. If you only need reading and writing TOML documents
 (majority of cases), those features are implemented and the API unlikely to
 change.
 
-The remaining features (Document structure editing and tooling) will be added
-shortly. While pull-requests are welcome on v1, no active development is
-expected on it. When v2.0.0 is released, v1 will be deprecated.
+The remaining features will be added shortly. While pull-requests are welcome on
+v1, no active development is expected on it. When v2.0.0 is released, v1 will be
+deprecated.
 
 👉 [go-toml v2][v2]
 

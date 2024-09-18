@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 /*
    Copyright The containerd Authors.
@@ -23,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sync"
@@ -99,7 +99,14 @@ func copyIO(fifos *FIFOSet, ioset *Streams) (*cio, error) {
 		config:  fifos.Config,
 		wg:      wg,
 		closers: append(pipes.closers(), fifos),
-		cancel:  cancel,
+		cancel: func() {
+			cancel()
+			for _, c := range pipes.closers() {
+				if c != nil {
+					c.Close()
+				}
+			}
+		},
 	}, nil
 }
 
@@ -151,4 +158,38 @@ func NewDirectIO(ctx context.Context, fifos *FIFOSet) (*DirectIO, error) {
 			cancel:  cancel,
 		},
 	}, err
+}
+
+// TerminalLogURI provides the raw logging URI
+// as well as sets the terminal option to true.
+func TerminalLogURI(uri *url.URL) Creator {
+	return func(_ string) (IO, error) {
+		return &logURI{
+			config: Config{
+				Stdout:   uri.String(),
+				Stderr:   uri.String(),
+				Terminal: true,
+			},
+		}, nil
+	}
+}
+
+// TerminalBinaryIO forwards container STDOUT|STDERR directly to a logging binary
+// It also sets the terminal option to true
+func TerminalBinaryIO(binary string, args map[string]string) Creator {
+	return func(_ string) (IO, error) {
+		uri, err := LogURIGenerator("binary", binary, args)
+		if err != nil {
+			return nil, err
+		}
+
+		res := uri.String()
+		return &logURI{
+			config: Config{
+				Stdout:   res,
+				Stderr:   res,
+				Terminal: true,
+			},
+		}, nil
+	}
 }

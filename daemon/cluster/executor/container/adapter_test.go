@@ -1,9 +1,8 @@
 package container // import "github.com/docker/docker/daemon/cluster/executor/container"
 
 import (
-	"testing"
-
 	"context"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/daemon"
@@ -20,7 +19,7 @@ func TestWaitNodeAttachment(t *testing.T) {
 	// and add some attachments to it
 	attachmentStore := emptyDaemon.GetAttachmentStore()
 
-	// create a set of attachments to put into the attahcment store
+	// create a set of attachments to put into the attachment store
 	attachments := map[string]string{
 		"network1": "10.1.2.3/24",
 	}

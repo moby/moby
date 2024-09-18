@@ -1,48 +1,49 @@
 package network
 
 import (
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 )
 
 // WithDriver sets the driver of the network
-func WithDriver(driver string) func(*types.NetworkCreate) {
-	return func(n *types.NetworkCreate) {
+func WithDriver(driver string) func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
 		n.Driver = driver
 	}
 }
 
-// WithIPv6 Enables IPv6 on the network
-func WithIPv6() func(*types.NetworkCreate) {
-	return func(n *types.NetworkCreate) {
-		n.EnableIPv6 = true
+// WithIPv4 enables/disables IPv4 on the network
+func WithIPv4(enable bool) func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
+		enableIPv4 := enable
+		n.EnableIPv4 = &enableIPv4
 	}
 }
 
-// WithCheckDuplicate sets the CheckDuplicate field on create network request
-func WithCheckDuplicate() func(*types.NetworkCreate) {
-	return func(n *types.NetworkCreate) {
-		n.CheckDuplicate = true
+// WithIPv6 Enables IPv6 on the network
+func WithIPv6() func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
+		enableIPv6 := true
+		n.EnableIPv6 = &enableIPv6
 	}
 }
 
 // WithInternal enables Internal flag on the create network request
-func WithInternal() func(*types.NetworkCreate) {
-	return func(n *types.NetworkCreate) {
+func WithInternal() func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
 		n.Internal = true
 	}
 }
 
 // WithAttachable sets Attachable flag on the create network request
-func WithAttachable() func(*types.NetworkCreate) {
-	return func(n *types.NetworkCreate) {
+func WithAttachable() func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
 		n.Attachable = true
 	}
 }
 
 // WithMacvlan sets the network as macvlan with the specified parent
-func WithMacvlan(parent string) func(*types.NetworkCreate) {
-	return func(n *types.NetworkCreate) {
+func WithMacvlan(parent string) func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
 		n.Driver = "macvlan"
 		if parent != "" {
 			n.Options = map[string]string{
@@ -52,9 +53,22 @@ func WithMacvlan(parent string) func(*types.NetworkCreate) {
 	}
 }
 
+// WithMacvlanPassthru sets the network as macvlan with the specified parent in passthru mode
+func WithMacvlanPassthru(parent string) func(options *network.CreateOptions) {
+	return func(n *network.CreateOptions) {
+		n.Driver = "macvlan"
+		n.Options = map[string]string{
+			"macvlan_mode": "passthru",
+		}
+		if parent != "" {
+			n.Options["parent"] = parent
+		}
+	}
+}
+
 // WithIPvlan sets the network as ipvlan with the specified parent and mode
-func WithIPvlan(parent, mode string) func(*types.NetworkCreate) {
-	return func(n *types.NetworkCreate) {
+func WithIPvlan(parent, mode string) func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
 		n.Driver = "ipvlan"
 		if n.Options == nil {
 			n.Options = map[string]string{}
@@ -69,8 +83,8 @@ func WithIPvlan(parent, mode string) func(*types.NetworkCreate) {
 }
 
 // WithOption adds the specified key/value pair to network's options
-func WithOption(key, value string) func(*types.NetworkCreate) {
-	return func(n *types.NetworkCreate) {
+func WithOption(key, value string) func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
 		if n.Options == nil {
 			n.Options = map[string]string{}
 		}
@@ -79,14 +93,20 @@ func WithOption(key, value string) func(*types.NetworkCreate) {
 }
 
 // WithIPAM adds an IPAM with the specified Subnet and Gateway to the network
-func WithIPAM(subnet, gateway string) func(*types.NetworkCreate) {
-	return func(n *types.NetworkCreate) {
+func WithIPAM(subnet, gateway string) func(*network.CreateOptions) {
+	return WithIPAMRange(subnet, "", gateway)
+}
+
+// WithIPAM adds an IPAM with the specified Subnet, IPRange and Gateway to the network
+func WithIPAMRange(subnet, iprange, gateway string) func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
 		if n.IPAM == nil {
 			n.IPAM = &network.IPAM{}
 		}
 
 		n.IPAM.Config = append(n.IPAM.Config, network.IPAMConfig{
 			Subnet:     subnet,
+			IPRange:    iprange,
 			Gateway:    gateway,
 			AuxAddress: map[string]string{},
 		})

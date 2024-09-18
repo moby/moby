@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/contrib/nvidia"
-	"github.com/docker/docker/pkg/capabilities"
+	"github.com/docker/docker/daemon/internal/capabilities"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
@@ -51,12 +51,15 @@ func setNvidiaGPUs(s *specs.Spec, dev *deviceInstance) error {
 		return errConflictCountDeviceIDs
 	}
 
-	if len(req.DeviceIDs) > 0 {
+	switch {
+	case len(req.DeviceIDs) > 0:
 		s.Process.Env = append(s.Process.Env, "NVIDIA_VISIBLE_DEVICES="+strings.Join(req.DeviceIDs, ","))
-	} else if req.Count > 0 {
+	case req.Count > 0:
 		s.Process.Env = append(s.Process.Env, "NVIDIA_VISIBLE_DEVICES="+countToDevices(req.Count))
-	} else if req.Count < 0 {
+	case req.Count < 0:
 		s.Process.Env = append(s.Process.Env, "NVIDIA_VISIBLE_DEVICES=all")
+	case req.Count == 0:
+		s.Process.Env = append(s.Process.Env, "NVIDIA_VISIBLE_DEVICES=void")
 	}
 
 	var nvidiaCaps []string
@@ -83,7 +86,13 @@ func setNvidiaGPUs(s *specs.Spec, dev *deviceInstance) error {
 	if s.Hooks == nil {
 		s.Hooks = &specs.Hooks{}
 	}
-	s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{
+
+	// This implementation uses prestart hooks, which are deprecated.
+	// CreateRuntime is the closest equivalent, and executed in the same
+	// locations as prestart-hooks, but depending on what these hooks do,
+	// possibly one of the other hooks could be used instead (such as
+	// CreateContainer or StartContainer).
+	s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{ //nolint:staticcheck // FIXME(thaJeztah); replace prestart hook with a non-deprecated one.
 		Path: path,
 		Args: []string{
 			nvidiaHook,

@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestContainerPauseError(t *testing.T) {
@@ -17,9 +19,7 @@ func TestContainerPauseError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerPause(context.Background(), "nothing")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerPause(t *testing.T) {

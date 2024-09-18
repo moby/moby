@@ -14,13 +14,13 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/distribution/reference"
 	"github.com/docker/distribution/manifest/schema1"
-	"github.com/docker/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -194,8 +194,8 @@ func TestValidateManifest(t *testing.T) {
 }
 
 func TestFormatPlatform(t *testing.T) {
-	var platform specs.Platform
-	var result = formatPlatform(platform)
+	var platform ocispec.Platform
+	result := formatPlatform(platform)
 	if strings.HasPrefix(result, "unknown") {
 		t.Fatal("expected formatPlatform to show a known platform")
 	}
@@ -231,7 +231,7 @@ func TestPullSchema2Config(t *testing.T) {
 		name           string
 		handler        func(callCount int, w http.ResponseWriter)
 		expectError    string
-		expectAttempts int64
+		expectAttempts uint64
 	}{
 		{
 			name: "success first time",
@@ -268,6 +268,26 @@ func TestPullSchema2Config(t *testing.T) {
 			name: "unauthorized",
 			handler: func(callCount int, w http.ResponseWriter) {
 				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte("you need to be authenticated"))
+			},
+			expectError:    "unauthorized: you need to be authenticated",
+			expectAttempts: 1,
+		},
+		{
+			name: "unauthorized JSON",
+			handler: func(callCount int, w http.ResponseWriter) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte(`					{ "errors":	[{"code": "UNAUTHORIZED", "message": "you need to be authenticated", "detail": "more detail"}]}`))
+			},
+			expectError:    "unauthorized: you need to be authenticated",
+			expectAttempts: 1,
+		},
+		{
+			name: "unauthorized JSON no body",
+			handler: func(callCount int, w http.ResponseWriter) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
 			},
 			expectError:    "unauthorized: authentication required",
 			expectAttempts: 1,
@@ -277,7 +297,7 @@ func TestPullSchema2Config(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			var callCount int64
+			var callCount atomic.Uint64
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				t.Logf("HTTP %s %s", r.Method, r.URL.Path)
 				defer r.Body.Close()
@@ -285,7 +305,7 @@ func TestPullSchema2Config(t *testing.T) {
 				case r.Method == "GET" && r.URL.Path == "/v2":
 					w.WriteHeader(http.StatusOK)
 				case r.Method == "GET" && r.URL.Path == "/v2/docker.io/library/testremotename/blobs/"+expectedDigest.String():
-					tt.handler(int(atomic.AddInt64(&callCount, 1)), w)
+					tt.handler(int(callCount.Add(1)), w)
 				default:
 					w.WriteHeader(http.StatusNotFound)
 				}
@@ -313,8 +333,8 @@ func TestPullSchema2Config(t *testing.T) {
 				}
 			}
 
-			if callCount != tt.expectAttempts {
-				t.Fatalf("got callCount=%d but expected=%d", callCount, tt.expectAttempts)
+			if cc := callCount.Load(); cc != tt.expectAttempts {
+				t.Fatalf("got callCount=%d but expected=%d", cc, tt.expectAttempts)
 			}
 		})
 	}
@@ -331,7 +351,6 @@ func testNewPuller(t *testing.T, rawurl string) *puller {
 	endpoint := registry.APIEndpoint{
 		Mirror:       false,
 		URL:          uri,
-		Version:      2,
 		Official:     false,
 		TrimHostname: false,
 		TLSConfig:    nil,

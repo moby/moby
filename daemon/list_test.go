@@ -1,11 +1,11 @@
 package daemon
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
@@ -36,10 +36,10 @@ func setupContainerWithName(t *testing.T, name string, daemon *Daemon) *containe
 	t.Helper()
 	var (
 		id              = uuid.New().String()
-		computedImageID = digest.FromString(id)
+		computedImageID = image.ID(digest.FromString(id))
 		cRoot           = filepath.Join(root, id)
 	)
-	if err := os.MkdirAll(cRoot, 0755); err != nil {
+	if err := os.MkdirAll(cRoot, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -53,7 +53,7 @@ func setupContainerWithName(t *testing.T, name string, daemon *Daemon) *containe
 	c.HostConfig = &containertypes.HostConfig{}
 
 	// these are for passing the refreshImage reducer
-	c.ImageID = image.IDFromDigest(computedImageID)
+	c.ImageID = computedImageID
 	c.Config = &containertypes.Config{
 		Image: computedImageID.String(),
 	}
@@ -67,7 +67,7 @@ func setupContainerWithName(t *testing.T, name string, daemon *Daemon) *containe
 	return c
 }
 
-func containerListContainsName(containers []*types.Container, name string) bool {
+func containerListContainsName(containers []*containertypes.Summary, name string) bool {
 	for _, ctr := range containers {
 		for _, containerName := range ctr.Names {
 			if containerName == name {
@@ -86,10 +86,8 @@ func TestListInvalidFilter(t *testing.T) {
 		containersReplica: db,
 	}
 
-	f := filters.NewArgs(filters.Arg("invalid", "foo"))
-
-	_, err = d.Containers(&types.ContainerListOptions{
-		Filters: f,
+	_, err = d.Containers(context.Background(), &containertypes.ListOptions{
+		Filters: filters.NewArgs(filters.Arg("invalid", "foo")),
 	})
 	assert.Assert(t, is.Error(err, "invalid filter 'invalid'"))
 }
@@ -109,7 +107,7 @@ func TestNameFilter(t *testing.T) {
 
 	// moby/moby #37453 - ^ regex not working due to prefix slash
 	// not being stripped
-	containerList, err := d.Containers(&types.ContainerListOptions{
+	containerList, err := d.Containers(context.Background(), &containertypes.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "^a")),
 	})
 	assert.NilError(t, err)
@@ -118,7 +116,7 @@ func TestNameFilter(t *testing.T) {
 	assert.Assert(t, containerListContainsName(containerList, two.Name))
 
 	// Same as above but with slash prefix should produce the same result
-	containerListWithPrefix, err := d.Containers(&types.ContainerListOptions{
+	containerListWithPrefix, err := d.Containers(context.Background(), &containertypes.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "^/a")),
 	})
 	assert.NilError(t, err)
@@ -127,7 +125,7 @@ func TestNameFilter(t *testing.T) {
 	assert.Assert(t, containerListContainsName(containerListWithPrefix, two.Name))
 
 	// Same as above but make sure it works for exact names
-	containerList, err = d.Containers(&types.ContainerListOptions{
+	containerList, err = d.Containers(context.Background(), &containertypes.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "b1")),
 	})
 	assert.NilError(t, err)
@@ -135,7 +133,7 @@ func TestNameFilter(t *testing.T) {
 	assert.Assert(t, containerListContainsName(containerList, three.Name))
 
 	// Same as above but with slash prefix should produce the same result
-	containerListWithPrefix, err = d.Containers(&types.ContainerListOptions{
+	containerListWithPrefix, err = d.Containers(context.Background(), &containertypes.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "/b1")),
 	})
 	assert.NilError(t, err)

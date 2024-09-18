@@ -5,8 +5,10 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/docker/distribution/reference"
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm/runtime"
 	"github.com/docker/docker/errdefs"
@@ -15,7 +17,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // Controller is the controller for the plugin backend.
@@ -30,7 +31,7 @@ import (
 type Controller struct {
 	backend Backend
 	spec    runtime.PluginSpec
-	logger  *logrus.Entry
+	logger  *log.Entry
 
 	pluginID  string
 	serviceID string
@@ -42,9 +43,9 @@ type Controller struct {
 // Backend is the interface for interacting with the plugin manager
 // Controller actions are passed to the configured backend to do the real work.
 type Backend interface {
-	Disable(name string, config *types.PluginDisableConfig) error
-	Enable(name string, config *types.PluginEnableConfig) error
-	Remove(name string, config *types.PluginRmConfig) error
+	Disable(name string, config *backend.PluginDisableConfig) error
+	Enable(name string, config *backend.PluginEnableConfig) error
+	Remove(name string, config *backend.PluginRmConfig) error
 	Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer, opts ...plugin.CreateOpt) error
 	Upgrade(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) error
 	Get(name string) (*v2.Plugin, error)
@@ -61,11 +62,12 @@ func NewController(backend Backend, t *api.Task) (*Controller, error) {
 		backend:   backend,
 		spec:      spec,
 		serviceID: t.ServiceID,
-		logger: logrus.WithFields(logrus.Fields{
+		logger: log.G(context.TODO()).WithFields(log.Fields{
 			"controller": "plugin",
 			"task":       t.ID,
 			"plugin":     spec.Name,
-		})}, nil
+		}),
+	}, nil
 }
 
 func readSpec(t *api.Task) (runtime.PluginSpec, error) {
@@ -113,7 +115,7 @@ func (p *Controller) Prepare(ctx context.Context) (err error) {
 			return errors.Errorf("plugin already exists: %s", p.spec.Name)
 		}
 		if pl.IsEnabled() {
-			if err := p.backend.Disable(pl.GetID(), &types.PluginDisableConfig{ForceDisable: true}); err != nil {
+			if err := p.backend.Disable(pl.GetID(), &backend.PluginDisableConfig{ForceDisable: true}); err != nil {
 				p.logger.WithError(err).Debug("could not disable plugin before running upgrade")
 			}
 		}
@@ -144,12 +146,12 @@ func (p *Controller) Start(ctx context.Context) error {
 
 	if p.spec.Disabled {
 		if pl.IsEnabled() {
-			return p.backend.Disable(p.pluginID, &types.PluginDisableConfig{ForceDisable: false})
+			return p.backend.Disable(p.pluginID, &backend.PluginDisableConfig{ForceDisable: false})
 		}
 		return nil
 	}
 	if !pl.IsEnabled() {
-		return p.backend.Enable(p.pluginID, &types.PluginEnableConfig{Timeout: 30})
+		return p.backend.Enable(p.pluginID, &backend.PluginEnableConfig{Timeout: 30})
 	}
 	return nil
 }
@@ -233,7 +235,7 @@ func (p *Controller) Remove(ctx context.Context) error {
 
 	// This may error because we have exactly 1 plugin, but potentially multiple
 	// tasks which are calling remove.
-	err = p.backend.Remove(p.pluginID, &types.PluginRmConfig{ForceRemove: true})
+	err = p.backend.Remove(p.pluginID, &backend.PluginRmConfig{ForceRemove: true})
 	if isNotFound(err) {
 		return nil
 	}

@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"maps"
 
 	"github.com/moby/buildkit/client/buildid"
 	gateway "github.com/moby/buildkit/frontend/gateway/client"
@@ -20,16 +21,13 @@ func (c *Client) Build(ctx context.Context, opt SolveOpt, product string, buildF
 		}
 	}()
 
-	if opt.Frontend != "" {
-		return nil, errors.New("invalid SolveOpt, Build interface cannot use Frontend")
-	}
+	feOpts := opt.FrontendAttrs
+
+	opt.Frontend = ""
 
 	if product == "" {
 		product = apicaps.ExportedProduct
 	}
-
-	feOpts := opt.FrontendAttrs
-	opt.FrontendAttrs = nil
 
 	workers, err := c.ListWorkers(ctx)
 	if err != nil {
@@ -45,12 +43,10 @@ func (c *Client) Build(ctx context.Context, opt SolveOpt, product string, buildF
 	}
 
 	cb := func(ref string, s *session.Session, opts map[string]string) error {
-		for k, v := range opts {
-			if feOpts == nil {
-				feOpts = map[string]string{}
-			}
-			feOpts[k] = v
+		if feOpts == nil {
+			feOpts = map[string]string{}
 		}
+		maps.Copy(feOpts, opts)
 		gwClient := c.gatewayClientForBuild(ref)
 		g, err := grpcclient.New(ctx, feOpts, s.ID(), product, gwClient, gworkers)
 		if err != nil {
@@ -87,6 +83,11 @@ func (g *gatewayClientForBuild) ResolveImageConfig(ctx context.Context, in *gate
 	return g.gateway.ResolveImageConfig(ctx, in, opts...)
 }
 
+func (g *gatewayClientForBuild) ResolveSourceMeta(ctx context.Context, in *gatewayapi.ResolveSourceMetaRequest, opts ...grpc.CallOption) (*gatewayapi.ResolveSourceMetaResponse, error) {
+	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
+	return g.gateway.ResolveSourceMeta(ctx, in, opts...)
+}
+
 func (g *gatewayClientForBuild) Solve(ctx context.Context, in *gatewayapi.SolveRequest, opts ...grpc.CallOption) (*gatewayapi.SolveResponse, error) {
 	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
 	return g.gateway.Solve(ctx, in, opts...)
@@ -111,6 +112,19 @@ func (g *gatewayClientForBuild) StatFile(ctx context.Context, in *gatewayapi.Sta
 	}
 	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
 	return g.gateway.StatFile(ctx, in, opts...)
+}
+
+func (g *gatewayClientForBuild) Evaluate(ctx context.Context, in *gatewayapi.EvaluateRequest, opts ...grpc.CallOption) (*gatewayapi.EvaluateResponse, error) {
+	if err := g.caps.Supports(gatewayapi.CapGatewayEvaluate); err != nil {
+		if err2 := g.caps.Supports(gatewayapi.CapStatFile); err2 != nil {
+			return nil, err
+		}
+		ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
+		_, err := g.gateway.StatFile(ctx, &gatewayapi.StatFileRequest{Ref: in.Ref, Path: "."}, opts...)
+		return &gatewayapi.EvaluateResponse{}, err
+	}
+	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
+	return g.gateway.Evaluate(ctx, in, opts...)
 }
 
 func (g *gatewayClientForBuild) Ping(ctx context.Context, in *gatewayapi.PingRequest, opts ...grpc.CallOption) (*gatewayapi.PongResponse, error) {

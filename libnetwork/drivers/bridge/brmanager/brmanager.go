@@ -1,9 +1,10 @@
 package brmanager
 
 import (
-	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/discoverapi"
+	"context"
+
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -11,13 +12,12 @@ const networkType = "bridge"
 
 type driver struct{}
 
-// Init registers a new instance of bridge manager driver
-func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
-	c := driverapi.Capability{
-		DataScope:         datastore.LocalScope,
-		ConnectivityScope: datastore.LocalScope,
-	}
-	return dc.RegisterDriver(networkType, &driver{}, c)
+// Register registers a new instance of the bridge manager driver with r.
+func Register(r driverapi.Registerer) error {
+	return r.RegisterDriver(networkType, &driver{}, driverapi.Capability{
+		DataScope:         scope.Local,
+		ConnectivityScope: scope.Local,
+	})
 }
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
@@ -43,7 +43,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
@@ -55,7 +55,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 	return nil, types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
@@ -71,15 +71,7 @@ func (d *driver) IsBuiltIn() bool {
 	return true
 }
 
-func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
-func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
-func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
+func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 

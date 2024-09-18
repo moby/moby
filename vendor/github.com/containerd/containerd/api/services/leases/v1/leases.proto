@@ -17,7 +17,6 @@ syntax = "proto3";
 
 package containerd.services.leases.v1;
 
-import weak "gogoproto/gogo.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -52,7 +51,7 @@ service Leases {
 message Lease {
 	string id = 1;
 
-	google.protobuf.Timestamp created_at = 2 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp created_at = 2;
 
 	map<string, string> labels = 3;
 }
@@ -99,13 +98,13 @@ message Resource {
 message AddResourceRequest {
 	string id = 1;
 
-	Resource resource = 2 [(gogoproto.nullable) = false];
+	Resource resource = 2;
 }
 
 message DeleteResourceRequest {
 	string id = 1;
 
-	Resource resource = 2 [(gogoproto.nullable) = false];
+	Resource resource = 2;
 }
 
 message ListResourcesRequest {
@@ -113,5 +112,5 @@ message ListResourcesRequest {
 }
 
 message ListResourcesResponse {
-	repeated Resource resources = 1	[(gogoproto.nullable) = false];
+	repeated Resource resources = 1	;
 }

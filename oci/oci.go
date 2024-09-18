@@ -20,19 +20,13 @@ var deviceCgroupRuleRegex = regexp.MustCompile("^([acb]) ([0-9]+|\\*):([0-9]+|\\
 // SetCapabilities sets the provided capabilities on the spec
 // All capabilities are added if privileged is true.
 func SetCapabilities(s *specs.Spec, caplist []string) error {
-	// setUser has already been executed here
-	if s.Process.User.UID == 0 {
-		s.Process.Capabilities = &specs.LinuxCapabilities{
-			Effective: caplist,
-			Bounding:  caplist,
-			Permitted: caplist,
-		}
-	} else {
-		// Do not set Effective and Permitted capabilities for non-root users,
-		// to match what execve does.
-		s.Process.Capabilities = &specs.LinuxCapabilities{
-			Bounding: caplist,
-		}
+	if s.Process == nil {
+		s.Process = &specs.Process{}
+	}
+	s.Process.Capabilities = &specs.LinuxCapabilities{
+		Effective: caplist,
+		Bounding:  caplist,
+		Permitted: caplist,
 	}
 	return nil
 }

@@ -3,21 +3,12 @@ package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
 import (
 	"fmt"
 	"io"
-	"net"
 	"os"
-	"os/user"
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
 )
-
-func init() {
-	// initialize nss libraries in Glibc so that the dynamic libraries are loaded in the host
-	// environment not in the chroot from untrusted files.
-	_, _ = user.Lookup("docker")
-	_, _ = net.LookupHost("localhost")
-}
 
 // NewArchiver returns a new Archiver which uses chrootarchive.Untar
 func NewArchiver(idMapping idtools.IdentityMapping) *archive.Archiver {
@@ -45,7 +36,7 @@ func Untar(tarArchive io.Reader, dest string, options *archive.TarOptions) error
 // This should be used to prevent a potential attacker from manipulating `dest`
 // such that it would provide access to files outside of `dest` through things
 // like symlinks. Normally `ResolveSymlinksInScope` would handle this, however
-// sanitizing symlinks in this manner is inherrently racey:
+// sanitizing symlinks in this manner is inherently racey:
 // ref: CVE-2018-15664
 func UntarWithRoot(tarArchive io.Reader, dest string, options *archive.TarOptions, root string) error {
 	return untarHandler(tarArchive, dest, options, true, root)
@@ -77,7 +68,7 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 
 		dest = filepath.Clean(dest)
 		if _, err := os.Stat(dest); os.IsNotExist(err) {
-			if err := idtools.MkdirAllAndChownNew(dest, 0755, rootIDs); err != nil {
+			if err := idtools.MkdirAllAndChownNew(dest, 0o755, rootIDs); err != nil {
 				return err
 			}
 		}

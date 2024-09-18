@@ -11,7 +11,7 @@ If you're a *maintainer* or aspiring maintainer, you should read [MAINTAINERS](.
 
 If you're a *packager* or aspiring packager, you should read [PACKAGERS.md](./PACKAGERS.md).
 
-If you're a maintainer in charge of a *release*, you should read [RELEASE-CHECKLIST.md](./RELEASE-CHECKLIST.md).
+If you're a maintainer in charge of a *release*, you should read [RELEASE-PROCESS.md](./RELEASE-PROCESS.md).
 
 ## Roadmap
 

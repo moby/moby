@@ -16,7 +16,7 @@ Hash Functions SHA-1, SHA-224, SHA-256, SHA-384 and SHA-512 for HMAC. To
 choose, you can pass the `New` functions from the different SHA packages to
 pbkdf2.Key.
 */
-package pbkdf2 // import "golang.org/x/crypto/pbkdf2"
+package pbkdf2
 
 import (
 	"crypto/hmac"
@@ -32,7 +32,7 @@ import (
 // can get a derived key for e.g. AES-256 (which needs a 32-byte key) by
 // doing:
 //
-// 	dk := pbkdf2.Key([]byte("some password"), salt, 4096, 32, sha1.New)
+//	dk := pbkdf2.Key([]byte("some password"), salt, 4096, 32, sha1.New)
 //
 // Remember to get a good random salt. At least 8 bytes is recommended by the
 // RFC.

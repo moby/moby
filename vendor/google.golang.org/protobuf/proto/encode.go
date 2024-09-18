@@ -16,7 +16,8 @@ import (
 // MarshalOptions configures the marshaler.
 //
 // Example usage:
-//   b, err := MarshalOptions{Deterministic: true}.Marshal(m)
+//
+//	b, err := MarshalOptions{Deterministic: true}.Marshal(m)
 type MarshalOptions struct {
 	pragma.NoUnkeyedLiterals
 
@@ -101,7 +102,9 @@ func (o MarshalOptions) Marshal(m Message) ([]byte, error) {
 // otherwise it returns a non-nil empty buffer.
 //
 // This is to assist the edge-case where user-code does the following:
+//
 //	m1.OptionalBytes, _ = proto.Marshal(m2)
+//
 // where they expect the proto2 "optional_bytes" field to be populated
 // if any only if m2 is a valid message.
 func emptyBytesForMessage(m Message) []byte {
@@ -126,7 +129,7 @@ func (o MarshalOptions) MarshalAppend(b []byte, m Message) ([]byte, error) {
 // MarshalState returns the wire-format encoding of a message.
 //
 // This method permits fine-grained control over the marshaler.
-// Most users should use Marshal instead.
+// Most users should use [Marshal] instead.
 func (o MarshalOptions) MarshalState(in protoiface.MarshalInput) (protoiface.MarshalOutput, error) {
 	return o.marshal(in.Buf, in.Message)
 }

@@ -34,17 +34,11 @@ func TestConfigListError(t *testing.T) {
 	}
 
 	_, err := client.ConfigList(context.Background(), types.ConfigListOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestConfigList(t *testing.T) {
 	expectedURL := "/v1.30/configs"
-
-	filters := filters.NewArgs()
-	filters.Add("label", "label1")
-	filters.Add("label", "label2")
 
 	listCases := []struct {
 		options             types.ConfigListOptions
@@ -58,7 +52,10 @@ func TestConfigList(t *testing.T) {
 		},
 		{
 			options: types.ConfigListOptions{
-				Filters: filters,
+				Filters: filters.NewArgs(
+					filters.Arg("label", "label1"),
+					filters.Arg("label", "label2"),
+				),
 			},
 			expectedQueryParams: map[string]string{
 				"filters": `{"label":{"label1":true,"label2":true}}`,

@@ -303,7 +303,7 @@ func (s *inMemoryResultStore) LoadRemotes(_ context.Context, _ CacheResult, _ *c
 	return nil, nil
 }
 
-func (s *inMemoryResultStore) Exists(id string) bool {
+func (s *inMemoryResultStore) Exists(ctx context.Context, id string) bool {
 	_, ok := s.m.Load(id)
 	return ok
 }

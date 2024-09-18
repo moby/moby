@@ -1,0 +1,42 @@
+name: windows-2019
+
+# Default to 'contents: read', which grants actions to read commits.
+#
+# If any permission is set, any permission not included in the list is
+# implicitly set to "none".
+#
+# see https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  schedule:
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+jobs:
+  validate-dco:
+    uses: ./.github/workflows/.dco.yml
+
+  test-prepare:
+    uses: ./.github/workflows/.test-prepare.yml
+    needs:
+      - validate-dco
+
+  run:
+    needs:
+      - test-prepare
+    uses: ./.github/workflows/.windows.yml
+    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        storage: ${{ fromJson(needs.test-prepare.outputs.matrix) }}
+    with:
+      os: windows-2019
+      storage: ${{ matrix.storage }}
+      send_coverage: false

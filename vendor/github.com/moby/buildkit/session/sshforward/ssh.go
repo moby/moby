@@ -1,14 +1,13 @@
 package sshforward
 
 import (
-	"io/ioutil"
+	"context"
 	"net"
 	"os"
 	"path/filepath"
 
 	"github.com/moby/buildkit/session"
 	"github.com/pkg/errors"
-	context "golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/metadata"
 )
@@ -27,7 +26,7 @@ func (s *server) run(ctx context.Context, l net.Listener, id string) error {
 
 	eg.Go(func() error {
 		<-ctx.Done()
-		return ctx.Err()
+		return context.Cause(ctx)
 	})
 
 	eg.Go(func() error {
@@ -64,7 +63,7 @@ type SocketOpt struct {
 }
 
 func MountSSHSocket(ctx context.Context, c session.Caller, opt SocketOpt) (sockPath string, closer func() error, err error) {
-	dir, err := ioutil.TempDir("", ".buildkit-ssh-sock")
+	dir, err := os.MkdirTemp("", ".buildkit-ssh-sock")
 	if err != nil {
 		return "", nil, errors.WithStack(err)
 	}

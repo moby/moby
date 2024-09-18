@@ -18,42 +18,42 @@ func TestVolumeRequestError(t *testing.T) {
 	defer server.Close()
 
 	mux.HandleFunc("/VolumeDriver.Create", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintln(w, `{"Err": "Cannot create volume"}`)
 	})
 
 	mux.HandleFunc("/VolumeDriver.Remove", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintln(w, `{"Err": "Cannot remove volume"}`)
 	})
 
 	mux.HandleFunc("/VolumeDriver.Mount", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintln(w, `{"Err": "Cannot mount volume"}`)
 	})
 
 	mux.HandleFunc("/VolumeDriver.Unmount", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintln(w, `{"Err": "Cannot unmount volume"}`)
 	})
 
 	mux.HandleFunc("/VolumeDriver.Path", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintln(w, `{"Err": "Unknown volume"}`)
 	})
 
 	mux.HandleFunc("/VolumeDriver.List", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintln(w, `{"Err": "Cannot list volumes"}`)
 	})
 
 	mux.HandleFunc("/VolumeDriver.Get", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintln(w, `{"Err": "Cannot get volume"}`)
 	})
 
 	mux.HandleFunc("/VolumeDriver.Capabilities", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		http.Error(w, "error", 500)
 	})
 

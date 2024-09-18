@@ -44,8 +44,8 @@ func downloadRemote(remoteURL string) (string, io.ReadCloser, error) {
 // GetWithStatusError does an http.Get() and returns an error if the
 // status code is 4xx or 5xx.
 func GetWithStatusError(address string) (resp *http.Response, err error) {
-	// #nosec G107
-	if resp, err = http.Get(address); err != nil {
+	resp, err = http.Get(address) // #nosec G107 -- ignore G107: Potential HTTP request made with variable url
+	if err != nil {
 		if uerr, ok := err.(*url.Error); ok {
 			if derr, ok := uerr.Err.(*net.DNSError); ok && !derr.IsTimeout {
 				return nil, errdefs.NotFound(err)
@@ -105,8 +105,8 @@ func inspectResponse(ct string, r io.Reader, clen int64) (string, io.Reader, err
 	// content type for files without an extension (e.g. 'Dockerfile')
 	// so if we receive this value we better check for text content
 	contentType := ct
-	if len(ct) == 0 || ct == mimeTypes.OctetStream {
-		contentType, _, err = detectContentType(preamble)
+	if len(ct) == 0 || ct == mimeTypeOctetStream {
+		contentType, err = detectContentType(preamble)
 		if err != nil {
 			return contentType, bodyReader, err
 		}

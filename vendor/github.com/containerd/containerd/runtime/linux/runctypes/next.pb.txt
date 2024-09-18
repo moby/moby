@@ -1,7 +1,6 @@
 file {
   name: "github.com/containerd/containerd/runtime/linux/runctypes/runc.proto"
   package: "containerd.linux.runc"
-  dependency: "gogoproto/gogo.proto"
   message_type {
     name: "RuncOptions"
     field {
@@ -23,6 +22,9 @@ file {
       number: 3
       label: LABEL_OPTIONAL
       type: TYPE_STRING
+      options {
+        deprecated: true
+      }
       json_name: "criuPath"
     }
     field {
@@ -206,6 +208,5 @@ file {
   options {
     go_package: "github.com/containerd/containerd/runtime/linux/runctypes;runctypes"
   }
-  weak_dependency: 0
   syntax: "proto3"
 }

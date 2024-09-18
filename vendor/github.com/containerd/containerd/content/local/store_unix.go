@@ -1,5 +1,4 @@
 //go:build linux || solaris
-// +build linux solaris
 
 /*
    Copyright The containerd Authors.

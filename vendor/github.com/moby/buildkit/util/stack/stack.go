@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/typeurl"
+	"github.com/containerd/typeurl/v2"
 	"github.com/pkg/errors"
 )
 
@@ -44,24 +44,29 @@ func Helper() {
 }
 
 func Traces(err error) []*Stack {
+	return compressStacks(traces(err))
+}
+
+func traces(err error) []*Stack {
 	var st []*Stack
 
-	wrapped, ok := err.(interface {
-		Unwrap() error
-	})
-	if ok {
-		st = Traces(wrapped.Unwrap())
+	switch e := err.(type) {
+	case interface{ Unwrap() error }:
+		st = Traces(e.Unwrap())
+	case interface{ Unwrap() []error }:
+		for _, ue := range e.Unwrap() {
+			st = Traces(ue)
+			// Only take first stack
+			if len(st) > 0 {
+				break
+			}
+		}
 	}
 
-	if ste, ok := err.(interface {
-		StackTrace() errors.StackTrace
-	}); ok {
+	switch ste := err.(type) {
+	case interface{ StackTrace() errors.StackTrace }:
 		st = append(st, convertStack(ste.StackTrace()))
-	}
-
-	if ste, ok := err.(interface {
-		StackTrace() *Stack
-	}); ok {
+	case interface{ StackTrace() *Stack }:
 		st = append(st, ste.StackTrace())
 	}
 
@@ -79,7 +84,7 @@ func Enable(err error) error {
 	return err
 }
 
-func Wrap(err error, s Stack) error {
+func Wrap(err error, s *Stack) error {
 	return &withStack{stack: s, error: err}
 }
 
@@ -151,7 +156,7 @@ func convertStack(s errors.StackTrace) *Stack {
 		if idx == -1 {
 			continue
 		}
-		line, err := strconv.Atoi(p[1][idx+1:])
+		line, err := strconv.ParseInt(p[1][idx+1:], 10, 32)
 		if err != nil {
 			continue
 		}
@@ -169,7 +174,7 @@ func convertStack(s errors.StackTrace) *Stack {
 }
 
 type withStack struct {
-	stack Stack
+	stack *Stack
 	error
 }
 
@@ -178,5 +183,5 @@ func (e *withStack) Unwrap() error {
 }
 
 func (e *withStack) StackTrace() *Stack {
-	return &e.stack
+	return e.stack
 }

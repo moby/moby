@@ -12,11 +12,14 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	distreference "github.com/docker/distribution/reference"
+	distreference "github.com/distribution/reference"
 	"github.com/moby/buildkit/session"
-	"github.com/moby/buildkit/source"
+	"github.com/moby/buildkit/solver/pb"
+	log "github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/version"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // DefaultPool is the default shared resolver pool instance
@@ -81,15 +84,37 @@ func (p *Pool) GetResolver(hosts docker.RegistryHosts, ref, scope string, sm *se
 		name = named.Name()
 	}
 
-	key := fmt.Sprintf("%s::%s", name, scope)
+	var key string
+	if strings.Contains(scope, "push") {
+		// When scope includes "push", index the authHandlerNS cache by session
+		// id(s) as well to prevent tokens with potential write access to third
+		// party registries from leaking between client sessions. The key will end
+		// up looking something like:
+		// 'wujskoey891qc5cv1edd3yj3p::repository:foo/bar::pull,push'
+		key = fmt.Sprintf("%s::%s::%s", strings.Join(session.AllSessionIDs(g), ":"), name, scope)
+	} else {
+		// The authHandlerNS is not isolated for pull-only scopes since LLB
+		// verticies from pulls all end up in the cache anyway and all
+		// requests/clients have access to the same cache
+		key = fmt.Sprintf("%s::%s", name, scope)
+	}
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	h, ok := p.m[key]
+
 	if !ok {
 		h = newAuthHandlerNS(sm)
 		p.m[key] = h
 	}
+
+	log.G(context.TODO()).WithFields(logrus.Fields{
+		"name":   name,
+		"scope":  scope,
+		"key":    key,
+		"cached": ok,
+	}).Debugf("checked for cached auth handler namespace")
+
 	return newResolver(hosts, h, sm, g)
 }
 
@@ -125,13 +150,13 @@ type Resolver struct {
 	auth    *dockerAuthorizer
 
 	is   images.Store
-	mode source.ResolveMode
+	mode ResolveMode
 }
 
 // HostsFunc implements registry configuration of this Resolver
 func (r *Resolver) HostsFunc(host string) ([]docker.RegistryHost, error) {
 	return func(domain string) ([]docker.RegistryHost, error) {
-		v, err := r.handler.g.Do(context.TODO(), domain, func(ctx context.Context) (interface{}, error) {
+		v, err := r.handler.g.Do(context.TODO(), domain, func(ctx context.Context) ([]docker.RegistryHost, error) {
 			// long lock not needed because flightcontrol.Do
 			r.handler.muHosts.Lock()
 			v, ok := r.handler.hosts[domain]
@@ -151,13 +176,12 @@ func (r *Resolver) HostsFunc(host string) ([]docker.RegistryHost, error) {
 		if err != nil || v == nil {
 			return nil, err
 		}
-		vv := v.([]docker.RegistryHost)
-		if len(vv) == 0 {
+		if len(v) == 0 {
 			return nil, nil
 		}
 		// make a copy so authorizer is set on unique instance
-		res := make([]docker.RegistryHost, len(vv))
-		copy(res, vv)
+		res := make([]docker.RegistryHost, len(v))
+		copy(res, v)
 		auth := newDockerAuthorizer(res[0].Client, r.handler, r.sm, r.g)
 		for i := range res {
 			res[i].Authorizer = auth
@@ -178,7 +202,7 @@ func (r *Resolver) WithSession(s session.Group) *Resolver {
 }
 
 // WithImageStore returns new resolver that can also resolve from local images store
-func (r *Resolver) WithImageStore(is images.Store, mode source.ResolveMode) *Resolver {
+func (r *Resolver) WithImageStore(is images.Store, mode ResolveMode) *Resolver {
 	r2 := *r
 	r2.Resolver = r.Resolver
 	r2.is = is
@@ -196,7 +220,7 @@ func (r *Resolver) Fetcher(ctx context.Context, ref string) (remotes.Fetcher, er
 
 // Resolve attempts to resolve the reference into a name and descriptor.
 func (r *Resolver) Resolve(ctx context.Context, ref string) (string, ocispecs.Descriptor, error) {
-	if r.mode == source.ResolveModePreferLocal && r.is != nil {
+	if r.mode == ResolveModePreferLocal && r.is != nil {
 		if img, err := r.is.Get(ctx, ref); err == nil {
 			return ref, img.Target, nil
 		}
@@ -208,11 +232,45 @@ func (r *Resolver) Resolve(ctx context.Context, ref string) (string, ocispecs.De
 		return n, desc, nil
 	}
 
-	if r.mode == source.ResolveModeDefault && r.is != nil {
+	if r.mode == ResolveModeDefault && r.is != nil {
 		if img, err := r.is.Get(ctx, ref); err == nil {
 			return ref, img.Target, nil
 		}
 	}
 
 	return "", ocispecs.Descriptor{}, err
+}
+
+type ResolveMode int
+
+const (
+	ResolveModeDefault ResolveMode = iota
+	ResolveModeForcePull
+	ResolveModePreferLocal
+)
+
+func (r ResolveMode) String() string {
+	switch r {
+	case ResolveModeDefault:
+		return pb.AttrImageResolveModeDefault
+	case ResolveModeForcePull:
+		return pb.AttrImageResolveModeForcePull
+	case ResolveModePreferLocal:
+		return pb.AttrImageResolveModePreferLocal
+	default:
+		return ""
+	}
+}
+
+func ParseImageResolveMode(v string) (ResolveMode, error) {
+	switch v {
+	case pb.AttrImageResolveModeDefault, "":
+		return ResolveModeDefault, nil
+	case pb.AttrImageResolveModeForcePull:
+		return ResolveModeForcePull, nil
+	case pb.AttrImageResolveModePreferLocal:
+		return ResolveModePreferLocal, nil
+	default:
+		return 0, errors.Errorf("invalid resolvemode: %s", v)
+	}
 }

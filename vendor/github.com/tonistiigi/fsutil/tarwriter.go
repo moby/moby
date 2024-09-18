@@ -15,8 +15,13 @@ import (
 
 func WriteTar(ctx context.Context, fs FS, w io.Writer) error {
 	tw := tar.NewWriter(w)
-	err := fs.Walk(ctx, func(path string, fi os.FileInfo, err error) error {
+	err := fs.Walk(ctx, "/", func(path string, entry os.DirEntry, err error) error {
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+
+		fi, err := entry.Info()
+		if err != nil {
 			return err
 		}
 		stat, ok := fi.Sys().(*types.Stat)

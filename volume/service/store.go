@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/containerd/log"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
@@ -16,13 +18,14 @@ import (
 	"github.com/docker/docker/volume/service/opts"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
 )
 
 const (
 	volumeDataDir = "volumes"
 )
+
+var _ volume.LiveRestorer = (*volumeWrapper)(nil)
 
 type volumeWrapper struct {
 	volume.Volume
@@ -67,6 +70,13 @@ func (v volumeWrapper) CachedPath() string {
 	return v.Volume.Path()
 }
 
+func (v volumeWrapper) LiveRestoreVolume(ctx context.Context, ref string) error {
+	if vv, ok := v.Volume.(volume.LiveRestorer); ok {
+		return vv.LiveRestoreVolume(ctx, ref)
+	}
+	return nil
+}
+
 // StoreOpt sets options for a VolumeStore
 type StoreOpt func(store *VolumeStore) error
 
@@ -90,13 +100,13 @@ func NewStore(rootPath string, drivers *drivers.Store, opts ...StoreOpt) (*Volum
 	if rootPath != "" {
 		// initialize metadata store
 		volPath := filepath.Join(rootPath, volumeDataDir)
-		if err := os.MkdirAll(volPath, 0750); err != nil {
+		if err := os.MkdirAll(volPath, 0o750); err != nil {
 			return nil, err
 		}
 
 		var err error
 		dbPath := filepath.Join(volPath, "metadata.db")
-		vs.db, err = bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
+		vs.db, err = bolt.Open(dbPath, 0o600, &bolt.Options{Timeout: 1 * time.Second})
 		if err != nil {
 			return nil, errors.Wrapf(err, "error while opening volume store metadata database (%s)", dbPath)
 		}
@@ -185,11 +195,11 @@ func (s *VolumeStore) purge(ctx context.Context, name string) error {
 	if exists {
 		driverName := v.DriverName()
 		if _, err := s.drivers.ReleaseDriver(driverName); err != nil {
-			logrus.WithError(err).WithField("driver", driverName).Error("Error releasing reference to volume driver")
+			log.G(ctx).WithError(err).WithField("driver", driverName).Error("Error releasing reference to volume driver")
 		}
 	}
 	if err := s.removeMeta(name); err != nil {
-		logrus.Errorf("Error removing volume metadata for volume %q: %v", name, err)
+		log.G(ctx).Errorf("Error removing volume metadata for volume %q: %v", name, err)
 	}
 	delete(s.names, name)
 	delete(s.refs, name)
@@ -337,7 +347,7 @@ func unique(ls *[]volume.Volume) {
 // If a driver returns a volume that has name which conflicts with another volume from a different driver,
 // the first volume is chosen and the conflicting volume is dropped.
 func (s *VolumeStore) Find(ctx context.Context, by By) (vols []volume.Volume, warnings []string, err error) {
-	logrus.WithField("ByType", fmt.Sprintf("%T", by)).WithField("ByValue", fmt.Sprintf("%+v", by)).Debug("VolumeStore.Find")
+	log.G(ctx).WithField("ByType", fmt.Sprintf("%T", by)).WithField("ByValue", fmt.Sprintf("%+v", by)).Debug("VolumeStore.Find")
 	switch f := by.(type) {
 	case nil, orCombinator, andCombinator, byDriver, ByReferenced, CustomFilter:
 		warnings, err = s.filter(ctx, &vols, by)
@@ -361,7 +371,7 @@ func (s *VolumeStore) Find(ctx context.Context, by By) (vols []volume.Volume, wa
 		// Note: it's not safe to populate the cache here because the volume may have been
 		// deleted before we acquire a lock on its name
 		if exists && storedV.DriverName() != v.DriverName() {
-			logrus.Warnf("Volume name %s already exists for driver %s, not including volume returned by %s", v.Name(), storedV.DriverName(), v.DriverName())
+			log.G(ctx).Warnf("Volume name %s already exists for driver %s, not including volume returned by %s", v.Name(), storedV.DriverName(), v.DriverName())
 			s.locks.Unlock(v.Name())
 			continue
 		}
@@ -492,7 +502,7 @@ func (s *VolumeStore) Create(ctx context.Context, name, driverName string, creat
 	}
 
 	if created && s.eventLogger != nil {
-		s.eventLogger.LogVolumeEvent(v.Name(), "create", map[string]string{"driver": v.DriverName()})
+		s.eventLogger.LogVolumeEvent(v.Name(), events.ActionCreate, map[string]string{"driver": v.DriverName()})
 	}
 	s.setNamed(v, cfg.Reference)
 	return v, nil
@@ -613,12 +623,12 @@ func (s *VolumeStore) create(ctx context.Context, name, driverName string, opts,
 		return nil, false, &OpErr{Op: "create", Name: name, Err: err}
 	}
 
-	logrus.Debugf("Registering new volume reference: driver %q, name %q", vd.Name(), name)
+	log.G(ctx).Debugf("Registering new volume reference: driver %q, name %q", vd.Name(), name)
 	if v, _ = vd.Get(name); v == nil {
 		v, err = vd.Create(name, opts)
 		if err != nil {
 			if _, err := s.drivers.ReleaseDriver(driverName); err != nil {
-				logrus.WithError(err).WithField("driver", driverName).Error("Error releasing reference to volume driver")
+				log.G(ctx).WithError(err).WithField("driver", driverName).Error("Error releasing reference to volume driver")
 			}
 			return nil, false, err
 		}
@@ -722,7 +732,7 @@ func (s *VolumeStore) getVolume(ctx context.Context, name, driverName string) (v
 		return volumeWrapper{vol, meta.Labels, scope, meta.Options}, nil
 	}
 
-	logrus.Debugf("Probing all drivers for volume with name: %s", name)
+	log.G(ctx).Debugf("Probing all drivers for volume with name: %s", name)
 	drivers, err := s.drivers.GetAllDrivers()
 	if err != nil {
 		return nil, err
@@ -774,7 +784,7 @@ func lookupVolume(ctx context.Context, store *drivers.Store, driverName, volumeN
 
 		// At this point, the error could be anything from the driver, such as "no such volume"
 		// Let's not check an error here, and instead check if the driver returned a volume
-		logrus.WithError(err).WithField("driver", driverName).WithField("volume", volumeName).Debug("Error while looking up volume")
+		log.G(ctx).WithError(err).WithField("driver", driverName).WithField("volume", volumeName).Debug("Error while looking up volume")
 	}
 	return v, nil
 }
@@ -810,7 +820,7 @@ func (s *VolumeStore) Remove(ctx context.Context, v volume.Volume, rmOpts ...opt
 		return &OpErr{Err: err, Name: v.DriverName(), Op: "remove"}
 	}
 
-	logrus.Debugf("Removing volume reference: driver %s, name %s", v.DriverName(), name)
+	log.G(ctx).Debugf("Removing volume reference: driver %s, name %s", v.DriverName(), name)
 	vol := unwrapVolume(v)
 
 	err = vd.Remove(vol)
@@ -824,7 +834,7 @@ func (s *VolumeStore) Remove(ctx context.Context, v volume.Volume, rmOpts ...opt
 		}
 	}
 	if err == nil && s.eventLogger != nil {
-		s.eventLogger.LogVolumeEvent(v.Name(), "destroy", map[string]string{"driver": v.DriverName()})
+		s.eventLogger.LogVolumeEvent(v.Name(), events.ActionDestroy, map[string]string{"driver": v.DriverName()})
 	}
 	return err
 }

@@ -123,7 +123,7 @@ Try this now.
 4.  Run the tests using the `hack/make.sh` script.
 
     ```bash
-    # hack/make.sh dynbinary binary cross test-integration test-docker-py
+    # hack/make.sh dynbinary binary test-integration test-docker-py
     ```
 
     The tests run just as they did within your local host.
@@ -132,11 +132,11 @@ Try this now.
     just the integration tests:
 
     ```bash
-    # hack/make.sh dynbinary binary cross test-integration
+    # hack/make.sh dynbinary binary test-integration
     ```
 
     Most test targets require that you build these precursor targets first:
-    `dynbinary binary cross`
+    `dynbinary binary`
 
 
 ## Run unit tests

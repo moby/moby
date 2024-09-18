@@ -3,9 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && loong64 && gc
-// +build linux
-// +build loong64
-// +build gc
 
 #include "textflag.h"
 
@@ -30,7 +27,7 @@ TEXT ·SyscallNoError(SB),NOSPLIT,$0-48
 	MOVV	trap+0(FP), R11	// syscall entry
 	SYSCALL
 	MOVV	R4, r1+32(FP)
-	MOVV	R5, r2+40(FP)
+	MOVV	R0, r2+40(FP)	// r2 is not used. Always set to 0
 	JAL	runtime·exitsyscall(SB)
 	RET
 
@@ -50,5 +47,5 @@ TEXT ·RawSyscallNoError(SB),NOSPLIT,$0-48
 	MOVV	trap+0(FP), R11	// syscall entry
 	SYSCALL
 	MOVV	R4, r1+32(FP)
-	MOVV	R5, r2+40(FP)
+	MOVV	R0, r2+40(FP)	// r2 is not used. Always set to 0
 	RET

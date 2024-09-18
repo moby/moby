@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package main
 
@@ -12,42 +11,42 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
-func getDefaultDaemonConfigDir() (string, error) {
+func getDefaultDaemonConfigDir() string {
 	if !honorXDG {
-		return "/etc/docker", nil
+		return "/etc/docker"
 	}
 	// NOTE: CLI uses ~/.docker while the daemon uses ~/.config/docker, because
 	// ~/.docker was not designed to store daemon configurations.
 	// In future, the daemon directory may be renamed to ~/.config/moby-engine (?).
 	configHome, err := homedir.GetConfigHome()
 	if err != nil {
-		return "", nil
+		return ""
 	}
-	return filepath.Join(configHome, "docker"), nil
+	return filepath.Join(configHome, "docker")
 }
 
-func getDefaultDaemonConfigFile() (string, error) {
-	dir, err := getDefaultDaemonConfigDir()
-	if err != nil {
-		return "", err
+func getDefaultDaemonConfigFile() string {
+	dir := getDefaultDaemonConfigDir()
+	if dir == "" {
+		return ""
 	}
-	return filepath.Join(dir, "daemon.json"), nil
+	return filepath.Join(dir, "daemon.json")
 }
 
 // setDefaultUmask sets the umask to 0022 to avoid problems
 // caused by custom umask
 func setDefaultUmask() error {
-	desiredUmask := 0022
+	desiredUmask := 0o022
 	unix.Umask(desiredUmask)
 	if umask := unix.Umask(desiredUmask); umask != desiredUmask {
 		return errors.Errorf("failed to set umask: expected %#o, got %#o", desiredUmask, umask)
@@ -56,23 +55,8 @@ func setDefaultUmask() error {
 	return nil
 }
 
-func getDaemonConfDir(_ string) (string, error) {
-	return getDefaultDaemonConfigDir()
-}
-
-func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
-	opts := []supervisor.DaemonOpt{
-		// TODO(thaJeztah) change this to use /proc/self/oom_score_adj instead,
-		// which would allow us to set the correct score even if dockerd's score
-		// was set through other means (such as systemd or "manually").
-		supervisor.WithOOMScore(cli.Config.OOMScoreAdjust),
-	}
-
-	return opts, nil
-}
-
 // setupConfigReloadTrap configures the SIGHUP signal to reload the configuration.
-func (cli *DaemonCli) setupConfigReloadTrap() {
+func (cli *daemonCLI) setupConfigReloadTrap() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, unix.SIGHUP)
 	go func() {
@@ -84,7 +68,7 @@ func (cli *DaemonCli) setupConfigReloadTrap() {
 
 // getSwarmRunRoot gets the root directory for swarm to store runtime state
 // For example, the control socket
-func (cli *DaemonCli) getSwarmRunRoot() string {
+func (cli *daemonCLI) getSwarmRunRoot() string {
 	return filepath.Join(cli.Config.ExecRoot, "swarm")
 }
 
@@ -132,7 +116,7 @@ func newCgroupParent(config *config.Config) string {
 	return cgroupParent
 }
 
-func (cli *DaemonCli) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
+func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
 	if cli.ContainerdAddr != "" {
 		// use system containerd at the given address.
 		return nil, nil
@@ -148,7 +132,7 @@ func (cli *DaemonCli) initContainerd(ctx context.Context) (func(time.Duration) e
 		return nil, nil
 	}
 
-	logrus.Info("containerd not running, starting managed containerd")
+	log.G(ctx).Info("containerd not running, starting managed containerd")
 	opts, err := cli.getContainerdDaemonOpts()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate containerd options")

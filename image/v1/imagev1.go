@@ -1,21 +1,26 @@
 package v1 // import "github.com/docker/docker/image/v1"
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
 )
 
-// noFallbackMinVersion is the minimum version for which v1compatibility
-// information will not be marshaled through the Image struct to remove
-// blank fields.
-const noFallbackMinVersion = "1.8.3"
+const (
+	// noFallbackMinVersion is the minimum version for which v1compatibility
+	// information will not be marshaled through the Image struct to remove
+	// blank fields.
+	noFallbackMinVersion = "1.8.3"
+
+	fullLen = 64
+)
 
 // HistoryFromConfig creates a History struct from v1 configuration JSON
 func HistoryFromConfig(imageJSON []byte, emptyLayer bool) (image.History, error) {
@@ -58,7 +63,7 @@ func CreateID(v1Image image.V1Image, layerID layer.ChainID, parent digest.Digest
 	if err != nil {
 		return "", err
 	}
-	logrus.Debugf("CreateV1ID %s", configJSON)
+	log.G(context.TODO()).Debugf("CreateV1ID %s", configJSON)
 
 	return digest.FromBytes(configJSON), nil
 }
@@ -115,5 +120,13 @@ func rawJSON(value interface{}) *json.RawMessage {
 
 // ValidateID checks whether an ID string is a valid image ID.
 func ValidateID(id string) error {
-	return stringid.ValidateID(id)
+	if len(id) != fullLen {
+		return errors.New("image ID '" + id + "' is invalid")
+	}
+	for _, c := range id {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return errors.New("image ID '" + id + "' is invalid")
+		}
+	}
+	return nil
 }

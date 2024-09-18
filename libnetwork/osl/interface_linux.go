@@ -1,24 +1,58 @@
 package osl
 
 import (
+	"context"
 	"fmt"
 	"net"
-	"regexp"
-	"sync"
+	"os"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/containerd/log"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
-// IfaceOption is a function option type to set interface options
-type IfaceOption func(i *nwIface)
+// newInterface creates a new interface in the given namespace using the
+// provided options.
+func newInterface(ns *Namespace, srcName, dstPrefix string, options ...IfaceOption) (*Interface, error) {
+	i := &Interface{
+		srcName: srcName,
+		dstName: dstPrefix,
+		ns:      ns,
+	}
+	for _, opt := range options {
+		if opt != nil {
+			// TODO(thaJeztah): use multi-error instead of returning early.
+			if err := opt(i); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if i.master != "" {
+		i.dstMaster = ns.findDst(i.master, true)
+		if i.dstMaster == "" {
+			return nil, fmt.Errorf("could not find an appropriate master %q for %q", i.master, i.srcName)
+		}
+	}
+	return i, nil
+}
 
-type nwIface struct {
+// Interface represents the settings and identity of a network device.
+// It is used as a return type for Network.Link, and it is common practice
+// for the caller to use this information when moving interface SrcName from
+// host namespace to DstName in a different net namespace with the appropriate
+// network settings.
+type Interface struct {
 	srcName     string
 	dstName     string
 	master      string
@@ -29,162 +63,74 @@ type nwIface struct {
 	llAddrs     []*net.IPNet
 	routes      []*net.IPNet
 	bridge      bool
-	ns          *networkNamespace
-	sync.Mutex
+	sysctls     []string
+	ns          *Namespace
 }
 
-func (i *nwIface) SrcName() string {
-	i.Lock()
-	defer i.Unlock()
-
+// SrcName returns the name of the interface in the origin network namespace.
+func (i *Interface) SrcName() string {
 	return i.srcName
 }
 
-func (i *nwIface) DstName() string {
-	i.Lock()
-	defer i.Unlock()
-
+// DstName returns the name that will be assigned to the interface once
+// moved inside a network namespace. When the caller passes in a DstName,
+// it is only expected to pass a prefix. The name will be modified with an
+// auto-generated suffix.
+func (i *Interface) DstName() string {
 	return i.dstName
 }
 
-func (i *nwIface) DstMaster() string {
-	i.Lock()
-	defer i.Unlock()
-
+func (i *Interface) DstMaster() string {
 	return i.dstMaster
 }
 
-func (i *nwIface) Bridge() bool {
-	i.Lock()
-	defer i.Unlock()
-
+// Bridge returns true if the interface is a bridge.
+func (i *Interface) Bridge() bool {
 	return i.bridge
 }
 
-func (i *nwIface) Master() string {
-	i.Lock()
-	defer i.Unlock()
-
-	return i.master
-}
-
-func (i *nwIface) MacAddress() net.HardwareAddr {
-	i.Lock()
-	defer i.Unlock()
-
+func (i *Interface) MacAddress() net.HardwareAddr {
 	return types.GetMacCopy(i.mac)
 }
 
-func (i *nwIface) Address() *net.IPNet {
-	i.Lock()
-	defer i.Unlock()
-
+// Address returns the IPv4 address for the interface.
+func (i *Interface) Address() *net.IPNet {
 	return types.GetIPNetCopy(i.address)
 }
 
-func (i *nwIface) AddressIPv6() *net.IPNet {
-	i.Lock()
-	defer i.Unlock()
-
+// AddressIPv6 returns the IPv6 address for the interface.
+func (i *Interface) AddressIPv6() *net.IPNet {
 	return types.GetIPNetCopy(i.addressIPv6)
 }
 
-func (i *nwIface) LinkLocalAddresses() []*net.IPNet {
-	i.Lock()
-	defer i.Unlock()
-
+// LinkLocalAddresses returns the link-local IP addresses assigned to the
+// interface.
+func (i *Interface) LinkLocalAddresses() []*net.IPNet {
 	return i.llAddrs
 }
 
-func (i *nwIface) Routes() []*net.IPNet {
-	i.Lock()
-	defer i.Unlock()
-
+// Routes returns IP routes for the interface.
+func (i *Interface) Routes() []*net.IPNet {
 	routes := make([]*net.IPNet, len(i.routes))
 	for index, route := range i.routes {
-		r := types.GetIPNetCopy(route)
-		routes[index] = r
+		routes[index] = types.GetIPNetCopy(route)
 	}
 
 	return routes
 }
 
-func (n *networkNamespace) Interfaces() []Interface {
-	n.Lock()
-	defer n.Unlock()
-
-	ifaces := make([]Interface, len(n.iFaces))
-
-	for i, iface := range n.iFaces {
-		ifaces[i] = iface
-	}
-
-	return ifaces
+// Remove an interface from the sandbox by renaming to original name
+// and moving it out of the sandbox.
+func (i *Interface) Remove() error {
+	nameSpace := i.ns
+	return nameSpace.RemoveInterface(i)
 }
 
-func (i *nwIface) Remove() error {
-	i.Lock()
-	n := i.ns
-	i.Unlock()
-
-	n.Lock()
-	isDefault := n.isDefault
-	nlh := n.nlHandle
-	n.Unlock()
-
-	// Find the network interface identified by the DstName attribute.
-	iface, err := nlh.LinkByName(i.DstName())
+// Statistics returns the sandbox's side veth interface statistics.
+func (i *Interface) Statistics() (*types.InterfaceStatistics, error) {
+	l, err := i.ns.nlHandle.LinkByName(i.DstName())
 	if err != nil {
-		return err
-	}
-
-	// Down the interface before configuring
-	if err := nlh.LinkSetDown(iface); err != nil {
-		return err
-	}
-
-	err = nlh.LinkSetName(iface, i.SrcName())
-	if err != nil {
-		logrus.Debugf("LinkSetName failed for interface %s: %v", i.SrcName(), err)
-		return err
-	}
-
-	// if it is a bridge just delete it.
-	if i.Bridge() {
-		if err := nlh.LinkDel(iface); err != nil {
-			return fmt.Errorf("failed deleting bridge %q: %v", i.SrcName(), err)
-		}
-	} else if !isDefault {
-		// Move the network interface to caller namespace.
-		if err := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); err != nil {
-			logrus.Debugf("LinkSetNsPid failed for interface %s: %v", i.SrcName(), err)
-			return err
-		}
-	}
-
-	n.Lock()
-	for index, intf := range n.iFaces {
-		if intf == i {
-			n.iFaces = append(n.iFaces[:index], n.iFaces[index+1:]...)
-			break
-		}
-	}
-	n.Unlock()
-
-	n.checkLoV6()
-
-	return nil
-}
-
-// Returns the sandbox's side veth interface statistics
-func (i *nwIface) Statistics() (*types.InterfaceStatistics, error) {
-	i.Lock()
-	n := i.ns
-	i.Unlock()
-
-	l, err := n.nlHandle.LinkByName(i.DstName())
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve the statistics for %s in netns %s: %v", i.DstName(), n.path, err)
+		return nil, fmt.Errorf("failed to retrieve the statistics for %s in netns %s: %v", i.DstName(), i.ns.path, err)
 	}
 
 	stats := l.Attrs().Statistics
@@ -202,9 +148,9 @@ func (i *nwIface) Statistics() (*types.InterfaceStatistics, error) {
 	}, nil
 }
 
-func (n *networkNamespace) findDst(srcName string, isBridge bool) string {
-	n.Lock()
-	defer n.Unlock()
+func (n *Namespace) findDst(srcName string, isBridge bool) string {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	for _, i := range n.iFaces {
 		// The master should match the srcname of the interface and the
@@ -217,19 +163,39 @@ func (n *networkNamespace) findDst(srcName string, isBridge bool) string {
 	return ""
 }
 
-func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...IfaceOption) error {
-	i := &nwIface{srcName: srcName, dstName: dstPrefix, ns: n}
-	i.processInterfaceOptions(options...)
+func moveLink(ctx context.Context, nlhHost nlwrap.Handle, iface netlink.Link, i *Interface, path string) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.moveLink", trace.WithAttributes(
+		attribute.String("ifaceName", i.DstName())))
+	defer span.End()
 
-	if i.master != "" {
-		i.dstMaster = n.findDst(i.master, true)
-		if i.dstMaster == "" {
-			return fmt.Errorf("could not find an appropriate master %q for %q",
-				i.master, i.srcName)
-		}
+	newNs, err := netns.GetFromPath(path)
+	if err != nil {
+		return fmt.Errorf("failed get network namespace %q: %v", path, err)
+	}
+	defer newNs.Close()
+	if err := nlhHost.LinkSetNsFd(iface, int(newNs)); err != nil {
+		return fmt.Errorf("failed to set namespace on link %q: %v", i.srcName, err)
+	}
+	return nil
+}
+
+// AddInterface adds an existing Interface to the sandbox. The operation will rename
+// from the Interface SrcName to DstName as it moves, and reconfigure the
+// interface according to the specified settings. The caller is expected
+// to only provide a prefix for DstName. The AddInterface api will auto-generate
+// an appropriate suffix for the DstName to disambiguate.
+func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix string, options ...IfaceOption) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.AddInterface", trace.WithAttributes(
+		attribute.String("srcName", srcName),
+		attribute.String("dstPrefix", dstPrefix)))
+	defer span.End()
+
+	i, err := newInterface(n, srcName, dstPrefix, options...)
+	if err != nil {
+		return err
 	}
 
-	n.Lock()
+	n.mu.Lock()
 	if n.isDefault {
 		i.dstName = i.srcName
 	} else {
@@ -241,17 +207,16 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	isDefault := n.isDefault
 	nlh := n.nlHandle
 	nlhHost := ns.NlHandle()
-	n.Unlock()
+	n.mu.Unlock()
 
 	// If it is a bridge interface we have to create the bridge inside
 	// the namespace so don't try to lookup the interface using srcName
 	if i.bridge {
-		link := &netlink.Bridge{
+		if err := nlh.LinkAdd(&netlink.Bridge{
 			LinkAttrs: netlink.LinkAttrs{
 				Name: i.srcName,
 			},
-		}
-		if err := nlh.LinkAdd(link); err != nil {
+		}); err != nil {
 			return fmt.Errorf("failed to create bridge %q: %v", i.srcName, err)
 		}
 	} else {
@@ -265,13 +230,8 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 		// namespace only if the namespace is not a default
 		// type
 		if !isDefault {
-			newNs, err := netns.GetFromPath(path)
-			if err != nil {
-				return fmt.Errorf("failed get network namespace %q: %v", path, err)
-			}
-			defer newNs.Close()
-			if err := nlhHost.LinkSetNsFd(iface, int(newNs)); err != nil {
-				return fmt.Errorf("failed to set namespace on link %q: %v", i.srcName, err)
+			if err := moveLink(ctx, nlhHost, iface, i, path); err != nil {
+				return err
 			}
 		}
 	}
@@ -288,16 +248,16 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	}
 
 	// Configure the interface now this is moved in the proper namespace.
-	if err := configureInterface(nlh, iface, i); err != nil {
+	if err := n.configureInterface(ctx, nlh, iface, i); err != nil {
 		// If configuring the device fails move it back to the host namespace
 		// and change the name back to the source name. This allows the caller
 		// to properly cleanup the interface. Its important especially for
 		// interfaces with global attributes, ex: vni id for vxlan interfaces.
 		if nerr := nlh.LinkSetName(iface, i.SrcName()); nerr != nil {
-			logrus.Errorf("renaming interface (%s->%s) failed, %v after config error %v", i.DstName(), i.SrcName(), nerr, err)
+			log.G(ctx).Errorf("renaming interface (%s->%s) failed, %v after config error %v", i.DstName(), i.SrcName(), nerr, err)
 		}
 		if nerr := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); nerr != nil {
-			logrus.Errorf("moving interface %s to host ns failed, %v, after config error %v", i.SrcName(), nerr, err)
+			log.G(ctx).Errorf("moving interface %s to host ns failed, %v, after config error %v", i.SrcName(), nerr, err)
 		}
 		return err
 	}
@@ -305,7 +265,11 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	// Up the interface.
 	cnt := 0
 	for err = nlh.LinkSetUp(iface); err != nil && cnt < 3; cnt++ {
-		logrus.Debugf("retrying link setup because of: %v", err)
+		ctx, span2 := otel.Tracer("").Start(ctx, "libnetwork.osl.retryingLinkUp", trace.WithAttributes(
+			attribute.String("srcName", srcName),
+			attribute.String("dstPrefix", dstPrefix)))
+		defer span2.End()
+		log.G(ctx).Debugf("retrying link setup because of: %v", err)
 		time.Sleep(10 * time.Millisecond)
 		err = nlh.LinkSetUp(iface)
 	}
@@ -314,23 +278,77 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	}
 
 	// Set the routes on the interface. This can only be done when the interface is up.
-	if err := setInterfaceRoutes(nlh, iface, i); err != nil {
+	if err := setInterfaceRoutes(ctx, nlh, iface, i); err != nil {
 		return fmt.Errorf("error setting interface %q routes to %q: %v", iface.Attrs().Name, i.Routes(), err)
 	}
 
-	n.Lock()
+	n.mu.Lock()
 	n.iFaces = append(n.iFaces, i)
-	n.Unlock()
-
-	n.checkLoV6()
+	n.mu.Unlock()
 
 	return nil
 }
 
-func configureInterface(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+// RemoveInterface removes an interface from the namespace by renaming to
+// original name and moving it out of the sandbox.
+func (n *Namespace) RemoveInterface(i *Interface) error {
+	n.mu.Lock()
+	isDefault := n.isDefault
+	nlh := n.nlHandle
+	n.mu.Unlock()
+
+	// Find the network interface identified by the DstName attribute.
+	iface, err := nlh.LinkByName(i.DstName())
+	if err != nil {
+		return err
+	}
+
+	// Down the interface before configuring
+	if err := nlh.LinkSetDown(iface); err != nil {
+		return err
+	}
+
+	// TODO(aker): Why are we doing this? This would fail if the initial interface set up failed before the "dest interface" was moved into its own namespace; see https://github.com/moby/moby/pull/46315/commits/108595c2fe852a5264b78e96f9e63cda284990a6#r1331253578
+	err = nlh.LinkSetName(iface, i.SrcName())
+	if err != nil {
+		log.G(context.TODO()).Debugf("LinkSetName failed for interface %s: %v", i.SrcName(), err)
+		return err
+	}
+
+	// if it is a bridge just delete it.
+	if i.Bridge() {
+		if err := nlh.LinkDel(iface); err != nil {
+			return fmt.Errorf("failed deleting bridge %q: %v", i.SrcName(), err)
+		}
+	} else if !isDefault {
+		// Move the network interface to caller namespace.
+		// TODO(aker): What's this really doing? There are no calls to LinkDel in this package: is this code really used? (Interface.Remove() has 3 callers); see https://github.com/moby/moby/pull/46315/commits/108595c2fe852a5264b78e96f9e63cda284990a6#r1331265335
+		if err := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); err != nil {
+			log.G(context.TODO()).Debugf("LinkSetNsFd failed for interface %s: %v", i.SrcName(), err)
+			return err
+		}
+	}
+
+	n.mu.Lock()
+	for index, intf := range i.ns.iFaces {
+		if intf == i {
+			i.ns.iFaces = append(i.ns.iFaces[:index], i.ns.iFaces[index+1:]...)
+			break
+		}
+	}
+	n.mu.Unlock()
+
+	return nil
+}
+
+func (n *Namespace) configureInterface(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.configureInterface", trace.WithAttributes(
+		attribute.String("ifaceName", iface.Attrs().Name)))
+	defer span.End()
+
 	ifaceName := iface.Attrs().Name
 	ifaceConfigurators := []struct {
-		Fn         func(*netlink.Handle, netlink.Link, *nwIface) error
+		Fn         func(context.Context, nlwrap.Handle, netlink.Link, *Interface) error
 		ErrMessage string
 	}{
 		{setInterfaceName, fmt.Sprintf("error renaming interface %q to %q", ifaceName, i.DstName())},
@@ -342,33 +360,56 @@ func configureInterface(nlh *netlink.Handle, iface netlink.Link, i *nwIface) err
 	}
 
 	for _, config := range ifaceConfigurators {
-		if err := config.Fn(nlh, iface, i); err != nil {
+		if err := config.Fn(ctx, nlh, iface, i); err != nil {
 			return fmt.Errorf("%s: %v", config.ErrMessage, err)
 		}
 	}
+
+	if err := n.setSysctls(ctx, i.dstName, i.sysctls); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func setInterfaceMaster(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+func setInterfaceMaster(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	if i.DstMaster() == "" {
 		return nil
 	}
 
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.setInterfaceMaster", trace.WithAttributes(
+		attribute.String("i.SrcName", i.SrcName()),
+		attribute.String("i.DstName", i.DstName())))
+	defer span.End()
+
 	return nlh.LinkSetMaster(iface, &netlink.Bridge{
-		LinkAttrs: netlink.LinkAttrs{Name: i.DstMaster()}})
+		LinkAttrs: netlink.LinkAttrs{Name: i.DstMaster()},
+	})
 }
 
-func setInterfaceMAC(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+func setInterfaceMAC(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	if i.MacAddress() == nil {
 		return nil
 	}
+
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.setInterfaceMAC", trace.WithAttributes(
+		attribute.String("i.SrcName", i.SrcName()),
+		attribute.String("i.DstName", i.DstName())))
+	defer span.End()
+
 	return nlh.LinkSetHardwareAddr(iface, i.MacAddress())
 }
 
-func setInterfaceIP(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+func setInterfaceIP(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
 	if i.Address() == nil {
 		return nil
 	}
+
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.setInterfaceIP", trace.WithAttributes(
+		attribute.String("i.SrcName", i.SrcName()),
+		attribute.String("i.DstName", i.DstName())))
+	defer span.End()
+
 	if err := checkRouteConflict(nlh, i.Address(), netlink.FAMILY_V4); err != nil {
 		return err
 	}
@@ -376,21 +417,39 @@ func setInterfaceIP(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
 	return nlh.AddrAdd(iface, ipAddr)
 }
 
-func setInterfaceIPv6(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
-	if i.AddressIPv6() == nil {
+func setInterfaceIPv6(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
+	addr := i.AddressIPv6()
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.setInterfaceIPv6", trace.WithAttributes(
+		attribute.String("i.SrcName", i.SrcName()),
+		attribute.String("i.DstName", i.DstName()),
+		attribute.String("i.AddressIPv6", addr.String())))
+	defer span.End()
+
+	// IPv6 must be enabled on the interface if and only if the network is
+	// IPv6-enabled. For an interface on an IPv4-only network, if IPv6 isn't
+	// disabled, the interface will be put into IPv6 multicast groups making
+	// it unexpectedly susceptible to NDP cache poisoning, route injection, etc.
+	// (At present, there will always be a pre-configured IPv6 address if the
+	// network is IPv6-enabled.)
+	if err := setIPv6(i.ns.path, i.DstName(), addr != nil); err != nil {
+		return fmt.Errorf("failed to configure ipv6: %v", err)
+	}
+	if addr == nil {
 		return nil
 	}
-	if err := checkRouteConflict(nlh, i.AddressIPv6(), netlink.FAMILY_V6); err != nil {
+	if err := checkRouteConflict(nlh, addr, netlink.FAMILY_V6); err != nil {
 		return err
 	}
-	if err := setIPv6(i.ns.path, i.DstName(), true); err != nil {
-		return fmt.Errorf("failed to enable ipv6: %v", err)
-	}
-	ipAddr := &netlink.Addr{IPNet: i.AddressIPv6(), Label: "", Flags: syscall.IFA_F_NODAD}
-	return nlh.AddrAdd(iface, ipAddr)
+	nlAddr := &netlink.Addr{IPNet: addr, Label: "", Flags: syscall.IFA_F_NODAD}
+	return nlh.AddrAdd(iface, nlAddr)
 }
 
-func setInterfaceLinkLocalIPs(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+func setInterfaceLinkLocalIPs(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.setInterfaceLinkLocalIPs", trace.WithAttributes(
+		attribute.String("i.SrcName", i.SrcName()),
+		attribute.String("i.DstName", i.DstName())))
+	defer span.End()
+
 	for _, llIP := range i.LinkLocalAddresses() {
 		ipAddr := &netlink.Addr{IPNet: llIP}
 		if err := nlh.AddrAdd(iface, ipAddr); err != nil {
@@ -400,11 +459,60 @@ func setInterfaceLinkLocalIPs(nlh *netlink.Handle, iface netlink.Link, i *nwIfac
 	return nil
 }
 
-func setInterfaceName(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+func (n *Namespace) setSysctls(ctx context.Context, ifName string, sysctls []string) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.setSysctls", trace.WithAttributes(
+		attribute.String("ifName", ifName)))
+	defer span.End()
+
+	for _, sc := range sysctls {
+		k, v, found := strings.Cut(sc, "=")
+		if !found {
+			return fmt.Errorf("expected sysctl '%s' to have format name=value", sc)
+		}
+		sk := strings.Split(k, ".")
+		if len(sk) != 5 {
+			return fmt.Errorf("expected sysctl '%s' to have format net.X.Y.IFNAME.Z", sc)
+		}
+
+		sysPath := filepath.Join(append([]string{"/proc/sys", sk[0], sk[1], sk[2], ifName}, sk[4:]...)...)
+		var errF error
+		f := func() {
+			if fi, err := os.Stat(sysPath); err != nil || !fi.Mode().IsRegular() {
+				errF = fmt.Errorf("%s is not a sysctl file", sysPath)
+			} else if curVal, err := os.ReadFile(sysPath); err != nil {
+				errF = errors.Wrapf(err, "unable to read '%s'", sysPath)
+			} else if strings.TrimSpace(string(curVal)) == v {
+				// The value is already correct, don't try to write the file in case
+				// "/proc/sys/net" is a read-only filesystem.
+			} else if err := os.WriteFile(sysPath, []byte(v), 0o644); err != nil {
+				errF = errors.Wrapf(err, "unable to write to '%s'", sysPath)
+			}
+		}
+
+		if err := n.InvokeFunc(f); err != nil {
+			return errors.Wrapf(err, "failed to run sysctl setter in network namespace")
+		}
+		if errF != nil {
+			return errF
+		}
+	}
+	return nil
+}
+
+func setInterfaceName(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.setInterfaceName", trace.WithAttributes(
+		attribute.String("ifaceName", iface.Attrs().Name)))
+	defer span.End()
+
 	return nlh.LinkSetName(iface, i.DstName())
 }
 
-func setInterfaceRoutes(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+func setInterfaceRoutes(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.setInterfaceRoutes", trace.WithAttributes(
+		attribute.String("i.SrcName", i.SrcName()),
+		attribute.String("i.DstName", i.DstName())))
+	defer span.End()
+
 	for _, route := range i.Routes() {
 		err := nlh.RouteAdd(&netlink.Route{
 			Scope:     netlink.SCOPE_LINK,
@@ -418,37 +526,13 @@ func setInterfaceRoutes(nlh *netlink.Handle, iface netlink.Link, i *nwIface) err
 	return nil
 }
 
-// In older kernels (like the one in Centos 6.6 distro) sysctl does not have netns support. Therefore
-// we cannot gather the statistics from /sys/class/net/<dev>/statistics/<counter> files. Per-netns stats
-// are naturally found in /proc/net/dev in kernels which support netns (ifconfig relies on that).
-const (
-	base = "[ ]*%s:([ ]+[0-9]+){16}"
-)
-
-func scanInterfaceStats(data, ifName string, i *types.InterfaceStatistics) error {
-	var (
-		bktStr string
-		bkt    uint64
-	)
-
-	regex := fmt.Sprintf(base, ifName)
-	re := regexp.MustCompile(regex)
-	line := re.FindString(data)
-
-	_, err := fmt.Sscanf(line, "%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
-		&bktStr, &i.RxBytes, &i.RxPackets, &i.RxErrors, &i.RxDropped, &bkt, &bkt, &bkt,
-		&bkt, &i.TxBytes, &i.TxPackets, &i.TxErrors, &i.TxDropped, &bkt, &bkt, &bkt, &bkt)
-
-	return err
-}
-
-func checkRouteConflict(nlh *netlink.Handle, address *net.IPNet, family int) error {
+func checkRouteConflict(nlh nlwrap.Handle, address *net.IPNet, family int) error {
 	routes, err := nlh.RouteList(nil, family)
 	if err != nil {
 		return err
 	}
 	for _, route := range routes {
-		if route.Dst != nil {
+		if route.Dst != nil && !route.Dst.IP.IsUnspecified() {
 			if route.Dst.Contains(address.IP) || address.Contains(route.Dst.IP) {
 				return fmt.Errorf("cannot program address %v in sandbox interface because it conflicts with existing route %s",
 					address, route)

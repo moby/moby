@@ -4,15 +4,16 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"net/netip"
 	"strconv"
 	"strings"
 
-	types "github.com/docker/docker/libnetwork/ipamutils"
+	"github.com/docker/docker/libnetwork/ipamutils"
 )
 
 // PoolsOpt is a Value type for parsing the default address pools definitions
 type PoolsOpt struct {
-	Values []*types.NetworkToSplit
+	Values []*ipamutils.NetworkToSplit
 }
 
 // UnmarshalJSON fills values structure  info from JSON input
@@ -28,22 +29,24 @@ func (p *PoolsOpt) Set(value string) error {
 		return err
 	}
 
-	poolsDef := types.NetworkToSplit{}
+	poolsDef := ipamutils.NetworkToSplit{}
 
 	for _, field := range fields {
-		parts := strings.SplitN(field, "=", 2)
-		if len(parts) != 2 {
+		// TODO(thaJeztah): this should not be case-insensitive.
+		key, val, ok := strings.Cut(strings.ToLower(field), "=")
+		if !ok {
 			return fmt.Errorf("invalid field '%s' must be a key=value pair", field)
 		}
 
-		key := strings.ToLower(parts[0])
-		value := strings.ToLower(parts[1])
-
 		switch key {
 		case "base":
-			poolsDef.Base = value
+			base, err := netip.ParsePrefix(val)
+			if err != nil {
+				return fmt.Errorf("invalid base prefix %q: %w", val, err)
+			}
+			poolsDef.Base = base
 		case "size":
-			size, err := strconv.Atoi(value)
+			size, err := strconv.Atoi(val)
 			if err != nil {
 				return fmt.Errorf("invalid size value: %q (must be integer): %v", value, err)
 			}
@@ -74,7 +77,7 @@ func (p *PoolsOpt) String() string {
 }
 
 // Value returns the mounts
-func (p *PoolsOpt) Value() []*types.NetworkToSplit {
+func (p *PoolsOpt) Value() []*ipamutils.NetworkToSplit {
 	return p.Values
 }
 

@@ -58,13 +58,20 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 		}
 		for _, csi := range n.Description.CSIInfo {
 			if csi != nil {
+				convertedInfo := types.NodeCSIInfo{
+					PluginName:        csi.PluginName,
+					NodeID:            csi.NodeID,
+					MaxVolumesPerNode: csi.MaxVolumesPerNode,
+				}
+
+				if csi.AccessibleTopology != nil {
+					convertedInfo.AccessibleTopology = &types.Topology{
+						Segments: csi.AccessibleTopology.Segments,
+					}
+				}
+
 				node.Description.CSIInfo = append(
-					node.Description.CSIInfo,
-					types.NodeCSIInfo{
-						PluginName:        csi.PluginName,
-						NodeID:            csi.NodeID,
-						MaxVolumesPerNode: csi.MaxVolumesPerNode,
-					},
+					node.Description.CSIInfo, convertedInfo,
 				)
 			}
 		}

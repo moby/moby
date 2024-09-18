@@ -2,35 +2,30 @@
 
 ## Semantic Convention Generation
 
-If a new version of the OpenTelemetry Specification has been released it will be necessary to generate a new
-semantic convention package from the YAML definitions in the specification repository. There is a `semconvgen` utility
-installed by `make tools` that can be used to generate the a package with the name matching the specification
-version number under the `semconv` package. This will ideally be done soon after the specification release is
-tagged. Make sure that the specification repo contains a checkout of the the latest tagged release so that the
-generated files match the released semantic conventions.
+New versions of the [OpenTelemetry Semantic Conventions] mean new versions of the `semconv` package need to be generated.
+The `semconv-generate` make target is used for this.
 
-There are currently two categories of semantic conventions that must be generated, `resource` and `trace`.
+1. Checkout a local copy of the [OpenTelemetry Semantic Conventions] to the desired release tag.
+2. Pull the latest `otel/semconvgen` image: `docker pull otel/semconvgen:latest`
+3. Run the `make semconv-generate ...` target from this repository.
 
+For example,
+
+```sh
+export TAG="v1.21.0" # Change to the release version you are generating.
+export OTEL_SEMCONV_REPO="/absolute/path/to/opentelemetry/semantic-conventions"
+docker pull otel/semconvgen:latest
+make semconv-generate # Uses the exported TAG and OTEL_SEMCONV_REPO.
 ```
-.tools/semconvgen -i /path/to/specification/repo/semantic_conventions/resource -t semconv/template.j2
-.tools/semconvgen -i /path/to/specification/repo/semantic_conventions/trace -t semconv/template.j2
-```
 
-Using default values for all options other than `input` will result in using the `template.j2` template to
-generate `resource.go` and `trace.go` in `/path/to/otelgo/repo/semconv/<version>`.
+This should create a new sub-package of [`semconv`](./semconv).
+Ensure things look correct before submitting a pull request to include the addition.
 
-There are several ancillary files that are not generated and should be copied into the new package from the
-prior package, with updates made as appropriate to canonical import path statements and constant values.
-These files include:
+## Breaking changes validation
 
-* doc.go
-* exception.go
-* http(_test)?.go
-* schema.go
+You can run `make gorelease` that runs [gorelease](https://pkg.go.dev/golang.org/x/exp/cmd/gorelease) to ensure that there are no unwanted changes done in the public API.
 
-Uses of the previous schema version in this repository should be updated to use the newly generated version.
-No tooling for this exists at present, so use find/replace in your editor of choice or craft a `grep | sed`
-pipeline if you like living on the edge.
+You can check/report problems with `gorelease` [here](https://golang.org/issues/26420).
 
 ## Pre-Release
 
@@ -128,5 +123,17 @@ Once verified be sure to [make a release for the `contrib` repository](https://g
 
 ### Website Documentation
 
-Update [the documentation](./website_docs) for [the OpenTelemetry website](https://opentelemetry.io/docs/go/).
+Update the [Go instrumentation documentation] in the OpenTelemetry website under [content/en/docs/instrumentation/go].
 Importantly, bump any package versions referenced to be the latest one you just released and ensure all code examples still compile and are accurate.
+
+[OpenTelemetry Semantic Conventions]: https://github.com/open-telemetry/semantic-conventions
+[Go instrumentation documentation]: https://opentelemetry.io/docs/instrumentation/go/
+[content/en/docs/instrumentation/go]: https://github.com/open-telemetry/opentelemetry.io/tree/main/content/en/docs/instrumentation/go
+
+### Demo Repository
+
+Bump the dependencies in the following Go services:
+
+- [`accountingservice`](https://github.com/open-telemetry/opentelemetry-demo/tree/main/src/accountingservice)
+- [`checkoutservice`](https://github.com/open-telemetry/opentelemetry-demo/tree/main/src/checkoutservice)
+- [`productcatalogservice`](https://github.com/open-telemetry/opentelemetry-demo/tree/main/src/productcatalogservice)

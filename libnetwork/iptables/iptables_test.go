@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package iptables
 
@@ -13,19 +12,16 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const chainName = "DOCKEREST"
-
-var natChain *ChainInfo
-var filterChain *ChainInfo
-var bridgeName string
-
-func TestNewChain(t *testing.T) {
-	var err error
-
+const (
+	chainName  = "DOCKEREST"
 	bridgeName = "lo"
+)
+
+func createNewChain(t *testing.T) (*IPTable, *ChainInfo, *ChainInfo) {
+	t.Helper()
 	iptable := GetIptable(IPv4)
 
-	natChain, err = iptable.NewChain(chainName, Nat, false)
+	natChain, err := iptable.NewChain(chainName, Nat)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +30,7 @@ func TestNewChain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	filterChain, err = iptable.NewChain(chainName, Filter, false)
+	filterChain, err := iptable.NewChain(chainName, Filter)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,73 +38,22 @@ func TestNewChain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	return iptable, natChain, filterChain
 }
 
-func TestForward(t *testing.T) {
-	ip := net.ParseIP("192.168.1.1")
-	port := 1234
-	dstAddr := "172.17.0.1"
-	dstPort := 4321
-	proto := "tcp"
-
-	bridgeName := "lo"
-	iptable := GetIptable(IPv4)
-
-	err := natChain.Forward(Insert, ip, port, proto, dstAddr, dstPort, bridgeName)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	dnatRule := []string{
-		"-d", ip.String(),
-		"-p", proto,
-		"--dport", strconv.Itoa(port),
-		"-j", "DNAT",
-		"--to-destination", dstAddr + ":" + strconv.Itoa(dstPort),
-		"!", "-i", bridgeName,
-	}
-
-	if !iptable.Exists(natChain.Table, natChain.Name, dnatRule...) {
-		t.Fatal("DNAT rule does not exist")
-	}
-
-	filterRule := []string{
-		"!", "-i", bridgeName,
-		"-o", bridgeName,
-		"-d", dstAddr,
-		"-p", proto,
-		"--dport", strconv.Itoa(dstPort),
-		"-j", "ACCEPT",
-	}
-
-	if !iptable.Exists(filterChain.Table, filterChain.Name, filterRule...) {
-		t.Fatal("filter rule does not exist")
-	}
-
-	masqRule := []string{
-		"-d", dstAddr,
-		"-s", dstAddr,
-		"-p", proto,
-		"--dport", strconv.Itoa(dstPort),
-		"-j", "MASQUERADE",
-	}
-
-	if !iptable.Exists(natChain.Table, "POSTROUTING", masqRule...) {
-		t.Fatal("MASQUERADE rule does not exist")
-	}
+func TestNewChain(t *testing.T) {
+	createNewChain(t)
 }
 
 func TestLink(t *testing.T) {
-	var err error
-
-	bridgeName := "lo"
-	iptable := GetIptable(IPv4)
+	iptable, _, filterChain := createNewChain(t)
 	ip1 := net.ParseIP("192.168.1.1")
 	ip2 := net.ParseIP("192.168.1.2")
 	port := 1234
 	proto := "tcp"
 
-	err = filterChain.Link(Append, ip1, ip2, port, proto, bridgeName)
+	err := filterChain.Link(Append, ip1, ip2, port, proto, bridgeName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +65,8 @@ func TestLink(t *testing.T) {
 		"-s", ip1.String(),
 		"-d", ip2.String(),
 		"--dport", strconv.Itoa(port),
-		"-j", "ACCEPT"}
+		"-j", "ACCEPT",
+	}
 
 	if !iptable.Exists(filterChain.Table, filterChain.Name, rule1...) {
 		t.Fatal("rule1 does not exist")
@@ -133,7 +79,8 @@ func TestLink(t *testing.T) {
 		"-s", ip2.String(),
 		"-d", ip1.String(),
 		"--sport", strconv.Itoa(port),
-		"-j", "ACCEPT"}
+		"-j", "ACCEPT",
+	}
 
 	if !iptable.Exists(filterChain.Table, filterChain.Name, rule2...) {
 		t.Fatal("rule2 does not exist")
@@ -141,11 +88,9 @@ func TestLink(t *testing.T) {
 }
 
 func TestPrerouting(t *testing.T) {
-	args := []string{
-		"-i", "lo",
-		"-d", "192.168.1.1"}
-	iptable := GetIptable(IPv4)
+	iptable, natChain, _ := createNewChain(t)
 
+	args := []string{"-i", "lo", "-d", "192.168.1.1"}
 	err := natChain.Prerouting(Insert, args...)
 	if err != nil {
 		t.Fatal(err)
@@ -162,11 +107,9 @@ func TestPrerouting(t *testing.T) {
 }
 
 func TestOutput(t *testing.T) {
-	args := []string{
-		"-o", "lo",
-		"-d", "192.168.1.1"}
-	iptable := GetIptable(IPv4)
+	iptable, natChain, _ := createNewChain(t)
 
+	args := []string{"-o", "lo", "-d", "192.168.1.1"}
 	err := natChain.Output(Insert, args...)
 	if err != nil {
 		t.Fatal(err)
@@ -176,8 +119,10 @@ func TestOutput(t *testing.T) {
 		t.Fatal("rule does not exist")
 	}
 
-	delRule := append([]string{"-D", "OUTPUT", "-t",
-		string(natChain.Table)}, args...)
+	delRule := append([]string{
+		"-D", "OUTPUT", "-t",
+		string(natChain.Table),
+	}, args...)
 	if _, err = iptable.Raw(delRule...); err != nil {
 		t.Fatal(err)
 	}
@@ -196,6 +141,8 @@ func TestConcurrencyNoWait(t *testing.T) {
 // Note that if iptables does not support the xtable lock on this
 // system, then allowXlock has no effect -- it will always be off.
 func RunConcurrencyTest(t *testing.T, allowXlock bool) {
+	_, natChain, _ := createNewChain(t)
+
 	if !allowXlock && supportsXlock {
 		supportsXlock = false
 		defer func() { supportsXlock = true }()
@@ -210,7 +157,7 @@ func RunConcurrencyTest(t *testing.T, allowXlock bool) {
 	group := new(errgroup.Group)
 	for i := 0; i < 10; i++ {
 		group.Go(func() error {
-			return natChain.Forward(Append, ip, port, proto, dstAddr, dstPort, "lo")
+			return addSomeRules(natChain, ip, port, proto, dstAddr, dstPort)
 		})
 	}
 	if err := group.Wait(); err != nil {
@@ -218,23 +165,69 @@ func RunConcurrencyTest(t *testing.T, allowXlock bool) {
 	}
 }
 
+// addSomeRules adds arbitrary iptable rules. RunConcurrencyTest previously used
+// iptables.Forward to create rules, that function has been removed. To preserve
+// the test, this function creates similar rules.
+func addSomeRules(c *ChainInfo, ip net.IP, port int, proto, destAddr string, destPort int) error {
+	iptable := GetIptable(c.IPVersion)
+	daddr := ip.String()
+
+	args := []string{
+		"-p", proto,
+		"-d", daddr,
+		"--dport", strconv.Itoa(port),
+		"-j", "DNAT",
+		"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort)),
+	}
+	if err := iptable.ProgramRule(Nat, c.Name, Append, args); err != nil {
+		return err
+	}
+
+	args = []string{
+		"!", "-i", "lo",
+		"-o", "lo",
+		"-p", proto,
+		"-d", destAddr,
+		"--dport", strconv.Itoa(destPort),
+		"-j", "ACCEPT",
+	}
+	if err := iptable.ProgramRule(Filter, c.Name, Append, args); err != nil {
+		return err
+	}
+
+	args = []string{
+		"-p", proto,
+		"-s", destAddr,
+		"-d", destAddr,
+		"--dport", strconv.Itoa(destPort),
+		"-j", "MASQUERADE",
+	}
+	if err := iptable.ProgramRule(Nat, "POSTROUTING", Append, args); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func TestCleanup(t *testing.T) {
-	var err error
+	iptable, _, filterChain := createNewChain(t)
+
 	var rules []byte
 
 	// Cleanup filter/FORWARD first otherwise output of iptables-save is dirty
-	link := []string{"-t", string(filterChain.Table),
+	link := []string{
+		"-t", string(filterChain.Table),
 		string(Delete), "FORWARD",
 		"-o", bridgeName,
-		"-j", filterChain.Name}
-	iptable := GetIptable(IPv4)
+		"-j", filterChain.Name,
+	}
 
-	if _, err = iptable.Raw(link...); err != nil {
+	if _, err := iptable.Raw(link...); err != nil {
 		t.Fatal(err)
 	}
 	filterChain.Remove()
 
-	err = iptable.RemoveExistingChain(chainName, Nat)
+	err := iptable.RemoveExistingChain(chainName, Nat)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,12 +242,12 @@ func TestCleanup(t *testing.T) {
 }
 
 func TestExistsRaw(t *testing.T) {
-	testChain1 := "ABCD"
-	testChain2 := "EFGH"
+	const testChain1 = "ABCD"
+	const testChain2 = "EFGH"
 
 	iptable := GetIptable(IPv4)
 
-	_, err := iptable.NewChain(testChain1, Filter, false)
+	_, err := iptable.NewChain(testChain1, Filter)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +255,7 @@ func TestExistsRaw(t *testing.T) {
 		iptable.RemoveExistingChain(testChain1, Filter)
 	}()
 
-	_, err = iptable.NewChain(testChain2, Filter, false)
+	_, err = iptable.NewChain(testChain2, Filter)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,44 +277,15 @@ func TestExistsRaw(t *testing.T) {
 		if err != nil {
 			t.Fatalf("i=%d, err: %v", i, err)
 		}
-		if !iptable.existsRaw(Filter, testChain1, r.rule...) {
+		if !iptable.exists(true, Filter, testChain1, r.rule...) {
 			t.Fatalf("Failed to detect rule. i=%d", i)
 		}
 		// Truncate the rule
 		trg := r.rule[len(r.rule)-1]
 		trg = trg[:len(trg)-2]
 		r.rule[len(r.rule)-1] = trg
-		if iptable.existsRaw(Filter, testChain1, r.rule...) {
+		if iptable.exists(true, Filter, testChain1, r.rule...) {
 			t.Fatalf("Invalid detection. i=%d", i)
-		}
-	}
-}
-
-func TestGetVersion(t *testing.T) {
-	mj, mn, mc := parseVersionNumbers("iptables v1.4.19.1-alpha")
-	if mj != 1 || mn != 4 || mc != 19 {
-		t.Fatal("Failed to parse version numbers")
-	}
-}
-
-func TestSupportsCOption(t *testing.T) {
-	input := []struct {
-		mj int
-		mn int
-		mc int
-		ok bool
-	}{
-		{1, 4, 11, true},
-		{1, 4, 12, true},
-		{1, 5, 0, true},
-		{0, 4, 11, false},
-		{0, 5, 12, false},
-		{1, 3, 12, false},
-		{1, 4, 10, false},
-	}
-	for ind, inp := range input {
-		if inp.ok != supportsCOption(inp.mj, inp.mn, inp.mc) {
-			t.Fatalf("Incorrect check: %d", ind)
 		}
 	}
 }

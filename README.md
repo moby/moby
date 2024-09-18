@@ -14,7 +14,7 @@ Moby is an open project guided by strong principles, aiming to be modular, flexi
 It is open to the community to help set its direction.
 
 - Modular: the project includes lots of components that have well-defined functions and APIs that work together.
-- Batteries included but swappable: Moby includes enough components to build fully featured container system, but its modular architecture ensures that most of the components can be swapped by different implementations.
+- Batteries included but swappable: Moby includes enough components to build fully featured container systems, but its modular architecture ensures that most of the components can be swapped by different implementations.
 - Usable security: Moby provides secure defaults without compromising usability.
 - Developer focused: The APIs are intended to be functional and useful to build powerful tools.
 They are not necessarily intended as end user tools but as components aimed at developers.
@@ -32,7 +32,7 @@ New projects can be added if they fit with the community goals. Docker is commit
 However, other projects are also encouraged to use Moby as an upstream, and to reuse the components in diverse ways, and all these uses will be treated in the same way. External maintainers and contributors are welcomed.
 
 The Moby project is not intended as a location for support or feature requests for Docker products, but as a place for contributors to work on open source code, fix bugs, and make the code more useful.
-The releases are supported by the maintainers, community and users, on a best efforts basis only, and are not intended for customers who want enterprise or commercial support; Docker EE is the appropriate product for these use cases.
+The releases are supported by the maintainers, community and users, on a best efforts basis only. For customers who want enterprise or commercial support, [Docker Desktop](https://www.docker.com/products/docker-desktop/) and [Mirantis Container Runtime](https://www.mirantis.com/software/mirantis-container-runtime/) are the appropriate products for these use cases.
 
 -----
 

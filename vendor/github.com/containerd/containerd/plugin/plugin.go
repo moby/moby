@@ -76,8 +76,22 @@ const (
 	GCPlugin Type = "io.containerd.gc.v1"
 	// EventPlugin implements event handling
 	EventPlugin Type = "io.containerd.event.v1"
+	// LeasePlugin implements lease manager
+	LeasePlugin Type = "io.containerd.lease.v1"
+	// Streaming implements a stream manager
+	StreamingPlugin Type = "io.containerd.streaming.v1"
 	// TracingProcessorPlugin implements a open telemetry span processor
 	TracingProcessorPlugin Type = "io.containerd.tracing.processor.v1"
+	// NRIApiPlugin implements the NRI adaptation interface for containerd.
+	NRIApiPlugin Type = "io.containerd.nri.v1"
+	// TransferPlugin implements a transfer service
+	TransferPlugin Type = "io.containerd.transfer.v1"
+	// SandboxStorePlugin implements a sandbox store
+	SandboxStorePlugin Type = "io.containerd.sandbox.store.v1"
+	// SandboxControllerPlugin implements a sandbox controller
+	SandboxControllerPlugin Type = "io.containerd.sandbox.controller.v1"
+	// WarningPlugin implements a warning service
+	WarningPlugin Type = "io.containerd.warning.v1"
 )
 
 const (
@@ -86,7 +100,12 @@ const (
 	// RuntimeRuncV1 is the runc runtime that supports a single container
 	RuntimeRuncV1 = "io.containerd.runc.v1"
 	// RuntimeRuncV2 is the runc runtime that supports multiple containers per shim
-	RuntimeRuncV2 = "io.containerd.runc.v2"
+	RuntimeRuncV2      = "io.containerd.runc.v2"
+	DeprecationsPlugin = "deprecations"
+)
+
+const (
+	SnapshotterRootDir = "root"
 )
 
 // Registration contains information for registering a plugin
@@ -131,7 +150,7 @@ var register = struct {
 }{}
 
 // Load loads all plugins at the provided path into containerd
-func Load(path string) (err error) {
+func Load(path string) (count int, err error) {
 	defer func() {
 		if v := recover(); v != nil {
 			rerr, ok := v.(error)

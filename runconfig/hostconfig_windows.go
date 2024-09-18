@@ -7,17 +7,6 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 )
 
-// DefaultDaemonNetworkMode returns the default network stack the daemon should
-// use.
-func DefaultDaemonNetworkMode() container.NetworkMode {
-	return "nat"
-}
-
-// IsPreDefinedNetwork indicates if a network is predefined by the daemon
-func IsPreDefinedNetwork(network string) bool {
-	return !container.NetworkMode(network).IsUserDefined()
-}
-
 // validateNetMode ensures that the various combinations of requested
 // network settings are valid.
 func validateNetMode(c *container.Config, hc *container.HostConfig) error {

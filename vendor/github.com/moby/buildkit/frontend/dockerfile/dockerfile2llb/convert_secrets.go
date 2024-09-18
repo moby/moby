@@ -5,10 +5,11 @@ import (
 
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/pkg/errors"
 )
 
-func dispatchSecret(m *instructions.Mount) (llb.RunOption, error) {
+func dispatchSecret(d *dispatchState, m *instructions.Mount, loc []parser.Range) (llb.RunOption, error) {
 	id := m.CacheID
 	if m.Source != "" {
 		id = m.Source
@@ -21,15 +22,33 @@ func dispatchSecret(m *instructions.Mount) (llb.RunOption, error) {
 		id = path.Base(m.Target)
 	}
 
-	target := m.Target
-	if target == "" {
-		target = "/run/secrets/" + path.Base(id)
+	var target *string
+	if m.Target != "" {
+		target = &m.Target
+	}
+
+	if m.Env == nil {
+		dest := m.Target
+		if dest == "" {
+			dest = "/run/secrets/" + path.Base(id)
+		}
+		target = &dest
+	}
+
+	if _, ok := d.outline.secrets[id]; !ok {
+		d.outline.secrets[id] = secretInfo{
+			location: loc,
+			required: m.Required,
+		}
 	}
 
 	opts := []llb.SecretOption{llb.SecretID(id)}
 
 	if !m.Required {
 		opts = append(opts, llb.SecretOptional)
+	}
+	if m.Env != nil {
+		opts = append(opts, llb.SecretAsEnvName(*m.Env))
 	}
 
 	if m.UID != nil || m.GID != nil || m.Mode != nil {
@@ -48,5 +67,5 @@ func dispatchSecret(m *instructions.Mount) (llb.RunOption, error) {
 		opts = append(opts, llb.SecretFileOpt(uid, gid, mode))
 	}
 
-	return llb.AddSecret(target, opts...), nil
+	return llb.AddSecretWithDest(id, target, opts...), nil
 }

@@ -53,6 +53,16 @@ func (p *page) meta() *meta {
 	return (*meta)(unsafeAdd(unsafe.Pointer(p), unsafe.Sizeof(*p)))
 }
 
+func (p *page) fastCheck(id pgid) {
+	_assert(p.id == id, "Page expected to be: %v, but self identifies as %v", id, p.id)
+	// Only one flag of page-type can be set.
+	_assert(p.flags == branchPageFlag ||
+		p.flags == leafPageFlag ||
+		p.flags == metaPageFlag ||
+		p.flags == freelistPageFlag,
+		"page %v: has unexpected type/flags: %x", p.id, p.flags)
+}
+
 // leafPageElement retrieves the leaf node by index
 func (p *page) leafPageElement(index uint16) *leafPageElement {
 	return (*leafPageElement)(unsafeIndex(unsafe.Pointer(p), unsafe.Sizeof(*p),
@@ -64,9 +74,8 @@ func (p *page) leafPageElements() []leafPageElement {
 	if p.count == 0 {
 		return nil
 	}
-	var elems []leafPageElement
 	data := unsafeAdd(unsafe.Pointer(p), unsafe.Sizeof(*p))
-	unsafeSlice(unsafe.Pointer(&elems), data, int(p.count))
+	elems := unsafe.Slice((*leafPageElement)(data), int(p.count))
 	return elems
 }
 
@@ -81,9 +90,8 @@ func (p *page) branchPageElements() []branchPageElement {
 	if p.count == 0 {
 		return nil
 	}
-	var elems []branchPageElement
 	data := unsafeAdd(unsafe.Pointer(p), unsafe.Sizeof(*p))
-	unsafeSlice(unsafe.Pointer(&elems), data, int(p.count))
+	elems := unsafe.Slice((*branchPageElement)(data), int(p.count))
 	return elems
 }
 

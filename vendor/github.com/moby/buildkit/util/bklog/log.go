@@ -2,8 +2,9 @@ package bklog
 
 import (
 	"context"
+	"runtime/debug"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -18,14 +19,6 @@ var (
 	G = GetLogger
 	L = logrus.NewEntry(logrus.StandardLogger())
 )
-
-var (
-	logWithTraceID = false
-)
-
-func EnableLogWithTraceID(b bool) {
-	logWithTraceID = b
-}
 
 type (
 	loggerKey struct{}
@@ -50,14 +43,23 @@ func GetLogger(ctx context.Context) (l *logrus.Entry) {
 		l = L
 	}
 
-	if logWithTraceID {
-		if spanContext := trace.SpanFromContext(ctx).SpanContext(); spanContext.IsValid() {
-			return l.WithFields(logrus.Fields{
-				"traceID": spanContext.TraceID(),
-				"spanID":  spanContext.SpanID(),
-			})
-		}
+	if spanContext := trace.SpanFromContext(ctx).SpanContext(); spanContext.IsValid() {
+		return l.WithFields(logrus.Fields{
+			"traceID": spanContext.TraceID(),
+			"spanID":  spanContext.SpanID(),
+		})
 	}
 
 	return l
+}
+
+// TraceLevelOnlyStack returns a stack trace for the current goroutine only if
+// trace level logs are enabled; otherwise it returns an empty string. This ensure
+// we only pay the cost of generating a stack trace when the log entry will actually
+// be emitted.
+func TraceLevelOnlyStack() string {
+	if logrus.GetLevel() == logrus.TraceLevel {
+		return string(debug.Stack())
+	}
+	return ""
 }

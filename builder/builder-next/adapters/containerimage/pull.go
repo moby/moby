@@ -1,3 +1,6 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.21
+
 package containerimage
 
 import (
@@ -6,20 +9,24 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/containerd/containerd/content"
-	containerderrors "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/gc"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/platforms"
+	cdreference "github.com/containerd/containerd/reference"
 	ctdreference "github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/containerd/containerd/remotes/docker/schema1"
-	distreference "github.com/docker/distribution/reference"
+	"github.com/containerd/containerd/remotes/docker/schema1" //nolint:staticcheck // Ignore SA1019: "github.com/containerd/containerd/remotes/docker/schema1" is deprecated: use images formatted in Docker Image Manifest v2, Schema 2, or OCI Image Spec v1.
+	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/log"
+	"github.com/containerd/platforms"
+	distreference "github.com/distribution/reference"
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
@@ -28,11 +35,16 @@ import (
 	pkgprogress "github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/reference"
 	"github.com/moby/buildkit/cache"
-	"github.com/moby/buildkit/client/llb"
+	"github.com/moby/buildkit/client"
+	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/source"
+	"github.com/moby/buildkit/source/containerimage"
 	srctypes "github.com/moby/buildkit/source/types"
+	"github.com/moby/buildkit/sourcepolicy"
+	spb "github.com/moby/buildkit/sourcepolicy/pb"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/buildkit/util/leaseutil"
@@ -42,7 +54,6 @@ import (
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 )
 
@@ -63,7 +74,7 @@ type SourceOpt struct {
 // Source is the source implementation for accessing container images
 type Source struct {
 	SourceOpt
-	g flightcontrol.Group
+	g flightcontrol.Group[*resolveRemoteResult]
 }
 
 // NewSource creates a new image source
@@ -71,9 +82,77 @@ func NewSource(opt SourceOpt) (*Source, error) {
 	return &Source{SourceOpt: opt}, nil
 }
 
-// ID returns image scheme identifier
-func (is *Source) ID() string {
-	return srctypes.DockerImageScheme
+// Schemes returns a list of SourceOp identifier schemes that this source
+// should match.
+func (is *Source) Schemes() []string {
+	return []string{srctypes.DockerImageScheme}
+}
+
+// Identifier constructs an Identifier from the given scheme, ref, and attrs,
+// all of which come from a SourceOp.
+func (is *Source) Identifier(scheme, ref string, attrs map[string]string, platform *pb.Platform) (source.Identifier, error) {
+	return is.registryIdentifier(ref, attrs, platform)
+}
+
+// Copied from github.com/moby/buildkit/source/containerimage/source.go
+func (is *Source) registryIdentifier(ref string, attrs map[string]string, platform *pb.Platform) (source.Identifier, error) {
+	id, err := containerimage.NewImageIdentifier(ref)
+	if err != nil {
+		return nil, err
+	}
+
+	if platform != nil {
+		id.Platform = &ocispec.Platform{
+			OS:           platform.OS,
+			Architecture: platform.Architecture,
+			Variant:      platform.Variant,
+			OSVersion:    platform.OSVersion,
+		}
+		if platform.OSFeatures != nil {
+			id.Platform.OSFeatures = append([]string{}, platform.OSFeatures...)
+		}
+	}
+
+	for k, v := range attrs {
+		switch k {
+		case pb.AttrImageResolveMode:
+			rm, err := resolver.ParseImageResolveMode(v)
+			if err != nil {
+				return nil, err
+			}
+			id.ResolveMode = rm
+		case pb.AttrImageRecordType:
+			rt, err := parseImageRecordType(v)
+			if err != nil {
+				return nil, err
+			}
+			id.RecordType = rt
+		case pb.AttrImageLayerLimit:
+			l, err := strconv.Atoi(v)
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid layer limit %s", v)
+			}
+			if l <= 0 {
+				return nil, errors.Errorf("invalid layer limit %s", v)
+			}
+			id.LayerLimit = &l
+		}
+	}
+
+	return id, nil
+}
+
+func parseImageRecordType(v string) (client.UsageRecordType, error) {
+	switch client.UsageRecordType(v) {
+	case "", client.UsageRecordTypeRegular:
+		return client.UsageRecordTypeRegular, nil
+	case client.UsageRecordTypeInternal:
+		return client.UsageRecordTypeInternal, nil
+	case client.UsageRecordTypeFrontend:
+		return client.UsageRecordTypeFrontend, nil
+	default:
+		return "", errors.Errorf("invalid record type %s", v)
+	}
 }
 
 func (is *Source) resolveLocal(refStr string) (*image.Image, error) {
@@ -92,45 +171,51 @@ func (is *Source) resolveLocal(refStr string) (*image.Image, error) {
 	return img, nil
 }
 
+type resolveRemoteResult struct {
+	ref  string
+	dgst digest.Digest
+	dt   []byte
+}
+
 func (is *Source) resolveRemote(ctx context.Context, ref string, platform *ocispec.Platform, sm *session.Manager, g session.Group) (digest.Digest, []byte, error) {
-	type t struct {
-		dgst digest.Digest
-		dt   []byte
-	}
 	p := platforms.DefaultSpec()
 	if platform != nil {
 		p = *platform
 	}
 	// key is used to synchronize resolutions that can happen in parallel when doing multi-stage.
 	key := "getconfig::" + ref + "::" + platforms.Format(p)
-	res, err := is.g.Do(ctx, key, func(ctx context.Context) (interface{}, error) {
+	res, err := is.g.Do(ctx, key, func(ctx context.Context) (*resolveRemoteResult, error) {
 		res := resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, "pull", sm, g)
 		dgst, dt, err := imageutil.Config(ctx, ref, res, is.ContentStore, is.LeaseManager, platform)
 		if err != nil {
 			return nil, err
 		}
-		return &t{dgst: dgst, dt: dt}, nil
+		return &resolveRemoteResult{ref: ref, dgst: dgst, dt: dt}, nil
 	})
-	var typed *t
 	if err != nil {
 		return "", nil, err
 	}
-	typed = res.(*t)
-	return typed.dgst, typed.dt, nil
+	return res.dgst, res.dt, nil
 }
 
 // ResolveImageConfig returns image config for an image
-func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager, g session.Group) (digest.Digest, []byte, error) {
-	resolveMode, err := source.ParseImageResolveMode(opt.ResolveMode)
+func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt, sm *session.Manager, g session.Group) (digest.Digest, []byte, error) {
+	if opt.ImageOpt == nil {
+		return "", nil, fmt.Errorf("can only resolve an image: %v, opt: %v", ref, opt)
+	}
+	ref, err := applySourcePolicies(ctx, ref, opt.SourcePolicies)
+	if err != nil {
+		return "", nil, err
+	}
+	resolveMode, err := resolver.ParseImageResolveMode(opt.ImageOpt.ResolveMode)
 	if err != nil {
 		return "", nil, err
 	}
 	switch resolveMode {
-	case source.ResolveModeForcePull:
-		dgst, dt, err := is.resolveRemote(ctx, ref, opt.Platform, sm, g)
+	case resolver.ResolveModeForcePull:
+		return is.resolveRemote(ctx, ref, opt.Platform, sm, g)
 		// TODO: pull should fallback to local in case of failure to allow offline behavior
 		// the fallback doesn't work currently
-		return dgst, dt, err
 		/*
 			if err == nil {
 				return dgst, dt, err
@@ -140,14 +225,14 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 			return "", dt, err
 		*/
 
-	case source.ResolveModeDefault:
+	case resolver.ResolveModeDefault:
 		// default == prefer local, but in the future could be smarter
 		fallthrough
-	case source.ResolveModePreferLocal:
+	case resolver.ResolveModePreferLocal:
 		img, err := is.resolveLocal(ref)
 		if err == nil {
 			if opt.Platform != nil && !platformMatches(img, opt.Platform) {
-				logrus.WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, checking remote",
+				log.G(ctx).WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, checking remote",
 					path.Join(opt.Platform.OS, opt.Platform.Architecture, opt.Platform.Variant),
 					path.Join(img.OS, img.Architecture, img.Variant),
 				)
@@ -159,12 +244,12 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 		return is.resolveRemote(ctx, ref, opt.Platform, sm, g)
 	}
 	// should never happen
-	return "", nil, fmt.Errorf("builder cannot resolve image %s: invalid mode %q", ref, opt.ResolveMode)
+	return "", nil, fmt.Errorf("builder cannot resolve image %s: invalid mode %q", ref, opt.ImageOpt.ResolveMode)
 }
 
 // Resolve returns access to pulling for an identifier
 func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager, vtx solver.Vertex) (source.SourceInstance, error) {
-	imageIdentifier, ok := id.(*source.ImageIdentifier)
+	imageIdentifier, ok := id.(*containerimage.ImageIdentifier)
 	if !ok {
 		return nil, errors.Errorf("invalid image identifier %v", id)
 	}
@@ -177,7 +262,7 @@ func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session
 	p := &puller{
 		src: imageIdentifier,
 		is:  is,
-		//resolver: is.getResolver(is.RegistryHosts, imageIdentifier.Reference.String(), sm, g),
+		// resolver: is.getResolver(is.RegistryHosts, imageIdentifier.Reference.String(), sm, g),
 		platform: platform,
 		sm:       sm,
 	}
@@ -187,8 +272,8 @@ func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session
 type puller struct {
 	is               *Source
 	resolveLocalOnce sync.Once
-	g                flightcontrol.Group
-	src              *source.ImageIdentifier
+	g                flightcontrol.Group[struct{}]
+	src              *containerimage.ImageIdentifier
 	desc             ocispec.Descriptor
 	ref              string
 	config           []byte
@@ -240,12 +325,12 @@ func (p *puller) resolveLocal() {
 			}
 		}
 
-		if p.src.ResolveMode == source.ResolveModeDefault || p.src.ResolveMode == source.ResolveModePreferLocal {
+		if p.src.ResolveMode == resolver.ResolveModeDefault || p.src.ResolveMode == resolver.ResolveModePreferLocal {
 			ref := p.src.Reference.String()
 			img, err := p.is.resolveLocal(ref)
 			if err == nil {
 				if !platformMatches(img, &p.platform) {
-					logrus.WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, not resolving",
+					log.G(context.TODO()).WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, not resolving",
 						path.Join(p.platform.OS, p.platform.Architecture, p.platform.Variant),
 						path.Join(img.OS, img.Architecture, img.Variant),
 					)
@@ -258,7 +343,7 @@ func (p *puller) resolveLocal() {
 }
 
 func (p *puller) resolve(ctx context.Context, g session.Group) error {
-	_, err := p.g.Do(ctx, "", func(ctx context.Context) (_ interface{}, err error) {
+	_, err := p.g.Do(ctx, "", func(ctx context.Context) (_ struct{}, err error) {
 		resolveProgressDone := oneOffProgress(ctx, "resolve "+p.src.Reference.String())
 		defer func() {
 			resolveProgressDone(err)
@@ -266,13 +351,13 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 
 		ref, err := distreference.ParseNormalizedNamed(p.src.Reference.String())
 		if err != nil {
-			return nil, err
+			return struct{}{}, err
 		}
 
 		if p.desc.Digest == "" && p.config == nil {
 			origRef, desc, err := p.resolver(g).Resolve(ctx, ref.String())
 			if err != nil {
-				return nil, err
+				return struct{}{}, err
 			}
 
 			p.desc = desc
@@ -287,16 +372,22 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 		if p.config == nil && p.desc.MediaType != images.MediaTypeDockerSchema1Manifest {
 			ref, err := distreference.WithDigest(ref, p.desc.Digest)
 			if err != nil {
-				return nil, err
+				return struct{}{}, err
 			}
-			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), llb.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: resolveModeToString(p.src.ResolveMode)}, p.sm, g)
+			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), sourceresolver.Opt{
+				Platform: &p.platform,
+				ImageOpt: &sourceresolver.ResolveImageOpt{
+					ResolveMode: p.src.ResolveMode.String(),
+				},
+			}, p.sm, g)
 			if err != nil {
-				return nil, err
+				return struct{}{}, err
 			}
 
+			p.ref = ref.String()
 			p.config = dt
 		}
-		return nil, nil
+		return struct{}{}, nil
 	})
 	return err
 }
@@ -439,7 +530,6 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 		// TODO: Optimize to do dispatch and integrate pulling with download manager,
 		// leverage existing blob mapping and layer storage
 	} else {
-
 		// TODO: need a wrapper snapshot interface that combines content
 		// and snapshots as 1) buildkit shouldn't have a dependency on contentstore
 		// or 2) cachemanager should manage the contentstore
@@ -713,7 +803,7 @@ func showProgress(ctx context.Context, ongoing *jobs, cs content.Store, pw progr
 			if !j.done {
 				info, err := cs.Info(context.TODO(), j.Digest)
 				if err != nil {
-					if containerderrors.IsNotFound(err) {
+					if cerrdefs.IsNotFound(err) {
 						// _ = pw.Write(j.Digest.String(), progress.Status{
 						// 	Action: "waiting",
 						// })
@@ -829,27 +919,13 @@ func cacheKeyFromConfig(dt []byte) digest.Digest {
 	var img ocispec.Image
 	err := json.Unmarshal(dt, &img)
 	if err != nil {
-		logrus.WithError(err).Errorf("failed to unmarshal image config for cache key %v", err)
+		log.G(context.TODO()).WithError(err).Errorf("failed to unmarshal image config for cache key %v", err)
 		return digest.FromBytes(dt)
 	}
 	if img.RootFS.Type != "layers" || len(img.RootFS.DiffIDs) == 0 {
 		return ""
 	}
 	return identity.ChainID(img.RootFS.DiffIDs)
-}
-
-// resolveModeToString is the equivalent of github.com/moby/buildkit/solver/llb.ResolveMode.String()
-// FIXME: add String method on source.ResolveMode
-func resolveModeToString(rm source.ResolveMode) string {
-	switch rm {
-	case source.ResolveModeDefault:
-		return "default"
-	case source.ResolveModeForcePull:
-		return "pull"
-	case source.ResolveModePreferLocal:
-		return "local"
-	}
-	return ""
 }
 
 func platformMatches(img *image.Image, p *ocispec.Platform) bool {
@@ -860,4 +936,34 @@ func platformMatches(img *image.Image, p *ocispec.Platform) bool {
 		OSFeatures:   img.OSFeatures,
 		Variant:      img.Variant,
 	})
+}
+
+func applySourcePolicies(ctx context.Context, str string, spls []*spb.Policy) (string, error) {
+	ref, err := cdreference.Parse(str)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+	op := &pb.SourceOp{
+		Identifier: srctypes.DockerImageScheme + "://" + ref.String(),
+	}
+
+	mut, err := sourcepolicy.NewEngine(spls).Evaluate(ctx, op)
+	if err != nil {
+		return "", errors.Wrap(err, "could not resolve image due to policy")
+	}
+
+	if mut {
+		t, newRef, ok := strings.Cut(op.GetIdentifier(), "://")
+		if !ok {
+			return "", errors.Errorf("could not parse ref: %s", op.GetIdentifier())
+		}
+		if t != srctypes.DockerImageScheme {
+			return "", &imageutil.ResolveToNonImageError{Ref: str, Updated: newRef}
+		}
+		ref, err = cdreference.Parse(newRef)
+		if err != nil {
+			return "", errors.WithStack(err)
+		}
+	}
+	return ref.String(), nil
 }

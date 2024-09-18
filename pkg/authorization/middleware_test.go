@@ -43,7 +43,6 @@ func TestNewResponseModifier(t *testing.T) {
 	if recorder.Header().Get("H1") != "V1" {
 		t.Fatalf("Header value must exists %s", recorder.Header().Get("H1"))
 	}
-
 }
 
 func setAuthzPlugins(m *Middleware, plugins []Plugin) {

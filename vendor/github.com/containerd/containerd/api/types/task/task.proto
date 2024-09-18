@@ -18,20 +18,18 @@ syntax = "proto3";
 
 package containerd.v1.types;
 
-import weak "gogoproto/gogo.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/any.proto";
 
-enum Status {
-	option (gogoproto.goproto_enum_prefix) = false;
-	option (gogoproto.enum_customname) = "Status";
+option go_package = "github.com/containerd/containerd/api/types/task";
 
-	UNKNOWN = 0 [(gogoproto.enumvalue_customname) = "StatusUnknown"];
-	CREATED = 1 [(gogoproto.enumvalue_customname) = "StatusCreated"];
-	RUNNING = 2 [(gogoproto.enumvalue_customname) = "StatusRunning"];
-	STOPPED = 3 [(gogoproto.enumvalue_customname) = "StatusStopped"];
-	PAUSED = 4 [(gogoproto.enumvalue_customname) = "StatusPaused"];
-	PAUSING = 5 [(gogoproto.enumvalue_customname) = "StatusPausing"];
+enum Status {
+	UNKNOWN = 0;
+	CREATED = 1;
+	RUNNING = 2;
+	STOPPED = 3;
+	PAUSED = 4;
+	PAUSING = 5;
 }
 
 message Process {
@@ -44,7 +42,7 @@ message Process {
 	string stderr = 7;
 	bool terminal = 8;
 	uint32 exit_status = 9;
-	google.protobuf.Timestamp exited_at = 10 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp exited_at = 10;
 }
 
 message ProcessInfo {

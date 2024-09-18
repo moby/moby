@@ -3,6 +3,7 @@ package progress
 import (
 	"context"
 	"io"
+	"maps"
 	"sort"
 	"sync"
 	"time"
@@ -56,7 +57,7 @@ type WriterOption func(Writer)
 // NewContext returns a new context and a progress reader that captures all
 // progress items writtern to this context. Last returned parameter is a closer
 // function to signal that no new writes will happen to this context.
-func NewContext(ctx context.Context) (Reader, context.Context, func()) {
+func NewContext(ctx context.Context) (Reader, context.Context, func(error)) {
 	pr, pw, cancel := pipe()
 	ctx = WithProgress(ctx, pw)
 	return pr, ctx, cancel
@@ -118,12 +119,22 @@ func (pr *progressReader) Read(ctx context.Context) ([]*Progress, error) {
 	done := make(chan struct{})
 	defer close(done)
 	go func() {
-		select {
-		case <-done:
-		case <-ctx.Done():
-			pr.mu.Lock()
-			pr.cond.Broadcast()
-			pr.mu.Unlock()
+		prdone := pr.ctx.Done()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ctx.Done():
+				pr.mu.Lock()
+				pr.cond.Broadcast()
+				pr.mu.Unlock()
+				return
+			case <-prdone:
+				pr.mu.Lock()
+				pr.cond.Broadcast()
+				pr.mu.Unlock()
+				prdone = nil
+			}
 		}
 	}()
 	pr.mu.Lock()
@@ -131,7 +142,7 @@ func (pr *progressReader) Read(ctx context.Context) ([]*Progress, error) {
 		select {
 		case <-ctx.Done():
 			pr.mu.Unlock()
-			return nil, ctx.Err()
+			return nil, context.Cause(ctx)
 		default:
 		}
 		dmap := pr.dirty
@@ -175,8 +186,8 @@ func (pr *progressReader) append(pw *progressWriter) {
 	}
 }
 
-func pipe() (*progressReader, *progressWriter, func()) {
-	ctx, cancel := context.WithCancel(context.Background())
+func pipe() (*progressReader, *progressWriter, func(error)) {
+	ctx, cancel := context.WithCancelCause(context.Background())
 	pr := &progressReader{
 		ctx:     ctx,
 		writers: make(map[*progressWriter]struct{}),
@@ -197,9 +208,7 @@ func pipe() (*progressReader, *progressWriter, func()) {
 
 func newWriter(pw *progressWriter) *progressWriter {
 	meta := make(map[string]interface{})
-	for k, v := range pw.meta {
-		meta[k] = v
-	}
+	maps.Copy(meta, pw.meta)
 	pw = &progressWriter{
 		reader: pw.reader,
 		meta:   meta,
@@ -230,9 +239,7 @@ func (pw *progressWriter) WriteRawProgress(p *Progress) error {
 	meta := p.meta
 	if len(pw.meta) > 0 {
 		meta = map[string]interface{}{}
-		for k, v := range p.meta {
-			meta[k] = v
-		}
+		maps.Copy(meta, p.meta)
 		for k, v := range pw.meta {
 			if _, ok := meta[k]; !ok {
 				meta[k] = v
@@ -273,4 +280,21 @@ func (pw *noOpWriter) Write(_ string, _ interface{}) error {
 
 func (pw *noOpWriter) Close() error {
 	return nil
+}
+
+func OneOff(ctx context.Context, id string) func(err error) error {
+	pw, _, _ := NewFromContext(ctx)
+	now := time.Now()
+	st := Status{
+		Started: &now,
+	}
+	pw.Write(id, st)
+	return func(err error) error {
+		// TODO: set error on status
+		now := time.Now()
+		st.Completed = &now
+		pw.Write(id, st)
+		pw.Close()
+		return err
+	}
 }

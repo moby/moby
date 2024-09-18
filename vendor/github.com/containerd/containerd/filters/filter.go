@@ -65,13 +65,12 @@
 // ```
 // name==foo,labels.bar
 // ```
-//
 package filters
 
 import (
 	"regexp"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 // Filter matches specific resources based the provided filter

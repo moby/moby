@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/cmd/dockerd/trap"
-	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -18,7 +17,7 @@ func main() {
 	trap.Trap(func() {
 		time.Sleep(time.Second)
 		os.Exit(99)
-	}, logrus.StandardLogger())
+	})
 	go func() {
 		p, err := os.FindProcess(os.Getpid())
 		if err != nil {

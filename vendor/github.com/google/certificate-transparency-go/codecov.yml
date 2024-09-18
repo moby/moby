@@ -1,0 +1,19 @@
+# Customizations to codecov for c-t-go repo. This will be merged into
+# the team / default codecov yaml file.
+#
+# Validate changes with:
+# curl --data-binary @codecov.yml https://codecov.io/validate
+
+# Exclude code that's for testing, demos or utilities that aren't really
+# part of production releases.
+ignore:
+  - "**/mock_*.go"
+  - "**/testonly"
+  - "trillian/integration"
+
+coverage:
+  status:
+    project:
+      default:
+        # Allow 1% coverage drop without complaining, to avoid being too noisy.
+        threshold: 1%

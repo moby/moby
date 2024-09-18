@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,9 +17,7 @@ package ct
 import (
 	"crypto"
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/google/certificate-transparency-go/tls"
@@ -46,8 +44,6 @@ func SerializeSCTSignatureInput(sct SignedCertificateTimestamp, entry LogEntry) 
 				IssuerKeyHash:  entry.Leaf.TimestampedEntry.PrecertEntry.IssuerKeyHash,
 				TBSCertificate: entry.Leaf.TimestampedEntry.PrecertEntry.TBSCertificate,
 			}
-		case XJSONLogEntryType:
-			input.JSONEntry = entry.Leaf.TimestampedEntry.JSONEntry
 		default:
 			return nil, fmt.Errorf("unsupported entry type %s", entry.Leaf.TimestampedEntry.EntryType)
 		}
@@ -92,32 +88,6 @@ func CreateX509MerkleTreeLeaf(cert ASN1Cert, timestamp uint64) *MerkleTreeLeaf {
 	}
 }
 
-// CreateJSONMerkleTreeLeaf creates the merkle tree leaf for json data.
-func CreateJSONMerkleTreeLeaf(data interface{}, timestamp uint64) *MerkleTreeLeaf {
-	jsonData, err := json.Marshal(AddJSONRequest{Data: data})
-	if err != nil {
-		return nil
-	}
-	// Match the JSON serialization implemented by json-c
-	jsonStr := strings.Replace(string(jsonData), ":", ": ", -1)
-	jsonStr = strings.Replace(jsonStr, ",", ", ", -1)
-	jsonStr = strings.Replace(jsonStr, "{", "{ ", -1)
-	jsonStr = strings.Replace(jsonStr, "}", " }", -1)
-	jsonStr = strings.Replace(jsonStr, "/", `\/`, -1)
-	// TODO: Pending google/certificate-transparency#1243, replace with
-	// ObjectHash once supported by CT server.
-
-	return &MerkleTreeLeaf{
-		Version:  V1,
-		LeafType: TimestampedEntryLeafType,
-		TimestampedEntry: &TimestampedEntry{
-			Timestamp: timestamp,
-			EntryType: XJSONLogEntryType,
-			JSONEntry: &JSONDataEntry{Data: []byte(jsonStr)},
-		},
-	}
-}
-
 // MerkleTreeLeafFromRawChain generates a MerkleTreeLeaf from a chain (in DER-encoded form) and timestamp.
 func MerkleTreeLeafFromRawChain(rawChain []ASN1Cert, etype LogEntryType, timestamp uint64) (*MerkleTreeLeaf, error) {
 	// Need at most 3 of the chain
@@ -128,7 +98,7 @@ func MerkleTreeLeafFromRawChain(rawChain []ASN1Cert, etype LogEntryType, timesta
 	chain := make([]*x509.Certificate, count)
 	for i := range chain {
 		cert, err := x509.ParseCertificate(rawChain[i].Data)
-		if err != nil {
+		if x509.IsFatal(err) {
 			return nil, fmt.Errorf("failed to parse chain[%d] cert: %v", i, err)
 		}
 		chain[i] = cert
@@ -248,58 +218,94 @@ func IsPreIssuer(issuer *x509.Certificate) bool {
 	return false
 }
 
-// LogEntryFromLeaf converts a LeafEntry object (which has the raw leaf data after JSON parsing)
-// into a LogEntry object (which includes x509.Certificate objects, after TLS and ASN.1 parsing).
-// Note that this function may return a valid LogEntry object and a non-nil error value, when
-// the error indicates a non-fatal parsing error (of type x509.NonFatalErrors).
-func LogEntryFromLeaf(index int64, leafEntry *LeafEntry) (*LogEntry, error) {
-	var leaf MerkleTreeLeaf
-	if rest, err := tls.Unmarshal(leafEntry.LeafInput, &leaf); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal MerkleTreeLeaf for index %d: %v", index, err)
+// RawLogEntryFromLeaf converts a LeafEntry object (which has the raw leaf data
+// after JSON parsing) into a RawLogEntry object (i.e. a TLS-parsed structure).
+func RawLogEntryFromLeaf(index int64, entry *LeafEntry) (*RawLogEntry, error) {
+	ret := RawLogEntry{Index: index}
+	if rest, err := tls.Unmarshal(entry.LeafInput, &ret.Leaf); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal MerkleTreeLeaf: %v", err)
 	} else if len(rest) > 0 {
-		return nil, fmt.Errorf("trailing data (%d bytes) after MerkleTreeLeaf for index %d", len(rest), index)
+		return nil, fmt.Errorf("MerkleTreeLeaf: trailing data %d bytes", len(rest))
 	}
 
-	var err error
-	entry := LogEntry{Index: index, Leaf: leaf}
-	switch leaf.TimestampedEntry.EntryType {
+	switch eType := ret.Leaf.TimestampedEntry.EntryType; eType {
 	case X509LogEntryType:
 		var certChain CertificateChain
-		if rest, err := tls.Unmarshal(leafEntry.ExtraData, &certChain); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal ExtraData for index %d: %v", index, err)
+		if rest, err := tls.Unmarshal(entry.ExtraData, &certChain); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal CertificateChain: %v", err)
 		} else if len(rest) > 0 {
-			return nil, fmt.Errorf("trailing data (%d bytes) after CertificateChain for index %d", len(rest), index)
+			return nil, fmt.Errorf("CertificateChain: trailing data %d bytes", len(rest))
 		}
-		entry.Chain = certChain.Entries
-		entry.X509Cert, err = leaf.X509Certificate()
-		if _, ok := err.(x509.NonFatalErrors); !ok && err != nil {
-			return nil, fmt.Errorf("failed to parse certificate in MerkleTreeLeaf for index %d: %v", index, err)
-		}
+		ret.Cert = *ret.Leaf.TimestampedEntry.X509Entry
+		ret.Chain = certChain.Entries
 
 	case PrecertLogEntryType:
 		var precertChain PrecertChainEntry
-		if rest, err := tls.Unmarshal(leafEntry.ExtraData, &precertChain); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal PrecertChainEntry for index %d: %v", index, err)
+		if rest, err := tls.Unmarshal(entry.ExtraData, &precertChain); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal PrecertChainEntry: %v", err)
 		} else if len(rest) > 0 {
-			return nil, fmt.Errorf("trailing data (%d bytes) after PrecertChainEntry for index %d", len(rest), index)
+			return nil, fmt.Errorf("PrecertChainEntry: trailing data %d bytes", len(rest))
 		}
-		entry.Chain = precertChain.CertificateChain
+		ret.Cert = precertChain.PreCertificate
+		ret.Chain = precertChain.CertificateChain
+
+	default:
+		// TODO(pavelkalinnikov): Section 4.6 of RFC6962 implies that unknown types
+		// are not errors. We should revisit how we process this case.
+		return nil, fmt.Errorf("unknown entry type: %v", eType)
+	}
+
+	return &ret, nil
+}
+
+// ToLogEntry converts RawLogEntry to a LogEntry, which includes an x509-parsed
+// (pre-)certificate.
+//
+// Note that this function may return a valid LogEntry object and a non-nil
+// error value, when the error indicates a non-fatal parsing error.
+func (rle *RawLogEntry) ToLogEntry() (*LogEntry, error) {
+	var err error
+	entry := LogEntry{Index: rle.Index, Leaf: rle.Leaf, Chain: rle.Chain}
+
+	switch eType := rle.Leaf.TimestampedEntry.EntryType; eType {
+	case X509LogEntryType:
+		entry.X509Cert, err = rle.Leaf.X509Certificate()
+		if x509.IsFatal(err) {
+			return nil, fmt.Errorf("failed to parse certificate: %v", err)
+		}
+
+	case PrecertLogEntryType:
 		var tbsCert *x509.Certificate
-		tbsCert, err = leaf.Precertificate()
-		if _, ok := err.(x509.NonFatalErrors); !ok && err != nil {
-			return nil, fmt.Errorf("failed to parse precertificate in MerkleTreeLeaf for index %d: %v", index, err)
+		tbsCert, err = rle.Leaf.Precertificate()
+		if x509.IsFatal(err) {
+			return nil, fmt.Errorf("failed to parse precertificate: %v", err)
 		}
 		entry.Precert = &Precertificate{
-			Submitted:      precertChain.PreCertificate,
-			IssuerKeyHash:  leaf.TimestampedEntry.PrecertEntry.IssuerKeyHash,
+			Submitted:      rle.Cert,
+			IssuerKeyHash:  rle.Leaf.TimestampedEntry.PrecertEntry.IssuerKeyHash,
 			TBSCertificate: tbsCert,
 		}
 
 	default:
-		return nil, fmt.Errorf("saw unknown entry type at index %d: %v", index, leaf.TimestampedEntry.EntryType)
+		return nil, fmt.Errorf("unknown entry type: %v", eType)
 	}
-	// err may hold a x509.NonFatalErrors object.
+
+	// err may be non-nil for a non-fatal error.
 	return &entry, err
+}
+
+// LogEntryFromLeaf converts a LeafEntry object (which has the raw leaf data
+// after JSON parsing) into a LogEntry object (which includes x509.Certificate
+// objects, after TLS and ASN.1 parsing).
+//
+// Note that this function may return a valid LogEntry object and a non-nil
+// error value, when the error indicates a non-fatal parsing error.
+func LogEntryFromLeaf(index int64, leaf *LeafEntry) (*LogEntry, error) {
+	rle, err := RawLogEntryFromLeaf(index, leaf)
+	if err != nil {
+		return nil, err
+	}
+	return rle.ToLogEntry()
 }
 
 // TimestampToTime converts a timestamp in the style of RFC 6962 (milliseconds

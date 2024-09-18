@@ -4,9 +4,21 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/pkg/ioutils"
 )
+
+// convertKVStringsToMap converts ["key=value"] to {"key":"value"}
+func convertKVStringsToMap(values []string) map[string]string {
+	result := make(map[string]string, len(values))
+	for _, value := range values {
+		k, v, _ := strings.Cut(value, "=")
+		result[k] = v
+	}
+
+	return result
+}
 
 func loadPersistentState(root string) (*nodeStartConfig, error) {
 	dt, err := os.ReadFile(filepath.Join(root, stateFile))
@@ -32,7 +44,7 @@ func savePersistentState(root string, config nodeStartConfig) error {
 	if err != nil {
 		return err
 	}
-	return ioutils.AtomicWriteFile(filepath.Join(root, stateFile), dt, 0600)
+	return ioutils.AtomicWriteFile(filepath.Join(root, stateFile), dt, 0o600)
 }
 
 func clearPersistentState(root string) error {

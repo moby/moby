@@ -1,11 +1,9 @@
-package reexec // import "github.com/docker/docker/pkg/reexec"
+package reexec
 
 import (
 	"os"
 	"os/exec"
 	"testing"
-
-	"gotest.tools/v3/assert"
 )
 
 func init() {
@@ -18,7 +16,10 @@ func init() {
 func TestRegister(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
-			assert.Equal(t, `reexec func already registered under name "reexec"`, r)
+			const expected = `reexec func already registered under name "reexec"`
+			if r != expected {
+				t.Errorf("got %q, want %q", r, expected)
+			}
 		}
 	}()
 	Register("reexec", func() {})
@@ -27,13 +28,20 @@ func TestRegister(t *testing.T) {
 func TestCommand(t *testing.T) {
 	cmd := Command("reexec")
 	w, err := cmd.StdinPipe()
-	assert.NilError(t, err, "Error on pipe creation: %v", err)
+	if err != nil {
+		t.Fatalf("Error on pipe creation: %v", err)
+	}
 	defer w.Close()
 
 	err = cmd.Start()
-	assert.NilError(t, err, "Error on re-exec cmd: %v", err)
+	if err != nil {
+		t.Fatalf("Error on re-exec cmd: %v", err)
+	}
 	err = cmd.Wait()
-	assert.Error(t, err, "exit status 2")
+	const expected = "exit status 2"
+	if err == nil || err.Error() != expected {
+		t.Fatalf("got %v, want %v", err, expected)
+	}
 }
 
 func TestNaiveSelf(t *testing.T) {
@@ -43,10 +51,17 @@ func TestNaiveSelf(t *testing.T) {
 	cmd := exec.Command(naiveSelf(), "-test.run=TestNaiveSelf")
 	cmd.Env = append(os.Environ(), "TEST_CHECK=1")
 	err := cmd.Start()
-	assert.NilError(t, err, "Unable to start command")
+	if err != nil {
+		t.Fatalf("Unable to start command: %v", err)
+	}
 	err = cmd.Wait()
-	assert.Error(t, err, "exit status 2")
+	const expected = "exit status 2"
+	if err == nil || err.Error() != expected {
+		t.Fatalf("got %v, want %v", err, expected)
+	}
 
 	os.Args[0] = "mkdir"
-	assert.Check(t, naiveSelf() != os.Args[0])
+	if naiveSelf() == os.Args[0] {
+		t.Fatalf("Expected naiveSelf to resolve the location of mkdir")
+	}
 }

@@ -8,15 +8,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
+	"time"
 
 	"cloud.google.com/go/compute/metadata"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/authhandler"
+)
+
+const (
+	adcSetupURL           = "https://cloud.google.com/docs/authentication/external/set-up-adc"
+	defaultUniverseDomain = "googleapis.com"
 )
 
 // Credentials holds Google credentials, including "Application Default Credentials".
@@ -35,6 +41,64 @@ type Credentials struct {
 	// environment and not with a credentials file, e.g. when code is
 	// running on Google Cloud Platform.
 	JSON []byte
+
+	// UniverseDomainProvider returns the default service domain for a given
+	// Cloud universe. Optional.
+	//
+	// On GCE, UniverseDomainProvider should return the universe domain value
+	// from Google Compute Engine (GCE)'s metadata server. See also [The attached service
+	// account](https://cloud.google.com/docs/authentication/application-default-credentials#attached-sa).
+	// If the GCE metadata server returns a 404 error, the default universe
+	// domain value should be returned. If the GCE metadata server returns an
+	// error other than 404, the error should be returned.
+	UniverseDomainProvider func() (string, error)
+
+	udMu sync.Mutex // guards universeDomain
+	// universeDomain is the default service domain for a given Cloud universe.
+	universeDomain string
+}
+
+// UniverseDomain returns the default service domain for a given Cloud universe.
+//
+// The default value is "googleapis.com".
+//
+// Deprecated: Use instead (*Credentials).GetUniverseDomain(), which supports
+// obtaining the universe domain when authenticating via the GCE metadata server.
+// Unlike GetUniverseDomain, this method, UniverseDomain, will always return the
+// default value when authenticating via the GCE metadata server.
+// See also [The attached service account](https://cloud.google.com/docs/authentication/application-default-credentials#attached-sa).
+func (c *Credentials) UniverseDomain() string {
+	if c.universeDomain == "" {
+		return defaultUniverseDomain
+	}
+	return c.universeDomain
+}
+
+// GetUniverseDomain returns the default service domain for a given Cloud
+// universe. If present, UniverseDomainProvider will be invoked and its return
+// value will be cached.
+//
+// The default value is "googleapis.com".
+func (c *Credentials) GetUniverseDomain() (string, error) {
+	c.udMu.Lock()
+	defer c.udMu.Unlock()
+	if c.universeDomain == "" && c.UniverseDomainProvider != nil {
+		// On Google Compute Engine, an App Engine standard second generation
+		// runtime, or App Engine flexible, use an externally provided function
+		// to request the universe domain from the metadata server.
+		ud, err := c.UniverseDomainProvider()
+		if err != nil {
+			return "", err
+		}
+		c.universeDomain = ud
+	}
+	// If no UniverseDomainProvider (meaning not on Google Compute Engine), or
+	// in case of any (non-error) empty return value from
+	// UniverseDomainProvider, set the default universe domain.
+	if c.universeDomain == "" {
+		c.universeDomain = defaultUniverseDomain
+	}
+	return c.universeDomain, nil
 }
 
 // DefaultCredentials is the old name of Credentials.
@@ -54,11 +118,32 @@ type CredentialsParams struct {
 	// Optional.
 	Subject string
 
-	// AuthHandler is the AuthorizationHandler used for 3-legged OAuth flow. Optional.
+	// AuthHandler is the AuthorizationHandler used for 3-legged OAuth flow. Required for 3LO flow.
 	AuthHandler authhandler.AuthorizationHandler
 
-	// State is a unique string used with AuthHandler. Optional.
+	// State is a unique string used with AuthHandler. Required for 3LO flow.
 	State string
+
+	// PKCE is used to support PKCE flow. Optional for 3LO flow.
+	PKCE *authhandler.PKCEParams
+
+	// The OAuth2 TokenURL default override. This value overrides the default TokenURL,
+	// unless explicitly specified by the credentials config file. Optional.
+	TokenURL string
+
+	// EarlyTokenRefresh is the amount of time before a token expires that a new
+	// token will be preemptively fetched. If unset the default value is 10
+	// seconds.
+	//
+	// Note: This option is currently only respected when using credentials
+	// fetched from the GCE metadata server.
+	EarlyTokenRefresh time.Duration
+
+	// UniverseDomain is the default service domain for a given Cloud universe.
+	// Only supported in authentication flows that support universe domains.
+	// This value takes precedence over a universe domain explicitly specified
+	// in a credentials config file or by the GCE metadata server. Optional.
+	UniverseDomain string
 }
 
 func (params CredentialsParams) deepCopy() CredentialsParams {
@@ -94,20 +179,18 @@ func DefaultTokenSource(ctx context.Context, scope ...string) (oauth2.TokenSourc
 // It looks for credentials in the following places,
 // preferring the first location found:
 //
-//   1. A JSON file whose path is specified by the
-//      GOOGLE_APPLICATION_CREDENTIALS environment variable.
-//      For workload identity federation, refer to
-//      https://cloud.google.com/iam/docs/how-to#using-workload-identity-federation on
-//      how to generate the JSON configuration file for on-prem/non-Google cloud
-//      platforms.
-//   2. A JSON file in a location known to the gcloud command-line tool.
-//      On Windows, this is %APPDATA%/gcloud/application_default_credentials.json.
-//      On other systems, $HOME/.config/gcloud/application_default_credentials.json.
-//   3. On Google App Engine standard first generation runtimes (<= Go 1.9) it uses
-//      the appengine.AccessToken function.
-//   4. On Google Compute Engine, Google App Engine standard second generation runtimes
-//      (>= Go 1.11), and Google App Engine flexible environment, it fetches
-//      credentials from the metadata server.
+//  1. A JSON file whose path is specified by the
+//     GOOGLE_APPLICATION_CREDENTIALS environment variable.
+//     For workload identity federation, refer to
+//     https://cloud.google.com/iam/docs/how-to#using-workload-identity-federation on
+//     how to generate the JSON configuration file for on-prem/non-Google cloud
+//     platforms.
+//  2. A JSON file in a location known to the gcloud command-line tool.
+//     On Windows, this is %APPDATA%/gcloud/application_default_credentials.json.
+//     On other systems, $HOME/.config/gcloud/application_default_credentials.json.
+//  3. On Google Compute Engine, Google App Engine standard second generation runtimes
+//     (>= Go 1.11), and Google App Engine flexible environment, it fetches
+//     credentials from the metadata server.
 func FindDefaultCredentialsWithParams(ctx context.Context, params CredentialsParams) (*Credentials, error) {
 	// Make defensive copy of the slices in params.
 	params = params.deepCopy()
@@ -124,35 +207,36 @@ func FindDefaultCredentialsWithParams(ctx context.Context, params CredentialsPar
 
 	// Second, try a well-known file.
 	filename := wellKnownFile()
-	if creds, err := readCredentialsFile(ctx, filename, params); err == nil {
-		return creds, nil
-	} else if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("google: error getting credentials using well-known file (%v): %v", filename, err)
+	if b, err := os.ReadFile(filename); err == nil {
+		return CredentialsFromJSONWithParams(ctx, b, params)
 	}
 
-	// Third, if we're on a Google App Engine standard first generation runtime (<= Go 1.9)
-	// use those credentials. App Engine standard second generation runtimes (>= Go 1.11)
-	// and App Engine flexible use ComputeTokenSource and the metadata server.
-	if appengineTokenFunc != nil {
-		return &DefaultCredentials{
-			ProjectID:   appengineAppIDFunc(ctx),
-			TokenSource: AppEngineTokenSource(ctx, params.Scopes...),
-		}, nil
-	}
-
-	// Fourth, if we're on Google Compute Engine, an App Engine standard second generation runtime,
+	// Third, if we're on Google Compute Engine, an App Engine standard second generation runtime,
 	// or App Engine flexible, use the metadata server.
 	if metadata.OnGCE() {
 		id, _ := metadata.ProjectID()
-		return &DefaultCredentials{
-			ProjectID:   id,
-			TokenSource: ComputeTokenSource("", params.Scopes...),
+		universeDomainProvider := func() (string, error) {
+			universeDomain, err := metadata.Get("universe/universe_domain")
+			if err != nil {
+				if _, ok := err.(metadata.NotDefinedError); ok {
+					// http.StatusNotFound (404)
+					return defaultUniverseDomain, nil
+				} else {
+					return "", err
+				}
+			}
+			return universeDomain, nil
+		}
+		return &Credentials{
+			ProjectID:              id,
+			TokenSource:            computeTokenSource("", params.EarlyTokenRefresh, params.Scopes...),
+			UniverseDomainProvider: universeDomainProvider,
+			universeDomain:         params.UniverseDomain,
 		}, nil
 	}
 
 	// None are found; return helpful error.
-	const url = "https://developers.google.com/accounts/docs/application-default-credentials"
-	return nil, fmt.Errorf("google: could not find default credentials. See %v for more information.", url)
+	return nil, fmt.Errorf("google: could not find default credentials. See %v for more information", adcSetupURL)
 }
 
 // FindDefaultCredentials invokes FindDefaultCredentialsWithParams with the specified scopes.
@@ -176,7 +260,7 @@ func CredentialsFromJSONWithParams(ctx context.Context, jsonData []byte, params 
 	if config != nil {
 		return &Credentials{
 			ProjectID:   "",
-			TokenSource: authhandler.TokenSource(ctx, config, params.State, params.AuthHandler),
+			TokenSource: authhandler.TokenSourceWithPKCE(ctx, config, params.State, params.AuthHandler, params.PKCE),
 			JSON:        jsonData,
 		}, nil
 	}
@@ -186,14 +270,26 @@ func CredentialsFromJSONWithParams(ctx context.Context, jsonData []byte, params 
 	if err := json.Unmarshal(jsonData, &f); err != nil {
 		return nil, err
 	}
+
+	universeDomain := f.UniverseDomain
+	if params.UniverseDomain != "" {
+		universeDomain = params.UniverseDomain
+	}
+	// Authorized user credentials are only supported in the googleapis.com universe.
+	if f.Type == userCredentialsKey {
+		universeDomain = defaultUniverseDomain
+	}
+
 	ts, err := f.tokenSource(ctx, params)
 	if err != nil {
 		return nil, err
 	}
-	return &DefaultCredentials{
-		ProjectID:   f.ProjectID,
-		TokenSource: ts,
-		JSON:        jsonData,
+	ts = newErrWrappingTokenSource(ts)
+	return &Credentials{
+		ProjectID:      f.ProjectID,
+		TokenSource:    ts,
+		JSON:           jsonData,
+		universeDomain: universeDomain,
 	}, nil
 }
 
@@ -212,8 +308,8 @@ func wellKnownFile() string {
 	return filepath.Join(guessUnixHomeDir(), ".config", "gcloud", f)
 }
 
-func readCredentialsFile(ctx context.Context, filename string, params CredentialsParams) (*DefaultCredentials, error) {
-	b, err := ioutil.ReadFile(filename)
+func readCredentialsFile(ctx context.Context, filename string, params CredentialsParams) (*Credentials, error) {
+	b, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}

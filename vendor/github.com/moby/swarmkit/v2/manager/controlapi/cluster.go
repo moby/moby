@@ -119,7 +119,7 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 		}
 		// This ensures that we have the current rootCA with which to generate tokens (expiration doesn't matter
 		// for generating the tokens)
-		rootCA, err := ca.RootCAFromAPI(ctx, &cluster.RootCA, ca.DefaultNodeCertExpiration)
+		rootCA, err := ca.RootCAFromAPI(&cluster.RootCA, ca.DefaultNodeCertExpiration)
 		if err != nil {
 			log.G(ctx).WithField(
 				"method", "(*controlapi.Server).UpdateCluster").WithError(err).Error("invalid cluster root CA")

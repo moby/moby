@@ -1,17 +1,18 @@
 package convert // import "github.com/docker/docker/daemon/cluster/convert"
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	types "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/go-units"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
@@ -41,6 +42,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 		CapabilityAdd:  c.CapabilityAdd,
 		CapabilityDrop: c.CapabilityDrop,
 		Ulimits:        ulimitsFromGRPC(c.Ulimits),
+		OomScoreAdj:    c.OomScoreAdj,
 	}
 
 	if c.DNSConfig != nil {
@@ -68,6 +70,34 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 				Level:   c.Privileges.SELinuxContext.Level,
 			}
 		}
+
+		if c.Privileges.Seccomp != nil {
+			containerSpec.Privileges.Seccomp = &types.SeccompOpts{
+				Profile: c.Privileges.Seccomp.Profile,
+			}
+
+			switch c.Privileges.Seccomp.Mode {
+			case swarmapi.Privileges_SeccompOpts_DEFAULT:
+				containerSpec.Privileges.Seccomp.Mode = types.SeccompModeDefault
+			case swarmapi.Privileges_SeccompOpts_UNCONFINED:
+				containerSpec.Privileges.Seccomp.Mode = types.SeccompModeUnconfined
+			case swarmapi.Privileges_SeccompOpts_CUSTOM:
+				containerSpec.Privileges.Seccomp.Mode = types.SeccompModeCustom
+			}
+		}
+
+		if c.Privileges.Apparmor != nil {
+			containerSpec.Privileges.AppArmor = &types.AppArmorOpts{}
+
+			switch c.Privileges.Apparmor.Mode {
+			case swarmapi.Privileges_AppArmorOpts_DEFAULT:
+				containerSpec.Privileges.AppArmor.Mode = types.AppArmorModeDefault
+			case swarmapi.Privileges_AppArmorOpts_DISABLED:
+				containerSpec.Privileges.AppArmor.Mode = types.AppArmorModeDisabled
+			}
+		}
+
+		containerSpec.Privileges.NoNewPrivileges = c.Privileges.NoNewPrivileges
 	}
 
 	// Mounts
@@ -81,15 +111,19 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 
 		if m.BindOptions != nil {
 			mount.BindOptions = &mounttypes.BindOptions{
-				Propagation:  mounttypes.Propagation(strings.ToLower(swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)])),
-				NonRecursive: m.BindOptions.NonRecursive,
+				Propagation:            mounttypes.Propagation(strings.ToLower(swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)])),
+				NonRecursive:           m.BindOptions.NonRecursive,
+				CreateMountpoint:       m.BindOptions.CreateMountpoint,
+				ReadOnlyNonRecursive:   m.BindOptions.ReadOnlyNonRecursive,
+				ReadOnlyForceRecursive: m.BindOptions.ReadOnlyForceRecursive,
 			}
 		}
 
 		if m.VolumeOptions != nil {
 			mount.VolumeOptions = &mounttypes.VolumeOptions{
-				NoCopy: m.VolumeOptions.NoCopy,
-				Labels: m.VolumeOptions.Labels,
+				NoCopy:  m.VolumeOptions.NoCopy,
+				Labels:  m.VolumeOptions.Labels,
+				Subpath: m.VolumeOptions.Subpath,
 			}
 			if m.VolumeOptions.DriverConfig != nil {
 				mount.VolumeOptions.DriverConfig = &mounttypes.Driver{
@@ -103,6 +137,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 			mount.TmpfsOptions = &mounttypes.TmpfsOptions{
 				SizeBytes: m.TmpfsOptions.SizeBytes,
 				Mode:      m.TmpfsOptions.Mode,
+				Options:   tmpfsOptionsFromGRPC(m.TmpfsOptions.Options),
 			}
 		}
 		containerSpec.Mounts = append(containerSpec.Mounts, mount)
@@ -165,7 +200,7 @@ func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretRef
 		target := s.GetFile()
 		if target == nil {
 			// not a file target
-			logrus.Warnf("secret target not a file: secret=%s", s.SecretID)
+			log.G(context.TODO()).Warnf("secret target not a file: secret=%s", s.SecretID)
 			continue
 		}
 		refs = append(refs, &types.SecretReference{
@@ -222,7 +257,6 @@ func configReferencesToGRPC(sr []*types.ConfigReference) ([]*swarmapi.ConfigRefe
 func configReferencesFromGRPC(sr []*swarmapi.ConfigReference) []*types.ConfigReference {
 	refs := make([]*types.ConfigReference, 0, len(sr))
 	for _, s := range sr {
-
 		r := &types.ConfigReference{
 			ConfigID:   s.ConfigID,
 			ConfigName: s.ConfigName,
@@ -238,7 +272,7 @@ func configReferencesFromGRPC(sr []*swarmapi.ConfigReference) []*types.ConfigRef
 			}
 		} else {
 			// not a file target
-			logrus.Warnf("config target not known: config=%s", s.ConfigID)
+			log.G(context.TODO()).Warnf("config target not known: config=%s", s.ConfigID)
 			continue
 		}
 		refs = append(refs, r)
@@ -270,6 +304,7 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		CapabilityAdd:  c.CapabilityAdd,
 		CapabilityDrop: c.CapabilityDrop,
 		Ulimits:        ulimitsToGRPC(c.Ulimits),
+		OomScoreAdj:    c.OomScoreAdj,
 	}
 
 	if c.DNSConfig != nil {
@@ -305,6 +340,34 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 				Level:   c.Privileges.SELinuxContext.Level,
 			}
 		}
+
+		if c.Privileges.Seccomp != nil {
+			containerSpec.Privileges.Seccomp = &swarmapi.Privileges_SeccompOpts{
+				Profile: c.Privileges.Seccomp.Profile,
+			}
+
+			switch c.Privileges.Seccomp.Mode {
+			case types.SeccompModeDefault:
+				containerSpec.Privileges.Seccomp.Mode = swarmapi.Privileges_SeccompOpts_DEFAULT
+			case types.SeccompModeUnconfined:
+				containerSpec.Privileges.Seccomp.Mode = swarmapi.Privileges_SeccompOpts_UNCONFINED
+			case types.SeccompModeCustom:
+				containerSpec.Privileges.Seccomp.Mode = swarmapi.Privileges_SeccompOpts_CUSTOM
+			}
+		}
+
+		if c.Privileges.AppArmor != nil {
+			containerSpec.Privileges.Apparmor = &swarmapi.Privileges_AppArmorOpts{}
+
+			switch c.Privileges.AppArmor.Mode {
+			case types.AppArmorModeDefault:
+				containerSpec.Privileges.Apparmor.Mode = swarmapi.Privileges_AppArmorOpts_DEFAULT
+			case types.AppArmorModeDisabled:
+				containerSpec.Privileges.Apparmor.Mode = swarmapi.Privileges_AppArmorOpts_DISABLED
+			}
+		}
+
+		containerSpec.Privileges.NoNewPrivileges = c.Privileges.NoNewPrivileges
 	}
 
 	if c.Configs != nil {
@@ -347,8 +410,9 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 
 		if m.VolumeOptions != nil {
 			mount.VolumeOptions = &swarmapi.Mount_VolumeOptions{
-				NoCopy: m.VolumeOptions.NoCopy,
-				Labels: m.VolumeOptions.Labels,
+				NoCopy:  m.VolumeOptions.NoCopy,
+				Labels:  m.VolumeOptions.Labels,
+				Subpath: m.VolumeOptions.Subpath,
 			}
 			if m.VolumeOptions.DriverConfig != nil {
 				mount.VolumeOptions.DriverConfig = &swarmapi.Driver{
@@ -362,6 +426,7 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 			mount.TmpfsOptions = &swarmapi.Mount_TmpfsOptions{
 				SizeBytes: m.TmpfsOptions.SizeBytes,
 				Mode:      m.TmpfsOptions.Mode,
+				Options:   tmpfsOptionsToGRPC(m.TmpfsOptions.Options),
 			}
 		}
 
@@ -433,22 +498,25 @@ func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
 	interval, _ := gogotypes.DurationFromProto(h.Interval)
 	timeout, _ := gogotypes.DurationFromProto(h.Timeout)
 	startPeriod, _ := gogotypes.DurationFromProto(h.StartPeriod)
+	startInterval, _ := gogotypes.DurationFromProto(h.StartInterval)
 	return &container.HealthConfig{
-		Test:        h.Test,
-		Interval:    interval,
-		Timeout:     timeout,
-		Retries:     int(h.Retries),
-		StartPeriod: startPeriod,
+		Test:          h.Test,
+		Interval:      interval,
+		Timeout:       timeout,
+		Retries:       int(h.Retries),
+		StartPeriod:   startPeriod,
+		StartInterval: startInterval,
 	}
 }
 
 func healthConfigToGRPC(h *container.HealthConfig) *swarmapi.HealthConfig {
 	return &swarmapi.HealthConfig{
-		Test:        h.Test,
-		Interval:    gogotypes.DurationProto(h.Interval),
-		Timeout:     gogotypes.DurationProto(h.Timeout),
-		Retries:     int32(h.Retries),
-		StartPeriod: gogotypes.DurationProto(h.StartPeriod),
+		Test:          h.Test,
+		Interval:      gogotypes.DurationProto(h.Interval),
+		Timeout:       gogotypes.DurationProto(h.Timeout),
+		Retries:       int32(h.Retries),
+		StartPeriod:   gogotypes.DurationProto(h.StartPeriod),
+		StartInterval: gogotypes.DurationProto(h.StartInterval),
 	}
 }
 
@@ -475,11 +543,11 @@ func isolationToGRPC(i container.Isolation) swarmapi.ContainerSpec_Isolation {
 	return swarmapi.ContainerIsolationDefault
 }
 
-func ulimitsFromGRPC(u []*swarmapi.ContainerSpec_Ulimit) []*units.Ulimit {
-	ulimits := make([]*units.Ulimit, len(u))
+func ulimitsFromGRPC(u []*swarmapi.ContainerSpec_Ulimit) []*container.Ulimit {
+	ulimits := make([]*container.Ulimit, len(u))
 
 	for i, ulimit := range u {
-		ulimits[i] = &units.Ulimit{
+		ulimits[i] = &container.Ulimit{
 			Name: ulimit.Name,
 			Soft: ulimit.Soft,
 			Hard: ulimit.Hard,
@@ -489,7 +557,7 @@ func ulimitsFromGRPC(u []*swarmapi.ContainerSpec_Ulimit) []*units.Ulimit {
 	return ulimits
 }
 
-func ulimitsToGRPC(u []*units.Ulimit) []*swarmapi.ContainerSpec_Ulimit {
+func ulimitsToGRPC(u []*container.Ulimit) []*swarmapi.ContainerSpec_Ulimit {
 	ulimits := make([]*swarmapi.ContainerSpec_Ulimit, len(u))
 
 	for i, ulimit := range u {
@@ -501,4 +569,33 @@ func ulimitsToGRPC(u []*units.Ulimit) []*swarmapi.ContainerSpec_Ulimit {
 	}
 
 	return ulimits
+}
+
+func tmpfsOptionsToGRPC(options [][]string) string {
+	// The shape of the swarmkit API that tmpfs options are a string. The shape
+	// of the docker API has them as a more structured array of arrays of
+	// strings. To smooth this over, we will marshall the array-of-arrays to
+	// json then pass that as the string.
+
+	// Marshalling json can create an error, but only in specific cases which
+	// are not relevant. We can ignore the possibility.
+	jsonBytes, _ := json.Marshal(options)
+	return string(jsonBytes)
+}
+
+func tmpfsOptionsFromGRPC(options string) [][]string {
+	// See tmpfsOptionsToGRPC for the reasoning. We undo what we did.
+	var unstring [][]string
+	// We can't return errors from here, so just don't ever pass anything that
+	// could result in an error.
+	//
+	// Duh.
+	//
+	// If there is something erroneous, then an empty return value will result,
+	// which should not be catastrophic. Because we control the data that is
+	// marshalled (in tmpfsOptionsToGRPC), we can more-or-less ensure that only
+	// valid data is unmarshalled here. If someone does something like muck
+	// with the GRPC API directly, then they get footgun, no apologies.
+	_ = json.Unmarshal([]byte(options), &unstring)
+	return unstring
 }

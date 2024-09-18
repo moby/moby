@@ -112,9 +112,9 @@ type VolumesManager interface {
 	Plugins() VolumePluginManager
 }
 
-// PluginManager is the interface for accessing the volume plugin manager from
+// VolumePluginManager is the interface for accessing the volume plugin manager from
 // the executor. This is identical to
-// github.com/docker/swarmkit/agent/csi/plugin.PluginManager, except the former
+// github.com/moby/swarmkit/agent/csi/plugin.PluginManager, except the former
 // also includes a Get method for the VolumesManager to use. This does not
 // contain that Get method, to avoid having to import the Plugin type, and
 // because in this context, it is not needed.

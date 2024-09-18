@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -128,7 +127,7 @@ func BenchmarkJSONFileLoggerLog(b *testing.B) {
 		bytes.Repeat([]byte("a long string"), 100),
 		bytes.Repeat([]byte("a really long string"), 10000),
 	} {
-		b.Run(fmt.Sprintf("%d", len(data)), func(b *testing.B) {
+		b.Run(strconv.Itoa(len(data)), func(b *testing.B) {
 			testMsg := &logger.Message{
 				Line:      data,
 				Source:    "stderr",

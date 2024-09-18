@@ -49,5 +49,5 @@ type CacheResultStorage interface {
 	Save(Result, time.Time) (CacheResult, error)
 	Load(ctx context.Context, res CacheResult) (Result, error)
 	LoadRemotes(ctx context.Context, res CacheResult, compression *compression.Config, s session.Group) ([]*Remote, error)
-	Exists(id string) bool
+	Exists(ctx context.Context, id string) bool
 }

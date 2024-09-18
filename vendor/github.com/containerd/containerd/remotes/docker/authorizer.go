@@ -25,11 +25,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes/docker/auth"
 	remoteerrors "github.com/containerd/containerd/remotes/errors"
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/errdefs"
+	"github.com/containerd/log"
 )
 
 type dockerAuthorizer struct {
@@ -43,13 +42,6 @@ type dockerAuthorizer struct {
 	handlers map[string]*authHandler
 
 	onFetchRefreshToken OnFetchRefreshToken
-}
-
-// NewAuthorizer creates a Docker authorizer using the provided function to
-// get credentials for the token server or basic auth.
-// Deprecated: Use NewDockerAuthorizer
-func NewAuthorizer(client *http.Client, f func(string) (string, string, error)) Authorizer {
-	return NewDockerAuthorizer(WithAuthClient(client), WithAuthCreds(f))
 }
 
 type authorizerConfig struct {
@@ -156,9 +148,11 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 	defer a.mu.Unlock()
 	for _, c := range auth.ParseAuthHeader(last.Header) {
 		if c.Scheme == auth.BearerAuth {
-			if err := invalidAuthorization(c, responses); err != nil {
+			if retry, err := invalidAuthorization(ctx, c, responses); err != nil {
 				delete(a.handlers, host)
 				return err
+			} else if retry {
+				delete(a.handlers, host)
 			}
 
 			// reuse existing handler
@@ -194,15 +188,15 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 				return err
 			}
 
-			if username != "" && secret != "" {
-				common := auth.TokenOptions{
-					Username: username,
-					Secret:   secret,
-				}
-
-				a.handlers[host] = newAuthHandler(a.client, a.header, c.Scheme, common)
-				return nil
+			if username == "" || secret == "" {
+				return fmt.Errorf("%w: no basic auth credentials", ErrInvalidAuthorization)
 			}
+
+			a.handlers[host] = newAuthHandler(a.client, a.header, c.Scheme, auth.TokenOptions{
+				Username: username,
+				Secret:   secret,
+			})
+			return nil
 		}
 	}
 	return fmt.Errorf("failed to find supported auth scheme: %w", errdefs.ErrNotImplemented)
@@ -319,7 +313,7 @@ func (ah *authHandler) doBearerAuth(ctx context.Context) (token, refreshToken st
 					}
 					return resp.Token, resp.RefreshToken, nil
 				}
-				log.G(ctx).WithFields(logrus.Fields{
+				log.G(ctx).WithFields(log.Fields{
 					"status": errStatus.Status,
 					"body":   string(errStatus.Body),
 				}).Debugf("token request failed")
@@ -336,18 +330,24 @@ func (ah *authHandler) doBearerAuth(ctx context.Context) (token, refreshToken st
 	return resp.Token, resp.RefreshToken, nil
 }
 
-func invalidAuthorization(c auth.Challenge, responses []*http.Response) error {
+func invalidAuthorization(ctx context.Context, c auth.Challenge, responses []*http.Response) (retry bool, _ error) {
 	errStr := c.Parameters["error"]
 	if errStr == "" {
-		return nil
+		return retry, nil
 	}
 
 	n := len(responses)
 	if n == 1 || (n > 1 && !sameRequest(responses[n-2].Request, responses[n-1].Request)) {
-		return nil
+		limitedErr := errStr
+		errLenghLimit := 64
+		if len(limitedErr) > errLenghLimit {
+			limitedErr = limitedErr[:errLenghLimit] + "..."
+		}
+		log.G(ctx).WithField("error", limitedErr).Debug("authorization error using bearer token, retrying")
+		return true, nil
 	}
 
-	return fmt.Errorf("server message: %s: %w", errStr, ErrInvalidAuthorization)
+	return retry, fmt.Errorf("server message: %s: %w", errStr, ErrInvalidAuthorization)
 }
 
 func sameRequest(r1, r2 *http.Request) bool {

@@ -18,21 +18,24 @@ syntax = "proto3";
 
 package containerd.events;
 
-import weak "github.com/containerd/containerd/protobuf/plugin/fieldpath.proto";
+import "github.com/containerd/containerd/api/types/fieldpath.proto";
 
 option go_package = "github.com/containerd/containerd/api/events;events";
-option (containerd.plugin.fieldpath_all) = true;
+option (containerd.types.fieldpath_all) = true;
 
 message SnapshotPrepare {
 	string key = 1;
 	string parent = 2;
+	string snapshotter = 5;
 }
 
 message SnapshotCommit {
 	string key = 1;
 	string name = 2;
+	string snapshotter = 5;
 }
 
 message SnapshotRemove {
 	string key = 1;
+	string snapshotter = 5;
 }

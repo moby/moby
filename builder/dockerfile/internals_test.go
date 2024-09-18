@@ -1,6 +1,7 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -14,7 +15,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
@@ -26,7 +26,7 @@ func TestEmptyDockerfile(t *testing.T) {
 	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
 	defer cleanup()
 
-	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, "", 0777)
+	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, "", 0o777)
 
 	readAndCheckDockerfile(t, "emptyDockerfile", contextDir, "", "the Dockerfile (Dockerfile) cannot be empty")
 }
@@ -96,7 +96,7 @@ func TestCopyRunConfig(t *testing.T) {
 	defaultEnv := []string{"foo=1"}
 	defaultCmd := []string{"old"}
 
-	var testcases = []struct {
+	testcases := []struct {
 		doc       string
 		modifiers []runConfigModifier
 		expected  *container.Config
@@ -140,7 +140,6 @@ func TestCopyRunConfig(t *testing.T) {
 		// Assert the original was not modified
 		assert.Check(t, runConfig != runConfigCopy, testcase.doc)
 	}
-
 }
 
 func fullMutableRunConfig() *container.Config {
@@ -183,8 +182,8 @@ func TestDeepCopyRunConfig(t *testing.T) {
 
 type MockRWLayer struct{}
 
-func (l *MockRWLayer) Release() error                { return nil }
-func (l *MockRWLayer) Root() containerfs.ContainerFS { return nil }
+func (l *MockRWLayer) Release() error { return nil }
+func (l *MockRWLayer) Root() string   { return "" }
 func (l *MockRWLayer) Commit() (builder.ROLayer, error) {
 	return &MockROLayer{
 		diffID: layer.DiffID(digest.Digest("sha256:1234")),
@@ -195,6 +194,7 @@ type MockROLayer struct {
 	diffID layer.DiffID
 }
 
+func (l *MockROLayer) ContentStoreDigest() digest.Digest    { return "" }
 func (l *MockROLayer) Release() error                       { return nil }
 func (l *MockROLayer) NewRWLayer() (builder.RWLayer, error) { return nil, nil }
 func (l *MockROLayer) DiffID() layer.DiffID                 { return l.diffID }
@@ -219,6 +219,6 @@ func TestExportImage(t *testing.T) {
 		imageSources: getMockImageSource(nil, nil, nil),
 		docker:       getMockBuildBackend(),
 	}
-	err := b.exportImage(ds, layer, parentImage, runConfig)
+	err := b.exportImage(context.TODO(), ds, layer, parentImage, runConfig)
 	assert.NilError(t, err)
 }

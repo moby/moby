@@ -1,10 +1,21 @@
 package daemon
 
 import (
-	"github.com/docker/docker/api/types"
-	"github.com/pkg/errors"
+	"errors"
+
+	"github.com/docker/docker/daemon/config"
 )
 
-func (daemon *Daemon) getRuntime(name string) (*types.Runtime, error) {
-	return nil, errors.New("not implemented")
+type runtimes struct{}
+
+func (r *runtimes) Get(name string) (string, interface{}, error) {
+	return "", nil, errors.New("not implemented")
+}
+
+func initRuntimesDir(*config.Config) error {
+	return nil
+}
+
+func setupRuntimes(*config.Config) (runtimes, error) {
+	return runtimes{}, nil
 }

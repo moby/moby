@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cilium/ebpf"
-	"github.com/cilium/ebpf/internal"
+	"github.com/cilium/ebpf/internal/sys"
 )
 
 type RawAttachProgramOptions struct {
@@ -25,16 +25,12 @@ type RawAttachProgramOptions struct {
 // You should use one of the higher level abstractions available in this
 // package if possible.
 func RawAttachProgram(opts RawAttachProgramOptions) error {
-	if err := haveProgAttach(); err != nil {
-		return err
-	}
-
 	var replaceFd uint32
 	if opts.Replace != nil {
 		replaceFd = uint32(opts.Replace.FD())
 	}
 
-	attr := internal.BPFProgAttachAttr{
+	attr := sys.ProgAttachAttr{
 		TargetFd:     uint32(opts.Target),
 		AttachBpfFd:  uint32(opts.Program.FD()),
 		ReplaceBpfFd: replaceFd,
@@ -42,9 +38,13 @@ func RawAttachProgram(opts RawAttachProgramOptions) error {
 		AttachFlags:  uint32(opts.Flags),
 	}
 
-	if err := internal.BPFProgAttach(&attr); err != nil {
+	if err := sys.ProgAttach(&attr); err != nil {
+		if haveFeatErr := haveProgAttach(); haveFeatErr != nil {
+			return haveFeatErr
+		}
 		return fmt.Errorf("can't attach program: %w", err)
 	}
+
 	return nil
 }
 
@@ -59,16 +59,15 @@ type RawDetachProgramOptions struct {
 // You should use one of the higher level abstractions available in this
 // package if possible.
 func RawDetachProgram(opts RawDetachProgramOptions) error {
-	if err := haveProgAttach(); err != nil {
-		return err
-	}
-
-	attr := internal.BPFProgDetachAttr{
+	attr := sys.ProgDetachAttr{
 		TargetFd:    uint32(opts.Target),
 		AttachBpfFd: uint32(opts.Program.FD()),
 		AttachType:  uint32(opts.Attach),
 	}
-	if err := internal.BPFProgDetach(&attr); err != nil {
+	if err := sys.ProgDetach(&attr); err != nil {
+		if haveFeatErr := haveProgAttach(); haveFeatErr != nil {
+			return haveFeatErr
+		}
 		return fmt.Errorf("can't detach program: %w", err)
 	}
 

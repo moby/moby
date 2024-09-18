@@ -1,40 +1,79 @@
+//go:build windows
 // +build windows
 
 package etwlogrus
 
 import (
+	"errors"
 	"sort"
 
-	"github.com/Microsoft/go-winio/pkg/etw"
 	"github.com/sirupsen/logrus"
+
+	"github.com/Microsoft/go-winio/pkg/etw"
 )
+
+const defaultEventName = "LogrusEntry"
+
+// ErrNoProvider is returned when a hook is created without a provider being configured.
+var ErrNoProvider = errors.New("no ETW registered provider")
+
+// HookOpt is an option to change the behavior of the Logrus ETW hook.
+type HookOpt func(*Hook) error
 
 // Hook is a Logrus hook which logs received events to ETW.
 type Hook struct {
 	provider      *etw.Provider
 	closeProvider bool
+	// allows setting the entry name
+	getName func(*logrus.Entry) string
+	// returns additional options to add to the event
+	getEventsOpts func(*logrus.Entry) []etw.EventOpt
 }
 
-// NewHook registers a new ETW provider and returns a hook to log from it. The
-// provider will be closed when the hook is closed.
-func NewHook(providerName string) (*Hook, error) {
-	provider, err := etw.NewProvider(providerName, nil)
-	if err != nil {
-		return nil, err
+// NewHook registers a new ETW provider and returns a hook to log from it.
+// The provider will be closed when the hook is closed.
+func NewHook(providerName string, opts ...HookOpt) (*Hook, error) {
+	opts = append(opts, WithNewETWProvider(providerName))
+
+	return NewHookFromOpts(opts...)
+}
+
+// NewHookFromProvider creates a new hook based on an existing ETW provider.
+// The provider will not be closed when the hook is closed.
+func NewHookFromProvider(provider *etw.Provider, opts ...HookOpt) (*Hook, error) {
+	opts = append(opts, WithExistingETWProvider(provider))
+
+	return NewHookFromOpts(opts...)
+}
+
+// NewHookFromOpts creates a new hook with the provided options.
+// An error is returned if the hook does not have a valid provider.
+func NewHookFromOpts(opts ...HookOpt) (*Hook, error) {
+	h := defaultHook()
+
+	for _, o := range opts {
+		if err := o(h); err != nil {
+			return nil, err
+		}
 	}
-
-	return &Hook{provider, true}, nil
+	return h, h.validate()
 }
 
-// NewHookFromProvider creates a new hook based on an existing ETW provider. The
-// provider will not be closed when the hook is closed.
-func NewHookFromProvider(provider *etw.Provider) (*Hook, error) {
-	return &Hook{provider, false}, nil
+func defaultHook() *Hook {
+	h := &Hook{}
+	return h
+}
+
+func (h *Hook) validate() error {
+	if h.provider == nil {
+		return ErrNoProvider
+	}
+	return nil
 }
 
 // Levels returns the set of levels that this hook wants to receive log entries
 // for.
-func (h *Hook) Levels() []logrus.Level {
+func (*Hook) Levels() []logrus.Level {
 	return logrus.AllLevels
 }
 
@@ -56,6 +95,21 @@ func (h *Hook) Fire(e *logrus.Entry) error {
 	level := logrusToETWLevelMap[e.Level]
 	if !h.provider.IsEnabledForLevel(level) {
 		return nil
+	}
+
+	name := defaultEventName
+	if h.getName != nil {
+		if n := h.getName(e); n != "" {
+			name = n
+		}
+	}
+
+	// extra room for two more options in addition to log level to avoid repeated reallocations
+	// if the user also provides options
+	opts := make([]etw.EventOpt, 0, 3)
+	opts = append(opts, etw.WithLevel(level))
+	if h.getEventsOpts != nil {
+		opts = append(opts, h.getEventsOpts(e)...)
 	}
 
 	// Sort the fields by name so they are consistent in each instance
@@ -88,10 +142,7 @@ func (h *Hook) Fire(e *logrus.Entry) error {
 	// as a session listening for the event having no available space in its
 	// buffers). Therefore, we don't return the error from WriteEvent, as it is
 	// just noise in many cases.
-	h.provider.WriteEvent(
-		"LogrusEntry",
-		etw.WithEventOpts(etw.WithLevel(level)),
-		fields)
+	_ = h.provider.WriteEvent(name, opts, fields)
 
 	return nil
 }

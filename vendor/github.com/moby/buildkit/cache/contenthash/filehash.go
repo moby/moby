@@ -51,6 +51,8 @@ func NewFromStat(stat *fstypes.Stat) (hash.Hash, error) {
 	hdr.Name = "" // note: empty name is different from current has in docker build. Name is added on recursive directory scan instead
 	hdr.Devmajor = stat.Devmajor
 	hdr.Devminor = stat.Devminor
+	hdr.Uid = int(stat.Uid)
+	hdr.Gid = int(stat.Gid)
 
 	if len(stat.Xattrs) > 0 {
 		hdr.PAXRecords = make(map[string]string, len(stat.Xattrs))

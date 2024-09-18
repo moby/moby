@@ -5,11 +5,11 @@ import (
 	"strconv"
 
 	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/leaseutil"
+	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
 )
 
@@ -185,12 +185,14 @@ func mergeUsageOf(info snapshots.Info) (usage snapshots.Usage, ok bool, rerr err
 	if info.Labels == nil {
 		return snapshots.Usage{}, false, nil
 	}
+	hasMergeUsageLabel := false
 	if str, ok := info.Labels[mergeUsageSizeLabel]; ok {
 		i, err := strconv.Atoi(str)
 		if err != nil {
 			return snapshots.Usage{}, false, err
 		}
 		usage.Size = int64(i)
+		hasMergeUsageLabel = true
 	}
 	if str, ok := info.Labels[mergeUsageInodesLabel]; ok {
 		i, err := strconv.Atoi(str)
@@ -198,6 +200,10 @@ func mergeUsageOf(info snapshots.Info) (usage snapshots.Usage, ok bool, rerr err
 			return snapshots.Usage{}, false, err
 		}
 		usage.Inodes = int64(i)
+		hasMergeUsageLabel = true
+	}
+	if !hasMergeUsageLabel {
+		return snapshots.Usage{}, false, nil
 	}
 	return usage, true, nil
 }

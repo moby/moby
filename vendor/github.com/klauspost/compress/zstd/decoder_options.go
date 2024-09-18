@@ -6,6 +6,8 @@ package zstd
 
 import (
 	"errors"
+	"fmt"
+	"math/bits"
 	"runtime"
 )
 
@@ -14,24 +16,28 @@ type DOption func(*decoderOptions) error
 
 // options retains accumulated state of multiple options.
 type decoderOptions struct {
-	lowMem         bool
-	concurrent     int
-	maxDecodedSize uint64
-	maxWindowSize  uint64
-	dicts          []dict
+	lowMem          bool
+	concurrent      int
+	maxDecodedSize  uint64
+	maxWindowSize   uint64
+	dicts           []*dict
+	ignoreChecksum  bool
+	limitToCap      bool
+	decodeBufsBelow int
 }
 
 func (o *decoderOptions) setDefault() {
 	*o = decoderOptions{
 		// use less ram: true for now, but may change.
-		lowMem:        true,
-		concurrent:    runtime.GOMAXPROCS(0),
-		maxWindowSize: MaxWindowSize,
+		lowMem:          true,
+		concurrent:      runtime.GOMAXPROCS(0),
+		maxWindowSize:   MaxWindowSize,
+		decodeBufsBelow: 128 << 10,
 	}
 	if o.concurrent > 4 {
 		o.concurrent = 4
 	}
-	o.maxDecodedSize = 1 << 63
+	o.maxDecodedSize = 64 << 30
 }
 
 // WithDecoderLowmem will set whether to use a lower amount of memory,
@@ -66,7 +72,7 @@ func WithDecoderConcurrency(n int) DOption {
 // WithDecoderMaxMemory allows to set a maximum decoded size for in-memory
 // non-streaming operations or maximum window size for streaming operations.
 // This can be used to control memory usage of potentially hostile content.
-// Maximum and default is 1 << 63 bytes.
+// Maximum is 1 << 63 bytes. Default is 64GiB.
 func WithDecoderMaxMemory(n uint64) DOption {
 	return func(o *decoderOptions) error {
 		if n == 0 {
@@ -81,7 +87,13 @@ func WithDecoderMaxMemory(n uint64) DOption {
 }
 
 // WithDecoderDicts allows to register one or more dictionaries for the decoder.
-// If several dictionaries with the same ID is provided the last one will be used.
+//
+// Each slice in dict must be in the [dictionary format] produced by
+// "zstd --train" from the Zstandard reference implementation.
+//
+// If several dictionaries with the same ID are provided, the last one will be used.
+//
+// [dictionary format]: https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#dictionary-format
 func WithDecoderDicts(dicts ...[]byte) DOption {
 	return func(o *decoderOptions) error {
 		for _, b := range dicts {
@@ -89,8 +101,20 @@ func WithDecoderDicts(dicts ...[]byte) DOption {
 			if err != nil {
 				return err
 			}
-			o.dicts = append(o.dicts, *d)
+			o.dicts = append(o.dicts, d)
 		}
+		return nil
+	}
+}
+
+// WithDecoderDictRaw registers a dictionary that may be used by the decoder.
+// The slice content can be arbitrary data.
+func WithDecoderDictRaw(id uint32, content []byte) DOption {
+	return func(o *decoderOptions) error {
+		if bits.UintSize > 32 && uint(len(content)) > dictMaxLength {
+			return fmt.Errorf("dictionary of size %d > 2GiB too large", len(content))
+		}
+		o.dicts = append(o.dicts, &dict{id: id, content: content, offsets: [3]int{1, 4, 8}})
 		return nil
 	}
 }
@@ -109,6 +133,37 @@ func WithDecoderMaxWindow(size uint64) DOption {
 			return errors.New("WithMaxWindowSize must be less than (1<<41) + 7*(1<<38) ~ 3.75TB")
 		}
 		o.maxWindowSize = size
+		return nil
+	}
+}
+
+// WithDecodeAllCapLimit will limit DecodeAll to decoding cap(dst)-len(dst) bytes,
+// or any size set in WithDecoderMaxMemory.
+// This can be used to limit decoding to a specific maximum output size.
+// Disabled by default.
+func WithDecodeAllCapLimit(b bool) DOption {
+	return func(o *decoderOptions) error {
+		o.limitToCap = b
+		return nil
+	}
+}
+
+// WithDecodeBuffersBelow will fully decode readers that have a
+// `Bytes() []byte` and `Len() int` interface similar to bytes.Buffer.
+// This typically uses less allocations but will have the full decompressed object in memory.
+// Note that DecodeAllCapLimit will disable this, as well as giving a size of 0 or less.
+// Default is 128KiB.
+func WithDecodeBuffersBelow(size int) DOption {
+	return func(o *decoderOptions) error {
+		o.decodeBufsBelow = size
+		return nil
+	}
+}
+
+// IgnoreChecksum allows to forcibly ignore checksum checking.
+func IgnoreChecksum(b bool) DOption {
+	return func(o *decoderOptions) error {
+		o.ignoreChecksum = b
 		return nil
 	}
 }

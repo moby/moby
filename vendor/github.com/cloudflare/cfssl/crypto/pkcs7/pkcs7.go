@@ -3,17 +3,17 @@
 // to PKCS #7 format from another encoding such as PEM conforms to this implementation.
 // reference: https://www.openssl.org/docs/man1.1.0/apps/crl2pkcs7.html
 //
-//			PKCS #7 Data type, reference: https://tools.ietf.org/html/rfc2315
+// PKCS #7 Data type, reference: https://tools.ietf.org/html/rfc2315
 //
 // The full pkcs#7 cryptographic message syntax allows for cryptographic enhancements,
 // for example data can be encrypted and signed and then packaged through pkcs#7 to be
 // sent over a network and then verified and decrypted.  It is asn1, and the type of
 // PKCS #7 ContentInfo, which comprises the PKCS #7 structure, is:
 //
-//			ContentInfo ::= SEQUENCE {
-//				contentType ContentType,
-//				content [0] EXPLICIT ANY DEFINED BY contentType OPTIONAL
-//			}
+//	ContentInfo ::= SEQUENCE {
+//		contentType ContentType,
+//		content [0] EXPLICIT ANY DEFINED BY contentType OPTIONAL
+//	}
 //
 // There are 6 possible ContentTypes, data, signedData, envelopedData,
 // signedAndEnvelopedData, digestedData, and encryptedData.  Here signedData, Data, and encrypted
@@ -22,15 +22,14 @@
 // formats.
 // The ContentType signedData has the form:
 //
-//
-//			signedData ::= SEQUENCE {
-//				version Version,
-//				digestAlgorithms DigestAlgorithmIdentifiers,
-//				contentInfo ContentInfo,
-//				certificates [0] IMPLICIT ExtendedCertificatesAndCertificates OPTIONAL
-//				crls [1] IMPLICIT CertificateRevocationLists OPTIONAL,
-//				signerInfos SignerInfos
-//			}
+//	signedData ::= SEQUENCE {
+//		version Version,
+//		digestAlgorithms DigestAlgorithmIdentifiers,
+//		contentInfo ContentInfo,
+//		certificates [0] IMPLICIT ExtendedCertificatesAndCertificates OPTIONAL
+//		crls [1] IMPLICIT CertificateRevocationLists OPTIONAL,
+//		signerInfos SignerInfos
+//	}
 //
 // As of yet signerInfos and digestAlgorithms are not parsed, as they are not relevant to
 // this system's use of PKCS #7 data.  Version is an integer type, note that PKCS #7 is

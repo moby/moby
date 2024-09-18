@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/pkg/errors"
 )
@@ -33,7 +33,7 @@ import (
 //
 // You can use github.com/docker/docker/pkg/stdcopy.StdCopy to demultiplex this
 // stream.
-func (cli *Client) ContainerLogs(ctx context.Context, container string, options types.ContainerLogsOptions) (io.ReadCloser, error) {
+func (cli *Client) ContainerLogs(ctx context.Context, container string, options container.LogsOptions) (io.ReadCloser, error) {
 	query := url.Values{}
 	if options.ShowStdout {
 		query.Set("stdout", "1")

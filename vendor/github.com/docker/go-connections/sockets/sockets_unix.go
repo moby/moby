@@ -1,8 +1,9 @@
-// +build !windows
+//go:build !windows
 
 package sockets
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -14,12 +15,15 @@ const maxUnixSocketPathSize = len(syscall.RawSockaddrUnix{}.Path)
 
 func configureUnixTransport(tr *http.Transport, proto, addr string) error {
 	if len(addr) > maxUnixSocketPathSize {
-		return fmt.Errorf("Unix socket path %q is too long", addr)
+		return fmt.Errorf("unix socket path %q is too long", addr)
 	}
 	// No need for compression in local communications.
 	tr.DisableCompression = true
-	tr.Dial = func(_, _ string) (net.Conn, error) {
-		return net.DialTimeout(proto, addr, defaultTimeout)
+	dialer := &net.Dialer{
+		Timeout: defaultTimeout,
+	}
+	tr.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
+		return dialer.DialContext(ctx, proto, addr)
 	}
 	return nil
 }

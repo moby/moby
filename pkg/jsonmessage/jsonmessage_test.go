@@ -34,7 +34,7 @@ func TestProgressString(t *testing.T) {
 		}
 	}
 
-	var testcases = []struct {
+	testcases := []struct {
 		name     string
 		progress JSONProgress
 		expected expected
@@ -216,13 +216,11 @@ func TestJSONMessageDisplayWithJSONError(t *testing.T) {
 
 	jsonMessage = JSONMessage{Error: &JSONError{401, "Anything"}}
 	err = jsonMessage.Display(data, true)
-	assert.Check(t, is.Error(err, "authentication is required"))
+	assert.Check(t, is.Error(err, "Anything"))
 }
 
 func TestDisplayJSONMessagesStreamInvalidJSON(t *testing.T) {
-	var (
-		inFd uintptr
-	)
+	var inFd uintptr
 	data := bytes.NewBuffer([]byte{})
 	reader := strings.NewReader("This is not a 'valid' JSON []")
 	inFd, _ = term.GetFdInfo(reader)
@@ -234,32 +232,31 @@ func TestDisplayJSONMessagesStreamInvalidJSON(t *testing.T) {
 }
 
 func TestDisplayJSONMessagesStream(t *testing.T) {
-	var (
-		inFd uintptr
-	)
+	var inFd uintptr
 
 	messages := map[string][]string{
 		// empty string
 		"": {
 			"",
-			""},
+			"",
+		},
 		// Without progress & ID
-		"{ \"status\": \"status\" }": {
+		`{ "status": "status" }`: {
 			"status\n",
 			"status\n",
 		},
 		// Without progress, with ID
-		"{ \"id\": \"ID\",\"status\": \"status\" }": {
+		`{ "id": "ID","status": "status" }`: {
 			"ID: status\n",
 			"ID: status\n",
 		},
 		// With progress
-		"{ \"id\": \"ID\", \"status\": \"status\", \"progress\": \"ProgressMessage\" }": {
+		`{ "id": "ID", "status": "status", "progress": "ProgressMessage" }`: {
 			"ID: status ProgressMessage",
 			fmt.Sprintf("\n%c[%dAID: status ProgressMessage%c[%dB", 27, 1, 27, 1),
 		},
 		// With progressDetail
-		"{ \"id\": \"ID\", \"status\": \"status\", \"progressDetail\": { \"Current\": 1} }": {
+		`{ "id": "ID", "status": "status", "progressDetail": { "Current": 1} }`: {
 			"", // progressbar is disabled in non-terminal
 			fmt.Sprintf("\n%c[%dA%c[2K\rID: status       1B\r%c[%dB", 27, 1, 27, 27, 1),
 		},

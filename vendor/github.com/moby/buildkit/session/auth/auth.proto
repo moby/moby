@@ -5,10 +5,10 @@ package moby.filesync.v1;
 option go_package = "auth";
 
 service Auth{
-  rpc Credentials(CredentialsRequest) returns (CredentialsResponse);
-  rpc FetchToken(FetchTokenRequest) returns (FetchTokenResponse);
-  rpc GetTokenAuthority(GetTokenAuthorityRequest) returns (GetTokenAuthorityResponse);
-  rpc VerifyTokenAuthority(VerifyTokenAuthorityRequest) returns (VerifyTokenAuthorityResponse);
+	rpc Credentials(CredentialsRequest) returns (CredentialsResponse);
+	rpc FetchToken(FetchTokenRequest) returns (FetchTokenResponse);
+	rpc GetTokenAuthority(GetTokenAuthorityRequest) returns (GetTokenAuthorityResponse);
+	rpc VerifyTokenAuthority(VerifyTokenAuthorityRequest) returns (VerifyTokenAuthorityResponse);
 }
 
 message CredentialsRequest {

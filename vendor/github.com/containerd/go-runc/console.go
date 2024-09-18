@@ -1,4 +1,4 @@
-// +build !windows
+//go:build !windows
 
 /*
    Copyright The containerd Authors.
@@ -20,7 +20,6 @@ package runc
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -53,7 +52,7 @@ func NewConsoleSocket(path string) (*Socket, error) {
 // On Close(), the socket is deleted
 func NewTempConsoleSocket() (*Socket, error) {
 	runtimeDir := os.Getenv("XDG_RUNTIME_DIR")
-	dir, err := ioutil.TempDir(runtimeDir, "pty")
+	dir, err := os.MkdirTemp(runtimeDir, "pty")
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +69,7 @@ func NewTempConsoleSocket() (*Socket, error) {
 		return nil, err
 	}
 	if runtimeDir != "" {
-		if err := os.Chmod(abs, 0755|os.ModeSticky); err != nil {
+		if err := os.Chmod(abs, 0o755|os.ModeSticky); err != nil {
 			return nil, err
 		}
 	}
@@ -96,7 +95,7 @@ func (c *Socket) Path() string {
 // locally (it is sent as non-auxiliary data in the same payload).
 func recvFd(socket *net.UnixConn) (*os.File, error) {
 	const MaxNameLen = 4096
-	var oobSpace = unix.CmsgSpace(4)
+	oobSpace := unix.CmsgSpace(4)
 
 	name := make([]byte, MaxNameLen)
 	oob := make([]byte, oobSpace)

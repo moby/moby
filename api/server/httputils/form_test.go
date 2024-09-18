@@ -1,9 +1,16 @@
 package httputils // import "github.com/docker/docker/api/server/httputils"
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"testing"
+
+	"github.com/containerd/platforms"
+	"github.com/docker/docker/errdefs"
+
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"gotest.tools/v3/assert"
 )
 
 func TestBoolValue(t *testing.T) {
@@ -101,5 +108,25 @@ func TestInt64ValueOrDefaultWithError(t *testing.T) {
 	_, err := Int64ValueOrDefault(r, "test", -1)
 	if err == nil {
 		t.Fatal("Expected an error.")
+	}
+}
+
+func TestParsePlatformInvalid(t *testing.T) {
+	for _, tc := range []ocispec.Platform{
+		{
+			OSVersion:  "1.2.3",
+			OSFeatures: []string{"a", "b"},
+		},
+		{OSVersion: "12.0"},
+		{OS: "linux"},
+		{Architecture: "amd64"},
+	} {
+		t.Run(platforms.Format(tc), func(t *testing.T) {
+			js, err := json.Marshal(tc)
+			assert.NilError(t, err)
+
+			_, err = DecodePlatform(string(js))
+			assert.Check(t, errdefs.IsInvalidParameter(err))
+		})
 	}
 }

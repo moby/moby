@@ -9,7 +9,6 @@ import (
 const libnGWNetwork = "nat"
 
 func getPlatformOption() EndpointOption {
-
 	epOption := options.Generic{
 		windriver.DisableICC: true,
 		windriver.DisableDNS: true,
@@ -17,6 +16,6 @@ func getPlatformOption() EndpointOption {
 	return EndpointOptionGeneric(epOption)
 }
 
-func (c *controller) createGWNetwork() (Network, error) {
+func (c *Controller) createGWNetwork() (*Network, error) {
 	return nil, types.NotImplementedErrorf("default gateway functionality is not implemented in windows")
 }

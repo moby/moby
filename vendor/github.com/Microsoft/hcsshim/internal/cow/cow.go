@@ -1,3 +1,5 @@
+//go:build windows
+
 package cow
 
 import (
@@ -86,6 +88,12 @@ type Container interface {
 	// container to be terminated by some error condition (including calling
 	// Close).
 	Wait() error
+	// WaitChannel returns the wait channel of the container
+	WaitChannel() <-chan struct{}
+	// WaitError returns the container termination error.
+	// This function should only be called after the channel in WaitChannel()
+	// is closed. Otherwise it is not thread safe.
+	WaitError() error
 	// Modify sends a request to modify container resources
 	Modify(ctx context.Context, config interface{}) error
 }

@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
+	"github.com/distribution/reference"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 )
 
@@ -19,7 +19,7 @@ import (
 // FIXME(vdemeester): there is currently used in a few way in docker/docker
 // - if not in trusted content, ref is used to pass the whole reference, and tag is empty
 // - if in trusted content, ref is used to pass the reference name, and tag for the digest
-func (cli *Client) ImagePull(ctx context.Context, refStr string, options types.ImagePullOptions) (io.ReadCloser, error) {
+func (cli *Client) ImagePull(ctx context.Context, refStr string, options image.PullOptions) (io.ReadCloser, error) {
 	ref, err := reference.ParseNormalizedNamed(refStr)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options types.I
 
 	resp, err := cli.tryImageCreate(ctx, query, options.RegistryAuth)
 	if errdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
-		newAuthHeader, privilegeErr := options.PrivilegeFunc()
+		newAuthHeader, privilegeErr := options.PrivilegeFunc(ctx)
 		if privilegeErr != nil {
 			return nil, privilegeErr
 		}

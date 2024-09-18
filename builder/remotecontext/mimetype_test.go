@@ -10,7 +10,7 @@ import (
 func TestDetectContentType(t *testing.T) {
 	input := []byte("That is just a plain text")
 
-	contentType, _, err := detectContentType(input)
+	contentType, err := detectContentType(input)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal("text/plain", contentType))
+	assert.Check(t, is.Equal(mimeTypeTextPlain, contentType))
 }

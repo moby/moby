@@ -68,7 +68,7 @@ func parseV21SlabEntry(line string) (*Slab, error) {
 	l := slabSpace.ReplaceAllString(line, " ")
 	s := strings.Split(l, " ")
 	if len(s) != 16 {
-		return nil, fmt.Errorf("unable to parse: %q", line)
+		return nil, fmt.Errorf("%w: unable to parse: %q", ErrFileParse, line)
 	}
 	var err error
 	i := &Slab{Name: s[0]}
@@ -137,7 +137,7 @@ func parseSlabInfo21(r *bytes.Reader) (SlabInfo, error) {
 	return s, nil
 }
 
-// SlabInfo reads data from /proc/slabinfo
+// SlabInfo reads data from `/proc/slabinfo`.
 func (fs FS) SlabInfo() (SlabInfo, error) {
 	// TODO: Consider passing options to allow for parsing different
 	// slabinfo versions. However, slabinfo 2.1 has been stable since

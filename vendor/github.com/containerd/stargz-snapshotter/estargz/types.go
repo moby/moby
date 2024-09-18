@@ -149,6 +149,12 @@ type TOCEntry struct {
 	// ChunkSize.
 	Offset int64 `json:"offset,omitempty"`
 
+	// InnerOffset is an optional field indicates uncompressed offset
+	// of this "reg" or "chunk" payload in a stream starts from Offset.
+	// This field enables to put multiple "reg" or "chunk" payloads
+	// in one chunk with having the same Offset but different InnerOffset.
+	InnerOffset int64 `json:"innerOffset,omitempty"`
+
 	nextOffset int64 // the Offset of the next entry with a non-zero Offset
 
 	// DevMajor is the major device number for "char" and "block" types.
@@ -159,7 +165,8 @@ type TOCEntry struct {
 
 	// NumLink is the number of entry names pointing to this entry.
 	// Zero means one name references this entry.
-	NumLink int
+	// This field is calculated during runtime and not recorded in TOC JSON.
+	NumLink int `json:"-"`
 
 	// Xattrs are the extended attribute for the entry.
 	Xattrs map[string][]byte `json:"xattrs,omitempty"`
@@ -185,6 +192,9 @@ type TOCEntry struct {
 	ChunkDigest string `json:"chunkDigest,omitempty"`
 
 	children map[string]*TOCEntry
+
+	// chunkTopIndex is index of the entry where Offset starts in the blob.
+	chunkTopIndex int
 }
 
 // ModTime returns the entry's modification time.
@@ -278,7 +288,10 @@ type Compressor interface {
 	// Writer returns WriteCloser to be used for writing a chunk to eStargz.
 	// Everytime a chunk is written, the WriteCloser is closed and Writer is
 	// called again for writing the next chunk.
-	Writer(w io.Writer) (io.WriteCloser, error)
+	//
+	// The returned writer should implement "Flush() error" function that flushes
+	// any pending compressed data to the underlying writer.
+	Writer(w io.Writer) (WriteFlushCloser, error)
 
 	// WriteTOCAndFooter is called to write JTOC to the passed Writer.
 	// diffHash calculates the DiffID (uncompressed sha256 hash) of the blob
@@ -302,8 +315,12 @@ type Decompressor interface {
 	// payloadBlobSize is the (compressed) size of the blob payload (i.e. the size between
 	// the top until the TOC JSON).
 	//
-	// Here, tocSize is optional. If tocSize <= 0, it's by default the size of the range
-	// from tocOffset until the beginning of the footer (blob size - tocOff - FooterSize).
+	// If tocOffset < 0, we assume that TOC isn't contained in the blob and pass nil reader
+	// to ParseTOC. We expect that ParseTOC acquire TOC from the external location and return it.
+	//
+	// tocSize is optional. If tocSize <= 0, it's by default the size of the range from tocOffset until the beginning of the
+	// footer (blob size - tocOff - FooterSize).
+	// If blobPayloadSize < 0, blobPayloadSize become the blob size.
 	ParseFooter(p []byte) (blobPayloadSize, tocOffset, tocSize int64, err error)
 
 	// ParseTOC parses TOC from the passed reader. The reader provides the partial contents
@@ -312,5 +329,14 @@ type Decompressor interface {
 	// This function returns tocDgst that represents the digest of TOC that will be used
 	// to verify this blob. This must match to the value returned from
 	// Compressor.WriteTOCAndFooter that is used when creating this blob.
+	//
+	// If tocOffset returned by ParseFooter is < 0, we assume that TOC isn't contained in the blob.
+	// Pass nil reader to ParseTOC then we expect that ParseTOC acquire TOC from the external location
+	// and return it.
 	ParseTOC(r io.Reader) (toc *JTOC, tocDgst digest.Digest, err error)
+}
+
+type WriteFlushCloser interface {
+	io.WriteCloser
+	Flush() error
 }

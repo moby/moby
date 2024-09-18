@@ -13,6 +13,8 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestNodeInspectError(t *testing.T) {
@@ -21,9 +23,7 @@ func TestNodeInspectError(t *testing.T) {
 	}
 
 	_, _, err := client.NodeInspectWithRaw(context.Background(), "nothing")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestNodeInspectNodeNotFound(t *testing.T) {
@@ -32,9 +32,7 @@ func TestNodeInspectNodeNotFound(t *testing.T) {
 	}
 
 	_, _, err := client.NodeInspectWithRaw(context.Background(), "unknown")
-	if err == nil || !IsErrNotFound(err) {
-		t.Fatalf("expected a nodeNotFoundError error, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestNodeInspectWithEmptyID(t *testing.T) {
@@ -44,9 +42,7 @@ func TestNodeInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.NodeInspectWithRaw(context.Background(), "")
-	if !IsErrNotFound(err) {
-		t.Fatalf("Expected NotFoundError, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestNodeInspect(t *testing.T) {

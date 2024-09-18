@@ -12,8 +12,11 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"net"
 	"net/mail"
+	"net/url"
+	"strconv"
 	"strings"
 
 	cferr "github.com/cloudflare/cfssl/errors"
@@ -29,46 +32,40 @@ const (
 
 // A Name contains the SubjectInfo fields.
 type Name struct {
-	C            string // Country
-	ST           string // State
-	L            string // Locality
-	O            string // OrganisationName
-	OU           string // OrganisationalUnitName
-	SerialNumber string
+	C            string            `json:"C,omitempty" yaml:"C,omitempty"`   // Country
+	ST           string            `json:"ST,omitempty" yaml:"ST,omitempty"` // State
+	L            string            `json:"L,omitempty" yaml:"L,omitempty"`   // Locality
+	O            string            `json:"O,omitempty" yaml:"O,omitempty"`   // OrganisationName
+	OU           string            `json:"OU,omitempty" yaml:"OU,omitempty"` // OrganisationalUnitName
+	E            string            `json:"E,omitempty" yaml:"E,omitempty"`
+	SerialNumber string            `json:"SerialNumber,omitempty" yaml:"SerialNumber,omitempty"`
+	OID          map[string]string `json:"OID,omitempty", yaml:"OID,omitempty"`
 }
 
-// A KeyRequest is a generic request for a new key.
-type KeyRequest interface {
-	Algo() string
-	Size() int
-	Generate() (crypto.PrivateKey, error)
-	SigAlgo() x509.SignatureAlgorithm
-}
-
-// A BasicKeyRequest contains the algorithm and key size for a new private key.
-type BasicKeyRequest struct {
+// A KeyRequest contains the algorithm and key size for a new private key.
+type KeyRequest struct {
 	A string `json:"algo" yaml:"algo"`
 	S int    `json:"size" yaml:"size"`
 }
 
-// NewBasicKeyRequest returns a default BasicKeyRequest.
-func NewBasicKeyRequest() *BasicKeyRequest {
-	return &BasicKeyRequest{"ecdsa", curveP256}
+// NewKeyRequest returns a default KeyRequest.
+func NewKeyRequest() *KeyRequest {
+	return &KeyRequest{"ecdsa", curveP256}
 }
 
 // Algo returns the requested key algorithm represented as a string.
-func (kr *BasicKeyRequest) Algo() string {
+func (kr *KeyRequest) Algo() string {
 	return kr.A
 }
 
 // Size returns the requested key size.
-func (kr *BasicKeyRequest) Size() int {
+func (kr *KeyRequest) Size() int {
 	return kr.S
 }
 
 // Generate generates a key as specified in the request. Currently,
 // only ECDSA and RSA are supported.
-func (kr *BasicKeyRequest) Generate() (crypto.PrivateKey, error) {
+func (kr *KeyRequest) Generate() (crypto.PrivateKey, error) {
 	log.Debugf("generate key from request: algo=%s, size=%d", kr.Algo(), kr.Size())
 	switch kr.Algo() {
 	case "rsa":
@@ -99,7 +96,7 @@ func (kr *BasicKeyRequest) Generate() (crypto.PrivateKey, error) {
 
 // SigAlgo returns an appropriate X.509 signature algorithm given the
 // key request's type and size.
-func (kr *BasicKeyRequest) SigAlgo() x509.SignatureAlgorithm {
+func (kr *KeyRequest) SigAlgo() x509.SignatureAlgorithm {
 	switch kr.Algo() {
 	case "rsa":
 		switch {
@@ -139,19 +136,22 @@ type CAConfig struct {
 // A CertificateRequest encapsulates the API interface to the
 // certificate request functionality.
 type CertificateRequest struct {
-	CN           string
-	Names        []Name     `json:"names" yaml:"names"`
-	Hosts        []string   `json:"hosts" yaml:"hosts"`
-	KeyRequest   KeyRequest `json:"key,omitempty" yaml:"key,omitempty"`
-	CA           *CAConfig  `json:"ca,omitempty" yaml:"ca,omitempty"`
-	SerialNumber string     `json:"serialnumber,omitempty" yaml:"serialnumber,omitempty"`
+	CN                string           `json:"CN" yaml:"CN"`
+	Names             []Name           `json:"names" yaml:"names"`
+	Hosts             []string         `json:"hosts" yaml:"hosts"`
+	KeyRequest        *KeyRequest      `json:"key,omitempty" yaml:"key,omitempty"`
+	CA                *CAConfig        `json:"ca,omitempty" yaml:"ca,omitempty"`
+	SerialNumber      string           `json:"serialnumber,omitempty" yaml:"serialnumber,omitempty"`
+	DelegationEnabled bool             `json:"delegation_enabled,omitempty" yaml:"delegation_enabled,omitempty"`
+	Extensions        []pkix.Extension `json:"extensions,omitempty" yaml:"extensions,omitempty"`
+	CRL               string           `json:"crl_url,omitempty" yaml:"crl_url,omitempty"`
 }
 
 // New returns a new, empty CertificateRequest with a
-// BasicKeyRequest.
+// KeyRequest.
 func New() *CertificateRequest {
 	return &CertificateRequest{
-		KeyRequest: NewBasicKeyRequest(),
+		KeyRequest: NewKeyRequest(),
 	}
 }
 
@@ -162,8 +162,25 @@ func appendIf(s string, a *[]string) {
 	}
 }
 
+// OIDFromString creates an ASN1 ObjectIdentifier from its string representation
+func OIDFromString(s string) (asn1.ObjectIdentifier, error) {
+	var oid []int
+	parts := strings.Split(s, ".")
+	if len(parts) < 1 {
+		return oid, fmt.Errorf("invalid OID string: %s", s)
+	}
+	for _, p := range parts {
+		i, err := strconv.Atoi(p)
+		if err != nil {
+			return nil, fmt.Errorf("invalid OID part %s", p)
+		}
+		oid = append(oid, i)
+	}
+	return oid, nil
+}
+
 // Name returns the PKIX name for the request.
-func (cr *CertificateRequest) Name() pkix.Name {
+func (cr *CertificateRequest) Name() (pkix.Name, error) {
 	var name pkix.Name
 	name.CommonName = cr.CN
 
@@ -173,9 +190,19 @@ func (cr *CertificateRequest) Name() pkix.Name {
 		appendIf(n.L, &name.Locality)
 		appendIf(n.O, &name.Organization)
 		appendIf(n.OU, &name.OrganizationalUnit)
+		for k, v := range n.OID {
+			oid, err := OIDFromString(k)
+			if err != nil {
+				return name, err
+			}
+			name.ExtraNames = append(name.ExtraNames, pkix.AttributeTypeAndValue{Type: oid, Value: v})
+		}
+		if n.E != "" {
+			name.ExtraNames = append(name.ExtraNames, pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 1}, Value: n.E})
+		}
 	}
 	name.SerialNumber = cr.SerialNumber
-	return name
+	return name, nil
 }
 
 // BasicConstraints CSR information RFC 5280, 4.2.1.9
@@ -193,7 +220,7 @@ type BasicConstraints struct {
 func ParseRequest(req *CertificateRequest) (csr, key []byte, err error) {
 	log.Info("received CSR")
 	if req.KeyRequest == nil {
-		req.KeyRequest = NewBasicKeyRequest()
+		req.KeyRequest = NewKeyRequest()
 	}
 
 	log.Infof("generating key: %s-%d", req.KeyRequest.Algo(), req.KeyRequest.Size())
@@ -268,14 +295,17 @@ func getHosts(cert *x509.Certificate) []string {
 	for _, email := range cert.EmailAddresses {
 		hosts = append(hosts, email)
 	}
+	for _, uri := range cert.URIs {
+		hosts = append(hosts, uri.String())
+	}
 
 	return hosts
 }
 
 // getNames returns an array of Names from the certificate
-// It onnly cares about Country, Organization, OrganizationalUnit, Locality, Province
+// It only cares about Country, Organization, OrganizationalUnit, Locality, Province
 func getNames(sub pkix.Name) []Name {
-	// anonymous func for finding the max of a list of interger
+	// anonymous func for finding the max of a list of integer
 	max := func(v1 int, vn ...int) (max int) {
 		max = v1
 		for i := 0; i < len(vn); i++ {
@@ -369,8 +399,13 @@ func Generate(priv crypto.Signer, req *CertificateRequest) (csr []byte, err erro
 		return nil, cferr.New(cferr.PrivateKeyError, cferr.Unavailable)
 	}
 
+	subj, err := req.Name()
+	if err != nil {
+		return nil, err
+	}
+
 	var tpl = x509.CertificateRequest{
-		Subject:            req.Name(),
+		Subject:            subj,
 		SignatureAlgorithm: sigAlgo,
 	}
 
@@ -379,13 +414,29 @@ func Generate(priv crypto.Signer, req *CertificateRequest) (csr []byte, err erro
 			tpl.IPAddresses = append(tpl.IPAddresses, ip)
 		} else if email, err := mail.ParseAddress(req.Hosts[i]); err == nil && email != nil {
 			tpl.EmailAddresses = append(tpl.EmailAddresses, email.Address)
+		} else if uri, err := url.ParseRequestURI(req.Hosts[i]); err == nil && uri != nil {
+			tpl.URIs = append(tpl.URIs, uri)
 		} else {
 			tpl.DNSNames = append(tpl.DNSNames, req.Hosts[i])
 		}
 	}
 
+	tpl.ExtraExtensions = []pkix.Extension{}
+
 	if req.CA != nil {
 		err = appendCAInfoToCSR(req.CA, &tpl)
+		if err != nil {
+			err = cferr.Wrap(cferr.CSRError, cferr.GenerationFailed, err)
+			return
+		}
+	}
+
+	if req.DelegationEnabled {
+		tpl.ExtraExtensions = append(tpl.Extensions, helpers.DelegationExtension)
+	}
+
+	if req.Extensions != nil {
+		err = appendExtensionsToCSR(req.Extensions, &tpl)
 		if err != nil {
 			err = cferr.Wrap(cferr.CSRError, cferr.GenerationFailed, err)
 			return
@@ -420,13 +471,19 @@ func appendCAInfoToCSR(reqConf *CAConfig, csr *x509.CertificateRequest) error {
 		return err
 	}
 
-	csr.ExtraExtensions = []pkix.Extension{
-		{
-			Id:       asn1.ObjectIdentifier{2, 5, 29, 19},
-			Value:    val,
-			Critical: true,
-		},
-	}
+	csr.ExtraExtensions = append(csr.ExtraExtensions, pkix.Extension{
+		Id:       asn1.ObjectIdentifier{2, 5, 29, 19},
+		Value:    val,
+		Critical: true,
+	})
 
+	return nil
+}
+
+// appendCAInfoToCSR appends user-defined extension to a CSR
+func appendExtensionsToCSR(extensions []pkix.Extension, csr *x509.CertificateRequest) error {
+	for _, extension := range extensions {
+		csr.ExtraExtensions = append(csr.ExtraExtensions, extension)
+	}
 	return nil
 }

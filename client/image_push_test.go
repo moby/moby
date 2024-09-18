@@ -9,9 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestImagePushReferenceError(t *testing.T) {
@@ -21,12 +23,12 @@ func TestImagePushReferenceError(t *testing.T) {
 		}),
 	}
 	// An empty reference is an invalid reference
-	_, err := client.ImagePush(context.Background(), "", types.ImagePushOptions{})
+	_, err := client.ImagePush(context.Background(), "", image.PushOptions{})
 	if err == nil || !strings.Contains(err.Error(), "invalid reference format") {
 		t.Fatalf("expected an error, got %v", err)
 	}
 	// An canonical reference cannot be pushed
-	_, err = client.ImagePush(context.Background(), "repo@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", types.ImagePushOptions{})
+	_, err = client.ImagePush(context.Background(), "repo@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", image.PushOptions{})
 	if err == nil || err.Error() != "cannot push a digest reference" {
 		t.Fatalf("expected an error, got %v", err)
 	}
@@ -36,30 +38,26 @@ func TestImagePushAnyError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestImagePushStatusUnauthorizedError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
-	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{})
-	if !errdefs.IsUnauthorized(err) {
-		t.Fatalf("expected a Unauthorized Error, got %[1]T: %[1]v", err)
-	}
+	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsUnauthorized))
 }
 
 func TestImagePushWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
-	privilegeFunc := func() (string, error) {
+	privilegeFunc := func(_ context.Context) (string, error) {
 		return "", fmt.Errorf("Error requesting privilege")
 	}
-	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{
+	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
 	if err == nil || err.Error() != "Error requesting privilege" {
@@ -71,15 +69,13 @@ func TestImagePushWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T)
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
-	privilegeFunc := func() (string, error) {
+	privilegeFunc := func(_ context.Context) (string, error) {
 		return "a-auth-header", nil
 	}
-	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{
+	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
-	if !errdefs.IsUnauthorized(err) {
-		t.Fatalf("expected a Unauthorized Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsUnauthorized))
 }
 
 func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
@@ -110,10 +106,10 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 			}, nil
 		}),
 	}
-	privilegeFunc := func() (string, error) {
+	privilegeFunc := func(_ context.Context) (string, error) {
 		return "IAmValid", nil
 	}
-	resp, err := client.ImagePush(context.Background(), "myimage:tag", types.ImagePushOptions{
+	resp, err := client.ImagePush(context.Background(), "myimage:tag", image.PushOptions{
 		RegistryAuth:  "NotValid",
 		PrivilegeFunc: privilegeFunc,
 	})
@@ -183,7 +179,7 @@ func TestImagePushWithoutErrors(t *testing.T) {
 					}, nil
 				}),
 			}
-			resp, err := client.ImagePush(context.Background(), tc.reference, types.ImagePushOptions{
+			resp, err := client.ImagePush(context.Background(), tc.reference, image.PushOptions{
 				All: tc.all,
 			})
 			if err != nil {

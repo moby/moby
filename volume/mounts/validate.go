@@ -23,6 +23,7 @@ func errBindSourceDoesNotExist(path string) error {
 func errExtraField(name string) error {
 	return errors.Errorf("field %s must not be specified", name)
 }
+
 func errMissingField(name string) error {
 	return errors.Errorf("field %s must not be empty", name)
 }

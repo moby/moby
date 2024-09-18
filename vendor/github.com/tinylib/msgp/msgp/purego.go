@@ -1,3 +1,4 @@
+//go:build purego || appengine
 // +build purego appengine
 
 package msgp

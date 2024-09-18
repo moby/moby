@@ -1113,7 +1113,7 @@ func (d *Decoder) valueFromToml(mtype reflect.Type, tval interface{}, mval1 *ref
 				return reflect.ValueOf(nil), fmt.Errorf("Can't convert %v(%T) to %v", tval, tval, mtype.String())
 			}
 
-			if val.Convert(reflect.TypeOf(int(1))).Int() < 0 {
+			if val.Type().Kind() != reflect.Uint64 && val.Convert(reflect.TypeOf(int(1))).Int() < 0 {
 				return reflect.ValueOf(nil), fmt.Errorf("%v(%T) is negative so does not fit in %v", tval, tval, mtype.String())
 			}
 			if reflect.Indirect(reflect.New(mtype)).OverflowUint(val.Convert(reflect.TypeOf(uint64(0))).Uint()) {

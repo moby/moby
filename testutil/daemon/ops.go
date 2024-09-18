@@ -19,6 +19,12 @@ func WithContainerdSocket(socket string) Option {
 	}
 }
 
+func WithUserNsRemap(remap string) Option {
+	return func(d *Daemon) {
+		d.usernsRemap = remap
+	}
+}
+
 // WithDefaultCgroupNamespaceMode sets the default cgroup namespace mode for the daemon
 func WithDefaultCgroupNamespaceMode(mode string) Option {
 	return func(d *Daemon) {

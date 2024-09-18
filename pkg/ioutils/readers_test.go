@@ -2,59 +2,61 @@ package ioutils // import "github.com/docker/docker/pkg/ioutils"
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"io"
 	"strings"
 	"testing"
+	"testing/iotest"
 	"time"
-
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
-// Implement io.Reader
-type errorReader struct{}
-
-func (r *errorReader) Read(p []byte) (int, error) {
-	return 0, fmt.Errorf("error reader always fail")
-}
-
 func TestReadCloserWrapperClose(t *testing.T) {
-	reader := strings.NewReader("A string reader")
-	wrapper := NewReadCloserWrapper(reader, func() error {
-		return fmt.Errorf("This will be called when closing")
+	const text = "hello world"
+	testErr := errors.New("this will be called when closing")
+	wrapper := NewReadCloserWrapper(strings.NewReader(text), func() error {
+		return testErr
 	})
-	err := wrapper.Close()
-	if err == nil || !strings.Contains(err.Error(), "This will be called when closing") {
-		t.Fatalf("readCloserWrapper should have call the anonymous func and thus, fail.")
+
+	buf, err := io.ReadAll(wrapper)
+	if err != nil {
+		t.Errorf("io.ReadAll(wrapper) err = %v", err)
+	}
+	if string(buf) != text {
+		t.Errorf("expected %v, got: %v", text, string(buf))
+	}
+	err = wrapper.Close()
+	if !errors.Is(err, testErr) {
+		// readCloserWrapper should have called the anonymous func and thus, fail
+		t.Errorf("expected %v, got: %v", testErr, err)
 	}
 }
 
 func TestReaderErrWrapperReadOnError(t *testing.T) {
 	called := false
-	reader := &errorReader{}
-	wrapper := NewReaderErrWrapper(reader, func() {
+	expectedErr := errors.New("error reader always fail")
+	wrapper := NewReaderErrWrapper(iotest.ErrReader(expectedErr), func() {
 		called = true
 	})
 	_, err := wrapper.Read([]byte{})
-	assert.Check(t, is.Error(err, "error reader always fail"))
+	if !errors.Is(err, expectedErr) {
+		t.Errorf("expected %v, got: %v", expectedErr, err)
+	}
 	if !called {
-		t.Fatalf("readErrWrapper should have call the anonymous function on failure")
+		t.Fatalf("readErrWrapper should have called the anonymous function on failure")
 	}
 }
 
 func TestReaderErrWrapperRead(t *testing.T) {
-	reader := strings.NewReader("a string reader.")
-	wrapper := NewReaderErrWrapper(reader, func() {
+	const text = "hello world"
+	wrapper := NewReaderErrWrapper(strings.NewReader(text), func() {
 		t.Fatalf("readErrWrapper should not have called the anonymous function")
 	})
-	// Read 20 byte (should be ok with the string above)
-	num, err := wrapper.Read(make([]byte, 20))
+	num, err := wrapper.Read(make([]byte, len(text)+10))
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-	if num != 16 {
-		t.Fatalf("readerErrWrapper should have read 16 byte, but read %d", num)
+	if expected := len(text); num != expected {
+		t.Errorf("readerErrWrapper should have read %d byte, but read %d", expected, num)
 	}
 }
 
@@ -70,10 +72,10 @@ func (p *perpetualReader) Read(buf []byte) (n int, err error) {
 func TestCancelReadCloser(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	cancelReadCloser := NewCancelReadCloser(ctx, io.NopCloser(&perpetualReader{}))
+	crc := NewCancelReadCloser(ctx, io.NopCloser(&perpetualReader{}))
 	for {
 		var buf [128]byte
-		_, err := cancelReadCloser.Read(buf[:])
+		_, err := crc.Read(buf[:])
 		if err == context.DeadlineExceeded {
 			break
 		} else if err != nil {

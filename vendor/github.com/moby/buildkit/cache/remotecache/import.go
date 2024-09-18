@@ -3,21 +3,24 @@ package remotecache
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"sync"
 	"time"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/imageutil"
+	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -47,24 +50,52 @@ func (ci *contentCacheImporter) Resolve(ctx context.Context, desc ocispecs.Descr
 		return nil, err
 	}
 
-	var mfst ocispecs.Index
-	if err := json.Unmarshal(dt, &mfst); err != nil {
+	manifestType, err := imageutil.DetectManifestBlobMediaType(dt)
+	if err != nil {
 		return nil, err
 	}
 
-	allLayers := v1.DescriptorProvider{}
+	layerDone := progress.OneOff(ctx, fmt.Sprintf("inferred cache manifest type: %s", manifestType))
+	layerDone(nil)
 
+	allLayers := v1.DescriptorProvider{}
 	var configDesc ocispecs.Descriptor
 
-	for _, m := range mfst.Manifests {
-		if m.MediaType == v1.CacheConfigMediaTypeV0 {
-			configDesc = m
-			continue
+	switch manifestType {
+	case images.MediaTypeDockerSchema2ManifestList, ocispecs.MediaTypeImageIndex:
+		var mfst ocispecs.Index
+		if err := json.Unmarshal(dt, &mfst); err != nil {
+			return nil, err
 		}
-		allLayers[m.Digest] = v1.DescriptorProviderPair{
-			Descriptor: m,
-			Provider:   ci.provider,
+
+		for _, m := range mfst.Manifests {
+			if m.MediaType == v1.CacheConfigMediaTypeV0 {
+				configDesc = m
+				continue
+			}
+			allLayers[m.Digest] = v1.DescriptorProviderPair{
+				Descriptor: m,
+				Provider:   ci.provider,
+			}
 		}
+	case images.MediaTypeDockerSchema2Manifest, ocispecs.MediaTypeImageManifest:
+		var mfst ocispecs.Manifest
+		if err := json.Unmarshal(dt, &mfst); err != nil {
+			return nil, err
+		}
+
+		if mfst.Config.MediaType == v1.CacheConfigMediaTypeV0 {
+			configDesc = mfst.Config
+		}
+		for _, m := range mfst.Layers {
+			allLayers[m.Digest] = v1.DescriptorProviderPair{
+				Descriptor: m,
+				Provider:   ci.provider,
+			}
+		}
+	default:
+		err = errors.Wrapf(err, "unsupported or uninferrable manifest type")
+		return nil, err
 	}
 
 	if dsls, ok := ci.provider.(DistributionSourceLabelSetter); ok {
@@ -162,7 +193,7 @@ func (ci *contentCacheImporter) importInlineCache(ctx context.Context, dt []byte
 				}
 
 				if len(img.Rootfs.DiffIDs) != len(m.Layers) {
-					logrus.Warnf("invalid image with mismatching manifest and config")
+					bklog.G(ctx).Warnf("invalid image with mismatching manifest and config")
 					return nil
 				}
 
@@ -191,7 +222,7 @@ func (ci *contentCacheImporter) importInlineCache(ctx context.Context, dt []byte
 					if createdBy := createdMsg[i]; createdBy != "" {
 						m.Annotations["buildkit/description"] = createdBy
 					}
-					m.Annotations["containerd.io/uncompressed"] = img.Rootfs.DiffIDs[i].String()
+					m.Annotations[labels.LabelUncompressed] = img.Rootfs.DiffIDs[i].String()
 					layers[m.Digest] = v1.DescriptorProviderPair{
 						Descriptor: m,
 						Provider:   ci.provider,

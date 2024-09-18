@@ -1,24 +1,24 @@
+//go:build windows
+
 package portmapper
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/ishidawataru/sctp"
-	"github.com/sirupsen/logrus"
 )
 
 type mapping struct {
-	proto         string
-	userlandProxy userlandProxy
-	host          net.Addr
-	container     net.Addr
+	proto             string
+	stopUserlandProxy func() error
+	host              net.Addr
+	container         net.Addr
 }
-
-// newProxy is used to mock out the proxy server in tests
-var newProxy = newProxyCommand
 
 var (
 	// ErrUnknownBackendAddressType refers to an unknown container or unsupported address type
@@ -32,26 +32,21 @@ var (
 )
 
 // New returns a new instance of PortMapper
-func New(proxyPath string) *PortMapper {
-	return NewWithPortAllocator(portallocator.Get(), proxyPath)
+func New() *PortMapper {
+	return NewWithPortAllocator(portallocator.Get(), "")
 }
 
 // NewWithPortAllocator returns a new instance of PortMapper which will use the specified PortAllocator
 func NewWithPortAllocator(allocator *portallocator.PortAllocator, proxyPath string) *PortMapper {
 	return &PortMapper{
 		currentMappings: make(map[string]*mapping),
-		Allocator:       allocator,
+		allocator:       allocator,
 		proxyPath:       proxyPath,
 	}
 }
 
-// Map maps the specified container transport address to the host's network address and transport port
-func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, useProxy bool) (host net.Addr, err error) {
-	return pm.MapRange(container, hostIP, hostPort, hostPort, useProxy)
-}
-
 // MapRange maps the specified container transport address to the host's network address and transport port range
-func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart, hostPortEnd int, useProxy bool) (host net.Addr, err error) {
+func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart, hostPortEnd int) (host net.Addr, retErr error) {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 
@@ -61,90 +56,67 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		allocatedHostPort int
 	)
 
-	switch t := container.(type) {
+	switch container.(type) {
 	case *net.TCPAddr:
 		proto = "tcp"
-		if allocatedHostPort, err = pm.Allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd); err != nil {
+
+		var err error
+		allocatedHostPort, err = pm.allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd)
+		if err != nil {
 			return nil, err
 		}
+		defer func() {
+			if retErr != nil {
+				pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
+			}
+		}()
 
 		m = &mapping{
 			proto:     proto,
 			host:      &net.TCPAddr{IP: hostIP, Port: allocatedHostPort},
 			container: container,
 		}
-
-		if useProxy {
-			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, t.IP, t.Port, pm.proxyPath)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			m.userlandProxy, err = newDummyProxy(proto, hostIP, allocatedHostPort)
-			if err != nil {
-				return nil, err
-			}
-		}
 	case *net.UDPAddr:
 		proto = "udp"
-		if allocatedHostPort, err = pm.Allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd); err != nil {
+
+		var err error
+		allocatedHostPort, err = pm.allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd)
+		if err != nil {
 			return nil, err
 		}
+		defer func() {
+			if retErr != nil {
+				pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
+			}
+		}()
 
 		m = &mapping{
 			proto:     proto,
 			host:      &net.UDPAddr{IP: hostIP, Port: allocatedHostPort},
 			container: container,
 		}
-
-		if useProxy {
-			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, t.IP, t.Port, pm.proxyPath)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			m.userlandProxy, err = newDummyProxy(proto, hostIP, allocatedHostPort)
-			if err != nil {
-				return nil, err
-			}
-		}
 	case *sctp.SCTPAddr:
 		proto = "sctp"
-		if allocatedHostPort, err = pm.Allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd); err != nil {
+
+		var err error
+		allocatedHostPort, err = pm.allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd)
+		if err != nil {
 			return nil, err
 		}
+		defer func() {
+			if retErr != nil {
+				pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
+			}
+		}()
 
 		m = &mapping{
 			proto:     proto,
 			host:      &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: hostIP}}, Port: allocatedHostPort},
 			container: container,
 		}
-
-		if useProxy {
-			sctpAddr := container.(*sctp.SCTPAddr)
-			if len(sctpAddr.IPAddrs) == 0 {
-				return nil, ErrSCTPAddrNoIP
-			}
-			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, sctpAddr.IPAddrs[0].IP, sctpAddr.Port, pm.proxyPath)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			m.userlandProxy, err = newDummyProxy(proto, hostIP, allocatedHostPort)
-			if err != nil {
-				return nil, err
-			}
-		}
 	default:
 		return nil, ErrUnknownBackendAddressType
 	}
-
-	// release the allocated port on any further error during return.
-	defer func() {
-		if err != nil {
-			pm.Allocator.ReleasePort(hostIP, proto, allocatedHostPort)
-		}
-	}()
 
 	key := getKey(m.host)
 	if _, exists := pm.currentMappings[key]; exists {
@@ -156,21 +128,13 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		return nil, err
 	}
 
-	cleanup := func() error {
+	var err error
+	m.stopUserlandProxy, err = newDummyProxy(m.proto, hostIP, allocatedHostPort)
+	if err != nil {
+		// FIXME(thaJeztah): both stopping the proxy and deleting iptables rules can produce an error, and both are not currently handled.
+		m.stopUserlandProxy()
 		// need to undo the iptables rules before we return
-		m.userlandProxy.Stop()
 		pm.DeleteForwardingTableEntry(m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
-		if err := pm.Allocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	if err := m.userlandProxy.Start(); err != nil {
-		if err := cleanup(); err != nil {
-			return nil, fmt.Errorf("Error during port allocation cleanup: %v", err)
-		}
 		return nil, err
 	}
 
@@ -189,8 +153,8 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 		return ErrPortNotMapped
 	}
 
-	if data.userlandProxy != nil {
-		data.userlandProxy.Stop()
+	if data.stopUserlandProxy != nil {
+		data.stopUserlandProxy()
 	}
 
 	delete(pm.currentMappings, key)
@@ -198,35 +162,24 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 	containerIP, containerPort := getIPAndPort(data.container)
 	hostIP, hostPort := getIPAndPort(data.host)
 	if err := pm.DeleteForwardingTableEntry(data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
-		logrus.Errorf("Error on iptables delete: %s", err)
+		log.G(context.TODO()).Errorf("Error on iptables delete: %s", err)
 	}
 
 	switch a := host.(type) {
 	case *net.TCPAddr:
-		return pm.Allocator.ReleasePort(a.IP, "tcp", a.Port)
+		pm.allocator.ReleasePort(a.IP, "tcp", a.Port)
 	case *net.UDPAddr:
-		return pm.Allocator.ReleasePort(a.IP, "udp", a.Port)
+		pm.allocator.ReleasePort(a.IP, "udp", a.Port)
 	case *sctp.SCTPAddr:
 		if len(a.IPAddrs) == 0 {
 			return ErrSCTPAddrNoIP
 		}
-		return pm.Allocator.ReleasePort(a.IPAddrs[0].IP, "sctp", a.Port)
+		pm.allocator.ReleasePort(a.IPAddrs[0].IP, "sctp", a.Port)
+	default:
+		return ErrUnknownBackendAddressType
 	}
-	return ErrUnknownBackendAddressType
-}
 
-// ReMapAll re-applies all port mappings
-func (pm *PortMapper) ReMapAll() {
-	pm.lock.Lock()
-	defer pm.lock.Unlock()
-	logrus.Debugln("Re-applying all port mappings.")
-	for _, data := range pm.currentMappings {
-		containerIP, containerPort := getIPAndPort(data.container)
-		hostIP, hostPort := getIPAndPort(data.host)
-		if err := pm.AppendForwardingTableEntry(data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
-			logrus.Errorf("Error on iptables add: %s", err)
-		}
-	}
+	return nil
 }
 
 func getKey(a net.Addr) string {
@@ -237,7 +190,7 @@ func getKey(a net.Addr) string {
 		return fmt.Sprintf("%s:%d/%s", t.IP.String(), t.Port, "udp")
 	case *sctp.SCTPAddr:
 		if len(t.IPAddrs) == 0 {
-			logrus.Error(ErrSCTPAddrNoIP)
+			log.G(context.TODO()).Error(ErrSCTPAddrNoIP)
 			return ""
 		}
 		return fmt.Sprintf("%s:%d/%s", t.IPAddrs[0].IP.String(), t.Port, "sctp")
@@ -253,7 +206,7 @@ func getIPAndPort(a net.Addr) (net.IP, int) {
 		return t.IP, t.Port
 	case *sctp.SCTPAddr:
 		if len(t.IPAddrs) == 0 {
-			logrus.Error(ErrSCTPAddrNoIP)
+			log.G(context.TODO()).Error(ErrSCTPAddrNoIP)
 			return nil, 0
 		}
 		return t.IPAddrs[0].IP, t.Port

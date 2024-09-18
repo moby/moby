@@ -3,16 +3,20 @@ package imageutil
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/platforms"
+	intoto "github.com/in-toto/in-toto-golang/in_toto"
+	srctypes "github.com/moby/buildkit/source/types"
+	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/resolver/limited"
 	"github.com/moby/buildkit/util/resolver/retryhandler"
@@ -24,6 +28,7 @@ import (
 type ContentCache interface {
 	content.Ingester
 	content.Provider
+	content.Manager
 }
 
 var leasesMu sync.Mutex
@@ -44,8 +49,17 @@ func AddLease(f func(context.Context) error) {
 	leasesMu.Unlock()
 }
 
+// ResolveToNonImageError is returned by the resolver when the ref is mutated by policy to a non-image ref
+type ResolveToNonImageError struct {
+	Ref     string
+	Updated string
+}
+
+func (e ResolveToNonImageError) Error() string {
+	return fmt.Sprintf("ref mutated by policy to non-image: %s://%s -> %s", srctypes.DockerImageScheme, e.Ref, e.Updated)
+}
+
 func Config(ctx context.Context, str string, resolver remotes.Resolver, cache ContentCache, leaseManager leases.Manager, p *ocispecs.Platform) (digest.Digest, []byte, error) {
-	// TODO: fix buildkit to take interface instead of struct
 	var platform platforms.MatchComparer
 	if p != nil {
 		platform = platforms.Only(*p)
@@ -75,10 +89,15 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 	if desc.Digest != "" {
 		ra, err := cache.ReaderAt(ctx, desc)
 		if err == nil {
-			desc.Size = ra.Size()
-			mt, err := DetectManifestMediaType(ra)
+			info, err := cache.Info(ctx, desc.Digest)
 			if err == nil {
-				desc.MediaType = mt
+				if ok, err := contentutil.HasSource(info, ref); err == nil && ok {
+					desc.Size = ra.Size()
+					mt, err := DetectManifestMediaType(ra)
+					if err == nil {
+						desc.MediaType = mt
+					}
+				}
 			}
 		}
 	}
@@ -96,13 +115,21 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 	}
 
 	if desc.MediaType == images.MediaTypeDockerSchema1Manifest {
-		return readSchema1Config(ctx, ref.String(), desc, fetcher, cache)
+		dgst, dt, err := readSchema1Config(ctx, desc, fetcher)
+		return dgst, dt, err
 	}
 
 	children := childrenConfigHandler(cache, platform)
+	children = images.LimitManifests(children, platform, 1)
+
+	dslHandler, err := docker.AppendDistributionSourceLabel(cache, ref.String())
+	if err != nil {
+		return "", nil, err
+	}
 
 	handlers := []images.Handler{
 		retryhandler.New(limited.FetchHandler(cache, fetcher, str), func(_ []byte) {}),
+		dslHandler,
 		children,
 	}
 	if err := images.Dispatch(ctx, images.Handlers(handlers...), nil, desc); err != nil {
@@ -159,7 +186,8 @@ func childrenConfigHandler(provider content.Provider, platform platforms.MatchCo
 			} else {
 				descs = append(descs, index.Manifests...)
 			}
-		case images.MediaTypeDockerSchema2Config, ocispecs.MediaTypeImageConfig, docker.LegacyConfigMediaType:
+		case images.MediaTypeDockerSchema2Config, ocispecs.MediaTypeImageConfig, docker.LegacyConfigMediaType,
+			intoto.PayloadType:
 			// childless data types.
 			return nil, nil
 		default:

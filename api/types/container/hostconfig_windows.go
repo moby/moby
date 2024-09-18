@@ -1,9 +1,16 @@
 package container // import "github.com/docker/docker/api/types/container"
 
+import "github.com/docker/docker/api/types/network"
+
+// IsValid indicates if an isolation technology is valid
+func (i Isolation) IsValid() bool {
+	return i.IsDefault() || i.IsHyperV() || i.IsProcess()
+}
+
 // IsBridge indicates whether container uses the bridge network stack
 // in windows it is given the name NAT
 func (n NetworkMode) IsBridge() bool {
-	return n == "nat"
+	return n == network.NetworkNat
 }
 
 // IsHost indicates whether container uses the host network stack.
@@ -17,24 +24,24 @@ func (n NetworkMode) IsUserDefined() bool {
 	return !n.IsDefault() && !n.IsNone() && !n.IsBridge() && !n.IsContainer()
 }
 
-// IsValid indicates if an isolation technology is valid
-func (i Isolation) IsValid() bool {
-	return i.IsDefault() || i.IsHyperV() || i.IsProcess()
-}
-
 // NetworkName returns the name of the network stack.
 func (n NetworkMode) NetworkName() string {
-	if n.IsDefault() {
-		return "default"
-	} else if n.IsBridge() {
-		return "nat"
-	} else if n.IsNone() {
-		return "none"
-	} else if n.IsContainer() {
+	switch {
+	case n.IsDefault():
+		return network.NetworkDefault
+	case n.IsBridge():
+		return network.NetworkNat
+	case n.IsHost():
+		// Windows currently doesn't support host network-mode, so
+		// this would currently never happen..
+		return network.NetworkHost
+	case n.IsNone():
+		return network.NetworkNone
+	case n.IsContainer():
 		return "container"
-	} else if n.IsUserDefined() {
+	case n.IsUserDefined():
 		return n.UserDefined()
+	default:
+		return ""
 	}
-
-	return ""
 }

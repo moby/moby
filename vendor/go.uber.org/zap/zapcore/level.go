@@ -55,6 +55,18 @@ const (
 	_maxLevel = FatalLevel
 )
 
+// ParseLevel parses a level based on the lower-case or all-caps ASCII
+// representation of the log level. If the provided ASCII representation is
+// invalid an error is returned.
+//
+// This is particularly useful when dealing with text input to configure log
+// levels.
+func ParseLevel(text string) (Level, error) {
+	var level Level
+	err := level.UnmarshalText([]byte(text))
+	return level, err
+}
+
 // String returns a lower-case ASCII representation of the log level.
 func (l Level) String() string {
 	switch l {

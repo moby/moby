@@ -17,6 +17,7 @@ var (
 	}
 	invalidGitUrls = []string{
 		"http://github.com/docker/docker.git:#branch",
+		"https://github.com/docker/dgit",
 	}
 )
 

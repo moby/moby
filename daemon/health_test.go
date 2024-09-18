@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
@@ -14,7 +13,7 @@ import (
 func reset(c *container.Container) {
 	c.State = &container.State{}
 	c.State.Health = &container.Health{}
-	c.State.Health.SetStatus(types.Starting)
+	c.State.Health.SetStatus(containertypes.Starting)
 }
 
 func TestNoneHealthcheck(t *testing.T) {
@@ -49,12 +48,12 @@ func TestHealthStates(t *testing.T) {
 	_, l, _ := e.Subscribe()
 	defer e.Evict(l)
 
-	expect := func(expected string) {
+	expect := func(expected eventtypes.Action) {
 		select {
 		case event := <-l:
 			ev := event.(eventtypes.Message)
-			if ev.Status != expected {
-				t.Errorf("Expecting event %#v, but got %#v\n", expected, ev.Status)
+			if ev.Action != expected {
+				t.Errorf("Expecting event %#v, but got %#v\n", expected, ev.Action)
 			}
 		case <-time.After(1 * time.Second):
 			t.Errorf("Expecting event %#v, but got nothing\n", expected)
@@ -78,7 +77,7 @@ func TestHealthStates(t *testing.T) {
 		EventsService:     e,
 		containersReplica: store,
 	}
-	muteLogs()
+	muteLogs(t)
 
 	c.Config.Healthcheck = &containertypes.HealthConfig{
 		Retries: 1,
@@ -87,7 +86,7 @@ func TestHealthStates(t *testing.T) {
 	reset(c)
 
 	handleResult := func(startTime time.Time, exitCode int) {
-		handleProbeResult(daemon, c, &types.HealthcheckResult{
+		handleProbeResult(daemon, c, &containertypes.HealthcheckResult{
 			Start:    startTime,
 			End:      startTime,
 			ExitCode: exitCode,
@@ -97,13 +96,13 @@ func TestHealthStates(t *testing.T) {
 	// starting -> failed -> success -> failed
 
 	handleResult(c.State.StartedAt.Add(1*time.Second), 1)
-	expect("health_status: unhealthy")
+	expect(eventtypes.ActionHealthStatusUnhealthy)
 
 	handleResult(c.State.StartedAt.Add(2*time.Second), 0)
-	expect("health_status: healthy")
+	expect(eventtypes.ActionHealthStatusHealthy)
 
 	handleResult(c.State.StartedAt.Add(3*time.Second), 1)
-	expect("health_status: unhealthy")
+	expect(eventtypes.ActionHealthStatusUnhealthy)
 
 	// Test retries
 
@@ -112,17 +111,17 @@ func TestHealthStates(t *testing.T) {
 
 	handleResult(c.State.StartedAt.Add(20*time.Second), 1)
 	handleResult(c.State.StartedAt.Add(40*time.Second), 1)
-	if status := c.State.Health.Status(); status != types.Starting {
+	if status := c.State.Health.Status(); status != containertypes.Starting {
 		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
 	if c.State.Health.FailingStreak != 2 {
 		t.Errorf("Expecting FailingStreak=2, but got %d\n", c.State.Health.FailingStreak)
 	}
 	handleResult(c.State.StartedAt.Add(60*time.Second), 1)
-	expect("health_status: unhealthy")
+	expect(eventtypes.ActionHealthStatusUnhealthy)
 
 	handleResult(c.State.StartedAt.Add(80*time.Second), 0)
-	expect("health_status: healthy")
+	expect(eventtypes.ActionHealthStatusHealthy)
 	if c.State.Health.FailingStreak != 0 {
 		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
 	}
@@ -134,21 +133,21 @@ func TestHealthStates(t *testing.T) {
 	c.Config.Healthcheck.StartPeriod = 30 * time.Second
 
 	handleResult(c.State.StartedAt.Add(20*time.Second), 1)
-	if status := c.State.Health.Status(); status != types.Starting {
+	if status := c.State.Health.Status(); status != containertypes.Starting {
 		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
 	if c.State.Health.FailingStreak != 0 {
 		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
 	}
 	handleResult(c.State.StartedAt.Add(50*time.Second), 1)
-	if status := c.State.Health.Status(); status != types.Starting {
+	if status := c.State.Health.Status(); status != containertypes.Starting {
 		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
 	if c.State.Health.FailingStreak != 1 {
 		t.Errorf("Expecting FailingStreak=1, but got %d\n", c.State.Health.FailingStreak)
 	}
 	handleResult(c.State.StartedAt.Add(80*time.Second), 0)
-	expect("health_status: healthy")
+	expect(eventtypes.ActionHealthStatusHealthy)
 	if c.State.Health.FailingStreak != 0 {
 		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
 	}

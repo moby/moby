@@ -1,5 +1,4 @@
 //go:build ignore
-// +build ignore
 
 // Simple tool to create an archive stream from an old and new directory
 //
@@ -13,15 +12,15 @@ import (
 	"os"
 	"path"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/sirupsen/logrus"
 )
 
 var (
 	flDebug  = flag.Bool("D", false, "debugging output")
 	flNewDir = flag.String("newdir", "", "")
 	flOldDir = flag.String("olddir", "", "")
-	log      = logrus.New()
+	log      = log.G(ctx).New()
 )
 
 func main() {
@@ -33,7 +32,7 @@ func main() {
 	flag.Parse()
 	log.Out = os.Stderr
 	if (len(os.Getenv("DEBUG")) > 0) || *flDebug {
-		logrus.SetLevel(logrus.DebugLevel)
+		log.G(ctx).SetLevel(logrus.DebugLevel)
 	}
 	var newDir, oldDir string
 
@@ -83,7 +82,7 @@ func prepareUntarSourceDirectory(numberOfFiles int, targetPath string, makeLinks
 	fileData := []byte("fooo")
 	for n := 0; n < numberOfFiles; n++ {
 		fileName := fmt.Sprintf("file-%d", n)
-		if err := os.WriteFile(path.Join(targetPath, fileName), fileData, 0700); err != nil {
+		if err := os.WriteFile(path.Join(targetPath, fileName), fileData, 0o700); err != nil {
 			return 0, err
 		}
 		if makeLinks {

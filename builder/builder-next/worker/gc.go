@@ -2,6 +2,7 @@ package worker
 
 import (
 	"math"
+	"time"
 
 	"github.com/moby/buildkit/client"
 )
@@ -30,12 +31,12 @@ func DefaultGCPolicy(p string, defaultKeepBytes int64) []client.PruneInfo {
 		// if build cache uses more than 512MB delete the most easily reproducible data after it has not been used for 2 days
 		{
 			Filter:       []string{"type==source.local,type==exec.cachemount,type==source.git.checkout"},
-			KeepDuration: 48 * 3600, // 48h
+			KeepDuration: 48 * time.Hour,
 			KeepBytes:    tempCacheKeepBytes,
 		},
 		// remove any data not used for 60 days
 		{
-			KeepDuration: 60 * 24 * 3600, // 60d
+			KeepDuration: 60 * 24 * time.Hour,
 			KeepBytes:    keep,
 		},
 		// keep the unshared build cache under cap

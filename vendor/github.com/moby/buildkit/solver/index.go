@@ -32,12 +32,12 @@ func (ei *edgeIndex) Release(e *edge) {
 	defer ei.mu.Unlock()
 
 	for id := range ei.backRefs[e] {
-		ei.releaseEdge(id, e)
+		ei.releaseEdge(id)
 	}
 	delete(ei.backRefs, e)
 }
 
-func (ei *edgeIndex) releaseEdge(id string, e *edge) {
+func (ei *edgeIndex) releaseEdge(id string) {
 	item, ok := ei.items[id]
 	if !ok {
 		return

@@ -4,21 +4,28 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
+	"github.com/moby/buildkit/util/bklog"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 )
 
-var mu sync.Mutex
-var arr []ocispecs.Platform
+var CacheMaxAge = 20 * time.Second
+
+var (
+	mu          sync.Mutex
+	arr         []ocispecs.Platform
+	lastRefresh time.Time
+)
 
 func SupportedPlatforms(noCache bool) []ocispecs.Platform {
 	mu.Lock()
 	defer mu.Unlock()
-	if !noCache && arr != nil {
+	if arr != nil && (!noCache || CacheMaxAge < 0 || time.Since(lastRefresh) < CacheMaxAge) {
 		return arr
 	}
+	defer func() { lastRefresh = time.Now() }()
 	def := nativePlatform()
 	arr = append([]ocispecs.Platform{}, def)
 
@@ -48,6 +55,11 @@ func SupportedPlatforms(noCache bool) []ocispecs.Platform {
 			arr = append(arr, linux(p))
 		}
 	}
+	if p := "ppc64"; def.Architecture != p {
+		if _, err := ppc64Supported(); err == nil {
+			arr = append(arr, linux(p))
+		}
+	}
 	if p := "ppc64le"; def.Architecture != p {
 		if _, err := ppc64leSupported(); err == nil {
 			arr = append(arr, linux(p))
@@ -73,6 +85,11 @@ func SupportedPlatforms(noCache bool) []ocispecs.Platform {
 			arr = append(arr, linux(p))
 		}
 	}
+	if p := "loong64"; def.Architecture != p {
+		if _, err := loong64Supported(); err == nil {
+			arr = append(arr, linux(p))
+		}
+	}
 	if p := "arm"; def.Architecture != p {
 		if _, err := armSupported(); err == nil {
 			p := linux("arm")
@@ -87,9 +104,9 @@ func SupportedPlatforms(noCache bool) []ocispecs.Platform {
 	return arr
 }
 
-//WarnIfUnsupported validates the platforms and show warning message if there is,
-//the end user could fix the issue based on those warning, and thus no need to drop
-//the platform from the candidates.
+// WarnIfUnsupported validates the platforms and show warning message if there is,
+// the end user could fix the issue based on those warning, and thus no need to drop
+// the platform from the candidates.
 func WarnIfUnsupported(pfs []ocispecs.Platform) {
 	def := nativePlatform()
 	for _, p := range pfs {
@@ -106,6 +123,11 @@ func WarnIfUnsupported(pfs []ocispecs.Platform) {
 			}
 			if p.Architecture == "riscv64" {
 				if _, err := riscv64Supported(); err != nil {
+					printPlatformWarning(p, err)
+				}
+			}
+			if p.Architecture == "ppc64" {
+				if _, err := ppc64Supported(); err != nil {
 					printPlatformWarning(p, err)
 				}
 			}
@@ -131,6 +153,11 @@ func WarnIfUnsupported(pfs []ocispecs.Platform) {
 			}
 			if p.Architecture == "mips64" {
 				if _, err := mips64Supported(); err != nil {
+					printPlatformWarning(p, err)
+				}
+			}
+			if p.Architecture == "loong64" {
+				if _, err := loong64Supported(); err != nil {
 					printPlatformWarning(p, err)
 				}
 			}
@@ -171,10 +198,10 @@ func amd64vector(v string) (out []string) {
 
 func printPlatformWarning(p ocispecs.Platform, err error) {
 	if strings.Contains(err.Error(), "exec format error") {
-		logrus.Warnf("platform %s cannot pass the validation, kernel support for miscellaneous binary may have not enabled.", platforms.Format(p))
+		bklog.L.Warnf("platform %s cannot pass the validation, kernel support for miscellaneous binary may have not enabled.", platforms.Format(p))
 	} else if strings.Contains(err.Error(), "no such file or directory") {
-		logrus.Warnf("platforms %s cannot pass the validation, '-F' flag might have not set for 'archutil'.", platforms.Format(p))
+		bklog.L.Warnf("platforms %s cannot pass the validation, '-F' flag might have not set for 'archutil'.", platforms.Format(p))
 	} else {
-		logrus.Warnf("platforms %s cannot pass the validation: %s", platforms.Format(p), err.Error())
+		bklog.L.Warnf("platforms %s cannot pass the validation: %s", platforms.Format(p), err.Error())
 	}
 }

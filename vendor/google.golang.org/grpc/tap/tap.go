@@ -19,7 +19,7 @@
 // Package tap defines the function handles which are executed on the transport
 // layer of gRPC-Go and related information.
 //
-// Experimental
+// # Experimental
 //
 // Notice: This API is EXPERIMENTAL and may be changed or removed in a
 // later release.
@@ -27,6 +27,8 @@ package tap
 
 import (
 	"context"
+
+	"google.golang.org/grpc/metadata"
 )
 
 // Info defines the relevant information needed by the handles.
@@ -34,6 +36,10 @@ type Info struct {
 	// FullMethodName is the string of grpc method (in the format of
 	// /package.service/method).
 	FullMethodName string
+
+	// Header contains the header metadata received.
+	Header metadata.MD
+
 	// TODO: More to be added.
 }
 

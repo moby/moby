@@ -31,7 +31,7 @@ Additional implementations will not be accepted into the core repository and sho
 ## Scope
 
 The following table specifies the various components of containerd and general features of container runtimes.
-The table specifies whether or not the feature/component is in or out of scope.
+The table specifies whether the feature/component is in or out of scope.
 
 | Name | Description | In/Out | Reason |
 |------------------------------|--------------------------------------------------------------------------------------------------------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

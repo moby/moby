@@ -11,12 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -28,50 +26,42 @@ import (
 )
 
 func TestEventsExecDie(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.36"), "broken in earlier versions")
-	skip.If(t, testEnv.OSType == "windows", "FIXME. Suspect may need to wait until container is running before exec")
-	defer setupTest(t)()
-	ctx := context.Background()
-	client := testEnv.APIClient()
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME. Suspect may need to wait until container is running before exec")
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
 
-	cID := container.Run(ctx, t, client)
+	cID := container.Run(ctx, t, apiClient)
 
-	id, err := client.ContainerExecCreate(ctx, cID,
-		types.ExecConfig{
-			Cmd: strslice.StrSlice([]string{"echo", "hello"}),
-		},
-	)
+	id, err := apiClient.ContainerExecCreate(ctx, cID, containertypes.ExecOptions{
+		Cmd: []string{"echo", "hello"},
+	})
 	assert.NilError(t, err)
 
-	filters := filters.NewArgs(
-		filters.Arg("container", cID),
-		filters.Arg("event", "exec_die"),
-	)
-	msg, errors := client.Events(ctx, types.EventsOptions{
-		Filters: filters,
+	msg, errs := apiClient.Events(ctx, events.ListOptions{
+		Filters: filters.NewArgs(
+			filters.Arg("container", cID),
+			filters.Arg("event", string(events.ActionExecDie)),
+		),
 	})
 
-	err = client.ContainerExecStart(ctx, id.ID,
-		types.ExecStartCheck{
-			Detach: true,
-			Tty:    false,
-		},
-	)
+	err = apiClient.ContainerExecStart(ctx, id.ID, containertypes.ExecStartOptions{
+		Detach: true,
+		Tty:    false,
+	})
 	assert.NilError(t, err)
 
 	select {
 	case m := <-msg:
-		assert.Equal(t, m.Type, "container")
+		assert.Equal(t, m.Type, events.ContainerEventType)
 		assert.Equal(t, m.Actor.ID, cID)
-		assert.Equal(t, m.Action, "exec_die")
+		assert.Equal(t, m.Action, events.ActionExecDie)
 		assert.Equal(t, m.Actor.Attributes["execID"], id.ID)
 		assert.Equal(t, m.Actor.Attributes["exitCode"], "0")
-	case err = <-errors:
+	case err = <-errs:
 		assert.NilError(t, err)
 	case <-time.After(time.Second * 3):
 		t.Fatal("timeout hit")
 	}
-
 }
 
 // Test case for #18888: Events messages have been switched from generic
@@ -79,20 +69,19 @@ func TestEventsExecDie(t *testing.T) {
 // backward compatibility so old `JSONMessage` could still be used.
 // This test verifies that backward compatibility maintains.
 func TestEventsBackwardsCompatible(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "Windows doesn't support back-compat messages")
-	defer setupTest(t)()
-	ctx := context.Background()
-	client := testEnv.APIClient()
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows doesn't support back-compat messages")
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
 
-	since := request.DaemonTime(ctx, t, client, testEnv)
+	since := request.DaemonTime(ctx, t, apiClient, testEnv)
 	ts := strconv.FormatInt(since.Unix(), 10)
 
-	cID := container.Create(ctx, t, client)
+	cID := container.Create(ctx, t, apiClient)
 
 	// In case there is no events, the API should have responded immediately (not blocking),
 	// The test here makes sure the response time is less than 3 sec.
 	expectedTime := time.Now().Add(3 * time.Second)
-	emptyResp, emptyBody, err := req.Get("/events")
+	emptyResp, emptyBody, err := req.Get(ctx, "/events")
 	assert.NilError(t, err)
 	defer emptyBody.Close()
 	assert.Check(t, is.DeepEqual(http.StatusOK, emptyResp.StatusCode))
@@ -101,7 +90,7 @@ func TestEventsBackwardsCompatible(t *testing.T) {
 	// We also test to make sure the `events.Message` is compatible with `JSONMessage`
 	q := url.Values{}
 	q.Set("since", ts)
-	_, body, err := req.Get("/events?" + q.Encode())
+	_, body, err := req.Get(ctx, "/events?"+q.Encode())
 	assert.NilError(t, err)
 	defer body.Close()
 
@@ -121,7 +110,7 @@ func TestEventsBackwardsCompatible(t *testing.T) {
 		}
 	}
 
-	assert.Check(t, containerCreateEvent != nil)
+	assert.Assert(t, containerCreateEvent != nil)
 	assert.Check(t, is.Equal("create", containerCreateEvent.Status))
 	assert.Check(t, is.Equal(cID, containerCreateEvent.ID))
 	assert.Check(t, is.Equal("busybox", containerCreateEvent.From))
@@ -130,15 +119,15 @@ func TestEventsBackwardsCompatible(t *testing.T) {
 // TestEventsVolumeCreate verifies that volume create events are only fired
 // once: when creating the volume, and not when attaching to a container.
 func TestEventsVolumeCreate(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "FIXME: Windows doesn't trigger the events? Could be a race")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME: Windows doesn't trigger the events? Could be a race")
 
-	defer setupTest(t)()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx := setupTest(t)
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	since := request.DaemonUnixTime(ctx, t, client, testEnv)
+	since := request.DaemonUnixTime(ctx, t, apiClient, testEnv)
 	volName := t.Name()
 	getEvents := func(messages <-chan events.Message, errs <-chan error) ([]events.Message, error) {
 		var evts []events.Message
@@ -158,7 +147,7 @@ func TestEventsVolumeCreate(t *testing.T) {
 		}
 	}
 
-	_, err := client.VolumeCreate(ctx, volume.CreateOptions{Name: volName})
+	_, err := apiClient.VolumeCreate(ctx, volume.CreateOptions{Name: volName})
 	assert.NilError(t, err)
 
 	filter := filters.NewArgs(
@@ -166,9 +155,9 @@ func TestEventsVolumeCreate(t *testing.T) {
 		filters.Arg("event", "create"),
 		filters.Arg("volume", volName),
 	)
-	messages, errs := client.Events(ctx, types.EventsOptions{
+	messages, errs := apiClient.Events(ctx, events.ListOptions{
 		Since:   since,
-		Until:   request.DaemonUnixTime(ctx, t, client, testEnv),
+		Until:   request.DaemonUnixTime(ctx, t, apiClient, testEnv),
 		Filters: filter,
 	})
 
@@ -176,15 +165,15 @@ func TestEventsVolumeCreate(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, len(volEvents), 1, "expected volume create event when creating a volume")
 
-	container.Create(ctx, t, client, container.WithMount(mount.Mount{
+	container.Create(ctx, t, apiClient, container.WithMount(mount.Mount{
 		Type:   mount.TypeVolume,
 		Source: volName,
 		Target: "/tmp/foo",
 	}))
 
-	messages, errs = client.Events(ctx, types.EventsOptions{
+	messages, errs = apiClient.Events(ctx, events.ListOptions{
 		Since:   since,
-		Until:   request.DaemonUnixTime(ctx, t, client, testEnv),
+		Until:   request.DaemonUnixTime(ctx, t, apiClient, testEnv),
 		Filters: filter,
 	})
 

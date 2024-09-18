@@ -24,14 +24,15 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/containers"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/filters"
 	"github.com/containerd/containerd/identifiers"
 	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/metadata/boltutil"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/gogo/protobuf/proto"
-	"github.com/gogo/protobuf/types"
+	"github.com/containerd/containerd/protobuf/proto"
+	"github.com/containerd/containerd/protobuf/types"
+	"github.com/containerd/errdefs"
+	"github.com/containerd/typeurl/v2"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -211,7 +212,7 @@ func (s *containerStore) Update(ctx context.Context, container containers.Contai
 
 			if strings.HasPrefix(path, "extensions.") {
 				if updated.Extensions == nil {
-					updated.Extensions = map[string]types.Any{}
+					updated.Extensions = map[string]typeurl.Any{}
 				}
 				key := strings.TrimPrefix(path, "extensions.")
 				updated.Extensions[key] = container.Extensions[key]
@@ -358,6 +359,8 @@ func readContainer(container *containers.Container, bkt *bolt.Bucket) error {
 			}
 
 			container.Extensions = extensions
+		case string(bucketKeySandboxID):
+			container.SandboxID = string(v)
 		}
 
 		return nil
@@ -403,6 +406,10 @@ func writeContainer(bkt *bolt.Bucket, container *containers.Container) error {
 	}
 
 	if err := boltutil.WriteAny(rbkt, bucketKeyOptions, container.Runtime.Options); err != nil {
+		return err
+	}
+
+	if err := bkt.Put(bucketKeySandboxID, []byte(container.SandboxID)); err != nil {
 		return err
 	}
 

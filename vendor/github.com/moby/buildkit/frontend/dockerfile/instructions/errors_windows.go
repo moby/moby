@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 func errNotJSON(command, original string) error {
@@ -16,12 +18,12 @@ func errNotJSON(command, original string) error {
 	// double backslash and a [] pair. No, this is not perfect, but it doesn't
 	// have to be. It's simply a hint to make life a little easier.
 	extra := ""
-	original = filepath.FromSlash(strings.ToLower(strings.Replace(strings.ToLower(original), strings.ToLower(command)+" ", "", -1)))
+	original = filepath.FromSlash(strings.ToLower(strings.ReplaceAll(strings.ToLower(original), strings.ToLower(command)+" ", "")))
 	if len(regexp.MustCompile(`"[a-z]:\\.*`).FindStringSubmatch(original)) > 0 &&
 		!strings.Contains(original, `\\`) &&
 		strings.Contains(original, "[") &&
 		strings.Contains(original, "]") {
 		extra = fmt.Sprintf(`. It looks like '%s' includes a file path without an escaped back-slash. JSON requires back-slashes to be escaped such as ["c:\\path\\to\\file.exe", "/parameter"]`, original)
 	}
-	return fmt.Errorf("%s requires the arguments to be in JSON form%s", command, extra)
+	return errors.Errorf("%s requires the arguments to be in JSON form%s", command, extra)
 }

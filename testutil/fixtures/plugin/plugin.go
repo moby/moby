@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/plugin"
@@ -86,7 +87,7 @@ func CreateInRegistry(ctx context.Context, repo string, auth *registry.AuthConfi
 	defer os.RemoveAll(tmpDir)
 
 	inPath := filepath.Join(tmpDir, "plugin")
-	if err := os.MkdirAll(inPath, 0755); err != nil {
+	if err := os.MkdirAll(inPath, 0o755); err != nil {
 		return errors.Wrap(err, "error creating plugin root")
 	}
 
@@ -117,7 +118,7 @@ func CreateInRegistry(ctx context.Context, repo string, auth *registry.AuthConfi
 		Root:            filepath.Join(tmpDir, "root"),
 		ExecRoot:        "/run/docker", // manager init fails if not set
 		CreateExecutor:  dummyExec,
-		LogPluginEvent:  func(id, name, action string) {}, // panics when not set
+		LogPluginEvent:  func(id, name string, action events.Action) {}, // panics when not set
 	}
 	manager, err := plugin.NewManager(managerConfig)
 	if err != nil {
@@ -163,10 +164,10 @@ func makePluginBundle(inPath string, opts ...CreateOpt) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(filepath.Join(inPath, "config.json"), configJSON, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(inPath, "config.json"), configJSON, 0o644); err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Join(inPath, "rootfs", filepath.Dir(p.Entrypoint[0])), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(inPath, "rootfs", filepath.Dir(p.Entrypoint[0])), 0o755); err != nil {
 		return nil, errors.Wrap(err, "error creating plugin rootfs dir")
 	}
 
@@ -181,7 +182,7 @@ func makePluginBundle(inPath string, opts ...CreateOpt) (io.ReadCloser, error) {
 		}
 
 		if stat == nil || stat.IsDir() {
-			var mode os.FileMode = 0755
+			var mode os.FileMode = 0o755
 			if stat != nil {
 				mode = stat.Mode()
 			}
@@ -189,7 +190,7 @@ func makePluginBundle(inPath string, opts ...CreateOpt) (io.ReadCloser, error) {
 				return nil, errors.Wrap(err, "error preparing plugin mount destination path")
 			}
 		} else {
-			if err := os.MkdirAll(filepath.Join(inPath, "rootfs", filepath.Dir(m.Destination)), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Join(inPath, "rootfs", filepath.Dir(m.Destination)), 0o755); err != nil {
 				return nil, errors.Wrap(err, "error preparing plugin mount destination dir")
 			}
 			f, err := os.Create(filepath.Join(inPath, "rootfs", m.Destination))

@@ -8,7 +8,6 @@ import (
 	"github.com/moby/swarmkit/v2/identity"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/state/store"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -37,7 +36,7 @@ func (s *Server) CreateExtension(ctx context.Context, request *api.CreateExtensi
 	case store.ErrNameConflict:
 		return nil, status.Errorf(codes.AlreadyExists, "extension %s already exists", request.Annotations.Name)
 	case nil:
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"extension.Name": request.Annotations.Name,
 			"method":         "CreateExtension",
 		}).Debugf("extension created")
@@ -121,7 +120,7 @@ func (s *Server) RemoveExtension(ctx context.Context, request *api.RemoveExtensi
 	case store.ErrNotExist:
 		return nil, status.Errorf(codes.NotFound, "extension %s not found", request.ExtensionID)
 	case nil:
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"extension.ID": request.ExtensionID,
 			"method":       "RemoveExtension",
 		}).Debugf("extension removed")

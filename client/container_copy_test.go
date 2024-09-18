@@ -11,8 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestContainerStatPathError(t *testing.T) {
@@ -20,9 +22,7 @@ func TestContainerStatPathError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerStatPath(context.Background(), "container_id", "path")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerStatPathNotFoundError(t *testing.T) {
@@ -30,9 +30,7 @@ func TestContainerStatPathNotFoundError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
 	}
 	_, err := client.ContainerStatPath(context.Background(), "container_id", "path")
-	if !IsErrNotFound(err) {
-		t.Fatalf("expected a not found error, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestContainerStatPathNoHeaderError(t *testing.T) {
@@ -66,9 +64,9 @@ func TestContainerStatPath(t *testing.T) {
 			if path != expectedPath {
 				return nil, fmt.Errorf("path not set in URL query properly")
 			}
-			content, err := json.Marshal(types.ContainerPathStat{
+			content, err := json.Marshal(container.PathStat{
 				Name: "name",
-				Mode: 0700,
+				Mode: 0o700,
 			})
 			if err != nil {
 				return nil, err
@@ -90,7 +88,7 @@ func TestContainerStatPath(t *testing.T) {
 	if stat.Name != "name" {
 		t.Fatalf("expected container path stat name to be 'name', got '%s'", stat.Name)
 	}
-	if stat.Mode != 0700 {
+	if stat.Mode != 0o700 {
 		t.Fatalf("expected container path stat mode to be 0700, got '%v'", stat.Mode)
 	}
 }
@@ -99,20 +97,16 @@ func TestCopyToContainerError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestCopyToContainerNotFoundError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
 	}
-	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
-	if !IsErrNotFound(err) {
-		t.Fatalf("expected a not found error, got %v", err)
-	}
+	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 // TestCopyToContainerEmptyResponse verifies that no error is returned when a
@@ -121,7 +115,7 @@ func TestCopyToContainerEmptyResponse(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusNoContent, "No content")),
 	}
-	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
+	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -165,7 +159,7 @@ func TestCopyToContainer(t *testing.T) {
 			}, nil
 		}),
 	}
-	err := client.CopyToContainer(context.Background(), "container_id", expectedPath, bytes.NewReader([]byte("content")), types.CopyToContainerOptions{
+	err := client.CopyToContainer(context.Background(), "container_id", expectedPath, bytes.NewReader([]byte("content")), container.CopyToContainerOptions{
 		AllowOverwriteDirWithFile: false,
 	})
 	if err != nil {
@@ -178,9 +172,7 @@ func TestCopyFromContainerError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestCopyFromContainerNotFoundError(t *testing.T) {
@@ -188,9 +180,7 @@ func TestCopyFromContainerNotFoundError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
-	if !IsErrNotFound(err) {
-		t.Fatalf("expected a not found error, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 // TestCopyFromContainerEmptyResponse verifies that no error is returned when a
@@ -198,9 +188,9 @@ func TestCopyFromContainerNotFoundError(t *testing.T) {
 func TestCopyFromContainerEmptyResponse(t *testing.T) {
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			content, err := json.Marshal(types.ContainerPathStat{
+			content, err := json.Marshal(container.PathStat{
 				Name: "path/to/file",
-				Mode: 0700,
+				Mode: 0o700,
 			})
 			if err != nil {
 				return nil, err
@@ -252,9 +242,9 @@ func TestCopyFromContainer(t *testing.T) {
 				return nil, fmt.Errorf("path not set in URL query properly, expected '%s', got %s", expectedPath, path)
 			}
 
-			headercontent, err := json.Marshal(types.ContainerPathStat{
+			headercontent, err := json.Marshal(container.PathStat{
 				Name: "name",
-				Mode: 0700,
+				Mode: 0o700,
 			})
 			if err != nil {
 				return nil, err
@@ -277,7 +267,7 @@ func TestCopyFromContainer(t *testing.T) {
 	if stat.Name != "name" {
 		t.Fatalf("expected container path stat name to be 'name', got '%s'", stat.Name)
 	}
-	if stat.Mode != 0700 {
+	if stat.Mode != 0o700 {
 		t.Fatalf("expected container path stat mode to be 0700, got '%v'", stat.Mode)
 	}
 	content, err := io.ReadAll(r)

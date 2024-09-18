@@ -6,4 +6,5 @@ const (
 	LocalScheme       = "local"
 	HTTPScheme        = "http"
 	HTTPSScheme       = "https"
+	OCIScheme         = "oci-layout"
 )

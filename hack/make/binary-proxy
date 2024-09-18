@@ -2,11 +2,12 @@
 
 set -e
 
-(
+# docker-proxy is Linux only
+[ "$(go env GOOS)" != 'linux' ] || (
 	export CGO_ENABLED=0
 
+	DOCKER_STATIC=1
 	GO_PACKAGE='github.com/docker/docker/cmd/docker-proxy'
 	BINARY_NAME='docker-proxy'
-
 	source "${MAKEDIR}/.binary"
 )

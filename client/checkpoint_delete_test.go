@@ -9,8 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/checkpoint"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestCheckpointDeleteError(t *testing.T) {
@@ -18,13 +20,11 @@ func TestCheckpointDeleteError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	err := client.CheckpointDelete(context.Background(), "container_id", types.CheckpointDeleteOptions{
+	err := client.CheckpointDelete(context.Background(), "container_id", checkpoint.DeleteOptions{
 		CheckpointID: "checkpoint_id",
 	})
 
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestCheckpointDelete(t *testing.T) {
@@ -45,10 +45,9 @@ func TestCheckpointDelete(t *testing.T) {
 		}),
 	}
 
-	err := client.CheckpointDelete(context.Background(), "container_id", types.CheckpointDeleteOptions{
+	err := client.CheckpointDelete(context.Background(), "container_id", checkpoint.DeleteOptions{
 		CheckpointID: "checkpoint_id",
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -2,21 +2,25 @@ package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
 
 import (
 	"context"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/services/server/config"
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/log"
+	"github.com/docker/docker/pkg/pidfile"
+	"github.com/docker/docker/pkg/process"
 	"github.com/docker/docker/pkg/system"
+	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/pelletier/go-toml"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -38,20 +42,11 @@ type remote struct {
 
 	daemonPid int
 	pidFile   string
-	logger    *logrus.Entry
+	logger    *log.Entry
 
 	daemonWaitCh  chan struct{}
 	daemonStartCh chan error
 	daemonStopCh  chan struct{}
-
-	stateDir string
-
-	// oomScore adjusts the OOM score for the containerd process.
-	oomScore int
-
-	// logLevel overrides the containerd logging-level through the --log-level
-	// command-line option.
-	logLevel string
 }
 
 // Daemon represents a running containerd daemon
@@ -66,16 +61,23 @@ type DaemonOpt func(c *remote) error
 // Start starts a containerd daemon and monitors it
 func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Daemon, error) {
 	r := &remote{
-		stateDir: stateDir,
 		Config: config.Config{
 			Version: 2,
 			Root:    filepath.Join(rootDir, "daemon"),
 			State:   filepath.Join(stateDir, "daemon"),
+			GRPC: config.GRPCConfig{
+				Address:        defaultGRPCAddress(stateDir),
+				MaxRecvMsgSize: defaults.DefaultMaxRecvMsgSize,
+				MaxSendMsgSize: defaults.DefaultMaxSendMsgSize,
+			},
+			Debug: config.Debug{
+				Address: defaultDebugAddress(stateDir),
+			},
 		},
 		configFile:    filepath.Join(stateDir, configFile),
 		daemonPid:     -1,
 		pidFile:       filepath.Join(stateDir, pidFile),
-		logger:        logrus.WithField("module", "libcontainerd"),
+		logger:        log.G(ctx).WithField("module", "libcontainerd"),
 		daemonStartCh: make(chan error, 1),
 		daemonStopCh:  make(chan struct{}),
 	}
@@ -85,9 +87,8 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 			return nil, err
 		}
 	}
-	r.setDefaults()
 
-	if err := system.MkdirAll(stateDir, 0700); err != nil {
+	if err := system.MkdirAll(stateDir, 0o700); err != nil {
 		return nil, err
 	}
 
@@ -107,6 +108,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 
 	return r, nil
 }
+
 func (r *remote) WaitTimeout(d time.Duration) error {
 	timeout := time.NewTimer(d)
 	defer timeout.Stop()
@@ -123,37 +125,9 @@ func (r *remote) WaitTimeout(d time.Duration) error {
 func (r *remote) Address() string {
 	return r.GRPC.Address
 }
-func (r *remote) getContainerdPid() (int, error) {
-	f, err := os.OpenFile(r.pidFile, os.O_RDWR, 0600)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return -1, nil
-		}
-		return -1, err
-	}
-	defer f.Close()
-
-	b := make([]byte, 8)
-	n, err := f.Read(b)
-	if err != nil && err != io.EOF {
-		return -1, err
-	}
-
-	if n > 0 {
-		pid, err := strconv.ParseUint(string(b[:n]), 10, 64)
-		if err != nil {
-			return -1, err
-		}
-		if system.IsProcessAlive(int(pid)) {
-			return int(pid), nil
-		}
-	}
-
-	return -1, nil
-}
 
 func (r *remote) getContainerdConfig() (string, error) {
-	f, err := os.OpenFile(r.configFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(r.configFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to open containerd config file (%s)", r.configFile)
 	}
@@ -166,29 +140,23 @@ func (r *remote) getContainerdConfig() (string, error) {
 }
 
 func (r *remote) startContainerd() error {
-	pid, err := r.getContainerdPid()
-	if err != nil {
+	pid, err := pidfile.Read(r.pidFile)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 
-	if pid != -1 {
+	if pid > 0 {
 		r.daemonPid = pid
 		r.logger.WithField("pid", pid).Infof("%s is still running", binaryName)
 		return nil
 	}
 
-	configFile, err := r.getContainerdConfig()
+	cfgFile, err := r.getContainerdConfig()
 	if err != nil {
 		return err
 	}
 
-	args := []string{"--config", configFile}
-
-	if r.logLevel != "" {
-		args = append(args, "--log-level", r.logLevel)
-	}
-
-	cmd := exec.Command(binaryName, args...)
+	cmd := exec.Command(binaryName, "--config", cfgFile)
 	// redirect containerd logs to docker logs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -200,45 +168,45 @@ func (r *remote) startContainerd() error {
 			cmd.Env = append(cmd.Env, e)
 		}
 	}
-	if err := cmd.Start(); err != nil {
-		return err
-	}
 
-	r.daemonWaitCh = make(chan struct{})
+	startedCh := make(chan error)
 	go func() {
+		// On Linux, when cmd.SysProcAttr.Pdeathsig is set,
+		// the signal is sent to the subprocess when the creating thread
+		// terminates. The runtime terminates a thread if a goroutine
+		// exits while locked to it. Prevent the containerd process
+		// from getting killed prematurely by ensuring that the thread
+		// used to start it remains alive until it or the daemon process
+		// exits. See https://go.dev/issue/27505 for more details.
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		err := cmd.Start()
+		if err != nil {
+			startedCh <- err
+			return
+		}
+		r.daemonWaitCh = make(chan struct{})
+		startedCh <- nil
+
 		// Reap our child when needed
 		if err := cmd.Wait(); err != nil {
 			r.logger.WithError(err).Errorf("containerd did not exit successfully")
 		}
 		close(r.daemonWaitCh)
 	}()
+	if err := <-startedCh; err != nil {
+		return err
+	}
 
 	r.daemonPid = cmd.Process.Pid
 
-	if err := r.adjustOOMScore(); err != nil {
-		r.logger.WithError(err).Warn("failed to adjust OOM score")
-	}
-
-	err = os.WriteFile(r.pidFile, []byte(strconv.Itoa(r.daemonPid)), 0660)
-	if err != nil {
-		system.KillProcess(r.daemonPid)
+	if err := pidfile.Write(r.pidFile, r.daemonPid); err != nil {
+		_ = process.Kill(r.daemonPid)
 		return errors.Wrap(err, "libcontainerd: failed to save daemon pid to disk")
 	}
 
 	r.logger.WithField("pid", r.daemonPid).WithField("address", r.Address()).Infof("started new %s process", binaryName)
 
-	return nil
-}
-
-func (r *remote) adjustOOMScore() error {
-	if r.oomScore == 0 || r.daemonPid <= 1 {
-		// no score configured, or daemonPid contains an invalid PID (we don't
-		// expect containerd to be running as PID 1 :)).
-		return nil
-	}
-	if err := sys.SetOOMScore(r.daemonPid, r.oomScore); err != nil {
-		return errors.Wrap(err, "failed to adjust OOM score for containerd process")
-	}
 	return nil
 }
 
@@ -305,7 +273,17 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				continue
 			}
 
-			client, err = containerd.New(r.GRPC.Address, containerd.WithTimeout(60*time.Second))
+			client, err = containerd.New(
+				r.GRPC.Address,
+				containerd.WithTimeout(60*time.Second),
+				containerd.WithDialOpts([]grpc.DialOption{
+					grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
+					grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),
+					grpc.WithTransportCredentials(insecure.NewCredentials()),
+					grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
+					grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
+				}),
+			)
 			if err != nil {
 				r.logger.WithError(err).Error("failed connecting to containerd")
 				delay = 100 * time.Millisecond
@@ -340,7 +318,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 			r.logger.WithError(err).WithField("binary", binaryName).Debug("daemon is not responding")
 
 			transientFailureCount++
-			if transientFailureCount < maxConnectionRetryCount || system.IsProcessAlive(r.daemonPid) {
+			if transientFailureCount < maxConnectionRetryCount || process.Alive(r.daemonPid) {
 				delay = time.Duration(transientFailureCount) * 200 * time.Millisecond
 				continue
 			}
@@ -348,7 +326,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 			client = nil
 		}
 
-		if system.IsProcessAlive(r.daemonPid) {
+		if process.Alive(r.daemonPid) {
 			r.logger.WithField("pid", r.daemonPid).Info("killing and restarting containerd")
 			r.killDaemon()
 		}

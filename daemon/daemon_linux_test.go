@@ -1,22 +1,26 @@
 //go:build linux
-// +build linux
 
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/libnetwork/types"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
+	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
+//nolint:dupword
 const mountsFixture = `142 78 0:38 / / rw,relatime - aufs none rw,si=573b861da0b3a05b,dio
 143 142 0:60 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw
 144 142 0:67 / /dev rw,nosuid - tmpfs tmpfs rw,mode=755
@@ -55,6 +59,7 @@ const mountsFixture = `142 78 0:38 / / rw,relatime - aufs none rw,si=573b861da0b
 310 142 0:60 / /run/docker/netns/71a18572176b rw,nosuid,nodev,noexec,relatime - proc proc rw
 `
 
+//nolint:dupword
 const mountsFixtureOverlay2 = `23 28 0:22 / /sys rw,nosuid,nodev,noexec,relatime shared:7 - sysfs sysfs rw
 24 28 0:4 / /proc rw,nosuid,nodev,noexec,relatime shared:13 - proc proc rw
 25 28 0:6 / /dev rw,nosuid,relatime shared:2 - devtmpfs udev rw,size=491380k,nr_inodes=122845,mode=755
@@ -140,22 +145,6 @@ func TestCleanupMountsByID(t *testing.T) {
 	d := &Daemon{
 		root: "/var/lib/docker/",
 	}
-
-	t.Run("aufs", func(t *testing.T) {
-		expected := "/var/lib/docker/aufs/mnt/03ca4b49e71f1e49a41108829f4d5c70ac95934526e2af8984a1f65f1de0715d"
-		var unmounted int
-		unmount := func(target string) error {
-			if target == expected {
-				unmounted++
-			}
-			return nil
-		}
-
-		err := d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixture), "03ca4b49e71f1e49a41108829f4d5c70ac95934526e2af8984a1f65f1de0715d", unmount)
-		assert.NilError(t, err)
-		assert.Equal(t, unmounted, 1, "Expected to unmount the root (and that only)")
-	})
-
 	t.Run("overlay2", func(t *testing.T) {
 		expected := "/var/lib/docker/overlay2/3a4b807fcb98c208573f368c5654a6568545a7f92404a07d0045eb5c85acaf67/merged"
 		var unmounted int
@@ -190,7 +179,7 @@ func TestNotCleanupMounts(t *testing.T) {
 func TestValidateContainerIsolationLinux(t *testing.T) {
 	d := Daemon{}
 
-	_, err := d.verifyContainerSettings(&containertypes.HostConfig{Isolation: containertypes.IsolationHyperV}, nil, false)
+	_, err := d.verifyContainerSettings(&configStore{}, &containertypes.HostConfig{Isolation: containertypes.IsolationHyperV}, nil, false)
 	assert.Check(t, is.Error(err, "invalid isolation 'hyperv' on linux"))
 }
 
@@ -262,7 +251,7 @@ func TestRootMountCleanup(t *testing.T) {
 	testRoot, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(testRoot)
-	cfg := &config.Config{}
+	cfg := &configStore{}
 
 	err = mount.MakePrivate(testRoot)
 	assert.NilError(t, err)
@@ -271,22 +260,23 @@ func TestRootMountCleanup(t *testing.T) {
 	cfg.ExecRoot = filepath.Join(testRoot, "exec")
 	cfg.Root = filepath.Join(testRoot, "daemon")
 
-	err = os.Mkdir(cfg.ExecRoot, 0755)
+	err = os.Mkdir(cfg.ExecRoot, 0o755)
 	assert.NilError(t, err)
-	err = os.Mkdir(cfg.Root, 0755)
+	err = os.Mkdir(cfg.Root, 0o755)
 	assert.NilError(t, err)
 
-	d := &Daemon{configStore: cfg, root: cfg.Root}
-	unmountFile := getUnmountOnShutdownPath(cfg)
+	d := &Daemon{root: cfg.Root}
+	d.configStore.Store(cfg)
+	unmountFile := getUnmountOnShutdownPath(&cfg.Config)
 
 	t.Run("regular dir no mountpoint", func(t *testing.T) {
-		err = setupDaemonRootPropagation(cfg)
+		err = setupDaemonRootPropagation(&cfg.Config)
 		assert.NilError(t, err)
 		_, err = os.Stat(unmountFile)
 		assert.NilError(t, err)
 		checkMounted(t, cfg.Root, true)
 
-		assert.Assert(t, d.cleanupMounts())
+		assert.Assert(t, d.cleanupMounts(&cfg.Config))
 		checkMounted(t, cfg.Root, false)
 
 		_, err = os.Stat(unmountFile)
@@ -298,13 +288,13 @@ func TestRootMountCleanup(t *testing.T) {
 		assert.NilError(t, err)
 		defer mount.Unmount(cfg.Root)
 
-		err = setupDaemonRootPropagation(cfg)
+		err = setupDaemonRootPropagation(&cfg.Config)
 		assert.NilError(t, err)
 		assert.Check(t, ensureShared(cfg.Root))
 
 		_, err = os.Stat(unmountFile)
 		assert.Assert(t, os.IsNotExist(err))
-		assert.Assert(t, d.cleanupMounts())
+		assert.Assert(t, d.cleanupMounts(&cfg.Config))
 		checkMounted(t, cfg.Root, true)
 	})
 
@@ -314,14 +304,14 @@ func TestRootMountCleanup(t *testing.T) {
 		assert.NilError(t, err)
 		defer mount.Unmount(cfg.Root)
 
-		err = setupDaemonRootPropagation(cfg)
+		err = setupDaemonRootPropagation(&cfg.Config)
 		assert.NilError(t, err)
 
 		if _, err := os.Stat(unmountFile); err == nil {
 			t.Fatal("unmount file should not exist")
 		}
 
-		assert.Assert(t, d.cleanupMounts())
+		assert.Assert(t, d.cleanupMounts(&cfg.Config))
 		checkMounted(t, cfg.Root, true)
 		assert.Assert(t, mount.Unmount(cfg.Root))
 	})
@@ -331,16 +321,78 @@ func TestRootMountCleanup(t *testing.T) {
 		err = mount.MakeShared(testRoot)
 		assert.NilError(t, err)
 		defer mount.MakePrivate(testRoot)
-		err = os.WriteFile(unmountFile, nil, 0644)
+		err = os.WriteFile(unmountFile, nil, 0o644)
 		assert.NilError(t, err)
 
-		err = setupDaemonRootPropagation(cfg)
+		err = setupDaemonRootPropagation(&cfg.Config)
 		assert.NilError(t, err)
 
 		_, err = os.Stat(unmountFile)
 		assert.Check(t, os.IsNotExist(err), err)
 		checkMounted(t, cfg.Root, false)
-		assert.Assert(t, d.cleanupMounts())
+		assert.Assert(t, d.cleanupMounts(&cfg.Config))
 	})
+}
 
+func TestIfaceAddrs(t *testing.T) {
+	CIDR := func(cidr string) *net.IPNet {
+		t.Helper()
+		nw, err := types.ParseCIDR(cidr)
+		assert.NilError(t, err)
+		return nw
+	}
+
+	for _, tt := range []struct {
+		name string
+		nws  []*net.IPNet
+	}{
+		{
+			name: "Single",
+			nws:  []*net.IPNet{CIDR("172.101.202.254/16")},
+		},
+		{
+			name: "Multiple",
+			nws: []*net.IPNet{
+				CIDR("172.101.202.254/16"),
+				CIDR("172.102.202.254/16"),
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			defer netnsutils.SetupTestOSContext(t)()
+
+			createBridge(t, "test", tt.nws...)
+
+			ipv4Nw, ipv6Nw, err := ifaceAddrs("test")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.Check(t, is.DeepEqual(tt.nws, ipv4Nw,
+				cmpopts.SortSlices(func(a, b *net.IPNet) bool { return a.String() < b.String() })))
+			// IPv6 link-local address
+			assert.Check(t, is.Len(ipv6Nw, 1))
+		})
+	}
+}
+
+func createBridge(t *testing.T, name string, bips ...*net.IPNet) {
+	t.Helper()
+
+	link := &netlink.Bridge{
+		LinkAttrs: netlink.LinkAttrs{
+			Name: name,
+		},
+	}
+	if err := netlink.LinkAdd(link); err != nil {
+		t.Fatalf("Failed to create interface via netlink: %v", err)
+	}
+	for _, bip := range bips {
+		if err := netlink.AddrAdd(link, &netlink.Addr{IPNet: bip}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := netlink.LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
 }

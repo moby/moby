@@ -1,17 +1,27 @@
 package overlay
 
 import (
+	"context"
 	"fmt"
 	"net"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/gogo/protobuf/proto"
-	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.windows_overlay.Join", trace.WithAttributes(
+		attribute.String("nid", nid),
+		attribute.String("eid", eid),
+		attribute.String("sboxKey", sboxKey)))
+	defer span.End()
+
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
@@ -31,13 +41,12 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		EndpointMAC:      ep.mac.String(),
 		TunnelEndpointIP: n.providerAddress,
 	})
-
 	if err != nil {
 		return err
 	}
 
 	if err := jinfo.AddTableEntry(ovPeerTable, eid, buf); err != nil {
-		logrus.Errorf("overlay: Failed adding table entry to joininfo: %v", err)
+		log.G(ctx).Errorf("overlay: Failed adding table entry to joininfo: %v", err)
 	}
 
 	if ep.disablegateway {
@@ -49,7 +58,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
 	if tableName != ovPeerTable {
-		logrus.Errorf("Unexpected table notification for table %s received", tableName)
+		log.G(context.TODO()).Errorf("Unexpected table notification for table %s received", tableName)
 		return
 	}
 
@@ -57,7 +66,7 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 
 	var peer PeerRecord
 	if err := proto.Unmarshal(value, &peer); err != nil {
-		logrus.Errorf("Failed to unmarshal peer record: %v", err)
+		log.G(context.TODO()).Errorf("Failed to unmarshal peer record: %v", err)
 		return
 	}
 
@@ -74,19 +83,19 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 
 	addr, err := types.ParseCIDR(peer.EndpointIP)
 	if err != nil {
-		logrus.Errorf("Invalid peer IP %s received in event notify", peer.EndpointIP)
+		log.G(context.TODO()).Errorf("Invalid peer IP %s received in event notify", peer.EndpointIP)
 		return
 	}
 
 	mac, err := net.ParseMAC(peer.EndpointMAC)
 	if err != nil {
-		logrus.Errorf("Invalid mac %s received in event notify", peer.EndpointMAC)
+		log.G(context.TODO()).Errorf("Invalid mac %s received in event notify", peer.EndpointMAC)
 		return
 	}
 
 	vtep := net.ParseIP(peer.TunnelEndpointIP)
 	if vtep == nil {
-		logrus.Errorf("Invalid VTEP %s received in event notify", peer.TunnelEndpointIP)
+		log.G(context.TODO()).Errorf("Invalid VTEP %s received in event notify", peer.TunnelEndpointIP)
 		return
 	}
 
@@ -97,7 +106,7 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 
 	err = d.peerAdd(nid, eid, addr.IP, addr.Mask, mac, vtep, true)
 	if err != nil {
-		logrus.Errorf("peerAdd failed (%v) for ip %s with mac %s", err, addr.IP.String(), mac.String())
+		log.G(context.TODO()).Errorf("peerAdd failed (%v) for ip %s with mac %s", err, addr.IP.String(), mac.String())
 	}
 }
 

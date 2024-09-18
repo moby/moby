@@ -1,9 +1,12 @@
+//go:build windows
+
 package ociwclayer
 
 import (
 	"archive/tar"
 	"bufio"
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path"
@@ -12,10 +15,10 @@ import (
 
 	winio "github.com/Microsoft/go-winio"
 	"github.com/Microsoft/go-winio/backuptar"
-	"github.com/Microsoft/hcsshim"
+	"github.com/Microsoft/hcsshim/internal/wclayer"
 )
 
-const whiteoutPrefix = ".wh."
+const WhiteoutPrefix = ".wh."
 
 var (
 	// mutatedFiles is a list of files that are mutated by the import process
@@ -41,7 +44,7 @@ func ImportLayerFromTar(ctx context.Context, r io.Reader, path string, parentLay
 	if err != nil {
 		return 0, err
 	}
-	w, err := hcsshim.NewLayerWriter(hcsshim.DriverInfo{}, path, parentLayerPaths)
+	w, err := wclayer.NewLayerWriter(ctx, path, parentLayerPaths)
 	if err != nil {
 		return 0, err
 	}
@@ -56,8 +59,10 @@ func ImportLayerFromTar(ctx context.Context, r io.Reader, path string, parentLay
 	return n, nil
 }
 
-func writeLayerFromTar(ctx context.Context, r io.Reader, w hcsshim.LayerWriter, root string) (int64, error) {
+func writeLayerFromTar(ctx context.Context, r io.Reader, w wclayer.LayerWriter, root string) (int64, error) {
 	t := tar.NewReader(r)
+	// CodeQL [SM03409] False positive, `internal/safefile` package ensures tar extractions are always
+	// bound to the layer root directory.
 	hdr, err := t.Next()
 	totalSize := int64(0)
 	buf := bufio.NewWriter(nil)
@@ -69,18 +74,22 @@ func writeLayerFromTar(ctx context.Context, r io.Reader, w hcsshim.LayerWriter, 
 		}
 
 		base := path.Base(hdr.Name)
-		if strings.HasPrefix(base, whiteoutPrefix) {
-			name := path.Join(path.Dir(hdr.Name), base[len(whiteoutPrefix):])
+		if strings.HasPrefix(base, WhiteoutPrefix) {
+			name := path.Join(path.Dir(hdr.Name), base[len(WhiteoutPrefix):])
 			err = w.Remove(filepath.FromSlash(name))
 			if err != nil {
 				return 0, err
 			}
+			// CodeQL [SM03409] False positive, `internal/safefile` package ensures tar extractions are always
+			// bound to the layer root directory.
 			hdr, err = t.Next()
 		} else if hdr.Typeflag == tar.TypeLink {
 			err = w.AddLink(filepath.FromSlash(hdr.Name), filepath.FromSlash(hdr.Linkname))
 			if err != nil {
 				return 0, err
 			}
+			// CodeQL [SM03409] False positive, `internal/safefile` package ensures tar extractions are always
+			// bound to the layer root directory.
 			hdr, err = t.Next()
 		} else {
 			var (
@@ -100,7 +109,7 @@ func writeLayerFromTar(ctx context.Context, r io.Reader, w hcsshim.LayerWriter, 
 			totalSize += size
 		}
 	}
-	if err != io.EOF {
+	if !errors.Is(err, io.EOF) {
 		return 0, err
 	}
 	return totalSize, nil

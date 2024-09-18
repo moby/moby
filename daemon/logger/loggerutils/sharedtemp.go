@@ -76,7 +76,7 @@ func (c *sharedTempFileConverter) Do(f *os.File) (*sharedFileReader, error) {
 		// ModTime, which conveniently also handles the case of true
 		// positives where the file has also been modified since it was
 		// first converted.
-		if os.SameFile(tf.src, stat) && tf.src.ModTime() == stat.ModTime() {
+		if os.SameFile(tf.src, stat) && tf.src.ModTime().Equal(stat.ModTime()) {
 			return c.openExisting(st, id, tf)
 		}
 	}
@@ -138,7 +138,6 @@ func (c *sharedTempFileConverter) openExisting(st stfcState, id stfID, v sharedT
 
 	res := <-wait
 	return res.fr, res.err
-
 }
 
 func (c *sharedTempFileConverter) convert(f *os.File) (converted *os.File, size int64, err error) {

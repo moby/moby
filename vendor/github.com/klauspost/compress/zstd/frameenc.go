@@ -22,7 +22,7 @@ type frameHeader struct {
 
 const maxHeaderSize = 14
 
-func (f frameHeader) appendTo(dst []byte) ([]byte, error) {
+func (f frameHeader) appendTo(dst []byte) []byte {
 	dst = append(dst, frameMagic...)
 	var fhd uint8
 	if f.Checksum {
@@ -76,7 +76,7 @@ func (f frameHeader) appendTo(dst []byte) ([]byte, error) {
 		if f.SingleSegment {
 			dst = append(dst, uint8(f.ContentSize))
 		}
-		// Unless SingleSegment is set, framessizes < 256 are nto stored.
+		// Unless SingleSegment is set, framessizes < 256 are not stored.
 	case 1:
 		f.ContentSize -= 256
 		dst = append(dst, uint8(f.ContentSize), uint8(f.ContentSize>>8))
@@ -88,7 +88,7 @@ func (f frameHeader) appendTo(dst []byte) ([]byte, error) {
 	default:
 		panic("invalid fcs")
 	}
-	return dst, nil
+	return dst
 }
 
 const skippableFrameHeader = 4 + 4

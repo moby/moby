@@ -24,7 +24,7 @@ info:
   title: "Docker Engine API"
   version: "1.36"
   x-logo:
-    url: "https://docs.docker.com/images/logo-docker-main.png"
+    url: "https://docs.docker.com/assets/images/logo-docker-main.png"
   description: |
     The Engine API is an HTTP API served by Docker Engine. It is the API the Docker client uses to communicate with the Engine, so everything the Docker client can do can be done with the API.
 
@@ -2173,8 +2173,6 @@ definitions:
           - Type: "Log"
             Name: "json-file"
           - Type: "Log"
-            Name: "logentries"
-          - Type: "Log"
             Name: "splunk"
           - Type: "Log"
             Name: "syslog"
@@ -2421,7 +2419,7 @@ definitions:
                 example: "json-file"
               Options:
                 description: |
-                  Driver-specific options for the selectd log driver, specified
+                  Driver-specific options for the selected log driver, specified
                   as key/value pairs.
                 type: "object"
                 additionalProperties:
@@ -3661,7 +3659,7 @@ definitions:
           Go runtime (`GOOS`).
 
           Currently returned values are "linux" and "windows". A full list of
-          possible values can be found in the [Go documentation](https://golang.org/doc/install/source#environment).
+          possible values can be found in the [Go documentation](https://go.dev/doc/install/source#environment).
         type: "string"
         example: "linux"
       Architecture:
@@ -3669,7 +3667,7 @@ definitions:
           Hardware architecture of the host, as returned by the Go runtime
           (`GOARCH`).
 
-          A full list of possible values can be found in the [Go documentation](https://golang.org/doc/install/source#environment).
+          A full list of possible values can be found in the [Go documentation](https://go.dev/doc/install/source#environment).
         type: "string"
         example: "x86_64"
       NCPU:
@@ -3751,10 +3749,6 @@ definitions:
       ServerVersion:
         description: |
           Version string of the daemon.
-
-          > **Note**: the [standalone Swarm API](https://docs.docker.com/swarm/swarm-api/)
-          > returns the Swarm version instead of the daemon  version, for example
-          > `swarm/1.2.8`.
         type: "string"
         example: "17.06.0-ce"
       ClusterStore:
@@ -3849,7 +3843,7 @@ definitions:
           - "process"
       InitBinary:
         description: |
-          Name and, optional, path of the the `docker-init` binary.
+          Name and, optional, path of the `docker-init` binary.
 
           If the path is omitted, the daemon searches the host's `$PATH` for the
           binary and uses the first result.
@@ -3915,7 +3909,7 @@ definitions:
         type: "array"
         items:
           type: "string"
-        example: ["awslogs", "fluentd", "gcplogs", "gelf", "journald", "json-file", "logentries", "splunk", "syslog"]
+        example: ["awslogs", "fluentd", "gcplogs", "gelf", "journald", "json-file", "splunk", "syslog"]
 
 
   RegistryServiceConfig:
@@ -4067,7 +4061,7 @@ definitions:
           - "https://registry-3.docker.io/"
       Secure:
         description: |
-          Indicates if the the registry is part of the list of insecure
+          Indicates if the registry is part of the list of insecure
           registries.
 
           If `false`, the registry is insecure. Insecure registries accept
@@ -4754,7 +4748,7 @@ paths:
                 StopSignal: "SIGTERM"
                 StopTimeout: 10
               Created: "2015-01-06T15:47:31.485331387Z"
-              Driver: "devicemapper"
+              Driver: "overlay2"
               HostConfig:
                 MaximumIOps: 0
                 MaximumIOBps: 0
@@ -6557,12 +6551,23 @@ paths:
       parameters:
         - name: "name"
           in: "path"
-          description: "Image name or ID."
+          description: |
+            Name of the image to push. For example, `registry.example.com/myimage`.
+            The image must be present in the local image store with the same name.
+
+            The name should be provided without tag; if a tag is provided, it
+            is ignored. For example, `registry.example.com/myimage:latest` is
+            considered equivalent to `registry.example.com/myimage`.
+
+            Use the `tag` parameter to specify the tag to push.
           type: "string"
           required: true
         - name: "tag"
           in: "query"
-          description: "The tag to associate with the image on the registry."
+          description: |
+            Tag of the image to push. For example, `latest`. If no tag is provided,
+            all tags of the given image that are present in the local image store
+            are pushed.
           type: "string"
         - name: "X-Registry-Auth"
           in: "header"
@@ -7906,6 +7911,10 @@ paths:
             example:
               Id: "22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30"
               Warning: ""
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         403:
           description: "operation not supported for pre-defined networks"
           schema:
@@ -8354,6 +8363,12 @@ paths:
           description: "The name of the plugin. The `:latest` tag is optional, and is the default if omitted."
           required: true
           type: "string"
+        - name: "force"
+          in: "query"
+          description: |
+            Force disable a plugin even if still in use.
+          required: false
+          type: "boolean"
       tags: ["Plugin"]
   /plugins/{name}/upgrade:
     post:

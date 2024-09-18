@@ -4,25 +4,29 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
 // ServiceCreate creates a new service.
-func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options types.ServiceCreateOptions) (types.ServiceCreateResponse, error) {
-	var response types.ServiceCreateResponse
-	headers := map[string][]string{
-		"version": {cli.version},
-	}
+func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options types.ServiceCreateOptions) (swarm.ServiceCreateResponse, error) {
+	var response swarm.ServiceCreateResponse
 
-	if options.EncodedRegistryAuth != "" {
-		headers[registry.AuthHeader] = []string{options.EncodedRegistryAuth}
+	// Make sure we negotiated (if the client is configured to do so),
+	// as code below contains API-version specific handling of options.
+	//
+	// Normally, version-negotiation (if enabled) would not happen until
+	// the API request is made.
+	if err := cli.checkVersion(ctx); err != nil {
+		return response, err
 	}
 
 	// Make sure containerSpec is not nil when no runtime is set or the runtime is set to container
@@ -53,6 +57,16 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 		}
 	}
 
+	headers := http.Header{}
+	if versions.LessThan(cli.version, "1.30") {
+		// the custom "version" header was used by engine API before 20.10
+		// (API 1.30) to switch between client- and server-side lookup of
+		// image digests.
+		headers["version"] = []string{cli.version}
+	}
+	if options.EncodedRegistryAuth != "" {
+		headers[registry.AuthHeader] = []string{options.EncodedRegistryAuth}
+	}
 	resp, err := cli.post(ctx, "/services/create", nil, service, headers)
 	defer ensureReaderClosed(resp)
 	if err != nil {

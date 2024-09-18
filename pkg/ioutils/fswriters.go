@@ -9,6 +9,7 @@ import (
 // NewAtomicFileWriter returns WriteCloser so that writing to it writes to a
 // temporary file and closing it atomically changes the temporary file to
 // destination path. Writing and closing concurrently is not allowed.
+// NOTE: umask is not considered for the file's permissions.
 func NewAtomicFileWriter(filename string, perm os.FileMode) (io.WriteCloser, error) {
 	f, err := os.CreateTemp(filepath.Dir(filename), ".tmp-"+filepath.Base(filename))
 	if err != nil {
@@ -26,7 +27,8 @@ func NewAtomicFileWriter(filename string, perm os.FileMode) (io.WriteCloser, err
 	}, nil
 }
 
-// AtomicWriteFile atomically writes data to a file named by filename.
+// AtomicWriteFile atomically writes data to a file named by filename and with the specified permission bits.
+// NOTE: umask is not considered for the file's permissions.
 func AtomicWriteFile(filename string, data []byte, perm os.FileMode) error {
 	f, err := NewAtomicFileWriter(filename, perm)
 	if err != nil {

@@ -11,17 +11,30 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestContainerExecCreateError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ContainerExecCreate(context.Background(), "container_id", types.ExecConfig{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	_, err := client.ContainerExecCreate(context.Background(), "container_id", container.ExecOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+}
+
+// TestContainerExecCreateConnectionError verifies that connection errors occurring
+// during API-version negotiation are not shadowed by API-version errors.
+//
+// Regression test for https://github.com/docker/cli/issues/4890
+func TestContainerExecCreateConnectionError(t *testing.T) {
+	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	assert.NilError(t, err)
+
+	_, err = client.ContainerExecCreate(context.Background(), "", container.ExecOptions{})
+	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
 func TestContainerExecCreate(t *testing.T) {
@@ -38,7 +51,7 @@ func TestContainerExecCreate(t *testing.T) {
 			if err := req.ParseForm(); err != nil {
 				return nil, err
 			}
-			execConfig := &types.ExecConfig{}
+			execConfig := &container.ExecOptions{}
 			if err := json.NewDecoder(req.Body).Decode(execConfig); err != nil {
 				return nil, err
 			}
@@ -58,7 +71,7 @@ func TestContainerExecCreate(t *testing.T) {
 		}),
 	}
 
-	r, err := client.ContainerExecCreate(context.Background(), "container_id", types.ExecConfig{
+	r, err := client.ContainerExecCreate(context.Background(), "container_id", container.ExecOptions{
 		User: "user",
 	})
 	if err != nil {
@@ -73,10 +86,8 @@ func TestContainerExecStartError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	err := client.ContainerExecStart(context.Background(), "nothing", types.ExecStartCheck{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	err := client.ContainerExecStart(context.Background(), "nothing", container.ExecStartOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerExecStart(t *testing.T) {
@@ -89,12 +100,12 @@ func TestContainerExecStart(t *testing.T) {
 			if err := req.ParseForm(); err != nil {
 				return nil, err
 			}
-			execStartCheck := &types.ExecStartCheck{}
-			if err := json.NewDecoder(req.Body).Decode(execStartCheck); err != nil {
+			options := &container.ExecStartOptions{}
+			if err := json.NewDecoder(req.Body).Decode(options); err != nil {
 				return nil, err
 			}
-			if execStartCheck.Tty || !execStartCheck.Detach {
-				return nil, fmt.Errorf("expected execStartCheck{Detach:true,Tty:false}, got %v", execStartCheck)
+			if options.Tty || !options.Detach {
+				return nil, fmt.Errorf("expected ExecStartOptions{Detach:true,Tty:false}, got %v", options)
 			}
 
 			return &http.Response{
@@ -104,7 +115,7 @@ func TestContainerExecStart(t *testing.T) {
 		}),
 	}
 
-	err := client.ContainerExecStart(context.Background(), "exec_id", types.ExecStartCheck{
+	err := client.ContainerExecStart(context.Background(), "exec_id", container.ExecStartOptions{
 		Detach: true,
 		Tty:    false,
 	})
@@ -118,9 +129,7 @@ func TestContainerExecInspectError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerExecInspect(context.Background(), "nothing")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerExecInspect(t *testing.T) {
@@ -130,7 +139,7 @@ func TestContainerExecInspect(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			b, err := json.Marshal(types.ContainerExecInspect{
+			b, err := json.Marshal(container.ExecInspect{
 				ExecID:      "exec_id",
 				ContainerID: "container_id",
 			})

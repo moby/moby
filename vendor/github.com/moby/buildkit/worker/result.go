@@ -26,6 +26,13 @@ func (wr *WorkerRef) ID() string {
 	return wr.Worker.ID() + "::" + refID
 }
 
+func (wr *WorkerRef) Release(ctx context.Context) error {
+	if wr.ImmutableRef == nil {
+		return nil
+	}
+	return wr.ImmutableRef.Release(ctx)
+}
+
 // GetRemotes method abstracts ImmutableRef's GetRemotes to allow a Worker to override.
 // This is needed for moby integration.
 // Use this method instead of calling ImmutableRef.GetRemotes() directly.

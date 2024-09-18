@@ -170,8 +170,7 @@ func (pp *volumeDriverProxy) Unmount(name string, id string) (err error) {
 	return
 }
 
-type volumeDriverProxyListRequest struct {
-}
+type volumeDriverProxyListRequest struct{}
 
 type volumeDriverProxyListResponse struct {
 	Volumes []*proxyVolume
@@ -227,8 +226,7 @@ func (pp *volumeDriverProxy) Get(name string) (volume *proxyVolume, err error) {
 	return
 }
 
-type volumeDriverProxyCapabilitiesRequest struct {
-}
+type volumeDriverProxyCapabilitiesRequest struct{}
 
 type volumeDriverProxyCapabilitiesResponse struct {
 	Capabilities volume.Capability

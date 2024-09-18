@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 /*
    Copyright The containerd Authors.
@@ -28,15 +27,12 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/containerd/containerd/pkg/userns"
+	"github.com/moby/sys/userns"
+	"golang.org/x/sys/unix"
+
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/continuity/sysx"
-	"golang.org/x/sys/unix"
 )
-
-func tarName(p string) (string, error) {
-	return p, nil
-}
 
 func chmodTarEntry(perm os.FileMode) os.FileMode {
 	return perm
@@ -62,8 +58,7 @@ func setHeaderForSpecialDevice(hdr *tar.Header, name string, fi os.FileInfo) err
 		return errors.New("unsupported stat type")
 	}
 
-	// Rdev is int32 on darwin/bsd, int64 on linux/solaris
-	rdev := uint64(s.Rdev) // nolint: unconvert
+	rdev := uint64(s.Rdev) //nolint:nolintlint,unconvert // rdev is int32 on darwin/bsd, int64 on linux/solaris
 
 	// Currently go does not fill in the major/minors
 	if s.Mode&syscall.S_IFBLK != 0 ||

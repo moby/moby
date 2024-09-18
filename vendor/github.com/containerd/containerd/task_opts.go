@@ -25,11 +25,11 @@ import (
 
 	"github.com/containerd/containerd/api/types"
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/runtime/linux/runctypes"
 	"github.com/containerd/containerd/runtime/v2/runc/options"
+	"github.com/containerd/errdefs"
 	imagespec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -49,7 +49,7 @@ func WithRootFS(mounts []mount.Mount) NewTaskOpts {
 // instead of resolving it from runtime name.
 func WithRuntimePath(absRuntimePath string) NewTaskOpts {
 	return func(ctx context.Context, client *Client, info *TaskInfo) error {
-		info.runtime = absRuntimePath
+		info.RuntimePath = absRuntimePath
 		return nil
 	}
 }
@@ -69,8 +69,8 @@ func WithTaskCheckpoint(im Image) NewTaskOpts {
 			if m.MediaType == images.MediaTypeContainerd1Checkpoint {
 				info.Checkpoint = &types.Descriptor{
 					MediaType:   m.MediaType,
-					Size_:       m.Size,
-					Digest:      m.Digest,
+					Size:        m.Size,
+					Digest:      m.Digest.String(),
 					Annotations: m.Annotations,
 				}
 				return nil
@@ -158,6 +158,12 @@ type ProcessDeleteOpts func(context.Context, Process) error
 
 // WithProcessKill will forcefully kill and delete a process
 func WithProcessKill(ctx context.Context, p Process) error {
+	// Skip killing tasks with PID 0
+	// https://github.com/containerd/containerd/issues/10441
+	if p.Pid() == 0 {
+		return nil
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	// ignore errors to wait and kill as we are forcefully killing

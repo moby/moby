@@ -3,7 +3,6 @@ package controlapi
 import (
 	"context"
 
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -50,7 +49,7 @@ func (s *Server) CreateResource(ctx context.Context, request *api.CreateResource
 			r.Annotations.Name,
 		)
 	case nil:
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"resource.Name": r.Annotations.Name,
 			"method":        "CreateResource",
 		}).Debugf("resource created")

@@ -1,0 +1,6 @@
+bin
+go-zfs.test
+.vagrant
+
+# added by lint-install
+out/

@@ -6,13 +6,13 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
+	"github.com/distribution/reference"
+	"github.com/docker/docker/api/types/image"
 )
 
 // ImageImport creates a new image based on the source options.
 // It returns the JSON content in the response body.
-func (cli *Client) ImageImport(ctx context.Context, source types.ImageImportSource, ref string, options types.ImageImportOptions) (io.ReadCloser, error) {
+func (cli *Client) ImageImport(ctx context.Context, source image.ImportSource, ref string, options image.ImportOptions) (io.ReadCloser, error) {
 	if ref != "" {
 		// Check if the given image name can be resolved
 		if _, err := reference.ParseNormalizedNamed(ref); err != nil {

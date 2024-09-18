@@ -11,6 +11,8 @@ import (
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestNodeUpdateError(t *testing.T) {
@@ -19,9 +21,7 @@ func TestNodeUpdateError(t *testing.T) {
 	}
 
 	err := client.NodeUpdate(context.Background(), "node_id", swarm.Version{}, swarm.NodeSpec{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestNodeUpdate(t *testing.T) {

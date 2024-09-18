@@ -1,17 +1,18 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // AuthClientID is used the ClientID used for the token server
@@ -74,7 +75,7 @@ func loginV2(authConfig *registry.AuthConfig, endpoint APIEndpoint, userAgent st
 		creds                = loginCredentialStore{authConfig: &credentialAuthConfig}
 	)
 
-	logrus.Debugf("attempting v2 login to registry endpoint %s", endpointStr)
+	log.G(context.TODO()).Debugf("attempting v2 login to registry endpoint %s", endpointStr)
 
 	loginClient, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, creds, nil)
 	if err != nil {
@@ -107,16 +108,18 @@ func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifi
 		return nil, err
 	}
 
-	tokenHandlerOptions := auth.TokenHandlerOptions{
-		Transport:     authTransport,
-		Credentials:   creds,
-		OfflineAccess: true,
-		ClientID:      AuthClientID,
-		Scopes:        scopes,
+	authHandlers := []auth.AuthenticationHandler{
+		auth.NewTokenHandlerWithOptions(auth.TokenHandlerOptions{
+			Transport:     authTransport,
+			Credentials:   creds,
+			OfflineAccess: true,
+			ClientID:      AuthClientID,
+			Scopes:        scopes,
+		}),
+		auth.NewBasicHandler(creds),
 	}
-	tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
-	basicHandler := auth.NewBasicHandler(creds)
-	modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
+
+	modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, authHandlers...))
 
 	return &http.Client{
 		Transport: transport.NewTransport(authTransport, modifiers...),
@@ -124,8 +127,10 @@ func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifi
 	}, nil
 }
 
-// ConvertToHostname converts a registry url which has http|https prepended
-// to just an hostname.
+// ConvertToHostname normalizes a registry URL which has http|https prepended
+// to just its hostname. It is used to match credentials, which may be either
+// stored as hostname or as hostname including scheme (in legacy configuration
+// files).
 func ConvertToHostname(url string) string {
 	stripped := url
 	if strings.HasPrefix(url, "http://") {
@@ -146,8 +151,8 @@ func ResolveAuthConfig(authConfigs map[string]registry.AuthConfig, index *regist
 
 	// Maybe they have a legacy config file, we will iterate the keys converting
 	// them to the new format and testing
-	for registry, ac := range authConfigs {
-		if configKey == ConvertToHostname(registry) {
+	for registryURL, ac := range authConfigs {
+		if configKey == ConvertToHostname(registryURL) {
 			return ac
 		}
 	}

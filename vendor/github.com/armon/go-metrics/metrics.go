@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-immutable-radix"
+	iradix "github.com/hashicorp/go-immutable-radix"
 )
 
 type Label struct {
@@ -172,6 +172,12 @@ func (m *Metrics) UpdateFilterAndLabels(allow, block, allowedLabels, blockedLabe
 	}
 }
 
+func (m *Metrics) Shutdown() {
+	if ss, ok := m.sink.(ShutdownSink); ok {
+		ss.Shutdown()
+	}
+}
+
 // labelIsAllowed return true if a should be included in metric
 // the caller should lock m.filterLock while calling this method
 func (m *Metrics) labelIsAllowed(label *Label) bool {
@@ -197,7 +203,7 @@ func (m *Metrics) filterLabels(labels []Label) []Label {
 	if labels == nil {
 		return nil
 	}
-	toReturn := labels[:0]
+	toReturn := []Label{}
 	for _, label := range labels {
 		if m.labelIsAllowed(&label) {
 			toReturn = append(toReturn, label)
@@ -228,12 +234,12 @@ func (m *Metrics) allowMetric(key []string, labels []Label) (bool, []Label) {
 func (m *Metrics) collectStats() {
 	for {
 		time.Sleep(m.ProfileInterval)
-		m.emitRuntimeStats()
+		m.EmitRuntimeStats()
 	}
 }
 
 // Emits various runtime statsitics
-func (m *Metrics) emitRuntimeStats() {
+func (m *Metrics) EmitRuntimeStats() {
 	// Export number of Goroutines
 	numRoutines := runtime.NumGoroutine()
 	m.SetGauge([]string{"runtime", "num_goroutines"}, float32(numRoutines))
@@ -269,10 +275,25 @@ func (m *Metrics) emitRuntimeStats() {
 	m.lastNumGC = num
 }
 
-// Inserts a string value at an index into the slice
+// Creates a new slice with the provided string value as the first element
+// and the provided slice values as the remaining values.
+// Ordering of the values in the provided input slice is kept in tact in the output slice.
 func insert(i int, v string, s []string) []string {
-	s = append(s, "")
-	copy(s[i+1:], s[i:])
-	s[i] = v
-	return s
+	// Allocate new slice to avoid modifying the input slice
+	newS := make([]string, len(s)+1)
+
+	// Copy s[0, i-1] into newS
+	for j := 0; j < i; j++ {
+		newS[j] = s[j]
+	}
+
+	// Insert provided element at index i
+	newS[i] = v
+
+	// Copy s[i, len(s)-1] into newS starting at newS[i+1]
+	for j := i; j < len(s); j++ {
+		newS[j+1] = s[j]
+	}
+
+	return newS
 }

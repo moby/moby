@@ -9,7 +9,6 @@ import (
 	"github.com/moby/swarmkit/v2/identity"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/state/store"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -80,7 +79,7 @@ func (s *Server) UpdateConfig(ctx context.Context, request *api.UpdateConfigRequ
 		return nil, err
 	}
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"config.ID":   request.ConfigID,
 		"config.Name": request.Spec.Annotations.Name,
 		"method":      "UpdateConfig",
@@ -166,7 +165,7 @@ func (s *Server) CreateConfig(ctx context.Context, request *api.CreateConfigRequ
 	case store.ErrNameConflict:
 		return nil, status.Errorf(codes.AlreadyExists, "config %s already exists", request.Spec.Annotations.Name)
 	case nil:
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"config.Name": request.Spec.Annotations.Name,
 			"method":      "CreateConfig",
 		}).Debugf("config created")
@@ -222,7 +221,7 @@ func (s *Server) RemoveConfig(ctx context.Context, request *api.RemoveConfigRequ
 	case store.ErrNotExist:
 		return nil, status.Errorf(codes.NotFound, "config %s not found", request.ConfigID)
 	case nil:
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"config.ID": request.ConfigID,
 			"method":    "RemoveConfig",
 		}).Debugf("config removed")

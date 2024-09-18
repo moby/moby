@@ -1,7 +1,9 @@
 package logger
 
 import (
-	"github.com/sirupsen/logrus"
+	"context"
+
+	"github.com/containerd/log"
 	"golang.org/x/time/rate"
 )
 
@@ -16,7 +18,7 @@ var logErrorLimiter = rate.NewLimiter(333, 333)
 func logDriverError(loggerName, msgLine string, logErr error) {
 	logWritesFailedCount.Inc(1)
 	if logErrorLimiter.Allow() {
-		logrus.WithError(logErr).
+		log.G(context.TODO()).WithError(logErr).
 			WithField("driver", loggerName).
 			WithField("message", msgLine).
 			Errorf("Error writing log message")

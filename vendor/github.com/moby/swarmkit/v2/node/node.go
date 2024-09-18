@@ -15,23 +15,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/moby/swarmkit/v2/ca/keyutils"
-	"github.com/moby/swarmkit/v2/identity"
-
-	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-metrics"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/moby/swarmkit/v2/agent"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/ca"
+	"github.com/moby/swarmkit/v2/ca/keyutils"
 	"github.com/moby/swarmkit/v2/connectionbroker"
+	"github.com/moby/swarmkit/v2/identity"
 	"github.com/moby/swarmkit/v2/ioutils"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager"
-	"github.com/moby/swarmkit/v2/manager/allocator/cnmallocator"
+	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	"github.com/moby/swarmkit/v2/manager/encryption"
+	"github.com/moby/swarmkit/v2/node/plugin"
 	"github.com/moby/swarmkit/v2/remotes"
 	"github.com/moby/swarmkit/v2/xnet"
 	"github.com/pkg/errors"
@@ -45,6 +43,7 @@ import (
 const (
 	stateFilename     = "state.json"
 	roleChangeTimeout = 16 * time.Second
+	certDirectory     = "certificates"
 )
 
 var (
@@ -53,7 +52,6 @@ var (
 
 	errNodeStarted    = errors.New("node: already started")
 	errNodeNotStarted = errors.New("node: not started")
-	certDirectory     = "certificates"
 
 	// ErrInvalidUnlockKey is returned when we can't decrypt the TLS certificate
 	ErrInvalidUnlockKey = errors.New("node is locked, and needs a valid unlock key")
@@ -107,8 +105,11 @@ type Config struct {
 	// for connections to the remote API (including the raft service).
 	AdvertiseRemoteAPI string
 
+	// NetworkProvider provides network allocation for the cluster
+	NetworkProvider networkallocator.Provider
+
 	// NetworkConfig stores network related config for the cluster
-	NetworkConfig *cnmallocator.NetworkConfig
+	NetworkConfig *networkallocator.Config
 
 	// Executor specifies the executor to use for the agent.
 	Executor exec.Executor
@@ -133,7 +134,7 @@ type Config struct {
 	Availability api.NodeSpec_Availability
 
 	// PluginGetter provides access to docker's plugin inventory.
-	PluginGetter plugingetter.PluginGetter
+	PluginGetter plugin.Getter
 
 	// FIPS is a boolean stating whether the node is FIPS enabled
 	FIPS bool
@@ -162,7 +163,6 @@ type Node struct {
 	manager          *manager.Manager
 	notifyNodeChange chan *agent.NodeChanges // used by the agent to relay node updates from the dispatcher Session stream to (*Node).run
 	unlockKey        []byte
-	vxlanUDPPort     uint32
 }
 
 type lastSeenRole struct {
@@ -272,12 +272,15 @@ func (n *Node) currentRole() api.NodeRole {
 }
 
 // configVXLANUDPPort sets vxlan port in libnetwork
-func configVXLANUDPPort(ctx context.Context, vxlanUDPPort uint32) {
-	if err := overlayutils.ConfigVXLANUDPPort(vxlanUDPPort); err != nil {
+func (n *Node) configVXLANUDPPort(ctx context.Context, vxlanUDPPort uint32) {
+	if n.config.NetworkProvider == nil {
+		return
+	}
+	if err := n.config.NetworkProvider.SetDefaultVXLANUDPPort(vxlanUDPPort); err != nil {
 		log.G(ctx).WithError(err).Error("failed to configure VXLAN UDP port")
 		return
 	}
-	logrus.Infof("initialized VXLAN UDP port to %d ", vxlanUDPPort)
+	log.G(ctx).Infof("initialized VXLAN UDP port to %d ", vxlanUDPPort)
 }
 
 func (n *Node) run(ctx context.Context) (err error) {
@@ -370,8 +373,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 			case nodeChanges := <-n.notifyNodeChange:
 				if nodeChanges.Node != nil {
 					if nodeChanges.Node.VXLANUDPPort != 0 {
-						n.vxlanUDPPort = nodeChanges.Node.VXLANUDPPort
-						configVXLANUDPPort(ctx, n.vxlanUDPPort)
+						n.configVXLANUDPPort(ctx, nodeChanges.Node.VXLANUDPPort)
 					}
 					// This is a bit complex to be backward compatible with older CAs that
 					// don't support the Node.Role field. They only use what's presently
@@ -445,7 +447,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 	go func() {
 		for certUpdate := range updates {
 			if certUpdate.Err != nil {
-				logrus.Warnf("error renewing TLS certificate: %v", certUpdate.Err)
+				log.G(ctx).Warnf("error renewing TLS certificate: %v", certUpdate.Err)
 				continue
 			}
 			// Set the new role, and notify our waiting role changing logic
@@ -863,7 +865,7 @@ func (n *Node) loadSecurityConfig(ctx context.Context, paths *ca.SecurityConfigP
 		// Attempt to load certificate from disk
 		securityConfig, cancel, err = ca.LoadSecurityConfig(ctx, rootCA, krw, n.config.ForceNewCluster)
 		if err == nil {
-			log.G(ctx).WithFields(logrus.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"node.id": securityConfig.ClientTLSCreds.NodeID(),
 			}).Debugf("loaded TLS certificate")
 		} else {
@@ -1016,6 +1018,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 		RootCAPaths:      rootPaths,
 		FIPS:             n.config.FIPS,
 		NetworkConfig:    n.config.NetworkConfig,
+		NetworkProvider:  n.config.NetworkProvider,
 	})
 	if err != nil {
 		return false, err
@@ -1028,7 +1031,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 	// The context used to start this might have a logger associated with it
 	// that we'd like to reuse, but we don't want to use that context, so we
 	// pass to the goroutine only the logger, and create a new context with
-	//that logger.
+	// that logger.
 	go func(logger *logrus.Entry) {
 		if err := m.Run(log.WithLogger(context.Background(), logger)); err != nil {
 			runErr = err

@@ -267,7 +267,7 @@ func parseDirent(buf []byte, names []nameIno) (consumed int, newnames []nameIno)
 			continue
 		}
 		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
-		var name = string(bytes[0:clen(bytes[:])])
+		name := string(bytes[0:clen(bytes[:])])
 		if name == "." || name == ".." { // Useless names
 			continue
 		}

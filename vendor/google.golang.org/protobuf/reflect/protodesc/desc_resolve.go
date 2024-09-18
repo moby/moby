@@ -155,9 +155,9 @@ func (r *resolver) findTarget(k protoreflect.Kind, scope protoreflect.FullName, 
 //
 // Suppose the scope was "fizz.buzz" and the reference was "Foo.Bar",
 // then the following full names are searched:
-//	* fizz.buzz.Foo.Bar
-//	* fizz.Foo.Bar
-//	* Foo.Bar
+//   - fizz.buzz.Foo.Bar
+//   - fizz.Foo.Bar
+//   - Foo.Bar
 func (r *resolver) findDescriptor(scope protoreflect.FullName, ref partialName) (protoreflect.Descriptor, error) {
 	if !ref.IsValid() {
 		return nil, errors.New("invalid name reference: %q", ref)
@@ -276,8 +276,8 @@ func unmarshalDefault(s string, fd protoreflect.FieldDescriptor, allowUnresolvab
 	} else if err != nil {
 		return v, ev, err
 	}
-	if fd.Syntax() == protoreflect.Proto3 {
-		return v, ev, errors.New("cannot be specified under proto3 semantics")
+	if !fd.HasPresence() {
+		return v, ev, errors.New("cannot be specified with implicit field presence")
 	}
 	if fd.Kind() == protoreflect.MessageKind || fd.Kind() == protoreflect.GroupKind || fd.Cardinality() == protoreflect.Repeated {
 		return v, ev, errors.New("cannot be specified on composite types")

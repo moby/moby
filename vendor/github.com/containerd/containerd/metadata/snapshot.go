@@ -24,14 +24,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/containerd/containerd/errdefs"
+	eventstypes "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/filters"
 	"github.com/containerd/containerd/labels"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/metadata/boltutil"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/snapshots"
+	"github.com/containerd/errdefs"
+	"github.com/containerd/log"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -273,7 +274,22 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) ([]mount.Mount, er
 }
 
 func (s *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) ([]mount.Mount, error) {
-	return s.createSnapshot(ctx, key, parent, false, opts)
+	mounts, err := s.createSnapshot(ctx, key, parent, false, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.db.dbopts.publisher != nil {
+		if err := s.db.dbopts.publisher.Publish(ctx, "/snapshot/prepare", &eventstypes.SnapshotPrepare{
+			Key:         key,
+			Parent:      parent,
+			Snapshotter: s.name,
+		}); err != nil {
+			return nil, err
+		}
+	}
+
+	return mounts, nil
 }
 
 func (s *snapshotter) View(ctx context.Context, key, parent string, opts ...snapshots.Opt) ([]mount.Mount, error) {
@@ -307,6 +323,7 @@ func (s *snapshotter) createSnapshot(ctx context.Context, key, parent string, re
 		bopts   = []snapshots.Opt{
 			snapshots.WithLabels(snapshots.FilterInheritedLabels(base.Labels)),
 		}
+		rerr error
 	)
 
 	if err := update(ctx, s.db, func(tx *bolt.Tx) error {
@@ -318,12 +335,20 @@ func (s *snapshotter) createSnapshot(ctx context.Context, key, parent string, re
 		// Check if target exists, if so, return already exists
 		if target != "" {
 			if tbkt := bkt.Bucket([]byte(target)); tbkt != nil {
-				return fmt.Errorf("target snapshot %q: %w", target, errdefs.ErrAlreadyExists)
+				rerr = fmt.Errorf("target snapshot %q: %w", target, errdefs.ErrAlreadyExists)
+				if err := addSnapshotLease(ctx, tx, s.name, target); err != nil {
+					return err
+				}
+				return nil
 			}
 		}
 
 		if bbkt := bkt.Bucket([]byte(key)); bbkt != nil {
-			return fmt.Errorf("snapshot %q: %w", key, errdefs.ErrAlreadyExists)
+			rerr = fmt.Errorf("snapshot %q: %w", key, errdefs.ErrAlreadyExists)
+			if err := addSnapshotLease(ctx, tx, s.name, key); err != nil {
+				return err
+			}
+			return nil
 		}
 
 		if parent != "" {
@@ -344,11 +369,14 @@ func (s *snapshotter) createSnapshot(ctx context.Context, key, parent string, re
 	}); err != nil {
 		return nil, err
 	}
+	// Already exists and lease successfully added in transaction
+	if rerr != nil {
+		return nil, rerr
+	}
 
 	var (
 		m       []mount.Mount
 		created string
-		rerr    error
 	)
 	if readonly {
 		m, err = s.Snapshotter.View(ctx, bkey, bparent, bopts...)
@@ -511,7 +539,10 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 		return err
 	}
 
-	var bname string
+	var (
+		bname string
+		rerr  error
+	)
 	if err := update(ctx, s.db, func(tx *bolt.Tx) error {
 		bkt := getSnapshotterBucket(tx, ns, s.name)
 		if bkt == nil {
@@ -519,14 +550,15 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 				s.name, errdefs.ErrNotFound)
 		}
 
+		if err := addSnapshotLease(ctx, tx, s.name, name); err != nil {
+			return err
+		}
 		bbkt, err := bkt.CreateBucket([]byte(name))
 		if err != nil {
 			if err == bolt.ErrBucketExists {
-				err = fmt.Errorf("snapshot %q: %w", name, errdefs.ErrAlreadyExists)
+				rerr = fmt.Errorf("snapshot %q: %w", name, errdefs.ErrAlreadyExists)
+				return nil
 			}
-			return err
-		}
-		if err := addSnapshotLease(ctx, tx, s.name, name); err != nil {
 			return err
 		}
 
@@ -618,7 +650,17 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 		return err
 	}
 
-	return nil
+	if rerr == nil && s.db.dbopts.publisher != nil {
+		if err := s.db.dbopts.publisher.Publish(ctx, "/snapshot/commit", &eventstypes.SnapshotCommit{
+			Key:         key,
+			Name:        name,
+			Snapshotter: s.name,
+		}); err != nil {
+			return err
+		}
+	}
+
+	return rerr
 
 }
 
@@ -631,7 +673,7 @@ func (s *snapshotter) Remove(ctx context.Context, key string) error {
 		return err
 	}
 
-	return update(ctx, s.db, func(tx *bolt.Tx) error {
+	if err := update(ctx, s.db, func(tx *bolt.Tx) error {
 		var sbkt *bolt.Bucket
 		bkt := getSnapshotterBucket(tx, ns, s.name)
 		if bkt != nil {
@@ -674,7 +716,17 @@ func (s *snapshotter) Remove(ctx context.Context, key string) error {
 		s.db.dirtySS[s.name] = struct{}{}
 
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+
+	if s.db.dbopts.publisher != nil {
+		return s.db.dbopts.publisher.Publish(ctx, "/snapshot/remove", &eventstypes.SnapshotRemove{
+			Key:         key,
+			Snapshotter: s.name,
+		})
+	}
+	return nil
 }
 
 type infoPair struct {

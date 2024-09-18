@@ -27,75 +27,15 @@ import (
 	"google.golang.org/grpc/resolver"
 )
 
-// The parent ClientConn should re-resolve when grpclb loses connection to the
-// remote balancer. When the ClientConn inside grpclb gets a TransientFailure,
-// it calls lbManualResolver.ResolveNow(), which calls parent ClientConn's
-// ResolveNow, and eventually results in re-resolve happening in parent
-// ClientConn's resolver (DNS for example).
-//
-//                          parent
-//                          ClientConn
-//  +-----------------------------------------------------------------+
-//  |             parent          +---------------------------------+ |
-//  | DNS         ClientConn      |  grpclb                         | |
-//  | resolver    balancerWrapper |                                 | |
-//  | +              +            |    grpclb          grpclb       | |
-//  | |              |            |    ManualResolver  ClientConn   | |
-//  | |              |            |     +              +            | |
-//  | |              |            |     |              | Transient  | |
-//  | |              |            |     |              | Failure    | |
-//  | |              |            |     |  <---------  |            | |
-//  | |              | <--------------- |  ResolveNow  |            | |
-//  | |  <---------  | ResolveNow |     |              |            | |
-//  | |  ResolveNow  |            |     |              |            | |
-//  | |              |            |     |              |            | |
-//  | +              +            |     +              +            | |
-//  |                             +---------------------------------+ |
-//  +-----------------------------------------------------------------+
-
-// lbManualResolver is used by the ClientConn inside grpclb. It's a manual
-// resolver with a special ResolveNow() function.
-//
-// When ResolveNow() is called, it calls ResolveNow() on the parent ClientConn,
-// so when grpclb client lose contact with remote balancers, the parent
-// ClientConn's resolver will re-resolve.
-type lbManualResolver struct {
-	scheme string
-	ccr    resolver.ClientConn
-
-	ccb balancer.ClientConn
-}
-
-func (r *lbManualResolver) Build(_ resolver.Target, cc resolver.ClientConn, _ resolver.BuildOptions) (resolver.Resolver, error) {
-	r.ccr = cc
-	return r, nil
-}
-
-func (r *lbManualResolver) Scheme() string {
-	return r.scheme
-}
-
-// ResolveNow calls resolveNow on the parent ClientConn.
-func (r *lbManualResolver) ResolveNow(o resolver.ResolveNowOptions) {
-	r.ccb.ResolveNow(o)
-}
-
-// Close is a noop for Resolver.
-func (*lbManualResolver) Close() {}
-
-// UpdateState calls cc.UpdateState.
-func (r *lbManualResolver) UpdateState(s resolver.State) {
-	r.ccr.UpdateState(s)
-}
-
 const subConnCacheTime = time.Second * 10
 
 // lbCacheClientConn is a wrapper balancer.ClientConn with a SubConn cache.
-// SubConns will be kept in cache for subConnCacheTime before being removed.
+// SubConns will be kept in cache for subConnCacheTime before being shut down.
 //
-// Its new and remove methods are updated to do cache first.
+// Its NewSubconn and SubConn.Shutdown methods are updated to do cache first.
 type lbCacheClientConn struct {
-	cc      balancer.ClientConn
+	balancer.ClientConn
+
 	timeout time.Duration
 
 	mu sync.Mutex
@@ -113,7 +53,7 @@ type subConnCacheEntry struct {
 
 func newLBCacheClientConn(cc balancer.ClientConn) *lbCacheClientConn {
 	return &lbCacheClientConn{
-		cc:            cc,
+		ClientConn:    cc,
 		timeout:       subConnCacheTime,
 		subConnCache:  make(map[resolver.Address]*subConnCacheEntry),
 		subConnToAddr: make(map[balancer.SubConn]resolver.Address),
@@ -137,16 +77,27 @@ func (ccc *lbCacheClientConn) NewSubConn(addrs []resolver.Address, opts balancer
 		return entry.sc, nil
 	}
 
-	scNew, err := ccc.cc.NewSubConn(addrs, opts)
+	scNew, err := ccc.ClientConn.NewSubConn(addrs, opts)
 	if err != nil {
 		return nil, err
 	}
+	scNew = &lbCacheSubConn{SubConn: scNew, ccc: ccc}
 
 	ccc.subConnToAddr[scNew] = addrWithoutAttrs
 	return scNew, nil
 }
 
 func (ccc *lbCacheClientConn) RemoveSubConn(sc balancer.SubConn) {
+	logger.Errorf("RemoveSubConn(%v) called unexpectedly", sc)
+}
+
+type lbCacheSubConn struct {
+	balancer.SubConn
+	ccc *lbCacheClientConn
+}
+
+func (sc *lbCacheSubConn) Shutdown() {
+	ccc := sc.ccc
 	ccc.mu.Lock()
 	defer ccc.mu.Unlock()
 	addr, ok := ccc.subConnToAddr[sc]
@@ -156,11 +107,11 @@ func (ccc *lbCacheClientConn) RemoveSubConn(sc balancer.SubConn) {
 
 	if entry, ok := ccc.subConnCache[addr]; ok {
 		if entry.sc != sc {
-			// This could happen if NewSubConn was called multiple times for the
-			// same address, and those SubConns are all removed. We remove sc
-			// immediately here.
+			// This could happen if NewSubConn was called multiple times for
+			// the same address, and those SubConns are all shut down. We
+			// remove sc immediately here.
 			delete(ccc.subConnToAddr, sc)
-			ccc.cc.RemoveSubConn(sc)
+			sc.SubConn.Shutdown()
 		}
 		return
 	}
@@ -176,7 +127,7 @@ func (ccc *lbCacheClientConn) RemoveSubConn(sc balancer.SubConn) {
 		if entry.abortDeleting {
 			return
 		}
-		ccc.cc.RemoveSubConn(sc)
+		sc.SubConn.Shutdown()
 		delete(ccc.subConnToAddr, sc)
 		delete(ccc.subConnCache, addr)
 	})
@@ -195,14 +146,28 @@ func (ccc *lbCacheClientConn) RemoveSubConn(sc balancer.SubConn) {
 }
 
 func (ccc *lbCacheClientConn) UpdateState(s balancer.State) {
-	ccc.cc.UpdateState(s)
+	s.Picker = &lbCachePicker{Picker: s.Picker}
+	ccc.ClientConn.UpdateState(s)
 }
 
 func (ccc *lbCacheClientConn) close() {
 	ccc.mu.Lock()
-	// Only cancel all existing timers. There's no need to remove SubConns.
+	defer ccc.mu.Unlock()
+	// Only cancel all existing timers. There's no need to shut down SubConns.
 	for _, entry := range ccc.subConnCache {
 		entry.cancel()
 	}
-	ccc.mu.Unlock()
+}
+
+type lbCachePicker struct {
+	balancer.Picker
+}
+
+func (cp *lbCachePicker) Pick(i balancer.PickInfo) (balancer.PickResult, error) {
+	res, err := cp.Picker.Pick(i)
+	if err != nil {
+		return res, err
+	}
+	res.SubConn = res.SubConn.(*lbCacheSubConn).SubConn
+	return res, nil
 }

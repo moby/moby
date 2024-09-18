@@ -13,6 +13,9 @@ func Attributes(attrs []*commonpb.KeyValue) []attribute.KeyValue {
 
 	out := make([]attribute.KeyValue, 0, len(attrs))
 	for _, a := range attrs {
+		if a == nil {
+			continue
+		}
 		kv := attribute.KeyValue{
 			Key:   attribute.Key(a.Key),
 			Value: toValue(a.Value),
@@ -42,7 +45,9 @@ func toValue(v *commonpb.AnyValue) attribute.Value {
 func boolArray(kv []*commonpb.AnyValue) attribute.Value {
 	arr := make([]bool, len(kv))
 	for i, v := range kv {
-		arr[i] = v.GetBoolValue()
+		if v != nil {
+			arr[i] = v.GetBoolValue()
+		}
 	}
 	return attribute.BoolSliceValue(arr)
 }
@@ -50,7 +55,9 @@ func boolArray(kv []*commonpb.AnyValue) attribute.Value {
 func intArray(kv []*commonpb.AnyValue) attribute.Value {
 	arr := make([]int64, len(kv))
 	for i, v := range kv {
-		arr[i] = v.GetIntValue()
+		if v != nil {
+			arr[i] = v.GetIntValue()
+		}
 	}
 	return attribute.Int64SliceValue(arr)
 }
@@ -58,7 +65,9 @@ func intArray(kv []*commonpb.AnyValue) attribute.Value {
 func doubleArray(kv []*commonpb.AnyValue) attribute.Value {
 	arr := make([]float64, len(kv))
 	for i, v := range kv {
-		arr[i] = v.GetDoubleValue()
+		if v != nil {
+			arr[i] = v.GetDoubleValue()
+		}
 	}
 	return attribute.Float64SliceValue(arr)
 }
@@ -66,13 +75,15 @@ func doubleArray(kv []*commonpb.AnyValue) attribute.Value {
 func stringArray(kv []*commonpb.AnyValue) attribute.Value {
 	arr := make([]string, len(kv))
 	for i, v := range kv {
-		arr[i] = v.GetStringValue()
+		if v != nil {
+			arr[i] = v.GetStringValue()
+		}
 	}
 	return attribute.StringSliceValue(arr)
 }
 
 func arrayValues(kv []*commonpb.AnyValue) attribute.Value {
-	if len(kv) == 0 {
+	if len(kv) == 0 || kv[0] == nil {
 		return attribute.StringSliceValue([]string{})
 	}
 

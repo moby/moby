@@ -5,12 +5,14 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/client/llb"
+	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/imageutil"
+	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/buildkit/version"
 	"github.com/moby/locker"
 	digest "github.com/opencontainers/go-digest"
@@ -45,7 +47,6 @@ func New(with ...ImageMetaResolverOpt) llb.ImageMetaResolver {
 	headers.Set("User-Agent", version.UserAgent())
 	return &imageMetaResolver{
 		resolver: docker.NewResolver(docker.ResolverOptions{
-			Client:  http.DefaultClient,
 			Headers: headers,
 		}),
 		platform: opts.platform,
@@ -75,28 +76,33 @@ type resolveResult struct {
 	dgst   digest.Digest
 }
 
-func (imr *imageMetaResolver) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt) (digest.Digest, []byte, error) {
+func (imr *imageMetaResolver) ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt) (resolvedRef string, digest digest.Digest, config []byte, retErr error) {
+	span, ctx := tracing.StartSpan(ctx, "resolving "+ref)
+	defer func() {
+		tracing.FinishWithError(span, retErr)
+	}()
+
 	imr.locker.Lock(ref)
 	defer imr.locker.Unlock(ref)
 
-	platform := opt.Platform
-	if platform == nil {
-		platform = imr.platform
+	platform := imr.platform
+	if opt.Platform != nil {
+		platform = opt.Platform
 	}
 
 	k := imr.key(ref, platform)
 
 	if res, ok := imr.cache[k]; ok {
-		return res.dgst, res.config, nil
+		return ref, res.dgst, res.config, nil
 	}
 
 	dgst, config, err := imageutil.Config(ctx, ref, imr.resolver, imr.buffer, nil, platform)
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 
 	imr.cache[k] = resolveResult{dgst: dgst, config: config}
-	return dgst, config, nil
+	return ref, dgst, config, nil
 }
 
 func (imr *imageMetaResolver) key(ref string, platform *ocispecs.Platform) string {

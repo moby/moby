@@ -1,30 +1,32 @@
 package awslogs // import "github.com/docker/docker/daemon/logger/awslogs"
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 )
 
 type mockClient struct {
-	createLogGroupFunc  func(input *cloudwatchlogs.CreateLogGroupInput) (*cloudwatchlogs.CreateLogGroupOutput, error)
-	createLogStreamFunc func(input *cloudwatchlogs.CreateLogStreamInput) (*cloudwatchlogs.CreateLogStreamOutput, error)
-	putLogEventsFunc    func(input *cloudwatchlogs.PutLogEventsInput) (*cloudwatchlogs.PutLogEventsOutput, error)
+	createLogGroupFunc  func(context.Context, *cloudwatchlogs.CreateLogGroupInput, ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogGroupOutput, error)
+	createLogStreamFunc func(context.Context, *cloudwatchlogs.CreateLogStreamInput, ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error)
+	putLogEventsFunc    func(context.Context, *cloudwatchlogs.PutLogEventsInput, ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error)
 }
 
-func (m *mockClient) CreateLogGroup(input *cloudwatchlogs.CreateLogGroupInput) (*cloudwatchlogs.CreateLogGroupOutput, error) {
-	return m.createLogGroupFunc(input)
+func (m *mockClient) CreateLogGroup(ctx context.Context, input *cloudwatchlogs.CreateLogGroupInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogGroupOutput, error) {
+	return m.createLogGroupFunc(ctx, input, opts...)
 }
 
-func (m *mockClient) CreateLogStream(input *cloudwatchlogs.CreateLogStreamInput) (*cloudwatchlogs.CreateLogStreamOutput, error) {
-	return m.createLogStreamFunc(input)
+func (m *mockClient) CreateLogStream(ctx context.Context, input *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+	return m.createLogStreamFunc(ctx, input, opts...)
 }
 
-func (m *mockClient) PutLogEvents(input *cloudwatchlogs.PutLogEventsInput) (*cloudwatchlogs.PutLogEventsOutput, error) {
+func (m *mockClient) PutLogEvents(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 	if err := checkPutLogEventsConstraints(input); err != nil {
 		return nil, err
 	}
-	return m.putLogEventsFunc(input)
+	return m.putLogEventsFunc(ctx, input, opts...)
 }
 
 func checkPutLogEventsConstraints(input *cloudwatchlogs.PutLogEventsInput) error {
@@ -66,7 +68,11 @@ func newMockMetadataClient() *mockmetadataclient {
 	}
 }
 
-func (m *mockmetadataclient) Region() (string, error) {
+func (m *mockmetadataclient) GetRegion(context.Context, *imds.GetRegionInput, ...func(*imds.Options)) (*imds.GetRegionOutput, error) {
 	output := <-m.regionResult
-	return output.successResult, output.errorResult
+	err := output.errorResult
+	if err != nil {
+		return nil, err
+	}
+	return &imds.GetRegionOutput{Region: output.successResult}, err
 }

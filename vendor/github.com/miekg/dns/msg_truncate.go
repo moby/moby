@@ -8,8 +8,14 @@ package dns
 // record adding as many records as possible without exceeding the
 // requested buffer size.
 //
+// If the message fits within the requested size without compression,
+// Truncate will set the message's Compress attribute to false. It is
+// the caller's responsibility to set it back to true if they wish to
+// compress the payload regardless of size.
+//
 // The TC bit will be set if any records were excluded from the message.
-// This indicates to that the client should retry over TCP.
+// If the TC bit is already set on the message it will be retained.
+// TC indicates that the client should retry over TCP.
 //
 // According to RFC 2181, the TC bit should only be set if not all of the
 // "required" RRs can be included in the response. Unfortunately, we have
@@ -28,11 +34,11 @@ func (dns *Msg) Truncate(size int) {
 	}
 
 	// RFC 6891 mandates that the payload size in an OPT record
-	// less than 512 bytes must be treated as equal to 512 bytes.
+	// less than 512 (MinMsgSize) bytes must be treated as equal to 512 bytes.
 	//
 	// For ease of use, we impose that restriction here.
-	if size < 512 {
-		size = 512
+	if size < MinMsgSize {
+		size = MinMsgSize
 	}
 
 	l := msgLenWithCompressionMap(dns, nil) // uncompressed length
@@ -73,11 +79,11 @@ func (dns *Msg) Truncate(size int) {
 
 	var numExtra int
 	if l < size {
-		l, numExtra = truncateLoop(dns.Extra, size, l, compression)
+		_, numExtra = truncateLoop(dns.Extra, size, l, compression)
 	}
 
 	// See the function documentation for when we set this.
-	dns.Truncated = len(dns.Answer) > numAnswer ||
+	dns.Truncated = dns.Truncated || len(dns.Answer) > numAnswer ||
 		len(dns.Ns) > numNS || len(dns.Extra) > numExtra
 
 	dns.Answer = dns.Answer[:numAnswer]

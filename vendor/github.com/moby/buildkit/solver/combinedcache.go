@@ -73,11 +73,12 @@ func (cm *combinedCacheManager) Load(ctx context.Context, rec *CacheRecord) (res
 		return nil, err
 	}
 	defer func() {
+		ctx := context.WithoutCancel(ctx)
 		for i, res := range results {
 			if err == nil && i == 0 {
 				continue
 			}
-			res.Result.Release(context.TODO())
+			res.Result.Release(ctx)
 		}
 	}()
 	if rec.cacheManager != cm.main && cm.main != nil {
@@ -100,35 +101,42 @@ func (cm *combinedCacheManager) Save(key *CacheKey, s Result, createdAt time.Tim
 	return cm.main.Save(key, s, createdAt)
 }
 
-func (cm *combinedCacheManager) Records(ck *CacheKey) ([]*CacheRecord, error) {
+func (cm *combinedCacheManager) Records(ctx context.Context, ck *CacheKey) ([]*CacheRecord, error) {
+	ck.mu.RLock()
 	if len(ck.ids) == 0 {
+		ck.mu.RUnlock()
 		return nil, errors.Errorf("no results")
 	}
+
+	cms := make([]*cacheManager, 0, len(ck.ids))
+	for cm := range ck.ids {
+		cms = append(cms, cm)
+	}
+	ck.mu.RUnlock()
 
 	records := map[string]*CacheRecord{}
 	var mu sync.Mutex
 
 	eg, _ := errgroup.WithContext(context.TODO())
-	for c := range ck.ids {
-		func(c *cacheManager) {
-			eg.Go(func() error {
-				recs, err := c.Records(ck)
-				if err != nil {
-					return err
-				}
-				mu.Lock()
-				for _, rec := range recs {
-					if _, ok := records[rec.ID]; !ok || c == cm.main {
-						if c == cm.main {
-							rec.Priority = 1
-						}
-						records[rec.ID] = rec
+	for _, c := range cms {
+		c := c
+		eg.Go(func() error {
+			recs, err := c.Records(ctx, ck)
+			if err != nil {
+				return err
+			}
+			mu.Lock()
+			for _, rec := range recs {
+				if _, ok := records[rec.ID]; !ok || c == cm.main {
+					if c == cm.main {
+						rec.Priority = 1
 					}
+					records[rec.ID] = rec
 				}
-				mu.Unlock()
-				return nil
-			})
-		}(c)
+			}
+			mu.Unlock()
+			return nil
+		})
 	}
 
 	if err := eg.Wait(); err != nil {

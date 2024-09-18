@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"net"
 	"path"
+	"slices"
+	"sync"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/google/shlex"
 	"github.com/moby/buildkit/solver/pb"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 type contextKeyT string
@@ -29,10 +32,15 @@ var (
 	keySecurity = contextKeyT("llb.security")
 )
 
+// AddEnvf is the same as [AddEnv] but allows for a format string.
+// This is the equivalent of `[State.AddEnvf]`
 func AddEnvf(key, value string, v ...interface{}) StateOption {
 	return addEnvf(key, value, true, v...)
 }
 
+// AddEnv returns a [StateOption] whichs adds an environment variable to the state.
+// Use this with [State.With] to create a new state with the environment variable set.
+// This is the equivalent of `[State.AddEnv]`
 func AddEnv(key, value string) StateOption {
 	return addEnvf(key, value, false)
 }
@@ -52,10 +60,14 @@ func addEnvf(key, value string, replace bool, v ...interface{}) StateOption {
 	}
 }
 
+// Dir returns a [StateOption] sets the working directory for the state which will be used to resolve
+// relative paths as well as the working directory for [State.Run].
+// See [State.With] for where to use this.
 func Dir(str string) StateOption {
 	return dirf(str, false)
 }
 
+// Dirf is the same as [Dir] but allows for a format string.
 func Dirf(str string, v ...interface{}) StateOption {
 	return dirf(str, true, v...)
 }
@@ -69,7 +81,7 @@ func dirf(value string, replace bool, v ...interface{}) StateOption {
 			if !path.IsAbs(value) {
 				prev, err := getDir(s)(ctx, c)
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrap(err, "getting dir from state")
 				}
 				if prev == "" {
 					prev = "/"
@@ -81,12 +93,18 @@ func dirf(value string, replace bool, v ...interface{}) StateOption {
 	}
 }
 
+// User returns a [StateOption] which sets the user for the state which will be used by [State.Run].
+// This is the equivalent of [State.User]
+// See [State.With] for where to use this.
 func User(str string) StateOption {
 	return func(s State) State {
 		return s.WithValue(keyUser, str)
 	}
 }
 
+// Reset returns a [StateOption] which creates a new [State] with just the
+// output of the current [State] and the provided [State] is set as the parent.
+// This is the equivalent of [State.Reset]
 func Reset(other State) StateOption {
 	return func(s State) State {
 		s = NewState(s.Output())
@@ -95,16 +113,16 @@ func Reset(other State) StateOption {
 	}
 }
 
-func getEnv(s State) func(context.Context, *Constraints) (EnvList, error) {
-	return func(ctx context.Context, c *Constraints) (EnvList, error) {
+func getEnv(s State) func(context.Context, *Constraints) (*EnvList, error) {
+	return func(ctx context.Context, c *Constraints) (*EnvList, error) {
 		v, err := s.getValue(keyEnv)(ctx, c)
 		if err != nil {
 			return nil, err
 		}
 		if v != nil {
-			return v.(EnvList), nil
+			return v.(*EnvList), nil
 		}
-		return EnvList{}, nil
+		return &EnvList{}, nil
 	}
 }
 
@@ -147,6 +165,9 @@ func getUser(s State) func(context.Context, *Constraints) (string, error) {
 	}
 }
 
+// Hostname returns a [StateOption] which sets the hostname used for containers created by [State.Run].
+// This is the equivalent of [State.Hostname]
+// See [State.With] for where to use this.
 func Hostname(str string) StateOption {
 	return func(s State) State {
 		return s.WithValue(keyHostname, str)
@@ -283,6 +304,9 @@ func getCgroupParent(s State) func(context.Context, *Constraints) (string, error
 	}
 }
 
+// Network returns a [StateOption] which sets the network mode used for containers created by [State.Run].
+// This is the equivalent of [State.Network]
+// See [State.With] for where to use this.
 func Network(v pb.NetMode) StateOption {
 	return func(s State) State {
 		return s.WithValue(keyNetwork, v)
@@ -302,6 +326,9 @@ func getNetwork(s State) func(context.Context, *Constraints) (pb.NetMode, error)
 	}
 }
 
+// Security returns a [StateOption] which sets the security mode used for containers created by [State.Run].
+// This is the equivalent of [State.Security]
+// See [State.With] for where to use this.
 func Security(v pb.SecurityMode) StateOption {
 	return func(s State) State {
 		return s.WithValue(keySecurity, v)
@@ -321,54 +348,83 @@ func getSecurity(s State) func(context.Context, *Constraints) (pb.SecurityMode, 
 	}
 }
 
-type EnvList []KeyValue
-
-type KeyValue struct {
-	key   string
-	value string
+type EnvList struct {
+	parent *EnvList
+	key    string
+	value  string
+	del    bool
+	once   sync.Once
+	l      int
+	values map[string]string
+	keys   []string
 }
 
-func (e EnvList) AddOrReplace(k, v string) EnvList {
-	e = e.Delete(k)
-	e = append(e, KeyValue{key: k, value: v})
-	return e
+func (e *EnvList) AddOrReplace(k, v string) *EnvList {
+	return &EnvList{
+		parent: e,
+		key:    k,
+		value:  v,
+		l:      e.l + 1,
+	}
 }
 
-func (e EnvList) SetDefault(k, v string) EnvList {
+func (e *EnvList) SetDefault(k, v string) *EnvList {
 	if _, ok := e.Get(k); !ok {
-		e = append(e, KeyValue{key: k, value: v})
+		return e.AddOrReplace(k, v)
 	}
 	return e
 }
 
-func (e EnvList) Delete(k string) EnvList {
-	e = append([]KeyValue(nil), e...)
-	if i, ok := e.Index(k); ok {
-		return append(e[:i], e[i+1:]...)
+func (e *EnvList) Delete(k string) EnvList {
+	return EnvList{
+		parent: e,
+		key:    k,
+		del:    true,
+		l:      e.l + 1,
 	}
-	return e
 }
 
-func (e EnvList) Get(k string) (string, bool) {
-	if index, ok := e.Index(k); ok {
-		return e[index].value, true
-	}
-	return "", false
+func (e *EnvList) makeValues() {
+	m := make(map[string]string, e.l)
+	seen := make(map[string]struct{}, e.l)
+	keys := make([]string, 0, e.l)
+	e.keys = e.addValue(keys, m, seen)
+	e.values = m
+	slices.Reverse(e.keys)
 }
 
-func (e EnvList) Index(k string) (int, bool) {
-	for i, kv := range e {
-		if kv.key == k {
-			return i, true
-		}
+func (e *EnvList) addValue(keys []string, vals map[string]string, seen map[string]struct{}) []string {
+	if e.parent == nil {
+		return keys
 	}
-	return -1, false
+	if _, ok := seen[e.key]; !e.del && !ok {
+		vals[e.key] = e.value
+		keys = append(keys, e.key)
+	}
+	seen[e.key] = struct{}{}
+	if e.parent != nil {
+		keys = e.parent.addValue(keys, vals, seen)
+	}
+	return keys
 }
 
-func (e EnvList) ToArray() []string {
-	out := make([]string, 0, len(e))
-	for _, kv := range e {
-		out = append(out, kv.key+"="+kv.value)
+func (e *EnvList) Get(k string) (string, bool) {
+	e.once.Do(e.makeValues)
+	v, ok := e.values[k]
+	return v, ok
+}
+
+func (e *EnvList) Keys() []string {
+	e.once.Do(e.makeValues)
+	return e.keys
+}
+
+func (e *EnvList) ToArray() []string {
+	keys := e.Keys()
+	out := make([]string, 0, len(keys))
+	for _, k := range keys {
+		v, _ := e.Get(k)
+		out = append(out, k+"="+v)
 	}
 	return out
 }

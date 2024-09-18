@@ -2,7 +2,6 @@ package fs
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -12,7 +11,7 @@ import (
 	"time"
 
 	"github.com/containerd/continuity/fs"
-	"github.com/docker/docker/pkg/fileutils"
+	"github.com/moby/patternmatcher"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"
 )
@@ -89,7 +88,7 @@ func Copy(ctx context.Context, srcRoot, src, dstRoot, dst string, opts ...Opt) e
 		return err
 	}
 
-	c, err := newCopier(dstRoot, ci.Chown, ci.Utime, ci.Mode, ci.XAttrErrorHandler, ci.IncludePatterns, ci.ExcludePatterns, ci.ChangeFunc)
+	c, err := newCopier(dstRoot, ci.Chown, ci.Utime, ci.Mode, ci.XAttrErrorHandler, ci.IncludePatterns, ci.ExcludePatterns, ci.AlwaysReplaceExistingDestPaths, ci.ChangeFunc)
 	if err != nil {
 		return err
 	}
@@ -115,7 +114,7 @@ func Copy(ctx context.Context, srcRoot, src, dstRoot, dst string, opts ...Opt) e
 		if err != nil {
 			return err
 		}
-		if err := c.copy(ctx, srcFollowed, "", dst, false, fileutils.MatchInfo{}, fileutils.MatchInfo{}); err != nil {
+		if err := c.copy(ctx, srcFollowed, "", dst, false, patternmatcher.MatchInfo{}, patternmatcher.MatchInfo{}); err != nil {
 			return err
 		}
 	}
@@ -154,6 +153,7 @@ func (c *copier) prepareTargetDir(srcFollowed, src, destPath string, copyDirCont
 
 type User struct {
 	UID, GID int
+	SID      string
 }
 
 type Chowner func(*User) (*User, error)
@@ -172,7 +172,11 @@ type CopyInfo struct {
 	IncludePatterns []string
 	// Exclude files/dir matching any of these patterns (even if they match an include pattern)
 	ExcludePatterns []string
-	ChangeFunc      fsutil.ChangeFunc
+	// If true, any source path that overwrite existing destination paths will always replace
+	// the existing destination path, even if they are of different types (e.g. a directory will
+	// replace any existing symlink or file)
+	AlwaysReplaceExistingDestPaths bool
+	ChangeFunc                     fsutil.ChangeFunc
 }
 
 type Opt func(*CopyInfo)
@@ -227,16 +231,17 @@ func WithChangeNotifier(fn fsutil.ChangeFunc) Opt {
 }
 
 type copier struct {
-	chown                 Chowner
-	utime                 *time.Time
-	mode                  *int
-	inodes                map[uint64]string
-	xattrErrorHandler     XAttrErrorHandler
-	includePatternMatcher *fileutils.PatternMatcher
-	excludePatternMatcher *fileutils.PatternMatcher
-	parentDirs            []parentDir
-	changefn              fsutil.ChangeFunc
-	root                  string
+	chown                          Chowner
+	utime                          *time.Time
+	mode                           *int
+	inodes                         map[uint64]string
+	xattrErrorHandler              XAttrErrorHandler
+	includePatternMatcher          *patternmatcher.PatternMatcher
+	excludePatternMatcher          *patternmatcher.PatternMatcher
+	parentDirs                     []parentDir
+	changefn                       fsutil.ChangeFunc
+	root                           string
+	alwaysReplaceExistingDestPaths bool
 }
 
 type parentDir struct {
@@ -245,46 +250,47 @@ type parentDir struct {
 	copied  bool
 }
 
-func newCopier(root string, chown Chowner, tm *time.Time, mode *int, xeh XAttrErrorHandler, includePatterns, excludePatterns []string, changeFunc fsutil.ChangeFunc) (*copier, error) {
+func newCopier(root string, chown Chowner, tm *time.Time, mode *int, xeh XAttrErrorHandler, includePatterns, excludePatterns []string, alwaysReplaceExistingDestPaths bool, changeFunc fsutil.ChangeFunc) (*copier, error) {
 	if xeh == nil {
 		xeh = func(dst, src, key string, err error) error {
 			return err
 		}
 	}
 
-	var includePatternMatcher *fileutils.PatternMatcher
+	var includePatternMatcher *patternmatcher.PatternMatcher
 	if len(includePatterns) != 0 {
 		var err error
-		includePatternMatcher, err = fileutils.NewPatternMatcher(includePatterns)
+		includePatternMatcher, err = patternmatcher.New(includePatterns)
 		if err != nil {
 			return nil, errors.Wrapf(err, "invalid includepatterns: %s", includePatterns)
 		}
 	}
 
-	var excludePatternMatcher *fileutils.PatternMatcher
+	var excludePatternMatcher *patternmatcher.PatternMatcher
 	if len(excludePatterns) != 0 {
 		var err error
-		excludePatternMatcher, err = fileutils.NewPatternMatcher(excludePatterns)
+		excludePatternMatcher, err = patternmatcher.New(excludePatterns)
 		if err != nil {
 			return nil, errors.Wrapf(err, "invalid excludepatterns: %s", excludePatterns)
 		}
 	}
 
 	return &copier{
-		root:                  root,
-		inodes:                map[uint64]string{},
-		chown:                 chown,
-		utime:                 tm,
-		xattrErrorHandler:     xeh,
-		mode:                  mode,
-		includePatternMatcher: includePatternMatcher,
-		excludePatternMatcher: excludePatternMatcher,
-		changefn:              changeFunc,
+		root:                           root,
+		inodes:                         map[uint64]string{},
+		chown:                          chown,
+		utime:                          tm,
+		xattrErrorHandler:              xeh,
+		mode:                           mode,
+		includePatternMatcher:          includePatternMatcher,
+		excludePatternMatcher:          excludePatternMatcher,
+		changefn:                       changeFunc,
+		alwaysReplaceExistingDestPaths: alwaysReplaceExistingDestPaths,
 	}, nil
 }
 
 // dest is always clean
-func (c *copier) copy(ctx context.Context, src, srcComponents, target string, overwriteTargetMetadata bool, parentIncludeMatchInfo, parentExcludeMatchInfo fileutils.MatchInfo) error {
+func (c *copier) copy(ctx context.Context, src, srcComponents, target string, overwriteTargetMetadata bool, parentIncludeMatchInfo, parentExcludeMatchInfo patternmatcher.MatchInfo) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -295,11 +301,15 @@ func (c *copier) copy(ctx context.Context, src, srcComponents, target string, ov
 	if err != nil {
 		return errors.Wrapf(err, "failed to stat %s", src)
 	}
+	targetFi, err := os.Lstat(target)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "failed to stat %s", src)
+	}
 
 	include := true
 	var (
-		includeMatchInfo fileutils.MatchInfo
-		excludeMatchInfo fileutils.MatchInfo
+		includeMatchInfo patternmatcher.MatchInfo
+		excludeMatchInfo patternmatcher.MatchInfo
 	)
 	if srcComponents != "" {
 		matchesIncludePattern := false
@@ -320,6 +330,10 @@ func (c *copier) copy(ctx context.Context, src, srcComponents, target string, ov
 	}
 
 	if include {
+		if err := c.removeTargetIfNeeded(src, target, fi, targetFi); err != nil {
+			return err
+		}
+
 		if err := c.createParentDirs(src, srcComponents, target, overwriteTargetMetadata); err != nil {
 			return err
 		}
@@ -335,7 +349,8 @@ func (c *copier) copy(ctx context.Context, src, srcComponents, target string, ov
 		}
 	}
 
-	copyFileInfo := true
+	copyFileInfo := include
+	restoreFileTimestamp := false
 	notify := true
 
 	switch {
@@ -345,8 +360,12 @@ func (c *copier) copy(ctx context.Context, src, srcComponents, target string, ov
 			include, includeMatchInfo, excludeMatchInfo,
 		); err != nil {
 			return err
-		} else if !overwriteTargetMetadata || c.includePatternMatcher != nil {
+		} else if !overwriteTargetMetadata {
+			// if we aren't supposed to overwrite existing target metadata,
+			// then we only need to copy the new file info if we newly created
+			// it, or restore the previous file timestamp if not
 			copyFileInfo = created
+			restoreFileTimestamp = !created
 		}
 		notify = false
 	case (fi.Mode() & os.ModeType) == 0:
@@ -369,22 +388,25 @@ func (c *copier) copy(ctx context.Context, src, srcComponents, target string, ov
 		if err := os.Symlink(link, target); err != nil {
 			return errors.Wrapf(err, "failed to create symlink: %s", target)
 		}
-	case (fi.Mode() & os.ModeDevice) == os.ModeDevice:
+	case (fi.Mode() & os.ModeDevice) == os.ModeDevice,
+		(fi.Mode() & os.ModeNamedPipe) == os.ModeNamedPipe,
+		(fi.Mode() & os.ModeSocket) == os.ModeSocket:
 		if err := copyDevice(target, fi); err != nil {
 			return errors.Wrapf(err, "failed to create device")
 		}
-	default:
-		// TODO: Support pipes and sockets
-		return errors.Wrapf(err, "unsupported mode %s", fi.Mode())
 	}
 
 	if copyFileInfo {
-		if err := c.copyFileInfo(fi, target); err != nil {
+		if err := c.copyFileInfo(fi, src, target); err != nil {
 			return errors.Wrap(err, "failed to copy file info")
 		}
 
 		if err := copyXAttrs(target, src, c.xattrErrorHandler); err != nil {
 			return errors.Wrap(err, "failed to copy xattrs")
+		}
+	} else if restoreFileTimestamp && targetFi != nil {
+		if err := c.copyFileTimestamp(fi, target); err != nil {
+			return errors.Wrap(err, "failed to restore file timestamp")
 		}
 	}
 	if notify {
@@ -404,9 +426,9 @@ func (c *copier) notifyChange(target string, fi os.FileInfo) error {
 	return nil
 }
 
-func (c *copier) include(path string, fi os.FileInfo, parentIncludeMatchInfo fileutils.MatchInfo) (bool, fileutils.MatchInfo, error) {
+func (c *copier) include(path string, fi os.FileInfo, parentIncludeMatchInfo patternmatcher.MatchInfo) (bool, patternmatcher.MatchInfo, error) {
 	if c.includePatternMatcher == nil {
-		return true, fileutils.MatchInfo{}, nil
+		return true, patternmatcher.MatchInfo{}, nil
 	}
 
 	m, matchInfo, err := c.includePatternMatcher.MatchesUsingParentResults(path, parentIncludeMatchInfo)
@@ -416,9 +438,9 @@ func (c *copier) include(path string, fi os.FileInfo, parentIncludeMatchInfo fil
 	return m, matchInfo, nil
 }
 
-func (c *copier) exclude(path string, fi os.FileInfo, parentExcludeMatchInfo fileutils.MatchInfo) (bool, fileutils.MatchInfo, error) {
+func (c *copier) exclude(path string, fi os.FileInfo, parentExcludeMatchInfo patternmatcher.MatchInfo) (bool, patternmatcher.MatchInfo, error) {
 	if c.excludePatternMatcher == nil {
-		return false, fileutils.MatchInfo{}, nil
+		return false, patternmatcher.MatchInfo{}, nil
 	}
 
 	m, matchInfo, err := c.excludePatternMatcher.MatchesUsingParentResults(path, parentExcludeMatchInfo)
@@ -426,6 +448,21 @@ func (c *copier) exclude(path string, fi os.FileInfo, parentExcludeMatchInfo fil
 		return false, matchInfo, errors.Wrap(err, "failed to match excludepatterns")
 	}
 	return m, matchInfo, nil
+}
+
+func (c *copier) removeTargetIfNeeded(src, target string, srcFi, targetFi os.FileInfo) error {
+	if !c.alwaysReplaceExistingDestPaths {
+		return nil
+	}
+	if targetFi == nil {
+		// already doesn't exist
+		return nil
+	}
+	if srcFi.IsDir() && targetFi.IsDir() {
+		// directories are merged, not replaced
+		return nil
+	}
+	return os.RemoveAll(target)
 }
 
 // Delayed creation of parent directories when a file or dir matches an include
@@ -449,7 +486,7 @@ func (c *copier) createParentDirs(src, srcComponents, target string, overwriteTa
 			return err
 		}
 		if created {
-			if err := c.copyFileInfo(fi, parentDir.dstPath); err != nil {
+			if err := c.copyFileInfo(fi, parentDir.srcPath, parentDir.dstPath); err != nil {
 				return errors.Wrap(err, "failed to copy file info")
 			}
 
@@ -471,8 +508,8 @@ func (c *copier) copyDirectory(
 	stat os.FileInfo,
 	overwriteTargetMetadata bool,
 	include bool,
-	includeMatchInfo fileutils.MatchInfo,
-	excludeMatchInfo fileutils.MatchInfo,
+	includeMatchInfo patternmatcher.MatchInfo,
+	excludeMatchInfo patternmatcher.MatchInfo,
 ) (bool, error) {
 	if !stat.IsDir() {
 		return false, errors.Errorf("source is not directory")
@@ -509,7 +546,7 @@ func (c *copier) copyDirectory(
 		c.parentDirs = c.parentDirs[:len(c.parentDirs)-1]
 	}()
 
-	fis, err := ioutil.ReadDir(src)
+	fis, err := os.ReadDir(src)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to read %s", src)
 	}

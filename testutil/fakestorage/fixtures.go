@@ -35,11 +35,11 @@ func ensureHTTPServerImage(t testing.TB) {
 	}
 	defer os.RemoveAll(tmp)
 
-	goos := testEnv.OSType
+	goos := testEnv.DaemonInfo.OSType
 	if goos == "" {
 		goos = "linux"
 	}
-	goarch := os.Getenv("DOCKER_ENGINE_GOARCH")
+	goarch := testEnv.DaemonVersion.Arch
 	if goarch == "" {
 		goarch = "amd64"
 	}

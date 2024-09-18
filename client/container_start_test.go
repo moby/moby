@@ -10,18 +10,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestContainerStartError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	err := client.ContainerStart(context.Background(), "nothing", types.ContainerStartOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	err := client.ContainerStart(context.Background(), "nothing", container.StartOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerStart(t *testing.T) {
@@ -51,7 +51,7 @@ func TestContainerStart(t *testing.T) {
 		}),
 	}
 
-	err := client.ContainerStart(context.Background(), "container_id", types.ContainerStartOptions{CheckpointID: "checkpoint_id"})
+	err := client.ContainerStart(context.Background(), "container_id", container.StartOptions{CheckpointID: "checkpoint_id"})
 	if err != nil {
 		t.Fatal(err)
 	}

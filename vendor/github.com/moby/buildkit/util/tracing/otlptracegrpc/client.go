@@ -16,17 +16,14 @@ package otlptracegrpc
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
-
-	"google.golang.org/grpc"
-
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
+	"google.golang.org/grpc"
 )
 
 type client struct {
@@ -37,10 +34,6 @@ type client struct {
 }
 
 var _ otlptrace.Client = (*client)(nil)
-
-var (
-	errNoClient = errors.New("no client")
-)
 
 // NewClient creates a new gRPC trace client.
 func NewClient(cc *grpc.ClientConn) otlptrace.Client {
@@ -73,13 +66,14 @@ func (c *client) Stop(ctx context.Context) error {
 // UploadTraces sends a batch of spans to the collector.
 func (c *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.ResourceSpans) error {
 	if !c.connection.Connected() {
-		return fmt.Errorf("traces exporter is disconnected from the server: %w", c.connection.LastConnectError())
+		return errors.Wrap(c.connection.LastConnectError(), "traces exporter is disconnected from the server")
 	}
 
 	ctx, cancel := c.connection.ContextWithStop(ctx)
-	defer cancel()
-	ctx, tCancel := context.WithTimeout(ctx, 30*time.Second)
-	defer tCancel()
+	defer cancel(errors.WithStack(context.Canceled))
+	ctx, tCancel := context.WithCancelCause(ctx)
+	ctx, _ = context.WithTimeoutCause(ctx, 30*time.Second, errors.WithStack(context.DeadlineExceeded))
+	defer tCancel(errors.WithStack(context.Canceled))
 
 	ctx = c.connection.ContextWithMetadata(ctx)
 	err := func() error {

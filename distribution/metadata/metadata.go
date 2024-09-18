@@ -29,7 +29,7 @@ type FSMetadataStore struct {
 
 // NewFSMetadataStore creates a new filesystem-based metadata store.
 func NewFSMetadataStore(basePath string) (*FSMetadataStore, error) {
-	if err := os.MkdirAll(basePath, 0700); err != nil {
+	if err := os.MkdirAll(basePath, 0o700); err != nil {
 		return nil, err
 	}
 	return &FSMetadataStore{
@@ -57,10 +57,10 @@ func (store *FSMetadataStore) Set(namespace, key string, value []byte) error {
 	defer store.Unlock()
 
 	path := store.path(namespace, key)
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	return ioutils.AtomicWriteFile(path, value, 0644)
+	return ioutils.AtomicWriteFile(path, value, 0o644)
 }
 
 // Delete removes data indexed by namespace and key. The data file named after

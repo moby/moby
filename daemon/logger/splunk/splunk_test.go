@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 
@@ -827,7 +828,7 @@ func TestBatching(t *testing.T) {
 	}
 
 	for i := 0; i < defaultStreamChannelSize*4; i++ {
-		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
+		if err := loggerDriver.Log(&logger.Message{Line: []byte(strconv.Itoa(i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -845,7 +846,7 @@ func TestBatching(t *testing.T) {
 		if event, err := message.EventAsMap(); err != nil {
 			t.Fatal(err)
 		} else {
-			if event["line"] != fmt.Sprintf("%d", i) {
+			if event["line"] != strconv.Itoa(i) {
 				t.Fatalf("Unexpected event in message %v", event)
 			}
 		}
@@ -887,7 +888,7 @@ func TestFrequency(t *testing.T) {
 	}
 
 	for i := 0; i < 10; i++ {
-		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
+		if err := loggerDriver.Log(&logger.Message{Line: []byte(strconv.Itoa(i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
 		time.Sleep(15 * time.Millisecond)
@@ -906,7 +907,7 @@ func TestFrequency(t *testing.T) {
 		if event, err := message.EventAsMap(); err != nil {
 			t.Fatal(err)
 		} else {
-			if event["line"] != fmt.Sprintf("%d", i) {
+			if event["line"] != strconv.Itoa(i) {
 				t.Fatalf("Unexpected event in message %v", event)
 			}
 		}
@@ -958,7 +959,7 @@ func TestOneMessagePerRequest(t *testing.T) {
 	}
 
 	for i := 0; i < 10; i++ {
-		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
+		if err := loggerDriver.Log(&logger.Message{Line: []byte(strconv.Itoa(i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -976,7 +977,7 @@ func TestOneMessagePerRequest(t *testing.T) {
 		if event, err := message.EventAsMap(); err != nil {
 			t.Fatal(err)
 		} else {
-			if event["line"] != fmt.Sprintf("%d", i) {
+			if event["line"] != strconv.Itoa(i) {
 				t.Fatalf("Unexpected event in message %v", event)
 			}
 		}
@@ -1050,7 +1051,7 @@ func TestSkipVerify(t *testing.T) {
 	}
 
 	for i := 0; i < defaultStreamChannelSize*2; i++ {
-		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
+		if err := loggerDriver.Log(&logger.Message{Line: []byte(strconv.Itoa(i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1062,7 +1063,7 @@ func TestSkipVerify(t *testing.T) {
 	hec.simulateErr(false)
 
 	for i := defaultStreamChannelSize * 2; i < defaultStreamChannelSize*4; i++ {
-		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
+		if err := loggerDriver.Log(&logger.Message{Line: []byte(strconv.Itoa(i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1080,7 +1081,7 @@ func TestSkipVerify(t *testing.T) {
 		if event, err := message.EventAsMap(); err != nil {
 			t.Fatal(err)
 		} else {
-			if event["line"] != fmt.Sprintf("%d", i) {
+			if event["line"] != strconv.Itoa(i) {
 				t.Fatalf("Unexpected event in message %v", event)
 			}
 		}
@@ -1124,7 +1125,7 @@ func TestBufferMaximum(t *testing.T) {
 	}
 
 	for i := 0; i < 11; i++ {
-		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
+		if err := loggerDriver.Log(&logger.Message{Line: []byte(strconv.Itoa(i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1193,7 +1194,7 @@ func TestServerAlwaysDown(t *testing.T) {
 	}
 
 	for i := 0; i < 5; i++ {
-		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
+		if err := loggerDriver.Log(&logger.Message{Line: []byte(strconv.Itoa(i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
 	}

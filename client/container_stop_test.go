@@ -11,6 +11,8 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestContainerStopError(t *testing.T) {
@@ -18,9 +20,19 @@ func TestContainerStopError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerStop(context.Background(), "nothing", container.StopOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+}
+
+// TestContainerStopConnectionError verifies that connection errors occurring
+// during API-version negotiation are not shadowed by API-version errors.
+//
+// Regression test for https://github.com/docker/cli/issues/4890
+func TestContainerStopConnectionError(t *testing.T) {
+	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	assert.NilError(t, err)
+
+	err = client.ContainerStop(context.Background(), "nothing", container.StopOptions{})
+	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
 func TestContainerStop(t *testing.T) {

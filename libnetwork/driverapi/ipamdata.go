@@ -68,26 +68,26 @@ func (i *IPAMData) UnmarshalJSON(data []byte) error {
 func (i *IPAMData) Validate() error {
 	var isV6 bool
 	if i.Pool == nil {
-		return types.BadRequestErrorf("invalid pool")
+		return types.InvalidParameterErrorf("invalid pool")
 	}
 	if i.Gateway == nil {
-		return types.BadRequestErrorf("invalid gateway address")
+		return types.InvalidParameterErrorf("invalid gateway address")
 	}
 	isV6 = i.IsV6()
 	if isV6 && i.Gateway.IP.To4() != nil || !isV6 && i.Gateway.IP.To4() == nil {
-		return types.BadRequestErrorf("incongruent ip versions for pool and gateway")
+		return types.InvalidParameterErrorf("incongruent ip versions for pool and gateway")
 	}
 	for k, sip := range i.AuxAddresses {
 		if isV6 && sip.IP.To4() != nil || !isV6 && sip.IP.To4() == nil {
-			return types.BadRequestErrorf("incongruent ip versions for pool and secondary ip address %s", k)
+			return types.InvalidParameterErrorf("incongruent ip versions for pool and secondary ip address %s", k)
 		}
 	}
 	if !i.Pool.Contains(i.Gateway.IP) {
-		return types.BadRequestErrorf("invalid gateway address (%s) does not belong to the pool (%s)", i.Gateway, i.Pool)
+		return types.InvalidParameterErrorf("invalid gateway address (%s) does not belong to the pool (%s)", i.Gateway, i.Pool)
 	}
 	for k, sip := range i.AuxAddresses {
 		if !i.Pool.Contains(sip.IP) {
-			return types.BadRequestErrorf("invalid secondary address %s (%s) does not belong to the pool (%s)", k, i.Gateway, i.Pool)
+			return types.InvalidParameterErrorf("invalid secondary address %s (%s) does not belong to the pool (%s)", k, i.Gateway, i.Pool)
 		}
 	}
 	return nil

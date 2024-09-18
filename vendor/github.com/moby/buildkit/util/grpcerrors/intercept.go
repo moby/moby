@@ -15,7 +15,7 @@ func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.Una
 	oldErr := err
 	if err != nil {
 		stack.Helper()
-		err = ToGRPC(err)
+		err = ToGRPC(ctx, err)
 	}
 	if oldErr != nil && err == nil {
 		logErr := errors.Wrap(err, "invalid grpc error conversion")
@@ -30,7 +30,7 @@ func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.Una
 }
 
 func StreamServerInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	err := ToGRPC(handler(srv, ss))
+	err := ToGRPC(ss.Context(), handler(srv, ss))
 	if err != nil {
 		stack.Helper()
 	}
@@ -50,5 +50,5 @@ func StreamClientInterceptor(ctx context.Context, desc *grpc.StreamDesc, cc *grp
 	if err != nil {
 		stack.Helper()
 	}
-	return s, ToGRPC(err)
+	return s, ToGRPC(ctx, err)
 }

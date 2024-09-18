@@ -23,7 +23,7 @@ func (c *Client) Prune(ctx context.Context, ch chan UsageInfo, opts ...PruneOpti
 	if info.All {
 		req.All = true
 	}
-	cl, err := c.controlClient().Prune(ctx, req)
+	cl, err := c.ControlClient().Prune(ctx, req)
 	if err != nil {
 		return errors.Wrap(err, "failed to call prune")
 	}

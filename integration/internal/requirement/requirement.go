@@ -12,8 +12,8 @@ import (
 func HasHubConnectivity(t *testing.T) bool {
 	t.Helper()
 	// Set a timeout on the GET at 15s
-	var timeout = 15 * time.Second
-	var url = "https://hub.docker.com"
+	timeout := 15 * time.Second
+	url := "https://hub.docker.com"
 
 	client := http.Client{Timeout: timeout}
 	resp, err := client.Get(url)

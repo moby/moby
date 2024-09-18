@@ -7,26 +7,23 @@ import (
 )
 
 func TestNewListSecretsFilters(t *testing.T) {
-	validNameFilter := filters.NewArgs()
-	validNameFilter.Add("name", "test_name")
+	validNameFilter := filters.NewArgs(filters.Arg("name", "test_name"))
+	validIDFilter := filters.NewArgs(filters.Arg("id", "7c9009d6720f6de3b492f5"))
 
-	validIDFilter := filters.NewArgs()
-	validIDFilter.Add("id", "7c9009d6720f6de3b492f5")
+	validLabelFilter := filters.NewArgs(
+		filters.Arg("label", "type=test"),
+		filters.Arg("label", "storage=ssd"),
+		filters.Arg("label", "memory"),
+	)
+	validNamesFilter := filters.NewArgs(filters.Arg("names", "test_name"))
 
-	validLabelFilter := filters.NewArgs()
-	validLabelFilter.Add("label", "type=test")
-	validLabelFilter.Add("label", "storage=ssd")
-	validLabelFilter.Add("label", "memory")
-
-	validNamesFilter := filters.NewArgs()
-	validNamesFilter.Add("names", "test_name")
-
-	validAllFilter := filters.NewArgs()
-	validAllFilter.Add("name", "nodeName")
-	validAllFilter.Add("id", "7c9009d6720f6de3b492f5")
-	validAllFilter.Add("label", "type=test")
-	validAllFilter.Add("label", "memory")
-	validAllFilter.Add("names", "test_name")
+	validAllFilter := filters.NewArgs(
+		filters.Arg("name", "nodeName"),
+		filters.Arg("id", "7c9009d6720f6de3b492f5"),
+		filters.Arg("label", "type=test"),
+		filters.Arg("label", "memory"),
+		filters.Arg("names", "test_name"),
+	)
 
 	validFilters := []filters.Args{
 		validNameFilter,
@@ -36,8 +33,7 @@ func TestNewListSecretsFilters(t *testing.T) {
 		validAllFilter,
 	}
 
-	invalidTypeFilter := filters.NewArgs()
-	invalidTypeFilter.Add("nonexist", "aaaa")
+	invalidTypeFilter := filters.NewArgs(filters.Arg("nonexist", "aaaa"))
 
 	invalidFilters := []filters.Args{
 		invalidTypeFilter,
@@ -57,22 +53,21 @@ func TestNewListSecretsFilters(t *testing.T) {
 }
 
 func TestNewListConfigsFilters(t *testing.T) {
-	validNameFilter := filters.NewArgs()
-	validNameFilter.Add("name", "test_name")
+	validNameFilter := filters.NewArgs(filters.Arg("name", "test_name"))
+	validIDFilter := filters.NewArgs(filters.Arg("id", "7c9009d6720f6de3b492f5"))
 
-	validIDFilter := filters.NewArgs()
-	validIDFilter.Add("id", "7c9009d6720f6de3b492f5")
+	validLabelFilter := filters.NewArgs(
+		filters.Arg("label", "type=test"),
+		filters.Arg("label", "storage=ssd"),
+		filters.Arg("label", "memory"),
+	)
 
-	validLabelFilter := filters.NewArgs()
-	validLabelFilter.Add("label", "type=test")
-	validLabelFilter.Add("label", "storage=ssd")
-	validLabelFilter.Add("label", "memory")
-
-	validAllFilter := filters.NewArgs()
-	validAllFilter.Add("name", "nodeName")
-	validAllFilter.Add("id", "7c9009d6720f6de3b492f5")
-	validAllFilter.Add("label", "type=test")
-	validAllFilter.Add("label", "memory")
+	validAllFilter := filters.NewArgs(
+		filters.Arg("name", "nodeName"),
+		filters.Arg("id", "7c9009d6720f6de3b492f5"),
+		filters.Arg("label", "type=test"),
+		filters.Arg("label", "memory"),
+	)
 
 	validFilters := []filters.Args{
 		validNameFilter,
@@ -81,8 +76,7 @@ func TestNewListConfigsFilters(t *testing.T) {
 		validAllFilter,
 	}
 
-	invalidTypeFilter := filters.NewArgs()
-	invalidTypeFilter.Add("nonexist", "aaaa")
+	invalidTypeFilter := filters.NewArgs(filters.Arg("nonexist", "aaaa"))
 
 	invalidFilters := []filters.Args{
 		invalidTypeFilter,

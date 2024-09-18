@@ -14,6 +14,8 @@ import (
 
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/pkg/plugins"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func decodeToMap(r *http.Request) (res map[string]interface{}, err error) {
@@ -41,7 +43,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 		specPath = filepath.Join(os.Getenv("programdata"), "docker", "plugins")
 	}
 
-	if err := os.MkdirAll(specPath, 0755); err != nil {
+	if err := os.MkdirAll(specPath, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -56,12 +58,12 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 		t.Fatal("Failed to start an HTTP Server")
 	}
 
-	if err := os.WriteFile(filepath.Join(specPath, name+".spec"), []byte(server.URL), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(specPath, name+".spec"), []byte(server.URL), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintf(w, `{"Implements": ["%s"]}`, ipamapi.PluginEndpointType)
 	})
 
@@ -74,7 +76,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 }
 
 func TestGetCapabilities(t *testing.T) {
-	var plugin = "test-ipam-driver-capabilities"
+	plugin := "test-ipam-driver-capabilities"
 
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
@@ -107,7 +109,7 @@ func TestGetCapabilities(t *testing.T) {
 }
 
 func TestGetCapabilitiesFromLegacyDriver(t *testing.T) {
-	var plugin = "test-ipam-legacy-driver"
+	plugin := "test-ipam-legacy-driver"
 
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
@@ -130,7 +132,7 @@ func TestGetCapabilitiesFromLegacyDriver(t *testing.T) {
 }
 
 func TestGetDefaultAddressSpaces(t *testing.T) {
-	var plugin = "test-ipam-driver-addr-spaces"
+	plugin := "test-ipam-driver-addr-spaces"
 
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
@@ -164,7 +166,7 @@ func TestGetDefaultAddressSpaces(t *testing.T) {
 }
 
 func TestRemoteDriver(t *testing.T) {
-	var plugin = "test-ipam-driver"
+	plugin := "test-ipam-driver"
 
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
@@ -248,72 +250,51 @@ func TestRemoteDriver(t *testing.T) {
 	d := newAllocator(plugin, client)
 
 	l, g, err := d.(*allocator).GetDefaultAddressSpaces()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if l != "white" || g != "blue" {
-		t.Fatalf("Unexpected default local/global address spaces: %s, %s", l, g)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(l, "white"))
+	assert.Check(t, is.Equal(g, "blue"))
 
 	// Request any pool
-	poolID, pool, _, err := d.RequestPool("white", "", "", nil, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if poolID != "white/172.18.0.0/16" {
-		t.Fatalf("Unexpected pool id: %s", poolID)
-	}
-	if pool == nil || pool.String() != "172.18.0.0/16" {
-		t.Fatalf("Unexpected pool: %s", pool)
-	}
+	alloc, err := d.RequestPool(ipamapi.PoolRequest{
+		AddressSpace: "white",
+	})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(alloc.PoolID, "white/172.18.0.0/16"))
+	assert.Check(t, is.Equal(alloc.Pool.String(), "172.18.0.0/16"))
 
 	// Request specific pool
-	poolID2, pool2, ops, err := d.RequestPool("white", "172.20.0.0/16", "", nil, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if poolID2 != "white/172.20.0.0/16" {
-		t.Fatalf("Unexpected pool id: %s", poolID2)
-	}
-	if pool2 == nil || pool2.String() != "172.20.0.0/16" {
-		t.Fatalf("Unexpected pool: %s", pool2)
-	}
-	if dns, ok := ops["DNS"]; !ok || dns != "8.8.8.8" {
-		t.Fatal("Missing options")
-	}
+	alloc, err = d.RequestPool(ipamapi.PoolRequest{
+		AddressSpace: "white",
+		Pool:         "172.20.0.0/16",
+	})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(alloc.PoolID, "white/172.20.0.0/16"))
+	assert.Check(t, is.Equal(alloc.Pool.String(), "172.20.0.0/16"))
+	assert.Check(t, is.Equal(alloc.Meta["DNS"], "8.8.8.8"))
 
 	// Request specific pool and subpool
-	poolID3, pool3, _, err := d.RequestPool("white", "172.20.0.0/16", "172.20.3.0/24" /*nil*/, map[string]string{"culo": "yes"}, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if poolID3 != "white/172.20.0.0/16/172.20.3.0/24" {
-		t.Fatalf("Unexpected pool id: %s", poolID3)
-	}
-	if pool3 == nil || pool3.String() != "172.20.0.0/16" {
-		t.Fatalf("Unexpected pool: %s", pool3)
-	}
+	alloc, err = d.RequestPool(ipamapi.PoolRequest{
+		AddressSpace: "white",
+		Pool:         "172.20.0.0/16",
+		SubPool:      "172.20.3.0/24",
+		Options:      map[string]string{"culo": "yes"},
+	})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(alloc.PoolID, "white/172.20.0.0/16/172.20.3.0/24"))
+	assert.Check(t, is.Equal(alloc.Pool.String(), "172.20.0.0/16"))
 
 	// Request any address
-	addr, _, err := d.RequestAddress(poolID2, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if addr == nil || addr.String() != "172.20.0.34/16" {
-		t.Fatalf("Unexpected address: %s", addr)
-	}
+	addr, _, err := d.RequestAddress("white/172.20.0.0/16", nil, nil)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(addr.String(), "172.20.0.34/16"))
 
 	// Request specific address
-	addr2, _, err := d.RequestAddress(poolID2, net.ParseIP("172.20.1.45"), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if addr2 == nil || addr2.String() != "172.20.1.45/16" {
-		t.Fatalf("Unexpected address: %s", addr2)
-	}
+	addr2, _, err := d.RequestAddress("white/172.20.0.0/16", net.ParseIP("172.20.1.45"), nil)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(addr2.String(), "172.20.1.45/16"))
 
 	// Release address
-	err = d.ReleaseAddress(poolID, net.ParseIP("172.18.1.45"))
+	err = d.ReleaseAddress("white/172.20.0.0/16", net.ParseIP("172.18.1.45"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -20,7 +20,7 @@ type JSONLogs struct {
 // MarshalJSONBuf is an optimized JSON marshaller that avoids reflection
 // and unnecessary allocation.
 func (mj *JSONLogs) MarshalJSONBuf(buf *bytes.Buffer) error {
-	var first = true
+	first := true
 
 	buf.WriteString(`{`)
 	if len(mj.Log) != 0 {

@@ -28,7 +28,7 @@ func guessDefer(node ast.Node) (ast.Node, error) {
 	defers := collectDefers(node)
 	switch len(defers) {
 	case 0:
-		return nil, fmt.Errorf("failed to expression in defer")
+		return nil, fmt.Errorf("failed to find expression in defer")
 	case 1:
 		return defers[0].Call, nil
 	default:

@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/requirement"
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
 	"gotest.tools/v3/assert"
@@ -38,16 +39,15 @@ func getCgroupFromBuildOutput(buildOutput io.Reader) (string, error) {
 
 // Runs a docker build against a daemon with the given cgroup namespace default value.
 // Returns the container cgroup and daemon cgroup.
-func testBuildWithCgroupNs(t *testing.T, daemonNsMode string) (string, string) {
+func testBuildWithCgroupNs(ctx context.Context, t *testing.T, daemonNsMode string) (string, string) {
 	d := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode(daemonNsMode))
-	d.StartWithBusybox(t)
+	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
 	dockerfile := `
 		FROM busybox
 		RUN readlink /proc/self/ns/cgroup
 	`
-	ctx := context.Background()
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
 	defer source.Close()
 
@@ -74,9 +74,11 @@ func TestCgroupNamespacesBuild(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	// When the daemon defaults to private cgroup namespaces, containers launched
 	// should be in their own private cgroup namespace by default
-	containerCgroup, daemonCgroup := testBuildWithCgroupNs(t, "private")
+	containerCgroup, daemonCgroup := testBuildWithCgroupNs(ctx, t, "private")
 	assert.Assert(t, daemonCgroup != containerCgroup)
 }
 
@@ -85,8 +87,10 @@ func TestCgroupNamespacesBuildDaemonHostMode(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	// When the daemon defaults to host cgroup namespaces, containers
 	// launched should not be inside their own cgroup namespaces
-	containerCgroup, daemonCgroup := testBuildWithCgroupNs(t, "host")
+	containerCgroup, daemonCgroup := testBuildWithCgroupNs(ctx, t, "host")
 	assert.Assert(t, daemonCgroup == containerCgroup)
 }

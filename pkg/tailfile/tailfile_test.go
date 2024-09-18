@@ -209,9 +209,9 @@ func TestNewTailReader(t *testing.T) {
 					test := test
 					t.Parallel()
 
-					max := len(test.data)
-					if max > 10 {
-						max = 10
+					maxLen := len(test.data)
+					if maxLen > 10 {
+						maxLen = 10
 					}
 
 					s := strings.Join(test.data, string(delim))
@@ -219,7 +219,7 @@ func TestNewTailReader(t *testing.T) {
 						s += string(delim)
 					}
 
-					for i := 1; i <= max; i++ {
+					for i := 1; i <= maxLen; i++ {
 						t.Run(fmt.Sprintf("%d lines", i), func(t *testing.T) {
 							i := i
 							t.Parallel()

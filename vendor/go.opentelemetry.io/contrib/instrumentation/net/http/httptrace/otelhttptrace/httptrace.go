@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otelhttptrace
+package otelhttptrace // import "go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 
 import (
 	"context"
 	"net/http"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace/internal/semconvutil"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/propagation"
-	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -50,7 +51,7 @@ func newConfig(opts []Option) *config {
 	return c
 }
 
-// WithPropagators sets the propagators to use for Extraction and Injection
+// WithPropagators sets the propagators to use for Extraction and Injection.
 func WithPropagators(props propagation.TextMapPropagator) Option {
 	return optionFunc(func(c *config) {
 		if props != nil {
@@ -64,14 +65,16 @@ func Extract(ctx context.Context, req *http.Request, opts ...Option) ([]attribut
 	c := newConfig(opts)
 	ctx = c.propagators.Extract(ctx, propagation.HeaderCarrier(req.Header))
 
-	attrs := append(
-		semconv.HTTPServerAttributesFromHTTPRequest("", "", req),
-		semconv.NetAttributesFromHTTPRequest("tcp", req)...,
-	)
-
+	attrs := append(semconvutil.HTTPServerRequest("", req), semconvutil.NetTransport("tcp"))
+	if req.ContentLength > 0 {
+		a := semconv.HTTPRequestContentLength(int(req.ContentLength))
+		attrs = append(attrs, a)
+	}
 	return attrs, baggage.FromContext(ctx), trace.SpanContextFromContext(ctx)
 }
 
+// Inject sets attributes, context entries, and span context from ctx into
+// the request.
 func Inject(ctx context.Context, req *http.Request, opts ...Option) {
 	c := newConfig(opts)
 	c.propagators.Inject(ctx, propagation.HeaderCarrier(req.Header))

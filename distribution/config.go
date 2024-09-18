@@ -6,20 +6,20 @@ import (
 	"io"
 	"runtime"
 
+	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/system"
 	refstore "github.com/docker/docker/reference"
 	registrypkg "github.com/docker/docker/registry"
-	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -36,9 +36,9 @@ type Config struct {
 	ProgressOutput progress.Output
 	// RegistryService is the registry service to use for TLS configuration
 	// and endpoint lookup.
-	RegistryService registrypkg.Service
+	RegistryService RegistryResolver
 	// ImageEventLogger notifies events for a given image
-	ImageEventLogger func(id, name, action string)
+	ImageEventLogger func(id, name string, action events.Action)
 	// MetadataStore is the storage backend for distribution-specific
 	// metadata.
 	MetadataStore metadata.Store
@@ -47,8 +47,6 @@ type Config struct {
 	// ReferenceStore manages tags. This value is optional, when excluded
 	// content will not be tagged.
 	ReferenceStore refstore.Store
-	// RequireSchema2 ensures that only schema2 manifests are used.
-	RequireSchema2 bool
 }
 
 // ImagePullConfig stores pull configuration.
@@ -62,7 +60,7 @@ type ImagePullConfig struct {
 	// types is used.
 	Schema2Types []string
 	// Platform is the requested platform of the image being pulled
-	Platform *specs.Platform
+	Platform *ocispec.Platform
 }
 
 // ImagePushConfig stores push configuration.
@@ -74,11 +72,15 @@ type ImagePushConfig struct {
 	ConfigMediaType string
 	// LayerStores manages layers.
 	LayerStores PushLayerProvider
-	// TrustKey is the private key for legacy signatures. This is typically
-	// an ephemeral key, since these signatures are no longer verified.
-	TrustKey libtrust.PrivateKey
 	// UploadManager dispatches uploads.
 	UploadManager *xfer.LayerUploadManager
+}
+
+// RegistryResolver is used for TLS configuration and endpoint lookup.
+type RegistryResolver interface {
+	LookupPushEndpoints(hostname string) (endpoints []registrypkg.APIEndpoint, err error)
+	LookupPullEndpoints(hostname string) (endpoints []registrypkg.APIEndpoint, err error)
+	ResolveRepository(name reference.Named) (*registrypkg.RepositoryInfo, error)
 }
 
 // ImageConfigStore handles storing and getting image configurations
@@ -124,7 +126,7 @@ func (s *imageConfigStore) Put(_ context.Context, c []byte) (digest.Digest, erro
 }
 
 func (s *imageConfigStore) Get(_ context.Context, d digest.Digest) ([]byte, error) {
-	img, err := s.Store.Get(image.IDFromDigest(d))
+	img, err := s.Store.Get(image.ID(d))
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +141,7 @@ func rootFSFromConfig(c []byte) (*image.RootFS, error) {
 	return unmarshalledConfig.RootFS, nil
 }
 
-func platformFromConfig(c []byte) (*specs.Platform, error) {
+func platformFromConfig(c []byte) (*ocispec.Platform, error) {
 	var unmarshalledConfig image.Image
 	if err := json.Unmarshal(c, &unmarshalledConfig); err != nil {
 		return nil, err
@@ -149,10 +151,10 @@ func platformFromConfig(c []byte) (*specs.Platform, error) {
 	if os == "" {
 		os = runtime.GOOS
 	}
-	if !system.IsOSSupported(os) {
-		return nil, errors.Wrapf(system.ErrNotSupportedOperatingSystem, "image operating system %q cannot be used on this platform", os)
+	if err := image.CheckOS(os); err != nil {
+		return nil, errors.Wrapf(err, "image operating system %q cannot be used on this platform", os)
 	}
-	return &specs.Platform{
+	return &ocispec.Platform{
 		OS:           os,
 		Architecture: unmarshalledConfig.Architecture,
 		Variant:      unmarshalledConfig.Variant,

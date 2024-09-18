@@ -1,3 +1,6 @@
+//go:build windows
+// +build windows
+
 package guid
 
 import "golang.org/x/sys/windows"

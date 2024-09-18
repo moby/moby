@@ -1,12 +1,13 @@
 package container // import "github.com/docker/docker/container"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/pkg/system"
 )
@@ -126,8 +127,8 @@ func (container *Container) ConfigMounts() []Mount {
 // DetachAndUnmount unmounts all volumes.
 // On Windows it only delegates to `UnmountVolumes` since there is nothing to
 // force unmount.
-func (container *Container) DetachAndUnmount(volumeEventLog func(name, action string, attributes map[string]string)) error {
-	return container.UnmountVolumes(volumeEventLog)
+func (container *Container) DetachAndUnmount(volumeEventLog func(name string, action events.Action, attributes map[string]string)) error {
+	return container.UnmountVolumes(context.TODO(), volumeEventLog)
 }
 
 // TmpfsMounts returns the list of tmpfs mounts
@@ -186,10 +187,10 @@ func (container *Container) BuildHostnameFile() error {
 }
 
 // GetMountPoints gives a platform specific transformation to types.MountPoint. Callers must hold a Container lock.
-func (container *Container) GetMountPoints() []types.MountPoint {
-	mountPoints := make([]types.MountPoint, 0, len(container.MountPoints))
+func (container *Container) GetMountPoints() []containertypes.MountPoint {
+	mountPoints := make([]containertypes.MountPoint, 0, len(container.MountPoints))
 	for _, m := range container.MountPoints {
-		mountPoints = append(mountPoints, types.MountPoint{
+		mountPoints = append(mountPoints, containertypes.MountPoint{
 			Type:        m.Type,
 			Name:        m.Name,
 			Source:      m.Path(),

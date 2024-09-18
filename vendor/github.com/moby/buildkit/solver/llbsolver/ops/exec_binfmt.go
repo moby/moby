@@ -2,14 +2,13 @@ package ops
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/pb"
@@ -28,6 +27,7 @@ var qemuArchMap = map[string]string{
 	"riscv64": "riscv64",
 	"arm":     "arm",
 	"s390x":   "s390x",
+	"ppc64":   "ppc64",
 	"ppc64le": "ppc64le",
 	"386":     "i386",
 }
@@ -47,7 +47,7 @@ type staticEmulatorMount struct {
 }
 
 func (m *staticEmulatorMount) Mount() ([]mount.Mount, func() error, error) {
-	tmpdir, err := ioutil.TempDir("", "buildkit-qemu-emulator")
+	tmpdir, err := os.MkdirTemp("", "buildkit-qemu-emulator")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -85,11 +85,13 @@ func (m *staticEmulatorMount) IdentityMapping() *idtools.IdentityMapping {
 	return m.idmap
 }
 
-func getEmulator(ctx context.Context, p *pb.Platform, idmap *idtools.IdentityMapping) (*emulator, error) {
+func getEmulator(ctx context.Context, p *pb.Platform) (*emulator, error) {
 	all := archutil.SupportedPlatforms(false)
 	pp := platforms.Normalize(ocispecs.Platform{
 		Architecture: p.Architecture,
 		OS:           p.OS,
+		OSVersion:    p.OSVersion,
+		OSFeatures:   p.OSFeatures,
 		Variant:      p.Variant,
 	})
 

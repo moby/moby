@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/filters"
-	runconfigopts "github.com/docker/docker/runconfig/opts"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
@@ -24,8 +23,8 @@ func newListNodesFilters(filter filters.Args) (*swarmapi.ListNodesRequest_Filter
 	f := &swarmapi.ListNodesRequest_Filters{
 		NamePrefixes: filter.Get("name"),
 		IDPrefixes:   filter.Get("id"),
-		Labels:       runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
-		NodeLabels:   runconfigopts.ConvertKVStringsToMap(filter.Get("node.label")),
+		Labels:       convertKVStringsToMap(filter.Get("label")),
+		NodeLabels:   convertKVStringsToMap(filter.Get("node.label")),
 	}
 
 	for _, r := range filter.Get("role") {
@@ -72,7 +71,7 @@ func newListTasksFilters(filter filters.Args, transformFunc func(filters.Args) e
 	f := &swarmapi.ListTasksRequest_Filters{
 		NamePrefixes: filter.Get("name"),
 		IDPrefixes:   filter.Get("id"),
-		Labels:       runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
+		Labels:       convertKVStringsToMap(filter.Get("label")),
 		ServiceIDs:   filter.Get("service"),
 		NodeIDs:      filter.Get("node"),
 		UpToDate:     len(filter.Get("_up-to-date")) != 0,
@@ -104,7 +103,7 @@ func newListSecretsFilters(filter filters.Args) (*swarmapi.ListSecretsRequest_Fi
 		Names:        filter.Get("names"),
 		NamePrefixes: filter.Get("name"),
 		IDPrefixes:   filter.Get("id"),
-		Labels:       runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
+		Labels:       convertKVStringsToMap(filter.Get("label")),
 	}, nil
 }
 
@@ -120,6 +119,6 @@ func newListConfigsFilters(filter filters.Args) (*swarmapi.ListConfigsRequest_Fi
 	return &swarmapi.ListConfigsRequest_Filters{
 		NamePrefixes: filter.Get("name"),
 		IDPrefixes:   filter.Get("id"),
-		Labels:       runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
+		Labels:       convertKVStringsToMap(filter.Get("label")),
 	}, nil
 }

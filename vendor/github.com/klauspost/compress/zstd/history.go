@@ -37,24 +37,21 @@ func (h *history) reset() {
 	h.ignoreBuffer = 0
 	h.error = false
 	h.recentOffsets = [3]int{1, 4, 8}
-	if f := h.decoders.litLengths.fse; f != nil && !f.preDefined {
-		fseDecoderPool.Put(f)
-	}
-	if f := h.decoders.offsets.fse; f != nil && !f.preDefined {
-		fseDecoderPool.Put(f)
-	}
-	if f := h.decoders.matchLengths.fse; f != nil && !f.preDefined {
-		fseDecoderPool.Put(f)
-	}
+	h.decoders.freeDecoders()
 	h.decoders = sequenceDecs{br: h.decoders.br}
-	if h.huffTree != nil {
-		if h.dict == nil || h.dict.litEnc != h.huffTree {
-			huffDecoderPool.Put(h.huffTree)
-		}
-	}
+	h.freeHuffDecoder()
 	h.huffTree = nil
 	h.dict = nil
 	//printf("history created: %+v (l: %d, c: %d)", *h, len(h.b), cap(h.b))
+}
+
+func (h *history) freeHuffDecoder() {
+	if h.huffTree != nil {
+		if h.dict == nil || h.dict.litEnc != h.huffTree {
+			huffDecoderPool.Put(h.huffTree)
+			h.huffTree = nil
+		}
+	}
 }
 
 func (h *history) setDict(dict *dict) {

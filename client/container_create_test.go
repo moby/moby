@@ -12,6 +12,8 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestContainerCreateError(t *testing.T) {
@@ -19,18 +21,14 @@ func TestContainerCreateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerCreate(context.Background(), nil, nil, nil, nil, "nothing")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error while testing StatusInternalServerError, got %T", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 
 	// 404 doesn't automatically means an unknown image
 	client = &Client{
 		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 	_, err = client.ContainerCreate(context.Background(), nil, nil, nil, nil, "nothing")
-	if err == nil || !IsErrNotFound(err) {
-		t.Fatalf("expected a Server Error while testing StatusNotFound, got %T", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestContainerCreateImageNotFound(t *testing.T) {
@@ -38,9 +36,7 @@ func TestContainerCreateImageNotFound(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "No such image")),
 	}
 	_, err := client.ContainerCreate(context.Background(), &container.Config{Image: "unknown_image"}, nil, nil, nil, "unknown")
-	if err == nil || !IsErrNotFound(err) {
-		t.Fatalf("expected an imageNotFound error, got %v, %T", err, err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestContainerCreateWithName(t *testing.T) {
@@ -116,4 +112,16 @@ func TestContainerCreateAutoRemove(t *testing.T) {
 	if _, err := client.ContainerCreate(context.Background(), nil, &container.HostConfig{AutoRemove: true}, nil, nil, ""); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// TestContainerCreateConnection verifies that connection errors occurring
+// during API-version negotiation are not shadowed by API-version errors.
+//
+// Regression test for https://github.com/docker/cli/issues/4890
+func TestContainerCreateConnectionError(t *testing.T) {
+	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	assert.NilError(t, err)
+
+	_, err = client.ContainerCreate(context.Background(), nil, nil, nil, nil, "")
+	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }

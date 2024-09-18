@@ -20,7 +20,6 @@ package envconfig
 
 import (
 	"os"
-	"strings"
 )
 
 const (
@@ -36,16 +35,6 @@ const (
 	//
 	// When both bootstrap FileName and FileContent are set, FileName is used.
 	XDSBootstrapFileContentEnv = "GRPC_XDS_BOOTSTRAP_CONFIG"
-
-	ringHashSupportEnv           = "GRPC_XDS_EXPERIMENTAL_ENABLE_RING_HASH"
-	clientSideSecuritySupportEnv = "GRPC_XDS_EXPERIMENTAL_SECURITY_SUPPORT"
-	aggregateAndDNSSupportEnv    = "GRPC_XDS_EXPERIMENTAL_ENABLE_AGGREGATE_AND_LOGICAL_DNS_CLUSTER"
-	rbacSupportEnv               = "GRPC_XDS_EXPERIMENTAL_RBAC"
-	outlierDetectionSupportEnv   = "GRPC_EXPERIMENTAL_ENABLE_OUTLIER_DETECTION"
-	federationEnv                = "GRPC_EXPERIMENTAL_XDS_FEDERATION"
-	rlsInXDSEnv                  = "GRPC_EXPERIMENTAL_XDS_RLS_LB"
-
-	c2pResolverTestOnlyTrafficDirectorURIEnv = "GRPC_TEST_ONLY_GOOGLE_C2P_RESOLVER_TRAFFIC_DIRECTOR_URI"
 )
 
 var (
@@ -61,41 +50,7 @@ var (
 	//
 	// When both bootstrap FileName and FileContent are set, FileName is used.
 	XDSBootstrapFileContent = os.Getenv(XDSBootstrapFileContentEnv)
-	// XDSRingHash indicates whether ring hash support is enabled, which can be
-	// disabled by setting the environment variable
-	// "GRPC_XDS_EXPERIMENTAL_ENABLE_RING_HASH" to "false".
-	XDSRingHash = !strings.EqualFold(os.Getenv(ringHashSupportEnv), "false")
-	// XDSClientSideSecurity is used to control processing of security
-	// configuration on the client-side.
-	//
-	// Note that there is no env var protection for the server-side because we
-	// have a brand new API on the server-side and users explicitly need to use
-	// the new API to get security integration on the server.
-	XDSClientSideSecurity = !strings.EqualFold(os.Getenv(clientSideSecuritySupportEnv), "false")
-	// XDSAggregateAndDNS indicates whether processing of aggregated cluster
-	// and DNS cluster is enabled, which can be enabled by setting the
-	// environment variable
-	// "GRPC_XDS_EXPERIMENTAL_ENABLE_AGGREGATE_AND_LOGICAL_DNS_CLUSTER" to
-	// "true".
-	XDSAggregateAndDNS = strings.EqualFold(os.Getenv(aggregateAndDNSSupportEnv), "true")
-
-	// XDSRBAC indicates whether xDS configured RBAC HTTP Filter is enabled,
-	// which can be disabled by setting the environment variable
-	// "GRPC_XDS_EXPERIMENTAL_RBAC" to "false".
-	XDSRBAC = !strings.EqualFold(os.Getenv(rbacSupportEnv), "false")
-	// XDSOutlierDetection indicates whether outlier detection support is
-	// enabled, which can be enabled by setting the environment variable
-	// "GRPC_EXPERIMENTAL_ENABLE_OUTLIER_DETECTION" to "true".
-	XDSOutlierDetection = strings.EqualFold(os.Getenv(outlierDetectionSupportEnv), "true")
-	// XDSFederation indicates whether federation support is enabled.
-	XDSFederation = strings.EqualFold(os.Getenv(federationEnv), "true")
-
-	// XDSRLS indicates whether processing of Cluster Specifier plugins and
-	// support for the RLS CLuster Specifier is enabled, which can be enabled by
-	// setting the environment variable "GRPC_EXPERIMENTAL_XDS_RLS_LB" to
-	// "true".
-	XDSRLS = strings.EqualFold(os.Getenv(rlsInXDSEnv), "true")
 
 	// C2PResolverTestOnlyTrafficDirectorURI is the TD URI for testing.
-	C2PResolverTestOnlyTrafficDirectorURI = os.Getenv(c2pResolverTestOnlyTrafficDirectorURIEnv)
+	C2PResolverTestOnlyTrafficDirectorURI = os.Getenv("GRPC_TEST_ONLY_GOOGLE_C2P_RESOLVER_TRAFFIC_DIRECTOR_URI")
 )

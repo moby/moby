@@ -2,55 +2,18 @@ package layer // import "github.com/docker/docker/layer"
 
 import (
 	"compress/gzip"
+	"context"
 	"errors"
 	"io"
 	"os"
 
+	"github.com/containerd/log"
 	"github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
 
-func (ls *layerStore) ChecksumForGraphID(id, parent, oldTarDataPath, newTarDataPath string) (diffID DiffID, size int64, err error) {
-	defer func() {
-		if err != nil {
-			diffID, size, err = ls.checksumForGraphIDNoTarsplit(id, parent, newTarDataPath)
-		}
-	}()
-
-	if oldTarDataPath == "" {
-		err = errors.New("no tar-split file")
-		return
-	}
-
-	tarDataFile, err := os.Open(oldTarDataPath)
-	if err != nil {
-		return
-	}
-	defer tarDataFile.Close()
-	uncompressed, err := gzip.NewReader(tarDataFile)
-	if err != nil {
-		return
-	}
-
-	dgst := digest.Canonical.Digester()
-	err = ls.assembleTarTo(id, uncompressed, &size, dgst.Hash())
-	if err != nil {
-		return
-	}
-
-	diffID = DiffID(dgst.Digest())
-	err = os.RemoveAll(newTarDataPath)
-	if err != nil {
-		return
-	}
-	err = os.Link(oldTarDataPath, newTarDataPath)
-
-	return
-}
-
-func (ls *layerStore) checksumForGraphIDNoTarsplit(id, parent, newTarDataPath string) (diffID DiffID, size int64, err error) {
+func (ls *layerStore) ChecksumForGraphID(id, parent, newTarDataPath string) (diffID DiffID, size int64, err error) {
 	rawarchive, err := ls.driver.Diff(id, parent)
 	if err != nil {
 		return
@@ -132,9 +95,9 @@ func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID D
 
 	defer func() {
 		if err != nil {
-			logrus.Debugf("Cleaning up transaction after failed migration for %s: %v", graphID, err)
+			log.G(context.TODO()).Debugf("Cleaning up transaction after failed migration for %s: %v", graphID, err)
 			if err := tx.Cancel(); err != nil {
-				logrus.Errorf("Error canceling metadata transaction %q: %s", tx.String(), err)
+				log.G(context.TODO()).Errorf("Error canceling metadata transaction %q: %s", tx.String(), err)
 			}
 		}
 	}()

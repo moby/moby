@@ -1,9 +1,10 @@
 package caps // import "github.com/docker/docker/oci/caps"
 import (
+	"context"
 	"sync"
 
 	ccaps "github.com/containerd/containerd/pkg/cap"
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
 )
 
 var initCapsOnce sync.Once
@@ -13,7 +14,7 @@ func initCaps() {
 		rawCaps := ccaps.Known()
 		curCaps, err := ccaps.Current()
 		if err != nil {
-			logrus.WithError(err).Error("failed to get capabilities from current environment")
+			log.G(context.TODO()).WithError(err).Error("failed to get capabilities from current environment")
 			allCaps = rawCaps
 		} else {
 			allCaps = curCaps

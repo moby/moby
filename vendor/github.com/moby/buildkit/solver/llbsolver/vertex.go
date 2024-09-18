@@ -1,13 +1,14 @@
 package llbsolver
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/solver/llbsolver/ops/opsutils"
 	"github.com/moby/buildkit/solver/pb"
-	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/util/entitlements"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -78,17 +79,29 @@ func NormalizeRuntimePlatforms() LoadOpt {
 					OS:           p.OS,
 					Architecture: p.Architecture,
 					Variant:      p.Variant,
+					OSVersion:    p.OSVersion,
+					OSFeatures:   p.OSFeatures,
 				}
 			}
 			op.Platform = defaultPlatform
 		}
-		platform := ocispecs.Platform{OS: op.Platform.OS, Architecture: op.Platform.Architecture, Variant: op.Platform.Variant}
+		platform := ocispecs.Platform{
+			OS:           op.Platform.OS,
+			Architecture: op.Platform.Architecture,
+			Variant:      op.Platform.Variant,
+			OSVersion:    op.Platform.OSVersion,
+			OSFeatures:   op.Platform.OSFeatures,
+		}
 		normalizedPlatform := platforms.Normalize(platform)
 
 		op.Platform = &pb.Platform{
 			OS:           normalizedPlatform.OS,
 			Architecture: normalizedPlatform.Architecture,
 			Variant:      normalizedPlatform.Variant,
+			OSVersion:    normalizedPlatform.OSVersion,
+		}
+		if normalizedPlatform.OSFeatures != nil {
+			op.Platform.OSFeatures = append([]string{}, normalizedPlatform.OSFeatures...)
 		}
 
 		return nil
@@ -99,16 +112,12 @@ func ValidateEntitlements(ent entitlements.Set) LoadOpt {
 	return func(op *pb.Op, _ *pb.OpMetadata, opt *solver.VertexOptions) error {
 		switch op := op.Op.(type) {
 		case *pb.Op_Exec:
-			if op.Exec.Network == pb.NetMode_HOST {
-				if !ent.Allowed(entitlements.EntitlementNetworkHost) {
-					return errors.Errorf("%s is not allowed", entitlements.EntitlementNetworkHost)
-				}
+			v := entitlements.Values{
+				NetworkHost:      op.Exec.Network == pb.NetMode_HOST,
+				SecurityInsecure: op.Exec.Security == pb.SecurityMode_INSECURE,
 			}
-
-			if op.Exec.Security == pb.SecurityMode_INSECURE {
-				if !ent.Allowed(entitlements.EntitlementSecurityInsecure) {
-					return errors.Errorf("%s is not allowed", entitlements.EntitlementSecurityInsecure)
-				}
+			if err := ent.Check(v); err != nil {
+				return err
 			}
 		}
 		return nil
@@ -116,7 +125,7 @@ func ValidateEntitlements(ent entitlements.Set) LoadOpt {
 }
 
 type detectPrunedCacheID struct {
-	ids map[string]struct{}
+	ids map[string]bool
 }
 
 func (dpc *detectPrunedCacheID) Load(op *pb.Op, md *pb.OpMetadata, opt *solver.VertexOptions) error {
@@ -133,9 +142,10 @@ func (dpc *detectPrunedCacheID) Load(op *pb.Op, md *pb.OpMetadata, opt *solver.V
 						id = m.Dest
 					}
 					if dpc.ids == nil {
-						dpc.ids = map[string]struct{}{}
+						dpc.ids = map[string]bool{}
 					}
-					dpc.ids[id] = struct{}{}
+					// value shows in mount is on top of a ref
+					dpc.ids[id] = m.Input != -1
 				}
 			}
 		}
@@ -143,8 +153,8 @@ func (dpc *detectPrunedCacheID) Load(op *pb.Op, md *pb.OpMetadata, opt *solver.V
 	return nil
 }
 
-func Load(def *pb.Definition, opts ...LoadOpt) (solver.Edge, error) {
-	return loadLLB(def, func(dgst digest.Digest, pbOp *pb.Op, load func(digest.Digest) (solver.Vertex, error)) (solver.Vertex, error) {
+func Load(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEvaluator, opts ...LoadOpt) (solver.Edge, error) {
+	return loadLLB(ctx, def, polEngine, func(dgst digest.Digest, pbOp *pb.Op, load func(digest.Digest) (solver.Vertex, error)) (solver.Vertex, error) {
 		opMetadata := def.Metadata[dgst]
 		vtx, err := newVertex(dgst, pbOp, &opMetadata, load, opts...)
 		if err != nil {
@@ -185,36 +195,108 @@ func newVertex(dgst digest.Digest, op *pb.Op, opMeta *pb.OpMetadata, load func(d
 	return vtx, nil
 }
 
+func recomputeDigests(ctx context.Context, all map[digest.Digest]*pb.Op, visited map[digest.Digest]digest.Digest, dgst digest.Digest) (digest.Digest, error) {
+	if dgst, ok := visited[dgst]; ok {
+		return dgst, nil
+	}
+	op := all[dgst]
+
+	var mutated bool
+	for _, input := range op.Inputs {
+		select {
+		case <-ctx.Done():
+			return "", context.Cause(ctx)
+		default:
+		}
+
+		iDgst, err := recomputeDigests(ctx, all, visited, input.Digest)
+		if err != nil {
+			return "", err
+		}
+		if input.Digest != iDgst {
+			mutated = true
+			input.Digest = iDgst
+		}
+	}
+
+	if !mutated {
+		visited[dgst] = dgst
+		return dgst, nil
+	}
+
+	dt, err := op.Marshal()
+	if err != nil {
+		return "", err
+	}
+	newDgst := digest.FromBytes(dt)
+	visited[dgst] = newDgst
+	all[newDgst] = op
+	delete(all, dgst)
+	return newDgst, nil
+}
+
 // loadLLB loads LLB.
 // fn is executed sequentially.
-func loadLLB(def *pb.Definition, fn func(digest.Digest, *pb.Op, func(digest.Digest) (solver.Vertex, error)) (solver.Vertex, error)) (solver.Edge, error) {
+func loadLLB(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEvaluator, fn func(digest.Digest, *pb.Op, func(digest.Digest) (solver.Vertex, error)) (solver.Vertex, error)) (solver.Edge, error) {
 	if len(def.Def) == 0 {
 		return solver.Edge{}, errors.New("invalid empty definition")
 	}
 
 	allOps := make(map[digest.Digest]*pb.Op)
+	mutatedDigests := make(map[digest.Digest]digest.Digest) // key: old, val: new
 
-	var dgst digest.Digest
+	var lastDgst digest.Digest
 
 	for _, dt := range def.Def {
 		var op pb.Op
 		if err := (&op).Unmarshal(dt); err != nil {
 			return solver.Edge{}, errors.Wrap(err, "failed to parse llb proto op")
 		}
-		dgst = digest.FromBytes(dt)
+		dgst := digest.FromBytes(dt)
+		if polEngine != nil {
+			mutated, err := polEngine.Evaluate(ctx, op.GetSource())
+			if err != nil {
+				return solver.Edge{}, errors.Wrap(err, "error evaluating the source policy")
+			}
+			if mutated {
+				dtMutated, err := op.Marshal()
+				if err != nil {
+					return solver.Edge{}, err
+				}
+				dgstMutated := digest.FromBytes(dtMutated)
+				mutatedDigests[dgst] = dgstMutated
+				dgst = dgstMutated
+			}
+		}
 		allOps[dgst] = &op
+		lastDgst = dgst
+	}
+
+	for dgst := range allOps {
+		_, err := recomputeDigests(ctx, allOps, mutatedDigests, dgst)
+		if err != nil {
+			return solver.Edge{}, err
+		}
 	}
 
 	if len(allOps) < 2 {
 		return solver.Edge{}, errors.Errorf("invalid LLB with %d vertexes", len(allOps))
 	}
 
-	lastOp := allOps[dgst]
-	delete(allOps, dgst)
+	for {
+		newDgst, ok := mutatedDigests[lastDgst]
+		if !ok || newDgst == lastDgst {
+			break
+		}
+		lastDgst = newDgst
+	}
+
+	lastOp := allOps[lastDgst]
+	delete(allOps, lastDgst)
 	if len(lastOp.Inputs) == 0 {
 		return solver.Edge{}, errors.Errorf("invalid LLB with no inputs on last vertex")
 	}
-	dgst = lastOp.Inputs[0].Digest
+	dgst := lastOp.Inputs[0].Digest
 
 	cache := make(map[digest.Digest]solver.Vertex)
 
@@ -228,7 +310,7 @@ func loadLLB(def *pb.Definition, fn func(digest.Digest, *pb.Op, func(digest.Dige
 			return nil, errors.Errorf("invalid missing input digest %s", dgst)
 		}
 
-		if err := ValidateOp(op); err != nil {
+		if err := opsutils.Validate(op); err != nil {
 			return nil, err
 		}
 
@@ -250,13 +332,6 @@ func loadLLB(def *pb.Definition, fn func(digest.Digest, *pb.Op, func(digest.Dige
 func llbOpName(pbOp *pb.Op, load func(digest.Digest) (solver.Vertex, error)) (string, error) {
 	switch op := pbOp.Op.(type) {
 	case *pb.Op_Source:
-		if id, err := source.FromLLB(op, nil); err == nil {
-			if id, ok := id.(*source.LocalIdentifier); ok {
-				if len(id.IncludePatterns) == 1 {
-					return op.Source.Identifier + " (" + id.IncludePatterns[0] + ")", nil
-				}
-			}
-		}
 		return op.Source.Identifier, nil
 	case *pb.Op_Exec:
 		return strings.Join(op.Exec.Meta.Args, " "), nil
@@ -299,63 +374,6 @@ func llbOpName(pbOp *pb.Op, load func(digest.Digest) (solver.Vertex, error)) (st
 	default:
 		return "unknown", nil
 	}
-}
-
-func ValidateOp(op *pb.Op) error {
-	if op == nil {
-		return errors.Errorf("invalid nil op")
-	}
-
-	switch op := op.Op.(type) {
-	case *pb.Op_Source:
-		if op.Source == nil {
-			return errors.Errorf("invalid nil source op")
-		}
-	case *pb.Op_Exec:
-		if op.Exec == nil {
-			return errors.Errorf("invalid nil exec op")
-		}
-		if op.Exec.Meta == nil {
-			return errors.Errorf("invalid exec op with no meta")
-		}
-		if len(op.Exec.Meta.Args) == 0 {
-			return errors.Errorf("invalid exec op with no args")
-		}
-		if len(op.Exec.Mounts) == 0 {
-			return errors.Errorf("invalid exec op with no mounts")
-		}
-
-		isRoot := false
-		for _, m := range op.Exec.Mounts {
-			if m.Dest == pb.RootMount {
-				isRoot = true
-				break
-			}
-		}
-		if !isRoot {
-			return errors.Errorf("invalid exec op with no rootfs")
-		}
-	case *pb.Op_File:
-		if op.File == nil {
-			return errors.Errorf("invalid nil file op")
-		}
-		if len(op.File.Actions) == 0 {
-			return errors.Errorf("invalid file op with no actions")
-		}
-	case *pb.Op_Build:
-		if op.Build == nil {
-			return errors.Errorf("invalid nil build op")
-		}
-	case *pb.Op_Merge:
-		if op.Merge == nil {
-			return errors.Errorf("invalid nil merge op")
-		}
-	case *pb.Op_Diff:
-		if op.Diff == nil {
-			return errors.Errorf("invalid nil diff op")
-		}
-	}
-	return nil
 }
 
 func fileOpName(actions []*pb.FileAction) string {

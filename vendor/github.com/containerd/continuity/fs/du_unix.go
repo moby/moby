@@ -28,10 +28,11 @@ import (
 
 // blocksUnitSize is the unit used by `st_blocks` in `stat` in bytes.
 // See https://man7.org/linux/man-pages/man2/stat.2.html
-//   st_blocks
-//     This field indicates the number of blocks allocated to the
-//     file, in 512-byte units.  (This may be smaller than
-//     st_size/512 when the file has holes.)
+//
+//	st_blocks
+//	  This field indicates the number of blocks allocated to the
+//	  file, in 512-byte units.  (This may be smaller than
+//	  st_size/512 when the file has holes.)
 const blocksUnitSize = 512
 
 type inode struct {
@@ -48,7 +49,6 @@ func newInode(stat *syscall.Stat_t) inode {
 }
 
 func diskUsage(ctx context.Context, roots ...string) (Usage, error) {
-
 	var (
 		size   int64
 		inodes = map[inode]struct{}{} // expensive!

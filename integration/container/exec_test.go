@@ -1,14 +1,12 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/api/types/versions"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -18,31 +16,22 @@ import (
 // TestExecWithCloseStdin adds case for moby#37870 issue.
 func TestExecWithCloseStdin(t *testing.T) {
 	skip.If(t, testEnv.RuntimeIsWindowsContainerd(), "FIXME. Hang on Windows + containerd combination")
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "broken in earlier versions")
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
-	ctx := context.Background()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	// run top with detached mode
-	cID := container.Run(ctx, t, client)
+	cID := container.Run(ctx, t, apiClient)
 
-	expected := "closeIO"
-	execResp, err := client.ContainerExecCreate(ctx, cID,
-		types.ExecConfig{
-			AttachStdin:  true,
-			AttachStdout: true,
-			Cmd:          strslice.StrSlice([]string{"sh", "-c", "cat && echo " + expected}),
-		},
-	)
+	const expected = "closeIO"
+	execResp, err := apiClient.ContainerExecCreate(ctx, cID, containertypes.ExecOptions{
+		AttachStdin:  true,
+		AttachStdout: true,
+		Cmd:          []string{"sh", "-c", "cat && echo " + expected},
+	})
 	assert.NilError(t, err)
 
-	resp, err := client.ContainerExecAttach(ctx, execResp.ID,
-		types.ExecStartCheck{
-			Detach: false,
-			Tty:    false,
-		},
-	)
+	resp, err := apiClient.ContainerExecAttach(ctx, execResp.ID, containertypes.ExecAttachOptions{})
 	assert.NilError(t, err)
 	defer resp.Close()
 
@@ -85,33 +74,24 @@ func TestExecWithCloseStdin(t *testing.T) {
 }
 
 func TestExec(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.35"), "broken in earlier versions")
-	defer setupTest(t)()
-	ctx := context.Background()
-	client := testEnv.APIClient()
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
 
-	cID := container.Run(ctx, t, client, container.WithTty(true), container.WithWorkingDir("/root"))
+	cID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithWorkingDir("/root"))
 
-	id, err := client.ContainerExecCreate(ctx, cID,
-		types.ExecConfig{
-			WorkingDir:   "/tmp",
-			Env:          strslice.StrSlice([]string{"FOO=BAR"}),
-			AttachStdout: true,
-			Cmd:          strslice.StrSlice([]string{"sh", "-c", "env"}),
-		},
-	)
+	id, err := apiClient.ContainerExecCreate(ctx, cID, containertypes.ExecOptions{
+		WorkingDir:   "/tmp",
+		Env:          []string{"FOO=BAR"},
+		AttachStdout: true,
+		Cmd:          []string{"sh", "-c", "env"},
+	})
 	assert.NilError(t, err)
 
-	inspect, err := client.ContainerExecInspect(ctx, id.ID)
+	inspect, err := apiClient.ContainerExecInspect(ctx, id.ID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspect.ExecID, id.ID))
 
-	resp, err := client.ContainerExecAttach(ctx, id.ID,
-		types.ExecStartCheck{
-			Detach: false,
-			Tty:    false,
-		},
-	)
+	resp, err := apiClient.ContainerExecAttach(ctx, id.ID, containertypes.ExecAttachOptions{})
 	assert.NilError(t, err)
 	defer resp.Close()
 	r, err := io.ReadAll(resp.Reader)
@@ -119,24 +99,40 @@ func TestExec(t *testing.T) {
 	out := string(r)
 	assert.NilError(t, err)
 	expected := "PWD=/tmp"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = "PWD=C:/tmp"
 	}
-	assert.Assert(t, is.Contains(out, expected), "exec command not running in expected /tmp working directory")
-	assert.Assert(t, is.Contains(out, "FOO=BAR"), "exec command not running with expected environment variable FOO")
+	assert.Check(t, is.Contains(out, expected), "exec command not running in expected /tmp working directory")
+	assert.Check(t, is.Contains(out, "FOO=BAR"), "exec command not running with expected environment variable FOO")
 }
 
 func TestExecUser(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "broken in earlier versions")
-	skip.If(t, testEnv.OSType == "windows", "FIXME. Probably needs to wait for container to be in running state.")
-	defer setupTest(t)()
-	ctx := context.Background()
-	client := testEnv.APIClient()
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME. Probably needs to wait for container to be in running state.")
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
 
-	cID := container.Run(ctx, t, client, container.WithTty(true), container.WithUser("1:1"))
+	cID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithUser("1:1"))
 
-	result, err := container.Exec(ctx, client, cID, []string{"id"})
+	result, err := container.Exec(ctx, apiClient, cID, []string{"id"})
 	assert.NilError(t, err)
 
-	assert.Assert(t, is.Contains(result.Stdout(), "uid=1(daemon) gid=1(daemon)"), "exec command not running as uid/gid 1")
+	assert.Check(t, is.Contains(result.Stdout(), "uid=1(daemon) gid=1(daemon)"), "exec command not running as uid/gid 1")
+}
+
+// Test that additional groups set with `--group-add` are kept on exec when the container
+// also has a user set.
+// (regression test for https://github.com/moby/moby/issues/46712)
+func TestExecWithGroupAdd(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME. Probably needs to wait for container to be in running state.")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithUser("root:root"), container.WithAdditionalGroups("staff", "wheel", "audio", "777"), container.WithCmd("sleep", "5"))
+
+	result, err := container.Exec(ctx, apiClient, cID, []string{"id"})
+	assert.NilError(t, err)
+
+	const expected = "uid=0(root) gid=0(root) groups=0(root),10(wheel),29(audio),50(staff),777"
+	assert.Check(t, is.Equal(strings.TrimSpace(result.Stdout()), expected), "exec command not keeping additional groups w/ user")
 }

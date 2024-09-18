@@ -1,0 +1,82 @@
+/*
+	Copyright The containerd Authors.
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+		http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+
+syntax = "proto3";
+
+package containerd.types.transfer;
+
+import "github.com/containerd/containerd/api/types/platform.proto";
+
+option go_package = "github.com/containerd/containerd/api/types/transfer";
+
+message ImageStore {
+	string name = 1;
+	map<string, string> labels = 2;
+
+	// Content filters
+
+	repeated types.Platform platforms = 3;
+	bool all_metadata = 4;
+	uint32 manifest_limit = 5;
+
+	// Import naming
+
+	// extra_references are used to set image names on imports of sub-images from the index
+	repeated ImageReference extra_references = 6;
+
+	// Unpack Configuration, multiple allowed
+
+	repeated UnpackConfiguration unpacks = 10;
+}
+
+message UnpackConfiguration {
+	// platform is the platform to unpack for, used for resolving manifest and snapshotter
+	// if not provided
+	types.Platform platform = 1;
+
+	// snapshotter to unpack to, if not provided default for platform shoudl be used
+	string snapshotter = 2;
+}
+
+// ImageReference is used to create or find a reference for an image
+message ImageReference {
+	string name = 1;
+
+	// is_prefix determines whether the Name should be considered
+	// a prefix (without tag or digest).
+	// For lookup, this may allow matching multiple tags.
+	// For store, this must have a tag or digest added.
+	bool is_prefix = 2;
+
+	// allow_overwrite allows overwriting or ignoring the name if
+	// another reference is provided (such as through an annotation).
+	// Only used if IsPrefix is true.
+	bool allow_overwrite = 3;
+
+	// add_digest adds the manifest digest to the reference.
+	// For lookup, this allows matching tags with any digest.
+	// For store, this allows adding the digest to the name.
+	// Only used if IsPrefix is true.
+	bool add_digest = 4;
+
+	// skip_named_digest only considers digest references which do not
+	// have a non-digested named reference.
+	// For lookup, this will deduplicate digest references when there is a named match.
+	// For store, this only adds this digest reference when there is no matching full
+	// name reference from the prefix.
+	// Only used if IsPrefix is true.
+	bool skip_named_digest = 5;
+}

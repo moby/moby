@@ -1,18 +1,17 @@
 package overlay
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
-	"sync"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/Microsoft/hcsshim/osversion"
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/windows"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 type endpointTable map[string]*endpoint
@@ -29,13 +28,6 @@ type endpoint struct {
 	disablegateway bool
 	portMapping    []types.PortBinding // Operation port bindings
 }
-
-var (
-	//Server 2016 (RS1) does not support concurrent add/delete of endpoints.  Therefore, we need
-	//to use this mutex and serialize the add/delete of endpoints on RS1.
-	endpointMu   sync.Mutex
-	windowsBuild = osversion.Build()
-)
 
 func validateID(nid, eid string) error {
 	if nid == "" {
@@ -84,16 +76,15 @@ func (n *network) removeEndpointWithAddress(addr *net.IPNet) {
 	n.Unlock()
 
 	if networkEndpoint != nil {
-		logrus.Debugf("Removing stale endpoint from HNS")
-		_, err := endpointRequest("DELETE", networkEndpoint.profileID, "")
+		log.G(context.TODO()).Debugf("Removing stale endpoint from HNS")
+		_, err := hcsshim.HNSEndpointRequest("DELETE", networkEndpoint.profileID, "")
 		if err != nil {
-			logrus.Debugf("Failed to delete stale overlay endpoint (%.7s) from hns", networkEndpoint.id)
+			log.G(context.TODO()).Debugf("Failed to delete stale overlay endpoint (%.7s) from hns", networkEndpoint.id)
 		}
 	}
 }
 
-func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
-	epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
 	var err error
 	if err = validateID(nid, eid); err != nil {
 		return err
@@ -106,9 +97,9 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	ep := n.endpoint(eid)
 	if ep != nil {
-		logrus.Debugf("Deleting stale endpoint %s", eid)
+		log.G(ctx).Debugf("Deleting stale endpoint %s", eid)
 		n.deleteEndpoint(eid)
-		_, err := endpointRequest("DELETE", ep.profileID, "")
+		_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileID, "")
 		if err != nil {
 			return err
 		}
@@ -148,17 +139,13 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		Type: "PA",
 		PA:   n.providerAddress,
 	})
-
 	if err != nil {
 		return err
 	}
 
 	hnsEndpoint.Policies = append(hnsEndpoint.Policies, paPolicy)
 
-	natPolicy, err := json.Marshal(hcsshim.PaPolicy{
-		Type: "OutBoundNAT",
-	})
-
+	natPolicy, err := json.Marshal(hcsshim.PaPolicy{Type: "OutBoundNAT"})
 	if err != nil {
 		return err
 	}
@@ -195,7 +182,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		return err
 	}
 
-	hnsresponse, err := endpointRequest("POST", "", string(configurationb))
+	hnsresponse, err := hcsshim.HNSEndpointRequest("POST", "", string(configurationb))
 	if err != nil {
 		return err
 	}
@@ -215,7 +202,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	ep.portMapping, err = windows.ParsePortBindingPolicies(hnsresponse.Policies)
 	if err != nil {
-		endpointRequest("DELETE", hnsresponse.Id, "")
+		hcsshim.HNSEndpointRequest("DELETE", hnsresponse.Id, "")
 		return err
 	}
 
@@ -243,7 +230,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 
 	n.deleteEndpoint(eid)
 
-	_, err := endpointRequest("DELETE", ep.profileID, "")
+	_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileID, "")
 	if err != nil {
 		return err
 	}
@@ -280,15 +267,4 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 	}
 
 	return data, nil
-}
-
-func endpointRequest(method, path, request string) (*hcsshim.HNSEndpoint, error) {
-	if windowsBuild == 14393 {
-		endpointMu.Lock()
-	}
-	hnsresponse, err := hcsshim.HNSEndpointRequest(method, path, request)
-	if windowsBuild == 14393 {
-		endpointMu.Unlock()
-	}
-	return hnsresponse, err
 }

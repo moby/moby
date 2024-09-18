@@ -34,17 +34,11 @@ func TestSecretListError(t *testing.T) {
 	}
 
 	_, err := client.SecretList(context.Background(), types.SecretListOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestSecretList(t *testing.T) {
-	expectedURL := "/v1.25/secrets"
-
-	filters := filters.NewArgs()
-	filters.Add("label", "label1")
-	filters.Add("label", "label2")
+	const expectedURL = "/v1.25/secrets"
 
 	listCases := []struct {
 		options             types.SecretListOptions
@@ -58,7 +52,10 @@ func TestSecretList(t *testing.T) {
 		},
 		{
 			options: types.SecretListOptions{
-				Filters: filters,
+				Filters: filters.NewArgs(
+					filters.Arg("label", "label1"),
+					filters.Arg("label", "label2"),
+				),
 			},
 			expectedQueryParams: map[string]string{
 				"filters": `{"label":{"label1":true,"label2":true}}`,

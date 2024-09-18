@@ -2,7 +2,7 @@
 
 1. [File an issue](https://github.com/googleapis/google-cloud-go/issues/new/choose).
    The issue will be used to discuss the bug or feature and should be created
-   before sending a CL.
+   before sending a PR.
 
 1. [Install Go](https://golang.org/dl/).
     1. Ensure that your `GOBIN` directory (by default `$(go env GOPATH)/bin`)
@@ -62,10 +62,14 @@ intend only to run integration tests on a single package.
 
 #### GCP Setup
 
-To run the integrations tests, creation and configuration of two projects in
+To run the integrations tests, creation and configuration of three projects in
 the Google Developers Console is required: one specifically for Firestore
-integration tests, and another for all other integration tests. We'll refer to
-these projects as "general project" and "Firestore project".
+integration tests, one specifically for Bigtable integration tests, and another 
+for all other integration tests. We'll refer to these projects as 
+"Firestore project", "Bigtable project" and "general project".
+
+Note: You can skip setting up Bigtable project if you do not plan working on or running a few Bigtable
+tests that require a secondary project
 
 After creating each project, you must [create a service account](https://developers.google.com/identity/protocols/OAuth2ServiceAccount#creatinganaccount)
 for each project. Ensure the project-level **Owner**
@@ -118,18 +122,21 @@ Finally, in the general project, create an API key for the translate API:
 
 #### Local Setup
 
-Once the two projects are created and configured, set the following environment
+Once the three projects are created and configured, set the following environment
 variables:
 
 - `GCLOUD_TESTS_GOLANG_PROJECT_ID`: Developers Console project's ID (e.g.
 bamboo-shift-455) for the general project.
 - `GCLOUD_TESTS_GOLANG_KEY`: The path to the JSON key file of the general
 project's service account.
+- `GCLOUD_TESTS_GOLANG_DATASTORE_DATABASES`: Comma separated list of developer's Datastore databases. If not provided, default database i.e. empty string is used.
 - `GCLOUD_TESTS_GOLANG_FIRESTORE_PROJECT_ID`: Developers Console project's ID
 (e.g. doorway-cliff-677) for the Firestore project.
+- `GCLOUD_TESTS_GOLANG_FIRESTORE_DATABASES` : Comma separated list of developer's Firestore databases. If not provided, default database is used.
 - `GCLOUD_TESTS_GOLANG_FIRESTORE_KEY`: The path to the JSON key file of the
 Firestore project's service account.
 - `GCLOUD_TESTS_API_KEY`: API key for using the Translate API created above.
+- `GCLOUD_TESTS_GOLANG_SECONDARY_BIGTABLE_PROJECT_ID`: Developers Console project's ID (e.g. doorway-cliff-677) for Bigtable optional secondary project. This can be same as Firestore project or any project other than the general project.
 
 As part of the setup that follows, the following variables will be configured:
 
@@ -153,8 +160,9 @@ $ gcloud config set project $GCLOUD_TESTS_GOLANG_PROJECT_ID
 # Authenticates the gcloud tool with your account.
 $ gcloud auth login
 
-# Create the indexes used in the datastore integration tests.
-$ gcloud datastore indexes create datastore/testdata/index.yaml
+# Create the indexes for all the databases you want to use in the datastore integration tests. 
+# Use empty string as databaseID or skip database flag for default database.
+$ gcloud alpha datastore indexes create --database=your-databaseID-1 --project=$GCLOUD_TESTS_GOLANG_PROJECT_ID testdata/index.yaml
 
 # Creates a Google Cloud storage bucket with the same name as your test project,
 # and with the Cloud Logging service account as owner, for the sink
@@ -216,11 +224,21 @@ For instance, in `.zshrc`:
 # Developers Console project's ID (e.g. bamboo-shift-455) for the general project.
 export GCLOUD_TESTS_GOLANG_PROJECT_ID=your-project
 
+# Developers Console project's ID (e.g. bamboo-shift-455) for the Bigtable project.
+export GCLOUD_TESTS_GOLANG_SECONDARY_BIGTABLE_PROJECT_ID=your-bigtable-optional-secondary-project
+
 # The path to the JSON key file of the general project's service account.
 export GCLOUD_TESTS_GOLANG_KEY=~/directory/your-project-abcd1234.json
 
+# Comma separated list of developer's Datastore databases. If not provided, 
+# default database i.e. empty string is used.
+export GCLOUD_TESTS_GOLANG_DATASTORE_DATABASES=your-database-1,your-database-2
+
 # Developers Console project's ID (e.g. doorway-cliff-677) for the Firestore project.
 export GCLOUD_TESTS_GOLANG_FIRESTORE_PROJECT_ID=your-firestore-project
+
+# Comma separated list of developer's Firestore databases. If not provided, default database is used.
+export GCLOUD_TESTS_GOLANG_FIRESTORE_DATABASES=your-database-1,your-database-2
 
 # The path to the JSON key file of the Firestore project's service account.
 export GCLOUD_TESTS_GOLANG_FIRESTORE_KEY=~/directory/your-firestore-project-abcd1234.json

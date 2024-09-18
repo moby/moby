@@ -1,7 +1,13 @@
 package tarsum // import "github.com/docker/docker/pkg/tarsum"
 
 import (
+	"archive/tar"
+	"fmt"
+	"strings"
 	"testing"
+
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestVersionLabelForChecksum(t *testing.T) {
@@ -95,4 +101,30 @@ func containsVersion(versions []Version, version Version) bool {
 		}
 	}
 	return false
+}
+
+func TestSelectXattrsV1(t *testing.T) {
+	hdr := &tar.Header{
+		Xattrs: map[string]string{ //nolint:staticcheck
+			"user.xattronly": "x",
+			"user.foo":       "xattr",
+		},
+		PAXRecords: map[string]string{
+			"SCHILY.xattr.user.paxonly": "p",
+			"SCHILY.xattr.user.foo":     "paxrecord",
+		},
+	}
+	selected := v1TarHeaderSelect(hdr)
+
+	var s strings.Builder
+	for _, elem := range selected {
+		fmt.Fprintf(&s, "%s=%s\n", elem[0], elem[1])
+	}
+	t.Logf("Selected headers:\n%s", s.String())
+
+	assert.Check(t, is.DeepEqual(selected[len(selected)-3:], [][2]string{
+		{"user.foo", "xattr"},
+		{"user.paxonly", "p"},
+		{"user.xattronly", "x"},
+	}))
 }

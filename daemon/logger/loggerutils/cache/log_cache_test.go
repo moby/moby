@@ -1,16 +1,14 @@
 package cache
 
 import (
+	"bytes"
 	"context"
 	"testing"
-
 	"time"
-
-	"bytes"
 
 	"github.com/docker/docker/daemon/logger"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 type fakeLogger struct {
@@ -75,7 +73,7 @@ func TestLog(t *testing.T) {
 		case <-ctx.Done():
 			t.Fatal("timed out waiting for messages... this is probably a test implementation error")
 		case msg = <-cacher.messages:
-			assert.Assert(t, cmp.DeepEqual(msg, m))
+			assert.Assert(t, is.DeepEqual(msg, m))
 		}
 	}
 }

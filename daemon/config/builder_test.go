@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/docker/docker/api/types/filters"
@@ -41,4 +42,17 @@ func TestBuilderGC(t *testing.T) {
 	// double check to please the skeptics
 	assert.Assert(t, filters.Args(cfg.Builder.GC.Policy[0].Filter).UniqueExactMatch("unused-for", "2200h"))
 	assert.Assert(t, filters.Args(cfg.Builder.GC.Policy[1].Filter).UniqueExactMatch("unused-for", "3300h"))
+}
+
+// TestBuilderGCFilterUnmarshal is a regression test for https://github.com/moby/moby/issues/44361,
+// where and incorrectly formatted gc filter option ("unused-for2200h",
+// missing a "=" separator). resulted in a panic during unmarshal.
+func TestBuilderGCFilterUnmarshal(t *testing.T) {
+	var cfg BuilderGCConfig
+	err := json.Unmarshal([]byte(`{"poliCy": [{"keepStorage": "10GB", "filter": ["unused-for2200h"]}]}`), &cfg)
+	assert.Check(t, err)
+	expectedPolicy := []BuilderGCRule{{
+		KeepStorage: "10GB", Filter: BuilderGCFilter(filters.NewArgs(filters.Arg("unused-for2200h", ""))),
+	}}
+	assert.DeepEqual(t, cfg.Policy, expectedPolicy, cmp.AllowUnexported(BuilderGCFilter{}))
 }

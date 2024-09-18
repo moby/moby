@@ -30,6 +30,8 @@ message Solve {
 		FileAction file = 4;
 		ContentCache cache = 5;
 	}
+
+	map<string, string> description = 6;
 }
 
 message FileAction {

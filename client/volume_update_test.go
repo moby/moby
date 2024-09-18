@@ -12,6 +12,8 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestVolumeUpdateError(t *testing.T) {
@@ -20,10 +22,7 @@ func TestVolumeUpdateError(t *testing.T) {
 	}
 
 	err := client.VolumeUpdate(context.Background(), "", swarm.Version{}, volumetypes.UpdateOptions{})
-
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestVolumeUpdate(t *testing.T) {

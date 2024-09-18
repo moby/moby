@@ -25,6 +25,26 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+// Store combines the methods of content-oriented interfaces into a set that
+// are commonly provided by complete implementations.
+//
+// Overall content lifecycle:
+//   - Ingester is used to initiate a write operation (aka ingestion)
+//   - IngestManager is used to manage (e.g. list, abort) active ingestions
+//   - Once an ingestion is complete (see Writer.Commit), Provider is used to
+//     query a single piece of content by its digest
+//   - Manager is used to manage (e.g. list, delete) previously committed content
+//
+// Note that until ingestion is complete, its content is not visible through
+// Provider or Manager. Once ingestion is complete, it is no longer exposed
+// through IngestManager.
+type Store interface {
+	Manager
+	Provider
+	IngestManager
+	Ingester
+}
+
 // ReaderAt extends the standard io.ReaderAt interface with reporting of Size and io.Closer
 type ReaderAt interface {
 	io.ReaderAt
@@ -42,14 +62,31 @@ type Provider interface {
 
 // Ingester writes content
 type Ingester interface {
-	// Some implementations require WithRef to be included in opts.
+	// Writer initiates a writing operation (aka ingestion). A single ingestion
+	// is uniquely identified by its ref, provided using a WithRef option.
+	// Writer can be called multiple times with the same ref to access the same
+	// ingestion.
+	// Once all the data is written, use Writer.Commit to complete the ingestion.
 	Writer(ctx context.Context, opts ...WriterOpt) (Writer, error)
 }
 
+// IngestManager provides methods for managing ingestions. An ingestion is a
+// not-yet-complete writing operation initiated using Ingester and identified
+// by a ref string.
+type IngestManager interface {
+	// Status returns the status of the provided ref.
+	Status(ctx context.Context, ref string) (Status, error)
+
+	// ListStatuses returns the status of any active ingestions whose ref match
+	// the provided regular expression. If empty, all active ingestions will be
+	// returned.
+	ListStatuses(ctx context.Context, filters ...string) ([]Status, error)
+
+	// Abort completely cancels the ingest operation targeted by ref.
+	Abort(ctx context.Context, ref string) error
+}
+
 // Info holds content specific information
-//
-// TODO(stevvooe): Consider a very different name for this struct. Info is way
-// to general. It also reads very weird in certain context, like pluralization.
 type Info struct {
 	Digest    digest.Digest
 	Size      int64
@@ -58,7 +95,7 @@ type Info struct {
 	Labels    map[string]string
 }
 
-// Status of a content operation
+// Status of a content operation (i.e. an ingestion)
 type Status struct {
 	Ref       string
 	Offset    int64
@@ -71,12 +108,23 @@ type Status struct {
 // WalkFunc defines the callback for a blob walk.
 type WalkFunc func(Info) error
 
-// Manager provides methods for inspecting, listing and removing content.
-type Manager interface {
+// InfoReaderProvider provides both info and reader for the specific content.
+type InfoReaderProvider interface {
+	InfoProvider
+	Provider
+}
+
+// InfoProvider provides info for content inspection.
+type InfoProvider interface {
 	// Info will return metadata about content available in the content store.
 	//
 	// If the content is not present, ErrNotFound will be returned.
 	Info(ctx context.Context, dgst digest.Digest) (Info, error)
+}
+
+// Manager provides methods for inspecting, listing and removing content.
+type Manager interface {
+	InfoProvider
 
 	// Update updates mutable information related to content.
 	// If one or more fieldpaths are provided, only those
@@ -94,21 +142,7 @@ type Manager interface {
 	Delete(ctx context.Context, dgst digest.Digest) error
 }
 
-// IngestManager provides methods for managing ingests.
-type IngestManager interface {
-	// Status returns the status of the provided ref.
-	Status(ctx context.Context, ref string) (Status, error)
-
-	// ListStatuses returns the status of any active ingestions whose ref match the
-	// provided regular expression. If empty, all active ingestions will be
-	// returned.
-	ListStatuses(ctx context.Context, filters ...string) ([]Status, error)
-
-	// Abort completely cancels the ingest operation targeted by ref.
-	Abort(ctx context.Context, ref string) error
-}
-
-// Writer handles the write of content into a content store
+// Writer handles writing of content into a content store
 type Writer interface {
 	// Close closes the writer, if the writer has not been
 	// committed this allows resuming or aborting.
@@ -129,15 +163,6 @@ type Writer interface {
 
 	// Truncate updates the size of the target blob
 	Truncate(size int64) error
-}
-
-// Store combines the methods of content-oriented interfaces into a set that
-// are commonly provided by complete implementations.
-type Store interface {
-	Manager
-	Provider
-	IngestManager
-	Ingester
 }
 
 // Opt is used to alter the mutable properties of content

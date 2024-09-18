@@ -10,22 +10,22 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/checkpoint"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestCheckpointCreateError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	err := client.CheckpointCreate(context.Background(), "nothing", types.CheckpointCreateOptions{
+	err := client.CheckpointCreate(context.Background(), "nothing", checkpoint.CreateOptions{
 		CheckpointID: "noting",
 		Exit:         true,
 	})
 
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestCheckpointCreate(t *testing.T) {
@@ -43,7 +43,7 @@ func TestCheckpointCreate(t *testing.T) {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
 
-			createOptions := &types.CheckpointCreateOptions{}
+			createOptions := &checkpoint.CreateOptions{}
 			if err := json.NewDecoder(req.Body).Decode(createOptions); err != nil {
 				return nil, err
 			}
@@ -63,11 +63,10 @@ func TestCheckpointCreate(t *testing.T) {
 		}),
 	}
 
-	err := client.CheckpointCreate(context.Background(), expectedContainerID, types.CheckpointCreateOptions{
+	err := client.CheckpointCreate(context.Background(), expectedContainerID, checkpoint.CreateOptions{
 		CheckpointID: expectedCheckpointID,
 		Exit:         true,
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}

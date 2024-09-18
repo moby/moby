@@ -9,31 +9,65 @@ package grpc
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"log"
+	"net"
+	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"cloud.google.com/go/compute/metadata"
 	"go.opencensus.io/plugin/ocgrpc"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/oauth2"
+	"golang.org/x/time/rate"
 	"google.golang.org/api/internal"
 	"google.golang.org/api/option"
-	"google.golang.org/api/transport/internal/dca"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	grpcgoogle "google.golang.org/grpc/credentials/google"
+	grpcinsecure "google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/credentials/oauth"
+	"google.golang.org/grpc/stats"
 
 	// Install grpclb, which is required for direct path.
 	_ "google.golang.org/grpc/balancer/grpclb"
 )
 
-// Set at init time by dial_appengine.go. If nil, we're not on App Engine.
-var appengineDialerHook func(context.Context) grpc.DialOption
+// Check env to disable DirectPath traffic.
+const disableDirectPath = "GOOGLE_CLOUD_DISABLE_DIRECT_PATH"
+
+// Check env to decide if using google-c2p resolver for DirectPath traffic.
+const enableDirectPathXds = "GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"
 
 // Set at init time by dial_socketopt.go. If nil, socketopt is not supported.
 var timeoutDialerOption grpc.DialOption
+
+// Log rate limiter
+var logRateLimiter = rate.Sometimes{Interval: 1 * time.Second}
+
+// Assign to var for unit test replacement
+var dialContext = grpc.DialContext
+
+// otelStatsHandler is a singleton otelgrpc.clientHandler to be used across
+// all dial connections to avoid the memory leak documented in
+// https://github.com/open-telemetry/opentelemetry-go-contrib/issues/4226
+//
+// TODO: If 4226 has been fixed in opentelemetry-go-contrib, replace this
+// singleton with inline usage for simplicity.
+var (
+	initOtelStatsHandlerOnce sync.Once
+	otelStatsHandler         stats.Handler
+)
+
+// otelGRPCStatsHandler returns singleton otelStatsHandler for reuse across all
+// dial connections.
+func otelGRPCStatsHandler() stats.Handler {
+	initOtelStatsHandlerOnce.Do(func() {
+		otelStatsHandler = otelgrpc.NewClientHandler()
+	})
+	return otelStatsHandler
+}
 
 // Dial returns a GRPC connection for use communicating with a Google cloud
 // service, configured with the given ClientOptions.
@@ -114,84 +148,90 @@ func dial(ctx context.Context, insecure bool, o *internal.DialSettings) (*grpc.C
 	if o.GRPCConn != nil {
 		return o.GRPCConn, nil
 	}
-	clientCertSource, endpoint, err := dca.GetClientCertificateSourceAndEndpoint(o)
+	transportCreds, endpoint, err := internal.GetGRPCTransportConfigAndEndpoint(o)
 	if err != nil {
 		return nil, err
 	}
-	var grpcOpts []grpc.DialOption
+
 	if insecure {
-		grpcOpts = []grpc.DialOption{grpc.WithInsecure()}
-	} else if !o.NoAuth {
-		if o.APIKey != "" {
-			log.Print("API keys are not supported for gRPC APIs. Remove the WithAPIKey option from your client-creating call.")
-		}
-		creds, err := internal.Creds(ctx, o)
-		if err != nil {
-			return nil, err
-		}
-
-		if o.QuotaProject == "" {
-			o.QuotaProject = internal.QuotaProjectFromCreds(creds)
-		}
-
-		// Attempt Direct Path only if:
-		// * The endpoint is a host:port (or dns:///host:port).
-		// * Credentials are obtained via GCE metadata server, using the default
-		//   service account.
-		if o.EnableDirectPath && checkDirectPathEndPoint(endpoint) && isTokenSourceDirectPathCompatible(creds.TokenSource) && metadata.OnGCE() {
-			if !strings.HasPrefix(endpoint, "dns:///") {
-				endpoint = "dns:///" + endpoint
-			}
-			grpcOpts = []grpc.DialOption{
-				grpc.WithCredentialsBundle(
-					grpcgoogle.NewComputeEngineCredentials(),
-				),
-				// For now all DirectPath go clients will be using the following lb config, but in future
-				// when different services need different configs, then we should change this to a
-				// per-service config.
-				grpc.WithDisableServiceConfig(),
-				grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"grpclb":{"childPolicy":[{"pick_first":{}}]}}]}`),
-			}
-			// TODO(cbro): add support for system parameters (quota project, request reason) via chained interceptor.
-		} else {
-			tlsConfig := &tls.Config{
-				GetClientCertificate: clientCertSource,
-			}
-			grpcOpts = []grpc.DialOption{
-				grpc.WithPerRPCCredentials(grpcTokenSource{
-					TokenSource:   oauth.TokenSource{creds.TokenSource},
-					quotaProject:  o.QuotaProject,
-					requestReason: o.RequestReason,
-				}),
-				grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
-			}
-		}
+		transportCreds = grpcinsecure.NewCredentials()
 	}
 
-	if appengineDialerHook != nil {
-		// Use the Socket API on App Engine.
-		// appengine dialer will override socketopt dialer
-		grpcOpts = append(grpcOpts, appengineDialerHook(ctx))
+	// Initialize gRPC dial options with transport-level security options.
+	grpcOpts := []grpc.DialOption{
+		grpc.WithTransportCredentials(transportCreds),
+	}
+
+	// Authentication can only be sent when communicating over a secure connection.
+	//
+	// TODO: Should we be more lenient in the future and allow sending credentials
+	// when dialing an insecure connection?
+	if !o.NoAuth && !insecure {
+		if o.APIKey != "" {
+			grpcOpts = append(grpcOpts, grpc.WithPerRPCCredentials(grpcAPIKey{
+				apiKey:        o.APIKey,
+				requestReason: o.RequestReason,
+			}))
+		} else {
+			creds, err := internal.Creds(ctx, o)
+			if err != nil {
+				return nil, err
+			}
+			grpcOpts = append(grpcOpts, grpc.WithPerRPCCredentials(grpcTokenSource{
+				TokenSource:   oauth.TokenSource{TokenSource: creds.TokenSource},
+				quotaProject:  internal.GetQuotaProject(creds, o.QuotaProject),
+				requestReason: o.RequestReason,
+			}))
+			// Attempt Direct Path:
+			logRateLimiter.Do(func() {
+				logDirectPathMisconfig(endpoint, creds.TokenSource, o)
+			})
+			if isDirectPathEnabled(endpoint, o) && isTokenSourceDirectPathCompatible(creds.TokenSource, o) && metadata.OnGCE() {
+				// Overwrite all of the previously specific DialOptions, DirectPath uses its own set of credentials and certificates.
+				grpcOpts = []grpc.DialOption{
+					grpc.WithCredentialsBundle(grpcgoogle.NewDefaultCredentialsWithOptions(
+						grpcgoogle.DefaultCredentialsOptions{
+							PerRPCCreds: oauth.TokenSource{TokenSource: creds.TokenSource},
+						})),
+				}
+				if timeoutDialerOption != nil {
+					grpcOpts = append(grpcOpts, timeoutDialerOption)
+				}
+				// Check if google-c2p resolver is enabled for DirectPath
+				if isDirectPathXdsUsed(o) {
+					// google-c2p resolver target must not have a port number
+					if addr, _, err := net.SplitHostPort(endpoint); err == nil {
+						endpoint = "google-c2p:///" + addr
+					} else {
+						endpoint = "google-c2p:///" + endpoint
+					}
+				} else {
+					if !strings.HasPrefix(endpoint, "dns:///") {
+						endpoint = "dns:///" + endpoint
+					}
+					grpcOpts = append(grpcOpts,
+						// For now all DirectPath go clients will be using the following lb config, but in future
+						// when different services need different configs, then we should change this to a
+						// per-service config.
+						grpc.WithDisableServiceConfig(),
+						grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"grpclb":{"childPolicy":[{"pick_first":{}}]}}]}`))
+				}
+				// TODO(cbro): add support for system parameters (quota project, request reason) via chained interceptor.
+			}
+		}
 	}
 
 	// Add tracing, but before the other options, so that clients can override the
 	// gRPC stats handler.
 	// This assumes that gRPC options are processed in order, left to right.
 	grpcOpts = addOCStatsHandler(grpcOpts, o)
+	grpcOpts = addOpenTelemetryStatsHandler(grpcOpts, o)
 	grpcOpts = append(grpcOpts, o.GRPCDialOpts...)
 	if o.UserAgent != "" {
 		grpcOpts = append(grpcOpts, grpc.WithUserAgent(o.UserAgent))
 	}
 
-	// TODO(weiranf): This socketopt dialer will be used by default at some
-	// point when isDirectPathEnabled will default to true, we guard it by
-	// the Directpath env var for now once we can introspect user defined
-	// dialer (https://github.com/grpc/grpc-go/issues/2795).
-	if timeoutDialerOption != nil && o.EnableDirectPath && checkDirectPathEndPoint(endpoint) && metadata.OnGCE() {
-		grpcOpts = append(grpcOpts, timeoutDialerOption)
-	}
-
-	return grpc.DialContext(ctx, endpoint, grpcOpts...)
+	return dialContext(ctx, endpoint, grpcOpts...)
 }
 
 func addOCStatsHandler(opts []grpc.DialOption, settings *internal.DialSettings) []grpc.DialOption {
@@ -199,6 +239,13 @@ func addOCStatsHandler(opts []grpc.DialOption, settings *internal.DialSettings) 
 		return opts
 	}
 	return append(opts, grpc.WithStatsHandler(&ocgrpc.ClientHandler{}))
+}
+
+func addOpenTelemetryStatsHandler(opts []grpc.DialOption, settings *internal.DialSettings) []grpc.DialOption {
+	if settings.TelemetryDisabled {
+		return opts
+	}
+	return append(opts, grpc.WithStatsHandler(otelGRPCStatsHandler()))
 }
 
 // grpcTokenSource supplies PerRPCCredentials from an oauth.TokenSource.
@@ -228,7 +275,58 @@ func (ts grpcTokenSource) GetRequestMetadata(ctx context.Context, uri ...string)
 	return metadata, nil
 }
 
-func isTokenSourceDirectPathCompatible(ts oauth2.TokenSource) bool {
+// grpcAPIKey supplies PerRPCCredentials from an API Key.
+type grpcAPIKey struct {
+	apiKey string
+
+	// Additional metadata attached as headers.
+	requestReason string
+}
+
+// GetRequestMetadata gets the request metadata as a map from a grpcAPIKey.
+func (ts grpcAPIKey) GetRequestMetadata(ctx context.Context, uri ...string) (
+	map[string]string, error) {
+	metadata := map[string]string{
+		"X-goog-api-key": ts.apiKey,
+	}
+	if ts.requestReason != "" {
+		metadata["X-goog-request-reason"] = ts.requestReason
+	}
+	return metadata, nil
+}
+
+// RequireTransportSecurity indicates whether the credentials requires transport security.
+func (ts grpcAPIKey) RequireTransportSecurity() bool {
+	return true
+}
+
+func isDirectPathEnabled(endpoint string, o *internal.DialSettings) bool {
+	if !o.EnableDirectPath {
+		return false
+	}
+	if !checkDirectPathEndPoint(endpoint) {
+		return false
+	}
+	if strings.EqualFold(os.Getenv(disableDirectPath), "true") {
+		return false
+	}
+	return true
+}
+
+func isDirectPathXdsUsed(o *internal.DialSettings) bool {
+	// Method 1: Enable DirectPath xDS by env;
+	if strings.EqualFold(os.Getenv(enableDirectPathXds), "true") {
+		return true
+	}
+	// Method 2: Enable DirectPath xDS by option;
+	if o.EnableDirectPathXds {
+		return true
+	}
+	return false
+
+}
+
+func isTokenSourceDirectPathCompatible(ts oauth2.TokenSource, o *internal.DialSettings) bool {
 	if ts == nil {
 		return false
 	}
@@ -238,6 +336,9 @@ func isTokenSourceDirectPathCompatible(ts oauth2.TokenSource) bool {
 	}
 	if tok == nil {
 		return false
+	}
+	if o.AllowNonDefaultServiceAccount {
+		return true
 	}
 	if source, _ := tok.Extra("oauth2.google.tokenSource").(string); source != "compute-metadata" {
 		return false
@@ -264,6 +365,24 @@ func checkDirectPathEndPoint(endpoint string) bool {
 	}
 
 	return true
+}
+
+func logDirectPathMisconfig(endpoint string, ts oauth2.TokenSource, o *internal.DialSettings) {
+	if isDirectPathXdsUsed(o) {
+		// Case 1: does not enable DirectPath
+		if !isDirectPathEnabled(endpoint, o) {
+			log.Println("WARNING: DirectPath is misconfigured. Please set the EnableDirectPath option along with the EnableDirectPathXds option.")
+		} else {
+			// Case 2: credential is not correctly set
+			if !isTokenSourceDirectPathCompatible(ts, o) {
+				log.Println("WARNING: DirectPath is misconfigured. Please make sure the token source is fetched from GCE metadata server and the default service account is used.")
+			}
+			// Case 3: not running on GCE
+			if !metadata.OnGCE() {
+				log.Println("WARNING: DirectPath is misconfigured. DirectPath is only available in a GCE environment.")
+			}
+		}
+	}
 }
 
 func processAndValidateOpts(opts []option.ClientOption) (*internal.DialSettings, error) {

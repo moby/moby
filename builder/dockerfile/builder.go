@@ -8,7 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/log"
+	"github.com/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -21,9 +22,8 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/syncmap"
 )
 
@@ -76,7 +76,7 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 	defer func() {
 		if source != nil {
 			if err := source.Close(); err != nil {
-				logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
+				log.G(ctx).Debugf("[BUILDER] failed to remove temporary context: %v", err)
 			}
 		}
 	}()
@@ -95,7 +95,7 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 	if err != nil {
 		return nil, err
 	}
-	return b.build(source, dockerfile)
+	return b.build(ctx, source, dockerfile)
 }
 
 // builderOptions are the dependencies required by the builder
@@ -117,8 +117,7 @@ type Builder struct {
 	Aux    *streamformatter.AuxFormatter
 	Output io.Writer
 
-	docker    builder.Backend
-	clientCtx context.Context
+	docker builder.Backend
 
 	idMapping        idtools.IdentityMapping
 	disableCommit    bool
@@ -126,18 +125,22 @@ type Builder struct {
 	pathCache        pathCache
 	containerManager *containerManager
 	imageProber      ImageProber
-	platform         *specs.Platform
+	platform         *ocispec.Platform
 }
 
 // newBuilder creates a new Dockerfile builder from an optional dockerfile and a Options.
-func newBuilder(clientCtx context.Context, options builderOptions) (*Builder, error) {
+func newBuilder(ctx context.Context, options builderOptions) (*Builder, error) {
 	config := options.Options
 	if config == nil {
 		config = new(types.ImageBuildOptions)
 	}
 
+	imageProber, err := newImageProber(ctx, options.Backend, config.CacheFrom, config.NoCache)
+	if err != nil {
+		return nil, err
+	}
+
 	b := &Builder{
-		clientCtx:        clientCtx,
 		options:          config,
 		Stdout:           options.ProgressWriter.StdoutFormatter,
 		Stderr:           options.ProgressWriter.StderrFormatter,
@@ -145,9 +148,9 @@ func newBuilder(clientCtx context.Context, options builderOptions) (*Builder, er
 		Output:           options.ProgressWriter.Output,
 		docker:           options.Backend,
 		idMapping:        options.IDMapping,
-		imageSources:     newImageSources(clientCtx, options),
+		imageSources:     newImageSources(options),
 		pathCache:        options.PathCache,
-		imageProber:      newImageProber(options.Backend, config.CacheFrom, config.NoCache),
+		imageProber:      imageProber,
 		containerManager: newContainerManager(options.Backend),
 	}
 
@@ -156,7 +159,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) (*Builder, er
 	if config.Platform != "" {
 		sp, err := platforms.Parse(config.Platform)
 		if err != nil {
-			return nil, err
+			return nil, errdefs.InvalidParameter(err)
 		}
 		b.platform = &sp
 	}
@@ -181,10 +184,10 @@ func buildLabelOptions(labels map[string]string, stages []instructions.Stage) {
 
 // Build runs the Dockerfile builder by parsing the Dockerfile and executing
 // the instructions from the file.
-func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*builder.Result, error) {
+func (b *Builder) build(ctx context.Context, source builder.Source, dockerfile *parser.Result) (*builder.Result, error) {
 	defer b.imageSources.Unmount()
 
-	stages, metaArgs, err := instructions.Parse(dockerfile.AST)
+	stages, metaArgs, err := instructions.Parse(dockerfile.AST, nil)
 	if err != nil {
 		var uiErr *instructions.UnknownInstructionError
 		if errors.As(err, &uiErr) {
@@ -196,7 +199,7 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 		targetIx, found := instructions.HasStage(stages, b.options.Target)
 		if !found {
 			buildsFailed.WithValues(metricsBuildTargetNotReachableError).Inc()
-			return nil, errdefs.InvalidParameter(errors.Errorf("failed to reach build target %s in Dockerfile", b.options.Target))
+			return nil, errdefs.InvalidParameter(errors.Errorf("target stage %q could not be found", b.options.Target))
 		}
 		stages = stages[:targetIx+1]
 	}
@@ -205,7 +208,7 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 	buildLabelOptions(b.options.Labels, stages)
 
 	dockerfile.PrintWarnings(b.Stderr)
-	dispatchState, err := b.dispatchDockerfileWithCancellation(stages, metaArgs, dockerfile.EscapeToken, source)
+	dispatchState, err := b.dispatchDockerfileWithCancellation(ctx, stages, metaArgs, dockerfile.EscapeToken, source)
 	if err != nil {
 		return nil, err
 	}
@@ -225,9 +228,10 @@ func emitImageID(aux *streamformatter.AuxFormatter, state *dispatchState) error 
 
 func processMetaArg(meta instructions.ArgCommand, shlex *shell.Lex, args *BuildArgs) error {
 	// shell.Lex currently only support the concatenated string format
-	envs := convertMapToEnvList(args.GetAllAllowed())
+	envs := shell.EnvsFromSlice(convertMapToEnvList(args.GetAllAllowed()))
 	if err := meta.Expand(func(word string) (string, error) {
-		return shlex.ProcessWord(word, envs)
+		newword, _, err := shlex.ProcessWord(word, envs)
+		return newword, err
 	}); err != nil {
 		return err
 	}
@@ -244,7 +248,7 @@ func printCommand(out io.Writer, currentCommandIndex int, totalCommands int, cmd
 	return currentCommandIndex + 1
 }
 
-func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.Stage, metaArgs []instructions.ArgCommand, escapeToken rune, source builder.Source) (*dispatchState, error) {
+func (b *Builder) dispatchDockerfileWithCancellation(ctx context.Context, parseResult []instructions.Stage, metaArgs []instructions.ArgCommand, escapeToken rune, source builder.Source) (*dispatchState, error) {
 	dispatchRequest := dispatchRequest{}
 	buildArgs := NewBuildArgs(b.options.BuildArgs)
 	totalCommands := len(metaArgs) + len(parseResult)
@@ -272,15 +276,15 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 		dispatchRequest = newDispatchRequest(b, escapeToken, source, buildArgs, stagesResults)
 
 		currentCommandIndex = printCommand(b.Stdout, currentCommandIndex, totalCommands, stage.SourceCode)
-		if err := initializeStage(dispatchRequest, &stage); err != nil {
+		if err := initializeStage(ctx, dispatchRequest, &stage); err != nil {
 			return nil, err
 		}
 		dispatchRequest.state.updateRunConfig()
 		fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(dispatchRequest.state.imageID))
 		for _, cmd := range stage.Commands {
 			select {
-			case <-b.clientCtx.Done():
-				logrus.Debug("Builder: build cancelled!")
+			case <-ctx.Done():
+				log.G(ctx).Debug("Builder: build cancelled!")
 				fmt.Fprint(b.Stdout, "Build cancelled\n")
 				buildsFailed.WithValues(metricsBuildCanceled).Inc()
 				return nil, errors.New("Build cancelled")
@@ -290,12 +294,11 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 
 			currentCommandIndex = printCommand(b.Stdout, currentCommandIndex, totalCommands, cmd)
 
-			if err := dispatch(dispatchRequest, cmd); err != nil {
+			if err := dispatch(ctx, dispatchRequest, cmd); err != nil {
 				return nil, err
 			}
 			dispatchRequest.state.updateRunConfig()
 			fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(dispatchRequest.state.imageID))
-
 		}
 		if err := emitImageID(b.Aux, dispatchRequest.state); err != nil {
 			return nil, err
@@ -318,7 +321,7 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 // coming from the query parameter of the same name.
 //
 // TODO: Remove?
-func BuildFromConfig(config *container.Config, changes []string, os string) (*container.Config, error) {
+func BuildFromConfig(ctx context.Context, config *container.Config, changes []string, os string) (*container.Config, error) {
 	if len(changes) == 0 {
 		return config, nil
 	}
@@ -328,7 +331,7 @@ func BuildFromConfig(config *container.Config, changes []string, os string) (*co
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	b, err := newBuilder(context.Background(), builderOptions{
+	b, err := newBuilder(ctx, builderOptions{
 		Options: &types.ImageBuildOptions{NoCache: true},
 	})
 	if err != nil {
@@ -361,7 +364,7 @@ func BuildFromConfig(config *container.Config, changes []string, os string) (*co
 	dispatchRequest.state.imageID = config.Image
 	dispatchRequest.state.operatingSystem = os
 	for _, cmd := range commands {
-		err := dispatch(dispatchRequest, cmd)
+		err := dispatch(ctx, dispatchRequest, cmd)
 		if err != nil {
 			return nil, errdefs.InvalidParameter(err)
 		}
@@ -376,5 +379,16 @@ func convertMapToEnvList(m map[string]string) []string {
 	for k, v := range m {
 		result = append(result, k+"="+v)
 	}
+	return result
+}
+
+// convertKVStringsToMap converts ["key=value"] to {"key":"value"}
+func convertKVStringsToMap(values []string) map[string]string {
+	result := make(map[string]string, len(values))
+	for _, value := range values {
+		k, v, _ := strings.Cut(value, "=")
+		result[k] = v
+	}
+
 	return result
 }

@@ -12,16 +12,16 @@ import (
 
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestImageHistoryError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImageHistory(context.Background(), "nothing")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	_, err := client.ImageHistory(context.Background(), "nothing", image.HistoryOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestImageHistory(t *testing.T) {
@@ -51,7 +51,7 @@ func TestImageHistory(t *testing.T) {
 			}, nil
 		}),
 	}
-	imageHistories, err := client.ImageHistory(context.Background(), "image_id")
+	imageHistories, err := client.ImageHistory(context.Background(), "image_id", image.HistoryOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

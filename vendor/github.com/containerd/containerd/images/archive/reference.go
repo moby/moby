@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/reference"
-	distref "github.com/containerd/containerd/reference/docker"
+	distref "github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -41,6 +41,9 @@ func AddRefPrefix(image string) func(string) string {
 // a full reference.
 func refTranslator(image string, checkPrefix bool) func(string) string {
 	return func(ref string) string {
+		if image == "" {
+			return ""
+		}
 		// Check if ref is full reference
 		if strings.ContainsAny(ref, "/:@") {
 			// If not prefixed, don't include image

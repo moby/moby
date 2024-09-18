@@ -13,7 +13,7 @@ start_stop_daemon_args="--background \
 
 extra_started_commands="reload"
 
-rc_ulimit="${DOCKER_ULIMIT:--c unlimited -n 1048576 -u unlimited}"
+rc_ulimit="${DOCKER_ULIMIT:--c unlimited -n 524288 -u unlimited}"
 
 retry="${DOCKER_RETRY:-TERM/60/KILL/10}"
 

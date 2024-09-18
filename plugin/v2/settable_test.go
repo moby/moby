@@ -38,7 +38,6 @@ func TestNewSettable(t *testing.T) {
 		if s.value != c.value {
 			t.Fatalf("expected value to be %q, got %q", c.value, s.value)
 		}
-
 	}
 }
 

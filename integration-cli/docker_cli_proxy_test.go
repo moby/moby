@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net"
 	"strings"
 	"testing"
@@ -13,8 +14,8 @@ type DockerCLIProxySuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIProxySuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIProxySuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIProxySuite) OnTimeout(c *testing.T) {

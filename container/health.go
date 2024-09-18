@@ -1,15 +1,16 @@
 package container // import "github.com/docker/docker/container"
 
 import (
+	"context"
 	"sync"
 
-	"github.com/docker/docker/api/types"
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
+	"github.com/docker/docker/api/types/container"
 )
 
 // Health holds the current container health-check state
 type Health struct {
-	types.Health
+	container.Health
 	stop chan struct{} // Write struct{} to stop the monitor
 	mu   sync.Mutex
 }
@@ -19,7 +20,7 @@ func (s *Health) String() string {
 	status := s.Status()
 
 	switch status {
-	case types.Starting:
+	case container.Starting:
 		return "health: starting"
 	default: // Healthy and Unhealthy are clear on their own
 		return status
@@ -35,7 +36,7 @@ func (s *Health) Status() string {
 
 	// This happens when the monitor has yet to be setup.
 	if s.Health.Status == "" {
-		return types.Unhealthy
+		return container.Unhealthy
 	}
 
 	return s.Health.Status
@@ -59,7 +60,7 @@ func (s *Health) OpenMonitorChannel() chan struct{} {
 	defer s.mu.Unlock()
 
 	if s.stop == nil {
-		logrus.Debug("OpenMonitorChannel")
+		log.G(context.TODO()).Debug("OpenMonitorChannel")
 		s.stop = make(chan struct{})
 		return s.stop
 	}
@@ -72,11 +73,11 @@ func (s *Health) CloseMonitorChannel() {
 	defer s.mu.Unlock()
 
 	if s.stop != nil {
-		logrus.Debug("CloseMonitorChannel: waiting for probe to stop")
+		log.G(context.TODO()).Debug("CloseMonitorChannel: waiting for probe to stop")
 		close(s.stop)
 		s.stop = nil
 		// unhealthy when the monitor has stopped for compatibility reasons
-		s.Health.Status = types.Unhealthy
-		logrus.Debug("CloseMonitorChannel done")
+		s.Health.Status = container.Unhealthy
+		log.G(context.TODO()).Debug("CloseMonitorChannel done")
 	}
 }

@@ -1,16 +1,16 @@
 package asm
 
-//go:generate stringer -output jump_string.go -type=JumpOp
+//go:generate go run golang.org/x/tools/cmd/stringer@latest -output jump_string.go -type=JumpOp
 
 // JumpOp affect control flow.
 //
-//    msb      lsb
-//    +----+-+---+
-//    |OP  |s|cls|
-//    +----+-+---+
+//	msb      lsb
+//	+----+-+---+
+//	|OP  |s|cls|
+//	+----+-+---+
 type JumpOp uint8
 
-const jumpMask OpCode = aluMask
+const jumpMask OpCode = 0xf0
 
 const (
 	// InvalidJumpOp is returned by getters when invoked
@@ -60,50 +60,76 @@ func (op JumpOp) Op(source Source) OpCode {
 	return OpCode(JumpClass).SetJumpOp(op).SetSource(source)
 }
 
-// Imm compares dst to value, and adjusts PC by offset if the condition is fulfilled.
+// Imm compares 64 bit dst to 64 bit value (sign extended), and adjusts PC by offset if the condition is fulfilled.
 func (op JumpOp) Imm(dst Register, value int32, label string) Instruction {
-	if op == Exit || op == Call || op == Ja {
-		return Instruction{OpCode: InvalidOpCode}
-	}
-
 	return Instruction{
-		OpCode:    OpCode(JumpClass).SetJumpOp(op).SetSource(ImmSource),
-		Dst:       dst,
-		Offset:    -1,
-		Constant:  int64(value),
-		Reference: label,
-	}
+		OpCode:   op.opCode(JumpClass, ImmSource),
+		Dst:      dst,
+		Offset:   -1,
+		Constant: int64(value),
+	}.WithReference(label)
 }
 
-// Reg compares dst to src, and adjusts PC by offset if the condition is fulfilled.
+// Imm32 compares 32 bit dst to 32 bit value, and adjusts PC by offset if the condition is fulfilled.
+// Requires kernel 5.1.
+func (op JumpOp) Imm32(dst Register, value int32, label string) Instruction {
+	return Instruction{
+		OpCode:   op.opCode(Jump32Class, ImmSource),
+		Dst:      dst,
+		Offset:   -1,
+		Constant: int64(value),
+	}.WithReference(label)
+}
+
+// Reg compares 64 bit dst to 64 bit src, and adjusts PC by offset if the condition is fulfilled.
 func (op JumpOp) Reg(dst, src Register, label string) Instruction {
-	if op == Exit || op == Call || op == Ja {
-		return Instruction{OpCode: InvalidOpCode}
+	return Instruction{
+		OpCode: op.opCode(JumpClass, RegSource),
+		Dst:    dst,
+		Src:    src,
+		Offset: -1,
+	}.WithReference(label)
+}
+
+// Reg32 compares 32 bit dst to 32 bit src, and adjusts PC by offset if the condition is fulfilled.
+// Requires kernel 5.1.
+func (op JumpOp) Reg32(dst, src Register, label string) Instruction {
+	return Instruction{
+		OpCode: op.opCode(Jump32Class, RegSource),
+		Dst:    dst,
+		Src:    src,
+		Offset: -1,
+	}.WithReference(label)
+}
+
+func (op JumpOp) opCode(class Class, source Source) OpCode {
+	if op == Exit || op == Call {
+		return InvalidOpCode
 	}
 
+	return OpCode(class).SetJumpOp(op).SetSource(source)
+}
+
+// LongJump returns a jump always instruction with a range of [-2^31, 2^31 - 1].
+func LongJump(label string) Instruction {
 	return Instruction{
-		OpCode:    OpCode(JumpClass).SetJumpOp(op).SetSource(RegSource),
-		Dst:       dst,
-		Src:       src,
-		Offset:    -1,
-		Reference: label,
-	}
+		OpCode:   Ja.opCode(Jump32Class, ImmSource),
+		Constant: -1,
+	}.WithReference(label)
 }
 
 // Label adjusts PC to the address of the label.
 func (op JumpOp) Label(label string) Instruction {
 	if op == Call {
 		return Instruction{
-			OpCode:    OpCode(JumpClass).SetJumpOp(Call),
-			Src:       PseudoCall,
-			Constant:  -1,
-			Reference: label,
-		}
+			OpCode:   OpCode(JumpClass).SetJumpOp(Call),
+			Src:      PseudoCall,
+			Constant: -1,
+		}.WithReference(label)
 	}
 
 	return Instruction{
-		OpCode:    OpCode(JumpClass).SetJumpOp(op),
-		Offset:    -1,
-		Reference: label,
-	}
+		OpCode: OpCode(JumpClass).SetJumpOp(op),
+		Offset: -1,
+	}.WithReference(label)
 }

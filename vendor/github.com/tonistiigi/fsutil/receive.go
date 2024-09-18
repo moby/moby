@@ -1,10 +1,42 @@
+// send.go and receive.go describe the fsutil file-transfer protocol, which
+// allows transferring file trees across a network connection.
+//
+// The protocol operates as follows:
+// - The client (the receiver) connects to the server (the sender).
+// - The sender walks the target tree lexicographically and sends a series of
+//   STAT packets that describe each file (an empty stat indicates EOF).
+// - The receiver sends a REQ packet for each file it requires the contents for,
+//   using the ID for the file (determined as its index in the STAT sequence).
+// - The sender sends a DATA packet with byte arrays for the contents of the
+//   file, associated with an ID (an empty array indicates EOF).
+// - Once the receiver has received all files it wants, it sends a FIN packet,
+//   and the file transfer is complete.
+// If an error is encountered on either side, an ERR packet is sent containing
+// a human-readable error.
+//
+// All paths transferred over the protocol are normalized to unix-style paths,
+// regardless of which platforms are present on either side. These path
+// conversions are performed right before sending a STAT packet (for the
+// sender) or right after receiving the corresponding STAT packet (for the
+// receiver); this abstraction doesn't leak into the rest of fsutil, which
+// operates on native platform-specific paths.
+//
+// Note that in the case of cross-platform file transfers, the transfer is
+// best-effort. Some filenames that are valid on a unix sender would not be
+// valid on a windows receiver, so these paths are rejected as they are
+// received. Additionally, file metadata, like user/group owners and xattrs do
+// not have an exact correspondence on windows, and so would be discarded by
+// a windows receiver.
+
 package fsutil
 
 import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
+	"syscall"
 
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil/types"
@@ -184,13 +216,24 @@ func (r *receiver) run(ctx context.Context) error {
 					}
 					break
 				}
+
+				// normalize unix wire-specific paths to platform-specific paths
+				path := filepath.FromSlash(p.Stat.Path)
+				if filepath.ToSlash(path) != p.Stat.Path {
+					// e.g. a linux path foo/bar\baz cannot be represented on windows
+					return errors.WithStack(&os.PathError{Path: p.Stat.Path, Err: syscall.EINVAL, Op: "unrepresentable path"})
+				}
+				p.Stat.Path = path
+				p.Stat.Linkname = filepath.FromSlash(p.Stat.Linkname)
+
 				if fileCanRequestData(os.FileMode(p.Stat.Mode)) {
 					r.mu.Lock()
 					r.files[p.Stat.Path] = i
 					r.mu.Unlock()
 				}
 				i++
-				cp := &currentPath{path: p.Stat.Path, stat: p.Stat}
+
+				cp := &currentPath{path: path, stat: p.Stat}
 				if err := r.orderValidator.HandleChange(ChangeKindAdd, cp.path, &StatInfo{cp.stat}, nil); err != nil {
 					return err
 				}

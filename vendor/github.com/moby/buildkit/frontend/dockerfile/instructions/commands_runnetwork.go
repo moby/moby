@@ -4,13 +4,15 @@ import (
 	"github.com/pkg/errors"
 )
 
+type NetworkMode = string
+
 const (
-	NetworkDefault = "default"
-	NetworkNone    = "none"
-	NetworkHost    = "host"
+	NetworkDefault NetworkMode = "default"
+	NetworkNone    NetworkMode = "none"
+	NetworkHost    NetworkMode = "host"
 )
 
-var allowedNetwork = map[string]struct{}{
+var allowedNetwork = map[NetworkMode]struct{}{
 	NetworkDefault: {},
 	NetworkNone:    {},
 	NetworkHost:    {},
@@ -51,7 +53,7 @@ func runNetworkPostHook(cmd *RunCommand, req parseRequest) error {
 	return nil
 }
 
-func GetNetwork(cmd *RunCommand) string {
+func GetNetwork(cmd *RunCommand) NetworkMode {
 	return cmd.getExternalValue(networkKey).(*networkState).networkMode
 }
 

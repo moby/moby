@@ -11,7 +11,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-//go:generate go run mksyscall_windows.go -output zvhd_windows.go vhd.go
+//go:generate go run github.com/Microsoft/go-winio/tools/mkwinsyscall -output zvhd_windows.go vhd.go
 
 //sys createVirtualDisk(virtualStorageType *VirtualStorageType, path string, virtualDiskAccessMask uint32, securityDescriptor *uintptr, createVirtualDiskFlags uint32, providerSpecificFlags uint32, parameters *CreateVirtualDiskParameters, overlapped *syscall.Overlapped, handle *syscall.Handle) (win32err error) = virtdisk.CreateVirtualDisk
 //sys openVirtualDisk(virtualStorageType *VirtualStorageType, path string, virtualDiskAccessMask uint32, openVirtualDiskFlags uint32, parameters *openVirtualDiskParameters, handle *syscall.Handle) (win32err error) = virtdisk.OpenVirtualDisk
@@ -62,8 +62,8 @@ type OpenVirtualDiskParameters struct {
 	Version2 OpenVersion2
 }
 
-// The higher level `OpenVersion2` struct uses bools to refer to `GetInfoOnly` and `ReadOnly` for ease of use. However,
-// the internal windows structure uses `BOOLS` aka int32s for these types. `openVersion2` is used for translating
+// The higher level `OpenVersion2` struct uses `bool`s to refer to `GetInfoOnly` and `ReadOnly` for ease of use. However,
+// the internal windows structure uses `BOOL`s aka int32s for these types. `openVersion2` is used for translating
 // `OpenVersion2` fields to the correct windows internal field types on the `Open____` methods.
 type openVersion2 struct {
 	getInfoOnly    int32
@@ -87,9 +87,10 @@ type AttachVirtualDiskParameters struct {
 }
 
 const (
+	//revive:disable-next-line:var-naming ALL_CAPS
 	VIRTUAL_STORAGE_TYPE_DEVICE_VHDX = 0x3
 
-	// Access Mask for opening a VHD
+	// Access Mask for opening a VHD.
 	VirtualDiskAccessNone     VirtualDiskAccessMask = 0x00000000
 	VirtualDiskAccessAttachRO VirtualDiskAccessMask = 0x00010000
 	VirtualDiskAccessAttachRW VirtualDiskAccessMask = 0x00020000
@@ -101,7 +102,7 @@ const (
 	VirtualDiskAccessAll      VirtualDiskAccessMask = 0x003f0000
 	VirtualDiskAccessWritable VirtualDiskAccessMask = 0x00320000
 
-	// Flags for creating a VHD
+	// Flags for creating a VHD.
 	CreateVirtualDiskFlagNone                              CreateVirtualDiskFlag = 0x0
 	CreateVirtualDiskFlagFullPhysicalAllocation            CreateVirtualDiskFlag = 0x1
 	CreateVirtualDiskFlagPreventWritesToSourceDisk         CreateVirtualDiskFlag = 0x2
@@ -109,12 +110,12 @@ const (
 	CreateVirtualDiskFlagCreateBackingStorage              CreateVirtualDiskFlag = 0x8
 	CreateVirtualDiskFlagUseChangeTrackingSourceLimit      CreateVirtualDiskFlag = 0x10
 	CreateVirtualDiskFlagPreserveParentChangeTrackingState CreateVirtualDiskFlag = 0x20
-	CreateVirtualDiskFlagVhdSetUseOriginalBackingStorage   CreateVirtualDiskFlag = 0x40
+	CreateVirtualDiskFlagVhdSetUseOriginalBackingStorage   CreateVirtualDiskFlag = 0x40 //revive:disable-line:var-naming VHD, not Vhd
 	CreateVirtualDiskFlagSparseFile                        CreateVirtualDiskFlag = 0x80
-	CreateVirtualDiskFlagPmemCompatible                    CreateVirtualDiskFlag = 0x100
+	CreateVirtualDiskFlagPmemCompatible                    CreateVirtualDiskFlag = 0x100 //revive:disable-line:var-naming PMEM, not Pmem
 	CreateVirtualDiskFlagSupportCompressedVolumes          CreateVirtualDiskFlag = 0x200
 
-	// Flags for opening a VHD
+	// Flags for opening a VHD.
 	OpenVirtualDiskFlagNone                        VirtualDiskFlag = 0x00000000
 	OpenVirtualDiskFlagNoParents                   VirtualDiskFlag = 0x00000001
 	OpenVirtualDiskFlagBlankFile                   VirtualDiskFlag = 0x00000002
@@ -127,7 +128,7 @@ const (
 	OpenVirtualDiskFlagNoWriteHardening            VirtualDiskFlag = 0x00000100
 	OpenVirtualDiskFlagSupportCompressedVolumes    VirtualDiskFlag = 0x00000200
 
-	// Flags for attaching a VHD
+	// Flags for attaching a VHD.
 	AttachVirtualDiskFlagNone                          AttachVirtualDiskFlag = 0x00000000
 	AttachVirtualDiskFlagReadOnly                      AttachVirtualDiskFlag = 0x00000001
 	AttachVirtualDiskFlagNoDriveLetter                 AttachVirtualDiskFlag = 0x00000002
@@ -140,12 +141,14 @@ const (
 	AttachVirtualDiskFlagSinglePartition               AttachVirtualDiskFlag = 0x00000100
 	AttachVirtualDiskFlagRegisterVolume                AttachVirtualDiskFlag = 0x00000200
 
-	// Flags for detaching a VHD
+	// Flags for detaching a VHD.
 	DetachVirtualDiskFlagNone DetachVirtualDiskFlag = 0x0
 )
 
 // CreateVhdx is a helper function to create a simple vhdx file at the given path using
 // default values.
+//
+//revive:disable-next-line:var-naming VHDX, not Vhdx
 func CreateVhdx(path string, maxSizeInGb, blockSizeInMb uint32) error {
 	params := CreateVirtualDiskParameters{
 		Version: 2,
@@ -172,6 +175,8 @@ func DetachVirtualDisk(handle syscall.Handle) (err error) {
 }
 
 // DetachVhd detaches a vhd found at `path`.
+//
+//revive:disable-next-line:var-naming VHD, not Vhd
 func DetachVhd(path string) error {
 	handle, err := OpenVirtualDisk(
 		path,
@@ -181,12 +186,16 @@ func DetachVhd(path string) error {
 	if err != nil {
 		return err
 	}
-	defer syscall.CloseHandle(handle)
+	defer syscall.CloseHandle(handle) //nolint:errcheck
 	return DetachVirtualDisk(handle)
 }
 
 // AttachVirtualDisk attaches a virtual hard disk for use.
-func AttachVirtualDisk(handle syscall.Handle, attachVirtualDiskFlag AttachVirtualDiskFlag, parameters *AttachVirtualDiskParameters) (err error) {
+func AttachVirtualDisk(
+	handle syscall.Handle,
+	attachVirtualDiskFlag AttachVirtualDiskFlag,
+	parameters *AttachVirtualDiskParameters,
+) (err error) {
 	// Supports both version 1 and 2 of the attach parameters as version 2 wasn't present in RS5.
 	if err := attachVirtualDisk(
 		handle,
@@ -203,6 +212,8 @@ func AttachVirtualDisk(handle syscall.Handle, attachVirtualDiskFlag AttachVirtua
 
 // AttachVhd attaches a virtual hard disk at `path` for use. Attaches using version 2
 // of the ATTACH_VIRTUAL_DISK_PARAMETERS.
+//
+//revive:disable-next-line:var-naming VHD, not Vhd
 func AttachVhd(path string) (err error) {
 	handle, err := OpenVirtualDisk(
 		path,
@@ -213,7 +224,7 @@ func AttachVhd(path string) (err error) {
 		return err
 	}
 
-	defer syscall.CloseHandle(handle)
+	defer syscall.CloseHandle(handle) //nolint:errcheck
 	params := AttachVirtualDiskParameters{Version: 2}
 	if err := AttachVirtualDisk(
 		handle,
@@ -226,7 +237,11 @@ func AttachVhd(path string) (err error) {
 }
 
 // OpenVirtualDisk obtains a handle to a VHD opened with supplied access mask and flags.
-func OpenVirtualDisk(vhdPath string, virtualDiskAccessMask VirtualDiskAccessMask, openVirtualDiskFlags VirtualDiskFlag) (syscall.Handle, error) {
+func OpenVirtualDisk(
+	vhdPath string,
+	virtualDiskAccessMask VirtualDiskAccessMask,
+	openVirtualDiskFlags VirtualDiskFlag,
+) (syscall.Handle, error) {
 	parameters := OpenVirtualDiskParameters{Version: 2}
 	handle, err := OpenVirtualDiskWithParameters(
 		vhdPath,
@@ -241,7 +256,12 @@ func OpenVirtualDisk(vhdPath string, virtualDiskAccessMask VirtualDiskAccessMask
 }
 
 // OpenVirtualDiskWithParameters obtains a handle to a VHD opened with supplied access mask, flags and parameters.
-func OpenVirtualDiskWithParameters(vhdPath string, virtualDiskAccessMask VirtualDiskAccessMask, openVirtualDiskFlags VirtualDiskFlag, parameters *OpenVirtualDiskParameters) (syscall.Handle, error) {
+func OpenVirtualDiskWithParameters(
+	vhdPath string,
+	virtualDiskAccessMask VirtualDiskAccessMask,
+	openVirtualDiskFlags VirtualDiskFlag,
+	parameters *OpenVirtualDiskParameters,
+) (syscall.Handle, error) {
 	var (
 		handle      syscall.Handle
 		defaultType VirtualStorageType
@@ -279,7 +299,12 @@ func OpenVirtualDiskWithParameters(vhdPath string, virtualDiskAccessMask Virtual
 }
 
 // CreateVirtualDisk creates a virtual harddisk and returns a handle to the disk.
-func CreateVirtualDisk(path string, virtualDiskAccessMask VirtualDiskAccessMask, createVirtualDiskFlags CreateVirtualDiskFlag, parameters *CreateVirtualDiskParameters) (syscall.Handle, error) {
+func CreateVirtualDisk(
+	path string,
+	virtualDiskAccessMask VirtualDiskAccessMask,
+	createVirtualDiskFlags CreateVirtualDiskFlag,
+	parameters *CreateVirtualDiskParameters,
+) (syscall.Handle, error) {
 	var (
 		handle      syscall.Handle
 		defaultType VirtualStorageType
@@ -323,6 +348,8 @@ func GetVirtualDiskPhysicalPath(handle syscall.Handle) (_ string, err error) {
 }
 
 // CreateDiffVhd is a helper function to create a differencing virtual disk.
+//
+//revive:disable-next-line:var-naming VHD, not Vhd
 func CreateDiffVhd(diffVhdPath, baseVhdPath string, blockSizeInMB uint32) error {
 	// Setting `ParentPath` is how to signal to create a differencing disk.
 	createParams := &CreateVirtualDiskParameters{

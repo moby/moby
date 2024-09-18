@@ -3,7 +3,7 @@ package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
 import (
 	"os"
 
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/pkg/process"
 )
 
 const (
@@ -11,13 +11,12 @@ const (
 	debugPipeName = `\\.\pipe\containerd-debug`
 )
 
-func (r *remote) setDefaults() {
-	if r.GRPC.Address == "" {
-		r.GRPC.Address = grpcPipeName
-	}
-	if r.Debug.Address == "" {
-		r.Debug.Address = debugPipeName
-	}
+func defaultGRPCAddress(stateDir string) string {
+	return grpcPipeName
+}
+
+func defaultDebugAddress(stateDir string) string {
+	return debugPipeName
 }
 
 func (r *remote) stopDaemon() {
@@ -40,7 +39,7 @@ func (r *remote) stopDaemon() {
 }
 
 func (r *remote) killDaemon() {
-	system.KillProcess(r.daemonPid)
+	_ = process.Kill(r.daemonPid)
 }
 
 func (r *remote) platformCleanup() {

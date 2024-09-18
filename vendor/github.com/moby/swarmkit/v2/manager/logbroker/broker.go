@@ -14,7 +14,6 @@ import (
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/state/store"
 	"github.com/moby/swarmkit/v2/watch"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -239,13 +238,13 @@ func (lb *LogBroker) SubscribeLogs(request *api.SubscribeLogsRequest, stream api
 	subscription.Run(pctx)
 	defer subscription.Stop()
 
-	log := log.G(ctx).WithFields(
-		logrus.Fields{
+	logger := log.G(ctx).WithFields(
+		log.Fields{
 			"method":          "(*LogBroker).SubscribeLogs",
 			"subscription.id": subscription.message.ID,
 		},
 	)
-	log.Debug("subscribed")
+	logger.Debug("subscribed")
 
 	publishCh, publishCancel := lb.subscribe(subscription.message.ID)
 	defer publishCancel()
@@ -319,8 +318,8 @@ func (lb *LogBroker) ListenSubscriptions(request *api.ListenSubscriptionsRequest
 	lb.nodeConnected(remote.NodeID)
 	defer lb.nodeDisconnected(remote.NodeID)
 
-	log := log.G(stream.Context()).WithFields(
-		logrus.Fields{
+	logger := log.G(stream.Context()).WithFields(
+		log.Fields{
 			"method": "(*LogBroker).ListenSubscriptions",
 			"node":   remote.NodeID,
 		},
@@ -328,7 +327,7 @@ func (lb *LogBroker) ListenSubscriptions(request *api.ListenSubscriptionsRequest
 	subscriptions, subscriptionCh, subscriptionCancel := lb.watchSubscriptions(remote.NodeID)
 	defer subscriptionCancel()
 
-	log.Debug("node registered")
+	logger.Debug("node registered")
 
 	activeSubscriptions := make(map[string]*subscription)
 
@@ -343,7 +342,7 @@ func (lb *LogBroker) ListenSubscriptions(request *api.ListenSubscriptionsRequest
 		}
 
 		if err := stream.Send(subscription.message); err != nil {
-			log.Error(err)
+			logger.Error(err)
 			return err
 		}
 		activeSubscriptions[subscription.message.ID] = subscription
@@ -365,7 +364,7 @@ func (lb *LogBroker) ListenSubscriptions(request *api.ListenSubscriptionsRequest
 				activeSubscriptions[subscription.message.ID] = subscription
 			}
 			if err := stream.Send(subscription.message); err != nil {
-				log.Error(err)
+				logger.Error(err)
 				return err
 			}
 		case <-stream.Context().Done():

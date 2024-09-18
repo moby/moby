@@ -1,35 +1,48 @@
 // Copyright 2015 Tim Heckman. All rights reserved.
+// Copyright 2018-2024 The Gofrs. All rights reserved.
 // Use of this source code is governed by the BSD 3-Clause
 // license that can be found in the LICENSE file.
+
+//go:build windows
 
 package flock
 
 import (
-	"syscall"
+	"errors"
+
+	"golang.org/x/sys/windows"
 )
 
-// ErrorLockViolation is the error code returned from the Windows syscall when a
-// lock would block and you ask to fail immediately.
-const ErrorLockViolation syscall.Errno = 0x21 // 33
-
-// Lock is a blocking call to try and take an exclusive file lock. It will wait
-// until it is able to obtain the exclusive file lock. It's recommended that
-// TryLock() be used over this function. This function may block the ability to
-// query the current Locked() or RLocked() status due to a RW-mutex lock.
+// Use of 0x00000000 for the shared lock is a guess based on some the MS Windows `LockFileEX` docs,
+// which document the `LOCKFILE_EXCLUSIVE_LOCK` flag as:
 //
-// If we are already locked, this function short-circuits and returns
-// immediately assuming it can take the mutex lock.
+// > The function requests an exclusive lock. Otherwise, it requests a shared lock.
+//
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa365203(v=vs.85).aspx
+const winLockfileSharedLock = 0x00000000
+
+// ErrorLockViolation is the error code returned from the Windows syscall when a lock would block,
+// and you ask to fail immediately.
+const ErrorLockViolation windows.Errno = 0x21 // 33
+
+// Lock is a blocking call to try and take an exclusive file lock.
+// It will wait until it is able to obtain the exclusive file lock.
+// It's recommended that TryLock() be used over this function.
+// This function may block the ability to query the current Locked() or RLocked() status due to a RW-mutex lock.
+//
+// If we are already locked, this function short-circuits and
+// returns immediately assuming it can take the mutex lock.
 func (f *Flock) Lock() error {
-	return f.lock(&f.l, winLockfileExclusiveLock)
+	return f.lock(&f.l, windows.LOCKFILE_EXCLUSIVE_LOCK)
 }
 
-// RLock is a blocking call to try and take a shared file lock. It will wait
-// until it is able to obtain the shared file lock. It's recommended that
-// TryRLock() be used over this function. This function may block the ability to
-// query the current Locked() or RLocked() status due to a RW-mutex lock.
+// RLock is a blocking call to try and take a shared file lock.
+// It will wait until it is able to obtain the shared file lock.
+// It's recommended that TryRLock() be used over this function.
+// This function may block the ability to query the current Locked() or RLocked() status due to a RW-mutex lock.
 //
-// If we are already locked, this function short-circuits and returns
-// immediately assuming it can take the mutex lock.
+// If we are already locked, this function short-circuits and
+// returns immediately assuming it can take the mutex lock.
 func (f *Flock) RLock() error {
 	return f.lock(&f.r, winLockfileSharedLock)
 }
@@ -43,26 +56,31 @@ func (f *Flock) lock(locked *bool, flag uint32) error {
 	}
 
 	if f.fh == nil {
-		if err := f.setFh(); err != nil {
+		if err := f.setFh(f.flag); err != nil {
 			return err
 		}
+
 		defer f.ensureFhState()
 	}
 
-	if _, errNo := lockFileEx(syscall.Handle(f.fh.Fd()), flag, 0, 1, 0, &syscall.Overlapped{}); errNo > 0 {
-		return errNo
+	err := windows.LockFileEx(windows.Handle(f.fh.Fd()), flag, 0, 1, 0, &windows.Overlapped{})
+	if err != nil && !errors.Is(err, windows.Errno(0)) {
+		return err
 	}
 
 	*locked = true
+
 	return nil
 }
 
-// Unlock is a function to unlock the file. This file takes a RW-mutex lock, so
-// while it is running the Locked() and RLocked() functions will be blocked.
+// Unlock is a function to unlock the file.
+// This file takes a RW-mutex lock,
+// so while it is running the Locked() and RLocked() functions will be blocked.
 //
-// This function short-circuits if we are unlocked already. If not, it calls
-// UnlockFileEx() on the file and closes the file descriptor. It does not remove
-// the file from disk. It's up to your application to do.
+// This function short-circuits if we are unlocked already.
+// If not, it calls UnlockFileEx() on the file and closes the file descriptor.
+// It does not remove the file from disk.
+// It's up to your application to do.
 func (f *Flock) Unlock() error {
 	f.m.Lock()
 	defer f.m.Unlock()
@@ -74,39 +92,37 @@ func (f *Flock) Unlock() error {
 	}
 
 	// mark the file as unlocked
-	if _, errNo := unlockFileEx(syscall.Handle(f.fh.Fd()), 0, 1, 0, &syscall.Overlapped{}); errNo > 0 {
-		return errNo
+	err := windows.UnlockFileEx(windows.Handle(f.fh.Fd()), 0, 1, 0, &windows.Overlapped{})
+	if err != nil && !errors.Is(err, windows.Errno(0)) {
+		return err
 	}
 
-	f.fh.Close()
-
-	f.l = false
-	f.r = false
-	f.fh = nil
+	f.reset()
 
 	return nil
 }
 
-// TryLock is the preferred function for taking an exclusive file lock. This
-// function does take a RW-mutex lock before it tries to lock the file, so there
-// is the possibility that this function may block for a short time if another
-// goroutine is trying to take any action.
+// TryLock is the preferred function for taking an exclusive file lock.
+// This function does take a RW-mutex lock before it tries to lock the file,
+// so there is the possibility that this function may block for a short time
+// if another goroutine is trying to take any action.
 //
-// The actual file lock is non-blocking. If we are unable to get the exclusive
-// file lock, the function will return false instead of waiting for the lock. If
-// we get the lock, we also set the *Flock instance as being exclusive-locked.
+// The actual file lock is non-blocking.
+// If we are unable to get the exclusive file lock,
+// the function will return false instead of waiting for the lock.
+// If we get the lock, we also set the *Flock instance as being exclusive-locked.
 func (f *Flock) TryLock() (bool, error) {
-	return f.try(&f.l, winLockfileExclusiveLock)
+	return f.try(&f.l, windows.LOCKFILE_EXCLUSIVE_LOCK)
 }
 
-// TryRLock is the preferred function for taking a shared file lock. This
-// function does take a RW-mutex lock before it tries to lock the file, so there
-// is the possibility that this function may block for a short time if another
-// goroutine is trying to take any action.
+// TryRLock is the preferred function for taking a shared file lock.
+// This function does take a RW-mutex lock before it tries to lock the file,
+// so there is the possibility that this function may block for a short time if another goroutine is trying to take any action.
 //
-// The actual file lock is non-blocking. If we are unable to get the shared file
-// lock, the function will return false instead of waiting for the lock. If we
-// get the lock, we also set the *Flock instance as being shared-locked.
+// The actual file lock is non-blocking.
+// If we are unable to get the shared file lock,
+// the function will return false instead of waiting for the lock.
+// If we get the lock, we also set the *Flock instance as being shared-locked.
 func (f *Flock) TryRLock() (bool, error) {
 	return f.try(&f.r, winLockfileSharedLock)
 }
@@ -120,20 +136,20 @@ func (f *Flock) try(locked *bool, flag uint32) (bool, error) {
 	}
 
 	if f.fh == nil {
-		if err := f.setFh(); err != nil {
+		if err := f.setFh(f.flag); err != nil {
 			return false, err
 		}
+
 		defer f.ensureFhState()
 	}
 
-	_, errNo := lockFileEx(syscall.Handle(f.fh.Fd()), flag|winLockfileFailImmediately, 0, 1, 0, &syscall.Overlapped{})
-
-	if errNo > 0 {
-		if errNo == ErrorLockViolation || errNo == syscall.ERROR_IO_PENDING {
+	err := windows.LockFileEx(windows.Handle(f.fh.Fd()), flag|windows.LOCKFILE_FAIL_IMMEDIATELY, 0, 1, 0, &windows.Overlapped{})
+	if err != nil && !errors.Is(err, windows.Errno(0)) {
+		if errors.Is(err, ErrorLockViolation) || errors.Is(err, windows.ERROR_IO_PENDING) {
 			return false, nil
 		}
 
-		return false, errNo
+		return false, err
 	}
 
 	*locked = true

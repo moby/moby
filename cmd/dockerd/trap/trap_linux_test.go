@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package trap // import "github.com/docker/docker/cmd/dockerd/trap"
 
@@ -27,13 +26,12 @@ func buildTestBinary(t *testing.T, tmpdir string, prefix string) (string, string
 }
 
 func TestTrap(t *testing.T) {
-	var sigmap = []struct {
+	sigmap := []struct {
 		name     string
 		signal   os.Signal
 		multiple bool
 	}{
 		{"TERM", syscall.SIGTERM, false},
-		{"QUIT", syscall.SIGQUIT, true},
 		{"INT", os.Interrupt, false},
 		{"TERM", syscall.SIGTERM, true},
 		{"INT", os.Interrupt, true},
@@ -62,5 +60,4 @@ func TestTrap(t *testing.T) {
 			}
 		})
 	}
-
 }

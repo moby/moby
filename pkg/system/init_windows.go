@@ -1,9 +1,7 @@
 package system // import "github.com/docker/docker/pkg/system"
 
-var (
-	// containerdRuntimeSupported determines if containerd should be the runtime.
-	containerdRuntimeSupported = false
-)
+// containerdRuntimeSupported determines if containerd should be the runtime.
+var containerdRuntimeSupported = false
 
 // InitContainerdRuntime sets whether to use containerd for runtime on Windows.
 func InitContainerdRuntime(cdPath string) {

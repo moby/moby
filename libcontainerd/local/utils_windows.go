@@ -7,9 +7,8 @@ import "strings"
 func setupEnvironmentVariables(a []string) map[string]string {
 	r := make(map[string]string)
 	for _, s := range a {
-		arr := strings.SplitN(s, "=", 2)
-		if len(arr) == 2 {
-			r[arr[0]] = arr[1]
+		if k, v, ok := strings.Cut(s, "="); ok {
+			r[k] = v
 		}
 	}
 	return r

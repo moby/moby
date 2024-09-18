@@ -10,7 +10,6 @@ import (
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/protobuf/ptypes"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // Controller controls execution of a task.
@@ -348,11 +347,10 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 
 func logStateChange(ctx context.Context, desired, previous, next api.TaskState) {
 	if previous != next {
-		fields := logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"state.transition": fmt.Sprintf("%v->%v", previous, next),
 			"state.desired":    desired,
-		}
-		log.G(ctx).WithFields(fields).Debug("state changed")
+		}).Debug("state changed")
 	}
 }
 

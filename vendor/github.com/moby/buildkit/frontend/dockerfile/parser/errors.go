@@ -7,7 +7,7 @@ import (
 
 // ErrorLocation gives a location in source code that caused the error
 type ErrorLocation struct {
-	Location []Range
+	Locations [][]Range
 	error
 }
 
@@ -39,11 +39,12 @@ func WithLocation(err error, location []Range) error {
 	}
 	var el *ErrorLocation
 	if errors.As(err, &el) {
+		el.Locations = append(el.Locations, location)
 		return err
 	}
 	return stack.Enable(&ErrorLocation{
-		error:    err,
-		Location: location,
+		error:     err,
+		Locations: [][]Range{location},
 	})
 }
 

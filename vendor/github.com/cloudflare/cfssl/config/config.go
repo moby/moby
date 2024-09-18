@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -19,6 +19,9 @@ import (
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/log"
 	ocspConfig "github.com/cloudflare/cfssl/ocsp/config"
+	// empty import of zlint/v3 required to have lints registered.
+	_ "github.com/zmap/zlint/v3"
+	"github.com/zmap/zlint/v3/lint"
 )
 
 // A CSRWhitelist stores booleans for fields in the CSR. If a CSRWhitelist is
@@ -32,7 +35,7 @@ import (
 // mechanism.
 type CSRWhitelist struct {
 	Subject, PublicKeyAlgorithm, PublicKey, SignatureAlgorithm bool
-	DNSNames, IPAddresses, EmailAddresses                      bool
+	DNSNames, IPAddresses, EmailAddresses, URIs                bool
 }
 
 // OID is our own version of asn1's ObjectIdentifier, so we can define a custom
@@ -81,6 +84,8 @@ type SigningProfile struct {
 	ExpiryString        string       `json:"expiry"`
 	BackdateString      string       `json:"backdate"`
 	AuthKeyName         string       `json:"auth_key"`
+	CopyExtensions      bool         `json:"copy_extensions"`
+	PrevAuthKeyName     string       `json:"prev_auth_key"` // to support key rotation
 	RemoteName          string       `json:"remote"`
 	NotBefore           time.Time    `json:"not_before"`
 	NotAfter            time.Time    `json:"not_after"`
@@ -89,11 +94,26 @@ type SigningProfile struct {
 	CTLogServers        []string     `json:"ct_log_servers"`
 	AllowedExtensions   []OID        `json:"allowed_extensions"`
 	CertStore           string       `json:"cert_store"`
+	// LintErrLevel controls preissuance linting for the signing profile.
+	// 0 = no linting is performed [default]
+	// 2..3 = reserved
+	// 3 = all lint results except pass are considered errors
+	// 4 = all lint results except pass and notice are considered errors
+	// 5 = all lint results except pass, notice and warn are considered errors
+	// 6 = all lint results except pass, notice, warn and error are considered errors.
+	// 7 = lint is performed, no lint results are treated as errors.
+	LintErrLevel lint.LintStatus `json:"lint_error_level"`
+	// ExcludeLints lists ZLint lint names to exclude from preissuance linting.
+	ExcludeLints []string `json:"ignored_lints"`
+	// ExcludeLintSources lists ZLint lint sources to exclude from preissuance
+	// linting.
+	ExcludeLintSources []string `json:"ignored_lint_sources"`
 
 	Policies                    []CertificatePolicy
 	Expiry                      time.Duration
 	Backdate                    time.Duration
 	Provider                    auth.Provider
+	PrevProvider                auth.Provider // to suppport key rotation
 	RemoteProvider              auth.Provider
 	RemoteServer                string
 	RemoteCAs                   *x509.CertPool
@@ -102,6 +122,11 @@ type SigningProfile struct {
 	NameWhitelist               *regexp.Regexp
 	ExtensionWhitelist          map[string]bool
 	ClientProvidesSerialNumbers bool
+	// LintRegistry is the collection of lints that should be used if
+	// LintErrLevel is configured. By default all ZLint lints are used. If
+	// ExcludeLints or ExcludeLintSources are set then this registry will be
+	// filtered in populate() to exclude the named lints and lint sources.
+	LintRegistry lint.Registry
 }
 
 // UnmarshalJSON unmarshals a JSON string into an OID.
@@ -229,7 +254,7 @@ func (p *SigningProfile) populate(cfg *Config) error {
 
 	if p.AuthKeyName != "" {
 		log.Debug("match auth key in profile to auth_keys section")
-		if key, ok := cfg.AuthKeys[p.AuthKeyName]; ok == true {
+		if key, ok := cfg.AuthKeys[p.AuthKeyName]; ok {
 			if key.Type == "standard" {
 				p.Provider, err = auth.New(key.Key, nil)
 				if err != nil {
@@ -245,6 +270,27 @@ func (p *SigningProfile) populate(cfg *Config) error {
 		} else {
 			return cferr.Wrap(cferr.PolicyError, cferr.InvalidPolicy,
 				errors.New("failed to find auth_key in auth_keys section"))
+		}
+	}
+
+	if p.PrevAuthKeyName != "" {
+		log.Debug("match previous auth key in profile to auth_keys section")
+		if key, ok := cfg.AuthKeys[p.PrevAuthKeyName]; ok {
+			if key.Type == "standard" {
+				p.PrevProvider, err = auth.New(key.Key, nil)
+				if err != nil {
+					log.Debugf("failed to create new standard auth provider: %v", err)
+					return cferr.Wrap(cferr.PolicyError, cferr.InvalidPolicy,
+						errors.New("failed to create new standard auth provider"))
+				}
+			} else {
+				log.Debugf("unknown authentication type %v", key.Type)
+				return cferr.Wrap(cferr.PolicyError, cferr.InvalidPolicy,
+					errors.New("unknown authentication type"))
+			}
+		} else {
+			return cferr.Wrap(cferr.PolicyError, cferr.InvalidPolicy,
+				errors.New("failed to find prev_auth_key in auth_keys section"))
 		}
 	}
 
@@ -282,6 +328,40 @@ func (p *SigningProfile) populate(cfg *Config) error {
 	p.ExtensionWhitelist = map[string]bool{}
 	for _, oid := range p.AllowedExtensions {
 		p.ExtensionWhitelist[asn1.ObjectIdentifier(oid).String()] = true
+	}
+
+	// By default perform any required preissuance linting with all ZLint lints.
+	p.LintRegistry = lint.GlobalRegistry()
+
+	// If ExcludeLintSources are present in config build a lint.SourceList while
+	// validating that no unknown sources were specified.
+	var excludedSources lint.SourceList
+	if len(p.ExcludeLintSources) > 0 {
+		for _, sourceName := range p.ExcludeLintSources {
+			var lintSource lint.LintSource
+			lintSource.FromString(sourceName)
+			if lintSource == lint.UnknownLintSource {
+				return cferr.Wrap(cferr.PolicyError, cferr.InvalidPolicy,
+					fmt.Errorf("failed to build excluded lint source list: unknown source %q",
+						sourceName))
+			}
+			excludedSources = append(excludedSources, lintSource)
+		}
+	}
+
+	opts := lint.FilterOptions{
+		ExcludeNames:   p.ExcludeLints,
+		ExcludeSources: excludedSources,
+	}
+	if !opts.Empty() {
+		// If ExcludeLints or ExcludeLintSources were not empty then filter out the
+		// lints we don't want to use for preissuance linting with this profile.
+		filteredRegistry, err := p.LintRegistry.Filter(opts)
+		if err != nil {
+			return cferr.Wrap(cferr.PolicyError, cferr.InvalidPolicy,
+				fmt.Errorf("failed to build filtered lint registry: %v", err))
+		}
+		p.LintRegistry = filteredRegistry
 	}
 
 	return nil
@@ -404,7 +484,8 @@ func (p *SigningProfile) Usages() (ku x509.KeyUsage, eku []x509.ExtKeyUsage, unk
 // valid local default profile has defined at least a default expiration.
 // A valid remote profile (default or not) has remote signer initialized.
 // In addition, a remote profile must has a valid auth provider if auth
-// key defined.
+// key defined. A valid profile must not include a lint_error_level outside of
+// [0,8).
 func (p *SigningProfile) validProfile(isDefault bool) bool {
 	if p == nil {
 		return false
@@ -459,6 +540,11 @@ func (p *SigningProfile) validProfile(isDefault bool) bool {
 				return false
 			}
 		}
+	}
+
+	if p.LintErrLevel < 0 || p.LintErrLevel >= 8 {
+		log.Debugf("invalid profile: lint_error_level outside of range [0,8)")
+		return false
 	}
 
 	log.Debugf("profile is valid")
@@ -613,7 +699,7 @@ func LoadFile(path string) (*Config, error) {
 		return nil, cferr.Wrap(cferr.PolicyError, cferr.InvalidPolicy, errors.New("invalid path"))
 	}
 
-	body, err := ioutil.ReadFile(path)
+	body, err := os.ReadFile(path)
 	if err != nil {
 		return nil, cferr.Wrap(cferr.PolicyError, cferr.InvalidPolicy, errors.New("could not read configuration file"))
 	}

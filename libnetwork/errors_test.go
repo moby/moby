@@ -7,45 +7,39 @@ import (
 )
 
 func TestErrorInterfaces(t *testing.T) {
-
-	badRequestErrorList := []error{ErrInvalidID(""), ErrInvalidName(""), ErrInvalidJoin{}, ErrInvalidNetworkDriver(""), InvalidContainerIDError(""), ErrNoSuchNetwork(""), ErrNoSuchEndpoint("")}
+	badRequestErrorList := []error{ErrInvalidID(""), ErrInvalidName("")}
 	for _, err := range badRequestErrorList {
 		switch u := err.(type) {
-		case types.BadRequestError:
-			return
+		case types.InvalidParameterError:
 		default:
-			t.Fatalf("Failed to detect err %v is of type BadRequestError. Got type: %T", err, u)
+			t.Errorf("Failed to detect err %v is of type InvalidParameterError. Got type: %T", err, u)
 		}
 	}
 
-	maskableErrorList := []error{ErrNoContainer{}}
+	maskableErrorList := []error{ManagerRedirectError("")}
 	for _, err := range maskableErrorList {
 		switch u := err.(type) {
 		case types.MaskableError:
-			return
 		default:
-			t.Fatalf("Failed to detect err %v is of type MaskableError. Got type: %T", err, u)
+			t.Errorf("Failed to detect err %v is of type MaskableError. Got type: %T", err, u)
 		}
 	}
 
-	notFoundErrorList := []error{NetworkTypeError(""), &UnknownNetworkError{}, &UnknownEndpointError{}}
+	notFoundErrorList := []error{&UnknownNetworkError{}, ErrNoSuchNetwork(""), ErrNoSuchEndpoint("")}
 	for _, err := range notFoundErrorList {
 		switch u := err.(type) {
 		case types.NotFoundError:
-			return
 		default:
-			t.Fatalf("Failed to detect err %v is of type NotFoundError. Got type: %T", err, u)
+			t.Errorf("Failed to detect err %v is of type NotFoundError. Got type: %T", err, u)
 		}
 	}
 
-	forbiddenErrorList := []error{NetworkTypeError(""), &UnknownNetworkError{}, &UnknownEndpointError{}}
+	forbiddenErrorList := []error{&ActiveContainerError{}}
 	for _, err := range forbiddenErrorList {
 		switch u := err.(type) {
 		case types.ForbiddenError:
-			return
 		default:
-			t.Fatalf("Failed to detect err %v is of type ForbiddenError. Got type: %T", err, u)
+			t.Errorf("Failed to detect err %v is of type ForbiddenError. Got type: %T", err, u)
 		}
 	}
-
 }

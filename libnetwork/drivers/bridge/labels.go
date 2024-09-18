@@ -7,6 +7,11 @@ const (
 	// EnableIPMasquerade label for bridge driver
 	EnableIPMasquerade = "com.docker.network.bridge.enable_ip_masquerade"
 
+	// IPv4GatewayMode label for bridge driver
+	IPv4GatewayMode = "com.docker.network.bridge.gateway_mode_ipv4"
+	// IPv6GatewayMode label for bridge driver
+	IPv6GatewayMode = "com.docker.network.bridge.gateway_mode_ipv6"
+
 	// EnableICC label
 	EnableICC = "com.docker.network.bridge.enable_icc"
 

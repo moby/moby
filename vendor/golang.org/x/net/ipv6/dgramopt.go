@@ -245,7 +245,7 @@ func (c *dgramOpt) Checksum() (on bool, offset int, err error) {
 	return true, offset, nil
 }
 
-// SetChecksum enables the kernel checksum processing. If on is ture,
+// SetChecksum enables the kernel checksum processing. If on is true,
 // the offset should be an offset in bytes into the data of where the
 // checksum field is located.
 func (c *dgramOpt) SetChecksum(on bool, offset int) error {

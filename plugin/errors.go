@@ -26,21 +26,6 @@ func (name errDisabled) Error() string {
 
 func (name errDisabled) Conflict() {}
 
-type invalidFilter struct {
-	filter string
-	value  []string
-}
-
-func (e invalidFilter) Error() string {
-	msg := "invalid filter '" + e.filter
-	if len(e.value) > 0 {
-		msg += fmt.Sprintf("=%s", e.value)
-	}
-	return msg + "'"
-}
-
-func (invalidFilter) InvalidParameter() {}
-
 type inUseError string
 
 func (e inUseError) Error() string {

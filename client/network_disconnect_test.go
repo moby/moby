@@ -10,8 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestNetworkDisconnectError(t *testing.T) {
@@ -20,9 +22,7 @@ func TestNetworkDisconnectError(t *testing.T) {
 	}
 
 	err := client.NetworkDisconnect(context.Background(), "network_id", "container_id", false)
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestNetworkDisconnect(t *testing.T) {
@@ -38,7 +38,7 @@ func TestNetworkDisconnect(t *testing.T) {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
 
-			var disconnect types.NetworkDisconnect
+			var disconnect network.DisconnectOptions
 			if err := json.NewDecoder(req.Body).Decode(&disconnect); err != nil {
 				return nil, err
 			}

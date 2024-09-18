@@ -4,16 +4,17 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"maps"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/remotes/docker/auth"
 	remoteserrors "github.com/containerd/containerd/remotes/errors"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/session"
 	sessionauth "github.com/moby/buildkit/session/auth"
 	log "github.com/moby/buildkit/util/bklog"
@@ -33,7 +34,7 @@ type authHandlerNS struct {
 	hosts      map[string][]docker.RegistryHost
 	muHosts    sync.Mutex
 	sm         *session.Manager
-	g          flightcontrol.Group
+	g          flightcontrol.Group[[]docker.RegistryHost]
 }
 
 func newAuthHandlerNS(sm *session.Manager) *authHandlerNS {
@@ -96,11 +97,9 @@ func (a *authHandlerNS) set(host, session string, h *authHandler) {
 }
 
 func (a *authHandlerNS) delete(h *authHandler) {
-	for k, v := range a.handlers {
-		if v == h {
-			delete(a.handlers, k)
-		}
-	}
+	maps.DeleteFunc(a.handlers, func(_ string, v *authHandler) bool {
+		return v == h
+	})
 }
 
 type dockerAuthorizer struct {
@@ -219,7 +218,7 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 			}
 		}
 	}
-	return errors.Wrap(errdefs.ErrNotImplemented, "failed to find supported auth scheme")
+	return errors.Wrap(cerrdefs.ErrNotImplemented, "failed to find supported auth scheme")
 }
 
 // authResult is used to control limit rate.
@@ -230,7 +229,7 @@ type authResult struct {
 
 // authHandler is used to handle auth request per registry server.
 type authHandler struct {
-	g flightcontrol.Group
+	g flightcontrol.Group[*authResult]
 
 	client *http.Client
 
@@ -267,19 +266,19 @@ func newAuthHandler(host string, client *http.Client, scheme auth.Authentication
 func (ah *authHandler) authorize(ctx context.Context, sm *session.Manager, g session.Group) (string, error) {
 	switch ah.scheme {
 	case auth.BasicAuth:
-		return ah.doBasicAuth(ctx)
+		return ah.doBasicAuth()
 	case auth.BearerAuth:
 		return ah.doBearerAuth(ctx, sm, g)
 	default:
-		return "", errors.Wrapf(errdefs.ErrNotImplemented, "failed to find supported auth scheme: %s", string(ah.scheme))
+		return "", errors.Wrapf(cerrdefs.ErrNotImplemented, "failed to find supported auth scheme: %s", string(ah.scheme))
 	}
 }
 
-func (ah *authHandler) doBasicAuth(ctx context.Context) (string, error) {
+func (ah *authHandler) doBasicAuth() (string, error) {
 	username, secret := ah.common.Username, ah.common.Secret
 
 	if username == "" || secret == "" {
-		return "", fmt.Errorf("failed to handle basic auth because missing username or secret")
+		return "", errors.New("failed to handle basic auth because missing username or secret")
 	}
 
 	auth := base64.StdEncoding.EncodeToString([]byte(username + ":" + secret))
@@ -295,7 +294,7 @@ func (ah *authHandler) doBearerAuth(ctx context.Context, sm *session.Manager, g 
 	// Docs: https://docs.docker.com/registry/spec/auth/scope
 	scoped := strings.Join(to.Scopes, " ")
 
-	res, err := ah.g.Do(ctx, scoped, func(ctx context.Context) (interface{}, error) {
+	res, err := ah.g.Do(ctx, scoped, func(ctx context.Context) (*authResult, error) {
 		ah.scopedTokensMu.Lock()
 		r, exist := ah.scopedTokens[scoped]
 		ah.scopedTokensMu.Unlock()
@@ -313,15 +312,10 @@ func (ah *authHandler) doBearerAuth(ctx context.Context, sm *session.Manager, g 
 		ah.scopedTokensMu.Unlock()
 		return r, nil
 	})
-
 	if err != nil || res == nil {
 		return "", err
 	}
-	r := res.(*authResult)
-	if r == nil {
-		return "", nil
-	}
-	return r.token, nil
+	return res.token, nil
 }
 
 func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g session.Group, to auth.TokenOptions) (r *authResult, err error) {
@@ -356,7 +350,15 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 		if resp.ExpiresIn == 0 {
 			resp.ExpiresIn = defaultExpiration
 		}
-		issuedAt, expires = time.Unix(resp.IssuedAt, 0), int(resp.ExpiresIn)
+		expires = int(resp.ExpiresIn)
+		// We later check issuedAt.isZero, which would return
+		// false if converted from zero Unix time. Therefore,
+		// zero time value in response is handled separately
+		if resp.IssuedAt == 0 {
+			issuedAt = time.Time{}
+		} else {
+			issuedAt = time.Unix(resp.IssuedAt, 0)
+		}
 		token = resp.Token
 		return nil, nil
 	}

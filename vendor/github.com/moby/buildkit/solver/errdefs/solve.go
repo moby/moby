@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 
-	"github.com/containerd/typeurl"
+	"github.com/containerd/typeurl/v2"
 	"github.com/golang/protobuf/jsonpb" //nolint:staticcheck
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/grpcerrors"
@@ -41,19 +41,22 @@ func WithSolveError(err error, subject IsSolve_Subject, inputIDs, mountIDs []str
 		return nil
 	}
 	var (
-		oe *OpError
-		op *pb.Op
+		oe          *OpError
+		op          *pb.Op
+		description map[string]string
 	)
 	if errors.As(err, &oe) {
 		op = oe.Op
+		description = oe.Description
 	}
 	return &SolveError{
 		Err: err,
 		Solve: Solve{
-			InputIDs: inputIDs,
-			MountIDs: mountIDs,
-			Op:       op,
-			Subject:  subject,
+			InputIDs:    inputIDs,
+			MountIDs:    mountIDs,
+			Op:          op,
+			Subject:     subject,
+			Description: description,
 		},
 	}
 }

@@ -1,14 +1,15 @@
 //go:build linux
-// +build linux
 
 package iptables
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/containerd/log"
 	dbus "github.com/godbus/dbus/v5"
-	"github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
 )
 
 // IPV defines the table string
@@ -19,15 +20,14 @@ const (
 	Iptables IPV = "ipv4"
 	// IP6Tables point to ipv6 table
 	IP6Tables IPV = "ipv6"
-	// Ebtables point to bridge table
-	Ebtables IPV = "eb"
 )
 
 const (
-	dbusInterface  = "org.fedoraproject.FirewallD1"
-	dbusPath       = "/org/fedoraproject/FirewallD1"
-	dbusConfigPath = "/org/fedoraproject/FirewallD1/config"
-	dockerZone     = "docker"
+	dbusInterface   = "org.fedoraproject.FirewallD1"
+	dbusPath        = "/org/fedoraproject/FirewallD1"
+	dbusConfigPath  = "/org/fedoraproject/FirewallD1/config"
+	dockerZone      = "docker"
+	dockerFwdPolicy = "docker-forwarding"
 )
 
 // Conn is a connection to firewalld dbus endpoint.
@@ -38,27 +38,6 @@ type Conn struct {
 	signal     chan *dbus.Signal
 }
 
-// ZoneSettings holds the firewalld zone settings, documented in
-// https://firewalld.org/documentation/man-pages/firewalld.dbus.html
-type ZoneSettings struct {
-	version            string
-	name               string
-	description        string
-	unused             bool
-	target             string
-	services           []string
-	ports              [][]interface{}
-	icmpBlocks         []string
-	masquerade         bool
-	forwardPorts       [][]interface{}
-	interfaces         []string
-	sourceAddresses    []string
-	richRules          []string
-	protocols          []string
-	sourcePorts        [][]interface{}
-	icmpBlockInversion bool
-}
-
 var (
 	connection *Conn
 
@@ -66,8 +45,8 @@ var (
 	onReloaded       []*func() // callbacks when Firewalld has been reloaded
 )
 
-// FirewalldInit initializes firewalld management code.
-func FirewalldInit() error {
+// firewalldInit initializes firewalld management code.
+func firewalldInit() error {
 	var err error
 
 	if connection, err = newConnection(); err != nil {
@@ -80,56 +59,59 @@ func FirewalldInit() error {
 	}
 	if connection != nil {
 		go signalHandler()
-		if err := setupDockerZone(); err != nil {
+		zoneAdded, err := setupDockerZone()
+		if err != nil {
 			return err
+		}
+		policyAdded, policyAddErr := setupDockerForwardingPolicy()
+		if policyAddErr != nil {
+			// Log the error, but still reload firewalld if necessary.
+			log.G(context.TODO()).WithError(policyAddErr).Warnf("Firewalld: failed to add policy %s", dockerFwdPolicy)
+		}
+		if zoneAdded || policyAdded {
+			// Reload for changes to take effect.
+			if err := connection.sysObj.Call(dbusInterface+".reload", 0).Err; err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
-// New() establishes a connection to the system bus.
+// newConnection establishes a connection to the system bus.
 func newConnection() (*Conn, error) {
-	c := new(Conn)
-	if err := c.initConnection(); err != nil {
+	c := &Conn{}
+
+	var err error
+	c.sysconn, err = dbus.SystemBus()
+	if err != nil {
 		return nil, err
 	}
 
-	return c, nil
-}
-
-// Initialize D-Bus connection.
-func (c *Conn) initConnection() error {
-	var err error
-
-	c.sysconn, err = dbus.SystemBus()
-	if err != nil {
-		return err
-	}
-
 	// This never fails, even if the service is not running atm.
-	c.sysObj = c.sysconn.Object(dbusInterface, dbus.ObjectPath(dbusPath))
-	c.sysConfObj = c.sysconn.Object(dbusInterface, dbus.ObjectPath(dbusConfigPath))
-	rule := fmt.Sprintf("type='signal',path='%s',interface='%s',sender='%s',member='Reloaded'",
-		dbusPath, dbusInterface, dbusInterface)
+	c.sysObj = c.sysconn.Object(dbusInterface, dbusPath)
+	c.sysConfObj = c.sysconn.Object(dbusInterface, dbusConfigPath)
+
+	rule := fmt.Sprintf("type='signal',path='%s',interface='%s',sender='%s',member='Reloaded'", dbusPath, dbusInterface, dbusInterface)
 	c.sysconn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
 
-	rule = fmt.Sprintf("type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',path='/org/freedesktop/DBus',sender='org.freedesktop.DBus',arg0='%s'",
-		dbusInterface)
+	rule = fmt.Sprintf("type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',path='/org/freedesktop/DBus',sender='org.freedesktop.DBus',arg0='%s'", dbusInterface)
 	c.sysconn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
 
 	c.signal = make(chan *dbus.Signal, 10)
 	c.sysconn.Signal(c.signal)
-
-	return nil
+	return c, nil
 }
 
 func signalHandler() {
 	for signal := range connection.signal {
-		if strings.Contains(signal.Name, "NameOwnerChanged") {
+		switch {
+		case strings.Contains(signal.Name, "NameOwnerChanged"):
 			firewalldRunning = checkRunning()
 			dbusConnectionChanged(signal.Body)
-		} else if strings.Contains(signal.Name, "Reloaded") {
+
+		case strings.Contains(signal.Name, "Reloaded"):
 			reloaded()
 		}
 	}
@@ -178,85 +160,136 @@ func OnReloaded(callback func()) {
 
 // Call some remote method to see whether the service is actually running.
 func checkRunning() bool {
-	var zone string
-	var err error
-
-	if connection != nil {
-		err = connection.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
-		return err == nil
+	if connection == nil {
+		return false
 	}
-	return false
+	var zone string
+	err := connection.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
+	return err == nil
 }
 
 // Passthrough method simply passes args through to iptables/ip6tables
 func Passthrough(ipv IPV, args ...string) ([]byte, error) {
 	var output string
-	logrus.Debugf("Firewalld passthrough: %s, %s", ipv, args)
+	log.G(context.TODO()).Debugf("Firewalld passthrough: %s, %s", ipv, args)
 	if err := connection.sysObj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
 		return nil, err
 	}
 	return []byte(output), nil
 }
 
-// getDockerZoneSettings converts the ZoneSettings struct into a interface slice
-func getDockerZoneSettings() []interface{} {
-	settings := ZoneSettings{
+// firewalldZone holds the firewalld zone settings.
+//
+// Documented in https://firewalld.org/documentation/man-pages/firewalld.dbus.html#FirewallD1.zone
+type firewalldZone struct {
+	version            string
+	name               string
+	description        string
+	unused             bool
+	target             string
+	services           []string
+	ports              [][]interface{}
+	icmpBlocks         []string
+	masquerade         bool
+	forwardPorts       [][]interface{}
+	interfaces         []string
+	sourceAddresses    []string
+	richRules          []string
+	protocols          []string
+	sourcePorts        [][]interface{}
+	icmpBlockInversion bool
+}
+
+// settings returns the firewalldZone struct as an interface slice, which can be
+// passed to "org.fedoraproject.FirewallD1.config.addZone". Note that 'addZone',
+// which is deprecated, requires this whole struct. Its replacement, 'addZone2'
+// (introduced in firewalld 0.9.0) accepts a dictionary where only non-default
+// values need to be specified.
+func (z firewalldZone) settings() []interface{} {
+	return []interface{}{
+		z.version,
+		z.name,
+		z.description,
+		z.unused,
+		z.target,
+		z.services,
+		z.ports,
+		z.icmpBlocks,
+		z.masquerade,
+		z.forwardPorts,
+		z.interfaces,
+		z.sourceAddresses,
+		z.richRules,
+		z.protocols,
+		z.sourcePorts,
+		z.icmpBlockInversion,
+	}
+}
+
+// setupDockerZone creates a zone called docker in firewalld which includes docker interfaces to allow
+// container networking. The bool return value is true if a firewalld reload is required.
+func setupDockerZone() (bool, error) {
+	var zones []string
+	// Check if zone exists
+	if err := connection.sysObj.Call(dbusInterface+".zone.getZones", 0).Store(&zones); err != nil {
+		return false, err
+	}
+	if contains(zones, dockerZone) {
+		log.G(context.TODO()).Infof("Firewalld: %s zone already exists, returning", dockerZone)
+		return false, nil
+	}
+	log.G(context.TODO()).Debugf("Firewalld: creating %s zone", dockerZone)
+
+	// Permanent
+	dz := firewalldZone{
 		version:     "1.0",
 		name:        dockerZone,
 		description: "zone for docker bridge network interfaces",
 		target:      "ACCEPT",
 	}
-	slice := []interface{}{
-		settings.version,
-		settings.name,
-		settings.description,
-		settings.unused,
-		settings.target,
-		settings.services,
-		settings.ports,
-		settings.icmpBlocks,
-		settings.masquerade,
-		settings.forwardPorts,
-		settings.interfaces,
-		settings.sourceAddresses,
-		settings.richRules,
-		settings.protocols,
-		settings.sourcePorts,
-		settings.icmpBlockInversion,
+	if err := connection.sysConfObj.Call(dbusInterface+".config.addZone", 0, dockerZone, dz.settings()).Err; err != nil {
+		return false, err
 	}
-	return slice
-
+	return true, nil
 }
 
-// setupDockerZone creates a zone called docker in firewalld which includes docker interfaces to allow
-// container networking
-func setupDockerZone() error {
-	var zones []string
-	// Check if zone exists
-	if err := connection.sysObj.Call(dbusInterface+".zone.getZones", 0).Store(&zones); err != nil {
-		return err
+// setupDockerForwardingPolicy creates a policy to allow forwarding to anywhere to the docker
+// zone (where packets will be dealt with by docker's usual/non-firewalld configuration).
+// The bool return value is true if a firewalld reload is required.
+func setupDockerForwardingPolicy() (bool, error) {
+	// https://firewalld.org/documentation/man-pages/firewalld.dbus.html#FirewallD1.config
+	policy := map[string]interface{}{
+		"version":       "1.0",
+		"description":   "allow forwarding to the docker zone",
+		"ingress_zones": []string{"ANY"},
+		"egress_zones":  []string{dockerZone},
+		"target":        "ACCEPT",
 	}
-	if contains(zones, dockerZone) {
-		logrus.Infof("Firewalld: %s zone already exists, returning", dockerZone)
+	if err := connection.sysConfObj.Call(dbusInterface+".config.addPolicy", 0, dockerFwdPolicy, policy).Err; err != nil {
+		var derr dbus.Error
+		if errors.As(err, &derr) {
+			if derr.Name == dbusInterface+".Exception" && strings.HasPrefix(err.Error(), "NAME_CONFLICT") {
+				log.G(context.TODO()).Debugf("Firewalld: %s policy already exists", dockerFwdPolicy)
+				return false, nil
+			}
+			if derr.Name == dbus.ErrMsgUnknownMethod.Name {
+				log.G(context.TODO()).Debugf("Firewalld: addPolicy %s: unknown method", dockerFwdPolicy)
+				return false, nil
+			}
+		}
+		return false, err
+	}
+	log.G(context.TODO()).Infof("Firewalld: created %s policy", dockerFwdPolicy)
+	return true, nil
+}
+
+// AddInterfaceFirewalld adds the interface to the trusted zone. It is a
+// no-op if firewalld is not running.
+func AddInterfaceFirewalld(intf string) error {
+	if !firewalldRunning {
 		return nil
 	}
-	logrus.Debugf("Firewalld: creating %s zone", dockerZone)
 
-	settings := getDockerZoneSettings()
-	// Permanent
-	if err := connection.sysConfObj.Call(dbusInterface+".config.addZone", 0, dockerZone, settings).Err; err != nil {
-		return err
-	}
-	// Reload for change to take effect
-	if err := connection.sysObj.Call(dbusInterface+".reload", 0).Err; err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// AddInterfaceFirewalld adds the interface to the trusted zone
-func AddInterfaceFirewalld(intf string) error {
 	var intfs []string
 	// Check if interface is already added to the zone
 	if err := connection.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
@@ -264,11 +297,11 @@ func AddInterfaceFirewalld(intf string) error {
 	}
 	// Return if interface is already part of the zone
 	if contains(intfs, intf) {
-		logrus.Infof("Firewalld: interface %s already part of %s zone, returning", intf, dockerZone)
+		log.G(context.TODO()).Infof("Firewalld: interface %s already part of %s zone, returning", intf, dockerZone)
 		return nil
 	}
 
-	logrus.Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
+	log.G(context.TODO()).Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
 	// Runtime
 	if err := connection.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
 		return err
@@ -276,8 +309,13 @@ func AddInterfaceFirewalld(intf string) error {
 	return nil
 }
 
-// DelInterfaceFirewalld removes the interface from the trusted zone
+// DelInterfaceFirewalld removes the interface from the trusted zone It is a
+// no-op if firewalld is not running.
 func DelInterfaceFirewalld(intf string) error {
+	if !firewalldRunning {
+		return nil
+	}
+
 	var intfs []string
 	// Check if interface is part of the zone
 	if err := connection.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
@@ -285,16 +323,20 @@ func DelInterfaceFirewalld(intf string) error {
 	}
 	// Remove interface if it exists
 	if !contains(intfs, intf) {
-		return fmt.Errorf("Firewalld: unable to find interface %s in %s zone", intf, dockerZone)
+		return &interfaceNotFound{fmt.Errorf("firewalld: interface %q not found in %s zone", intf, dockerZone)}
 	}
 
-	logrus.Debugf("Firewalld: removing %s interface from %s zone", intf, dockerZone)
+	log.G(context.TODO()).Debugf("Firewalld: removing %s interface from %s zone", intf, dockerZone)
 	// Runtime
 	if err := connection.sysObj.Call(dbusInterface+".zone.removeInterface", 0, dockerZone, intf).Err; err != nil {
 		return err
 	}
 	return nil
 }
+
+type interfaceNotFound struct{ error }
+
+func (interfaceNotFound) NotFound() {}
 
 func contains(list []string, val string) bool {
 	for _, v := range list {

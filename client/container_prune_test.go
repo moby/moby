@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
@@ -35,21 +35,6 @@ func TestContainersPruneError(t *testing.T) {
 func TestContainersPrune(t *testing.T) {
 	expectedURL := "/v1.25/containers/prune"
 
-	danglingFilters := filters.NewArgs()
-	danglingFilters.Add("dangling", "true")
-
-	noDanglingFilters := filters.NewArgs()
-	noDanglingFilters.Add("dangling", "false")
-
-	danglingUntilFilters := filters.NewArgs()
-	danglingUntilFilters.Add("dangling", "true")
-	danglingUntilFilters.Add("until", "2016-12-15T14:00")
-
-	labelFilters := filters.NewArgs()
-	labelFilters.Add("dangling", "true")
-	labelFilters.Add("label", "label1=foo")
-	labelFilters.Add("label", "label2!=bar")
-
 	listCases := []struct {
 		filters             filters.Args
 		dryRun              bool
@@ -67,6 +52,7 @@ func TestContainersPrune(t *testing.T) {
 		{
 			filters: danglingFilters,
 			dryRun:  true,
+
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -76,6 +62,7 @@ func TestContainersPrune(t *testing.T) {
 		{
 			filters: danglingUntilFilters,
 			dryRun:  false,
+
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -83,7 +70,7 @@ func TestContainersPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: noDanglingFilters,
+			filters: filters.NewArgs(filters.Arg("dangling", "false")),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -102,6 +89,7 @@ func TestContainersPrune(t *testing.T) {
 		{
 			filters: labelFilters,
 			dryRun:  true,
+
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -120,7 +108,7 @@ func TestContainersPrune(t *testing.T) {
 					actual := query.Get(key)
 					assert.Check(t, is.Equal(expected, actual))
 				}
-				content, err := json.Marshal(types.ContainersPruneReport{
+				content, err := json.Marshal(container.PruneReport{
 					ContainersDeleted: []string{"container_id1", "container_id2"},
 					SpaceReclaimed:    9999,
 				})

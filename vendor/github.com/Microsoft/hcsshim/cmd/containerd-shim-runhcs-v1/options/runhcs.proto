@@ -2,10 +2,9 @@ syntax = "proto3";
 
 package containerd.runhcs.v1;
 
-import weak "gogoproto/gogo.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options;options";
+option go_package = "github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options";
 
 // Options are the set of customizations that can be passed at Create time.
 message Options {
@@ -98,13 +97,23 @@ message Options {
 	// The typical example is if Containerd has restarted but is expected to come back online. A 0 for this field is interpreted as an infinite
 	// timeout.
 	int32 io_retry_timeout_in_sec = 17;
+
+	// default_container_annotations specifies a set of annotations that should be set for every workload container
+	map<string, string> default_container_annotations = 18;
+
+	// no_inherit_host_timezone specifies to skip inheriting the hosts time zone for WCOW UVMs and instead default to
+	// UTC.
+	bool no_inherit_host_timezone = 19;
+
+	// scrub_logs enables removing environment variables and other potentially sensitive information from logs
+	bool scrub_logs = 20;
 }
 
 // ProcessDetails contains additional information about a process. This is the additional
 // info returned in the Pids query.
 message ProcessDetails {
 	string image_name = 1;
-	google.protobuf.Timestamp created_at = 2 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp created_at = 2;
 	uint64 kernel_time_100_ns = 3;
 	uint64 memory_commit_bytes = 4;
 	uint64 memory_working_set_private_bytes = 5;

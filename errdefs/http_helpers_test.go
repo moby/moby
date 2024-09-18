@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
-
-	"gotest.tools/v3/assert"
 )
 
 func TestFromStatusCode(t *testing.T) {
@@ -86,7 +84,9 @@ func TestFromStatusCode(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(http.StatusText(tc.status), func(t *testing.T) {
 			err := FromStatusCode(tc.err, tc.status)
-			assert.Check(t, tc.check(err), "unexpected error-type %T", err)
+			if !tc.check(err) {
+				t.Errorf("unexpected error-type %T", err)
+			}
 		})
 	}
 }

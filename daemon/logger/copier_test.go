@@ -412,8 +412,7 @@ func TestCopierWithPartial(t *testing.T) {
 	}
 }
 
-type BenchmarkLoggerDummy struct {
-}
+type BenchmarkLoggerDummy struct{}
 
 func (l *BenchmarkLoggerDummy) Log(m *Message) error { PutMessage(m); return nil }
 
@@ -424,39 +423,51 @@ func (l *BenchmarkLoggerDummy) Name() string { return "dummy" }
 func BenchmarkCopier64(b *testing.B) {
 	benchmarkCopier(b, 1<<6)
 }
+
 func BenchmarkCopier128(b *testing.B) {
 	benchmarkCopier(b, 1<<7)
 }
+
 func BenchmarkCopier256(b *testing.B) {
 	benchmarkCopier(b, 1<<8)
 }
+
 func BenchmarkCopier512(b *testing.B) {
 	benchmarkCopier(b, 1<<9)
 }
+
 func BenchmarkCopier1K(b *testing.B) {
 	benchmarkCopier(b, 1<<10)
 }
+
 func BenchmarkCopier2K(b *testing.B) {
 	benchmarkCopier(b, 1<<11)
 }
+
 func BenchmarkCopier4K(b *testing.B) {
 	benchmarkCopier(b, 1<<12)
 }
+
 func BenchmarkCopier8K(b *testing.B) {
 	benchmarkCopier(b, 1<<13)
 }
+
 func BenchmarkCopier16K(b *testing.B) {
 	benchmarkCopier(b, 1<<14)
 }
+
 func BenchmarkCopier32K(b *testing.B) {
 	benchmarkCopier(b, 1<<15)
 }
+
 func BenchmarkCopier64K(b *testing.B) {
 	benchmarkCopier(b, 1<<16)
 }
+
 func BenchmarkCopier128K(b *testing.B) {
 	benchmarkCopier(b, 1<<17)
 }
+
 func BenchmarkCopier256K(b *testing.B) {
 	benchmarkCopier(b, 1<<18)
 }

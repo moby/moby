@@ -14,6 +14,8 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestServiceInspectError(t *testing.T) {
@@ -22,9 +24,7 @@ func TestServiceInspectError(t *testing.T) {
 	}
 
 	_, _, err := client.ServiceInspectWithRaw(context.Background(), "nothing", types.ServiceInspectOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestServiceInspectServiceNotFound(t *testing.T) {
@@ -33,9 +33,7 @@ func TestServiceInspectServiceNotFound(t *testing.T) {
 	}
 
 	_, _, err := client.ServiceInspectWithRaw(context.Background(), "unknown", types.ServiceInspectOptions{})
-	if err == nil || !IsErrNotFound(err) {
-		t.Fatalf("expected a serviceNotFoundError error, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestServiceInspectWithEmptyID(t *testing.T) {
@@ -45,9 +43,7 @@ func TestServiceInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.ServiceInspectWithRaw(context.Background(), "", types.ServiceInspectOptions{})
-	if !IsErrNotFound(err) {
-		t.Fatalf("Expected NotFoundError, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestServiceInspect(t *testing.T) {

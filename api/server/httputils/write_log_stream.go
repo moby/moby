@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"sort"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -16,7 +17,11 @@ import (
 
 // WriteLogStream writes an encoded byte stream of log messages from the
 // messages channel, multiplexing them with a stdcopy.Writer if mux is true
-func WriteLogStream(_ context.Context, w io.Writer, msgs <-chan *backend.LogMessage, config *types.ContainerLogsOptions, mux bool) {
+func WriteLogStream(_ context.Context, w http.ResponseWriter, msgs <-chan *backend.LogMessage, config *container.LogsOptions, mux bool) {
+	// See https://github.com/moby/moby/issues/47448
+	// Trigger headers to be written immediately.
+	w.WriteHeader(http.StatusOK)
+
 	wf := ioutils.NewWriteFlusher(w)
 	defer wf.Close()
 

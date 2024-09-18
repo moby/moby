@@ -7,6 +7,7 @@ import (
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	units "github.com/docker/go-units"
 )
 
@@ -36,15 +37,21 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*containertypes.
 		return nil, err
 	}
 
-	if !container.IsRunning() {
-		return nil, errNotRunning(container.ID)
-	}
+	task, err := func() (libcontainerdtypes.Task, error) {
+		container.Lock()
+		defer container.Unlock()
 
-	if container.IsRestarting() {
-		return nil, errContainerIsRestarting(container.ID)
-	}
+		task, err := container.GetRunningTask()
+		if err != nil {
+			return nil, err
+		}
+		if container.Restarting {
+			return nil, errContainerIsRestarting(container.ID)
+		}
+		return task, nil
+	}()
 
-	s, err := daemon.containerd.Summary(context.Background(), container.ID)
+	s, err := task.Summary(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +64,8 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*containertypes.
 			j.ImageName,
 			fmt.Sprint(j.ProcessID),
 			fmt.Sprintf("%02d:%02d:%02d.%03d", int(d.Hours()), int(d.Minutes())%60, int(d.Seconds())%60, int(d.Nanoseconds()/1000000)%1000),
-			units.HumanSize(float64(j.MemoryWorkingSetPrivateBytes))})
+			units.HumanSize(float64(j.MemoryWorkingSetPrivateBytes)),
+		})
 	}
 
 	return procList, nil

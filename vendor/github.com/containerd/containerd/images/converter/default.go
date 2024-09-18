@@ -26,7 +26,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -132,7 +132,7 @@ func copyDesc(desc ocispec.Descriptor) *ocispec.Descriptor {
 	return &descCopy
 }
 
-// convertLayer converts image image layers if c.layerConvertFunc is set.
+// convertLayer converts image layers if c.layerConvertFunc is set.
 //
 // c.layerConvertFunc can be nil, e.g., for converting Docker media types to OCI ones.
 func (c *defaultConverter) convertLayer(ctx context.Context, cs content.Store, desc ocispec.Descriptor) (*ocispec.Descriptor, error) {
@@ -410,6 +410,7 @@ func writeJSON(ctx context.Context, cs content.Store, x interface{}, oldDesc oci
 		return nil, err
 	}
 	if err := content.Copy(ctx, w, bytes.NewReader(b), int64(len(b)), dgst, content.WithLabels(labels)); err != nil {
+		w.Close()
 		return nil, err
 	}
 	if err := w.Close(); err != nil {
@@ -431,11 +432,11 @@ func ConvertDockerMediaTypeToOCI(mt string) string {
 	case images.MediaTypeDockerSchema2LayerGzip:
 		return ocispec.MediaTypeImageLayerGzip
 	case images.MediaTypeDockerSchema2LayerForeignGzip:
-		return ocispec.MediaTypeImageLayerNonDistributableGzip
+		return ocispec.MediaTypeImageLayerNonDistributableGzip //nolint:staticcheck // deprecated
 	case images.MediaTypeDockerSchema2Layer:
 		return ocispec.MediaTypeImageLayer
 	case images.MediaTypeDockerSchema2LayerForeign:
-		return ocispec.MediaTypeImageLayerNonDistributable
+		return ocispec.MediaTypeImageLayerNonDistributable //nolint:staticcheck // deprecated
 	case images.MediaTypeDockerSchema2Config:
 		return ocispec.MediaTypeImageConfig
 	default:

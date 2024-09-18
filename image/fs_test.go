@@ -31,7 +31,7 @@ func TestFSGetInvalidData(t *testing.T) {
 	dgst, err := store.Set([]byte("foobar"))
 	assert.Check(t, err)
 
-	err = os.WriteFile(filepath.Join(store.(*fs).root, contentDirName, string(dgst.Algorithm()), dgst.Hex()), []byte("foobar2"), 0600)
+	err = os.WriteFile(filepath.Join(store.(*fs).root, contentDirName, string(dgst.Algorithm()), dgst.Encoded()), []byte("foobar2"), 0o600)
 	assert.Check(t, err)
 
 	_, err = store.Get(dgst)
@@ -43,7 +43,7 @@ func TestFSInvalidSet(t *testing.T) {
 	defer cleanup()
 
 	id := digest.FromBytes([]byte("foobar"))
-	err := os.Mkdir(filepath.Join(store.(*fs).root, contentDirName, string(id.Algorithm()), id.Hex()), 0700)
+	err := os.Mkdir(filepath.Join(store.(*fs).root, contentDirName, string(id.Algorithm()), id.Encoded()), 0o700)
 	assert.Check(t, err)
 
 	_, err = store.Set([]byte("foobar"))
@@ -66,7 +66,7 @@ func TestFSInvalidRoot(t *testing.T) {
 	for _, tc := range tcases {
 		root := filepath.Join(tmpdir, tc.root)
 		filePath := filepath.Join(tmpdir, tc.invalidFile)
-		err := os.MkdirAll(filepath.Dir(filePath), 0700)
+		err := os.MkdirAll(filepath.Dir(filePath), 0o700)
 		assert.Check(t, err)
 
 		f, err := os.Create(filePath)
@@ -78,7 +78,6 @@ func TestFSInvalidRoot(t *testing.T) {
 
 		os.RemoveAll(root)
 	}
-
 }
 
 func TestFSMetadataGetSet(t *testing.T) {
@@ -129,7 +128,7 @@ func TestFSInvalidWalker(t *testing.T) {
 	fooID, err := store.Set([]byte("foo"))
 	assert.Check(t, err)
 
-	err = os.WriteFile(filepath.Join(store.(*fs).root, contentDirName, "sha256/foobar"), []byte("foobar"), 0600)
+	err = os.WriteFile(filepath.Join(store.(*fs).root, contentDirName, "sha256/foobar"), []byte("foobar"), 0o600)
 	assert.Check(t, err)
 
 	n := 0

@@ -9,7 +9,6 @@ import (
 	"github.com/moby/swarmkit/v2/connectionbroker"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // RenewTLSExponentialBackoff sets the exponential backoff when trying to renew TLS certificates that have expired
@@ -72,7 +71,7 @@ func (t *TLSRenewer) Start(ctx context.Context) <-chan CertificateUpdate {
 		defer close(updates)
 		for {
 			ctx = log.WithModule(ctx, "tls")
-			log := log.G(ctx).WithFields(logrus.Fields{
+			logger := log.G(ctx).WithFields(log.Fields{
 				"node.id":   t.s.ClientTLSCreds.NodeID(),
 				"node.role": t.s.ClientTLSCreds.Role(),
 			})
@@ -85,19 +84,19 @@ func (t *TLSRenewer) Start(ctx context.Context) <-chan CertificateUpdate {
 			validFrom, validUntil, err := readCertValidity(t.s.KeyReader())
 			if err != nil {
 				// We failed to read the expiration, let's stick with the starting default
-				log.Errorf("failed to read the expiration of the TLS certificate in: %s", t.s.KeyReader().Target())
+				logger.Errorf("failed to read the expiration of the TLS certificate in: %s", t.s.KeyReader().Target())
 
 				select {
 				case updates <- CertificateUpdate{Err: errors.New("failed to read certificate expiration")}:
 				case <-ctx.Done():
-					log.Info("shutting down certificate renewal routine")
+					logger.Info("shutting down certificate renewal routine")
 					return
 				}
 			} else {
 				// If we have an expired certificate, try to renew immediately: the hope that this is a temporary clock skew, or
 				// we can issue our own TLS certs.
 				if validUntil.Before(time.Now()) {
-					log.Warn("the current TLS certificate is expired, so an attempt to renew it will be made immediately")
+					logger.Warn("the current TLS certificate is expired, so an attempt to renew it will be made immediately")
 					// retry immediately(ish) with exponential backoff
 					retry = expBackoff.Proceed(nil)
 				} else if forceRetry {
@@ -110,16 +109,16 @@ func (t *TLSRenewer) Start(ctx context.Context) <-chan CertificateUpdate {
 				}
 			}
 
-			log.WithFields(logrus.Fields{
+			logger.WithFields(log.Fields{
 				"time": time.Now().Add(retry),
 			}).Debugf("next certificate renewal scheduled for %v from now", retry)
 
 			select {
 			case <-time.After(retry):
-				log.Info("renewing certificate")
+				logger.Info("renewing certificate")
 			case <-t.renew:
 				forceRetry = true
-				log.Info("forced certificate renewal")
+				logger.Info("forced certificate renewal")
 
 				// Pause briefly before attempting the renewal,
 				// to give the CA a chance to reconcile the
@@ -127,11 +126,11 @@ func (t *TLSRenewer) Start(ctx context.Context) <-chan CertificateUpdate {
 				select {
 				case <-time.After(500 * time.Millisecond):
 				case <-ctx.Done():
-					log.Info("shutting down certificate renewal routine")
+					logger.Info("shutting down certificate renewal routine")
 					return
 				}
 			case <-ctx.Done():
-				log.Info("shutting down certificate renewal routine")
+				logger.Info("shutting down certificate renewal routine")
 				return
 			}
 
@@ -158,7 +157,7 @@ func (t *TLSRenewer) Start(ctx context.Context) <-chan CertificateUpdate {
 			select {
 			case updates <- certUpdate:
 			case <-ctx.Done():
-				log.Info("shutting down certificate renewal routine")
+				logger.Info("shutting down certificate renewal routine")
 				return
 			}
 		}

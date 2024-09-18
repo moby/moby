@@ -126,6 +126,7 @@ func (ls *mockLayerStore) Get(chainID layer.ChainID) (layer.Layer, error) {
 func (ls *mockLayerStore) Release(l layer.Layer) ([]layer.Metadata, error) {
 	return []layer.Metadata{}, nil
 }
+
 func (ls *mockLayerStore) CreateRWLayer(string, layer.ChainID, *layer.CreateRWLayerOpts) (layer.RWLayer, error) {
 	return nil, errors.New("not implemented")
 }
@@ -137,6 +138,7 @@ func (ls *mockLayerStore) GetRWLayer(string) (layer.RWLayer, error) {
 func (ls *mockLayerStore) ReleaseRWLayer(layer.RWLayer) ([]layer.Metadata, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (ls *mockLayerStore) GetMountID(string) (string, error) {
 	return "", errors.New("not implemented")
 }
@@ -154,7 +156,7 @@ func (ls *mockLayerStore) DriverName() string {
 }
 
 type mockDownloadDescriptor struct {
-	currentDownloads *int32
+	currentDownloads *atomic.Int32
 	id               string
 	diffID           layer.DiffID
 	registeredDiffID layer.DiffID
@@ -197,9 +199,9 @@ func (d *mockDownloadDescriptor) mockTarStream() io.ReadCloser {
 // Download is called to perform the download.
 func (d *mockDownloadDescriptor) Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error) {
 	if d.currentDownloads != nil {
-		defer atomic.AddInt32(d.currentDownloads, -1)
+		defer d.currentDownloads.Add(-1)
 
-		if atomic.AddInt32(d.currentDownloads, 1) > maxDownloadConcurrency {
+		if d.currentDownloads.Add(1) > maxDownloadConcurrency {
 			return nil, 0, errors.New("concurrency limit exceeded")
 		}
 	}
@@ -216,7 +218,7 @@ func (d *mockDownloadDescriptor) Download(ctx context.Context, progressOutput pr
 
 	if d.retries < d.simulateRetries {
 		d.retries++
-		return nil, 0, fmt.Errorf("simulating download attempt %d/%d", d.retries, d.simulateRetries)
+		return nil, 0, fmt.Errorf("simulating download attempt failure %d/%d", d.retries, d.simulateRetries)
 	}
 
 	return d.mockTarStream(), 0, nil
@@ -225,7 +227,7 @@ func (d *mockDownloadDescriptor) Download(ctx context.Context, progressOutput pr
 func (d *mockDownloadDescriptor) Close() {
 }
 
-func downloadDescriptors(currentDownloads *int32) []DownloadDescriptor {
+func downloadDescriptors(currentDownloads *atomic.Int32) []DownloadDescriptor {
 	return []DownloadDescriptor{
 		&mockDownloadDescriptor{
 			currentDownloads: currentDownloads,
@@ -281,7 +283,7 @@ func TestSuccessfulDownload(t *testing.T) {
 		close(progressDone)
 	}()
 
-	var currentDownloads int32
+	var currentDownloads atomic.Int32
 	descriptors := downloadDescriptors(&currentDownloads)
 
 	firstDescriptor := descriptors[0].(*mockDownloadDescriptor)
@@ -367,28 +369,29 @@ func TestMaxDownloadAttempts(t *testing.T) {
 	}{
 		{
 			name:                "max-attempts=5, succeed at 2nd attempt",
-			simulateRetries:     2,
+			simulateRetries:     1,
 			maxDownloadAttempts: 5,
 		},
 		{
 			name:                "max-attempts=5, succeed at 5th attempt",
+			simulateRetries:     4,
+			maxDownloadAttempts: 5,
+		},
+		{
+			name:                "max-attempts=5, fail at 5th attempt",
 			simulateRetries:     5,
 			maxDownloadAttempts: 5,
+			expectedErr:         "simulating download attempt failure 5/5",
 		},
 		{
-			name:                "max-attempts=5, fail at 6th attempt",
-			simulateRetries:     6,
-			maxDownloadAttempts: 5,
-			expectedErr:         "simulating download attempt 5/6",
-		},
-		{
-			name:                "max-attempts=0, fail after 1 attempt",
+			name:                "max-attempts=1, fail after 1 attempt",
 			simulateRetries:     1,
-			maxDownloadAttempts: 0,
-			expectedErr:         "simulating download attempt 1/1",
+			maxDownloadAttempts: 1,
+			expectedErr:         "simulating download attempt failure 1/1",
 		},
 	}
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			layerStore := &mockLayerStore{make(map[layer.ChainID]*mockLayer)}
@@ -409,7 +412,7 @@ func TestMaxDownloadAttempts(t *testing.T) {
 				close(progressDone)
 			}()
 
-			var currentDownloads int32
+			var currentDownloads atomic.Int32
 			descriptors := downloadDescriptors(&currentDownloads)
 			descriptors[4].(*mockDownloadDescriptor).simulateRetries = tc.simulateRetries
 

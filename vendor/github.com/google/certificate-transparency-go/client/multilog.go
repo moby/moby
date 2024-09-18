@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2017 Google LLC. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,16 +19,16 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 	ct "github.com/google/certificate-transparency-go"
 	"github.com/google/certificate-transparency-go/client/configpb"
 	"github.com/google/certificate-transparency-go/jsonclient"
 	"github.com/google/certificate-transparency-go/x509"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 )
 
 type interval struct {
@@ -43,14 +43,16 @@ func TemporalLogConfigFromFile(filename string) (*configpb.TemporalLogConfig, er
 		return nil, errors.New("log config filename empty")
 	}
 
-	cfgText, err := ioutil.ReadFile(filename)
+	cfgBytes, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read log config: %v", err)
 	}
 
 	var cfg configpb.TemporalLogConfig
-	if err := proto.UnmarshalText(string(cfgText), &cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse log config: %v", err)
+	if txtErr := prototext.Unmarshal(cfgBytes, &cfg); txtErr != nil {
+		if binErr := proto.Unmarshal(cfgBytes, &cfg); binErr != nil {
+			return nil, fmt.Errorf("failed to parse TemporalLogConfig from %q as text protobuf (%v) or binary protobuf (%v)", filename, txtErr, binErr)
+		}
 	}
 
 	if len(cfg.Shard) == 0 {
@@ -76,8 +78,8 @@ type TemporalLogClient struct {
 
 // NewTemporalLogClient builds a new client for interacting with a temporal log.
 // The provided config should be contiguous and chronological.
-func NewTemporalLogClient(cfg configpb.TemporalLogConfig, hc *http.Client) (*TemporalLogClient, error) {
-	if len(cfg.Shard) == 0 {
+func NewTemporalLogClient(cfg *configpb.TemporalLogConfig, hc *http.Client) (*TemporalLogClient, error) {
+	if len(cfg.GetShard()) == 0 {
 		return nil, errors.New("empty config")
 	}
 
@@ -106,7 +108,7 @@ func NewTemporalLogClient(cfg configpb.TemporalLogConfig, hc *http.Client) (*Tem
 	}
 	clients := make([]*LogClient, 0, len(cfg.Shard))
 	for i, shard := range cfg.Shard {
-		opts := jsonclient.Options{}
+		opts := jsonclient.Options{UserAgent: "ct-go-multilog/1.0"}
 		opts.PublicKeyDER = shard.GetPublicKeyDer()
 		c, err := New(shard.Uri, hc, opts)
 		if err != nil {
@@ -200,17 +202,17 @@ func (tlc *TemporalLogClient) IndexByDate(when time.Time) (int, error) {
 func shardInterval(cfg *configpb.LogShardConfig) (interval, error) {
 	var interval interval
 	if cfg.NotAfterStart != nil {
-		t, err := ptypes.Timestamp(cfg.NotAfterStart)
-		if err != nil {
+		if err := cfg.NotAfterStart.CheckValid(); err != nil {
 			return interval, fmt.Errorf("failed to parse NotAfterStart: %v", err)
 		}
+		t := cfg.NotAfterStart.AsTime()
 		interval.lower = &t
 	}
 	if cfg.NotAfterLimit != nil {
-		t, err := ptypes.Timestamp(cfg.NotAfterLimit)
-		if err != nil {
+		if err := cfg.NotAfterLimit.CheckValid(); err != nil {
 			return interval, fmt.Errorf("failed to parse NotAfterLimit: %v", err)
 		}
+		t := cfg.NotAfterLimit.AsTime()
 		interval.upper = &t
 	}
 

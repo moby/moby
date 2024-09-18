@@ -1,5 +1,4 @@
 //go:build linux || freebsd
-// +build linux freebsd
 
 package operatingsystem // import "github.com/docker/docker/pkg/parsers/operatingsystem"
 
@@ -127,7 +126,7 @@ VERSION_ID=18.04`,
 }
 
 func runEtcReleaseParsingTests(t *testing.T, tests []EtcReleaseParsingTest, parsingFunc func() (string, error)) {
-	var backup = etcOsRelease
+	backup := etcOsRelease
 
 	dir := os.TempDir()
 	etcOsRelease = filepath.Join(dir, "etcOsRelease")
@@ -139,7 +138,7 @@ func runEtcReleaseParsingTests(t *testing.T, tests []EtcReleaseParsingTest, pars
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := os.WriteFile(etcOsRelease, []byte(test.content), 0600); err != nil {
+			if err := os.WriteFile(etcOsRelease, []byte(test.content), 0o600); err != nil {
 				t.Fatalf("failed to write to %s: %v", etcOsRelease, err)
 			}
 			s, err := parsingFunc()
@@ -202,7 +201,7 @@ func TestIsContainerized(t *testing.T) {
 		proc1Cgroup = backup
 	}()
 
-	if err := os.WriteFile(proc1Cgroup, nonContainerizedProc1Cgroup, 0600); err != nil {
+	if err := os.WriteFile(proc1Cgroup, nonContainerizedProc1Cgroup, 0o600); err != nil {
 		t.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
 	}
 	inContainer, err := IsContainerized()
@@ -213,7 +212,7 @@ func TestIsContainerized(t *testing.T) {
 		t.Fatal("Wrongly assuming containerized")
 	}
 
-	if err := os.WriteFile(proc1Cgroup, nonContainerizedProc1Cgroupsystemd226, 0600); err != nil {
+	if err := os.WriteFile(proc1Cgroup, nonContainerizedProc1Cgroupsystemd226, 0o600); err != nil {
 		t.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
 	}
 	inContainer, err = IsContainerized()
@@ -224,7 +223,7 @@ func TestIsContainerized(t *testing.T) {
 		t.Fatal("Wrongly assuming containerized for systemd /init.scope cgroup layout")
 	}
 
-	if err := os.WriteFile(proc1Cgroup, nonContainerizedProc1CgroupNotSystemd, 0600); err != nil {
+	if err := os.WriteFile(proc1Cgroup, nonContainerizedProc1CgroupNotSystemd, 0o600); err != nil {
 		t.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
 	}
 	inContainer, err = IsContainerized()
@@ -235,7 +234,7 @@ func TestIsContainerized(t *testing.T) {
 		t.Fatal("Wrongly assuming non-containerized")
 	}
 
-	if err := os.WriteFile(proc1Cgroup, containerizedProc1Cgroup, 0600); err != nil {
+	if err := os.WriteFile(proc1Cgroup, containerizedProc1Cgroup, 0o600); err != nil {
 		t.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
 	}
 	inContainer, err = IsContainerized()
@@ -248,8 +247,8 @@ func TestIsContainerized(t *testing.T) {
 }
 
 func TestOsReleaseFallback(t *testing.T) {
-	var backup = etcOsRelease
-	var altBackup = altOsRelease
+	backup := etcOsRelease
+	altBackup := altOsRelease
 	dir := os.TempDir()
 	etcOsRelease = filepath.Join(dir, "etcOsRelease")
 	altOsRelease = filepath.Join(dir, "altOsRelease")
@@ -267,7 +266,7 @@ HOME_URL="http://www.gentoo.org/"
 SUPPORT_URL="http://www.gentoo.org/main/en/support.xml"
 BUG_REPORT_URL="https://bugs.gentoo.org/"
 `
-	if err := os.WriteFile(altOsRelease, []byte(content), 0600); err != nil {
+	if err := os.WriteFile(altOsRelease, []byte(content), 0o600); err != nil {
 		t.Fatalf("failed to write to %s: %v", etcOsRelease, err)
 	}
 	s, err := GetOperatingSystem()

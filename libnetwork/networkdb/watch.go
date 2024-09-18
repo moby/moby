@@ -39,14 +39,14 @@ type UpdateEvent event
 type DeleteEvent event
 
 // Watch creates a watcher with filters for a particular table or
-// network or key or any combination of the tuple. If any of the
+// network or any combination of the tuple. If any of the
 // filter is an empty string it acts as a wildcard for that
 // field. Watch returns a channel of events, where the events will be
 // sent.
-func (nDB *NetworkDB) Watch(tname, nid, key string) (*events.Channel, func()) {
+func (nDB *NetworkDB) Watch(tname, nid string) (*events.Channel, func()) {
 	var matcher events.Matcher
 
-	if tname != "" || nid != "" || key != "" {
+	if tname != "" || nid != "" {
 		matcher = events.MatcherFunc(func(ev events.Event) bool {
 			var evt event
 			switch ev := ev.(type) {
@@ -63,10 +63,6 @@ func (nDB *NetworkDB) Watch(tname, nid, key string) (*events.Channel, func()) {
 			}
 
 			if nid != "" && evt.NetworkID != nid {
-				return false
-			}
-
-			if key != "" && evt.Key != key {
 				return false
 			}
 

@@ -26,7 +26,7 @@ and setting values. That's it.
 [gh_ben]: https://github.com/benbjohnson
 [bolt]: https://github.com/boltdb/bolt
 [hyc_symas]: https://twitter.com/hyc_symas
-[lmdb]: http://symas.com/mdb/
+[lmdb]: https://www.symas.com/symas-embedded-database-lmdb
 
 ## Project Status
 
@@ -78,14 +78,23 @@ New minor versions may add additional features to the API.
 ### Installing
 
 To start using Bolt, install Go and run `go get`:
-
 ```sh
-$ go get go.etcd.io/bbolt/...
+$ go get go.etcd.io/bbolt@latest
 ```
 
-This will retrieve the library and install the `bolt` command line utility into
-your `$GOBIN` path.
+This will retrieve the library and update your `go.mod` and `go.sum` files.
 
+To run the command line utility, execute:
+```sh
+$ go run go.etcd.io/bbolt/cmd/bbolt@latest
+```
+
+Run `go install` to install the `bbolt` command line utility into
+your `$GOBIN` path, which defaults to `$GOPATH/bin` or `$HOME/go/bin` if the
+`GOPATH` environment variable is not set.
+```sh
+$ go install go.etcd.io/bbolt/cmd/bbolt@latest
+```
 
 ### Importing bbolt
 
@@ -412,10 +421,19 @@ Prev()   Move to the previous key.
 ```
 
 Each of those functions has a return signature of `(key []byte, value []byte)`.
-When you have iterated to the end of the cursor then `Next()` will return a
-`nil` key.  You must seek to a position using `First()`, `Last()`, or `Seek()`
-before calling `Next()` or `Prev()`. If you do not seek to a position then
-these functions will return a `nil` key.
+You must seek to a position using `First()`, `Last()`, or `Seek()` before calling
+`Next()` or `Prev()`. If you do not seek to a position then these functions will
+return a `nil` key.
+
+When you have iterated to the end of the cursor, then `Next()` will return a
+`nil` key and the cursor still points to the last element if present. When you
+have iterated to the beginning of the cursor, then `Prev()` will return a `nil`
+key and the cursor still points to the first element if present.
+
+If you remove key/value pairs during iteration, the cursor may automatically
+move to the next position if present in current node each time removing a key.
+When you call `c.Next()` after removing a key, it may skip one key/value pair.
+Refer to [pull/611](https://github.com/etcd-io/bbolt/pull/611) to get more detailed info.
 
 During iteration, if the key is non-`nil` but the value is `nil`, that means
 the key refers to a bucket rather than a value.  Use `Bucket.Bucket()` to
@@ -841,6 +859,12 @@ Here are a few things to note when evaluating and using Bolt:
   to grow. However, it's important to note that deleting large chunks of data
   will not allow you to reclaim that space on disk.
 
+* Removing key/values pairs in a bucket during iteration on the bucket using
+  cursor may not work properly. Each time when removing a key/value pair, the
+  cursor may automatically move to the next position if present. When users
+  call `c.Next()` after removing a key, it may skip one key/value pair.
+  Refer to https://github.com/etcd-io/bbolt/pull/611 for more detailed info.
+
   For more information on page allocation, [see this comment][page-allocation].
 
 [page-allocation]: https://github.com/boltdb/bolt/issues/308#issuecomment-74811638
@@ -933,7 +957,7 @@ Below is a list of public, open source projects that use Bolt:
 * [ipxed](https://github.com/kelseyhightower/ipxed) - Web interface and api for ipxed.
 * [Ironsmith](https://github.com/timshannon/ironsmith) - A simple, script-driven continuous integration (build - > test -> release) tool, with no external dependencies
 * [Kala](https://github.com/ajvb/kala) - Kala is a modern job scheduler optimized to run on a single node. It is persistent, JSON over HTTP API, ISO 8601 duration notation, and dependent jobs.
-* [Key Value Access Langusge (KVAL)](https://github.com/kval-access-language) - A proposed grammar for key-value datastores offering a bbolt binding.
+* [Key Value Access Language (KVAL)](https://github.com/kval-access-language) - A proposed grammar for key-value datastores offering a bbolt binding.
 * [LedisDB](https://github.com/siddontang/ledisdb) - A high performance NoSQL, using Bolt as optional storage.
 * [lru](https://github.com/crowdriff/lru) - Easy to use Bolt-backed Least-Recently-Used (LRU) read-through cache with chainable remote stores.
 * [mbuckets](https://github.com/abhigupta912/mbuckets) - A Bolt wrapper that allows easy operations on multi level (nested) buckets.

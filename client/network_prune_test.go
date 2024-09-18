@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -23,27 +23,12 @@ func TestNetworksPruneError(t *testing.T) {
 		version: "1.25",
 	}
 
-	filters := filters.NewArgs()
-
-	_, err := client.NetworksPrune(context.Background(), filters)
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	_, err := client.NetworksPrune(context.Background(), filters.NewArgs())
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestNetworksPrune(t *testing.T) {
-	expectedURL := "/v1.25/networks/prune"
-
-	danglingFilters := filters.NewArgs()
-	danglingFilters.Add("dangling", "true")
-
-	noDanglingFilters := filters.NewArgs()
-	noDanglingFilters.Add("dangling", "false")
-
-	labelFilters := filters.NewArgs()
-	labelFilters.Add("dangling", "true")
-	labelFilters.Add("label", "label1=foo")
-	labelFilters.Add("label", "label2!=bar")
+	const expectedURL = "/v1.25/networks/prune"
 
 	listCases := []struct {
 		filters             filters.Args
@@ -58,7 +43,7 @@ func TestNetworksPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: danglingFilters,
+			filters: filters.NewArgs(filters.Arg("dangling", "true")),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -66,7 +51,7 @@ func TestNetworksPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: noDanglingFilters,
+			filters: filters.NewArgs(filters.Arg("dangling", "false")),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -74,7 +59,11 @@ func TestNetworksPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: labelFilters,
+			filters: filters.NewArgs(
+				filters.Arg("dangling", "true"),
+				filters.Arg("label", "label1=foo"),
+				filters.Arg("label", "label2!=bar"),
+			),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -93,7 +82,7 @@ func TestNetworksPrune(t *testing.T) {
 					actual := query.Get(key)
 					assert.Check(t, is.Equal(expected, actual))
 				}
-				content, err := json.Marshal(types.NetworksPruneReport{
+				content, err := json.Marshal(network.PruneReport{
 					NetworksDeleted: []string{"network_id1", "network_id2"},
 				})
 				if err != nil {

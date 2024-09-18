@@ -6,6 +6,7 @@
 package internaloption
 
 import (
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/internal"
 	"google.golang.org/api/option"
 )
@@ -21,8 +22,27 @@ func (o defaultEndpointOption) Apply(settings *internal.DialSettings) {
 // It should only be used internally by generated clients.
 //
 // This is similar to WithEndpoint, but allows us to determine whether the user has overridden the default endpoint.
+//
+// Deprecated: WithDefaultEndpoint does not support setting the universe domain.
+// Use WithDefaultEndpointTemplate and WithDefaultUniverseDomain to compose the
+// default endpoint instead.
 func WithDefaultEndpoint(url string) option.ClientOption {
 	return defaultEndpointOption(url)
+}
+
+type defaultEndpointTemplateOption string
+
+func (o defaultEndpointTemplateOption) Apply(settings *internal.DialSettings) {
+	settings.DefaultEndpointTemplate = string(o)
+}
+
+// WithDefaultEndpointTemplate provides a template for creating the endpoint
+// using a universe domain. See also WithDefaultUniverseDomain and
+// option.WithUniverseDomain.
+//
+// It should only be used internally by generated clients.
+func WithDefaultEndpointTemplate(url string) option.ClientOption {
+	return defaultEndpointTemplateOption(url)
 }
 
 type defaultMTLSEndpointOption string
@@ -66,6 +86,36 @@ func (e enableDirectPath) Apply(o *internal.DialSettings) {
 	o.EnableDirectPath = bool(e)
 }
 
+// EnableDirectPathXds returns a ClientOption that overrides the default
+// DirectPath type. It is only valid when DirectPath is enabled.
+//
+// It should only be used internally by generated clients.
+// This is an EXPERIMENTAL API and may be changed or removed in the future.
+func EnableDirectPathXds() option.ClientOption {
+	return enableDirectPathXds(true)
+}
+
+type enableDirectPathXds bool
+
+func (x enableDirectPathXds) Apply(o *internal.DialSettings) {
+	o.EnableDirectPathXds = bool(x)
+}
+
+// AllowNonDefaultServiceAccount returns a ClientOption that overrides the default
+// requirement for using the default service account for DirectPath.
+//
+// It should only be used internally by generated clients.
+// This is an EXPERIMENTAL API and may be changed or removed in the future.
+func AllowNonDefaultServiceAccount(nd bool) option.ClientOption {
+	return allowNonDefaultServiceAccount(nd)
+}
+
+type allowNonDefaultServiceAccount bool
+
+func (a allowNonDefaultServiceAccount) Apply(o *internal.DialSettings) {
+	o.AllowNonDefaultServiceAccount = bool(a)
+}
+
 // WithDefaultAudience returns a ClientOption that specifies a default audience
 // to be used as the audience field ("aud") for the JWT token authentication.
 //
@@ -95,6 +145,22 @@ func (w withDefaultScopes) Apply(o *internal.DialSettings) {
 	copy(o.DefaultScopes, w)
 }
 
+// WithDefaultUniverseDomain returns a ClientOption that sets the default universe domain.
+//
+// It should only be used internally by generated clients.
+//
+// This is similar to the public WithUniverse, but allows us to determine whether the user has
+// overridden the default universe.
+func WithDefaultUniverseDomain(ud string) option.ClientOption {
+	return withDefaultUniverseDomain(ud)
+}
+
+type withDefaultUniverseDomain string
+
+func (w withDefaultUniverseDomain) Apply(o *internal.DialSettings) {
+	o.DefaultUniverseDomain = string(w)
+}
+
 // EnableJwtWithScope returns a ClientOption that specifies if scope can be used
 // with self-signed JWT.
 func EnableJwtWithScope() option.ClientOption {
@@ -106,3 +172,35 @@ type enableJwtWithScope bool
 func (w enableJwtWithScope) Apply(o *internal.DialSettings) {
 	o.EnableJwtWithScope = bool(w)
 }
+
+// WithCredentials returns a client option to specify credentials which will be used to authenticate API calls.
+// This credential takes precedence over all other credential options.
+func WithCredentials(creds *google.Credentials) option.ClientOption {
+	return (*withCreds)(creds)
+}
+
+type withCreds google.Credentials
+
+func (w *withCreds) Apply(o *internal.DialSettings) {
+	o.InternalCredentials = (*google.Credentials)(w)
+}
+
+// EnableNewAuthLibrary returns a ClientOption that specifies if libraries in this
+// module to delegate auth to our new library. This option will be removed in
+// the future once all clients have been moved to the new auth layer.
+func EnableNewAuthLibrary() option.ClientOption {
+	return enableNewAuthLibrary(true)
+}
+
+type enableNewAuthLibrary bool
+
+func (w enableNewAuthLibrary) Apply(o *internal.DialSettings) {
+	o.EnableNewAuthLibrary = bool(w)
+}
+
+// EmbeddableAdapter is a no-op option.ClientOption that allow libraries to
+// create their own client options by embedding this type into their own
+// client-specific option wrapper. See example for usage.
+type EmbeddableAdapter struct{}
+
+func (*EmbeddableAdapter) Apply(_ *internal.DialSettings) {}

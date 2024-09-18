@@ -86,6 +86,23 @@ func NewAtomicLevelAt(l zapcore.Level) AtomicLevel {
 	return a
 }
 
+// ParseAtomicLevel parses an AtomicLevel based on a lowercase or all-caps ASCII
+// representation of the log level. If the provided ASCII representation is
+// invalid an error is returned.
+//
+// This is particularly useful when dealing with text input to configure log
+// levels.
+func ParseAtomicLevel(text string) (AtomicLevel, error) {
+	a := NewAtomicLevel()
+	l, err := zapcore.ParseLevel(text)
+	if err != nil {
+		return a, err
+	}
+
+	a.SetLevel(l)
+	return a, nil
+}
+
 // Enabled implements the zapcore.LevelEnabler interface, which allows the
 // AtomicLevel to be used in place of traditional static levels.
 func (lvl AtomicLevel) Enabled(l zapcore.Level) bool {

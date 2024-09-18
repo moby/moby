@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strings"
 
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/system"
@@ -46,6 +47,7 @@ type mount struct {
 	tmpfsOpt     TmpfsInfo
 	cacheSharing CacheMountSharingMode
 	noOutput     bool
+	contentCache MountContentCache
 }
 
 type ExecOp struct {
@@ -192,12 +194,13 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 	}
 
 	meta := &pb.Meta{
-		Args:         args,
-		Env:          env.ToArray(),
-		Cwd:          cwd,
-		User:         user,
-		Hostname:     hostname,
-		CgroupParent: cgrpParent,
+		Args:                      args,
+		Env:                       env.ToArray(),
+		Cwd:                       cwd,
+		User:                      user,
+		Hostname:                  hostname,
+		CgroupParent:              cgrpParent,
+		RemoveMountStubsRecursive: true,
 	}
 
 	extraHosts, err := getExtraHosts(e.base)(ctx, c)
@@ -280,12 +283,15 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 		} else if m.source != nil {
 			addCap(&e.constraints, pb.CapExecMountBind)
 		}
+		if m.contentCache != MountContentCacheDefault {
+			addCap(&e.constraints, pb.CapExecMountContentCache)
+		}
 	}
 
 	if len(e.secrets) > 0 {
 		addCap(&e.constraints, pb.CapExecMountSecret)
 		for _, s := range e.secrets {
-			if s.IsEnv {
+			if s.Env != nil {
 				addCap(&e.constraints, pb.CapExecSecretEnv)
 				break
 			}
@@ -338,7 +344,7 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 			inputIndex = pb.Empty
 		}
 
-		outputIndex := pb.OutputIndex(-1)
+		outputIndex := pb.SkipOutput
 		if !m.noOutput && !m.readonly && m.cacheID == "" && !m.tmpfs {
 			outputIndex = pb.OutputIndex(outIndex)
 			outIndex++
@@ -365,6 +371,14 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 				pm.CacheOpt.Sharing = pb.CacheSharingOpt_LOCKED
 			}
 		}
+		switch m.contentCache {
+		case MountContentCacheDefault:
+			pm.ContentCache = pb.MountContentCache_DEFAULT
+		case MountContentCacheOn:
+			pm.ContentCache = pb.MountContentCache_ON
+		case MountContentCacheOff:
+			pm.ContentCache = pb.MountContentCache_OFF
+		}
 		if m.tmpfs {
 			pm.MountType = pb.MountType_TMPFS
 			pm.TmpfsOpt = &pb.TmpfsOpt{
@@ -375,15 +389,17 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 	}
 
 	for _, s := range e.secrets {
-		if s.IsEnv {
+		if s.Env != nil {
 			peo.Secretenv = append(peo.Secretenv, &pb.SecretEnv{
 				ID:       s.ID,
-				Name:     s.Target,
+				Name:     *s.Env,
 				Optional: s.Optional,
 			})
-		} else {
+		}
+		if s.Target != nil {
 			pm := &pb.Mount{
-				Dest:      s.Target,
+				Input:     pb.Empty,
+				Dest:      *s.Target,
 				MountType: pb.MountType_SECRET,
 				SecretOpt: &pb.SecretOpt{
 					ID:       s.ID,
@@ -399,6 +415,7 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 
 	for _, s := range e.ssh {
 		pm := &pb.Mount{
+			Input:     pb.Empty,
 			Dest:      s.Target,
 			MountType: pb.MountType_SSH,
 			SSHOpt: &pb.SSHOpt{
@@ -425,15 +442,23 @@ func (e *ExecOp) Output() Output {
 }
 
 func (e *ExecOp) Inputs() (inputs []Output) {
-	mm := map[Output]struct{}{}
+	// make sure mounts are sorted
+	// the same sort occurs in (*ExecOp).Marshal, and this
+	// sort must be the same
+	sort.Slice(e.mounts, func(i int, j int) bool {
+		return e.mounts[i].target < e.mounts[j].target
+	})
+
+	seen := map[Output]struct{}{}
 	for _, m := range e.mounts {
 		if m.source != nil {
-			mm[m.source] = struct{}{}
+			if _, ok := seen[m.source]; !ok {
+				inputs = append(inputs, m.source)
+				seen[m.source] = struct{}{}
+			}
 		}
 	}
-	for o := range mm {
-		inputs = append(inputs, o)
-	}
+
 	return
 }
 
@@ -489,6 +514,12 @@ func SourcePath(src string) MountOption {
 
 func ForceNoOutput(m *mount) {
 	m.noOutput = true
+}
+
+func ContentCache(cache MountContentCache) MountOption {
+	return func(m *mount) {
+		m.contentCache = cache
+	}
 }
 
 func AsPersistentCacheDir(id string, sharing CacheMountSharingMode) MountOption {
@@ -648,9 +679,22 @@ type SSHInfo struct {
 	Optional bool
 }
 
+// AddSecret is a RunOption that adds a secret to the exec.
 func AddSecret(dest string, opts ...SecretOption) RunOption {
 	return runOptionFunc(func(ei *ExecInfo) {
-		s := &SecretInfo{ID: dest, Target: dest, Mode: 0400}
+		s := &SecretInfo{ID: dest, Target: &dest, Mode: 0400}
+		for _, opt := range opts {
+			opt.SetSecretOption(s)
+		}
+		ei.Secrets = append(ei.Secrets, *s)
+	})
+}
+
+// AddSecretWithDest is a RunOption that adds a secret to the exec
+// with an optional destination.
+func AddSecretWithDest(src string, dest *string, opts ...SecretOption) RunOption {
+	return runOptionFunc(func(ei *ExecInfo) {
+		s := &SecretInfo{ID: src, Target: dest, Mode: 0400}
 		for _, opt := range opts {
 			opt.SetSecretOption(s)
 		}
@@ -669,13 +713,15 @@ func (fn secretOptionFunc) SetSecretOption(si *SecretInfo) {
 }
 
 type SecretInfo struct {
-	ID       string
-	Target   string
+	ID string
+	// Target optionally specifies the target for the secret mount
+	Target *string
+	// Env optionally names the environment variable for the secret
+	Env      *string
 	Mode     int
 	UID      int
 	GID      int
 	Optional bool
-	IsEnv    bool
 }
 
 var SecretOptional = secretOptionFunc(func(si *SecretInfo) {
@@ -691,10 +737,28 @@ func SecretID(id string) SecretOption {
 // SecretAsEnv defines if the secret should be added as an environment variable
 func SecretAsEnv(v bool) SecretOption {
 	return secretOptionFunc(func(si *SecretInfo) {
-		si.IsEnv = v
+		if !v {
+			si.Env = nil
+			return
+		}
+		if si.Target == nil {
+			return
+		}
+		target := strings.Clone(*si.Target)
+		si.Env = &target
+		si.Target = nil
 	})
 }
 
+// SecretAsEnvName defines if the secret should be added as an environment variable
+// with the specified name
+func SecretAsEnvName(v string) SecretOption {
+	return secretOptionFunc(func(si *SecretInfo) {
+		si.Env = &v
+	})
+}
+
+// SecretFileOpt sets the secret's target file uid, gid and permissions.
 func SecretFileOpt(uid, gid, mode int) SecretOption {
 	return secretOptionFunc(func(si *SecretInfo) {
 		si.UID = uid
@@ -703,12 +767,15 @@ func SecretFileOpt(uid, gid, mode int) SecretOption {
 	})
 }
 
+// ReadonlyRootFS sets the execs's root filesystem to be read-only.
 func ReadonlyRootFS() RunOption {
 	return runOptionFunc(func(ei *ExecInfo) {
 		ei.ReadonlyRootFS = true
 	})
 }
 
+// WithProxy is a RunOption that sets the proxy environment variables in the resulting exec.
+// For example `HTTP_PROXY` is a standard environment variable for unix systems that programs may read.
 func WithProxy(ps ProxyEnv) RunOption {
 	return runOptionFunc(func(ei *ExecInfo) {
 		ei.ProxyEnv = &ps
@@ -776,4 +843,12 @@ const (
 	UlimitRttime     UlimitName = "rttime"
 	UlimitSigpending UlimitName = "sigpending"
 	UlimitStack      UlimitName = "stack"
+)
+
+type MountContentCache int
+
+const (
+	MountContentCacheDefault MountContentCache = iota
+	MountContentCacheOn
+	MountContentCacheOff
 )

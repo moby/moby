@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !solaris && !windows && !zos
-// +build !aix,!darwin,!dragonfly,!freebsd,!linux,!netbsd,!openbsd,!solaris,!windows,!zos
 
 package socket
 
@@ -36,11 +35,11 @@ func setsockopt(s uintptr, level, name int, b []byte) error {
 	return errNotImplemented
 }
 
-func recvmsg(s uintptr, h *msghdr, flags int) (int, error) {
-	return 0, errNotImplemented
+func recvmsg(s uintptr, buffers [][]byte, oob []byte, flags int, network string) (n, oobn int, recvflags int, from net.Addr, err error) {
+	return 0, 0, 0, nil, errNotImplemented
 }
 
-func sendmsg(s uintptr, h *msghdr, flags int) (int, error) {
+func sendmsg(s uintptr, buffers [][]byte, oob []byte, to net.Addr, flags int) (int, error) {
 	return 0, errNotImplemented
 }
 

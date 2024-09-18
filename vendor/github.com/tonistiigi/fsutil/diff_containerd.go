@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/tonistiigi/fsutil/types"
@@ -127,7 +128,7 @@ func doubleWalkDiff(ctx context.Context, changeFn ChangeFunc, a, b walkerFn, fil
 					f1 = nil
 					continue
 				} else if rmdir == "" && f1.stat.IsDir() {
-					rmdir = f1.path + string(os.PathSeparator)
+					rmdir = f1.path + string(filepath.Separator)
 				} else if rmdir != "" {
 					rmdir = ""
 				}
@@ -138,7 +139,7 @@ func doubleWalkDiff(ctx context.Context, changeFn ChangeFunc, a, b walkerFn, fil
 					return err
 				}
 				if f1.stat.IsDir() && !f2copy.stat.IsDir() {
-					rmdir = f1.path + string(os.PathSeparator)
+					rmdir = f1.path + string(filepath.Separator)
 				} else if rmdir != "" {
 					rmdir = ""
 				}

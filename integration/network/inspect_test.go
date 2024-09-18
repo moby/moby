@@ -1,82 +1,82 @@
 package network // import "github.com/docker/docker/integration/network"
 
 import (
-	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
 func TestInspectNetwork(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
 	defer c.Close()
 
 	networkName := "Overlay" + t.Name()
-	overlayID := network.CreateNoError(context.Background(), t, c, networkName,
+	overlayID := network.CreateNoError(ctx, t, c, networkName,
 		network.WithDriver("overlay"),
-		network.WithCheckDuplicate(),
 	)
 
 	var instances uint64 = 2
 	serviceName := "TestService" + t.Name()
 
-	serviceID := swarm.CreateService(t, d,
+	serviceID := swarm.CreateService(ctx, t, d,
 		swarm.ServiceWithReplicas(instances),
 		swarm.ServiceWithName(serviceName),
 		swarm.ServiceWithNetwork(networkName),
 	)
 
-	poll.WaitOn(t, swarm.RunningTasksCount(c, serviceID, instances), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, c, serviceID, instances), swarm.ServicePoll)
 
 	tests := []struct {
 		name    string
 		network string
-		opts    types.NetworkInspectOptions
+		opts    networktypes.InspectOptions
 	}{
 		{
 			name:    "full network id",
 			network: overlayID,
-			opts: types.NetworkInspectOptions{
+			opts: networktypes.InspectOptions{
 				Verbose: true,
 			},
 		},
 		{
 			name:    "partial network id",
 			network: overlayID[0:11],
-			opts: types.NetworkInspectOptions{
+			opts: networktypes.InspectOptions{
 				Verbose: true,
 			},
 		},
 		{
 			name:    "network name",
 			network: networkName,
-			opts: types.NetworkInspectOptions{
+			opts: networktypes.InspectOptions{
 				Verbose: true,
 			},
 		},
 		{
 			name:    "network name and swarm scope",
 			network: networkName,
-			opts: types.NetworkInspectOptions{
+			opts: networktypes.InspectOptions{
 				Verbose: true,
 				Scope:   "swarm",
 			},
 		},
 	}
-	ctx := context.Background()
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
 			nw, err := c.NetworkInspect(ctx, tc.network, tc.opts)
 			assert.NilError(t, err)
 

@@ -265,5 +265,4 @@ func parseLogFormat(logFormat, proto string) (syslog.Formatter, syslog.Framer, e
 	default:
 		return nil, nil, errors.New("Invalid syslog format")
 	}
-
 }

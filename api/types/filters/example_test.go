@@ -1,4 +1,5 @@
 package filters // import "github.com/docker/docker/api/types/filters"
+import "fmt"
 
 func ExampleArgs_MatchKVList() {
 	args := NewArgs(
@@ -6,19 +7,29 @@ func ExampleArgs_MatchKVList() {
 		Arg("label", "state=running"))
 
 	// returns true because there are no values for bogus
-	args.MatchKVList("bogus", nil)
+	b := args.MatchKVList("bogus", nil)
+	fmt.Println(b)
 
 	// returns false because there are no sources
-	args.MatchKVList("label", nil)
+	b = args.MatchKVList("label", nil)
+	fmt.Println(b)
 
 	// returns true because all sources are matched
-	args.MatchKVList("label", map[string]string{
+	b = args.MatchKVList("label", map[string]string{
 		"image": "foo",
 		"state": "running",
 	})
+	fmt.Println(b)
 
 	// returns false because the values do not match
-	args.MatchKVList("label", map[string]string{
+	b = args.MatchKVList("label", map[string]string{
 		"image": "other",
 	})
+	fmt.Println(b)
+
+	// Output:
+	// true
+	// false
+	// true
+	// false
 }

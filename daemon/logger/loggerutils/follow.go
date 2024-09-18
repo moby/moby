@@ -1,13 +1,14 @@
 package loggerutils // import "github.com/docker/docker/daemon/logger/loggerutils"
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type follow struct {
@@ -16,13 +17,13 @@ type follow struct {
 	Decoder   Decoder
 	Forwarder *forwarder
 
-	log *logrus.Entry
+	log *log.Entry
 	c   chan logPos
 }
 
 // Do follows the log file as it is written, starting from f at read.
-func (fl *follow) Do(f *os.File, read logPos) {
-	fl.log = logrus.WithFields(logrus.Fields{
+func (fl *follow) Do(ctx context.Context, f *os.File, read logPos) {
+	fl.log = log.G(ctx).WithFields(log.Fields{
 		"module": "logger",
 		"file":   f.Name(),
 	})
@@ -37,7 +38,7 @@ func (fl *follow) Do(f *os.File, read logPos) {
 	}()
 
 	for {
-		wrote, ok := fl.nextPos(read)
+		wrote, ok := fl.nextPos(ctx, read)
 		if !ok {
 			return
 		}
@@ -48,7 +49,7 @@ func (fl *follow) Do(f *os.File, read logPos) {
 				fl.Watcher.Err <- err
 				return
 			}
-			if !fl.forward(f) {
+			if !fl.forward(ctx, f) {
 				return
 			}
 
@@ -90,7 +91,7 @@ func (fl *follow) Do(f *os.File, read logPos) {
 			read.size = 0
 		}
 
-		if !fl.forward(io.NewSectionReader(f, read.size, wrote.size-read.size)) {
+		if !fl.forward(ctx, io.NewSectionReader(f, read.size, wrote.size-read.size)) {
 			return
 		}
 		read = wrote
@@ -99,15 +100,17 @@ func (fl *follow) Do(f *os.File, read logPos) {
 
 // nextPos waits until the write position of the LogFile being followed has
 // advanced from current and returns the new position.
-func (fl *follow) nextPos(current logPos) (next logPos, ok bool) {
+func (fl *follow) nextPos(ctx context.Context, current logPos) (next logPos, ok bool) {
 	var st logReadState
 	select {
+	case <-ctx.Done():
+		return current, false
 	case <-fl.Watcher.WatchConsumerGone():
 		return current, false
 	case st = <-fl.LogFile.read:
 	}
 
-	// Have any any logs been written since we last checked?
+	// Have any logs been written since we last checked?
 	if st.pos == current { // Nope.
 		// Add ourself to the notify list.
 		st.wait = append(st.wait, fl.c)
@@ -134,7 +137,7 @@ func (fl *follow) nextPos(current logPos) (next logPos, ok bool) {
 // forward decodes log messages from r and forwards them to the log watcher.
 //
 // The return value, cont, signals whether following should continue.
-func (fl *follow) forward(r io.Reader) (cont bool) {
+func (fl *follow) forward(ctx context.Context, r io.Reader) (cont bool) {
 	fl.Decoder.Reset(r)
-	return fl.Forwarder.Do(fl.Watcher, fl.Decoder)
+	return fl.Forwarder.Do(ctx, fl.Watcher, fl.Decoder.Decode)
 }

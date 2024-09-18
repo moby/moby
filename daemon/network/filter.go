@@ -1,16 +1,15 @@
 package network // import "github.com/docker/docker/daemon/network"
 
 import (
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/runconfig"
 	"github.com/pkg/errors"
 )
 
 // FilterNetworks filters network list according to user specified filter
 // and returns user chosen networks
-func FilterNetworks(nws []types.NetworkResource, filter filters.Args) ([]types.NetworkResource, error) {
+func FilterNetworks(nws []network.Inspect, filter filters.Args) ([]network.Inspect, error) {
 	// if filter is empty, return original network list
 	if filter.Len() == 0 {
 		return nws, nil
@@ -71,7 +70,7 @@ func FilterNetworks(nws []types.NetworkResource, filter filters.Args) ([]types.N
 	}
 
 	if filter.Contains("type") {
-		typeNet := []types.NetworkResource{}
+		typeNet := []network.Inspect{}
 		errFilter := filter.WalkValues("type", func(fval string) error {
 			passList, err := filterNetworkByType(displayNet, fval)
 			if err != nil {
@@ -89,14 +88,14 @@ func FilterNetworks(nws []types.NetworkResource, filter filters.Args) ([]types.N
 	return displayNet, nil
 }
 
-func filterNetworkByUse(nws []types.NetworkResource, danglingOnly bool) []types.NetworkResource {
-	retNws := []types.NetworkResource{}
+func filterNetworkByUse(nws []network.Inspect, danglingOnly bool) []network.Inspect {
+	retNws := []network.Inspect{}
 
-	filterFunc := func(nw types.NetworkResource) bool {
+	filterFunc := func(nw network.Inspect) bool {
 		if danglingOnly {
-			return !runconfig.IsPreDefinedNetwork(nw.Name) && len(nw.Containers) == 0 && len(nw.Services) == 0
+			return !IsPredefined(nw.Name) && len(nw.Containers) == 0 && len(nw.Services) == 0
 		}
-		return runconfig.IsPreDefinedNetwork(nw.Name) || len(nw.Containers) > 0 || len(nw.Services) > 0
+		return IsPredefined(nw.Name) || len(nw.Containers) > 0 || len(nw.Services) > 0
 	}
 
 	for _, nw := range nws {
@@ -108,18 +107,18 @@ func filterNetworkByUse(nws []types.NetworkResource, danglingOnly bool) []types.
 	return retNws
 }
 
-func filterNetworkByType(nws []types.NetworkResource, netType string) ([]types.NetworkResource, error) {
-	retNws := []types.NetworkResource{}
+func filterNetworkByType(nws []network.Inspect, netType string) ([]network.Inspect, error) {
+	retNws := []network.Inspect{}
 	switch netType {
 	case "builtin":
 		for _, nw := range nws {
-			if runconfig.IsPreDefinedNetwork(nw.Name) {
+			if IsPredefined(nw.Name) {
 				retNws = append(retNws, nw)
 			}
 		}
 	case "custom":
 		for _, nw := range nws {
-			if !runconfig.IsPreDefinedNetwork(nw.Name) {
+			if !IsPredefined(nw.Name) {
 				retNws = append(retNws, nw)
 			}
 		}

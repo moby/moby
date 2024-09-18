@@ -5,15 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/docker/go-events"
-	"github.com/sirupsen/logrus"
-
-	"github.com/docker/docker/pkg/plugingetter"
 
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/state/store"
+	mobyplugin "github.com/moby/swarmkit/v2/node/plugin"
 	"github.com/moby/swarmkit/v2/volumequeue"
 )
 
@@ -23,6 +22,10 @@ const (
 	// plugin interface is "docker.csicontroller/1.0". This gets only the CSI
 	// plugins with Controller capability.
 	DockerCSIPluginCap = "csicontroller"
+
+	// CSIRPCTimeout is the client-side timeout duration for RPCs to the CSI
+	// plugin.
+	CSIRPCTimeout = 15 * time.Second
 )
 
 type Manager struct {
@@ -33,12 +36,12 @@ type Manager struct {
 
 	// pg is the plugingetter, which allows us to access the Docker Engine's
 	// plugin store.
-	pg plugingetter.PluginGetter
+	pg mobyplugin.Getter
 
 	// newPlugin is a function which returns an object implementing the Plugin
 	// interface. It allows us to swap out the implementation of plugins while
 	// unit-testing the Manager
-	newPlugin func(pc plugingetter.CompatPlugin, pa plugingetter.PluginAddr, provider SecretProvider) Plugin
+	newPlugin func(p mobyplugin.AddrPlugin, provider SecretProvider) Plugin
 
 	// synchronization for starting and stopping the Manager
 	startOnce sync.Once
@@ -52,7 +55,7 @@ type Manager struct {
 	pendingVolumes *volumequeue.VolumeQueue
 }
 
-func NewManager(s *store.MemoryStore, pg plugingetter.PluginGetter) *Manager {
+func NewManager(s *store.MemoryStore, pg mobyplugin.Getter) *Manager {
 	return &Manager{
 		store:          s,
 		stopChan:       make(chan struct{}),
@@ -149,10 +152,16 @@ func (vm *Manager) run(pctx context.Context) {
 // processVolumes encapuslates the logic for processing pending Volumes.
 func (vm *Manager) processVolume(ctx context.Context, id string, attempt uint) {
 	// set up log fields for a derrived context to pass to handleVolume.
-	dctx := log.WithFields(ctx, logrus.Fields{
+	logCtx := log.WithFields(ctx, log.Fields{
 		"volume.id": id,
 		"attempt":   attempt,
 	})
+
+	// Set a client-side timeout. Without this, one really long server-side
+	// timeout can block processing all volumes until it completes or fails.
+	dctx, cancel := context.WithTimeout(logCtx, CSIRPCTimeout)
+	// always gotta call the WithTimeout cancel
+	defer cancel()
 
 	err := vm.handleVolume(dctx, id)
 	// TODO(dperny): differentiate between retryable and non-retryable
@@ -460,7 +469,7 @@ func (vm *Manager) getPlugin(name string) (Plugin, error) {
 	}
 
 	// otherwise, we need to load the plugin.
-	pc, err := vm.pg.Get(name, DockerCSIPluginCap, plugingetter.Lookup)
+	pc, err := vm.pg.Get(name, DockerCSIPluginCap)
 	if err != nil {
 		return nil, err
 	}
@@ -469,12 +478,12 @@ func (vm *Manager) getPlugin(name string) (Plugin, error) {
 		return nil, errors.New("driver \"" + name + "\" not found")
 	}
 
-	pa, ok := pc.(plugingetter.PluginAddr)
+	pa, ok := pc.(mobyplugin.AddrPlugin)
 	if !ok {
 		return nil, errors.New("plugin for driver \"" + name + "\" does not implement PluginAddr")
 	}
 
-	p := vm.newPlugin(pc, pa, vm.provider)
+	p := vm.newPlugin(pa, vm.provider)
 	vm.plugins[name] = p
 
 	return p, nil

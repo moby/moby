@@ -3,48 +3,46 @@ package null
 import (
 	"testing"
 
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/ipamapi"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestPoolRequest(t *testing.T) {
 	a := allocator{}
 
-	pid, pool, _, err := a.RequestPool(defaultAS, "", "", nil, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !types.CompareIPNet(defaultPool, pool) {
-		t.Fatalf("Unexpected pool returned. Expected %v. Got: %v", defaultPool, pool)
-	}
-	if pid != defaultPoolID {
-		t.Fatalf("Unexpected pool id returned. Expected: %s. Got: %s", defaultPoolID, pid)
-	}
+	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: defaultAddressSpace})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(alloc.PoolID, defaultPoolID4))
+	assert.Check(t, is.Equal(alloc.Pool, defaultPool4))
 
-	_, _, _, err = a.RequestPool("default", "", "", nil, false)
-	if err == nil {
-		t.Fatal("Unexpected success")
-	}
+	alloc, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: defaultAddressSpace, V6: true})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(alloc.PoolID, defaultPoolID6))
+	assert.Check(t, is.Equal(alloc.Pool, defaultPool6))
 
-	_, _, _, err = a.RequestPool(defaultAS, "192.168.0.0/16", "", nil, false)
-	if err == nil {
-		t.Fatal("Unexpected success")
-	}
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: "default"})
+	assert.ErrorContains(t, err, "unknown address space: default")
 
-	_, _, _, err = a.RequestPool(defaultAS, "", "192.168.0.0/24", nil, false)
-	if err == nil {
-		t.Fatal("Unexpected success")
-	}
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: defaultAddressSpace, Pool: "192.168.0.0/16"})
+	assert.ErrorContains(t, err, "null ipam driver does not handle specific address pool requests")
 
-	_, _, _, err = a.RequestPool(defaultAS, "", "", nil, true)
-	if err == nil {
-		t.Fatal("Unexpected success")
-	}
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: defaultAddressSpace, SubPool: "192.168.0.0/24"})
+	assert.ErrorContains(t, err, "null ipam driver does not handle specific address subpool requests")
 }
 
 func TestOtherRequests(t *testing.T) {
 	a := allocator{}
 
-	ip, _, err := a.RequestAddress(defaultPoolID, nil, nil)
+	ip, _, err := a.RequestAddress(defaultPoolID4, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ip != nil {
+		t.Fatalf("Unexpected address returned: %v", ip)
+	}
+
+	ip, _, err = a.RequestAddress(defaultPoolID6, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,5 +54,4 @@ func TestOtherRequests(t *testing.T) {
 	if err == nil {
 		t.Fatal("Unexpected success")
 	}
-
 }

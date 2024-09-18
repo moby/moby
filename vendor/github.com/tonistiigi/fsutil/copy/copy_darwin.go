@@ -1,3 +1,4 @@
+//go:build darwin
 // +build darwin
 
 package fs
@@ -12,7 +13,7 @@ import (
 
 func copyFile(source, target string) error {
 	if err := unix.Clonefileat(unix.AT_FDCWD, source, unix.AT_FDCWD, target, unix.CLONE_NOFOLLOW); err != nil {
-		if err != unix.EINVAL {
+		if err != unix.EINVAL && err != unix.EXDEV {
 			return err
 		}
 	} else {
@@ -39,4 +40,8 @@ func copyFileContent(dst, src *os.File) error {
 	bufferPool.Put(buf)
 
 	return err
+}
+
+func mknod(dst string, mode uint32, rDev int) error {
+	return unix.Mknod(dst, uint32(mode), rDev)
 }

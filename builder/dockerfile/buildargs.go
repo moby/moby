@@ -3,8 +3,7 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 import (
 	"fmt"
 	"io"
-
-	"github.com/docker/docker/runconfig/opts"
+	"sort"
 )
 
 // builtinAllowedBuildArgs is list of built-in allowed build args
@@ -80,6 +79,7 @@ func (b *BuildArgs) WarnOnUnusedBuildArgs(out io.Writer) {
 		}
 	}
 	if len(leftoverArgs) > 0 {
+		sort.Strings(leftoverArgs)
 		fmt.Fprintf(out, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
 	}
 }
@@ -136,7 +136,7 @@ func (b *BuildArgs) getAllFromMapping(source map[string]*string) map[string]stri
 // FilterAllowed returns all allowed args without the filtered args
 func (b *BuildArgs) FilterAllowed(filter []string) []string {
 	envs := []string{}
-	configEnv := opts.ConvertKVStringsToMap(filter)
+	configEnv := convertKVStringsToMap(filter)
 
 	for key, val := range b.GetAllAllowed() {
 		if _, ok := configEnv[key]; !ok {

@@ -7,25 +7,16 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/api/types/versions/v1p20"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/ioutils"
 )
 
 // ContainerStats writes information about the container to the stream
 // given in the config object.
 func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, config *backend.ContainerStatsConfig) error {
-	// Engine API version (used for backwards compatibility)
-	apiVersion := config.Version
-
-	if isWindows && versions.LessThan(apiVersion, "1.21") {
-		return errors.New("API versions pre v1.21 do not support stats on Windows")
-	}
-
 	ctr, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
@@ -35,26 +26,29 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		return errdefs.InvalidParameter(errors.New("cannot have stream=true and one-shot=true"))
 	}
 
+	enc := json.NewEncoder(config.OutStream())
+
 	// If the container is either not running or restarting and requires no stream, return an empty stats.
 	if (!ctr.IsRunning() || ctr.IsRestarting()) && !config.Stream {
-		return json.NewEncoder(config.OutStream).Encode(&types.StatsJSON{
+		return enc.Encode(&containertypes.StatsResponse{
 			Name: ctr.Name,
 			ID:   ctr.ID,
 		})
 	}
 
-	outStream := config.OutStream
-	if config.Stream {
-		wf := ioutils.NewWriteFlusher(outStream)
-		defer wf.Close()
-		wf.Flush()
-		outStream = wf
+	// Get container stats directly if OneShot is set
+	if config.OneShot {
+		stats, err := daemon.GetContainerStats(ctr)
+		if err != nil {
+			return err
+		}
+		return enc.Encode(stats)
 	}
 
-	var preCPUStats types.CPUStats
+	var preCPUStats containertypes.CPUStats
 	var preRead time.Time
-	getStatJSON := func(v interface{}) *types.StatsJSON {
-		ss := v.(types.StatsJSON)
+	getStatJSON := func(v interface{}) *containertypes.StatsResponse {
+		ss := v.(containertypes.StatsResponse)
 		ss.Name = ctr.Name
 		ss.ID = ctr.ID
 		ss.PreCPUStats = preCPUStats
@@ -64,12 +58,11 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		return &ss
 	}
 
-	enc := json.NewEncoder(outStream)
-
 	updates := daemon.subscribeToContainerStats(ctr)
 	defer daemon.unsubscribeToContainerStats(ctr, updates)
 
 	noStreamFirstFrame := !config.OneShot
+
 	for {
 		select {
 		case v, ok := <-updates:
@@ -77,46 +70,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 				return nil
 			}
 
-			var statsJSON interface{}
-			statsJSONPost120 := getStatJSON(v)
-			if versions.LessThan(apiVersion, "1.21") {
-				var (
-					rxBytes   uint64
-					rxPackets uint64
-					rxErrors  uint64
-					rxDropped uint64
-					txBytes   uint64
-					txPackets uint64
-					txErrors  uint64
-					txDropped uint64
-				)
-				for _, v := range statsJSONPost120.Networks {
-					rxBytes += v.RxBytes
-					rxPackets += v.RxPackets
-					rxErrors += v.RxErrors
-					rxDropped += v.RxDropped
-					txBytes += v.TxBytes
-					txPackets += v.TxPackets
-					txErrors += v.TxErrors
-					txDropped += v.TxDropped
-				}
-				statsJSON = &v1p20.StatsJSON{
-					Stats: statsJSONPost120.Stats,
-					Network: types.NetworkStats{
-						RxBytes:   rxBytes,
-						RxPackets: rxPackets,
-						RxErrors:  rxErrors,
-						RxDropped: rxDropped,
-						TxBytes:   txBytes,
-						TxPackets: txPackets,
-						TxErrors:  txErrors,
-						TxDropped: txDropped,
-					},
-				}
-			} else {
-				statsJSON = statsJSONPost120
-			}
-
+			statsJSON := getStatJSON(v)
 			if !config.Stream && noStreamFirstFrame {
 				// prime the cpu stats so they aren't 0 in the final output
 				noStreamFirstFrame = false
@@ -145,18 +99,37 @@ func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch cha
 }
 
 // GetContainerStats collects all the stats published by a container
-func (daemon *Daemon) GetContainerStats(container *container.Container) (*types.StatsJSON, error) {
+func (daemon *Daemon) GetContainerStats(container *container.Container) (*containertypes.StatsResponse, error) {
 	stats, err := daemon.stats(container)
 	if err != nil {
-		return nil, err
+		goto done
+	}
+
+	// Sample system CPU usage close to container usage to avoid
+	// noise in metric calculations.
+	// FIXME: move to containerd on Linux (not Windows)
+	stats.CPUStats.SystemUsage, stats.CPUStats.OnlineCPUs, err = getSystemCPUUsage()
+	if err != nil {
+		goto done
 	}
 
 	// We already have the network stats on Windows directly from HCS.
 	if !container.Config.NetworkDisabled && runtime.GOOS != "windows" {
-		if stats.Networks, err = daemon.getNetworkStats(container); err != nil {
-			return nil, err
-		}
+		stats.Networks, err = daemon.getNetworkStats(container)
 	}
 
-	return stats, nil
+done:
+	switch err.(type) {
+	case nil:
+		return stats, nil
+	case errdefs.ErrConflict, errdefs.ErrNotFound:
+		// return empty stats containing only name and ID if not running or not found
+		return &containertypes.StatsResponse{
+			Name: container.Name,
+			ID:   container.ID,
+		}, nil
+	default:
+		log.G(context.TODO()).Errorf("collecting stats for container %s: %v", container.Name, err)
+		return nil, err
+	}
 }

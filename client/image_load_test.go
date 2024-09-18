@@ -9,7 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestImageLoadError(t *testing.T) {
@@ -17,10 +20,8 @@ func TestImageLoadError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.ImageLoad(context.Background(), nil, true)
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	_, err := client.ImageLoad(context.Background(), nil, image.LoadOptions{Quiet: true})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestImageLoad(t *testing.T) {
@@ -78,7 +79,7 @@ func TestImageLoad(t *testing.T) {
 		}
 
 		input := bytes.NewReader([]byte(expectedInput))
-		imageLoadResponse, err := client.ImageLoad(context.Background(), input, loadCase.quiet)
+		imageLoadResponse, err := client.ImageLoad(context.Background(), input, image.LoadOptions{Quiet: loadCase.quiet})
 		if err != nil {
 			t.Fatal(err)
 		}

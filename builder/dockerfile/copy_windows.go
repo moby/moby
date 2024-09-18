@@ -15,8 +15,8 @@ import (
 )
 
 var pathDenyList = map[string]bool{
-	"c:\\":        true,
-	"c:\\windows": true,
+	`c:\`:        true,
+	`c:\windows`: true,
 }
 
 func init() {

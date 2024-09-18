@@ -4,17 +4,17 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"gotest.tools/v3/assert"
 )
 
 // ActiveContainers returns the list of ids of the currently running containers
-func (d *Daemon) ActiveContainers(t testing.TB) []string {
+func (d *Daemon) ActiveContainers(ctx context.Context, t testing.TB) []string {
 	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+	containers, err := cli.ContainerList(context.Background(), container.ListOptions{})
 	assert.NilError(t, err)
 
 	ids := make([]string, len(containers))

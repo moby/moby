@@ -5,10 +5,12 @@ import (
 	_ "crypto/sha256" // for opencontainers/go-digest
 	"encoding/json"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
+	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
 	"github.com/moby/buildkit/util/gitutil"
@@ -91,6 +93,10 @@ func (s *SourceOp) Inputs() []Output {
 	return nil
 }
 
+// Image returns a state that represents a docker image in a registry.
+// Example:
+//
+//	st := llb.Image("busybox:latest")
 func Image(ref string, opts ...ImageOption) State {
 	r, err := reference.ParseNormalizedNamed(ref)
 	if err == nil {
@@ -116,6 +122,11 @@ func Image(ref string, opts ...ImageOption) State {
 		attrs[pb.AttrImageRecordType] = info.RecordType
 	}
 
+	if ll := info.layerLimit; ll != nil {
+		attrs[pb.AttrImageLayerLimit] = strconv.FormatInt(int64(*ll), 10)
+		addCap(&info.Constraints, pb.CapSourceImageLayerLimit)
+	}
+
 	src := NewSource("docker-image://"+ref, attrs, info.Constraints) // controversial
 	if err != nil {
 		src.err = err
@@ -126,9 +137,11 @@ func Image(ref string, opts ...ImageOption) State {
 				if p == nil {
 					p = c.Platform
 				}
-				_, dt, err := info.metaResolver.ResolveImageConfig(ctx, ref, ResolveImageConfigOpt{
-					Platform:    p,
-					ResolveMode: info.resolveMode.String(),
+				_, _, dt, err := info.metaResolver.ResolveImageConfig(ctx, ref, sourceresolver.Opt{
+					Platform: p,
+					ImageOpt: &sourceresolver.ResolveImageOpt{
+						ResolveMode: info.resolveMode.String(),
+					},
 				})
 				if err != nil {
 					return State{}, err
@@ -141,10 +154,16 @@ func Image(ref string, opts ...ImageOption) State {
 			if p == nil {
 				p = c.Platform
 			}
-			dgst, dt, err := info.metaResolver.ResolveImageConfig(context.TODO(), ref, ResolveImageConfigOpt{
-				Platform:    p,
-				ResolveMode: info.resolveMode.String(),
+			ref, dgst, dt, err := info.metaResolver.ResolveImageConfig(context.TODO(), ref, sourceresolver.Opt{
+				Platform: p,
+				ImageOpt: &sourceresolver.ResolveImageOpt{
+					ResolveMode: info.resolveMode.String(),
+				},
 			})
+			if err != nil {
+				return State{}, err
+			}
+			r, err := reference.ParseNormalizedNamed(ref)
 			if err != nil {
 				return State{}, err
 			}
@@ -204,37 +223,57 @@ type ImageInfo struct {
 	metaResolver  ImageMetaResolver
 	resolveDigest bool
 	resolveMode   ResolveMode
+	layerLimit    *int
 	RecordType    string
 }
 
-func Git(remote, ref string, opts ...GitOption) State {
-	url := strings.Split(remote, "#")[0]
+const (
+	GitAuthHeaderKey = "GIT_AUTH_HEADER"
+	GitAuthTokenKey  = "GIT_AUTH_TOKEN"
+)
 
-	var protocolType int
-	remote, protocolType = gitutil.ParseProtocol(remote)
-
-	var sshHost string
-	if protocolType == gitutil.SSHProtocol {
-		parts := strings.SplitN(remote, ":", 2)
-		if len(parts) == 2 {
-			sshHost = parts[0]
-			// keep remote consistent with http(s) version
-			remote = parts[0] + "/" + parts[1]
-		}
-	}
-	if protocolType == gitutil.UnknownProtocol {
+// Git returns a state that represents a git repository.
+// Example:
+//
+//	st := llb.Git("https://github.com/moby/buildkit.git", "v0.11.6")
+//
+// The example fetches the v0.11.6 tag of the buildkit repository.
+// You can also use a commit hash or a branch name.
+//
+// Other URL formats are supported such as "git@github.com:moby/buildkit.git", "git://...", "ssh://..."
+// Formats that utilize SSH may need to supply credentials as a [GitOption].
+// You may need to check the source code for a full list of supported formats.
+//
+// By default the git repository is cloned with `--depth=1` to reduce the amount of data downloaded.
+// Additionally the ".git" directory is removed after the clone, you can keep ith with the [KeepGitDir] [GitOption].
+func Git(url, ref string, opts ...GitOption) State {
+	remote, err := gitutil.ParseURL(url)
+	if errors.Is(err, gitutil.ErrUnknownProtocol) {
 		url = "https://" + url
+		remote, err = gitutil.ParseURL(url)
+	}
+	if remote != nil {
+		url = remote.Remote
 	}
 
-	id := remote
-
-	if ref != "" {
-		id += "#" + ref
+	var id string
+	if err != nil {
+		// If we can't parse the URL, just use the full URL as the ID. The git
+		// operation will fail later on.
+		id = url
+	} else {
+		// We construct the ID manually here, so that we can create the same ID
+		// for different protocols (e.g. https and ssh) that have the same
+		// host/path/fragment combination.
+		id = remote.Host + path.Join("/", remote.Path)
+		if ref != "" {
+			id += "#" + ref
+		}
 	}
 
 	gi := &GitInfo{
-		AuthHeaderSecret: "GIT_AUTH_HEADER",
-		AuthTokenSecret:  "GIT_AUTH_TOKEN",
+		AuthHeaderSecret: GitAuthHeaderKey,
+		AuthTokenSecret:  GitAuthTokenKey,
 	}
 	for _, o := range opts {
 		o.SetGitOption(gi)
@@ -260,11 +299,11 @@ func Git(remote, ref string, opts ...GitOption) State {
 			addCap(&gi.Constraints, pb.CapSourceGitHTTPAuth)
 		}
 	}
-	if protocolType == gitutil.SSHProtocol {
+	if remote != nil && remote.Scheme == gitutil.SSHProtocol {
 		if gi.KnownSSHHosts != "" {
 			attrs[pb.AttrKnownSSHHosts] = gi.KnownSSHHosts
-		} else if sshHost != "" {
-			keyscan, err := sshutil.SSHKeyScan(sshHost)
+		} else {
+			keyscan, err := sshutil.SSHKeyScan(remote.Host)
 			if err == nil {
 				// best effort
 				attrs[pb.AttrKnownSSHHosts] = keyscan
@@ -338,10 +377,12 @@ func MountSSHSock(sshID string) GitOption {
 	})
 }
 
+// Scratch returns a state that represents an empty filesystem.
 func Scratch() State {
 	return NewState(nil)
 }
 
+// Local returns a state that represents a directory local to the client.
 func Local(name string, opts ...LocalOption) State {
 	gi := &LocalInfo{}
 
@@ -444,6 +485,59 @@ func Differ(t DiffType, required bool) LocalOption {
 			Required: required,
 		}
 	})
+}
+
+func OCILayout(ref string, opts ...OCILayoutOption) State {
+	gi := &OCILayoutInfo{}
+
+	for _, o := range opts {
+		o.SetOCILayoutOption(gi)
+	}
+	attrs := map[string]string{}
+	if gi.sessionID != "" {
+		attrs[pb.AttrOCILayoutSessionID] = gi.sessionID
+	}
+	if gi.storeID != "" {
+		attrs[pb.AttrOCILayoutStoreID] = gi.storeID
+	}
+	if gi.layerLimit != nil {
+		attrs[pb.AttrOCILayoutLayerLimit] = strconv.FormatInt(int64(*gi.layerLimit), 10)
+	}
+
+	addCap(&gi.Constraints, pb.CapSourceOCILayout)
+
+	source := NewSource("oci-layout://"+ref, attrs, gi.Constraints)
+	return NewState(source.Output())
+}
+
+type OCILayoutOption interface {
+	SetOCILayoutOption(*OCILayoutInfo)
+}
+
+type ociLayoutOptionFunc func(*OCILayoutInfo)
+
+func (fn ociLayoutOptionFunc) SetOCILayoutOption(li *OCILayoutInfo) {
+	fn(li)
+}
+
+func OCIStore(sessionID string, storeID string) OCILayoutOption {
+	return ociLayoutOptionFunc(func(oi *OCILayoutInfo) {
+		oi.sessionID = sessionID
+		oi.storeID = storeID
+	})
+}
+
+func OCILayerLimit(limit int) OCILayoutOption {
+	return ociLayoutOptionFunc(func(oi *OCILayoutInfo) {
+		oi.layerLimit = &limit
+	})
+}
+
+type OCILayoutInfo struct {
+	constraintsWrapper
+	sessionID  string
+	storeID    string
+	layerLimit *int
 }
 
 type DiffType string
@@ -549,7 +643,7 @@ func Chown(uid, gid int) HTTPOption {
 }
 
 func platformSpecificSource(id string) bool {
-	return strings.HasPrefix(id, "docker-image://")
+	return strings.HasPrefix(id, "docker-image://") || strings.HasPrefix(id, "oci-layout://")
 }
 
 func addCap(c *Constraints, id apicaps.CapID) {

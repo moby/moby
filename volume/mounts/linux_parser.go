@@ -23,18 +23,6 @@ type linuxParser struct {
 	fi fileInfoProvider
 }
 
-func linuxSplitRawSpec(raw string) ([]string, error) {
-	if strings.Count(raw, ":") > 2 {
-		return nil, errInvalidSpec(raw)
-	}
-
-	arr := strings.SplitN(raw, ":", 3)
-	if arr[0] == "" {
-		return nil, errInvalidSpec(raw)
-	}
-	return arr, nil
-}
-
 func linuxValidateNotRoot(p string) error {
 	p = path.Clean(strings.ReplaceAll(p, `\`, `/`))
 	if p == "/" {
@@ -42,6 +30,7 @@ func linuxValidateNotRoot(p string) error {
 	}
 	return nil
 }
+
 func linuxValidateAbsolute(p string) error {
 	p = strings.ReplaceAll(p, `\`, `/`)
 	if path.IsAbs(p) {
@@ -49,12 +38,14 @@ func linuxValidateAbsolute(p string) error {
 	}
 	return fmt.Errorf("invalid mount path: '%s' mount path must be absolute", p)
 }
+
 func (p *linuxParser) ValidateMountConfig(mnt *mount.Mount) error {
 	// there was something looking like a bug in existing codebase:
 	// - validateMountConfig on linux was called with options skipping bind source existence when calling ParseMountRaw
 	// - but not when calling ParseMountSpec directly... nor when the unit test called it directly
 	return p.validateMountConfigImpl(mnt, true)
 }
+
 func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSourceExists bool) error {
 	if len(mnt.Target) == 0 {
 		return &errMountConfig{mnt, errMissingField("Target")}
@@ -94,7 +85,9 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 			if err != nil {
 				return &errMountConfig{mnt, err}
 			}
-			if !exists {
+
+			createMountpoint := mnt.BindOptions != nil && mnt.BindOptions.CreateMountpoint
+			if !exists && !createMountpoint {
 				return &errMountConfig{mnt, errBindSourceDoesNotExist(mnt.Source)}
 			}
 		}
@@ -103,8 +96,18 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 		if mnt.BindOptions != nil {
 			return &errMountConfig{mnt, errExtraField("BindOptions")}
 		}
+		anonymousVolume := len(mnt.Source) == 0
 
-		if len(mnt.Source) == 0 && mnt.ReadOnly {
+		if mnt.VolumeOptions != nil && mnt.VolumeOptions.Subpath != "" {
+			if anonymousVolume {
+				return &errMountConfig{mnt, errAnonymousVolumeWithSubpath}
+			}
+
+			if !filepath.IsLocal(mnt.VolumeOptions.Subpath) {
+				return &errMountConfig{mnt, errInvalidSubpath}
+			}
+		}
+		if mnt.ReadOnly && anonymousVolume {
 			return &errMountConfig{mnt, fmt.Errorf("must not set ReadOnly mode when using anonymous volumes")}
 		}
 	case mount.TypeTmpfs:
@@ -135,6 +138,7 @@ var linuxConsistencyModes = map[mount.Consistency]bool{
 	mount.ConsistencyCached:    true,
 	mount.ConsistencyDelegated: true,
 }
+
 var linuxPropagationModes = map[mount.Propagation]bool{
 	mount.PropagationPrivate:  true,
 	mount.PropagationRPrivate: true,
@@ -200,6 +204,30 @@ func linuxValidMountMode(mode string) bool {
 	return true
 }
 
+var validTmpfsOptions = map[string]bool{
+	"exec":   true,
+	"noexec": true,
+}
+
+func validateTmpfsOptions(rawOptions [][]string) ([]string, error) {
+	var options []string
+	for _, opt := range rawOptions {
+		if len(opt) < 1 || len(opt) > 2 {
+			return nil, errors.New("invalid option array length")
+		}
+		if _, ok := validTmpfsOptions[opt[0]]; !ok {
+			return nil, errors.New("invalid option: " + opt[0])
+		}
+
+		if len(opt) == 1 {
+			options = append(options, opt[0])
+		} else {
+			options = append(options, fmt.Sprintf("%s=%s", opt[0], opt[1]))
+		}
+	}
+	return options, nil
+}
+
 func (p *linuxParser) ReadWrite(mode string) bool {
 	if !linuxValidMountMode(mode) {
 		return false
@@ -214,9 +242,9 @@ func (p *linuxParser) ReadWrite(mode string) bool {
 }
 
 func (p *linuxParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
-	arr, err := linuxSplitRawSpec(raw)
-	if err != nil {
-		return nil, err
+	arr := strings.SplitN(raw, ":", 4)
+	if arr[0] == "" {
+		return nil, errInvalidSpec(raw)
 	}
 
 	var spec mount.Mount
@@ -283,9 +311,11 @@ func (p *linuxParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, erro
 	}
 	return mp, err
 }
+
 func (p *linuxParser) ParseMountSpec(cfg mount.Mount) (*MountPoint, error) {
 	return p.parseMountSpec(cfg, true)
 }
+
 func (p *linuxParser) parseMountSpec(cfg mount.Mount, validateBindSourceExists bool) (*MountPoint, error) {
 	if err := p.validateMountConfigImpl(&cfg, validateBindSourceExists); err != nil {
 		return nil, err
@@ -334,26 +364,23 @@ func (p *linuxParser) ParseVolumesFrom(spec string) (string, string, error) {
 		return "", "", fmt.Errorf("volumes-from specification cannot be an empty string")
 	}
 
-	specParts := strings.SplitN(spec, ":", 2)
-	id := specParts[0]
-	mode := "rw"
-
-	if len(specParts) == 2 {
-		mode = specParts[1]
-		if !linuxValidMountMode(mode) {
-			return "", "", errInvalidMode(mode)
-		}
-		// For now don't allow propagation properties while importing
-		// volumes from data container. These volumes will inherit
-		// the same propagation property as of the original volume
-		// in data container. This probably can be relaxed in future.
-		if linuxHasPropagation(mode) {
-			return "", "", errInvalidMode(mode)
-		}
-		// Do not allow copy modes on volumes-from
-		if _, isSet := getCopyMode(mode, p.DefaultCopyMode()); isSet {
-			return "", "", errInvalidMode(mode)
-		}
+	id, mode, _ := strings.Cut(spec, ":")
+	if mode == "" {
+		return id, "rw", nil
+	}
+	if !linuxValidMountMode(mode) {
+		return "", "", errInvalidMode(mode)
+	}
+	// For now don't allow propagation properties while importing
+	// volumes from data container. These volumes will inherit
+	// the same propagation property as of the original volume
+	// in data container. This probably can be relaxed in future.
+	if linuxHasPropagation(mode) {
+		return "", "", errInvalidMode(mode)
+	}
+	// Do not allow copy modes on volumes-from
+	if _, isSet := getCopyMode(mode, p.DefaultCopyMode()); isSet {
+		return "", "", errInvalidMode(mode)
 	}
 	return id, mode, nil
 }
@@ -403,12 +430,22 @@ func (p *linuxParser) ConvertTmpfsOptions(opt *mount.TmpfsOptions, readOnly bool
 
 		rawOpts = append(rawOpts, fmt.Sprintf("size=%d%s", size, suffix))
 	}
+
+	if opt != nil && len(opt.Options) > 0 {
+		tmpfsOpts, err := validateTmpfsOptions(opt.Options)
+		if err != nil {
+			return "", err
+		}
+		rawOpts = append(rawOpts, tmpfsOpts...)
+	}
+
 	return strings.Join(rawOpts, ","), nil
 }
 
 func (p *linuxParser) DefaultCopyMode() bool {
 	return true
 }
+
 func (p *linuxParser) ValidateVolumeName(name string) error {
 	return nil
 }

@@ -56,7 +56,7 @@ func WriteFile(r Driver, filename string, data []byte, perm os.FileMode) error {
 	return nil
 }
 
-// ReadDir works the same as ioutil.ReadDir with the Driver abstraction
+// ReadDir works the same as os.ReadDir with the Driver abstraction
 func ReadDir(r Driver, dirname string) ([]os.FileInfo, error) {
 	f, err := r.Open(dirname)
 	if err != nil {

@@ -1,13 +1,14 @@
 package httpstatus // import "github.com/docker/docker/api/server/httpstatus"
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
-	containerderrors "github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/log"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/errdefs"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -19,11 +20,9 @@ type causer interface {
 // FromError retrieves status code from error message.
 func FromError(err error) int {
 	if err == nil {
-		logrus.WithFields(logrus.Fields{"error": err}).Error("unexpected HTTP error handling")
+		log.G(context.TODO()).WithError(err).Error("unexpected HTTP error handling")
 		return http.StatusInternalServerError
 	}
-
-	var statusCode int
 
 	// Stop right there
 	// Are you sure you should be adding a new error class here? Do one of the existing ones work?
@@ -31,51 +30,45 @@ func FromError(err error) int {
 	// Note that the below functions are already checking the error causal chain for matches.
 	switch {
 	case errdefs.IsNotFound(err):
-		statusCode = http.StatusNotFound
+		return http.StatusNotFound
 	case errdefs.IsInvalidParameter(err):
-		statusCode = http.StatusBadRequest
+		return http.StatusBadRequest
 	case errdefs.IsConflict(err):
-		statusCode = http.StatusConflict
+		return http.StatusConflict
 	case errdefs.IsUnauthorized(err):
-		statusCode = http.StatusUnauthorized
+		return http.StatusUnauthorized
 	case errdefs.IsUnavailable(err):
-		statusCode = http.StatusServiceUnavailable
+		return http.StatusServiceUnavailable
 	case errdefs.IsForbidden(err):
-		statusCode = http.StatusForbidden
+		return http.StatusForbidden
 	case errdefs.IsNotModified(err):
-		statusCode = http.StatusNotModified
+		return http.StatusNotModified
 	case errdefs.IsNotImplemented(err):
-		statusCode = http.StatusNotImplemented
+		return http.StatusNotImplemented
 	case errdefs.IsSystem(err) || errdefs.IsUnknown(err) || errdefs.IsDataLoss(err) || errdefs.IsDeadline(err) || errdefs.IsCancelled(err):
-		statusCode = http.StatusInternalServerError
+		return http.StatusInternalServerError
 	default:
-		statusCode = statusCodeFromGRPCError(err)
-		if statusCode != http.StatusInternalServerError {
+		if statusCode := statusCodeFromGRPCError(err); statusCode != http.StatusInternalServerError {
 			return statusCode
 		}
-		statusCode = statusCodeFromContainerdError(err)
-		if statusCode != http.StatusInternalServerError {
+		if statusCode := statusCodeFromContainerdError(err); statusCode != http.StatusInternalServerError {
 			return statusCode
 		}
-		statusCode = statusCodeFromDistributionError(err)
-		if statusCode != http.StatusInternalServerError {
+		if statusCode := statusCodeFromDistributionError(err); statusCode != http.StatusInternalServerError {
 			return statusCode
 		}
 		if e, ok := err.(causer); ok {
 			return FromError(e.Cause())
 		}
 
-		logrus.WithFields(logrus.Fields{
+		log.G(context.TODO()).WithFields(log.Fields{
 			"module":     "api",
+			"error":      err,
 			"error_type": fmt.Sprintf("%T", err),
-		}).Debugf("FIXME: Got an API for which error does not match any expected type!!!: %+v", err)
-	}
+		}).Debug("FIXME: Got an API for which error does not match any expected type!!!")
 
-	if statusCode == 0 {
-		statusCode = http.StatusInternalServerError
+		return http.StatusInternalServerError
 	}
-
-	return statusCode
 }
 
 // statusCodeFromGRPCError returns status code according to gRPC error
@@ -132,17 +125,17 @@ func statusCodeFromDistributionError(err error) int {
 // consumed directly (not through gRPC)
 func statusCodeFromContainerdError(err error) int {
 	switch {
-	case containerderrors.IsInvalidArgument(err):
+	case cerrdefs.IsInvalidArgument(err):
 		return http.StatusBadRequest
-	case containerderrors.IsNotFound(err):
+	case cerrdefs.IsNotFound(err):
 		return http.StatusNotFound
-	case containerderrors.IsAlreadyExists(err):
+	case cerrdefs.IsAlreadyExists(err):
 		return http.StatusConflict
-	case containerderrors.IsFailedPrecondition(err):
+	case cerrdefs.IsFailedPrecondition(err):
 		return http.StatusPreconditionFailed
-	case containerderrors.IsUnavailable(err):
+	case cerrdefs.IsUnavailable(err):
 		return http.StatusServiceUnavailable
-	case containerderrors.IsNotImplemented(err):
+	case cerrdefs.IsNotImplemented(err):
 		return http.StatusNotImplemented
 	default:
 		return http.StatusInternalServerError

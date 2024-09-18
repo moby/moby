@@ -25,14 +25,9 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/labels"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
+	"github.com/containerd/log"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-)
-
-var (
-	// labelDistributionSource describes the source blob comes from.
-	labelDistributionSource = "containerd.io/distribution.source"
 )
 
 // AppendDistributionSourceLabel updates the label of blob with distribution source.
@@ -108,7 +103,7 @@ func appendDistributionSourceLabel(originLabel, repo string) string {
 }
 
 func distributionSourceLabelKey(source string) string {
-	return fmt.Sprintf("%s.%s", labelDistributionSource, source)
+	return fmt.Sprintf("%s.%s", labels.LabelDistributionSource, source)
 }
 
 // selectRepositoryMountCandidate will select the repo which has longest

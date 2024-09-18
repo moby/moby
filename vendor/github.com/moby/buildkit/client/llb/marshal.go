@@ -2,9 +2,9 @@ package llb
 
 import (
 	"io"
-	"io/ioutil"
+	"maps"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/solver/pb"
 	digest "github.com/opencontainers/go-digest"
 )
@@ -19,24 +19,17 @@ type Definition struct {
 }
 
 func (def *Definition) ToPB() *pb.Definition {
-	md := make(map[digest.Digest]pb.OpMetadata, len(def.Metadata))
-	for k, v := range def.Metadata {
-		md[k] = v
-	}
 	return &pb.Definition{
 		Def:      def.Def,
 		Source:   def.Source,
-		Metadata: md,
+		Metadata: maps.Clone(def.Metadata),
 	}
 }
 
 func (def *Definition) FromPB(x *pb.Definition) {
 	def.Def = x.Def
 	def.Source = x.Source
-	def.Metadata = make(map[digest.Digest]pb.OpMetadata)
-	for k, v := range x.Metadata {
-		def.Metadata[k] = v
-	}
+	def.Metadata = maps.Clone(x.Metadata)
 }
 
 func (def *Definition) Head() (digest.Digest, error) {
@@ -67,7 +60,7 @@ func WriteTo(def *Definition, w io.Writer) error {
 }
 
 func ReadFrom(r io.Reader) (*Definition, error) {
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
@@ -88,10 +81,7 @@ func MarshalConstraints(base, override *Constraints) (*pb.Op, *pb.OpMetadata) {
 		c.Platform = p
 	}
 
-	for _, wc := range override.WorkerConstraints {
-		c.WorkerConstraints = append(c.WorkerConstraints, wc)
-	}
-
+	c.WorkerConstraints = append(c.WorkerConstraints, override.WorkerConstraints...)
 	c.Metadata = mergeMetadata(c.Metadata, override.Metadata)
 
 	if c.Platform == nil {
@@ -99,14 +89,18 @@ func MarshalConstraints(base, override *Constraints) (*pb.Op, *pb.OpMetadata) {
 		c.Platform = &defaultPlatform
 	}
 
+	opPlatform := pb.Platform{
+		OS:           c.Platform.OS,
+		Architecture: c.Platform.Architecture,
+		Variant:      c.Platform.Variant,
+		OSVersion:    c.Platform.OSVersion,
+	}
+	if c.Platform.OSFeatures != nil {
+		opPlatform.OSFeatures = append([]string{}, c.Platform.OSFeatures...)
+	}
+
 	return &pb.Op{
-		Platform: &pb.Platform{
-			OS:           c.Platform.OS,
-			Architecture: c.Platform.Architecture,
-			Variant:      c.Platform.Variant,
-			OSVersion:    c.Platform.OSVersion,
-			OSFeatures:   c.Platform.OSFeatures,
-		},
+		Platform: &opPlatform,
 		Constraints: &pb.WorkerConstraints{
 			Filter: c.WorkerConstraints,
 		},

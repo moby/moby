@@ -17,8 +17,11 @@
 package dialer
 
 import (
+	"fmt"
 	"net"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	winio "github.com/Microsoft/go-winio"
@@ -29,10 +32,16 @@ func isNoent(err error) bool {
 }
 
 func dialer(address string, timeout time.Duration) (net.Conn, error) {
+	address = strings.TrimPrefix(filepath.ToSlash(address), "npipe://")
 	return winio.DialPipe(address, &timeout)
 }
 
-// DialAddress returns the dial address
+// DialAddress returns the dial address with npipe:// prepended to the
+// provided address
 func DialAddress(address string) string {
+	address = filepath.ToSlash(address)
+	if !strings.HasPrefix(address, "npipe://") {
+		address = fmt.Sprintf("npipe://%s", address)
+	}
 	return address
 }

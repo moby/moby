@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package winio
@@ -8,7 +9,6 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
-	"syscall"
 	"unicode/utf16"
 
 	"golang.org/x/sys/windows"
@@ -17,27 +17,22 @@ import (
 //sys adjustTokenPrivileges(token windows.Token, releaseAll bool, input *byte, outputSize uint32, output *byte, requiredSize *uint32) (success bool, err error) [true] = advapi32.AdjustTokenPrivileges
 //sys impersonateSelf(level uint32) (err error) = advapi32.ImpersonateSelf
 //sys revertToSelf() (err error) = advapi32.RevertToSelf
-//sys openThreadToken(thread syscall.Handle, accessMask uint32, openAsSelf bool, token *windows.Token) (err error) = advapi32.OpenThreadToken
-//sys getCurrentThread() (h syscall.Handle) = GetCurrentThread
+//sys openThreadToken(thread windows.Handle, accessMask uint32, openAsSelf bool, token *windows.Token) (err error) = advapi32.OpenThreadToken
+//sys getCurrentThread() (h windows.Handle) = GetCurrentThread
 //sys lookupPrivilegeValue(systemName string, name string, luid *uint64) (err error) = advapi32.LookupPrivilegeValueW
 //sys lookupPrivilegeName(systemName string, luid *uint64, buffer *uint16, size *uint32) (err error) = advapi32.LookupPrivilegeNameW
 //sys lookupPrivilegeDisplayName(systemName string, name *uint16, buffer *uint16, size *uint32, languageId *uint32) (err error) = advapi32.LookupPrivilegeDisplayNameW
 
 const (
-	SE_PRIVILEGE_ENABLED = 2
+	//revive:disable-next-line:var-naming ALL_CAPS
+	SE_PRIVILEGE_ENABLED = windows.SE_PRIVILEGE_ENABLED
 
-	ERROR_NOT_ALL_ASSIGNED syscall.Errno = 1300
+	//revive:disable-next-line:var-naming ALL_CAPS
+	ERROR_NOT_ALL_ASSIGNED windows.Errno = windows.ERROR_NOT_ALL_ASSIGNED
 
 	SeBackupPrivilege   = "SeBackupPrivilege"
 	SeRestorePrivilege  = "SeRestorePrivilege"
 	SeSecurityPrivilege = "SeSecurityPrivilege"
-)
-
-const (
-	securityAnonymous = iota
-	securityIdentification
-	securityImpersonation
-	securityDelegation
 )
 
 var (
@@ -51,11 +46,9 @@ type PrivilegeError struct {
 }
 
 func (e *PrivilegeError) Error() string {
-	s := ""
+	s := "Could not enable privilege "
 	if len(e.privileges) > 1 {
 		s = "Could not enable privileges "
-	} else {
-		s = "Could not enable privilege "
 	}
 	for i, p := range e.privileges {
 		if i != 0 {
@@ -94,7 +87,7 @@ func RunWithPrivileges(names []string, fn func() error) error {
 }
 
 func mapPrivileges(names []string) ([]uint64, error) {
-	var privileges []uint64
+	privileges := make([]uint64, 0, len(names))
 	privNameMutex.Lock()
 	defer privNameMutex.Unlock()
 	for _, name := range names {
@@ -127,7 +120,7 @@ func enableDisableProcessPrivilege(names []string, action uint32) error {
 		return err
 	}
 
-	p, _ := windows.GetCurrentProcess()
+	p := windows.CurrentProcess()
 	var token windows.Token
 	err = windows.OpenProcessToken(p, windows.TOKEN_ADJUST_PRIVILEGES|windows.TOKEN_QUERY, &token)
 	if err != nil {
@@ -140,10 +133,10 @@ func enableDisableProcessPrivilege(names []string, action uint32) error {
 
 func adjustPrivileges(token windows.Token, privileges []uint64, action uint32) error {
 	var b bytes.Buffer
-	binary.Write(&b, binary.LittleEndian, uint32(len(privileges)))
+	_ = binary.Write(&b, binary.LittleEndian, uint32(len(privileges)))
 	for _, p := range privileges {
-		binary.Write(&b, binary.LittleEndian, p)
-		binary.Write(&b, binary.LittleEndian, action)
+		_ = binary.Write(&b, binary.LittleEndian, p)
+		_ = binary.Write(&b, binary.LittleEndian, action)
 	}
 	prevState := make([]byte, b.Len())
 	reqSize := uint32(0)
@@ -151,7 +144,7 @@ func adjustPrivileges(token windows.Token, privileges []uint64, action uint32) e
 	if !success {
 		return err
 	}
-	if err == ERROR_NOT_ALL_ASSIGNED {
+	if err == ERROR_NOT_ALL_ASSIGNED { //nolint:errorlint // err is Errno
 		return &PrivilegeError{privileges}
 	}
 	return nil
@@ -177,13 +170,13 @@ func getPrivilegeName(luid uint64) string {
 }
 
 func newThreadToken() (windows.Token, error) {
-	err := impersonateSelf(securityImpersonation)
+	err := impersonateSelf(windows.SecurityImpersonation)
 	if err != nil {
 		return 0, err
 	}
 
 	var token windows.Token
-	err = openThreadToken(getCurrentThread(), syscall.TOKEN_ADJUST_PRIVILEGES|syscall.TOKEN_QUERY, false, &token)
+	err = openThreadToken(getCurrentThread(), windows.TOKEN_ADJUST_PRIVILEGES|windows.TOKEN_QUERY, false, &token)
 	if err != nil {
 		rerr := revertToSelf()
 		if rerr != nil {

@@ -79,14 +79,14 @@ here is how to manually cut a release of `cloud.google.com/go`.
    [continuous Kokoro build](http://go/google-cloud-go-continuous). If there are
    any failures in the most recent build, address them before proceeding with
    the release.
-1. Navigate to `google-cloud-go/` and switch to master.
+1. Navigate to `google-cloud-go/` and switch to main.
 1. `git pull`
 1. Run `git tag -l | grep -v beta | grep -v alpha` to see all existing releases.
    The current latest tag `$CV` is the largest tag. It should look something
    like `vX.Y.Z` (note: ignore all `LIB/vX.Y.Z` tags - these are tags for a
    specific library, not the module root). We'll call the current version `$CV`
    and the new version `$NV`.
-1. On master, run `git log $CV...` to list all the changes since the last
+1. On main, run `git log $CV...` to list all the changes since the last
    release. NOTE: You must manually visually parse out changes to submodules [1]
    (the `git log` is going to show you things in submodules, which are not going
    to be part of your release).
@@ -98,7 +98,7 @@ here is how to manually cut a release of `cloud.google.com/go`.
    and create a PR titled `chore: release $NV`.
 1. Wait for the PR to be reviewed and merged. Once it's merged, and without
    merging any other PRs in the meantime:
-   a. Switch to master.
+   a. Switch to main.
    b. `git pull`
    c. Tag the repo with the next version: `git tag $NV`.
    d. Push the tag to origin:
@@ -118,13 +118,13 @@ here is how to manually cut a release of a submodule.
    any failures in the most recent build, address them before proceeding with
    the release. (This applies even if the failures are in a different submodule
    from the one being released.)
-1. Navigate to `google-cloud-go/` and switch to master.
+1. Navigate to `google-cloud-go/` and switch to main.
 1. `git pull`
 1. Run `git tag -l | grep datastore | grep -v beta | grep -v alpha` to see all
    existing releases. The current latest tag `$CV` is the largest tag. It
    should look something like `datastore/vX.Y.Z`. We'll call the current version
    `$CV` and the new version `$NV`.
-1. On master, run `git log $CV.. -- datastore/` to list all the changes to the
+1. On main, run `git log $CV.. -- datastore/` to list all the changes to the
    submodule directory since the last release.
 1. Edit `datastore/CHANGES.md` to include a summary of the changes.
 1. In `internal/version` run `go generate`.
@@ -132,7 +132,7 @@ here is how to manually cut a release of a submodule.
    and create a PR titled `chore(datastore): release $NV`.
 1. Wait for the PR to be reviewed and merged. Once it's merged, and without
    merging any other PRs in the meantime:
-   a. Switch to master.
+   a. Switch to main.
    b. `git pull`
    c. Tag the repo with the next version: `git tag $NV`.
    d. Push the tag to origin:

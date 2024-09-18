@@ -10,9 +10,14 @@ import (
 )
 
 const (
-	Address   = "unix:///run/buildkit/buildkitd.sock"
-	Root      = "/var/lib/buildkit"
-	ConfigDir = "/etc/buildkit"
+	Root                 = "/var/lib/buildkit"
+	ConfigDir            = "/etc/buildkit"
+	DefaultCNIBinDir     = "/opt/cni/bin"
+	DefaultCNIConfigPath = "/etc/buildkit/cni.json"
+)
+
+var (
+	UserCNIConfigPath = filepath.Join(UserConfigDir(), "cni.json")
 )
 
 // UserAddress typically returns /run/user/$UID/buildkit/buildkitd.sock
@@ -67,4 +72,14 @@ func UserConfigDir() string {
 		return filepath.Join(home, ".config", "buildkit")
 	}
 	return ConfigDir
+}
+
+func TraceSocketPath(inUserNS bool) string {
+	if inUserNS {
+		if xrd := os.Getenv("XDG_RUNTIME_DIR"); xrd != "" {
+			dirs := strings.Split(xrd, ":")
+			return filepath.Join(dirs[0], "buildkit", "otel-grpc.sock")
+		}
+	}
+	return traceSocketPath
 }

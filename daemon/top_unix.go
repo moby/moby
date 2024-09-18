@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package daemon // import "github.com/docker/docker/daemon"
 
@@ -13,7 +12,9 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/pkg/errors"
 )
 
@@ -28,7 +29,7 @@ func validatePSArgs(psArgs string) error {
 			k := group[1]
 			v := group[2]
 			if k != "pid" {
-				return fmt.Errorf("specifying \"%s=%s\" is not allowed", k, v)
+				return fmt.Errorf(`specifying "%s=%s" is not allowed`, k, v)
 			}
 		}
 	}
@@ -150,17 +151,30 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.Conta
 		return nil, err
 	}
 
-	if !ctr.IsRunning() {
-		return nil, errNotRunning(ctr.ID)
-	}
+	tsk, err := func() (libcontainerdtypes.Task, error) {
+		ctr.Lock()
+		defer ctr.Unlock()
 
-	if ctr.IsRestarting() {
-		return nil, errContainerIsRestarting(ctr.ID)
-	}
-
-	procs, err := daemon.containerd.ListPids(context.Background(), ctr.ID)
+		tsk, err := ctr.GetRunningTask()
+		if err != nil {
+			return nil, err
+		}
+		if ctr.Restarting {
+			return nil, errContainerIsRestarting(ctr.ID)
+		}
+		return tsk, nil
+	}()
 	if err != nil {
 		return nil, err
+	}
+
+	infos, err := tsk.Pids(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	procs := make([]uint32, len(infos))
+	for i, p := range infos {
+		procs[i] = p.Pid
 	}
 
 	args := strings.Split(psArgs, " ")
@@ -185,6 +199,6 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.Conta
 	if err != nil {
 		return nil, err
 	}
-	daemon.LogContainerEvent(ctr, "top")
+	daemon.LogContainerEvent(ctr, events.ActionTop)
 	return procList, nil
 }

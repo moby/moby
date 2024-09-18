@@ -2,6 +2,7 @@ package controlapi
 
 import (
 	"context"
+	"reflect"
 	"strings"
 
 	"github.com/moby/swarmkit/v2/api"
@@ -94,17 +95,28 @@ func (s *Server) UpdateVolume(ctx context.Context, request *api.UpdateVolumeRequ
 		if request.Spec.Group != volume.Spec.Group {
 			return status.Errorf(codes.InvalidArgument, "Group cannot be updated")
 		}
-		if request.Spec.AccessibilityRequirements != volume.Spec.AccessibilityRequirements {
+		if !reflect.DeepEqual(request.Spec.AccessibilityRequirements, volume.Spec.AccessibilityRequirements) {
 			return status.Errorf(codes.InvalidArgument, "AccessibilityRequirements cannot be updated")
 		}
-		if request.Spec.Driver == nil || request.Spec.Driver.Name != volume.Spec.Driver.Name {
+		if !reflect.DeepEqual(request.Spec.Driver, volume.Spec.Driver) {
 			return status.Errorf(codes.InvalidArgument, "Driver cannot be updated")
 		}
-		if request.Spec.AccessMode.Scope != volume.Spec.AccessMode.Scope || request.Spec.AccessMode.Sharing != volume.Spec.AccessMode.Sharing {
+		if !reflect.DeepEqual(request.Spec.AccessMode, volume.Spec.AccessMode) {
 			return status.Errorf(codes.InvalidArgument, "AccessMode cannot be updated")
 		}
+		if !reflect.DeepEqual(request.Spec.Secrets, volume.Spec.Secrets) {
+			return status.Errorf(codes.InvalidArgument, "Secrets cannot be updated")
+		}
+		if !reflect.DeepEqual(request.Spec.CapacityRange, volume.Spec.CapacityRange) {
+			return status.Errorf(codes.InvalidArgument, "CapacityRange cannot be updated")
+		}
 
-		volume.Spec = *request.Spec
+		// to further guard against changing fields we're not allowed to, don't
+		// replace the entire spec. just replace the fields we are allowed to
+		// change
+		volume.Spec.Annotations.Labels = request.Spec.Annotations.Labels
+		volume.Spec.Availability = request.Spec.Availability
+
 		volume.Meta.Version = *request.VolumeVersion
 		if err := store.UpdateVolume(tx, volume); err != nil {
 			return err

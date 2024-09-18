@@ -2,17 +2,17 @@ package file
 
 import (
 	"archive/tar"
-	"context"
 	"os"
 	"time"
 
 	"github.com/containerd/continuity/fs"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/idtools"
 	copy "github.com/tonistiigi/fsutil/copy"
 )
 
-func unpack(ctx context.Context, srcRoot string, src string, destRoot string, dest string, ch copy.Chowner, tm *time.Time) (bool, error) {
+func unpack(srcRoot string, src string, destRoot string, dest string, ch copy.Chowner, tm *time.Time, idmap *idtools.IdentityMapping) (bool, error) {
 	src, err := fs.RootPath(srcRoot, src)
 	if err != nil {
 		return false, err
@@ -35,7 +35,13 @@ func unpack(ctx context.Context, srcRoot string, src string, destRoot string, de
 	}
 	defer file.Close()
 
-	return true, chrootarchive.Untar(file, dest, nil)
+	opts := &archive.TarOptions{
+		BestEffortXattrs: true,
+	}
+	if idmap != nil {
+		opts.IDMap = *idmap
+	}
+	return true, chrootarchive.Untar(file, dest, opts)
 }
 
 func isArchivePath(path string) bool {

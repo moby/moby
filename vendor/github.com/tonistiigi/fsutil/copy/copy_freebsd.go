@@ -1,3 +1,4 @@
+//go:build freebsd
 // +build freebsd
 
 package fs
@@ -7,6 +8,7 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
 func copyFile(source, target string) error {
@@ -29,4 +31,8 @@ func copyFileContent(dst, src *os.File) error {
 	_, err := io.CopyBuffer(dst, src, *buf)
 	bufferPool.Put(buf)
 	return err
+}
+
+func mknod(dst string, mode uint32, rDev int) error {
+	return unix.Mknod(dst, uint32(mode), uint64(rDev))
 }

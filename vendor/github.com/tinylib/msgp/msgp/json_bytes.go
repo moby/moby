@@ -12,7 +12,6 @@ import (
 var unfuns [_maxtype]func(jsWriter, []byte, []byte) ([]byte, []byte, error)
 
 func init() {
-
 	// NOTE(pmh): this is best expressed as a jump table,
 	// but gc doesn't do that yet. revisit post-go1.5.
 	unfuns = [_maxtype]func(jsWriter, []byte, []byte) ([]byte, []byte, error){
@@ -219,27 +218,6 @@ func rwUintBytes(w jsWriter, msg []byte, scratch []byte) ([]byte, []byte, error)
 		return msg, scratch, err
 	}
 	scratch = strconv.AppendUint(scratch[0:0], u, 10)
-	_, err = w.Write(scratch)
-	return msg, scratch, err
-}
-
-func rwFloatBytes(w jsWriter, msg []byte, f64 bool, scratch []byte) ([]byte, []byte, error) {
-	var f float64
-	var err error
-	var sz int
-	if f64 {
-		sz = 64
-		f, msg, err = ReadFloat64Bytes(msg)
-	} else {
-		sz = 32
-		var v float32
-		v, msg, err = ReadFloat32Bytes(msg)
-		f = float64(v)
-	}
-	if err != nil {
-		return msg, scratch, err
-	}
-	scratch = strconv.AppendFloat(scratch, f, 'f', -1, sz)
 	_, err = w.Write(scratch)
 	return msg, scratch, err
 }

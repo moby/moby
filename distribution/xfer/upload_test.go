@@ -15,7 +15,7 @@ import (
 const maxUploadConcurrency = 3
 
 type mockUploadDescriptor struct {
-	currentUploads  *int32
+	currentUploads  *atomic.Int32
 	diffID          layer.DiffID
 	simulateRetries int
 }
@@ -42,9 +42,9 @@ func (u *mockUploadDescriptor) SetRemoteDescriptor(remoteDescriptor distribution
 // Upload is called to perform the upload.
 func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progress.Output) (distribution.Descriptor, error) {
 	if u.currentUploads != nil {
-		defer atomic.AddInt32(u.currentUploads, -1)
+		defer u.currentUploads.Add(-1)
 
-		if atomic.AddInt32(u.currentUploads, 1) > maxUploadConcurrency {
+		if u.currentUploads.Add(1) > maxUploadConcurrency {
 			return distribution.Descriptor{}, errors.New("concurrency limit exceeded")
 		}
 	}
@@ -67,7 +67,7 @@ func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progre
 	return distribution.Descriptor{}, nil
 }
 
-func uploadDescriptors(currentUploads *int32) []UploadDescriptor {
+func uploadDescriptors(currentUploads *atomic.Int32) []UploadDescriptor {
 	return []UploadDescriptor{
 		&mockUploadDescriptor{currentUploads: currentUploads, diffID: "sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"},
 		&mockUploadDescriptor{currentUploads: currentUploads, diffID: "sha256:1515325234325236634634608943609283523908626098235490238423902343"},
@@ -92,7 +92,7 @@ func TestSuccessfulUpload(t *testing.T) {
 		close(progressDone)
 	}()
 
-	var currentUploads int32
+	var currentUploads atomic.Int32
 	descriptors := uploadDescriptors(&currentUploads)
 
 	err := lum.Upload(context.Background(), descriptors, progress.ChanOutput(progressChan))

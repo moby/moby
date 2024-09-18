@@ -44,6 +44,10 @@ const (
 	// /etc/hosts for containers created via gateway exec.
 	CapGatewayExecExtraHosts apicaps.CapID = "gateway.exec.extrahosts"
 
+	// CapGatewayExecExtraHosts is the capability to set secrets as env vars for
+	// containers created via gateway exec.
+	CapGatewayExecSecretEnv apicaps.CapID = "gateway.exec.secretenv"
+
 	// CapGatewayExecExtraHosts is the capability to send signals to a process
 	// created via gateway exec.
 	CapGatewayExecSignals apicaps.CapID = "gateway.exec.signals"
@@ -56,8 +60,18 @@ const (
 	// errors.
 	CapGatewayEvaluateSolve apicaps.CapID = "gateway.solve.evaluate"
 
+	CapGatewayEvaluate apicaps.CapID = "gateway.evaluate"
+
 	// CapGatewayWarnings is the capability to log warnings from frontend
 	CapGatewayWarnings apicaps.CapID = "gateway.warnings"
+
+	// CapAttestations is the capability to indicate that attestation
+	// references will be attached to results
+	CapAttestations apicaps.CapID = "reference.attestations"
+
+	// CapSourceMetaResolver is the capability to indicates support for ResolveSourceMetadata
+	// function in gateway API
+	CapSourceMetaResolver apicaps.CapID = "source.metaresolver"
 )
 
 func init() {
@@ -174,6 +188,13 @@ func init() {
 	})
 
 	Caps.Init(apicaps.Cap{
+		ID:      CapGatewayExecSecretEnv,
+		Name:    "gateway exec secret env",
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
 		ID:      CapGatewayExecSignals,
 		Name:    "gateway exec signals",
 		Enabled: true,
@@ -195,8 +216,29 @@ func init() {
 	})
 
 	Caps.Init(apicaps.Cap{
+		ID:      CapGatewayEvaluate,
+		Name:    "gateway evaluate",
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
 		ID:      CapGatewayWarnings,
 		Name:    "logging warnings",
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapAttestations,
+		Name:    "reference attestations",
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapSourceMetaResolver,
+		Name:    "source meta resolver",
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})

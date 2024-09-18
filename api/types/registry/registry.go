@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net"
 
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ServiceConfig stores daemon registry services configuration.
@@ -84,37 +84,13 @@ type IndexInfo struct {
 	Official bool
 }
 
-// SearchResult describes a search result returned from a registry
-type SearchResult struct {
-	// StarCount indicates the number of stars this repository has
-	StarCount int `json:"star_count"`
-	// IsOfficial is true if the result is from an official repository.
-	IsOfficial bool `json:"is_official"`
-	// Name is the name of the repository
-	Name string `json:"name"`
-	// IsAutomated indicates whether the result is automated
-	IsAutomated bool `json:"is_automated"`
-	// Description is a textual description of the repository
-	Description string `json:"description"`
-}
-
-// SearchResults lists a collection search results returned from a registry
-type SearchResults struct {
-	// Query contains the query string that generated the search results
-	Query string `json:"query"`
-	// NumResults indicates the number of results the query returned
-	NumResults int `json:"num_results"`
-	// Results is a slice containing the actual results for the search
-	Results []SearchResult `json:"results"`
-}
-
 // DistributionInspect describes the result obtained from contacting the
 // registry to retrieve image metadata
 type DistributionInspect struct {
 	// Descriptor contains information about the manifest, including
 	// the content addressable digest
-	Descriptor v1.Descriptor
+	Descriptor ocispec.Descriptor
 	// Platforms contains the list of platforms supported by the image,
 	// obtained by parsing the manifest
-	Platforms []v1.Platform
+	Platforms []ocispec.Platform
 }

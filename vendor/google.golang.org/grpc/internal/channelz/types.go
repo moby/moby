@@ -273,10 +273,10 @@ func (c *channel) deleteSelfFromMap() (delete bool) {
 
 // deleteSelfIfReady tries to delete the channel itself from the channelz database.
 // The delete process includes two steps:
-// 1. delete the channel from the entry relation tree, i.e. delete the channel reference from its
-//    parent's child list.
-// 2. delete the channel from the map, i.e. delete the channel entirely from channelz. Lookup by id
-//    will return entry not found error.
+//  1. delete the channel from the entry relation tree, i.e. delete the channel reference from its
+//     parent's child list.
+//  2. delete the channel from the map, i.e. delete the channel entirely from channelz. Lookup by id
+//     will return entry not found error.
 func (c *channel) deleteSelfIfReady() {
 	if !c.deleteSelfFromTree() {
 		return
@@ -381,10 +381,10 @@ func (sc *subChannel) deleteSelfFromMap() (delete bool) {
 
 // deleteSelfIfReady tries to delete the subchannel itself from the channelz database.
 // The delete process includes two steps:
-// 1. delete the subchannel from the entry relation tree, i.e. delete the subchannel reference from
-//    its parent's child list.
-// 2. delete the subchannel from the map, i.e. delete the subchannel entirely from channelz. Lookup
-//    by id will return entry not found error.
+//  1. delete the subchannel from the entry relation tree, i.e. delete the subchannel reference from
+//     its parent's child list.
+//  2. delete the subchannel from the map, i.e. delete the subchannel entirely from channelz. Lookup
+//     by id will return entry not found error.
 func (sc *subChannel) deleteSelfIfReady() {
 	if !sc.deleteSelfFromTree() {
 		return
@@ -628,6 +628,7 @@ type tracedChannel interface {
 
 type channelTrace struct {
 	cm          *channelMap
+	clearCalled bool
 	createdTime time.Time
 	eventCount  int64
 	mu          sync.Mutex
@@ -656,6 +657,10 @@ func (c *channelTrace) append(e *TraceEvent) {
 }
 
 func (c *channelTrace) clear() {
+	if c.clearCalled {
+		return
+	}
+	c.clearCalled = true
 	c.mu.Lock()
 	for _, e := range c.events {
 		if e.RefID != 0 {
@@ -686,11 +691,32 @@ const (
 type RefChannelType int
 
 const (
+	// RefUnknown indicates an unknown entity type, the zero value for this type.
+	RefUnknown RefChannelType = iota
 	// RefChannel indicates the referenced entity is a Channel.
-	RefChannel RefChannelType = iota
+	RefChannel
 	// RefSubChannel indicates the referenced entity is a SubChannel.
 	RefSubChannel
+	// RefServer indicates the referenced entity is a Server.
+	RefServer
+	// RefListenSocket indicates the referenced entity is a ListenSocket.
+	RefListenSocket
+	// RefNormalSocket indicates the referenced entity is a NormalSocket.
+	RefNormalSocket
 )
+
+var refChannelTypeToString = map[RefChannelType]string{
+	RefUnknown:      "Unknown",
+	RefChannel:      "Channel",
+	RefSubChannel:   "SubChannel",
+	RefServer:       "Server",
+	RefListenSocket: "ListenSocket",
+	RefNormalSocket: "NormalSocket",
+}
+
+func (r RefChannelType) String() string {
+	return refChannelTypeToString[r]
+}
 
 func (c *channelTrace) dumpData() *ChannelTrace {
 	c.mu.Lock()

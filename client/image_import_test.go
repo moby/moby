@@ -10,18 +10,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestImageImportError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImageImport(context.Background(), types.ImageImportSource{}, "image:tag", types.ImageImportOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	_, err := client.ImageImport(context.Background(), image.ImportSource{}, "image:tag", image.ImportOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestImageImport(t *testing.T) {
@@ -60,10 +60,10 @@ func TestImageImport(t *testing.T) {
 			}, nil
 		}),
 	}
-	importResponse, err := client.ImageImport(context.Background(), types.ImageImportSource{
+	importResponse, err := client.ImageImport(context.Background(), image.ImportSource{
 		Source:     strings.NewReader("source"),
 		SourceName: "image_source",
-	}, "repository_name:imported", types.ImageImportOptions{
+	}, "repository_name:imported", image.ImportOptions{
 		Tag:     "imported",
 		Message: "A message",
 		Changes: []string{"change1", "change2"},

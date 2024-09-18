@@ -3,16 +3,18 @@ package build // import "github.com/docker/docker/integration/build"
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"io"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/fixtures/load"
@@ -30,6 +32,8 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	skip.If(t, !testEnv.IsUserNamespaceInKernel())
 	skip.If(t, testEnv.IsRootless())
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	const imageTag = "capabilities:1.0"
 
 	tmp, err := os.MkdirTemp("", "integration-")
@@ -38,11 +42,10 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 
 	dUserRemap := daemon.New(t)
 	dUserRemap.Start(t, "--userns-remap", "default")
-	ctx := context.Background()
 	clientUserRemap := dUserRemap.NewClientT(t)
 	defer clientUserRemap.Close()
 
-	err = load.FrozenImagesLinux(clientUserRemap, "debian:bullseye-slim")
+	err = load.FrozenImagesLinux(ctx, clientUserRemap, "debian:bookworm-slim")
 	assert.NilError(t, err)
 
 	dUserRemapRunning := true
@@ -54,7 +57,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	}()
 
 	dockerfile := `
-		FROM debian:bullseye-slim
+		FROM debian:bookworm-slim
 		RUN apt-get update && apt-get install -y libcap2-bin --no-install-recommends
 		RUN setcap CAP_NET_BIND_SERVICE=+eip /bin/sleep
 	`
@@ -74,7 +77,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, buf, 0, false, nil)
 	assert.NilError(t, err)
 
-	reader, err := clientUserRemap.ImageSave(ctx, []string{imageTag})
+	reader, err := clientUserRemap.ImageSave(ctx, []string{imageTag}, image.SaveOptions{})
 	assert.NilError(t, err, "failed to download capabilities image")
 	defer reader.Close()
 
@@ -104,7 +107,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	defer tarFile.Close()
 
 	tarReader := bufio.NewReader(tarFile)
-	loadResp, err := clientNoUserRemap.ImageLoad(ctx, tarReader, false)
+	loadResp, err := clientNoUserRemap.ImageLoad(ctx, tarReader, image.LoadOptions{})
 	assert.NilError(t, err, "failed to load image tar file")
 	defer loadResp.Body.Close()
 	buf = bytes.NewBuffer(nil)
@@ -115,7 +118,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 		container.WithImage(imageTag),
 		container.WithCmd("/sbin/getcap", "-n", "/bin/sleep"),
 	)
-	logReader, err := clientNoUserRemap.ContainerLogs(ctx, cid, types.ContainerLogsOptions{
+	logReader, err := clientNoUserRemap.ContainerLogs(ctx, cid, containertypes.LogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)

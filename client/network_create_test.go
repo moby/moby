@@ -10,8 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestNetworkCreateError(t *testing.T) {
@@ -19,10 +21,20 @@ func TestNetworkCreateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.NetworkCreate(context.Background(), "mynetwork", types.NetworkCreate{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	_, err := client.NetworkCreate(context.Background(), "mynetwork", network.CreateOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+}
+
+// TestNetworkCreateConnectionError verifies that connection errors occurring
+// during API-version negotiation are not shadowed by API-version errors.
+//
+// Regression test for https://github.com/docker/cli/issues/4890
+func TestNetworkCreateConnectionError(t *testing.T) {
+	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	assert.NilError(t, err)
+
+	_, err = client.NetworkCreate(context.Background(), "mynetwork", network.CreateOptions{})
+	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
 func TestNetworkCreate(t *testing.T) {
@@ -38,7 +50,7 @@ func TestNetworkCreate(t *testing.T) {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
 
-			content, err := json.Marshal(types.NetworkCreateResponse{
+			content, err := json.Marshal(network.CreateResponse{
 				ID:      "network_id",
 				Warning: "warning",
 			})
@@ -52,11 +64,11 @@ func TestNetworkCreate(t *testing.T) {
 		}),
 	}
 
-	networkResponse, err := client.NetworkCreate(context.Background(), "mynetwork", types.NetworkCreate{
-		CheckDuplicate: true,
-		Driver:         "mydriver",
-		EnableIPv6:     true,
-		Internal:       true,
+	enableIPv6 := true
+	networkResponse, err := client.NetworkCreate(context.Background(), "mynetwork", network.CreateOptions{
+		Driver:     "mydriver",
+		EnableIPv6: &enableIPv6,
+		Internal:   true,
 		Options: map[string]string{
 			"opt-key": "opt-value",
 		},

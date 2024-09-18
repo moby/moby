@@ -1,9 +1,9 @@
 //go:build windows
-// +build windows
 
 package windows
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -43,7 +43,7 @@ func testNetwork(networkType string, t *testing.T) {
 
 	epOptions := make(map[string]interface{})
 	te := &testEndpoint{}
-	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), epOptions)
+	err = d.CreateEndpoint(context.TODO(), "dummy", "ep1", te.Interface(), epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
@@ -104,7 +104,7 @@ func (test *testEndpoint) SetMacAddress(mac net.HardwareAddr) error {
 	}
 
 	if mac == nil {
-		return types.BadRequestErrorf("tried to set nil MAC address to endpoint interface")
+		return types.InvalidParameterErrorf("tried to set nil MAC address to endpoint interface")
 	}
 	test.macAddress = mac.String()
 	return nil
@@ -112,7 +112,7 @@ func (test *testEndpoint) SetMacAddress(mac net.HardwareAddr) error {
 
 func (test *testEndpoint) SetIPAddress(address *net.IPNet) error {
 	if address.IP == nil {
-		return types.BadRequestErrorf("tried to set nil IP address to endpoint interface")
+		return types.InvalidParameterErrorf("tried to set nil IP address to endpoint interface")
 	}
 
 	test.address = address.String()

@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package containerd.runc.v1;
 
-import weak "gogoproto/gogo.proto";
-
 option go_package = "github.com/containerd/containerd/runtime/v2/runc/options;options";
 
 message Options {
@@ -21,8 +19,13 @@ message Options {
 	string binary_name = 6;
 	// runc root directory
 	string root = 7;
-	// criu binary path
-	string criu_path = 8;
+	// criu binary path.
+	//
+	// Deprecated: runc option --criu is now ignored (with a warning), and the
+	// option will be removed entirely in a future release. Users who need a non-
+	// standard criu binary should rely on the standard way of looking up binaries
+	// in $PATH.
+	string criu_path = 8 [deprecated = true];
 	// enable systemd cgroups
 	bool systemd_cgroup = 9;
 	// criu image path

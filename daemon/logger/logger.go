@@ -8,6 +8,7 @@
 package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -87,8 +88,8 @@ type ReadConfig struct {
 
 // LogReader is the interface for reading log messages for loggers that support reading.
 type LogReader interface {
-	// Read logs from underlying logging backend
-	ReadLogs(ReadConfig) *LogWatcher
+	// ReadLogs reads logs from underlying logging backend.
+	ReadLogs(context.Context, ReadConfig) *LogWatcher
 }
 
 // LogWatcher is used when consuming logs read from the LogReader interface.

@@ -122,7 +122,7 @@ type CAConfig struct {
 	SigningCAKey  string `json:",omitempty"`
 
 	// If this value changes, and there is no specified signing cert and key,
-	// then the swarm is forced to generate a new root certificate ane key.
+	// then the swarm is forced to generate a new root certificate and key.
 	ForceRotate uint64 `json:",omitempty"`
 }
 

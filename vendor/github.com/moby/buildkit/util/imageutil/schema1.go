@@ -3,23 +3,24 @@ package imageutil
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"strings"
 	"time"
 
 	"github.com/containerd/containerd/remotes"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
-func readSchema1Config(ctx context.Context, ref string, desc ocispecs.Descriptor, fetcher remotes.Fetcher, cache ContentCache) (digest.Digest, []byte, error) {
+func readSchema1Config(ctx context.Context, desc ocispecs.Descriptor, fetcher remotes.Fetcher) (digest.Digest, []byte, error) {
 	rc, err := fetcher.Fetch(ctx, desc)
 	if err != nil {
 		return "", nil, err
 	}
 	defer rc.Close()
-	dt, err := ioutil.ReadAll(rc)
+	dt, err := io.ReadAll(rc)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "failed to fetch schema1 manifest")
 	}
@@ -44,7 +45,7 @@ func convertSchema1ConfigMeta(in []byte) ([]byte, error) {
 		return nil, errors.Errorf("invalid schema1 manifest")
 	}
 
-	var img ocispecs.Image
+	var img dockerspec.DockerOCIImage
 	if err := json.Unmarshal([]byte(m.History[0].V1Compatibility), &img); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal image from schema 1 history")
 	}
@@ -68,7 +69,7 @@ func convertSchema1ConfigMeta(in []byte) ([]byte, error) {
 		}
 	}
 
-	dt, err := json.MarshalIndent(img, "", "   ")
+	dt, err := json.MarshalIndent(img, "", "  ")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal schema1 config")
 	}

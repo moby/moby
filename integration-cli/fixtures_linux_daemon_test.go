@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,11 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil/fixtures/load"
 	"gotest.tools/v3/assert"
 )
 
-func ensureSyscallTest(c *testing.T) {
+func ensureSyscallTest(ctx context.Context, c *testing.T) {
 	defer testEnv.ProtectImage(c, "syscall-test:latest")
 
 	// If the image already exists, there's nothing left to do.
@@ -23,8 +25,8 @@ func ensureSyscallTest(c *testing.T) {
 
 	// if no match, must build in docker, which is significantly slower
 	// (slower mostly because of the vfs graphdriver)
-	if testEnv.OSType != runtime.GOOS {
-		ensureSyscallTestBuild(c)
+	if testEnv.DaemonInfo.OSType != runtime.GOOS {
+		ensureSyscallTestBuild(ctx, c)
 		return
 	}
 
@@ -48,10 +50,10 @@ func ensureSyscallTest(c *testing.T) {
 
 	dockerFile := filepath.Join(tmp, "Dockerfile")
 	content := []byte(`
-	FROM debian:bullseye-slim
+	FROM debian:bookworm-slim
 	COPY . /usr/bin/
 	`)
-	err = os.WriteFile(dockerFile, content, 0600)
+	err = os.WriteFile(dockerFile, content, 0o600)
 	assert.NilError(c, err)
 
 	var buildArgs []string
@@ -60,11 +62,11 @@ func ensureSyscallTest(c *testing.T) {
 	}
 	buildArgs = append(buildArgs, []string{"-q", "-t", "syscall-test", tmp}...)
 	buildArgs = append([]string{"build"}, buildArgs...)
-	dockerCmd(c, buildArgs...)
+	cli.DockerCmd(c, buildArgs...)
 }
 
-func ensureSyscallTestBuild(c *testing.T) {
-	err := load.FrozenImagesLinux(testEnv.APIClient(), "debian:bullseye-slim")
+func ensureSyscallTestBuild(ctx context.Context, c *testing.T) {
+	err := load.FrozenImagesLinux(ctx, testEnv.APIClient(), "debian:bookworm-slim")
 	assert.NilError(c, err)
 
 	var buildArgs []string
@@ -73,10 +75,10 @@ func ensureSyscallTestBuild(c *testing.T) {
 	}
 	buildArgs = append(buildArgs, []string{"-q", "-t", "syscall-test", "../contrib/syscall-test"}...)
 	buildArgs = append([]string{"build"}, buildArgs...)
-	dockerCmd(c, buildArgs...)
+	cli.DockerCmd(c, buildArgs...)
 }
 
-func ensureNNPTest(c *testing.T) {
+func ensureNNPTest(ctx context.Context, c *testing.T) {
 	defer testEnv.ProtectImage(c, "nnp-test:latest")
 
 	// If the image already exists, there's nothing left to do.
@@ -86,8 +88,8 @@ func ensureNNPTest(c *testing.T) {
 
 	// if no match, must build in docker, which is significantly slower
 	// (slower mostly because of the vfs graphdriver)
-	if testEnv.OSType != runtime.GOOS {
-		ensureNNPTestBuild(c)
+	if testEnv.DaemonInfo.OSType != runtime.GOOS {
+		ensureNNPTestBuild(ctx, c)
 		return
 	}
 
@@ -102,11 +104,11 @@ func ensureNNPTest(c *testing.T) {
 
 	dockerfile := filepath.Join(tmp, "Dockerfile")
 	content := `
-	FROM debian:bullseye-slim
+	FROM debian:bookworm-slim
 	COPY . /usr/bin
 	RUN chmod +s /usr/bin/nnp-test
 	`
-	err = os.WriteFile(dockerfile, []byte(content), 0600)
+	err = os.WriteFile(dockerfile, []byte(content), 0o600)
 	assert.NilError(c, err, "could not write Dockerfile for nnp-test image")
 
 	var buildArgs []string
@@ -115,11 +117,11 @@ func ensureNNPTest(c *testing.T) {
 	}
 	buildArgs = append(buildArgs, []string{"-q", "-t", "nnp-test", tmp}...)
 	buildArgs = append([]string{"build"}, buildArgs...)
-	dockerCmd(c, buildArgs...)
+	cli.DockerCmd(c, buildArgs...)
 }
 
-func ensureNNPTestBuild(c *testing.T) {
-	err := load.FrozenImagesLinux(testEnv.APIClient(), "debian:bullseye-slim")
+func ensureNNPTestBuild(ctx context.Context, c *testing.T) {
+	err := load.FrozenImagesLinux(ctx, testEnv.APIClient(), "debian:bookworm-slim")
 	assert.NilError(c, err)
 
 	var buildArgs []string
@@ -128,5 +130,5 @@ func ensureNNPTestBuild(c *testing.T) {
 	}
 	buildArgs = append(buildArgs, []string{"-q", "-t", "npp-test", "../contrib/nnp-test"}...)
 	buildArgs = append([]string{"build"}, buildArgs...)
-	dockerCmd(c, buildArgs...)
+	cli.DockerCmd(c, buildArgs...)
 }

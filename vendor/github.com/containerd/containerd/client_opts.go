@@ -20,9 +20,9 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/snapshots"
+	"github.com/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"google.golang.org/grpc"
@@ -110,7 +110,7 @@ type RemoteOpt func(*Client, *RemoteContext) error
 // content for
 func WithPlatform(platform string) RemoteOpt {
 	if platform == "" {
-		platform = platforms.DefaultString()
+		platform = platforms.Format(platforms.DefaultSpec()) // For 1.7 continue using the old format without os-version included.
 	}
 	return func(_ *Client, c *RemoteContext) error {
 		for _, p := range c.Platforms {
@@ -200,6 +200,8 @@ func WithChildLabelMap(fn func(ocispec.Descriptor) []string) RemoteOpt {
 // WithSchema1Conversion is used to convert Docker registry schema 1
 // manifests to oci manifests on pull. Without this option schema 1
 // manifests will return a not supported error.
+//
+// Deprecated: use Schema 2 or OCI images.
 func WithSchema1Conversion(client *Client, c *RemoteContext) error {
 	c.ConvertSchema1 = true
 	return nil

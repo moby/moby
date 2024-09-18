@@ -37,14 +37,14 @@ func TestPeerCertificateMarshalJSON(t *testing.T) {
 	publickey := &privatekey.PublicKey
 
 	// create a self-signed certificate. template = parent
-	var parent = template
+	parent := template
 	raw, err := x509.CreateCertificate(rand.Reader, template, parent, publickey, privatekey)
 	assert.NilError(t, err)
 
 	cert, err := x509.ParseCertificate(raw)
 	assert.NilError(t, err)
 
-	var certs = []*x509.Certificate{cert}
+	certs := []*x509.Certificate{cert}
 	addr := "www.authz.com/auth"
 	req, err := http.NewRequest(http.MethodGet, addr, nil)
 	assert.NilError(t, err)
@@ -68,9 +68,6 @@ func TestPeerCertificateMarshalJSON(t *testing.T) {
 			assert.Assert(t, is.Nil(err))
 			assert.Equal(t, "Earth", pcObj.Subject.Country[0])
 			assert.Equal(t, true, pcObj.IsCA)
-
 		})
-
 	}
-
 }

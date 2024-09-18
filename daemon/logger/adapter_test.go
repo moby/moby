@@ -1,6 +1,7 @@
 package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
+	"context"
 	"encoding/binary"
 	"io"
 	"sync"
@@ -47,7 +48,6 @@ func (l *mockLoggingPlugin) StartLogging(file string, info Info) error {
 
 				l.c.Broadcast()
 				return
-
 			}
 
 			l.c.L.Lock()
@@ -55,7 +55,6 @@ func (l *mockLoggingPlugin) StartLogging(file string, info Info) error {
 			l.c.L.Unlock()
 			l.c.Broadcast()
 		}
-
 	}()
 	return nil
 }
@@ -156,7 +155,7 @@ func TestAdapterReadLogs(t *testing.T) {
 	lr, ok := l.(LogReader)
 	assert.Check(t, ok, "Logger does not implement LogReader")
 
-	lw := lr.ReadLogs(ReadConfig{})
+	lw := lr.ReadLogs(context.TODO(), ReadConfig{})
 
 	for _, x := range testMsg {
 		select {
@@ -172,11 +171,10 @@ func TestAdapterReadLogs(t *testing.T) {
 		assert.Check(t, !ok, "expected message channel to be closed")
 	case <-time.After(10 * time.Second):
 		t.Fatal("timeout waiting for message channel to close")
-
 	}
 	lw.ConsumerGone()
 
-	lw = lr.ReadLogs(ReadConfig{Follow: true})
+	lw = lr.ReadLogs(context.TODO(), ReadConfig{Follow: true})
 	for _, x := range testMsg {
 		select {
 		case msg := <-lw.Msg:

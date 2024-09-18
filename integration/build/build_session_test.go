@@ -9,12 +9,13 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
 	dclient "github.com/docker/docker/client"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/request"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/filesync"
+	"github.com/tonistiigi/fsutil"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -24,7 +25,8 @@ import (
 func TestBuildWithSession(t *testing.T) {
 	t.Skip("TODO: BuildKit")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "experimental in older versions")
+
+	ctx := testutil.StartSpan(baseContext, t)
 
 	client := testEnv.APIClient()
 
@@ -39,7 +41,7 @@ func TestBuildWithSession(t *testing.T) {
 	)
 	defer fctx.Close()
 
-	out := testBuildWithSession(t, client, client.DaemonHost(), fctx.Dir, dockerfile)
+	out := testBuildWithSession(ctx, t, client, client.DaemonHost(), fctx.Dir, dockerfile)
 	assert.Check(t, is.Contains(out, "some content"))
 
 	fctx.Add("second", "contentcontent")
@@ -49,25 +51,25 @@ func TestBuildWithSession(t *testing.T) {
 	RUN cat /second
 	`
 
-	out = testBuildWithSession(t, client, client.DaemonHost(), fctx.Dir, dockerfile)
+	out = testBuildWithSession(ctx, t, client, client.DaemonHost(), fctx.Dir, dockerfile)
 	assert.Check(t, is.Equal(strings.Count(out, "Using cache"), 2))
 	assert.Check(t, is.Contains(out, "contentcontent"))
 
-	du, err := client.DiskUsage(context.TODO(), types.DiskUsageOptions{})
+	du, err := client.DiskUsage(ctx, types.DiskUsageOptions{})
 	assert.Check(t, err)
 	assert.Check(t, du.BuilderSize > 10)
 
-	out = testBuildWithSession(t, client, client.DaemonHost(), fctx.Dir, dockerfile)
+	out = testBuildWithSession(ctx, t, client, client.DaemonHost(), fctx.Dir, dockerfile)
 	assert.Check(t, is.Equal(strings.Count(out, "Using cache"), 4))
 
-	du2, err := client.DiskUsage(context.TODO(), types.DiskUsageOptions{})
+	du2, err := client.DiskUsage(ctx, types.DiskUsageOptions{})
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(du.BuilderSize, du2.BuilderSize))
 
 	// rebuild with regular tar, confirm cache still applies
 	fctx.Add("Dockerfile", dockerfile)
 	// FIXME(vdemeester) use sock here
-	res, body, err := request.Do(
+	res, body, err := request.Do(ctx,
 		"/build",
 		request.Host(client.DaemonHost()),
 		request.Method(http.MethodPost),
@@ -81,22 +83,24 @@ func TestBuildWithSession(t *testing.T) {
 	assert.Check(t, is.Contains(string(outBytes), "Successfully built"))
 	assert.Check(t, is.Equal(strings.Count(string(outBytes), "Using cache"), 4))
 
-	_, err = client.BuildCachePrune(context.TODO(), types.BuildCachePruneOptions{All: true})
+	_, err = client.BuildCachePrune(ctx, types.BuildCachePruneOptions{All: true})
 	assert.Check(t, err)
 
-	du, err = client.DiskUsage(context.TODO(), types.DiskUsageOptions{})
+	du, err = client.DiskUsage(ctx, types.DiskUsageOptions{})
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(du.BuilderSize, int64(0)))
 }
 
 //nolint:unused // false positive: linter detects this as "unused"
-func testBuildWithSession(t *testing.T, client dclient.APIClient, daemonHost string, dir, dockerfile string) (outStr string) {
-	ctx := context.Background()
-	sess, err := session.NewSession(ctx, "foo1", "foo")
+func testBuildWithSession(ctx context.Context, t *testing.T, client dclient.APIClient, daemonHost string, dir, dockerfile string) (outStr string) {
+	sess, err := session.NewSession(ctx, "foo")
 	assert.Check(t, err)
 
-	fsProvider := filesync.NewFSSyncProvider([]filesync.SyncedDir{
-		{Dir: dir},
+	fs, err := fsutil.NewFS(dir)
+	assert.NilError(t, err)
+
+	fsProvider := filesync.NewFSSyncProvider(filesync.StaticDirSource{
+		"": fs,
 	})
 	sess.Allow(fsProvider)
 
@@ -110,7 +114,7 @@ func testBuildWithSession(t *testing.T, client dclient.APIClient, daemonHost str
 
 	g.Go(func() error {
 		// FIXME use sock here
-		res, body, err := request.Do(
+		res, body, err := request.Do(ctx,
 			"/build?remote=client-session&session="+sess.ID(),
 			request.Host(daemonHost),
 			request.Method(http.MethodPost),

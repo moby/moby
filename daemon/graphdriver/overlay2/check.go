@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package overlay2 // import "github.com/docker/docker/daemon/graphdriver/overlay2"
 
@@ -11,9 +10,9 @@ import (
 	"syscall"
 
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/pkg/system"
+	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
@@ -23,11 +22,21 @@ import (
 // directory or the kernel enable CONFIG_OVERLAY_FS_REDIRECT_DIR.
 // When these exist naive diff should be used.
 //
-// When running in a user namespace, returns errRunningInUserNS
-// immediately.
+// When running in a user namespace it either immediately returns with an error
+// when userxattr is not supported, or performs the native diff checks as usual
+// with some minor user namespace differences, like adding userxattr.
 func doesSupportNativeDiff(d string) error {
+	userxattr := false
 	if userns.RunningInUserNS() {
-		return errors.New("running in a user namespace")
+		needed, err := overlayutils.NeedsUserXAttr(d)
+		if err != nil {
+			return err
+		}
+		if needed {
+			userxattr = true
+		} else {
+			return errors.New("native diff is not supported in user namespace, consider updating to kernel 5.11 or later to fix")
+		}
 	}
 
 	td, err := os.MkdirTemp(d, "opaque-bug-check")
@@ -41,31 +50,36 @@ func doesSupportNativeDiff(d string) error {
 	}()
 
 	// Make directories l1/d, l1/d1, l2/d, l3, work, merged
-	if err := os.MkdirAll(filepath.Join(td, "l1", "d"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(td, "l1", "d"), 0o755); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Join(td, "l1", "d1"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(td, "l1", "d1"), 0o755); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Join(td, "l2", "d"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(td, "l2", "d"), 0o755); err != nil {
 		return err
 	}
-	if err := os.Mkdir(filepath.Join(td, "l3"), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(td, "l3"), 0o755); err != nil {
 		return err
 	}
-	if err := os.Mkdir(filepath.Join(td, workDirName), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(td, workDirName), 0o755); err != nil {
 		return err
 	}
-	if err := os.Mkdir(filepath.Join(td, mergedDirName), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(td, mergedDirName), 0o755); err != nil {
 		return err
 	}
 
 	// Mark l2/d as opaque
-	if err := system.Lsetxattr(filepath.Join(td, "l2", "d"), "trusted.overlay.opaque", []byte("y"), 0); err != nil {
+	if err := system.Lsetxattr(filepath.Join(td, "l2", "d"), overlayutils.GetOverlayXattr("opaque"), []byte("y"), 0); err != nil {
 		return errors.Wrap(err, "failed to set opaque flag on middle layer")
 	}
 
-	opts := fmt.Sprintf("lowerdir=%s:%s,upperdir=%s,workdir=%s", path.Join(td, "l2"), path.Join(td, "l1"), path.Join(td, "l3"), path.Join(td, workDirName))
+	mountFlags := "lowerdir=%s:%s,upperdir=%s,workdir=%s"
+	if userxattr {
+		mountFlags = mountFlags + ",userxattr"
+	}
+
+	opts := fmt.Sprintf(mountFlags, path.Join(td, "l2"), path.Join(td, "l1"), path.Join(td, "l3"), path.Join(td, workDirName))
 	if err := unix.Mount("overlay", filepath.Join(td, mergedDirName), "overlay", 0, opts); err != nil {
 		return errors.Wrap(err, "failed to mount overlay")
 	}
@@ -76,17 +90,17 @@ func doesSupportNativeDiff(d string) error {
 	}()
 
 	// Touch file in d to force copy up of opaque directory "d" from "l2" to "l3"
-	if err := os.WriteFile(filepath.Join(td, mergedDirName, "d", "f"), []byte{}, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(td, mergedDirName, "d", "f"), []byte{}, 0o644); err != nil {
 		return errors.Wrap(err, "failed to write to merged directory")
 	}
 
 	// Check l3/d does not have opaque flag
-	xattrOpaque, err := system.Lgetxattr(filepath.Join(td, "l3", "d"), "trusted.overlay.opaque")
+	xattrOpaque, err := system.Lgetxattr(filepath.Join(td, "l3", "d"), overlayutils.GetOverlayXattr("opaque"))
 	if err != nil {
 		return errors.Wrap(err, "failed to read opaque flag on upper layer")
 	}
 	if string(xattrOpaque) == "y" {
-		return errors.New("opaque flag erroneously copied up, consider update to kernel 4.8 or later to fix")
+		return errors.New("opaque flag erroneously copied up, consider updating to kernel 4.8 or later to fix")
 	}
 
 	// rename "d1" to "d2"
@@ -98,7 +112,7 @@ func doesSupportNativeDiff(d string) error {
 		return errors.Wrap(err, "failed to rename dir in merged directory")
 	}
 	// get the xattr of "d2"
-	xattrRedirect, err := system.Lgetxattr(filepath.Join(td, "l3", "d2"), "trusted.overlay.redirect")
+	xattrRedirect, err := system.Lgetxattr(filepath.Join(td, "l3", "d2"), overlayutils.GetOverlayXattr("redirect"))
 	if err != nil {
 		return errors.Wrap(err, "failed to read redirect flag on upper layer")
 	}
@@ -150,13 +164,13 @@ func usingMetacopy(d string) (bool, error) {
 
 	l1, l2, work, merged := filepath.Join(td, "l1"), filepath.Join(td, "l2"), filepath.Join(td, "work"), filepath.Join(td, "merged")
 	for _, dir := range []string{l1, l2, work, merged} {
-		if err := os.Mkdir(dir, 0755); err != nil {
+		if err := os.Mkdir(dir, 0o755); err != nil {
 			return false, err
 		}
 	}
 
 	// Create empty file in l1 with 0700 permissions for metacopy test
-	if err := os.WriteFile(filepath.Join(l1, "f"), []byte{}, 0700); err != nil {
+	if err := os.WriteFile(filepath.Join(l1, "f"), []byte{}, 0o700); err != nil {
 		return false, err
 	}
 
@@ -181,13 +195,18 @@ func usingMetacopy(d string) (bool, error) {
 	}()
 
 	// Make a change that only impacts the inode, in the upperdir
-	if err := os.Chmod(filepath.Join(merged, "f"), 0600); err != nil {
+	if err := os.Chmod(filepath.Join(merged, "f"), 0o600); err != nil {
 		return false, errors.Wrap(err, "error changing permissions on file for metacopy check")
 	}
 
 	// ...and check if the pulled-up copy is marked as metadata-only
 	xattr, err := system.Lgetxattr(filepath.Join(l2, "f"), overlayutils.GetOverlayXattr("metacopy"))
 	if err != nil {
+		// ENOTSUP signifies the FS does not support either xattrs or metacopy. In either case,
+		// it is not a fatal error, and we should report metacopy as unused.
+		if errors.Is(err, unix.ENOTSUP) {
+			return false, nil
+		}
 		return false, errors.Wrap(err, "metacopy flag was not set on file in the upperdir")
 	}
 	usingMetacopy := xattr != nil

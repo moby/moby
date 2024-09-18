@@ -20,12 +20,7 @@ const (
 var ErrRestartCanceled = errors.New("restart canceled")
 
 // RestartManager defines object that controls container restarting rules.
-type RestartManager interface {
-	Cancel() error
-	ShouldRestart(exitCode uint32, hasBeenManuallyStopped bool, executionDuration time.Duration) (bool, chan error, error)
-}
-
-type restartManager struct {
+type RestartManager struct {
 	sync.Mutex
 	sync.Once
 	policy       container.RestartPolicy
@@ -36,18 +31,20 @@ type restartManager struct {
 	canceled     bool
 }
 
-// New returns a new restartManager based on a policy.
-func New(policy container.RestartPolicy, restartCount int) RestartManager {
-	return &restartManager{policy: policy, restartCount: restartCount, cancel: make(chan struct{})}
+// New returns a new RestartManager based on a policy.
+func New(policy container.RestartPolicy, restartCount int) *RestartManager {
+	return &RestartManager{policy: policy, restartCount: restartCount, cancel: make(chan struct{})}
 }
 
-func (rm *restartManager) SetPolicy(policy container.RestartPolicy) {
+// SetPolicy sets the restart-policy for the RestartManager.
+func (rm *RestartManager) SetPolicy(policy container.RestartPolicy) {
 	rm.Lock()
 	rm.policy = policy
 	rm.Unlock()
 }
 
-func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped bool, executionDuration time.Duration) (bool, chan error, error) {
+// ShouldRestart returns whether the container should be restarted.
+func (rm *RestartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped bool, executionDuration time.Duration) (bool, chan error, error) {
 	if rm.policy.IsNone() {
 		return false, nil, nil
 	}
@@ -66,7 +63,7 @@ func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped 
 	if rm.active {
 		return false, nil, fmt.Errorf("invalid call on an active restart manager")
 	}
-	// if the container ran for more than 10s, regardless of status and policy reset the
+	// if the container ran for more than 10s, regardless of status and policy reset
 	// the timeout back to the default.
 	if executionDuration.Seconds() >= 10 {
 		rm.timeout = 0
@@ -89,7 +86,7 @@ func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped 
 		restart = true
 	case rm.policy.IsOnFailure():
 		// the default value of 0 for MaximumRetryCount means that we will not enforce a maximum count
-		if max := rm.policy.MaximumRetryCount; max == 0 || rm.restartCount < max {
+		if maxRetryCount := rm.policy.MaximumRetryCount; maxRetryCount == 0 || rm.restartCount < maxRetryCount {
 			restart = exitCode != 0
 		}
 	}
@@ -125,12 +122,12 @@ func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped 
 	return true, ch, nil
 }
 
-func (rm *restartManager) Cancel() error {
+// Cancel tells the RestartManager to no longer restart the container.
+func (rm *RestartManager) Cancel() {
 	rm.Do(func() {
 		rm.Lock()
 		rm.canceled = true
 		close(rm.cancel)
 		rm.Unlock()
 	})
-	return nil
 }

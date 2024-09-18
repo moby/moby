@@ -2,6 +2,7 @@ package build // import "github.com/docker/docker/integration-cli/cli/build"
 
 import (
 	"io"
+	"os"
 	"strings"
 	"testing"
 
@@ -26,6 +27,21 @@ func WithDockerfile(dockerfile string) func(*icmd.Cmd) func() {
 	return func(cmd *icmd.Cmd) func() {
 		cmd.Command = append(cmd.Command, "-")
 		cmd.Stdin = strings.NewReader(dockerfile)
+		return nil
+	}
+}
+
+// WithBuildkit sets an DOCKER_BUILDKIT environment variable to make the build use buildkit (or not)
+func WithBuildkit(useBuildkit bool) func(*icmd.Cmd) func() {
+	return func(cmd *icmd.Cmd) func() {
+		val := "0"
+		if useBuildkit {
+			val = "1"
+		}
+		if cmd.Env == nil {
+			cmd.Env = os.Environ()
+		}
+		cmd.Env = append(cmd.Env, "DOCKER_BUILDKIT="+val)
 		return nil
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"io"
 	"os/exec"
 	"regexp"
@@ -10,8 +11,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containerd/log"
 	eventstestutils "github.com/docker/docker/daemon/events/testutils"
-	"github.com/sirupsen/logrus"
+	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
 )
 
@@ -89,7 +91,7 @@ func (e *eventObserver) Match(match eventMatcher, process eventMatchProcessor) {
 		err = io.EOF
 	}
 
-	logrus.Debugf("EventObserver scanner loop finished: %v", err)
+	log.G(context.TODO()).Debugf("EventObserver scanner loop finished: %v", err)
 	e.disconnectionError = err
 }
 
@@ -99,7 +101,7 @@ func (e *eventObserver) CheckEventError(c *testing.T, id, event string, match ev
 
 	if e.disconnectionError != nil {
 		until := daemonUnixTime(c)
-		out, _ := dockerCmd(c, "events", "--since", e.startTime, "--until", until)
+		out := cli.DockerCmd(c, "events", "--since", e.startTime, "--until", until).Stdout()
 		events := strings.Split(strings.TrimSpace(out), "\n")
 		for _, e := range events {
 			if _, ok := match(e); ok {

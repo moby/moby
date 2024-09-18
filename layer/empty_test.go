@@ -41,7 +41,6 @@ func TestEmptyLayer(t *testing.T) {
 
 	digester := digest.Canonical.Digester()
 	_, err = io.Copy(digester.Hash(), tarStream)
-
 	if err != nil {
 		t.Fatalf("error hashing empty tar layer: %v", err)
 	}

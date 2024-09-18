@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/progress"
@@ -109,6 +110,7 @@ type progressOutput struct {
 	sf       formatProgress
 	out      io.Writer
 	newLines bool
+	mu       sync.Mutex
 }
 
 // WriteProgress formats progress information from a ProgressReader.
@@ -120,6 +122,9 @@ func (out *progressOutput) WriteProgress(prog progress.Progress) error {
 		jsonProgress := jsonmessage.JSONProgress{Current: prog.Current, Total: prog.Total, HideCounts: prog.HideCounts, Units: prog.Units}
 		formatted = out.sf.formatProgress(prog.ID, prog.Action, &jsonProgress, prog.Aux)
 	}
+
+	out.mu.Lock()
+	defer out.mu.Unlock()
 	_, err := out.out.Write(formatted)
 	if err != nil {
 		return err

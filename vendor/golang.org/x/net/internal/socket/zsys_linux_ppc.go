@@ -4,32 +4,32 @@
 package socket
 
 type iovec struct {
-	Base	*byte
-	Len	uint32
+	Base *byte
+	Len  uint32
 }
 
 type msghdr struct {
-	Name		*byte
-	Namelen		uint32
-	Iov		*iovec
-	Iovlen		uint32
-	Control		*byte
-	Controllen	uint32
-	Flags		int32
+	Name       *byte
+	Namelen    uint32
+	Iov        *iovec
+	Iovlen     uint32
+	Control    *byte
+	Controllen uint32
+	Flags      int32
 }
 
 type mmsghdr struct {
-	Hdr	msghdr
-	Len	uint32
+	Hdr msghdr
+	Len uint32
 }
 
 type cmsghdr struct {
-	Len	uint32
-	Level	int32
-	Type	int32
+	Len   uint32
+	Level int32
+	Type  int32
 }
 
 const (
-	sizeofIovec	= 0x8
-	sizeofMsghdr	= 0x1c
+	sizeofIovec  = 0x8
+	sizeofMsghdr = 0x1c
 )

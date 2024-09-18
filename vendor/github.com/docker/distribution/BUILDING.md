@@ -114,4 +114,4 @@ the registry binary generated in the "./bin" directory:
 ### Optional build tags
 
 Optional [build tags](http://golang.org/pkg/go/build/) can be provided using
-the environment variable `DOCKER_BUILDTAGS`.
+the environment variable `BUILDTAGS`.

@@ -57,7 +57,8 @@ LEGACY_SOURCES=(
   ${WORKDIR}/grpc-proto/grpc/health/v1/health.proto
   ${WORKDIR}/grpc-proto/grpc/lb/v1/load_balancer.proto
   profiling/proto/service.proto
-  reflection/grpc_reflection_v1alpha/reflection.proto
+  ${WORKDIR}/grpc-proto/grpc/reflection/v1alpha/reflection.proto
+  ${WORKDIR}/grpc-proto/grpc/reflection/v1/reflection.proto
 )
 
 # Generates only the new gRPC Service symbols
@@ -68,7 +69,6 @@ SOURCES=(
   ${WORKDIR}/grpc-proto/grpc/gcp/transport_security_common.proto
   ${WORKDIR}/grpc-proto/grpc/lookup/v1/rls.proto
   ${WORKDIR}/grpc-proto/grpc/lookup/v1/rls_config.proto
-  ${WORKDIR}/grpc-proto/grpc/service_config/service_config.proto
   ${WORKDIR}/grpc-proto/grpc/testing/*.proto
   ${WORKDIR}/grpc-proto/grpc/core/*.proto
 )
@@ -80,8 +80,7 @@ SOURCES=(
 # Note that the protos listed here are all for testing purposes. All protos to
 # be used externally should have a go_package option (and they don't need to be
 # listed here).
-OPTS=Mgrpc/service_config/service_config.proto=/internal/proto/grpc_service_config,\
-Mgrpc/core/stats.proto=google.golang.org/grpc/interop/grpc_testing/core,\
+OPTS=Mgrpc/core/stats.proto=google.golang.org/grpc/interop/grpc_testing/core,\
 Mgrpc/testing/benchmark_service.proto=google.golang.org/grpc/interop/grpc_testing,\
 Mgrpc/testing/stats.proto=google.golang.org/grpc/interop/grpc_testing,\
 Mgrpc/testing/report_qps_scenario_service.proto=google.golang.org/grpc/interop/grpc_testing,\
@@ -120,12 +119,5 @@ mv ${WORKDIR}/out/google.golang.org/grpc/lookup/grpc_lookup_v1/* ${WORKDIR}/out/
 # grpc_testing_not_regenerate/*.pb.go are not re-generated,
 # see grpc_testing_not_regenerate/README.md for details.
 rm ${WORKDIR}/out/google.golang.org/grpc/reflection/grpc_testing_not_regenerate/*.pb.go
-
-# grpc/service_config/service_config.proto does not have a go_package option.
-mv ${WORKDIR}/out/grpc/service_config/service_config.pb.go internal/proto/grpc_service_config
-
-# grpc/testing does not have a go_package option.
-mv ${WORKDIR}/out/grpc/testing/*.pb.go interop/grpc_testing/
-mv ${WORKDIR}/out/grpc/core/*.pb.go interop/grpc_testing/core/
 
 cp -R ${WORKDIR}/out/google.golang.org/grpc/* .

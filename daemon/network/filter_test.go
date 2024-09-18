@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package network // import "github.com/docker/docker/daemon/network"
 
@@ -7,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/network"
 )
 
 func TestFilterNetworks(t *testing.T) {
-	networks := []types.NetworkResource{
+	networks := []network.Inspect{
 		{
 			Name:   "host",
 			Driver: "host",
@@ -47,46 +46,13 @@ func TestFilterNetworks(t *testing.T) {
 			Name:   "networkwithcontainer",
 			Driver: "nwc",
 			Scope:  "local",
-			Containers: map[string]types.EndpointResource{
+			Containers: map[string]network.EndpointResource{
 				"customcontainer": {
 					Name: "customendpoint",
 				},
 			},
 		},
 	}
-
-	bridgeDriverFilters := filters.NewArgs()
-	bridgeDriverFilters.Add("driver", "bridge")
-
-	overlayDriverFilters := filters.NewArgs()
-	overlayDriverFilters.Add("driver", "overlay")
-
-	nonameDriverFilters := filters.NewArgs()
-	nonameDriverFilters.Add("driver", "noname")
-
-	customDriverFilters := filters.NewArgs()
-	customDriverFilters.Add("type", "custom")
-
-	builtinDriverFilters := filters.NewArgs()
-	builtinDriverFilters.Add("type", "builtin")
-
-	invalidDriverFilters := filters.NewArgs()
-	invalidDriverFilters.Add("type", "invalid")
-
-	localScopeFilters := filters.NewArgs()
-	localScopeFilters.Add("scope", "local")
-
-	swarmScopeFilters := filters.NewArgs()
-	swarmScopeFilters.Add("scope", "swarm")
-
-	globalScopeFilters := filters.NewArgs()
-	globalScopeFilters.Add("scope", "global")
-
-	trueDanglingFilters := filters.NewArgs()
-	trueDanglingFilters.Add("dangling", "true")
-
-	falseDanglingFilters := filters.NewArgs()
-	falseDanglingFilters.Add("dangling", "false")
 
 	testCases := []struct {
 		filter      filters.Args
@@ -96,68 +62,68 @@ func TestFilterNetworks(t *testing.T) {
 		results     []string
 	}{
 		{
-			filter:      bridgeDriverFilters,
+			filter:      filters.NewArgs(filters.Arg("driver", "bridge")),
 			resultCount: 1,
 			err:         "",
 			name:        "bridge driver filters",
 		},
 		{
-			filter:      overlayDriverFilters,
+			filter:      filters.NewArgs(filters.Arg("driver", "overlay")),
 			resultCount: 1,
 			err:         "",
 			name:        "overlay driver filters",
 		},
 		{
-			filter:      nonameDriverFilters,
+			filter:      filters.NewArgs(filters.Arg("driver", "noname")),
 			resultCount: 0,
 			err:         "",
 			name:        "no name driver filters",
 		},
 		{
-			filter:      customDriverFilters,
+			filter:      filters.NewArgs(filters.Arg("type", "custom")),
 			resultCount: 4,
 			err:         "",
 			name:        "custom driver filters",
 		},
 		{
-			filter:      builtinDriverFilters,
+			filter:      filters.NewArgs(filters.Arg("type", "builtin")),
 			resultCount: 3,
 			err:         "",
 			name:        "builtin driver filters",
 		},
 		{
-			filter:      invalidDriverFilters,
+			filter:      filters.NewArgs(filters.Arg("type", "invalid")),
 			resultCount: 0,
 			err:         "invalid filter: 'type'='invalid'",
 			name:        "invalid driver filters",
 		},
 		{
-			filter:      localScopeFilters,
+			filter:      filters.NewArgs(filters.Arg("scope", "local")),
 			resultCount: 5,
 			err:         "",
 			name:        "local scope filters",
 		},
 		{
-			filter:      swarmScopeFilters,
+			filter:      filters.NewArgs(filters.Arg("scope", "swarm")),
 			resultCount: 1,
 			err:         "",
 			name:        "swarm scope filters",
 		},
 		{
-			filter:      globalScopeFilters,
+			filter:      filters.NewArgs(filters.Arg("scope", "global")),
 			resultCount: 1,
 			err:         "",
 			name:        "global scope filters",
 		},
 		{
-			filter:      trueDanglingFilters,
+			filter:      filters.NewArgs(filters.Arg("dangling", "true")),
 			resultCount: 3,
 			err:         "",
 			name:        "dangling filter is 'True'",
 			results:     []string{"myoverlay", "mydrivernet", "mykvnet"},
 		},
 		{
-			filter:      falseDanglingFilters,
+			filter:      filters.NewArgs(filters.Arg("dangling", "false")),
 			resultCount: 4,
 			err:         "",
 			name:        "dangling filter is 'False'",
@@ -167,13 +133,12 @@ func TestFilterNetworks(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			ls := make([]types.NetworkResource, 0, len(networks))
+			ls := make([]network.Inspect, 0, len(networks))
 			ls = append(ls, networks...)
 			result, err := FilterNetworks(ls, testCase.filter)
 			if testCase.err != "" {
 				if err == nil {
 					t.Fatalf("expect error '%s', got no error", testCase.err)
-
 				} else if !strings.Contains(err.Error(), testCase.err) {
 					t.Fatalf("expect error '%s', got '%s'", testCase.err, err)
 				}

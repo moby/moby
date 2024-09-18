@@ -12,6 +12,8 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestContainerDiffError(t *testing.T) {
@@ -19,28 +21,33 @@ func TestContainerDiffError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerDiff(context.Background(), "nothing")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerDiff(t *testing.T) {
-	expectedURL := "/containers/container_id/changes"
+	const expectedURL = "/containers/container_id/changes"
+
+	expected := []container.FilesystemChange{
+		{
+			Kind: container.ChangeModify,
+			Path: "/path/1",
+		},
+		{
+			Kind: container.ChangeAdd,
+			Path: "/path/2",
+		},
+		{
+			Kind: container.ChangeDelete,
+			Path: "/path/3",
+		},
+	}
+
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			b, err := json.Marshal([]container.ContainerChangeResponseItem{
-				{
-					Kind: 0,
-					Path: "/path/1",
-				},
-				{
-					Kind: 1,
-					Path: "/path/2",
-				},
-			})
+			b, err := json.Marshal(expected)
 			if err != nil {
 				return nil, err
 			}
@@ -52,10 +59,6 @@ func TestContainerDiff(t *testing.T) {
 	}
 
 	changes, err := client.ContainerDiff(context.Background(), "container_id")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(changes) != 2 {
-		t.Fatalf("expected an array of 2 changes, got %v", changes)
-	}
+	assert.Check(t, err)
+	assert.Check(t, is.DeepEqual(changes, expected))
 }

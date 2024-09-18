@@ -11,7 +11,6 @@ import (
 	"gotest.tools/v3/assert"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
@@ -78,7 +77,6 @@ func TestGetVolumeByNameFoundRegular(t *testing.T) {
 	v := &volumeRouter{
 		backend: &fakeVolumeBackend{
 			volumes: map[string]*volume.Volume{
-
 				"volume1": {
 					Name: "volume1",
 				},
@@ -108,6 +106,7 @@ func TestGetVolumeByNameFoundSwarm(t *testing.T) {
 	_, err := callGetVolume(v, "volume1")
 	assert.NilError(t, err)
 }
+
 func TestListVolumes(t *testing.T) {
 	v := &volumeRouter{
 		backend: &fakeVolumeBackend{
@@ -574,6 +573,7 @@ func TestVolumeRemoveSwarmForce(t *testing.T) {
 
 	assert.NilError(t, err)
 	assert.Equal(t, len(b.volumes), 0)
+	assert.Equal(t, len(c.volumes), 0)
 }
 
 type fakeVolumeBackend struct {
@@ -616,9 +616,16 @@ func (b *fakeVolumeBackend) Create(_ context.Context, name, driverName string, _
 	return v, nil
 }
 
-func (b *fakeVolumeBackend) Remove(_ context.Context, name string, _ ...opts.RemoveOption) error {
+func (b *fakeVolumeBackend) Remove(_ context.Context, name string, o ...opts.RemoveOption) error {
+	removeOpts := &opts.RemoveConfig{}
+	for _, opt := range o {
+		opt(removeOpts)
+	}
+
 	if v, ok := b.volumes[name]; !ok {
-		return errdefs.NotFound(fmt.Errorf("volume %s not found", name))
+		if !removeOpts.PurgeOnError {
+			return errdefs.NotFound(fmt.Errorf("volume %s not found", name))
+		}
 	} else if v.Name == "inuse" {
 		return errdefs.Conflict(fmt.Errorf("volume in use"))
 	}
@@ -628,7 +635,7 @@ func (b *fakeVolumeBackend) Remove(_ context.Context, name string, _ ...opts.Rem
 	return nil
 }
 
-func (b *fakeVolumeBackend) Prune(_ context.Context, _ filters.Args) (*types.VolumesPruneReport, error) {
+func (b *fakeVolumeBackend) Prune(_ context.Context, _ filters.Args) (*volume.PruneReport, error) {
 	return nil, nil
 }
 

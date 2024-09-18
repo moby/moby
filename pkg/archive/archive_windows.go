@@ -4,15 +4,27 @@ import (
 	"archive/tar"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/longpath"
 )
 
-// fixVolumePathPrefix does platform specific processing to ensure that if
-// the path being passed in is not in a volume path format, convert it to one.
-func fixVolumePathPrefix(srcPath string) string {
-	return longpath.AddPrefix(srcPath)
+// longPathPrefix is the longpath prefix for Windows file paths.
+const longPathPrefix = `\\?\`
+
+// addLongPathPrefix adds the Windows long path prefix to the path provided if
+// it does not already have it. It is a no-op on platforms other than Windows.
+//
+// addLongPathPrefix is a copy of [github.com/docker/docker/pkg/longpath.AddPrefix].
+func addLongPathPrefix(srcPath string) string {
+	if strings.HasPrefix(srcPath, longPathPrefix) {
+		return srcPath
+	}
+	if strings.HasPrefix(srcPath, `\\`) {
+		// This is a UNC path, so we need to add 'UNC' to the path as well.
+		return longPathPrefix + `UNC` + srcPath[1:]
+	}
+	return longPathPrefix + srcPath
 }
 
 // getWalkRoot calculates the root path when performing a TarWithOptions.
@@ -21,24 +33,14 @@ func getWalkRoot(srcPath string, include string) string {
 	return filepath.Join(srcPath, include)
 }
 
-// CanonicalTarNameForPath returns platform-specific filepath
-// to canonical posix-style path for tar archival. p is relative
-// path.
-func CanonicalTarNameForPath(p string) string {
-	return filepath.ToSlash(p)
-}
-
 // chmodTarEntry is used to adjust the file permissions used in tar header based
 // on the platform the archival is done.
 func chmodTarEntry(perm os.FileMode) os.FileMode {
-	// perm &= 0755 // this 0-ed out tar flags (like link, regular file, directory marker etc.)
-	permPart := perm & os.ModePerm
-	noPermPart := perm &^ os.ModePerm
-	// Add the x bit: make everything +x from windows
-	permPart |= 0111
-	permPart &= 0755
+	// Remove group- and world-writable bits.
+	perm &= 0o755
 
-	return noPermPart | permPart
+	// Add the x bit: make everything +x on Windows
+	return perm | 0o111
 }
 
 func setHeaderForSpecialDevice(hdr *tar.Header, name string, stat interface{}) (err error) {

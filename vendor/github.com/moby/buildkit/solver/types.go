@@ -72,11 +72,17 @@ type CachedResult interface {
 	CacheKeys() []ExportableCacheKey
 }
 
+type CachedResultWithProvenance interface {
+	CachedResult
+	WalkProvenance(context.Context, func(ProvenanceProvider) error) error
+}
+
 type ResultProxy interface {
+	ID() string
 	Result(context.Context) (CachedResult, error)
 	Release(context.Context) error
 	Definition() *pb.Definition
-	BuildSources() BuildSources
+	Provenance() interface{}
 }
 
 // CacheExportMode is the type for setting cache exporting modes
@@ -104,6 +110,11 @@ type CacheExportOpt struct {
 	// CompressionOpt is an option to specify the compression of the object to load.
 	// If specified, all objects that meet the option will be cached.
 	CompressionOpt *compression.Config
+	// ExportRoots defines if records for root vertexes should be exported.
+	ExportRoots bool
+	// IgnoreBacklinks defines if other cache chains for same result that did not
+	// participate in the current build should be exported.
+	IgnoreBacklinks bool
 }
 
 // CacheExporter can export the artifacts of the build chain
@@ -113,14 +124,19 @@ type CacheExporter interface {
 
 // CacheExporterTarget defines object capable of receiving exports
 type CacheExporterTarget interface {
+	// Add creates a new object record that we can then add results to and
+	// connect to other records.
 	Add(dgst digest.Digest) CacheExporterRecord
-	Visit(interface{})
-	Visited(interface{}) bool
+
+	// Visit marks a target as having been visited.
+	Visit(target any)
+	// Vistited returns true if a target has previously been marked as visited.
+	Visited(target any) bool
 }
 
 // CacheExporterRecord is a single object being exported
 type CacheExporterRecord interface {
-	AddResult(createdAt time.Time, result *Remote)
+	AddResult(vtx digest.Digest, index int, createdAt time.Time, result *Remote)
 	LinkFrom(src CacheExporterRecord, index int, selector string)
 }
 
@@ -129,7 +145,7 @@ type CacheExporterRecord interface {
 // TODO: add closer to keep referenced data from getting deleted
 type Remote struct {
 	Descriptors []ocispecs.Descriptor
-	Provider    content.Provider
+	Provider    content.InfoReaderProvider
 }
 
 // CacheLink is a link between two cache records
@@ -157,6 +173,10 @@ type Op interface {
 
 	// Acquire acquires the necessary resources to execute the `Op`.
 	Acquire(ctx context.Context) (release ReleaseFunc, err error)
+}
+
+type ProvenanceProvider interface {
+	IsProvenanceProvider()
 }
 
 type ResultBasedCacheFunc func(context.Context, Result, session.Group) (digest.Digest, error)
@@ -196,14 +216,7 @@ type CacheMap struct {
 	// such as oci descriptor content providers and progress writers to be passed to
 	// the cache. Opts should not have any impact on the computed cache key.
 	Opts CacheOpts
-
-	// BuildSources contains build dependencies that will be set from source
-	// operation.
-	BuildSources BuildSources
 }
-
-// BuildSources contains solved build dependencies.
-type BuildSources map[string]string
 
 // ExportableCacheKey is a cache key connected with an exporter that can export
 // a chain of cacherecords pointing to that key
@@ -223,6 +236,17 @@ type CacheRecord struct {
 	key          *CacheKey
 }
 
+func (ck *CacheRecord) TraceFields() map[string]any {
+	return map[string]any{
+		"id":            ck.ID,
+		"size":          ck.Size,
+		"createdAt":     ck.CreatedAt,
+		"priority":      ck.Priority,
+		"cache_manager": ck.cacheManager.ID(),
+		"cache_key":     ck.key.TraceFields(),
+	}
+}
+
 // CacheManager determines if there is a result that matches the cache keys
 // generated during the build that could be reused instead of fully
 // reevaluating the vertex and its inputs. There can be multiple cache
@@ -236,7 +260,7 @@ type CacheManager interface {
 	// Query searches for cache paths from one cache key to the output of a
 	// possible match.
 	Query(inp []CacheKeyWithSelector, inputIndex Index, dgst digest.Digest, outputIndex Index) ([]*CacheKey, error)
-	Records(ck *CacheKey) ([]*CacheRecord, error)
+	Records(ctx context.Context, ck *CacheKey) ([]*CacheRecord, error)
 
 	// Load loads a cache record into a result reference.
 	Load(ctx context.Context, rec *CacheRecord) (Result, error)

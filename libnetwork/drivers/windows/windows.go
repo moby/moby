@@ -1,5 +1,4 @@
 //go:build windows
-// +build windows
 
 // Shim for the Host Network Service (HNS) to manage networking for
 // Windows Server containers and Hyper-V containers. This module
@@ -13,6 +12,7 @@
 package windows
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -21,13 +21,16 @@ import (
 	"sync"
 
 	"github.com/Microsoft/hcsshim"
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/portmapper"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // networkConfiguration for network specific configuration
@@ -71,12 +74,12 @@ type hnsEndpoint struct {
 	nid       string
 	profileID string
 	Type      string
-	//Note: Currently, the sandboxID is the same as the containerID since windows does
-	//not expose the sandboxID.
-	//In the future, windows will support a proper sandboxID that is different
-	//than the containerID.
-	//Therefore, we are using sandboxID now, so that we won't have to change this code
-	//when windows properly supports a sandboxID.
+	// Note: Currently, the sandboxID is the same as the containerID since windows does
+	// not expose the sandboxID.
+	// In the future, windows will support a proper sandboxID that is different
+	// than the containerID.
+	// Therefore, we are using sandboxID now, so that we won't have to change this code
+	// when windows properly supports a sandboxID.
 	sandboxID      string
 	macAddress     net.HardwareAddr
 	epOption       *endpointOption       // User specified parameters
@@ -101,7 +104,7 @@ type hnsNetwork struct {
 type driver struct {
 	name     string
 	networks map[string]*hnsNetwork
-	store    datastore.DataStore
+	store    *datastore.Store
 	sync.Mutex
 }
 
@@ -109,16 +112,20 @@ const (
 	errNotFound = "HNS failed with error : The object identifier does not represent a valid object. "
 )
 
+var builtinLocalDrivers = map[string]struct{}{
+	"transparent": {},
+	"l2bridge":    {},
+	"l2tunnel":    {},
+	"nat":         {},
+	"internal":    {},
+	"private":     {},
+	"ics":         {},
+}
+
 // IsBuiltinLocalDriver validates if network-type is a builtin local-scoped driver
 func IsBuiltinLocalDriver(networkType string) bool {
-	if "l2bridge" == networkType || "l2tunnel" == networkType ||
-		"nat" == networkType || "ics" == networkType ||
-		"transparent" == networkType || "internal" == networkType ||
-		"private" == networkType {
-		return true
-	}
-
-	return false
+	_, ok := builtinLocalDrivers[networkType]
+	return ok
 }
 
 // New constructs a new bridge driver
@@ -127,24 +134,23 @@ func newDriver(networkType string) *driver {
 }
 
 // GetInit returns an initializer for the given network type
-func GetInit(networkType string) func(dc driverapi.DriverCallback, config map[string]interface{}) error {
-	return func(dc driverapi.DriverCallback, config map[string]interface{}) error {
-		if !IsBuiltinLocalDriver(networkType) {
-			return types.BadRequestErrorf("Network type not supported: %s", networkType)
-		}
-
+func RegisterBuiltinLocalDrivers(r driverapi.Registerer, driverConfig func(string) map[string]interface{}) error {
+	for networkType := range builtinLocalDrivers {
 		d := newDriver(networkType)
-
-		err := d.initStore(config)
+		err := d.initStore(driverConfig(networkType))
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to initialize %q driver: %w", networkType, err)
 		}
 
-		return dc.RegisterDriver(networkType, d, driverapi.Capability{
-			DataScope:         datastore.LocalScope,
-			ConnectivityScope: datastore.LocalScope,
+		err = r.RegisterDriver(networkType, d, driverapi.Capability{
+			DataScope:         scope.Local,
+			ConnectivityScope: scope.Local,
 		})
+		if err != nil {
+			return fmt.Errorf("failed to register %q driver: %w", networkType, err)
+		}
 	}
+	return nil
 }
 
 func (d *driver) getNetwork(id string) (*hnsNetwork, error) {
@@ -196,7 +202,7 @@ func (d *driver) parseNetworkOptions(id string, genericOptions map[string]string
 			config.MacPools = make([]hcsshim.MacPool, 0)
 			s := strings.Split(value, ",")
 			if len(s)%2 != 0 {
-				return nil, types.BadRequestErrorf("Invalid mac pool. You must specify both a start range and an end range")
+				return nil, types.InvalidParameterErrorf("invalid mac pool. You must specify both a start range and an end range")
 			}
 			for i := 0; i < len(s)-1; i += 2 {
 				config.MacPools = append(config.MacPools, hcsshim.MacPool{
@@ -239,7 +245,7 @@ func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []d
 	}
 
 	if len(ipamV4Data) == 0 {
-		return types.BadRequestErrorf("network %s requires ipv4 configuration", id)
+		return types.InvalidParameterErrorf("network %s requires ipv4 configuration", id)
 	}
 
 	return nil
@@ -258,7 +264,7 @@ func (d *driver) createNetwork(config *networkConfiguration) *hnsNetwork {
 		endpoints:  make(map[string]*hnsEndpoint),
 		config:     config,
 		driver:     d,
-		portMapper: portmapper.New(""),
+		portMapper: portmapper.New(),
 	}
 
 	d.Lock()
@@ -277,6 +283,12 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	genData, ok := option[netlabel.GenericData].(map[string]string)
 	if !ok {
 		return fmt.Errorf("Unknown generic data option")
+	}
+
+	if v, ok := option[netlabel.EnableIPv4]; ok {
+		if enable_IPv4, ok := v.(bool); ok && !enable_IPv4 {
+			return types.InvalidParameterErrorf("IPv4 cannot be disabled on Windows")
+		}
 	}
 
 	// Parse and validate the config. It should not conflict with existing networks' config
@@ -326,7 +338,6 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 				Type: "VLAN",
 				VLAN: config.VLAN,
 			})
-
 			if err != nil {
 				return err
 			}
@@ -338,7 +349,6 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 				Type: "VSID",
 				VSID: config.VSID,
 			})
-
 			if err != nil {
 				return err
 			}
@@ -355,7 +365,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		}
 
 		configuration := string(configurationb)
-		logrus.Debugf("HNSNetwork Request =%v Address Space=%v", configuration, subnets)
+		log.G(context.TODO()).Debugf("HNSNetwork Request =%v Address Space=%v", configuration, subnets)
 
 		hnsresponse, err := hcsshim.HNSNetworkRequest("POST", "", configuration)
 		if err != nil {
@@ -377,8 +387,8 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		for i, subnet := range hnsresponse.Subnets {
 			var gwIP, subnetIP *net.IPNet
 
-			//The gateway returned from HNS is an IPAddress.
-			//We need to convert it to an IPNet to use as the Gateway of driverapi.IPAMData struct
+			// The gateway returned from HNS is an IPAddress.
+			// We need to convert it to an IPNet to use as the Gateway of driverapi.IPAMData struct
 			gwCIDR := subnet.GatewayAddress + "/32"
 			_, gwIP, err = net.ParseCIDR(gwCIDR)
 			if err != nil {
@@ -400,15 +410,15 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		if endpoints, err := hcsshim.HNSListEndpointRequest(); err == nil {
 			for _, ep := range endpoints {
 				if ep.VirtualNetwork == config.HnsID {
-					logrus.Infof("Removing stale HNS endpoint %s", ep.Id)
+					log.G(context.TODO()).Infof("Removing stale HNS endpoint %s", ep.Id)
 					_, err = hcsshim.HNSEndpointRequest("DELETE", ep.Id, "")
 					if err != nil {
-						logrus.Warnf("Error removing HNS endpoint %s", ep.Id)
+						log.G(context.TODO()).Warnf("Error removing HNS endpoint %s", ep.Id)
 					}
 				}
 			}
 		} else {
-			logrus.Warnf("Error listing HNS endpoints for network %s", config.HnsID)
+			log.G(context.TODO()).Warnf("Error listing HNS endpoints for network %s", config.HnsID)
 		}
 
 		n.created = true
@@ -438,10 +448,10 @@ func (d *driver) DeleteNetwork(nid string) error {
 	delete(d.networks, nid)
 	d.Unlock()
 
-	// delele endpoints belong to this network
+	// delete endpoints belong to this network
 	for _, ep := range n.endpoints {
 		if err := d.storeDelete(ep); err != nil {
-			logrus.Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
+			log.G(context.TODO()).Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
 		}
 	}
 
@@ -459,7 +469,6 @@ func convertQosPolicies(qosPolicies []types.QosPolicy) ([]json.RawMessage, error
 			Type:                            "QOS",
 			MaximumOutgoingBandwidthInBytes: elem.MaxEgressBandwidth,
 		})
-
 		if err != nil {
 			return nil, err
 		}
@@ -496,7 +505,6 @@ func ConvertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, e
 			Protocol:             elem.Proto.String(),
 			ExternalPortReserved: true,
 		})
-
 		if err != nil {
 			return nil, err
 		}
@@ -606,7 +614,12 @@ func ParseEndpointConnectivity(epOptions map[string]interface{}) (*EndpointConne
 	return ec, nil
 }
 
-func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+	ctx, span := otel.Tracer("").Start(ctx, fmt.Sprintf("libnetwork.drivers.windows_%s.CreateEndpoint", d.name), trace.WithAttributes(
+		attribute.String("nid", nid),
+		attribute.String("eid", eid)))
+	defer span.End()
+
 	n, err := d.getNetwork(nid)
 	if err != nil {
 		return err
@@ -676,13 +689,13 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	// overwrite the ep DisableDNS option if DisableGatewayDNS was set to true during the network creation option
 	if n.config.DisableGatewayDNS {
-		logrus.Debugf("n.config.DisableGatewayDNS[%v] overwrites epOption.DisableDNS[%v]", n.config.DisableGatewayDNS, epOption.DisableDNS)
+		log.G(ctx).Debugf("n.config.DisableGatewayDNS[%v] overwrites epOption.DisableDNS[%v]", n.config.DisableGatewayDNS, epOption.DisableDNS)
 		epOption.DisableDNS = n.config.DisableGatewayDNS
 	}
 
 	if n.driver.name == "nat" && !epOption.DisableDNS {
-		logrus.Debugf("endpointStruct.EnableInternalDNS =[%v]", endpointStruct.EnableInternalDNS)
 		endpointStruct.EnableInternalDNS = true
+		log.G(ctx).Debugf("endpointStruct.EnableInternalDNS =[%v]", endpointStruct.EnableInternalDNS)
 	}
 
 	endpointStruct.DisableICC = epOption.DisableICC
@@ -693,7 +706,6 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 			Policy:     hcsshim.Policy{Type: hcsshim.OutboundNat},
 			Exceptions: n.config.OutboundNatExceptions,
 		})
-
 		if err != nil {
 			return err
 		}
@@ -732,7 +744,6 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	endpoint.epConnectivity = epConnectivity
 	endpoint.epOption = epOption
 	endpoint.portMapping, err = ParsePortBindingPolicies(hnsresponse.Policies)
-
 	if err != nil {
 		hcsshim.HNSEndpointRequest("DELETE", hnsresponse.Id, "")
 		return err
@@ -751,7 +762,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 
 	if err = d.storeUpdate(endpoint); err != nil {
-		logrus.Errorf("Failed to save endpoint %.7s to store: %v", endpoint.id, err)
+		log.G(ctx).Errorf("Failed to save endpoint %.7s to store: %v", endpoint.id, err)
 	}
 
 	return nil
@@ -782,7 +793,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	}
 
 	if err := d.storeDelete(ep); err != nil {
-		logrus.Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
+		log.G(context.TODO()).Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
 	}
 	return nil
 }
@@ -829,7 +840,13 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+	ctx, span := otel.Tracer("").Start(ctx, fmt.Sprintf("libnetwork.drivers.windows_%s.Join", d.name), trace.WithAttributes(
+		attribute.String("nid", nid),
+		attribute.String("eid", eid),
+		attribute.String("sboxKey", sboxKey)))
+	defer span.End()
+
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err
@@ -883,7 +900,7 @@ func (d *driver) Leave(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
+func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
 	return nil
 }
 
@@ -905,14 +922,4 @@ func (d *driver) Type() string {
 
 func (d *driver) IsBuiltIn() bool {
 	return true
-}
-
-// DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
-func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
-	return nil
-}
-
-// DiscoverDelete is a notification for a discovery delete event, such as a node leaving a cluster
-func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
-	return nil
 }

@@ -1,9 +1,0 @@
-language: go
-
-go:
-    - 1.2
-
-script:
-    - go test ./...
-    #- go test -race ./...
-

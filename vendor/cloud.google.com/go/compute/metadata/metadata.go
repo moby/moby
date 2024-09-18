@@ -16,14 +16,14 @@
 // metadata and API service accounts.
 //
 // This package is a wrapper around the GCE metadata service,
-// as documented at https://developers.google.com/compute/docs/metadata.
+// as documented at https://cloud.google.com/compute/docs/metadata/overview.
 package metadata // import "cloud.google.com/go/compute/metadata"
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -61,14 +61,20 @@ var (
 	instID  = &cachedValue{k: "instance/id", trim: true}
 )
 
-var defaultClient = &Client{hc: &http.Client{
-	Transport: &http.Transport{
-		Dial: (&net.Dialer{
-			Timeout:   2 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).Dial,
-	},
-}}
+var defaultClient = &Client{hc: newDefaultHTTPClient()}
+
+func newDefaultHTTPClient() *http.Client {
+	return &http.Client{
+		Transport: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout:   2 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			IdleConnTimeout: 60 * time.Second,
+		},
+		Timeout: 5 * time.Second,
+	}
+}
 
 // NotDefinedError is returned when requested metadata is not defined.
 //
@@ -89,9 +95,9 @@ func (c *cachedValue) get(cl *Client) (v string, err error) {
 		return c.v, nil
 	}
 	if c.trim {
-		v, err = cl.getTrimmed(c.k)
+		v, err = cl.getTrimmed(context.Background(), c.k)
 	} else {
-		v, err = cl.Get(c.k)
+		v, err = cl.GetWithContext(context.Background(), c.k)
 	}
 	if err == nil {
 		c.v = v
@@ -130,7 +136,7 @@ func testOnGCE() bool {
 	go func() {
 		req, _ := http.NewRequest("GET", "http://"+metadataIP, nil)
 		req.Header.Set("User-Agent", userAgent)
-		res, err := defaultClient.hc.Do(req.WithContext(ctx))
+		res, err := newDefaultHTTPClient().Do(req.WithContext(ctx))
 		if err != nil {
 			resc <- false
 			return
@@ -140,7 +146,8 @@ func testOnGCE() bool {
 	}()
 
 	go func() {
-		addrs, err := net.DefaultResolver.LookupHost(ctx, "metadata.google.internal")
+		resolver := &net.Resolver{}
+		addrs, err := resolver.LookupHost(ctx, "metadata.google.internal.")
 		if err != nil || len(addrs) == 0 {
 			resc <- false
 			return
@@ -190,18 +197,32 @@ func systemInfoSuggestsGCE() bool {
 		// We don't have any non-Linux clues available, at least yet.
 		return false
 	}
-	slurp, _ := ioutil.ReadFile("/sys/class/dmi/id/product_name")
+	slurp, _ := os.ReadFile("/sys/class/dmi/id/product_name")
 	name := strings.TrimSpace(string(slurp))
 	return name == "Google" || name == "Google Compute Engine"
 }
 
-// Subscribe calls Client.Subscribe on the default client.
+// Subscribe calls Client.SubscribeWithContext on the default client.
 func Subscribe(suffix string, fn func(v string, ok bool) error) error {
-	return defaultClient.Subscribe(suffix, fn)
+	return defaultClient.SubscribeWithContext(context.Background(), suffix, func(ctx context.Context, v string, ok bool) error { return fn(v, ok) })
 }
 
-// Get calls Client.Get on the default client.
-func Get(suffix string) (string, error) { return defaultClient.Get(suffix) }
+// SubscribeWithContext calls Client.SubscribeWithContext on the default client.
+func SubscribeWithContext(ctx context.Context, suffix string, fn func(ctx context.Context, v string, ok bool) error) error {
+	return defaultClient.SubscribeWithContext(ctx, suffix, fn)
+}
+
+// Get calls Client.GetWithContext on the default client.
+//
+// Deprecated: Please use the context aware variant [GetWithContext].
+func Get(suffix string) (string, error) {
+	return defaultClient.GetWithContext(context.Background(), suffix)
+}
+
+// GetWithContext calls Client.GetWithContext on the default client.
+func GetWithContext(ctx context.Context, suffix string) (string, error) {
+	return defaultClient.GetWithContext(ctx, suffix)
+}
 
 // ProjectID returns the current instance's project ID string.
 func ProjectID() (string, error) { return defaultClient.ProjectID() }
@@ -281,7 +302,7 @@ func NewClient(c *http.Client) *Client {
 
 // getETag returns a value from the metadata service as well as the associated ETag.
 // This func is otherwise equivalent to Get.
-func (c *Client) getETag(suffix string) (value, etag string, err error) {
+func (c *Client) getETag(ctx context.Context, suffix string) (value, etag string, err error) {
 	// Using a fixed IP makes it very difficult to spoof the metadata service in
 	// a container, which is an important use-case for local testing of cloud
 	// deployments. To enable spoofing of the metadata service, the environment
@@ -298,21 +319,37 @@ func (c *Client) getETag(suffix string) (value, etag string, err error) {
 	}
 	suffix = strings.TrimLeft(suffix, "/")
 	u := "http://" + host + "/computeMetadata/v1/" + suffix
-	req, err := http.NewRequest("GET", u, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
 	if err != nil {
 		return "", "", err
 	}
 	req.Header.Set("Metadata-Flavor", "Google")
 	req.Header.Set("User-Agent", userAgent)
-	res, err := c.hc.Do(req)
-	if err != nil {
-		return "", "", err
+	var res *http.Response
+	var reqErr error
+	retryer := newRetryer()
+	for {
+		res, reqErr = c.hc.Do(req)
+		var code int
+		if res != nil {
+			code = res.StatusCode
+		}
+		if delay, shouldRetry := retryer.Retry(code, reqErr); shouldRetry {
+			if err := sleep(ctx, delay); err != nil {
+				return "", "", err
+			}
+			continue
+		}
+		break
+	}
+	if reqErr != nil {
+		return "", "", reqErr
 	}
 	defer res.Body.Close()
 	if res.StatusCode == http.StatusNotFound {
 		return "", "", NotDefinedError(suffix)
 	}
-	all, err := ioutil.ReadAll(res.Body)
+	all, err := io.ReadAll(res.Body)
 	if err != nil {
 		return "", "", err
 	}
@@ -330,19 +367,33 @@ func (c *Client) getETag(suffix string) (value, etag string, err error) {
 //
 // If the requested metadata is not defined, the returned error will
 // be of type NotDefinedError.
+//
+// Deprecated: Please use the context aware variant [Client.GetWithContext].
 func (c *Client) Get(suffix string) (string, error) {
-	val, _, err := c.getETag(suffix)
+	return c.GetWithContext(context.Background(), suffix)
+}
+
+// GetWithContext returns a value from the metadata service.
+// The suffix is appended to "http://${GCE_METADATA_HOST}/computeMetadata/v1/".
+//
+// If the GCE_METADATA_HOST environment variable is not defined, a default of
+// 169.254.169.254 will be used instead.
+//
+// If the requested metadata is not defined, the returned error will
+// be of type NotDefinedError.
+func (c *Client) GetWithContext(ctx context.Context, suffix string) (string, error) {
+	val, _, err := c.getETag(ctx, suffix)
 	return val, err
 }
 
-func (c *Client) getTrimmed(suffix string) (s string, err error) {
-	s, err = c.Get(suffix)
+func (c *Client) getTrimmed(ctx context.Context, suffix string) (s string, err error) {
+	s, err = c.GetWithContext(ctx, suffix)
 	s = strings.TrimSpace(s)
 	return
 }
 
 func (c *Client) lines(suffix string) ([]string, error) {
-	j, err := c.Get(suffix)
+	j, err := c.GetWithContext(context.Background(), suffix)
 	if err != nil {
 		return nil, err
 	}
@@ -364,7 +415,7 @@ func (c *Client) InstanceID() (string, error) { return instID.get(c) }
 
 // InternalIP returns the instance's primary internal IP address.
 func (c *Client) InternalIP() (string, error) {
-	return c.getTrimmed("instance/network-interfaces/0/ip")
+	return c.getTrimmed(context.Background(), "instance/network-interfaces/0/ip")
 }
 
 // Email returns the email address associated with the service account.
@@ -374,25 +425,25 @@ func (c *Client) Email(serviceAccount string) (string, error) {
 	if serviceAccount == "" {
 		serviceAccount = "default"
 	}
-	return c.getTrimmed("instance/service-accounts/" + serviceAccount + "/email")
+	return c.getTrimmed(context.Background(), "instance/service-accounts/"+serviceAccount+"/email")
 }
 
 // ExternalIP returns the instance's primary external (public) IP address.
 func (c *Client) ExternalIP() (string, error) {
-	return c.getTrimmed("instance/network-interfaces/0/access-configs/0/external-ip")
+	return c.getTrimmed(context.Background(), "instance/network-interfaces/0/access-configs/0/external-ip")
 }
 
 // Hostname returns the instance's hostname. This will be of the form
 // "<instanceID>.c.<projID>.internal".
 func (c *Client) Hostname() (string, error) {
-	return c.getTrimmed("instance/hostname")
+	return c.getTrimmed(context.Background(), "instance/hostname")
 }
 
 // InstanceTags returns the list of user-defined instance tags,
 // assigned when initially creating a GCE instance.
 func (c *Client) InstanceTags() ([]string, error) {
 	var s []string
-	j, err := c.Get("instance/tags")
+	j, err := c.GetWithContext(context.Background(), "instance/tags")
 	if err != nil {
 		return nil, err
 	}
@@ -404,12 +455,12 @@ func (c *Client) InstanceTags() ([]string, error) {
 
 // InstanceName returns the current VM's instance ID string.
 func (c *Client) InstanceName() (string, error) {
-	return c.getTrimmed("instance/name")
+	return c.getTrimmed(context.Background(), "instance/name")
 }
 
 // Zone returns the current VM's zone, such as "us-central1-b".
 func (c *Client) Zone() (string, error) {
-	zone, err := c.getTrimmed("instance/zone")
+	zone, err := c.getTrimmed(context.Background(), "instance/zone")
 	// zone is of the form "projects/<projNum>/zones/<zoneName>".
 	if err != nil {
 		return "", err
@@ -436,7 +487,7 @@ func (c *Client) ProjectAttributes() ([]string, error) { return c.lines("project
 // InstanceAttributeValue may return ("", nil) if the attribute was
 // defined to be the empty string.
 func (c *Client) InstanceAttributeValue(attr string) (string, error) {
-	return c.Get("instance/attributes/" + attr)
+	return c.GetWithContext(context.Background(), "instance/attributes/"+attr)
 }
 
 // ProjectAttributeValue returns the value of the provided
@@ -448,7 +499,7 @@ func (c *Client) InstanceAttributeValue(attr string) (string, error) {
 // ProjectAttributeValue may return ("", nil) if the attribute was
 // defined to be the empty string.
 func (c *Client) ProjectAttributeValue(attr string) (string, error) {
-	return c.Get("project/attributes/" + attr)
+	return c.GetWithContext(context.Background(), "project/attributes/"+attr)
 }
 
 // Scopes returns the service account scopes for the given account.
@@ -465,21 +516,30 @@ func (c *Client) Scopes(serviceAccount string) ([]string, error) {
 // The suffix is appended to "http://${GCE_METADATA_HOST}/computeMetadata/v1/".
 // The suffix may contain query parameters.
 //
-// Subscribe calls fn with the latest metadata value indicated by the provided
-// suffix. If the metadata value is deleted, fn is called with the empty string
-// and ok false. Subscribe blocks until fn returns a non-nil error or the value
-// is deleted. Subscribe returns the error value returned from the last call to
-// fn, which may be nil when ok == false.
+// Deprecated: Please use the context aware variant [Client.SubscribeWithContext].
 func (c *Client) Subscribe(suffix string, fn func(v string, ok bool) error) error {
+	return c.SubscribeWithContext(context.Background(), suffix, func(ctx context.Context, v string, ok bool) error { return fn(v, ok) })
+}
+
+// SubscribeWithContext subscribes to a value from the metadata service.
+// The suffix is appended to "http://${GCE_METADATA_HOST}/computeMetadata/v1/".
+// The suffix may contain query parameters.
+//
+// SubscribeWithContext calls fn with the latest metadata value indicated by the
+// provided suffix. If the metadata value is deleted, fn is called with the
+// empty string and ok false. Subscribe blocks until fn returns a non-nil error
+// or the value is deleted. Subscribe returns the error value returned from the
+// last call to fn, which may be nil when ok == false.
+func (c *Client) SubscribeWithContext(ctx context.Context, suffix string, fn func(ctx context.Context, v string, ok bool) error) error {
 	const failedSubscribeSleep = time.Second * 5
 
 	// First check to see if the metadata value exists at all.
-	val, lastETag, err := c.getETag(suffix)
+	val, lastETag, err := c.getETag(ctx, suffix)
 	if err != nil {
 		return err
 	}
 
-	if err := fn(val, true); err != nil {
+	if err := fn(ctx, val, true); err != nil {
 		return err
 	}
 
@@ -490,7 +550,7 @@ func (c *Client) Subscribe(suffix string, fn func(v string, ok bool) error) erro
 		suffix += "?wait_for_change=true&last_etag="
 	}
 	for {
-		val, etag, err := c.getETag(suffix + url.QueryEscape(lastETag))
+		val, etag, err := c.getETag(ctx, suffix+url.QueryEscape(lastETag))
 		if err != nil {
 			if _, deleted := err.(NotDefinedError); !deleted {
 				time.Sleep(failedSubscribeSleep)
@@ -500,7 +560,7 @@ func (c *Client) Subscribe(suffix string, fn func(v string, ok bool) error) erro
 		}
 		lastETag = etag
 
-		if err := fn(val, ok); err != nil || !ok {
+		if err := fn(ctx, val, ok); err != nil || !ok {
 			return err
 		}
 	}

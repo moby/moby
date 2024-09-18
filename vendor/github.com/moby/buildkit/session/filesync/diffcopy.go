@@ -21,10 +21,6 @@ type Stream interface {
 	RecvMsg(m interface{}) error
 }
 
-func sendDiffCopy(stream Stream, fs fsutil.FS, progress progressCb) error {
-	return errors.WithStack(fsutil.Send(stream.Context(), stream, fs, progress))
-}
-
 func newStreamWriter(stream grpc.ClientStream) io.WriteCloser {
 	wc := &streamWriterCloser{ClientStream: stream}
 	return &bufferedWriteCloser{Writer: bufio.NewWriter(wc), Closer: wc}
@@ -47,6 +43,22 @@ type streamWriterCloser struct {
 }
 
 func (wc *streamWriterCloser) Write(dt []byte) (int, error) {
+	// grpc-go has a 4MB limit on messages by default. Split large messages
+	// so we don't get close to that limit.
+	const maxChunkSize = 3 * 1024 * 1024
+	if len(dt) > maxChunkSize {
+		n1, err := wc.Write(dt[:maxChunkSize])
+		if err != nil {
+			return n1, err
+		}
+		dt = dt[maxChunkSize:]
+		var n2 int
+		if n2, err = wc.Write(dt); err != nil {
+			return n1 + n2, err
+		}
+		return n1 + n2, nil
+	}
+
 	if err := wc.ClientStream.SendMsg(&BytesMessage{Data: dt}); err != nil {
 		// SendMsg return EOF on remote errors
 		if errors.Is(err, io.EOF) {

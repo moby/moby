@@ -1,0 +1,17 @@
+# individual linter configs go here
+linters-settings:
+
+# default linters are enabled `golangci-lint help linters`
+linters:
+  disable-all: true
+  enable:
+    - deadcode
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - structcheck
+    - typecheck
+    - unused
+    - varcheck

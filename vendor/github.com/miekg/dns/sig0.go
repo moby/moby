@@ -2,8 +2,8 @@ package dns
 
 import (
 	"crypto"
-	"crypto/dsa"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rsa"
 	"encoding/binary"
 	"math/big"
@@ -18,7 +18,7 @@ func (rr *SIG) Sign(k crypto.Signer, m *Msg) ([]byte, error) {
 	if k == nil {
 		return nil, ErrPrivKey
 	}
-	if rr.KeyTag == 0 || len(rr.SignerName) == 0 || rr.Algorithm == 0 {
+	if rr.KeyTag == 0 || rr.SignerName == "" || rr.Algorithm == 0 {
 		return nil, ErrKey
 	}
 
@@ -39,18 +39,17 @@ func (rr *SIG) Sign(k crypto.Signer, m *Msg) ([]byte, error) {
 	}
 	buf = buf[:off:cap(buf)]
 
-	hash, ok := AlgorithmToHash[rr.Algorithm]
-	if !ok {
-		return nil, ErrAlg
+	h, cryptohash, err := hashFromAlgorithm(rr.Algorithm)
+	if err != nil {
+		return nil, err
 	}
 
-	hasher := hash.New()
 	// Write SIG rdata
-	hasher.Write(buf[len(mbuf)+1+2+2+4+2:])
+	h.Write(buf[len(mbuf)+1+2+2+4+2:])
 	// Write message
-	hasher.Write(buf[:len(mbuf)])
+	h.Write(buf[:len(mbuf)])
 
-	signature, err := sign(k, hasher.Sum(nil), hash, rr.Algorithm)
+	signature, err := sign(k, h.Sum(nil), cryptohash, rr.Algorithm)
 	if err != nil {
 		return nil, err
 	}
@@ -79,24 +78,14 @@ func (rr *SIG) Verify(k *KEY, buf []byte) error {
 	if k == nil {
 		return ErrKey
 	}
-	if rr.KeyTag == 0 || len(rr.SignerName) == 0 || rr.Algorithm == 0 {
+	if rr.KeyTag == 0 || rr.SignerName == "" || rr.Algorithm == 0 {
 		return ErrKey
 	}
 
-	var hash crypto.Hash
-	switch rr.Algorithm {
-	case DSA, RSASHA1:
-		hash = crypto.SHA1
-	case RSASHA256, ECDSAP256SHA256:
-		hash = crypto.SHA256
-	case ECDSAP384SHA384:
-		hash = crypto.SHA384
-	case RSASHA512:
-		hash = crypto.SHA512
-	default:
-		return ErrAlg
+	h, cryptohash, err := hashFromAlgorithm(rr.Algorithm)
+	if err != nil {
+		return err
 	}
-	hasher := hash.New()
 
 	buflen := len(buf)
 	qdc := binary.BigEndian.Uint16(buf[4:])
@@ -104,7 +93,6 @@ func (rr *SIG) Verify(k *KEY, buf []byte) error {
 	auc := binary.BigEndian.Uint16(buf[8:])
 	adc := binary.BigEndian.Uint16(buf[10:])
 	offset := headerSize
-	var err error
 	for i := uint16(0); i < qdc && offset < buflen; i++ {
 		_, offset, err = UnpackDomainName(buf, offset)
 		if err != nil {
@@ -167,32 +155,21 @@ func (rr *SIG) Verify(k *KEY, buf []byte) error {
 		return &Error{err: "signer name doesn't match key name"}
 	}
 	sigend := offset
-	hasher.Write(buf[sigstart:sigend])
-	hasher.Write(buf[:10])
-	hasher.Write([]byte{
+	h.Write(buf[sigstart:sigend])
+	h.Write(buf[:10])
+	h.Write([]byte{
 		byte((adc - 1) << 8),
 		byte(adc - 1),
 	})
-	hasher.Write(buf[12:bodyend])
+	h.Write(buf[12:bodyend])
 
-	hashed := hasher.Sum(nil)
+	hashed := h.Sum(nil)
 	sig := buf[sigend:]
 	switch k.Algorithm {
-	case DSA:
-		pk := k.publicKeyDSA()
-		sig = sig[1:]
-		r := new(big.Int).SetBytes(sig[:len(sig)/2])
-		s := new(big.Int).SetBytes(sig[len(sig)/2:])
-		if pk != nil {
-			if dsa.Verify(pk, hashed, r, s) {
-				return nil
-			}
-			return ErrSig
-		}
 	case RSASHA1, RSASHA256, RSASHA512:
 		pk := k.publicKeyRSA()
 		if pk != nil {
-			return rsa.VerifyPKCS1v15(pk, hash, hashed, sig)
+			return rsa.VerifyPKCS1v15(pk, cryptohash, hashed, sig)
 		}
 	case ECDSAP256SHA256, ECDSAP384SHA384:
 		pk := k.publicKeyECDSA()
@@ -200,6 +177,14 @@ func (rr *SIG) Verify(k *KEY, buf []byte) error {
 		s := new(big.Int).SetBytes(sig[len(sig)/2:])
 		if pk != nil {
 			if ecdsa.Verify(pk, hashed, r, s) {
+				return nil
+			}
+			return ErrSig
+		}
+	case ED25519:
+		pk := k.publicKeyED25519()
+		if pk != nil {
+			if ed25519.Verify(pk, hashed, sig) {
 				return nil
 			}
 			return ErrSig

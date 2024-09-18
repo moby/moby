@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ func PublicKeyFromB64(b64PubKey string) (crypto.PublicKey, error) {
 
 // SignatureVerifier can verify signatures on SCTs and STHs
 type SignatureVerifier struct {
-	pubKey crypto.PublicKey
+	PubKey crypto.PublicKey
 }
 
 // NewSignatureVerifier creates a new SignatureVerifier using the passed in PublicKey.
@@ -80,17 +80,15 @@ func NewSignatureVerifier(pk crypto.PublicKey) (*SignatureVerifier, error) {
 
 		}
 	default:
-		return nil, fmt.Errorf("Unsupported public key type %v", pkType)
+		return nil, fmt.Errorf("unsupported public key type %v", pkType)
 	}
 
-	return &SignatureVerifier{
-		pubKey: pk,
-	}, nil
+	return &SignatureVerifier{PubKey: pk}, nil
 }
 
 // VerifySignature verifies the given signature sig matches the data.
 func (s SignatureVerifier) VerifySignature(data []byte, sig tls.DigitallySigned) error {
-	return tls.VerifySignature(s.pubKey, data, sig)
+	return tls.VerifySignature(s.PubKey, data, sig)
 }
 
 // VerifySCTSignature verifies that the SCT's signature is valid for the given LogEntry.

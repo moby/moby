@@ -20,7 +20,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/gogo/protobuf/types"
+	"github.com/containerd/typeurl/v2"
 )
 
 // Container represents the set of data pinned by a container. Unless otherwise
@@ -53,7 +53,7 @@ type Container struct {
 	// container.
 	//
 	// This field is required but mutable.
-	Spec *types.Any
+	Spec typeurl.Any
 
 	// SnapshotKey specifies the snapshot key to use for the container's root
 	// filesystem. When starting a task from this container, a caller should
@@ -75,13 +75,18 @@ type Container struct {
 	UpdatedAt time.Time
 
 	// Extensions stores client-specified metadata
-	Extensions map[string]types.Any
+	Extensions map[string]typeurl.Any
+
+	// SandboxID is an identifier of sandbox this container belongs to.
+	//
+	// This property is optional, but can't be changed after creation.
+	SandboxID string
 }
 
 // RuntimeInfo holds runtime specific information
 type RuntimeInfo struct {
 	Name    string
-	Options *types.Any
+	Options typeurl.Any
 }
 
 // Store interacts with the underlying container storage

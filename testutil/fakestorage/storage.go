@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/environment"
@@ -38,7 +39,7 @@ func SetTestEnvironment(env *environment.Execution) {
 	testEnv = env
 }
 
-// New returns a static file server that will be use as build context.
+// New returns a static file server that is used as build context.
 func New(t testing.TB, dir string, modifiers ...func(*fakecontext.Fake) error) Fake {
 	t.Helper()
 	if testEnv == nil {
@@ -97,7 +98,8 @@ type remoteFileServer struct {
 func (f *remoteFileServer) URL() string {
 	u := url.URL{
 		Scheme: "http",
-		Host:   f.host}
+		Host:   f.host,
+	}
 	return u.String()
 }
 
@@ -108,23 +110,23 @@ func (f *remoteFileServer) CtxDir() string {
 func (f *remoteFileServer) Close() error {
 	defer func() {
 		if f.ctx != nil {
-			f.ctx.Close()
+			if err := f.ctx.Close(); err != nil {
+				_, _ = fmt.Fprintf(os.Stderr, "Error closing remote file server: closing context: %v\n", err)
+			}
 		}
 		if f.image != "" {
-			if _, err := f.client.ImageRemove(context.Background(), f.image, types.ImageRemoveOptions{
-				Force: true,
-			}); err != nil {
-				fmt.Fprintf(os.Stderr, "Error closing remote file server : %v\n", err)
+			if _, err := f.client.ImageRemove(context.Background(), f.image, image.RemoveOptions{Force: true}); err != nil {
+				_, _ = fmt.Fprintf(os.Stderr, "Error closing remote file server: removing image: %v\n", err)
 			}
 		}
 		if err := f.client.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error closing remote file server : %v\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "Error closing remote file server: closing client: %v\n", err)
 		}
 	}()
 	if f.container == "" {
 		return nil
 	}
-	return f.client.ContainerRemove(context.Background(), f.container, types.ContainerRemoveOptions{
+	return f.client.ContainerRemove(context.Background(), f.container, containertypes.RemoveOptions{
 		Force:         true,
 		RemoveVolumes: true,
 	})
@@ -132,7 +134,7 @@ func (f *remoteFileServer) Close() error {
 
 func newRemoteFileServer(t testing.TB, ctx *fakecontext.Fake, c client.APIClient) *remoteFileServer {
 	var (
-		image     = fmt.Sprintf("fileserver-img-%s", strings.ToLower(testutil.GenerateRandomAlphaOnlyString(10)))
+		imgName   = fmt.Sprintf("fileserver-img-%s", strings.ToLower(testutil.GenerateRandomAlphaOnlyString(10)))
 		container = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(testutil.GenerateRandomAlphaOnlyString(10)))
 	)
 
@@ -145,7 +147,7 @@ COPY . /static`); err != nil {
 	}
 	resp, err := c.ImageBuild(context.Background(), ctx.AsTarReader(t), types.ImageBuildOptions{
 		NoCache: true,
-		Tags:    []string{image},
+		Tags:    []string{imgName},
 	})
 	assert.NilError(t, err)
 	_, err = io.Copy(io.Discard, resp.Body)
@@ -153,10 +155,10 @@ COPY . /static`); err != nil {
 
 	// Start the container
 	b, err := c.ContainerCreate(context.Background(), &containertypes.Config{
-		Image: image,
+		Image: imgName,
 	}, &containertypes.HostConfig{}, nil, nil, container)
 	assert.NilError(t, err)
-	err = c.ContainerStart(context.Background(), b.ID, types.ContainerStartOptions{})
+	err = c.ContainerStart(context.Background(), b.ID, containertypes.StartOptions{})
 	assert.NilError(t, err)
 
 	// Find out the system assigned port
@@ -173,7 +175,7 @@ COPY . /static`); err != nil {
 
 	return &remoteFileServer{
 		container: container,
-		image:     image,
+		image:     imgName,
 		host:      fmt.Sprintf("%s:%s", host, port),
 		ctx:       ctx,
 		client:    c,

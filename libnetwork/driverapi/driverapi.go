@@ -1,10 +1,8 @@
 package driverapi
 
 import (
+	"context"
 	"net"
-
-	"github.com/docker/docker/libnetwork/discoverapi"
-	"github.com/docker/docker/pkg/plugingetter"
 )
 
 // NetworkPluginEndpointType represents the Endpoint Type used by Plugin system
@@ -12,8 +10,6 @@ const NetworkPluginEndpointType = "NetworkDriver"
 
 // Driver is an interface that every plugin driver needs to implement.
 type Driver interface {
-	discoverapi.Discover
-
 	// NetworkAllocate invokes the driver method to allocate network
 	// specific resources passing network id and network specific config.
 	// It returns a key,value pair of network specific driver allocations
@@ -43,7 +39,7 @@ type Driver interface {
 	// specific config. The endpoint information can be either consumed by
 	// the driver or populated by the driver. The config mechanism will
 	// eventually be replaced with labels which are yet to be introduced.
-	CreateEndpoint(nid, eid string, ifInfo InterfaceInfo, options map[string]interface{}) error
+	CreateEndpoint(ctx context.Context, nid, eid string, ifInfo InterfaceInfo, options map[string]interface{}) error
 
 	// DeleteEndpoint invokes the driver method to delete an endpoint
 	// passing the network id and endpoint id.
@@ -53,14 +49,14 @@ type Driver interface {
 	EndpointOperInfo(nid, eid string) (map[string]interface{}, error)
 
 	// Join method is invoked when a Sandbox is attached to an endpoint.
-	Join(nid, eid string, sboxKey string, jinfo JoinInfo, options map[string]interface{}) error
+	Join(ctx context.Context, nid, eid string, sboxKey string, jinfo JoinInfo, options map[string]interface{}) error
 
 	// Leave method is invoked when a Sandbox detaches from an endpoint.
 	Leave(nid, eid string) error
 
 	// ProgramExternalConnectivity invokes the driver method which does the necessary
 	// programming to allow the external connectivity dictated by the passed options
-	ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error
+	ProgramExternalConnectivity(ctx context.Context, nid, eid string, options map[string]interface{}) error
 
 	// RevokeExternalConnectivity asks the driver to remove any external connectivity
 	// programming that was done so far
@@ -156,11 +152,8 @@ type JoinInfo interface {
 	AddTableEntry(tableName string, key string, value []byte) error
 }
 
-// DriverCallback provides a Callback interface for Drivers into LibNetwork
-type DriverCallback interface {
-	// GetPluginGetter returns the pluginv2 getter.
-	GetPluginGetter() plugingetter.PluginGetter
-	// RegisterDriver provides a way for Remote drivers to dynamically register new NetworkType and associate with a driver instance
+// Registerer provides a way for network drivers to be dynamically registered.
+type Registerer interface {
 	RegisterDriver(name string, driver Driver, capability Capability) error
 }
 

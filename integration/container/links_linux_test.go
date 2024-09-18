@@ -1,11 +1,10 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"os"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
@@ -20,12 +19,12 @@ func TestLinksEtcHostsContentMatch(t *testing.T) {
 	hosts, err := os.ReadFile("/etc/hosts")
 	skip.If(t, os.IsNotExist(err))
 
-	defer setupTest(t)()
-	client := testEnv.APIClient()
-	ctx := context.Background()
+	ctx := setupTest(t)
 
-	cID := container.Run(ctx, t, client, container.WithNetworkMode("host"))
-	res, err := container.Exec(ctx, client, cID, []string{"cat", "/etc/hosts"})
+	apiClient := testEnv.APIClient()
+
+	cID := container.Run(ctx, t, apiClient, container.WithNetworkMode("host"))
+	res, err := container.Exec(ctx, apiClient, cID, []string{"cat", "/etc/hosts"})
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(res.Stderr(), 0))
 	assert.Equal(t, 0, res.ExitCode)
@@ -36,19 +35,16 @@ func TestLinksEtcHostsContentMatch(t *testing.T) {
 func TestLinksContainerNames(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
-	defer setupTest(t)()
-	client := testEnv.APIClient()
-	ctx := context.Background()
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
 
 	containerA := "first_" + t.Name()
 	containerB := "second_" + t.Name()
-	container.Run(ctx, t, client, container.WithName(containerA))
-	container.Run(ctx, t, client, container.WithName(containerB), container.WithLinks(containerA+":"+containerA))
+	container.Run(ctx, t, apiClient, container.WithName(containerA))
+	container.Run(ctx, t, apiClient, container.WithName(containerB), container.WithLinks(containerA+":"+containerA))
 
-	f := filters.NewArgs(filters.Arg("name", containerA))
-
-	containers, err := client.ContainerList(ctx, types.ContainerListOptions{
-		Filters: f,
+	containers, err := apiClient.ContainerList(ctx, containertypes.ListOptions{
+		Filters: filters.NewArgs(filters.Arg("name", containerA)),
 	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(1, len(containers)))

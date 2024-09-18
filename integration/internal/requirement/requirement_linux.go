@@ -37,5 +37,4 @@ func Overlay2Supported(kernelVersion string) bool {
 	}
 	requiredV := kernel.VersionInfo{Kernel: 4}
 	return kernel.CompareKernelVersion(*daemonV, requiredV) > -1
-
 }

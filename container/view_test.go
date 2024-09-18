@@ -1,13 +1,13 @@
 package container // import "github.com/docker/docker/container"
 
 import (
+	"context"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
@@ -32,11 +32,11 @@ func newContainer(t *testing.T) *Container {
 		id    = uuid.New().String()
 		cRoot = filepath.Join(root, id)
 	)
-	if err := os.MkdirAll(cRoot, 0755); err != nil {
+	if err := os.MkdirAll(cRoot, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	c := NewBaseContainer(id, cRoot)
-	c.HostConfig = &containertypes.HostConfig{}
+	c.HostConfig = &container.HostConfig{}
 	return c
 }
 
@@ -46,7 +46,7 @@ func TestViewSaveDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := newContainer(t)
-	if err := c.CheckpointTo(db); err != nil {
+	if err := c.CheckpointTo(context.Background(), db); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.Delete(c); err != nil {
@@ -61,11 +61,11 @@ func TestViewAll(t *testing.T) {
 		two   = newContainer(t)
 	)
 	one.Pid = 10
-	if err := one.CheckpointTo(db); err != nil {
+	if err := one.CheckpointTo(context.Background(), db); err != nil {
 		t.Fatal(err)
 	}
 	two.Pid = 20
-	if err := two.CheckpointTo(db); err != nil {
+	if err := two.CheckpointTo(context.Background(), db); err != nil {
 		t.Fatal(err)
 	}
 
@@ -94,7 +94,7 @@ func TestViewGet(t *testing.T) {
 		one   = newContainer(t)
 	)
 	one.ImageID = "some-image-123"
-	if err := one.CheckpointTo(db); err != nil {
+	if err := one.CheckpointTo(context.Background(), db); err != nil {
 		t.Fatal(err)
 	}
 	s, err := db.Snapshot().Get(one.ID)
@@ -170,11 +170,11 @@ func TestViewWithHealthCheck(t *testing.T) {
 		one   = newContainer(t)
 	)
 	one.Health = &Health{
-		Health: types.Health{
+		Health: container.Health{
 			Status: "starting",
 		},
 	}
-	if err := one.CheckpointTo(db); err != nil {
+	if err := one.CheckpointTo(context.Background(), db); err != nil {
 		t.Fatal(err)
 	}
 	s, err := db.Snapshot().Get(one.ID)
@@ -373,7 +373,7 @@ func TestTruncIndex(t *testing.T) {
 	}
 }
 
-func assertIndexGet(t *testing.T, snapshot ViewDB, input, expectedResult string, expectError bool) {
+func assertIndexGet(t *testing.T, snapshot *ViewDB, input, expectedResult string, expectError bool) {
 	if result, err := snapshot.GetByPrefix(input); err != nil && !expectError {
 		t.Fatalf("Unexpected error getting '%s': %s", input, err)
 	} else if err == nil && expectError {

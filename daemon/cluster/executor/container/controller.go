@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/go-connections/nat"
 	gogotypes "github.com/gogo/protobuf/types"
@@ -65,7 +66,7 @@ func (r *controller) Task() (*api.Task, error) {
 func (r *controller) ContainerStatus(ctx context.Context) (*api.ContainerStatus, error) {
 	ctnr, err := r.adapter.inspect(ctx)
 	if err != nil {
-		if isUnknownContainer(err) {
+		if errdefs.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -76,7 +77,7 @@ func (r *controller) ContainerStatus(ctx context.Context) (*api.ContainerStatus,
 func (r *controller) PortStatus(ctx context.Context) (*api.PortStatus, error) {
 	ctnr, err := r.adapter.inspect(ctx)
 	if err != nil {
-		if isUnknownContainer(err) {
+		if errdefs.IsNotFound(err) {
 			return nil, nil
 		}
 
@@ -178,7 +179,7 @@ func (r *controller) Prepare(ctx context.Context) error {
 		}
 	}
 	if err := r.adapter.create(ctx); err != nil {
-		if isContainerCreateNameConflict(err) {
+		if errdefs.IsConflict(err) {
 			if _, err := r.adapter.inspect(ctx); err != nil {
 				return err
 			}
@@ -254,7 +255,7 @@ func (r *controller) Start(ctx context.Context) error {
 			}
 
 			switch event.Action {
-			case "die": // exit on terminal events
+			case events.ActionDie: // exit on terminal events
 				ctnr, err := r.adapter.inspect(ctx)
 				if err != nil {
 					return errors.Wrap(err, "die event received")
@@ -263,18 +264,18 @@ func (r *controller) Start(ctx context.Context) error {
 				}
 
 				return nil
-			case "destroy":
+			case events.ActionDestroy:
 				// If we get here, something has gone wrong but we want to exit
 				// and report anyways.
 				return ErrContainerDestroyed
-			case "health_status: unhealthy":
+			case events.ActionHealthStatusUnhealthy:
 				// in this case, we stop the container and report unhealthy status
 				if err := r.Shutdown(ctx); err != nil {
 					return errors.Wrap(err, "unhealthy container shutdown failed")
 				}
 				// set health check error, and wait for container to fully exit ("die" event)
 				healthErr = ErrContainerUnhealthy
-			case "health_status: healthy":
+			case events.ActionHealthStatusHealthy:
 				if err := r.adapter.activateServiceBinding(); err != nil {
 					log.G(ctx).WithError(err).Errorf("failed to activate service binding for container %s after healthy event", r.adapter.container.name())
 					return err
@@ -379,7 +380,7 @@ func (r *controller) Shutdown(ctx context.Context) error {
 	}
 
 	if err := r.adapter.shutdown(ctx); err != nil {
-		if !(isUnknownContainer(err) || isStoppedContainer(err)) {
+		if !(errdefs.IsNotFound(err) || errdefs.IsNotModified(err)) {
 			return err
 		}
 	}
@@ -387,7 +388,7 @@ func (r *controller) Shutdown(ctx context.Context) error {
 	// Try removing networks referenced in this task in case this
 	// task is the last one referencing it
 	if err := r.adapter.removeNetworks(ctx); err != nil {
-		if !isUnknownContainer(err) {
+		if !errdefs.IsNotFound(err) {
 			return err
 		}
 	}
@@ -406,7 +407,7 @@ func (r *controller) Terminate(ctx context.Context) error {
 	}
 
 	if err := r.adapter.terminate(ctx); err != nil {
-		if isUnknownContainer(err) {
+		if errdefs.IsNotFound(err) {
 			return nil
 		}
 
@@ -428,7 +429,7 @@ func (r *controller) Remove(ctx context.Context) error {
 
 	// It may be necessary to shut down the task before removing it.
 	if err := r.Shutdown(ctx); err != nil {
-		if isUnknownContainer(err) {
+		if errdefs.IsNotFound(err) {
 			return nil
 		}
 		// This may fail if the task was already shut down.
@@ -436,7 +437,7 @@ func (r *controller) Remove(ctx context.Context) error {
 	}
 
 	if err := r.adapter.remove(ctx); err != nil {
-		if isUnknownContainer(err) {
+		if errdefs.IsNotFound(err) {
 			return nil
 		}
 
@@ -459,7 +460,7 @@ func (r *controller) waitReady(pctx context.Context) error {
 
 	ctnr, err := r.adapter.inspect(ctx)
 	if err != nil {
-		if !isUnknownContainer(err) {
+		if !errdefs.IsNotFound(err) {
 			return errors.Wrap(err, "inspect container failed")
 		}
 	} else {
@@ -609,7 +610,7 @@ func (r *controller) checkClosed() error {
 	}
 }
 
-func parseContainerStatus(ctnr types.ContainerJSON) (*api.ContainerStatus, error) {
+func parseContainerStatus(ctnr container.InspectResponse) (*api.ContainerStatus, error) {
 	status := &api.ContainerStatus{
 		ContainerID: ctnr.ID,
 		PID:         int32(ctnr.State.Pid),
@@ -619,7 +620,7 @@ func parseContainerStatus(ctnr types.ContainerJSON) (*api.ContainerStatus, error
 	return status, nil
 }
 
-func parsePortStatus(ctnr types.ContainerJSON) (*api.PortStatus, error) {
+func parsePortStatus(ctnr container.InspectResponse) (*api.PortStatus, error) {
 	status := &api.PortStatus{}
 
 	if ctnr.NetworkSettings != nil && len(ctnr.NetworkSettings.Ports) > 0 {
@@ -637,18 +638,18 @@ func parsePortMap(portMap nat.PortMap) ([]*api.PortConfig, error) {
 	exposedPorts := make([]*api.PortConfig, 0, len(portMap))
 
 	for portProtocol, mapping := range portMap {
-		parts := strings.SplitN(string(portProtocol), "/", 2)
-		if len(parts) != 2 {
+		p, proto, ok := strings.Cut(string(portProtocol), "/")
+		if !ok {
 			return nil, fmt.Errorf("invalid port mapping: %s", portProtocol)
 		}
 
-		port, err := strconv.ParseUint(parts[0], 10, 16)
+		port, err := strconv.ParseUint(p, 10, 16)
 		if err != nil {
 			return nil, err
 		}
 
 		var protocol api.PortConfig_Protocol
-		switch strings.ToLower(parts[1]) {
+		switch strings.ToLower(proto) {
 		case "tcp":
 			protocol = api.ProtocolTCP
 		case "udp":
@@ -656,7 +657,7 @@ func parsePortMap(portMap nat.PortMap) ([]*api.PortConfig, error) {
 		case "sctp":
 			protocol = api.ProtocolSCTP
 		default:
-			return nil, fmt.Errorf("invalid protocol: %s", parts[1])
+			return nil, fmt.Errorf("invalid protocol: %s", proto)
 		}
 
 		for _, binding := range mapping {
@@ -716,7 +717,7 @@ func (r *controller) checkHealth(ctx context.Context) error {
 			}
 
 			switch event.Action {
-			case "health_status: unhealthy":
+			case events.ActionHealthStatusUnhealthy:
 				return ErrContainerUnhealthy
 			}
 		}

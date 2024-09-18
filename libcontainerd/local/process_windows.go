@@ -38,7 +38,3 @@ func createStdInCloser(pipe io.WriteCloser, process hcsshim.Process) io.WriteClo
 		return nil
 	})
 }
-
-func (p *process) Cleanup() error {
-	return nil
-}

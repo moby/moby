@@ -15,7 +15,7 @@ if [ ! "$(go env GOOS)" = 'windows' ]; then
 		fi
 		root=$(dirname "$pidFile")/root
 		if [ -d "$root" ]; then
-			umount "$root" || true
+			umount -q "$root" || true
 		fi
 	done
 

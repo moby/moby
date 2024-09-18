@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package etw
@@ -6,9 +7,10 @@ import (
 	"fmt"
 	"math"
 	"reflect"
-	"syscall"
 	"time"
 	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
 // FieldOpt defines the option function type that can be passed to
@@ -51,6 +53,14 @@ func BoolArray(name string, values []bool) FieldOpt {
 func StringField(name string, value string) FieldOpt {
 	return func(em *eventMetadata, ed *eventData) {
 		em.writeField(name, inTypeANSIString, outTypeUTF8, 0)
+		ed.writeString(value)
+	}
+}
+
+// JSONStringField adds a JSON-encoded string field to the event.
+func JSONStringField(name string, value string) FieldOpt {
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeField(name, inTypeANSIString, outTypeJSON, 0)
 		ed.writeString(value)
 	}
 }
@@ -388,7 +398,7 @@ func Struct(name string, opts ...FieldOpt) FieldOpt {
 func Time(name string, value time.Time) FieldOpt {
 	return func(em *eventMetadata, ed *eventData) {
 		em.writeField(name, inTypeFileTime, outTypeDateTimeUTC, 0)
-		ed.writeFiletime(syscall.NsecToFiletime(value.UTC().UnixNano()))
+		ed.writeFiletime(windows.NsecToFiletime(value.UTC().UnixNano()))
 	}
 }
 
@@ -481,7 +491,7 @@ func SmartField(name string, v interface{}) FieldOpt {
 		case reflect.Int32:
 			return SmartField(name, int32(rv.Int()))
 		case reflect.Int64:
-			return SmartField(name, int64(rv.Int()))
+			return SmartField(name, int64(rv.Int())) //nolint:unconvert // make look consistent
 		case reflect.Uint:
 			return SmartField(name, uint(rv.Uint()))
 		case reflect.Uint8:
@@ -491,7 +501,7 @@ func SmartField(name string, v interface{}) FieldOpt {
 		case reflect.Uint32:
 			return SmartField(name, uint32(rv.Uint()))
 		case reflect.Uint64:
-			return SmartField(name, uint64(rv.Uint()))
+			return SmartField(name, uint64(rv.Uint())) //nolint:unconvert // make look consistent
 		case reflect.Uintptr:
 			return SmartField(name, uintptr(rv.Uint()))
 		case reflect.Float32:
@@ -509,6 +519,9 @@ func SmartField(name string, v interface{}) FieldOpt {
 				}
 			}
 			return Struct(name, fields...)
+		case reflect.Array, reflect.Chan, reflect.Complex128, reflect.Complex64,
+			reflect.Func, reflect.Interface, reflect.Invalid, reflect.Map, reflect.Ptr,
+			reflect.Slice, reflect.UnsafePointer:
 		}
 	}
 

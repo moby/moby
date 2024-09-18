@@ -22,6 +22,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace/embedded"
 )
 
 const (
@@ -48,8 +49,10 @@ func (e errorConst) Error() string {
 // nolint:revive // revive complains about stutter of `trace.TraceID`.
 type TraceID [16]byte
 
-var nilTraceID TraceID
-var _ json.Marshaler = nilTraceID
+var (
+	nilTraceID TraceID
+	_          json.Marshaler = nilTraceID
+)
 
 // IsValid checks whether the trace TraceID is valid. A valid trace ID does
 // not consist of zeros only.
@@ -63,7 +66,7 @@ func (t TraceID) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.String())
 }
 
-// String returns the hex string representation form of a TraceID
+// String returns the hex string representation form of a TraceID.
 func (t TraceID) String() string {
 	return hex.EncodeToString(t[:])
 }
@@ -71,8 +74,10 @@ func (t TraceID) String() string {
 // SpanID is a unique identity of a span in a trace.
 type SpanID [8]byte
 
-var nilSpanID SpanID
-var _ json.Marshaler = nilSpanID
+var (
+	nilSpanID SpanID
+	_         json.Marshaler = nilSpanID
+)
 
 // IsValid checks whether the SpanID is valid. A valid SpanID does not consist
 // of zeros only.
@@ -86,7 +91,7 @@ func (s SpanID) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
 }
 
-// String returns the hex string representation form of a SpanID
+// String returns the hex string representation form of a SpanID.
 func (s SpanID) String() string {
 	return hex.EncodeToString(s[:])
 }
@@ -151,7 +156,7 @@ func decodeHex(h string, b []byte) error {
 	return nil
 }
 
-// TraceFlags contains flags that can be set on a SpanContext
+// TraceFlags contains flags that can be set on a SpanContext.
 type TraceFlags byte //nolint:revive // revive complains about stutter of `trace.TraceFlags`.
 
 // IsSampled returns if the sampling bit is set in the TraceFlags.
@@ -160,7 +165,7 @@ func (tf TraceFlags) IsSampled() bool {
 }
 
 // WithSampled sets the sampling bit in a new copy of the TraceFlags.
-func (tf TraceFlags) WithSampled(sampled bool) TraceFlags {
+func (tf TraceFlags) WithSampled(sampled bool) TraceFlags { // nolint:revive  // sampled is not a control flag.
 	if sampled {
 		return tf | FlagsSampled
 	}
@@ -174,7 +179,7 @@ func (tf TraceFlags) MarshalJSON() ([]byte, error) {
 	return json.Marshal(tf.String())
 }
 
-// String returns the hex string representation form of TraceFlags
+// String returns the hex string representation form of TraceFlags.
 func (tf TraceFlags) String() string {
 	return hex.EncodeToString([]byte{byte(tf)}[:])
 }
@@ -338,8 +343,15 @@ func (sc SpanContext) MarshalJSON() ([]byte, error) {
 // create a Span and it is then up to the operation the Span represents to
 // properly end the Span when the operation itself ends.
 //
-// Warning: methods may be added to this interface in minor releases.
+// Warning: Methods may be added to this interface in minor releases. See
+// package documentation on API implementation for information on how to set
+// default behavior for unimplemented methods.
 type Span interface {
+	// Users of the interface can ignore this. This embedded type is only used
+	// by implementations of this interface. See the "API Implementations"
+	// section of the package documentation for more information.
+	embedded.Span
+
 	// End completes the Span. The Span is considered complete and ready to be
 	// delivered through the rest of the telemetry pipeline after this method
 	// is called. Therefore, updates to the Span are not allowed after this
@@ -364,8 +376,9 @@ type Span interface {
 	SpanContext() SpanContext
 
 	// SetStatus sets the status of the Span in the form of a code and a
-	// description, overriding previous values set. The description is only
-	// included in a status when the code is for an error.
+	// description, provided the status hasn't already been set to a higher
+	// value before (OK > Error > Unset). The description is only included in a
+	// status when the code is for an error.
 	SetStatus(code codes.Code, description string)
 
 	// SetName sets the Span name.
@@ -386,16 +399,16 @@ type Span interface {
 //
 // For example, a Link is used in the following situations:
 //
-//   1. Batch Processing: A batch of operations may contain operations
-//      associated with one or more traces/spans. Since there can only be one
-//      parent SpanContext, a Link is used to keep reference to the
-//      SpanContext of all operations in the batch.
-//   2. Public Endpoint: A SpanContext for an in incoming client request on a
-//      public endpoint should be considered untrusted. In such a case, a new
-//      trace with its own identity and sampling decision needs to be created,
-//      but this new trace needs to be related to the original trace in some
-//      form. A Link is used to keep reference to the original SpanContext and
-//      track the relationship.
+//  1. Batch Processing: A batch of operations may contain operations
+//     associated with one or more traces/spans. Since there can only be one
+//     parent SpanContext, a Link is used to keep reference to the
+//     SpanContext of all operations in the batch.
+//  2. Public Endpoint: A SpanContext for an in incoming client request on a
+//     public endpoint should be considered untrusted. In such a case, a new
+//     trace with its own identity and sampling decision needs to be created,
+//     but this new trace needs to be related to the original trace in some
+//     form. A Link is used to keep reference to the original SpanContext and
+//     track the relationship.
 type Link struct {
 	// SpanContext of the linked Span.
 	SpanContext SpanContext
@@ -485,8 +498,15 @@ func (sk SpanKind) String() string {
 
 // Tracer is the creator of Spans.
 //
-// Warning: methods may be added to this interface in minor releases.
+// Warning: Methods may be added to this interface in minor releases. See
+// package documentation on API implementation for information on how to set
+// default behavior for unimplemented methods.
 type Tracer interface {
+	// Users of the interface can ignore this. This embedded type is only used
+	// by implementations of this interface. See the "API Implementations"
+	// section of the package documentation for more information.
+	embedded.Tracer
+
 	// Start creates a span and a context.Context containing the newly-created span.
 	//
 	// If the context.Context provided in `ctx` contains a Span then the newly-created
@@ -503,17 +523,55 @@ type Tracer interface {
 	Start(ctx context.Context, spanName string, opts ...SpanStartOption) (context.Context, Span)
 }
 
-// TracerProvider provides access to instrumentation Tracers.
+// TracerProvider provides Tracers that are used by instrumentation code to
+// trace computational workflows.
 //
-// Warning: methods may be added to this interface in minor releases.
+// A TracerProvider is the collection destination of all Spans from Tracers it
+// provides, it represents a unique telemetry collection pipeline. How that
+// pipeline is defined, meaning how those Spans are collected, processed, and
+// where they are exported, depends on its implementation. Instrumentation
+// authors do not need to define this implementation, rather just use the
+// provided Tracers to instrument code.
+//
+// Commonly, instrumentation code will accept a TracerProvider implementation
+// at runtime from its users or it can simply use the globally registered one
+// (see https://pkg.go.dev/go.opentelemetry.io/otel#GetTracerProvider).
+//
+// Warning: Methods may be added to this interface in minor releases. See
+// package documentation on API implementation for information on how to set
+// default behavior for unimplemented methods.
 type TracerProvider interface {
-	// Tracer creates an implementation of the Tracer interface.
-	// The instrumentationName must be the name of the library providing
-	// instrumentation. This name may be the same as the instrumented code
-	// only if that code provides built-in instrumentation. If the
-	// instrumentationName is empty, then a implementation defined default
-	// name will be used instead.
+	// Users of the interface can ignore this. This embedded type is only used
+	// by implementations of this interface. See the "API Implementations"
+	// section of the package documentation for more information.
+	embedded.TracerProvider
+
+	// Tracer returns a unique Tracer scoped to be used by instrumentation code
+	// to trace computational workflows. The scope and identity of that
+	// instrumentation code is uniquely defined by the name and options passed.
 	//
-	// This method must be concurrency safe.
-	Tracer(instrumentationName string, opts ...TracerOption) Tracer
+	// The passed name needs to uniquely identify instrumentation code.
+	// Therefore, it is recommended that name is the Go package name of the
+	// library providing instrumentation (note: not the code being
+	// instrumented). Instrumentation libraries can have multiple versions,
+	// therefore, the WithInstrumentationVersion option should be used to
+	// distinguish these different codebases. Additionally, instrumentation
+	// libraries may sometimes use traces to communicate different domains of
+	// workflow data (i.e. using spans to communicate workflow events only). If
+	// this is the case, the WithScopeAttributes option should be used to
+	// uniquely identify Tracers that handle the different domains of workflow
+	// data.
+	//
+	// If the same name and options are passed multiple times, the same Tracer
+	// will be returned (it is up to the implementation if this will be the
+	// same underlying instance of that Tracer or not). It is not necessary to
+	// call this multiple times with the same name and options to get an
+	// up-to-date Tracer. All implementations will ensure any TracerProvider
+	// configuration changes are propagated to all provided Tracers.
+	//
+	// If name is empty, then an implementation defined default name will be
+	// used instead.
+	//
+	// This method is safe to call concurrently.
+	Tracer(name string, options ...TracerOption) Tracer
 }

@@ -90,6 +90,8 @@ func (m *DiffOp) Inputs() (out []Output) {
 	return out
 }
 
+// Diff returns a state that represents the diff of the lower and upper states.
+// The returned State is useful for use with [Merge] where you can merge the lower state with the diff.
 func Diff(lower, upper State, opts ...ConstraintsOpt) State {
 	if lower.Output() == nil {
 		if upper.Output() == nil {
@@ -104,5 +106,5 @@ func Diff(lower, upper State, opts ...ConstraintsOpt) State {
 	for _, o := range opts {
 		o.SetConstraintsOption(&c)
 	}
-	return NewState(NewDiff(lower, upper, c).Output())
+	return lower.WithOutput(NewDiff(lower, upper, c).Output())
 }

@@ -1,17 +1,19 @@
-package registry
+package inline
 
 import (
 	"context"
 	"encoding/json"
+	"slices"
 
+	"github.com/containerd/containerd/labels"
 	"github.com/moby/buildkit/cache/remotecache"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 func ResolveCacheExporterFunc() remotecache.ResolveCacheExporterFunc {
@@ -28,6 +30,10 @@ func NewExporter() remotecache.Exporter {
 type exporter struct {
 	solver.CacheExporterTarget
 	chains *v1.CacheChains
+}
+
+func (*exporter) Name() string {
+	return "exporting inline cache"
 }
 
 func (ce *exporter) Config() remotecache.Config {
@@ -52,16 +58,19 @@ func (ce *exporter) ExportForLayers(ctx context.Context, layers []digest.Digest)
 		return nil, err
 	}
 
+	layerBlobDigests := make([][]digest.Digest, len(layers))
+
 	descs2 := map[digest.Digest]v1.DescriptorProviderPair{}
-	for _, k := range layers {
+	for i, k := range layers {
 		if v, ok := descs[k]; ok {
 			descs2[k] = v
-			continue
+			layerBlobDigests[i] = append(layerBlobDigests[i], k)
 		}
 		// fallback for uncompressed digests
 		for _, v := range descs {
-			if uc := v.Descriptor.Annotations["containerd.io/uncompressed"]; uc == string(k) {
+			if uc := v.Descriptor.Annotations[labels.LabelUncompressed]; uc == string(k) {
 				descs2[v.Descriptor.Digest] = v
+				layerBlobDigests[i] = append(layerBlobDigests[i], v.Descriptor.Digest)
 			}
 		}
 	}
@@ -77,14 +86,16 @@ func (ce *exporter) ExportForLayers(ctx context.Context, layers []digest.Digest)
 	}
 
 	if len(cfg.Layers) == 0 {
-		logrus.Warn("failed to match any cache with layers")
+		bklog.G(ctx).Warn("failed to match any cache with layers")
 		return nil, nil
 	}
 
 	// reorder layers based on the order in the image
 	blobIndexes := make(map[digest.Digest]int, len(layers))
-	for i, blob := range layers {
-		blobIndexes[blob] = i
+	for i, blobs := range layerBlobDigests {
+		for _, blob := range blobs {
+			blobIndexes[blob] = i
+		}
 	}
 
 	for i, r := range cfg.Records {
@@ -95,8 +106,14 @@ func (ce *exporter) ExportForLayers(ctx context.Context, layers []digest.Digest)
 			if len(resultBlobs) <= len(layers) {
 				match = true
 				for k, resultBlob := range resultBlobs {
-					layerBlob := layers[k]
-					if resultBlob != layerBlob {
+					matchesBlob := false
+					for _, layerBlob := range layerBlobDigests[k] {
+						if layerBlob == resultBlob {
+							matchesBlob = true
+							break
+						}
+					}
+					if !matchesBlob {
 						match = false
 						break
 					}
@@ -151,8 +168,6 @@ func layerToBlobs(idx int, layers []v1.CacheLayer) []digest.Digest {
 		idx = layer.ParentIndex
 	}
 	// reverse so they go lowest to highest
-	for i, j := 0, len(ds)-1; i < j; i, j = i+1, j-1 {
-		ds[i], ds[j] = ds[j], ds[i]
-	}
+	slices.Reverse(ds)
 	return ds
 }

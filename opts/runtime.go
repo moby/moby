@@ -4,20 +4,20 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/system"
 )
 
 // RuntimeOpt defines a map of Runtimes
 type RuntimeOpt struct {
 	name             string
 	stockRuntimeName string
-	values           *map[string]types.Runtime
+	values           *map[string]system.Runtime
 }
 
 // NewNamedRuntimeOpt creates a new RuntimeOpt
-func NewNamedRuntimeOpt(name string, ref *map[string]types.Runtime, stockRuntime string) *RuntimeOpt {
+func NewNamedRuntimeOpt(name string, ref *map[string]system.Runtime, stockRuntime string) *RuntimeOpt {
 	if ref == nil {
-		ref = &map[string]types.Runtime{}
+		ref = &map[string]system.Runtime{}
 	}
 	return &RuntimeOpt{name: name, values: ref, stockRuntimeName: stockRuntime}
 }
@@ -29,27 +29,29 @@ func (o *RuntimeOpt) Name() string {
 
 // Set validates and updates the list of Runtimes
 func (o *RuntimeOpt) Set(val string) error {
-	parts := strings.SplitN(val, "=", 2)
-	if len(parts) != 2 {
+	k, v, ok := strings.Cut(val, "=")
+	if !ok {
 		return fmt.Errorf("invalid runtime argument: %s", val)
 	}
 
-	parts[0] = strings.TrimSpace(parts[0])
-	parts[1] = strings.TrimSpace(parts[1])
-	if parts[0] == "" || parts[1] == "" {
+	// TODO(thaJeztah): this should not accept spaces.
+	k = strings.TrimSpace(k)
+	v = strings.TrimSpace(v)
+	if k == "" || v == "" {
 		return fmt.Errorf("invalid runtime argument: %s", val)
 	}
 
-	parts[0] = strings.ToLower(parts[0])
-	if parts[0] == o.stockRuntimeName {
+	// TODO(thaJeztah): this should not be case-insensitive.
+	k = strings.ToLower(k)
+	if k == o.stockRuntimeName {
 		return fmt.Errorf("runtime name '%s' is reserved", o.stockRuntimeName)
 	}
 
-	if _, ok := (*o.values)[parts[0]]; ok {
-		return fmt.Errorf("runtime '%s' was already defined", parts[0])
+	if _, ok := (*o.values)[k]; ok {
+		return fmt.Errorf("runtime '%s' was already defined", k)
 	}
 
-	(*o.values)[parts[0]] = types.Runtime{Path: parts[1]}
+	(*o.values)[k] = system.Runtime{Path: v}
 
 	return nil
 }
@@ -65,12 +67,12 @@ func (o *RuntimeOpt) String() string {
 }
 
 // GetMap returns a map of Runtimes (name: path)
-func (o *RuntimeOpt) GetMap() map[string]types.Runtime {
+func (o *RuntimeOpt) GetMap() map[string]system.Runtime {
 	if o.values != nil {
 		return *o.values
 	}
 
-	return map[string]types.Runtime{}
+	return map[string]system.Runtime{}
 }
 
 // Type returns the type of the option

@@ -105,27 +105,27 @@ func GetTimestamp(value string, reference time.Time) (string, error) {
 //	since := time.Unix(seconds, nanoseconds)
 //
 // returns seconds as defaultSeconds if value == ""
-func ParseTimestamps(value string, defaultSeconds int64) (int64, int64, error) {
+func ParseTimestamps(value string, defaultSeconds int64) (seconds int64, nanoseconds int64, err error) {
 	if value == "" {
 		return defaultSeconds, 0, nil
 	}
 	return parseTimestamp(value)
 }
 
-func parseTimestamp(value string) (int64, int64, error) {
-	sa := strings.SplitN(value, ".", 2)
-	s, err := strconv.ParseInt(sa[0], 10, 64)
+func parseTimestamp(value string) (sec int64, nsec int64, err error) {
+	s, n, ok := strings.Cut(value, ".")
+	sec, err = strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return s, 0, err
+		return sec, 0, err
 	}
-	if len(sa) != 2 {
-		return s, 0, nil
+	if !ok {
+		return sec, 0, nil
 	}
-	n, err := strconv.ParseInt(sa[1], 10, 64)
+	nsec, err = strconv.ParseInt(n, 10, 64)
 	if err != nil {
-		return s, n, err
+		return sec, nsec, err
 	}
 	// should already be in nanoseconds but just in case convert n to nanoseconds
-	n = int64(float64(n) * math.Pow(float64(10), float64(9-len(sa[1]))))
-	return s, n, nil
+	nsec = int64(float64(nsec) * math.Pow(float64(10), float64(9-len(n))))
+	return sec, nsec, nil
 }

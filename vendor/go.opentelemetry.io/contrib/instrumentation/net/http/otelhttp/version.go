@@ -12,15 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otelhttp
+package otelhttp // import "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 // Version is the current release version of the otelhttp instrumentation.
 func Version() string {
-	return "0.29.0"
+	return "0.46.1"
 	// This string is updated by the pre_release.sh script during release
 }
 
 // SemVersion is the semantic version to be supplied to tracer/meter creation.
+//
+// Deprecated: Use [Version] instead.
 func SemVersion() string {
-	return "semver:" + Version()
+	return Version()
 }

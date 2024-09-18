@@ -1,14 +1,14 @@
 //go:build !windows
-// +build !windows
 
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"os"
 	"os/signal"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/stack"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -19,9 +19,9 @@ func (daemon *Daemon) setupDumpStackTrap(root string) {
 		for range c {
 			path, err := stack.DumpToFile(root)
 			if err != nil {
-				logrus.WithError(err).Error("failed to write goroutines dump")
+				log.G(context.TODO()).WithError(err).Error("failed to write goroutines dump")
 			} else {
-				logrus.Infof("goroutine stacks written to %s", path)
+				log.G(context.TODO()).Infof("goroutine stacks written to %s", path)
 			}
 		}
 	}()

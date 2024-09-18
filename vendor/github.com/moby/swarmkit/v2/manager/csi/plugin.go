@@ -6,10 +6,14 @@ import (
 	"fmt"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/internal/csi/capability"
+	"github.com/moby/swarmkit/v2/log"
+	mobyplugin "github.com/moby/swarmkit/v2/node/plugin"
 )
 
 // Plugin is the interface for a CSI controller plugin.
@@ -70,12 +74,12 @@ type plugin struct {
 // the same object. By taking both parts here, we can push off the work of
 // assuring that the given plugin implements the PluginAddr interface without
 // having to typecast in this constructor.
-func NewPlugin(pc plugingetter.CompatPlugin, pa plugingetter.PluginAddr, provider SecretProvider) Plugin {
+func NewPlugin(p mobyplugin.AddrPlugin, provider SecretProvider) Plugin {
 	return &plugin{
-		name: pc.Name(),
+		name: p.Name(),
 		// TODO(dperny): verify that we do not need to include the Network()
 		// portion of the Addr.
-		socket:     fmt.Sprintf("%s://%s", pa.Addr().Network(), pa.Addr().String()),
+		socket:     fmt.Sprintf("%s://%s", p.Addr().Network(), p.Addr().String()),
 		provider:   provider,
 		swarmToCSI: map[string]string{},
 		csiToSwarm: map[string]string{},
@@ -203,6 +207,11 @@ func (p *plugin) PublishVolume(ctx context.Context, v *api.Volume, nodeID string
 	if !p.publisher {
 		return nil, nil
 	}
+	csiNodeID := p.swarmToCSI[nodeID]
+	if csiNodeID == "" {
+		log.L.Errorf("CSI node ID not found for given Swarm node ID. Plugin: %s , Swarm node ID: %s", p.name, nodeID)
+		return nil, status.Error(codes.FailedPrecondition, "CSI node ID not found for given Swarm node ID")
+	}
 
 	req := p.makeControllerPublishVolumeRequest(v, nodeID)
 	c, err := p.Client(ctx)
@@ -275,7 +284,7 @@ func (p *plugin) makeCreateVolume(v *api.Volume) *csi.CreateVolumeRequest {
 		Name:       v.Spec.Annotations.Name,
 		Parameters: v.Spec.Driver.Options,
 		VolumeCapabilities: []*csi.VolumeCapability{
-			makeCapability(v.Spec.AccessMode),
+			capability.MakeCapability(v.Spec.AccessMode),
 		},
 		Secrets:                   secrets,
 		AccessibilityRequirements: makeTopologyRequirement(v.Spec.AccessibilityRequirements),
@@ -307,7 +316,7 @@ func (p *plugin) makeControllerPublishVolumeRequest(v *api.Volume, nodeID string
 	}
 
 	secrets := p.makeSecrets(v)
-	capability := makeCapability(v.Spec.AccessMode)
+	capability := capability.MakeCapability(v.Spec.AccessMode)
 	capability.AccessType = &csi.VolumeCapability_Mount{
 		Mount: &csi.VolumeCapability_MountVolume{},
 	}

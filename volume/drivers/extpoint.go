@@ -3,17 +3,18 @@
 package drivers // import "github.com/docker/docker/volume/drivers"
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"sync"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
-	getter "github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/volume"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const extName = "VolumeDriver"
@@ -22,7 +23,7 @@ const extName = "VolumeDriver"
 // This interface is only defined to generate the proxy objects.
 // It's not intended to be public or reused.
 //
-//nolint:deadcode,unused,varcheck
+//nolint:unused
 type volumeDriver interface {
 	// Create a volume with the given name
 	Create(name string, opts map[string]string) (err error)
@@ -47,11 +48,11 @@ type Store struct {
 	extensions   map[string]volume.Driver
 	mu           sync.Mutex
 	driverLock   *locker.Locker
-	pluginGetter getter.PluginGetter
+	pluginGetter plugingetter.PluginGetter
 }
 
 // NewStore creates a new volume driver store
-func NewStore(pg getter.PluginGetter) *Store {
+func NewStore(pg plugingetter.PluginGetter) *Store {
 	return &Store{
 		extensions:   make(map[string]volume.Driver),
 		driverLock:   locker.New(),
@@ -97,7 +98,7 @@ func (s *Store) lookup(name string, mode int) (volume.Driver, error) {
 			if mode > 0 {
 				// Undo any reference count changes from the initial `Get`
 				if _, err := s.pluginGetter.Get(name, extName, mode*-1); err != nil {
-					logrus.WithError(err).WithField("action", "validate-driver").WithField("plugin", name).Error("error releasing reference to plugin")
+					log.G(context.TODO()).WithError(err).WithField("action", "validate-driver").WithField("plugin", name).Error("error releasing reference to plugin")
 				}
 			}
 			return nil, err
@@ -146,19 +147,19 @@ func (s *Store) Register(d volume.Driver, name string) bool {
 // GetDriver returns a volume driver by its name.
 // If the driver is empty, it looks for the local driver.
 func (s *Store) GetDriver(name string) (volume.Driver, error) {
-	return s.lookup(name, getter.Lookup)
+	return s.lookup(name, plugingetter.Lookup)
 }
 
 // CreateDriver returns a volume driver by its name and increments RefCount.
 // If the driver is empty, it looks for the local driver.
 func (s *Store) CreateDriver(name string) (volume.Driver, error) {
-	return s.lookup(name, getter.Acquire)
+	return s.lookup(name, plugingetter.Acquire)
 }
 
 // ReleaseDriver returns a volume driver by its name and decrements RefCount..
 // If the driver is empty, it looks for the local driver.
 func (s *Store) ReleaseDriver(name string) (volume.Driver, error) {
-	return s.lookup(name, getter.Release)
+	return s.lookup(name, plugingetter.Release)
 }
 
 // GetDriverList returns list of volume drivers registered.
@@ -176,7 +177,7 @@ func (s *Store) GetDriverList() []string {
 
 // GetAllDrivers lists all the registered drivers
 func (s *Store) GetAllDrivers() ([]volume.Driver, error) {
-	var plugins []getter.CompatPlugin
+	var plugins []plugingetter.CompatPlugin
 	if s.pluginGetter != nil {
 		var err error
 		plugins, err = s.pluginGetter.GetAllByCap(extName)
@@ -212,12 +213,12 @@ func (s *Store) GetAllDrivers() ([]volume.Driver, error) {
 	return ds, nil
 }
 
-func makePluginAdapter(p getter.CompatPlugin) (*volumeDriverAdapter, error) {
-	if pc, ok := p.(getter.PluginWithV1Client); ok {
+func makePluginAdapter(p plugingetter.CompatPlugin) (*volumeDriverAdapter, error) {
+	if pc, ok := p.(plugingetter.PluginWithV1Client); ok {
 		return &volumeDriverAdapter{name: p.Name(), scopePath: p.ScopedPath, proxy: &volumeDriverProxy{pc.Client()}}, nil
 	}
 
-	pa, ok := p.(getter.PluginAddr)
+	pa, ok := p.(plugingetter.PluginAddr)
 	if !ok {
 		return nil, errdefs.System(errors.Errorf("got unknown plugin instance %T", p))
 	}

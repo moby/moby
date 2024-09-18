@@ -41,9 +41,9 @@ func TestLocalVolumeSize(t *testing.T) {
 	assert.NilError(t, err)
 
 	data := make([]byte, 1024)
-	err = os.WriteFile(filepath.Join(v1.Mountpoint, "data"), data, 0644)
+	err = os.WriteFile(filepath.Join(v1.Mountpoint, "data"), data, 0o644)
 	assert.NilError(t, err)
-	err = os.WriteFile(filepath.Join(v2.Mountpoint, "data"), data[:1], 0644)
+	err = os.WriteFile(filepath.Join(v2.Mountpoint, "data"), data[:1], 0o644)
 	assert.NilError(t, err)
 
 	ls, err := service.LocalVolumesSize(ctx)

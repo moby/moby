@@ -1,27 +1,28 @@
 package service // import "github.com/docker/docker/integration/service"
 
 import (
-	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
+	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
-func TestDockerNetworkConnectAlias(t *testing.T) {
+func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
-	client := d.NewClientT(t)
+	client := d.NewClientT(t, client.WithVersion("1.43"))
 	defer client.Close()
-	ctx := context.Background()
 
 	name := t.Name() + "test-alias"
 	net.CreateNoError(ctx, t, client, name,
@@ -44,7 +45,7 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	err = client.ContainerStart(ctx, cID1, types.ContainerStartOptions{})
+	err = client.ContainerStart(ctx, cID1, containertypes.StartOptions{})
 	assert.NilError(t, err)
 
 	ng1, err := client.ContainerInspect(ctx, cID1)
@@ -67,7 +68,7 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	err = client.ContainerStart(ctx, cID2, types.ContainerStartOptions{})
+	err = client.ContainerStart(ctx, cID2, containertypes.StartOptions{})
 	assert.NilError(t, err)
 
 	ng2, err := client.ContainerInspect(ctx, cID2)
@@ -78,12 +79,12 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 
 func TestDockerNetworkReConnect(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
 	defer client.Close()
-	ctx := context.Background()
 
 	name := t.Name() + "dummyNet"
 	net.CreateNoError(ctx, t, client, name,
@@ -102,7 +103,7 @@ func TestDockerNetworkReConnect(t *testing.T) {
 	err := client.NetworkConnect(ctx, name, c1, &network.EndpointSettings{})
 	assert.NilError(t, err)
 
-	err = client.ContainerStart(ctx, c1, types.ContainerStartOptions{})
+	err = client.ContainerStart(ctx, c1, containertypes.StartOptions{})
 	assert.NilError(t, err)
 
 	n1, err := client.ContainerInspect(ctx, c1)
@@ -114,4 +115,22 @@ func TestDockerNetworkReConnect(t *testing.T) {
 	n2, err := client.ContainerInspect(ctx, c1)
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(n1, n2))
+}
+
+// Check that a swarm-scoped network can't have EnableIPv4=false.
+func TestSwarmNoDisableIPv4(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv, daemon.WithExperimental())
+	defer d.Stop(t)
+	client := d.NewClientT(t)
+	defer client.Close()
+
+	_, err := net.Create(ctx, client, "overlay-v6-only",
+		net.WithDriver("overlay"),
+		net.WithAttachable(),
+		net.WithIPv4(false),
+	)
+	assert.Check(t, is.ErrorContains(err, "IPv4 cannot be disabled in a Swarm scoped network"))
 }
