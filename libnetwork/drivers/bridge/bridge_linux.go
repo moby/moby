@@ -471,16 +471,17 @@ func (n *bridgeNetwork) isolateNetwork(enable bool) error {
 	}
 
 	// Install the rules to isolate this network against each of the other networks
+	if n.driver.config.EnableIPTables {
+		if err := setINC(iptables.IPv4, thisConfig.BridgeName, enable); err != nil {
+			return err
+		}
+	}
 	if n.driver.config.EnableIP6Tables {
-		err := setINC(iptables.IPv6, thisConfig.BridgeName, enable)
-		if err != nil {
+		if err := setINC(iptables.IPv6, thisConfig.BridgeName, enable); err != nil {
 			return err
 		}
 	}
 
-	if n.driver.config.EnableIPTables {
-		return setINC(iptables.IPv4, thisConfig.BridgeName, enable)
-	}
 	return nil
 }
 
