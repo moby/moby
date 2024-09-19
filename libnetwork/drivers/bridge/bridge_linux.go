@@ -847,10 +847,10 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 	// Add inter-network communication rules.
 	setupNetworkIsolationRules := func(config *networkConfiguration, i *bridgeInterface) error {
 		if err := network.isolateNetwork(true); err != nil {
-			if err = network.isolateNetwork(false); err != nil {
-				log.G(context.TODO()).Warnf("Failed on removing the inter-network iptables rules on cleanup: %v", err)
+			if errRollback := network.isolateNetwork(false); errRollback != nil {
+				log.G(context.TODO()).WithError(errRollback).Warnf("Failed on removing the inter-network iptables rules on cleanup")
 			}
-			return err
+			return errdefs.System(err)
 		}
 		// register the cleanup function
 		network.registerIptCleanFunc(func() error {
