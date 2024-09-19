@@ -2,8 +2,12 @@ package networking
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
+	"os/exec"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +23,28 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
+
+func getIfaceAddrs(t *testing.T, name string, ipv6 bool) []net.IP {
+	t.Helper()
+
+	iface, err := net.InterfaceByName(name)
+	assert.NilError(t, err)
+
+	addrs, err := iface.Addrs()
+	assert.NilError(t, err)
+
+	var ips []net.IP
+
+	for _, netaddr := range addrs {
+		addr := netaddr.(*net.IPNet)
+		if (addr.IP.To4() != nil && !ipv6) || (addr.IP.To4() == nil && ipv6) {
+			ips = append(ips, addr.IP)
+		}
+	}
+
+	assert.Check(t, len(ips) > 0)
+	return ips
+}
 
 func TestDisableNAT(t *testing.T) {
 	ctx := setupTest(t)
@@ -177,4 +203,135 @@ func TestProxy4To6(t *testing.T) {
 	resp, err := http.Get("http://[::1]:" + hostPort)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(resp.StatusCode, 404))
+}
+
+func enableIPv6OnAll(t *testing.T) func() {
+	t.Helper()
+
+	out, err := exec.Command("sysctl", "net.ipv6.conf").Output()
+	assert.NilError(t, err)
+
+	ifaces := map[string]string{}
+	var allVal string
+
+	sysctls := strings.Split(string(out), "\n")
+	for _, sysctl := range sysctls {
+		if sysctl == "" {
+			continue
+		}
+
+		kv := strings.Split(sysctl, " = ")
+		sub := strings.Split(kv[0], ".")
+		if sub[4] == "disable_ipv6" {
+			if sub[3] == "all" {
+				allVal = kv[1]
+				continue
+			}
+			ifaces[sub[3]] = kv[1]
+		}
+	}
+
+	assert.NilError(t, exec.Command("sysctl", "net.ipv6.conf.all.disable_ipv6=0").Run())
+
+	return func() {
+		if allVal == "1" {
+			assert.NilError(t, exec.Command("sysctl", "net.ipv6.conf.all.disable_ipv6=1").Run())
+		}
+
+		for iface, val := range ifaces {
+			assert.NilError(t, exec.Command("sysctl", fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6=%s", iface, val)).Run())
+		}
+	}
+}
+
+// TestAccessPublishedPortFromHost checks whether published ports are
+// accessible from the host.
+func TestAccessPublishedPortFromHost(t *testing.T) {
+	// Both IPv6 test cases are currently failing in rootless mode. This needs further investigation.
+	skip.If(t, testEnv.IsRootless)
+
+	ctx := setupTest(t)
+
+	revertIPv6OnAll := enableIPv6OnAll(t)
+	defer revertIPv6OnAll()
+	assert.NilError(t, exec.Command("ip", "addr", "add", "fdfb:5cbb:29bf::2/64", "dev", "eth0", "nodad").Run())
+	defer assert.NilError(t, exec.Command("ip", "addr", "del", "fdfb:5cbb:29bf::2/64", "dev", "eth0").Run())
+
+	testcases := []struct {
+		ulpEnabled bool
+		ipv6       bool
+	}{
+		{
+			ulpEnabled: true,
+			ipv6:       false,
+		},
+		{
+			ulpEnabled: false,
+			ipv6:       false,
+		},
+		{
+			ulpEnabled: true,
+			ipv6:       true,
+		},
+		{
+			ulpEnabled: false,
+			ipv6:       true,
+		},
+	}
+
+	for tcID, tc := range testcases {
+		t.Run(fmt.Sprintf("userland-proxy=%t/IPv6=%t", tc.ulpEnabled, tc.ipv6), func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
+			d := daemon.New(t)
+			d.StartWithBusybox(ctx, t, fmt.Sprintf("--userland-proxy=%t", tc.ulpEnabled))
+			defer d.Stop(t)
+
+			c := d.NewClientT(t)
+			defer c.Close()
+
+			bridgeName := fmt.Sprintf("nat-from-host-%d", tcID)
+			bridgeOpts := []func(options *networktypes.CreateOptions){
+				network.WithDriver("bridge"),
+				network.WithOption(bridge.BridgeName, bridgeName),
+			}
+			if tc.ipv6 {
+				bridgeOpts = append(bridgeOpts,
+					network.WithIPv6(),
+					network.WithIPAM("fd31:1c42:6f59::/64", "fd31:1c42:6f59::1"))
+			}
+
+			network.CreateNoError(ctx, t, c, bridgeName, bridgeOpts...)
+			defer network.RemoveNoError(ctx, t, c, bridgeName)
+
+			hostPort := strconv.Itoa(1234 + tcID)
+			serverID := container.Run(ctx, t, c,
+				container.WithName(sanitizeCtrName(t.Name()+"-server")),
+				container.WithExposedPorts("80/tcp"),
+				container.WithPortMap(nat.PortMap{"80/tcp": {{HostPort: hostPort}}}),
+				container.WithCmd("httpd", "-f"),
+				container.WithNetworkMode(bridgeName))
+			defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
+
+			for _, iface := range []string{"lo", "eth0"} {
+				for _, hostAddr := range getIfaceAddrs(t, iface, tc.ipv6) {
+					if !tc.ulpEnabled && hostAddr.To4() == nil && hostAddr.IsLoopback() {
+						// iptables can't DNAT packets addressed to the IPv6
+						// loopback address.
+						continue
+					}
+					if hostAddr.IsLinkLocalUnicast() {
+						// Mapping ports on link-local addresses is currently
+						// unsupported.
+						continue
+					}
+
+					httpClient := &http.Client{Timeout: 3 * time.Second}
+					resp, err := httpClient.Get("http://" + net.JoinHostPort(hostAddr.String(), hostPort))
+					assert.NilError(t, err)
+					assert.Check(t, is.Equal(resp.StatusCode, 404))
+				}
+			}
+		})
+	}
 }
