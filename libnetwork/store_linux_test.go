@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/docker/docker/libnetwork/config"
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 )
 
@@ -17,7 +18,7 @@ func TestBoltdbBackend(t *testing.T) {
 }
 
 func TestNoPersist(t *testing.T) {
-	configOption := OptionBoltdbWithRandomDBFile(t)
+	configOption := config.OptionDataDir(t.TempDir())
 	testController, err := New(configOption)
 	if err != nil {
 		t.Fatalf("Error creating new controller: %v", err)

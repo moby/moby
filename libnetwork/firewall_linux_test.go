@@ -55,7 +55,7 @@ func TestUserChain(t *testing.T) {
 			defer resetIptables(t)
 
 			c, err := New(
-				OptionBoltdbWithRandomDBFile(t),
+				config.OptionDataDir(t.TempDir()),
 				config.OptionDriverConfig("bridge", map[string]any{
 					netlabel.GenericData: options.Generic{
 						"EnableIPTables":  tc.iptables,

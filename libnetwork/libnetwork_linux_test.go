@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 func newController(t *testing.T) *libnetwork.Controller {
 	t.Helper()
 	c, err := libnetwork.New(
-		libnetwork.OptionBoltdbWithRandomDBFile(t),
+		config.OptionDataDir(t.TempDir()),
 		config.OptionDriverConfig(bridgeNetType, map[string]interface{}{
 			netlabel.GenericData: options.Generic{
 				"EnableIPForwarding": true,
@@ -1225,7 +1225,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctrlr, err := libnetwork.New(libnetwork.OptionBoltdbWithRandomDBFile(t))
+	ctrlr, err := libnetwork.New(config.OptionDataDir(t.TempDir()))
 	if err != nil {
 		t.Fatal(err)
 	}

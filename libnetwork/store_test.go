@@ -2,8 +2,6 @@ package libnetwork
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/config"
@@ -64,20 +62,5 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	defer testController.Stop()
 	if _, err = testController.NetworkByID(nw.ID()); err != nil {
 		t.Errorf("Error getting network %v", err)
-	}
-}
-
-// OptionBoltdbWithRandomDBFile function returns a random dir for local store backend
-func OptionBoltdbWithRandomDBFile(t *testing.T) config.Option {
-	t.Helper()
-	tmp := filepath.Join(t.TempDir(), "bolt.db")
-	if err := os.WriteFile(tmp, nil, 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	return func(c *config.Config) {
-		c.Scope.Client.Provider = "boltdb"
-		c.Scope.Client.Address = tmp
-		c.Scope.Client.Config = &store.Config{Bucket: "testBackend"}
 	}
 }
