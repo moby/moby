@@ -403,37 +403,37 @@ func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, insert bo
 	return nil
 }
 
-// Control Inter Network Communication. Install[Remove] only if it is [not] present.
-func setINC(version iptables.IPVersion, iface string, enable bool) error {
+// Control Inter-Network Communication.
+// Install rules only if they aren't present, remove only if they are.
+// If this method returns an error, it doesn't roll back any rules it has added.
+// No error is returned if rules cannot be removed (errors are just logged).
+func setINC(version iptables.IPVersion, iface string, enable bool) (retErr error) {
 	iptable := iptables.GetIptable(version)
-	var (
-		action    = iptables.Insert
-		actionMsg = "add"
-		chains    = []string{IsolationChain1, IsolationChain2}
-		rules     = [][]string{
-			{"-i", iface, "!", "-o", iface, "-j", IsolationChain2},
-			{"-o", iface, "-j", "DROP"},
-		}
-	)
-
+	action := iptables.Insert
+	actionMsg := "add"
 	if !enable {
 		action = iptables.Delete
 		actionMsg = "remove"
 	}
 
-	for i, chain := range chains {
-		if err := iptable.ProgramRule(iptables.Filter, chain, action, rules[i]); err != nil {
-			msg := fmt.Sprintf("unable to %s inter-network communication rule: %v", actionMsg, err)
-			if enable {
-				if i == 1 {
-					// Rollback the rule installed on first chain
-					if err2 := iptable.ProgramRule(iptables.Filter, chains[0], iptables.Delete, rules[0]); err2 != nil {
-						log.G(context.TODO()).Warnf("Failed to rollback iptables rule after failure (%v): %v", err, err2)
-					}
-				}
-				return errors.New(msg)
-			}
-			log.G(context.TODO()).Warn(msg)
+	if err := iptable.ProgramRule(iptables.Filter, IsolationChain1, action, []string{
+		"-i", iface,
+		"!", "-o", iface,
+		"-j", IsolationChain2,
+	}); err != nil {
+		log.G(context.TODO()).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
+		if enable {
+			return fmt.Errorf("%s inter-network communication rule: %w", actionMsg, err)
+		}
+	}
+
+	if err := iptable.ProgramRule(iptables.Filter, IsolationChain2, action, []string{
+		"-o", iface,
+		"-j", "DROP",
+	}); err != nil {
+		log.G(context.TODO()).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
+		if enable {
+			return fmt.Errorf("%s inter-network communication rule: %w", actionMsg, err)
 		}
 	}
 
