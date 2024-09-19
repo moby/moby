@@ -170,24 +170,8 @@ handle_single_manifest_v2() {
 		fi
 
 		case "$layerMediaType" in
-			application/vnd.docker.image.rootfs.diff.tar.gzip)
+			application/vnd.oci.image.layer.v1.tar+gzip | application/vnd.docker.image.rootfs.diff.tar.gzip)
 				local layerTar="$layerId/layer.tar"
-				layerFiles=("${layerFiles[@]}" "$layerTar")
-				# TODO figure out why "-C -" doesn't work here
-				# "curl: (33) HTTP server doesn't seem to support byte ranges. Cannot resume."
-				# "HTTP/1.1 416 Requested Range Not Satisfiable"
-				if [ -f "$dir/$layerTar" ]; then
-					# TODO hackpatch for no -C support :'(
-					echo "skipping existing ${layerId:0:12}"
-					continue
-				fi
-				local token
-				token="$(curl -fsSL "$authBase/token?service=$authService&scope=repository:$image:pull" | jq --raw-output '.token')"
-				fetch_blob "$token" "$image" "$layerDigest" "$dir/$layerTar" --progress-bar
-				;;
-
-			application/vnd.oci.image.layer.v1.tar+gzip)
-				local layerTar="$layerId/layer.tar.gz"
 				layerFiles=("${layerFiles[@]}" "$layerTar")
 				# TODO figure out why "-C -" doesn't work here
 				# "curl: (33) HTTP server doesn't seem to support byte ranges. Cannot resume."
@@ -219,10 +203,10 @@ handle_single_manifest_v2() {
 
 	local manifestJsonEntry
 	manifestJsonEntry="$(
-		echo '{}' | jq -rjc '. + {
+		echo '{}' | jq --raw-output --compact-output '. + {
 			Config: "'"$configFile"'",
 			RepoTags: ["'"${image#library\/}:$tag"'"],
-			Layers: '"$(echo '[]' | jq -rjc ".$(for layerFile in "${layerFiles[@]}"; do echo " + [ \"$layerFile\" ]"; done)")"'
+			Layers: '"$(echo '[]' | jq --raw-output --compact-output ".$(for layerFile in "${layerFiles[@]}"; do echo " + [ \"$layerFile\" ]"; done)")"'
 		}'
 	)"
 	manifestJsonEntries=("${manifestJsonEntries[@]}" "$manifestJsonEntry")
@@ -314,10 +298,11 @@ while [ $# -gt 0 ]; do
 	manifestJson="$(
 		curl -fsSL \
 			-H "Authorization: Bearer $token" \
+			-H 'Accept: application/vnd.oci.image.manifest.v1+json' \
+			-H 'Accept: application/vnd.oci.image.index.v1+json' \
 			-H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
 			-H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
 			-H 'Accept: application/vnd.docker.distribution.manifest.v1+json' \
-			-H 'Accept: application/vnd.oci.image.manifest.v1+json' \
 			"$registryBase/v2/$image/manifests/$digest"
 	)"
 	if [ "${manifestJson:0:1}" != '{' ]; then
@@ -334,48 +319,10 @@ while [ $# -gt 0 ]; do
 			mediaType="$(echo "$manifestJson" | jq --raw-output '.mediaType')"
 
 			case "$mediaType" in
-				application/vnd.docker.distribution.manifest.v2+json)
+				application/vnd.oci.image.manifest.v1+json | application/vnd.docker.distribution.manifest.v2+json)
 					handle_single_manifest_v2 "$manifestJson"
 					;;
-				application/vnd.docker.distribution.manifest.list.v2+json)
-					layersFs="$(echo "$manifestJson" | jq --raw-output --compact-output '.manifests[]')"
-					IFS="$newlineIFS"
-					mapfile -t layers <<< "$layersFs"
-					unset IFS
-
-					found=""
-					targetArch="$(get_target_arch)"
-					targetVariant="$(get_target_variant)"
-					# parse first level multi-arch manifest
-					for i in "${!layers[@]}"; do
-						layerMeta="${layers[$i]}"
-						maniArch="$(echo "$layerMeta" | jq --raw-output '.platform.architecture')"
-						maniVariant="$(echo "$layerMeta" | jq --raw-output '.platform.variant')"
-						if [[ "$maniArch" = "${targetArch}" ]] && [[ -z "${targetVariant}" || "$maniVariant" = "${targetVariant}" ]]; then
-							digest="$(echo "$layerMeta" | jq --raw-output '.digest')"
-							# get second level single manifest
-							submanifestJson="$(
-								curl -fsSL \
-									-H "Authorization: Bearer $token" \
-									-H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
-									-H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
-									-H 'Accept: application/vnd.docker.distribution.manifest.v1+json' \
-									"$registryBase/v2/$image/manifests/$digest"
-							)"
-							handle_single_manifest_v2 "$submanifestJson"
-							found="found"
-							break
-						fi
-					done
-					if [ -z "$found" ]; then
-						echo >&2 "error: manifest for ${targetArch}${targetVariant:+/${targetVariant}} is not found"
-						exit 1
-					fi
-					;;
-				application/vnd.oci.image.manifest.v1+json)
-					handle_single_manifest_v2 "$manifestJson"
-					;;
-				application/vnd.oci.image.index.v1+json)
+				application/vnd.oci.image.index.v1+json | application/vnd.docker.distribution.manifest.list.v2+json)
 					layersFs="$(echo "$manifestJson" | jq --raw-output --compact-output '.manifests[]')"
 					IFS="$newlineIFS"
 					mapfile -t layers <<< "$layersFs"
@@ -396,6 +343,10 @@ while [ $# -gt 0 ]; do
 								curl -fsSL \
 									-H "Authorization: Bearer $token" \
 									-H 'Accept: application/vnd.oci.image.manifest.v1+json' \
+									-H 'Accept: application/vnd.oci.image.index.v1+json' \
+									-H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
+									-H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
+									-H 'Accept: application/vnd.docker.distribution.manifest.v1+json' \
 									"$registryBase/v2/$image/manifests/$digest"
 							)"
 							handle_single_manifest_v2 "$submanifestJson"
@@ -487,7 +438,7 @@ echo -n $'\n}\n' >> "$dir/repositories"
 rm -f "$dir"/tags-*.tmp
 
 if [ -z "$doNotGenerateManifestJson" ] && [ "${#manifestJsonEntries[@]}" -gt 0 ]; then
-	echo '[]' | jq -r ".$(for entry in "${manifestJsonEntries[@]}"; do echo " + [ $entry ]"; done)" > "$dir/manifest.json"
+	echo '[]' | jq --raw-output ".$(for entry in "${manifestJsonEntries[@]}"; do echo " + [ $entry ]"; done)" > "$dir/manifest.json"
 else
 	rm -f "$dir/manifest.json"
 fi
