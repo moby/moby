@@ -35,12 +35,10 @@ The filter table is updated as follows:
     1        0     0 DROP       0    --  *      bridge1 !192.0.2.0/24         0.0.0.0/0           
     2        0     0 DROP       0    --  bridge1 *       0.0.0.0/0           !192.0.2.0/24        
     3        0     0 DOCKER-ISOLATION-STAGE-2  0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
-    4        0     0 RETURN     0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-ISOLATION-STAGE-2 (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DROP       0    --  *      docker0  0.0.0.0/0            0.0.0.0/0           
-    2        0     0 RETURN     0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-USER (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -68,9 +66,7 @@ The filter table is updated as follows:
     -A DOCKER-ISOLATION-STAGE-1 ! -s 192.0.2.0/24 -o bridge1 -j DROP
     -A DOCKER-ISOLATION-STAGE-1 ! -d 192.0.2.0/24 -i bridge1 -j DROP
     -A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
-    -A DOCKER-ISOLATION-STAGE-1 -j RETURN
     -A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
-    -A DOCKER-ISOLATION-STAGE-2 -j RETURN
     -A DOCKER-USER -j RETURN
     
 

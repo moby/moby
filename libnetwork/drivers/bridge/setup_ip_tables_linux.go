@@ -98,14 +98,6 @@ func setupIPChains(config configuration, version iptables.IPVersion) (natChain *
 		}
 	}()
 
-	if err := iptable.AddReturnRule(IsolationChain1); err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	if err := iptable.AddReturnRule(IsolationChain2); err != nil {
-		return nil, nil, nil, nil, err
-	}
-
 	if err := mirroredWSL2Workaround(config, version); err != nil {
 		return nil, nil, nil, nil, err
 	}
