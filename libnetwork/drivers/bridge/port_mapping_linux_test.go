@@ -884,13 +884,13 @@ func TestAddPortMappings(t *testing.T) {
 				var ipv iptables.IPVersion
 				hip := expChildIP(expPB.HostIP)
 				if expPB.IP.To4() == nil {
-					disableNAT = tc.gwMode6.natDisabled()
+					disableNAT = tc.gwMode6.routed()
 					ipv = iptables.IPv6
 					addrM = ctrIP6.IP.String() + "/128"
 					addrD = "[" + ctrIP6.IP.String() + "]"
 					addrH = hip.String() + "/128"
 				} else {
-					disableNAT = tc.gwMode4.natDisabled()
+					disableNAT = tc.gwMode4.routed()
 					ipv = iptables.IPv4
 					addrM = ctrIP4.IP.String() + "/32"
 					addrD = ctrIP4.IP.String()
@@ -912,7 +912,7 @@ func TestAddPortMappings(t *testing.T) {
 
 				// Check the DNAT rule.
 				dnatRule := ""
-				if ipv == iptables.IPv6 && !tc.gwMode6.natDisabled() {
+				if ipv == iptables.IPv6 && !tc.gwMode6.routed() {
 					dnatRule += "! -s fe80::/10 "
 				}
 				if tc.proxyPath != "" {
@@ -949,7 +949,7 @@ func TestAddPortMappings(t *testing.T) {
 				for _, expPB := range tc.expPBs {
 					hip := expChildIP(expPB.HostIP)
 					is4 := hip.To4() != nil
-					if (is4 && tc.gwMode4.natDisabled()) || (!is4 && tc.gwMode6.natDisabled()) {
+					if (is4 && tc.gwMode4.routed()) || (!is4 && tc.gwMode6.routed()) {
 						continue
 					}
 					p := newProxyCall(expPB.Proto.String(),

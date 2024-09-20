@@ -297,10 +297,10 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 		hpNatArgs []string
 	)
 	hostIP := config.HostIPv4
-	nat := !config.GwModeIPv4.natDisabled()
+	nat := !config.GwModeIPv4.routed()
 	if ipVer == iptables.IPv6 {
 		hostIP = config.HostIPv6
-		nat = !config.GwModeIPv6.natDisabled()
+		nat = !config.GwModeIPv6.routed()
 	}
 	// If hostIP is set, the user wants IPv4/IPv6 SNAT with the given address.
 	if hostIP != nil {

@@ -371,7 +371,7 @@ func newGwMode(gwMode string) (gwMode, error) {
 	return gwModeDefault, fmt.Errorf("unknown gateway mode %s", gwMode)
 }
 
-func (m gwMode) natDisabled() bool {
+func (m gwMode) routed() bool {
 	return m == gwModeRouted
 }
 
@@ -424,7 +424,7 @@ func (n *bridgeNetwork) getNetworkBridgeName() string {
 func (n *bridgeNetwork) getNATDisabled() (ipv4, ipv6 bool) {
 	n.Lock()
 	defer n.Unlock()
-	return n.config.GwModeIPv4.natDisabled(), n.config.GwModeIPv6.natDisabled()
+	return n.config.GwModeIPv4.routed(), n.config.GwModeIPv6.routed()
 }
 
 func (n *bridgeNetwork) userlandProxyPath() string {
