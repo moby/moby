@@ -22,7 +22,7 @@ import (
 func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []*Network) {
 	const netType = "bridge"
 	c, err := New(
-		OptionBoltdbWithRandomDBFile(t),
+		config.OptionDataDir(t.TempDir()),
 		config.OptionDriverConfig(netType, map[string]any{
 			netlabel.GenericData: options.Generic{"EnableIPForwarding": true},
 		}),
