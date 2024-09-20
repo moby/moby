@@ -21,7 +21,7 @@ The filter table is:
 
 By comparison with [ICC=true][1]:
 
-  - Rule 10 in the FORWARD chain replaces an ACCEPT rule that would have followed rule 5, matching the same packets.
+  - Rule 8 in the FORWARD chain replaces an ACCEPT rule that would have followed rule 5, matching the same packets.
     - Added in [setIcc][2]
 
 [1]: usernet-portmap.md

@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -90,15 +91,22 @@ func TestSetupIPChains(t *testing.T) {
 	createTestBridge(config, br, t)
 
 	assertBridgeConfig(config, br, d, t)
+	// The purpose of this test is unclear but, now there's an ipset of bridges, it's
+	// an error to create a bridge that's already been created. That can't happen in
+	// normal running. So, just flush the set between each step.
+	assert.NilError(t, netlink.IpsetFlush(ipsetExtBridges4))
 
 	config.EnableIPMasquerade = true
 	assertBridgeConfig(config, br, d, t)
+	assert.NilError(t, netlink.IpsetFlush(ipsetExtBridges4))
 
 	config.EnableICC = true
 	assertBridgeConfig(config, br, d, t)
+	assert.NilError(t, netlink.IpsetFlush(ipsetExtBridges4))
 
 	config.EnableIPMasquerade = false
 	assertBridgeConfig(config, br, d, t)
+	assert.NilError(t, netlink.IpsetFlush(ipsetExtBridges4))
 }
 
 func getBasicTestConfig() *networkConfiguration {
@@ -148,15 +156,16 @@ func assertIPTableChainProgramming(rule iptRule, descr string, t *testing.T) {
 func assertChainConfig(d *driver, t *testing.T) {
 	var err error
 
+	err = setupHashNetIpset(ipsetExtBridges4, unix.AF_INET)
+	assert.NilError(t, err)
 	d.natChain, d.filterChain, d.isolationChain1, d.isolationChain2, err = setupIPChains(d.config, iptables.IPv4)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
+
 	if d.config.EnableIP6Tables {
+		err = setupHashNetIpset(ipsetExtBridges6, unix.AF_INET6)
+		assert.NilError(t, err)
 		d.natChainV6, d.filterChainV6, d.isolationChain1V6, d.isolationChain2V6, err = setupIPChains(d.config, iptables.IPv6)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NilError(t, err)
 	}
 }
 
