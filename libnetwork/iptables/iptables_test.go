@@ -212,19 +212,6 @@ func addSomeRules(c *ChainInfo, ip net.IP, port int, proto, destAddr string, des
 func TestCleanup(t *testing.T) {
 	iptable, _, filterChain := createNewChain(t)
 
-	var rules []byte
-
-	// Cleanup filter/FORWARD first otherwise output of iptables-save is dirty
-	link := []string{
-		"-t", string(filterChain.Table),
-		string(Delete), "FORWARD",
-		"-o", bridgeName,
-		"-j", filterChain.Name,
-	}
-
-	if _, err := iptable.Raw(link...); err != nil {
-		t.Fatal(err)
-	}
 	filterChain.Remove()
 
 	err := iptable.RemoveExistingChain(chainName, Nat)
@@ -232,7 +219,7 @@ func TestCleanup(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rules, err = exec.Command("iptables-save").Output()
+	rules, err := exec.Command("iptables-save").Output()
 	if err != nil {
 		t.Fatal(err)
 	}

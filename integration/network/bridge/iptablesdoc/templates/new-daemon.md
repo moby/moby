@@ -31,17 +31,19 @@ The FORWARD chain rules are numbered in the output above, they are:
      Docker won't add rules to the DOCKER-USER chain, it's only for user-defined rules.
      It's (mostly) kept at the top of the by deleting it and re-creating after each
      new network is created, while traffic may be running for other networks.
-  2. Unconditional jump to DOCKER-ISOLATION-STAGE-1.
-     Set up during network creation by [setupIPTables][11], which ensures it appears
+  2. Early ACCEPT for any RELATED,ESTABLISHED traffic to a docker bridge. This rule
+     matches against an `ipset` called `docker-ext-bridges-v4` (`v6` for IPv6). The
+     set contains the CIDR address of each docker network, and it is updated as networks
+     are created and deleted.
+     So, this rule could be set up during bridge driver initialisation. But, it is
+     currently set up when a network is created, in [setupIPTables][11].
+  3. Unconditional jump to DOCKER-ISOLATION-STAGE-1.
+     Set up during network creation by [setupIPTables][12], which ensures it appears
      after the jump to DOCKER-USER (by deleting it and re-creating, while traffic
      may be running for other networks).
-  3. ACCEPT RELATED,ESTABLISHED packets into a specific bridge network.
-     Allows responses to outgoing requests, and continuation of incoming requests,
-     without needing to process any further rules.
-     This rule is also added during network creation, but the code to do it
-     is in libnetwork, [ProgramChain][12].
-  4. Jump to DOCKER, for any packet destined for a bridge network. Added when
-     the network is created, in [ProgramChain][13] ("filterChain" is the DOCKER chain).
+  4. Jump to DOCKER, for any packet destined for any bridge network, identified by
+     matching against the `docker-ext-bridge-v[46]` set. Added when the network is
+     created, in [setupIPTables][13].
      The DOCKER chain implements per-port/protocol filtering for each container.
   5. ACCEPT any packet leaving a network, also set up when the network is created, in
      [setupIPTablesInternal][14].
@@ -50,9 +52,9 @@ The FORWARD chain rules are numbered in the output above, they are:
      [setIcc][15].
 
 [10]: https://github.com/moby/moby/blob/e05848c0025b67a16aaafa8cdff95d5e2c064105/libnetwork/firewall_linux.go#L50
-[11]: https://github.com/moby/moby/blob/333cfa640239153477bf635a8131734d0e9d099d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L201
-[12]: https://github.com/moby/moby/blob/e05848c0025b67a16aaafa8cdff95d5e2c064105/libnetwork/iptables/iptables.go#L270
-[13]: https://github.com/moby/moby/blob/e05848c0025b67a16aaafa8cdff95d5e2c064105/libnetwork/iptables/iptables.go#L251-L255
+[11]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L230-L232
+[12]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L227-L229
+[13]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L223-L226
 [14]: https://github.com/moby/moby/blob/333cfa640239153477bf635a8131734d0e9d099d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L264
 [15]: https://github.com/moby/moby/blob/333cfa640239153477bf635a8131734d0e9d099d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L343
 
