@@ -170,7 +170,7 @@ handle_single_manifest_v2() {
 		fi
 
 		case "$layerMediaType" in
-			application/vnd.docker.image.rootfs.diff.tar.gzip|application/vnd.oci.image.layer.v1.tar+gzip)
+			application/vnd.oci.image.layer.v1.tar+gzip | application/vnd.docker.image.rootfs.diff.tar.gzip)
 				local layerTar="$layerId/layer.tar"
 				layerFiles=("${layerFiles[@]}" "$layerTar")
 				# TODO figure out why "-C -" doesn't work here
