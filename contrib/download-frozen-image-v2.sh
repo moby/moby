@@ -318,7 +318,7 @@ while [ $# -gt 0 ]; do
 			mediaType="$(echo "$manifestJson" | jq --raw-output '.mediaType')"
 
 			case "$mediaType" in
-				application/vnd.docker.distribution.manifest.v2+json|application/vnd.oci.image.manifest.v1+json)
+				application/vnd.oci.image.manifest.v1+json | application/vnd.docker.distribution.manifest.v2+json)
 					handle_single_manifest_v2 "$manifestJson"
 					;;
 				application/vnd.docker.distribution.manifest.list.v2+json|application/vnd.oci.image.index.v1+json)
