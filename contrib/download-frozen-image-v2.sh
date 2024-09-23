@@ -203,10 +203,10 @@ handle_single_manifest_v2() {
 
 	local manifestJsonEntry
 	manifestJsonEntry="$(
-		echo '{}' | jq -rjc '. + {
+		echo '{}' | jq --raw-output --compact-output '. + {
 			Config: "'"$configFile"'",
 			RepoTags: ["'"${image#library\/}:$tag"'"],
-			Layers: '"$(echo '[]' | jq -rjc ".$(for layerFile in "${layerFiles[@]}"; do echo " + [ \"$layerFile\" ]"; done)")"'
+			Layers: '"$(echo '[]' | jq --raw-output --compact-output ".$(for layerFile in "${layerFiles[@]}"; do echo " + [ \"$layerFile\" ]"; done)")"'
 		}'
 	)"
 	manifestJsonEntries=("${manifestJsonEntries[@]}" "$manifestJsonEntry")
