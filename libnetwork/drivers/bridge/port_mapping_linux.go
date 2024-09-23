@@ -809,7 +809,7 @@ func setPerPortForwarding(b portBinding, ipv iptables.IPVersion, bridgeName stri
 		"-j", "ACCEPT",
 	}
 	rule := iptRule{ipv: ipv, table: iptables.Filter, chain: DockerChain, args: args}
-	if err := appendOrDelChainRule(rule, "MASQUERADE", enable); err != nil {
+	if err := appendOrDelChainRule(rule, "OPEN PORT", enable); err != nil {
 		return err
 	}
 
@@ -828,7 +828,7 @@ func setPerPortForwarding(b portBinding, ipv iptables.IPVersion, bridgeName stri
 			"--checksum-fill",
 		}
 		rule := iptRule{ipv: ipv, table: iptables.Mangle, chain: "POSTROUTING", args: args}
-		if err := appendOrDelChainRule(rule, "MASQUERADE", enable); err != nil {
+		if err := appendOrDelChainRule(rule, "SCTP CHECKSUM", enable); err != nil {
 			return err
 		}
 	}
