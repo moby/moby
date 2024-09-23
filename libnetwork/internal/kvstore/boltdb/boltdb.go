@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -14,9 +15,6 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-// ErrBoltBucketOptionMissing is thrown when boltBucket config option is missing
-var ErrBoltBucketOptionMissing = errors.New("boltBucket config option missing")
-
 const filePerm = 0o644
 
 // BoltDB type implements the Store interface
@@ -26,42 +24,39 @@ type BoltDB struct {
 	boltBucket []byte
 	dbIndex    atomic.Uint64
 	path       string
-	timeout    time.Duration
 }
 
-const (
-	libkvmetadatalen = 8
-	transientTimeout = time.Duration(10) * time.Second
-)
+const libkvmetadatalen = 8
 
 // New opens a new BoltDB connection to the specified path and bucket
-func New(endpoint string, options *store.Config) (store.Store, error) {
-	if (options == nil) || (len(options.Bucket) == 0) {
-		return nil, ErrBoltBucketOptionMissing
-	}
-
-	dir, _ := filepath.Split(endpoint)
+func New(path, bucket string) (store.Store, error) {
+	dir, _ := filepath.Split(path)
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err
 	}
 
-	db, err := bolt.Open(endpoint, filePerm, &bolt.Options{
-		Timeout: options.ConnectionTimeout,
+	db, err := bolt.Open(path, filePerm, &bolt.Options{
+		// The bbolt package opens the underlying db file and then issues an
+		// exclusive flock to ensures that it can safely write to the db. If
+		// it fails, it'll re-issue flocks every few ms until Timeout is
+		// reached.
+		// This nanosecond timeout bypasses that retry loop and make sure the
+		// bbolt package returns an ErrTimeout straight away. That way, the
+		// daemon, and unit tests, will fail fast and loudly instead of
+		// silently introducing delays.
+		Timeout: time.Nanosecond,
 	})
 	if err != nil {
+		if errors.Is(err, bolt.ErrTimeout) {
+			return nil, fmt.Errorf("boltdb file %s is already open", path)
+		}
 		return nil, err
-	}
-
-	timeout := transientTimeout
-	if options.ConnectionTimeout != 0 {
-		timeout = options.ConnectionTimeout
 	}
 
 	b := &BoltDB{
 		client:     db,
-		path:       endpoint,
-		boltBucket: []byte(options.Bucket),
-		timeout:    timeout,
+		path:       path,
+		boltBucket: []byte(bucket),
 	}
 
 	return b, nil
