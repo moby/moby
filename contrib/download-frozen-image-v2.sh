@@ -341,6 +341,8 @@ while [ $# -gt 0 ]; do
 							submanifestJson="$(
 								curl -fsSL \
 									-H "Authorization: Bearer $token" \
+									-H 'Accept: application/vnd.oci.image.manifest.v1+json' \
+									-H 'Accept: application/vnd.oci.image.index.v1+json' \
 									-H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
 									-H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
 									-H 'Accept: application/vnd.docker.distribution.manifest.v1+json' \
