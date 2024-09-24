@@ -30,8 +30,14 @@ Note that:
    to the container's address. This rule is added when the container is created
    (unlike all the other rules so-far, which were created during driver or
    network initialisation). [setPerPortForwarding][1]
+   - These per-port rules are inserted at the head of the chain, so that they
+     appear before the network's DROP rule [defaultDrop][2] which is always
+     appended to the end of the chain. In this case, because `docker0` was
+     created before `bridge1`, the `bridge1` rules appear above and below the
+     `docker0` DROP rule.
 
 [1]: https://github.com/moby/moby/blob/675c2ac2db93e38bb9c5a6615d4155a969535fd9/libnetwork/drivers/bridge/port_mapping_linux.go#L795
+[2]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L252
 
 And the corresponding nat table:
 

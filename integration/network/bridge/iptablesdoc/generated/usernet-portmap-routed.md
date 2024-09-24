@@ -39,8 +39,10 @@ on the same host._
     
     Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 ACCEPT     1    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
-    2        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
+    1        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
+    2        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
+    3        0     0 ACCEPT     1    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
+    4        0     0 DROP       0    --  !bridge1 bridge1  0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-ISOLATION-STAGE-1 (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -76,8 +78,10 @@ on the same host._
     -A FORWARD -o docker0 -j DOCKER
     -A FORWARD -i docker0 ! -o docker0 -j ACCEPT
     -A FORWARD -i docker0 -o docker0 -j ACCEPT
-    -A DOCKER -o bridge1 -p icmp -j ACCEPT
     -A DOCKER -d 192.0.2.2/32 ! -i bridge1 -o bridge1 -p tcp -m tcp --dport 80 -j ACCEPT
+    -A DOCKER ! -i docker0 -o docker0 -j DROP
+    -A DOCKER -o bridge1 -p icmp -j ACCEPT
+    -A DOCKER ! -i bridge1 -o bridge1 -j DROP
     -A DOCKER-ISOLATION-STAGE-1 -i bridge1 ! -o bridge1 -j DOCKER-ISOLATION-STAGE-2
     -A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
     -A DOCKER-ISOLATION-STAGE-1 -j RETURN
@@ -96,6 +100,11 @@ so *ALL* ICMP message types are allowed.
 _The ACCEPT rule as shown by `iptables -L` looks alarming until you spot that it's
 for `prot 1`._
 
+Because the ICMP rule (rule 3) is per-network, it is appended to the chain along
+with the default-DROP rule (rule 4). So, it is likely to be separated from
+per-port/protocol ACCEPT rules for published ports on the same network. But it
+will always appear before the default-DROP.
+
 _[RFC 4890 section 4.3][6] makes recommendations for filtering ICMPv6. These
 have been considered, but the host firewall is not a network boundary in the
 sense used by the RFC. So, Node Information and Router Renumbering messages are
@@ -104,13 +113,17 @@ needed._
 
     Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 ACCEPT     1    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
-    2        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
+    1        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
+    2        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
+    3        0     0 ACCEPT     1    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
+    4        0     0 DROP       0    --  !bridge1 bridge1  0.0.0.0/0            0.0.0.0/0           
     
 
     -N DOCKER
-    -A DOCKER -o bridge1 -p icmp -j ACCEPT
     -A DOCKER -d 192.0.2.2/32 ! -i bridge1 -o bridge1 -p tcp -m tcp --dport 80 -j ACCEPT
+    -A DOCKER ! -i docker0 -o docker0 -j DROP
+    -A DOCKER -o bridge1 -p icmp -j ACCEPT
+    -A DOCKER ! -i bridge1 -o bridge1 -j DROP
     
 
 The nat table is:
