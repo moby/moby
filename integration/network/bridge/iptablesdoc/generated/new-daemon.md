@@ -22,6 +22,7 @@ Table `filter`:
     
     Chain DOCKER (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-ISOLATION-STAGE-1 (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -54,6 +55,7 @@ Table `filter`:
     -A FORWARD -o docker0 -j DOCKER
     -A FORWARD -i docker0 ! -o docker0 -j ACCEPT
     -A FORWARD -i docker0 -o docker0 -j ACCEPT
+    -A DOCKER ! -i docker0 -o docker0 -j DROP
     -A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
     -A DOCKER-ISOLATION-STAGE-1 -j RETURN
     -A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
@@ -108,7 +110,12 @@ But, when ICC is disabled, rule 6 is DROP, so it would need to be placed before
 rule 5. Because the rules are generated in different places, that's a slightly
 bigger change than it should be._
 
-The DOCKER chain is empty, because there are no containers with port mappings yet.
+The DOCKER chain has a single DROP rule for the bridge network, to drop any
+packets routed to the network that have not originated in the network. Added by
+[defaultDrop][21].
+_This means there is no dependency on the filter-FORWARD chain's default policy.
+Even if it is ACCEPT, packets will be dropped unless container ports/protocols
+are published._
 
 The DOCKER-ISOLATION chains implement inter-network isolation, all (unrelated)
 packets are processed by these chains. The rule are inserted at the head of the
@@ -119,6 +126,7 @@ chain when a network is created, in [setINC][20].
     packets that are destined for any other network are dropped.
 
 [20]: https://github.com/moby/moby/blob/333cfa640239153477bf635a8131734d0e9d099d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L369
+[21]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L252
 
 Table nat:
 

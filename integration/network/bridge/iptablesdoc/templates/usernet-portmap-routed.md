@@ -31,6 +31,11 @@ so *ALL* ICMP message types are allowed.
 _The ACCEPT rule as shown by `iptables -L` looks alarming until you spot that it's
 for `prot 1`._
 
+Because the ICMP rule (rule 3) is per-network, it is appended to the chain along
+with the default-DROP rule (rule 4). So, it is likely to be separated from
+per-port/protocol ACCEPT rules for published ports on the same network. But it
+will always appear before the default-DROP.
+
 _[RFC 4890 section 4.3][6] makes recommendations for filtering ICMPv6. These
 have been considered, but the host firewall is not a network boundary in the
 sense used by the RFC. So, Node Information and Router Renumbering messages are

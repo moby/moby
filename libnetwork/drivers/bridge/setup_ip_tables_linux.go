@@ -177,6 +177,7 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 		n.registerIptCleanFunc(func() error {
 			return setupIPTablesInternal(ipVersion, config, maskedAddr, hairpinMode, false)
 		})
+
 		natChain, filterChain, _, _, err := n.getDriverChains(ipVersion)
 		if err != nil {
 			return fmt.Errorf("Failed to setup IP tables, cannot acquire chain info %s", err.Error())
@@ -191,9 +192,15 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 		if err != nil {
 			return fmt.Errorf("Failed to program FILTER chain: %s", err.Error())
 		}
-
 		n.registerIptCleanFunc(func() error {
 			return iptable.ProgramChain(filterChain, config.BridgeName, hairpinMode, false)
+		})
+
+		if err := defaultDrop(ipVersion, config.BridgeName, true); err != nil {
+			return fmt.Errorf("failed to add default-drop rule: %s", err.Error())
+		}
+		n.registerIptCleanFunc(func() error {
+			return defaultDrop(ipVersion, config.BridgeName, false)
 		})
 	}
 
@@ -214,6 +221,17 @@ func setICMP(ipv iptables.IPVersion, bridgeName string, enable bool) error {
 		"-j", "ACCEPT",
 	}}
 	return appendOrDelChainRule(icmpRule, "ICMP", enable)
+}
+
+// Append to the filter table's DOCKER chain (the default DROP rule must follow
+// per-port ACCEPT rules, which will be inserted at the top of the chain).
+func defaultDrop(ipv iptables.IPVersion, bridgeName string, enable bool) error {
+	dropRule := iptRule{ipv: ipv, table: iptables.Filter, chain: DockerChain, args: []string{
+		"!", "-i", bridgeName,
+		"-o", bridgeName,
+		"-j", "DROP",
+	}}
+	return appendOrDelChainRule(dropRule, "DEFAULT DROP", enable)
 }
 
 type iptRule struct {
