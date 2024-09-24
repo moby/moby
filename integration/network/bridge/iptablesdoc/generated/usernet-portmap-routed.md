@@ -8,7 +8,7 @@ Running the daemon with the userland proxy disabled then, as before, adding a ne
 	  --subnet 192.0.2.0/24 --gateway 192.0.2.1 bridge1
 	docker run --network bridge1 -p 8080:80 --name c1 busybox
 
-The filter table is the same as with the userland proxy enabled.
+The filter table is largely the same as with the userland proxy enabled.
 
 _Note that this means inter-network communication is disabled as-normal so,
 although published ports will be directly accessible from a remote host
@@ -39,7 +39,8 @@ on the same host._
     
     Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
+    1        0     0 ACCEPT     1    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
+    2        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
     
     Chain DOCKER-ISOLATION-STAGE-1 (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -75,6 +76,7 @@ on the same host._
     -A FORWARD -o docker0 -j DOCKER
     -A FORWARD -i docker0 ! -o docker0 -j ACCEPT
     -A FORWARD -i docker0 -o docker0 -j ACCEPT
+    -A DOCKER -o bridge1 -p icmp -j ACCEPT
     -A DOCKER -d 192.0.2.2/32 ! -i bridge1 -o bridge1 -p tcp -m tcp --dport 80 -j ACCEPT
     -A DOCKER-ISOLATION-STAGE-1 -i bridge1 ! -o bridge1 -j DOCKER-ISOLATION-STAGE-2
     -A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
@@ -86,6 +88,30 @@ on the same host._
     
 
 </details>
+
+However, a rule is added by [setICMP][5] to the DOCKER chain (shown below) to
+allow ICMP. The equivalent IPv6 rule uses `-p icmpv6` rather than `-p icmp`,
+so *ALL* ICMP message types are allowed.
+
+_The ACCEPT rule as shown by `iptables -L` looks alarming until you spot that it's
+for `prot 1`._
+
+_[RFC 4890 section 4.3][6] makes recommendations for filtering ICMPv6. These
+have been considered, but the host firewall is not a network boundary in the
+sense used by the RFC. So, Node Information and Router Renumbering messages are
+not discarded, and experimental/unused types are allowed because they may be
+needed._
+
+    Chain DOCKER (2 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 ACCEPT     1    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
+    2        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
+    
+
+    -N DOCKER
+    -A DOCKER -o bridge1 -p icmp -j ACCEPT
+    -A DOCKER -d 192.0.2.2/32 ! -i bridge1 -o bridge1 -p tcp -m tcp --dport 80 -j ACCEPT
+    
 
 The nat table is:
 
@@ -141,3 +167,5 @@ _And, the userland proxy won't be started for mapped ports._
 [2]: https://github.com/moby/moby/blob/333cfa640239153477bf635a8131734d0e9d099d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L294
 [3]: https://github.com/moby/moby/blob/675c2ac2db93e38bb9c5a6615d4155a969535fd9/libnetwork/drivers/bridge/port_mapping_linux.go#L477-L479
 [4]: https://github.com/moby/moby/blob/333cfa640239153477bf635a8131734d0e9d099d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L290
+[5]: https://github.com/robmry/moby/blob/d456d79cfc12cd7c801eebce0550b645c5343ca6/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L390-L395
+[6]: https://www.rfc-editor.org/rfc/rfc4890#section-4.3
