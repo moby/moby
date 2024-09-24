@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/config"
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/ipams/null"
@@ -45,7 +44,7 @@ const (
 
 func TestMain(m *testing.M) {
 	// Cleanup local datastore file
-	_ = os.Remove(datastore.DefaultScope("").Client.Address)
+	_ = os.Remove("/var/lib/docker/network/files/local-kv.db")
 
 	os.Exit(m.Run())
 }
