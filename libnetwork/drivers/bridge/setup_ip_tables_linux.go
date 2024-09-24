@@ -203,6 +203,19 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 	return err
 }
 
+func setICMP(ipv iptables.IPVersion, bridgeName string, enable bool) error {
+	icmpProto := "icmp"
+	if ipv == iptables.IPv6 {
+		icmpProto = "icmpv6"
+	}
+	icmpRule := iptRule{ipv: ipv, table: iptables.Filter, chain: DockerChain, args: []string{
+		"-o", bridgeName,
+		"-p", icmpProto,
+		"-j", "ACCEPT",
+	}}
+	return appendOrDelChainRule(icmpRule, "ICMP", enable)
+}
+
 type iptRule struct {
 	ipv   iptables.IPVersion
 	table iptables.Table
@@ -306,6 +319,13 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 	// Set Inter Container Communication.
 	if err := setIcc(ipVer, config.BridgeName, config.EnableICC, enable); err != nil {
 		return err
+	}
+
+	// Allow ICMP in routed mode.
+	if !nat {
+		if err := setICMP(ipVer, config.BridgeName, enable); err != nil {
+			return err
+		}
 	}
 
 	// Set Accept on all non-intercontainer outgoing packets.
