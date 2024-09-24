@@ -108,7 +108,7 @@ type Controller struct {
 // New creates a new instance of network controller.
 func New(cfgOptions ...config.Option) (*Controller, error) {
 	cfg := config.New(cfgOptions...)
-	store, err := datastore.New(cfg.Scope)
+	store, err := datastore.New(cfg.DataDir, cfg.DatastoreBucket)
 	if err != nil {
 		return nil, fmt.Errorf("libnet controller initialization: %w", err)
 	}
@@ -333,7 +333,9 @@ func (c *Controller) makeDriverConfig(ntype string) map[string]interface{} {
 		return nil
 	}
 
-	cfg := map[string]interface{}{}
+	cfg := map[string]interface{}{
+		netlabel.LocalKVClient: c.store,
+	}
 	for _, label := range c.cfg.Labels {
 		key, val, _ := strings.Cut(label, "=")
 		if !strings.HasPrefix(key, netlabel.DriverPrefix+"."+ntype) {
@@ -346,10 +348,6 @@ func (c *Controller) makeDriverConfig(ntype string) map[string]interface{} {
 	// Merge in the existing config for this driver.
 	for k, v := range c.cfg.DriverConfig(ntype) {
 		cfg[k] = v
-	}
-
-	if c.cfg.Scope.IsValid() {
-		cfg[netlabel.LocalKVClient] = c.store
 	}
 
 	return cfg
