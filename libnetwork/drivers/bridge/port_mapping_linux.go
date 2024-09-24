@@ -598,6 +598,10 @@ func bindTCPOrUDP(cfg portBindingReq, port, typ, proto int) (_ portBinding, retE
 		}
 	}()
 
+	if err := syscall.SetsockoptInt(sd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1); err != nil {
+		return portBinding{}, fmt.Errorf("failed to setsockopt(SO_REUSEADDR) for %s: %w", cfg, err)
+	}
+
 	if domain == syscall.AF_INET6 {
 		syscall.SetsockoptInt(sd, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 1)
 	}

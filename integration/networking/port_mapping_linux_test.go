@@ -400,3 +400,56 @@ func TestAccessPublishedPortFromRemoteHost(t *testing.T) {
 		}
 	}
 }
+
+// TestRestartUserlandProxyUnder2MSL checks that a container can be restarted
+// while previous connections to the proxy are still in TIME_WAIT state.
+func TestRestartUserlandProxyUnder2MSL(t *testing.T) {
+	skip.If(t, testEnv.IsRootless())
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const netName = "nat-time-wait"
+	network.CreateNoError(ctx, t, c, netName,
+		network.WithDriver("bridge"),
+		network.WithOption(bridge.BridgeName, netName))
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	ctrName := sanitizeCtrName(t.Name() + "-server")
+	ctrOpts := []func(*container.TestContainerConfig){
+		container.WithName(ctrName),
+		container.WithExposedPorts("80/tcp"),
+		container.WithPortMap(nat.PortMap{"80/tcp": {{HostPort: "1780"}}}),
+		container.WithCmd("httpd", "-f"),
+		container.WithNetworkMode(netName),
+	}
+
+	container.Run(ctx, t, c, ctrOpts...)
+	defer c.ContainerRemove(ctx, ctrName, containertypes.RemoveOptions{Force: true})
+
+	// Make an HTTP request to open a TCP connection to the proxy. We don't
+	// care about the HTTP response, just that the connection is established.
+	// So, check that we receive a 404 to make sure we've a working full-duplex
+	// TCP connection.
+	httpClient := &http.Client{Timeout: 3 * time.Second}
+	resp, err := httpClient.Get("http://127.0.0.1:1780")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(resp.StatusCode, 404))
+
+	// Removing the container will kill the userland proxy, and the connection
+	// opened by the previous HTTP request will be properly closed (ie. on both
+	// sides). Thus, that connection will transition to the TIME_WAIT state.
+	assert.NilError(t, c.ContainerRemove(ctx, ctrName, containertypes.RemoveOptions{Force: true}))
+
+	// Make sure the container can be restarted. [container.Run] checks that
+	// the ContainerStart API call doesn't return an error. We don't need to
+	// make another TCP connection either, that's out of scope. Hence, we don't
+	// need to check anything after this call.
+	container.Run(ctx, t, c, ctrOpts...)
+}
