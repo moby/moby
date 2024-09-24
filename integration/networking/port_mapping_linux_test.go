@@ -323,14 +323,21 @@ func TestAccessPublishedPortFromHost(t *testing.T) {
 						// loopback address.
 						continue
 					}
+
+					addr := hostAddr.String()
 					if hostAddr.IsLinkLocalUnicast() {
-						// Mapping ports on link-local addresses is currently
-						// unsupported.
-						continue
+						if !tc.ulpEnabled {
+							// iptables can DNAT packets addressed to link-local
+							// addresses, but they won't be SNATed, so the
+							// target server won't know where to reply. Thus,
+							// the userland-proxy is required for these addresses.
+							continue
+						}
+						addr += "%25" + iface
 					}
 
 					httpClient := &http.Client{Timeout: 3 * time.Second}
-					resp, err := httpClient.Get("http://" + net.JoinHostPort(hostAddr.String(), hostPort))
+					resp, err := httpClient.Get("http://" + net.JoinHostPort(addr, hostPort))
 					assert.NilError(t, err)
 					assert.Check(t, is.Equal(resp.StatusCode, 404))
 				}
