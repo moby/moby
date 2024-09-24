@@ -1980,7 +1980,27 @@ func (n *Network) ResolveName(ctx context.Context, req string, ipType int) ([]ne
 
 	req = strings.TrimSuffix(req, ".")
 	req = strings.ToLower(req)
-	ipSet, ok := sr.svcMap.Get(req)
+
+	// Support wildcard matching, naïve implementation uses a loop
+	selectedKey := req
+	ok = false
+	var ipSet []interface{}
+	for _, key := range sr.svcMap.Keys() {
+		if key == selectedKey ||
+			(strings.HasPrefix(key, "*.") &&
+				strings.HasSuffix(req, strings.TrimPrefix(key, "*"))) {
+			selectedKey = key
+			ok = true
+			var found bool
+			ipSet, found = sr.svcMap.Get(selectedKey)
+			if !found {
+				logrus.Errorf("svcMap changed unexpectedly looking for key %s", key)
+				continue
+			}
+
+			break
+		}
+	}
 
 	if ipType == types.IPv6 {
 		// If the name resolved to v4 address then its a valid name in
@@ -1990,7 +2010,7 @@ func (n *Network) ResolveName(ctx context.Context, req string, ipType int) ([]ne
 		if ok && !n.enableIPv6 {
 			ipv6Miss = true
 		}
-		ipSet, ok = sr.svcIPv6Map.Get(req)
+		ipSet, ok = sr.svcIPv6Map.Get(selectedKey)
 	}
 
 	if ok && len(ipSet) > 0 {
