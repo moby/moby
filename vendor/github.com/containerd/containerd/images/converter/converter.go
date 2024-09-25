@@ -23,7 +23,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 )
 
 type convertOpts struct {

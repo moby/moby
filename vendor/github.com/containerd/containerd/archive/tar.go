@@ -29,11 +29,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/moby/sys/userns"
+
 	"github.com/containerd/containerd/archive/tarheader"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/epoch"
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/continuity/fs"
+	"github.com/containerd/log"
 )
 
 var bufPool = &sync.Pool{

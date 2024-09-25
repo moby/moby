@@ -23,11 +23,11 @@ import (
 
 	streamingapi "github.com/containerd/containerd/api/services/streaming/v1"
 	transferapi "github.com/containerd/containerd/api/services/transfer/v1"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/pkg/streaming"
 	"github.com/containerd/containerd/pkg/transfer"
 	"github.com/containerd/containerd/pkg/transfer/proxy"
 	"github.com/containerd/containerd/protobuf"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/typeurl/v2"
 )
 

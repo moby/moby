@@ -22,7 +22,7 @@ import (
 	"os"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/errdefs"
 )
 
 // readerat implements io.ReaderAt in a completely stateless manner by opening

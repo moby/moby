@@ -25,8 +25,8 @@ import (
 	"github.com/pelletier/go-toml"
 	"github.com/sirupsen/logrus"
 
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/plugin"
+	"github.com/containerd/errdefs"
 )
 
 // NOTE: Any new map fields added also need to be handled in mergeConfig.
@@ -99,9 +99,15 @@ func (c *Config) GetVersion() int {
 func (c *Config) ValidateV2() error {
 	version := c.GetVersion()
 	if version < 2 {
-		logrus.Warnf("containerd config version `%d` has been deprecated and will be removed in containerd v2.0, please switch to version `2`, "+
-			"see https://github.com/containerd/containerd/blob/main/docs/PLUGINS.md#version-header", version)
+		logrus.Warnf("containerd config version `%d` has been deprecated and will be converted on each startup in containerd v2.0, "+
+			"use `containerd config migrate` after upgrading to containerd 2.0 to avoid conversion on startup", version)
 		return nil
+	}
+	if version > 2 {
+		logrus.Errorf("containerd config version `%d` is not supported, the max version is `2`, "+
+			"use `containerd config default` to generate a new config or manually revert to version `2`", version)
+		return fmt.Errorf("unsupported config version `%d`", version)
+
 	}
 	for _, p := range c.DisabledPlugins {
 		if !strings.HasPrefix(p, "io.containerd.") || len(strings.SplitN(p, ".", 4)) < 4 {
@@ -164,8 +170,10 @@ type CgroupConfig struct {
 
 // ProxyPlugin provides a proxy plugin configuration
 type ProxyPlugin struct {
-	Type    string `toml:"type"`
-	Address string `toml:"address"`
+	Type     string            `toml:"type"`
+	Address  string            `toml:"address"`
+	Platform string            `toml:"platform"`
+	Exports  map[string]string `toml:"exports"`
 }
 
 // Decode unmarshals a plugin specific configuration by plugin id
@@ -251,13 +259,18 @@ func loadConfigFile(path string) (*Config, error) {
 }
 
 // resolveImports resolves import strings list to absolute paths list:
-// - If path contains *, glob pattern matching applied
 // - Non abs path is relative to parent config file directory
+// - If path contains *, glob pattern matching applied
 // - Abs paths returned as is
 func resolveImports(parent string, imports []string) ([]string, error) {
 	var out []string
 
 	for _, path := range imports {
+		path := filepath.Clean(path)
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(filepath.Dir(parent), path)
+		}
+
 		if strings.Contains(path, "*") {
 			matches, err := filepath.Glob(path)
 			if err != nil {
@@ -266,11 +279,6 @@ func resolveImports(parent string, imports []string) ([]string, error) {
 
 			out = append(out, matches...)
 		} else {
-			path = filepath.Clean(path)
-			if !filepath.IsAbs(path) {
-				path = filepath.Join(filepath.Dir(parent), path)
-			}
-
 			out = append(out, path)
 		}
 	}

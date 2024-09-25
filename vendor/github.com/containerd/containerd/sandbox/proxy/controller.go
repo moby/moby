@@ -20,9 +20,9 @@ import (
 	"context"
 
 	api "github.com/containerd/containerd/api/services/sandbox/v1"
-	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/sandbox"
+	"github.com/containerd/errdefs"
+	imagespec "github.com/opencontainers/image-spec/specs-go/v1"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -73,14 +73,14 @@ func (s *remoteSandboxController) Start(ctx context.Context, sandboxID string) (
 	}, nil
 }
 
-func (s *remoteSandboxController) Platform(ctx context.Context, sandboxID string) (platforms.Platform, error) {
+func (s *remoteSandboxController) Platform(ctx context.Context, sandboxID string) (imagespec.Platform, error) {
 	resp, err := s.client.Platform(ctx, &api.ControllerPlatformRequest{SandboxID: sandboxID})
 	if err != nil {
-		return platforms.Platform{}, errdefs.FromGRPC(err)
+		return imagespec.Platform{}, errdefs.FromGRPC(err)
 	}
 
 	platform := resp.GetPlatform()
-	return platforms.Platform{
+	return imagespec.Platform{
 		Architecture: platform.GetArchitecture(),
 		OS:           platform.GetOS(),
 		Variant:      platform.GetVariant(),

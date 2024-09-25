@@ -24,6 +24,7 @@ import (
 	"google.golang.org/grpc"
 
 	api "github.com/containerd/containerd/api/runtime/sandbox/v1"
+	"github.com/containerd/errdefs"
 )
 
 // NewClient returns a new sandbox client that handles both GRPC and TTRPC clients.
@@ -74,4 +75,8 @@ func (g *grpcBridge) PingSandbox(ctx context.Context, request *api.PingRequest) 
 
 func (g *grpcBridge) ShutdownSandbox(ctx context.Context, request *api.ShutdownSandboxRequest) (*api.ShutdownSandboxResponse, error) {
 	return g.client.ShutdownSandbox(ctx, request)
+}
+
+func (g *grpcBridge) SandboxMetrics(ctx context.Context, request *api.SandboxMetricsRequest) (*api.SandboxMetricsResponse, error) {
+	return nil, errdefs.ToGRPC(errdefs.ErrNotImplemented)
 }

@@ -28,12 +28,11 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	oci "github.com/opencontainers/runtime-spec/specs-go"
-	"tags.cncf.io/container-device-interface/internal/multierror"
 	cdi "tags.cncf.io/container-device-interface/specs-go"
 )
 
 // Option is an option to change some aspect of default CDI behavior.
-type Option func(*Cache) error
+type Option func(*Cache)
 
 // Cache stores CDI Specs loaded from Spec directories.
 type Cache struct {
@@ -54,16 +53,27 @@ type Cache struct {
 // is detected. This option can be used to disable this behavior when a
 // manually refreshed mode is preferable.
 func WithAutoRefresh(autoRefresh bool) Option {
-	return func(c *Cache) error {
+	return func(c *Cache) {
 		c.autoRefresh = autoRefresh
-		return nil
 	}
 }
 
 // NewCache creates a new CDI Cache. The cache is populated from a set
 // of CDI Spec directories. These can be specified using a WithSpecDirs
 // option. The default set of directories is exposed in DefaultSpecDirs.
+//
+// Note:
+//
+//	The error returned by this function is always nil and it is only
+//	returned to maintain API compatibility with consumers.
 func NewCache(options ...Option) (*Cache, error) {
+	return newCache(options...), nil
+}
+
+// newCache creates a CDI cache with the supplied options.
+// This function allows testing without handling the nil error returned by the
+// NewCache function.
+func newCache(options ...Option) *Cache {
 	c := &Cache{
 		autoRefresh: true,
 		watch:       &watch{},
@@ -73,7 +83,8 @@ func NewCache(options ...Option) (*Cache, error) {
 	c.Lock()
 	defer c.Unlock()
 
-	return c, c.configure(options...)
+	c.configure(options...)
+	return c
 }
 
 // Configure applies options to the Cache. Updates and refreshes the
@@ -86,18 +97,16 @@ func (c *Cache) Configure(options ...Option) error {
 	c.Lock()
 	defer c.Unlock()
 
-	return c.configure(options...)
+	c.configure(options...)
+
+	return nil
 }
 
 // Configure the Cache. Start/stop CDI Spec directory watch, refresh
 // the Cache if necessary.
-func (c *Cache) configure(options ...Option) error {
-	var err error
-
+func (c *Cache) configure(options ...Option) {
 	for _, o := range options {
-		if err = o(c); err != nil {
-			return fmt.Errorf("failed to apply cache options: %w", err)
-		}
+		o(c)
 	}
 
 	c.dirErrors = make(map[string]error)
@@ -108,8 +117,6 @@ func (c *Cache) configure(options ...Option) error {
 		c.watch.start(&c.Mutex, c.refresh, c.dirErrors)
 	}
 	c.refresh()
-
-	return nil
 }
 
 // Refresh rescans the CDI Spec directories and refreshes the Cache.
@@ -125,11 +132,11 @@ func (c *Cache) Refresh() error {
 	}
 
 	// collect and return cached errors, much like refresh() does it
-	var result error
-	for _, errors := range c.errors {
-		result = multierror.Append(result, errors...)
+	errs := []error{}
+	for _, specErrs := range c.errors {
+		errs = append(errs, errors.Join(specErrs...))
 	}
-	return result
+	return errors.Join(errs...)
 }
 
 // Refresh the Cache by rescanning CDI Spec directories and files.
@@ -139,12 +146,10 @@ func (c *Cache) refresh() error {
 		devices    = map[string]*Device{}
 		conflicts  = map[string]struct{}{}
 		specErrors = map[string][]error{}
-		result     []error
 	)
 
 	// collect errors per spec file path and once globally
 	collectError := func(err error, paths ...string) {
-		result = append(result, err)
 		for _, path := range paths {
 			specErrors[path] = append(specErrors[path], err)
 		}
@@ -197,7 +202,11 @@ func (c *Cache) refresh() error {
 	c.devices = devices
 	c.errors = specErrors
 
-	return multierror.New(result...)
+	errs := []error{}
+	for _, specErrs := range specErrors {
+		errs = append(errs, errors.Join(specErrs...))
+	}
+	return errors.Join(errs...)
 }
 
 // RefreshIfRequired triggers a refresh if necessary.

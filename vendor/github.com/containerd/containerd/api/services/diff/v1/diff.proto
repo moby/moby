@@ -44,6 +44,8 @@ message ApplyRequest {
 	repeated containerd.types.Mount mounts = 2;
 
 	map<string, google.protobuf.Any> payloads = 3;
+	// SyncFs is to synchronize the underlying filesystem containing files.
+	bool sync_fs = 4;
 }
 
 message ApplyResponse {

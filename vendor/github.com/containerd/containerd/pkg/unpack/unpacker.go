@@ -30,16 +30,16 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/diff"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/labels"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/pkg/cleanup"
 	"github.com/containerd/containerd/pkg/kmutex"
-	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/containerd/tracing"
+	"github.com/containerd/errdefs"
+	"github.com/containerd/log"
+	"github.com/containerd/platforms"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -263,7 +263,8 @@ func (u *Unpacker) unpack(
 	}
 
 	if unpack == nil {
-		return fmt.Errorf("unpacker does not support platform %s for image %s", imgPlatform, config.Digest)
+		log.G(ctx).WithField("image", config.Digest).WithField("platform", platforms.Format(imgPlatform)).Debugf("unpacker does not support platform, only fetching layers")
+		return u.fetch(ctx, h, layers, nil)
 	}
 
 	atomic.AddInt32(&u.unpacks, 1)
@@ -461,12 +462,18 @@ func (u *Unpacker) fetch(ctx context.Context, h images.Handler, layers []ocispec
 			tracing.Attribute("layer.media.digest", desc.Digest.String()),
 		)
 		desc := desc
-		i := i
+		var ch chan struct{}
+		if done != nil {
+			ch = done[i]
+		}
+
 		if err := u.acquire(ctx); err != nil {
 			return err
 		}
 
 		eg.Go(func() error {
+			defer layerSpan.End()
+
 			unlock, err := u.lockBlobDescriptor(ctx2, desc)
 			if err != nil {
 				u.release()
@@ -481,11 +488,12 @@ func (u *Unpacker) fetch(ctx context.Context, h images.Handler, layers []ocispec
 			if err != nil && !errors.Is(err, images.ErrSkipDesc) {
 				return err
 			}
-			close(done[i])
+			if ch != nil {
+				close(ch)
+			}
 
 			return nil
 		})
-		layerSpan.End()
 	}
 
 	return eg.Wait()

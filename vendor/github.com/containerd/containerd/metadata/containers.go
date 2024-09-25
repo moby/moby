@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/containers"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/filters"
 	"github.com/containerd/containerd/identifiers"
 	"github.com/containerd/containerd/labels"
@@ -32,6 +31,7 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/protobuf/proto"
 	"github.com/containerd/containerd/protobuf/types"
+	"github.com/containerd/errdefs"
 	"github.com/containerd/typeurl/v2"
 	bolt "go.etcd.io/bbolt"
 )
