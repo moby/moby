@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/netip"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -15,12 +16,14 @@ import (
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/go-connections/nat"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/skip"
 )
 
@@ -333,5 +336,67 @@ func TestAccessPublishedPortFromHost(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestAccessPublishedPortFromRemoteHost(t *testing.T) {
+	// IPv6 test case is currently failing in rootless mode. This needs further investigation.
+	skip.If(t, testEnv.IsRootless)
+
+	ctx := setupTest(t)
+
+	l3 := networking.NewL3Segment(t, "test-pbs-remote-br",
+		netip.MustParsePrefix("192.168.120.1/24"),
+		netip.MustParsePrefix("fd30:e631:f886::1/64"))
+	defer l3.Destroy(t)
+
+	// "docker" is the host where dockerd is running and where ports will be
+	// published.
+	l3.AddHost(t, "docker", networking.CurrentNetns, "eth-test",
+		netip.MustParsePrefix("192.168.120.2/24"),
+		netip.MustParsePrefix("fd30:e631:f886::2/64"))
+	l3.AddHost(t, "neigh", "test-pbs-remote-neighbor", "eth0",
+		netip.MustParsePrefix("192.168.120.3/24"),
+		netip.MustParsePrefix("fd30:e631:f886::3/64"))
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	bridgeName := "nat-remote"
+	network.CreateNoError(ctx, t, c, bridgeName,
+		network.WithDriver("bridge"),
+		network.WithOption(bridge.BridgeName, bridgeName),
+		network.WithIPv6(),
+		network.WithIPAM("fdd8:c9fe:1a25::/64", "fdd8:c9fe:1a25::1"))
+	defer network.RemoveNoError(ctx, t, c, bridgeName)
+
+	hostPort := "1780"
+	serverID := container.Run(ctx, t, c,
+		container.WithName(sanitizeCtrName(t.Name()+"-server")),
+		container.WithExposedPorts("80/tcp"),
+		container.WithPortMap(nat.PortMap{"80/tcp": {{HostPort: hostPort}}}),
+		container.WithCmd("httpd", "-f"),
+		container.WithNetworkMode(bridgeName))
+	defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
+
+	for _, ipv6 := range []bool{true, false} {
+		for _, hostAddr := range getIfaceAddrs(t, l3.Hosts["docker"].Iface, ipv6) {
+			if hostAddr.IsLinkLocalUnicast() {
+				// For some reason, hosts in a L3Segment can't communicate
+				// using link-local addresses.
+				continue
+			}
+
+			l3.Hosts["neigh"].Do(t, func() {
+				url := "http://" + net.JoinHostPort(hostAddr.String(), hostPort)
+				t.Logf("Sending a request to %s", url)
+
+				icmd.RunCommand("curl", url).Assert(t, icmd.Success)
+			})
+		}
 	}
 }
