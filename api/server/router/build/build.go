@@ -48,13 +48,20 @@ func (r *buildRouter) initRoutes() {
 // up to the client to choose which builder to use.
 func BuilderVersion(features map[string]bool) types.BuilderVersion {
 	// TODO(thaJeztah) move the default to daemon/config
+	bv := types.BuilderBuildKit
 	if runtime.GOOS == "windows" {
-		return types.BuilderV1
+		// BuildKit is not yet the default on Windows.
+		bv = types.BuilderV1
 	}
 
-	bv := types.BuilderBuildKit
-	if v, ok := features["buildkit"]; ok && !v {
-		bv = types.BuilderV1
+	// Allow the features field in the daemon config to override the
+	// default builder advertise.
+	if enable, ok := features["buildkit"]; ok {
+		if enable {
+			bv = types.BuilderBuildKit
+		} else {
+			bv = types.BuilderV1
+		}
 	}
 	return bv
 }
