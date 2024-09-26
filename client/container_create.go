@@ -12,12 +12,6 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-type configWrapper struct {
-	*container.Config
-	HostConfig       *container.HostConfig
-	NetworkingConfig *network.NetworkingConfig
-}
-
 // ContainerCreate creates a new container based on the given configuration.
 // It can be associated with a name, but it's not mandatory.
 func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *ocispec.Platform, containerName string) (container.CreateResponse, error) {
@@ -74,7 +68,7 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 		query.Set("name", containerName)
 	}
 
-	body := configWrapper{
+	body := container.CreateRequest{
 		Config:           config,
 		HostConfig:       hostConfig,
 		NetworkingConfig: networkingConfig,
