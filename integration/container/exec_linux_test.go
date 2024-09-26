@@ -30,3 +30,36 @@ func TestExecConsoleSize(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, strings.TrimSpace(result.Stdout()), "57 123")
 }
+
+func TestFailedExecExitCode(t *testing.T) {
+	testCases := []struct {
+		doc              string
+		command          []string
+		expectedExitCode int
+	}{
+		{
+			doc:              "executable not found",
+			command:          []string{"nonexistent"},
+			expectedExitCode: 127,
+		},
+		{
+			doc:              "executable cannot be invoked",
+			command:          []string{"/etc"},
+			expectedExitCode: 126,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.doc, func(t *testing.T) {
+			ctx := setupTest(t)
+			apiClient := testEnv.APIClient()
+
+			cID := container.Run(ctx, t, apiClient)
+
+			result, err := container.Exec(ctx, apiClient, cID, tc.command)
+			assert.NilError(t, err)
+
+			assert.Equal(t, result.ExitCode, tc.expectedExitCode)
+		})
+	}
+}
