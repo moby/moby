@@ -77,7 +77,7 @@ func TestContainerCreateWithName(t *testing.T) {
 func TestContainerCreateAutoRemove(t *testing.T) {
 	autoRemoveValidator := func(expectedValue bool) func(req *http.Request) (*http.Response, error) {
 		return func(req *http.Request) (*http.Response, error) {
-			var config configWrapper
+			var config container.CreateRequest
 
 			if err := json.NewDecoder(req.Body).Decode(&config); err != nil {
 				return nil, err
