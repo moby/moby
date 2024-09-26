@@ -125,3 +125,52 @@ func TestContainerCreateConnectionError(t *testing.T) {
 	_, err = client.ContainerCreate(context.Background(), nil, nil, nil, nil, "")
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
+
+// TestContainerCreateCapabilities verifies that CapAdd and CapDrop capabilities
+// are normalized to their canonical form.
+func TestContainerCreateCapabilities(t *testing.T) {
+	inputCaps := []string{
+		"all",
+		"ALL",
+		"capability_b",
+		"capability_a",
+		"capability_c",
+		"CAPABILITY_D",
+		"CAP_CAPABILITY_D",
+	}
+
+	expectedCaps := []string{
+		"ALL",
+		"CAP_CAPABILITY_A",
+		"CAP_CAPABILITY_B",
+		"CAP_CAPABILITY_C",
+		"CAP_CAPABILITY_D",
+	}
+
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			var config container.CreateRequest
+
+			if err := json.NewDecoder(req.Body).Decode(&config); err != nil {
+				return nil, err
+			}
+			assert.Check(t, is.DeepEqual([]string(config.HostConfig.CapAdd), expectedCaps))
+			assert.Check(t, is.DeepEqual([]string(config.HostConfig.CapDrop), expectedCaps))
+
+			b, err := json.Marshal(container.CreateResponse{
+				ID: "container_id",
+			})
+			if err != nil {
+				return nil, err
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader(b)),
+			}, nil
+		}),
+		version: "1.24",
+	}
+
+	_, err := client.ContainerCreate(context.Background(), nil, &container.HostConfig{CapAdd: inputCaps, CapDrop: inputCaps}, nil, nil, "")
+	assert.NilError(t, err)
+}

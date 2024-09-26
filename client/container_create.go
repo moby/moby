@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/url"
 	"path"
+	"sort"
+	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -52,6 +54,9 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 			// When using API under 1.42, the Linux daemon doesn't respect the ConsoleSize
 			hostConfig.ConsoleSize = [2]uint{0, 0}
 		}
+
+		hostConfig.CapAdd = normalizeCapabilities(hostConfig.CapAdd)
+		hostConfig.CapDrop = normalizeCapabilities(hostConfig.CapDrop)
 	}
 
 	// Since API 1.44, the container-wide MacAddress is deprecated and will trigger a WARNING if it's specified.
@@ -107,4 +112,43 @@ func hasEndpointSpecificMacAddress(networkingConfig *network.NetworkingConfig) b
 		}
 	}
 	return false
+}
+
+// allCapabilities is a magic value for "all capabilities"
+const allCapabilities = "ALL"
+
+// normalizeCapabilities normalizes capabilities to their canonical form,
+// removes duplicates, and sorts the results.
+//
+// It is similar to [github.com/docker/docker/oci/caps.NormalizeLegacyCapabilities],
+// but performs no validation based on supported capabilities.
+func normalizeCapabilities(caps []string) []string {
+	var normalized []string
+
+	unique := make(map[string]struct{})
+	for _, c := range caps {
+		c = normalizeCap(c)
+		if _, ok := unique[c]; ok {
+			continue
+		}
+		unique[c] = struct{}{}
+		normalized = append(normalized, c)
+	}
+
+	sort.Strings(normalized)
+	return normalized
+}
+
+// normalizeCap normalizes a capability to its canonical format by upper-casing
+// and adding a "CAP_" prefix (if not yet present). It also accepts the "ALL"
+// magic-value.
+func normalizeCap(cap string) string {
+	cap = strings.ToUpper(cap)
+	if cap == allCapabilities {
+		return cap
+	}
+	if !strings.HasPrefix(cap, "CAP_") {
+		cap = "CAP_" + cap
+	}
+	return cap
 }
