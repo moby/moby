@@ -165,9 +165,10 @@ type driver struct {
 type gwMode string
 
 const (
-	gwModeDefault gwMode = ""
-	gwModeNAT     gwMode = "nat"
-	gwModeRouted  gwMode = "routed"
+	gwModeDefault   gwMode = ""
+	gwModeNAT       gwMode = "nat"
+	gwModeNATUnprot gwMode = "nat-unprotected"
+	gwModeRouted    gwMode = "routed"
 )
 
 // New constructs a new bridge driver
@@ -357,6 +358,8 @@ func newGwMode(gwMode string) (gwMode, error) {
 	switch gwMode {
 	case "nat":
 		return gwModeNAT, nil
+	case "nat-unprotected":
+		return gwModeNATUnprot, nil
 	case "routed":
 		return gwModeRouted, nil
 	}
@@ -365,6 +368,10 @@ func newGwMode(gwMode string) (gwMode, error) {
 
 func (m gwMode) routed() bool {
 	return m == gwModeRouted
+}
+
+func (m gwMode) unprotected() bool {
+	return m == gwModeNATUnprot
 }
 
 func parseErr(label, value, errString string) error {
@@ -417,6 +424,15 @@ func (n *bridgeNetwork) getNATDisabled() (ipv4, ipv6 bool) {
 	n.Lock()
 	defer n.Unlock()
 	return n.config.GwModeIPv4.routed(), n.config.GwModeIPv6.routed()
+}
+
+func (n *bridgeNetwork) getUnprotected(v iptables.IPVersion) bool {
+	n.Lock()
+	defer n.Unlock()
+	if v == iptables.IPv4 {
+		return n.config.GwModeIPv4.unprotected()
+	}
+	return n.config.GwModeIPv6.unprotected()
 }
 
 func (n *bridgeNetwork) userlandProxyPath() string {
