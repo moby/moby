@@ -144,7 +144,7 @@ type Commit struct {
 	// Expected is the commit ID of external tool expected by dockerd as set at build time.
 	//
 	// Deprecated: this field is no longer used in API v1.49, but kept for backward-compatibility with older API versions.
-	Expected string
+	Expected string `json:",omitempty"`
 }
 
 // NetworkAddressPool is a temp struct used by [Info] struct.
