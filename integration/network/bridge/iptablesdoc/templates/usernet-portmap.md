@@ -31,8 +31,8 @@ Note that:
    (unlike all the other rules so-far, which were created during driver or
    network initialisation). [setPerPortForwarding][1]
    - These per-port rules are inserted at the head of the chain, so that they
-     appear before the network's DROP rule [defaultDrop][2] which is always
-     appended to the end of the chain. In this case, because `docker0` was
+     appear before the network's DROP rule [setDefaultForwardRule][2] which is
+     always appended to the end of the chain. In this case, because `docker0` was
      created before `bridge1`, the `bridge1` rules appear above and below the
      `docker0` DROP rule.
 

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -510,10 +511,14 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 	// Run http servers on ports 80 and 81, but only map/open port 80.
 	createNet := func(gwMode string) ctrDesc {
 		netName := "test-" + gwMode
+		brName := "br-" + gwMode
+		if len(brName) > syscall.IFNAMSIZ {
+			brName = brName[:syscall.IFNAMSIZ-1]
+		}
 		network.CreateNoError(ctx, t, c, netName,
 			network.WithDriver("bridge"),
 			network.WithIPv6(),
-			network.WithOption(bridge.BridgeName, "br-"+gwMode),
+			network.WithOption(bridge.BridgeName, brName),
 			network.WithOption(bridge.IPv4GatewayMode, gwMode),
 			network.WithOption(bridge.IPv6GatewayMode, gwMode),
 		)
@@ -550,12 +555,14 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 	)
 
 	networks := map[string]ctrDesc{
-		"nat":    createNet("nat"),
-		"routed": createNet("routed"),
+		"nat":             createNet("nat"),
+		"nat-unprotected": createNet("nat-unprotected"),
+		"routed":          createNet("routed"),
 	}
 	expPingExit := map[string]int{
-		"nat":    pingFail,
-		"routed": pingSuccess,
+		"nat":             pingFail,
+		"nat-unprotected": pingSuccess,
+		"routed":          pingSuccess,
 	}
 
 	testPing := func(t *testing.T, cmd, addr string, expExit int) {
@@ -567,6 +574,12 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 			assert.Check(t, pingRes.ExitCode == expExit, "%s %s -> out:%s err:%s",
 				cmd, addr, pingRes.Stdout(), pingRes.Stderr())
 		})
+	}
+	unmappedPortExpHttp := func(gwMode string) string {
+		if strings.Contains(gwMode, "unprotected") {
+			return httpSuccess
+		}
+		return httpFail
 	}
 	testHttp := func(t *testing.T, addr, port, expOut string) {
 		t.Helper()
@@ -585,7 +598,7 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 	for _, fwdPolicy := range []string{"ACCEPT", "DROP"} {
 		networking.SetFilterForwardPolicies(t, fwdPolicy)
 		t.Run(fwdPolicy, func(t *testing.T) {
-			for _, gwMode := range []string{"nat", "routed"} {
+			for _, gwMode := range []string{"nat", "nat-unprotected", "routed"} {
 				t.Run(gwMode+"/v4/ping", func(t *testing.T) {
 					testPing(t, "ping", networks[gwMode].ipv4, expPingExit[gwMode])
 				})
@@ -596,13 +609,13 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 					testHttp(t, networks[gwMode].ipv4, "80", httpSuccess)
 				})
 				t.Run(gwMode+"/v4/http/81", func(t *testing.T) {
-					testHttp(t, networks[gwMode].ipv4, "81", httpFail)
+					testHttp(t, networks[gwMode].ipv4, "81", unmappedPortExpHttp(gwMode))
 				})
 				t.Run(gwMode+"/v6/http/80", func(t *testing.T) {
 					testHttp(t, networks[gwMode].ipv6, "80", httpSuccess)
 				})
 				t.Run(gwMode+"/v6/http/81", func(t *testing.T) {
-					testHttp(t, networks[gwMode].ipv6, "81", httpFail)
+					testHttp(t, networks[gwMode].ipv6, "81", unmappedPortExpHttp(gwMode))
 				})
 			}
 		})
