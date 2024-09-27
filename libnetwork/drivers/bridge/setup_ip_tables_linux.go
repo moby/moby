@@ -197,12 +197,9 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 			return iptable.ProgramChain(filterChain, config.BridgeName, hairpinMode, false)
 		})
 
-		if err := defaultDrop(ipVersion, config.BridgeName, true); err != nil {
-			return fmt.Errorf("failed to add default-drop rule: %s", err.Error())
+		if err := n.setDefaultForwardRule(ipVersion, config.BridgeName); err != nil {
+			return err
 		}
-		n.registerIptCleanFunc(func() error {
-			return defaultDrop(ipVersion, config.BridgeName, false)
-		})
 
 		cidr, _ := maskedAddr.Mask.Size()
 		if cidr == 0 {
@@ -252,15 +249,37 @@ func setICMP(ipv iptables.IPVersion, bridgeName string, enable bool) error {
 	return appendOrDelChainRule(icmpRule, "ICMP", enable)
 }
 
-// Append to the filter table's DOCKER chain (the default DROP rule must follow
-// per-port ACCEPT rules, which will be inserted at the top of the chain).
-func defaultDrop(ipv iptables.IPVersion, bridgeName string, enable bool) error {
-	dropRule := iptRule{ipv: ipv, table: iptables.Filter, chain: DockerChain, args: []string{
+func (n *bridgeNetwork) setDefaultForwardRule(
+	ipVersion iptables.IPVersion,
+	bridgeName string,
+) error {
+	// Normally, DROP anything that hasn't been ACCEPTed by a per-port/protocol
+	// rule. This prevents direct access to un-mapped ports from remote hosts
+	// that can route directly to the container's address (by setting up a
+	// route via the host's address).
+	action := "DROP"
+	if n.gwMode(ipVersion).unprotected() {
+		// If the user really wants to allow all access from the wider network,
+		// explicitly ACCEPT anything so that the filter-FORWARD chain's
+		// default policy can't interfere.
+		action = "ACCEPT"
+	}
+
+	rule := iptRule{ipv: ipVersion, table: iptables.Filter, chain: DockerChain, args: []string{
 		"!", "-i", bridgeName,
 		"-o", bridgeName,
-		"-j", "DROP",
+		"-j", action,
 	}}
-	return appendOrDelChainRule(dropRule, "DEFAULT DROP", enable)
+
+	// Append to the filter table's DOCKER chain (the default rule must follow
+	// per-port ACCEPT rules, which will be inserted at the top of the chain).
+	if err := appendOrDelChainRule(rule, "DEFAULT FWD", true); err != nil {
+		return fmt.Errorf("failed to add default-drop rule: %w", err)
+	}
+	n.registerIptCleanFunc(func() error {
+		return appendOrDelChainRule(rule, "DEFAULT FWD", false)
+	})
+	return nil
 }
 
 type iptRule struct {

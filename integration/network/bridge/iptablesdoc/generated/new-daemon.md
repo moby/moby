@@ -112,7 +112,7 @@ bigger change than it should be._
 
 The DOCKER chain has a single DROP rule for the bridge network, to drop any
 packets routed to the network that have not originated in the network. Added by
-[defaultDrop][21].
+[setDefaultForwardRule][21].
 _This means there is no dependency on the filter-FORWARD chain's default policy.
 Even if it is ACCEPT, packets will be dropped unless container ports/protocols
 are published._
