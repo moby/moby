@@ -25,6 +25,9 @@ fi
 # TODO(vvoland): re-enable after https://github.com/docker/docker-py/pull/3203 is included in the DOCKER_PY_COMMIT release.
 PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_image_test.py::CommitTest::test_commit"
 PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_image_test.py::CommitTest::test_commit_with_changes"
+
+# TODO(laurazard): re-enable after https://github.com/docker/docker-py/pull/3290 is included in the DOCKER_PY_COMMIT release.
+PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/models_containers_test.py::ContainerTest::test_exec_run_failed"
 (
 	bundle .integration-daemon-start
 
