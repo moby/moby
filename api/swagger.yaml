@@ -6170,6 +6170,8 @@ definitions:
       Expected:
         description: |
           Commit ID of external tool expected by dockerd as set at build time.
+
+          **Deprecated**: This field is deprecated and will be omitted in a API v1.49.
         type: "string"
         example: "2d41c047c83e09a6d61d464906feb2a2f3c52aa4"
 

@@ -24,6 +24,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   `platform` parameter (JSON encoded OCI Platform type) that allows to specify
   a platform to load/save. Not passing this parameter will result in
   loading/saving the full multi-platform image.
+* Deprecated: The `ContainerdCommit.Expected`, `RuncCommit.Expected`, and
+  `InitCommit.Expected` fields in the `GET /info` endpoint are deprecated
+  and will be omitted in API v1.49.
 
 ## v1.47 API changes
 

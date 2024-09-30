@@ -196,7 +196,6 @@ func populateRuncCommit(v *system.Commit, cfg *configStore) error {
 		return err
 	}
 	v.ID = commit
-	v.Expected = commit
 	return nil
 }
 
@@ -223,7 +222,6 @@ func (daemon *Daemon) populateInitCommit(ctx context.Context, v *system.Info, cf
 		return nil
 	}
 	v.InitCommit.ID = commit
-	v.InitCommit.Expected = v.InitCommit.ID
 	return nil
 }
 
@@ -437,7 +435,6 @@ func (daemon *Daemon) populateContainerdCommit(ctx context.Context, v *system.Co
 		return nil
 	}
 	v.ID = rv.Revision
-	v.Expected = rv.Revision
 	return nil
 }
 
