@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -902,15 +903,18 @@ func configureNetworking(controller *libnetwork.Controller, conf *config.Config)
 
 // setHostGatewayIP sets cfg.HostGatewayIP to the default bridge's IP if it is empty.
 func setHostGatewayIP(controller *libnetwork.Controller, config *config.Config) {
-	if config.HostGatewayIP != nil {
+	if len(config.HostGatewayIPs) > 0 {
 		return
 	}
 	if n, err := controller.NetworkByName(network.NetworkBridge); err == nil {
 		v4Info, v6Info := n.IpamInfo()
 		if len(v4Info) > 0 {
-			config.HostGatewayIP = v4Info[0].Gateway.IP
-		} else if len(v6Info) > 0 {
-			config.HostGatewayIP = v6Info[0].Gateway.IP
+			addr, _ := netip.AddrFromSlice(v4Info[0].Gateway.IP)
+			config.HostGatewayIPs = append(config.HostGatewayIPs, addr)
+		}
+		if len(v6Info) > 0 {
+			addr, _ := netip.AddrFromSlice(v6Info[0].Gateway.IP)
+			config.HostGatewayIPs = append(config.HostGatewayIPs, addr)
 		}
 	}
 }
