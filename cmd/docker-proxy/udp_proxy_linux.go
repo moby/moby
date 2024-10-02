@@ -2,12 +2,15 @@ package main
 
 import (
 	"encoding/binary"
+	"errors"
 	"log"
 	"net"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
+
+	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
 )
 
 const (
@@ -51,25 +54,36 @@ type UDPProxy struct {
 	backendAddr    *net.UDPAddr
 	connTrackTable connTrackMap
 	connTrackLock  sync.Mutex
+	ipVer          ipVersion
 }
 
 // NewUDPProxy creates a new UDPProxy.
-func NewUDPProxy(listener *net.UDPConn, backendAddr *net.UDPAddr) (*UDPProxy, error) {
+func NewUDPProxy(listener *net.UDPConn, backendAddr *net.UDPAddr, ipVer ipVersion) (*UDPProxy, error) {
 	return &UDPProxy{
 		listener:       listener,
 		frontendAddr:   listener.LocalAddr().(*net.UDPAddr),
 		backendAddr:    backendAddr,
 		connTrackTable: make(connTrackMap),
+		ipVer:          ipVer,
 	}, nil
 }
 
-func (proxy *UDPProxy) replyLoop(proxyConn *net.UDPConn, clientAddr *net.UDPAddr, clientKey *connTrackKey) {
+func (proxy *UDPProxy) replyLoop(proxyConn *net.UDPConn, serverAddr net.IP, clientAddr *net.UDPAddr, clientKey *connTrackKey) {
 	defer func() {
 		proxy.connTrackLock.Lock()
 		delete(proxy.connTrackTable, *clientKey)
 		proxy.connTrackLock.Unlock()
 		proxyConn.Close()
 	}()
+
+	var oob []byte
+	if proxy.ipVer == ip4 {
+		cm := &ipv4.ControlMessage{Src: serverAddr}
+		oob = cm.Marshal()
+	} else {
+		cm := &ipv6.ControlMessage{Src: serverAddr}
+		oob = cm.Marshal()
+	}
 
 	readBuf := make([]byte, UDPBufSize)
 	for {
@@ -88,7 +102,7 @@ func (proxy *UDPProxy) replyLoop(proxyConn *net.UDPConn, clientAddr *net.UDPAddr
 			return
 		}
 		for i := 0; i != read; {
-			written, err := proxy.listener.WriteToUDP(readBuf[i:read], clientAddr)
+			written, _, err := proxy.listener.WriteMsgUDP(readBuf[i:read], oob, clientAddr)
 			if err != nil {
 				return
 			}
@@ -100,13 +114,19 @@ func (proxy *UDPProxy) replyLoop(proxyConn *net.UDPConn, clientAddr *net.UDPAddr
 // Run starts forwarding the traffic using UDP.
 func (proxy *UDPProxy) Run() {
 	readBuf := make([]byte, UDPBufSize)
+	var oob []byte
+	if proxy.ipVer == ip4 {
+		oob = ipv4.NewControlMessage(ipv4.FlagDst)
+	} else {
+		oob = ipv6.NewControlMessage(ipv6.FlagDst)
+	}
+
 	for {
-		read, from, err := proxy.listener.ReadFromUDP(readBuf)
+		read, _, _, from, err := proxy.listener.ReadMsgUDP(readBuf, oob)
 		if err != nil {
-			// NOTE: Apparently ReadFrom doesn't return
-			// ECONNREFUSED like Read do (see comment in
-			// UDPProxy.replyLoop)
-			if !isClosedError(err) {
+			// The frontend listener socket might be closed by the signal
+			// handler. In that case, don't log anything - it's not an error.
+			if !errors.Is(err, net.ErrClosed) {
 				log.Printf("Stopping proxy on udp/%v for udp/%v (%s)", proxy.frontendAddr, proxy.backendAddr, err)
 			}
 			break
@@ -123,7 +143,15 @@ func (proxy *UDPProxy) Run() {
 				continue
 			}
 			proxy.connTrackTable[*fromKey] = proxyConn
-			go proxy.replyLoop(proxyConn, from, fromKey)
+
+			daddr, err := readDestFromCmsg(oob, proxy.ipVer)
+			if err != nil {
+				log.Printf("Failed to parse control message: %v", err)
+				proxy.connTrackLock.Unlock()
+				continue
+			}
+
+			go proxy.replyLoop(proxyConn, daddr, from, fromKey)
 		}
 		proxy.connTrackLock.Unlock()
 		for i := 0; i != read; {
@@ -137,6 +165,35 @@ func (proxy *UDPProxy) Run() {
 	}
 }
 
+func readDestFromCmsg(oob []byte, ipVer ipVersion) (_ net.IP, err error) {
+	defer func() {
+		// In case of partial upgrade / downgrade, docker-proxy could read
+		// control messages from a socket which doesn't have the sockopt
+		// IP_PKTINFO enabled. In that case, the control message will be all-0
+		// and Go's ControlMessage.Parse() will report an 'invalid header
+		// length' error. In that case, ignore the error and return an empty
+		// daddr - the kernel will pick a source address for us anyway (but
+		// maybe it'll be the wrong one).
+		if err != nil && err.Error() == "invalid header length" {
+			err = nil
+		}
+	}()
+
+	if ipVer == ip4 {
+		cm := &ipv4.ControlMessage{}
+		if err := cm.Parse(oob); err != nil {
+			return nil, err
+		}
+		return cm.Dst, nil
+	}
+
+	cm := &ipv6.ControlMessage{}
+	if err := cm.Parse(oob); err != nil {
+		return nil, err
+	}
+	return cm.Dst, nil
+}
+
 // Close stops forwarding the traffic.
 func (proxy *UDPProxy) Close() {
 	proxy.listener.Close()
@@ -145,14 +202,4 @@ func (proxy *UDPProxy) Close() {
 	for _, conn := range proxy.connTrackTable {
 		conn.Close()
 	}
-}
-
-func isClosedError(err error) bool {
-	/* This comparison is ugly, but unfortunately, net.go doesn't export errClosing.
-	 * See:
-	 * http://golang.org/src/pkg/net/net.go
-	 * https://code.google.com/p/go/issues/detail?id=4337
-	 * https://groups.google.com/forum/#!msg/golang-nuts/0_aaCvBmOcM/SptmDyX1XJMJ
-	 */
-	return strings.HasSuffix(err.Error(), "use of closed network connection")
 }
