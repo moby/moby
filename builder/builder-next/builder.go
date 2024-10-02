@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -600,7 +599,7 @@ func (j *buildJob) SetUpload(ctx context.Context, rc io.ReadCloser) error {
 }
 
 // toBuildkitExtraHosts converts hosts from docker key:value format to buildkit's csv format
-func toBuildkitExtraHosts(inp []string, hostGatewayIP net.IP) (string, error) {
+func toBuildkitExtraHosts(inp []string, hostGatewayIP opts.HostGateway) (string, error) {
 	if len(inp) == 0 {
 		return "", nil
 	}
@@ -611,17 +610,17 @@ func toBuildkitExtraHosts(inp []string, hostGatewayIP net.IP) (string, error) {
 			return "", errors.Errorf("invalid host %s", h)
 		}
 		// If the IP Address is a "host-gateway", replace this value with the
-		// IP address stored in the daemon level HostGatewayIP config variable.
+		// IP address(es) stored in the daemon level HostGatewayIP config variable.
 		if ip == opts.HostGatewayName {
-			gateway := hostGatewayIP.String()
-			if gateway == "" {
-				return "", fmt.Errorf("unable to derive the IP value for host-gateway")
+			if hostGatewayIP.V4 != "" {
+				hosts = append(hosts, host+"="+hostGatewayIP.V4)
 			}
-			ip = gateway
-		} else if net.ParseIP(ip) == nil {
-			return "", fmt.Errorf("invalid host %s", h)
+			if hostGatewayIP.V6 != "" {
+				hosts = append(hosts, host+"="+hostGatewayIP.V6)
+			}
+		} else {
+			hosts = append(hosts, host+"="+ip)
 		}
-		hosts = append(hosts, host+"="+ip)
 	}
 	return strings.Join(hosts, ","), nil
 }
