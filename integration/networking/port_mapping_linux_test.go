@@ -128,9 +128,9 @@ func TestDisableNAT(t *testing.T) {
 	}
 }
 
-// Check that a container on one network can reach a service in a container on
-// another network, via a mapped port on the host.
-func TestPortMappedHairpin(t *testing.T) {
+// Check that a container on one network can reach a TCP service in a container
+// on another network, via a mapped port on the host.
+func TestPortMappedHairpinTCP(t *testing.T) {
 	skip.If(t, testEnv.IsRootless)
 
 	ctx := setupTest(t)
@@ -172,6 +172,56 @@ func TestPortMappedHairpin(t *testing.T) {
 	)
 	defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
 	assert.Check(t, is.Contains(res.Stderr.String(), "404 Not Found"))
+}
+
+// Check that a container on one network can reach a UDP service in a container
+// on another network, via a mapped port on the host.
+// Regression test for https://github.com/moby/libnetwork/issues/1729.
+func TestPortMappedHairpinUDP(t *testing.T) {
+	skip.If(t, testEnv.IsRootless)
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	// Find an address on the test host.
+	conn, err := net.Dial("tcp4", "hub.docker.com:80")
+	assert.NilError(t, err)
+	hostAddr := conn.LocalAddr().(*net.TCPAddr).IP.String()
+	conn.Close()
+
+	const serverNetName = "servernet"
+	network.CreateNoError(ctx, t, c, serverNetName)
+	defer network.RemoveNoError(ctx, t, c, serverNetName)
+	const clientNetName = "clientnet"
+	network.CreateNoError(ctx, t, c, clientNetName)
+	defer network.RemoveNoError(ctx, t, c, clientNetName)
+
+	serverId := container.Run(ctx, t, c,
+		container.WithNetworkMode(serverNetName),
+		container.WithExposedPorts("54/udp"),
+		container.WithPortMap(nat.PortMap{"54/udp": {{HostIP: "0.0.0.0"}}}),
+		container.WithCmd("/bin/sh", "-c", "echo 'foobar.internal 192.168.155.23' | dnsd -c - -p 54"),
+	)
+	defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})
+
+	inspect := container.Inspect(ctx, t, c, serverId)
+	hostPort := inspect.NetworkSettings.Ports["54/udp"][0].HostPort
+
+	// nslookup gets an answer quickly from the dns server, but then tries to
+	// query another DNS server (for some unknown reasons) and times out. Hence,
+	// we need >5s to execute this test.
+	clientCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	res := container.RunAttach(clientCtx, t, c,
+		container.WithNetworkMode(clientNetName),
+		container.WithCmd("nslookup", "foobar.internal", net.JoinHostPort(hostAddr, hostPort)),
+		container.WithAutoRemove,
+	)
+	assert.Check(t, is.Contains(res.Stdout.String(), "192.168.155.23"))
 }
 
 // Check that a container on an IPv4-only network can have a port mapping

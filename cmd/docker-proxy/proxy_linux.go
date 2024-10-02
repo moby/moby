@@ -7,9 +7,9 @@ type ipVersion string
 
 const (
 	// IPv4 is version 4
-	ipv4 ipVersion = "4"
+	ip4 ipVersion = "4"
 	// IPv4 is version 6
-	ipv6 ipVersion = "6"
+	ip6 ipVersion = "6"
 )
 
 // Proxy defines the behavior of a proxy. It forwards traffic back and forth
