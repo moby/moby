@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	runcoptions "github.com/containerd/containerd/api/types/runc/options"
@@ -158,6 +159,12 @@ func (daemon *Daemon) fillPlatformInfo(ctx context.Context, v *system.Info, sysI
 	}
 	if !v.IPv4Forwarding {
 		v.Warnings = append(v.Warnings, "WARNING: IPv4 forwarding is disabled")
+	}
+	if filtering, _ := strconv.ParseBool(os.Getenv("DOCKER_DISABLE_INPUT_IFACE_FILTERING")); filtering {
+		v.Warnings = append(v.Warnings,
+			"WARNING: input interface filtering is disabled on port mappings, this might be insecure",
+			"DEPRECATED: DOCKER_DISABLE_INPUT_IFACE_FILTERING is deprecated and will be removed in a future release",
+		)
 	}
 	return nil
 }
