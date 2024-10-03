@@ -456,6 +456,7 @@ func TestLiveRestore(t *testing.T) {
 
 	t.Run("volume references", testLiveRestoreVolumeReferences)
 	t.Run("autoremove", testLiveRestoreAutoRemove)
+	t.Run("user chains", testLiveRestoreUserChainsSetup)
 }
 
 func testLiveRestoreAutoRemove(t *testing.T) {
@@ -671,6 +672,34 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 
 		err := c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 		assert.NilError(t, err)
+	})
+}
+
+func testLiveRestoreUserChainsSetup(t *testing.T) {
+	skip.If(t, testEnv.IsRootless(), "rootless daemon uses it's own network namespace")
+
+	t.Parallel()
+	ctx := testutil.StartSpan(baseContext, t)
+
+	t.Run("user chains should be inserted", func(t *testing.T) {
+		d := daemon.New(t)
+		d.StartWithBusybox(ctx, t, "--live-restore")
+		t.Cleanup(func() {
+			d.Stop(t)
+			d.Cleanup(t)
+		})
+
+		c := d.NewClientT(t)
+
+		cID := container.Run(ctx, t, c, container.WithCmd("top"))
+		defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
+
+		d.Stop(t)
+		icmd.RunCommand("iptables", "--flush", "FORWARD").Assert(t, icmd.Success)
+		d.Start(t, "--live-restore")
+
+		result := icmd.RunCommand("iptables", "-S", "FORWARD", "1")
+		assert.Check(t, is.Equal(strings.TrimSpace(result.Stdout()), "-A FORWARD -j DOCKER-USER"), "the jump to DOCKER-USER should be the first rule in the FORWARD chain")
 	})
 }
 
