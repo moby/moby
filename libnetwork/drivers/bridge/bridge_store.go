@@ -411,7 +411,7 @@ func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 	}
 
 	var err error
-	ep.portMapping, err = n.addPortMappings(ep.addr, ep.addrv6, cfg, n.config.DefaultBindingIP)
+	ep.portMapping, err = n.addPortMappings(context.TODO(), ep.addr, ep.addrv6, cfg, n.config.DefaultBindingIP)
 	if err != nil {
 		log.G(context.TODO()).Warnf("Failed to reserve existing port mapping for endpoint %.7s:%v", ep.id, err)
 	}

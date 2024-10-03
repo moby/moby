@@ -396,7 +396,7 @@ func TestBindHostPortsError(t *testing.T) {
 			},
 		},
 	}
-	pbs, err := bindHostPorts(cfg, "")
+	pbs, err := bindHostPorts(context.Background(), cfg, "")
 	assert.Check(t, is.Error(err, "port binding mismatch 80/tcp:8080-8080, 80/tcp:8080-8081"))
 	assert.Check(t, pbs == nil)
 }
@@ -878,7 +878,7 @@ func TestAddPortMappings(t *testing.T) {
 
 			portallocator.Get().ReleaseAll()
 
-			pbs, err := n.addPortMappings(tc.epAddrV4, tc.epAddrV6, tc.cfg, tc.defHostIP)
+			pbs, err := n.addPortMappings(context.Background(), tc.epAddrV4, tc.epAddrV6, tc.cfg, tc.defHostIP)
 			if tc.expErr != "" {
 				assert.ErrorContains(t, err, tc.expErr)
 				return

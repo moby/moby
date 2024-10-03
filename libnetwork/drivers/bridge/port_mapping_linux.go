@@ -76,6 +76,7 @@ var startProxy = portmapper.StartProxy
 // that's how the mapping is presented in 'inspect'). HostPort and HostPortEnd in
 // each returned portBinding are set to the selected and reserved port.
 func (n *bridgeNetwork) addPortMappings(
+	ctx context.Context,
 	epAddrV4, epAddrV6 *net.IPNet,
 	cfg []types.PortBinding,
 	defHostIP net.IP,
@@ -105,7 +106,7 @@ func (n *bridgeNetwork) addPortMappings(
 	defer func() {
 		if retErr != nil {
 			if err := n.releasePortBindings(bindings); err != nil {
-				log.G(context.TODO()).Warnf("Release port bindings: %s", err.Error())
+				log.G(ctx).Warnf("Release port bindings: %s", err.Error())
 			}
 		}
 	}()
@@ -154,7 +155,7 @@ func (n *bridgeNetwork) addPortMappings(
 		}
 
 		// Allocate and bind a host port.
-		newB, err := bindHostPorts(toBind, proxyPath)
+		newB, err := bindHostPorts(ctx, toBind, proxyPath)
 		if err != nil {
 			return nil, err
 		}
@@ -176,7 +177,7 @@ func (n *bridgeNetwork) addPortMappings(
 			if !ok {
 				return nil, fmt.Errorf("invalid child host IP address %s in %s", b.childHostIP, b)
 			}
-			b.portDriverRemove, err = pdc.AddPort(context.TODO(), b.Proto.String(), hip, chip, int(b.HostPort))
+			b.portDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip, chip, int(b.HostPort))
 			if err != nil {
 				return nil, err
 			}
@@ -224,7 +225,7 @@ func (n *bridgeNetwork) addPortMappings(
 					bindings[i].PortBinding, err)
 			}
 			if err := bindings[i].boundSocket.Close(); err != nil {
-				log.G(context.TODO()).WithFields(log.Fields{
+				log.G(ctx).WithFields(log.Fields{
 					"error":   err,
 					"mapping": bindings[i].PortBinding,
 				}).Warnf("failed to close proxy socket")
@@ -434,7 +435,11 @@ func setChildHostIP(pdc portDriverClient, req portBindingReq) portBindingReq {
 // bindHostPorts allocates and binds host ports for the given cfg. The
 // caller is responsible for ensuring that all entries in cfg map the same proto,
 // container port, and host port range (their host addresses must differ).
-func bindHostPorts(cfg []portBindingReq, proxyPath string) ([]portBinding, error) {
+func bindHostPorts(
+	ctx context.Context,
+	cfg []portBindingReq,
+	proxyPath string,
+) ([]portBinding, error) {
 	if len(cfg) == 0 {
 		return nil, nil
 	}
@@ -452,16 +457,16 @@ func bindHostPorts(cfg []portBindingReq, proxyPath string) ([]portBinding, error
 	var err error
 	for i := 0; i < maxAllocatePortAttempts; i++ {
 		var b []portBinding
-		b, err = attemptBindHostPorts(cfg, proto.String(), hostPort, hostPortEnd, proxyPath)
+		b, err = attemptBindHostPorts(ctx, cfg, proto.String(), hostPort, hostPortEnd, proxyPath)
 		if err == nil {
 			return b, nil
 		}
 		// There is no point in immediately retrying to map an explicitly chosen port.
 		if hostPort != 0 && hostPort == hostPortEnd {
-			log.G(context.TODO()).Warnf("Failed to allocate and map port: %s", err)
+			log.G(ctx).Warnf("Failed to allocate and map port: %s", err)
 			break
 		}
-		log.G(context.TODO()).Warnf("Failed to allocate and map port: %s, retry: %d", err, i+1)
+		log.G(ctx).Warnf("Failed to allocate and map port: %s, retry: %d", err, i+1)
 	}
 	return nil, err
 }
@@ -478,6 +483,7 @@ func bindHostPorts(cfg []portBindingReq, proxyPath string) ([]portBinding, error
 // needed. These bindings are included in results, as the container port itself
 // needs to be opened in the firewall.
 func attemptBindHostPorts(
+	ctx context.Context,
 	cfg []portBindingReq,
 	proto string,
 	hostPortStart, hostPortEnd uint16,
@@ -514,7 +520,7 @@ func attemptBindHostPorts(
 			for _, pb := range res {
 				if pb.boundSocket != nil {
 					if err := pb.boundSocket.Close(); err != nil {
-						log.G(context.TODO()).Warnf("Failed to close port binding for %s: %s", pb, err)
+						log.G(ctx).Warnf("Failed to close port binding for %s: %s", pb, err)
 					}
 				}
 				// TODO(robmry) - this is only needed because the userland proxy may have
@@ -522,7 +528,7 @@ func attemptBindHostPorts(
 				//  iptables rules have been configured (as it is for TCP/UDP), remove this.
 				if pb.stopProxy != nil {
 					if err := pb.stopProxy(); err != nil {
-						log.G(context.TODO()).Warnf("Failed to stop proxy for %s: %s", pb, err)
+						log.G(ctx).Warnf("Failed to stop proxy for %s: %s", pb, err)
 					}
 				}
 			}

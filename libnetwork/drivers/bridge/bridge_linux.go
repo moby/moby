@@ -1448,6 +1448,7 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 	// Program any required port mapping and store them in the endpoint
 	if endpoint.extConnConfig != nil && endpoint.extConnConfig.PortBindings != nil {
 		endpoint.portMapping, err = network.addPortMappings(
+			ctx,
 			endpoint.addr,
 			endpoint.addrv6,
 			endpoint.extConnConfig.PortBindings,
