@@ -57,7 +57,7 @@ jobs:
       - name: Update Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.7
+          go-version: 1.22.8
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
