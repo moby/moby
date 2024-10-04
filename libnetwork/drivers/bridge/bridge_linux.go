@@ -763,6 +763,9 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	if err = config.Validate(); err != nil {
 		return err
 	}
+	if err = d.checkICC(config); err != nil {
+		return err
+	}
 
 	// start the critical section, from this point onward we are dealing with the list of networks
 	// so to be consistent we cannot allow that the list changes
@@ -792,6 +795,19 @@ func (d *driver) checkConflict(config *networkConfiguration) error {
 			return types.ForbiddenErrorf("cannot create network %s (%s): conflicts with network %s (%s): %s",
 				config.ID, config.BridgeName, nwConfig.ID, nwConfig.BridgeName, err.Error())
 		}
+	}
+	return nil
+}
+
+func (d *driver) checkICC(config *networkConfiguration) error {
+	if config.EnableICC {
+		return nil
+	}
+	if !d.config.EnableIPTables {
+		return fmt.Errorf("icc=false requires iptables=true")
+	}
+	if config.EnableIPv6 && !d.config.EnableIP6Tables {
+		return fmt.Errorf("icc=false requires ip6tables=true")
 	}
 	return nil
 }
