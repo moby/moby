@@ -4,10 +4,10 @@ import (
 	"context"
 	"regexp"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -38,8 +38,8 @@ var (
 )
 
 // ContainersPrune removes unused containers
-func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.Args) (*container.PruneReport, error) {
-	if !daemon.pruneRunning.CompareAndSwap(false, true) {
+func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.Args, dryRun bool) (*types.ContainersPruneReport, error) {
+	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
 		return nil, errPruneRunning
 	}
 	defer daemon.pruneRunning.Store(false)
@@ -57,7 +57,8 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 		return nil, err
 	}
 
-	cfg := &daemon.config().Config
+	dryRunMode := dryRun
+
 	allContainers := daemon.List()
 	for _, c := range allContainers {
 		select {
@@ -74,20 +75,20 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 			if !matchLabels(pruneFilters, c.Config.Labels) {
 				continue
 			}
-			cSize, _, err := daemon.imageService.GetContainerLayerSize(ctx, c.ID)
-			if err != nil {
-				return nil, err
-			}
+			cSize, _ := daemon.imageService.GetContainerLayerSize(c.ID)
 			// TODO: sets RmLink to true?
-			err = daemon.containerRm(cfg, c.ID, &backend.ContainerRmConfig{})
-			if err != nil {
-				log.G(ctx).Warnf("failed to prune container %s: %v", c.ID, err)
-				continue
+			if !dryRunMode {
+				err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
+				if err != nil {
+					logrus.Warnf("failed to prune container %s: %v", c.ID, err)
+					continue
+				}
 			}
 			if cSize > 0 {
 				rep.SpaceReclaimed += uint64(cSize)
 			}
 			rep.ContainersDeleted = append(rep.ContainersDeleted, c.ID)
+
 		}
 	}
 	daemon.EventsService.Log(events.ActionPrune, events.ContainerEventType, events.Actor{

@@ -1063,8 +1063,10 @@ func (s *containerRouter) postContainersPrune(ctx context.Context, w http.Respon
 	if err != nil {
 		return err
 	}
-
-	pruneReport, err := s.backend.ContainersPrune(ctx, pruneFilters)
+	// collect dryRun param from url
+	// and pass it as a function parameter
+	dryRun := httputils.BoolValueOrDefault(r, "dryRun", false)
+	pruneReport, err := s.backend.ContainersPrune(ctx, pruneFilters, dryRun)
 	if err != nil {
 		return err
 	}
