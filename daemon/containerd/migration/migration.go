@@ -55,14 +55,17 @@ func NewLayerMigrator(config Config) *LayerMigrator {
 	}
 }
 
-// MigrateTocontainerd migrates containers from overlay2 to overlayfs
+// MigrateTocontainerd migrates containers from overlay2 to overlayfs or vfs to native
 func (lm *LayerMigrator) MigrateTocontainerd(ctx context.Context, snKey string, sn snapshots.Snapshotter) error {
 	if sn == nil {
 		return fmt.Errorf("no snapshotter to migrate to: %w", cerrdefs.ErrNotImplemented)
 	}
 
-	if lm.layers.DriverName() != "overlay2" {
-		return fmt.Errorf("only overlay2 supported for migration: %w", cerrdefs.ErrNotImplemented)
+	switch driver := lm.layers.DriverName(); driver {
+	case "overlay2":
+	case "vfs":
+	default:
+		return fmt.Errorf("%q not supported for migration: %w", driver, cerrdefs.ErrNotImplemented)
 	}
 
 	l, err := lm.leases.Create(ctx, leases.WithRandomID(), leases.WithExpiration(24*time.Hour))
@@ -116,11 +119,15 @@ func (lm *LayerMigrator) MigrateTocontainerd(ctx context.Context, snKey string, 
 			if err != nil {
 				return err
 			}
-			upper, ok := metadata["UpperDir"]
+			src, ok := metadata["UpperDir"]
 			if !ok {
-				return fmt.Errorf("graphdriver not supported: %w", cerrdefs.ErrNotImplemented)
+				src, ok = metadata["SourceDir"]
+				if !ok {
+					log.G(ctx).WithField("metadata", metadata).WithField("driver", lm.layers.DriverName()).Debug("no source directory metadata")
+					return fmt.Errorf("graphdriver not supported: %w", cerrdefs.ErrNotImplemented)
+				}
 			}
-			log.G(ctx).WithField("metadata", metadata).Debugf("migrating %s from %s", chainID, upper)
+			log.G(ctx).WithField("metadata", metadata).Debugf("migrating %s from %s", chainID, src)
 
 			active := fmt.Sprintf("migration-%s", chainID)
 
@@ -135,7 +142,7 @@ func (lm *LayerMigrator) MigrateTocontainerd(ctx context.Context, snKey string, 
 				return err
 			}
 
-			if err := fs.CopyDir(dst, upper); err != nil {
+			if err := fs.CopyDir(dst, src); err != nil {
 				return err
 			}
 
