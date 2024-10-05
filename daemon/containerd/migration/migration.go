@@ -5,10 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
@@ -68,6 +70,13 @@ func (lm *LayerMigrator) MigrateTocontainerd(ctx context.Context, snKey string, 
 		return fmt.Errorf("%q not supported for migration: %w", driver, cerrdefs.ErrNotImplemented)
 	}
 
+	var (
+		// Zstd makes migration 10x faster
+		// TODO: make configurable
+		layerMediaType   = ocispec.MediaTypeImageLayerZstd
+		layerCompression = compression.Zstd
+	)
+
 	l, err := lm.leases.Create(ctx, leases.WithRandomID(), leases.WithExpiration(24*time.Hour))
 	if err != nil {
 		return err
@@ -91,8 +100,8 @@ func (lm *LayerMigrator) MigrateTocontainerd(ctx context.Context, snKey string, 
 				},
 				Layers: make([]ocispec.Descriptor, len(diffids)),
 			}
-			ml    sync.Mutex
-			eg, _ = errgroup.WithContext(ctx) // TODO: Use this context in error group calls
+			ml        sync.Mutex
+			eg, egctx = errgroup.WithContext(ctx)
 		)
 		for i := range diffids {
 			chainID := layer.CreateChainID(diffids[:i+1])
@@ -102,15 +111,52 @@ func (lm *LayerMigrator) MigrateTocontainerd(ctx context.Context, snKey string, 
 			}
 			layerIndex := i
 			eg.Go(func() error {
-				// TODO: Get tar stream, compress it, and add to content store
-				//l.TarStream()
+				ctx := egctx
+				t1 := time.Now()
+				ts, err := l.TarStream()
+				if err != nil {
+					return err
+				}
+
+				desc := ocispec.Descriptor{
+					MediaType: layerMediaType,
+				}
+
+				cw, err := lm.content.Writer(ctx,
+					content.WithRef(fmt.Sprintf("ingest-%s", chainID)),
+					content.WithDescriptor(desc))
+				if err != nil {
+					return fmt.Errorf("failed to get content writer: %w", err)
+				}
+
+				dgstr := digest.Canonical.Digester()
+				cs, _ := compression.CompressStream(io.MultiWriter(cw, dgstr.Hash()), layerCompression)
+				_, err = io.Copy(cs, ts)
+				if err != nil {
+					return fmt.Errorf("failed to copy to compressed stream: %w", err)
+				}
+				cs.Close()
+
+				status, err := cw.Status()
+				if err != nil {
+					return err
+				}
+
+				desc.Size = status.Offset
+				desc.Digest = dgstr.Digest()
+
+				if err := cw.Commit(ctx, desc.Size, desc.Digest); err != nil && !cerrdefs.IsAlreadyExists(err) {
+					return err
+				}
+
+				log.G(ctx).WithFields(log.Fields{
+					"t":      time.Since(t1),
+					"size":   desc.Size,
+					"digest": desc.Digest,
+				}).Debug("Converted layer to content tar")
 
 				ml.Lock()
-				manifest.Layers[layerIndex] = ocispec.Descriptor{
-					MediaType: ocispec.MediaTypeImageLayerGzip,
-					// Size
-					// Digest
-				}
+				manifest.Layers[layerIndex] = desc
 				ml.Unlock()
 				return nil
 			})
@@ -131,9 +177,17 @@ func (lm *LayerMigrator) MigrateTocontainerd(ctx context.Context, snKey string, 
 
 			active := fmt.Sprintf("migration-%s", chainID)
 
-			// TODO: Check if already exists
-			mounts, err := sn.Prepare(ctx, active, parent)
+			key := chainID.String()
+
+			snapshotLabels := map[string]string{
+				"containerd.io/snapshot.ref": key,
+			}
+			mounts, err := sn.Prepare(ctx, active, parent, snapshots.WithLabels(snapshotLabels))
+			parent = key
 			if err != nil {
+				if cerrdefs.IsAlreadyExists(err) {
+					continue
+				}
 				return err
 			}
 
@@ -142,15 +196,18 @@ func (lm *LayerMigrator) MigrateTocontainerd(ctx context.Context, snKey string, 
 				return err
 			}
 
+			t1 := time.Now()
 			if err := fs.CopyDir(dst, src); err != nil {
 				return err
 			}
+			log.G(ctx).WithFields(log.Fields{
+				"t":   time.Since(t1),
+				"key": key,
+			}).Debug("Copied layer to snapshot")
 
-			key := chainID.String()
-			if err := sn.Commit(ctx, key, active); err != nil {
+			if err := sn.Commit(ctx, key, active); err != nil && !cerrdefs.IsAlreadyExists(err) {
 				return err
 			}
-			parent = key
 		}
 
 		configBytes := img.RawJSON()
@@ -161,19 +218,10 @@ func (lm *LayerMigrator) MigrateTocontainerd(ctx context.Context, snKey string, 
 			Size:      int64(len(configBytes)),
 		}
 
-		if err = content.WriteBlob(ctx, lm.content, "config"+manifest.Config.Digest.String(), bytes.NewReader(configBytes), manifest.Config); err != nil && !cerrdefs.IsAlreadyExists(err) {
-			return err
+		configLabels := map[string]string{
+			fmt.Sprintf("containerd.io/gc.ref.snapshot.%s", snKey): parent,
 		}
-
-		gcLabel := fmt.Sprintf("containerd.io/gc.ref.snapshot.%s", snKey)
-		cinfo := content.Info{
-			Digest: manifest.Config.Digest,
-			Labels: map[string]string{
-				gcLabel: parent,
-			},
-		}
-		_, err = lm.content.Update(ctx, cinfo, fmt.Sprintf("labels.%s", gcLabel))
-		if err != nil {
+		if err = content.WriteBlob(ctx, lm.content, "config"+manifest.Config.Digest.String(), bytes.NewReader(configBytes), manifest.Config, content.WithLabels(configLabels)); err != nil && !cerrdefs.IsAlreadyExists(err) {
 			return err
 		}
 
@@ -192,7 +240,14 @@ func (lm *LayerMigrator) MigrateTocontainerd(ctx context.Context, snKey string, 
 			Size:      int64(len(manifestBytes)),
 		}
 
-		if err = content.WriteBlob(ctx, lm.content, "manifest"+manifestDesc.Digest.String(), bytes.NewReader(manifestBytes), manifestDesc); err != nil && !cerrdefs.IsAlreadyExists(err) {
+		manifestLabels := map[string]string{
+			"containerd.io/gc.ref.content.config": manifest.Config.Digest.String(),
+		}
+		for i := range manifest.Layers {
+			manifestLabels[fmt.Sprintf("containerd.io/gc.ref.content.%d", i)] = manifest.Layers[i].Digest.String()
+		}
+
+		if err = content.WriteBlob(ctx, lm.content, "manifest"+manifestDesc.Digest.String(), bytes.NewReader(manifestBytes), manifestDesc, content.WithLabels(manifestLabels)); err != nil && !cerrdefs.IsAlreadyExists(err) {
 			return err
 		}
 
