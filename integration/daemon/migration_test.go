@@ -19,7 +19,6 @@ func TestMigrateOverlaySnapshotter(t *testing.T) {
 }
 
 func TestMigrateNativeSnapshotter(t *testing.T) {
-	t.Skip("vfs migration not implemented yet")
 	testMigrateSnapshotter(t, "vfs", "native")
 }
 
