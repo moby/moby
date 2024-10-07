@@ -1,6 +1,7 @@
 package distribution // import "github.com/docker/docker/distribution"
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -20,6 +21,7 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/metadata"
+	"github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
 	v1 "github.com/docker/docker/image/v1"
@@ -246,7 +248,20 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput progress
 		ld.verifier = ld.digest.Verifier()
 	}
 
-	_, err = io.Copy(tmpFile, io.TeeReader(reader, ld.verifier))
+	{
+		// Allocate rather large buffers to avoid small
+		// `write()` syscalls to the underlying temporary file.
+		var buf = make([]byte, 524288)
+		var tmpFileBufWriter = bufio.NewWriterSize(tmpFile, 524288)
+		// `CopyBufferDirect` avoids a mis-optimization in
+		// `io.Copy`/`io.CopyBuffer` that would use the `ReadFrom` interface.
+		// For some reason, `ReadFrom` being used will cause short reads and writes.
+		_, err = utils.CopyBufferDirect(tmpFileBufWriter, io.TeeReader(reader, ld.verifier), buf)
+		if err == nil {
+			err = tmpFileBufWriter.Flush()
+		}
+	}
+
 	if err != nil {
 		if err == transport.ErrWrongCodeForByteRange {
 			if err := ld.truncateDownloadFile(); err != nil {
