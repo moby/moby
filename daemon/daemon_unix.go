@@ -852,7 +852,7 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 	}
 
 	if err := daemon.netController.SetupUserChains(); err != nil {
-		return err
+		log.G(context.TODO()).WithError(err).Warnf("initNetworkController")
 	}
 
 	// Set HostGatewayIP to the default bridge's IP if it is empty
