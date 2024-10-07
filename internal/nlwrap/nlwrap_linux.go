@@ -63,7 +63,7 @@ func retryOnIntr(f func() error) {
 	log.G(context.TODO()).Infof("netlink call interrupted after %d attempts", maxAttempts)
 }
 
-// AddrList calls nlh.LinkList, retrying if necessary.
+// AddrList calls nlh.Handle.AddrList, retrying if necessary.
 func (nlh Handle) AddrList(link netlink.Link, family int) (addrs []netlink.Addr, err error) {
 	retryOnIntr(func() error {
 		addrs, err = nlh.Handle.AddrList(link, family) //nolint:forbidigo
@@ -72,7 +72,7 @@ func (nlh Handle) AddrList(link netlink.Link, family int) (addrs []netlink.Addr,
 	return addrs, err
 }
 
-// AddrList calls netlink.LinkList, retrying if necessary.
+// AddrList calls netlink.AddrList, retrying if necessary.
 func AddrList(link netlink.Link, family int) (addrs []netlink.Addr, err error) {
 	retryOnIntr(func() error {
 		addrs, err = netlink.AddrList(link, family) //nolint:forbidigo
@@ -81,7 +81,7 @@ func AddrList(link netlink.Link, family int) (addrs []netlink.Addr, err error) {
 	return addrs, err
 }
 
-// ConntrackDeleteFilters calls nlh.ConntrackDeleteFilters, retrying if necessary.
+// ConntrackDeleteFilters calls nlh.Handle.ConntrackDeleteFilters, retrying if necessary.
 func (nlh Handle) ConntrackDeleteFilters(
 	table netlink.ConntrackTableType,
 	family netlink.InetFamily,
@@ -106,7 +106,7 @@ func ConntrackTableList(
 	return flows, err
 }
 
-// LinkByName calls nlh.LinkByName, retrying if necessary. The netlink function
+// LinkByName calls nlh.Handle.LinkByName, retrying if necessary. The netlink function
 // doesn't normally ask the kernel for a dump of links. But, on an old kernel, it
 // will do as a fallback and that dump may get inconsistent results.
 func (nlh Handle) LinkByName(name string) (link netlink.Link, err error) {
@@ -128,7 +128,7 @@ func LinkByName(name string) (link netlink.Link, err error) {
 	return link, err
 }
 
-// LinkList calls nlh.LinkList, retrying if necessary.
+// LinkList calls nlh.Handle.LinkList, retrying if necessary.
 func (nlh Handle) LinkList() (links []netlink.Link, err error) {
 	retryOnIntr(func() error {
 		links, err = nlh.Handle.LinkList() //nolint:forbidigo
@@ -137,7 +137,7 @@ func (nlh Handle) LinkList() (links []netlink.Link, err error) {
 	return links, err
 }
 
-// LinkList calls netlink.LinkList, retrying if necessary.
+// LinkList calls netlink.Handle.LinkList, retrying if necessary.
 func LinkList() (links []netlink.Link, err error) {
 	retryOnIntr(func() error {
 		links, err = netlink.LinkList() //nolint:forbidigo
@@ -146,7 +146,7 @@ func LinkList() (links []netlink.Link, err error) {
 	return links, err
 }
 
-// RouteList calls nlh.RouteList, retrying if necessary.
+// RouteList calls nlh.Handle.RouteList, retrying if necessary.
 func (nlh Handle) RouteList(link netlink.Link, family int) (routes []netlink.Route, err error) {
 	retryOnIntr(func() error {
 		routes, err = nlh.Handle.RouteList(link, family) //nolint:forbidigo
@@ -155,6 +155,7 @@ func (nlh Handle) RouteList(link netlink.Link, family int) (routes []netlink.Rou
 	return routes, err
 }
 
+// XfrmPolicyList calls nlh.Handle.XfrmPolicyList, retrying if necessary.
 func (nlh Handle) XfrmPolicyList(family int) (policies []netlink.XfrmPolicy, err error) {
 	retryOnIntr(func() error {
 		policies, err = nlh.Handle.XfrmPolicyList(family) //nolint:forbidigo
@@ -163,6 +164,7 @@ func (nlh Handle) XfrmPolicyList(family int) (policies []netlink.XfrmPolicy, err
 	return policies, err
 }
 
+// XfrmStateList calls nlh.Handle.XfrmStateList, retrying if necessary.
 func (nlh Handle) XfrmStateList(family int) (states []netlink.XfrmState, err error) {
 	retryOnIntr(func() error {
 		states, err = nlh.Handle.XfrmStateList(family) //nolint:forbidigo
