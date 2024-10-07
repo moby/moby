@@ -864,7 +864,6 @@ github.com/moby/buildkit/worker/containerd
 github.com/moby/buildkit/worker/label
 # github.com/moby/docker-image-spec v1.3.1
 ## explicit; go 1.18
-github.com/moby/docker-image-spec/specs-go
 github.com/moby/docker-image-spec/specs-go/v1
 # github.com/moby/ipvs v1.1.0
 ## explicit; go 1.17
