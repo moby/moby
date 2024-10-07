@@ -272,7 +272,7 @@ func (ir *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter
 	}
 
 	var platform *ocispec.Platform
-	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.47") {
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.48") {
 		if formPlatform := r.Form.Get("platform"); formPlatform != "" {
 			p, err := httputils.DecodePlatform(formPlatform)
 			if err != nil {
