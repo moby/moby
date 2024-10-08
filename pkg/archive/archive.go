@@ -654,7 +654,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 
 		ta.Buffer.Reset(ta.TarWriter)
 		defer ta.Buffer.Reset(nil)
-		_, err = io.Copy(ta.Buffer, file)
+		_, err = pools.Copy(ta.Buffer, file)
 		file.Close()
 		if err != nil {
 			return err
@@ -705,7 +705,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 		if err != nil {
 			return err
 		}
-		if _, err := io.Copy(file, reader); err != nil {
+		if _, err := pools.Copy(file, reader); err != nil {
 			file.Close()
 			return err
 		}
@@ -1375,7 +1375,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 			if err := tw.WriteHeader(hdr); err != nil {
 				return err
 			}
-			if _, err := io.Copy(tw, srcF); err != nil {
+			if _, err := pools.Copy(tw, srcF); err != nil {
 				return err
 			}
 			return nil
