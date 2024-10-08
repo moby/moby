@@ -921,9 +921,12 @@ func TestAddPortMappings(t *testing.T) {
 
 				// Check the DNAT rule.
 				dnatRule := ""
+				if ipv == iptables.IPv6 && !tc.gwMode6.natDisabled() {
+					dnatRule += "! -s fe80::/10 "
+				}
 				if tc.proxyPath != "" {
 					// No docker-proxy, so expect "hairpinMode".
-					dnatRule = "! -i dummybridge "
+					dnatRule += "! -i dummybridge "
 				}
 				dnatRule += fmt.Sprintf("-d %s -p %s -m %s --dport %d -j DNAT --to-destination %s:%d",
 					addrH, expPB.Proto, expPB.Proto, expPB.HostPort, addrD, expPB.Port)

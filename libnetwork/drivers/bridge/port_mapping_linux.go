@@ -772,6 +772,9 @@ func setPerPortNAT(b portBinding, ipv iptables.IPVersion, proxyPath string, brid
 	if !hairpinMode {
 		args = append(args, "!", "-i", bridgeName)
 	}
+	if ipv == iptables.IPv6 {
+		args = append(args, "!", "-s", "fe80::/10")
+	}
 	rule := iptRule{ipv: ipv, table: iptables.Nat, chain: DockerChain, args: args}
 	if err := appendOrDelChainRule(rule, "DNAT", enable); err != nil {
 		return err
