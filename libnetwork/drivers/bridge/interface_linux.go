@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"syscall"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
@@ -134,7 +135,10 @@ func (i *bridgeInterface) programIPv6Addresses(config *networkConfiguration) err
 	// doesn't update the prefix length. This is a cosmetic problem, the prefix
 	// length of an assigned address is not used to determine whether an address is
 	// "on-link" (RFC-5942).
-	if err := i.nlh.AddrReplace(i.Link, &netlink.Addr{IPNet: netiputil.ToIPNet(addrPrefix)}); err != nil {
+	if err := i.nlh.AddrReplace(i.Link, &netlink.Addr{
+		IPNet: netiputil.ToIPNet(addrPrefix),
+		Flags: syscall.IFA_F_NODAD,
+	}); err != nil {
 		return errdefs.System(fmt.Errorf("failed to add IPv6 address %s to bridge: %v", i.bridgeIPv6, err))
 	}
 	return nil
