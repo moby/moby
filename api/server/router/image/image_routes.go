@@ -386,10 +386,11 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 	}
 
 	images, err := ir.backend.Images(ctx, imagetypes.ListOptions{
-		All:        httputils.BoolValue(r, "all"),
-		Filters:    imageFilters,
-		SharedSize: sharedSize,
-		Manifests:  manifests,
+		All:            httputils.BoolValue(r, "all"),
+		Filters:        imageFilters,
+		SharedSize:     sharedSize,
+		Manifests:      manifests,
+		ContainerCount: httputils.BoolValue(r, "container-count"),
 	})
 	if err != nil {
 		return err
