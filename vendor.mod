@@ -111,7 +111,7 @@ require (
 	golang.org/x/time v0.6.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240123012728-ef4313101c80
 	google.golang.org/grpc v1.62.0
-	google.golang.org/protobuf v1.33.0
+	google.golang.org/protobuf v1.34.1
 	gotest.tools/v3 v3.5.1
 	resenje.org/singleflight v0.4.1
 	tags.cncf.io/container-device-interface v0.8.0
