@@ -255,7 +255,7 @@ github.com/containerd/cgroups/v3/cgroup2/stats
 # github.com/containerd/console v1.0.4
 ## explicit; go 1.13
 github.com/containerd/console
-# github.com/containerd/containerd v1.7.22
+# github.com/containerd/containerd v1.7.23-0.20240923164256-6fbbe70adaab
 ## explicit; go 1.21
 github.com/containerd/containerd
 github.com/containerd/containerd/archive
@@ -272,6 +272,7 @@ github.com/containerd/containerd/defaults
 github.com/containerd/containerd/diff
 github.com/containerd/containerd/diff/proxy
 github.com/containerd/containerd/diff/walking
+github.com/containerd/containerd/errdefs
 github.com/containerd/containerd/events
 github.com/containerd/containerd/events/exchange
 github.com/containerd/containerd/filters
