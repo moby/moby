@@ -38,6 +38,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	grpcmetadata "google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 type errMultipleFilterValues struct{}
@@ -162,16 +163,29 @@ func (b *Builder) DiskUsage(ctx context.Context) ([]*types.BuildCache, error) {
 			Description: r.Description,
 			InUse:       r.InUse,
 			Shared:      r.Shared,
-			Size:        r.Size_,
-			CreatedAt:   r.CreatedAt,
-			LastUsedAt:  r.LastUsedAt,
-			UsageCount:  int(r.UsageCount),
+			Size:        r.Size,
+			CreatedAt: func() time.Time {
+				if r.CreatedAt != nil {
+					return r.CreatedAt.AsTime()
+				}
+				return time.Time{}
+			}(),
+			LastUsedAt: func() *time.Time {
+				if r.LastUsedAt == nil {
+					return nil
+				}
+				t := r.LastUsedAt.AsTime()
+				return &t
+			}(),
+			UsageCount: int(r.UsageCount),
 		})
 	}
 	return items, nil
 }
 
-// Prune clears all reclaimable build cache
+// Prune clears all reclaimable build cache.
+//
+// FIXME(thaJeztah): wire up new options https://github.com/moby/moby/issues/48639
 func (b *Builder) Prune(ctx context.Context, opts types.BuildCachePruneOptions) (int64, []string, error) {
 	ch := make(chan *controlapi.UsageRecord)
 
@@ -197,10 +211,10 @@ func (b *Builder) Prune(ctx context.Context, opts types.BuildCachePruneOptions) 
 	eg.Go(func() error {
 		defer close(ch)
 		return b.controller.Prune(&controlapi.PruneRequest{
-			All:          pi.All,
-			KeepDuration: int64(pi.KeepDuration),
-			KeepBytes:    pi.KeepBytes,
-			Filter:       pi.Filter,
+			All:           pi.All,
+			KeepDuration:  int64(pi.KeepDuration),
+			ReservedSpace: pi.ReservedSpace,
+			Filter:        pi.Filter,
 		}, &pruneProxy{
 			streamProxy: streamProxy{ctx: ctx},
 			ch:          ch,
@@ -211,7 +225,7 @@ func (b *Builder) Prune(ctx context.Context, opts types.BuildCachePruneOptions) 
 	var cacheIDs []string
 	eg.Go(func() error {
 		for r := range ch {
-			size += r.Size_
+			size += r.Size
 			cacheIDs = append(cacheIDs, r.ID)
 		}
 		return nil
@@ -381,7 +395,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		exporterAttrs["name"] = strings.Join(nameAttr, ",")
 	}
 
-	cache := controlapi.CacheOptions{}
+	cache := &controlapi.CacheOptions{}
 	if inlineCache := opt.Options.BuildArgs["BUILDKIT_INLINE_CACHE"]; inlineCache != nil {
 		if b, err := strconv.ParseBool(*inlineCache); err == nil && b {
 			cache.Exports = append(cache.Exports, &controlapi.CacheOptionsEntry{
@@ -402,7 +416,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 	}
 
 	if opt.Options.NetworkMode == "host" {
-		req.Entitlements = append(req.Entitlements, entitlements.EntitlementNetworkHost)
+		req.Entitlements = append(req.Entitlements, string(entitlements.EntitlementNetworkHost))
 	}
 
 	aux := streamformatter.AuxFormatter{Writer: opt.ProgressWriter.Output}
@@ -437,7 +451,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 
 	eg.Go(func() error {
 		for sr := range ch {
-			dt, err := sr.Marshal()
+			dt, err := proto.Marshal(sr)
 			if err != nil {
 				return err
 			}
@@ -624,6 +638,7 @@ func toBuildkitUlimits(inp []*container.Ulimit) (string, error) {
 	return strings.Join(ulimits, ","), nil
 }
 
+// FIXME(thaJeztah): wire-up new fields; see https://github.com/moby/moby/issues/48639
 func toBuildkitPruneInfo(opts types.BuildCachePruneOptions) (client.PruneInfo, error) {
 	var until time.Duration
 	untilValues := opts.Filters.Get("until")          // canonical
@@ -679,9 +694,9 @@ func toBuildkitPruneInfo(opts types.BuildCachePruneOptions) (client.PruneInfo, e
 		}
 	}
 	return client.PruneInfo{
-		All:          opts.All,
-		KeepDuration: until,
-		KeepBytes:    opts.KeepStorage,
-		Filter:       []string{strings.Join(bkFilter, ",")},
+		All:           opts.All,
+		KeepDuration:  until,
+		ReservedSpace: opts.KeepStorage,
+		Filter:        []string{strings.Join(bkFilter, ",")},
 	}, nil
 }

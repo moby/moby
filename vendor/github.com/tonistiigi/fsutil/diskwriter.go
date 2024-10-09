@@ -126,10 +126,10 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 		return errors.WithStack(&os.PathError{Path: p, Err: syscall.EBADMSG, Op: "change without stat info"})
 	}
 
-	statCopy := *stat
+	statCopy := stat.Clone()
 
 	if dw.filter != nil {
-		if ok := dw.filter(p, &statCopy); !ok {
+		if ok := dw.filter(p, statCopy); !ok {
 			return nil
 		}
 	}
@@ -148,7 +148,7 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 	}
 
 	if oldFi != nil && fi.IsDir() && oldFi.IsDir() {
-		if err := rewriteMetadata(destPath, &statCopy); err != nil {
+		if err := rewriteMetadata(destPath, statCopy); err != nil {
 			return errors.Wrapf(err, "error setting dir metadata for %s", destPath)
 		}
 		return nil
@@ -172,7 +172,7 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 		}
 		dw.dirModTimes[destPath] = statCopy.ModTime
 	case fi.Mode()&os.ModeDevice != 0 || fi.Mode()&os.ModeNamedPipe != 0:
-		if err := handleTarTypeBlockCharFifo(newPath, &statCopy); err != nil {
+		if err := handleTarTypeBlockCharFifo(newPath, statCopy); err != nil {
 			return errors.Wrapf(err, "failed to create device %s", newPath)
 		}
 	case fi.Mode()&os.ModeSymlink != 0:
@@ -200,7 +200,7 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 		}
 	}
 
-	if err := rewriteMetadata(newPath, &statCopy); err != nil {
+	if err := rewriteMetadata(newPath, statCopy); err != nil {
 		return errors.Wrapf(err, "error setting metadata for %s", newPath)
 	}
 
@@ -218,7 +218,7 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 
 	if isRegularFile {
 		if dw.opt.AsyncDataCb != nil {
-			dw.requestAsyncFileData(p, destPath, fi, &statCopy)
+			dw.requestAsyncFileData(p, destPath, fi, statCopy)
 		}
 	} else {
 		return dw.processChange(dw.ctx, kind, p, fi, nil)
@@ -351,8 +351,10 @@ func (lfw *lazyFileWriter) Close() error {
 // We generate random temporary file names so that there's a good
 // chance the file doesn't exist yet - keeps the number of tries in
 // TempFile to a minimum.
-var rand uint32
-var randmu sync.Mutex
+var (
+	rand   uint32
+	randmu sync.Mutex
+)
 
 func reseed() uint32 {
 	return uint32(time.Now().UnixNano() + int64(os.Getpid()))

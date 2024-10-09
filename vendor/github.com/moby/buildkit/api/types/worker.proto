@@ -2,17 +2,14 @@ syntax = "proto3";
 
 package moby.buildkit.v1.types;
 
-import "github.com/gogo/protobuf/gogoproto/gogo.proto";
-import "github.com/moby/buildkit/solver/pb/ops.proto";
+option go_package = "github.com/moby/buildkit/api/types;moby_buildkit_v1_types";
 
-option (gogoproto.sizer_all) = true;
-option (gogoproto.marshaler_all) = true;
-option (gogoproto.unmarshaler_all) = true;
+import "github.com/moby/buildkit/solver/pb/ops.proto";
 
 message WorkerRecord {
 	string ID = 1;
 	map<string, string> Labels = 2;
-	repeated pb.Platform platforms = 3 [(gogoproto.nullable) = false];
+	repeated pb.Platform platforms = 3;
 	repeated GCPolicy GCPolicy = 4;
 	BuildkitVersion BuildkitVersion = 5;
 }
@@ -20,8 +17,12 @@ message WorkerRecord {
 message GCPolicy {
 	bool all = 1;
 	int64 keepDuration = 2;
-	int64 keepBytes = 3;
 	repeated string filters = 4;
+
+	// reservedSpace was renamed from freeBytes
+	int64 reservedSpace = 3;
+	int64 maxUsedSpace = 5;
+	int64 minFreeSpace = 6;
 }
 
 message BuildkitVersion {

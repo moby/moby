@@ -62,6 +62,7 @@ const labelCreatedAt = "buildkit/createdat"
 // See also CommonOpt.
 type WorkerOpt struct {
 	ID               string
+	Root             string
 	Labels           map[string]string
 	Platforms        []ocispecs.Platform
 	GCPolicy         []client.PruneInfo
@@ -110,6 +111,7 @@ func NewWorker(ctx context.Context, opt WorkerOpt) (*Worker, error) {
 		ContentStore:    opt.ContentStore,
 		Differ:          opt.Differ,
 		MetadataStore:   opt.MetadataStore,
+		Root:            opt.Root,
 		MountPoolRoot:   opt.MountPoolRoot,
 	})
 	if err != nil {

@@ -22,6 +22,7 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/disk"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/progress"
 	digest "github.com/opencontainers/go-digest"
@@ -48,6 +49,7 @@ type ManagerOpt struct {
 	Applier         diff.Applier
 	Differ          diff.Comparer
 	MetadataStore   *metadata.Store
+	Root            string
 	MountPoolRoot   string
 }
 
@@ -93,6 +95,8 @@ type cacheManager struct {
 	Differ          diff.Comparer
 	MetadataStore   *metadata.Store
 
+	root string
+
 	mountPool sharableMountPool
 
 	muPrune sync.Mutex // make sure parallel prune is not allowed so there will not be inconsistent results
@@ -109,6 +113,7 @@ func NewManager(opt ManagerOpt) (Manager, error) {
 		Applier:         opt.Applier,
 		Differ:          opt.Differ,
 		MetadataStore:   opt.MetadataStore,
+		root:            opt.Root,
 		records:         make(map[string]*cacheRecord),
 	}
 
@@ -1040,7 +1045,7 @@ func (cm *cacheManager) pruneOnce(ctx context.Context, ch chan client.UsageInfo,
 	}
 
 	totalSize := int64(0)
-	if opt.KeepBytes != 0 {
+	if opt.MaxUsedSpace != 0 || opt.ReservedSpace != 0 || opt.MinFreeSpace != 0 {
 		du, err := cm.DiskUsage(ctx, client.DiskUsageInfo{})
 		if err != nil {
 			return err
@@ -1053,27 +1058,59 @@ func (cm *cacheManager) pruneOnce(ctx context.Context, ch chan client.UsageInfo,
 		}
 	}
 
+	var dstat disk.DiskStat
+	if opt.MinFreeSpace != 0 {
+		dstat, err = disk.GetDiskStat(cm.root)
+		if err != nil {
+			return err
+		}
+	}
+
 	return cm.prune(ctx, ch, pruneOpt{
 		filter:       filter,
 		all:          opt.All,
 		checkShared:  check,
 		keepDuration: opt.KeepDuration,
-		keepBytes:    opt.KeepBytes,
+		keepBytes:    calculateKeepBytes(totalSize, dstat, opt),
 		totalSize:    totalSize,
 	})
 }
 
-func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, opt pruneOpt) (err error) {
-	var toDelete []*deleteRecord
+func calculateKeepBytes(totalSize int64, dstat disk.DiskStat, opt client.PruneInfo) int64 {
+	// 0 values are special, and means we have no keep cap
+	if opt.MaxUsedSpace == 0 && opt.ReservedSpace == 0 && opt.MinFreeSpace == 0 {
+		return 0
+	}
 
+	// try and keep as many bytes as we can
+	keepBytes := opt.MaxUsedSpace
+
+	// if we need to free up space, then decrease to that
+	if excess := opt.MinFreeSpace - dstat.Free; excess > 0 {
+		if keepBytes == 0 {
+			keepBytes = totalSize - excess
+		} else {
+			keepBytes = min(keepBytes, totalSize-excess)
+		}
+	}
+
+	// but make sure we don't take the total below the reserved space
+	keepBytes = max(keepBytes, opt.ReservedSpace)
+
+	return keepBytes
+}
+
+func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, opt pruneOpt) (err error) {
 	if opt.keepBytes != 0 && opt.totalSize < opt.keepBytes {
 		return nil
 	}
 
+	var toDelete []*deleteRecord
+
 	cm.mu.Lock()
 
-	gcMode := opt.keepBytes != 0
 	cutOff := time.Now().Add(-opt.keepDuration)
+	gcMode := opt.keepBytes != 0
 
 	locked := map[*sync.Mutex]struct{}{}
 
@@ -1610,8 +1647,9 @@ type pruneOpt struct {
 	all          bool
 	checkShared  ExternalRefChecker
 	keepDuration time.Duration
-	keepBytes    int64
-	totalSize    int64
+
+	keepBytes int64
+	totalSize int64
 }
 
 type deleteRecord struct {

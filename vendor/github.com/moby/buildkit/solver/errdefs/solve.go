@@ -20,7 +20,7 @@ type IsSolve_Subject isSolve_Subject
 // SolveError will be returned when an error is encountered during a solve that
 // has an exec op.
 type SolveError struct {
-	Solve
+	*Solve
 	Err error
 }
 
@@ -33,7 +33,7 @@ func (e *SolveError) Unwrap() error {
 }
 
 func (e *SolveError) ToProto() grpcerrors.TypedErrorProto {
-	return &e.Solve
+	return e.Solve
 }
 
 func WithSolveError(err error, subject IsSolve_Subject, inputIDs, mountIDs []string) error {
@@ -51,7 +51,7 @@ func WithSolveError(err error, subject IsSolve_Subject, inputIDs, mountIDs []str
 	}
 	return &SolveError{
 		Err: err,
-		Solve: Solve{
+		Solve: &Solve{
 			InputIDs:    inputIDs,
 			MountIDs:    mountIDs,
 			Op:          op,
@@ -62,7 +62,7 @@ func WithSolveError(err error, subject IsSolve_Subject, inputIDs, mountIDs []str
 }
 
 func (v *Solve) WrapError(err error) error {
-	return &SolveError{Err: err, Solve: *v}
+	return &SolveError{Err: err, Solve: v}
 }
 
 func (v *Solve) MarshalJSON() ([]byte, error) {
