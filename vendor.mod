@@ -5,7 +5,7 @@
 
 module github.com/docker/docker
 
-go 1.21.0
+go 1.22
 
 require (
 	cloud.google.com/go/compute/metadata v0.3.0
@@ -96,7 +96,7 @@ require (
 	github.com/vbatts/tar-split v0.11.5
 	github.com/vishvananda/netlink v1.3.0
 	github.com/vishvananda/netns v0.0.4
-	go.etcd.io/bbolt v1.3.10
+	go.etcd.io/bbolt v1.3.11
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.46.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.46.1
 	go.opentelemetry.io/otel v1.21.0
