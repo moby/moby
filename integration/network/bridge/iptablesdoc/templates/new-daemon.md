@@ -45,11 +45,12 @@ The FORWARD chain rules are numbered in the output above, they are:
      matching against the `docker-ext-bridge-v[46]` set. Added when the network is
      created, in [setupIPTables][13].
      The DOCKER chain implements per-port/protocol filtering for each container.
-  5. ACCEPT any packet leaving a network, also set up when the network is created, in
-     [setupIPTablesInternal][14].
-  6. ACCEPT packets flowing between containers within a network, because by default
+  5. ACCEPT packets flowing between containers within a network, because by default
      container isolation is disabled. Also set up when the network is created, in
      [setIcc][15].
+  6. ACCEPT any packet leaving a network, also set up when the network is created, in
+     [setupIPTablesInternal][14].
+
 
 [10]: https://github.com/moby/moby/blob/e05848c0025b67a16aaafa8cdff95d5e2c064105/libnetwork/firewall_linux.go#L50
 [11]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L230-L232

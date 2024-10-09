@@ -14,8 +14,8 @@ Table `filter`:
     2        0     0 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst ctstate RELATED,ESTABLISHED
     3        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     4        0     0 DOCKER     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst
-    5        0     0 ACCEPT     0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
-    6        0     0 ACCEPT     0    --  docker0 docker0  0.0.0.0/0            0.0.0.0/0           
+    5        0     0 ACCEPT     0    --  docker0 docker0  0.0.0.0/0            0.0.0.0/0           
+    6        0     0 ACCEPT     0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
     
     Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -51,8 +51,8 @@ Table `filter`:
     -A FORWARD -m set --match-set docker-ext-bridges-v4 dst -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     -A FORWARD -j DOCKER-ISOLATION-STAGE-1
     -A FORWARD -m set --match-set docker-ext-bridges-v4 dst -j DOCKER
-    -A FORWARD -i docker0 ! -o docker0 -j ACCEPT
     -A FORWARD -i docker0 -o docker0 -j ACCEPT
+    -A FORWARD -i docker0 ! -o docker0 -j ACCEPT
     -A DOCKER ! -i docker0 -o docker0 -j DROP
     -A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
     -A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
@@ -92,11 +92,12 @@ The FORWARD chain rules are numbered in the output above, they are:
      matching against the `docker-ext-bridge-v[46]` set. Added when the network is
      created, in [setupIPTables][13].
      The DOCKER chain implements per-port/protocol filtering for each container.
-  5. ACCEPT any packet leaving a network, also set up when the network is created, in
-     [setupIPTablesInternal][14].
-  6. ACCEPT packets flowing between containers within a network, because by default
+  5. ACCEPT packets flowing between containers within a network, because by default
      container isolation is disabled. Also set up when the network is created, in
      [setIcc][15].
+  6. ACCEPT any packet leaving a network, also set up when the network is created, in
+     [setupIPTablesInternal][14].
+
 
 [10]: https://github.com/moby/moby/blob/e05848c0025b67a16aaafa8cdff95d5e2c064105/libnetwork/firewall_linux.go#L50
 [11]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L230-L232

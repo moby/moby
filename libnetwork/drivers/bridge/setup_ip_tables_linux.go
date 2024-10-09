@@ -103,6 +103,27 @@ func setupIPChains(config configuration, version iptables.IPVersion) (natChain *
 		}
 	}()
 
+	// Make sure the filter-FORWARD chain has rules to accept related packets and
+	// jump to the isolation and docker chains. (Re-)insert at the top of the table,
+	// in reverse order.
+	ipsetName := ipsetExtBridges4
+	if version == iptables.IPv6 {
+		ipsetName = ipsetExtBridges6
+	}
+	if err := iptable.EnsureJumpRule("FORWARD", DockerChain,
+		"-m", "set", "--match-set", ipsetName, "dst"); err != nil {
+		return nil, nil, nil, nil, err
+	}
+	if err := iptable.EnsureJumpRule("FORWARD", IsolationChain1); err != nil {
+		return nil, nil, nil, nil, err
+	}
+	if err := iptable.EnsureJumpRule("FORWARD", "ACCEPT",
+		"-m", "set", "--match-set", ipsetName, "dst",
+		"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED",
+	); err != nil {
+		return nil, nil, nil, nil, err
+	}
+
 	if err := mirroredWSL2Workaround(config, version); err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -216,22 +237,6 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 		n.registerIptCleanFunc(func() error {
 			return netlink.IpsetDel(ipsetName, ipsetEntry)
 		})
-	}
-
-	d.Lock()
-	defer d.Unlock()
-	if err := iptable.EnsureJumpRule("FORWARD", DockerChain,
-		"-m", "set", "--match-set", ipsetName, "dst"); err != nil {
-		return err
-	}
-	if err := iptable.EnsureJumpRule("FORWARD", IsolationChain1); err != nil {
-		return err
-	}
-	if err := iptable.EnsureJumpRule("FORWARD", "ACCEPT",
-		"-m", "set", "--match-set", ipsetName, "dst",
-		"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED",
-	); err != nil {
-		return err
 	}
 	return nil
 }
@@ -395,7 +400,7 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 	}
 
 	// Set Accept on all non-intercontainer outgoing packets.
-	return programChainRule(outRule, "ACCEPT NON_ICC OUTGOING", enable)
+	return appendOrDelChainRule(outRule, "ACCEPT NON_ICC OUTGOING", enable)
 }
 
 func programChainRule(rule iptRule, ruleDescr string, insert bool) error {
@@ -436,7 +441,7 @@ func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, insert bo
 			}
 		} else {
 			dropRule.Delete()
-			if err := acceptRule.Insert(); err != nil {
+			if err := acceptRule.Append(); err != nil {
 				return fmt.Errorf("Unable to allow intercontainer communication: %w", err)
 			}
 		}
