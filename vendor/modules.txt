@@ -1021,6 +1021,10 @@ github.com/philhofer/fwd
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
+# github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10
+## explicit; go 1.20
+github.com/planetscale/vtprotobuf/protohelpers
+github.com/planetscale/vtprotobuf/vtproto
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
@@ -1088,8 +1092,11 @@ github.com/syndtr/gocapability/capability
 # github.com/tinylib/msgp v1.1.8
 ## explicit; go 1.15
 github.com/tinylib/msgp/msgp
-# github.com/tonistiigi/fsutil v0.0.0-20240424095704-91a3fc46842c
-## explicit; go 1.20
+# github.com/tonistiigi/dchapes-mode v0.0.0-20241001053921-ca0759fec205
+## explicit; go 1.21
+github.com/tonistiigi/dchapes-mode
+# github.com/tonistiigi/fsutil v0.0.0-20241003195857-3f140a1299b0
+## explicit; go 1.21
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy
 github.com/tonistiigi/fsutil/types
