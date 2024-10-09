@@ -4,7 +4,7 @@
 
 module github.com/docker/docker
 
-go 1.22
+go 1.22.0
 
 require (
 	cloud.google.com/go/compute/metadata v0.3.0
@@ -102,7 +102,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.21.0
 	go.opentelemetry.io/otel/sdk v1.21.0
 	go.opentelemetry.io/otel/trace v1.21.0
-	golang.org/x/mod v0.20.0
+	golang.org/x/mod v0.21.0
 	golang.org/x/net v0.29.0
 	golang.org/x/sync v0.8.0
 	golang.org/x/sys v0.25.0
