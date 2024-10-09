@@ -70,10 +70,9 @@ func Unalias(t types.Type) types.Type { return types.Unalias(t) }
 // newAlias is an internal alias around types.NewAlias.
 // Direct usage is discouraged as the moment.
 // Try to use NewAlias instead.
-func newAlias(tname *types.TypeName, rhs types.Type) *Alias {
+func newAlias(tname *types.TypeName, rhs types.Type, tparams []*types.TypeParam) *Alias {
 	a := types.NewAlias(tname, rhs)
-	// TODO(go.dev/issue/65455): Remove kludgy workaround to set a.actual as a side-effect.
-	Unalias(a)
+	SetTypeParams(a, tparams)
 	return a
 }
 
