@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package internal
+// Package xds contains methods to Get/Set handshake cluster names. It is separated
+// out from the top level /internal package to avoid circular dependencies.
+package xds
 
 import (
 	"google.golang.org/grpc/attributes"

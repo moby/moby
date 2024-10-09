@@ -1,5 +1,4 @@
 //go:build !linux
-// +build !linux
 
 /*
  *
@@ -40,4 +39,9 @@ func (s *SocketOptionData) Getsockopt(fd uintptr) {
 	once.Do(func() {
 		logger.Warning("Channelz: socket options are not supported on non-linux environments")
 	})
+}
+
+// GetSocketOption gets the socket option info of the conn.
+func GetSocketOption(c any) *SocketOptionData {
+	return nil
 }
