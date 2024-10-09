@@ -2,7 +2,6 @@ package solver
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"time"
 
@@ -29,34 +28,13 @@ func newEdge(ed Edge, op activeOp, index *edgeIndex) *edge {
 	e := &edge{
 		edge:               ed,
 		op:                 op,
-		depRequests:        map[pipe.Receiver]*dep{},
+		depRequests:        map[pipeReceiver]*dep{},
 		keyMap:             map[string]struct{}{},
 		cacheRecords:       map[string]*CacheRecord{},
 		cacheRecordsLoaded: map[string]struct{}{},
 		index:              index,
-		debug:              debugScheduler,
 	}
-	if !e.debug && len(debugSchedulerSteps) > 0 {
-		withParents := strings.HasSuffix(debugSchedulerSteps[0], "^")
-		name := strings.TrimSuffix(debugSchedulerSteps[0], "^")
-		for _, v := range debugSchedulerSteps {
-			if strings.Contains(name, v) {
-				e.debug = true
-				break
-			}
-		}
-		if !e.debug && withParents {
-			for _, vtx := range ed.Vertex.Inputs() {
-				name := strings.TrimSuffix(vtx.Vertex.Name(), "^")
-				for _, v := range debugSchedulerSteps {
-					if strings.Contains(name, v) {
-						e.debug = true
-						break
-					}
-				}
-			}
-		}
-	}
+	e.debug = debugSchedulerCheckEdge(e)
 	return e
 }
 
@@ -65,14 +43,14 @@ type edge struct {
 	op   activeOp
 
 	edgeState
-	depRequests map[pipe.Receiver]*dep
+	depRequests map[pipeReceiver]*dep
 	deps        []*dep
 
-	cacheMapReq        pipe.Receiver
+	cacheMapReq        pipeReceiver
 	cacheMapDone       bool
 	cacheMapIndex      int
 	cacheMapDigests    []digest.Digest
-	execReq            pipe.Receiver
+	execReq            pipeReceiver
 	execCacheLoad      bool
 	err                error
 	cacheRecords       map[string]*CacheRecord
@@ -99,11 +77,11 @@ type edge struct {
 
 // dep holds state for a dependant edge
 type dep struct {
-	req pipe.Receiver
+	req pipeReceiver
 	edgeState
 	index             Index
 	keyMap            map[string]*CacheKey
-	slowCacheReq      pipe.Receiver
+	slowCacheReq      pipeReceiver
 	slowCacheComplete bool
 	slowCacheFoundKey bool
 	slowCacheKey      *ExportableCacheKey
@@ -122,7 +100,7 @@ func newDep(i Index) *dep {
 
 // edgePipe is a pipe for requests between two edges
 type edgePipe struct {
-	*pipe.Pipe
+	*pipe.Pipe[*edgeRequest, any]
 	From, Target *edge
 	mu           sync.Mutex
 }
@@ -198,22 +176,18 @@ func (e *edge) isComplete() bool {
 }
 
 // finishIncoming finalizes the incoming pipe request
-func (e *edge) finishIncoming(req pipe.Sender) {
+func (e *edge) finishIncoming(req pipeSender) {
 	err := e.err
 	if req.Request().Canceled && err == nil {
 		err = context.Canceled
 	}
-	if e.debug {
-		bklog.G(context.TODO()).Debugf("finishIncoming %s %v %#v desired=%s", e.edge.Vertex.Name(), err, e.edgeState, req.Request().Payload.(*edgeRequest).desiredState)
-	}
+	debugSchedulerFinishIncoming(e, err, req)
 	req.Finalize(&e.edgeState, err)
 }
 
 // updateIncoming updates the current value of incoming pipe request
-func (e *edge) updateIncoming(req pipe.Sender) {
-	if e.debug {
-		bklog.G(context.TODO()).Debugf("updateIncoming %s %#v desired=%s", e.edge.Vertex.Name(), e.edgeState, req.Request().Payload.(*edgeRequest).desiredState)
-	}
+func (e *edge) updateIncoming(req pipeSender) {
+	debugSchedulerUpdateIncoming(e, req)
 	req.Update(&e.edgeState)
 }
 
@@ -353,7 +327,7 @@ func (e *edge) skipPhase2FastCache(dep *dep) bool {
 //     requests were not completed
 //  2. this function may not return outgoing requests if it has completed all
 //     incoming requests
-func (e *edge) unpark(incoming []pipe.Sender, updates, allPipes []pipe.Receiver, f *pipeFactory) {
+func (e *edge) unpark(incoming []pipeSender, updates, allPipes []pipeReceiver, f *pipeFactory) {
 	// process all incoming changes
 	depChanged := false
 	for _, upt := range updates {
@@ -414,7 +388,7 @@ func (e *edge) markFailed(f *pipeFactory, err error) {
 }
 
 // processUpdate is called by unpark for every updated pipe request
-func (e *edge) processUpdate(upt pipe.Receiver) (depChanged bool) {
+func (e *edge) processUpdate(upt pipeReceiver) (depChanged bool) {
 	// response for cachemap request
 	if upt == e.cacheMapReq && upt.Status().Completed {
 		if err := upt.Status().Err; err != nil {
@@ -707,9 +681,7 @@ func (e *edge) recalcCurrentState() {
 					}
 					if len(openKeys) == 0 {
 						e.state = edgeStatusCacheSlow
-						if e.debug {
-							bklog.G(context.TODO()).Debugf("upgrade to cache-slow because no open keys")
-						}
+						debugSchedulerUpgradeCacheSlow(e)
 					}
 				}
 			}
@@ -719,7 +691,7 @@ func (e *edge) recalcCurrentState() {
 
 // respondToIncoming responds to all incoming requests. completing or
 // updating them when possible
-func (e *edge) respondToIncoming(incoming []pipe.Sender, allPipes []pipe.Receiver) (edgeStatusType, bool) {
+func (e *edge) respondToIncoming(incoming []pipeSender, allPipes []pipeReceiver) (edgeStatusType, bool) {
 	// detect the result state for the requests
 	allIncomingCanComplete := true
 	desiredState := e.state
@@ -731,7 +703,7 @@ func (e *edge) respondToIncoming(incoming []pipe.Sender, allPipes []pipe.Receive
 		for _, req := range incoming {
 			if !req.Request().Canceled {
 				allCanceled = false
-				if r := req.Request().Payload.(*edgeRequest); desiredState < r.desiredState {
+				if r := req.Request().Payload; desiredState < r.desiredState {
 					desiredState = r.desiredState
 					if e.hasActiveOutgoing || r.desiredState == edgeStatusComplete || r.currentKeys == len(e.keys) {
 						allIncomingCanComplete = false
@@ -746,9 +718,7 @@ func (e *edge) respondToIncoming(incoming []pipe.Sender, allPipes []pipe.Receive
 		allIncomingCanComplete = false
 	}
 
-	if e.debug {
-		bklog.G(context.TODO()).Debugf("status state=%s cancomplete=%v hasouts=%v noPossibleCache=%v depsCacheFast=%v keys=%d cacheRecords=%d", e.state, allIncomingCanComplete, e.hasActiveOutgoing, e.noCacheMatchPossible, e.allDepsCompletedCacheFast, len(e.keys), len(e.cacheRecords))
-	}
+	debugSchedulerRespondToIncomingStatus(e, allIncomingCanComplete)
 
 	if allIncomingCanComplete && e.hasActiveOutgoing {
 		// cancel all current requests
@@ -757,7 +727,7 @@ func (e *edge) respondToIncoming(incoming []pipe.Sender, allPipes []pipe.Receive
 		}
 
 		// can close all but one requests
-		var leaveOpen pipe.Sender
+		var leaveOpen pipeSender
 		for _, req := range incoming {
 			if !req.Request().Canceled {
 				leaveOpen = req
@@ -784,7 +754,7 @@ func (e *edge) respondToIncoming(incoming []pipe.Sender, allPipes []pipe.Receive
 
 	// update incoming based on current state
 	for _, req := range incoming {
-		r := req.Request().Payload.(*edgeRequest)
+		r := req.Request().Payload
 		if req.Request().Canceled {
 			e.finishIncoming(req)
 		} else if !e.hasActiveOutgoing && e.state >= r.desiredState {
@@ -803,7 +773,7 @@ func (e *edge) createInputRequests(desiredState edgeStatusType, f *pipeFactory, 
 
 	// initialize deps state
 	if e.deps == nil {
-		e.depRequests = make(map[pipe.Receiver]*dep)
+		e.depRequests = make(map[pipeReceiver]*dep)
 		e.deps = make([]*dep, 0, len(e.edge.Vertex.Inputs()))
 		for i := range e.edge.Vertex.Inputs() {
 			e.deps = append(e.deps, newDep(Index(i)))
@@ -842,45 +812,16 @@ func (e *edge) createInputRequests(desiredState edgeStatusType, f *pipeFactory, 
 		if dep.state < desiredStateDep {
 			addNew := true
 			if dep.req != nil && !dep.req.Status().Completed {
-				if dep.req.Request().(*edgeRequest).desiredState != desiredStateDep {
-					if e.debug {
-						bklog.G(context.TODO()).
-							WithField("edge_vertex_name", e.edge.Vertex.Name()).
-							WithField("edge_vertex_digest", e.edge.Vertex.Digest()).
-							WithField("dep_index", dep.index).
-							WithField("dep_req_desired_state", dep.req.Request().(*edgeRequest).desiredState).
-							WithField("dep_desired_state", desiredStateDep).
-							WithField("dep_state", dep.state).
-							Debug("cancel input request")
-					}
+				if dep.req.Request().desiredState != desiredStateDep {
+					debugSchedulerCancelInputRequest(e, dep, desiredStateDep)
 					dep.req.Cancel()
 				} else {
-					if e.debug {
-						bklog.G(context.TODO()).
-							WithField("edge_vertex_name", e.edge.Vertex.Name()).
-							WithField("edge_vertex_digest", e.edge.Vertex.Digest()).
-							WithField("dep_index", dep.index).
-							WithField("dep_req_desired_state", dep.req.Request().(*edgeRequest).desiredState).
-							WithField("dep_desired_state", desiredStateDep).
-							WithField("dep_state", dep.state).
-							Debug("skip input request based on existing request")
-					}
+					debugSchedulerSkipInputRequestBasedOnExistingRequest(e, dep, desiredStateDep)
 					addNew = false
 				}
 			}
 			if addNew {
-				if e.debug {
-					bklog.G(context.TODO()).
-						WithField("edge_vertex_name", e.edge.Vertex.Name()).
-						WithField("edge_vertex_digest", e.edge.Vertex.Digest()).
-						WithField("dep_index", dep.index).
-						WithField("dep_desired_state", desiredStateDep).
-						WithField("dep_state", dep.state).
-						WithField("dep_vertex_name", e.edge.Vertex.Inputs()[dep.index].Vertex.Name()).
-						WithField("dep_vertex_digest", e.edge.Vertex.Inputs()[dep.index].Vertex.Digest()).
-						Debug("add input request")
-				}
-
+				debugSchedulerAddInputRequest(e, dep, desiredStateDep)
 				req := f.NewInputRequest(e.edge.Vertex.Inputs()[int(dep.index)], &edgeRequest{
 					currentState: dep.edgeState,
 					desiredState: desiredStateDep,
@@ -890,16 +831,8 @@ func (e *edge) createInputRequests(desiredState edgeStatusType, f *pipeFactory, 
 				dep.req = req
 				addedNew = true
 			}
-		} else if e.debug {
-			bklog.G(context.TODO()).
-				WithField("edge_vertex_name", e.edge.Vertex.Name()).
-				WithField("edge_vertex_digest", e.edge.Vertex.Digest()).
-				WithField("dep_index", dep.index).
-				WithField("dep_desired_state", desiredStateDep).
-				WithField("dep_state", dep.state).
-				WithField("dep_vertex_name", e.edge.Vertex.Inputs()[dep.index].Vertex.Name()).
-				WithField("dep_vertex_digest", e.edge.Vertex.Inputs()[dep.index].Vertex.Digest()).
-				Debug("skip input request based on dep state")
+		} else {
+			debugSchedulerSkipInputRequestBasedOnDepState(e, dep, desiredStateDep)
 		}
 		// initialize function to compute cache key based on dependency result
 		if dep.state == edgeStatusComplete && dep.slowCacheReq == nil && (e.slowCacheFunc(dep) != nil || e.preprocessFunc(dep) != nil) && e.cacheMap != nil {
@@ -1061,4 +994,14 @@ func withSelector(keys []ExportableCacheKey, selector digest.Digest) []CacheKeyW
 		out[i] = CacheKeyWithSelector{Selector: selector, CacheKey: k}
 	}
 	return out
+}
+
+type (
+	pipeRequest  = pipe.Request[*edgeRequest]
+	pipeSender   = pipe.Sender[*edgeRequest, any]
+	pipeReceiver = pipe.Receiver[*edgeRequest, any]
+)
+
+func newPipe(req pipeRequest) *pipe.Pipe[*edgeRequest, any] {
+	return pipe.New[*edgeRequest, any](req)
 }

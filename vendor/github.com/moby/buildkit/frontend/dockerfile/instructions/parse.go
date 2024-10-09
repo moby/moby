@@ -100,7 +100,14 @@ func ParseInstructionWithLinter(node *parser.Node, lint *linter.Linter) (v inter
 			msg := linter.RuleFromAsCasing.Format(req.command, req.args[1])
 			lint.Run(&linter.RuleFromAsCasing, node.Location(), msg)
 		}
-		return parseFrom(req)
+		fromCmd, err := parseFrom(req)
+		if err != nil {
+			return nil, err
+		}
+		if fromCmd.Name != "" {
+			validateDefinitionDescription("FROM", []string{fromCmd.Name}, node.PrevComment, node.Location(), lint)
+		}
+		return fromCmd, nil
 	case command.Onbuild:
 		return parseOnBuild(req)
 	case command.Workdir:
@@ -122,7 +129,16 @@ func ParseInstructionWithLinter(node *parser.Node, lint *linter.Linter) (v inter
 	case command.StopSignal:
 		return parseStopSignal(req)
 	case command.Arg:
-		return parseArg(req)
+		argCmd, err := parseArg(req)
+		if err != nil {
+			return nil, err
+		}
+		argKeys := []string{}
+		for _, arg := range argCmd.Args {
+			argKeys = append(argKeys, arg.Key)
+		}
+		validateDefinitionDescription("ARG", argKeys, node.PrevComment, node.Location(), lint)
+		return argCmd, nil
 	case command.Shell:
 		return parseShell(req)
 	}
@@ -857,4 +873,23 @@ func doesFromCaseMatchAsCase(req parseRequest) bool {
 		return req.args[1] == strings.ToLower(req.args[1])
 	}
 	return req.args[1] == strings.ToUpper(req.args[1])
+}
+
+func validateDefinitionDescription(instruction string, argKeys []string, descComments []string, location []parser.Range, lint *linter.Linter) {
+	if len(descComments) == 0 || len(argKeys) == 0 {
+		return
+	}
+	descCommentParts := strings.Split(descComments[len(descComments)-1], " ")
+	for _, key := range argKeys {
+		if key == descCommentParts[0] {
+			return
+		}
+	}
+	exampleKey := argKeys[0]
+	if len(argKeys) > 1 {
+		exampleKey = "<arg_key>"
+	}
+
+	msg := linter.RuleInvalidDefinitionDescription.Format(instruction, exampleKey)
+	lint.Run(&linter.RuleInvalidDefinitionDescription, location, msg)
 }

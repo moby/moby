@@ -18,10 +18,10 @@ type Mount interface {
 }
 
 type Backend interface {
-	Mkdir(context.Context, Mount, Mount, Mount, pb.FileActionMkDir) error
-	Mkfile(context.Context, Mount, Mount, Mount, pb.FileActionMkFile) error
-	Rm(context.Context, Mount, pb.FileActionRm) error
-	Copy(context.Context, Mount, Mount, Mount, Mount, pb.FileActionCopy) error
+	Mkdir(context.Context, Mount, Mount, Mount, *pb.FileActionMkDir) error
+	Mkfile(context.Context, Mount, Mount, Mount, *pb.FileActionMkFile) error
+	Rm(context.Context, Mount, *pb.FileActionRm) error
+	Copy(context.Context, Mount, Mount, Mount, Mount, *pb.FileActionCopy) error
 }
 
 type RefManager interface {

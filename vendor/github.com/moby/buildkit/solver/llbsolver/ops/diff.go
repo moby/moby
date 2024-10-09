@@ -47,10 +47,10 @@ func (d *diffOp) CacheMap(ctx context.Context, group session.Group, index int) (
 	}
 
 	var depCount int
-	if d.op.Lower.Input != pb.Empty {
+	if d.op.Lower.Input != int64(pb.Empty) {
 		depCount++
 	}
-	if d.op.Upper.Input != pb.Empty {
+	if d.op.Upper.Input != int64(pb.Empty) {
 		depCount++
 	}
 
@@ -70,7 +70,7 @@ func (d *diffOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 	var curInput int
 
 	var lowerRef cache.ImmutableRef
-	if d.op.Lower.Input != pb.Empty {
+	if d.op.Lower.Input != int64(pb.Empty) {
 		if lowerInp := inputs[curInput]; lowerInp != nil {
 			wref, ok := lowerInp.Sys().(*worker.WorkerRef)
 			if !ok {
@@ -84,7 +84,7 @@ func (d *diffOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 	}
 
 	var upperRef cache.ImmutableRef
-	if d.op.Upper.Input != pb.Empty {
+	if d.op.Upper.Input != int64(pb.Empty) {
 		if upperInp := inputs[curInput]; upperInp != nil {
 			wref, ok := upperInp.Sys().(*worker.WorkerRef)
 			if !ok {

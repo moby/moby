@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func WithSource(err error, src Source) error {
+func WithSource(err error, src *Source) error {
 	if err == nil {
 		return nil
 	}
@@ -18,7 +18,7 @@ func WithSource(err error, src Source) error {
 }
 
 type ErrorSource struct {
-	Source
+	*Source
 	error
 }
 
@@ -27,7 +27,7 @@ func (e *ErrorSource) Unwrap() error {
 }
 
 func (e *ErrorSource) ToProto() grpcerrors.TypedErrorProto {
-	return &e.Source
+	return e.Source
 }
 
 func Sources(err error) []*Source {
@@ -35,13 +35,13 @@ func Sources(err error) []*Source {
 	var es *ErrorSource
 	if errors.As(err, &es) {
 		out = Sources(es.Unwrap())
-		out = append(out, &es.Source)
+		out = append(out, es.Source.CloneVT())
 	}
 	return out
 }
 
 func (s *Source) WrapError(err error) error {
-	return &ErrorSource{error: err, Source: *s}
+	return &ErrorSource{error: err, Source: s}
 }
 
 func (s *Source) Print(w io.Writer) error {

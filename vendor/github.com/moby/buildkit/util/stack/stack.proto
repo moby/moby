@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package stack;
 
+option go_package = "github.com/moby/buildkit/util/stack";
+
 message Stack {
 	repeated Frame frames = 1;
 	repeated string cmdline = 2;

@@ -58,9 +58,9 @@ func (m *FileAction) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	m.Input = v.Input
-	m.SecondaryInput = v.SecondaryInput
-	m.Output = v.Output
+	m.Input = int64(v.Input)
+	m.SecondaryInput = int64(v.SecondaryInput)
+	m.Output = int64(v.Output)
 	switch {
 	case v.Action.FileAction_Copy != nil:
 		m.Action = v.Action.FileAction_Copy

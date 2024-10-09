@@ -14,7 +14,7 @@ import (
 )
 
 type File struct {
-	Stat types.Stat
+	Stat *types.Stat
 	Data []byte
 }
 
@@ -30,9 +30,9 @@ func NewFS() *FS {
 	}
 }
 
-func (fs *FS) Add(p string, stat types.Stat, data []byte) {
+func (fs *FS) Add(p string, stat *types.Stat, data []byte) {
 	p = strings.TrimPrefix(p, "/")
-	stat.Size_ = int64(len(data))
+	stat.Size = int64(len(data))
 	if stat.Mode == 0 {
 		stat.Mode = 0644
 	}
@@ -56,7 +56,7 @@ func (fs *FS) Walk(ctx context.Context, target string, fn fs.WalkDirFunc) error 
 	for _, k := range keys {
 		p := convertKeyToPath(k)
 		st := fs.files[p].Stat
-		if err := fn(p, &fsutil.DirEntryInfo{Stat: &st}, nil); err != nil {
+		if err := fn(p, &fsutil.DirEntryInfo{Stat: st}, nil); err != nil {
 			return err
 		}
 	}

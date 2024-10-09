@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package errdefs;
 
+option go_package = "github.com/moby/buildkit/solver/errdefs";
+
 import "github.com/moby/buildkit/solver/pb/ops.proto";
 
 message Vertex {

@@ -72,7 +72,7 @@ func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*
 		if mount.From != "" {
 			src := sources[i]
 			st = src.state
-			if !src.noinit {
+			if !src.dispatched {
 				return nil, errors.Errorf("cannot mount from stage %q to %q, stage needs to be defined before current command", mount.From, mount.Target)
 			}
 		}

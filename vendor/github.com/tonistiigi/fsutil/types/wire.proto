@@ -2,18 +2,20 @@ syntax = "proto3";
 
 package fsutil.types;
 
-option go_package = "types";
+option go_package = "github.com/tonistiigi/fsutil/types";
 
-import "stat.proto";
+import "github.com/planetscale/vtprotobuf/vtproto/ext.proto";
+import "github.com/tonistiigi/fsutil/types/stat.proto";
 
 message Packet {
+  option (vtproto.mempool) = true;
   enum PacketType {
-      PACKET_STAT = 0;
-      PACKET_REQ = 1;
-      PACKET_DATA = 2;
-      PACKET_FIN = 3;
-      PACKET_ERR = 4;
-    }
+    PACKET_STAT = 0;
+    PACKET_REQ = 1;
+    PACKET_DATA = 2;
+    PACKET_FIN = 3;
+    PACKET_ERR = 4;
+  }
   PacketType type = 1;
   Stat stat = 2;
   uint32 ID = 3;
