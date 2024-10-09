@@ -447,6 +447,8 @@ func TestMirroredWSL2Workaround(t *testing.T) {
 				assert.NilError(t, err)
 			}
 
+			assert.NilError(t, setupHashNetIpset(ipsetExtBridges4, unix.AF_INET))
+
 			config := configuration{EnableIPTables: true}
 			if tc.userlandProxy {
 				config.UserlandProxyPath = "some-proxy"
