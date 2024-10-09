@@ -7,11 +7,7 @@ import (
 )
 
 func TestAtomicRemoveAllNormal(t *testing.T) {
-	dir, err := os.MkdirTemp("", "atomic-remove-with-normal")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir) // just try to make sure this gets cleaned up
+	dir := t.TempDir()
 
 	if err := atomicRemoveAll(dir); err != nil {
 		t.Fatal(err)
@@ -26,11 +22,7 @@ func TestAtomicRemoveAllNormal(t *testing.T) {
 }
 
 func TestAtomicRemoveAllAlreadyExists(t *testing.T) {
-	dir, err := os.MkdirTemp("", "atomic-remove-already-exists")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir) // just try to make sure this gets cleaned up
+	dir := t.TempDir()
 
 	if err := os.MkdirAll(dir+"-removing", 0o755); err != nil {
 		t.Fatal(err)
@@ -54,11 +46,7 @@ func TestAtomicRemoveAllNotExist(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dir, err := os.MkdirTemp("", "atomic-remove-already-exists")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir) // just try to make sure this gets cleaned up
+	dir := t.TempDir()
 
 	// create the removing dir, but not the "real" one
 	foo := filepath.Join(dir, "foo")

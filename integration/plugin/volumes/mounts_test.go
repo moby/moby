@@ -1,7 +1,6 @@
 package volumes
 
 import (
-	"os"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -28,9 +27,7 @@ func TestPluginWithDevMounts(t *testing.T) {
 
 	c := d.NewClientT(t)
 
-	testDir, err := os.MkdirTemp("", "test-dir")
-	assert.NilError(t, err)
-	defer os.RemoveAll(testDir)
+	testDir := t.TempDir()
 
 	createPlugin(ctx, t, c, "test", "dummy", asVolumeDriver, func(c *plugin.Config) {
 		root := "/"
@@ -46,7 +43,7 @@ func TestPluginWithDevMounts(t *testing.T) {
 		c.IpcHost = true
 	})
 
-	err = c.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30})
+	err := c.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30})
 	assert.NilError(t, err)
 	defer func() {
 		err := c.PluginRemove(ctx, "test", types.PluginRemoveOptions{Force: true})

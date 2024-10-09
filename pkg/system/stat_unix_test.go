@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"syscall"
 	"testing"
-
-	"gotest.tools/v3/assert"
 )
 
 // TestFromStatT tests fromStatT for a tempfile
@@ -20,10 +18,14 @@ func TestFromStatT(t *testing.T) {
 
 	stat := &syscall.Stat_t{}
 	err := syscall.Lstat(file, stat)
-	assert.NilError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	s, err := fromStatT(stat)
-	assert.NilError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if stat.Mode != s.Mode() {
 		t.Fatal("got invalid mode")

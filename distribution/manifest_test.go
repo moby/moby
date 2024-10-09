@@ -138,7 +138,7 @@ func TestManifestStore(t *testing.T) {
 		assert.NilError(t, err)
 		defer func() {
 			if t.Failed() {
-				os.RemoveAll(root)
+				assert.Check(t, os.RemoveAll(root))
 			}
 		}()
 
