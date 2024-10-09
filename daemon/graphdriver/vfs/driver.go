@@ -86,7 +86,16 @@ func (d *Driver) Status() [][2]string {
 
 // GetMetadata is used for implementing the graphdriver.ProtoDriver interface. VFS does not currently have any meta data.
 func (d *Driver) GetMetadata(id string) (map[string]string, error) {
-	return nil, nil
+	dir := d.dir(id)
+	if _, err := os.Stat(dir); err != nil {
+		return nil, err
+	}
+
+	metadata := map[string]string{
+		"SourceDir": dir,
+	}
+
+	return metadata, nil
 }
 
 // Cleanup is used to implement graphdriver.ProtoDriver. There is no cleanup required for this driver.
