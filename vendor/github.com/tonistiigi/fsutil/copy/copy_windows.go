@@ -37,6 +37,10 @@ func getFileSecurityInfo(name string) (*windows.SID, *windows.ACL, error) {
 }
 
 func (c *copier) copyFileInfo(fi os.FileInfo, src, name string) error {
+	if c.modeSet != nil {
+		return errors.Errorf("non-octal mode not supported on windows")
+	}
+
 	if err := os.Chmod(name, fi.Mode()); err != nil {
 		return errors.Wrapf(err, "failed to chmod %s", name)
 	}

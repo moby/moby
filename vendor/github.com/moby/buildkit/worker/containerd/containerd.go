@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	goRuntime "runtime"
 	"strconv"
 	"strings"
 
@@ -48,28 +47,13 @@ type WorkerOptions struct {
 }
 
 // NewWorkerOpt creates a WorkerOpt.
-func NewWorkerOpt(
-	workerOpts WorkerOptions,
-	opts ...containerd.ClientOpt,
-) (base.WorkerOpt, error) {
+func NewWorkerOpt(workerOpts WorkerOptions, opts ...containerd.ClientOpt) (base.WorkerOpt, error) {
 	opts = append(opts, containerd.WithDefaultNamespace(workerOpts.Namespace))
-
-	address := workerOpts.Address
-
-	if goRuntime.GOOS == "windows" {
-		// TODO(profnandaa): once the upstream PR[1] is merged and
-		// vendored in buildkit, we will remove this block.
-		// [1] https://github.com/containerd/containerd/pull/9412
-		address = strings.TrimPrefix(address, "npipe://")
-	}
-	client, err := containerd.New(address, opts...)
+	client, err := containerd.New(workerOpts.Address, opts...)
 	if err != nil {
-		return base.WorkerOpt{}, errors.Wrapf(err, "failed to connect client to %q . make sure containerd is running", address)
+		return base.WorkerOpt{}, errors.Wrapf(err, "failed to connect client to %q . make sure containerd is running", workerOpts.Address)
 	}
-	return newContainerd(
-		client,
-		workerOpts,
-	)
+	return newContainerd(client, workerOpts)
 }
 
 func newContainerd(client *containerd.Client, workerOpts WorkerOptions) (base.WorkerOpt, error) {
@@ -184,6 +168,7 @@ func newContainerd(client *containerd.Client, workerOpts WorkerOptions) (base.Wo
 
 	opt := base.WorkerOpt{
 		ID:               id,
+		Root:             root,
 		Labels:           xlabels,
 		MetadataStore:    md,
 		NetworkProviders: np,

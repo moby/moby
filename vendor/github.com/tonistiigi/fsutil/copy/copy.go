@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/continuity/fs"
 	"github.com/moby/patternmatcher"
 	"github.com/pkg/errors"
+	mode "github.com/tonistiigi/dchapes-mode"
 	"github.com/tonistiigi/fsutil"
 )
 
@@ -83,12 +84,21 @@ func Copy(ctx context.Context, srcRoot, src, dstRoot, dst string, opts ...Opt) e
 		}
 	}
 
+	var modeSet *mode.Set
+	if ci.ModeStr != "" {
+		ms, err := mode.ParseWithUmask(ci.ModeStr, 0)
+		if err != nil {
+			return err
+		}
+		modeSet = &ms
+	}
+
 	dst, err := fs.RootPath(dstRoot, filepath.Clean(dst))
 	if err != nil {
 		return err
 	}
 
-	c, err := newCopier(dstRoot, ci.Chown, ci.Utime, ci.Mode, ci.XAttrErrorHandler, ci.IncludePatterns, ci.ExcludePatterns, ci.AlwaysReplaceExistingDestPaths, ci.ChangeFunc)
+	c, err := newCopier(dstRoot, ci.Chown, ci.Utime, ci.Mode, modeSet, ci.XAttrErrorHandler, ci.IncludePatterns, ci.ExcludePatterns, ci.AlwaysReplaceExistingDestPaths, ci.ChangeFunc)
 	if err != nil {
 		return err
 	}
@@ -161,10 +171,12 @@ type Chowner func(*User) (*User, error)
 type XAttrErrorHandler func(dst, src, xattrKey string, err error) error
 
 type CopyInfo struct {
-	Chown             Chowner
-	Utime             *time.Time
-	AllowWildcards    bool
-	Mode              *int
+	Chown          Chowner
+	Utime          *time.Time
+	AllowWildcards bool
+	Mode           *int
+	// ModeStr is mode in non-octal format. Overrides Mode if non-empty.
+	ModeStr           string
 	XAttrErrorHandler XAttrErrorHandler
 	CopyDirContents   bool
 	FollowLinks       bool
@@ -234,6 +246,7 @@ type copier struct {
 	chown                          Chowner
 	utime                          *time.Time
 	mode                           *int
+	modeSet                        *mode.Set
 	inodes                         map[uint64]string
 	xattrErrorHandler              XAttrErrorHandler
 	includePatternMatcher          *patternmatcher.PatternMatcher
@@ -250,7 +263,7 @@ type parentDir struct {
 	copied  bool
 }
 
-func newCopier(root string, chown Chowner, tm *time.Time, mode *int, xeh XAttrErrorHandler, includePatterns, excludePatterns []string, alwaysReplaceExistingDestPaths bool, changeFunc fsutil.ChangeFunc) (*copier, error) {
+func newCopier(root string, chown Chowner, tm *time.Time, mode *int, modeSet *mode.Set, xeh XAttrErrorHandler, includePatterns, excludePatterns []string, alwaysReplaceExistingDestPaths bool, changeFunc fsutil.ChangeFunc) (*copier, error) {
 	if xeh == nil {
 		xeh = func(dst, src, key string, err error) error {
 			return err
@@ -282,6 +295,7 @@ func newCopier(root string, chown Chowner, tm *time.Time, mode *int, xeh XAttrEr
 		utime:                          tm,
 		xattrErrorHandler:              xeh,
 		mode:                           mode,
+		modeSet:                        modeSet,
 		includePatternMatcher:          includePatternMatcher,
 		excludePatternMatcher:          excludePatternMatcher,
 		changefn:                       changeFunc,

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package moby.sshforward.v1;
 
-option go_package = "sshforward";
+option go_package = "github.com/moby/buildkit/session/sshforward";
 
 service SSH {
 	rpc CheckAgent(CheckAgentRequest) returns (CheckAgentResponse);

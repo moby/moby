@@ -12,7 +12,7 @@ func init() {
 }
 
 type UnsupportedFrontendCapError struct {
-	FrontendCap
+	*FrontendCap
 	error
 }
 
@@ -29,13 +29,13 @@ func (e *UnsupportedFrontendCapError) Unwrap() error {
 }
 
 func (e *UnsupportedFrontendCapError) ToProto() grpcerrors.TypedErrorProto {
-	return &e.FrontendCap
+	return e.FrontendCap
 }
 
 func NewUnsupportedFrontendCapError(name string) error {
-	return &UnsupportedFrontendCapError{FrontendCap: FrontendCap{Name: name}}
+	return &UnsupportedFrontendCapError{FrontendCap: &FrontendCap{Name: name}}
 }
 
 func (v *FrontendCap) WrapError(err error) error {
-	return &UnsupportedFrontendCapError{error: err, FrontendCap: *v}
+	return &UnsupportedFrontendCapError{error: err, FrontendCap: v}
 }

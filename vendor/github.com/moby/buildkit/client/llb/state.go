@@ -139,7 +139,7 @@ func (s State) SetMarshalDefaults(co ...ConstraintsOpt) State {
 func (s State) Marshal(ctx context.Context, co ...ConstraintsOpt) (*Definition, error) {
 	c := NewConstraints(append(s.opts, co...)...)
 	def := &Definition{
-		Metadata:    make(map[digest.Digest]pb.OpMetadata, 0),
+		Metadata:    make(map[digest.Digest]OpMetadata, 0),
 		Constraints: c,
 	}
 
@@ -157,7 +157,7 @@ func (s State) Marshal(ctx context.Context, co ...ConstraintsOpt) (*Definition, 
 		return def, err
 	}
 	proto := &pb.Op{Inputs: []*pb.Input{inp}}
-	dt, err := proto.Marshal()
+	dt, err := proto.MarshalVT()
 	if err != nil {
 		return def, err
 	}
@@ -210,7 +210,7 @@ func marshal(ctx context.Context, v Vertex, def *Definition, s *sourceMapCollect
 	}
 	vertexCache[v] = struct{}{}
 	if opMeta != nil {
-		def.Metadata[dgst] = mergeMetadata(def.Metadata[dgst], *opMeta)
+		def.Metadata[dgst] = mergeMetadata(def.Metadata[dgst], NewOpMetadata(opMeta))
 	}
 	s.Add(dgst, sls)
 	if _, ok := cache[dgst]; ok {
@@ -509,7 +509,7 @@ func (o *output) ToInput(ctx context.Context, c *Constraints) (*pb.Input, error)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.Input{Digest: dgst, Index: index}, nil
+	return &pb.Input{Digest: string(dgst), Index: int64(index)}, nil
 }
 
 func (o *output) Vertex(context.Context, *Constraints) Vertex {
@@ -560,7 +560,7 @@ func (fn constraintsOptFunc) SetGitOption(gi *GitInfo) {
 	gi.applyConstraints(fn)
 }
 
-func mergeMetadata(m1, m2 pb.OpMetadata) pb.OpMetadata {
+func mergeMetadata(m1, m2 OpMetadata) OpMetadata {
 	if m2.IgnoreCache {
 		m1.IgnoreCache = true
 	}
@@ -654,10 +654,58 @@ func (cw *constraintsWrapper) applyConstraints(f func(c *Constraints)) {
 type Constraints struct {
 	Platform          *ocispecs.Platform
 	WorkerConstraints []string
-	Metadata          pb.OpMetadata
+	Metadata          OpMetadata
 	LocalUniqueID     string
 	Caps              *apicaps.CapSet
 	SourceLocations   []*SourceLocation
+}
+
+// OpMetadata has a more friendly interface for pb.OpMetadata.
+type OpMetadata struct {
+	IgnoreCache   bool                   `json:"ignore_cache,omitempty"`
+	Description   map[string]string      `json:"description,omitempty"`
+	ExportCache   *pb.ExportCache        `json:"export_cache,omitempty"`
+	Caps          map[apicaps.CapID]bool `json:"caps,omitempty"`
+	ProgressGroup *pb.ProgressGroup      `json:"progress_group,omitempty"`
+}
+
+func NewOpMetadata(mpb *pb.OpMetadata) OpMetadata {
+	var m OpMetadata
+	m.FromPB(mpb)
+	return m
+}
+
+func (m OpMetadata) ToPB() *pb.OpMetadata {
+	caps := make(map[string]bool, len(m.Caps))
+	for k, v := range m.Caps {
+		caps[string(k)] = v
+	}
+	return &pb.OpMetadata{
+		IgnoreCache:   m.IgnoreCache,
+		Description:   m.Description,
+		ExportCache:   m.ExportCache,
+		Caps:          caps,
+		ProgressGroup: m.ProgressGroup,
+	}
+}
+
+func (m *OpMetadata) FromPB(mpb *pb.OpMetadata) {
+	if mpb == nil {
+		return
+	}
+
+	m.IgnoreCache = mpb.IgnoreCache
+	m.Description = mpb.Description
+	m.ExportCache = mpb.ExportCache
+	if len(mpb.Caps) > 0 {
+		m.Caps = make(map[apicaps.CapID]bool, len(mpb.Caps))
+		for k, v := range mpb.Caps {
+			m.Caps[apicaps.CapID(k)] = v
+		}
+	} else {
+		m.Caps = nil
+	}
+	m.ProgressGroup = mpb.ProgressGroup
 }
 
 func Platform(p ocispecs.Platform) ConstraintsOpt {

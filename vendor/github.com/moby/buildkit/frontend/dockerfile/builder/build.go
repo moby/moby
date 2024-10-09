@@ -118,7 +118,7 @@ func Build(ctx context.Context, c client.Client) (_ *client.Result, err error) {
 			ImageOpt: &sourceresolver.ResolveImageOpt{
 				ResolveMode: opts["image-resolve-mode"],
 			},
-		})
+		}, bc.SBOM.Parameters)
 		if err != nil {
 			return nil, err
 		}
@@ -255,11 +255,11 @@ func warnOpts(r []parser.Range, detail [][]byte, url string) client.WarnOpts {
 	opts.Range = []*pb.Range{}
 	for _, r := range r {
 		opts.Range = append(opts.Range, &pb.Range{
-			Start: pb.Position{
+			Start: &pb.Position{
 				Line:      int32(r.Start.Line),
 				Character: int32(r.Start.Character),
 			},
-			End: pb.Position{
+			End: &pb.Position{
 				Line:      int32(r.End.Line),
 				Character: int32(r.End.Character),
 			},
@@ -272,7 +272,7 @@ func wrapSource(err error, sm *llb.SourceMap, ranges []parser.Range) error {
 	if sm == nil {
 		return err
 	}
-	s := errdefs.Source{
+	s := &errdefs.Source{
 		Info: &pb.SourceInfo{
 			Data:       sm.Data,
 			Filename:   sm.Filename,
@@ -283,11 +283,11 @@ func wrapSource(err error, sm *llb.SourceMap, ranges []parser.Range) error {
 	}
 	for _, r := range ranges {
 		s.Ranges = append(s.Ranges, &pb.Range{
-			Start: pb.Position{
+			Start: &pb.Position{
 				Line:      int32(r.Start.Line),
 				Character: int32(r.Start.Character),
 			},
-			End: pb.Position{
+			End: &pb.Position{
 				Line:      int32(r.End.Line),
 				Character: int32(r.End.Character),
 			},
