@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Indexed package import.
-// See cmd/compile/internal/gc/iexport.go for the export data format.
+// See iexport.go for the export data format.
 
 // This file is a copy of $GOROOT/src/go/internal/gcimporter/iimport.go.
 
@@ -562,14 +562,14 @@ func (r *importReader) obj(name string) {
 	pos := r.pos()
 
 	switch tag {
-	case aliasTag:
+	case aliasTag, genericAliasTag:
+		var tparams []*types.TypeParam
+		if tag == genericAliasTag {
+			tparams = r.tparamList()
+		}
 		typ := r.typ()
-		// TODO(adonovan): support generic aliases:
-		// if tag == genericAliasTag {
-		// 	tparams := r.tparamList()
-		// 	alias.SetTypeParams(tparams)
-		// }
-		r.declare(aliases.NewAlias(r.p.aliases, pos, r.currPkg, name, typ))
+		obj := aliases.NewAlias(r.p.aliases, pos, r.currPkg, name, typ, tparams)
+		r.declare(obj)
 
 	case constTag:
 		typ, val := r.value()
@@ -862,7 +862,7 @@ func (r *importReader) string() string      { return r.p.stringAt(r.uint64()) }
 func (r *importReader) doType(base *types.Named) (res types.Type) {
 	k := r.kind()
 	if debug {
-		r.p.trace("importing type %d (base: %s)", k, base)
+		r.p.trace("importing type %d (base: %v)", k, base)
 		r.p.indent++
 		defer func() {
 			r.p.indent--
