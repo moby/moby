@@ -70,6 +70,18 @@ var index = []section{
 	{
 		name: "new-daemon.md",
 	},
+	{
+		name: "usernet-portmap.md",
+		networks: []bridgeNetwork{{
+			bridge: "bridge1",
+			containers: []ctr{
+				{
+					name:         "c1",
+					portMappings: nat.PortMap{"80/tcp": {{HostPort: "8080"}}},
+				},
+			},
+		}},
+	},
 }
 
 // iptCmdType is used to look up iptCmds in the markdown (can't use an int
