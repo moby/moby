@@ -147,8 +147,8 @@ func (c *PortDriverClient) AddPort(
 		return nil, fmt.Errorf("error while calling RootlessKit PortManager.AddPort(): %w", err)
 	}
 	deferFunc := func() error {
-		if dErr := pm.RemovePort(ctx, st.ID); dErr != nil {
-			return fmt.Errorf("error while calling RootlessKit PortManager.RemovePort(): %w", err)
+		if dErr := pm.RemovePort(context.WithoutCancel(ctx), st.ID); dErr != nil {
+			return fmt.Errorf("error while calling RootlessKit PortManager.RemovePort(): %w", dErr)
 		}
 		return nil
 	}

@@ -76,6 +76,7 @@ var startProxy = portmapper.StartProxy
 // that's how the mapping is presented in 'inspect'). HostPort and HostPortEnd in
 // each returned portBinding are set to the selected and reserved port.
 func (n *bridgeNetwork) addPortMappings(
+	ctx context.Context,
 	epAddrV4, epAddrV6 *net.IPNet,
 	cfg []types.PortBinding,
 	defHostIP net.IP,
@@ -95,17 +96,12 @@ func (n *bridgeNetwork) addPortMappings(
 		containerIPv6 = epAddrV6.IP
 	}
 
-	disableNAT4, disableNAT6 := n.getNATDisabled()
-	if err := validatePortBindings(cfg, !disableNAT4, !disableNAT6, containerIPv6); err != nil {
-		return nil, err
-	}
-
 	bindings := make([]portBinding, 0, len(cfg)*2)
 
 	defer func() {
 		if retErr != nil {
 			if err := n.releasePortBindings(bindings); err != nil {
-				log.G(context.TODO()).Warnf("Release port bindings: %s", err.Error())
+				log.G(ctx).Warnf("Release port bindings: %s", err.Error())
 			}
 		}
 	}()
@@ -115,6 +111,7 @@ func (n *bridgeNetwork) addPortMappings(
 
 	proxyPath := n.userlandProxyPath()
 	pdc := n.getPortDriverClient()
+	disableNAT4, disableNAT6 := n.getNATDisabled()
 
 	// toBind accumulates port bindings that should be allocated the same host port
 	// (if required by NAT config). If the host address is unspecified, and defHostIP
@@ -127,23 +124,36 @@ func (n *bridgeNetwork) addPortMappings(
 	// bindings to collect, they're applied and toBind is reset.
 	var toBind []portBindingReq
 	for i, c := range sortedCfg {
-		if bindingIPv4, ok := configurePortBindingIPv4(pdc, disableNAT4, c, containerIPv4, defHostIP); ok {
+		if bindingIPv4, ok := configurePortBindingIPv4(ctx, pdc, disableNAT4, c, containerIPv4, defHostIP); ok {
 			toBind = append(toBind, bindingIPv4)
 		}
 
 		// If the container has no IPv6 address, allow proxying host IPv6 traffic to it
 		// by setting up the binding with the IPv4 interface if the userland proxy is enabled
 		// This change was added to keep backward compatibility
-		// TODO(robmry) - this will silently ignore port bindings with an explicit IPv6
-		//  host address, when docker-proxy is disabled, and the container is IPv4-only.
-		//  If there's no proxying and the container has no IPv6, should probably error if ...
-		//  - the mapping's host address is IPv6, or
-		//  - the mapping has no host address, but the default address is IPv6.
 		containerIP := containerIPv6
-		if proxyPath != "" && (containerIPv6 == nil) {
-			containerIP = containerIPv4
+		if containerIPv6 == nil {
+			if proxyPath == "" {
+				// There's no way to map from host-IPv6 to container-IPv4 with the userland proxy
+				// disabled.
+				// If that is required, don't treat it as an error because, as networks are
+				// connected/disconnected, the container's gateway endpoint might change to a
+				// network where this config makes more sense.
+				if len(c.HostIP) > 0 && c.HostIP.To4() == nil {
+					log.G(ctx).WithFields(log.Fields{"mapping": c}).Info(
+						"Cannot map from IPv6 to an IPv4-only container because the userland proxy is disabled")
+				}
+				if len(c.HostIP) == 0 && defHostIP.To4() == nil {
+					log.G(ctx).WithFields(log.Fields{
+						"mapping": c,
+						"default": defHostIP,
+					}).Info("Cannot map from default host binding address to an IPv4-only container because the userland proxy is disabled")
+				}
+			} else {
+				containerIP = containerIPv4
+			}
 		}
-		if bindingIPv6, ok := configurePortBindingIPv6(pdc, disableNAT6, c, containerIP, defHostIP); ok {
+		if bindingIPv6, ok := configurePortBindingIPv6(ctx, pdc, disableNAT6, c, containerIP, defHostIP); ok {
 			toBind = append(toBind, bindingIPv6)
 		}
 
@@ -154,7 +164,7 @@ func (n *bridgeNetwork) addPortMappings(
 		}
 
 		// Allocate and bind a host port.
-		newB, err := bindHostPorts(toBind, proxyPath)
+		newB, err := bindHostPorts(ctx, toBind, proxyPath)
 		if err != nil {
 			return nil, err
 		}
@@ -176,7 +186,7 @@ func (n *bridgeNetwork) addPortMappings(
 			if !ok {
 				return nil, fmt.Errorf("invalid child host IP address %s in %s", b.childHostIP, b)
 			}
-			b.portDriverRemove, err = pdc.AddPort(context.TODO(), b.Proto.String(), hip, chip, int(b.HostPort))
+			b.portDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip, chip, int(b.HostPort))
 			if err != nil {
 				return nil, err
 			}
@@ -224,7 +234,7 @@ func (n *bridgeNetwork) addPortMappings(
 					bindings[i].PortBinding, err)
 			}
 			if err := bindings[i].boundSocket.Close(); err != nil {
-				log.G(context.TODO()).WithFields(log.Fields{
+				log.G(ctx).WithFields(log.Fields{
 					"error":   err,
 					"mapping": bindings[i].PortBinding,
 				}).Warnf("failed to close proxy socket")
@@ -234,65 +244,6 @@ func (n *bridgeNetwork) addPortMappings(
 	}
 
 	return bindings, nil
-}
-
-// Limit the number of errors reported, because there may be a lot of port
-// bindings (host port ranges are expanded by the CLI).
-const validationErrLimit = 6
-
-// validatePortBindings checks that, if NAT is disabled for all uses of a
-// PortBinding, no HostPort, or non-zero HostIP, is specified - because they have
-// no meaning. A zero HostIP is allowed, as it's used to determine the address
-// family.
-//
-// The default binding IP is not considered, meaning that no error is raised if
-// there is a default binding address that is not used but could have been.
-//
-// For example, the default is an IPv6 interface address, no HostIP is specified,
-// and NAT6 is disabled; the default is ignored and no error will be raised. (Note
-// that this example may be valid if the container has no IPv6 address, and
-// docker-proxy is used to forward between the default IPv6 address and the
-// container's IPv4. So, simply disallowing a non-zero IPv6 default when NAT6
-// is disabled for the network would be incorrect.)
-func validatePortBindings(pbs []types.PortBinding, nat4, nat6 bool, cIPv6 net.IP) error {
-	var errs []error
-	for i := range pbs {
-		pb := &pbs[i]
-		disallowHostPort := false
-		if !nat4 && len(pb.HostIP) > 0 && pb.HostIP.To4() != nil && !pb.HostIP.Equal(net.IPv4zero) {
-			// There's no NAT4, so don't allow a nonzero IPv4 host address in the mapping. The port will
-			// be accessible via any host interface.
-			errs = append(errs,
-				fmt.Errorf("NAT is disabled, omit host address in port mapping %s, or use 0.0.0.0::%d to open port %d for IPv4-only",
-					pb, pb.Port, pb.Port))
-			// The mapping is IPv4-specific but there's no NAT4, so a host port would make no sense.
-			disallowHostPort = true
-		} else if !nat6 && len(pb.HostIP) > 0 && pb.HostIP.To4() == nil && !pb.HostIP.Equal(net.IPv6zero) {
-			// If the container has no IPv6 address, the userland proxy will proxy between the
-			// host's IPv6 address and the container's IPv4. So, even with no NAT6, it's ok for
-			// an IPv6 port mapping to include a specific host address or port.
-			if len(cIPv6) > 0 {
-				// There's no NAT6, so don't allow an IPv6 host address in the mapping. The port will
-				// accessible via any host interface.
-				errs = append(errs,
-					fmt.Errorf("NAT is disabled, omit host address in port mapping %s, or use [::]::%d to open port %d for IPv6-only",
-						pb, pb.Port, pb.Port))
-				// The mapping is IPv6-specific but there's no NAT6, so a host port would make no sense.
-				disallowHostPort = true
-			}
-		} else if !nat4 && !nat6 {
-			// There's no NAT, so it would make no sense to specify a host port.
-			disallowHostPort = true
-		}
-		if disallowHostPort && pb.HostPort != 0 {
-			errs = append(errs,
-				fmt.Errorf("host port must not be specified in mapping %s because NAT is disabled", pb))
-		}
-		if len(errs) >= validationErrLimit {
-			break
-		}
-	}
-	return errors.Join(errs...)
 }
 
 // sortAndNormPBs normalises cfg by making HostPortEnd=HostPort (rather than 0) if the
@@ -359,9 +310,17 @@ func needSamePort(a, b types.PortBinding) bool {
 		a.IP.Equal(b.IP)
 }
 
-// configurePortBindingIPv4 returns a new port binding with the HostIP field populated
-// if a binding is required, else nil.
-func configurePortBindingIPv4(pdc portDriverClient, disableNAT bool, bnd types.PortBinding, containerIPv4, defHostIP net.IP) (portBindingReq, bool) {
+// configurePortBindingIPv4 returns a new port binding with the HostIP field
+// populated and true, if a binding is required. Else, false and an empty
+// binding.
+func configurePortBindingIPv4(
+	ctx context.Context,
+	pdc portDriverClient,
+	disableNAT bool,
+	bnd types.PortBinding,
+	containerIPv4,
+	defHostIP net.IP,
+) (portBindingReq, bool) {
 	if len(containerIPv4) == 0 {
 		return portBindingReq{}, false
 	}
@@ -375,8 +334,27 @@ func configurePortBindingIPv4(pdc portDriverClient, disableNAT bool, bnd types.P
 			// The default binding address is IPv6.
 			return portBindingReq{}, false
 		}
-		bnd.HostIP = defHostIP
+		// The default binding IP is an IPv4 address, use it - unless NAT is disabled,
+		// in which case it's not possible to bind to a specific host address (the port
+		// mapping only opens the container's port for direct routing).
+		if disableNAT {
+			bnd.HostIP = net.IPv4zero
+		} else {
+			bnd.HostIP = defHostIP
+		}
 	}
+
+	if disableNAT && len(bnd.HostIP) != 0 && !bnd.HostIP.Equal(net.IPv4zero) {
+		// Ignore the default binding when nat is disabled - it may have been set
+		// up for IPv6 if nat is enabled there.
+		// Don't treat this as an error because, as networks are connected/disconnected,
+		// the container's gateway endpoint might change to a network where this config
+		// makes more sense.
+		log.G(ctx).WithFields(log.Fields{"mapping": bnd}).Info(
+			"Using address 0.0.0.0 because NAT is disabled")
+		bnd.HostIP = net.IPv4zero
+	}
+
 	// Unmap the addresses if they're IPv4-mapped IPv6.
 	bnd.HostIP = bnd.HostIP.To4()
 	bnd.IP = containerIPv4.To4()
@@ -386,9 +364,16 @@ func configurePortBindingIPv4(pdc portDriverClient, disableNAT bool, bnd types.P
 	}), true
 }
 
-// configurePortBindingIPv6 returns a new port binding with the HostIP field populated
-// if a binding is required, else nil.
-func configurePortBindingIPv6(pdc portDriverClient, disableNAT bool, bnd types.PortBinding, containerIP, defHostIP net.IP) (portBindingReq, bool) {
+// configurePortBindingIPv6 returns a new port binding with the HostIP field
+// populated and true, if a binding is required. Else, false and an empty
+// binding.
+func configurePortBindingIPv6(
+	ctx context.Context,
+	pdc portDriverClient,
+	disableNAT bool,
+	bnd types.PortBinding,
+	containerIP, defHostIP net.IP,
+) (portBindingReq, bool) {
 	if containerIP == nil {
 		return portBindingReq{}, false
 	}
@@ -407,13 +392,31 @@ func configurePortBindingIPv6(pdc portDriverClient, disableNAT bool, bnd types.P
 			// Implicit binding to "::", no explicit HostIP and the default is 0.0.0.0
 			bnd.HostIP = net.IPv6zero
 		} else if defHostIP.To4() == nil {
-			// The default binding IP is an IPv6 address, use it.
-			bnd.HostIP = defHostIP
+			// The default binding IP is an IPv6 address, use it - unless NAT is disabled, in
+			// which case it's not possible to bind to a specific host address (the port
+			// mapping only opens the container's port for direct routing).
+			if disableNAT {
+				bnd.HostIP = net.IPv6zero
+			} else {
+				bnd.HostIP = defHostIP
+			}
 		} else {
 			// The default binding IP is an IPv4 address, nothing to do here.
 			return portBindingReq{}, false
 		}
 	}
+
+	if disableNAT && len(bnd.HostIP) != 0 && !bnd.HostIP.Equal(net.IPv6zero) {
+		// Ignore the default binding when nat is disabled - it may have been set
+		// up for IPv4 if nat is enabled there.
+		// Don't treat this as an error because, as networks are connected/disconnected,
+		// the container's gateway endpoint might change to a network where this config
+		// makes more sense.
+		log.G(ctx).WithFields(log.Fields{"mapping": bnd}).Info(
+			"Using address [::] because NAT is disabled")
+		bnd.HostIP = net.IPv6zero
+	}
+
 	bnd.IP = containerIP
 	return setChildHostIP(pdc, portBindingReq{
 		PortBinding: bnd,
@@ -434,7 +437,11 @@ func setChildHostIP(pdc portDriverClient, req portBindingReq) portBindingReq {
 // bindHostPorts allocates and binds host ports for the given cfg. The
 // caller is responsible for ensuring that all entries in cfg map the same proto,
 // container port, and host port range (their host addresses must differ).
-func bindHostPorts(cfg []portBindingReq, proxyPath string) ([]portBinding, error) {
+func bindHostPorts(
+	ctx context.Context,
+	cfg []portBindingReq,
+	proxyPath string,
+) ([]portBinding, error) {
 	if len(cfg) == 0 {
 		return nil, nil
 	}
@@ -452,16 +459,16 @@ func bindHostPorts(cfg []portBindingReq, proxyPath string) ([]portBinding, error
 	var err error
 	for i := 0; i < maxAllocatePortAttempts; i++ {
 		var b []portBinding
-		b, err = attemptBindHostPorts(cfg, proto.String(), hostPort, hostPortEnd, proxyPath)
+		b, err = attemptBindHostPorts(ctx, cfg, proto.String(), hostPort, hostPortEnd, proxyPath)
 		if err == nil {
 			return b, nil
 		}
 		// There is no point in immediately retrying to map an explicitly chosen port.
 		if hostPort != 0 && hostPort == hostPortEnd {
-			log.G(context.TODO()).Warnf("Failed to allocate and map port: %s", err)
+			log.G(ctx).Warnf("Failed to allocate and map port: %s", err)
 			break
 		}
-		log.G(context.TODO()).Warnf("Failed to allocate and map port: %s, retry: %d", err, i+1)
+		log.G(ctx).Warnf("Failed to allocate and map port: %s, retry: %d", err, i+1)
 	}
 	return nil, err
 }
@@ -475,9 +482,10 @@ func bindHostPorts(cfg []portBindingReq, proxyPath string) ([]portBinding, error
 // successfully reserved, a portBinding is returned for each mapping.
 //
 // If NAT is disabled for any of the bindings, no host port reservation is
-// needed. These bindings are included in results, as the container port itself
+// needed. Include these bindings in results, as the container port itself
 // needs to be opened in the firewall.
 func attemptBindHostPorts(
+	ctx context.Context,
 	cfg []portBindingReq,
 	proto string,
 	hostPortStart, hostPortEnd uint16,
@@ -514,7 +522,7 @@ func attemptBindHostPorts(
 			for _, pb := range res {
 				if pb.boundSocket != nil {
 					if err := pb.boundSocket.Close(); err != nil {
-						log.G(context.TODO()).Warnf("Failed to close port binding for %s: %s", pb, err)
+						log.G(ctx).Warnf("Failed to close port binding for %s: %s", pb, err)
 					}
 				}
 				// TODO(robmry) - this is only needed because the userland proxy may have
@@ -522,7 +530,7 @@ func attemptBindHostPorts(
 				//  iptables rules have been configured (as it is for TCP/UDP), remove this.
 				if pb.stopProxy != nil {
 					if err := pb.stopProxy(); err != nil {
-						log.G(context.TODO()).Warnf("Failed to stop proxy for %s: %s", pb, err)
+						log.G(ctx).Warnf("Failed to stop proxy for %s: %s", pb, err)
 					}
 				}
 			}
@@ -533,8 +541,12 @@ func attemptBindHostPorts(
 		var pb portBinding
 		if c.disableNAT {
 			pb = portBinding{PortBinding: c.GetCopy()}
-			pb.HostPort = 0
-			pb.HostPortEnd = 0
+			if pb.HostPort != 0 || pb.HostPortEnd != 0 {
+				log.G(ctx).WithFields(log.Fields{"mapping": pb}).Infof(
+					"Host port ignored, because NAT is disabled")
+				pb.HostPort = 0
+				pb.HostPortEnd = 0
+			}
 		} else {
 			switch proto {
 			case "tcp":
