@@ -256,8 +256,6 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 	opts := []containerd.ImportOpt{
 		containerd.WithImportPlatform(pm),
 
-		containerd.WithSkipMissing(),
-
 		// Create an additional image with dangling name for imported images...
 		containerd.WithDigestRef(danglingImageName),
 		// ... but only if they don't have a name or it's invalid.
@@ -270,8 +268,18 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 		}),
 	}
 
+	if platform == nil {
+		// Allow variants to be missing if no specific platform is requested.
+		opts = append(opts, containerd.WithSkipMissing())
+	}
+
 	imgs, err := i.client.Import(ctx, decompressed, opts...)
 	if err != nil {
+		if platform != nil && (errors.Is(err, containerdimages.ErrEmptyWalk) || cerrdefs.IsNotFound(err)) {
+			p := platforms.Format(*platform)
+			log.G(ctx).WithFields(log.Fields{"error": err, "platform": p}).Debug("failed to import image to containerd")
+			return errdefs.InvalidParameter(errors.Wrapf(err, "requested platform (%s) not found", p))
+		}
 		log.G(ctx).WithError(err).Debug("failed to import image to containerd")
 		return errdefs.System(err)
 	}
@@ -310,8 +318,9 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 				return nil
 			}
 
-			// Only unpack the image if it matches the host platform
-			if !i.hostPlatformMatcher().Match(imgPlat) {
+			// Only unpack the image if it matches the requested platform or
+			// the host platform (if no specific platform was requested).
+			if !pm.Match(imgPlat) {
 				return nil
 			}
 
