@@ -89,7 +89,7 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 		if platform != nil {
 			newTarget, err := i.getPushDescriptor(ctx, img, platform)
 			if err != nil {
-				return errors.Wrap(err, "no suitable export target found for platform "+platforms.FormatAll(*platform))
+				return errors.Wrap(err, "no suitable export target found")
 			}
 			target = newTarget
 		}
