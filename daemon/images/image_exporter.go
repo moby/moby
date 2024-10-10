@@ -25,12 +25,11 @@ func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Conta
 	if err != nil {
 		return err
 	}
+
 	defer func() {
+		err := i.ReleaseLayer(rwlayer)
 		if err != nil {
-			err2 := i.ReleaseLayer(rwlayer)
-			if err2 != nil {
-				log.G(ctx).WithError(err2).WithField("container", c.ID).Warn("Failed to release layer")
-			}
+			log.G(ctx).WithError(err).WithField("container", c.ID).Warn("Failed to release layer")
 		}
 	}()
 
@@ -38,6 +37,8 @@ func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Conta
 	if err != nil {
 		return err
 	}
+
+	defer rwlayer.Unmount()
 
 	return fn(basefs)
 }
