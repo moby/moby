@@ -32,8 +32,8 @@ env:
 jobs:
   unit:
     runs-on: ubuntu-20.04
+    timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
-    timeout-minutes: 120
     steps:
       -
         name: Checkout
@@ -83,8 +83,8 @@ jobs:
 
   unit-report:
     runs-on: ubuntu-20.04
-    continue-on-error: ${{ github.event_name != 'pull_request' }}
     timeout-minutes: 10
+    continue-on-error: ${{ github.event_name != 'pull_request' }}
     if: always()
     needs:
       - unit
@@ -111,8 +111,8 @@ jobs:
 
   docker-py:
     runs-on: ubuntu-20.04
+    timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
-    timeout-minutes: 120
     steps:
       -
         name: Checkout
@@ -164,8 +164,8 @@ jobs:
 
   integration-flaky:
     runs-on: ubuntu-20.04
+    timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
-    timeout-minutes: 120
     steps:
       -
         name: Checkout
@@ -192,8 +192,8 @@ jobs:
 
   integration:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
-    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -286,8 +286,8 @@ jobs:
 
   integration-report:
     runs-on: ubuntu-20.04
-    continue-on-error: ${{ github.event_name != 'pull_request' }}
     timeout-minutes: 10
+    continue-on-error: ${{ github.event_name != 'pull_request' }}
     if: always()
     needs:
       - integration
@@ -315,6 +315,7 @@ jobs:
 
   integration-cli-prepare:
     runs-on: ubuntu-20.04
+    timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     outputs:
       matrix: ${{ steps.tests.outputs.matrix }}
@@ -350,8 +351,8 @@ jobs:
 
   integration-cli:
     runs-on: ubuntu-20.04
+    timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
-    timeout-minutes: 120
     needs:
       - integration-cli-prepare
     strategy:
@@ -426,8 +427,8 @@ jobs:
 
   integration-cli-report:
     runs-on: ubuntu-20.04
-    continue-on-error: ${{ github.event_name != 'pull_request' }}
     timeout-minutes: 10
+    continue-on-error: ${{ github.event_name != 'pull_request' }}
     if: always()
     needs:
       - integration-cli

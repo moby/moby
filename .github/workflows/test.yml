@@ -32,6 +32,7 @@ jobs:
 
   build-dev:
     runs-on: ubuntu-20.04
+    timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-dco
     strategy:
@@ -80,6 +81,7 @@ jobs:
 
   validate-prepare:
     runs-on: ubuntu-20.04
+    timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-dco
     outputs:
@@ -101,7 +103,7 @@ jobs:
 
   validate:
     runs-on: ubuntu-20.04
-    timeout-minutes: 120
+    timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-prepare
       - build-dev
@@ -135,6 +137,7 @@ jobs:
 
   smoke-prepare:
     runs-on: ubuntu-20.04
+    timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-dco
     outputs:
@@ -156,6 +159,7 @@ jobs:
 
   smoke:
     runs-on: ubuntu-20.04
+    timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - smoke-prepare
     strategy:
