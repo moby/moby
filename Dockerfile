@@ -16,6 +16,7 @@ ARG BUILDX_VERSION=0.17.1
 ARG COMPOSE_VERSION=v2.29.7
 
 ARG SYSTEMD="false"
+ARG FIREWALLD="false"
 ARG DOCKER_STATIC=1
 
 # REGISTRY_VERSION specifies the version of the registry to download from
@@ -502,7 +503,16 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             systemd-sysv
 ENTRYPOINT ["hack/dind-systemd"]
 
-FROM dev-systemd-${SYSTEMD} AS dev-base
+FROM dev-systemd-${SYSTEMD} AS dev-firewalld-false
+
+FROM dev-systemd-true AS dev-firewalld-true
+RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-dev-aptcache,target=/var/cache/apt \
+        apt-get update && apt-get install -y --no-install-recommends \
+            firewalld
+RUN sed -i 's/FirewallBackend=nftables/FirewallBackend=iptables/' /etc/firewalld/firewalld.conf
+
+FROM dev-firewalld-${FIREWALLD} AS dev-base
 RUN groupadd -r docker
 RUN useradd --create-home --gid docker unprivilegeduser \
  && mkdir -p /home/unprivilegeduser/.local/share/docker \
