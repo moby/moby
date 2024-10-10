@@ -33,7 +33,7 @@ jobs:
     uses: ./.github/workflows/.dco.yml
 
   build-dev:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs:
       - validate-dco
     strategy:
@@ -85,7 +85,7 @@ jobs:
       storage: ${{ matrix.storage }}
 
   validate-prepare:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs:
       - validate-dco
     outputs:
@@ -106,7 +106,7 @@ jobs:
           echo ${{ steps.scripts.outputs.matrix }}
 
   validate:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     needs:
       - validate-prepare
@@ -144,7 +144,7 @@ jobs:
           make -o build validate-${{ matrix.script }}
 
   smoke-prepare:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs:
       - validate-dco
     outputs:
@@ -165,7 +165,7 @@ jobs:
           echo ${{ steps.platforms.outputs.matrix }}
 
   smoke:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs:
       - smoke-prepare
     strategy:

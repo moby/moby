@@ -15,7 +15,7 @@ on:
 
 jobs:
   check-area-label:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Missing `area/` label
         if: contains(join(github.event.pull_request.labels.*.name, ','), 'impact/') && !contains(join(github.event.pull_request.labels.*.name, ','), 'area/')
@@ -27,7 +27,7 @@ jobs:
 
   check-changelog:
     if: contains(join(github.event.pull_request.labels.*.name, ','), 'impact/')
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     env:
       PR_BODY: |
         ${{ github.event.pull_request.body }}
@@ -55,7 +55,7 @@ jobs:
           echo "$desc"
 
   check-pr-branch:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     env:
       PR_TITLE: ${{ github.event.pull_request.title }}
     steps:

@@ -202,7 +202,7 @@ jobs:
           retention-days: 1
 
   unit-test-report:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: always()
     needs:
       - unit-test
@@ -228,7 +228,7 @@ jobs:
           find /tmp/artifacts -type f -name '*-go-test-report.json' -exec teststat -markdown {} \+ >> $GITHUB_STEP_SUMMARY
 
   integration-test-prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.tests.outputs.matrix }}
     steps:
@@ -521,7 +521,7 @@ jobs:
           retention-days: 1
 
   integration-test-report:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
     if: always()
     needs:
