@@ -12,7 +12,6 @@ name: .windows
 permissions:
   contents: read
 
-
 on:
   workflow_call:
     inputs:
