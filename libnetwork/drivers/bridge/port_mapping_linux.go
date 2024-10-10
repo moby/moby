@@ -605,6 +605,22 @@ func bindTCPOrUDP(cfg portBindingReq, port, typ, proto int) (_ portBinding, retE
 	if domain == syscall.AF_INET6 {
 		syscall.SetsockoptInt(sd, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 1)
 	}
+	if typ == syscall.SOCK_DGRAM {
+		// Enable IP_PKTINFO for UDP sockets to get the destination address.
+		// The destination address will be used as the source address when
+		// sending back replies coming from the container.
+		lvl := syscall.IPPROTO_IP
+		opt := syscall.IP_PKTINFO
+		optName := "IP_PKTINFO"
+		if domain == syscall.AF_INET6 {
+			lvl = syscall.IPPROTO_IPV6
+			opt = syscall.IPV6_RECVPKTINFO
+			optName = "IPV6_RECVPKTINFO"
+		}
+		if err := syscall.SetsockoptInt(sd, lvl, opt, 1); err != nil {
+			return portBinding{}, fmt.Errorf("failed to setsockopt(%s) for %s: %w", optName, cfg, err)
+		}
+	}
 	if err := syscall.Bind(sd, sa); err != nil {
 		if cfg.HostPort == cfg.HostPortEnd {
 			return portBinding{}, fmt.Errorf("failed to bind host port for %s: %w", cfg, err)
