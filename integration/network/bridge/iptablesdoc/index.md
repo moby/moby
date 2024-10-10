@@ -39,3 +39,4 @@ routed into the bridge network. Similarly, filter-OUTPUT is not used.
 Scenarios:
 
   - [New daemon](generated/new-daemon.md)
+  - [Container on a user-defined network, with a published port](generated/usernet-portmap.md)
