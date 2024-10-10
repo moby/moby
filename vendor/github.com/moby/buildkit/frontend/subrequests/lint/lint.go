@@ -34,11 +34,11 @@ var SubrequestLintDefinition = subrequests.Request{
 }
 
 type Warning struct {
-	RuleName    string      `json:"ruleName"`
-	Description string      `json:"description,omitempty"`
-	URL         string      `json:"url,omitempty"`
-	Detail      string      `json:"detail,omitempty"`
-	Location    pb.Location `json:"location,omitempty"`
+	RuleName    string       `json:"ruleName"`
+	Description string       `json:"description,omitempty"`
+	URL         string       `json:"url,omitempty"`
+	Detail      string       `json:"detail,omitempty"`
+	Location    *pb.Location `json:"location,omitempty"`
 }
 
 func (w *Warning) PrintTo(wr io.Writer, sources []*pb.SourceInfo, scb SourceInfoMap) error {
@@ -93,17 +93,17 @@ func (results *LintResults) AddWarning(rulename, description, url, fmtmsg string
 	sourceLocation := []*pb.Range{}
 	for _, loc := range location {
 		sourceLocation = append(sourceLocation, &pb.Range{
-			Start: pb.Position{
+			Start: &pb.Position{
 				Line:      int32(loc.Start.Line),
 				Character: int32(loc.Start.Character),
 			},
-			End: pb.Position{
+			End: &pb.Position{
 				Line:      int32(loc.End.Line),
 				Character: int32(loc.End.Character),
 			},
 		})
 	}
-	pbLocation := pb.Location{
+	pbLocation := &pb.Location{
 		SourceIndex: int32(sourceIndex),
 		Ranges:      sourceLocation,
 	}

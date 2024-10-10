@@ -197,7 +197,7 @@ func (r *receiver) run(ctx context.Context) error {
 		}
 		var p types.Packet
 		for {
-			p = types.Packet{Data: p.Data[:0]}
+			p.ResetVT()
 			if err := r.conn.RecvMsg(&p); err != nil {
 				return err
 			}

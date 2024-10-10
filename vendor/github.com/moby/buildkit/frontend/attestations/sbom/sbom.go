@@ -34,7 +34,7 @@ const (
 // attestation.
 type Scanner func(ctx context.Context, name string, ref llb.State, extras map[string]llb.State, opts ...llb.ConstraintsOpt) (result.Attestation[*llb.State], error)
 
-func CreateSBOMScanner(ctx context.Context, resolver sourceresolver.MetaResolver, scanner string, resolveOpt sourceresolver.Opt) (Scanner, error) {
+func CreateSBOMScanner(ctx context.Context, resolver sourceresolver.MetaResolver, scanner string, resolveOpt sourceresolver.Opt, params map[string]string) (Scanner, error) {
 	if scanner == "" {
 		return nil, nil
 	}
@@ -66,6 +66,10 @@ func CreateSBOMScanner(ctx context.Context, resolver sourceresolver.MetaResolver
 			env = append(env, "BUILDKIT_SCAN_SOURCE_EXTRAS="+path.Join(srcDir, "extras/"))
 		}
 
+		for k, v := range params {
+			env = append(env, "BUILDKIT_SCAN_"+k+"="+v)
+		}
+
 		runOpts := []llb.RunOption{
 			llb.WithCustomName(fmt.Sprintf("[%s] generating sbom using %s", name, scanner)),
 		}
@@ -89,7 +93,7 @@ func CreateSBOMScanner(ctx context.Context, resolver sourceresolver.MetaResolver
 
 		stsbom := runscan.AddMount(outDir, llb.Scratch())
 		return result.Attestation[*llb.State]{
-			Kind: gatewaypb.AttestationKindBundle,
+			Kind: gatewaypb.AttestationKind_Bundle,
 			Ref:  &stsbom,
 			Metadata: map[string][]byte{
 				result.AttestationReasonKey: []byte(result.AttestationReasonSBOM),

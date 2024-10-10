@@ -105,7 +105,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 			defers = append(defers, cleanup)
 		}
 
-		st := fstypes.Stat{
+		st := &fstypes.Stat{
 			Mode: uint32(os.ModeDir | 0755),
 			Path: strings.ReplaceAll(k, "/", "_"),
 		}

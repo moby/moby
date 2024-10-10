@@ -64,7 +64,7 @@ func retryError(err error) bool {
 		return true
 	}
 	// catches TLS timeout or other network-related temporary errors
-	if ne := net.Error(nil); errors.As(err, &ne) && ne.Temporary() { // ignoring "SA1019: Temporary is deprecated", continue to propagate net.Error through the "temporary" status
+	if ne := net.Error(nil); errors.As(err, &ne) && ne.Temporary() { //nolint:staticcheck // ignoring "SA1019: Temporary is deprecated", continue to propagate net.Error through the "temporary" status
 		return true
 	}
 

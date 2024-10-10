@@ -450,6 +450,9 @@ func parseScopes(s []string) scopes {
 	// https://docs.docker.com/registry/spec/auth/scope/
 	m := map[string]map[string]struct{}{}
 	for _, scopeStr := range s {
+		if scopeStr == "" {
+			return nil
+		}
 		// The scopeStr may have strings that contain multiple scopes separated by a space.
 		for _, scope := range strings.Split(scopeStr, " ") {
 			parts := strings.SplitN(scope, ":", 3)

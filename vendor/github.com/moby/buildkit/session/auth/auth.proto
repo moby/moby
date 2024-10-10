@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package moby.filesync.v1;
 
-option go_package = "auth";
+option go_package = "github.com/moby/buildkit/session/auth";
 
 service Auth{
 	rpc Credentials(CredentialsRequest) returns (CredentialsResponse);

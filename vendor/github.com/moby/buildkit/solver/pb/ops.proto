@@ -4,9 +4,7 @@ syntax = "proto3";
 // LLB is DAG-structured; Op represents a vertex, and Definition represents a graph.
 package pb;
 
-import "github.com/gogo/protobuf/gogoproto/gogo.proto";
-
-option (gogoproto.stable_marshaler_all) = true;
+option go_package = "github.com/moby/buildkit/solver/pb";
 
 // Op represents a vertex of the LLB DAG.
 message Op {
@@ -37,9 +35,9 @@ message Platform {
 // Input represents an input edge for an Op.
 message Input {
 	// digest of the marshaled input Op
-	string digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	string digest = 1;
 	// output index of the input Op
-	int64 index = 2 [(gogoproto.customtype) = "OutputIndex", (gogoproto.nullable) = false];
+	int64 index = 2;
 }
 
 // ExecOp executes a command in a container.
@@ -65,6 +63,7 @@ message Meta {
 	repeated Ulimit ulimit = 9;
 	string cgroupParent = 10;
 	bool removeMountStubsRecursive = 11;
+	repeated int32 validExitCodes = 12;
 }
 
 message HostIP {
@@ -98,10 +97,10 @@ message SecretEnv {
 
 // Mount specifies how to mount an input Op as a filesystem.
 message Mount {
-	int64 input = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
+	int64 input = 1;
 	string selector = 2;
 	string dest = 3;
-	int64 output = 4 [(gogoproto.customtype) = "OutputIndex", (gogoproto.nullable) = false];
+	int64 output = 4;
 	bool readonly = 5;
 	MountType mountType = 6;
 	TmpfsOpt TmpfsOpt = 19;
@@ -194,7 +193,7 @@ message SourceOp {
 // BuildOp is used for nested build invocation.
 // BuildOp is experimental and can break without backwards compatibility
 message BuildOp {
-	int64 builder = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
+	int64 builder = 1;
 	map<string, BuildInput> inputs = 2;
 	Definition def = 3;
 	map<string, string> attrs = 4;
@@ -203,7 +202,7 @@ message BuildOp {
 
 // BuildInput is used for BuildOp.
 message BuildInput {
-	int64 input = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
+	int64 input = 1;
 }
 
 // OpMetadata is a per-vertex metadata entry, which can be defined for arbitrary Op vertex and overridable on the run time.
@@ -216,7 +215,7 @@ message OpMetadata {
 	// WorkerConstraint worker_constraint = 3;
 	ExportCache export_cache = 4;
 
-	map<string, bool> caps = 5 [(gogoproto.castkey) = "github.com/moby/buildkit/util/apicaps.CapID", (gogoproto.nullable) = false];
+	map<string, bool> caps = 5;
 
 	ProgressGroup progress_group = 6;
 }
@@ -248,8 +247,8 @@ message Location {
 
 // Range is an area in the source file
 message Range {
-	Position start = 1 [(gogoproto.nullable) = false];
-	Position end = 2 [(gogoproto.nullable) = false];
+	Position start = 1;
+	Position end = 2;
 }
 
 // Position is single location in a source file
@@ -287,7 +286,7 @@ message Definition {
 	repeated bytes def = 1;
 	// metadata contains metadata for the each of the Op messages.
 	// A key must be an LLB op digest string. Currently, empty string is not expected as a key, but it may change in the future.
-	map<string, OpMetadata> metadata = 2 [(gogoproto.castkey) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	map<string, OpMetadata> metadata = 2;
 	// Source contains the source mapping information for the vertexes in the definition
 	Source Source = 3;
 }
@@ -298,9 +297,9 @@ message FileOp {
 
 message FileAction {
 	// changes to this structure must be represented in json.go.
-	int64 input = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false]; // could be real input or target (target index + max input index)
-	int64 secondaryInput = 2 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false]; // --//--
-	int64 output = 3 [(gogoproto.customtype) = "OutputIndex", (gogoproto.nullable) = false];
+	int64 input = 1; // could be real input or target (target index + max input index)
+	int64 secondaryInput = 2; // --//--
+	int64 output = 3;
 	oneof action {
 		// FileActionCopy copies files from secondaryInput on top of input
 		FileActionCopy copy = 4;
@@ -342,6 +341,8 @@ message FileActionCopy {
 	repeated string exclude_patterns = 13;
 	// alwaysReplaceExistingDestPaths results in an existing dest path that differs in type from the src path being replaced rather than the default of returning an error
 	bool alwaysReplaceExistingDestPaths = 14;
+	// mode in non-octal format
+	string modeStr = 15;
 }
 
 message FileActionMkFile {
@@ -394,11 +395,11 @@ message UserOpt {
 
 message NamedUserOpt {
 	string name = 1;
-	int64 input = 2 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
+	int64 input = 2;
 }
 
 message MergeInput {
-	int64 input = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
+	int64 input = 1;
 }
 
 message MergeOp {
@@ -406,11 +407,11 @@ message MergeOp {
 }
 
 message LowerDiffInput {
-	int64 input = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
+	int64 input = 1;
 }
 
 message UpperDiffInput {
-	int64 input = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
+	int64 input = 1;
 }
 
 message DiffOp {

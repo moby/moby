@@ -252,9 +252,8 @@ func (mm *MountManager) getSecretMountable(ctx context.Context, m *pb.Mount, g s
 	if m.SecretOpt == nil {
 		return nil, errors.Errorf("invalid secret mount options")
 	}
-	sopt := *m.SecretOpt
 
-	id := sopt.ID
+	id := m.SecretOpt.ID
 	if id == "" {
 		return nil, errors.Errorf("secret ID missing from mount options")
 	}
@@ -422,8 +421,8 @@ func (m *tmpfsMount) Mount() ([]mount.Mount, func() error, error) {
 		opt = append(opt, "ro")
 	}
 	if m.opt != nil {
-		if m.opt.Size_ > 0 {
-			opt = append(opt, fmt.Sprintf("size=%d", m.opt.Size_))
+		if m.opt.Size > 0 {
+			opt = append(opt, fmt.Sprintf("size=%d", m.opt.Size))
 		}
 	}
 	return []mount.Mount{{
@@ -437,8 +436,10 @@ func (m *tmpfsMount) IdentityMapping() *idtools.IdentityMapping {
 	return m.idmap
 }
 
-var cacheRefsLocker = locker.New()
-var sharedCacheRefs = &cacheRefs{}
+var (
+	cacheRefsLocker = locker.New()
+	sharedCacheRefs = &cacheRefs{}
+)
 
 type cacheRefs struct {
 	mu     sync.Mutex
@@ -512,8 +513,10 @@ func (r *cacheRefShare) release(ctx context.Context) error {
 	return r.MutableRef.Release(ctx)
 }
 
-var cacheRefReleaseHijack func()
-var cacheRefCloneHijack func()
+var (
+	cacheRefReleaseHijack func()
+	cacheRefCloneHijack   func()
+)
 
 type cacheRef struct {
 	*cacheRefShare
@@ -540,8 +543,10 @@ func (r *cacheRef) Release(ctx context.Context) error {
 	return nil
 }
 
-const keyCacheDir = "cache-dir"
-const cacheDirIndex = keyCacheDir + ":"
+const (
+	keyCacheDir   = "cache-dir"
+	cacheDirIndex = keyCacheDir + ":"
+)
 
 func SearchCacheDir(ctx context.Context, store cache.MetadataStore, id string, withNested bool) ([]CacheRefMetadata, error) {
 	var results []CacheRefMetadata

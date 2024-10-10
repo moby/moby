@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package moby.filesync.v1;
 
-option go_package = "filesync";
+option go_package = "github.com/moby/buildkit/session/filesync";
 
 import "github.com/tonistiigi/fsutil/types/wire.proto";
 
