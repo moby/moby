@@ -4,6 +4,7 @@ package nl
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/vishvananda/netns"
@@ -42,6 +44,26 @@ var SocketTimeoutTv = unix.Timeval{Sec: 60, Usec: 0}
 
 // ErrorMessageReporting is the default error message reporting configuration for the new netlink sockets
 var EnableErrorMessageReporting bool = false
+
+// ErrDumpInterrupted is an instance of errDumpInterrupted, used to report that
+// a netlink function has set the NLM_F_DUMP_INTR flag in a response message,
+// indicating that the results may be incomplete or inconsistent.
+var ErrDumpInterrupted = errDumpInterrupted{}
+
+// errDumpInterrupted is an error type, used to report that NLM_F_DUMP_INTR was
+// set in a netlink response.
+type errDumpInterrupted struct{}
+
+func (errDumpInterrupted) Error() string {
+	return "results may be incomplete or inconsistent"
+}
+
+// Before errDumpInterrupted was introduced, EINTR was returned when a netlink
+// response had NLM_F_DUMP_INTR. Retain backward compatibility with code that
+// may be checking for EINTR using Is.
+func (e errDumpInterrupted) Is(target error) bool {
+	return target == unix.EINTR
+}
 
 // GetIPFamily returns the family type of a net.IP.
 func GetIPFamily(ip net.IP) int {
@@ -492,22 +514,26 @@ func (req *NetlinkRequest) AddRawData(data []byte) {
 // Execute the request against the given sockType.
 // Returns a list of netlink messages in serialized format, optionally filtered
 // by resType.
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, error) {
 	var res [][]byte
 	err := req.ExecuteIter(sockType, resType, func(msg []byte) bool {
 		res = append(res, msg)
 		return true
 	})
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrDumpInterrupted) {
 		return nil, err
 	}
-	return res, nil
+	return res, err
 }
 
 // ExecuteIter executes the request against the given sockType.
 // Calls the provided callback func once for each netlink message.
 // If the callback returns false, it is not called again, but
 // the remaining messages are consumed/discarded.
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 //
 // Thread safety: ExecuteIter holds a lock on the socket until
 // it finishes iteration so the callback must not call back into
@@ -559,6 +585,8 @@ func (req *NetlinkRequest) ExecuteIter(sockType int, resType uint16, f func(msg 
 		return err
 	}
 
+	dumpIntr := false
+
 done:
 	for {
 		msgs, from, err := s.Receive()
@@ -580,7 +608,7 @@ done:
 			}
 
 			if m.Header.Flags&unix.NLM_F_DUMP_INTR != 0 {
-				return syscall.Errno(unix.EINTR)
+				dumpIntr = true
 			}
 
 			if m.Header.Type == unix.NLMSG_DONE || m.Header.Type == unix.NLMSG_ERROR {
@@ -634,6 +662,9 @@ done:
 			}
 		}
 	}
+	if dumpIntr {
+		return ErrDumpInterrupted
+	}
 	return nil
 }
 
@@ -656,9 +687,11 @@ func NewNetlinkRequest(proto, flags int) *NetlinkRequest {
 }
 
 type NetlinkSocket struct {
-	fd   int32
-	file *os.File
-	lsa  unix.SockaddrNetlink
+	fd             int32
+	file           *os.File
+	lsa            unix.SockaddrNetlink
+	sendTimeout    int64 // Access using atomic.Load/StoreInt64
+	receiveTimeout int64 // Access using atomic.Load/StoreInt64
 	sync.Mutex
 }
 
@@ -802,8 +835,44 @@ func (s *NetlinkSocket) GetFd() int {
 	return int(s.fd)
 }
 
+func (s *NetlinkSocket) GetTimeouts() (send, receive time.Duration) {
+	return time.Duration(atomic.LoadInt64(&s.sendTimeout)),
+		time.Duration(atomic.LoadInt64(&s.receiveTimeout))
+}
+
 func (s *NetlinkSocket) Send(request *NetlinkRequest) error {
-	return unix.Sendto(int(s.fd), request.Serialize(), 0, &s.lsa)
+	rawConn, err := s.file.SyscallConn()
+	if err != nil {
+		return err
+	}
+	var (
+		deadline time.Time
+		innerErr error
+	)
+	sendTimeout := atomic.LoadInt64(&s.sendTimeout)
+	if sendTimeout != 0 {
+		deadline = time.Now().Add(time.Duration(sendTimeout))
+	}
+	if err := s.file.SetWriteDeadline(deadline); err != nil {
+		return err
+	}
+	serializedReq := request.Serialize()
+	err = rawConn.Write(func(fd uintptr) (done bool) {
+		innerErr = unix.Sendto(int(s.fd), serializedReq, 0, &s.lsa)
+		return innerErr != unix.EWOULDBLOCK
+	})
+	if innerErr != nil {
+		return innerErr
+	}
+	if err != nil {
+		// The timeout was previously implemented using SO_SNDTIMEO on a blocking
+		// socket. So, continue to return EAGAIN when the timeout is reached.
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			return unix.EAGAIN
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetlink, error) {
@@ -812,20 +881,33 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetli
 		return nil, nil, err
 	}
 	var (
+		deadline time.Time
 		fromAddr *unix.SockaddrNetlink
 		rb       [RECEIVE_BUFFER_SIZE]byte
 		nr       int
 		from     unix.Sockaddr
 		innerErr error
 	)
+	receiveTimeout := atomic.LoadInt64(&s.receiveTimeout)
+	if receiveTimeout != 0 {
+		deadline = time.Now().Add(time.Duration(receiveTimeout))
+	}
+	if err := s.file.SetReadDeadline(deadline); err != nil {
+		return nil, nil, err
+	}
 	err = rawConn.Read(func(fd uintptr) (done bool) {
 		nr, from, innerErr = unix.Recvfrom(int(fd), rb[:], 0)
 		return innerErr != unix.EWOULDBLOCK
 	})
 	if innerErr != nil {
-		err = innerErr
+		return nil, nil, innerErr
 	}
 	if err != nil {
+		// The timeout was previously implemented using SO_RCVTIMEO on a blocking
+		// socket. So, continue to return EAGAIN when the timeout is reached.
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			return nil, nil, unix.EAGAIN
+		}
 		return nil, nil, err
 	}
 	fromAddr, ok := from.(*unix.SockaddrNetlink)
@@ -847,16 +929,14 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetli
 
 // SetSendTimeout allows to set a send timeout on the socket
 func (s *NetlinkSocket) SetSendTimeout(timeout *unix.Timeval) error {
-	// Set a send timeout of SOCKET_SEND_TIMEOUT, this will allow the Send to periodically unblock and avoid that a routine
-	// remains stuck on a send on a closed fd
-	return unix.SetsockoptTimeval(int(s.fd), unix.SOL_SOCKET, unix.SO_SNDTIMEO, timeout)
+	atomic.StoreInt64(&s.sendTimeout, timeout.Nano())
+	return nil
 }
 
 // SetReceiveTimeout allows to set a receive timeout on the socket
 func (s *NetlinkSocket) SetReceiveTimeout(timeout *unix.Timeval) error {
-	// Set a read timeout of SOCKET_READ_TIMEOUT, this will allow the Read to periodically unblock and avoid that a routine
-	// remains stuck on a recvmsg on a closed fd
-	return unix.SetsockoptTimeval(int(s.fd), unix.SOL_SOCKET, unix.SO_RCVTIMEO, timeout)
+	atomic.StoreInt64(&s.receiveTimeout, timeout.Nano())
+	return nil
 }
 
 // SetReceiveBufferSize allows to set a receive buffer size on the socket

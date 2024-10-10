@@ -1,6 +1,7 @@
 package netlink
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -169,6 +170,9 @@ func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error
 // AddrList gets a list of IP addresses in the system.
 // Equivalent to: `ip addr show`.
 // The list can be filtered by link and ip family.
+//
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func AddrList(link Link, family int) ([]Addr, error) {
 	return pkgHandle.AddrList(link, family)
 }
@@ -176,14 +180,17 @@ func AddrList(link Link, family int) ([]Addr, error) {
 // AddrList gets a list of IP addresses in the system.
 // Equivalent to: `ip addr show`.
 // The list can be filtered by link and ip family.
+//
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func (h *Handle) AddrList(link Link, family int) ([]Addr, error) {
 	req := h.newNetlinkRequest(unix.RTM_GETADDR, unix.NLM_F_DUMP)
 	msg := nl.NewIfAddrmsg(family)
 	req.AddData(msg)
 
-	msgs, err := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWADDR)
-	if err != nil {
-		return nil, err
+	msgs, executeErr := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWADDR)
+	if executeErr != nil && !errors.Is(executeErr, ErrDumpInterrupted) {
+		return nil, executeErr
 	}
 
 	indexFilter := 0
@@ -212,7 +219,7 @@ func (h *Handle) AddrList(link Link, family int) ([]Addr, error) {
 		res = append(res, addr)
 	}
 
-	return res, nil
+	return res, executeErr
 }
 
 func parseAddr(m []byte) (addr Addr, family int, err error) {
