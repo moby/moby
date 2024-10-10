@@ -280,8 +280,6 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 					grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
 					grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),
 					grpc.WithTransportCredentials(insecure.NewCredentials()),
-					grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
-					grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
 				}),
 			)
 			if err != nil {
