@@ -108,6 +108,18 @@ var index = []section{
 			},
 		}},
 	},
+	{
+		name: "usernet-internal.md",
+		networks: []bridgeNetwork{{
+			bridge:   "bridge1",
+			internal: true,
+			containers: []ctr{
+				{
+					name: "c1",
+				},
+			},
+		}},
+	},
 }
 
 // iptCmdType is used to look up iptCmds in the markdown (can't use an int
