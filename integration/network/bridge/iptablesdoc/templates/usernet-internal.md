@@ -21,7 +21,7 @@ The filter table is updated as follows:
 
 By comparison with the [network with external access][1]:
 
-- In the FORWARD chain, there is no ACCEPT rule for outgoing packets `-i bridge1 -o ! bridge1`.
+- In the FORWARD chain, there is no ACCEPT rule for outgoing packets (`-i bridge1`).
 - There are no rules for this network in the DOCKER chain.
 - In DOCKER-ISOLATION-STAGE-1:
   - Rule 1 drops any packet routed to the network that does not have a source address in the network's subnet.
