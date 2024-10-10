@@ -22,6 +22,7 @@ on:
 jobs:
   run:
     runs-on: ubuntu-20.04
+    timeout-minutes: 120 # guardrails timeout for the whole job
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
     steps:
