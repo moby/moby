@@ -42,3 +42,4 @@ Scenarios:
   - [Container on a user-defined network, with a published port](generated/usernet-portmap.md)
   - [Container on a user-defined network, with a published port, no userland proxy](generated/usernet-portmap-noproxy.md)
   - [Container on a user-defined network with inter-container communication disabled, with a published port](generated/usernet-portmap-noicc.md)
+  - [Container on a user-defined --internal network](generated/usernet-internal.md)
