@@ -88,6 +88,11 @@ const (
 	SET_ATTR_CREATE_MAX
 )
 
+const (
+	IPSET_ATTR_IPADDR_IPV4 = 1
+	IPSET_ATTR_IPADDR_IPV6 = 2
+)
+
 /* ADT specific attributes */
 const (
 	IPSET_ATTR_ETHER = IPSET_ATTR_CADT_MAX + iota + 1
