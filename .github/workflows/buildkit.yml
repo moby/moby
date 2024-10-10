@@ -30,6 +30,7 @@ jobs:
 
   build:
     runs-on: ubuntu-20.04
+    timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-dco
     steps:
@@ -55,7 +56,7 @@ jobs:
 
   test:
     runs-on: ubuntu-20.04
-    timeout-minutes: 120
+    timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - build
     strategy:
