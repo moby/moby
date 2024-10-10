@@ -6,6 +6,7 @@ import (
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
+	"github.com/moby/buildkit/frontend/dockerfile/shell"
 	"github.com/pkg/errors"
 )
 
@@ -68,4 +69,53 @@ func dispatchSecret(d *dispatchState, m *instructions.Mount, loc []parser.Range)
 	}
 
 	return llb.AddSecretWithDest(id, target, opts...), nil
+}
+
+// withSecretEnvMask returns an EnvGetter that masks secret values in the environment.
+// This is not needed to hide actual secret values but to make it clear that the value is loaded from a secret.
+func withSecretEnvMask(c *instructions.RunCommand, env shell.EnvGetter) shell.EnvGetter {
+	ev := &llb.EnvList{}
+	set := false
+	mounts := instructions.GetMounts(c)
+	for _, mount := range mounts {
+		if mount.Type == instructions.MountTypeSecret {
+			if mount.Env != nil {
+				ev = ev.AddOrReplace(*mount.Env, "****")
+				set = true
+			}
+		}
+	}
+	if !set {
+		return env
+	}
+	return &secretEnv{
+		base: env,
+		env:  ev,
+	}
+}
+
+type secretEnv struct {
+	base shell.EnvGetter
+	env  *llb.EnvList
+}
+
+func (s *secretEnv) Get(key string) (string, bool) {
+	v, ok := s.env.Get(key)
+	if ok {
+		return v, true
+	}
+	return s.base.Get(key)
+}
+
+func (s *secretEnv) Keys() []string {
+	bkeys := s.base.Keys()
+	skeys := s.env.Keys()
+	keys := make([]string, 0, len(bkeys)+len(skeys))
+	for _, k := range bkeys {
+		if _, ok := s.env.Get(k); !ok {
+			keys = append(keys, k)
+		}
+	}
+	keys = append(keys, skeys...)
+	return keys
 }

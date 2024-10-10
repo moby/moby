@@ -12,7 +12,7 @@ func init() {
 }
 
 type VertexError struct {
-	Vertex
+	*Vertex
 	error
 }
 
@@ -21,16 +21,16 @@ func (e *VertexError) Unwrap() error {
 }
 
 func (e *VertexError) ToProto() grpcerrors.TypedErrorProto {
-	return &e.Vertex
+	return e.Vertex
 }
 
 func WrapVertex(err error, dgst digest.Digest) error {
 	if err == nil {
 		return nil
 	}
-	return &VertexError{Vertex: Vertex{Digest: dgst.String()}, error: err}
+	return &VertexError{Vertex: &Vertex{Digest: dgst.String()}, error: err}
 }
 
 func (v *Vertex) WrapError(err error) error {
-	return &VertexError{error: err, Vertex: *v}
+	return &VertexError{error: err, Vertex: v}
 }

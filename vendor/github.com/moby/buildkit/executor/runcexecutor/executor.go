@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"sync"
 	"syscall"
@@ -335,7 +336,7 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 	}
 	doReleaseNetwork = false
 
-	err = exitError(ctx, cgroupPath, err)
+	err = exitError(ctx, cgroupPath, err, process.Meta.ValidExitCodes)
 	if err != nil {
 		if rec != nil {
 			rec.Close()
@@ -351,41 +352,44 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 	return rec, rec.CloseAsync(releaseContainer)
 }
 
-func exitError(ctx context.Context, cgroupPath string, err error) error {
-	if err != nil {
-		exitErr := &gatewayapi.ExitError{
-			ExitCode: gatewayapi.UnknownExitStatus,
-			Err:      err,
-		}
+func exitError(ctx context.Context, cgroupPath string, err error, validExitCodes []int) error {
+	exitErr := &gatewayapi.ExitError{ExitCode: uint32(gatewayapi.UnknownExitStatus), Err: err}
+
+	if err == nil {
+		exitErr.ExitCode = 0
+	} else {
 		var runcExitError *runc.ExitError
-		if errors.As(err, &runcExitError) && runcExitError.Status >= 0 {
-			exitErr = &gatewayapi.ExitError{
-				ExitCode: uint32(runcExitError.Status),
-			}
+		if errors.As(err, &runcExitError) {
+			exitErr = &gatewayapi.ExitError{ExitCode: uint32(runcExitError.Status)}
 		}
 
 		detectOOM(ctx, cgroupPath, exitErr)
-
-		trace.SpanFromContext(ctx).AddEvent(
-			"Container exited",
-			trace.WithAttributes(
-				attribute.Int("exit.code", int(exitErr.ExitCode)),
-			),
-		)
-		select {
-		case <-ctx.Done():
-			exitErr.Err = errors.Wrap(context.Cause(ctx), exitErr.Error())
-			return exitErr
-		default:
-			return stack.Enable(exitErr)
-		}
 	}
 
 	trace.SpanFromContext(ctx).AddEvent(
 		"Container exited",
-		trace.WithAttributes(attribute.Int("exit.code", 0)),
+		trace.WithAttributes(attribute.Int("exit.code", int(exitErr.ExitCode))),
 	)
-	return nil
+
+	if validExitCodes == nil {
+		// no exit codes specified, so only 0 is allowed
+		if exitErr.ExitCode == 0 {
+			return nil
+		}
+	} else {
+		// exit code in allowed list, so exit cleanly
+		if slices.Contains(validExitCodes, int(exitErr.ExitCode)) {
+			return nil
+		}
+	}
+
+	select {
+	case <-ctx.Done():
+		exitErr.Err = errors.Wrap(context.Cause(ctx), exitErr.Error())
+		return exitErr
+	default:
+		return stack.Enable(exitErr)
+	}
 }
 
 func (w *runcExecutor) Exec(ctx context.Context, id string, process executor.ProcessInfo) (err error) {
@@ -456,7 +460,7 @@ func (w *runcExecutor) Exec(ctx context.Context, id string, process executor.Pro
 	}
 
 	err = w.exec(ctx, id, spec.Process, process, nil)
-	return exitError(ctx, "", err)
+	return exitError(ctx, "", err, process.Meta.ValidExitCodes)
 }
 
 type forwardIO struct {

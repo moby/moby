@@ -62,7 +62,7 @@ func (b *BuildOp) CacheMap(ctx context.Context, g session.Group, index int) (*so
 }
 
 func (b *BuildOp) Exec(ctx context.Context, g session.Group, inputs []solver.Result) (outputs []solver.Result, retErr error) {
-	if b.op.Builder != pb.LLBBuilder {
+	if b.op.Builder != int64(pb.LLBBuilder) {
 		return nil, errors.Errorf("only LLB builder is currently allowed")
 	}
 

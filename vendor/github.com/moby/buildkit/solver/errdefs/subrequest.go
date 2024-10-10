@@ -12,7 +12,7 @@ func init() {
 }
 
 type UnsupportedSubrequestError struct {
-	Subrequest
+	*Subrequest
 	error
 }
 
@@ -29,13 +29,13 @@ func (e *UnsupportedSubrequestError) Unwrap() error {
 }
 
 func (e *UnsupportedSubrequestError) ToProto() grpcerrors.TypedErrorProto {
-	return &e.Subrequest
+	return e.Subrequest
 }
 
 func NewUnsupportedSubrequestError(name string) error {
-	return &UnsupportedSubrequestError{Subrequest: Subrequest{Name: name}}
+	return &UnsupportedSubrequestError{Subrequest: &Subrequest{Name: name}}
 }
 
 func (v *Subrequest) WrapError(err error) error {
-	return &UnsupportedSubrequestError{error: err, Subrequest: *v}
+	return &UnsupportedSubrequestError{error: err, Subrequest: v}
 }

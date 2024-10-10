@@ -2,20 +2,17 @@ syntax = "proto3";
 
 package contenthash;
 
-import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+option go_package = "github.com/moby/buildkit/cache/contenthash";
 
 enum CacheRecordType {
-	option (gogoproto.goproto_enum_prefix) = false;
-	option (gogoproto.enum_customname) = "CacheRecordType";
-
-	FILE = 0 [(gogoproto.enumvalue_customname) = "CacheRecordTypeFile"];
-	DIR = 1 [(gogoproto.enumvalue_customname) = "CacheRecordTypeDir"];
-	DIR_HEADER = 2 [(gogoproto.enumvalue_customname) = "CacheRecordTypeDirHeader"];
-	SYMLINK = 3 [(gogoproto.enumvalue_customname) = "CacheRecordTypeSymlink"];
+	FILE = 0;
+	DIR = 1;
+	DIR_HEADER = 2;
+	SYMLINK = 3;
 }
 
 message CacheRecord {
-	string digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	string digest = 1;
 	CacheRecordType type = 2;
 	string linkname = 3;
 }

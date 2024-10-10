@@ -91,7 +91,7 @@ func (fs *fs) Open(p string) (io.ReadCloser, error) {
 }
 
 type Dir struct {
-	Stat types.Stat
+	Stat *types.Stat
 	FS   FS
 }
 
@@ -125,12 +125,12 @@ func (fs *subDirFS) Walk(ctx context.Context, target string, fn gofs.WalkDirFunc
 			continue
 		}
 
-		fi := &StatInfo{&d.Stat}
+		fi := &StatInfo{d.Stat.Clone()}
 		if !fi.IsDir() {
 			return errors.WithStack(&os.PathError{Path: d.Stat.Path, Err: syscall.ENOTDIR, Op: "walk subdir"})
 		}
-		dStat := d.Stat
-		if err := fn(d.Stat.Path, &DirEntryInfo{Stat: &dStat}, nil); err != nil {
+		dStat := d.Stat.Clone()
+		if err := fn(d.Stat.Path, &DirEntryInfo{Stat: dStat}, nil); err != nil {
 			return err
 		}
 		if err := d.FS.Walk(ctx, rest, func(p string, entry gofs.DirEntry, err error) error {
@@ -176,8 +176,7 @@ func (fs *subDirFS) Open(p string) (io.ReadCloser, error) {
 	return d.FS.Open(parts[1])
 }
 
-type emptyReader struct {
-}
+type emptyReader struct{}
 
 func (*emptyReader) Read([]byte) (int, error) {
 	return 0, io.EOF
@@ -190,18 +189,23 @@ type StatInfo struct {
 func (s *StatInfo) Name() string {
 	return filepath.Base(s.Stat.Path)
 }
+
 func (s *StatInfo) Size() int64 {
-	return s.Stat.Size_
+	return s.Stat.Size
 }
+
 func (s *StatInfo) Mode() os.FileMode {
 	return os.FileMode(s.Stat.Mode)
 }
+
 func (s *StatInfo) ModTime() time.Time {
 	return time.Unix(s.Stat.ModTime/1e9, s.Stat.ModTime%1e9)
 }
+
 func (s *StatInfo) IsDir() bool {
 	return s.Mode().IsDir()
 }
+
 func (s *StatInfo) Sys() interface{} {
 	return s.Stat
 }
@@ -221,18 +225,21 @@ func (s *DirEntryInfo) Name() string {
 	}
 	return s.entry.Name()
 }
+
 func (s *DirEntryInfo) IsDir() bool {
 	if s.Stat != nil {
 		return s.Stat.IsDir()
 	}
 	return s.entry.IsDir()
 }
+
 func (s *DirEntryInfo) Type() gofs.FileMode {
 	if s.Stat != nil {
 		return gofs.FileMode(s.Stat.Mode)
 	}
 	return s.entry.Type()
 }
+
 func (s *DirEntryInfo) Info() (gofs.FileInfo, error) {
 	if s.Stat == nil {
 		fi, err := s.entry.Info()
@@ -246,6 +253,6 @@ func (s *DirEntryInfo) Info() (gofs.FileInfo, error) {
 		s.Stat = stat
 	}
 
-	st := *s.Stat
-	return &StatInfo{&st}, nil
+	st := s.Stat.Clone()
+	return &StatInfo{st}, nil
 }
