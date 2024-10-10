@@ -248,18 +248,14 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 		if bridgeName == "" {
 			return fmt.Errorf("could not program chain %s/%s, missing bridge name", c.Table, c.Name)
 		}
+
+		// Delete legacy per-bridge jump to the DOCKER chain from the FORWARD chain, if it exists.
+		// These rules have been replaced by an ipset-matching rule.
 		link := []string{
 			"-o", bridgeName,
 			"-j", c.Name,
 		}
-		if !iptable.Exists(Filter, "FORWARD", link...) && enable {
-			insert := append([]string{string(Insert), "FORWARD"}, link...)
-			if output, err := iptable.Raw(insert...); err != nil {
-				return err
-			} else if len(output) != 0 {
-				return fmt.Errorf("could not create linking rule to %s/%s: %s", c.Table, c.Name, output)
-			}
-		} else if iptable.Exists(Filter, "FORWARD", link...) && !enable {
+		if iptable.Exists(Filter, "FORWARD", link...) {
 			del := append([]string{string(Delete), "FORWARD"}, link...)
 			if output, err := iptable.Raw(del...); err != nil {
 				return err
@@ -267,20 +263,16 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 				return fmt.Errorf("could not delete linking rule from %s/%s: %s", c.Table, c.Name, output)
 			}
 		}
+
+		// Delete legacy per-bridge related/established rule if it exists. These rules
+		// have been replaced by an ipset-matching rule.
 		establish := []string{
 			"-o", bridgeName,
 			"-m", "conntrack",
 			"--ctstate", "RELATED,ESTABLISHED",
 			"-j", "ACCEPT",
 		}
-		if !iptable.Exists(Filter, "FORWARD", establish...) && enable {
-			insert := append([]string{string(Insert), "FORWARD"}, establish...)
-			if output, err := iptable.Raw(insert...); err != nil {
-				return err
-			} else if len(output) != 0 {
-				return fmt.Errorf("could not create establish rule to %s: %s", c.Table, output)
-			}
-		} else if iptable.Exists(Filter, "FORWARD", establish...) && !enable {
+		if iptable.Exists(Filter, "FORWARD", establish...) {
 			del := append([]string{string(Delete), "FORWARD"}, establish...)
 			if output, err := iptable.Raw(del...); err != nil {
 				return err
@@ -534,13 +526,14 @@ func (iptable IPTable) AddReturnRule(chain string) error {
 }
 
 // EnsureJumpRule ensures the jump rule is on top
-func (iptable IPTable) EnsureJumpRule(fromChain, toChain string) error {
-	if iptable.Exists(Filter, fromChain, "-j", toChain) {
-		if err := iptable.RawCombinedOutput("-D", fromChain, "-j", toChain); err != nil {
+func (iptable IPTable) EnsureJumpRule(fromChain, toChain string, rule ...string) error {
+	rule = append(rule, "-j", toChain)
+	if iptable.Exists(Filter, fromChain, rule...) {
+		if err := iptable.RawCombinedOutput(append([]string{"-D", fromChain}, rule...)...); err != nil {
 			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %v", toChain, fromChain, err)
 		}
 	}
-	if err := iptable.RawCombinedOutput("-I", fromChain, "-j", toChain); err != nil {
+	if err := iptable.RawCombinedOutput(append([]string{"-I", fromChain}, rule...)...); err != nil {
 		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %v", toChain, fromChain, err)
 	}
 	return nil
