@@ -990,7 +990,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		// It is painful. Add WithBlock can prevent the edge case. And
 		// n common case, the containerd will be serving in shortly.
 		// It is not harm to add WithBlock for containerd connection.
-		grpc.WithBlock(),
+		//
+		// TODO(thaJeztah): update this list once https://github.com/containerd/containerd/pull/10250/commits/63b46881753588624b2eac986660458318581330 is in the 1.7 release.
+		grpc.WithBlock(), //nolint:staticcheck // Ignore SA1019: grpc.WithBlock is deprecated: this DialOption is not supported by NewClient. Will be supported throughout 1.x.
 
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithConnectParams(connParams),

@@ -2,9 +2,227 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Indexed binary package export.
-// This file was derived from $GOROOT/src/cmd/compile/internal/gc/iexport.go;
-// see that file for specification of the format.
+// Indexed package export.
+//
+// The indexed export data format is an evolution of the previous
+// binary export data format. Its chief contribution is introducing an
+// index table, which allows efficient random access of individual
+// declarations and inline function bodies. In turn, this allows
+// avoiding unnecessary work for compilation units that import large
+// packages.
+//
+//
+// The top-level data format is structured as:
+//
+//     Header struct {
+//         Tag        byte   // 'i'
+//         Version    uvarint
+//         StringSize uvarint
+//         DataSize   uvarint
+//     }
+//
+//     Strings [StringSize]byte
+//     Data    [DataSize]byte
+//
+//     MainIndex []struct{
+//         PkgPath   stringOff
+//         PkgName   stringOff
+//         PkgHeight uvarint
+//
+//         Decls []struct{
+//             Name   stringOff
+//             Offset declOff
+//         }
+//     }
+//
+//     Fingerprint [8]byte
+//
+// uvarint means a uint64 written out using uvarint encoding.
+//
+// []T means a uvarint followed by that many T objects. In other
+// words:
+//
+//     Len   uvarint
+//     Elems [Len]T
+//
+// stringOff means a uvarint that indicates an offset within the
+// Strings section. At that offset is another uvarint, followed by
+// that many bytes, which form the string value.
+//
+// declOff means a uvarint that indicates an offset within the Data
+// section where the associated declaration can be found.
+//
+//
+// There are five kinds of declarations, distinguished by their first
+// byte:
+//
+//     type Var struct {
+//         Tag  byte // 'V'
+//         Pos  Pos
+//         Type typeOff
+//     }
+//
+//     type Func struct {
+//         Tag       byte // 'F' or 'G'
+//         Pos       Pos
+//         TypeParams []typeOff  // only present if Tag == 'G'
+//         Signature Signature
+//     }
+//
+//     type Const struct {
+//         Tag   byte // 'C'
+//         Pos   Pos
+//         Value Value
+//     }
+//
+//     type Type struct {
+//         Tag        byte // 'T' or 'U'
+//         Pos        Pos
+//         TypeParams []typeOff  // only present if Tag == 'U'
+//         Underlying typeOff
+//
+//         Methods []struct{  // omitted if Underlying is an interface type
+//             Pos       Pos
+//             Name      stringOff
+//             Recv      Param
+//             Signature Signature
+//         }
+//     }
+//
+//     type Alias struct {
+//         Tag  byte // 'A' or 'B'
+//         Pos  Pos
+//         TypeParams []typeOff  // only present if Tag == 'B'
+//         Type typeOff
+//     }
+//
+//     // "Automatic" declaration of each typeparam
+//     type TypeParam struct {
+//         Tag        byte // 'P'
+//         Pos        Pos
+//         Implicit   bool
+//         Constraint typeOff
+//     }
+//
+// typeOff means a uvarint that either indicates a predeclared type,
+// or an offset into the Data section. If the uvarint is less than
+// predeclReserved, then it indicates the index into the predeclared
+// types list (see predeclared in bexport.go for order). Otherwise,
+// subtracting predeclReserved yields the offset of a type descriptor.
+//
+// Value means a type, kind, and type-specific value. See
+// (*exportWriter).value for details.
+//
+//
+// There are twelve kinds of type descriptors, distinguished by an itag:
+//
+//     type DefinedType struct {
+//         Tag     itag // definedType
+//         Name    stringOff
+//         PkgPath stringOff
+//     }
+//
+//     type PointerType struct {
+//         Tag  itag // pointerType
+//         Elem typeOff
+//     }
+//
+//     type SliceType struct {
+//         Tag  itag // sliceType
+//         Elem typeOff
+//     }
+//
+//     type ArrayType struct {
+//         Tag  itag // arrayType
+//         Len  uint64
+//         Elem typeOff
+//     }
+//
+//     type ChanType struct {
+//         Tag  itag   // chanType
+//         Dir  uint64 // 1 RecvOnly; 2 SendOnly; 3 SendRecv
+//         Elem typeOff
+//     }
+//
+//     type MapType struct {
+//         Tag  itag // mapType
+//         Key  typeOff
+//         Elem typeOff
+//     }
+//
+//     type FuncType struct {
+//         Tag       itag // signatureType
+//         PkgPath   stringOff
+//         Signature Signature
+//     }
+//
+//     type StructType struct {
+//         Tag     itag // structType
+//         PkgPath stringOff
+//         Fields []struct {
+//             Pos      Pos
+//             Name     stringOff
+//             Type     typeOff
+//             Embedded bool
+//             Note     stringOff
+//         }
+//     }
+//
+//     type InterfaceType struct {
+//         Tag     itag // interfaceType
+//         PkgPath stringOff
+//         Embeddeds []struct {
+//             Pos  Pos
+//             Type typeOff
+//         }
+//         Methods []struct {
+//             Pos       Pos
+//             Name      stringOff
+//             Signature Signature
+//         }
+//     }
+//
+//     // Reference to a type param declaration
+//     type TypeParamType struct {
+//         Tag     itag // typeParamType
+//         Name    stringOff
+//         PkgPath stringOff
+//     }
+//
+//     // Instantiation of a generic type (like List[T2] or List[int])
+//     type InstanceType struct {
+//         Tag     itag // instanceType
+//         Pos     pos
+//         TypeArgs []typeOff
+//         BaseType typeOff
+//     }
+//
+//     type UnionType struct {
+//         Tag     itag // interfaceType
+//         Terms   []struct {
+//             tilde bool
+//             Type  typeOff
+//         }
+//     }
+//
+//
+//
+//     type Signature struct {
+//         Params   []Param
+//         Results  []Param
+//         Variadic bool  // omitted if Results is empty
+//     }
+//
+//     type Param struct {
+//         Pos  Pos
+//         Name stringOff
+//         Type typOff
+//     }
+//
+//
+// Pos encodes a file:line:column triple, incorporating a simple delta
+// encoding scheme within a data object. See exportWriter.pos for
+// details.
 
 package gcimporter
 
@@ -523,9 +741,22 @@ func (p *iexporter) doDecl(obj types.Object) {
 		}
 
 		if obj.IsAlias() {
-			w.tag(aliasTag)
+			alias, materialized := t.(*aliases.Alias) // may fail when aliases are not enabled
+
+			var tparams *types.TypeParamList
+			if materialized {
+				tparams = aliases.TypeParams(alias)
+			}
+			if tparams.Len() == 0 {
+				w.tag(aliasTag)
+			} else {
+				w.tag(genericAliasTag)
+			}
 			w.pos(obj.Pos())
-			if alias, ok := t.(*aliases.Alias); ok {
+			if tparams.Len() > 0 {
+				w.tparamList(obj.Name(), tparams, obj.Pkg())
+			}
+			if materialized {
 				// Preserve materialized aliases,
 				// even of non-exported types.
 				t = aliases.Rhs(alias)
@@ -745,7 +976,13 @@ func (w *exportWriter) doTyp(t types.Type, pkg *types.Package) {
 	}
 	switch t := t.(type) {
 	case *aliases.Alias:
-		// TODO(adonovan): support parameterized aliases, following *types.Named.
+		if targs := aliases.TypeArgs(t); targs.Len() > 0 {
+			w.startType(instanceType)
+			w.pos(t.Obj().Pos())
+			w.typeList(targs, pkg)
+			w.typ(aliases.Origin(t), pkg)
+			return
+		}
 		w.startType(aliasType)
 		w.qualifiedType(t.Obj())
 

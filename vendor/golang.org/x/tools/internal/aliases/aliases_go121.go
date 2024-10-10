@@ -27,7 +27,9 @@ func Origin(alias *Alias) *Alias                             { panic("unreachabl
 // Unalias returns the type t for go <=1.21.
 func Unalias(t types.Type) types.Type { return t }
 
-func newAlias(name *types.TypeName, rhs types.Type) *Alias { panic("unreachable") }
+func newAlias(name *types.TypeName, rhs types.Type, tparams []*types.TypeParam) *Alias {
+	panic("unreachable")
+}
 
 // Enabled reports whether [NewAlias] should create [types.Alias] types.
 //
