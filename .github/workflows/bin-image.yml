@@ -41,6 +41,7 @@ jobs:
 
   prepare:
     runs-on: ubuntu-20.04
+    timeout-minutes: 120 # guardrails timeout for the whole job
     outputs:
       platforms: ${{ steps.platforms.outputs.matrix }}
     steps:
@@ -93,6 +94,7 @@ jobs:
 
   build:
     runs-on: ubuntu-20.04
+    timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-dco
       - prepare
@@ -167,6 +169,7 @@ jobs:
 
   merge:
     runs-on: ubuntu-20.04
+    timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - build
     if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && github.event_name != 'pull_request' && github.repository == 'moby/moby'
