@@ -947,10 +947,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		grpc.WithConnectParams(connParams),
 		grpc.WithContextDialer(dialer.ContextDialer),
 
-		// TODO(stevvooe): We may need to allow configuration of this on the client.
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
-		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
-
 		// ------------------------------------------------------------------
 		// end of options copied from containerd's default
 		// ------------------------------------------------------------------
