@@ -91,7 +91,6 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
-	github.com/tonistiigi/fsutil v0.0.0-20240424095704-91a3fc46842c
 	github.com/tonistiigi/go-archvariant v1.0.0
 	github.com/vbatts/tar-split v0.11.5
 	github.com/vishvananda/netlink v1.3.0
@@ -196,6 +195,7 @@ require (
 	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/tinylib/msgp v1.1.8 // indirect
+	github.com/tonistiigi/fsutil v0.0.0-20240424095704-91a3fc46842c // indirect
 	github.com/tonistiigi/go-actions-cache v0.0.0-20240327122527-58651d5e11d6 // indirect
 	github.com/tonistiigi/go-csvvalue v0.0.0-20240710180619-ddb21b71c0b4 // indirect
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea // indirect

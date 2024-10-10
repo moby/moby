@@ -83,6 +83,8 @@ linters-settings:
             desc: Use github.com/moby/sys/userns instead.
           - pkg: "github.com/opencontainers/runc/libcontainer/userns"
             desc: Use github.com/moby/sys/userns instead.
+          - pkg: "github.com/tonistiigi/fsutil"
+            desc: The fsutil module does not have a stable API, so we should not have a direct dependency unless necessary.
   revive:
     rules:
       # FIXME make sure all packages have a description. Currently, there's many packages without.
