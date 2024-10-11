@@ -70,7 +70,7 @@ jobs:
 
   prepare-cross:
     runs-on: ubuntu-latest
-    timeout-minutes: 120 # guardrails timeout for the whole job
+    timeout-minutes: 20 # guardrails timeout for the whole job
     needs:
       - validate-dco
     outputs:
@@ -92,7 +92,7 @@ jobs:
 
   cross:
     runs-on: ubuntu-20.04
-    timeout-minutes: 120 # guardrails timeout for the whole job
+    timeout-minutes: 20 # guardrails timeout for the whole job
     needs:
       - validate-dco
       - prepare-cross
