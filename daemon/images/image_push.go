@@ -2,7 +2,6 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
-	"errors"
 	"io"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -23,7 +21,7 @@ func (i *ImageService) PushImage(ctx context.Context, ref reference.Named, platf
 		// Check if the image is actually the platform we want to push.
 		_, err := i.GetImage(ctx, ref.String(), backend.GetImageOpts{Platform: platform})
 		if err != nil {
-			return errdefs.InvalidParameter(errors.New("graphdriver backed image store doesn't support multiplatform images"))
+			return err
 		}
 	}
 	start := time.Now()
