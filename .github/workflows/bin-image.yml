@@ -41,7 +41,7 @@ jobs:
 
   prepare:
     runs-on: ubuntu-20.04
-    timeout-minutes: 120 # guardrails timeout for the whole job
+    timeout-minutes: 20 # guardrails timeout for the whole job
     outputs:
       platforms: ${{ steps.platforms.outputs.matrix }}
     steps:
