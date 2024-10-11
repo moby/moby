@@ -298,7 +298,7 @@ func (c *cacheManager) LoadWithParents(ctx context.Context, rec *CacheRecord) (r
 	return results, nil
 }
 
-func (c *cacheManager) Save(k *CacheKey, r Result, createdAt time.Time) (rck *ExportableCacheKey, rerr error) {
+func (c *cacheManager) Save(k *CacheKey, r Result, createdAt time.Time) (rck *ExportableCacheKey, err error) {
 	lg := bklog.G(context.TODO()).WithFields(logrus.Fields{
 		"cache_manager": c.id,
 		"op":            "save",
@@ -306,7 +306,12 @@ func (c *cacheManager) Save(k *CacheKey, r Result, createdAt time.Time) (rck *Ex
 		"stack":         bklog.TraceLevelOnlyStack(),
 	})
 	defer func() {
-		lg.WithError(rerr).WithField("return_cachekey", rck.TraceFields()).Trace("cache manager")
+		if err != nil {
+			lg = lg.WithError(err)
+		} else {
+			lg = lg.WithField("return_cachekey", rck.TraceFields())
+		}
+		lg.Trace("cache manager")
 	}()
 
 	c.mu.Lock()

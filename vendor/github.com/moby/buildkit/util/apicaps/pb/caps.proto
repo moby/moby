@@ -2,11 +2,7 @@ syntax = "proto3";
 
 package moby.buildkit.v1.apicaps;
 
-import "github.com/gogo/protobuf/gogoproto/gogo.proto";
-
-option (gogoproto.sizer_all) = true;
-option (gogoproto.marshaler_all) = true;
-option (gogoproto.unmarshaler_all) = true;
+option go_package = "github.com/moby/buildkit/util/apicaps/pb;moby_buildkit_v1_apicaps";
 
 // APICap defines a capability supported by the service
 message APICap {

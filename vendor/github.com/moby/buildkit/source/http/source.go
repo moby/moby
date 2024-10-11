@@ -24,7 +24,9 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/source"
 	srctypes "github.com/moby/buildkit/source/types"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/tracing"
+	"github.com/moby/buildkit/version"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -180,6 +182,7 @@ func (hs *httpSourceHandler) CacheKey(ctx context.Context, g session.Group, inde
 		return "", "", nil, false, err
 	}
 	req = req.WithContext(ctx)
+	req.Header.Add("User-Agent", version.UserAgent())
 	m := map[string]cacheRefMetadata{}
 
 	// If we request a single ETag in 'If-None-Match', some servers omit the
@@ -192,7 +195,12 @@ func (hs *httpSourceHandler) CacheKey(ctx context.Context, g session.Group, inde
 			// if metaDigest := getMetaDigest(si); metaDigest == hs.formatCacheKey("") {
 			if etag := md.getETag(); etag != "" {
 				if dgst := md.getHTTPChecksum(); dgst != "" {
-					m[etag] = md
+					// check that ref still exists
+					ref, err := hs.cache.Get(ctx, md.ID(), nil)
+					if err == nil {
+						m[etag] = md
+						defer ref.Release(context.WithoutCancel(ctx))
+					}
 				}
 			}
 			// }
@@ -235,6 +243,7 @@ func (hs *httpSourceHandler) CacheKey(ctx context.Context, g session.Group, inde
 					hs.refID = md.ID()
 					dgst := md.getHTTPChecksum()
 					if dgst != "" {
+						hs.cacheKey = dgst
 						modTime := md.getHTTPModTime()
 						resp.Body.Close()
 						return hs.formatCacheKey(getFileName(hs.src.URL, hs.src.Filename, resp), dgst, modTime).String(), dgst.String(), nil, true, nil
@@ -275,8 +284,10 @@ func (hs *httpSourceHandler) CacheKey(ctx context.Context, g session.Group, inde
 		if dgst == "" {
 			return "", "", nil, false, errors.Errorf("invalid metadata change")
 		}
+		hs.cacheKey = dgst
 		modTime := md.getHTTPModTime()
 		resp.Body.Close()
+
 		return hs.formatCacheKey(getFileName(hs.src.URL, hs.src.Filename, resp), dgst, modTime).String(), dgst.String(), nil, true, nil
 	}
 
@@ -421,7 +432,9 @@ func (hs *httpSourceHandler) save(ctx context.Context, resp *http.Response, s se
 func (hs *httpSourceHandler) Snapshot(ctx context.Context, g session.Group) (cache.ImmutableRef, error) {
 	if hs.refID != "" {
 		ref, err := hs.cache.Get(ctx, hs.refID, nil)
-		if err == nil {
+		if err != nil {
+			bklog.G(ctx).WithError(err).Warnf("failed to get HTTP snapshot for ref %s (%s)", hs.refID, hs.src.URL)
+		} else {
 			return ref, nil
 		}
 	}

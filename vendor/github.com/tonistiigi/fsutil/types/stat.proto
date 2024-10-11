@@ -2,7 +2,9 @@ syntax = "proto3";
 
 package fsutil.types;
 
-option go_package = "types";
+option go_package = "github.com/tonistiigi/fsutil/types";
+
+import "github.com/planetscale/vtprotobuf/vtproto/ext.proto";
 
 message Stat {
   string path = 1;

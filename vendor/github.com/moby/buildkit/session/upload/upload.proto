@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package moby.upload.v1;
 
-option go_package = "upload";
+option go_package = "github.com/moby/buildkit/session/upload";
 
 service Upload {
 	rpc Pull(stream BytesMessage) returns (stream BytesMessage);

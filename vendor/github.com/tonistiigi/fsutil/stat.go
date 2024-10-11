@@ -27,7 +27,7 @@ func mkstat(path, relpath string, fi os.FileInfo, inodemap map[uint64]string) (*
 	setUnixOpt(fi, stat, relpath, inodemap)
 
 	if !fi.IsDir() {
-		stat.Size_ = fi.Size()
+		stat.Size = fi.Size()
 		if fi.Mode()&os.ModeSymlink != 0 {
 			link, err := os.Readlink(path)
 			if err != nil {

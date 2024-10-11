@@ -30,7 +30,9 @@ func (c *copier) copyFileInfo(fi os.FileInfo, src, name string) error {
 	}
 
 	m := fi.Mode()
-	if c.mode != nil {
+	if c.modeSet != nil {
+		m = c.modeSet.Apply(m)
+	} else if c.mode != nil {
 		m = os.FileMode(*c.mode).Perm()
 		if *c.mode&syscall.S_ISGID != 0 {
 			m |= os.ModeSetgid

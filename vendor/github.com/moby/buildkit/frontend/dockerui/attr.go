@@ -74,11 +74,11 @@ func parseShmSize(v string) (int64, error) {
 	return kb, nil
 }
 
-func parseUlimits(v string) ([]pb.Ulimit, error) {
+func parseUlimits(v string) ([]*pb.Ulimit, error) {
 	if v == "" {
 		return nil, nil
 	}
-	out := make([]pb.Ulimit, 0)
+	out := make([]*pb.Ulimit, 0)
 	fields, err := csvvalue.Fields(v, nil)
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func parseUlimits(v string) ([]pb.Ulimit, error) {
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, pb.Ulimit{
+		out = append(out, &pb.Ulimit{
 			Name: ulimit.Name,
 			Soft: ulimit.Soft,
 			Hard: ulimit.Hard,

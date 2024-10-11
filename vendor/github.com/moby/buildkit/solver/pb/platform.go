@@ -17,8 +17,8 @@ func (p *Platform) Spec() ocispecs.Platform {
 	return result
 }
 
-func PlatformFromSpec(p ocispecs.Platform) Platform {
-	result := Platform{
+func PlatformFromSpec(p ocispecs.Platform) *Platform {
+	result := &Platform{
 		OS:           p.OS,
 		Architecture: p.Architecture,
 		Variant:      p.Variant,
@@ -30,7 +30,7 @@ func PlatformFromSpec(p ocispecs.Platform) Platform {
 	return result
 }
 
-func ToSpecPlatforms(p []Platform) []ocispecs.Platform {
+func ToSpecPlatforms(p []*Platform) []ocispecs.Platform {
 	out := make([]ocispecs.Platform, 0, len(p))
 	for _, pp := range p {
 		out = append(out, pp.Spec())
@@ -38,8 +38,8 @@ func ToSpecPlatforms(p []Platform) []ocispecs.Platform {
 	return out
 }
 
-func PlatformsFromSpec(p []ocispecs.Platform) []Platform {
-	out := make([]Platform, 0, len(p))
+func PlatformsFromSpec(p []ocispecs.Platform) []*Platform {
+	out := make([]*Platform, 0, len(p))
 	for _, pp := range p {
 		out = append(out, PlatformFromSpec(pp))
 	}

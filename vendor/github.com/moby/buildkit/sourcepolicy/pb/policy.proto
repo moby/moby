@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package moby.buildkit.v1.sourcepolicy;
 
+option go_package = "github.com/moby/buildkit/sourcepolicy/pb;moby_buildkit_v1_sourcepolicy";
+
 // Rule defines the action(s) to take when a source is matched
 message Rule {
 	PolicyAction action = 1; 
