@@ -77,7 +77,7 @@ func TestAttachDisconnectLeak(t *testing.T) {
 	d := daemon.New(t)
 	defer d.Cleanup(t)
 
-	d.StartWithBusybox(ctx, t, "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 
 	client := d.NewClientT(t)
 
