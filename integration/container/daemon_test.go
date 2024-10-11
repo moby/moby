@@ -67,7 +67,7 @@ func TestNetworkStateCleanupOnDaemonStart(t *testing.T) {
 	d := daemon.New(t)
 	defer d.Cleanup(t)
 
-	d.StartWithBusybox(ctx, t)
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	apiClient := d.NewClientT(t)
