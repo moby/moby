@@ -31,9 +31,9 @@ type errPlatformNotFound struct {
 
 func (e *errPlatformNotFound) NotFound() {}
 func (e *errPlatformNotFound) Error() string {
-	msg := "image with reference " + e.imageRef + " was found but does not match the specified platform"
+	msg := "image with reference " + e.imageRef + " was found but does not provide the specified platform"
 	if e.wanted.OS != "" {
-		msg += ": wanted " + platforms.FormatAll(e.wanted)
+		msg += " (" + platforms.FormatAll(e.wanted) + ")"
 	}
 	return msg
 }
