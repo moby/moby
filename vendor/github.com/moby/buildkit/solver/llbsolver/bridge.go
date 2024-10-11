@@ -90,7 +90,7 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 			if p == nil {
 				return nil, errors.Errorf("invalid nil policy")
 			}
-			if err := validateSourcePolicy(*p); err != nil {
+			if err := validateSourcePolicy(p); err != nil {
 				return nil, err
 			}
 		}
@@ -268,7 +268,7 @@ func (rp *resultProxy) wrapError(err error) error {
 			locs, ok := rp.req.Definition.Source.Locations[string(ve.Digest)]
 			if ok {
 				for _, loc := range locs.Locations {
-					err = errdefs.WithSource(err, errdefs.Source{
+					err = errdefs.WithSource(err, &errdefs.Source{
 						Info:   rp.req.Definition.Source.Infos[loc.SourceIndex],
 						Ranges: loc.Ranges,
 					})
@@ -394,6 +394,7 @@ type lazyCacheManager struct {
 func (lcm *lazyCacheManager) ID() string {
 	return lcm.id
 }
+
 func (lcm *lazyCacheManager) Query(inp []solver.CacheKeyWithSelector, inputIndex solver.Index, dgst digest.Digest, outputIndex solver.Index) ([]*solver.CacheKey, error) {
 	lcm.wait()
 	if lcm.main == nil {
@@ -401,6 +402,7 @@ func (lcm *lazyCacheManager) Query(inp []solver.CacheKeyWithSelector, inputIndex
 	}
 	return lcm.main.Query(inp, inputIndex, dgst, outputIndex)
 }
+
 func (lcm *lazyCacheManager) Records(ctx context.Context, ck *solver.CacheKey) ([]*solver.CacheRecord, error) {
 	lcm.wait()
 	if lcm.main == nil {
@@ -408,12 +410,14 @@ func (lcm *lazyCacheManager) Records(ctx context.Context, ck *solver.CacheKey) (
 	}
 	return lcm.main.Records(ctx, ck)
 }
+
 func (lcm *lazyCacheManager) Load(ctx context.Context, rec *solver.CacheRecord) (solver.Result, error) {
 	if err := lcm.wait(); err != nil {
 		return nil, err
 	}
 	return lcm.main.Load(ctx, rec)
 }
+
 func (lcm *lazyCacheManager) Save(key *solver.CacheKey, s solver.Result, createdAt time.Time) (*solver.ExportableCacheKey, error) {
 	if err := lcm.wait(); err != nil {
 		return nil, err

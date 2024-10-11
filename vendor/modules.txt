@@ -494,9 +494,6 @@ github.com/godbus/dbus/v5
 # github.com/gofrs/flock v0.12.1
 ## explicit; go 1.21.0
 github.com/gofrs/flock
-# github.com/gogo/googleapis v1.4.1
-## explicit; go 1.12
-github.com/gogo/googleapis/google/rpc
 # github.com/gogo/protobuf v1.3.2
 ## explicit; go 1.15
 github.com/gogo/protobuf/gogoproto
@@ -702,8 +699,8 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.16.0
-## explicit; go 1.21.0
+# github.com/moby/buildkit v0.17.0-rc1
+## explicit; go 1.22.0
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
 github.com/moby/buildkit/cache
@@ -814,11 +811,13 @@ github.com/moby/buildkit/util/converter
 github.com/moby/buildkit/util/converter/tarconverter
 github.com/moby/buildkit/util/db
 github.com/moby/buildkit/util/db/boltutil
+github.com/moby/buildkit/util/disk
 github.com/moby/buildkit/util/entitlements
 github.com/moby/buildkit/util/entitlements/security
 github.com/moby/buildkit/util/estargz
 github.com/moby/buildkit/util/flightcontrol
 github.com/moby/buildkit/util/gitutil
+github.com/moby/buildkit/util/gogo/proto
 github.com/moby/buildkit/util/grpcerrors
 github.com/moby/buildkit/util/imageutil
 github.com/moby/buildkit/util/iohelper
@@ -1021,6 +1020,11 @@ github.com/philhofer/fwd
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
+# github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10
+## explicit; go 1.20
+github.com/planetscale/vtprotobuf/protohelpers
+github.com/planetscale/vtprotobuf/types/known/timestamppb
+github.com/planetscale/vtprotobuf/vtproto
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
@@ -1088,8 +1092,11 @@ github.com/syndtr/gocapability/capability
 # github.com/tinylib/msgp v1.1.8
 ## explicit; go 1.15
 github.com/tinylib/msgp/msgp
-# github.com/tonistiigi/fsutil v0.0.0-20240424095704-91a3fc46842c
-## explicit; go 1.20
+# github.com/tonistiigi/dchapes-mode v0.0.0-20241001053921-ca0759fec205
+## explicit; go 1.21
+github.com/tonistiigi/dchapes-mode
+# github.com/tonistiigi/fsutil v0.0.0-20241003195857-3f140a1299b0
+## explicit; go 1.21
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy
 github.com/tonistiigi/fsutil/types
@@ -1315,8 +1322,8 @@ golang.org/x/crypto/pkcs12/internal/rc2
 golang.org/x/crypto/salsa20/salsa
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
-# golang.org/x/exp v0.0.0-20240823005443-9b4947da3948
-## explicit; go 1.20
+# golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
+## explicit; go 1.22.0
 golang.org/x/exp/constraints
 golang.org/x/exp/maps
 golang.org/x/exp/slices

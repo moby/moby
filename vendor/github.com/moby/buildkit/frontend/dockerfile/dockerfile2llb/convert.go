@@ -57,8 +57,9 @@ const (
 )
 
 var (
-	secretsRegexpOnce sync.Once
-	secretsRegexp     *regexp.Regexp
+	secretsRegexpOnce  sync.Once
+	secretsRegexp      *regexp.Regexp
+	secretsAllowRegexp *regexp.Regexp
 )
 
 var nonEnvArgs = map[string]struct{}{
@@ -228,10 +229,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 
 	platformOpt := buildPlatformOpt(&opt)
 
-	optMetaArgs := getPlatformArgs(platformOpt)
-	for i, arg := range optMetaArgs {
-		optMetaArgs[i] = setKVValue(arg, opt.BuildArgs)
-	}
+	globalArgs := platformArgs(platformOpt, opt.BuildArgs)
 
 	dockerfile, err := parser.Parse(bytes.NewReader(dt))
 	if err != nil {
@@ -253,7 +251,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 
 	proxyEnv := proxyEnvFromBuildArgs(opt.BuildArgs)
 
-	stages, metaArgs, err := instructions.Parse(dockerfile.AST, lint)
+	stages, argCmds, err := instructions.Parse(dockerfile.AST, lint)
 	if err != nil {
 		return nil, err
 	}
@@ -268,11 +266,11 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 
 	// Validate that base images continue to be valid even
 	// when no build arguments are used.
-	validateBaseImagesWithDefaultArgs(stages, shlex, metaArgs, optMetaArgs, lint)
+	validateBaseImagesWithDefaultArgs(stages, shlex, globalArgs, argCmds, lint)
 
 	// Rebuild the arguments using the provided build arguments
 	// for the remainder of the build.
-	optMetaArgs, outline.allArgs, err = buildMetaArgs(optMetaArgs, shlex, metaArgs, opt.BuildArgs)
+	globalArgs, outline.allArgs, err = buildMetaArgs(globalArgs, shlex, argCmds, opt.BuildArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -286,9 +284,9 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 
 	// set base state for every image
 	for i, st := range stages {
-		env := metaArgsToEnvs(optMetaArgs)
-		nameMatch, err := shlex.ProcessWordWithMatches(st.BaseName, env)
-		reportUnusedFromArgs(metaArgsKeys(optMetaArgs), nameMatch.Unmatched, st.Location, lint)
+		nameMatch, err := shlex.ProcessWordWithMatches(st.BaseName, globalArgs)
+		argKeys := unusedFromArgsCheckKeys(globalArgs, outline.allArgs)
+		reportUnusedFromArgs(argKeys, nameMatch.Unmatched, st.Location, lint)
 		used := nameMatch.Matched
 		if used == nil {
 			used = map[string]struct{}{}
@@ -314,10 +312,10 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		}
 
 		if v := st.Platform; v != "" {
-			platEnv := metaArgsToEnvs(optMetaArgs)
-			platMatch, err := shlex.ProcessWordWithMatches(v, platEnv)
-			reportUnusedFromArgs(metaArgsKeys(optMetaArgs), platMatch.Unmatched, st.Location, lint)
-			reportRedundantTargetPlatform(st.Platform, platMatch, st.Location, platEnv, lint)
+			platMatch, err := shlex.ProcessWordWithMatches(v, globalArgs)
+			argKeys := unusedFromArgsCheckKeys(globalArgs, outline.allArgs)
+			reportUnusedFromArgs(argKeys, platMatch.Unmatched, st.Location, lint)
+			reportRedundantTargetPlatform(st.Platform, platMatch, st.Location, globalArgs, lint)
 			reportConstPlatformDisallowed(st.Name, platMatch, st.Location, lint)
 
 			if err != nil {
@@ -327,14 +325,14 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			if platMatch.Result == "" {
 				err := errors.Errorf("empty platform value from expression %s", v)
 				err = parser.WithLocation(err, st.Location)
-				err = wrapSuggestAny(err, platMatch.Unmatched, metaArgsKeys(optMetaArgs))
+				err = wrapSuggestAny(err, platMatch.Unmatched, globalArgs.Keys())
 				return nil, err
 			}
 
 			p, err := platforms.Parse(platMatch.Result)
 			if err != nil {
 				err = parser.WithLocation(err, st.Location)
-				err = wrapSuggestAny(err, platMatch.Unmatched, metaArgsKeys(optMetaArgs))
+				err = wrapSuggestAny(err, platMatch.Unmatched, globalArgs.Keys())
 				return nil, parser.WithLocation(errors.Wrapf(err, "failed to parse platform %s", v), st.Location)
 			}
 
@@ -355,7 +353,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 				return nil, err
 			}
 			if s != nil {
-				ds.noinit = true
+				ds.dispatched = true
 				ds.state = *s
 				if img != nil {
 					// timestamps are inherited as-is, regardless to SOURCE_DATE_EPOCH
@@ -451,146 +449,175 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			allStageNames = append(allStageNames, s.stageName)
 		}
 	}
-	allReachable := allReachableStages(target)
 
-	baseCtx := ctx
-	eg, ctx := errgroup.WithContext(ctx)
-	for i, d := range allDispatchStates.states {
-		_, reachable := allReachable[d]
-		if opt.AllStages {
-			reachable = true
-		}
-		// resolve image config for every stage
-		if d.base == nil && !d.noinit {
-			if d.stage.BaseName == emptyImageName {
-				d.state = llb.Scratch()
-				d.image = emptyImage(platformOpt.targetPlatform)
-				d.platform = &platformOpt.targetPlatform
-				if d.unregistered {
-					d.noinit = true
-				}
-				continue
+	resolveReachableStages := func(ctx context.Context, all []*dispatchState, target *dispatchState) (map[*dispatchState]struct{}, error) {
+		allReachable := allReachableStages(target)
+		eg, ctx := errgroup.WithContext(ctx)
+		for i, d := range all {
+			_, reachable := allReachable[d]
+			if opt.AllStages {
+				reachable = true
 			}
-			func(i int, d *dispatchState) {
-				eg.Go(func() (err error) {
-					defer func() {
+			// resolve image config for every stage
+			if d.base == nil && !d.dispatched && !d.resolved {
+				d.resolved = reachable // avoid re-resolving if called again after onbuild
+				if d.stage.BaseName == emptyImageName {
+					d.state = llb.Scratch()
+					d.image = emptyImage(platformOpt.targetPlatform)
+					d.platform = &platformOpt.targetPlatform
+					if d.unregistered {
+						d.dispatched = true
+					}
+					continue
+				}
+				func(i int, d *dispatchState) {
+					eg.Go(func() (err error) {
+						defer func() {
+							if err != nil {
+								err = parser.WithLocation(err, d.stage.Location)
+							}
+							if d.unregistered {
+								// implicit stages don't need further dispatch
+								d.dispatched = true
+							}
+						}()
+						origName := d.stage.BaseName
+						ref, err := reference.ParseNormalizedNamed(d.stage.BaseName)
 						if err != nil {
-							err = parser.WithLocation(err, d.stage.Location)
+							return errors.Wrapf(err, "failed to parse stage name %q", d.stage.BaseName)
 						}
-						if d.unregistered {
-							// implicit stages don't need further dispatch
-							d.noinit = true
+						platform := d.platform
+						if platform == nil {
+							platform = &platformOpt.targetPlatform
 						}
-					}()
-					origName := d.stage.BaseName
-					ref, err := reference.ParseNormalizedNamed(d.stage.BaseName)
-					if err != nil {
-						return errors.Wrapf(err, "failed to parse stage name %q", d.stage.BaseName)
-					}
-					platform := d.platform
-					if platform == nil {
-						platform = &platformOpt.targetPlatform
-					}
-					d.stage.BaseName = reference.TagNameOnly(ref).String()
+						d.stage.BaseName = reference.TagNameOnly(ref).String()
 
-					var isScratch bool
-					st, img, err := namedContext(ctx, d.stage.BaseName, dockerui.ContextOpt{
-						ResolveMode:    opt.ImageResolveMode.String(),
-						Platform:       platform,
-						AsyncLocalOpts: d.asyncLocalOpts,
-					})
-					if err != nil {
-						return err
-					}
-					if st != nil {
-						if img != nil {
-							d.image = *img
-						} else {
-							d.image = emptyImage(platformOpt.targetPlatform)
-						}
-						d.state = st.Platform(*platform)
-						d.platform = platform
-						return nil
-					}
-					if reachable {
-						prefix := "["
-						if opt.MultiPlatformRequested && platform != nil {
-							prefix += platforms.Format(*platform) + " "
-						}
-						prefix += "internal]"
-						mutRef, dgst, dt, err := metaResolver.ResolveImageConfig(ctx, d.stage.BaseName, sourceresolver.Opt{
-							LogName:  fmt.Sprintf("%s load metadata for %s", prefix, d.stage.BaseName),
-							Platform: platform,
-							ImageOpt: &sourceresolver.ResolveImageOpt{
-								ResolveMode: opt.ImageResolveMode.String(),
-							},
+						var isScratch bool
+						st, img, err := namedContext(ctx, d.stage.BaseName, dockerui.ContextOpt{
+							ResolveMode:    opt.ImageResolveMode.String(),
+							Platform:       platform,
+							AsyncLocalOpts: d.asyncLocalOpts,
 						})
 						if err != nil {
-							return suggest.WrapError(errors.Wrap(err, origName), origName, append(allStageNames, commonImageNames()...), true)
+							return err
 						}
+						if st != nil {
+							if img != nil {
+								d.image = *img
+							} else {
+								d.image = emptyImage(platformOpt.targetPlatform)
+							}
+							d.state = st.Platform(*platform)
+							d.platform = platform
+							return nil
+						}
+						if reachable {
+							prefix := "["
+							if opt.MultiPlatformRequested && platform != nil {
+								prefix += platforms.Format(*platform) + " "
+							}
+							prefix += "internal]"
+							mutRef, dgst, dt, err := metaResolver.ResolveImageConfig(ctx, d.stage.BaseName, sourceresolver.Opt{
+								LogName:  fmt.Sprintf("%s load metadata for %s", prefix, d.stage.BaseName),
+								Platform: platform,
+								ImageOpt: &sourceresolver.ResolveImageOpt{
+									ResolveMode: opt.ImageResolveMode.String(),
+								},
+							})
+							if err != nil {
+								return suggest.WrapError(errors.Wrap(err, origName), origName, append(allStageNames, commonImageNames()...), true)
+							}
 
-						if ref.String() != mutRef {
-							ref, err = reference.ParseNormalizedNamed(mutRef)
-							if err != nil {
-								return errors.Wrapf(err, "failed to parse ref %q", mutRef)
-							}
-						}
-						var img dockerspec.DockerOCIImage
-						if err := json.Unmarshal(dt, &img); err != nil {
-							return errors.Wrap(err, "failed to parse image config")
-						}
-						d.baseImg = cloneX(&img) // immutable
-						img.Created = nil
-						// if there is no explicit target platform, try to match based on image config
-						if d.platform == nil && platformOpt.implicitTarget {
-							p := autoDetectPlatform(img, *platform, platformOpt.buildPlatforms)
-							platform = &p
-						}
-						if dgst != "" {
-							ref, err = reference.WithDigest(ref, dgst)
-							if err != nil {
-								return err
-							}
-						}
-						d.stage.BaseName = ref.String()
-						if len(img.RootFS.DiffIDs) == 0 {
-							isScratch = true
-							// schema1 images can't return diffIDs so double check :(
-							for _, h := range img.History {
-								if !h.EmptyLayer {
-									isScratch = false
-									break
+							if ref.String() != mutRef {
+								ref, err = reference.ParseNormalizedNamed(mutRef)
+								if err != nil {
+									return errors.Wrapf(err, "failed to parse ref %q", mutRef)
 								}
 							}
+							var img dockerspec.DockerOCIImage
+							if err := json.Unmarshal(dt, &img); err != nil {
+								return errors.Wrap(err, "failed to parse image config")
+							}
+							d.baseImg = cloneX(&img) // immutable
+							img.Created = nil
+							// if there is no explicit target platform, try to match based on image config
+							if d.platform == nil && platformOpt.implicitTarget {
+								p := autoDetectPlatform(img, *platform, platformOpt.buildPlatforms)
+								platform = &p
+							}
+							if dgst != "" {
+								ref, err = reference.WithDigest(ref, dgst)
+								if err != nil {
+									return err
+								}
+							}
+							d.stage.BaseName = ref.String()
+							if len(img.RootFS.DiffIDs) == 0 {
+								isScratch = true
+								// schema1 images can't return diffIDs so double check :(
+								for _, h := range img.History {
+									if !h.EmptyLayer {
+										isScratch = false
+										break
+									}
+								}
+							}
+							d.image = img
 						}
-						d.image = img
-					}
-					if isScratch {
-						d.state = llb.Scratch()
-					} else {
-						d.state = llb.Image(d.stage.BaseName,
-							dfCmd(d.stage.SourceCode),
-							llb.Platform(*platform),
-							opt.ImageResolveMode,
-							llb.WithCustomName(prefixCommand(d, "FROM "+d.stage.BaseName, opt.MultiPlatformRequested, platform, emptyEnvs{})),
-							location(opt.SourceMap, d.stage.Location),
-						)
-						if reachable {
-							validateBaseImagePlatform(origName, *platform, d.image.Platform, d.stage.Location, lint)
+						if isScratch {
+							d.state = llb.Scratch()
+						} else {
+							d.state = llb.Image(d.stage.BaseName,
+								dfCmd(d.stage.SourceCode),
+								llb.Platform(*platform),
+								opt.ImageResolveMode,
+								llb.WithCustomName(prefixCommand(d, "FROM "+d.stage.BaseName, opt.MultiPlatformRequested, platform, emptyEnvs{})),
+								location(opt.SourceMap, d.stage.Location),
+							)
+							if reachable {
+								validateBaseImagePlatform(origName, *platform, d.image.Platform, d.stage.Location, lint)
+							}
 						}
-					}
-					d.platform = platform
-					return nil
-				})
-			}(i, d)
+						d.platform = platform
+						return nil
+					})
+				}(i, d)
+			}
+		}
+
+		if err := eg.Wait(); err != nil {
+			return nil, err
+		}
+		return allReachable, nil
+	}
+
+	var allReachable map[*dispatchState]struct{}
+	for {
+		allReachable, err = resolveReachableStages(ctx, allDispatchStates.states, target)
+		if err != nil {
+			return nil, err
+		}
+
+		// initialize onbuild triggers in case they create new dependencies
+		newDeps := false
+		for d := range allReachable {
+			d.init()
+
+			if len(d.image.Config.OnBuild) > 0 {
+				if b, err := initOnBuildTriggers(d, d.image.Config.OnBuild, allDispatchStates); err != nil {
+					return nil, parser.SetLocation(err, d.stage.Location)
+				} else if b {
+					newDeps = true
+				}
+				d.image.Config.OnBuild = nil
+			}
+		}
+		// in case new dependencies were added, we need to re-resolve reachable stages
+		if !newDeps {
+			break
 		}
 	}
 
-	if err := eg.Wait(); err != nil {
-		return nil, err
-	}
-
-	ctx = baseCtx
 	buildContext := &mutableOutput{}
 	ctxPaths := map[string]struct{}{}
 
@@ -610,11 +637,12 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 
 	for _, d := range allDispatchStates.states {
 		if !opt.AllStages {
-			if _, ok := allReachable[d]; !ok || d.noinit {
+			if _, ok := allReachable[d]; !ok || d.dispatched {
 				continue
 			}
 		}
 		d.init()
+		d.dispatched = true
 
 		// Ensure platform is set.
 		if d.platform == nil {
@@ -653,7 +681,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 
 		opt := dispatchOpt{
 			allDispatchStates:   allDispatchStates,
-			metaArgs:            optMetaArgs,
+			globalArgs:          globalArgs,
 			buildArgValues:      opt.BuildArgs,
 			shlex:               shlex,
 			buildContext:        llb.NewState(buildContext),
@@ -671,11 +699,6 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			dockerIgnoreMatcher: dockerIgnoreMatcher,
 		}
 
-		if err = dispatchOnBuildTriggers(d, d.image.Config.OnBuild, opt); err != nil {
-			return nil, parser.WithLocation(err, d.stage.Location)
-		}
-		d.image.Config.OnBuild = nil
-
 		for _, cmd := range d.commands {
 			if err := dispatch(d, cmd, opt); err != nil {
 				return nil, parser.WithLocation(err, cmd.Location())
@@ -687,15 +710,22 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			ctxPaths[p] = struct{}{}
 		}
 
-		locals := []instructions.KeyValuePairOptional{}
-		locals = append(locals, d.opt.metaArgs...)
-		locals = append(locals, d.buildArgs...)
-		for _, a := range locals {
-			switch a.Key {
-			case sbomScanStage:
-				d.scanStage = isEnabledForStage(d.stageName, a.ValueString())
-			case sbomScanContext:
-				d.scanContext = isEnabledForStage(d.stageName, a.ValueString())
+		for _, name := range []string{sbomScanContext, sbomScanStage} {
+			var b bool
+			if v, ok := d.opt.globalArgs.Get(name); ok {
+				b = isEnabledForStage(d.stageName, v)
+			}
+			for _, kv := range d.buildArgs {
+				if kv.Key == name && kv.Value != nil {
+					b = isEnabledForStage(d.stageName, *kv.Value)
+				}
+			}
+			if b {
+				if name == sbomScanContext {
+					d.scanContext = true
+				} else {
+					d.scanStage = true
+				}
 			}
 		}
 	}
@@ -751,48 +781,6 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 	return target, nil
 }
 
-func metaArgsToEnvs(metaArgs []instructions.KeyValuePairOptional) shell.EnvGetter {
-	return &envsFromKeyValuePairs{in: metaArgs}
-}
-
-type envsFromKeyValuePairs struct {
-	in   []instructions.KeyValuePairOptional
-	once sync.Once
-	m    map[string]string
-}
-
-func (e *envsFromKeyValuePairs) init() {
-	if len(e.in) == 0 {
-		return
-	}
-	e.m = make(map[string]string, len(e.in))
-	for _, kv := range e.in {
-		e.m[kv.Key] = kv.ValueString()
-	}
-}
-
-func (e *envsFromKeyValuePairs) Get(key string) (string, bool) {
-	e.once.Do(e.init)
-	v, ok := e.m[key] // windows: case-insensitive
-	return v, ok
-}
-
-func (e *envsFromKeyValuePairs) Keys() []string {
-	keys := make([]string, len(e.in))
-	for i, kp := range e.in {
-		keys[i] = kp.Key
-	}
-	return keys
-}
-
-func metaArgsKeys(metaArgs []instructions.KeyValuePairOptional) []string {
-	s := make([]string, 0, len(metaArgs))
-	for _, arg := range metaArgs {
-		s = append(s, arg.Key)
-	}
-	return s
-}
-
 func toCommand(ic instructions.Command, allDispatchStates *dispatchStates) (command, error) {
 	cmd := command{Command: ic}
 	if c, ok := ic.(*instructions.CopyCommand); ok {
@@ -803,7 +791,7 @@ func toCommand(ic instructions.Command, allDispatchStates *dispatchStates) (comm
 				stn, ok = allDispatchStates.findStateByName(c.From)
 				if !ok {
 					stn = &dispatchState{
-						stage:        instructions.Stage{BaseName: c.From, Location: ic.Location()},
+						stage:        instructions.Stage{BaseName: c.From, Location: c.Location()},
 						deps:         make(map[*dispatchState]instructions.Command),
 						paths:        make(map[string]struct{}),
 						unregistered: true,
@@ -828,7 +816,7 @@ func toCommand(ic instructions.Command, allDispatchStates *dispatchStates) (comm
 
 type dispatchOpt struct {
 	allDispatchStates   *dispatchStates
-	metaArgs            []instructions.KeyValuePairOptional
+	globalArgs          shell.EnvGetter
 	buildArgValues      map[string]string
 	shlex               *shell.Lex
 	buildContext        llb.State
@@ -838,7 +826,7 @@ type dispatchOpt struct {
 	buildPlatforms      []ocispecs.Platform
 	extraHosts          []llb.HostIP
 	shmSize             int64
-	ulimit              []pb.Ulimit
+	ulimit              []*pb.Ulimit
 	cgroupParent        string
 	llbCaps             *apicaps.CapSet
 	sourceMap           *llb.SourceMap
@@ -875,6 +863,7 @@ func (e *envsFromState) Keys() []string {
 }
 
 func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
+	d.cmdIsOnBuild = cmd.isOnBuild
 	var err error
 	// ARG command value could be ignored, so defer handling the expansion error
 	_, isArg := cmd.Command.(*instructions.ArgCommand)
@@ -968,7 +957,7 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 		var ignoreMatcher *patternmatcher.PatternMatcher
 		if len(cmd.sources) != 0 {
 			src := cmd.sources[0]
-			if !src.noinit {
+			if !src.dispatched {
 				return errors.Errorf("cannot copy from stage %q, it needs to be defined before current stage %q", c.From, d.stageName)
 			}
 			l = src.state
@@ -1010,17 +999,18 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 }
 
 type dispatchState struct {
-	opt       dispatchOpt
-	state     llb.State
-	image     dockerspec.DockerOCIImage
-	platform  *ocispecs.Platform
-	stage     instructions.Stage
-	base      *dispatchState
-	baseImg   *dockerspec.DockerOCIImage // immutable, unlike image
-	noinit    bool
-	deps      map[*dispatchState]instructions.Command
-	buildArgs []instructions.KeyValuePairOptional
-	commands  []command
+	opt        dispatchOpt
+	state      llb.State
+	image      dockerspec.DockerOCIImage
+	platform   *ocispecs.Platform
+	stage      instructions.Stage
+	base       *dispatchState
+	baseImg    *dockerspec.DockerOCIImage // immutable, unlike image
+	dispatched bool
+	resolved   bool // resolved is set to true if base image has been resolved
+	deps       map[*dispatchState]instructions.Command
+	buildArgs  []instructions.KeyValuePairOptional
+	commands   []command
 	// ctxPaths marks the paths this dispatchState uses from the build context.
 	ctxPaths map[string]struct{}
 	// paths marks the paths that are used by this dispatchState.
@@ -1029,6 +1019,7 @@ type dispatchState struct {
 	unregistered   bool
 	stageName      string
 	cmdIndex       int
+	cmdIsOnBuild   bool
 	cmdTotal       int
 	prefixPlatform bool
 	outline        outlineCapture
@@ -1052,8 +1043,6 @@ func (ds *dispatchState) asyncLocalOpts() []llb.LocalOption {
 // from the base image.
 func (ds *dispatchState) init() {
 	// mark as initialized, used to determine states that have not been dispatched yet
-	ds.noinit = true
-
 	if ds.base == nil {
 		return
 	}
@@ -1109,31 +1098,55 @@ func (dss *dispatchStates) lastTarget() *dispatchState {
 
 type command struct {
 	instructions.Command
-	sources []*dispatchState
+	sources   []*dispatchState
+	isOnBuild bool
 }
 
-func dispatchOnBuildTriggers(d *dispatchState, triggers []string, opt dispatchOpt) error {
+// initOnBuildTriggers initializes the onbuild triggers and creates the commands and dependecies for them.
+// It returns true if there were any new dependencies added that need to be resolved.
+func initOnBuildTriggers(d *dispatchState, triggers []string, allDispatchStates *dispatchStates) (bool, error) {
+	hasNewDeps := false
+	commands := make([]command, 0, len(triggers))
+
 	for _, trigger := range triggers {
 		ast, err := parser.Parse(strings.NewReader(trigger))
 		if err != nil {
-			return err
+			return false, err
 		}
 		if len(ast.AST.Children) != 1 {
-			return errors.New("onbuild trigger should be a single expression")
+			return false, errors.New("onbuild trigger should be a single expression")
 		}
+		node := ast.AST.Children[0]
+		// reset the location to the onbuild trigger
+		node.StartLine, node.EndLine = rangeStartEnd(d.stage.Location)
 		ic, err := instructions.ParseCommand(ast.AST.Children[0])
 		if err != nil {
-			return err
+			return false, err
 		}
-		cmd, err := toCommand(ic, opt.allDispatchStates)
+		cmd, err := toCommand(ic, allDispatchStates)
 		if err != nil {
-			return err
+			return false, err
 		}
-		if err := dispatch(d, cmd, opt); err != nil {
-			return err
+		cmd.isOnBuild = true
+		if len(cmd.sources) > 0 {
+			hasNewDeps = true
+		}
+
+		commands = append(commands, cmd)
+
+		for _, src := range cmd.sources {
+			if src != nil {
+				d.deps[src] = cmd
+				if src.unregistered {
+					allDispatchStates.addState(src)
+				}
+			}
 		}
 	}
-	return nil
+	d.commands = append(commands, d.commands...)
+	d.cmdTotal += len(commands)
+
+	return hasNewDeps, nil
 }
 
 func dispatchEnv(d *dispatchState, c *instructions.EnvCommand, lint *linter.Linter) error {
@@ -1263,7 +1276,7 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 		return err
 	}
 	env := getEnv(d.state)
-	opt = append(opt, llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(&shlex, customname, env)), d.prefixPlatform, pl, env)))
+	opt = append(opt, llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(&shlex, customname, withSecretEnvMask(c, env))), d.prefixPlatform, pl, env)))
 	for _, h := range dopt.extraHosts {
 		opt = append(opt, llb.AddExtraHost(h.Host, h.IP))
 	}
@@ -1359,14 +1372,23 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 		copyOpt = append(copyOpt, llb.WithExcludePatterns(cfg.excludePatterns))
 	}
 
-	var mode *os.FileMode
+	var mode *llb.ChmodOpt
 	if cfg.chmod != "" {
+		mode = &llb.ChmodOpt{}
 		p, err := strconv.ParseUint(cfg.chmod, 8, 32)
-		if err != nil || p > 0o7777 {
-			return errors.Errorf("invalid chmod parameter: '%v'. it should be octal string and between 0 and 07777", cfg.chmod)
+		nonOctalErr := errors.Errorf("invalid chmod parameter: '%v'. it should be octal string and between 0 and 07777", cfg.chmod)
+		if err == nil {
+			if p > 0o7777 {
+				return nonOctalErr
+			}
+			mode.Mode = os.FileMode(p)
+		} else {
+			if featureCopyChmodNonOctalEnabled {
+				mode.ModeStr = cfg.chmod
+			} else {
+				return nonOctalErr
+			}
 		}
-		perm := os.FileMode(p)
-		mode = &perm
 	}
 
 	if cfg.checksum != "" {
@@ -1731,12 +1753,10 @@ func dispatchArg(d *dispatchState, c *instructions.ArgCommand, opt *dispatchOpt)
 
 		skipArgInfo := false // skip the arg info if the arg is inherited from global scope
 		if !hasDefault && !hasValue {
-			for _, ma := range opt.metaArgs {
-				if ma.Key == arg.Key {
-					arg.Value = ma.Value
-					skipArgInfo = true
-					hasDefault = false
-				}
+			if v, ok := opt.globalArgs.Get(arg.Key); ok {
+				arg.Value = &v
+				skipArgInfo = true
+				hasDefault = false
 			}
 		}
 
@@ -1825,13 +1845,6 @@ func parseKeyValue(env string) (string, string) {
 	}
 
 	return parts[0], v
-}
-
-func setKVValue(kvpo instructions.KeyValuePairOptional, values map[string]string) instructions.KeyValuePairOptional {
-	if v, ok := values[kvpo.Key]; ok {
-		kvpo.Value = &v
-	}
-	return kvpo
 }
 
 func dfCmd(cmd interface{}) llb.ConstraintsOpt {
@@ -2072,6 +2085,9 @@ func prefixCommand(ds *dispatchState, str string, prefixPlatform bool, platform 
 	}
 	ds.cmdIndex++
 	out += fmt.Sprintf("%*d/%d] ", int(1+math.Log10(float64(ds.cmdTotal))), ds.cmdIndex, ds.cmdTotal)
+	if ds.cmdIsOnBuild {
+		out += "ONBUILD "
+	}
 	return out + str
 }
 
@@ -2135,11 +2151,11 @@ func location(sm *llb.SourceMap, locations []parser.Range) llb.ConstraintsOpt {
 	loc := make([]*pb.Range, 0, len(locations))
 	for _, l := range locations {
 		loc = append(loc, &pb.Range{
-			Start: pb.Position{
+			Start: &pb.Position{
 				Line:      int32(l.Start.Line),
 				Character: int32(l.Start.Character),
 			},
-			End: pb.Position{
+			End: &pb.Position{
 				Line:      int32(l.End.Line),
 				Character: int32(l.End.Character),
 			},
@@ -2278,8 +2294,7 @@ func reportUnmatchedVariables(cmd instructions.Command, buildArgs []instructions
 	if len(unmatched) == 0 {
 		return
 	}
-	options := metaArgsKeys(opt.metaArgs)
-	options = append(options, env.Keys()...)
+	options := env.Keys()
 	for cmdVar := range unmatched {
 		if _, nonEnvOk := nonEnvArgs[cmdVar]; nonEnvOk {
 			continue
@@ -2324,11 +2339,11 @@ func toPBLocation(sourceIndex int, location []parser.Range) pb.Location {
 	loc := make([]*pb.Range, 0, len(location))
 	for _, l := range location {
 		loc = append(loc, &pb.Range{
-			Start: pb.Position{
+			Start: &pb.Position{
 				Line:      int32(l.Start.Line),
 				Character: int32(l.Start.Character),
 			},
-			End: pb.Position{
+			End: &pb.Position{
 				Line:      int32(l.End.Line),
 				Character: int32(l.End.Character),
 			},
@@ -2340,9 +2355,27 @@ func toPBLocation(sourceIndex int, location []parser.Range) pb.Location {
 	}
 }
 
-func reportUnusedFromArgs(values []string, unmatched map[string]struct{}, location []parser.Range, lint *linter.Linter) {
+func unusedFromArgsCheckKeys(env shell.EnvGetter, args map[string]argInfo) map[string]struct{} {
+	matched := make(map[string]struct{})
+	for _, arg := range args {
+		matched[arg.definition.Key] = struct{}{}
+	}
+	for _, k := range env.Keys() {
+		matched[k] = struct{}{}
+	}
+	return matched
+}
+
+func reportUnusedFromArgs(testArgKeys map[string]struct{}, unmatched map[string]struct{}, location []parser.Range, lint *linter.Linter) {
+	var argKeys []string
+	for arg := range testArgKeys {
+		argKeys = append(argKeys, arg)
+	}
 	for arg := range unmatched {
-		suggest, _ := suggest.Search(arg, values, true)
+		if _, ok := testArgKeys[arg]; ok {
+			continue
+		}
+		suggest, _ := suggest.Search(arg, argKeys, true)
 		msg := linter.RuleUndefinedArgInFrom.Format(arg, suggest)
 		lint.Run(&linter.RuleUndefinedArgInFrom, location, msg)
 	}
@@ -2433,7 +2466,7 @@ func validateBaseImagePlatform(name string, expected, actual ocispecs.Platform, 
 	}
 }
 
-func getSecretsRegex() *regexp.Regexp {
+func getSecretsRegex() (*regexp.Regexp, *regexp.Regexp) {
 	// Check for either full value or first/last word.
 	// Examples: api_key, DATABASE_PASSWORD, GITHUB_TOKEN, secret_MESSAGE, AUTH
 	// Case insensitive.
@@ -2452,22 +2485,28 @@ func getSecretsRegex() *regexp.Regexp {
 		}
 		pattern := `(?i)(?:_|^)(?:` + strings.Join(secretTokens, "|") + `)(?:_|$)`
 		secretsRegexp = regexp.MustCompile(pattern)
+
+		allowTokens := []string{
+			"public",
+		}
+		allowPattern := `(?i)(?:_|^)(?:` + strings.Join(allowTokens, "|") + `)(?:_|$)`
+		secretsAllowRegexp = regexp.MustCompile(allowPattern)
 	})
-	return secretsRegexp
+	return secretsRegexp, secretsAllowRegexp
 }
 
 func validateNoSecretKey(instruction, key string, location []parser.Range, lint *linter.Linter) {
-	pattern := getSecretsRegex()
-	if pattern.MatchString(key) {
+	deny, allow := getSecretsRegex()
+	if deny.MatchString(key) && !allow.MatchString(key) {
 		msg := linter.RuleSecretsUsedInArgOrEnv.Format(instruction, key)
 		lint.Run(&linter.RuleSecretsUsedInArgOrEnv, location, msg)
 	}
 }
 
-func validateBaseImagesWithDefaultArgs(stages []instructions.Stage, shlex *shell.Lex, metaArgs []instructions.ArgCommand, optMetaArgs []instructions.KeyValuePairOptional, lint *linter.Linter) {
+func validateBaseImagesWithDefaultArgs(stages []instructions.Stage, shlex *shell.Lex, env *llb.EnvList, argCmds []instructions.ArgCommand, lint *linter.Linter) {
 	// Build the arguments as if no build options were given
 	// and using only defaults.
-	optMetaArgs, _, err := buildMetaArgs(optMetaArgs, shlex, metaArgs, nil)
+	args, _, err := buildMetaArgs(env, shlex, argCmds, nil)
 	if err != nil {
 		// Abandon running the linter. We'll likely fail after this point
 		// with the same error but we shouldn't error here inside
@@ -2476,7 +2515,7 @@ func validateBaseImagesWithDefaultArgs(stages []instructions.Stage, shlex *shell
 	}
 
 	for _, st := range stages {
-		nameMatch, err := shlex.ProcessWordWithMatches(st.BaseName, metaArgsToEnvs(optMetaArgs))
+		nameMatch, err := shlex.ProcessWordWithMatches(st.BaseName, args)
 		if err != nil {
 			return
 		}
@@ -2489,32 +2528,49 @@ func validateBaseImagesWithDefaultArgs(stages []instructions.Stage, shlex *shell
 	}
 }
 
-func buildMetaArgs(metaArgs []instructions.KeyValuePairOptional, shlex *shell.Lex, argCommands []instructions.ArgCommand, buildArgs map[string]string) ([]instructions.KeyValuePairOptional, map[string]argInfo, error) {
+func buildMetaArgs(args *llb.EnvList, shlex *shell.Lex, argCommands []instructions.ArgCommand, buildArgs map[string]string) (*llb.EnvList, map[string]argInfo, error) {
 	allArgs := make(map[string]argInfo)
 
 	for _, cmd := range argCommands {
-		for _, metaArg := range cmd.Args {
-			info := argInfo{definition: metaArg, location: cmd.Location()}
-			if v, ok := buildArgs[metaArg.Key]; !ok {
-				if metaArg.Value != nil {
-					result, err := shlex.ProcessWordWithMatches(*metaArg.Value, metaArgsToEnvs(metaArgs))
+		for _, kp := range cmd.Args {
+			info := argInfo{definition: kp, location: cmd.Location()}
+			if v, ok := buildArgs[kp.Key]; !ok {
+				if kp.Value != nil {
+					result, err := shlex.ProcessWordWithMatches(*kp.Value, args)
 					if err != nil {
 						return nil, nil, parser.WithLocation(err, cmd.Location())
 					}
-					metaArg.Value = &result.Result
+					kp.Value = &result.Result
 					info.deps = result.Matched
 				}
 			} else {
-				metaArg.Value = &v
+				kp.Value = &v
 			}
-			metaArgs = append(metaArgs, metaArg)
-			if metaArg.Value != nil {
-				info.value = *metaArg.Value
+			if kp.Value != nil {
+				args = args.AddOrReplace(kp.Key, *kp.Value)
+				info.value = *kp.Value
 			}
-			allArgs[metaArg.Key] = info
+			allArgs[kp.Key] = info
 		}
 	}
-	return metaArgs, allArgs, nil
+	return args, allArgs, nil
+}
+
+func rangeStartEnd(r []parser.Range) (int, int) {
+	if len(r) == 0 {
+		return 0, 0
+	}
+	start := math.MaxInt32
+	end := 0
+	for _, rng := range r {
+		if rng.Start.Line < start {
+			start = rng.Start.Line
+		}
+		if rng.End.Line > end {
+			end = rng.End.Line
+		}
+	}
+	return start, end
 }
 
 type emptyEnvs struct{}

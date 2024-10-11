@@ -166,11 +166,11 @@ func toSourceLocation(r []parser.Range) *pb.Location {
 	arr := make([]*pb.Range, len(r))
 	for i, r := range r {
 		arr[i] = &pb.Range{
-			Start: pb.Position{
+			Start: &pb.Position{
 				Line:      int32(r.Start.Line),
 				Character: int32(r.Start.Character),
 			},
-			End: pb.Position{
+			End: &pb.Position{
 				Line:      int32(r.End.Line),
 				Character: int32(r.End.Character),
 			},

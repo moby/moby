@@ -75,9 +75,9 @@ func (e *Engine) Evaluate(ctx context.Context, op *pb.SourceOp) (bool, error) {
 		}
 
 		if i == 0 {
-			ctx = bklog.WithLogger(ctx, bklog.G(ctx).WithField("orig", *op))
+			ctx = bklog.WithLogger(ctx, bklog.G(ctx).WithField("orig", op))
 		} else {
-			ctx = bklog.WithLogger(ctx, bklog.G(ctx).WithField("updated", *op))
+			ctx = bklog.WithLogger(ctx, bklog.G(ctx).WithField("updated", op))
 		}
 
 		mut, err := e.evaluatePolicies(ctx, op)

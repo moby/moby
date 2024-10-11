@@ -18,14 +18,15 @@ import (
 type contextKeyT string
 
 var (
-	keyArgs         = contextKeyT("llb.exec.args")
-	keyDir          = contextKeyT("llb.exec.dir")
-	keyEnv          = contextKeyT("llb.exec.env")
-	keyExtraHost    = contextKeyT("llb.exec.extrahost")
-	keyHostname     = contextKeyT("llb.exec.hostname")
-	keyUlimit       = contextKeyT("llb.exec.ulimit")
-	keyCgroupParent = contextKeyT("llb.exec.cgroup.parent")
-	keyUser         = contextKeyT("llb.exec.user")
+	keyArgs           = contextKeyT("llb.exec.args")
+	keyDir            = contextKeyT("llb.exec.dir")
+	keyEnv            = contextKeyT("llb.exec.env")
+	keyExtraHost      = contextKeyT("llb.exec.extrahost")
+	keyHostname       = contextKeyT("llb.exec.hostname")
+	keyUlimit         = contextKeyT("llb.exec.ulimit")
+	keyCgroupParent   = contextKeyT("llb.exec.cgroup.parent")
+	keyUser           = contextKeyT("llb.exec.user")
+	keyValidExitCodes = contextKeyT("llb.exec.validexitcodes")
 
 	keyPlatform = contextKeyT("llb.platform")
 	keyNetwork  = contextKeyT("llb.network")
@@ -165,6 +166,25 @@ func getUser(s State) func(context.Context, *Constraints) (string, error) {
 	}
 }
 
+func validExitCodes(codes ...int) StateOption {
+	return func(s State) State {
+		return s.WithValue(keyValidExitCodes, codes)
+	}
+}
+
+func getValidExitCodes(s State) func(context.Context, *Constraints) ([]int, error) {
+	return func(ctx context.Context, c *Constraints) ([]int, error) {
+		v, err := s.getValue(keyValidExitCodes)(ctx, c)
+		if err != nil {
+			return nil, err
+		}
+		if v != nil {
+			return v.([]int), nil
+		}
+		return nil, nil
+	}
+}
+
 // Hostname returns a [StateOption] which sets the hostname used for containers created by [State.Run].
 // This is the equivalent of [State.Hostname]
 // See [State.With] for where to use this.
@@ -263,7 +283,7 @@ func ulimit(name UlimitName, soft int64, hard int64) StateOption {
 			if err != nil {
 				return nil, err
 			}
-			return append(v, pb.Ulimit{
+			return append(v, &pb.Ulimit{
 				Name: string(name),
 				Soft: soft,
 				Hard: hard,
@@ -272,14 +292,14 @@ func ulimit(name UlimitName, soft int64, hard int64) StateOption {
 	}
 }
 
-func getUlimit(s State) func(context.Context, *Constraints) ([]pb.Ulimit, error) {
-	return func(ctx context.Context, c *Constraints) ([]pb.Ulimit, error) {
+func getUlimit(s State) func(context.Context, *Constraints) ([]*pb.Ulimit, error) {
+	return func(ctx context.Context, c *Constraints) ([]*pb.Ulimit, error) {
 		v, err := s.getValue(keyUlimit)(ctx, c)
 		if err != nil {
 			return nil, err
 		}
 		if v != nil {
-			return v.([]pb.Ulimit), nil
+			return v.([]*pb.Ulimit), nil
 		}
 		return nil, nil
 	}
@@ -312,6 +332,7 @@ func Network(v pb.NetMode) StateOption {
 		return s.WithValue(keyNetwork, v)
 	}
 }
+
 func getNetwork(s State) func(context.Context, *Constraints) (pb.NetMode, error) {
 	return func(ctx context.Context, c *Constraints) (pb.NetMode, error) {
 		v, err := s.getValue(keyNetwork)(ctx, c)
@@ -334,6 +355,7 @@ func Security(v pb.SecurityMode) StateOption {
 		return s.WithValue(keySecurity, v)
 	}
 }
+
 func getSecurity(s State) func(context.Context, *Constraints) (pb.SecurityMode, error) {
 	return func(ctx context.Context, c *Constraints) (pb.SecurityMode, error) {
 		v, err := s.getValue(keySecurity)(ctx, c)

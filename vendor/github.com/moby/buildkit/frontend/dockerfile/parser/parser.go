@@ -167,16 +167,17 @@ func (d *directives) setEscapeToken(s string) error {
 
 // possibleParserDirective looks for parser directives, eg '# escapeToken=<char>'.
 // Parser directives must precede any builder instruction or other comments,
-// and cannot be repeated.
-func (d *directives) possibleParserDirective(line []byte) error {
+// and cannot be repeated. Returns true if a parser directive was found.
+func (d *directives) possibleParserDirective(line []byte) (bool, error) {
 	directive, err := d.parser.ParseLine(line)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if directive != nil && directive.Name == keyEscape {
-		return d.setEscapeToken(directive.Value)
+		err := d.setEscapeToken(directive.Value)
+		return err == nil, err
 	}
-	return nil
+	return directive != nil, nil
 }
 
 // newDefaultDirectives returns a new directives structure with the default escapeToken token
@@ -300,7 +301,13 @@ func Parse(rwc io.Reader) (*Result, error) {
 				comments = append(comments, comment)
 			}
 		}
-		bytesRead, err = processLine(d, bytesRead, true)
+		var directiveOk bool
+		bytesRead, directiveOk, err = processLine(d, bytesRead, true)
+		// If the line is a directive, strip it from the comments
+		// so it doesn't get added to the AST.
+		if directiveOk {
+			comments = comments[:len(comments)-1]
+		}
 		if err != nil {
 			return nil, withLocation(err, currentLine, 0)
 		}
@@ -316,7 +323,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 
 		var hasEmptyContinuationLine bool
 		for !isEndOfLine && scanner.Scan() {
-			bytesRead, err := processLine(d, scanner.Bytes(), false)
+			bytesRead, _, err := processLine(d, scanner.Bytes(), false)
 			if err != nil {
 				return nil, withLocation(err, currentLine, 0)
 			}
@@ -527,12 +534,13 @@ func trimContinuationCharacter(line []byte, d *directives) ([]byte, bool) {
 
 // TODO: remove stripLeftWhitespace after deprecation period. It seems silly
 // to preserve whitespace on continuation lines. Why is that done?
-func processLine(d *directives, token []byte, stripLeftWhitespace bool) ([]byte, error) {
+func processLine(d *directives, token []byte, stripLeftWhitespace bool) ([]byte, bool, error) {
 	token = trimNewline(token)
 	if stripLeftWhitespace {
 		token = trimLeadingWhitespace(token)
 	}
-	return trimComments(token), d.possibleParserDirective(token)
+	directiveOk, err := d.possibleParserDirective(token)
+	return trimComments(token), directiveOk, err
 }
 
 // Variation of bufio.ScanLines that preserves the line endings

@@ -451,6 +451,8 @@ func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, er
 				if b == 0 {
 					b = defaultKeepStorage
 				}
+
+				// FIXME(thaJeztah): wire up new options https://github.com/moby/moby/issues/48639
 				gcPolicy[i], err = toBuildkitPruneInfo(types.BuildCachePruneOptions{
 					All:         p.All,
 					KeepStorage: b,
