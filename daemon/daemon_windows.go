@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net/netip"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -365,12 +366,25 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 			}
 		}
 
-		v4Conf := []*libnetwork.IpamConf{}
+		var v4Conf, v6Conf []*libnetwork.IpamConf
 		for _, subnet := range v.Subnets {
-			ipamV4Conf := libnetwork.IpamConf{}
-			ipamV4Conf.PreferredPool = subnet.AddressPrefix
-			ipamV4Conf.Gateway = subnet.GatewayAddress
-			v4Conf = append(v4Conf, &ipamV4Conf)
+			gwAddr, err := netip.ParseAddr(subnet.GatewayAddress)
+			if err != nil {
+				log.G(context.TODO()).Errorf("HNS returned an invalid gateway address when re-creating network: %v", err)
+				continue
+			}
+
+			if gwAddr.Is4() {
+				v4Conf = append(v4Conf, &libnetwork.IpamConf{
+					PreferredPool: subnet.AddressPrefix,
+					Gateway:       subnet.GatewayAddress,
+				})
+			} else {
+				v6Conf = append(v6Conf, &libnetwork.IpamConf{
+					PreferredPool: subnet.AddressPrefix,
+					Gateway:       gwAddr.WithZone("").String(),
+				})
+			}
 		}
 
 		name := v.Name
@@ -382,11 +396,11 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 			defaultNetworkExists = true
 		}
 
-		v6Conf := []*libnetwork.IpamConf{}
 		_, err := daemon.netController.NewNetwork(strings.ToLower(v.Type), name, nid,
 			libnetwork.NetworkOptionGeneric(options.Generic{
 				netlabel.GenericData: netOption,
 				netlabel.EnableIPv4:  true,
+				netlabel.EnableIPv6:  len(v6Conf) > 0,
 			}),
 			libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
 		)

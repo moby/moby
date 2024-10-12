@@ -214,8 +214,8 @@ func (ep *hnsEndpoint) MarshalJSON() ([]byte, error) {
 	if ep.addr.IP != nil {
 		epMap["Addr"] = ep.addr.String()
 	}
-	if ep.gateway != nil {
-		epMap["gateway"] = ep.gateway.String()
+	if ep.gatewayV4 != nil {
+		epMap["gateway"] = ep.gatewayV4.String()
 	}
 	epMap["epOption"] = ep.epOption
 	epMap["epConnectivity"] = ep.epConnectivity
@@ -244,7 +244,7 @@ func (ep *hnsEndpoint) UnmarshalJSON(b []byte) error {
 		}
 	}
 	if v, ok := epMap["gateway"]; ok {
-		ep.gateway = net.ParseIP(v.(string))
+		ep.gatewayV4 = net.ParseIP(v.(string))
 	}
 	ep.id = epMap["id"].(string)
 	ep.Type = epMap["Type"].(string)
