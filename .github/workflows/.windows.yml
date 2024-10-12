@@ -42,6 +42,7 @@ env:
 jobs:
   build:
     runs-on: ${{ inputs.os }}
+    timeout-minutes: 120 # guardrails timeout for the whole job
     env:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
@@ -121,7 +122,7 @@ jobs:
 
   unit-test:
     runs-on: ${{ inputs.os }}
-    timeout-minutes: 120
+    timeout-minutes: 120 # guardrails timeout for the whole job
     env:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
@@ -203,6 +204,7 @@ jobs:
 
   unit-test-report:
     runs-on: ubuntu-latest
+    timeout-minutes: 120 # guardrails timeout for the whole job
     if: always()
     needs:
       - unit-test
@@ -229,6 +231,7 @@ jobs:
 
   integration-test-prepare:
     runs-on: ubuntu-latest
+    timeout-minutes: 120 # guardrails timeout for the whole job
     outputs:
       matrix: ${{ steps.tests.outputs.matrix }}
     steps:
@@ -262,8 +265,8 @@ jobs:
 
   integration-test:
     runs-on: ${{ inputs.os }}
+    timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
-    timeout-minutes: 120
     needs:
       - build
       - integration-test-prepare
@@ -522,6 +525,7 @@ jobs:
 
   integration-test-report:
     runs-on: ubuntu-latest
+    timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
     if: always()
     needs:
