@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/builder-next/exporter"
@@ -348,9 +349,9 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 	}
 
 	switch opt.Options.NetworkMode {
-	case "host", "none":
+	case network.NetworkHost, network.NetworkNone:
 		frontendAttrs["force-network-mode"] = opt.Options.NetworkMode
-	case "", "default":
+	case "", network.NetworkDefault:
 	default:
 		return nil, errors.Errorf("network mode %q not supported by buildkit", opt.Options.NetworkMode)
 	}
@@ -415,7 +416,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		Cache:         cache,
 	}
 
-	if opt.Options.NetworkMode == "host" {
+	if opt.Options.NetworkMode == network.NetworkHost {
 		req.Entitlements = append(req.Entitlements, string(entitlements.EntitlementNetworkHost))
 	}
 
