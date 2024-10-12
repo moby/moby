@@ -32,6 +32,11 @@ const (
 
 	IsolationChain1 = "DOCKER-ISOLATION-STAGE-1"
 	IsolationChain2 = "DOCKER-ISOLATION-STAGE-2"
+
+	// ipset names for IPv4 and IPv6 bridge subnets that don't belong
+	// to --internal networks.
+	ipsetExtBridges4 = "docker-ext-bridges-v4"
+	ipsetExtBridges6 = "docker-ext-bridges-v6"
 )
 
 // Path to the executable installed in Linux under WSL2 that reports on
@@ -98,11 +103,24 @@ func setupIPChains(config configuration, version iptables.IPVersion) (natChain *
 		}
 	}()
 
-	if err := iptable.AddReturnRule(IsolationChain1); err != nil {
+	// Make sure the filter-FORWARD chain has rules to accept related packets and
+	// jump to the isolation and docker chains. (Re-)insert at the top of the table,
+	// in reverse order.
+	ipsetName := ipsetExtBridges4
+	if version == iptables.IPv6 {
+		ipsetName = ipsetExtBridges6
+	}
+	if err := iptable.EnsureJumpRule("FORWARD", DockerChain,
+		"-m", "set", "--match-set", ipsetName, "dst"); err != nil {
 		return nil, nil, nil, nil, err
 	}
-
-	if err := iptable.AddReturnRule(IsolationChain2); err != nil {
+	if err := iptable.EnsureJumpRule("FORWARD", IsolationChain1); err != nil {
+		return nil, nil, nil, nil, err
+	}
+	if err := iptable.EnsureJumpRule("FORWARD", "ACCEPT",
+		"-m", "set", "--match-set", ipsetName, "dst",
+		"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED",
+	); err != nil {
 		return nil, nil, nil, nil, err
 	}
 
@@ -162,6 +180,10 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 	hairpinMode := !driverConfig.EnableUserlandProxy
 
 	iptable := iptables.GetIptable(ipVersion)
+	ipsetName := ipsetExtBridges4
+	if ipVersion == iptables.IPv6 {
+		ipsetName = ipsetExtBridges6
+	}
 
 	if config.Internal {
 		if err = setupInternalNetworkRules(config.BridgeName, maskedAddr, config.EnableICC, true); err != nil {
@@ -177,6 +199,7 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 		n.registerIptCleanFunc(func() error {
 			return setupIPTablesInternal(ipVersion, config, maskedAddr, hairpinMode, false)
 		})
+
 		natChain, filterChain, _, _, err := n.getDriverChains(ipVersion)
 		if err != nil {
 			return fmt.Errorf("Failed to setup IP tables, cannot acquire chain info %s", err.Error())
@@ -191,16 +214,77 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 		if err != nil {
 			return fmt.Errorf("Failed to program FILTER chain: %s", err.Error())
 		}
-
 		n.registerIptCleanFunc(func() error {
 			return iptable.ProgramChain(filterChain, config.BridgeName, hairpinMode, false)
 		})
+
+		if err := n.setDefaultForwardRule(ipVersion, config.BridgeName); err != nil {
+			return err
+		}
+
+		cidr, _ := maskedAddr.Mask.Size()
+		if cidr == 0 {
+			return fmt.Errorf("no CIDR for bridge %s addr %s", config.BridgeName, maskedAddr)
+		}
+		ipsetEntry := &netlink.IPSetEntry{
+			IP:   maskedAddr.IP,
+			CIDR: uint8(cidr),
+		}
+		if err := netlink.IpsetAdd(ipsetName, ipsetEntry); err != nil {
+			return fmt.Errorf("failed to add bridge %s (%s) to ipset: %w",
+				config.BridgeName, maskedAddr, err)
+		}
+		n.registerIptCleanFunc(func() error {
+			return netlink.IpsetDel(ipsetName, ipsetEntry)
+		})
+	}
+	return nil
+}
+
+func setICMP(ipv iptables.IPVersion, bridgeName string, enable bool) error {
+	icmpProto := "icmp"
+	if ipv == iptables.IPv6 {
+		icmpProto = "icmpv6"
+	}
+	icmpRule := iptRule{ipv: ipv, table: iptables.Filter, chain: DockerChain, args: []string{
+		"-o", bridgeName,
+		"-p", icmpProto,
+		"-j", "ACCEPT",
+	}}
+	return appendOrDelChainRule(icmpRule, "ICMP", enable)
+}
+
+func (n *bridgeNetwork) setDefaultForwardRule(
+	ipVersion iptables.IPVersion,
+	bridgeName string,
+) error {
+	// Normally, DROP anything that hasn't been ACCEPTed by a per-port/protocol
+	// rule. This prevents direct access to un-mapped ports from remote hosts
+	// that can route directly to the container's address (by setting up a
+	// route via the host's address).
+	action := "DROP"
+	if n.getUnprotected(ipVersion) {
+		// If the user really wants to allow all access from the wider network,
+		// explicitly ACCEPT anything so that the filter-FORWARD chain's
+		// default policy can't interfere.
+		action = "ACCEPT"
 	}
 
-	d.Lock()
-	err = iptable.EnsureJumpRule("FORWARD", IsolationChain1)
-	d.Unlock()
-	return err
+	rule := iptRule{ipv: ipVersion, table: iptables.Filter, chain: DockerChain, args: []string{
+		"!", "-i", bridgeName,
+		"-o", bridgeName,
+		"-j", action,
+	}}
+
+	// Append to the filter table's DOCKER chain (the default rule must follow
+	// per-port ACCEPT rules, which will be inserted at the top of the chain).
+	if err := appendOrDelChainRule(rule, "DEFAULT FWD", true); err != nil {
+		return fmt.Errorf("failed to add default-drop rule: %s", err.Error())
+	}
+	n.registerIptCleanFunc(func() error {
+		return appendOrDelChainRule(rule, "DEFAULT FWD", false)
+	})
+	return nil
 }
 
 type iptRule struct {
@@ -266,10 +350,10 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 		hpNatArgs []string
 	)
 	hostIP := config.HostIPv4
-	nat := !config.GwModeIPv4.natDisabled()
+	nat := !config.GwModeIPv4.routed()
 	if ipVer == iptables.IPv6 {
 		hostIP = config.HostIPv6
-		nat = !config.GwModeIPv6.natDisabled()
+		nat = !config.GwModeIPv6.routed()
 	}
 	// If hostIP is set, the user wants IPv4/IPv6 SNAT with the given address.
 	if hostIP != nil {
@@ -290,10 +374,10 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 		if err := programChainRule(natRule, "NAT", enable); err != nil {
 			return err
 		}
-		if !hairpin {
-			if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
-				return err
-			}
+	}
+	if !nat || (config.EnableIPMasquerade && !hairpin) {
+		if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
+			return err
 		}
 	}
 
@@ -308,8 +392,19 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 		return err
 	}
 
+	// Allow ICMP in routed mode.
+	if !nat {
+		if err := setICMP(ipVer, config.BridgeName, enable); err != nil {
+			return err
+		}
+	}
+
 	// Set Accept on all non-intercontainer outgoing packets.
-	return programChainRule(outRule, "ACCEPT NON_ICC OUTGOING", enable)
+	if err := appendOrDelChainRule(outRule, "ACCEPT NON_ICC OUTGOING", enable); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func programChainRule(rule iptRule, ruleDescr string, insert bool) error {
@@ -350,7 +445,7 @@ func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, insert bo
 			}
 		} else {
 			dropRule.Delete()
-			if err := acceptRule.Insert(); err != nil {
+			if err := acceptRule.Append(); err != nil {
 				return fmt.Errorf("Unable to allow intercontainer communication: %s", err.Error())
 			}
 		}
@@ -365,37 +460,64 @@ func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, insert bo
 	return nil
 }
 
-// Control Inter Network Communication. Install[Remove] only if it is [not] present.
-func setINC(version iptables.IPVersion, iface string, enable bool) error {
+// Control Inter-Network Communication.
+// Install rules only if they aren't present, remove only if they are.
+// If this method returns an error, it doesn't roll back any rules it has added.
+// No error is returned if rules cannot be removed (errors are just logged).
+func setINC(version iptables.IPVersion, iface string, gwm gwMode, enable bool) (retErr error) {
 	iptable := iptables.GetIptable(version)
-	var (
-		action    = iptables.Insert
-		actionMsg = "add"
-		chains    = []string{IsolationChain1, IsolationChain2}
-		rules     = [][]string{
-			{"-i", iface, "!", "-o", iface, "-j", IsolationChain2},
-			{"-o", iface, "-j", "DROP"},
-		}
-	)
-
+	actionI, actionA := iptables.Insert, iptables.Append
+	actionMsg := "add"
 	if !enable {
-		action = iptables.Delete
+		actionI, actionA = iptables.Delete, iptables.Delete
 		actionMsg = "remove"
 	}
 
-	for i, chain := range chains {
-		if err := iptable.ProgramRule(iptables.Filter, chain, action, rules[i]); err != nil {
-			msg := fmt.Sprintf("unable to %s inter-network communication rule: %v", actionMsg, err)
+	if gwm.routed() {
+		// Anything is allowed into a routed network at this stage, so RETURN. Port
+		// filtering rules in the DOCKER chain will drop anything that's not destined
+		// for an open port.
+		if err := iptable.ProgramRule(iptables.Filter, IsolationChain1, actionI, []string{
+			"-o", iface,
+			"-j", "RETURN",
+		}); err != nil {
+			log.G(context.TODO()).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
 			if enable {
-				if i == 1 {
-					// Rollback the rule installed on first chain
-					if err2 := iptable.ProgramRule(iptables.Filter, chains[0], iptables.Delete, rules[0]); err2 != nil {
-						log.G(context.TODO()).Warnf("Failed to rollback iptables rule after failure (%v): %v", err, err2)
-					}
-				}
-				return errors.New(msg)
+				return fmt.Errorf("%s inter-network communication rule: %w", actionMsg, err)
 			}
-			log.G(context.TODO()).Warn(msg)
+		}
+
+		// Allow responses from the routed network into whichever network made the request.
+		if err := iptable.ProgramRule(iptables.Filter, IsolationChain1, actionI, []string{
+			"-i", iface,
+			"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED",
+			"-j", "ACCEPT",
+		}); err != nil {
+			log.G(context.TODO()).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
+			if enable {
+				return fmt.Errorf("%s inter-network communication rule: %w", actionMsg, err)
+			}
+		}
+	}
+
+	if err := iptable.ProgramRule(iptables.Filter, IsolationChain1, actionA, []string{
+		"-i", iface,
+		"!", "-o", iface,
+		"-j", IsolationChain2,
+	}); err != nil {
+		log.G(context.TODO()).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
+		if enable {
+			return fmt.Errorf("%s inter-network communication rule: %w", actionMsg, err)
+		}
+	}
+
+	if err := iptable.ProgramRule(iptables.Filter, IsolationChain2, actionI, []string{
+		"-o", iface,
+		"-j", "DROP",
+	}); err != nil {
+		log.G(context.TODO()).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
+		if enable {
+			return fmt.Errorf("%s inter-network communication rule: %w", actionMsg, err)
 		}
 	}
 
