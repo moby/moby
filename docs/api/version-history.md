@@ -15,7 +15,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.48 API changes
 
-[Docker Engine API v1.48](https://docs.docker.com/engine/api/v1.48/) documentation
+[Docker Engine API v1.48](https://docs.docker.com/reference/api/engine/version/v1.48/) documentation
 
 * `GET /images/{name}/history` now supports a `platform` parameter (JSON
   encoded OCI Platform type) that allows to specify a platform to show the
@@ -30,7 +30,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.47 API changes
 
-[Docker Engine API v1.47](https://docs.docker.com/engine/api/v1.47/) documentation
+[Docker Engine API v1.47](https://docs.docker.com/reference/api/engine/version/v1.47/) documentation
 
 * `POST /networks/create` now has an `EnableIPv4` field. Setting it to `false`
   disables IPv4 IPAM for the network. It can only be set to `false` if the
@@ -47,7 +47,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.46 API changes
 
-[Docker Engine API v1.46](https://docs.docker.com/engine/api/v1.46/) documentation
+[Docker Engine API v1.46](https://docs.docker.com/reference/api/engine/version/v1.46/) documentation
 
 * `GET /info` now includes a `Containerd` field containing information about
   the location of the containerd API socket and containerd namespaces used
@@ -115,7 +115,7 @@ are not part of the underlying image's Config, and deprecated:
 
 ## v1.45 API changes
 
-[Docker Engine API v1.45](https://docs.docker.com/engine/api/v1.45/) documentation
+[Docker Engine API v1.45](https://docs.docker.com/reference/api/engine/version/v1.45/) documentation
 
 * `POST /containers/create` now supports `VolumeOptions.Subpath` which allows a
   subpath of a named volume to be mounted.
@@ -133,7 +133,7 @@ are not part of the underlying image's Config, and deprecated:
 
 ## v1.44 API changes
 
-[Docker Engine API v1.44](https://docs.docker.com/engine/api/v1.44/) documentation
+[Docker Engine API v1.44](https://docs.docker.com/reference/api/engine/version/v1.44/) documentation
 
 * GET `/images/json` now accepts an `until` filter. This accepts a timestamp and
   lists all images created before it. The `<timestamp>` can be Unix timestamps,
@@ -202,7 +202,7 @@ are not part of the underlying image's Config, and deprecated:
 
 ## v1.43 API changes
 
-[Docker Engine API v1.43](https://docs.docker.com/engine/api/v1.43/) documentation
+[Docker Engine API v1.43](https://docs.docker.com/reference/api/engine/version/v1.43/) documentation
 
 * `POST /containers/create` now accepts `Annotations` as part of `HostConfig`.
   Can be used to attach arbitrary metadata to the container, which will also be
@@ -219,7 +219,7 @@ are not part of the underlying image's Config, and deprecated:
 
 ## v1.42 API changes
 
-[Docker Engine API v1.42](https://docs.docker.com/engine/api/v1.42/) documentation
+[Docker Engine API v1.42](https://docs.docker.com/reference/api/engine/version/v1.42/) documentation
 
 * Removed the `BuilderSize` field on the `GET /system/df` endpoint. This field
   was introduced in API 1.31 as part of an experimental feature, and no longer
@@ -327,7 +327,7 @@ are not part of the underlying image's Config, and deprecated:
 
 ## v1.41 API changes
 
-[Docker Engine API v1.41](https://docs.docker.com/engine/api/v1.41/) documentation
+[Docker Engine API v1.41](https://docs.docker.com/reference/api/engine/version/v1.41/) documentation
 
 * `GET /events` now returns `prune` events after pruning resources have completed.
   Prune events are returned for `container`, `network`, `volume`, `image`, and
@@ -415,7 +415,7 @@ are not part of the underlying image's Config, and deprecated:
 
 ## v1.40 API changes
 
-[Docker Engine API v1.40](https://docs.docker.com/engine/api/v1.40/) documentation
+[Docker Engine API v1.40](https://docs.docker.com/reference/api/engine/version/v1.40/) documentation
 
 * The `/_ping` endpoint can now be accessed both using `GET` or `HEAD` requests.
   when accessed using a `HEAD` request, all headers are returned, but the body
@@ -482,7 +482,7 @@ are not part of the underlying image's Config, and deprecated:
 
 ## V1.39 API changes
 
-[Docker Engine API v1.39](https://docs.docker.com/engine/api/v1.39/) documentation
+[Docker Engine API v1.39](https://docs.docker.com/reference/api/engine/version/v1.39/) documentation
 
 * `GET /info` now returns an empty string, instead of `<unknown>` for `KernelVersion`
   and `OperatingSystem` if the daemon was unable to obtain this information.
@@ -499,7 +499,7 @@ are not part of the underlying image's Config, and deprecated:
 
 ## V1.38 API changes
 
-[Docker Engine API v1.38](https://docs.docker.com/engine/api/v1.38/) documentation
+[Docker Engine API v1.38](https://docs.docker.com/reference/api/engine/version/v1.38/) documentation
 
 
 * `GET /tasks` and `GET /tasks/{id}` now return a `NetworkAttachmentSpec` field,
@@ -508,7 +508,7 @@ are not part of the underlying image's Config, and deprecated:
 
 ## v1.37 API changes
 
-[Docker Engine API v1.37](https://docs.docker.com/engine/api/v1.37/) documentation
+[Docker Engine API v1.37](https://docs.docker.com/reference/api/engine/version/v1.37/) documentation
 
 * `POST /containers/create` and `POST /services/create` now supports exposing SCTP ports.
 * `POST /configs/create` and `POST /configs/{id}/create` now accept a `Templating` driver.
@@ -518,14 +518,14 @@ are not part of the underlying image's Config, and deprecated:
 
 ## v1.36 API changes
 
-[Docker Engine API v1.36](https://docs.docker.com/engine/api/v1.36/) documentation
+[Docker Engine API v1.36](https://docs.docker.com/reference/api/engine/version/v1.36/) documentation
 
 * `Get /events` now return `exec_die` event when an exec process terminates.
 
 
 ## v1.35 API changes
 
-[Docker Engine API v1.35](https://docs.docker.com/engine/api/v1.35/) documentation
+[Docker Engine API v1.35](https://docs.docker.com/reference/api/engine/version/v1.35/) documentation
 
 * `POST /services/create` and `POST /services/(id)/update` now accepts an
   `Isolation` field on container spec to set the Isolation technology of the
@@ -548,7 +548,7 @@ are not part of the underlying image's Config, and deprecated:
 
 ## v1.34 API changes
 
-[Docker Engine API v1.34](https://docs.docker.com/engine/api/v1.34/) documentation
+[Docker Engine API v1.34](https://docs.docker.com/reference/api/engine/version/v1.34/) documentation
 
 * `POST /containers/(name)/wait?condition=removed` now also also returns
   in case of container removal failure. A pointer to a structure named
@@ -559,14 +559,14 @@ are not part of the underlying image's Config, and deprecated:
 
 ## v1.33 API changes
 
-[Docker Engine API v1.33](https://docs.docker.com/engine/api/v1.33/) documentation
+[Docker Engine API v1.33](https://docs.docker.com/reference/api/engine/version/v1.33/) documentation
 
 * `GET /events` now supports filtering 4 more kinds of events: `config`, `node`,
 `secret` and `service`.
 
 ## v1.32 API changes
 
-[Docker Engine API v1.32](https://docs.docker.com/engine/api/v1.32/) documentation
+[Docker Engine API v1.32](https://docs.docker.com/reference/api/engine/version/v1.32/) documentation
 
 * `POST /images/create` now accepts a `platform` parameter in the form of `os[/arch[/variant]]`.
 * `POST /containers/create` now accepts additional values for the
@@ -580,7 +580,7 @@ are not part of the underlying image's Config, and deprecated:
 
 ## v1.31 API changes
 
-[Docker Engine API v1.31](https://docs.docker.com/engine/api/v1.31/) documentation
+[Docker Engine API v1.31](https://docs.docker.com/reference/api/engine/version/v1.31/) documentation
 
 * `DELETE /secrets/(name)` now returns status code 404 instead of 500 when the secret does not exist.
 * `POST /secrets/create` now returns status code 409 instead of 500 when creating an already existing secret.
@@ -611,7 +611,7 @@ are not part of the underlying image's Config, and deprecated:
 
 ## v1.30 API changes
 
-[Docker Engine API v1.30](https://docs.docker.com/engine/api/v1.30/) documentation
+[Docker Engine API v1.30](https://docs.docker.com/reference/api/engine/version/v1.30/) documentation
 
 * `GET /info` now returns the list of supported logging drivers, including plugins.
 * `GET /info` and `GET /swarm` now returns the cluster-wide swarm CA info if the node is in a swarm: the cluster root CA certificate, and the cluster TLS
@@ -634,7 +634,7 @@ are not part of the underlying image's Config, and deprecated:
 
 ## v1.29 API changes
 
-[Docker Engine API v1.29](https://docs.docker.com/engine/api/v1.29/) documentation
+[Docker Engine API v1.29](https://docs.docker.com/reference/api/engine/version/v1.29/) documentation
 
 * `DELETE /networks/(name)` now allows to remove the ingress network, the one used to provide the routing-mesh.
 * `POST /networks/create` now supports creating the ingress network, by specifying an `Ingress` boolean field. As of now this is supported only when using the overlay network driver.
@@ -648,7 +648,7 @@ are not part of the underlying image's Config, and deprecated:
 
 ## v1.28 API changes
 
-[Docker Engine API v1.28](https://docs.docker.com/engine/api/v1.28/) documentation
+[Docker Engine API v1.28](https://docs.docker.com/reference/api/engine/version/v1.28/) documentation
 
 * `POST /containers/create` now includes a `Consistency` field to specify the consistency level for each `Mount`, with possible values `default`, `consistent`, `cached`, or `delegated`.
 * `GET /containers/create` now takes a `DeviceCgroupRules` field in `HostConfig` allowing to set custom device cgroup rules for the created container.
@@ -666,19 +666,19 @@ are not part of the underlying image's Config, and deprecated:
 
 ## v1.27 API changes
 
-[Docker Engine API v1.27](https://docs.docker.com/engine/api/v1.27/) documentation
+[Docker Engine API v1.27](https://docs.docker.com/reference/api/engine/version/v1.27/) documentation
 
 * `GET /containers/(id or name)/stats` now includes an `online_cpus` field in both `precpu_stats` and `cpu_stats`. If this field is `nil` then for compatibility with older daemons the length of the corresponding `cpu_usage.percpu_usage` array should be used.
 
 ## v1.26 API changes
 
-[Docker Engine API v1.26](https://docs.docker.com/engine/api/v1.26/) documentation
+[Docker Engine API v1.26](https://docs.docker.com/reference/api/engine/version/v1.26/) documentation
 
 * `POST /plugins/(plugin name)/upgrade` upgrade a plugin.
 
 ## v1.25 API changes
 
-[Docker Engine API v1.25](https://docs.docker.com/engine/api/v1.25/) documentation
+[Docker Engine API v1.25](https://docs.docker.com/reference/api/engine/version/v1.25/) documentation
 
 * The API version is now required in all API calls. Instead of just requesting, for example, the URL `/containers/json`, you must now request `/v1.25/containers/json`.
 * `GET /version` now returns `MinAPIVersion`.
