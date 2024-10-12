@@ -244,7 +244,7 @@ func TestNetworkDBJoinLeaveNetworks(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestNetworkDBCRUDTableEntry(t *testing.T) {
+func TestFlakyNetworkDBCRUDTableEntry(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 3, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")
@@ -274,7 +274,7 @@ func TestNetworkDBCRUDTableEntry(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestNetworkDBCRUDTableEntries(t *testing.T) {
+func TestFlakyNetworkDBCRUDTableEntries(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")
@@ -344,7 +344,7 @@ func TestNetworkDBCRUDTableEntries(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestNetworkDBNodeLeave(t *testing.T) {
+func TestFlakyNetworkDBNodeLeave(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")
@@ -830,7 +830,7 @@ func TestParallelDelete(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestNetworkDBIslands(t *testing.T) {
+func TestFlakyNetworkDBIslands(t *testing.T) {
 	pollTimeout := func() time.Duration {
 		const defaultTimeout = 120 * time.Second
 		dl, ok := t.Deadline()
