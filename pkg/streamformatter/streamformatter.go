@@ -35,7 +35,7 @@ func FormatError(err error) []byte {
 	if !ok {
 		jsonError = &jsonmessage.JSONError{Message: err.Error()}
 	}
-	if b, err := json.Marshal(&jsonmessage.JSONMessage{Error: jsonError, ErrorMessage: err.Error()}); err == nil {
+	if b, err := json.Marshal(&jsonmessage.JSONMessage{Error: jsonError}); err == nil {
 		return appendNewline(b)
 	}
 	return []byte(`{"error":"format error"}` + streamNewline)
@@ -60,11 +60,10 @@ func (sf *jsonProgressFormatter) formatProgress(id, action string, progress *jso
 		*auxJSON = auxJSONBytes
 	}
 	b, err := json.Marshal(&jsonmessage.JSONMessage{
-		Status:          action,
-		ProgressMessage: progress.String(),
-		Progress:        progress,
-		ID:              id,
-		Aux:             auxJSON,
+		Status:   action,
+		Progress: progress,
+		ID:       id,
+		Aux:      auxJSON,
 	})
 	if err != nil {
 		return nil
