@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/rootfs"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	imageadapter "github.com/docker/docker/builder/builder-next/adapters/containerimage"
