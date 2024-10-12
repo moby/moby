@@ -24,7 +24,7 @@ const maxBodySize = 1048576 // 1MB
 // Authenticate Request:
 // Call authZ plugins with current REST request and AuthN response
 // Request contains full HTTP packet sent to the docker daemon
-// https://docs.docker.com/engine/api/
+// https://docs.docker.com/reference/api/engine/
 //
 // Authenticate Response:
 // Call authZ plugins with full info about current REST request, REST response and AuthN response
