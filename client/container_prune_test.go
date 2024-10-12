@@ -23,8 +23,13 @@ func TestContainersPruneError(t *testing.T) {
 		version: "1.25",
 	}
 
-	_, err := client.ContainersPrune(context.Background(), filters.Args{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	filters := filters.NewArgs()
+	dryRun := false
+
+	_, err := client.ContainersPrune(context.Background(), filters, dryRun)
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
+	}
 }
 
 func TestContainersPrune(t *testing.T) {
@@ -32,10 +37,12 @@ func TestContainersPrune(t *testing.T) {
 
 	listCases := []struct {
 		filters             filters.Args
+		dryRun              bool
 		expectedQueryParams map[string]string
 	}{
 		{
 			filters: filters.Args{},
+			dryRun:  false,
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -43,7 +50,9 @@ func TestContainersPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: filters.NewArgs(filters.Arg("dangling", "true")),
+			filters: danglingFilters,
+			dryRun:  true,
+
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -51,10 +60,9 @@ func TestContainersPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: filters.NewArgs(
-				filters.Arg("dangling", "true"),
-				filters.Arg("until", "2016-12-15T14:00"),
-			),
+			filters: danglingUntilFilters,
+			dryRun:  false,
+
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -70,11 +78,18 @@ func TestContainersPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: filters.NewArgs(
-				filters.Arg("dangling", "true"),
-				filters.Arg("label", "label1=foo"),
-				filters.Arg("label", "label2!=bar"),
-			),
+			filters: labelFilters,
+			dryRun:  true,
+			expectedQueryParams: map[string]string{
+				"until":   "",
+				"filter":  "",
+				"filters": `{"dangling":{"true":true},"label":{"label1=foo":true,"label2!=bar":true}}`,
+			},
+		},
+		{
+			filters: labelFilters,
+			dryRun:  true,
+
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -108,7 +123,7 @@ func TestContainersPrune(t *testing.T) {
 			version: "1.25",
 		}
 
-		report, err := client.ContainersPrune(context.Background(), listCase.filters)
+		report, err := client.ContainersPrune(context.Background(), listCase.filters, listCase.dryRun)
 		assert.Check(t, err)
 		assert.Check(t, is.Len(report.ContainersDeleted, 2))
 		assert.Check(t, is.Equal(uint64(9999), report.SpaceReclaimed))
