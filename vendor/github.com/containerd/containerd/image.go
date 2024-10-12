@@ -24,19 +24,20 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/diff"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/labels"
-	"github.com/containerd/containerd/pkg/kmutex"
-	"github.com/containerd/containerd/rootfs"
-	"github.com/containerd/containerd/snapshots"
-	"github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/semaphore"
+
+	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/diff"
+	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
+	"github.com/containerd/containerd/pkg/kmutex"
+	"github.com/containerd/containerd/rootfs"
+	"github.com/containerd/containerd/snapshots"
 )
 
 // Image describes an image used by containers

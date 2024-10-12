@@ -24,7 +24,7 @@ import (
 	"google.golang.org/grpc"
 
 	api "github.com/containerd/containerd/api/runtime/sandbox/v1"
-	"github.com/containerd/errdefs"
+	"github.com/containerd/containerd/errdefs"
 )
 
 // NewClient returns a new sandbox client that handles both GRPC and TTRPC clients.
