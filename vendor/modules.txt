@@ -1170,8 +1170,8 @@ go.etcd.io/etcd/raft/v3/confchange
 go.etcd.io/etcd/raft/v3/quorum
 go.etcd.io/etcd/raft/v3/raftpb
 go.etcd.io/etcd/raft/v3/tracker
-# go.etcd.io/etcd/server/v3 v3.5.6
-## explicit; go 1.16
+# go.etcd.io/etcd/server/v3 v3.5.16
+## explicit; go 1.22
 go.etcd.io/etcd/server/v3/etcdserver/api/snap
 go.etcd.io/etcd/server/v3/etcdserver/api/snap/snappb
 go.etcd.io/etcd/server/v3/wal
