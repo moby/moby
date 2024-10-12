@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 )
 
 // ImageBuild sends a request to the daemon to build images.
@@ -93,7 +94,7 @@ func (cli *Client) imageBuildOptionsToQuery(ctx context.Context, options types.I
 	if options.CPUSetCPUs != "" {
 		query.Set("cpusetcpus", options.CPUSetCPUs)
 	}
-	if options.NetworkMode != "" {
+	if options.NetworkMode != "" && options.NetworkMode != network.NetworkDefault {
 		query.Set("networkmode", options.NetworkMode)
 	}
 	if options.CPUSetMems != "" {
