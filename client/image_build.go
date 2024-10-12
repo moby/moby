@@ -63,9 +63,11 @@ func (cli *Client) imageBuildOptionsToQuery(ctx context.Context, options types.I
 	if options.NoCache {
 		query.Set("nocache", "1")
 	}
-	if options.Remove {
-		query.Set("rm", "1")
-	} else {
+	if !options.Remove {
+		// only send value when opting out because the daemon's default is
+		// to remove intermediate containers after a successful build,
+		//
+		// TODO(thaJeztah): deprecate "Remove" option, and provide a "NoRemove" or "Keep" option instead.
 		query.Set("rm", "0")
 	}
 

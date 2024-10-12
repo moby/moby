@@ -47,7 +47,6 @@ func TestImageBuild(t *testing.T) {
 			expectedQueryParams: map[string]string{
 				"q":       "1",
 				"nocache": "1",
-				"rm":      "1",
 				"forcerm": "1",
 				"pull":    "1",
 			},
