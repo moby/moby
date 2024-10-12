@@ -47,6 +47,7 @@ type ClassStatistics struct {
 	Basic   *GnetStatsBasic
 	Queue   *GnetStatsQueue
 	RateEst *GnetStatsRateEst
+	BasicHw *GnetStatsBasic // Hardward statistics added in kernel 4.20
 }
 
 // NewClassStatistics Construct a ClassStatistics struct which fields are all initialized by 0.
@@ -55,6 +56,7 @@ func NewClassStatistics() *ClassStatistics {
 		Basic:   &GnetStatsBasic{},
 		Queue:   &GnetStatsQueue{},
 		RateEst: &GnetStatsRateEst{},
+		BasicHw: &GnetStatsBasic{},
 	}
 }
 
