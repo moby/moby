@@ -17,10 +17,17 @@ func skipIfNoFirewalld(t *testing.T) {
 		t.Skipf("cannot connect to D-bus system bus: %v", err)
 	}
 	defer conn.Close()
+	currentState, err := connection.sysObj.GetProperty(dbusInterface + ".state")
 
-	var zone string
-	err = conn.Object(dbusInterface, dbusPath).Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
-	if err != nil {
+	var running bool
+	if err == nil {
+		value, ok := currentState.Value().(string)
+
+		if ok && (value == "RUNNING" || value == "FAILED") {
+			running = true
+		}
+	}
+	if err != nil || !running {
 		t.Skipf("firewalld is not running: %v", err)
 	}
 }
