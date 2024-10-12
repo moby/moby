@@ -24,16 +24,17 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/containerd/log"
+	bolt "go.etcd.io/bbolt"
+
 	eventstypes "github.com/containerd/containerd/api/events"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/filters"
 	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/metadata/boltutil"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/snapshots"
-	"github.com/containerd/errdefs"
-	"github.com/containerd/log"
-	bolt "go.etcd.io/bbolt"
 )
 
 const (

@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/identifiers"
 	l "github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/errdefs"
 	bolt "go.etcd.io/bbolt"
 )
 
