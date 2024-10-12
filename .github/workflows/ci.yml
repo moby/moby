@@ -63,7 +63,7 @@ jobs:
           find ${{ env.DESTDIR }} -type f -exec file -e ascii -- {} +
 
   prepare-cross:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20 # guardrails timeout for the whole job
     needs:
       - validate-dco
