@@ -1029,7 +1029,7 @@ func overrideProxyEnv(name, val string) {
 	_ = os.Setenv(name, val)
 }
 
-func (cli *DaemonCli) initializeContainerd(ctx context.Context) (func(time.Duration) error, error) {
+func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Duration) error, error) {
 	systemContainerdAddr, ok, err := systemContainerdRunning(honorXDG)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not determine whether the system containerd is running")

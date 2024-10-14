@@ -161,7 +161,7 @@ func (r *remote) startContainerd() error {
 	}
 
 	r.logger.WithField("binary", r.daemonPath).Debug("starting containerd binary")
-	cmd := exec.Command(binaryName, "--config", cfgFile)
+	cmd := exec.Command(r.daemonPath, "--config", cfgFile)
 	// redirect containerd logs to docker logs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

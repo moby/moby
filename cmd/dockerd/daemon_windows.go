@@ -69,7 +69,7 @@ func notifyShutdown(err error) {
 }
 
 // setupConfigReloadTrap configures a Win32 event to reload the configuration.
-func (cli *DaemonCli) setupConfigReloadTrap() {
+func (cli *daemonCLI) setupConfigReloadTrap() {
 	go func() {
 		sa := windows.SecurityAttributes{
 			Length: 0,
