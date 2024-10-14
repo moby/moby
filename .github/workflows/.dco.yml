@@ -16,12 +16,12 @@ on:
   workflow_call:
 
 env:
-  ALPINE_VERSION: 3.16
+  ALPINE_VERSION: "3.20"
 
 jobs:
   run:
     runs-on: ubuntu-20.04
-    timeout-minutes: 120 # guardrails timeout for the whole job
+    timeout-minutes: 10 # guardrails timeout for the whole job
     steps:
       -
         name: Checkout
@@ -49,10 +49,12 @@ jobs:
         name: Validate
         run: |
           docker run --rm \
-            -v "$(pwd):/workspace" \
+            --quiet \
+            -v ./:/workspace \
+            -w /workspace \
             -e VALIDATE_REPO \
             -e VALIDATE_BRANCH \
-            alpine:${{ env.ALPINE_VERSION }} sh -c 'apk add --no-cache -q bash git openssh-client && git config --system --add safe.directory /workspace && cd /workspace && hack/validate/dco'
+            alpine:${{ env.ALPINE_VERSION }} sh -c 'apk add --no-cache -q bash git openssh-client && git config --system --add safe.directory /workspace && hack/validate/dco'
         env:
           VALIDATE_REPO: ${{ github.server_url }}/${{ github.repository }}.git
           VALIDATE_BRANCH: ${{ steps.base-ref.outputs.result }}
