@@ -1,13 +1,20 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
+	"encoding/json"
 	"io"
+	"net/http"
+	"net/url"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
+	req "github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -104,6 +111,145 @@ func TestExec(t *testing.T) {
 	}
 	assert.Check(t, is.Contains(out, expected), "exec command not running in expected /tmp working directory")
 	assert.Check(t, is.Contains(out, "FOO=BAR"), "exec command not running with expected environment variable FOO")
+}
+
+func TestExecResize(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := container.Run(ctx, t, apiClient, container.WithTty(true))
+	defer container.Remove(ctx, t, apiClient, cID, containertypes.RemoveOptions{Force: true})
+
+	cmd := []string{"top"}
+	if runtime.GOOS == "windows" {
+		cmd = []string{"sleep", "240"}
+	}
+	resp, err := apiClient.ContainerExecCreate(ctx, cID, containertypes.ExecOptions{
+		Tty:    true, // Windows requires a TTY for the resize to work, otherwise fails with "is not a tty: failed precondition", see https://github.com/moby/moby/pull/48665#issuecomment-2412530345
+		Detach: true,
+		Cmd:    cmd,
+	})
+	assert.NilError(t, err)
+	execID := resp.ID
+	assert.NilError(t, err)
+	err = apiClient.ContainerExecStart(ctx, execID, containertypes.ExecStartOptions{Detach: true})
+	assert.NilError(t, err)
+
+	t.Run("success", func(t *testing.T) {
+		err := apiClient.ContainerExecResize(ctx, execID, containertypes.ResizeOptions{
+			Height: 40,
+			Width:  40,
+		})
+		assert.NilError(t, err)
+		// TODO(thaJeztah): also check if the resize happened
+		//
+		// Note: container inspect shows the initial size that was
+		// set when creating the container. Actual resize happens in
+		// containerd, and currently does not update the container's
+		// config after running (but does send a "resize" event).
+	})
+
+	t.Run("invalid size", func(t *testing.T) {
+		const valueNotSet = "unset"
+
+		sizes := []struct {
+			doc, height, width, expErr string
+		}{
+			{
+				doc:    "unset height",
+				height: valueNotSet,
+				width:  "100",
+				expErr: `strconv.Atoi: parsing "": invalid syntax`,
+			},
+			{
+				doc:    "unset width",
+				height: "100",
+				width:  valueNotSet,
+				expErr: `strconv.Atoi: parsing "": invalid syntax`,
+			},
+			{
+				doc:    "empty height",
+				width:  "100",
+				expErr: `strconv.Atoi: parsing "": invalid syntax`,
+			},
+			{
+				doc:    "empty width",
+				height: "100",
+				expErr: `strconv.Atoi: parsing "": invalid syntax`,
+			},
+			{
+				doc:    "non-numeric height",
+				height: "not-a-number",
+				width:  "100",
+				expErr: `strconv.Atoi: parsing "not-a-number": invalid syntax`,
+			},
+			{
+				doc:    "non-numeric width",
+				height: "100",
+				width:  "not-a-number",
+				expErr: `strconv.Atoi: parsing "not-a-number": invalid syntax`,
+			},
+		}
+		for _, tc := range sizes {
+			tc := tc
+			t.Run(tc.doc, func(t *testing.T) {
+				// Manually creating a request here, as the APIClient would invalidate
+				// these values before they're sent.
+				vals := url.Values{}
+				if tc.height != valueNotSet {
+					vals.Add("h", tc.height)
+				}
+				if tc.width != valueNotSet {
+					vals.Add("w", tc.width)
+				}
+				res, _, err := req.Post(ctx, "/exec/"+execID+"/resize?"+vals.Encode())
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal(http.StatusBadRequest, res.StatusCode))
+
+				var errorResponse types.ErrorResponse
+				err = json.NewDecoder(res.Body).Decode(&errorResponse)
+				assert.NilError(t, err)
+				assert.Check(t, is.ErrorContains(errorResponse, tc.expErr))
+			})
+		}
+	})
+
+	t.Run("unknown execID", func(t *testing.T) {
+		err = apiClient.ContainerExecResize(ctx, "no-such-exec-id", containertypes.ResizeOptions{
+			Height: 40,
+			Width:  40,
+		})
+		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+		assert.Check(t, is.ErrorContains(err, "No such exec instance: no-such-exec-id"))
+	})
+
+	t.Run("invalid state", func(t *testing.T) {
+		// FIXME(thaJeztah): Windows + builtin returns a NotFound instead of a Conflict error
+		//
+		// When using the builtin runtime, stopping the container causes
+		// the exec-resize to return a "NotFound" error, whereas with containerd
+		// as runtime, it returns the expected "Conflict" error. This could be
+		// either a limitation of the "builtin" runtime, or there's a bug to
+		// be fixed.
+		//
+		// See https://github.com/moby/moby/pull/48665#issuecomment-2412579701
+		//
+		//  === RUN   TestExecResize/invalid_state
+		//      exec_test.go:234: assertion failed: error is Error response from daemon: No such exec instance: cc728a332d3f594249fb7ee9adb3bb12a59a5d1776f8f6dedc56355364361711 (errdefs.errNotFound), not errdefs.IsConflict
+		//      exec_test.go:235: assertion failed: expected error to contain "is not running", got "Error response from daemon: No such exec instance: cc728a332d3f594249fb7ee9adb3bb12a59a5d1776f8f6dedc56355364361711"
+		//          Error response from daemon: No such exec instance: cc728a332d3f594249fb7ee9adb3bb12a59a5d1776f8f6dedc56355364361711
+		skip.If(t, testEnv.DaemonInfo.OSType == "windows" && !testEnv.RuntimeIsWindowsContainerd(), "FIXME. Windows + builtin returns a NotFound instead of a Conflict error")
+
+		err := apiClient.ContainerKill(ctx, cID, "SIGKILL")
+		assert.NilError(t, err)
+
+		err = apiClient.ContainerExecResize(ctx, execID, containertypes.ResizeOptions{
+			Height: 40,
+			Width:  40,
+		})
+		assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
+		assert.Check(t, is.ErrorContains(err, "is not running"))
+	})
 }
 
 func TestExecUser(t *testing.T) {
