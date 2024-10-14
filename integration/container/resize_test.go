@@ -1,9 +1,12 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
+	"encoding/json"
 	"net/http"
+	"net/url"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
@@ -18,6 +21,7 @@ func TestResize(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		cID := container.Run(ctx, t, apiClient, container.WithTty(true))
+		defer container.Remove(ctx, t, apiClient, cID, containertypes.RemoveOptions{Force: true})
 		err := apiClient.ContainerResize(ctx, cID, containertypes.ResizeOptions{
 			Height: 40,
 			Width:  40,
@@ -33,16 +37,75 @@ func TestResize(t *testing.T) {
 
 	t.Run("invalid size", func(t *testing.T) {
 		cID := container.Run(ctx, t, apiClient)
+		defer container.Remove(ctx, t, apiClient, cID, containertypes.RemoveOptions{Force: true})
 
-		// Manually creating a request here, as the APIClient would invalidate
-		// these values before they're sent.
-		res, _, err := req.Post(ctx, "/containers/"+cID+"/resize?h=foo&w=bar")
-		assert.NilError(t, err)
-		assert.Check(t, is.DeepEqual(http.StatusBadRequest, res.StatusCode))
+		const valueNotSet = "unset"
+
+		sizes := []struct {
+			doc, height, width, expErr string
+		}{
+			{
+				doc:    "unset height",
+				height: valueNotSet,
+				width:  "100",
+				expErr: `strconv.Atoi: parsing "": invalid syntax`,
+			},
+			{
+				doc:    "unset width",
+				height: "100",
+				width:  valueNotSet,
+				expErr: `strconv.Atoi: parsing "": invalid syntax`,
+			},
+			{
+				doc:    "empty height",
+				width:  "100",
+				expErr: `strconv.Atoi: parsing "": invalid syntax`,
+			},
+			{
+				doc:    "empty width",
+				height: "100",
+				expErr: `strconv.Atoi: parsing "": invalid syntax`,
+			},
+			{
+				doc:    "non-numeric height",
+				height: "not-a-number",
+				width:  "100",
+				expErr: `strconv.Atoi: parsing "not-a-number": invalid syntax`,
+			},
+			{
+				doc:    "non-numeric width",
+				height: "100",
+				width:  "not-a-number",
+				expErr: `strconv.Atoi: parsing "not-a-number": invalid syntax`,
+			},
+		}
+		for _, tc := range sizes {
+			tc := tc
+			t.Run(tc.doc, func(t *testing.T) {
+				// Manually creating a request here, as the APIClient would invalidate
+				// these values before they're sent.
+				vals := url.Values{}
+				if tc.height != valueNotSet {
+					vals.Add("h", tc.height)
+				}
+				if tc.width != valueNotSet {
+					vals.Add("w", tc.width)
+				}
+				res, _, err := req.Post(ctx, "/containers/"+cID+"/resize?"+vals.Encode())
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal(http.StatusBadRequest, res.StatusCode))
+
+				var errorResponse types.ErrorResponse
+				err = json.NewDecoder(res.Body).Decode(&errorResponse)
+				assert.NilError(t, err)
+				assert.Check(t, is.ErrorContains(errorResponse, tc.expErr))
+			})
+		}
 	})
 
 	t.Run("invalid state", func(t *testing.T) {
 		cID := container.Create(ctx, t, apiClient, container.WithCmd("echo"))
+		defer container.Remove(ctx, t, apiClient, cID, containertypes.RemoveOptions{Force: true})
 		err := apiClient.ContainerResize(ctx, cID, containertypes.ResizeOptions{
 			Height: 40,
 			Width:  40,
