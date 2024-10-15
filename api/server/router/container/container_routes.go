@@ -30,7 +30,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 		pause = true
 	}
 
-	config, _, _, err := s.decoder.DecodeConfig(r.Body)
+	config, _, _, err := c.decoder.DecodeConfig(r.Body)
 	if err != nil && !errors.Is(err, io.EOF) { // Do not fail if body is empty.
 		return err
 	}
@@ -56,7 +56,7 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 		return errdefs.InvalidParameter(err)
 	}
 
-	imgID, err := s.backend.CreateImageFromContainer(ctx, r.Form.Get("container"), &backend.CreateImageConfig{
+	imgID, err := c.backend.CreateImageFromContainer(ctx, r.Form.Get("container"), &backend.CreateImageConfig{
 		Pause:   pause,
 		Tag:     ref,
 		Author:  r.Form.Get("author"),
@@ -71,7 +71,7 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 	return httputils.WriteJSON(w, http.StatusCreated, &types.IDResponse{ID: imgID})
 }
 
-func (s *containerRouter) getContainersJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) getContainersJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func (s *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 		config.Limit = limit
 	}
 
-	containers, err := s.backend.Containers(ctx, config)
+	containers, err := c.backend.Containers(ctx, config)
 	if err != nil {
 		return err
 	}
@@ -104,7 +104,7 @@ func (s *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 	return httputils.WriteJSON(w, http.StatusOK, containers)
 }
 
-func (s *containerRouter) getContainersStats(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) getContainersStats(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -125,10 +125,10 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 		Version:   httputils.VersionFromContext(ctx),
 	}
 
-	return s.backend.ContainerStats(ctx, vars["name"], config)
+	return c.backend.ContainerStats(ctx, vars["name"], config)
 }
 
-func (s *containerRouter) getContainersLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) getContainersLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -155,7 +155,7 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 		Details:    httputils.BoolValue(r, "details"),
 	}
 
-	msgs, tty, err := s.backend.ContainerLogs(ctx, containerName, logsConfig)
+	msgs, tty, err := c.backend.ContainerLogs(ctx, containerName, logsConfig)
 	if err != nil {
 		return err
 	}
@@ -174,8 +174,8 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	return nil
 }
 
-func (s *containerRouter) getContainersExport(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return s.backend.ContainerExport(ctx, vars["name"], w)
+func (c *containerRouter) getContainersExport(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	return c.backend.ContainerExport(ctx, vars["name"], w)
 }
 
 type bodyOnStartError struct{}
@@ -186,7 +186,7 @@ func (bodyOnStartError) Error() string {
 
 func (bodyOnStartError) InvalidParameter() {}
 
-func (s *containerRouter) postContainersStart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) postContainersStart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	// If contentLength is -1, we can assumed chunked encoding
 	// or more technically that the length is unknown
 	// https://golang.org/src/pkg/net/http/request.go#L139
@@ -206,7 +206,7 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 			return err
 		}
 
-		c, err := s.decoder.DecodeHostConfig(r.Body)
+		c, err := c.decoder.DecodeHostConfig(r.Body)
 		if err != nil {
 			return err
 		}
@@ -219,7 +219,7 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 
 	checkpoint := r.Form.Get("checkpoint")
 	checkpointDir := r.Form.Get("checkpoint-dir")
-	if err := s.backend.ContainerStart(ctx, vars["name"], hostConfig, checkpoint, checkpointDir); err != nil {
+	if err := c.backend.ContainerStart(ctx, vars["name"], hostConfig, checkpoint, checkpointDir); err != nil {
 		return err
 	}
 
@@ -227,7 +227,7 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 	return nil
 }
 
-func (s *containerRouter) postContainersStop(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) postContainersStop(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -247,7 +247,7 @@ func (s *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 		options.Timeout = &valSeconds
 	}
 
-	if err := s.backend.ContainerStop(ctx, vars["name"], options); err != nil {
+	if err := c.backend.ContainerStop(ctx, vars["name"], options); err != nil {
 		return err
 	}
 
@@ -255,13 +255,13 @@ func (s *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 	return nil
 }
 
-func (s *containerRouter) postContainersKill(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) postContainersKill(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
 	name := vars["name"]
-	if err := s.backend.ContainerKill(name, r.Form.Get("signal")); err != nil {
+	if err := c.backend.ContainerKill(name, r.Form.Get("signal")); err != nil {
 		var isStopped bool
 		if errdefs.IsConflict(err) {
 			isStopped = true
@@ -280,7 +280,7 @@ func (s *containerRouter) postContainersKill(ctx context.Context, w http.Respons
 	return nil
 }
 
-func (s *containerRouter) postContainersRestart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) postContainersRestart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -300,7 +300,7 @@ func (s *containerRouter) postContainersRestart(ctx context.Context, w http.Resp
 		options.Timeout = &valSeconds
 	}
 
-	if err := s.backend.ContainerRestart(ctx, vars["name"], options); err != nil {
+	if err := c.backend.ContainerRestart(ctx, vars["name"], options); err != nil {
 		return err
 	}
 
@@ -308,12 +308,12 @@ func (s *containerRouter) postContainersRestart(ctx context.Context, w http.Resp
 	return nil
 }
 
-func (s *containerRouter) postContainersPause(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) postContainersPause(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	if err := s.backend.ContainerPause(vars["name"]); err != nil {
+	if err := c.backend.ContainerPause(vars["name"]); err != nil {
 		return err
 	}
 
@@ -322,12 +322,12 @@ func (s *containerRouter) postContainersPause(ctx context.Context, w http.Respon
 	return nil
 }
 
-func (s *containerRouter) postContainersUnpause(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) postContainersUnpause(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	if err := s.backend.ContainerUnpause(vars["name"]); err != nil {
+	if err := c.backend.ContainerUnpause(vars["name"]); err != nil {
 		return err
 	}
 
@@ -336,7 +336,7 @@ func (s *containerRouter) postContainersUnpause(ctx context.Context, w http.Resp
 	return nil
 }
 
-func (s *containerRouter) postContainersWait(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) postContainersWait(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	// Behavior changed in version 1.30 to handle wait condition and to
 	// return headers immediately.
 	version := httputils.VersionFromContext(ctx)
@@ -364,7 +364,7 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 		}
 	}
 
-	waitC, err := s.backend.ContainerWait(ctx, vars["name"], waitCondition)
+	waitC, err := c.backend.ContainerWait(ctx, vars["name"], waitCondition)
 	if err != nil {
 		return err
 	}
@@ -401,8 +401,8 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 	})
 }
 
-func (s *containerRouter) getContainersChanges(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	changes, err := s.backend.ContainerChanges(ctx, vars["name"])
+func (c *containerRouter) getContainersChanges(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	changes, err := c.backend.ContainerChanges(ctx, vars["name"])
 	if err != nil {
 		return err
 	}
@@ -410,12 +410,12 @@ func (s *containerRouter) getContainersChanges(ctx context.Context, w http.Respo
 	return httputils.WriteJSON(w, http.StatusOK, changes)
 }
 
-func (s *containerRouter) getContainersTop(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) getContainersTop(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	procList, err := s.backend.ContainerTop(vars["name"], r.Form.Get("ps_args"))
+	procList, err := c.backend.ContainerTop(vars["name"], r.Form.Get("ps_args"))
 	if err != nil {
 		return err
 	}
@@ -423,21 +423,21 @@ func (s *containerRouter) getContainersTop(ctx context.Context, w http.ResponseW
 	return httputils.WriteJSON(w, http.StatusOK, procList)
 }
 
-func (s *containerRouter) postContainerRename(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) postContainerRename(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
 	name := vars["name"]
 	newName := r.Form.Get("name")
-	if err := s.backend.ContainerRename(name, newName); err != nil {
+	if err := c.backend.ContainerRename(name, newName); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
-func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) postContainerUpdate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -469,7 +469,7 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	}
 
 	name := vars["name"]
-	resp, err := s.backend.ContainerUpdate(name, hostConfig)
+	resp, err := c.backend.ContainerUpdate(name, hostConfig)
 	if err != nil {
 		return err
 	}
@@ -477,7 +477,7 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	return httputils.WriteJSON(w, http.StatusOK, resp)
 }
 
-func (s *containerRouter) postContainersCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) postContainersCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -487,7 +487,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 
 	name := r.Form.Get("name")
 
-	config, hostConfig, networkingConfig, err := s.decoder.DecodeConfig(r.Body)
+	config, hostConfig, networkingConfig, err := c.decoder.DecodeConfig(r.Body)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			return errdefs.InvalidParameter(errors.New("invalid JSON: got EOF while reading request body"))
@@ -538,7 +538,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 
 	if versions.LessThan(version, "1.41") {
 		// Older clients expect the default to be "host" on cgroup v1 hosts
-		if !s.cgroup2 && hostConfig.CgroupnsMode.IsEmpty() {
+		if !c.cgroup2 && hostConfig.CgroupnsMode.IsEmpty() {
 			hostConfig.CgroupnsMode = container.CgroupnsModeHost
 		}
 	}
@@ -653,7 +653,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.PidsLimit = nil
 	}
 
-	ccr, err := s.backend.ContainerCreate(ctx, backend.ContainerCreateConfig{
+	ccr, err := c.backend.ContainerCreate(ctx, backend.ContainerCreateConfig{
 		Name:                        name,
 		Config:                      config,
 		HostConfig:                  hostConfig,
@@ -748,7 +748,7 @@ func handleMACAddressBC(config *container.Config, hostConfig *container.HostConf
 	return warning, nil
 }
 
-func (s *containerRouter) deleteContainers(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) deleteContainers(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -760,7 +760,7 @@ func (s *containerRouter) deleteContainers(ctx context.Context, w http.ResponseW
 		RemoveLink:   httputils.BoolValue(r, "link"),
 	}
 
-	if err := s.backend.ContainerRm(name, config); err != nil {
+	if err := c.backend.ContainerRm(name, config); err != nil {
 		return err
 	}
 
@@ -769,7 +769,7 @@ func (s *containerRouter) deleteContainers(ctx context.Context, w http.ResponseW
 	return nil
 }
 
-func (s *containerRouter) postContainersResize(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) postContainersResize(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -783,10 +783,10 @@ func (s *containerRouter) postContainersResize(ctx context.Context, w http.Respo
 		return errdefs.InvalidParameter(err)
 	}
 
-	return s.backend.ContainerResize(vars["name"], height, width)
+	return c.backend.ContainerResize(vars["name"], height, width)
 }
 
-func (s *containerRouter) postContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) postContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	err := httputils.ParseForm(r)
 	if err != nil {
 		return err
@@ -840,7 +840,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		MuxStreams: true,
 	}
 
-	if err = s.backend.ContainerAttach(containerName, attachConfig); err != nil {
+	if err = c.backend.ContainerAttach(containerName, attachConfig); err != nil {
 		log.G(ctx).WithError(err).Errorf("Handler for %s %s returned error", r.Method, r.URL.Path)
 		// Remember to close stream if error happens
 		conn, _, errHijack := hijacker.Hijack()
@@ -856,7 +856,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 	return nil
 }
 
-func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) wsContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -910,7 +910,7 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		MuxStreams: false, // never multiplex, as we rely on websocket to manage distinct streams
 	}
 
-	err = s.backend.ContainerAttach(containerName, attachConfig)
+	err = c.backend.ContainerAttach(containerName, attachConfig)
 	close(done)
 	select {
 	case <-started:
@@ -925,7 +925,7 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 	return err
 }
 
-func (s *containerRouter) postContainersPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) postContainersPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -935,7 +935,7 @@ func (s *containerRouter) postContainersPrune(ctx context.Context, w http.Respon
 		return err
 	}
 
-	pruneReport, err := s.backend.ContainersPrune(ctx, pruneFilters)
+	pruneReport, err := c.backend.ContainersPrune(ctx, pruneFilters)
 	if err != nil {
 		return err
 	}
