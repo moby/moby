@@ -70,6 +70,8 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 
 // Exists returns a true if a container of the specified ID or name exists,
 // false otherwise.
+//
+// Deprecated: use [Daemon.Exists] to look up a container by ID, Name, or ID-prefix. This function will be removed in thee next release.
 func (daemon *Daemon) Exists(id string) bool {
 	c, _ := daemon.GetContainer(id)
 	return c != nil
