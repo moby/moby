@@ -43,7 +43,7 @@ func ipAddresses(ips []net.IP) []string {
 	return addrs
 }
 
-func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnetwork.SandboxOption, error) {
+func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnetwork.SandboxOption, error) {
 	var sboxOptions []libnetwork.SandboxOption
 	sboxOptions = append(sboxOptions, libnetwork.OptionHostname(ctr.Config.Hostname), libnetwork.OptionDomainname(ctr.Config.Domainname))
 
@@ -248,7 +248,7 @@ func (daemon *Daemon) updateNetwork(cfg *config.Config, ctr *container.Container
 		return nil
 	}
 
-	sbOptions, err := daemon.buildSandboxOptions(cfg, ctr)
+	sbOptions, err := buildSandboxOptions(cfg, ctr)
 	if err != nil {
 		return fmt.Errorf("Update network failed: %v", err)
 	}
@@ -438,7 +438,7 @@ func (daemon *Daemon) allocateNetwork(ctx context.Context, cfg *config.Config, c
 
 	daemon.updateContainerNetworkSettings(ctr, nil)
 
-	sbOptions, err := daemon.buildSandboxOptions(cfg, ctr)
+	sbOptions, err := buildSandboxOptions(cfg, ctr)
 	if err != nil {
 		return err
 	}
