@@ -11,6 +11,8 @@ import (
 
 	"github.com/docker/docker/dockerversion"
 	"github.com/ishidawataru/sctp"
+	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
 )
 
 // The caller is expected to pass-in open file descriptors ...
@@ -59,9 +61,9 @@ func main() {
 }
 
 func newProxy(config ProxyConfig) (p Proxy, err error) {
-	ipv := ipv4
+	ipv := ip4
 	if config.HostIP.To4() == nil {
-		ipv = ipv6
+		ipv = ip6
 	}
 
 	switch config.Proto {
@@ -96,6 +98,21 @@ func newProxy(config ProxyConfig) (p Proxy, err error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to listen on %s: %w", hostAddr, err)
 			}
+			// We need to setsockopt(IP_PKTINFO) on the listener to get the destination address as an ancillary
+			// message. The daddr will be used as the source address when sending back replies coming from the
+			// container to the client. If we don't do this, the kernel will have to pick a source address for us, and
+			// it might not pick what the client expects. That would result in ICMP Port Unreachable.
+			if ipv == ip4 {
+				pc := ipv4.NewPacketConn(listener)
+				if err := pc.SetControlMessage(ipv4.FlagDst, true); err != nil {
+					return nil, fmt.Errorf("failed to setsockopt(IP_PKTINFO): %w", err)
+				}
+			} else {
+				pc := ipv6.NewPacketConn(listener)
+				if err := pc.SetControlMessage(ipv6.FlagDst, true); err != nil {
+					return nil, fmt.Errorf("failed to setsockopt(IPV6_RECVPKTINFO): %w", err)
+				}
+			}
 		} else {
 			l, err := net.FilePacketConn(config.ListenSock)
 			if err != nil {
@@ -108,7 +125,7 @@ func newProxy(config ProxyConfig) (p Proxy, err error) {
 			}
 		}
 		container := &net.UDPAddr{IP: config.ContainerIP, Port: config.ContainerPort}
-		p, err = NewUDPProxy(listener, container)
+		p, err = NewUDPProxy(listener, container, ipv)
 	case "sctp":
 		var listener *sctp.SCTPListener
 		if config.ListenSock != nil {
