@@ -16,7 +16,8 @@ import (
 // host lives in the current network namespace (eg. where dockerd runs).
 const CurrentNetns = ""
 
-func runCommand(t *testing.T, cmd string, args ...string) {
+func runCommand(t *testing.T, cmd string, args ...string) string {
+	t.Helper()
 	t.Log(strings.Join(append([]string{cmd}, args...), " "))
 
 	var b bytes.Buffer
@@ -28,6 +29,7 @@ func runCommand(t *testing.T, cmd string, args ...string) {
 		t.Log(b.String())
 		t.Fatalf("Error: %v", err)
 	}
+	return b.String()
 }
 
 // L3Segment simulates a switched, dual-stack capable network that
@@ -113,15 +115,16 @@ func newHost(t *testing.T, nsName, ifname string) Host {
 	}
 }
 
-// Run executes the provided command in the host's network namespace.
-func (h Host) Run(t *testing.T, cmd string, args ...string) {
+// Run executes the provided command in the host's network namespace
+// and returns its combined stdout/stderr.
+func (h Host) Run(t *testing.T, cmd string, args ...string) string {
 	t.Helper()
 
 	if h.ns != CurrentNetns {
 		args = append([]string{"netns", "exec", h.ns, cmd}, args...)
 		cmd = "ip"
 	}
-	runCommand(t, cmd, args...)
+	return runCommand(t, cmd, args...)
 }
 
 // Do run the provided function in the host's network namespace.
