@@ -62,7 +62,10 @@ func (daemon *Daemon) ContainerKill(name, stopSignal string) error {
 // or not running, or if there is a problem returned from the
 // underlying kill command.
 func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSignal syscall.Signal) error {
-	log.G(context.TODO()).Debugf("Sending kill signal %d to container %s", stopSignal, container.ID)
+	log.G(context.TODO()).WithFields(log.Fields{
+		"signal":    int(stopSignal),
+		"container": container.ID,
+	}).Debugf("sending signal %[1]d (%[1]s) to container", stopSignal)
 	container.Lock()
 	defer container.Unlock()
 
@@ -106,7 +109,11 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 	if err := task.Kill(context.Background(), stopSignal); err != nil {
 		if errdefs.IsNotFound(err) {
 			unpause = false
-			log.G(context.TODO()).WithError(err).WithField("container", container.ID).WithField("action", "kill").Debug("container kill failed because of 'container not found' or 'no such process'")
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error":     err,
+				"container": container.ID,
+				"action":    "kill",
+			}).Debug("container kill failed because of 'container not found' or 'no such process'")
 			go func() {
 				// We need to clean up this container but it is possible there is a case where we hit here before the exit event is processed
 				// but after it was fired off.
@@ -134,7 +141,11 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 	if unpause {
 		// above kill signal will be sent once resume is finished
 		if err := task.Resume(context.Background()); err != nil {
-			log.G(context.TODO()).Warnf("Cannot unpause container %s: %s", container.ID, err)
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error":     err,
+				"container": container.ID,
+				"action":    "kill",
+			}).Warn("cannot unpause container")
 		}
 	}
 
