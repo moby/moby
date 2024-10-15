@@ -152,7 +152,7 @@ func (db *ViewDB) withTxn(cb func(*memdb.Txn) error) error {
 	err := cb(txn)
 	if err != nil {
 		txn.Abort()
-		return errdefs.System(err)
+		return err
 	}
 	txn.Commit()
 	return nil
