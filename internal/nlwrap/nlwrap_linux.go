@@ -5,24 +5,26 @@
 // wrapped. Functions that use the package handle need to be called as "nlwrap.X"
 // instead of "netlink.X".
 //
-// The wrapped functions currently return EINTR when NLM_F_DUMP_INTR flagged
-// in a netlink response, meaning something changed during the dump so results
-// may be incomplete or inconsistent.
+// When netlink.ErrDumpInterrupted is returned, the wrapped functions retry up to
+// maxAttempts times. This error means NLM_F_DUMP_INTR was flagged in a netlink
+// response, meaning something changed during the dump so results may be
+// incomplete or inconsistent.
 //
-// At present, the possibly incomplete/inconsistent results are not returned
-// by netlink functions along with the EINTR. So, it's not possible to do
-// anything but retry. After maxAttempts the EINTR will be returned to the
-// caller.
+// To avoid retrying indefinitely, if netlink.ErrDumpInterrupted is still
+// returned after maxAttempts, the wrapped functions will discard the error, log
+// a stack trace to make the issue visible and aid in debugging, and return the
+// possibly inconsistent results. Returning possibly inconsistent results matches
+// the behaviour of vishvananda/netlink versions prior to 1.2.1, in which the
+// NLM_F_DUMP_INTR flag was ignored.
 package nlwrap
 
 import (
 	"context"
-	"errors"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
-	"golang.org/x/sys/unix"
 )
 
 // Arbitrary limit on max attempts at netlink calls if they are repeatedly interrupted.
@@ -56,32 +58,44 @@ func (h Handle) Close() {
 
 func retryOnIntr(f func() error) {
 	for attempt := 0; attempt < maxAttempts; attempt += 1 {
-		if err := f(); !errors.Is(err, unix.EINTR) {
+		if err := f(); !errors.Is(err, netlink.ErrDumpInterrupted) {
 			return
 		}
 	}
 	log.G(context.TODO()).Infof("netlink call interrupted after %d attempts", maxAttempts)
 }
 
-// AddrList calls nlh.LinkList, retrying if necessary.
+func discardErrDumpInterrupted(err error) error {
+	if errors.Is(err, netlink.ErrDumpInterrupted) {
+		// The netlink function has returned possibly-inconsistent data along with the
+		// error. Discard the error and return the data. This restores the behaviour of
+		// the netlink package prior to v1.2.1, in which NLM_F_DUMP_INTR was ignored in
+		// the netlink response.
+		log.G(context.TODO()).Warnf("discarding ErrDumpInterrupted: %+v", errors.WithStack(err))
+		return nil
+	}
+	return err
+}
+
+// AddrList calls nlh.Handle.AddrList, retrying if necessary.
 func (nlh Handle) AddrList(link netlink.Link, family int) (addrs []netlink.Addr, err error) {
 	retryOnIntr(func() error {
 		addrs, err = nlh.Handle.AddrList(link, family) //nolint:forbidigo
 		return err
 	})
-	return addrs, err
+	return addrs, discardErrDumpInterrupted(err)
 }
 
-// AddrList calls netlink.LinkList, retrying if necessary.
+// AddrList calls netlink.AddrList, retrying if necessary.
 func AddrList(link netlink.Link, family int) (addrs []netlink.Addr, err error) {
 	retryOnIntr(func() error {
 		addrs, err = netlink.AddrList(link, family) //nolint:forbidigo
 		return err
 	})
-	return addrs, err
+	return addrs, discardErrDumpInterrupted(err)
 }
 
-// ConntrackDeleteFilters calls nlh.ConntrackDeleteFilters, retrying if necessary.
+// ConntrackDeleteFilters calls nlh.Handle.ConntrackDeleteFilters, retrying if necessary.
 func (nlh Handle) ConntrackDeleteFilters(
 	table netlink.ConntrackTableType,
 	family netlink.InetFamily,
@@ -91,7 +105,7 @@ func (nlh Handle) ConntrackDeleteFilters(
 		matched, err = nlh.Handle.ConntrackDeleteFilters(table, family, filters...) //nolint:forbidigo
 		return err
 	})
-	return matched, err
+	return matched, discardErrDumpInterrupted(err)
 }
 
 // ConntrackTableList calls netlink.ConntrackTableList, retrying if necessary.
@@ -103,10 +117,10 @@ func ConntrackTableList(
 		flows, err = netlink.ConntrackTableList(table, family) //nolint:forbidigo
 		return err
 	})
-	return flows, err
+	return flows, discardErrDumpInterrupted(err)
 }
 
-// LinkByName calls nlh.LinkByName, retrying if necessary. The netlink function
+// LinkByName calls nlh.Handle.LinkByName, retrying if necessary. The netlink function
 // doesn't normally ask the kernel for a dump of links. But, on an old kernel, it
 // will do as a fallback and that dump may get inconsistent results.
 func (nlh Handle) LinkByName(name string) (link netlink.Link, err error) {
@@ -114,7 +128,7 @@ func (nlh Handle) LinkByName(name string) (link netlink.Link, err error) {
 		link, err = nlh.Handle.LinkByName(name) //nolint:forbidigo
 		return err
 	})
-	return link, err
+	return link, discardErrDumpInterrupted(err)
 }
 
 // LinkByName calls netlink.LinkByName, retrying if necessary. The netlink
@@ -125,48 +139,50 @@ func LinkByName(name string) (link netlink.Link, err error) {
 		link, err = netlink.LinkByName(name) //nolint:forbidigo
 		return err
 	})
-	return link, err
+	return link, discardErrDumpInterrupted(err)
 }
 
-// LinkList calls nlh.LinkList, retrying if necessary.
+// LinkList calls nlh.Handle.LinkList, retrying if necessary.
 func (nlh Handle) LinkList() (links []netlink.Link, err error) {
 	retryOnIntr(func() error {
 		links, err = nlh.Handle.LinkList() //nolint:forbidigo
 		return err
 	})
-	return links, err
+	return links, discardErrDumpInterrupted(err)
 }
 
-// LinkList calls netlink.LinkList, retrying if necessary.
+// LinkList calls netlink.Handle.LinkList, retrying if necessary.
 func LinkList() (links []netlink.Link, err error) {
 	retryOnIntr(func() error {
 		links, err = netlink.LinkList() //nolint:forbidigo
 		return err
 	})
-	return links, err
+	return links, discardErrDumpInterrupted(err)
 }
 
-// RouteList calls nlh.RouteList, retrying if necessary.
+// RouteList calls nlh.Handle.RouteList, retrying if necessary.
 func (nlh Handle) RouteList(link netlink.Link, family int) (routes []netlink.Route, err error) {
 	retryOnIntr(func() error {
 		routes, err = nlh.Handle.RouteList(link, family) //nolint:forbidigo
 		return err
 	})
-	return routes, err
+	return routes, discardErrDumpInterrupted(err)
 }
 
+// XfrmPolicyList calls nlh.Handle.XfrmPolicyList, retrying if necessary.
 func (nlh Handle) XfrmPolicyList(family int) (policies []netlink.XfrmPolicy, err error) {
 	retryOnIntr(func() error {
 		policies, err = nlh.Handle.XfrmPolicyList(family) //nolint:forbidigo
 		return err
 	})
-	return policies, err
+	return policies, discardErrDumpInterrupted(err)
 }
 
+// XfrmStateList calls nlh.Handle.XfrmStateList, retrying if necessary.
 func (nlh Handle) XfrmStateList(family int) (states []netlink.XfrmState, err error) {
 	retryOnIntr(func() error {
 		states, err = nlh.Handle.XfrmStateList(family) //nolint:forbidigo
 		return err
 	})
-	return states, err
+	return states, discardErrDumpInterrupted(err)
 }
