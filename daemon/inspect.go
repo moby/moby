@@ -12,43 +12,17 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/sliceutil"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-connections/nat"
 )
 
 // ContainerInspect returns low-level information about a
 // container. Returns an error if the container cannot be found, or if
 // there is an error getting the data.
-func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, size bool, version string) (interface{}, error) {
-	switch {
-	case versions.LessThan(version, "1.45"):
-		ctr, err := daemon.ContainerInspectCurrent(ctx, name, size)
-		if err != nil {
-			return nil, err
-		}
-
-		shortCID := stringid.TruncateID(ctr.ID)
-		for nwName, ep := range ctr.NetworkSettings.Networks {
-			if containertypes.NetworkMode(nwName).IsUserDefined() {
-				ep.Aliases = sliceutil.Dedup(append(ep.Aliases, shortCID, ctr.Config.Hostname))
-			}
-		}
-
-		return ctr, nil
-	default:
-		return daemon.ContainerInspectCurrent(ctx, name, size)
-	}
-}
-
-// ContainerInspectCurrent returns low-level information about a
-// container in a most recent api version.
-func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, size bool) (*containertypes.InspectResponse, error) {
+func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options backend.ContainerInspectOptions) (*containertypes.InspectResponse, error) {
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
@@ -94,7 +68,7 @@ func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, 
 
 	ctr.Unlock()
 
-	if size {
+	if options.Size {
 		sizeRw, sizeRootFs, err := daemon.imageService.GetContainerLayerSize(ctx, base.ID)
 		if err != nil {
 			return nil, err
