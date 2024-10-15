@@ -20,11 +20,11 @@ var (
 )
 
 func (daemon *Daemon) registerName(container *container.Container) error {
-	if daemon.Exists(container.ID) {
-		return fmt.Errorf("Container is already loaded")
+	if container.ID == "" {
+		return fmt.Errorf("invalid empty id")
 	}
-	if err := validateID(container.ID); err != nil {
-		return err
+	if daemon.Exists(container.ID) {
+		return fmt.Errorf("container is already loaded")
 	}
 	if container.Name == "" {
 		name, err := daemon.generateAndReserveName(container.ID)
@@ -105,11 +105,4 @@ func (daemon *Daemon) generateAndReserveName(id string) (string, error) {
 		return "", err
 	}
 	return name, nil
-}
-
-func validateID(id string) error {
-	if id == "" {
-		return fmt.Errorf("Invalid empty id")
-	}
-	return nil
 }
