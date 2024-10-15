@@ -23,7 +23,9 @@ func (daemon *Daemon) registerName(container *container.Container) error {
 	if container.ID == "" {
 		return fmt.Errorf("invalid empty id")
 	}
-	if daemon.Exists(container.ID) {
+	if daemon.containers.Get(container.ID) != nil {
+		// TODO(thaJeztah): should this be a panic (duplicate IDs due to invalid state on disk?)
+		// TODO(thaJeztah): should this also check for container.ID being a prefix of another container's ID? (daemon.containersReplica.GetByPrefix); only should happen due to corruption / truncated ID.
 		return fmt.Errorf("container is already loaded")
 	}
 	if container.Name == "" {
