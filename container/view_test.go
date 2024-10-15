@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
@@ -116,6 +117,7 @@ func TestNames(t *testing.T) {
 	assert.Check(t, db.ReserveName("name2", "containerid2"))
 
 	err = db.ReserveName("name2", "containerid3")
+	assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
 	assert.Check(t, is.ErrorIs(err, ErrNameReserved))
 
 	// Releasing a name allows the name to point to something else later.
@@ -133,6 +135,7 @@ func TestNames(t *testing.T) {
 	assert.Check(t, is.Equal("containerid3", id))
 
 	_, err = view.GetID("notreserved")
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	assert.Check(t, is.ErrorIs(err, ErrNameNotReserved))
 
 	// Releasing and re-reserving a name doesn't affect the snapshot.
