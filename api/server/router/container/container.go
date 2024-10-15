@@ -25,47 +25,47 @@ func NewRouter(b Backend, decoder httputils.ContainerDecoder, cgroup2 bool) rout
 }
 
 // Routes returns the available routes to the container controller
-func (r *containerRouter) Routes() []router.Route {
-	return r.routes
+func (c *containerRouter) Routes() []router.Route {
+	return c.routes
 }
 
 // initRoutes initializes the routes in container router
-func (r *containerRouter) initRoutes() {
-	r.routes = []router.Route{
+func (c *containerRouter) initRoutes() {
+	c.routes = []router.Route{
 		// HEAD
-		router.NewHeadRoute("/containers/{name:.*}/archive", r.headContainersArchive),
+		router.NewHeadRoute("/containers/{name:.*}/archive", c.headContainersArchive),
 		// GET
-		router.NewGetRoute("/containers/json", r.getContainersJSON),
-		router.NewGetRoute("/containers/{name:.*}/export", r.getContainersExport),
-		router.NewGetRoute("/containers/{name:.*}/changes", r.getContainersChanges),
-		router.NewGetRoute("/containers/{name:.*}/json", r.getContainersByName),
-		router.NewGetRoute("/containers/{name:.*}/top", r.getContainersTop),
-		router.NewGetRoute("/containers/{name:.*}/logs", r.getContainersLogs),
-		router.NewGetRoute("/containers/{name:.*}/stats", r.getContainersStats),
-		router.NewGetRoute("/containers/{name:.*}/attach/ws", r.wsContainersAttach),
-		router.NewGetRoute("/exec/{id:.*}/json", r.getExecByID),
-		router.NewGetRoute("/containers/{name:.*}/archive", r.getContainersArchive),
+		router.NewGetRoute("/containers/json", c.getContainersJSON),
+		router.NewGetRoute("/containers/{name:.*}/export", c.getContainersExport),
+		router.NewGetRoute("/containers/{name:.*}/changes", c.getContainersChanges),
+		router.NewGetRoute("/containers/{name:.*}/json", c.getContainersByName),
+		router.NewGetRoute("/containers/{name:.*}/top", c.getContainersTop),
+		router.NewGetRoute("/containers/{name:.*}/logs", c.getContainersLogs),
+		router.NewGetRoute("/containers/{name:.*}/stats", c.getContainersStats),
+		router.NewGetRoute("/containers/{name:.*}/attach/ws", c.wsContainersAttach),
+		router.NewGetRoute("/exec/{id:.*}/json", c.getExecByID),
+		router.NewGetRoute("/containers/{name:.*}/archive", c.getContainersArchive),
 		// POST
-		router.NewPostRoute("/containers/create", r.postContainersCreate),
-		router.NewPostRoute("/containers/{name:.*}/kill", r.postContainersKill),
-		router.NewPostRoute("/containers/{name:.*}/pause", r.postContainersPause),
-		router.NewPostRoute("/containers/{name:.*}/unpause", r.postContainersUnpause),
-		router.NewPostRoute("/containers/{name:.*}/restart", r.postContainersRestart),
-		router.NewPostRoute("/containers/{name:.*}/start", r.postContainersStart),
-		router.NewPostRoute("/containers/{name:.*}/stop", r.postContainersStop),
-		router.NewPostRoute("/containers/{name:.*}/wait", r.postContainersWait),
-		router.NewPostRoute("/containers/{name:.*}/resize", r.postContainersResize),
-		router.NewPostRoute("/containers/{name:.*}/attach", r.postContainersAttach),
-		router.NewPostRoute("/containers/{name:.*}/exec", r.postContainerExecCreate),
-		router.NewPostRoute("/exec/{name:.*}/start", r.postContainerExecStart),
-		router.NewPostRoute("/exec/{name:.*}/resize", r.postContainerExecResize),
-		router.NewPostRoute("/containers/{name:.*}/rename", r.postContainerRename),
-		router.NewPostRoute("/containers/{name:.*}/update", r.postContainerUpdate),
-		router.NewPostRoute("/containers/prune", r.postContainersPrune),
-		router.NewPostRoute("/commit", r.postCommit),
+		router.NewPostRoute("/containers/create", c.postContainersCreate),
+		router.NewPostRoute("/containers/{name:.*}/kill", c.postContainersKill),
+		router.NewPostRoute("/containers/{name:.*}/pause", c.postContainersPause),
+		router.NewPostRoute("/containers/{name:.*}/unpause", c.postContainersUnpause),
+		router.NewPostRoute("/containers/{name:.*}/restart", c.postContainersRestart),
+		router.NewPostRoute("/containers/{name:.*}/start", c.postContainersStart),
+		router.NewPostRoute("/containers/{name:.*}/stop", c.postContainersStop),
+		router.NewPostRoute("/containers/{name:.*}/wait", c.postContainersWait),
+		router.NewPostRoute("/containers/{name:.*}/resize", c.postContainersResize),
+		router.NewPostRoute("/containers/{name:.*}/attach", c.postContainersAttach),
+		router.NewPostRoute("/containers/{name:.*}/exec", c.postContainerExecCreate),
+		router.NewPostRoute("/exec/{name:.*}/start", c.postContainerExecStart),
+		router.NewPostRoute("/exec/{name:.*}/resize", c.postContainerExecResize),
+		router.NewPostRoute("/containers/{name:.*}/rename", c.postContainerRename),
+		router.NewPostRoute("/containers/{name:.*}/update", c.postContainerUpdate),
+		router.NewPostRoute("/containers/prune", c.postContainersPrune),
+		router.NewPostRoute("/commit", c.postCommit),
 		// PUT
-		router.NewPutRoute("/containers/{name:.*}/archive", r.putContainersArchive),
+		router.NewPutRoute("/containers/{name:.*}/archive", c.putContainersArchive),
 		// DELETE
-		router.NewDeleteRoute("/containers/{name:.*}", r.deleteContainers),
+		router.NewDeleteRoute("/containers/{name:.*}", c.deleteContainers),
 	}
 }
