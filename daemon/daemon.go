@@ -67,6 +67,7 @@ import (
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin"
@@ -577,7 +578,9 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 	//
 	// Note that we cannot initialize the network controller earlier, as it
 	// needs to know if there's active sandboxes (running containers).
-	if err = daemon.initNetworkController(&cfg.Config, activeSandboxes); err != nil {
+	if err = rootless.WithDetachedNetNSIfAny(func() error {
+		return daemon.initNetworkController(&cfg.Config, activeSandboxes)
+	}); err != nil {
 		return fmt.Errorf("Error initializing network controller: %v", err)
 	}
 
