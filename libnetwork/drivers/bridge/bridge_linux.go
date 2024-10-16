@@ -876,6 +876,10 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 
 	enableIPv6Forwarding := config.EnableIPv6 && d.config.EnableIPForwarding
 
+	// Module br_netfilter needs to be loaded with net.bridge.bridge-nf-call-ip[6]tables
+	// enabled to implement icc=false, or DNAT when the userland-proxy is disabled.
+	enableBrNfCallIptables := !config.EnableICC || !d.config.EnableUserlandProxy
+
 	// Conditionally queue setup steps depending on configuration values.
 	for _, step := range []struct {
 		Condition bool
@@ -918,9 +922,9 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		// Add inter-network communication rules.
 		{d.config.EnableIPTables || d.config.EnableIP6Tables, setupNetworkIsolationRules},
 
-		// Configure bridge networking filtering if ICC is off and IP tables are enabled
-		{!config.EnableICC && d.config.EnableIPTables, setupIPv4BridgeNetFiltering},
-		{!config.EnableICC && d.config.EnableIP6Tables, setupIPv6BridgeNetFiltering},
+		// Configure bridge networking filtering if needed and IP tables are enabled
+		{enableBrNfCallIptables && d.config.EnableIPTables, setupIPv4BridgeNetFiltering},
+		{enableBrNfCallIptables && d.config.EnableIP6Tables, setupIPv6BridgeNetFiltering},
 	} {
 		if step.Condition {
 			bridgeSetup.queueStep(step.Fn)
