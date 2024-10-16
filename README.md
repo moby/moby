@@ -1,6 +1,11 @@
 The Moby Project
 ================
 
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/docker/docker)](https://pkg.go.dev/github.com/docker/docker)
+[![Go Report Card](https://goreportcard.com/badge/github.com/docker/docker)](https://goreportcard.com/report/github.com/docker/docker)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/moby/moby/badge)](https://scorecard.dev/viewer/?uri=github.com/moby/moby)
+
+
 ![Moby Project logo](docs/static_files/moby-project-logo.png "The Moby Project")
 
 Moby is an open-source project created by Docker to enable and accelerate software containerization.
