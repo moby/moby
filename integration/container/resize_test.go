@@ -48,35 +48,59 @@ func TestResize(t *testing.T) {
 				doc:    "unset height",
 				height: valueNotSet,
 				width:  "100",
-				expErr: `strconv.Atoi: parsing "": invalid syntax`,
+				expErr: `invalid resize height "": invalid syntax`,
 			},
 			{
 				doc:    "unset width",
 				height: "100",
 				width:  valueNotSet,
-				expErr: `strconv.Atoi: parsing "": invalid syntax`,
+				expErr: `invalid resize width "": invalid syntax`,
 			},
 			{
 				doc:    "empty height",
 				width:  "100",
-				expErr: `strconv.Atoi: parsing "": invalid syntax`,
+				expErr: `invalid resize height "": invalid syntax`,
 			},
 			{
 				doc:    "empty width",
 				height: "100",
-				expErr: `strconv.Atoi: parsing "": invalid syntax`,
+				expErr: `invalid resize width "": invalid syntax`,
 			},
 			{
 				doc:    "non-numeric height",
 				height: "not-a-number",
 				width:  "100",
-				expErr: `strconv.Atoi: parsing "not-a-number": invalid syntax`,
+				expErr: `invalid resize height "not-a-number": invalid syntax`,
 			},
 			{
 				doc:    "non-numeric width",
 				height: "100",
 				width:  "not-a-number",
-				expErr: `strconv.Atoi: parsing "not-a-number": invalid syntax`,
+				expErr: `invalid resize width "not-a-number": invalid syntax`,
+			},
+			{
+				doc:    "negative height",
+				height: "-100",
+				width:  "100",
+				expErr: `invalid resize height "-100": value out of range`,
+			},
+			{
+				doc:    "negative width",
+				height: "100",
+				width:  "-100",
+				expErr: `invalid resize width "-100": value out of range`,
+			},
+			{
+				doc:    "out of range height",
+				height: "4294967296", // math.MaxUint32+1
+				width:  "100",
+				expErr: `invalid resize height "4294967296": value out of range`,
+			},
+			{
+				doc:    "out of range width",
+				height: "100",
+				width:  "4294967296", // math.MaxUint32+1
+				expErr: `invalid resize width "4294967296": value out of range`,
 			},
 		}
 		for _, tc := range sizes {
