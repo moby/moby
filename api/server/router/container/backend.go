@@ -34,7 +34,7 @@ type stateBackend interface {
 	ContainerKill(name string, signal string) error
 	ContainerPause(name string) error
 	ContainerRename(oldName, newName string) error
-	ContainerResize(name string, height, width int) error
+	ContainerResize(ctx context.Context, name string, height, width uint32) error
 	ContainerRestart(ctx context.Context, name string, options container.StopOptions) error
 	ContainerRm(name string, config *backend.ContainerRmConfig) error
 	ContainerStart(ctx context.Context, name string, checkpoint string, checkpointDir string) error

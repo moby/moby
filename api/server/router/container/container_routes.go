@@ -908,7 +908,7 @@ func (c *containerRouter) postContainersResize(ctx context.Context, w http.Respo
 		return errdefs.InvalidParameter(errors.Wrapf(err, "invalid resize width %q", r.Form.Get("w")))
 	}
 
-	return c.backend.ContainerResize(vars["name"], int(height), int(width))
+	return c.backend.ContainerResize(ctx, vars["name"], height, width)
 }
 
 func (c *containerRouter) postContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
