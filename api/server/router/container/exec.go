@@ -167,5 +167,5 @@ func (c *containerRouter) postContainerExecResize(ctx context.Context, w http.Re
 		return errdefs.InvalidParameter(errors.Wrapf(err, "invalid resize width %q", r.Form.Get("w")))
 	}
 
-	return c.backend.ContainerExecResize(vars["name"], int(height), int(width))
+	return c.backend.ContainerExecResize(ctx, vars["name"], height, width)
 }

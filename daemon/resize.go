@@ -37,7 +37,7 @@ func (daemon *Daemon) ContainerResize(ctx context.Context, name string, height, 
 // ContainerExecResize changes the size of the TTY of the process
 // running in the exec with the given name to the given height and
 // width.
-func (daemon *Daemon) ContainerExecResize(name string, height, width int) error {
+func (daemon *Daemon) ContainerExecResize(ctx context.Context, name string, height, width uint32) error {
 	ec, err := daemon.getExecConfig(name)
 	if err != nil {
 		return err
@@ -54,7 +54,7 @@ func (daemon *Daemon) ContainerExecResize(name string, height, width int) error 
 		if ec.Process == nil {
 			return errdefs.InvalidParameter(errors.New("exec process is not started"))
 		}
-		return ec.Process.Resize(context.Background(), uint32(width), uint32(height))
+		return ec.Process.Resize(context.WithoutCancel(ctx), width, height)
 	case <-timeout.C:
 		return errors.New("timeout waiting for exec session ready")
 	}

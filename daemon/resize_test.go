@@ -13,7 +13,11 @@ import (
 
 // This test simply verify that when a wrong ID used, a specific error should be returned for exec resize.
 func TestExecResizeNoSuchExec(t *testing.T) {
-	n := "TestExecResize"
+	n := t.Name()
+	const (
+		width  = 24
+		height = 8
+	)
 	d := &Daemon{
 		execCommands: container.NewExecStore(),
 	}
@@ -25,7 +29,7 @@ func TestExecResizeNoSuchExec(t *testing.T) {
 		Container: c,
 	}
 	d.registerExecCommand(c, ec)
-	err := d.ContainerExecResize("nil", 24, 8)
+	err := d.ContainerExecResize(context.TODO(), "no-such-exec", height, width)
 	assert.ErrorContains(t, err, "No such exec instance")
 }
 
@@ -42,9 +46,11 @@ func (p *execResizeMockProcess) Resize(ctx context.Context, width, height uint32
 
 // This test is to make sure that when exec context is ready, resize should call ResizeTerminal via containerd client.
 func TestExecResize(t *testing.T) {
-	n := "TestExecResize"
-	width := 24
-	height := 8
+	n := t.Name()
+	const (
+		width  = 24
+		height = 8
+	)
 	mp := &execResizeMockProcess{}
 	d := &Daemon{
 		execCommands: container.NewExecStore(),
@@ -64,25 +70,28 @@ func TestExecResize(t *testing.T) {
 	close(ec.Started)
 	d.containers.Add(n, c)
 	d.registerExecCommand(c, ec)
-	err := d.ContainerExecResize(n, height, width)
+	err := d.ContainerExecResize(context.TODO(), n, height, width)
 	assert.NilError(t, err)
 	assert.Equal(t, mp.Width, width)
 	assert.Equal(t, mp.Height, height)
 }
 
 // This test is to make sure that when exec context is not ready, a timeout error should happen.
+//
 // TODO: the expect running time for this test is 10s, which would be too long for unit test.
 func TestExecResizeTimeout(t *testing.T) {
-	n := "TestExecResize"
-	width := 24
-	height := 8
+	n := t.Name()
+	const (
+		width  = 24
+		height = 8
+	)
 	mp := &execResizeMockProcess{}
 	d := &Daemon{
 		execCommands: container.NewExecStore(),
 		containers:   container.NewMemoryStore(),
 	}
 	c := &container.Container{
-		ID:           n,
+		ID:           t.Name(),
 		ExecCommands: container.NewExecStore(),
 		State:        &container.State{Running: true},
 	}
@@ -94,6 +103,6 @@ func TestExecResizeTimeout(t *testing.T) {
 	}
 	d.containers.Add(n, c)
 	d.registerExecCommand(c, ec)
-	err := d.ContainerExecResize(n, height, width)
+	err := d.ContainerExecResize(context.TODO(), n, height, width)
 	assert.ErrorContains(t, err, "timeout waiting for exec session ready")
 }
