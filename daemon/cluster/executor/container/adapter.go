@@ -372,7 +372,7 @@ func (c *containerAdapter) start(ctx context.Context) error {
 }
 
 func (c *containerAdapter) inspect(ctx context.Context) (containertypes.InspectResponse, error) {
-	cs, err := c.backend.ContainerInspectCurrent(ctx, c.container.name(), false)
+	cs, err := c.backend.ContainerInspect(ctx, c.container.name(), backend.ContainerInspectOptions{})
 	if ctx.Err() != nil {
 		return containertypes.InspectResponse{}, ctx.Err()
 	}

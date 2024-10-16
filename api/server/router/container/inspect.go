@@ -5,17 +5,31 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/internal/sliceutil"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 // getContainersByName inspects container's configuration and serializes it as json.
-func (s *containerRouter) getContainersByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	displaySize := httputils.BoolValue(r, "size")
-
-	version := httputils.VersionFromContext(ctx)
-	json, err := s.backend.ContainerInspect(ctx, vars["name"], displaySize, version)
+func (c *containerRouter) getContainersByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	ctr, err := c.backend.ContainerInspect(ctx, vars["name"], backend.ContainerInspectOptions{
+		Size: httputils.BoolValue(r, "size"),
+	})
 	if err != nil {
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusOK, json)
+	version := httputils.VersionFromContext(ctx)
+	if versions.LessThan(version, "1.45") {
+		shortCID := stringid.TruncateID(ctr.ID)
+		for nwName, ep := range ctr.NetworkSettings.Networks {
+			if container.NetworkMode(nwName).IsUserDefined() {
+				ep.Aliases = sliceutil.Dedup(append(ep.Aliases, shortCID, ctr.Config.Hostname))
+			}
+		}
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, ctr)
 }

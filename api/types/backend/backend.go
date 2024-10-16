@@ -92,6 +92,13 @@ type ContainerStatsConfig struct {
 	OutStream func() io.Writer
 }
 
+// ContainerInspectOptions defines options for the backend.ContainerInspect
+// call.
+type ContainerInspectOptions struct {
+	// Size controls whether to propagate the container's size fields.
+	Size bool
+}
+
 // ExecStartConfig holds the options to start container's exec.
 type ExecStartConfig struct {
 	Stdin       io.Reader

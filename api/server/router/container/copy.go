@@ -29,13 +29,13 @@ func setContainerPathStatHeader(stat *container.PathStat, header http.Header) er
 	return nil
 }
 
-func (s *containerRouter) headContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) headContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v, err := httputils.ArchiveFormValues(r, vars)
 	if err != nil {
 		return err
 	}
 
-	stat, err := s.backend.ContainerStatPath(v.Name, v.Path)
+	stat, err := c.backend.ContainerStatPath(v.Name, v.Path)
 	if err != nil {
 		return err
 	}
@@ -66,13 +66,13 @@ func writeCompressedResponse(w http.ResponseWriter, r *http.Request, body io.Rea
 	return err
 }
 
-func (s *containerRouter) getContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) getContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v, err := httputils.ArchiveFormValues(r, vars)
 	if err != nil {
 		return err
 	}
 
-	tarArchive, stat, err := s.backend.ContainerArchivePath(v.Name, v.Path)
+	tarArchive, stat, err := c.backend.ContainerArchivePath(v.Name, v.Path)
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func (s *containerRouter) getContainersArchive(ctx context.Context, w http.Respo
 	return writeCompressedResponse(w, r, tarArchive)
 }
 
-func (s *containerRouter) putContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) putContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v, err := httputils.ArchiveFormValues(r, vars)
 	if err != nil {
 		return err
@@ -95,5 +95,5 @@ func (s *containerRouter) putContainersArchive(ctx context.Context, w http.Respo
 	noOverwriteDirNonDir := httputils.BoolValue(r, "noOverwriteDirNonDir")
 	copyUIDGID := httputils.BoolValue(r, "copyUIDGID")
 
-	return s.backend.ContainerExtractToDir(v.Name, v.Path, copyUIDGID, noOverwriteDirNonDir, r.Body)
+	return c.backend.ContainerExtractToDir(v.Name, v.Path, copyUIDGID, noOverwriteDirNonDir, r.Body)
 }
