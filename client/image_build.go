@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 )
 
 // ImageBuild sends a request to the daemon to build images.
@@ -44,10 +45,15 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 }
 
 func (cli *Client) imageBuildOptionsToQuery(ctx context.Context, options types.ImageBuildOptions) (url.Values, error) {
-	query := url.Values{
-		"t":           options.Tags,
-		"securityopt": options.SecurityOpt,
-		"extrahosts":  options.ExtraHosts,
+	query := url.Values{}
+	if len(options.Tags) > 0 {
+		query["t"] = options.Tags
+	}
+	if len(options.SecurityOpt) > 0 {
+		query["securityopt"] = options.SecurityOpt
+	}
+	if len(options.ExtraHosts) > 0 {
+		query["extrahosts"] = options.ExtraHosts
 	}
 	if options.SuppressOutput {
 		query.Set("q", "1")
@@ -58,9 +64,11 @@ func (cli *Client) imageBuildOptionsToQuery(ctx context.Context, options types.I
 	if options.NoCache {
 		query.Set("nocache", "1")
 	}
-	if options.Remove {
-		query.Set("rm", "1")
-	} else {
+	if !options.Remove {
+		// only send value when opting out because the daemon's default is
+		// to remove intermediate containers after a successful build,
+		//
+		// TODO(thaJeztah): deprecate "Remove" option, and provide a "NoRemove" or "Keep" option instead.
 		query.Set("rm", "0")
 	}
 
@@ -83,42 +91,70 @@ func (cli *Client) imageBuildOptionsToQuery(ctx context.Context, options types.I
 		query.Set("isolation", string(options.Isolation))
 	}
 
-	query.Set("cpusetcpus", options.CPUSetCPUs)
-	query.Set("networkmode", options.NetworkMode)
-	query.Set("cpusetmems", options.CPUSetMems)
-	query.Set("cpushares", strconv.FormatInt(options.CPUShares, 10))
-	query.Set("cpuquota", strconv.FormatInt(options.CPUQuota, 10))
-	query.Set("cpuperiod", strconv.FormatInt(options.CPUPeriod, 10))
-	query.Set("memory", strconv.FormatInt(options.Memory, 10))
-	query.Set("memswap", strconv.FormatInt(options.MemorySwap, 10))
-	query.Set("cgroupparent", options.CgroupParent)
-	query.Set("shmsize", strconv.FormatInt(options.ShmSize, 10))
-	query.Set("dockerfile", options.Dockerfile)
-	query.Set("target", options.Target)
-
-	ulimitsJSON, err := json.Marshal(options.Ulimits)
-	if err != nil {
-		return query, err
+	if options.CPUSetCPUs != "" {
+		query.Set("cpusetcpus", options.CPUSetCPUs)
 	}
-	query.Set("ulimits", string(ulimitsJSON))
-
-	buildArgsJSON, err := json.Marshal(options.BuildArgs)
-	if err != nil {
-		return query, err
+	if options.NetworkMode != "" && options.NetworkMode != network.NetworkDefault {
+		query.Set("networkmode", options.NetworkMode)
 	}
-	query.Set("buildargs", string(buildArgsJSON))
-
-	labelsJSON, err := json.Marshal(options.Labels)
-	if err != nil {
-		return query, err
+	if options.CPUSetMems != "" {
+		query.Set("cpusetmems", options.CPUSetMems)
 	}
-	query.Set("labels", string(labelsJSON))
-
-	cacheFromJSON, err := json.Marshal(options.CacheFrom)
-	if err != nil {
-		return query, err
+	if options.CPUShares != 0 {
+		query.Set("cpushares", strconv.FormatInt(options.CPUShares, 10))
 	}
-	query.Set("cachefrom", string(cacheFromJSON))
+	if options.CPUQuota != 0 {
+		query.Set("cpuquota", strconv.FormatInt(options.CPUQuota, 10))
+	}
+	if options.CPUPeriod != 0 {
+		query.Set("cpuperiod", strconv.FormatInt(options.CPUPeriod, 10))
+	}
+	if options.Memory != 0 {
+		query.Set("memory", strconv.FormatInt(options.Memory, 10))
+	}
+	if options.MemorySwap != 0 {
+		query.Set("memswap", strconv.FormatInt(options.MemorySwap, 10))
+	}
+	if options.CgroupParent != "" {
+		query.Set("cgroupparent", options.CgroupParent)
+	}
+	if options.ShmSize != 0 {
+		query.Set("shmsize", strconv.FormatInt(options.ShmSize, 10))
+	}
+	if options.Dockerfile != "" {
+		query.Set("dockerfile", options.Dockerfile)
+	}
+	if options.Target != "" {
+		query.Set("target", options.Target)
+	}
+	if len(options.Ulimits) != 0 {
+		ulimitsJSON, err := json.Marshal(options.Ulimits)
+		if err != nil {
+			return query, err
+		}
+		query.Set("ulimits", string(ulimitsJSON))
+	}
+	if len(options.BuildArgs) != 0 {
+		buildArgsJSON, err := json.Marshal(options.BuildArgs)
+		if err != nil {
+			return query, err
+		}
+		query.Set("buildargs", string(buildArgsJSON))
+	}
+	if len(options.Labels) != 0 {
+		labelsJSON, err := json.Marshal(options.Labels)
+		if err != nil {
+			return query, err
+		}
+		query.Set("labels", string(labelsJSON))
+	}
+	if len(options.CacheFrom) != 0 {
+		cacheFromJSON, err := json.Marshal(options.CacheFrom)
+		if err != nil {
+			return query, err
+		}
+		query.Set("cachefrom", string(cacheFromJSON))
+	}
 	if options.SessionID != "" {
 		query.Set("session", options.SessionID)
 	}
@@ -131,7 +167,9 @@ func (cli *Client) imageBuildOptionsToQuery(ctx context.Context, options types.I
 	if options.BuildID != "" {
 		query.Set("buildid", options.BuildID)
 	}
-	query.Set("version", string(options.Version))
+	if options.Version != "" {
+		query.Set("version", string(options.Version))
+	}
 
 	if options.Outputs != nil {
 		outputsJSON, err := json.Marshal(options.Outputs)
