@@ -11,10 +11,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/containerd/log"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/pkg/errors"
@@ -122,28 +120,5 @@ func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) e
 		return nil, nil
 	}
 
-	systemContainerdAddr, ok, err := systemContainerdRunning(honorXDG)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not determine whether the system containerd is running")
-	}
-	if ok {
-		// detected a system containerd at the given address.
-		cli.ContainerdAddr = systemContainerdAddr
-		return nil, nil
-	}
-
-	log.G(ctx).Info("containerd not running, starting managed containerd")
-	opts, err := cli.getContainerdDaemonOpts()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate containerd options")
-	}
-
-	r, err := supervisor.Start(ctx, filepath.Join(cli.Root, "containerd"), filepath.Join(cli.ExecRoot, "containerd"), opts...)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to start containerd")
-	}
-	cli.ContainerdAddr = r.Address()
-
-	// Try to wait for containerd to shutdown
-	return r.WaitTimeout, nil
+	return cli.initializeContainerd(ctx)
 }

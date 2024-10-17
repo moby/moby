@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	binaryName    = "containerd"
 	sockFile      = "containerd.sock"
 	debugSockFile = "containerd-debug.sock"
 )
