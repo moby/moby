@@ -1,16 +1,14 @@
 package httputils // import "github.com/docker/docker/api/server/httputils"
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/url"
 	"testing"
 
-	"github.com/containerd/platforms"
 	"github.com/docker/docker/errdefs"
-
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestBoolValue(t *testing.T) {
@@ -111,22 +109,74 @@ func TestInt64ValueOrDefaultWithError(t *testing.T) {
 	}
 }
 
-func TestParsePlatformInvalid(t *testing.T) {
-	for _, tc := range []ocispec.Platform{
+func TestDecodePlatform(t *testing.T) {
+	tests := []struct {
+		doc          string
+		platformJSON string
+		expected     *ocispec.Platform
+		expectedErr  string
+	}{
 		{
-			OSVersion:  "1.2.3",
-			OSFeatures: []string{"a", "b"},
+			doc:         "empty platform",
+			expectedErr: `failed to parse platform: unexpected end of JSON input`,
 		},
-		{OSVersion: "12.0"},
-		{OS: "linux"},
-		{Architecture: "amd64"},
-	} {
-		t.Run(platforms.Format(tc), func(t *testing.T) {
-			js, err := json.Marshal(tc)
-			assert.NilError(t, err)
-
-			_, err = DecodePlatform(string(js))
-			assert.Check(t, errdefs.IsInvalidParameter(err))
+		{
+			doc:          "not JSON",
+			platformJSON: `linux/ams64`,
+			expectedErr:  `failed to parse platform: invalid character 'l' looking for beginning of value`,
+		},
+		{
+			doc:          "malformed JSON",
+			platformJSON: `{"architecture"`,
+			expectedErr:  `failed to parse platform: unexpected end of JSON input`,
+		},
+		{
+			doc:          "missing os",
+			platformJSON: `{"architecture":"amd64","os":""}`,
+			expectedErr:  `both OS and Architecture must be provided`,
+		},
+		{
+			doc:          "variant without architecture",
+			platformJSON: `{"architecture":"","os":"","variant":"v7"}`,
+			expectedErr:  `optional platform fields provided, but OS and Architecture are missing`,
+		},
+		{
+			doc:          "missing architecture",
+			platformJSON: `{"architecture":"","os":"linux"}`,
+			expectedErr:  `both OS and Architecture must be provided`,
+		},
+		{
+			doc:          "os.version without os and architecture",
+			platformJSON: `{"architecture":"","os":"","os.version":"12.0"}`,
+			expectedErr:  `optional platform fields provided, but OS and Architecture are missing`,
+		},
+		{
+			doc:          "os.features without os and architecture",
+			platformJSON: `{"architecture":"","os":"","os.features":["a","b"]}`,
+			expectedErr:  `optional platform fields provided, but OS and Architecture are missing`,
+		},
+		{
+			doc:          "valid platform",
+			platformJSON: `{"architecture":"arm64","os":"linux","os.version":"12.0", "os.features":["a","b"], "variant": "v7"}`,
+			expected: &ocispec.Platform{
+				Architecture: "arm64",
+				OS:           "linux",
+				OSVersion:    "12.0",
+				OSFeatures:   []string{"a", "b"},
+				Variant:      "v7",
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			p, err := DecodePlatform(tc.platformJSON)
+			assert.Check(t, is.DeepEqual(p, tc.expected))
+			if tc.expectedErr != "" {
+				assert.Check(t, errdefs.IsInvalidParameter(err))
+				assert.Check(t, is.Error(err, tc.expectedErr))
+			} else {
+				assert.Check(t, err)
+			}
 		})
 	}
 }
