@@ -36,6 +36,12 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          - ""
+          - firewalld
     steps:
       -
         name: Checkout
@@ -43,6 +49,15 @@ jobs:
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
+      -
+        name: Prepare
+        run: |
+          CACHE_DEV_SCOPE=dev
+          if [[ "${{ matrix.mod }}" == *"firewalld"* ]]; then
+            echo "DOCKER_FIREWALLD=true" >> $GITHUB_ENV
+            CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
+          fi
+          echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -65,11 +80,18 @@ jobs:
         name: Prepare reports
         if: always()
         run: |
-          mkdir -p bundles /tmp/reports
+          reportsName=$(echo -n "${{ matrix.test }}" | sha256sum | cut -d " " -f 1)
+          if [ -n "${{ matrix.mode }}" ]; then
+            reportsName="$reportsName-${{ matrix.mode }}"
+          fi
+          reportsPath=/tmp/reports/$reportsName
+          echo "TESTREPORTS_NAME=$reportsName" >> $GITHUB_ENV
+
+          mkdir -p bundles $reportsPath
           find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
-          tar -xzf /tmp/reports.tar.gz -C /tmp/reports
-          sudo chown -R $(id -u):$(id -g) /tmp/reports
-          tree -nh /tmp/reports
+          tar -xzf /tmp/reports.tar.gz -C $reportsPath
+          sudo chown -R $(id -u):$(id -g) $reportsPath
+          tree -nh $reportsPath
       -
         name: Send to Codecov
         uses: codecov/codecov-action@v4
@@ -83,7 +105,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports-unit-${{ inputs.storage }}
+          name: test-reports-unit-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
           retention-days: 1
 
@@ -104,7 +126,7 @@ jobs:
         name: Download reports
         uses: actions/download-artifact@v4
         with:
-          name: test-reports-unit-${{ inputs.storage }}
+          pattern: test-reports-unit-${{ inputs.storage }}-*
           path: /tmp/reports
       -
         name: Install teststat
@@ -218,6 +240,7 @@ jobs:
           - ""
           - rootless
           - systemd
+          - firewalld
           #- rootless-systemd FIXME: https://github.com/moby/moby/issues/44084
     steps:
       -
@@ -239,6 +262,10 @@ jobs:
           if [[ "${{ matrix.mode }}" == *"systemd"* ]]; then
             echo "SYSTEMD=true" >> $GITHUB_ENV
             CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}systemd"
+          fi
+          if [[ "${{ matrix.mod }}" == *"firewalld"* ]]; then
+            echo "DOCKER_FIREWALLD=true" >> $GITHUB_ENV
+            CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
           fi
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
@@ -377,6 +404,9 @@ jobs:
       fail-fast: false
       matrix:
         test: ${{ fromJson(needs.integration-cli-prepare.outputs.matrix) }}
+        mode:
+          - ""
+          - firewalld
     steps:
       -
         name: Checkout
@@ -387,6 +417,15 @@ jobs:
       -
         name: Set up tracing
         uses: ./.github/actions/setup-tracing
+      -
+        name: Prepare
+        run: |
+          CACHE_DEV_SCOPE=dev
+          if [[ "${{ matrix.mod }}" == *"firewalld"* ]]; then
+            echo "DOCKER_FIREWALLD=true" >> $GITHUB_ENV
+            CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
+          fi
+          echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -414,6 +453,9 @@ jobs:
         if: always()
         run: |
           reportsName=$(echo -n "${{ matrix.test }}" | sha256sum | cut -d " " -f 1)
+          if [ -n "${{ matrix.mode }}" ]; then
+            reportsName="$reportsName-${{ matrix.mode }}"
+          fi
           reportsPath=/tmp/reports/$reportsName
           echo "TESTREPORTS_NAME=$reportsName" >> $GITHUB_ENV
           

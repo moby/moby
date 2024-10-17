@@ -56,12 +56,27 @@ if [ -d /sys/kernel/security ] && ! mountpoint -q /sys/kernel/security; then
 	}
 fi
 
+# Allow connections coming from the host (through eth0). This is needed to
+# access the daemon port (independently of which port is used), or run a
+# 'remote' Delve session, etc...
+if [ "${DOCKER_FIREWALLD:-}" = "true" ]; then
+	cat > /etc/firewalld/zones/trusted.xml << EOF
+<?xml version="1.0" encoding="utf-8"?>
+<zone target="ACCEPT">
+  <short>Trusted</short>
+  <description>All network connections are accepted.</description>
+  <interface name="eth0"/>
+  <forward/>
+</zone>
+EOF
+fi
+
 env > /etc/docker-entrypoint-env
 
 cat > /etc/systemd/system/docker-entrypoint.target << EOF
 [Unit]
 Description=the target for docker-entrypoint.service
-Requires=docker-entrypoint.service systemd-logind.service systemd-user-sessions.service
+Requires=docker-entrypoint.service systemd-logind.service systemd-user-sessions.service $([ "${DOCKER_FIREWALLD:-}" = "true" ] && echo firewalld.service)
 EOF
 
 quoted_args="$(printf " %q" "${@}")"
