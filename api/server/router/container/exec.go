@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/pkg/errors"
 )
 
 func (c *containerRouter) getExecByID(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -158,14 +158,14 @@ func (c *containerRouter) postContainerExecResize(ctx context.Context, w http.Re
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	height, err := strconv.Atoi(r.Form.Get("h"))
+	height, err := httputils.Uint32Value(r, "h")
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return errdefs.InvalidParameter(errors.Wrapf(err, "invalid resize height %q", r.Form.Get("h")))
 	}
-	width, err := strconv.Atoi(r.Form.Get("w"))
+	width, err := httputils.Uint32Value(r, "w")
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return errdefs.InvalidParameter(errors.Wrapf(err, "invalid resize width %q", r.Form.Get("w")))
 	}
 
-	return c.backend.ContainerExecResize(vars["name"], height, width)
+	return c.backend.ContainerExecResize(ctx, vars["name"], height, width)
 }

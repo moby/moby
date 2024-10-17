@@ -29,6 +29,29 @@ func BoolValueOrDefault(r *http.Request, k string, d bool) bool {
 	return BoolValue(r, k)
 }
 
+// Uint32Value parses a form value into an uint32 type. It returns an error
+// if the field is not set, empty, incorrectly formatted, or out of range.
+func Uint32Value(r *http.Request, field string) (uint32, error) {
+	// strconv.ParseUint returns an "strconv.ErrSyntax" for negative values,
+	// not an "out of range". Strip the prefix before parsing, and use it
+	// later to detect valid, but negative values.
+	v, isNeg := strings.CutPrefix(r.Form.Get(field), "-")
+	if v == "" || v[0] == '+' {
+		// Fast-path for invalid values.
+		return 0, strconv.ErrSyntax
+	}
+
+	i, err := strconv.ParseUint(v, 10, 32)
+	if err != nil {
+		// Unwrap to remove the 'strconv.ParseUint: parsing "some-invalid-value":' prefix.
+		return 0, errors.Unwrap(err)
+	}
+	if isNeg {
+		return 0, strconv.ErrRange
+	}
+	return uint32(i), nil
+}
+
 // Int64ValueOrZero parses a form value into an int64 type.
 // It returns 0 if the parsing fails.
 func Int64ValueOrZero(r *http.Request, k string) int64 {

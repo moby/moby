@@ -1,8 +1,10 @@
 package httputils // import "github.com/docker/docker/api/server/httputils"
 
 import (
+	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"testing"
 
 	"github.com/docker/docker/errdefs"
@@ -106,6 +108,58 @@ func TestInt64ValueOrDefaultWithError(t *testing.T) {
 	_, err := Int64ValueOrDefault(r, "test", -1)
 	if err == nil {
 		t.Fatal("Expected an error.")
+	}
+}
+
+func TestUint32Value(t *testing.T) {
+	const valueNotSet = "unset"
+
+	tests := []struct {
+		value       string
+		expected    uint32
+		expectedErr error
+	}{
+		{
+			value:    "0",
+			expected: 0,
+		},
+		{
+			value:    strconv.FormatUint(math.MaxUint32, 10),
+			expected: math.MaxUint32,
+		},
+		{
+			value:       valueNotSet,
+			expectedErr: strconv.ErrSyntax,
+		},
+		{
+			value:       "",
+			expectedErr: strconv.ErrSyntax,
+		},
+		{
+			value:       "-1",
+			expectedErr: strconv.ErrRange,
+		},
+		{
+			value:       "4294967296", // MaxUint32+1
+			expectedErr: strconv.ErrRange,
+		},
+		{
+			value:       "not-a-number",
+			expectedErr: strconv.ErrSyntax,
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.value, func(t *testing.T) {
+			r, _ := http.NewRequest(http.MethodPost, "", nil)
+			r.Form = url.Values{}
+			if tc.value != valueNotSet {
+				r.Form.Set("field", tc.value)
+			}
+			out, err := Uint32Value(r, "field")
+			assert.Check(t, is.Equal(tc.expected, out))
+			assert.Check(t, is.ErrorIs(err, tc.expectedErr))
+		})
 	}
 }
 

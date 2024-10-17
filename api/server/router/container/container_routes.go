@@ -899,16 +899,16 @@ func (c *containerRouter) postContainersResize(ctx context.Context, w http.Respo
 		return err
 	}
 
-	height, err := strconv.Atoi(r.Form.Get("h"))
+	height, err := httputils.Uint32Value(r, "h")
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return errdefs.InvalidParameter(errors.Wrapf(err, "invalid resize height %q", r.Form.Get("h")))
 	}
-	width, err := strconv.Atoi(r.Form.Get("w"))
+	width, err := httputils.Uint32Value(r, "w")
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return errdefs.InvalidParameter(errors.Wrapf(err, "invalid resize width %q", r.Form.Get("w")))
 	}
 
-	return c.backend.ContainerResize(vars["name"], height, width)
+	return c.backend.ContainerResize(ctx, vars["name"], height, width)
 }
 
 func (c *containerRouter) postContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
