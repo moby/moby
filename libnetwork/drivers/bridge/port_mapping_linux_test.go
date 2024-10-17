@@ -12,12 +12,14 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -186,146 +188,6 @@ func loopbackUp() error {
 	return nlHandle.LinkSetUp(iface)
 }
 
-func TestValidatePortBindings(t *testing.T) {
-	testcases := []struct {
-		name    string
-		nat4    bool
-		nat6    bool
-		ctrIPv6 net.IP
-		pbs     []types.PortBinding
-		expErrs []string
-	}{
-		{
-			name: "no nat or addrs or ports",
-			pbs: []types.PortBinding{
-				{Proto: types.TCP, Port: 80},
-			},
-		},
-		{
-			name:    "no nat with addrs",
-			ctrIPv6: newIPNet(t, "fd2c:b48c:69fb::2/128").IP,
-			pbs: []types.PortBinding{
-				{Proto: types.TCP, HostIP: newIPNet(t, "233.252.0.2/24").IP, Port: 80},
-				{Proto: types.TCP, HostIP: newIPNet(t, "2001:db8::2/64").IP, Port: 80},
-			},
-			expErrs: []string{
-				"NAT is disabled, omit host address in port mapping 233.252.0.2::80/tcp, or use 0.0.0.0::80 to open port 80 for IPv4-only",
-				"NAT is disabled, omit host address in port mapping [2001:db8::2]::80/tcp, or use [::]::80 to open port 80 for IPv6-only",
-			},
-		},
-		{
-			name: "no nat with zero addrs",
-			pbs: []types.PortBinding{
-				{Proto: types.TCP, HostIP: newIPNet(t, "0.0.0.0/0").IP, Port: 80},
-				{Proto: types.TCP, HostIP: newIPNet(t, "::/0").IP, Port: 80},
-			},
-		},
-		{
-			name: "no nat with host port",
-			pbs: []types.PortBinding{
-				{Proto: types.TCP, HostPort: 8080, Port: 80},
-			},
-			expErrs: []string{
-				"host port must not be specified in mapping 8080:80/tcp because NAT is disabled",
-			},
-		},
-		{
-			name: "nat4 any addr with host port",
-			nat4: true,
-			pbs: []types.PortBinding{
-				{Proto: types.TCP, HostPort: 8080, Port: 80},
-			},
-		},
-		{
-			name: "nat6 any addr with host port",
-			nat6: true,
-			pbs: []types.PortBinding{
-				{Proto: types.TCP, HostPort: 8080, Port: 80},
-			},
-		},
-		{
-			name: "nat and addrs and ports",
-			nat4: true,
-			nat6: true,
-			pbs: []types.PortBinding{
-				{Proto: types.TCP, HostIP: newIPNet(t, "233.252.0.2/24").IP, HostPort: 8080, Port: 80},
-				{Proto: types.TCP, HostIP: newIPNet(t, "2001:db8::2/64").IP, HostPort: 8080, Port: 80},
-			},
-		},
-		{
-			name: "nat4 and addrs and ports",
-			nat4: true,
-			pbs: []types.PortBinding{
-				{Proto: types.TCP, HostIP: newIPNet(t, "233.252.0.2/24").IP, HostPort: 8080, Port: 80},
-				{Proto: types.TCP, HostIP: newIPNet(t, "2001:db8::2/64").IP, HostPort: 8080, Port: 80},
-			},
-		},
-		{
-			name:    "no nat and addrs and ports",
-			ctrIPv6: newIPNet(t, "fd2c:b48c:69fb::2/128").IP,
-			pbs: []types.PortBinding{
-				{Proto: types.TCP, HostIP: newIPNet(t, "233.252.0.2/24").IP, HostPort: 8080, Port: 80},
-				{Proto: types.TCP, HostIP: newIPNet(t, "2001:db8::2/64").IP, HostPort: 8080, Port: 80},
-			},
-			expErrs: []string{
-				"NAT is disabled, omit host address in port mapping 233.252.0.2:8080:80/tcp, or use 0.0.0.0::80 to open port 80 for IPv4-only",
-				"NAT is disabled, omit host address in port mapping [2001:db8::2]:8080:80/tcp, or use [::]::80 to open port 80 for IPv6-only",
-				"host port must not be specified in mapping 233.252.0.2:8080:80/tcp because NAT is disabled",
-				"host port must not be specified in mapping [2001:db8::2]:8080:80/tcp because NAT is disabled",
-			},
-		},
-		{
-			name: "no nat no ctrIPv6 and addrs and ports",
-			pbs: []types.PortBinding{
-				{Proto: types.TCP, HostIP: newIPNet(t, "233.252.0.2/24").IP, HostPort: 8080, Port: 80},
-				{Proto: types.TCP, HostIP: newIPNet(t, "2001:db8::2/64").IP, HostPort: 8080, Port: 80},
-			},
-			expErrs: []string{
-				"NAT is disabled, omit host address in port mapping 233.252.0.2:8080:80/tcp, or use 0.0.0.0::80 to open port 80 for IPv4-only",
-				"host port must not be specified in mapping 233.252.0.2:8080:80/tcp because NAT is disabled",
-			},
-		},
-		{
-			name: "max errs reached",
-			pbs: []types.PortBinding{
-				{Proto: types.TCP, HostPort: 8080, Port: 80},
-				{Proto: types.TCP, HostPort: 8081, Port: 80},
-				{Proto: types.TCP, HostPort: 8082, Port: 80},
-				{Proto: types.TCP, HostPort: 8083, Port: 80},
-				{Proto: types.TCP, HostPort: 8084, Port: 80},
-				{Proto: types.TCP, HostPort: 8085, Port: 80},
-				{Proto: types.TCP, HostPort: 8086, Port: 80},
-			},
-			expErrs: []string{
-				"host port must not be specified in mapping 8080:80/tcp because NAT is disabled",
-				"host port must not be specified in mapping 8081:80/tcp because NAT is disabled",
-				"host port must not be specified in mapping 8082:80/tcp because NAT is disabled",
-				"host port must not be specified in mapping 8083:80/tcp because NAT is disabled",
-				"host port must not be specified in mapping 8084:80/tcp because NAT is disabled",
-				"host port must not be specified in mapping 8085:80/tcp because NAT is disabled",
-			},
-		},
-	}
-
-	for _, tc := range testcases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			err := validatePortBindings(tc.pbs, tc.nat4, tc.nat6, tc.ctrIPv6)
-			if tc.expErrs == nil {
-				assert.Check(t, err)
-			} else {
-				assert.Assert(t, err != nil)
-				for _, e := range tc.expErrs {
-					assert.Check(t, is.ErrorContains(err, e))
-				}
-				numErrs := len(err.(interface{ Unwrap() []error }).Unwrap())
-				assert.Check(t, is.Equal(numErrs, len(tc.expErrs)),
-					fmt.Sprintf("expected %d errors, got %d in %s", len(tc.expErrs), numErrs, err.Error()))
-			}
-		})
-	}
-}
-
 func TestCmpPortBindings(t *testing.T) {
 	pb := types.PortBinding{
 		Proto:       types.TCP,
@@ -396,7 +258,7 @@ func TestBindHostPortsError(t *testing.T) {
 			},
 		},
 	}
-	pbs, err := bindHostPorts(cfg, "")
+	pbs, err := bindHostPorts(context.Background(), cfg, "")
 	assert.Check(t, is.Error(err, "port binding mismatch 80/tcp:8080-8080, 80/tcp:8080-8081"))
 	assert.Check(t, pbs == nil)
 }
@@ -429,6 +291,7 @@ func TestAddPortMappings(t *testing.T) {
 		hostAddrs    []string
 
 		expErr          string
+		expLogs         []string
 		expPBs          []types.PortBinding
 		expProxyRunning bool
 		expReleaseErr   string
@@ -682,6 +545,22 @@ func TestAddPortMappings(t *testing.T) {
 			},
 		},
 		{
+			name:     "disable nat6 with ipv6 default binding",
+			epAddrV4: ctrIP4,
+			epAddrV6: ctrIP6,
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, Port: 22},
+				{Proto: types.TCP, Port: 80},
+			},
+			proxyPath: "/dummy/path/to/proxy",
+			gwMode6:   gwModeRouted,
+			defHostIP: net.IPv6loopback,
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero},
+			},
+		},
+		{
 			name:     "disable nat4",
 			epAddrV4: ctrIP4,
 			epAddrV6: ctrIP6,
@@ -714,6 +593,90 @@ func TestAddPortMappings(t *testing.T) {
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero},
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero},
+			},
+		},
+		{
+			name:     "ipv6 mapping to ipv4 container no proxy",
+			epAddrV4: ctrIP4,
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, Port: 22, HostIP: net.IPv6loopback},
+			},
+			expLogs: []string{"Cannot map from IPv6 to an IPv4-only container because the userland proxy is disabled"},
+		},
+		{
+			name:      "ipv6 default mapping to ipv4 container no proxy",
+			epAddrV4:  ctrIP4,
+			defHostIP: net.IPv6loopback,
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, Port: 22},
+			},
+			expLogs: []string{"Cannot map from default host binding address to an IPv4-only container because the userland proxy is disabled"},
+		},
+		{
+			name:      "routed mode specific address",
+			epAddrV4:  ctrIP4,
+			epAddrV6:  ctrIP6,
+			gwMode4:   gwModeRouted,
+			gwMode6:   gwModeRouted,
+			proxyPath: "/dummy/path/to/proxy",
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, Port: 22, HostIP: newIPNet(t, "127.0.0.1/8").IP},
+				{Proto: types.TCP, Port: 22, HostIP: net.IPv6loopback},
+			},
+			expLogs: []string{
+				"Using address 0.0.0.0 because NAT is disabled",
+				"Using address [::] because NAT is disabled",
+			},
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero},
+			},
+		},
+		{
+			name:      "routed4 nat6 with ipv4 default binding",
+			epAddrV4:  ctrIP4,
+			epAddrV6:  ctrIP6,
+			gwMode4:   gwModeRouted,
+			defHostIP: newIPNet(t, "127.0.0.1/8").IP,
+			proxyPath: "/dummy/path/to/proxy",
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, Port: 22},
+			},
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero},
+			},
+		},
+		{
+			name:      "routed4 nat6 with ipv6 default binding",
+			epAddrV4:  ctrIP4,
+			epAddrV6:  ctrIP6,
+			gwMode4:   gwModeRouted,
+			defHostIP: net.IPv6loopback,
+			proxyPath: "/dummy/path/to/proxy",
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, Port: 22},
+			},
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6loopback, HostPort: firstEphemPort},
+			},
+		},
+		{
+			name:     "routed with host port",
+			epAddrV4: ctrIP4,
+			epAddrV6: ctrIP6,
+			gwMode4:  gwModeRouted,
+			gwMode6:  gwModeRouted,
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, Port: 22, HostPort: 2222},
+			},
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero},
+				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero},
+			},
+			expLogs: []string{
+				"Host port ignored, because NAT is disabled",
+				"0.0.0.0:2222:172.19.0.2:22/tcp",
+				"[::]:2222:[fdf8:b88e:bb5c:3483::2]:22/tcp",
 			},
 		},
 		{
@@ -878,12 +841,26 @@ func TestAddPortMappings(t *testing.T) {
 
 			portallocator.Get().ReleaseAll()
 
-			pbs, err := n.addPortMappings(tc.epAddrV4, tc.epAddrV6, tc.cfg, tc.defHostIP)
+			// Capture logs by stashing a new logger in the context.
+			var sb strings.Builder
+			logger := logrus.New()
+			logger.Out = &sb
+			ctx := log.WithLogger(context.Background(), &log.Entry{Logger: logger})
+			t.Cleanup(func() {
+				if t.Failed() {
+					t.Logf("Daemon logs:\n%s", sb.String())
+				}
+			})
+
+			pbs, err := n.addPortMappings(ctx, tc.epAddrV4, tc.epAddrV6, tc.cfg, tc.defHostIP)
 			if tc.expErr != "" {
 				assert.ErrorContains(t, err, tc.expErr)
 				return
 			}
 			assert.NilError(t, err)
+			for _, expLog := range tc.expLogs {
+				assert.Check(t, is.Contains(sb.String(), expLog))
+			}
 			assert.Assert(t, is.Len(pbs, len(tc.expPBs)))
 
 			// Check the iptables rules.
