@@ -706,15 +706,22 @@ addToStore:
 		c.mu.Unlock()
 	}
 
-	// Sets up the DOCKER-USER chain for each iptables version (IPv4, IPv6)
-	// that's enabled in the controller's configuration.
-	for _, ipVersion := range c.enabledIptablesVersions() {
-		if err := setupUserChain(ipVersion); err != nil {
-			log.G(context.TODO()).WithError(err).Warnf("Controller.NewNetwork %s:", name)
-		}
+	if err := c.SetupUserChains(); err != nil {
+		log.G(context.TODO()).WithError(err).Warnf("Controller.NewNetwork %s:", name)
 	}
 
 	return nw, nil
+}
+
+// Sets up the DOCKER-USER chain for each iptables version (IPv4, IPv6) that's
+// enabled in the controller's configuration.
+func (c *Controller) SetupUserChains() error {
+	for _, ipVersion := range c.enabledIptablesVersions() {
+		if err := setupUserChain(ipVersion); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 var joinCluster NetworkWalker = func(nw *Network) bool {
