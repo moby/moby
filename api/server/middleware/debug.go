@@ -9,14 +9,33 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/api/server/httpstatus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/sirupsen/logrus"
 )
 
 // DebugRequestMiddleware dumps the request to logger
 func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		log.G(ctx).Debugf("Calling %s %s", r.Method, r.RequestURI)
+	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) (retErr error) {
+		logger := log.G(ctx)
+
+		// Use a variable for fields to prevent overhead of repeatedly
+		// calling WithFields.
+		fields := log.Fields{
+			"module":      "api",
+			"method":      r.Method,
+			"request-url": r.RequestURI,
+			"vars":        vars,
+			"status":      http.StatusOK,
+		}
+		defer func() {
+			if retErr != nil {
+				fields["error-response"] = retErr
+				fields["status"] = httpstatus.FromError(retErr)
+			}
+			logger.WithFields(fields).Debugf("handling %s request", r.Method)
+		}()
 
 		if r.Method != http.MethodPost {
 			return handler(ctx, w, r, vars)
@@ -42,11 +61,15 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 		var postForm map[string]interface{}
 		if err := json.Unmarshal(b, &postForm); err == nil {
 			maskSecretKeys(postForm)
-			formStr, errMarshal := json.Marshal(postForm)
-			if errMarshal == nil {
-				log.G(ctx).Debugf("form data: %s", string(formStr))
+			// TODO(thaJeztah): is there a better way to detect if we're using JSON-formatted logs?
+			if _, ok := logger.Logger.Formatter.(*logrus.JSONFormatter); ok {
+				fields["form-data"] = postForm
 			} else {
-				log.G(ctx).Debugf("form data: %q", postForm)
+				if data, err := json.Marshal(postForm); err != nil {
+					fields["form-data"] = postForm
+				} else {
+					fields["form-data"] = string(data)
+				}
 			}
 		}
 
