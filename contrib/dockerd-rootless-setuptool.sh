@@ -399,8 +399,12 @@ cmd_entrypoint_install() {
 	# check RootlessKit functionality. RootlessKit will print hints if something is still unsatisfied.
 	# (e.g., `kernel.apparmor_restrict_unprivileged_userns` constraint)
 	if ! rootlesskit true; then
-		ERROR "RootlessKit failed, see the error messages and https://rootlesscontaine.rs/getting-started/common/ ."
-		exit 1
+		if [ -z "$OPT_FORCE" ]; then
+			ERROR "RootlessKit failed, see the error messages and https://rootlesscontaine.rs/getting-started/common/ . Set --force to ignore."
+			exit 1
+		else
+			WARNING "RootlessKit failed, see the error messages and https://rootlesscontaine.rs/getting-started/common/ ."
+		fi
 	fi
 
 	if [ -z "$SYSTEMD" ]; then
