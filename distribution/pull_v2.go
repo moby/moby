@@ -936,7 +936,13 @@ type noMatchesErr struct {
 }
 
 func (e noMatchesErr) Error() string {
-	return fmt.Sprintf("no matching manifest for %s in the manifest list entries", formatPlatform(e.platform))
+	var p string
+	if e.platform.OS == "" {
+		p = platforms.FormatAll(platforms.DefaultSpec())
+	} else {
+		p = platforms.FormatAll(e.platform)
+	}
+	return fmt.Sprintf("no matching manifest for %s in the manifest list entries", p)
 }
 
 func retry(ctx context.Context, maxAttempts int, sleep time.Duration, f func(ctx context.Context) error) (err error) {
