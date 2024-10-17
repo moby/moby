@@ -216,7 +216,7 @@ func aberrantLoadMessageDescReentrant(t reflect.Type, name protoreflect.FullName
 	}
 	for _, fn := range methods {
 		for _, v := range fn.Func.Call([]reflect.Value{reflect.Zero(fn.Type.In(0))}) {
-			if vs, ok := v.Interface().([]interface{}); ok {
+			if vs, ok := v.Interface().([]any); ok {
 				for _, v := range vs {
 					oneofWrappers = append(oneofWrappers, reflect.TypeOf(v))
 				}
@@ -567,6 +567,6 @@ func (m aberrantMessage) IsValid() bool {
 func (m aberrantMessage) ProtoMethods() *protoiface.Methods {
 	return aberrantProtoMethods
 }
-func (m aberrantMessage) protoUnwrap() interface{} {
+func (m aberrantMessage) protoUnwrap() any {
 	return m.v.Interface()
 }

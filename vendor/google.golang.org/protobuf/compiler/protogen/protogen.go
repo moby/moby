@@ -955,7 +955,7 @@ func (gen *Plugin) NewGeneratedFile(filename string, goImportPath GoImportPath) 
 // P prints a line to the generated output. It converts each parameter to a
 // string following the same rules as [fmt.Print]. It never inserts spaces
 // between parameters.
-func (g *GeneratedFile) P(v ...interface{}) {
+func (g *GeneratedFile) P(v ...any) {
 	for _, x := range v {
 		switch x := x.(type) {
 		case GoIdent:
