@@ -154,6 +154,25 @@ func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 	}
 }
 
+func WithInsecureSkipVerifyTLSClientConfig(certPath, keyPath string) Opt {
+	return func(c *Client) error {
+		opts := tlsconfig.Options{
+			CertFile:           certPath,
+			KeyFile:            keyPath,
+			InsecureSkipVerify: true,
+		}
+		config, err := tlsconfig.Client(opts)
+		if err != nil {
+			return errors.Wrap(err, "failed to create tls config")
+		}
+		if transport, ok := c.client.Transport.(*http.Transport); ok {
+			transport.TLSClientConfig = config
+			return nil
+		}
+		return errors.Errorf("cannot apply tls config to transport: %T", c.client.Transport)
+	}
+}
+
 // WithTLSClientConfigFromEnv configures the client's TLS settings with the
 // settings in the DOCKER_CERT_PATH ([EnvOverrideCertPath]) and DOCKER_TLS_VERIFY
 // ([EnvTLSVerify]) environment variables. If DOCKER_CERT_PATH is not set or empty,
