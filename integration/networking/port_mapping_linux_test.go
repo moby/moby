@@ -599,3 +599,151 @@ func TestRestartUserlandProxyUnder2MSL(t *testing.T) {
 	// need to check anything after this call.
 	container.Run(ctx, t, c, ctrOpts...)
 }
+
+// Test direct routing from remote hosts (setting up a route to a container
+// network on a remote host, and addressing containers directly), for
+// combinations of:
+// - Filter FORWARD default policy: ACCEPT/DROP - shouldn't affect behaviour
+// - Gateway mode: nat/routed
+// For each combination, test:
+// - ping
+// - http access to an open (mapped) container port
+// - http access to an unmapped container port
+func TestDirectRoutingOpenPorts(t *testing.T) {
+	skip.If(t, testEnv.IsRootless())
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	t.Cleanup(func() { d.Stop(t) })
+
+	c := d.NewClientT(t)
+	t.Cleanup(func() { c.Close() })
+
+	// Simulate the remote host.
+
+	l3 := networking.NewL3Segment(t, "test-routed-open-ports",
+		netip.MustParsePrefix("192.168.124.1/24"),
+		netip.MustParsePrefix("fdc0:36dc:a4dd::1/64"))
+	t.Cleanup(func() { l3.Destroy(t) })
+
+	// "docker" is the host where dockerd is running.
+	l3.AddHost(t, "docker", networking.CurrentNetns, "eth-test",
+		netip.MustParsePrefix("192.168.124.2/24"),
+		netip.MustParsePrefix("fdc0:36dc:a4dd::2/64"))
+	// "remote" simulates the remote host.
+	l3.AddHost(t, "remote", "test-remote-host", "eth0",
+		netip.MustParsePrefix("192.168.124.3/24"),
+		netip.MustParsePrefix("fdc0:36dc:a4dd::3/64"))
+	// Add default routes to the "docker" Host from the "remote" Host.
+	l3.Hosts["remote"].Run(t, "ip", "route", "add", "default", "via", "192.168.124.2")
+	l3.Hosts["remote"].Run(t, "ip", "-6", "route", "add", "default", "via", "fdc0:36dc:a4dd::2")
+
+	type ctrDesc struct {
+		id   string
+		ipv4 string
+		ipv6 string
+	}
+
+	// Create a network and run a container on it.
+	// Run http servers on ports 80 and 81, but only map/open port 80.
+	createNet := func(gwMode string) ctrDesc {
+		netName := "test-" + gwMode
+		network.CreateNoError(ctx, t, c, netName,
+			network.WithDriver("bridge"),
+			network.WithIPv6(),
+			network.WithOption(bridge.BridgeName, "br-"+gwMode),
+			network.WithOption(bridge.IPv4GatewayMode, gwMode),
+			network.WithOption(bridge.IPv6GatewayMode, gwMode),
+		)
+		t.Cleanup(func() {
+			network.RemoveNoError(ctx, t, c, netName)
+		})
+
+		ctrId := container.Run(ctx, t, c,
+			container.WithNetworkMode(netName),
+			container.WithName("ctr-"+gwMode),
+			container.WithExposedPorts("80/tcp"),
+			container.WithPortMap(nat.PortMap{"80/tcp": {}}),
+		)
+		t.Cleanup(func() {
+			c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+		})
+
+		container.ExecT(ctx, t, c, ctrId, []string{"httpd", "-p", "80"})
+		container.ExecT(ctx, t, c, ctrId, []string{"httpd", "-p", "81"})
+
+		insp := container.Inspect(ctx, t, c, ctrId)
+		return ctrDesc{
+			id:   ctrId,
+			ipv4: insp.NetworkSettings.Networks[netName].IPAddress,
+			ipv6: insp.NetworkSettings.Networks[netName].GlobalIPv6Address,
+		}
+	}
+
+	const (
+		httpSuccess = "404 Not Found"
+		httpFail    = "Connection timed out"
+		pingSuccess = 0
+		pingFail    = 1
+	)
+
+	networks := map[string]ctrDesc{
+		"nat":    createNet("nat"),
+		"routed": createNet("routed"),
+	}
+	expPingExit := map[string]int{
+		"nat":    pingFail,
+		"routed": pingSuccess,
+	}
+
+	testPing := func(t *testing.T, cmd, addr string, expExit int) {
+		t.Helper()
+		t.Parallel()
+		l3.Hosts["remote"].Do(t, func() {
+			t.Helper()
+			pingRes := icmd.RunCommand(cmd, "--numeric", "--count=1", "--timeout=3", addr)
+			assert.Check(t, pingRes.ExitCode == expExit, "%s %s -> out:%s err:%s",
+				cmd, addr, pingRes.Stdout(), pingRes.Stderr())
+		})
+	}
+	testHttp := func(t *testing.T, addr, port, expOut string) {
+		t.Helper()
+		t.Parallel()
+		l3.Hosts["remote"].Do(t, func() {
+			t.Helper()
+			u := "http://" + net.JoinHostPort(addr, port)
+			res := icmd.RunCommand("curl", "--max-time", "3", "--show-error", "--silent", u)
+			assert.Check(t, is.Contains(res.Combined(), expOut), "url:%s", u)
+		})
+	}
+
+	// Run the ping and http tests in two parallel groups, rather than waiting for
+	// ping/http timeouts separately. (The iptables filter-FORWARD policy affects the
+	// whole host, so ACCEPT/DROP tests can't be parallelized).
+	for _, fwdPolicy := range []string{"ACCEPT", "DROP"} {
+		networking.SetFilterForwardPolicies(t, fwdPolicy)
+		t.Run(fwdPolicy, func(t *testing.T) {
+			for _, gwMode := range []string{"nat", "routed"} {
+				t.Run(gwMode+"/v4/ping", func(t *testing.T) {
+					testPing(t, "ping", networks[gwMode].ipv4, expPingExit[gwMode])
+				})
+				t.Run(gwMode+"/v6/ping", func(t *testing.T) {
+					testPing(t, "ping6", networks[gwMode].ipv6, expPingExit[gwMode])
+				})
+				t.Run(gwMode+"/v4/http/80", func(t *testing.T) {
+					testHttp(t, networks[gwMode].ipv4, "80", httpSuccess)
+				})
+				t.Run(gwMode+"/v4/http/81", func(t *testing.T) {
+					testHttp(t, networks[gwMode].ipv4, "81", httpFail)
+				})
+				t.Run(gwMode+"/v6/http/80", func(t *testing.T) {
+					testHttp(t, networks[gwMode].ipv6, "80", httpSuccess)
+				})
+				t.Run(gwMode+"/v6/http/81", func(t *testing.T) {
+					testHttp(t, networks[gwMode].ipv6, "81", httpFail)
+				})
+			}
+		})
+	}
+}
