@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/ipams/null"
 	"github.com/docker/docker/libnetwork/ipamutils"
@@ -55,6 +56,8 @@ func newController(t *testing.T) *libnetwork.Controller {
 		config.OptionDataDir(t.TempDir()),
 		config.OptionDriverConfig(bridgeNetType, map[string]interface{}{
 			netlabel.GenericData: options.Generic{
+				"EnableIPTables":     true,
+				"EnableIP6Tables":    true,
 				"EnableIPForwarding": true,
 			},
 		}),
@@ -177,8 +180,8 @@ func TestNetworkName(t *testing.T) {
 
 	netOption := options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork",
 		},
 	}
 
@@ -213,8 +216,8 @@ func TestNetworkType(t *testing.T) {
 
 	netOption := options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork",
 		},
 	}
 
@@ -239,8 +242,8 @@ func TestNetworkID(t *testing.T) {
 
 	netOption := options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork",
 		},
 	}
 
@@ -263,12 +266,11 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
-	netOption := options.Generic{
-		"BridgeName": "testnetwork",
-	}
 	option := options.Generic{
-		netlabel.EnableIPv4:  true,
-		netlabel.GenericData: netOption,
+		netlabel.EnableIPv4: true,
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork",
+		},
 	}
 
 	network, err := createTestNetwork(controller, bridgeNetType, "testnetwork", option, nil, nil)
@@ -318,11 +320,10 @@ func TestNetworkConfig(t *testing.T) {
 	}
 
 	// Create supported config network
-	netOption := options.Generic{
-		"EnableICC": false,
-	}
 	option := options.Generic{
-		netlabel.GenericData: netOption,
+		netlabel.GenericData: map[string]string{
+			bridge.EnableICC: "false",
+		},
 	}
 	ipamV4ConfList := []*libnetwork.IpamConf{{PreferredPool: "192.168.100.0/24", SubPool: "192.168.100.128/25", Gateway: "192.168.100.1"}}
 	ipamV6ConfList := []*libnetwork.IpamConf{{PreferredPool: "2001:db8:abcd::/64", SubPool: "2001:db8:abcd::ef99/80", Gateway: "2001:db8:abcd::22"}}
@@ -408,12 +409,11 @@ func TestUnknownNetwork(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
-	netOption := options.Generic{
-		"BridgeName": "testnetwork",
-	}
 	option := options.Generic{
-		netlabel.EnableIPv4:  true,
-		netlabel.GenericData: netOption,
+		netlabel.EnableIPv4: true,
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork",
+		},
 	}
 
 	network, err := createTestNetwork(controller, bridgeNetType, "testnetwork", option, nil, nil)
@@ -440,12 +440,11 @@ func TestUnknownEndpoint(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
-	netOption := options.Generic{
-		"BridgeName": "testnetwork",
-	}
 	option := options.Generic{
-		netlabel.EnableIPv4:  true,
-		netlabel.GenericData: netOption,
+		netlabel.EnableIPv4: true,
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork",
+		},
 	}
 	ipamV4ConfList := []*libnetwork.IpamConf{{PreferredPool: "192.168.100.0/24"}}
 
@@ -485,8 +484,8 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	// Create network 1 and add 2 endpoint: ep11, ep12
 	netOption := options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "network1",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "network1",
 		},
 	}
 
@@ -559,8 +558,8 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	// Create network 2
 	netOption = options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "network2",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "network2",
 		},
 	}
 
@@ -616,8 +615,8 @@ func TestDuplicateEndpoint(t *testing.T) {
 
 	netOption := options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork",
 		},
 	}
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", netOption, nil, nil)
@@ -666,8 +665,8 @@ func TestControllerQuery(t *testing.T) {
 	// Create network 1
 	netOption := options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "network1",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "network1",
 		},
 	}
 	net1, err := createTestNetwork(controller, bridgeNetType, "network1", netOption, nil, nil)
@@ -683,8 +682,8 @@ func TestControllerQuery(t *testing.T) {
 	// Create network 2
 	netOption = options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "network2",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "network2",
 		},
 	}
 	net2, err := createTestNetwork(controller, bridgeNetType, "network2", netOption, nil, nil)
@@ -769,8 +768,8 @@ func TestNetworkQuery(t *testing.T) {
 	// Create network 1 and add 2 endpoint: ep11, ep12
 	netOption := options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "network1",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "network1",
 		},
 	}
 	net1, err := createTestNetwork(controller, bridgeNetType, "network1", netOption, nil, nil)
@@ -855,8 +854,8 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork",
 		},
 	}, nil, nil)
 	if err != nil {
@@ -870,8 +869,8 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 
 	n2, err := createTestNetwork(controller, bridgeNetType, "testnetwork2", options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork2",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork2",
 		},
 	}, nil, nil)
 	if err != nil {
@@ -931,8 +930,8 @@ func TestEndpointMultipleJoins(t *testing.T) {
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testmultiple", options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testmultiple",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testmultiple",
 		},
 	}, nil, nil)
 	if err != nil {
@@ -1005,8 +1004,8 @@ func TestLeaveAll(t *testing.T) {
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork",
 		},
 	}, nil, nil)
 	if err != nil {
@@ -1021,8 +1020,8 @@ func TestLeaveAll(t *testing.T) {
 
 	n2, err := createTestNetwork(controller, bridgeNetType, "testnetwork2", options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork2",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork2",
 		},
 	}, nil, nil)
 	if err != nil {
@@ -1071,8 +1070,8 @@ func TestContainerInvalidLeave(t *testing.T) {
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork",
 		},
 	}, nil, nil)
 	if err != nil {
@@ -1137,8 +1136,8 @@ func TestEndpointUpdateParent(t *testing.T) {
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork",
 		},
 	}, nil, nil)
 	if err != nil {
@@ -1310,8 +1309,8 @@ func makeTestIPv6Network(t *testing.T, c *libnetwork.Controller) *libnetwork.Net
 	netOptions := options.Generic{
 		netlabel.EnableIPv4: true,
 		netlabel.EnableIPv6: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork",
 		},
 	}
 	ipamV6ConfList := []*libnetwork.IpamConf{
@@ -1434,10 +1433,8 @@ func TestBridgeIpv6FromMac(t *testing.T) {
 	controller := newController(t)
 
 	netOption := options.Generic{
-		netlabel.GenericData: options.Generic{
-			"BridgeName":         "testipv6mac",
-			"EnableICC":          true,
-			"EnableIPMasquerade": true,
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testipv6mac",
 		},
 	}
 	ipamV4ConfList := []*libnetwork.IpamConf{{PreferredPool: "192.168.100.0/24", Gateway: "192.168.100.1"}}
@@ -1511,10 +1508,8 @@ func TestEndpointJoin(t *testing.T) {
 
 	// Create network 1 and add 2 endpoint: ep11, ep12
 	netOption := options.Generic{
-		netlabel.GenericData: options.Generic{
-			"BridgeName":         "testnetwork1",
-			"EnableICC":          true,
-			"EnableIPMasquerade": true,
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork1",
 		},
 	}
 	ipamV6ConfList := []*libnetwork.IpamConf{{PreferredPool: "fe90::/64", Gateway: "fe90::22"}}
@@ -1637,8 +1632,8 @@ func TestEndpointJoin(t *testing.T) {
 	n2, err := createTestNetwork(controller, bridgeNetType, "testnetwork2",
 		options.Generic{
 			netlabel.EnableIPv4: true,
-			netlabel.GenericData: options.Generic{
-				"BridgeName": "testnetwork2",
+			netlabel.GenericData: map[string]string{
+				bridge.BridgeName: "testnetwork2",
 			},
 		}, nil, nil)
 	if err != nil {
@@ -1688,8 +1683,8 @@ func externalKeyTest(t *testing.T, reexec bool) {
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork",
 		},
 	}, nil, nil)
 	if err != nil {
@@ -1703,8 +1698,8 @@ func externalKeyTest(t *testing.T, reexec bool) {
 
 	n2, err := createTestNetwork(controller, bridgeNetType, "testnetwork2", options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork2",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork2",
 		},
 	}, nil, nil)
 	if err != nil {
@@ -2001,8 +1996,8 @@ func TestParallel(t *testing.T) {
 
 	netOption := options.Generic{
 		netlabel.EnableIPv4: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "network",
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "network",
 		},
 	}
 
@@ -2064,10 +2059,8 @@ func TestBridge(t *testing.T) {
 	netOption := options.Generic{
 		netlabel.EnableIPv4: true,
 		netlabel.EnableIPv6: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName":         "testnetwork",
-			"EnableICC":          true,
-			"EnableIPMasquerade": true,
+		netlabel.GenericData: map[string]string{
+			bridge.BridgeName: "testnetwork",
 		},
 	}
 	ipamV4ConfList := []*libnetwork.IpamConf{{PreferredPool: "192.168.100.0/24", Gateway: "192.168.100.1"}}
