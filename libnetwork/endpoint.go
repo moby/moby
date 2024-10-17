@@ -82,6 +82,7 @@ type Endpoint struct {
 	// will be used for the PTR records associated to the endpoint's IPv4 and IPv6 addresses.
 	dnsNames          []string
 	disableResolution bool
+	disableIPv6       bool
 	generic           map[string]interface{}
 	prefAddress       net.IP
 	prefAddressV6     net.IP
@@ -115,6 +116,7 @@ func (ep *Endpoint) MarshalJSON() ([]byte, error) {
 	epMap["sandbox"] = ep.sandboxID
 	epMap["dnsNames"] = ep.dnsNames
 	epMap["disableResolution"] = ep.disableResolution
+	epMap["disableIPv6"] = ep.disableIPv6
 	epMap["svcName"] = ep.svcName
 	epMap["svcID"] = ep.svcID
 	epMap["virtualIP"] = ep.virtualIP.String()
@@ -211,6 +213,9 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := epMap["disableResolution"]; ok {
 		ep.disableResolution = v.(bool)
 	}
+	if v, ok := epMap["disableIPv6"]; ok {
+		ep.disableIPv6 = v.(bool)
+	}
 
 	if sn, ok := epMap["svcName"]; ok {
 		ep.svcName = sn.(string)
@@ -276,6 +281,7 @@ func (ep *Endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.dbIndex = ep.dbIndex
 	dstEp.dbExists = ep.dbExists
 	dstEp.disableResolution = ep.disableResolution
+	dstEp.disableIPv6 = ep.disableIPv6
 	dstEp.svcName = ep.svcName
 	dstEp.svcID = ep.svcID
 	dstEp.virtualIP = ep.virtualIP
@@ -532,6 +538,12 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 			}
 		}
 	}()
+
+	// Discard the IPv6 gateway if the endpoint has no IPv6 address (because IPv6
+	// is disabled in the container).
+	if ep.iface.addrv6 == nil {
+		ep.joinInfo.gw6 = nil
+	}
 
 	if !n.getController().isAgent() {
 		if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
@@ -1025,6 +1037,14 @@ func CreateOptionDNSNames(names []string) EndpointOption {
 func CreateOptionDisableResolution() EndpointOption {
 	return func(ep *Endpoint) {
 		ep.disableResolution = true
+	}
+}
+
+// CreateOptionDisableIPv6 prevents allocation of an IPv6 address/gateway, even
+// if the container is connected to an IPv6-enabled network.
+func CreateOptionDisableIPv6() EndpointOption {
+	return func(ep *Endpoint) {
+		ep.disableIPv6 = true
 	}
 }
 
