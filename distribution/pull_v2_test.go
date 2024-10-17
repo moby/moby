@@ -382,3 +382,44 @@ func testNewPuller(t *testing.T, rawurl string) *puller {
 	}
 	return p
 }
+
+func TestCheckImageCompatibility(t *testing.T) {
+	tests := []struct {
+		doc          string
+		imageOS      string
+		imageVersion string
+		expectError  string
+	}{
+		{
+			doc:          "linux image",
+			imageOS:      "linux",
+			imageVersion: "anything",
+		},
+		{
+			doc:          "incompatible windows image",
+			imageOS:      "windows",
+			imageVersion: "0.0.0.0", // this should always be incompatible because major/minor doesn't match.
+			expectError:  "a Windows version 0.0.0-based image is incompatible with",
+		},
+		{
+			doc:          "no error on incomplete version",
+			imageOS:      "windows",
+			imageVersion: "0.0",
+		},
+		{
+			doc:          "no error on malformed version",
+			imageOS:      "windows",
+			imageVersion: "not.a.valid.format",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			err := checkImageCompatibility(tc.imageOS, tc.imageVersion)
+			if tc.expectError == "" || runtime.GOOS != "windows" {
+				assert.Check(t, err)
+			} else {
+				assert.Check(t, is.ErrorContains(err, tc.expectError))
+			}
+		})
+	}
+}
