@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"reflect"
-	"regexp"
 	"runtime"
 	"strings"
 	"sync/atomic"
@@ -193,24 +192,17 @@ func TestValidateManifest(t *testing.T) {
 	}
 }
 
-func TestFormatPlatform(t *testing.T) {
-	var platform ocispec.Platform
-	result := formatPlatform(platform)
-	if strings.HasPrefix(result, "unknown") {
-		t.Fatal("expected formatPlatform to show a known platform")
-	}
-	if !strings.HasPrefix(result, runtime.GOOS) {
-		t.Fatal("expected formatPlatform to show the current platform")
-	}
-	if runtime.GOOS == "windows" {
-		if !strings.HasPrefix(result, "windows") {
-			t.Fatal("expected formatPlatform to show windows platform")
-		}
-		matches, _ := regexp.MatchString("windows.* [0-9]", result)
-		if !matches {
-			t.Fatalf("expected formatPlatform to show windows platform with a version, but got '%s'", result)
-		}
-	}
+func TestNoMatchesErr(t *testing.T) {
+	err := noMatchesErr{}
+	assert.Check(t, is.ErrorContains(err, "no matching manifest for "+runtime.GOOS))
+
+	err = noMatchesErr{ocispec.Platform{
+		Architecture: "arm64",
+		OS:           "windows",
+		OSVersion:    "10.0.17763",
+		Variant:      "v8",
+	}}
+	assert.Check(t, is.Error(err, "no matching manifest for windows(10.0.17763)/arm64/v8 in the manifest list entries"))
 }
 
 func TestPullSchema2Config(t *testing.T) {

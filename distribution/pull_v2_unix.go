@@ -63,10 +63,3 @@ func withDefault(p ocispec.Platform) ocispec.Platform {
 	}
 	return p
 }
-
-func formatPlatform(platform ocispec.Platform) string {
-	if platform.OS == "" {
-		platform = platforms.DefaultSpec()
-	}
-	return platforms.Format(platform)
-}
