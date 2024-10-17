@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -30,6 +31,7 @@ type Plugin interface {
 	UnpublishVolume(context.Context, *api.Volume, string) error
 	AddNode(swarmID, csiID string)
 	RemoveNode(swarmID string)
+	Addr() net.Addr
 }
 
 // plugin represents an individual CSI controller plugin
@@ -40,6 +42,7 @@ type plugin struct {
 
 	// socket is the unix socket to connect to this plugin at.
 	socket string
+	addr   net.Addr
 
 	// provider is the SecretProvider, which allows retrieving secrets for CSI
 	// calls.
@@ -80,6 +83,7 @@ func NewPlugin(p mobyplugin.AddrPlugin, provider SecretProvider) Plugin {
 		// TODO(dperny): verify that we do not need to include the Network()
 		// portion of the Addr.
 		socket:     fmt.Sprintf("%s://%s", p.Addr().Network(), p.Addr().String()),
+		addr:       p.Addr(),
 		provider:   provider,
 		swarmToCSI: map[string]string{},
 		csiToSwarm: map[string]string{},
@@ -340,4 +344,8 @@ func (p *plugin) makeControllerUnpublishVolumeRequest(v *api.Volume, nodeID stri
 		NodeId:   p.swarmToCSI[nodeID],
 		Secrets:  secrets,
 	}
+}
+
+func (p *plugin) Addr() net.Addr {
+	return p.addr
 }
