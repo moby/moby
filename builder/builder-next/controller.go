@@ -43,6 +43,8 @@ import (
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/bboltcachestorage"
+	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/apicaps"
 	"github.com/moby/buildkit/util/archutil"
 	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/network/netproviders"
@@ -55,9 +57,6 @@ import (
 	"go.etcd.io/bbolt"
 	bolt "go.etcd.io/bbolt"
 	"go.opentelemetry.io/otel/sdk/trace"
-
-	"github.com/moby/buildkit/solver/pb"
-	"github.com/moby/buildkit/util/apicaps"
 )
 
 func newController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
@@ -86,7 +85,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		return nil, err
 	}
 
-	historyDB, historyConf, err := openHistoryDB(opt.Root, opt.BuilderConfig.History)
+	historyDB, historyConf, err := openHistoryDB(opt.Root, "history_c8d.db", opt.BuilderConfig.History)
 	if err != nil {
 		return nil, err
 	}
@@ -197,8 +196,8 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	})
 }
 
-func openHistoryDB(root string, cfg *config.BuilderHistoryConfig) (*bolt.DB, *bkconfig.HistoryConfig, error) {
-	db, err := bbolt.Open(filepath.Join(root, "history.db"), 0o600, nil)
+func openHistoryDB(root string, fn string, cfg *config.BuilderHistoryConfig) (*bolt.DB, *bkconfig.HistoryConfig, error) {
+	db, err := bbolt.Open(filepath.Join(root, fn), 0o600, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -344,7 +343,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		return nil, err
 	}
 
-	historyDB, historyConf, err := openHistoryDB(opt.Root, opt.BuilderConfig.History)
+	historyDB, historyConf, err := openHistoryDB(opt.Root, "history.db", opt.BuilderConfig.History)
 	if err != nil {
 		return nil, err
 	}
