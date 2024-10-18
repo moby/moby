@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"net"
 	"path"
-	"regexp"
 	"strings"
 
+	"github.com/docker/docker/internal/lazyregexp"
 	units "github.com/docker/go-units"
 )
 
 var (
-	alphaRegexp  = regexp.MustCompile(`[a-zA-Z]`)
-	domainRegexp = regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
+	alphaRegexp  = lazyregexp.CompileOnce(`[a-zA-Z]`)
+	domainRegexp = lazyregexp.CompileOnce(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
 )
 
 // ListOpts holds a list of values and a validation function.
@@ -322,10 +322,10 @@ func ValidateDNSSearch(val string) (string, error) {
 }
 
 func validateDomain(val string) (string, error) {
-	if alphaRegexp.FindString(val) == "" {
+	if alphaRegexp().FindString(val) == "" {
 		return "", fmt.Errorf("%s is not a valid domain", val)
 	}
-	ns := domainRegexp.FindSubmatch([]byte(val))
+	ns := domainRegexp().FindSubmatch([]byte(val))
 	if len(ns) > 0 && len(ns[1]) < 255 {
 		return string(ns[1]), nil
 	}

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/docker/docker/pkg/stringid"
 )
 
@@ -80,11 +81,11 @@ const (
 )
 
 var (
-	volumeNameRegexp          = regexp.MustCompile(`^` + rxName + `$`)
-	reservedNameRegexp        = regexp.MustCompile(`^` + rxReservedNames + `$`)
-	hostDirRegexp             = regexp.MustCompile(`^` + rxHostDir + `$`)
-	mountDestinationRegexp    = regexp.MustCompile(`^` + rxDestination + `$`)
-	windowsSplitRawSpecRegexp = regexp.MustCompile(`^` + rxSource + rxDestination + rxMode + `$`)
+	volumeNameRegexp          = lazyregexp.CompileOnce(`^` + rxName + `$`)
+	reservedNameRegexp        = lazyregexp.CompileOnce(`^` + rxReservedNames + `$`)
+	hostDirRegexp             = lazyregexp.CompileOnce(`^` + rxHostDir + `$`)
+	mountDestinationRegexp    = lazyregexp.CompileOnce(`^` + rxDestination + `$`)
+	windowsSplitRawSpecRegexp = lazyregexp.CompileOnce(`^` + rxSource + rxDestination + rxMode + `$`)
 )
 
 type mountValidator func(mnt *mount.Mount) error
@@ -121,8 +122,8 @@ func (p *windowsParser) splitRawSpec(raw string, splitRegexp *regexp.Regexp) ([]
 	// situation where the user intention was to map a file into a container through
 	// a local volume, but this is not supported by the platform.
 	if matchgroups["source"] == "" && matchgroups["destination"] != "" {
-		if volumeNameRegexp.MatchString(matchgroups["destination"]) {
-			if reservedNameRegexp.MatchString(matchgroups["destination"]) {
+		if volumeNameRegexp().MatchString(matchgroups["destination"]) {
+			if reservedNameRegexp().MatchString(matchgroups["destination"]) {
 				return nil, fmt.Errorf("volume name %q cannot be a reserved word for Windows filenames", matchgroups["destination"])
 			}
 		} else {
@@ -155,14 +156,14 @@ var windowsValidators mountValidator = func(m *mount.Mount) error {
 	if err := windowsValidateNotRoot(m.Target); err != nil {
 		return err
 	}
-	if !mountDestinationRegexp.MatchString(strings.ToLower(m.Target)) {
+	if !mountDestinationRegexp().MatchString(strings.ToLower(m.Target)) {
 		return fmt.Errorf("invalid mount path: '%s'", m.Target)
 	}
 	return nil
 }
 
 func windowsValidateAbsolute(p string) error {
-	if !mountDestinationRegexp.MatchString(strings.ToLower(p)) {
+	if !mountDestinationRegexp().MatchString(strings.ToLower(p)) {
 		return fmt.Errorf("invalid mount path: '%s' mount path must be absolute", p)
 	}
 	return nil
@@ -171,7 +172,7 @@ func windowsValidateAbsolute(p string) error {
 func windowsDetectMountType(p string) mount.Type {
 	if strings.HasPrefix(p, `\\.\pipe\`) {
 		return mount.TypeNamedPipe
-	} else if hostDirRegexp.MatchString(p) {
+	} else if hostDirRegexp().MatchString(p) {
 		return mount.TypeBind
 	} else {
 		return mount.TypeVolume
@@ -184,10 +185,10 @@ func (p *windowsParser) ReadWrite(mode string) bool {
 
 // ValidateVolumeName checks a volume name in a platform specific manner.
 func (p *windowsParser) ValidateVolumeName(name string) error {
-	if !volumeNameRegexp.MatchString(name) {
+	if !volumeNameRegexp().MatchString(name) {
 		return errors.New("invalid volume name")
 	}
-	if reservedNameRegexp.MatchString(name) {
+	if reservedNameRegexp().MatchString(name) {
 		return fmt.Errorf("volume name %q cannot be a reserved word for Windows filenames", name)
 	}
 	return nil
@@ -307,7 +308,7 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 }
 
 func (p *windowsParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
-	arr, err := p.splitRawSpec(raw, windowsSplitRawSpecRegexp)
+	arr, err := p.splitRawSpec(raw, windowsSplitRawSpecRegexp())
 	if err != nil {
 		return nil, err
 	}

@@ -7,9 +7,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"regexp"
 
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/pkg/errors"
 )
@@ -20,7 +20,7 @@ const maxPreambleLength = 100
 
 const acceptableRemoteMIME = `(?:application/(?:(?:x\-)?tar|octet\-stream|((?:x\-)?(?:gzip|bzip2?|xz)))|(?:text/plain))`
 
-var mimeRe = regexp.MustCompile(acceptableRemoteMIME)
+var mimeRe = lazyregexp.CompileOnce(acceptableRemoteMIME)
 
 // downloadRemote context from a url and returns it, along with the parsed content type
 func downloadRemote(remoteURL string) (string, io.ReadCloser, error) {
@@ -123,5 +123,5 @@ func inspectResponse(ct string, r io.Reader, clen int64) (string, io.Reader, err
 }
 
 func selectAcceptableMIME(ct string) string {
-	return mimeRe.FindString(ct)
+	return mimeRe().FindString(ct)
 }

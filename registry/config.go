@@ -4,13 +4,13 @@ import (
 	"context"
 	"net"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/internal/lazyregexp"
 )
 
 // ServiceOptions holds command line options.
@@ -56,7 +56,7 @@ var (
 	}
 
 	emptyServiceConfig, _ = newServiceConfig(ServiceOptions{})
-	validHostPortRegex    = regexp.MustCompile(`^` + reference.DomainRegexp.String() + `$`)
+	validHostPortRegex    = lazyregexp.CompileOnce(`^` + reference.DomainRegexp.String() + `$`)
 
 	// for mocking in unit tests
 	lookupIP = net.LookupIP
@@ -367,7 +367,7 @@ func validateHostPort(s string) error {
 	}
 	// If match against the `host:port` pattern fails,
 	// it might be `IPv6:port`, which will be captured by net.ParseIP(host)
-	if !validHostPortRegex.MatchString(s) && net.ParseIP(host) == nil {
+	if !validHostPortRegex().MatchString(s) && net.ParseIP(host) == nil {
 		return invalidParamf("invalid host %q", host)
 	}
 	if port != "" {

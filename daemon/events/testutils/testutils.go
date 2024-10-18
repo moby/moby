@@ -2,36 +2,35 @@ package testutils // import "github.com/docker/docker/daemon/events/testutils"
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/events"
 	timetypes "github.com/docker/docker/api/types/time"
+	"github.com/docker/docker/internal/lazyregexp"
 )
 
-var (
+const (
 	reTimestamp  = `(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{9}(:?(:?(:?-|\+)\d{2}:\d{2})|Z))`
 	reEventType  = `(?P<eventType>\w+)`
 	reAction     = `(?P<action>\w+)`
 	reID         = `(?P<id>[^\s]+)`
 	reAttributes = `(\s\((?P<attributes>[^\)]+)\))?`
-	reString     = fmt.Sprintf(`\A%s\s%s\s%s\s%s%s\z`, reTimestamp, reEventType, reAction, reID, reAttributes)
-
-	// eventCliRegexp is a regular expression that matches all possible event outputs in the cli
-	eventCliRegexp = regexp.MustCompile(reString)
 )
+
+// eventCliRegexp is a regular expression that matches all possible event outputs in the cli
+var eventCliRegexp = lazyregexp.CompileOnce(fmt.Sprintf(`\A%s\s%s\s%s\s%s%s\z`, reTimestamp, reEventType, reAction, reID, reAttributes))
 
 // ScanMap turns an event string like the default ones formatted in the cli output
 // and turns it into map.
 func ScanMap(text string) map[string]string {
-	matches := eventCliRegexp.FindAllStringSubmatch(text, -1)
+	matches := eventCliRegexp().FindAllStringSubmatch(text, -1)
 	md := map[string]string{}
 	if len(matches) == 0 {
 		return md
 	}
 
-	names := eventCliRegexp.SubexpNames()
+	names := eventCliRegexp().SubexpNames()
 	for i, n := range matches[0] {
 		md[names[i]] = n
 	}

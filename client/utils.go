@@ -2,17 +2,17 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"net/url"
-	"regexp"
 
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/internal/lazyregexp"
 )
 
-var headerRegexp = regexp.MustCompile(`\ADocker/.+\s\((.+)\)\z`)
+var headerRegexp = lazyregexp.CompileOnce(`\ADocker/.+\s\((.+)\)\z`)
 
 // getDockerOS returns the operating system based on the server header from the daemon.
 func getDockerOS(serverHeader string) string {
 	var osType string
-	matches := headerRegexp.FindStringSubmatch(serverHeader)
+	matches := headerRegexp().FindStringSubmatch(serverHeader)
 	if len(matches) > 0 {
 		osType = matches[1]
 	}

@@ -3,11 +3,12 @@ package idtools // import "github.com/docker/docker/pkg/idtools"
 import (
 	"fmt"
 	"os/exec"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/docker/docker/internal/lazyregexp"
 )
 
 // add a user and/or group to Linux /etc/passwd, /etc/group using standard
@@ -18,7 +19,7 @@ import (
 var (
 	once        sync.Once
 	userCommand string
-	idOutRegexp = regexp.MustCompile(`uid=([0-9]+).*gid=([0-9]+)`)
+	idOutRegexp = lazyregexp.CompileOnce(`uid=([0-9]+).*gid=([0-9]+)`)
 )
 
 const (
@@ -41,7 +42,7 @@ func AddNamespaceRangesUser(name string) (int, int, error) {
 	if err != nil {
 		return -1, -1, fmt.Errorf("error trying to find uid/gid for new user %q: %v", name, err)
 	}
-	matches := idOutRegexp.FindStringSubmatch(strings.TrimSpace(string(out)))
+	matches := idOutRegexp().FindStringSubmatch(strings.TrimSpace(string(out)))
 	if len(matches) != 3 {
 		return -1, -1, fmt.Errorf("can't find uid, gid from `id` output: %q", string(out))
 	}
