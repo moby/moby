@@ -1154,24 +1154,24 @@ github.com/zmap/zlint/v3/util
 # go.etcd.io/bbolt v1.3.11
 ## explicit; go 1.22
 go.etcd.io/bbolt
-# go.etcd.io/etcd/client/pkg/v3 v3.5.6
-## explicit; go 1.16
+# go.etcd.io/etcd/client/pkg/v3 v3.5.16
+## explicit; go 1.22
 go.etcd.io/etcd/client/pkg/v3/fileutil
-# go.etcd.io/etcd/pkg/v3 v3.5.6
-## explicit; go 1.16
+# go.etcd.io/etcd/pkg/v3 v3.5.16
+## explicit; go 1.22
 go.etcd.io/etcd/pkg/v3/crc
 go.etcd.io/etcd/pkg/v3/idutil
 go.etcd.io/etcd/pkg/v3/ioutil
 go.etcd.io/etcd/pkg/v3/pbutil
-# go.etcd.io/etcd/raft/v3 v3.5.6
-## explicit; go 1.16
+# go.etcd.io/etcd/raft/v3 v3.5.16
+## explicit; go 1.22
 go.etcd.io/etcd/raft/v3
 go.etcd.io/etcd/raft/v3/confchange
 go.etcd.io/etcd/raft/v3/quorum
 go.etcd.io/etcd/raft/v3/raftpb
 go.etcd.io/etcd/raft/v3/tracker
-# go.etcd.io/etcd/server/v3 v3.5.6
-## explicit; go 1.16
+# go.etcd.io/etcd/server/v3 v3.5.16
+## explicit; go 1.22
 go.etcd.io/etcd/server/v3/etcdserver/api/snap
 go.etcd.io/etcd/server/v3/etcdserver/api/snap/snappb
 go.etcd.io/etcd/server/v3/wal
