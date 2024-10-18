@@ -64,6 +64,7 @@ type temporary struct {
 	error
 }
 
+func (t temporary) Unwrap() error   { return t.error }
 func (t temporary) Cause() error    { return t.error }
 func (t temporary) Temporary() bool { return true }
 
