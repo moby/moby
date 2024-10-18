@@ -15,6 +15,9 @@ import (
 	"github.com/moby/buildkit/util/apicaps"
 	"github.com/moby/term"
 	"github.com/spf13/cobra"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric/noop"
 )
 
 var honorXDG bool
@@ -88,6 +91,12 @@ func main() {
 	// the docker daemon is not restarted and also running under systemd.
 	// Fixes https://github.com/docker/docker/issues/19728
 	signal.Ignore(syscall.SIGPIPE)
+
+	// Workaround OTEL memory leak
+	// See: https://github.com/open-telemetry/opentelemetry-go-contrib/issues/5190
+	// The need for this workaround is checked by the TestOtelMeterLeak test
+	// TODO: Remove this workaround after upgrading to v1.30.0
+	otel.SetMeterProvider(noop.MeterProvider{})
 
 	// Set terminal emulation based on platform as required.
 	_, stdout, stderr := term.StdStreams()
