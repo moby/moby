@@ -270,7 +270,7 @@ func (i *ImageService) getPushDescriptor(ctx context.Context, img containerdimag
 
 	switch len(presentMatchingManifests) {
 	case 0:
-		return ocispec.Descriptor{}, errdefs.NotFound(fmt.Errorf("no suitable image manifest found for platform %s", *platform))
+		return ocispec.Descriptor{}, errdefs.NotFound(fmt.Errorf("no suitable image manifest found for platform %s", platforms.FormatAll(*platform)))
 	case 1:
 		// Only one manifest is available AND matching the requested platform.
 
@@ -302,7 +302,7 @@ func (i *ImageService) getPushDescriptor(ctx context.Context, img containerdimag
 			return ocispec.Descriptor{}, errdefs.Conflict(errors.Errorf("multiple matching manifests found but no specific platform requested"))
 		}
 
-		return ocispec.Descriptor{}, errdefs.Conflict(errors.Errorf("multiple manifests found for platform %s", *platform))
+		return ocispec.Descriptor{}, errdefs.Conflict(errors.Errorf("multiple manifests found for platform %s", platforms.FormatAll(*platform)))
 	}
 }
 
