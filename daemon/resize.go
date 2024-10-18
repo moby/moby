@@ -13,6 +13,9 @@ import (
 // ContainerResize changes the size of the TTY of the process running
 // in the container with the given name to the given height and width.
 func (daemon *Daemon) ContainerResize(ctx context.Context, name string, height, width uint32) error {
+	if height == 0 && width == 0 {
+		return nil
+	}
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -38,6 +41,9 @@ func (daemon *Daemon) ContainerResize(ctx context.Context, name string, height, 
 // running in the exec with the given name to the given height and
 // width.
 func (daemon *Daemon) ContainerExecResize(ctx context.Context, name string, height, width uint32) error {
+	if height == 0 && width == 0 {
+		return nil
+	}
 	ec, err := daemon.getExecConfig(name)
 	if err != nil {
 		return err
