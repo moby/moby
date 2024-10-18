@@ -16,6 +16,9 @@
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX=(auto|true|false): whether to protect slirp4netns with a dedicated mount namespace. Defaults to "auto".
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP=(auto|true|false): whether to protect slirp4netns with seccomp. Defaults to "auto".
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_DISABLE_HOST_LOOPBACK=(true|false): prohibit connections to 127.0.0.1 on the host (including via 10.0.2.2, in the case of slirp4netns). Defaults to "true".
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_DETACH_NETNS=(auto|true|false): whether to launch rootlesskit with the "detach-netns" mode.
+#   Defaults to "auto", which is resolved to "true" if RootlessKit >= 2.0 is installed.
+#   The "detached-netns" mode accelerates `docker (pull|push|build)` and enables `docker run --net=host`
 
 # To apply an environment variable via systemd, create ~/.config/systemd/user/docker.service.d/override.conf as follows,
 # and run `systemctl --user daemon-reload && systemctl --user restart docker`:
@@ -73,6 +76,7 @@ fi
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX:=auto}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP:=auto}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_DISABLE_HOST_LOOPBACK:=}"
+: "${DOCKERD_ROOTLESS_ROOTLESSKIT_DETACH_NETNS:=auto}"
 net=$DOCKERD_ROOTLESS_ROOTLESSKIT_NET
 mtu=$DOCKERD_ROOTLESS_ROOTLESSKIT_MTU
 if [ -z "$net" ]; then
@@ -120,6 +124,25 @@ if [ -z "$_DOCKERD_ROOTLESS_CHILD" ]; then
 		_DOCKERD_ROOTLESS_SELINUX=1
 		export _DOCKERD_ROOTLESS_SELINUX
 	fi
+
+	case "$DOCKERD_ROOTLESS_ROOTLESSKIT_DETACH_NETNS" in
+		auto)
+			if rootlesskit --help | grep -qw -- "--detach-netns"; then
+				DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS=--detach-netns $DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS
+			fi
+			;;
+		1 | true)
+			DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS=--detach-netns $DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS
+			;;
+		0 | false)
+			# NOP
+			;;
+		*)
+			echo "Unknown DOCKERD_ROOTLESS_ROOTLESSKIT_DETACH_NETNS value: $DOCKERD_ROOTLESS_ROOTLESSKIT_DETACH_NETNS"
+			exit 1
+			;;
+	esac
+
 	# Re-exec the script via RootlessKit, so as to create unprivileged {user,mount,network} namespaces.
 	#
 	# --copy-up allows removing/creating files in the directories by creating tmpfs and symlinks
