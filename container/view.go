@@ -30,8 +30,12 @@ const (
 
 var (
 	// ErrNameReserved is an error which is returned when a name is requested to be reserved that already is reserved
+	//
+	// Deprecated: check for [errdefs.Conflict] errors instead (using [errdefs.IsConflict].
 	ErrNameReserved = errors.New("name is reserved")
 	// ErrNameNotReserved is an error which is returned when trying to find a name that is not reserved
+	//
+	// Deprecated: check for [errdefs.NotFound] errors instead (using [errdefs.IsNotFound].
 	ErrNameNotReserved = errors.New("name is not reserved")
 )
 
@@ -112,6 +116,7 @@ func NewViewDB() (*ViewDB, error) {
 
 // GetByPrefix returns a container with the given ID prefix. It returns an
 // error if an empty prefix was given or if multiple containers match the prefix.
+// It returns an [errdefs.NotFound] if the given s yielded no results.
 func (db *ViewDB) GetByPrefix(s string) (string, error) {
 	if s == "" {
 		return "", errdefs.InvalidParameter(errors.New("prefix can't be empty"))
@@ -152,7 +157,7 @@ func (db *ViewDB) withTxn(cb func(*memdb.Txn) error) error {
 	err := cb(txn)
 	if err != nil {
 		txn.Abort()
-		return errdefs.System(err)
+		return err
 	}
 	txn.Commit()
 	return nil
@@ -183,10 +188,9 @@ func (db *ViewDB) Delete(c *Container) error {
 	})
 }
 
-// ReserveName registers a container ID to a name
-// ReserveName is idempotent
-// Attempting to reserve a container ID to a name that already exists results in an `ErrNameReserved`
-// A name reservation is globally unique
+// ReserveName registers a container ID to a name. ReserveName is idempotent,
+// but returns an [errdefs.Conflict] when attempting to reserve a container ID
+// to a name that already is reserved.
 func (db *ViewDB) ReserveName(name, containerID string) error {
 	return db.withTxn(func(txn *memdb.Txn) error {
 		s, err := txn.First(memdbNamesTable, memdbIDIndex, name)
@@ -195,7 +199,7 @@ func (db *ViewDB) ReserveName(name, containerID string) error {
 		}
 		if s != nil {
 			if s.(nameAssociation).containerID != containerID {
-				return ErrNameReserved
+				return errdefs.Conflict(ErrNameReserved) //nolint:staticcheck  // ignore SA1019: ErrNameReserved is deprecated.
 			}
 			return nil
 		}
@@ -235,6 +239,7 @@ func (v *View) All() ([]Snapshot, error) {
 }
 
 // Get returns an item by id. Returned objects must never be modified.
+// It returns an [errdefs.NotFound] if the given id was not found.
 func (v *View) Get(id string) (*Snapshot, error) {
 	s, err := v.txn.First(memdbContainersTable, memdbIDIndex, id)
 	if err != nil {
@@ -266,13 +271,14 @@ func (v *View) getNames(containerID string) []string {
 }
 
 // GetID returns the container ID that the passed in name is reserved to.
+// It returns an [errdefs.NotFound] if the given id was not found.
 func (v *View) GetID(name string) (string, error) {
 	s, err := v.txn.First(memdbNamesTable, memdbIDIndex, name)
 	if err != nil {
 		return "", errdefs.System(err)
 	}
 	if s == nil {
-		return "", ErrNameNotReserved
+		return "", errdefs.NotFound(ErrNameNotReserved) //nolint:staticcheck  // ignore SA1019: ErrNameNotReserved is deprecated.
 	}
 	return s.(nameAssociation).containerID, nil
 }
