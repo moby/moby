@@ -4,7 +4,6 @@ package stringid // import "github.com/docker/docker/pkg/stringid"
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"strconv"
 	"strings"
 )
 
@@ -27,7 +26,10 @@ func TruncateID(id string) string {
 	return id
 }
 
-// GenerateRandomID returns a unique id.
+// GenerateRandomID returns a unique, 64-character ID consisting of a-z, 0-9.
+// It guarantees that the ID, when truncated ([TruncateID]) does not consist
+// of numbers only, so that the truncated ID can be used as hostname for
+// containers.
 func GenerateRandomID() string {
 	b := make([]byte, 32)
 	for {
@@ -35,12 +37,27 @@ func GenerateRandomID() string {
 			panic(err) // This shouldn't happen
 		}
 		id := hex.EncodeToString(b)
-		// if we try to parse the truncated for as an int and we don't have
-		// an error then the value is all numeric and causes issues when
-		// used as a hostname. ref #3869
-		if _, err := strconv.ParseInt(TruncateID(id), 10, 64); err == nil {
+
+		// make sure that the truncated ID does not consist of only numeric
+		// characters, as it's used as default hostname for containers.
+		//
+		// See:
+		// - https://github.com/moby/moby/issues/3869
+		// - https://bugzilla.redhat.com/show_bug.cgi?id=1059122
+		if allNum(id[:shortLen]) {
+			// all numbers; try again
 			continue
 		}
 		return id
 	}
+}
+
+// allNum checks whether id consists of only numbers (0-9).
+func allNum(id string) bool {
+	for _, c := range []byte(id) {
+		if c > '9' || c < '0' {
+			return false
+		}
+	}
+	return true
 }
