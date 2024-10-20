@@ -247,11 +247,11 @@ func TestImageList(t *testing.T) {
 
 				assert.Check(t, is.Equal(i.Manifests[0].Kind, imagetypes.ManifestKindImage))
 				if assert.Check(t, i.Manifests[0].ImageData != nil) {
-					assert.Check(t, is.Equal(i.Manifests[0].ImageData.Platform.Architecture, "arm64"))
+					assert.Check(t, is.Equal(i.Manifests[0].ImageData.Platform.Architecture, "amd64"))
 				}
 				assert.Check(t, is.Equal(i.Manifests[1].Kind, imagetypes.ManifestKindImage))
 				if assert.Check(t, i.Manifests[1].ImageData != nil) {
-					assert.Check(t, is.Equal(i.Manifests[1].ImageData.Platform.Architecture, "amd64"))
+					assert.Check(t, is.Equal(i.Manifests[1].ImageData.Platform.Architecture, "arm64"))
 				}
 			},
 		},

@@ -248,13 +248,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 
 		if opts.Manifests {
 			defer func() {
-				// If the platform is available, prepend it to the list of platforms
-				// otherwise append it at the end.
-				if available {
-					manifestSummaries = append([]imagetypes.ManifestSummary{mfstSummary}, manifestSummaries...)
-				} else {
-					manifestSummaries = append(manifestSummaries, mfstSummary)
-				}
+				manifestSummaries = append(manifestSummaries, mfstSummary)
 			}()
 		}
 
