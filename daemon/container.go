@@ -103,7 +103,14 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 }
 
 // Register makes a container object usable by the daemon as <container.ID>
+//
+// Deprecated: this function is unused and will be removed in the next release.
 func (daemon *Daemon) Register(c *container.Container) error {
+	return daemon.register(context.TODO(), c)
+}
+
+// register makes a container object usable by the daemon as [container.Container.ID].
+func (daemon *Daemon) register(ctx context.Context, c *container.Container) error {
 	// Attach to stdout and stderr
 	if c.Config.OpenStdin {
 		c.StreamConfig.NewInputPipes()
@@ -116,8 +123,18 @@ func (daemon *Daemon) Register(c *container.Container) error {
 	c.Lock()
 	defer c.Unlock()
 
+	// FIXME(thaJeztah): this logic may not be atomic:
+	//
+	// - daemon.containers.Add does not promise to "add", allows overwriting a container with the given ID.
+	// - c.CheckpointTo may fail, in which case we registered a container, but failed to write to disk
+	//
+	// We should consider:
+	//
+	// - changing the signature of containers.Add to return an error if the
+	//   given ID exists (potentially adding an alternative to "set" / "update")
+	// - adding a defer to rollback the "Add" when failing to CheckPoint.
 	daemon.containers.Add(c.ID, c)
-	return c.CheckpointTo(context.TODO(), daemon.containersReplica)
+	return c.CheckpointTo(ctx, daemon.containersReplica)
 }
 
 func (daemon *Daemon) newContainer(name string, operatingSystem string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {

@@ -236,7 +236,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	}
 
 	daemon.updateContainerNetworkSettings(ctr, endpointsConfigs)
-	if err := daemon.Register(ctr); err != nil {
+	if err := daemon.register(ctx, ctr); err != nil {
 		return nil, err
 	}
 	stateCtr.set(ctr.ID, "stopped")
