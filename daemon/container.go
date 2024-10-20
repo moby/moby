@@ -147,15 +147,16 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 		return nil, err
 	}
 
-	if hostConfig.NetworkMode.IsHost() {
-		if config.Hostname == "" {
+	if config.Hostname == "" {
+		if hostConfig.NetworkMode.IsHost() {
 			config.Hostname, err = os.Hostname()
 			if err != nil {
 				return nil, errdefs.System(err)
 			}
+		} else {
+			// default hostname is the container's short-ID
+			config.Hostname = id[:12]
 		}
-	} else {
-		daemon.generateHostname(id, config)
 	}
 	entrypoint, args := daemon.getEntrypointAndArgs(config.Entrypoint, config.Cmd)
 
@@ -205,13 +206,6 @@ func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint strslice.StrSlice, c
 		return configEntrypoint[0], append(configEntrypoint[1:], configCmd...)
 	}
 	return configCmd[0], configCmd[1:]
-}
-
-func (daemon *Daemon) generateHostname(id string, config *containertypes.Config) {
-	// Generate default hostname
-	if config.Hostname == "" {
-		config.Hostname = id[:12]
-	}
 }
 
 func (daemon *Daemon) setSecurityOptions(cfg *config.Config, container *container.Container, hostConfig *containertypes.HostConfig) error {
