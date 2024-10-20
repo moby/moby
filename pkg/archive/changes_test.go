@@ -428,7 +428,7 @@ func TestApplyLayer(t *testing.T) {
 	layer, err := ExportChanges(dst, changes, idtools.IdentityMapping{})
 	assert.NilError(t, err)
 
-	layerCopy, err := NewTempArchive(layer, "")
+	layerCopy, err := newTempArchive(layer, "")
 	assert.NilError(t, err)
 
 	_, err = ApplyLayer(src, layerCopy)
