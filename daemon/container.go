@@ -78,6 +78,8 @@ func (daemon *Daemon) Exists(id string) bool {
 }
 
 // IsPaused returns a bool indicating if the specified container is paused.
+//
+// Deprecated: use [Daemon.GetContainer] to look up a container by ID, Name, or ID-prefix, and use [container.State.IsPaused]. This function will be removed in the next release.
 func (daemon *Daemon) IsPaused(id string) bool {
 	c, _ := daemon.GetContainer(id)
 	return c.State.IsPaused()
