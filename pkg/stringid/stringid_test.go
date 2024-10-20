@@ -1,7 +1,6 @@
 package stringid // import "github.com/docker/docker/pkg/stringid"
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -42,48 +41,5 @@ func TestShortenIdInvalid(t *testing.T) {
 	truncID := TruncateID(id)
 	if len(truncID) != len(id) {
 		t.Fatalf("Id returned is incorrect: truncate on %s returned %s", id, truncID)
-	}
-}
-
-func TestIsShortIDNonHex(t *testing.T) {
-	id := "some non-hex value"
-	if IsShortID(id) {
-		t.Fatalf("%s is not a short ID", id)
-	}
-}
-
-func TestIsShortIDNotCorrectSize(t *testing.T) {
-	id := strings.Repeat("a", shortLen+1)
-	if IsShortID(id) {
-		t.Fatalf("%s is not a short ID", id)
-	}
-	id = strings.Repeat("a", shortLen-1)
-	if IsShortID(id) {
-		t.Fatalf("%s is not a short ID", id)
-	}
-}
-
-var testIDs = []string{
-	"4e38e38c8ce0",
-	strings.Repeat("a", shortLen+1),
-	strings.Repeat("a", 16000),
-	"90435eec5c4e124e741ef731e118be2fc799a68aba0466ec17717f24ce2ae6a2",
-}
-
-func BenchmarkIsShortID(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		for _, id := range testIDs {
-			_ = IsShortID(id)
-		}
-	}
-}
-
-func BenchmarkValidateID(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		for _, id := range testIDs {
-			_ = ValidateID(id)
-		}
 	}
 }
