@@ -69,7 +69,7 @@ func TestUserChain(t *testing.T) {
 				_, err = iptable6.Raw("-A", fwdChainName, "-j", "DROP")
 				assert.Check(t, err)
 			}
-			arrangeUserFilterRule()
+			c.setupUserChains()
 
 			golden.Assert(t, getRules(t, iptable4, fwdChainName),
 				fmt.Sprintf("TestUserChain_iptables-%v_append-%v_fwdafter4", tc.iptables, tc.append))
