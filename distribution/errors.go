@@ -211,7 +211,7 @@ func (e reservedNameError) Error() string {
 	return "'" + string(e) + "' is a reserved name"
 }
 
-func (e reservedNameError) Forbidden() {}
+func (e reservedNameError) InvalidParameter() {}
 
 type invalidArgumentErr struct{ error }
 
