@@ -377,7 +377,6 @@ func TestUpdateSvcRecord(t *testing.T) {
 				{Hosts: "id-ep4", IP: "172.16.0.2"},
 			},
 		},
-		/* TODO(robmry) - add this test when the bridge driver understands v6-only
 		{
 			name:   "v6only",
 			epName: "ep6",
@@ -386,7 +385,6 @@ func TestUpdateSvcRecord(t *testing.T) {
 				{Hosts: "id-ep6", IP: "fde6:45d:b2aa::2"},
 			},
 		},
-		*/
 		{
 			name:   "dual-stack",
 			epName: "ep46",
