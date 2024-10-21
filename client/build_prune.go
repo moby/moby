@@ -17,8 +17,6 @@ func (cli *Client) BuildCachePrune(ctx context.Context, opts types.BuildCachePru
 		return nil, err
 	}
 
-	report := types.BuildCachePruneReport{}
-
 	query := url.Values{}
 	if opts.All {
 		query.Set("all", "1")
@@ -37,6 +35,7 @@ func (cli *Client) BuildCachePrune(ctx context.Context, opts types.BuildCachePru
 		return nil, err
 	}
 
+	report := types.BuildCachePruneReport{}
 	if err := json.NewDecoder(serverResp.body).Decode(&report); err != nil {
 		return nil, errors.Wrap(err, "error retrieving disk usage")
 	}
