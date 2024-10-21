@@ -54,3 +54,33 @@ func TestTruncateID(t *testing.T) {
 		})
 	}
 }
+
+func TestAllNum(t *testing.T) {
+	tests := []struct {
+		doc, id  string
+		expected bool
+	}{
+		{
+			doc:      "mixed letters and numbers",
+			id:       "4e38e38c8ce0",
+			expected: false,
+		},
+		{
+			doc:      "letters only",
+			id:       "deadbeefcafe",
+			expected: false,
+		},
+		{
+			doc:      "numbers only",
+			id:       "012345678912",
+			expected: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			if actual := allNum(tc.id); actual != tc.expected {
+				t.Errorf("expected %q to be %t, got %t, ", tc.id, !tc.expected, actual)
+			}
+		})
+	}
+}
