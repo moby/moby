@@ -142,6 +142,7 @@ type iptCmdType = string
 const (
 	iptCmdLFilter4        iptCmdType = "LFilter4"
 	iptCmdSFilter4        iptCmdType = "SFilter4"
+	iptCmdLFilterDocker4  iptCmdType = "LFilterDocker4"
 	iptCmdSFilterForward4 iptCmdType = "SFilterForward4"
 	iptCmdSFilterDocker4  iptCmdType = "SFilterDocker4"
 	iptCmdLNat4           iptCmdType = "LNat4"
@@ -152,6 +153,7 @@ var iptCmds = map[iptCmdType][]string{
 	iptCmdLFilter4:        {"iptables", "-nvL", "--line-numbers", "-t", "filter"},
 	iptCmdSFilter4:        {"iptables", "-S", "-t", "filter"},
 	iptCmdSFilterForward4: {"iptables", "-S", "FORWARD"},
+	iptCmdLFilterDocker4:  {"iptables", "-nvL", "DOCKER", "--line-numbers", "-t", "filter"},
 	iptCmdSFilterDocker4:  {"iptables", "-S", "DOCKER"},
 	iptCmdLNat4:           {"iptables", "-nvL", "--line-numbers", "-t", "nat"},
 	iptCmdSNat4:           {"iptables", "-S", "-t", "nat"},
