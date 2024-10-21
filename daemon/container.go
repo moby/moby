@@ -172,7 +172,7 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 	base.Name = name
 	base.Driver = daemon.imageService.StorageDriver()
 	base.OS = operatingSystem
-	return base, err
+	return base, nil
 }
 
 // GetByName returns a container given a name.
