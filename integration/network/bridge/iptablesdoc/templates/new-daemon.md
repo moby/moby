@@ -17,8 +17,10 @@ Table `filter`:
 The FORWARD chain's policy shown above is ACCEPT. However:
 
    - For IPv4, [setupIPForwarding][1] sets the POLICY to DROP if the sysctl
-     net.ipv4.ip_forward was not set to '1', and the daemon set it itself.
-   - For IPv6, the policy is always DROP.
+     net.ipv4.ip_forward was not set to '1', and the daemon set it itself when
+     an IPv4-enabled bridge network was created.
+   - For IPv6, similar, but for sysctls "/proc/sys/net/ipv6/conf/default/forwarding"
+     and "/proc/sys/net/ipv6/conf/all/forwarding".
 
 [1]: https://github.com/moby/moby/blob/cff4f20c44a3a7c882ed73934dec6a77246c6323/libnetwork/drivers/bridge/setup_ip_forwarding.go#L44
 
