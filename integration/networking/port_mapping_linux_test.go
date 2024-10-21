@@ -25,6 +25,7 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -254,8 +255,16 @@ func TestProxy4To6(t *testing.T) {
 	inspect := container.Inspect(ctx, t, c, serverId)
 	hostPort := inspect.NetworkSettings.Ports["80/tcp"][0].HostPort
 
-	resp, err := http.Get("http://[::1]:" + hostPort)
-	assert.NilError(t, err)
+	var resp *http.Response
+	addr := "http://[::1]:" + hostPort
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		var err error
+		resp, err = http.Get(addr) // #nosec G107 -- Ignore "Potential HTTP request made with variable url"
+		if err != nil {
+			return poll.Continue("waiting for %s to be accessible: %v", addr, err)
+		}
+		return poll.Success()
+	})
 	assert.Check(t, is.Equal(resp.StatusCode, 404))
 }
 

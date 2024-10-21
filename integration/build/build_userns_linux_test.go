@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/fixtures/load"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -118,6 +119,8 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 		container.WithImage(imageTag),
 		container.WithCmd("/sbin/getcap", "-n", "/bin/sleep"),
 	)
+
+	poll.WaitOn(t, container.IsStopped(ctx, clientNoUserRemap, cid))
 	logReader, err := clientNoUserRemap.ContainerLogs(ctx, cid, containertypes.LogsOptions{
 		ShowStdout: true,
 	})
