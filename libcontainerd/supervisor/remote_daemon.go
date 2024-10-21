@@ -29,7 +29,6 @@ const (
 	shutdownTimeout         = 15 * time.Second
 	startupTimeout          = 15 * time.Second
 	configFile              = "containerd.toml"
-	binaryName              = "containerd"
 	pidFile                 = "containerd.pid"
 )
 
@@ -40,9 +39,13 @@ type remote struct {
 	// file is saved.
 	configFile string
 
-	daemonPid int
-	pidFile   string
-	logger    *log.Entry
+	// daemonPath is the binary to execute, and can be either a basename (to use
+	// a binary installed in the system's $PATH), or the full path to the binary
+	// to use.
+	daemonPath string
+	daemonPid  int
+	pidFile    string
+	logger     *log.Entry
 
 	daemonWaitCh  chan struct{}
 	daemonStartCh chan error
@@ -75,6 +78,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 			},
 		},
 		configFile:    filepath.Join(stateDir, configFile),
+		daemonPath:    binaryName,
 		daemonPid:     -1,
 		pidFile:       filepath.Join(stateDir, pidFile),
 		logger:        log.G(ctx).WithField("module", "libcontainerd"),
@@ -156,7 +160,8 @@ func (r *remote) startContainerd() error {
 		return err
 	}
 
-	cmd := exec.Command(binaryName, "--config", cfgFile)
+	r.logger.WithField("binary", r.daemonPath).Debug("starting containerd binary")
+	cmd := exec.Command(r.daemonPath, "--config", cfgFile)
 	// redirect containerd logs to docker logs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -262,7 +267,9 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				}
 			}
 
-			os.RemoveAll(r.GRPC.Address)
+			if err := os.RemoveAll(r.GRPC.Address); err != nil {
+				r.logger.WithError(err).Error("failed to remove old gRPC address")
+			}
 			if err := r.startContainerd(); err != nil {
 				if !started {
 					r.daemonStartCh <- err
@@ -271,6 +278,11 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				r.logger.WithError(err).Error("failed restarting containerd")
 				delay = 50 * time.Millisecond
 				continue
+			} else {
+				if !started {
+					close(r.daemonStartCh) // Close only once
+					started = true
+				}
 			}
 
 			client, err = containerd.New(
@@ -297,11 +309,6 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 			_, err := client.IsServing(tctx)
 			cancel()
 			if err == nil {
-				if !started {
-					close(r.daemonStartCh)
-					started = true
-				}
-
 				transientFailureCount = 0
 
 				select {
