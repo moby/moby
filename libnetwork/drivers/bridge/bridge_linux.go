@@ -51,12 +51,13 @@ type (
 
 // configuration info for the "bridge" driver.
 type configuration struct {
-	EnableIPForwarding  bool
-	EnableIPTables      bool
-	EnableIP6Tables     bool
-	EnableUserlandProxy bool
-	UserlandProxyPath   string
-	Rootless            bool
+	EnableIPForwarding       bool
+	DisableFilterForwardDrop bool
+	EnableIPTables           bool
+	EnableIP6Tables          bool
+	EnableUserlandProxy      bool
+	UserlandProxyPath        string
+	Rootless                 bool
 }
 
 // networkConfiguration for network specific configuration
@@ -907,12 +908,12 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		// Enable IP Forwarding
 		{config.EnableIPv4 && d.config.EnableIPForwarding,
 			func(*networkConfiguration, *bridgeInterface) error {
-				return setupIPv4Forwarding(d.config.EnableIPTables)
+				return setupIPv4Forwarding(d.config.EnableIPTables && !d.config.DisableFilterForwardDrop)
 			},
 		},
 		{config.EnableIPv6 && d.config.EnableIPForwarding,
 			func(*networkConfiguration, *bridgeInterface) error {
-				return setupIPv6Forwarding(d.config.EnableIP6Tables)
+				return setupIPv6Forwarding(d.config.EnableIP6Tables && !d.config.DisableFilterForwardDrop)
 			},
 		},
 
