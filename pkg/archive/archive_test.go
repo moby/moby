@@ -1224,16 +1224,16 @@ func TestUntarInvalidSymlink(t *testing.T) {
 
 func TestTempArchiveCloseMultipleTimes(t *testing.T) {
 	reader := io.NopCloser(strings.NewReader("hello"))
-	tempArchive, err := NewTempArchive(reader, "")
+	tmpArchive, err := newTempArchive(reader, "")
 	assert.NilError(t, err)
 	buf := make([]byte, 10)
-	n, err := tempArchive.Read(buf)
+	n, err := tmpArchive.Read(buf)
 	assert.NilError(t, err)
 	if n != 5 {
 		t.Fatalf("Expected to read 5 bytes. Read %d instead", n)
 	}
 	for i := 0; i < 3; i++ {
-		if err = tempArchive.Close(); err != nil {
+		if err = tmpArchive.Close(); err != nil {
 			t.Fatalf("i=%d. Unexpected error closing temp archive: %v", i, err)
 		}
 	}

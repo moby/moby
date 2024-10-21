@@ -163,3 +163,56 @@ func testBreakout(untarFn string, tmpdir string, headers []*tar.Header) error {
 		return nil
 	})
 }
+
+// newTempArchive reads the content of src into a temporary file, and returns the contents
+// of that file as an archive. The archive can only be read once - as soon as reading completes,
+// the file will be deleted.
+func newTempArchive(src io.Reader, dir string) (*tempArchive, error) {
+	f, err := os.CreateTemp(dir, "")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := io.Copy(f, src); err != nil {
+		return nil, err
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		return nil, err
+	}
+	st, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	size := st.Size()
+	return &tempArchive{File: f, Size: size}, nil
+}
+
+// tempArchive is a temporary archive. The archive can only be read once - as soon as reading completes,
+// the file will be deleted.
+type tempArchive struct {
+	*os.File
+	Size   int64 // Pre-computed from Stat().Size() as a convenience
+	read   int64
+	closed bool
+}
+
+// Close closes the underlying file if it's still open, or does a no-op
+// to allow callers to try to close the tempArchive multiple times safely.
+func (archive *tempArchive) Close() error {
+	if archive.closed {
+		return nil
+	}
+
+	archive.closed = true
+
+	return archive.File.Close()
+}
+
+func (archive *tempArchive) Read(data []byte) (int, error) {
+	n, err := archive.File.Read(data)
+	archive.read += int64(n)
+	if err != nil || archive.read == archive.Size {
+		_ = archive.Close()
+		_ = os.Remove(archive.File.Name())
+	}
+	return n, err
+}
