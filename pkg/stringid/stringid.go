@@ -4,8 +4,6 @@ package stringid // import "github.com/docker/docker/pkg/stringid"
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -14,22 +12,6 @@ const (
 	shortLen = 12
 	fullLen  = 64
 )
-
-var (
-	validShortID = regexp.MustCompile("^[a-f0-9]{12}$")
-	validHex     = regexp.MustCompile(`^[a-f0-9]{64}$`)
-)
-
-// IsShortID determines if id has the correct format and length for a short ID.
-// It checks the IDs length and if it consists of valid characters for IDs (a-f0-9).
-//
-// Deprecated: this function is no longer used, and will be removed in the next release.
-func IsShortID(id string) bool {
-	if len(id) != shortLen {
-		return false
-	}
-	return validShortID.MatchString(id)
-}
 
 // TruncateID returns a shorthand version of a string identifier for convenience.
 // A collision with other shorthands is very unlikely, but possible.
@@ -61,17 +43,4 @@ func GenerateRandomID() string {
 		}
 		return id
 	}
-}
-
-// ValidateID checks whether an ID string is a valid, full-length image ID.
-//
-// Deprecated: use [github.com/docker/docker/image/v1.ValidateID] instead. Will be removed in the next release.
-func ValidateID(id string) error {
-	if len(id) != fullLen {
-		return errors.New("image ID '" + id + "' is invalid")
-	}
-	if !validHex.MatchString(id) {
-		return errors.New("image ID '" + id + "' is invalid")
-	}
-	return nil
 }
