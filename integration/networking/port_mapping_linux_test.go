@@ -25,6 +25,7 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -251,10 +252,20 @@ func TestProxy4To6(t *testing.T) {
 	)
 	defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})
 
+	poll.WaitOn(t, container.IsInState(ctx, c, serverId, "running"),
+		poll.WithDelay(100*time.Millisecond))
+
 	inspect := container.Inspect(ctx, t, c, serverId)
 	hostPort := inspect.NetworkSettings.Ports["80/tcp"][0].HostPort
 
+	try := 0
+retry:
 	resp, err := http.Get("http://[::1]:" + hostPort)
+	if err != nil && try < 10 {
+		try++
+		time.Sleep(100 * time.Millisecond)
+		goto retry
+	}
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(resp.StatusCode, 404))
 }
