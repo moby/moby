@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/go-connections/nat"
+	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -142,10 +143,7 @@ func TestPortMappedHairpinTCP(t *testing.T) {
 	defer c.Close()
 
 	// Find an address on the test host.
-	conn, err := net.Dial("tcp4", "hub.docker.com:80")
-	assert.NilError(t, err)
-	hostAddr := conn.LocalAddr().(*net.TCPAddr).IP.String()
-	conn.Close()
+	hostAddr := networking.FindHostAddr(t, unix.AF_INET)
 
 	const serverNetName = "servernet"
 	network.CreateNoError(ctx, t, c, serverNetName)
@@ -189,10 +187,7 @@ func TestPortMappedHairpinUDP(t *testing.T) {
 	defer c.Close()
 
 	// Find an address on the test host.
-	conn, err := net.Dial("tcp4", "hub.docker.com:80")
-	assert.NilError(t, err)
-	hostAddr := conn.LocalAddr().(*net.TCPAddr).IP.String()
-	conn.Close()
+	hostAddr := networking.FindHostAddr(t, unix.AF_INET)
 
 	const serverNetName = "servernet"
 	network.CreateNoError(ctx, t, c, serverNetName)
@@ -488,12 +483,7 @@ func TestAccessPublishedPortFromCtr(t *testing.T) {
 	}
 
 	// Find an address on the test host.
-	hostAddr := func() string {
-		conn, err := net.Dial("tcp4", "hub.docker.com:80")
-		assert.NilError(t, err)
-		defer conn.Close()
-		return conn.LocalAddr().(*net.TCPAddr).IP.String()
-	}()
+	hostAddr := networking.FindHostAddr(t, unix.AF_INET)
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
