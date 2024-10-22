@@ -30,7 +30,7 @@ func TestViewSaveDelete(t *testing.T) {
 	tmpDir := t.TempDir()
 	c := newContainer(t, tmpDir)
 	assert.NilError(t, c.CheckpointTo(context.Background(), db))
-	assert.NilError(t, db.Delete(c))
+	db.Delete(c)
 }
 
 func TestViewAll(t *testing.T) {
@@ -130,7 +130,7 @@ func TestNames(t *testing.T) {
 	assert.Check(t, is.DeepEqual(map[string][]string{"containerid1": {"name1", "name3", "name4"}, "containerid4": {"name2"}}, view.GetAllNames()))
 
 	// Release containerid1's names with Delete even though no container exists
-	assert.Check(t, db.Delete(&Container{ID: "containerid1"}))
+	db.Delete(&Container{ID: "containerid1"})
 
 	// Reusing one of those names should work
 	assert.Check(t, db.ReserveName("name1", "containerid4"))
@@ -271,7 +271,7 @@ func TestTruncIndex(t *testing.T) {
 	}
 
 	// Deleting id2 should remove conflicts
-	assert.NilError(t, db.Delete(&Container{ID: id2}))
+	db.Delete(&Container{ID: id2})
 
 	for _, tc := range []testacase{
 		{

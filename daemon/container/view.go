@@ -150,26 +150,29 @@ func (db *ViewDB) withTxn(cb func(*memdb.Txn) error) error {
 }
 
 // Save atomically updates the in-memory store state for a Container.
-// Only read only (deep) copies of containers may be passed in.
+// Only read-only (deep) copies of containers may be passed in.
 func (db *ViewDB) Save(c *Container) error {
 	return db.withTxn(func(txn *memdb.Txn) error {
 		return txn.Insert(memdbContainersTable, c)
 	})
 }
 
-// Delete removes an item by ID
-func (db *ViewDB) Delete(c *Container) error {
-	return db.withTxn(func(txn *memdb.Txn) error {
+// Delete removes a container by its ID and releases all names associated
+// with it. Delete is idempotent, and ignores errors due to the container
+// not existing.
+func (db *ViewDB) Delete(c *Container) {
+	_ = db.withTxn(func(txn *memdb.Txn) error {
 		view := &View{txn: txn}
-		names := view.getNames(c.ID)
 
-		for _, name := range names {
-			txn.Delete(memdbNamesTable, nameAssociation{name: name})
+		// Clean up all names associated with the container; ignore
+		// errors, as names may not be found and we need to clean up
+		// the container itself after this.
+		for _, name := range view.getNames(c.ID) {
+			_ = txn.Delete(memdbNamesTable, nameAssociation{name: name})
 		}
 
-		// Ignore error - the container may not actually exist in the
-		// db, but we still need to clean up associated names.
-		txn.Delete(memdbContainersTable, NewBaseContainer(c.ID, c.Root))
+		// Ignore error - the container may not actually exist.
+		_ = txn.Delete(memdbContainersTable, NewBaseContainer(c.ID, c.Root))
 		return nil
 	})
 }
