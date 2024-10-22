@@ -444,3 +444,29 @@ func BenchmarkDBGetByPrefix500(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkDBDelete(b *testing.B) {
+	var testSet []string
+	var testKeys []string
+	for i := 0; i < 2500; i++ {
+		testSet = append(testSet, stringid.GenerateRandomID())
+	}
+	db, err := NewViewDB()
+	if err != nil {
+		b.Fatal(err)
+	}
+	for _, id := range testSet {
+		if err := db.Save(&Container{ID: id}); err != nil {
+			b.Fatal(err)
+		}
+		l := rand.Intn(12) + 12
+		testKeys = append(testKeys, id[:l])
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, id := range testKeys {
+			db.Delete(&Container{ID: id})
+		}
+	}
+}
