@@ -11,9 +11,9 @@ const (
 	defaultRingMaxSize = 1e6 // 1MB
 )
 
-// RingLogger is a ring buffer that implements the Logger interface.
+// ringLogger is a ring buffer that implements the Logger interface.
 // This is used when lossy logging is OK.
-type RingLogger struct {
+type ringLogger struct {
 	buffer    *messageRing
 	l         Logger
 	logInfo   Info
@@ -22,12 +22,12 @@ type RingLogger struct {
 }
 
 var (
-	_ SizedLogger = (*RingLogger)(nil)
+	_ SizedLogger = (*ringLogger)(nil)
 	_ LogReader   = (*ringWithReader)(nil)
 )
 
 type ringWithReader struct {
-	*RingLogger
+	*ringLogger
 }
 
 func (r *ringWithReader) ReadLogs(ctx context.Context, cfg ReadConfig) *LogWatcher {
@@ -39,8 +39,8 @@ func (r *ringWithReader) ReadLogs(ctx context.Context, cfg ReadConfig) *LogWatch
 	return reader.ReadLogs(ctx, cfg)
 }
 
-func newRingLogger(driver Logger, logInfo Info, maxSize int64) *RingLogger {
-	l := &RingLogger{
+func newRingLogger(driver Logger, logInfo Info, maxSize int64) *ringLogger {
+	l := &ringLogger{
 		buffer:  newRing(maxSize),
 		l:       driver,
 		logInfo: logInfo,
@@ -65,7 +65,7 @@ func NewRingLogger(driver Logger, logInfo Info, maxSize int64) Logger {
 
 // BufSize returns the buffer size of the underlying logger.
 // Returns -1 if the logger doesn't match SizedLogger interface.
-func (r *RingLogger) BufSize() int {
+func (r *ringLogger) BufSize() int {
 	if sl, ok := r.l.(SizedLogger); ok {
 		return sl.BufSize()
 	}
@@ -73,7 +73,7 @@ func (r *RingLogger) BufSize() int {
 }
 
 // Log queues messages into the ring buffer
-func (r *RingLogger) Log(msg *Message) error {
+func (r *ringLogger) Log(msg *Message) error {
 	if r.closed() {
 		return errClosed
 	}
@@ -81,20 +81,20 @@ func (r *RingLogger) Log(msg *Message) error {
 }
 
 // Name returns the name of the underlying logger
-func (r *RingLogger) Name() string {
+func (r *ringLogger) Name() string {
 	return r.l.Name()
 }
 
-func (r *RingLogger) closed() bool {
+func (r *ringLogger) closed() bool {
 	return r.closeFlag.Load()
 }
 
-func (r *RingLogger) setClosed() {
+func (r *ringLogger) setClosed() {
 	r.closeFlag.Store(true)
 }
 
 // Close closes the logger
-func (r *RingLogger) Close() error {
+func (r *ringLogger) Close() error {
 	r.setClosed()
 	r.buffer.Close()
 	r.wg.Wait()
@@ -118,8 +118,8 @@ func (r *RingLogger) Close() error {
 
 // run consumes messages from the ring buffer and forwards them to the underling
 // logger.
-// This is run in a goroutine when the RingLogger is created
-func (r *RingLogger) run() {
+// This is run in a goroutine when the ringLogger is created
+func (r *ringLogger) run() {
 	defer r.wg.Done()
 	for {
 		if r.closed() {
