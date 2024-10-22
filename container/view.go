@@ -172,18 +172,19 @@ func (db *ViewDB) Save(c *Container) error {
 }
 
 // Delete removes an item by ID
-func (db *ViewDB) Delete(c *Container) error {
-	return db.withTxn(func(txn *memdb.Txn) error {
+func (db *ViewDB) Delete(c *Container) {
+	// we never return an error
+	_ = db.withTxn(func(txn *memdb.Txn) error {
 		view := &View{txn: txn}
 		names := view.getNames(c.ID)
 
 		for _, name := range names {
-			txn.Delete(memdbNamesTable, nameAssociation{name: name})
+			_ = txn.Delete(memdbNamesTable, nameAssociation{name: name})
 		}
 
 		// Ignore error - the container may not actually exist in the
 		// db, but we still need to clean up associated names.
-		txn.Delete(memdbContainersTable, NewBaseContainer(c.ID, c.Root))
+		_ = txn.Delete(memdbContainersTable, NewBaseContainer(c.ID, c.Root))
 		return nil
 	})
 }
