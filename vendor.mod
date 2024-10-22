@@ -81,7 +81,7 @@ require (
 	github.com/morikuni/aec v1.0.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
-	github.com/opencontainers/runc v1.1.14
+	github.com/opencontainers/runc v1.2.0
 	github.com/opencontainers/runtime-spec v1.2.0
 	github.com/opencontainers/selinux v1.11.0
 	github.com/pelletier/go-toml v1.9.5
@@ -139,7 +139,7 @@ require (
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cilium/ebpf v0.12.3 // indirect
+	github.com/cilium/ebpf v0.16.0 // indirect
 	github.com/container-storage-interface/spec v1.5.0 // indirect
 	github.com/containerd/console v1.0.4 // indirect
 	github.com/containerd/go-cni v1.1.10 // indirect
@@ -149,7 +149,7 @@ require (
 	github.com/containerd/ttrpc v1.2.5 // indirect
 	github.com/containernetworking/cni v1.2.2 // indirect
 	github.com/containernetworking/plugins v1.5.1 // indirect
-	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
+	github.com/cyphar/filepath-securejoin v0.3.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect

@@ -213,12 +213,13 @@ github.com/cenkalti/backoff/v4
 # github.com/cespare/xxhash/v2 v2.3.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
-# github.com/cilium/ebpf v0.12.3
-## explicit; go 1.20
+# github.com/cilium/ebpf v0.16.0
+## explicit; go 1.21
 github.com/cilium/ebpf
 github.com/cilium/ebpf/asm
 github.com/cilium/ebpf/btf
 github.com/cilium/ebpf/internal
+github.com/cilium/ebpf/internal/kallsyms
 github.com/cilium/ebpf/internal/kconfig
 github.com/cilium/ebpf/internal/sys
 github.com/cilium/ebpf/internal/sysenc
@@ -417,8 +418,8 @@ github.com/cpuguy83/tar2go
 # github.com/creack/pty v1.1.21
 ## explicit; go 1.13
 github.com/creack/pty
-# github.com/cyphar/filepath-securejoin v0.2.4
-## explicit; go 1.13
+# github.com/cyphar/filepath-securejoin v0.3.4
+## explicit; go 1.21
 github.com/cyphar/filepath-securejoin
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
@@ -985,14 +986,11 @@ github.com/opencontainers/go-digest/digestset
 github.com/opencontainers/image-spec/identity
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
-# github.com/opencontainers/runc v1.1.14
-## explicit; go 1.18
+# github.com/opencontainers/runc v1.2.0
+## explicit; go 1.22
 github.com/opencontainers/runc/libcontainer/cgroups
 github.com/opencontainers/runc/libcontainer/configs
 github.com/opencontainers/runc/libcontainer/devices
-github.com/opencontainers/runc/libcontainer/system
-github.com/opencontainers/runc/libcontainer/user
-github.com/opencontainers/runc/libcontainer/userns
 github.com/opencontainers/runc/libcontainer/utils
 # github.com/opencontainers/runtime-spec v1.2.0
 ## explicit
@@ -1325,8 +1323,6 @@ golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 # golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
 ## explicit; go 1.22.0
 golang.org/x/exp/constraints
-golang.org/x/exp/maps
-golang.org/x/exp/slices
 # golang.org/x/mod v0.21.0
 ## explicit; go 1.22.0
 golang.org/x/mod/internal/lazyregexp
