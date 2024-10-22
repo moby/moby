@@ -118,7 +118,7 @@ func TestNames(t *testing.T) {
 
 	err = db.ReserveName("name2", "containerid3")
 	assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
-	assert.Check(t, is.ErrorIs(err, ErrNameReserved)) //nolint:staticcheck  // ignore SA1019: ErrNameReserved is deprecated.
+	assert.Check(t, is.Error(err, "name is reserved"))
 
 	// Releasing a name allows the name to point to something else later.
 	assert.Check(t, db.ReleaseName("name2"))
@@ -136,7 +136,7 @@ func TestNames(t *testing.T) {
 
 	_, err = view.GetID("notreserved")
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
-	assert.Check(t, is.ErrorIs(err, ErrNameNotReserved)) //nolint:staticcheck  // ignore SA1019: ErrNameNotReserved is deprecated.
+	assert.Check(t, is.Error(err, "name is not reserved"))
 
 	// Releasing and re-reserving a name doesn't affect the snapshot.
 	assert.Check(t, db.ReleaseName("name2"))
