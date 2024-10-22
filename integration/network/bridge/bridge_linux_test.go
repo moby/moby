@@ -1,4 +1,4 @@
-package network
+package bridge
 
 import (
 	"context"
@@ -19,7 +19,6 @@ import (
 )
 
 func TestCreateWithMultiNetworks(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.44"), "requires API v1.44")
 
 	ctx := setupTest(t)
@@ -49,9 +48,6 @@ func TestCreateWithMultiNetworks(t *testing.T) {
 }
 
 func TestCreateWithIPv6DefaultsToULAPrefix(t *testing.T) {
-	// On Windows, network creation fails with this error message: Error response from daemon: this request is not supported by the 'windows' ipam driver
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
@@ -73,7 +69,6 @@ func TestCreateWithIPv6DefaultsToULAPrefix(t *testing.T) {
 }
 
 func TestCreateWithIPv6WithoutEnableIPv6Flag(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows") // d.Start fails on Windows with `protocol not available`
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
@@ -103,7 +98,6 @@ func TestCreateWithIPv6WithoutEnableIPv6Flag(t *testing.T) {
 // Check that it's possible to create IPv6 networks with a 64-bit ip-range,
 // in 64-bit and bigger subnets, with and without a gateway.
 func Test64BitIPRange(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "no bridge or IPv6 on Windows")
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
 
@@ -139,7 +133,6 @@ func Test64BitIPRange(t *testing.T) {
 // Demonstrate a limitation of the IP address allocator, it can't
 // allocate the last address in range that ends on a 64-bit boundary.
 func TestIPRangeAt64BitLimit(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "no bridge or IPv6 on Windows")
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
 
