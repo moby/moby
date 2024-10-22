@@ -68,23 +68,6 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 	return ctr, nil
 }
 
-// Exists returns a true if a container of the specified ID or name exists,
-// false otherwise.
-//
-// Deprecated: use [Daemon.GetContainer] to look up a container by ID, Name, or ID-prefix. This function will be removed in the next release.
-func (daemon *Daemon) Exists(id string) bool {
-	c, _ := daemon.GetContainer(id)
-	return c != nil
-}
-
-// IsPaused returns a bool indicating if the specified container is paused.
-//
-// Deprecated: use [Daemon.GetContainer] to look up a container by ID, Name, or ID-prefix, and use [container.State.IsPaused]. This function will be removed in the next release.
-func (daemon *Daemon) IsPaused(id string) bool {
-	c, _ := daemon.GetContainer(id)
-	return c.State.IsPaused()
-}
-
 func (daemon *Daemon) containerRoot(id string) string {
 	return filepath.Join(daemon.repository, id)
 }
