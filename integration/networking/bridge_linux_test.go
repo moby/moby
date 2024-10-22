@@ -335,6 +335,72 @@ func TestBridgeINC(t *testing.T) {
 	}
 }
 
+// Check that Inter-Container Communication can be disabled in a user-defined
+// network, but only if iptables/ip6tables are enabled.
+func TestBridgeDisableICC(t *testing.T) {
+	ctx := setupTest(t)
+	testcases := []struct {
+		name           string
+		daemonOpts     []string
+		networkOpts    []string
+		expNwCreateErr string
+	}{
+		{
+			name: "no icc",
+		},
+		{
+			name:           "no iptables",
+			daemonOpts:     []string{"--iptables=false"},
+			expNwCreateErr: "icc=false requires iptables=true",
+		},
+		{
+			name:           "no ip6tables",
+			daemonOpts:     []string{"--ip6tables=false"},
+			expNwCreateErr: "icc=false requires ip6tables=true",
+		},
+	}
+	for _, tc := range testcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			d := daemon.New(t)
+			d.StartWithBusybox(ctx, t, tc.daemonOpts...)
+			defer d.Stop(t)
+
+			c := d.NewClientT(t)
+			defer c.Close()
+
+			const netName = "iccDisabledNet"
+			_, err := network.Create(ctx, c, netName,
+				network.WithDriver("bridge"),
+				network.WithOption(bridge.EnableICC, "false"),
+				network.WithIPv6(),
+			)
+			if tc.expNwCreateErr != "" {
+				assert.Check(t, is.ErrorContains(err, tc.expNwCreateErr))
+				return
+			}
+			assert.NilError(t, err)
+
+			id1 := container.Run(ctx, t, c,
+				container.WithName("c1"),
+				container.WithNetworkMode(netName),
+			)
+			defer c.ContainerRemove(ctx, id1, containertypes.RemoveOptions{Force: true})
+
+			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			res := container.RunAttach(attachCtx, t, c,
+				container.WithCmd("ping", "-c1", "-W3", "c1"),
+				container.WithNetworkMode(netName),
+			)
+			defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+
+			assert.Check(t, is.Equal(res.ExitCode, 1))
+			assert.Check(t, is.Contains(res.Stdout.String(), "100% packet loss"))
+		})
+	}
+}
+
 func TestDefaultBridgeIPv6(t *testing.T) {
 	ctx := setupTest(t)
 
