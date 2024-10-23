@@ -23,7 +23,7 @@ func (m *messageState) New() protoreflect.Message {
 func (m *messageState) Interface() protoreflect.ProtoMessage {
 	return m.protoUnwrap().(protoreflect.ProtoMessage)
 }
-func (m *messageState) protoUnwrap() interface{} {
+func (m *messageState) protoUnwrap() any {
 	return m.pointer().AsIfaceOf(m.messageInfo().GoReflectType.Elem())
 }
 func (m *messageState) ProtoMethods() *protoiface.Methods {
@@ -154,7 +154,7 @@ func (m *messageReflectWrapper) Interface() protoreflect.ProtoMessage {
 	}
 	return (*messageIfaceWrapper)(m)
 }
-func (m *messageReflectWrapper) protoUnwrap() interface{} {
+func (m *messageReflectWrapper) protoUnwrap() any {
 	return m.pointer().AsIfaceOf(m.messageInfo().GoReflectType.Elem())
 }
 func (m *messageReflectWrapper) ProtoMethods() *protoiface.Methods {
