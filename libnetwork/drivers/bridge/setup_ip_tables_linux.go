@@ -177,6 +177,7 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 		n.registerIptCleanFunc(func() error {
 			return setupIPTablesInternal(ipVersion, config, maskedAddr, hairpinMode, false)
 		})
+
 		natChain, filterChain, _, _, err := n.getDriverChains(ipVersion)
 		if err != nil {
 			return fmt.Errorf("Failed to setup IP tables, cannot acquire chain info %s", err.Error())
@@ -191,9 +192,15 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 		if err != nil {
 			return fmt.Errorf("Failed to program FILTER chain: %s", err.Error())
 		}
-
 		n.registerIptCleanFunc(func() error {
 			return iptable.ProgramChain(filterChain, config.BridgeName, hairpinMode, false)
+		})
+
+		if err := defaultDrop(ipVersion, config.BridgeName, true); err != nil {
+			return fmt.Errorf("failed to add default-drop rule: %s", err.Error())
+		}
+		n.registerIptCleanFunc(func() error {
+			return defaultDrop(ipVersion, config.BridgeName, false)
 		})
 	}
 
@@ -201,6 +208,30 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 	err = iptable.EnsureJumpRule("FORWARD", IsolationChain1)
 	d.Unlock()
 	return err
+}
+
+func setICMP(ipv iptables.IPVersion, bridgeName string, enable bool) error {
+	icmpProto := "icmp"
+	if ipv == iptables.IPv6 {
+		icmpProto = "icmpv6"
+	}
+	icmpRule := iptRule{ipv: ipv, table: iptables.Filter, chain: DockerChain, args: []string{
+		"-o", bridgeName,
+		"-p", icmpProto,
+		"-j", "ACCEPT",
+	}}
+	return appendOrDelChainRule(icmpRule, "ICMP", enable)
+}
+
+// Append to the filter table's DOCKER chain (the default DROP rule must follow
+// per-port ACCEPT rules, which will be inserted at the top of the chain).
+func defaultDrop(ipv iptables.IPVersion, bridgeName string, enable bool) error {
+	dropRule := iptRule{ipv: ipv, table: iptables.Filter, chain: DockerChain, args: []string{
+		"!", "-i", bridgeName,
+		"-o", bridgeName,
+		"-j", "DROP",
+	}}
+	return appendOrDelChainRule(dropRule, "DEFAULT DROP", enable)
 }
 
 type iptRule struct {
@@ -306,6 +337,13 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 	// Set Inter Container Communication.
 	if err := setIcc(ipVer, config.BridgeName, config.EnableICC, enable); err != nil {
 		return err
+	}
+
+	// Allow ICMP in routed mode.
+	if !nat {
+		if err := setICMP(ipVer, config.BridgeName, enable); err != nil {
+			return err
+		}
 	}
 
 	// Set Accept on all non-intercontainer outgoing packets.

@@ -828,6 +828,10 @@ func setPerPortNAT(b portBinding, ipv iptables.IPVersion, proxyPath string, brid
 }
 
 func setPerPortForwarding(b portBinding, ipv iptables.IPVersion, bridgeName string, enable bool) error {
+	// Insert rules for open ports at the top of the filter table's DOCKER
+	// chain (a per-network DROP rule, which must come after these per-port
+	// per-container ACCEPT rules, is appended to the chain when the network
+	// is created).
 	args := []string{
 		"!", "-i", bridgeName,
 		"-o", bridgeName,
@@ -837,7 +841,7 @@ func setPerPortForwarding(b portBinding, ipv iptables.IPVersion, bridgeName stri
 		"-j", "ACCEPT",
 	}
 	rule := iptRule{ipv: ipv, table: iptables.Filter, chain: DockerChain, args: args}
-	if err := appendOrDelChainRule(rule, "OPEN PORT", enable); err != nil {
+	if err := programChainRule(rule, "OPEN PORT", enable); err != nil {
 		return err
 	}
 
