@@ -3,10 +3,10 @@ package bridge
 import (
 	"testing"
 
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/vishvananda/netlink"
 )
 
 func TestLinkCreate(t *testing.T) {
@@ -54,7 +54,7 @@ func TestLinkCreate(t *testing.T) {
 	}
 
 	// Verify sbox endpoint interface inherited MTU value from bridge config
-	sboxLnk, err := netlink.LinkByName(te.iface.srcName)
+	sboxLnk, err := nlwrap.LinkByName(te.iface.srcName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatal("Invalid Dstname returned")
 	}
 
-	_, err = netlink.LinkByName(te.iface.srcName)
+	_, err = nlwrap.LinkByName(te.iface.srcName)
 	if err != nil {
 		t.Fatalf("Could not find source link %s: %v", te.iface.srcName, err)
 	}

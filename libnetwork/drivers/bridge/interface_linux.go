@@ -8,6 +8,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/vishvananda/netlink"
 )
@@ -25,14 +26,14 @@ type bridgeInterface struct {
 	bridgeIPv6  *net.IPNet
 	gatewayIPv4 net.IP
 	gatewayIPv6 net.IP
-	nlh         *netlink.Handle
+	nlh         nlwrap.Handle
 }
 
 // newInterface creates a new bridge interface structure. It attempts to find
 // an already existing device identified by the configuration BridgeName field,
 // or the default bridge name when unspecified, but doesn't attempt to create
 // one when missing
-func newInterface(nlh *netlink.Handle, config *networkConfiguration) (*bridgeInterface, error) {
+func newInterface(nlh nlwrap.Handle, config *networkConfiguration) (*bridgeInterface, error) {
 	var err error
 	i := &bridgeInterface{nlh: nlh}
 

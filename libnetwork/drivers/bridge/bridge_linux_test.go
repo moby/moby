@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ipamutils"
@@ -1207,7 +1208,7 @@ func TestCreateWithExistingBridge(t *testing.T) {
 		t.Fatalf("Failed to delete network %s: %v", brName, err)
 	}
 
-	if _, err := netlink.LinkByName(brName); err != nil {
+	if _, err := nlwrap.LinkByName(brName); err != nil {
 		t.Fatal("Deleting bridge network that using existing bridge interface unexpectedly deleted the bridge interface")
 	}
 }

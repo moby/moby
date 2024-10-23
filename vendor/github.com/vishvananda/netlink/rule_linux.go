@@ -43,8 +43,8 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 	msg.Protocol = unix.RTPROT_BOOT
 	msg.Scope = unix.RT_SCOPE_UNIVERSE
 	msg.Table = unix.RT_TABLE_UNSPEC
-	msg.Type = unix.RTN_UNSPEC
-	if req.NlMsghdr.Flags&unix.NLM_F_CREATE > 0 {
+	msg.Type = rule.Type // usually 0, same as unix.RTN_UNSPEC
+	if msg.Type == 0 && req.NlMsghdr.Flags&unix.NLM_F_CREATE > 0 {
 		msg.Type = unix.RTN_UNICAST
 	}
 	if rule.Invert {
@@ -102,14 +102,14 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 		native.PutUint32(b, uint32(rule.Priority))
 		req.AddData(nl.NewRtAttr(nl.FRA_PRIORITY, b))
 	}
-	if rule.Mark >= 0 {
+	if rule.Mark != 0 || rule.Mask != nil {
 		b := make([]byte, 4)
-		native.PutUint32(b, uint32(rule.Mark))
+		native.PutUint32(b, rule.Mark)
 		req.AddData(nl.NewRtAttr(nl.FRA_FWMARK, b))
 	}
-	if rule.Mask >= 0 {
+	if rule.Mask != nil {
 		b := make([]byte, 4)
-		native.PutUint32(b, uint32(rule.Mask))
+		native.PutUint32(b, *rule.Mask)
 		req.AddData(nl.NewRtAttr(nl.FRA_FWMASK, b))
 	}
 	if rule.Flow >= 0 {
@@ -168,6 +168,15 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 		req.AddData(nl.NewRtAttr(nl.FRA_SPORT_RANGE, b))
 	}
 
+	if rule.UIDRange != nil {
+		b := rule.UIDRange.toRtAttrData()
+		req.AddData(nl.NewRtAttr(nl.FRA_UID_RANGE, b))
+	}
+
+	if rule.Protocol > 0 {
+		req.AddData(nl.NewRtAttr(nl.FRA_PROTOCOL, nl.Uint8Attr(rule.Protocol)))
+	}
+
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
 	return err
 }
@@ -212,8 +221,10 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 		}
 
 		rule := NewRule()
+		rule.Priority = 0 // The default priority from kernel
 
 		rule.Invert = msg.Flags&FibRuleInvert > 0
+		rule.Family = int(msg.Family)
 		rule.Tos = uint(msg.Tos)
 
 		for j := range attrs {
@@ -231,9 +242,10 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attrs[j].Value)),
 				}
 			case nl.FRA_FWMARK:
-				rule.Mark = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.Mark = native.Uint32(attrs[j].Value[0:4])
 			case nl.FRA_FWMASK:
-				rule.Mask = int(native.Uint32(attrs[j].Value[0:4]))
+				mask := native.Uint32(attrs[j].Value[0:4])
+				rule.Mask = &mask
 			case nl.FRA_TUN_ID:
 				rule.TunID = uint(native.Uint64(attrs[j].Value[0:8]))
 			case nl.FRA_IIFNAME:
@@ -262,6 +274,10 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 				rule.Dport = NewRulePortRange(native.Uint16(attrs[j].Value[0:2]), native.Uint16(attrs[j].Value[2:4]))
 			case nl.FRA_SPORT_RANGE:
 				rule.Sport = NewRulePortRange(native.Uint16(attrs[j].Value[0:2]), native.Uint16(attrs[j].Value[2:4]))
+			case nl.FRA_UID_RANGE:
+				rule.UIDRange = NewRuleUIDRange(native.Uint32(attrs[j].Value[0:4]), native.Uint32(attrs[j].Value[4:8]))
+			case nl.FRA_PROTOCOL:
+				rule.Protocol = uint8(attrs[j].Value[0])
 			}
 		}
 
@@ -282,7 +298,7 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 				continue
 			case filterMask&RT_FILTER_MARK != 0 && rule.Mark != filter.Mark:
 				continue
-			case filterMask&RT_FILTER_MASK != 0 && rule.Mask != filter.Mask:
+			case filterMask&RT_FILTER_MASK != 0 && !ptrEqual(rule.Mask, filter.Mask):
 				continue
 			}
 		}
@@ -298,4 +314,52 @@ func (pr *RulePortRange) toRtAttrData() []byte {
 	native.PutUint16(b[0], pr.Start)
 	native.PutUint16(b[1], pr.End)
 	return bytes.Join(b, []byte{})
+}
+
+func (pr *RuleUIDRange) toRtAttrData() []byte {
+	b := [][]byte{make([]byte, 4), make([]byte, 4)}
+	native.PutUint32(b[0], pr.Start)
+	native.PutUint32(b[1], pr.End)
+	return bytes.Join(b, []byte{})
+}
+
+func ptrEqual(a, b *uint32) bool {
+	if a == b {
+		return true
+	}
+	if (a == nil) || (b == nil) {
+		return false
+	}
+	return *a == *b
+}
+
+func (r Rule) typeString() string {
+	switch r.Type {
+	case unix.RTN_UNSPEC: // zero
+		return ""
+	case unix.RTN_UNICAST:
+		return ""
+	case unix.RTN_LOCAL:
+		return "local"
+	case unix.RTN_BROADCAST:
+		return "broadcast"
+	case unix.RTN_ANYCAST:
+		return "anycast"
+	case unix.RTN_MULTICAST:
+		return "multicast"
+	case unix.RTN_BLACKHOLE:
+		return "blackhole"
+	case unix.RTN_UNREACHABLE:
+		return "unreachable"
+	case unix.RTN_PROHIBIT:
+		return "prohibit"
+	case unix.RTN_THROW:
+		return "throw"
+	case unix.RTN_NAT:
+		return "nat"
+	case unix.RTN_XRESOLVE:
+		return "xresolve"
+	default:
+		return fmt.Sprintf("type(0x%x)", r.Type)
+	}
 }
