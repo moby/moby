@@ -108,6 +108,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: vendor.sum
       -
         name: BuildKit ref
         run: |
