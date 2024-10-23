@@ -45,3 +45,4 @@ Scenarios:
   - [Container on a user-defined --internal network](generated/usernet-internal.md)
   - [Container on a routed-mode network, with a published port](generated/usernet-portmap-routed.md)
   - [Container on a nat-unprotected network, with a published port](generated/usernet-portmap-natunprot.md)
+  - [Swarm service, with a published port](generated/swarm-portmap.md)
