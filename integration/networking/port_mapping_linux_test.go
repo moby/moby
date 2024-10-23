@@ -105,7 +105,7 @@ func TestDisableNAT(t *testing.T) {
 
 			const netName = "testnet"
 			nwOpts := []func(options *networktypes.CreateOptions){
-				network.WithIPv6(),
+				network.WithIPv6(true),
 				network.WithIPAM("fd2a:a2c3:4448::/64", "fd2a:a2c3:4448::1"),
 			}
 			if tc.gwMode4 != "" {
@@ -346,7 +346,7 @@ func TestAccessPublishedPortFromHost(t *testing.T) {
 			}
 			if tc.ipv6 {
 				bridgeOpts = append(bridgeOpts,
-					network.WithIPv6(),
+					network.WithIPv6(true),
 					network.WithIPAM("fd31:1c42:6f59::/64", "fd31:1c42:6f59::1"))
 			}
 
@@ -423,7 +423,7 @@ func TestAccessPublishedPortFromRemoteHost(t *testing.T) {
 	network.CreateNoError(ctx, t, c, bridgeName,
 		network.WithDriver("bridge"),
 		network.WithOption(bridge.BridgeName, bridgeName),
-		network.WithIPv6(),
+		network.WithIPv6(true),
 		network.WithIPAM("fdd8:c9fe:1a25::/64", "fdd8:c9fe:1a25::1"))
 	defer network.RemoveNoError(ctx, t, c, bridgeName)
 
@@ -641,7 +641,7 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 		netName := "test-" + gwMode
 		network.CreateNoError(ctx, t, c, netName,
 			network.WithDriver("bridge"),
-			network.WithIPv6(),
+			network.WithIPv6(true),
 			network.WithOption(bridge.BridgeName, "br-"+gwMode),
 			network.WithOption(bridge.IPv4GatewayMode, gwMode),
 			network.WithOption(bridge.IPv6GatewayMode, gwMode),

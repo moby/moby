@@ -57,7 +57,7 @@ func TestBridgeICC(t *testing.T) {
 		{
 			name: "IPv6 ULA on non-internal network",
 			bridgeOpts: []func(*networktypes.CreateOptions){
-				network.WithIPv6(),
+				network.WithIPv6(true),
 				network.WithIPAM("fdf1:a844:380c:b200::/64", "fdf1:a844:380c:b200::1"),
 			},
 			isIPv6: true,
@@ -65,7 +65,7 @@ func TestBridgeICC(t *testing.T) {
 		{
 			name: "IPv6 ULA on internal network",
 			bridgeOpts: []func(*networktypes.CreateOptions){
-				network.WithIPv6(),
+				network.WithIPv6(true),
 				network.WithInternal(),
 				network.WithIPAM("fdf1:a844:380c:b247::/64", "fdf1:a844:380c:b247::1"),
 			},
@@ -74,7 +74,7 @@ func TestBridgeICC(t *testing.T) {
 		{
 			name: "IPv6 link-local address on non-internal network",
 			bridgeOpts: []func(*networktypes.CreateOptions){
-				network.WithIPv6(),
+				network.WithIPv6(true),
 				// There's no real way to specify an IPv6 network is only used with SLAAC link-local IPv6 addresses.
 				// What we can do instead, is to tell the IPAM driver to assign addresses from the link-local prefix.
 				// Each container will have two link-local addresses: 1. a SLAAC address assigned by the kernel ;
@@ -87,7 +87,7 @@ func TestBridgeICC(t *testing.T) {
 		{
 			name: "IPv6 link-local address on internal network",
 			bridgeOpts: []func(*networktypes.CreateOptions){
-				network.WithIPv6(),
+				network.WithIPv6(true),
 				network.WithInternal(),
 				// See the note above about link-local addresses.
 				network.WithIPAM("fe80::/64", "fe80::1"),
@@ -105,7 +105,7 @@ func TestBridgeICC(t *testing.T) {
 			// So, for this common case, LL addresses should be included in DNS config.
 			name: "IPv6 link-local address on non-internal network ping by name",
 			bridgeOpts: []func(*networktypes.CreateOptions){
-				network.WithIPv6(),
+				network.WithIPv6(true),
 				network.WithIPAM("fe80::/64", "fe80::1"),
 			},
 			isIPv6: true,
@@ -118,7 +118,7 @@ func TestBridgeICC(t *testing.T) {
 			// be). So, again, no zone index is required and the LL address should be
 			// included in DNS config.
 			bridgeOpts: []func(*networktypes.CreateOptions){
-				network.WithIPv6(),
+				network.WithIPv6(true),
 				network.WithIPAM("fe80:1234::/64", "fe80:1234::1"),
 			},
 			isIPv6: true,
@@ -126,7 +126,7 @@ func TestBridgeICC(t *testing.T) {
 		{
 			name: "IPv6 non-internal network with SLAAC LL address",
 			bridgeOpts: []func(*networktypes.CreateOptions){
-				network.WithIPv6(),
+				network.WithIPv6(true),
 				network.WithIPAM("fdf1:a844:380c:b247::/64", "fdf1:a844:380c:b247::1"),
 			},
 			// Link-local address is derived from the MAC address, so we need to
@@ -138,7 +138,7 @@ func TestBridgeICC(t *testing.T) {
 		{
 			name: "IPv6 internal network with SLAAC LL address",
 			bridgeOpts: []func(*networktypes.CreateOptions){
-				network.WithIPv6(),
+				network.WithIPv6(true),
 				network.WithIPAM("fdf1:a844:380c:b247::/64", "fdf1:a844:380c:b247::1"),
 			},
 			// Link-local address is derived from the MAC address, so we need to
@@ -252,11 +252,11 @@ func TestBridgeINC(t *testing.T) {
 			name: "IPv6 ULA on non-internal network",
 			bridges: bridgesOpts{
 				bridge1Opts: []func(*networktypes.CreateOptions){
-					network.WithIPv6(),
+					network.WithIPv6(true),
 					network.WithIPAM("fdf1:a844:380c:b200::/64", "fdf1:a844:380c:b200::1"),
 				},
 				bridge2Opts: []func(*networktypes.CreateOptions){
-					network.WithIPv6(),
+					network.WithIPv6(true),
 					network.WithIPAM("fdf1:a844:380c:b247::/64", "fdf1:a844:380c:b247::1"),
 				},
 			},
@@ -267,12 +267,12 @@ func TestBridgeINC(t *testing.T) {
 			name: "IPv6 ULA on internal network",
 			bridges: bridgesOpts{
 				bridge1Opts: []func(*networktypes.CreateOptions){
-					network.WithIPv6(),
+					network.WithIPv6(true),
 					network.WithInternal(),
 					network.WithIPAM("fdf1:a844:390c:b200::/64", "fdf1:a844:390c:b200::1"),
 				},
 				bridge2Opts: []func(*networktypes.CreateOptions){
-					network.WithIPv6(),
+					network.WithIPv6(true),
 					network.WithInternal(),
 					network.WithIPAM("fdf1:a844:390c:b247::/64", "fdf1:a844:390c:b247::1"),
 				},
@@ -516,7 +516,7 @@ func TestInternalNwConnectivity(t *testing.T) {
 	const gw6 = "fda9:4130:4715::1234"
 	network.CreateNoError(ctx, t, c, bridgeName,
 		network.WithInternal(),
-		network.WithIPv6(),
+		network.WithIPv6(true),
 		network.WithIPAM("172.30.0.0/24", gw4),
 		network.WithIPAM("fda9:4130:4715::/64", gw6),
 		network.WithDriver("bridge"),
@@ -580,7 +580,7 @@ func TestDisableIPv6Addrs(t *testing.T) {
 
 	const netName = "testnet"
 	network.CreateNoError(ctx, t, c, netName,
-		network.WithIPv6(),
+		network.WithIPv6(true),
 		network.WithIPAM("fda0:ef3d:6430:abcd::/64", "fda0:ef3d:6430:abcd::1"),
 	)
 	defer network.RemoveNoError(ctx, t, c, netName)
@@ -685,7 +685,7 @@ func TestNoIP6Tables(t *testing.T) {
 			const bridgeName = "testbr"
 			const subnet = "fdb3:2511:e851:34a9::/64"
 			network.CreateNoError(ctx, t, c, netName,
-				network.WithIPv6(),
+				network.WithIPv6(true),
 				network.WithOption("com.docker.network.bridge.name", bridgeName),
 				network.WithIPAM(subnet, "fdb3:2511:e851:34a9::1"),
 			)
@@ -789,7 +789,7 @@ func TestReadOnlySlashProc(t *testing.T) {
 			// doesn't need to be disabled on the interface).
 			const net6Name = "testnet6"
 			network.CreateNoError(ctx, t, c, net6Name,
-				network.WithIPv6(),
+				network.WithIPv6(true),
 				network.WithIPAM("fd5c:15e3:0b62:5395::/64", "fd5c:15e3:0b62:5395::1"),
 			)
 			defer network.RemoveNoError(ctx, t, c, net6Name)

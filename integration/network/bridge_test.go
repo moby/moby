@@ -56,7 +56,7 @@ func TestCreateWithIPv6DefaultsToULAPrefix(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	const nwName = "testnetula"
-	network.CreateNoError(ctx, t, apiClient, nwName, network.WithIPv6())
+	network.CreateNoError(ctx, t, apiClient, nwName, network.WithIPv6(true))
 	defer network.RemoveNoError(ctx, t, apiClient, nwName)
 
 	nw, err := apiClient.NetworkInspect(ctx, "testnetula", networktypes.InspectOptions{})
@@ -128,7 +128,7 @@ func Test64BitIPRange(t *testing.T) {
 				t.Run(sn.k+"/"+ipr.k+"/"+gw.k, func(t *testing.T) {
 					ctx := testutil.StartSpan(ctx, t)
 					const netName = "test64br"
-					network.CreateNoError(ctx, t, c, netName, network.WithIPv6(), ipamSetter)
+					network.CreateNoError(ctx, t, c, netName, network.WithIPv6(true), ipamSetter)
 					defer network.RemoveNoError(ctx, t, c, netName)
 				})
 			}
@@ -183,7 +183,7 @@ func TestIPRangeAt64BitLimit(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			const netName = "test64bl"
 			network.CreateNoError(ctx, t, c, netName,
-				network.WithIPv6(),
+				network.WithIPv6(true),
 				network.WithIPAMRange(tc.subnet, tc.ipRange, ""),
 			)
 			defer network.RemoveNoError(ctx, t, c, netName)

@@ -20,10 +20,9 @@ func WithIPv4(enable bool) func(*network.CreateOptions) {
 }
 
 // WithIPv6 Enables IPv6 on the network
-func WithIPv6() func(*network.CreateOptions) {
+func WithIPv6(enable bool) func(*network.CreateOptions) {
 	return func(n *network.CreateOptions) {
-		enableIPv6 := true
-		n.EnableIPv6 = &enableIPv6
+		n.EnableIPv6 = &enable
 	}
 }
 

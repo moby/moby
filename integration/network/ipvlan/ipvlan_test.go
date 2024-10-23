@@ -249,7 +249,7 @@ func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, client dclient.A
 	netName := "dualstackl2"
 	net.CreateNoError(ctx, t, client, netName,
 		net.WithIPvlan(parent, ""),
-		net.WithIPv6(),
+		net.WithIPv6(true),
 		net.WithIPAM("172.28.200.0/24", ""),
 		net.WithIPAM("172.28.202.0/24", "172.28.202.254"),
 		net.WithIPAM("2001:db8:abc8::/64", ""),
@@ -326,7 +326,7 @@ func testIpvlanL3MultiSubnet(t *testing.T, ctx context.Context, client dclient.A
 	netName := "dualstackl3"
 	net.CreateNoError(ctx, t, client, netName,
 		net.WithIPvlan("", "l3"),
-		net.WithIPv6(),
+		net.WithIPv6(true),
 		net.WithIPAM("172.28.10.0/24", ""),
 		net.WithIPAM("172.28.12.0/24", "172.28.12.254"),
 		net.WithIPAM("2001:db8:abc9::/64", ""),
@@ -396,7 +396,7 @@ func testIpvlanL2Addressing(t *testing.T, ctx context.Context, client dclient.AP
 	netNameL2 := "dualstackl2"
 	net.CreateNoError(ctx, t, client, netNameL2,
 		net.WithIPvlan(parentIfName, "l2"),
-		net.WithIPv6(),
+		net.WithIPv6(true),
 		net.WithIPAM("172.28.140.0/24", "172.28.140.254"),
 		net.WithIPAM("2001:db8:abcb::/64", ""),
 	)
@@ -424,7 +424,7 @@ func testIpvlanL3Addressing(t *testing.T, ctx context.Context, client dclient.AP
 	netNameL3 := "dualstackl3"
 	net.CreateNoError(ctx, t, client, netNameL3,
 		net.WithIPvlan(parentIfName, "l3"),
-		net.WithIPv6(),
+		net.WithIPv6(true),
 		net.WithIPAM("172.28.160.0/24", "172.28.160.254"),
 		net.WithIPAM("2001:db8:abcd::/64", "2001:db8:abcd::254"),
 	)
@@ -514,7 +514,7 @@ func TestIpvlanIPAM(t *testing.T) {
 				net.WithIPv4(tc.enableIPv4),
 			}
 			if tc.enableIPv6 {
-				netOpts = append(netOpts, net.WithIPv6())
+				netOpts = append(netOpts, net.WithIPv6(true))
 			}
 
 			const netName = "ipvlannet"

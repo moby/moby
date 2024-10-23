@@ -336,7 +336,7 @@ func testMacvlanMultiSubnet(t *testing.T, ctx context.Context, client client.API
 	netName := "dualstackbridge"
 	net.CreateNoError(ctx, t, client, netName,
 		net.WithMacvlan(parent),
-		net.WithIPv6(),
+		net.WithIPv6(true),
 		net.WithIPAM("172.28.100.0/24", ""),
 		net.WithIPAM("172.28.102.0/24", "172.28.102.254"),
 		net.WithIPAM("2001:db8:abc2::/64", ""),
@@ -419,7 +419,7 @@ func testMacvlanAddressing(t *testing.T, ctx context.Context, client client.APIC
 	netName := "dualstackbridge"
 	net.CreateNoError(ctx, t, client, netName,
 		net.WithMacvlan(parentIfName),
-		net.WithIPv6(),
+		net.WithIPv6(true),
 		net.WithOption("macvlan_mode", "bridge"),
 		net.WithIPAM("172.28.130.0/24", ""),
 		net.WithIPAM("2001:db8:abca::/64", "2001:db8:abca::254"),
@@ -512,7 +512,7 @@ func TestMacvlanIPAM(t *testing.T) {
 				net.WithIPv4(tc.enableIPv4),
 			}
 			if tc.enableIPv6 {
-				netOpts = append(netOpts, net.WithIPv6())
+				netOpts = append(netOpts, net.WithIPv6(true))
 			}
 
 			const netName = "macvlannet"
