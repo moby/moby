@@ -9,7 +9,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/oci"
 	"github.com/containerd/log"
+	"github.com/docker/docker/pkg/rootless"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -32,6 +34,7 @@ func ToRootfulInRootless(spec *specs.Spec) {
 // * Fix up OOMScoreAdj
 // * Fix up /proc if --pid=host
 // * Fix up /dev/shm and /dev/mqueue if --ipc=host
+// * Fix up /sys if --net=host (with detach-netns)
 //
 // v2Controllers should be non-nil only if running with v2 and systemd.
 func ToRootless(spec *specs.Spec, v2Controllers []string) error {
@@ -120,6 +123,31 @@ func toRootless(spec *specs.Spec, v2Controllers []string, currentOOMScoreAdj int
 		}
 	}
 
+	// Fix up /sys if --net=host (with detach-netns)
+	detachedNetNS, err := rootless.DetachedNetNS()
+	if err != nil {
+		return err
+	}
+	if detachedNetNS != "" {
+		netHost, err := isHostNS(spec, specs.NetworkNamespace)
+		if err != nil {
+			return err
+		}
+		if netHost {
+			// For rootless + host netns, we can't mount sysfs.
+			// We can't (non-recursively) bind mount /sys, either.
+			//
+			// TODO: consider to just rbind /sys from the host with rro,
+			// when rro is available (kernel >= 5.12, runc >= 1.1).
+			//
+			// Relevant: https://github.com/moby/buildkit/blob/v0.12.4/util/rootless/specconv/specconv_linux.go#L15-L34
+			// https://github.com/containerd/nerdctl/pull/2723
+			if err := removeSysfs(spec); err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -139,7 +167,12 @@ func isHostNS(spec *specs.Spec, nsType specs.LinuxNamespaceType) (bool, error) {
 			if err != nil {
 				return false, err
 			}
-			selfNS, err := os.Readlink(filepath.Join("/proc/self/ns", string(nsType)))
+			procfsNSType := string(nsType)
+			switch nsType {
+			case specs.NetworkNamespace:
+				procfsNSType = "net"
+			}
+			selfNS, err := os.Readlink(filepath.Join("/proc/self/ns", procfsNSType))
 			if err != nil {
 				return false, err
 			}
@@ -195,5 +228,28 @@ func bindMountHostIPC(s *specs.Spec) error {
 			}
 		}
 	}
+	return nil
+}
+
+func removeSysfs(s *oci.Spec) error {
+	var hasSysfs bool
+	for _, mount := range s.Mounts {
+		if mount.Type == "sysfs" {
+			hasSysfs = true
+			break
+		}
+	}
+	if !hasSysfs {
+		// NOP, as the user has specified a custom /sys mount
+		return nil
+	}
+	var mounts []specs.Mount // nolint: prealloc
+	for _, mount := range s.Mounts {
+		if strings.HasPrefix(mount.Destination, "/sys") {
+			continue
+		}
+		mounts = append(mounts, mount)
+	}
+	s.Mounts = mounts
 	return nil
 }
