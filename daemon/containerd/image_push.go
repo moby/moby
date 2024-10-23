@@ -20,6 +20,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/auxprogress"
 	"github.com/docker/docker/api/types/events"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
@@ -109,7 +110,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 
 	target := img.Target
 	if platform != nil {
-		target, err = i.getPushDescriptor(ctx, img, platform)
+		target, _, err = i.getPushDescriptor(ctx, img, platform)
 		if err != nil {
 			return err
 		}
@@ -174,7 +175,8 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 		// and the target is an index, select a platform-specific manifest to push instead.
 		if cerrdefs.IsNotFound(err) && containerdimages.IsIndexType(target.MediaType) && platform == nil {
 			var newTarget ocispec.Descriptor
-			newTarget, err = i.getPushDescriptor(ctx, img, nil)
+			var multipleCandidatesInfo *multiplePushCandidatesInfo
+			newTarget, multipleCandidatesInfo, err = i.getPushDescriptor(ctx, img, nil)
 			if err != nil {
 				return err
 			}
@@ -186,9 +188,13 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 				pp.TurnNotStartedIntoUnavailable()
 				err = remotes.PushContent(ctx, pusher, target, store, limiter, platforms.All, handlerWrapper)
 
+				imageSummary, _ := i.singlePlatformImage(ctx, i.content, []string{reference.FamiliarName(targetRef)}, multipleCandidatesInfo.selectedManifest)
+				imageSummary.Size = multipleCandidatesInfo.totalSize
+				imageSummary.Manifests = multipleCandidatesInfo.candidateSummaries
 				if err == nil {
 					progress.Aux(out, auxprogress.ManifestPushedInsteadOfIndex{
 						ManifestPushedInsteadOfIndex: true,
+						ImageSummary:                 imageSummary,
 						OriginalIndex:                orgTarget,
 						SelectedManifest:             newTarget,
 					})
@@ -215,11 +221,23 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 	return nil
 }
 
-func (i *ImageService) getPushDescriptor(ctx context.Context, img containerdimages.Image, platform *ocispec.Platform) (ocispec.Descriptor, error) {
+type multiplePushCandidatesInfo struct {
+	candidateSummaries []imagetypes.ManifestSummary
+	totalSize          int64
+	selectedManifest   *ImageManifest
+}
+
+func (i *ImageService) getPushDescriptor(ctx context.Context, img containerdimages.Image, platform *ocispec.Platform) (ocispec.Descriptor, *multiplePushCandidatesInfo, error) {
 	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, platform)
 
-	anyMissing := false
+	// manifestPushCandidates keeps information regarding the candidates
+	// found for pushing so we can return comprehensive information about
+	// the push attempt.
+	var manifestPushCandidates []imagetypes.ManifestSummary
+	// Total size of the image including all its platform
+	var totalSize int64
 
+	anyMissing := false
 	var bestMatchPlatform ocispec.Platform
 	var bestMatch *ImageManifest
 	var presentMatchingManifests []*ImageManifest
@@ -229,10 +247,56 @@ func (i *ImageService) getPushDescriptor(ctx context.Context, img containerdimag
 			return fmt.Errorf("failed to determine availability of image manifest %s: %w", im.Target().Digest, err)
 		}
 
+		mfstSummary := imagetypes.ManifestSummary{
+			ID:         im.Target().Digest.String(),
+			Available:  available,
+			Descriptor: im.Target(),
+			Kind:       imagetypes.ManifestKindUnknown,
+		}
+		defer func() {
+			manifestPushCandidates = append(manifestPushCandidates, mfstSummary)
+		}()
+
+		mfstSummary.Kind = imagetypes.ManifestKindImage
+		mfstSummary.ImageData = &imagetypes.ImageProperties{}
+		if im.Target().Platform != nil {
+			mfstSummary.ImageData.Platform = *im.Target().Platform
+		}
+
+		contentSize, err := im.Size(ctx)
+		if err == nil {
+			mfstSummary.Size.Content = contentSize
+			totalSize += contentSize
+			mfstSummary.Size.Total += contentSize
+		}
+
 		if !available {
 			anyMissing = true
 			return nil
 		}
+
+		unpackedSize, imgContentSize, err := i.singlePlatformSize(ctx, im)
+		if err != nil {
+			return nil
+		}
+
+		// If the image-specific content size calculation produces different result
+		// than the "generic" one, adjust the total size with the difference.
+		// Note: This shouldn't happen unless the implementation changes or the
+		// content is added/removed during the list operation.
+		if contentSize != imgContentSize {
+			mfstSummary.Size.Content = contentSize
+
+			// contentSize was already added to total, adjust it by the difference
+			// between the newly calculated size and the old size.
+			d := imgContentSize - contentSize
+			totalSize += d
+			mfstSummary.Size.Total += d
+		}
+
+		mfstSummary.ImageData.Size.Unpacked = unpackedSize
+		mfstSummary.Size.Total += unpackedSize
+		totalSize += unpackedSize
 
 		if im.IsAttestation() {
 			return nil
@@ -256,7 +320,7 @@ func (i *ImageService) getPushDescriptor(ctx context.Context, img containerdimag
 		return nil
 	})
 	if err != nil {
-		return ocispec.Descriptor{}, errdefs.System(err)
+		return ocispec.Descriptor{}, nil, errdefs.System(err)
 	}
 
 	switch len(presentMatchingManifests) {
@@ -265,39 +329,47 @@ func (i *ImageService) getPushDescriptor(ctx context.Context, img containerdimag
 		if pm.Requested != nil {
 			err.wanted = *pm.Requested
 		}
-		return ocispec.Descriptor{}, err
+		return ocispec.Descriptor{}, nil, err
 	case 1:
 		// Only one manifest is available AND matching the requested platform.
 
 		if platform != nil {
 			// Explicit platform was requested
-			return presentMatchingManifests[0].Target(), nil
+			return presentMatchingManifests[0].Target(), nil, nil
 		}
 
 		// No specific platform was requested, but only one manifest is available.
 		if anyMissing {
-			return presentMatchingManifests[0].Target(), nil
+			return presentMatchingManifests[0].Target(), &multiplePushCandidatesInfo{
+				candidateSummaries: manifestPushCandidates,
+				totalSize:          totalSize,
+				selectedManifest:   presentMatchingManifests[0],
+			}, nil
 		}
 
 		// Index has only one manifest anyway, select the full index.
-		return img.Target, nil
+		return img.Target, nil, nil
 	default:
 		if platform == nil {
 			if !anyMissing {
 				// No specific platform requested, and all manifests are available, select the full index.
-				return img.Target, nil
+				return img.Target, nil, nil
 			}
 
 			// No specific platform requested and not all manifests are available.
 			// Select the manifest that matches the host platform the best.
 			if bestMatch != nil && i.hostPlatformMatcher().Match(bestMatchPlatform) {
-				return bestMatch.Target(), nil
+				return bestMatch.Target(), &multiplePushCandidatesInfo{
+					candidateSummaries: manifestPushCandidates,
+					totalSize:          totalSize,
+					selectedManifest:   bestMatch,
+				}, nil
 			}
 
-			return ocispec.Descriptor{}, errdefs.Conflict(errors.Errorf("multiple matching manifests found but no specific platform requested"))
+			return ocispec.Descriptor{}, nil, errdefs.Conflict(errors.Errorf("multiple matching manifests found but no specific platform requested"))
 		}
 
-		return ocispec.Descriptor{}, errdefs.Conflict(errors.Errorf("multiple manifests found for platform %s", platforms.FormatAll(*platform)))
+		return ocispec.Descriptor{}, nil, errdefs.Conflict(errors.Errorf("multiple manifests found for platform %s", platforms.FormatAll(*platform)))
 	}
 }
 

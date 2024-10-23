@@ -1,6 +1,7 @@
 package auxprogress
 
 import (
+	"github.com/docker/docker/api/types/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -12,6 +13,8 @@ type ManifestPushedInsteadOfIndex struct {
 
 	// OriginalIndex is the descriptor of the original image index.
 	OriginalIndex ocispec.Descriptor `json:"originalIndex"`
+
+	ImageSummary *image.Summary
 
 	// SelectedManifest is the descriptor of the manifest that was pushed instead.
 	SelectedManifest ocispec.Descriptor `json:"selectedManifest"`
