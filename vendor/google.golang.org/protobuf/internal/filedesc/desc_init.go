@@ -534,7 +534,7 @@ func (sd *Service) unmarshalSeed(b []byte, sb *strs.Builder, pf *File, pd protor
 }
 
 var nameBuilderPool = sync.Pool{
-	New: func() interface{} { return new(strs.Builder) },
+	New: func() any { return new(strs.Builder) },
 }
 
 func getBuilder() *strs.Builder {

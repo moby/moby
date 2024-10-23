@@ -485,6 +485,8 @@ func (p *SourcePath) appendEnumValueOptions(b []byte) []byte {
 		b = p.appendSingularField(b, "features", (*SourcePath).appendFeatureSet)
 	case 3:
 		b = p.appendSingularField(b, "debug_redact", nil)
+	case 4:
+		b = p.appendSingularField(b, "feature_support", (*SourcePath).appendFieldOptions_FeatureSupport)
 	case 999:
 		b = p.appendRepeatedField(b, "uninterpreted_option", (*SourcePath).appendUninterpretedOption)
 	}

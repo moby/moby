@@ -383,6 +383,10 @@ func (fd *Field) Message() protoreflect.MessageDescriptor {
 	}
 	return fd.L1.Message
 }
+func (fd *Field) IsMapEntry() bool {
+	parent, ok := fd.L0.Parent.(protoreflect.MessageDescriptor)
+	return ok && parent.IsMapEntry()
+}
 func (fd *Field) Format(s fmt.State, r rune)             { descfmt.FormatDesc(s, r, fd) }
 func (fd *Field) ProtoType(protoreflect.FieldDescriptor) {}
 
