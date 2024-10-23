@@ -208,10 +208,6 @@ func (conf *Config) ValidatePlatformConfig() error {
 		return errors.Wrap(err, "invalid fixed-cidr-v6")
 	}
 
-	if _, ok := conf.Features["windows-dns-proxy"]; ok {
-		return errors.New("feature option 'windows-dns-proxy' is only available on Windows")
-	}
-
 	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
 }
 
