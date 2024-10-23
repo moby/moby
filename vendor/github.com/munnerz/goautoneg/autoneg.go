@@ -1,28 +1,28 @@
 /*
-Copyright (c) 2011, Open Knowledge Foundation Ltd.
-All rights reserved.
-
 HTTP Content-Type Autonegotiation.
 
 The functions in this package implement the behaviour specified in
 http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
 
+Copyright (c) 2011, Open Knowledge Foundation Ltd.
+All rights reserved.
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
 
-	Redistributions of source code must retain the above copyright
-	notice, this list of conditions and the following disclaimer.
+    Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
 
-	Redistributions in binary form must reproduce the above copyright
-	notice, this list of conditions and the following disclaimer in
-	the documentation and/or other materials provided with the
-	distribution.
+    Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in
+    the documentation and/or other materials provided with the
+    distribution.
 
-	Neither the name of the Open Knowledge Foundation Ltd. nor the
-	names of its contributors may be used to endorse or promote
-	products derived from this software without specific prior written
-	permission.
+    Neither the name of the Open Knowledge Foundation Ltd. nor the
+    names of its contributors may be used to endorse or promote
+    products derived from this software without specific prior written
+    permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -36,6 +36,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
 package goautoneg
 
 import (
@@ -51,16 +52,14 @@ type Accept struct {
 	Params        map[string]string
 }
 
-// For internal use, so that we can use the sort interface
-type accept_slice []Accept
+// acceptSlice is defined to implement sort interface.
+type acceptSlice []Accept
 
-func (accept accept_slice) Len() int {
-	slice := []Accept(accept)
+func (slice acceptSlice) Len() int {
 	return len(slice)
 }
 
-func (accept accept_slice) Less(i, j int) bool {
-	slice := []Accept(accept)
+func (slice acceptSlice) Less(i, j int) bool {
 	ai, aj := slice[i], slice[j]
 	if ai.Q > aj.Q {
 		return true
@@ -74,63 +73,93 @@ func (accept accept_slice) Less(i, j int) bool {
 	return false
 }
 
-func (accept accept_slice) Swap(i, j int) {
-	slice := []Accept(accept)
+func (slice acceptSlice) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
+}
+
+func stringTrimSpaceCutset(r rune) bool {
+	return r == ' '
+}
+
+func nextSplitElement(s, sep string) (item string, remaining string) {
+	if index := strings.Index(s, sep); index != -1 {
+		return s[:index], s[index+1:]
+	}
+	return s, ""
 }
 
 // Parse an Accept Header string returning a sorted list
 // of clauses
-func ParseAccept(header string) (accept []Accept) {
-	parts := strings.Split(header, ",")
-	accept = make([]Accept, 0, len(parts))
-	for _, part := range parts {
-		part := strings.Trim(part, " ")
+func ParseAccept(header string) acceptSlice {
+	partsCount := 0
+	remaining := header
+	for len(remaining) > 0 {
+		partsCount++
+		_, remaining = nextSplitElement(remaining, ",")
+	}
+	accept := make(acceptSlice, 0, partsCount)
 
-		a := Accept{}
-		a.Params = make(map[string]string)
-		a.Q = 1.0
+	remaining = header
+	var part string
+	for len(remaining) > 0 {
+		part, remaining = nextSplitElement(remaining, ",")
+		part = strings.TrimFunc(part, stringTrimSpaceCutset)
 
-		mrp := strings.Split(part, ";")
-
-		media_range := mrp[0]
-		sp := strings.Split(media_range, "/")
-		a.Type = strings.Trim(sp[0], " ")
-
-		switch {
-		case len(sp) == 1 && a.Type == "*":
-			a.SubType = "*"
-		case len(sp) == 2:
-			a.SubType = strings.Trim(sp[1], " ")
-		default:
-			continue
+		a := Accept{
+			Q: 1.0,
 		}
 
-		if len(mrp) == 1 {
+		sp, remainingPart := nextSplitElement(part, ";")
+
+		sp0, spRemaining := nextSplitElement(sp, "/")
+		a.Type = strings.TrimFunc(sp0, stringTrimSpaceCutset)
+
+		switch {
+		case len(spRemaining) == 0:
+			if a.Type == "*" {
+				a.SubType = "*"
+			} else {
+				continue
+			}
+		default:
+			var sp1 string
+			sp1, spRemaining = nextSplitElement(spRemaining, "/")
+			if len(spRemaining) > 0 {
+				continue
+			}
+			a.SubType = strings.TrimFunc(sp1, stringTrimSpaceCutset)
+		}
+
+		if len(remainingPart) == 0 {
 			accept = append(accept, a)
 			continue
 		}
 
-		for _, param := range mrp[1:] {
-			sp := strings.SplitN(param, "=", 2)
-			if len(sp) != 2 {
+		a.Params = make(map[string]string)
+		for len(remainingPart) > 0 {
+			sp, remainingPart = nextSplitElement(remainingPart, ";")
+			sp0, spRemaining = nextSplitElement(sp, "=")
+			if len(spRemaining) == 0 {
 				continue
 			}
-			token := strings.Trim(sp[0], " ")
+			var sp1 string
+			sp1, spRemaining = nextSplitElement(spRemaining, "=")
+			if len(spRemaining) != 0 {
+				continue
+			}
+			token := strings.TrimFunc(sp0, stringTrimSpaceCutset)
 			if token == "q" {
-				a.Q, _ = strconv.ParseFloat(sp[1], 32)
+				a.Q, _ = strconv.ParseFloat(sp1, 32)
 			} else {
-				a.Params[token] = strings.Trim(sp[1], " ")
+				a.Params[token] = strings.TrimFunc(sp1, stringTrimSpaceCutset)
 			}
 		}
 
 		accept = append(accept, a)
 	}
 
-	slice := accept_slice(accept)
-	sort.Sort(slice)
-
-	return
+	sort.Sort(accept)
+	return accept
 }
 
 // Negotiate the most appropriate content_type given the accept header
