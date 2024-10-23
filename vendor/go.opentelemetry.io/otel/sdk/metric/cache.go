@@ -1,16 +1,5 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package metric // import "go.opentelemetry.io/otel/sdk/metric"
 
@@ -51,4 +40,44 @@ func (c *cache[K, V]) Lookup(key K, f func() V) V {
 	val := f()
 	c.data[key] = val
 	return val
+}
+
+// HasKey returns true if Lookup has previously been called with that key
+//
+// HasKey is safe to call concurrently.
+func (c *cache[K, V]) HasKey(key K) bool {
+	c.Lock()
+	defer c.Unlock()
+	_, ok := c.data[key]
+	return ok
+}
+
+// cacheWithErr is a locking storage used to quickly return already computed values and an error.
+//
+// The zero value of a cacheWithErr is empty and ready to use.
+//
+// A cacheWithErr must not be copied after first use.
+//
+// All methods of a cacheWithErr are safe to call concurrently.
+type cacheWithErr[K comparable, V any] struct {
+	cache[K, valAndErr[V]]
+}
+
+type valAndErr[V any] struct {
+	val V
+	err error
+}
+
+// Lookup returns the value stored in the cacheWithErr with the associated key
+// if it exists. Otherwise, f is called and its returned value is set in the
+// cacheWithErr for key and returned.
+//
+// Lookup is safe to call concurrently. It will hold the cacheWithErr lock, so f
+// should not block excessively.
+func (c *cacheWithErr[K, V]) Lookup(key K, f func() (V, error)) (V, error) {
+	combined := c.cache.Lookup(key, func() valAndErr[V] {
+		val, err := f()
+		return valAndErr[V]{val: val, err: err}
+	})
+	return combined.val, combined.err
 }

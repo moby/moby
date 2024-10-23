@@ -1,16 +1,5 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 //go:generate stringer -type=InstrumentKind -trimprefix=InstrumentKind
 
@@ -29,10 +18,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/internal/aggregate"
 )
 
-var (
-	zeroInstrumentKind InstrumentKind
-	zeroScope          instrumentation.Scope
-)
+var zeroScope instrumentation.Scope
 
 // InstrumentKind is the identifier of a group of instruments that all
 // performing the same function.
@@ -41,28 +27,32 @@ type InstrumentKind uint8
 const (
 	// instrumentKindUndefined is an undefined instrument kind, it should not
 	// be used by any initialized type.
-	instrumentKindUndefined InstrumentKind = iota // nolint:deadcode,varcheck,unused
+	instrumentKindUndefined InstrumentKind = 0 // nolint:deadcode,varcheck,unused
 	// InstrumentKindCounter identifies a group of instruments that record
 	// increasing values synchronously with the code path they are measuring.
-	InstrumentKindCounter
+	InstrumentKindCounter InstrumentKind = 1
 	// InstrumentKindUpDownCounter identifies a group of instruments that
 	// record increasing and decreasing values synchronously with the code path
 	// they are measuring.
-	InstrumentKindUpDownCounter
+	InstrumentKindUpDownCounter InstrumentKind = 2
 	// InstrumentKindHistogram identifies a group of instruments that record a
 	// distribution of values synchronously with the code path they are
 	// measuring.
-	InstrumentKindHistogram
+	InstrumentKindHistogram InstrumentKind = 3
 	// InstrumentKindObservableCounter identifies a group of instruments that
 	// record increasing values in an asynchronous callback.
-	InstrumentKindObservableCounter
+	InstrumentKindObservableCounter InstrumentKind = 4
 	// InstrumentKindObservableUpDownCounter identifies a group of instruments
 	// that record increasing and decreasing values in an asynchronous
 	// callback.
-	InstrumentKindObservableUpDownCounter
+	InstrumentKindObservableUpDownCounter InstrumentKind = 5
 	// InstrumentKindObservableGauge identifies a group of instruments that
 	// record current values in an asynchronous callback.
-	InstrumentKindObservableGauge
+	InstrumentKindObservableGauge InstrumentKind = 6
+	// InstrumentKindGauge identifies a group of instruments that record
+	// instantaneous values synchronously with the code path they are
+	// measuring.
+	InstrumentKindGauge InstrumentKind = 7
 )
 
 type nonComparable [0]func() // nolint: unused  // This is indeed used.
@@ -84,11 +74,11 @@ type Instrument struct {
 	nonComparable // nolint: unused
 }
 
-// empty returns if all fields of i are their zero-value.
-func (i Instrument) empty() bool {
+// IsEmpty returns if all Instrument fields are their zero-value.
+func (i Instrument) IsEmpty() bool {
 	return i.Name == "" &&
 		i.Description == "" &&
-		i.Kind == zeroInstrumentKind &&
+		i.Kind == instrumentKindUndefined &&
 		i.Unit == "" &&
 		i.Scope == zeroScope
 }
@@ -119,7 +109,7 @@ func (i Instrument) matchesDescription(other Instrument) bool {
 // matchesKind returns true if the Kind of i is its zero-value or it equals the
 // Kind of other, otherwise false.
 func (i Instrument) matchesKind(other Instrument) bool {
-	return i.Kind == zeroInstrumentKind || i.Kind == other.Kind
+	return i.Kind == instrumentKindUndefined || i.Kind == other.Kind
 }
 
 // matchesUnit returns true if the Unit of i is its zero-value or it equals the
@@ -186,12 +176,14 @@ type int64Inst struct {
 	embedded.Int64Counter
 	embedded.Int64UpDownCounter
 	embedded.Int64Histogram
+	embedded.Int64Gauge
 }
 
 var (
 	_ metric.Int64Counter       = (*int64Inst)(nil)
 	_ metric.Int64UpDownCounter = (*int64Inst)(nil)
 	_ metric.Int64Histogram     = (*int64Inst)(nil)
+	_ metric.Int64Gauge         = (*int64Inst)(nil)
 )
 
 func (i *int64Inst) Add(ctx context.Context, val int64, opts ...metric.AddOption) {
@@ -205,9 +197,6 @@ func (i *int64Inst) Record(ctx context.Context, val int64, opts ...metric.Record
 }
 
 func (i *int64Inst) aggregate(ctx context.Context, val int64, s attribute.Set) { // nolint:revive  // okay to shadow pkg with method.
-	if err := ctx.Err(); err != nil {
-		return
-	}
 	for _, in := range i.measures {
 		in(ctx, val, s)
 	}
@@ -219,12 +208,14 @@ type float64Inst struct {
 	embedded.Float64Counter
 	embedded.Float64UpDownCounter
 	embedded.Float64Histogram
+	embedded.Float64Gauge
 }
 
 var (
 	_ metric.Float64Counter       = (*float64Inst)(nil)
 	_ metric.Float64UpDownCounter = (*float64Inst)(nil)
 	_ metric.Float64Histogram     = (*float64Inst)(nil)
+	_ metric.Float64Gauge         = (*float64Inst)(nil)
 )
 
 func (i *float64Inst) Add(ctx context.Context, val float64, opts ...metric.AddOption) {
@@ -238,9 +229,6 @@ func (i *float64Inst) Record(ctx context.Context, val float64, opts ...metric.Re
 }
 
 func (i *float64Inst) aggregate(ctx context.Context, val float64, s attribute.Set) {
-	if err := ctx.Err(); err != nil {
-		return
-	}
 	for _, in := range i.measures {
 		in(ctx, val, s)
 	}
@@ -270,9 +258,9 @@ var (
 	_ metric.Float64ObservableGauge         = float64Observable{}
 )
 
-func newFloat64Observable(m *meter, kind InstrumentKind, name, desc, u string, meas []aggregate.Measure[float64]) float64Observable {
+func newFloat64Observable(m *meter, kind InstrumentKind, name, desc, u string) float64Observable {
 	return float64Observable{
-		observable: newObservable(m, kind, name, desc, u, meas),
+		observable: newObservable[float64](m, kind, name, desc, u),
 	}
 }
 
@@ -291,9 +279,9 @@ var (
 	_ metric.Int64ObservableGauge         = int64Observable{}
 )
 
-func newInt64Observable(m *meter, kind InstrumentKind, name, desc, u string, meas []aggregate.Measure[int64]) int64Observable {
+func newInt64Observable(m *meter, kind InstrumentKind, name, desc, u string) int64Observable {
 	return int64Observable{
-		observable: newObservable(m, kind, name, desc, u, meas),
+		observable: newObservable[int64](m, kind, name, desc, u),
 	}
 }
 
@@ -301,11 +289,12 @@ type observable[N int64 | float64] struct {
 	metric.Observable
 	observablID[N]
 
-	meter    *meter
-	measures []aggregate.Measure[N]
+	meter           *meter
+	measures        measures[N]
+	dropAggregation bool
 }
 
-func newObservable[N int64 | float64](m *meter, kind InstrumentKind, name, desc, u string, meas []aggregate.Measure[N]) *observable[N] {
+func newObservable[N int64 | float64](m *meter, kind InstrumentKind, name, desc, u string) *observable[N] {
 	return &observable[N]{
 		observablID: observablID[N]{
 			name:        name,
@@ -314,14 +303,24 @@ func newObservable[N int64 | float64](m *meter, kind InstrumentKind, name, desc,
 			unit:        u,
 			scope:       m.scope,
 		},
-		meter:    m,
-		measures: meas,
+		meter: m,
 	}
 }
 
 // observe records the val for the set of attrs.
 func (o *observable[N]) observe(val N, s attribute.Set) {
-	for _, in := range o.measures {
+	o.measures.observe(val, s)
+}
+
+func (o *observable[N]) appendMeasures(meas []aggregate.Measure[N]) {
+	o.measures = append(o.measures, meas...)
+}
+
+type measures[N int64 | float64] []aggregate.Measure[N]
+
+// observe records the val for the set of attrs.
+func (m measures[N]) observe(val N, s attribute.Set) {
+	for _, in := range m {
 		in(context.Background(), val, s)
 	}
 }

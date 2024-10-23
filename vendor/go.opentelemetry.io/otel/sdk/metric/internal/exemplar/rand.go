@@ -1,0 +1,191 @@
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
+package exemplar // import "go.opentelemetry.io/otel/sdk/metric/internal/exemplar"
+
+import (
+	"context"
+	"math"
+	"math/rand"
+	"sync"
+	"time"
+
+	"go.opentelemetry.io/otel/attribute"
+)
+
+var (
+	// rng is used to make sampling decisions.
+	//
+	// Do not use crypto/rand. There is no reason for the decrease in performance
+	// given this is not a security sensitive decision.
+	rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+	// Ensure concurrent safe accecess to rng and its underlying source.
+	rngMu sync.Mutex
+)
+
+// random returns, as a float64, a uniform pseudo-random number in the open
+// interval (0.0,1.0).
+func random() float64 {
+	// TODO: This does not return a uniform number. rng.Float64 returns a
+	// uniformly random int in [0,2^53) that is divided by 2^53. Meaning it
+	// returns multiples of 2^-53, and not all floating point numbers between 0
+	// and 1 (i.e. for values less than 2^-4 the 4 last bits of the significand
+	// are always going to be 0).
+	//
+	// An alternative algorithm should be considered that will actually return
+	// a uniform number in the interval (0,1). For example, since the default
+	// rand source provides a uniform distribution for Int63, this can be
+	// converted following the prototypical code of Mersenne Twister 64 (Takuji
+	// Nishimura and Makoto Matsumoto:
+	// http://www.math.sci.hiroshima-u.ac.jp/m-mat/MT/VERSIONS/C-LANG/mt19937-64.c)
+	//
+	//   (float64(rng.Int63()>>11) + 0.5) * (1.0 / 4503599627370496.0)
+	//
+	// There are likely many other methods to explore here as well.
+
+	rngMu.Lock()
+	defer rngMu.Unlock()
+
+	f := rng.Float64()
+	for f == 0 {
+		f = rng.Float64()
+	}
+	return f
+}
+
+// FixedSize returns a [Reservoir] that samples at most k exemplars. If there
+// are k or less measurements made, the Reservoir will sample each one. If
+// there are more than k, the Reservoir will then randomly sample all
+// additional measurement with a decreasing probability.
+func FixedSize(k int) Reservoir {
+	r := &randRes{storage: newStorage(k)}
+	r.reset()
+	return r
+}
+
+type randRes struct {
+	*storage
+
+	// count is the number of measurement seen.
+	count int64
+	// next is the next count that will store a measurement at a random index
+	// once the reservoir has been filled.
+	next int64
+	// w is the largest random number in a distribution that is used to compute
+	// the next next.
+	w float64
+}
+
+func (r *randRes) Offer(ctx context.Context, t time.Time, n Value, a []attribute.KeyValue) {
+	// The following algorithm is "Algorithm L" from Li, Kim-Hung (4 December
+	// 1994). "Reservoir-Sampling Algorithms of Time Complexity
+	// O(n(1+log(N/n)))". ACM Transactions on Mathematical Software. 20 (4):
+	// 481–493 (https://dl.acm.org/doi/10.1145/198429.198435).
+	//
+	// A high-level overview of "Algorithm L":
+	//   0) Pre-calculate the random count greater than the storage size when
+	//      an exemplar will be replaced.
+	//   1) Accept all measurements offered until the configured storage size is
+	//      reached.
+	//   2) Loop:
+	//      a) When the pre-calculate count is reached, replace a random
+	//         existing exemplar with the offered measurement.
+	//      b) Calculate the next random count greater than the existing one
+	//         which will replace another exemplars
+	//
+	// The way a "replacement" count is computed is by looking at `n` number of
+	// independent random numbers each corresponding to an offered measurement.
+	// Of these numbers the smallest `k` (the same size as the storage
+	// capacity) of them are kept as a subset. The maximum value in this
+	// subset, called `w` is used to weight another random number generation
+	// for the next count that will be considered.
+	//
+	// By weighting the next count computation like described, it is able to
+	// perform a uniformly-weighted sampling algorithm based on the number of
+	// samples the reservoir has seen so far. The sampling will "slow down" as
+	// more and more samples are offered so as to reduce a bias towards those
+	// offered just prior to the end of the collection.
+	//
+	// This algorithm is preferred because of its balance of simplicity and
+	// performance. It will compute three random numbers (the bulk of
+	// computation time) for each item that becomes part of the reservoir, but
+	// it does not spend any time on items that do not. In particular it has an
+	// asymptotic runtime of O(k(1 + log(n/k)) where n is the number of
+	// measurements offered and k is the reservoir size.
+	//
+	// See https://en.wikipedia.org/wiki/Reservoir_sampling for an overview of
+	// this and other reservoir sampling algorithms. See
+	// https://github.com/MrAlias/reservoir-sampling for a performance
+	// comparison of reservoir sampling algorithms.
+
+	if int(r.count) < cap(r.store) {
+		r.store[r.count] = newMeasurement(ctx, t, n, a)
+	} else {
+		if r.count == r.next {
+			// Overwrite a random existing measurement with the one offered.
+			idx := int(rng.Int63n(int64(cap(r.store))))
+			r.store[idx] = newMeasurement(ctx, t, n, a)
+			r.advance()
+		}
+	}
+	r.count++
+}
+
+// reset resets r to the initial state.
+func (r *randRes) reset() {
+	// This resets the number of exemplars known.
+	r.count = 0
+	// Random index inserts should only happen after the storage is full.
+	r.next = int64(cap(r.store))
+
+	// Initial random number in the series used to generate r.next.
+	//
+	// This is set before r.advance to reset or initialize the random number
+	// series. Without doing so it would always be 0 or never restart a new
+	// random number series.
+	//
+	// This maps the uniform random number in (0,1) to a geometric distribution
+	// over the same interval. The mean of the distribution is inversely
+	// proportional to the storage capacity.
+	r.w = math.Exp(math.Log(random()) / float64(cap(r.store)))
+
+	r.advance()
+}
+
+// advance updates the count at which the offered measurement will overwrite an
+// existing exemplar.
+func (r *randRes) advance() {
+	// Calculate the next value in the random number series.
+	//
+	// The current value of r.w is based on the max of a distribution of random
+	// numbers (i.e. `w = max(u_1,u_2,...,u_k)` for `k` equal to the capacity
+	// of the storage and each `u` in the interval (0,w)). To calculate the
+	// next r.w we use the fact that when the next exemplar is selected to be
+	// included in the storage an existing one will be dropped, and the
+	// corresponding random number in the set used to calculate r.w will also
+	// be replaced. The replacement random number will also be within (0,w),
+	// therefore the next r.w will be based on the same distribution (i.e.
+	// `max(u_1,u_2,...,u_k)`). Therefore, we can sample the next r.w by
+	// computing the next random number `u` and take r.w as `w * u^(1/k)`.
+	r.w *= math.Exp(math.Log(random()) / float64(cap(r.store)))
+	// Use the new random number in the series to calculate the count of the
+	// next measurement that will be stored.
+	//
+	// Given 0 < r.w < 1, each iteration will result in subsequent r.w being
+	// smaller. This translates here into the next next being selected against
+	// a distribution with a higher mean (i.e. the expected value will increase
+	// and replacements become less likely)
+	//
+	// Important to note, the new r.next will always be at least 1 more than
+	// the last r.next.
+	r.next += int64(math.Log(random())/math.Log(1-r.w)) + 1
+}
+
+func (r *randRes) Collect(dest *[]Exemplar) {
+	r.storage.Collect(dest)
+	// Call reset here even though it will reset r.count and restart the random
+	// number series. This will persist any old exemplars as long as no new
+	// measurements are offered, but it will also prioritize those new
+	// measurements that are made over the older collection cycle ones.
+	r.reset()
+}
