@@ -1,20 +1,10 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package metricdata // import "go.opentelemetry.io/otel/sdk/metric/metricdata"
 
 import (
+	"encoding/json"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -209,6 +199,19 @@ type ExponentialBucket struct {
 type Extrema[N int64 | float64] struct {
 	value N
 	valid bool
+}
+
+// MarshalText converts the Extrema value to text.
+func (e Extrema[N]) MarshalText() ([]byte, error) {
+	if !e.valid {
+		return json.Marshal(nil)
+	}
+	return json.Marshal(e.value)
+}
+
+// MarshalJSON converts the Extrema value to JSON number.
+func (e *Extrema[N]) MarshalJSON() ([]byte, error) {
+	return e.MarshalText()
 }
 
 // NewExtrema returns an Extrema set to v.
