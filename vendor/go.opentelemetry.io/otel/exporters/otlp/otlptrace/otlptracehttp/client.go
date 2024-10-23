@@ -1,16 +1,5 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package otlptracehttp // import "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 
@@ -85,10 +74,17 @@ func NewClient(opts ...Option) otlptrace.Client {
 		Transport: ourTransport,
 		Timeout:   cfg.Traces.Timeout,
 	}
-	if cfg.Traces.TLSCfg != nil {
-		transport := ourTransport.Clone()
-		transport.TLSClientConfig = cfg.Traces.TLSCfg
-		httpClient.Transport = transport
+
+	if cfg.Traces.TLSCfg != nil || cfg.Traces.Proxy != nil {
+		clonedTransport := ourTransport.Clone()
+		httpClient.Transport = clonedTransport
+
+		if cfg.Traces.TLSCfg != nil {
+			clonedTransport.TLSClientConfig = cfg.Traces.TLSCfg
+		}
+		if cfg.Traces.Proxy != nil {
+			clonedTransport.Proxy = cfg.Traces.Proxy
+		}
 	}
 
 	stopCh := make(chan struct{})
@@ -247,7 +243,7 @@ func (d *client) newRequest(body []byte) (request, error) {
 		if _, err := gz.Write(body); err != nil {
 			return req, err
 		}
-		// Close needs to be called to ensure body if fully written.
+		// Close needs to be called to ensure body is fully written.
 		if err := gz.Close(); err != nil {
 			return req, err
 		}
@@ -320,7 +316,10 @@ func evaluate(err error) (bool, time.Duration) {
 		return false, 0
 	}
 
-	rErr, ok := err.(retryableError)
+	// Do not use errors.As here, this should only be flattened one layer. If
+	// there are several chained errors, all the errors above it will be
+	// discarded if errors.As is used instead.
+	rErr, ok := err.(retryableError) //nolint:errorlint
 	if !ok {
 		return false, 0
 	}

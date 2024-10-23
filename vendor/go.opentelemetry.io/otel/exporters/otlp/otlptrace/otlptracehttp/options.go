@@ -1,21 +1,12 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package otlptracehttp // import "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 
 import (
 	"crypto/tls"
+	"net/http"
+	"net/url"
 	"time"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp/internal/otlpconfig"
@@ -25,6 +16,11 @@ import (
 // Compression describes the compression used for payloads sent to the
 // collector.
 type Compression otlpconfig.Compression
+
+// HTTPTransportProxyFunc is a function that resolves which URL to use as proxy for a given request.
+// This type is compatible with http.Transport.Proxy and can be used to set a custom proxy function
+// to the OTLP HTTP client.
+type HTTPTransportProxyFunc func(*http.Request) (*url.URL, error)
 
 const (
 	// NoCompression tells the driver to send payloads without
@@ -60,13 +56,46 @@ func (w wrappedOption) applyHTTPOption(cfg otlpconfig.Config) otlpconfig.Config 
 	return w.ApplyHTTPOption(cfg)
 }
 
-// WithEndpoint allows one to set the address of the collector
-// endpoint that the driver will use to send spans. If
-// unset, it will instead try to use
-// the default endpoint (localhost:4318). Note that the endpoint
-// must not contain any URL path.
+// WithEndpoint sets the target endpoint (host and port) the Exporter will
+// connect to. The provided endpoint should resemble "example.com:4318" (no
+// scheme or path).
+//
+// If the OTEL_EXPORTER_OTLP_ENDPOINT or OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+// environment variable is set, and this option is not passed, that variable
+// value will be used. If both are set, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+// will take precedence. Note, both environment variables include the full
+// scheme and path, while WithEndpoint sets only the host and port.
+//
+// If both this option and WithEndpointURL are used, the last used option will
+// take precedence.
+//
+// By default, if an environment variable is not set, and this option is not
+// passed, "localhost:4318" will be used.
+//
+// This option has no effect if WithGRPCConn is used.
 func WithEndpoint(endpoint string) Option {
 	return wrappedOption{otlpconfig.WithEndpoint(endpoint)}
+}
+
+// WithEndpointURL sets the target endpoint URL (scheme, host, port, path) the
+// Exporter will connect to.
+//
+// If the OTEL_EXPORTER_OTLP_ENDPOINT or OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+// environment variable is set, and this option is not passed, that variable
+// value will be used. If both are set, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+// will take precedence.
+//
+// If both this option and WithEndpoint are used, the last used option will
+// take precedence.
+//
+// If an invalid URL is provided, the default value will be kept.
+//
+// By default, if an environment variable is not set, and this option is not
+// passed, "localhost:4318" will be used.
+//
+// This option has no effect if WithGRPCConn is used.
+func WithEndpointURL(u string) Option {
+	return wrappedOption{otlpconfig.WithEndpointURL(u)}
 }
 
 // WithCompression tells the driver to compress the sent data.
@@ -113,4 +142,11 @@ func WithTimeout(duration time.Duration) Option {
 // error for a total of 1 minute.
 func WithRetry(rc RetryConfig) Option {
 	return wrappedOption{otlpconfig.WithRetry(retry.Config(rc))}
+}
+
+// WithProxy sets the Proxy function the client will use to determine the
+// proxy to use for an HTTP request. If this option is not used, the client
+// will use [http.ProxyFromEnvironment].
+func WithProxy(pf HTTPTransportProxyFunc) Option {
+	return wrappedOption{otlpconfig.WithProxy(otlpconfig.HTTPTransportProxyFunc(pf))}
 }

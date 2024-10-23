@@ -1,16 +1,5 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package otlpmetricgrpc // import "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 
@@ -47,7 +36,7 @@ type client struct {
 }
 
 // newClient creates a new gRPC metric client.
-func newClient(ctx context.Context, cfg oconf.Config) (*client, error) {
+func newClient(_ context.Context, cfg oconf.Config) (*client, error) {
 	c := &client{
 		exportTimeout: cfg.Metrics.Timeout,
 		requestFunc:   cfg.RetryConfig.RequestFunc(retryable),
@@ -65,7 +54,7 @@ func newClient(ctx context.Context, cfg oconf.Config) (*client, error) {
 		dialOpts := []grpc.DialOption{grpc.WithUserAgent(userAgent)}
 		dialOpts = append(dialOpts, cfg.DialOptions...)
 
-		conn, err := grpc.DialContext(ctx, cfg.Metrics.Endpoint, dialOpts...)
+		conn, err := grpc.NewClient(cfg.Metrics.Endpoint, dialOpts...)
 		if err != nil {
 			return nil, err
 		}

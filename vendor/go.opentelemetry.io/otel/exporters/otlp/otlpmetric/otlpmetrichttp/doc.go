@@ -1,16 +1,5 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 /*
 Package otlpmetrichttp provides an OTLP metrics exporter using HTTP with protobuf payloads.
@@ -26,18 +15,18 @@ The value must contain a scheme ("http" or "https") and host.
 The value may additionally contain a port and a path.
 The value should not contain a query string or fragment.
 The configuration can be overridden by OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
-environment variable and by [WithEndpoint], [WithInsecure] options.
+environment variable and by [WithEndpoint], [WithEndpointURL], and [WithInsecure] options.
 
 OTEL_EXPORTER_OTLP_METRICS_ENDPOINT (default: "https://localhost:4318/v1/metrics") -
 target URL to which the exporter sends telemetry.
 The value must contain a scheme ("http" or "https") and host.
 The value may additionally contain a port and a path.
 The value should not contain a query string or fragment.
-The configuration can be overridden by [WithEndpoint], [WitnInsecure], [WithURLPath] options.
+The configuration can be overridden by [WithEndpoint], [WithEndpointURL], [WitnInsecure], and [WithURLPath] options.
 
 OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_METRICS_HEADERS (default: none) -
 key-value pairs used as headers associated with HTTP requests.
-The value is expected to be represented in a format matching to the [W3C Baggage HTTP Header Content Format],
+The value is expected to be represented in a format matching the [W3C Baggage HTTP Header Content Format],
 except that additional semi-colon delimited metadata is not supported.
 Example value: "key1=value1,key2=value2".
 OTEL_EXPORTER_OTLP_METRICS_HEADERS takes precedence over OTEL_EXPORTER_OTLP_HEADERS.
@@ -60,12 +49,12 @@ OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE takes precedence over OTEL_EXPORTER_OTLP_
 The configuration can be overridden by [WithTLSClientConfig] option.
 
 OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE, OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE (default: none) -
-filepath to the client certificate/chain trust for clients private key to use in mTLS communication in PEM format.
+filepath to the client certificate/chain trust for client's private key to use in mTLS communication in PEM format.
 OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE takes precedence over OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE.
 The configuration can be overridden by [WithTLSClientConfig] option.
 
 OTEL_EXPORTER_OTLP_CLIENT_KEY, OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY (default: none) -
-filepath to the clients private key to use in mTLS communication in PEM format.
+filepath to the client's private key to use in mTLS communication in PEM format.
 OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY takes precedence over OTEL_EXPORTER_OTLP_CLIENT_KEY.
 The configuration can be overridden by [WithTLSClientConfig] option.
 
