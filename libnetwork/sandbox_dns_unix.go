@@ -28,10 +28,24 @@ const (
 	resolverIPSandbox = "127.0.0.11"
 )
 
-// finishInitDNS is to be called after the container namespace has been created,
-// before it the user process is started. The container's support for IPv6 can be
-// determined at this point.
-func (sb *Sandbox) finishInitDNS(ctx context.Context) error {
+// AddHostsEntry adds an entry to /etc/hosts.
+func (sb *Sandbox) AddHostsEntry(ctx context.Context, name, ip string) error {
+	sb.config.extraHosts = append(sb.config.extraHosts, extraHost{name: name, IP: ip})
+	return sb.rebuildHostsFile(ctx)
+}
+
+// UpdateHostsEntry updates the IP address in a /etc/hosts entry where the
+// name matches the regular expression regexp.
+func (sb *Sandbox) UpdateHostsEntry(regexp, ip string) error {
+	return etchosts.Update(sb.config.hostsPath, ip, regexp)
+}
+
+// rebuildHostsFile builds the container's /etc/hosts file, based on the current
+// state of the Sandbox (including extra hosts). If called after the container
+// namespace has been created, before the user process is started, the container's
+// support for IPv6 can be determined and IPv6 hosts will be included/excluded
+// accordingly.
+func (sb *Sandbox) rebuildHostsFile(ctx context.Context) error {
 	if err := sb.buildHostsFile(); err != nil {
 		return errdefs.System(err)
 	}
@@ -127,14 +141,14 @@ func (sb *Sandbox) buildHostsFile() error {
 
 	// Assume IPv6 support, unless it's definitely disabled.
 	buildf := etchosts.Build
-	if en, ok := sb.ipv6Enabled(); ok && !en {
+	if en, ok := sb.IPv6Enabled(); ok && !en {
 		buildf = etchosts.BuildNoIPv6
 	}
 	if err := buildf(sb.config.hostsPath, extraContent); err != nil {
 		return err
 	}
 
-	return sb.updateParentHosts()
+	return nil
 }
 
 func (sb *Sandbox) updateHostsFile(ctx context.Context, ifaceIPs []string) error {
@@ -172,7 +186,7 @@ func (sb *Sandbox) updateHostsFile(ctx context.Context, ifaceIPs []string) error
 
 func (sb *Sandbox) addHostsEntries(recs []etchosts.Record) {
 	// Assume IPv6 support, unless it's definitely disabled.
-	if en, ok := sb.ipv6Enabled(); ok && !en {
+	if en, ok := sb.IPv6Enabled(); ok && !en {
 		var filtered []etchosts.Record
 		for _, rec := range recs {
 			if addr, err := netip.ParseAddr(rec.IP); err == nil && !addr.Is6() {
@@ -190,35 +204,6 @@ func (sb *Sandbox) deleteHostsEntries(recs []etchosts.Record) {
 	if err := etchosts.Delete(sb.config.hostsPath, recs); err != nil {
 		log.G(context.TODO()).Warnf("Failed deleting service host entries to the running container: %v", err)
 	}
-}
-
-func (sb *Sandbox) updateParentHosts() error {
-	var pSb *Sandbox
-
-	for _, update := range sb.config.parentUpdates {
-		// TODO(thaJeztah): was it intentional for this loop to re-use prior results of pSB? If not, we should make pSb local and always replace here.
-		if s, _ := sb.controller.GetSandbox(update.cid); s != nil {
-			pSb = s
-		}
-		if pSb == nil {
-			continue
-		}
-		// TODO(robmry) - filter out IPv6 addresses here if !sb.ipv6Enabled() but...
-		// - this is part of the implementation of '--link', which will be removed along
-		//   with the rest of legacy networking.
-		// - IPv6 addresses shouldn't be allocated if IPv6 is not available in a container,
-		//   and that change will come along later.
-		// - I think this may be dead code, it's not possible to start a parent container with
-		//   '--link child' unless the child has already started ("Error response from daemon:
-		//   Cannot link to a non running container"). So, when the child starts and this method
-		//   is called with updates for parents, the parents aren't running and GetSandbox()
-		//   returns nil.)
-		if err := etchosts.Update(pSb.config.hostsPath, update.ip, update.name); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (sb *Sandbox) restoreResolvConfPath() {
