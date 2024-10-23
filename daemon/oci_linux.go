@@ -829,15 +829,11 @@ func withCgroups(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Contain
 
 		p := cgroupsPath
 		if useSystemd {
-			initPath, err := cgroups.GetInitCgroup("cpu")
+			path, err := cgroups.GetOwnCgroup("cpu")
 			if err != nil {
 				return errors.Wrap(err, "unable to init CPU RT controller")
 			}
-			_, err = cgroups.GetOwnCgroup("cpu")
-			if err != nil {
-				return errors.Wrap(err, "unable to init CPU RT controller")
-			}
-			p = filepath.Join(initPath, s.Linux.CgroupsPath)
+			p = filepath.Join(path, s.Linux.CgroupsPath)
 		}
 
 		// Clean path to guard against things like ../../../BAD
