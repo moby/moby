@@ -68,15 +68,10 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 	return ctr, nil
 }
 
-func (daemon *Daemon) containerRoot(id string) string {
-	return filepath.Join(daemon.repository, id)
-}
-
 // Load reads the contents of a container from disk
 // This is typically done at startup.
 func (daemon *Daemon) load(id string) (*container.Container, error) {
-	ctr := daemon.newBaseContainer(id)
-
+	ctr := container.NewBaseContainer(id, filepath.Join(daemon.repository, id))
 	if err := ctr.FromDisk(); err != nil {
 		return nil, err
 	}
@@ -147,7 +142,7 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 	}
 	entrypoint, args := daemon.getEntrypointAndArgs(config.Entrypoint, config.Cmd)
 
-	base := daemon.newBaseContainer(id)
+	base := container.NewBaseContainer(id, filepath.Join(daemon.repository, id))
 	base.Created = time.Now().UTC()
 	base.Managed = managed
 	base.Path = entrypoint
@@ -180,12 +175,6 @@ func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
 		return nil, fmt.Errorf("Could not find container for entity id %s", id)
 	}
 	return e, nil
-}
-
-// newBaseContainer creates a new container with its initial
-// configuration based on the root storage from the daemon.
-func (daemon *Daemon) newBaseContainer(id string) *container.Container {
-	return container.NewBaseContainer(id, daemon.containerRoot(id))
 }
 
 func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint strslice.StrSlice, configCmd strslice.StrSlice) (string, []string) {
