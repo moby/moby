@@ -28,17 +28,6 @@ const (
 	memdbContainerIDIndex = "containerid"
 )
 
-var (
-	// ErrNameReserved is an error which is returned when a name is requested to be reserved that already is reserved
-	//
-	// Deprecated: check for [errdefs.Conflict] errors instead (using [errdefs.IsConflict].
-	ErrNameReserved = errors.New("name is reserved")
-	// ErrNameNotReserved is an error which is returned when trying to find a name that is not reserved
-	//
-	// Deprecated: check for [errdefs.NotFound] errors instead (using [errdefs.IsNotFound].
-	ErrNameNotReserved = errors.New("name is not reserved")
-)
-
 // Snapshot is a read only view for Containers. It holds all information necessary to serve container queries in a
 // versioned ACID in-memory store.
 type Snapshot struct {
@@ -199,7 +188,7 @@ func (db *ViewDB) ReserveName(name, containerID string) error {
 		}
 		if s != nil {
 			if s.(nameAssociation).containerID != containerID {
-				return errdefs.Conflict(ErrNameReserved) //nolint:staticcheck  // ignore SA1019: ErrNameReserved is deprecated.
+				return errdefs.Conflict(errors.New("name is reserved"))
 			}
 			return nil
 		}
@@ -278,7 +267,7 @@ func (v *View) GetID(name string) (string, error) {
 		return "", errdefs.System(err)
 	}
 	if s == nil {
-		return "", errdefs.NotFound(ErrNameNotReserved) //nolint:staticcheck  // ignore SA1019: ErrNameNotReserved is deprecated.
+		return "", errdefs.NotFound(errors.New("name is not reserved"))
 	}
 	return s.(nameAssociation).containerID, nil
 }
