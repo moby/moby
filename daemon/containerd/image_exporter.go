@@ -256,8 +256,6 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 	opts := []containerd.ImportOpt{
 		containerd.WithImportPlatform(pm),
 
-		containerd.WithSkipMissing(),
-
 		// Create an additional image with dangling name for imported images...
 		containerd.WithDigestRef(danglingImageName),
 		// ... but only if they don't have a name or it's invalid.
@@ -270,13 +268,51 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 		}),
 	}
 
+	if platform == nil {
+		// Allow variants to be missing if no specific platform is requested.
+		opts = append(opts, containerd.WithSkipMissing())
+	}
+
 	imgs, err := i.client.Import(ctx, decompressed, opts...)
 	if err != nil {
+		if platform != nil {
+			p := platforms.FormatAll(*platform)
+			log.G(ctx).WithFields(log.Fields{"error": err, "platform": p}).Debug("failed to import image to containerd")
+
+			// Note: ErrEmptyWalk will not be returned in most cases as
+			// index.json will contain a descriptor of the actual OCI index or
+			// Docker manifest list, so the walk is never empty.
+			// Even in case of a single-platform image, the manifest descriptor
+			// doesn't have a platform set, so it won't be filtered out by the
+			// FilterPlatform containerd handler.
+			if errors.Is(err, containerdimages.ErrEmptyWalk) {
+				return errdefs.NotFound(errors.Wrapf(err, "requested platform (%s) not found", p))
+			}
+			if cerrdefs.IsNotFound(err) {
+				return errdefs.NotFound(errors.Wrapf(err, "requested platform (%s) found, but some content is missing", p))
+			}
+		}
 		log.G(ctx).WithError(err).Debug("failed to import image to containerd")
 		return errdefs.System(err)
 	}
 
+	if platform != nil {
+		// Verify that the requested platform is available for the loaded images.
+		// While the ideal behavior here would be to verify whether the input
+		// archive actually supplied them, we're not able to determine that
+		// as the imported index is not returned by the import operation.
+		if err := i.verifyImagesProvidePlatform(ctx, imgs, *platform, pm); err != nil {
+			return err
+		}
+	}
+
 	progress := streamformatter.NewStdoutWriter(outStream)
+	// Unpack only an image of the host platform
+	unpackPm := i.hostPlatformMatcher()
+	// If a load of specific platform is requested, unpack it
+	if platform != nil {
+		unpackPm = pm
+	}
 
 	for _, img := range imgs {
 		name := img.Name
@@ -310,8 +346,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 				return nil
 			}
 
-			// Only unpack the image if it matches the host platform
-			if !i.hostPlatformMatcher().Match(imgPlat) {
+			if !unpackPm.Match(imgPlat) {
 				return nil
 			}
 
@@ -341,4 +376,58 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 	}
 
 	return nil
+}
+
+// verifyImagesProvidePlatform checks if the requested platform is loaded.
+// If the requested platform is not loaded, it returns an error.
+func (i *ImageService) verifyImagesProvidePlatform(ctx context.Context, imgs []containerdimages.Image, platform ocispec.Platform, pm platforms.Matcher) error {
+	if len(imgs) == 0 {
+		return errdefs.NotFound(fmt.Errorf("no images providing the requested platform %s found", platforms.FormatAll(platform)))
+	}
+	var incompleteImgs []string
+	for _, img := range imgs {
+		hasRequestedPlatform := false
+		err := i.walkImageManifests(ctx, img, func(platformImg *ImageManifest) error {
+			imgPlat, err := platformImg.ImagePlatform(ctx)
+			if err != nil {
+				if cerrdefs.IsNotFound(err) {
+					return nil
+				}
+				return errors.Wrapf(err, "failed to determine image platform")
+			}
+
+			if !pm.Match(imgPlat) {
+				return nil
+			}
+			available, err := platformImg.CheckContentAvailable(ctx)
+			if err != nil {
+				return errors.Wrapf(err, "failed to determine image content availability for platform %s", platforms.FormatAll(platform))
+			}
+
+			if available {
+				hasRequestedPlatform = true
+				return nil
+			}
+			return nil
+		})
+		if err != nil {
+			return errdefs.System(err)
+		}
+		if !hasRequestedPlatform {
+			incompleteImgs = append(incompleteImgs, imageFamiliarName(img))
+		}
+	}
+
+	msg := ""
+	switch len(incompleteImgs) {
+	case 0:
+		// Success - All images provide the requested platform.
+		return nil
+	case 1:
+		msg = "image %s was loaded, but doesn't provide the requested platform (%s)"
+	default:
+		msg = "images [%s] were loaded, but don't provide the requested platform (%s)"
+	}
+
+	return errdefs.NotFound(fmt.Errorf(msg, strings.Join(incompleteImgs, ", "), platforms.FormatAll(platform)))
 }
