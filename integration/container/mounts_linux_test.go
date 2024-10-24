@@ -393,6 +393,37 @@ func TestContainerVolumesMountedAsSlave(t *testing.T) {
 	}
 }
 
+// TestContainerVolumeAnonymous verifies that anonymous volumes created through
+// the Mounts API get a random name generated, and have the "AnonymousLabel"
+// (com.docker.volume.anonymous) label set.
+//
+// regression test for https://github.com/moby/moby/issues/48748
+func TestContainerVolumeAnonymous(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+
+	ctx := setupTest(t)
+
+	mntOpts := mounttypes.Mount{Type: mounttypes.TypeVolume, Target: "/foo"}
+
+	apiClient := testEnv.APIClient()
+	cID := container.Create(ctx, t, apiClient, container.WithMount(mntOpts))
+
+	inspect := container.Inspect(ctx, t, apiClient, cID)
+	assert.Assert(t, is.Len(inspect.HostConfig.Mounts, 1))
+	assert.Check(t, is.Equal(inspect.HostConfig.Mounts[0], mntOpts))
+
+	assert.Assert(t, is.Len(inspect.Mounts, 1))
+	volName := inspect.Mounts[0].Name
+	assert.Check(t, is.Len(volName, 64), "volume name should be 64 bytes (from stringid.GenerateRandomID())")
+
+	volInspect, err := apiClient.VolumeInspect(ctx, volName)
+	assert.NilError(t, err)
+
+	// see [daemon.AnonymousLabel]; we don't want to import the daemon package here.
+	const expectedAnonymousLabel = "com.docker.volume.anonymous"
+	assert.Check(t, is.Contains(volInspect.Labels, expectedAnonymousLabel))
+}
+
 // Regression test for #38995 and #43390.
 func TestContainerCopyLeaksMounts(t *testing.T) {
 	ctx := setupTest(t)
