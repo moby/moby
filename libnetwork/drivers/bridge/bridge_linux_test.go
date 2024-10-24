@@ -264,6 +264,7 @@ func TestCreateFullOptions(t *testing.T) {
 	}
 
 	netOption := make(map[string]interface{})
+	netOption[netlabel.EnableIPv4] = true
 	netOption[netlabel.EnableIPv6] = true
 	netOption[netlabel.GenericData] = &networkConfiguration{
 		BridgeName: DefaultBridgeName,
@@ -298,7 +299,7 @@ func TestCreateNoConfig(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
-	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName}
+	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName, EnableIPv4: true}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = netconfig
 
@@ -338,6 +339,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 	}
 
 	netOption := make(map[string]interface{})
+	netOption[netlabel.EnableIPv4] = true
 	netOption[netlabel.EnableIPv6] = true
 	netOption[netlabel.GenericData] = labels
 
@@ -363,6 +365,10 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 
 	if nw.config.BridgeName != DefaultBridgeName {
 		t.Fatal("incongruent name in bridge network")
+	}
+
+	if !nw.config.EnableIPv4 {
+		t.Fatal("incongruent EnableIPv4 in bridge network")
 	}
 
 	if !nw.config.EnableIPv6 {
@@ -421,7 +427,7 @@ func TestCreate(t *testing.T) {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName}
+	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName, EnableIPv4: true}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = netconfig
 
@@ -471,7 +477,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	config1 := &networkConfiguration{BridgeName: "net_test_1"}
+	config1 := &networkConfiguration{BridgeName: "net_test_1", EnableIPv4: true}
 	genericOption = make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config1
 	if err := d.CreateNetwork("1", genericOption, nil, getIPv4Data(t), nil); err != nil {
@@ -480,7 +486,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 
 	verifyV4INCEntries(d.networks, t)
 
-	config2 := &networkConfiguration{BridgeName: "net_test_2"}
+	config2 := &networkConfiguration{BridgeName: "net_test_2", EnableIPv4: true}
 	genericOption[netlabel.GenericData] = config2
 	if err := d.CreateNetwork("2", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
@@ -488,7 +494,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 
 	verifyV4INCEntries(d.networks, t)
 
-	config3 := &networkConfiguration{BridgeName: "net_test_3"}
+	config3 := &networkConfiguration{BridgeName: "net_test_3", EnableIPv4: true}
 	genericOption[netlabel.GenericData] = config3
 	if err := d.CreateNetwork("3", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
@@ -496,7 +502,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 
 	verifyV4INCEntries(d.networks, t)
 
-	config4 := &networkConfiguration{BridgeName: "net_test_4"}
+	config4 := &networkConfiguration{BridgeName: "net_test_4", EnableIPv4: true}
 	genericOption[netlabel.GenericData] = config4
 	if err := d.CreateNetwork("4", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
@@ -687,6 +693,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 
 	netconfig := &networkConfiguration{
 		BridgeName: DefaultBridgeName,
+		EnableIPv4: true,
 		EnableICC:  false,
 	}
 	genericOption = make(map[string]interface{})
@@ -789,6 +796,7 @@ func TestLinkContainers(t *testing.T) {
 
 	netconfig := &networkConfiguration{
 		BridgeName: DefaultBridgeName,
+		EnableIPv4: true,
 		EnableICC:  false,
 	}
 	genericOption = make(map[string]interface{})
@@ -928,23 +936,27 @@ func TestLinkContainers(t *testing.T) {
 func TestValidateConfig(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	// Test mtu
-	c := networkConfiguration{Mtu: -2}
+	// Bridge network
+	_, network, _ := net.ParseCIDR("172.28.0.0/16")
+	c := networkConfiguration{
+		AddressIPv4: network,
+		EnableIPv4:  true,
+	}
 	err := c.Validate()
+	if err != nil {
+		t.Fatal("unexpected validation error:", err)
+	}
+
+	// Test mtu
+	c.Mtu = -2
+	err = c.Validate()
 	if err == nil {
 		t.Fatal("Failed to detect invalid MTU number")
 	}
-
 	c.Mtu = 9000
 	err = c.Validate()
 	if err != nil {
-		t.Fatal("unexpected validation error on MTU number")
-	}
-
-	// Bridge network
-	_, network, _ := net.ParseCIDR("172.28.0.0/16")
-	c = networkConfiguration{
-		AddressIPv4: network,
+		t.Fatal("unexpected validation error on MTU number:", err)
 	}
 
 	err = c.Validate()
@@ -1085,30 +1097,29 @@ func TestSetDefaultGw(t *testing.T) {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	_, subnetv6, _ := net.ParseCIDR("2001:db8:ea9:9abc:b0c4::/80")
-
-	ipdList := getIPv4Data(t)
-	gw4 := types.GetIPCopy(ipdList[0].Pool.IP).To4()
+	ipam4 := getIPv4Data(t)
+	gw4 := types.GetIPCopy(ipam4[0].Pool.IP).To4()
 	gw4[3] = 254
-	gw6 := net.ParseIP("2001:db8:ea9:9abc:b0c4::254")
+	ipam6 := getIPv6Data(t)
+	gw6 := types.GetIPCopy(ipam6[0].Pool.IP)
+	gw6[15] = 0x42
 
-	config := &networkConfiguration{
-		BridgeName:         DefaultBridgeName,
-		AddressIPv6:        subnetv6,
-		DefaultGatewayIPv4: gw4,
-		DefaultGatewayIPv6: gw6,
+	option := map[string]interface{}{
+		netlabel.EnableIPv4: true,
+		netlabel.EnableIPv6: true,
+		netlabel.GenericData: &networkConfiguration{
+			BridgeName:         DefaultBridgeName,
+			DefaultGatewayIPv4: gw4,
+			DefaultGatewayIPv6: gw6,
+		},
 	}
 
-	genericOption := make(map[string]interface{})
-	genericOption[netlabel.EnableIPv6] = true
-	genericOption[netlabel.GenericData] = config
-
-	err := d.CreateNetwork("dummy", genericOption, nil, ipdList, nil)
+	err := d.CreateNetwork("dummy", option, nil, ipam4, ipam6)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	te := newTestEndpoint(ipdList[0].Pool, 10)
+	te := newTestEndpoint(ipam4[0].Pool, 10)
 	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create endpoint: %v", err)
@@ -1193,7 +1204,7 @@ func TestCreateWithExistingBridge(t *testing.T) {
 		t.Fatalf("Failed to add IP address to bridge: %v", err)
 	}
 
-	netconfig := &networkConfiguration{BridgeName: brName}
+	netconfig := &networkConfiguration{BridgeName: brName, EnableIPv4: true}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = netconfig
 
@@ -1249,7 +1260,7 @@ func TestCreateParallel(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		name := "net" + strconv.Itoa(i)
 		c.Go(t, func() {
-			config := &networkConfiguration{BridgeName: name}
+			config := &networkConfiguration{BridgeName: name, EnableIPv4: true}
 			genericOption := make(map[string]interface{})
 			genericOption[netlabel.GenericData] = config
 			if err := d.CreateNetwork(name, genericOption, nil, ipV4Data, nil); err != nil {

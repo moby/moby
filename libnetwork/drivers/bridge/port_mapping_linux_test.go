@@ -47,11 +47,12 @@ func TestPortMappingConfig(t *testing.T) {
 	sbOptions := make(map[string]interface{})
 	sbOptions[netlabel.PortMap] = portBindings
 
-	netConfig := &networkConfiguration{
-		BridgeName: DefaultBridgeName,
+	netOptions := map[string]interface{}{
+		netlabel.GenericData: &networkConfiguration{
+			BridgeName: DefaultBridgeName,
+			EnableIPv4: true,
+		},
 	}
-	netOptions := make(map[string]interface{})
-	netOptions[netlabel.GenericData] = netConfig
 
 	ipdList4 := getIPv4Data(t)
 	err := d.CreateNetwork("dummy", netOptions, nil, ipdList4, getIPv6Data(t))
@@ -289,6 +290,7 @@ func TestAddPortMappings(t *testing.T) {
 		busyPortIPv4 int
 		rootless     bool
 		hostAddrs    []string
+		noProxy6To4  bool
 
 		expErr          string
 		expLogs         []string
@@ -450,6 +452,18 @@ func TestAddPortMappings(t *testing.T) {
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: firstEphemPort},
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv6zero, HostPort: firstEphemPort},
+			},
+		},
+		{
+			name:     "map to ipv4 container with proxy but noProxy6To4",
+			epAddrV4: ctrIP4,
+			cfg: []types.PortBinding{
+				{Proto: types.TCP, Port: 80},
+			},
+			proxyPath:   "/dummy/path/to/proxy",
+			noProxy6To4: true,
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: firstEphemPort},
 			},
 		},
 		{
@@ -810,6 +824,7 @@ func TestAddPortMappings(t *testing.T) {
 			n := &bridgeNetwork{
 				config: &networkConfiguration{
 					BridgeName: "dummybridge",
+					EnableIPv4: tc.epAddrV4 != nil,
 					EnableIPv6: tc.epAddrV6 != nil,
 					GwModeIPv4: tc.gwMode4,
 					GwModeIPv6: tc.gwMode6,
@@ -852,7 +867,7 @@ func TestAddPortMappings(t *testing.T) {
 				}
 			})
 
-			pbs, err := n.addPortMappings(ctx, tc.epAddrV4, tc.epAddrV6, tc.cfg, tc.defHostIP)
+			pbs, err := n.addPortMappings(ctx, tc.epAddrV4, tc.epAddrV6, tc.cfg, tc.defHostIP, tc.noProxy6To4)
 			if tc.expErr != "" {
 				assert.ErrorContains(t, err, tc.expErr)
 				return
