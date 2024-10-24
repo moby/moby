@@ -214,6 +214,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: vendor.sum
       -
         name: Download artifacts
         uses: actions/download-artifact@v4
@@ -243,6 +244,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: vendor.sum
       -
         name: Install gotestlist
         run:
@@ -441,6 +443,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: vendor.sum
       -
         name: Test integration
         if: matrix.test == './...'
@@ -547,6 +550,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: vendor.sum
       -
         name: Download reports
         uses: actions/download-artifact@v4
