@@ -11,6 +11,10 @@ import (
 
 // fillPlatformInfo fills the platform related info.
 func (daemon *Daemon) fillPlatformInfo(ctx context.Context, v *system.Info, sysInfo *sysinfo.SysInfo, cfg *configStore) error {
+	if _, ok := cfg.Features["windows-dns-proxy"]; ok {
+		v.Warnings = append(v.Warnings, `
+WARNING: Feature flag "windows-dns-proxy" has been removed, forwarding to external DNS resolvers is enabled.`)
+	}
 	return nil
 }
 

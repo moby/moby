@@ -92,7 +92,6 @@ type resolvConfPathConfig struct {
 }
 
 type containerConfig struct {
-	containerConfigOS //nolint:nolintlint,unused // only populated on windows
 	hostsPathConfig
 	resolvConfPathConfig
 	generic           map[string]interface{}

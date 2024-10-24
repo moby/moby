@@ -103,9 +103,6 @@ func addEpToResolver(
 	epIface *EndpointInterface,
 	resolvers []*Resolver,
 ) error {
-	if config.dnsNoProxy {
-		return nil
-	}
 	hnsEndpoints, err := hcsshim.HNSListEndpointRequest()
 	if err != nil {
 		return nil

@@ -164,12 +164,6 @@ func serviceDiscoveryOnDefaultNetwork() bool {
 }
 
 func buildSandboxPlatformOptions(ctr *container.Container, cfg *config.Config, sboxOptions *[]libnetwork.SandboxOption) error {
-	// By default, the Windows internal resolver forwards requests to external
-	// resolvers - but forwarding can be disabled using feature flag
-	// "windows-dns-proxy":false.
-	if doproxy, exists := cfg.Features["windows-dns-proxy"]; exists && !doproxy {
-		*sboxOptions = append(*sboxOptions, libnetwork.OptionDNSNoProxy())
-	}
 	return nil
 }
 
