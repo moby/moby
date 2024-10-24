@@ -6,12 +6,15 @@ import (
 	"bytes"
 	"os"
 	"testing"
+
+	"github.com/docker/docker/internal/testutils/netnsutils"
 )
 
 func TestSetupIPForwarding(t *testing.T) {
-	// Read current setting and ensure the original value gets restored
+	defer netnsutils.SetupTestOSContext(t)()
+
+	// Read current setting
 	procSetting := readCurrentIPForwardingSetting(t)
-	defer reconcileIPForwardingSetting(t, procSetting)
 
 	// Disable IP Forwarding if enabled
 	if bytes.Equal(procSetting, []byte("1\n")) {
@@ -19,7 +22,7 @@ func TestSetupIPForwarding(t *testing.T) {
 	}
 
 	// Set IP Forwarding
-	if err := setupIPForwarding(true, true); err != nil {
+	if err := setupIPv4Forwarding(true); err != nil {
 		t.Fatalf("Failed to setup IP forwarding: %v", err)
 	}
 
@@ -39,15 +42,8 @@ func readCurrentIPForwardingSetting(t *testing.T) []byte {
 }
 
 func writeIPForwardingSetting(t *testing.T, chars []byte) {
-	err := os.WriteFile(ipv4ForwardConf, chars, ipv4ForwardConfPerm)
+	err := os.WriteFile(ipv4ForwardConf, chars, forwardConfPerm)
 	if err != nil {
-		t.Fatalf("Can't execute or cleanup after test: Failed to reset IP forwarding: %v", err)
-	}
-}
-
-func reconcileIPForwardingSetting(t *testing.T, original []byte) {
-	current := readCurrentIPForwardingSetting(t)
-	if !bytes.Equal(original, current) {
-		writeIPForwardingSetting(t, original)
+		t.Fatalf("Can't execute test: Failed to set IP forwarding: %v", err)
 	}
 }

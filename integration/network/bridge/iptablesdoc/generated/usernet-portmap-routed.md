@@ -8,15 +8,7 @@ Running the daemon with the userland proxy disabled then, as before, adding a ne
 	  --subnet 192.0.2.0/24 --gateway 192.0.2.1 bridge1
 	docker run --network bridge1 -p 8080:80 --name c1 busybox
 
-The filter table is largely the same as with the userland proxy enabled.
-
-_Note that this means inter-network communication is disabled as-normal so,
-although published ports will be directly accessible from a remote host
-they are not accessible from containers in neighbouring docker networks
-on the same host._
-
-<details>
-<summary>Filter table</summary>
+The filter table is:
 
     Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -24,20 +16,18 @@ on the same host._
     Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DOCKER-USER  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    3        0     0 ACCEPT     0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
-    4        0     0 DOCKER     0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
+    2        0     0 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst ctstate RELATED,ESTABLISHED
+    3        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    4        0     0 DOCKER     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst
     5        0     0 ACCEPT     0    --  bridge1 !bridge1  0.0.0.0/0            0.0.0.0/0           
     6        0     0 ACCEPT     0    --  bridge1 bridge1  0.0.0.0/0            0.0.0.0/0           
-    7        0     0 ACCEPT     0    --  *      docker0  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
-    8        0     0 DOCKER     0    --  *      docker0  0.0.0.0/0            0.0.0.0/0           
-    9        0     0 ACCEPT     0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
-    10       0     0 ACCEPT     0    --  docker0 docker0  0.0.0.0/0            0.0.0.0/0           
+    7        0     0 ACCEPT     0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
+    8        0     0 ACCEPT     0    --  docker0 docker0  0.0.0.0/0            0.0.0.0/0           
     
     Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
     
-    Chain DOCKER (2 references)
+    Chain DOCKER (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
     2        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
@@ -46,20 +36,23 @@ on the same host._
     
     Chain DOCKER-ISOLATION-STAGE-1 (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DOCKER-ISOLATION-STAGE-2  0    --  bridge1 !bridge1  0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DOCKER-ISOLATION-STAGE-2  0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
-    3        0     0 RETURN     0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    1        0     0 ACCEPT     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+    2        0     0 RETURN     0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
+    3        0     0 DOCKER-ISOLATION-STAGE-2  0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
+    4        0     0 DOCKER-ISOLATION-STAGE-2  0    --  bridge1 !bridge1  0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-ISOLATION-STAGE-2 (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DROP       0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
     2        0     0 DROP       0    --  *      docker0  0.0.0.0/0            0.0.0.0/0           
-    3        0     0 RETURN     0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-USER (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 RETURN     0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     
+
+<details>
+<summary>iptables commands</summary>
 
     -P INPUT ACCEPT
     -P FORWARD ACCEPT
@@ -69,41 +62,47 @@ on the same host._
     -N DOCKER-ISOLATION-STAGE-2
     -N DOCKER-USER
     -A FORWARD -j DOCKER-USER
+    -A FORWARD -m set --match-set docker-ext-bridges-v4 dst -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     -A FORWARD -j DOCKER-ISOLATION-STAGE-1
-    -A FORWARD -o bridge1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    -A FORWARD -o bridge1 -j DOCKER
+    -A FORWARD -m set --match-set docker-ext-bridges-v4 dst -j DOCKER
     -A FORWARD -i bridge1 ! -o bridge1 -j ACCEPT
     -A FORWARD -i bridge1 -o bridge1 -j ACCEPT
-    -A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    -A FORWARD -o docker0 -j DOCKER
     -A FORWARD -i docker0 ! -o docker0 -j ACCEPT
     -A FORWARD -i docker0 -o docker0 -j ACCEPT
     -A DOCKER -d 192.0.2.2/32 ! -i bridge1 -o bridge1 -p tcp -m tcp --dport 80 -j ACCEPT
     -A DOCKER ! -i docker0 -o docker0 -j DROP
     -A DOCKER -o bridge1 -p icmp -j ACCEPT
     -A DOCKER ! -i bridge1 -o bridge1 -j DROP
-    -A DOCKER-ISOLATION-STAGE-1 -i bridge1 ! -o bridge1 -j DOCKER-ISOLATION-STAGE-2
+    -A DOCKER-ISOLATION-STAGE-1 -i bridge1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-ISOLATION-STAGE-1 -o bridge1 -j RETURN
     -A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
-    -A DOCKER-ISOLATION-STAGE-1 -j RETURN
+    -A DOCKER-ISOLATION-STAGE-1 -i bridge1 ! -o bridge1 -j DOCKER-ISOLATION-STAGE-2
     -A DOCKER-ISOLATION-STAGE-2 -o bridge1 -j DROP
     -A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
-    -A DOCKER-ISOLATION-STAGE-2 -j RETURN
     -A DOCKER-USER -j RETURN
     
 
 </details>
 
-However, a rule is added by [setICMP][5] to the DOCKER chain (shown below) to
-allow ICMP. The equivalent IPv6 rule uses `-p icmpv6` rather than `-p icmp`,
-so *ALL* ICMP message types are allowed.
+Compared to the equivalent [nat mode network][1]:
 
-_The ACCEPT rule as shown by `iptables -L` looks alarming until you spot that it's
-for `prot 1`._
-
-Because the ICMP rule (rule 3) is per-network, it is appended to the chain along
-with the default-DROP rule (rule 4). So, it is likely to be separated from
-per-port/protocol ACCEPT rules for published ports on the same network. But it
-will always appear before the default-DROP.
+- In DOCKER-ISOLATION-STAGE-1:
+  - Rule 1 accepts outgoing packets related to established connections. This
+    is for responses to containers on NAT networks that would not normally
+    accept packets from another network, and may have port/protocol filtering
+    rules in place that would otherwise drop these responses.
+  - Rule 2 skips the jump to DOCKER-ISOLATION-STAGE-2 for any packet routed
+    to the routed-mode network. So, it will accept packets from other networks,
+    if they make it through the port/protocol filtering rules in the DOCKER
+    chain.
+- In the DOCKER chain:
+  - A rule is added by [setICMP][5] to allow ICMP.
+    *ALL* ICMP message types are allowed.
+    The equivalent IPv6 rule uses `-p icmpv6` rather than `-p icmp`. 
+    - Because the ICMP rule (rule 3) is per-network, it is appended to the chain along
+      with the default-DROP rule (rule 4). So, it is likely to be separated from
+      per-port/protocol ACCEPT rules for published ports on the same network. But it
+      will always appear before the default-DROP.
 
 _[RFC 4890 section 4.3][6] makes recommendations for filtering ICMPv6. These
 have been considered, but the host firewall is not a network boundary in the
@@ -111,7 +110,10 @@ sense used by the RFC. So, Node Information and Router Renumbering messages are
 not discarded, and experimental/unused types are allowed because they may be
 needed._
 
-    Chain DOCKER (2 references)
+The ICMP rule, as shown by `iptables -L`, looks alarming until you spot that it's
+for `prot 1`:
+
+    Chain DOCKER (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
     2        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
@@ -145,7 +147,8 @@ The nat table is:
     
     Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 RETURN     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
+    1        0     0 RETURN     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0           
+    2        0     0 RETURN     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
     
 
 <details>
@@ -159,6 +162,7 @@ The nat table is:
     -A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
     -A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER
     -A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+    -A DOCKER -i bridge1 -j RETURN
     -A DOCKER -i docker0 -j RETURN
     
 

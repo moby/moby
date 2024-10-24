@@ -27,6 +27,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -51,12 +52,13 @@ type (
 
 // configuration info for the "bridge" driver.
 type configuration struct {
-	EnableIPForwarding  bool
-	EnableIPTables      bool
-	EnableIP6Tables     bool
-	EnableUserlandProxy bool
-	UserlandProxyPath   string
-	Rootless            bool
+	EnableIPForwarding      bool
+	EnableFilterForwardDrop bool
+	EnableIPTables          bool
+	EnableIP6Tables         bool
+	EnableUserlandProxy     bool
+	UserlandProxyPath       string
+	Rootless                bool
 }
 
 // networkConfiguration for network specific configuration
@@ -163,9 +165,10 @@ type driver struct {
 type gwMode string
 
 const (
-	gwModeDefault gwMode = ""
-	gwModeNAT     gwMode = "nat"
-	gwModeRouted  gwMode = "routed"
+	gwModeDefault   gwMode = ""
+	gwModeNAT       gwMode = "nat"
+	gwModeNATUnprot gwMode = "nat-unprotected"
+	gwModeRouted    gwMode = "routed"
 )
 
 // New constructs a new bridge driver
@@ -355,14 +358,20 @@ func newGwMode(gwMode string) (gwMode, error) {
 	switch gwMode {
 	case "nat":
 		return gwModeNAT, nil
+	case "nat-unprotected":
+		return gwModeNATUnprot, nil
 	case "routed":
 		return gwModeRouted, nil
 	}
 	return gwModeDefault, fmt.Errorf("unknown gateway mode %s", gwMode)
 }
 
-func (m gwMode) natDisabled() bool {
+func (m gwMode) routed() bool {
 	return m == gwModeRouted
+}
+
+func (m gwMode) unprotected() bool {
+	return m == gwModeNATUnprot
 }
 
 func parseErr(label, value, errString string) error {
@@ -414,7 +423,16 @@ func (n *bridgeNetwork) getNetworkBridgeName() string {
 func (n *bridgeNetwork) getNATDisabled() (ipv4, ipv6 bool) {
 	n.Lock()
 	defer n.Unlock()
-	return n.config.GwModeIPv4.natDisabled(), n.config.GwModeIPv6.natDisabled()
+	return n.config.GwModeIPv4.routed(), n.config.GwModeIPv6.routed()
+}
+
+func (n *bridgeNetwork) getUnprotected(v iptables.IPVersion) bool {
+	n.Lock()
+	defer n.Unlock()
+	if v == iptables.IPv4 {
+		return n.config.GwModeIPv4.unprotected()
+	}
+	return n.config.GwModeIPv6.unprotected()
 }
 
 func (n *bridgeNetwork) userlandProxyPath() string {
@@ -461,16 +479,17 @@ func (n *bridgeNetwork) isolateNetwork(enable bool) error {
 	}
 
 	// Install the rules to isolate this network against each of the other networks
+	if n.driver.config.EnableIPTables {
+		if err := setINC(iptables.IPv4, thisConfig.BridgeName, thisConfig.GwModeIPv4, enable); err != nil {
+			return err
+		}
+	}
 	if n.driver.config.EnableIP6Tables {
-		err := setINC(iptables.IPv6, thisConfig.BridgeName, enable)
-		if err != nil {
+		if err := setINC(iptables.IPv6, thisConfig.BridgeName, thisConfig.GwModeIPv6, enable); err != nil {
 			return err
 		}
 	}
 
-	if n.driver.config.EnableIPTables {
-		return setINC(iptables.IPv4, thisConfig.BridgeName, enable)
-	}
 	return nil
 }
 
@@ -507,6 +526,9 @@ func (d *driver) configure(option map[string]interface{}) error {
 	if config.EnableIPTables {
 		removeIPChains(iptables.IPv4)
 
+		if err := setupHashNetIpset(ipsetExtBridges4, unix.AF_INET); err != nil {
+			return err
+		}
 		natChain, filterChain, isolationChain1, isolationChain2, err = setupIPChains(config, iptables.IPv4)
 		if err != nil {
 			return err
@@ -524,30 +546,27 @@ func (d *driver) configure(option map[string]interface{}) error {
 	if config.EnableIP6Tables {
 		removeIPChains(iptables.IPv6)
 
-		natChainV6, filterChainV6, isolationChain1V6, isolationChain2V6, err = setupIPChains(config, iptables.IPv6)
-		if err != nil {
-			// If the chains couldn't be set up, it's probably because the kernel has no IPv6
-			// support, or it doesn't have module ip6_tables loaded. It won't be possible to
-			// create IPv6 networks without enabling ip6_tables in the kernel, or disabling
-			// ip6tables in the daemon config. But, allow the daemon to start because IPv4
-			// will work. So, log the problem, and continue.
-			log.G(context.TODO()).WithError(err).Warn("ip6tables is enabled, but cannot set up ip6tables chains")
+		if err := setupHashNetIpset(ipsetExtBridges6, unix.AF_INET6); err != nil {
+			// Continue, IPv4 will work (as below).
+			log.G(context.TODO()).WithError(err).Warn("ip6tables is enabled, but cannot set up IPv6 ipset")
 		} else {
-			// Make sure on firewall reload, first thing being re-played is chains creation
-			iptables.OnReloaded(func() {
-				log.G(context.TODO()).Debugf("Recreating ip6tables chains on firewall reload")
-				if _, _, _, _, err := setupIPChains(config, iptables.IPv6); err != nil {
-					log.G(context.TODO()).WithError(err).Error("Error reloading ip6tables chains")
-				}
-			})
-		}
-	}
-
-	if config.EnableIPForwarding {
-		err = setupIPForwarding(config.EnableIPTables, config.EnableIP6Tables)
-		if err != nil {
-			log.G(context.TODO()).Warn(err)
-			return err
+			natChainV6, filterChainV6, isolationChain1V6, isolationChain2V6, err = setupIPChains(config, iptables.IPv6)
+			if err != nil {
+				// If the chains couldn't be set up, it's probably because the kernel has no IPv6
+				// support, or it doesn't have module ip6_tables loaded. It won't be possible to
+				// create IPv6 networks without enabling ip6_tables in the kernel, or disabling
+				// ip6tables in the daemon config. But, allow the daemon to start because IPv4
+				// will work. So, log the problem, and continue.
+				log.G(context.TODO()).WithError(err).Warn("ip6tables is enabled, but cannot set up ip6tables chains")
+			} else {
+				// Make sure on firewall reload, first thing being re-played is chains creation
+				iptables.OnReloaded(func() {
+					log.G(context.TODO()).Debugf("Recreating ip6tables chains on firewall reload")
+					if _, _, _, _, err := setupIPChains(config, iptables.IPv6); err != nil {
+						log.G(context.TODO()).WithError(err).Error("Error reloading ip6tables chains")
+					}
+				})
+			}
 		}
 	}
 
@@ -573,6 +592,19 @@ func (d *driver) configure(option map[string]interface{}) error {
 	d.Unlock()
 
 	return d.initStore(option)
+}
+
+func setupHashNetIpset(name string, family uint8) error {
+	if err := netlink.IpsetCreate(name, "hash:net", netlink.IpsetCreateOptions{
+		Replace: true,
+		Family:  family,
+	}); err != nil {
+		return err
+	}
+	if err := netlink.IpsetFlush(name); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {
@@ -835,10 +867,10 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 	// Add inter-network communication rules.
 	setupNetworkIsolationRules := func(config *networkConfiguration, i *bridgeInterface) error {
 		if err := network.isolateNetwork(true); err != nil {
-			if err = network.isolateNetwork(false); err != nil {
-				log.G(context.TODO()).Warnf("Failed on removing the inter-network iptables rules on cleanup: %v", err)
+			if errRollback := network.isolateNetwork(false); err != nil {
+				log.G(context.TODO()).WithError(errRollback).Warnf("Failed on removing the inter-network iptables rules on cleanup")
 			}
-			return err
+			return errdefs.System(err)
 		}
 		// register the cleanup function
 		network.registerIptCleanFunc(func() error {
@@ -874,8 +906,6 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 	// Even if a bridge exists try to setup IPv4.
 	bridgeSetup.queueStep(setupBridgeIPv4)
 
-	enableIPv6Forwarding := config.EnableIPv6 && d.config.EnableIPForwarding
-
 	// Module br_netfilter needs to be loaded with net.bridge.bridge-nf-call-ip[6]tables
 	// enabled to implement icc=false, or DNAT when the userland-proxy is disabled.
 	enableBrNfCallIptables := !config.EnableICC || !d.config.EnableUserlandProxy
@@ -895,8 +925,18 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		// existing device.
 		{bridgeAlreadyExists && !config.InhibitIPv4, setupVerifyAndReconcileIPv4},
 
-		// Enable IPv6 Forwarding
-		{enableIPv6Forwarding, setupIPv6Forwarding},
+		// Enable IP Forwarding
+		// TODO(robmry) - make this conditional on config.EnableIPv4, when that exists.
+		{d.config.EnableIPForwarding,
+			func(*networkConfiguration, *bridgeInterface) error {
+				return setupIPv4Forwarding(d.config.EnableIPTables && d.config.EnableFilterForwardDrop)
+			},
+		},
+		{config.EnableIPv6 && d.config.EnableIPForwarding,
+			func(*networkConfiguration, *bridgeInterface) error {
+				return setupIPv6Forwarding(d.config.EnableIP6Tables && d.config.EnableFilterForwardDrop)
+			},
+		},
 
 		// Setup Loopback Addresses Routing
 		{!d.config.EnableUserlandProxy, setupLoopbackAddressesRouting},
