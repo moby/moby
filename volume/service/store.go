@@ -732,7 +732,7 @@ func (s *VolumeStore) getVolume(ctx context.Context, name, driverName string) (v
 		return volumeWrapper{vol, meta.Labels, scope, meta.Options}, nil
 	}
 
-	log.G(ctx).Debugf("Probing all drivers for volume with name: %s", name)
+	log.G(ctx).WithField("volume-name", name).Debugf("Probing all drivers for volume")
 	drvrs, err := s.drivers.GetAllDrivers()
 	if err != nil {
 		return nil, err
