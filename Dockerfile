@@ -544,6 +544,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             libprotobuf-c1 \
             libyajl2 \
             net-tools \
+            netcat-openbsd \
             patch \
             pigz \
             sudo \

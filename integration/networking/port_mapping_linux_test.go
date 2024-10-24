@@ -1,6 +1,7 @@
 package networking
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -19,9 +20,11 @@ import (
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/go-connections/nat"
+	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -104,7 +107,7 @@ func TestDisableNAT(t *testing.T) {
 
 			const netName = "testnet"
 			nwOpts := []func(options *networktypes.CreateOptions){
-				network.WithIPv6(),
+				network.WithIPv6(true),
 				network.WithIPAM("fd2a:a2c3:4448::/64", "fd2a:a2c3:4448::1"),
 			}
 			if tc.gwMode4 != "" {
@@ -142,10 +145,7 @@ func TestPortMappedHairpinTCP(t *testing.T) {
 	defer c.Close()
 
 	// Find an address on the test host.
-	conn, err := net.Dial("tcp4", "hub.docker.com:80")
-	assert.NilError(t, err)
-	hostAddr := conn.LocalAddr().(*net.TCPAddr).IP.String()
-	conn.Close()
+	hostAddr := networking.FindHostAddr(t, unix.AF_INET)
 
 	const serverNetName = "servernet"
 	network.CreateNoError(ctx, t, c, serverNetName)
@@ -189,10 +189,7 @@ func TestPortMappedHairpinUDP(t *testing.T) {
 	defer c.Close()
 
 	// Find an address on the test host.
-	conn, err := net.Dial("tcp4", "hub.docker.com:80")
-	assert.NilError(t, err)
-	hostAddr := conn.LocalAddr().(*net.TCPAddr).IP.String()
-	conn.Close()
+	hostAddr := networking.FindHostAddr(t, unix.AF_INET)
 
 	const serverNetName = "servernet"
 	network.CreateNoError(ctx, t, c, serverNetName)
@@ -351,7 +348,7 @@ func TestAccessPublishedPortFromHost(t *testing.T) {
 			}
 			if tc.ipv6 {
 				bridgeOpts = append(bridgeOpts,
-					network.WithIPv6(),
+					network.WithIPv6(true),
 					network.WithIPAM("fd31:1c42:6f59::/64", "fd31:1c42:6f59::1"))
 			}
 
@@ -428,7 +425,7 @@ func TestAccessPublishedPortFromRemoteHost(t *testing.T) {
 	network.CreateNoError(ctx, t, c, bridgeName,
 		network.WithDriver("bridge"),
 		network.WithOption(bridge.BridgeName, bridgeName),
-		network.WithIPv6(),
+		network.WithIPv6(true),
 		network.WithIPAM("fdd8:c9fe:1a25::/64", "fdd8:c9fe:1a25::1"))
 	defer network.RemoveNoError(ctx, t, c, bridgeName)
 
@@ -488,12 +485,7 @@ func TestAccessPublishedPortFromCtr(t *testing.T) {
 	}
 
 	// Find an address on the test host.
-	hostAddr := func() string {
-		conn, err := net.Dial("tcp4", "hub.docker.com:80")
-		assert.NilError(t, err)
-		defer conn.Close()
-		return conn.LocalAddr().(*net.TCPAddr).IP.String()
-	}()
+	hostAddr := networking.FindHostAddr(t, unix.AF_INET)
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -651,7 +643,7 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 		netName := "test-" + gwMode
 		network.CreateNoError(ctx, t, c, netName,
 			network.WithDriver("bridge"),
-			network.WithIPv6(),
+			network.WithIPv6(true),
 			network.WithOption(bridge.BridgeName, "br-"+gwMode),
 			network.WithOption(bridge.IPv4GatewayMode, gwMode),
 			network.WithOption(bridge.IPv6GatewayMode, gwMode),
@@ -746,4 +738,118 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestAccessPublishedPortFromNonMatchingIface checks that PBs created with a
+// specific HostIP aren't accessible from interfaces that don't match the
+// HostIP.
+//
+// Regression test for https://github.com/moby/moby/issues/45610.
+func TestAccessPublishedPortFromNonMatchingIface(t *testing.T) {
+	ctx := setupTest(t)
+
+	l3 := networking.NewL3Segment(t, "test-non-matching-iface-br",
+		netip.MustParsePrefix("192.168.123.1/24"),
+		netip.MustParsePrefix("fde8:19ff:6e09::1/64"))
+	defer l3.Destroy(t)
+
+	// "docker" is the host where dockerd is running.
+	l3.AddHost(t, "docker", networking.CurrentNetns, "eth-test",
+		netip.MustParsePrefix("192.168.123.2/24"),
+		netip.MustParsePrefix("fde8:19ff:6e09::2/64"))
+	l3.AddHost(t, "attacker", "test-non-matching-iface-attacker", "eth0",
+		netip.MustParsePrefix("192.168.123.3/24"),
+		netip.MustParsePrefix("fde8:19ff:6e09::3/64"))
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	testAccessDenied := func(t *testing.T, hostAddr string, nwOpts ...func(*networktypes.CreateOptions)) {
+		testutil.StartSpan(ctx, t)
+
+		const bridgeName = "nat-remote"
+		network.CreateNoError(ctx, t, c, bridgeName, append(nwOpts,
+			network.WithDriver("bridge"),
+			network.WithOption(bridge.BridgeName, bridgeName),
+		)...)
+		defer network.RemoveNoError(ctx, t, c, bridgeName)
+
+		// Set up a route on the attacker host to reach the docker bridge network
+		// created above, via the docker host.
+		if net.ParseIP(hostAddr).To4() != nil {
+			l3.Hosts["attacker"].Run(t, "ip", "route", "add", hostAddr+"/32", "via", "192.168.123.2", "dev", "eth0")
+			defer l3.Hosts["attacker"].Run(t, "ip", "route", "delete", hostAddr+"/32", "via", "192.168.123.2", "dev", "eth0")
+		} else {
+			l3.Hosts["attacker"].Run(t, "ip", "route", "add", hostAddr+"/128", "via", "fde8:19ff:6e09::2", "dev", "eth0")
+			defer l3.Hosts["attacker"].Run(t, "ip", "route", "delete", hostAddr+"/128", "via", "fde8:19ff:6e09::2", "dev", "eth0")
+		}
+
+		const hostPort = "5000"
+
+		// Create the victim container, with a non-empty / non-unspecified
+		// HostIP in its port binding.
+		serverID := container.Run(ctx, t, c,
+			container.WithName(sanitizeCtrName(t.Name()+"-server")),
+			container.WithCmd("nc", "-lup", "5000"),
+			container.WithExposedPorts("5000/udp"),
+			container.WithPortMap(nat.PortMap{"5000/udp": {{HostIP: hostAddr, HostPort: hostPort}}}),
+			container.WithNetworkMode(bridgeName))
+		defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
+
+		// Send a UDP datagram to the published port, from the attacker host
+		// running in a separate L2 segment.
+		//
+		// Here UDP is preferred, because it's a one-way, connectionless
+		// protocol. With TCP the three-way handshake has to be completed
+		// before sending a payload. But since some of the test below will try
+		// to spoof the loopback address, the 'attacker host' will drop the
+		// SYN-ACK by default (because the source addr will be considered
+		// invalid / non-routable). This would require further tuning to make
+		// it work. But with UDP, this problem doesn't exist - the payload can
+		// be sent straight away.
+		l3.Hosts["attacker"].Do(t, func() {
+			t.Logf("Sending a datagram to %s:%s", hostAddr, hostPort)
+
+			// Send a request to the victim container from the attacker host.
+			icmd.RunCommand("/bin/sh", "-c", fmt.Sprintf("echo foobar | nc -w1 -u %s %s", hostAddr, hostPort)).Assert(t, icmd.Success)
+		})
+
+		// Assert on outputs
+		logReader, err := c.ContainerLogs(ctx, serverID, containertypes.LogsOptions{ShowStdout: true})
+		assert.NilError(t, err)
+		defer logReader.Close()
+
+		var actualStdout bytes.Buffer
+		_, err = stdcopy.StdCopy(&actualStdout, nil, logReader)
+		assert.NilError(t, err)
+
+		stdOut := strings.TrimSpace(actualStdout.String())
+		assert.Assert(t, !strings.Contains(stdOut, "foobar"))
+	}
+
+	t.Run("NAT/IPv4/lo", func(t *testing.T) {
+		testAccessDenied(t, "127.0.0.1")
+	})
+
+	t.Run("NAT/IPv4/HostAddr", func(t *testing.T) {
+		hostAddr := networking.FindHostAddr(t, unix.AF_INET)
+		testAccessDenied(t, hostAddr)
+	})
+
+	t.Run("NAT/IPv6/HostAddr", func(t *testing.T) {
+		hostAddr := networking.FindHostAddr(t, unix.AF_INET6)
+		testAccessDenied(t, hostAddr,
+			network.WithIPv6(true),
+			network.WithIPAM("fd1d:b78f:79e3::/64", "fd1d:b78f:79e3::1"),
+		)
+	})
+
+	t.Run("Proxy/IPv6/HostAddr", func(t *testing.T) {
+		hostAddr := networking.FindHostAddr(t, unix.AF_INET6)
+		testAccessDenied(t, hostAddr, network.WithIPv6(false))
+	})
 }

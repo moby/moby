@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -807,6 +808,12 @@ func TestAddPortMappings(t *testing.T) {
 				defer ul.Close()
 			}
 
+			var err error
+			d := newDriver()
+			d.nlh, err = nlwrap.NewHandle()
+			assert.NilError(t, err)
+			defer d.nlh.Close()
+
 			n := &bridgeNetwork{
 				config: &networkConfiguration{
 					BridgeName: "dummybridge",
@@ -814,7 +821,7 @@ func TestAddPortMappings(t *testing.T) {
 					GwModeIPv4: tc.gwMode4,
 					GwModeIPv6: tc.gwMode6,
 				},
-				driver: newDriver(),
+				driver: d,
 			}
 			genericOption := map[string]interface{}{
 				netlabel.GenericData: &configuration{
@@ -825,7 +832,7 @@ func TestAddPortMappings(t *testing.T) {
 					Rootless:            tc.rootless,
 				},
 			}
-			err := n.driver.configure(genericOption)
+			err = n.driver.configure(genericOption)
 			assert.NilError(t, err)
 
 			assert.Check(t, is.Equal(n.driver.portDriverClient == nil, !tc.rootless))

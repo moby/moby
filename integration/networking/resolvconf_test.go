@@ -37,7 +37,7 @@ func TestResolvConfLocalhostIPv6(t *testing.T) {
 	netName := "nnn"
 	network.CreateNoError(ctx, t, c, netName,
 		network.WithDriver("bridge"),
-		network.WithIPv6(),
+		network.WithIPv6(true),
 		network.WithIPAM("fd49:b5ef:36d9::/64", "fd49:b5ef:36d9::1"),
 	)
 	defer network.RemoveNoError(ctx, t, c, netName)
