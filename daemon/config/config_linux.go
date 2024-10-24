@@ -41,12 +41,13 @@ const (
 type BridgeConfig struct {
 	DefaultBridgeConfig
 
-	EnableIPTables      bool   `json:"iptables,omitempty"`
-	EnableIP6Tables     bool   `json:"ip6tables,omitempty"`
-	EnableIPForward     bool   `json:"ip-forward,omitempty"`
-	EnableIPMasq        bool   `json:"ip-masq,omitempty"`
-	EnableUserlandProxy bool   `json:"userland-proxy,omitempty"`
-	UserlandProxyPath   string `json:"userland-proxy-path,omitempty"`
+	EnableIPTables          bool   `json:"iptables,omitempty"`
+	EnableIP6Tables         bool   `json:"ip6tables,omitempty"`
+	EnableIPForward         bool   `json:"ip-forward,omitempty"`
+	EnableFilterForwardDrop bool   `json:"ip-filter-forward-drop,omitempty"`
+	EnableIPMasq            bool   `json:"ip-masq,omitempty"`
+	EnableUserlandProxy     bool   `json:"userland-proxy,omitempty"`
+	UserlandProxyPath       string `json:"userland-proxy-path,omitempty"`
 }
 
 // DefaultBridgeConfig stores all the parameters for the default bridge network.

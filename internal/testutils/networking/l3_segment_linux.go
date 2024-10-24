@@ -81,6 +81,10 @@ func (l3 *L3Segment) AddHost(t *testing.T, hostname, nsName, ifname string, addr
 	l3.bridge.Run(t, "ip", "link", "set", hostname, "up", "master", l3.bridge.Iface)
 	host.Run(t, "ip", "link", "set", host.Iface, "up")
 
+	if nsName != CurrentNetns {
+		host.Run(t, "ip", "addr", "add", "127.0.0.1", "dev", "lo")
+		host.Run(t, "ip", "addr", "add", "::1", "dev", "lo", "nodad")
+	}
 	for _, addr := range addrs {
 		host.Run(t, "ip", "addr", "add", addr.String(), "dev", host.Iface, "nodad")
 	}
