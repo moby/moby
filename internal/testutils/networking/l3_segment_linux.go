@@ -157,6 +157,20 @@ func (h Host) Do(t *testing.T, fn func()) {
 func (h Host) Destroy(t *testing.T) {
 	t.Helper()
 
+	// When a netns is deleted while there's still veth interfaces in it, the
+	// kernel delete both ends of the veth pairs. The veth interface living in
+	// that netns will be deleted instantaneously, but the other end will be
+	// reclaimed after a short delay.
+	//
+	// If, in the meantime, a new test is spun up, and tries to create a new
+	// veth pair with the same peer name, the kernel will return -EEXIST.
+	//
+	// But, if the veth pair is explicitly deleted _before_ the netns, then
+	// both veth ends will be deleted instantaneously.
+	//
+	// Hence, we need to do just that here.
+	h.Run(t, "ip", "link", "delete", h.Iface)
+
 	if h.ns != CurrentNetns {
 		runCommand(t, "ip", "netns", "delete", h.ns)
 	}
