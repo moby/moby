@@ -8,39 +8,45 @@ Running the daemon with the userland proxy disabled then, as before, adding a ne
 	  --subnet 192.0.2.0/24 --gateway 192.0.2.1 bridge1
 	docker run --network bridge1 -p 8080:80 --name c1 busybox
 
-The filter table is largely the same as with the userland proxy enabled.
-
-_Note that this means inter-network communication is disabled as-normal so,
-although published ports will be directly accessible from a remote host
-they are not accessible from containers in neighbouring docker networks
-on the same host._
-
-<details>
-<summary>Filter table</summary>
+The filter table is:
 
     {{index . "LFilter4"}}
+
+<details>
+<summary>iptables commands</summary>
 
     {{index . "SFilter4"}}
 
 </details>
 
-However, a rule is added by [setICMP][5] to the DOCKER chain (shown below) to
-allow ICMP. The equivalent IPv6 rule uses `-p icmpv6` rather than `-p icmp`,
-so *ALL* ICMP message types are allowed.
+Compared to the equivalent [nat mode network][1]:
 
-_The ACCEPT rule as shown by `iptables -L` looks alarming until you spot that it's
-for `prot 1`._
-
-Because the ICMP rule (rule 3) is per-network, it is appended to the chain along
-with the default-DROP rule (rule 4). So, it is likely to be separated from
-per-port/protocol ACCEPT rules for published ports on the same network. But it
-will always appear before the default-DROP.
+- In DOCKER-ISOLATION-STAGE-1:
+  - Rule 1 accepts outgoing packets related to established connections. This
+    is for responses to containers on NAT networks that would not normally
+    accept packets from another network, and may have port/protocol filtering
+    rules in place that would otherwise drop these responses.
+  - Rule 2 skips the jump to DOCKER-ISOLATION-STAGE-2 for any packet routed
+    to the routed-mode network. So, it will accept packets from other networks,
+    if they make it through the port/protocol filtering rules in the DOCKER
+    chain.
+- In the DOCKER chain:
+  - A rule is added by [setICMP][5] to allow ICMP.
+    *ALL* ICMP message types are allowed.
+    The equivalent IPv6 rule uses `-p icmpv6` rather than `-p icmp`. 
+    - Because the ICMP rule (rule 3) is per-network, it is appended to the chain along
+      with the default-DROP rule (rule 4). So, it is likely to be separated from
+      per-port/protocol ACCEPT rules for published ports on the same network. But it
+      will always appear before the default-DROP.
 
 _[RFC 4890 section 4.3][6] makes recommendations for filtering ICMPv6. These
 have been considered, but the host firewall is not a network boundary in the
 sense used by the RFC. So, Node Information and Router Renumbering messages are
 not discarded, and experimental/unused types are allowed because they may be
 needed._
+
+The ICMP rule, as shown by `iptables -L`, looks alarming until you spot that it's
+for `prot 1`:
 
     {{index . "LFilterDocker4"}}
 
