@@ -263,12 +263,25 @@ func PutInteger(data []byte, integer *btf.Int, n uint64) error {
 		return fmt.Errorf("invalid boolean value: %d", n)
 	}
 
+	if len(data) < int(integer.Size) {
+		return fmt.Errorf("can't fit an integer of size %d into a byte slice of length %d", integer.Size, len(data))
+	}
+
 	switch integer.Size {
 	case 1:
+		if integer.Encoding == btf.Signed && (int64(n) > math.MaxInt8 || int64(n) < math.MinInt8) {
+			return fmt.Errorf("can't represent %d as a signed integer of size %d", int64(n), integer.Size)
+		}
 		data[0] = byte(n)
 	case 2:
+		if integer.Encoding == btf.Signed && (int64(n) > math.MaxInt16 || int64(n) < math.MinInt16) {
+			return fmt.Errorf("can't represent %d as a signed integer of size %d", int64(n), integer.Size)
+		}
 		internal.NativeEndian.PutUint16(data, uint16(n))
 	case 4:
+		if integer.Encoding == btf.Signed && (int64(n) > math.MaxInt32 || int64(n) < math.MinInt32) {
+			return fmt.Errorf("can't represent %d as a signed integer of size %d", int64(n), integer.Size)
+		}
 		internal.NativeEndian.PutUint32(data, uint32(n))
 	case 8:
 		internal.NativeEndian.PutUint64(data, uint64(n))

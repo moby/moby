@@ -29,9 +29,8 @@ var (
 // ID represents the unique ID of a BTF object.
 type ID = sys.BTFID
 
-// Spec allows querying a set of Types and loading the set into the
-// kernel.
-type Spec struct {
+// immutableTypes is a set of types which musn't be changed.
+type immutableTypes struct {
 	// All types contained by the spec, not including types from the base in
 	// case the spec was parsed from split BTF.
 	types []Type
@@ -44,13 +43,140 @@ type Spec struct {
 
 	// Types indexed by essential name.
 	// Includes all struct flavors and types with the same name.
-	namedTypes map[essentialName][]Type
+	namedTypes map[essentialName][]TypeID
+
+	// Byte order of the types. This affects things like struct member order
+	// when using bitfields.
+	byteOrder binary.ByteOrder
+}
+
+func (s *immutableTypes) typeByID(id TypeID) (Type, bool) {
+	if id < s.firstTypeID {
+		return nil, false
+	}
+
+	index := int(id - s.firstTypeID)
+	if index >= len(s.types) {
+		return nil, false
+	}
+
+	return s.types[index], true
+}
+
+// mutableTypes is a set of types which may be changed.
+type mutableTypes struct {
+	imm           immutableTypes
+	mu            sync.RWMutex    // protects copies below
+	copies        map[Type]Type   // map[orig]copy
+	copiedTypeIDs map[Type]TypeID // map[copy]origID
+}
+
+// add a type to the set of mutable types.
+//
+// Copies type and all of its children once. Repeated calls with the same type
+// do not copy again.
+func (mt *mutableTypes) add(typ Type, typeIDs map[Type]TypeID) Type {
+	mt.mu.RLock()
+	cpy, ok := mt.copies[typ]
+	mt.mu.RUnlock()
+
+	if ok {
+		// Fast path: the type has been copied before.
+		return cpy
+	}
+
+	// modifyGraphPreorder copies the type graph node by node, so we can't drop
+	// the lock in between.
+	mt.mu.Lock()
+	defer mt.mu.Unlock()
+
+	return copyType(typ, typeIDs, mt.copies, mt.copiedTypeIDs)
+}
+
+// copy a set of mutable types.
+func (mt *mutableTypes) copy() *mutableTypes {
+	if mt == nil {
+		return nil
+	}
+
+	mtCopy := &mutableTypes{
+		mt.imm,
+		sync.RWMutex{},
+		make(map[Type]Type, len(mt.copies)),
+		make(map[Type]TypeID, len(mt.copiedTypeIDs)),
+	}
+
+	// Prevent concurrent modification of mt.copiedTypeIDs.
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
+
+	copiesOfCopies := make(map[Type]Type, len(mt.copies))
+	for orig, copy := range mt.copies {
+		// NB: We make a copy of copy, not orig, so that changes to mutable types
+		// are preserved.
+		copyOfCopy := copyType(copy, mt.copiedTypeIDs, copiesOfCopies, mtCopy.copiedTypeIDs)
+		mtCopy.copies[orig] = copyOfCopy
+	}
+
+	return mtCopy
+}
+
+func (mt *mutableTypes) typeID(typ Type) (TypeID, error) {
+	if _, ok := typ.(*Void); ok {
+		// Equality is weird for void, since it is a zero sized type.
+		return 0, nil
+	}
+
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
+
+	id, ok := mt.copiedTypeIDs[typ]
+	if !ok {
+		return 0, fmt.Errorf("no ID for type %s: %w", typ, ErrNotFound)
+	}
+
+	return id, nil
+}
+
+func (mt *mutableTypes) typeByID(id TypeID) (Type, bool) {
+	immT, ok := mt.imm.typeByID(id)
+	if !ok {
+		return nil, false
+	}
+
+	return mt.add(immT, mt.imm.typeIDs), true
+}
+
+func (mt *mutableTypes) anyTypesByName(name string) ([]Type, error) {
+	immTypes := mt.imm.namedTypes[newEssentialName(name)]
+	if len(immTypes) == 0 {
+		return nil, fmt.Errorf("type name %s: %w", name, ErrNotFound)
+	}
+
+	// Return a copy to prevent changes to namedTypes.
+	result := make([]Type, 0, len(immTypes))
+	for _, id := range immTypes {
+		immT, ok := mt.imm.typeByID(id)
+		if !ok {
+			return nil, fmt.Errorf("no type with ID %d", id)
+		}
+
+		// Match against the full name, not just the essential one
+		// in case the type being looked up is a struct flavor.
+		if immT.TypeName() == name {
+			result = append(result, mt.add(immT, mt.imm.typeIDs))
+		}
+	}
+	return result, nil
+}
+
+// Spec allows querying a set of Types and loading the set into the
+// kernel.
+type Spec struct {
+	*mutableTypes
 
 	// String table from ELF.
 	strings *stringTable
-
-	// Byte order of the ELF we decoded the spec from, may be nil.
-	byteOrder binary.ByteOrder
 }
 
 // LoadSpec opens file and calls LoadSpecFromReader on it.
@@ -181,7 +307,7 @@ func loadSpecFromELF(file *internal.SafeELFFile) (*Spec, error) {
 		return nil, err
 	}
 
-	err = fixupDatasec(spec.types, sectionSizes, offsets)
+	err = fixupDatasec(spec.imm.types, sectionSizes, offsets)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +323,7 @@ func loadRawSpec(btf io.ReaderAt, bo binary.ByteOrder, base *Spec) (*Spec, error
 	)
 
 	if base != nil {
-		if base.firstTypeID != 0 {
+		if base.imm.firstTypeID != 0 {
 			return nil, fmt.Errorf("can't use split BTF as base")
 		}
 
@@ -217,16 +343,23 @@ func loadRawSpec(btf io.ReaderAt, bo binary.ByteOrder, base *Spec) (*Spec, error
 	typeIDs, typesByName := indexTypes(types, firstTypeID)
 
 	return &Spec{
-		namedTypes:  typesByName,
-		typeIDs:     typeIDs,
-		types:       types,
-		firstTypeID: firstTypeID,
-		strings:     rawStrings,
-		byteOrder:   bo,
+		&mutableTypes{
+			immutableTypes{
+				types,
+				typeIDs,
+				firstTypeID,
+				typesByName,
+				bo,
+			},
+			sync.RWMutex{},
+			make(map[Type]Type),
+			make(map[Type]TypeID),
+		},
+		rawStrings,
 	}, nil
 }
 
-func indexTypes(types []Type, firstTypeID TypeID) (map[Type]TypeID, map[essentialName][]Type) {
+func indexTypes(types []Type, firstTypeID TypeID) (map[Type]TypeID, map[essentialName][]TypeID) {
 	namedTypes := 0
 	for _, typ := range types {
 		if typ.TypeName() != "" {
@@ -238,117 +371,18 @@ func indexTypes(types []Type, firstTypeID TypeID) (map[Type]TypeID, map[essentia
 	}
 
 	typeIDs := make(map[Type]TypeID, len(types))
-	typesByName := make(map[essentialName][]Type, namedTypes)
+	typesByName := make(map[essentialName][]TypeID, namedTypes)
 
 	for i, typ := range types {
+		id := firstTypeID + TypeID(i)
+		typeIDs[typ] = id
+
 		if name := newEssentialName(typ.TypeName()); name != "" {
-			typesByName[name] = append(typesByName[name], typ)
+			typesByName[name] = append(typesByName[name], id)
 		}
-		typeIDs[typ] = firstTypeID + TypeID(i)
 	}
 
 	return typeIDs, typesByName
-}
-
-// LoadKernelSpec returns the current kernel's BTF information.
-//
-// Defaults to /sys/kernel/btf/vmlinux and falls back to scanning the file system
-// for vmlinux ELFs. Returns an error wrapping ErrNotSupported if BTF is not enabled.
-func LoadKernelSpec() (*Spec, error) {
-	spec, _, err := kernelSpec()
-	if err != nil {
-		return nil, err
-	}
-	return spec.Copy(), nil
-}
-
-var kernelBTF struct {
-	sync.RWMutex
-	spec *Spec
-	// True if the spec was read from an ELF instead of raw BTF in /sys.
-	fallback bool
-}
-
-// FlushKernelSpec removes any cached kernel type information.
-func FlushKernelSpec() {
-	kernelBTF.Lock()
-	defer kernelBTF.Unlock()
-
-	kernelBTF.spec, kernelBTF.fallback = nil, false
-}
-
-func kernelSpec() (*Spec, bool, error) {
-	kernelBTF.RLock()
-	spec, fallback := kernelBTF.spec, kernelBTF.fallback
-	kernelBTF.RUnlock()
-
-	if spec == nil {
-		kernelBTF.Lock()
-		defer kernelBTF.Unlock()
-
-		spec, fallback = kernelBTF.spec, kernelBTF.fallback
-	}
-
-	if spec != nil {
-		return spec, fallback, nil
-	}
-
-	spec, fallback, err := loadKernelSpec()
-	if err != nil {
-		return nil, false, err
-	}
-
-	kernelBTF.spec, kernelBTF.fallback = spec, fallback
-	return spec, fallback, nil
-}
-
-func loadKernelSpec() (_ *Spec, fallback bool, _ error) {
-	fh, err := os.Open("/sys/kernel/btf/vmlinux")
-	if err == nil {
-		defer fh.Close()
-
-		spec, err := loadRawSpec(fh, internal.NativeEndian, nil)
-		return spec, false, err
-	}
-
-	file, err := findVMLinux()
-	if err != nil {
-		return nil, false, err
-	}
-	defer file.Close()
-
-	spec, err := LoadSpecFromReader(file)
-	return spec, true, err
-}
-
-// findVMLinux scans multiple well-known paths for vmlinux kernel images.
-func findVMLinux() (*os.File, error) {
-	release, err := internal.KernelRelease()
-	if err != nil {
-		return nil, err
-	}
-
-	// use same list of locations as libbpf
-	// https://github.com/libbpf/libbpf/blob/9a3a42608dbe3731256a5682a125ac1e23bced8f/src/btf.c#L3114-L3122
-	locations := []string{
-		"/boot/vmlinux-%s",
-		"/lib/modules/%s/vmlinux-%[1]s",
-		"/lib/modules/%s/build/vmlinux",
-		"/usr/lib/modules/%s/kernel/vmlinux",
-		"/usr/lib/debug/boot/vmlinux-%s",
-		"/usr/lib/debug/boot/vmlinux-%s.debug",
-		"/usr/lib/debug/lib/modules/%s/vmlinux",
-	}
-
-	for _, loc := range locations {
-		file, err := os.Open(fmt.Sprintf(loc, release))
-		if errors.Is(err, os.ErrNotExist) {
-			continue
-		}
-		return file, err
-	}
-
-	return nil, fmt.Errorf("no BTF found for kernel version %s: %w", release, internal.ErrNotSupported)
 }
 
 func guessRawBTFByteOrder(r io.ReaderAt) binary.ByteOrder {
@@ -492,17 +526,13 @@ func fixupDatasecLayout(ds *Datasec) error {
 
 // Copy creates a copy of Spec.
 func (s *Spec) Copy() *Spec {
-	types := copyTypes(s.types, nil)
-	typeIDs, typesByName := indexTypes(types, s.firstTypeID)
+	if s == nil {
+		return nil
+	}
 
-	// NB: Other parts of spec are not copied since they are immutable.
 	return &Spec{
-		types,
-		typeIDs,
-		s.firstTypeID,
-		typesByName,
+		s.mutableTypes.copy(),
 		s.strings,
-		s.byteOrder,
 	}
 }
 
@@ -519,8 +549,8 @@ func (sw sliceWriter) Write(p []byte) (int, error) {
 // nextTypeID returns the next unallocated type ID or an error if there are no
 // more type IDs.
 func (s *Spec) nextTypeID() (TypeID, error) {
-	id := s.firstTypeID + TypeID(len(s.types))
-	if id < s.firstTypeID {
+	id := s.imm.firstTypeID + TypeID(len(s.imm.types))
+	if id < s.imm.firstTypeID {
 		return 0, fmt.Errorf("no more type IDs")
 	}
 	return id, nil
@@ -531,33 +561,19 @@ func (s *Spec) nextTypeID() (TypeID, error) {
 // Returns an error wrapping ErrNotFound if a Type with the given ID
 // does not exist in the Spec.
 func (s *Spec) TypeByID(id TypeID) (Type, error) {
-	if id < s.firstTypeID {
-		return nil, fmt.Errorf("look up type with ID %d (first ID is %d): %w", id, s.firstTypeID, ErrNotFound)
+	typ, ok := s.typeByID(id)
+	if !ok {
+		return nil, fmt.Errorf("look up type with ID %d (first ID is %d): %w", id, s.imm.firstTypeID, ErrNotFound)
 	}
 
-	index := int(id - s.firstTypeID)
-	if index >= len(s.types) {
-		return nil, fmt.Errorf("look up type with ID %d: %w", id, ErrNotFound)
-	}
-
-	return s.types[index], nil
+	return typ, nil
 }
 
 // TypeID returns the ID for a given Type.
 //
-// Returns an error wrapping ErrNoFound if the type isn't part of the Spec.
+// Returns an error wrapping [ErrNotFound] if the type isn't part of the Spec.
 func (s *Spec) TypeID(typ Type) (TypeID, error) {
-	if _, ok := typ.(*Void); ok {
-		// Equality is weird for void, since it is a zero sized type.
-		return 0, nil
-	}
-
-	id, ok := s.typeIDs[typ]
-	if !ok {
-		return 0, fmt.Errorf("no ID for type %s: %w", typ, ErrNotFound)
-	}
-
-	return id, nil
+	return s.mutableTypes.typeID(typ)
 }
 
 // AnyTypesByName returns a list of BTF Types with the given name.
@@ -568,21 +584,7 @@ func (s *Spec) TypeID(typ Type) (TypeID, error) {
 //
 // Returns an error wrapping ErrNotFound if no matching Type exists in the Spec.
 func (s *Spec) AnyTypesByName(name string) ([]Type, error) {
-	types := s.namedTypes[newEssentialName(name)]
-	if len(types) == 0 {
-		return nil, fmt.Errorf("type name %s: %w", name, ErrNotFound)
-	}
-
-	// Return a copy to prevent changes to namedTypes.
-	result := make([]Type, 0, len(types))
-	for _, t := range types {
-		// Match against the full name, not just the essential one
-		// in case the type being looked up is a struct flavor.
-		if t.TypeName() == name {
-			result = append(result, t)
-		}
-	}
-	return result, nil
+	return s.mutableTypes.anyTypesByName(name)
 }
 
 // AnyTypeByName returns a Type with the given name.
@@ -671,26 +673,27 @@ func LoadSplitSpecFromReader(r io.ReaderAt, base *Spec) (*Spec, error) {
 
 // TypesIterator iterates over types of a given spec.
 type TypesIterator struct {
-	types []Type
-	index int
+	spec *Spec
+	id   TypeID
+	done bool
 	// The last visited type in the spec.
 	Type Type
 }
 
 // Iterate returns the types iterator.
 func (s *Spec) Iterate() *TypesIterator {
-	// We share the backing array of types with the Spec. This is safe since
-	// we don't allow deletion or shuffling of types.
-	return &TypesIterator{types: s.types, index: 0}
+	return &TypesIterator{spec: s, id: s.imm.firstTypeID}
 }
 
 // Next returns true as long as there are any remaining types.
 func (iter *TypesIterator) Next() bool {
-	if len(iter.types) <= iter.index {
+	if iter.done {
 		return false
 	}
 
-	iter.Type = iter.types[iter.index]
-	iter.index++
-	return true
+	var ok bool
+	iter.Type, ok = iter.spec.typeByID(iter.id)
+	iter.id++
+	iter.done = !ok
+	return !iter.done
 }

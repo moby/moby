@@ -32,6 +32,7 @@ func UnsafeBuffer(ptr unsafe.Pointer) Buffer {
 
 // SyscallOutput prepares a Buffer for a syscall to write into.
 //
+// size is the length of the desired buffer in bytes.
 // The buffer may point at the underlying memory of dst, in which case [Unmarshal]
 // becomes a no-op.
 //
@@ -51,6 +52,11 @@ func SyscallOutput(dst any, size int) Buffer {
 // Returns the number of copied bytes.
 func (b Buffer) CopyTo(dst []byte) int {
 	return copy(dst, b.unsafeBytes())
+}
+
+// AppendTo appends the buffer onto dst.
+func (b Buffer) AppendTo(dst []byte) []byte {
+	return append(dst, b.unsafeBytes()...)
 }
 
 // Pointer returns the location where a syscall should write.

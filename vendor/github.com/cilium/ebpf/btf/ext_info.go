@@ -143,27 +143,19 @@ func AssignMetadataToInstructions(
 // MarshalExtInfos encodes function and line info embedded in insns into kernel
 // wire format.
 //
-// Returns ErrNotSupported if the kernel doesn't support BTF-associated programs.
-func MarshalExtInfos(insns asm.Instructions) (_ *Handle, funcInfos, lineInfos []byte, _ error) {
-	// Bail out early if the kernel doesn't support Func(Proto). If this is the
-	// case, func_info will also be unsupported.
-	if err := haveProgBTF(); err != nil {
-		return nil, nil, nil, err
-	}
-
+// If an instruction has an [asm.Comment], it will be synthesized into a mostly
+// empty line info.
+func MarshalExtInfos(insns asm.Instructions, b *Builder) (funcInfos, lineInfos []byte, _ error) {
 	iter := insns.Iterate()
 	for iter.Next() {
-		_, ok := iter.Ins.Source().(*Line)
-		fn := FuncMetadata(iter.Ins)
-		if ok || fn != nil {
+		if iter.Ins.Source() != nil || FuncMetadata(iter.Ins) != nil {
 			goto marshal
 		}
 	}
 
-	return nil, nil, nil, nil
+	return nil, nil, nil
 
 marshal:
-	var b Builder
 	var fiBuf, liBuf bytes.Buffer
 	for {
 		if fn := FuncMetadata(iter.Ins); fn != nil {
@@ -171,18 +163,27 @@ marshal:
 				fn:     fn,
 				offset: iter.Offset,
 			}
-			if err := fi.marshal(&fiBuf, &b); err != nil {
-				return nil, nil, nil, fmt.Errorf("write func info: %w", err)
+			if err := fi.marshal(&fiBuf, b); err != nil {
+				return nil, nil, fmt.Errorf("write func info: %w", err)
 			}
 		}
 
-		if line, ok := iter.Ins.Source().(*Line); ok {
+		if source := iter.Ins.Source(); source != nil {
+			var line *Line
+			if l, ok := source.(*Line); ok {
+				line = l
+			} else {
+				line = &Line{
+					line: source.String(),
+				}
+			}
+
 			li := &lineInfo{
 				line:   line,
 				offset: iter.Offset,
 			}
-			if err := li.marshal(&liBuf, &b); err != nil {
-				return nil, nil, nil, fmt.Errorf("write line info: %w", err)
+			if err := li.marshal(&liBuf, b); err != nil {
+				return nil, nil, fmt.Errorf("write line info: %w", err)
 			}
 		}
 
@@ -191,8 +192,7 @@ marshal:
 		}
 	}
 
-	handle, err := NewHandle(&b)
-	return handle, fiBuf.Bytes(), liBuf.Bytes(), err
+	return fiBuf.Bytes(), liBuf.Bytes(), nil
 }
 
 // btfExtHeader is found at the start of the .BTF.ext section.
