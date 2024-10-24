@@ -851,10 +851,6 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 		return err
 	}
 
-	if err := daemon.netController.SetupUserChains(); err != nil {
-		log.G(context.TODO()).WithError(err).Warnf("initNetworkController")
-	}
-
 	// Set HostGatewayIP to the default bridge's IP if it is empty
 	setHostGatewayIP(daemon.netController, cfg)
 	return nil
@@ -915,12 +911,13 @@ func setHostGatewayIP(controller *libnetwork.Controller, config *config.Config) 
 func driverOptions(config *config.Config) nwconfig.Option {
 	return nwconfig.OptionDriverConfig("bridge", options.Generic{
 		netlabel.GenericData: options.Generic{
-			"EnableIPForwarding":  config.BridgeConfig.EnableIPForward,
-			"EnableIPTables":      config.BridgeConfig.EnableIPTables,
-			"EnableIP6Tables":     config.BridgeConfig.EnableIP6Tables,
-			"EnableUserlandProxy": config.BridgeConfig.EnableUserlandProxy,
-			"UserlandProxyPath":   config.BridgeConfig.UserlandProxyPath,
-			"Rootless":            config.Rootless,
+			"EnableIPForwarding":      config.BridgeConfig.EnableIPForward,
+			"EnableFilterForwardDrop": config.BridgeConfig.EnableFilterForwardDrop,
+			"EnableIPTables":          config.BridgeConfig.EnableIPTables,
+			"EnableIP6Tables":         config.BridgeConfig.EnableIP6Tables,
+			"EnableUserlandProxy":     config.BridgeConfig.EnableUserlandProxy,
+			"UserlandProxyPath":       config.BridgeConfig.UserlandProxyPath,
+			"Rootless":                config.Rootless,
 		},
 	})
 }
