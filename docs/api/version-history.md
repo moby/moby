@@ -27,6 +27,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 * Deprecated: The `ContainerdCommit.Expected`, `RuncCommit.Expected`, and
   `InitCommit.Expected` fields in the `GET /info` endpoint are deprecated
   and will be omitted in API v1.49.
+* `Sysctls` in `HostConfig` (top level `--sysctl` settings) for `eth0` are
+  no longer migrated to `DriverOpts`, as described in the changes for v1.46.
 
 ## v1.47 API changes
 

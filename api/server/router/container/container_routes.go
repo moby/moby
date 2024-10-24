@@ -769,14 +769,12 @@ func handleSysctlBC(
 			netIfSysctl := fmt.Sprintf("net.%s.%s.IFNAME.%s=%s", spl[1], spl[2], spl[4], v)
 			// Find the EndpointConfig to migrate settings to, if not already found.
 			if ep == nil {
-				/* TODO(robmry) - apply this to the API version used in 28.0.0
 				// Per-endpoint sysctls were introduced in API version 1.46. Migration is
-				// needed, but refuse to do it automatically for newer versions of the API.
-				if versions.GreaterThan(version, "1.??") {
+				// needed, but refuse to do it automatically for API 1.48 and newer.
+				if versions.GreaterThan(version, "1.47") {
 					return "", fmt.Errorf("interface specific sysctl setting %q must be supplied using driver option '%s'",
 						k, netlabel.EndpointSysctls)
 				}
-				*/
 				var err error
 				ep, err = epConfigForNetMode(version, hostConfig.NetworkMode, netConfig)
 				if err != nil {
