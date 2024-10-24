@@ -8965,13 +8965,27 @@ paths:
       parameters:
         - name: "keep-storage"
           in: "query"
+          description: |
+            Amount of disk space in bytes to keep for cache
+
+            > **Deprecated**: This parameter is deprecated and has been renamed to "reserved-space".
+          type: "integer"
+          format: "int64"
+        - name: "reserved-space"
+          in: "query"
           description: "Amount of disk space in bytes to keep for cache"
           type: "integer"
           format: "int64"
-        - name: "all"
+        - name: "max-used-space"
           in: "query"
-          type: "boolean"
-          description: "Remove all types of build cache"
+          description: "Maximum amount of disk space allowed to keep for cache"
+          type: "integer"
+          format: "int64"
+        - name: "min-free-space"
+          in: "query"
+          description: "Target amount of free disk space after pruning"
+          type: "integer"
+          format: "int64"
         - name: "filters"
           in: "query"
           type: "string"

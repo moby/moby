@@ -427,35 +427,68 @@ func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, er
 	var gcPolicy []client.PruneInfo
 	if conf.GC.Enabled {
 		var (
-			defaultKeepStorage int64
-			err                error
+			defaultReservedSpace int64
+			defaultMaxUsedSpace  int64
+			defaultMinFreeSpace  int64
+			err                  error
 		)
 
-		if conf.GC.DefaultKeepStorage != "" {
-			defaultKeepStorage, err = units.RAMInBytes(conf.GC.DefaultKeepStorage)
+		if conf.GC.DefaultReservedSpace != "" {
+			defaultReservedSpace, err = units.RAMInBytes(conf.GC.DefaultReservedSpace)
 			if err != nil {
-				return nil, errors.Wrapf(err, "could not parse '%s' as Builder.GC.DefaultKeepStorage config", conf.GC.DefaultKeepStorage)
+				return nil, errors.Wrapf(err, "could not parse '%s' as Builder.GC.DefaultReservedSpace config", conf.GC.DefaultReservedSpace)
+			}
+		}
+
+		if conf.GC.DefaultMaxUsedSpace != "" {
+			defaultMaxUsedSpace, err = units.RAMInBytes(conf.GC.DefaultMaxUsedSpace)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse '%s' as Builder.GC.DefaultMaxUsedSpace config", conf.GC.DefaultMaxUsedSpace)
+			}
+		}
+
+		if conf.GC.DefaultMinFreeSpace != "" {
+			defaultMinFreeSpace, err = units.RAMInBytes(conf.GC.DefaultMaxUsedSpace)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse '%s' as Builder.GC.DefaultMinFreeSpace config", conf.GC.DefaultMaxUsedSpace)
 			}
 		}
 
 		if conf.GC.Policy == nil {
-			gcPolicy = mobyworker.DefaultGCPolicy(root, defaultKeepStorage)
+			gcPolicy = mobyworker.DefaultGCPolicy(root, defaultReservedSpace, defaultMaxUsedSpace, defaultMinFreeSpace)
 		} else {
 			gcPolicy = make([]client.PruneInfo, len(conf.GC.Policy))
 			for i, p := range conf.GC.Policy {
-				b, err := units.RAMInBytes(p.KeepStorage)
+				reservedSpace, err := units.RAMInBytes(p.ReservedSpace)
 				if err != nil {
 					return nil, err
 				}
-				if b == 0 {
-					b = defaultKeepStorage
+				if reservedSpace == 0 {
+					reservedSpace = defaultReservedSpace
 				}
 
-				// FIXME(thaJeztah): wire up new options https://github.com/moby/moby/issues/48639
+				maxUsedSpace, err := units.RAMInBytes(p.MaxUsedSpace)
+				if err != nil {
+					return nil, err
+				}
+				if maxUsedSpace == 0 {
+					maxUsedSpace = defaultMaxUsedSpace
+				}
+
+				minFreeSpace, err := units.RAMInBytes(p.MinFreeSpace)
+				if err != nil {
+					return nil, err
+				}
+				if minFreeSpace == 0 {
+					minFreeSpace = defaultMinFreeSpace
+				}
+
 				gcPolicy[i], err = toBuildkitPruneInfo(types.BuildCachePruneOptions{
-					All:         p.All,
-					KeepStorage: b,
-					Filters:     filters.Args(p.Filter),
+					All:           p.All,
+					ReservedSpace: reservedSpace,
+					MaxUsedSpace:  maxUsedSpace,
+					MinFreeSpace:  minFreeSpace,
+					Filters:       filters.Args(p.Filter),
 				})
 				if err != nil {
 					return nil, err
