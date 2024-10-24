@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -17,6 +18,7 @@ import (
 	"github.com/docker/docker/testutil/fakecontext"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -86,6 +88,8 @@ func TestBuildSquashParent(t *testing.T) {
 		container.WithImage(name),
 		container.WithCmd("/bin/sh", "-c", "cat /hello"),
 	)
+
+	poll.WaitOn(t, container.IsStopped(ctx, client, cid), poll.WithDelay(100*time.Millisecond))
 	reader, err := client.ContainerLogs(ctx, cid, containertypes.LogsOptions{
 		ShowStdout: true,
 	})
