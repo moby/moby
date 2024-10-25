@@ -22,16 +22,3 @@ func (e invalidFilter) Error() string {
 
 // InvalidParameter marks this error as ErrInvalidParameter
 func (e invalidFilter) InvalidParameter() {}
-
-// unreachableCode is an error indicating that the code path was not expected to be reached.
-type unreachableCode struct {
-	Filter string
-	Value  []string
-}
-
-// System marks this error as ErrSystem
-func (e unreachableCode) System() {}
-
-func (e unreachableCode) Error() string {
-	return fmt.Sprintf("unreachable code reached for filter: %q with values: %s", e.Filter, e.Value)
-}
