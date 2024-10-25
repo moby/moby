@@ -16,7 +16,7 @@ import (
 // host lives in the current network namespace (eg. where dockerd runs).
 const CurrentNetns = ""
 
-func runCommand(t *testing.T, cmd string, args ...string) string {
+func runCommand(t *testing.T, cmd string, args ...string) (string, error) {
 	t.Helper()
 	t.Log(strings.Join(append([]string{cmd}, args...), " "))
 
@@ -25,11 +25,7 @@ func runCommand(t *testing.T, cmd string, args ...string) string {
 	c.Stdout = &b
 	c.Stderr = &b
 	err := c.Run()
-	if err != nil {
-		t.Log(b.String())
-		t.Fatalf("Error: %v", err)
-	}
-	return b.String()
+	return b.String(), err
 }
 
 // L3Segment simulates a switched, dual-stack capable network that
@@ -106,7 +102,10 @@ func newHost(t *testing.T, nsName, ifname string) Host {
 	}
 
 	if nsName != CurrentNetns {
-		runCommand(t, "ip", "netns", "add", nsName)
+		if out, err := runCommand(t, "ip", "netns", "add", nsName); err != nil {
+			t.Log(out)
+			t.Fatalf("Error: %v", err)
+		}
 	}
 
 	return Host{
@@ -115,16 +114,28 @@ func newHost(t *testing.T, nsName, ifname string) Host {
 	}
 }
 
-// Run executes the provided command in the host's network namespace
-// and returns its combined stdout/stderr.
-func (h Host) Run(t *testing.T, cmd string, args ...string) string {
+// RunErr executes the provided command in the host's network namespace,
+// returns its combined stdout/stderr, and error.
+func (h Host) RunErr(t *testing.T, cmd string, args ...string) (string, error) {
 	t.Helper()
-
 	if h.ns != CurrentNetns {
 		args = append([]string{"netns", "exec", h.ns, cmd}, args...)
 		cmd = "ip"
 	}
 	return runCommand(t, cmd, args...)
+}
+
+// Run executes the provided command in the host's network namespace
+// and returns its combined stdout/stderr, failing the test if the
+// command returns an error.
+func (h Host) Run(t *testing.T, cmd string, args ...string) string {
+	t.Helper()
+	out, err := h.RunErr(t, cmd, args...)
+	if err != nil {
+		t.Log(out)
+		t.Fatalf("Error: %v", err)
+	}
+	return out
 }
 
 // Do run the provided function in the host's network namespace.
@@ -158,6 +169,9 @@ func (h Host) Destroy(t *testing.T) {
 	t.Helper()
 
 	if h.ns != CurrentNetns {
-		runCommand(t, "ip", "netns", "delete", h.ns)
+		if out, err := runCommand(t, "ip", "netns", "delete", h.ns); err != nil {
+			t.Log(out)
+			t.Fatalf("Error: %v", err)
+		}
 	}
 }
