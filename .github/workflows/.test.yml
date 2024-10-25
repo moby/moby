@@ -32,10 +32,47 @@ env:
   SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
 
 jobs:
+
+  unit-prepare:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10 # guardrails timeout for the whole job
+    continue-on-error: ${{ github.event_name != 'pull_request' }}
+    outputs:
+      includes: ${{ steps.set.outputs.includes }}
+    steps:
+      -
+        name: Create matrix includes
+        id: set
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let includes = [
+              { mode: '' },
+              { mode: 'rootless' },
+              { mode: 'systemd' },
+            ];
+            if ("${{ inputs.storage }}" == "snapshotter") {
+              includes.push({ mode: 'firewalld' });
+            }
+            await core.group(`Set matrix`, async () => {
+              core.info(`matrix: ${JSON.stringify(includes)}`);
+              core.setOutput('includes', JSON.stringify(includes));
+            });
+      -
+        name: Show matrix
+        run: |
+          echo ${{ steps.set.outputs.includes }}
+
   unit:
     runs-on: ubuntu-20.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
+    needs:
+      - unit-prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.unit-prepare.outputs.includes) }}
     steps:
       -
         name: Checkout
@@ -43,6 +80,15 @@ jobs:
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
+      -
+        name: Prepare
+        run: |
+          CACHE_DEV_SCOPE=dev
+          if [[ "${{ matrix.mode }}" == *"firewalld"* ]]; then
+            echo "DOCKER_FIREWALLD=true" >> $GITHUB_ENV
+            CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
+          fi
+          echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -83,7 +129,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports-unit-${{ inputs.storage }}
+          name: test-reports-unit-${{ inputs.storage }}-${{ matrix.mode }}
           path: /tmp/reports/*
           retention-days: 1
 
@@ -105,7 +151,7 @@ jobs:
         name: Download reports
         uses: actions/download-artifact@v4
         with:
-          name: test-reports-unit-${{ inputs.storage }}
+          pattern: test-reports-unit-${{ inputs.storage }}-*
           path: /tmp/reports
       -
         name: Install teststat
@@ -205,21 +251,51 @@ jobs:
         env:
           TEST_SKIP_INTEGRATION_CLI: 1
 
+  integration-prepare:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10 # guardrails timeout for the whole job
+    continue-on-error: ${{ github.event_name != 'pull_request' }}
+    outputs:
+      includes: ${{ steps.set.outputs.includes }}
+    steps:
+      -
+        name: Create matrix includes
+        id: set
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let includes = [
+              { os: 'ubuntu-20.04', mode: '' },
+              { os: 'ubuntu-20.04', mode: 'rootless' },
+              { os: 'ubuntu-20.04', mode: 'systemd' },
+              { os: 'ubuntu-22.04', mode: '' },
+              { os: 'ubuntu-22.04', mode: 'rootless' },
+              { os: 'ubuntu-22.04', mode: 'systemd' },
+              // { os: 'ubuntu-20.04', mode: 'rootless-systemd' }, // FIXME: https://github.com/moby/moby/issues/44084
+              // { os: 'ubuntu-22.04', mode: 'rootless-systemd' }, // FIXME: https://github.com/moby/moby/issues/44084
+            ];
+            if ("${{ inputs.storage }}" == "snapshotter") {
+              includes.push({ os: 'ubuntu-22.04', mode: 'firewalld' });
+            }
+            await core.group(`Set matrix`, async () => {
+              core.info(`matrix: ${JSON.stringify(includes)}`);
+              core.setOutput('includes', JSON.stringify(includes));
+            });
+      -
+        name: Show matrix
+        run: |
+          echo ${{ steps.set.outputs.includes }}
+
   integration:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
+    needs:
+      - integration-prepare
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-20.04
-          - ubuntu-22.04
-        mode:
-          - ""
-          - rootless
-          - systemd
-          #- rootless-systemd FIXME: https://github.com/moby/moby/issues/44084
+        include: ${{ fromJson(needs.integration-prepare.outputs.includes) }}
     steps:
       -
         name: Checkout
@@ -240,6 +316,10 @@ jobs:
           if [[ "${{ matrix.mode }}" == *"systemd"* ]]; then
             echo "SYSTEMD=true" >> $GITHUB_ENV
             CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}systemd"
+          fi
+          if [[ "${{ matrix.mode }}" == *"firewalld"* ]]; then
+            echo "DOCKER_FIREWALLD=true" >> $GITHUB_ENV
+            CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
           fi
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
@@ -338,7 +418,7 @@ jobs:
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     outputs:
-      matrix: ${{ steps.tests.outputs.matrix }}
+      matrix: ${{ steps.set.outputs.matrix }}
     steps:
       -
         name: Checkout
@@ -354,7 +434,7 @@ jobs:
         run:
           go install github.com/crazy-max/gotestlist/cmd/gotestlist@${{ env.GOTESTLIST_VERSION }}
       -
-        name: Create matrix
+        name: Create test matrix
         id: tests
         working-directory: ./integration-cli
         run: |
@@ -366,9 +446,43 @@ jobs:
           matrix="$(gotestlist -d ${{ env.ITG_CLI_MATRIX_SIZE }} -o "./..." -o "DockerSwarmSuite" -o "DockerNetworkSuite|DockerExternalVolumeSuite" ./...)"
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
       -
-        name: Show matrix
+        name: Create gha matrix
+        id: set
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let matrix = {
+              test: ${{ steps.tests.outputs.matrix }},
+              include: [],
+            };
+            // For some reasons, GHA doesn't combine a dynamically defined
+            // 'include' with other matrix variables that aren't part of the
+            // include items.
+            // Moreover, since the goal is to run only relevant tests with
+            // firewalld enabled to minimize the number of CI jobs, we
+            // statically define the list of test suites that we want to run.
+            if ("${{ inputs.storage }}" == "snapshotter") {
+              matrix.include.push({
+                'mode': 'firewalld',
+                'test': 'DockerCLINetworkSuite|DockerCLIPortSuite|DockerDaemonSuite'
+              });
+              matrix.include.push({
+                'mode': 'firewalld',
+                'test': 'DockerSwarmSuite'
+              });
+              matrix.include.push({
+                'mode': 'firewalld',
+                'test': 'DockerNetworkSuite'
+              });
+            }
+            await core.group(`Set matrix`, async () => {
+              core.info(`matrix: ${JSON.stringify(matrix)}`);
+              core.setOutput('matrix', JSON.stringify(matrix));
+            });
+      -
+        name: Show final gha matrix
         run: |
-          echo ${{ steps.tests.outputs.matrix }}
+          echo ${{ steps.set.outputs.matrix }}
 
   integration-cli:
     runs-on: ubuntu-20.04
@@ -378,8 +492,7 @@ jobs:
       - integration-cli-prepare
     strategy:
       fail-fast: false
-      matrix:
-        test: ${{ fromJson(needs.integration-cli-prepare.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.integration-cli-prepare.outputs.matrix) }}
     steps:
       -
         name: Checkout
@@ -390,6 +503,15 @@ jobs:
       -
         name: Set up tracing
         uses: ./.github/actions/setup-tracing
+      -
+        name: Prepare
+        run: |
+          CACHE_DEV_SCOPE=dev
+          if [[ "${{ matrix.mode }}" == *"firewalld"* ]]; then
+            echo "DOCKER_FIREWALLD=true" >> $GITHUB_ENV
+            CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
+          fi
+          echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
