@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/pkg/stringid"
 )
 
 // NewWindowsParser creates a parser with Windows semantics.
@@ -393,9 +392,8 @@ func (p *windowsParser) parseMountSpec(cfg mount.Mount, convertTargetToBackslash
 
 	switch cfg.Type {
 	case mount.TypeVolume:
-		if cfg.Source == "" {
-			mp.Name = stringid.GenerateRandomID()
-		} else {
+		if cfg.Source != "" {
+			// non-anonymous volume
 			mp.Name = cfg.Source
 		}
 		mp.CopyData = p.DefaultCopyMode()

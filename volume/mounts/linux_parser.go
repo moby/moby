@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
 )
 
@@ -329,9 +328,8 @@ func (p *linuxParser) parseMountSpec(cfg mount.Mount, validateBindSourceExists b
 
 	switch cfg.Type {
 	case mount.TypeVolume:
-		if cfg.Source == "" {
-			mp.Name = stringid.GenerateRandomID()
-		} else {
+		if cfg.Source != "" {
+			// non-anonymous volume
 			mp.Name = cfg.Source
 		}
 		mp.CopyData = p.DefaultCopyMode()
