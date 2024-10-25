@@ -66,8 +66,6 @@ linters-settings:
     rules:
       main:
         deny:
-          - pkg: "github.com/containerd/containerd/errdefs"
-            desc: The containerd errdefs package was migrated to a separate module. Use github.com/containerd/errdefs instead.
           - pkg: "github.com/containerd/containerd/log"
             desc: The containerd log package was migrated to a separate module. Use github.com/containerd/log instead.
           - pkg: "github.com/containerd/containerd/platforms"
