@@ -45,6 +45,11 @@ func (file *File) resolveMessages() {
 			case protoreflect.MessageKind, protoreflect.GroupKind:
 				fd.L1.Message = file.resolveMessageDependency(fd.L1.Message, listFieldDeps, depIdx)
 				depIdx++
+				if fd.L1.Kind == protoreflect.GroupKind && (fd.IsMap() || fd.IsMapEntry()) {
+					// A map field might inherit delimited encoding from a file-wide default feature.
+					// But maps never actually use delimited encoding. (At least for now...)
+					fd.L1.Kind = protoreflect.MessageKind
+				}
 			}
 
 			// Default is resolved here since it depends on Enum being resolved.
