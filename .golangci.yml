@@ -47,8 +47,6 @@ linters-settings:
             desc: The logs package has moved to a separate module, https://github.com/containerd/log
           - pkg: "github.com/containerd/containerd/pkg/userns"
             desc: Use github.com/moby/sys/userns instead.
-          - pkg: "github.com/opencontainers/runc/libcontainer/userns"
-            desc: Use github.com/moby/sys/userns instead.
           - pkg: "github.com/tonistiigi/fsutil"
             desc: The fsutil module does not have a stable API, so we should not have a direct dependency unless necessary.
 
