@@ -13,9 +13,13 @@ import (
 )
 
 // State holds the current container state, and has methods to get and
-// set the state. Container has an embed, which allows all of the
-// functions defined against State to run against Container.
+// set the state. State is embedded in the [Container] struct.
+//
+// State contains an exported [sync.Mutex] which is used as a global lock
+// for both the State and the Container it's embedded in.
 type State struct {
+	// This Mutex is exported by design and is used as a global lock
+	// for both the State and the Container it's embedded in.
 	sync.Mutex
 	// Note that `Running` and `Paused` are not mutually exclusive:
 	// When pausing a container (on Linux), the freezer cgroup is used to suspend

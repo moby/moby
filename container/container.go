@@ -63,11 +63,15 @@ type ExitStatus struct {
 // Container holds the structure defining a container object.
 type Container struct {
 	StreamConfig *stream.Config
-	// embed for Container to support states directly.
-	*State          `json:"State"` // Needed for Engine API version <= 1.11
-	Root            string         `json:"-"` // Path to the "home" of the container, including metadata.
-	BaseFS          string         `json:"-"` // Path to the graphdriver mountpoint
-	RWLayer         layer.RWLayer  `json:"-"`
+	// We embed [State] here so that Container supports states directly,
+	// but marshal it as a struct in JSON.
+	//
+	// State also provides a [sync.Mutex] which is used as lock for both
+	// the Container and State.
+	*State          `json:"State"`
+	Root            string        `json:"-"` // Path to the "home" of the container, including metadata.
+	BaseFS          string        `json:"-"` // Path to the graphdriver mountpoint
+	RWLayer         layer.RWLayer `json:"-"`
 	ID              string
 	Created         time.Time
 	Managed         bool
