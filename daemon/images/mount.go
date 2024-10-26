@@ -20,7 +20,7 @@ func (i *ImageService) Mount(ctx context.Context, container *container.Container
 	if err != nil {
 		return err
 	}
-	log.G(ctx).WithField("container", container.ID).Debugf("container mounted via layerStore: %v", dir)
+	log.G(ctx).WithFields(log.Fields{"container": container.ID, "root": dir, "storage-driver": container.Driver}).Debug("container mounted via layerStore")
 
 	if container.BaseFS != "" && container.BaseFS != dir {
 		// The mount path reported by the graph driver should always be trusted on Windows, since the
