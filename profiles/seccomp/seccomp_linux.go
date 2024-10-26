@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"runtime"
 
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // GetDefaultProfile returns the default seccomp profile.

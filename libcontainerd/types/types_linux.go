@@ -3,7 +3,7 @@ package types // import "github.com/docker/docker/libcontainerd/types"
 import (
 	"time"
 
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // Summary is not used on linux

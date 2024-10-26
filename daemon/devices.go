@@ -3,7 +3,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/internal/capabilities"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 var deviceDrivers = map[string]*deviceDriver{}

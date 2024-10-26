@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/oci"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"go.opentelemetry.io/otel"
 )
 

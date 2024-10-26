@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/log"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/idtools"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {

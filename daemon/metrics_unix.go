@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/plugin"
 	metrics "github.com/docker/go-metrics"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
