@@ -79,6 +79,15 @@ func (s *VolumesService) Create(ctx context.Context, name, driverName string, op
 	}
 	v, err := s.vs.Create(ctx, name, driverName, options...)
 	if err != nil {
+		if errdefs.IsNotFound(err) {
+			// Using a non-existing plugin is an invalid parameter, and should
+			// not return a "notfound" error on container create, because that
+			// error is used to indicate the container's image isn't found and
+			// must be pulled.
+			//
+			// See https://github.com/moby/moby/issues/48772
+			return nil, errdefs.InvalidParameter(err)
+		}
 		return nil, err
 	}
 
