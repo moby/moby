@@ -73,9 +73,9 @@ func (s *VolumesService) Create(ctx context.Context, name, driverName string, op
 	if name == "" {
 		name = stringid.GenerateRandomID()
 		options = append(options, opts.WithCreateLabel(AnonymousLabel, ""))
-		log.G(ctx).WithField("volume-name", name).Error("Creating anonymous volume")
+		log.G(ctx).WithField("volume-name", name).Debug("Creating anonymous volume")
 	} else {
-		log.G(ctx).WithField("volume-name", name).Error("Creating named volume")
+		log.G(ctx).WithField("volume-name", name).Debug("Creating named volume")
 	}
 	v, err := s.vs.Create(ctx, name, driverName, options...)
 	if err != nil {
