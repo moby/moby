@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 
 	"github.com/docker/docker/api/types/mount"
@@ -447,7 +446,7 @@ func (p *windowsParser) DefaultPropagationMode() mount.Propagation {
 }
 
 func (p *windowsParser) ConvertTmpfsOptions(opt *mount.TmpfsOptions, readOnly bool) (string, error) {
-	return "", fmt.Errorf("%s does not support tmpfs", runtime.GOOS)
+	return "", errors.New("windows does not support tmpfs")
 }
 
 func (p *windowsParser) DefaultCopyMode() bool {
@@ -459,7 +458,7 @@ func (p *windowsParser) IsBackwardCompatible(m *MountPoint) bool {
 }
 
 func (p *windowsParser) ValidateTmpfsMountDestination(dest string) error {
-	return errors.New("platform does not support tmpfs")
+	return errors.New("windows does not support tmpfs")
 }
 
 func (p *windowsParser) HasResource(m *MountPoint, absolutePath string) bool {
