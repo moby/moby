@@ -110,7 +110,7 @@ func TestLCOWParseMountRawSplit(t *testing.T) {
 		expName   string
 		expDriver string
 		expRW     bool
-		fail      bool
+		expErr    string
 	}{
 		{
 			bind:      `c:\:/foo`,
@@ -138,7 +138,7 @@ func TestLCOWParseMountRawSplit(t *testing.T) {
 		{
 			bind:   `c:\:/foo:foo`,
 			driver: "local",
-			fail:   true,
+			expErr: `invalid volume specification: 'c:\:/foo:foo'`,
 		},
 		{
 			bind:      `name:/foo:rw`,
@@ -167,27 +167,27 @@ func TestLCOWParseMountRawSplit(t *testing.T) {
 			expDriver: "local",
 		},
 		{
-			bind: `name:/`,
-			fail: true,
+			bind:   `name:/`,
+			expErr: `invalid volume specification: 'name:/': invalid mount config for type "volume": invalid specification: destination can't be '/'`,
 		},
 		{
-			bind: `driver/name:/`,
-			fail: true,
+			bind:   `driver/name:/`,
+			expErr: `invalid volume specification: 'driver/name:/'`,
 		},
 		{
 			bind:   `\\.\pipe\foo:\\.\pipe\bar`,
 			driver: "local",
-			fail:   true,
+			expErr: `invalid volume specification: '\\.\pipe\foo:\\.\pipe\bar'`,
 		},
 		{
 			bind:   `\\.\pipe\foo:/data`,
 			driver: "local",
-			fail:   true,
+			expErr: `invalid volume specification: '\\.\pipe\foo:/data': invalid mount config for type "npipe": Linux containers on Windows do not support named pipe mounts`,
 		},
 		{
 			bind:   `c:\foo\bar:\\.\pipe\foo`,
 			driver: "local",
-			fail:   true,
+			expErr: `invalid volume specification: 'c:\foo\bar:\\.\pipe\foo'`,
 		},
 	}
 
@@ -200,9 +200,9 @@ func TestLCOWParseMountRawSplit(t *testing.T) {
 		tc := tc
 		t.Run(tc.bind, func(t *testing.T) {
 			m, err := parser.ParseMountRaw(tc.bind, tc.driver)
-			if tc.fail {
+			if tc.expErr != "" {
 				assert.Check(t, is.Nil(m))
-				assert.Check(t, is.ErrorContains(err, ""), "expected an error")
+				assert.Check(t, is.Error(err, tc.expErr))
 				return
 			}
 

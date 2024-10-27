@@ -117,7 +117,7 @@ func TestWindowsParseMountRawSplit(t *testing.T) {
 		expName   string
 		expDriver string
 		expRW     bool
-		fail      bool
+		expErr    string
 	}{
 		{
 			bind:      `c:\:d:`,
@@ -153,7 +153,7 @@ func TestWindowsParseMountRawSplit(t *testing.T) {
 		{
 			bind:   `c:\:d:\:foo`,
 			driver: "local",
-			fail:   true,
+			expErr: `invalid volume specification: 'c:\:d:\:foo'`,
 		},
 		{
 			bind:      `name:d::rw`,
@@ -182,12 +182,12 @@ func TestWindowsParseMountRawSplit(t *testing.T) {
 			expDriver: "local",
 		},
 		{
-			bind: `name:c:`,
-			fail: true,
+			bind:   `name:c:`,
+			expErr: `invalid volume specification: 'name:c:': invalid mount config for type "volume": destination path (c:) cannot be 'c:' or 'c:\'`,
 		},
 		{
-			bind: `driver/name:c:`,
-			fail: true,
+			bind:   `driver/name:c:`,
+			expErr: `invalid volume specification: 'driver/name:c:'`,
 		},
 		{
 			bind:      `\\.\pipe\foo:\\.\pipe\bar`,
@@ -200,12 +200,12 @@ func TestWindowsParseMountRawSplit(t *testing.T) {
 		{
 			bind:   `\\.\pipe\foo:c:\foo\bar`,
 			driver: "local",
-			fail:   true,
+			expErr: `invalid volume specification: '\\.\pipe\foo:c:\foo\bar': invalid mount config for type "npipe": 'c:\foo\bar' is not a valid pipe path`,
 		},
 		{
 			bind:   `c:\foo\bar:\\.\pipe\foo`,
 			driver: "local",
-			fail:   true,
+			expErr: `invalid volume specification: 'c:\foo\bar:\\.\pipe\foo': invalid mount config for type "bind": bind source path does not exist: c:\foo\bar`,
 		},
 	}
 
@@ -218,9 +218,9 @@ func TestWindowsParseMountRawSplit(t *testing.T) {
 		tc := tc
 		t.Run(tc.bind, func(t *testing.T) {
 			m, err := parser.ParseMountRaw(tc.bind, tc.driver)
-			if tc.fail {
+			if tc.expErr != "" {
 				assert.Check(t, is.Nil(m))
-				assert.Check(t, is.ErrorContains(err, ""), "expected an error")
+				assert.Check(t, is.Error(err, tc.expErr))
 				return
 			}
 

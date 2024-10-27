@@ -108,7 +108,7 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 		expName   string
 		expDriver string
 		expRW     bool
-		fail      bool
+		expErr    string
 	}{
 		{
 			bind:      "/tmp:/tmp1",
@@ -131,8 +131,8 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 			expRW:     true,
 		},
 		{
-			bind: "/tmp:/tmp4:foo",
-			fail: true,
+			bind:   "/tmp:/tmp4:foo",
+			expErr: `invalid mode: foo`,
 		},
 		{
 			bind:    "name:/named1",
@@ -166,8 +166,8 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 			expRW:   true,
 		},
 		{
-			bind: "/tmp:tmp",
-			fail: true,
+			bind:   "/tmp:tmp",
+			expErr: `invalid volume specification: '/tmp:tmp': invalid mount config for type "bind": invalid mount path: 'tmp' mount path must be absolute`,
 		},
 	}
 
@@ -180,9 +180,9 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 		tc := tc
 		t.Run(tc.bind, func(t *testing.T) {
 			m, err := parser.ParseMountRaw(tc.bind, tc.driver)
-			if tc.fail {
+			if tc.expErr != "" {
 				assert.Check(t, is.Nil(m))
-				assert.Check(t, is.ErrorContains(err, ""), "expected an error")
+				assert.Check(t, is.Error(err, tc.expErr))
 				return
 			}
 
