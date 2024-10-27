@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/libcontainerd/types"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // initializeCreatedTask performs any initialization that needs to be done to

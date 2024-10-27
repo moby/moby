@@ -30,7 +30,7 @@ import (
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 )

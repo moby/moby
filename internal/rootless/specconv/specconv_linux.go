@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // ToRootfulInRootless is used for "rootful-in-rootless" dind;

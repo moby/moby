@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strconv"
 
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // TODO verify if this regex is correct for "a" (all);

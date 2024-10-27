@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	coci "github.com/containerd/containerd/oci"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func deviceCgroup(d *specs.LinuxDevice, permissions string) specs.LinuxDeviceCgroup {

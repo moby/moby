@@ -25,7 +25,7 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/moby/pubsub"
 	"github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

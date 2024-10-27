@@ -4,7 +4,7 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/oci/caps"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func iPtr(i int64) *int64 { return &i }

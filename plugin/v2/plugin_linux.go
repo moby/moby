@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/oci"
 	"github.com/moby/sys/userns"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
 
