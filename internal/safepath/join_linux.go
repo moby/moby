@@ -44,14 +44,7 @@ func Join(ctx context.Context, path, subpath string) (*SafePath, error) {
 		return nil, errors.Wrap(err, "failed to create temporary file for safe mount")
 	}
 
-	pid := strconv.Itoa(unix.Gettid())
-	// Using explicit pid path, because /proc/self/fd/<fd> fails with EACCES
-	// when running under "Enhanced Container Isolation" in Docker Desktop
-	// which uses sysbox runtime under the hood.
-	// TODO(vvoland): Investigate.
-	mountSource := "/proc/" + pid + "/fd/" + strconv.Itoa(fd)
-
-	if err := unix_noeintr.Mount(mountSource, tmpMount, "none", unix.MS_BIND, ""); err != nil {
+	if err := unix_noeintr.Mount("/proc/self/fd/"+strconv.Itoa(fd), tmpMount, "none", unix.MS_BIND, ""); err != nil {
 		if err := os.Remove(tmpMount); err != nil {
 			log.G(ctx).WithError(err).Warn("failed to remove tmpMount after failed mount")
 		}
