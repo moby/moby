@@ -78,7 +78,7 @@ func kubernetesSafeOpen(base, subpath string) (int, error) {
 
 		// Trigger auto mount if it's an auto-mounted directory, ignore error if not a directory.
 		// Notice the trailing slash is mandatory, see "automount" in openat(2) and open_by_handle_at(2).
-		unix_noeintr.Fstatat(parentFD, seg+"/", &deviceStat, unix.AT_SYMLINK_NOFOLLOW)
+		_ = unix_noeintr.Fstatat(parentFD, seg+"/", &deviceStat, unix.AT_SYMLINK_NOFOLLOW)
 
 		log.G(context.TODO()).Debugf("Opening path %s", currentPath)
 		childFD, err = unix_noeintr.Openat(parentFD, seg, openFDFlags|unix.O_CLOEXEC, 0)
