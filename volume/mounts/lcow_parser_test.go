@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/mount"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -102,38 +103,63 @@ func TestLCOWParseMountRaw(t *testing.T) {
 
 func TestLCOWParseMountRawSplit(t *testing.T) {
 	cases := []struct {
-		bind      string
-		driver    string
-		expType   mount.Type
-		expDest   string
-		expSource string
-		expName   string
-		expDriver string
-		expRW     bool
-		expErr    string
+		bind     string
+		driver   string
+		expected *MountPoint
+		expErr   string
 	}{
 		{
-			bind:      `c:\:/foo`,
-			driver:    "local",
-			expType:   mount.TypeBind,
-			expDest:   `/foo`,
-			expSource: `c:\`,
-			expRW:     true,
+			bind:   `c:\:/foo`,
+			driver: "local",
+			expected: &MountPoint{
+				Source:      `c:\`,
+				Destination: "/foo",
+				RW:          true,
+				Type:        mount.TypeBind,
+				Propagation: "", // Propagation is not set on LCOW.
+				Spec: mount.Mount{
+					Source:   `c:\`,
+					Target:   "/foo",
+					ReadOnly: false,
+					Type:     mount.TypeBind,
+				},
+			},
 		},
 		{
-			bind:      `c:\:/foo:ro`,
-			driver:    "local",
-			expType:   mount.TypeBind,
-			expDest:   `/foo`,
-			expSource: `c:\`,
+			bind:   `c:\:/foo:ro`,
+			driver: "local",
+			expected: &MountPoint{
+				Source:      `c:\`,
+				Destination: "/foo",
+				RW:          false,
+				Type:        mount.TypeBind,
+				Mode:        "ro",
+				Propagation: "", // Propagation is not set on LCOW.
+				Spec: mount.Mount{
+					Source:   `c:\`,
+					Target:   "/foo",
+					ReadOnly: true,
+					Type:     mount.TypeBind,
+				},
+			},
 		},
 		{
-			bind:      `c:\:/foo:rw`,
-			driver:    "local",
-			expType:   mount.TypeBind,
-			expDest:   `/foo`,
-			expSource: `c:\`,
-			expRW:     true,
+			bind:   `c:\:/foo:rw`,
+			driver: "local",
+			expected: &MountPoint{
+				Source:      `c:\`,
+				Destination: "/foo",
+				RW:          true,
+				Type:        mount.TypeBind,
+				Mode:        "rw",
+				Propagation: "", // Propagation is not set on LCOW.
+				Spec: mount.Mount{
+					Source:   `c:\`,
+					Target:   "/foo",
+					ReadOnly: false,
+					Type:     mount.TypeBind,
+				},
+			},
 		},
 		{
 			bind:   `c:\:/foo:foo`,
@@ -141,30 +167,64 @@ func TestLCOWParseMountRawSplit(t *testing.T) {
 			expErr: `invalid volume specification: 'c:\:/foo:foo'`,
 		},
 		{
-			bind:      `name:/foo:rw`,
-			driver:    "local",
-			expType:   mount.TypeVolume,
-			expDest:   `/foo`,
-			expName:   `name`,
-			expDriver: "local",
-			expRW:     true,
+			bind:   `name:/foo:rw`,
+			driver: "local",
+			expected: &MountPoint{
+				Destination: "/foo",
+				RW:          true,
+				Name:        "name",
+				Driver:      "local",
+				Type:        mount.TypeVolume,
+				Mode:        "rw",
+				Propagation: "", // Propagation is not set on LCOW.
+				Spec: mount.Mount{
+					Source:        `name`,
+					Target:        "/foo",
+					ReadOnly:      false,
+					Type:          mount.TypeVolume,
+					VolumeOptions: &mount.VolumeOptions{DriverConfig: &mount.Driver{Name: "local"}},
+				},
+			},
 		},
 		{
-			bind:      `name:/foo`,
-			driver:    "local",
-			expType:   mount.TypeVolume,
-			expDest:   `/foo`,
-			expName:   `name`,
-			expDriver: "local",
-			expRW:     true,
+			bind:   `name:/foo`,
+			driver: "local",
+			expected: &MountPoint{
+				Destination: "/foo",
+				RW:          true,
+				Name:        "name",
+				Driver:      "local",
+				Type:        mount.TypeVolume,
+				Mode:        "", // FIXME(thaJeztah): why is this different than an explicit "rw" ?
+				Propagation: "", // Propagation is not set on LCOW.
+				Spec: mount.Mount{
+					Source:        `name`,
+					Target:        "/foo",
+					ReadOnly:      false,
+					Type:          mount.TypeVolume,
+					VolumeOptions: &mount.VolumeOptions{DriverConfig: &mount.Driver{Name: "local"}},
+				},
+			},
 		},
 		{
-			bind:      `name:/foo:ro`,
-			driver:    "local",
-			expType:   mount.TypeVolume,
-			expDest:   `/foo`,
-			expName:   `name`,
-			expDriver: "local",
+			bind:   `name:/foo:ro`,
+			driver: "local",
+			expected: &MountPoint{
+				Destination: "/foo",
+				RW:          false,
+				Name:        "name",
+				Driver:      "local",
+				Type:        mount.TypeVolume,
+				Mode:        "ro",
+				Propagation: "", // Propagation is not set on LCOW.
+				Spec: mount.Mount{
+					Source:        `name`,
+					Target:        "/foo",
+					ReadOnly:      true,
+					Type:          mount.TypeVolume,
+					VolumeOptions: &mount.VolumeOptions{DriverConfig: &mount.Driver{Name: "local"}},
+				},
+			},
 		},
 		{
 			bind:   `name:/`,
@@ -207,12 +267,7 @@ func TestLCOWParseMountRawSplit(t *testing.T) {
 			}
 
 			assert.NilError(t, err)
-			assert.Check(t, is.Equal(m.Destination, tc.expDest))
-			assert.Check(t, is.Equal(m.Source, tc.expSource))
-			assert.Check(t, is.Equal(m.Name, tc.expName))
-			assert.Check(t, is.Equal(m.Driver, tc.expDriver))
-			assert.Check(t, is.Equal(m.RW, tc.expRW))
-			assert.Check(t, is.Equal(m.Type, tc.expType))
+			assert.Check(t, is.DeepEqual(*m, *tc.expected, cmpopts.IgnoreUnexported(MountPoint{})))
 		})
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/mount"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -100,70 +101,142 @@ func TestLinuxParseMountRaw(t *testing.T) {
 
 func TestLinuxParseMountRawSplit(t *testing.T) {
 	cases := []struct {
-		bind      string
-		driver    string
-		expType   mount.Type
-		expDest   string
-		expSource string
-		expName   string
-		expDriver string
-		expRW     bool
-		expErr    string
+		bind     string
+		driver   string
+		expected *MountPoint
+		expErr   string
 	}{
 		{
-			bind:      "/tmp:/tmp1",
-			expType:   mount.TypeBind,
-			expDest:   "/tmp1",
-			expSource: "/tmp",
-			expRW:     true,
+			bind: "/tmp:/tmp1",
+			expected: &MountPoint{
+				Source:      "/tmp",
+				Destination: "/tmp1",
+				RW:          true,
+				Type:        mount.TypeBind,
+				Propagation: "rprivate",
+				Spec: mount.Mount{
+					Source:   "/tmp",
+					Target:   "/tmp1",
+					ReadOnly: false,
+					Type:     mount.TypeBind,
+				},
+			},
 		},
 		{
-			bind:      "/tmp:/tmp2:ro",
-			expType:   mount.TypeBind,
-			expDest:   "/tmp2",
-			expSource: "/tmp",
+			bind: "/tmp:/tmp2:ro",
+			expected: &MountPoint{
+				Source:      "/tmp",
+				Destination: "/tmp2",
+				RW:          false,
+				Type:        mount.TypeBind,
+				Mode:        "ro",
+				Propagation: "rprivate",
+				Spec: mount.Mount{
+					Source:   "/tmp",
+					Target:   "/tmp2",
+					ReadOnly: true,
+					Type:     mount.TypeBind,
+				},
+			},
 		},
 		{
-			bind:      "/tmp:/tmp3:rw",
-			expType:   mount.TypeBind,
-			expDest:   "/tmp3",
-			expSource: "/tmp",
-			expRW:     true,
+			bind: "/tmp:/tmp3:rw",
+			expected: &MountPoint{
+				Source:      "/tmp",
+				Destination: "/tmp3",
+				RW:          true,
+				Type:        mount.TypeBind,
+				Mode:        "rw",
+				Propagation: "rprivate",
+				Spec: mount.Mount{
+					Source:   "/tmp",
+					Target:   "/tmp3",
+					ReadOnly: false,
+					Type:     mount.TypeBind,
+				},
+			},
 		},
 		{
 			bind:   "/tmp:/tmp4:foo",
 			expErr: `invalid mode: foo`,
 		},
 		{
-			bind:    "name:/named1",
-			expType: mount.TypeVolume,
-			expDest: "/named1",
-			expName: "name",
-			expRW:   true,
+			bind: "name:/named1",
+			expected: &MountPoint{
+				Destination: "/named1",
+				RW:          true,
+				Name:        "name",
+				Type:        mount.TypeVolume,
+				Mode:        "", // FIXME(thaJeztah): why is this different than an explicit "rw" ?
+				Propagation: "",
+				CopyData:    true,
+				Spec: mount.Mount{
+					Source:   "name",
+					Target:   "/named1",
+					ReadOnly: false,
+					Type:     mount.TypeVolume,
+				},
+			},
 		},
 		{
-			bind:      "name:/named2",
-			driver:    "external",
-			expType:   mount.TypeVolume,
-			expDest:   "/named2",
-			expName:   "name",
-			expDriver: "external",
-			expRW:     true,
+			bind:   "name:/named2",
+			driver: "external",
+			expected: &MountPoint{
+				Destination: "/named2",
+				RW:          true,
+				Name:        "name",
+				Driver:      "external",
+				Type:        mount.TypeVolume,
+				Mode:        "", // FIXME(thaJeztah): why is this different than an explicit "rw" ?
+				Propagation: "",
+				CopyData:    true,
+				Spec: mount.Mount{
+					Source:        "name",
+					Target:        "/named2",
+					ReadOnly:      false,
+					Type:          mount.TypeVolume,
+					VolumeOptions: &mount.VolumeOptions{DriverConfig: &mount.Driver{Name: "external"}},
+				},
+			},
 		},
 		{
-			bind:      "name:/named3:ro",
-			driver:    "local",
-			expType:   mount.TypeVolume,
-			expDest:   "/named3",
-			expName:   "name",
-			expDriver: "local",
+			bind:   "name:/named3:ro",
+			driver: "local",
+			expected: &MountPoint{
+				Destination: "/named3",
+				RW:          false,
+				Name:        "name",
+				Driver:      "local",
+				Type:        mount.TypeVolume,
+				Mode:        "ro",
+				Propagation: "",
+				CopyData:    true,
+				Spec: mount.Mount{
+					Source:        "name",
+					Target:        "/named3",
+					ReadOnly:      true,
+					Type:          mount.TypeVolume,
+					VolumeOptions: &mount.VolumeOptions{DriverConfig: &mount.Driver{Name: "local"}},
+				},
+			},
 		},
 		{
-			bind:    "local/name:/tmp:rw",
-			expType: mount.TypeVolume,
-			expDest: "/tmp",
-			expName: "local/name",
-			expRW:   true,
+			bind: "local/name:/tmp:rw",
+			expected: &MountPoint{
+				Destination: "/tmp",
+				RW:          true,
+				Name:        "local/name",
+				Type:        mount.TypeVolume,
+				Mode:        "rw",
+				Propagation: "",
+				CopyData:    true,
+				Spec: mount.Mount{
+					Source:   "local/name",
+					Target:   "/tmp",
+					ReadOnly: false,
+					Type:     mount.TypeVolume,
+				},
+			},
 		},
 		{
 			bind:   "/tmp:tmp",
@@ -187,12 +260,7 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 			}
 
 			assert.NilError(t, err)
-			assert.Check(t, is.Equal(m.Destination, tc.expDest))
-			assert.Check(t, is.Equal(m.Source, tc.expSource))
-			assert.Check(t, is.Equal(m.Name, tc.expName))
-			assert.Check(t, is.Equal(m.Driver, tc.expDriver))
-			assert.Check(t, is.Equal(m.RW, tc.expRW))
-			assert.Check(t, is.Equal(m.Type, tc.expType))
+			assert.Check(t, is.DeepEqual(*m, *tc.expected, cmpopts.IgnoreUnexported(MountPoint{})))
 		})
 	}
 }

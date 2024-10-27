@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/mount"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -109,77 +110,136 @@ func TestWindowsParseMountRaw(t *testing.T) {
 
 func TestWindowsParseMountRawSplit(t *testing.T) {
 	cases := []struct {
-		bind      string
-		driver    string
-		expType   mount.Type
-		expDest   string
-		expSource string
-		expName   string
-		expDriver string
-		expRW     bool
-		expErr    string
+		bind     string
+		driver   string
+		expected *MountPoint
+		expErr   string
 	}{
 		{
-			bind:      `c:\:d:`,
-			driver:    "local",
-			expType:   mount.TypeBind,
-			expDest:   `d:`,
-			expSource: `c:\`,
-			expRW:     true,
+			bind:   `c:\:d:`,
+			driver: "local",
+			expected: &MountPoint{
+				Source:      `c:\`,
+				Destination: `d:`,
+				RW:          true,
+				Type:        mount.TypeBind,
+				Spec: mount.Mount{
+					Source:   `c:\`,
+					Target:   `d:`,
+					ReadOnly: false,
+					Type:     mount.TypeBind,
+				},
+			},
 		},
 		{
-			bind:      `c:\:d:\`,
-			driver:    "local",
-			expType:   mount.TypeBind,
-			expDest:   `d:\`,
-			expSource: `c:\`,
-			expRW:     true,
+			bind:   `c:\:d:\`,
+			driver: "local",
+			expected: &MountPoint{
+				Source:      `c:\`,
+				Destination: `d:\`,
+				RW:          true,
+				Type:        mount.TypeBind,
+				Spec: mount.Mount{
+					Source:   `c:\`,
+					Target:   `d:\`,
+					ReadOnly: false,
+					Type:     mount.TypeBind,
+				},
+			},
 		},
 		{
-			bind:      `c:\:d:\:ro`,
-			driver:    "local",
-			expType:   mount.TypeBind,
-			expDest:   `d:\`,
-			expSource: `c:\`,
+			bind: `c:\:d:\:ro`,
+			expected: &MountPoint{
+				Source:      `c:\`,
+				Destination: `d:\`,
+				RW:          false,
+				Type:        mount.TypeBind,
+				Mode:        "ro",
+				Spec: mount.Mount{
+					Source:   `c:\`,
+					Target:   `d:\`,
+					ReadOnly: true,
+					Type:     mount.TypeBind,
+					// BindOptions: &mount.BindOptions{},
+				},
+			},
 		},
 		{
-			bind:      `c:\:d:\:rw`,
-			driver:    "local",
-			expType:   mount.TypeBind,
-			expDest:   `d:\`,
-			expSource: `c:\`,
-			expRW:     true,
+			bind: `c:\:d:\:rw`,
+			expected: &MountPoint{
+				Source:      `c:\`,
+				Destination: `d:\`,
+				RW:          true,
+				Type:        mount.TypeBind,
+				Mode:        "rw",
+				Spec: mount.Mount{
+					Source:   `c:\`,
+					Target:   `d:\`,
+					ReadOnly: false,
+					Type:     mount.TypeBind,
+				},
+			},
 		},
 		{
 			bind:   `c:\:d:\:foo`,
-			driver: "local",
 			expErr: `invalid volume specification: 'c:\:d:\:foo'`,
 		},
 		{
-			bind:      `name:d::rw`,
-			driver:    "local",
-			expType:   mount.TypeVolume,
-			expDest:   `d:`,
-			expName:   `name`,
-			expDriver: "local",
-			expRW:     true,
+			bind:   `name:d::rw`,
+			driver: "local",
+			expected: &MountPoint{
+				Destination: `d:`,
+				RW:          true,
+				Name:        `name`,
+				Driver:      `local`,
+				Type:        mount.TypeVolume,
+				Mode:        `rw`,
+				Spec: mount.Mount{
+					Source:        `name`,
+					Target:        `d:`,
+					ReadOnly:      false,
+					Type:          mount.TypeVolume,
+					VolumeOptions: &mount.VolumeOptions{DriverConfig: &mount.Driver{Name: "local"}},
+				},
+			},
 		},
 		{
-			bind:      `name:d:`,
-			driver:    "local",
-			expType:   mount.TypeVolume,
-			expDest:   `d:`,
-			expName:   `name`,
-			expDriver: "local",
-			expRW:     true,
+			bind:   `name:d:`,
+			driver: "local",
+			expected: &MountPoint{
+				Destination: `d:`,
+				RW:          true,
+				Name:        `name`,
+				Driver:      `local`,
+				Type:        mount.TypeVolume,
+				Mode:        ``, // FIXME(thaJeztah): why is this different than an explicit "rw" ?
+				Spec: mount.Mount{
+					Source:        `name`,
+					Target:        `d:`,
+					ReadOnly:      false,
+					Type:          mount.TypeVolume,
+					VolumeOptions: &mount.VolumeOptions{DriverConfig: &mount.Driver{Name: "local"}},
+				},
+			},
 		},
 		{
-			bind:      `name:d::ro`,
-			driver:    "local",
-			expType:   mount.TypeVolume,
-			expDest:   `d:`,
-			expName:   `name`,
-			expDriver: "local",
+			bind:   `name:d::ro`,
+			driver: "local",
+			expected: &MountPoint{
+				Destination: `d:`,
+				RW:          false,
+				Name:        `name`,
+				Driver:      `local`,
+				Type:        mount.TypeVolume,
+				Mode:        `ro`,
+				Spec: mount.Mount{
+					Source:        `name`,
+					Target:        `d:`,
+					ReadOnly:      true,
+					Type:          mount.TypeVolume,
+					VolumeOptions: &mount.VolumeOptions{DriverConfig: &mount.Driver{Name: "local"}},
+				},
+			},
 		},
 		{
 			bind:   `name:c:`,
@@ -190,21 +250,26 @@ func TestWindowsParseMountRawSplit(t *testing.T) {
 			expErr: `invalid volume specification: 'driver/name:c:'`,
 		},
 		{
-			bind:      `\\.\pipe\foo:\\.\pipe\bar`,
-			driver:    "local",
-			expType:   mount.TypeNamedPipe,
-			expDest:   `\\.\pipe\bar`,
-			expSource: `\\.\pipe\foo`,
-			expRW:     true,
+			bind: `\\.\pipe\foo:\\.\pipe\bar`,
+			expected: &MountPoint{
+				Source:      `\\.\pipe\foo`,
+				Destination: `\\.\pipe\bar`,
+				RW:          true,
+				Type:        mount.TypeNamedPipe,
+				Spec: mount.Mount{
+					Source:   `\\.\pipe\foo`,
+					Target:   `\\.\pipe\bar`,
+					ReadOnly: false,
+					Type:     mount.TypeNamedPipe,
+				},
+			},
 		},
 		{
 			bind:   `\\.\pipe\foo:c:\foo\bar`,
-			driver: "local",
 			expErr: `invalid volume specification: '\\.\pipe\foo:c:\foo\bar': invalid mount config for type "npipe": 'c:\foo\bar' is not a valid pipe path`,
 		},
 		{
 			bind:   `c:\foo\bar:\\.\pipe\foo`,
-			driver: "local",
 			expErr: `invalid volume specification: 'c:\foo\bar:\\.\pipe\foo': invalid mount config for type "bind": bind source path does not exist: c:\foo\bar`,
 		},
 	}
@@ -225,12 +290,7 @@ func TestWindowsParseMountRawSplit(t *testing.T) {
 			}
 
 			assert.NilError(t, err)
-			assert.Check(t, is.Equal(m.Destination, tc.expDest))
-			assert.Check(t, is.Equal(m.Source, tc.expSource))
-			assert.Check(t, is.Equal(m.Name, tc.expName))
-			assert.Check(t, is.Equal(m.Driver, tc.expDriver))
-			assert.Check(t, is.Equal(m.RW, tc.expRW))
-			assert.Check(t, is.Equal(m.Type, tc.expType))
+			assert.Check(t, is.DeepEqual(*m, *tc.expected, cmpopts.IgnoreUnexported(MountPoint{})))
 		})
 	}
 }
