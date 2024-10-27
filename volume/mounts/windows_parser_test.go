@@ -151,12 +151,9 @@ func TestWindowsParseMountRawSplit(t *testing.T) {
 			expRW:     true,
 		},
 		{
-			bind:      `c:\:d:\:foo`,
-			driver:    "local",
-			expType:   mount.TypeBind,
-			expDest:   `d:\`,
-			expSource: `c:\`,
-			fail:      true,
+			bind:   `c:\:d:\:foo`,
+			driver: "local",
+			fail:   true,
 		},
 		{
 			bind:      `name:d::rw`,
@@ -185,16 +182,12 @@ func TestWindowsParseMountRawSplit(t *testing.T) {
 			expDriver: "local",
 		},
 		{
-			bind:    `name:c:`,
-			expType: mount.TypeVolume,
-			expRW:   true,
-			fail:    true,
+			bind: `name:c:`,
+			fail: true,
 		},
 		{
-			bind:    `driver/name:c:`,
-			expType: mount.TypeVolume,
-			expRW:   true,
-			fail:    true,
+			bind: `driver/name:c:`,
+			fail: true,
 		},
 		{
 			bind:      `\\.\pipe\foo:\\.\pipe\bar`,
@@ -205,18 +198,14 @@ func TestWindowsParseMountRawSplit(t *testing.T) {
 			expRW:     true,
 		},
 		{
-			bind:    `\\.\pipe\foo:c:\foo\bar`,
-			driver:  "local",
-			expType: mount.TypeNamedPipe,
-			expRW:   true,
-			fail:    true,
+			bind:   `\\.\pipe\foo:c:\foo\bar`,
+			driver: "local",
+			fail:   true,
 		},
 		{
-			bind:    `c:\foo\bar:\\.\pipe\foo`,
-			driver:  "local",
-			expType: mount.TypeNamedPipe,
-			expRW:   true,
-			fail:    true,
+			bind:   `c:\foo\bar:\\.\pipe\foo`,
+			driver: "local",
+			fail:   true,
 		},
 	}
 
@@ -230,6 +219,7 @@ func TestWindowsParseMountRawSplit(t *testing.T) {
 		t.Run(tc.bind, func(t *testing.T) {
 			m, err := parser.ParseMountRaw(tc.bind, tc.driver)
 			if tc.fail {
+				assert.Check(t, is.Nil(m))
 				assert.Check(t, is.ErrorContains(err, ""), "expected an error")
 				return
 			}

@@ -131,9 +131,8 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 			expRW:     true,
 		},
 		{
-			bind:    "/tmp:/tmp4:foo",
-			expType: mount.TypeBind,
-			fail:    true,
+			bind: "/tmp:/tmp4:foo",
+			fail: true,
 		},
 		{
 			bind:    "name:/named1",
@@ -167,10 +166,8 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 			expRW:   true,
 		},
 		{
-			bind:    "/tmp:tmp",
-			expType: mount.TypeBind,
-			expRW:   true,
-			fail:    true,
+			bind: "/tmp:tmp",
+			fail: true,
 		},
 	}
 
@@ -184,6 +181,7 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 		t.Run(tc.bind, func(t *testing.T) {
 			m, err := parser.ParseMountRaw(tc.bind, tc.driver)
 			if tc.fail {
+				assert.Check(t, is.Nil(m))
 				assert.Check(t, is.ErrorContains(err, ""), "expected an error")
 				return
 			}

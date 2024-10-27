@@ -136,12 +136,9 @@ func TestLCOWParseMountRawSplit(t *testing.T) {
 			expRW:     true,
 		},
 		{
-			bind:      `c:\:/foo:foo`,
-			driver:    "local",
-			expType:   mount.TypeBind,
-			expDest:   `/foo`,
-			expSource: `c:\`,
-			fail:      true,
+			bind:   `c:\:/foo:foo`,
+			driver: "local",
+			fail:   true,
 		},
 		{
 			bind:      `name:/foo:rw`,
@@ -170,39 +167,27 @@ func TestLCOWParseMountRawSplit(t *testing.T) {
 			expDriver: "local",
 		},
 		{
-			bind:    `name:/`,
-			expType: mount.TypeVolume,
-			expRW:   true,
-			fail:    true,
+			bind: `name:/`,
+			fail: true,
 		},
 		{
-			bind:    `driver/name:/`,
-			expType: mount.TypeVolume,
-			expRW:   true,
-			fail:    true,
+			bind: `driver/name:/`,
+			fail: true,
 		},
 		{
-			bind:      `\\.\pipe\foo:\\.\pipe\bar`,
-			driver:    "local",
-			expType:   mount.TypeNamedPipe,
-			expDest:   `\\.\pipe\bar`,
-			expSource: `\\.\pipe\foo`,
-			expRW:     true,
-			fail:      true,
+			bind:   `\\.\pipe\foo:\\.\pipe\bar`,
+			driver: "local",
+			fail:   true,
 		},
 		{
-			bind:    `\\.\pipe\foo:/data`,
-			driver:  "local",
-			expType: mount.TypeNamedPipe,
-			expRW:   true,
-			fail:    true,
+			bind:   `\\.\pipe\foo:/data`,
+			driver: "local",
+			fail:   true,
 		},
 		{
-			bind:    `c:\foo\bar:\\.\pipe\foo`,
-			driver:  "local",
-			expType: mount.TypeNamedPipe,
-			expRW:   true,
-			fail:    true,
+			bind:   `c:\foo\bar:\\.\pipe\foo`,
+			driver: "local",
+			fail:   true,
 		},
 	}
 
@@ -216,6 +201,7 @@ func TestLCOWParseMountRawSplit(t *testing.T) {
 		t.Run(tc.bind, func(t *testing.T) {
 			m, err := parser.ParseMountRaw(tc.bind, tc.driver)
 			if tc.fail {
+				assert.Check(t, is.Nil(m))
 				assert.Check(t, is.ErrorContains(err, ""), "expected an error")
 				return
 			}
