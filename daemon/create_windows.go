@@ -6,6 +6,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	volumeopts "github.com/docker/docker/volume/service/opts"
 )
@@ -36,6 +37,15 @@ func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, con
 		// a new one will be created.
 		v, err := daemon.volumes.Create(ctx, "", volumeDriver, volumeopts.WithCreateReference(container.ID))
 		if err != nil {
+			if errdefs.IsNotFound(err) {
+				// Using a non-existing plugin is an invalid parameter, and should
+				// not return a "notfound" error on container create, because that
+				// error is used to indicate the container's image isn't found and
+				// must be pulled.
+				//
+				// See https://github.com/moby/moby/issues/48772
+				return errdefs.InvalidParameter(err)
+			}
 			return err
 		}
 

@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	networkSettings "github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	volumeopts "github.com/docker/docker/volume/service/opts"
 	gogotypes "github.com/gogo/protobuf/types"
@@ -466,6 +467,15 @@ func (c *containerAdapter) createVolumes(ctx context.Context) error {
 			volumeopts.WithCreateOptions(req.DriverOpts),
 			volumeopts.WithCreateLabels(req.Labels),
 		); err != nil {
+			if errdefs.IsNotFound(err) {
+				// Using a non-existing plugin is an invalid parameter, and should
+				// not return a "notfound" error on container create, because that
+				// error is used to indicate the container's image isn't found and
+				// must be pulled.
+				//
+				// See https://github.com/moby/moby/issues/48772
+				return errdefs.InvalidParameter(err)
+			}
 			// TODO(amitshukla): Today, volume create through the engine api does not return an error
 			// when the named volume with the same parameters already exists.
 			// It returns an error if the driver name is different - that is a valid error
