@@ -144,7 +144,7 @@ func windowsValidMountMode(mode string) bool {
 func windowsValidateNotRoot(p string) error {
 	p = strings.ToLower(strings.ReplaceAll(p, `/`, `\`))
 	if p == "c:" || p == `c:\` {
-		return fmt.Errorf("destination path cannot be `c:` or `c:\\`: %v", p)
+		return fmt.Errorf(`destination path (%v) cannot be 'c:' or 'c:\'`, p)
 	}
 	return nil
 }
