@@ -123,7 +123,7 @@ func tempMountPoint(sourceFd int) (string, error) {
 	return p, nil
 }
 
-// cleanupSafePaths returns a function that unmounts the path and removes the
+// cleanupSafePath returns a function that unmounts the path and removes the
 // mountpoint.
 func cleanupSafePath(path string) func(context.Context) error {
 	return func(ctx context.Context) error {
