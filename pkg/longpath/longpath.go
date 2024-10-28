@@ -11,11 +11,6 @@ import (
 	"strings"
 )
 
-// Prefix is the longpath prefix for Windows file paths.
-//
-// Deprecated: this const is only used internally, and will be removed in the next release
-const Prefix = longPathPrefix
-
 // longPathPrefix is the longpath prefix for Windows file paths.
 const longPathPrefix = `\\?\`
 
