@@ -20,7 +20,7 @@ import (
 // After use, it is the caller's responsibility to call Close on the returned
 // SafePath object, which will unmount the temporary file/directory
 // and remove it.
-func Join(_ context.Context, path, subpath string) (*SafePath, error) {
+func Join(ctx context.Context, path, subpath string) (*SafePath, error) {
 	base, subpart, err := evaluatePath(path, subpath)
 	if err != nil {
 		return nil, err
@@ -33,22 +33,21 @@ func Join(_ context.Context, path, subpath string) (*SafePath, error) {
 		return nil, err
 	}
 
-	defer unix_noeintr.Close(fd)
+	defer func() {
+		if err := unix_noeintr.Close(fd); err != nil {
+			log.G(ctx).WithError(err).Errorf("Closing FD %d failed for safeOpenFd(%s, %s)", fd, base, subpart)
+		}
+	}()
 
 	tmpMount, err := tempMountPoint(fd)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create temporary file for safe mount")
 	}
 
-	pid := strconv.Itoa(unix.Gettid())
-	// Using explicit pid path, because /proc/self/fd/<fd> fails with EACCES
-	// when running under "Enhanced Container Isolation" in Docker Desktop
-	// which uses sysbox runtime under the hood.
-	// TODO(vvoland): Investigate.
-	mountSource := "/proc/" + pid + "/fd/" + strconv.Itoa(fd)
-
-	if err := unix_noeintr.Mount(mountSource, tmpMount, "none", unix.MS_BIND, ""); err != nil {
-		os.Remove(tmpMount)
+	if err := unix_noeintr.Mount("/proc/self/fd/"+strconv.Itoa(fd), tmpMount, "none", unix.MS_BIND, ""); err != nil {
+		if err := os.Remove(tmpMount); err != nil {
+			log.G(ctx).WithError(err).Warn("failed to remove tmpMount after failed mount")
+		}
 		return nil, errors.Wrap(err, "failed to mount resolved path")
 	}
 
