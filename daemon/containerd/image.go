@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/sliceutil"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -109,7 +110,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 		}
 
 		img.Details = &image.Details{
-			References:  refs,
+			References:  sliceutil.Dedup(refs),
 			Size:        size,
 			Metadata:    nil,
 			Driver:      i.snapshotter,
