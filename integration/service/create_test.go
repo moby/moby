@@ -306,7 +306,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-// TestServiceCreateSysctls tests that a service created with sysctl options in
+// TestCreateServiceSysctls tests that a service created with sysctl options in
 // the ContainerSpec correctly applies those options.
 //
 // To test this, we're going to create a service with the sysctl option
@@ -392,7 +392,7 @@ func TestCreateServiceSysctls(t *testing.T) {
 	}
 }
 
-// TestServiceCreateCapabilities tests that a service created with capabilities options in
+// TestCreateServiceCapabilities tests that a service created with capabilities options in
 // the ContainerSpec correctly applies those options.
 //
 // To test this, we're going to create a service with the capabilities option
