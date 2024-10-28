@@ -99,10 +99,8 @@ func (c *cdiHandler) injectCDIDevices(s *specs.Spec, dev *deviceInstance) error 
 
 // getErrors returns a single error representation of errors that may have occurred while refreshing the CDI registry.
 func (c *cdiHandler) getErrors() error {
-	errors := c.registry.GetErrors()
-
 	var err *multierror.Error
-	for _, errs := range errors {
+	for _, errs := range c.registry.GetErrors() {
 		err = multierror.Append(err, errs...)
 	}
 	return err.ErrorOrNil()
