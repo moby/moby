@@ -23,7 +23,7 @@ func (i *ImageService) Mount(ctx context.Context, container *container.Container
 		return fmt.Errorf("failed to mount %s: %w", root, err)
 	}
 
-	log.G(ctx).WithField("container", container.ID).Debugf("container mounted via snapshotter: %v", root)
+	log.G(ctx).WithFields(log.Fields{"container": container.ID, "root": root, "snapshotter": container.Driver}).Debug("container mounted via snapshotter")
 
 	container.BaseFS = root
 	return nil
