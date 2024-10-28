@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/storage"
+	"github.com/docker/docker/internal/sliceutil"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/semaphore"
 )
@@ -103,7 +104,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 	return &imagetypes.InspectResponse{
 		ID:            img.ImageID(),
 		RepoTags:      repoTags,
-		RepoDigests:   repoDigests,
+		RepoDigests:   sliceutil.Dedup(repoDigests),
 		Parent:        img.Parent.String(),
 		Comment:       comment,
 		Created:       created,
