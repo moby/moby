@@ -17,6 +17,18 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+func removeDuplicates(elements []string) []string {
+    encounter := map[string]bool{}
+    final := []string{}
+
+    for _, v := range elements {
+        if !encounter[v] {
+            encounter[v] = true
+            final = append(final, v)
+        }
+    }
+    return final
+}
 func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
 	img, err := i.GetImage(ctx, refOrID, backend.GetImageOpts{})
 	if err != nil {
@@ -103,7 +115,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 	return &imagetypes.InspectResponse{
 		ID:            img.ImageID(),
 		RepoTags:      repoTags,
-		RepoDigests:   repoDigests,
+		RepoDigests:   removeDuplicates(repoDigests),
 		Parent:        img.Parent.String(),
 		Comment:       comment,
 		Created:       created,
