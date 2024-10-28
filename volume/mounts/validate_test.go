@@ -55,6 +55,35 @@ func TestValidateMount(t *testing.T) {
 			expected: errBindSourceDoesNotExist(testSourcePath),
 		},
 	}
+
+	if runtime.GOOS != "windows" {
+		imageTests := []struct {
+			input    mount.Mount
+			expected error
+		}{
+			{
+				input:    mount.Mount{Type: mount.TypeImage},
+				expected: errMissingField("Target"),
+			},
+			{
+				input:    mount.Mount{Type: mount.TypeImage, Target: testDestinationPath},
+				expected: errMissingField("Source"),
+			},
+			{
+				input: mount.Mount{Type: mount.TypeImage, Target: testDestinationPath, Source: "hello"},
+			},
+			{
+				input:    mount.Mount{Type: mount.TypeImage, Target: testDestinationPath, Source: "hello", BindOptions: &mount.BindOptions{}},
+				expected: errExtraField("BindOptions"),
+			},
+			{
+				input:    mount.Mount{Type: mount.TypeImage, Target: testDestinationPath, Source: "hello", VolumeOptions: &mount.VolumeOptions{}},
+				expected: errExtraField("VolumeOptions"),
+			},
+		}
+		tests = append(tests, imageTests...)
+	}
+
 	for _, tc := range tests {
 		t.Run("", func(t *testing.T) {
 			err := parser.ValidateMountConfig(&tc.input)

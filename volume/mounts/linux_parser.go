@@ -119,6 +119,16 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 		if _, err := p.ConvertTmpfsOptions(mnt.TmpfsOptions, mnt.ReadOnly); err != nil {
 			return &errMountConfig{mnt, err}
 		}
+	case mount.TypeImage:
+		if mnt.BindOptions != nil {
+			return &errMountConfig{mnt, errExtraField("BindOptions")}
+		}
+		if mnt.VolumeOptions != nil {
+			return &errMountConfig{mnt, errExtraField("VolumeOptions")}
+		}
+		if len(mnt.Source) == 0 {
+			return &errMountConfig{mnt, errMissingField("Source")}
+		}
 	default:
 		return &errMountConfig{mnt, errors.New("mount type unknown")}
 	}
@@ -353,6 +363,15 @@ func (p *linuxParser) parseMountSpec(cfg mount.Mount, validateBindSourceExists b
 		}
 	case mount.TypeTmpfs:
 		// NOP
+	case mount.TypeImage:
+		mp.Source = cfg.Source
+		if cfg.BindOptions != nil && len(cfg.BindOptions.Propagation) > 0 {
+			mp.Propagation = cfg.BindOptions.Propagation
+		} else {
+			// If user did not specify a propagation mode, get
+			// default propagation mode.
+			mp.Propagation = linuxDefaultPropagationMode
+		}
 	}
 	return mp, nil
 }

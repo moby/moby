@@ -119,13 +119,13 @@ func (i *ImageService) Children(_ context.Context, id image.ID) ([]image.ID, err
 // called from create.go
 // TODO: accept an opt struct instead of container?
 func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (container.RWLayer, error) {
-	var layerID layer.ChainID
+	var img *image.Image
 	if container.ImageID != "" {
-		img, err := i.imageStore.Get(container.ImageID)
+		containerImg, err := i.imageStore.Get(container.ImageID)
 		if err != nil {
 			return nil, err
 		}
-		layerID = img.RootFS.ChainID()
+		img = containerImg
 	}
 
 	rwLayerOpts := &layer.CreateRWLayerOpts{
@@ -134,7 +134,18 @@ func (i *ImageService) CreateLayer(container *container.Container, initFunc laye
 		StorageOpt: container.HostConfig.StorageOpt,
 	}
 
-	return i.layerStore.CreateRWLayer(container.ID, layerID, rwLayerOpts)
+	return i.CreateLayerFromImage(img, container.ID, rwLayerOpts)
+}
+
+// CreateLayerFromImage creates a file system from an arbitrary image
+// Used to mount an image inside another
+func (i *ImageService) CreateLayerFromImage(img *image.Image, layerName string, rwLayerOpts *layer.CreateRWLayerOpts) (container.RWLayer, error) {
+	var layerID layer.ChainID
+	if img != nil {
+		layerID = img.RootFS.ChainID()
+	}
+
+	return i.layerStore.CreateRWLayer(layerName, layerID, rwLayerOpts)
 }
 
 // GetLayerByID returns a layer by ID

@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/pkg/errors"
@@ -87,6 +88,10 @@ func (i *ImageService) CreateLayer(ctr *container.Container, initFunc layer.Moun
 		refCountMounter: i.refCountMounter,
 		lease:           lease,
 	}, nil
+}
+
+func (i *ImageService) CreateLayerFromImage(img *image.Image, layerName string, rwLayerOpts *layer.CreateRWLayerOpts) (container.RWLayer, error) {
+	return nil, errdefs.NotImplemented(errdefs.NotImplemented(errors.New("not implemented")))
 }
 
 type rwLayer struct {

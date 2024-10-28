@@ -48,6 +48,7 @@ type ImageService interface {
 
 	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error)
 	CreateLayer(container *container.Container, initFunc layer.MountInit) (container.RWLayer, error)
+	CreateLayerFromImage(img *image.Image, layerName string, rwLayerOpts *layer.CreateRWLayerOpts) (container.RWLayer, error)
 	GetLayerByID(cid string) (container.RWLayer, error)
 	LayerStoreStatus() [][2]string
 	GetLayerMountID(cid string) (string, error)
