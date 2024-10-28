@@ -644,6 +644,9 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	}
 
 	var warnings []string
+	if warn := handleVolumeDriverBC(version, hostConfig); warn != "" {
+		warnings = append(warnings, warn)
+	}
 	if warn, err := handleMACAddressBC(config, hostConfig, networkingConfig, version); err != nil {
 		return err
 	} else if warn != "" {
@@ -677,6 +680,27 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	}
 	ccr.Warnings = append(ccr.Warnings, warnings...)
 	return httputils.WriteJSON(w, http.StatusCreated, ccr)
+}
+
+// handleVolumeDriverBC handles the use of the container-wide "VolumeDriver"
+// option when the Mounts API is used for volumes. It produces a warning
+// on API 1.48 and up. Older versions of the API did not produce a warning,
+// but the CLI would do so.
+func handleVolumeDriverBC(version string, hostConfig *container.HostConfig) (warning string) {
+	if hostConfig.VolumeDriver == "" || versions.LessThan(version, "1.48") {
+		return ""
+	}
+	for _, m := range hostConfig.Mounts {
+		if m.Type != mount.TypeVolume {
+			continue
+		}
+		if m.VolumeOptions != nil && m.VolumeOptions.DriverConfig != nil && m.VolumeOptions.DriverConfig.Name != "" {
+			// Driver was configured for this mount, so no ambiguity.
+			continue
+		}
+		return "WARNING: the container-wide volume-driver configuration is ignored for volumes specified via 'mount'. Use '--mount type=volume,volume-driver=...' instead"
+	}
+	return ""
 }
 
 // handleMACAddressBC takes care of backward-compatibility for the container-wide MAC address by mutating the
