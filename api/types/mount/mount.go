@@ -19,6 +19,8 @@ const (
 	TypeNamedPipe Type = "npipe"
 	// TypeCluster is the type for Swarm Cluster Volumes.
 	TypeCluster Type = "cluster"
+	// TypeImage is the type for mounting another image's filesystem
+	TypeImage Type = "image"
 )
 
 // Mount represents a mount (volume).
