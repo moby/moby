@@ -72,8 +72,11 @@ const AnonymousLabel = "com.docker.volume.anonymous"
 func (s *VolumesService) Create(ctx context.Context, name, driverName string, options ...opts.CreateOption) (*volumetypes.Volume, error) {
 	if name == "" {
 		name = stringid.GenerateRandomID()
+		if driverName == "" {
+			driverName = volume.DefaultDriverName
+		}
 		options = append(options, opts.WithCreateLabel(AnonymousLabel, ""))
-		log.G(ctx).WithField("volume-name", name).Debug("Creating anonymous volume")
+		log.G(ctx).WithFields(log.Fields{"volume-name": name, "driver": driverName}).Debug("Creating anonymous volume")
 	} else {
 		log.G(ctx).WithField("volume-name", name).Debug("Creating named volume")
 	}
