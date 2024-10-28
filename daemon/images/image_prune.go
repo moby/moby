@@ -114,7 +114,10 @@ deleteImagesLoop:
 
 			if shouldDelete {
 				for _, ref := range refs {
-					imgDel, err := i.ImageDelete(ctx, ref.String(), false, true)
+					imgDel, err := i.ImageDelete(ctx, ref.String(), imagetypes.RemoveOptions{
+						Force:         false,
+						PruneChildren: true,
+					})
 					if imageDeleteFailed(ref.String(), err) {
 						continue
 					}
@@ -123,7 +126,10 @@ deleteImagesLoop:
 			}
 		} else {
 			hex := id.Digest().Encoded()
-			imgDel, err := i.ImageDelete(ctx, hex, false, true)
+			imgDel, err := i.ImageDelete(ctx, hex, imagetypes.RemoveOptions{
+				Force:         false,
+				PruneChildren: true,
+			})
 			if imageDeleteFailed(hex, err) {
 				continue
 			}

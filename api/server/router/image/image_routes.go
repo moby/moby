@@ -323,7 +323,10 @@ func (ir *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, 
 	force := httputils.BoolValue(r, "force")
 	prune := !httputils.BoolValue(r, "noprune")
 
-	list, err := ir.backend.ImageDelete(ctx, name, force, prune)
+	list, err := ir.backend.ImageDelete(ctx, name, imagetypes.RemoveOptions{
+		Force:         force,
+		PruneChildren: prune,
+	})
 	if err != nil {
 		return err
 	}
