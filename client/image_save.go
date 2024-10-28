@@ -15,16 +15,15 @@ func (cli *Client) ImageSave(ctx context.Context, imageIDs []string, opts image.
 		"names": imageIDs,
 	}
 
-	if opts.Platform != nil {
+	if len(opts.Platforms) > 0 {
 		if err := cli.NewVersionError(ctx, "1.48", "platform"); err != nil {
 			return nil, err
 		}
-
-		p, err := encodePlatform(opts.Platform)
+		p, err := encodePlatforms(opts.Platforms...)
 		if err != nil {
 			return nil, err
 		}
-		query.Set("platform", p)
+		query["platform"] = p
 	}
 
 	resp, err := cli.get(ctx, "/images/get", query, nil)

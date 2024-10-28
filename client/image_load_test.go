@@ -34,7 +34,7 @@ func TestImageLoad(t *testing.T) {
 	tests := []struct {
 		doc                  string
 		quiet                bool
-		platform             *ocispec.Platform
+		platforms            []ocispec.Platform
 		responseContentType  string
 		expectedResponseJSON bool
 		expectedQueryParams  url.Values
@@ -59,11 +59,24 @@ func TestImageLoad(t *testing.T) {
 		},
 		{
 			doc:                  "json with platform",
-			platform:             &ocispec.Platform{Architecture: "arm64", OS: "linux", Variant: "v8"},
+			platforms:            []ocispec.Platform{{Architecture: "arm64", OS: "linux", Variant: "v8"}},
 			responseContentType:  "application/json",
 			expectedResponseJSON: true,
 			expectedQueryParams: url.Values{
 				"platform": {`{"architecture":"arm64","os":"linux","variant":"v8"}`},
+				"quiet":    {"0"},
+			},
+		},
+		{
+			doc: "json with multiple platforms",
+			platforms: []ocispec.Platform{
+				{Architecture: "arm64", OS: "linux", Variant: "v8"},
+				{Architecture: "amd64", OS: "linux"},
+			},
+			responseContentType:  "application/json",
+			expectedResponseJSON: true,
+			expectedQueryParams: url.Values{
+				"platform": {`{"architecture":"arm64","os":"linux","variant":"v8"}`, `{"architecture":"amd64","os":"linux"}`},
 				"quiet":    {"0"},
 			},
 		},
@@ -85,8 +98,8 @@ func TestImageLoad(t *testing.T) {
 
 			input := bytes.NewReader([]byte(expectedInput))
 			imageLoadResponse, err := client.ImageLoad(context.Background(), input, image.LoadOptions{
-				Quiet:    tc.quiet,
-				Platform: tc.platform,
+				Quiet:     tc.quiet,
+				Platforms: tc.platforms,
 			})
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(imageLoadResponse.JSON, tc.expectedResponseJSON))

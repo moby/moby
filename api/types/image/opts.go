@@ -98,12 +98,14 @@ type LoadOptions struct {
 	// Quiet suppresses progress output
 	Quiet bool
 
-	// Platform is a specific platform to load when the image is a multi-platform
-	Platform *ocispec.Platform
+	// Platforms selects the platforms to load if the image is a
+	// multi-platform image and has multiple variants.
+	Platforms []ocispec.Platform
 }
 
 // SaveOptions holds parameters to save images.
 type SaveOptions struct {
-	// Platform is a specific platform to save if the image is a multi-platform image.
-	Platform *ocispec.Platform
+	// Platforms selects the platforms to save if the image is a
+	// multi-platform image and has multiple variants.
+	Platforms []ocispec.Platform
 }
