@@ -48,7 +48,7 @@ github.com/Microsoft/go-winio/pkg/etwlogrus
 github.com/Microsoft/go-winio/pkg/fs
 github.com/Microsoft/go-winio/pkg/guid
 github.com/Microsoft/go-winio/vhd
-# github.com/Microsoft/hcsshim v0.11.7 => github.com/Microsoft/hcsshim v0.11.7
+# github.com/Microsoft/hcsshim v0.12.5 => github.com/Microsoft/hcsshim v0.11.7
 ## explicit; go 1.21
 github.com/Microsoft/hcsshim
 github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options
@@ -362,8 +362,8 @@ github.com/containerd/containerd/api/services/version/v1
 github.com/containerd/containerd/api/types
 github.com/containerd/containerd/api/types/task
 github.com/containerd/containerd/api/types/transfer
-# github.com/containerd/continuity v0.4.3
-## explicit; go 1.19
+# github.com/containerd/continuity v0.4.4
+## explicit; go 1.21
 github.com/containerd/continuity/devices
 github.com/containerd/continuity/driver
 github.com/containerd/continuity/fs
@@ -684,8 +684,8 @@ github.com/ishidawataru/sctp
 # github.com/jmoiron/sqlx v1.3.3
 ## explicit; go 1.10
 github.com/jmoiron/sqlx/types
-# github.com/klauspost/compress v1.17.9
-## explicit; go 1.20
+# github.com/klauspost/compress v1.17.11
+## explicit; go 1.21
 github.com/klauspost/compress
 github.com/klauspost/compress/fse
 github.com/klauspost/compress/huff0
@@ -711,7 +711,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.17.0-rc1
+# github.com/moby/buildkit v0.17.0-rc2
 ## explicit; go 1.22.0
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -1108,7 +1108,7 @@ github.com/tinylib/msgp/msgp
 # github.com/tonistiigi/dchapes-mode v0.0.0-20241001053921-ca0759fec205
 ## explicit; go 1.21
 github.com/tonistiigi/dchapes-mode
-# github.com/tonistiigi/fsutil v0.0.0-20241003195857-3f140a1299b0
+# github.com/tonistiigi/fsutil v0.0.0-20241028165955-397af5306b5c
 ## explicit; go 1.21
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy
@@ -1378,7 +1378,7 @@ golang.org/x/oauth2/jwt
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
 golang.org/x/sync/syncmap
-# golang.org/x/sys v0.25.0
+# golang.org/x/sys v0.26.0
 ## explicit; go 1.18
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
@@ -1528,8 +1528,8 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.34.2
-## explicit; go 1.20
+# google.golang.org/protobuf v1.35.1
+## explicit; go 1.21
 google.golang.org/protobuf/cmd/protoc-gen-go/internal_gengo
 google.golang.org/protobuf/compiler/protogen
 google.golang.org/protobuf/encoding/protojson

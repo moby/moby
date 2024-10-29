@@ -22,7 +22,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
 )
 
 // XAttrErrorHandler transform a non-nil xattr error.
@@ -161,7 +161,7 @@ func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) er
 				return fmt.Errorf("failed to create irregular file: %w", err)
 			}
 		default:
-			logrus.Warnf("unsupported mode: %s: %s", source, fileInfo.Mode())
+			log.L.Warnf("unsupported mode: %s: %s", source, fileInfo.Mode())
 			return nil
 		}
 

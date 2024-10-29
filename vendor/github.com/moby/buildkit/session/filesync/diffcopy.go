@@ -129,8 +129,9 @@ func syncTargetDiffCopy(ds grpc.ServerStream, dest string) error {
 }
 
 func writeTargetFile(ds grpc.ServerStream, wc io.WriteCloser) error {
+	var bm BytesMessage
 	for {
-		bm := BytesMessage{}
+		bm.Data = bm.Data[:0]
 		if err := ds.RecvMsg(&bm); err != nil {
 			if errors.Is(err, io.EOF) {
 				return nil

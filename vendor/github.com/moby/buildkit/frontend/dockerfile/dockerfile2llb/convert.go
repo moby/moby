@@ -227,10 +227,6 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		opt.LLBCaps = &caps
 	}
 
-	platformOpt := buildPlatformOpt(&opt)
-
-	globalArgs := platformArgs(platformOpt, opt.BuildArgs)
-
 	dockerfile, err := parser.Parse(bytes.NewReader(dt))
 	if err != nil {
 		return nil, err
@@ -260,6 +256,13 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 	}
 	validateStageNames(stages, lint)
 	validateCommandCasing(stages, lint)
+
+	platformOpt := buildPlatformOpt(&opt)
+	targetName := opt.Target
+	if targetName == "" {
+		targetName = stages[len(stages)-1].Name
+	}
+	globalArgs := defaultArgs(platformOpt, opt.BuildArgs, targetName)
 
 	shlex := shell.NewLex(dockerfile.EscapeToken)
 	outline := newOutlineCapture()

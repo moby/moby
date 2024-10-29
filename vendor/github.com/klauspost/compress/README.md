@@ -16,6 +16,27 @@ This package provides various compression algorithms.
 
 # changelog
 
+* Sep 23rd, 2024 - [1.17.10](https://github.com/klauspost/compress/releases/tag/v1.17.10)
+	* gzhttp: Add TransportAlwaysDecompress option. https://github.com/klauspost/compress/pull/978
+	* gzhttp: Add supported decompress request body by @mirecl in https://github.com/klauspost/compress/pull/1002
+	* s2: Add EncodeBuffer buffer recycling callback https://github.com/klauspost/compress/pull/982
+	* zstd: Improve memory usage on small streaming encodes https://github.com/klauspost/compress/pull/1007
+	* flate: read data written with partial flush by @vajexal in https://github.com/klauspost/compress/pull/996
+
+* Jun 12th, 2024 - [1.17.9](https://github.com/klauspost/compress/releases/tag/v1.17.9)
+	* s2: Reduce ReadFrom temporary allocations https://github.com/klauspost/compress/pull/949
+	* flate, zstd: Shave some bytes off amd64 matchLen by @greatroar in https://github.com/klauspost/compress/pull/963
+	* Upgrade zip/zlib to 1.22.4 upstream https://github.com/klauspost/compress/pull/970 https://github.com/klauspost/compress/pull/971
+	* zstd: BuildDict fails with RLE table https://github.com/klauspost/compress/pull/951
+
+* Apr 9th, 2024 - [1.17.8](https://github.com/klauspost/compress/releases/tag/v1.17.8)
+	* zstd: Reject blocks where reserved values are not 0 https://github.com/klauspost/compress/pull/885
+	* zstd: Add RLE detection+encoding https://github.com/klauspost/compress/pull/938
+
+* Feb 21st, 2024 - [1.17.7](https://github.com/klauspost/compress/releases/tag/v1.17.7)
+	* s2: Add AsyncFlush method: Complete the block without flushing by @Jille in https://github.com/klauspost/compress/pull/927
+	* s2: Fix literal+repeat exceeds dst crash https://github.com/klauspost/compress/pull/930
+  
 * Feb 5th, 2024 - [1.17.6](https://github.com/klauspost/compress/releases/tag/v1.17.6)
 	* zstd: Fix incorrect repeat coding in best mode https://github.com/klauspost/compress/pull/923
 	* s2: Fix DecodeConcurrent deadlock on errors https://github.com/klauspost/compress/pull/925
@@ -81,7 +102,7 @@ https://github.com/klauspost/compress/pull/919 https://github.com/klauspost/comp
 	* zstd: Various minor improvements by @greatroar in https://github.com/klauspost/compress/pull/788 https://github.com/klauspost/compress/pull/794 https://github.com/klauspost/compress/pull/795
 	* s2: Fix huge block overflow https://github.com/klauspost/compress/pull/779
 	* s2: Allow CustomEncoder fallback https://github.com/klauspost/compress/pull/780
-	* gzhttp: Suppport ResponseWriter Unwrap() in gzhttp handler by @jgimenez in https://github.com/klauspost/compress/pull/799
+	* gzhttp: Support ResponseWriter Unwrap() in gzhttp handler by @jgimenez in https://github.com/klauspost/compress/pull/799
 
 * Mar 13, 2023 - [v1.16.1](https://github.com/klauspost/compress/releases/tag/v1.16.1)
 	* zstd: Speed up + improve best encoder by @greatroar in https://github.com/klauspost/compress/pull/776
@@ -136,7 +157,7 @@ https://github.com/klauspost/compress/pull/919 https://github.com/klauspost/comp
 	* zstd: Add [WithDecodeAllCapLimit](https://pkg.go.dev/github.com/klauspost/compress@v1.15.10/zstd#WithDecodeAllCapLimit) https://github.com/klauspost/compress/pull/649
 	* Add Go 1.19 - deprecate Go 1.16  https://github.com/klauspost/compress/pull/651
 	* flate: Improve level 5+6 compression https://github.com/klauspost/compress/pull/656
-	* zstd: Improve "better" compresssion  https://github.com/klauspost/compress/pull/657
+	* zstd: Improve "better" compression  https://github.com/klauspost/compress/pull/657
 	* s2: Improve "best" compression https://github.com/klauspost/compress/pull/658
 	* s2: Improve "better" compression. https://github.com/klauspost/compress/pull/635
 	* s2: Slightly faster non-assembly decompression https://github.com/klauspost/compress/pull/646
@@ -339,7 +360,7 @@ While the release has been extensively tested, it is recommended to testing when
 	* s2: Fix binaries.
 
 * Feb 25, 2021 (v1.11.8)
-	* s2: Fixed occational out-of-bounds write on amd64. Upgrade recommended.
+	* s2: Fixed occasional out-of-bounds write on amd64. Upgrade recommended.
 	* s2: Add AMD64 assembly for better mode. 25-50% faster. [#315](https://github.com/klauspost/compress/pull/315)
 	* s2: Less upfront decoder allocation. [#322](https://github.com/klauspost/compress/pull/322)
 	* zstd: Faster "compression" of incompressible data. [#314](https://github.com/klauspost/compress/pull/314)
@@ -518,7 +539,7 @@ While the release has been extensively tested, it is recommended to testing when
 * Feb 19, 2016: Faster bit writer, level -2 is 15% faster, level 1 is 4% faster.
 * Feb 19, 2016: Handle small payloads faster in level 1-3.
 * Feb 19, 2016: Added faster level 2 + 3 compression modes.
-* Feb 19, 2016: [Rebalanced compression levels](https://blog.klauspost.com/rebalancing-deflate-compression-levels/), so there is a more even progresssion in terms of compression. New default level is 5.
+* Feb 19, 2016: [Rebalanced compression levels](https://blog.klauspost.com/rebalancing-deflate-compression-levels/), so there is a more even progression in terms of compression. New default level is 5.
 * Feb 14, 2016: Snappy: Merge upstream changes. 
 * Feb 14, 2016: Snappy: Fix aggressive skipping.
 * Feb 14, 2016: Snappy: Update benchmark.

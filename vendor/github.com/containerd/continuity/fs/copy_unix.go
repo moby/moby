@@ -1,5 +1,4 @@
 //go:build darwin || freebsd || openbsd || netbsd || dragonfly || solaris
-// +build darwin freebsd openbsd netbsd dragonfly solaris
 
 /*
    Copyright The containerd Authors.
@@ -20,12 +19,14 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
 	"syscall"
 
 	"github.com/containerd/continuity/sysx"
+	"golang.org/x/sys/unix"
 )
 
 func copyFileInfo(fi os.FileInfo, src, name string) error {
@@ -65,6 +66,9 @@ func copyXAttrs(dst, src string, excludes map[string]struct{}, errorHandler XAtt
 	if err != nil {
 		if os.IsPermission(err) && runtime.GOOS == "darwin" {
 			// On darwin, character devices do not permit listing xattrs
+			return nil
+		}
+		if errors.Is(err, unix.ENOTSUP) {
 			return nil
 		}
 		e := fmt.Errorf("failed to list xattrs on %s: %w", src, err)

@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"syscall"
 
 	"github.com/gofrs/flock"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -36,15 +37,18 @@ func (s StoreIndex) Read() (*ocispecs.Index, error) {
 	lock := flock.New(s.lockPath)
 	locked, err := lock.TryRLock()
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not lock %s", s.lockPath)
+		if !errors.Is(err, syscall.EPERM) && !errors.Is(err, syscall.EROFS) {
+			return nil, errors.Wrapf(err, "could not lock %s", s.lockPath)
+		}
+	} else {
+		if !locked {
+			return nil, errors.Errorf("could not lock %s", s.lockPath)
+		}
+		defer func() {
+			lock.Unlock()
+			os.RemoveAll(s.lockPath)
+		}()
 	}
-	if !locked {
-		return nil, errors.Errorf("could not lock %s", s.lockPath)
-	}
-	defer func() {
-		lock.Unlock()
-		os.RemoveAll(s.lockPath)
-	}()
 
 	b, err := os.ReadFile(s.indexPath)
 	if err != nil {
