@@ -190,6 +190,7 @@ func WithTLSClientConfigFromEnv() Opt {
 
 		c.client = &http.Client{
 			Transport:     &http.Transport{TLSClientConfig: tlsc},
+			CheckRedirect: CheckRedirect,
 		}
 		return nil
 	}
