@@ -1,5 +1,4 @@
 //go:build linux || openbsd || dragonfly || solaris
-// +build linux openbsd dragonfly solaris
 
 /*
    Copyright The containerd Authors.
@@ -20,9 +19,35 @@
 package fs
 
 import (
+	"fmt"
+	"io/fs"
 	"syscall"
 	"time"
 )
+
+func Atime(st fs.FileInfo) (time.Time, error) {
+	stSys, ok := st.Sys().(*syscall.Stat_t)
+	if !ok {
+		return time.Time{}, fmt.Errorf("expected st.Sys() to be *syscall.Stat_t, got %T", st.Sys())
+	}
+	return StatATimeAsTime(stSys), nil
+}
+
+func Ctime(st fs.FileInfo) (time.Time, error) {
+	stSys, ok := st.Sys().(*syscall.Stat_t)
+	if !ok {
+		return time.Time{}, fmt.Errorf("expected st.Sys() to be *syscall.Stat_t, got %T", st.Sys())
+	}
+	return time.Unix(stSys.Atim.Unix()), nil
+}
+
+func Mtime(st fs.FileInfo) (time.Time, error) {
+	stSys, ok := st.Sys().(*syscall.Stat_t)
+	if !ok {
+		return time.Time{}, fmt.Errorf("expected st.Sys() to be *syscall.Stat_t, got %T", st.Sys())
+	}
+	return time.Unix(stSys.Mtim.Unix()), nil
+}
 
 // StatAtime returns the Atim
 func StatAtime(st *syscall.Stat_t) syscall.Timespec {

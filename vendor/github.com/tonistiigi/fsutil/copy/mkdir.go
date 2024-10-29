@@ -7,14 +7,14 @@ import (
 )
 
 // MkdirAll is forked os.MkdirAll
-func MkdirAll(path string, perm os.FileMode, user Chowner, tm *time.Time) error {
+func MkdirAll(path string, perm os.FileMode, user Chowner, tm *time.Time) ([]string, error) {
 	// Fast path: if we can tell whether path is a directory or file, stop with success or error.
 	dir, err := os.Stat(path)
 	if err == nil {
 		if dir.IsDir() {
-			return nil
+			return nil, nil
 		}
-		return &os.PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
+		return nil, &os.PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
 	}
 
 	// Slow path: make sure parent exists and then call Mkdir for path.
@@ -28,17 +28,19 @@ func MkdirAll(path string, perm os.FileMode, user Chowner, tm *time.Time) error 
 		j--
 	}
 
+	var createdDirs []string
+
 	if j > 1 {
 		// Create parent.
-		err = MkdirAll(fixRootDirectory(path[:j-1]), perm, user, tm)
+		createdDirs, err = MkdirAll(fixRootDirectory(path[:j-1]), perm, user, tm)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	dir, err1 := os.Lstat(path)
 	if err1 == nil && dir.IsDir() {
-		return nil
+		return createdDirs, nil
 	}
 
 	// Parent now exists; invoke Mkdir and use its result.
@@ -48,18 +50,19 @@ func MkdirAll(path string, perm os.FileMode, user Chowner, tm *time.Time) error 
 		// double-checking that directory doesn't exist.
 		dir, err1 := os.Lstat(path)
 		if err1 == nil && dir.IsDir() {
-			return nil
+			return createdDirs, nil
 		}
-		return err
+		return nil, err
 	}
+	createdDirs = append(createdDirs, path)
 
 	if err := Chown(path, nil, user); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := Utimes(path, tm); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return createdDirs, nil
 }
