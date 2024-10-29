@@ -218,6 +218,14 @@ func (cli *GitCLI) Run(ctx context.Context, args ...string) (_ []byte, err error
 					continue
 				}
 			}
+			if strings.Contains(errbuf.String(), "not our ref") || strings.Contains(errbuf.String(), "unadvertised object") {
+				// server-side error: https://github.com/git/git/blob/34b6ce9b30747131b6e781ff718a45328aa887d0/upload-pack.c#L811-L812
+				// client-side error: https://github.com/git/git/blob/34b6ce9b30747131b6e781ff718a45328aa887d0/fetch-pack.c#L2250-L2253
+				if newArgs := argsNoCommitRefspec(args); len(args) > len(newArgs) {
+					args = newArgs
+					continue
+				}
+			}
 
 			return buf.Bytes(), errors.Wrapf(err, "git stderr:\n%s", errbuf.String())
 		}
@@ -243,4 +251,20 @@ func argsNoDepth(args []string) []string {
 		}
 	}
 	return out
+}
+
+func argsNoCommitRefspec(args []string) []string {
+	if len(args) <= 2 {
+		return args
+	}
+	if args[0] != "fetch" {
+		return args
+	}
+
+	// assume the refspec is the last arg
+	if IsCommitSHA(args[len(args)-1]) {
+		return args[:len(args)-1]
+	}
+
+	return args
 }

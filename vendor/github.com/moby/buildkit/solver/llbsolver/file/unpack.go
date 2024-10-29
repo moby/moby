@@ -25,7 +25,7 @@ func unpack(srcRoot string, src string, destRoot string, dest string, ch copy.Ch
 	if err != nil {
 		return false, err
 	}
-	if err := copy.MkdirAll(dest, 0755, ch, tm); err != nil {
+	if _, err := copy.MkdirAll(dest, 0755, ch, tm); err != nil {
 		return false, err
 	}
 
