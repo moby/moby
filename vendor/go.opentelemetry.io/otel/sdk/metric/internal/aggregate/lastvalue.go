@@ -1,16 +1,5 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package aggregate // import "go.opentelemetry.io/otel/sdk/metric/internal/aggregate"
 
@@ -20,49 +9,154 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/sdk/metric/internal/exemplar"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 // datapoint is timestamped measurement data.
 type datapoint[N int64 | float64] struct {
-	timestamp time.Time
-	value     N
+	attrs attribute.Set
+	value N
+	res   exemplar.FilteredReservoir[N]
 }
 
-func newLastValue[N int64 | float64]() *lastValue[N] {
-	return &lastValue[N]{values: make(map[attribute.Set]datapoint[N])}
+func newLastValue[N int64 | float64](limit int, r func() exemplar.FilteredReservoir[N]) *lastValue[N] {
+	return &lastValue[N]{
+		newRes: r,
+		limit:  newLimiter[datapoint[N]](limit),
+		values: make(map[attribute.Distinct]datapoint[N]),
+		start:  now(),
+	}
 }
 
 // lastValue summarizes a set of measurements as the last one made.
 type lastValue[N int64 | float64] struct {
 	sync.Mutex
 
-	values map[attribute.Set]datapoint[N]
+	newRes func() exemplar.FilteredReservoir[N]
+	limit  limiter[datapoint[N]]
+	values map[attribute.Distinct]datapoint[N]
+	start  time.Time
 }
 
-func (s *lastValue[N]) measure(ctx context.Context, value N, attr attribute.Set) {
-	d := datapoint[N]{timestamp: now(), value: value}
-	s.Lock()
-	s.values[attr] = d
-	s.Unlock()
-}
-
-func (s *lastValue[N]) computeAggregation(dest *[]metricdata.DataPoint[N]) {
+func (s *lastValue[N]) measure(ctx context.Context, value N, fltrAttr attribute.Set, droppedAttr []attribute.KeyValue) {
 	s.Lock()
 	defer s.Unlock()
 
+	attr := s.limit.Attributes(fltrAttr, s.values)
+	d, ok := s.values[attr.Equivalent()]
+	if !ok {
+		d.res = s.newRes()
+	}
+
+	d.attrs = attr
+	d.value = value
+	d.res.Offer(ctx, value, droppedAttr)
+
+	s.values[attr.Equivalent()] = d
+}
+
+func (s *lastValue[N]) delta(dest *metricdata.Aggregation) int {
+	t := now()
+	// Ignore if dest is not a metricdata.Gauge. The chance for memory reuse of
+	// the DataPoints is missed (better luck next time).
+	gData, _ := (*dest).(metricdata.Gauge[N])
+
+	s.Lock()
+	defer s.Unlock()
+
+	n := s.copyDpts(&gData.DataPoints, t)
+	// Do not report stale values.
+	clear(s.values)
+	// Update start time for delta temporality.
+	s.start = t
+
+	*dest = gData
+
+	return n
+}
+
+func (s *lastValue[N]) cumulative(dest *metricdata.Aggregation) int {
+	t := now()
+	// Ignore if dest is not a metricdata.Gauge. The chance for memory reuse of
+	// the DataPoints is missed (better luck next time).
+	gData, _ := (*dest).(metricdata.Gauge[N])
+
+	s.Lock()
+	defer s.Unlock()
+
+	n := s.copyDpts(&gData.DataPoints, t)
+	// TODO (#3006): This will use an unbounded amount of memory if there
+	// are unbounded number of attribute sets being aggregated. Attribute
+	// sets that become "stale" need to be forgotten so this will not
+	// overload the system.
+	*dest = gData
+
+	return n
+}
+
+// copyDpts copies the datapoints held by s into dest. The number of datapoints
+// copied is returned.
+func (s *lastValue[N]) copyDpts(dest *[]metricdata.DataPoint[N], t time.Time) int {
 	n := len(s.values)
 	*dest = reset(*dest, n, n)
 
 	var i int
-	for a, v := range s.values {
-		(*dest)[i].Attributes = a
-		// The event time is the only meaningful timestamp, StartTime is
-		// ignored.
-		(*dest)[i].Time = v.timestamp
+	for _, v := range s.values {
+		(*dest)[i].Attributes = v.attrs
+		(*dest)[i].StartTime = s.start
+		(*dest)[i].Time = t
 		(*dest)[i].Value = v.value
-		// Do not report stale values.
-		delete(s.values, a)
+		collectExemplars(&(*dest)[i].Exemplars, v.res.Collect)
 		i++
 	}
+	return n
+}
+
+// newPrecomputedLastValue returns an aggregator that summarizes a set of
+// observations as the last one made.
+func newPrecomputedLastValue[N int64 | float64](limit int, r func() exemplar.FilteredReservoir[N]) *precomputedLastValue[N] {
+	return &precomputedLastValue[N]{lastValue: newLastValue[N](limit, r)}
+}
+
+// precomputedLastValue summarizes a set of observations as the last one made.
+type precomputedLastValue[N int64 | float64] struct {
+	*lastValue[N]
+}
+
+func (s *precomputedLastValue[N]) delta(dest *metricdata.Aggregation) int {
+	t := now()
+	// Ignore if dest is not a metricdata.Gauge. The chance for memory reuse of
+	// the DataPoints is missed (better luck next time).
+	gData, _ := (*dest).(metricdata.Gauge[N])
+
+	s.Lock()
+	defer s.Unlock()
+
+	n := s.copyDpts(&gData.DataPoints, t)
+	// Do not report stale values.
+	clear(s.values)
+	// Update start time for delta temporality.
+	s.start = t
+
+	*dest = gData
+
+	return n
+}
+
+func (s *precomputedLastValue[N]) cumulative(dest *metricdata.Aggregation) int {
+	t := now()
+	// Ignore if dest is not a metricdata.Gauge. The chance for memory reuse of
+	// the DataPoints is missed (better luck next time).
+	gData, _ := (*dest).(metricdata.Gauge[N])
+
+	s.Lock()
+	defer s.Unlock()
+
+	n := s.copyDpts(&gData.DataPoints, t)
+	// Do not report stale values.
+	clear(s.values)
+	*dest = gData
+
+	return n
 }
