@@ -64,6 +64,9 @@ const (
 	// SeccompProfileUnconfined is a special profile name for seccomp to use an
 	// "unconfined" seccomp profile.
 	SeccompProfileUnconfined = "unconfined"
+	// LibnetDataPath is the path to libnetwork's data directory, relative to cfg.Root.
+	// Windows tolerates the "/".
+	LibnetDataPath = "network/files"
 )
 
 // flatOptions contains configuration keys

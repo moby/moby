@@ -1486,7 +1486,7 @@ func isBridgeNetworkDisabled(conf *config.Config) bool {
 
 func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.PluginGetter, hostID string, activeSandboxes map[string]interface{}) ([]nwconfig.Option, error) {
 	options := []nwconfig.Option{
-		nwconfig.OptionDataDir(conf.Root),
+		nwconfig.OptionDataDir(filepath.Join(conf.Root, config.LibnetDataPath)),
 		nwconfig.OptionExecRoot(conf.GetExecRoot()),
 		nwconfig.OptionDefaultDriver(network.DefaultNetwork),
 		nwconfig.OptionDefaultNetwork(network.DefaultNetwork),
