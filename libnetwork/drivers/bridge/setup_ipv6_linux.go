@@ -1,12 +1,9 @@
 package bridge
 
 import (
-	"context"
 	"fmt"
 	"net/netip"
 	"os"
-
-	"github.com/containerd/log"
 )
 
 // Standard link local prefix
@@ -46,34 +43,6 @@ func setupGatewayIPv6(config *networkConfiguration, i *bridgeInterface) error {
 
 	// Store requested default gateway
 	i.gatewayIPv6 = config.DefaultGatewayIPv6
-
-	return nil
-}
-
-func setupIPv6Forwarding(config *networkConfiguration, i *bridgeInterface) error {
-	// Get current IPv6 default forwarding setup
-	ipv6ForwardDataDefault, err := os.ReadFile(ipv6ForwardConfDefault)
-	if err != nil {
-		return fmt.Errorf("Cannot read IPv6 default forwarding setup: %v", err)
-	}
-	// Enable IPv6 default forwarding only if it is not already enabled
-	if ipv6ForwardDataDefault[0] != '1' {
-		if err := os.WriteFile(ipv6ForwardConfDefault, []byte{'1', '\n'}, ipv6ForwardConfPerm); err != nil {
-			log.G(context.TODO()).Warnf("Unable to enable IPv6 default forwarding: %v", err)
-		}
-	}
-
-	// Get current IPv6 all forwarding setup
-	ipv6ForwardDataAll, err := os.ReadFile(ipv6ForwardConfAll)
-	if err != nil {
-		return fmt.Errorf("Cannot read IPv6 all forwarding setup: %v", err)
-	}
-	// Enable IPv6 all forwarding only if it is not already enabled
-	if ipv6ForwardDataAll[0] != '1' {
-		if err := os.WriteFile(ipv6ForwardConfAll, []byte{'1', '\n'}, ipv6ForwardConfPerm); err != nil {
-			log.G(context.TODO()).Warnf("Unable to enable IPv6 all forwarding: %v", err)
-		}
-	}
 
 	return nil
 }
