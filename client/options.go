@@ -168,14 +168,11 @@ func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 func WithTLSClientConfigFromEnv() Opt {
 	return func(c *Client) error {
 		c.client = &http.Client{
-			Transport:     &http.Transport{TLSClientConfig: 
-						       tlsconfig.Client(tlsconfig.Options{
-			CAFile:             filepath.Join(dockerCertPath, "ca.pem"),
-			CertFile:           filepath.Join(dockerCertPath, "cert.pem"),
-			KeyFile:            filepath.Join(dockerCertPath, "key.pem"),
-			InsecureSkipVerify: os.Getenv(EnvTLSVerify) == "",
-		})},
-			CheckRedirect: CheckRedirect,
+			Transport:     &http.Transport{
+				TLSClientConfig: tlsconfig.Options{
+					InsecureSkipVerify: os.Getenv(EnvTLSVerify) == "",
+				}
+			}
 		}
 		dockerCertPath := os.Getenv(EnvOverrideCertPath)
 		if dockerCertPath == "" {
