@@ -18,14 +18,14 @@ import (
 
 func emptyImageConfig() ([]byte, error) {
 	pl := platforms.Normalize(platforms.DefaultSpec())
-	img := ocispec.Image{}
-	img.Architecture = pl.Architecture
-	img.OS = pl.OS
-	img.Variant = pl.Variant
-	img.RootFS.Type = "layers"
-	img.Config.WorkingDir = "/"
-	img.Config.Env = []string{"PATH=" + system.DefaultPathEnv(pl.OS)}
-	dt, err := json.Marshal(img)
+	dt, err := json.Marshal(ocispec.Image{
+		Platform: pl,
+		Config: ocispec.ImageConfig{
+			WorkingDir: "/",
+			Env:        []string{"PATH=" + system.DefaultPathEnv(pl.OS)},
+		},
+		RootFS: ocispec.RootFS{Type: "layers"},
+	})
 	return dt, errors.Wrap(err, "failed to create empty image config")
 }
 
