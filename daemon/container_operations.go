@@ -1125,12 +1125,6 @@ func (daemon *Daemon) DisconnectFromNetwork(ctx context.Context, ctr *container.
 		return err
 	}
 
-	if n != nil {
-		daemon.LogNetworkEventWithAttributes(n, events.ActionDisconnect, map[string]string{
-			"container": ctr.ID,
-		})
-	}
-
 	return nil
 }
 
