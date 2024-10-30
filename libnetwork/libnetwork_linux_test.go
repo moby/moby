@@ -42,13 +42,6 @@ const (
 	bridgeNetType = "bridge"
 )
 
-func TestMain(m *testing.M) {
-	// Cleanup local datastore file
-	_ = os.Remove("/var/lib/docker/network/files/local-kv.db")
-
-	os.Exit(m.Run())
-}
-
 func newController(t *testing.T) *libnetwork.Controller {
 	t.Helper()
 	c, err := libnetwork.New(
