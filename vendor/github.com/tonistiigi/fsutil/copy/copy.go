@@ -6,6 +6,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -79,8 +80,10 @@ func Copy(ctx context.Context, srcRoot, src, dstRoot, dst string, opts ...Opt) e
 		if err != nil {
 			return err
 		}
-		if err := MkdirAll(ensureDstPath, 0755, ci.Chown, ci.Utime); err != nil {
+		if createdDirs, err := MkdirAll(ensureDstPath, 0755, ci.Chown, ci.Utime); err != nil {
 			return err
+		} else {
+			defer fixCreatedParentDirs(createdDirs, ci.Utime)
 		}
 	}
 
@@ -120,10 +123,11 @@ func Copy(ctx context.Context, srcRoot, src, dstRoot, dst string, opts ...Opt) e
 		if err != nil {
 			return err
 		}
-		dst, err := c.prepareTargetDir(srcFollowed, src, dst, ci.CopyDirContents)
+		dst, createdDirs, err := c.prepareTargetDir(srcFollowed, src, dst, ci.CopyDirContents)
 		if err != nil {
 			return err
 		}
+		defer fixCreatedParentDirs(createdDirs, ci.Utime)
 		if err := c.copy(ctx, srcFollowed, "", dst, false, patternmatcher.MatchInfo{}, patternmatcher.MatchInfo{}); err != nil {
 			return err
 		}
@@ -132,16 +136,16 @@ func Copy(ctx context.Context, srcRoot, src, dstRoot, dst string, opts ...Opt) e
 	return nil
 }
 
-func (c *copier) prepareTargetDir(srcFollowed, src, destPath string, copyDirContents bool) (string, error) {
+func (c *copier) prepareTargetDir(srcFollowed, src, destPath string, copyDirContents bool) (string, []string, error) {
 	fiSrc, err := os.Lstat(srcFollowed)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	fiDest, err := os.Stat(destPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return "", errors.Wrap(err, "failed to lstat destination path")
+			return "", nil, errors.Wrap(err, "failed to lstat destination path")
 		}
 	}
 
@@ -154,11 +158,14 @@ func (c *copier) prepareTargetDir(srcFollowed, src, destPath string, copyDirCont
 	if copyDirContents && fiSrc.IsDir() && fiDest == nil {
 		target = destPath
 	}
-	if err := MkdirAll(target, 0755, c.chown, c.utime); err != nil {
-		return "", err
+	var createdDirs []string
+	if dirs, err := MkdirAll(target, 0755, c.chown, c.utime); err != nil {
+		return "", nil, err
+	} else {
+		createdDirs = dirs
 	}
 
-	return destPath, nil
+	return destPath, createdDirs, nil
 }
 
 type User struct {
@@ -688,4 +695,16 @@ func rel(basepath, targpath string) (string, error) {
 		}
 	}
 	return filepath.Rel(basepath, targpath)
+}
+
+func fixCreatedParentDirs(dirs []string, tm *time.Time) error {
+	slices.Reverse(dirs)
+	for _, d := range dirs {
+		if tm != nil {
+			if err := Utimes(d, tm); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

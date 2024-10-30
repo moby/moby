@@ -172,5 +172,6 @@ var (
 		Format: func(instruction, defName string) string {
 			return fmt.Sprintf("Comment for %s should follow the format: `# %s <description>`", instruction, defName)
 		},
+		Experimental: true,
 	}
 )
