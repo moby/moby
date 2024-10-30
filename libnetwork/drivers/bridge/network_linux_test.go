@@ -21,6 +21,7 @@ func TestLinkCreate(t *testing.T) {
 	mtu := 1490
 	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName,
+		EnableICC:  true,
 		Mtu:        mtu,
 		EnableIPv6: true,
 	}
@@ -116,6 +117,7 @@ func TestLinkCreateTwo(t *testing.T) {
 	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true,
+		EnableICC:  true,
 	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
@@ -151,11 +153,11 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	config := &networkConfiguration{
-		BridgeName: DefaultBridgeName,
+	genericOption := map[string]interface{}{
+		netlabel.GenericData: map[string]string{
+			BridgeName: DefaultBridgeName,
+		},
 	}
-	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = config
 
 	ipdList := getIPv4Data(t)
 	err := d.CreateNetwork("dummy", genericOption, nil, ipdList, getIPv6Data(t))
@@ -189,6 +191,7 @@ func TestLinkDelete(t *testing.T) {
 	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true,
+		EnableICC:  true,
 	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config

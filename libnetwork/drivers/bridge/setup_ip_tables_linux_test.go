@@ -336,6 +336,7 @@ func TestOutgoingNATRules(t *testing.T) {
 				EnableIPMasquerade: tc.enableIPMasquerade,
 				HostIPv4:           tc.hostIPv4,
 				HostIPv6:           tc.hostIPv6,
+				EnableICC:          true,
 			}
 			ipv4Data := []driverapi.IPAMData{{Pool: maskedBrIPv4, Gateway: brIPv4}}
 			ipv6Data := []driverapi.IPAMData{{Pool: maskedBrIPv6, Gateway: brIPv6}}
