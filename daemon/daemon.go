@@ -27,7 +27,6 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/pkg/dialer"
-	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	dist "github.com/docker/distribution"
@@ -75,8 +74,6 @@ import (
 	"github.com/docker/docker/registry"
 	volumesservice "github.com/docker/docker/volume/service"
 	"github.com/moby/buildkit/util/grpcerrors"
-	"github.com/moby/buildkit/util/resolver"
-	resolverconfig "github.com/moby/buildkit/util/resolver/config"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/locker"
 	"github.com/moby/sys/userns"
@@ -205,48 +202,6 @@ func (daemon *Daemon) Features() map[string]bool {
 // UsesSnapshotter returns true if feature flag to use containerd snapshotter is enabled
 func (daemon *Daemon) UsesSnapshotter() bool {
 	return daemon.usesSnapshotter
-}
-
-// RegistryHosts returns the registry hosts configuration for the host component
-// of a distribution image reference.
-func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) {
-	m := map[string]resolverconfig.RegistryConfig{
-		"docker.io": {Mirrors: daemon.registryService.ServiceConfig().Mirrors},
-	}
-	conf := daemon.registryService.ServiceConfig().IndexConfigs
-	for k, v := range conf {
-		c := m[k]
-		if !v.Secure {
-			t := true
-			c.PlainHTTP = &t
-			c.Insecure = &t
-		}
-		m[k] = c
-	}
-	if c, ok := m[host]; !ok && daemon.registryService.IsInsecureRegistry(host) {
-		t := true
-		c.PlainHTTP = &t
-		c.Insecure = &t
-		m[host] = c
-	}
-
-	for k, v := range m {
-		v.TLSConfigDir = []string{registry.HostCertsDir(k)}
-		m[k] = v
-	}
-
-	certsDir := registry.CertsDir()
-	if fis, err := os.ReadDir(certsDir); err == nil {
-		for _, fi := range fis {
-			if _, ok := m[fi.Name()]; !ok {
-				m[fi.Name()] = resolverconfig.RegistryConfig{
-					TLSConfigDir: []string{filepath.Join(certsDir, fi.Name())},
-				}
-			}
-		}
-	}
-
-	return resolver.NewRegistryConfig(m)(host)
 }
 
 // layerAccessor may be implemented by ImageService
