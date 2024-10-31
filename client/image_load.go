@@ -2,7 +2,6 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
@@ -28,11 +27,11 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, opts image.Lo
 			return image.LoadResponse{}, err
 		}
 
-		p, err := json.Marshal(*opts.Platform)
+		p, err := encodePlatform(opts.Platform)
 		if err != nil {
 			return image.LoadResponse{}, err
 		}
-		query.Set("platform", string(p))
+		query.Set("platform", p)
 	}
 
 	resp, err := cli.postRaw(ctx, "/images/load", query, input, http.Header{

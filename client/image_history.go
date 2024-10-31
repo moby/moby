@@ -17,11 +17,11 @@ func (cli *Client) ImageHistory(ctx context.Context, imageID string, opts image.
 			return nil, err
 		}
 
-		p, err := json.Marshal(*opts.Platform)
+		p, err := encodePlatform(opts.Platform)
 		if err != nil {
 			return nil, fmt.Errorf("invalid platform: %v", err)
 		}
-		query.Set("platform", string(p))
+		query.Set("platform", p)
 	}
 
 	var history []image.HistoryResponseItem
