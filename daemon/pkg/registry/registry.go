@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/moby/moby/v2/daemon/internal/registryclient/transport"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
