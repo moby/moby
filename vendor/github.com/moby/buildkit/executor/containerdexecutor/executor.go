@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"sync"
 	"syscall"
 	"time"
@@ -216,7 +215,7 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 	}
 
 	trace.SpanFromContext(ctx).AddEvent("Container created")
-	err = w.runProcess(ctx, task, process.Resize, process.Signal, process.Meta.ValidExitCodes, func() {
+	err = w.runProcess(ctx, task, process.Resize, process.Signal, func() {
 		startedOnce.Do(func() {
 			trace.SpanFromContext(ctx).AddEvent("Container started")
 			if started != nil {
@@ -307,7 +306,7 @@ func (w *containerdExecutor) Exec(ctx context.Context, id string, process execut
 		return errors.WithStack(err)
 	}
 
-	err = w.runProcess(ctx, taskProcess, process.Resize, process.Signal, process.Meta.ValidExitCodes, nil)
+	err = w.runProcess(ctx, taskProcess, process.Resize, process.Signal, nil)
 	return err
 }
 
@@ -324,7 +323,7 @@ func fixProcessOutput(process *executor.ProcessInfo) {
 	}
 }
 
-func (w *containerdExecutor) runProcess(ctx context.Context, p containerd.Process, resize <-chan executor.WinSize, signal <-chan syscall.Signal, validExitCodes []int, started func()) error {
+func (w *containerdExecutor) runProcess(ctx context.Context, p containerd.Process, resize <-chan executor.WinSize, signal <-chan syscall.Signal, started func()) error {
 	// Not using `ctx` here because the context passed only affects the statusCh which we
 	// don't want cancelled when ctx.Done is sent.  We want to process statusCh on cancel.
 	statusCh, err := p.Wait(context.Background())
@@ -409,30 +408,22 @@ func (w *containerdExecutor) runProcess(ctx context.Context, p containerd.Proces
 					attribute.Int("exit.code", int(status.ExitCode())),
 				),
 			)
-
-			if validExitCodes == nil {
-				// no exit codes specified, so only 0 is allowed
-				if status.ExitCode() == 0 {
-					return nil
+			if status.ExitCode() != 0 {
+				exitErr := &gatewayapi.ExitError{
+					ExitCode: status.ExitCode(),
+					Err:      status.Error(),
 				}
-			} else if slices.Contains(validExitCodes, int(status.ExitCode())) {
-				// exit code in allowed list, so exit cleanly
-				return nil
+				if status.ExitCode() == gatewayapi.UnknownExitStatus && status.Error() != nil {
+					exitErr.Err = errors.Wrap(status.Error(), "failure waiting for process")
+				}
+				select {
+				case <-ctx.Done():
+					exitErr.Err = errors.Wrap(context.Cause(ctx), exitErr.Error())
+				default:
+				}
+				return exitErr
 			}
-
-			exitErr := &gatewayapi.ExitError{
-				ExitCode: status.ExitCode(),
-				Err:      status.Error(),
-			}
-			if status.ExitCode() == gatewayapi.UnknownExitStatus && status.Error() != nil {
-				exitErr.Err = errors.Wrap(status.Error(), "failure waiting for process")
-			}
-			select {
-			case <-ctx.Done():
-				exitErr.Err = errors.Wrap(context.Cause(ctx), exitErr.Error())
-			default:
-			}
-			return exitErr
+			return nil
 		case <-killCtxDone:
 			if cancel != nil {
 				cancel(errors.WithStack(context.Canceled))

@@ -57,7 +57,7 @@ func ProvenanceProcessor(attrs map[string]string) llbsolver.Processor {
 			}
 
 			res.AddAttestation(p.ID, llbsolver.Attestation{
-				Kind: gatewaypb.AttestationKind_InToto,
+				Kind: gatewaypb.AttestationKindInToto,
 				Metadata: map[string][]byte{
 					result.AttestationReasonKey:     []byte(result.AttestationReasonProvenance),
 					result.AttestationInlineOnlyKey: []byte(strconv.FormatBool(inlineOnly)),

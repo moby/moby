@@ -34,24 +34,12 @@ func withLocation(err error, start, end int) error {
 
 // WithLocation extends an error with a source code location
 func WithLocation(err error, location []Range) error {
-	return setLocation(err, location, true)
-}
-
-func SetLocation(err error, location []Range) error {
-	return setLocation(err, location, false)
-}
-
-func setLocation(err error, location []Range, add bool) error {
 	if err == nil {
 		return nil
 	}
 	var el *ErrorLocation
 	if errors.As(err, &el) {
-		if add {
-			el.Locations = append(el.Locations, location)
-		} else {
-			el.Locations = [][]Range{location}
-		}
+		el.Locations = append(el.Locations, location)
 		return err
 	}
 	return stack.Enable(&ErrorLocation{

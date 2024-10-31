@@ -27,10 +27,8 @@ import (
 
 var errNotFound = errors.Errorf("not found")
 
-var (
-	defaultManager     *cacheManager
-	defaultManagerOnce sync.Once
-)
+var defaultManager *cacheManager
+var defaultManagerOnce sync.Once
 
 func getDefaultManager() *cacheManager {
 	defaultManagerOnce.Do(func() {
@@ -39,13 +37,6 @@ func getDefaultManager() *cacheManager {
 	})
 	return defaultManager
 }
-
-const (
-	CacheRecordTypeFile      = CacheRecordType_FILE
-	CacheRecordTypeDir       = CacheRecordType_DIR
-	CacheRecordTypeDirHeader = CacheRecordType_DIR_HEADER
-	CacheRecordTypeSymlink   = CacheRecordType_SYMLINK
-)
 
 // Layout in the radix tree: Every path is saved by cleaned absolute unix path.
 // Directories have 2 records, one contains digest for directory header, other
@@ -251,7 +242,7 @@ func (cc *cacheContext) load() error {
 	}
 
 	var l CacheRecords
-	if err := l.UnmarshalVT(dt); err != nil {
+	if err := l.Unmarshal(dt); err != nil {
 		return err
 	}
 
@@ -281,7 +272,7 @@ func (cc *cacheContext) save() error {
 		return false
 	})
 
-	dt, err := l.MarshalVT()
+	dt, err := l.Marshal()
 	if err != nil {
 		return err
 	}
@@ -321,7 +312,7 @@ func (cc *cacheContext) HandleChange(kind fsutil.ChangeKind, p string, fi os.Fil
 		if _, ok := cc.node.Get([]byte{0}); !ok {
 			cc.txn.Insert([]byte{0}, &CacheRecord{
 				Type:   CacheRecordTypeDirHeader,
-				Digest: string(digest.FromBytes(nil)),
+				Digest: digest.FromBytes(nil),
 			})
 			cc.txn.Insert([]byte(""), &CacheRecord{
 				Type: CacheRecordTypeDir,
@@ -373,7 +364,7 @@ func (cc *cacheContext) HandleChange(kind fsutil.ChangeKind, p string, fi os.Fil
 		k = append(k, 0)
 		p += "/"
 	}
-	cr.Digest = string(h.Digest())
+	cr.Digest = h.Digest()
 
 	// if we receive a hardlink just use the digest of the source
 	// note that the source may be called later because data writing is async
@@ -381,7 +372,8 @@ func (cc *cacheContext) HandleChange(kind fsutil.ChangeKind, p string, fi os.Fil
 		ln := path.Join("/", filepath.ToSlash(stat.Linkname))
 		v, ok := cc.txn.Get(convertPathToKey(ln))
 		if ok {
-			cr = v.CloneVT()
+			cp := *v
+			cr = &cp
 		}
 		cc.linkMap[ln] = append(cc.linkMap[ln], k)
 	}
@@ -431,7 +423,7 @@ func (cc *cacheContext) Checksum(ctx context.Context, mountable cache.Mountable,
 				if err != nil {
 					return "", err
 				}
-				includedPaths[i].record = &CacheRecord{Digest: string(dgst)}
+				includedPaths[i].record = &CacheRecord{Digest: dgst}
 			}
 		}
 	}
@@ -440,7 +432,7 @@ func (cc *cacheContext) Checksum(ctx context.Context, mountable cache.Mountable,
 	}
 
 	if len(includedPaths) == 1 && path.Base(p) == path.Base(includedPaths[0].path) {
-		return digest.Digest(includedPaths[0].record.Digest), nil
+		return includedPaths[0].record.Digest, nil
 	}
 
 	digester := digest.Canonical.Digester()
@@ -792,7 +784,7 @@ func (cc *cacheContext) lazyChecksum(ctx context.Context, m *mount, p string, fo
 			return "", err
 		}
 		if cr != nil && cr.Digest != "" {
-			return digest.Digest(cr.Digest), nil
+			return cr.Digest, nil
 		}
 	} else {
 		cc.mu.RUnlock()
@@ -816,7 +808,7 @@ func (cc *cacheContext) lazyChecksum(ctx context.Context, m *mount, p string, fo
 	if err != nil {
 		return "", err
 	}
-	return digest.Digest(cr.Digest), nil
+	return cr.Digest, nil
 }
 
 func (cc *cacheContext) commitActiveTransaction() {
@@ -927,7 +919,7 @@ func (cc *cacheContext) checksum(ctx context.Context, root *iradix.Node[*CacheRe
 	}
 
 	cr2 := &CacheRecord{
-		Digest:   string(dgst),
+		Digest:   dgst,
 		Type:     cr.Type,
 		Linkname: cr.Linkname,
 	}
@@ -1042,7 +1034,7 @@ func (cc *cacheContext) scanPath(ctx context.Context, m *mount, p string, follow
 		scanPath = resolvedPath
 	}
 
-	walkFunc := func(itemPath string, fi os.FileInfo, err error) error {
+	err = filepath.Walk(scanPath, func(itemPath string, fi os.FileInfo, err error) error {
 		if scanCounterEnable {
 			scanCounter.Add(1)
 		}
@@ -1081,10 +1073,7 @@ func (cc *cacheContext) scanPath(ctx context.Context, m *mount, p string, follow
 			txn.Insert(k, cr)
 		}
 		return nil
-	}
-
-	err = cc.walk(scanPath, walkFunc)
-
+	})
 	if err != nil {
 		return err
 	}

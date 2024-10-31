@@ -128,10 +128,9 @@ func (e *ExecOp) Validate(ctx context.Context, c *Constraints) error {
 }
 
 func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
-	if dgst, dt, md, srcs, err := e.Load(c); err == nil {
-		return dgst, dt, md, srcs, nil
+	if e.Cached(c) {
+		return e.Load()
 	}
-
 	if err := e.Validate(ctx, c); err != nil {
 		return "", nil, nil, nil, err
 	}
@@ -194,17 +193,6 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 		return "", nil, nil, nil, err
 	}
 
-	var validExitCodes []int32
-	if codes, err := getValidExitCodes(e.base)(ctx, c); err != nil {
-		return "", nil, nil, nil, err
-	} else if codes != nil {
-		validExitCodes = make([]int32, len(codes))
-		for i, code := range codes {
-			validExitCodes[i] = int32(code)
-		}
-		addCap(&e.constraints, pb.CapExecValidExitCode)
-	}
-
 	meta := &pb.Meta{
 		Args:                      args,
 		Env:                       env.ToArray(),
@@ -213,7 +201,6 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 		Hostname:                  hostname,
 		CgroupParent:              cgrpParent,
 		RemoveMountStubsRecursive: true,
-		ValidExitCodes:            validExitCodes,
 	}
 
 	extraHosts, err := getExtraHosts(e.base)(ctx, c)
@@ -343,7 +330,7 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 			newInput := true
 
 			for i, inp2 := range pop.Inputs {
-				if inp.EqualVT(inp2) {
+				if *inp == *inp2 {
 					inputIndex = pb.InputIndex(i)
 					newInput = false
 					break
@@ -364,10 +351,10 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 		}
 
 		pm := &pb.Mount{
-			Input:    int64(inputIndex),
+			Input:    inputIndex,
 			Dest:     m.target,
 			Readonly: m.readonly,
-			Output:   int64(outputIndex),
+			Output:   outputIndex,
 			Selector: m.selector,
 		}
 		if m.cacheID != "" {
@@ -395,7 +382,7 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 		if m.tmpfs {
 			pm.MountType = pb.MountType_TMPFS
 			pm.TmpfsOpt = &pb.TmpfsOpt{
-				Size: m.tmpfsOpt.Size,
+				Size_: m.tmpfsOpt.Size,
 			}
 		}
 		peo.Mounts = append(peo.Mounts, pm)
@@ -411,7 +398,7 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 		}
 		if s.Target != nil {
 			pm := &pb.Mount{
-				Input:     int64(pb.Empty),
+				Input:     pb.Empty,
 				Dest:      *s.Target,
 				MountType: pb.MountType_SECRET,
 				SecretOpt: &pb.SecretOpt{
@@ -428,7 +415,7 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 
 	for _, s := range e.ssh {
 		pm := &pb.Mount{
-			Input:     int64(pb.Empty),
+			Input:     pb.Empty,
 			Dest:      s.Target,
 			MountType: pb.MountType_SSH,
 			SSHOpt: &pb.SSHOpt{
@@ -442,11 +429,12 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 		peo.Mounts = append(peo.Mounts, pm)
 	}
 
-	dt, err := deterministicMarshal(pop)
+	dt, err := pop.Marshal()
 	if err != nil {
 		return "", nil, nil, nil, err
 	}
-	return e.Store(dt, md, e.constraints.SourceLocations, c)
+	e.Store(dt, md, e.constraints.SourceLocations, c)
+	return e.Load()
 }
 
 func (e *ExecOp) Output() Output {
@@ -593,7 +581,6 @@ func Shlex(str string) RunOption {
 		ei.State = shlexf(str, false)(ei.State)
 	})
 }
-
 func Shlexf(str string, v ...interface{}) RunOption {
 	return runOptionFunc(func(ei *ExecInfo) {
 		ei.State = shlexf(str, true, v...)(ei.State)
@@ -615,12 +602,6 @@ func AddExtraHost(host string, ip net.IP) RunOption {
 func AddUlimit(name UlimitName, soft int64, hard int64) RunOption {
 	return runOptionFunc(func(ei *ExecInfo) {
 		ei.State = ei.State.AddUlimit(name, soft, hard)
-	})
-}
-
-func ValidExitCodes(codes ...int) RunOption {
-	return runOptionFunc(func(ei *ExecInfo) {
-		ei.State = validExitCodes(codes...)(ei.State)
 	})
 }
 

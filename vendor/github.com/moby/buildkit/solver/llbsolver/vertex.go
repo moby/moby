@@ -9,12 +9,10 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver/ops/opsutils"
 	"github.com/moby/buildkit/solver/pb"
-	"github.com/moby/buildkit/util/apicaps"
 	"github.com/moby/buildkit/util/entitlements"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"google.golang.org/protobuf/proto"
 )
 
 type vertex struct {
@@ -55,7 +53,7 @@ func WithValidateCaps() LoadOpt {
 	return func(_ *pb.Op, md *pb.OpMetadata, opt *solver.VertexOptions) error {
 		if md != nil {
 			for c := range md.Caps {
-				if err := cs.Supports(apicaps.CapID(c)); err != nil {
+				if err := cs.Supports(c); err != nil {
 					return err
 				}
 			}
@@ -157,8 +155,8 @@ func (dpc *detectPrunedCacheID) Load(op *pb.Op, md *pb.OpMetadata, opt *solver.V
 
 func Load(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEvaluator, opts ...LoadOpt) (solver.Edge, error) {
 	return loadLLB(ctx, def, polEngine, func(dgst digest.Digest, pbOp *pb.Op, load func(digest.Digest) (solver.Vertex, error)) (solver.Vertex, error) {
-		opMetadata := def.Metadata[string(dgst)]
-		vtx, err := newVertex(dgst, pbOp, opMetadata, load, opts...)
+		opMetadata := def.Metadata[dgst]
+		vtx, err := newVertex(dgst, pbOp, &opMetadata, load, opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -182,15 +180,13 @@ func newVertex(dgst digest.Digest, op *pb.Op, opMeta *pb.OpMetadata, load func(d
 		}
 	}
 
-	name, err := llbOpName(op, func(dgst string) (solver.Vertex, error) {
-		return load(digest.Digest(dgst))
-	})
+	name, err := llbOpName(op, load)
 	if err != nil {
 		return nil, err
 	}
 	vtx := &vertex{sys: op, options: opt, digest: dgst, name: name}
 	for _, in := range op.Inputs {
-		sub, err := load(digest.Digest(in.Digest))
+		sub, err := load(in.Digest)
 		if err != nil {
 			return nil, err
 		}
@@ -203,10 +199,7 @@ func recomputeDigests(ctx context.Context, all map[digest.Digest]*pb.Op, visited
 	if dgst, ok := visited[dgst]; ok {
 		return dgst, nil
 	}
-	op, ok := all[dgst]
-	if !ok {
-		return "", errors.Errorf("invalid missing input digest %s", dgst)
-	}
+	op := all[dgst]
 
 	var mutated bool
 	for _, input := range op.Inputs {
@@ -216,13 +209,13 @@ func recomputeDigests(ctx context.Context, all map[digest.Digest]*pb.Op, visited
 		default:
 		}
 
-		iDgst, err := recomputeDigests(ctx, all, visited, digest.Digest(input.Digest))
+		iDgst, err := recomputeDigests(ctx, all, visited, input.Digest)
 		if err != nil {
 			return "", err
 		}
-		if digest.Digest(input.Digest) != iDgst {
+		if input.Digest != iDgst {
 			mutated = true
-			input.Digest = string(iDgst)
+			input.Digest = iDgst
 		}
 	}
 
@@ -231,7 +224,7 @@ func recomputeDigests(ctx context.Context, all map[digest.Digest]*pb.Op, visited
 		return dgst, nil
 	}
 
-	dt, err := deterministicMarshal(op)
+	dt, err := op.Marshal()
 	if err != nil {
 		return "", err
 	}
@@ -256,7 +249,7 @@ func loadLLB(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEval
 
 	for _, dt := range def.Def {
 		var op pb.Op
-		if err := op.UnmarshalVT(dt); err != nil {
+		if err := (&op).Unmarshal(dt); err != nil {
 			return solver.Edge{}, errors.Wrap(err, "failed to parse llb proto op")
 		}
 		dgst := digest.FromBytes(dt)
@@ -266,7 +259,7 @@ func loadLLB(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEval
 				return solver.Edge{}, errors.Wrap(err, "error evaluating the source policy")
 			}
 			if mutated {
-				dtMutated, err := deterministicMarshal(&op)
+				dtMutated, err := op.Marshal()
 				if err != nil {
 					return solver.Edge{}, err
 				}
@@ -329,14 +322,14 @@ func loadLLB(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEval
 		return v, nil
 	}
 
-	v, err := rec(digest.Digest(dgst))
+	v, err := rec(dgst)
 	if err != nil {
 		return solver.Edge{}, err
 	}
 	return solver.Edge{Vertex: v, Index: solver.Index(lastOp.Inputs[0].Index)}, nil
 }
 
-func llbOpName(pbOp *pb.Op, load func(string) (solver.Vertex, error)) (string, error) {
+func llbOpName(pbOp *pb.Op, load func(digest.Digest) (solver.Vertex, error)) (string, error) {
 	switch op := pbOp.Op.(type) {
 	case *pb.Op_Source:
 		return op.Source.Identifier, nil
@@ -399,8 +392,4 @@ func fileOpName(actions []*pb.FileAction) string {
 	}
 
 	return strings.Join(names, ", ")
-}
-
-func deterministicMarshal[Message proto.Message](m Message) ([]byte, error) {
-	return proto.MarshalOptions{Deterministic: true}.Marshal(m)
 }

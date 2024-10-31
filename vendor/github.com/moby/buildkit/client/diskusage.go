@@ -43,20 +43,14 @@ func (c *Client) DiskUsage(ctx context.Context, opts ...DiskUsageOption) ([]*Usa
 			ID:          d.ID,
 			Mutable:     d.Mutable,
 			InUse:       d.InUse,
-			Size:        d.Size,
+			Size:        d.Size_,
 			Parents:     d.Parents,
-			CreatedAt:   d.CreatedAt.AsTime(),
+			CreatedAt:   d.CreatedAt,
 			Description: d.Description,
 			UsageCount:  int(d.UsageCount),
-			LastUsedAt: func() *time.Time {
-				if d.LastUsedAt != nil {
-					ts := d.LastUsedAt.AsTime()
-					return &ts
-				}
-				return nil
-			}(),
-			RecordType: UsageRecordType(d.RecordType),
-			Shared:     d.Shared,
+			LastUsedAt:  d.LastUsedAt,
+			RecordType:  UsageRecordType(d.RecordType),
+			Shared:      d.Shared,
 		})
 	}
 

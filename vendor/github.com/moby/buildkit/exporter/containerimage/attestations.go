@@ -34,7 +34,7 @@ func supplementSBOM(ctx context.Context, s session.Group, target cache.Immutable
 	if target == nil {
 		return att, nil
 	}
-	if att.Kind != gatewaypb.AttestationKind_InToto {
+	if att.Kind != gatewaypb.AttestationKindInToto {
 		return att, nil
 	}
 	if att.InToto.PredicateType != intoto.PredicateSPDX {

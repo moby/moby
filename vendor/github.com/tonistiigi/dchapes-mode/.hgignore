@@ -1,5 +1,0 @@
-syntax: glob
-bench*.out*
-cmode
-coverage.out
-coverage.txt

@@ -32,10 +32,9 @@ func (m *MergeOp) Validate(ctx context.Context, constraints *Constraints) error 
 }
 
 func (m *MergeOp) Marshal(ctx context.Context, constraints *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
-	if dgst, dt, md, srcs, err := m.Load(constraints); err == nil {
-		return dgst, dt, md, srcs, nil
+	if m.Cached(constraints) {
+		return m.Load()
 	}
-
 	if err := m.Validate(ctx, constraints); err != nil {
 		return "", nil, nil, nil, err
 	}
@@ -45,7 +44,7 @@ func (m *MergeOp) Marshal(ctx context.Context, constraints *Constraints) (digest
 
 	op := &pb.MergeOp{}
 	for _, input := range m.inputs {
-		op.Inputs = append(op.Inputs, &pb.MergeInput{Input: int64(len(pop.Inputs))})
+		op.Inputs = append(op.Inputs, &pb.MergeInput{Input: pb.InputIndex(len(pop.Inputs))})
 		pbInput, err := input.ToInput(ctx, constraints)
 		if err != nil {
 			return "", nil, nil, nil, err
@@ -54,12 +53,13 @@ func (m *MergeOp) Marshal(ctx context.Context, constraints *Constraints) (digest
 	}
 	pop.Op = &pb.Op_Merge{Merge: op}
 
-	dt, err := deterministicMarshal(pop)
+	dt, err := pop.Marshal()
 	if err != nil {
 		return "", nil, nil, nil, err
 	}
 
-	return m.Store(dt, md, m.constraints.SourceLocations, constraints)
+	m.Store(dt, md, m.constraints.SourceLocations, constraints)
+	return m.Load()
 }
 
 func (m *MergeOp) Output() Output {

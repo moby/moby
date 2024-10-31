@@ -1,5 +1,5 @@
-//go:build !linux
-// +build !linux
+//go:build freebsd || windows
+// +build freebsd windows
 
 package netproviders
 

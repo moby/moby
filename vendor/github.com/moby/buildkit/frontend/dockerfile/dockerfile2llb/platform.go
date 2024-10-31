@@ -2,7 +2,7 @@ package dockerfile2llb
 
 import (
 	"github.com/containerd/platforms"
-	"github.com/moby/buildkit/client/llb"
+	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -36,26 +36,23 @@ func buildPlatformOpt(opt *ConvertOpt) *platformOpt {
 	}
 }
 
-func platformArgs(po *platformOpt, overrides map[string]string) *llb.EnvList {
+func getPlatformArgs(po *platformOpt) []instructions.KeyValuePairOptional {
 	bp := po.buildPlatforms[0]
 	tp := po.targetPlatform
-	s := [...][2]string{
-		{"BUILDPLATFORM", platforms.Format(bp)},
-		{"BUILDOS", bp.OS},
-		{"BUILDARCH", bp.Architecture},
-		{"BUILDVARIANT", bp.Variant},
-		{"TARGETPLATFORM", platforms.Format(tp)},
-		{"TARGETOS", tp.OS},
-		{"TARGETARCH", tp.Architecture},
-		{"TARGETVARIANT", tp.Variant},
+	m := map[string]string{
+		"BUILDPLATFORM":  platforms.Format(bp),
+		"BUILDOS":        bp.OS,
+		"BUILDARCH":      bp.Architecture,
+		"BUILDVARIANT":   bp.Variant,
+		"TARGETPLATFORM": platforms.Format(tp),
+		"TARGETOS":       tp.OS,
+		"TARGETARCH":     tp.Architecture,
+		"TARGETVARIANT":  tp.Variant,
 	}
-	env := &llb.EnvList{}
-	for _, kv := range s {
-		v := kv[1]
-		if ov, ok := overrides[kv[0]]; ok {
-			v = ov
-		}
-		env = env.AddOrReplace(kv[0], v)
+	opts := make([]instructions.KeyValuePairOptional, 0, len(m))
+	for k, v := range m {
+		s := v
+		opts = append(opts, instructions.KeyValuePairOptional{Key: k, Value: &s})
 	}
-	return env
+	return opts
 }

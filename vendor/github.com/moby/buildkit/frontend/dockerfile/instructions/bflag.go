@@ -147,32 +147,25 @@ func (bf *BFlags) Parse() error {
 		return errors.Wrap(bf.Err, "error setting up flags")
 	}
 
-	for _, a := range bf.Args {
-		if a == "--" {
-			// Stop processing further arguments as flags. We're matching
-			// the POSIX Utility Syntax Guidelines here;
-			// https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html#tag_12_02
-			//
-			// > The first -- argument that is not an option-argument should be accepted
-			// > as a delimiter indicating the end of options. Any following arguments
-			// > should be treated as operands, even if they begin with the '-' character.
-			return nil
-		}
-		if !strings.HasPrefix(a, "--") {
-			return errors.Errorf("arg should start with -- : %s", a)
+	for _, arg := range bf.Args {
+		if !strings.HasPrefix(arg, "--") {
+			return errors.Errorf("arg should start with -- : %s", arg)
 		}
 
-		flagName, value, hasValue := strings.Cut(a, "=")
-		arg := flagName[2:]
+		if arg == "--" {
+			return nil
+		}
+
+		arg, value, hasValue := strings.Cut(arg[2:], "=")
 
 		flag, ok := bf.flags[arg]
 		if !ok {
-			err := errors.Errorf("unknown flag: %s", flagName)
+			err := errors.Errorf("unknown flag: %s", arg)
 			return suggest.WrapError(err, arg, allFlags(bf.flags), true)
 		}
 
 		if _, ok = bf.used[arg]; ok && flag.flagType != stringsType {
-			return errors.Errorf("duplicate flag specified: %s", flagName)
+			return errors.Errorf("duplicate flag specified: %s", arg)
 		}
 
 		bf.used[arg] = flag
@@ -181,7 +174,7 @@ func (bf *BFlags) Parse() error {
 		case boolType:
 			// value == "" is only ok if no "=" was specified
 			if hasValue && value == "" {
-				return errors.Errorf("missing a value on flag: %s", flagName)
+				return errors.Errorf("missing a value on flag: %s", arg)
 			}
 
 			switch strings.ToLower(value) {
@@ -190,18 +183,18 @@ func (bf *BFlags) Parse() error {
 			case "false":
 				flag.Value = "false"
 			default:
-				return errors.Errorf("expecting boolean value for flag %s, not: %s", flagName, value)
+				return errors.Errorf("expecting boolean value for flag %s, not: %s", arg, value)
 			}
 
 		case stringType:
 			if !hasValue {
-				return errors.Errorf("missing a value on flag: %s", flagName)
+				return errors.Errorf("missing a value on flag: %s", arg)
 			}
 			flag.Value = value
 
 		case stringsType:
 			if !hasValue {
-				return errors.Errorf("missing a value on flag: %s", flagName)
+				return errors.Errorf("missing a value on flag: %s", arg)
 			}
 			flag.StringValues = append(flag.StringValues, value)
 

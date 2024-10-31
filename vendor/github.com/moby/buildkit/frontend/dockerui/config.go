@@ -66,7 +66,7 @@ type Config struct {
 	NetworkMode      pb.NetMode
 	ShmSize          int64
 	Target           string
-	Ulimits          []*pb.Ulimit
+	Ulimits          []pb.Ulimit
 	LinterConfig     *linter.Config
 
 	CacheImports           []client.CacheOptionsEntry
@@ -89,8 +89,7 @@ type Client struct {
 }
 
 type SBOM struct {
-	Generator  string
-	Parameters map[string]string
+	Generator string
 }
 
 type Source struct {
@@ -223,7 +222,7 @@ func (bc *Client) init() error {
 	var cacheImports []client.CacheOptionsEntry
 	// new API
 	if cacheImportsStr := opts[keyCacheImports]; cacheImportsStr != "" {
-		var cacheImportsUM []*controlapi.CacheOptionsEntry
+		var cacheImportsUM []controlapi.CacheOptionsEntry
 		if err := json.Unmarshal([]byte(cacheImportsStr), &cacheImportsUM); err != nil {
 			return errors.Wrapf(err, "failed to unmarshal %s (%q)", keyCacheImports, cacheImportsStr)
 		}
@@ -258,26 +257,17 @@ func (bc *Client) init() error {
 		return err
 	}
 	if attrs, ok := attests[attestations.KeyTypeSbom]; ok {
-		params := make(map[string]string)
-		var ref reference.Named
-		for k, v := range attrs {
-			if k == "generator" {
-				ref, err = reference.ParseNormalizedNamed(v)
-				if err != nil {
-					return errors.Wrapf(err, "failed to parse sbom scanner %s", v)
-				}
-				ref = reference.TagNameOnly(ref)
-			} else {
-				params[k] = v
-			}
-		}
-		if ref == nil {
+		src, ok := attrs["generator"]
+		if !ok {
 			return errors.Errorf("sbom scanner cannot be empty")
 		}
-
+		ref, err := reference.ParseNormalizedNamed(src)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse sbom scanner %s", src)
+		}
+		ref = reference.TagNameOnly(ref)
 		bc.SBOM = &SBOM{
-			Generator:  ref.String(),
-			Parameters: params,
+			Generator: ref.String(),
 		}
 	}
 

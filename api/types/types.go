@@ -484,6 +484,4 @@ type BuildCachePruneOptions struct {
 	All         bool
 	KeepStorage int64
 	Filters     filters.Args
-
-	// FIXME(thaJeztah): add new options; see https://github.com/moby/moby/issues/48639
 }

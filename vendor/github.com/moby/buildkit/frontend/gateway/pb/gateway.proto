@@ -2,14 +2,17 @@ syntax = "proto3";
 
 package moby.buildkit.v1.frontend;
 
-option go_package = "github.com/moby/buildkit/frontend/gateway/pb;moby_buildkit_v1_frontend";
-
+import "github.com/gogo/googleapis/google/rpc/status.proto";
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 import "github.com/moby/buildkit/api/types/worker.proto";
 import "github.com/moby/buildkit/solver/pb/ops.proto";
 import "github.com/moby/buildkit/sourcepolicy/pb/policy.proto";
 import "github.com/moby/buildkit/util/apicaps/pb/caps.proto";
 import "github.com/tonistiigi/fsutil/types/stat.proto";
-import "google/rpc/status.proto";
+
+option (gogoproto.sizer_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
 
 service LLBBridge {
 	// apicaps:CapResolveImage
@@ -81,20 +84,22 @@ message Attestation {
 }
 
 enum AttestationKind {
-	InToto = 0;
-	Bundle = 1;
+	option (gogoproto.goproto_enum_prefix) = false;
+	InToto = 0 [(gogoproto.enumvalue_customname) = "AttestationKindInToto"];
+	Bundle = 1 [(gogoproto.enumvalue_customname) = "AttestationKindBundle"];
 }
 
 message InTotoSubject {
 	InTotoSubjectKind kind = 1;
 
-	repeated string digest = 2;
+	repeated string digest = 2 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
 	string name = 3;
 }
 
 enum InTotoSubjectKind {
-	Self = 0;
-	Raw = 1;
+	option (gogoproto.goproto_enum_prefix) = false;
+	Self = 0 [(gogoproto.enumvalue_customname) = "InTotoSubjectKindSelf"];
+	Raw = 1 [(gogoproto.enumvalue_customname) = "InTotoSubjectKindRaw"];
 }
 
 message ReturnRequest {
@@ -124,7 +129,7 @@ message ResolveImageConfigRequest {
 }
 
 message ResolveImageConfigResponse {
-	string Digest = 1;
+	string Digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
 	bytes Config = 2;
 	string Ref = 3;
 }
@@ -143,7 +148,7 @@ message ResolveSourceMetaResponse {
 }
 
 message ResolveSourceImageResponse {
-	string Digest = 1;
+	string Digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
 	bytes Config = 2;
 }
 
@@ -230,13 +235,13 @@ message EvaluateResponse {
 message PingRequest{
 }
 message PongResponse{
-	repeated moby.buildkit.v1.apicaps.APICap FrontendAPICaps = 1;
-	repeated moby.buildkit.v1.apicaps.APICap LLBCaps = 2;
+	repeated moby.buildkit.v1.apicaps.APICap FrontendAPICaps = 1 [(gogoproto.nullable) = false];
+	repeated moby.buildkit.v1.apicaps.APICap LLBCaps = 2 [(gogoproto.nullable) = false];
 	repeated moby.buildkit.v1.types.WorkerRecord Workers = 3;
 }
 
 message WarnRequest {
-	string digest = 1;
+	string digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
 	int64 level = 2;
 	bytes short = 3;
 	repeated bytes detail = 4;

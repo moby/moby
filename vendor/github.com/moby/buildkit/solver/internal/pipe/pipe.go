@@ -8,63 +8,67 @@ import (
 	"github.com/pkg/errors"
 )
 
-type channel[V any] struct {
+type channel struct {
 	OnSendCompletion func()
-	value            atomic.Pointer[V]
-	lastValue        *V
+	value            atomic.Value
+	lastValue        *wrappedValue
 }
 
-func (c *channel[V]) Send(v V) {
-	c.value.Store(&v)
+type wrappedValue struct {
+	value interface{}
+}
+
+func (c *channel) Send(v interface{}) {
+	c.value.Store(&wrappedValue{value: v})
 	if c.OnSendCompletion != nil {
 		c.OnSendCompletion()
 	}
 }
 
-func (c *channel[V]) Receive() (V, bool) {
+func (c *channel) Receive() (interface{}, bool) {
 	v := c.value.Load()
-	if v == nil || v == c.lastValue {
-		return *new(V), false
+	if v == nil || v.(*wrappedValue) == c.lastValue {
+		return nil, false
 	}
-	c.lastValue = v
-	return *v, true
+	c.lastValue = v.(*wrappedValue)
+	return v.(*wrappedValue).value, true
 }
 
-type Pipe[Payload, Value any] struct {
-	Sender              Sender[Payload, Value]
-	Receiver            Receiver[Payload, Value]
+type Pipe struct {
+	Sender              Sender
+	Receiver            Receiver
 	OnReceiveCompletion func()
 	OnSendCompletion    func()
 }
 
-type Request[Payload any] struct {
-	Payload  Payload
+type Request struct {
+	Payload  interface{}
 	Canceled bool
 }
 
-type Sender[Payload, Value any] interface {
-	Request() Request[Payload]
-	Update(v Value)
-	Finalize(v Value, err error)
-	Status() Status[Value]
+type Sender interface {
+	Request() Request
+	Update(v interface{})
+	Finalize(v interface{}, err error)
+	Status() Status
 }
 
-type Receiver[Payload, Value any] interface {
+type Receiver interface {
 	Receive() bool
 	Cancel()
-	Status() Status[Value]
-	Request() Payload
+	Status() Status
+	Request() interface{}
 }
 
-type Status[Value any] struct {
+type Status struct {
 	Canceled  bool
 	Completed bool
 	Err       error
-	Value     Value
+	Value     interface{}
 }
 
-func NewWithFunction[Payload, Value any](f func(context.Context) (Value, error)) (*Pipe[Payload, Value], func()) {
-	p := New[Payload, Value](Request[Payload]{})
+func NewWithFunction(f func(context.Context) (interface{}, error)) (*Pipe, func()) {
+	p := New(Request{})
 
 	ctx, cancel := context.WithCancelCause(context.TODO())
 
@@ -77,27 +81,27 @@ func NewWithFunction[Payload, Value any](f func(context.Context) (Value, error))
 	return p, func() {
 		res, err := f(ctx)
 		if err != nil {
-			p.Sender.Finalize(*new(Value), err)
+			p.Sender.Finalize(nil, err)
 			return
 		}
 		p.Sender.Finalize(res, nil)
 	}
 }
 
-func New[Payload, Value any](req Request[Payload]) *Pipe[Payload, Value] {
-	cancelCh := &channel[Request[Payload]]{}
-	roundTripCh := &channel[Status[Value]]{}
-	pw := &sender[Payload, Value]{
+func New(req Request) *Pipe {
+	cancelCh := &channel{}
+	roundTripCh := &channel{}
+	pw := &sender{
 		req:         req,
 		sendChannel: roundTripCh,
 	}
-	pr := &receiver[Payload, Value]{
+	pr := &receiver{
 		req:         req,
 		recvChannel: roundTripCh,
 		sendChannel: cancelCh,
 	}
 
-	p := &Pipe[Payload, Value]{
+	p := &Pipe{
 		Sender:   pw,
 		Receiver: pr,
 	}
@@ -105,7 +109,7 @@ func New[Payload, Value any](req Request[Payload]) *Pipe[Payload, Value] {
 	cancelCh.OnSendCompletion = func() {
 		v, ok := cancelCh.Receive()
 		if ok {
-			pw.setRequest(v)
+			pw.setRequest(v.(Request))
 		}
 		if p.OnReceiveCompletion != nil {
 			p.OnReceiveCompletion()
@@ -121,36 +125,38 @@ func New[Payload, Value any](req Request[Payload]) *Pipe[Payload, Value] {
 	return p
 }
 
-type sender[Payload, Value any] struct {
-	status      Status[Value]
-	req         Request[Payload]
-	sendChannel *channel[Status[Value]]
+type sender struct {
+	status      Status
+	req         Request
+	sendChannel *channel
 	mu          sync.Mutex
 }
 
-func (pw *sender[Payload, Value]) Status() Status[Value] {
+func (pw *sender) Status() Status {
 	return pw.status
 }
 
-func (pw *sender[Payload, Value]) Request() Request[Payload] {
+func (pw *sender) Request() Request {
 	pw.mu.Lock()
 	defer pw.mu.Unlock()
 	return pw.req
 }
 
-func (pw *sender[Payload, Value]) setRequest(req Request[Payload]) {
+func (pw *sender) setRequest(req Request) {
 	pw.mu.Lock()
 	defer pw.mu.Unlock()
 	pw.req = req
 }
 
-func (pw *sender[Payload, Value]) Update(v Value) {
+func (pw *sender) Update(v interface{}) {
 	pw.status.Value = v
 	pw.sendChannel.Send(pw.status)
 }
 
-func (pw *sender[Payload, Value]) Finalize(v Value, err error) {
-	pw.status.Value = v
+func (pw *sender) Finalize(v interface{}, err error) {
+	if v != nil {
+		pw.status.Value = v
+	}
 	pw.status.Err = err
 	pw.status.Completed = true
 	if errors.Is(err, context.Canceled) && pw.req.Canceled {
@@ -159,27 +165,27 @@ func (pw *sender[Payload, Value]) Finalize(v Value, err error) {
 	pw.sendChannel.Send(pw.status)
 }
 
-type receiver[Payload, Value any] struct {
-	status      Status[Value]
-	req         Request[Payload]
-	recvChannel *channel[Status[Value]]
-	sendChannel *channel[Request[Payload]]
+type receiver struct {
+	status      Status
+	req         Request
+	recvChannel *channel
+	sendChannel *channel
 }
 
-func (pr *receiver[Payload, Value]) Request() Payload {
+func (pr *receiver) Request() interface{} {
 	return pr.req.Payload
 }
 
-func (pr *receiver[Payload, Value]) Receive() bool {
+func (pr *receiver) Receive() bool {
 	v, ok := pr.recvChannel.Receive()
 	if !ok {
 		return false
 	}
-	pr.status = v
+	pr.status = v.(Status)
 	return true
 }
 
-func (pr *receiver[Payload, Value]) Cancel() {
+func (pr *receiver) Cancel() {
 	req := pr.req
 	if req.Canceled {
 		return
@@ -188,6 +194,6 @@ func (pr *receiver[Payload, Value]) Cancel() {
 	pr.sendChannel.Send(req)
 }
 
-func (pr *receiver[Payload, Value]) Status() Status[Value] {
+func (pr *receiver) Status() Status {
 	return pr.status
 }

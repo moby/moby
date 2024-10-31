@@ -13,6 +13,9 @@ import (
 	"time"
 
 	distreference "github.com/distribution/reference"
+	"github.com/gogo/googleapis/google/rpc"
+	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/frontend/gateway/client"
@@ -193,10 +196,10 @@ func (c *grpcClient) Run(ctx context.Context, f client.BuildFunc) (retError erro
 			if retError != nil {
 				st, _ := status.FromError(grpcerrors.ToGRPC(ctx, retError))
 				stp := st.Proto()
-				req.Error = &spb.Status{
+				req.Error = &rpc.Status{
 					Code:    stp.Code,
 					Message: stp.Message,
-					Details: stp.Details,
+					Details: convertToGogoAny(stp.Details),
 				}
 			}
 			if _, err := c.client.Return(ctx, req); err != nil && retError == nil {
@@ -248,8 +251,8 @@ func (c *grpcClient) Run(ctx context.Context, f client.BuildFunc) (retError erro
 
 // defaultCaps returns the capabilities that were implemented when capabilities
 // support was added. This list is frozen and should never be changed.
-func defaultCaps() []*apicaps.PBCap {
-	return []*apicaps.PBCap{
+func defaultCaps() []apicaps.PBCap {
+	return []apicaps.PBCap{
 		{ID: string(pb.CapSolveBase), Enabled: true},
 		{ID: string(pb.CapSolveInlineReturn), Enabled: true},
 		{ID: string(pb.CapResolveImage), Enabled: true},
@@ -259,8 +262,8 @@ func defaultCaps() []*apicaps.PBCap {
 
 // defaultLLBCaps returns the LLB capabilities that were implemented when capabilities
 // support was added. This list is frozen and should never be changed.
-func defaultLLBCaps() []*apicaps.PBCap {
-	return []*apicaps.PBCap{
+func defaultLLBCaps() []apicaps.PBCap {
+	return []apicaps.PBCap{
 		{ID: string(opspb.CapSourceImage), Enabled: true},
 		{ID: string(opspb.CapSourceLocal), Enabled: true},
 		{ID: string(opspb.CapSourceLocalUnique), Enabled: true},
@@ -328,7 +331,7 @@ func (c *grpcClient) requestForRef(ref client.Reference) (*pb.SolveRequest, erro
 
 func (c *grpcClient) Warn(ctx context.Context, dgst digest.Digest, msg string, opts client.WarnOpts) error {
 	_, err := c.client.Warn(ctx, &pb.WarnRequest{
-		Digest: string(dgst),
+		Digest: dgst,
 		Level:  int64(opts.Level),
 		Short:  []byte(msg),
 		Info:   opts.SourceInfo,
@@ -343,7 +346,7 @@ func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (res *
 	if creq.Definition != nil {
 		for _, md := range creq.Definition.Metadata {
 			for cap := range md.Caps {
-				if err := c.llbCaps.Supports(apicaps.CapID(cap)); err != nil {
+				if err := c.llbCaps.Supports(cap); err != nil {
 					return nil, err
 				}
 			}
@@ -429,21 +432,28 @@ func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (res *
 			}
 		case *pb.Result_RefsDeprecated:
 			for k, v := range pbRes.RefsDeprecated.Refs {
-				var ref client.Reference
-				if v != "" {
-					ref = &reference{id: v, c: c}
+				ref := &reference{id: v, c: c}
+				if v == "" {
+					ref = nil
 				}
 				res.AddRef(k, ref)
 			}
 		case *pb.Result_Ref:
 			if pbRes.Ref.Id != "" {
-				res.SetRef(newReference(c, pbRes.Ref))
+				ref, err := newReference(c, pbRes.Ref)
+				if err != nil {
+					return nil, err
+				}
+				res.SetRef(ref)
 			}
 		case *pb.Result_Refs:
 			for k, v := range pbRes.Refs.Refs {
-				var ref client.Reference
+				var ref *reference
 				if v.Id != "" {
-					ref = newReference(c, v)
+					ref, err = newReference(c, v)
+					if err != nil {
+						return nil, err
+					}
 				}
 				res.AddRef(k, ref)
 			}
@@ -457,7 +467,11 @@ func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (res *
 						return nil, err
 					}
 					if a.Ref.Id != "" {
-						att.Ref = newReference(c, a.Ref)
+						ref, err := newReference(c, a.Ref)
+						if err != nil {
+							return nil, err
+						}
+						att.Ref = ref
 					}
 					res.AddAttestation(p, *att)
 				}
@@ -524,7 +538,7 @@ func (c *grpcClient) ResolveSourceMetadata(ctx context.Context, op *opspb.Source
 	}
 	if resp.Image != nil {
 		r.Image = &sourceresolver.ResolveImageResponse{
-			Digest: digest.Digest(resp.Image.Digest),
+			Digest: resp.Image.Digest,
 			Config: resp.Image.Config,
 		}
 	}
@@ -562,7 +576,7 @@ func (c *grpcClient) resolveImageConfigViaSourceMetadata(ctx context.Context, re
 	}
 	ref = strings.TrimPrefix(resp.Source.Identifier, "docker-image://")
 	ref = strings.TrimPrefix(ref, "oci-layout://")
-	return ref, digest.Digest(resp.Image.Digest), resp.Image.Config, nil
+	return ref, resp.Image.Digest, resp.Image.Config, nil
 }
 
 func (c *grpcClient) ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt) (string, digest.Digest, []byte, error) {
@@ -608,7 +622,7 @@ func (c *grpcClient) ResolveImageConfig(ctx context.Context, ref string, opt sou
 		// This could occur if the version of buildkitd is too old.
 		newRef = ref
 	}
-	return newRef, digest.Digest(resp.Digest), resp.Config, nil
+	return newRef, resp.Digest, resp.Config, nil
 }
 
 func (c *grpcClient) BuildOpts() client.BuildOpts {
@@ -632,7 +646,7 @@ func (c *grpcClient) CurrentFrontend() (*llb.State, error) {
 		return nil, err
 	}
 	var def opspb.Definition
-	if err := def.UnmarshalVT(dt); err != nil {
+	if err := def.Unmarshal(dt); err != nil {
 		return nil, err
 	}
 	op, err := llb.NewDefinitionOp(&def)
@@ -1081,7 +1095,7 @@ func (ctr *container) Start(ctx context.Context, req client.StartRequest) (clien
 				exitError = grpcerrors.FromGRPC(status.ErrorProto(&spb.Status{
 					Code:    exit.Error.Code,
 					Message: exit.Error.Message,
-					Details: exit.Error.Details,
+					Details: convertGogoAny(exit.Error.Details),
 				}))
 				if exit.Code != pb.UnknownExitStatus {
 					exitError = &pb.ExitError{ExitCode: exit.Code, Err: exitError}
@@ -1157,8 +1171,8 @@ type reference struct {
 	def *opspb.Definition
 }
 
-func newReference(c *grpcClient, ref *pb.Ref) *reference {
-	return &reference{c: c, id: ref.Id, def: ref.Def}
+func newReference(c *grpcClient, ref *pb.Ref) (*reference, error) {
+	return &reference{c: c, id: ref.Id, def: ref.Def}, nil
 }
 
 func (r *reference) ToState() (st llb.State, err error) {
@@ -1246,7 +1260,6 @@ func grpcClientConn(ctx context.Context) (context.Context, *grpc.ClientConn, err
 		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(16 << 20)),
 	}
 
-	//nolint:staticcheck // ignore SA1019 NewClient has different behavior and needs to be tested
 	cc, err := grpc.DialContext(ctx, "localhost", dialOpts...)
 	if err != nil {
 		return ctx, nil, errors.Wrap(err, "failed to create grpc client")
@@ -1272,24 +1285,21 @@ type conn struct {
 func (s *conn) LocalAddr() net.Addr {
 	return dummyAddr{}
 }
-
 func (s *conn) RemoteAddr() net.Addr {
 	return dummyAddr{}
 }
-
 func (s *conn) SetDeadline(t time.Time) error {
 	return nil
 }
-
 func (s *conn) SetReadDeadline(t time.Time) error {
 	return nil
 }
-
 func (s *conn) SetWriteDeadline(t time.Time) error {
 	return nil
 }
 
-type dummyAddr struct{}
+type dummyAddr struct {
+}
 
 func (d dummyAddr) Network() string {
 	return "pipe"
@@ -1335,4 +1345,20 @@ func workers() []client.WorkerInfo {
 
 func product() string {
 	return os.Getenv("BUILDKIT_EXPORTEDPRODUCT")
+}
+
+func convertGogoAny(in []*gogotypes.Any) []*any.Any {
+	out := make([]*any.Any, len(in))
+	for i := range in {
+		out[i] = &any.Any{TypeUrl: in[i].TypeUrl, Value: in[i].Value}
+	}
+	return out
+}
+
+func convertToGogoAny(in []*any.Any) []*gogotypes.Any {
+	out := make([]*gogotypes.Any, len(in))
+	for i := range in {
+		out[i] = &gogotypes.Any{TypeUrl: in[i].TypeUrl, Value: in[i].Value}
+	}
+	return out
 }

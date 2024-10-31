@@ -25,7 +25,6 @@ type Meta struct {
 	CgroupParent   string
 	NetMode        pb.NetMode
 	SecurityMode   pb.SecurityMode
-	ValidExitCodes []int
 
 	RemoveMountStubsRecursive bool
 }

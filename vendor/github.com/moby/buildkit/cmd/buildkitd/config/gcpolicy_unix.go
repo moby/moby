@@ -1,12 +1,19 @@
-//go:build !windows
-// +build !windows
+//go:build !windows && !openbsd
+// +build !windows,!openbsd
 
 package config
 
-const (
-	DiskSpaceReservePercentage int64 = 10
-	DiskSpaceReserveBytes      int64 = 10 * 1e9 // 10GB
-	DiskSpaceFreePercentage    int64 = 20
-	DiskSpaceMaxPercentage     int64 = 80
-	DiskSpaceMaxBytes          int64 = 100 * 1e9 // 100GB
+import (
+	"syscall"
 )
+
+var DiskSpacePercentage int64 = 10
+
+func getDiskSize(root string) (int64, error) {
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(root, &st); err != nil {
+		return 0, err
+	}
+	diskSize := int64(st.Bsize) * int64(st.Blocks)
+	return diskSize, nil
+}

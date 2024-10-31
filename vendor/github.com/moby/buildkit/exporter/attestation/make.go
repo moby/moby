@@ -69,13 +69,13 @@ func MakeInTotoStatements(ctx context.Context, s session.Group, attestations []e
 			}
 
 			switch att.Kind {
-			case gatewaypb.AttestationKind_InToto:
+			case gatewaypb.AttestationKindInToto:
 				stmt, err := makeInTotoStatement(content, att, defaultSubjects)
 				if err != nil {
 					return err
 				}
 				statements[i] = *stmt
-			case gatewaypb.AttestationKind_Bundle:
+			case gatewaypb.AttestationKindBundle:
 				return errors.New("bundle attestation kind must be un-bundled first")
 			}
 			return nil
@@ -90,7 +90,7 @@ func MakeInTotoStatements(ctx context.Context, s session.Group, attestations []e
 func makeInTotoStatement(content []byte, attestation exporter.Attestation, defaultSubjects []intoto.Subject) (*intoto.Statement, error) {
 	if len(attestation.InToto.Subjects) == 0 {
 		attestation.InToto.Subjects = []result.InTotoSubject{{
-			Kind: gatewaypb.InTotoSubjectKind_Self,
+			Kind: gatewaypb.InTotoSubjectKindSelf,
 		}}
 	}
 	subjects := []intoto.Subject{}
@@ -101,7 +101,7 @@ func makeInTotoStatement(content []byte, attestation exporter.Attestation, defau
 		}
 
 		switch subject.Kind {
-		case gatewaypb.InTotoSubjectKind_Self:
+		case gatewaypb.InTotoSubjectKindSelf:
 			for _, defaultSubject := range defaultSubjects {
 				subjectNames := []string{}
 				subjectNames = append(subjectNames, defaultSubject.Name)
@@ -116,7 +116,7 @@ func makeInTotoStatement(content []byte, attestation exporter.Attestation, defau
 					})
 				}
 			}
-		case gatewaypb.InTotoSubjectKind_Raw:
+		case gatewaypb.InTotoSubjectKindRaw:
 			subjects = append(subjects, intoto.Subject{
 				Name:   subjectName,
 				Digest: result.ToDigestMap(subject.Digest...),

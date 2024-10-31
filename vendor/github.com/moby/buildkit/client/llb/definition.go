@@ -8,7 +8,6 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"google.golang.org/protobuf/proto"
 )
 
 // DefinitionOp implements llb.Vertex using a marshalled definition.
@@ -20,7 +19,7 @@ type DefinitionOp struct {
 	mu         sync.Mutex
 	ops        map[digest.Digest]*pb.Op
 	defs       map[digest.Digest][]byte
-	metas      map[digest.Digest]*pb.OpMetadata
+	metas      map[digest.Digest]pb.OpMetadata
 	sources    map[digest.Digest][]*SourceLocation
 	platforms  map[digest.Digest]*ocispecs.Platform
 	dgst       digest.Digest
@@ -30,7 +29,7 @@ type DefinitionOp struct {
 
 // NewDefinitionOp returns a new operation from a marshalled definition.
 func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
-	if def.IsNil() {
+	if def == nil {
 		return nil, errors.New("invalid nil input definition to definition op")
 	}
 
@@ -41,7 +40,7 @@ func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
 	var dgst digest.Digest
 	for _, dt := range def.Def {
 		var op pb.Op
-		if err := proto.Unmarshal(dt, &op); err != nil {
+		if err := (&op).Unmarshal(dt); err != nil {
 			return nil, errors.Wrap(err, "failed to parse llb proto op")
 		}
 		dgst = digest.FromBytes(dt)
@@ -90,19 +89,14 @@ func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
 
 	var index pb.OutputIndex
 	if dgst != "" {
-		index = pb.OutputIndex(ops[dgst].Inputs[0].Index)
-		dgst = digest.Digest(ops[dgst].Inputs[0].Digest)
-	}
-
-	metas := make(map[digest.Digest]*pb.OpMetadata, len(def.Metadata))
-	for k, v := range def.Metadata {
-		metas[digest.Digest(k)] = v
+		index = ops[dgst].Inputs[0].Index
+		dgst = ops[dgst].Inputs[0].Digest
 	}
 
 	return &DefinitionOp{
 		ops:        ops,
 		defs:       defs,
-		metas:      metas,
+		metas:      def.Metadata,
 		sources:    srcs,
 		platforms:  platforms,
 		dgst:       dgst,
@@ -169,7 +163,7 @@ func (d *DefinitionOp) Marshal(ctx context.Context, c *Constraints) (digest.Dige
 	defer d.mu.Unlock()
 
 	meta := d.metas[d.dgst]
-	return d.dgst, d.defs[d.dgst], meta, d.sources[d.dgst], nil
+	return d.dgst, d.defs[d.dgst], &meta, d.sources[d.dgst], nil
 }
 
 func (d *DefinitionOp) Output() Output {
@@ -213,7 +207,7 @@ func (d *DefinitionOp) Inputs() []Output {
 	for _, input := range op.Inputs {
 		var vtx *DefinitionOp
 		d.mu.Lock()
-		if existingIndexes, ok := d.loadInputCache(digest.Digest(input.Digest)); ok {
+		if existingIndexes, ok := d.loadInputCache(input.Digest); ok {
 			if int(input.Index) < len(existingIndexes) && existingIndexes[input.Index] != nil {
 				vtx = existingIndexes[input.Index]
 			}
@@ -224,19 +218,19 @@ func (d *DefinitionOp) Inputs() []Output {
 				defs:       d.defs,
 				metas:      d.metas,
 				platforms:  d.platforms,
-				dgst:       digest.Digest(input.Digest),
-				index:      pb.OutputIndex(input.Index),
+				dgst:       input.Digest,
+				index:      input.Index,
 				inputCache: d.inputCache,
 				sources:    d.sources,
 			}
-			existingIndexes, _ := d.loadInputCache(digest.Digest(input.Digest))
+			existingIndexes, _ := d.loadInputCache(input.Digest)
 			indexDiff := int(input.Index) - len(existingIndexes)
 			if indexDiff >= 0 {
 				// make room in the slice for the new index being set
 				existingIndexes = append(existingIndexes, make([]*DefinitionOp, indexDiff+1)...)
 			}
 			existingIndexes[input.Index] = vtx
-			d.storeInputCache(digest.Digest(input.Digest), existingIndexes)
+			d.storeInputCache(input.Digest, existingIndexes)
 		}
 		d.mu.Unlock()
 

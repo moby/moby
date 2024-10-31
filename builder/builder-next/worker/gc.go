@@ -27,27 +27,26 @@ func DefaultGCPolicy(p string, defaultKeepBytes int64) []client.PruneInfo {
 		tempCacheKeepBytes = minTempCacheKeepBytes
 	}
 
-	// FIXME(thaJeztah): wire up new options https://github.com/moby/moby/issues/48639
 	return []client.PruneInfo{
 		// if build cache uses more than 512MB delete the most easily reproducible data after it has not been used for 2 days
 		{
-			Filter:        []string{"type==source.local,type==exec.cachemount,type==source.git.checkout"},
-			KeepDuration:  48 * time.Hour,
-			ReservedSpace: tempCacheKeepBytes,
+			Filter:       []string{"type==source.local,type==exec.cachemount,type==source.git.checkout"},
+			KeepDuration: 48 * time.Hour,
+			KeepBytes:    tempCacheKeepBytes,
 		},
 		// remove any data not used for 60 days
 		{
-			KeepDuration:  60 * 24 * time.Hour,
-			ReservedSpace: keep,
+			KeepDuration: 60 * 24 * time.Hour,
+			KeepBytes:    keep,
 		},
 		// keep the unshared build cache under cap
 		{
-			ReservedSpace: keep,
+			KeepBytes: keep,
 		},
 		// if previous policies were insufficient start deleting internal data to keep build cache under cap
 		{
-			All:           true,
-			ReservedSpace: keep,
+			All:       true,
+			KeepBytes: keep,
 		},
 	}
 }

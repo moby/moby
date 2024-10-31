@@ -49,10 +49,9 @@ func (s *SourceOp) Validate(ctx context.Context, c *Constraints) error {
 }
 
 func (s *SourceOp) Marshal(ctx context.Context, constraints *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
-	if dgst, dt, md, srcs, err := s.Load(constraints); err == nil {
-		return dgst, dt, md, srcs, nil
+	if s.Cached(constraints) {
+		return s.Load()
 	}
-
 	if err := s.Validate(ctx, constraints); err != nil {
 		return "", nil, nil, nil, err
 	}
@@ -77,12 +76,13 @@ func (s *SourceOp) Marshal(ctx context.Context, constraints *Constraints) (diges
 		proto.Platform = nil
 	}
 
-	dt, err := deterministicMarshal(proto)
+	dt, err := proto.Marshal()
 	if err != nil {
 		return "", nil, nil, nil, err
 	}
 
-	return s.Store(dt, md, s.constraints.SourceLocations, constraints)
+	s.Store(dt, md, s.constraints.SourceLocations, constraints)
+	return s.Load()
 }
 
 func (s *SourceOp) Output() Output {

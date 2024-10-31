@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
-	"github.com/moby/buildkit/util/disk"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/pkg/errors"
 )
 
@@ -68,39 +68,30 @@ func (d *DiskSpace) UnmarshalText(textb []byte) error {
 
 const defaultCap int64 = 2e9 // 2GB
 
-func DefaultGCPolicy(cfg GCConfig, dstat disk.DiskStat) []GCPolicy {
-	if cfg.IsUnset() {
-		cfg.GCReservedSpace = cfg.GCKeepStorage
-	}
-	if cfg.IsUnset() {
-		cfg = DetectDefaultGCCap(dstat)
+func DefaultGCPolicy(keep DiskSpace) []GCPolicy {
+	if keep == (DiskSpace{}) {
+		keep = DetectDefaultGCCap()
 	}
 	return []GCPolicy{
 		// if build cache uses more than 512MB delete the most easily reproducible data after it has not been used for 2 days
 		{
 			Filters:      []string{"type==source.local,type==exec.cachemount,type==source.git.checkout"},
 			KeepDuration: Duration{Duration: time.Duration(48) * time.Hour}, // 48h
-			MaxUsedSpace: DiskSpace{Bytes: 512 * 1e6},                       // 512MB
+			KeepBytes:    DiskSpace{Bytes: 512 * 1e6},                       // 512MB
 		},
 		// remove any data not used for 60 days
 		{
-			KeepDuration:  Duration{Duration: time.Duration(60) * 24 * time.Hour}, // 60d
-			MinFreeSpace:  cfg.GCMinFreeSpace,
-			ReservedSpace: cfg.GCReservedSpace,
-			MaxUsedSpace:  cfg.GCMaxUsedSpace,
+			KeepDuration: Duration{Duration: time.Duration(60) * 24 * time.Hour}, // 60d
+			KeepBytes:    keep,
 		},
 		// keep the unshared build cache under cap
 		{
-			MinFreeSpace:  cfg.GCMinFreeSpace,
-			ReservedSpace: cfg.GCReservedSpace,
-			MaxUsedSpace:  cfg.GCMaxUsedSpace,
+			KeepBytes: keep,
 		},
 		// if previous policies were insufficient start deleting internal data to keep build cache under cap
 		{
-			All:           true,
-			MinFreeSpace:  cfg.GCMinFreeSpace,
-			ReservedSpace: cfg.GCReservedSpace,
-			MaxUsedSpace:  cfg.GCMaxUsedSpace,
+			All:       true,
+			KeepBytes: keep,
 		},
 	}
 }
@@ -115,23 +106,11 @@ func stripQuotes(s string) string {
 	return s
 }
 
-func DetectDefaultGCCap(dstat disk.DiskStat) GCConfig {
-	reserve := DiskSpace{Percentage: DiskSpaceReservePercentage}
-	if reserve.AsBytes(dstat) > DiskSpaceReserveBytes {
-		reserve = DiskSpace{Bytes: DiskSpaceReserveBytes}
-	}
-	max := DiskSpace{Percentage: DiskSpaceMaxPercentage}
-	if max.AsBytes(dstat) > DiskSpaceMaxBytes {
-		max = DiskSpace{Bytes: DiskSpaceMaxBytes}
-	}
-	return GCConfig{
-		GCReservedSpace: reserve,
-		GCMinFreeSpace:  DiskSpace{Percentage: DiskSpaceFreePercentage},
-		GCMaxUsedSpace:  max,
-	}
+func DetectDefaultGCCap() DiskSpace {
+	return DiskSpace{Percentage: DiskSpacePercentage}
 }
 
-func (d DiskSpace) AsBytes(dstat disk.DiskStat) int64 {
+func (d DiskSpace) AsBytes(root string) int64 {
 	if d.Bytes != 0 {
 		return d.Bytes
 	}
@@ -139,15 +118,12 @@ func (d DiskSpace) AsBytes(dstat disk.DiskStat) int64 {
 		return 0
 	}
 
-	if dstat.Total == 0 {
+	diskSize, err := getDiskSize(root)
+	if err != nil {
+		bklog.L.Warnf("failed to get disk size: %v", err)
 		return defaultCap
 	}
-
-	avail := dstat.Total * d.Percentage / 100
+	avail := diskSize * d.Percentage / 100
 	rounded := (avail/(1<<30) + 1) * 1e9 // round up
 	return rounded
-}
-
-func (cfg *GCConfig) IsUnset() bool {
-	return cfg.GCReservedSpace == DiskSpace{} && cfg.GCMaxUsedSpace == DiskSpace{} && cfg.GCMinFreeSpace == DiskSpace{}
 }
