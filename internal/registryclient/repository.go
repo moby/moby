@@ -288,7 +288,6 @@ func descriptorFromResponse(response *http.Response) (distribution.Descriptor, e
 	desc.Size = length
 
 	return desc, nil
-
 }
 
 // Get issues a HEAD request for a Manifest against its named endpoint in order
@@ -494,7 +493,6 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 		}
 		mt := resp.Header.Get("Content-Type")
 		body, err := ioutil.ReadAll(resp.Body)
-
 		if err != nil {
 			return nil, err
 		}
@@ -632,7 +630,6 @@ func sanitizeLocation(location, base string) (string, error) {
 
 func (bs *blobs) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
 	return bs.statter.Stat(ctx, dgst)
-
 }
 
 func (bs *blobs) Get(ctx context.Context, dgst digest.Digest) ([]byte, error) {

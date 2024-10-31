@@ -129,7 +129,6 @@ func TestBlobDelete(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error deleting blob: %s", err.Error())
 	}
-
 }
 
 func TestBlobFetch(t *testing.T) {
@@ -209,7 +208,6 @@ func TestBlobExistsNoContentLength(t *testing.T) {
 	if !strings.Contains(err.Error(), "missing content-length heade") {
 		t.Fatalf("Expected missing content-length error message")
 	}
-
 }
 
 func TestBlobExists(t *testing.T) {
@@ -604,7 +602,6 @@ func addTestManifestWithEtag(repo reference.Named, reference string, content []b
 				"Content-Type":   {schema1.MediaTypeSignedManifest},
 			}),
 		}
-
 	}
 	*m = append(*m, testutil.RequestResponseMapping{Request: getReqWithEtag, Response: getRespWithEtag})
 }
@@ -1116,6 +1113,7 @@ func TestObtainsManifestForTagWithoutHeaders(t *testing.T) {
 		t.Fatalf("Unexpected digest")
 	}
 }
+
 func TestManifestTagsPaginated(t *testing.T) {
 	s := httptest.NewServer(http.NotFoundHandler())
 	defer s.Close()

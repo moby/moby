@@ -67,7 +67,6 @@ func (hbu *httpBlobUpload) ReadFrom(r io.Reader) (n int64, err error) {
 	}
 
 	return (end - start + 1), nil
-
 }
 
 func (hbu *httpBlobUpload) Write(p []byte) (n int, err error) {
@@ -102,7 +101,6 @@ func (hbu *httpBlobUpload) Write(p []byte) (n int, err error) {
 	}
 
 	return (end - start + 1), nil
-
 }
 
 func (hbu *httpBlobUpload) Size() int64 {
