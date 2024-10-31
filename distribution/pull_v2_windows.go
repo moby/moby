@@ -16,8 +16,8 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/registryclient/transport"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
