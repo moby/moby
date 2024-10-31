@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"mime"
 	"net/http"
 
@@ -40,7 +40,7 @@ func (e *UnexpectedHTTPResponseError) Error() string {
 
 func parseHTTPErrorResponse(resp *http.Response) error {
 	var errors errcode.Errors
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
