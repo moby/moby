@@ -11,7 +11,7 @@ import (
 
 // ImageHistory returns the changes in an image in history format.
 func (cli *Client) ImageHistory(ctx context.Context, imageID string, opts image.HistoryOptions) ([]image.HistoryResponseItem, error) {
-	values := url.Values{}
+	query := url.Values{}
 	if opts.Platform != nil {
 		if err := cli.NewVersionError(ctx, "1.48", "platform"); err != nil {
 			return nil, err
@@ -21,11 +21,11 @@ func (cli *Client) ImageHistory(ctx context.Context, imageID string, opts image.
 		if err != nil {
 			return nil, fmt.Errorf("invalid platform: %v", err)
 		}
-		values.Set("platform", string(p))
+		query.Set("platform", string(p))
 	}
 
 	var history []image.HistoryResponseItem
-	serverResp, err := cli.get(ctx, "/images/"+imageID+"/history", values, nil)
+	serverResp, err := cli.get(ctx, "/images/"+imageID+"/history", query, nil)
 	defer ensureReaderClosed(serverResp)
 	if err != nil {
 		return history, err

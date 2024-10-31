@@ -18,10 +18,10 @@ import (
 // the provided multi-platform image. This is only has effect if the input image
 // is a multi-platform image.
 func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, opts image.LoadOptions) (image.LoadResponse, error) {
-	v := url.Values{}
-	v.Set("quiet", "0")
+	query := url.Values{}
+	query.Set("quiet", "0")
 	if opts.Quiet {
-		v.Set("quiet", "1")
+		query.Set("quiet", "1")
 	}
 	if opts.Platform != nil {
 		if err := cli.NewVersionError(ctx, "1.48", "platform"); err != nil {
@@ -32,10 +32,10 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, opts image.Lo
 		if err != nil {
 			return image.LoadResponse{}, err
 		}
-		v.Set("platform", string(p))
+		query.Set("platform", string(p))
 	}
 
-	resp, err := cli.postRaw(ctx, "/images/load", v, input, http.Header{
+	resp, err := cli.postRaw(ctx, "/images/load", query, input, http.Header{
 		"Content-Type": {"application/x-tar"},
 	})
 	if err != nil {
