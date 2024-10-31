@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/containerd/errdefs"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/typeurl/v2"
 )
 

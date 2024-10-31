@@ -104,7 +104,7 @@ EOF
   config.vm.provision "install-golang", type: "shell", run: "once" do |sh|
     sh.upload_path = "/tmp/vagrant-install-golang"
     sh.env = {
-        'GO_VERSION': ENV['GO_VERSION'] || "1.22.7",
+        'GO_VERSION': ENV['GO_VERSION'] || "1.22.8",
     }
     sh.inline = <<~SHELL
         #!/usr/bin/env bash
