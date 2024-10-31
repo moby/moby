@@ -1,4 +1,4 @@
-package client
+package registryclient
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/registry/api/errcode"
 	v2 "github.com/docker/distribution/registry/api/v2"
-	"github.com/docker/distribution/testutil"
+	"github.com/moby/moby/v2/daemon/internal/registryclient/testutil"
 )
 
 // Test implements distribution.BlobWriter

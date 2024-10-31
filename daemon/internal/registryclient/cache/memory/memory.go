@@ -6,7 +6,7 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/registry/storage/cache"
+	"github.com/moby/moby/v2/daemon/internal/registryclient/cache"
 	"github.com/opencontainers/go-digest"
 )
 

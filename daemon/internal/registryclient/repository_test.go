@@ -1,7 +1,8 @@
-package client
+package registryclient
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -18,14 +19,13 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/registry/api/errcode"
 	v2 "github.com/docker/distribution/registry/api/v2"
-	"github.com/docker/distribution/testutil"
-	"github.com/docker/distribution/uuid"
 	"github.com/docker/libtrust"
+	"github.com/google/uuid"
+	"github.com/moby/moby/v2/daemon/internal/registryclient/testutil"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -129,7 +129,6 @@ func TestBlobDelete(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error deleting blob: %s", err.Error())
 	}
-
 }
 
 func TestBlobFetch(t *testing.T) {
@@ -209,7 +208,6 @@ func TestBlobExistsNoContentLength(t *testing.T) {
 	if !strings.Contains(err.Error(), "missing content-length heade") {
 		t.Fatalf("Expected missing content-length error message")
 	}
-
 }
 
 func TestBlobExists(t *testing.T) {
@@ -254,7 +252,7 @@ func TestBlobUploadChunked(t *testing.T) {
 		b1[513:1024],
 	}
 	repo, _ := reference.WithName("test.example.com/uploadrepo")
-	uuids := []string{uuid.Generate().String()}
+	uuids := []string{uuid.NewString()}
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "POST",
@@ -272,7 +270,7 @@ func TestBlobUploadChunked(t *testing.T) {
 	})
 	offset := 0
 	for i, chunk := range chunks {
-		uuids = append(uuids, uuid.Generate().String())
+		uuids = append(uuids, uuid.NewString())
 		newOffset := offset + len(chunk)
 		m = append(m, testutil.RequestResponseMapping{
 			Request: testutil.Request{
@@ -369,7 +367,7 @@ func TestBlobUploadMonolithic(t *testing.T) {
 	dgst, b1 := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
 	repo, _ := reference.WithName("test.example.com/uploadrepo")
-	uploadID := uuid.Generate().String()
+	uploadID := uuid.NewString()
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "POST",
@@ -604,7 +602,6 @@ func addTestManifestWithEtag(repo reference.Named, reference string, content []b
 				"Content-Type":   {schema1.MediaTypeSignedManifest},
 			}),
 		}
-
 	}
 	*m = append(*m, testutil.RequestResponseMapping{Request: getReqWithEtag, Response: getRespWithEtag})
 }
@@ -1116,6 +1113,7 @@ func TestObtainsManifestForTagWithoutHeaders(t *testing.T) {
 		t.Fatalf("Unexpected digest")
 	}
 }
+
 func TestManifestTagsPaginated(t *testing.T) {
 	s := httptest.NewServer(http.NotFoundHandler())
 	defer s.Close()

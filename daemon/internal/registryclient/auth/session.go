@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/distribution/registry/client"
-	"github.com/docker/distribution/registry/client/auth/challenge"
-	"github.com/docker/distribution/registry/client/transport"
+	client "github.com/moby/moby/v2/daemon/internal/registryclient"
+	"github.com/moby/moby/v2/daemon/internal/registryclient/auth/challenge"
+	"github.com/moby/moby/v2/daemon/internal/registryclient/transport"
 )
 
 var (
