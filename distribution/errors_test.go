@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/distribution/registry/client"
+	client "github.com/docker/docker/internal/registryclient"
 )
 
 var errUnexpected = errors.New("some totally unexpected error")

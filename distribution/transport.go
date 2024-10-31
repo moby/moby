@@ -3,7 +3,7 @@ package distribution
 import (
 	"net/http"
 
-	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/internal/registryclient/transport"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 

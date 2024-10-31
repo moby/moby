@@ -10,10 +10,10 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/registry/client"
-	"github.com/docker/distribution/registry/client/auth"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
+	client "github.com/docker/docker/internal/registryclient"
+	"github.com/docker/docker/internal/registryclient/auth"
 	"github.com/docker/docker/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
