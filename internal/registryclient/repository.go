@@ -17,9 +17,9 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	v2 "github.com/docker/distribution/registry/api/v2"
-	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/distribution/registry/storage/cache"
 	"github.com/docker/distribution/registry/storage/cache/memory"
+	"github.com/docker/docker/internal/registryclient/transport"
 	"github.com/opencontainers/go-digest"
 )
 

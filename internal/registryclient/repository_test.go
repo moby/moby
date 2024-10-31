@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -18,14 +19,13 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/registry/api/errcode"
 	v2 "github.com/docker/distribution/registry/api/v2"
-	"github.com/docker/distribution/testutil"
-	"github.com/docker/distribution/uuid"
+	"github.com/docker/docker/internal/registryclient/testutil"
 	"github.com/docker/libtrust"
+	"github.com/google/uuid"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -254,7 +254,7 @@ func TestBlobUploadChunked(t *testing.T) {
 		b1[513:1024],
 	}
 	repo, _ := reference.WithName("test.example.com/uploadrepo")
-	uuids := []string{uuid.Generate().String()}
+	uuids := []string{uuid.NewString()}
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "POST",
@@ -272,7 +272,7 @@ func TestBlobUploadChunked(t *testing.T) {
 	})
 	offset := 0
 	for i, chunk := range chunks {
-		uuids = append(uuids, uuid.Generate().String())
+		uuids = append(uuids, uuid.NewString())
 		newOffset := offset + len(chunk)
 		m = append(m, testutil.RequestResponseMapping{
 			Request: testutil.Request{
@@ -369,7 +369,7 @@ func TestBlobUploadMonolithic(t *testing.T) {
 	dgst, b1 := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
 	repo, _ := reference.WithName("test.example.com/uploadrepo")
-	uploadID := uuid.Generate().String()
+	uploadID := uuid.NewString()
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "POST",

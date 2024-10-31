@@ -9,7 +9,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/registry/api/errcode"
 	v2 "github.com/docker/distribution/registry/api/v2"
-	"github.com/docker/distribution/testutil"
+	"github.com/docker/docker/internal/registryclient/testutil"
 )
 
 // Test implements distribution.BlobWriter
