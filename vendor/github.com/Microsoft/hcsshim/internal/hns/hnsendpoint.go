@@ -29,7 +29,7 @@ const (
 )
 
 func (es EndpointState) String() string {
-	return [...]string{"Uninitialized", "Attached", "AttachedSharing", "Detached", "Degraded", "Destroyed"}[es]
+	return [...]string{"Uninitialized", "Created", "Attached", "AttachedSharing", "Detached", "Degraded", "Destroyed"}[es]
 }
 
 // HNSEndpoint represents a network endpoint in HNS

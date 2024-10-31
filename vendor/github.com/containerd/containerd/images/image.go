@@ -23,12 +23,13 @@ import (
 	"sort"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/errdefs"
 )
 
 // Image provides the model for how containerd views container images.

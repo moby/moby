@@ -22,11 +22,11 @@ import (
 
 	snapshotsapi "github.com/containerd/containerd/api/services/snapshots/v1"
 	"github.com/containerd/containerd/api/types"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/protobuf"
 	protobuftypes "github.com/containerd/containerd/protobuf/types"
 	"github.com/containerd/containerd/snapshots"
-	"github.com/containerd/errdefs"
 )
 
 // NewSnapshotter returns a new Snapshotter which communicates over a GRPC
