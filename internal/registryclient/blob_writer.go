@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -36,7 +35,7 @@ func (hbu *httpBlobUpload) handleErrorResponse(resp *http.Response) error {
 }
 
 func (hbu *httpBlobUpload) ReadFrom(r io.Reader) (n int64, err error) {
-	req, err := http.NewRequest("PATCH", hbu.location, ioutil.NopCloser(r))
+	req, err := http.NewRequest("PATCH", hbu.location, io.NopCloser(r))
 	if err != nil {
 		return 0, err
 	}

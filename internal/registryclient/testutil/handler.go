@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"sort"
@@ -111,7 +110,7 @@ func NewHandler(requestResponseMap RequestResponseMap) http.Handler {
 func (app *testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	requestBody, _ := ioutil.ReadAll(r.Body)
+	requestBody, _ := io.ReadAll(r.Body)
 	request := Request{
 		Method:      r.Method,
 		Route:       r.URL.Path,
