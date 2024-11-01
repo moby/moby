@@ -1069,13 +1069,27 @@ func (daemon *Daemon) ConnectToNetwork(ctx context.Context, ctr *container.Conta
 		}
 
 		n, err := daemon.FindNetwork(idOrName)
-		if err == nil && n != nil {
+		if err == nil {
+			if _, ok := ctr.NetworkSettings.Networks[idOrName]; ok {
+				return fmt.Errorf("endpoint with name %s already exists in network %s", strings.TrimPrefix(ctr.Name, "/"), idOrName)
+			}
+
 			if err := daemon.updateNetworkConfig(ctr, n, endpointConfig, true); err != nil {
 				return err
 			}
 		} else {
-			ctr.NetworkSettings.Networks[idOrName] = &network.EndpointSettings{
-				EndpointSettings: endpointConfig,
+			_, errNr := daemon.cluster.GetNetwork(idOrName)
+
+			if errNr == nil {
+				if _, ok := ctr.NetworkSettings.Networks[idOrName]; ok {
+					return fmt.Errorf("endpoint with name %s already exists in network %s", strings.TrimPrefix(ctr.Name, "/"), idOrName)
+				}
+
+				ctr.NetworkSettings.Networks[idOrName] = &network.EndpointSettings{
+					EndpointSettings: endpointConfig,
+				}
+			} else {
+				return err
 			}
 		}
 	} else {

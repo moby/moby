@@ -32,9 +32,7 @@ func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 
 	cID1 := container.Create(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.NetworkingConfig = &network.NetworkingConfig{
-			EndpointsConfig: map[string]*network.EndpointSettings{
-				name: {},
-			},
+			EndpointsConfig: map[string]*network.EndpointSettings{},
 		}
 	})
 
@@ -55,9 +53,7 @@ func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 
 	cID2 := container.Create(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.NetworkingConfig = &network.NetworkingConfig{
-			EndpointsConfig: map[string]*network.EndpointSettings{
-				name: {},
-			},
+			EndpointsConfig: map[string]*network.EndpointSettings{},
 		}
 	})
 
@@ -94,9 +90,7 @@ func TestDockerNetworkReConnect(t *testing.T) {
 
 	c1 := container.Create(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.NetworkingConfig = &network.NetworkingConfig{
-			EndpointsConfig: map[string]*network.EndpointSettings{
-				name: {},
-			},
+			EndpointsConfig: map[string]*network.EndpointSettings{},
 		}
 	})
 
