@@ -55,9 +55,6 @@ pipeline {
                         expression { params.arm64 }
                     }
                     agent { label 'arm64 && ubuntu-2004' }
-                    environment {
-                        TEST_SKIP_INTEGRATION_CLI = '1'
-                    }
 
                     stages {
                         stage("Print info") {
@@ -101,7 +98,6 @@ pipeline {
                             }
                         }
                         stage("Integration tests") {
-                            environment { TEST_SKIP_INTEGRATION_CLI = '1' }
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
@@ -112,7 +108,6 @@ pipeline {
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TESTDEBUG \
                                   -e TEST_INTEGRATION_USE_SNAPSHOTTER \
-                                  -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
                                   -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
