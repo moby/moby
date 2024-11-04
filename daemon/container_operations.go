@@ -1069,29 +1069,31 @@ func (daemon *Daemon) ConnectToNetwork(ctx context.Context, ctr *container.Conta
 		}
 
 		n, err := daemon.FindNetwork(idOrName)
-		if err == nil {
-			if _, ok := ctr.NetworkSettings.Networks[idOrName]; ok {
+		if err != nil {
+			nr, errNr := daemon.cluster.GetNetwork(idOrName)
+			if errNr != nil {
+				return err
+			}
+
+			if _, ok := ctr.NetworkSettings.Networks[nr.Name]; ok {
 				return fmt.Errorf("endpoint with name %s already exists in network %s", strings.TrimPrefix(ctr.Name, "/"), idOrName)
 			}
 
-			if err := daemon.updateNetworkConfig(ctr, n, endpointConfig, true); err != nil {
-				return err
+			ctr.NetworkSettings.Networks[nr.Name] = &network.EndpointSettings{
+				EndpointSettings: endpointConfig,
 			}
-		} else {
-			_, errNr := daemon.cluster.GetNetwork(idOrName)
-
-			if errNr == nil {
-				if _, ok := ctr.NetworkSettings.Networks[idOrName]; ok {
-					return fmt.Errorf("endpoint with name %s already exists in network %s", strings.TrimPrefix(ctr.Name, "/"), idOrName)
-				}
-
-				ctr.NetworkSettings.Networks[idOrName] = &network.EndpointSettings{
-					EndpointSettings: endpointConfig,
-				}
-			} else {
-				return err
-			}
+			return nil
 		}
+
+		if _, ok := ctr.NetworkSettings.Networks[n.Name()]; ok {
+			return fmt.Errorf("endpoint with name %s already exists in network %s", strings.TrimPrefix(ctr.Name, "/"), idOrName)
+		}
+
+		if err := daemon.updateNetworkConfig(ctr, n, endpointConfig, true); err != nil {
+			return err
+		}
+
+		return nil
 	} else {
 		epc := &network.EndpointSettings{
 			EndpointSettings: endpointConfig,
