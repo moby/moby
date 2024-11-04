@@ -20,10 +20,8 @@ The filter table is updated as follows:
 
 Note that:
 
- - In the FORWARD chain, rules 3-6 for the new network have been inserted at
-   the top of the chain, pushing the equivalent docker0 rules down to positions
-   7-10. (Rules 3-6 were inserted at the top of the chain, then rules 1-2 were
-   shuffled back to the top by deleting/recreating, as described above.)
+ - In the FORWARD chain, rule 6 for outgoing traffic from the new network has been
+   appended to the end of the chain.
  - In the DOCKER-ISOLATION chains, rules equivalent to the docker0 rules have
    also been inserted for the new bridge.
  - In the DOCKER chain, there is an ACCEPT rule for TCP port 80 packets routed
@@ -31,8 +29,8 @@ Note that:
    (unlike all the other rules so-far, which were created during driver or
    network initialisation). [setPerPortForwarding][1]
    - These per-port rules are inserted at the head of the chain, so that they
-     appear before the network's DROP rule [defaultDrop][2] which is always
-     appended to the end of the chain. In this case, because `docker0` was
+     appear before the network's DROP rule [setDefaultForwardRule][2] which is
+     always appended to the end of the chain. In this case, because `docker0` was
      created before `bridge1`, the `bridge1` rules appear above and below the
      `docker0` DROP rule.
 
