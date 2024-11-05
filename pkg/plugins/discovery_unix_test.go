@@ -45,7 +45,7 @@ func TestLocalSocket(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !reflect.DeepEqual(p, pp) {
+		if !reflect.DeepEqual(p, pp) { //nolint:govet // ignore 'deepequalerrors: avoid using reflect.DeepEqual with errors', which is triggered by Plugin having a activateErr field.
 			t.Fatalf("Expected %v, was %v\n", p, pp)
 		}
 
