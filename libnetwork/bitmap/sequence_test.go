@@ -743,15 +743,18 @@ func TestSetInRange(t *testing.T) {
 		t.Fatalf("Unexpected ordinal: %d", o)
 	}
 
-	if o, err := hnd.SetAnyInRange(0, uint64(blockLen), false); err == nil {
+	o, err = hnd.SetAnyInRange(0, uint64(blockLen), false)
+	if err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
 
-	if o, err := hnd.SetAnyInRange(0, firstAv-1, false); err == nil {
+	o, err = hnd.SetAnyInRange(0, firstAv-1, false)
+	if err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
 
-	if o, err := hnd.SetAnyInRange(111*uint64(blockLen), 161*uint64(blockLen), false); err == nil {
+	o, err = hnd.SetAnyInRange(111*uint64(blockLen), 161*uint64(blockLen), false)
+	if err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
 
@@ -790,7 +793,8 @@ func TestSetInRange(t *testing.T) {
 
 	// set all bit in the first range
 	for hnd.Unselected() > 22 {
-		if o, err := hnd.SetAnyInRange(0, 7, false); err != nil {
+		o, err = hnd.SetAnyInRange(0, 7, false)
+		if err != nil {
 			t.Fatalf("Unexpected failure: (%d, %v)", o, err)
 		}
 	}
@@ -805,7 +809,8 @@ func TestSetInRange(t *testing.T) {
 
 	// set all bit in a second range
 	for hnd.Unselected() > 14 {
-		if o, err := hnd.SetAnyInRange(8, 15, false); err != nil {
+		o, err = hnd.SetAnyInRange(8, 15, false)
+		if err != nil {
 			t.Fatalf("Unexpected failure: (%d, %v)", o, err)
 		}
 	}
@@ -821,7 +826,8 @@ func TestSetInRange(t *testing.T) {
 
 	// set all bit in a range which includes the last bit
 	for hnd.Unselected() > 12 {
-		if o, err := hnd.SetAnyInRange(28, 29, false); err != nil {
+		o, err = hnd.SetAnyInRange(28, 29, false)
+		if err != nil {
 			t.Fatalf("Unexpected failure: (%d, %v)", o, err)
 		}
 	}
