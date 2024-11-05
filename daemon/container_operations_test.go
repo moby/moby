@@ -20,6 +20,7 @@ func TestDNSNamesOrder(t *testing.T) {
 		Config: &containertypes.Config{
 			Hostname: "baz",
 		},
+		HostConfig: &containertypes.HostConfig{},
 	}
 	nw := buildNetwork(t, map[string]any{
 		"id":          "1234567890",
@@ -31,7 +32,7 @@ func TestDNSNamesOrder(t *testing.T) {
 		Aliases: []string{"myctr"},
 	}
 
-	if err := d.updateNetworkConfig(ctr, nw, epSettings, false); err != nil {
+	if err := d.updateNetworkConfig(ctr, nw, epSettings); err != nil {
 		t.Fatal(err)
 	}
 

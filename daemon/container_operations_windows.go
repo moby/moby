@@ -8,6 +8,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
@@ -15,6 +16,16 @@ import (
 
 func (daemon *Daemon) setupLinkedContainers(ctr *container.Container) ([]string, error) {
 	return nil, nil
+}
+
+func (daemon *Daemon) addLegacyLinks(
+	ctx context.Context,
+	cfg *config.Config,
+	ctr *container.Container,
+	epConfig *network.EndpointSettings,
+	sb *libnetwork.Sandbox,
+) error {
+	return nil
 }
 
 func (daemon *Daemon) setupConfigDir(ctr *container.Container) (setupErr error) {

@@ -1192,27 +1192,30 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		return fmt.Errorf("could not set link up for host interface %s: %v", hostIfName, err)
 	}
 
+	// Generate a MAC-address-based IPv6 address, which may be used by the default
+	// bridge network instead of an IPAM allocated address.
 	if endpoint.addrv6 == nil && config.EnableIPv6 {
 		var ip6 net.IP
 		network := n.bridge.bridgeIPv6
 		if config.AddressIPv6 != nil {
 			network = config.AddressIPv6
 		}
+		// If there are fewer than 48 host-bits in the network, it's not possible to
+		// generate an IPv6 address from the MAC address. The network size has already
+		// been checked, so we can safely assume this endpoint must not need a MAC-based
+		// IPv6 address.
 		ones, _ := network.Mask.Size()
-		if ones > 80 {
-			err = types.ForbiddenErrorf("Cannot self generate an IPv6 address on network %v: At least 48 host bits are needed.", network)
-			return err
-		}
+		if ones <= 80 {
+			ip6 = make(net.IP, len(network.IP))
+			copy(ip6, network.IP)
+			for i, h := range endpoint.macAddress {
+				ip6[i+10] = h
+			}
 
-		ip6 = make(net.IP, len(network.IP))
-		copy(ip6, network.IP)
-		for i, h := range endpoint.macAddress {
-			ip6[i+10] = h
-		}
-
-		endpoint.addrv6 = &net.IPNet{IP: ip6, Mask: network.Mask}
-		if err = ifInfo.SetIPAddress(endpoint.addrv6); err != nil {
-			return err
+			endpoint.addrv6 = &net.IPNet{IP: ip6, Mask: network.Mask}
+			if err = ifInfo.SetIPAddress(endpoint.addrv6); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1520,6 +1523,15 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 	}
 
 	return nil
+}
+
+func LegacyContainerLinkOptions(parentEndpoints, childEndpoints []string) map[string]interface{} {
+	return options.Generic{
+		netlabel.GenericData: options.Generic{
+			"ParentEndpoints": parentEndpoints,
+			"ChildEndpoints":  childEndpoints,
+		},
+	}
 }
 
 func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable bool) (retErr error) {

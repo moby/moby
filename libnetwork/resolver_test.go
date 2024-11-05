@@ -246,7 +246,7 @@ func (w tlogWriter) Write(p []byte) (n int, err error) {
 
 type noopDNSBackend struct{ DNSBackend }
 
-func (noopDNSBackend) ResolveName(_ context.Context, name string, iplen int) ([]net.IP, bool) {
+func (noopDNSBackend) ResolveName(_ context.Context, name string, ipType int) ([]net.IP, bool) {
 	return nil, false
 }
 

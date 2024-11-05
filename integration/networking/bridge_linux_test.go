@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
@@ -833,4 +834,65 @@ func TestSetEndpointSysctl(t *testing.T) {
 			})
 		}
 	}
+}
+
+// TestContainerDisabledIPv6 checks that a container with IPv6 disabled does not
+// get an IPv6 address when joining an IPv6 network. (TestDisableIPv6Addrs checks
+// that no IPv6 addresses assigned to interfaces, this test checks that there are
+// no IPv6 records in the DNS and that the IPv4 DNS response is correct.)
+func TestContainerDisabledIPv6(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const netName = "ipv6br"
+	network.CreateNoError(ctx, t, c, netName,
+		network.WithDriver("bridge"),
+		network.WithOption(bridge.BridgeName, netName),
+		network.WithIPv6(),
+		network.WithIPAM("fd64:40cd:7fb4:8971::/64", "fd64:40cd:7fb4:8971::1"),
+	)
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	// Run a container with IPv6 enabled.
+	ctrWith6 := container.Run(ctx, t, c,
+		container.WithNetworkMode(netName),
+	)
+	defer c.ContainerRemove(ctx, ctrWith6, containertypes.RemoveOptions{Force: true})
+	inspect := container.Inspect(ctx, t, c, ctrWith6)
+	addr := inspect.NetworkSettings.Networks[netName].GlobalIPv6Address
+	assert.Check(t, is.Contains(addr, "fd64:40cd:7fb4:8971"))
+
+	// Run a container with IPv6 disabled.
+	const ctrNo6Name = "ctrNo6"
+	ctrNo6 := container.Run(ctx, t, c,
+		container.WithName(ctrNo6Name),
+		container.WithNetworkMode(netName),
+		container.WithSysctls(map[string]string{"net.ipv6.conf.all.disable_ipv6": "1"}),
+	)
+	defer c.ContainerRemove(ctx, ctrNo6, containertypes.RemoveOptions{Force: true})
+	inspect = container.Inspect(ctx, t, c, ctrNo6)
+	addr = inspect.NetworkSettings.Networks[netName].GlobalIPv6Address
+	assert.Check(t, is.Equal(addr, ""))
+
+	execCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// Check that the with-IPv6 container can ping the other using its IPv4 address.
+	res := container.ExecT(execCtx, t, c, ctrWith6, []string{"ping", "-4", "-c1", "-W3", ctrNo6Name})
+	assert.Check(t, is.Equal(res.ExitCode, 0))
+	assert.Check(t, is.Contains(res.Stdout(), "1 packets transmitted, 1 packets received"))
+	assert.Check(t, is.Equal(res.Stderr(), ""))
+
+	// Check that the with-IPv6 container doesn't find an IPv6 address for the other
+	// (fail fast on the address lookup, rather than timing out on the ping).
+	res = container.ExecT(execCtx, t, c, ctrWith6, []string{"ping", "-6", "-c1", "-W3", ctrNo6Name})
+	assert.Check(t, is.Equal(res.ExitCode, 1))
+	assert.Check(t, is.Equal(res.Stdout(), ""))
+	assert.Check(t, is.Contains(res.Stderr(), "bad address"))
 }

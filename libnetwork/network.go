@@ -1209,7 +1209,9 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 		ep.ipamOptions[netlabel.MacAddress] = ep.iface.mac.String()
 	}
 
-	if err = ep.assignAddress(ipam, n.enableIPv4, n.enableIPv6 && !n.postIPv6); err != nil {
+	wantIPv6 := n.enableIPv6 && !ep.disableIPv6
+
+	if err = ep.assignAddress(ipam, n.enableIPv4, wantIPv6 && !n.postIPv6); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -1242,8 +1244,12 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 		}
 	}()
 
-	if err = ep.assignAddress(ipam, false, n.enableIPv6 && n.postIPv6); err != nil {
-		return nil, err
+	if wantIPv6 {
+		if err = ep.assignAddress(ipam, false, n.postIPv6); err != nil {
+			return nil, err
+		}
+	} else {
+		ep.iface.addrv6 = nil
 	}
 
 	if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
@@ -1957,9 +1963,11 @@ func (n *Network) hasLoadBalancerEndpoint() bool {
 	return len(n.loadBalancerIP) != 0
 }
 
+// ResolveName looks up addresses of ipType for name req.
+// Returns (addresses, true) if req is found, but len(addresses) may be 0 if
+// there are no addresses of ipType. If the name is not found, the bool return
+// will be false.
 func (n *Network) ResolveName(ctx context.Context, req string, ipType int) ([]net.IP, bool) {
-	var ipv6Miss bool
-
 	c := n.getController()
 	networkID := n.ID()
 
@@ -1973,40 +1981,33 @@ func (n *Network) ResolveName(ctx context.Context, req string, ipType int) ([]ne
 	// TODO(aker): release the lock earlier
 	defer c.mu.Unlock()
 	sr, ok := c.svcRecords[networkID]
-
 	if !ok {
 		return nil, false
 	}
 
 	req = strings.TrimSuffix(req, ".")
 	req = strings.ToLower(req)
-	ipSet, ok := sr.svcMap.Get(req)
 
+	ipSet, ok4 := sr.svcMap.Get(req)
+	ipSet6, ok6 := sr.svcIPv6Map.Get(req)
+	if !ok4 && !ok6 {
+		// No result for v4 or v6, the name doesn't exist.
+		return nil, false
+	}
 	if ipType == types.IPv6 {
-		// If the name resolved to v4 address then its a valid name in
-		// the docker network domain. If the network is not v6 enabled
-		// set ipv6Miss to filter the DNS query from going to external
-		// resolvers.
-		if ok && !n.enableIPv6 {
-			ipv6Miss = true
-		}
-		ipSet, ok = sr.svcIPv6Map.Get(req)
+		ipSet = ipSet6
 	}
 
-	if ok && len(ipSet) > 0 {
-		// this map is to avoid IP duplicates, this can happen during a transition period where 2 services are using the same IP
-		noDup := make(map[string]bool)
-		var ipLocal []net.IP
-		for _, ip := range ipSet {
-			if _, dup := noDup[ip.ip]; !dup {
-				noDup[ip.ip] = true
-				ipLocal = append(ipLocal, net.ParseIP(ip.ip))
-			}
+	// this map is to avoid IP duplicates, this can happen during a transition period where 2 services are using the same IP
+	noDup := make(map[string]bool)
+	var ipLocal []net.IP
+	for _, ip := range ipSet {
+		if _, dup := noDup[ip.ip]; !dup {
+			noDup[ip.ip] = true
+			ipLocal = append(ipLocal, net.ParseIP(ip.ip))
 		}
-		return ipLocal, ok
 	}
-
-	return nil, ipv6Miss
+	return ipLocal, true
 }
 
 func (n *Network) HandleQueryResp(name string, ip net.IP) {

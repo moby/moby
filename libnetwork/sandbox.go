@@ -67,13 +67,6 @@ type hostsPathConfig struct {
 	hostsPath       string
 	originHostsPath string
 	extraHosts      []extraHost
-	parentUpdates   []parentUpdate
-}
-
-type parentUpdate struct {
-	cid  string
-	name string
-	ip   string
 }
 
 type extraHost struct {
@@ -273,6 +266,15 @@ func (sb *Sandbox) Refresh(ctx context.Context, options ...SandboxOption) error 
 	return nil
 }
 
+func (sb *Sandbox) UpdateLabels(labels map[string]interface{}) {
+	if sb.config.generic == nil {
+		sb.config.generic = make(map[string]interface{}, len(labels))
+	}
+	for k, v := range labels {
+		sb.config.generic[k] = v
+	}
+}
+
 func (sb *Sandbox) MarshalJSON() ([]byte, error) {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
@@ -438,27 +440,18 @@ func (sb *Sandbox) ResolveName(ctx context.Context, name string, ipType int) ([]
 
 	for i := 0; i < len(reqName); i++ {
 		// First check for local container alias
-		ip, ipv6Miss := sb.resolveName(ctx, reqName[i], networkName[i], epList, true, ipType)
-		if ip != nil {
-			return ip, false
+		if ip, ok := sb.resolveName(ctx, reqName[i], networkName[i], epList, true, ipType); ok {
+			return ip, true
 		}
-		if ipv6Miss {
-			return ip, ipv6Miss
-		}
-
 		// Resolve the actual container name
-		ip, ipv6Miss = sb.resolveName(ctx, reqName[i], networkName[i], epList, false, ipType)
-		if ip != nil {
-			return ip, false
-		}
-		if ipv6Miss {
-			return ip, ipv6Miss
+		if ip, ok := sb.resolveName(ctx, reqName[i], networkName[i], epList, false, ipType); ok {
+			return ip, true
 		}
 	}
 	return nil, false
 }
 
-func (sb *Sandbox) resolveName(ctx context.Context, nameOrAlias string, networkName string, epList []*Endpoint, lookupAlias bool, ipType int) (_ []net.IP, ipv6Miss bool) {
+func (sb *Sandbox) resolveName(ctx context.Context, nameOrAlias string, networkName string, epList []*Endpoint, lookupAlias bool, ipType int) ([]net.IP, bool) {
 	ctx, span := otel.Tracer("").Start(ctx, "Sandbox.resolveName", trace.WithAttributes(
 		attribute.String("libnet.resolver.name-or-alias", nameOrAlias),
 		attribute.String("libnet.network.name", networkName),
@@ -496,15 +489,12 @@ func (sb *Sandbox) resolveName(ctx context.Context, nameOrAlias string, networkN
 			}
 		}
 
-		ip, miss := nw.ResolveName(ctx, name, ipType)
-		if ip != nil {
-			return ip, false
-		}
-		if miss {
-			ipv6Miss = miss
+		ip, ok := nw.ResolveName(ctx, name, ipType)
+		if ok {
+			return ip, true
 		}
 	}
-	return nil, ipv6Miss
+	return nil, false
 }
 
 // hasExternalAccess returns true if any of sb's Endpoints appear to have external
