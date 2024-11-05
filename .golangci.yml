@@ -131,6 +131,10 @@ issues:
     - path: _test\.go
       linters:
         - errcheck
+
+    - text: "G404: Use of weak random number generator"
+      path: _test\.go
+      linters:
         - gosec
 
     # Suppress golint complaining about generated types in api/types/
