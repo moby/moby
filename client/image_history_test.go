@@ -1,10 +1,7 @@
 package client // import "github.com/docker/docker/client"
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -25,37 +22,31 @@ func TestImageHistoryError(t *testing.T) {
 }
 
 func TestImageHistory(t *testing.T) {
-	expectedURL := "/images/image_id/history"
+	const (
+		expectedURL     = "/images/image_id/history"
+		historyResponse = `[{"Comment":"","Created":0,"CreatedBy":"","Id":"image_id1","Size":0,"Tags":["tag1","tag2"]},{"Comment":"","Created":0,"CreatedBy":"","Id":"image_id2","Size":0,"Tags":["tag1","tag2"]}]`
+	)
 	client := &Client{
 		client: newMockClient(func(r *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(r.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
-			}
-			b, err := json.Marshal([]image.HistoryResponseItem{
-				{
-					ID:   "image_id1",
-					Tags: []string{"tag1", "tag2"},
-				},
-				{
-					ID:   "image_id2",
-					Tags: []string{"tag1", "tag2"},
-				},
-			})
-			if err != nil {
-				return nil, err
-			}
-
+			assert.Check(t, is.Equal(r.URL.Path, expectedURL))
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(b)),
+				Body:       io.NopCloser(strings.NewReader(historyResponse)),
 			}, nil
 		}),
 	}
+	expected := []image.HistoryResponseItem{
+		{
+			ID:   "image_id1",
+			Tags: []string{"tag1", "tag2"},
+		},
+		{
+			ID:   "image_id2",
+			Tags: []string{"tag1", "tag2"},
+		},
+	}
+
 	imageHistories, err := client.ImageHistory(context.Background(), "image_id", image.HistoryOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(imageHistories) != 2 {
-		t.Fatalf("expected 2 containers, got %v", imageHistories)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(imageHistories, expected))
 }
