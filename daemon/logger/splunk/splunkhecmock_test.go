@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sync"
 	"testing"
+	"time"
 )
 
 func (message *splunkMessage) EventAsString() (string, error) {
@@ -76,7 +77,12 @@ func (hec *HTTPEventCollectorMock) URL() string {
 }
 
 func (hec *HTTPEventCollectorMock) Serve() error {
-	return http.Serve(hec.tcpListener, hec)
+	srv := &http.Server{
+		Handler: hec,
+
+		ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
+	}
+	return srv.Serve(hec.tcpListener)
 }
 
 func (hec *HTTPEventCollectorMock) Close() error {
