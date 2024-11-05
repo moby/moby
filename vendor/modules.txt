@@ -48,7 +48,7 @@ github.com/Microsoft/go-winio/pkg/etwlogrus
 github.com/Microsoft/go-winio/pkg/fs
 github.com/Microsoft/go-winio/pkg/guid
 github.com/Microsoft/go-winio/vhd
-# github.com/Microsoft/hcsshim v0.11.7
+# github.com/Microsoft/hcsshim v0.11.7 => github.com/Microsoft/hcsshim v0.11.7
 ## explicit; go 1.21
 github.com/Microsoft/hcsshim
 github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options
@@ -1622,3 +1622,4 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v0.7.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
+# github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.11.7
