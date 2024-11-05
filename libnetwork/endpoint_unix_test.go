@@ -17,8 +17,8 @@ func TestHostsEntries(t *testing.T) {
 
 	expectedHostsFile := `127.0.0.1	localhost
 ::1	localhost ip6-localhost ip6-loopback
-fe00::0	ip6-localnet
-ff00::0	ip6-mcastprefix
+fe00::	ip6-localnet
+ff00::	ip6-mcastprefix
 ff02::1	ip6-allnodes
 ff02::2	ip6-allrouters
 192.168.222.2	somehost.example.com somehost

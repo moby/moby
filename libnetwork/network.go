@@ -1505,14 +1505,25 @@ func (n *Network) getSvcRecords(ep *Endpoint) []etchosts.Record {
 				continue
 			}
 			if len(mapEntryList) == 0 {
-				log.G(context.TODO()).Warnf("Found empty list of IP addresses for service %s on network %s (%s)", k, n.name, n.id)
+				log.G(context.TODO()).WithFields(log.Fields{
+					"service": k,
+					"net":     n.name,
+					"nid":     n.id,
+				}).Warn("Found empty list of IP addresses")
+				continue
+			}
+			addr, err := netip.ParseAddr(mapEntryList[0].ip)
+			if err != nil {
+				log.G(context.TODO()).WithFields(log.Fields{
+					"service": k,
+					"net":     n.name,
+					"nid":     n.id,
+					"addr":    mapEntryList[0].ip,
+				}).Warn("Bad IP address")
 				continue
 			}
 
-			recs = append(recs, etchosts.Record{
-				Hosts: k,
-				IP:    mapEntryList[0].ip,
-			})
+			recs = append(recs, etchosts.Record{Hosts: k, IP: addr})
 		}
 	}
 

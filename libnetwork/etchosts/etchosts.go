@@ -14,7 +14,7 @@ import (
 // Record Structure for a single host record
 type Record struct {
 	Hosts string
-	IP    string
+	IP    netip.Addr
 }
 
 // WriteTo writes record to file and returns bytes written or error
@@ -26,14 +26,14 @@ func (r Record) WriteTo(w io.Writer) (int64, error) {
 var (
 	// Default hosts config records slice
 	defaultContentIPv4 = []Record{
-		{Hosts: "localhost", IP: "127.0.0.1"},
+		{Hosts: "localhost", IP: netip.MustParseAddr("127.0.0.1")},
 	}
 	defaultContentIPv6 = []Record{
-		{Hosts: "localhost ip6-localhost ip6-loopback", IP: "::1"},
-		{Hosts: "ip6-localnet", IP: "fe00::0"},
-		{Hosts: "ip6-mcastprefix", IP: "ff00::0"},
-		{Hosts: "ip6-allnodes", IP: "ff02::1"},
-		{Hosts: "ip6-allrouters", IP: "ff02::2"},
+		{Hosts: "localhost ip6-localhost ip6-loopback", IP: netip.IPv6Loopback()},
+		{Hosts: "ip6-localnet", IP: netip.MustParseAddr("fe00::")},
+		{Hosts: "ip6-mcastprefix", IP: netip.MustParseAddr("ff00::")},
+		{Hosts: "ip6-allnodes", IP: netip.MustParseAddr("ff02::1")},
+		{Hosts: "ip6-allrouters", IP: netip.MustParseAddr("ff02::2")},
 	}
 
 	// A cache of path level locks for synchronizing /etc/hosts
@@ -79,8 +79,7 @@ func Build(path string, extraContent []Record) error {
 func BuildNoIPv6(path string, extraContent []Record) error {
 	var ipv4ExtraContent []Record
 	for _, rec := range extraContent {
-		addr, err := netip.ParseAddr(rec.IP)
-		if err != nil || !addr.Is6() {
+		if !rec.IP.Is6() {
 			ipv4ExtraContent = append(ipv4ExtraContent, rec)
 		}
 	}

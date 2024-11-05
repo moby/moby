@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
 	"reflect"
 	"runtime"
 	"testing"
@@ -20,6 +21,7 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -374,7 +376,7 @@ func TestUpdateSvcRecord(t *testing.T) {
 			epName: "ep4",
 			addr4:  "172.16.0.2/24",
 			expSvcRecs: []etchosts.Record{
-				{Hosts: "id-ep4", IP: "172.16.0.2"},
+				{Hosts: "id-ep4", IP: netip.MustParseAddr("172.16.0.2")},
 			},
 		},
 		/* TODO(robmry) - add this test when the bridge driver understands v6-only
@@ -393,8 +395,8 @@ func TestUpdateSvcRecord(t *testing.T) {
 			addr4:  "172.16.1.2/24",
 			addr6:  "fd60:8677:5a4c::2/64",
 			expSvcRecs: []etchosts.Record{
-				{Hosts: "id-ep46", IP: "172.16.1.2"},
-				{Hosts: "id-ep46", IP: "fd60:8677:5a4c::2"},
+				{Hosts: "id-ep46", IP: netip.MustParseAddr("172.16.1.2")},
+				{Hosts: "id-ep46", IP: netip.MustParseAddr("fd60:8677:5a4c::2")},
 			},
 		},
 	}
@@ -435,7 +437,7 @@ func TestUpdateSvcRecord(t *testing.T) {
 
 			n.updateSvcRecord(context.Background(), ep, true)
 			recs := n.getSvcRecords(ep)
-			assert.Check(t, is.DeepEqual(recs, tc.expSvcRecs))
+			assert.Check(t, is.DeepEqual(recs, tc.expSvcRecs, cmpopts.EquateComparable(netip.Addr{})))
 
 			n.updateSvcRecord(context.Background(), ep, false)
 			recs = n.getSvcRecords(ep)
