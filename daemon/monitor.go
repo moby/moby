@@ -307,12 +307,11 @@ func (daemon *Daemon) autoRemove(cfg *config.Config, c *container.Container) {
 	}
 
 	err := daemon.containerRm(cfg, c.ID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
-	if err == nil {
-		return
+	if err != nil {
+		if daemon.containers.Get(c.ID) == nil {
+			// container no longer found, so remove worked after all.
+			return
+		}
+		log.G(context.TODO()).WithFields(log.Fields{"error": err, "container": c.ID}).Error("error removing container")
 	}
-	if c := daemon.containers.Get(c.ID); c == nil {
-		return
-	}
-
-	log.G(context.TODO()).WithFields(log.Fields{"error": err, "container": c.ID}).Error("error removing container")
 }
