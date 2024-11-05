@@ -72,7 +72,16 @@ linters-settings:
 
   gosec:
     excludes:
-      - G115 # FIXME temporarily suppress 'G115: integer overflow conversion': it produces many hits, some of which may be false positives, and need to be looked at; see https://github.com/moby/moby/issues/48358
+      - G104 # G104: Errors unhandled; (TODO: reduce unhandled errors, or explicitly ignore)
+      - G113 # G113: Potential uncontrolled memory consumption in Rat.SetString (CVE-2022-23772); (only affects go < 1.16.14. and go < 1.17.7)
+      - G115 # G115: integer overflow conversion; (TODO: verify these: https://github.com/moby/moby/issues/48358)
+      - G204 # G204: Subprocess launched with variable; too many false positives.
+      - G301 # G301: Expect directory permissions to be 0750 or less (also EXC0009); too restrictive
+      - G302 # G302: Expect file permissions to be 0600 or less (also EXC0009); too restrictive
+      - G304 # G304: Potential file inclusion via variable.
+      - G306 # G306: Expect WriteFile permissions to be 0600 or less (too restrictive; also flags "0o644" permissions)
+      - G307 # G307: Deferring unsafe method "*os.File" on type "Close" (also EXC0008); (TODO: evaluate these and fix where needed: G307: Deferring unsafe method "*os.File" on type "Close")
+      - G504 # G504: Blocklisted import net/http/cgi: Go versions < 1.6.3 are vulnerable to Httpoxy attack: (CVE-2016-5386); (only affects go < 1.6.3)
 
   govet:
     check-shadowing: false
@@ -111,40 +120,15 @@ issues:
     # ID's.
     #
     # These exclusion patterns are copied from the default excludes at:
-    # https://github.com/golangci/golangci-lint/blob/v1.46.2/pkg/config/issues.go#L10-L104
+    # https://github.com/golangci/golangci-lint/blob/v1.61.0/pkg/config/issues.go#L11-L104
+    #
+    # The default list of exclusions can be found at:
+    # https://golangci-lint.run/usage/false-positives/#default-exclusions
 
     # EXC0001
     - text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*print(f|ln)?|os\\.(Un)?Setenv). is not checked"
       linters:
         - errcheck
-    # EXC0007
-    - text: "Subprocess launch(ed with variable|ing should be audited)"
-      linters:
-        - gosec
-    # EXC0008
-    # TODO: evaluate these and fix where needed: G307: Deferring unsafe method "*os.File" on type "Close" (gosec)
-    - text: "(G104|G307)"
-      linters:
-        - gosec
-    # EXC0009
-    - text: "(Expect directory permissions to be 0750 or less|Expect file permissions to be 0600 or less)"
-      linters:
-        - gosec
-    # EXC0010
-    - text: "Potential file inclusion via variable"
-      linters:
-        - gosec
-
-    # Looks like the match in "EXC0007" above doesn't catch this one
-    # TODO: consider upstreaming this to golangci-lint's default exclusion rules
-    - text: "G204: Subprocess launched with a potential tainted input or cmd arguments"
-      linters:
-        - gosec
-    # Looks like the match in "EXC0009" above doesn't catch this one
-    # TODO: consider upstreaming this to golangci-lint's default exclusion rules
-    - text: "G306: Expect WriteFile permissions to be 0600 or less"
-      linters:
-        - gosec
 
     # Exclude some linters from running on tests files.
     - path: _test\.go
