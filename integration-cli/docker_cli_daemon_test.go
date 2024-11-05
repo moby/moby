@@ -1526,7 +1526,8 @@ func (s *DockerDaemonSuite) TestDaemonStartWithDefaultTLSHost(c *testing.T) {
 
 	var certRequestInfo *tls.CertificateRequestInfo
 	conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", opts.DefaultHTTPHost, opts.DefaultTLSHTTPPort), &tls.Config{
-		RootCAs: rootPool,
+		RootCAs:    rootPool,
+		MinVersion: tls.VersionTLS12,
 		GetClientCertificate: func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error) {
 			certRequestInfo = cri
 			cert, err := tls.LoadX509KeyPair("fixtures/https/client-cert.pem", "fixtures/https/client-key.pem")
