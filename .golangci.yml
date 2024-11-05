@@ -83,9 +83,6 @@ linters-settings:
       - G307 # G307: Deferring unsafe method "*os.File" on type "Close" (also EXC0008); (TODO: evaluate these and fix where needed: G307: Deferring unsafe method "*os.File" on type "Close")
       - G504 # G504: Blocklisted import net/http/cgi: Go versions < 1.6.3 are vulnerable to Httpoxy attack: (CVE-2016-5386); (only affects go < 1.6.3)
 
-  govet:
-    check-shadowing: false
-
   importas:
     # Do not allow unaliased imports of aliased packages.
     no-unaliased: true
