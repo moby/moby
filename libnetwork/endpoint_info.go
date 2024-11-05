@@ -455,7 +455,6 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 	var tStaticRoute []types.StaticRoute
 	if v, ok := epMap["StaticRoutes"]; ok {
 		tb, _ := json.Marshal(v)
-		var tStaticRoute []types.StaticRoute
 		// TODO(cpuguy83): Linter caught that we aren't checking errors here
 		// I don't know why we aren't other than potentially the data is not always expected to be right?
 		// This is why I'm not adding the error check.
