@@ -358,20 +358,20 @@ func BuildFromConfig(ctx context.Context, config *container.Config, changes []st
 		commands = append(commands, cmd)
 	}
 
-	dispatchRequest := newDispatchRequest(b, dockerfile.EscapeToken, nil, NewBuildArgs(b.options.BuildArgs), newStagesBuildResults())
+	req := newDispatchRequest(b, dockerfile.EscapeToken, nil, NewBuildArgs(b.options.BuildArgs), newStagesBuildResults())
 	// We make mutations to the configuration, ensure we have a copy
-	dispatchRequest.state.runConfig = copyRunConfig(config)
-	dispatchRequest.state.imageID = config.Image
-	dispatchRequest.state.operatingSystem = os
+	req.state.runConfig = copyRunConfig(config)
+	req.state.imageID = config.Image
+	req.state.operatingSystem = os
 	for _, cmd := range commands {
-		err := dispatch(ctx, dispatchRequest, cmd)
+		err := dispatch(ctx, req, cmd)
 		if err != nil {
 			return nil, errdefs.InvalidParameter(err)
 		}
-		dispatchRequest.state.updateRunConfig()
+		req.state.updateRunConfig()
 	}
 
-	return dispatchRequest.state.runConfig, nil
+	return req.state.runConfig, nil
 }
 
 func convertMapToEnvList(m map[string]string) []string {

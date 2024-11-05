@@ -91,17 +91,17 @@ func dispatchAdd(ctx context.Context, d dispatchRequest, c *instructions.AddComm
 		return errors.New("the --chmod option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
 	}
 	downloader := newRemoteSourceDownloader(d.builder.Output, d.builder.Stdout)
-	copier := copierFromDispatchRequest(d, downloader, nil)
-	defer copier.Cleanup()
+	cpr := copierFromDispatchRequest(d, downloader, nil)
+	defer cpr.Cleanup()
 
-	copyInstruction, err := copier.createCopyInstruction(c.SourcesAndDest, "ADD")
+	instruction, err := cpr.createCopyInstruction(c.SourcesAndDest, "ADD")
 	if err != nil {
 		return err
 	}
-	copyInstruction.chownStr = c.Chown
-	copyInstruction.allowLocalDecompression = true
+	instruction.chownStr = c.Chown
+	instruction.allowLocalDecompression = true
 
-	return d.builder.performCopy(ctx, d, copyInstruction)
+	return d.builder.performCopy(ctx, d, instruction)
 }
 
 // COPY foo /path
@@ -119,17 +119,17 @@ func dispatchCopy(ctx context.Context, d dispatchRequest, c *instructions.CopyCo
 			return errors.Wrapf(err, "invalid from flag value %s", c.From)
 		}
 	}
-	copier := copierFromDispatchRequest(d, errOnSourceDownload, im)
-	defer copier.Cleanup()
-	copyInstruction, err := copier.createCopyInstruction(c.SourcesAndDest, "COPY")
+	cpr := copierFromDispatchRequest(d, errOnSourceDownload, im)
+	defer cpr.Cleanup()
+	instruction, err := cpr.createCopyInstruction(c.SourcesAndDest, "COPY")
 	if err != nil {
 		return err
 	}
-	copyInstruction.chownStr = c.Chown
-	if c.From != "" && copyInstruction.chownStr == "" {
-		copyInstruction.preserveOwnership = true
+	instruction.chownStr = c.Chown
+	if c.From != "" && instruction.chownStr == "" {
+		instruction.preserveOwnership = true
 	}
-	return d.builder.performCopy(ctx, d, copyInstruction)
+	return d.builder.performCopy(ctx, d, instruction)
 }
 
 func (d *dispatchRequest) getImageMount(ctx context.Context, imageRefOrID string) (*imageMount, error) {
@@ -158,8 +158,8 @@ func initializeStage(ctx context.Context, d dispatchRequest, cmd *instructions.S
 	}
 
 	var platform *ocispec.Platform
-	if v := cmd.Platform; v != "" {
-		v, err := d.getExpandedString(d.shlex, v)
+	if val := cmd.Platform; val != "" {
+		v, err := d.getExpandedString(d.shlex, val)
 		if err != nil {
 			return errors.Wrapf(err, "failed to process arguments for platform %s", v)
 		}
