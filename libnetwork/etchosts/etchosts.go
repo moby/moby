@@ -106,11 +106,11 @@ func build(path string, contents ...[]Record) error {
 
 // Add adds an arbitrary number of Records to an already existing /etc/hosts file
 func Add(path string, recs []Record) error {
-	defer pathLock(path)()
-
 	if len(recs) == 0 {
 		return nil
 	}
+
+	defer pathLock(path)()
 
 	b, err := mergeRecords(path, recs)
 	if err != nil {

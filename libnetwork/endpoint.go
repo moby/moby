@@ -551,9 +551,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		}
 	}
 
-	if err := sb.updateHostsFile(ctx, ep.getEtcHostsAddrs()); err != nil {
-		return err
-	}
+	sb.addHostsEntries(ctx, ep.getEtcHostsAddrs())
 	if err := sb.updateDNS(n.enableIPv6); err != nil {
 		return err
 	}
