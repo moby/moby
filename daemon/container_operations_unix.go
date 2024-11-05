@@ -85,7 +85,7 @@ func (daemon *Daemon) addLegacyLinks(
 		return nil
 	}
 	for _, child := range children {
-		if !isLinkable(child) {
+		if _, ok := child.NetworkSettings.Networks[network.DefaultNetwork]; !ok {
 			return fmt.Errorf("Cannot link to %s, as it does not belong to the default network", child.Name)
 		}
 	}
@@ -485,12 +485,6 @@ func killProcessDirectly(ctr *container.Container) error {
 		}
 	}
 	return nil
-}
-
-func isLinkable(child *container.Container) bool {
-	// A container is linkable only if it belongs to the default network
-	_, ok := child.NetworkSettings.Networks[network.DefaultNetwork]
-	return ok
 }
 
 // TODO(aker): remove when we make the default bridge network behave like any other network
