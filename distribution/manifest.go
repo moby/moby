@@ -228,12 +228,11 @@ func (m *manifestStore) Get(ctx context.Context, desc ocispec.Descriptor, ref re
 }
 
 func (m *manifestStore) Put(ctx context.Context, manifest distribution.Manifest, desc ocispec.Descriptor, w content.Writer, ref reference.Named) error {
-	mt, payload, err := manifest.Payload()
+	_, payload, err := manifest.Payload()
 	if err != nil {
 		return err
 	}
 	desc.Size = int64(len(payload))
-	desc.MediaType = mt
 
 	if _, err = w.Write(payload); err != nil {
 		return errors.Wrap(err, "error writing manifest to content store")
