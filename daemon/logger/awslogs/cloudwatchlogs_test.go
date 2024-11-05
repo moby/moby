@@ -1649,6 +1649,7 @@ func TestNewAWSLogsClientCredentialEndpointDetect(t *testing.T) {
 	// required for the cloudwatchlogs client
 	t.Setenv("AWS_REGION", "us-west-2")
 
+	// #nosec G101 -- ignore potential hardcoded credentials
 	credsResp := `{
 		"AccessKeyId" :    "test-access-key-id",
 		"SecretAccessKey": "test-secret-access-key"
