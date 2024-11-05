@@ -489,7 +489,7 @@ func loadSpecialImage(c *testing.T, imageFunc specialimage.SpecialImageFunc) str
 	out := cli.DockerCmd(c, "load", "-i", imgTar).Stdout()
 
 	for _, line := range strings.Split(out, "\n") {
-		line := strings.TrimSpace(line)
+		line = strings.TrimSpace(line)
 
 		if _, imageID, hasID := strings.Cut(line, "Loaded image ID: "); hasID {
 			return imageID
