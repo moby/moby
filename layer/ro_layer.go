@@ -164,8 +164,8 @@ type verifiedReadCloser struct {
 func (vrc *verifiedReadCloser) Read(p []byte) (n int, err error) {
 	n, err = vrc.rc.Read(p)
 	if n > 0 {
-		if n, err := vrc.verifier.Write(p[:n]); err != nil {
-			return n, err
+		if n2, err := vrc.verifier.Write(p[:n]); err != nil {
+			return n2, err
 		}
 	}
 	if err == io.EOF {
