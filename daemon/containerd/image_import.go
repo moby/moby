@@ -367,9 +367,6 @@ func storeJson(ctx context.Context, cs content.Ingester, mt string, obj interfac
 		return ocispec.Descriptor{}, errdefs.InvalidParameter(err)
 	}
 	configDigest := digest.FromBytes(configData)
-	if err != nil {
-		return ocispec.Descriptor{}, errdefs.InvalidParameter(err)
-	}
 	desc := ocispec.Descriptor{
 		MediaType: mt,
 		Digest:    configDigest,
