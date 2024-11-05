@@ -178,7 +178,7 @@ func writeFile(dst, content string, c *testing.T) {
 	c.Helper()
 	// Create subdirectories if necessary
 	assert.Assert(c, os.MkdirAll(path.Dir(dst), 0o700) == nil)
-	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o700)
+	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o600)
 	assert.NilError(c, err)
 	defer f.Close()
 	// Write content (truncate if it exists)
