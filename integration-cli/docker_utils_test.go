@@ -143,19 +143,13 @@ func inspectMountPoint(name, destination string) (container.MountPoint, error) {
 		return container.MountPoint{}, err
 	}
 
-	var m *container.MountPoint
 	for _, c := range mp {
 		if c.Destination == destination {
-			m = &c
-			break
+			return c, nil
 		}
 	}
 
-	if m == nil {
-		return container.MountPoint{}, errMountNotFound
-	}
-
-	return *m, nil
+	return container.MountPoint{}, errMountNotFound
 }
 
 func getIDByName(c *testing.T, name string) string {
