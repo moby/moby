@@ -113,10 +113,6 @@ issues:
     - text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*print(f|ln)?|os\\.(Un)?Setenv). is not checked"
       linters:
         - errcheck
-    # EXC0006
-    - text: "Use of unsafe calls should be audited"
-      linters:
-        - gosec
     # EXC0007
     - text: "Subprocess launch(ed with variable|ing should be audited)"
       linters:
