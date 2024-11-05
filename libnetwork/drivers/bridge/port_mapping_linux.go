@@ -679,7 +679,7 @@ func bindSCTP(cfg portBindingReq, port int) (_ portBinding, retErr error) {
 		uintptr(sd),
 		sctp.SOL_SCTP,
 		sctp.SCTP_INITMSG,
-		uintptr(unsafe.Pointer(&options)),
+		uintptr(unsafe.Pointer(&options)), // #nosec G103 -- Ignore "G103: Use of unsafe calls should be audited"
 		unsafe.Sizeof(options),
 		0); errno != 0 {
 		return portBinding{}, errno
