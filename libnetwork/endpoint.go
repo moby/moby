@@ -502,6 +502,13 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		return fmt.Errorf("failed to get endpoint from store during join: %v", err)
 	}
 
+	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
+		"nid": n.ID(),
+		"net": n.Name(),
+		"eid": ep.ID(),
+		"ep":  ep.Name(),
+	}))
+
 	ep.mu.Lock()
 	if ep.sandboxID != "" {
 		ep.mu.Unlock()
@@ -586,7 +593,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	defer func() {
 		if retErr != nil {
 			if e := ep.deleteDriverInfoFromCluster(); e != nil {
-				log.G(ctx).Errorf("Could not delete endpoint state for endpoint %s from cluster on join failure: %v", ep.Name(), e)
+				log.G(ctx).WithError(e).Error("Could not delete endpoint state from cluster on join failure")
 			}
 		}
 	}()
@@ -641,8 +648,9 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 			if gwepAfter6 == gwepAfter4 {
 				role = "dual-stack"
 			}
-			log.G(ctx).Debugf("Revoking %s external connectivity on endpoint %s (%s), NoProxy6To4:%v",
-				role, ep.Name(), ep.ID(), noProxy6To4Before)
+			log.G(ctx).WithFields(log.Fields{
+				"noProxy6To4": noProxy6To4Before,
+			}).Debug("Revoking external connectivity on endpoint")
 			undoFunc, err := gwepBefore4.revokeExternalConnectivity()
 			if err != nil {
 				return err
@@ -650,16 +658,14 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 			if restartGw4 {
 				// The IPv4 gateway hasn't changed, but its noProxy6To4 setting has. So,
 				// restore it as the gateway with that new setting.
-				log.G(ctx).Debugf("Programming IPv4 gateway endpoint %s (%s) NoProxy6To4:%v",
-					ep.Name(), ep.ID(), noProxy6To4After)
+				log.G(ctx).WithFields(log.Fields{
+					"noProxy6To4": noProxy6To4After,
+					"role":        role,
+				}).Debug("Programming IPv4 gateway endpoint")
 				labelsAfter := sb.Labels()
 				labelsAfter[netlabel.NoProxy6To4] = noProxy6To4After
 				if err := undoFunc(ctx, labelsAfter); err != nil {
-					log.G(ctx).WithFields(log.Fields{
-						"endpointName": ep.Name(),
-						"endpointId":   ep.ID(),
-						"error":        err,
-					}).Warn("Failed to restore IPv4 connectivity")
+					log.G(ctx).WithError(err).Warn("Failed to restore IPv4 connectivity")
 				}
 			} else {
 				defer func() {
@@ -667,12 +673,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 						labelsBefore := sb.Labels()
 						labelsBefore[netlabel.NoProxy6To4] = noProxy6To4Before
 						if err := undoFunc(ctx, labelsBefore); err != nil {
-							log.G(ctx).WithFields(log.Fields{
-								"endpointName": ep.Name(),
-								"endpointId":   ep.ID(),
-								"role":         role,
-								"error":        err,
-							}).Warn("Failed to restore connectivity during rollback")
+							log.G(ctx).WithError(err).Warn("Failed to restore connectivity during rollback")
 						}
 					}
 				}()
@@ -681,7 +682,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		// If ep is the new IPv6 gateway, there's an old IPv6 gateway to remove, and it
 		// wasn't also the IPv4 gateway (removed already) - remove the old gateway.
 		if ep == gwepAfter6 && gwepBefore6 != nil && gwepBefore6 != gwepBefore4 {
-			log.G(ctx).Debugf("Programming IPv6 gateway endpoint %s (%s)", ep.Name(), ep.ID())
+			log.G(ctx).Debug("Programming IPv6 gateway endpoint")
 			undoFunc, err := gwepBefore6.revokeExternalConnectivity()
 			if err != nil {
 				return err
@@ -689,17 +690,13 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 			defer func() {
 				if retErr != nil {
 					if err := undoFunc(ctx, sb.Labels()); err != nil {
-						log.G(ctx).WithFields(log.Fields{
-							"endpointName": ep.Name(),
-							"endpointId":   ep.ID(),
-							"error":        err,
-						}).Warn("Failed to restore IPv6 connectivity during rollback")
+						log.G(ctx).WithError(err).Warn("Failed to restore IPv6 connectivity during rollback")
 					}
 				}
 			}()
 		}
 		if !n.internal {
-			log.G(ctx).Debugf("Programming external connectivity on endpoint %s (%s)", ep.Name(), ep.ID())
+			log.G(ctx).Debugf("Programming external connectivity on endpoint")
 			labels := sb.Labels()
 			labels[netlabel.NoProxy6To4] = noProxy6To4After
 			if err := d.ProgramExternalConnectivity(ctx, n.ID(), ep.ID(), labels); err != nil {
@@ -712,8 +709,11 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 
 	if !sb.needDefaultGW() {
 		if e := sb.clearDefaultGW(); e != nil {
-			log.G(ctx).Warnf("Failure while disconnecting sandbox %s (%s) from gateway network: %v",
-				sb.ID(), sb.ContainerID(), e)
+			log.G(ctx).WithFields(log.Fields{
+				"error": e,
+				"sid":   sb.ID(),
+				"cid":   sb.ContainerID(),
+			}).Warn("Failure while disconnecting sandbox from gateway network")
 		}
 	}
 
@@ -835,6 +835,13 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 		return fmt.Errorf("failed to get endpoint from store during leave: %v", err)
 	}
 
+	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
+		"nid": n.ID(),
+		"net": n.Name(),
+		"eid": ep.ID(),
+		"ep":  ep.Name(),
+	}))
+
 	ep.mu.Lock()
 	sid := ep.sandboxID
 	ep.mu.Unlock()
@@ -863,30 +870,29 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 
 	if d != nil {
 		if moveExtConn4 || moveExtConn6 {
-			log.G(ctx).Debugf("Revoking external connectivity on endpoint %s (%s)", ep.Name(), ep.ID())
+			log.G(ctx).Debug("Revoking external connectivity on endpoint")
 			if err := d.RevokeExternalConnectivity(n.id, ep.id); err != nil {
-				log.G(ctx).Warnf("driver failed revoking external connectivity on endpoint %s (%s): %v",
-					ep.Name(), ep.ID(), err)
+				log.G(ctx).WithError(err).Warn("driver failed revoking external connectivity on endpoint")
 			}
 		}
 
 		if err := d.Leave(n.id, ep.id); err != nil {
 			if _, ok := err.(types.MaskableError); !ok {
-				log.G(ctx).Warnf("driver error disconnecting container %s : %v", ep.name, err)
+				log.G(ctx).WithError(err).Warn("driver error disconnecting container")
 			}
 		}
 	}
 
 	if err := ep.deleteServiceInfoFromCluster(sb, true, "sbLeave"); err != nil {
-		log.G(ctx).Warnf("Failed to clean up service info on container %s disconnect: %v", ep.name, err)
+		log.G(ctx).WithError(err).Warn("Failed to clean up service info on container disconnect")
 	}
 
 	if err := deleteEpFromResolver(ep.Name(), ep.iface, n.Resolvers()); err != nil {
-		log.G(ctx).Warnf("Failed to clean up resolver info on container %s disconnect: %v", ep.name, err)
+		log.G(ctx).WithError(err).Warn("Failed to clean up resolver info on container disconnect")
 	}
 
 	if err := sb.clearNetworkResources(ep); err != nil {
-		log.G(ctx).Warnf("Failed to clean up network resources on container %s disconnect: %v", ep.name, err)
+		log.G(ctx).WithError(err).Warn("Failed to clean up network resources on container disconnect")
 	}
 
 	// Update the store about the sandbox detach only after we
@@ -899,7 +905,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 	}
 
 	if e := ep.deleteDriverInfoFromCluster(); e != nil {
-		log.G(ctx).Errorf("Failed to delete endpoint state for endpoint %s from cluster: %v", ep.Name(), e)
+		log.G(ctx).WithError(e).Error("Failed to delete endpoint state for endpoint from cluster")
 	}
 
 	sb.deleteHostsEntries(n.getSvcRecords(ep))
@@ -929,8 +935,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 			labels := sb.Labels()
 			labels[netlabel.NoProxy6To4] = noProxy6To4
 			if restartGw4 {
-				log.G(ctx).Debugf("Resetting IPv4 endpoint %s (%s) NoProxy6To4:%v",
-					ep.Name(), ep.ID(), noProxy6To4)
+				log.G(ctx).WithFields(log.Fields{"noProxy6To4": noProxy6To4}).Debug("Resetting IPv4 endpoint")
 				if undoFunc, err := gwepBefore4.revokeExternalConnectivity(); err != nil {
 					log.G(ctx).WithError(err).Error("Failed to restart IPv4 gateway")
 				} else if err := undoFunc(ctx, labels); err != nil {
@@ -959,8 +964,11 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 
 	if !sb.needDefaultGW() {
 		if err := sb.clearDefaultGW(); err != nil {
-			log.G(ctx).Warnf("Failure while disconnecting sandbox %s (%s) from gateway network: %v",
-				sb.ID(), sb.ContainerID(), err)
+			log.G(ctx).WithFields(log.Fields{
+				"error": err,
+				"sid":   sb.ID(),
+				"cid":   sb.ContainerID(),
+			}).Warn("Failure while disconnecting sandbox from gateway network")
 		}
 	}
 
