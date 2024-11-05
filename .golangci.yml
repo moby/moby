@@ -18,6 +18,9 @@ linters:
     - errcheck
 
   run:
+    # prevent golangci-lint from deducting the go version to lint for through go.mod,
+    # which causes it to fallback to go1.17 semantics.
+    go: "1.24.3"
     concurrency: 2
     modules-download-mode: vendor
 
