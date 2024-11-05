@@ -161,10 +161,6 @@ func killProcessDirectly(ctr *container.Container) error {
 	return nil
 }
 
-func isLinkable(child *container.Container) bool {
-	return false
-}
-
 func enableIPOnPredefinedNetwork() bool {
 	return true
 }
