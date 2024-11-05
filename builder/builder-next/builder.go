@@ -291,8 +291,6 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 
 	var out builder.Result
 
-	id := identity.NewID()
-
 	frontendAttrs := map[string]string{}
 
 	if opt.Options.Target != "" {
@@ -405,6 +403,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		}
 	}
 
+	id := identity.NewID()
 	req := &controlapi.SolveRequest{
 		Ref: id,
 		Exporters: []*controlapi.Exporter{
@@ -432,12 +431,12 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		if exporterName != exporter.Moby && exporterName != client.ExporterImage {
 			return nil
 		}
-		id, ok := resp.ExporterResponse["containerimage.digest"]
+		imgID, ok := resp.ExporterResponse["containerimage.digest"]
 		if !ok {
 			return errors.Errorf("missing image id")
 		}
-		out.ImageID = id
-		return aux.Emit("moby.image.id", types.BuildResult{ID: id})
+		out.ImageID = imgID
+		return aux.Emit("moby.image.id", types.BuildResult{ID: imgID})
 	})
 
 	ch := make(chan *controlapi.StatusResponse)
