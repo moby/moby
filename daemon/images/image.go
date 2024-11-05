@@ -265,9 +265,9 @@ func (m *onlyFallbackMatcher) Match(other ocispec.Platform) bool {
 		// If there is a variant then this fallback does not apply, and there is no match
 		return false
 	}
-	otherN := platforms.Normalize(other)
-	otherN.Variant = "" // normalization adds a default variant... which is the whole problem with `platforms.Only`
 
-	return m.p.OS == otherN.OS &&
-		m.p.Architecture == otherN.Architecture
+	// note that platforms.Normalize adds a default variant... which is the
+	// whole problem with [platforms.Only], so we can't match on that.
+	otherN := platforms.Normalize(other)
+	return m.p.OS == otherN.OS && m.p.Architecture == otherN.Architecture
 }
