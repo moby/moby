@@ -82,7 +82,7 @@ func TestReplicatedJob(t *testing.T) {
 	poll.WaitOn(t, swarm.JobComplete(ctx, client, service), swarm.ServicePoll)
 }
 
-// TestUpdateJob tests that a job can be updated, and that it runs with the
+// TestUpdateReplicatedJob tests that a job can be updated, and that it runs with the
 // correct parameters.
 func TestUpdateReplicatedJob(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
