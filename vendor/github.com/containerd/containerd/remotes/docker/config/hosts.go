@@ -32,10 +32,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/remotes/docker"
-	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/pelletier/go-toml"
+
+	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/remotes/docker"
 )
 
 // UpdateClientFunc is a function that lets you to amend http Client behavior used by registry clients.
