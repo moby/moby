@@ -3,51 +3,27 @@
 package bridge
 
 import (
-	"bytes"
 	"os"
 	"testing"
+
+	"github.com/docker/docker/internal/testutils/netnsutils"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestSetupIPForwarding(t *testing.T) {
-	// Read current setting and ensure the original value gets restored
-	procSetting := readCurrentIPForwardingSetting(t)
-	defer reconcileIPForwardingSetting(t, procSetting)
+	defer netnsutils.SetupTestOSContext(t)()
 
 	// Disable IP Forwarding if enabled
-	if bytes.Equal(procSetting, []byte("1\n")) {
-		writeIPForwardingSetting(t, []byte{'0', '\n'})
-	}
+	_, err := configureIPForwarding(ipv4ForwardConf, '0')
+	assert.NilError(t, err)
 
 	// Set IP Forwarding
-	if err := setupIPForwarding(true, true); err != nil {
-		t.Fatalf("Failed to setup IP forwarding: %v", err)
-	}
+	err = setupIPv4Forwarding(true)
+	assert.NilError(t, err)
 
 	// Read new setting
-	procSetting = readCurrentIPForwardingSetting(t)
-	if !bytes.Equal(procSetting, []byte("1\n")) {
-		t.Fatal("Failed to effectively setup IP forwarding")
-	}
-}
-
-func readCurrentIPForwardingSetting(t *testing.T) []byte {
 	procSetting, err := os.ReadFile(ipv4ForwardConf)
-	if err != nil {
-		t.Fatalf("Can't execute test: Failed to read current IP forwarding setting: %v", err)
-	}
-	return procSetting
-}
-
-func writeIPForwardingSetting(t *testing.T, chars []byte) {
-	err := os.WriteFile(ipv4ForwardConf, chars, ipv4ForwardConfPerm)
-	if err != nil {
-		t.Fatalf("Can't execute or cleanup after test: Failed to reset IP forwarding: %v", err)
-	}
-}
-
-func reconcileIPForwardingSetting(t *testing.T, original []byte) {
-	current := readCurrentIPForwardingSetting(t)
-	if !bytes.Equal(original, current) {
-		writeIPForwardingSetting(t, original)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(procSetting, []byte{'1', '\n'}))
 }
