@@ -666,7 +666,7 @@ func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container, 
 
 		// TODO: until a kernel/mount solution exists for handling remount in a user namespace,
 		// we must clear the readonly flag for the cgroups mount (@mrunalp concurs)
-		if uidMap := daemon.idMapping.UIDMaps; uidMap != nil || c.HostConfig.Privileged {
+		if uidMap := daemon.idMapping.UIDMaps; uidMap != nil || c.HostConfig.Privileged || c.WritableCgroups {
 			for i, m := range s.Mounts {
 				if m.Type == "cgroup" {
 					clearReadOnly(&s.Mounts[i])
