@@ -18,3 +18,9 @@ As a containerd sub-project, you will find the:
  * and [Contributing guidelines](https://github.com/containerd/project/blob/main/CONTRIBUTING.md)
 
 information in our [`containerd/project`](https://github.com/containerd/project) repository.
+
+## Optional
+
+By default, support for gogoproto is available along side the standard Google
+protobuf types.
+You can choose to leave gogo support out by using the `!no_gogo` build tag.
