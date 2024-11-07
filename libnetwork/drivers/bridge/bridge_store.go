@@ -128,6 +128,7 @@ func (ncfg *networkConfiguration) MarshalJSON() ([]byte, error) {
 	nMap := make(map[string]interface{})
 	nMap["ID"] = ncfg.ID
 	nMap["BridgeName"] = ncfg.BridgeName
+	nMap["EnableIPv4"] = ncfg.EnableIPv4
 	nMap["EnableIPv6"] = ncfg.EnableIPv6
 	nMap["EnableIPMasquerade"] = ncfg.EnableIPMasquerade
 	nMap["GwModeIPv4"] = ncfg.GwModeIPv4
@@ -171,6 +172,8 @@ func (ncfg *networkConfiguration) UnmarshalJSON(b []byte) error {
 		if ncfg.AddressIPv4, err = types.ParseCIDR(v.(string)); err != nil {
 			return types.InternalErrorf("failed to decode bridge network address IPv4 after json unmarshal: %s", v.(string))
 		}
+		// For networks created before EnableIPv4 was added ...
+		ncfg.EnableIPv4 = true
 	}
 
 	if v, ok := nMap["AddressIPv6"]; ok {
@@ -197,6 +200,9 @@ func (ncfg *networkConfiguration) UnmarshalJSON(b []byte) error {
 	ncfg.DefaultGatewayIPv6 = net.ParseIP(nMap["DefaultGatewayIPv6"].(string))
 	ncfg.ID = nMap["ID"].(string)
 	ncfg.BridgeName = nMap["BridgeName"].(string)
+	if v, ok := nMap["EnableIPv4"]; ok {
+		ncfg.EnableIPv4 = v.(bool)
+	}
 	ncfg.EnableIPv6 = nMap["EnableIPv6"].(bool)
 	ncfg.EnableIPMasquerade = nMap["EnableIPMasquerade"].(bool)
 	if v, ok := nMap["GwModeIPv4"]; ok {
@@ -275,7 +281,9 @@ func (ep *bridgeEndpoint) MarshalJSON() ([]byte, error) {
 	epMap["nid"] = ep.nid
 	epMap["SrcName"] = ep.srcName
 	epMap["MacAddress"] = ep.macAddress.String()
-	epMap["Addr"] = ep.addr.String()
+	if ep.addr != nil {
+		epMap["Addr"] = ep.addr.String()
+	}
 	if ep.addrv6 != nil {
 		epMap["Addrv6"] = ep.addrv6.String()
 	}
@@ -411,7 +419,7 @@ func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 	}
 
 	var err error
-	ep.portMapping, err = n.addPortMappings(context.TODO(), ep.addr, ep.addrv6, cfg, n.config.DefaultBindingIP)
+	ep.portMapping, err = n.addPortMappings(context.TODO(), ep.addr, ep.addrv6, cfg, n.config.DefaultBindingIP, ep.extConnConfig.NoProxy6To4)
 	if err != nil {
 		log.G(context.TODO()).Warnf("Failed to reserve existing port mapping for endpoint %.7s:%v", ep.id, err)
 	}

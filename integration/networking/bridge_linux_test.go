@@ -2,9 +2,11 @@ package networking
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -14,10 +16,12 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
+	n "github.com/docker/docker/integration/network"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
+	"github.com/docker/go-connections/nat"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -616,6 +620,61 @@ func TestDisableIPv6Addrs(t *testing.T) {
 	}
 }
 
+// Check that a container in a network with IPv4 disabled doesn't get
+// IPv4 addresses.
+func TestDisableIPv4(t *testing.T) {
+	ctx := setupTest(t)
+	d := daemon.New(t, daemon.WithExperimental())
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	testcases := []struct {
+		name       string
+		apiVersion string
+		expIPv4    bool
+	}{
+		{
+			name:    "disable ipv4",
+			expIPv4: false,
+		},
+		{
+			name:       "old api ipv4 not disabled",
+			apiVersion: "1.46",
+			expIPv4:    true,
+		},
+	}
+
+	for _, tc := range testcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			c := d.NewClientT(t, client.WithVersion(tc.apiVersion))
+
+			const netName = "testnet"
+			network.CreateNoError(ctx, t, c, netName,
+				network.WithIPv4(false),
+				network.WithIPv6(),
+			)
+			defer network.RemoveNoError(ctx, t, c, netName)
+
+			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
+			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+			loRes := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "lo"})
+			assert.Check(t, is.Contains(loRes.Combined(), " inet ")) // 127.0.0.1
+			assert.Check(t, is.Contains(loRes.Combined(), " inet6 "))
+
+			eth0Res := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "eth0"})
+			if tc.expIPv4 {
+				assert.Check(t, is.Contains(eth0Res.Combined(), " inet "))
+			} else {
+				assert.Check(t, !strings.Contains(eth0Res.Combined(), " inet "),
+					"result.Combined(): %s", eth0Res.Combined())
+			}
+			assert.Check(t, is.Contains(eth0Res.Combined(), " inet6 "))
+		})
+	}
+}
+
 // Check that an interface to an '--ipv6=false' network has no IPv6
 // address - either IPAM assigned, or kernel-assigned LL, but the loopback
 // interface does still have an IPv6 address ('::1').
@@ -895,4 +954,149 @@ func TestContainerDisabledIPv6(t *testing.T) {
 	assert.Check(t, is.Equal(res.ExitCode, 1))
 	assert.Check(t, is.Equal(res.Stdout(), ""))
 	assert.Check(t, is.Contains(res.Stderr(), "bad address"))
+}
+
+type expProxyCfg struct {
+	proto      string
+	hostIP     string
+	hostPort   string
+	ctrName    string
+	ctrNetName string
+	ctrIPv4    bool
+	ctrPort    string
+}
+
+func TestGatewaySelection(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "proxies run in child namespace")
+
+	ctx := setupTest(t)
+	d := daemon.New(t, daemon.WithExperimental())
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const netName4 = "net4"
+	network.CreateNoError(ctx, t, c, netName4)
+	defer network.RemoveNoError(ctx, t, c, netName4)
+
+	const netName6 = "net6"
+	netId6 := network.CreateNoError(ctx, t, c, netName6, network.WithIPv6(), network.WithIPv4(false))
+	defer network.RemoveNoError(ctx, t, c, netName6)
+
+	const netName46 = "net46"
+	netId46 := network.CreateNoError(ctx, t, c, netName46, network.WithIPv6())
+	defer network.RemoveNoError(ctx, t, c, netName46)
+
+	master := "dm-dummy0"
+	n.CreateMasterDummy(ctx, t, master)
+	defer n.DeleteInterface(ctx, t, master)
+	const netNameIpvlan6 = "ipvlan6"
+	netIdIpvlan6 := network.CreateNoError(ctx, t, c, netNameIpvlan6,
+		network.WithIPvlan("dm-dummy0", "l2"),
+		network.WithIPv4(false),
+		network.WithIPv6(),
+	)
+	defer network.RemoveNoError(ctx, t, c, netNameIpvlan6)
+
+	const ctrName = "ctr"
+	ctrId := container.Run(ctx, t, c,
+		container.WithName(ctrName),
+		container.WithNetworkMode(netName4),
+		container.WithExposedPorts("80"),
+		container.WithPortMap(nat.PortMap{"80": {{HostPort: "8080"}}}),
+		container.WithCmd("httpd", "-f"),
+	)
+	defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+
+	// The container only has an IPv4 endpoint, it should be the gateway, and
+	// the host-IPv6 should be proxied to container-IPv4.
+	checkProxies(ctx, t, c, d.Pid(), []expProxyCfg{
+		{"tcp", "0.0.0.0", "8080", ctrName, netName4, true, "80"},
+		{"tcp", "::", "8080", ctrName, netName4, true, "80"},
+	})
+
+	// Connect the IPv6-only network. The IPv6 endpoint should become the
+	// gateway for IPv6, the IPv4 endpoint should be reconfigured as the
+	// gateway for IPv4 only.
+	err := c.NetworkConnect(ctx, netId6, ctrId, nil)
+	assert.NilError(t, err)
+	checkProxies(ctx, t, c, d.Pid(), []expProxyCfg{
+		{"tcp", "0.0.0.0", "8080", ctrName, netName4, true, "80"},
+		{"tcp", "::", "8080", ctrName, netName6, false, "80"},
+	})
+
+	// Disconnect the IPv6-only network, the IPv4 should get back the mapping
+	// from host-IPv6.
+	err = c.NetworkDisconnect(ctx, netId6, ctrId, false)
+	assert.NilError(t, err)
+	checkProxies(ctx, t, c, d.Pid(), []expProxyCfg{
+		{"tcp", "0.0.0.0", "8080", ctrName, netName4, true, "80"},
+		{"tcp", "::", "8080", ctrName, netName4, true, "80"},
+	})
+
+	// Connect the dual-stack network, it should become the gateway for v6 and v4.
+	err = c.NetworkConnect(ctx, netId46, ctrId, nil)
+	assert.NilError(t, err)
+	checkProxies(ctx, t, c, d.Pid(), []expProxyCfg{
+		{"tcp", "0.0.0.0", "8080", ctrName, netName46, true, "80"},
+		{"tcp", "::", "8080", ctrName, netName46, false, "80"},
+	})
+
+	// Go back to the IPv4-only gateway, with proxy from host IPv6.
+	err = c.NetworkDisconnect(ctx, netId46, ctrId, false)
+	assert.NilError(t, err)
+	checkProxies(ctx, t, c, d.Pid(), []expProxyCfg{
+		{"tcp", "0.0.0.0", "8080", ctrName, netName4, true, "80"},
+		{"tcp", "::", "8080", ctrName, netName4, true, "80"},
+	})
+
+	// Connect the IPv6-only ipvlan network, its new Endpoint should become the IPv6
+	// gateway, so the IPv4-only bridge is expected to drop its mapping from host IPv6.
+	err = c.NetworkConnect(ctx, netIdIpvlan6, ctrId, nil)
+	assert.NilError(t, err)
+	checkProxies(ctx, t, c, d.Pid(), []expProxyCfg{
+		{"tcp", "0.0.0.0", "8080", ctrName, netName4, true, "80"},
+	})
+}
+
+func checkProxies(ctx context.Context, t *testing.T, c *client.Client, daemonPid int, exp []expProxyCfg) {
+	t.Helper()
+	makeExpStr := func(proto, hostIP, hostPort, ctrIP, ctrPort string) string {
+		return fmt.Sprintf("%s:%s/%s <-> %s:%s", hostIP, hostPort, proto, ctrIP, ctrPort)
+	}
+
+	wantProxies := make([]string, len(exp))
+	for _, e := range exp {
+		inspect := container.Inspect(ctx, t, c, e.ctrName)
+		nw := inspect.NetworkSettings.Networks[e.ctrNetName]
+		ctrIP := nw.GlobalIPv6Address
+		if e.ctrIPv4 {
+			ctrIP = nw.IPAddress
+		}
+		wantProxies = append(wantProxies, makeExpStr(e.proto, e.hostIP, e.hostPort, ctrIP, e.ctrPort))
+	}
+
+	gotProxies := make([]string, len(exp))
+	res, err := exec.Command("ps", "-f", "--ppid", strconv.Itoa(daemonPid)).CombinedOutput()
+	assert.NilError(t, err)
+	for _, line := range strings.Split(string(res), "\n") {
+		_, args, ok := strings.Cut(line, "docker-proxy")
+		if !ok {
+			continue
+		}
+		var proto, hostIP, hostPort, ctrIP, ctrPort string
+		var useListenFd bool
+		fs := flag.NewFlagSet("docker-proxy", flag.ContinueOnError)
+		fs.StringVar(&proto, "proto", "", "Protocol")
+		fs.StringVar(&hostIP, "host-ip", "", "Host IP")
+		fs.StringVar(&hostPort, "host-port", "", "Host Port")
+		fs.StringVar(&ctrIP, "container-ip", "", "Container IP")
+		fs.StringVar(&ctrPort, "container-port", "", "Container Port")
+		fs.BoolVar(&useListenFd, "use-listen-fd", false, "Use listen fd")
+		fs.Parse(strings.Split(strings.TrimSpace(args), " "))
+		gotProxies = append(gotProxies, makeExpStr(proto, hostIP, hostPort, ctrIP, ctrPort))
+	}
+
+	assert.DeepEqual(t, gotProxies, wantProxies)
 }
