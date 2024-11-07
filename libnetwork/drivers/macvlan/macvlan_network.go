@@ -121,8 +121,7 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 		}
 	} else {
 		// Check and mark this network if the interface was created for another network
-		networkList := d.getNetworks()
-		for _, testN := range networkList {
+		for _, testN := range d.getNetworks() {
 			if config.Parent == testN.config.Parent && testN.config.CreatedSlaveLink {
 				config.CreatedSlaveLink = true
 				break
@@ -130,14 +129,12 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 		}
 	}
 	if !foundExisting {
-		n := &network{
+		d.addNetwork(&network{
 			id:        config.ID,
 			driver:    d,
 			endpoints: endpointTable{},
 			config:    config,
-		}
-		// add the network
-		d.addNetwork(n)
+		})
 	}
 
 	return foundExisting, nil
