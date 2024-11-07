@@ -25,7 +25,7 @@ import (
 	wlabel "github.com/docker/docker/builder/builder-next/worker/label"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/graphdriver"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/cache/remotecache"

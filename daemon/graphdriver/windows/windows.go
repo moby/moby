@@ -33,7 +33,7 @@ import (
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
 )
