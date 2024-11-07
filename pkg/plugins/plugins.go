@@ -322,8 +322,8 @@ func (l *LocalRegistry) GetAll(imp string) ([]*Plugin, error) {
 		wg.Add(1)
 		go func(name string) {
 			defer wg.Done()
-			pl, err := loadWithRetry(name, false)
-			chPl <- &plLoad{pl, err}
+			plg, err := loadWithRetry(name, false)
+			chPl <- &plLoad{plg, err}
 		}(name)
 	}
 
