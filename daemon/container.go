@@ -23,6 +23,7 @@ import (
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/sys/signal"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 )
@@ -119,7 +120,7 @@ func (daemon *Daemon) register(ctx context.Context, c *container.Container) erro
 	return c.CheckpointTo(ctx, daemon.containersReplica)
 }
 
-func (daemon *Daemon) newContainer(name string, operatingSystem string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
+func (daemon *Daemon) newContainer(name string, platform ocispec.Platform, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
 	var (
 		id  string
 		err error
@@ -153,8 +154,9 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 	base.NetworkSettings = &network.Settings{}
 	base.Name = name
 	base.Driver = daemon.imageService.StorageDriver()
-	base.OS = operatingSystem
-	return base, nil
+	base.ImagePlatform = platform
+	base.OS = platform.OS //nolint:staticcheck // ignore SA1019: field is deprecated, but still set for compatibility
+	return base, err
 }
 
 // GetByName returns a container given a name.

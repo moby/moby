@@ -151,7 +151,7 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 	if c.Config == nil {
 		c.Config = container.Config
 	}
-	newConfig, err := dockerfile.BuildFromConfig(ctx, c.Config, c.Changes, container.OS)
+	newConfig, err := dockerfile.BuildFromConfig(ctx, c.Config, c.Changes, container.ImagePlatform.OS)
 	if err != nil {
 		return "", err
 	}
@@ -166,7 +166,7 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 		ContainerConfig:     container.Config,
 		ContainerID:         container.ID,
 		ContainerMountLabel: container.MountLabel,
-		ContainerOS:         container.OS,
+		ContainerOS:         container.ImagePlatform.OS,
 		ParentImageID:       string(container.ImageID),
 	})
 	if err != nil {
