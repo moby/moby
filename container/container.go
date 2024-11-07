@@ -15,6 +15,7 @@ import (
 
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/log"
+	"github.com/containerd/platforms"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	mounttypes "github.com/docker/docker/api/types/mount"
@@ -84,7 +85,11 @@ type Container struct {
 	LogPath         string
 	Name            string
 	Driver          string
-	OS              string
+
+	// Deprecated: use [ImagePlatform.OS] instead
+	OS string
+
+	ImagePlatform ocispec.Platform
 
 	RestartCount             int
 	HasBeenStartedBefore     bool
@@ -162,11 +167,17 @@ func (container *Container) FromDisk() error {
 		return err
 	}
 
-	// Ensure the operating system is set if blank. Assume it is the OS of the
-	// host OS if not, to ensure containers created before multiple-OS
-	// support are migrated
+	// Ensure the platform is set. Assume it is the host platform otherwise
+	// to ensure containers created before multiple-OS support are migrated.
 	if container.OS == "" {
-		container.OS = runtime.GOOS
+		container.ImagePlatform = platforms.DefaultSpec()
+		container.OS = container.ImagePlatform.OS
+	} else {
+		// OS was deprecated in favor of ImagePlatform
+		// Make sure we migrate the OS to ImagePlatform.OS.
+		if container.ImagePlatform.OS == "" {
+			container.ImagePlatform.OS = container.OS
+		}
 	}
 
 	return container.readHostConfig()
@@ -752,7 +763,7 @@ func getConfigTargetPath(r *swarmtypes.ConfigReference) string {
 // CreateDaemonEnvironment creates a new environment variable slice for this container.
 func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string) []string {
 	// Setup environment
-	ctrOS := container.OS
+	ctrOS := container.ImagePlatform.OS
 	if ctrOS == "" {
 		ctrOS = runtime.GOOS
 	}

@@ -145,7 +145,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 		Name:         container.Name,
 		RestartCount: container.RestartCount,
 		Driver:       container.Driver,
-		Platform:     container.OS,
+		Platform:     container.ImagePlatform.OS,
 		MountLabel:   container.MountLabel,
 		ProcessLabel: container.ProcessLabel,
 		ExecIDs:      container.GetExecIDs(),

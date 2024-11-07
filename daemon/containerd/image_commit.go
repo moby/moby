@@ -325,7 +325,7 @@ func (i *ImageService) CommitBuildStep(ctx context.Context, c backend.CommitConf
 		return "", fmt.Errorf("container not found: %s", c.ContainerID)
 	}
 	c.ContainerMountLabel = ctr.MountLabel
-	c.ContainerOS = ctr.OS
+	c.ContainerOS = ctr.ImagePlatform.OS
 	c.ParentImageID = string(ctr.ImageID)
 	return i.CommitImage(ctx, c)
 }
