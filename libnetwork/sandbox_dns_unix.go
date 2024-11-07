@@ -126,7 +126,11 @@ func (sb *Sandbox) buildHostsFile(ctx context.Context, ifaceIPs []netip.Addr) er
 		return err
 	}
 
-	// This is for the host mode networking
+	// This is for the host mode networking. If extra hosts are supplied, even though
+	// it's host-networking, the container's hosts file is not based on the host's -
+	// so that it's possible to override a hostname that's in the host's hosts file.
+	// See analysis of how this came about in:
+	// https://github.com/moby/moby/pull/48823#issuecomment-2461777129
 	if sb.config.useDefaultSandBox && len(sb.config.extraHosts) == 0 {
 		// We are working under the assumption that the origin file option had been properly expressed by the upper layer
 		// if not here we are going to error out
