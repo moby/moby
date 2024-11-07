@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
 	"strings"
 	"sync"
 
@@ -551,9 +552,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		}
 	}
 
-	if err := sb.updateHostsFile(ctx, ep.getEtcHostsAddrs()); err != nil {
-		return err
-	}
+	sb.addHostsEntries(ctx, ep.getEtcHostsAddrs())
 	if err := sb.updateDNS(n.enableIPv6); err != nil {
 		return err
 	}
@@ -940,7 +939,7 @@ func (ep *Endpoint) getSandbox() (*Sandbox, bool) {
 }
 
 // Return a list of this endpoint's addresses to add to '/etc/hosts'.
-func (ep *Endpoint) getEtcHostsAddrs() []string {
+func (ep *Endpoint) getEtcHostsAddrs() []netip.Addr {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
@@ -949,12 +948,16 @@ func (ep *Endpoint) getEtcHostsAddrs() []string {
 		return nil
 	}
 
-	var addresses []string
+	var addresses []netip.Addr
 	if ep.iface.addr != nil {
-		addresses = append(addresses, ep.iface.addr.IP.String())
+		if addr, ok := netip.AddrFromSlice(ep.iface.addr.IP); ok {
+			addresses = append(addresses, addr)
+		}
 	}
 	if ep.iface.addrv6 != nil {
-		addresses = append(addresses, ep.iface.addrv6.IP.String())
+		if addr, ok := netip.AddrFromSlice(ep.iface.addrv6.IP); ok {
+			addresses = append(addresses, addr)
+		}
 	}
 	return addresses
 }

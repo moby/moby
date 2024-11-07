@@ -4,6 +4,7 @@ package libnetwork
 
 import (
 	"context"
+	"net/netip"
 
 	"github.com/docker/docker/libnetwork/etchosts"
 )
@@ -18,7 +19,7 @@ func (sb *Sandbox) restoreHostsPath() {}
 
 func (sb *Sandbox) restoreResolvConfPath() {}
 
-func (sb *Sandbox) updateHostsFile(_ context.Context, ifaceIP []string) error {
+func (sb *Sandbox) addHostsEntries(_ context.Context, ifaceIP []netip.Addr) error {
 	return nil
 }
 

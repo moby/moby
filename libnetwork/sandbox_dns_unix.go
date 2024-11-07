@@ -46,13 +46,12 @@ func (sb *Sandbox) UpdateHostsEntry(regexp, ip string) error {
 // support for IPv6 can be determined and IPv6 hosts will be included/excluded
 // accordingly.
 func (sb *Sandbox) rebuildHostsFile(ctx context.Context) error {
-	if err := sb.buildHostsFile(); err != nil {
-		return errdefs.System(err)
-	}
+	var ifaceIPs []netip.Addr
 	for _, ep := range sb.Endpoints() {
-		if err := sb.updateHostsFile(ctx, ep.getEtcHostsAddrs()); err != nil {
-			return errdefs.System(err)
-		}
+		ifaceIPs = append(ifaceIPs, ep.getEtcHostsAddrs()...)
+	}
+	if err := sb.buildHostsFile(ctx, ifaceIPs); err != nil {
+		return errdefs.System(err)
 	}
 	return nil
 }
@@ -109,14 +108,17 @@ func (sb *Sandbox) setupResolutionFiles(ctx context.Context) error {
 	if err := createBasePath(dir); err != nil {
 		return err
 	}
-	if err := sb.buildHostsFile(); err != nil {
+	if err := sb.buildHostsFile(ctx, nil); err != nil {
 		return err
 	}
 
 	return sb.setupDNS()
 }
 
-func (sb *Sandbox) buildHostsFile() error {
+func (sb *Sandbox) buildHostsFile(ctx context.Context, ifaceIPs []netip.Addr) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.buildHostsFile")
+	defer span.End()
+
 	sb.restoreHostsPath()
 
 	dir, _ := filepath.Split(sb.config.hostsPath)
@@ -124,7 +126,11 @@ func (sb *Sandbox) buildHostsFile() error {
 		return err
 	}
 
-	// This is for the host mode networking
+	// This is for the host mode networking. If extra hosts are supplied, even though
+	// it's host-networking, the container's hosts file is not based on the host's -
+	// so that it's possible to override a hostname that's in the host's hosts file.
+	// See analysis of how this came about in:
+	// https://github.com/moby/moby/pull/48823#issuecomment-2461777129
 	if sb.config.useDefaultSandBox && len(sb.config.extraHosts) == 0 {
 		// We are working under the assumption that the origin file option had been properly expressed by the upper layer
 		// if not here we are going to error out
@@ -134,68 +140,61 @@ func (sb *Sandbox) buildHostsFile() error {
 		return nil
 	}
 
-	extraContent := make([]etchosts.Record, 0, len(sb.config.extraHosts))
-	for _, extraHost := range sb.config.extraHosts {
-		extraContent = append(extraContent, etchosts.Record{Hosts: extraHost.name, IP: extraHost.IP})
+	extraContent := make([]etchosts.Record, 0, len(sb.config.extraHosts)+len(ifaceIPs))
+	for _, host := range sb.config.extraHosts {
+		addr, err := netip.ParseAddr(host.IP)
+		if err != nil {
+			return errdefs.InvalidParameter(fmt.Errorf("could not parse extra host IP %s: %v", host.IP, err))
+		}
+		extraContent = append(extraContent, etchosts.Record{Hosts: host.name, IP: addr})
 	}
+	extraContent = append(extraContent, sb.makeHostsRecs(ifaceIPs)...)
 
 	// Assume IPv6 support, unless it's definitely disabled.
-	buildf := etchosts.Build
 	if en, ok := sb.IPv6Enabled(); ok && !en {
-		buildf = etchosts.BuildNoIPv6
+		return etchosts.BuildNoIPv6(sb.config.hostsPath, extraContent)
 	}
-	if err := buildf(sb.config.hostsPath, extraContent); err != nil {
-		return err
-	}
-
-	return nil
+	return etchosts.Build(sb.config.hostsPath, extraContent)
 }
 
-func (sb *Sandbox) updateHostsFile(ctx context.Context, ifaceIPs []string) error {
-	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.updateHostsFile")
-	defer span.End()
-
+func (sb *Sandbox) makeHostsRecs(ifaceIPs []netip.Addr) []etchosts.Record {
 	if len(ifaceIPs) == 0 {
-		return nil
-	}
-
-	if sb.config.originHostsPath != "" {
 		return nil
 	}
 
 	// User might have provided a FQDN in hostname or split it across hostname
 	// and domainname.  We want the FQDN and the bare hostname.
-	fqdn := sb.config.hostName
+	hosts := sb.config.hostName
 	if sb.config.domainName != "" {
-		fqdn += "." + sb.config.domainName
-	}
-	hosts := fqdn
-
-	if hostName, _, ok := strings.Cut(fqdn, "."); ok {
-		hosts += " " + hostName
+		hosts += "." + sb.config.domainName
 	}
 
-	var extraContent []etchosts.Record
+	if hn, _, ok := strings.Cut(hosts, "."); ok {
+		hosts += " " + hn
+	}
+
+	var recs []etchosts.Record
 	for _, ip := range ifaceIPs {
-		extraContent = append(extraContent, etchosts.Record{Hosts: hosts, IP: ip})
+		recs = append(recs, etchosts.Record{Hosts: hosts, IP: ip})
 	}
-
-	sb.addHostsEntries(extraContent)
-	return nil
+	return recs
 }
 
-func (sb *Sandbox) addHostsEntries(recs []etchosts.Record) {
+func (sb *Sandbox) addHostsEntries(ctx context.Context, ifaceAddrs []netip.Addr) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.addHostsEntries")
+	defer span.End()
+
 	// Assume IPv6 support, unless it's definitely disabled.
 	if en, ok := sb.IPv6Enabled(); ok && !en {
-		var filtered []etchosts.Record
-		for _, rec := range recs {
-			if addr, err := netip.ParseAddr(rec.IP); err == nil && !addr.Is6() {
-				filtered = append(filtered, rec)
+		var filtered []netip.Addr
+		for _, addr := range ifaceAddrs {
+			if !addr.Is6() {
+				filtered = append(filtered, addr)
 			}
 		}
-		recs = filtered
+		ifaceAddrs = filtered
 	}
-	if err := etchosts.Add(sb.config.hostsPath, recs); err != nil {
+	if err := etchosts.Add(sb.config.hostsPath, sb.makeHostsRecs(ifaceAddrs)); err != nil {
 		log.G(context.TODO()).Warnf("Failed adding service host entries to the running container: %v", err)
 	}
 }
