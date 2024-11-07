@@ -8,7 +8,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 )
 
 // ContainerTop handles `docker top` client requests.

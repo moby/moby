@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/moby/term"
 	"github.com/morikuni/aec"
 )

@@ -39,7 +39,7 @@ import (
 	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/userns"
 	"github.com/opencontainers/selinux/go-selinux/label"

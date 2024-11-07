@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/quota"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 )
