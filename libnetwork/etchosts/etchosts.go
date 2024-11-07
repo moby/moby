@@ -193,12 +193,15 @@ loop:
 // IP is new IP address
 // hostname is hostname to search for to replace IP
 func Update(path, IP, hostname string) error {
+	re, err := regexp.Compile(fmt.Sprintf(`(\S*)(\t%s)(\s|\.)`, regexp.QuoteMeta(hostname)))
+	if err != nil {
+		return err
+	}
 	defer pathLock(path)()
 
 	old, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	re := regexp.MustCompile(fmt.Sprintf("(\\S*)(\\t%s)(\\s|\\.)", regexp.QuoteMeta(hostname)))
 	return os.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2"+"$3")), 0o644)
 }
