@@ -133,19 +133,19 @@ func Add(path string, recs []Record) error {
 // is connected to two networks then disconnected from one of them, the hosts
 // entries for both networks are deleted.
 func Delete(path string, recs []Record) error {
-	defer pathLock(path)()
-
 	if len(recs) == 0 {
 		return nil
 	}
-	old, err := os.Open(path)
+	defer pathLock(path)()
+	f, err := os.OpenFile(path, os.O_RDWR, 0o644)
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 
 	var buf bytes.Buffer
 
-	s := bufio.NewScanner(old)
+	s := bufio.NewScanner(f)
 	eol := []byte{'\n'}
 loop:
 	for s.Scan() {
@@ -167,11 +167,14 @@ loop:
 		buf.Write(b)
 		buf.Write(eol)
 	}
-	old.Close()
 	if err := s.Err(); err != nil {
 		return err
 	}
-	return os.WriteFile(path, buf.Bytes(), 0o644)
+	if err := f.Truncate(0); err != nil {
+		return err
+	}
+	_, err = f.WriteAt(buf.Bytes(), 0)
+	return err
 }
 
 // Update all IP addresses where hostname matches.
