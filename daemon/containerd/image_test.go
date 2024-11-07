@@ -170,7 +170,7 @@ func TestLookup(t *testing.T) {
 	}
 
 	t.Run("fail-inconsistency", func(t *testing.T) {
-		service := &ImageService{
+		svc := &ImageService{
 			images: &mutateOnGetImageStore{
 				Store: service.images,
 				getMutations: []images.Image{
@@ -199,12 +199,12 @@ func TestLookup(t *testing.T) {
 			},
 		}
 
-		_, _, err := service.resolveAllReferences(ctx, "test/volatile:inconsistent")
+		_, _, err := svc.resolveAllReferences(ctx, "test/volatile:inconsistent")
 		assert.ErrorIs(t, err, errInconsistentData)
 	})
 
 	t.Run("retry-inconsistency", func(t *testing.T) {
-		service := &ImageService{
+		svc := &ImageService{
 			images: &mutateOnGetImageStore{
 				Store: service.images,
 				getMutations: []images.Image{
@@ -221,7 +221,7 @@ func TestLookup(t *testing.T) {
 			},
 		}
 
-		img, all, err := service.resolveAllReferences(ctx, "test/volatile:retried")
+		img, all, err := svc.resolveAllReferences(ctx, "test/volatile:retried")
 		assert.NilError(t, err)
 
 		assert.Assert(t, img != nil)

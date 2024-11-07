@@ -80,7 +80,7 @@ func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History,
 	}
 
 	if cache != nil {
-		dt, err := json.Marshal(cache.Data)
+		dt, err = json.Marshal(cache.Data)
 		if err != nil {
 			return nil, err
 		}

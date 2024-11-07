@@ -17,6 +17,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/go-connections/tlsconfig"
@@ -173,129 +174,127 @@ func TestDrainBody(t *testing.T) {
 }
 
 func TestSendBody(t *testing.T) {
-	var (
-		testcases = []struct {
-			url         string
-			contentType string
-			expected    bool
-		}{
-			{
-				contentType: "application/json",
-				expected:    true,
-			},
-			{
-				contentType: "Application/json",
-				expected:    true,
-			},
-			{
-				contentType: "application/JSON",
-				expected:    true,
-			},
-			{
-				contentType: "APPLICATION/JSON",
-				expected:    true,
-			},
-			{
-				contentType: "application/json; charset=utf-8",
-				expected:    true,
-			},
-			{
-				contentType: "application/json;charset=utf-8",
-				expected:    true,
-			},
-			{
-				contentType: "application/json; charset=UTF8",
-				expected:    true,
-			},
-			{
-				contentType: "application/json;charset=UTF8",
-				expected:    true,
-			},
-			{
-				contentType: "text/html",
-				expected:    false,
-			},
-			{
-				contentType: "",
-				expected:    false,
-			},
-			{
-				url:         "nothing.com/auth",
-				contentType: "",
-				expected:    false,
-			},
-			{
-				url:         "nothing.com/auth",
-				contentType: "application/json;charset=UTF8",
-				expected:    false,
-			},
-			{
-				url:         "nothing.com/auth?p1=test",
-				contentType: "application/json;charset=UTF8",
-				expected:    false,
-			},
-			{
-				url:         "nothing.com/test?p1=/auth",
-				contentType: "application/json;charset=UTF8",
-				expected:    true,
-			},
-			{
-				url:         "nothing.com/something/auth",
-				contentType: "application/json;charset=UTF8",
-				expected:    true,
-			},
-			{
-				url:         "nothing.com/auth/test",
-				contentType: "application/json;charset=UTF8",
-				expected:    false,
-			},
-			{
-				url:         "nothing.com/v1.24/auth/test",
-				contentType: "application/json;charset=UTF8",
-				expected:    false,
-			},
-			{
-				url:         "nothing.com/v1/auth/test",
-				contentType: "application/json;charset=UTF8",
-				expected:    false,
-			},
-			{
-				url:         "www.nothing.com/v1.24/auth/test",
-				contentType: "application/json;charset=UTF8",
-				expected:    false,
-			},
-			{
-				url:         "https://www.nothing.com/v1.24/auth/test",
-				contentType: "application/json;charset=UTF8",
-				expected:    false,
-			},
-			{
-				url:         "http://nothing.com/v1.24/auth/test",
-				contentType: "application/json;charset=UTF8",
-				expected:    false,
-			},
-			{
-				url:         "www.nothing.com/test?p1=/auth",
-				contentType: "application/json;charset=UTF8",
-				expected:    true,
-			},
-			{
-				url:         "http://www.nothing.com/test?p1=/auth",
-				contentType: "application/json;charset=UTF8",
-				expected:    true,
-			},
-			{
-				url:         "www.nothing.com/something/auth",
-				contentType: "application/json;charset=UTF8",
-				expected:    true,
-			},
-			{
-				url:         "https://www.nothing.com/something/auth",
-				contentType: "application/json;charset=UTF8",
-				expected:    true,
-			},
-		}
-	)
+	testcases := []struct {
+		url         string
+		contentType string
+		expected    bool
+	}{
+		{
+			contentType: "application/json",
+			expected:    true,
+		},
+		{
+			contentType: "Application/json",
+			expected:    true,
+		},
+		{
+			contentType: "application/JSON",
+			expected:    true,
+		},
+		{
+			contentType: "APPLICATION/JSON",
+			expected:    true,
+		},
+		{
+			contentType: "application/json; charset=utf-8",
+			expected:    true,
+		},
+		{
+			contentType: "application/json;charset=utf-8",
+			expected:    true,
+		},
+		{
+			contentType: "application/json; charset=UTF8",
+			expected:    true,
+		},
+		{
+			contentType: "application/json;charset=UTF8",
+			expected:    true,
+		},
+		{
+			contentType: "text/html",
+			expected:    false,
+		},
+		{
+			contentType: "",
+			expected:    false,
+		},
+		{
+			url:         "nothing.com/auth",
+			contentType: "",
+			expected:    false,
+		},
+		{
+			url:         "nothing.com/auth",
+			contentType: "application/json;charset=UTF8",
+			expected:    false,
+		},
+		{
+			url:         "nothing.com/auth?p1=test",
+			contentType: "application/json;charset=UTF8",
+			expected:    false,
+		},
+		{
+			url:         "nothing.com/test?p1=/auth",
+			contentType: "application/json;charset=UTF8",
+			expected:    true,
+		},
+		{
+			url:         "nothing.com/something/auth",
+			contentType: "application/json;charset=UTF8",
+			expected:    true,
+		},
+		{
+			url:         "nothing.com/auth/test",
+			contentType: "application/json;charset=UTF8",
+			expected:    false,
+		},
+		{
+			url:         "nothing.com/v1.24/auth/test",
+			contentType: "application/json;charset=UTF8",
+			expected:    false,
+		},
+		{
+			url:         "nothing.com/v1/auth/test",
+			contentType: "application/json;charset=UTF8",
+			expected:    false,
+		},
+		{
+			url:         "www.nothing.com/v1.24/auth/test",
+			contentType: "application/json;charset=UTF8",
+			expected:    false,
+		},
+		{
+			url:         "https://www.nothing.com/v1.24/auth/test",
+			contentType: "application/json;charset=UTF8",
+			expected:    false,
+		},
+		{
+			url:         "http://nothing.com/v1.24/auth/test",
+			contentType: "application/json;charset=UTF8",
+			expected:    false,
+		},
+		{
+			url:         "www.nothing.com/test?p1=/auth",
+			contentType: "application/json;charset=UTF8",
+			expected:    true,
+		},
+		{
+			url:         "http://www.nothing.com/test?p1=/auth",
+			contentType: "application/json;charset=UTF8",
+			expected:    true,
+		},
+		{
+			url:         "www.nothing.com/something/auth",
+			contentType: "application/json;charset=UTF8",
+			expected:    true,
+		},
+		{
+			url:         "https://www.nothing.com/something/auth",
+			contentType: "application/json;charset=UTF8",
+			expected:    true,
+		},
+	}
 
 	for _, testcase := range testcases {
 		header := http.Header{}
@@ -387,6 +386,8 @@ func (t *authZPluginTestServer) start() {
 		Config: &http.Server{
 			Handler: r,
 			Addr:    pluginAddress,
+
+			ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
 		},
 	}
 	t.server.Start()

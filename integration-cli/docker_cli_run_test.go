@@ -398,7 +398,7 @@ func (s *DockerCLIRunSuite) TestRunCreateVolumesInSymlinkDir(c *testing.T) {
 		c.Skip("Requires TEMP to point to C: drive")
 	}
 
-	f, err := os.OpenFile(filepath.Join(dir, "test"), os.O_CREATE, 0o700)
+	f, err := os.OpenFile(filepath.Join(dir, "test"), os.O_CREATE, 0o600)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -3046,7 +3046,7 @@ func (s *DockerCLIRunSuite) TestRunNetworkFilesBindMount(c *testing.T) {
 	filename := createTmpFile(c, expected)
 	defer os.Remove(filename)
 
-	// for user namespaced test runs, the temp file must be accessible to unprivileged root
+	// #nosec G302 -- for user namespaced test runs, the temp file must be accessible to unprivileged root
 	if err := os.Chmod(filename, 0o646); err != nil {
 		c.Fatalf("error modifying permissions of %s: %v", filename, err)
 	}
@@ -3068,7 +3068,7 @@ func (s *DockerCLIRunSuite) TestRunNetworkFilesBindMountRO(c *testing.T) {
 	filename := createTmpFile(c, "test123")
 	defer os.Remove(filename)
 
-	// for user namespaced test runs, the temp file must be accessible to unprivileged root
+	// #nosec G302 -- for user namespaced test runs, the temp file must be accessible to unprivileged root
 	if err := os.Chmod(filename, 0o646); err != nil {
 		c.Fatalf("error modifying permissions of %s: %v", filename, err)
 	}
@@ -3090,7 +3090,7 @@ func (s *DockerCLIRunSuite) TestRunNetworkFilesBindMountROFilesystem(c *testing.
 	filename := createTmpFile(c, "test123")
 	defer os.Remove(filename)
 
-	// for user namespaced test runs, the temp file must be accessible to unprivileged root
+	// #nosec G302 -- for user namespaced test runs, the temp file must be accessible to unprivileged root
 	if err := os.Chmod(filename, 0o646); err != nil {
 		c.Fatalf("error modifying permissions of %s: %v", filename, err)
 	}

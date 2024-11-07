@@ -375,13 +375,13 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img images.Image, 
 			return err
 		}
 		if len(children) > 0 {
-			img := images.Image{
+			_, err = i.images.Create(ctx, images.Image{
 				Name:      danglingImageName(img.Target.Digest),
 				Target:    img.Target,
 				CreatedAt: time.Now(),
 				Labels:    img.Labels,
-			}
-			if _, err = i.images.Create(ctx, img); err != nil && !cerrdefs.IsAlreadyExists(err) {
+			})
+			if err != nil && !cerrdefs.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create dangling image: %w", err)
 			}
 		}

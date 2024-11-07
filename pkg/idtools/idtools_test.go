@@ -7,7 +7,7 @@ import (
 )
 
 func TestCreateIDMapOrder(t *testing.T) {
-	subidRanges := ranges{
+	subidRanges := subIDRanges{
 		{100000, 1000},
 		{1000, 1},
 	}

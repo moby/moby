@@ -332,10 +332,11 @@ func TestConvertTmpfsOptions(t *testing.T) {
 	}
 	p := NewLinuxParser()
 	for _, tc := range cases {
-		data, err := p.ConvertTmpfsOptions(&tc.opt, tc.readOnly)
+		opt := tc.opt
+		data, err := p.ConvertTmpfsOptions(&opt, tc.readOnly)
 		if tc.err {
 			if err == nil {
-				t.Fatalf("expected error for %+v, got nil", tc.opt)
+				t.Fatalf("expected error for %+v, got nil", opt)
 			}
 			continue
 		}

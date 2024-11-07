@@ -555,11 +555,11 @@ func (pd *pushDescriptor) layerAlreadyExists(
 			break
 		}
 		meta := &candidates[i]
-		if _, exists := digestToMetadata[meta.Digest]; exists {
+		if _, ok := digestToMetadata[meta.Digest]; ok {
 			// keep reference just to the first mapping (the best mount candidate)
 			continue
 		}
-		if _, exists := pd.checkedDigests[meta.Digest]; exists {
+		if _, ok := pd.checkedDigests[meta.Digest]; ok {
 			// existence of this digest has already been tested
 			continue
 		}

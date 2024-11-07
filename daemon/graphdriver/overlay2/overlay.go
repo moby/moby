@@ -427,7 +427,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 func (d *Driver) parseStorageOpt(storageOpt map[string]string, driver *Driver) error {
 	// Read size to set the disk project quota per container
 	for key, val := range storageOpt {
-		key := strings.ToLower(key)
+		key = strings.ToLower(key)
 		switch key {
 		case "size":
 			size, err := units.RAMInBytes(val)

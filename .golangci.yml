@@ -83,6 +83,11 @@ linters-settings:
       - G307 # G307: Deferring unsafe method "*os.File" on type "Close" (also EXC0008); (TODO: evaluate these and fix where needed: G307: Deferring unsafe method "*os.File" on type "Close")
       - G504 # G504: Blocklisted import net/http/cgi: Go versions < 1.6.3 are vulnerable to Httpoxy attack: (CVE-2016-5386); (only affects go < 1.6.3)
 
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment # TODO: evaluate which ones should be updated.
+
   importas:
     # Do not allow unaliased imports of aliased packages.
     no-unaliased: true
@@ -131,6 +136,10 @@ issues:
     - path: _test\.go
       linters:
         - errcheck
+
+    - text: "G404: Use of weak random number generator"
+      path: _test\.go
+      linters:
         - gosec
 
     # Suppress golint complaining about generated types in api/types/
@@ -152,6 +161,14 @@ issues:
       source: "ctx[, ].*=.*\\(ctx[,)]"
       linters:
         - staticcheck
+
+    - text: '^shadow: declaration of "(ctx|err|ok)" shadows declaration'
+      linters:
+        - govet
+    - text: '^shadow: declaration of "(out)" shadows declaration'
+      path: _test\.go
+      linters:
+        - govet
 
   # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
   max-issues-per-linter: 0

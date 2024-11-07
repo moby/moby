@@ -22,11 +22,11 @@ type subIDRange struct {
 	Length int
 }
 
-type ranges []subIDRange
+type subIDRanges []subIDRange
 
-func (e ranges) Len() int           { return len(e) }
-func (e ranges) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
-func (e ranges) Less(i, j int) bool { return e[i].Start < e[j].Start }
+func (e subIDRanges) Len() int           { return len(e) }
+func (e subIDRanges) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
+func (e subIDRanges) Less(i, j int) bool { return e[i].Start < e[j].Start }
 
 const (
 	subuidFileName = "/etc/subuid"
@@ -162,7 +162,7 @@ func (i IdentityMapping) Empty() bool {
 	return len(i.UIDMaps) == 0 && len(i.GIDMaps) == 0
 }
 
-func createIDMap(subidRanges ranges) []IDMap {
+func createIDMap(subidRanges subIDRanges) []IDMap {
 	idMap := []IDMap{}
 
 	containerID := 0
@@ -177,19 +177,19 @@ func createIDMap(subidRanges ranges) []IDMap {
 	return idMap
 }
 
-func parseSubuid(username string) (ranges, error) {
+func parseSubuid(username string) (subIDRanges, error) {
 	return parseSubidFile(subuidFileName, username)
 }
 
-func parseSubgid(username string) (ranges, error) {
+func parseSubgid(username string) (subIDRanges, error) {
 	return parseSubidFile(subgidFileName, username)
 }
 
 // parseSubidFile will read the appropriate file (/etc/subuid or /etc/subgid)
-// and return all found ranges for a specified username. If the special value
-// "ALL" is supplied for username, then all ranges in the file will be returned
-func parseSubidFile(path, username string) (ranges, error) {
-	var rangeList ranges
+// and return all found subIDRanges for a specified username. If the special value
+// "ALL" is supplied for username, then all subIDRanges in the file will be returned
+func parseSubidFile(path, username string) (subIDRanges, error) {
+	var rangeList subIDRanges
 
 	subidFile, err := os.Open(path)
 	if err != nil {

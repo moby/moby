@@ -145,7 +145,7 @@ func findNextGIDRange() (int, error) {
 	return findNextRangeStart(ranges)
 }
 
-func findNextRangeStart(rangeList ranges) (int, error) {
+func findNextRangeStart(rangeList subIDRanges) (int, error) {
 	startID := defaultRangeStart
 	for _, arange := range rangeList {
 		if wouldOverlap(arange, startID) {

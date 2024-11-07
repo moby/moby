@@ -552,6 +552,8 @@ func renderSumForHeader(v Version, h *tar.Header, data []byte) (string, error) {
 		if err != nil {
 			return "", err
 		}
+
+		// #nosec G110 -- ignore "potential DoS vulnerability via decompression bomb"
 		if _, err = io.Copy(io.Discard, tr); err != nil {
 			return "", err
 		}

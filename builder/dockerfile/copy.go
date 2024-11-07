@@ -214,15 +214,15 @@ func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo,
 	}
 
 	// Deal with the single file case
-	copyInfo, err := copyInfoForFile(o.source, origPath)
+	info, err := copyInfoForFile(o.source, origPath)
 	switch {
 	case imageSource == nil && errors.Is(err, os.ErrNotExist):
 		return nil, errors.Wrapf(err, "file not found in build context or excluded by .dockerignore")
 	case err != nil:
 		return nil, err
-	case copyInfo.hash != "":
-		o.storeInPathCache(imageSource, origPath, copyInfo.hash)
-		return newCopyInfos(copyInfo), err
+	case info.hash != "":
+		o.storeInPathCache(imageSource, origPath, info.hash)
+		return newCopyInfos(info), err
 	}
 
 	// TODO: remove, handle dirs in Hash()

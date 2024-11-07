@@ -17,6 +17,8 @@ import (
 	refstore "github.com/docker/docker/reference"
 	registrypkg "github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestGetRepositoryMountCandidates(t *testing.T) {
@@ -414,9 +416,7 @@ func TestLayerAlreadyExists(t *testing.T) {
 		if exists != tc.expectedExists {
 			t.Errorf("[%s] got unexpected exists: %t != %t", tc.name, exists, tc.expectedExists)
 		}
-		if !reflect.DeepEqual(err, tc.expectedError) {
-			t.Errorf("[%s] got unexpected error: %#+v != %#+v", tc.name, err, tc.expectedError)
-		}
+		assert.Check(t, is.ErrorIs(err, tc.expectedError))
 
 		if len(repo.requests) != len(tc.expectedRequests) {
 			t.Errorf("[%s] got unexpected number of requests: %d != %d", tc.name, len(repo.requests), len(tc.expectedRequests))

@@ -143,19 +143,13 @@ func inspectMountPoint(name, destination string) (container.MountPoint, error) {
 		return container.MountPoint{}, err
 	}
 
-	var m *container.MountPoint
 	for _, c := range mp {
 		if c.Destination == destination {
-			m = &c
-			break
+			return c, nil
 		}
 	}
 
-	if m == nil {
-		return container.MountPoint{}, errMountNotFound
-	}
-
-	return *m, nil
+	return container.MountPoint{}, errMountNotFound
 }
 
 func getIDByName(c *testing.T, name string) string {
@@ -184,7 +178,7 @@ func writeFile(dst, content string, c *testing.T) {
 	c.Helper()
 	// Create subdirectories if necessary
 	assert.Assert(c, os.MkdirAll(path.Dir(dst), 0o700) == nil)
-	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o700)
+	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o600)
 	assert.NilError(c, err)
 	defer f.Close()
 	// Write content (truncate if it exists)
@@ -495,7 +489,7 @@ func loadSpecialImage(c *testing.T, imageFunc specialimage.SpecialImageFunc) str
 	out := cli.DockerCmd(c, "load", "-i", imgTar).Stdout()
 
 	for _, line := range strings.Split(out, "\n") {
-		line := strings.TrimSpace(line)
+		line = strings.TrimSpace(line)
 
 		if _, imageID, hasID := strings.Cut(line, "Loaded image ID: "); hasID {
 			return imageID

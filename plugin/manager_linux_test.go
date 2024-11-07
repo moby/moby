@@ -212,8 +212,7 @@ func TestPluginAlreadyRunningOnStartup(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			root := filepath.Join(root, desc)
-			config.Root = filepath.Join(root, "manager")
+			config.Root = filepath.Join(root, desc, "manager")
 			if err := os.MkdirAll(filepath.Join(config.Root, p.GetID()), 0o755); err != nil {
 				t.Fatal(err)
 			}

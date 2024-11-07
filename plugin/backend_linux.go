@@ -524,12 +524,12 @@ func (pm *Manager) getManifestDescriptor(ctx context.Context, p *v2.Plugin) (oci
 	}
 	logger.Info("Building a new plugin manifest")
 
-	manifest, err := buildManifest(ctx, pm.blobStore, p.Config, p.Blobsums)
+	mfst, err := buildManifest(ctx, pm.blobStore, p.Config, p.Blobsums)
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
 
-	desc, err := writeManifest(ctx, pm.blobStore, &manifest)
+	desc, err := writeManifest(ctx, pm.blobStore, &mfst)
 	if err != nil {
 		return desc, err
 	}
