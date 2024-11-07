@@ -674,9 +674,9 @@ func (n *Network) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := netMap["generic"]; ok {
 		n.generic = v.(map[string]any)
 		// Restore opts in their map[string]string form
-		if v, ok := n.generic[netlabel.GenericData]; ok {
+		if gv, ok := n.generic[netlabel.GenericData]; ok {
 			var lmap map[string]string
-			ba, err := json.Marshal(v)
+			ba, err := json.Marshal(gv)
 			if err != nil {
 				return err
 			}

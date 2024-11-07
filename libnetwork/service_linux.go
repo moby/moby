@@ -123,8 +123,8 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 
 		if sb.ingress {
 			var gwIP net.IP
-			if ep, _ := sb.getGatewayEndpoint(); ep != nil {
-				gwIP = ep.Iface().Address().IP
+			if gwEP, _ := sb.getGatewayEndpoint(); gwEP != nil {
+				gwIP = gwEP.Iface().Address().IP
 			}
 			if err := programIngress(gwIP, lb.service.ingressPorts, false); err != nil {
 				log.G(context.TODO()).Errorf("Failed to add ingress: %v", err)
@@ -144,19 +144,21 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 		}
 	}
 
-	d := &ipvs.Destination{
-		AddressFamily: nl.FAMILY_V4,
-		Address:       ip,
-		Weight:        1,
-	}
-	if n.loadBalancerMode == loadBalancerModeDSR {
-		d.ConnectionFlags = ipvs.ConnFwdDirectRoute
-	}
-
 	// Remove the sched name before using the service to add
 	// destination.
 	s.SchedName = ""
-	if err := i.NewDestination(s, d); err != nil && err != syscall.EEXIST {
+
+	var flags uint32
+	if n.loadBalancerMode == loadBalancerModeDSR {
+		flags = ipvs.ConnFwdDirectRoute
+	}
+	err = i.NewDestination(s, &ipvs.Destination{
+		AddressFamily:   nl.FAMILY_V4,
+		Address:         ip,
+		Weight:          1,
+		ConnectionFlags: flags,
+	})
+	if err != nil && err != syscall.EEXIST {
 		log.G(context.TODO()).Errorf("Failed to create real server %s for vip %s fwmark %d in sbox %.7s (%.7s): %v", ip, lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
 	}
 
