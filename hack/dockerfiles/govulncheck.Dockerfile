@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.23.2
+ARG GO_VERSION=1.23.3
 ARG GOVULNCHECK_VERSION=v1.1.3
 ARG FORMAT=text
 
