@@ -411,16 +411,13 @@ func (nDB *NetworkDB) reapTableEntries() {
 			}
 
 			params := strings.Split(string(path[1:]), "/")
-			nid := params[0]
-			tname := params[1]
-			key := params[2]
-
-			okTable, okNetwork := nDB.deleteEntry(nid, tname, key)
+			nwID, tName, key := params[0], params[1], params[2]
+			okTable, okNetwork := nDB.deleteEntry(nwID, tName, key)
 			if !okTable {
-				log.G(context.TODO()).Errorf("Table tree delete failed, entry with key:%s does not exist in the table:%s network:%s", key, tname, nid)
+				log.G(context.TODO()).Errorf("Table tree delete failed, entry with key:%s does not exist in the table:%s network:%s", key, tName, nwID)
 			}
 			if !okNetwork {
-				log.G(context.TODO()).Errorf("Network tree delete failed, entry with key:%s does not exist in the network:%s table:%s", key, nid, tname)
+				log.G(context.TODO()).Errorf("Network tree delete failed, entry with key:%s does not exist in the network:%s table:%s", key, nwID, tName)
 			}
 
 			return false
