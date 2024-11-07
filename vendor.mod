@@ -33,7 +33,7 @@ require (
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v0.2.1
-	github.com/containerd/typeurl/v2 v2.2.0
+	github.com/containerd/typeurl/v2 v2.2.3
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/cpuguy83/tar2go v0.3.1
 	github.com/creack/pty v1.1.21
