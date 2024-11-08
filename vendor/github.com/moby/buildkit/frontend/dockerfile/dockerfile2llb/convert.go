@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -606,8 +607,18 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		for d := range allReachable {
 			d.init()
 
-			if len(d.image.Config.OnBuild) > 0 {
-				if b, err := initOnBuildTriggers(d, d.image.Config.OnBuild, allDispatchStates); err != nil {
+			onbuilds := slices.Clone(d.image.Config.OnBuild)
+			if d.base != nil && !d.onBuildInit {
+				for _, cmd := range d.base.commands {
+					if obCmd, ok := cmd.Command.(*instructions.OnbuildCommand); ok {
+						onbuilds = append(onbuilds, obCmd.Expression)
+					}
+				}
+				d.onBuildInit = true
+			}
+
+			if len(onbuilds) > 0 {
+				if b, err := initOnBuildTriggers(d, onbuilds, allDispatchStates); err != nil {
 					return nil, parser.SetLocation(err, d.stage.Location)
 				} else if b {
 					newDeps = true
@@ -1002,18 +1013,19 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 }
 
 type dispatchState struct {
-	opt        dispatchOpt
-	state      llb.State
-	image      dockerspec.DockerOCIImage
-	platform   *ocispecs.Platform
-	stage      instructions.Stage
-	base       *dispatchState
-	baseImg    *dockerspec.DockerOCIImage // immutable, unlike image
-	dispatched bool
-	resolved   bool // resolved is set to true if base image has been resolved
-	deps       map[*dispatchState]instructions.Command
-	buildArgs  []instructions.KeyValuePairOptional
-	commands   []command
+	opt         dispatchOpt
+	state       llb.State
+	image       dockerspec.DockerOCIImage
+	platform    *ocispecs.Platform
+	stage       instructions.Stage
+	base        *dispatchState
+	baseImg     *dockerspec.DockerOCIImage // immutable, unlike image
+	dispatched  bool
+	resolved    bool // resolved is set to true if base image has been resolved
+	onBuildInit bool
+	deps        map[*dispatchState]instructions.Command
+	buildArgs   []instructions.KeyValuePairOptional
+	commands    []command
 	// ctxPaths marks the paths this dispatchState uses from the build context.
 	ctxPaths map[string]struct{}
 	// paths marks the paths that are used by this dispatchState.
