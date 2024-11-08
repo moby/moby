@@ -27,6 +27,7 @@ func (r *volumeRouter) Routes() []router.Route {
 func (r *volumeRouter) initRoutes() {
 	r.routes = []router.Route{
 		// GET
+		router.NewGetRoute("/volumes/{name:.*}/export", r.getVolumeExport),
 		router.NewGetRoute("/volumes", r.getVolumesList),
 		router.NewGetRoute("/volumes/{name:.*}", r.getVolumeByName),
 		// POST

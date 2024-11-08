@@ -208,3 +208,7 @@ func (v *volumeRouter) postVolumesPrune(ctx context.Context, w http.ResponseWrit
 	}
 	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
 }
+
+func (v *volumeRouter) getVolumeExport(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	return v.backend.Export(ctx, vars["name"], w)
+}

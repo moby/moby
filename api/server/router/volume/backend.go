@@ -2,6 +2,7 @@ package volume // import "github.com/docker/docker/api/server/router/volume"
 
 import (
 	"context"
+	"io"
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
@@ -16,6 +17,7 @@ type Backend interface {
 	Create(ctx context.Context, name, driverName string, opts ...opts.CreateOption) (*volume.Volume, error)
 	Remove(ctx context.Context, name string, opts ...opts.RemoveOption) error
 	Prune(ctx context.Context, pruneFilters filters.Args) (*volume.PruneReport, error)
+	Export(ctx context.Context, name string, out io.Writer) error
 }
 
 // ClusterBackend is the backend used for Swarm Cluster Volumes. Regular
