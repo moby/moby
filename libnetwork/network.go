@@ -17,7 +17,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/etchosts"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/internal/setmatrix"
 	"github.com/docker/docker/libnetwork/ipamapi"
@@ -1470,64 +1469,6 @@ func (n *Network) deleteSvcRecords(eID, name, serviceID string, epIPv4, epIPv6 n
 	if epIPv6 != nil {
 		delNameToIP(&sr.svcIPv6Map, name, serviceID, epIPv6)
 	}
-}
-
-func (n *Network) getSvcRecords(ep *Endpoint) []etchosts.Record {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-
-	if ep == nil {
-		return nil
-	}
-
-	var recs []etchosts.Record
-
-	epName := ep.Name()
-
-	n.ctrlr.mu.Lock()
-	defer n.ctrlr.mu.Unlock()
-	sr, ok := n.ctrlr.svcRecords[n.id]
-	if !ok {
-		return nil
-	}
-
-	for _, svcMap := range []*setmatrix.SetMatrix[svcMapEntry]{&sr.svcMap, &sr.svcIPv6Map} {
-		svcMapKeys := svcMap.Keys()
-		// Loop on service names on this network
-		for _, k := range svcMapKeys {
-			if strings.Split(k, ".")[0] == epName {
-				continue
-			}
-			// Get all the IPs associated to this service
-			mapEntryList, ok := svcMap.Get(k)
-			if !ok {
-				// The key got deleted
-				continue
-			}
-			if len(mapEntryList) == 0 {
-				log.G(context.TODO()).WithFields(log.Fields{
-					"service": k,
-					"net":     n.name,
-					"nid":     n.id,
-				}).Warn("Found empty list of IP addresses")
-				continue
-			}
-			addr, err := netip.ParseAddr(mapEntryList[0].ip)
-			if err != nil {
-				log.G(context.TODO()).WithFields(log.Fields{
-					"service": k,
-					"net":     n.name,
-					"nid":     n.id,
-					"addr":    mapEntryList[0].ip,
-				}).Warn("Bad IP address")
-				continue
-			}
-
-			recs = append(recs, etchosts.Record{Hosts: k, IP: addr})
-		}
-	}
-
-	return recs
 }
 
 func (n *Network) getController() *Controller {

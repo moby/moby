@@ -891,6 +891,10 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 		log.G(ctx).WithError(err).Warn("Failed to clean up resolver info on container disconnect")
 	}
 
+	// Capture the addresses that were added to the container's /etc/hosts here,
+	// before the endpoint is deleted, so that they can be removed from /etc/hosts.
+	etcHostsAddrs := ep.getEtcHostsAddrs()
+
 	if err := sb.clearNetworkResources(ep); err != nil {
 		log.G(ctx).WithError(err).Warn("Failed to clean up network resources on container disconnect")
 	}
@@ -922,7 +926,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 	//
 	// If the container is disconnected from 172.19.0.2, only remove
 	// the hosts entries with addresses on that network.
-	sb.deleteHostsEntries(n.getSvcRecords(ep))
+	sb.deleteHostsEntries(etcHostsAddrs)
 
 	if !sb.inDelete && sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
 		return sb.setupDefaultGW()
