@@ -30,6 +30,9 @@ func (c *containerRouter) getContainersByName(ctx context.Context, w http.Respon
 			}
 		}
 	}
+	if versions.LessThan(version, "1.48") {
+		ctr.ImagePlatform = nil
+	}
 
 	return httputils.WriteJSON(w, http.StatusOK, ctr)
 }

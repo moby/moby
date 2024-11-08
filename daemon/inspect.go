@@ -82,6 +82,7 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 		Mounts:            mountPoints,
 		Config:            ctr.Config,
 		NetworkSettings:   networkSettings,
+		ImagePlatform:     &ctr.ImagePlatform,
 	}, nil
 }
 

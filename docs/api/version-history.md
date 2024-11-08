@@ -34,6 +34,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   and will be omitted in API v1.49.
 * `Sysctls` in `HostConfig` (top level `--sysctl` settings) for `eth0` are
   no longer migrated to `DriverOpts`, as described in the changes for v1.46.
+* `GET /containers/{name}/json` now returns an `ImagePlatform` field describing
+  a platform of the image the container was created from.
 
 ## v1.47 API changes
 

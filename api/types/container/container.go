@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/storage"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // PruneReport contains the response for Engine API:
@@ -171,4 +172,5 @@ type InspectResponse struct {
 	Mounts          []MountPoint
 	Config          *Config
 	NetworkSettings *NetworkSettings
+	ImagePlatform   *ocispec.Platform `json:",omitempty"`
 }

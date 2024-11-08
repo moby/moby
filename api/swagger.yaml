@@ -7242,6 +7242,10 @@ paths:
                 type: "string"
               Platform:
                 type: "string"
+              ImagePlatform:
+                $ref: "#/definitions/OCIPlatform"
+                description: |
+                  OCI platform of the image the container was created from.
               MountLabel:
                 type: "string"
               ProcessLabel:
