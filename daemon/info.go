@@ -27,7 +27,7 @@ import (
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/registry"
-	metrics "github.com/docker/go-metrics"
+	"github.com/docker/go-metrics"
 	"github.com/opencontainers/selinux/go-selinux"
 )
 

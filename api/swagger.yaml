@@ -7266,6 +7266,14 @@ paths:
                 type: "string"
               Platform:
                 type: "string"
+              ImageManifestDescriptor:
+                $ref: "#/definitions/OCIDescriptor"
+                description: |
+                  OCI descriptor of the platform-specific manifest of the image
+                  the container was created from.
+
+                  Note: Only available if the daemon provides a multi-platform
+                  image store.
               MountLabel:
                 type: "string"
               ProcessLabel:
