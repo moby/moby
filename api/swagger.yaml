@@ -7242,6 +7242,8 @@ paths:
                 type: "string"
               Platform:
                 type: "string"
+                description: |
+                    > **Deprecated**: This field is deprecated, use `ImagePlatform.OS` instead.
               ImagePlatform:
                 $ref: "#/definitions/OCIPlatform"
                 description: |

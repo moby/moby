@@ -141,20 +141,21 @@ type Summary struct {
 // held fields that were added in API 1.19 and up. Given that the minimum
 // supported API version is now 1.24, we no longer use the separate type.
 type ContainerJSONBase struct {
-	ID              string `json:"Id"`
-	Created         string
-	Path            string
-	Args            []string
-	State           *State
-	Image           string
-	ResolvConfPath  string
-	HostnamePath    string
-	HostsPath       string
-	LogPath         string
-	Name            string
-	RestartCount    int
-	Driver          string
-	Platform        string
+	ID             string `json:"Id"`
+	Created        string
+	Path           string
+	Args           []string
+	State          *State
+	Image          string
+	ResolvConfPath string
+	HostnamePath   string
+	HostsPath      string
+	LogPath        string
+	Name           string
+	RestartCount   int
+	Driver         string
+	// Deprecated: Use [ImagePlatform.OS] instead.
+	Platform        string `json:",omitempty"`
 	MountLabel      string
 	ProcessLabel    string
 	AppArmorProfile string

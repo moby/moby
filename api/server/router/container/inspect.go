@@ -32,6 +32,8 @@ func (c *containerRouter) getContainersByName(ctx context.Context, w http.Respon
 	}
 	if versions.LessThan(version, "1.48") {
 		ctr.ImagePlatform = nil
+	} else {
+		ctr.Platform = "" //nolint:staticcheck // ignore SA1019: field is deprecated
 	}
 
 	return httputils.WriteJSON(w, http.StatusOK, ctr)

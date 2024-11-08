@@ -36,6 +36,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   no longer migrated to `DriverOpts`, as described in the changes for v1.46.
 * `GET /containers/{name}/json` now returns an `ImagePlatform` field describing
   a platform of the image the container was created from.
+* Deprecated: `Platform` property returned in `GET /containers/{name}/json` is
+  now deprecated in favor of `ImagePlatform.OS`.
 
 ## v1.47 API changes
 

@@ -146,7 +146,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 		Name:         container.Name,
 		RestartCount: container.RestartCount,
 		Driver:       container.Driver,
-		Platform:     container.ImagePlatform.OS,
+		Platform:     container.ImagePlatform.OS, //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.48.
 		MountLabel:   container.MountLabel,
 		ProcessLabel: container.ProcessLabel,
 		ExecIDs:      container.GetExecIDs(),
