@@ -495,6 +495,8 @@ func (xd *Extension) unmarshalOptions(b []byte) {
 			switch num {
 			case genid.FieldOptions_Packed_field_number:
 				xd.L1.EditionFeatures.IsPacked = protowire.DecodeBool(v)
+			case genid.FieldOptions_Lazy_field_number:
+				xd.L1.IsLazy = protowire.DecodeBool(v)
 			}
 		case protowire.BytesType:
 			v, m := protowire.ConsumeBytes(b)
@@ -534,7 +536,7 @@ func (sd *Service) unmarshalSeed(b []byte, sb *strs.Builder, pf *File, pd protor
 }
 
 var nameBuilderPool = sync.Pool{
-	New: func() interface{} { return new(strs.Builder) },
+	New: func() any { return new(strs.Builder) },
 }
 
 func getBuilder() *strs.Builder {

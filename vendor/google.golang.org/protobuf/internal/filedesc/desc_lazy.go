@@ -45,6 +45,11 @@ func (file *File) resolveMessages() {
 			case protoreflect.MessageKind, protoreflect.GroupKind:
 				fd.L1.Message = file.resolveMessageDependency(fd.L1.Message, listFieldDeps, depIdx)
 				depIdx++
+				if fd.L1.Kind == protoreflect.GroupKind && (fd.IsMap() || fd.IsMapEntry()) {
+					// A map field might inherit delimited encoding from a file-wide default feature.
+					// But maps never actually use delimited encoding. (At least for now...)
+					fd.L1.Kind = protoreflect.MessageKind
+				}
 			}
 
 			// Default is resolved here since it depends on Enum being resolved.
@@ -499,6 +504,8 @@ func (fd *Field) unmarshalOptions(b []byte) {
 				fd.L1.EditionFeatures.IsPacked = protowire.DecodeBool(v)
 			case genid.FieldOptions_Weak_field_number:
 				fd.L1.IsWeak = protowire.DecodeBool(v)
+			case genid.FieldOptions_Lazy_field_number:
+				fd.L1.IsLazy = protowire.DecodeBool(v)
 			case FieldOptions_EnforceUTF8:
 				fd.L1.EditionFeatures.IsUTF8Validated = protowire.DecodeBool(v)
 			}

@@ -88,6 +88,10 @@ var (
 	// Close has been called.
 	ErrDecoderClosed = errors.New("decoder used after Close")
 
+	// ErrEncoderClosed will be returned if the Encoder was used after
+	// Close has been called.
+	ErrEncoderClosed = errors.New("encoder used after Close")
+
 	// ErrDecoderNilInput is returned when a nil Reader was provided
 	// and an operation other than Reset/DecodeAll/Close was attempted.
 	ErrDecoderNilInput = errors.New("nil input provided as reader")
