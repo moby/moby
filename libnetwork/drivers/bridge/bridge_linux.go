@@ -51,12 +51,13 @@ type (
 
 // configuration info for the "bridge" driver.
 type configuration struct {
-	EnableIPForwarding  bool
-	EnableIPTables      bool
-	EnableIP6Tables     bool
-	EnableUserlandProxy bool
-	UserlandProxyPath   string
-	Rootless            bool
+	EnableIPForwarding       bool
+	DisableFilterForwardDrop bool
+	EnableIPTables           bool
+	EnableIP6Tables          bool
+	EnableUserlandProxy      bool
+	UserlandProxyPath        string
+	Rootless                 bool
 }
 
 // networkConfiguration for network specific configuration
@@ -552,14 +553,6 @@ func (d *driver) configure(option map[string]interface{}) error {
 		}
 	}
 
-	if config.EnableIPForwarding {
-		err = setupIPForwarding(config.EnableIPTables, config.EnableIP6Tables)
-		if err != nil {
-			log.G(context.TODO()).Warn(err)
-			return err
-		}
-	}
-
 	if config.Rootless {
 		var err error
 		pdc, err = newPortDriverClient(context.TODO())
@@ -890,8 +883,6 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		bridgeSetup.queueStep(setupMTU)
 	}
 
-	enableIPv6Forwarding := config.EnableIPv6 && d.config.EnableIPForwarding
-
 	// Module br_netfilter needs to be loaded with net.bridge.bridge-nf-call-ip[6]tables
 	// enabled to implement icc=false, or DNAT when the userland-proxy is disabled.
 	enableBrNfCallIptables := !config.EnableICC || !d.config.EnableUserlandProxy
@@ -914,8 +905,17 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		// existing device.
 		{config.EnableIPv4 && bridgeAlreadyExists && !config.InhibitIPv4, setupVerifyAndReconcileIPv4},
 
-		// Enable IPv6 Forwarding
-		{enableIPv6Forwarding, setupIPv6Forwarding},
+		// Enable IP Forwarding
+		{config.EnableIPv4 && d.config.EnableIPForwarding,
+			func(*networkConfiguration, *bridgeInterface) error {
+				return setupIPv4Forwarding(d.config.EnableIPTables && !d.config.DisableFilterForwardDrop)
+			},
+		},
+		{config.EnableIPv6 && d.config.EnableIPForwarding,
+			func(*networkConfiguration, *bridgeInterface) error {
+				return setupIPv6Forwarding(d.config.EnableIP6Tables && !d.config.DisableFilterForwardDrop)
+			},
+		},
 
 		// Setup Loopback Addresses Routing
 		{!d.config.EnableUserlandProxy, setupLoopbackAddressesRouting},

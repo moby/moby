@@ -1,7 +1,8 @@
-package network
+package bridge
 
 import (
 	"context"
+	"fmt"
 	"net/netip"
 	"strings"
 	"testing"
@@ -12,14 +13,15 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
 func TestCreateWithMultiNetworks(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.44"), "requires API v1.44")
 
 	ctx := setupTest(t)
@@ -49,9 +51,6 @@ func TestCreateWithMultiNetworks(t *testing.T) {
 }
 
 func TestCreateWithIPv6DefaultsToULAPrefix(t *testing.T) {
-	// On Windows, network creation fails with this error message: Error response from daemon: this request is not supported by the 'windows' ipam driver
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
@@ -73,7 +72,6 @@ func TestCreateWithIPv6DefaultsToULAPrefix(t *testing.T) {
 }
 
 func TestCreateWithIPv6WithoutEnableIPv6Flag(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows") // d.Start fails on Windows with `protocol not available`
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
@@ -103,7 +101,6 @@ func TestCreateWithIPv6WithoutEnableIPv6Flag(t *testing.T) {
 // Check that it's possible to create IPv6 networks with a 64-bit ip-range,
 // in 64-bit and bigger subnets, with and without a gateway.
 func Test64BitIPRange(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "no bridge or IPv6 on Windows")
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
 
@@ -139,7 +136,6 @@ func Test64BitIPRange(t *testing.T) {
 // Demonstrate a limitation of the IP address allocator, it can't
 // allocate the last address in range that ends on a 64-bit boundary.
 func TestIPRangeAt64BitLimit(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "no bridge or IPv6 on Windows")
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
 
@@ -197,6 +193,126 @@ func TestIPRangeAt64BitLimit(t *testing.T) {
 			} else {
 				assert.NilError(t, err)
 			}
+		})
+	}
+}
+
+// TestFilterForwardPolicy tests that, if the daemon enables IP forwarding on the
+// host, it also sets the iptables filter-FORWARD policy to DROP (unless it's
+// told not to).
+func TestFilterForwardPolicy(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "rootless has its own netns")
+	ctx := setupTest(t)
+
+	// Set up a netns for each test to avoid sysctl and iptables pollution.
+	addr4 := netip.MustParseAddr("192.168.125.1")
+	addr6 := netip.MustParseAddr("fd76:c828:41f9::1")
+	l3 := networking.NewL3Segment(t, "test-ffp",
+		netip.PrefixFrom(addr4, 24),
+		netip.PrefixFrom(addr6, 64),
+	)
+	t.Cleanup(func() { l3.Destroy(t) })
+
+	testcases := []struct {
+		name           string
+		initForwarding string
+		daemonArgs     []string
+		expForwarding  string
+		expPolicy      string
+	}{
+		{
+			name:           "enable forwarding",
+			initForwarding: "0",
+			expForwarding:  "1",
+			expPolicy:      "DROP",
+		},
+		{
+			name:           "forwarding already enabled",
+			initForwarding: "1",
+			expForwarding:  "1",
+			expPolicy:      "ACCEPT",
+		},
+		{
+			name:           "no drop",
+			initForwarding: "0",
+			daemonArgs:     []string{"--ip-forward-no-drop"},
+			expForwarding:  "1",
+			expPolicy:      "ACCEPT",
+		},
+		{
+			name:           "no forwarding",
+			initForwarding: "0",
+			daemonArgs:     []string{"--ip-forward=false"},
+			expForwarding:  "0",
+			expPolicy:      "ACCEPT",
+		},
+	}
+
+	for i, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
+			// Create a netns for this test.
+			addr4, addr6 = addr4.Next(), addr6.Next()
+			hostname := fmt.Sprintf("docker%d", i)
+			l3.AddHost(t, hostname, hostname+"-host", "eth0",
+				netip.PrefixFrom(addr4, 24),
+				netip.PrefixFrom(addr6, 64),
+			)
+			host := l3.Hosts[hostname]
+
+			getFwdPolicy := func(cmd string) string {
+				t.Helper()
+				out := host.Run(t, cmd, "-S", "FORWARD")
+				if strings.HasPrefix(out, "-P FORWARD ACCEPT") {
+					return "ACCEPT"
+				}
+				if strings.HasPrefix(out, "-P FORWARD DROP") {
+					return "DROP"
+				}
+				t.Fatalf("Failed to determine %s FORWARD policy: %s", cmd, out)
+				return ""
+			}
+
+			type sysctls struct{ v4, v6def, v6all string }
+			getSysctls := func() sysctls {
+				t.Helper()
+				return sysctls{
+					host.Run(t, "sysctl", "-n", "net.ipv4.ip_forward")[:1],
+					host.Run(t, "sysctl", "-n", "net.ipv6.conf.default.forwarding")[:1],
+					host.Run(t, "sysctl", "-n", "net.ipv6.conf.all.forwarding")[:1],
+				}
+			}
+
+			// Initial settings for IP forwarding params.
+			host.Run(t, "sysctl", "-w", "net.ipv4.ip_forward="+tc.initForwarding)
+			host.Run(t, "sysctl", "-w", "net.ipv6.conf.all.forwarding="+tc.initForwarding)
+
+			// Start the daemon in its own network namespace.
+			var d *daemon.Daemon
+			host.Do(t, func() {
+				// Run without OTel because there's no routing from this netns for it - which
+				// means the daemon doesn't shut down cleanly, causing the test to fail.
+				d = daemon.New(t, daemon.WithEnvVars("OTEL_EXPORTER_OTLP_ENDPOINT="))
+				d.StartWithBusybox(ctx, t, tc.daemonArgs...)
+				t.Cleanup(func() { d.Stop(t) })
+			})
+			c := d.NewClientT(t)
+			t.Cleanup(func() { c.Close() })
+
+			// If necessary, the IPv4 policy should have been updated when the default bridge network was created.
+			assert.Check(t, is.Equal(getFwdPolicy("iptables"), tc.expPolicy))
+			// IPv6 policy should not have been updated yet.
+			assert.Check(t, is.Equal(getFwdPolicy("ip6tables"), "ACCEPT"))
+			assert.Check(t, is.Equal(getSysctls(), sysctls{tc.expForwarding, tc.initForwarding, tc.initForwarding}))
+
+			// If necessary, creating an IPv6 network should update the sysctls and policy.
+			const netName = "testnetffp"
+			network.CreateNoError(ctx, t, c, netName, network.WithIPv6())
+			t.Cleanup(func() { network.RemoveNoError(ctx, t, c, netName) })
+			assert.Check(t, is.Equal(getFwdPolicy("iptables"), tc.expPolicy))
+			assert.Check(t, is.Equal(getFwdPolicy("ip6tables"), tc.expPolicy))
+			assert.Check(t, is.Equal(getSysctls(), sysctls{tc.expForwarding, tc.expForwarding, tc.expForwarding}))
 		})
 	}
 }

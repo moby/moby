@@ -12,63 +12,106 @@ import (
 )
 
 const (
-	ipv4ForwardConf     = "/proc/sys/net/ipv4/ip_forward"
-	ipv4ForwardConfPerm = 0o644
+	ipv4ForwardConf        = "/proc/sys/net/ipv4/ip_forward"
+	ipv6ForwardConfDefault = "/proc/sys/net/ipv6/conf/default/forwarding"
+	ipv6ForwardConfAll     = "/proc/sys/net/ipv6/conf/all/forwarding"
 )
 
-func configureIPForwarding(enable bool) error {
-	var val byte
-	if enable {
-		val = '1'
+func setupIPv4Forwarding(wantFilterForwardDrop bool) (retErr error) {
+	changed, err := configureIPForwarding(ipv4ForwardConf, '1')
+	if err != nil {
+		return err
 	}
-	return os.WriteFile(ipv4ForwardConf, []byte{val, '\n'}, ipv4ForwardConfPerm)
+	if changed {
+		defer func() {
+			if retErr != nil {
+				if _, err := configureIPForwarding(ipv4ForwardConf, '0'); err != nil {
+					log.G(context.TODO()).WithError(err).Error("Cannot disable IPv4 forwarding")
+				}
+			}
+		}()
+	}
+
+	// When enabling ip_forward set the default policy on forward chain to drop.
+	if changed && wantFilterForwardDrop {
+		if err := setFilterForwardDrop(iptables.IPv4); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func setupIPForwarding(enableIPTables bool, enableIP6Tables bool) error {
-	// Get current IPv4 forward setup
-	ipv4ForwardData, err := os.ReadFile(ipv4ForwardConf)
+func setupIPv6Forwarding(wantFilterForwardDrop bool) (retErr error) {
+	// Set IPv6 default.forwarding, if needed.
+	// FIXME(robmry) - is it necessary to set this, setting "all" (below) does the job?
+	changedDef, err := configureIPForwarding(ipv6ForwardConfDefault, '1')
 	if err != nil {
-		return fmt.Errorf("Cannot read IP forwarding setup: %v", err)
+		return err
 	}
-
-	// Enable IPv4 forwarding only if it is not already enabled
-	if ipv4ForwardData[0] != '1' {
-		// Enable IPv4 forwarding
-		if err := configureIPForwarding(true); err != nil {
-			return fmt.Errorf("Enabling IP forwarding failed: %v", err)
-		}
-		// When enabling ip_forward set the default policy on forward chain to
-		// drop only if the daemon option iptables is not set to false.
-		if enableIPTables {
-			iptable := iptables.GetIptable(iptables.IPv4)
-			if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
-				if err := configureIPForwarding(false); err != nil {
-					log.G(context.TODO()).Errorf("Disabling IP forwarding failed, %v", err)
+	if changedDef {
+		defer func() {
+			if retErr != nil {
+				if _, err := configureIPForwarding(ipv6ForwardConfDefault, '0'); err != nil {
+					log.G(context.TODO()).WithError(err).Error("Cannot disable IPv6 default.forwarding")
 				}
-				return err
 			}
-			iptables.OnReloaded(func() {
-				log.G(context.TODO()).Debug("Setting the default DROP policy on firewall reload")
-				if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
-					log.G(context.TODO()).Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
+		}()
+	}
+
+	// Set IPv6 all.forwarding, if needed.
+	changedAll, err := configureIPForwarding(ipv6ForwardConfAll, '1')
+	if err != nil {
+		return err
+	}
+	if changedAll {
+		defer func() {
+			if retErr != nil {
+				if _, err := configureIPForwarding(ipv6ForwardConfAll, '0'); err != nil {
+					log.G(context.TODO()).WithError(err).Error("Cannot disable IPv6 all.forwarding")
 				}
-			})
+			}
+		}()
+	}
+
+	if (changedAll || changedDef) && wantFilterForwardDrop {
+		if err := setFilterForwardDrop(iptables.IPv6); err != nil {
+			return err
 		}
 	}
 
-	// add only iptables rules - forwarding is handled by setupIPv6Forwarding in setup_ipv6
-	if enableIP6Tables {
-		iptable := iptables.GetIptable(iptables.IPv6)
+	return nil
+}
+
+func configureIPForwarding(file string, val byte) (changed bool, _ error) {
+	data, err := os.ReadFile(file)
+	if err != nil || len(data) == 0 {
+		return false, fmt.Errorf("cannot read IP forwarding setup from '%s': %w", file, err)
+	}
+	if len(data) == 0 {
+		return false, fmt.Errorf("cannot read IP forwarding setup from '%s': 0 bytes", file)
+	}
+	if data[0] == val {
+		return false, nil
+	}
+	if err := os.WriteFile(file, []byte{val, '\n'}, 0o644); err != nil {
+		return false, fmt.Errorf("failed to set IP forwarding '%s' = '%c': %w", file, val, err)
+	}
+	return true, nil
+}
+
+func setFilterForwardDrop(ipv iptables.IPVersion) error {
+	iptable := iptables.GetIptable(ipv)
+	if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+		return err
+	}
+	iptables.OnReloaded(func() {
+		log.G(context.TODO()).WithFields(log.Fields{"ipv": ipv}).Debug("Setting the default DROP policy on firewall reload")
 		if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
-			log.G(context.TODO()).Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error": err,
+				"ipv":   ipv,
+			}).Warn("Failed to set the default DROP policy on firewall reload")
 		}
-		iptables.OnReloaded(func() {
-			log.G(context.TODO()).Debug("Setting the default DROP policy on firewall reload")
-			if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
-				log.G(context.TODO()).Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
-			}
-		})
-	}
-
+	})
 	return nil
 }

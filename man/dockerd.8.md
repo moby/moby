@@ -44,6 +44,7 @@ dockerd - Enable daemon mode
 [**--insecure-registry**[=*[]*]]
 [**--ip**[=*0.0.0.0*]]
 [**--ip-forward**[=**true**]]
+[**--ip-forward-no-drop**[=**true**]]
 [**--ip-masq**[=**true**]]
 [**--iptables**[=**true**]]
 [**--ipv6**]
@@ -289,10 +290,19 @@ unix://[/path/to/socket] to use.
   has no effect.
 
   This setting will also enable IPv6 forwarding if you have both
-  **--ip-forward=true** and **--fixed-cidr-v6** set. Note that this may reject
-  Router Advertisements and interfere with the host's existing IPv6
+  **--ip-forward=true** and an IPv6 enabled bridge network. Note that this
+  may reject Router Advertisements and interfere with the host's existing IPv6
   configuration. For more information, consult the documentation about
   "Advanced Networking - IPv6".
+
+**--ip-forward-no-drop**=**true**|**false**
+  When **false**, the default, if Docker enables IP forwarding itself (see
+  **--ip-forward**), and **--iptables** or **--ip6tables** are enabled, it
+  also sets the default policy for the FORWARD chain in the iptables or
+  ip6tables filter table to DROP.
+
+  When **true**, and when IP forwarding is already enabled, Docker does
+  not modify the default policy of the FORWARD chain.
 
 **--ip-masq**=**true**|**false**
   Enable IP masquerading for bridge's IP range. Default is **true**.

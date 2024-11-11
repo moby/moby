@@ -915,12 +915,13 @@ func setHostGatewayIP(controller *libnetwork.Controller, config *config.Config) 
 func driverOptions(config *config.Config) nwconfig.Option {
 	return nwconfig.OptionDriverConfig("bridge", options.Generic{
 		netlabel.GenericData: options.Generic{
-			"EnableIPForwarding":  config.BridgeConfig.EnableIPForward,
-			"EnableIPTables":      config.BridgeConfig.EnableIPTables,
-			"EnableIP6Tables":     config.BridgeConfig.EnableIP6Tables,
-			"EnableUserlandProxy": config.BridgeConfig.EnableUserlandProxy,
-			"UserlandProxyPath":   config.BridgeConfig.UserlandProxyPath,
-			"Rootless":            config.Rootless,
+			"EnableIPForwarding":       config.BridgeConfig.EnableIPForward,
+			"DisableFilterForwardDrop": config.BridgeConfig.DisableFilterForwardDrop,
+			"EnableIPTables":           config.BridgeConfig.EnableIPTables,
+			"EnableIP6Tables":          config.BridgeConfig.EnableIP6Tables,
+			"EnableUserlandProxy":      config.BridgeConfig.EnableUserlandProxy,
+			"UserlandProxyPath":        config.BridgeConfig.UserlandProxyPath,
+			"Rootless":                 config.Rootless,
 		},
 	})
 }
