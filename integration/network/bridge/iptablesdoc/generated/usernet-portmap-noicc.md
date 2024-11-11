@@ -111,7 +111,6 @@ And the corresponding nat table:
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 MASQUERADE  0    --  *      !bridge1  192.0.2.0/24         0.0.0.0/0           
     2        0     0 MASQUERADE  0    --  *      !docker0  172.17.0.0/16        0.0.0.0/0           
-    3        0     0 MASQUERADE  6    --  *      *       192.0.2.2            192.0.2.2            tcp dpt:80
     
     Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -132,7 +131,6 @@ And the corresponding nat table:
     -A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER
     -A POSTROUTING -s 192.0.2.0/24 ! -o bridge1 -j MASQUERADE
     -A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
-    -A POSTROUTING -s 192.0.2.2/32 -d 192.0.2.2/32 -p tcp -m tcp --dport 80 -j MASQUERADE
     -A DOCKER -i bridge1 -j RETURN
     -A DOCKER -i docker0 -j RETURN
     -A DOCKER ! -i bridge1 -p tcp -m tcp --dport 8080 -j DNAT --to-destination 192.0.2.2:80

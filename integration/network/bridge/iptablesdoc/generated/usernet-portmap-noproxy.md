@@ -138,6 +138,8 @@ Differences from [running with the proxy][0] are:
     [ProgramChain][1].
   - The "SKIP DNAT" RETURN rule for packets routed to the bridge is omitted from
     the DOCKER chain [setupIPTablesInternal][2].
+  - A MASQUERADE rule is added for packets sent from the container to one of its
+    own published ports on the host.
   - A MASQUERADE rule for packets from a LOCAL source address is included in
     POSTROUTING [setupIPTablesInternal][3].
   - In the DOCKER chain's DNAT rule, there's no destination bridge [setPerPortNAT][4].
