@@ -99,7 +99,7 @@ Service Setup
       -> 10.255.0.8:0                 Masq    1      0          0        
 
 
-    Here each of 10.255.0.x represents IP address of of container instance backending the service.
+    Here each of 10.255.0.x represents IP address of container instance backending the service.
 
 
 
