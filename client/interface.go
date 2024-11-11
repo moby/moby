@@ -34,6 +34,7 @@ type CommonAPIClient interface {
 	SecretAPIClient
 	SystemAPIClient
 	VolumeAPIClient
+	HubAPIClient
 	ClientVersion() string
 	DaemonHost() string
 	HTTPClient() *http.Client
@@ -102,8 +103,6 @@ type ImageAPIClient interface {
 	ImageRemove(ctx context.Context, image string, options image.RemoveOptions) ([]image.DeleteResponse, error)
 	ImageSave(ctx context.Context, images []string, opts image.SaveOptions) (io.ReadCloser, error)
 	ImageSearch(ctx context.Context, term string, options registry.SearchOptions) ([]registry.SearchResult, error)
-	ImageHubSearch(ctx context.Context, term string, options hub.SearchOptions) (hub.SearchResult, error)
-	ImageHubTags(ctx context.Context, image string, options hub.ImageOptions) (hub.ImageTags, error)
 	ImageTag(ctx context.Context, image, ref string) error
 	ImagesPrune(ctx context.Context, pruneFilter filters.Args) (image.PruneReport, error)
 }
@@ -202,4 +201,9 @@ type ConfigAPIClient interface {
 	ConfigRemove(ctx context.Context, id string) error
 	ConfigInspectWithRaw(ctx context.Context, name string) (swarm.Config, []byte, error)
 	ConfigUpdate(ctx context.Context, id string, version swarm.Version, config swarm.ConfigSpec) error
+}
+
+type HubAPIClient interface {
+	HubImageSearch(ctx context.Context, term string, options hub.SearchOptions) (hub.SearchResult, error)
+	HubImageTags(ctx context.Context, image string, options hub.ImageOptions) (hub.ImageTags, error)
 }

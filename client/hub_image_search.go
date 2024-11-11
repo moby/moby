@@ -10,12 +10,12 @@ import (
 	"github.com/docker/docker/errdefs"
 )
 
-func (cli *Client) ImageHubSearch(ctx context.Context, term string, options hub.SearchOptions) (hub.SearchResult, error) {
+func (cli *Client) HubImageSearch(ctx context.Context, term string, options hub.SearchOptions) (hub.SearchResult, error) {
 	var results hub.SearchResult
 	query := options.ToQuery(url.Values{
 		"query": {term},
 	})
-	resp, err := cli.tryImageHubSearch(ctx, query, "")
+	resp, err := cli.tryHubImageSearch(ctx, query, "")
 	defer ensureReaderClosed(resp)
 	if errdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
 		newAuthHeader, privilegeErr := options.PrivilegeFunc(ctx)
@@ -33,8 +33,8 @@ func (cli *Client) ImageHubSearch(ctx context.Context, term string, options hub.
 	return results, err
 }
 
-func (cli *Client) tryImageHubSearch(ctx context.Context, query url.Values, authToken string) (serverResponse, error) {
-	return cli.get(ctx, "/images/hub/search", query, http.Header{
+func (cli *Client) tryHubImageSearch(ctx context.Context, query url.Values, authToken string) (serverResponse, error) {
+	return cli.get(ctx, "/hub/image/search", query, http.Header{
 		"Authorization": {"Bearer " + authToken},
 	})
 }
