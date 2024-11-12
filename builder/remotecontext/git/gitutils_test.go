@@ -113,7 +113,6 @@ func TestParseRemoteURL(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			repo, err := parseRemoteURL(tc.url)
 			assert.NilError(t, err)
