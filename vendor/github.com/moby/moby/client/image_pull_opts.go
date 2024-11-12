@@ -19,6 +19,16 @@ type ImagePullOptions struct {
 	// For details, refer to [github.com/moby/moby/api/types/registry.RequestAuthConfig].
 	PrivilegeFunc func(context.Context) (string, error)
 
+	// ChallengeHandlerFunc is a function that a client can supply to handle
+	// challenges returned by the registry.
+	// If ChallengeHandlerFunc is not nil, the engine will not attempt to handle
+	// any challenges returned by the registry. Instead, the engine will return
+	// a 401 response to the client, including the WWW-Authenticate header, and
+	// the client will call ChallengeHandlerFunc to handle the challenge.
+	// This function returns the registry authentication header value (in base64
+	// encoded format).
+	ChallengeHandlerFunc func(context.Context, string) (string, error)
+
 	// Platforms selects the platforms to pull. Multiple platforms can be
 	// specified if the image ia a multi-platform image.
 	Platforms []ocispec.Platform

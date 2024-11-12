@@ -15,6 +15,7 @@ import (
 	"github.com/moby/moby/api/pkg/authconfig"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/builder/remotecontext"
+	"github.com/moby/moby/v2/daemon/containerd"
 	"github.com/moby/moby/v2/daemon/internal/compat"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/image"
@@ -103,8 +104,13 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		//
 		// TODO(thaJeztah): accept empty values but return an error when failing to decode.
 		authConfig, _ := authconfig.Decode(r.Header.Get(registry.AuthHeader))
+		var clientAuth bool
+		if versions.GreaterThanOrEqualTo(version, "1.48") {
+			clientAuth = httputils.BoolValueOrDefault(r, "clientAuth", false)
+		}
 		pullOptions := imagebackend.PullOptions{
 			AuthConfig:  authConfig,
+			ClientAuth:  clientAuth,
 			MetaHeaders: metaHeaders,
 			OutStream:   output,
 		}
@@ -112,6 +118,11 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 			pullOptions.Platforms = append(pullOptions.Platforms, *platform)
 		}
 		progressErr = ir.backend.PullImage(ctx, ref, pullOptions)
+		if wwwAuthErr, ok := progressErr.(*containerd.ErrAuthenticationChallenge); ok {
+			w.Header().Set("WWW-Authenticate", wwwAuthErr.WwwAuthenticate)
+			w.WriteHeader(401)
+			return errdefs.Unauthorized(wwwAuthErr)
+		}
 	} else { // import
 		src := r.Form.Get("fromSrc")
 
@@ -175,6 +186,11 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
+	var clientAuth bool
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.48") {
+		clientAuth = httputils.BoolValueOrDefault(r, "clientAuth", false)
+	}
+
 	// Handle the authConfig as a header, but ignore invalid AuthConfig
 	// to increase compatibility with the existing API.
 	//
@@ -224,6 +240,7 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 	}
 	pushOptions := imagebackend.PushOptions{
 		AuthConfig:  authConfig,
+		ClientAuth:  clientAuth,
 		MetaHeaders: metaHeaders,
 		OutStream:   output,
 	}
@@ -231,6 +248,12 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 		pushOptions.Platforms = append(pushOptions.Platforms, *platform)
 	}
 	if err := ir.backend.PushImage(ctx, ref, pushOptions); err != nil {
+		if wwwAuthErr, ok := err.(*containerd.ErrAuthenticationChallenge); ok {
+			w.Header().Set("WWW-Authenticate", wwwAuthErr.WwwAuthenticate)
+			w.WriteHeader(401)
+			return errdefs.Unauthorized(wwwAuthErr)
+		}
+
 		if !output.Flushed() {
 			return err
 		}
