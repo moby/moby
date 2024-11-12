@@ -628,7 +628,7 @@ func TestDisableIPv4(t *testing.T) {
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
-	testcases := []struct {
+	tests := []struct {
 		name       string
 		apiVersion string
 		expIPv4    bool
@@ -644,8 +644,7 @@ func TestDisableIPv4(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testcases {
-		tc := tc
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			c := d.NewClientT(t, client.WithVersion(tc.apiVersion))
 
