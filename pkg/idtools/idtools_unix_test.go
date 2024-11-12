@@ -185,7 +185,6 @@ func TestMkdirAllAndChownNewRelative(t *testing.T) {
 	const expectedUIDGID = 101
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.in, func(t *testing.T) {
 			for _, p := range tc.out {
 				_, err := os.Stat(p)
