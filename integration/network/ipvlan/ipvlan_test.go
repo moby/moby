@@ -464,7 +464,7 @@ func TestIpvlanIPAM(t *testing.T) {
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	testcases := []struct {
+	tests := []struct {
 		name       string
 		apiVersion string
 		enableIPv4 bool
@@ -495,8 +495,7 @@ func TestIpvlanIPAM(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testcases {
-		tc := tc
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 
@@ -582,7 +581,7 @@ func TestIPVlanDNS(t *testing.T) {
 
 	const netName = "ipvlan-dns-net"
 
-	testcases := []struct {
+	tests := []struct {
 		name     string
 		parent   string
 		internal bool
@@ -607,7 +606,7 @@ func TestIPVlanDNS(t *testing.T) {
 	}
 
 	for _, mode := range []string{"l2", "l3"} {
-		for _, tc := range testcases {
+		for _, tc := range tests {
 			name := fmt.Sprintf("Mode=%v/HasParent=%v/Internal=%v", mode, tc.parent != "", tc.internal)
 			t.Run(name, func(t *testing.T) {
 				ctx := testutil.StartSpan(ctx, t)
