@@ -1453,7 +1453,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 	destPath := prefix + slash + "foo"
 	notExistPath := prefix + slash + "notexist"
 
-	cases := []testCase{
+	tests := []testCase{
 		{
 			config: container.Config{
 				Image: "busybox",
@@ -1553,7 +1553,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 		tmpDir, err := os.MkdirTemp("", "test-mounts-api")
 		assert.NilError(c, err)
 		defer os.RemoveAll(tmpDir)
-		cases = append(cases, []testCase{
+		tests = append(tests, []testCase{
 			{
 				config: container.Config{
 					Image: "busybox",
@@ -1585,7 +1585,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 	}
 
 	if DaemonIsWindows() {
-		cases = append(cases, []testCase{
+		tests = append(tests, []testCase{
 			{
 				config: container.Config{
 					Image: "busybox",
@@ -1611,7 +1611,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 	}
 
 	if DaemonIsLinux() {
-		cases = append(cases, []testCase{
+		tests = append(tests, []testCase{
 			{
 				config: container.Config{
 					Image: "busybox",
@@ -1744,12 +1744,11 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 	defer apiClient.Close()
 
 	// TODO add checks for statuscode returned by API
-	for i, x := range cases {
-		x := x
+	for i, tc := range tests {
 		c.Run(fmt.Sprintf("case %d", i), func(c *testing.T) {
-			_, err = apiClient.ContainerCreate(testutil.GetContext(c), &x.config, &x.hostConfig, &network.NetworkingConfig{}, nil, "")
-			if len(x.msg) > 0 {
-				assert.ErrorContains(c, err, x.msg, "%v", cases[i].config)
+			_, err = apiClient.ContainerCreate(testutil.GetContext(c), &tc.config, &tc.hostConfig, &network.NetworkingConfig{}, nil, "")
+			if len(tc.msg) > 0 {
+				assert.ErrorContains(c, err, tc.msg, "%v", tests[i].config)
 			} else {
 				assert.NilError(c, err)
 			}
@@ -1814,7 +1813,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 		selinuxSharedLabel = "z"
 	}
 
-	cases := []testCase{
+	tests := []testCase{
 		// use literal strings here for `Type` instead of the defined constants in the volume package to keep this honest
 		// Validation of the actual `Mount` struct is done in another test is not needed here
 		{
@@ -1844,7 +1843,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 		tmpDir1, err := os.MkdirTemp("", "test-mounts-api-1")
 		assert.NilError(c, err)
 		defer os.RemoveAll(tmpDir1)
-		cases = append(cases, []testCase{
+		tests = append(tests, []testCase{
 			{
 				spec: mount.Mount{
 					Type:   "bind",
@@ -1871,7 +1870,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 			defer os.RemoveAll(tmpDir3)
 
 			if assert.Check(c, mountWrapper(c, tmpDir3, tmpDir3, "none", "bind,shared")) {
-				cases = append(cases, []testCase{
+				tests = append(tests, []testCase{
 					{
 						spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath},
 						expected: container.MountPoint{Type: "bind", RW: true, Destination: destPath, Source: tmpDir3},
@@ -1890,7 +1889,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 	}
 
 	if testEnv.DaemonInfo.OSType != "windows" { // Windows does not support volume populate
-		cases = append(cases, []testCase{
+		tests = append(tests, []testCase{
 			{
 				spec:     mount.Mount{Type: "volume", Target: destPath, VolumeOptions: &mount.VolumeOptions{NoCopy: true}},
 				expected: container.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
@@ -1912,13 +1911,12 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 
 	ctx := testutil.GetContext(c)
 	apiclient := testEnv.APIClient()
-	for i, x := range cases {
-		x := x
-		c.Run(fmt.Sprintf("%d config: %v", i, x.spec), func(c *testing.T) {
+	for i, tc := range tests {
+		c.Run(fmt.Sprintf("%d config: %v", i, tc.spec), func(c *testing.T) {
 			ctr, err := apiclient.ContainerCreate(
 				ctx,
 				&container.Config{Image: testImg},
-				&container.HostConfig{Mounts: []mount.Mount{x.spec}},
+				&container.HostConfig{Mounts: []mount.Mount{tc.spec}},
 				&network.NetworkingConfig{},
 				nil,
 				"")
@@ -1930,22 +1928,22 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 			assert.Assert(c, is.Len(mps, 1))
 			mountPoint := mps[0]
 
-			if x.expected.Source != "" {
-				assert.Check(c, is.Equal(x.expected.Source, mountPoint.Source))
+			if tc.expected.Source != "" {
+				assert.Check(c, is.Equal(tc.expected.Source, mountPoint.Source))
 			}
-			if x.expected.Name != "" {
-				assert.Check(c, is.Equal(x.expected.Name, mountPoint.Name))
+			if tc.expected.Name != "" {
+				assert.Check(c, is.Equal(tc.expected.Name, mountPoint.Name))
 			}
-			if x.expected.Driver != "" {
-				assert.Check(c, is.Equal(x.expected.Driver, mountPoint.Driver))
+			if tc.expected.Driver != "" {
+				assert.Check(c, is.Equal(tc.expected.Driver, mountPoint.Driver))
 			}
-			if x.expected.Propagation != "" {
-				assert.Check(c, is.Equal(x.expected.Propagation, mountPoint.Propagation))
+			if tc.expected.Propagation != "" {
+				assert.Check(c, is.Equal(tc.expected.Propagation, mountPoint.Propagation))
 			}
-			assert.Check(c, is.Equal(x.expected.RW, mountPoint.RW))
-			assert.Check(c, is.Equal(x.expected.Type, mountPoint.Type))
-			assert.Check(c, is.Equal(x.expected.Mode, mountPoint.Mode))
-			assert.Check(c, is.Equal(x.expected.Destination, mountPoint.Destination))
+			assert.Check(c, is.Equal(tc.expected.RW, mountPoint.RW))
+			assert.Check(c, is.Equal(tc.expected.Type, mountPoint.Type))
+			assert.Check(c, is.Equal(tc.expected.Mode, mountPoint.Mode))
+			assert.Check(c, is.Equal(tc.expected.Destination, mountPoint.Destination))
 
 			err = apiclient.ContainerStart(ctx, ctr.ID, container.StartOptions{})
 			assert.NilError(c, err)
@@ -1959,12 +1957,12 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 
 			switch {
 			// Named volumes still exist after the container is removed
-			case x.spec.Type == "volume" && len(x.spec.Source) > 0:
+			case tc.spec.Type == "volume" && len(tc.spec.Source) > 0:
 				_, err := apiclient.VolumeInspect(ctx, mountPoint.Name)
 				assert.NilError(c, err)
 
 			// Bind mounts are never removed with the container
-			case x.spec.Type == "bind":
+			case tc.spec.Type == "bind":
 
 			// anonymous volumes are removed
 			default:
