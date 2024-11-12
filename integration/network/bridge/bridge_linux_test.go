@@ -139,7 +139,7 @@ func TestIPRangeAt64BitLimit(t *testing.T) {
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
 
-	testcases := []struct {
+	tests := []struct {
 		name       string
 		subnet     string
 		ipRange    string
@@ -173,8 +173,7 @@ func TestIPRangeAt64BitLimit(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testcases {
-		tc := tc
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			const netName = "test64bl"
@@ -213,7 +212,7 @@ func TestFilterForwardPolicy(t *testing.T) {
 	)
 	t.Cleanup(func() { l3.Destroy(t) })
 
-	testcases := []struct {
+	tests := []struct {
 		name           string
 		initForwarding string
 		daemonArgs     []string
@@ -248,7 +247,7 @@ func TestFilterForwardPolicy(t *testing.T) {
 		},
 	}
 
-	for i, tc := range testcases {
+	for i, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 
