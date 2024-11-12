@@ -6200,7 +6200,6 @@ func (s *DockerCLIBuildSuite) TestBuildEmitsEvents(t *testing.T) {
 		{buildkit: false},
 		{buildkit: true},
 	} {
-		builder := builder
 		for _, tc := range []struct {
 			name  string
 			args  []string
@@ -6224,7 +6223,6 @@ func (s *DockerCLIBuildSuite) TestBuildEmitsEvents(t *testing.T) {
 				},
 			},
 		} {
-			tc := tc
 			t.Run(fmt.Sprintf("buildkit=%v/%s", builder.buildkit, tc.name), func(t *testing.T) {
 				skip.If(t, DaemonIsWindows, "Buildkit is not supported on Windows")
 

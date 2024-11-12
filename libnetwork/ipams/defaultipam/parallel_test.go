@@ -227,15 +227,14 @@ func release(t *testing.T, tctx *testContext, mode releaseMode, parallel int64) 
 	parallelExec := semaphore.NewWeighted(parallel)
 	ch := make(chan *net.IPNet, len(ipIndex))
 	group := new(errgroup.Group)
-	for index := range ipIndex {
-		index := index
+	for i := range ipIndex {
 		group.Go(func() error {
 			parallelExec.Acquire(context.Background(), 1)
-			err := tctx.a.ReleaseAddress(tctx.pid, tctx.ipList[index].IP)
+			err := tctx.a.ReleaseAddress(tctx.pid, tctx.ipList[i].IP)
 			if err != nil {
 				return fmt.Errorf("routine %d got %v", id, err)
 			}
-			ch <- tctx.ipList[index]
+			ch <- tctx.ipList[i]
 			parallelExec.Release(1)
 			return nil
 		})

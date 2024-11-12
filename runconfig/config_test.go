@@ -22,27 +22,26 @@ type f struct {
 
 func TestDecodeContainerConfig(t *testing.T) {
 	var (
-		fixtures []f
-		imgName  string
+		tests   []f
+		imgName string
 	)
 
 	// FIXME (thaJeztah): update fixtures for more current versions.
 	if runtime.GOOS != "windows" {
 		imgName = "ubuntu"
-		fixtures = []f{
+		tests = []f{
 			{"fixtures/unix/container_config_1_19.json", strslice.StrSlice{"bash"}},
 		}
 	} else {
 		imgName = "windows"
-		fixtures = []f{
+		tests = []f{
 			{"fixtures/windows/container_config_1_19.json", strslice.StrSlice{"cmd"}},
 		}
 	}
 
-	for _, f := range fixtures {
-		f := f
-		t.Run(f.file, func(t *testing.T) {
-			b, err := os.ReadFile(f.file)
+	for _, tc := range tests {
+		t.Run(tc.file, func(t *testing.T) {
+			b, err := os.ReadFile(tc.file)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -56,8 +55,8 @@ func TestDecodeContainerConfig(t *testing.T) {
 				t.Fatalf("Expected %s image, found %s", imgName, c.Image)
 			}
 
-			if len(c.Entrypoint) != len(f.entrypoint) {
-				t.Fatalf("Expected %v, found %v", f.entrypoint, c.Entrypoint)
+			if len(c.Entrypoint) != len(tc.entrypoint) {
+				t.Fatalf("Expected %v, found %v", tc.entrypoint, c.Entrypoint)
 			}
 
 			if h != nil && h.Memory != 1000 {

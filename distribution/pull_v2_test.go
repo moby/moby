@@ -286,9 +286,8 @@ func TestPullSchema2Config(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			var callCount atomic.Uint64
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				t.Logf("HTTP %s %s", r.Method, r.URL.Path)
@@ -297,7 +296,7 @@ func TestPullSchema2Config(t *testing.T) {
 				case r.Method == "GET" && r.URL.Path == "/v2":
 					w.WriteHeader(http.StatusOK)
 				case r.Method == "GET" && r.URL.Path == "/v2/docker.io/library/testremotename/blobs/"+expectedDigest.String():
-					tt.handler(int(callCount.Add(1)), w)
+					tc.handler(int(callCount.Add(1)), w)
 				default:
 					w.WriteHeader(http.StatusNotFound)
 				}
@@ -307,7 +306,7 @@ func TestPullSchema2Config(t *testing.T) {
 			p := testNewPuller(t, ts.URL)
 
 			config, err := p.pullSchema2Config(ctx, expectedDigest)
-			if tt.expectError == "" {
+			if tc.expectError == "" {
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -318,15 +317,15 @@ func TestPullSchema2Config(t *testing.T) {
 				}
 			} else {
 				if err == nil {
-					t.Fatalf("expected error to contain %q", tt.expectError)
+					t.Fatalf("expected error to contain %q", tc.expectError)
 				}
-				if !strings.Contains(err.Error(), tt.expectError) {
-					t.Fatalf("expected error=%q to contain %q", err, tt.expectError)
+				if !strings.Contains(err.Error(), tc.expectError) {
+					t.Fatalf("expected error=%q to contain %q", err, tc.expectError)
 				}
 			}
 
-			if cc := callCount.Load(); cc != tt.expectAttempts {
-				t.Fatalf("got callCount=%d but expected=%d", cc, tt.expectAttempts)
+			if cc := callCount.Load(); cc != tc.expectAttempts {
+				t.Fatalf("got callCount=%d but expected=%d", cc, tc.expectAttempts)
 			}
 		})
 	}

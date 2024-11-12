@@ -159,7 +159,6 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 	}
 
 	for _, img := range uniqueImages {
-		img := img
 		eg.Go(func() error {
 			image, allChainsIDs, err := i.imageSummary(egCtx, img, platformMatcher, opts, tagsByDigest)
 			if err != nil {

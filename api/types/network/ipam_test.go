@@ -8,7 +8,7 @@ import (
 )
 
 func TestNetworkWithInvalidIPAM(t *testing.T) {
-	testcases := []struct {
+	tests := []struct {
 		name           string
 		ipam           IPAM
 		ipv6           bool
@@ -123,8 +123,7 @@ func TestNetworkWithInvalidIPAM(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testcases {
-		tc := tc
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

@@ -1,5 +1,5 @@
 // FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.21 && linux
+//go:build go1.22 && linux
 
 package overlay
 
@@ -131,7 +131,6 @@ func (d *driver) peerDbNetworkWalk(nid string, f func(*peerKey, *peerEntry) bool
 
 	for pKeyStr, pEntry := range mp {
 		var pKey peerKey
-		pEntry := pEntry
 		if _, err := fmt.Sscan(pKeyStr, &pKey); err != nil {
 			log.G(context.TODO()).Warnf("Peer key scan on network %s failed: %v", nid, err)
 		}

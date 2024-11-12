@@ -287,7 +287,6 @@ func TestServiceUpdatePidsLimit(t *testing.T) {
 		service   swarmtypes.Service
 	)
 	for i, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			if i == 0 {

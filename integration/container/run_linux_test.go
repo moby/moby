@@ -338,7 +338,6 @@ func TestWorkingDirNormalization(t *testing.T) {
 		{name: "trailing slash", workdir: "/tmp/"},
 		{name: "no trailing slash", workdir: "/tmp"},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

@@ -2042,7 +2042,6 @@ func TestParallel(t *testing.T) {
 
 	var eg errgroup.Group
 	for i := first; i <= last; i++ {
-		i := i
 		eg.Go(func() error { return pt.Do(t, i) })
 	}
 	if err := eg.Wait(); err != nil {
@@ -2162,7 +2161,6 @@ func TestNullIpam(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.networkType, func(t *testing.T) {
 			_, err := controller.NewNetwork(tc.networkType, "tnet1-"+tc.networkType, "",
 				libnetwork.NetworkOptionEnableIPv4(true),

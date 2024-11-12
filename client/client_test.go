@@ -88,7 +88,6 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 
 	env.PatchAll(t, nil)
 	for _, tc := range testcases {
-		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			env.PatchAll(t, tc.envs)
 			client, err := NewClientWithOpts(FromEnv)
@@ -323,7 +322,6 @@ func TestNegotiateAPIVersion(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			opts := make([]Opt, 0)
 			if tc.clientVersion != "" {
@@ -478,7 +476,6 @@ func TestClientRedirect(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.httpMethod, func(t *testing.T) {
 			req, err := http.NewRequest(tc.httpMethod, "/redirectme", nil)
 			assert.Check(t, err)

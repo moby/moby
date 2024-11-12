@@ -128,10 +128,7 @@ func testOnlyAndOnlyStrict(t *testing.T, daemonPlatform platforms.MatchComparer,
 		indexTc := indexTc
 		idx := indexTc.index
 		for _, tc := range indexTc.tc {
-			tc := tc
-
 			for _, strict := range []bool{false, true} {
-				strict := strict
 				s := "non-strict"
 				if strict {
 					s = "strict"
@@ -156,7 +153,6 @@ func testOnlyAndOnlyStrict(t *testing.T, daemonPlatform platforms.MatchComparer,
 
 					var first *ocispec.Platform
 					for _, p := range idx {
-						p := p
 						if !pm.Match(p) {
 							continue
 						}

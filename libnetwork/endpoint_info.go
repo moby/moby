@@ -464,7 +464,6 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 	}
 	var StaticRoutes []*types.StaticRoute
 	for _, r := range tStaticRoute {
-		r := r
 		StaticRoutes = append(StaticRoutes, &r)
 	}
 	epj.StaticRoutes = StaticRoutes

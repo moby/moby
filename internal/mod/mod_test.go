@@ -58,15 +58,14 @@ dep	github.com/moby/buildkit	v0.10.7-0.20230306143919-70f2ad56d3e5	h1:JZvvWzulcn
 		},
 	}
 
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			bi, err := debug.ParseBuildInfo(tt.biContent)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			bi, err := debug.ParseBuildInfo(tc.biContent)
 			if err != nil {
 				t.Fatalf("failed to parse build info: %v", err)
 			}
-			if gotVersion := moduleVersion(tt.module, bi); gotVersion != tt.wantVersion {
-				t.Errorf("moduleVersion() = %v, want %v", gotVersion, tt.wantVersion)
+			if gotVersion := moduleVersion(tc.module, bi); gotVersion != tc.wantVersion {
+				t.Errorf("moduleVersion() = %v, want %v", gotVersion, tc.wantVersion)
 			}
 		})
 	}

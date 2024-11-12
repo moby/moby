@@ -105,7 +105,6 @@ func TestBackoff(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(fmt.Sprintf("retries: %v", tc.retries), func(t *testing.T) {
 			s := tc.expTimeOff * time.Second
 			if d := backoff(tc.retries); d != s {
@@ -129,7 +128,6 @@ func TestAbortRetry(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(fmt.Sprintf("duration: %v", tc.timeOff), func(t *testing.T) {
 			s := tc.timeOff * time.Second
 			if a := abort(time.Now(), s, 0); a != tc.expAbort {

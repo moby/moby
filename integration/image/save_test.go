@@ -133,7 +133,6 @@ func TestSaveOCI(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.image, func(t *testing.T) {
 			// Get information about the original image.
 			inspect, _, err := client.ImageInspectWithRaw(ctx, tc.image)

@@ -540,7 +540,6 @@ func TestGetBoolOrDefault(t *testing.T) {
 			expectedValue: false,
 		},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			a := NewArgs()
 

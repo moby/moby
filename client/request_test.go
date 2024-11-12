@@ -50,7 +50,6 @@ func TestSetHostHeader(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.host, func(t *testing.T) {
 			hostURL, err := ParseHostURL(tc.host)
 			assert.Check(t, err)

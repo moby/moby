@@ -760,7 +760,6 @@ func TestAddPortMappings(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
 

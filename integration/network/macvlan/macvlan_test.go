@@ -94,7 +94,6 @@ func TestDockerNetworkMacvlan(t *testing.T) {
 			test: testMacvlanExperimentalV4Only,
 		},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			testutil.StartSpan(ctx, t)
 
@@ -493,7 +492,6 @@ func TestMacvlanIPAM(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 

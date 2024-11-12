@@ -229,7 +229,6 @@ func TestVolCreateValidation(t *testing.T) {
 	}
 
 	for i, tc := range tests {
-		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			if tc.name == "" {
 				tc.name = "vol-" + strconv.Itoa(i)
@@ -313,7 +312,6 @@ func TestVolMountOpts(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			dev, opts, err := getMountOptions(&tc.opts, resolveIP)
 

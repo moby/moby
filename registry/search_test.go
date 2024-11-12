@@ -131,7 +131,6 @@ func TestSearchErrors(t *testing.T) {
 		},
 	}
 	for _, tc := range errorCases {
-		tc := tc
 		t.Run(tc.expectedError, func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if !tc.shouldReturnError {
@@ -394,7 +393,6 @@ func TestSearch(t *testing.T) {
 		},
 	}
 	for _, tc := range successCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-type", "application/json")

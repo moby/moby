@@ -142,7 +142,6 @@ func TestLookup(t *testing.T) {
 			all:    []images.Image{shortNameIsHashAlgorithm},
 		},
 	} {
-		tc := tc
 		t.Run(tc.lookup, func(t *testing.T) {
 			t.Parallel()
 			img, all, err := service.resolveAllReferences(ctx, tc.lookup)

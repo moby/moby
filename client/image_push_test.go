@@ -160,7 +160,6 @@ func TestImagePushWithoutErrors(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(fmt.Sprintf("%s,all-tags=%t", tc.reference, tc.all), func(t *testing.T) {
 			client := &Client{
 				client: newMockClient(func(req *http.Request) (*http.Response, error) {

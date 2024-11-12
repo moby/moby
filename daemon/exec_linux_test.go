@@ -62,7 +62,6 @@ func TestExecSetPlatformOptAppArmor(t *testing.T) {
 	// both give the same result.
 	for _, execPrivileged := range []bool{false, true} {
 		for _, tc := range tests {
-			tc := tc
 			doc := tc.doc
 			if !appArmorEnabled {
 				// no profile should be set if the host does not support AppArmor

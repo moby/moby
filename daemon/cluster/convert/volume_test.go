@@ -61,7 +61,6 @@ func TestVolumeAvailabilityFromGRPC(t *testing.T) {
 			expected: volumetypes.AvailabilityDrain,
 		},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			actual := volumeAvailabilityFromGRPC(tc.in)
 			assert.Equal(t, actual, tc.expected)
@@ -113,7 +112,6 @@ func TestAccessModeFromGRPC(t *testing.T) {
 			},
 		},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			out := accessModeFromGRPC(tc.in)
 			assert.DeepEqual(t, tc.expected, out)

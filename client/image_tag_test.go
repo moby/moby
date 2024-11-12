@@ -47,7 +47,6 @@ func TestImageTagInvalidSourceImageName(t *testing.T) {
 
 	invalidRepos := []string{"fo$z$", "Foo@3cc", "Foo$3", "Foo*3", "Fo^3", "Foo!3", "F)xcz(", "fo%asd", "aa/asdf$$^/aa"}
 	for _, repo := range invalidRepos {
-		repo := repo
 		t.Run("invalidRepo/"+repo, func(t *testing.T) {
 			t.Parallel()
 			err := client.ImageTag(ctx, "busybox", repo)
@@ -58,7 +57,6 @@ func TestImageTagInvalidSourceImageName(t *testing.T) {
 	longTag := testutil.GenerateRandomAlphaOnlyString(121)
 	invalidTags := []string{"repo:fo$z$", "repo:Foo@3cc", "repo:Foo$3", "repo:Foo*3", "repo:Fo^3", "repo:Foo!3", "repo:%goodbye", "repo:#hashtagit", "repo:F)xcz(", "repo:-foo", "repo:..", longTag}
 	for _, repotag := range invalidTags {
-		repotag := repotag
 		t.Run("invalidTag/"+repotag, func(t *testing.T) {
 			t.Parallel()
 			err := client.ImageTag(ctx, "busybox", repotag)

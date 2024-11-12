@@ -86,7 +86,6 @@ func BenchmarkImageList(b *testing.B) {
 	}
 
 	for _, count := range []int{10, 100, 1000} {
-		count := count
 		csDir := b.TempDir()
 
 		ctx := namespaces.WithNamespace(context.TODO(), "testing-"+strconv.Itoa(count))
@@ -96,16 +95,16 @@ func BenchmarkImageList(b *testing.B) {
 			overhead: 500 * time.Microsecond,
 		}
 
-		is := fakeImageService(b, ctx, cs)
+		imgSvc := fakeImageService(b, ctx, cs)
 
 		// Every generated image has a 10% chance to spawn up to 5 containers
 		const containerChance = 10
 		const maxContainerCount = 5
-		populateStore(ctx, is, csDir, count, containerChance, maxContainerCount)
+		populateStore(ctx, imgSvc, csDir, count, containerChance, maxContainerCount)
 
 		b.Run(strconv.Itoa(count)+"-images", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, err := is.Images(ctx, imagetypes.ListOptions{All: true})
+				_, err := imgSvc.Images(ctx, imagetypes.ListOptions{All: true})
 				assert.NilError(b, err)
 			}
 		})
@@ -303,7 +302,6 @@ func TestImageList(t *testing.T) {
 			},
 		},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := logtest.WithT(ctx, t)
 			service := fakeImageService(t, ctx, cs)

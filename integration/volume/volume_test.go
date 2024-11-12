@@ -199,7 +199,6 @@ func TestVolumesInvalidJSON(t *testing.T) {
 	endpoints := []string{"/volumes/create"}
 
 	for _, ep := range endpoints {
-		ep := ep
 		t.Run(ep[1:], func(t *testing.T) {
 			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)

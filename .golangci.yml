@@ -1,19 +1,20 @@
 linters:
   enable:
+    - copyloopvar   # Detects places where loop variables are copied.
     - depguard
-    - dupword         # Checks for duplicate words in the source code.
+    - dupword       # Detects duplicate words.
     - goimports
-    - gosec
+    - gosec         # Detects security problems.
     - gosimple
     - govet
     - forbidigo
     - importas
     - ineffassign
-    - misspell
-    - revive
+    - misspell      # Detects commonly misspelled English words in comments.
+    - revive        # Metalinter; drop-in replacement for golint.
     - staticcheck
     - typecheck
-    - unconvert
+    - unconvert     # Detects unnecessary type conversions.
     - unused
 
   disable:

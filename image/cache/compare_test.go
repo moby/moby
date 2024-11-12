@@ -192,7 +192,6 @@ func TestPlatformCompare(t *testing.T) {
 			expected: false,
 		},
 	} {
-		tc := tc
 		// OSVersion comparison is only performed by containerd platform
 		// matcher if built on Windows.
 		if (tc.image.OSVersion != "" || tc.builder.OSVersion != "") && runtime.GOOS != "windows" {

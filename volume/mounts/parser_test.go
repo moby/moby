@@ -48,7 +48,7 @@ func TestParseMountSpec(t *testing.T) {
 	}
 	defer os.RemoveAll(testDir)
 	parser := NewParser()
-	cases := []struct {
+	tests := []struct {
 		input    mount.Mount
 		expected MountPoint
 	}{
@@ -78,8 +78,7 @@ func TestParseMountSpec(t *testing.T) {
 		},
 	}
 
-	for _, tc := range cases {
-		tc := tc
+	for _, tc := range tests {
 		t.Run("", func(t *testing.T) {
 			mp, err := parser.ParseMountSpec(tc.input)
 			assert.NilError(t, err)

@@ -149,7 +149,6 @@ func TestUint32Value(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.value, func(t *testing.T) {
 			r, _ := http.NewRequest(http.MethodPost, "", nil)
 			r.Form = url.Values{}

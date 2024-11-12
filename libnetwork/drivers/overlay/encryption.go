@@ -679,7 +679,6 @@ func clearEncryptionStates() {
 		log.G(context.TODO()).Warnf("Failed to retrieve SA list for cleanup: %v", err)
 	}
 	for _, sp := range spList {
-		sp := sp
 		if sp.Mark != nil && sp.Mark.Value == spMark.Value {
 			if err := nlh.XfrmPolicyDel(&sp); err != nil {
 				log.G(context.TODO()).Warnf("Failed to delete stale SP %s: %v", sp, err)
@@ -689,7 +688,6 @@ func clearEncryptionStates() {
 		}
 	}
 	for _, sa := range saList {
-		sa := sa
 		if sa.Reqid == mark {
 			if err := nlh.XfrmStateDel(&sa); err != nil {
 				log.G(context.TODO()).Warnf("Failed to delete stale SA %s: %v", sa, err)

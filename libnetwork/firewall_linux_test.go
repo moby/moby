@@ -49,7 +49,6 @@ func TestUserChain(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(fmt.Sprintf("iptables=%v,insert=%v", tc.iptables, tc.insert), func(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
 			defer resetIptables(t)

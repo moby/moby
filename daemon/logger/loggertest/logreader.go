@@ -169,7 +169,7 @@ func (tr Reader) testTailEmptyLogs(t *testing.T, live bool) {
 	}
 	defer func() { assert.NilError(t, l.Close()) }()
 
-	for _, tt := range []struct {
+	for _, tc := range []struct {
 		name string
 		cfg  logger.ReadConfig
 	}{
@@ -180,8 +180,7 @@ func (tr Reader) testTailEmptyLogs(t *testing.T, live bool) {
 		{name: "Until", cfg: logger.ReadConfig{Until: time.Date(2100, time.January, 1, 1, 1, 1, 0, time.UTC)}},
 		{name: "SinceAndUntil", cfg: logger.ReadConfig{Since: time.Unix(1, 0), Until: time.Date(2100, time.January, 1, 1, 1, 1, 0, time.UTC)}},
 	} {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			lw := l.(logger.LogReader).ReadLogs(context.TODO(), logger.ReadConfig{})
 			defer lw.ConsumerGone()
@@ -198,7 +197,6 @@ func (tr Reader) TestFollow(t *testing.T) {
 	// Reader sends all logs and closes after logger is closed
 	// - Starting from empty log (like run)
 	for i, tail := range []int{-1, 0, 1, 42} {
-		i, tail := i, tail
 		t.Run(fmt.Sprintf("FromEmptyLog/Tail=%d", tail), func(t *testing.T) {
 			t.Parallel()
 			l := tr.Factory(t, logger.Info{

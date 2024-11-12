@@ -547,7 +547,6 @@ func TestValidateMinAPIVersion(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			err := ValidateMinAPIVersion(tc.input)
 			if tc.expectedErr != "" {
@@ -578,7 +577,6 @@ func TestConfigInvalidDNS(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			var cfg Config
 			err := json.Unmarshal([]byte(tc.input), &cfg)

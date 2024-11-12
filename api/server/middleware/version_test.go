@@ -56,7 +56,6 @@ func TestNewVersionMiddlewareValidation(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			_, err := NewVersionMiddleware("1.2.3", tc.defaultVersion, tc.minVersion)
 			if tc.expectedErr == "" {

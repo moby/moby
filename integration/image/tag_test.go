@@ -41,7 +41,6 @@ func TestTagValidPrefixedRepo(t *testing.T) {
 	validRepos := []string{"fooo/bar", "fooaa/test", "foooo:t", "HOSTNAME.DOMAIN.COM:443/foo/bar"}
 
 	for _, repo := range validRepos {
-		repo := repo
 		t.Run(repo, func(t *testing.T) {
 			t.Parallel()
 			err := client.ImageTag(ctx, "busybox", repo)
@@ -74,7 +73,6 @@ func TestTagOfficialNames(t *testing.T) {
 	}
 
 	for _, name := range names {
-		name := name
 		t.Run("tag from busybox to "+name, func(t *testing.T) {
 			err := client.ImageTag(ctx, "busybox", name+":latest")
 			assert.NilError(t, err)

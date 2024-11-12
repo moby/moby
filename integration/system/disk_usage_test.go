@@ -258,7 +258,6 @@ func TestDiskUsage(t *testing.T) {
 					},
 				},
 			} {
-				tc := tc
 				t.Run(tc.doc, func(t *testing.T) {
 					ctx := testutil.StartSpan(ctx, t)
 					// TODO: Run in parallel once https://github.com/moby/moby/pull/42560 is merged.

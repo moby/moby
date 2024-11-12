@@ -24,7 +24,7 @@ func TestWithSeccomp(t *testing.T) {
 		comment string
 	}
 
-	for _, x := range []expected{
+	for _, tc := range []expected{
 		{
 			comment: "unconfined seccompProfile runs unconfined",
 			daemon: &Daemon{
@@ -191,14 +191,13 @@ func TestWithSeccomp(t *testing.T) {
 			}(),
 		},
 	} {
-		x := x
-		t.Run(x.comment, func(t *testing.T) {
-			opts := WithSeccomp(x.daemon, x.c)
-			err := opts(nil, nil, nil, &x.inSpec)
+		t.Run(tc.comment, func(t *testing.T) {
+			opts := WithSeccomp(tc.daemon, tc.c)
+			err := opts(nil, nil, nil, &tc.inSpec)
 
-			assert.DeepEqual(t, x.inSpec, x.outSpec)
-			if x.err != "" {
-				assert.Error(t, err, x.err)
+			assert.DeepEqual(t, tc.inSpec, tc.outSpec)
+			if tc.err != "" {
+				assert.Error(t, err, tc.err)
 			} else {
 				assert.NilError(t, err)
 			}

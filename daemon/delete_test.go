@@ -68,7 +68,6 @@ func TestContainerDelete(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			c := tc.initContainer()
 			d, cleanup := newDaemonWithTmpRoot(t)
