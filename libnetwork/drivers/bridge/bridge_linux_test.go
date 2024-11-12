@@ -1076,7 +1076,6 @@ func TestValidateFixedCIDRV6(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			err := ValidateFixedCIDRV6(tc.input)
 			if tc.expectedErr == "" {
