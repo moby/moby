@@ -1,5 +1,6 @@
 linters:
   enable:
+    - copyloopvar   # Detects places where loop variables are copied.
     - depguard
     - dupword       # Detects duplicate words.
     - goimports
