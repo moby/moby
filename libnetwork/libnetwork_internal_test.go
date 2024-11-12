@@ -400,7 +400,6 @@ func TestUpdateSvcRecord(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
 			ctrlr, err := New(config.OptionDataDir(t.TempDir()))
