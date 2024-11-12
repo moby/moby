@@ -73,7 +73,7 @@ func TestPruneLexographicalOrder(t *testing.T) {
 
 	id := inspect.ID
 
-	var tags = []string{"h", "a", "j", "o", "s", "q", "w", "e", "r", "t"}
+	tags := []string{"h", "a", "j", "o", "s", "q", "w", "e", "r", "t"}
 	for _, tag := range tags {
 		err = apiClient.ImageTag(ctx, id, "busybox:"+tag)
 		assert.NilError(t, err)
@@ -190,7 +190,6 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 				},
 			},
 		} {
-			tc := tc
 			t.Run(env.name+"/"+tc.name, func(t *testing.T) {
 				ctx := testutil.StartSpan(ctx, t)
 				d := daemon.New(t)

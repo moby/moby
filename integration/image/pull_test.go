@@ -174,7 +174,6 @@ func TestImagePullNonExisting(t *testing.T) {
 		"library/asdfasdf",
 		"library/asdfasdf:latest",
 	} {
-		ref := ref
 		all := strings.Contains(ref, ":")
 		t.Run(ref, func(t *testing.T) {
 			t.Parallel()
