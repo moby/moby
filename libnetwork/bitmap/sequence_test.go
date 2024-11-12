@@ -1200,17 +1200,16 @@ func TestMarshalJSON(t *testing.T) {
 		t.Errorf("MarshalJSON() output differs from golden. Please add a new golden case to this test.")
 	}
 
-	for _, tt := range []struct {
+	for _, tc := range []struct {
 		name string
 		data []byte
 	}{
 		{name: "Live", data: marshaled},
 		{name: "Golden-v0", data: []byte(goldenV0)},
 	} {
-		tt := tt
-		t.Run("UnmarshalJSON="+tt.name, func(t *testing.T) {
+		t.Run("UnmarshalJSON="+tc.name, func(t *testing.T) {
 			hnd2 := New(0)
-			if err := hnd2.UnmarshalJSON(tt.data); err != nil {
+			if err := hnd2.UnmarshalJSON(tc.data); err != nil {
 				t.Errorf("UnmarshalJSON() err = %v", err)
 			}
 
