@@ -27,7 +27,7 @@ import (
 func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 	ctx := setupTest(t)
 
-	cases := []struct {
+	tests := []struct {
 		name                           string
 		dockerfile                     string
 		numberOfIntermediateContainers int
@@ -91,12 +91,11 @@ func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 	}
 
 	client := testEnv.APIClient()
-	for _, c := range cases {
-		c := c
-		t.Run(c.name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
-			dockerfile := []byte(c.dockerfile)
+			dockerfile := []byte(tc.dockerfile)
 
 			buff := bytes.NewBuffer(nil)
 			tw := tar.NewWriter(buff)
@@ -107,14 +106,14 @@ func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 			_, err := tw.Write(dockerfile)
 			assert.NilError(t, err)
 			assert.NilError(t, tw.Close())
-			resp, err := client.ImageBuild(ctx, buff, types.ImageBuildOptions{Remove: c.rm, ForceRemove: c.forceRm, NoCache: true})
+			resp, err := client.ImageBuild(ctx, buff, types.ImageBuildOptions{Remove: tc.rm, ForceRemove: tc.forceRm, NoCache: true})
 			assert.NilError(t, err)
 			defer resp.Body.Close()
 			filter, err := buildContainerIdsFilter(resp.Body)
 			assert.NilError(t, err)
 			remainingContainers, err := client.ContainerList(ctx, container.ListOptions{Filters: filter, All: true})
 			assert.NilError(t, err)
-			assert.Equal(t, c.numberOfIntermediateContainers, len(remainingContainers), "Expected %v remaining intermediate containers, got %v", c.numberOfIntermediateContainers, len(remainingContainers))
+			assert.Equal(t, tc.numberOfIntermediateContainers, len(remainingContainers), "Expected %v remaining intermediate containers, got %v", tc.numberOfIntermediateContainers, len(remainingContainers))
 		})
 	}
 }
@@ -612,7 +611,6 @@ func TestBuildWithEmptyDockerfile(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -740,7 +738,6 @@ func TestBuildEmitsImageCreateEvent(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	for _, builderVersion := range []types.BuilderVersion{types.BuilderV1, types.BuilderBuildKit} {
-		builderVersion := builderVersion
 		t.Run("v"+string(builderVersion), func(t *testing.T) {
 			if builderVersion == types.BuilderBuildKit {
 				skip.If(t, testEnv.UsingSnapshotter(),
