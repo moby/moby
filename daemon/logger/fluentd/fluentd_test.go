@@ -169,7 +169,6 @@ func TestValidateLogOptAddress(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc := tc
 		if len(tc.ports) == 0 {
 			tc.ports = map[string]int{"": tc.expected.port}
 		}
