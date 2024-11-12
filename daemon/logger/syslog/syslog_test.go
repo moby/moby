@@ -110,7 +110,6 @@ func TestValidateSyslogAddress(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc := tc
 		if tc.skipOn == runtime.GOOS {
 			continue
 		}
