@@ -100,7 +100,7 @@ func TestLinuxParseMountRaw(t *testing.T) {
 }
 
 func TestLinuxParseMountRawSplit(t *testing.T) {
-	cases := []struct {
+	tests := []struct {
 		bind     string
 		driver   string
 		expected *MountPoint
@@ -249,8 +249,7 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 		p.fi = mockFiProvider{}
 	}
 
-	for _, tc := range cases {
-		tc := tc
+	for _, tc := range tests {
 		t.Run(tc.bind, func(t *testing.T) {
 			m, err := parser.ParseMountRaw(tc.bind, tc.driver)
 			if tc.expErr != "" {
