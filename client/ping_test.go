@@ -111,7 +111,6 @@ func TestPingHeadFallback(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(http.StatusText(tc.status), func(t *testing.T) {
 			var reqs []string
 			client := &Client{

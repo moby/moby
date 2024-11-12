@@ -180,7 +180,6 @@ func TestImageListWithSharedSize(t *testing.T) {
 		{name: "set after 1.42, if requested", version: "1.42", options: image.ListOptions{SharedSize: true}, sharedSize: "1"},
 		{name: "unset before 1.42, even if requested", version: "1.41", options: image.ListOptions{SharedSize: true}},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var query url.Values
