@@ -219,7 +219,6 @@ func TestImageDelete(t *testing.T) {
 			err: dimages.ErrImageDoesNotExist{Ref: nameDigest("repoanddigestzerocase", digestFor(16))},
 		},
 	} {
-		tc := tc
 		t.Run(tc.ref, func(t *testing.T) {
 			t.Parallel()
 			ctx := logtest.WithT(ctx, t)
