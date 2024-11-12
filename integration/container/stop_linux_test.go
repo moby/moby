@@ -29,7 +29,7 @@ func TestStopContainerWithTimeout(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	testCmd := container.WithCmd("sh", "-c", "sleep 2 && exit 42")
-	testData := []struct {
+	tests := []struct {
 		doc              string
 		timeout          int
 		expectedExitCode int
@@ -54,14 +54,13 @@ func TestStopContainerWithTimeout(t *testing.T) {
 		},
 	}
 
-	for _, d := range testData {
-		d := d
-		t.Run(strconv.Itoa(d.timeout), func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(strconv.Itoa(tc.timeout), func(t *testing.T) {
 			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
 			id := container.Run(ctx, t, apiClient, testCmd)
 
-			err := apiClient.ContainerStop(ctx, id, containertypes.StopOptions{Timeout: &d.timeout})
+			err := apiClient.ContainerStop(ctx, id, containertypes.StopOptions{Timeout: &tc.timeout})
 			assert.NilError(t, err)
 
 			poll.WaitOn(t, container.IsStopped(ctx, apiClient, id),
@@ -69,7 +68,7 @@ func TestStopContainerWithTimeout(t *testing.T) {
 
 			inspect, err := apiClient.ContainerInspect(ctx, id)
 			assert.NilError(t, err)
-			assert.Equal(t, inspect.State.ExitCode, d.expectedExitCode)
+			assert.Equal(t, inspect.State.ExitCode, tc.expectedExitCode)
 		})
 	}
 }

@@ -19,7 +19,7 @@ func TestWaitNonBlocked(t *testing.T) {
 
 	cli := request.NewAPIClient(t)
 
-	testCases := []struct {
+	tests := []struct {
 		doc          string
 		cmd          string
 		expectedCode int64
@@ -36,8 +36,7 @@ func TestWaitNonBlocked(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		tc := tc
+	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
 
@@ -63,7 +62,7 @@ func TestWaitBlocked(t *testing.T) {
 	ctx := setupTest(t)
 	cli := request.NewAPIClient(t)
 
-	testCases := []struct {
+	tests := []struct {
 		doc          string
 		cmd          string
 		expectedCode int64
@@ -79,8 +78,7 @@ func TestWaitBlocked(t *testing.T) {
 			expectedCode: 99,
 		},
 	}
-	for _, tc := range testCases {
-		tc := tc
+	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
@@ -106,7 +104,7 @@ func TestWaitConditions(t *testing.T) {
 	ctx := setupTest(t)
 	cli := request.NewAPIClient(t)
 
-	testCases := []struct {
+	tests := []struct {
 		doc      string
 		waitCond containertypes.WaitCondition
 		runOpts  []func(*container.TestContainerConfig)
@@ -129,8 +127,7 @@ func TestWaitConditions(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		tc := tc
+	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
@@ -181,7 +178,7 @@ func TestWaitRestartedContainer(t *testing.T) {
 	ctx := setupTest(t)
 	cli := request.NewAPIClient(t)
 
-	testCases := []struct {
+	tests := []struct {
 		doc      string
 		waitCond containertypes.WaitCondition
 	}{
@@ -201,8 +198,7 @@ func TestWaitRestartedContainer(t *testing.T) {
 	// We can't catch the SIGTERM in the Windows based busybox image
 	isWindowDaemon := testEnv.DaemonInfo.OSType == "windows"
 
-	for _, tc := range testCases {
-		tc := tc
+	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)

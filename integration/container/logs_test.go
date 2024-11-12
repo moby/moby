@@ -53,7 +53,7 @@ func testLogs(t *testing.T, logDriver string) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	testCases := []struct {
+	tests := []struct {
 		desc        string
 		logOps      containertypes.LogsOptions
 		expectedOut string
@@ -126,11 +126,10 @@ func testLogs(t *testing.T, logDriver string) {
 		pollTimeout = StopContainerWindowsPollTimeout
 	}
 
-	for _, tC := range testCases {
-		tC := tC
-		t.Run(tC.desc, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
-			tty := tC.tty
+			tty := tc.tty
 			id := container.Run(ctx, t, apiClient,
 				container.WithCmd("sh", "-c", "echo -n this is fine; echo -n accidents happen >&2"),
 				container.WithTty(tty),
@@ -142,7 +141,7 @@ func testLogs(t *testing.T, logDriver string) {
 				poll.WithDelay(time.Millisecond*100),
 				poll.WithTimeout(pollTimeout))
 
-			logs, err := apiClient.ContainerLogs(ctx, id, tC.logOps)
+			logs, err := apiClient.ContainerLogs(ctx, id, tc.logOps)
 			assert.NilError(t, err)
 			defer logs.Close()
 
@@ -166,7 +165,7 @@ func testLogs(t *testing.T, logDriver string) {
 				// This is a workaround for the backspace being outputted in an unexpected place
 				// which breaks the parsed output: https://github.com/moby/moby/issues/43710
 				if strings.Contains(testEnv.DaemonInfo.OperatingSystem, "Windows Server Version 1809") {
-					if tC.logOps.ShowStdout {
+					if tc.logOps.ShowStdout {
 						assert.Check(t, cmp.Contains(stdout.String(), "this is fine"))
 						assert.Check(t, cmp.Contains(stdout.String(), "accidents happen"))
 					} else {
@@ -176,8 +175,8 @@ func testLogs(t *testing.T, logDriver string) {
 				}
 			}
 
-			assert.DeepEqual(t, stdoutStr, tC.expectedOut)
-			assert.DeepEqual(t, stderr.String(), tC.expectedErr)
+			assert.DeepEqual(t, stdoutStr, tc.expectedOut)
+			assert.DeepEqual(t, stderr.String(), tc.expectedErr)
 		})
 	}
 }

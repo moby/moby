@@ -67,7 +67,6 @@ func TestKillContainer(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			skip.If(t, testEnv.DaemonInfo.OSType == tc.skipOs, "Windows does not support SIGWINCH")
 			ctx := testutil.StartSpan(ctx, t)
@@ -107,7 +106,6 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			id := container.Run(ctx, t, apiClient,

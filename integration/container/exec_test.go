@@ -215,7 +215,6 @@ func TestExecResize(t *testing.T) {
 			},
 		}
 		for _, tc := range sizes {
-			tc := tc
 			t.Run(tc.doc, func(t *testing.T) {
 				// Manually creating a request here, as the APIClient would invalidate
 				// these values before they're sent.

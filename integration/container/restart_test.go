@@ -75,7 +75,6 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 			} {
 				tc := tc
 				liveRestoreEnabled := liveRestoreEnabled
-				stopDaemon := stopDaemon
 				t.Run(fmt.Sprintf("live-restore=%v/%s/%s", liveRestoreEnabled, tc.desc, fnName), func(t *testing.T) {
 					t.Parallel()
 
@@ -185,7 +184,6 @@ func TestContainerWithAutoRemoveCanBeRestarted(t *testing.T) {
 			},
 		},
 	} {
-		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
 			testutil.StartSpan(ctx, t)
 			cID := testContainer.Run(ctx, t, apiClient,

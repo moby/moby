@@ -23,7 +23,7 @@ func TestNoOverlayfsWarningsAboutUndefinedBehaviors(t *testing.T) {
 
 	cID := container.Run(ctx, t, client, container.WithCmd("sh", "-c", `while true; do echo $RANDOM >>/file; sleep 0.1; done`))
 
-	testCases := []struct {
+	tests := []struct {
 		name      string
 		operation func(t *testing.T) error
 	}{
@@ -55,8 +55,7 @@ func TestNoOverlayfsWarningsAboutUndefinedBehaviors(t *testing.T) {
 		}},
 	}
 
-	for _, tc := range testCases {
-		tc := tc
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			prev := dmesgLines(256)
 

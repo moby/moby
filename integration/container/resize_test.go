@@ -41,7 +41,7 @@ func TestResize(t *testing.T) {
 
 		const valueNotSet = "unset"
 
-		sizes := []struct {
+		tests := []struct {
 			doc, height, width, expErr string
 		}{
 			{
@@ -103,8 +103,7 @@ func TestResize(t *testing.T) {
 				expErr: `invalid resize width "4294967296": value out of range`,
 			},
 		}
-		for _, tc := range sizes {
-			tc := tc
+		for _, tc := range tests {
 			t.Run(tc.doc, func(t *testing.T) {
 				// Manually creating a request here, as the APIClient would invalidate
 				// these values before they're sent.
