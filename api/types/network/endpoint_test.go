@@ -23,7 +23,7 @@ func (stub subnetStub) Contains(addr net.IP) bool {
 }
 
 func TestEndpointIPAMConfigWithOutOfRangeAddrs(t *testing.T) {
-	testcases := []struct {
+	tests := []struct {
 		name           string
 		ipamConfig     *EndpointIPAMConfig
 		v4Subnets      []NetworkSubnet
@@ -80,8 +80,7 @@ func TestEndpointIPAMConfigWithOutOfRangeAddrs(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testcases {
-		tc := tc
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -105,7 +104,7 @@ func TestEndpointIPAMConfigWithOutOfRangeAddrs(t *testing.T) {
 }
 
 func TestEndpointIPAMConfigWithInvalidConfig(t *testing.T) {
-	testcases := []struct {
+	tests := []struct {
 		name           string
 		ipamConfig     *EndpointIPAMConfig
 		expectedErrors []string
@@ -162,8 +161,7 @@ func TestEndpointIPAMConfigWithInvalidConfig(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testcases {
-		tc := tc
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
