@@ -108,7 +108,6 @@ func TestConfigList(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			entries, err = c.ConfigList(ctx, types.ConfigListOptions{
