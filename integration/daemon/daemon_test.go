@@ -112,7 +112,6 @@ func TestDaemonConfigValidation(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			_ = testutil.StartSpan(ctx, t)
@@ -158,7 +157,6 @@ func TestConfigDaemonSeccompProfiles(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			_ = testutil.StartSpan(ctx, t)
 
@@ -231,7 +229,6 @@ func TestDaemonConfigFeatures(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			_ = testutil.StartSpan(ctx, t)
