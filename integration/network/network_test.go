@@ -78,7 +78,6 @@ func TestNetworkInvalidJSON(t *testing.T) {
 	}
 
 	for _, ep := range endpoints {
-		ep := ep
 		t.Run(ep[1:], func(t *testing.T) {
 			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
@@ -140,7 +139,6 @@ func TestNetworkList(t *testing.T) {
 	}
 
 	for _, ep := range endpoints {
-		ep := ep
 		t.Run(ep, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			t.Parallel()
@@ -218,7 +216,6 @@ func TestDefaultNetworkOpts(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			d := daemon.New(t)
