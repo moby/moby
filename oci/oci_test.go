@@ -154,7 +154,6 @@ func TestAppendDevicePermissionsFromCgroupRules(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			out, err := AppendDevicePermissionsFromCgroupRules([]specs.LinuxDeviceCgroup{}, []string{tc.rule})
 			if tc.expectedErr != "" {
