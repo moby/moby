@@ -805,7 +805,7 @@ func TestTarWithOptionsChownOptsAlwaysOverridesIdPair(t *testing.T) {
 		},
 	}
 
-	cases := []struct {
+	tests := []struct {
 		opts        *TarOptions
 		expectedUID int
 		expectedGID int
@@ -816,8 +816,7 @@ func TestTarWithOptionsChownOptsAlwaysOverridesIdPair(t *testing.T) {
 		{&TarOptions{ChownOpts: &idtools.Identity{UID: 1, GID: 1}, NoLchown: true}, 1, 1},
 		{&TarOptions{ChownOpts: &idtools.Identity{UID: 1000, GID: 1000}, NoLchown: true}, 1000, 1000},
 	}
-	for _, tc := range cases {
-		tc := tc
+	for _, tc := range tests {
 		t.Run("", func(t *testing.T) {
 			reader, err := TarWithOptions(filePath, tc.opts)
 			assert.NilError(t, err)
@@ -853,7 +852,7 @@ func TestTarWithOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cases := []struct {
+	tests := []struct {
 		opts       *TarOptions
 		numChanges int
 	}{
@@ -863,14 +862,14 @@ func TestTarWithOptions(t *testing.T) {
 		{&TarOptions{IncludeFiles: []string{"1", "1"}}, 2},
 		{&TarOptions{IncludeFiles: []string{"1"}, RebaseNames: map[string]string{"1": "test"}}, 4},
 	}
-	for _, testCase := range cases {
-		changes, err := tarUntar(t, origin, testCase.opts)
+	for _, tc := range tests {
+		changes, err := tarUntar(t, origin, tc.opts)
 		if err != nil {
 			t.Fatalf("Error tar/untar when testing inclusion/exclusion: %s", err)
 		}
-		if len(changes) != testCase.numChanges {
+		if len(changes) != tc.numChanges {
 			t.Errorf("Expected %d changes, got %d for %+v:",
-				testCase.numChanges, len(changes), testCase.opts)
+				tc.numChanges, len(changes), tc.opts)
 		}
 	}
 }
@@ -1308,7 +1307,7 @@ func TestImpliedDirectoryPermissions(t *testing.T) {
 
 func TestReplaceFileTarWrapper(t *testing.T) {
 	filesInArchive := 20
-	testcases := []struct {
+	tests := []struct {
 		doc       string
 		filename  string
 		modifier  TarModifierFunc
@@ -1345,16 +1344,16 @@ func TestReplaceFileTarWrapper(t *testing.T) {
 		},
 	}
 
-	for _, testcase := range testcases {
+	for _, tc := range tests {
 		sourceArchive, cleanup := buildSourceArchive(t, filesInArchive)
 		defer cleanup()
 
 		resultArchive := ReplaceFileTarWrapper(
 			sourceArchive,
-			map[string]TarModifierFunc{testcase.filename: testcase.modifier})
+			map[string]TarModifierFunc{tc.filename: tc.modifier})
 
-		actual := readFileFromArchive(t, resultArchive, testcase.filename, testcase.fileCount, testcase.doc)
-		assert.Check(t, is.Equal(testcase.expected, actual), testcase.doc)
+		actual := readFileFromArchive(t, resultArchive, tc.filename, tc.fileCount, tc.doc)
+		assert.Check(t, is.Equal(tc.expected, actual), tc.doc)
 	}
 }
 
