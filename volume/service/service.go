@@ -281,7 +281,14 @@ func (s *VolumesService) List(ctx context.Context, filter filters.Args) (volumes
 
 // Export export a local volume to a tarball.
 // An error is returned if the volume is not exists.
-func (s *VolumesService) Export(ctx context.Context, name string, out io.Writer) error {
+func (s *VolumesService) Export(
+	ctx context.Context,
+	name string,
+	out io.Writer,
+	pauseContainerFn func(string) error,
+	unpauseContainerFn func(string) error,
+	pause bool,
+) error {
 	if runtime.GOOS == "windows" {
 		return errors.New("exporting volumes is not supported on Windows")
 	}
@@ -296,6 +303,26 @@ func (s *VolumesService) Export(ctx context.Context, name string, out io.Writer)
 
 	if v.DriverName() != volume.DefaultDriverName {
 		return errors.Errorf("exporting volumes is not supported for driver %s", v.DriverName())
+	}
+
+	if pause {
+		s.vs.globalLock.RLock()
+		ctrIDs := make([]string, 0, len(s.vs.refs[name]))
+		for ctrID := range s.vs.refs[name] {
+			ctrIDs = append(ctrIDs, ctrID)
+		}
+		s.vs.globalLock.RUnlock()
+
+		for _, ctrID := range ctrIDs {
+			if err := pauseContainerFn(ctrID); err != nil {
+				return errors.Wrap(err, "error while pausing container")
+			}
+			defer func() {
+				if err := unpauseContainerFn(ctrID); err != nil {
+					log.G(ctx).WithError(err).Error("error while unpausing container")
+				}
+			}()
+		}
 	}
 
 	c, err := archive.Tar(v.Path(), archive.Uncompressed)

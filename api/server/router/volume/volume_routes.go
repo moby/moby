@@ -210,5 +210,20 @@ func (v *volumeRouter) postVolumesPrune(ctx context.Context, w http.ResponseWrit
 }
 
 func (v *volumeRouter) getVolumeExport(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return v.backend.Export(ctx, vars["name"], w)
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	if err := httputils.CheckForJSON(r); err != nil {
+		return err
+	}
+
+	return v.backend.Export(
+		ctx,
+		vars["name"],
+		w,
+		v.containerBackend.ContainerPause,
+		v.containerBackend.ContainerUnpause,
+		httputils.BoolValueOrDefault(r, "pause", true),
+	)
 }

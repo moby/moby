@@ -17,7 +17,14 @@ type Backend interface {
 	Create(ctx context.Context, name, driverName string, opts ...opts.CreateOption) (*volume.Volume, error)
 	Remove(ctx context.Context, name string, opts ...opts.RemoveOption) error
 	Prune(ctx context.Context, pruneFilters filters.Args) (*volume.PruneReport, error)
-	Export(ctx context.Context, name string, out io.Writer) error
+	Export(
+		ctx context.Context,
+		name string,
+		out io.Writer,
+		pauseContainerFn func(string) error,
+		unpauseContainerFn func(string) error,
+		pause bool,
+	) error
 }
 
 // ClusterBackend is the backend used for Swarm Cluster Volumes. Regular

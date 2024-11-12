@@ -641,7 +641,7 @@ func (b *fakeVolumeBackend) Prune(_ context.Context, _ filters.Args) (*volume.Pr
 }
 
 func (b *fakeVolumeBackend) Export(_ context.Context, name string, out io.Writer) error {
-	v, ok := b.volumes[name] 
+	v, ok := b.volumes[name]
 	if !ok {
 		return errdefs.NotFound(fmt.Errorf("volume %s not found", name))
 	}
