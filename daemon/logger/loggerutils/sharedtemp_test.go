@@ -114,7 +114,6 @@ func TestSharedTempFileConverter(t *testing.T) {
 		var wg sync.WaitGroup
 		wg.Add(3)
 		for i := 0; i < 3; i++ {
-			i := i
 			go func() {
 				defer wg.Done()
 				t.Logf("goroutine %v: enter", i)
@@ -176,7 +175,6 @@ func TestSharedTempFileConverter(t *testing.T) {
 		var done sync.WaitGroup
 		done.Add(3)
 		for i := 0; i < 3; i++ {
-			i := i
 			go func() {
 				defer done.Done()
 				t.Logf("goroutine %v: enter", i)

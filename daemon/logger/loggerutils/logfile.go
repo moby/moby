@@ -806,7 +806,6 @@ func tailFiles(ctx context.Context, files []fileOpener, watcher *logger.LogWatch
 	}()
 
 	for _, ra := range readers {
-		ra := ra
 		select {
 		case <-watcher.WatchConsumerGone():
 			return false
