@@ -22,7 +22,7 @@ import (
 )
 
 func TestSetupRuntimes(t *testing.T) {
-	cases := []struct {
+	tests := []struct {
 		name      string
 		config    *config.Config
 		expectErr string
@@ -169,8 +169,7 @@ func TestSetupRuntimes(t *testing.T) {
 			},
 		},
 	}
-	for _, tc := range cases {
-		tc := tc
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg, err := config.New()
 			assert.NilError(t, err)
@@ -251,7 +250,7 @@ func TestGetRuntime(t *testing.T) {
 		Opts: configdOpts,
 	}
 
-	for _, tt := range []struct {
+	for _, tc := range []struct {
 		name, runtime string
 		want          *shimConfig
 	}{
@@ -330,13 +329,12 @@ func TestGetRuntime(t *testing.T) {
 			},
 		},
 	} {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			shim, opts, err := runtimes.Get(tt.runtime)
-			if tt.want != nil {
+		t.Run(tc.name, func(t *testing.T) {
+			shim, opts, err := runtimes.Get(tc.runtime)
+			if tc.want != nil {
 				assert.Check(t, err)
 				got := &shimConfig{Shim: shim, Opts: opts}
-				assert.Check(t, is.DeepEqual(got, tt.want,
+				assert.Check(t, is.DeepEqual(got, tc.want,
 					cmpopts.IgnoreUnexported(runtimeoptions_v1.Options{}),
 					cmpopts.IgnoreUnexported(v2runcoptions.Options{}),
 				))

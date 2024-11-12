@@ -50,17 +50,16 @@ func TestParseInitVersion(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		test := test
-		t.Run(test.output, func(t *testing.T) {
-			version, commit, err := parseInitVersion(test.output)
-			if test.invalid {
+	for _, tc := range tests {
+		t.Run(tc.output, func(t *testing.T) {
+			version, commit, err := parseInitVersion(tc.output)
+			if tc.invalid {
 				assert.Check(t, is.ErrorContains(err, ""))
 			} else {
 				assert.Check(t, err)
 			}
-			assert.Equal(t, test.version, version)
-			assert.Equal(t, test.commit, commit)
+			assert.Equal(t, tc.version, version)
+			assert.Equal(t, tc.commit, commit)
 		})
 	}
 }
@@ -117,15 +116,15 @@ spec: 1.0.0
 		},
 	}
 
-	for _, test := range tests {
-		runtime, version, commit, err := parseRuntimeVersion(test.output)
-		if test.invalid {
+	for _, tc := range tests {
+		runtime, version, commit, err := parseRuntimeVersion(tc.output)
+		if tc.invalid {
 			assert.Check(t, is.ErrorContains(err, ""))
 		} else {
 			assert.Check(t, err)
 		}
-		assert.Equal(t, test.runtime, runtime)
-		assert.Equal(t, test.version, version)
-		assert.Equal(t, test.commit, commit)
+		assert.Equal(t, tc.runtime, runtime)
+		assert.Equal(t, tc.version, version)
+		assert.Equal(t, tc.commit, commit)
 	}
 }
