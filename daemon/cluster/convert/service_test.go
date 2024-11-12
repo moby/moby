@@ -236,7 +236,7 @@ func TestServiceConvertFromGRPCIsolation(t *testing.T) {
 }
 
 func TestServiceConvertToGRPCCredentialSpec(t *testing.T) {
-	cases := []struct {
+	tests := []struct {
 		name        string
 		from        swarmtypes.CredentialSpec
 		to          swarmapi.Privileges_CredentialSpec
@@ -308,22 +308,21 @@ func TestServiceConvertToGRPCCredentialSpec(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
-		c := c
-		t.Run(c.name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			s := swarmtypes.ServiceSpec{
 				TaskTemplate: swarmtypes.TaskSpec{
 					ContainerSpec: &swarmtypes.ContainerSpec{
 						Privileges: &swarmtypes.Privileges{
-							CredentialSpec: &c.from,
+							CredentialSpec: &tc.from,
 						},
 					},
 				},
 			}
 
 			res, err := ServiceSpecToGRPC(s)
-			if c.expectedErr != "" {
-				assert.Error(t, err, c.expectedErr)
+			if tc.expectedErr != "" {
+				assert.Error(t, err, tc.expectedErr)
 				return
 			}
 
@@ -332,13 +331,13 @@ func TestServiceConvertToGRPCCredentialSpec(t *testing.T) {
 			if !ok {
 				t.Fatal("expected type swarmapi.TaskSpec_Container")
 			}
-			assert.DeepEqual(t, c.to, *v.Container.Privileges.CredentialSpec)
+			assert.DeepEqual(t, tc.to, *v.Container.Privileges.CredentialSpec)
 		})
 	}
 }
 
 func TestServiceConvertFromGRPCCredentialSpec(t *testing.T) {
-	cases := []struct {
+	tests := []struct {
 		name string
 		from swarmapi.Privileges_CredentialSpec
 		to   *swarmtypes.CredentialSpec
@@ -371,9 +370,7 @@ func TestServiceConvertFromGRPCCredentialSpec(t *testing.T) {
 		},
 	}
 
-	for _, tc := range cases {
-		tc := tc
-
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			gs := swarmapi.Service{
 				Spec: swarmapi.ServiceSpec{
