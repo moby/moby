@@ -38,7 +38,6 @@ func PartialMultiPlatform(dir string, imageRef string, opts PartialOpts) (*ocisp
 		platformStr := platforms.FormatAll(platform)
 		dgst := digest.FromBytes([]byte(platformStr))
 
-		platform := platform
 		descs = append(descs, ocispec.Descriptor{
 			MediaType: ocispec.MediaTypeImageManifest,
 			Size:      128,
