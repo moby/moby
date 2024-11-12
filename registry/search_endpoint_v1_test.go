@@ -137,7 +137,6 @@ func TestV1EndpointParse(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.address, func(t *testing.T) {
 			ep, err := newV1EndpointFromStr(tc.address, nil, nil)
 			if tc.expectedErr != "" {
