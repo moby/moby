@@ -70,7 +70,6 @@ func TestNoNewPrivileges(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 
