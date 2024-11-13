@@ -1,11 +1,11 @@
 // Package platform provides helper function to get the runtime architecture
 // for different platforms.
+//
+// Deprecated: this package is only used internally, and will be removed in the next release.
 package platform // import "github.com/docker/docker/pkg/platform"
 
 import (
-	"context"
-
-	"github.com/containerd/log"
+	"github.com/docker/docker/internal/platform"
 )
 
 // Architecture holds the runtime architecture of the process.
@@ -15,12 +15,13 @@ import (
 //
 // For example, Architecture reports "x86_64" as architecture, even
 // when running a "linux/386" compiled binary on "linux/amd64" hardware.
-var Architecture string
+//
+// Deprecated: this package is only used internally, and will be removed in the next release.
+var Architecture = platform.Architecture()
 
-func init() {
-	var err error
-	Architecture, err = runtimeArchitecture()
-	if err != nil {
-		log.G(context.TODO()).WithError(err).Error("Could not read system architecture info")
-	}
+// NumProcs returns the number of processors on the system
+//
+// Deprecated: this package is only used internally, and will be removed in the next release.
+func NumProcs() uint32 {
+	return platform.NumProcs()
 }
