@@ -6,7 +6,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/platform"
+	"github.com/docker/docker/internal/platform"
 )
 
 func (daemon *Daemon) stats(c *container.Container) (*containertypes.StatsResponse, error) {
