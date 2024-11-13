@@ -20,11 +20,11 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/internal/platform"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/meminfo"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
-	"github.com/docker/docker/pkg/platform"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/registry"
 	metrics "github.com/docker/go-metrics"
@@ -63,7 +63,7 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 		OSVersion:          osVersion(ctx),
 		IndexServerAddress: registry.IndexServer,
 		OSType:             runtime.GOOS,
-		Architecture:       platform.Architecture,
+		Architecture:       platform.Architecture(),
 		RegistryConfig:     doWithTrace(ctx, "registry.ServiceConfig", daemon.registryService.ServiceConfig),
 		NCPU:               doWithTrace(ctx, "sysinfo.NumCPU", sysinfo.NumCPU),
 		MemTotal:           memInfo(ctx).MemTotal,
