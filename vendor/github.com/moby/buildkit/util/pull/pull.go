@@ -4,13 +4,13 @@ import (
 	"context"
 	"sync"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/labels"
-	"github.com/containerd/containerd/reference"
-	"github.com/containerd/containerd/remotes"
-	"github.com/containerd/containerd/remotes/docker"
-	"github.com/containerd/containerd/remotes/docker/schema1" //nolint:staticcheck // SA1019 deprecated
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/remotes"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	"github.com/containerd/containerd/v2/core/remotes/docker/schema1" //nolint:staticcheck // SA1019 deprecated
+	"github.com/containerd/containerd/v2/pkg/labels"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/contentutil"
@@ -137,10 +137,13 @@ func (p *Puller) PullManifests(ctx context.Context, getResolver SessionResolver)
 	if p.desc.MediaType == images.MediaTypeDockerSchema1Manifest {
 		// schema1 images are not lazy at this time, the converter will pull the whole image
 		// including layer blobs
-		schema1Converter = schema1.NewConverter(p.ContentStore, &pullprogress.FetcherWithProgress{
+		schema1Converter, err = schema1.NewConverter(p.ContentStore, &pullprogress.FetcherWithProgress{
 			Fetcher: fetcher,
 			Manager: p.ContentStore,
 		})
+		if err != nil {
+			return nil, err
+		}
 		handlers = append(handlers, schema1Converter)
 	} else {
 		// Get all the children for a descriptor

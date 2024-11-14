@@ -309,6 +309,8 @@ message FileAction {
 		FileActionMkDir mkdir = 6;
 		// FileActionRm removes a file
 		FileActionRm rm = 7;
+		// FileActionSymlink creates a symlink
+		FileActionSymlink symlink = 8;
 	}
 }
 
@@ -356,6 +358,17 @@ message FileActionMkFile {
 	ChownOpt owner = 4;
 	// optional created time override
 	int64 timestamp = 5;
+}
+
+message FileActionSymlink {
+	// destination path for the new file representing the link
+	string oldpath = 1;
+	// source path for the link
+	string newpath = 2;
+	// optional owner for the new file
+	ChownOpt owner = 3;
+	// optional created time override
+	int64 timestamp = 4;
 }
 
 message FileActionMkDir {

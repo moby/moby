@@ -10,8 +10,8 @@ import (
 
 	"dario.cat/mergo"
 	runcoptions "github.com/containerd/containerd/api/types/runc/options"
-	runtimeoptions "github.com/containerd/containerd/pkg/runtimeoptions/v1"
-	"github.com/containerd/containerd/plugin"
+	runtimeoptions "github.com/containerd/containerd/api/types/runtimeoptions/v1"
+	"github.com/containerd/containerd/v2/plugins"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
@@ -202,7 +202,7 @@ func TestGetRuntime(t *testing.T) {
 
 	const shimWithOptsName = "shimwithopts"
 	shimWithOpts := system.Runtime{
-		Type:    plugin.RuntimeRuncV2,
+		Type:    plugins.RuntimeRuncV2,
 		Options: map[string]interface{}{"IoUid": 42},
 	}
 
@@ -350,7 +350,7 @@ func TestGetRuntime(t *testing.T) {
 		assert.Check(t, err)
 		assert.Check(t, is.Equal(shim, stockRuntime.Shim))
 		runcopts, ok := opts.(*runcoptions.Options)
-		if assert.Check(t, ok, "runtimes.Get() opts = type %T, want *v2runcoptions.Options", opts) {
+		if assert.Check(t, ok, "runtimes.Get() opts = type %T, want *runcoptions.Options", opts) {
 			wrapper, err := os.ReadFile(runcopts.BinaryName)
 			if assert.Check(t, err) {
 				assert.Check(t, is.Contains(string(wrapper),

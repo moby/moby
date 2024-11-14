@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/containerd/containerd/tracing"
+	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
 	"golang.org/x/sys/unix"
 )

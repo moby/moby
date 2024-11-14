@@ -7,9 +7,9 @@ import (
 	"context"
 	"io"
 
-	"github.com/containerd/containerd/content"
-	labelspkg "github.com/containerd/containerd/labels"
-	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/mount"
+	labelspkg "github.com/containerd/containerd/v2/pkg/labels"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"

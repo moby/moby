@@ -84,6 +84,13 @@ func (f *fileOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 			if err != nil {
 				return nil, false, err
 			}
+		case *pb.FileAction_Symlink:
+			p := a.Symlink.CloneVT()
+			markInvalid(action.Input)
+			dt, err = json.Marshal(p)
+			if err != nil {
+				return nil, false, err
+			}
 		case *pb.FileAction_Rm:
 			p := a.Rm.CloneVT()
 			markInvalid(action.Input)
@@ -584,6 +591,14 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 				return input{}, err
 			}
 			if err := s.b.Mkdir(ctx, inpMount, user, group, a.Mkdir); err != nil {
+				return input{}, err
+			}
+		case *pb.FileAction_Symlink:
+			user, group, err := loadOwner(ctx, a.Symlink.Owner)
+			if err != nil {
+				return input{}, err
+			}
+			if err := s.b.Symlink(ctx, inpMount, user, group, a.Symlink); err != nil {
 				return input{}, err
 			}
 		case *pb.FileAction_Mkfile:

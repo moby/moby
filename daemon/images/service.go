@@ -6,8 +6,8 @@ import (
 	"os"
 	"sync/atomic"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution"

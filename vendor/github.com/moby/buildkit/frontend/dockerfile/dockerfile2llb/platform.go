@@ -45,10 +45,12 @@ func defaultArgs(po *platformOpt, overrides map[string]string, target string) *l
 	s := [...][2]string{
 		{"BUILDPLATFORM", platforms.Format(bp)},
 		{"BUILDOS", bp.OS},
+		{"BUILDOSVERSION", bp.OSVersion},
 		{"BUILDARCH", bp.Architecture},
 		{"BUILDVARIANT", bp.Variant},
-		{"TARGETPLATFORM", platforms.Format(tp)},
+		{"TARGETPLATFORM", platforms.FormatAll(tp)},
 		{"TARGETOS", tp.OS},
+		{"TARGETOSVERSION", tp.OSVersion},
 		{"TARGETARCH", tp.Architecture},
 		{"TARGETVARIANT", tp.Variant},
 		{"TARGETSTAGE", target},

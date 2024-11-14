@@ -381,6 +381,8 @@ func fileOpName(actions []*pb.FileAction) string {
 			names = append(names, fmt.Sprintf("mkdir %s", a.Mkdir.Path))
 		case *pb.FileAction_Mkfile:
 			names = append(names, fmt.Sprintf("mkfile %s", a.Mkfile.Path))
+		case *pb.FileAction_Symlink:
+			names = append(names, fmt.Sprintf("symlink %s -> %s", a.Symlink.Newpath, a.Symlink.Oldpath))
 		case *pb.FileAction_Rm:
 			names = append(names, fmt.Sprintf("rm %s", a.Rm.Path))
 		case *pb.FileAction_Copy:

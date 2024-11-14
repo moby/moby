@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	c8dimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/v2/core/content"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log/logtest"
 	"github.com/containerd/platforms"
 	imagetypes "github.com/docker/docker/api/types/image"

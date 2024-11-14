@@ -291,7 +291,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 		bytesRead := scanner.Bytes()
 		if currentLine == 0 {
 			// First line, strip the byte-order-marker if present
-			bytesRead = bytes.TrimPrefix(bytesRead, utf8bom)
+			bytesRead = discardBOM(bytesRead)
 		}
 		if isComment(bytesRead) {
 			comment := strings.TrimSpace(string(bytesRead[1:]))
@@ -521,8 +521,6 @@ func isComment(line []byte) bool {
 func isEmptyContinuationLine(line []byte) bool {
 	return len(trimLeadingWhitespace(trimNewline(line))) == 0
 }
-
-var utf8bom = []byte{0xEF, 0xBB, 0xBF}
 
 func trimContinuationCharacter(line []byte, d *directives) ([]byte, bool) {
 	if d.lineContinuationRegex.Match(line) {

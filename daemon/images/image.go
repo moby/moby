@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/containerd/containerd/content"
-	c8dimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/v2/core/content"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/leases"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"

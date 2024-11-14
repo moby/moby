@@ -13,8 +13,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/containerd/containerd/remotes/docker"
-	hostconfig "github.com/containerd/containerd/remotes/docker/config"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	hostconfig "github.com/containerd/containerd/v2/core/remotes/docker/config"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/registry"
 	"github.com/pkg/errors"

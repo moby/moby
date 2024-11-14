@@ -3,10 +3,12 @@ package ociindex
 import (
 	"encoding/json"
 	"io"
+	"maps"
 	"os"
 	"path"
 	"syscall"
 
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/gofrs/flock"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -15,12 +17,27 @@ import (
 const (
 	// lockFileSuffix is the suffix of the lock file
 	lockFileSuffix = ".lock"
+
+	annotationImageName = "io.containerd.image.name"
 )
 
 type StoreIndex struct {
 	indexPath  string
 	lockPath   string
 	layoutPath string
+}
+
+type NameOrTag struct {
+	isTag bool
+	value string
+}
+
+func Name(name string) NameOrTag {
+	return NameOrTag{value: name}
+}
+
+func Tag(tag string) NameOrTag {
+	return NameOrTag{isTag: true, value: tag}
 }
 
 func NewStoreIndex(storePath string) StoreIndex {
@@ -61,7 +78,7 @@ func (s StoreIndex) Read() (*ocispecs.Index, error) {
 	return &idx, nil
 }
 
-func (s StoreIndex) Put(tag string, desc ocispecs.Descriptor) error {
+func (s StoreIndex) Put(desc ocispecs.Descriptor, names ...NameOrTag) error {
 	// lock the store to prevent concurrent access
 	lock := flock.New(s.lockPath)
 	locked, err := lock.TryLock()
@@ -107,8 +124,19 @@ func (s StoreIndex) Put(tag string, desc ocispecs.Descriptor) error {
 	}
 
 	setOCIIndexDefaults(&idx)
-	if err = insertDesc(&idx, desc, tag); err != nil {
-		return err
+
+	namesp := make([]*NameOrTag, 0, len(names))
+	for _, n := range names {
+		namesp = append(namesp, &n)
+	}
+	if len(names) == 0 {
+		namesp = append(namesp, nil)
+	}
+
+	for _, name := range namesp {
+		if err = insertDesc(&idx, desc, name); err != nil {
+			return err
+		}
 	}
 
 	idxData, err = json.Marshal(idx)
@@ -128,6 +156,12 @@ func (s StoreIndex) Get(tag string) (*ocispecs.Descriptor, error) {
 	idx, err := s.Read()
 	if err != nil {
 		return nil, err
+	}
+
+	for _, m := range idx.Manifests {
+		if t, ok := m.Annotations[annotationImageName]; ok && t == tag {
+			return &m, nil
+		}
 	}
 
 	for _, m := range idx.Manifests {
@@ -165,20 +199,34 @@ func setOCIIndexDefaults(index *ocispecs.Index) {
 
 // insertDesc puts desc to index with tag.
 // Existing manifests with the same tag will be removed from the index.
-func insertDesc(index *ocispecs.Index, desc ocispecs.Descriptor, tag string) error {
+func insertDesc(index *ocispecs.Index, in ocispecs.Descriptor, name *NameOrTag) error {
 	if index == nil {
 		return nil
 	}
 
-	if tag != "" {
+	// make a copy to not modify the input descriptor
+	desc := in
+	desc.Annotations = maps.Clone(in.Annotations)
+
+	if name != nil {
 		if desc.Annotations == nil {
 			desc.Annotations = make(map[string]string)
 		}
-		desc.Annotations[ocispecs.AnnotationRefName] = tag
-		// remove existing manifests with the same tag
+		imgName, refName := name.value, name.value
+		if name.isTag {
+			imgName = ""
+		} else {
+			refName = ociReferenceName(imgName)
+		}
+
+		if imgName != "" {
+			desc.Annotations[annotationImageName] = imgName
+		}
+		desc.Annotations[ocispecs.AnnotationRefName] = refName
+		// remove existing manifests with the same tag/name
 		var manifests []ocispecs.Descriptor
 		for _, m := range index.Manifests {
-			if m.Annotations[ocispecs.AnnotationRefName] != tag {
+			if m.Annotations[ocispecs.AnnotationRefName] != refName || m.Annotations[annotationImageName] != imgName {
 				manifests = append(manifests, m)
 			}
 		}
@@ -186,4 +234,21 @@ func insertDesc(index *ocispecs.Index, desc ocispecs.Descriptor, tag string) err
 	}
 	index.Manifests = append(index.Manifests, desc)
 	return nil
+}
+
+// ociReferenceName takes the loosely defined reference name same way as
+// containerd tar exporter does.
+func ociReferenceName(name string) string {
+	// OCI defines the reference name as only a tag excluding the
+	// repository. The containerd annotation contains the full image name
+	// since the tag is insufficient for correctly naming and referring to an
+	// image
+	var ociRef string
+	if spec, err := reference.Parse(name); err == nil {
+		ociRef = spec.Object
+	} else {
+		ociRef = name
+	}
+
+	return ociRef
 }

@@ -26,13 +26,13 @@ require (
 	github.com/aws/smithy-go v1.20.3
 	github.com/cloudflare/cfssl v1.6.4
 	github.com/containerd/cgroups/v3 v3.0.5
-	github.com/containerd/containerd v1.7.25
 	github.com/containerd/containerd/api v1.8.0
+	github.com/containerd/containerd/v2 v2.0.2
 	github.com/containerd/continuity v0.4.5
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0
-	github.com/containerd/platforms v0.2.1
+	github.com/containerd/platforms v1.0.0-rc.1
 	github.com/containerd/typeurl/v2 v2.2.3
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/cpuguy83/tar2go v0.3.1
@@ -63,7 +63,7 @@ require (
 	github.com/miekg/dns v1.1.57
 	github.com/mistifyio/go-zfs/v3 v3.0.1
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.18.2
+	github.com/moby/buildkit v0.19.0-rc2
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
@@ -145,8 +145,9 @@ require (
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/go-cni v1.1.11 // indirect
 	github.com/containerd/go-runc v1.1.0 // indirect
-	github.com/containerd/nydus-snapshotter v0.14.0 // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.15.1 // indirect
+	github.com/containerd/nydus-snapshotter v0.15.0 // indirect
+	github.com/containerd/plugin v1.0.0 // indirect
+	github.com/containerd/stargz-snapshotter/estargz v0.16.3 // indirect
 	github.com/containerd/ttrpc v1.2.7 // indirect
 	github.com/containernetworking/cni v1.2.3 // indirect
 	github.com/containernetworking/plugins v1.5.1 // indirect
@@ -184,6 +185,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/runtime-tools v0.9.1-0.20221107090550-2e043c6bd626 // indirect
 	github.com/package-url/packageurl-go v0.1.1-0.20220428063043-89078438f170 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/philhofer/fwd v1.1.2 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -198,8 +200,8 @@ require (
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/tinylib/msgp v1.1.8 // indirect
 	github.com/tonistiigi/dchapes-mode v0.0.0-20241001053921-ca0759fec205 // indirect
-	github.com/tonistiigi/fsutil v0.0.0-20241121093142-31cf1f437184 // indirect
-	github.com/tonistiigi/go-actions-cache v0.0.0-20241108014124-394979b8119e // indirect
+	github.com/tonistiigi/fsutil v0.0.0-20250113203817-b14e27f4135a // indirect
+	github.com/tonistiigi/go-actions-cache v0.0.0-20241210095730-017636a73805 // indirect
 	github.com/tonistiigi/go-csvvalue v0.0.0-20240710180619-ddb21b71c0b4 // indirect
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea // indirect
 	github.com/tonistiigi/vt100 v0.0.0-20240514184818-90bafcd6abab // indirect
@@ -233,4 +235,19 @@ require (
 	k8s.io/klog/v2 v2.130.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v0.8.0 // indirect
+)
+
+exclude (
+	// These dependencies were updated to "master" in some modules we depend on,
+	// but have no code-changes since their last release. Unfortunately, this also
+	// causes a ripple effect, forcing all users of the containerd module to also
+	// update these dependencies to an unrelease / un-tagged version.
+	//
+	// Both these dependencies will unlikely do a new release in the near future,
+	// so exclude these versions so that we can downgrade to the current release.
+	//
+	// For additional details, see this PR and links mentioned in that PR:
+	// https://github.com/kubernetes-sigs/kustomize/pull/5830#issuecomment-2569960859
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 )

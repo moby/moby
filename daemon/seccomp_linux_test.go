@@ -3,7 +3,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"testing"
 
-	coci "github.com/containerd/containerd/oci"
+	coci "github.com/containerd/containerd/v2/pkg/oci"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	dconfig "github.com/docker/docker/daemon/config"

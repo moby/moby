@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/containerd/containerd/pkg/seccomp"
+	"github.com/containerd/containerd/v2/pkg/seccomp"
 )
 
 func TestReadProcBool(t *testing.T) {

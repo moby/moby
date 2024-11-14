@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/diff"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/labels"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/diff"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/pkg/labels"
 	"github.com/containerd/platforms"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/moby/buildkit/cache"
@@ -45,6 +45,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 )
+
+const attestationManifestArtifactType = "application/vnd.docker.attestation.manifest.v1+json"
 
 type WriterOpt struct {
 	Snapshotter  snapshot.Snapshotter
@@ -312,7 +314,7 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 				return nil, err
 			}
 
-			desc, err := ic.commitAttestationsManifest(ctx, opts, desc.Digest.String(), stmts)
+			desc, err := ic.commitAttestationsManifest(ctx, opts, *desc, stmts, opts.OCIArtifact)
 			if err != nil {
 				return nil, err
 			}
@@ -553,7 +555,7 @@ func (ic *ImageWriter) commitDistributionManifest(ctx context.Context, opts *Ima
 	}, &configDesc, nil
 }
 
-func (ic *ImageWriter) commitAttestationsManifest(ctx context.Context, opts *ImageCommitOpts, target string, statements []intoto.Statement) (*ocispecs.Descriptor, error) {
+func (ic *ImageWriter) commitAttestationsManifest(ctx context.Context, opts *ImageCommitOpts, target ocispecs.Descriptor, statements []intoto.Statement, ociArtifact bool) (*ocispecs.Descriptor, error) {
 	var (
 		manifestType = ocispecs.MediaTypeImageManifest
 		configType   = ocispecs.MediaTypeImageConfig
@@ -588,15 +590,21 @@ func (ic *ImageWriter) commitAttestationsManifest(ctx context.Context, opts *Ima
 		layers[i] = desc
 	}
 
-	config, err := attestationsConfig(layers)
-	if err != nil {
-		return nil, err
-	}
-	configDigest := digest.FromBytes(config)
-	configDesc := ocispecs.Descriptor{
-		Digest:    configDigest,
-		Size:      int64(len(config)),
-		MediaType: configType,
+	configDesc := ocispecs.DescriptorEmptyJSON
+	config := configDesc.Data
+
+	if !ociArtifact {
+		var err error
+		config, err = attestationsConfig(layers)
+		if err != nil {
+			return nil, err
+		}
+		configDigest := digest.FromBytes(config)
+		configDesc = ocispecs.Descriptor{
+			Digest:    configDigest,
+			Size:      int64(len(config)),
+			MediaType: configType,
+		}
 	}
 
 	mfst := ocispecs.Manifest{
@@ -604,15 +612,16 @@ func (ic *ImageWriter) commitAttestationsManifest(ctx context.Context, opts *Ima
 		Versioned: specs.Versioned{
 			SchemaVersion: 2,
 		},
-		Config: ocispecs.Descriptor{
-			Digest:    configDigest,
-			Size:      int64(len(config)),
-			MediaType: configType,
-		},
+		Config: configDesc,
+	}
+
+	if ociArtifact {
+		mfst.ArtifactType = attestationManifestArtifactType
+		mfst.Subject = &target
 	}
 
 	labels := map[string]string{
-		"containerd.io/gc.ref.content.0": configDigest.String(),
+		"containerd.io/gc.ref.content.0": configDesc.Digest.String(),
 	}
 	for i, desc := range layers {
 		desc.Annotations = RemoveInternalLayerAnnotations(desc.Annotations, opts.OCITypes)
@@ -635,7 +644,7 @@ func (ic *ImageWriter) commitAttestationsManifest(ctx context.Context, opts *Ima
 	if err := content.WriteBlob(ctx, ic.opt.ContentStore, mfstDigest.String(), bytes.NewReader(mfstJSON), mfstDesc, content.WithLabels((labels))); err != nil {
 		return nil, done(errors.Wrapf(err, "error writing manifest blob %s", mfstDigest))
 	}
-	if err := content.WriteBlob(ctx, ic.opt.ContentStore, configDigest.String(), bytes.NewReader(config), configDesc); err != nil {
+	if err := content.WriteBlob(ctx, ic.opt.ContentStore, configDesc.Digest.String(), bytes.NewReader(config), configDesc); err != nil {
 		return nil, done(errors.Wrap(err, "error writing config blob"))
 	}
 	done(nil)
@@ -646,7 +655,7 @@ func (ic *ImageWriter) commitAttestationsManifest(ctx context.Context, opts *Ima
 		MediaType: manifestType,
 		Annotations: map[string]string{
 			attestationTypes.DockerAnnotationReferenceType:   attestationTypes.DockerAnnotationReferenceTypeDefault,
-			attestationTypes.DockerAnnotationReferenceDigest: target,
+			attestationTypes.DockerAnnotationReferenceDigest: string(target.Digest),
 		},
 	}, nil
 }

@@ -1,4 +1,4 @@
-//go:build !windows && !openbsd
+//go:build !windows && !freebsd && !netbsd && !openbsd
 
 package disk
 

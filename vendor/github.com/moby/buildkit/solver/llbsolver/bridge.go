@@ -354,9 +354,9 @@ func (b *llbBridge) ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, 
 	}
 	id := op.Identifier
 	if opt.Platform != nil {
-		id += platforms.Format(*opt.Platform)
+		id += platforms.FormatAll(*opt.Platform)
 	} else {
-		id += platforms.Format(platforms.DefaultSpec())
+		id += platforms.FormatAll(platforms.DefaultSpec())
 	}
 	pol, err := loadSourcePolicy(b.builder)
 	if err != nil {

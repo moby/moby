@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/remotes/docker"
-	"github.com/containerd/containerd/remotes/docker/auth"
-	remoteserrors "github.com/containerd/containerd/remotes/errors"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	"github.com/containerd/containerd/v2/core/remotes/docker/auth"
+	remoteserrors "github.com/containerd/containerd/v2/core/remotes/errors"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/session"
 	sessionauth "github.com/moby/buildkit/session/auth"
@@ -70,17 +70,17 @@ func (a *authHandlerNS) get(ctx context.Context, host string, sm *session.Manage
 		}
 		if parts[0] == host {
 			if h.authority != nil {
-				session, ok, err := sessionauth.VerifyTokenAuthority(ctx, host, h.authority, sm, g)
+				sessionID, ok, err := sessionauth.VerifyTokenAuthority(ctx, host, h.authority, sm, g)
 				if err == nil && ok {
-					a.handlers[host+"/"+session] = h
+					a.handlers[host+"/"+sessionID] = h
 					h.lastUsed = time.Now()
 					return h
 				}
 			} else {
-				session, username, password, err := sessionauth.CredentialsFunc(sm, g)(host)
+				sessionID, username, password, err := sessionauth.CredentialsFunc(sm, g)(host)
 				if err == nil {
 					if username == h.common.Username && password == h.common.Secret {
-						a.handlers[host+"/"+session] = h
+						a.handlers[host+"/"+sessionID] = h
 						h.lastUsed = time.Now()
 						return h
 					}
@@ -130,12 +130,12 @@ func (a *dockerAuthorizer) Authorize(ctx context.Context, req *http.Request) err
 		return nil
 	}
 
-	auth, err := ah.authorize(ctx, a.sm, a.session)
+	authHeader, err := ah.authorize(ctx, a.sm, a.session)
 	if err != nil {
 		return err
 	}
 
-	req.Header.Set("Authorization", auth)
+	req.Header.Set("Authorization", authHeader)
 	return nil
 }
 
@@ -163,7 +163,7 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 				}
 				handler = nil
 
-				// this hacky way seems to be best method to detect that error is fatal and should not be retried with a new token
+				// this hacky way seems to be the best method to detect that error is fatal and should not be retried with a new token
 				if c.Parameters["error"] == "insufficient_scope" && parseScopes(oldScopes).contains(parseScopes(strings.Split(c.Parameters["scope"], " "))) {
 					return err
 				}
@@ -180,12 +180,12 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 			}
 
 			var username, secret string
-			session, pubKey, err := sessionauth.GetTokenAuthority(ctx, host, a.sm, a.session)
+			sessionID, pubKey, err := sessionauth.GetTokenAuthority(ctx, host, a.sm, a.session)
 			if err != nil {
 				return err
 			}
 			if pubKey == nil {
-				session, username, secret, err = a.getCredentials(host)
+				sessionID, username, secret, err = a.getCredentials(host)
 				if err != nil {
 					return err
 				}
@@ -197,23 +197,20 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 			}
 			common.Scopes = parseScopes(append(common.Scopes, oldScopes...)).normalize()
 
-			a.handlers.set(host, session, newAuthHandler(host, a.client, c.Scheme, pubKey, common))
+			a.handlers.set(host, sessionID, newAuthHandler(host, a.client, c.Scheme, pubKey, common))
 
 			return nil
 		} else if c.Scheme == auth.BasicAuth {
-			session, username, secret, err := a.getCredentials(host)
+			sessionID, username, secret, err := a.getCredentials(host)
 			if err != nil {
 				return err
 			}
 
 			if username != "" && secret != "" {
-				common := auth.TokenOptions{
+				a.handlers.set(host, sessionID, newAuthHandler(host, a.client, c.Scheme, nil, auth.TokenOptions{
 					Username: username,
 					Secret:   secret,
-				}
-
-				a.handlers.set(host, session, newAuthHandler(host, a.client, c.Scheme, nil, common))
-
+				}))
 				return nil
 			}
 		}
@@ -281,8 +278,8 @@ func (ah *authHandler) doBasicAuth() (string, error) {
 		return "", errors.New("failed to handle basic auth because missing username or secret")
 	}
 
-	auth := base64.StdEncoding.EncodeToString([]byte(username + ":" + secret))
-	return fmt.Sprintf("Basic %s", auth), nil
+	authHeader := base64.StdEncoding.EncodeToString([]byte(username + ":" + secret))
+	return fmt.Sprintf("Basic %s", authHeader), nil
 }
 
 func (ah *authHandler) doBearerAuth(ctx context.Context, sm *session.Manager, g session.Group) (token string, err error) {
@@ -385,10 +382,10 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 					if err != nil {
 						return nil, err
 					}
-					if resp.ExpiresIn == 0 {
-						resp.ExpiresIn = defaultExpiration
+					if resp.ExpiresInSeconds == 0 {
+						resp.ExpiresInSeconds = defaultExpiration
 					}
-					issuedAt, expires = resp.IssuedAt, resp.ExpiresIn
+					issuedAt, expires = resp.IssuedAt, resp.ExpiresInSeconds
 					token = resp.AccessToken
 					return nil, nil
 				}
@@ -399,10 +396,10 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 			}
 			return nil, err
 		}
-		if resp.ExpiresIn == 0 {
-			resp.ExpiresIn = defaultExpiration
+		if resp.ExpiresInSeconds == 0 {
+			resp.ExpiresInSeconds = defaultExpiration
 		}
-		issuedAt, expires = resp.IssuedAt, resp.ExpiresIn
+		issuedAt, expires = resp.IssuedAt, resp.ExpiresInSeconds
 		token = resp.Token
 		return nil, nil
 	}
@@ -411,10 +408,10 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch anonymous token")
 	}
-	if resp.ExpiresIn == 0 {
-		resp.ExpiresIn = defaultExpiration
+	if resp.ExpiresInSeconds == 0 {
+		resp.ExpiresInSeconds = defaultExpiration
 	}
-	issuedAt, expires = resp.IssuedAt, resp.ExpiresIn
+	issuedAt, expires = resp.IssuedAt, resp.ExpiresInSeconds
 
 	token = resp.Token
 	return nil, nil
