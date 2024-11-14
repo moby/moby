@@ -186,20 +186,18 @@ func TestImageList(t *testing.T) {
 
 	blobsDir := t.TempDir()
 
-	multilayer, err := specialimage.MultiLayer(blobsDir)
-	assert.NilError(t, err)
+	toContainerdImage := func(t *testing.T, imageFunc specialimage.SpecialImageFunc) images.Image {
+		idx, err := imageFunc(blobsDir)
+		assert.NilError(t, err)
 
-	twoplatform, err := specialimage.TwoPlatform(blobsDir)
-	assert.NilError(t, err)
+		return imagesFromIndex(idx)[0]
+	}
 
-	emptyIndex, err := specialimage.EmptyIndex(blobsDir)
-	assert.NilError(t, err)
-
-	configTarget, err := specialimage.ConfigTarget(blobsDir)
-	assert.NilError(t, err)
-
-	textplain, err := specialimage.TextPlain(blobsDir)
-	assert.NilError(t, err)
+	multilayer := toContainerdImage(t, specialimage.MultiLayer)
+	twoplatform := toContainerdImage(t, specialimage.TwoPlatform)
+	emptyIndex := toContainerdImage(t, specialimage.EmptyIndex)
+	configTarget := toContainerdImage(t, specialimage.ConfigTarget)
+	textplain := toContainerdImage(t, specialimage.TextPlain)
 
 	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
 
@@ -212,11 +210,14 @@ func TestImageList(t *testing.T) {
 	}{
 		{
 			name:   "one multi-layer image",
-			images: imagesFromIndex(multilayer),
+			images: []images.Image{multilayer},
 			check: func(t *testing.T, all []*imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 1))
 
-				assert.Check(t, is.Equal(all[0].ID, multilayer.Manifests[0].Digest.String()))
+				if assert.Check(t, all[0].Descriptor != nil) {
+					assert.Check(t, is.DeepEqual(*all[0].Descriptor, multilayer.Target))
+				}
+				assert.Check(t, is.Equal(all[0].ID, multilayer.Target.Digest.String()))
 				assert.Check(t, is.DeepEqual(all[0].RepoTags, []string{"multilayer:latest"}))
 
 				assert.Check(t, is.Len(all[0].Manifests, 1))
@@ -226,11 +227,15 @@ func TestImageList(t *testing.T) {
 		},
 		{
 			name:   "one image with two platforms is still one entry",
-			images: imagesFromIndex(twoplatform),
+			images: []images.Image{twoplatform},
 			check: func(t *testing.T, all []*imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 1))
 
-				assert.Check(t, is.Equal(all[0].ID, twoplatform.Manifests[0].Digest.String()))
+				if assert.Check(t, all[0].Descriptor != nil) {
+					assert.Check(t, is.DeepEqual(*all[0].Descriptor, twoplatform.Target))
+				}
+				assert.Check(t, is.Equal(all[0].ID, twoplatform.Target.Digest.String()))
+
 				assert.Check(t, is.DeepEqual(all[0].RepoTags, []string{"twoplatform:latest"}))
 
 				i := all[0]
@@ -248,14 +253,22 @@ func TestImageList(t *testing.T) {
 		},
 		{
 			name:   "two images are two entries",
-			images: imagesFromIndex(multilayer, twoplatform),
+			images: []images.Image{multilayer, twoplatform},
 			check: func(t *testing.T, all []*imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 2))
 
-				assert.Check(t, is.Equal(all[0].ID, multilayer.Manifests[0].Digest.String()))
+				if assert.Check(t, all[0].Descriptor != nil) {
+					assert.Check(t, is.DeepEqual(*all[0].Descriptor, multilayer.Target))
+				}
+				assert.Check(t, is.Equal(all[0].ID, multilayer.Target.Digest.String()))
+
 				assert.Check(t, is.DeepEqual(all[0].RepoTags, []string{"multilayer:latest"}))
 
-				assert.Check(t, is.Equal(all[1].ID, twoplatform.Manifests[0].Digest.String()))
+				if assert.Check(t, all[1].Descriptor != nil) {
+					assert.Check(t, is.DeepEqual(*all[1].Descriptor, twoplatform.Target))
+				}
+				assert.Check(t, is.Equal(all[1].ID, twoplatform.Target.Digest.String()))
+
 				assert.Check(t, is.DeepEqual(all[1].RepoTags, []string{"twoplatform:latest"}))
 
 				assert.Check(t, is.Len(all[0].Manifests, 1))
@@ -269,14 +282,14 @@ func TestImageList(t *testing.T) {
 		},
 		{
 			name:   "three images, one is an empty index",
-			images: imagesFromIndex(multilayer, emptyIndex, twoplatform),
+			images: []images.Image{multilayer, emptyIndex, twoplatform},
 			check: func(t *testing.T, all []*imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 3))
 			},
 		},
 		{
 			name:   "one good image, second has config as a target",
-			images: imagesFromIndex(multilayer, configTarget),
+			images: []images.Image{multilayer, configTarget},
 			check: func(t *testing.T, all []*imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 2))
 
@@ -284,19 +297,29 @@ func TestImageList(t *testing.T) {
 					return slices.Contains(all[i].RepoTags, "multilayer:latest")
 				})
 
-				assert.Check(t, is.Equal(all[0].ID, multilayer.Manifests[0].Digest.String()))
+				if assert.Check(t, all[0].Descriptor != nil) {
+					assert.Check(t, is.DeepEqual(*all[0].Descriptor, multilayer.Target))
+				}
+				assert.Check(t, is.Equal(all[0].ID, multilayer.Target.Digest.String()))
+
 				assert.Check(t, is.Len(all[0].Manifests, 1))
 
-				assert.Check(t, is.Equal(all[1].ID, configTarget.Manifests[0].Digest.String()))
+				if assert.Check(t, all[1].Descriptor != nil) {
+					assert.Check(t, is.DeepEqual(*all[1].Descriptor, configTarget.Target))
+				}
 				assert.Check(t, is.Len(all[1].Manifests, 0))
 			},
 		},
 		{
 			name:   "a non-container image manifest",
-			images: imagesFromIndex(textplain),
+			images: []images.Image{textplain},
 			check: func(t *testing.T, all []*imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 1))
-				assert.Check(t, is.Equal(all[0].ID, textplain.Manifests[0].Digest.String()))
+
+				if assert.Check(t, all[0].Descriptor != nil) {
+					assert.Check(t, is.DeepEqual(*all[0].Descriptor, textplain.Target))
+				}
+				assert.Check(t, is.Equal(all[0].ID, textplain.Target.Digest.String()))
 
 				assert.Assert(t, is.Len(all[0].Manifests, 0))
 			},

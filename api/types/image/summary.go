@@ -1,5 +1,7 @@
 package image
 
+import ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 type Summary struct {
 
 	// Number of containers using this image. Includes both stopped and running
@@ -41,6 +43,13 @@ type Summary struct {
 	//
 	// Required: true
 	ParentID string `json:"ParentId"`
+
+	// Descriptor is the OCI descriptor of the image target.
+	// It's only set if the daemon provides a multi-platform image store.
+	//
+	// WARNING: This is experimental and may change at any time without any backward
+	// compatibility.
+	Descriptor *ocispec.Descriptor `json:"Descriptor,omitempty"`
 
 	// Manifests is a list of image manifests available in this image.  It
 	// provides a more detailed view of the platform-specific image manifests or

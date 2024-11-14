@@ -392,6 +392,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 			// consider both "0" and "nil" to be "empty".
 			SharedSize: -1,
 			Containers: -1,
+			Descriptor: &target,
 		}, nil, nil
 	}
 
@@ -401,6 +402,8 @@ func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platf
 	}
 	image.Size = totalSize
 	image.Manifests = manifestSummaries
+	target := img.Target
+	image.Descriptor = &target
 
 	if opts.ContainerCount {
 		image.Containers = containersCount

@@ -2278,6 +2278,18 @@ definitions:
         x-omitempty: true
         items:
           $ref: "#/definitions/ImageManifestSummary"
+      Descriptor:
+        description: |
+          Descriptor is an OCI descriptor of the image target.
+          In case of a multi-platform image, this descriptor points to the OCI index
+          or a manifest list.
+
+          This field is only present if the daemon provides a multi-platform image store.
+
+          WARNING: This is experimental and may change at any time without any backward
+          compatibility.
+        x-nullable: true
+        $ref: "#/definitions/OCIDescriptor"
 
   AuthConfig:
     type: "object"
