@@ -14,7 +14,6 @@ import (
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/pkg/cleanup"
 	"github.com/containerd/containerd/snapshots"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
@@ -205,7 +204,7 @@ func (i *ImageService) createDiff(ctx context.Context, name string, sn snapshots
 			if err != nil {
 				return nil, "", err
 			}
-			defer cleanup.Do(ctx, func(ctx context.Context) {
+			defer cleanup(ctx, func(ctx context.Context) {
 				sn.Remove(ctx, upperKey)
 			})
 		}
@@ -216,7 +215,7 @@ func (i *ImageService) createDiff(ctx context.Context, name string, sn snapshots
 	if err != nil {
 		return nil, "", err
 	}
-	defer cleanup.Do(ctx, func(ctx context.Context) {
+	defer cleanup(ctx, func(ctx context.Context) {
 		sn.Remove(ctx, lowerKey)
 	})
 
@@ -307,6 +306,12 @@ func uniquePart() string {
 	// Ignore read failures, just decreases uniqueness
 	rand.Read(b[:])
 	return fmt.Sprintf("%d-%s", t.Nanosecond(), base64.URLEncoding.EncodeToString(b[:]))
+}
+
+func cleanup(ctx context.Context, do func(context.Context)) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	do(ctx)
+	cancel()
 }
 
 // CommitBuildStep is used by the builder to create an image for each step in
