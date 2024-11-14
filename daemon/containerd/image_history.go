@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	containerdimages "github.com/containerd/containerd/images"
+	containerdimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"

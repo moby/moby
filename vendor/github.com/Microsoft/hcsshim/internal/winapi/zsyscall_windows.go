@@ -470,8 +470,12 @@ func LocalFree(ptr uintptr) {
 	return
 }
 
-func OpenJobObject(desiredAccess uint32, inheritHandle int32, lpName *uint16) (handle windows.Handle, err error) {
-	r0, _, e1 := syscall.SyscallN(procOpenJobObjectW.Addr(), uintptr(desiredAccess), uintptr(inheritHandle), uintptr(unsafe.Pointer(lpName)))
+func OpenJobObject(desiredAccess uint32, inheritHandle bool, lpName *uint16) (handle windows.Handle, err error) {
+	var _p0 uint32
+	if inheritHandle {
+		_p0 = 1
+	}
+	r0, _, e1 := syscall.SyscallN(procOpenJobObjectW.Addr(), uintptr(desiredAccess), uintptr(_p0), uintptr(unsafe.Pointer(lpName)))
 	handle = windows.Handle(r0)
 	if handle == 0 {
 		err = errnoErr(e1)

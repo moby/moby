@@ -69,9 +69,9 @@ func getOSVersion(osVersionPrefix string) osVersion {
 		return osVersion{}
 	}
 
-	majorVersion, _ := strconv.Atoi(parts[0])
-	minorVersion, _ := strconv.Atoi(parts[1])
-	buildNumber, _ := strconv.Atoi(parts[2])
+	majorVersion, _ := strconv.ParseUint(parts[0], 10, 8)
+	minorVersion, _ := strconv.ParseUint(parts[1], 10, 8)
+	buildNumber, _ := strconv.ParseUint(parts[2], 10, 16)
 
 	return osVersion{
 		MajorVersion: uint8(majorVersion),

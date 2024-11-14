@@ -121,7 +121,7 @@ import (
 )
 
 var (
-	specifierRe    = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+	specifierRe    = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 	osAndVersionRe = regexp.MustCompile(`^([A-Za-z0-9_-]+)(?:\(([A-Za-z0-9_.-]*)\))?$`)
 )
 

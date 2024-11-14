@@ -772,7 +772,7 @@ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (*Stream,
 	hdr := &headerFrame{
 		hf:        headerFields,
 		endStream: false,
-		initStream: func(id uint32) error {
+		initStream: func(uint32) error {
 			t.mu.Lock()
 			// TODO: handle transport closure in loopy instead and remove this
 			// initStream is never called when transport is draining.
@@ -1667,11 +1667,10 @@ func (t *http2Client) reader(errCh chan<- error) {
 					t.closeStream(s, status.Error(code, msg), true, http2.ErrCodeProtocol, status.New(code, msg), nil, false)
 				}
 				continue
-			} else {
-				// Transport error.
-				t.Close(connectionErrorf(true, err, "error reading from server: %v", err))
-				return
 			}
+			// Transport error.
+			t.Close(connectionErrorf(true, err, "error reading from server: %v", err))
+			return
 		}
 		switch frame := frame.(type) {
 		case *http2.MetaHeadersFrame:
@@ -1694,13 +1693,6 @@ func (t *http2Client) reader(errCh chan<- error) {
 			}
 		}
 	}
-}
-
-func minTime(a, b time.Duration) time.Duration {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // keepalive running in a separate goroutine makes sure the connection is alive by sending pings.
@@ -1770,7 +1762,7 @@ func (t *http2Client) keepalive() {
 			// timeoutLeft. This will ensure that we wait only for kp.Time
 			// before sending out the next ping (for cases where the ping is
 			// acked).
-			sleepDuration := minTime(t.kp.Time, timeoutLeft)
+			sleepDuration := min(t.kp.Time, timeoutLeft)
 			timeoutLeft -= sleepDuration
 			timer.Reset(sleepDuration)
 		case <-t.ctx.Done():

@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -151,7 +152,7 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 		resp, err := d.client.Do(request.Request)
 		var urlErr *url.Error
 		if errors.As(err, &urlErr) && urlErr.Temporary() {
-			return newResponseError(http.Header{})
+			return newResponseError(http.Header{}, err)
 		}
 		if err != nil {
 			return err
@@ -198,11 +199,27 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 			sc == http.StatusBadGateway,
 			sc == http.StatusServiceUnavailable,
 			sc == http.StatusGatewayTimeout:
-			// Retry-able failures.  Drain the body to reuse the connection.
-			if _, err := io.Copy(io.Discard, resp.Body); err != nil {
-				otel.Handle(err)
+			// Retry-able failures.
+			rErr := newResponseError(resp.Header, nil)
+
+			// server may return a message with the response
+			// body, so we read it to include in the error
+			// message to be returned. It will help in
+			// debugging the actual issue.
+			var respData bytes.Buffer
+			if _, err := io.Copy(&respData, resp.Body); err != nil {
+				_ = resp.Body.Close()
+				return err
 			}
-			return newResponseError(resp.Header)
+
+			// overwrite the error message with the response body
+			// if it is not empty
+			if respStr := strings.TrimSpace(respData.String()); respStr != "" {
+				// Include response for context.
+				e := errors.New(respStr)
+				rErr = newResponseError(resp.Header, e)
+			}
+			return rErr
 		default:
 			return fmt.Errorf("failed to send to %s: %s", request.URL, resp.Status)
 		}
@@ -291,22 +308,48 @@ func (r *request) reset(ctx context.Context) {
 // retryableError represents a request failure that can be retried.
 type retryableError struct {
 	throttle int64
+	err      error
 }
 
 // newResponseError returns a retryableError and will extract any explicit
-// throttle delay contained in headers.
-func newResponseError(header http.Header) error {
+// throttle delay contained in headers. The returned error wraps wrapped
+// if it is not nil.
+func newResponseError(header http.Header, wrapped error) error {
 	var rErr retryableError
 	if s, ok := header["Retry-After"]; ok {
 		if t, err := strconv.ParseInt(s[0], 10, 64); err == nil {
 			rErr.throttle = t
 		}
 	}
+
+	rErr.err = wrapped
 	return rErr
 }
 
 func (e retryableError) Error() string {
+	if e.err != nil {
+		return fmt.Sprintf("retry-able request failure: %s", e.err.Error())
+	}
+
 	return "retry-able request failure"
+}
+
+func (e retryableError) Unwrap() error {
+	return e.err
+}
+
+func (e retryableError) As(target interface{}) bool {
+	if e.err == nil {
+		return false
+	}
+
+	switch v := target.(type) {
+	case **retryableError:
+		*v = &e
+		return true
+	default:
+		return false
+	}
 }
 
 // evaluate returns if err is retry-able. If it is and it includes an explicit

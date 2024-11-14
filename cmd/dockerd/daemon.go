@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	containerddefaults "github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/tracing"
+	containerddefaults "github.com/containerd/containerd/v2/defaults"
+	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api"
 	apiserver "github.com/docker/docker/api/server"

@@ -3,7 +3,7 @@ package libcontainerd // import "github.com/docker/docker/libcontainerd"
 import (
 	"context"
 
-	"github.com/containerd/containerd"
+	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/log"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"

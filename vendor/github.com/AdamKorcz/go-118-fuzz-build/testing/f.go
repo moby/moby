@@ -41,147 +41,119 @@ func (f *F) Fuzz(ff any) {
 	args := []reflect.Value{reflect.ValueOf(f.T)}
 	fuzzConsumer := fuzz.NewConsumer(f.Data)
 	for _, v := range types {
+		//fmt.Printf("arg %v\n", v)
+		newElem := reflect.New(v).Elem()
 		switch v.String() {
 		case "[]uint8":
 			b, err := fuzzConsumer.GetBytes()
 			if err != nil {
 				return
 			}
-			newBytes := reflect.New(v)
-			newBytes.Elem().SetBytes(b)
-			args = append(args, newBytes.Elem())
+			newElem.SetBytes(b)
 		case "string":
 			s, err := fuzzConsumer.GetString()
 			if err != nil {
 				return
 			}
-			newString := reflect.New(v)
-			newString.Elem().SetString(s)
-			args = append(args, newString.Elem())
+			newElem.SetString(s)
 		case "int":
-			randInt, err := fuzzConsumer.GetInt()
+			randInt, err := fuzzConsumer.GetUint64()
 			if err != nil {
 				return
 			}
-			newInt := reflect.New(v)
-			newInt.Elem().SetInt(int64(randInt))
-			args = append(args, newInt.Elem())
+			newElem.SetInt(int64(int(randInt)))
 		case "int8":
-			randInt, err := fuzzConsumer.GetInt()
+			randInt, err := fuzzConsumer.GetByte()
 			if err != nil {
 				return
 			}
-			newInt := reflect.New(v)
-			newInt.Elem().SetInt(int64(randInt))
-			args = append(args, newInt.Elem())
+			newElem.SetInt(int64(randInt))
 		case "int16":
-			randInt, err := fuzzConsumer.GetInt()
+			randInt, err := fuzzConsumer.GetUint16()
 			if err != nil {
 				return
 			}
-			newInt := reflect.New(v)
-			newInt.Elem().SetInt(int64(randInt))
-			args = append(args, newInt.Elem())
+			newElem.SetInt(int64(randInt))
 		case "int32":
-			randInt, err := fuzzConsumer.GetInt()
+			randInt, err := fuzzConsumer.GetUint32()
 			if err != nil {
 				return
 			}
-			newInt := reflect.New(v)
-			newInt.Elem().SetInt(int64(randInt))
-			args = append(args, newInt.Elem())
+			newElem.SetInt(int64(int32(randInt)))
 		case "int64":
-			randInt, err := fuzzConsumer.GetInt()
+			randInt, err := fuzzConsumer.GetUint64()
 			if err != nil {
 				return
 			}
-			newInt := reflect.New(v)
-			newInt.Elem().SetInt(int64(randInt))
-			args = append(args, newInt.Elem())
+			newElem.SetInt(int64(randInt))
 		case "uint":
-			randInt, err := fuzzConsumer.GetInt()
+			randInt, err := fuzzConsumer.GetUint64()
 			if err != nil {
 				return
 			}
-			newUint := reflect.New(v)
-			newUint.Elem().SetUint(uint64(randInt))
-			args = append(args, newUint.Elem())
+			newElem.SetUint(uint64(uint(randInt)))
 		case "uint8":
-			randInt, err := fuzzConsumer.GetInt()
+			randInt, err := fuzzConsumer.GetByte()
 			if err != nil {
 				return
 			}
-			newUint := reflect.New(v)
-			newUint.Elem().SetUint(uint64(randInt))
-			args = append(args, newUint.Elem())
+			newElem.SetUint(uint64(randInt))
 		case "uint16":
 			randInt, err := fuzzConsumer.GetUint16()
 			if err != nil {
 				return
 			}
-			newUint16 := reflect.New(v)
-			newUint16.Elem().SetUint(uint64(randInt))
-			args = append(args, newUint16.Elem())
+			newElem.SetUint(uint64(randInt))
 		case "uint32":
 			randInt, err := fuzzConsumer.GetUint32()
 			if err != nil {
 				return
 			}
-			newUint32 := reflect.New(v)
-			newUint32.Elem().SetUint(uint64(randInt))
-			args = append(args, newUint32.Elem())
+			newElem.SetUint(uint64(randInt))
 		case "uint64":
 			randInt, err := fuzzConsumer.GetUint64()
 			if err != nil {
 				return
 			}
-			newUint64 := reflect.New(v)
-			newUint64.Elem().SetUint(uint64(randInt))
-			args = append(args, newUint64.Elem())
+			newElem.SetUint(uint64(randInt))
 		case "rune":
 			randRune, err := fuzzConsumer.GetRune()
 			if err != nil {
 				return
 			}
-			newRune := reflect.New(v)
-			newRune.Elem().Set(reflect.ValueOf(randRune))
-			args = append(args, newRune.Elem())
+			newElem.Set(reflect.ValueOf(randRune))
 		case "float32":
 			randFloat, err := fuzzConsumer.GetFloat32()
 			if err != nil {
 				return
 			}
-			newFloat := reflect.New(v)
-			newFloat.Elem().Set(reflect.ValueOf(randFloat))
-			args = append(args, newFloat.Elem())
+			newElem.Set(reflect.ValueOf(randFloat))
 		case "float64":
 			randFloat, err := fuzzConsumer.GetFloat64()
 			if err != nil {
 				return
 			}
-			newFloat := reflect.New(v)
-			newFloat.Elem().Set(reflect.ValueOf(randFloat))
-			args = append(args, newFloat.Elem())
+			newElem.Set(reflect.ValueOf(randFloat))
 		case "bool":
 			randBool, err := fuzzConsumer.GetBool()
 			if err != nil {
 				return
 			}
-			newBool := reflect.New(v)
-			newBool.Elem().Set(reflect.ValueOf(randBool))
-			args = append(args, newBool.Elem())
+			newElem.Set(reflect.ValueOf(randBool))
 		default:
-			fmt.Println(v.String())
+			panic(fmt.Sprintf("unsupported type: %s", v.String()))
 		}
+		args = append(args, newElem)
+
 	}
 	fn.Call(args)
 }
 func (f *F) Helper() {}
 func (c *F) Log(args ...any) {
-	fmt.Println(args...)
+	fmt.Print(args...)
 }
 func (c *F) Logf(format string, args ...any) {
-	fmt.Println(format, args)
+	fmt.Println(fmt.Sprintf(format, args...))
 }
 func (c *F) Name() string             { return "libFuzzer" }
 func (c *F) Setenv(key, value string) {}

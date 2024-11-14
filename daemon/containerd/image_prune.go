@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	containerdimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/tracing"
+	containerdimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/pkg/tracing"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
