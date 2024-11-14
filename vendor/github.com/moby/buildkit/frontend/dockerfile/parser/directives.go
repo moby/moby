@@ -112,10 +112,15 @@ func (d *DirectiveParser) ParseAll(data []byte) ([]*Directive, error) {
 // This allows for a flexible range of input formats, and appropriate syntax
 // selection.
 func DetectSyntax(dt []byte) (string, string, []Range, bool) {
-	return ParseDirective(keySyntax, dt)
+	return parseDirective(keySyntax, dt, true)
 }
 
 func ParseDirective(key string, dt []byte) (string, string, []Range, bool) {
+	return parseDirective(key, dt, false)
+}
+
+func parseDirective(key string, dt []byte, anyFormat bool) (string, string, []Range, bool) {
+	dt = discardBOM(dt)
 	dt, hadShebang, err := discardShebang(dt)
 	if err != nil {
 		return "", "", nil, false
@@ -129,6 +134,10 @@ func ParseDirective(key string, dt []byte) (string, string, []Range, bool) {
 	directiveParser := DirectiveParser{line: line}
 	if syntax, cmdline, loc, ok := detectDirectiveFromParser(key, dt, directiveParser); ok {
 		return syntax, cmdline, loc, true
+	}
+
+	if !anyFormat {
+		return "", "", nil, false
 	}
 
 	// use directive with different comment prefix, and search for //key=
@@ -170,4 +179,8 @@ func discardShebang(dt []byte) ([]byte, bool, error) {
 		return rest, true, nil
 	}
 	return dt, false, nil
+}
+
+func discardBOM(dt []byte) []byte {
+	return bytes.TrimPrefix(dt, []byte{0xEF, 0xBB, 0xBF})
 }

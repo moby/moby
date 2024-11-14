@@ -7,9 +7,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/remotes"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/distribution/reference"
 	"github.com/moby/buildkit/util/bklog"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"

@@ -17,13 +17,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/tracing"
+	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // rotateFileMetadata is a metadata of the gzip header of the compressed log file
@@ -731,7 +730,7 @@ func getTailFiles(ctx context.Context, files []fileOpener, nLines int, getTailRe
 
 	if nLines <= 0 {
 		for _, fo := range files {
-			span.AddEvent("Open file", trace.WithAttributes(attribute.String("file", fo.Ref())))
+			span.AddEvent("Open file", attribute.String("file", fo.Ref()))
 
 			ra, err := fo.ReaderAt(ctx)
 			if err != nil {
@@ -751,14 +750,14 @@ func getTailFiles(ctx context.Context, files []fileOpener, nLines int, getTailRe
 		fo := files[i]
 
 		fileAttr := attribute.String("file", fo.Ref())
-		span.AddEvent("Open file", trace.WithAttributes(fileAttr))
+		span.AddEvent("Open file", fileAttr)
 
 		ra, err := fo.ReaderAt(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		span.AddEvent("Scan file to tail", trace.WithAttributes(fileAttr, attribute.Int("remaining_lines", nLines)))
+		span.AddEvent("Scan file to tail", fileAttr, attribute.Int("remaining_lines", nLines))
 
 		tail, n, err := getTailReader(ctx, ra, nLines)
 		if err != nil {

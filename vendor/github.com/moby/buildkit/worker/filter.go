@@ -3,7 +3,7 @@ package worker
 import (
 	"strings"
 
-	"github.com/containerd/containerd/filters"
+	"github.com/containerd/containerd/v2/pkg/filters"
 )
 
 func adaptWorker(w Worker) filters.Adaptor {

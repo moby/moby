@@ -7,7 +7,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/snapshot"

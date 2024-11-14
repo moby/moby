@@ -10,12 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/labels"
-	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/snapshots"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/containerd/v2/core/mount"
+	"github.com/containerd/containerd/v2/core/snapshots"
+	"github.com/containerd/containerd/v2/pkg/labels"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/hashicorp/go-multierror"
@@ -655,7 +655,7 @@ func (sr *immutableRef) Clone() ImmutableRef {
 	return sr.clone()
 }
 
-// layertoDistributable changes the passed in media type to the "distributable" version of the media type.
+// layerToDistributable changes the passed in media type to the "distributable" version of the media type.
 func layerToDistributable(mt string) string {
 	if !images.IsNonDistributable(mt) {
 		// Layer is already a distributable media type (or this is not even a layer).

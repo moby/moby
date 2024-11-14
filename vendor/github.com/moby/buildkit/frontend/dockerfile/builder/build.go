@@ -160,7 +160,7 @@ func Build(ctx context.Context, c client.Client) (_ *client.Result, err error) {
 		if platform != nil {
 			p = *platform
 		}
-		scanTargets.Store(platforms.Format(platforms.Normalize(p)), scanTarget)
+		scanTargets.Store(platforms.FormatAll(platforms.Normalize(p)), scanTarget)
 
 		return ref, img, baseImg, nil
 	})

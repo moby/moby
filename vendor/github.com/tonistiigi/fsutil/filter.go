@@ -111,7 +111,7 @@ func NewFilterFS(fs FS, opt *FilterOpt) (FS, error) {
 	if len(includePatterns) > 0 {
 		includeMatcher, err = patternmatcher.New(includePatterns)
 		if err != nil {
-			return nil, errors.Wrapf(err, "invalid includepatterns: %s", opt.IncludePatterns)
+			return nil, errors.Wrapf(err, "invalid includepatterns: %s", includePatterns)
 		}
 
 		for _, p := range includeMatcher.Patterns() {

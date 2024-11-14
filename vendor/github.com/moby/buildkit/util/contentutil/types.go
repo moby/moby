@@ -3,7 +3,7 @@ package contentutil
 import (
 	"context"
 
-	"github.com/containerd/containerd/remotes"
+	"github.com/containerd/containerd/v2/core/remotes"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 )
 

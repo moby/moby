@@ -2,13 +2,15 @@
 // source: drivers/windows/overlay/overlay.proto
 
 /*
-	Package overlay is a generated protocol buffer package.
+Package overlay is a generated protocol buffer package.
 
-	It is generated from these files:
-		drivers/windows/overlay/overlay.proto
+It is generated from these files:
 
-	It has these top-level messages:
-		PeerRecord
+	drivers/windows/overlay/overlay.proto
+
+It has these top-level messages:
+
+	PeerRecord
 */
 package overlay
 

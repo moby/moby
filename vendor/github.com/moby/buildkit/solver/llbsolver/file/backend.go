@@ -67,6 +67,40 @@ func mkdir(d string, action *pb.FileActionMkDir, user *copy.User, idmap *idtools
 	return nil
 }
 
+func symlink(d string, action *pb.FileActionSymlink, user *copy.User, idmap *idtools.IdentityMapping) (err error) {
+	defer func() {
+		var osErr *os.PathError
+		if errors.As(err, &osErr) {
+			// remove system root from error path if present
+			osErr.Path = strings.TrimPrefix(osErr.Path, d)
+		}
+	}()
+
+	newpath, err := fs.RootPath(d, filepath.Join("/", action.Newpath))
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	ch, err := mapUserToChowner(user, idmap)
+	if err != nil {
+		return err
+	}
+
+	if err := os.Symlink(action.Oldpath, newpath); err != nil {
+		return errors.WithStack(err)
+	}
+
+	if err := copy.Chown(newpath, nil, ch); err != nil {
+		return errors.WithStack(err)
+	}
+
+	if err := copy.Utimes(newpath, timestampToTime(action.Timestamp)); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
 func mkfile(d string, action *pb.FileActionMkFile, user *copy.User, idmap *idtools.IdentityMapping) (err error) {
 	defer func() {
 		var osErr *os.PathError
@@ -302,6 +336,27 @@ func (fb *Backend) Mkfile(ctx context.Context, m, user, group fileoptypes.Mount,
 	}
 
 	return mkfile(dir, action, u, mnt.m.IdentityMapping())
+}
+
+func (fb *Backend) Symlink(ctx context.Context, m, user, group fileoptypes.Mount, action *pb.FileActionSymlink) error {
+	mnt, ok := m.(*Mount)
+	if !ok {
+		return errors.Errorf("invalid mount type %T", m)
+	}
+
+	lm := snapshot.LocalMounter(mnt.m)
+	dir, err := lm.Mount()
+	if err != nil {
+		return err
+	}
+	defer lm.Unmount()
+
+	u, err := fb.readUserWrapper(action.Owner, user, group)
+	if err != nil {
+		return err
+	}
+
+	return symlink(dir, action, u, mnt.m.IdentityMapping())
 }
 
 func (fb *Backend) Rm(ctx context.Context, m fileoptypes.Mount, action *pb.FileActionRm) error {

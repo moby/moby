@@ -3,8 +3,8 @@ package containerd
 import (
 	"context"
 
-	"github.com/containerd/containerd/content"
-	containerdlabels "github.com/containerd/containerd/labels"
+	"github.com/containerd/containerd/v2/core/content"
+	containerdlabels "github.com/containerd/containerd/v2/pkg/labels"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"

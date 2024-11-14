@@ -4,13 +4,13 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/diff"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/reference"
-	"github.com/containerd/containerd/remotes"
-	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/diff"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/containerd/v2/core/remotes"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client"
@@ -162,7 +162,7 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt source
 		err   error
 	)
 	if platform := opt.Platform; platform != nil {
-		key += platforms.Format(*platform)
+		key += platforms.FormatAll(*platform)
 	}
 
 	switch is.ResolverType {

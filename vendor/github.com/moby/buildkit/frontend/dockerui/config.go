@@ -463,7 +463,7 @@ func (bc *Client) NamedContext(ctx context.Context, name string, opt ContextOpt)
 	if opt.Platform != nil {
 		pp = *opt.Platform
 	}
-	pname := name + "::" + platforms.Format(platforms.Normalize(pp))
+	pname := name + "::" + platforms.FormatAll(platforms.Normalize(pp))
 	st, img, err := bc.namedContext(ctx, name, pname, opt)
 	if err != nil || st != nil {
 		return st, img, err
