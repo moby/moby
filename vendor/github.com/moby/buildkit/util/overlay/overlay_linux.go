@@ -13,10 +13,9 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
-	"github.com/containerd/containerd/archive"
-	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/v2/core/mount"
+	"github.com/containerd/containerd/v2/pkg/archive"
 	"github.com/containerd/continuity/devices"
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/continuity/sysx"
@@ -127,8 +126,7 @@ func WriteUpperdir(ctx context.Context, w io.Writer, upperdir string, lower []mo
 	}
 	return mount.WithTempMount(ctx, lower, func(lowerRoot string) error {
 		return mount.WithTempMount(ctx, upperView, func(upperViewRoot string) error {
-			// WithWhiteoutTime(0) will no longer need to be specified when https://github.com/containerd/containerd/pull/8764 gets merged
-			cw := archive.NewChangeWriter(&cancellableWriter{ctx, w}, upperViewRoot, archive.WithWhiteoutTime(time.Unix(0, 0).UTC()))
+			cw := archive.NewChangeWriter(&cancellableWriter{ctx, w}, upperViewRoot)
 			if err := Changes(ctx, cw.HandleChange, upperdir, upperViewRoot, lowerRoot); err != nil {
 				if err2 := cw.Close(); err2 != nil {
 					return errors.Wrapf(err, "failed to record upperdir changes (close error: %v)", err2)

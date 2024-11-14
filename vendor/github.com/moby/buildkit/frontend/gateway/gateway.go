@@ -15,8 +15,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/v2/core/mount"
+	"github.com/containerd/containerd/v2/defaults"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/pkg/idtools"
 	apitypes "github.com/moby/buildkit/api/types"
