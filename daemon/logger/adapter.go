@@ -87,7 +87,7 @@ type pluginAdapterWithRead struct {
 	*pluginAdapter
 }
 
-func (a *pluginAdapterWithRead) ReadLogs(config ReadConfig) *LogWatcher {
+func (a *pluginAdapterWithRead) ReadLogs(ctx context.Context, config ReadConfig) *LogWatcher {
 	watcher := NewLogWatcher()
 
 	go func() {
@@ -101,6 +101,10 @@ func (a *pluginAdapterWithRead) ReadLogs(config ReadConfig) *LogWatcher {
 
 		dec := logdriver.NewLogEntryDecoder(stream)
 		for {
+			if ctx.Err() != nil {
+				return
+			}
+
 			var buf logdriver.LogEntry
 			if err := dec.Decode(&buf); err != nil {
 				if err == io.EOF {
@@ -127,6 +131,8 @@ func (a *pluginAdapterWithRead) ReadLogs(config ReadConfig) *LogWatcher {
 			// send the message unless the consumer is gone
 			select {
 			case watcher.Msg <- msg:
+			case <-ctx.Done():
+				return
 			case <-watcher.WatchConsumerGone():
 				return
 			}
