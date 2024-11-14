@@ -6,9 +6,9 @@ import (
 	"context"
 	"io"
 
-	"github.com/containerd/containerd/archive"
-	"github.com/containerd/containerd/diff"
-	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/v2/core/diff"
+	"github.com/containerd/containerd/v2/core/mount"
+	"github.com/containerd/containerd/v2/pkg/archive"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"

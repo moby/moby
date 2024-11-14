@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/containerd/containerd/containers"
-	containerdoci "github.com/containerd/containerd/oci"
+	"github.com/containerd/containerd/v2/core/containers"
+	containerdoci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/continuity/fs"
 	"github.com/moby/sys/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/sdk/metric/internal/exemplar"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
@@ -38,8 +37,8 @@ type Builder[N int64 | float64] struct {
 	// create new exemplar reservoirs for a new seen attribute set.
 	//
 	// If this is not provided a default factory function that returns an
-	// exemplar.Drop reservoir will be used.
-	ReservoirFunc func() exemplar.FilteredReservoir[N]
+	// DropReservoir reservoir will be used.
+	ReservoirFunc func() FilteredExemplarReservoir[N]
 	// AggregationLimit is the cardinality limit of measurement attributes. Any
 	// measurement for new attributes once the limit has been reached will be
 	// aggregated into a single aggregate for the "otel.metric.overflow"
@@ -50,12 +49,12 @@ type Builder[N int64 | float64] struct {
 	AggregationLimit int
 }
 
-func (b Builder[N]) resFunc() func() exemplar.FilteredReservoir[N] {
+func (b Builder[N]) resFunc() func() FilteredExemplarReservoir[N] {
 	if b.ReservoirFunc != nil {
 		return b.ReservoirFunc
 	}
 
-	return exemplar.Drop
+	return DropReservoir
 }
 
 type fltrMeasure[N int64 | float64] func(ctx context.Context, value N, fltrAttr attribute.Set, droppedAttr []attribute.KeyValue)

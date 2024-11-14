@@ -133,7 +133,7 @@ func (b *baseBalancer) UpdateClientConnState(s balancer.ClientConnState) error {
 		}
 	}
 	// If resolver state contains no addresses, return an error so ClientConn
-	// will trigger re-resolve. Also records this as an resolver error, so when
+	// will trigger re-resolve. Also records this as a resolver error, so when
 	// the overall state turns transient failure, the error message will have
 	// the zero address information.
 	if len(s.ResolverState.Addresses) == 0 {

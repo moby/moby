@@ -215,6 +215,10 @@ func (ct *clientTracer) start(hook, spanName string, attrs ...attribute.KeyValue
 
 func (ct *clientTracer) end(hook string, err error, attrs ...attribute.KeyValue) {
 	if !ct.useSpans {
+		// sometimes end may be called without previous start
+		if ct.root == nil {
+			ct.root = trace.SpanFromContext(ct.Context)
+		}
 		if err != nil {
 			attrs = append(attrs, attribute.String(hook+".error", err.Error()))
 		}
