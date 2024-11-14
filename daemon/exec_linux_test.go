@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/containerd/containerd/pkg/apparmor"
+	"github.com/containerd/containerd/v2/pkg/apparmor"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	specs "github.com/opencontainers/runtime-spec/specs-go"

@@ -3,7 +3,7 @@ package containerd
 import (
 	"context"
 
-	c8dimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 )

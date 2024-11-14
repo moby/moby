@@ -518,6 +518,8 @@ func WithUserAgent(s string) DialOption {
 
 // WithKeepaliveParams returns a DialOption that specifies keepalive parameters
 // for the client transport.
+//
+// Keepalive is disabled by default.
 func WithKeepaliveParams(kp keepalive.ClientParameters) DialOption {
 	if kp.Time < internal.KeepaliveMinPingTime {
 		logger.Warningf("Adjusting keepalive ping interval to minimum period of %v", internal.KeepaliveMinPingTime)

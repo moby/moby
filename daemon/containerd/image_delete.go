@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	c8dimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"

@@ -86,9 +86,22 @@ func normalizeArch(arch, variant string) (string, string) {
 		}
 	case "aarch64", "arm64":
 		arch = "arm64"
-		switch variant {
-		case "8", "v8":
+		majorVariant, minorVariant, hasMinor := strings.Cut(variant, ".")
+		majorVariant = strings.TrimPrefix(majorVariant, "v")
+		if minorVariant == "0" {
+			minorVariant = ""
+			hasMinor = false
+		}
+
+		if (majorVariant == "" || majorVariant == "8") && !hasMinor {
+			// normalize v8 to empty string
 			variant = ""
+		} else {
+			// otherwise to v8.x or v9 or v9.x
+			variant = "v" + majorVariant
+			if hasMinor {
+				variant = variant + "." + minorVariant
+			}
 		}
 	case "armhf":
 		arch = "arm"

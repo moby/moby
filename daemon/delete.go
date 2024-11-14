@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/v2/core/leases"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"

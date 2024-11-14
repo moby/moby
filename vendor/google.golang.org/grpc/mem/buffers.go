@@ -224,11 +224,11 @@ func (e emptyBuffer) Len() int {
 	return 0
 }
 
-func (e emptyBuffer) split(n int) (left, right Buffer) {
+func (e emptyBuffer) split(int) (left, right Buffer) {
 	return e, e
 }
 
-func (e emptyBuffer) read(buf []byte) (int, Buffer) {
+func (e emptyBuffer) read([]byte) (int, Buffer) {
 	return 0, e
 }
 
