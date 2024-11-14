@@ -1117,7 +1117,7 @@ func (t *http2Server) WriteStatus(s *Stream, st *status.Status) error {
 
 // Write converts the data into HTTP2 data frame and sends it out. Non-nil error
 // is returns if it fails (e.g., framing error, transport error).
-func (t *http2Server) Write(s *Stream, hdr []byte, data mem.BufferSlice, opts *Options) error {
+func (t *http2Server) Write(s *Stream, hdr []byte, data mem.BufferSlice, _ *Options) error {
 	reader := data.Reader()
 
 	if !s.isHeaderSent() { // Headers haven't been written yet.
@@ -1238,7 +1238,7 @@ func (t *http2Server) keepalive() {
 			// timeoutLeft. This will ensure that we wait only for kp.Time
 			// before sending out the next ping (for cases where the ping is
 			// acked).
-			sleepDuration := minTime(t.kp.Time, kpTimeoutLeft)
+			sleepDuration := min(t.kp.Time, kpTimeoutLeft)
 			kpTimeoutLeft -= sleepDuration
 			kpTimer.Reset(sleepDuration)
 		case <-t.done:
