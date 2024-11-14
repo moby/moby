@@ -11,8 +11,8 @@ type hubRouter struct {
 func NewRouter() router.Router {
 	hr := &hubRouter{}
 	hr.routes = []router.Route{
-		router.NewGetRoute("/hub/image/{name:.*}/get", hr.getHubImageTags, router.Experimental),
-		router.NewGetRoute("/hub/image/search", hr.getHubImageSearch, router.Experimental),
+		router.NewGetRoute("/hub/image/{name:.*}/get", hr.getHubImageTags),
+		router.NewGetRoute("/hub/image/search", hr.getHubImageSearch),
 	}
 	return hr
 }
