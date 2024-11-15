@@ -519,9 +519,17 @@ RUN useradd --create-home --gid docker unprivilegeduser \
  && chown -R unprivilegeduser /home/unprivilegeduser
 # Let us use a .bashrc file
 RUN ln -sfv /go/src/github.com/docker/docker/.bashrc ~/.bashrc
-# Activate bash completion and include Docker's completion if mounted with DOCKER_BASH_COMPLETION_PATH
+# Activate bash completion
 RUN echo "source /usr/share/bash-completion/bash_completion" >> /etc/bash.bashrc
-RUN ln -s /usr/local/completion/bash/docker /etc/bash_completion.d/docker
+# Include Docker's completion if mounted with DOCKER_BASH_COMPLETION_PATH
+# Otherwise use the CLI generated completion scripts.
+RUN --mount=type=bind,from=dockercli,source=/build/docker,target=/docker <<EOF
+	if [ -e /usr/local/completion/bash/docker ]; then
+		ln -s /usr/local/completion/bash/docker /etc/bash_completion.d/docker
+	else
+		/docker completion bash >/etc/bash_completion.d/docker
+	fi
+EOF
 RUN ldconfig
 # Set dev environment as safe git directory to prevent "dubious ownership" errors
 # when bind-mounting the source into the dev-container. See https://github.com/moby/moby/pull/44930
