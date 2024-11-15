@@ -59,6 +59,10 @@ type Volume interface {
 	CreatedAt() (time.Time, error)
 	// Status returns low-level status information about a volume
 	Status() map[string]interface{}
+	// IsExporting returns true if the volume is currently being exported
+	IsExporting() bool
+	// SetExporting sets the exporting status of the volume
+	SetExporting(exporting bool)
 }
 
 // LiveRestorer is an optional interface that can be implemented by a volume driver

@@ -113,13 +113,14 @@ func (a *volumeDriverAdapter) getCapabilities() volume.Capability {
 }
 
 type volumeAdapter struct {
-	proxy      volumeDriver
-	name       string
-	scopePath  func(string) string
-	driverName string
-	eMount     string    // ephemeral host volume path
-	createdAt  time.Time // time the directory was created
-	status     map[string]interface{}
+	proxy       volumeDriver
+	name        string
+	scopePath   func(string) string
+	driverName  string
+	eMount      string    // ephemeral host volume path
+	createdAt   time.Time // time the directory was created
+	status      map[string]interface{}
+	isExporting bool
 }
 
 type proxyVolume struct {
@@ -173,4 +174,12 @@ func (a *volumeAdapter) Status() map[string]interface{} {
 		out[k] = v
 	}
 	return out
+}
+
+func (a *volumeAdapter) IsExporting() bool {
+	return a.isExporting
+}
+
+func (a *volumeAdapter) SetExporting(exporting bool) {
+	a.isExporting = exporting
 }

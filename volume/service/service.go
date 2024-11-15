@@ -128,6 +128,11 @@ func (s *VolumesService) Mount(ctx context.Context, vol *volumetypes.Volume, ref
 		}
 		return "", err
 	}
+
+	if v.IsExporting() {
+		return "", errors.Errorf("volume %s is already in the process of being exported", vol.Name)
+	}
+
 	return v.Mount(ref)
 }
 
@@ -145,6 +150,11 @@ func (s *VolumesService) Unmount(ctx context.Context, vol *volumetypes.Volume, r
 		}
 		return err
 	}
+
+	if v.IsExporting() {
+		return errors.Errorf("volume %s is already in the process of being exported", vol.Name)
+	}
+
 	return v.Unmount(ref)
 }
 
@@ -304,6 +314,13 @@ func (s *VolumesService) Export(
 	if v.DriverName() != volume.DefaultDriverName {
 		return errors.Errorf("exporting volumes is not supported for driver %s", v.DriverName())
 	}
+
+	if v.IsExporting() {
+		return errors.Errorf("volume %s is already in the process of being exported", name)
+	}
+
+	v.SetExporting(true)
+	defer v.SetExporting(false)
 
 	if pause {
 		s.vs.globalLock.RLock()
