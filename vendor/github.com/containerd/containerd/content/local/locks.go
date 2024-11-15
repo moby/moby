@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/errdefs"
+	"github.com/containerd/containerd/errdefs"
 )
 
 // Handles locking references

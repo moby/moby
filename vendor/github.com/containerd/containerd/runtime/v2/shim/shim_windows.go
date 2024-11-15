@@ -22,7 +22,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/containerd/errdefs"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/ttrpc"
 	"github.com/sirupsen/logrus"
 )
