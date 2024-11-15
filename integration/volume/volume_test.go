@@ -350,6 +350,6 @@ func TestVolumeExport(t *testing.T) {
 	v, err := client.VolumeCreate(ctx, volume.CreateOptions{})
 	assert.NilError(t, err)
 
-	_, err = client.VolumeExport(ctx, v.Name)
+	_, err = client.VolumeExport(ctx, v.Name, true)
 	assert.NilError(t, err)
 }

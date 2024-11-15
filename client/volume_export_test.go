@@ -19,7 +19,7 @@ func TestVolumeExportError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.VolumeExport(context.Background(), "nothing")
+	_, err := client.VolumeExport(context.Background(), "nothing", true)
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -37,7 +37,7 @@ func TestVolumeExport(t *testing.T) {
 			}, nil
 		}),
 	}
-	body, err := client.VolumeExport(context.Background(), "local_volume")
+	body, err := client.VolumeExport(context.Background(), "local_volume", true)
 	if err != nil {
 		t.Fatal(err)
 	}

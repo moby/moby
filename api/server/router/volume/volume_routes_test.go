@@ -640,7 +640,14 @@ func (b *fakeVolumeBackend) Prune(_ context.Context, _ filters.Args) (*volume.Pr
 	return nil, nil
 }
 
-func (b *fakeVolumeBackend) Export(_ context.Context, name string, out io.Writer) error {
+func (b *fakeVolumeBackend) Export(
+	_ context.Context,
+	name string,
+	out io.Writer,
+	_ func(string) error,
+	_ func(string) error,
+	_ bool,
+) error {
 	v, ok := b.volumes[name]
 	if !ok {
 		return errdefs.NotFound(fmt.Errorf("volume %s not found", name))

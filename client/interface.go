@@ -179,7 +179,7 @@ type VolumeAPIClient interface {
 	VolumeInspectWithRaw(ctx context.Context, volumeID string) (volume.Volume, []byte, error)
 	VolumeList(ctx context.Context, options volume.ListOptions) (volume.ListResponse, error)
 	VolumeRemove(ctx context.Context, volumeID string, force bool) error
-	VolumeExport(ctx context.Context, volumeID string) (io.ReadCloser, error)
+	VolumeExport(ctx context.Context, volumeID string, pause bool) (io.ReadCloser, error)
 	VolumesPrune(ctx context.Context, pruneFilter filters.Args) (volume.PruneReport, error)
 	VolumeUpdate(ctx context.Context, volumeID string, version swarm.Version, options volume.UpdateOptions) error
 }
