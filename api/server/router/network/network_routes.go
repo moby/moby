@@ -214,8 +214,8 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 
 	version := httputils.VersionFromContext(ctx)
 
-	// EnableIPv4 was introduced in API 1.47.
-	if versions.LessThan(version, "1.47") {
+	// EnableIPv4 was introduced in API 1.48.
+	if versions.LessThan(version, "1.48") {
 		create.EnableIPv4 = nil
 	}
 
