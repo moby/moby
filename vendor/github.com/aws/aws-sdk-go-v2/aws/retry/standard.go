@@ -123,6 +123,17 @@ type StandardOptions struct {
 
 	// Provides the rate limiting strategy for rate limiting attempt retries
 	// across all attempts the retryer is being used with.
+	//
+	// A RateLimiter operates as a token bucket with a set capacity, where
+	// attempt failures events consume tokens. A retry attempt that attempts to
+	// consume more tokens than what's available results in operation failure.
+	// The default implementation is parameterized as follows:
+	//   - a capacity of 500 (DefaultRetryRateTokens)
+	//   - a retry caused by a timeout costs 10 tokens (DefaultRetryCost)
+	//   - a retry caused by other errors costs 5 tokens (DefaultRetryTimeoutCost)
+	//   - an operation that succeeds on the 1st attempt adds 1 token (DefaultNoRetryIncrement)
+	//
+	// You can disable rate limiting by setting this field to ratelimit.None.
 	RateLimiter RateLimiter
 
 	// The cost to deduct from the RateLimiter's token bucket per retry.

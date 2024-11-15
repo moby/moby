@@ -185,6 +185,10 @@ type Options struct {
 	// [configuring IMDS]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
 	EnableFallback aws.Ternary
 
+	// By default, all IMDS client operations enforce a 5-second timeout. You
+	// can disable that behavior with this setting.
+	DisableDefaultTimeout bool
+
 	// provides the caching of API tokens used for operation calls. If unset,
 	// the API token will not be retrieved for the operation.
 	tokenProvider *tokenProvider

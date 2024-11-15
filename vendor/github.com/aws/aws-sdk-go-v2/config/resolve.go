@@ -166,6 +166,22 @@ func resolveRequestMinCompressSizeBytes(ctx context.Context, cfg *aws.Config, co
 	return nil
 }
 
+// resolveAccountIDEndpointMode extracts the AccountIDEndpointMode from the configs slice's
+// SharedConfig or EnvConfig
+func resolveAccountIDEndpointMode(ctx context.Context, cfg *aws.Config, configs configs) error {
+	m, found, err := getAccountIDEndpointMode(ctx, configs)
+	if err != nil {
+		return err
+	}
+
+	if !found {
+		m = aws.AccountIDEndpointModePreferred
+	}
+
+	cfg.AccountIDEndpointMode = m
+	return nil
+}
+
 // resolveDefaultRegion extracts the first instance of a default region and sets `aws.Config.Region` to the default
 // region if region had not been resolved from other sources.
 func resolveDefaultRegion(ctx context.Context, cfg *aws.Config, configs configs) error {

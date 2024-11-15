@@ -80,6 +80,9 @@ var defaultAWSConfigResolvers = []awsConfigResolver{
 
 	// Sets the RequestMinCompressSizeBytes if present in env var or shared config profile
 	resolveRequestMinCompressSizeBytes,
+
+	// Sets the AccountIDEndpointMode if present in env var or shared config profile
+	resolveAccountIDEndpointMode,
 }
 
 // A Config represents a generic configuration value or set of values. This type

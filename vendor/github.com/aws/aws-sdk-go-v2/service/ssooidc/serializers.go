@@ -95,6 +95,11 @@ func awsRestjson1_serializeOpDocumentCreateTokenInput(v *CreateTokenInput, value
 		ok.String(*v.Code)
 	}
 
+	if v.CodeVerifier != nil {
+		ok := object.Key("codeVerifier")
+		ok.String(*v.CodeVerifier)
+	}
+
 	if v.DeviceCode != nil {
 		ok := object.Key("deviceCode")
 		ok.String(*v.DeviceCode)
@@ -205,6 +210,11 @@ func awsRestjson1_serializeOpDocumentCreateTokenWithIAMInput(v *CreateTokenWithI
 	if v.Code != nil {
 		ok := object.Key("code")
 		ok.String(*v.Code)
+	}
+
+	if v.CodeVerifier != nil {
+		ok := object.Key("codeVerifier")
+		ok.String(*v.CodeVerifier)
 	}
 
 	if v.GrantType != nil {
@@ -324,6 +334,30 @@ func awsRestjson1_serializeOpDocumentRegisterClientInput(v *RegisterClientInput,
 		ok.String(*v.ClientType)
 	}
 
+	if v.EntitledApplicationArn != nil {
+		ok := object.Key("entitledApplicationArn")
+		ok.String(*v.EntitledApplicationArn)
+	}
+
+	if v.GrantTypes != nil {
+		ok := object.Key("grantTypes")
+		if err := awsRestjson1_serializeDocumentGrantTypes(v.GrantTypes, ok); err != nil {
+			return err
+		}
+	}
+
+	if v.IssuerUrl != nil {
+		ok := object.Key("issuerUrl")
+		ok.String(*v.IssuerUrl)
+	}
+
+	if v.RedirectUris != nil {
+		ok := object.Key("redirectUris")
+		if err := awsRestjson1_serializeDocumentRedirectUris(v.RedirectUris, ok); err != nil {
+			return err
+		}
+	}
+
 	if v.Scopes != nil {
 		ok := object.Key("scopes")
 		if err := awsRestjson1_serializeDocumentScopes(v.Scopes, ok); err != nil {
@@ -416,6 +450,28 @@ func awsRestjson1_serializeOpDocumentStartDeviceAuthorizationInput(v *StartDevic
 		ok.String(*v.StartUrl)
 	}
 
+	return nil
+}
+
+func awsRestjson1_serializeDocumentGrantTypes(v []string, value smithyjson.Value) error {
+	array := value.Array()
+	defer array.Close()
+
+	for i := range v {
+		av := array.Value()
+		av.String(v[i])
+	}
+	return nil
+}
+
+func awsRestjson1_serializeDocumentRedirectUris(v []string, value smithyjson.Value) error {
+	array := value.Array()
+	defer array.Close()
+
+	for i := range v {
+		av := array.Value()
+		av.String(v[i])
+	}
 	return nil
 }
 

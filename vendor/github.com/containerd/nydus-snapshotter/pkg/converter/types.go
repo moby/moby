@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/nydus-snapshotter/pkg/converter/tool"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

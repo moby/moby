@@ -1,48 +1,41 @@
-// Package v4 implements signing for AWS V4 signer
+// Package v4 implements the AWS signature version 4 algorithm (commonly known
+// as SigV4).
 //
-// Provides request signing for request that need to be signed with
-// AWS V4 Signatures.
+// For more information about SigV4, see [Signing AWS API requests] in the IAM
+// user guide.
 //
-// # Standalone Signer
+// While this implementation CAN work in an external context, it is developed
+// primarily for SDK use and you may encounter fringe behaviors around header
+// canonicalization.
 //
-// Generally using the signer outside of the SDK should not require any additional
+// # Pre-escaping a request URI
 //
-//	The signer does this by taking advantage of the URL.EscapedPath method. If your request URI requires
+// AWS v4 signature validation requires that the canonical string's URI path
+// component must be the escaped form of the HTTP request's path.
 //
-// additional escaping you many need to use the URL.Opaque to define what the raw URI should be sent
-// to the service as.
+// The Go HTTP client will perform escaping automatically on the HTTP request.
+// This may cause signature validation errors because the request differs from
+// the URI path or query from which the signature was generated.
 //
-// The signer will first check the URL.Opaque field, and use its value if set.
-// The signer does require the URL.Opaque field to be set in the form of:
+// Because of this, we recommend that you explicitly escape the request when
+// using this signer outside of the SDK to prevent possible signature mismatch.
+// This can be done by setting URL.Opaque on the request. The signer will
+// prefer that value, falling back to the return of URL.EscapedPath if unset.
+//
+// When setting URL.Opaque you must do so in the form of:
 //
 //	"//<hostname>/<path>"
 //
 //	// e.g.
 //	"//example.com/some/path"
 //
-// The leading "//" and hostname are required or the URL.Opaque escaping will
-// not work correctly.
+// The leading "//" and hostname are required or the escaping will not work
+// correctly.
 //
-// If URL.Opaque is not set the signer will fallback to the URL.EscapedPath()
-// method and using the returned value.
+// The TestStandaloneSign unit test provides a complete example of using the
+// signer outside of the SDK and pre-escaping the URI path.
 //
-// AWS v4 signature validation requires that the canonical string's URI path
-// element must be the URI escaped form of the HTTP request's path.
-// http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
-//
-// The Go HTTP client will perform escaping automatically on the request. Some
-// of these escaping may cause signature validation errors because the HTTP
-// request differs from the URI path or query that the signature was generated.
-// https://golang.org/pkg/net/url/#URL.EscapedPath
-//
-// Because of this, it is recommended that when using the signer outside of the
-// SDK that explicitly escaping the request prior to being signed is preferable,
-// and will help prevent signature validation errors. This can be done by setting
-// the URL.Opaque or URL.RawPath. The SDK will use URL.Opaque first and then
-// call URL.EscapedPath() if Opaque is not set.
-//
-// Test `TestStandaloneSign` provides a complete example of using the signer
-// outside of the SDK and pre-escaping the URI path.
+// [Signing AWS API requests]: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_aws-signing.html
 package v4
 
 import (
@@ -402,6 +395,12 @@ func buildQuery(r v4Internal.Rule, header http.Header) (url.Values, http.Header)
 	query := url.Values{}
 	unsignedHeaders := http.Header{}
 	for k, h := range header {
+		// literally just this header has this constraint for some stupid reason,
+		// see #2508
+		if k == "X-Amz-Expected-Bucket-Owner" {
+			k = "x-amz-expected-bucket-owner"
+		}
+
 		if r.IsValid(k) {
 			query[k] = h
 		} else {
