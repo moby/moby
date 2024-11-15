@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/etchosts"
+	"github.com/docker/docker/libnetwork/internal/setmatrix"
 	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -365,36 +365,32 @@ func TestUpdateSvcRecord(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "bridge driver and IPv6, only works on linux")
 
 	tests := []struct {
-		name       string
-		epName     string
-		addr4      string
-		addr6      string
-		expSvcRecs []etchosts.Record
+		name     string
+		epName   string
+		addr4    string
+		addr6    string
+		expAddrs []netip.Addr
 	}{
 		{
-			name:   "v4only",
-			epName: "ep4",
-			addr4:  "172.16.0.2/24",
-			expSvcRecs: []etchosts.Record{
-				{Hosts: "id-ep4", IP: netip.MustParseAddr("172.16.0.2")},
-			},
+			name:     "v4only",
+			epName:   "ep4",
+			addr4:    "172.16.0.2/24",
+			expAddrs: []netip.Addr{netip.MustParseAddr("172.16.0.2")},
 		},
 		{
-			name:   "v6only",
-			epName: "ep6",
-			addr6:  "fde6:045d:b2aa::2/64",
-			expSvcRecs: []etchosts.Record{
-				{Hosts: "id-ep6", IP: netip.MustParseAddr("fde6:45d:b2aa::2")},
-			},
+			name:     "v6only",
+			epName:   "ep6",
+			addr6:    "fde6:045d:b2aa::2/64",
+			expAddrs: []netip.Addr{netip.MustParseAddr("fde6:45d:b2aa::2")},
 		},
 		{
 			name:   "dual-stack",
 			epName: "ep46",
 			addr4:  "172.16.1.2/24",
 			addr6:  "fd60:8677:5a4c::2/64",
-			expSvcRecs: []etchosts.Record{
-				{Hosts: "id-ep46", IP: netip.MustParseAddr("172.16.1.2")},
-				{Hosts: "id-ep46", IP: netip.MustParseAddr("fd60:8677:5a4c::2")},
+			expAddrs: []netip.Addr{
+				netip.MustParseAddr("172.16.1.2"),
+				netip.MustParseAddr("fd60:8677:5a4c::2"),
 			},
 		},
 	}
@@ -426,21 +422,54 @@ func TestUpdateSvcRecord(t *testing.T) {
 				NetworkOptionIpam(defaultipam.DriverName, "", ipam4, ipam6, nil),
 			)
 			assert.NilError(t, err)
+			dnsName := "id-" + tc.epName
 			ep, err := n.CreateEndpoint(context.Background(), tc.epName,
-				CreateOptionDNSNames([]string{tc.epName, "id-" + tc.epName}),
+				CreateOptionDNSNames([]string{tc.epName, dnsName}),
 				CreateOptionIpam(ip4, ip6, nil, nil),
 			)
 			assert.NilError(t, err)
 
 			n.updateSvcRecord(context.Background(), ep, true)
-			recs := n.getSvcRecords(ep)
-			assert.Check(t, is.DeepEqual(recs, tc.expSvcRecs, cmpopts.EquateComparable(netip.Addr{})))
+			for _, name := range []string{tc.epName, dnsName} {
+				addrs, found4, found6 := getSvcRecords(t, n, name)
+				assert.Check(t, found4 == (tc.addr4 != ""), "name:%s", name)
+				assert.Check(t, found6 == (tc.addr6 != ""), "name:%s", name)
+				assert.Check(t, is.DeepEqual(addrs, tc.expAddrs, cmpopts.EquateComparable(netip.Addr{})))
+			}
 
 			n.updateSvcRecord(context.Background(), ep, false)
-			recs = n.getSvcRecords(ep)
-			assert.Check(t, is.Nil(recs))
+			for _, name := range []string{tc.epName, dnsName} {
+				addrs, found4, found6 := getSvcRecords(t, n, tc.epName)
+				assert.Check(t, !found4, "name:%s", name)
+				assert.Check(t, !found6, "name:%s", name)
+				assert.Check(t, is.Len(addrs, 0))
+			}
 		})
 	}
+}
+
+func getSvcRecords(t *testing.T, n *Network, key string) (addrs []netip.Addr, found4, found6 bool) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.ctrlr.mu.Lock()
+	defer n.ctrlr.mu.Unlock()
+
+	sr, ok := n.ctrlr.svcRecords[n.id]
+	assert.Assert(t, ok)
+
+	lookup := func(svcMap *setmatrix.SetMatrix[svcMapEntry]) bool {
+		mapEntryList, ok := svcMap.Get(key)
+		if !ok {
+			return false
+		}
+		assert.Assert(t, len(mapEntryList) > 0,
+			"Found empty list of IP addresses: key:%s, net:%s, nid:%s", key, n.name, n.id)
+		addr, err := netip.ParseAddr(mapEntryList[0].ip)
+		assert.NilError(t, err)
+		addrs = append(addrs, addr)
+		return true
+	}
+	return addrs, lookup(&sr.svcMap), lookup(&sr.svcIPv6Map)
 }
 
 func TestSRVServiceQuery(t *testing.T) {

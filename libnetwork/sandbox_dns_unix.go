@@ -199,8 +199,8 @@ func (sb *Sandbox) addHostsEntries(ctx context.Context, ifaceAddrs []netip.Addr)
 	}
 }
 
-func (sb *Sandbox) deleteHostsEntries(recs []etchosts.Record) {
-	if err := etchosts.Delete(sb.config.hostsPath, recs); err != nil {
+func (sb *Sandbox) deleteHostsEntries(ifaceAddrs []netip.Addr) {
+	if err := etchosts.Delete(sb.config.hostsPath, sb.makeHostsRecs(ifaceAddrs)); err != nil {
 		log.G(context.TODO()).Warnf("Failed deleting service host entries to the running container: %v", err)
 	}
 }

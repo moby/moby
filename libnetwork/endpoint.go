@@ -891,6 +891,10 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 		log.G(ctx).WithError(err).Warn("Failed to clean up resolver info on container disconnect")
 	}
 
+	// Capture the addresses that were added to the container's /etc/hosts here,
+	// before the endpoint is deleted, so that they can be removed from /etc/hosts.
+	etcHostsAddrs := ep.getEtcHostsAddrs()
+
 	if err := sb.clearNetworkResources(ep); err != nil {
 		log.G(ctx).WithError(err).Warn("Failed to clean up network resources on container disconnect")
 	}
@@ -908,7 +912,22 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 		log.G(ctx).WithError(e).Error("Failed to delete endpoint state for endpoint from cluster")
 	}
 
-	sb.deleteHostsEntries(n.getSvcRecords(ep))
+	// When a container is connected to a network, it gets /etc/hosts
+	// entries for its addresses on that network. So, when it's connected
+	// to two networks, it has a hosts entry for each. For example, if
+	// the hostname is the default short-id, and it's connected to two
+	// networks (172.19.0.0/16 and 172.20.0.0/17, plus IPv6 address for
+	// each), the hosts file might include:
+	//
+	//   172.19.0.2	4b92a573912d
+	//   fd8c:c894:d68::2	4b92a573912d
+	//   172.20.0.2	4b92a573912d
+	//   fd8c:c894:d68:1::2	4b92a573912d
+	//
+	// If the container is disconnected from 172.19.0.2, only remove
+	// the hosts entries with addresses on that network.
+	sb.deleteHostsEntries(etcHostsAddrs)
+
 	if !sb.inDelete && sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
 		return sb.setupDefaultGW()
 	}

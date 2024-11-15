@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"os"
 	"regexp"
+	"strings"
 	"sync"
 )
 
@@ -127,11 +128,10 @@ func Add(path string, recs []Record) error {
 	return err
 }
 
-// Delete deletes an arbitrary number of Records already existing in /etc/hosts file
-//
-// FIXME(robmry) - this only matches on hostname, not address. So, if a container
-// is connected to two networks then disconnected from one of them, the hosts
-// entries for both networks are deleted.
+// Delete deletes Records from /etc/hosts.
+// The hostnames must be an exact match (if the user has modified the record,
+// it won't be deleted). The address, parsed as a netip.Addr must also match
+// the value in recs.
 func Delete(path string, recs []Record) error {
 	if len(recs) == 0 {
 		return nil
@@ -160,8 +160,10 @@ loop:
 			continue
 		}
 		for _, r := range recs {
-			if bytes.HasSuffix(b, []byte("\t"+r.Hosts)) {
-				continue loop
+			if before, found := strings.CutSuffix(string(b), "\t"+r.Hosts); found {
+				if addr, err := netip.ParseAddr(strings.TrimSpace(before)); err == nil && addr == r.IP {
+					continue loop
+				}
 			}
 		}
 		buf.Write(b)

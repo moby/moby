@@ -1,0 +1,12 @@
+127.0.0.1	localhost
+::1	localhost ip6-localhost ip6-loopback
+fe00::	ip6-localnet
+ff00::	ip6-mcastprefix
+ff02::1	ip6-allnodes
+ff02::2	ip6-allrouters
+192.0.2.3	otherhost.invalid
+2001:db8::1234	otherhost.invalid
+192.168.124.2	c1.invalid c1
+fdd2:c4e3:c4d5::2	c1.invalid c1
+192.168.123.2	c1.invalid c1
+fde6:be58:aedf::2	c1.invalid c1

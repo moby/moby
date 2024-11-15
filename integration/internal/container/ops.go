@@ -20,6 +20,13 @@ func WithName(name string) func(*TestContainerConfig) {
 	}
 }
 
+// WithHostname sets the hostname of the container
+func WithHostname(name string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.Config.Hostname = name
+	}
+}
+
 // WithLinks sets the links of the container
 func WithLinks(links ...string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
