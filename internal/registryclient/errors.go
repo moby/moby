@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"mime"
 	"net/http"
 
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/distribution/registry/client/auth/challenge"
+	"github.com/docker/docker/internal/registryclient/auth/challenge"
 )
 
 // ErrNoErrorsInBody is returned when an HTTP response body parses to an empty
@@ -40,7 +40,7 @@ func (e *UnexpectedHTTPResponseError) Error() string {
 
 func parseHTTPErrorResponse(resp *http.Response) error {
 	var errors errcode.Errors
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
