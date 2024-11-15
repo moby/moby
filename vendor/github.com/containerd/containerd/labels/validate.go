@@ -19,7 +19,7 @@ package labels
 import (
 	"fmt"
 
-	"github.com/containerd/errdefs"
+	"github.com/containerd/containerd/errdefs"
 )
 
 const (

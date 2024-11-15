@@ -28,16 +28,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/diff"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/labels"
-	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/pkg/cleanup"
-	"github.com/containerd/containerd/pkg/kmutex"
-	"github.com/containerd/containerd/snapshots"
-	"github.com/containerd/containerd/tracing"
-	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/opencontainers/go-digest"
@@ -45,6 +35,17 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
+
+	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/diff"
+	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
+	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/pkg/cleanup"
+	"github.com/containerd/containerd/pkg/kmutex"
+	"github.com/containerd/containerd/snapshots"
+	"github.com/containerd/containerd/tracing"
 )
 
 const (
@@ -296,13 +297,6 @@ func (u *Unpacker) unpack(
 			return err
 		}
 		defer unlock()
-
-		if _, err := sn.Stat(ctx, chainID); err == nil {
-			// no need to handle
-			return nil
-		} else if !errdefs.IsNotFound(err) {
-			return fmt.Errorf("failed to stat snapshot %s: %w", chainID, err)
-		}
 
 		// inherits annotations which are provided as snapshot labels.
 		snapshotLabels := snapshots.FilterInheritedLabels(desc.Annotations)
