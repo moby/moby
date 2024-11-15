@@ -11,6 +11,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/defaults"
+	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/services/server/config"
 	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/pidfile"
@@ -29,7 +30,6 @@ const (
 	shutdownTimeout         = 15 * time.Second
 	startupTimeout          = 15 * time.Second
 	configFile              = "containerd.toml"
-	binaryName              = "containerd"
 	pidFile                 = "containerd.pid"
 )
 
@@ -40,9 +40,13 @@ type remote struct {
 	// file is saved.
 	configFile string
 
-	daemonPid int
-	pidFile   string
-	logger    *log.Entry
+	// daemonPath is the binary to execute, and can be either a basename (to use
+	// a binary installed in the system's $PATH), or the full path to the binary
+	// to use.
+	daemonPath string
+	daemonPid  int
+	pidFile    string
+	logger     *log.Entry
 
 	daemonWaitCh  chan struct{}
 	daemonStartCh chan error
@@ -75,6 +79,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 			},
 		},
 		configFile:    filepath.Join(stateDir, configFile),
+		daemonPath:    binaryName,
 		daemonPid:     -1,
 		pidFile:       filepath.Join(stateDir, pidFile),
 		logger:        log.G(ctx).WithField("module", "libcontainerd"),
@@ -156,7 +161,8 @@ func (r *remote) startContainerd() error {
 		return err
 	}
 
-	cmd := exec.Command(binaryName, "--config", cfgFile)
+	r.logger.WithField("binary", r.daemonPath).Debug("starting containerd binary")
+	cmd := exec.Command(r.daemonPath, "--config", cfgFile)
 	// redirect containerd logs to docker logs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -262,7 +268,9 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				}
 			}
 
-			os.RemoveAll(r.GRPC.Address)
+			if err := os.RemoveAll(r.GRPC.Address); err != nil {
+				r.logger.WithError(err).Error("failed to remove old gRPC address")
+			}
 			if err := r.startContainerd(); err != nil {
 				if !started {
 					r.daemonStartCh <- err
@@ -273,16 +281,19 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				continue
 			}
 
+			gopts := []grpc.DialOption{
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
+				grpc.WithContextDialer(dialer.ContextDialer),
+				grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
+				grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
+				grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
+				grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),
+			}
+
 			client, err = containerd.New(
 				r.GRPC.Address,
 				containerd.WithTimeout(60*time.Second),
-				containerd.WithDialOpts([]grpc.DialOption{
-					grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
-					grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),
-					grpc.WithTransportCredentials(insecure.NewCredentials()),
-					grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
-					grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
-				}),
+				containerd.WithDialOpts(gopts),
 			)
 			if err != nil {
 				r.logger.WithError(err).Error("failed connecting to containerd")
