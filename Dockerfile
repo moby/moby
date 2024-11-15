@@ -537,6 +537,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             inetutils-ping \
             iproute2 \
             iptables \
+            nftables \
             jq \
             libcap2-bin \
             libnet1 \
@@ -558,9 +559,9 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             zstd
 # Switch to use iptables instead of nftables (to match the CI hosts)
 # TODO use some kind of runtime auto-detection instead if/when nftables is supported (https://github.com/moby/moby/issues/26824)
-RUN update-alternatives --set iptables  /usr/sbin/iptables-legacy  || true \
- && update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy || true \
- && update-alternatives --set arptables /usr/sbin/arptables-legacy || true
+RUN update-alternatives --set iptables  /usr/sbin/iptables-nft  || true \
+ && update-alternatives --set ip6tables /usr/sbin/ip6tables-nft || true \
+ && update-alternatives --set arptables /usr/sbin/arptables-nft || true
 RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-dev-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install --no-install-recommends -y \

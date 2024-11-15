@@ -374,6 +374,7 @@ func stableGoroutineCount(ctx context.Context, apiClient client.APIClient, count
 			nRoutines = n
 		}
 
+		t.Logf("nRoutines:%d numStable:%d", nRoutines, numStable)
 		if numStable > 3 {
 			*count = n
 			return poll.Success()
@@ -389,6 +390,7 @@ func checkGoroutineCount(ctx context.Context, apiClient client.APIClient, expect
 		if err != nil {
 			return poll.Error(err)
 		}
+		t.Logf("nRoutines:%d expected:%d", n, expected)
 		if n > expected {
 			if first {
 				t.Log("Waiting for goroutines to stabilize")
