@@ -225,6 +225,23 @@ func getRequestMinCompressSizeBytes(ctx context.Context, configs configs) (value
 	return
 }
 
+// accountIDEndpointModeProvider provides access to the AccountIDEndpointMode
+type accountIDEndpointModeProvider interface {
+	getAccountIDEndpointMode(context.Context) (aws.AccountIDEndpointMode, bool, error)
+}
+
+func getAccountIDEndpointMode(ctx context.Context, configs configs) (value aws.AccountIDEndpointMode, found bool, err error) {
+	for _, cfg := range configs {
+		if p, ok := cfg.(accountIDEndpointModeProvider); ok {
+			value, found, err = p.getAccountIDEndpointMode(ctx)
+			if err != nil || found {
+				break
+			}
+		}
+	}
+	return
+}
+
 // ec2IMDSRegionProvider provides access to the ec2 imds region
 // configuration value
 type ec2IMDSRegionProvider interface {

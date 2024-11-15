@@ -12,13 +12,15 @@ import (
 )
 
 // Returns details about the IAM user or role whose credentials are used to call
-// the operation. No permissions are required to perform this operation. If an
-// administrator attaches a policy to your identity that explicitly denies access
-// to the sts:GetCallerIdentity action, you can still perform this operation.
-// Permissions are not required because the same information is returned when
-// access is denied. To view an example response, see I Am Not Authorized to
-// Perform: iam:DeleteVirtualMFADevice (https://docs.aws.amazon.com/IAM/latest/UserGuide/troubleshoot_general.html#troubleshoot_general_access-denied-delete-mfa)
-// in the IAM User Guide.
+// the operation.
+//
+// No permissions are required to perform this operation. If an administrator
+// attaches a policy to your identity that explicitly denies access to the
+// sts:GetCallerIdentity action, you can still perform this operation. Permissions
+// are not required because the same information is returned when access is denied.
+// To view an example response, see [I Am Not Authorized to Perform: iam:DeleteVirtualMFADevice]in the IAM User Guide.
+//
+// [I Am Not Authorized to Perform: iam:DeleteVirtualMFADevice]: https://docs.aws.amazon.com/IAM/latest/UserGuide/troubleshoot_general.html#troubleshoot_general_access-denied-delete-mfa
 func (c *Client) GetCallerIdentity(ctx context.Context, params *GetCallerIdentityInput, optFns ...func(*Options)) (*GetCallerIdentityOutput, error) {
 	if params == nil {
 		params = &GetCallerIdentityInput{}
@@ -38,8 +40,8 @@ type GetCallerIdentityInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful GetCallerIdentity request, including
-// information about the entity making the request.
+// Contains the response to a successful GetCallerIdentity request, including information about the
+// entity making the request.
 type GetCallerIdentityOutput struct {
 
 	// The Amazon Web Services account ID number of the account that owns or contains
@@ -51,8 +53,10 @@ type GetCallerIdentityOutput struct {
 
 	// The unique identifier of the calling entity. The exact value depends on the
 	// type of entity that is making the call. The values returned are those listed in
-	// the aws:userid column in the Principal table (https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_variables.html#principaltable)
-	// found on the Policy Variables reference page in the IAM User Guide.
+	// the aws:userid column in the [Principal table]found on the Policy Variables reference page in
+	// the IAM User Guide.
+	//
+	// [Principal table]: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_variables.html#principaltable
 	UserId *string
 
 	// Metadata pertaining to the operation's result.
@@ -83,25 +87,25 @@ func (c *Client) addOperationGetCallerIdentityMiddlewares(stack *middleware.Stac
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -116,10 +120,16 @@ func (c *Client) addOperationGetCallerIdentityMiddlewares(stack *middleware.Stac
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetCallerIdentity(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {

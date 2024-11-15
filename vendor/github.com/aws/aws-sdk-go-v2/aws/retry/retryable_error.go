@@ -2,6 +2,7 @@ package retry
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/url"
 	"strings"
@@ -198,4 +199,24 @@ func (r RetryableErrorCode) IsErrorRetryable(err error) aws.Ternary {
 	}
 
 	return aws.TrueTernary
+}
+
+// retryableClockSkewError marks errors that can be caused by clock skew
+// (difference between server time and client time).
+// This is returned when there's certain confidence that adjusting the client time
+// could allow a retry to succeed
+type retryableClockSkewError struct{ Err error }
+
+func (e *retryableClockSkewError) Error() string {
+	return fmt.Sprintf("Probable clock skew error: %v", e.Err)
+}
+
+// Unwrap returns the wrapped error.
+func (e *retryableClockSkewError) Unwrap() error {
+	return e.Err
+}
+
+// RetryableError allows the retryer to retry this request
+func (e *retryableClockSkewError) RetryableError() bool {
+	return true
 }
