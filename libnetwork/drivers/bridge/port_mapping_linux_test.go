@@ -904,7 +904,7 @@ func TestAddPortMappings(t *testing.T) {
 				masqRule := fmt.Sprintf("-s %s -d %s -p %s -m %s --dport %d -j MASQUERADE",
 					addrM, addrM, expPB.Proto, expPB.Proto, expPB.Port)
 				ir := iptRule{ipv: ipv, table: iptables.Nat, chain: "POSTROUTING", args: strings.Split(masqRule, " ")}
-				if disableNAT {
+				if disableNAT || tc.proxyPath != "" {
 					assert.Check(t, !ir.Exists(), fmt.Sprintf("unexpected rule %s", ir))
 				} else {
 					assert.Check(t, ir.Exists(), fmt.Sprintf("expected rule %s", ir))

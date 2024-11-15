@@ -459,6 +459,13 @@ func TestAccessPublishedPortFromRemoteHost(t *testing.T) {
 	}
 }
 
+// TestAccessPublishedPortFromCtr checks that a container's published ports can
+// be reached from the container that published the ports, and a neighbouring
+// container on the same network. It runs in three modes:
+//
+// - userland proxy enabled (default behaviour).
+// - proxy disabled (https://github.com/moby/moby/issues/12632)
+// - proxy disabled, 'bridge-nf-call-iptables=0' (https://github.com/moby/moby/issues/48664)
 func TestAccessPublishedPortFromCtr(t *testing.T) {
 	// This test makes changes to the host's "/proc/sys/net/bridge/bridge-nf-call-iptables",
 	// which would have no effect on rootlesskit's netns.
@@ -543,6 +550,12 @@ func TestAccessPublishedPortFromCtr(t *testing.T) {
 			)
 			defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
 			assert.Check(t, is.Contains(res.Stderr.String(), "404 Not Found"))
+
+			// Also check that the container can reach its own published port.
+			clientCtx2, cancel2 := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel2()
+			execRes := container.ExecT(clientCtx2, t, c, serverId, []string{"wget", "http://" + net.JoinHostPort(hostAddr, hostPort)})
+			assert.Check(t, is.Contains(execRes.Stderr(), "404 Not Found"))
 		})
 	}
 }

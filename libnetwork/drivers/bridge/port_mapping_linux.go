@@ -821,7 +821,7 @@ func setPerPortNAT(b portBinding, ipv iptables.IPVersion, proxyPath string, brid
 		"-j", "MASQUERADE",
 	}
 	rule = iptRule{ipv: ipv, table: iptables.Nat, chain: "POSTROUTING", args: args}
-	if err := appendOrDelChainRule(rule, "MASQUERADE", enable); err != nil {
+	if err := appendOrDelChainRule(rule, "MASQUERADE", hairpinMode && enable); err != nil {
 		return err
 	}
 
