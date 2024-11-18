@@ -4,7 +4,7 @@ import (
 	metrics "github.com/docker/go-metrics"
 )
 
-// ImagesActions measures the time it takes to process some image actions.
+// ImageActions measures the time it takes to process some image actions.
 // Exported for use in the containerd-backed image store and it is not intended
 // for external consumption. Do not use!
 var ImageActions metrics.LabeledTimer
