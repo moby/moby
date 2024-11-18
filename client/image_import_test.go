@@ -37,9 +37,7 @@ func TestImageImport(t *testing.T) {
 			doc: "no options",
 			expectedQueryParams: url.Values{
 				"fromSrc": {"image_source"},
-				"message": {""},
 				"repo":    {"repository_name:imported"},
-				"tag":     {""},
 			},
 		},
 		{
@@ -64,10 +62,8 @@ func TestImageImport(t *testing.T) {
 			},
 			expectedQueryParams: url.Values{
 				"fromSrc":  {"image_source"},
-				"message":  {""},
 				"platform": {"linux/amd64"},
 				"repo":     {"repository_name:imported"},
-				"tag":      {""},
 			},
 		},
 	}
