@@ -14,6 +14,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/internal/l2disco"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/pkg/errors"
@@ -25,14 +26,39 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const (
+	// advertiseAddrNMsgsMin/Max/Default define the min/max/default values for the number
+	// of unsolicited ARP/NA messages sent to advertise an interface's addresses when
+	// it is configured.
+	//
+	// Zero can be used to disable unsolicited ARP/NA. The default is three, to match
+	// RFC-5227 Section 1.1 ("PROBE_NUM=3") and RFC-4861 MAX_NEIGHBOR_ADVERTISEMENT.
+	advertiseAddrNMsgsMin     = 0
+	advertiseAddrNMsgsMax     = 3
+	advertiseAddrNMsgsDefault = 3
+
+	// advertiseAddrIntervalMsMin/Max/Default define the min/max/default interval between the
+	// unsolicited ARP/NA messages sent to advertise an interface's addresses when it
+	// is configured.
+	//
+	// The default of 1s matches RFC-5227 PROBE_MIN and the default for RetransTimer
+	// in RFC-4861. So, the min defined here is nonstandard but faster resends may
+	// be useful in a bridge network. The max of 2s matches RFC-5227 PROBE_MAX.
+	advertiseAddrIntervalMsMin     = 100
+	advertiseAddrIntervalMsMax     = 2000
+	advertiseAddrIntervalMsDefault = 1000
+)
+
 // newInterface creates a new interface in the given namespace using the
 // provided options.
 func newInterface(ns *Namespace, srcName, dstPrefix string, options ...IfaceOption) (*Interface, error) {
 	i := &Interface{
-		stopCh:  make(chan struct{}),
-		srcName: srcName,
-		dstName: dstPrefix,
-		ns:      ns,
+		stopCh:                make(chan struct{}),
+		srcName:               srcName,
+		dstName:               dstPrefix,
+		advertiseAddrNMsgs:    advertiseAddrNMsgsDefault,
+		advertiseAddrInterval: advertiseAddrIntervalMsDefault * time.Millisecond,
+		ns:                    ns,
 	}
 	for _, opt := range options {
 		if opt != nil {
@@ -69,7 +95,13 @@ type Interface struct {
 	routes      []*net.IPNet
 	bridge      bool
 	sysctls     []string
-	ns          *Namespace
+	// advertiseAddrNMsgs is the number of unsolicited ARP/NA messages that will be sent to
+	// advertise the interface's addresses.
+	advertiseAddrNMsgs int
+	// advertiseAddrInterval is the interval between unsolicited ARP/NA messages sent to
+	// advertise the interface's addresses.
+	advertiseAddrInterval time.Duration
+	ns                    *Namespace
 }
 
 // SrcName returns the name of the interface in the origin network namespace.
@@ -272,7 +304,7 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix string,
 	}
 
 	// Get notified when the interface is up and running (or after a timeout) so that
-	// the gratuitous ARP/NA workaround can be applied below.
+	// unsolicited ARP/NA messages can be sent.
 	upped, err := waitForIfUpped(ctx, newNs, iface.Attrs().Index)
 	if err != nil {
 		return err
@@ -374,7 +406,7 @@ func waitForIfUpped(ctx context.Context, ns netns.NsHandle, ifIndex int) (chan s
 	return upped, nil
 }
 
-// advertiseAddrs triggers send gratuitous ARP and Neighbour Advertisement
+// advertiseAddrs triggers send unsolicited ARP and Neighbour Advertisement
 // messages, so that caches are updated with the MAC address currently associated
 // with the interface's IP addresses.
 //
@@ -394,6 +426,10 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 		"ip6":   i.AddressIPv6(),
 	}
 	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(logFields))
+	if i.advertiseAddrNMsgs == 0 {
+		log.G(ctx).Debug("Unsolicited ARP/NA is disabled")
+		return
+	}
 
 	if i.address == nil && i.addressIPv6 == nil {
 		log.G(ctx).Debug("No IP addresses to advertise")
@@ -450,6 +486,9 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 	if send(ctx, 0) != nil {
 		return
 	}
+	if i.advertiseAddrNMsgs == 1 {
+		return
+	}
 	// Don't clean up on return from this function, there are more ARPs/NAs to send.
 	stillSending = true
 
@@ -458,9 +497,9 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 		defer cleanup()
 		ctx, span := otel.Tracer("").Start(context.WithoutCancel(ctx), "libnetwork.osl.advertiseAddrs")
 		defer span.End()
-		ticker := time.NewTicker(time.Second)
+		ticker := time.NewTicker(i.advertiseAddrInterval)
 		defer ticker.Stop()
-		for nSent, nToSend := 1, 3; nSent < nToSend; nSent += 1 {
+		for nSent, nToSend := 1, i.advertiseAddrNMsgs; nSent < nToSend; nSent += 1 {
 			select {
 			case <-i.stopCh:
 				log.G(ctx).Debug("Unsolicited ARP/NA sends cancelled")
@@ -497,6 +536,29 @@ func (n *Namespace) prepAdvertiseAddrs(ctx context.Context, i *Interface, ifInde
 		return nil, nil
 	}
 	return ua, un
+}
+
+// ValidateAdvertiseAddrNMsgs returns an error if count is not within the allowed
+// range for the number of unsolicited ARP/NA messages sent to advertise an
+// interface's addresses when it is configured.
+func ValidateAdvertiseAddrNMsgs(count int) error {
+	if count < advertiseAddrNMsgsMin || count > advertiseAddrNMsgsMax {
+		return types.InvalidParameterErrorf(netlabel.AdvertiseAddrNMsgs+" must be in the range %d to %d",
+			advertiseAddrNMsgsMin, advertiseAddrNMsgsMax)
+	}
+	return nil
+}
+
+// ValidateAdvertiseAddrInterval returns an error if interval is not within the allowed
+// range for the interval between unsolicited ARP/NA messages sent to advertise an
+// interface's addresses when it is configured.
+func ValidateAdvertiseAddrInterval(interval time.Duration) error {
+	if interval < (advertiseAddrIntervalMsMin*time.Millisecond) ||
+		interval > (advertiseAddrIntervalMsMax*time.Millisecond) {
+		return types.InvalidParameterErrorf(netlabel.AdvertiseAddrIntervalMs+" must be in the range %d to %d",
+			advertiseAddrIntervalMsMin, advertiseAddrIntervalMsMax)
+	}
+	return nil
 }
 
 // RemoveInterface removes an interface from the namespace by renaming to

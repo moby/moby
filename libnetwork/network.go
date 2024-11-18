@@ -6,10 +6,12 @@ package libnetwork
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +27,7 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/networkdb"
 	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/stringid"
@@ -362,7 +365,11 @@ func (n *Network) validateConfiguration() error {
 				"[ ingress | internal | attachable | scope ] are not supported.")
 		}
 	}
-	if n.configFrom != "" {
+	if n.configFrom == "" {
+		if err := n.validateAdvertiseAddrConfig(); err != nil {
+			return err
+		}
+	} else {
 		if n.configOnly {
 			return types.ForbiddenErrorf("a configuration network cannot depend on another configuration network")
 		}
@@ -527,6 +534,62 @@ func (n *Network) getEpCnt() *endpointCnt {
 	defer n.mu.Unlock()
 
 	return n.epCnt
+}
+
+func (n *Network) validateAdvertiseAddrConfig() error {
+	var errs []error
+	_, err := n.validateAdvertiseAddrNMsgs()
+	errs = append(errs, err)
+	_, err = n.validateAdvertiseAddrInterval()
+	errs = append(errs, err)
+	return errors.Join(errs...)
+}
+
+func (n *Network) validateAdvertiseAddrNMsgs() (*int, error) {
+	nMsgsStr, ok := n.DriverOptions()[netlabel.AdvertiseAddrNMsgs]
+	if !ok {
+		return nil, nil
+	}
+	nMsgs, err := strconv.Atoi(nMsgsStr)
+	if err != nil {
+		return nil, fmt.Errorf("value for option "+netlabel.AdvertiseAddrNMsgs+" %q must be an integer", nMsgsStr)
+	}
+	if err := osl.ValidateAdvertiseAddrNMsgs(nMsgs); err != nil {
+		return nil, err
+	}
+	return &nMsgs, nil
+}
+
+func (n *Network) getAdvertiseAddrNMsgs() (int, bool) {
+	v, err := n.validateAdvertiseAddrNMsgs()
+	if err != nil || v == nil {
+		return 0, false
+	}
+	return *v, true
+}
+
+func (n *Network) validateAdvertiseAddrInterval() (*time.Duration, error) {
+	msStr, ok := n.DriverOptions()[netlabel.AdvertiseAddrIntervalMs]
+	if !ok {
+		return nil, nil
+	}
+	ms, err := strconv.Atoi(msStr)
+	if err != nil {
+		return nil, fmt.Errorf("value for option "+netlabel.AdvertiseAddrIntervalMs+" %q must be an integer", msStr)
+	}
+	interval := time.Duration(ms) * time.Millisecond
+	if err := osl.ValidateAdvertiseAddrInterval(interval); err != nil {
+		return nil, err
+	}
+	return &interval, nil
+}
+
+func (n *Network) getAdvertiseAddrInterval() (time.Duration, bool) {
+	v, err := n.validateAdvertiseAddrInterval()
+	if err != nil || v == nil {
+		return 0, false
+	}
+	return *v, true
 }
 
 // TODO : Can be made much more generic with the help of reflection (but has some golang limitations)
