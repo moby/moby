@@ -81,7 +81,7 @@ func (l *LoggerWrapper) Errorf(format string, args ...any) {
 }
 
 // V reports whether verbosity level l is at least the requested verbose level.
-func (*LoggerWrapper) V(l int) bool {
+func (*LoggerWrapper) V(int) bool {
 	// Returns true for all verbose level.
 	return true
 }

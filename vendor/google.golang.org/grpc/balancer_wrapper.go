@@ -192,7 +192,7 @@ func (ccb *ccBalancerWrapper) NewSubConn(addrs []resolver.Address, opts balancer
 	return acbw, nil
 }
 
-func (ccb *ccBalancerWrapper) RemoveSubConn(sc balancer.SubConn) {
+func (ccb *ccBalancerWrapper) RemoveSubConn(balancer.SubConn) {
 	// The graceful switch balancer will never call this.
 	logger.Errorf("ccb RemoveSubConn(%v) called unexpectedly, sc")
 }
@@ -342,8 +342,8 @@ func (acbw *acBalancerWrapper) GetOrBuildProducer(pb balancer.ProducerBuilder) (
 	pData := acbw.producers[pb]
 	if pData == nil {
 		// Not found; create a new one and add it to the producers map.
-		p, close := pb.Build(acbw)
-		pData = &refCountedProducer{producer: p, close: close}
+		p, closeFn := pb.Build(acbw)
+		pData = &refCountedProducer{producer: p, close: closeFn}
 		acbw.producers[pb] = pData
 	}
 	// Account for this new reference.
