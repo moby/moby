@@ -34,8 +34,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   and will be omitted in API v1.49.
 * `Sysctls` in `HostConfig` (top level `--sysctl` settings) for `eth0` are
   no longer migrated to `DriverOpts`, as described in the changes for v1.46.
-* `GET /images/json` response now includes `Descriptor` field, which contains
-  an OCI descriptor of the image target.
+* `GET /images/json` and `GET /images/{name}/json` responses now include
+  `Descriptor` field, which contains an OCI descriptor of the image target.
   The new field will only be populated if the daemon provides a multi-platform
   image store.
   WARNING: This is experimental and may change at any time without any backward

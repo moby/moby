@@ -59,3 +59,21 @@ func TestImageInspectUniqueRepoDigests(t *testing.T) {
 
 	assert.Check(t, is.Len(after.RepoDigests, len(before.RepoDigests)))
 }
+
+func TestImageInspectDescriptor(t *testing.T) {
+	ctx := setupTest(t)
+
+	client := testEnv.APIClient()
+
+	inspect, _, err := client.ImageInspectWithRaw(ctx, "busybox")
+	assert.NilError(t, err)
+
+	if !testEnv.UsingSnapshotter() {
+		assert.Check(t, inspect.Descriptor == nil)
+		return
+	}
+
+	assert.Assert(t, inspect.Descriptor != nil)
+	assert.Check(t, inspect.Descriptor.Digest.String() == inspect.ID)
+	assert.Check(t, inspect.Descriptor.Size > 0)
+}
