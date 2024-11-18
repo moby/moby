@@ -46,7 +46,6 @@ import (
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
 	dlogger "github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/local"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/daemon/stats"
@@ -322,18 +321,6 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 					baseLogger.Debug("migrated restart-policy")
 					c.HostConfig.RestartPolicy.Name = containertypes.RestartPolicyDisabled
 					c.HostConfig.RestartPolicy.MaximumRetryCount = 0
-				}
-
-				// Migrate containers that use the deprecated (and now non-functional)
-				// logentries driver. Update them to use the "local" logging driver
-				// instead.
-				//
-				// TODO(thaJeztah): remove logentries check and migration code in release v26.0.0.
-				if c.HostConfig.LogConfig.Type == "logentries" {
-					baseLogger.Warn("migrated deprecated logentries logging driver")
-					c.HostConfig.LogConfig = containertypes.LogConfig{
-						Type: local.Name,
-					}
 				}
 
 				// Normalize the "default" network mode into the network mode
