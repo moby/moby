@@ -3,15 +3,14 @@ package client // import "github.com/docker/docker/client"
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"net/http"
-	"reflect"
-	"strings"
+	"net/url"
 	"testing"
 
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -25,35 +24,51 @@ func TestImageSaveError(t *testing.T) {
 }
 
 func TestImageSave(t *testing.T) {
-	expectedURL := "/images/get"
-	client := &Client{
-		client: newMockClient(func(r *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(r.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
+	const (
+		expectedURL    = "/images/get"
+		expectedOutput = "outputBody"
+	)
+	tests := []struct {
+		doc                 string
+		options             image.SaveOptions
+		expectedQueryParams url.Values
+	}{
+		{
+			doc: "no platform",
+			expectedQueryParams: url.Values{
+				"names": {"image_id1", "image_id2"},
+			},
+		},
+		{
+			doc: "platform",
+			options: image.SaveOptions{
+				Platform: &ocispec.Platform{Architecture: "arm64", OS: "linux", Variant: "v8"},
+			},
+			expectedQueryParams: url.Values{
+				"names":    {"image_id1", "image_id2"},
+				"platform": {`{"architecture":"arm64","os":"linux","variant":"v8"}`},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			client := &Client{
+				client: newMockClient(func(req *http.Request) (*http.Response, error) {
+					assert.Check(t, is.Equal(req.URL.Path, expectedURL))
+					assert.Check(t, is.DeepEqual(req.URL.Query(), tc.expectedQueryParams))
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(bytes.NewReader([]byte(expectedOutput))),
+					}, nil
+				}),
 			}
-			query := r.URL.Query()
-			names := query["names"]
-			expectedNames := []string{"image_id1", "image_id2"}
-			if !reflect.DeepEqual(names, expectedNames) {
-				return nil, fmt.Errorf("names not set in URL query properly. Expected %v, got %v", names, expectedNames)
-			}
+			resp, err := client.ImageSave(context.Background(), []string{"image_id1", "image_id2"}, tc.options)
+			assert.NilError(t, err)
+			defer assert.NilError(t, resp.Close())
 
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte("response"))),
-			}, nil
-		}),
-	}
-	saveResponse, err := client.ImageSave(context.Background(), []string{"image_id1", "image_id2"}, image.SaveOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	response, err := io.ReadAll(saveResponse)
-	if err != nil {
-		t.Fatal(err)
-	}
-	saveResponse.Close()
-	if string(response) != "response" {
-		t.Fatalf("expected response to contain 'response', got %s", string(response))
+			body, err := io.ReadAll(resp)
+			assert.NilError(t, err)
+			assert.Equal(t, string(body), expectedOutput)
+		})
 	}
 }
