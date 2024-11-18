@@ -1991,6 +1991,18 @@ definitions:
         type: "string"
         x-nullable: false
         example: "sha256:ec3f0931a6e6b6855d76b2d7b0be30e81860baccd891b2e243280bf1cd8ad710"
+      Descriptor:
+        description: |
+          Descriptor is an OCI descriptor of the image target.
+          In case of a multi-platform image, this descriptor points to the OCI index
+          or a manifest list.
+
+          This field is only present if the daemon provides a multi-platform image store.
+
+          WARNING: This is experimental and may change at any time without any backward
+          compatibility.
+        x-nullable: true
+        $ref: "#/definitions/OCIDescriptor"
       RepoTags:
         description: |
           List of image names/tags in the local image cache that reference this

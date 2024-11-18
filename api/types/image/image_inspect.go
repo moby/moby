@@ -3,6 +3,7 @@ package image
 import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/storage"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // RootFS returns Image's RootFS description including the layer IDs.
@@ -119,4 +120,11 @@ type InspectResponse struct {
 	//
 	// This information is local to the daemon, and not part of the image itself.
 	Metadata Metadata
+
+	// Descriptor is the OCI descriptor of the image target.
+	// It's only set if the daemon provides a multi-platform image store.
+	//
+	// WARNING: This is experimental and may change at any time without any backward
+	// compatibility.
+	Descriptor *ocispec.Descriptor `json:"Descriptor,omitempty"`
 }

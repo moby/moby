@@ -45,7 +45,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 	if err != nil {
 		return nil, err
 	}
-	imgDgst := tagged[0].Target.Digest
+	target := tagged[0].Target
 
 	repoTags := make([]string, 0, len(tagged))
 	repoDigests := make([]string, 0, len(tagged))
@@ -78,7 +78,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 			continue
 		}
 
-		digested, err := reference.WithDigest(reference.TrimNamed(name), imgDgst)
+		digested, err := reference.WithDigest(reference.TrimNamed(name), target.Digest)
 		if err != nil {
 			// This could only happen if digest is invalid, but considering that
 			// we get it from the Descriptor it's highly unlikely.
@@ -107,6 +107,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 	return &imagetypes.InspectResponse{
 		ID:            img.ImageID(),
 		RepoTags:      repoTags,
+		Descriptor:    &target,
 		RepoDigests:   sliceutil.Dedup(repoDigests),
 		Parent:        img.Parent.String(),
 		Comment:       comment,
