@@ -1,10 +1,6 @@
 DOCKER ?= docker
 BUILDX ?= $(DOCKER) buildx
 
-# set the graph driver as the current graphdriver if not set
-DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info -f '{{ .Driver }}' 2>&1))
-export DOCKER_GRAPHDRIVER
-
 DOCKER_GITCOMMIT := $(shell git rev-parse HEAD)
 export DOCKER_GITCOMMIT
 
