@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -33,6 +34,7 @@ func TestImageLoad(t *testing.T) {
 	tests := []struct {
 		doc                  string
 		quiet                bool
+		platform             *ocispec.Platform
 		responseContentType  string
 		expectedResponseJSON bool
 		expectedQueryParams  url.Values
@@ -55,6 +57,16 @@ func TestImageLoad(t *testing.T) {
 				"quiet": {"1"},
 			},
 		},
+		{
+			doc:                  "json with platform",
+			platform:             &ocispec.Platform{Architecture: "arm64", OS: "linux", Variant: "v8"},
+			responseContentType:  "application/json",
+			expectedResponseJSON: true,
+			expectedQueryParams: url.Values{
+				"platform": {`{"architecture":"arm64","os":"linux","variant":"v8"}`},
+				"quiet":    {"0"},
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
@@ -73,7 +85,8 @@ func TestImageLoad(t *testing.T) {
 
 			input := bytes.NewReader([]byte(expectedInput))
 			imageLoadResponse, err := client.ImageLoad(context.Background(), input, image.LoadOptions{
-				Quiet: tc.quiet,
+				Quiet:    tc.quiet,
+				Platform: tc.platform,
 			})
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(imageLoadResponse.JSON, tc.expectedResponseJSON))
