@@ -6,6 +6,7 @@ package libnetwork
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -364,7 +365,11 @@ func (n *Network) validateConfiguration() error {
 				"[ ingress | internal | attachable | scope ] are not supported.")
 		}
 	}
-	if n.configFrom != "" {
+	if n.configFrom == "" {
+		if err := n.validateAdvertiseAddrConfig(); err != nil {
+			return err
+		}
+	} else {
 		if n.configOnly {
 			return types.ForbiddenErrorf("a configuration network cannot depend on another configuration network")
 		}
@@ -531,6 +536,35 @@ func (n *Network) getEpCnt() *endpointCnt {
 	defer n.mu.Unlock()
 
 	return n.epCnt
+}
+
+func (n *Network) validateAdvertiseAddrConfig() error {
+	var errs []error
+	_, err := n.validatedAdvertiseAddrNMsgs()
+	errs = append(errs, err)
+	_, err = n.validatedAdvertiseAddrInterval()
+	errs = append(errs, err)
+	return errors.Join(errs...)
+}
+
+func (n *Network) advertiseAddrNMsgs() (int, bool) {
+	v, err := n.validatedAdvertiseAddrNMsgs()
+	if err != nil || v == nil {
+		// On Linux, config was validated before network creation. This
+		// path is for un-set values and unsupported platforms.
+		return 0, false
+	}
+	return *v, true
+}
+
+func (n *Network) advertiseAddrInterval() (time.Duration, bool) {
+	v, err := n.validatedAdvertiseAddrInterval()
+	if err != nil || v == nil {
+		// On Linux, config was validated before network creation. This
+		// path is for un-set values and unsupported platforms.
+		return 0, false
+	}
+	return *v, true
 }
 
 // TODO : Can be made much more generic with the help of reflection (but has some golang limitations)

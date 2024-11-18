@@ -240,3 +240,11 @@ func defaultIpamForNetworkType(networkType string) string {
 	}
 	return defaultipam.DriverName
 }
+
+func (n *Network) validatedAdvertiseAddrNMsgs() (*int, error) {
+	return nil, nil
+}
+
+func (n *Network) validatedAdvertiseAddrInterval() (*time.Duration, error) {
+	return nil, nil
+}

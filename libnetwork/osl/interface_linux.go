@@ -25,14 +25,45 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const (
+	// AdvertiseAddrNMsgsMin defines the minimum number of ARP/NA messages sent when an
+	// interface is configured.
+	// Zero can be used to disable unsolicited ARP/NA.
+	AdvertiseAddrNMsgsMin = 0
+	// AdvertiseAddrNMsgsMax defines the maximum number of ARP/NA messages sent when an
+	// interface is configured. It's three, to match RFC-5227 Section 1.1
+	//	// ("PROBE_NUM=3") and RFC-4861 MAX_NEIGHBOR_ADVERTISEMENT.
+	AdvertiseAddrNMsgsMax = 3
+	// advertiseAddrNMsgsDefault is the default number of ARP/NA messages sent when
+	// an interface is configured.
+	advertiseAddrNMsgsDefault = 3
+
+	// AdvertiseAddrIntervalMin defines the minimum interval between ARP/NA messages
+	// sent when an interface is configured. The min defined here is nonstandard,
+	// RFC-5227 PROBE_MIN and the default for RetransTimer in RFC-4861 are one
+	// second. But, faster resends may be useful in a bridge network (where packets
+	// are not transmitted on a real network).
+	AdvertiseAddrIntervalMin = 100 * time.Millisecond
+	// AdvertiseAddrIntervalMax defines the maximum interval between ARP/NA messages
+	// sent when an interface is configured. The max of 2s matches RFC-5227
+	// PROBE_MAX.
+	AdvertiseAddrIntervalMax = 2 * time.Second
+	// advertiseAddrIntervalDefault is the default interval between ARP/NA messages
+	// sent when and interface is configured.
+	// One second matches RFC-5227 PROBE_MIN and the default for RetransTimer in RFC-4861.
+	advertiseAddrIntervalDefault = time.Second
+)
+
 // newInterface creates a new interface in the given namespace using the
 // provided options.
 func newInterface(ns *Namespace, srcName, dstPrefix string, options ...IfaceOption) (*Interface, error) {
 	i := &Interface{
-		stopCh:  make(chan struct{}),
-		srcName: srcName,
-		dstName: dstPrefix,
-		ns:      ns,
+		stopCh:                make(chan struct{}),
+		srcName:               srcName,
+		dstName:               dstPrefix,
+		advertiseAddrNMsgs:    advertiseAddrNMsgsDefault,
+		advertiseAddrInterval: advertiseAddrIntervalDefault,
+		ns:                    ns,
 	}
 	for _, opt := range options {
 		if opt != nil {
@@ -69,7 +100,13 @@ type Interface struct {
 	routes      []*net.IPNet
 	bridge      bool
 	sysctls     []string
-	ns          *Namespace
+	// advertiseAddrNMsgs is the number of unsolicited ARP/NA messages that will be sent to
+	// advertise the interface's addresses. No messages will be sent if this is zero.
+	advertiseAddrNMsgs int
+	// advertiseAddrInterval is the interval between unsolicited ARP/NA messages sent to
+	// advertise the interface's addresses.
+	advertiseAddrInterval time.Duration
+	ns                    *Namespace
 }
 
 // SrcName returns the name of the interface in the origin network namespace.
@@ -382,7 +419,7 @@ func waitForIfUpped(ctx context.Context, ns netns.NsHandle, ifIndex int) (bool, 
 	}
 }
 
-// advertiseAddrs triggers send gratuitous ARP and Neighbour Advertisement
+// advertiseAddrs triggers send unsolicited ARP and Neighbour Advertisement
 // messages, so that caches are updated with the MAC address currently associated
 // with the interface's IP addresses.
 //
@@ -412,6 +449,10 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 	if mac == nil {
 		// Nothing to do - for example, a layer-3 ipvlan.
 		log.G(ctx).Debug("No MAC address to advertise")
+		return nil
+	}
+	if i.advertiseAddrNMsgs == 0 {
+		log.G(ctx).Debug("Unsolicited ARP/NA is disabled")
 		return nil
 	}
 
@@ -464,6 +505,9 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 	if err := send(ctx); err != nil {
 		return err
 	}
+	if i.advertiseAddrNMsgs == 1 {
+		return nil
+	}
 	// Don't clean up on return from this function, there are more ARPs/NAs to send.
 	stillSending = true
 
@@ -472,9 +516,9 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 		defer cleanup()
 		ctx, span := otel.Tracer("").Start(context.WithoutCancel(ctx), "libnetwork.osl.advertiseAddrs")
 		defer span.End()
-		ticker := time.NewTicker(time.Second)
+		ticker := time.NewTicker(i.advertiseAddrInterval)
 		defer ticker.Stop()
-		for c := range 2 {
+		for c := range i.advertiseAddrNMsgs - 1 {
 			select {
 			case <-i.stopCh:
 				log.G(ctx).Debug("Unsolicited ARP/NA sends cancelled")
