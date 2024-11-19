@@ -34,6 +34,8 @@ type Ping struct {
 	// should use other ways to get the current swarm status, such as the /swarm
 	// endpoint.
 	SwarmStatus *swarm.Status
+
+	EngineFeatures map[string]bool
 }
 
 // ComponentVersion describes the version information for a specific component.

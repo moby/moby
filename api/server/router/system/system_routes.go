@@ -32,7 +32,8 @@ func (s *systemRouter) pingHandler(ctx context.Context, w http.ResponseWriter, r
 	w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Add("Pragma", "no-cache")
 
-	builderVersion := build.BuilderVersion(s.features())
+	features := s.features()
+	builderVersion := build.BuilderVersion(features)
 	if bv := builderVersion; bv != "" {
 		w.Header().Set("Builder-Version", string(bv))
 	}
@@ -44,6 +45,17 @@ func (s *systemRouter) pingHandler(ctx context.Context, w http.ResponseWriter, r
 		w.Header().Set("Content-Length", "0")
 		return nil
 	}
+
+	if queryFeatures := r.FormValue("features"); queryFeatures == "v1" {
+		w.Header().Set("Content-Type", "application/json")
+		featuresJson, err := json.Marshal(features)
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(featuresJson)
+		return err
+	}
+
 	_, err := w.Write([]byte{'O', 'K'})
 	return err
 }

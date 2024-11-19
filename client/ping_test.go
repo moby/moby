@@ -33,7 +33,7 @@ func TestPingFail(t *testing.T) {
 		}),
 	}
 
-	ping, err := client.Ping(context.Background())
+	ping, err := client.Ping(context.Background(), false)
 	assert.Check(t, is.ErrorContains(err, "some error with the server"))
 	assert.Check(t, is.Equal(false, ping.Experimental))
 	assert.Check(t, is.Equal("", ping.APIVersion))
@@ -41,7 +41,7 @@ func TestPingFail(t *testing.T) {
 	assert.Check(t, is.Equal(si, ping.SwarmStatus))
 
 	withHeader = true
-	ping2, err := client.Ping(context.Background())
+	ping2, err := client.Ping(context.Background(), false)
 	assert.Check(t, is.ErrorContains(err, "some error with the server"))
 	assert.Check(t, is.Equal(true, ping2.Experimental))
 	assert.Check(t, is.Equal("awesome", ping2.APIVersion))
@@ -57,7 +57,7 @@ func TestPingWithError(t *testing.T) {
 		}),
 	}
 
-	ping, err := client.Ping(context.Background())
+	ping, err := client.Ping(context.Background(), false)
 	assert.Check(t, is.ErrorContains(err, "some connection error"))
 	assert.Check(t, is.Equal(false, ping.Experimental))
 	assert.Check(t, is.Equal("", ping.APIVersion))
@@ -79,11 +79,77 @@ func TestPingSuccess(t *testing.T) {
 			return resp, nil
 		}),
 	}
-	ping, err := client.Ping(context.Background())
+	ping, err := client.Ping(context.Background(), false)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, ping.Experimental))
 	assert.Check(t, is.Equal("awesome", ping.APIVersion))
 	assert.Check(t, is.Equal(swarm.Status{NodeState: "active", ControlAvailable: true}, *ping.SwarmStatus))
+}
+
+func TestPingEngineFeatures(t *testing.T) {
+	testCases := []struct {
+		doc           string
+		body          string
+		expected      map[string]bool
+		expectedError string
+	}{
+		{
+			doc:      "empty",
+			expected: nil,
+		},
+		{
+			doc:      "older daemons",
+			body:     "OK",
+			expected: nil,
+		},
+		{
+			doc:  "valid single",
+			body: `{"foo": true}`,
+			expected: map[string]bool{
+				"foo": true,
+			},
+		},
+		{
+			doc:  "valid multiple",
+			body: `{"bork": false, "meow-snapshotter": true}`,
+			expected: map[string]bool{
+				"bork":             false,
+				"meow-snapshotter": true,
+			},
+		},
+		{
+			doc:           "invalid body",
+			body:          "bork",
+			expectedError: "failed to parse ping body: expected features, found 'bork'",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.doc, func(t *testing.T) {
+			client := &Client{
+				client: newMockClient(func(req *http.Request) (*http.Response, error) {
+					featuresQuery := req.URL.Query()["features"][0]
+					assert.Equal(t, featuresQuery, "v1")
+
+					resp := &http.Response{StatusCode: http.StatusOK}
+					resp.Header = http.Header{}
+					resp.Header.Set("API-Version", "awesome")
+					resp.Body = io.NopCloser(strings.NewReader(tc.body))
+
+					return resp, nil
+				}),
+			}
+
+			ping, err := client.Ping(context.Background(), true)
+			if tc.expectedError == "" {
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal("awesome", ping.APIVersion))
+				assert.DeepEqual(t, tc.expected, ping.EngineFeatures)
+			} else {
+				assert.ErrorContains(t, err, tc.expectedError)
+			}
+		})
+	}
 }
 
 // TestPingHeadFallback tests that the client falls back to GET if HEAD fails.
@@ -125,7 +191,7 @@ func TestPingHeadFallback(t *testing.T) {
 					return resp, nil
 				}),
 			}
-			ping, _ := client.Ping(context.Background())
+			ping, _ := client.Ping(context.Background(), false)
 			assert.Check(t, is.Equal(ping.APIVersion, tc.expected))
 		})
 	}
