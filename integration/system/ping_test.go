@@ -135,6 +135,51 @@ func TestPingBuilderHeader(t *testing.T) {
 	})
 }
 
+func TestPingCapabilities(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot spin up additional daemons on windows")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	t.Run("containerd snapshotter", func(t *testing.T) {
+		t.Run("disabled", func(t *testing.T) {
+			// CI will complain if we try to run a daemon with the graphdrivers
+			// in the snapshotter tests:
+			// daemon.go:318: failed to start daemon: error initializing graphdriver: driver not supported: overlayfs
+			skip.If(t, testEnv.UsingSnapshotter())
+			testutil.StartSpan(ctx, t)
+			cfg := filepath.Join(d.RootDir(), "daemon.json")
+			err := os.WriteFile(cfg, []byte(`{"features": { "containerd-snapshotter": false }}`), 0o644)
+			assert.NilError(t, err)
+			d.Start(t, "--config-file", cfg)
+			defer d.Stop(t)
+
+			p, err := apiClient.PingWithCapabilities(ctx, true)
+			assert.NilError(t, err)
+
+			assert.Equal(t, false, p.Capabilities.RegistryClientAuth)
+		})
+
+		t.Run("enabled", func(t *testing.T) {
+			skip.If(t, !testEnv.UsingSnapshotter())
+			testutil.StartSpan(ctx, t)
+			cfg := filepath.Join(d.RootDir(), "daemon.json")
+			err := os.WriteFile(cfg, []byte(`{"features": { "containerd-snapshotter": true }}`), 0o644)
+			assert.NilError(t, err)
+			d.Start(t, "--config-file", cfg)
+			defer d.Stop(t)
+
+			p, err := apiClient.PingWithCapabilities(ctx, true)
+			assert.NilError(t, err)
+
+			assert.Equal(t, true, p.Capabilities.RegistryClientAuth)
+		})
+	})
+}
+
 func hdr(res *http.Response, name string) string {
 	val, ok := res.Header[http.CanonicalHeaderKey(name)]
 	if !ok || len(val) == 0 {
