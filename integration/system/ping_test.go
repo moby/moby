@@ -135,6 +135,74 @@ func TestPingBuilderHeader(t *testing.T) {
 	})
 }
 
+func TestPingEngineFeatures(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot spin up additional daemons on windows")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	t.Run("empty", func(t *testing.T) {
+		testutil.StartSpan(ctx, t)
+		cfg := filepath.Join(d.RootDir(), "daemon.json")
+		err := os.WriteFile(cfg, []byte(`{"features": {}}`), 0o644)
+		assert.NilError(t, err)
+		d.Start(t, "--config-file", cfg)
+		defer d.Stop(t)
+
+		p, err := apiClient.Ping(ctx)
+		assert.NilError(t, err)
+		assert.Equal(t, len(p.EngineFeatures), 0)
+	})
+
+	t.Run("multiple", func(t *testing.T) {
+		testutil.StartSpan(ctx, t)
+		cfg := filepath.Join(d.RootDir(), "daemon.json")
+		err := os.WriteFile(cfg, []byte(`{"features": { "bork": true, "meow": false }}`), 0o644)
+		assert.NilError(t, err)
+		d.Start(t, "--config-file", cfg)
+		defer d.Stop(t)
+
+		p, err := apiClient.Ping(ctx)
+		assert.NilError(t, err)
+		assert.Equal(t, len(p.EngineFeatures), 2)
+		assert.Equal(t, p.EngineFeatures["bork"], true)
+		assert.Equal(t, p.EngineFeatures["meow"], false)
+	})
+
+	t.Run("containerd snapshotter", func(t *testing.T) {
+		t.Run("disabled", func(t *testing.T) {
+			testutil.StartSpan(ctx, t)
+			cfg := filepath.Join(d.RootDir(), "daemon.json")
+			err := os.WriteFile(cfg, []byte(`{"features": { "containerd-snapshotter": false }}`), 0o644)
+			assert.NilError(t, err)
+			d.Start(t, "--config-file", cfg)
+			defer d.Stop(t)
+
+			p, err := apiClient.Ping(ctx)
+			assert.NilError(t, err)
+			assert.Equal(t, len(p.EngineFeatures), 1)
+			assert.Equal(t, p.EngineFeatures["containerd-snapshotter"], false)
+		})
+
+		t.Run("enabled", func(t *testing.T) {
+			testutil.StartSpan(ctx, t)
+			cfg := filepath.Join(d.RootDir(), "daemon.json")
+			err := os.WriteFile(cfg, []byte(`{"features": { "containerd-snapshotter": true }}`), 0o644)
+			assert.NilError(t, err)
+			d.Start(t, "--config-file", cfg)
+			defer d.Stop(t)
+
+			p, err := apiClient.Ping(ctx)
+			assert.NilError(t, err)
+			assert.Equal(t, len(p.EngineFeatures), 1)
+			assert.Equal(t, p.EngineFeatures["containerd-snapshotter"], true)
+		})
+	})
+}
+
 func hdr(res *http.Response, name string) string {
 	val, ok := res.Header[http.CanonicalHeaderKey(name)]
 	if !ok || len(val) == 0 {

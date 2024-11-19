@@ -352,6 +352,28 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			},
 			expectedErr: "invalid logging level: foobar",
 		},
+		{
+			name: "with invalid features (equals '=')",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					Features: map[string]bool{
+						"foo=bar": true,
+					},
+				},
+			},
+			expectedErr: "invalid feature – key cannot contain '=': foo=bar",
+		},
+		{
+			name: "with invalid features (equals ',')",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					Features: map[string]bool{
+						"foo,bar": false,
+					},
+				},
+			},
+			expectedErr: "invalid feature – key cannot contain ',': foo,bar",
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
