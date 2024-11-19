@@ -15,20 +15,18 @@ The filter table is updated as follows:
     Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DOCKER-USER  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    3        0     0 ACCEPT     0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
-    4        0     0 DOCKER     0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
+    2        0     0 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst ctstate RELATED,ESTABLISHED
+    3        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    4        0     0 DOCKER     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst
     5        0     0 ACCEPT     0    --  bridge1 !bridge1  0.0.0.0/0            0.0.0.0/0           
     6        0     0 ACCEPT     0    --  bridge1 bridge1  0.0.0.0/0            0.0.0.0/0           
-    7        0     0 ACCEPT     0    --  *      docker0  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
-    8        0     0 DOCKER     0    --  *      docker0  0.0.0.0/0            0.0.0.0/0           
-    9        0     0 ACCEPT     0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
-    10       0     0 ACCEPT     0    --  docker0 docker0  0.0.0.0/0            0.0.0.0/0           
+    7        0     0 ACCEPT     0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
+    8        0     0 ACCEPT     0    --  docker0 docker0  0.0.0.0/0            0.0.0.0/0           
     
     Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
     
-    Chain DOCKER (2 references)
+    Chain DOCKER (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
     2        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
@@ -36,15 +34,13 @@ The filter table is updated as follows:
     
     Chain DOCKER-ISOLATION-STAGE-1 (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DOCKER-ISOLATION-STAGE-2  0    --  bridge1 !bridge1  0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DOCKER-ISOLATION-STAGE-2  0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
-    3        0     0 RETURN     0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    1        0     0 DOCKER-ISOLATION-STAGE-2  0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
+    2        0     0 DOCKER-ISOLATION-STAGE-2  0    --  bridge1 !bridge1  0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-ISOLATION-STAGE-2 (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DROP       0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
     2        0     0 DROP       0    --  *      docker0  0.0.0.0/0            0.0.0.0/0           
-    3        0     0 RETURN     0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-USER (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -62,24 +58,20 @@ The filter table is updated as follows:
     -N DOCKER-ISOLATION-STAGE-2
     -N DOCKER-USER
     -A FORWARD -j DOCKER-USER
+    -A FORWARD -m set --match-set docker-ext-bridges-v4 dst -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     -A FORWARD -j DOCKER-ISOLATION-STAGE-1
-    -A FORWARD -o bridge1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    -A FORWARD -o bridge1 -j DOCKER
+    -A FORWARD -m set --match-set docker-ext-bridges-v4 dst -j DOCKER
     -A FORWARD -i bridge1 ! -o bridge1 -j ACCEPT
     -A FORWARD -i bridge1 -o bridge1 -j ACCEPT
-    -A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    -A FORWARD -o docker0 -j DOCKER
     -A FORWARD -i docker0 ! -o docker0 -j ACCEPT
     -A FORWARD -i docker0 -o docker0 -j ACCEPT
     -A DOCKER -d 192.0.2.2/32 ! -i bridge1 -o bridge1 -p tcp -m tcp --dport 80 -j ACCEPT
     -A DOCKER ! -i docker0 -o docker0 -j DROP
     -A DOCKER ! -i bridge1 -o bridge1 -j DROP
-    -A DOCKER-ISOLATION-STAGE-1 -i bridge1 ! -o bridge1 -j DOCKER-ISOLATION-STAGE-2
     -A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
-    -A DOCKER-ISOLATION-STAGE-1 -j RETURN
+    -A DOCKER-ISOLATION-STAGE-1 -i bridge1 ! -o bridge1 -j DOCKER-ISOLATION-STAGE-2
     -A DOCKER-ISOLATION-STAGE-2 -o bridge1 -j DROP
     -A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
-    -A DOCKER-ISOLATION-STAGE-2 -j RETURN
     -A DOCKER-USER -j RETURN
     
 
@@ -87,9 +79,9 @@ The filter table is updated as follows:
 
 Note that:
 
- - In the FORWARD chain, rules 3-6 for the new network have been inserted at
+ - In the FORWARD chain, rules 5-6 for the new network have been inserted at
    the top of the chain, pushing the equivalent docker0 rules down to positions
-   7-10. (Rules 3-6 were inserted at the top of the chain, then rules 1-2 were
+   7-8. (Rules 5-6 were inserted at the top of the chain, then rules 1-4 were
    shuffled back to the top by deleting/recreating, as described above.)
  - In the DOCKER-ISOLATION chains, rules equivalent to the docker0 rules have
    also been inserted for the new bridge.
