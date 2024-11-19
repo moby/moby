@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
@@ -46,6 +47,7 @@ const (
 	labelsKey                     = "labels"
 	labelsRegexKey                = "labels-regex"
 	tagKey                        = "tag"
+	mode                          = "mode"
 )
 
 const (
@@ -82,6 +84,8 @@ type splunkLogger struct {
 	url         string
 	auth        string
 	nullMessage *splunkMessage
+
+	logNonBlocking bool
 
 	// http compression
 	gzipCompression      bool
@@ -161,6 +165,8 @@ func New(info logger.Info) (logger.Logger, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	logNonBlocking := containertypes.LogMode(info.Config["mode"]) == containertypes.LogModeNonBlock
 
 	// Splunk Token is required parameter
 	splunkToken, ok := info.Config[splunkTokenKey]
@@ -272,6 +278,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		transport:             transport,
 		url:                   splunkURL.String(),
 		auth:                  "Splunk " + splunkToken,
+		logNonBlocking:        logNonBlocking,
 		nullMessage:           nullMessage,
 		gzipCompression:       gzipCompression,
 		gzipCompressionLevel:  gzipCompressionLevel,
@@ -400,6 +407,14 @@ func (l *splunkLogger) queueMessageAsync(message *splunkMessage) error {
 	defer l.lock.RUnlock()
 	if l.closedCond != nil {
 		return fmt.Errorf("%s: driver is closed", driverName)
+	}
+	if l.logNonBlocking {
+		select {
+		case l.stream <- message:
+			return nil
+		default:
+			return fmt.Errorf("%s: buffer is full", driverName)
+		}
 	}
 	l.stream <- message
 	return nil
