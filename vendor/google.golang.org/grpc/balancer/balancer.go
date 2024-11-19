@@ -130,7 +130,7 @@ type SubConn interface {
 	// UpdateAddresses updates the addresses used in this SubConn.
 	// gRPC checks if currently-connected address is still in the new list.
 	// If it's in the list, the connection will be kept.
-	// If it's not in the list, the connection will gracefully closed, and
+	// If it's not in the list, the connection will gracefully close, and
 	// a new connection will be created.
 	//
 	// This will trigger a state transition for the SubConn.
@@ -142,8 +142,11 @@ type SubConn interface {
 	Connect()
 	// GetOrBuildProducer returns a reference to the existing Producer for this
 	// ProducerBuilder in this SubConn, or, if one does not currently exist,
-	// creates a new one and returns it.  Returns a close function which must
-	// be called when the Producer is no longer needed.
+	// creates a new one and returns it.  Returns a close function which may be
+	// called when the Producer is no longer needed.  Otherwise the producer
+	// will automatically be closed upon connection loss or subchannel close.
+	// Should only be called on a SubConn in state Ready.  Otherwise the
+	// producer will be unable to create streams.
 	GetOrBuildProducer(ProducerBuilder) (p Producer, close func())
 	// Shutdown shuts down the SubConn gracefully.  Any started RPCs will be
 	// allowed to complete.  No future calls should be made on the SubConn.
@@ -452,8 +455,10 @@ type ProducerBuilder interface {
 	// Build creates a Producer.  The first parameter is always a
 	// grpc.ClientConnInterface (a type to allow creating RPCs/streams on the
 	// associated SubConn), but is declared as `any` to avoid a dependency
-	// cycle.  Should also return a close function that will be called when all
-	// references to the Producer have been given up.
+	// cycle.  Build also returns a close function that will be called when all
+	// references to the Producer have been given up for a SubConn, or when a
+	// connectivity state change occurs on the SubConn.  The close function
+	// should always block until all asynchronous cleanup work is completed.
 	Build(grpcClientConnInterface any) (p Producer, close func())
 }
 

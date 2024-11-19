@@ -24,12 +24,14 @@ import (
 	"sync"
 
 	"google.golang.org/grpc/balancer"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/internal"
 	"google.golang.org/grpc/internal/balancer/gracefulswitch"
 	"google.golang.org/grpc/internal/channelz"
 	"google.golang.org/grpc/internal/grpcsync"
 	"google.golang.org/grpc/resolver"
+	"google.golang.org/grpc/status"
 )
 
 var setConnectedAddress = internal.SetConnectedAddress.(func(*balancer.SubConnState, resolver.Address))
@@ -192,7 +194,7 @@ func (ccb *ccBalancerWrapper) NewSubConn(addrs []resolver.Address, opts balancer
 	return acbw, nil
 }
 
-func (ccb *ccBalancerWrapper) RemoveSubConn(sc balancer.SubConn) {
+func (ccb *ccBalancerWrapper) RemoveSubConn(balancer.SubConn) {
 	// The graceful switch balancer will never call this.
 	logger.Errorf("ccb RemoveSubConn(%v) called unexpectedly, sc")
 }
@@ -256,8 +258,8 @@ type acBalancerWrapper struct {
 	ccb           *ccBalancerWrapper // read-only
 	stateListener func(balancer.SubConnState)
 
-	mu        sync.Mutex
-	producers map[balancer.ProducerBuilder]*refCountedProducer
+	producersMu sync.Mutex
+	producers   map[balancer.ProducerBuilder]*refCountedProducer
 }
 
 // updateState is invoked by grpc to push a subConn state update to the
@@ -267,6 +269,9 @@ func (acbw *acBalancerWrapper) updateState(s connectivity.State, curAddr resolve
 		if ctx.Err() != nil || acbw.ccb.balancer == nil {
 			return
 		}
+		// Invalidate all producers on any state change.
+		acbw.closeProducers()
+
 		// Even though it is optional for balancers, gracefulswitch ensures
 		// opts.StateListener is set, so this cannot ever be nil.
 		// TODO: delete this comment when UpdateSubConnState is removed.
@@ -275,16 +280,6 @@ func (acbw *acBalancerWrapper) updateState(s connectivity.State, curAddr resolve
 			setConnectedAddress(&scs, curAddr)
 		}
 		acbw.stateListener(scs)
-		acbw.ac.mu.Lock()
-		defer acbw.ac.mu.Unlock()
-		if s == connectivity.Ready {
-			// When changing states to READY, reset stateReadyChan.  Wait until
-			// after we notify the LB policy's listener(s) in order to prevent
-			// ac.getTransport() from unblocking before the LB policy starts
-			// tracking the subchannel as READY.
-			close(acbw.ac.stateReadyChan)
-			acbw.ac.stateReadyChan = make(chan struct{})
-		}
 	})
 }
 
@@ -301,6 +296,7 @@ func (acbw *acBalancerWrapper) Connect() {
 }
 
 func (acbw *acBalancerWrapper) Shutdown() {
+	acbw.closeProducers()
 	acbw.ccb.cc.removeAddrConn(acbw.ac, errConnDrain)
 }
 
@@ -308,9 +304,10 @@ func (acbw *acBalancerWrapper) Shutdown() {
 // ready, blocks until it is or ctx expires.  Returns an error when the context
 // expires or the addrConn is shut down.
 func (acbw *acBalancerWrapper) NewStream(ctx context.Context, desc *StreamDesc, method string, opts ...CallOption) (ClientStream, error) {
-	transport, err := acbw.ac.getTransport(ctx)
-	if err != nil {
-		return nil, err
+	transport := acbw.ac.getReadyTransport()
+	if transport == nil {
+		return nil, status.Errorf(codes.Unavailable, "SubConn state is not Ready")
+
 	}
 	return newNonRetryClientStream(ctx, desc, method, transport, acbw.ac, opts...)
 }
@@ -335,15 +332,15 @@ type refCountedProducer struct {
 }
 
 func (acbw *acBalancerWrapper) GetOrBuildProducer(pb balancer.ProducerBuilder) (balancer.Producer, func()) {
-	acbw.mu.Lock()
-	defer acbw.mu.Unlock()
+	acbw.producersMu.Lock()
+	defer acbw.producersMu.Unlock()
 
 	// Look up existing producer from this builder.
 	pData := acbw.producers[pb]
 	if pData == nil {
 		// Not found; create a new one and add it to the producers map.
-		p, close := pb.Build(acbw)
-		pData = &refCountedProducer{producer: p, close: close}
+		p, closeFn := pb.Build(acbw)
+		pData = &refCountedProducer{producer: p, close: closeFn}
 		acbw.producers[pb] = pData
 	}
 	// Account for this new reference.
@@ -353,13 +350,26 @@ func (acbw *acBalancerWrapper) GetOrBuildProducer(pb balancer.ProducerBuilder) (
 	// and delete the refCountedProducer from the map if the total reference
 	// count goes to zero.
 	unref := func() {
-		acbw.mu.Lock()
+		acbw.producersMu.Lock()
+		// If closeProducers has already closed this producer instance, refs is
+		// set to 0, so the check after decrementing will never pass, and the
+		// producer will not be double-closed.
 		pData.refs--
 		if pData.refs == 0 {
 			defer pData.close() // Run outside the acbw mutex
 			delete(acbw.producers, pb)
 		}
-		acbw.mu.Unlock()
+		acbw.producersMu.Unlock()
 	}
 	return pData.producer, grpcsync.OnceFunc(unref)
+}
+
+func (acbw *acBalancerWrapper) closeProducers() {
+	acbw.producersMu.Lock()
+	defer acbw.producersMu.Unlock()
+	for pb, pData := range acbw.producers {
+		pData.refs = 0
+		pData.close()
+		delete(acbw.producers, pb)
+	}
 }

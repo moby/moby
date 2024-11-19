@@ -80,6 +80,9 @@ const (
 	awsRequestMinCompressionSizeBytes = "AWS_REQUEST_MIN_COMPRESSION_SIZE_BYTES"
 
 	awsS3DisableExpressSessionAuthEnv = "AWS_S3_DISABLE_EXPRESS_SESSION_AUTH"
+
+	awsAccountIDEnv             = "AWS_ACCOUNT_ID"
+	awsAccountIDEndpointModeEnv = "AWS_ACCOUNT_ID_ENDPOINT_MODE"
 )
 
 var (
@@ -290,6 +293,9 @@ type EnvConfig struct {
 	// will only bypass the modified endpoint routing and signing behaviors
 	// associated with the feature.
 	S3DisableExpressAuth *bool
+
+	// Indicates whether account ID will be required/ignored in endpoint2.0 routing
+	AccountIDEndpointMode aws.AccountIDEndpointMode
 }
 
 // loadEnvConfig reads configuration values from the OS's environment variables.
@@ -309,6 +315,7 @@ func NewEnvConfig() (EnvConfig, error) {
 	setStringFromEnvVal(&creds.AccessKeyID, credAccessEnvKeys)
 	setStringFromEnvVal(&creds.SecretAccessKey, credSecretEnvKeys)
 	if creds.HasKeys() {
+		creds.AccountID = os.Getenv(awsAccountIDEnv)
 		creds.SessionToken = os.Getenv(awsSessionTokenEnvVar)
 		cfg.Credentials = creds
 	}
@@ -389,6 +396,10 @@ func NewEnvConfig() (EnvConfig, error) {
 		return cfg, err
 	}
 
+	if err := setAIDEndPointModeFromEnvVal(&cfg.AccountIDEndpointMode, []string{awsAccountIDEndpointModeEnv}); err != nil {
+		return cfg, err
+	}
+
 	return cfg, nil
 }
 
@@ -415,6 +426,10 @@ func (c EnvConfig) getRequestMinCompressSizeBytes(context.Context) (int64, bool,
 		return 0, false, nil
 	}
 	return *c.RequestMinCompressSizeBytes, true, nil
+}
+
+func (c EnvConfig) getAccountIDEndpointMode(context.Context) (aws.AccountIDEndpointMode, bool, error) {
+	return c.AccountIDEndpointMode, len(c.AccountIDEndpointMode) > 0, nil
 }
 
 // GetRetryMaxAttempts returns the value of AWS_MAX_ATTEMPTS if was specified,
@@ -487,6 +502,28 @@ func setEC2IMDSEndpointMode(mode *imds.EndpointModeState, keys []string) error {
 		if err := mode.SetFromString(value); err != nil {
 			return fmt.Errorf("invalid value for environment variable, %s=%s, %v", k, value, err)
 		}
+	}
+	return nil
+}
+
+func setAIDEndPointModeFromEnvVal(m *aws.AccountIDEndpointMode, keys []string) error {
+	for _, k := range keys {
+		value := os.Getenv(k)
+		if len(value) == 0 {
+			continue
+		}
+
+		switch value {
+		case "preferred":
+			*m = aws.AccountIDEndpointModePreferred
+		case "required":
+			*m = aws.AccountIDEndpointModeRequired
+		case "disabled":
+			*m = aws.AccountIDEndpointModeDisabled
+		default:
+			return fmt.Errorf("invalid value for environment variable, %s=%s, must be preferred/required/disabled", k, value)
+		}
+		break
 	}
 	return nil
 }

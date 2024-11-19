@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/containerd/containerd/tracing"
+	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"

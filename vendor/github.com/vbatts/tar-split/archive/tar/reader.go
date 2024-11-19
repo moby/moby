@@ -56,6 +56,11 @@ func (tr *Reader) RawBytes() []byte {
 
 }
 
+// ExpectedPadding returns the number of bytes of padding expected after the last header returned by Next()
+func (tr *Reader) ExpectedPadding() int64 {
+	return tr.pad
+}
+
 // NewReader creates a new Reader reading from r.
 func NewReader(r io.Reader) *Reader {
 	return &Reader{r: r, curr: &regFileReader{r, 0}}

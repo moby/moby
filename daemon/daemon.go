@@ -24,9 +24,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/pkg/dialer"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/defaults"
+	"github.com/containerd/containerd/v2/pkg/dialer"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	dist "github.com/docker/distribution"
@@ -1069,7 +1069,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 		// FIXME(thaJeztah): implement automatic snapshotter-selection similar to graph-driver selection; see https://github.com/moby/moby/issues/44076
 		if driverName == "" {
-			driverName = containerd.DefaultSnapshotter
+			driverName = defaults.DefaultSnapshotter
 		}
 
 		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD

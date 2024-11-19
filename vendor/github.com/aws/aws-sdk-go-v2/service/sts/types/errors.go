@@ -65,9 +65,10 @@ func (e *IDPCommunicationErrorException) ErrorCode() string {
 func (e *IDPCommunicationErrorException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
 // The identity provider (IdP) reported that authentication failed. This might be
-// because the claim is invalid. If this error is returned for the
-// AssumeRoleWithWebIdentity operation, it can also mean that the claim has expired
-// or has been explicitly revoked.
+// because the claim is invalid.
+//
+// If this error is returned for the AssumeRoleWithWebIdentity operation, it can
+// also mean that the claim has expired or has been explicitly revoked.
 type IDPRejectedClaimException struct {
 	Message *string
 
@@ -183,11 +184,13 @@ func (e *MalformedPolicyDocumentException) ErrorFault() smithy.ErrorFault { retu
 // compresses the session policy document, session policy ARNs, and session tags
 // into a packed binary format that has a separate limit. The error message
 // indicates by percentage how close the policies and tags are to the upper size
-// limit. For more information, see Passing Session Tags in STS (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_session-tags.html)
-// in the IAM User Guide. You could receive this error even though you meet other
-// defined session policy and session tag limits. For more information, see IAM
-// and STS Entity Character Limits (https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html#reference_iam-limits-entity-length)
-// in the IAM User Guide.
+// limit. For more information, see [Passing Session Tags in STS]in the IAM User Guide.
+//
+// You could receive this error even though you meet other defined session policy
+// and session tag limits. For more information, see [IAM and STS Entity Character Limits]in the IAM User Guide.
+//
+// [Passing Session Tags in STS]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_session-tags.html
+// [IAM and STS Entity Character Limits]: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html#reference_iam-limits-entity-length
 type PackedPolicyTooLargeException struct {
 	Message *string
 
@@ -215,9 +218,10 @@ func (e *PackedPolicyTooLargeException) ErrorFault() smithy.ErrorFault { return 
 
 // STS is not activated in the requested region for the account that is being
 // asked to generate credentials. The account administrator must use the IAM
-// console to activate STS in that region. For more information, see Activating
-// and Deactivating Amazon Web Services STS in an Amazon Web Services Region (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_enable-regions.html)
-// in the IAM User Guide.
+// console to activate STS in that region. For more information, see [Activating and Deactivating Amazon Web Services STS in an Amazon Web Services Region]in the IAM
+// User Guide.
+//
+// [Activating and Deactivating Amazon Web Services STS in an Amazon Web Services Region]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_enable-regions.html
 type RegionDisabledException struct {
 	Message *string
 

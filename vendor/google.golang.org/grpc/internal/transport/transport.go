@@ -547,6 +547,15 @@ func (s *Stream) write(m recvMsg) {
 	s.buf.put(m)
 }
 
+// ReadHeader reads data into the provided header slice from the stream. It
+// first checks if there was an error during a previous read operation and
+// returns it if present. It then requests a read operation for the length of
+// the header. It continues to read from the stream until the entire header
+// slice is filled or an error occurs. If an `io.EOF` error is encountered
+// with partially read data, it is converted to `io.ErrUnexpectedEOF` to
+// indicate an unexpected end of the stream. The method returns any error
+// encountered during the read process or nil if the header was successfully
+// read.
 func (s *Stream) ReadHeader(header []byte) (err error) {
 	// Don't request a read if there was an error earlier
 	if er := s.trReader.er; er != nil {
@@ -616,7 +625,7 @@ func (t *transportReader) ReadHeader(header []byte) (int, error) {
 		t.er = err
 		return 0, err
 	}
-	t.windowHandler(len(header))
+	t.windowHandler(n)
 	return n, nil
 }
 

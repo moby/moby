@@ -215,6 +215,8 @@ type LoadOptions struct {
 
 	// Whether S3 Express auth is disabled.
 	S3DisableExpressAuth *bool
+
+	AccountIDEndpointMode aws.AccountIDEndpointMode
 }
 
 func (o LoadOptions) getDefaultsMode(ctx context.Context) (aws.DefaultsMode, bool, error) {
@@ -278,6 +280,10 @@ func (o LoadOptions) getRequestMinCompressSizeBytes(ctx context.Context) (int64,
 	return *o.RequestMinCompressSizeBytes, true, nil
 }
 
+func (o LoadOptions) getAccountIDEndpointMode(ctx context.Context) (aws.AccountIDEndpointMode, bool, error) {
+	return o.AccountIDEndpointMode, len(o.AccountIDEndpointMode) > 0, nil
+}
+
 // WithRegion is a helper function to construct functional options
 // that sets Region on config's LoadOptions. Setting the region to
 // an empty string, will result in the region value being ignored.
@@ -319,6 +325,17 @@ func WithRequestMinCompressSizeBytes(RequestMinCompressSizeBytes *int64) LoadOpt
 			return nil
 		}
 		o.RequestMinCompressSizeBytes = RequestMinCompressSizeBytes
+		return nil
+	}
+}
+
+// WithAccountIDEndpointMode is a helper function to construct functional options
+// that sets AccountIDEndpointMode on config's LoadOptions
+func WithAccountIDEndpointMode(m aws.AccountIDEndpointMode) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		if m != "" {
+			o.AccountIDEndpointMode = m
+		}
 		return nil
 	}
 }
@@ -824,7 +841,14 @@ func (o LoadOptions) getEndpointResolver(ctx context.Context) (aws.EndpointResol
 // the EndpointResolver value is ignored. If multiple WithEndpointResolver calls
 // are made, the last call overrides the previous call values.
 //
-// Deprecated: See WithEndpointResolverWithOptions
+// Deprecated: The global endpoint resolution interface is deprecated. The API
+// for endpoint resolution is now unique to each service and is set via the
+// EndpointResolverV2 field on service client options. Use of
+// WithEndpointResolver or WithEndpointResolverWithOptions will prevent you
+// from using any endpoint-related service features released after the
+// introduction of EndpointResolverV2. You may also encounter broken or
+// unexpected behavior when using the old global interface with services that
+// use many endpoint-related customizations such as S3.
 func WithEndpointResolver(v aws.EndpointResolver) LoadOptionsFunc {
 	return func(o *LoadOptions) error {
 		o.EndpointResolver = v
@@ -844,6 +868,9 @@ func (o LoadOptions) getEndpointResolverWithOptions(ctx context.Context) (aws.En
 // that sets the EndpointResolverWithOptions on LoadOptions. If the EndpointResolverWithOptions is set to nil,
 // the EndpointResolver value is ignored. If multiple WithEndpointResolver calls
 // are made, the last call overrides the previous call values.
+//
+// Deprecated: The global endpoint resolution interface is deprecated. See
+// deprecation docs on [WithEndpointResolver].
 func WithEndpointResolverWithOptions(v aws.EndpointResolverWithOptions) LoadOptionsFunc {
 	return func(o *LoadOptions) error {
 		o.EndpointResolverWithOptions = v

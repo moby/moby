@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/containerd/log"
 	distref "github.com/distribution/reference"
 	"github.com/docker/docker/image"

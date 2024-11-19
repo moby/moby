@@ -53,7 +53,7 @@ func NewCallbackSerializer(ctx context.Context) *CallbackSerializer {
 	return cs
 }
 
-// TrySchedule tries to schedules the provided callback function f to be
+// TrySchedule tries to schedule the provided callback function f to be
 // executed in the order it was added. This is a best-effort operation. If the
 // context passed to NewCallbackSerializer was canceled before this method is
 // called, the callback will not be scheduled.
