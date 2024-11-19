@@ -227,13 +227,6 @@ func parseNetworkGenericOptions(data interface{}) (*configuration, error) {
 		return opt, nil
 	case map[string]string:
 		return newConfigFromLabels(opt), nil
-	case options.Generic:
-		var config *configuration
-		opaqueConfig, err := options.GenerateFromModel(opt, config)
-		if err != nil {
-			return nil, err
-		}
-		return opaqueConfig.(*configuration), nil
 	default:
 		return nil, types.InvalidParameterErrorf("unrecognized network configuration format: %v", opt)
 	}
