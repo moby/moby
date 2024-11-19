@@ -20,7 +20,7 @@ func (daemon *Daemon) ContainerExport(ctx context.Context, name string, out io.W
 		return err
 	}
 
-	if isWindows && ctr.OS == "windows" {
+	if isWindows && ctr.ImagePlatform.OS == "windows" {
 		return fmt.Errorf("the daemon on this operating system does not support exporting Windows containers")
 	}
 

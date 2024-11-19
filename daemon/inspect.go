@@ -77,11 +77,21 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 		base.SizeRootFs = &sizeRootFs
 	}
 
+	imageManifest := ctr.ImageManifest
+	if imageManifest != nil && imageManifest.Platform == nil {
+		// Copy the image manifest to avoid mutating the original
+		c := *imageManifest
+		imageManifest = &c
+
+		imageManifest.Platform = &ctr.ImagePlatform
+	}
+
 	return &containertypes.InspectResponse{
-		ContainerJSONBase: base,
-		Mounts:            mountPoints,
-		Config:            ctr.Config,
-		NetworkSettings:   networkSettings,
+		ContainerJSONBase:       base,
+		Mounts:                  mountPoints,
+		Config:                  ctr.Config,
+		NetworkSettings:         networkSettings,
+		ImageManifestDescriptor: imageManifest,
 	}, nil
 }
 
@@ -145,7 +155,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 		Name:         container.Name,
 		RestartCount: container.RestartCount,
 		Driver:       container.Driver,
-		Platform:     container.OS,
+		Platform:     container.ImagePlatform.OS,
 		MountLabel:   container.MountLabel,
 		ProcessLabel: container.ProcessLabel,
 		ExecIDs:      container.GetExecIDs(),

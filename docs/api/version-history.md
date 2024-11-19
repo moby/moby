@@ -40,6 +40,11 @@ keywords: "API, Docker, rcli, REST, documentation"
   image store.
   WARNING: This is experimental and may change at any time without any backward
   compatibility.
+* `GET /containers/{name}/json` now returns an `ImageManifestDescriptor` field
+  containing the OCI descriptor of the platform-specific image manifest of the
+  image that was used to create the container.
+  This field is only populated if the daemon provides a multi-platform image
+  store.
 * `POST /networks/create` now has an `EnableIPv4` field. Setting it to `false`
   disables IPv4 IPAM for the network. It can only be set to `false` if the
   daemon has experimental features enabled.
