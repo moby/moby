@@ -1,14 +1,15 @@
 // Package osl describes structures and interfaces which abstract os entities
 package osl
 
-// SandboxType specify the time of the sandbox, this can be used to apply special configs
+// SandboxType specifies the type(s) of the sandbox as a bitmask.
+// This can be used to apply special configs.
 type SandboxType int
 
 const (
 	// SandboxTypeIngress indicates that the sandbox is for the ingress
-	SandboxTypeIngress = iota
+	SandboxTypeIngress SandboxType = 1 << iota
 	// SandboxTypeLoadBalancer indicates that the sandbox is a load balancer
-	SandboxTypeLoadBalancer = iota
+	SandboxTypeLoadBalancer
 )
 
 type Iface struct {

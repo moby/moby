@@ -56,8 +56,8 @@ type Sandbox struct {
 	inDelete           bool
 	ingress            bool
 	ndotsSet           bool
-	oslTypes           []osl.SandboxType // slice of properties of this sandbox
-	loadBalancerNID    string            // NID that this SB is a load balancer for
+	oslTypes           osl.SandboxType // properties of this sandbox
+	loadBalancerNID    string          // NID that this SB is a load balancer for
 	mu                 sync.Mutex
 	// This mutex is used to serialize service related operation for an endpoint
 	// The lock is here because the endpoint is saved into the store so is not unique

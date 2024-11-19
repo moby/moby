@@ -32,13 +32,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		mac:    ifInfo.MacAddress(),
 	}
 	if ep.mac == nil {
-		if ep.addr != nil {
-			ep.mac = netutils.GenerateMACFromIP(ep.addr.IP)
-		} else {
-			// TODO(robmry) - generate an unsolicited Neighbor Advertisement to
-			//  associate this MAC address with the IP.
-			ep.mac = netutils.GenerateRandomMAC()
-		}
+		ep.mac = netutils.GenerateRandomMAC()
 		if err := ifInfo.SetMacAddress(ep.mac); err != nil {
 			return err
 		}

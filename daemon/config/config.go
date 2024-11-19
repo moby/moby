@@ -139,10 +139,10 @@ type TLSOptions struct {
 
 // DNSConfig defines the DNS configurations.
 type DNSConfig struct {
-	DNS           []net.IP `json:"dns,omitempty"`
-	DNSOptions    []string `json:"dns-opts,omitempty"`
-	DNSSearch     []string `json:"dns-search,omitempty"`
-	HostGatewayIP net.IP   `json:"host-gateway-ip,omitempty"`
+	DNS           []net.IP         `json:"dns,omitempty"`
+	DNSOptions    []string         `json:"dns-opts,omitempty"`
+	DNSSearch     []string         `json:"dns-search,omitempty"`
+	HostGatewayIP opts.HostGateway `json:"host-gateway-ip,omitempty"`
 }
 
 // CommonConfig defines the configuration of a docker daemon which is

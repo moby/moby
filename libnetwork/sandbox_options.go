@@ -137,7 +137,7 @@ func OptionPortMapping(portBindings []types.PortBinding) SandboxOption {
 func OptionIngress() SandboxOption {
 	return func(sb *Sandbox) {
 		sb.ingress = true
-		sb.oslTypes = append(sb.oslTypes, osl.SandboxTypeIngress)
+		sb.oslTypes |= osl.SandboxTypeIngress
 	}
 }
 
@@ -146,6 +146,6 @@ func OptionIngress() SandboxOption {
 func OptionLoadBalancer(nid string) SandboxOption {
 	return func(sb *Sandbox) {
 		sb.loadBalancerNID = nid
-		sb.oslTypes = append(sb.oslTypes, osl.SandboxTypeLoadBalancer)
+		sb.oslTypes |= osl.SandboxTypeLoadBalancer
 	}
 }
