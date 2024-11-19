@@ -16,6 +16,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	hostconfig "github.com/containerd/containerd/remotes/docker/config"
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/docker/docker/internal/containerdbackport"
 	"github.com/docker/docker/registry"
 	"github.com/pkg/errors"
 )
@@ -76,7 +77,7 @@ func (daemon *Daemon) mergeLegacyConfig(host string, hosts []docker.RegistryHost
 			}
 			t.TLSClientConfig.InsecureSkipVerify = true
 
-			hosts[i].Client.Transport = docker.NewHTTPFallback(hosts[i].Client.Transport)
+			hosts[i].Client.Transport = containerdbackport.NewHTTPFallback(hosts[i].Client.Transport)
 		}
 	}
 	return hosts, nil
