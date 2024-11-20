@@ -36,6 +36,7 @@ import (
 	"github.com/moby/buildkit/client"
 	bkconfig "github.com/moby/buildkit/cmd/buildkitd/config"
 	"github.com/moby/buildkit/control"
+	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend"
 	dockerfile "github.com/moby/buildkit/frontend/dockerfile/builder"
 	"github.com/moby/buildkit/frontend/gateway"
@@ -141,6 +142,10 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	wo.GCPolicy = policy
 	wo.RegistryHosts = opt.RegistryHosts
 	wo.Labels = getLabels(opt, wo.Labels)
+	exporterAttrs := map[string]string{}
+	if opt.Compression != "" {
+		exporterAttrs[string(exptypes.OptKeyLayerCompression)] = opt.Compression
+	}
 
 	exec, err := newExecutor(opt.Root, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping, opt.ApparmorProfile)
 	if err != nil {
@@ -148,7 +153,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	}
 	wo.Executor = exec
 
-	w, err := mobyworker.NewContainerdWorker(ctx, wo, opt.Callbacks)
+	w, err := mobyworker.NewContainerdWorker(ctx, wo, opt.Callbacks, exporterAttrs)
 	if err != nil {
 		return nil, err
 	}

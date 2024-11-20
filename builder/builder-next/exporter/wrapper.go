@@ -25,16 +25,18 @@ type BuildkitCallbacks struct {
 // Wraps the containerimage exporter's Resolve method to apply moby-specific
 // overrides to the exporter attributes.
 type imageExporterMobyWrapper struct {
-	exp       exporter.Exporter
-	callbacks BuildkitCallbacks
+	exp        exporter.Exporter
+	callbacks  BuildkitCallbacks
+	extraAttrs map[string]string
 }
 
 // NewWrapper returns an exporter wrapper that applies moby specific attributes
 // and hooks the export process.
-func NewWrapper(exp exporter.Exporter, callbacks BuildkitCallbacks) (exporter.Exporter, error) {
+func NewWrapper(exp exporter.Exporter, callbacks BuildkitCallbacks, extraAttrs map[string]string) (exporter.Exporter, error) {
 	return &imageExporterMobyWrapper{
-		exp:       exp,
-		callbacks: callbacks,
+		exp:        exp,
+		callbacks:  callbacks,
+		extraAttrs: extraAttrs,
 	}, nil
 }
 
@@ -51,6 +53,9 @@ func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, id int, exporter
 	exporterAttrs[string(exptypes.OptKeyUnpack)] = "true"
 	if _, has := exporterAttrs[string(exptypes.OptKeyDanglingPrefix)]; !has {
 		exporterAttrs[string(exptypes.OptKeyDanglingPrefix)] = "moby-dangling"
+	}
+	for k, v := range e.extraAttrs {
+		exporterAttrs[k] = v
 	}
 
 	inst, err := e.exp.Resolve(ctx, id, exporterAttrs)

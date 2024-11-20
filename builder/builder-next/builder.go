@@ -97,6 +97,7 @@ type Opt struct {
 	ContainerdAddress   string
 	ContainerdNamespace string
 	Callbacks           exporter.BuildkitCallbacks
+	Compression         string
 }
 
 // Builder can build using BuildKit backend
