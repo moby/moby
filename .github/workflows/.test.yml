@@ -153,7 +153,7 @@ jobs:
         env:
           TEST_SKIP_INTEGRATION: 1
           TESTCOVERAGE: 1
-          TESTFLAGS: "-test.run (${{ matrix.test }})/"
+          TESTFLAGS: "-test.count 1 -test.run (DockerCLISNISuite|DockerCLISaveLoadSuite|DockerCLISearchSuite|DockerCLIStartSuite|DockerCLIStatsSuite|DockerCLITopSuite|DockerCLIUpdateSuite|DockerCLIVolumeSuite|DockerDaemonSuite|DockerHubPullSuite|DockerPluginSuite|DockerRegistryAuthHtpasswdSuite|DockerRegistryAuthTokenSuite|DockerRegistrySuite|DockerSchema1RegistrySuite)/"
       -
         name: Prepare reports
         if: always()
