@@ -22,16 +22,16 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, opts image.Lo
 	if opts.Quiet {
 		query.Set("quiet", "1")
 	}
-	if opts.Platform != nil {
+	if len(opts.Platforms) > 0 {
 		if err := cli.NewVersionError(ctx, "1.48", "platform"); err != nil {
 			return image.LoadResponse{}, err
 		}
 
-		p, err := encodePlatform(opts.Platform)
+		p, err := encodePlatforms(opts.Platforms...)
 		if err != nil {
 			return image.LoadResponse{}, err
 		}
-		query.Set("platform", p)
+		query["platform"] = p
 	}
 
 	resp, err := cli.postRaw(ctx, "/images/load", query, input, http.Header{

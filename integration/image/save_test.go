@@ -17,6 +17,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/testutils"
@@ -210,6 +211,27 @@ func TestSaveOCI(t *testing.T) {
 			})
 		})
 	}
+}
+
+// TODO(thaJeztah): this test currently only checks invalid cases; update this test to use a table-test and test both valid and invalid platform options.
+func TestSavePlatform(t *testing.T) {
+	ctx := setupTest(t)
+
+	t.Parallel()
+	client := testEnv.APIClient()
+
+	const repoName = "busybox:latest"
+	_, _, err := client.ImageInspectWithRaw(ctx, repoName)
+	assert.NilError(t, err)
+
+	_, err = client.ImageSave(ctx, []string{repoName}, image.SaveOptions{
+		Platforms: []ocispec.Platform{
+			{Architecture: "amd64", OS: "linux"},
+			{Architecture: "arm64", OS: "linux", Variant: "v8"},
+		},
+	})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.Error(err, "Error response from daemon: multiple platform parameters not supported"))
 }
 
 func TestSaveRepoWithMultipleImages(t *testing.T) {

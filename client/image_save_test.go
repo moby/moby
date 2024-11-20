@@ -42,11 +42,24 @@ func TestImageSave(t *testing.T) {
 		{
 			doc: "platform",
 			options: image.SaveOptions{
-				Platform: &ocispec.Platform{Architecture: "arm64", OS: "linux", Variant: "v8"},
+				Platforms: []ocispec.Platform{{Architecture: "arm64", OS: "linux", Variant: "v8"}},
 			},
 			expectedQueryParams: url.Values{
 				"names":    {"image_id1", "image_id2"},
 				"platform": {`{"architecture":"arm64","os":"linux","variant":"v8"}`},
+			},
+		},
+		{
+			doc: "multiple platforms",
+			options: image.SaveOptions{
+				Platforms: []ocispec.Platform{
+					{Architecture: "arm64", OS: "linux", Variant: "v8"},
+					{Architecture: "amd64", OS: "linux"},
+				},
+			},
+			expectedQueryParams: url.Values{
+				"names":    {"image_id1", "image_id2"},
+				"platform": {`{"architecture":"arm64","os":"linux","variant":"v8"}`, `{"architecture":"amd64","os":"linux"}`},
 			},
 		},
 	}
