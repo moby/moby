@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	containerdimages "github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/tracing"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
@@ -58,6 +59,22 @@ func (i *ImageService) ImagesPrune(ctx context.Context, fltrs filters.Args) (*im
 	filterFunc, err := i.setupFilters(ctx, fltrs)
 	if err != nil {
 		return nil, err
+	}
+
+	// Prune leases
+	leaseManager := i.client.LeasesService()
+	pullLeases, err := leaseManager.List(ctx, pruneLeaseFilter)
+	if err != nil {
+		return nil, err
+	}
+	for i, lease := range pullLeases {
+		var opts []leases.DeleteOpt
+		if i == len(pullLeases)-1 {
+			opts = append(opts, leases.SynchronousDelete)
+		}
+		if err := leaseManager.Delete(ctx, lease, opts...); err != nil {
+			return nil, err
+		}
 	}
 
 	return i.pruneUnused(ctx, filterFunc, danglingOnly)
