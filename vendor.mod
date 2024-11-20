@@ -7,6 +7,8 @@ module github.com/docker/docker
 
 go 1.22.0
 
+replace github.com/containerd/containerd => github.com/vvoland/containerd v0.0.0-20241119125211-10af0d60fbaa
+
 require (
 	cloud.google.com/go/compute/metadata v0.3.0
 	cloud.google.com/go/logging v1.9.0
