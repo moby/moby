@@ -50,6 +50,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   daemon has experimental features enabled.
 * `GET /networks/{id}` now returns an `EnableIPv4` field showing whether the
   network has IPv4 IPAM enabled.
+* `GET|POST` `/_ping` responses now include an `Engine-Features` header (comma
+  separated `,` key-value pairs e.g. `containerd-snapshotter=true`) representing
+  features configured in the daemon's `CommonConfig.Features` field.
 
 ## v1.47 API changes
 
