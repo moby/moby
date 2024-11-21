@@ -189,9 +189,12 @@ func (p *fakePlugin) ScopedPath(s string) string {
 
 type fakePluginGetter struct {
 	plugins map[string]plugingetter.CompatPlugin
+	plugingetter.PluginGetter
 }
 
-// NewFakePluginGetter returns a plugin getter for fake plugins
+// NewFakePluginGetter returns a plugin getter for fake plugins. It only
+// implements [plugingetter.PluginGetter.Get], and panics when calling
+// any other method.
 func NewFakePluginGetter(pls ...plugingetter.CompatPlugin) plugingetter.PluginGetter {
 	idx := make(map[string]plugingetter.CompatPlugin, len(pls))
 	for _, p := range pls {
@@ -200,7 +203,7 @@ func NewFakePluginGetter(pls ...plugingetter.CompatPlugin) plugingetter.PluginGe
 	return &fakePluginGetter{plugins: idx}
 }
 
-// This ignores the second argument since we only care about volume drivers here,
+// Get ignores the second argument since we only care about volume drivers here,
 // there shouldn't be any other kind of plugin in here
 func (g *fakePluginGetter) Get(name, _ string, mode int) (plugingetter.CompatPlugin, error) {
 	p, ok := g.plugins[name]
@@ -209,18 +212,6 @@ func (g *fakePluginGetter) Get(name, _ string, mode int) (plugingetter.CompatPlu
 	}
 	p.(*fakePlugin).refs += mode
 	return p, nil
-}
-
-func (g *fakePluginGetter) GetAllByCap(capability string) ([]plugingetter.CompatPlugin, error) {
-	panic("GetAllByCap shouldn't be called")
-}
-
-func (g *fakePluginGetter) GetAllManagedPluginsByCap(capability string) []plugingetter.CompatPlugin {
-	panic("GetAllManagedPluginsByCap should not be called")
-}
-
-func (g *fakePluginGetter) Handle(capability string, callback func(string, *plugins.Client)) {
-	panic("Handle should not be called")
 }
 
 // FakeRefs checks ref count on a fake plugin.
