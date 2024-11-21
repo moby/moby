@@ -96,5 +96,5 @@ func TestNetworkStateCleanupOnDaemonStart(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, inspect.NetworkSettings.SandboxID == "")
 	assert.Assert(t, inspect.NetworkSettings.SandboxKey == "")
-	assert.Assert(t, inspect.NetworkSettings.Ports["80/tcp"] == nil)
+	assert.Assert(t, is.Nil(inspect.NetworkSettings.Ports["80/tcp"]))
 }

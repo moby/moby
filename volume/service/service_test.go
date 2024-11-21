@@ -132,7 +132,7 @@ func TestServiceGet(t *testing.T) {
 
 	v, err := service.Get(ctx, "notexist")
 	assert.Assert(t, IsNotExist(err))
-	assert.Check(t, v == nil)
+	assert.Check(t, is.Nil(v))
 
 	created, err := service.Create(ctx, "test", "d1")
 	assert.NilError(t, err)

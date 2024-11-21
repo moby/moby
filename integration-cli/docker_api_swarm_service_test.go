@@ -575,7 +575,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *testing.T) {
 	assert.Assert(c, len(containers2) == instances)
 	for i := range containers {
 		if i == toRemove {
-			assert.Assert(c, containers2[i] == nil)
+			assert.Assert(c, is.Nil(containers2[i]))
 		} else {
 			assert.Assert(c, containers2[i] != nil)
 		}
@@ -601,7 +601,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *testing.T) {
 	assert.Assert(c, len(containers2) == instances)
 	for i := range containers {
 		if i == toRemove {
-			assert.Assert(c, containers2[i] == nil)
+			assert.Assert(c, is.Nil(containers2[i]))
 		} else {
 			assert.Assert(c, containers2[i] != nil)
 		}

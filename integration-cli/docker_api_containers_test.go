@@ -215,7 +215,7 @@ func (s *DockerAPISuite) TestGetContainerStatsRmRunning(c *testing.T) {
 	assert.NilError(c, err)
 
 	cli.DockerCmd(c, "rm", "-f", id)
-	assert.Assert(c, <-chErr == nil)
+	assert.Assert(c, is.Nil(<-chErr))
 }
 
 // ChannelBuffer holds a chan of byte array that can be populate in a goroutine.
@@ -1347,7 +1347,7 @@ func (s *DockerAPISuite) TestPostContainersCreateMemorySwappinessHostConfigOmitt
 	containerJSON, err := apiClient.ContainerInspect(testutil.GetContext(c), ctr.ID)
 	assert.NilError(c, err)
 
-	assert.Assert(c, containerJSON.HostConfig.MemorySwappiness == nil)
+	assert.Assert(c, is.Nil(containerJSON.HostConfig.MemorySwappiness))
 }
 
 // check validation is done daemon side and not only in cli

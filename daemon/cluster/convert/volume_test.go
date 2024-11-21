@@ -7,6 +7,7 @@ import (
 	swarmapi "github.com/moby/swarmkit/v2/api"
 
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestTopologyFromGRPC(t *testing.T) {
@@ -23,7 +24,7 @@ func TestTopologyFromGRPC(t *testing.T) {
 
 func TestCapacityRangeFromGRPC(t *testing.T) {
 	nilCapacity := capacityRangeFromGRPC(nil)
-	assert.Assert(t, nilCapacity == nil)
+	assert.Assert(t, is.Nil(nilCapacity))
 
 	swarmZeroCapacity := &swarmapi.CapacityRange{}
 	zeroCapacity := capacityRangeFromGRPC(swarmZeroCapacity)
