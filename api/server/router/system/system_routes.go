@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/containerd/log"
@@ -21,8 +20,6 @@ import (
 	"github.com/docker/docker/api/types/system"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -60,36 +57,10 @@ func (s *systemRouter) pingHandler(ctx context.Context, w http.ResponseWriter, r
 	return err
 }
 
-// The HTTP spec does not define size limits for headers, but clients usually set limits.
-// The Go default HTTP client has a default of 1MB:
-// https://cs.opensource.google/go/go/+/refs/tags/go1.23.3:src/net/http/server.go;l=916
-// but other clients and proxies usually have lower limits. To be safe, we should try to
-// set a conservative limit.
-// 100*(30 +1 (=) +1 (,) +5 (false/true)) = 3700 which is under 4K.
-const (
-	maxFeatures      = config.MaxFeatures
-	maxFeatureKeyLen = config.MaxFeatureKeyLen
-)
-
 func buildEngineFeaturesHeader(features map[string]bool) (string, error) {
 	featuresLen := len(features)
-	if featuresLen > maxFeatures {
-		return "", errors.Errorf("too many features – expected max %d, found %d", maxFeatures, featuresLen)
-	}
-
-	// TODO(laurazard): should we still do these validations here
-	// when we're validating at the gate?
 	keys := make([]string, 0, featuresLen)
 	for k := range features {
-		if strings.Contains(k, "=") {
-			return "", errdefs.System(fmt.Errorf("invalid feature – key cannot contain '=': %s", k))
-		}
-		if strings.Contains(k, ",") {
-			return "", errdefs.System(fmt.Errorf("invalid feature – key cannot contain ',': %s", k))
-		}
-		if len(k) > maxFeatureKeyLen {
-			return "", errors.Errorf("feature name length cannot be over %d: %s", maxFeatureKeyLen, k)
-		}
 		keys = append(keys, k)
 	}
 
