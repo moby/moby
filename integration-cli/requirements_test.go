@@ -79,9 +79,6 @@ func Network() bool {
 }
 
 func Apparmor() bool {
-	if strings.HasPrefix(testEnv.DaemonInfo.OperatingSystem, "SUSE Linux Enterprise Server ") {
-		return false
-	}
 	buf, err := os.ReadFile("/sys/module/apparmor/parameters/enabled")
 	return err == nil && len(buf) > 1 && buf[0] == 'Y'
 }
