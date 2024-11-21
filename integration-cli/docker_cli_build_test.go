@@ -5457,8 +5457,8 @@ func (s *DockerCLIBuildSuite) TestBuildCacheFrom(c *testing.T) {
 
 	var layers1 []string
 	var layers2 []string
-	assert.Assert(c, json.Unmarshal([]byte(layers1Str), &layers1) == nil)
-	assert.Assert(c, json.Unmarshal([]byte(layers2Str), &layers2) == nil)
+	assert.NilError(c, json.Unmarshal([]byte(layers1Str), &layers1))
+	assert.NilError(c, json.Unmarshal([]byte(layers2Str), &layers2))
 
 	assert.Equal(c, len(layers1), len(layers2))
 	for i := 0; i < len(layers1)-1; i++ {

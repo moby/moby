@@ -128,7 +128,7 @@ func testMacvlanOverlapParent(t *testing.T, ctx context.Context, client client.A
 	_, err := net.Create(ctx, client, overlapNetName,
 		net.WithMacvlan(parentName),
 	)
-	assert.Check(t, err == nil)
+	assert.Check(t, err)
 
 	// delete the second network while preserving the parent link
 	err = client.NetworkRemove(ctx, overlapNetName)
@@ -217,7 +217,7 @@ func testMacvlanOverlapDeleteCreatedSecond(t *testing.T, ctx context.Context, cl
 	_, err := net.Create(ctx, client, overlapNetName,
 		net.WithMacvlan(parentName),
 	)
-	assert.Check(t, err == nil)
+	assert.Check(t, err)
 
 	// delete the original network while preserving the parent link
 	err = client.NetworkRemove(ctx, netName)
@@ -252,7 +252,7 @@ func testMacvlanOverlapKeepExisting(t *testing.T, ctx context.Context, client cl
 	_, err := net.Create(ctx, client, overlapNetName,
 		net.WithMacvlan(master),
 	)
-	assert.Check(t, err == nil)
+	assert.Check(t, err)
 
 	err = client.NetworkRemove(ctx, overlapNetName)
 	assert.NilError(t, err)
@@ -298,7 +298,7 @@ func testMacvlanNilParent(t *testing.T, ctx context.Context, client client.APICl
 	id2 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
 
 	_, err := container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
-	assert.Check(t, err == nil)
+	assert.Check(t, err)
 }
 
 func testMacvlanInternalMode(t *testing.T, ctx context.Context, client client.APIClient) {
@@ -317,7 +317,7 @@ func testMacvlanInternalMode(t *testing.T, ctx context.Context, client client.AP
 	assert.Check(t, is.Contains(result.Combined(), "Network is unreachable"))
 
 	_, err := container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
-	assert.Check(t, err == nil)
+	assert.Check(t, err)
 }
 
 func testMacvlanMultiSubnetWithParent(t *testing.T, ctx context.Context, client client.APIClient) {

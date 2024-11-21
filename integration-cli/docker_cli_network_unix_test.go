@@ -991,7 +991,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverUngracefulRestart(c *testing
 	assert.NilError(c, err)
 
 	// Kill daemon and restart
-	assert.Assert(c, s.d.Kill() == nil)
+	assert.NilError(c, s.d.Kill())
 
 	server.Close()
 
@@ -1106,7 +1106,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkMultipleNetworksUngracefulDaemonRe
 	verifyContainerIsConnectedToNetworks(c, s.d, cName, nwList)
 
 	// Kill daemon and restart
-	assert.Assert(c, s.d.Kill() == nil)
+	assert.NilError(c, s.d.Kill())
 	s.d.Restart(c)
 
 	// Restart container
@@ -1139,7 +1139,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 	}
 
 	// Kill daemon ungracefully and restart
-	assert.Assert(c, s.d.Kill() == nil)
+	assert.NilError(c, s.d.Kill())
 	s.d.Restart(c)
 
 	// make sure all the containers are up and running

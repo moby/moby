@@ -3588,7 +3588,7 @@ func (s *DockerCLIRunSuite) TestRunStdinBlockedAfterContainerExit(c *testing.T) 
 	stdout := bytes.NewBuffer(nil)
 	cmd.Stdout = stdout
 	cmd.Stderr = stdout
-	assert.Assert(c, cmd.Start() == nil)
+	assert.NilError(c, cmd.Start())
 
 	waitChan := make(chan error, 1)
 	go func() {

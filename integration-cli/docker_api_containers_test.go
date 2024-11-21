@@ -624,7 +624,7 @@ func (s *DockerAPISuite) TestContainerAPIVerifyHeader(c *testing.T) {
 
 	create := func(ct string) (*http.Response, io.ReadCloser, error) {
 		jsonData := bytes.NewBuffer(nil)
-		assert.Assert(c, json.NewEncoder(jsonData).Encode(config) == nil)
+		assert.NilError(c, json.NewEncoder(jsonData).Encode(config))
 		return request.Post(testutil.GetContext(c), "/containers/create", request.RawContent(io.NopCloser(jsonData)), request.ContentType(ct))
 	}
 
@@ -782,7 +782,7 @@ func (s *DockerAPISuite) TestContainerAPIPostCreateNull(c *testing.T) {
 		ID string
 	}
 	var ctr createResp
-	assert.Assert(c, json.Unmarshal(b, &ctr) == nil)
+	assert.NilError(c, json.Unmarshal(b, &ctr))
 	out := inspectField(c, ctr.ID, "HostConfig.CpusetCpus")
 	assert.Equal(c, out, "")
 
@@ -808,7 +808,7 @@ func (s *DockerAPISuite) TestCreateWithTooLowMemoryLimit(c *testing.T) {
 	res, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.RawString(config), request.JSON)
 	assert.NilError(c, err)
 	b, err2 := request.ReadBody(body)
-	assert.Assert(c, err2 == nil)
+	assert.NilError(c, err2)
 
 	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	assert.Assert(c, is.Contains(string(b), "Minimum memory limit allowed is 6MB"))
@@ -856,7 +856,7 @@ func (s *DockerAPISuite) TestContainerAPIRestart(c *testing.T) {
 	err = apiClient.ContainerRestart(testutil.GetContext(c), name, container.StopOptions{Timeout: &timeout})
 	assert.NilError(c, err)
 
-	assert.Assert(c, waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second) == nil)
+	assert.NilError(c, waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second))
 }
 
 func (s *DockerAPISuite) TestContainerAPIRestartNotimeoutParam(c *testing.T) {
@@ -871,7 +871,7 @@ func (s *DockerAPISuite) TestContainerAPIRestartNotimeoutParam(c *testing.T) {
 	err = apiClient.ContainerRestart(testutil.GetContext(c), name, container.StopOptions{})
 	assert.NilError(c, err)
 
-	assert.Assert(c, waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second) == nil)
+	assert.NilError(c, waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second))
 }
 
 func (s *DockerAPISuite) TestContainerAPIStart(c *testing.T) {
@@ -913,7 +913,7 @@ func (s *DockerAPISuite) TestContainerAPIStop(c *testing.T) {
 		Timeout: &timeout,
 	})
 	assert.NilError(c, err)
-	assert.Assert(c, waitInspect(name, "{{ .State.Running  }}", "false", 60*time.Second) == nil)
+	assert.NilError(c, waitInspect(name, "{{ .State.Running  }}", "false", 60*time.Second))
 
 	// second call to start should give 304
 	// maybe add ContainerStartWithRaw to test it
@@ -1075,7 +1075,7 @@ func (s *DockerAPISuite) TestContainerAPIPostContainerStop(c *testing.T) {
 
 	err = apiClient.ContainerStop(testutil.GetContext(c), containerID, container.StopOptions{})
 	assert.NilError(c, err)
-	assert.Assert(c, waitInspect(containerID, "{{ .State.Running  }}", "false", 60*time.Second) == nil)
+	assert.NilError(c, waitInspect(containerID, "{{ .State.Running  }}", "false", 60*time.Second))
 }
 
 // #14170
@@ -1437,7 +1437,7 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 	case <-time.After(2 * time.Second):
 		c.Fatal("stream was not closed after container was removed")
 	case sr := <-bc:
-		assert.Assert(c, sr.err == nil)
+		assert.NilError(c, sr.err)
 		sr.stats.Body.Close()
 	}
 }

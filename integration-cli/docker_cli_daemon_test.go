@@ -1578,7 +1578,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 	testDir, err := os.MkdirTemp("", "no-space-left-on-device-test")
 	assert.NilError(c, err)
 	defer os.RemoveAll(testDir)
-	assert.Assert(c, mount.MakeRShared(testDir) == nil)
+	assert.NilError(c, mount.MakeRShared(testDir))
 	defer mount.Unmount(testDir)
 
 	// create a 3MiB image (with a 2MiB ext4 fs) and mount it as storage root
@@ -1828,7 +1828,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *testing.T) {
 	id := strings.TrimSpace(out)
 
 	// kill the daemon
-	assert.Assert(c, s.d.Kill() == nil)
+	assert.NilError(c, s.d.Kill())
 
 	// Check if there are mounts with container id visible from the host.
 	// If not, those mounts exist in container's own mount ns, and so
@@ -2064,7 +2064,7 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *testing.T)
 	assert.Assert(c, is.Contains(string(content), expectedMaxConcurrentDownloads))
 	err = os.WriteFile(configFilePath, []byte(`{ "max-concurrent-uploads" : 7, "max-concurrent-downloads" : 9 }`), 0o666)
 	assert.NilError(c, err)
-	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
+	assert.NilError(c, s.d.Signal(unix.SIGHUP))
 	// unix.Kill(s.d.cmd.Process.Pid, unix.SIGHUP)
 
 	time.Sleep(3 * time.Second)
@@ -2100,7 +2100,7 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 	err = os.WriteFile(configFilePath, []byte(`{ "max-concurrent-uploads" : 1, "max-concurrent-downloads" : null }`), 0o666)
 	assert.NilError(c, err)
 
-	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
+	assert.NilError(c, s.d.Signal(unix.SIGHUP))
 	// unix.Kill(s.d.cmd.Process.Pid, unix.SIGHUP)
 
 	time.Sleep(3 * time.Second)
@@ -2114,7 +2114,7 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 	err = os.WriteFile(configFilePath, []byte(`{ "labels":["foo=bar"] }`), 0o666)
 	assert.NilError(c, err)
 
-	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
+	assert.NilError(c, s.d.Signal(unix.SIGHUP))
 
 	time.Sleep(3 * time.Second)
 
@@ -2204,7 +2204,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
 }
 `
 	os.WriteFile(configName, []byte(config), 0o644)
-	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
+	assert.NilError(c, s.d.Signal(unix.SIGHUP))
 	// Give daemon time to reload config
 	<-time.After(1 * time.Second)
 
@@ -2231,7 +2231,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
 }
 `
 	os.WriteFile(configName, []byte(config), 0o644)
-	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
+	assert.NilError(c, s.d.Signal(unix.SIGHUP))
 	// Give daemon time to reload config
 	<-time.After(1 * time.Second)
 
@@ -2256,7 +2256,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
 }
 `
 	os.WriteFile(configName, []byte(config), 0o644)
-	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
+	assert.NilError(c, s.d.Signal(unix.SIGHUP))
 	// Give daemon time to reload config
 	<-time.After(1 * time.Second)
 
@@ -2433,7 +2433,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeout(c *testing.T) {
 	_, err := s.d.Cmd("run", "-d", "busybox", "top")
 	assert.NilError(c, err)
 
-	assert.Assert(c, s.d.Signal(unix.SIGINT) == nil)
+	assert.NilError(c, s.d.Signal(unix.SIGINT))
 
 	select {
 	case <-s.d.Wait:
@@ -2461,7 +2461,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeoutWithConfigFile(c *testing.T
 	err = os.WriteFile(configFilePath, []byte(`{ "shutdown-timeout" : 5 }`), 0o666)
 	assert.NilError(c, err)
 
-	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
+	assert.NilError(c, s.d.Signal(unix.SIGHUP))
 
 	select {
 	case <-s.d.Wait:
