@@ -254,7 +254,7 @@ func ConfigureHosts(ctx context.Context, options HostOptions) docker.RegistryHos
 			// the request twice or consuming the request body.
 			if host.scheme == "http" && explicitTLS {
 				_, port, _ := net.SplitHostPort(host.host)
-				if port != "" && port != "80" {
+				if port != "80" {
 					log.G(ctx).WithField("host", host.host).Info("host will try HTTPS first since it is configured for HTTP with a TLS configuration, consider changing host to HTTPS or removing unused TLS configuration")
 					host.scheme = "https"
 					rhosts[i].Client.Transport = docker.NewHTTPFallback(rhosts[i].Client.Transport)
