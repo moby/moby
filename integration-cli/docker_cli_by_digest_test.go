@@ -619,7 +619,7 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredManifest(c *testing
 	assert.Assert(c, exitStatus != 0)
 
 	expectedErrorMsg := fmt.Sprintf("image verification failed for digest %s", manifestDigest)
-	assert.Assert(c, strings.Contains(out, expectedErrorMsg))
+	assert.Assert(c, is.Contains(out, expectedErrorMsg))
 }
 
 // TestPullFailsWithAlteredLayer tests that a `docker pull` fails when

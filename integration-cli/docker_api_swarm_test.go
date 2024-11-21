@@ -258,7 +258,7 @@ func (s *DockerSwarmSuite) TestAPISwarmPromoteDemote(c *testing.T) {
 	// it anchors the regexp contrary to the documentation, and this makes
 	// it impossible to match something that includes a line break.
 	if !strings.Contains(string(b), "last manager of the swarm") {
-		assert.Assert(c, strings.Contains(string(b), "this would result in a loss of quorum"))
+		assert.Assert(c, is.Contains(string(b), "this would result in a loss of quorum"))
 	}
 	info = d1.SwarmInfo(ctx, c)
 	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)

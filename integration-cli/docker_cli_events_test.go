@@ -359,7 +359,7 @@ func (s *DockerCLIEventSuite) TestEventsFilterImageLabels(c *testing.T) {
 	// 2 events from the "docker tag" command, another one is from "docker build"
 	assert.Equal(c, len(events), 3, "Events == %s", events)
 	for _, e := range events {
-		assert.Check(c, strings.Contains(e, "labelfiltertest"))
+		assert.Check(c, is.Contains(e, "labelfiltertest"))
 	}
 }
 
@@ -582,7 +582,7 @@ func (s *DockerCLIEventSuite) TestEventsFilterType(c *testing.T) {
 	// 2 events from the "docker tag" command, another one is from "docker build"
 	assert.Equal(c, len(events), 3, "Events == %s", events)
 	for _, e := range events {
-		assert.Check(c, strings.Contains(e, "labelfiltertest"))
+		assert.Check(c, is.Contains(e, "labelfiltertest"))
 	}
 
 	out = cli.DockerCmd(c,
@@ -693,7 +693,7 @@ func (s *DockerCLIEventSuite) TestEventsSinceInTheFuture(c *testing.T) {
 	out, _, err := dockerCmdWithError("events", "--filter", "image=busybox", "--since", parseEventTime(since), "--until", parseEventTime(until))
 
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "cannot be after `until`"))
+	assert.Assert(c, is.Contains(out, "cannot be after `until`"))
 }
 
 func (s *DockerCLIEventSuite) TestEventsUntilInThePast(c *testing.T) {
@@ -708,7 +708,7 @@ func (s *DockerCLIEventSuite) TestEventsUntilInThePast(c *testing.T) {
 	out := cli.DockerCmd(c, "events", "--filter", "image=busybox", "--since", since, "--until", until).Stdout()
 
 	assert.Assert(c, !strings.Contains(out, "test-container2"))
-	assert.Assert(c, strings.Contains(out, "test-container"))
+	assert.Assert(c, is.Contains(out, "test-container"))
 }
 
 func (s *DockerCLIEventSuite) TestEventsFormat(c *testing.T) {

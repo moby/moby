@@ -314,7 +314,7 @@ func testMacvlanInternalMode(t *testing.T, ctx context.Context, client client.AP
 	id2 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
 
 	result, _ := container.Exec(ctx, client, id1, []string{"ping", "-c", "1", "8.8.8.8"})
-	assert.Check(t, strings.Contains(result.Combined(), "Network is unreachable"))
+	assert.Check(t, is.Contains(result.Combined(), "Network is unreachable"))
 
 	_, err := container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
 	assert.Check(t, err == nil)
@@ -432,11 +432,11 @@ func testMacvlanAddressing(t *testing.T, ctx context.Context, client client.APIC
 	// Validate macvlan bridge mode defaults gateway sets the default IPAM next-hop inferred from the subnet
 	result, err := container.Exec(ctx, client, id1, []string{"ip", "route"})
 	assert.NilError(t, err)
-	assert.Check(t, strings.Contains(result.Combined(), "default via 172.28.130.1 dev eth0"))
+	assert.Check(t, is.Contains(result.Combined(), "default via 172.28.130.1 dev eth0"))
 	// Validate macvlan bridge mode sets the v6 gateway to the user specified default gateway/next-hop
 	result, err = container.Exec(ctx, client, id1, []string{"ip", "-6", "route"})
 	assert.NilError(t, err)
-	assert.Check(t, strings.Contains(result.Combined(), "default via 2001:db8:abca::254 dev eth0"))
+	assert.Check(t, is.Contains(result.Combined(), "default via 2001:db8:abca::254 dev eth0"))
 }
 
 // Check that '--ipv4=false' is only allowed with '--experimental'.

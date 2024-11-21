@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 )
 
@@ -72,9 +73,9 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLIInspectMulti(c *testing.T) {
 	})
 
 	out := result.Stdout()
-	assert.Assert(c, strings.Contains(out, "test1"))
-	assert.Assert(c, strings.Contains(out, "test2"))
-	assert.Assert(c, strings.Contains(out, "test3"))
+	assert.Assert(c, is.Contains(out, "test1"))
+	assert.Assert(c, is.Contains(out, "test2"))
+	assert.Assert(c, is.Contains(out, "test3"))
 }
 
 func (s *DockerCLIVolumeSuite) TestVolumeCLILs(c *testing.T) {
@@ -182,13 +183,13 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLILsFilterDangling(c *testing.T) {
 func (s *DockerCLIVolumeSuite) TestVolumeCLILsErrorWithInvalidFilterName(c *testing.T) {
 	out, _, err := dockerCmdWithError("volume", "ls", "-f", "FOO=123")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "invalid filter"))
+	assert.Assert(c, is.Contains(out, "invalid filter"))
 }
 
 func (s *DockerCLIVolumeSuite) TestVolumeCLILsWithIncorrectFilterValue(c *testing.T) {
 	out, _, err := dockerCmdWithError("volume", "ls", "-f", "dangling=invalid")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "invalid filter"))
+	assert.Assert(c, is.Contains(out, "invalid filter"))
 }
 
 func (s *DockerCLIVolumeSuite) TestVolumeCLIRm(c *testing.T) {
@@ -227,7 +228,7 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLINoArgs(c *testing.T) {
 	out := cli.DockerCmd(c, "volume").Combined()
 	// no args should produce the cmd usage output
 	usage := "Usage:	docker volume COMMAND"
-	assert.Assert(c, strings.Contains(out, usage))
+	assert.Assert(c, is.Contains(out, usage))
 	// invalid arg should error and show the command usage on stderr
 	icmd.RunCommand(dockerBinary, "volume", "somearg").Assert(c, icmd.Expected{
 		ExitCode: 1,
@@ -242,7 +243,7 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLINoArgs(c *testing.T) {
 		Error:    "exit status 125",
 		Err:      usage,
 	})
-	assert.Assert(c, strings.Contains(result.Stderr(), "unknown flag: --no-such-flag"))
+	assert.Assert(c, is.Contains(result.Stderr(), "unknown flag: --no-such-flag"))
 }
 
 func (s *DockerCLIVolumeSuite) TestVolumeCLIInspectTmplError(c *testing.T) {
@@ -252,7 +253,7 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLIInspectTmplError(c *testing.T) {
 	out, exitCode, err := dockerCmdWithError("volume", "inspect", "--format='{{ .FooBar }}'", name)
 	assert.Assert(c, err != nil, "Output: %s", out)
 	assert.Equal(c, exitCode, 1, fmt.Sprintf("Output: %s", out))
-	assert.Assert(c, strings.Contains(out, "Template parsing error"))
+	assert.Assert(c, is.Contains(out, "Template parsing error"))
 }
 
 func (s *DockerCLIVolumeSuite) TestVolumeCLICreateWithOpts(c *testing.T) {
@@ -271,8 +272,8 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLICreateWithOpts(c *testing.T) {
 			assert.Equal(c, info[0], "tmpfs")
 			assert.Equal(c, info[2], "/foo")
 			assert.Equal(c, info[4], "tmpfs")
-			assert.Assert(c, strings.Contains(info[5], "uid=1000"))
-			assert.Assert(c, strings.Contains(info[5], "size=1024k"))
+			assert.Assert(c, is.Contains(info[5], "uid=1000"))
+			assert.Assert(c, is.Contains(info[5], "size=1024k"))
 			break
 		}
 	}
@@ -404,7 +405,7 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLIRmForce(c *testing.T) {
 	assert.Assert(c, !strings.Contains(out, name))
 	cli.DockerCmd(c, "volume", "create", name)
 	out = cli.DockerCmd(c, "volume", "ls").Stdout()
-	assert.Assert(c, strings.Contains(out, name))
+	assert.Assert(c, is.Contains(out, name))
 }
 
 // TestVolumeCLIRmForceInUse verifies that repeated `docker volume rm -f` calls does not remove a volume
@@ -423,7 +424,7 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLIRmForceInUse(c *testing.T) {
 	assert.ErrorContains(c, err, "")
 	assert.ErrorContains(c, err, "volume is in use")
 	out := cli.DockerCmd(c, "volume", "ls").Stdout()
-	assert.Assert(c, strings.Contains(out, name))
+	assert.Assert(c, is.Contains(out, name))
 	// The original issue did not _remove_ the volume from the list
 	// the first time. But a second call to `volume rm` removed it.
 	// Calling `volume rm` a second time to confirm it's not removed
@@ -432,7 +433,7 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLIRmForceInUse(c *testing.T) {
 	assert.ErrorContains(c, err, "")
 	assert.ErrorContains(c, err, "volume is in use")
 	out = cli.DockerCmd(c, "volume", "ls").Stdout()
-	assert.Assert(c, strings.Contains(out, name))
+	assert.Assert(c, is.Contains(out, name))
 	// Verify removing the volume after the container is removed works
 	e := cli.DockerCmd(c, "rm", cid).ExitCode
 	assert.Equal(c, e, 0)
@@ -452,7 +453,7 @@ func (s *DockerCLIVolumeSuite) TestVolumeCliInspectWithVolumeOpts(c *testing.T) 
 	name := "test1"
 	cli.DockerCmd(c, "volume", "create", "-d", "local", name)
 	out := cli.DockerCmd(c, "volume", "inspect", "--format={{ .Options }}", name).Stdout()
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), "map[]"))
+	assert.Assert(c, is.Contains(strings.TrimSpace(out), "map[]"))
 	// With options
 	name = "test2"
 	k1, v1 := "type", "tmpfs"
@@ -460,9 +461,9 @@ func (s *DockerCLIVolumeSuite) TestVolumeCliInspectWithVolumeOpts(c *testing.T) 
 	k3, v3 := "o", "size=1m,uid=1000"
 	cli.DockerCmd(c, "volume", "create", "-d", "local", name, "--opt", fmt.Sprintf("%s=%s", k1, v1), "--opt", fmt.Sprintf("%s=%s", k2, v2), "--opt", fmt.Sprintf("%s=%s", k3, v3))
 	out = cli.DockerCmd(c, "volume", "inspect", "--format={{ .Options }}", name).Stdout()
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), fmt.Sprintf("%s:%s", k1, v1)))
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), fmt.Sprintf("%s:%s", k2, v2)))
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), fmt.Sprintf("%s:%s", k3, v3)))
+	assert.Assert(c, is.Contains(strings.TrimSpace(out), fmt.Sprintf("%s:%s", k1, v1)))
+	assert.Assert(c, is.Contains(strings.TrimSpace(out), fmt.Sprintf("%s:%s", k2, v2)))
+	assert.Assert(c, is.Contains(strings.TrimSpace(out), fmt.Sprintf("%s:%s", k3, v3)))
 }
 
 // Test case (1) for 21845: duplicate targets for --volumes-from
@@ -487,8 +488,8 @@ func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFrom(c *testing
 
 	// Both volume should exist
 	out := cli.DockerCmd(c, "volume", "ls", "-q").Stdout()
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), data1))
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), data2))
+	assert.Assert(c, is.Contains(strings.TrimSpace(out), data1))
+	assert.Assert(c, is.Contains(strings.TrimSpace(out), data2))
 	out, _, err := dockerCmdWithError("run", "--name=app", "--volumes-from=data1", "--volumes-from=data2", "-d", "busybox", "top")
 	assert.Assert(c, err == nil, "Out: %s", out)
 
@@ -528,8 +529,8 @@ func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFromAndBind(c *
 
 	// Both volume should exist
 	out := cli.DockerCmd(c, "volume", "ls", "-q").Stdout()
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), data1))
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), data2))
+	assert.Assert(c, is.Contains(strings.TrimSpace(out), data1))
+	assert.Assert(c, is.Contains(strings.TrimSpace(out), data2))
 	// /tmp/data is automatically created, because we are not using the modern mount API here
 	out, _, err := dockerCmdWithError("run", "--name=app", "--volumes-from=data1", "--volumes-from=data2", "-v", "/tmp/data:/tmp/data", "-d", "busybox", "top")
 	assert.Assert(c, err == nil, "Out: %s", out)
@@ -570,8 +571,8 @@ func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c
 
 	// Both volume should exist
 	out := cli.DockerCmd(c, "volume", "ls", "-q").Stdout()
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), data1))
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), data2))
+	assert.Assert(c, is.Contains(strings.TrimSpace(out), data1))
+	assert.Assert(c, is.Contains(strings.TrimSpace(out), data2))
 	err := os.MkdirAll("/tmp/data", 0o755)
 	assert.NilError(c, err)
 

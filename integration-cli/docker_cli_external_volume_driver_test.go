@@ -24,6 +24,7 @@ import (
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/volume"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 const volumePluginName = "test-external-volume-driver"
@@ -282,7 +283,7 @@ func (s *DockerExternalVolumeSuite) TestVolumeCLICreateOptionConflict(c *testing
 
 	out, _, err := dockerCmdWithError("volume", "create", "test", "--driver", volumePluginName)
 	assert.Assert(c, err != nil, "volume create exception name already in use with another driver")
-	assert.Assert(c, strings.Contains(out, "must be unique"))
+	assert.Assert(c, is.Contains(out, "must be unique"))
 	driver := cli.DockerCmd(c, "volume", "inspect", "--format={{ .Driver }}", "test").Stdout()
 	_, _, err = dockerCmdWithError("volume", "create", "test", "--driver", strings.TrimSpace(driver))
 	assert.NilError(c, err)
@@ -294,7 +295,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamed(c *testing.T) 
 
 	out, err := s.d.Cmd("run", "--rm", "--name", "test-data", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", volumePluginName, "busybox:latest", "cat", "/tmp/external-volume-test/test")
 	assert.NilError(c, err, out)
-	assert.Assert(c, strings.Contains(out, s.Server.URL))
+	assert.Assert(c, is.Contains(out, s.Server.URL))
 	_, err = s.d.Cmd("volume", "rm", "external-volume-test")
 	assert.NilError(c, err)
 
@@ -316,7 +317,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnnamed(c *testing.T
 
 	out, err := s.d.Cmd("run", "--rm", "--name", "test-data", "-v", "/tmp/external-volume-test", "--volume-driver", volumePluginName, "busybox:latest", "cat", "/tmp/external-volume-test/test")
 	assert.NilError(c, err, out)
-	assert.Assert(c, strings.Contains(out, s.Server.URL))
+	assert.Assert(c, is.Contains(out, s.Server.URL))
 	assert.Equal(c, s.ec.activations, 1)
 	assert.Equal(c, s.ec.creations, 1)
 	assert.Equal(c, s.ec.removals, 1)
@@ -472,7 +473,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverList(c *testing.T) {
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *testing.T) {
 	out, _, err := dockerCmdWithError("volume", "inspect", "dummy")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "No such volume"))
+	assert.Assert(c, is.Contains(out, "No such volume"))
 	assert.Equal(c, s.ec.gets, 1)
 
 	cli.DockerCmd(c, "volume", "create", "test", "-d", volumePluginName)
@@ -510,7 +511,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGetEmptyResponse(c *
 
 	out, err = s.d.Cmd("volume", "inspect", "abc2")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "No such volume"))
+	assert.Assert(c, is.Contains(out, "No such volume"))
 }
 
 // Ensure only cached paths are used in volume list to prevent N+1 calls to `VolumeDriver.Path`
@@ -566,7 +567,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *t
 
 	out, err = s.d.Cmd("volume", "create", "-d", "local", "--name", "test")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "must be unique"))
+	assert.Assert(c, is.Contains(out, "must be unique"))
 	// simulate out of band volume deletion on plugin level
 	delete(p.vols, "test")
 

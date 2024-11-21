@@ -240,12 +240,12 @@ func (s *DockerCLIEventSuite) TestEventsContainerWithMultiNetwork(c *testing.T) 
 
 	// received two network disconnect events
 	assert.Equal(c, len(netEvents), 2)
-	assert.Assert(c, strings.Contains(netEvents[0], "disconnect"))
-	assert.Assert(c, strings.Contains(netEvents[1], "disconnect"))
+	assert.Assert(c, is.Contains(netEvents[0], "disconnect"))
+	assert.Assert(c, is.Contains(netEvents[1], "disconnect"))
 
 	// both networks appeared in the network event output
-	assert.Assert(c, strings.Contains(out, "test-event-network-local-1"))
-	assert.Assert(c, strings.Contains(out, "test-event-network-local-2"))
+	assert.Assert(c, is.Contains(out, "test-event-network-local-1"))
+	assert.Assert(c, is.Contains(out, "test-event-network-local-2"))
 }
 
 func (s *DockerCLIEventSuite) TestEventsStreaming(c *testing.T) {
@@ -371,8 +371,8 @@ func (s *DockerCLIEventSuite) TestEventsFilterVolumeID(c *testing.T) {
 	assert.Equal(c, len(events), 1)
 
 	assert.Equal(c, len(events), 1)
-	assert.Assert(c, strings.Contains(events[0], "test-event-volume-id"))
-	assert.Assert(c, strings.Contains(events[0], "driver=local"))
+	assert.Assert(c, is.Contains(events[0], "test-event-volume-id"))
+	assert.Assert(c, is.Contains(events[0], "driver=local"))
 }
 
 func (s *DockerCLIEventSuite) TestEventsFilterNetworkID(c *testing.T) {
@@ -384,8 +384,8 @@ func (s *DockerCLIEventSuite) TestEventsFilterNetworkID(c *testing.T) {
 	out := cli.DockerCmd(c, "events", "--filter", "network=test-event-network-local", "--since", since, "--until", daemonUnixTime(c)).Stdout()
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	assert.Equal(c, len(events), 1)
-	assert.Assert(c, strings.Contains(events[0], "test-event-network-local"))
-	assert.Assert(c, strings.Contains(events[0], "type=bridge"))
+	assert.Assert(c, is.Contains(events[0], "test-event-network-local"))
+	assert.Assert(c, is.Contains(events[0], "type=bridge"))
 }
 
 func (s *DockerDaemonSuite) TestDaemonEvents(c *testing.T) {
@@ -452,11 +452,11 @@ func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *testing.T) {
 
 	out, err := s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", fmt.Sprintf("daemon=%s", info.ID))
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
 
 	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", fmt.Sprintf("daemon=%s", info.ID))
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
 
 	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", "daemon=foo")
 	assert.NilError(c, err)
@@ -464,7 +464,7 @@ func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *testing.T) {
 
 	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", "type=daemon")
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
 
 	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", "type=container")
 	assert.NilError(c, err)

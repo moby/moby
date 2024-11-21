@@ -667,7 +667,7 @@ func (s *DockerAPISuite) TestContainerAPIInvalidPortSyntax(c *testing.T) {
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(string(b[:]), "invalid port"))
+	assert.Assert(c, is.Contains(string(b[:]), "invalid port"))
 }
 
 func (s *DockerAPISuite) TestContainerAPIRestartPolicyInvalidPolicyName(c *testing.T) {
@@ -687,7 +687,7 @@ func (s *DockerAPISuite) TestContainerAPIRestartPolicyInvalidPolicyName(c *testi
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(string(b[:]), "invalid restart policy"))
+	assert.Assert(c, is.Contains(string(b[:]), "invalid restart policy"))
 }
 
 func (s *DockerAPISuite) TestContainerAPIRestartPolicyRetryMismatch(c *testing.T) {
@@ -707,7 +707,7 @@ func (s *DockerAPISuite) TestContainerAPIRestartPolicyRetryMismatch(c *testing.T
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(string(b[:]), "invalid restart policy: maximum retry count can only be used with 'on-failure'"))
+	assert.Assert(c, is.Contains(string(b[:]), "invalid restart policy: maximum retry count can only be used with 'on-failure'"))
 }
 
 func (s *DockerAPISuite) TestContainerAPIRestartPolicyNegativeRetryCount(c *testing.T) {
@@ -727,7 +727,7 @@ func (s *DockerAPISuite) TestContainerAPIRestartPolicyNegativeRetryCount(c *test
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(string(b[:]), "maximum retry count cannot be negative"))
+	assert.Assert(c, is.Contains(string(b[:]), "maximum retry count cannot be negative"))
 }
 
 func (s *DockerAPISuite) TestContainerAPIRestartPolicyDefaultRetryCount(c *testing.T) {
@@ -811,7 +811,7 @@ func (s *DockerAPISuite) TestCreateWithTooLowMemoryLimit(c *testing.T) {
 	assert.Assert(c, err2 == nil)
 
 	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	assert.Assert(c, strings.Contains(string(b), "Minimum memory limit allowed is 6MB"))
+	assert.Assert(c, is.Contains(string(b), "Minimum memory limit allowed is 6MB"))
 }
 
 func (s *DockerAPISuite) TestContainerAPIRename(c *testing.T) {
@@ -2032,7 +2032,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsTmpfs(c *testing.T) {
 		assert.NilError(c, err)
 		out := cli.DockerCmd(c, "start", "-a", cName).Combined()
 		for _, option := range x.expectedOptions {
-			assert.Assert(c, strings.Contains(out, option))
+			assert.Assert(c, is.Contains(out, option))
 		}
 	}
 }

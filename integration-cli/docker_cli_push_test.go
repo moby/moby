@@ -195,7 +195,7 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *testing.T) {
 	assert.NilError(c, err, "pushing the image to the private registry has failed: %s", out2)
 
 	// ensure that layers were mounted from the first repo during push
-	assert.Assert(c, strings.Contains(out2, "Mounted from crossrepopush/busybox"))
+	assert.Assert(c, is.Contains(out2, "Mounted from crossrepopush/busybox"))
 
 	digest2 := reference.DigestRegexp.FindString(out2)
 	assert.Assert(c, len(digest2) > 0, "no digest found for pushed manifest")
@@ -222,7 +222,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPushNoCredentialsNoRetry(c *testin
 	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.ErrorContains(c, err, "", out)
 	assert.Assert(c, !strings.Contains(out, "Retrying"))
-	assert.Assert(c, strings.Contains(out, "no basic auth credentials"))
+	assert.Assert(c, is.Contains(out, "no basic auth credentials"))
 }
 
 // This may be flaky but it's needed not to regress on unauthorized push, see #21054

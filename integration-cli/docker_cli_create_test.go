@@ -267,7 +267,7 @@ func (s *DockerCLICreateSuite) TestCreateStopSignal(c *testing.T) {
 	cli.DockerCmd(c, "create", "--name", name, "--stop-signal", "9", "busybox")
 
 	res := inspectFieldJSON(c, name, "Config.StopSignal")
-	assert.Assert(c, strings.Contains(res, "9"))
+	assert.Assert(c, is.Contains(res, "9"))
 }
 
 func (s *DockerCLICreateSuite) TestCreateWithWorkdir(c *testing.T) {
@@ -296,7 +296,7 @@ func (s *DockerCLICreateSuite) TestCreateWithInvalidLogOpts(c *testing.T) {
 	const name = "test-invalidate-log-opts"
 	out, _, err := dockerCmdWithError("create", "--name", name, "--log-opt", "invalid=true", "busybox")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "unknown log opt"))
+	assert.Assert(c, is.Contains(out, "unknown log opt"))
 	assert.Assert(c, is.Contains(out, "unknown log opt"))
 
 	out = cli.DockerCmd(c, "ps", "-a").Stdout()
@@ -344,10 +344,10 @@ func (s *DockerCLICreateSuite) TestCreateStopTimeout(c *testing.T) {
 	cli.DockerCmd(c, "create", "--name", name1, "--stop-timeout", "15", "busybox")
 
 	res := inspectFieldJSON(c, name1, "Config.StopTimeout")
-	assert.Assert(c, strings.Contains(res, "15"))
+	assert.Assert(c, is.Contains(res, "15"))
 	name2 := "test_create_stop_timeout_2"
 	cli.DockerCmd(c, "create", "--name", name2, "busybox")
 
 	res = inspectFieldJSON(c, name2, "Config.StopTimeout")
-	assert.Assert(c, strings.Contains(res, "null"))
+	assert.Assert(c, is.Contains(res, "null"))
 }

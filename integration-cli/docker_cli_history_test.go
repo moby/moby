@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 type DockerCLIHistorySuite struct {
@@ -65,7 +66,7 @@ LABEL label.Z="Z"`))
 	for i := 0; i < 26; i++ {
 		echoValue := fmt.Sprintf("LABEL label.%s=%s", expectedValues[i], expectedValues[i])
 		actualValue := actualValues[i]
-		assert.Assert(c, strings.Contains(actualValue, echoValue))
+		assert.Assert(c, is.Contains(actualValue, echoValue))
 	}
 }
 
@@ -92,7 +93,7 @@ func (s *DockerCLIHistorySuite) TestHistoryImageWithComment(c *testing.T) {
 	out := cli.DockerCmd(c, "history", name).Combined()
 	outputTabs := strings.Fields(strings.Split(out, "\n")[1])
 	actualValue := outputTabs[len(outputTabs)-1]
-	assert.Assert(c, strings.Contains(actualValue, comment))
+	assert.Assert(c, is.Contains(actualValue, comment))
 }
 
 func (s *DockerCLIHistorySuite) TestHistoryHumanOptionFalse(c *testing.T) {

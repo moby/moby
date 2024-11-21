@@ -251,9 +251,9 @@ func (s *DockerCLIPortSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {
 	unpPort2 := fmt.Sprintf("%d/tcp", port2)
 	out := cli.DockerCmd(c, "ps", "-n=1").Stdout()
 	// Missing unpublished ports in docker ps output
-	assert.Assert(c, strings.Contains(out, unpPort1))
+	assert.Assert(c, is.Contains(out, unpPort1))
 	// Missing unpublished ports in docker ps output
-	assert.Assert(c, strings.Contains(out, unpPort2))
+	assert.Assert(c, is.Contains(out, unpPort2))
 	// Run the container forcing to publish the exposed ports
 	cli.DockerCmd(c, "run", "-d", "-P", expose1, expose2, "busybox", "sleep", "5")
 
@@ -279,9 +279,9 @@ func (s *DockerCLIPortSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {
 	expBnd2 := fmt.Sprintf("0.0.0.0:%d->%s", offset+port2, unpPort2)
 	out = cli.DockerCmd(c, "ps", "-n=1").Stdout()
 	// Cannot find expected port binding (expBnd1) in docker ps output
-	assert.Assert(c, strings.Contains(out, expBnd1))
+	assert.Assert(c, is.Contains(out, expBnd1))
 	// Cannot find expected port binding (expBnd2) in docker ps output
-	assert.Assert(c, strings.Contains(out, expBnd2))
+	assert.Assert(c, is.Contains(out, expBnd2))
 	// Remove container now otherwise it will interfere with next test
 	stopRemoveContainer(id, c)
 
@@ -292,9 +292,9 @@ func (s *DockerCLIPortSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {
 	// Check docker ps o/p for last created container reports the specified port mappings
 	out = cli.DockerCmd(c, "ps", "-n=1").Stdout()
 	// Cannot find expected port binding (expBnd1) in docker ps output
-	assert.Assert(c, strings.Contains(out, expBnd1))
+	assert.Assert(c, is.Contains(out, expBnd1))
 	// Cannot find expected port binding (expBnd2) in docker ps output
-	assert.Assert(c, strings.Contains(out, expBnd2))
+	assert.Assert(c, is.Contains(out, expBnd2))
 	// Remove container now otherwise it will interfere with next test
 	stopRemoveContainer(id, c)
 
@@ -304,9 +304,9 @@ func (s *DockerCLIPortSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {
 	// Check docker ps o/p for last created container reports the specified unpublished port and port mapping
 	out = cli.DockerCmd(c, "ps", "-n=1").Stdout()
 	// Missing unpublished exposed ports (unpPort1) in docker ps output
-	assert.Assert(c, strings.Contains(out, unpPort1))
+	assert.Assert(c, is.Contains(out, unpPort1))
 	// Missing port binding (expBnd2) in docker ps output
-	assert.Assert(c, strings.Contains(out, expBnd2))
+	assert.Assert(c, is.Contains(out, expBnd2))
 }
 
 func (s *DockerCLIPortSuite) TestPortHostBinding(c *testing.T) {

@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -16,6 +15,7 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/requirement"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
@@ -72,7 +72,7 @@ func TestAuthZPluginV2Disable(t *testing.T) {
 
 	_, err = c.VolumeCreate(ctx, volume.CreateOptions{Driver: "local"})
 	assert.Assert(t, err != nil)
-	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
+	assert.Assert(t, is.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
 	// disable the plugin
 	err = c.PluginDisable(ctx, authzPluginNameWithTag, types.PluginDisableOptions{})
@@ -98,24 +98,24 @@ func TestAuthZPluginV2RejectVolumeRequests(t *testing.T) {
 
 	_, err = c.VolumeCreate(ctx, volume.CreateOptions{Driver: "local"})
 	assert.Assert(t, err != nil)
-	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
+	assert.Assert(t, is.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
 	_, err = c.VolumeList(ctx, volume.ListOptions{})
 	assert.Assert(t, err != nil)
-	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
+	assert.Assert(t, is.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
 	// The plugin will block the command before it can determine the volume does not exist
 	err = c.VolumeRemove(ctx, "test", false)
 	assert.Assert(t, err != nil)
-	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
+	assert.Assert(t, is.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
 	_, err = c.VolumeInspect(ctx, "test")
 	assert.Assert(t, err != nil)
-	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
+	assert.Assert(t, is.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
 	_, err = c.VolumesPrune(ctx, filters.Args{})
 	assert.Assert(t, err != nil)
-	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
+	assert.Assert(t, is.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 }
 
 func TestAuthZPluginV2BadManifestFailsDaemonStart(t *testing.T) {

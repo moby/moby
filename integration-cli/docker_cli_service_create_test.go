@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 )
 
@@ -419,7 +420,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 	out, err = s.nodeCmd(c, task.NodeID, "logs", task.Status.ContainerStatus.ContainerID)
 	assert.NilError(c, err, out)
 	assert.Assert(c, strings.HasPrefix(strings.TrimSpace(out), "tmpfs on /foo type tmpfs"))
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), "size=1024k"))
+	assert.Assert(c, is.Contains(strings.TrimSpace(out), "size=1024k"))
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *testing.T) {
@@ -455,5 +456,5 @@ func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *testing.T) {
 	assert.Assert(c, json.Unmarshal([]byte(out), &aliases) == nil)
 	assert.Equal(c, len(aliases), 1)
 
-	assert.Assert(c, strings.Contains(task.Status.ContainerStatus.ContainerID, aliases[0]))
+	assert.Assert(c, is.Contains(task.Status.ContainerStatus.ContainerID, aliases[0]))
 }

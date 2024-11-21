@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/skip"
 )
@@ -455,7 +456,7 @@ func (s *DockerRegistrySuite) TestRunImplicitPullWithNoTag(c *testing.T) {
 	cli.DockerCmd(c, "rmi", repoTag2)
 
 	out := cli.DockerCmd(c, "run", imgRepo).Combined()
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Unable to find image '%s:latest' locally", imgRepo)))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf("Unable to find image '%s:latest' locally", imgRepo)))
 	// There should be only one line for repo, the one with repo:latest
 	outImageCmd := cli.DockerCmd(c, "images", imgRepo).Stdout()
 	splitOutImageCmd := strings.Split(strings.TrimSpace(outImageCmd), "\n")

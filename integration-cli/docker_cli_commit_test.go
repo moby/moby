@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
@@ -63,7 +64,7 @@ func (s *DockerCLICommitSuite) TestCommitPausedContainer(c *testing.T) {
 
 	out := inspectField(c, containerID, "State.Paused")
 	// commit should not unpause a paused container
-	assert.Assert(c, strings.Contains(out, "true"))
+	assert.Assert(c, is.Contains(out, "true"))
 }
 
 func (s *DockerCLICommitSuite) TestCommitNewFile(c *testing.T) {

@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 type DockerCLIPluginLogDriverSuite struct {
@@ -57,6 +58,6 @@ func (s *DockerCLIPluginLogDriverSuite) TestPluginLogDriverInfoList(c *testing.T
 	assert.NilError(c, err)
 
 	drivers := strings.Join(info.Plugins.Log, " ")
-	assert.Assert(c, strings.Contains(drivers, "json-file"))
+	assert.Assert(c, is.Contains(drivers, "json-file"))
 	assert.Assert(c, !strings.Contains(drivers, pluginName))
 }

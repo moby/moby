@@ -180,7 +180,7 @@ func testIpvlanL2InternalMode(t *testing.T, ctx context.Context, client dclient.
 	id2 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
 
 	result, _ := container.Exec(ctx, client, id1, []string{"ping", "-c", "1", "8.8.8.8"})
-	assert.Check(t, strings.Contains(result.Combined(), "Network is unreachable"))
+	assert.Check(t, is.Contains(result.Combined(), "Network is unreachable"))
 
 	_, err := container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
 	assert.NilError(t, err)
@@ -228,7 +228,7 @@ func testIpvlanL3InternalMode(t *testing.T, ctx context.Context, client dclient.
 	)
 
 	result, _ := container.Exec(ctx, client, id1, []string{"ping", "-c", "1", "8.8.8.8"})
-	assert.Check(t, strings.Contains(result.Combined(), "Network is unreachable"))
+	assert.Check(t, is.Contains(result.Combined(), "Network is unreachable"))
 
 	_, err := container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
 	assert.NilError(t, err)

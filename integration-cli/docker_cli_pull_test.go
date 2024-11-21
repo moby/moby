@@ -34,7 +34,7 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *testing.T) {
 
 	assert.Assert(c, strings.Contains(out, "Using default tag: latest"), "expected the 'latest' tag to be automatically assumed")
 	assert.Assert(c, strings.Contains(out, "Pulling from library/hello-world"), "expected the 'library/' prefix to be automatically assumed")
-	assert.Assert(c, strings.Contains(out, "Downloaded newer image for hello-world:latest"))
+	assert.Assert(c, is.Contains(out, "Downloaded newer image for hello-world:latest"))
 
 	matches := regexp.MustCompile(`Digest: (.+)\n`).FindAllStringSubmatch(out, -1)
 	assert.Equal(c, len(matches), 1, "expected exactly one image digest in the output")
@@ -109,7 +109,7 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *test
 			s.Cmd(c, "rmi", ref)
 			s.Cmd(c, "tag", "hello-world-backup", "hello-world")
 		}
-		assert.Assert(c, strings.Contains(out, "Image is up to date for hello-world:latest"))
+		assert.Assert(c, is.Contains(out, "Image is up to date for hello-world:latest"))
 	}
 
 	s.Cmd(c, "rmi", "hello-world-backup")
@@ -127,7 +127,7 @@ func (s *DockerHubPullSuite) TestPullScratchNotAllowed(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, err := s.CmdWithError("pull", "scratch")
 	assert.ErrorContains(c, err, "", "expected pull of scratch to fail")
-	assert.Assert(c, strings.Contains(out, "'scratch' is a reserved name"))
+	assert.Assert(c, is.Contains(out, "'scratch' is a reserved name"))
 	assert.Assert(c, !strings.Contains(out, "Pulling repository scratch"))
 }
 

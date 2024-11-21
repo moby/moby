@@ -444,8 +444,8 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterLabel(c *testing.T) {
 	// filter containers by exact key
 	out = cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match").Stdout()
 	containerOut = strings.TrimSpace(out)
-	assert.Assert(c, strings.Contains(containerOut, firstID))
-	assert.Assert(c, strings.Contains(containerOut, secondID))
+	assert.Assert(c, is.Contains(containerOut, firstID))
+	assert.Assert(c, is.Contains(containerOut, secondID))
 	assert.Assert(c, !strings.Contains(containerOut, thirdID))
 }
 
@@ -469,13 +469,13 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterExited(c *testing.T) {
 
 	// filter containers by exited=0
 	out = cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=0").Stdout()
-	assert.Assert(c, strings.Contains(out, strings.TrimSpace(firstZero)))
-	assert.Assert(c, strings.Contains(out, strings.TrimSpace(secondZero)))
+	assert.Assert(c, is.Contains(out, strings.TrimSpace(firstZero)))
+	assert.Assert(c, is.Contains(out, strings.TrimSpace(secondZero)))
 	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(firstNonZero)))
 	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(secondNonZero)))
 	out = cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=1").Stdout()
-	assert.Assert(c, strings.Contains(out, strings.TrimSpace(firstNonZero)))
-	assert.Assert(c, strings.Contains(out, strings.TrimSpace(secondNonZero)))
+	assert.Assert(c, is.Contains(out, strings.TrimSpace(firstNonZero)))
+	assert.Assert(c, is.Contains(out, strings.TrimSpace(secondNonZero)))
 	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(firstZero)))
 	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(secondZero)))
 }
@@ -816,9 +816,9 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterPorts(c *testing.T) {
 	id3 := strings.TrimSpace(out)
 
 	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q").Stdout()
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id1))
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id2))
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id3))
+	assert.Assert(c, is.Contains(strings.TrimSpace(out), id1))
+	assert.Assert(c, is.Contains(strings.TrimSpace(out), id2))
+	assert.Assert(c, is.Contains(strings.TrimSpace(out), id3))
 
 	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-8080/udp").Stdout()
 	assert.Assert(c, strings.TrimSpace(out) != id1)

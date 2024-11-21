@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 	"os/exec"
-	"strings"
 	"testing"
 
 	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 type DockerCLILoginSuite struct {
@@ -38,7 +38,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLoginToPrivateRegistry(c *testing.
 	// wrong credentials
 	out, _, err := dockerCmdWithError("login", "-u", s.reg.Username(), "-p", "WRONGPASSWORD", privateRegistryURL)
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "401 Unauthorized"))
+	assert.Assert(c, is.Contains(out, "401 Unauthorized"))
 
 	// now it's fine
 	cli.DockerCmd(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)

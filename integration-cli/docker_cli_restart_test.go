@@ -128,7 +128,7 @@ func (s *DockerCLIRestartSuite) TestRestartPolicyAlways(c *testing.T) {
 func (s *DockerCLIRestartSuite) TestRestartPolicyOnFailure(c *testing.T) {
 	out, _, err := dockerCmdWithError("create", "--restart=on-failure:-1", "busybox")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "maximum retry count cannot be negative"))
+	assert.Assert(c, is.Contains(out, "maximum retry count cannot be negative"))
 
 	id := cli.DockerCmd(c, "create", "--restart=on-failure:1", "busybox").Stdout()
 	id = strings.TrimSpace(id)
