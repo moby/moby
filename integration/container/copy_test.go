@@ -46,7 +46,7 @@ func TestCopyFromContainerPathIsNotDir(t *testing.T) {
 		expected = "The filename, directory name, or volume label syntax is incorrect."
 	}
 	_, _, err := apiClient.CopyFromContainer(ctx, cid, path)
-	assert.Assert(t, is.ErrorContains(err, expected))
+	assert.ErrorContains(t, err, expected)
 }
 
 func TestCopyToContainerPathDoesNotExist(t *testing.T) {

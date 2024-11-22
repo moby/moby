@@ -126,8 +126,8 @@ func TestKillStoppedContainer(t *testing.T) {
 	apiClient := testEnv.APIClient()
 	id := container.Create(ctx, t, apiClient)
 	err := apiClient.ContainerKill(ctx, id, "SIGKILL")
-	assert.Assert(t, is.ErrorContains(err, ""))
-	assert.Assert(t, is.Contains(err.Error(), "is not running"))
+	assert.ErrorContains(t, err, "")
+	assert.ErrorContains(t, err, "is not running")
 }
 
 func TestKillDifferentUserContainer(t *testing.T) {

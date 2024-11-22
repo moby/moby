@@ -61,7 +61,7 @@ func testBiggerThanQuota(t *testing.T, ctrl *Control, homeDir, testDir, testSubD
 
 	biggerThanQuotaFile := filepath.Join(testSubDir, "bigger-than-quota")
 	err := os.WriteFile(biggerThanQuotaFile, make([]byte, testQuotaSize+1), 0o644)
-	assert.Assert(t, is.ErrorContains(err, ""))
+	assert.ErrorContains(t, err, "")
 	if err == io.ErrShortWrite {
 		assert.NilError(t, os.Remove(biggerThanQuotaFile))
 	}

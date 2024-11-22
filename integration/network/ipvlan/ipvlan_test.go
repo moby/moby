@@ -452,7 +452,7 @@ func testIpvlanExperimentalV4Only(t *testing.T, ctx context.Context, client dcli
 		net.WithIPv4(false),
 	)
 	defer client.NetworkRemove(ctx, "testnet")
-	assert.Assert(t, is.ErrorContains(err, "IPv4 can only be disabled if experimental features are enabled"))
+	assert.ErrorContains(t, err, "IPv4 can only be disabled if experimental features are enabled")
 }
 
 // Check that an ipvlan interface with '--ipv6=false' doesn't get kernel-assigned
