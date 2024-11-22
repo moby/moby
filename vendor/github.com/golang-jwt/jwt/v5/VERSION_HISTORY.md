@@ -1,17 +1,19 @@
-## `jwt-go` Version History
+# `jwt-go` Version History
 
-#### 4.0.0
+The following version history is kept for historic purposes. To retrieve the current changes of each version, please refer to the change-log of the specific release versions on https://github.com/golang-jwt/jwt/releases.
+
+## 4.0.0
 
 * Introduces support for Go modules. The `v4` version will be backwards compatible with `v3.x.y`.
 
-#### 3.2.2
+## 3.2.2
 
 * Starting from this release, we are adopting the policy to support the most 2 recent versions of Go currently available. By the time of this release, this is Go 1.15 and 1.16 ([#28](https://github.com/golang-jwt/jwt/pull/28)).
 * Fixed a potential issue that could occur when the verification of `exp`, `iat` or `nbf` was not required and contained invalid contents, i.e. non-numeric/date. Thanks for @thaJeztah for making us aware of that and @giorgos-f3 for originally reporting it to the formtech fork ([#40](https://github.com/golang-jwt/jwt/pull/40)).
 * Added support for EdDSA / ED25519 ([#36](https://github.com/golang-jwt/jwt/pull/36)).
 * Optimized allocations ([#33](https://github.com/golang-jwt/jwt/pull/33)).
 
-#### 3.2.1
+## 3.2.1
 
 * **Import Path Change**: See MIGRATION_GUIDE.md for tips on updating your code
 	* Changed the import path from `github.com/dgrijalva/jwt-go` to `github.com/golang-jwt/jwt`
@@ -117,17 +119,17 @@ It is likely the only integration change required here will be to change `func(t
 * Refactored the RSA implementation to be easier to read
 * Exposed helper methods `ParseRSAPrivateKeyFromPEM` and `ParseRSAPublicKeyFromPEM`
 
-#### 1.0.2
+## 1.0.2
 
 * Fixed bug in parsing public keys from certificates
 * Added more tests around the parsing of keys for RS256
 * Code refactoring in RS256 implementation.  No functional changes
 
-#### 1.0.1
+## 1.0.1
 
 * Fixed panic if RS256 signing method was passed an invalid key
 
-#### 1.0.0
+## 1.0.0
 
 * First versioned release
 * API stabilized
