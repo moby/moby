@@ -70,18 +70,21 @@ type Opt struct {
 	LeaseManager              *leaseutil.Manager
 	ContentStore              *containerdsnapshot.Store
 	HistoryConfig             *config.HistoryConfig
+	GarbageCollect            func(context.Context) error
+	GracefulStop              <-chan struct{}
 }
 
 type Controller struct { // TODO: ControlService
 	// buildCount needs to be 64bit aligned
-	buildCount       int64
-	opt              Opt
-	solver           *llbsolver.Solver
-	history          *llbsolver.HistoryQueue
-	cache            solver.CacheManager
-	gatewayForwarder *controlgateway.GatewayForwarder
-	throttledGC      func()
-	gcmu             sync.Mutex
+	buildCount                   int64
+	opt                          Opt
+	solver                       *llbsolver.Solver
+	history                      *llbsolver.HistoryQueue
+	cache                        solver.CacheManager
+	gatewayForwarder             *controlgateway.GatewayForwarder
+	throttledGC                  func()
+	throttledReleaseUnreferenced func()
+	gcmu                         sync.Mutex
 	tracev1.UnimplementedTraceServiceServer
 }
 
@@ -89,10 +92,12 @@ func NewController(opt Opt) (*Controller, error) {
 	gatewayForwarder := controlgateway.NewGatewayForwarder()
 
 	hq, err := llbsolver.NewHistoryQueue(llbsolver.HistoryQueueOpt{
-		DB:           opt.HistoryDB,
-		LeaseManager: opt.LeaseManager,
-		ContentStore: opt.ContentStore,
-		CleanConfig:  opt.HistoryConfig,
+		DB:             opt.HistoryDB,
+		LeaseManager:   opt.LeaseManager,
+		ContentStore:   opt.ContentStore,
+		CleanConfig:    opt.HistoryConfig,
+		GarbageCollect: opt.GarbageCollect,
+		GracefulStop:   opt.GracefulStop,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create history queue")
@@ -120,6 +125,8 @@ func NewController(opt Opt) (*Controller, error) {
 		gatewayForwarder: gatewayForwarder,
 	}
 	c.throttledGC = throttle.After(time.Minute, c.gc)
+	// use longer interval for releaseUnreferencedCache deleting links quickly is less important
+	c.throttledReleaseUnreferenced = throttle.After(5*time.Minute, func() { c.releaseUnreferencedCache(context.TODO()) })
 
 	defer func() {
 		time.AfterFunc(time.Second, c.throttledGC)
@@ -188,6 +195,10 @@ func (c *Controller) DiskUsage(ctx context.Context, r *controlapi.DiskUsageReque
 		}
 	}
 	return resp, nil
+}
+
+func (c *Controller) releaseUnreferencedCache(ctx context.Context) error {
+	return c.cache.ReleaseUnreferenced(ctx)
 }
 
 func (c *Controller) Prune(req *controlapi.PruneRequest, stream controlapi.Control_PruneServer) error {
@@ -630,6 +641,7 @@ func (c *Controller) gc() {
 	<-done
 	if size > 0 {
 		bklog.G(ctx).Debugf("gc cleaned up %d bytes", size)
+		go c.throttledReleaseUnreferenced()
 	}
 }
 
