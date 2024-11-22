@@ -181,7 +181,7 @@ func TestSharedTempFileConverter(t *testing.T) {
 				defer t.Logf("goroutine %v: exit", i)
 				start.Done()
 				_, err := uut.Do(src)
-				assert.Check(t, errors.Is(err, fakeErr), "in goroutine %v", i)
+				assert.Check(t, is.ErrorIs(err, fakeErr), "in goroutine %v", i)
 			}()
 		}
 		done.Wait()
@@ -190,7 +190,7 @@ func TestSharedTempFileConverter(t *testing.T) {
 		// request should retry from scratch.
 		fakeErr = errors.New("another fake error")
 		_, err = uut.Do(src)
-		assert.Check(t, errors.Is(err, fakeErr))
+		assert.Check(t, is.ErrorIs(err, fakeErr))
 
 		fakeErr = nil
 		f, err := uut.Do(src)

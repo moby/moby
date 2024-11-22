@@ -567,7 +567,7 @@ func TestGetBoolOrDefault(t *testing.T) {
 				assert.Check(t, is.DeepEqual(expected.Value, actual.Value))
 
 				wrappedErr := fmt.Errorf("something went wrong: %w", err)
-				assert.Check(t, errors.Is(wrappedErr, err), "Expected a wrapped error to be detected as invalidFilter")
+				assert.Check(t, is.ErrorIs(wrappedErr, err), "Expected a wrapped error to be detected as invalidFilter")
 			}
 
 			assert.Check(t, is.Equal(tc.expectedValue, value))
