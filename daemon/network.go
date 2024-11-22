@@ -1115,18 +1115,21 @@ func buildEndpointInfo(networkSettings *network.Settings, n *libnetwork.Network,
 
 // buildJoinOptions builds endpoint Join options from a given network.
 func buildJoinOptions(settings *network.Settings, n interface{ Name() string }) ([]libnetwork.EndpointOption, error) {
+	epConfig, ok := settings.Networks[n.Name()]
+	if !ok {
+		return []libnetwork.EndpointOption{}, nil
+	}
+
 	var joinOptions []libnetwork.EndpointOption
-	if epConfig, ok := settings.Networks[n.Name()]; ok {
-		for _, str := range epConfig.Links {
-			name, alias, err := opts.ParseLink(str)
-			if err != nil {
-				return nil, err
-			}
-			joinOptions = append(joinOptions, libnetwork.CreateOptionAlias(name, alias))
+	for _, str := range epConfig.Links {
+		name, alias, err := opts.ParseLink(str)
+		if err != nil {
+			return nil, err
 		}
-		for k, v := range epConfig.DriverOpts {
-			joinOptions = append(joinOptions, libnetwork.EndpointOptionGeneric(options.Generic{k: v}))
-		}
+		joinOptions = append(joinOptions, libnetwork.CreateOptionAlias(name, alias))
+	}
+	for k, v := range epConfig.DriverOpts {
+		joinOptions = append(joinOptions, libnetwork.EndpointOptionGeneric(options.Generic{k: v}))
 	}
 
 	return joinOptions, nil
