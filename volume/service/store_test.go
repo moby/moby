@@ -15,7 +15,6 @@ import (
 	volumetestutils "github.com/docker/docker/volume/testutils"
 	"github.com/google/go-cmp/cmp"
 	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestCreate(t *testing.T) {
@@ -300,7 +299,7 @@ func TestRefDerefRemove(t *testing.T) {
 	assert.NilError(t, err)
 
 	err = s.Remove(ctx, v)
-	assert.Assert(t, is.ErrorContains(err, ""))
+	assert.ErrorContains(t, err, "")
 	assert.Equal(t, errVolumeInUse, err.(*OpErr).Err)
 
 	s.Release(ctx, v.Name(), "test-ref")
@@ -318,7 +317,7 @@ func TestGet(t *testing.T) {
 
 	ctx := context.Background()
 	_, err := s.Get(ctx, "not-exist")
-	assert.Assert(t, is.ErrorContains(err, ""))
+	assert.ErrorContains(t, err, "")
 	assert.Equal(t, errNoSuchVolume, err.(*OpErr).Err)
 
 	v1, err := s.Create(ctx, "test", driverName, opts.WithCreateLabels(map[string]string{"a": "1"}))
@@ -345,7 +344,7 @@ func TestGetWithReference(t *testing.T) {
 
 	ctx := context.Background()
 	_, err := s.Get(ctx, "not-exist", opts.WithGetDriver(driverName), opts.WithGetReference("test-ref"))
-	assert.Assert(t, is.ErrorContains(err, ""))
+	assert.ErrorContains(t, err, "")
 
 	v1, err := s.Create(ctx, "test", driverName, opts.WithCreateLabels(map[string]string{"a": "1"}))
 	assert.NilError(t, err)
@@ -355,7 +354,7 @@ func TestGetWithReference(t *testing.T) {
 	assert.DeepEqual(t, v1, v2, cmpVolume)
 
 	err = s.Remove(ctx, v2)
-	assert.Assert(t, is.ErrorContains(err, ""))
+	assert.ErrorContains(t, err, "")
 	assert.Equal(t, errVolumeInUse, err.(*OpErr).Err)
 
 	s.Release(ctx, v2.Name(), "test-ref")

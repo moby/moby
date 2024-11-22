@@ -35,15 +35,15 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 
 		err := daemon.setWindowsCredentialSpec(&container.Container{}, spec)
 		assert.NilError(t, err)
-		assert.Check(t, spec.Windows == nil)
+		assert.Check(t, is.Nil(spec.Windows))
 
 		err = daemon.setWindowsCredentialSpec(&container.Container{HostConfig: &containertypes.HostConfig{}}, spec)
 		assert.NilError(t, err)
-		assert.Check(t, spec.Windows == nil)
+		assert.Check(t, is.Nil(spec.Windows))
 
 		err = daemon.setWindowsCredentialSpec(&container.Container{HostConfig: &containertypes.HostConfig{SecurityOpt: []string{}}}, spec)
 		assert.NilError(t, err)
-		assert.Check(t, spec.Windows == nil)
+		assert.Check(t, is.Nil(spec.Windows))
 	})
 
 	dummyContainerID := "dummy-container-ID"
@@ -90,7 +90,7 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 		err := daemon.setWindowsCredentialSpec(containerFactory(`file://C:\path\to\my\credspec.json`), spec)
 		assert.ErrorContains(t, err, "invalid credential spec: file:// path cannot be absolute")
 
-		assert.Check(t, spec.Windows == nil)
+		assert.Check(t, is.Nil(spec.Windows))
 	})
 
 	t.Run("it's not allowed to use a 'file://' option breaking out of the cred specs' directory", func(t *testing.T) {
@@ -99,7 +99,7 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 		err := daemon.setWindowsCredentialSpec(containerFactory(`file://..\credspec.json`), spec)
 		assert.ErrorContains(t, err, fmt.Sprintf("invalid credential spec: file:// path must be under %s", credSpecsDir))
 
-		assert.Check(t, spec.Windows == nil)
+		assert.Check(t, is.Nil(spec.Windows))
 	})
 
 	t.Run("when using a 'file://' option pointing to a file that doesn't exist, it fails gracefully", func(t *testing.T) {
@@ -108,7 +108,7 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 		err := daemon.setWindowsCredentialSpec(containerFactory("file://i-dont-exist.json"), spec)
 		assert.Check(t, is.ErrorContains(err, fmt.Sprintf("failed to load credential spec for container %s", dummyContainerID)))
 		assert.Check(t, is.ErrorIs(err, os.ErrNotExist))
-		assert.Check(t, spec.Windows == nil)
+		assert.Check(t, is.Nil(spec.Windows))
 	})
 
 	t.Run("happy path with a 'registry://' option", func(t *testing.T) {
@@ -138,7 +138,7 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 		err := daemon.setWindowsCredentialSpec(containerFactory("registry://my-cred-spec"), spec)
 		assert.ErrorContains(t, err, fmt.Sprintf("registry key %s could not be opened: %v", credentialSpecRegistryLocation, dummyError))
 
-		assert.Check(t, spec.Windows == nil)
+		assert.Check(t, is.Nil(spec.Windows))
 	})
 
 	t.Run("when using a 'registry://' option pointing to a value that doesn't exist, it fails gracefully", func(t *testing.T) {
@@ -219,7 +219,7 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 		err := daemon.setWindowsCredentialSpec(containerFactory("config://whatever"), spec)
 		assert.Equal(t, errInvalidCredentialSpecSecOpt, err)
 
-		assert.Check(t, spec.Windows == nil)
+		assert.Check(t, is.Nil(spec.Windows))
 	})
 
 	t.Run("happy path with a 'raw://' option", func(t *testing.T) {
@@ -250,7 +250,7 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 		err := daemon.setWindowsCredentialSpec(containerFactory("credentialspe=config://whatever"), spec)
 		assert.ErrorContains(t, err, "security option not supported: credentialspe")
 
-		assert.Check(t, spec.Windows == nil)
+		assert.Check(t, is.Nil(spec.Windows))
 	})
 
 	t.Run("it rejects unsupported credentialspec options", func(t *testing.T) {
@@ -259,7 +259,7 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 		err := daemon.setWindowsCredentialSpec(containerFactory("idontexist://whatever"), spec)
 		assert.Equal(t, errInvalidCredentialSpecSecOpt, err)
 
-		assert.Check(t, spec.Windows == nil)
+		assert.Check(t, is.Nil(spec.Windows))
 	})
 
 	for _, option := range []string{"file", "registry", "config", "raw"} {
@@ -269,7 +269,7 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 			err := daemon.setWindowsCredentialSpec(containerFactory(option+"://"), spec)
 			assert.Equal(t, errInvalidCredentialSpecSecOpt, err)
 
-			assert.Check(t, spec.Windows == nil)
+			assert.Check(t, is.Nil(spec.Windows))
 		})
 	}
 }

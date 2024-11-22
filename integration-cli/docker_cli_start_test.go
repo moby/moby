@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 )
 
@@ -94,7 +95,7 @@ func (s *DockerCLIStartSuite) TestStartRecordError(c *testing.T) {
 	assert.Assert(c, err != nil, "out: %s", out)
 
 	stateErr = inspectField(c, "test2", "State.Error")
-	assert.Assert(c, strings.Contains(stateErr, "port is already allocated"))
+	assert.Assert(c, is.Contains(stateErr, "port is already allocated"))
 	// Expect the conflict to be resolved when we stop the initial container
 	cli.DockerCmd(c, "stop", "test")
 	cli.DockerCmd(c, "start", "test2")
@@ -115,7 +116,7 @@ func (s *DockerCLIStartSuite) TestStartPausedContainer(c *testing.T) {
 	// an error should have been shown that you cannot start paused container
 	assert.Assert(c, err != nil, "out: %s", out)
 	// an error should have been shown that you cannot start paused container
-	assert.Assert(c, strings.Contains(strings.ToLower(out), "cannot start a paused container, try unpause instead"))
+	assert.Assert(c, is.Contains(strings.ToLower(out), "cannot start a paused container, try unpause instead"))
 }
 
 func (s *DockerCLIStartSuite) TestStartMultipleContainers(c *testing.T) {
@@ -171,7 +172,7 @@ func (s *DockerCLIStartSuite) TestStartAttachMultipleContainers(c *testing.T) {
 		// err shouldn't be nil because start will fail
 		assert.Assert(c, err != nil, "out: %s", out)
 		// output does not correspond to what was expected
-		assert.Assert(c, strings.Contains(out, "you cannot start and attach multiple containers at once"))
+		assert.Assert(c, is.Contains(out, "you cannot start and attach multiple containers at once"))
 	}
 
 	// confirm the state of all the containers be stopped

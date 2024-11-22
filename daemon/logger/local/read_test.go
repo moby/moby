@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/logger"
-	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 )
 
@@ -36,7 +35,7 @@ func testDecode(t *testing.T, buf []byte, split int) {
 		assert.NilError(t, err)
 
 		_, err = d.Decode()
-		assert.Assert(t, errors.Is(err, io.EOF))
+		assert.ErrorIs(t, err, io.EOF)
 
 		_, err = fw.Write(buf[split:])
 		assert.NilError(t, err)

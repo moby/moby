@@ -627,7 +627,7 @@ func TestBuildWithEmptyDockerfile(t *testing.T) {
 					ForceRemove: true,
 				})
 
-			assert.Check(t, is.Contains(err.Error(), tc.expectedErr))
+			assert.Check(t, is.ErrorContains(err, tc.expectedErr))
 		})
 	}
 }

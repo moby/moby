@@ -96,7 +96,7 @@ func (s *DockerAPISuite) TestGetContainersWsAttachContainerNotFound(c *testing.T
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
 	expected := "No such container: doesnotexist"
-	assert.Assert(c, strings.Contains(getErrorMessage(c, b), expected))
+	assert.Assert(c, is.Contains(getErrorMessage(c, b), expected))
 }
 
 func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {

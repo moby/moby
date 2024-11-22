@@ -163,7 +163,7 @@ func (s *DockerAPISuite) TestExecAPIStartValidCommand(c *testing.T) {
 	var inspectJSON struct{ ExecIDs []string }
 	inspectContainer(ctx, c, name, &inspectJSON)
 
-	assert.Assert(c, inspectJSON.ExecIDs == nil)
+	assert.Assert(c, is.Nil(inspectJSON.ExecIDs))
 }
 
 // #30311
@@ -179,7 +179,7 @@ func (s *DockerAPISuite) TestExecAPIStartInvalidCommand(c *testing.T) {
 	var inspectJSON struct{ ExecIDs []string }
 	inspectContainer(ctx, c, name, &inspectJSON)
 
-	assert.Assert(c, inspectJSON.ExecIDs == nil)
+	assert.Assert(c, is.Nil(inspectJSON.ExecIDs))
 }
 
 func (s *DockerAPISuite) TestExecStateCleanup(c *testing.T) {

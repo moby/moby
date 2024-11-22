@@ -69,7 +69,7 @@ func TestImageInspectDescriptor(t *testing.T) {
 	assert.NilError(t, err)
 
 	if !testEnv.UsingSnapshotter() {
-		assert.Check(t, inspect.Descriptor == nil)
+		assert.Check(t, is.Nil(inspect.Descriptor))
 		return
 	}
 

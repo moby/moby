@@ -32,6 +32,7 @@ import (
 	"github.com/moby/swarmkit/v2/ca/keyutils"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/fs"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
@@ -56,7 +57,7 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {
 	// setting anything under 30m for cert-expiry is not allowed
 	out, err = d.Cmd("swarm", "update", "--cert-expiry", "15m")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "minimum certificate expiry time"))
+	assert.Assert(c, is.Contains(out, "minimum certificate expiry time"))
 	spec = getSpec()
 	assert.Equal(c, spec.CAConfig.NodeCertExpiry, 30*time.Hour)
 
@@ -122,7 +123,7 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *testing.T) {
 	assert.Equal(c, spec.CAConfig.ExternalCAs[0].CACert, "")
 	assert.Equal(c, spec.CAConfig.ExternalCAs[1].CACert, string(expected))
 
-	assert.Assert(c, d.SwarmLeave(ctx, c, true) == nil)
+	assert.NilError(c, d.SwarmLeave(ctx, c, true))
 	cli.Docker(cli.Args("swarm", "init"), cli.Daemon(d)).Assert(c, icmd.Success)
 
 	spec = getSpec()
@@ -142,7 +143,7 @@ func (s *DockerSwarmSuite) TestSwarmInitIPv6(c *testing.T) {
 		cli.Daemon(d2)).Assert(c, icmd.Success)
 
 	out := cli.Docker(cli.Args("info"), cli.Daemon(d2)).Assert(c, icmd.Success).Combined()
-	assert.Assert(c, strings.Contains(out, "Swarm: active"))
+	assert.Assert(c, is.Contains(out, "Swarm: active"))
 }
 
 func (s *DockerSwarmSuite) TestSwarmInitUnspecifiedAdvertiseAddr(c *testing.T) {
@@ -150,7 +151,7 @@ func (s *DockerSwarmSuite) TestSwarmInitUnspecifiedAdvertiseAddr(c *testing.T) {
 	d := s.AddDaemon(ctx, c, false, false)
 	out, err := d.Cmd("swarm", "init", "--advertise-addr", "0.0.0.0")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "advertise address must be a non-zero IP address"))
+	assert.Assert(c, is.Contains(out, "advertise address must be a non-zero IP address"))
 }
 
 func (s *DockerSwarmSuite) TestSwarmIncompatibleDaemon(c *testing.T) {
@@ -166,7 +167,7 @@ func (s *DockerSwarmSuite) TestSwarmIncompatibleDaemon(c *testing.T) {
 	assert.ErrorContains(c, err, "")
 	content, err := d.ReadLogFile()
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(string(content), "--live-restore daemon configuration is incompatible with swarm mode"))
+	assert.Assert(c, is.Contains(string(content), "--live-restore daemon configuration is incompatible with swarm mode"))
 	// restart for teardown
 	d.StartNode(c)
 }
@@ -442,7 +443,7 @@ func (s *DockerSwarmSuite) TestOverlayAttachableOnSwarmLeave(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// Leave the swarm
-	assert.Assert(c, d.SwarmLeave(ctx, c, true) == nil)
+	assert.NilError(c, d.SwarmLeave(ctx, c, true))
 
 	// Check the container is disconnected
 	out, err = d.Cmd("inspect", "c1", "--format", "{{.NetworkSettings.Networks."+nwName+"}}")
@@ -1661,7 +1662,7 @@ func (s *DockerSwarmSuite) TestSwarmInitWithDrain(c *testing.T) {
 
 	out, err = d.Cmd("node", "ls")
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(out, "Drain"))
+	assert.Assert(c, is.Contains(out, "Drain"))
 }
 
 func (s *DockerSwarmSuite) TestSwarmReadonlyRootfs(c *testing.T) {

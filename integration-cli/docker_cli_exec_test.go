@@ -119,8 +119,8 @@ func (s *DockerCLIExecSuite) TestExecEnv(c *testing.T) {
 
 	out := cli.DockerCmd(c, "exec", "testing", "env").Stdout()
 	assert.Check(c, !strings.Contains(out, "LALA=value1"))
-	assert.Check(c, strings.Contains(out, "LALA=value2"))
-	assert.Check(c, strings.Contains(out, "HOME=/root"))
+	assert.Check(c, is.Contains(out, "LALA=value2"))
+	assert.Check(c, is.Contains(out, "HOME=/root"))
 }
 
 func (s *DockerCLIExecSuite) TestExecSetEnv(c *testing.T) {
@@ -130,8 +130,8 @@ func (s *DockerCLIExecSuite) TestExecSetEnv(c *testing.T) {
 
 	out := cli.DockerCmd(c, "exec", "-e", "HOME=/another", "-e", "ABC=xyz", "testing", "env").Stdout()
 	assert.Check(c, !strings.Contains(out, "HOME=/root"))
-	assert.Check(c, strings.Contains(out, "HOME=/another"))
-	assert.Check(c, strings.Contains(out, "ABC=xyz"))
+	assert.Check(c, is.Contains(out, "HOME=/another"))
+	assert.Check(c, is.Contains(out, "ABC=xyz"))
 }
 
 func (s *DockerCLIExecSuite) TestExecExitStatus(c *testing.T) {
@@ -437,7 +437,7 @@ func (s *DockerCLIExecSuite) TestExecWithUser(c *testing.T) {
 	cli.DockerCmd(c, "run", "-d", "--name", "parent", "busybox", "top")
 
 	out := cli.DockerCmd(c, "exec", "-u", "1", "parent", "id").Stdout()
-	assert.Assert(c, strings.Contains(out, "uid=1(daemon) gid=1(daemon)"))
+	assert.Assert(c, is.Contains(out, "uid=1(daemon) gid=1(daemon)"))
 
 	out = cli.DockerCmd(c, "exec", "-u", "root", "parent", "id").Stdout()
 	assert.Assert(c, strings.Contains(out, "uid=0(root) gid=0(root)"), "exec with user by id expected daemon user got %s", out)
@@ -529,7 +529,7 @@ func (s *DockerCLIExecSuite) TestExecWindowsPathNotWiped(c *testing.T) {
 
 	out = cli.DockerCmd(c, "exec", "testing", "powershell", "write-host", "$env:PATH").Stdout()
 	out = strings.ToLower(strings.Trim(out, "\r\n"))
-	assert.Assert(c, strings.Contains(out, `windowspowershell\v1.0`))
+	assert.Assert(c, is.Contains(out, `windowspowershell\v1.0`))
 }
 
 func (s *DockerCLIExecSuite) TestExecEnvLinksHost(c *testing.T) {

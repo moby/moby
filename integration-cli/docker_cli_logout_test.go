@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *testing.T) {
@@ -45,7 +46,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *testing.
 	b, err := os.ReadFile(configPath)
 	assert.NilError(c, err)
 	assert.Assert(c, !strings.Contains(string(b), `"auth":`))
-	assert.Assert(c, strings.Contains(string(b), privateRegistryURL))
+	assert.Assert(c, is.Contains(string(b), privateRegistryURL))
 
 	_, err = s.d.Cmd("--config", tmp, "tag", "busybox", imgRepoName)
 	assert.NilError(c, err)
@@ -61,7 +62,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *testing.
 	// check I cannot pull anymore
 	out, err := s.d.Cmd("--config", tmp, "pull", imgRepoName)
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "no basic auth credentials"))
+	assert.Assert(c, is.Contains(out, "no basic auth credentials"))
 }
 
 // #23100
@@ -93,8 +94,8 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithWrongHostnamesStored(c *
 
 	b, err := os.ReadFile(configPath)
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(string(b), fmt.Sprintf(`"https://%s": {}`, privateRegistryURL)))
-	assert.Assert(c, strings.Contains(string(b), fmt.Sprintf(`"%s": {}`, privateRegistryURL)))
+	assert.Assert(c, is.Contains(string(b), fmt.Sprintf(`"https://%s": {}`, privateRegistryURL)))
+	assert.Assert(c, is.Contains(string(b), fmt.Sprintf(`"%s": {}`, privateRegistryURL)))
 
 	cli.DockerCmd(c, "--config", tmp, "logout", privateRegistryURL)
 

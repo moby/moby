@@ -3,7 +3,6 @@ package client // import "github.com/docker/docker/client"
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -125,7 +124,7 @@ func TestCanceledContext(t *testing.T) {
 
 	_, err := client.sendRequest(ctx, http.MethodGet, testEndpoint, nil, nil, nil)
 	assert.Check(t, is.ErrorType(err, errdefs.IsCancelled))
-	assert.Check(t, errors.Is(err, context.Canceled))
+	assert.Check(t, is.ErrorIs(err, context.Canceled))
 }
 
 func TestDeadlineExceededContext(t *testing.T) {
@@ -145,5 +144,5 @@ func TestDeadlineExceededContext(t *testing.T) {
 
 	_, err := client.sendRequest(ctx, http.MethodGet, testEndpoint, nil, nil, nil)
 	assert.Check(t, is.ErrorType(err, errdefs.IsDeadline))
-	assert.Check(t, errors.Is(err, context.DeadlineExceeded))
+	assert.Check(t, is.ErrorIs(err, context.DeadlineExceeded))
 }

@@ -81,7 +81,7 @@ func containerListContainsName(containers []*containertypes.Summary, name string
 
 func TestListInvalidFilter(t *testing.T) {
 	db, err := container.NewViewDB()
-	assert.Assert(t, err == nil)
+	assert.NilError(t, err)
 	d := &Daemon{
 		containersReplica: db,
 	}
@@ -94,7 +94,7 @@ func TestListInvalidFilter(t *testing.T) {
 
 func TestNameFilter(t *testing.T) {
 	db, err := container.NewViewDB()
-	assert.Assert(t, err == nil)
+	assert.NilError(t, err)
 	d := &Daemon{
 		containersReplica: db,
 	}

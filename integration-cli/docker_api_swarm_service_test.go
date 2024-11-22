@@ -19,6 +19,7 @@ import (
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
 )
@@ -80,13 +81,13 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesCreate(c *testing.T) {
 	resp, _, err := client.ServiceInspectWithRaw(ctx, id, options)
 	out := fmt.Sprintf("%+v", resp)
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(out, "UpdateConfig"))
+	assert.Assert(c, is.Contains(out, "UpdateConfig"))
 
 	// insertDefaults inserts UpdateConfig when service is fetched by ID
 	resp, _, err = client.ServiceInspectWithRaw(ctx, "top", options)
 	out = fmt.Sprintf("%+v", resp)
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(out, "UpdateConfig"))
+	assert.Assert(c, is.Contains(out, "UpdateConfig"))
 
 	service := d.GetService(ctx, c, id)
 	instances = 5
@@ -574,7 +575,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *testing.T) {
 	assert.Assert(c, len(containers2) == instances)
 	for i := range containers {
 		if i == toRemove {
-			assert.Assert(c, containers2[i] == nil)
+			assert.Assert(c, is.Nil(containers2[i]))
 		} else {
 			assert.Assert(c, containers2[i] != nil)
 		}
@@ -600,7 +601,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *testing.T) {
 	assert.Assert(c, len(containers2) == instances)
 	for i := range containers {
 		if i == toRemove {
-			assert.Assert(c, containers2[i] == nil)
+			assert.Assert(c, is.Nil(containers2[i]))
 		} else {
 			assert.Assert(c, containers2[i] != nil)
 		}

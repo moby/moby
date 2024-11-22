@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func (s *DockerCLIUpdateSuite) TearDownTest(ctx context.Context, c *testing.T) {
@@ -118,7 +119,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateContainerInvalidValue(c *testing.T) {
 	out, _, err := dockerCmdWithError("update", "-m", "2M", name)
 	assert.ErrorContains(c, err, "")
 	expected := "Minimum memory limit allowed is 6MB"
-	assert.Assert(c, strings.Contains(out, expected))
+	assert.Assert(c, is.Contains(out, expected))
 }
 
 func (s *DockerCLIUpdateSuite) TestUpdateContainerWithoutFlags(c *testing.T) {
@@ -209,7 +210,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateMemoryWithSwapMemory(c *testing.T) {
 	cli.DockerCmd(c, "run", "-d", "--name", name, "--memory", "300M", "busybox", "top")
 	out, _, err := dockerCmdWithError("update", "--memory", "800M", name)
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "Memory limit should be smaller than already set memoryswap limit"))
+	assert.Assert(c, is.Contains(out, "Memory limit should be smaller than already set memoryswap limit"))
 
 	cli.DockerCmd(c, "update", "--memory", "800M", "--memory-swap", "1000M", name)
 }
@@ -267,7 +268,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateWithNanoCPUs(c *testing.T) {
 
 	out, _, err = dockerCmdWithError("update", "--cpu-quota", "80000", "top")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "Conflicting options: CPU Quota cannot be updated as NanoCPUs has already been set"))
+	assert.Assert(c, is.Contains(out, "Conflicting options: CPU Quota cannot be updated as NanoCPUs has already been set"))
 
 	cli.DockerCmd(c, "update", "--cpus", "0.8", "top")
 	inspect, err = clt.ContainerInspect(testutil.GetContext(c), "top")

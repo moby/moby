@@ -166,7 +166,7 @@ func (s *DockerCLIAttachSuite) TestAttachDisconnect(c *testing.T) {
 	stdout, err := cmd.StdoutPipe()
 	assert.NilError(c, err)
 	defer stdout.Close()
-	assert.Assert(c, cmd.Start() == nil)
+	assert.NilError(c, cmd.Start())
 	defer func() {
 		cmd.Process.Kill()
 		cmd.Wait()
@@ -178,7 +178,7 @@ func (s *DockerCLIAttachSuite) TestAttachDisconnect(c *testing.T) {
 	assert.NilError(c, err)
 	assert.Equal(c, strings.TrimSpace(out), "hello")
 
-	assert.Assert(c, stdin.Close() == nil)
+	assert.NilError(c, stdin.Close())
 
 	// Expect container to still be running after stdin is closed
 	running := inspectField(c, id, "State.Running")

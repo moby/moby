@@ -619,7 +619,7 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredManifest(c *testing
 	assert.Assert(c, exitStatus != 0)
 
 	expectedErrorMsg := fmt.Sprintf("image verification failed for digest %s", manifestDigest)
-	assert.Assert(c, strings.Contains(out, expectedErrorMsg))
+	assert.Assert(c, is.Contains(out, expectedErrorMsg))
 }
 
 // TestPullFailsWithAlteredLayer tests that a `docker pull` fails when
@@ -630,14 +630,14 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *testing.T) {
 	skip.If(c, testEnv.UsingSnapshotter(), "Faked layer is already in the content store, so it won't be fetched from the repository at all.")
 
 	manifestDigest, err := setupImage(c)
-	assert.Assert(c, err == nil)
+	assert.NilError(c, err)
 
 	// Load the target manifest blob.
 	manifestBlob := s.reg.ReadBlobContents(c, manifestDigest)
 
 	var imgManifest schema2.Manifest
 	err = json.Unmarshal(manifestBlob, &imgManifest)
-	assert.Assert(c, err == nil)
+	assert.NilError(c, err)
 
 	// Next, get the digest of one of the layers from the manifest.
 	targetLayerDigest := imgManifest.Layers[0].Digest
@@ -673,14 +673,14 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *testing.T) {
 func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredLayer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	manifestDigest, err := setupImage(c)
-	assert.Assert(c, err == nil)
+	assert.NilError(c, err)
 
 	// Load the target manifest blob.
 	manifestBlob := s.reg.ReadBlobContents(c, manifestDigest)
 
 	var imgManifest schema1.Manifest
 	err = json.Unmarshal(manifestBlob, &imgManifest)
-	assert.Assert(c, err == nil)
+	assert.NilError(c, err)
 
 	// Next, get the digest of one of the layers from the manifest.
 	targetLayerDigest := imgManifest.FSLayers[0].BlobSum

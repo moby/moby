@@ -13,6 +13,7 @@ import (
 	"github.com/creack/pty"
 	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 // #9860 Make sure attach ends when container ends (with no errors)
@@ -118,7 +119,7 @@ func (s *DockerCLIAttachSuite) TestAttachAfterDetach(c *testing.T) {
 		c.Fatal("timeout waiting for attach read")
 	}
 
-	assert.Assert(c, strings.Contains(string(bytes[:nBytes]), "/ #"))
+	assert.Assert(c, is.Contains(string(bytes[:nBytes]), "/ #"))
 }
 
 // TestAttachDetach checks that attach in tty mode can be detached using the long container ID

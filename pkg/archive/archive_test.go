@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -1255,7 +1254,7 @@ func TestXGlobalNoParent(t *testing.T) {
 
 	_, err = os.Lstat(filepath.Join(tmpDir, "foo"))
 	assert.Check(t, err != nil)
-	assert.Check(t, errors.Is(err, os.ErrNotExist))
+	assert.Check(t, is.ErrorIs(err, os.ErrNotExist))
 }
 
 // TestImpliedDirectoryPermissions ensures that directories implied by paths in the tar file, but without their own

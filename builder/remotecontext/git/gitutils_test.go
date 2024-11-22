@@ -324,7 +324,7 @@ func TestCheckoutGit(t *testing.T) {
 				assert.Check(t, is.Equal("subcontents", string(b)))
 			} else {
 				_, err := os.Stat(filepath.Join(r, "sub/subfile"))
-				assert.Assert(t, is.ErrorContains(err, ""))
+				assert.ErrorContains(t, err, "")
 				assert.Assert(t, os.IsNotExist(err))
 			}
 
@@ -373,6 +373,8 @@ func TestGitInvalidRef(t *testing.T) {
 	for _, url := range gitUrls {
 		_, err := Clone(url)
 		assert.Assert(t, err != nil)
+		// On Windows, git has different case for the "invalid refspec" error,
+		// so we can't use ErrorContains.
 		assert.Check(t, is.Contains(strings.ToLower(err.Error()), "invalid refspec"))
 	}
 }

@@ -8,7 +8,6 @@ import (
 
 	bolt "go.etcd.io/bbolt"
 	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestSetGetMeta(t *testing.T) {
@@ -25,7 +24,7 @@ func TestSetGetMeta(t *testing.T) {
 	defer store.Shutdown()
 
 	_, err = store.getMeta("test")
-	assert.Assert(t, is.ErrorContains(err, ""))
+	assert.ErrorContains(t, err, "")
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucket(volumeBucketName)

@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 )
 
@@ -44,7 +45,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	var mountConfig []mount.Mount
-	assert.Assert(c, json.Unmarshal([]byte(out), &mountConfig) == nil)
+	assert.NilError(c, json.Unmarshal([]byte(out), &mountConfig))
 	assert.Equal(c, len(mountConfig), 1)
 
 	assert.Equal(c, mountConfig[0].Source, "foo")
@@ -58,7 +59,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	var mounts []container.MountPoint
-	assert.Assert(c, json.Unmarshal([]byte(out), &mounts) == nil)
+	assert.NilError(c, json.Unmarshal([]byte(out), &mounts))
 	assert.Equal(c, len(mounts), 1)
 
 	assert.Equal(c, mounts[0].Type, mount.TypeVolume)
@@ -88,7 +89,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *testing.T) {
 	assert.NilError(c, err)
 
 	var refs []swarm.SecretReference
-	assert.Assert(c, json.Unmarshal([]byte(out), &refs) == nil)
+	assert.NilError(c, json.Unmarshal([]byte(out), &refs))
 	assert.Equal(c, len(refs), 1)
 
 	assert.Equal(c, refs[0].SecretName, testName)
@@ -138,7 +139,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTargetPaths(c *testi
 	assert.NilError(c, err)
 
 	var refs []swarm.SecretReference
-	assert.Assert(c, json.Unmarshal([]byte(out), &refs) == nil)
+	assert.NilError(c, json.Unmarshal([]byte(out), &refs))
 	assert.Equal(c, len(refs), len(testPaths))
 
 	var tasks []swarm.Task
@@ -189,7 +190,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *testing
 	assert.NilError(c, err)
 
 	var refs []swarm.SecretReference
-	assert.Assert(c, json.Unmarshal([]byte(out), &refs) == nil)
+	assert.NilError(c, json.Unmarshal([]byte(out), &refs))
 	assert.Equal(c, len(refs), 2)
 
 	var tasks []swarm.Task
@@ -239,7 +240,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSimple(c *testing.T) {
 	assert.NilError(c, err)
 
 	var refs []swarm.ConfigReference
-	assert.Assert(c, json.Unmarshal([]byte(out), &refs) == nil)
+	assert.NilError(c, json.Unmarshal([]byte(out), &refs))
 	assert.Equal(c, len(refs), 1)
 
 	assert.Equal(c, refs[0].ConfigName, testName)
@@ -288,7 +289,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSourceTargetPaths(c *testi
 	assert.NilError(c, err)
 
 	var refs []swarm.ConfigReference
-	assert.Assert(c, json.Unmarshal([]byte(out), &refs) == nil)
+	assert.NilError(c, json.Unmarshal([]byte(out), &refs))
 	assert.Equal(c, len(refs), len(testPaths))
 
 	var tasks []swarm.Task
@@ -339,7 +340,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *testing
 	assert.NilError(c, err)
 
 	var refs []swarm.ConfigReference
-	assert.Assert(c, json.Unmarshal([]byte(out), &refs) == nil)
+	assert.NilError(c, json.Unmarshal([]byte(out), &refs))
 	assert.Equal(c, len(refs), 2)
 
 	var tasks []swarm.Task
@@ -394,7 +395,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	var mountConfig []mount.Mount
-	assert.Assert(c, json.Unmarshal([]byte(out), &mountConfig) == nil)
+	assert.NilError(c, json.Unmarshal([]byte(out), &mountConfig))
 	assert.Equal(c, len(mountConfig), 1)
 
 	assert.Equal(c, mountConfig[0].Source, "")
@@ -408,7 +409,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	var mounts []container.MountPoint
-	assert.Assert(c, json.Unmarshal([]byte(out), &mounts) == nil)
+	assert.NilError(c, json.Unmarshal([]byte(out), &mounts))
 	assert.Equal(c, len(mounts), 1)
 
 	assert.Equal(c, mounts[0].Type, mount.TypeTmpfs)
@@ -419,7 +420,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 	out, err = s.nodeCmd(c, task.NodeID, "logs", task.Status.ContainerStatus.ContainerID)
 	assert.NilError(c, err, out)
 	assert.Assert(c, strings.HasPrefix(strings.TrimSpace(out), "tmpfs on /foo type tmpfs"))
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), "size=1024k"))
+	assert.Assert(c, is.Contains(strings.TrimSpace(out), "size=1024k"))
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *testing.T) {
@@ -452,8 +453,8 @@ func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *testing.T) {
 
 	// Make sure the only alias seen is the container-id
 	var aliases []string
-	assert.Assert(c, json.Unmarshal([]byte(out), &aliases) == nil)
+	assert.NilError(c, json.Unmarshal([]byte(out), &aliases))
 	assert.Equal(c, len(aliases), 1)
 
-	assert.Assert(c, strings.Contains(task.Status.ContainerStatus.ContainerID, aliases[0]))
+	assert.Assert(c, is.Contains(task.Status.ContainerStatus.ContainerID, aliases[0]))
 }

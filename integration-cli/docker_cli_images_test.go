@@ -33,7 +33,7 @@ func (s *DockerCLIImagesSuite) OnTimeout(c *testing.T) {
 
 func (s *DockerCLIImagesSuite) TestImagesEnsureImageIsListed(c *testing.T) {
 	imagesOut := cli.DockerCmd(c, "images").Stdout()
-	assert.Assert(c, strings.Contains(imagesOut, "busybox"))
+	assert.Assert(c, is.Contains(imagesOut, "busybox"))
 }
 
 func (s *DockerCLIImagesSuite) TestImagesEnsureImageWithTagIsListed(c *testing.T) {
@@ -43,15 +43,15 @@ func (s *DockerCLIImagesSuite) TestImagesEnsureImageWithTagIsListed(c *testing.T
 	cli.DockerCmd(c, "tag", "busybox", name+":v2")
 
 	imagesOut := cli.DockerCmd(c, "images", name+":v1").Stdout()
-	assert.Assert(c, strings.Contains(imagesOut, name))
-	assert.Assert(c, strings.Contains(imagesOut, "v1"))
+	assert.Assert(c, is.Contains(imagesOut, name))
+	assert.Assert(c, is.Contains(imagesOut, "v1"))
 	assert.Assert(c, !strings.Contains(imagesOut, "v2"))
 	assert.Assert(c, !strings.Contains(imagesOut, "v1v1"))
 	imagesOut = cli.DockerCmd(c, "images", name).Stdout()
-	assert.Assert(c, strings.Contains(imagesOut, name))
-	assert.Assert(c, strings.Contains(imagesOut, "v1"))
-	assert.Assert(c, strings.Contains(imagesOut, "v1v1"))
-	assert.Assert(c, strings.Contains(imagesOut, "v2"))
+	assert.Assert(c, is.Contains(imagesOut, name))
+	assert.Assert(c, is.Contains(imagesOut, "v1"))
+	assert.Assert(c, is.Contains(imagesOut, "v1v1"))
+	assert.Assert(c, is.Contains(imagesOut, "v2"))
 }
 
 func (s *DockerCLIImagesSuite) TestImagesEnsureImageWithBadTagIsNotListed(c *testing.T) {
@@ -82,7 +82,7 @@ func (s *DockerCLIImagesSuite) TestImagesOrderedByCreationDate(c *testing.T) {
 func (s *DockerCLIImagesSuite) TestImagesErrorWithInvalidFilterNameTest(c *testing.T) {
 	out, _, err := dockerCmdWithError("images", "-f", "FOO=123")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "invalid filter"))
+	assert.Assert(c, is.Contains(out, "invalid filter"))
 }
 
 func (s *DockerCLIImagesSuite) TestImagesFilterLabelMatch(c *testing.T) {
@@ -259,14 +259,14 @@ func (s *DockerCLIImagesSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *te
 	assert.Assert(c, !strings.Contains(out, imageID))
 	out = cli.DockerCmd(c, "images").Stdout()
 	// docker images still include dangling images
-	assert.Assert(c, strings.Contains(out, imageID))
+	assert.Assert(c, is.Contains(out, imageID))
 }
 
 // FIXME(vdemeester) should be a unit test for `docker image ls`
 func (s *DockerCLIImagesSuite) TestImagesWithIncorrectFilter(c *testing.T) {
 	out, _, err := dockerCmdWithError("images", "-f", "dangling=invalid")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "invalid filter"))
+	assert.Assert(c, is.Contains(out, "invalid filter"))
 }
 
 func (s *DockerCLIImagesSuite) TestImagesEnsureOnlyHeadsImagesShown(c *testing.T) {
@@ -289,7 +289,7 @@ func (s *DockerCLIImagesSuite) TestImagesEnsureOnlyHeadsImagesShown(c *testing.T
 	// images shouldn't show non-heads images
 	assert.Assert(c, !strings.Contains(out, intermediate))
 	// images should contain final built images
-	assert.Assert(c, strings.Contains(out, stringid.TruncateID(id)))
+	assert.Assert(c, is.Contains(out, stringid.TruncateID(id)))
 }
 
 func (s *DockerCLIImagesSuite) TestImagesEnsureImagesFromScratchShown(c *testing.T) {
@@ -304,7 +304,7 @@ func (s *DockerCLIImagesSuite) TestImagesEnsureImagesFromScratchShown(c *testing
 
 	out := cli.DockerCmd(c, "images").Stdout()
 	// images should contain images built from scratch
-	assert.Assert(c, strings.Contains(out, stringid.TruncateID(id)))
+	assert.Assert(c, is.Contains(out, stringid.TruncateID(id)))
 }
 
 // For W2W - equivalent to TestImagesEnsureImagesFromScratchShown but Windows
@@ -320,7 +320,7 @@ func (s *DockerCLIImagesSuite) TestImagesEnsureImagesFromBusyboxShown(c *testing
 
 	out := cli.DockerCmd(c, "images").Stdout()
 	// images should contain images built from busybox
-	assert.Assert(c, strings.Contains(out, stringid.TruncateID(id)))
+	assert.Assert(c, is.Contains(out, stringid.TruncateID(id)))
 }
 
 // #18181
@@ -328,9 +328,9 @@ func (s *DockerCLIImagesSuite) TestImagesFilterNameWithPort(c *testing.T) {
 	const tag = "a.b.c.d:5000/hello"
 	cli.DockerCmd(c, "tag", "busybox", tag)
 	out := cli.DockerCmd(c, "images", tag).Stdout()
-	assert.Assert(c, strings.Contains(out, tag))
+	assert.Assert(c, is.Contains(out, tag))
 	out = cli.DockerCmd(c, "images", tag+":latest").Stdout()
-	assert.Assert(c, strings.Contains(out, tag))
+	assert.Assert(c, is.Contains(out, tag))
 	out = cli.DockerCmd(c, "images", tag+":no-such-tag").Stdout()
 	assert.Assert(c, !strings.Contains(out, tag))
 }

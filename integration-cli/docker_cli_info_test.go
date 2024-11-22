@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 type DockerCLIInfoSuite struct {
@@ -74,10 +75,10 @@ func (s *DockerCLIInfoSuite) TestInfoDisplaysRunningContainers(c *testing.T) {
 
 	cli.DockerCmd(c, "run", "-d", "busybox", "top")
 	out := cli.DockerCmd(c, "info").Stdout()
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Containers: %d\n", existing["Containers"]+1)))
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Running: %d\n", existing["ContainersRunning"]+1)))
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Paused: %d\n", existing["ContainersPaused"])))
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"])))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf("Containers: %d\n", existing["Containers"]+1)))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf(" Running: %d\n", existing["ContainersRunning"]+1)))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf(" Paused: %d\n", existing["ContainersPaused"])))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"])))
 }
 
 func (s *DockerCLIInfoSuite) TestInfoDisplaysPausedContainers(c *testing.T) {
@@ -90,10 +91,10 @@ func (s *DockerCLIInfoSuite) TestInfoDisplaysPausedContainers(c *testing.T) {
 	cli.DockerCmd(c, "pause", id)
 
 	out := cli.DockerCmd(c, "info").Stdout()
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Containers: %d\n", existing["Containers"]+1)))
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Running: %d\n", existing["ContainersRunning"])))
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Paused: %d\n", existing["ContainersPaused"]+1)))
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"])))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf("Containers: %d\n", existing["Containers"]+1)))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf(" Running: %d\n", existing["ContainersRunning"])))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf(" Paused: %d\n", existing["ContainersPaused"]+1)))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"])))
 }
 
 func (s *DockerCLIInfoSuite) TestInfoDisplaysStoppedContainers(c *testing.T) {
@@ -107,10 +108,10 @@ func (s *DockerCLIInfoSuite) TestInfoDisplaysStoppedContainers(c *testing.T) {
 	cli.DockerCmd(c, "stop", cleanedContainerID)
 
 	out = cli.DockerCmd(c, "info").Stdout()
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Containers: %d\n", existing["Containers"]+1)))
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Running: %d\n", existing["ContainersRunning"])))
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Paused: %d\n", existing["ContainersPaused"])))
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"]+1)))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf("Containers: %d\n", existing["Containers"]+1)))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf(" Running: %d\n", existing["ContainersRunning"])))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf(" Paused: %d\n", existing["ContainersPaused"])))
+	assert.Assert(c, is.Contains(out, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"]+1)))
 }
 
 func existingContainerStates(c *testing.T) map[string]int {

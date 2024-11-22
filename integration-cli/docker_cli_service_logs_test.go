@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
 )
@@ -94,7 +95,7 @@ func (s *DockerSwarmSuite) TestServiceLogsCompleteness(c *testing.T) {
 	// mis-ordered. If this test fails, then possibly that's what causing the
 	// failure.
 	for i, line := range lines {
-		assert.Assert(c, strings.Contains(line, fmt.Sprintf("log test %v", i)))
+		assert.Assert(c, is.Contains(line, fmt.Sprintf("log test %v", i)))
 	}
 }
 
@@ -119,7 +120,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTail(c *testing.T) {
 
 	for i, line := range lines {
 		// doing i+5 is hacky but not too fragile, it's good enough. if it flakes something else is wrong
-		assert.Assert(c, strings.Contains(line, fmt.Sprintf("log test %v", i+5)))
+		assert.Assert(c, is.Contains(line, fmt.Sprintf("log test %v", i+5)))
 	}
 }
 
@@ -205,7 +206,7 @@ func (s *DockerSwarmSuite) TestServiceLogsFollow(c *testing.T) {
 	for i := 0; i < 3; i++ {
 		msg := <-ch
 		assert.NilError(c, msg.err)
-		assert.Assert(c, strings.Contains(string(msg.data), "log test"))
+		assert.Assert(c, is.Contains(string(msg.data), "log test"))
 	}
 	close(done)
 
@@ -259,9 +260,9 @@ func (s *DockerSwarmSuite) TestServiceLogsTaskLogs(c *testing.T) {
 		c.Logf("checking messages for %v", taskID)
 		for i, line := range lines {
 			// make sure the message is in order
-			assert.Assert(c, strings.Contains(line, fmt.Sprintf("log test %v", i)))
+			assert.Assert(c, is.Contains(line, fmt.Sprintf("log test %v", i)))
 			// make sure it contains the task id
-			assert.Assert(c, strings.Contains(line, taskID))
+			assert.Assert(c, is.Contains(line, taskID))
 		}
 	}
 }

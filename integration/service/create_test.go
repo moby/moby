@@ -50,7 +50,7 @@ func testServiceCreateInit(ctx context.Context, daemonEnabled bool) func(t *test
 		poll.WaitOn(t, swarm.RunningTasksCount(ctx, client, serviceID, 1), swarm.ServicePoll)
 		i := inspectServiceContainer(ctx, t, client, serviceID)
 		// HostConfig.Init == nil means that it delegates to daemon configuration
-		assert.Check(t, i.HostConfig.Init == nil)
+		assert.Check(t, is.Nil(i.HostConfig.Init))
 
 		serviceID = swarm.CreateService(ctx, t, d, swarm.ServiceWithInit(&booleanTrue))
 		poll.WaitOn(t, swarm.RunningTasksCount(ctx, client, serviceID, 1), swarm.ServicePoll)
