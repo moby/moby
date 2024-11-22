@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/dimchansky/utfbom"
-	jwt "github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
