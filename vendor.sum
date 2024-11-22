@@ -1069,8 +1069,8 @@ kernel.org/pub/linux/libs/security/libcap/cap v1.2.70 h1:QnLPkuDWWbD5C+3DUA2IUXa
 kernel.org/pub/linux/libs/security/libcap/cap v1.2.70/go.mod h1:/iBwcj9nbLejQitYvUm9caurITQ6WyNHibJk6Q9fiS4=
 kernel.org/pub/linux/libs/security/libcap/psx v1.2.70 h1:HsB2G/rEQiYyo1bGoQqHZ/Bvd6x1rERQTNdPr1FyWjI=
 kernel.org/pub/linux/libs/security/libcap/psx v1.2.70/go.mod h1:+l6Ee2F59XiJ2I6WR5ObpC1utCQJZ/VLsEbQCD8RG24=
-resenje.org/singleflight v0.4.1 h1:ryGHRaOBwhnZLyf34LMDf4AsTSHrs4hdGPdG/I4Hmac=
-resenje.org/singleflight v0.4.1/go.mod h1:lAgQK7VfjG6/pgredbQfmV0RvG/uVhKo6vSuZ0vCWfk=
+resenje.org/singleflight v0.4.3 h1:l7foFYg8X/VEHPxWs1K/Pw77807RMVzvXgWGb0J1sdM=
+resenje.org/singleflight v0.4.3/go.mod h1:lAgQK7VfjG6/pgredbQfmV0RvG/uVhKo6vSuZ0vCWfk=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 sigs.k8s.io/yaml v1.2.0/go.mod h1:yfXDCHCao9+ENCvLSE62v9VSji2MKu5jeNfTrofGhJc=
 sigs.k8s.io/yaml v1.3.0 h1:a2VclLzOGrwOHDiV8EfBGhvjHvP46CtW5j6POvhYGGo=
