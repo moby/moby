@@ -1,3 +1,6 @@
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
 package detect
 
 import (
@@ -7,8 +10,9 @@ import (
 	"sync"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/sdk"
 	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 var (
@@ -23,7 +27,7 @@ func Resource() *resource.Resource {
 		res, err := resource.New(context.Background(),
 			resource.WithDetectors(serviceNameDetector{}),
 			resource.WithFromEnv(),
-			resource.WithTelemetrySDK(),
+			resource.WithDetectors(telemetrySDK{}),
 		)
 		if err != nil {
 			otel.Handle(err)
@@ -42,7 +46,15 @@ func OverrideResource(res *resource.Resource) {
 	})
 }
 
-type serviceNameDetector struct{}
+type (
+	telemetrySDK        struct{}
+	serviceNameDetector struct{}
+)
+
+var (
+	_ resource.Detector = telemetrySDK{}
+	_ resource.Detector = serviceNameDetector{}
+)
 
 func (serviceNameDetector) Detect(ctx context.Context) (*resource.Resource, error) {
 	return resource.StringDetector(
@@ -55,4 +67,14 @@ func (serviceNameDetector) Detect(ctx context.Context) (*resource.Resource, erro
 			return filepath.Base(os.Args[0]), nil
 		},
 	).Detect(ctx)
+}
+
+// Detect returns a *Resource that describes the OpenTelemetry SDK used.
+func (telemetrySDK) Detect(context.Context) (*resource.Resource, error) {
+	return resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.TelemetrySDKName("opentelemetry"),
+		semconv.TelemetrySDKLanguageGo,
+		semconv.TelemetrySDKVersion(sdk.Version()),
+	), nil
 }

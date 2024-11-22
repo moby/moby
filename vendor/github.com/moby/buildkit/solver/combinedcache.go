@@ -33,6 +33,18 @@ func (cm *combinedCacheManager) ID() string {
 	return cm.id
 }
 
+func (cm *combinedCacheManager) ReleaseUnreferenced(ctx context.Context) error {
+	eg, ctx := errgroup.WithContext(ctx)
+	for _, c := range cm.cms {
+		func(c CacheManager) {
+			eg.Go(func() error {
+				return c.ReleaseUnreferenced(ctx)
+			})
+		}(c)
+	}
+	return eg.Wait()
+}
+
 func (cm *combinedCacheManager) Query(inp []CacheKeyWithSelector, inputIndex Index, dgst digest.Digest, outputIndex Index) ([]*CacheKey, error) {
 	eg, _ := errgroup.WithContext(context.TODO())
 	keys := make(map[string]*CacheKey, len(cm.cms))

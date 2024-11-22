@@ -1,5 +1,4 @@
 //go:build !nydus
-// +build !nydus
 
 package compression
 

@@ -352,9 +352,12 @@ func (cc *cacheContext) HandleChange(kind fsutil.ChangeKind, p string, fi os.Fil
 		return errors.Errorf("invalid fileinfo: %s", p)
 	}
 
+	// if we are replacing a directory with a non-directory, rm -rf the tree under the existing dir
 	v, ok := cc.node.Get(k)
 	if ok {
-		deleteDir(v)
+		if v.Type == CacheRecordTypeDir && !fi.IsDir() {
+			deleteDir(v)
+		}
 	}
 
 	cr := &CacheRecord{

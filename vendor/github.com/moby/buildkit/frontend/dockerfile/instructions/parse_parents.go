@@ -1,5 +1,4 @@
 //go:build dfparents
-// +build dfparents
 
 package instructions
 
