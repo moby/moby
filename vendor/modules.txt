@@ -699,7 +699,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.18.0-rc1
+# github.com/moby/buildkit v0.18.0-rc1 => github.com/crazy-max/buildkit v0.7.1-0.20241122085643-0145090aa497
 ## explicit; go 1.22.0
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -1613,3 +1613,4 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v0.8.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
+# github.com/moby/buildkit => github.com/crazy-max/buildkit v0.7.1-0.20241122085643-0145090aa497
