@@ -1,5 +1,5 @@
-//go:build darwin || freebsd || netbsd
-// +build darwin freebsd netbsd
+//go:build openbsd
+// +build openbsd
 
 package fs
 
@@ -9,10 +9,10 @@ import (
 
 // Returns the last-accessed time
 func StatAtime(st *syscall.Stat_t) syscall.Timespec {
-	return st.Atimespec
+	return st.Atim
 }
 
 // Returns the last-modified time
 func StatMtime(st *syscall.Stat_t) syscall.Timespec {
-	return st.Mtimespec
+	return st.Mtim
 }

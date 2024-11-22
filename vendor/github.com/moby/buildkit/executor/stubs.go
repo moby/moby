@@ -10,7 +10,6 @@ import (
 
 	"github.com/containerd/continuity/fs"
 	"github.com/moby/buildkit/util/bklog"
-	"github.com/moby/buildkit/util/system"
 )
 
 func MountStubsCleaner(ctx context.Context, dir string, mounts []Mount, recursive bool) func() {
@@ -87,7 +86,7 @@ func MountStubsCleaner(ctx context.Context, dir string, mounts []Mount, recursiv
 				continue
 			}
 			mtime := dirSt.ModTime()
-			atime, err := system.Atime(dirSt)
+			atime, err := fs.Atime(dirSt)
 			if err != nil {
 				bklog.G(ctx).WithError(err).Warnf("Failed to stat atime of %q (parent of mount stub %q)", dir, p)
 				atime = mtime
