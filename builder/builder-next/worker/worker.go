@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/gc"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/rootfs"
 	cerrdefs "github.com/containerd/errdefs"
@@ -77,6 +78,7 @@ type Opt struct {
 	ContentStore      *containerdsnapshot.Store
 	CacheManager      cache.Manager
 	LeaseManager      *leaseutil.Manager
+	GarbageCollect    func(context.Context) (gc.Stats, error)
 	ImageSource       *imageadapter.Source
 	DownloadManager   *xfer.LayerDownloadManager
 	V2MetadataService distmetadata.V2MetadataService
@@ -182,6 +184,14 @@ func (w *Worker) BuildkitVersion() client.BuildkitVersion {
 		Version:  version.Version + "-moby",
 		Revision: version.Revision,
 	}
+}
+
+func (w *Worker) GarbageCollect(ctx context.Context) error {
+	if w.Opt.GarbageCollect == nil {
+		return nil
+	}
+	_, err := w.Opt.GarbageCollect(ctx)
+	return err
 }
 
 // Close closes the worker and releases all resources
