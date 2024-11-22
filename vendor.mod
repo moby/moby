@@ -113,7 +113,7 @@ require (
 	google.golang.org/grpc v1.66.3
 	google.golang.org/protobuf v1.35.1
 	gotest.tools/v3 v3.5.1
-	resenje.org/singleflight v0.4.1
+	resenje.org/singleflight v0.4.3
 	tags.cncf.io/container-device-interface v0.8.0
 )
 
