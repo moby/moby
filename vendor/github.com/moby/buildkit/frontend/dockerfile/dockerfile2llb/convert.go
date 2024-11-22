@@ -1878,12 +1878,18 @@ func dfCmd(cmd interface{}) llb.ConstraintsOpt {
 
 func runCommandString(args []string, buildArgs []instructions.KeyValuePairOptional, env shell.EnvGetter) string {
 	var tmpBuildEnv []string
+	tmpIdx := map[string]int{}
 	for _, arg := range buildArgs {
 		v, ok := env.Get(arg.Key)
 		if !ok {
 			v = arg.ValueString()
 		}
-		tmpBuildEnv = append(tmpBuildEnv, arg.Key+"="+v)
+		if idx, ok := tmpIdx[arg.Key]; ok {
+			tmpBuildEnv[idx] = arg.Key + "=" + v
+		} else {
+			tmpIdx[arg.Key] = len(tmpBuildEnv)
+			tmpBuildEnv = append(tmpBuildEnv, arg.Key+"="+v)
+		}
 	}
 	if len(tmpBuildEnv) > 0 {
 		tmpBuildEnv = append([]string{fmt.Sprintf("|%d", len(tmpBuildEnv))}, tmpBuildEnv...)

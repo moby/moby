@@ -118,7 +118,7 @@ func newCall[T any](fn func(ctx context.Context) (T, error)) *call[T] {
 func (c *call[T]) run() {
 	defer c.closeProgressWriter(errors.WithStack(context.Canceled))
 	ctx, cancel := context.WithCancelCause(c.ctx)
-	defer cancel(errors.WithStack(context.Canceled))
+	defer func() { cancel(errors.WithStack(context.Canceled)) }()
 	v, err := c.fn(ctx)
 	c.mu.Lock()
 	c.result = v
@@ -157,7 +157,7 @@ func (c *call[T]) wait(ctx context.Context) (v T, err error) {
 	}
 
 	ctx, cancel := context.WithCancelCause(ctx)
-	defer cancel(errors.WithStack(context.Canceled))
+	defer func() { cancel(errors.WithStack(context.Canceled)) }()
 
 	c.ctxs = append(c.ctxs, ctx)
 
