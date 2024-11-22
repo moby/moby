@@ -55,22 +55,14 @@ func (m *SigningMethodECDSA) Alg() string {
 
 // Verify implements token verification for the SigningMethod.
 // For this verify method, key must be an ecdsa.PublicKey struct
-func (m *SigningMethodECDSA) Verify(signingString, signature string, key interface{}) error {
-	var err error
-
-	// Decode the signature
-	var sig []byte
-	if sig, err = DecodeSegment(signature); err != nil {
-		return err
-	}
-
+func (m *SigningMethodECDSA) Verify(signingString string, sig []byte, key interface{}) error {
 	// Get the key
 	var ecdsaKey *ecdsa.PublicKey
 	switch k := key.(type) {
 	case *ecdsa.PublicKey:
 		ecdsaKey = k
 	default:
-		return ErrInvalidKeyType
+		return newError("ECDSA verify expects *ecdsa.PublicKey", ErrInvalidKeyType)
 	}
 
 	if len(sig) != 2*m.KeySize {
@@ -97,19 +89,19 @@ func (m *SigningMethodECDSA) Verify(signingString, signature string, key interfa
 
 // Sign implements token signing for the SigningMethod.
 // For this signing method, key must be an ecdsa.PrivateKey struct
-func (m *SigningMethodECDSA) Sign(signingString string, key interface{}) (string, error) {
+func (m *SigningMethodECDSA) Sign(signingString string, key interface{}) ([]byte, error) {
 	// Get the key
 	var ecdsaKey *ecdsa.PrivateKey
 	switch k := key.(type) {
 	case *ecdsa.PrivateKey:
 		ecdsaKey = k
 	default:
-		return "", ErrInvalidKeyType
+		return nil, newError("ECDSA sign expects *ecdsa.PrivateKey", ErrInvalidKeyType)
 	}
 
 	// Create the hasher
 	if !m.Hash.Available() {
-		return "", ErrHashUnavailable
+		return nil, ErrHashUnavailable
 	}
 
 	hasher := m.Hash.New()
@@ -120,7 +112,7 @@ func (m *SigningMethodECDSA) Sign(signingString string, key interface{}) (string
 		curveBits := ecdsaKey.Curve.Params().BitSize
 
 		if m.CurveBits != curveBits {
-			return "", ErrInvalidKey
+			return nil, ErrInvalidKey
 		}
 
 		keyBytes := curveBits / 8
@@ -135,8 +127,8 @@ func (m *SigningMethodECDSA) Sign(signingString string, key interface{}) (string
 		r.FillBytes(out[0:keyBytes]) // r is assigned to the first half of output.
 		s.FillBytes(out[keyBytes:])  // s is assigned to the second half of output.
 
-		return EncodeSegment(out), nil
+		return out, nil
 	} else {
-		return "", err
+		return nil, err
 	}
 }
