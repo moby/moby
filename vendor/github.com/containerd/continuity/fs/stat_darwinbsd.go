@@ -19,9 +19,35 @@
 package fs
 
 import (
+	"fmt"
+	"io/fs"
 	"syscall"
 	"time"
 )
+
+func Atime(st fs.FileInfo) (time.Time, error) {
+	stSys, ok := st.Sys().(*syscall.Stat_t)
+	if !ok {
+		return time.Time{}, fmt.Errorf("expected st.Sys() to be *syscall.Stat_t, got %T", st.Sys())
+	}
+	return time.Unix(stSys.Atimespec.Unix()), nil
+}
+
+func Ctime(st fs.FileInfo) (time.Time, error) {
+	stSys, ok := st.Sys().(*syscall.Stat_t)
+	if !ok {
+		return time.Time{}, fmt.Errorf("expected st.Sys() to be *syscall.Stat_t, got %T", st.Sys())
+	}
+	return time.Unix(stSys.Ctimespec.Unix()), nil
+}
+
+func Mtime(st fs.FileInfo) (time.Time, error) {
+	stSys, ok := st.Sys().(*syscall.Stat_t)
+	if !ok {
+		return time.Time{}, fmt.Errorf("expected st.Sys() to be *syscall.Stat_t, got %T", st.Sys())
+	}
+	return time.Unix(stSys.Mtimespec.Unix()), nil
+}
 
 // StatAtime returns the access time from a stat struct
 func StatAtime(st *syscall.Stat_t) syscall.Timespec {
