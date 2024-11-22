@@ -106,10 +106,11 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 		}
 	}
 
-	ctx, _, err := i.client.WithLease(ctx, leases.WithRandomID(), leases.WithExpiration(1*time.Hour))
+	ctx, release, err := i.withLease(ctx, true)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create lease for commit: %w", err)
 	}
+	defer release()
 
 	// TODO(laurazard): do we really need a new method here to pull the image?
 	imgDesc, err := i.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.Platform)
@@ -234,9 +235,9 @@ func newROLayerForImage(ctx context.Context, imgDesc *ocispec.Descriptor, i *Ima
 
 func createLease(ctx context.Context, lm leases.Manager) (context.Context, leases.Lease, error) {
 	lease, err := lm.Create(ctx,
-		leases.WithExpiration(time.Hour*24),
+		leases.WithExpiration(leaseExpireDuration),
 		leases.WithLabels(map[string]string{
-			"org.mobyproject.lease.classicbuilder": "true",
+			pruneLeaseLabel: "true",
 		}),
 	)
 	if err != nil {
@@ -493,17 +494,11 @@ func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec
 	parentDigest digest.Digest, layers []ocispec.Descriptor,
 	containerConfig container.Config,
 ) (dimage.ID, error) {
-	// Necessary to prevent the contents from being GC'd
-	// between writing them here and creating an image
-	ctx, release, err := i.client.WithLease(ctx, leases.WithRandomID(), leases.WithExpiration(1*time.Hour))
+	ctx, release, err := i.withLease(ctx, false)
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		if err := release(context.WithoutCancel(ctx)); err != nil {
-			log.G(ctx).WithError(err).Warn("failed to release lease created for create")
-		}
-	}()
+	defer release()
 
 	manifestDesc, ccDesc, err := writeContentsForImage(ctx, i.snapshotter, i.content, imgToCreate, layers, containerConfig)
 	if err != nil {
