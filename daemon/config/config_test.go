@@ -193,6 +193,83 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 	})
 }
 
+func TestDaemonConfigurationMergeAppliesDefaultFeatures(t *testing.T) {
+	testCases := []struct {
+		doc             string
+		in              map[string]bool
+		defaultFeatures map[string]bool
+		expected        map[string]bool
+		expectedError   string
+	}{
+		{
+			doc: "no features",
+			in:  map[string]bool{},
+			defaultFeatures: map[string]bool{
+				"foo": true,
+			},
+			expected: map[string]bool{
+				"foo": true,
+			},
+		},
+		{
+			doc: "default feature disabled + enabled in config",
+			in: map[string]bool{
+				"foo": true,
+			},
+			defaultFeatures: map[string]bool{
+				"foo": false,
+			},
+			expected: map[string]bool{
+				"foo": true,
+			},
+		},
+		{
+			doc: "default feature disabled in config",
+			in: map[string]bool{
+				"foo": false,
+			},
+			defaultFeatures: map[string]bool{
+				"foo": true,
+			},
+			expected: map[string]bool{
+				"foo": false,
+			},
+		},
+		{
+			doc: "non-default-feature in config + default features",
+			in: map[string]bool{
+				"foo": true,
+			},
+			defaultFeatures: map[string]bool{
+				"bar": false,
+			},
+			expected: map[string]bool{
+				"foo": true,
+				"bar": false,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.doc, func(t *testing.T) {
+			featuresJson, err := json.Marshal(tc.in)
+			assert.NilError(t, err)
+			configFile := makeConfigFile(t, fmt.Sprintf(`{"features": %s}`, featuresJson))
+			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			DefaultFeatures = tc.defaultFeatures
+
+			actual, err := MergeDaemonConfigurations(&Config{}, flags, configFile)
+
+			if tc.expectedError == "" {
+				assert.NilError(t, err)
+				assert.DeepEqual(t, actual.Features, tc.expected)
+			} else {
+				assert.Error(t, err, tc.expectedError)
+			}
+		})
+	}
+}
+
 func TestFindConfigurationConflictsWithUnknownKeys(t *testing.T) {
 	config := map[string]interface{}{"tls-verify": "true"}
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)

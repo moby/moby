@@ -437,6 +437,8 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, config
 		return nil, err
 	}
 
+	PopulateFeatures(fileConfig.Features)
+
 	// validate the merged fileConfig and flagsConfig
 	if err := Validate(fileConfig); err != nil {
 		return nil, errors.Wrap(err, "merged configuration validation from file and command line flags failed")
