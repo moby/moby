@@ -1250,6 +1250,10 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	if err = d.linkUp(ctx, host); err != nil {
 		return fmt.Errorf("could not set link up for host interface %s: %v", hostIfName, err)
 	}
+	log.G(ctx).WithFields(log.Fields{
+		"hostifname": host.Attrs().Name,
+		"ifi":        host.Attrs().Index,
+	}).Debug("bridge endpoint host link is up")
 
 	// Generate a MAC-address-based IPv6 address, which may be used by the default
 	// bridge network instead of an IPAM allocated address.
