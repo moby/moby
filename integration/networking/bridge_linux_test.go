@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/netip"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -497,6 +498,9 @@ func TestDefaultBridgeIPv6(t *testing.T) {
 		fixed_cidr_v6 string
 	}{
 		{
+			name: "built in ULA prefix",
+		},
+		{
 			name:          "IPv6 ULA",
 			fixed_cidr_v6: "fd00:1234::/64",
 		},
@@ -515,10 +519,11 @@ func TestDefaultBridgeIPv6(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 
 			d := daemon.New(t)
-			d.StartWithBusybox(ctx, t,
-				"--ipv6",
-				"--fixed-cidr-v6", tc.fixed_cidr_v6,
-			)
+			if tc.fixed_cidr_v6 == "" {
+				d.StartWithBusybox(ctx, t, "--ipv6")
+			} else {
+				d.StartWithBusybox(ctx, t, "--ipv6", "--fixed-cidr-v6", tc.fixed_cidr_v6)
+			}
 			defer d.Stop(t)
 
 			c := d.NewClientT(t)
@@ -532,15 +537,26 @@ func TestDefaultBridgeIPv6(t *testing.T) {
 				Force: true,
 			})
 
-			networkName := "bridge"
+			const networkName = "bridge"
 			inspect := container.Inspect(ctx, t, c, cID)
-			pingHost := inspect.NetworkSettings.Networks[networkName].GlobalIPv6Address
+			gIPv6 := inspect.NetworkSettings.Networks[networkName].GlobalIPv6Address
+
+			// The container's MAC and IPv6 addresses should be derived from the
+			// IPAM-allocated IPv4 address.
+			addr4, err := netip.ParseAddr(inspect.NetworkSettings.Networks[networkName].IPAddress)
+			assert.NilError(t, err)
+			mac, err := net.ParseMAC(inspect.NetworkSettings.Networks[networkName].MacAddress)
+			assert.NilError(t, err)
+			assert.Check(t, is.DeepEqual(addr4.AsSlice(), []byte(mac)[2:]))
+			addr6, err := netip.ParseAddr(gIPv6)
+			assert.NilError(t, err)
+			assert.Check(t, is.DeepEqual(addr4.AsSlice(), addr6.AsSlice()[12:]))
 
 			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
 			res := container.RunAttach(attachCtx, t, c,
 				container.WithImage("busybox:latest"),
-				container.WithCmd("ping", "-c1", "-W3", pingHost),
+				container.WithCmd("ping", "-c1", "-W3", gIPv6),
 			)
 			defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{
 				Force: true,

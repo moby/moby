@@ -737,6 +737,9 @@ func verifyDaemonSettings(conf *config.Config) error {
 	if conf.BridgeConfig.Iface != "" && conf.BridgeConfig.IP != "" {
 		return fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one")
 	}
+	if conf.BridgeConfig.Iface != "" && conf.BridgeConfig.IP6 != "" {
+		return fmt.Errorf("You specified -b & --bip6, mutually exclusive options. Please specify only one")
+	}
 	if !conf.BridgeConfig.InterContainerCommunication {
 		if !conf.BridgeConfig.EnableIPTables {
 			return fmt.Errorf("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true")
@@ -926,11 +929,49 @@ func driverOptions(config *config.Config) nwconfig.Option {
 	})
 }
 
+type defBrOptsV4 struct {
+	cfg config.BridgeConfig
+}
+
+func (o defBrOptsV4) nlFamily() int {
+	return netlink.FAMILY_V4
+}
+func (o defBrOptsV4) fixedCIDR() (fCIDR, optName string) {
+	return o.cfg.FixedCIDR, "fixed-cidr"
+}
+func (o defBrOptsV4) bip() (bip, optName string) {
+	return o.cfg.IP, "bip"
+}
+func (o defBrOptsV4) defGw() (gw net.IP, optName, auxAddrLabel string) {
+	return o.cfg.DefaultGatewayIPv4, "default-gateway", "DefaultGatewayIPv4"
+}
+
+type defBrOptsV6 struct {
+	cfg config.BridgeConfig
+}
+
+func (o defBrOptsV6) nlFamily() int {
+	return netlink.FAMILY_V6
+}
+func (o defBrOptsV6) fixedCIDR() (fCIDR, optName string) {
+	return o.cfg.FixedCIDRv6, "fixed-cidr-v6"
+}
+func (o defBrOptsV6) bip() (bip, optName string) {
+	return o.cfg.IP6, "bip6"
+}
+func (o defBrOptsV6) defGw() (gw net.IP, optName, auxAddrLabel string) {
+	return o.cfg.DefaultGatewayIPv6, "default-gateway-v6", "DefaultGatewayIPv6"
+}
+
+type defBrOpts interface {
+	nlFamily() int
+	fixedCIDR() (fCIDR, optName string)
+	bip() (bip, optName string)
+	defGw() (gw net.IP, optName, auxAddrLabel string)
+}
+
 func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig) error {
-	bridgeName := bridge.DefaultBridgeName
-	if cfg.Iface != "" {
-		bridgeName = cfg.Iface
-	}
+	bridgeName, userManagedBridge := getDefaultBridgeName(cfg)
 	netOption := map[string]string{
 		bridge.BridgeName:         bridgeName,
 		bridge.DefaultBridge:      strconv.FormatBool(true),
@@ -938,135 +979,267 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		bridge.EnableIPMasquerade: strconv.FormatBool(cfg.EnableIPMasq),
 		bridge.EnableICC:          strconv.FormatBool(cfg.InterContainerCommunication),
 	}
-
 	// --ip processing
 	if cfg.DefaultIP != nil {
 		netOption[bridge.DefaultBindingIP] = cfg.DefaultIP.String()
 	}
 
-	ipamV4Conf := &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
-
-	// By default, libnetwork will request an arbitrary available address
-	// pool for the network from the configured IPAM allocator.
-	// Configure it to use the IPv4 network ranges of the existing bridge
-	// interface if one exists with IPv4 addresses assigned to it.
-
-	nwList, nw6List, err := ifaceAddrs(bridgeName)
+	ipamV4Conf, err := getDefaultBridgeIPAMConf(bridgeName, userManagedBridge, defBrOptsV4{cfg})
 	if err != nil {
-		return errors.Wrap(err, "list bridge addresses failed")
+		return err
 	}
 
-	if len(nwList) > 0 {
-		nw := nwList[0]
-		if len(nwList) > 1 && cfg.FixedCIDR != "" {
-			_, fCIDR, err := net.ParseCIDR(cfg.FixedCIDR)
+	var deferIPv6Alloc bool
+	var ipamV6Conf []*libnetwork.IpamConf
+	if cfg.EnableIPv6 {
+		ipamV6Conf, err = getDefaultBridgeIPAMConf(bridgeName, userManagedBridge, defBrOptsV6{cfg})
+		if err != nil {
+			return err
+		}
+		// If the subnet has at least 48 host bits, preserve the legacy default bridge
+		// behaviour of constructing a MAC address from the IPv4 address, then
+		// constructing an IPv6 addresses based on that MAC address. Tell libnetwork to
+		// defer the IPv6 address allocation for endpoints on this network until after
+		// the driver has created the endpoint and proposed an IPv4 address. Libnetwork
+		// will then reserve this address with the ipam driver. If no preferred pool has
+		// been set the built-in ULA prefix will be used, assume it has at-least 48-bits.
+		if len(ipamV6Conf) == 0 || ipamV6Conf[0].PreferredPool == "" {
+			deferIPv6Alloc = true
+		} else {
+			_, ppNet, err := net.ParseCIDR(ipamV6Conf[0].PreferredPool)
 			if err != nil {
-				return errors.Wrap(err, "parse CIDR failed")
+				return err
 			}
-			// Iterate through in case there are multiple addresses for the bridge
-			for _, entry := range nwList {
-				if fCIDR.Contains(entry.IP) {
-					nw = entry
-					break
-				}
-			}
-		}
-
-		ipamV4Conf.PreferredPool = lntypes.GetIPNetCanonical(nw).String()
-		hip, _ := lntypes.GetHostPartIP(nw.IP, nw.Mask)
-		if hip.IsGlobalUnicast() {
-			ipamV4Conf.Gateway = nw.IP.String()
+			ones, _ := ppNet.Mask.Size()
+			deferIPv6Alloc = ones <= 80
 		}
 	}
 
-	if cfg.IP != "" {
-		ip, ipNet, err := net.ParseCIDR(cfg.IP)
-		if err != nil {
-			return err
-		}
-		ipamV4Conf.PreferredPool = ipNet.String()
-		ipamV4Conf.Gateway = ip.String()
-	} else if bridgeName == bridge.DefaultBridgeName && ipamV4Conf.PreferredPool != "" {
-		log.G(context.TODO()).Infof("Default bridge (%s) is assigned with an IP address %s. Daemon option --bip can be used to set a preferred IP address", bridgeName, ipamV4Conf.PreferredPool)
-	}
-
-	if cfg.FixedCIDR != "" {
-		_, fCIDR, err := net.ParseCIDR(cfg.FixedCIDR)
-		if err != nil {
-			return err
-		}
-
-		ipamV4Conf.SubPool = fCIDR.String()
-		if ipamV4Conf.PreferredPool == "" {
-			ipamV4Conf.PreferredPool = fCIDR.String()
-		}
-	}
-
-	if cfg.DefaultGatewayIPv4 != nil {
-		ipamV4Conf.AuxAddresses["DefaultGatewayIPv4"] = cfg.DefaultGatewayIPv4.String()
-	}
-
-	var (
-		deferIPv6Alloc bool
-		ipamV6Conf     *libnetwork.IpamConf
-	)
-
-	if cfg.EnableIPv6 && cfg.FixedCIDRv6 == "" {
-		return errdefs.InvalidParameter(errors.New("IPv6 is enabled for the default bridge, but no subnet is configured. Specify an IPv6 subnet using --fixed-cidr-v6"))
-	} else if cfg.FixedCIDRv6 != "" {
-		_, fCIDRv6, err := net.ParseCIDR(cfg.FixedCIDRv6)
-		if err != nil {
-			return err
-		}
-
-		// In case user has specified the daemon flag --fixed-cidr-v6 and the passed network has
-		// at least 48 host bits, we need to guarantee the current behavior where the containers'
-		// IPv6 addresses will be constructed based on the containers' interface MAC address.
-		// We do so by telling libnetwork to defer the IPv6 address allocation for the endpoints
-		// on this network until after the driver has created the endpoint and returned the
-		// constructed address. Libnetwork will then reserve this address with the ipam driver.
-		ones, _ := fCIDRv6.Mask.Size()
-		deferIPv6Alloc = ones <= 80
-
-		ipamV6Conf = &libnetwork.IpamConf{
-			AuxAddresses:  make(map[string]string),
-			PreferredPool: fCIDRv6.String(),
-		}
-
-		// In case the --fixed-cidr-v6 is specified and the current docker0 bridge IPv6
-		// address belongs to the same network, we need to inform libnetwork about it, so
-		// that it can be reserved with IPAM and it will not be given away to somebody else
-		for _, nw6 := range nw6List {
-			if fCIDRv6.Contains(nw6.IP) {
-				ipamV6Conf.Gateway = nw6.IP.String()
-				break
-			}
-		}
-	}
-
-	if cfg.DefaultGatewayIPv6 != nil {
-		if ipamV6Conf == nil {
-			ipamV6Conf = &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
-		}
-		ipamV6Conf.AuxAddresses["DefaultGatewayIPv6"] = cfg.DefaultGatewayIPv6.String()
-	}
-
-	v4Conf := []*libnetwork.IpamConf{ipamV4Conf}
-	v6Conf := []*libnetwork.IpamConf{}
-	if ipamV6Conf != nil {
-		v6Conf = append(v6Conf, ipamV6Conf)
-	}
 	// Initialize default network on "bridge" with the same name
 	_, err = controller.NewNetwork("bridge", network.NetworkBridge, "",
 		libnetwork.NetworkOptionEnableIPv4(true),
 		libnetwork.NetworkOptionEnableIPv6(cfg.EnableIPv6),
 		libnetwork.NetworkOptionDriverOpts(netOption),
-		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
+		libnetwork.NetworkOptionIpam("default", "", ipamV4Conf, ipamV6Conf, nil),
 		libnetwork.NetworkOptionDeferIPv6Alloc(deferIPv6Alloc))
 	if err != nil {
 		return fmt.Errorf(`error creating default %q network: %v`, network.NetworkBridge, err)
 	}
 	return nil
+}
+
+func getDefaultBridgeName(cfg config.BridgeConfig) (bridgeName string, userManagedBridge bool) {
+	// cfg.Iface is --bridge, the option to supply a user-managed bridge.
+	if cfg.Iface != "" {
+		// The default network will use a user-managed bridge, the daemon will not
+		// create it, and it is not possible to supply an address using --bip.
+		return cfg.Iface, true
+	}
+	// Without a --bridge, the bridge is "docker0", created and managed by the
+	// daemon. A --bip (cidr) can be supplied to define the bridge's IP address
+	// and the network's subnet.
+	//
+	// Env var DOCKER_TEST_CREATE_DEFAULT_BRIDGE env var modifies the default
+	// bridge name. Unlike '--bridge', the bridge does not need to be created
+	// outside the daemon, and it's still possible to use '--bip'. It is
+	// intended only for use in moby tests; it may be removed, its behaviour
+	// may be modified, and it may not do what you want anyway!
+	if bn := os.Getenv("DOCKER_TEST_CREATE_DEFAULT_BRIDGE"); bn != "" {
+		return bn, false
+	}
+	return bridge.DefaultBridgeName, false
+}
+
+// getDefaultBridgeIPAMConf works out IPAM configuration for the
+// default bridge, for the given address family (netlink.FAMILY_V4 or
+// netlink.FAMILY_V6).
+//
+// Inputs are:
+// - bip
+//   - CIDR, not a plain IP address.
+//   - docker-managed bridge only (docker0), not allowed with a user-managed
+//     bridge (--bridge) where the user is responsible for creating the bridge
+//     and configuring its addresses.
+//   - determines the network subnet (ipamConf.PreferredPool) and becomes the
+//     bridge/gateway address (ipamConf.Gateway).
+//
+// - existing bridge addresses
+//   - for a user-managed bridge
+//   - an address is selected from the bridge to perform the same role as
+//     bip for a daemon-managed bridge.
+//   - for docker0
+//   - if there's an address on the bridge that's compatible with the other
+//     options, it's used as the gateway address and - because it's always
+//     worked this way, to determine the subnet if it's bigger than the
+//     sub-pool configured through fixed-cidr[-v6]. For example, if the
+//     bridge has address 10.11.12.13/16 and fixed-cidr=10.11.22.0/24, the
+//     default bridge network's subnet is 10.11.0.0/16, sub-pool for
+//     automatic address allocation 10.11.22.0/24, gateway 10.11.12.13.
+//
+// - fixed-cidr/fixed-cidr-v6
+//   - ipamConf.SubPool, the pool for automatic address allocation (somewhat
+//     equivalent to --ip-range for a user-defined network), must be contained
+//     within the subnet. Used as ipamConf.PreferredPool if it's not given a
+//     value by other rules.
+//
+// So, for example, with this config (taken from docs):
+//
+//	"bip": "192.168.1.1/24",
+//	"fixed-cidr": "192.168.1.0/25",
+//
+// - the bridge's address is "192.168.1.1/24"
+// - the subnet is "192.168.1.0/24"
+// - the bridge driver can allocate addresses from "192.168.1.0/25"
+//
+// The result is the same if "bip" is unset (including for a user-managed
+// bridge), when the bridge already has address "192.168.1.1/24".
+//
+// Note that this function logs-then-ignores invalid configuration, because it
+// has to tolerate existing configuration - raising an error prevents daemon
+// startup. Earlier versions of the daemon didn't spot bad config, but generally
+// did something unsurprising with it.
+func getDefaultBridgeIPAMConf(
+	bridgeName string,
+	userManagedBridge bool,
+	opts defBrOpts,
+) ([]*libnetwork.IpamConf, error) {
+	var (
+		fCidrIP, bIP       net.IP
+		fCidrIPNet, bIPNet *net.IPNet
+		err                error
+	)
+
+	if fixedCIDR, fixedCIDROpt := opts.fixedCIDR(); fixedCIDR != "" {
+		if fCidrIP, fCidrIPNet, err = net.ParseCIDR(fixedCIDR); err != nil {
+			return nil, errors.Wrap(err, "parse "+fixedCIDROpt+" failed")
+		}
+	}
+
+	if cfgBIP, cfgBIPOpt := opts.bip(); cfgBIP != "" {
+		if bIP, bIPNet, err = net.ParseCIDR(cfgBIP); err != nil {
+			return nil, errors.Wrap(err, "parse "+cfgBIPOpt+" failed")
+		}
+	} else {
+		if bIP, bIPNet, err = selectBIP(userManagedBridge, bridgeName, opts.nlFamily(), fCidrIP, fCidrIPNet); err != nil {
+			return nil, err
+		}
+	}
+
+	ipamConf := &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
+	if bIP != nil {
+		ipamConf.PreferredPool = bIPNet.String()
+		ipamConf.Gateway = bIP.String()
+	} else if !userManagedBridge && ipamConf.PreferredPool != "" {
+		_, bipOptName := opts.bip()
+		log.G(context.TODO()).Infof("Default bridge (%s) is assigned with an IP address %s. Daemon option --"+bipOptName+" can be used to set a preferred IP address", bridgeName, ipamConf.PreferredPool)
+	}
+
+	if fCidrIP != nil && fCidrIPNet != nil {
+		ipamConf.SubPool = fCidrIPNet.String()
+		if ipamConf.PreferredPool == "" {
+			ipamConf.PreferredPool = fCidrIPNet.String()
+		} else if userManagedBridge && bIPNet != nil {
+			fCidrOnes, _ := fCidrIPNet.Mask.Size()
+			bIPOnes, _ := bIPNet.Mask.Size()
+			if !bIPNet.Contains(fCidrIP) || (fCidrOnes < bIPOnes) {
+				// Don't allow SubPool (the range of allocatable addresses) to be outside, or
+				// bigger than, the network itself. This is a configuration error, either the
+				// user-managed bridge is missing an address to match fixed-cidr, or fixed-cidr
+				// is wrong.
+				fixedCIDR, fixedCIDROpt := opts.fixedCIDR()
+				if opts.nlFamily() == netlink.FAMILY_V6 {
+					return nil, fmt.Errorf("%s=%s is outside any subnet implied by addresses on the user-managed default bridge",
+						fixedCIDROpt, fixedCIDR)
+				}
+				// For IPv4, just log rather than raise an error that would cause daemon
+				// startup to fail, because this has been allowed by earlier versions. Remove
+				// the SubPool, so that addresses are allocated from the whole of PreferredPool.
+				log.G(context.TODO()).WithFields(log.Fields{
+					"bridge":         bridgeName,
+					fixedCIDROpt:     fixedCIDR,
+					"bridge-network": bIPNet.String(),
+				}).Warn(fixedCIDROpt + " is outside any subnet implied by addresses on the user-managed default bridge, this may be treated as an error in a future release")
+				ipamConf.SubPool = ""
+			}
+		}
+	}
+
+	if defGw, _, auxAddrLabel := opts.defGw(); defGw != nil {
+		ipamConf.AuxAddresses[auxAddrLabel] = defGw.String()
+	}
+
+	return []*libnetwork.IpamConf{ipamConf}, nil
+}
+
+// selectBIP searches the addresses from family on bridge bridgeName for:
+// - An address that encompasses fCidrNet if there is one.
+// - Else, an address that is within fCidrNet if there is one.
+// - Else, any address, if there is one.
+//
+// If an address is found, the bridge is docker managed (docker0), and the
+// bridge address is not compatible with current fixed-cidr/bip configuration,
+// the address is ignored or modified accordingly, so that the current config
+// can take effect.
+//
+// If there is an address, it's returned as bIP with its subnet in canonical
+// form in bIPNet.
+func selectBIP(
+	userManagedBridge bool,
+	bridgeName string,
+	family int,
+	fCidrIP net.IP,
+	fCidrNet *net.IPNet,
+) (bIP net.IP, bIPNet *net.IPNet, err error) {
+	bridgeNws, err := ifaceAddrs(bridgeName, family)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "list bridge addresses failed")
+	}
+	if len(bridgeNws) > 0 {
+		// Pick any address from the bridge as a starting point.
+		nw := bridgeNws[0].IPNet
+		if len(bridgeNws) > 1 && fCidrNet != nil {
+			// If there's an address with a subnet that contains fixed-cidr, use it.
+			for _, entry := range bridgeNws {
+				if entry.Contains(fCidrIP) {
+					nw = entry.IPNet
+					break
+				}
+				// For backwards compatibility - prefer the first bridge address within
+				// fixed-cidr. If fixed-cidr has a bigger subnet than nw.IP, this doesn't really
+				// make sense - the allocatable range (fixed-cidr) will be bigger than the subnet
+				// (entry.IPNet).
+				if fCidrNet.Contains(entry.IP) && !fCidrNet.Contains(nw.IP) {
+					nw = entry.IPNet
+				}
+			}
+		}
+
+		bIP = nw.IP
+		bIPNet = lntypes.GetIPNetCanonical(nw)
+	}
+
+	if !userManagedBridge && fCidrIP != nil && bIPNet != nil {
+		if !bIPNet.Contains(fCidrIP) {
+			// The bridge is docker-managed (docker0) and fixed-cidr is not
+			// inside a subnet belonging to any existing bridge IP. (fixed-cidr
+			// has changed.) So, ignore the existing bridge IP.
+			bIP = nil
+			bIPNet = nil
+		} else {
+			fCidrOnes, _ := fCidrNet.Mask.Size()
+			bIPOnes, _ := bIPNet.Mask.Size()
+			if fCidrOnes < bIPOnes {
+				// The bridge is docker-managed (docker0) and fixed-cidr (the
+				// allocatable address range) is bigger than the subnet implied
+				// by the bridge's current address. (fixed-cidr has changed.)
+				// The bridge's address is ok, but its subnet needs to be updated.
+				bIPNet.IP = bIPNet.IP.Mask(fCidrNet.Mask)
+				bIPNet.Mask = fCidrNet.Mask
+			}
+		}
+	}
+
+	return bIP, bIPNet, nil
 }
 
 // Remove default bridge interface if present (--bridge=none use case)

@@ -60,6 +60,7 @@ type DefaultBridgeConfig struct {
 	MTU                         int    `json:"mtu,omitempty"`
 	DefaultIP                   net.IP `json:"ip,omitempty"`
 	IP                          string `json:"bip,omitempty"`
+	IP6                         string `json:"bip6,omitempty"`
 	DefaultGatewayIPv4          net.IP `json:"default-gateway,omitempty"`
 	DefaultGatewayIPv6          net.IP `json:"default-gateway-v6,omitempty"`
 	InterContainerCommunication bool   `json:"icc,omitempty"`
