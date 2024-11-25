@@ -160,6 +160,15 @@ func LinkList() (links []netlink.Link, err error) {
 	return links, discardErrDumpInterrupted(err)
 }
 
+// LinkSubscribeWithOptions calls netlink.LinkSubscribeWithOptions, retrying if necessary.
+func LinkSubscribeWithOptions(ch chan<- netlink.LinkUpdate, done <-chan struct{}, options netlink.LinkSubscribeOptions) (err error) {
+	retryOnIntr(func() error {
+		err = netlink.LinkSubscribeWithOptions(ch, done, options) //nolint:forbidigo
+		return err
+	})
+	return err
+}
+
 // RouteList calls nlh.Handle.RouteList, retrying if necessary.
 func (nlh Handle) RouteList(link netlink.Link, family int) (routes []netlink.Route, err error) {
 	retryOnIntr(func() error {
