@@ -60,7 +60,7 @@ func newInterface(ns *Namespace, srcName, dstPrefix string, options ...IfaceOpti
 	i := &Interface{
 		stopCh:                make(chan struct{}),
 		srcName:               srcName,
-		dstName:               dstPrefix,
+		dstPrefix:             dstPrefix,
 		advertiseAddrNMsgs:    advertiseAddrNMsgsDefault,
 		advertiseAddrInterval: advertiseAddrIntervalDefault,
 		ns:                    ns,
@@ -90,6 +90,7 @@ func newInterface(ns *Namespace, srcName, dstPrefix string, options ...IfaceOpti
 type Interface struct {
 	stopCh      chan struct{} // stopCh is closed before the interface is deleted.
 	srcName     string
+	dstPrefix   string
 	dstName     string
 	master      string
 	dstMaster   string

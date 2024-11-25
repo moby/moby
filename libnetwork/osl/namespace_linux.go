@@ -417,7 +417,7 @@ func (n *Namespace) RestoreInterfaces(interfaces map[Iface][]IfaceOption) error 
 			// restore from the namespace
 			for _, link := range links {
 				ifaceName := link.Attrs().Name
-				if i.dstName == "vxlan" && strings.HasPrefix(ifaceName, "vxlan") {
+				if i.dstPrefix == "vxlan" && strings.HasPrefix(ifaceName, "vxlan") {
 					i.dstName = ifaceName
 					break
 				}
@@ -451,7 +451,7 @@ func (n *Namespace) RestoreInterfaces(interfaces map[Iface][]IfaceOption) error 
 					}
 				}
 				// This is to find the interface name of the pair in overlay sandbox
-				if i.master != "" && i.dstName == "veth" && strings.HasPrefix(ifaceName, "veth") {
+				if i.master != "" && i.dstPrefix == "veth" && strings.HasPrefix(ifaceName, "veth") {
 					i.dstName = ifaceName
 				}
 			}
