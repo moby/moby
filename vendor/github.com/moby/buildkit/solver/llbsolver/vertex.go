@@ -14,7 +14,6 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"google.golang.org/protobuf/proto"
 )
 
 type vertex struct {
@@ -208,7 +207,6 @@ func recomputeDigests(ctx context.Context, all map[digest.Digest]*pb.Op, visited
 		return "", errors.Errorf("invalid missing input digest %s", dgst)
 	}
 
-	var mutated bool
 	for _, input := range op.Inputs {
 		select {
 		case <-ctx.Done():
@@ -220,25 +218,20 @@ func recomputeDigests(ctx context.Context, all map[digest.Digest]*pb.Op, visited
 		if err != nil {
 			return "", err
 		}
-		if digest.Digest(input.Digest) != iDgst {
-			mutated = true
-			input.Digest = string(iDgst)
-		}
+		input.Digest = string(iDgst)
 	}
 
-	if !mutated {
-		visited[dgst] = dgst
-		return dgst, nil
-	}
-
-	dt, err := deterministicMarshal(op)
+	dt, err := op.Marshal()
 	if err != nil {
 		return "", err
 	}
+
 	newDgst := digest.FromBytes(dt)
+	if newDgst != dgst {
+		all[newDgst] = op
+		delete(all, dgst)
+	}
 	visited[dgst] = newDgst
-	all[newDgst] = op
-	delete(all, dgst)
 	return newDgst, nil
 }
 
@@ -250,7 +243,6 @@ func loadLLB(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEval
 	}
 
 	allOps := make(map[digest.Digest]*pb.Op)
-	mutatedDigests := make(map[digest.Digest]digest.Digest) // key: old, val: new
 
 	var lastDgst digest.Digest
 
@@ -261,27 +253,18 @@ func loadLLB(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEval
 		}
 		dgst := digest.FromBytes(dt)
 		if polEngine != nil {
-			mutated, err := polEngine.Evaluate(ctx, op.GetSource())
-			if err != nil {
+			if _, err := polEngine.Evaluate(ctx, op.GetSource()); err != nil {
 				return solver.Edge{}, errors.Wrap(err, "error evaluating the source policy")
 			}
-			if mutated {
-				dtMutated, err := deterministicMarshal(&op)
-				if err != nil {
-					return solver.Edge{}, err
-				}
-				dgstMutated := digest.FromBytes(dtMutated)
-				mutatedDigests[dgst] = dgstMutated
-				dgst = dgstMutated
-			}
 		}
+
 		allOps[dgst] = &op
 		lastDgst = dgst
 	}
 
+	mutatedDigests := make(map[digest.Digest]digest.Digest) // key: old, val: new
 	for dgst := range allOps {
-		_, err := recomputeDigests(ctx, allOps, mutatedDigests, dgst)
-		if err != nil {
+		if _, err := recomputeDigests(ctx, allOps, mutatedDigests, dgst); err != nil {
 			return solver.Edge{}, err
 		}
 	}
@@ -399,8 +382,4 @@ func fileOpName(actions []*pb.FileAction) string {
 	}
 
 	return strings.Join(names, ", ")
-}
-
-func deterministicMarshal[Message proto.Message](m Message) ([]byte, error) {
-	return proto.MarshalOptions{Deterministic: true}.Marshal(m)
 }
