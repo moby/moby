@@ -59,7 +59,7 @@ func (gr *grpcRouter) initRoutes() {
 	}
 }
 
-func unaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+func unaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 	// This method is used by the clients to send their traces to buildkit so they can be included
 	// in the daemon trace and stored in the build history record. This method can not be traced because
 	// it would cause an infinite loop.
@@ -67,7 +67,7 @@ func unaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, 
 		return handler(ctx, req)
 	}
 
-	resp, err = handler(ctx, req)
+	resp, err := handler(ctx, req)
 	if err != nil {
 		log.G(ctx).WithError(err).Error(info.FullMethod)
 		if log.GetLevel() >= log.DebugLevel {

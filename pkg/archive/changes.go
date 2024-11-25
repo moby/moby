@@ -85,12 +85,12 @@ func Changes(layers []string, rw string) ([]Change, error) {
 	return changes(layers, rw, aufsDeletedFile, aufsMetadataSkip)
 }
 
-func aufsMetadataSkip(path string) (skip bool, err error) {
-	skip, err = filepath.Match(string(os.PathSeparator)+WhiteoutMetaPrefix+"*", path)
+func aufsMetadataSkip(path string) (skip bool, _ error) {
+	skip, err := filepath.Match(string(os.PathSeparator)+WhiteoutMetaPrefix+"*", path)
 	if err != nil {
-		skip = true
+		return true, err
 	}
-	return
+	return skip, nil
 }
 
 func aufsDeletedFile(root, path string, fi os.FileInfo) (string, error) {
