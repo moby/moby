@@ -646,11 +646,6 @@ func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error)
 			EnableIPMasquerade: true,
 		}
 		err = config.fromLabels(opt)
-	case options.Generic:
-		var opaqueConfig interface{}
-		if opaqueConfig, err = options.GenerateFromModel(opt, config); err == nil {
-			config = opaqueConfig.(*networkConfiguration)
-		}
 	default:
 		err = types.InvalidParameterErrorf("do not recognize network configuration format: %T", opt)
 	}

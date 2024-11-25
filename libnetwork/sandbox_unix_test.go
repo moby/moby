@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/config"
+	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -42,7 +43,9 @@ func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []*Network)
 		name := "test_nw_" + strconv.Itoa(i)
 		newOptions := []NetworkOption{
 			NetworkOptionGeneric(options.Generic{
-				netlabel.GenericData: options.Generic{"BridgeName": name},
+				netlabel.GenericData: map[string]string{
+					bridge.BridgeName: name,
+				},
 			}),
 		}
 		newOptions = append(newOptions, opt...)
