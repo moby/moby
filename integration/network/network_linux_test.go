@@ -11,6 +11,7 @@ import (
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -183,4 +184,37 @@ func TestForbidDuplicateNetworkNames(t *testing.T) {
 
 	_, err := c.NetworkCreate(ctx, "testnet", networktypes.CreateOptions{})
 	assert.Error(t, err, "Error response from daemon: network with name testnet already exists", "2nd NetworkCreate call should have failed")
+}
+
+// TestHostGatewayFromDocker0 checks that, when docker0 has IPv6, host-gateway maps to both IPv4 and IPv6.
+func TestHostGatewayFromDocker0(t *testing.T) {
+	ctx := testutil.StartSpan(baseContext, t)
+
+	// Run the daemon in its own n/w namespace, to avoid interfering with
+	// the docker0 bridge belonging to the daemon started by CI.
+	const name = "host-gw-ips"
+	l3 := networking.NewL3Segment(t, "test-"+name)
+	defer l3.Destroy(t)
+	l3.AddHost(t, "host-gw-ips", "host-gw-ips", "eth0")
+
+	// Run without OTEL because there's no routing from this netns for it - which
+	// means the daemon doesn't shut down cleanly, causing the test to fail.
+	d := daemon.New(t, daemon.WithEnvVars("OTEL_EXPORTER_OTLP_ENDPOINT="))
+	l3.Hosts[name].Do(t, func() {
+		d.StartWithBusybox(ctx, t, "--ipv6",
+			"--fixed-cidr", "192.168.50.0/24",
+			"--fixed-cidr-v6", "fddd:6ff4:6e08::/64",
+		)
+	})
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	res := container.RunAttach(ctx, t, c,
+		container.WithExtraHost("hg:host-gateway"),
+		container.WithCmd("grep", "hg$", "/etc/hosts"),
+	)
+	assert.Check(t, is.Equal(res.ExitCode, 0))
+	assert.Check(t, is.Contains(res.Stdout.String(), "192.168.50.1\thg"))
+	assert.Check(t, is.Contains(res.Stdout.String(), "fddd:6ff4:6e08::1\thg"))
 }
