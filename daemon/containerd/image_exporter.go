@@ -68,19 +68,14 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 		archive.WithSkipMissing(i.content),
 	}
 
-	leasesManager := i.client.LeasesService()
-	lease, err := leasesManager.Create(ctx, leases.WithRandomID())
+	ctx, done, err := i.withLease(ctx, false)
 	if err != nil {
 		return errdefs.System(err)
 	}
-	defer func() {
-		if err := leasesManager.Delete(ctx, lease); err != nil {
-			log.G(ctx).WithError(err).Warn("cleaning up lease")
-		}
-	}()
+	defer done()
 
 	addLease := func(ctx context.Context, target ocispec.Descriptor) error {
-		return leaseContent(ctx, i.content, leasesManager, lease, target)
+		return i.leaseContent(ctx, i.content, target)
 	}
 
 	exportImage := func(ctx context.Context, img containerdimages.Image, ref reference.Named) error {
@@ -219,7 +214,13 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 
 // leaseContent will add a resource to the lease for each child of the descriptor making sure that it and
 // its children won't be deleted while the lease exists
-func leaseContent(ctx context.Context, store content.Store, leasesManager leases.Manager, lease leases.Lease, desc ocispec.Descriptor) error {
+func (i *ImageService) leaseContent(ctx context.Context, store content.Store, desc ocispec.Descriptor) error {
+	lid, ok := leases.FromContext(ctx)
+	if !ok {
+		return nil
+	}
+	lease := leases.Lease{ID: lid}
+	leasesManager := i.client.LeasesService()
 	return containerdimages.Walk(ctx, containerdimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		_, err := store.Info(ctx, desc.Digest)
 		if err != nil {

@@ -10,7 +10,6 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/remotes/docker"
 	cerrdefs "github.com/containerd/errdefs"
@@ -39,6 +38,12 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 		}
 	}()
 	out := streamformatter.NewJSONProgressOutput(outStream, false)
+
+	ctx, done, err := i.withLease(ctx, true)
+	if err != nil {
+		return err
+	}
+	defer done()
 
 	if !reference.IsNameOnly(baseRef) {
 		return i.pullTag(ctx, baseRef, platform, metaHeaders, authConfig, out)
@@ -89,14 +94,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	var outNewImg containerd.Image
 
 	if oldImage.Target.Digest != "" {
-		// Lease the old image content to prevent it from being garbage collected until we keep it as dangling image.
-		lm := i.client.LeasesService()
-		lease, err := lm.Create(ctx, leases.WithRandomID())
-		if err != nil {
-			return errdefs.System(fmt.Errorf("failed to create lease: %w", err))
-		}
-
-		err = leaseContent(ctx, i.content, lm, lease, oldImage.Target)
+		err = i.leaseContent(ctx, i.content, oldImage.Target)
 		if err != nil {
 			return errdefs.System(fmt.Errorf("failed to lease content: %w", err))
 		}
@@ -109,9 +107,6 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 						log.G(ctx).WithError(err).Warn("failed to keep the previous image as dangling")
 					}
 				}
-			}
-			if err := lm.Delete(ctx, lease); err != nil {
-				log.G(ctx).WithError(err).Warn("failed to delete lease")
 			}
 		}()
 	}

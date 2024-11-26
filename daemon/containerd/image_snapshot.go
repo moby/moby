@@ -55,6 +55,11 @@ func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentIma
 		parentSnapshot = identity.ChainID(diffIDs).String()
 	}
 
+	// TODO: Consider a better way to do this. It is better to have a container directly
+	// reference a snapshot, however, that is not done today because a container may
+	// removed and recreated with nothing holding the snapshot in between. Consider
+	// removing this lease and only temporarily holding a lease on re-create, using
+	// non-expiring leases introduces the possibility of leaking resources.
 	ls := i.client.LeasesService()
 	lease, err := ls.Create(ctx, leases.WithID(id))
 	if err != nil {
