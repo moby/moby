@@ -50,6 +50,8 @@ const (
 	Filter Table = "filter"
 	// Mangle table is used for mangling the packet.
 	Mangle Table = "mangle"
+	// Raw table is used for filtering packets before they are NATed.
+	Raw Table = "raw"
 )
 
 // IPVersion refers to IP version, v4 or v6

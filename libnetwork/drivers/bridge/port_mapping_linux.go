@@ -176,9 +176,9 @@ func (n *bridgeNetwork) addPortMappings(
 	}
 
 	for i := range bindings {
-		if pdc != nil && bindings[i].HostPort != 0 {
+		b := bindings[i]
+		if pdc != nil && b.HostPort != 0 {
 			var err error
-			b := &bindings[i]
 			hip, ok := netip.AddrFromSlice(b.HostIP)
 			if !ok {
 				return nil, fmt.Errorf("invalid host IP address in %s", b)
@@ -187,12 +187,18 @@ func (n *bridgeNetwork) addPortMappings(
 			if !ok {
 				return nil, fmt.Errorf("invalid child host IP address %s in %s", b.childHostIP, b)
 			}
-			b.portDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip, chip, int(b.HostPort))
+			bindings[i].portDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip, chip, int(b.HostPort))
 			if err != nil {
 				return nil, err
 			}
 		}
-		if err := n.setPerPortIptables(bindings[i], true); err != nil {
+		if err := n.setPerPortIptables(b, true); err != nil {
+			return nil, err
+		}
+		// When the port is proxied, and not NATed (eg. when an IPv6 HostIP is
+		// specified, but the container has no IPv6 address), the container's
+		// port must be protected by filterPortByInputIface.
+		if err := n.filterPortByInputIface(b, true); err != nil {
 			return nil, err
 		}
 	}
@@ -746,10 +752,11 @@ func (n *bridgeNetwork) releasePortBindings(pbs []portBinding) error {
 		if errN != nil {
 			errN = fmt.Errorf("failed to remove iptables rules for port mapping %s: %w", pb, errN)
 		}
+		errF := n.filterPortByInputIface(pb, false)
 		if pb.HostPort > 0 {
 			portallocator.Get().ReleasePort(pb.childHostIP, pb.Proto.String(), int(pb.HostPort))
 		}
-		errs = append(errs, errS, errPD, errP, errN)
+		errs = append(errs, errS, errPD, errP, errN, errF)
 	}
 	return errors.Join(errs...)
 }
@@ -864,6 +871,59 @@ func setPerPortForwarding(b portBinding, ipv iptables.IPVersion, bridgeName stri
 		if err := appendOrDelChainRule(rule, "SCTP CHECKSUM", enable); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// filterPortByInputIface adds a couple of iptables rules to accept packets
+// destined to a mapped port with a dest addr that matches the interface
+// they're received on. If that doesn't match, the second rule drop them
+// unceremoniously.
+//
+// These rules will block rogue hosts that try to access a mapped port while
+// they aren't part of the L2 segment where the mapped port is exposed.
+// For instance, if HostIP == 127.0.0.1, no ingress should come from anything
+// but lo.
+func (n *bridgeNetwork) filterPortByInputIface(b portBinding, enable bool) error {
+	hostIP := b.childHostIP
+	if b.HostPort == 0 {
+		// Direct routing mode is used, we can't filter based on the input iface.
+		return nil
+	}
+
+	// DOCKER_DISABLE_INPUT_IFACE_FILTERING can be used as an escape hatch if
+	// this filtering doesn't work out well for some users.
+	if v, _ := strconv.ParseBool(os.Getenv("DOCKER_DISABLE_INPUT_IFACE_FILTERING")); v {
+		log.G(context.TODO()).Warn("DOCKER_DISABLE_INPUT_IFACE_FILTERING is set, skipping input iface filtering.")
+		return nil
+	}
+
+	ipv := iptables.IPv4
+	if b.childHostIP.To4() == nil {
+		ipv = iptables.IPv6
+	}
+	accept := iptRule{ipv: ipv, table: iptables.Raw, chain: "PREROUTING", args: []string{
+		"-p", b.Proto.String(),
+		"-d", hostIP.String(),
+		"--dport", strconv.Itoa(int(b.HostPort)),
+		"-m", "addrtype",
+		"--dst-type", "LOCAL",
+		"--limit-iface-in",
+		"-j", "ACCEPT",
+	}}
+	if err := appendOrDelChainRule(accept, "INPUT IFACE FILTERING - ACCEPT", enable); err != nil {
+		return err
+	}
+
+	drop := iptRule{ipv: ipv, table: iptables.Raw, chain: "PREROUTING", args: []string{
+		"-p", b.Proto.String(),
+		"-d", hostIP.String(),
+		"--dport", strconv.Itoa(int(b.HostPort)),
+		"-j", "DROP",
+	}}
+	if err := appendOrDelChainRule(drop, "INPUT IFACE FILTERING - DROP", enable); err != nil {
+		return err
 	}
 
 	return nil

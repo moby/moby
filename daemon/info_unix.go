@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
@@ -164,6 +165,12 @@ func (daemon *Daemon) fillPlatformInfo(ctx context.Context, v *system.Info, sysI
 	}
 	if !v.BridgeNfIP6tables {
 		v.Warnings = append(v.Warnings, "WARNING: bridge-nf-call-ip6tables is disabled")
+	}
+	if filtering, _ := strconv.ParseBool(os.Getenv("DOCKER_DISABLE_INPUT_IFACE_FILTERING")); filtering {
+		v.Warnings = append(v.Warnings,
+			"WARNING: input interface filtering is disabled on port mappings, this might be insecure",
+			"DEPRECATED: DOCKER_DISABLE_INPUT_IFACE_FILTERING is deprecated and will be removed in a future release",
+		)
 	}
 	return nil
 }

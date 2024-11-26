@@ -44,3 +44,4 @@ Scenarios:
   - [Container on a user-defined network with inter-container communication disabled, with a published port](generated/usernet-portmap-noicc.md)
   - [Container on a user-defined --internal network](generated/usernet-internal.md)
   - [Container on a routed-mode network, with a published port](generated/usernet-portmap-routed.md)
+  - [Container on a user-defined network, with a port published on a specific HostIP](generated/usernet-portmap-hostip.md)

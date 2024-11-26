@@ -27,6 +27,14 @@ func WithIPv6() func(*network.CreateOptions) {
 	}
 }
 
+// WithIPv6Disabled makes sure IPv6 is disabled on the network.
+func WithIPv6Disabled() func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
+		enable := false
+		n.EnableIPv6 = &enable
+	}
+}
+
 // WithInternal enables Internal flag on the create network request
 func WithInternal() func(*network.CreateOptions) {
 	return func(n *network.CreateOptions) {
