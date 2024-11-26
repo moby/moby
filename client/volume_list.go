@@ -22,6 +22,9 @@ func (cli *Client) VolumeList(ctx context.Context, options volume.ListOptions) (
 		}
 		query.Set("filters", filterJSON)
 	}
+	if options.Size {
+		query.Set("size", "1")
+	}
 	resp, err := cli.get(ctx, "/volumes", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
