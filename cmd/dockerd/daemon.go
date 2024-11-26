@@ -177,7 +177,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to load listeners")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	waitForContainerDShutdown, err := cli.initContainerd(ctx)
 	if waitForContainerDShutdown != nil {
 		defer waitForContainerDShutdown(10 * time.Second)
@@ -191,7 +191,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	httpServer := &http.Server{
 		ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
 	}
-	apiShutdownCtx, apiShutdownCancel := context.WithCancel(context.Background())
+	apiShutdownCtx, apiShutdownCancel := context.WithCancel(context.WithoutCancel(ctx))
 	apiShutdownDone := make(chan struct{})
 	trap.Trap(cli.stop)
 	go func() {
@@ -284,7 +284,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 
 	c, err := createAndStartCluster(cli, d)
 	if err != nil {
-		log.G(ctx).Fatalf("Error starting cluster component: %v", err)
+		log.G(ctx).WithError(err).Fatalf("Error starting cluster component")
 	}
 
 	// Restart all autostart containers which has a swarm endpoint
@@ -292,17 +292,14 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	// initialized the cluster.
 	d.RestartSwarmContainers()
 
-	log.G(ctx).Info("Daemon has completed initialization")
+	routerOpts := routerOptions{
+		features: d.Features,
+		daemon:   d,
+		cluster:  c,
+	}
 
-	// Get a the current daemon config, because the daemon sets up config
-	// during initialization. We cannot user the cli.Config for that reason,
-	// as that only holds the config that was set by the user.
-	//
-	// FIXME(thaJeztah): better separate runtime and config data?
-	daemonCfg := d.Config()
-	routerOpts, err := newRouterOptions(ctx, &daemonCfg, d, c)
-	if err != nil {
-		return err
+	if err := initBuildkit(ctx, d, &routerOpts); err != nil {
+		return fmt.Errorf("error initializing buildkit: %w", err)
 	}
 
 	routers := buildRouters(routerOpts)
@@ -314,6 +311,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 
 	// after the daemon is done setting up we can notify systemd api
 	notifyReady()
+	log.G(ctx).Info("Daemon has completed initialization")
 
 	// Daemon is fully initialized. Start handling API traffic
 	// and wait for serve API to complete.
@@ -390,26 +388,20 @@ func setOTLPProtoDefault() {
 	}
 }
 
-type routerOptions struct {
-	sessionManager *session.Manager
-	buildBackend   *buildbackend.Backend
-	features       func() map[string]bool
-	buildkit       *buildkit.Builder
-	daemon         *daemon.Daemon
-	cluster        *cluster.Cluster
-}
+func initBuildkit(ctx context.Context, d *daemon.Daemon, ro *routerOptions) error {
+	log.G(ctx).Info("Initializing buildkit")
 
-func newRouterOptions(ctx context.Context, cfg *config.Config, d *daemon.Daemon, c *cluster.Cluster) (routerOptions, error) {
 	sm, err := session.NewManager()
 	if err != nil {
-		return routerOptions{}, errors.Wrap(err, "failed to create sessionmanager")
+		return errors.Wrap(err, "failed to create sessionmanager")
 	}
 
 	manager, err := dockerfile.NewBuildManager(d.BuilderBackend(), d.IdentityMapping())
 	if err != nil {
-		return routerOptions{}, err
+		return err
 	}
 
+	cfg := d.Config()
 	bk, err := buildkit.New(ctx, buildkit.Opt{
 		SessionManager:      sm,
 		Root:                filepath.Join(cfg.Root, "buildkit"),
@@ -417,10 +409,10 @@ func newRouterOptions(ctx context.Context, cfg *config.Config, d *daemon.Daemon,
 		Dist:                d.DistributionServices(),
 		ImageTagger:         d.ImageService(),
 		NetworkController:   d.NetworkController(),
-		DefaultCgroupParent: newCgroupParent(cfg),
+		DefaultCgroupParent: newCgroupParent(&cfg),
 		RegistryHosts:       d.RegistryHosts,
 		BuilderConfig:       cfg.Builder,
-		Rootless:            daemon.Rootless(cfg),
+		Rootless:            daemon.Rootless(&cfg),
 		IdentityMapping:     d.IdentityMapping(),
 		DNSConfig:           cfg.DNSConfig,
 		ApparmorProfile:     daemon.DefaultApparmorProfile(),
@@ -434,22 +426,29 @@ func newRouterOptions(ctx context.Context, cfg *config.Config, d *daemon.Daemon,
 		},
 	})
 	if err != nil {
-		return routerOptions{}, err
+		return errors.Wrap(err, "error creating buildkit instance")
 	}
 
 	bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk, d.EventsService)
 	if err != nil {
-		return routerOptions{}, errors.Wrap(err, "failed to create buildmanager")
+		return errors.Wrap(err, "failed to create builder backend")
 	}
 
-	return routerOptions{
-		sessionManager: sm,
-		buildBackend:   bb,
-		features:       d.Features,
-		buildkit:       bk,
-		daemon:         d,
-		cluster:        c,
-	}, nil
+	ro.buildBackend = bb
+	ro.buildkit = bk
+	ro.sessionManager = sm
+
+	log.G(ctx).Info("Completed buildkit initialization")
+	return nil
+}
+
+type routerOptions struct {
+	sessionManager *session.Manager
+	buildBackend   *buildbackend.Backend
+	features       func() map[string]bool
+	buildkit       *buildkit.Builder
+	daemon         *daemon.Daemon
+	cluster        *cluster.Cluster
 }
 
 func (cli *daemonCLI) reloadConfig() {
