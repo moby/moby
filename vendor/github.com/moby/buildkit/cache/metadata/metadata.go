@@ -193,7 +193,7 @@ func (s *Store) Get(id string) (*StorageItem, bool) {
 	}
 
 	var si *StorageItem
-	if err := s.db.Update(func(tx *bolt.Tx) error {
+	if err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(mainBucket))
 		if b == nil {
 			return nil
