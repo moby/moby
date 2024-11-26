@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
@@ -185,7 +184,7 @@ func TestRunConsoleSize(t *testing.T) {
 		container.WithConsoleSize(57, 123),
 	)
 
-	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
 
 	out, err := apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{ShowStdout: true})
 	assert.NilError(t, err)
@@ -230,7 +229,7 @@ func TestRunWithAlternativeContainerdShim(t *testing.T) {
 		container.WithRuntime("io.containerd.realfake.v42"),
 	)
 
-	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
 
 	out, err := apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{ShowStdout: true})
 	assert.NilError(t, err)
@@ -250,7 +249,7 @@ func TestRunWithAlternativeContainerdShim(t *testing.T) {
 		container.WithCmd("sh", "-c", `echo 'Hello, world!'`),
 	)
 
-	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
 
 	out, err = apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{ShowStdout: true})
 	assert.NilError(t, err)
@@ -314,7 +313,7 @@ func TestStaticIPOutsideSubpool(t *testing.T) {
 		container.WithIPv4(netname, "10.42.1.3"),
 	)
 
-	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
 
 	out, err := apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{ShowStdout: true})
 	assert.NilError(t, err)

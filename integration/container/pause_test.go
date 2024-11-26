@@ -3,7 +3,6 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"io"
 	"testing"
-	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -72,7 +71,7 @@ func TestPauseStopPausedContainer(t *testing.T) {
 	err = apiClient.ContainerStop(ctx, cID, containertypes.StopOptions{})
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
 }
 
 func getEventActions(t *testing.T, messages <-chan events.Message, errs <-chan error) []events.Action {

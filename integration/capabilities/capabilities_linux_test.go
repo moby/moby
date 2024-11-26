@@ -5,7 +5,6 @@ import (
 	"io"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -80,7 +79,7 @@ func TestNoNewPrivileges(t *testing.T) {
 				container.WithSecurityOpt("no-new-privileges=true"),
 			)
 			cid := container.Run(ctx, t, client, opts...)
-			poll.WaitOn(t, container.IsInState(ctx, client, cid, "exited"), poll.WithDelay(100*time.Millisecond))
+			poll.WaitOn(t, container.IsInState(ctx, client, cid, "exited"))
 
 			// Assert on outputs
 			logReader, err := client.ContainerLogs(ctx, cid, containertypes.LogsOptions{

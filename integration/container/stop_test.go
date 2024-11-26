@@ -27,7 +27,7 @@ func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
 	}
 
 	for _, name := range names {
-		poll.WaitOn(t, container.IsInState(ctx, apiClient, name, "running", "restarting"), poll.WithDelay(100*time.Millisecond))
+		poll.WaitOn(t, container.IsInState(ctx, apiClient, name, "running", "restarting"))
 	}
 
 	for _, name := range names {
@@ -36,6 +36,6 @@ func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
 	}
 
 	for _, name := range names {
-		poll.WaitOn(t, container.IsStopped(ctx, apiClient, name), poll.WithDelay(100*time.Millisecond))
+		poll.WaitOn(t, container.IsStopped(ctx, apiClient, name))
 	}
 }

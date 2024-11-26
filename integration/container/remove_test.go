@@ -3,7 +3,6 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"os"
 	"testing"
-	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -37,7 +36,7 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	defer tempDir.Remove()
 
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithBind(tempDir.Path(), prefix+slash+"test"))
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"))
 
 	err := os.RemoveAll(tempDir.Path())
 	assert.NilError(t, err)
@@ -60,7 +59,7 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithVolume(prefix+slash+"srv"))
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"))
 
 	insp, _, err := apiClient.ContainerInspectWithRaw(ctx, cID, true)
 	assert.NilError(t, err)

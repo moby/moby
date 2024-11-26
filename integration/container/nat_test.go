@@ -8,7 +8,6 @@ import (
 	"net"
 	"strings"
 	"testing"
-	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
@@ -76,7 +75,7 @@ func TestNetworkLoopbackNat(t *testing.T) {
 		container.WithNetworkMode("container:"+serverContainerID),
 	)
 
-	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
 
 	body, err := apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{
 		ShowStdout: true,

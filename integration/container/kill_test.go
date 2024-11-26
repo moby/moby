@@ -3,7 +3,6 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"runtime"
 	"testing"
-	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
@@ -23,12 +22,12 @@ func TestKillContainerInvalidSignal(t *testing.T) {
 	err := apiClient.ContainerKill(ctx, id, "0")
 	assert.ErrorContains(t, err, "Error response from daemon:")
 	assert.ErrorContains(t, err, "nvalid signal: 0") // match "(I|i)nvalid" case-insensitive to allow testing against older daemons.
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, id, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, id, "running"))
 
 	err = apiClient.ContainerKill(ctx, id, "SIG42")
 	assert.ErrorContains(t, err, "Error response from daemon:")
 	assert.ErrorContains(t, err, "nvalid signal: SIG42") // match "(I|i)nvalid" case-insensitive to allow testing against older daemons.
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, id, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, id, "running"))
 }
 
 func TestKillContainer(t *testing.T) {
@@ -143,7 +142,7 @@ func TestKillDifferentUserContainer(t *testing.T) {
 
 	err := apiClient.ContainerKill(ctx, id, "SIGKILL")
 	assert.NilError(t, err)
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, id, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, id, "exited"))
 }
 
 func TestInspectOomKilledTrue(t *testing.T) {
@@ -159,7 +158,7 @@ func TestInspectOomKilledTrue(t *testing.T) {
 		c.HostConfig.Resources.Memory = 32 * 1024 * 1024
 	})
 
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"))
 
 	inspect, err := apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
@@ -174,7 +173,7 @@ func TestInspectOomKilledFalse(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("sh", "-c", "echo hello world"))
 
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"))
 
 	inspect, err := apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)

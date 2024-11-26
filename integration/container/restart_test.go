@@ -109,7 +109,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 						err = apiClient.ContainerStart(ctx, resp.ID, container.StartOptions{})
 						assert.NilError(t, err)
 						if tc.xHealthCheck {
-							poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, resp.ID, container.Healthy), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(30*time.Second))
+							poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, resp.ID, container.Healthy), poll.WithTimeout(30*time.Second))
 							testContainer.ExecT(ctx, t, apiClient, resp.ID, []string{"touch", "/tmp/unhealthy"}).AssertSuccess(t)
 						}
 					}
@@ -123,7 +123,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 						expected = tc.xRunningLiveRestore
 					}
 
-					poll.WaitOn(t, testContainer.RunningStateFlagIs(ctx, apiClient, resp.ID, expected), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(30*time.Second))
+					poll.WaitOn(t, testContainer.RunningStateFlagIs(ctx, apiClient, resp.ID, expected), poll.WithTimeout(30*time.Second))
 
 					if tc.xHealthCheck {
 						// We have arranged to have the container's health probes fail until we tell it
@@ -131,10 +131,10 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 						// the container's health state is Starting before we have to worry about racing
 						// the health monitor.
 						assert.Equal(t, testContainer.Inspect(ctx, t, apiClient, resp.ID).State.Health.Status, container.Starting)
-						poll.WaitOn(t, pollForNewHealthCheck(ctx, apiClient, startTime, resp.ID), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(30*time.Second))
+						poll.WaitOn(t, pollForNewHealthCheck(ctx, apiClient, startTime, resp.ID), poll.WithTimeout(30*time.Second))
 
 						testContainer.ExecT(ctx, t, apiClient, resp.ID, []string{"rm", "/tmp/unhealthy"}).AssertSuccess(t)
-						poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, resp.ID, container.Healthy), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(30*time.Second))
+						poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, resp.ID, container.Healthy), poll.WithTimeout(30*time.Second))
 					}
 					// TODO(cpuguy83): test pause states... this seems to be rather undefined currently
 				})

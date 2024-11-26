@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"sort"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/api/types/checkpoint"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -105,10 +104,7 @@ func TestCheckpoint(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	poll.WaitOn(t,
-		container.IsInState(ctx, apiClient, cID, "exited"),
-		poll.WithDelay(100*time.Millisecond),
-	)
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"))
 
 	inspect, err = apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
