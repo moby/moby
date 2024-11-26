@@ -198,22 +198,29 @@ func (q *Control) SetQuota(targetPath string, quota Quota) error {
 		state.Lock()
 		projectID = state.nextProjectID
 
-		//
-		// assign project id to new container directory
-		//
-		err := setProjectID(targetPath, projectID)
-		if err != nil {
+		defer func() {
+			/**
+			 * now targetPath being in quota state map means
+			 * setProjectId was successful so incrementing nextProjectID is safe
+			 */
+			if _, exists := q.quotas[targetPath]; exists {
+				state.nextProjectID++
+			}
 			state.Unlock()
-			return err
-		}
-
-		state.nextProjectID++
-		state.Unlock()
-
-		q.Lock()
-		q.quotas[targetPath] = projectID
-		q.Unlock()
+		}()
 	}
+
+	//
+	// assign project id to new container directory
+	//
+	err := setProjectID(targetPath, projectID)
+	if err != nil {
+		return err
+	}
+
+	q.Lock()
+	q.quotas[targetPath] = projectID
+	q.Unlock()
 
 	//
 	// set the quota limit for the container's project id
