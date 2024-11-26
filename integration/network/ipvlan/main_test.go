@@ -48,3 +48,10 @@ func TestMain(m *testing.M) {
 	shutdown(ctx)
 	os.Exit(code)
 }
+
+func setupTest(t *testing.T) context.Context {
+	ctx := testutil.StartSpan(baseContext, t)
+	environment.ProtectAll(ctx, t, testEnv)
+	t.Cleanup(func() { testEnv.Clean(ctx, t) })
+	return ctx
+}

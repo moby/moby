@@ -30,6 +30,9 @@ const (
 	// where the interface name is represented by the string "IFNAME".
 	EndpointSysctls = Prefix + ".endpoint.sysctls"
 
+	// Ifname can be used to set the interface name used inside the container. It takes precedence over ContainerIfacePrefix.
+	Ifname = Prefix + ".endpoint.ifname"
+
 	// EnableIPv4 constant represents enabling IPV4 at network level
 	EnableIPv4 = Prefix + ".enable_ipv4"
 
@@ -70,3 +73,11 @@ const (
 	// is intended for internal use, it may be removed in a future release.
 	NoProxy6To4 = DriverPrivatePrefix + ".no_proxy_6to4"
 )
+
+// GetIfname returns the value associated to the Ifname netlabel from the
+// provided options. If there's no Ifname netlabel, or if the value isn't a
+// string, it returns an empty string.
+func GetIfname(opts map[string]interface{}) string {
+	ifname, _ := opts[Ifname].(string)
+	return ifname
+}

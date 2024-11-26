@@ -402,7 +402,7 @@ func (n *Namespace) Destroy() error {
 func (n *Namespace) RestoreInterfaces(interfaces map[Iface][]IfaceOption) error {
 	// restore interfaces
 	for iface, opts := range interfaces {
-		i, err := newInterface(n, iface.SrcName, iface.DstPrefix, opts...)
+		i, err := newInterface(n, iface.SrcName, iface.DstPrefix, iface.DstName, opts...)
 		if err != nil {
 			return err
 		}

@@ -2,15 +2,19 @@ package network // import "github.com/docker/docker/integration/network"
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -464,4 +468,67 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	assert.NilError(t, err)
 	err = d.SwarmLeave(ctx, t, true)
 	assert.NilError(t, err)
+}
+
+func TestCustomIfnameIsPreservedOnLiveRestore(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "custom interface name is only supported by Linux netdrivers")
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support live-restore")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	defer d.Stop(t)
+	d.StartWithBusybox(ctx, t, "--live-restore=true")
+
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	ctrId := container.Run(ctx, t, apiClient,
+		container.WithCmd("top"),
+		container.WithEndpointSettings("bridge", &networktypes.EndpointSettings{
+			DriverOpts: map[string]string{
+				netlabel.Ifname: "foobar",
+			},
+		}))
+	defer container.Remove(ctx, t, apiClient, ctrId, containertypes.RemoveOptions{Force: true})
+
+	d.Restart(t, "--live-restore=true")
+
+	res, err := container.Exec(ctx, apiClient, ctrId, []string{"ip", "-o", "link", "show", "foobar"})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(res.ExitCode, 0))
+	assert.Check(t, strings.Contains(res.Stdout(), ": foobar@if"), "expected ': foobar@if' in 'ip link show':\n%s", res.Stdout())
+
+	// On live-restore, the daemon rebuilds the list of interfaces for all
+	// containers. Call NetworkDisconnect here to make sure that the right
+	// dstName is used internally.
+	err = apiClient.NetworkDisconnect(ctx, "bridge", ctrId, true)
+	assert.NilError(t, err)
+}
+
+func TestCustomIfnameCollidesWithExistingIface(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "custom interface name is only supported by Linux netdrivers")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	defer d.Stop(t)
+	d.StartWithBusybox(ctx, t, "--live-restore=true")
+
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	const testnet = "testnet"
+	network.CreateNoError(ctx, t, apiClient, testnet, network.WithDriver("bridge"))
+
+	ctrId := container.Run(ctx, t, apiClient,
+		container.WithCmd("top"),
+		container.WithEndpointSettings("bridge", &networktypes.EndpointSettings{}))
+	defer container.Remove(ctx, t, apiClient, ctrId, containertypes.RemoveOptions{Force: true})
+
+	err := apiClient.NetworkConnect(ctx, testnet, ctrId, &networktypes.EndpointSettings{DriverOpts: map[string]string{
+		netlabel.Ifname: "eth0",
+	}})
+	assert.ErrorContains(t, err, "error renaming interface")
+	assert.ErrorContains(t, err, "file exists")
 }
