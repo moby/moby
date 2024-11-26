@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -126,13 +127,16 @@ func (hs *httpSourceHandler) client(g session.Group) *http.Client {
 // this package.
 func (hs *httpSourceHandler) urlHash() (digest.Digest, error) {
 	dt, err := json.Marshal(struct {
-		Filename       string
+		Filename       []byte
 		Perm, UID, GID int
 	}{
-		Filename: getFileName(hs.src.URL, hs.src.Filename, nil),
-		Perm:     hs.src.Perm,
-		UID:      hs.src.UID,
-		GID:      hs.src.GID,
+		Filename: bytes.Join([][]byte{
+			[]byte(hs.src.URL),
+			[]byte(hs.src.Filename),
+		}, []byte{0}),
+		Perm: hs.src.Perm,
+		UID:  hs.src.UID,
+		GID:  hs.src.GID,
 	})
 	if err != nil {
 		return "", err
