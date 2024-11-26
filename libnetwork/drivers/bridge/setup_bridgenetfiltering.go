@@ -45,13 +45,22 @@ func setupIPv6BridgeNetFiltering(config *networkConfiguration, _ *bridgeInterfac
 	return nil
 }
 
+func loadBridgeNetFilterModule(fullPath string) error {
+	// br_netfilter implictly loads bridge module upon modprobe
+	modName := "br_netfilter"
+	if _, err := os.Stat(fullPath); err != nil {
+		if out, err := exec.Command("modprobe", "-va", modName).CombinedOutput(); err != nil {
+			log.G(context.TODO()).WithError(err).Errorf("Running modprobe %s failed with message: %s", modName, out)
+			return fmt.Errorf("cannot restrict inter-container communication: modprobe %s failed: %w", modName, err)
+		}
+	}
+	return nil
+}
+
 // Enable bridge net filtering if not already enabled. See GitHub issue #11404
 func enableBridgeNetFiltering(nfParam string) error {
-	if _, err := os.Stat("/proc/sys/net/bridge"); err != nil {
-		if out, err := exec.Command("modprobe", "-va", "bridge", "br_netfilter").CombinedOutput(); err != nil {
-			log.G(context.TODO()).WithError(err).Errorf("Running modprobe bridge br_netfilter failed with message: %s", out)
-			return fmt.Errorf("cannot restrict inter-container communication: modprobe br_netfilter failed: %w", err)
-		}
+	if err := loadBridgeNetFilterModule(nfParam); err != nil {
+		return fmt.Errorf("loadBridgeNetFilterModule failed: %s", err)
 	}
 	enabled, err := getKernelBoolParam(nfParam)
 	if err != nil {
