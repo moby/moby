@@ -24,10 +24,11 @@ import (
 
 // newInterface creates a new interface in the given namespace using the
 // provided options.
-func newInterface(ns *Namespace, srcName, dstPrefix string, options ...IfaceOption) (*Interface, error) {
+func newInterface(ns *Namespace, srcName, dstPrefix, dstName string, options ...IfaceOption) (*Interface, error) {
 	i := &Interface{
 		srcName:   srcName,
 		dstPrefix: dstPrefix,
+		dstName:   dstName,
 		ns:        ns,
 	}
 	for _, opt := range options {
@@ -183,13 +184,14 @@ func moveLink(ctx context.Context, nlhHost nlwrap.Handle, iface netlink.Link, i 
 // the interface according to the specified settings. If dstPrefix is provided,
 // but not dstName, AddInterface will auto-generate a unique suffix and append
 // it to dstPrefix.
-func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix string, options ...IfaceOption) error {
+func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix, dstName string, options ...IfaceOption) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.AddInterface", trace.WithAttributes(
 		attribute.String("srcName", srcName),
-		attribute.String("dstPrefix", dstPrefix)))
+		attribute.String("dstPrefix", dstPrefix),
+		attribute.String("dstName", dstName)))
 	defer span.End()
 
-	i, err := newInterface(n, srcName, dstPrefix, options...)
+	i, err := newInterface(n, srcName, dstPrefix, dstName, options...)
 	if err != nil {
 		return err
 	}
@@ -197,7 +199,7 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix string,
 	n.mu.Lock()
 	if n.isDefault {
 		i.dstName = i.srcName
-	} else {
+	} else if i.dstName == "" {
 		i.dstName = fmt.Sprintf("%s%d", dstPrefix, n.nextIfIndex[dstPrefix])
 		n.nextIfIndex[dstPrefix]++
 	}

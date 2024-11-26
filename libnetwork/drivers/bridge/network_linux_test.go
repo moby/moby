@@ -51,9 +51,13 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
 
-	err = d.Join(context.Background(), "dummy", "ep", "sbox", te, nil)
+	err = d.Join(context.Background(), "dummy", "ep", "sbox", te, nil, nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
+	}
+
+	if te.iface.dstPrefix == "" {
+		t.Fatal("Invalid dstPrefix returned")
 	}
 
 	// Verify sbox endpoint interface inherited MTU value from bridge config
@@ -71,10 +75,6 @@ func TestLinkCreate(t *testing.T) {
 	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te1.Interface(), nil)
 	if err == nil {
 		t.Fatal("Failed to detect duplicate endpoint id on same network")
-	}
-
-	if te.iface.dstName == "" {
-		t.Fatal("Invalid Dstname returned")
 	}
 
 	_, err = nlwrap.LinkByName(te.iface.srcName)

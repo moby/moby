@@ -43,6 +43,7 @@ type EndpointInterface struct {
 	llAddrs   []*net.IPNet
 	srcName   string
 	dstPrefix string
+	dstName   string // dstName is the name of the interface in the container namespace. It takes precedence over dstPrefix.
 	routes    []*net.IPNet
 	v4PoolID  string
 	v6PoolID  string
@@ -68,6 +69,7 @@ func (epi *EndpointInterface) MarshalJSON() ([]byte, error) {
 	}
 	epMap["srcName"] = epi.srcName
 	epMap["dstPrefix"] = epi.dstPrefix
+	epMap["dstName"] = epi.dstName
 	var routes []string
 	for _, route := range epi.routes {
 		routes = append(routes, route.String())
@@ -141,6 +143,7 @@ func (epi *EndpointInterface) CopyTo(dstEpi *EndpointInterface) error {
 	dstEpi.addrv6 = types.GetIPNetCopy(epi.addrv6)
 	dstEpi.srcName = epi.srcName
 	dstEpi.dstPrefix = epi.dstPrefix
+	dstEpi.dstName = epi.dstName
 	dstEpi.v4PoolID = epi.v4PoolID
 	dstEpi.v6PoolID = epi.v6PoolID
 	if len(epi.llAddrs) != 0 {
@@ -262,9 +265,11 @@ func (epi *EndpointInterface) SrcName() string {
 	return epi.srcName
 }
 
-// SetNames method assigns the srcName and dstPrefix for the interface.
-func (epi *EndpointInterface) SetNames(srcName string, dstPrefix string) error {
+// SetNames method assigns the srcName, dstName, and dstPrefix for the
+// interface. If both dstName and dstPrefix are set, dstName takes precedence.
+func (epi *EndpointInterface) SetNames(srcName, dstPrefix, dstName string) error {
 	epi.srcName = srcName
+	epi.dstName = dstName
 	epi.dstPrefix = dstPrefix
 	return nil
 }

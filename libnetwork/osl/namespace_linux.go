@@ -389,7 +389,8 @@ func (n *Namespace) Destroy() error {
 func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error {
 	// restore interfaces
 	for iface, opts := range interfaces {
-		i, err := newInterface(n, iface.SrcName, iface.DstPrefix, opts...)
+		i, err := newInterface(n, iface.SrcName, iface.DstPrefix, iface.DstName, opts...)
+		// TODO(aker)
 		if err != nil {
 			return err
 		}
