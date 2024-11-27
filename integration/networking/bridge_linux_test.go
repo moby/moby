@@ -777,6 +777,56 @@ func TestDisableIPv6Addrs(t *testing.T) {
 	}
 }
 
+// TestDisableIPv6OnInterface checks that it's possible to disable IPv6 on an
+// endpoint in an IPv6 network using a sysctl.
+func TestDisableIPv6OnInterface(t *testing.T) {
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--ipv6")
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	checkNoIpv6 := func(ctrId, netName string) {
+		execRes := container.ExecT(ctx, t, c, ctrId, []string{"ip", "a", "show", "eth0"})
+		assert.Check(t, !strings.Contains(execRes.Stdout(), "inet6"),
+			"Unexpected IPv6 address in: %s", execRes.Stdout())
+		inspRes2 := container.Inspect(ctx, t, c, ctrId)
+		assert.Check(t, is.Equal("", inspRes2.NetworkSettings.Networks[netName].GlobalIPv6Address))
+		assert.Check(t, is.Equal(0, inspRes2.NetworkSettings.Networks[netName].GlobalIPv6PrefixLen))
+	}
+
+	// Default bridge.
+
+	id := container.Run(ctx, t, c,
+		container.WithEndpointSettings("bridge", &networktypes.EndpointSettings{
+			DriverOpts: map[string]string{
+				netlabel.EndpointSysctls: "net.ipv6.conf.IFNAME.disable_ipv6=1",
+			},
+		}),
+	)
+	defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+	checkNoIpv6(id, "bridge")
+
+	// User-defined bridge network.
+
+	const netName = "testnet"
+	network.CreateNoError(ctx, t, c, netName, network.WithIPv6())
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	id2 := container.Run(ctx, t, c,
+		container.WithNetworkMode(netName),
+		container.WithEndpointSettings(netName, &networktypes.EndpointSettings{
+			DriverOpts: map[string]string{
+				netlabel.EndpointSysctls: "net.ipv6.conf.IFNAME.disable_ipv6=1",
+			},
+		}),
+	)
+	defer c.ContainerRemove(ctx, id2, containertypes.RemoveOptions{Force: true})
+	checkNoIpv6(id2, netName)
+}
+
 // Check that a container in a network with IPv4 disabled doesn't get
 // IPv4 addresses.
 func TestDisableIPv4(t *testing.T) {

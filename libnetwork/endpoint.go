@@ -1378,6 +1378,48 @@ func (ep *Endpoint) releaseAddress() {
 	}
 }
 
+func (ep *Endpoint) dropIPv6Address(ctx context.Context) {
+	if ep.iface.addrv6 == nil {
+		return
+	}
+
+	n := ep.getNetwork()
+	if n.hasSpecialDriver() {
+		return
+	}
+
+	log.G(ctx).WithFields(log.Fields{
+		"net": n.Name(),
+		"ep":  ep.Name(),
+		"ip":  ep.iface.AddressIPv6(),
+	}).Debug("Dropping IPv6 address for endpoint")
+
+	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
+	if err != nil {
+		log.G(ctx).WithFields(log.Fields{
+			"error": err,
+			"net":   n.Name(),
+			"ep":    ep.Name(),
+			"epid":  ep.ID(),
+			"ip":    ep.iface.AddressIPv6(),
+		}).Warn("Failed to retrieve ipam driver to drop IPv6 address")
+		return
+	}
+
+	if err := ipam.ReleaseAddress(ep.iface.v6PoolID, ep.iface.addrv6.IP); err != nil {
+		log.G(ctx).WithFields(log.Fields{
+			"error": err,
+			"net":   n.Name(),
+			"ep":    ep.Name(),
+			"epid":  ep.ID(),
+			"ip":    ep.iface.AddressIPv6(),
+		}).Warn("Failed to drop IPv6 address")
+		return
+	}
+
+	ep.iface.addrv6 = nil
+}
+
 func (c *Controller) cleanupLocalEndpoints() error {
 	// Get used endpoints
 	eps := make(map[string]interface{})
