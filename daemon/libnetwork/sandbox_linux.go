@@ -398,6 +398,21 @@ func (sb *Sandbox) populateNetworkResourcesOS(ctx context.Context, ep *Endpoint)
 			return fmt.Errorf("failed to add interface %s to sandbox: %v", i.srcName, err)
 		}
 
+		// If IPv6 is configured and the address isn't on the interface, it was applied successfully
+		// but then removed by a sysctl setting. Release the address and update the interface config.
+		if i.addrv6 != nil && !inDelete {
+			if oslIface := sb.osSbox.InterfaceBySrcName(i.srcName); oslIface != nil {
+				if oslIface.AddressIPv6() == nil {
+					if err := ep.releaseIPv6Address(ctx); err != nil {
+						return err
+					}
+					// The Sandbox's list of endpoints is sorted based on IPv6 connectivity, so
+					// make sure this one's in the right place.
+					sb.updateGwPriorityOrdering(ep)
+				}
+			}
+		}
+
 		if len(ep.virtualIP) > 0 && lbModeIsDSR {
 			if sb.loadBalancerNID == "" {
 				if err := sb.osSbox.DisableARPForVIP(i.srcName); err != nil {

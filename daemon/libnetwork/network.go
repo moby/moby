@@ -1240,7 +1240,7 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 	}
 	defer func() {
 		if err != nil {
-			ep.releaseAddress()
+			ep.releaseIPAddresses()
 		}
 	}()
 

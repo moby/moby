@@ -127,7 +127,6 @@ type containerConfiguration struct {
 type connectivityConfiguration struct {
 	PortBindings []portmapperapi.PortBindingReq
 	ExposedPorts []types.TransportPort
-	NoProxy6To4  bool
 }
 
 type bridgeEndpoint struct {
@@ -166,6 +165,9 @@ type driver struct {
 	// mu is used to protect accesses to config and networks. Do not hold this lock while locking configNetwork.
 	mu sync.Mutex
 }
+
+// Assert that the driver is a driverapi.IPv6Releaser.
+var _ driverapi.IPv6Releaser = (*driver)(nil)
 
 type gwMode string
 
@@ -1434,6 +1436,29 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		return d.link(network, endpoint, true)
 	}
 
+	return nil
+}
+
+func (d *driver) ReleaseIPv6(ctx context.Context, nid, eid string) error {
+	network, err := d.getNetwork(nid)
+	if err != nil {
+		return err
+	}
+
+	endpoint, err := network.getEndpoint(eid)
+	if err != nil {
+		return err
+	}
+
+	if endpoint == nil {
+		return endpointNotFoundError(eid)
+	}
+
+	_, netip6 := endpoint.netipAddrs()
+	if err := network.firewallerNetwork.DelEndpoint(ctx, netip.Addr{}, netip6); err != nil {
+		return fmt.Errorf("removing firewall rules while releasing IPv6 address: %v", err)
+	}
+	endpoint.addrv6 = nil
 	return nil
 }
 

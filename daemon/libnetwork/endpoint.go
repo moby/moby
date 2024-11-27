@@ -531,6 +531,8 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		return fmt.Errorf("failed to get driver during join: %v", err)
 	}
 
+	// Tell the driver about the new endpoint. The driver populates ep.joinInfo using
+	// the Endpoint's JoinInfo interface.
 	if err := d.Join(ctx, nid, epid, sb.Key(), ep, ep.generic, sb.Labels()); err != nil {
 		return err
 	}
@@ -938,7 +940,7 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 		return err
 	}
 
-	ep.releaseAddress()
+	ep.releaseIPAddresses()
 
 	return nil
 }
@@ -1228,7 +1230,7 @@ func (ep *Endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 	return fmt.Errorf("no available IPv%d addresses on this network's address pools: %s (%s)", ipVer, n.Name(), n.ID())
 }
 
-func (ep *Endpoint) releaseAddress() {
+func (ep *Endpoint) releaseIPAddresses() {
 	n := ep.getNetwork()
 	if n.hasSpecialDriver() {
 		return
@@ -1253,6 +1255,53 @@ func (ep *Endpoint) releaseAddress() {
 			log.G(context.TODO()).Warnf("Failed to release ip address %s on delete of endpoint %s (%s): %v", ep.iface.addrv6.IP, ep.Name(), ep.ID(), err)
 		}
 	}
+}
+
+func (ep *Endpoint) releaseIPv6Address(ctx context.Context) error {
+	n := ep.network
+	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
+		"net": n.Name(),
+		"ep":  ep.name,
+		"ip":  ep.iface.addrv6,
+	}))
+
+	if ep.iface.addrv6 == nil || n.hasSpecialDriver() {
+		return nil
+	}
+
+	log.G(ctx).Debug("Releasing IPv6 address for endpoint")
+
+	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
+	if err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to retrieve ipam driver to release IPv6 address")
+		return err
+	}
+
+	if err := ipam.ReleaseAddress(ep.iface.v6PoolID, ep.iface.addrv6.IP); err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to release IPv6 address")
+		return err
+	}
+
+	ep.iface.addrv6 = nil
+	if ep.joinInfo != nil {
+		ep.joinInfo.gw6 = nil
+	}
+
+	d, err := n.driver(true)
+	if err != nil {
+		return fmt.Errorf("fetching driver to release IPv6 address: %v", err)
+	}
+	if dr, ok := d.(driverapi.IPv6Releaser); ok {
+		if err := dr.ReleaseIPv6(ctx, n.id, ep.id); err != nil {
+			return fmt.Errorf("releasing IPv6 address: %v", err)
+		}
+	}
+
+	if err := ep.network.getController().updateToStore(ctx, ep); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *Controller) cleanupLocalEndpoints() error {

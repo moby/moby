@@ -326,6 +326,17 @@ func (sb *Sandbox) addEndpoint(ep *Endpoint) {
 	sb.endpoints = slices.Insert(sb.endpoints, i, ep)
 }
 
+func (sb *Sandbox) updateGwPriorityOrdering(ep *Endpoint) {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+
+	sb.endpoints = slices.DeleteFunc(sb.endpoints, func(other *Endpoint) bool { return other.id == ep.id })
+	i := sort.Search(len(sb.endpoints), func(j int) bool {
+		return ep.Less(sb.endpoints[j])
+	})
+	sb.endpoints = slices.Insert(sb.endpoints, i, ep)
+}
+
 func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) (retErr error) {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Sandbox.populateNetworkResources", trace.WithAttributes(
 		attribute.String("endpoint.Name", ep.Name())))
