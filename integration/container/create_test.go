@@ -256,7 +256,7 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 		err = apiClient.ContainerStart(ctx, c.ID, container.StartOptions{})
 		assert.NilError(t, err)
 
-		poll.WaitOn(t, ctr.IsInState(ctx, apiClient, c.ID, "exited"), poll.WithDelay(100*time.Millisecond))
+		poll.WaitOn(t, ctr.IsInState(ctx, apiClient, c.ID, "exited"))
 
 		checkInspect(t, ctx, name, tc.expected)
 	}
@@ -334,7 +334,7 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 		err = apiClient.ContainerStart(ctx, c.ID, container.StartOptions{})
 		assert.NilError(t, err)
 
-		poll.WaitOn(t, ctr.IsInState(ctx, apiClient, c.ID, "exited"), poll.WithDelay(100*time.Millisecond))
+		poll.WaitOn(t, ctr.IsInState(ctx, apiClient, c.ID, "exited"))
 
 		checkInspect(t, ctx, name, tc.expected)
 	}

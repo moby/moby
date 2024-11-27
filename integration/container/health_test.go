@@ -29,7 +29,7 @@ func TestHealthCheckWorkdir(t *testing.T) {
 		}
 	})
 
-	poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, cID, containertypes.Healthy), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, cID, containertypes.Healthy))
 }
 
 // GitHub #37263
@@ -74,21 +74,21 @@ while true; do sleep 1; done
 
 	ctxPoll, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	poll.WaitOn(t, pollForHealthStatus(ctxPoll, apiClient, id, "healthy"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, pollForHealthStatus(ctxPoll, apiClient, id, "healthy"))
 
 	err := apiClient.ContainerKill(ctx, id, "SIGUSR1")
 	assert.NilError(t, err)
 
 	ctxPoll, cancel = context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	poll.WaitOn(t, pollForHealthStatus(ctxPoll, apiClient, id, "unhealthy"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, pollForHealthStatus(ctxPoll, apiClient, id, "unhealthy"))
 
 	err = apiClient.ContainerKill(ctx, id, "SIGUSR1")
 	assert.NilError(t, err)
 
 	ctxPoll, cancel = context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	poll.WaitOn(t, pollForHealthStatus(ctxPoll, apiClient, id, "healthy"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, pollForHealthStatus(ctxPoll, apiClient, id, "healthy"))
 }
 
 // TestHealthCheckProcessKilled verifies that health-checks exec get killed on time-out.
@@ -142,7 +142,7 @@ func TestHealthStartInterval(t *testing.T) {
 			return poll.Continue("waiting on container to be ready")
 		}
 		return poll.Success()
-	}, poll.WithDelay(100*time.Millisecond), poll.WithTimeout(time.Until(dl)))
+	}, poll.WithTimeout(time.Until(dl)))
 	cancel()
 
 	ctxPoll, cancel = context.WithTimeout(ctx, 2*time.Minute)

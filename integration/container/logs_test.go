@@ -137,9 +137,7 @@ func testLogs(t *testing.T, logDriver string) {
 			)
 			defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 
-			poll.WaitOn(t, container.IsStopped(ctx, apiClient, id),
-				poll.WithDelay(time.Millisecond*100),
-				poll.WithTimeout(pollTimeout))
+			poll.WaitOn(t, container.IsStopped(ctx, apiClient, id), poll.WithTimeout(pollTimeout))
 
 			logs, err := apiClient.ContainerLogs(ctx, id, tc.logOps)
 			assert.NilError(t, err)

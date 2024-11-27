@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"syscall"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/api"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -271,7 +270,7 @@ func TestContainerBindMountNonRecursive(t *testing.T) {
 	}
 
 	for _, c := range containers {
-		poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, c), poll.WithDelay(100*time.Millisecond))
+		poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, c))
 	}
 }
 
@@ -317,7 +316,7 @@ func TestContainerVolumesMountedAsShared(t *testing.T) {
 
 	apiClient := testEnv.APIClient()
 	containerID := container.Run(ctx, t, apiClient, container.WithPrivileged(true), container.WithMount(sharedMount), container.WithCmd(bindMountCmd...))
-	poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, containerID), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, containerID))
 
 	// Make sure a bind mount under a shared volume propagated to host.
 	if mounted, _ := mountinfo.Mounted(tmpDir1Mnt); !mounted {
@@ -634,7 +633,7 @@ func TestContainerBindMountRecursivelyReadOnly(t *testing.T) {
 	}
 
 	for _, c := range containers {
-		poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, c), poll.WithDelay(100*time.Millisecond))
+		poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, c))
 	}
 }
 

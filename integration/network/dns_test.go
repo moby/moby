@@ -2,7 +2,6 @@ package network // import "github.com/docker/docker/integration/network"
 
 import (
 	"testing"
-	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
@@ -33,7 +32,7 @@ func TestDaemonDNSFallback(t *testing.T) {
 	cid := container.Run(ctx, t, c, container.WithNetworkMode("test"), container.WithCmd("nslookup", "docker.com"))
 	defer c.ContainerRemove(ctx, cid, containertypes.RemoveOptions{Force: true})
 
-	poll.WaitOn(t, container.IsSuccessful(ctx, c, cid), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(10*time.Second))
+	poll.WaitOn(t, container.IsSuccessful(ctx, c, cid))
 }
 
 // Check that, when the internal DNS server's address is supplied as an external
