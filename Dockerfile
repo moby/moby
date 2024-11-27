@@ -674,6 +674,84 @@ COPY --link . .
 COPY --link --from=gopls         /build/ /usr/local/bin/
 
 # usage:
+# > docker buildx bake dind
+# > docker run -d --restart always --privileged --name devdind -v -p 12375:2375 docker-dind --debug --host=tcp://0.0.0.0:2375 --tlsverify=false
+FROM alpine:3.20 AS dind
+RUN apk add --no-cache \
+        btrfs-progs \
+        ca-certificates \
+        e2fsprogs \
+        e2fsprogs-extra \
+        git \
+        ip6tables \
+        iptables \
+        openssh-client \
+        openssl \
+        pigz \
+        shadow-uidmap \
+        xfsprogs \
+        xz \
+        zfs
+# ensure that nsswitch.conf is set up for Go's "netgo" implementation (which Docker explicitly uses)
+# - https://github.com/moby/moby/blob/v24.0.6/hack/make.sh#L111
+# - https://github.com/golang/go/blob/go1.19.13/src/net/conf.go#L227-L303
+# - docker run --rm debian:stretch grep '^hosts:' /etc/nsswitch.conf
+RUN [ -e /etc/nsswitch.conf ] && grep '^hosts: files dns' /etc/nsswitch.conf
+# pre-add a "docker" group for socket usage
+RUN addgroup -g 2375 -S docker
+# dind might be used on systems where the nf_tables kernel module isn't available. In that case,
+# we need to switch over to xtables-legacy. See https://github.com/docker-library/docker/issues/463
+RUN set -eux; \
+    apk add --no-cache iptables-legacy; \
+    # set up a symlink farm we can use PATH to switch to legacy with
+    mkdir -p /usr/local/sbin/.iptables-legacy; \
+    # https://git.alpinelinux.org/aports/tree/main/iptables/APKBUILD?id=b215d54de159eacafecb13c68dfadce6eefd9ec9#n73
+    for f in \
+        iptables \
+        iptables-save \
+        iptables-restore \
+        ip6tables \
+        ip6tables-save \
+        ip6tables-restore \
+    ; do \
+        # "iptables-save" -> "iptables-legacy-save", "ip6tables" -> "ip6tables-legacy", etc.
+        # https://pkgs.alpinelinux.org/contents?branch=v3.19&name=iptables-legacy&arch=x86_64
+        b="/sbin/${f/tables/tables-legacy}"; \
+        "$b" --version; \
+        ln -svT "$b" "/usr/local/sbin/.iptables-legacy/$f"; \
+    done; \
+    # verify it works (and gets us legacy)
+    export PATH="/usr/local/sbin/.iptables-legacy:$PATH"; \
+    iptables --version | grep legacy
+# set up subuid/subgid so that "--userns-remap=default" works out-of-the-box
+RUN set -eux; \
+    addgroup -S dockremap; \
+    adduser -S -G dockremap dockremap; \
+    echo 'dockremap:165536:65536' >> /etc/subuid; \
+    echo 'dockremap:165536:65536' >> /etc/subgid
+ENV DOCKER_TLS_CERTDIR=/certs
+RUN mkdir /certs /certs/client && chmod 1777 /certs /certs/client
+COPY --link                  hack/dind /usr/local/bin/
+COPY --link                  hack/dind-modprobe /usr/local/bin/modprobe
+COPY --link                  hack/dind-entrypoint /usr/local/bin/dockerd-entrypoint.sh
+COPY --link --from=dockercli /build/docker /usr/local/bin/
+COPY --link --from=buildx    /buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
+COPY --link --from=compose   /docker-compose /usr/libexec/docker/cli-plugins/docker-compose
+COPY --link --from=all       / /usr/local/bin/
+RUN set -eux; \
+    docker --version; \
+    docker buildx version; \
+    docker compose version; \
+    dockerd --version; \
+    containerd --version; \
+    ctr --version; \
+    runc --version
+VOLUME /var/lib/docker
+EXPOSE 2375 2376
+ENTRYPOINT ["dockerd-entrypoint.sh"]
+CMD []
+
+# usage:
 # > make shell
 # > SYSTEMD=true make shell
 FROM dev-base AS dev
