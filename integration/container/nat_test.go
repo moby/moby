@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -25,13 +26,25 @@ func TestNetworkNat(t *testing.T) {
 
 	ctx := setupTest(t)
 
-	msg := "it works"
-	startServerContainer(ctx, t, msg, 8080)
+	const msg = "it works"
+	const port = 8080
+	startServerContainer(ctx, t, msg, port)
 
 	endpoint := getExternalAddress(t)
-	conn, err := net.Dial("tcp", net.JoinHostPort(endpoint.String(), "8080"))
-	assert.NilError(t, err)
-	defer conn.Close()
+
+	var conn net.Conn
+	addr := net.JoinHostPort(endpoint.String(), strconv.Itoa(port))
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		var err error
+		conn, err = net.Dial("tcp", addr)
+		if err != nil {
+			return poll.Continue("waiting for %s to be accessible: %v", addr, err)
+		}
+		return poll.Success()
+	})
+	defer func() {
+		assert.Check(t, conn.Close())
+	}()
 
 	data, err := io.ReadAll(conn)
 	assert.NilError(t, err)
@@ -43,12 +56,23 @@ func TestNetworkLocalhostTCPNat(t *testing.T) {
 
 	ctx := setupTest(t)
 
-	msg := "hi yall"
-	startServerContainer(ctx, t, msg, 8081)
+	const msg = "hi yall"
+	const port = 8081
+	startServerContainer(ctx, t, msg, port)
 
-	conn, err := net.Dial("tcp", "localhost:8081")
-	assert.NilError(t, err)
-	defer conn.Close()
+	var conn net.Conn
+	addr := net.JoinHostPort("localhost", strconv.Itoa(port))
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		var err error
+		conn, err = net.Dial("tcp", addr)
+		if err != nil {
+			return poll.Continue("waiting for %s to be accessible: %v", addr, err)
+		}
+		return poll.Success()
+	})
+	defer func() {
+		assert.Check(t, conn.Close())
+	}()
 
 	data, err := io.ReadAll(conn)
 	assert.NilError(t, err)
