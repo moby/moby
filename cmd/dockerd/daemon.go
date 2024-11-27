@@ -292,17 +292,17 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	// initialized the cluster.
 	d.RestartSwarmContainers()
 
-	routerOpts := routerOptions{
-		features: d.Features,
-		daemon:   d,
-		cluster:  c,
-	}
-
-	if err := initBuildkit(ctx, d, &routerOpts); err != nil {
+	b, err := initBuildkit(ctx, d)
+	if err != nil {
 		return fmt.Errorf("error initializing buildkit: %w", err)
 	}
 
-	routers := buildRouters(routerOpts)
+	routers := buildRouters(routerOptions{
+		features: d.Features,
+		daemon:   d,
+		cluster:  c,
+		builder:  b,
+	})
 	httpServer.Handler = apiServer.CreateMux(routers...)
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
@@ -346,7 +346,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	notifyStopping()
 	shutdownDaemon(ctx, d)
 
-	if err := routerOpts.buildkit.Close(); err != nil {
+	if err := b.buildkit.Close(); err != nil {
 		log.G(ctx).WithError(err).Error("Failed to close buildkit")
 	}
 
@@ -402,17 +402,17 @@ func newTracerProvider(ctx context.Context) *sdktrace.TracerProvider {
 	return sdktrace.NewTracerProvider(opts...)
 }
 
-func initBuildkit(ctx context.Context, d *daemon.Daemon, ro *routerOptions) error {
+func initBuildkit(ctx context.Context, d *daemon.Daemon) (builderOptions, error) {
 	log.G(ctx).Info("Initializing buildkit")
 
 	sm, err := session.NewManager()
 	if err != nil {
-		return errors.Wrap(err, "failed to create sessionmanager")
+		return builderOptions{}, errors.Wrap(err, "failed to create sessionmanager")
 	}
 
 	manager, err := dockerfile.NewBuildManager(d.BuilderBackend(), d.IdentityMapping())
 	if err != nil {
-		return err
+		return builderOptions{}, err
 	}
 
 	cfg := d.Config()
@@ -440,29 +440,33 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon, ro *routerOptions) erro
 		},
 	})
 	if err != nil {
-		return errors.Wrap(err, "error creating buildkit instance")
+		return builderOptions{}, errors.Wrap(err, "error creating buildkit instance")
 	}
 
 	bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk, d.EventsService)
 	if err != nil {
-		return errors.Wrap(err, "failed to create builder backend")
+		return builderOptions{}, errors.Wrap(err, "failed to create builder backend")
 	}
 
-	ro.buildBackend = bb
-	ro.buildkit = bk
-	ro.sessionManager = sm
-
 	log.G(ctx).Info("Completed buildkit initialization")
-	return nil
+	return builderOptions{
+		backend:        bb,
+		buildkit:       bk,
+		sessionManager: sm,
+	}, nil
 }
 
 type routerOptions struct {
-	sessionManager *session.Manager
-	buildBackend   *buildbackend.Backend
-	features       func() map[string]bool
+	features func() map[string]bool
+	daemon   *daemon.Daemon
+	cluster  *cluster.Cluster
+	builder  builderOptions
+}
+
+type builderOptions struct {
+	backend        *buildbackend.Backend
 	buildkit       *buildkit.Builder
-	daemon         *daemon.Daemon
-	cluster        *cluster.Cluster
+	sessionManager *session.Manager
 }
 
 func (cli *daemonCLI) reloadConfig() {
@@ -707,17 +711,17 @@ func buildRouters(opts routerOptions) []router.Router {
 			opts.daemon.ImageService().DistributionServices().ImageStore,
 			opts.daemon.ImageService().DistributionServices().LayerStore,
 		),
-		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildkit, opts.daemon.Features),
+		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.builder.buildkit, opts.daemon.Features),
 		volume.NewRouter(opts.daemon.VolumesService(), opts.cluster),
-		build.NewRouter(opts.buildBackend, opts.daemon),
-		sessionrouter.NewRouter(opts.sessionManager),
+		build.NewRouter(opts.builder.backend, opts.daemon),
+		sessionrouter.NewRouter(opts.builder.sessionManager),
 		swarmrouter.NewRouter(opts.cluster),
 		pluginrouter.NewRouter(opts.daemon.PluginManager()),
 		distributionrouter.NewRouter(opts.daemon.ImageBackend()),
 	}
 
-	if opts.buildBackend != nil {
-		routers = append(routers, grpcrouter.NewRouter(opts.buildBackend))
+	if opts.builder.backend != nil {
+		routers = append(routers, grpcrouter.NewRouter(opts.builder.backend))
 	}
 
 	if opts.daemon.NetworkControllerEnabled() {
