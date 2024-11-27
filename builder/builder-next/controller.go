@@ -485,6 +485,16 @@ func getLabels(opt Opt, labels map[string]string) map[string]string {
 	if labels == nil {
 		labels = make(map[string]string)
 	}
-	labels[wlabel.HostGatewayIP] = opt.DNSConfig.HostGatewayIP.String()
+	if len(opt.DNSConfig.HostGatewayIPs) > 0 {
+		// TODO(robmry) - buildx has its own version of toBuildkitExtraHosts(), which
+		//   needs to be updated to understand >1 address. For now, take the IPv4 address
+		//   if there is one, else IPv6.
+		for _, gip := range opt.DNSConfig.HostGatewayIPs {
+			labels[wlabel.HostGatewayIP] = gip.String()
+			if gip.Is4() {
+				break
+			}
+		}
+	}
 	return labels
 }

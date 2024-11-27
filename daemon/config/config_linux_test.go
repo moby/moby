@@ -1,11 +1,13 @@
 package config // import "github.com/docker/docker/daemon/config"
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
 	dopts "github.com/docker/docker/internal/opts"
 	"github.com/docker/docker/opts"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -217,5 +219,149 @@ func TestUnixGetInitPath(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		assert.Equal(t, tc.config.GetInitPath(), tc.expectedInitPath)
+	}
+}
+
+func TestDaemonConfigurationHostGatewayIP(t *testing.T) {
+	tests := []struct {
+		name      string
+		config    string
+		flags     []string
+		expVal    []string
+		expSetErr string
+		expErr    string
+	}{
+		{
+			name:   "flag IPv4 only",
+			config: `{}`,
+			flags:  []string{"192.0.2.1"},
+			expVal: []string{"192.0.2.1"},
+		},
+		{
+			name:   "flag IPv6 only",
+			config: `{}`,
+			flags:  []string{"2001:db8::1234"},
+			expVal: []string{"2001:db8::1234"},
+		},
+		{
+			name:   "flag IPv4 and IPv6",
+			config: `{}`,
+			flags:  []string{"2001:db8::1234", "192.0.2.1"},
+			expVal: []string{"2001:db8::1234", "192.0.2.1"},
+		},
+		{
+			name:   "flag two IPv4",
+			config: `{}`,
+			flags:  []string{"192.0.2.1", "192.0.2.2"},
+			expErr: "merged configuration validation from file and command line flags failed: only one IPv4 host gateway IP address can be specified",
+		},
+		{
+			name:   "flag two IPv6",
+			config: `{}`,
+			flags:  []string{"2001:db8::1234", "2001:db8::5678"},
+			expErr: "merged configuration validation from file and command line flags failed: only one IPv6 host gateway IP address can be specified",
+		},
+		{
+			name:   "legacy config",
+			config: `{"host-gateway-ip": "2001:db8::1234"}`,
+			expVal: []string{"2001:db8::1234"},
+		},
+		{
+			name:   "config ipv4",
+			config: `{"host-gateway-ips": ["192.0.2.1"]}`,
+			expVal: []string{"192.0.2.1"},
+		},
+		{
+			name:   "config ipv6",
+			config: `{"host-gateway-ips": ["2001:db8::1234"]}`,
+			expVal: []string{"2001:db8::1234"},
+		},
+		{
+			name:   "config ipv4 and ipv6",
+			config: `{"host-gateway-ips": ["2001:db8::1234", "192.0.2.1"]}`,
+			expVal: []string{"2001:db8::1234", "192.0.2.1"},
+		},
+		{
+			name:   "config two ipv4",
+			config: `{"host-gateway-ips": ["192.0.2.1", "192.0.2.2"]}`,
+			expErr: "merged configuration validation from file and command line flags failed: only one IPv4 host gateway IP address can be specified",
+		},
+		{
+			name:   "config two ipv6",
+			config: `{"host-gateway-ips": ["2001:db8::1234", "2001:db8::5678"]}`,
+			expErr: "merged configuration validation from file and command line flags failed: only one IPv6 host gateway IP address can be specified",
+		},
+		{
+			name:      "flag bad address",
+			flags:     []string{"hello"},
+			expSetErr: `invalid argument "hello" for "--host-gateway-ip" flag: ParseAddr("hello"): unable to parse IP`,
+		},
+		{
+			name:   "config bad address",
+			config: `{"host-gateway-ips": ["hello"]}`,
+			expErr: `ParseAddr("hello"): unable to parse IP`,
+		},
+		{
+			name:   "config not array",
+			config: `{"host-gateway-ips": "192.0.2.1"}`,
+			expErr: `json: cannot unmarshal string into Go struct field Config.host-gateway-ips of type []netip.Addr`,
+		},
+		{
+			name:   "config old and new",
+			config: `{"host-gateway-ip": "192.0.2.1", "host-gateway-ips": ["192.0.2.1"]}`,
+			expErr: "host-gateway-ip and host-gateway-ips must not both be specified in the config file",
+		},
+		{
+			name:   "config old and flag",
+			flags:  []string{"192.0.2.1"},
+			config: `{"host-gateway-ip": "192.0.2.2"}`,
+			expErr: "the following directives are specified both as a flag and in the configuration file: host-gateway-ip: (from flag: [192.0.2.1], from file: 192.0.2.2)",
+		},
+		{
+			name:   "config new and flag",
+			flags:  []string{"192.0.2.1"},
+			config: `{"host-gateway-ips": ["192.0.2.2", "2001:db8::1234"]}`,
+			expErr: "the following directives are specified both as a flag and in the configuration file: host-gateway-ips: (from flag: [192.0.2.1], from file: [192.0.2.2 2001:db8::1234])",
+		},
+		{
+			name:   "config new and old and flag",
+			flags:  []string{"192.0.2.1"},
+			config: `{"host-gateway-ip": "192.0.2.2", "host-gateway-ips": ["192.0.2.3"]}`,
+			expErr: "host-gateway-ip and host-gateway-ips must not both be specified in the config file\n" +
+				"the following directives are specified both as a flag and in the configuration file: host-gateway-ips: (from flag: [192.0.2.1], from file: [192.0.2.3]), host-gateway-ip: (from flag: [192.0.2.1], from file: 192.0.2.2)",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := New()
+			assert.NilError(t, err)
+
+			configFile := makeConfigFile(t, tc.config)
+			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			flags.Var(dopts.NewNamedIPListOptsRef("host-gateway-ips", &c.HostGatewayIPs),
+				"host-gateway-ip", "a usage message")
+			for _, flagVal := range tc.flags {
+				err := flags.Set("host-gateway-ip", flagVal)
+				if tc.expSetErr != "" {
+					assert.Check(t, is.Error(err, tc.expSetErr))
+					return
+				}
+				assert.NilError(t, err)
+			}
+			cc, err := MergeDaemonConfigurations(c, flags, configFile)
+			if tc.expErr != "" {
+				assert.Check(t, is.Error(err, tc.expErr))
+				assert.Check(t, is.Nil(cc))
+			} else {
+				assert.NilError(t, err)
+				var expVal []netip.Addr
+				for _, ev := range tc.expVal {
+					expVal = append(expVal, netip.MustParseAddr(ev))
+				}
+				assert.Check(t, is.DeepEqual(cc.HostGatewayIPs, expVal, cmpopts.EquateComparable(netip.Addr{})))
+				assert.Check(t, is.Nil(cc.HostGatewayIP)) //nolint:staticcheck // ignore SA1019: deprecated field should be nil
+			}
+		})
 	}
 }
