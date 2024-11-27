@@ -23,7 +23,7 @@ on:
 
 env:
   DESTDIR: ./build
-  SETUP_BUILDX_VERSION: latest
+  SETUP_BUILDX_VERSION: v0.18.0
   SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
 
 jobs:
