@@ -114,6 +114,7 @@ type connectivityConfiguration struct {
 	PortBindings []types.PortBinding
 	ExposedPorts []types.TransportPort
 	NoProxy6To4  bool
+	NoIPv6       bool
 }
 
 type bridgeEndpoint struct {
@@ -1528,6 +1529,10 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 		return err
 	}
 
+	if endpoint.extConnConfig.NoIPv6 {
+		endpoint.addrv6 = nil
+	}
+
 	// Program any required port mapping and store them in the endpoint
 	if endpoint.extConnConfig != nil && endpoint.extConnConfig.PortBindings != nil {
 		endpoint.portMapping, err = network.addPortMappings(
@@ -1743,6 +1748,14 @@ func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityCon
 			cc.NoProxy6To4 = noProxy6To4
 		} else {
 			return nil, types.InvalidParameterErrorf("invalid "+netlabel.NoProxy6To4+" in connectivity configuration: %v", opt)
+		}
+	}
+
+	if opt, ok := cOptions[netlabel.NoIPv6]; ok {
+		if noIPv6, ok := opt.(bool); ok {
+			cc.NoIPv6 = noIPv6
+		} else {
+			return nil, types.InvalidParameterErrorf("invalid "+netlabel.NoIPv6+" in connectivity configuration: %q", opt)
 		}
 	}
 

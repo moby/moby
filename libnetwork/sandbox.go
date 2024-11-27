@@ -495,6 +495,9 @@ func (sb *Sandbox) updateExternalConnectivity(ctx context.Context, ep *Endpoint,
 		log.G(ctx).Debugf("Programming external connectivity on endpoint")
 		labels := sb.Labels()
 		labels[netlabel.NoProxy6To4] = noProxy6To4After
+		if ep.Iface().AddressIPv6() == nil {
+			labels[netlabel.NoIPv6] = true
+		}
 		d, err := n.driver(true)
 		if err != nil {
 			return fmt.Errorf("failed to get network driver while updating gateway endpoint: %v", err)

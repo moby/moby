@@ -241,7 +241,7 @@ func (n *Namespace) SetDefaultRouteIPv6(srcName string) error {
 }
 
 func (n *Namespace) setDefaultRoute(srcName string, routeMatcher func(*net.IPNet) bool) error {
-	iface := n.ifaceBySrcName(srcName)
+	iface := n.InterfaceBySrcName(srcName)
 	if iface == nil {
 		return fmt.Errorf("no interface")
 	}
@@ -309,7 +309,7 @@ func (n *Namespace) unsetDefaultRoute(srcName string, routeMatcher func(*net.IPN
 		return nil
 	}
 
-	iface := n.ifaceBySrcName(srcName)
+	iface := n.InterfaceBySrcName(srcName)
 	if iface == nil {
 		return nil
 	}
