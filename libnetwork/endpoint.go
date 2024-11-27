@@ -947,6 +947,9 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 				}
 			} else if moveExtConn4 {
 				log.G(ctx).Debugf("Programming IPv6 gateway endpoint %s (%s)", ep.Name(), ep.ID())
+				if gwepAfter4.Iface().AddressIPv6() == nil {
+					labels[netlabel.NoIPv6] = true
+				}
 				if err := gwepAfter4.programExternalConnectivity(ctx, labels); err != nil {
 					role := "IPv4"
 					if gwepAfter6 == gwepAfter4 {
@@ -1030,7 +1033,7 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 		return err
 	}
 
-	ep.releaseAddress()
+	ep.releaseIPAddresses()
 
 	return nil
 }
@@ -1321,7 +1324,7 @@ func (ep *Endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 	return fmt.Errorf("no available IPv%d addresses on this network's address pools: %s (%s)", ipVer, n.Name(), n.ID())
 }
 
-func (ep *Endpoint) releaseAddress() {
+func (ep *Endpoint) releaseIPAddresses() {
 	n := ep.getNetwork()
 	if n.hasSpecialDriver() {
 		return
@@ -1346,6 +1349,50 @@ func (ep *Endpoint) releaseAddress() {
 			log.G(context.TODO()).Warnf("Failed to release ip address %s on delete of endpoint %s (%s): %v", ep.iface.addrv6.IP, ep.Name(), ep.ID(), err)
 		}
 	}
+}
+
+func (ep *Endpoint) releaseIPv6Address(ctx context.Context) (*endpointJoinInfo, error) {
+	ep.mu.Lock()
+	joinInfo := ep.joinInfo
+	addrv6 := ep.iface.addrv6
+	v6PoolId := ep.iface.v6PoolID
+	network := ep.network
+	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
+		"net": network.Name(),
+		"ep":  ep.name,
+		"ip":  ep.iface.addrv6,
+	}))
+	ep.mu.Unlock()
+
+	if addrv6 == nil || network.hasSpecialDriver() {
+		return joinInfo, nil
+	}
+
+	log.G(ctx).Debug("Releasing IPv6 address for endpoint")
+
+	ipam, _, err := network.getController().getIPAMDriver(network.ipamType)
+	if err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to retrieve ipam driver to release IPv6 address")
+		return nil, err
+	}
+
+	if err := ipam.ReleaseAddress(v6PoolId, addrv6.IP); err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to release IPv6 address")
+		return nil, err
+	}
+
+	ep.mu.Lock()
+	ep.iface.addrv6 = nil
+	if ep.joinInfo != nil {
+		ep.joinInfo.gw6 = nil
+	}
+	ep.mu.Unlock()
+
+	if err := ep.network.getController().updateToStore(ctx, ep); err != nil {
+		return nil, err
+	}
+
+	return joinInfo, nil
 }
 
 func (c *Controller) cleanupLocalEndpoints() error {
