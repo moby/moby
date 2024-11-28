@@ -180,7 +180,7 @@ func verifyDefaultIpcMode(mode string) error {
 func verifyDefaultCgroupNsMode(mode string) error {
 	cm := container.CgroupnsMode(mode)
 	if !cm.Valid() {
-		return fmt.Errorf(`default cgroup namespace mode (%v) is invalid; use "host" or "private"`, cm)
+		return fmt.Errorf(`invalid default cgroup namespace (%v): use "host" or "private"`, cm)
 	}
 
 	return nil
