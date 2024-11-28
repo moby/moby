@@ -674,7 +674,7 @@ func insertMirroredWSL2Rule(config configuration) bool {
 	if err != nil {
 		return false
 	}
-	return stat.Mode().IsRegular() && (stat.Mode().Perm()&0111) != 0
+	return stat.Mode().IsRegular() && (stat.Mode().Perm()&0o111) != 0
 }
 
 func mirroredWSL2Rule() iptRule {

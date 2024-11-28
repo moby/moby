@@ -169,5 +169,4 @@ func TestContainerMigrateOS(t *testing.T) {
 			assert.DeepEqual(t, tc.expected, ctr.ImagePlatform)
 		})
 	}
-
 }

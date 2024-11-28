@@ -112,7 +112,6 @@ func mirrorsToRegistryHosts(mirrors []string, dHost docker.RegistryHost) []docke
 		mirrorHosts = append(mirrorHosts, h)
 	}
 	return append(mirrorHosts, dHost)
-
 }
 
 func loadTLSConfig(d string) (*tls.Config, error) {
