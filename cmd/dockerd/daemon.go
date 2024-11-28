@@ -291,7 +291,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	// initialized the cluster.
 	d.RestartSwarmContainers()
 
-	b, err := initBuildkit(ctx, d)
+	b, shutdownBuildKit, err := initBuildkit(ctx, d)
 	if err != nil {
 		return fmt.Errorf("error initializing buildkit: %w", err)
 	}
@@ -345,9 +345,8 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	notifyStopping()
 	shutdownDaemon(ctx, d)
 
-	if err := b.buildkit.Close(); err != nil {
-		log.G(ctx).WithError(err).Error("Failed to close buildkit")
-	}
+	// shutdown / close BuildKit backend
+	shutdownBuildKit()
 
 	// Stop notification processing and any background processes
 	cancel()
@@ -387,17 +386,18 @@ func setOTLPProtoDefault() {
 	}
 }
 
-func initBuildkit(ctx context.Context, d *daemon.Daemon) (builderOptions, error) {
+func initBuildkit(ctx context.Context, d *daemon.Daemon) (_ builderOptions, closeFn func(), _ error) {
 	log.G(ctx).Info("Initializing buildkit")
+	closeFn = func() {}
 
 	sm, err := session.NewManager()
 	if err != nil {
-		return builderOptions{}, errors.Wrap(err, "failed to create sessionmanager")
+		return builderOptions{}, closeFn, errors.Wrap(err, "failed to create sessionmanager")
 	}
 
 	manager, err := dockerfile.NewBuildManager(d.BuilderBackend(), d.IdentityMapping())
 	if err != nil {
-		return builderOptions{}, err
+		return builderOptions{}, closeFn, err
 	}
 
 	cfg := d.Config()
@@ -425,20 +425,27 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon) (builderOptions, error)
 		},
 	})
 	if err != nil {
-		return builderOptions{}, errors.Wrap(err, "error creating buildkit instance")
+		return builderOptions{}, closeFn, errors.Wrap(err, "error creating buildkit instance")
 	}
 
 	bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk, d.EventsService)
 	if err != nil {
-		return builderOptions{}, errors.Wrap(err, "failed to create builder backend")
+		return builderOptions{}, closeFn, errors.Wrap(err, "failed to create builder backend")
 	}
 
 	log.G(ctx).Info("Completed buildkit initialization")
+
+	closeFn = func() {
+		if err := bk.Close(); err != nil {
+			log.G(ctx).WithError(err).Error("Failed to close buildkit")
+		}
+	}
+
 	return builderOptions{
 		backend:        bb,
 		buildkit:       bk,
 		sessionManager: sm,
-	}, nil
+	}, closeFn, nil
 }
 
 type routerOptions struct {
