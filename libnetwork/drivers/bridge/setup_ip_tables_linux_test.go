@@ -441,14 +441,14 @@ func TestMirroredWSL2Workaround(t *testing.T) {
 			desc:             "WSL2 mirrored",
 			loopback0:        true,
 			userlandProxy:    true,
-			wslinfoPerm:      0777,
+			wslinfoPerm:      0o777,
 			expLoopback0Rule: true,
 		},
 		{
 			desc:          "loopback0 but wslinfo not executable",
 			loopback0:     true,
 			userlandProxy: true,
-			wslinfoPerm:   0666,
+			wslinfoPerm:   0o666,
 		},
 		{
 			desc:          "loopback0 but no wslinfo",
@@ -458,7 +458,7 @@ func TestMirroredWSL2Workaround(t *testing.T) {
 		{
 			desc:        "loopback0 but no userland proxy",
 			loopback0:   true,
-			wslinfoPerm: 0777,
+			wslinfoPerm: 0o777,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {

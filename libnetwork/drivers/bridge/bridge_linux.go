@@ -924,12 +924,14 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		{config.EnableIPv4 && bridgeAlreadyExists && !config.InhibitIPv4, setupVerifyAndReconcileIPv4},
 
 		// Enable IP Forwarding
-		{config.EnableIPv4 && d.config.EnableIPForwarding,
+		{
+			config.EnableIPv4 && d.config.EnableIPForwarding,
 			func(*networkConfiguration, *bridgeInterface) error {
 				return setupIPv4Forwarding(d.config.EnableIPTables && !d.config.DisableFilterForwardDrop)
 			},
 		},
-		{config.EnableIPv6 && d.config.EnableIPForwarding,
+		{
+			config.EnableIPv6 && d.config.EnableIPForwarding,
 			func(*networkConfiguration, *bridgeInterface) error {
 				return setupIPv6Forwarding(d.config.EnableIP6Tables && !d.config.DisableFilterForwardDrop)
 			},
