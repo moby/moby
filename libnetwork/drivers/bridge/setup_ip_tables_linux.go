@@ -166,14 +166,14 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 
 	if config.Internal {
 		if err = setupInternalNetworkRules(config.BridgeName, maskedAddr, config.EnableICC, true); err != nil {
-			return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
+			return fmt.Errorf("Failed to Setup IP tables: %w", err)
 		}
 		n.registerIptCleanFunc(func() error {
 			return setupInternalNetworkRules(config.BridgeName, maskedAddr, config.EnableICC, false)
 		})
 	} else {
 		if err = setupIPTablesInternal(ipVersion, config, maskedAddr, hairpinMode, true); err != nil {
-			return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
+			return fmt.Errorf("Failed to Setup IP tables: %w", err)
 		}
 		n.registerIptCleanFunc(func() error {
 			return setupIPTablesInternal(ipVersion, config, maskedAddr, hairpinMode, false)
@@ -181,17 +181,17 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 
 		natChain, filterChain, _, _, err := n.getDriverChains(ipVersion)
 		if err != nil {
-			return fmt.Errorf("Failed to setup IP tables, cannot acquire chain info %s", err.Error())
+			return fmt.Errorf("Failed to setup IP tables, cannot acquire chain info %w", err)
 		}
 
 		err = iptable.ProgramChain(natChain, config.BridgeName, hairpinMode, true)
 		if err != nil {
-			return fmt.Errorf("Failed to program NAT chain: %s", err.Error())
+			return fmt.Errorf("Failed to program NAT chain: %w", err)
 		}
 
 		err = iptable.ProgramChain(filterChain, config.BridgeName, hairpinMode, true)
 		if err != nil {
-			return fmt.Errorf("Failed to program FILTER chain: %s", err.Error())
+			return fmt.Errorf("Failed to program FILTER chain: %w", err)
 		}
 		n.registerIptCleanFunc(func() error {
 			return iptable.ProgramChain(filterChain, config.BridgeName, hairpinMode, false)
@@ -387,7 +387,7 @@ func programChainRule(rule iptRule, ruleDescr string, insert bool) error {
 		fn = rule.Insert
 	}
 	if err := fn(); err != nil {
-		return fmt.Errorf("Unable to %s %s rule: %s", operation, ruleDescr, err.Error())
+		return fmt.Errorf("Unable to %s %s rule: %w", operation, ruleDescr, err)
 	}
 	return nil
 }
@@ -400,7 +400,7 @@ func appendOrDelChainRule(rule iptRule, ruleDescr string, append bool) error {
 		fn = rule.Append
 	}
 	if err := fn(); err != nil {
-		return fmt.Errorf("Unable to %s %s rule: %s", operation, ruleDescr, err.Error())
+		return fmt.Errorf("Unable to %s %s rule: %w", operation, ruleDescr, err)
 	}
 	return nil
 }
@@ -413,12 +413,12 @@ func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, insert bo
 		if !iccEnable {
 			acceptRule.Delete()
 			if err := dropRule.Append(); err != nil {
-				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err.Error())
+				return fmt.Errorf("Unable to prevent intercontainer communication: %w", err)
 			}
 		} else {
 			dropRule.Delete()
 			if err := acceptRule.Insert(); err != nil {
-				return fmt.Errorf("Unable to allow intercontainer communication: %s", err.Error())
+				return fmt.Errorf("Unable to allow intercontainer communication: %w", err)
 			}
 		}
 	} else {
