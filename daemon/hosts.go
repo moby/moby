@@ -33,7 +33,7 @@ func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) 
 	})(host)
 	if err == nil {
 		// Merge in legacy configuration if provided
-		if cfg := daemon.Config(); len(cfg.Mirrors) > 0 || len(cfg.InsecureRegistries) > 0 {
+		if cfg := daemon.config().Config; len(cfg.Mirrors) > 0 || len(cfg.InsecureRegistries) > 0 {
 			hosts, err = daemon.mergeLegacyConfig(host, hosts)
 		}
 	}
