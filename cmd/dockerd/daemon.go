@@ -305,7 +305,8 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		return err
 	}
 
-	httpServer.Handler = apiServer.CreateMux(routerOpts.Build()...)
+	routers := buildRouters(routerOpts)
+	httpServer.Handler = apiServer.CreateMux(routers...)
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
 
@@ -689,7 +690,7 @@ func normalizeHosts(config *config.Config) error {
 	return nil
 }
 
-func (opts routerOptions) Build() []router.Router {
+func buildRouters(opts routerOptions) []router.Router {
 	decoder := runconfig.ContainerDecoder{
 		GetSysInfo: func() *sysinfo.SysInfo {
 			return opts.daemon.RawSysInfo()
