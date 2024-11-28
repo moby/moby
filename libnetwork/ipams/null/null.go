@@ -21,8 +21,10 @@ const (
 	defaultPoolID6      = defaultAddressSpace + "/" + defaultPoolCIDR6
 )
 
-var defaultPool4 = netip.MustParsePrefix(defaultPoolCIDR4)
-var defaultPool6 = netip.MustParsePrefix(defaultPoolCIDR6)
+var (
+	defaultPool4 = netip.MustParsePrefix(defaultPoolCIDR4)
+	defaultPool6 = netip.MustParsePrefix(defaultPoolCIDR6)
+)
 
 type allocator struct{}
 
