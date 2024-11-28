@@ -740,7 +740,7 @@ func Validate(config *Config) error {
 	}
 
 	// validate platform-specific settings
-	return config.ValidatePlatformConfig()
+	return validatePlatformConfig(config)
 }
 
 // MaskCredentials masks credentials that are in an URL.

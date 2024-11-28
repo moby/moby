@@ -129,30 +129,10 @@ func (conf *Config) IsSwarmCompatible() error {
 }
 
 // ValidatePlatformConfig checks if any platform-specific configuration settings are invalid.
+//
+// Deprecated: this function was only used internally and is no longer used. Use [Validate] instead.
 func (conf *Config) ValidatePlatformConfig() error {
-	if conf.EnableUserlandProxy {
-		if conf.UserlandProxyPath == "" {
-			return errors.New("invalid userland-proxy-path: userland-proxy is enabled, but userland-proxy-path is not set")
-		}
-		if !filepath.IsAbs(conf.UserlandProxyPath) {
-			return errors.New("invalid userland-proxy-path: must be an absolute path: " + conf.UserlandProxyPath)
-		}
-		// Using exec.LookPath here, because it also produces an error if the
-		// given path is not a valid executable or a directory.
-		if _, err := exec.LookPath(conf.UserlandProxyPath); err != nil {
-			return errors.Wrap(err, "invalid userland-proxy-path")
-		}
-	}
-
-	if err := verifyDefaultIpcMode(conf.IpcMode); err != nil {
-		return err
-	}
-
-	if err := bridge.ValidateFixedCIDRV6(conf.FixedCIDRv6); err != nil {
-		return errors.Wrap(err, "invalid fixed-cidr-v6")
-	}
-
-	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
+	return validatePlatformConfig(conf)
 }
 
 // IsRootless returns conf.Rootless on Linux but false on Windows
@@ -247,6 +227,33 @@ func lookupBinPath(binary string) (string, error) {
 
 	// if we checked all the "libexec" directories and found no matches, fall back to PATH
 	return exec.LookPath(binary)
+}
+
+// validatePlatformConfig checks if any platform-specific configuration settings are invalid.
+func validatePlatformConfig(conf *Config) error {
+	if conf.EnableUserlandProxy {
+		if conf.UserlandProxyPath == "" {
+			return errors.New("invalid userland-proxy-path: userland-proxy is enabled, but userland-proxy-path is not set")
+		}
+		if !filepath.IsAbs(conf.UserlandProxyPath) {
+			return errors.New("invalid userland-proxy-path: must be an absolute path: " + conf.UserlandProxyPath)
+		}
+		// Using exec.LookPath here, because it also produces an error if the
+		// given path is not a valid executable or a directory.
+		if _, err := exec.LookPath(conf.UserlandProxyPath); err != nil {
+			return errors.Wrap(err, "invalid userland-proxy-path")
+		}
+	}
+
+	if err := verifyDefaultIpcMode(conf.IpcMode); err != nil {
+		return err
+	}
+
+	if err := bridge.ValidateFixedCIDRV6(conf.FixedCIDRv6); err != nil {
+		return errors.Wrap(err, "invalid fixed-cidr-v6")
+	}
+
+	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
 }
 
 func verifyDefaultIpcMode(mode string) error {

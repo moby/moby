@@ -64,11 +64,10 @@ func (conf *Config) IsSwarmCompatible() error {
 }
 
 // ValidatePlatformConfig checks if any platform-specific configuration settings are invalid.
+//
+// Deprecated: this function was only used internally and is no longer used. Use [Validate] instead.
 func (conf *Config) ValidatePlatformConfig() error {
-	if conf.MTU != 0 && conf.MTU != DefaultNetworkMtu {
-		log.G(context.TODO()).Warn(`WARNING: MTU for the default network is not configurable on Windows, and this option will be ignored.`)
-	}
-	return nil
+	return validatePlatformConfig(conf)
 }
 
 // IsRootless returns conf.Rootless on Linux but false on Windows
@@ -80,5 +79,13 @@ func setPlatformDefaults(cfg *Config) error {
 	cfg.Root = filepath.Join(os.Getenv("programdata"), "docker")
 	cfg.ExecRoot = filepath.Join(os.Getenv("programdata"), "docker", "exec-root")
 	cfg.Pidfile = filepath.Join(cfg.Root, "docker.pid")
+	return nil
+}
+
+// validatePlatformConfig checks if any platform-specific configuration settings are invalid.
+func validatePlatformConfig(conf *Config) error {
+	if conf.MTU != 0 && conf.MTU != DefaultNetworkMtu {
+		log.G(context.TODO()).Warn(`WARNING: MTU for the default network is not configurable on Windows, and this option will be ignored.`)
+	}
 	return nil
 }
