@@ -231,20 +231,9 @@ func lookupBinPath(binary string) (string, error) {
 
 // validatePlatformConfig checks if any platform-specific configuration settings are invalid.
 func validatePlatformConfig(conf *Config) error {
-	if conf.EnableUserlandProxy {
-		if conf.UserlandProxyPath == "" {
-			return errors.New("invalid userland-proxy-path: userland-proxy is enabled, but userland-proxy-path is not set")
-		}
-		if !filepath.IsAbs(conf.UserlandProxyPath) {
-			return errors.New("invalid userland-proxy-path: must be an absolute path: " + conf.UserlandProxyPath)
-		}
-		// Using exec.LookPath here, because it also produces an error if the
-		// given path is not a valid executable or a directory.
-		if _, err := exec.LookPath(conf.UserlandProxyPath); err != nil {
-			return errors.Wrap(err, "invalid userland-proxy-path")
-		}
+	if err := verifyUserlandProxyConfig(conf); err != nil {
+		return err
 	}
-
 	if err := verifyDefaultIpcMode(conf.IpcMode); err != nil {
 		return err
 	}
@@ -254,6 +243,27 @@ func validatePlatformConfig(conf *Config) error {
 	}
 
 	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
+}
+
+// verifyUserlandProxyConfig verifies if a valid userland-proxy path
+// is configured if userland-proxy is enabled.
+func verifyUserlandProxyConfig(conf *Config) error {
+	if !conf.EnableUserlandProxy {
+		return nil
+	}
+	if conf.UserlandProxyPath == "" {
+		return errors.New("invalid userland-proxy-path: userland-proxy is enabled, but userland-proxy-path is not set")
+	}
+	if !filepath.IsAbs(conf.UserlandProxyPath) {
+		return errors.New("invalid userland-proxy-path: must be an absolute path: " + conf.UserlandProxyPath)
+	}
+	// Using exec.LookPath here, because it also produces an error if the
+	// given path is not a valid executable or a directory.
+	if _, err := exec.LookPath(conf.UserlandProxyPath); err != nil {
+		return errors.Wrap(err, "invalid userland-proxy-path")
+	}
+
+	return nil
 }
 
 func verifyDefaultIpcMode(mode string) error {
