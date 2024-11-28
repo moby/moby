@@ -38,7 +38,6 @@ import (
 	lntypes "github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
@@ -584,11 +583,10 @@ func cgroupDriver(cfg *config.Config) string {
 // getCD gets the raw value of the native.cgroupdriver option, if set.
 func getCD(config *config.Config) string {
 	for _, option := range config.ExecOptions {
-		key, val, err := parsers.ParseKeyValueOpt(option)
-		if err != nil || !strings.EqualFold(key, "native.cgroupdriver") {
-			continue
+		key, val, ok := strings.Cut(option, "=")
+		if ok && strings.EqualFold(strings.TrimSpace(key), "native.cgroupdriver") {
+			return strings.TrimSpace(val)
 		}
-		return val
 	}
 	return ""
 }
