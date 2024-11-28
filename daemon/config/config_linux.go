@@ -109,42 +109,6 @@ func (conf *Config) GetInitPath() string {
 	return DefaultInitBinary
 }
 
-// lookupBinPath returns an absolute path to the provided binary by searching relevant "libexec" locations (per FHS 3.0 & 2.3) followed by PATH
-func lookupBinPath(binary string) (string, error) {
-	if filepath.IsAbs(binary) {
-		return binary, nil
-	}
-
-	lookupPaths := []string{
-		// FHS 3.0: "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
-		// https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch04s07.html
-		"/usr/local/libexec/docker",
-		"/usr/libexec/docker",
-
-		// FHS 2.3: "/usr/lib includes object files, libraries, and internal binaries that are not intended to be executed directly by users or shell scripts."
-		// https://refspecs.linuxfoundation.org/FHS_2.3/fhs-2.3.html#USRLIBLIBRARIESFORPROGRAMMINGANDPA
-		"/usr/local/lib/docker",
-		"/usr/lib/docker",
-	}
-
-	// According to FHS 3.0, it is not necessary to have a subdir here (see note and reference above).
-	// If the binary has a `docker-` prefix, let's look it up without the dir prefix.
-	if strings.HasPrefix(binary, "docker-") {
-		lookupPaths = append(lookupPaths, "/usr/local/libexec")
-		lookupPaths = append(lookupPaths, "/usr/libexec")
-	}
-
-	for _, dir := range lookupPaths {
-		// exec.LookPath has a fast-path short-circuit for paths that contain "/" (skipping the PATH lookup) that then verifies whether the given path is likely to be an actual executable binary (so we invoke that instead of reimplementing the same checks)
-		if file, err := exec.LookPath(filepath.Join(dir, binary)); err == nil {
-			return file, nil
-		}
-	}
-
-	// if we checked all the "libexec" directories and found no matches, fall back to PATH
-	return exec.LookPath(binary)
-}
-
 // LookupInitPath returns an absolute path to the "docker-init" binary by searching relevant "libexec" directories (per FHS 3.0 & 2.3) followed by PATH
 func (conf *Config) LookupInitPath() (string, error) {
 	return lookupBinPath(conf.GetInitPath())
@@ -164,53 +128,11 @@ func (conf *Config) IsSwarmCompatible() error {
 	return nil
 }
 
-func verifyDefaultIpcMode(mode string) error {
-	const hint = `use "shareable" or "private"`
-
-	dm := container.IpcMode(mode)
-	if !dm.Valid() {
-		return fmt.Errorf("default IPC mode setting (%v) is invalid; "+hint, dm)
-	}
-	if dm != "" && !dm.IsPrivate() && !dm.IsShareable() {
-		return fmt.Errorf(`IPC mode "%v" is not supported as default value; `+hint, dm)
-	}
-	return nil
-}
-
-func verifyDefaultCgroupNsMode(mode string) error {
-	cm := container.CgroupnsMode(mode)
-	if !cm.Valid() {
-		return fmt.Errorf(`default cgroup namespace mode (%v) is invalid; use "host" or "private"`, cm)
-	}
-
-	return nil
-}
-
 // ValidatePlatformConfig checks if any platform-specific configuration settings are invalid.
+//
+// Deprecated: this function was only used internally and is no longer used. Use [Validate] instead.
 func (conf *Config) ValidatePlatformConfig() error {
-	if conf.EnableUserlandProxy {
-		if conf.UserlandProxyPath == "" {
-			return errors.New("invalid userland-proxy-path: userland-proxy is enabled, but userland-proxy-path is not set")
-		}
-		if !filepath.IsAbs(conf.UserlandProxyPath) {
-			return errors.New("invalid userland-proxy-path: must be an absolute path: " + conf.UserlandProxyPath)
-		}
-		// Using exec.LookPath here, because it also produces an error if the
-		// given path is not a valid executable or a directory.
-		if _, err := exec.LookPath(conf.UserlandProxyPath); err != nil {
-			return errors.Wrap(err, "invalid userland-proxy-path")
-		}
-	}
-
-	if err := verifyDefaultIpcMode(conf.IpcMode); err != nil {
-		return err
-	}
-
-	if err := bridge.ValidateFixedCIDRV6(conf.FixedCIDRv6); err != nil {
-		return errors.Wrap(err, "invalid fixed-cidr-v6")
-	}
-
-	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
+	return validatePlatformConfig(conf)
 }
 
 // IsRootless returns conf.Rootless on Linux but false on Windows
@@ -266,6 +188,101 @@ func setPlatformDefaults(cfg *Config) error {
 		cfg.Root = "/var/lib/docker"
 		cfg.ExecRoot = "/var/run/docker"
 		cfg.Pidfile = "/var/run/docker.pid"
+	}
+
+	return nil
+}
+
+// lookupBinPath returns an absolute path to the provided binary by searching relevant "libexec" locations (per FHS 3.0 & 2.3) followed by PATH
+func lookupBinPath(binary string) (string, error) {
+	if filepath.IsAbs(binary) {
+		return binary, nil
+	}
+
+	lookupPaths := []string{
+		// FHS 3.0: "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
+		// https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch04s07.html
+		"/usr/local/libexec/docker",
+		"/usr/libexec/docker",
+
+		// FHS 2.3: "/usr/lib includes object files, libraries, and internal binaries that are not intended to be executed directly by users or shell scripts."
+		// https://refspecs.linuxfoundation.org/FHS_2.3/fhs-2.3.html#USRLIBLIBRARIESFORPROGRAMMINGANDPA
+		"/usr/local/lib/docker",
+		"/usr/lib/docker",
+	}
+
+	// According to FHS 3.0, it is not necessary to have a subdir here (see note and reference above).
+	// If the binary has a `docker-` prefix, let's look it up without the dir prefix.
+	if strings.HasPrefix(binary, "docker-") {
+		lookupPaths = append(lookupPaths, "/usr/local/libexec")
+		lookupPaths = append(lookupPaths, "/usr/libexec")
+	}
+
+	for _, dir := range lookupPaths {
+		// exec.LookPath has a fast-path short-circuit for paths that contain "/" (skipping the PATH lookup) that then verifies whether the given path is likely to be an actual executable binary (so we invoke that instead of reimplementing the same checks)
+		if file, err := exec.LookPath(filepath.Join(dir, binary)); err == nil {
+			return file, nil
+		}
+	}
+
+	// if we checked all the "libexec" directories and found no matches, fall back to PATH
+	return exec.LookPath(binary)
+}
+
+// validatePlatformConfig checks if any platform-specific configuration settings are invalid.
+func validatePlatformConfig(conf *Config) error {
+	if err := verifyUserlandProxyConfig(conf); err != nil {
+		return err
+	}
+	if err := verifyDefaultIpcMode(conf.IpcMode); err != nil {
+		return err
+	}
+
+	if err := bridge.ValidateFixedCIDRV6(conf.FixedCIDRv6); err != nil {
+		return errors.Wrap(err, "invalid fixed-cidr-v6")
+	}
+
+	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
+}
+
+// verifyUserlandProxyConfig verifies if a valid userland-proxy path
+// is configured if userland-proxy is enabled.
+func verifyUserlandProxyConfig(conf *Config) error {
+	if !conf.EnableUserlandProxy {
+		return nil
+	}
+	if conf.UserlandProxyPath == "" {
+		return errors.New("invalid userland-proxy-path: userland-proxy is enabled, but userland-proxy-path is not set")
+	}
+	if !filepath.IsAbs(conf.UserlandProxyPath) {
+		return errors.New("invalid userland-proxy-path: must be an absolute path: " + conf.UserlandProxyPath)
+	}
+	// Using exec.LookPath here, because it also produces an error if the
+	// given path is not a valid executable or a directory.
+	if _, err := exec.LookPath(conf.UserlandProxyPath); err != nil {
+		return errors.Wrap(err, "invalid userland-proxy-path")
+	}
+
+	return nil
+}
+
+func verifyDefaultIpcMode(mode string) error {
+	const hint = `use "shareable" or "private"`
+
+	dm := container.IpcMode(mode)
+	if !dm.Valid() {
+		return fmt.Errorf("default IPC mode setting (%v) is invalid; "+hint, dm)
+	}
+	if dm != "" && !dm.IsPrivate() && !dm.IsShareable() {
+		return fmt.Errorf(`IPC mode "%v" is not supported as default value; `+hint, dm)
+	}
+	return nil
+}
+
+func verifyDefaultCgroupNsMode(mode string) error {
+	cm := container.CgroupnsMode(mode)
+	if !cm.Valid() {
+		return fmt.Errorf(`invalid default cgroup namespace (%v): use "host" or "private"`, cm)
 	}
 
 	return nil
