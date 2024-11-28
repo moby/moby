@@ -940,12 +940,15 @@ type defBrOptsV4 struct {
 func (o defBrOptsV4) nlFamily() int {
 	return netlink.FAMILY_V4
 }
+
 func (o defBrOptsV4) fixedCIDR() (fCIDR, optName string) {
 	return o.cfg.FixedCIDR, "fixed-cidr"
 }
+
 func (o defBrOptsV4) bip() (bip, optName string) {
 	return o.cfg.IP, "bip"
 }
+
 func (o defBrOptsV4) defGw() (gw net.IP, optName, auxAddrLabel string) {
 	return o.cfg.DefaultGatewayIPv4, "default-gateway", "DefaultGatewayIPv4"
 }
@@ -957,12 +960,15 @@ type defBrOptsV6 struct {
 func (o defBrOptsV6) nlFamily() int {
 	return netlink.FAMILY_V6
 }
+
 func (o defBrOptsV6) fixedCIDR() (fCIDR, optName string) {
 	return o.cfg.FixedCIDRv6, "fixed-cidr-v6"
 }
+
 func (o defBrOptsV6) bip() (bip, optName string) {
 	return o.cfg.IP6, "bip6"
 }
+
 func (o defBrOptsV6) defGw() (gw net.IP, optName, auxAddrLabel string) {
 	return o.cfg.DefaultGatewayIPv6, "default-gateway-v6", "DefaultGatewayIPv6"
 }
