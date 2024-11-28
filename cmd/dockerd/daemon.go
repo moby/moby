@@ -412,7 +412,7 @@ type routerOptions struct {
 	cluster        *cluster.Cluster
 }
 
-func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daemon, c *cluster.Cluster) (routerOptions, error) {
+func newRouterOptions(ctx context.Context, cfg *config.Config, d *daemon.Daemon, c *cluster.Cluster) (routerOptions, error) {
 	sm, err := session.NewManager()
 	if err != nil {
 		return routerOptions{}, errors.Wrap(err, "failed to create sessionmanager")
@@ -422,26 +422,25 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 	if err != nil {
 		return routerOptions{}, err
 	}
-	cgroupParent := newCgroupParent(config)
 
 	bk, err := buildkit.New(ctx, buildkit.Opt{
 		SessionManager:      sm,
-		Root:                filepath.Join(config.Root, "buildkit"),
+		Root:                filepath.Join(cfg.Root, "buildkit"),
 		EngineID:            d.ID(),
 		Dist:                d.DistributionServices(),
 		ImageTagger:         d.ImageService(),
 		NetworkController:   d.NetworkController(),
-		DefaultCgroupParent: cgroupParent,
+		DefaultCgroupParent: newCgroupParent(cfg),
 		RegistryHosts:       d.RegistryHosts,
-		BuilderConfig:       config.Builder,
-		Rootless:            daemon.Rootless(config),
+		BuilderConfig:       cfg.Builder,
+		Rootless:            daemon.Rootless(cfg),
 		IdentityMapping:     d.IdentityMapping(),
-		DNSConfig:           config.DNSConfig,
+		DNSConfig:           cfg.DNSConfig,
 		ApparmorProfile:     daemon.DefaultApparmorProfile(),
 		UseSnapshotter:      d.UsesSnapshotter(),
 		Snapshotter:         d.ImageService().StorageDriver(),
-		ContainerdAddress:   config.ContainerdAddr,
-		ContainerdNamespace: config.ContainerdNamespace,
+		ContainerdAddress:   cfg.ContainerdAddr,
+		ContainerdNamespace: cfg.ContainerdNamespace,
 		Callbacks: exporter.BuildkitCallbacks{
 			Exported: d.ImageExportedByBuildkit,
 			Named:    d.ImageNamedByBuildkit,
