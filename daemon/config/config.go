@@ -343,6 +343,17 @@ func New() (*Config, error) {
 	return cfg, nil
 }
 
+// GetExecOpt looks up a user-configured exec-opt. It returns a boolean
+// if found, and an error if the configuration has invalid options set.
+func (conf *Config) GetExecOpt(name string) (val string, found bool, _ error) {
+	o, err := parseExecOptions(conf.ExecOptions)
+	if err != nil {
+		return "", false, err
+	}
+	val, found = o[name]
+	return val, found, nil
+}
+
 // GetConflictFreeLabels validates Labels for conflict
 // In swarm the duplicates for labels are removed
 // so we only take same values here, no conflict values
@@ -739,8 +750,34 @@ func Validate(config *Config) error {
 		return errors.New(`DEPRECATED: The "api-cors-header" config parameter and the dockerd "--api-cors-header" option have been removed; use a reverse proxy if you need CORS headers`)
 	}
 
+	if _, err := parseExecOptions(config.ExecOptions); err != nil {
+		return err
+	}
+
 	// validate platform-specific settings
 	return validatePlatformConfig(config)
+}
+
+// parseExecOptions parses the given exec-options into a map. It returns an
+// error if the exec-options are formatted incorrectly, or when options are
+// used that are not supported on this platform.
+//
+// TODO(thaJeztah): consider making this more strict: make options case-sensitive and disallow whitespace around "=".
+func parseExecOptions(execOptions []string) (map[string]string, error) {
+	o := make(map[string]string)
+	for _, keyValue := range execOptions {
+		k, v, ok := strings.Cut(keyValue, "=")
+		k = strings.ToLower(strings.TrimSpace(k))
+		v = strings.TrimSpace(v)
+		if !ok || k == "" || v == "" {
+			return nil, fmt.Errorf("invalid exec-opt (%s): must be formatted 'opt=value'", keyValue)
+		}
+		if err := validatePlatformExecOpt(k, v); err != nil {
+			return nil, fmt.Errorf("invalid exec-opt (%s): %w", keyValue, err)
+		}
+		o[k] = v
+	}
+	return o, nil
 }
 
 // MaskCredentials masks credentials that are in an URL.

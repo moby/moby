@@ -585,32 +585,25 @@ func cgroupDriver(cfg *config.Config) string {
 	return cgroupFsDriver
 }
 
-// getCD gets the raw value of the native.cgroupdriver option, if set.
-func getCD(config *config.Config) string {
-	for _, option := range config.ExecOptions {
-		key, val, ok := strings.Cut(option, "=")
-		if ok && strings.EqualFold(strings.TrimSpace(key), "native.cgroupdriver") {
-			return strings.TrimSpace(val)
-		}
-	}
-	return ""
-}
-
 // verifyCgroupDriver validates native.cgroupdriver
 func verifyCgroupDriver(config *config.Config) error {
-	cd := getCD(config)
-	if cd == "" || cd == cgroupFsDriver || cd == cgroupSystemdDriver {
+	cd, _, err := config.GetExecOpt("native.cgroupdriver")
+	if err != nil {
+		return err
+	}
+	switch cd {
+	case "", cgroupFsDriver, cgroupSystemdDriver:
 		return nil
-	}
-	if cd == cgroupNoneDriver {
+	case cgroupNoneDriver:
 		return fmt.Errorf("native.cgroupdriver option %s is internally used and cannot be specified manually", cd)
+	default:
+		return fmt.Errorf("native.cgroupdriver option %s not supported", cd)
 	}
-	return fmt.Errorf("native.cgroupdriver option %s not supported", cd)
 }
 
 // UsingSystemd returns true if cli option includes native.cgroupdriver=systemd
 func UsingSystemd(config *config.Config) bool {
-	cd := getCD(config)
+	cd, _, _ := config.GetExecOpt("native.cgroupdriver")
 
 	if cd == cgroupSystemdDriver {
 		return true
