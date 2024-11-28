@@ -28,7 +28,7 @@ env:
   DOCKER_EXPERIMENTAL: 1
   DOCKER_GRAPHDRIVER: ${{ inputs.storage == 'snapshotter' && 'overlayfs' || 'overlay2' }}
   TEST_INTEGRATION_USE_SNAPSHOTTER: ${{ inputs.storage == 'snapshotter' && '1' || '' }}
-  SETUP_BUILDX_VERSION: latest
+  SETUP_BUILDX_VERSION: edge
   SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
 
 jobs:

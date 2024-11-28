@@ -31,7 +31,7 @@ env:
   PLATFORM: Moby Engine - Nightly
   PRODUCT: moby-bin
   PACKAGER_NAME: The Moby Project
-  SETUP_BUILDX_VERSION: latest
+  SETUP_BUILDX_VERSION: edge
   SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
 
 jobs:

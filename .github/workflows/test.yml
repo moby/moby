@@ -25,7 +25,7 @@ env:
   GO_VERSION: "1.23.3"
   GIT_PAGER: "cat"
   PAGER: "cat"
-  SETUP_BUILDX_VERSION: latest
+  SETUP_BUILDX_VERSION: edge
   SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
 
 jobs:
