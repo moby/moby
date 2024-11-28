@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
+	"strconv"
 	"time"
 
 	"github.com/containerd/log"
@@ -32,20 +34,50 @@ func (s *systemRouter) pingHandler(ctx context.Context, w http.ResponseWriter, r
 	w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Add("Pragma", "no-cache")
 
-	builderVersion := build.BuilderVersion(s.features())
+	features := s.features()
+	builderVersion := build.BuilderVersion(features)
 	if bv := builderVersion; bv != "" {
 		w.Header().Set("Builder-Version", string(bv))
 	}
 
 	w.Header().Set("Swarm", s.swarmStatus())
 
+	engineFeaturesHeader, err := buildEngineFeaturesHeader(features)
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Engine-Features", engineFeaturesHeader)
+
 	if r.Method == http.MethodHead {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Content-Length", "0")
 		return nil
 	}
-	_, err := w.Write([]byte{'O', 'K'})
+	_, err = w.Write([]byte{'O', 'K'})
 	return err
+}
+
+func buildEngineFeaturesHeader(features map[string]bool) (string, error) {
+	featuresLen := len(features)
+	keys := make([]string, 0, featuresLen)
+	for k := range features {
+		keys = append(keys, k)
+	}
+
+	// Sorting is not strictly necessary, but makes looking at logs/testing easier
+	// and does not carry a significant performance impact since we're dealing with
+	// a relatively small number of elements.
+	sort.Strings(keys)
+
+	var engineFeaturesHeader string
+	for i, k := range keys {
+		engineFeaturesHeader += k + "=" + strconv.FormatBool(features[k])
+		if i < featuresLen-1 {
+			engineFeaturesHeader += ","
+		}
+	}
+
+	return engineFeaturesHeader, nil
 }
 
 func (s *systemRouter) swarmStatus() string {

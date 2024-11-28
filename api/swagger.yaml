@@ -9632,6 +9632,15 @@ paths:
                 This value is a recommendation as advertised by the daemon, and
                 it is up to the client to choose which builder to use.
               default: "2"
+            Engine-Features:
+              type: "string"
+              description: |
+                List of engine features and whether they are enabled or not, containing
+                elements of the `features` field of the daemon's configuration file, as
+                well as features enabled via command line arguments when starting the daemon.
+
+                Represented as a comma separated (,) list of key-value pairs (`some-feature=true|false`),
+                e.g. `containerd-snapshotter=true,other-feature=false`.
             Docker-Experimental:
               type: "boolean"
               description: "If the server is running with experimental mode enabled"
