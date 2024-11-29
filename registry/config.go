@@ -58,9 +58,6 @@ var (
 	emptyServiceConfig, _ = newServiceConfig(ServiceOptions{})
 	validHostPortRegex    = regexp.MustCompile(`^` + reference.DomainRegexp.String() + `$`)
 
-	// for mocking in unit tests
-	lookupIP = net.LookupIP
-
 	// certsDir is used to override defaultCertsDir.
 	certsDir string
 )
@@ -284,6 +281,9 @@ func (config *serviceConfig) isSecureIndex(indexName string) bool {
 
 	return !isCIDRMatch(config.InsecureRegistryCIDRs, indexName)
 }
+
+// for mocking in unit tests.
+var lookupIP = net.LookupIP
 
 // isCIDRMatch returns true if URLHost matches an element of cidrs. URLHost is a URL.Host (`host:port` or `host`)
 // where the `host` part can be either a domain name or an IP address. If it is a domain name, then it will be
