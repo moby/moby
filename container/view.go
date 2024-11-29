@@ -377,6 +377,7 @@ func (v *View) transform(ctr *Container) *Snapshot {
 				GlobalIPv6PrefixLen: netw.GlobalIPv6PrefixLen,
 				MacAddress:          netw.MacAddress,
 				NetworkID:           netw.NetworkID,
+				GwPriority:          netw.GwPriority,
 			}
 			if netw.IPAMConfig != nil {
 				networks[name].IPAMConfig = &network.EndpointIPAMConfig{

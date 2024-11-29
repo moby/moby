@@ -19,6 +19,7 @@ type EndpointSettings struct {
 	// generated address).
 	MacAddress string
 	DriverOpts map[string]string
+	GwPriority int
 	// Operational data
 	NetworkID           string
 	EndpointID          string
