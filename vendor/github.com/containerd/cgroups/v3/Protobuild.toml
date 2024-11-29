@@ -13,7 +13,7 @@ generators = ["go"]
   # This is the default.
   after = ["/usr/local/include", "/usr/include"]
 
-# Aggregrate the API descriptors to lock down API changes.
+# Aggregate the API descriptors to lock down API changes.
 [[descriptors]]
 prefix = "github.com/containerd/cgroups/cgroup1/stats"
 target = "cgroup1/stats/metrics.pb.txt"

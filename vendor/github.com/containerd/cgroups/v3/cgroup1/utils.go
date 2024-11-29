@@ -28,6 +28,7 @@ import (
 
 	"github.com/containerd/cgroups/v3"
 	units "github.com/docker/go-units"
+	"github.com/moby/sys/userns"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -53,7 +54,7 @@ func defaults(root string) ([]Subsystem, error) {
 	}
 	// only add the devices cgroup if we are not in a user namespace
 	// because modifications are not allowed
-	if !cgroups.RunningInUserNS() {
+	if !userns.RunningInUserNS() {
 		s = append(s, NewDevices(root))
 	}
 	// add the hugetlb cgroup if error wasn't due to missing hugetlb
@@ -196,7 +197,7 @@ func parseKV(raw string) (string, uint64, error) {
 // The resulting map does not have an element for cgroup v2 unified hierarchy.
 // Use [cgroups.ParseCgroupFileUnified] to get the unified path.
 func ParseCgroupFile(path string) (map[string]string, error) {
-	x, _, err := ParseCgroupFileUnified(path)
+	x, _, err := cgroups.ParseCgroupFileUnified(path)
 	return x, err
 }
 
@@ -236,9 +237,9 @@ func getCgroupDestination(subsystem string) (string, error) {
 	return "", ErrNoCgroupMountDestination
 }
 
-func pathers(subystems []Subsystem) []pather {
+func pathers(subsystems []Subsystem) []pather {
 	var out []pather
-	for _, s := range subystems {
+	for _, s := range subsystems {
 		if p, ok := s.(pather); ok {
 			out = append(out, p)
 		}

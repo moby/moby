@@ -196,7 +196,7 @@ func (c *cgroup) AddTask(process Process, subsystems ...Name) error {
 	return c.add(process, cgroupTasks, subsystems...)
 }
 
-// writeCgroupsProcs writes to the file, but retries on EINVAL.
+// writeCgroupProcs writes to the file, but retries on EINVAL.
 func writeCgroupProcs(path string, content []byte, perm fs.FileMode) error {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, perm)
 	if err != nil {
