@@ -295,24 +295,24 @@ func isCIDRMatch(cidrs []*registry.NetIPNet, URLHost string) bool {
 
 	host, _, err := net.SplitHostPort(URLHost)
 	if err != nil {
-		// Assume URLHost is of the form `host` without the port and go on.
+		// Assume URLHost is a host without port and go on.
 		host = URLHost
 	}
 
-	addrs, err := lookupIP(host)
-	if err != nil {
-		ip := net.ParseIP(host)
-		if ip != nil {
-			addrs = []net.IP{ip}
+	var addresses []net.IP
+	if ip := net.ParseIP(host); ip != nil {
+		// Host is an IP-address.
+		addresses = append(addresses, ip)
+	} else {
+		// Try to resolve the host's IP-address.
+		addresses, err = lookupIP(host)
+		if err != nil {
+			// We failed to resolve the host; assume there's no match.
+			return false
 		}
-
-		// if ip == nil, then `host` is neither an IP nor it could be looked up,
-		// either because the index is unreachable, or because the index is behind an HTTP proxy.
-		// So, len(addrs) == 0 and we're not aborting.
 	}
 
-	// Try CIDR notation only if addrs has any elements, i.e. if `host`'s IP could be determined.
-	for _, addr := range addrs {
+	for _, addr := range addresses {
 		for _, ipnet := range cidrs {
 			// check if the addr falls in the subnet
 			if (*net.IPNet)(ipnet).Contains(addr) {

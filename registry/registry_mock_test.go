@@ -35,25 +35,14 @@ func init() {
 
 	// override net.LookupIP
 	lookupIP = func(host string) ([]net.IP, error) {
-		if host == "127.0.0.1" {
-			// I believe in future Go versions this will fail, so let's fix it later
-			return net.LookupIP(host)
-		}
 		mockHosts := map[string][]net.IP{
 			"":            {net.ParseIP("0.0.0.0")},
 			"localhost":   {net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
 			"example.com": {net.ParseIP("42.42.42.42")},
 			"other.com":   {net.ParseIP("43.43.43.43")},
 		}
-		for h, addrs := range mockHosts {
-			if host == h {
-				return addrs, nil
-			}
-			for _, addr := range addrs {
-				if addr.String() == host {
-					return []net.IP{addr}, nil
-				}
-			}
+		if addrs, ok := mockHosts[host]; ok {
+			return addrs, nil
 		}
 		return nil, errors.New("lookup: no such host")
 	}
