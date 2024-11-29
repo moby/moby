@@ -36,6 +36,7 @@ dockerd - Enable daemon mode
 [**--fixed-cidr-v6**[=*FIXED-CIDR-V6*]]
 [**-G**|**--group**[=*docker*]]
 [**-H**|**--host**[=*[]*]]
+[**--host-gateway-ip**[=*HOST-GATEWAY-IP*]]
 [**--help**]
 [**--http-proxy**[*""*]]
 [**--https-proxy**[*""*]]
@@ -248,6 +249,11 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 unix://[/path/to/socket] to use.
   The socket(s) to bind to in daemon mode specified using one or more
   tcp://host:port, unix:///path/to/socket, fd://\* or fd://socketfd.
+
+**--host-gateway-ip**=[*2001:db8::1234*]
+  Supply host addresses to substitute for the special string host-gateway in
+  --add-host options. Addresses from the docker0 bridge are used by default.
+  Two of these options are allowed, one IPv4 and one IPv6 address.
 
 **--help**
   Print usage statement
