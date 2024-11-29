@@ -1,13 +1,14 @@
-## Container on a user-defined network, with a published port
+## Container on a nat-unprotected network, with a published port
 
-Adding a network running a container with a mapped port, equivalent to:
+Running the daemon with the userland proxy disable then, as before, adding a network running a container with a mapped port, equivalent to:
 
 	docker network create \
 	  -o com.docker.network.bridge.name=bridge1 \
+	  -o com.docker.network.bridge.gateway_mode_ipv4=nat-unprotected \
 	  --subnet 192.0.2.0/24 --gateway 192.0.2.1 bridge1
 	docker run --network bridge1 -p 8080:80 --name c1 busybox
 
-The filter table is updated as follows:
+The filter table is:
 
     Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -28,9 +29,8 @@ The filter table is updated as follows:
     
     Chain DOCKER (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
-    2        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
-    3        0     0 DROP       0    --  !bridge1 bridge1  0.0.0.0/0            0.0.0.0/0           
+    1        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
+    2        0     0 ACCEPT     0    --  !bridge1 bridge1  0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-ISOLATION-STAGE-1 (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -65,9 +65,8 @@ The filter table is updated as follows:
     -A FORWARD -i bridge1 -o bridge1 -j ACCEPT
     -A FORWARD -i docker0 ! -o docker0 -j ACCEPT
     -A FORWARD -i docker0 -o docker0 -j ACCEPT
-    -A DOCKER -d 192.0.2.2/32 ! -i bridge1 -o bridge1 -p tcp -m tcp --dport 80 -j ACCEPT
     -A DOCKER ! -i docker0 -o docker0 -j DROP
-    -A DOCKER ! -i bridge1 -o bridge1 -j DROP
+    -A DOCKER ! -i bridge1 -o bridge1 -j ACCEPT
     -A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
     -A DOCKER-ISOLATION-STAGE-1 -i bridge1 ! -o bridge1 -j DOCKER-ISOLATION-STAGE-2
     -A DOCKER-ISOLATION-STAGE-2 -o bridge1 -j DROP
@@ -77,28 +76,23 @@ The filter table is updated as follows:
 
 </details>
 
-Note that:
+Differences from [nat mode][400]:
 
- - In the FORWARD chain, rules 5-6 for the new network have been inserted at
-   the top of the chain, pushing the equivalent docker0 rules down to positions
-   7-8. (Rules 5-6 were inserted at the top of the chain, then rules 1-4 were
-   shuffled back to the top by deleting/recreating, as described above.)
- - In the DOCKER-ISOLATION chains, rules equivalent to the docker0 rules have
-   also been inserted for the new bridge.
- - In the DOCKER chain, there is an ACCEPT rule for TCP port 80 packets routed
-   to the container's address. This rule is added when the container is created
-   (unlike all the other rules so-far, which were created during driver or
-   network initialisation). [setPerPortForwarding][1]
-   - These per-port rules are inserted at the head of the chain, so that they
-     appear before the network's DROP rule [setDefaultForwardRule][2] which is
-     always appended to the end of the chain. In this case, because `docker0` was
-     created before `bridge1`, the `bridge1` rules appear above and below the
-     `docker0` DROP rule.
+  - In the DOCKER chain:
+    - Where `nat` mode appended a default-DROP rule for any packets not accepted
+      by the per-port/protocol rules, `nat-unprotected` appends a default-ACCEPT
+      rule. [setDefaultForwardRule][402]
+      - The ACCEPT rule is needed in case the filter-FORWARD chain's default
+         policy is DROP.
+    - Because the default for this network is ACCEPT, there is no per-port/protocol
+      rule to ACCEPT packets for the published port `80/tcp`, [setPerPortIptables][401]
+      doesn't set it up.
+      - _If the userland proxy is enabled, it is still started._
 
-[1]: https://github.com/moby/moby/blob/675c2ac2db93e38bb9c5a6615d4155a969535fd9/libnetwork/drivers/bridge/port_mapping_linux.go#L795
-[2]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L252
+The nat table is identical to [nat mode][400].
 
-And the corresponding nat table:
+<details>
+<summary>nat table</summary>
 
     Chain PREROUTING (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -123,9 +117,6 @@ And the corresponding nat table:
     3        0     0 DNAT       6    --  !bridge1 *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8080 to:192.0.2.2:80
     
 
-<details>
-<summary>iptables commands</summary>
-
     -P PREROUTING ACCEPT
     -P INPUT ACCEPT
     -P OUTPUT ACCEPT
@@ -141,3 +132,7 @@ And the corresponding nat table:
     
 
 </details>
+
+[400]: usernet-portmap.md
+[401]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/port_mapping_linux.go#L747
+[402]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L261-L266

@@ -166,14 +166,14 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 
 	if config.Internal {
 		if err = setupInternalNetworkRules(config.BridgeName, maskedAddr, config.EnableICC, true); err != nil {
-			return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
+			return fmt.Errorf("Failed to Setup IP tables: %w", err)
 		}
 		n.registerIptCleanFunc(func() error {
 			return setupInternalNetworkRules(config.BridgeName, maskedAddr, config.EnableICC, false)
 		})
 	} else {
 		if err = setupIPTablesInternal(ipVersion, config, maskedAddr, hairpinMode, true); err != nil {
-			return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
+			return fmt.Errorf("Failed to Setup IP tables: %w", err)
 		}
 		n.registerIptCleanFunc(func() error {
 			return setupIPTablesInternal(ipVersion, config, maskedAddr, hairpinMode, false)
@@ -181,28 +181,25 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 
 		natChain, filterChain, _, _, err := n.getDriverChains(ipVersion)
 		if err != nil {
-			return fmt.Errorf("Failed to setup IP tables, cannot acquire chain info %s", err.Error())
+			return fmt.Errorf("Failed to setup IP tables, cannot acquire chain info %w", err)
 		}
 
 		err = iptable.ProgramChain(natChain, config.BridgeName, hairpinMode, true)
 		if err != nil {
-			return fmt.Errorf("Failed to program NAT chain: %s", err.Error())
+			return fmt.Errorf("Failed to program NAT chain: %w", err)
 		}
 
 		err = iptable.ProgramChain(filterChain, config.BridgeName, hairpinMode, true)
 		if err != nil {
-			return fmt.Errorf("Failed to program FILTER chain: %s", err.Error())
+			return fmt.Errorf("Failed to program FILTER chain: %w", err)
 		}
 		n.registerIptCleanFunc(func() error {
 			return iptable.ProgramChain(filterChain, config.BridgeName, hairpinMode, false)
 		})
 
-		if err := defaultDrop(ipVersion, config.BridgeName, true); err != nil {
-			return fmt.Errorf("failed to add default-drop rule: %s", err.Error())
+		if err := n.setDefaultForwardRule(ipVersion, config.BridgeName); err != nil {
+			return err
 		}
-		n.registerIptCleanFunc(func() error {
-			return defaultDrop(ipVersion, config.BridgeName, false)
-		})
 
 		cidr, _ := maskedAddr.Mask.Size()
 		if cidr == 0 {
@@ -252,15 +249,37 @@ func setICMP(ipv iptables.IPVersion, bridgeName string, enable bool) error {
 	return appendOrDelChainRule(icmpRule, "ICMP", enable)
 }
 
-// Append to the filter table's DOCKER chain (the default DROP rule must follow
-// per-port ACCEPT rules, which will be inserted at the top of the chain).
-func defaultDrop(ipv iptables.IPVersion, bridgeName string, enable bool) error {
-	dropRule := iptRule{ipv: ipv, table: iptables.Filter, chain: DockerChain, args: []string{
+func (n *bridgeNetwork) setDefaultForwardRule(
+	ipVersion iptables.IPVersion,
+	bridgeName string,
+) error {
+	// Normally, DROP anything that hasn't been ACCEPTed by a per-port/protocol
+	// rule. This prevents direct access to un-mapped ports from remote hosts
+	// that can route directly to the container's address (by setting up a
+	// route via the host's address).
+	action := "DROP"
+	if n.gwMode(ipVersion).unprotected() {
+		// If the user really wants to allow all access from the wider network,
+		// explicitly ACCEPT anything so that the filter-FORWARD chain's
+		// default policy can't interfere.
+		action = "ACCEPT"
+	}
+
+	rule := iptRule{ipv: ipVersion, table: iptables.Filter, chain: DockerChain, args: []string{
 		"!", "-i", bridgeName,
 		"-o", bridgeName,
-		"-j", "DROP",
+		"-j", action,
 	}}
-	return appendOrDelChainRule(dropRule, "DEFAULT DROP", enable)
+
+	// Append to the filter table's DOCKER chain (the default rule must follow
+	// per-port ACCEPT rules, which will be inserted at the top of the chain).
+	if err := appendOrDelChainRule(rule, "DEFAULT FWD", true); err != nil {
+		return fmt.Errorf("failed to add default-drop rule: %w", err)
+	}
+	n.registerIptCleanFunc(func() error {
+		return appendOrDelChainRule(rule, "DEFAULT FWD", false)
+	})
+	return nil
 }
 
 type iptRule struct {
@@ -387,7 +406,7 @@ func programChainRule(rule iptRule, ruleDescr string, insert bool) error {
 		fn = rule.Insert
 	}
 	if err := fn(); err != nil {
-		return fmt.Errorf("Unable to %s %s rule: %s", operation, ruleDescr, err.Error())
+		return fmt.Errorf("Unable to %s %s rule: %w", operation, ruleDescr, err)
 	}
 	return nil
 }
@@ -400,7 +419,7 @@ func appendOrDelChainRule(rule iptRule, ruleDescr string, append bool) error {
 		fn = rule.Append
 	}
 	if err := fn(); err != nil {
-		return fmt.Errorf("Unable to %s %s rule: %s", operation, ruleDescr, err.Error())
+		return fmt.Errorf("Unable to %s %s rule: %w", operation, ruleDescr, err)
 	}
 	return nil
 }
@@ -413,12 +432,12 @@ func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, insert bo
 		if !iccEnable {
 			acceptRule.Delete()
 			if err := dropRule.Append(); err != nil {
-				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err.Error())
+				return fmt.Errorf("Unable to prevent intercontainer communication: %w", err)
 			}
 		} else {
 			dropRule.Delete()
 			if err := acceptRule.Insert(); err != nil {
-				return fmt.Errorf("Unable to allow intercontainer communication: %s", err.Error())
+				return fmt.Errorf("Unable to allow intercontainer communication: %w", err)
 			}
 		}
 	} else {

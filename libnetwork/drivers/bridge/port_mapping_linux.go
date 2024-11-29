@@ -776,8 +776,11 @@ func (n *bridgeNetwork) setPerPortIptables(b portBinding, enable bool) error {
 	if err := setPerPortNAT(b, v, proxyPath, bridgeName, enable); err != nil {
 		return err
 	}
-	if err := setPerPortForwarding(b, v, bridgeName, enable); err != nil {
-		return err
+
+	if !n.gwMode(v).unprotected() {
+		if err := setPerPortForwarding(b, v, bridgeName, enable); err != nil {
+			return err
+		}
 	}
 	return nil
 }
