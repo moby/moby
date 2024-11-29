@@ -540,6 +540,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             iproute2 \
             iptables \
             jq \
+            kmod \
             libcap2-bin \
             libnet1 \
             libnl-3-200 \
