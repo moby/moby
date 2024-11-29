@@ -289,6 +289,10 @@ func (config *serviceConfig) isSecureIndex(indexName string) bool {
 // where the `host` part can be either a domain name or an IP address. If it is a domain name, then it will be
 // resolved to IP addresses for matching. If resolution fails, false is returned.
 func isCIDRMatch(cidrs []*registry.NetIPNet, URLHost string) bool {
+	if len(cidrs) == 0 {
+		return false
+	}
+
 	host, _, err := net.SplitHostPort(URLHost)
 	if err != nil {
 		// Assume URLHost is of the form `host` without the port and go on.
