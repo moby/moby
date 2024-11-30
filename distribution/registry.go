@@ -123,7 +123,6 @@ func newRepository(
 			Scopes: []auth.Scope{auth.RepositoryScope{
 				Repository: repoName,
 				Actions:    actions,
-				Class:      repoInfo.Class,
 			}},
 			ClientID: registry.AuthClientID,
 		})
