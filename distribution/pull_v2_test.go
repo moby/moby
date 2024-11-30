@@ -299,7 +299,7 @@ func TestPullSchema2Config(t *testing.T) {
 				switch {
 				case r.Method == "GET" && r.URL.Path == "/v2":
 					w.WriteHeader(http.StatusOK)
-				case r.Method == "GET" && r.URL.Path == "/v2/docker.io/library/testremotename/blobs/"+expectedDigest.String():
+				case r.Method == "GET" && r.URL.Path == "/v2/library/testremotename/blobs/"+expectedDigest.String():
 					tc.handler(int(callCount.Add(1)), w)
 				default:
 					w.WriteHeader(http.StatusNotFound)

@@ -105,7 +105,7 @@ type APIEndpoint struct {
 	URL                            *url.URL
 	AllowNondistributableArtifacts bool
 	Official                       bool
-	TrimHostname                   bool
+	TrimHostname                   bool // Deprecated: hostname is now trimmed unconditionally for remote names. This field will be removed in the next release.
 	TLSConfig                      *tls.Config
 }
 
