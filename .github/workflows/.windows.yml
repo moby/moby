@@ -203,7 +203,7 @@ jobs:
           retention-days: 1
 
   unit-test-report:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     if: always()
     needs:
@@ -230,7 +230,7 @@ jobs:
           find /tmp/artifacts -type f -name '*-go-test-report.json' -exec teststat -markdown {} \+ >> $GITHUB_STEP_SUMMARY
 
   integration-test-prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     outputs:
       matrix: ${{ steps.tests.outputs.matrix }}
@@ -524,7 +524,7 @@ jobs:
           retention-days: 1
 
   integration-test-report:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
     if: always()
