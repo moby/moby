@@ -21,6 +21,10 @@ const (
 	INET_DIAG_BBRINFO
 	INET_DIAG_CLASS_ID
 	INET_DIAG_MD5SIG
+	INET_DIAG_ULP_INFO
+	INET_DIAG_SK_BPF_STORAGES
+	INET_DIAG_CGROUP_ID
+	INET_DIAG_SOCKOPT
 	INET_DIAG_MAX
 )
 
@@ -28,4 +32,9 @@ type InetDiagTCPInfoResp struct {
 	InetDiagMsg *Socket
 	TCPInfo     *TCPInfo
 	TCPBBRInfo  *TCPBBRInfo
+}
+
+type InetDiagUDPInfoResp struct {
+	InetDiagMsg *Socket
+	Memory      *MemInfo
 }
