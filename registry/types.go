@@ -5,27 +5,6 @@ import (
 	"github.com/docker/docker/api/types/registry"
 )
 
-// APIVersion is an integral representation of an API version (presently
-// either 1 or 2)
-//
-// Deprecated: v1 registries are deprecated, and endpoints are always v2.
-type APIVersion int
-
-func (av APIVersion) String() string {
-	return apiVersions[av]
-}
-
-// API Version identifiers.
-const (
-	APIVersion1 APIVersion = 1 // Deprecated: v1 registries are deprecated, and endpoints are always v2.
-	APIVersion2 APIVersion = 2 // Deprecated: v1 registries are deprecated, and endpoints are always v2.
-)
-
-var apiVersions = map[APIVersion]string{
-	APIVersion1: "v1",
-	APIVersion2: "v2",
-}
-
 // RepositoryInfo describes a repository
 type RepositoryInfo struct {
 	Name reference.Named

@@ -103,7 +103,6 @@ func (s *Service) ResolveRepository(name reference.Named) (*RepositoryInfo, erro
 type APIEndpoint struct {
 	Mirror                         bool
 	URL                            *url.URL
-	Version                        APIVersion // Deprecated: v1 registries are deprecated, and endpoints are always v2.
 	AllowNondistributableArtifacts bool
 	Official                       bool
 	TrimHostname                   bool
