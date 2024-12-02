@@ -43,7 +43,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 		// Check if image we would replace already resolves to the same target.
 		// No need to do anything.
 		if replacedImg.Target.Digest == targetImage.Target.Digest {
-			i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
+			i.LogImageEvent(ctx, imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
 			return nil
 		}
 
@@ -64,8 +64,6 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 	})
 	logger.Info("image created")
 
-	defer i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
-
 	// Delete the source dangling image, as it's no longer dangling.
 	if err := i.images.Delete(context.WithoutCancel(ctx), danglingImageName(targetImage.Target.Digest)); err != nil {
 		if !cerrdefs.IsNotFound(err) {
@@ -73,5 +71,6 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 		}
 	}
 
+	i.LogImageEvent(context.WithoutCancel(ctx), imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
 	return nil
 }

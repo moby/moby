@@ -24,7 +24,7 @@ func Pull(ctx context.Context, ref reference.Named, config *ImagePullConfig, loc
 	})
 
 	if err == nil {
-		config.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), events.ActionPull)
+		config.ImageEventLogger(ctx, reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), events.ActionPull)
 	}
 
 	return err
