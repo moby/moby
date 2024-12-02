@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/containerd/log"
 	dbus "github.com/godbus/dbus/v5"
@@ -20,6 +21,13 @@ const (
 	Iptables IPV = "ipv4"
 	// IP6Tables point to ipv6 table
 	IP6Tables IPV = "ipv6"
+)
+
+const (
+	// firewalldInitializationTimeout in milliseconds to wait for firewalld
+	firewalldInitializationTimeout = 2500 * time.Millisecond
+	// dbusConnectionTimeout in seconds to wait for dbus API calls
+	dbusConnectionTimeout = 1 * time.Second
 )
 
 const (
@@ -41,8 +49,8 @@ type Conn struct {
 var (
 	connection *Conn
 
-	firewalldRunning bool      // is Firewalld service running
-	onReloaded       []*func() // callbacks when Firewalld has been reloaded
+	firewalldReady bool      // is Firewalld service running
+	onReloaded     []*func() // callbacks when Firewalld has been reloaded
 )
 
 // firewalldInit initializes firewalld management code.
@@ -52,11 +60,25 @@ func firewalldInit() error {
 	if connection, err = newConnection(); err != nil {
 		return fmt.Errorf("Failed to connect to D-Bus system bus: %v", err)
 	}
-	firewalldRunning = checkRunning()
-	if !firewalldRunning {
+
+	ctx, cancel := context.WithTimeout(context.Background(), firewalldInitializationTimeout)
+	defer cancel()
+
+	for {
+		cctx, ccancel := context.WithTimeout(ctx, dbusConnectionTimeout)
+		firewalldReady, err = checkRunning(cctx)
+		ccancel()
+		if firewalldReady || err != nil {
+			break
+		}
+		time.Sleep(dbusConnectionTimeout)
+	}
+
+	if !firewalldReady {
 		connection.sysconn.Close()
 		connection = nil
 	}
+
 	if connection != nil {
 		go signalHandler()
 		zoneAdded, err := setupDockerZone()
@@ -75,7 +97,6 @@ func firewalldInit() error {
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -108,8 +129,10 @@ func signalHandler() {
 	for signal := range connection.signal {
 		switch {
 		case strings.Contains(signal.Name, "NameOwnerChanged"):
-			firewalldRunning = checkRunning()
+			ctx, cancel := context.WithTimeout(context.Background(), dbusConnectionTimeout)
+			firewalldReady, _ = checkRunning(ctx)
 			dbusConnectionChanged(signal.Body)
+			cancel()
 
 		case strings.Contains(signal.Name, "Reloaded"):
 			reloaded()
@@ -159,13 +182,23 @@ func OnReloaded(callback func()) {
 }
 
 // Call some remote method to see whether the service is actually running.
-func checkRunning() bool {
+func checkRunning(ctx context.Context) (bool, error) {
+	var err error
 	if connection == nil {
-		return false
+		return false, nil
 	}
-	var zone string
-	err := connection.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
-	return err == nil
+
+	var currentState string
+	err = connection.sysObj.CallWithContext(ctx, "org.freedesktop.DBus.Properties.Get", 0, dbusInterface, "state").Store(&currentState)
+
+	if err != nil {
+		return false, fmt.Errorf("failed to get current state of dbus connection: %w", err)
+	}
+	// Running and failed are treated the same as we only want to verify if Firewalld is up and accepting dbus RPC calls
+	// If Firewalld is in INIT false is returned as there were observed failure cases where dbus calls did not succeed
+	// after a timeout.  Its safer to assume INIT should return false
+	log.G(ctx).Debugf("Firewalld's current reported state is, %s", currentState)
+	return (currentState == "RUNNING" || currentState == "FAILED"), nil
 }
 
 // Passthrough method simply passes args through to iptables/ip6tables
@@ -286,7 +319,7 @@ func setupDockerForwardingPolicy() (bool, error) {
 // AddInterfaceFirewalld adds the interface to the trusted zone. It is a
 // no-op if firewalld is not running.
 func AddInterfaceFirewalld(intf string) error {
-	if !firewalldRunning {
+	if !firewalldReady {
 		return nil
 	}
 
@@ -312,7 +345,7 @@ func AddInterfaceFirewalld(intf string) error {
 // DelInterfaceFirewalld removes the interface from the trusted zone It is a
 // no-op if firewalld is not running.
 func DelInterfaceFirewalld(intf string) error {
-	if !firewalldRunning {
+	if !firewalldReady {
 		return nil
 	}
 
