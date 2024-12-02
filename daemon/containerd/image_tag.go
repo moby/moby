@@ -68,7 +68,9 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 
 	// Delete the source dangling image, as it's no longer dangling.
 	if err := i.images.Delete(context.WithoutCancel(ctx), danglingImageName(targetImage.Target.Digest)); err != nil {
-		logger.WithError(err).Warn("unexpected error when deleting dangling image")
+		if !cerrdefs.IsNotFound(err) {
+			logger.WithError(err).Warn("unexpected error when deleting dangling image")
+		}
 	}
 
 	return nil
