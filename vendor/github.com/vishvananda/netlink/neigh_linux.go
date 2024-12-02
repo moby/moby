@@ -1,6 +1,7 @@
 package netlink
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"syscall"
@@ -206,6 +207,9 @@ func neighHandle(neigh *Neigh, req *nl.NetlinkRequest) error {
 // NeighList returns a list of IP-MAC mappings in the system (ARP table).
 // Equivalent to: `ip neighbor show`.
 // The list can be filtered by link and ip family.
+//
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func NeighList(linkIndex, family int) ([]Neigh, error) {
 	return pkgHandle.NeighList(linkIndex, family)
 }
@@ -213,6 +217,9 @@ func NeighList(linkIndex, family int) ([]Neigh, error) {
 // NeighProxyList returns a list of neighbor proxies in the system.
 // Equivalent to: `ip neighbor show proxy`.
 // The list can be filtered by link and ip family.
+//
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func NeighProxyList(linkIndex, family int) ([]Neigh, error) {
 	return pkgHandle.NeighProxyList(linkIndex, family)
 }
@@ -220,6 +227,9 @@ func NeighProxyList(linkIndex, family int) ([]Neigh, error) {
 // NeighList returns a list of IP-MAC mappings in the system (ARP table).
 // Equivalent to: `ip neighbor show`.
 // The list can be filtered by link and ip family.
+//
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func (h *Handle) NeighList(linkIndex, family int) ([]Neigh, error) {
 	return h.NeighListExecute(Ndmsg{
 		Family: uint8(family),
@@ -230,6 +240,9 @@ func (h *Handle) NeighList(linkIndex, family int) ([]Neigh, error) {
 // NeighProxyList returns a list of neighbor proxies in the system.
 // Equivalent to: `ip neighbor show proxy`.
 // The list can be filtered by link, ip family.
+//
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func (h *Handle) NeighProxyList(linkIndex, family int) ([]Neigh, error) {
 	return h.NeighListExecute(Ndmsg{
 		Family: uint8(family),
@@ -239,18 +252,24 @@ func (h *Handle) NeighProxyList(linkIndex, family int) ([]Neigh, error) {
 }
 
 // NeighListExecute returns a list of neighbour entries filtered by link, ip family, flag and state.
+//
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func NeighListExecute(msg Ndmsg) ([]Neigh, error) {
 	return pkgHandle.NeighListExecute(msg)
 }
 
 // NeighListExecute returns a list of neighbour entries filtered by link, ip family, flag and state.
+//
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func (h *Handle) NeighListExecute(msg Ndmsg) ([]Neigh, error) {
 	req := h.newNetlinkRequest(unix.RTM_GETNEIGH, unix.NLM_F_DUMP)
 	req.AddData(&msg)
 
-	msgs, err := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWNEIGH)
-	if err != nil {
-		return nil, err
+	msgs, executeErr := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWNEIGH)
+	if executeErr != nil && !errors.Is(executeErr, ErrDumpInterrupted) {
+		return nil, executeErr
 	}
 
 	var res []Neigh
@@ -281,7 +300,7 @@ func (h *Handle) NeighListExecute(msg Ndmsg) ([]Neigh, error) {
 		res = append(res, *neigh)
 	}
 
-	return res, nil
+	return res, executeErr
 }
 
 func NeighDeserialize(m []byte) (*Neigh, error) {
@@ -339,13 +358,13 @@ func NeighDeserialize(m []byte) (*Neigh, error) {
 // NeighSubscribe takes a chan down which notifications will be sent
 // when neighbors are added or deleted. Close the 'done' chan to stop subscription.
 func NeighSubscribe(ch chan<- NeighUpdate, done <-chan struct{}) error {
-	return neighSubscribeAt(netns.None(), netns.None(), ch, done, nil, false)
+	return neighSubscribeAt(netns.None(), netns.None(), ch, done, nil, false, 0, nil, false)
 }
 
 // NeighSubscribeAt works like NeighSubscribe plus it allows the caller
 // to choose the network namespace in which to subscribe (ns).
 func NeighSubscribeAt(ns netns.NsHandle, ch chan<- NeighUpdate, done <-chan struct{}) error {
-	return neighSubscribeAt(ns, netns.None(), ch, done, nil, false)
+	return neighSubscribeAt(ns, netns.None(), ch, done, nil, false, 0, nil, false)
 }
 
 // NeighSubscribeOptions contains a set of options to use with
@@ -354,26 +373,36 @@ type NeighSubscribeOptions struct {
 	Namespace     *netns.NsHandle
 	ErrorCallback func(error)
 	ListExisting  bool
+
+	// max size is based on value of /proc/sys/net/core/rmem_max
+	ReceiveBufferSize      int
+	ReceiveBufferForceSize bool
+	ReceiveTimeout         *unix.Timeval
 }
 
 // NeighSubscribeWithOptions work like NeighSubscribe but enable to
 // provide additional options to modify the behavior. Currently, the
 // namespace can be provided as well as an error callback.
+//
+// When options.ListExisting is true, options.ErrorCallback may be
+// called with [ErrDumpInterrupted] to indicate that results from
+// the initial dump of links may be inconsistent or incomplete.
 func NeighSubscribeWithOptions(ch chan<- NeighUpdate, done <-chan struct{}, options NeighSubscribeOptions) error {
 	if options.Namespace == nil {
 		none := netns.None()
 		options.Namespace = &none
 	}
-	return neighSubscribeAt(*options.Namespace, netns.None(), ch, done, options.ErrorCallback, options.ListExisting)
+	return neighSubscribeAt(*options.Namespace, netns.None(), ch, done, options.ErrorCallback, options.ListExisting,
+		options.ReceiveBufferSize, options.ReceiveTimeout, options.ReceiveBufferForceSize)
 }
 
-func neighSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- NeighUpdate, done <-chan struct{}, cberr func(error), listExisting bool) error {
+func neighSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- NeighUpdate, done <-chan struct{}, cberr func(error), listExisting bool,
+	rcvbuf int, rcvTimeout *unix.Timeval, rcvbufForce bool) error {
 	s, err := nl.SubscribeAt(newNs, curNs, unix.NETLINK_ROUTE, unix.RTNLGRP_NEIGH)
 	makeRequest := func(family int) error {
-		req := pkgHandle.newNetlinkRequest(unix.RTM_GETNEIGH,
-			unix.NLM_F_DUMP)
-		infmsg := nl.NewIfInfomsg(family)
-		req.AddData(infmsg)
+		req := pkgHandle.newNetlinkRequest(unix.RTM_GETNEIGH, unix.NLM_F_DUMP)
+		ndmsg := &Ndmsg{Family: uint8(family)}
+		req.AddData(ndmsg)
 		if err := s.Send(req); err != nil {
 			return err
 		}
@@ -381,6 +410,17 @@ func neighSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- NeighUpdate, done <
 	}
 	if err != nil {
 		return err
+	}
+	if rcvTimeout != nil {
+		if err := s.SetReceiveTimeout(rcvTimeout); err != nil {
+			return err
+		}
+	}
+	if rcvbuf != 0 {
+		err = s.SetReceiveBufferSize(rcvbuf, rcvbufForce)
+		if err != nil {
+			return err
+		}
 	}
 	if done != nil {
 		go func() {
@@ -411,6 +451,9 @@ func neighSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- NeighUpdate, done <
 				continue
 			}
 			for _, m := range msgs {
+				if m.Header.Flags&unix.NLM_F_DUMP_INTR != 0 && cberr != nil {
+					cberr(ErrDumpInterrupted)
+				}
 				if m.Header.Type == unix.NLMSG_DONE {
 					if listExisting {
 						// This will be called after handling AF_UNSPEC
@@ -427,12 +470,12 @@ func neighSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- NeighUpdate, done <
 					continue
 				}
 				if m.Header.Type == unix.NLMSG_ERROR {
-					error := int32(native.Uint32(m.Data[0:4]))
-					if error == 0 {
+					nError := int32(native.Uint32(m.Data[0:4]))
+					if nError == 0 {
 						continue
 					}
 					if cberr != nil {
-						cberr(syscall.Errno(-error))
+						cberr(syscall.Errno(-nError))
 					}
 					return
 				}

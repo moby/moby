@@ -1,7 +1,5 @@
 run:
-  timeout: 10m
-  skip-files:
-    - ".*\\.pb\\.go$"
+  timeout: 30m
 
 linters:
   enable:
@@ -25,6 +23,10 @@ linters-settings:
           - pkg: "io/ioutil"
             desc: The io/ioutil package has been deprecated.
 
-# show all
-max-issues-per-linter: 0
-max-same-issues: 0
+issues:
+  exclude-files:
+    - ".*\\.pb\\.go$"
+
+  # show all
+  max-issues-per-linter: 0
+  max-same-issues: 0

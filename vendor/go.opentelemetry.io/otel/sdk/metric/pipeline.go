@@ -1,16 +1,5 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package metric // import "go.opentelemetry.io/otel/sdk/metric"
 
@@ -29,6 +18,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/instrumentation"
 	"go.opentelemetry.io/otel/sdk/metric/internal"
 	"go.opentelemetry.io/otel/sdk/metric/internal/aggregate"
+	"go.opentelemetry.io/otel/sdk/metric/internal/x"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 )
@@ -91,14 +81,6 @@ func (p *pipeline) addSync(scope instrumentation.Scope, iSync instrumentSync) {
 		return
 	}
 	p.aggregations[scope] = append(p.aggregations[scope], iSync)
-}
-
-// addCallback registers a single instrument callback to be run when
-// `produce()` is called.
-func (p *pipeline) addCallback(cback func(context.Context) error) {
-	p.Lock()
-	defer p.Unlock()
-	p.callbacks = append(p.callbacks, cback)
 }
 
 type multiCallback func(context.Context) error
@@ -281,6 +263,14 @@ func (i *inserter[N]) Instrument(inst Instrument, readerAggregation Aggregation)
 	return measures, errs.errorOrNil()
 }
 
+// addCallback registers a single instrument callback to be run when
+// `produce()` is called.
+func (i *inserter[N]) addCallback(cback func(context.Context) error) {
+	i.pipeline.Lock()
+	defer i.pipeline.Unlock()
+	i.pipeline.callbacks = append(i.pipeline.callbacks, cback)
+}
+
 var aggIDCount uint64
 
 // aggVal is the cached value in an aggregators cache.
@@ -358,9 +348,16 @@ func (i *inserter[N]) cachedAggregator(scope instrumentation.Scope, kind Instrum
 	normID := id.normalize()
 	cv := i.aggregators.Lookup(normID, func() aggVal[N] {
 		b := aggregate.Builder[N]{
-			Temporality: i.pipeline.reader.temporality(kind),
+			Temporality:   i.pipeline.reader.temporality(kind),
+			ReservoirFunc: reservoirFunc[N](stream.Aggregation),
 		}
 		b.Filter = stream.AttributeFilter
+		// A value less than or equal to zero will disable the aggregation
+		// limits for the builder (an all the created aggregates).
+		// CardinalityLimit.Lookup returns 0 by default if unset (or
+		// unrecognized input). Use that value directly.
+		b.AggregationLimit, _ = x.CardinalityLimit.Lookup()
+
 		in, out, err := i.aggregateFunc(b, stream.Aggregation, kind)
 		if err != nil {
 			return aggVal[N]{0, nil, err}
@@ -450,7 +447,12 @@ func (i *inserter[N]) aggregateFunc(b aggregate.Builder[N], agg Aggregation, kin
 	case AggregationDrop:
 		// Return nil in and out to signify the drop aggregator.
 	case AggregationLastValue:
-		meas, comp = b.LastValue()
+		switch kind {
+		case InstrumentKindGauge:
+			meas, comp = b.LastValue()
+		case InstrumentKindObservableGauge:
+			meas, comp = b.PrecomputedLastValue()
+		}
 	case AggregationSum:
 		switch kind {
 		case InstrumentKindObservableCounter:
@@ -467,7 +469,7 @@ func (i *inserter[N]) aggregateFunc(b aggregate.Builder[N], agg Aggregation, kin
 	case AggregationExplicitBucketHistogram:
 		var noSum bool
 		switch kind {
-		case InstrumentKindUpDownCounter, InstrumentKindObservableUpDownCounter, InstrumentKindObservableGauge:
+		case InstrumentKindUpDownCounter, InstrumentKindObservableUpDownCounter, InstrumentKindObservableGauge, InstrumentKindGauge:
 			// The sum should not be collected for any instrument that can make
 			// negative measurements:
 			// https://github.com/open-telemetry/opentelemetry-specification/blob/v1.21.0/specification/metrics/sdk.md#histogram-aggregations
@@ -477,7 +479,7 @@ func (i *inserter[N]) aggregateFunc(b aggregate.Builder[N], agg Aggregation, kin
 	case AggregationBase2ExponentialHistogram:
 		var noSum bool
 		switch kind {
-		case InstrumentKindUpDownCounter, InstrumentKindObservableUpDownCounter, InstrumentKindObservableGauge:
+		case InstrumentKindUpDownCounter, InstrumentKindObservableUpDownCounter, InstrumentKindObservableGauge, InstrumentKindGauge:
 			// The sum should not be collected for any instrument that can make
 			// negative measurements:
 			// https://github.com/open-telemetry/opentelemetry-specification/blob/v1.21.0/specification/metrics/sdk.md#histogram-aggregations
@@ -500,6 +502,7 @@ func (i *inserter[N]) aggregateFunc(b aggregate.Builder[N], agg Aggregation, kin
 // | Counter                  | ✓    |           | ✓   | ✓         | ✓                     |
 // | UpDownCounter            | ✓    |           | ✓   | ✓         | ✓                     |
 // | Histogram                | ✓    |           | ✓   | ✓         | ✓                     |
+// | Gauge                    | ✓    | ✓         |     | ✓         | ✓                     |
 // | Observable Counter       | ✓    |           | ✓   | ✓         | ✓                     |
 // | Observable UpDownCounter | ✓    |           | ✓   | ✓         | ✓                     |
 // | Observable Gauge         | ✓    | ✓         |     | ✓         | ✓                     |.
@@ -512,6 +515,7 @@ func isAggregatorCompatible(kind InstrumentKind, agg Aggregation) error {
 		case InstrumentKindCounter,
 			InstrumentKindUpDownCounter,
 			InstrumentKindHistogram,
+			InstrumentKindGauge,
 			InstrumentKindObservableCounter,
 			InstrumentKindObservableUpDownCounter,
 			InstrumentKindObservableGauge:
@@ -529,7 +533,8 @@ func isAggregatorCompatible(kind InstrumentKind, agg Aggregation) error {
 			return errIncompatibleAggregation
 		}
 	case AggregationLastValue:
-		if kind == InstrumentKindObservableGauge {
+		switch kind {
+		case InstrumentKindObservableGauge, InstrumentKindGauge:
 			return nil
 		}
 		// TODO: review need for aggregation check after
@@ -555,12 +560,6 @@ func newPipelines(res *resource.Resource, readers []Reader, views []View) pipeli
 		pipes = append(pipes, p)
 	}
 	return pipes
-}
-
-func (p pipelines) registerCallback(cback func(context.Context) error) {
-	for _, pipe := range p {
-		pipe.addCallback(cback)
-	}
 }
 
 func (p pipelines) registerMultiCallback(c multiCallback) metric.Registration {

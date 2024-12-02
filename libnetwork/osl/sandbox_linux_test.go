@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
@@ -59,7 +60,7 @@ func newKey(t *testing.T) (string, error) {
 	return name, nil
 }
 
-func newInfo(t *testing.T, hnd *netlink.Handle) (*Namespace, error) {
+func newInfo(t *testing.T, hnd nlwrap.Handle) (*Namespace, error) {
 	t.Helper()
 	err := hnd.LinkAdd(&netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: vethName1, TxQLen: 0},
@@ -130,7 +131,7 @@ func verifySandbox(t *testing.T, ns *Namespace, ifaceSuffixes []string) {
 	}
 	defer sbNs.Close()
 
-	nh, err := netlink.NewHandleAt(sbNs)
+	nh, err := nlwrap.NewHandleAt(sbNs)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,6 +8,7 @@ import (
 
 const (
 	tcpBBRInfoLen = 20
+	memInfoLen    = 16
 )
 
 func checkDeserErr(err error) error {
@@ -348,6 +349,20 @@ func (t *TCPBBRInfo) deserialize(b []byte) error {
 	t.BBRMinRTT = native.Uint32(rb.Next(4))
 	t.BBRPacingGain = native.Uint32(rb.Next(4))
 	t.BBRCwndGain = native.Uint32(rb.Next(4))
+
+	return nil
+}
+
+func (m *MemInfo) deserialize(b []byte) error {
+	if len(b) != memInfoLen {
+		return errors.New("Invalid length")
+	}
+
+	rb := bytes.NewBuffer(b)
+	m.RMem = native.Uint32(rb.Next(4))
+	m.WMem = native.Uint32(rb.Next(4))
+	m.FMem = native.Uint32(rb.Next(4))
+	m.TMem = native.Uint32(rb.Next(4))
 
 	return nil
 }
