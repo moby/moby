@@ -302,7 +302,7 @@ func (s *DockerCLILogsSuite) TestLogsFollowGoroutinesWithStdout(c *testing.T) {
 	assert.NilError(c, d.WaitRun(id))
 
 	client := d.NewClientT(c)
-	nroutines := waitForStableGourtineCount(ctx, c, client)
+	nroutines := waitForStableGoroutineCount(ctx, c, client)
 
 	cmd := d.Command("logs", "-f", id)
 	r, w := io.Pipe()
@@ -358,7 +358,7 @@ func (s *DockerCLILogsSuite) TestLogsFollowGoroutinesNoOutput(c *testing.T) {
 	assert.NilError(c, d.WaitRun(id))
 
 	client := d.NewClientT(c)
-	nroutines := waitForStableGourtineCount(ctx, c, client)
+	nroutines := waitForStableGoroutineCount(ctx, c, client)
 	assert.NilError(c, err)
 
 	cmd := d.Command("logs", "-f", id)

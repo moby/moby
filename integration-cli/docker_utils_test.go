@@ -347,7 +347,7 @@ func getGoroutineNumber(ctx context.Context, apiClient client.APIClient) (int, e
 	return info.NGoroutines, nil
 }
 
-func waitForStableGourtineCount(ctx context.Context, t poll.TestingT, apiClient client.APIClient) int {
+func waitForStableGoroutineCount(ctx context.Context, t poll.TestingT, apiClient client.APIClient) int {
 	var out int
 	poll.WaitOn(t, stableGoroutineCount(ctx, apiClient, &out), poll.WithTimeout(30*time.Second))
 	return out
