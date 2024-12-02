@@ -8,8 +8,8 @@ import (
 )
 
 // LogImageEvent generates an event related to an image with only the default attributes.
-func (i *ImageService) LogImageEvent(imageID, refName string, action events.Action) {
-	ctx := context.TODO()
+func (i *ImageService) LogImageEvent(ctx context.Context, imageID, refName string, action events.Action) {
+	ctx = context.WithoutCancel(ctx)
 	attributes := map[string]string{}
 
 	img, err := i.GetImage(ctx, imageID, backend.GetImageOpts{})

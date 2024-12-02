@@ -316,7 +316,7 @@ func (s *saveSession) save(ctx context.Context, outStream io.Writer) error {
 
 		parentID, _ := s.is.GetParent(id)
 		parentLinks = append(parentLinks, parentLink{id, parentID})
-		s.tarexporter.loggerImgEvent.LogImageEvent(id.String(), id.String(), events.ActionSave)
+		s.tarexporter.loggerImgEvent.LogImageEvent(ctx, id.String(), id.String(), events.ActionSave)
 	}
 
 	for i, p := range validatedParentLinks(parentLinks) {

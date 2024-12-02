@@ -34,7 +34,7 @@ type ImageService interface {
 	PerformWithBaseFS(ctx context.Context, c *container.Container, fn func(string) error) error
 	LoadImage(ctx context.Context, inTar io.ReadCloser, platform *ocispec.Platform, outStream io.Writer, quiet bool) error
 	Images(ctx context.Context, opts imagetype.ListOptions) ([]*imagetype.Summary, error)
-	LogImageEvent(imageID, refName string, action events.Action)
+	LogImageEvent(ctx context.Context, imageID, refName string, action events.Action)
 	CountImages(ctx context.Context) int
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*imagetype.PruneReport, error)
 	ImportImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error)

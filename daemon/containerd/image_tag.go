@@ -58,7 +58,7 @@ func (i *ImageService) createOrReplaceImage(ctx context.Context, newImg c8dimage
 		// No need to do anything.
 		if replacedImg.Target.Digest == newImg.Target.Digest {
 			if !creatingDangling {
-				i.LogImageEvent(replacedImg.Target.Digest.String(), imageFamiliarName(newImg), events.ActionTag)
+				i.LogImageEvent(ctx, replacedImg.Target.Digest.String(), imageFamiliarName(newImg), events.ActionTag)
 			}
 			return nil
 		}
@@ -81,8 +81,7 @@ func (i *ImageService) createOrReplaceImage(ctx context.Context, newImg c8dimage
 	logger.Info("image created")
 
 	if !creatingDangling {
-		ctx := context.WithoutCancel(ctx)
-		defer i.LogImageEvent(string(newImg.Target.Digest), imageFamiliarName(newImg), events.ActionTag)
+		defer i.LogImageEvent(ctx, string(newImg.Target.Digest), imageFamiliarName(newImg), events.ActionTag)
 
 		if err := i.images.Delete(ctx, danglingName); err != nil {
 			if !cerrdefs.IsNotFound(err) {

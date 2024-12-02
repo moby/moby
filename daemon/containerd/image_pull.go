@@ -246,7 +246,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 		logger.WithError(err).Warn("unexpected error while removing outdated dangling image reference")
 	}
 
-	i.LogImageEvent(reference.FamiliarString(ref), reference.FamiliarName(ref), events.ActionPull)
+	i.LogImageEvent(ctx, reference.FamiliarString(ref), reference.FamiliarName(ref), events.ActionPull)
 	outNewImg = img
 	return nil
 }

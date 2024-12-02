@@ -85,6 +85,6 @@ func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, 
 		}
 	}
 
-	i.LogImageEvent(id.String(), id.String(), events.ActionImport)
+	i.LogImageEvent(ctx, id.String(), id.String(), events.ActionImport)
 	return id, nil
 }
