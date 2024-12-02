@@ -37,5 +37,7 @@ type RepositoryInfo struct {
 	Official bool
 	// Class represents the class of the repository, such as "plugin"
 	// or "image".
+	//
+	// Deprecated: this field is no longer used, and will be removed in the next release.
 	Class string
 }
