@@ -141,7 +141,7 @@ func TestPluginInstall(t *testing.T) {
 		buf := &strings.Builder{}
 		assert.NilError(t, err)
 		var digest string
-		assert.NilError(t, jsonmessage.DisplayJSONMessagesStream(rdr, buf, 0, false, func(j jsonmessage.JSONMessage) {
+		assert.NilError(t, jsonmessage.DisplayJSONMessagesStream(ctx, rdr, buf, 0, false, func(j jsonmessage.JSONMessage) {
 			if j.Aux != nil {
 				var r types.PushResult
 				assert.NilError(t, json.Unmarshal(*j.Aux, &r))
@@ -335,7 +335,7 @@ func TestPluginBackCompatMediaTypes(t *testing.T) {
 	defer rdr.Close()
 
 	buf := &strings.Builder{}
-	assert.NilError(t, jsonmessage.DisplayJSONMessagesStream(rdr, buf, 0, false, nil), buf)
+	assert.NilError(t, jsonmessage.DisplayJSONMessagesStream(ctx, rdr, buf, 0, false, nil), buf)
 
 	// Use custom header here because older versions of the registry do not
 	// parse the accept header correctly and does not like the accept header

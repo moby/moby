@@ -154,7 +154,7 @@ func TestCopyFromContainer(t *testing.T) {
 	defer resp.Body.Close()
 
 	var imageID string
-	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, io.Discard, 0, false, func(msg jsonmessage.JSONMessage) {
+	err = jsonmessage.DisplayJSONMessagesStream(ctx, resp.Body, io.Discard, 0, false, func(msg jsonmessage.JSONMessage) {
 		var r types.BuildResult
 		assert.NilError(t, json.Unmarshal(*msg.Aux, &r))
 		imageID = r.ID

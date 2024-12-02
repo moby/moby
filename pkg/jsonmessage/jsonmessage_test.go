@@ -2,6 +2,7 @@ package jsonmessage // import "github.com/docker/docker/pkg/jsonmessage"
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -114,6 +115,9 @@ func TestProgressString(t *testing.T) {
 }
 
 func TestJSONMessageDisplay(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
 	now := time.Now()
 	messages := map[JSONMessage][]string{
 		// Empty
@@ -187,7 +191,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 	for jsonMessage, expectedMessages := range messages {
 		// Without terminal
 		data := bytes.NewBuffer([]byte{})
-		if err := jsonMessage.Display(data, false); err != nil {
+		if err := jsonMessage.Display(ctx, data, false); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
@@ -195,7 +199,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 		}
 		// With terminal
 		data = bytes.NewBuffer([]byte{})
-		if err := jsonMessage.Display(data, true); err != nil {
+		if err := jsonMessage.Display(ctx, data, true); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {
@@ -206,32 +210,53 @@ func TestJSONMessageDisplay(t *testing.T) {
 
 // Test JSONMessage with an Error. It will return an error with the text as error, not the meaning of the HTTP code.
 func TestJSONMessageDisplayWithJSONError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
 	data := bytes.NewBuffer([]byte{})
 	jsonMessage := JSONMessage{Error: &JSONError{404, "Can't find it"}}
 
-	err := jsonMessage.Display(data, true)
+	err := jsonMessage.Display(ctx, data, true)
 	if err == nil || err.Error() != "Can't find it" {
 		t.Fatalf("Expected a JSONError 404, got %q", err)
 	}
 
 	jsonMessage = JSONMessage{Error: &JSONError{401, "Anything"}}
-	err = jsonMessage.Display(data, true)
+	err = jsonMessage.Display(ctx, data, true)
 	assert.Check(t, is.Error(err, "Anything"))
 }
 
 func TestDisplayJSONMessagesStreamInvalidJSON(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
 	var inFd uintptr
 	data := bytes.NewBuffer([]byte{})
 	reader := strings.NewReader("This is not a 'valid' JSON []")
 	inFd, _ = term.GetFdInfo(reader)
 
 	exp := "invalid character "
-	if err := DisplayJSONMessagesStream(reader, data, inFd, false, nil); err == nil || !strings.HasPrefix(err.Error(), exp) {
+	if err := DisplayJSONMessagesStream(ctx, reader, data, inFd, false, nil); err == nil || !strings.HasPrefix(err.Error(), exp) {
 		t.Fatalf("Expected error (%s...), got %q", exp, err)
 	}
 }
 
+func TestDisplayJSONMessagesStreamContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	var inFd uintptr
+	data := bytes.NewBuffer([]byte{})
+	reader := strings.NewReader(``)
+	cancel()
+	err := DisplayJSONMessagesStream(ctx, reader, data, inFd, true, nil)
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
 func TestDisplayJSONMessagesStream(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
 	var inFd uintptr
 
 	messages := map[string][]string{
@@ -272,7 +297,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		inFd, _ = term.GetFdInfo(reader)
 
 		// Without terminal
-		if err := DisplayJSONMessagesStream(reader, data, inFd, false, nil); err != nil {
+		if err := DisplayJSONMessagesStream(ctx, reader, data, inFd, false, nil); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
@@ -282,7 +307,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		// With terminal
 		data = bytes.NewBuffer([]byte{})
 		reader = strings.NewReader(jsonMessage)
-		if err := DisplayJSONMessagesStream(reader, data, inFd, true, nil); err != nil {
+		if err := DisplayJSONMessagesStream(ctx, reader, data, inFd, true, nil); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {

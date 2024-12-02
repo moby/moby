@@ -117,7 +117,7 @@ func loadFrozenImages(ctx context.Context, client client.APIClient) error {
 	}
 	defer resp.Body.Close()
 	fd, isTerminal := term.GetFdInfo(os.Stdout)
-	return jsonmessage.DisplayJSONMessagesStream(resp.Body, os.Stdout, fd, isTerminal, nil)
+	return jsonmessage.DisplayJSONMessagesStream(ctx, resp.Body, os.Stdout, fd, isTerminal, nil)
 }
 
 func pullImages(ctx context.Context, client client.APIClient, images []string) error {
@@ -168,7 +168,7 @@ func pullTagAndRemove(ctx context.Context, client client.APIClient, ref string, 
 	}
 	defer resp.Close()
 	fd, isTerminal := term.GetFdInfo(os.Stdout)
-	if err := jsonmessage.DisplayJSONMessagesStream(resp, os.Stdout, fd, isTerminal, nil); err != nil {
+	if err := jsonmessage.DisplayJSONMessagesStream(ctx, resp, os.Stdout, fd, isTerminal, nil); err != nil {
 		return err
 	}
 
