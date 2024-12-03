@@ -514,7 +514,7 @@ func (p *puller) pullSchema1(ctx context.Context, ref reference.Reference, unver
 	}
 
 	var verifiedManifest *schema1.Manifest
-	verifiedManifest, err = verifySchema1Manifest(unverifiedManifest, ref)
+	verifiedManifest, err = verifySchema1Manifest(ctx, unverifiedManifest, ref)
 	if err != nil {
 		return "", "", err
 	}
@@ -996,7 +996,7 @@ func schema2ManifestDigest(ref reference.Named, mfst distribution.Manifest) (dig
 	return digest.FromBytes(canonical), nil
 }
 
-func verifySchema1Manifest(signedManifest *schema1.SignedManifest, ref reference.Reference) (m *schema1.Manifest, err error) {
+func verifySchema1Manifest(ctx context.Context, signedManifest *schema1.SignedManifest, ref reference.Reference) (*schema1.Manifest, error) {
 	// If pull by digest, then verify the manifest digest. NOTE: It is
 	// important to do this first, before any other content validation. If the
 	// digest cannot be verified, don't even bother with those other things.
@@ -1007,12 +1007,12 @@ func verifySchema1Manifest(signedManifest *schema1.SignedManifest, ref reference
 		}
 		if !verifier.Verified() {
 			err := fmt.Errorf("image verification failed for digest %s", digested.Digest())
-			log.G(context.TODO()).Error(err)
+			log.G(ctx).Error(err)
 			return nil, err
 		}
 	}
-	m = &signedManifest.Manifest
 
+	m := &signedManifest.Manifest
 	if m.SchemaVersion != 1 {
 		return nil, fmt.Errorf("unsupported schema version %d for %q", m.SchemaVersion, reference.FamiliarString(ref))
 	}

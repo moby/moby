@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/containerd/log/logtest"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution/manifest/schema1"
 	registrytypes "github.com/docker/docker/api/types/registry"
@@ -123,6 +124,9 @@ func TestValidateManifest(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Needs fixing on Windows")
 	}
+	ctx := context.TODO()
+	ctx = logtest.WithT(ctx, t)
+
 	expectedDigest, err := reference.ParseNormalizedNamed("repo@sha256:02fee8c3220ba806531f606525eceb83f4feb654f62b207191b1c9209188dedd")
 	if err != nil {
 		t.Fatal("could not parse reference")
@@ -142,7 +146,7 @@ func TestValidateManifest(t *testing.T) {
 		t.Fatal("error unmarshaling manifest:", err)
 	}
 
-	verifiedManifest, err := verifySchema1Manifest(&goodSignedManifest, expectedDigest)
+	verifiedManifest, err := verifySchema1Manifest(ctx, &goodSignedManifest, expectedDigest)
 	if err != nil {
 		t.Fatal("validateManifest failed:", err)
 	}
@@ -164,7 +168,7 @@ func TestValidateManifest(t *testing.T) {
 		t.Fatal("error unmarshaling manifest:", err)
 	}
 
-	verifiedManifest, err = verifySchema1Manifest(&extraDataSignedManifest, expectedDigest)
+	verifiedManifest, err = verifySchema1Manifest(ctx, &extraDataSignedManifest, expectedDigest)
 	if err != nil {
 		t.Fatal("validateManifest failed:", err)
 	}
@@ -186,7 +190,7 @@ func TestValidateManifest(t *testing.T) {
 		t.Fatal("error unmarshaling manifest:", err)
 	}
 
-	_, err = verifySchema1Manifest(&badSignedManifest, expectedDigest)
+	_, err = verifySchema1Manifest(ctx, &badSignedManifest, expectedDigest)
 	if err == nil || !strings.HasPrefix(err.Error(), "image verification failed for digest") {
 		t.Fatal("expected validateManifest to fail with digest error")
 	}
