@@ -92,7 +92,7 @@ func (daemon *Daemon) cleanupMounts(cfg *config.Config) error {
 	}
 
 	// `info.Root` here is the root mountpoint of the passed in path (`daemon.root`).
-	// The ony cases that need to be cleaned up is when the daemon has performed a
+	// The only cases that need to be cleaned up is when the daemon has performed a
 	//   `mount --bind /daemon/root /daemon/root && mount --make-shared /daemon/root`
 	// This is only done when the daemon is started up and `/daemon/root` is not
 	// already on a shared mountpoint.
