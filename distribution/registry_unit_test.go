@@ -41,22 +41,15 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 	}
 
 	endpoint := registrypkg.APIEndpoint{
-		Mirror:       false,
 		URL:          uri,
-		Official:     false,
 		TrimHostname: false,
-		TLSConfig:    nil,
 	}
 	n, _ := reference.ParseNormalizedNamed("testremotename")
 	repoInfo := &registrypkg.RepositoryInfo{
 		Name: n,
 		Index: &registry.IndexInfo{
-			Name:     "testrepo",
-			Mirrors:  nil,
-			Secure:   false,
-			Official: false,
+			Name: "testrepo",
 		},
-		Official: false,
 	}
 	imagePullConfig := &ImagePullConfig{
 		Config: Config{

@@ -335,41 +335,27 @@ func testNewPuller(t *testing.T, rawurl string) *puller {
 	t.Helper()
 
 	uri, err := url.Parse(rawurl)
-	if err != nil {
-		t.Fatalf("could not parse url from test server: %v", err)
-	}
+	assert.NilError(t, err, "could not parse url from test server: %v", rawurl)
 
-	endpoint := registry.APIEndpoint{
-		Mirror:       false,
-		URL:          uri,
-		Official:     false,
-		TrimHostname: false,
-		TLSConfig:    nil,
-	}
-	n, _ := reference.ParseNormalizedNamed("testremotename")
+	n, err := reference.ParseNormalizedNamed("testremotename")
+	assert.NilError(t, err)
+
 	repoInfo := &registry.RepositoryInfo{
 		Name: n,
 		Index: &registrytypes.IndexInfo{
-			Name:     "testrepo",
-			Mirrors:  nil,
-			Secure:   false,
-			Official: false,
+			Name: "testrepo",
 		},
-		Official: false,
 	}
 	imagePullConfig := &ImagePullConfig{
 		Config: Config{
-			MetaHeaders: http.Header{},
 			AuthConfig: &registrytypes.AuthConfig{
 				RegistryToken: secretRegistryToken,
 			},
 		},
 	}
 
-	p := newPuller(endpoint, repoInfo, imagePullConfig, nil)
+	p := newPuller(registry.APIEndpoint{URL: uri}, repoInfo, imagePullConfig, nil)
 	p.repo, err = newRepository(context.Background(), p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 	return p
 }
