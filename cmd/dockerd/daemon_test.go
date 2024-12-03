@@ -190,7 +190,6 @@ func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 
 func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 	content := `{
-		"allow-nondistributable-artifacts": ["allow-nondistributable-artifacts.example.com"],
 		"registry-mirrors": ["https://mirrors.example.com"],
 		"insecure-registries": ["https://insecure-registry.example.com"]
 	}`
@@ -202,7 +201,6 @@ func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
 
-	assert.Check(t, is.Len(loadedConfig.AllowNondistributableArtifacts, 1))
 	assert.Check(t, is.Len(loadedConfig.Mirrors, 1))
 	assert.Check(t, is.Len(loadedConfig.InsecureRegistries, 1))
 }

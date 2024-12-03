@@ -8,8 +8,6 @@ import (
 )
 
 func (s *Service) lookupV2Endpoints(hostname string, includeMirrors bool) ([]APIEndpoint, error) {
-	ana := s.config.allowNondistributableArtifacts(hostname)
-
 	var endpoints []APIEndpoint
 	if hostname == DefaultNamespace || hostname == IndexHostname {
 		if includeMirrors {
@@ -36,8 +34,6 @@ func (s *Service) lookupV2Endpoints(hostname string, includeMirrors bool) ([]API
 			URL:       DefaultV2Registry,
 			Official:  true,
 			TLSConfig: tlsconfig.ServerDefault(),
-
-			AllowNondistributableArtifacts: ana,
 		})
 
 		return endpoints, nil
@@ -55,8 +51,6 @@ func (s *Service) lookupV2Endpoints(hostname string, includeMirrors bool) ([]API
 				Host:   hostname,
 			},
 			TLSConfig: tlsConfig,
-
-			AllowNondistributableArtifacts: ana,
 		},
 	}
 
@@ -68,8 +62,6 @@ func (s *Service) lookupV2Endpoints(hostname string, includeMirrors bool) ([]API
 			},
 			// used to check if supposed to be secure via InsecureSkipVerify
 			TLSConfig: tlsConfig,
-
-			AllowNondistributableArtifacts: ana,
 		})
 	}
 

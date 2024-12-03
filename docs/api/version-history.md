@@ -17,6 +17,11 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.48](https://docs.docker.com/reference/api/engine/version/v1.48/) documentation
 
+# Deprecated: The "allow-nondistributable-artifacts" daemon configuration is
+  deprecated and enabled by default. The  `AllowNondistributableArtifactsCIDRs`
+  and `AllowNondistributableArtifactsHostnames` fields in the `RegistryConfig`
+  struct in the `GET /info` response will now always be `null` and will be
+  omitted in API v1.49.
 * `GET /images/{name}/history` now supports a `platform` parameter (JSON
   encoded OCI Platform type) that allows to specify a platform to show the
   history of.
