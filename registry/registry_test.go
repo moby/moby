@@ -1,6 +1,8 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
+	"errors"
+	"net"
 	"testing"
 
 	"github.com/distribution/reference"
@@ -8,6 +10,29 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
+
+// overrideLookupIP overrides net.LookupIP for testing.
+func overrideLookupIP(t *testing.T) {
+	t.Helper()
+	restoreLookup := lookupIP
+
+	// override net.LookupIP
+	lookupIP = func(host string) ([]net.IP, error) {
+		mockHosts := map[string][]net.IP{
+			"":            {net.ParseIP("0.0.0.0")},
+			"localhost":   {net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+			"example.com": {net.ParseIP("42.42.42.42")},
+			"other.com":   {net.ParseIP("43.43.43.43")},
+		}
+		if addrs, ok := mockHosts[host]; ok {
+			return addrs, nil
+		}
+		return nil, errors.New("lookup: no such host")
+	}
+	t.Cleanup(func() {
+		lookupIP = restoreLookup
+	})
+}
 
 func TestParseRepositoryInfo(t *testing.T) {
 	type staticRepositoryInfo struct {
@@ -242,6 +267,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 }
 
 func TestNewIndexInfo(t *testing.T) {
+	overrideLookupIP(t)
 	testIndexInfo := func(config *serviceConfig, expectedIndexInfos map[string]*registry.IndexInfo) {
 		for indexName, expectedIndexInfo := range expectedIndexInfos {
 			index, err := newIndexInfo(config, indexName)
@@ -415,6 +441,7 @@ func TestMirrorEndpointLookup(t *testing.T) {
 }
 
 func TestAllowNondistributableArtifacts(t *testing.T) {
+	overrideLookupIP(t)
 	tests := []struct {
 		addr       string
 		registries []string
@@ -460,6 +487,7 @@ func TestAllowNondistributableArtifacts(t *testing.T) {
 }
 
 func TestIsSecureIndex(t *testing.T) {
+	overrideLookupIP(t)
 	tests := []struct {
 		addr               string
 		insecureRegistries []string
