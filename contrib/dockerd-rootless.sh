@@ -54,6 +54,30 @@ if ! [ -d "$HOME" ]; then
 	exit 1
 fi
 
+mount_directory() {
+	if [ -z "$_DOCKERD_ROOTLESS_CHILD" ]; then
+		echo "mount_directory should be called from the child context. Otherwise data loss is at risk" >&2
+		exit 1
+	fi
+
+	DIRECTORY="$1"
+	if [ ! -d "$DIRECTORY" ]; then
+		return
+	fi
+
+	# Bind mount directory: this makes this directory visible to
+	# Dockerd, even if it is originally a symlink, given Dockerd does
+	# not always follow symlinks. Some directories might also be
+	# "copied-up", meaning that they will also be writable on the child
+	# namespace; this will be the case only if they are provided as
+	# --copy-up to the rootlesskit.
+	DIRECTORY_REALPATH=$(realpath "$DIRECTORY")
+	MOUNT_OPTIONS="${2:---bind}"
+	rm -rf "$DIRECTORY"
+	mkdir -p "$DIRECTORY"
+	mount $MOUNT_OPTIONS "$DIRECTORY_REALPATH" "$DIRECTORY"
+}
+
 rootlesskit=""
 for f in docker-rootlesskit rootlesskit; do
 	if command -v $f > /dev/null 2>&1; then
@@ -139,6 +163,25 @@ if [ -z "$_DOCKERD_ROOTLESS_CHILD" ]; then
 		"$0" "$@"
 else
 	[ "$_DOCKERD_ROOTLESS_CHILD" = 1 ]
+
+	# The Container Device Interface (CDI) specs can be found by default
+	# under {/etc,/var/run}/cdi. More information at:
+	# https://github.com/cncf-tags/container-device-interface
+	#
+	# In order to use the Container Device Interface (CDI) integration,
+	# the CDI paths need to exist before the Docker daemon is started in
+	# order for it to read the CDI specification files. Otherwise, a
+	# Docker daemon restart will be required for the daemon to discover
+	# them.
+	#
+	# If another set of CDI paths (other than the default /etc/cdi and
+	# /var/run/cdi) are configured through the Docker configuration file
+	# (using "cdi-spec-dirs"), they need to be bind mounted in rootless
+	# mode; otherwise the Docker daemon won't have access to the CDI
+	# specification files.
+	mount_directory /etc/cdi
+	mount_directory /var/run/cdi
+
 	# remove the symlinks for the existing files in the parent namespace if any,
 	# so that we can create our own files in our mount namespace.
 	rm -f /run/docker /run/containerd /run/xtables.lock
@@ -153,10 +196,7 @@ else
 	if [ "$(stat -c %T -f /etc)" = "tmpfs" ] && [ -L "/etc/ssl" ]; then
 		# Workaround for "x509: certificate signed by unknown authority" on openSUSE Tumbleweed.
 		# https://github.com/rootless-containers/rootlesskit/issues/225
-		realpath_etc_ssl=$(realpath /etc/ssl)
-		rm -f /etc/ssl
-		mkdir /etc/ssl
-		mount --rbind ${realpath_etc_ssl} /etc/ssl
+		mount_directory /etc/ssl "--rbind"
 	fi
 
 	exec "$dockerd" "$@"
