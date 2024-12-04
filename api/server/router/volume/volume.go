@@ -1,19 +1,24 @@
 package volume // import "github.com/docker/docker/api/server/router/volume"
 
-import "github.com/docker/docker/api/server/router"
+import (
+	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/api/server/router/container"
+)
 
 // volumeRouter is a router to talk with the volumes controller
 type volumeRouter struct {
-	backend Backend
-	cluster ClusterBackend
-	routes  []router.Route
+	backend          Backend
+	cluster          ClusterBackend
+	routes           []router.Route
+	containerBackend container.Backend
 }
 
 // NewRouter initializes a new volume router
-func NewRouter(b Backend, cb ClusterBackend) router.Router {
+func NewRouter(b Backend, cb ClusterBackend, ctrb container.Backend) router.Router {
 	r := &volumeRouter{
-		backend: b,
-		cluster: cb,
+		backend:          b,
+		cluster:          cb,
+		containerBackend: ctrb,
 	}
 	r.initRoutes()
 	return r
@@ -27,6 +32,7 @@ func (r *volumeRouter) Routes() []router.Route {
 func (r *volumeRouter) initRoutes() {
 	r.routes = []router.Route{
 		// GET
+		router.NewGetRoute("/volumes/{name:.*}/export", r.getVolumeExport),
 		router.NewGetRoute("/volumes", r.getVolumesList),
 		router.NewGetRoute("/volumes/{name:.*}", r.getVolumeByName),
 		// POST

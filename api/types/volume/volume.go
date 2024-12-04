@@ -51,6 +51,8 @@ type Volume struct {
 
 	// usage data
 	UsageData *UsageData `json:"UsageData,omitempty"`
+
+	IsExporting bool `json:"IsExporting,omitempty"`
 }
 
 // UsageData Usage details about the volume. This information is used by the

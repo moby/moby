@@ -37,16 +37,23 @@ func (NoopVolume) Status() map[string]interface{} { return nil }
 // CreatedAt provides the time the volume (directory) was created at
 func (NoopVolume) CreatedAt() (time.Time, error) { return time.Now(), nil }
 
+// IsExporting returns true if the volume is currently being exported
+func (NoopVolume) IsExporting() bool { return false }
+
+// SetExporting sets the exporting status of the volume
+func (NoopVolume) SetExporting(_ bool) { /* no-operation */ }
+
 // FakeVolume is a fake volume with a random name
 type FakeVolume struct {
-	name       string
-	driverName string
-	createdAt  time.Time
+	name        string
+	driverName  string
+	createdAt   time.Time
+	isExporting bool
 }
 
 // NewFakeVolume creates a new fake volume for testing
 func NewFakeVolume(name string, driverName string) volume.Volume {
-	return FakeVolume{name: name, driverName: driverName, createdAt: time.Now()}
+	return FakeVolume{name: name, driverName: driverName, createdAt: time.Now(), isExporting: false}
 }
 
 // Name is the name of the volume
@@ -63,6 +70,14 @@ func (FakeVolume) Mount(_ string) (string, error) { return "fake", nil }
 
 // Unmount unmounts the volume from the container
 func (FakeVolume) Unmount(_ string) error { return nil }
+
+// IsExporting returns true if the volume is currently being exported
+func (f FakeVolume) IsExporting() bool { return f.isExporting }
+
+// SetExporting sets the exporting status of the volume
+func (f FakeVolume) SetExporting(exporting bool) {
+	f.isExporting = exporting
+}
 
 // Status provides low-level details about the volume
 func (FakeVolume) Status() map[string]interface{} {
