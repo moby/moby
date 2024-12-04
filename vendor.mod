@@ -221,7 +221,7 @@ require (
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/crypto v0.29.0 // indirect
-	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0 // indirect
+	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
 	golang.org/x/oauth2 v0.22.0 // indirect
 	golang.org/x/tools v0.27.0 // indirect
 	google.golang.org/api v0.155.0 // indirect
