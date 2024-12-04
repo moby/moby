@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/internal/filedesc"
 	"google.golang.org/protobuf/internal/genid"
 	"google.golang.org/protobuf/internal/strs"
 	"google.golang.org/protobuf/proto"
@@ -37,6 +38,7 @@ import (
 
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
+	"google.golang.org/protobuf/types/gofeaturespb"
 	"google.golang.org/protobuf/types/pluginpb"
 )
 
@@ -574,6 +576,12 @@ type EnumValue struct {
 
 	GoIdent GoIdent // name of the generated Go declaration
 
+	// PrefixedAlias is usually empty, except when the strip_enum_prefix feature
+	// for this enum was set to GENERATE_BOTH, in which case PrefixedAlias holds
+	// the old name which should be generated as an alias for the new name for
+	// compatibility.
+	PrefixedAlias GoIdent
+
 	Parent *Enum // enum in which this value is declared
 
 	Location Location   // location of this enum value
@@ -590,14 +598,46 @@ func newEnumValue(gen *Plugin, f *File, message *Message, enum *Enum, desc proto
 		parentIdent = message.GoIdent
 	}
 	name := parentIdent.GoName + "_" + string(desc.Name())
+	var prefixedName string
 	loc := enum.Location.appendPath(genid.EnumDescriptorProto_Value_field_number, desc.Index())
-	return &EnumValue{
+	if ed, ok := enum.Desc.(*filedesc.Enum); ok {
+		prefix := strings.Replace(strings.ToLower(string(enum.Desc.Name())), "_", "", -1)
+
+		// Start with the StripEnumPrefix of the enum descriptor,
+		// then override it with the StripEnumPrefix of the enum value descriptor,
+		// if any.
+		sep := ed.L1.EditionFeatures.StripEnumPrefix
+		evof := desc.Options().(*descriptorpb.EnumValueOptions).GetFeatures()
+		if proto.HasExtension(evof, gofeaturespb.E_Go) {
+			gf := proto.GetExtension(evof, gofeaturespb.E_Go).(*gofeaturespb.GoFeatures)
+			if gf.StripEnumPrefix != nil {
+				sep = int(*gf.StripEnumPrefix)
+			}
+		}
+
+		switch sep {
+		case genid.GoFeatures_STRIP_ENUM_PREFIX_KEEP_enum_value:
+			// keep long name
+
+		case genid.GoFeatures_STRIP_ENUM_PREFIX_STRIP_enum_value:
+			name = parentIdent.GoName + "_" + strs.TrimEnumPrefix(string(desc.Name()), prefix)
+
+		case genid.GoFeatures_STRIP_ENUM_PREFIX_GENERATE_BOTH_enum_value:
+			prefixedName = name
+			name = parentIdent.GoName + "_" + strs.TrimEnumPrefix(string(desc.Name()), prefix)
+		}
+	}
+	ev := &EnumValue{
 		Desc:     desc,
 		GoIdent:  f.GoImportPath.Ident(name),
 		Parent:   enum,
 		Location: loc,
 		Comments: makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
 	}
+	if prefixedName != "" {
+		ev.PrefixedAlias = f.GoImportPath.Ident(prefixedName)
+	}
+	return ev
 }
 
 // A Message describes a message.

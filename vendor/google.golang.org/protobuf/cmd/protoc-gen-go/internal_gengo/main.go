@@ -260,6 +260,7 @@ func genEnum(g *protogen.GeneratedFile, f *fileInfo, e *enumInfo) {
 
 	// Enum value constants.
 	g.P("const (")
+	anyOldName := false
 	for _, value := range e.Values {
 		g.AnnotateSymbol(value.GoIdent.GoName, protogen.Annotation{Location: value.Location})
 		leadingComments := appendDeprecationSuffix(value.Comments.Leading,
@@ -268,9 +269,26 @@ func genEnum(g *protogen.GeneratedFile, f *fileInfo, e *enumInfo) {
 		g.P(leadingComments,
 			value.GoIdent, " ", e.GoIdent, " = ", value.Desc.Number(),
 			trailingComment(value.Comments.Trailing))
+
+		if value.PrefixedAlias.GoName != "" &&
+			value.PrefixedAlias.GoName != value.GoIdent.GoName {
+			anyOldName = true
+		}
 	}
 	g.P(")")
 	g.P()
+	if anyOldName {
+		g.P("// Old (prefixed) names for ", e.GoIdent, " enum values.")
+		g.P("const (")
+		for _, value := range e.Values {
+			if value.PrefixedAlias.GoName != "" &&
+				value.PrefixedAlias.GoName != value.GoIdent.GoName {
+				g.P(value.PrefixedAlias, " ", e.GoIdent, " = ", value.GoIdent)
+			}
+		}
+		g.P(")")
+		g.P()
+	}
 
 	// Enum value maps.
 	g.P("// Enum value maps for ", e.GoIdent, ".")
