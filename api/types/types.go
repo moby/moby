@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/api/types/volume"
 )
 
@@ -35,7 +36,11 @@ type Ping struct {
 	// endpoint.
 	SwarmStatus *swarm.Status
 
-	EngineFeatures map[string]bool
+	// Capabilities provides information about specific capabilities
+	// the daemon might or might not support.
+	//
+	// Can be nil if talking to an older engine.
+	Capabilities *system.Capabilities
 }
 
 // ComponentVersion describes the version information for a specific component.

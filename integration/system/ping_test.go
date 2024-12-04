@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/request"
@@ -136,7 +135,7 @@ func TestPingBuilderHeader(t *testing.T) {
 	})
 }
 
-func TestPingEngineFeatures(t *testing.T) {
+func TestPingCapabilities(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot spin up additional daemons on windows")
 
@@ -145,40 +144,12 @@ func TestPingEngineFeatures(t *testing.T) {
 	apiClient := d.NewClientT(t)
 	defer apiClient.Close()
 
-	t.Run("empty", func(t *testing.T) {
-		testutil.StartSpan(ctx, t)
-		cfg := filepath.Join(d.RootDir(), "daemon.json")
-		err := os.WriteFile(cfg, []byte(`{"features": {}}`), 0o644)
-		assert.NilError(t, err)
-		d.Start(t, "--config-file", cfg)
-		defer d.Stop(t)
-
-		p, err := apiClient.Ping(ctx, true)
-		assert.NilError(t, err)
-
-		// daemon adds default features
-		assert.Equal(t, len(p.EngineFeatures), len(config.DefaultFeatures))
-	})
-
-	t.Run("multiple", func(t *testing.T) {
-		testutil.StartSpan(ctx, t)
-		cfg := filepath.Join(d.RootDir(), "daemon.json")
-		err := os.WriteFile(cfg, []byte(`{"features": { "bork": true, "meow": false }}`), 0o644)
-		assert.NilError(t, err)
-		d.Start(t, "--config-file", cfg)
-		defer d.Stop(t)
-
-		p, err := apiClient.Ping(ctx, true)
-		assert.NilError(t, err)
-
-		// daemon adds default features
-		assert.Equal(t, len(p.EngineFeatures), 2+len(config.DefaultFeatures))
-		assert.Equal(t, p.EngineFeatures["bork"], true)
-		assert.Equal(t, p.EngineFeatures["meow"], false)
-	})
-
 	t.Run("containerd snapshotter", func(t *testing.T) {
 		t.Run("disabled", func(t *testing.T) {
+			// CI will complain if we try to run a daemon with the graphdrivers
+			// in the snapshotter tests:
+			// daemon.go:318: failed to start daemon: error initializing graphdriver: driver not supported: overlayfs
+			skip.If(t, testEnv.UsingSnapshotter())
 			testutil.StartSpan(ctx, t)
 			cfg := filepath.Join(d.RootDir(), "daemon.json")
 			err := os.WriteFile(cfg, []byte(`{"features": { "containerd-snapshotter": false }}`), 0o644)
@@ -189,12 +160,11 @@ func TestPingEngineFeatures(t *testing.T) {
 			p, err := apiClient.Ping(ctx, true)
 			assert.NilError(t, err)
 
-			// `containerd-snapshotter` is a default feature, so we expect no extra features
-			assert.Equal(t, len(p.EngineFeatures), len(config.DefaultFeatures))
-			assert.Equal(t, p.EngineFeatures["containerd-snapshotter"], false)
+			assert.Equal(t, false, p.Capabilities.RegistryClientAuth)
 		})
 
 		t.Run("enabled", func(t *testing.T) {
+			skip.If(t, !testEnv.UsingSnapshotter())
 			testutil.StartSpan(ctx, t)
 			cfg := filepath.Join(d.RootDir(), "daemon.json")
 			err := os.WriteFile(cfg, []byte(`{"features": { "containerd-snapshotter": true }}`), 0o644)
@@ -205,9 +175,7 @@ func TestPingEngineFeatures(t *testing.T) {
 			p, err := apiClient.Ping(ctx, true)
 			assert.NilError(t, err)
 
-			// `containerd-snapshotter` is a default feature, so we expect no extra features
-			assert.Equal(t, len(p.EngineFeatures), len(config.DefaultFeatures))
-			assert.Equal(t, p.EngineFeatures["containerd-snapshotter"], true)
+			assert.Equal(t, true, p.Capabilities.RegistryClientAuth)
 		})
 	})
 }

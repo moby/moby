@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/system"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -86,11 +87,11 @@ func TestPingSuccess(t *testing.T) {
 	assert.Check(t, is.Equal(swarm.Status{NodeState: "active", ControlAvailable: true}, *ping.SwarmStatus))
 }
 
-func TestPingEngineFeatures(t *testing.T) {
+func TestPingEngineCapabilities(t *testing.T) {
 	testCases := []struct {
 		doc           string
 		body          string
-		expected      map[string]bool
+		expected      *system.Capabilities
 		expectedError string
 	}{
 		{
@@ -104,23 +105,22 @@ func TestPingEngineFeatures(t *testing.T) {
 		},
 		{
 			doc:  "valid single",
-			body: `{"foo": true}`,
-			expected: map[string]bool{
-				"foo": true,
+			body: `{"registry-client-auth": true}`,
+			expected: &system.Capabilities{
+				RegistryClientAuth: true,
 			},
 		},
 		{
-			doc:  "valid multiple",
-			body: `{"bork": false, "meow-snapshotter": true}`,
-			expected: map[string]bool{
-				"bork":             false,
-				"meow-snapshotter": true,
+			doc:  "known and unknown keys",
+			body: `{"meow": false, "registry-client-auth": true}`,
+			expected: &system.Capabilities{
+				RegistryClientAuth: true,
 			},
 		},
 		{
 			doc:           "invalid body",
 			body:          "bork",
-			expectedError: "failed to parse ping body: expected features, found 'bork'",
+			expectedError: "failed to parse ping body: expected capabilities, found 'bork'",
 		},
 	}
 
@@ -144,7 +144,7 @@ func TestPingEngineFeatures(t *testing.T) {
 			if tc.expectedError == "" {
 				assert.NilError(t, err)
 				assert.Check(t, is.Equal("awesome", ping.APIVersion))
-				assert.DeepEqual(t, tc.expected, ping.EngineFeatures)
+				assert.DeepEqual(t, tc.expected, ping.Capabilities)
 			} else {
 				assert.ErrorContains(t, err, tc.expectedError)
 			}
