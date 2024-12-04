@@ -1043,18 +1043,6 @@ func getDefaultBridgeName(cfg config.BridgeConfig) (bridgeName string, userManag
 		// create it, and it is not possible to supply an address using --bip.
 		return cfg.Iface, true
 	}
-	// Without a --bridge, the bridge is "docker0", created and managed by the
-	// daemon. A --bip (cidr) can be supplied to define the bridge's IP address
-	// and the network's subnet.
-	//
-	// Env var DOCKER_TEST_CREATE_DEFAULT_BRIDGE env var modifies the default
-	// bridge name. Unlike '--bridge', the bridge does not need to be created
-	// outside the daemon, and it's still possible to use '--bip'. It is
-	// intended only for use in moby tests; it may be removed, its behaviour
-	// may be modified, and it may not do what you want anyway!
-	if bn := os.Getenv("DOCKER_TEST_CREATE_DEFAULT_BRIDGE"); bn != "" {
-		return bn, false
-	}
 	return bridge.DefaultBridgeName, false
 }
 
