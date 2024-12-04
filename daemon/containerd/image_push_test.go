@@ -13,6 +13,7 @@ import (
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/platforms"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -26,6 +27,7 @@ type pushTestCase struct {
 	availablePlatforms []ocispec.Platform // platforms available locally
 	requestPlatform    *ocispec.Platform  // platform requested by the client (not the platform selected for push!)
 	check              func(t *testing.T, img containerdimages.Image, pushDescriptor ocispec.Descriptor, err error)
+	checkCandidates    bool
 	daemonPlatform     *ocispec.Platform
 }
 
@@ -62,6 +64,7 @@ func TestImagePushIndex(t *testing.T) {
 			indexPlatforms:     []ocispec.Platform{linuxAmd64, darwinArm64, windowsAmd64},
 			availablePlatforms: []ocispec.Platform{linuxAmd64},
 			check:              singleManifestSelected(linuxAmd64),
+			checkCandidates:    true,
 		},
 		{
 			name: "none requested, two present, daemon platform available",
@@ -69,6 +72,7 @@ func TestImagePushIndex(t *testing.T) {
 			indexPlatforms:     []ocispec.Platform{linuxAmd64, darwinArm64, windowsAmd64},
 			availablePlatforms: []ocispec.Platform{linuxAmd64, darwinArm64},
 			check:              singleManifestSelected(linuxAmd64),
+			checkCandidates:    true,
 		},
 		{
 			name: "none requested, two present, daemon platform NOT available",
@@ -156,6 +160,7 @@ func TestImagePushIndex(t *testing.T) {
 			daemonPlatform:     &linuxArmv5,
 			requestPlatform:    nil,
 			check:              singleManifestSelected(linuxArmv5),
+			checkCandidates:    true,
 		},
 		{
 			name: "none requested on v7 daemon, arm64 not available",
@@ -165,6 +170,7 @@ func TestImagePushIndex(t *testing.T) {
 			daemonPlatform:     &linuxArmv7,
 			requestPlatform:    nil,
 			check:              singleManifestSelected(linuxArmv7),
+			checkCandidates:    true,
 		},
 		{
 			name: "none requested on v7 daemon, v7 not available",
@@ -174,6 +180,7 @@ func TestImagePushIndex(t *testing.T) {
 			daemonPlatform:     &linuxArmv7,
 			requestPlatform:    nil,
 			check:              singleManifestSelected(linuxArmv5), // Should it fail, because v5 can't be pushed?
+			checkCandidates:    true,
 		},
 
 		{
@@ -193,6 +200,7 @@ func TestImagePushIndex(t *testing.T) {
 			daemonPlatform:     &linuxArmv7,
 			requestPlatform:    nil,
 			check:              singleManifestSelected(linuxArmv5),
+			checkCandidates:    true,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -221,11 +229,47 @@ func TestImagePushIndex(t *testing.T) {
 				assert.NilError(t, deletePlatform(ctx, imgSvc, img, platform))
 			}
 
-			desc, err := imgSvc.getPushDescriptor(ctx, img, tc.requestPlatform)
+			desc, candidatesInfo, err := imgSvc.getPushDescriptor(ctx, img, tc.requestPlatform)
 
 			tc.check(t, img, desc, err)
+
+			if tc.checkCandidates {
+				assert.DeepEqual(t, desc, candidatesInfo.selectedManifest.Target())
+				assert.Equal(t, len(tc.indexPlatforms), len(candidatesInfo.candidateSummaries),
+					"expected %d candidate summaries, found %d. %+v",
+					len(tc.indexPlatforms), len(candidatesInfo.candidateSummaries), candidatesInfo.candidateSummaries)
+
+				for _, indexPlatform := range tc.indexPlatforms {
+					_, exists := findManifestSummary(candidatesInfo.candidateSummaries, indexPlatform)
+					assert.Check(t, exists, "expected candidate summaries to include manifest for %+v, found none", indexPlatform)
+				}
+
+				for _, availablePlatform := range tc.availablePlatforms {
+					summary, exists := findManifestSummary(candidatesInfo.candidateSummaries, availablePlatform)
+					assert.Check(t, exists, "expected candidate summaries to include manifest for %+v, found none", availablePlatform)
+					assert.Check(t, summary.Available, "expected summary for %+v to be available. summary: %+v", availablePlatform, summary)
+				}
+			} else {
+				assert.Check(t, candidatesInfo == nil)
+			}
 		})
 	}
+}
+
+func findManifestSummary(summaries []image.ManifestSummary, wanted ocispec.Platform) (image.ManifestSummary, bool) {
+	var (
+		wantedSummary image.ManifestSummary
+		found         bool
+	)
+	for _, candidateSummary := range summaries {
+		if wanted.OS == candidateSummary.ImageData.Platform.OS &&
+			wanted.Architecture == candidateSummary.ImageData.Platform.Architecture &&
+			wanted.Variant == candidateSummary.ImageData.Platform.Variant {
+			found = true
+			wantedSummary = candidateSummary
+		}
+	}
+	return wantedSummary, found
 }
 
 func deletePlatform(ctx context.Context, imgSvc *ImageService, img containerdimages.Image, platform ocispec.Platform) error {
