@@ -33,8 +33,21 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options image.P
 	if options.Platform != "" {
 		query.Set("platform", strings.ToLower(options.Platform))
 	}
+	if options.ChallengeHandlerFunc != nil {
+		query.Set("clientAuth", "1")
+	}
 
 	resp, err := cli.tryImageCreate(ctx, query, options.RegistryAuth)
+	if challenge := resp.header.Get("WWW-Authenticate"); challenge != "" && err != nil {
+		if options.ChallengeHandlerFunc != nil {
+			var newAuthHeader string
+			newAuthHeader, err = options.ChallengeHandlerFunc(ctx, challenge)
+			if err != nil {
+				return nil, err
+			}
+			resp, err = cli.tryImageCreate(ctx, query, newAuthHeader)
+		}
+	}
 	if errdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
 		newAuthHeader, privilegeErr := options.PrivilegeFunc(ctx)
 		if privilegeErr != nil {

@@ -22,7 +22,10 @@ import (
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
-func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error {
+func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer, clientAuth bool) error {
+	if clientAuth {
+		return errdefs.NotImplemented(errors.New("engine is using the graphdriver image store, which does not support client auth handling"))
+	}
 	start := time.Now()
 
 	err := i.pullImageWithReference(ctx, ref, platform, metaHeaders, authConfig, outStream)

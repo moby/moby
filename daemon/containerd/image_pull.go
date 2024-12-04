@@ -30,13 +30,14 @@ import (
 
 // PullImage initiates a pull operation. baseRef is the image to pull.
 // If reference is not tagged, all tags are pulled.
-func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, outStream io.Writer) (retErr error) {
+func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, outStream io.Writer, clientAuth bool) (retErr error) {
 	start := time.Now()
 	defer func() {
 		if retErr == nil {
 			dimages.ImageActions.WithValues("pull").UpdateSince(start)
 		}
 	}()
+
 	out := streamformatter.NewJSONProgressOutput(outStream, false)
 
 	ctx, done, err := i.withLease(ctx, true)
@@ -46,7 +47,7 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 	defer done()
 
 	if !reference.IsNameOnly(baseRef) {
-		return i.pullTag(ctx, baseRef, platform, metaHeaders, authConfig, out)
+		return i.pullTag(ctx, baseRef, platform, metaHeaders, authConfig, out, clientAuth)
 	}
 
 	tags, err := distribution.Tags(ctx, baseRef, &distribution.Config{
@@ -68,7 +69,7 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 			continue
 		}
 
-		if err := i.pullTag(ctx, ref, platform, metaHeaders, authConfig, out); err != nil {
+		if err := i.pullTag(ctx, ref, platform, metaHeaders, authConfig, out, clientAuth); err != nil {
 			return fmt.Errorf("error pulling %s: %w", ref, err)
 		}
 	}
@@ -76,13 +77,13 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 	return nil
 }
 
-func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output) error {
+func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output, clientAuth bool) error {
 	var opts []containerd.RemoteOpt
 	if platform != nil {
 		opts = append(opts, containerd.WithPlatform(platforms.Format(*platform)))
 	}
 
-	resolver, _ := i.newResolverFromAuthConfig(ctx, authConfig, ref)
+	resolver, _ := i.newResolverFromAuthConfig(ctx, authConfig, ref, clientAuth)
 	opts = append(opts, containerd.WithResolver(resolver))
 
 	oldImage, err := i.resolveImage(ctx, ref.String())
@@ -209,6 +210,12 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 			// https://github.com/containerd/containerd/blob/v1.7.8/remotes/docker/authorizer.go#L189-L191
 			if strings.Contains(err.Error(), "no basic auth credentials") {
 				return err
+			}
+			var authChallengeErr *ErrAuthenticationChallenge
+			if errors.As(err, &authChallengeErr) {
+				// Return immediately if the request return an auth challenge
+				// so that we can surface that to the client.
+				return authChallengeErr
 			}
 			return errdefs.NotFound(fmt.Errorf("pull access denied for %s, repository does not exist or may require 'docker login'", reference.FamiliarName(ref)))
 		}

@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -101,7 +102,16 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		// For a pull it is not an error if no auth was given. Ignore invalid
 		// AuthConfig to increase compatibility with the existing API.
 		authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
-		progressErr = ir.backend.PullImage(ctx, ref, platform, metaHeaders, authConfig, output)
+		var clientAuth bool
+		if versions.GreaterThanOrEqualTo(version, "1.48") {
+			clientAuth = httputils.BoolValueOrDefault(r, "clientAuth", false)
+		}
+		progressErr = ir.backend.PullImage(ctx, ref, platform, metaHeaders, authConfig, output, clientAuth)
+		if wwwAuthErr, ok := progressErr.(*containerd.ErrAuthenticationChallenge); ok {
+			w.Header().Set("WWW-Authenticate", wwwAuthErr.WwwAuthenticate)
+			w.WriteHeader(401)
+			return errdefs.Unauthorized(wwwAuthErr)
+		}
 	} else { // import
 		src := r.Form.Get("fromSrc")
 
@@ -165,6 +175,11 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
+	var clientAuth bool
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.48") {
+		clientAuth = httputils.BoolValueOrDefault(r, "clientAuth", false)
+	}
+
 	var authConfig *registry.AuthConfig
 	if authEncoded := r.Header.Get(registry.AuthHeader); authEncoded != "" {
 		// the new format is to handle the authConfig as a header. Ignore invalid
@@ -174,7 +189,8 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 		// the old format is supported for compatibility if there was no authConfig header
 		var err error
 		authConfig, err = registry.DecodeAuthConfigBody(r.Body)
-		if err != nil {
+		// don't error if the client has opted in to handling the auth
+		if err != nil && !clientAuth {
 			return errors.Wrap(err, "bad parameters and missing X-Registry-Auth")
 		}
 	}
@@ -221,7 +237,13 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 		}
 	}
 
-	if err := ir.backend.PushImage(ctx, ref, platform, metaHeaders, authConfig, output); err != nil {
+	if err := ir.backend.PushImage(ctx, ref, platform, metaHeaders, authConfig, output, clientAuth); err != nil {
+		if wwwAuthErr, ok := err.(*containerd.ErrAuthenticationChallenge); ok {
+			w.Header().Set("WWW-Authenticate", wwwAuthErr.WwwAuthenticate)
+			w.WriteHeader(401)
+			return errdefs.Unauthorized(wwwAuthErr)
+		}
+
 		if !output.Flushed() {
 			return err
 		}
