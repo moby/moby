@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/rootless"
 )
 
 // StartProxy starts the proxy process at proxyPath.
@@ -53,6 +54,18 @@ func StartProxy(pb types.PortBinding,
 	if listenSock != nil {
 		cmd.Args = append(cmd.Args, "-use-listen-fd")
 		cmd.ExtraFiles = append(cmd.ExtraFiles, listenSock)
+	}
+
+	detachedNetNS, err := rootless.DetachedNetNS()
+	if err != nil {
+		return nil, err
+	}
+	if detachedNetNS != "" {
+		cmd.Path, err = exec.LookPath("nsenter")
+		if err != nil {
+			return nil, err
+		}
+		cmd.Args = append([]string{cmd.Path, "-n" + detachedNetNS, "-F", "--"}, cmd.Args...)
 	}
 
 	wait := make(chan error, 1)
