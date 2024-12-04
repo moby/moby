@@ -1,6 +1,7 @@
 package jsonmessage // import "github.com/docker/docker/pkg/jsonmessage"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -174,10 +175,15 @@ func cursorDown(out io.Writer, l uint) {
 // Display prints the JSONMessage to out. If isTerminal is true, it erases
 // the entire current line when displaying the progressbar. It returns an
 // error if the [JSONMessage.Error] field is non-nil.
-func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
+func (jm *JSONMessage) Display(ctx context.Context, out io.Writer, isTerminal bool) error {
 	if jm.Error != nil {
 		return jm.Error
 	}
+
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	var endl string
 	if isTerminal && jm.Stream == "" && jm.Progress != nil {
 		clearLine(out)
@@ -225,13 +231,19 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 //   - auxCallback allows handling the [JSONMessage.Aux] field. It is
 //     called if a JSONMessage contains an Aux field, in which case
 //     DisplayJSONMessagesStream does not present the JSONMessage.
-func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage)) error {
+func DisplayJSONMessagesStream(ctx context.Context, in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage)) error {
 	var (
 		dec = json.NewDecoder(in)
 		ids = make(map[string]uint)
 	)
 
 	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		var diff uint
 		var jm JSONMessage
 		if err := dec.Decode(&jm); err != nil {
@@ -278,7 +290,7 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 			// with multiple tags).
 			ids = make(map[string]uint)
 		}
-		err := jm.Display(out, isTerminal)
+		err := jm.Display(ctx, out, isTerminal)
 		if jm.ID != "" && isTerminal {
 			cursorDown(out, diff)
 		}
@@ -302,6 +314,6 @@ type Stream interface {
 
 // DisplayJSONMessagesToStream prints json messages to the output Stream. It is
 // used by the Docker CLI to print JSONMessage streams.
-func DisplayJSONMessagesToStream(in io.Reader, stream Stream, auxCallback func(JSONMessage)) error {
-	return DisplayJSONMessagesStream(in, stream, stream.FD(), stream.IsTerminal(), auxCallback)
+func DisplayJSONMessagesToStream(ctx context.Context, in io.Reader, stream Stream, auxCallback func(JSONMessage)) error {
+	return DisplayJSONMessagesStream(ctx, in, stream, stream.FD(), stream.IsTerminal(), auxCallback)
 }
