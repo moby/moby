@@ -242,10 +242,29 @@ import (
 
 	"golang.org/x/tools/go/types/objectpath"
 	"golang.org/x/tools/internal/aliases"
-	"golang.org/x/tools/internal/tokeninternal"
 )
 
 // IExportShallow encodes "shallow" export data for the specified package.
+//
+// For types, we use "shallow" export data. Historically, the Go
+// compiler always produced a summary of the types for a given package
+// that included types from other packages that it indirectly
+// referenced: "deep" export data. This had the advantage that the
+// compiler (and analogous tools such as gopls) need only load one
+// file per direct import.  However, it meant that the files tended to
+// get larger based on the level of the package in the import
+// graph. For example, higher-level packages in the kubernetes module
+// have over 1MB of "deep" export data, even when they have almost no
+// content of their own, merely because they mention a major type that
+// references many others. In pathological cases the export data was
+// 300x larger than the source for a package due to this quadratic
+// growth.
+//
+// "Shallow" export data means that the serialized types describe only
+// a single package. If those types mention types from other packages,
+// the type checker may need to request additional packages beyond
+// just the direct imports. Type information for the entire transitive
+// closure of imports is provided (lazily) by the DAG.
 //
 // No promises are made about the encoding other than that it can be decoded by
 // the same version of IIExportShallow. If you plan to save export data in the
@@ -269,8 +288,8 @@ func IExportShallow(fset *token.FileSet, pkg *types.Package, reportf ReportFunc)
 }
 
 // IImportShallow decodes "shallow" types.Package data encoded by
-// IExportShallow in the same executable. This function cannot import data from
-// cmd/compile or gcexportdata.Write.
+// [IExportShallow] in the same executable. This function cannot import data
+// from cmd/compile or gcexportdata.Write.
 //
 // The importer calls getPackages to obtain package symbols for all
 // packages mentioned in the export data, including the one being
@@ -441,7 +460,7 @@ func (p *iexporter) encodeFile(w *intWriter, file *token.File, needed []uint64) 
 	// Sort the set of needed offsets. Duplicates are harmless.
 	sort.Slice(needed, func(i, j int) bool { return needed[i] < needed[j] })
 
-	lines := tokeninternal.GetLines(file) // byte offset of each line start
+	lines := file.Lines() // byte offset of each line start
 	w.uint64(uint64(len(lines)))
 
 	// Rather than record the entire array of line start offsets,
@@ -725,13 +744,13 @@ func (p *iexporter) doDecl(obj types.Object) {
 	case *types.TypeName:
 		t := obj.Type()
 
-		if tparam, ok := aliases.Unalias(t).(*types.TypeParam); ok {
+		if tparam, ok := types.Unalias(t).(*types.TypeParam); ok {
 			w.tag(typeParamTag)
 			w.pos(obj.Pos())
 			constraint := tparam.Constraint()
 			if p.version >= iexportVersionGo1_18 {
 				implicit := false
-				if iface, _ := aliases.Unalias(constraint).(*types.Interface); iface != nil {
+				if iface, _ := types.Unalias(constraint).(*types.Interface); iface != nil {
 					implicit = iface.IsImplicit()
 				}
 				w.bool(implicit)
@@ -741,7 +760,7 @@ func (p *iexporter) doDecl(obj types.Object) {
 		}
 
 		if obj.IsAlias() {
-			alias, materialized := t.(*aliases.Alias) // may fail when aliases are not enabled
+			alias, materialized := t.(*types.Alias) // may fail when aliases are not enabled
 
 			var tparams *types.TypeParamList
 			if materialized {
@@ -975,7 +994,7 @@ func (w *exportWriter) doTyp(t types.Type, pkg *types.Package) {
 		}()
 	}
 	switch t := t.(type) {
-	case *aliases.Alias:
+	case *types.Alias:
 		if targs := aliases.TypeArgs(t); targs.Len() > 0 {
 			w.startType(instanceType)
 			w.pos(t.Obj().Pos())
@@ -1091,7 +1110,7 @@ func (w *exportWriter) doTyp(t types.Type, pkg *types.Package) {
 		for i := 0; i < n; i++ {
 			ft := t.EmbeddedType(i)
 			tPkg := pkg
-			if named, _ := aliases.Unalias(ft).(*types.Named); named != nil {
+			if named, _ := types.Unalias(ft).(*types.Named); named != nil {
 				w.pos(named.Obj().Pos())
 			} else {
 				w.pos(token.NoPos)
