@@ -67,7 +67,7 @@ require (
 	github.com/miekg/dns v1.1.57
 	github.com/mistifyio/go-zfs/v3 v3.0.1
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.17.3-0.20241126095802-80e01a9dc7c1 // v0.17 branch (v0.17.3-dev)
+	github.com/moby/buildkit v0.17.3
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
