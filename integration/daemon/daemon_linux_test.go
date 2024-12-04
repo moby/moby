@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/docker/docker/api/types/network"
@@ -14,6 +15,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -109,6 +111,29 @@ func TestDaemonDefaultBridgeIPAM_Docker0(t *testing.T) {
 			expIPAMConfig: []network.IPAMConfig{
 				{Subnet: "192.168.176.0/20", IPRange: "192.168.176.0/24", Gateway: "192.168.176.88"},
 				{Subnet: "fdd1:8161:2d2c::/56", IPRange: "fdd1:8161:2d2c::/64", Gateway: "fdd1:8161:2d2c::8888"},
+			},
+		},
+		{
+			name: "link-local fixed-cidr-v6",
+			daemonArgs: []string{
+				"--fixed-cidr", "192.168.176.0/24",
+				"--fixed-cidr-v6", "fe80::/64",
+			},
+			expIPAMConfig: []network.IPAMConfig{
+				{Subnet: "192.168.176.0/24", IPRange: "192.168.176.0/24"},
+				{Subnet: "fe80::/64", IPRange: "fe80::/64", Gateway: llGwPlaceholder},
+			},
+		},
+		{
+			name:               "nonstandard link-local fixed-cidr-v6",
+			initialBridgeAddrs: []string{"192.168.176.88/20", "fe80:1234::88/56"},
+			daemonArgs: []string{
+				"--fixed-cidr", "192.168.176.0/24",
+				"--fixed-cidr-v6", "fe80:1234::/64",
+			},
+			expIPAMConfig: []network.IPAMConfig{
+				{Subnet: "192.168.176.0/20", IPRange: "192.168.176.0/24", Gateway: "192.168.176.88"},
+				{Subnet: "fe80:1234::/56", IPRange: "fe80:1234::/64", Gateway: "fe80:1234::88"},
 			},
 		},
 		{
@@ -234,6 +259,30 @@ func TestDaemonDefaultBridgeIPAM_UserBr(t *testing.T) {
 			},
 		},
 		{
+			name:               "link-local fixed-cidr-v6",
+			initialBridgeAddrs: []string{"192.168.176.88/20"},
+			daemonArgs: []string{
+				"--fixed-cidr", "192.168.176.0/24",
+				"--fixed-cidr-v6", "fe80::/64",
+			},
+			expIPAMConfig: []network.IPAMConfig{
+				{Subnet: "192.168.176.0/20", IPRange: "192.168.176.0/24", Gateway: "192.168.176.88"},
+				{Subnet: "fe80::/64", IPRange: "fe80::/64", Gateway: llGwPlaceholder},
+			},
+		},
+		{
+			name:               "nonstandard link-local fixed-cidr-v6",
+			initialBridgeAddrs: []string{"192.168.176.88/20", "fe80:1234::88/56"},
+			daemonArgs: []string{
+				"--fixed-cidr", "192.168.176.0/24",
+				"--fixed-cidr-v6", "fe80:1234::/64",
+			},
+			expIPAMConfig: []network.IPAMConfig{
+				{Subnet: "192.168.176.0/20", IPRange: "192.168.176.0/24", Gateway: "192.168.176.88"},
+				{Subnet: "fe80:1234::/56", IPRange: "fe80:1234::/64", Gateway: "fe80:1234::88"},
+			},
+		},
+		{
 			name:               "fixed-cidr bigger than bridge subnet",
 			initialBridgeAddrs: []string{"192.168.176.88/24"},
 			daemonArgs:         []string{"--fixed-cidr", "192.168.176.0/20"},
@@ -310,6 +359,11 @@ func TestDaemonDefaultBridgeIPAM_UserBr(t *testing.T) {
 	}
 }
 
+// llGwPlaceholder can be used as a value for "Gateway" in expected IPAM config,
+// before comparison with actual results it'll be replaced by the kernel assigned
+// link local IPv6 address for the bridge.
+const llGwPlaceholder = "ll-gateway-placeholder"
+
 type defaultBridgeIPAMTestCase struct {
 	name               string
 	bridgeName         string
@@ -333,7 +387,7 @@ func testDefaultBridgeIPAM(ctx context.Context, t *testing.T, tc defaultBridgeIP
 		defer cleanup()
 
 		host.Do(t, func() {
-			createBridge(t, tc.bridgeName, tc.initialBridgeAddrs)
+			llAddr := createBridge(t, tc.bridgeName, tc.initialBridgeAddrs)
 
 			var dArgs []string
 			if !tc.ipv4Only {
@@ -365,7 +419,13 @@ func testDefaultBridgeIPAM(ctx context.Context, t *testing.T, tc defaultBridgeIP
 
 			insp, err := c.NetworkInspect(ctx, network.NetworkBridge, network.InspectOptions{})
 			assert.NilError(t, err)
-			assert.Check(t, is.DeepEqual(insp.IPAM.Config, tc.expIPAMConfig))
+			expIPAMConfig := slices.Clone(tc.expIPAMConfig)
+			for i := range expIPAMConfig {
+				if expIPAMConfig[i].Gateway == llGwPlaceholder {
+					expIPAMConfig[i].Gateway = llAddr.String()
+				}
+			}
+			assert.Check(t, is.DeepEqual(insp.IPAM.Config, expIPAMConfig))
 		})
 	})
 }
@@ -386,7 +446,10 @@ func newHostInL3Seg(t *testing.T, name, ip4, ip6 string) (networking.Host, func(
 	return l3.Hosts[hostname], func() { l3.Destroy(t) }
 }
 
-func createBridge(t *testing.T, ifName string, addrs []string) {
+// createBridge creates a bridge device named ifName, brings it up, waits for
+// the kernel to assign a link-local IPv6 address, assigns addrs, and returns
+// the kernel-assigned LL address.
+func createBridge(t *testing.T, ifName string, addrs []string) net.IP {
 	t.Helper()
 
 	// Get a netlink handle in this netns.
@@ -399,9 +462,29 @@ func createBridge(t *testing.T, ifName string, addrs []string) {
 			Name: ifName,
 		},
 	}
-
 	err = nlh.LinkAdd(link)
 	assert.NilError(t, err)
+
+	// Bring the interface up, and wait for the kernel to assign its link-local
+	// address (to cause maximum confusion - the LL address shouldn't be selected
+	// as "bip6").
+	brLink, err := nlh.LinkByName(ifName)
+	assert.NilError(t, err)
+	err = nlh.LinkSetUp(brLink)
+	assert.NilError(t, err)
+	var llAddr net.IP
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		addrs, err := nlh.AddrList(brLink, netlink.FAMILY_V6)
+		if err != nil {
+			return poll.Error(err)
+		}
+		if len(addrs) == 0 {
+			return poll.Continue("no IPv6 addresses")
+		}
+		llAddr = addrs[0].IP
+		return poll.Success()
+	})
+
 	for _, addr := range addrs {
 		ip, ipNet, err := net.ParseCIDR(addr)
 		assert.NilError(t, err)
@@ -409,4 +492,5 @@ func createBridge(t *testing.T, ifName string, addrs []string) {
 		err = nlh.AddrAdd(link, &netlink.Addr{IPNet: ipNet})
 		assert.NilError(t, err)
 	}
+	return llAddr
 }

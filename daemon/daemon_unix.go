@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -1190,6 +1191,15 @@ func selectBIP(
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "list bridge addresses failed")
 	}
+	// For IPv6, ignore the kernel-assigned link-local address. Remove all
+	// link-local addresses, unless fixed-cidr-v6 has the standard link-local
+	// prefix. (If fixed-cidr-v6 is the standard LL prefix, the kernel-assigned
+	// address is likely to be used instead of an IPAM assigned address.)
+	if family == netlink.FAMILY_V6 && (fCidrIP == nil || !isStandardLL(fCidrIP)) {
+		bridgeNws = slices.DeleteFunc(bridgeNws, func(nlAddr netlink.Addr) bool {
+			return isStandardLL(nlAddr.IP)
+		})
+	}
 	if len(bridgeNws) > 0 {
 		// Pick any address from the bridge as a starting point.
 		nw := bridgeNws[0].IPNet
@@ -1236,6 +1246,16 @@ func selectBIP(
 	}
 
 	return bIP, bIPNet, nil
+}
+
+// isStandardLL returns true if ip is in fe80::/64 (the link local prefix is fe80::/10,
+// but only fe80::/64 is normally used - however, it's possible to ask IPAM for a
+// link-local subnet that's outside that range).
+func isStandardLL(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+	return ip.Mask(net.CIDRMask(64, 128)).Equal(net.ParseIP("fe80::"))
 }
 
 // Remove default bridge interface if present (--bridge=none use case)
