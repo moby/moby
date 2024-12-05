@@ -231,6 +231,9 @@ func lookupBinPath(binary string) (string, error) {
 
 // validatePlatformConfig checks if any platform-specific configuration settings are invalid.
 func validatePlatformConfig(conf *Config) error {
+	if err := verifyExecOptions(conf.ExecOptions); err != nil {
+		return err
+	}
 	if err := verifyUserlandProxyConfig(conf); err != nil {
 		return err
 	}
@@ -243,6 +246,30 @@ func validatePlatformConfig(conf *Config) error {
 	}
 
 	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
+}
+
+// verifyExecOptions checks if the configured exec-opts are valid for the platform.
+// It returns an error if the exec-options are formatted incorrectly, or when
+// options are used that are not supported on this platform.
+func verifyExecOptions(execOptions []string) error {
+	for _, opt := range execOptions {
+		k, v, ok := strings.Cut(opt, "=")
+		k = strings.ToLower(strings.TrimSpace(k))
+		v = strings.TrimSpace(v)
+		if !ok || k == "" || v == "" {
+			return fmt.Errorf("invalid exec-opt (%s): must be formatted 'opt=value'", opt)
+		}
+		switch k {
+		case "isolation":
+			return fmt.Errorf("invalid exec-opt (%s): '%s' option is only supported on windows", opt, k)
+		case "native.cgroupdriver":
+			// TODO(thaJeztah): add validation that's currently in daemon.verifyCgroupDriver
+			continue
+		default:
+			return fmt.Errorf("invalid exec-opt (%s): unknown option: '%s'", opt, k)
+		}
+	}
+	return nil
 }
 
 // verifyUserlandProxyConfig verifies if a valid userland-proxy path
