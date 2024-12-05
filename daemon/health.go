@@ -263,7 +263,7 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 	c.Unlock()
 
 	// Ensures that if the StartPeriod ends before the next scheduled probeInterval
-	// The next health check runs immediately after the StartPeriod.
+	// The next health check runs immediately after the StartPeriod
 	getInterval := func() time.Duration {
 		elapsed := time.Since(started)
 		if elapsed >= startPeriod {
