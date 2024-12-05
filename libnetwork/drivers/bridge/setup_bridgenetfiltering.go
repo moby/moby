@@ -7,10 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/modprobe"
 )
 
 // setupIPv4BridgeNetFiltering checks whether IPv4 forwarding is enabled and, if
@@ -46,21 +46,17 @@ func setupIPv6BridgeNetFiltering(config *networkConfiguration, _ *bridgeInterfac
 }
 
 func loadBridgeNetFilterModule(fullPath string) error {
-	// br_netfilter implictly loads bridge module upon modprobe
-	modName := "br_netfilter"
-	if _, err := os.Stat(fullPath); err != nil {
-		if out, err := exec.Command("modprobe", "-va", modName).CombinedOutput(); err != nil {
-			log.G(context.TODO()).WithError(err).Errorf("Running modprobe %s failed with message: %s", modName, out)
-			return fmt.Errorf("cannot restrict inter-container communication: modprobe %s failed: %w", modName, err)
-		}
-	}
-	return nil
+	// br_netfilter implicitly loads bridge module upon modprobe
+	return modprobe.LoadModules(context.TODO(), func() error {
+		_, err := os.Stat(fullPath)
+		return err
+	}, "br_netfilter")
 }
 
 // Enable bridge net filtering if not already enabled. See GitHub issue #11404
 func enableBridgeNetFiltering(nfParam string) error {
 	if err := loadBridgeNetFilterModule(nfParam); err != nil {
-		return fmt.Errorf("loadBridgeNetFilterModule failed: %s", err)
+		return fmt.Errorf("cannot restrict inter-container communication or run without the userland proxy: %w", err)
 	}
 	enabled, err := getKernelBoolParam(nfParam)
 	if err != nil {
