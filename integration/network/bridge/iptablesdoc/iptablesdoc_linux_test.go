@@ -203,7 +203,7 @@ func TestBridgeIptablesDoc(t *testing.T) {
 		)
 		host := l3.Hosts[hostname]
 		// Stop the interface, to reduce the chances of stray packets getting counted by iptables.
-		host.Run(t, "ip", "link", "set", "eth0", "down")
+		host.MustRun(t, "ip", "link", "set", "eth0", "down")
 
 		t.Run("gen_"+sec.name, func(t *testing.T) {
 			// t.Parallel() - doesn't speed things up, startup times just extend
@@ -287,11 +287,11 @@ func runTestNet(t *testing.T, ctx context.Context, bundlesDir string, section se
 var rePacketByteCounts = regexp.MustCompile(`\d+ packets, \d+ bytes`)
 
 func runIptables(t *testing.T, host networking.Host) map[iptCmdType]string {
-	host.Run(t, "iptables", "-Z")
-	host.Run(t, "iptables", "-Z", "-t", "nat")
+	host.MustRun(t, "iptables", "-Z")
+	host.MustRun(t, "iptables", "-Z", "-t", "nat")
 	res := map[iptCmdType]string{}
 	for k, cmd := range iptCmds {
-		d := host.Run(t, cmd[0], cmd[1:]...)
+		d := host.MustRun(t, cmd[0], cmd[1:]...)
 		// In CI, the OUTPUT chain sometimes sees a packet. Remove the counts.
 		d = rePacketByteCounts.ReplaceAllString(d, "0 packets, 0 bytes")
 		// Indent the result, so that it's treated as preformatted markdown.
