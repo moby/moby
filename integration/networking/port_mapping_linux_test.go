@@ -659,8 +659,8 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 		netip.MustParsePrefix("192.168.124.3/24"),
 		netip.MustParsePrefix("fdc0:36dc:a4dd::3/64"))
 	// Add default routes to the "docker" Host from the "remote" Host.
-	l3.Hosts["remote"].Run(t, "ip", "route", "add", "default", "via", "192.168.124.2")
-	l3.Hosts["remote"].Run(t, "ip", "-6", "route", "add", "default", "via", "fdc0:36dc:a4dd::2")
+	l3.Hosts["remote"].MustRun(t, "ip", "route", "add", "default", "via", "192.168.124.2")
+	l3.Hosts["remote"].MustRun(t, "ip", "-6", "route", "add", "default", "via", "fdc0:36dc:a4dd::2")
 
 	type ctrDesc struct {
 		id   string
