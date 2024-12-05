@@ -120,7 +120,6 @@ func TestRunMountVolumeSubdir(t *testing.T) {
 
 func TestRunMountImage(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.48"), "skip test from new feature")
-	skip.If(t, testEnv.UsingSnapshotter(), "snapshotter not supported")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "image mounts not supported on Windows")
 
 	ctx := setupTest(t)
@@ -187,8 +186,10 @@ func TestRunMountImage(t *testing.T) {
 
 			// Test image mounted is in use logic
 			if tc.name == "image_remove" {
+				img, _, _ := apiClient.ImageInspectWithRaw(ctx, testImage)
+				imgId := strings.Split(img.ID, ":")[1]
 				_, removeErr := apiClient.ImageRemove(ctx, testImage, image.RemoveOptions{})
-				assert.ErrorContains(t, removeErr, fmt.Sprintf(`unable to remove repository reference "test-image" (must force) - container %s is using its referenced image`, id[:12]))
+				assert.ErrorContains(t, removeErr, fmt.Sprintf(`container %s is using its referenced image %s`, id[:12], imgId[:12]))
 			}
 
 			// Test that the container servives a restart when mounted image is removed

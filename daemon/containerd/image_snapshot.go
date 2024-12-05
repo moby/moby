@@ -16,43 +16,44 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/image-spec/identity"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
 // CreateLayer creates a new layer for a container.
-// TODO(vvoland): Decouple from container
 func (i *ImageService) CreateLayer(ctr *container.Container, initFunc layer.MountInit) (container.RWLayer, error) {
-	ctx := context.TODO()
-
-	var parentSnapshot string
+	var descriptor *ocispec.Descriptor
 	if ctr.ImageManifest != nil {
-		img := c8dimages.Image{
-			Target: *ctr.ImageManifest,
-		}
-		platformImg, err := i.NewImageManifest(ctx, img, img.Target)
-		if err != nil {
-			return nil, err
-		}
-		unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
-		if err != nil {
-			return nil, err
-		}
-
-		if !unpacked {
-			if err := platformImg.Unpack(ctx, i.snapshotter); err != nil {
-				return nil, err
-			}
-		}
-
-		diffIDs, err := platformImg.RootFS(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		parentSnapshot = identity.ChainID(diffIDs).String()
+		descriptor = ctr.ImageManifest
 	}
 
-	id := ctr.ID
+	rwLayerOpts := &layer.CreateRWLayerOpts{
+		StorageOpt: ctr.HostConfig.StorageOpt,
+	}
+
+	return i.createLayer(descriptor, ctr.ID, rwLayerOpts, initFunc)
+}
+
+// CreateLayerFromImage creates a new layer from an image
+func (i *ImageService) CreateLayerFromImage(img *image.Image, layerName string, rwLayerOpts *layer.CreateRWLayerOpts) (container.RWLayer, error) {
+	var descriptor *ocispec.Descriptor
+	if img != nil {
+		descriptor = img.Details.ManifestDescriptor
+	}
+
+	return i.createLayer(descriptor, layerName, rwLayerOpts, nil)
+}
+
+func (i *ImageService) createLayer(descriptor *ocispec.Descriptor, layerName string, rwLayerOpts *layer.CreateRWLayerOpts, initFunc layer.MountInit) (container.RWLayer, error) {
+	ctx := context.TODO()
+	var parentSnapshot string
+	if descriptor != nil {
+		snapshot, err := i.getImageSnapshot(ctx, descriptor)
+		if err != nil {
+			return nil, err
+		}
+		parentSnapshot = snapshot
+	}
 
 	// TODO: Consider a better way to do this. It is better to have a container directly
 	// reference a snapshot, however, that is not done today because a container may
@@ -60,21 +61,24 @@ func (i *ImageService) CreateLayer(ctr *container.Container, initFunc layer.Moun
 	// removing this lease and only temporarily holding a lease on re-create, using
 	// non-expiring leases introduces the possibility of leaking resources.
 	ls := i.client.LeasesService()
-	lease, err := ls.Create(ctx, leases.WithID(id))
+	lease, err := ls.Create(ctx, leases.WithID(layerName))
 	if err != nil {
 		return nil, err
 	}
 	ctx = leases.WithLease(ctx, lease.ID)
 
-	if err := i.prepareInitLayer(ctx, id, parentSnapshot, initFunc); err != nil {
-		return nil, err
+	if initFunc != nil {
+		if err := i.prepareInitLayer(ctx, layerName, parentSnapshot, initFunc); err != nil {
+			return nil, err
+		}
+		parentSnapshot = layerName + "-init"
 	}
 
 	sn := i.client.SnapshotService(i.StorageDriver())
 	if !i.idMapping.Empty() {
-		err = i.remapSnapshot(ctx, sn, id, id+"-init")
+		err = i.remapSnapshot(ctx, sn, layerName, parentSnapshot)
 	} else {
-		_, err = sn.Prepare(ctx, id, id+"-init")
+		_, err = sn.Prepare(ctx, layerName, parentSnapshot)
 	}
 
 	if err != nil {
@@ -82,7 +86,7 @@ func (i *ImageService) CreateLayer(ctr *container.Container, initFunc layer.Moun
 	}
 
 	return &rwLayer{
-		id:              id,
+		id:              layerName,
 		snapshotterName: i.StorageDriver(),
 		snapshotter:     sn,
 		refCountMounter: i.refCountMounter,
@@ -90,8 +94,35 @@ func (i *ImageService) CreateLayer(ctr *container.Container, initFunc layer.Moun
 	}, nil
 }
 
-func (i *ImageService) CreateLayerFromImage(img *image.Image, layerName string, rwLayerOpts *layer.CreateRWLayerOpts) (container.RWLayer, error) {
-	return nil, errdefs.NotImplemented(errdefs.NotImplemented(errors.New("not implemented")))
+func (i *ImageService) getImageSnapshot(ctx context.Context, descriptor *ocispec.Descriptor) (string, error) {
+	c8dImg := c8dimages.Image{
+		Target: *descriptor,
+	}
+
+	platformImg, err := i.NewImageManifest(ctx, c8dImg, c8dImg.Target)
+	if err != nil {
+		return "", err
+	}
+
+	unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
+	if err != nil {
+		return "", err
+	}
+
+	if !unpacked {
+		if err := platformImg.Unpack(ctx, i.snapshotter); err != nil {
+			return "", err
+		}
+	}
+
+	diffIDs, err := platformImg.RootFS(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	snapshot := identity.ChainID(diffIDs).String()
+
+	return snapshot, nil
 }
 
 type rwLayer struct {
@@ -193,7 +224,9 @@ func (l *rwLayer) Unmount() error {
 }
 
 func (l rwLayer) Metadata() (map[string]string, error) {
-	return nil, nil
+	return map[string]string{
+		"ID": l.id,
+	}, nil
 }
 
 // ReleaseLayer releases a layer allowing it to be removed

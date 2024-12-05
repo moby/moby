@@ -77,15 +77,19 @@ func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool)
 
 		if m.Type == mounttypes.TypeImage {
 			layer := m.Layer
-			err := layer.Unmount()
-			if err != nil {
-				rmErrors = append(rmErrors, err.Error())
-				continue
-			}
-			err = daemon.imageService.ReleaseLayer(layer)
-			if err != nil {
-				rmErrors = append(rmErrors, err.Error())
-				continue
+			if layer != nil {
+				err := layer.Unmount()
+				if err != nil {
+					rmErrors = append(rmErrors, err.Error())
+					continue
+				}
+				err = daemon.imageService.ReleaseLayer(layer)
+				if err != nil {
+					rmErrors = append(rmErrors, err.Error())
+					continue
+				}
+			} else {
+				rmErrors = append(rmErrors, fmt.Sprintf("layer not found for image %s", m.Name))
 			}
 		}
 	}
