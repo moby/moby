@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/registry"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -109,6 +110,12 @@ func (i *ImageService) CountImages(ctx context.Context) int {
 	return len(imgs)
 }
 
+// NewImageWithPlatform gets the platform specific image.
+func (i *ImageService) NewImageWithPlatform(img images.Image, platform *ocispec.Platform) containerd.Image {
+	matcher := i.matchRequestedOrDefault(platforms.Only, platform)
+	return containerd.NewImageWithPlatform(i.client, img, matcher)
+}
+
 // CreateLayer creates a filesystem layer for a container.
 // called from create.go
 // TODO: accept an opt struct instead of container?
@@ -146,6 +153,10 @@ func (i *ImageService) Cleanup() error {
 // used by the ImageService.
 func (i *ImageService) StorageDriver() string {
 	return i.snapshotter
+}
+
+func (i *ImageService) Mounter() snapshotter.Mounter {
+	return i.refCountMounter
 }
 
 // ReleaseLayer releases a layer allowing it to be removed

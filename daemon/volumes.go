@@ -16,6 +16,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/container"
+	ctrd "github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/volume"
@@ -252,27 +253,57 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			if !daemon.Config().CommonConfig.Features["image-mount"] {
 				return fmt.Errorf("Feature 'image-mount' is not enabled")
 			}
-			img, err := daemon.imageService.GetImage(ctx, mp.Source, backend.GetImageOpts{})
-			if err != nil {
-				return err
-			}
-
-			rwLayerOpts := &layer.CreateRWLayerOpts{
-				StorageOpt: container.HostConfig.StorageOpt,
-			}
 
 			layerName := fmt.Sprintf("%s-%s", container.ID, mp.Source)
-			layer, err := daemon.imageService.CreateLayerFromImage(img, layerName, rwLayerOpts)
-			if err != nil {
-				return err
-			}
-			path, err := layer.Mount("")
-			if err != nil {
-				return err
+			var src string
+			var path string
+			if daemon.UsesSnapshotter() {
+				ctrdImgSvc, ok := daemon.imageService.(*ctrd.ImageService)
+				if !ok {
+					return fmt.Errorf("error getting the containerd image service")
+				}
+
+				img, err := ctrdImgSvc.ResolveImage(ctx, mp.Source)
+				if err != nil {
+					return err
+				}
+
+				platformImg := ctrdImgSvc.NewImageWithPlatform(img, nil)
+				src = img.Target.Digest.String()
+
+				mounts, err := daemon.imageService.PrepareSnapshotFromImage(ctx, layerName, platformImg, nil)
+				if err != nil {
+					return err
+				}
+
+				if path, err = ctrdImgSvc.Mounter().Mount(mounts, layerName); err != nil {
+					return fmt.Errorf("failed to mount %s: %w", path, err)
+				}
+
+			} else {
+				img, err := daemon.imageService.GetImage(ctx, mp.Source, backend.GetImageOpts{})
+				if err != nil {
+					return err
+				}
+				src = img.ID().String()
+
+				rwLayerOpts := &layer.CreateRWLayerOpts{
+					StorageOpt: container.HostConfig.StorageOpt,
+				}
+
+				layer, err := daemon.imageService.CreateLayerFromImage(img, layerName, rwLayerOpts)
+				if err != nil {
+					return err
+				}
+
+				path, err = layer.Mount("")
+				if err != nil {
+					return err
+				}
 			}
 
 			mp.Name = mp.Spec.Source
-			mp.Spec.Source = img.ID().String()
+			mp.Spec.Source = src
 			mp.Source = path
 		}
 

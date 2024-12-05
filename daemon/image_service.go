@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/mount"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
@@ -48,6 +50,7 @@ type ImageService interface {
 	// Containerd related methods
 
 	PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform, setupInit func(string) error) error
+	PrepareSnapshotFromImage(ctx context.Context, id string, image containerd.Image, setupInit func(string) error) ([]mount.Mount, error)
 	GetImageManifest(ctx context.Context, refOrID string, options backend.GetImageOpts) (*ocispec.Descriptor, error)
 
 	// Layers

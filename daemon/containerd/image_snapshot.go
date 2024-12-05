@@ -10,46 +10,56 @@ import (
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/containerd/platforms"
 	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
-// PrepareSnapshot prepares a snapshot from a parent image for a container
 func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform, setupInit func(string) error) error {
-	var parentSnapshot string
+	var platformImg containerd.Image
 	if parentImage != "" {
 		img, err := i.resolveImage(ctx, parentImage)
 		if err != nil {
 			return err
 		}
 
+		platformImg = i.NewImageWithPlatform(img, platform)
+	}
+
+	_, err := i.PrepareSnapshotFromImage(ctx, id, platformImg, setupInit)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PrepareSnapshot prepares a snapshot from a parent image for a container
+func (i *ImageService) PrepareSnapshotFromImage(ctx context.Context, id string, image containerd.Image, setupInit func(string) error) ([]mount.Mount, error) {
+	var parentSnapshot string
+	if image != nil {
 		cs := i.content
 
-		matcher := i.matchRequestedOrDefault(platforms.Only, platform)
-
-		platformImg := containerd.NewImageWithPlatform(i.client, img, matcher)
-		unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
+		unpacked, err := image.IsUnpacked(ctx, i.snapshotter)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if !unpacked {
-			if err := platformImg.Unpack(ctx, i.snapshotter); err != nil {
-				return err
+			if err := image.Unpack(ctx, i.snapshotter); err != nil {
+				return nil, err
 			}
 		}
 
-		desc, err := containerdimages.Config(ctx, cs, img.Target, matcher)
+		desc, err := image.Config(ctx)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		diffIDs, err := containerdimages.RootFS(ctx, cs, desc)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		parentSnapshot = identity.ChainID(diffIDs).String()
@@ -58,22 +68,21 @@ func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentIma
 	ls := i.client.LeasesService()
 	lease, err := ls.Create(ctx, leases.WithID(id))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	ctx = leases.WithLease(ctx, lease.ID)
 
 	snapshotter := i.client.SnapshotService(i.StorageDriver())
 
 	if err := i.prepareInitLayer(ctx, id, parentSnapshot, setupInit); err != nil {
-		return err
+		return nil, err
 	}
 
 	if !i.idMapping.Empty() {
 		return i.remapSnapshot(ctx, snapshotter, id, id+"-init")
 	}
 
-	_, err = snapshotter.Prepare(ctx, id, id+"-init")
-	return err
+	return snapshotter.Prepare(ctx, id, id+"-init")
 }
 
 func (i *ImageService) prepareInitLayer(ctx context.Context, id string, parent string, setupInit func(string) error) error {

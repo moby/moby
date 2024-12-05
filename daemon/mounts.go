@@ -8,6 +8,7 @@ import (
 	"github.com/containerd/log"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
+	ctrd "github.com/docker/docker/daemon/containerd"
 	volumesservice "github.com/docker/docker/volume/service"
 )
 
@@ -66,22 +67,35 @@ func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool)
 
 		if m.Type == mounttypes.TypeImage {
 			layerName := fmt.Sprintf("%s-%s", container.ID, m.Spec.Source)
-			if accessor, ok := daemon.imageService.(layerAccessor); ok {
-				layer, err := accessor.GetLayerByID(layerName)
-				if err != nil {
-					rmErrors = append(rmErrors, err.Error())
+			if daemon.UsesSnapshotter() {
+				if ctrdImgSvc, ok := daemon.imageService.(*ctrd.ImageService); ok {
+					ctrdImgSvc.Mounter().Unmount(m.Source)
 					continue
 				}
-				err = daemon.imageService.ReleaseLayer(layer)
-				if err != nil {
-					rmErrors = append(rmErrors, err.Error())
-					continue
+
+				// This should not happen because of the snapshotter check
+				rmErrors = append(rmErrors, fmt.Errorf("Can't get the containerd service").Error())
+			} else {
+				if accessor, ok := daemon.imageService.(layerAccessor); ok {
+					layer, err := accessor.GetLayerByID(layerName)
+					if err != nil {
+						rmErrors = append(rmErrors, err.Error())
+						continue
+					}
+					err = daemon.imageService.ReleaseLayer(layer)
+					if err != nil {
+						rmErrors = append(rmErrors, err.Error())
+						continue
+					}
+					err = layer.Unmount()
+					if err != nil {
+						rmErrors = append(rmErrors, err.Error())
+						continue
+					}
 				}
-				err = layer.Unmount()
-				if err != nil {
-					rmErrors = append(rmErrors, err.Error())
-					continue
-				}
+
+				// This should not happen because of the snapshotter check
+				rmErrors = append(rmErrors, fmt.Errorf("Can't get layer by id").Error())
 			}
 		}
 	}
