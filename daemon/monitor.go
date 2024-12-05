@@ -39,9 +39,8 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 
 	tsk, ok := c.Task()
 	if ok {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx := context.Background()
 		es, err := tsk.Delete(ctx)
-		cancel()
 		if err != nil {
 			log.G(ctx).WithFields(log.Fields{
 				"error":     err,
