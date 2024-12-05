@@ -148,6 +148,10 @@ func (i *ImageService) StorageDriver() string {
 	return i.snapshotter
 }
 
+func (i *ImageService) Mounter() snapshotter.Mounter {
+	return i.refCountMounter
+}
+
 // ReleaseLayer releases a layer allowing it to be removed
 // called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
 func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {

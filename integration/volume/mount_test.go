@@ -120,7 +120,6 @@ func TestRunMountVolumeSubdir(t *testing.T) {
 
 func TestRunMountImage(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.45"), "skip test from new feature")
-	skip.If(t, testEnv.UsingSnapshotter(), "snapshotter not supported")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "image mounts not supported on Windows")
 
 	ctx := setupTest(t)
