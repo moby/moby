@@ -5,6 +5,7 @@
 		}
 	},
 	"features": {
-		"containerd-snapshotter": false
+		"containerd-snapshotter": false,
+		"image-mount": true
 	}
 }

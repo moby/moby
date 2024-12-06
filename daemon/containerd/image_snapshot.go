@@ -18,12 +18,12 @@ import (
 )
 
 // PrepareSnapshot prepares a snapshot from a parent image for a container
-func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform, setupInit func(string) error) error {
+func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform, setupInit func(string) error) ([]mount.Mount, error) {
 	var parentSnapshot string
 	if parentImage != "" {
 		img, err := i.resolveImage(ctx, parentImage)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		cs := i.content
@@ -33,23 +33,23 @@ func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentIma
 		platformImg := containerd.NewImageWithPlatform(i.client, img, matcher)
 		unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if !unpacked {
 			if err := platformImg.Unpack(ctx, i.snapshotter); err != nil {
-				return err
+				return nil, err
 			}
 		}
 
 		desc, err := containerdimages.Config(ctx, cs, img.Target, matcher)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		diffIDs, err := containerdimages.RootFS(ctx, cs, desc)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		parentSnapshot = identity.ChainID(diffIDs).String()
@@ -63,22 +63,21 @@ func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentIma
 	ls := i.client.LeasesService()
 	lease, err := ls.Create(ctx, leases.WithID(id))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	ctx = leases.WithLease(ctx, lease.ID)
 
 	snapshotter := i.client.SnapshotService(i.StorageDriver())
 
 	if err := i.prepareInitLayer(ctx, id, parentSnapshot, setupInit); err != nil {
-		return err
+		return nil, err
 	}
 
 	if !i.idMapping.Empty() {
 		return i.remapSnapshot(ctx, snapshotter, id, id+"-init")
 	}
 
-	_, err = snapshotter.Prepare(ctx, id, id+"-init")
-	return err
+	return snapshotter.Prepare(ctx, id, id+"-init")
 }
 
 func (i *ImageService) prepareInitLayer(ctx context.Context, id string, parent string, setupInit func(string) error) error {

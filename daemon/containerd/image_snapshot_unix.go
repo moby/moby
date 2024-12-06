@@ -25,21 +25,21 @@ const (
 	remapSuffix     = "-remap"
 )
 
-func (i *ImageService) remapSnapshot(ctx context.Context, snapshotter snapshots.Snapshotter, id string, parentSnapshot string) error {
+func (i *ImageService) remapSnapshot(ctx context.Context, snapshotter snapshots.Snapshotter, id string, parentSnapshot string) ([]mount.Mount, error) {
 	_, err := snapshotter.Prepare(ctx, id, parentSnapshot)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	mounts, err := snapshotter.Mounts(ctx, id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := i.remapRootFS(ctx, mounts); err != nil {
-		return err
+		return nil, err
 	}
 
-	return err
+	return mounts, nil
 }
 
 func (i *ImageService) remapRootFS(ctx context.Context, mounts []mount.Mount) error {
