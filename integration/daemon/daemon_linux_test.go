@@ -3,43 +3,47 @@ package daemon // import "github.com/docker/docker/integration/daemon"
 import (
 	"context"
 	"net"
+	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
+// Check that the daemon will start with fixed-cidr set, but no bip.
+// Regression test for https://github.com/moby/moby/issues/45356
 func TestDaemonDefaultBridgeWithFixedCidrButNoBip(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "can't create L3 segment in rootless namespace")
 	ctx := testutil.StartSpan(baseContext, t)
 
-	bridgeName := "ext-bridge1"
-	d := daemon.New(t, daemon.WithEnvVars("DOCKER_TEST_CREATE_DEFAULT_BRIDGE="+bridgeName))
-	defer func() {
-		d.Stop(t)
-		d.Cleanup(t)
-	}()
+	host, cleanup := newHostInL3Seg(t, "fcnobip", "192.168.130.1", "fd69:d2cd:f7df::1")
+	defer cleanup()
 
-	defer func() {
-		// No need to clean up when running this test in rootless mode, as the
-		// interface is deleted when the daemon is stopped and the netns
-		// reclaimed by the kernel.
-		if !testEnv.IsRootless() {
-			deleteInterface(t, bridgeName)
-		}
-	}()
-	d.StartWithBusybox(ctx, t, "--bridge", bridgeName, "--fixed-cidr", "192.168.130.0/24")
+	host.Do(t, func() {
+		// Run without OTel because there's no routing from this netns for it - which
+		// means the daemon doesn't shut down cleanly, causing the test to fail.
+		d := daemon.New(t, daemon.WithEnvVars("OTEL_EXPORTER_OTLP_ENDPOINT="))
+		d.StartWithBusybox(ctx, t, "--fixed-cidr", "192.168.130.0/24")
+		defer func() {
+			d.Stop(t)
+			d.Cleanup(t)
+		}()
+	})
 }
 
 // Test fixed-cidr and bip options, with various addresses on the bridge
 // before the daemon starts.
 func TestDaemonDefaultBridgeIPAM_Docker0(t *testing.T) {
-	skip.If(t, testEnv.IsRootless, "can't create test bridge in rootless namespace")
+	skip.If(t, testEnv.IsRootless, "can't create L3 segment in rootless namespace")
 	ctx := testutil.StartSpan(baseContext, t)
 
 	testcases := []defaultBridgeIPAMTestCase{
@@ -110,6 +114,29 @@ func TestDaemonDefaultBridgeIPAM_Docker0(t *testing.T) {
 			},
 		},
 		{
+			name: "link-local fixed-cidr-v6",
+			daemonArgs: []string{
+				"--fixed-cidr", "192.168.176.0/24",
+				"--fixed-cidr-v6", "fe80::/64",
+			},
+			expIPAMConfig: []network.IPAMConfig{
+				{Subnet: "192.168.176.0/24", IPRange: "192.168.176.0/24"},
+				{Subnet: "fe80::/64", IPRange: "fe80::/64", Gateway: llGwPlaceholder},
+			},
+		},
+		{
+			name:               "nonstandard link-local fixed-cidr-v6",
+			initialBridgeAddrs: []string{"192.168.176.88/20", "fe80:1234::88/56"},
+			daemonArgs: []string{
+				"--fixed-cidr", "192.168.176.0/24",
+				"--fixed-cidr-v6", "fe80:1234::/64",
+			},
+			expIPAMConfig: []network.IPAMConfig{
+				{Subnet: "192.168.176.0/20", IPRange: "192.168.176.0/24", Gateway: "192.168.176.88"},
+				{Subnet: "fe80:1234::/56", IPRange: "fe80:1234::/64", Gateway: "fe80:1234::88"},
+			},
+		},
+		{
 			name:               "fixed-cidr within old bridge subnet with new bip",
 			initialBridgeAddrs: []string{"192.168.176.88/20", "fdd1:8161:2d2c::/56"},
 			daemonArgs: []string{
@@ -168,6 +195,7 @@ func TestDaemonDefaultBridgeIPAM_Docker0(t *testing.T) {
 		},
 	}
 	for _, tc := range testcases {
+		tc.bridgeName = "docker0"
 		testDefaultBridgeIPAM(ctx, t, tc)
 	}
 }
@@ -175,7 +203,7 @@ func TestDaemonDefaultBridgeIPAM_Docker0(t *testing.T) {
 // Like TestDaemonUserDefaultBridgeIPAMDocker0, but with a user-defined/supplied
 // bridge, instead of docker0.
 func TestDaemonDefaultBridgeIPAM_UserBr(t *testing.T) {
-	skip.If(t, testEnv.IsRootless, "can't create test bridge in rootless namespace")
+	skip.If(t, testEnv.IsRootless, "can't create L3 segment in rootless namespace")
 	ctx := testutil.StartSpan(baseContext, t)
 
 	testcases := []defaultBridgeIPAMTestCase{
@@ -228,6 +256,30 @@ func TestDaemonDefaultBridgeIPAM_UserBr(t *testing.T) {
 			expIPAMConfig: []network.IPAMConfig{
 				{Subnet: "192.168.176.0/20", IPRange: "192.168.177.0/24", Gateway: "192.168.176.88"},
 				{Subnet: "fdd1:8161:2d2c:10::/60", IPRange: "fdd1:8161:2d2c:11::/64", Gateway: "fdd1:8161:2d2c:10::8888"},
+			},
+		},
+		{
+			name:               "link-local fixed-cidr-v6",
+			initialBridgeAddrs: []string{"192.168.176.88/20"},
+			daemonArgs: []string{
+				"--fixed-cidr", "192.168.176.0/24",
+				"--fixed-cidr-v6", "fe80::/64",
+			},
+			expIPAMConfig: []network.IPAMConfig{
+				{Subnet: "192.168.176.0/20", IPRange: "192.168.176.0/24", Gateway: "192.168.176.88"},
+				{Subnet: "fe80::/64", IPRange: "fe80::/64", Gateway: llGwPlaceholder},
+			},
+		},
+		{
+			name:               "nonstandard link-local fixed-cidr-v6",
+			initialBridgeAddrs: []string{"192.168.176.88/20", "fe80:1234::88/56"},
+			daemonArgs: []string{
+				"--fixed-cidr", "192.168.176.0/24",
+				"--fixed-cidr-v6", "fe80:1234::/64",
+			},
+			expIPAMConfig: []network.IPAMConfig{
+				{Subnet: "192.168.176.0/20", IPRange: "192.168.176.0/24", Gateway: "192.168.176.88"},
+				{Subnet: "fe80:1234::/56", IPRange: "fe80:1234::/64", Gateway: "fe80:1234::88"},
 			},
 		},
 		{
@@ -301,13 +353,20 @@ func TestDaemonDefaultBridgeIPAM_UserBr(t *testing.T) {
 		},
 	}
 	for _, tc := range testcases {
+		tc.bridgeName = "br-dbi"
 		tc.userDefinedBridge = true
 		testDefaultBridgeIPAM(ctx, t, tc)
 	}
 }
 
+// llGwPlaceholder can be used as a value for "Gateway" in expected IPAM config,
+// before comparison with actual results it'll be replaced by the kernel assigned
+// link local IPv6 address for the bridge.
+const llGwPlaceholder = "ll-gateway-placeholder"
+
 type defaultBridgeIPAMTestCase struct {
 	name               string
+	bridgeName         string
 	userDefinedBridge  bool
 	initialBridgeAddrs []string
 	daemonArgs         []string
@@ -319,71 +378,119 @@ type defaultBridgeIPAMTestCase struct {
 func testDefaultBridgeIPAM(ctx context.Context, t *testing.T, tc defaultBridgeIPAMTestCase) {
 	t.Run(tc.name, func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		const bridgeName = "br-dbi"
 
-		createBridge(t, bridgeName, tc.initialBridgeAddrs)
-		defer deleteInterface(t, bridgeName)
+		// Run this test in its own network namespace because it messes with the default
+		// bridge and, for example, iptables rules for the default bridge aren't deleted
+		// because the network can't be deleted. Then, rules with old addresses may break
+		// unrelated tests.
+		host, cleanup := newHostInL3Seg(t, "defbripam", "192.168.131.1", "fdf9:2eb5:ba8c::1")
+		defer cleanup()
 
-		var dOpts []daemon.Option
-		var dArgs []string
-		if !tc.ipv4Only {
-			dArgs = append(tc.daemonArgs, "--ipv6")
-		}
-		if tc.userDefinedBridge {
-			// If a bridge is supplied by the user, the daemon should use its addresses
-			// to infer --bip (which cannot be specified).
-			dArgs = append(dArgs, "--bridge", bridgeName)
-		} else {
-			// The bridge is created and managed by docker, it's always called "docker0",
-			// unless this test-only env var is set - to avoid conflict with the docker0
-			// belonging to the daemon started in CI runs.
-			dOpts = append(dOpts, daemon.WithEnvVars("DOCKER_TEST_CREATE_DEFAULT_BRIDGE="+bridgeName))
-		}
+		host.Do(t, func() {
+			llAddr := createBridge(t, tc.bridgeName, tc.initialBridgeAddrs)
 
-		d := daemon.New(t, dOpts...)
-		defer func() {
-			d.Stop(t)
-			d.Cleanup(t)
-		}()
+			var dArgs []string
+			if !tc.ipv4Only {
+				dArgs = append(tc.daemonArgs, "--ipv6")
+			}
+			if tc.userDefinedBridge {
+				// If a bridge is supplied by the user, the daemon should use its addresses
+				// to infer --bip (which cannot be specified).
+				dArgs = append(dArgs, "--bridge", tc.bridgeName)
+			}
 
-		if tc.expStartErr {
-			err := d.StartWithError(dArgs...)
-			assert.Check(t, is.ErrorContains(err, "daemon exited during startup"))
-			return
-		}
+			// Run without OTel because there's no routing from this netns for it - which
+			// means the daemon doesn't shut down cleanly, causing the test to fail.
+			d := daemon.New(t, daemon.WithEnvVars("OTEL_EXPORTER_OTLP_ENDPOINT="))
+			defer func() {
+				d.Stop(t)
+				d.Cleanup(t)
+			}()
 
-		d.Start(t, dArgs...)
-		c := d.NewClientT(t)
-		defer c.Close()
+			if tc.expStartErr {
+				err := d.StartWithError(dArgs...)
+				assert.Check(t, is.ErrorContains(err, "daemon exited during startup"))
+				return
+			}
 
-		insp, err := c.NetworkInspect(ctx, network.NetworkBridge, network.InspectOptions{})
-		assert.NilError(t, err)
-		assert.Check(t, is.DeepEqual(insp.IPAM.Config, tc.expIPAMConfig))
+			d.Start(t, dArgs...)
+			c := d.NewClientT(t)
+			defer c.Close()
+
+			insp, err := c.NetworkInspect(ctx, network.NetworkBridge, network.InspectOptions{})
+			assert.NilError(t, err)
+			expIPAMConfig := slices.Clone(tc.expIPAMConfig)
+			for i := range expIPAMConfig {
+				if expIPAMConfig[i].Gateway == llGwPlaceholder {
+					expIPAMConfig[i].Gateway = llAddr.String()
+				}
+			}
+			assert.Check(t, is.DeepEqual(insp.IPAM.Config, expIPAMConfig))
+		})
 	})
 }
 
-func createBridge(t *testing.T, ifName string, addrs []string) {
+func newHostInL3Seg(t *testing.T, name, ip4, ip6 string) (networking.Host, func()) {
+	// Set up a netns for each test to avoid sysctl and iptables pollution.
+	addr4 := netip.MustParseAddr(ip4)
+	addr6 := netip.MustParseAddr(ip6)
+	l3 := networking.NewL3Segment(t, "test-"+name,
+		netip.PrefixFrom(addr4, 24),
+		netip.PrefixFrom(addr6, 64),
+	)
+	hostname := "host-" + name
+	l3.AddHost(t, hostname, "ns-"+name, "eth0",
+		netip.PrefixFrom(addr4.Next(), 24),
+		netip.PrefixFrom(addr6.Next(), 64),
+	)
+	return l3.Hosts[hostname], func() { l3.Destroy(t) }
+}
+
+// createBridge creates a bridge device named ifName, brings it up, waits for
+// the kernel to assign a link-local IPv6 address, assigns addrs, and returns
+// the kernel-assigned LL address.
+func createBridge(t *testing.T, ifName string, addrs []string) net.IP {
 	t.Helper()
+
+	// Get a netlink handle in this netns.
+	nlh, err := nlwrap.NewHandle()
+	assert.NilError(t, err)
+	defer nlh.Close()
 
 	link := &netlink.Bridge{
 		LinkAttrs: netlink.LinkAttrs{
 			Name: ifName,
 		},
 	}
-
-	err := netlink.LinkAdd(link)
+	err = nlh.LinkAdd(link)
 	assert.NilError(t, err)
+
+	// Bring the interface up, and wait for the kernel to assign its link-local
+	// address (to cause maximum confusion - the LL address shouldn't be selected
+	// as "bip6").
+	brLink, err := nlh.LinkByName(ifName)
+	assert.NilError(t, err)
+	err = nlh.LinkSetUp(brLink)
+	assert.NilError(t, err)
+	var llAddr net.IP
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		addrs, err := nlh.AddrList(brLink, netlink.FAMILY_V6)
+		if err != nil {
+			return poll.Error(err)
+		}
+		if len(addrs) == 0 {
+			return poll.Continue("no IPv6 addresses")
+		}
+		llAddr = addrs[0].IP
+		return poll.Success()
+	})
+
 	for _, addr := range addrs {
 		ip, ipNet, err := net.ParseCIDR(addr)
 		assert.NilError(t, err)
 		ipNet.IP = ip
-		err = netlink.AddrAdd(link, &netlink.Addr{IPNet: ipNet})
+		err = nlh.AddrAdd(link, &netlink.Addr{IPNet: ipNet})
 		assert.NilError(t, err)
 	}
-}
-
-func deleteInterface(t *testing.T, ifName string) {
-	icmd.RunCommand("ip", "link", "delete", ifName).Assert(t, icmd.Success)
-	icmd.RunCommand("iptables", "-t", "nat", "--flush").Assert(t, icmd.Success)
-	icmd.RunCommand("iptables", "--flush").Assert(t, icmd.Success)
+	return llAddr
 }
