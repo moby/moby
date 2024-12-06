@@ -150,6 +150,9 @@ jobs:
             *.platform=${{ matrix.platform }}
             *.output=type=image,name=${{ env.MOBYBIN_REPO_SLUG }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' && github.repository == 'moby/moby' }}
             *.tags=
+        env:
+          # Enable debug mode to investigate builds in GHA sometimes hanging forever.
+          DEBUG: 1
       -
         name: Export digest
         if: github.event_name != 'pull_request' && github.repository == 'moby/moby'
