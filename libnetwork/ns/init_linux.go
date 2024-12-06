@@ -2,14 +2,12 @@ package ns
 
 import (
 	"context"
-	"fmt"
-	"os/exec"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/modprobe"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/vishvananda/netns"
 )
@@ -65,12 +63,8 @@ func getSupportedNlFamilies() []int {
 		fams = append(fams, syscall.NETLINK_XFRM)
 	}
 	// NETLINK_NETFILTER test
-	if err := loadNfConntrackModules(); err != nil {
-		if checkNfSocket() != nil {
-			log.G(context.TODO()).Warnf("Could not load necessary modules for Conntrack: %v", err)
-		} else {
-			fams = append(fams, syscall.NETLINK_NETFILTER)
-		}
+	if err := modprobe.LoadModules(context.TODO(), checkNfSocket, "nf_conntrack", "nf_conntrack_netlink"); err != nil {
+		log.G(context.TODO()).Warnf("Could not load necessary modules for Conntrack: %v", err)
 	} else {
 		fams = append(fams, syscall.NETLINK_NETFILTER)
 	}
@@ -85,16 +79,6 @@ func checkXfrmSocket() error {
 		return err
 	}
 	syscall.Close(fd)
-	return nil
-}
-
-func loadNfConntrackModules() error {
-	if out, err := exec.Command("modprobe", "-va", "nf_conntrack").CombinedOutput(); err != nil {
-		return fmt.Errorf("Running modprobe nf_conntrack failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
-	}
-	if out, err := exec.Command("modprobe", "-va", "nf_conntrack_netlink").CombinedOutput(); err != nil {
-		return fmt.Errorf("Running modprobe nf_conntrack_netlink failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
-	}
 	return nil
 }
 
