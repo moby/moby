@@ -1,6 +1,9 @@
 package osl
 
-import "net"
+import (
+	"net"
+	"time"
+)
 
 func (nh *neigh) processNeighOptions(options ...NeighOption) {
 	for _, opt := range options {
@@ -86,6 +89,24 @@ func WithRoutes(routes []*net.IPNet) IfaceOption {
 func WithSysctls(sysctls []string) IfaceOption {
 	return func(i *Interface) error {
 		i.sysctls = sysctls
+		return nil
+	}
+}
+
+// WithAdvertiseAddrCount sets the number of unsolicited ARP/NA messages that will
+// be sent to advertise a network interface's addresses.
+func WithAdvertiseAddrCount(count int) IfaceOption {
+	return func(i *Interface) error {
+		i.advertiseAddrNMsgs = count
+		return nil
+	}
+}
+
+// WithAdvertiseAddrInterval sets the interval between unsolicited ARP/NA messages
+// sent to advertise a network interface's addresses.
+func WithAdvertiseAddrInterval(interval time.Duration) IfaceOption {
+	return func(i *Interface) error {
+		i.advertiseAddrInterval = interval
 		return nil
 	}
 }
