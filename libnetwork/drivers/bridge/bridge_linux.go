@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/modprobe"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
@@ -498,6 +499,14 @@ func (d *driver) configure(option map[string]interface{}) error {
 	}
 
 	if config.EnableIP6Tables {
+		if err := modprobe.LoadModules(context.TODO(), func() error {
+			iptable := iptables.GetIptable(iptables.IPv6)
+			_, err := iptable.Raw("-t", "filter", "-n", "-L", "FORWARD")
+			return err
+		}, "ip6_tables"); err != nil {
+			log.G(context.TODO()).WithError(err).Debug("Loading ip6_tables")
+		}
+
 		removeIPChains(iptables.IPv6)
 
 		natChainV6, filterChainV6, isolationChain1V6, isolationChain2V6, err = setupIPChains(config, iptables.IPv6)

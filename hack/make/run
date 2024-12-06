@@ -91,19 +91,6 @@ if [ -n "$DOCKER_ROOTLESS" ]; then
 	)
 fi
 
-# On a host using nftables, the ip6_tables kernel module may need to be loaded.
-# This trick is borrowed from the docker (dind) official image ...
-# "modprobe" without modprobe
-#   https://twitter.com/lucabruno/status/902934379835662336
-# This isn't 100% fool-proof, but it'll have a much higher success rate than
-# simply using the "real" modprobe (which isn't installed in the dev container).
-if ! ip6tables -nL > /dev/null 2>&1; then
-	ip link show ip6_tables > /dev/null 2>&1 || true
-	if ! ip6tables -nL > /dev/null 2>&1; then
-		echo >&2 'ip6tables is not available'
-	fi
-fi
-
 set -x
 # shellcheck disable=SC2086
 exec "${dockerd[@]}" "${args[@]}"

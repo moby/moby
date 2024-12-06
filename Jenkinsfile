@@ -60,15 +60,6 @@ pipeline {
                     }
 
                     stages {
-                        stage("Load kernel modules") {
-                            steps {
-                                sh '''
-                                sudo modprobe ip6table_filter
-                                sudo modprobe -va br_netfilter
-                                sudo systemctl restart docker.service
-                                '''
-                            }
-                        }
                         stage("Print info") {
                             steps {
                                 sh 'docker version'
