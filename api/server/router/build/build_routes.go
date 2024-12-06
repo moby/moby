@@ -245,7 +245,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		}
 		_, err = output.Write(streamformatter.FormatError(err))
 		if err != nil {
-			log.G(ctx).Warnf("could not write error response: %v", err)
+			log.G(ctx).WithError(err).Warn("could not write error response")
 		}
 		return nil
 	}
@@ -280,6 +280,9 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		ProgressWriter: buildProgressWriter(out, wantAux, createProgressReader),
 	})
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			log.G(ctx).Debug("build canceled")
+		}
 		return errf(err)
 	}
 
