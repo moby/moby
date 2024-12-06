@@ -62,11 +62,19 @@ func RequireDevices(s Subsystem, _ Path, _ error) error {
 	return ErrIgnoreSubsystem
 }
 
-// WithHiearchy sets a list of cgroup subsystems.
+// WithHierarchy sets a list of cgroup subsystems.
 // The default list is coming from /proc/self/mountinfo.
-func WithHiearchy(h Hierarchy) InitOpts {
+func WithHierarchy(h Hierarchy) InitOpts {
 	return func(c *InitConfig) error {
 		c.hierarchy = h
 		return nil
 	}
+}
+
+// WithHiearchy sets a list of cgroup subsystems. It is just kept for backward
+// compatibility and will be removed in v4.
+//
+// Deprecated: use WithHierarchy instead.
+func WithHiearchy(h Hierarchy) InitOpts {
+	return WithHierarchy(h)
 }

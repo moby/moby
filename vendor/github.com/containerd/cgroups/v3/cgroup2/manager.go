@@ -31,10 +31,10 @@ import (
 
 	"github.com/containerd/cgroups/v3/cgroup2/stats"
 
+	"github.com/containerd/log"
 	systemdDbus "github.com/coreos/go-systemd/v22/dbus"
 	"github.com/godbus/dbus/v5"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -242,8 +242,10 @@ func setResources(path string, resources *Resources) error {
 type CgroupType string
 
 const (
-	Domain   CgroupType = "domain"
-	Threaded CgroupType = "threaded"
+	Domain         CgroupType = "domain"
+	DomainThreaded CgroupType = "domain threaded"
+	DomainInvalid  CgroupType = "domain invalid"
+	Threaded       CgroupType = "threaded"
 )
 
 func (c *Manager) GetType() (CgroupType, error) {
@@ -317,7 +319,7 @@ func (c *Manager) ToggleControllers(controllers []string, t ControllerToggle) er
 		}
 		filePath := filepath.Join(f, subtreeControl)
 		if err := c.writeSubtreeControl(filePath, controllers, t); err != nil {
-			// When running as rootless, the user may face EPERM on parent groups, but it is neglible when the
+			// When running as rootless, the user may face EPERM on parent groups, but it is negligible when the
 			// controller is already written.
 			// So we only return the last error.
 			lastErr = fmt.Errorf("failed to write subtree controllers %+v to %q: %w", controllers, filePath, err)
@@ -401,7 +403,7 @@ func (c *Manager) Kill() error {
 	if err == nil {
 		return nil
 	}
-	logrus.Warnf("falling back to slower kill implementation: %s", err)
+	log.L.Warnf("falling back to slower kill implementation: %s", err)
 	// Fallback to slow method.
 	return c.fallbackKill()
 }
@@ -414,13 +416,15 @@ func (c *Manager) Kill() error {
 //
 // https://github.com/opencontainers/runc/blob/8da0a0b5675764feaaaaad466f6567a9983fcd08/libcontainer/init_linux.go#L523-L529
 func (c *Manager) fallbackKill() error {
+	logger := log.G(context.TODO()).WithFields(log.Fields{"path": c.path})
+
 	if err := c.Freeze(); err != nil {
-		logrus.Warn(err)
+		logger.WithError(err).Warn("freezing cgroup2.manager")
 	}
 	pids, err := c.Procs(true)
 	if err != nil {
 		if err := c.Thaw(); err != nil {
-			logrus.Warn(err)
+			logger.WithError(err).Warn("thawing cgroup2.manager")
 		}
 		return err
 	}
@@ -428,16 +432,16 @@ func (c *Manager) fallbackKill() error {
 	for _, pid := range pids {
 		p, err := os.FindProcess(int(pid))
 		if err != nil {
-			logrus.Warn(err)
+			logger.WithFields(log.Fields{"error": err, "pid": int(pid)}).Warnf("finding process")
 			continue
 		}
 		procs = append(procs, p)
 		if err := p.Signal(unix.SIGKILL); err != nil {
-			logrus.Warn(err)
+			logger.WithFields(log.Fields{"error": err, "pid": int(pid)}).Warnf("signaling process")
 		}
 	}
 	if err := c.Thaw(); err != nil {
-		logrus.Warn(err)
+		logger.WithError(err).Warn("thawing cgroup2.manager")
 	}
 
 	subreaper, err := getSubreaper()
@@ -459,7 +463,7 @@ func (c *Manager) fallbackKill() error {
 		if subreaper == 0 {
 			if _, err := p.Wait(); err != nil {
 				if !errors.Is(err, unix.ECHILD) {
-					logrus.Warnf("wait on pid %d failed: %s", p.Pid, err)
+					logger.WithFields(log.Fields{"error": err, "pid": p.Pid}).Warn("waiting on process")
 				}
 			}
 		}
@@ -468,13 +472,33 @@ func (c *Manager) fallbackKill() error {
 }
 
 func (c *Manager) Delete() error {
-	// kernel prevents cgroups with running process from being removed, check the tree is empty
-	processes, err := c.Procs(true)
+	var (
+		tasks    []uint64
+		threaded bool
+	)
+	// Kernel prevents cgroups with running process from being removed,
+	// check the tree is empty.
+	//
+	// Pick the right file to read based on the cgs type.
+	cgType, err := c.GetType()
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+	} else {
+		threaded = cgType == Threaded
+	}
+
+	if threaded {
+		tasks, err = c.Threads(true)
+	} else {
+		tasks, err = c.Procs(true)
+	}
 	if err != nil {
 		return err
 	}
-	if len(processes) > 0 {
-		return fmt.Errorf("cgroups: unable to remove path %q: still contains running processes", c.path)
+	if len(tasks) > 0 {
+		return fmt.Errorf("cgroups: unable to remove path %q: still contains running tasks", c.path)
 	}
 	return remove(c.path)
 }
@@ -928,24 +952,27 @@ func startUnit(conn *systemdDbus.Conn, group string, properties []systemdDbus.Pr
 		}
 	}
 
+	systemdStartUnitTimeout := 30 * time.Second
 	select {
 	case s := <-statusChan:
 		if s != "done" {
 			attemptFailedUnitReset(conn, group)
 			return fmt.Errorf("error creating systemd unit `%s`: got `%s`", group, s)
 		}
-	case <-time.After(30 * time.Second):
-		logrus.Warnf("Timed out while waiting for StartTransientUnit(%s) completion signal from dbus. Continuing...", group)
+	case <-time.After(systemdStartUnitTimeout):
+		attemptFailedUnitReset(conn, group)
+		return fmt.Errorf("timed out while waiting for StartTransientUnit(%s) completion signal from dbus after %v", group, systemdStartUnitTimeout)
 	}
 
 	return nil
 }
 
 func attemptFailedUnitReset(conn *systemdDbus.Conn, group string) {
-	err := conn.ResetFailedUnitContext(context.TODO(), group)
+	ctx := context.TODO()
+	err := conn.ResetFailedUnitContext(ctx, group)
 
 	if err != nil {
-		logrus.Warnf("Unable to reset failed unit: %v", err)
+		log.G(ctx).Warnf("Unable to reset failed unit: %v", err)
 	}
 }
 

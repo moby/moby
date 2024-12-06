@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/containerd/cgroups/v3"
 	v1 "github.com/containerd/cgroups/v3/cgroup1/stats"
+	"github.com/moby/sys/userns"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -60,7 +60,7 @@ func Subsystems() []Name {
 		Blkio,
 		Rdma,
 	}
-	if !cgroups.RunningInUserNS() {
+	if !userns.RunningInUserNS() {
 		n = append(n, Devices)
 	}
 	if _, err := os.Stat("/sys/kernel/mm/hugepages"); err == nil {
