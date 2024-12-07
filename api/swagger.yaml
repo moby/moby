@@ -9642,6 +9642,15 @@ paths:
                 This value is a recommendation as advertised by the daemon, and
                 it is up to the client to choose which builder to use.
               default: "2"
+            Engine-Features:
+              type: "string"
+              description: |
+                List of engine features and whether they are enabled or not, containing
+                elements of the `features` field of the daemon's configuration file, as
+                well as features enabled via command line arguments when starting the daemon.
+
+                Represented as a comma separated (,) list of key-value pairs (`some-feature=true|false`),
+                e.g. `containerd-snapshotter=true,other-feature=false`.
             Docker-Experimental:
               type: "boolean"
               description: "If the server is running with experimental mode enabled"
@@ -9708,6 +9717,90 @@ paths:
           description: "server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
+      tags: ["System"]
+  # Using a zero-width character here to define a separate /_ping endpoint to describe the
+  # /_ping?features=v1 API since otherwise Swagger won't allow us to define multiple
+  # responses for the same endpoint depending on query parameter.
+  # This is however supported by OpenAPI v3.
+  # See: https://github.com/OAI/OpenAPI-Specification/issues/146
+  # and https://github.com/OAI/OpenAPI-Specification/issues/182
+  /_ping​:
+    get:
+      summary: "/_ping?features=v1"
+      description: |
+        This is the same endpoint as `GET /_ping`, but describes the different
+        response when it is called with the `features=v1` query parameter.
+
+        In this case, the daemon instead responds with a `Content-Type` of
+        `application/json` and writes a json map corresponding to the engine's
+        configured features in the response body.
+      operationId: "SystemPingFeatures"
+      produces: ["application/json"]
+      parameters:
+        - name: "features"
+          in: "query"
+          description: |
+            The name of the plugin. The `:latest` tag is optional, and is the
+            default if omitted.
+          # marked as required since this is a separate endpoint in the swagger yaml.
+          required: true
+          type: "string"
+          enum: ["v1"]
+      responses:
+        200:
+          description: "no error"
+          schema:
+            # map of strings to booleans
+            type: "object"
+            additionalProperties:
+              type: boolean
+            example:
+              containerd-snapshotter: true
+              other-feature: false
+          headers:
+            API-Version:
+              type: "string"
+              description: "Max API Version the server supports"
+            Builder-Version:
+              type: "string"
+              description: |
+                Default version of docker image builder
+
+                The default on Linux is version "2" (BuildKit), but the daemon
+                can be configured to recommend version "1" (classic Builder).
+                Windows does not yet support BuildKit for native Windows images,
+                and uses "1" (classic builder) as a default.
+
+                This value is a recommendation as advertised by the daemon, and
+                it is up to the client to choose which builder to use.
+              default: "2"
+            Docker-Experimental:
+              type: "boolean"
+              description: "If the server is running with experimental mode enabled"
+            Swarm:
+              type: "string"
+              enum: ["inactive", "pending", "error", "locked", "active/worker", "active/manager"]
+              description: |
+                Contains information about Swarm status of the daemon,
+                and if the daemon is acting as a manager or worker node.
+              default: "inactive"
+            Cache-Control:
+              type: "string"
+              default: "no-cache, no-store, must-revalidate"
+            Pragma:
+              type: "string"
+              default: "no-cache"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+          headers:
+            Cache-Control:
+              type: "string"
+              default: "no-cache, no-store, must-revalidate"
+            Pragma:
+              type: "string"
+              default: "no-cache"
       tags: ["System"]
   /commit:
     post:

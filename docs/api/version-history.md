@@ -58,6 +58,10 @@ keywords: "API, Docker, rcli, REST, documentation"
   the one that sorts first is picked.
 * `GET /containers/json` now returns a `GwPriority` field in `NetworkSettings`
   for each network endpoint.
+* `GET` `/_ping` endpoint now supports a `features` query parameter (currently only
+  takes a constant `v1`, e.g. `GET /_ping?features=v1`). If set, instead of the
+  response body containing `OK`, the daemon responds with with a json map
+  containing the features configured in the daemon's `CommonConfig.Features` field.
 
 ## v1.47 API changes
 
