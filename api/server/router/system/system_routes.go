@@ -44,6 +44,22 @@ func (s *systemRouter) pingHandler(ctx context.Context, w http.ResponseWriter, r
 		w.Header().Set("Content-Length", "0")
 		return nil
 	}
+
+	if queryCapabilities := r.FormValue("capabilities"); queryCapabilities == "v1" {
+		capabilities, err := s.backend.SystemCapabilities(ctx)
+		if err != nil {
+			log.G(ctx).WithError(err).Error("failed")
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			capabilitiesJson, err := json.Marshal(capabilities)
+			if err != nil {
+				return err
+			}
+			_, err = w.Write(capabilitiesJson)
+			return err
+		}
+	}
+
 	_, err := w.Write([]byte{'O', 'K'})
 	return err
 }

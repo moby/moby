@@ -67,7 +67,7 @@ func TestPingSwarmHeader(t *testing.T) {
 
 	t.Run("before swarm init", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		p, err := apiClient.Ping(ctx)
+		p, err := apiClient.Ping(ctx, false)
 		assert.NilError(t, err)
 		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateInactive)
 		assert.Equal(t, p.SwarmStatus.ControlAvailable, false)
@@ -78,7 +78,7 @@ func TestPingSwarmHeader(t *testing.T) {
 
 	t.Run("after swarm init", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		p, err := apiClient.Ping(ctx)
+		p, err := apiClient.Ping(ctx, false)
 		assert.NilError(t, err)
 		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateActive)
 		assert.Equal(t, p.SwarmStatus.ControlAvailable, true)
@@ -89,7 +89,7 @@ func TestPingSwarmHeader(t *testing.T) {
 
 	t.Run("after swarm leave", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		p, err := apiClient.Ping(ctx)
+		p, err := apiClient.Ping(ctx, false)
 		assert.NilError(t, err)
 		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateInactive)
 		assert.Equal(t, p.SwarmStatus.ControlAvailable, false)
@@ -115,7 +115,7 @@ func TestPingBuilderHeader(t *testing.T) {
 			expected = types.BuilderV1
 		}
 
-		p, err := apiClient.Ping(ctx)
+		p, err := apiClient.Ping(ctx, false)
 		assert.NilError(t, err)
 		assert.Equal(t, p.BuilderVersion, expected)
 	})
@@ -129,9 +129,54 @@ func TestPingBuilderHeader(t *testing.T) {
 		defer d.Stop(t)
 
 		expected := types.BuilderV1
-		p, err := apiClient.Ping(ctx)
+		p, err := apiClient.Ping(ctx, false)
 		assert.NilError(t, err)
 		assert.Equal(t, p.BuilderVersion, expected)
+	})
+}
+
+func TestPingCapabilities(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot spin up additional daemons on windows")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	t.Run("containerd snapshotter", func(t *testing.T) {
+		t.Run("disabled", func(t *testing.T) {
+			// CI will complain if we try to run a daemon with the graphdrivers
+			// in the snapshotter tests:
+			// daemon.go:318: failed to start daemon: error initializing graphdriver: driver not supported: overlayfs
+			skip.If(t, testEnv.UsingSnapshotter())
+			testutil.StartSpan(ctx, t)
+			cfg := filepath.Join(d.RootDir(), "daemon.json")
+			err := os.WriteFile(cfg, []byte(`{"features": { "containerd-snapshotter": false }}`), 0o644)
+			assert.NilError(t, err)
+			d.Start(t, "--config-file", cfg)
+			defer d.Stop(t)
+
+			p, err := apiClient.Ping(ctx, true)
+			assert.NilError(t, err)
+
+			assert.Equal(t, false, p.Capabilities.RegistryClientAuth)
+		})
+
+		t.Run("enabled", func(t *testing.T) {
+			skip.If(t, !testEnv.UsingSnapshotter())
+			testutil.StartSpan(ctx, t)
+			cfg := filepath.Join(d.RootDir(), "daemon.json")
+			err := os.WriteFile(cfg, []byte(`{"features": { "containerd-snapshotter": true }}`), 0o644)
+			assert.NilError(t, err)
+			d.Start(t, "--config-file", cfg)
+			defer d.Stop(t)
+
+			p, err := apiClient.Ping(ctx, true)
+			assert.NilError(t, err)
+
+			assert.Equal(t, true, p.Capabilities.RegistryClientAuth)
+		})
 	})
 }
 
