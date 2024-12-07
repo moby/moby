@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
@@ -422,6 +423,22 @@ func (ep *Endpoint) getSysctls() []string {
 	return nil
 }
 
+func (ep *Endpoint) getAdvertiseAddrNMsgs() (int, bool) {
+	n := ep.getNetwork()
+	if n == nil {
+		return 0, false
+	}
+	return n.getAdvertiseAddrNMsgs()
+}
+
+func (ep *Endpoint) getAdvertiseAddrInterval() (time.Duration, bool) {
+	n := ep.getNetwork()
+	if n == nil {
+		return 0, false
+	}
+	return n.getAdvertiseAddrInterval()
+}
+
 func (ep *Endpoint) SetValue(value []byte) error {
 	return json.Unmarshal(value, ep)
 }
@@ -575,7 +592,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	}()
 
 	if err := sb.populateNetworkResources(ctx, ep); err != nil {
-		return err
+		return errdefs.System(err)
 	}
 
 	if err := addEpToResolver(ctx, n.Name(), ep.Name(), &sb.config, ep.iface, n.Resolvers()); err != nil {
@@ -1359,6 +1376,48 @@ func (ep *Endpoint) releaseAddress() {
 			log.G(context.TODO()).Warnf("Failed to release ip address %s on delete of endpoint %s (%s): %v", ep.iface.addrv6.IP, ep.Name(), ep.ID(), err)
 		}
 	}
+}
+
+func (ep *Endpoint) dropIPv6Address(ctx context.Context) {
+	if ep.iface.addrv6 == nil {
+		return
+	}
+
+	n := ep.getNetwork()
+	if n.hasSpecialDriver() {
+		return
+	}
+
+	log.G(ctx).WithFields(log.Fields{
+		"net": n.Name(),
+		"ep":  ep.Name(),
+		"ip":  ep.iface.AddressIPv6(),
+	}).Debug("Dropping IPv6 address for endpoint")
+
+	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
+	if err != nil {
+		log.G(ctx).WithFields(log.Fields{
+			"error": err,
+			"net":   n.Name(),
+			"ep":    ep.Name(),
+			"epid":  ep.ID(),
+			"ip":    ep.iface.AddressIPv6(),
+		}).Warn("Failed to retrieve ipam driver to drop IPv6 address")
+		return
+	}
+
+	if err := ipam.ReleaseAddress(ep.iface.v6PoolID, ep.iface.addrv6.IP); err != nil {
+		log.G(ctx).WithFields(log.Fields{
+			"error": err,
+			"net":   n.Name(),
+			"ep":    ep.Name(),
+			"epid":  ep.ID(),
+			"ip":    ep.iface.AddressIPv6(),
+		}).Warn("Failed to drop IPv6 address")
+		return
+	}
+
+	ep.iface.addrv6 = nil
 }
 
 func (c *Controller) cleanupLocalEndpoints() error {
