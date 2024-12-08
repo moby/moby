@@ -83,6 +83,7 @@ func (s *Server) CreateMux(routers ...router.Router) *mux.Router {
 	debugRouter := debug.NewRouter()
 	for _, r := range debugRouter.Routes() {
 		f := s.makeHTTPHandler(r.Handler(), r.Method()+" "+r.Path())
+		m.Path(versionMatcher + r.Path()).Methods(r.Method()).Handler(f)
 		m.Path(r.Path()).Methods(r.Method()).Handler(f)
 	}
 
