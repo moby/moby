@@ -77,12 +77,12 @@ func loginV2(authConfig *registry.AuthConfig, endpoint APIEndpoint, userAgent st
 
 	log.G(context.TODO()).Debugf("attempting v2 login to registry endpoint %s", endpointStr)
 
-	loginClient, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, creds, nil)
+	req, err := http.NewRequest(http.MethodGet, endpointStr, nil)
 	if err != nil {
 		return "", "", err
 	}
 
-	req, err := http.NewRequest(http.MethodGet, endpointStr, nil)
+	loginClient, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, creds, nil)
 	if err != nil {
 		return "", "", err
 	}
