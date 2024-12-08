@@ -19,6 +19,11 @@ type EndpointSettings struct {
 	// generated address).
 	MacAddress string
 	DriverOpts map[string]string
+
+	// GwPriority determines which endpoint will provide the default gateway
+	// for the container. The endpoint with the highest priority will be used.
+	// If multiple endpoints have the same priority, they are lexicographically
+	// sorted based on their network name, and the one that sorts first is picked.
 	GwPriority int
 	// Operational data
 	NetworkID           string
