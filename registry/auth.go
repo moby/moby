@@ -133,12 +133,13 @@ func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifi
 // files).
 func ConvertToHostname(url string) string {
 	stripped := url
-	if strings.HasPrefix(url, "http://") {
-		stripped = strings.TrimPrefix(url, "http://")
-	} else if strings.HasPrefix(url, "https://") {
-		stripped = strings.TrimPrefix(url, "https://")
+	if strings.HasPrefix(stripped, "http://") {
+		stripped = strings.TrimPrefix(stripped, "http://")
+	} else if strings.HasPrefix(stripped, "https://") {
+		stripped = strings.TrimPrefix(stripped, "https://")
 	}
-	return strings.SplitN(stripped, "/", 2)[0]
+	stripped, _, _ = strings.Cut(stripped, "/")
+	return stripped
 }
 
 // ResolveAuthConfig matches an auth configuration to a server address or a URL
