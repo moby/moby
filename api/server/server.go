@@ -65,15 +65,16 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc, operation string) ht
 }
 
 // CreateMux returns a new mux with all the routers registered.
-func (s *Server) CreateMux(routers ...router.Router) *mux.Router {
+func (s *Server) CreateMux(ctx context.Context, routers ...router.Router) *mux.Router {
+	log.G(ctx).Debug("Registering routers")
 	m := mux.NewRouter()
-
-	log.G(context.TODO()).Debug("Registering routers")
 	for _, apiRouter := range routers {
 		for _, r := range apiRouter.Routes() {
+			if ctx.Err() != nil {
+				return m
+			}
+			log.G(ctx).WithFields(log.Fields{"method": r.Method(), "path": r.Path()}).Debug("Registering route")
 			f := s.makeHTTPHandler(r.Handler(), r.Method()+" "+r.Path())
-
-			log.G(context.TODO()).Debugf("Registering %s, %s", r.Method(), r.Path())
 			m.Path(versionMatcher + r.Path()).Methods(r.Method()).Handler(f)
 			m.Path(r.Path()).Methods(r.Method()).Handler(f)
 		}

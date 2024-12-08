@@ -307,7 +307,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	}
 
 	routers := buildRouters(routerOpts)
-	httpServer.Handler = apiServer.CreateMux(routers...)
+	httpServer.Handler = apiServer.CreateMux(ctx, routers...)
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
 
