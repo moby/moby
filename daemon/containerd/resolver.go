@@ -19,7 +19,7 @@ import (
 func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig *registrytypes.AuthConfig, ref reference.Named) (remotes.Resolver, docker.StatusTracker) {
 	tracker := docker.NewInMemoryTracker()
 
-	hosts := hostsWrapper(i.registryHosts, authConfig, ref, i.registryService)
+	hosts := hostsWrapper(i.registryHosts, authConfig, ref)
 	headers := http.Header{}
 	headers.Set("User-Agent", dockerversion.DockerUserAgent(ctx, useragent.VersionInfo{Name: "containerd-client", Version: version.Version}, useragent.VersionInfo{Name: "storage-driver", Version: i.snapshotter}))
 
@@ -30,7 +30,7 @@ func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig
 	}), tracker
 }
 
-func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.AuthConfig, ref reference.Named, regService registryResolver) docker.RegistryHosts {
+func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.AuthConfig, ref reference.Named) docker.RegistryHosts {
 	if optAuthConfig == nil {
 		return hostsFn
 	}
