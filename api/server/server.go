@@ -83,7 +83,7 @@ func (s *Server) CreateMux(routers ...router.Router) *mux.Router {
 	debugRouter := debug.NewRouter()
 	for _, r := range debugRouter.Routes() {
 		f := s.makeHTTPHandler(r.Handler(), r.Method()+" "+r.Path())
-		m.Path("/debug" + r.Path()).Handler(f)
+		m.Path(r.Path()).Handler(f)
 	}
 
 	notFoundHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
