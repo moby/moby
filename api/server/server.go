@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/server/router/debug"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/dockerversion"
 	"github.com/gorilla/mux"
@@ -80,13 +79,7 @@ func (s *Server) CreateMux(routers ...router.Router) *mux.Router {
 		}
 	}
 
-	debugRouter := debug.NewRouter()
-	for _, r := range debugRouter.Routes() {
-		f := s.makeHTTPHandler(r.Handler(), r.Method()+" "+r.Path())
-		m.Path(versionMatcher + r.Path()).Methods(r.Method()).Handler(f)
-		m.Path(r.Path()).Methods(r.Method()).Handler(f)
-	}
-
+	// Setup handlers for undefined paths and methods
 	notFoundHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = httputils.WriteJSON(w, http.StatusNotFound, &types.ErrorResponse{
 			Message: "page not found",
