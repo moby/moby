@@ -44,12 +44,6 @@ func (pnr PredefinedNetworkError) Error() string {
 // Forbidden denotes the type of this error
 func (pnr PredefinedNetworkError) Forbidden() {}
 
-// NetworkControllerEnabled checks if the networking stack is enabled.
-// This feature depends on OS primitives and it's disabled in systems like Windows.
-func (daemon *Daemon) NetworkControllerEnabled() bool {
-	return daemon.netController != nil
-}
-
 // NetworkController returns the network controller created by the daemon.
 func (daemon *Daemon) NetworkController() *libnetwork.Controller {
 	return daemon.netController
@@ -506,7 +500,7 @@ func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, netwo
 // GetNetworkDriverList returns the list of plugins drivers
 // registered for network.
 func (daemon *Daemon) GetNetworkDriverList(ctx context.Context) []string {
-	if !daemon.NetworkControllerEnabled() {
+	if daemon.netController == nil {
 		return nil
 	}
 
