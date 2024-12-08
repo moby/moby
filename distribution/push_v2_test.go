@@ -517,7 +517,6 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 					Scheme: "https",
 					Host:   registrypkg.IndexHostname,
 				},
-				TrimHostname: true,
 			},
 		}
 		pusher.push(context.Background())

@@ -76,11 +76,8 @@ func newRepository(
 	ctx context.Context, repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint,
 	metaHeaders http.Header, authConfig *registrytypes.AuthConfig, actions ...string,
 ) (distribution.Repository, error) {
-	repoName := repoInfo.Name.Name()
-	// If endpoint does not support CanonicalName, use the RemoteName instead
-	if endpoint.TrimHostname {
-		repoName = reference.Path(repoInfo.Name)
-	}
+	// Trim the hostname to form the RemoteName
+	repoName := reference.Path(repoInfo.Name)
 
 	direct := &net.Dialer{
 		Timeout:   30 * time.Second,
@@ -131,6 +128,7 @@ func newRepository(
 	}
 	tr := transport.NewTransport(base, modifiers...)
 
+	// FIXME(thaJeztah): should this just take the original repoInfo.Name instead of converting the remote name back to a named reference?
 	repoNameRef, err := reference.WithName(repoName)
 	if err != nil {
 		return nil, fallbackError{
