@@ -177,19 +177,41 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 	if err != nil {
 		return err
 	}
-	ksfv := r.FormValue("keep-storage")
-	if ksfv == "" {
-		ksfv = "0"
-	}
-	ks, err := strconv.Atoi(ksfv)
-	if err != nil {
-		return invalidParam{errors.Wrapf(err, "keep-storage is in bytes and expects an integer, got %v", ksfv)}
-	}
 
 	opts := types.BuildCachePruneOptions{
-		All:         httputils.BoolValue(r, "all"),
-		Filters:     fltrs,
-		KeepStorage: int64(ks),
+		All:     httputils.BoolValue(r, "all"),
+		Filters: fltrs,
+	}
+
+	if fv := r.FormValue("reserved-space"); fv != "" {
+		bs, err := strconv.Atoi(fv)
+		if err != nil {
+			return invalidParam{errors.Wrapf(err, "reserved-space is in bytes and expects an integer, got %v", fv)}
+		}
+		opts.ReservedSpace = int64(bs)
+	} else if fv := r.FormValue("keep-storage"); fv != "" {
+		// Deprecated parameter. Only checked if reserved-space is not used.
+		bs, err := strconv.Atoi(fv)
+		if err != nil {
+			return invalidParam{errors.Wrapf(err, "keep-storage is in bytes and expects an integer, got %v", fv)}
+		}
+		opts.ReservedSpace = int64(bs)
+	}
+
+	if fv := r.FormValue("max-used-space"); fv != "" {
+		bs, err := strconv.Atoi(fv)
+		if err != nil {
+			return invalidParam{errors.Wrapf(err, "max-used-space is in bytes and expects an integer, got %v", fv)}
+		}
+		opts.MaxUsedSpace = int64(bs)
+	}
+
+	if fv := r.FormValue("min-free-space"); fv != "" {
+		bs, err := strconv.Atoi(fv)
+		if err != nil {
+			return invalidParam{errors.Wrapf(err, "min-free-space is in bytes and expects an integer, got %v", fv)}
+		}
+		opts.MinFreeSpace = int64(bs)
 	}
 
 	report, err := br.backend.PruneCache(ctx, opts)
