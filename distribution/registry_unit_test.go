@@ -40,10 +40,6 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 		t.Fatalf("could not parse url from test server: %v", err)
 	}
 
-	endpoint := registrypkg.APIEndpoint{
-		URL:          uri,
-		TrimHostname: false,
-	}
 	n, _ := reference.ParseNormalizedNamed("testremotename")
 	repoInfo := &registrypkg.RepositoryInfo{
 		Name: n,
@@ -59,7 +55,7 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 			},
 		},
 	}
-	p := newPuller(endpoint, repoInfo, imagePullConfig, nil)
+	p := newPuller(registrypkg.APIEndpoint{URL: uri}, repoInfo, imagePullConfig, nil)
 	ctx := context.Background()
 	p.repo, err = newRepository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
