@@ -767,6 +767,7 @@ func TestTarUntar(t *testing.T) {
 	for _, c := range []Compression{
 		Uncompressed,
 		Gzip,
+		Zstd,
 	} {
 		changes, err := tarUntar(t, origin, &TarOptions{
 			Compression:     c,
