@@ -121,7 +121,7 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 			}).Debug("export image without name")
 		}
 
-		i.LogImageEvent(target.Digest.String(), target.Digest.String(), events.ActionSave)
+		i.LogImageEvent(ctx, target.Digest.String(), target.Digest.String(), events.ActionSave)
 		return nil
 	}
 
@@ -368,7 +368,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 		})
 
 		fmt.Fprintf(progress, "%s: %s\n", loadedMsg, name)
-		i.LogImageEvent(img.Target.Digest.String(), img.Target.Digest.String(), events.ActionLoad)
+		i.LogImageEvent(ctx, img.Target.Digest.String(), img.Target.Digest.String(), events.ActionLoad)
 
 		if err != nil {
 			// The image failed to unpack, but is already imported, log the error but don't fail the whole load.

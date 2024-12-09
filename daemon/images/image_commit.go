@@ -64,7 +64,7 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 		return "", err
 	}
 
-	i.LogImageEvent(id.String(), id.String(), events.ActionCreate)
+	i.LogImageEvent(ctx, id.String(), id.String(), events.ActionCreate)
 
 	if err := i.imageStore.SetBuiltLocally(id); err != nil {
 		return "", err
