@@ -121,12 +121,11 @@ func NewImageConfigStoreFromStore(is image.Store) ImageConfigStore {
 }
 
 func (s *imageConfigStore) Put(_ context.Context, c []byte) (digest.Digest, error) {
-	id, err := s.Store.Create(c)
-	return digest.Digest(id), err
+	return s.Store.Create(c)
 }
 
 func (s *imageConfigStore) Get(_ context.Context, d digest.Digest) ([]byte, error) {
-	img, err := s.Store.Get(image.ID(d))
+	img, err := s.Store.Get(d)
 	if err != nil {
 		return nil, err
 	}
