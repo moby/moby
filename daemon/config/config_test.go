@@ -2,10 +2,12 @@ package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/netip"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -193,6 +195,83 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 	})
 }
 
+func TestDaemonConfigurationMergeAppliesDefaultFeatures(t *testing.T) {
+	testCases := []struct {
+		doc             string
+		in              map[string]bool
+		defaultFeatures map[string]bool
+		expected        map[string]bool
+		expectedError   string
+	}{
+		{
+			doc: "no features",
+			in:  map[string]bool{},
+			defaultFeatures: map[string]bool{
+				"foo": true,
+			},
+			expected: map[string]bool{
+				"foo": true,
+			},
+		},
+		{
+			doc: "default feature disabled + enabled in config",
+			in: map[string]bool{
+				"foo": true,
+			},
+			defaultFeatures: map[string]bool{
+				"foo": false,
+			},
+			expected: map[string]bool{
+				"foo": true,
+			},
+		},
+		{
+			doc: "default feature disabled in config",
+			in: map[string]bool{
+				"foo": false,
+			},
+			defaultFeatures: map[string]bool{
+				"foo": true,
+			},
+			expected: map[string]bool{
+				"foo": false,
+			},
+		},
+		{
+			doc: "non-default-feature in config + default features",
+			in: map[string]bool{
+				"foo": true,
+			},
+			defaultFeatures: map[string]bool{
+				"bar": false,
+			},
+			expected: map[string]bool{
+				"foo": true,
+				"bar": false,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.doc, func(t *testing.T) {
+			featuresJson, err := json.Marshal(tc.in)
+			assert.NilError(t, err)
+			configFile := makeConfigFile(t, fmt.Sprintf(`{"features": %s}`, featuresJson))
+			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			DefaultFeatures = tc.defaultFeatures
+
+			actual, err := MergeDaemonConfigurations(&Config{}, flags, configFile)
+
+			if tc.expectedError == "" {
+				assert.NilError(t, err)
+				assert.DeepEqual(t, actual.Features, tc.expected)
+			} else {
+				assert.Error(t, err, tc.expectedError)
+			}
+		})
+	}
+}
+
 func TestFindConfigurationConflictsWithUnknownKeys(t *testing.T) {
 	config := map[string]interface{}{"tls-verify": "true"}
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
@@ -366,6 +445,155 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			assert.Error(t, err, tc.expectedErr)
 		})
 	}
+}
+
+func TestValidateFeatures(t *testing.T) {
+	testCases := []struct {
+		doc string
+		in  map[string]bool
+		out map[string]bool
+	}{
+		{
+			doc: "no features",
+			in:  map[string]bool{},
+			out: map[string]bool{},
+		},
+		{
+			doc: "single true",
+			in: map[string]bool{
+				"bork": true,
+			},
+			out: map[string]bool{
+				"bork": true,
+			},
+		},
+		{
+			doc: "single false",
+			in: map[string]bool{
+				"bork": false,
+			},
+			out: map[string]bool{
+				"bork": false,
+			},
+		},
+		{
+			doc: "multiple features",
+			in: map[string]bool{
+				"bork": true,
+				"meow": false,
+			},
+			out: map[string]bool{
+				"bork": true,
+				"meow": false,
+			},
+		},
+		{
+			doc: "valid symbols and numbers",
+			in: map[string]bool{
+				"com.foo.custom-bork":      true,
+				"123-bar.meow-snapshotter": false,
+			},
+			out: map[string]bool{
+				"com.foo.custom-bork":      true,
+				"123-bar.meow-snapshotter": false,
+			},
+		},
+		{
+			doc: "invalid feature key – equals '='",
+			in: map[string]bool{
+				"foo=bar": true,
+			},
+			out: map[string]bool{},
+		},
+		{
+			doc: "invalid feature key – comma ','",
+			in: map[string]bool{
+				"a,comma": true,
+			},
+			out: map[string]bool{},
+		},
+		{
+			doc: "invalid feature key – '𝝧'",
+			in: map[string]bool{
+				"meow𝝧": true,
+			},
+			out: map[string]bool{},
+		},
+		{
+			doc: "invalid feature key – multiple",
+			in: map[string]bool{
+				"★𝞉𝝧":        true,
+				"f!#0>as+a$": true,
+			},
+			out: map[string]bool{},
+		},
+		{
+			doc: "valid and invalid features",
+			in: map[string]bool{
+				"bork":         true,
+				"invalid=meow": false,
+			},
+			out: map[string]bool{
+				"bork": true,
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.doc, func(t *testing.T) {
+			cfg, err := New()
+			assert.NilError(t, err)
+			assert.Check(t, mergo.Merge(cfg, Config{
+				CommonConfig: CommonConfig{
+					Features: tc.in,
+				},
+			}, mergo.WithOverride))
+
+			err = Validate(cfg)
+
+			assert.NilError(t, err)
+			assert.DeepEqual(t, tc.out, cfg.Features)
+		})
+	}
+
+	t.Run("feature key too long", func(t *testing.T) {
+		in := map[string]bool{
+			strings.Repeat("a", maxFeatureKeyLen+1): true,
+		}
+
+		cfg, err := New()
+		assert.NilError(t, err)
+		assert.Check(t, mergo.Merge(cfg, Config{
+			CommonConfig: CommonConfig{
+				Features: in,
+			},
+		}, mergo.WithOverride))
+
+		err = Validate(cfg)
+
+		assert.NilError(t, err)
+		assert.DeepEqual(t, map[string]bool{}, cfg.Features)
+	})
+
+	t.Run("too many features", func(t *testing.T) {
+		in := make(map[string]bool)
+		for i := 0; i < 101; i++ {
+			featureName := strconv.Itoa(i)
+			in[featureName] = true
+		}
+
+		cfg, err := New()
+		assert.NilError(t, err)
+		assert.Check(t, mergo.Merge(cfg, Config{
+			CommonConfig: CommonConfig{
+				Features: in,
+			},
+		}, mergo.WithOverride))
+
+		err = Validate(cfg)
+
+		expectedError := fmt.Sprintf("too many features – expected max %d, found %d", maxFeatures, 101)
+		assert.ErrorContains(t, err, expectedError)
+	})
 }
 
 func withForceOverwrite(fieldName string) func(config *mergo.Config) {

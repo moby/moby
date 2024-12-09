@@ -73,7 +73,7 @@ func TestWithUserAgent(t *testing.T) {
 			})),
 		)
 		assert.Check(t, err)
-		_, err = c.Ping(context.Background())
+		_, err = c.Ping(context.Background(), false)
 		assert.Check(t, err)
 		assert.Check(t, c.Close())
 	})
@@ -88,7 +88,7 @@ func TestWithUserAgent(t *testing.T) {
 			})),
 		)
 		assert.Check(t, err)
-		_, err = c.Ping(context.Background())
+		_, err = c.Ping(context.Background(), false)
 		assert.Check(t, err)
 		assert.Check(t, c.Close())
 	})
@@ -102,7 +102,7 @@ func TestWithUserAgent(t *testing.T) {
 			})),
 		)
 		assert.Check(t, err)
-		_, err = c.Ping(context.Background())
+		_, err = c.Ping(context.Background(), false)
 		assert.Check(t, err)
 		assert.Check(t, c.Close())
 	})
@@ -116,7 +116,7 @@ func TestWithUserAgent(t *testing.T) {
 			})),
 		)
 		assert.Check(t, err)
-		_, err = c.Ping(context.Background())
+		_, err = c.Ping(context.Background(), false)
 		assert.Check(t, err)
 		assert.Check(t, c.Close())
 	})
@@ -131,7 +131,7 @@ func TestWithUserAgent(t *testing.T) {
 			})),
 		)
 		assert.Check(t, err)
-		_, err = c.Ping(context.Background())
+		_, err = c.Ping(context.Background(), false)
 		assert.Check(t, err)
 		assert.Check(t, c.Close())
 	})
