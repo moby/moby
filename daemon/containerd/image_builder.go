@@ -153,7 +153,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	if err := i.PullImage(ctx, reference.TagNameOnly(ref), platform, nil, pullRegistryAuth, output); err != nil {
+	if err := i.PullImage(ctx, reference.TagNameOnly(ref), platform, nil, pullRegistryAuth, output, false); err != nil {
 		return nil, err
 	}
 

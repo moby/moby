@@ -41,6 +41,16 @@ type PullOptions struct {
 	// For details, refer to [github.com/docker/docker/api/types/registry.RequestAuthConfig].
 	PrivilegeFunc func(context.Context) (string, error)
 	Platform      string
+
+	// ChallengeHandlerFunc is a function that a client can supply to handle
+	// challenges returned by the registry.
+	// If ChallengeHandlerFunc is not nil, the engine will not attempt to handle
+	// any challenges returned by the registry. Instead, the engine will return
+	// a 401 response to the client, including the WWW-Authenticate header, and
+	// the client will call ChallengeHandlerFunc to handle the challenge.
+	// This function returns the registry authentication header value (in base64
+	// encoded format).
+	ChallengeHandlerFunc func(context.Context, string) (string, error)
 }
 
 // PushOptions holds information to push images.
@@ -60,6 +70,16 @@ type PushOptions struct {
 	// when the image is a multi-platform image.
 	// Using this will only push a single platform-specific manifest.
 	Platform *ocispec.Platform `json:",omitempty"`
+
+	// ChallengeHandlerFunc is a function that a client can supply to handle
+	// challenges returned by the registry.
+	// If ChallengeHandlerFunc is not nil, the engine will not attempt to handle
+	// any challenges returned by the registry. Instead, the engine will return
+	// a 401 response to the client, including the WWW-Authenticate header, and
+	// the client will call ChallengeHandlerFunc to handle the challenge.
+	// This function returns the registry authentication header value (in base64
+	// encoded format).
+	ChallengeHandlerFunc func(context.Context, string) (string, error)
 }
 
 // ListOptions holds parameters to list images with.

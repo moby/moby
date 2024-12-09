@@ -11,12 +11,17 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 // PushImage initiates a push operation on the repository named localName.
-func (i *ImageService) PushImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error {
+func (i *ImageService) PushImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer, clientAuth bool) error {
+	if clientAuth {
+		return errdefs.NotImplemented(errors.New("engine is using the graphdriver image store, which does not support client auth handling"))
+	}
 	if platform != nil {
 		// Check if the image is actually the platform we want to push.
 		_, err := i.GetImage(ctx, ref.String(), backend.GetImageOpts{Platform: platform})
