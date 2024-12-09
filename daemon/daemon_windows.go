@@ -25,7 +25,6 @@ import (
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
@@ -518,25 +517,24 @@ func (daemon *Daemon) setDefaultIsolation(config *config.Config) error {
 		daemon.defaultIsolation = containertypes.IsolationProcess
 	}
 	for _, option := range config.ExecOptions {
-		key, val, err := parsers.ParseKeyValueOpt(option)
-		if err != nil {
-			return err
+		key, val, ok := strings.Cut(option, "=")
+		if !ok {
+			return fmt.Errorf("invalid exec-opt (%s): must be formatted 'opt=value'", option)
 		}
-		key = strings.ToLower(key)
-		switch key {
-
+		key = strings.TrimSpace(key)
+		val = strings.TrimSpace(val)
+		switch strings.ToLower(key) {
 		case "isolation":
-			if !containertypes.Isolation(val).IsValid() {
-				return fmt.Errorf("Invalid exec-opt value for 'isolation':'%s'", val)
+			isolation := containertypes.Isolation(strings.ToLower(val))
+			if !isolation.IsValid() {
+				return fmt.Errorf("invalid exec-opt value for 'isolation':'%s'", val)
 			}
-			if containertypes.Isolation(val).IsHyperV() {
+			if isolation.IsHyperV() {
 				daemon.defaultIsolation = containertypes.IsolationHyperV
 			}
-			if containertypes.Isolation(val).IsProcess() {
+			if isolation.IsProcess() {
 				daemon.defaultIsolation = containertypes.IsolationProcess
 			}
-		default:
-			return fmt.Errorf("Unrecognised exec-opt '%s'\n", key)
 		}
 	}
 
