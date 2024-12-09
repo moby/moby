@@ -282,7 +282,12 @@ cmd_entrypoint_check() {
 cmd_entrypoint_nsenter() {
 	# No need to call init()
 	pid=$(cat "$XDG_RUNTIME_DIR/dockerd-rootless/child_pid")
-	exec nsenter --no-fork --wd="$(pwd)" --preserve-credentials -m -n -U -t "$pid" -- "$@"
+	n=""
+	# If RootlessKit is running with `--detach-netns` mode, we do NOT enter the detached netns here
+	if [ ! -e "$XDG_RUNTIME_DIR/dockerd-rootless/netns" ]; then
+		n="-n"
+	fi
+	exec nsenter --no-fork --wd="$(pwd)" --preserve-credentials -m $n -U -t "$pid" -- "$@"
 }
 
 show_systemd_error() {
