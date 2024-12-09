@@ -38,7 +38,7 @@ func TestPingGet(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, string(b), "OK")
 	assert.Equal(t, res.StatusCode, http.StatusOK)
-	assert.Check(t, hdr(res, "API-Version") != "")
+	assert.Check(t, hdr(res, "Api-Version") != "")
 }
 
 func TestPingHead(t *testing.T) {
@@ -51,7 +51,7 @@ func TestPingHead(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 0, len(b))
 	assert.Equal(t, res.StatusCode, http.StatusOK)
-	assert.Check(t, hdr(res, "API-Version") != "")
+	assert.Check(t, hdr(res, "Api-Version") != "")
 }
 
 func TestPingSwarmHeader(t *testing.T) {
