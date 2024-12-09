@@ -145,8 +145,7 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 		img.Name = danglingImageName(manifestDesc.Digest)
 	}
 
-	err = i.saveImage(ctx, img)
-	if err != nil {
+	if err = i.createOrReplaceImage(ctx, img); err != nil {
 		logger.WithError(err).Debug("failed to save image")
 		return "", err
 	}
@@ -294,21 +293,6 @@ func writeBlobAndReturnDigest(ctx context.Context, cs content.Store, mt string, 
 		return "", errdefs.System(err)
 	}
 	return digester.Digest(), nil
-}
-
-// saveImage creates an image in the ImageService or updates it if it exists.
-func (i *ImageService) saveImage(ctx context.Context, img images.Image) error {
-	if _, err := i.images.Update(ctx, img); err != nil {
-		if cerrdefs.IsNotFound(err) {
-			if _, err := i.images.Create(ctx, img); err != nil {
-				return errdefs.Unknown(err)
-			}
-		} else {
-			return errdefs.Unknown(err)
-		}
-	}
-
-	return nil
 }
 
 // unpackImage unpacks the platform-specific manifest of a image into the snapshotter.

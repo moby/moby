@@ -519,18 +519,11 @@ func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec
 		img.Labels[imageLabelClassicBuilderFromScratch] = "1"
 	}
 
-	createdImage, err := i.images.Update(ctx, img)
-	if err != nil {
-		if !cerrdefs.IsNotFound(err) {
-			return "", err
-		}
-
-		if createdImage, err = i.images.Create(ctx, img); err != nil {
-			return "", fmt.Errorf("failed to create new image: %w", err)
-		}
+	if err := i.createOrReplaceImage(ctx, img); err != nil {
+		return "", err
 	}
 
-	id := image.ID(createdImage.Target.Digest)
+	id := image.ID(img.Target.Digest)
 	i.LogImageEvent(id.String(), id.String(), events.ActionCreate)
 
 	if err := i.unpackImage(ctx, i.StorageDriver(), img, manifestDesc); err != nil {
