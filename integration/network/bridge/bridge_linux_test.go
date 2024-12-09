@@ -262,7 +262,7 @@ func TestFilterForwardPolicy(t *testing.T) {
 
 			getFwdPolicy := func(cmd string) string {
 				t.Helper()
-				out := host.Run(t, cmd, "-S", "FORWARD")
+				out := host.MustRun(t, cmd, "-S", "FORWARD")
 				if strings.HasPrefix(out, "-P FORWARD ACCEPT") {
 					return "ACCEPT"
 				}
@@ -277,15 +277,15 @@ func TestFilterForwardPolicy(t *testing.T) {
 			getSysctls := func() sysctls {
 				t.Helper()
 				return sysctls{
-					host.Run(t, "sysctl", "-n", "net.ipv4.ip_forward")[:1],
-					host.Run(t, "sysctl", "-n", "net.ipv6.conf.default.forwarding")[:1],
-					host.Run(t, "sysctl", "-n", "net.ipv6.conf.all.forwarding")[:1],
+					host.MustRun(t, "sysctl", "-n", "net.ipv4.ip_forward")[:1],
+					host.MustRun(t, "sysctl", "-n", "net.ipv6.conf.default.forwarding")[:1],
+					host.MustRun(t, "sysctl", "-n", "net.ipv6.conf.all.forwarding")[:1],
 				}
 			}
 
 			// Initial settings for IP forwarding params.
-			host.Run(t, "sysctl", "-w", "net.ipv4.ip_forward="+tc.initForwarding)
-			host.Run(t, "sysctl", "-w", "net.ipv6.conf.all.forwarding="+tc.initForwarding)
+			host.MustRun(t, "sysctl", "-w", "net.ipv4.ip_forward="+tc.initForwarding)
+			host.MustRun(t, "sysctl", "-w", "net.ipv6.conf.all.forwarding="+tc.initForwarding)
 
 			// Start the daemon in its own network namespace.
 			var d *daemon.Daemon
