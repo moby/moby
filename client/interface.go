@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/hub"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
@@ -33,6 +34,7 @@ type CommonAPIClient interface {
 	SecretAPIClient
 	SystemAPIClient
 	VolumeAPIClient
+	HubAPIClient
 	ClientVersion() string
 	DaemonHost() string
 	HTTPClient() *http.Client
@@ -199,4 +201,9 @@ type ConfigAPIClient interface {
 	ConfigRemove(ctx context.Context, id string) error
 	ConfigInspectWithRaw(ctx context.Context, name string) (swarm.Config, []byte, error)
 	ConfigUpdate(ctx context.Context, id string, version swarm.Version, config swarm.ConfigSpec) error
+}
+
+type HubAPIClient interface {
+	HubImageSearch(ctx context.Context, term string, options hub.SearchOptions) (hub.SearchResult, error)
+	HubImageTags(ctx context.Context, image string, options hub.ImageOptions) (hub.ImageTags, error)
 }
