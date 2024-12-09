@@ -58,6 +58,10 @@ keywords: "API, Docker, rcli, REST, documentation"
   the one that sorts first is picked.
 * `GET /containers/json` now returns a `GwPriority` field in `NetworkSettings`
   for each network endpoint.
+* API debug endpoints (`GET /debug/vars`, `GET /debug/pprof/`, `GET /debug/pprof/cmdline`,
+  `GET /debug/pprof/profile`, `GET /debug/pprof/symbol`, `GET /debug/pprof/trace`,
+  `GET /debug/pprof/{name}`) are now also accessible through the versioned-API
+  paths (`/v<API-version>/<endpoint>`).
 
 ## v1.47 API changes
 

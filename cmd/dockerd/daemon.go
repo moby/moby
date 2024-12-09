@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/api/server/router/build"
 	checkpointrouter "github.com/docker/docker/api/server/router/checkpoint"
 	"github.com/docker/docker/api/server/router/container"
+	debugrouter "github.com/docker/docker/api/server/router/debug"
 	distributionrouter "github.com/docker/docker/api/server/router/distribution"
 	grpcrouter "github.com/docker/docker/api/server/router/grpc"
 	"github.com/docker/docker/api/server/router/image"
@@ -306,7 +307,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	}
 
 	routers := buildRouters(routerOpts)
-	httpServer.Handler = apiServer.CreateMux(routers...)
+	httpServer.Handler = apiServer.CreateMux(ctx, routers...)
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
 
@@ -716,6 +717,7 @@ func buildRouters(opts routerOptions) []router.Router {
 		pluginrouter.NewRouter(opts.daemon.PluginManager()),
 		distributionrouter.NewRouter(opts.daemon.ImageBackend()),
 		network.NewRouter(opts.daemon, opts.cluster),
+		debugrouter.NewRouter(),
 	}
 
 	if opts.buildBackend != nil {

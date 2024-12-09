@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/server/router/debug"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/dockerversion"
 	"github.com/gorilla/mux"
@@ -66,26 +65,22 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc, operation string) ht
 }
 
 // CreateMux returns a new mux with all the routers registered.
-func (s *Server) CreateMux(routers ...router.Router) *mux.Router {
+func (s *Server) CreateMux(ctx context.Context, routers ...router.Router) *mux.Router {
+	log.G(ctx).Debug("Registering routers")
 	m := mux.NewRouter()
-
-	log.G(context.TODO()).Debug("Registering routers")
 	for _, apiRouter := range routers {
 		for _, r := range apiRouter.Routes() {
+			if ctx.Err() != nil {
+				return m
+			}
+			log.G(ctx).WithFields(log.Fields{"method": r.Method(), "path": r.Path()}).Debug("Registering route")
 			f := s.makeHTTPHandler(r.Handler(), r.Method()+" "+r.Path())
-
-			log.G(context.TODO()).Debugf("Registering %s, %s", r.Method(), r.Path())
 			m.Path(versionMatcher + r.Path()).Methods(r.Method()).Handler(f)
 			m.Path(r.Path()).Methods(r.Method()).Handler(f)
 		}
 	}
 
-	debugRouter := debug.NewRouter()
-	for _, r := range debugRouter.Routes() {
-		f := s.makeHTTPHandler(r.Handler(), r.Method()+" "+r.Path())
-		m.Path("/debug" + r.Path()).Handler(f)
-	}
-
+	// Setup handlers for undefined paths and methods
 	notFoundHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = httputils.WriteJSON(w, http.StatusNotFound, &types.ErrorResponse{
 			Message: "page not found",

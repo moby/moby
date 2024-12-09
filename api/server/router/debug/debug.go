@@ -24,13 +24,13 @@ type debugRouter struct {
 
 func (r *debugRouter) initRoutes() {
 	r.routes = []router.Route{
-		router.NewGetRoute("/vars", frameworkAdaptHandler(expvar.Handler())),
-		router.NewGetRoute("/pprof/", frameworkAdaptHandlerFunc(pprof.Index)),
-		router.NewGetRoute("/pprof/cmdline", frameworkAdaptHandlerFunc(pprof.Cmdline)),
-		router.NewGetRoute("/pprof/profile", frameworkAdaptHandlerFunc(pprof.Profile)),
-		router.NewGetRoute("/pprof/symbol", frameworkAdaptHandlerFunc(pprof.Symbol)),
-		router.NewGetRoute("/pprof/trace", frameworkAdaptHandlerFunc(pprof.Trace)),
-		router.NewGetRoute("/pprof/{name}", handlePprof),
+		router.NewGetRoute("/debug/vars", frameworkAdaptHandler(expvar.Handler())),
+		router.NewGetRoute("/debug/pprof/", frameworkAdaptHandlerFunc(pprof.Index)),
+		router.NewGetRoute("/debug/pprof/cmdline", frameworkAdaptHandlerFunc(pprof.Cmdline)),
+		router.NewGetRoute("/debug/pprof/profile", frameworkAdaptHandlerFunc(pprof.Profile)),
+		router.NewGetRoute("/debug/pprof/symbol", frameworkAdaptHandlerFunc(pprof.Symbol)),
+		router.NewGetRoute("/debug/pprof/trace", frameworkAdaptHandlerFunc(pprof.Trace)),
+		router.NewGetRoute("/debug/pprof/{name}", handlePprof),
 	}
 }
 
