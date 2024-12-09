@@ -215,7 +215,7 @@ func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*volum
 	}
 	defer s.pruneRunning.Store(false)
 
-	if err := withPrune(filter); err != nil {
+	if err := withPrune(&filter); err != nil {
 		return nil, err
 	}
 
