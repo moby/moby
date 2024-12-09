@@ -91,6 +91,8 @@ if [ -n "$DOCKER_ROOTLESS" ]; then
 	chown "$user" "/tmp/docker-${uid}"
 	chmod -R o+w "$DEST"
 	dockerd="sudo -u $user -E -E XDG_RUNTIME_DIR=/tmp/docker-${uid} -E HOME=/home/${user} -E PATH=$PATH -- dockerd-rootless.sh"
+
+	extra_params="$extra_params --feature=image-mount"
 fi
 
 if [ -z "$DOCKER_TEST_HOST" ]; then
