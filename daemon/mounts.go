@@ -8,6 +8,7 @@ import (
 	"github.com/containerd/log"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
+	ctrd "github.com/docker/docker/daemon/containerd"
 	volumesservice "github.com/docker/docker/volume/service"
 )
 
@@ -38,28 +39,64 @@ func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool)
 	var rmErrors []string
 	ctx := context.TODO()
 	for _, m := range container.MountPoints {
-		if m.Type != mounttypes.TypeVolume || m.Volume == nil {
-			continue
-		}
-		daemon.volumes.Release(ctx, m.Volume.Name(), container.ID)
-		if !rm {
-			continue
+		if m.Type == mounttypes.TypeVolume {
+			if m.Volume == nil {
+				continue
+			}
+			daemon.volumes.Release(ctx, m.Volume.Name(), container.ID)
+			if !rm {
+				continue
+			}
+
+			// Do not remove named mountpoints
+			// these are mountpoints specified like `docker run -v <name>:/foo`
+			if m.Spec.Source != "" {
+				continue
+			}
+
+			err := daemon.volumes.Remove(ctx, m.Volume.Name())
+			// Ignore volume in use errors because having this
+			// volume being referenced by other container is
+			// not an error, but an implementation detail.
+			// This prevents docker from logging "ERROR: Volume in use"
+			// where there is another container using the volume.
+			if err != nil && !volumesservice.IsInUse(err) {
+				rmErrors = append(rmErrors, err.Error())
+			}
 		}
 
-		// Do not remove named mountpoints
-		// these are mountpoints specified like `docker run -v <name>:/foo`
-		if m.Spec.Source != "" {
-			continue
-		}
+		if m.Type == mounttypes.TypeImage {
+			layerName := fmt.Sprintf("%s-%s", container.ID, m.Spec.Source)
+			if daemon.UsesSnapshotter() {
+				if ctrdImgSvc, ok := daemon.imageService.(*ctrd.ImageService); ok {
+					ctrdImgSvc.Mounter().Unmount(m.Source)
+					continue
+				}
 
-		err := daemon.volumes.Remove(ctx, m.Volume.Name())
-		// Ignore volume in use errors because having this
-		// volume being referenced by other container is
-		// not an error, but an implementation detail.
-		// This prevents docker from logging "ERROR: Volume in use"
-		// where there is another container using the volume.
-		if err != nil && !volumesservice.IsInUse(err) {
-			rmErrors = append(rmErrors, err.Error())
+				// This should not happen because of the snapshotter check
+				rmErrors = append(rmErrors, fmt.Errorf("Can't get the containerd service").Error())
+			} else {
+				if accessor, ok := daemon.imageService.(layerAccessor); ok {
+					layer, err := accessor.GetLayerByID(layerName)
+					if err != nil {
+						rmErrors = append(rmErrors, err.Error())
+						continue
+					}
+					err = daemon.imageService.ReleaseLayer(layer)
+					if err != nil {
+						rmErrors = append(rmErrors, err.Error())
+						continue
+					}
+					err = layer.Unmount()
+					if err != nil {
+						rmErrors = append(rmErrors, err.Error())
+						continue
+					}
+				}
+
+				// This should not happen because of the snapshotter check
+				rmErrors = append(rmErrors, fmt.Errorf("Can't get layer by id").Error())
+			}
 		}
 	}
 
