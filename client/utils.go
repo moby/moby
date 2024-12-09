@@ -66,7 +66,7 @@ func encodePlatforms(platform ...ocispec.Platform) ([]string, error) {
 	return out, nil
 }
 
-// encodePlatforms marshals the given platform to JSON format, to
+// encodePlatform marshals the given platform to JSON format, to
 // be used for query-parameters for filtering / selecting platforms. It
 // is used as a helper for encodePlatforms,
 func encodePlatform(platform *ocispec.Platform) (string, error) {

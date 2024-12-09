@@ -114,7 +114,7 @@ func TestContainerCreateAutoRemove(t *testing.T) {
 	}
 }
 
-// TestContainerCreateConnection verifies that connection errors occurring
+// TestContainerCreateConnectionError verifies that connection errors occurring
 // during API-version negotiation are not shadowed by API-version errors.
 //
 // Regression test for https://github.com/docker/cli/issues/4890
