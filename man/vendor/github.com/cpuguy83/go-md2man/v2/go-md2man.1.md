@@ -13,6 +13,18 @@ written purely in Go so as to reduce dependencies on 3rd party libs.
 
 By default, the input is stdin and the output is stdout.
 
+# OPTIONS
+
+**-in=**_file_
+:   Path to markdown file to be processed.
+
+    Defaults to stdin.
+
+**-out=**_file_
+:   Path to output processed file.
+
+    Defaults to stdout.
+
 # EXAMPLES
 Convert the markdown file *go-md2man.1.md* into a manpage:
 ```
