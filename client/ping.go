@@ -8,20 +8,21 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/system"
+	"github.com/docker/docker/daemon/capabilities"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
-func (cli *Client) PingWithCapabilities(ctx context.Context, requestCapabilities bool) (types.Ping, error) {
+func (cli *Client) PingWithOptions(ctx context.Context, options types.PingOptions) (types.Ping, error) {
 	var ping types.Ping
 
 	// If not interested in engine capabilities, do a HEAD request
-	if !requestCapabilities {
+	if !options.Capabilities {
 		// Using cli.buildRequest() + cli.doRequest() instead of cli.sendRequest()
 		// because ping requests are used during API version negotiation, so we want
 		// to hit the non-versioned /_ping endpoint, not /v1.xx/_ping
@@ -45,8 +46,8 @@ func (cli *Client) PingWithCapabilities(ctx context.Context, requestCapabilities
 	// if the HEAD request failed – or we're requesting capabilities –
 	// do a GET request
 	query := url.Values{}
-	if requestCapabilities {
-		query.Set("capabilities", "v1")
+	if options.Capabilities {
+		query.Set("capabilities", strconv.Itoa(int(capabilities.CurrentVersion)))
 	}
 
 	serverResp, err := cli.get(ctx, path.Join(cli.basePath, "/_ping"), query, nil)
@@ -65,7 +66,7 @@ func (cli *Client) PingWithCapabilities(ctx context.Context, requestCapabilities
 // for other non-success status codes, failing to connect to the API, or failing
 // to parse the API response.
 func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
-	return cli.PingWithCapabilities(ctx, false)
+	return cli.PingWithOptions(ctx, types.PingOptions{})
 }
 
 func parsePingResponse(cli *Client, resp serverResponse) (types.Ping, error) {
@@ -107,18 +108,22 @@ func parsePingResponse(cli *Client, resp serverResponse) (types.Ping, error) {
 	return ping, nil
 }
 
-func parseCapabilitiesFromBody(pingBody io.Reader) (*system.Capabilities, error) {
-	content, err := io.ReadAll(pingBody)
+type pingBody struct {
+	Capabilities capabilities.Capabilities `json:"capabilities"`
+}
+
+func parseCapabilitiesFromBody(responseBody io.Reader) (*capabilities.Capabilities, error) {
+	content, err := io.ReadAll(responseBody)
 	if err != nil {
 		return nil, err
 	}
 	if len(content) == 0 || string(content) == "OK" {
 		return nil, nil
 	}
-	var capabilities system.Capabilities
-	err = json.Unmarshal(content, &capabilities)
+	var b pingBody
+	err = json.Unmarshal(content, &b)
 	if err != nil {
 		return nil, errors.Errorf("expected capabilities, found '%s'", string(content))
 	}
-	return &capabilities, nil
+	return &b.Capabilities, nil
 }

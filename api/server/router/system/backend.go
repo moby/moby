@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/system"
+	"github.com/docker/docker/daemon/capabilities"
 )
 
 // DiskUsageOptions holds parameters for system disk usage query.
@@ -27,7 +28,7 @@ type DiskUsageOptions struct {
 // Backend is the methods that need to be implemented to provide
 // system specific functionality.
 type Backend interface {
-	SystemCapabilities(context.Context) (system.Capabilities, error)
+	SystemCapabilities(context.Context, int) (capabilities.VersionedCapabilities, error)
 	SystemInfo(context.Context) (*system.Info, error)
 	SystemVersion(context.Context) (types.Version, error)
 	SystemDiskUsage(ctx context.Context, opts DiskUsageOptions) (*types.DiskUsage, error)

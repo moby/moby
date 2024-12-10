@@ -8,8 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/system"
+	"github.com/docker/docker/daemon/capabilities"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -91,7 +92,7 @@ func TestPingEngineCapabilities(t *testing.T) {
 	testCases := []struct {
 		doc           string
 		body          string
-		expected      *system.Capabilities
+		expected      *capabilities.Capabilities
 		expectedError string
 	}{
 		{
@@ -105,15 +106,21 @@ func TestPingEngineCapabilities(t *testing.T) {
 		},
 		{
 			doc:  "valid single",
-			body: `{"registry-client-auth": true}`,
-			expected: &system.Capabilities{
+			body: `{"capabilities": {"_v":1, "registry-client-auth": true}}`,
+			expected: &capabilities.Capabilities{
+				CapabilitiesBase: capabilities.CapabilitiesBase{
+					CapabilitiesVersion: capabilities.V1,
+				},
 				RegistryClientAuth: true,
 			},
 		},
 		{
 			doc:  "known and unknown keys",
-			body: `{"meow": false, "registry-client-auth": true}`,
-			expected: &system.Capabilities{
+			body: `{"capabilities": {"_v":1, "meow": false, "registry-client-auth": true}}`,
+			expected: &capabilities.Capabilities{
+				CapabilitiesBase: capabilities.CapabilitiesBase{
+					CapabilitiesVersion: capabilities.V1,
+				},
 				RegistryClientAuth: true,
 			},
 		},
@@ -129,7 +136,7 @@ func TestPingEngineCapabilities(t *testing.T) {
 			client := &Client{
 				client: newMockClient(func(req *http.Request) (*http.Response, error) {
 					capabilitiesQuery := req.URL.Query()["capabilities"][0]
-					assert.Equal(t, capabilitiesQuery, "v1")
+					assert.Equal(t, capabilitiesQuery, "1")
 
 					resp := &http.Response{StatusCode: http.StatusOK}
 					resp.Header = http.Header{}
@@ -140,7 +147,7 @@ func TestPingEngineCapabilities(t *testing.T) {
 				}),
 			}
 
-			ping, err := client.PingWithCapabilities(context.Background(), true)
+			ping, err := client.PingWithOptions(context.Background(), types.PingOptions{Capabilities: true})
 			if tc.expectedError == "" {
 				assert.NilError(t, err)
 				assert.Check(t, is.Equal("awesome", ping.APIVersion))

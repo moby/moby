@@ -1,6 +1,8 @@
 package system // import "github.com/docker/docker/integration/system"
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -144,7 +146,27 @@ func TestPingCapabilities(t *testing.T) {
 	apiClient := d.NewClientT(t)
 	defer apiClient.Close()
 
-	t.Run("containerd snapshotter", func(t *testing.T) {
+	t.Run("capabilities version newer than daemon requested", func(t *testing.T) {
+		testutil.StartSpan(ctx, t)
+		d.Start(t)
+		defer d.Stop(t)
+
+		resp, err := apiClient.HTTPClient().Get("http://localhost/_ping?capabilities=2")
+		assert.NilError(t, err)
+		defer resp.Body.Close()
+
+		bodyBytes, err := io.ReadAll(resp.Body)
+		assert.NilError(t, err)
+
+		response := struct {
+			Version int `json:"_v"`
+		}{}
+		err = json.Unmarshal(bodyBytes, &response)
+		assert.NilError(t, err)
+		assert.Equal(t, 1, response.Version, string(bodyBytes))
+	})
+
+	t.Run("client", func(t *testing.T) {
 		t.Run("disabled", func(t *testing.T) {
 			// CI will complain if we try to run a daemon with the graphdrivers
 			// in the snapshotter tests:
@@ -157,7 +179,9 @@ func TestPingCapabilities(t *testing.T) {
 			d.Start(t, "--config-file", cfg)
 			defer d.Stop(t)
 
-			p, err := apiClient.PingWithCapabilities(ctx, true)
+			p, err := apiClient.PingWithOptions(ctx, types.PingOptions{
+				Capabilities: true,
+			})
 			assert.NilError(t, err)
 
 			assert.Equal(t, false, p.Capabilities.RegistryClientAuth)
@@ -172,7 +196,9 @@ func TestPingCapabilities(t *testing.T) {
 			d.Start(t, "--config-file", cfg)
 			defer d.Stop(t)
 
-			p, err := apiClient.PingWithCapabilities(ctx, true)
+			p, err := apiClient.PingWithOptions(ctx, types.PingOptions{
+				Capabilities: true,
+			})
 			assert.NilError(t, err)
 
 			assert.Equal(t, true, p.Capabilities.RegistryClientAuth)

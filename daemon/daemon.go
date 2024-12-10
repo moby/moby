@@ -39,6 +39,7 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/capabilities"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/daemon/config"
 	ctrd "github.com/docker/docker/daemon/containerd"
@@ -149,6 +150,8 @@ type Daemon struct {
 	mdDB *bbolt.DB
 
 	usesSnapshotter bool
+
+	capabilitiesManager capabilities.Manager
 }
 
 // ID returns the daemon id
@@ -202,6 +205,13 @@ func (daemon *Daemon) Features() map[string]bool {
 func (daemon *Daemon) UsesSnapshotter() bool {
 	return daemon.usesSnapshotter
 }
+
+func (d *Daemon) SystemCapabilities(ctx context.Context, requestedVersion int) (capabilities.VersionedCapabilities, error) {
+	return d.capabilitiesManager.GetCapabilities(ctx, d, requestedVersion)
+}
+
+// Daemon must implement CapabilitiesProvider
+var _ capabilities.Provider = &Daemon{}
 
 // layerAccessor may be implemented by ImageService
 type layerAccessor interface {
@@ -836,6 +846,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		Runtimes: rts,
 	}
 	d.configStore.Store(cfgStore)
+
+	d.capabilitiesManager = capabilities.NewManager()
 
 	// TEST_INTEGRATION_USE_SNAPSHOTTER is used for integration tests only.
 	if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
