@@ -65,7 +65,7 @@ if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
 	xargs -rn1 < /sys/fs/cgroup/cgroup.procs > /sys/fs/cgroup/init/cgroup.procs || :
 	# enable controllers
 	sed -e 's/ / +/g' -e 's/^/+/' < /sys/fs/cgroup/cgroup.controllers \
-		> /sys/fs/cgroup/cgroup.subtree_control
+		> /sys/fs/cgroup/cgroup.subtree_control || :
 fi
 
 # Change mount propagation to shared to make the environment more similar to a
