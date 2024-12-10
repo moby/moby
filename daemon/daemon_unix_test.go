@@ -161,6 +161,13 @@ func TestParseSecurityOpt(t *testing.T) {
 		})
 		assert.Error(t, err, `invalid --security-opt 2: "unknown=something"`)
 	})
+	t.Run("invalid cgroup option", func(t *testing.T) {
+		secOpts := &container.SecurityOptions{}
+		err := parseSecurityOpt(secOpts, &containertypes.HostConfig{
+			SecurityOpt: []string{"writable-cgroups=dang"},
+		})
+		assert.Error(t, err, `invalid --security-opt 2: "writable-cgroups=dang"`)
+	})
 }
 
 func TestParseNNPSecurityOptions(t *testing.T) {
