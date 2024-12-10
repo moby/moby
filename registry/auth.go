@@ -66,23 +66,23 @@ func (scs staticCredentialStore) SetRefreshToken(*url.URL, string, string) {
 // loginV2 tries to login to the v2 registry server. The given registry
 // endpoint will be pinged to get authorization challenges. These challenges
 // will be used to authenticate against the registry to validate credentials.
-func loginV2(authConfig *registry.AuthConfig, endpoint APIEndpoint, userAgent string) (string, string, error) {
-	var (
-		endpointStr          = strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
-		modifiers            = Headers(userAgent, nil)
-		authTransport        = transport.NewTransport(newTransport(endpoint.TLSConfig), modifiers...)
-		credentialAuthConfig = *authConfig
-		creds                = loginCredentialStore{authConfig: &credentialAuthConfig}
-	)
-
+func loginV2(authConfig *registry.AuthConfig, endpoint APIEndpoint, userAgent string) (status string, token string, _ error) {
+	endpointStr := strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
 	log.G(context.TODO()).Debugf("attempting v2 login to registry endpoint %s", endpointStr)
 
-	loginClient, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, creds, nil)
+	req, err := http.NewRequest(http.MethodGet, endpointStr, nil)
 	if err != nil {
 		return "", "", err
 	}
 
-	req, err := http.NewRequest(http.MethodGet, endpointStr, nil)
+	var (
+		modifiers            = Headers(userAgent, nil)
+		authTrans            = transport.NewTransport(newTransport(endpoint.TLSConfig), modifiers...)
+		credentialAuthConfig = *authConfig
+		creds                = loginCredentialStore{authConfig: &credentialAuthConfig}
+	)
+
+	loginClient, err := v2AuthHTTPClient(endpoint.URL, authTrans, modifiers, creds, nil)
 	if err != nil {
 		return "", "", err
 	}
@@ -133,12 +133,13 @@ func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifi
 // files).
 func ConvertToHostname(url string) string {
 	stripped := url
-	if strings.HasPrefix(url, "http://") {
-		stripped = strings.TrimPrefix(url, "http://")
-	} else if strings.HasPrefix(url, "https://") {
-		stripped = strings.TrimPrefix(url, "https://")
+	if strings.HasPrefix(stripped, "http://") {
+		stripped = strings.TrimPrefix(stripped, "http://")
+	} else if strings.HasPrefix(stripped, "https://") {
+		stripped = strings.TrimPrefix(stripped, "https://")
 	}
-	return strings.SplitN(stripped, "/", 2)[0]
+	stripped, _, _ = strings.Cut(stripped, "/")
+	return stripped
 }
 
 // ResolveAuthConfig matches an auth configuration to a server address or a URL
