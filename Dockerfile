@@ -400,7 +400,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
             libseccomp-dev \
             libsystemd-dev \
             libtool \
-            libudev-dev \
             libyajl-dev \
             python3 \
             ;
@@ -570,7 +569,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             libseccomp-dev \
             libsecret-1-dev \
             libsystemd-dev \
-            libudev-dev \
             yamllint
 COPY --link --from=dockercli             /build/ /usr/local/cli
 COPY --link --from=dockercli-integration /build/ /usr/local/cli-integration
@@ -595,7 +593,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
             libseccomp-dev \
             libsecret-1-dev \
             libsystemd-dev \
-            libudev-dev \
             pkg-config
 ARG DOCKER_BUILDTAGS
 ARG DOCKER_DEBUG
