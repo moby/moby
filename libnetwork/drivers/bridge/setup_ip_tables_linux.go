@@ -342,27 +342,22 @@ func (r iptRule) String() string {
 }
 
 func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguration, addr *net.IPNet, hairpin, enable bool) error {
-	var (
-		address   = addr.String()
-		skipDNAT  = iptRule{ipv: ipVer, table: iptables.Nat, chain: DockerChain, args: []string{"-i", config.BridgeName, "-j", "RETURN"}}
-		outRule   = iptRule{ipv: ipVer, table: iptables.Filter, chain: "FORWARD", args: []string{"-i", config.BridgeName, "!", "-o", config.BridgeName, "-j", "ACCEPT"}}
-		natArgs   []string
-		hpNatArgs []string
-	)
 	hostIP := config.HostIPv4
 	nat := !config.GwModeIPv4.routed()
 	if ipVer == iptables.IPv6 {
 		hostIP = config.HostIPv6
 		nat = !config.GwModeIPv6.routed()
 	}
-	// If hostIP is set, the user wants IPv4/IPv6 SNAT with the given address.
+
+	var natArgs, hpNatArgs []string
 	if hostIP != nil {
+		// The user wants IPv4/IPv6 SNAT with the given address.
 		hostAddr := hostIP.String()
-		natArgs = []string{"-s", address, "!", "-o", config.BridgeName, "-j", "SNAT", "--to-source", hostAddr}
+		natArgs = []string{"-s", addr.String(), "!", "-o", config.BridgeName, "-j", "SNAT", "--to-source", hostAddr}
 		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", config.BridgeName, "-j", "SNAT", "--to-source", hostAddr}
-		// Else use MASQUERADE which picks the src-ip based on NH from the route table
 	} else {
-		natArgs = []string{"-s", address, "!", "-o", config.BridgeName, "-j", "MASQUERADE"}
+		// Use MASQUERADE, which picks the src-ip based on next-hop from the route table
+		natArgs = []string{"-s", addr.String(), "!", "-o", config.BridgeName, "-j", "MASQUERADE"}
 		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", config.BridgeName, "-j", "MASQUERADE"}
 	}
 
@@ -376,6 +371,10 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 		}
 	}
 	if !nat || (config.EnableIPMasquerade && !hairpin) {
+		skipDNAT := iptRule{ipv: ipVer, table: iptables.Nat, chain: DockerChain, args: []string{
+			"-i", config.BridgeName,
+			"-j", "RETURN",
+		}}
 		if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
 			return err
 		}
@@ -400,6 +399,11 @@ func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguratio
 	}
 
 	// Set Accept on all non-intercontainer outgoing packets.
+	outRule := iptRule{ipv: ipVer, table: iptables.Filter, chain: "FORWARD", args: []string{
+		"-i", config.BridgeName,
+		"!", "-o", config.BridgeName,
+		"-j", "ACCEPT",
+	}}
 	return appendOrDelChainRule(outRule, "ACCEPT NON_ICC OUTGOING", enable)
 }
 
