@@ -20,9 +20,11 @@ import (
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/registry"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -108,10 +110,20 @@ func (i *ImageService) CountImages(ctx context.Context) int {
 	return len(imgs)
 }
 
+// NewImageWithPlatform gets the platform specific image.
+func (i *ImageService) NewImageWithPlatform(img images.Image, platform *ocispec.Platform) containerd.Image {
+	matcher := i.matchRequestedOrDefault(platforms.Only, platform)
+	return containerd.NewImageWithPlatform(i.client, img, matcher)
+}
+
 // CreateLayer creates a filesystem layer for a container.
 // called from create.go
 // TODO: accept an opt struct instead of container?
 func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
+	return nil, errdefs.NotImplemented(errdefs.NotImplemented(errors.New("not implemented")))
+}
+
+func (i *ImageService) CreateLayerFromImage(img *image.Image, layerName string, rwLayerOpts *layer.CreateRWLayerOpts) (layer.RWLayer, error) {
 	return nil, errdefs.NotImplemented(errdefs.NotImplemented(errors.New("not implemented")))
 }
 
@@ -141,6 +153,10 @@ func (i *ImageService) Cleanup() error {
 // used by the ImageService.
 func (i *ImageService) StorageDriver() string {
 	return i.snapshotter
+}
+
+func (i *ImageService) Mounter() snapshotter.Mounter {
+	return i.refCountMounter
 }
 
 // ReleaseLayer releases a layer allowing it to be removed
