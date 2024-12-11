@@ -360,7 +360,6 @@ func setupNonInternalNetworkRules(ipVer iptables.IPVersion, config *networkConfi
 		natArgs = []string{"-s", addr.String(), "!", "-o", config.BridgeName, "-j", "MASQUERADE"}
 		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", config.BridgeName, "-j", "MASQUERADE"}
 	}
-
 	natRule := iptRule{ipv: ipVer, table: iptables.Nat, chain: "POSTROUTING", args: natArgs}
 	hpNatRule := iptRule{ipv: ipVer, table: iptables.Nat, chain: "POSTROUTING", args: hpNatArgs}
 
@@ -387,7 +386,7 @@ func setupNonInternalNetworkRules(ipVer iptables.IPVersion, config *networkConfi
 	}
 
 	// Set Inter Container Communication.
-	if err := setIcc(ipVer, config.BridgeName, config.EnableICC, enable); err != nil {
+	if err := setIcc(ipVer, config.BridgeName, config.EnableICC, false, enable); err != nil {
 		return err
 	}
 
@@ -398,13 +397,38 @@ func setupNonInternalNetworkRules(ipVer iptables.IPVersion, config *networkConfi
 		}
 	}
 
-	// Set Accept on all non-intercontainer outgoing packets.
-	outRule := iptRule{ipv: ipVer, table: iptables.Filter, chain: "FORWARD", args: []string{
+	// Handle outgoing packets. This rule was previously added unconditionally
+	// to ACCEPT packets that weren't ICC - an extra rule was needed to enable
+	// ICC if needed. Those rules are now combined. So, outRuleNoICC is only
+	// needed for ICC=false, along with the DROP rule for ICC added by setIcc.
+	outRuleNoICC := iptRule{ipv: ipVer, table: iptables.Filter, chain: "FORWARD", args: []string{
 		"-i", config.BridgeName,
 		"!", "-o", config.BridgeName,
 		"-j", "ACCEPT",
 	}}
-	return appendOrDelChainRule(outRule, "ACCEPT NON_ICC OUTGOING", enable)
+	if config.EnableICC {
+		// Remove the legacy rule for ICC (which didn't accept outgoing traffic), if one has been
+		// left behind by an old daemon.
+		if err := outRuleNoICC.Delete(); err != nil {
+			return err
+		}
+		// Accept outgoing traffic to anywhere, including other containers on this bridge.
+		outRuleICC := iptRule{ipv: ipVer, table: iptables.Filter, chain: "FORWARD", args: []string{
+			"-i", config.BridgeName,
+			"-j", "ACCEPT",
+		}}
+		if err := appendOrDelChainRule(outRuleICC, "ACCEPT OUTGOING", enable); err != nil {
+			return err
+		}
+	} else {
+		// Accept outgoing traffic to anywhere, apart from other containers on this bridge.
+		// setIcc added a DROP rule for ICC traffic.
+		if err := appendOrDelChainRule(outRuleNoICC, "ACCEPT NON_ICC OUTGOING", enable); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func programChainRule(rule iptRule, ruleDescr string, insert bool) error {
@@ -433,28 +457,33 @@ func appendOrDelChainRule(rule iptRule, ruleDescr string, append bool) error {
 	return nil
 }
 
-func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, insert bool) error {
+func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, internal, insert bool) error {
 	args := []string{"-i", bridgeIface, "-o", bridgeIface, "-j"}
 	acceptRule := iptRule{ipv: version, table: iptables.Filter, chain: "FORWARD", args: append(args, "ACCEPT")}
 	dropRule := iptRule{ipv: version, table: iptables.Filter, chain: "FORWARD", args: append(args, "DROP")}
-	if insert {
-		if !iccEnable {
-			acceptRule.Delete()
-			if err := dropRule.Append(); err != nil {
-				return fmt.Errorf("Unable to prevent intercontainer communication: %w", err)
-			}
-		} else {
-			dropRule.Delete()
-			if err := acceptRule.Append(); err != nil {
-				return fmt.Errorf("Unable to allow intercontainer communication: %w", err)
-			}
+
+	// The accept rule is no longer required for a bridge with external connectivity, because
+	// ICC traffic is allowed by the outgoing-packets rule created by setupIptablesInternal.
+	// The accept rule is still required for a --internal network because it has no outgoing
+	// rule. If insert and the rule is not required, an ACCEPT rule for an external network
+	// may have been left behind by an older version of the daemon so, delete it.
+	if insert && iccEnable && internal {
+		if err := acceptRule.Append(); err != nil {
+			return fmt.Errorf("Unable to allow intercontainer communication: %w", err)
 		}
 	} else {
-		// Remove any ICC rule.
-		if !iccEnable {
-			dropRule.Delete()
-		} else {
-			acceptRule.Delete()
+		if err := acceptRule.Delete(); err != nil {
+			log.G(context.TODO()).WithError(err).Warn("Failed to delete legacy ICC accept rule")
+		}
+	}
+
+	if insert && !iccEnable {
+		if err := dropRule.Append(); err != nil {
+			return fmt.Errorf("Unable to prevent intercontainer communication: %w", err)
+		}
+	} else {
+		if err := dropRule.Delete(); err != nil {
+			log.G(context.TODO()).WithError(err).Warn("Failed to delete ICC drop rule")
 		}
 	}
 	return nil
@@ -600,7 +629,7 @@ func setupInternalNetworkRules(bridgeIface string, addr *net.IPNet, icc, insert 
 	}
 
 	// Set Inter Container Communication.
-	return setIcc(version, bridgeIface, icc, insert)
+	return setIcc(version, bridgeIface, icc, true, insert)
 }
 
 // clearConntrackEntries flushes conntrack entries matching endpoint IP address
