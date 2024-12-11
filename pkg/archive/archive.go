@@ -822,26 +822,22 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 		return err
 	}
 
-	aTime := hdr.AccessTime
-	if aTime.Before(hdr.ModTime) {
-		// Last access time should never be before last modified time.
-		aTime = hdr.ModTime
-	}
+	aTime := boundTime(latestTime(hdr.AccessTime, hdr.ModTime))
+	mTime := boundTime(hdr.ModTime)
 
-	// system.Chtimes doesn't support a NOFOLLOW flag atm
+	// chtimes doesn't support a NOFOLLOW flag atm
 	if hdr.Typeflag == tar.TypeLink {
 		if fi, err := os.Lstat(hdr.Linkname); err == nil && (fi.Mode()&os.ModeSymlink == 0) {
-			if err := system.Chtimes(path, aTime, hdr.ModTime); err != nil {
+			if err := chtimes(path, aTime, mTime); err != nil {
 				return err
 			}
 		}
 	} else if hdr.Typeflag != tar.TypeSymlink {
-		if err := system.Chtimes(path, aTime, hdr.ModTime); err != nil {
+		if err := chtimes(path, aTime, mTime); err != nil {
 			return err
 		}
 	} else {
-		ts := []syscall.Timespec{timeToTimespec(aTime), timeToTimespec(hdr.ModTime)}
-		if err := system.LUtimesNano(path, ts); err != nil && err != system.ErrNotSupportedPlatform {
+		if err := lchtimes(path, aTime, mTime); err != nil {
 			return err
 		}
 	}
@@ -1201,7 +1197,7 @@ loop:
 		// #nosec G305 -- The header was checked for path traversal before it was appended to the dirs slice.
 		path := filepath.Join(dest, hdr.Name)
 
-		if err := system.Chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
+		if err := chtimes(path, boundTime(latestTime(hdr.AccessTime, hdr.ModTime)), boundTime(hdr.ModTime)); err != nil {
 			return err
 		}
 	}
