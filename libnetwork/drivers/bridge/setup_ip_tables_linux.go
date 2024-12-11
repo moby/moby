@@ -193,11 +193,11 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 			return setupInternalNetworkRules(config.BridgeName, maskedAddr, config.EnableICC, false)
 		})
 	} else {
-		if err = setupIPTablesInternal(ipVersion, config, maskedAddr, hairpinMode, true); err != nil {
+		if err = setupNonInternalNetworkRules(ipVersion, config, maskedAddr, hairpinMode, true); err != nil {
 			return fmt.Errorf("Failed to Setup IP tables: %w", err)
 		}
 		n.registerIptCleanFunc(func() error {
-			return setupIPTablesInternal(ipVersion, config, maskedAddr, hairpinMode, false)
+			return setupNonInternalNetworkRules(ipVersion, config, maskedAddr, hairpinMode, false)
 		})
 
 		natChain, filterChain, _, _, err := n.getDriverChains(ipVersion)
@@ -341,7 +341,7 @@ func (r iptRule) String() string {
 	return strings.Join(cmd, " ")
 }
 
-func setupIPTablesInternal(ipVer iptables.IPVersion, config *networkConfiguration, addr *net.IPNet, hairpin, enable bool) error {
+func setupNonInternalNetworkRules(ipVer iptables.IPVersion, config *networkConfiguration, addr *net.IPNet, hairpin, enable bool) error {
 	hostIP := config.HostIPv4
 	nat := !config.GwModeIPv4.routed()
 	if ipVer == iptables.IPv6 {
