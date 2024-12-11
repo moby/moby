@@ -210,7 +210,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-containerd-aptlib,target=/var/lib/
         apt-get update && xx-apt-get install -y --no-install-recommends \
             gcc \
             libbtrfs-dev \
-            libsecret-1-dev \
             pkg-config
 ARG DOCKER_STATIC
 RUN --mount=from=containerd-src,src=/usr/src/containerd,rw \
@@ -567,7 +566,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             gcc \
             pkg-config \
             libseccomp-dev \
-            libsecret-1-dev \
             libsystemd-dev \
             yamllint
 COPY --link --from=dockercli             /build/ /usr/local/cli
@@ -591,7 +589,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
             gcc \
             libc6-dev \
             libseccomp-dev \
-            libsecret-1-dev \
             libsystemd-dev \
             pkg-config
 ARG DOCKER_BUILDTAGS
