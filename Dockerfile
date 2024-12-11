@@ -299,7 +299,6 @@ ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-runc-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-runc-aptcache,target=/var/cache/apt \
         apt-get update && xx-apt-get install -y --no-install-recommends \
-            dpkg-dev \
             gcc \
             libc6-dev \
             libseccomp-dev \
@@ -568,7 +567,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
         apt-get update && apt-get install --no-install-recommends -y \
             gcc \
             pkg-config \
-            dpkg-dev \
             libseccomp-dev \
             libsecret-1-dev \
             libsystemd-dev \
@@ -592,7 +590,6 @@ ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-build-aptcache,target=/var/cache/apt \
         xx-apt-get install --no-install-recommends -y \
-            dpkg-dev \
             gcc \
             libc6-dev \
             libseccomp-dev \
