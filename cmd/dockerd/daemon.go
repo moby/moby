@@ -45,6 +45,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/listeners"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/libcontainerd/supervisor"
 	dopts "github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
@@ -65,8 +66,6 @@ import (
 	"github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/resource"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
@@ -243,7 +242,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	// Initialize the trace recorder for buildkit.
 	detect.Recorder = detect.NewTraceRecorder()
 
-	tp := newTracerProvider(ctx)
+	tp, otelShutdown := otelutil.NewTracerProvider(ctx, true)
 	otel.SetTracerProvider(tp)
 	log.G(ctx).Logger.AddHook(tracing.NewLogrusHook())
 
@@ -360,7 +359,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		return errors.Wrap(err, "shutting down due to ServeAPI error")
 	}
 
-	if err := tp.Shutdown(context.Background()); err != nil {
+	if err := otelShutdown(context.WithoutCancel(ctx)); err != nil {
 		log.G(ctx).WithError(err).Error("Failed to shutdown OTEL tracing")
 	}
 
@@ -389,20 +388,6 @@ func setOTLPProtoDefault() {
 			_ = os.Setenv(metricsEnv, defaultProto)
 		}
 	}
-}
-
-func newTracerProvider(ctx context.Context) *sdktrace.TracerProvider {
-	opts := []sdktrace.TracerProviderOption{
-		sdktrace.WithResource(resource.Default()),
-		sdktrace.WithSyncer(detect.Recorder),
-	}
-
-	if exp, err := detect.NewSpanExporter(ctx); err != nil {
-		log.G(ctx).WithError(err).Warn("Failed to initialize tracing, skipping")
-	} else if !detect.IsNoneSpanExporter(exp) {
-		opts = append(opts, sdktrace.WithBatcher(exp))
-	}
-	return sdktrace.NewTracerProvider(opts...)
 }
 
 type routerOptions struct {
