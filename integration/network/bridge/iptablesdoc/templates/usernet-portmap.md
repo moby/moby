@@ -20,10 +20,8 @@ The filter table is updated as follows:
 
 Note that:
 
- - In the FORWARD chain, rules 5-6 for the new network have been inserted at
-   the top of the chain, pushing the equivalent docker0 rules down to positions
-   7-8. (Rules 5-6 were inserted at the top of the chain, then rules 1-4 were
-   shuffled back to the top by deleting/recreating, as described above.)
+ - In the FORWARD chain, rule 6 for outgoing traffic from the new network has been
+   appended to the end of the chain.
  - In the DOCKER-ISOLATION chains, rules equivalent to the docker0 rules have
    also been inserted for the new bridge.
  - In the DOCKER chain, there is an ACCEPT rule for TCP port 80 packets routed

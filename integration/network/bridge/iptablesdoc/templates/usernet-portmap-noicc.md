@@ -21,11 +21,11 @@ The filter table is:
 
 By comparison with [ICC=true][1]:
 
-  - Rule 8 in the FORWARD chain replaces an ACCEPT rule that would have followed rule 5, matching the same packets.
-    - Added in [setIcc][2]
+  - Rules 6 and 7 replace the accept rule for outgoing packets.
+    - Rule 6, added by `setIcc`, drops any packet sent from the internal network to itself.
+    - Rule 7, added by `setupIPTablesInternal` accepts any other outgoing packet.
 
 [1]: usernet-portmap.md
-[2]: https://github.com/moby/moby/blob/333cfa640239153477bf635a8131734d0e9d099d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L344
 
 And the corresponding nat table:
 

@@ -18,10 +18,8 @@ The filter table is updated as follows:
     2        0     0 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst ctstate RELATED,ESTABLISHED
     3        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     4        0     0 DOCKER     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst
-    5        0     0 ACCEPT     0    --  bridge1 !bridge1  0.0.0.0/0            0.0.0.0/0           
-    6        0     0 ACCEPT     0    --  bridge1 bridge1  0.0.0.0/0            0.0.0.0/0           
-    7        0     0 ACCEPT     0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
-    8        0     0 ACCEPT     0    --  docker0 docker0  0.0.0.0/0            0.0.0.0/0           
+    5        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
+    6        0     0 ACCEPT     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0           
     
     Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -61,10 +59,8 @@ The filter table is updated as follows:
     -A FORWARD -m set --match-set docker-ext-bridges-v4 dst -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     -A FORWARD -j DOCKER-ISOLATION-STAGE-1
     -A FORWARD -m set --match-set docker-ext-bridges-v4 dst -j DOCKER
-    -A FORWARD -i bridge1 ! -o bridge1 -j ACCEPT
-    -A FORWARD -i bridge1 -o bridge1 -j ACCEPT
-    -A FORWARD -i docker0 ! -o docker0 -j ACCEPT
-    -A FORWARD -i docker0 -o docker0 -j ACCEPT
+    -A FORWARD -i docker0 -j ACCEPT
+    -A FORWARD -i bridge1 -j ACCEPT
     -A DOCKER -d 192.0.2.2/32 ! -i bridge1 -o bridge1 -p tcp -m tcp --dport 80 -j ACCEPT
     -A DOCKER ! -i docker0 -o docker0 -j DROP
     -A DOCKER ! -i bridge1 -o bridge1 -j DROP
@@ -79,10 +75,8 @@ The filter table is updated as follows:
 
 Note that:
 
- - In the FORWARD chain, rules 5-6 for the new network have been inserted at
-   the top of the chain, pushing the equivalent docker0 rules down to positions
-   7-8. (Rules 5-6 were inserted at the top of the chain, then rules 1-4 were
-   shuffled back to the top by deleting/recreating, as described above.)
+ - In the FORWARD chain, rule 6 for outgoing traffic from the new network has been
+   appended to the end of the chain.
  - In the DOCKER-ISOLATION chains, rules equivalent to the docker0 rules have
    also been inserted for the new bridge.
  - In the DOCKER chain, there is an ACCEPT rule for TCP port 80 packets routed

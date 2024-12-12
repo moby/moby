@@ -24,12 +24,16 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"text/template"
+	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/internal/testutils/networking"
@@ -37,8 +41,10 @@ import (
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/go-connections/nat"
+	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/golden"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -47,23 +53,24 @@ var (
 	docGateways = []string{"192.0.2.1", "198.51.100.1", "203.0.113.1"}
 )
 
-type ctr struct {
+type ctrDesc struct {
 	name         string
 	portMappings nat.PortMap
 }
 
-type bridgeNetwork struct {
-	bridge     string
+type networkDesc struct {
+	name       string
 	gwMode     string
 	noICC      bool
 	internal   bool
-	containers []ctr
+	containers []ctrDesc
 }
 
 type section struct {
 	name            string
 	noUserlandProxy bool
-	networks        []bridgeNetwork
+	swarm           bool
+	networks        []networkDesc
 }
 
 var index = []section{
@@ -72,9 +79,9 @@ var index = []section{
 	},
 	{
 		name: "usernet-portmap.md",
-		networks: []bridgeNetwork{{
-			bridge: "bridge1",
-			containers: []ctr{
+		networks: []networkDesc{{
+			name: "bridge1",
+			containers: []ctrDesc{
 				{
 					name:         "c1",
 					portMappings: nat.PortMap{"80/tcp": {{HostPort: "8080"}}},
@@ -85,9 +92,9 @@ var index = []section{
 	{
 		name:            "usernet-portmap-noproxy.md",
 		noUserlandProxy: true,
-		networks: []bridgeNetwork{{
-			bridge: "bridge1",
-			containers: []ctr{
+		networks: []networkDesc{{
+			name: "bridge1",
+			containers: []ctrDesc{
 				{
 					name:         "c1",
 					portMappings: nat.PortMap{"80/tcp": {{HostPort: "8080"}}},
@@ -97,10 +104,10 @@ var index = []section{
 	},
 	{
 		name: "usernet-portmap-noicc.md",
-		networks: []bridgeNetwork{{
-			bridge: "bridge1",
-			noICC:  true,
-			containers: []ctr{
+		networks: []networkDesc{{
+			name:  "bridge1",
+			noICC: true,
+			containers: []ctrDesc{
 				{
 					name:         "c1",
 					portMappings: nat.PortMap{"80/tcp": {{HostPort: "8080"}}},
@@ -110,10 +117,19 @@ var index = []section{
 	},
 	{
 		name: "usernet-internal.md",
-		networks: []bridgeNetwork{{
-			bridge:   "bridge1",
+		networks: []networkDesc{{
+			name:     "bridgeICC",
 			internal: true,
-			containers: []ctr{
+			containers: []ctrDesc{
+				{
+					name: "c1",
+				},
+			},
+		}, {
+			name:     "bridgeNoICC",
+			internal: true,
+			noICC:    true,
+			containers: []ctrDesc{
 				{
 					name: "c1",
 				},
@@ -122,10 +138,10 @@ var index = []section{
 	},
 	{
 		name: "usernet-portmap-routed.md",
-		networks: []bridgeNetwork{{
-			bridge: "bridge1",
+		networks: []networkDesc{{
+			name:   "bridge1",
 			gwMode: "routed",
-			containers: []ctr{
+			containers: []ctrDesc{
 				{
 					name:         "c1",
 					portMappings: nat.PortMap{"80/tcp": {{HostPort: "8080"}}},
@@ -135,10 +151,22 @@ var index = []section{
 	},
 	{
 		name: "usernet-portmap-natunprot.md",
-		networks: []bridgeNetwork{{
-			bridge: "bridge1",
+		networks: []networkDesc{{
+			name:   "bridge1",
 			gwMode: "nat-unprotected",
-			containers: []ctr{
+			containers: []ctrDesc{
+				{
+					name:         "c1",
+					portMappings: nat.PortMap{"80/tcp": {{HostPort: "8080"}}},
+				},
+			},
+		}},
+	},
+	{
+		name:  "swarm-portmap.md",
+		swarm: true,
+		networks: []networkDesc{{
+			containers: []ctrDesc{
 				{
 					name:         "c1",
 					portMappings: nat.PortMap{"80/tcp": {{HostPort: "8080"}}},
@@ -203,7 +231,7 @@ func TestBridgeIptablesDoc(t *testing.T) {
 		)
 		host := l3.Hosts[hostname]
 		// Stop the interface, to reduce the chances of stray packets getting counted by iptables.
-		host.Run(t, "ip", "link", "set", "eth0", "down")
+		host.MustRun(t, "ip", "link", "set", "eth0", "down")
 
 		t.Run("gen_"+sec.name, func(t *testing.T) {
 			// t.Parallel() - doesn't speed things up, startup times just extend
@@ -217,6 +245,12 @@ func runTestNet(t *testing.T, ctx context.Context, bundlesDir string, section se
 	if section.noUserlandProxy {
 		dArgs = append(dArgs, "--userland-proxy=false")
 	}
+	if section.swarm {
+		if _, err := netlink.GenlFamilyGet("IPVS"); err != nil {
+			t.Skipf("No IPVS, so DOCKER-INGRESS will not be set up: %v", err)
+		}
+		dArgs = append(dArgs, "--swarm-default-advertise-addr="+host.Iface)
+	}
 
 	// Start the daemon in its own network namespace.
 	var d *daemon.Daemon
@@ -228,43 +262,12 @@ func runTestNet(t *testing.T, ctx context.Context, bundlesDir string, section se
 		t.Cleanup(func() { d.Stop(t) })
 	})
 
-	c := d.NewClientT(t)
-	t.Cleanup(func() { c.Close() })
-
 	assert.Assert(t, len(section.networks) < len(docNetworks), "Don't have enough container network addresses")
-	for i, nw := range section.networks {
-		gwMode := nw.gwMode
-		if gwMode == "" {
-			gwMode = "nat"
-		}
-		netOpts := []func(*networktypes.CreateOptions){
-			network.WithIPAM(docNetworks[i], docGateways[i]),
-			network.WithOption(bridge.BridgeName, nw.bridge),
-			network.WithOption(bridge.IPv4GatewayMode, gwMode),
-		}
-		if nw.noICC {
-			netOpts = append(netOpts, network.WithOption(bridge.EnableICC, "false"))
-		}
-		if nw.internal {
-			netOpts = append(netOpts, network.WithInternal())
-		}
-		network.CreateNoError(ctx, t, c, nw.bridge, netOpts...)
-		t.Cleanup(func() { network.RemoveNoError(ctx, t, c, nw.bridge) })
-
-		for _, ctr := range nw.containers {
-			var exposedPorts []string
-			for ep := range ctr.portMappings {
-				exposedPorts = append(exposedPorts, ep.Port()+"/"+ep.Proto())
-			}
-			id := container.Run(ctx, t, c,
-				container.WithNetworkMode(nw.bridge),
-				container.WithExposedPorts(exposedPorts...),
-				container.WithPortMap(ctr.portMappings),
-			)
-			t.Cleanup(func() {
-				c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
-			})
-		}
+	if section.swarm {
+		d.SwarmInit(ctx, t, swarmtypes.InitRequest{})
+		createServices(ctx, t, d, section, host)
+	} else {
+		createBridgeNetworks(ctx, t, d, section)
 	}
 
 	iptablesOutput := runIptables(t, host)
@@ -284,14 +287,113 @@ func runTestNet(t *testing.T, ctx context.Context, bundlesDir string, section se
 	golden.Assert(t, generated, filepath.Join(wd, "generated", section.name))
 }
 
+func createBridgeNetworks(ctx context.Context, t *testing.T, d *daemon.Daemon, section section) {
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	for i, nw := range section.networks {
+		gwMode := nw.gwMode
+		if gwMode == "" {
+			gwMode = "nat"
+		}
+		netOpts := []func(*networktypes.CreateOptions){
+			network.WithIPAM(docNetworks[i], docGateways[i]),
+			network.WithOption(bridge.BridgeName, nw.name),
+			network.WithOption(bridge.IPv4GatewayMode, gwMode),
+		}
+		if nw.noICC {
+			netOpts = append(netOpts, network.WithOption(bridge.EnableICC, "false"))
+		}
+		if nw.internal {
+			netOpts = append(netOpts, network.WithInternal())
+		}
+		network.CreateNoError(ctx, t, c, nw.name, netOpts...)
+		t.Cleanup(func() { network.RemoveNoError(ctx, t, c, nw.name) })
+
+		for _, ctr := range nw.containers {
+			var exposedPorts []string
+			for ep := range ctr.portMappings {
+				exposedPorts = append(exposedPorts, ep.Port()+"/"+ep.Proto())
+			}
+			id := container.Run(ctx, t, c,
+				container.WithNetworkMode(nw.name),
+				container.WithExposedPorts(exposedPorts...),
+				container.WithPortMap(ctr.portMappings),
+			)
+			t.Cleanup(func() {
+				c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+			})
+		}
+	}
+}
+
+func createServices(ctx context.Context, t *testing.T, d *daemon.Daemon, section section, host networking.Host) {
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	for _, nw := range section.networks {
+		for _, ctr := range nw.containers {
+			// Convert portMap to swarm PortConfig, just well-enough for this test.
+			var portConfig []swarmtypes.PortConfig
+			for ctrPP, hostPorts := range ctr.portMappings {
+				for _, hostPort := range hostPorts {
+					hp, err := strconv.Atoi(hostPort.HostPort)
+					assert.NilError(t, err)
+					portConfig = append(portConfig, swarmtypes.PortConfig{
+						Protocol:      swarmtypes.PortConfigProtocol(ctrPP.Proto()),
+						PublishedPort: uint32(hp),
+						TargetPort:    uint32(ctrPP.Int()),
+					})
+				}
+			}
+			id := d.CreateService(ctx, t, func(s *swarmtypes.Service) {
+				s.Spec = swarmtypes.ServiceSpec{
+					TaskTemplate: swarmtypes.TaskSpec{
+						ContainerSpec: &swarmtypes.ContainerSpec{
+							Image:   "busybox:latest",
+							Command: []string{"/bin/top"},
+						},
+					},
+					EndpointSpec: &swarmtypes.EndpointSpec{
+						Ports: portConfig,
+					},
+				}
+			})
+			t.Cleanup(func() { d.RemoveService(ctx, t, id) })
+			poll.WaitOn(t, func(_ poll.LogT) poll.Result {
+				return pollService(ctx, t, c, host)
+			}, poll.WithTimeout(10*time.Second), poll.WithDelay(100*time.Millisecond))
+		}
+	}
+}
+
+func pollService(ctx context.Context, t *testing.T, c *client.Client, host networking.Host) poll.Result {
+	cl, err := c.ContainerList(ctx, containertypes.ListOptions{})
+	if err != nil {
+		return poll.Error(fmt.Errorf("failed to list containers: %w", err))
+	}
+	if len(cl) != 1 {
+		return poll.Continue("got %d containers, want 1", len(cl))
+	}
+	// The DOCKER-INGRESS chain seems to be created, then populated, a few
+	// milliseconds after the container starts. So, also wait for a conntrack
+	// "RELATED" rule to appear in the chain.
+	// TODO(robmry) - is there something better to poll?
+	di, err := host.Run(t, "iptables", "-L", "DOCKER-INGRESS")
+	if err != nil || !strings.Contains(di, "RELATED") {
+		return poll.Continue("ingress chain not ready, got: %s", di)
+	}
+	return poll.Success()
+}
+
 var rePacketByteCounts = regexp.MustCompile(`\d+ packets, \d+ bytes`)
 
 func runIptables(t *testing.T, host networking.Host) map[iptCmdType]string {
-	host.Run(t, "iptables", "-Z")
-	host.Run(t, "iptables", "-Z", "-t", "nat")
+	host.MustRun(t, "iptables", "-Z")
+	host.MustRun(t, "iptables", "-Z", "-t", "nat")
 	res := map[iptCmdType]string{}
 	for k, cmd := range iptCmds {
-		d := host.Run(t, cmd[0], cmd[1:]...)
+		d := host.MustRun(t, cmd[0], cmd[1:]...)
 		// In CI, the OUTPUT chain sometimes sees a packet. Remove the counts.
 		d = rePacketByteCounts.ReplaceAllString(d, "0 packets, 0 bytes")
 		// Indent the result, so that it's treated as preformatted markdown.
