@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	"github.com/docker/docker/pkg/system"
 )
 
 func collectFileInfoForChanges(oldDir, newDir string) (*FileInfo, *FileInfo, error) {
@@ -72,7 +70,7 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 			return fmt.Errorf("collectFileInfo: Unexpectedly no parent for %s", relPath)
 		}
 
-		s, err := system.Lstat(path)
+		s, err := os.Lstat(path)
 		if err != nil {
 			return err
 		}
