@@ -425,6 +425,11 @@ func newRouterOptions(ctx context.Context, cfg *config.Config, d *daemon.Daemon,
 		return routerOptions{}, err
 	}
 
+	var compression string
+	if cfg.Features["zstd"] {
+		compression = "zstd"
+	}
+
 	bk, err := buildkit.New(ctx, buildkit.Opt{
 		SessionManager:      sm,
 		Root:                filepath.Join(cfg.Root, "buildkit"),
@@ -447,6 +452,7 @@ func newRouterOptions(ctx context.Context, cfg *config.Config, d *daemon.Daemon,
 			Exported: d.ImageExportedByBuildkit,
 			Named:    d.ImageNamedByBuildkit,
 		},
+		Compression: compression,
 	})
 	if err != nil {
 		return routerOptions{}, err

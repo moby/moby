@@ -13,16 +13,17 @@ import (
 // ContainerdWorker is a local worker instance with dedicated snapshotter, cache, and so on.
 type ContainerdWorker struct {
 	*base.Worker
-	callbacks exporter.BuildkitCallbacks
+	callbacks     exporter.BuildkitCallbacks
+	exporterAttrs map[string]string
 }
 
 // NewContainerdWorker instantiates a local worker.
-func NewContainerdWorker(ctx context.Context, wo base.WorkerOpt, callbacks exporter.BuildkitCallbacks) (*ContainerdWorker, error) {
+func NewContainerdWorker(ctx context.Context, wo base.WorkerOpt, callbacks exporter.BuildkitCallbacks, exporterAttrs map[string]string) (*ContainerdWorker, error) {
 	bw, err := base.NewWorker(ctx, wo)
 	if err != nil {
 		return nil, err
 	}
-	return &ContainerdWorker{Worker: bw, callbacks: callbacks}, nil
+	return &ContainerdWorker{Worker: bw, callbacks: callbacks, exporterAttrs: exporterAttrs}, nil
 }
 
 // Exporter returns exporter by name
@@ -33,7 +34,7 @@ func (w *ContainerdWorker) Exporter(name string, sm *session.Manager) (bkexporte
 		if err != nil {
 			return nil, err
 		}
-		return exporter.NewWrapper(exp, w.callbacks)
+		return exporter.NewWrapper(exp, w.callbacks, w.exporterAttrs)
 	default:
 		return w.Worker.Exporter(name, sm)
 	}
