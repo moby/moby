@@ -2,6 +2,7 @@ package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/docker/docker/api/types/mount"
@@ -76,6 +77,16 @@ func TestParseMountSpec(t *testing.T) {
 			input:    mount.Mount{Type: mount.TypeVolume, Target: testDestinationPath + string(os.PathSeparator)},
 			expected: MountPoint{Type: mount.TypeVolume, Destination: testDestinationPath, RW: true, CopyData: parser.DefaultCopyMode()},
 		},
+	}
+
+	if runtime.GOOS != "windows" {
+		tests = append(tests, struct {
+			input    mount.Mount
+			expected MountPoint
+		}{
+			input:    mount.Mount{Type: mount.TypeImage, Source: "alpine", Target: testDestinationPath},
+			expected: MountPoint{Type: mount.TypeImage, Source: "alpine", Destination: testDestinationPath, RW: true, Propagation: parser.DefaultPropagationMode()},
+		})
 	}
 
 	for _, tc := range tests {
