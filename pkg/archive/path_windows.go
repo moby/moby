@@ -20,3 +20,13 @@ func checkSystemDriveAndRemoveDriveLetter(path string) (string, error) {
 	}
 	return filepath.FromSlash(path[2:]), nil
 }
+
+// lgetxattr is not supported on Windows.
+func lgetxattr(path string, attr string) ([]byte, error) {
+	return nil, nil
+}
+
+// lsetxattr is not supported on Windows.
+func lsetxattr(path string, attr string, data []byte, flags int) error {
+	return nil
+}
