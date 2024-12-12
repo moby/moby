@@ -337,8 +337,9 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix string,
 
 	// If the interface is up, send unsolicited ARP/NA messages if necessary.
 	if up {
-		// TODO(robmry) - treat this as an error once ARP/NA message-sending can be disabled.
-		_ = n.advertiseAddrs(ctx, iface.Attrs().Index, i, nlh)
+		if err := n.advertiseAddrs(ctx, iface.Attrs().Index, i, nlh); err != nil {
+			return fmt.Errorf("failed to advertise addresses: %w", err)
+		}
 	}
 
 	n.mu.Lock()
