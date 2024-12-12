@@ -8,7 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/daemon/capabilities"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -84,6 +86,77 @@ func TestPingSuccess(t *testing.T) {
 	assert.Check(t, is.Equal(true, ping.Experimental))
 	assert.Check(t, is.Equal("awesome", ping.APIVersion))
 	assert.Check(t, is.Equal(swarm.Status{NodeState: "active", ControlAvailable: true}, *ping.SwarmStatus))
+}
+
+func TestPingEngineCapabilities(t *testing.T) {
+	testCases := []struct {
+		doc           string
+		body          string
+		expected      *capabilities.Capabilities
+		expectedError string
+	}{
+		{
+			doc:      "empty",
+			expected: nil,
+		},
+		{
+			doc:      "older daemons",
+			body:     "OK",
+			expected: nil,
+		},
+		{
+			doc:  "valid single",
+			body: `{"capabilities": {"_v":1, "registry-client-auth": true}}`,
+			expected: &capabilities.Capabilities{
+				CapabilitiesBase: capabilities.CapabilitiesBase{
+					CapabilitiesVersion: capabilities.V1,
+				},
+				RegistryClientAuth: true,
+			},
+		},
+		{
+			doc:  "known and unknown keys",
+			body: `{"capabilities": {"_v":1, "meow": false, "registry-client-auth": true}}`,
+			expected: &capabilities.Capabilities{
+				CapabilitiesBase: capabilities.CapabilitiesBase{
+					CapabilitiesVersion: capabilities.V1,
+				},
+				RegistryClientAuth: true,
+			},
+		},
+		{
+			doc:           "invalid body",
+			body:          "bork",
+			expectedError: "failed to parse ping body: expected capabilities, found 'bork'",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.doc, func(t *testing.T) {
+			client := &Client{
+				client: newMockClient(func(req *http.Request) (*http.Response, error) {
+					capabilitiesQuery := req.URL.Query()["capabilities"][0]
+					assert.Equal(t, capabilitiesQuery, "1")
+
+					resp := &http.Response{StatusCode: http.StatusOK}
+					resp.Header = http.Header{}
+					resp.Header.Set("API-Version", "awesome")
+					resp.Body = io.NopCloser(strings.NewReader(tc.body))
+
+					return resp, nil
+				}),
+			}
+
+			ping, err := client.PingWithOptions(context.Background(), types.PingOptions{Capabilities: true})
+			if tc.expectedError == "" {
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal("awesome", ping.APIVersion))
+				assert.DeepEqual(t, tc.expected, ping.Capabilities)
+			} else {
+				assert.ErrorContains(t, err, tc.expectedError)
+			}
+		})
+	}
 }
 
 // TestPingHeadFallback tests that the client falls back to GET if HEAD fails.

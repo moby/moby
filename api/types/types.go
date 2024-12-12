@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/daemon/capabilities"
 )
 
 const (
@@ -34,6 +35,18 @@ type Ping struct {
 	// should use other ways to get the current swarm status, such as the /swarm
 	// endpoint.
 	SwarmStatus *swarm.Status
+
+	// Capabilities provides information about specific capabilities
+	// the daemon might or might not support.
+	//
+	// Can be nil if capabilities are not requested, or if the client is communicating
+	// with an older daemon that does not support requesting capabilities.
+	Capabilities *capabilities.Capabilities
+}
+
+// PingOptions holds parameters for the Ping endpoint.
+type PingOptions struct {
+	Capabilities bool
 }
 
 // ComponentVersion describes the version information for a specific component.

@@ -126,8 +126,10 @@ func (daemon *Daemon) Reload(conf *config.Config) error {
 			NoProxy:    config.MaskCredentials(newCfg.NoProxy),
 		},
 	})
-	log.G(context.TODO()).Infof("Reloaded configuration: %s", jsonString)
+	ctx := context.TODO()
+	log.G(ctx).Infof("Reloaded configuration: %s", jsonString)
 	daemon.configStore.Store(newCfg)
+	daemon.capabilitiesManager.InvalidateCache(ctx)
 	daemon.LogDaemonEventWithAttributes(events.ActionReload, attributes)
 	return txn.Commit()
 }

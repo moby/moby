@@ -62,6 +62,10 @@ keywords: "API, Docker, rcli, REST, documentation"
   `GET /debug/pprof/profile`, `GET /debug/pprof/symbol`, `GET /debug/pprof/trace`,
   `GET /debug/pprof/{name}`) are now also accessible through the versioned-API
   paths (`/v<API-version>/<endpoint>`).
+* `GET` `/_ping` endpoint now optionally supports a `capabilities` query parameter 
+  (e.g. `GET /_ping?capabilities=1`). If set, instead of the response body containing
+  `OK`, the daemon responds with a JSON Content-Type instead of `text/plain`, and
+  includes the engine capabilities in the response.
 
 ## v1.47 API changes
 
