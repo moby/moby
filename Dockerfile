@@ -209,8 +209,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-containerd-aptlib,target=/var/lib/
     --mount=type=cache,sharing=locked,id=moby-containerd-aptcache,target=/var/cache/apt \
         apt-get update && xx-apt-get install -y --no-install-recommends \
             gcc \
-            libbtrfs-dev \
-            libsecret-1-dev \
             pkg-config
 ARG DOCKER_STATIC
 RUN --mount=from=containerd-src,src=/usr/src/containerd,rw \
@@ -299,7 +297,6 @@ ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-runc-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-runc-aptcache,target=/var/cache/apt \
         apt-get update && xx-apt-get install -y --no-install-recommends \
-            dpkg-dev \
             gcc \
             libc6-dev \
             libseccomp-dev \
@@ -401,7 +398,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
             libseccomp-dev \
             libsystemd-dev \
             libtool \
-            libudev-dev \
             libyajl-dev \
             python3 \
             ;
@@ -568,11 +564,8 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
         apt-get update && apt-get install --no-install-recommends -y \
             gcc \
             pkg-config \
-            dpkg-dev \
             libseccomp-dev \
-            libsecret-1-dev \
             libsystemd-dev \
-            libudev-dev \
             yamllint
 COPY --link --from=dockercli             /build/ /usr/local/cli
 COPY --link --from=dockercli-integration /build/ /usr/local/cli-integration
@@ -592,13 +585,10 @@ ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-build-aptcache,target=/var/cache/apt \
         xx-apt-get install --no-install-recommends -y \
-            dpkg-dev \
             gcc \
             libc6-dev \
             libseccomp-dev \
-            libsecret-1-dev \
             libsystemd-dev \
-            libudev-dev \
             pkg-config
 ARG DOCKER_BUILDTAGS
 ARG DOCKER_DEBUG
