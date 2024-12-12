@@ -9,7 +9,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/pkg/system"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/sys/userns"
 	"golang.org/x/sys/unix"
@@ -55,7 +54,7 @@ func setupOverlayTestDir(t *testing.T, src string) {
 	err = os.Mkdir(filepath.Join(src, "d3"), 0o700)
 	assert.NilError(t, err)
 
-	err = system.Mknod(filepath.Join(src, "d3", "f1"), unix.S_IFCHR, 0)
+	err = unix.Mknod(filepath.Join(src, "d3", "f1"), unix.S_IFCHR, 0)
 	assert.NilError(t, err)
 }
 
