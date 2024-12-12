@@ -6,7 +6,6 @@ dockerd - Enable daemon mode
 # SYNOPSIS
 **dockerd**
 [**--add-runtime**[=*[]*]]
-[**--allow-nondistributable-artifacts**[=*[]*]]
 [**--authorization-plugin**[=*[]*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
 [**--bip**[=*BIP*]]

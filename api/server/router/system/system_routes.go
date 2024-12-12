@@ -100,6 +100,12 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 			// Containerd field introduced in API v1.46.
 			info.Containerd = nil
 		}
+		if versions.LessThan(version, "1.47") {
+			// Field is omitted in API 1.48 and up, but should still be included
+			// in older versions, even if no values are set.
+			info.RegistryConfig.AllowNondistributableArtifactsCIDRs = []*registry.NetIPNet{}
+			info.RegistryConfig.AllowNondistributableArtifactsHostnames = []string{}
+		}
 
 		// TODO(thaJeztah): Expected commits are deprecated, and should no longer be set in API 1.49.
 		info.ContainerdCommit.Expected = info.ContainerdCommit.ID //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.

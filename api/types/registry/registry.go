@@ -9,11 +9,29 @@ import (
 
 // ServiceConfig stores daemon registry services configuration.
 type ServiceConfig struct {
-	AllowNondistributableArtifactsCIDRs     []*NetIPNet
-	AllowNondistributableArtifactsHostnames []string
-	InsecureRegistryCIDRs                   []*NetIPNet           `json:"InsecureRegistryCIDRs"`
-	IndexConfigs                            map[string]*IndexInfo `json:"IndexConfigs"`
-	Mirrors                                 []string
+	AllowNondistributableArtifactsCIDRs     []*NetIPNet `json:"AllowNondistributableArtifactsCIDRs,omitempty"`     // Deprecated: non-distributable artifacts are deprecated and enabled by default. This field will be removed in the next release.
+	AllowNondistributableArtifactsHostnames []string    `json:"AllowNondistributableArtifactsHostnames,omitempty"` // Deprecated: non-distributable artifacts are deprecated and enabled by default. This field will be removed in the next release.
+
+	InsecureRegistryCIDRs []*NetIPNet           `json:"InsecureRegistryCIDRs"`
+	IndexConfigs          map[string]*IndexInfo `json:"IndexConfigs"`
+	Mirrors               []string
+}
+
+// MarshalJSON implements a custom marshaler to include legacy fields
+// in API responses.
+func (sc ServiceConfig) MarshalJSON() ([]byte, error) {
+	tmp := map[string]interface{}{
+		"InsecureRegistryCIDRs": sc.InsecureRegistryCIDRs,
+		"IndexConfigs":          sc.IndexConfigs,
+		"Mirrors":               sc.Mirrors,
+	}
+	if sc.AllowNondistributableArtifactsCIDRs != nil {
+		tmp["AllowNondistributableArtifactsCIDRs"] = nil
+	}
+	if sc.AllowNondistributableArtifactsHostnames != nil {
+		tmp["AllowNondistributableArtifactsHostnames"] = nil
+	}
+	return json.Marshal(tmp)
 }
 
 // NetIPNet is the net.IPNet type, which can be marshalled and

@@ -104,7 +104,7 @@ func (s *Service) ResolveRepository(name reference.Named) (*RepositoryInfo, erro
 type APIEndpoint struct {
 	Mirror                         bool
 	URL                            *url.URL
-	AllowNondistributableArtifacts bool
+	AllowNondistributableArtifacts bool // Deprecated: non-distributable artifacts are deprecated and enabled by default. This field will be removed in the next release.
 	Official                       bool
 	TrimHostname                   bool // Deprecated: hostname is now trimmed unconditionally for remote names. This field will be removed in the next release.
 	TLSConfig                      *tls.Config

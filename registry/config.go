@@ -15,9 +15,10 @@ import (
 
 // ServiceOptions holds command line options.
 type ServiceOptions struct {
-	AllowNondistributableArtifacts []string `json:"allow-nondistributable-artifacts,omitempty"`
-	Mirrors                        []string `json:"registry-mirrors,omitempty"`
-	InsecureRegistries             []string `json:"insecure-registries,omitempty"`
+	AllowNondistributableArtifacts []string `json:"allow-nondistributable-artifacts,omitempty"` // Deprecated: non-distributable artifacts are deprecated and enabled by default. This field will be removed in the next release.
+
+	Mirrors            []string `json:"registry-mirrors,omitempty"`
+	InsecureRegistries []string `json:"insecure-registries,omitempty"`
 }
 
 // serviceConfig holds daemon configuration for the registry service.
@@ -80,9 +81,6 @@ func CertsDir() string {
 // newServiceConfig returns a new instance of ServiceConfig
 func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
 	config := &serviceConfig{}
-	if err := config.loadAllowNondistributableArtifacts(options.AllowNondistributableArtifacts); err != nil {
-		return nil, err
-	}
 	if err := config.loadMirrors(options.Mirrors); err != nil {
 		return nil, err
 	}
@@ -100,49 +98,10 @@ func (config *serviceConfig) copy() *registry.ServiceConfig {
 		ic[key] = value
 	}
 	return &registry.ServiceConfig{
-		AllowNondistributableArtifactsCIDRs:     append([]*registry.NetIPNet(nil), config.AllowNondistributableArtifactsCIDRs...),
-		AllowNondistributableArtifactsHostnames: append([]string(nil), config.AllowNondistributableArtifactsHostnames...),
-		InsecureRegistryCIDRs:                   append([]*registry.NetIPNet(nil), config.InsecureRegistryCIDRs...),
-		IndexConfigs:                            ic,
-		Mirrors:                                 append([]string(nil), config.Mirrors...),
+		InsecureRegistryCIDRs: append([]*registry.NetIPNet(nil), config.InsecureRegistryCIDRs...),
+		IndexConfigs:          ic,
+		Mirrors:               append([]string(nil), config.Mirrors...),
 	}
-}
-
-// loadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries into config.
-func (config *serviceConfig) loadAllowNondistributableArtifacts(registries []string) error {
-	cidrs := map[string]*registry.NetIPNet{}
-	hostnames := map[string]bool{}
-
-	for _, r := range registries {
-		if _, err := ValidateIndexName(r); err != nil {
-			return err
-		}
-		if hasScheme(r) {
-			return invalidParamf("allow-nondistributable-artifacts registry %s should not contain '://'", r)
-		}
-
-		if _, ipnet, err := net.ParseCIDR(r); err == nil {
-			// Valid CIDR.
-			cidrs[ipnet.String()] = (*registry.NetIPNet)(ipnet)
-		} else if err = validateHostPort(r); err == nil {
-			// Must be `host:port` if not CIDR.
-			hostnames[r] = true
-		} else {
-			return invalidParamWrapf(err, "allow-nondistributable-artifacts registry %s is not valid", r)
-		}
-	}
-
-	config.AllowNondistributableArtifactsCIDRs = make([]*registry.NetIPNet, 0, len(cidrs))
-	for _, c := range cidrs {
-		config.AllowNondistributableArtifactsCIDRs = append(config.AllowNondistributableArtifactsCIDRs, c)
-	}
-
-	config.AllowNondistributableArtifactsHostnames = make([]string, 0, len(hostnames))
-	for h := range hostnames {
-		config.AllowNondistributableArtifactsHostnames = append(config.AllowNondistributableArtifactsHostnames, h)
-	}
-
-	return nil
 }
 
 // loadMirrors loads mirrors to config, after removing duplicates.
@@ -240,25 +199,6 @@ skip:
 	config.IndexConfigs = indexConfigs
 
 	return nil
-}
-
-// allowNondistributableArtifacts returns true if the provided hostname is part of the list of registries
-// that allow push of nondistributable artifacts.
-//
-// The list can contain elements with CIDR notation to specify a whole subnet. If the subnet contains an IP
-// of the registry specified by hostname, true is returned.
-//
-// hostname should be a URL.Host (`host:port` or `host`) where the `host` part can be either a domain name
-// or an IP address. If it is a domain name, then it will be resolved to IP addresses for matching. If
-// resolution fails, CIDR matching is not performed.
-func (config *serviceConfig) allowNondistributableArtifacts(hostname string) bool {
-	for _, h := range config.AllowNondistributableArtifactsHostnames {
-		if h == hostname {
-			return true
-		}
-	}
-
-	return isCIDRMatch(config.AllowNondistributableArtifactsCIDRs, hostname)
 }
 
 // isSecureIndex returns false if the provided indexName is part of the list of insecure registries
