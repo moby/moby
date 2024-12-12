@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
-
-	"github.com/docker/docker/pkg/ioutils"
 )
 
 func TestApplyLayerInvalidFilenames(t *testing.T) {
@@ -337,11 +335,14 @@ func makeTestLayer(paths []string) (rc io.ReadCloser, err error) {
 	if err != nil {
 		return
 	}
-	return ioutils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
-		os.RemoveAll(tmpDir)
-		return err
-	}), nil
+	return &readCloserWrapper{
+		Reader: archive,
+		closer: func() error {
+			err := archive.Close()
+			os.RemoveAll(tmpDir)
+			return err
+		},
+	}, nil
 }
 
 func readDirContents(root string) ([]string, error) {

@@ -15,14 +15,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/klauspost/compress/zstd"
@@ -215,11 +216,22 @@ func gzDecompress(ctx context.Context, buf io.Reader) (io.ReadCloser, error) {
 	return cmdStream(exec.CommandContext(ctx, unpigzPath, "-d", "-c"), buf)
 }
 
-func wrapReadCloser(readBuf io.ReadCloser, cancel context.CancelFunc) io.ReadCloser {
-	return ioutils.NewReadCloserWrapper(readBuf, func() error {
-		cancel()
-		return readBuf.Close()
-	})
+type readCloserWrapper struct {
+	io.Reader
+	closer func() error
+	closed atomic.Bool
+}
+
+func (r *readCloserWrapper) Close() error {
+	if !r.closed.CompareAndSwap(false, true) {
+		log.G(context.TODO()).Error("subsequent attempt to close readCloserWrapper")
+		if log.GetLevel() >= log.DebugLevel {
+			log.G(context.TODO()).Errorf("stack trace: %s", string(debug.Stack()))
+		}
+
+		return nil
+	}
+	return r.closer()
 }
 
 // DecompressStream decompresses the archive and returns a ReaderCloser with the decompressed archive.
@@ -237,11 +249,26 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 		return nil, err
 	}
 
+	wrapReader := func(r io.Reader, cancel context.CancelFunc) io.ReadCloser {
+		return &readCloserWrapper{
+			Reader: r,
+			closer: func() error {
+				if cancel != nil {
+					cancel()
+				}
+				if readCloser, ok := r.(io.ReadCloser); ok {
+					readCloser.Close()
+				}
+				p.Put(buf)
+				return nil
+			},
+		}
+	}
+
 	compression := DetectCompression(bs)
 	switch compression {
 	case Uncompressed:
-		readBufWrapper := p.NewReadCloserWrapper(buf, buf)
-		return readBufWrapper, nil
+		return wrapReader(buf, nil), nil
 	case Gzip:
 		ctx, cancel := context.WithCancel(context.Background())
 
@@ -250,12 +277,10 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 			cancel()
 			return nil, err
 		}
-		readBufWrapper := p.NewReadCloserWrapper(buf, gzReader)
-		return wrapReadCloser(readBufWrapper, cancel), nil
+		return wrapReader(gzReader, cancel), nil
 	case Bzip2:
 		bz2Reader := bzip2.NewReader(buf)
-		readBufWrapper := p.NewReadCloserWrapper(buf, bz2Reader)
-		return readBufWrapper, nil
+		return wrapReader(bz2Reader, nil), nil
 	case Xz:
 		ctx, cancel := context.WithCancel(context.Background())
 
@@ -264,15 +289,13 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 			cancel()
 			return nil, err
 		}
-		readBufWrapper := p.NewReadCloserWrapper(buf, xzReader)
-		return wrapReadCloser(readBufWrapper, cancel), nil
+		return wrapReader(xzReader, cancel), nil
 	case Zstd:
 		zstdReader, err := zstd.NewReader(buf)
 		if err != nil {
 			return nil, err
 		}
-		readBufWrapper := p.NewReadCloserWrapper(buf, zstdReader)
-		return readBufWrapper, nil
+		return wrapReader(zstdReader, nil), nil
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
@@ -1424,11 +1447,14 @@ func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, error) {
 		close(done)
 	}()
 
-	return ioutils.NewReadCloserWrapper(pipeR, func() error {
-		// Close pipeR, and then wait for the command to complete before returning. We have to close pipeR first, as
-		// cmd.Wait waits for any non-file stdout/stderr/stdin to close.
-		err := pipeR.Close()
-		<-done
-		return err
-	}), nil
+	return &readCloserWrapper{
+		Reader: pipeR,
+		closer: func() error {
+			// Close pipeR, and then wait for the command to complete before returning. We have to close pipeR first, as
+			// cmd.Wait waits for any non-file stdout/stderr/stdin to close.
+			err := pipeR.Close()
+			<-done
+			return err
+		},
+	}, nil
 }
