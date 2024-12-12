@@ -45,6 +45,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/listeners"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/libcontainerd/supervisor"
 	dopts "github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
@@ -65,10 +66,6 @@ import (
 	"github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/resource"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/trace"
-	"go.opentelemetry.io/otel/trace/noop"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
@@ -245,7 +242,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	// Initialize the trace recorder for buildkit.
 	detect.Recorder = detect.NewTraceRecorder()
 
-	tp, otelShutdown := newTracerProvider(ctx)
+	tp, otelShutdown := otelutil.NewTracerProvider(ctx, true)
 	otel.SetTracerProvider(tp)
 	log.G(ctx).Logger.AddHook(tracing.NewLogrusHook())
 
@@ -391,28 +388,6 @@ func setOTLPProtoDefault() {
 			_ = os.Setenv(metricsEnv, defaultProto)
 		}
 	}
-}
-
-func newTracerProvider(ctx context.Context) (trace.TracerProvider, func(context.Context) error) {
-	noopShutdown := func(ctx context.Context) error { return nil }
-
-	exp, err := detect.NewSpanExporter(ctx)
-	if err != nil {
-		log.G(ctx).WithError(err).Warn("Failed to initialize tracing, skipping")
-		return noop.NewTracerProvider(), noopShutdown
-	}
-
-	if detect.IsNoneSpanExporter(exp) {
-		log.G(ctx).Info("OTEL tracing is not configured, using no-op tracer provider")
-		return noop.NewTracerProvider(), noopShutdown
-	}
-
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithResource(resource.Default()),
-		sdktrace.WithSyncer(detect.Recorder),
-		sdktrace.WithBatcher(exp),
-	)
-	return tp, tp.Shutdown
 }
 
 type routerOptions struct {
