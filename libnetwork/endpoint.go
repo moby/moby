@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
@@ -420,6 +421,22 @@ func (ep *Endpoint) getSysctls() []string {
 		}
 	}
 	return nil
+}
+
+func (ep *Endpoint) advertiseAddrNMsgs() (int, bool) {
+	n := ep.getNetwork()
+	if n == nil {
+		return 0, false
+	}
+	return n.advertiseAddrNMsgs()
+}
+
+func (ep *Endpoint) advertiseAddrInterval() (time.Duration, bool) {
+	n := ep.getNetwork()
+	if n == nil {
+		return 0, false
+	}
+	return n.advertiseAddrInterval()
 }
 
 func (ep *Endpoint) SetValue(value []byte) error {
