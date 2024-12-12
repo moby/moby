@@ -12,7 +12,7 @@ import (
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/util/progress/progressui"
-	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
@@ -80,8 +80,9 @@ func TestBuildkitHistoryTracePropagation(t *testing.T) {
 		return
 	}
 
+	tp := sdktrace.NewTracerProvider()
 	// Split this into a new span so it doesn't clutter up the trace reporting GUI.
-	ctx, span := otel.Tracer("").Start(ctx, "Wait for trace to propagate to history record")
+	ctx, span := tp.Tracer("").Start(ctx, "Wait for trace to propagate to history record")
 	defer span.End()
 
 	t.Log("Waiting for trace to be available")

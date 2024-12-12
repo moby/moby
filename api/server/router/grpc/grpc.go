@@ -12,11 +12,11 @@ import (
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/stack"
 	"github.com/moby/buildkit/util/tracing"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"go.opentelemetry.io/otel"
 	"golang.org/x/net/http2"
 	"google.golang.org/grpc"
 )
@@ -29,8 +29,9 @@ type grpcRouter struct {
 
 // NewRouter initializes a new grpc http router
 func NewRouter(backends ...Backend) router.Router {
+	tp, _ := otelutil.NewTracerProvider(context.Background(), false)
 	opts := []grpc.ServerOption{
-		grpc.StatsHandler(tracing.ServerStatsHandler(otelgrpc.WithTracerProvider(otel.GetTracerProvider()))),
+		grpc.StatsHandler(tracing.ServerStatsHandler(otelgrpc.WithTracerProvider(tp))),
 		grpc.ChainUnaryInterceptor(unaryInterceptor, grpcerrors.UnaryServerInterceptor),
 		grpc.StreamInterceptor(grpcerrors.StreamServerInterceptor),
 		grpc.MaxRecvMsgSize(defaults.DefaultMaxRecvMsgSize),
