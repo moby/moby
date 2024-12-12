@@ -56,8 +56,8 @@ func parsePingResponse(cli *Client, resp serverResponse) (types.Ping, error) {
 		err := cli.checkResponseErr(resp)
 		return ping, errdefs.FromStatusCode(err, resp.statusCode)
 	}
-	ping.APIVersion = resp.header.Get("API-Version")
-	ping.OSType = resp.header.Get("OSType")
+	ping.APIVersion = resp.header.Get("Api-Version")
+	ping.OSType = resp.header.Get("Ostype")
 	if resp.header.Get("Docker-Experimental") == "true" {
 		ping.Experimental = true
 	}

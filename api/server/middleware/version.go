@@ -67,8 +67,8 @@ func (e versionUnsupportedError) InvalidParameter() {}
 func (v VersionMiddleware) WrapHandler(handler func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		w.Header().Set("Server", fmt.Sprintf("Docker/%s (%s)", v.serverVersion, runtime.GOOS))
-		w.Header().Set("API-Version", v.defaultAPIVersion)
-		w.Header().Set("OSType", runtime.GOOS)
+		w.Header().Set("Api-Version", v.defaultAPIVersion)
+		w.Header().Set("Ostype", runtime.GOOS)
 
 		apiVersion := vars["version"]
 		if apiVersion == "" {
