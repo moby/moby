@@ -414,8 +414,7 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *testing.T) {
 	// otherwise just check for names being present.
 	expectedSubstrings := []string{
 		` daemon reload ` + info.ID + " ",
-		`(allow-nondistributable-artifacts=[`,
-		` debug=true, `,
+		`debug=true, `,
 		` default-ipc-mode=`,
 		` default-runtime=`,
 		` default-shm-size=`,

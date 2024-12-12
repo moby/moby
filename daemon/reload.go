@@ -231,10 +231,6 @@ func (daemon *Daemon) reloadLabels(txn *reloadTxn, newCfg *configStore, conf *co
 // reloadRegistryConfig updates the configuration with registry options
 // and updates the passed attributes.
 func (daemon *Daemon) reloadRegistryConfig(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
-	// Update corresponding configuration.
-	if conf.IsValueSet("allow-nondistributable-artifacts") {
-		newCfg.ServiceOptions.AllowNondistributableArtifacts = conf.AllowNondistributableArtifacts
-	}
 	if conf.IsValueSet("insecure-registries") {
 		newCfg.ServiceOptions.InsecureRegistries = conf.InsecureRegistries
 	}
@@ -248,7 +244,6 @@ func (daemon *Daemon) reloadRegistryConfig(txn *reloadTxn, newCfg *configStore, 
 	}
 	txn.OnCommit(func() error { commit(); return nil })
 
-	attributes["allow-nondistributable-artifacts"] = marshalAttributeSlice(newCfg.ServiceOptions.AllowNondistributableArtifacts)
 	attributes["insecure-registries"] = marshalAttributeSlice(newCfg.ServiceOptions.InsecureRegistries)
 	attributes["registry-mirrors"] = marshalAttributeSlice(newCfg.ServiceOptions.Mirrors)
 
