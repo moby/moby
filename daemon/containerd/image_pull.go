@@ -125,7 +125,11 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	})
 	opts = append(opts, containerd.WithImageHandler(h))
 
-	pp := pullProgress{store: i.content, showExists: true}
+	pp := &pullProgress{
+		store:       i.content,
+		snapshotter: i.snapshotterService(i.snapshotter),
+		showExists:  true,
+	}
 	finishProgress := jobs.showProgress(ctx, out, pp)
 
 	defer func() {
@@ -195,6 +199,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 
 	// AppendInfoHandlerWrapper will annotate the image with basic information like manifest and layer digests as labels;
 	// this information is used to enable remote snapshotters like nydus and stargz to query a registry.
+	// This is also needed for the pull progress to detect the `Extracting` status.
 	infoHandler := snapshotters.AppendInfoHandlerWrapper(ref.String())
 	opts = append(opts, containerd.WithImageHandlerWrapper(infoHandler))
 
