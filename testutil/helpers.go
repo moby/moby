@@ -21,6 +21,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	"go.opentelemetry.io/otel/trace/noop"
 	"gotest.tools/v3/icmd"
 )
 
@@ -43,6 +44,7 @@ func ConfigureTracing() func(context.Context) {
 	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") == "" {
 		// No OTLP endpoint configured, so don't bother setting up tracing.
 		// Since we are not using a batch exporter we don't want tracing to block up tests.
+		otel.SetTracerProvider(noop.NewTracerProvider())
 		return func(context.Context) {}
 	}
 	var tp *trace.TracerProvider

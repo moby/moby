@@ -67,6 +67,8 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
@@ -243,7 +245,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	// Initialize the trace recorder for buildkit.
 	detect.Recorder = detect.NewTraceRecorder()
 
-	tp := newTracerProvider(ctx)
+	tp, otelShutdown := newTracerProvider(ctx)
 	otel.SetTracerProvider(tp)
 	log.G(ctx).Logger.AddHook(tracing.NewLogrusHook())
 
@@ -360,7 +362,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		return errors.Wrap(err, "shutting down due to ServeAPI error")
 	}
 
-	if err := tp.Shutdown(context.Background()); err != nil {
+	if err := otelShutdown(context.WithoutCancel(ctx)); err != nil {
 		log.G(ctx).WithError(err).Error("Failed to shutdown OTEL tracing")
 	}
 
@@ -391,18 +393,26 @@ func setOTLPProtoDefault() {
 	}
 }
 
-func newTracerProvider(ctx context.Context) *sdktrace.TracerProvider {
-	opts := []sdktrace.TracerProviderOption{
-		sdktrace.WithResource(resource.Default()),
-		sdktrace.WithSyncer(detect.Recorder),
+func newTracerProvider(ctx context.Context) (trace.TracerProvider, func(context.Context) error) {
+	noopShutdown := func(ctx context.Context) error { return nil }
+
+	exp, err := detect.NewSpanExporter(ctx)
+	if err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to initialize tracing, skipping")
+		return noop.NewTracerProvider(), noopShutdown
 	}
 
-	if exp, err := detect.NewSpanExporter(ctx); err != nil {
-		log.G(ctx).WithError(err).Warn("Failed to initialize tracing, skipping")
-	} else if !detect.IsNoneSpanExporter(exp) {
-		opts = append(opts, sdktrace.WithBatcher(exp))
+	if detect.IsNoneSpanExporter(exp) {
+		log.G(ctx).Info("OTEL tracing is not configured, using no-op tracer provider")
+		return noop.NewTracerProvider(), noopShutdown
 	}
-	return sdktrace.NewTracerProvider(opts...)
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithResource(resource.Default()),
+		sdktrace.WithSyncer(detect.Recorder),
+		sdktrace.WithBatcher(exp),
+	)
+	return tp, tp.Shutdown
 }
 
 type routerOptions struct {
