@@ -437,7 +437,7 @@ func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, er
 		if conf.GC.DefaultKeepStorage != "" {
 			defaultKeepStorage, err = units.RAMInBytes(conf.GC.DefaultKeepStorage)
 			if err != nil {
-				return nil, errors.Wrapf(err, "could not parse '%s' as Builder.GC.DefaultKeepStorage config", conf.GC.DefaultKeepStorage)
+				return nil, errors.Wrapf(err, "failed to parse defaultKeepStorage")
 			}
 		}
 
@@ -446,9 +446,12 @@ func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, er
 		} else {
 			gcPolicy = make([]client.PruneInfo, len(conf.GC.Policy))
 			for i, p := range conf.GC.Policy {
-				b, err := units.RAMInBytes(p.KeepStorage)
-				if err != nil {
-					return nil, err
+				var b int64
+				if p.KeepStorage != "" {
+					b, err = units.RAMInBytes(p.KeepStorage)
+					if err != nil {
+						return nil, errors.Wrapf(err, "failed to parse keepStorage")
+					}
 				}
 				if b == 0 {
 					b = defaultKeepStorage
