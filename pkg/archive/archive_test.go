@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/moby/sys/userns"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -1443,30 +1442,27 @@ func TestDisablePigz(t *testing.T) {
 	t.Setenv("MOBY_DISABLE_PIGZ", "true")
 
 	r := testDecompressStream(t, "gz", "gzip -f")
-	// For the bufio pool
-	outsideReaderCloserWrapper := r.(*ioutils.ReadCloserWrapper)
-	// For the context canceller
-	contextReaderCloserWrapper := outsideReaderCloserWrapper.Reader.(*ioutils.ReadCloserWrapper)
 
-	assert.Equal(t, reflect.TypeOf(contextReaderCloserWrapper.Reader), reflect.TypeOf(&gzip.Reader{}))
+	// wrapped in closer to cancel contex and release buffer to pool
+	wrapper := r.(*readCloserWrapper)
+
+	assert.Equal(t, reflect.TypeOf(wrapper.Reader), reflect.TypeOf(&gzip.Reader{}))
 }
 
 func TestPigz(t *testing.T) {
 	r := testDecompressStream(t, "gz", "gzip -f")
-	// For the bufio pool
-	outsideReaderCloserWrapper := r.(*ioutils.ReadCloserWrapper)
-	// For the context canceller
-	contextReaderCloserWrapper := outsideReaderCloserWrapper.Reader.(*ioutils.ReadCloserWrapper)
+	// wrapper for buffered reader and context cancel
+	wrapper := r.(*readCloserWrapper)
 
 	_, err := exec.LookPath("unpigz")
 	if err == nil {
 		t.Log("Tested whether Pigz is used, as it installed")
 		// For the command wait wrapper
-		cmdWaitCloserWrapper := contextReaderCloserWrapper.Reader.(*ioutils.ReadCloserWrapper)
+		cmdWaitCloserWrapper := wrapper.Reader.(*readCloserWrapper)
 		assert.Equal(t, reflect.TypeOf(cmdWaitCloserWrapper.Reader), reflect.TypeOf(&io.PipeReader{}))
 	} else {
 		t.Log("Tested whether Pigz is not used, as it not installed")
-		assert.Equal(t, reflect.TypeOf(contextReaderCloserWrapper.Reader), reflect.TypeOf(&gzip.Reader{}))
+		assert.Equal(t, reflect.TypeOf(wrapper.Reader), reflect.TypeOf(&gzip.Reader{}))
 	}
 }
 
