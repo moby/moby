@@ -35,7 +35,7 @@ func setupOverlayTestDir(t *testing.T, src string) {
 	err := os.Mkdir(filepath.Join(src, "d1"), 0o700)
 	assert.NilError(t, err)
 
-	err = system.Lsetxattr(filepath.Join(src, "d1"), "trusted.overlay.opaque", []byte("y"), 0)
+	err = unix.Lsetxattr(filepath.Join(src, "d1"), "trusted.overlay.opaque", []byte("y"), 0)
 	assert.NilError(t, err)
 
 	err = os.WriteFile(filepath.Join(src, "d1", "f1"), []byte{}, 0o600)
@@ -45,7 +45,7 @@ func setupOverlayTestDir(t *testing.T, src string) {
 	err = os.Mkdir(filepath.Join(src, "d2"), 0o750)
 	assert.NilError(t, err)
 
-	err = system.Lsetxattr(filepath.Join(src, "d2"), "trusted.overlay.opaque", []byte("y"), 0)
+	err = unix.Lsetxattr(filepath.Join(src, "d2"), "trusted.overlay.opaque", []byte("y"), 0)
 	assert.NilError(t, err)
 
 	err = os.WriteFile(filepath.Join(src, "d2", "f1"), []byte{}, 0o660)
@@ -60,7 +60,7 @@ func setupOverlayTestDir(t *testing.T, src string) {
 }
 
 func checkOpaqueness(t *testing.T, path string, opaque string) {
-	xattrOpaque, err := system.Lgetxattr(path, "trusted.overlay.opaque")
+	xattrOpaque, err := lgetxattr(path, "trusted.overlay.opaque")
 	assert.NilError(t, err)
 
 	if string(xattrOpaque) != opaque {

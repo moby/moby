@@ -79,7 +79,7 @@ func walkchunk(path string, fi os.FileInfo, dir string, root *FileInfo) error {
 		return err
 	}
 	info.stat = stat
-	info.capability, _ = system.Lgetxattr(cpath, "security.capability") // lgetxattr(2): fs access
+	info.capability, _ = lgetxattr(cpath, "security.capability") // lgetxattr(2): fs access
 	parent.children[info.name] = info
 	return nil
 }

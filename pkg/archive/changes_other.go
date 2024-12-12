@@ -84,11 +84,7 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 			stat:     s,
 		}
 
-		// system.Lgetxattr is only implemented on Linux and produces an error
-		// on other platforms. This code is intentionally left commented-out
-		// as a reminder to include this code if this would ever be implemented
-		// on other platforms.
-		// info.capability, _ = system.Lgetxattr(path, "security.capability")
+		info.capability, _ = lgetxattr(path, "security.capability")
 
 		parent.children[info.name] = info
 
