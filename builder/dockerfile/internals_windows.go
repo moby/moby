@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/usergroup"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"golang.org/x/sys/windows"
@@ -45,9 +46,9 @@ func getAccountIdentity(ctx context.Context, builder *Builder, accountName strin
 
 	// Check if the account name is one unique to containers.
 	if strings.EqualFold(accountName, "ContainerAdministrator") {
-		return idtools.Identity{SID: idtools.ContainerAdministratorSidString}, nil
+		return idtools.Identity{SID: usergroup.ContainerAdministratorSidString}, nil
 	} else if strings.EqualFold(accountName, "ContainerUser") {
-		return idtools.Identity{SID: idtools.ContainerUserSidString}, nil
+		return idtools.Identity{SID: usergroup.ContainerUserSidString}, nil
 	}
 
 	// All other lookups failed, so therefore determine if the account in
