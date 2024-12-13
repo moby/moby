@@ -1,4 +1,4 @@
-# github.com/cpuguy83/go-md2man/v2 v2.0.4
+# github.com/cpuguy83/go-md2man/v2 v2.0.5
 ## explicit; go 1.11
 github.com/cpuguy83/go-md2man/v2
 github.com/cpuguy83/go-md2man/v2/md2man
