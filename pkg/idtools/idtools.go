@@ -1,10 +1,8 @@
-package idtools // import "github.com/docker/docker/pkg/idtools"
+package idtools
 
 import (
 	"fmt"
 	"os"
-
-	"github.com/moby/sys/user"
 )
 
 // IDMap contains a single entry for user namespace range remapping. An array
@@ -15,11 +13,6 @@ type IDMap struct {
 	HostID      int `json:"host_id"`
 	Size        int `json:"size"`
 }
-
-const (
-	subuidFileName = "/etc/subuid"
-	subgidFileName = "/etc/subgid"
-)
 
 // MkdirAllAndChown creates a directory (include any along the path) and then modifies
 // ownership to the requested uid/gid.  If the directory already exists, this
@@ -148,18 +141,6 @@ func (i IdentityMapping) ToContainer(pair Identity) (int, int, error) {
 // Empty returns true if there are no id mappings
 func (i IdentityMapping) Empty() bool {
 	return len(i.UIDMaps) == 0 && len(i.GIDMaps) == 0
-}
-
-func parseSubuid(username string) ([]user.SubID, error) {
-	return user.ParseSubIDFileFilter(subuidFileName, func(sid user.SubID) bool {
-		return sid.Name == username
-	})
-}
-
-func parseSubgid(username string) ([]user.SubID, error) {
-	return user.ParseSubIDFileFilter(subgidFileName, func(sid user.SubID) bool {
-		return sid.Name == username
-	})
 }
 
 // CurrentIdentity returns the identity of the current process
