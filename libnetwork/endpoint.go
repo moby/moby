@@ -575,7 +575,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	}()
 
 	if err := sb.populateNetworkResources(ctx, ep); err != nil {
-		return err
+		return errdefs.System(err)
 	}
 
 	if err := addEpToResolver(ctx, n.Name(), ep.Name(), &sb.config, ep.iface, n.Resolvers()); err != nil {
