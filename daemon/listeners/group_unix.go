@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/internal/usergroup"
 )
 
 const defaultSocketGroup = "docker"
 
 func lookupGID(name string) (int, error) {
-	group, err := idtools.LookupGroup(name)
+	group, err := usergroup.LookupGroup(name)
 	if err == nil {
 		return group.Gid, nil
 	}

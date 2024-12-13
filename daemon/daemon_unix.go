@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/daemon/initlayer"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/internal/usergroup"
 	"github.com/docker/docker/libcontainerd/remote"
 	"github.com/docker/docker/libnetwork"
 	nwconfig "github.com/docker/docker/libnetwork/config"
@@ -1291,7 +1292,7 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 	if uid, err := strconv.ParseInt(idparts[0], 10, 32); err == nil {
 		// must be a uid; take it as valid
 		userID = int(uid)
-		luser, err := idtools.LookupUID(userID)
+		luser, err := usergroup.LookupUID(userID)
 		if err != nil {
 			return "", "", fmt.Errorf("Uid %d has no entry in /etc/passwd: %v", userID, err)
 		}
@@ -1299,7 +1300,7 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 		if len(idparts) == 1 {
 			// if the uid was numeric and no gid was specified, take the uid as the gid
 			groupID = userID
-			lgrp, err := idtools.LookupGID(groupID)
+			lgrp, err := usergroup.LookupGID(groupID)
 			if err != nil {
 				return "", "", fmt.Errorf("Gid %d has no entry in /etc/group: %v", groupID, err)
 			}
@@ -1312,7 +1313,7 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 		if lookupName == defaultIDSpecifier {
 			lookupName = defaultRemappedID
 		}
-		luser, err := idtools.LookupUser(lookupName)
+		luser, err := usergroup.LookupUser(lookupName)
 		if err != nil && idparts[0] != defaultIDSpecifier {
 			// error if the name requested isn't the special "dockremap" ID
 			return "", "", fmt.Errorf("Error during uid lookup for %q: %v", lookupName, err)
@@ -1320,7 +1321,7 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 			// special case-- if the username == "default", then we have been asked
 			// to create a new entry pair in /etc/{passwd,group} for which the /etc/sub{uid,gid}
 			// ranges will be used for the user and group mappings in user namespaced containers
-			_, _, err := idtools.AddNamespaceRangesUser(defaultRemappedID)
+			_, _, err := usergroup.AddNamespaceRangesUser(defaultRemappedID)
 			if err == nil {
 				return defaultRemappedID, defaultRemappedID, nil
 			}
@@ -1329,7 +1330,7 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 		username = luser.Name
 		if len(idparts) == 1 {
 			// we only have a string username, and no group specified; look up gid from username as group
-			group, err := idtools.LookupGroup(lookupName)
+			group, err := usergroup.LookupGroup(lookupName)
 			if err != nil {
 				return "", "", fmt.Errorf("Error during gid lookup for %q: %v", lookupName, err)
 			}
@@ -1343,14 +1344,14 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 		if gid, err := strconv.ParseInt(idparts[1], 10, 32); err == nil {
 			// must be a gid, take it as valid
 			groupID = int(gid)
-			lgrp, err := idtools.LookupGID(groupID)
+			lgrp, err := usergroup.LookupGID(groupID)
 			if err != nil {
 				return "", "", fmt.Errorf("Gid %d has no entry in /etc/passwd: %v", groupID, err)
 			}
 			groupname = lgrp.Name
 		} else {
 			// not a number; attempt a lookup
-			if _, err := idtools.LookupGroup(idparts[1]); err != nil {
+			if _, err := usergroup.LookupGroup(idparts[1]); err != nil {
 				return "", "", fmt.Errorf("Error during groupname lookup for %q: %v", idparts[1], err)
 			}
 			groupname = idparts[1]
@@ -1381,7 +1382,7 @@ func setupRemappedRoot(config *config.Config) (idtools.IdentityMapping, error) {
 		// update remapped root setting now that we have resolved them to actual names
 		config.RemappedRoot = fmt.Sprintf("%s:%s", username, groupname)
 
-		mappings, err := idtools.LoadIdentityMapping(username)
+		mappings, err := usergroup.LoadIdentityMapping(username)
 		if err != nil {
 			return idtools.IdentityMapping{}, errors.Wrap(err, "Can't create ID mappings")
 		}
