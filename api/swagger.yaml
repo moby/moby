@@ -5859,8 +5859,6 @@ definitions:
           type: "string"
         example:
           - "WARNING: No memory limit support"
-          - "WARNING: bridge-nf-call-iptables is disabled"
-          - "WARNING: bridge-nf-call-ip6tables is disabled"
       CDISpecDirs:
         description: |
           List of directories where (Container Device Interface) CDI

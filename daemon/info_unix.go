@@ -159,12 +159,6 @@ func (daemon *Daemon) fillPlatformInfo(ctx context.Context, v *system.Info, sysI
 	if !v.IPv4Forwarding {
 		v.Warnings = append(v.Warnings, "WARNING: IPv4 forwarding is disabled")
 	}
-	if !v.BridgeNfIptables {
-		v.Warnings = append(v.Warnings, "WARNING: bridge-nf-call-iptables is disabled")
-	}
-	if !v.BridgeNfIP6tables {
-		v.Warnings = append(v.Warnings, "WARNING: bridge-nf-call-ip6tables is disabled")
-	}
 	return nil
 }
 

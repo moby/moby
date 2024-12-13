@@ -79,6 +79,11 @@ keywords: "API, Docker, rcli, REST, documentation"
   query parameter to `true`.
   WARNING: This is experimental and may change at any time without any backward
   compatibility.
+* `GET /info` no longer includes warnings when `bridge-nf-call-iptables` or
+  `bridge-nf-call-ip6tables` are disabled when the daemon was started. The
+  `br_netfilter` module is now attempted to be loaded when needed, making those
+  warnings inaccurate. This change is not versioned, and affects all API versions
+  if the daemon has this patch.
 
 ## v1.46 API changes
 
