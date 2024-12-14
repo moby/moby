@@ -96,7 +96,7 @@ func TestPassthrough(t *testing.T) {
 		"-j", "ACCEPT",
 	}
 
-	_, err := Passthrough(Iptables, append([]string{"-A"}, rule1...)...)
+	_, err := Passthrough(IPv4, append([]string{"-A"}, rule1...)...)
 	if err != nil {
 		t.Fatal(err)
 	}
