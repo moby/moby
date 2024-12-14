@@ -95,6 +95,11 @@ func TestGenerateRandomMAC(t *testing.T) {
 	}
 }
 
+// TestMTUBiggerThan1500 tests that setting an MTU bigger than 1500 succeeds.
+// Since v4.17, the kernel allows setting an MTU bigger than 1500 on a bridge
+// device even if there's no links attached yet. Relevant kernel commit: [1].
+//
+// [1]: https://github.com/torvalds/linux/commit/804b854d374e39f5f8bff9638fd274b9a9ca7d33
 func TestMTUBiggerThan1500(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
@@ -111,6 +116,10 @@ func TestMTUBiggerThan1500(t *testing.T) {
 	assert.NilError(t, setupMTU(config, br))
 }
 
+// TestMTUBiggerThan64K tests that setting an MTU bigger than 64k fails
+// properly. The kernel caps the MTU at this value -- see [1].
+//
+// [1]: https://github.com/torvalds/linux/blob/a446e965a188ee8f745859e63ce046fe98577d45/net/bridge/br_device.c#L527
 func TestMTUBiggerThan64K(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
