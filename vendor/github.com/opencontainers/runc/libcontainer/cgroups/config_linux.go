@@ -1,4 +1,4 @@
-package configs
+package cgroups
 
 import (
 	systemdDbus "github.com/coreos/go-systemd/v22/dbus"
