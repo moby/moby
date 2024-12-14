@@ -22,6 +22,10 @@ keywords: "API, Docker, rcli, REST, documentation"
   and `AllowNondistributableArtifactsHostnames` fields in the `RegistryConfig`
   struct in the `GET /info` response will now always be `null` and will be
   omitted in API v1.49.
+* Deprecated: The `BridgeNfIptables` and `BridgeNfIp6tables` fields in the 
+  `GET /info` response are now always be `false` and will be omitted in API
+  v1.49. The netfilter module is now loaded on-demand, and no longer during
+  daemon startup, making these fields obsolete.
 * `GET /images/{name}/history` now supports a `platform` parameter (JSON
   encoded OCI Platform type) that allows to specify a platform to show the
   history of.

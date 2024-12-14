@@ -267,8 +267,6 @@ func applyDevicesCgroupInfo(info *SysInfo) {
 // applyNetworkingInfo adds networking information to the info.
 func applyNetworkingInfo(info *SysInfo) {
 	info.IPv4ForwardingDisabled = !readProcBool("/proc/sys/net/ipv4/ip_forward")
-	info.BridgeNFCallIPTablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-iptables")
-	info.BridgeNFCallIP6TablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-ip6tables")
 }
 
 // applyAppArmorInfo adds whether AppArmor is enabled to the info.

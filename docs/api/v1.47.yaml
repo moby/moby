@@ -5512,7 +5512,11 @@ definitions:
         type: "boolean"
         example: true
       BridgeNfIptables:
-        description: "Indicates if `bridge-nf-call-iptables` is available on the host."
+        description: |
+          Indicates if `bridge-nf-call-iptables` is available on the host when
+          the daemon was started.
+
+          The `br_netfilter`
         type: "boolean"
         example: true
       BridgeNfIp6tables:

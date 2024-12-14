@@ -29,8 +29,8 @@ type Info struct {
 	CPUSet             bool
 	PidsLimit          bool
 	IPv4Forwarding     bool
-	BridgeNfIptables   bool
-	BridgeNfIP6tables  bool `json:"BridgeNfIp6tables"`
+	BridgeNfIptables   bool `json:"BridgeNfIptables"`  // Deprecated: netfilter module is now loaded on-demand and no longer during daemon startup, making this field obsolete. This field is always false and will be removed in the next release.
+	BridgeNfIP6tables  bool `json:"BridgeNfIp6tables"` // Deprecated: netfilter module is now loaded on-demand and no longer during daemon startup, making this field obsolete. This field is always false and will be removed in the next release.
 	Debug              bool
 	NFd                int
 	OomKillDisable     bool

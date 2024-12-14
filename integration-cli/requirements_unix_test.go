@@ -64,7 +64,8 @@ func seccompEnabled() bool {
 }
 
 func bridgeNfIptables() bool {
-	return !sysInfo.BridgeNFCallIPTablesDisabled
+	content, err := os.ReadFile("/proc/sys/net/bridge/bridge-nf-call-iptables")
+	return err == nil && strings.TrimSpace(string(content)) == "1"
 }
 
 func unprivilegedUsernsClone() bool {
