@@ -1333,43 +1333,6 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithContainerRunning(t *testing.T) 
 	}
 }
 
-func (s *DockerDaemonSuite) TestDaemonRestartCleanupNetns(c *testing.T) {
-	s.d.StartWithBusybox(testutil.GetContext(c), c)
-	out, err := s.d.Cmd("run", "--name", "netns", "-d", "busybox", "top")
-	if err != nil {
-		c.Fatal(out, err)
-	}
-
-	// Get sandbox key via inspect
-	out, err = s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.SandboxKey}}'", "netns")
-	if err != nil {
-		c.Fatalf("Error inspecting container: %s, %v", out, err)
-	}
-	fileName := strings.Trim(out, " \r\n'")
-
-	if out, err := s.d.Cmd("stop", "netns"); err != nil {
-		c.Fatal(out, err)
-	}
-
-	// Test if the file still exists
-	icmd.RunCommand("stat", "-c", "%n", fileName).Assert(c, icmd.Expected{
-		Out: fileName,
-	})
-
-	// Remove the container and restart the daemon
-	if out, err := s.d.Cmd("rm", "netns"); err != nil {
-		c.Fatal(out, err)
-	}
-
-	s.d.Restart(c)
-
-	// Test again and see now the netns file does not exist
-	icmd.RunCommand("stat", "-c", "%n", fileName).Assert(c, icmd.Expected{
-		Err:      "No such file or directory",
-		ExitCode: 1,
-	})
-}
-
 // tests regression detailed in #13964 where DOCKER_TLS_VERIFY env is ignored
 func (s *DockerDaemonSuite) TestDaemonTLSVerifyIssue13964(c *testing.T) {
 	host := "tcp://localhost:4271"

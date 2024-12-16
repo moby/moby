@@ -11,7 +11,6 @@ import (
 	"strings"
 	"syscall"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
@@ -51,11 +50,6 @@ func newKey(t *testing.T) (string, error) {
 		return "", err
 	}
 	_ = f.Close()
-
-	// Set the rpmCleanupPeriod to be low to make the test run quicker
-	gpmLock.Lock()
-	gpmCleanupPeriod = 2 * time.Second
-	gpmLock.Unlock()
 
 	return name, nil
 }
@@ -146,17 +140,9 @@ func verifySandbox(t *testing.T, ns *Namespace, ifaceSuffixes []string) {
 	}
 }
 
-func verifyCleanup(t *testing.T, ns *Namespace, wait bool) {
-	if wait {
-		time.Sleep(gpmCleanupPeriod * 2)
-	}
-
+func verifyCleanup(t *testing.T, ns *Namespace) {
 	if _, err := os.Stat(ns.Key()); err == nil {
-		if wait {
-			t.Fatalf("The sandbox path %s is not getting cleaned up even after twice the cleanup period", ns.Key())
-		} else {
-			t.Fatalf("The sandbox path %s is not cleaned up after running gc", ns.Key())
-		}
+		t.Fatalf("The sandbox path %s is not cleaned up after running gc", ns.Key())
 	}
 }
 
@@ -420,7 +406,7 @@ func TestSandboxCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	verifyCleanup(t, s, true)
+	verifyCleanup(t, s)
 }
 
 func TestSandboxCreateTwice(t *testing.T) {
@@ -447,8 +433,7 @@ func TestSandboxCreateTwice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	GC()
-	verifyCleanup(t, s, false)
+	verifyCleanup(t, s)
 }
 
 func TestSandboxGC(t *testing.T) {
@@ -467,8 +452,7 @@ func TestSandboxGC(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	GC()
-	verifyCleanup(t, s, false)
+	verifyCleanup(t, s)
 }
 
 func TestAddRemoveInterface(t *testing.T) {
@@ -530,6 +514,5 @@ func TestAddRemoveInterface(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	GC()
-	verifyCleanup(t, s, false)
+	verifyCleanup(t, s)
 }

@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/internal/nlwrap"
@@ -39,13 +38,8 @@ func init() {
 }
 
 var (
-	once             sync.Once
-	garbagePathMap   = make(map[string]bool)
-	gpmLock          sync.Mutex
-	gpmWg            sync.WaitGroup
-	gpmCleanupPeriod = 60 * time.Second
-	gpmChan          = make(chan chan struct{})
-	netnsBasePath    = filepath.Join(defaultPrefix, "netns")
+	once          sync.Once
+	netnsBasePath = filepath.Join(defaultPrefix, "netns")
 )
 
 // SetBasePath sets the base url prefix for the ns path
@@ -62,78 +56,6 @@ func createBasePath() {
 	if err != nil {
 		panic("Could not create net namespace path directory")
 	}
-
-	// Start the garbage collection go routine
-	go removeUnusedPaths()
-}
-
-func removeUnusedPaths() {
-	gpmLock.Lock()
-	period := gpmCleanupPeriod
-	gpmLock.Unlock()
-
-	ticker := time.NewTicker(period)
-	for {
-		var (
-			gc   chan struct{}
-			gcOk bool
-		)
-
-		select {
-		case <-ticker.C:
-		case gc, gcOk = <-gpmChan:
-		}
-
-		gpmLock.Lock()
-		pathList := make([]string, 0, len(garbagePathMap))
-		for path := range garbagePathMap {
-			pathList = append(pathList, path)
-		}
-		garbagePathMap = make(map[string]bool)
-		gpmWg.Add(1)
-		gpmLock.Unlock()
-
-		for _, path := range pathList {
-			os.Remove(path)
-		}
-
-		gpmWg.Done()
-		if gcOk {
-			close(gc)
-		}
-	}
-}
-
-func addToGarbagePaths(path string) {
-	gpmLock.Lock()
-	garbagePathMap[path] = true
-	gpmLock.Unlock()
-}
-
-func removeFromGarbagePaths(path string) {
-	gpmLock.Lock()
-	delete(garbagePathMap, path)
-	gpmLock.Unlock()
-}
-
-// GC triggers garbage collection of namespace path right away
-// and waits for it.
-func GC() {
-	gpmLock.Lock()
-	if len(garbagePathMap) == 0 {
-		// No need for GC if map is empty
-		gpmLock.Unlock()
-		return
-	}
-	gpmLock.Unlock()
-
-	// if content exists in the garbage paths
-	// we can trigger GC to run, providing a
-	// channel to be notified on completion
-	waitGC := make(chan struct{})
-	gpmChan <- waitGC
-	// wait for GC completion
-	<-waitGC
 }
 
 // GenerateKey generates a sandbox key based on the passed
@@ -286,17 +208,9 @@ func unmountNamespaceFile(path string) {
 
 func createNamespaceFile(path string) error {
 	once.Do(createBasePath)
-	// Remove it from garbage collection list if present
-	removeFromGarbagePaths(path)
 
 	// If the path is there unmount it first
 	unmountNamespaceFile(path)
-
-	// wait for garbage collection to complete if it is in progress
-	// before trying to create the file.
-	//
-	// TODO(aker): This garbage-collection was for a kernel bug in kernels 3.18-4.0.1: is this still needed on current kernels (and on kernel 3.10)? see https://github.com/moby/moby/pull/46315/commits/c0a6beba8e61d4019e1806d5241ba22007072ca2#r1331327103
-	gpmWg.Wait()
 
 	f, err := os.Create(path)
 	if err != nil {
@@ -464,8 +378,10 @@ func (n *Namespace) Destroy() error {
 		return err
 	}
 
-	// Stash it into the garbage collection list
-	addToGarbagePaths(n.path)
+	// Remove the path where the netns was mounted
+	if err := os.Remove(n.path); err != nil {
+		log.G(context.TODO()).WithError(err).Error("error removing namespace file")
+	}
 	return nil
 }
 

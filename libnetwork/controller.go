@@ -1105,7 +1105,6 @@ func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 func (c *Controller) Stop() {
 	c.store.Close()
 	c.stopExternalKeyListener()
-	osl.GC()
 }
 
 // StartDiagnostic starts the network diagnostic server listening on port.
