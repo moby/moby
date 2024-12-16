@@ -17,6 +17,8 @@ func fromStatT(s *syscall.Stat_t) (*StatT, error) {
 
 // FromStatT converts a syscall.Stat_t type to a system.Stat_t type
 // This is exposed on Linux as pkg/archive/changes uses it.
+//
+// Deprecated: this function is only used internally, and will be removed in the next release.
 func FromStatT(s *syscall.Stat_t) (*StatT, error) {
 	return fromStatT(s)
 }
