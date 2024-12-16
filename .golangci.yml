@@ -151,6 +151,12 @@ issues:
       linters:
         - staticcheck
 
+    # FIXME temporarily suppress these until https://github.com/moby/moby/pull/49072 is merged, which removes their use.
+    - text: "SA1019: system\\.(FromStatT|Mkdev|Mknod|StatT)"
+      path: "pkg/archive/"
+      linters:
+        - staticcheck
+
     - text: "ineffectual assignment to ctx"
       source: "ctx[, ].*=.*\\(ctx[,)]"
       linters:
