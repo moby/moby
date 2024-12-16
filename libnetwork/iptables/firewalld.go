@@ -13,13 +13,19 @@ import (
 )
 
 // IPV defines the table string
-type IPV string
+//
+// Deprecated: use [IPVersion]
+type IPV = IPVersion
 
 const (
 	// Iptables point ipv4 table
-	Iptables IPV = "ipv4"
+	//
+	// Deprecated: use [IPv4].
+	Iptables IPV = IPv4
 	// IP6Tables point to ipv6 table
-	IP6Tables IPV = "ipv6"
+	//
+	// Deprecated: use [IPv6].
+	IP6Tables IPV = IPv6
 )
 
 const (
@@ -169,7 +175,7 @@ func checkRunning() bool {
 }
 
 // Passthrough method simply passes args through to iptables/ip6tables
-func Passthrough(ipv IPV, args ...string) ([]byte, error) {
+func Passthrough(ipv IPVersion, args ...string) ([]byte, error) {
 	var output string
 	log.G(context.TODO()).Debugf("Firewalld passthrough: %s, %s", ipv, args)
 	if err := connection.sysObj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
