@@ -40,6 +40,7 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
@@ -848,14 +849,20 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 		return fmt.Errorf("error obtaining controller instance: %v", err)
 	}
 
-	if len(activeSandboxes) > 0 {
-		log.G(context.TODO()).Info("there are running containers, updated network configuration will not take affect")
-	} else if err := configureNetworking(daemon.netController, cfg); err != nil {
-		return err
-	}
+	f := func() error {
+		if len(activeSandboxes) > 0 {
+			log.G(context.TODO()).Info("there are running containers, updated network configuration will not take affect")
+		} else if err := configureNetworking(daemon.netController, cfg); err != nil {
+			return err
+		}
 
-	if err := daemon.netController.SetupUserChains(); err != nil {
-		log.G(context.TODO()).WithError(err).Warnf("initNetworkController")
+		if err := daemon.netController.SetupUserChains(); err != nil {
+			log.G(context.TODO()).WithError(err).Warnf("initNetworkController")
+		}
+		return nil
+	}
+	if err := rootless.WithDetachedNetNSIfAny(f); err != nil {
+		return err
 	}
 
 	// Set HostGatewayIP to the default bridge's IP if it is empty
