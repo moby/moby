@@ -72,7 +72,7 @@ func setupIPChains(config configuration, version iptables.IPVersion) (natChain *
 		return nil, nil, nil, nil, fmt.Errorf("failed to create FILTER chain %s: %v", DockerChain, err)
 	}
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			if err := iptable.RemoveExistingChain(DockerChain, iptables.Filter); err != nil {
 				log.G(context.TODO()).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", DockerChain, err)
 			}
