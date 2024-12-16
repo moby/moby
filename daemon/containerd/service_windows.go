@@ -3,13 +3,13 @@ package containerd
 import (
 	"context"
 
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/pkg/errors"
 )
 
 // GetLayerFolders returns the layer folders from an image RootFS.
-func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer, containerID string) ([]string, error) {
+func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer container.RWLayer, containerID string) ([]string, error) {
 	if rwLayer != nil {
 		return nil, errors.New("RWLayer is unexpectedly not nil")
 	}
