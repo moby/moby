@@ -7,6 +7,8 @@ import (
 
 // StatT type contains status of a file. It contains metadata
 // like permission, size, etc about a file.
+//
+// Deprecated: this type is only used internally, and will be removed in the next release.
 type StatT struct {
 	mode os.FileMode
 	size int64
@@ -31,7 +33,9 @@ func (s StatT) Mtim() time.Time {
 // Stat takes a path to a file and returns
 // a system.StatT type pertaining to that file.
 //
-// Throws an error if the file does not exist
+// Throws an error if the file does not exist.
+//
+// Deprecated: this function is only used internally, and will be removed in the next release.
 func Stat(path string) (*StatT, error) {
 	fi, err := os.Stat(path)
 	if err != nil {

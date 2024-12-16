@@ -9,6 +9,8 @@ import (
 
 // StatT type contains status of a file. It contains metadata
 // like permission, owner, group, size, etc about a file.
+//
+// Deprecated: this type is only used internally, and will be removed in the next release.
 type StatT struct {
 	mode uint32
 	uid  uint32
@@ -56,7 +58,9 @@ func (s StatT) IsDir() bool {
 // Stat takes a path to a file and returns
 // a system.StatT type pertaining to that file.
 //
-// Throws an error if the file does not exist
+// Throws an error if the file does not exist.
+//
+// Deprecated: this function is only used internally, and will be removed in the next release.
 func Stat(path string) (*StatT, error) {
 	s := &syscall.Stat_t{}
 	if err := syscall.Stat(path, s); err != nil {

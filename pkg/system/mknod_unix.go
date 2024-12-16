@@ -8,6 +8,8 @@ import (
 
 // Mknod creates a filesystem node (file, device special file or named pipe) named path
 // with attributes specified by mode and dev.
+//
+// Deprecated: this function is only used internally, and will be removed in the next release.
 func Mknod(path string, mode uint32, dev int) error {
 	return unix.Mknod(path, mode, dev)
 }
