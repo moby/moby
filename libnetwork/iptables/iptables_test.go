@@ -128,25 +128,10 @@ func TestOutput(t *testing.T) {
 	}
 }
 
-func TestConcurrencyWithWait(t *testing.T) {
-	RunConcurrencyTest(t, true)
-}
-
-func TestConcurrencyNoWait(t *testing.T) {
-	RunConcurrencyTest(t, false)
-}
-
 // Runs 10 concurrent rule additions. This will fail if iptables
 // is actually invoked simultaneously without --wait.
-// Note that if iptables does not support the xtable lock on this
-// system, then allowXlock has no effect -- it will always be off.
-func RunConcurrencyTest(t *testing.T, allowXlock bool) {
+func TestConcurrencyWithWait(t *testing.T) {
 	_, natChain, _ := createNewChain(t)
-
-	if !allowXlock && supportsXlock {
-		supportsXlock = false
-		defer func() { supportsXlock = true }()
-	}
 
 	ip := net.ParseIP("192.168.1.1")
 	port := 1234
