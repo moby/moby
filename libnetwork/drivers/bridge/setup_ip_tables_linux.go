@@ -103,6 +103,17 @@ func setupIPChains(config configuration, version iptables.IPVersion) (natChain *
 		}
 	}()
 
+	if err := addNATJumpRules(version, natChain, !config.EnableUserlandProxy, true); err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("failed to add jump rules to %s NAT table: %w", version, err)
+	}
+	defer func() {
+		if retErr != nil {
+			if err := addNATJumpRules(version, natChain, !config.EnableUserlandProxy, false); err != nil {
+				log.G(context.TODO()).Warnf("failed on removing jump rules from %s NAT table: %v", version, err)
+			}
+		}
+	}()
+
 	// Make sure the filter-FORWARD chain has rules to accept related packets and
 	// jump to the isolation and docker chains. (Re-)insert at the top of the table,
 	// in reverse order.
@@ -179,7 +190,6 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 	// Pickup this configuration option from driver
 	hairpinMode := !driverConfig.EnableUserlandProxy
 
-	iptable := iptables.GetIptable(ipVersion)
 	ipsetName := ipsetExtBridges4
 	if ipVersion == iptables.IPv6 {
 		ipsetName = ipsetExtBridges6
@@ -200,23 +210,25 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 			return setupIPTablesInternal(ipVersion, config, maskedAddr, hairpinMode, false)
 		})
 
-		natChain, filterChain, _, _, err := n.getDriverChains(ipVersion)
+		_, filterChain, _, _, err := n.getDriverChains(ipVersion)
 		if err != nil {
 			return fmt.Errorf("Failed to setup IP tables, cannot acquire chain info %w", err)
 		}
 
-		err = iptable.ProgramChain(natChain, config.BridgeName, hairpinMode, true)
-		if err != nil {
-			return fmt.Errorf("Failed to program NAT chain: %w", err)
-		}
-
-		err = iptable.ProgramChain(filterChain, config.BridgeName, hairpinMode, true)
-		if err != nil {
-			return fmt.Errorf("Failed to program FILTER chain: %w", err)
+		if err := iptables.AddInterfaceFirewalld(config.BridgeName); err != nil {
+			return err
 		}
 		n.registerIptCleanFunc(func() error {
-			return iptable.ProgramChain(filterChain, config.BridgeName, hairpinMode, false)
+			if err := iptables.DelInterfaceFirewalld(config.BridgeName); err != nil && !errdefs.IsNotFound(err) {
+				return err
+			}
+			return nil
 		})
+
+		err = deleteLegacyFilterRules(ipVersion, filterChain, config.BridgeName)
+		if err != nil {
+			return fmt.Errorf("failed to delete legacy rules in filter-FORWARD: %w", err)
+		}
 
 		if err := n.setDefaultForwardRule(ipVersion, config.BridgeName); err != nil {
 			return err
@@ -252,6 +264,97 @@ func setICMP(ipv iptables.IPVersion, bridgeName string, enable bool) error {
 		"-j", "ACCEPT",
 	}}
 	return appendOrDelChainRule(icmpRule, "ICMP", enable)
+}
+
+func addNATJumpRules(ipVer iptables.IPVersion, c *iptables.ChainInfo, hairpinMode, enable bool) error {
+	iptable := iptables.GetIptable(ipVer)
+
+	preroute := []string{
+		"-m", "addrtype",
+		"--dst-type", "LOCAL",
+		"-j", c.Name,
+	}
+	if !iptable.Exists(iptables.Nat, "PREROUTING", preroute...) && enable {
+		if err := c.Prerouting(iptables.Append, preroute...); err != nil {
+			return fmt.Errorf("failed to inject %s in PREROUTING chain: %s", c.Name, err)
+		}
+	} else if iptable.Exists(iptables.Nat, "PREROUTING", preroute...) && !enable {
+		if err := c.Prerouting(iptables.Delete, preroute...); err != nil {
+			return fmt.Errorf("failed to remove %s in PREROUTING chain: %s", c.Name, err)
+		}
+	}
+	output := []string{
+		"-m", "addrtype",
+		"--dst-type", "LOCAL",
+		"-j", c.Name,
+	}
+	if !hairpinMode {
+		output = append(output, "!", "--dst", loopbackAddress(ipVer))
+	}
+	if !iptable.Exists(iptables.Nat, "OUTPUT", output...) && enable {
+		if err := c.Output(iptables.Append, output...); err != nil {
+			return fmt.Errorf("failed to inject %s in OUTPUT chain: %s", c.Name, err)
+		}
+	} else if iptable.Exists(iptables.Nat, "OUTPUT", output...) && !enable {
+		if err := c.Output(iptables.Delete, output...); err != nil {
+			return fmt.Errorf("failed to inject %s in OUTPUT chain: %s", c.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// deleteLegacyFilterRules removes the legacy per-bridge rules from the filter-FORWARD
+// chain. This is required for users upgrading the Engine to v28.0.
+// TODO(aker): drop this function once Mirantis latest LTS is v28.0 (or higher).
+func deleteLegacyFilterRules(ipVer iptables.IPVersion, c *iptables.ChainInfo, bridgeName string) error {
+	iptable := iptables.GetIptable(ipVer)
+	// Delete legacy per-bridge jump to the DOCKER chain from the FORWARD chain, if it exists.
+	// These rules have been replaced by an ipset-matching rule.
+	link := []string{
+		"-o", bridgeName,
+		"-j", c.Name,
+	}
+	if iptable.Exists(iptables.Filter, "FORWARD", link...) {
+		del := append([]string{string(iptables.Delete), "FORWARD"}, link...)
+		if output, err := iptable.Raw(del...); err != nil {
+			return err
+		} else if len(output) != 0 {
+			return fmt.Errorf("could not delete linking rule from %s/%s: %s", c.Table, c.Name, output)
+		}
+	}
+
+	// Delete legacy per-bridge related/established rule if it exists. These rules
+	// have been replaced by an ipset-matching rule.
+	establish := []string{
+		"-o", bridgeName,
+		"-m", "conntrack",
+		"--ctstate", "RELATED,ESTABLISHED",
+		"-j", "ACCEPT",
+	}
+	if iptable.Exists(iptables.Filter, "FORWARD", establish...) {
+		del := append([]string{string(iptables.Delete), "FORWARD"}, establish...)
+		if output, err := iptable.Raw(del...); err != nil {
+			return err
+		} else if len(output) != 0 {
+			return fmt.Errorf("could not delete establish rule from %s: %s", c.Table, output)
+		}
+	}
+
+	return nil
+}
+
+// loopbackAddress returns the loopback address for the given IP version.
+func loopbackAddress(version iptables.IPVersion) string {
+	switch version {
+	case iptables.IPv4, "":
+		// IPv4 (default for backward-compatibility)
+		return "127.0.0.0/8"
+	case iptables.IPv6:
+		return "::1/128"
+	default:
+		panic("unknown IP version: " + version)
+	}
 }
 
 func (n *bridgeNetwork) setDefaultForwardRule(
