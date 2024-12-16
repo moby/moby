@@ -18,7 +18,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (cli *Client) PingWithOptions(ctx context.Context, options types.PingOptions) (types.Ping, error) {
+// Ping pings the server and returns the value of the "Docker-Experimental",
+// "Builder-Version", "OS-Type" & "API-Version" headers. It attempts to use
+// a HEAD request on the endpoint, but falls back to GET if HEAD is not supported
+// by the daemon. It ignores internal server errors returned by the API, which
+// may be returned if the daemon is in an unhealthy state, but returns errors
+// for other non-success status codes, failing to connect to the API, or failing
+// to parse the API response.
+func (cli *Client) Ping(ctx context.Context, options types.PingOptions) (types.Ping, error) {
 	var ping types.Ping
 
 	// If not interested in engine capabilities, do a HEAD request
@@ -56,17 +63,6 @@ func (cli *Client) PingWithOptions(ctx context.Context, options types.PingOption
 		return ping, err
 	}
 	return parsePingResponse(cli, serverResp)
-}
-
-// Ping pings the server and returns the value of the "Docker-Experimental",
-// "Builder-Version", "OS-Type" & "API-Version" headers. It attempts to use
-// a HEAD request on the endpoint, but falls back to GET if HEAD is not supported
-// by the daemon. It ignores internal server errors returned by the API, which
-// may be returned if the daemon is in an unhealthy state, but returns errors
-// for other non-success status codes, failing to connect to the API, or failing
-// to parse the API response.
-func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
-	return cli.PingWithOptions(ctx, types.PingOptions{})
 }
 
 func parsePingResponse(cli *Client, resp serverResponse) (types.Ping, error) {

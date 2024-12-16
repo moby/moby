@@ -69,7 +69,7 @@ func TestPingSwarmHeader(t *testing.T) {
 
 	t.Run("before swarm init", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		p, err := apiClient.Ping(ctx)
+		p, err := apiClient.Ping(ctx, types.PingOptions{})
 		assert.NilError(t, err)
 		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateInactive)
 		assert.Equal(t, p.SwarmStatus.ControlAvailable, false)
@@ -80,7 +80,7 @@ func TestPingSwarmHeader(t *testing.T) {
 
 	t.Run("after swarm init", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		p, err := apiClient.Ping(ctx)
+		p, err := apiClient.Ping(ctx, types.PingOptions{})
 		assert.NilError(t, err)
 		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateActive)
 		assert.Equal(t, p.SwarmStatus.ControlAvailable, true)
@@ -91,7 +91,7 @@ func TestPingSwarmHeader(t *testing.T) {
 
 	t.Run("after swarm leave", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		p, err := apiClient.Ping(ctx)
+		p, err := apiClient.Ping(ctx, types.PingOptions{})
 		assert.NilError(t, err)
 		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateInactive)
 		assert.Equal(t, p.SwarmStatus.ControlAvailable, false)
@@ -117,7 +117,7 @@ func TestPingBuilderHeader(t *testing.T) {
 			expected = types.BuilderV1
 		}
 
-		p, err := apiClient.Ping(ctx)
+		p, err := apiClient.Ping(ctx, types.PingOptions{})
 		assert.NilError(t, err)
 		assert.Equal(t, p.BuilderVersion, expected)
 	})
@@ -131,7 +131,7 @@ func TestPingBuilderHeader(t *testing.T) {
 		defer d.Stop(t)
 
 		expected := types.BuilderV1
-		p, err := apiClient.Ping(ctx)
+		p, err := apiClient.Ping(ctx, types.PingOptions{})
 		assert.NilError(t, err)
 		assert.Equal(t, p.BuilderVersion, expected)
 	})
@@ -181,7 +181,7 @@ func TestPingCapabilities(t *testing.T) {
 			d.Start(t, "--config-file", cfg)
 			defer d.Stop(t)
 
-			p, err := apiClient.PingWithOptions(ctx, types.PingOptions{
+			p, err := apiClient.Ping(ctx, types.PingOptions{
 				Capabilities: true,
 			})
 			assert.NilError(t, err)
@@ -200,7 +200,7 @@ func TestPingCapabilities(t *testing.T) {
 			d.Start(t, "--config-file", cfg)
 			defer d.Stop(t)
 
-			p, err := apiClient.PingWithOptions(ctx, types.PingOptions{
+			p, err := apiClient.Ping(ctx, types.PingOptions{
 				Capabilities: true,
 			})
 			assert.NilError(t, err)

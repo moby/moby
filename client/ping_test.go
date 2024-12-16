@@ -35,7 +35,7 @@ func TestPingFail(t *testing.T) {
 		}),
 	}
 
-	ping, err := client.Ping(context.Background())
+	ping, err := client.Ping(context.Background(), types.PingOptions{})
 	assert.Check(t, is.ErrorContains(err, "some error with the server"))
 	assert.Check(t, is.Equal(false, ping.Experimental))
 	assert.Check(t, is.Equal("", ping.APIVersion))
@@ -43,7 +43,7 @@ func TestPingFail(t *testing.T) {
 	assert.Check(t, is.Equal(si, ping.SwarmStatus))
 
 	withHeader = true
-	ping2, err := client.Ping(context.Background())
+	ping2, err := client.Ping(context.Background(), types.PingOptions{})
 	assert.Check(t, is.ErrorContains(err, "some error with the server"))
 	assert.Check(t, is.Equal(true, ping2.Experimental))
 	assert.Check(t, is.Equal("awesome", ping2.APIVersion))
@@ -59,7 +59,7 @@ func TestPingWithError(t *testing.T) {
 		}),
 	}
 
-	ping, err := client.Ping(context.Background())
+	ping, err := client.Ping(context.Background(), types.PingOptions{})
 	assert.Check(t, is.ErrorContains(err, "some connection error"))
 	assert.Check(t, is.Equal(false, ping.Experimental))
 	assert.Check(t, is.Equal("", ping.APIVersion))
@@ -81,7 +81,7 @@ func TestPingSuccess(t *testing.T) {
 			return resp, nil
 		}),
 	}
-	ping, err := client.Ping(context.Background())
+	ping, err := client.Ping(context.Background(), types.PingOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, ping.Experimental))
 	assert.Check(t, is.Equal("awesome", ping.APIVersion))
@@ -148,7 +148,7 @@ func TestPingEngineCapabilities(t *testing.T) {
 				}),
 			}
 
-			ping, err := client.PingWithOptions(context.Background(), types.PingOptions{Capabilities: true})
+			ping, err := client.Ping(context.Background(), types.PingOptions{Capabilities: true})
 			if tc.expectedError == "" {
 				assert.NilError(t, err)
 				assert.Check(t, is.Equal("awesome", ping.APIVersion))
@@ -199,7 +199,7 @@ func TestPingHeadFallback(t *testing.T) {
 					return resp, nil
 				}),
 			}
-			ping, _ := client.Ping(context.Background())
+			ping, _ := client.Ping(context.Background(), types.PingOptions{})
 			assert.Check(t, is.Equal(ping.APIVersion, tc.expected))
 		})
 	}

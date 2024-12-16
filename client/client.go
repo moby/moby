@@ -289,7 +289,7 @@ func (cli *Client) checkVersion(ctx context.Context) error {
 			return nil
 		}
 
-		ping, err := cli.Ping(ctx)
+		ping, err := cli.Ping(ctx, types.PingOptions{})
 		if err != nil {
 			return err
 		}
@@ -338,7 +338,7 @@ func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 		cli.negotiateLock.Lock()
 		defer cli.negotiateLock.Unlock()
 
-		ping, err := cli.Ping(ctx)
+		ping, err := cli.Ping(ctx, types.PingOptions{})
 		if err != nil {
 			// FIXME(thaJeztah): Ping returns an error when failing to connect to the API; we should not swallow the error here, and instead returning it.
 			return
