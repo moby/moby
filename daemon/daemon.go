@@ -204,7 +204,7 @@ func (daemon *Daemon) UsesSnapshotter() bool {
 
 // layerAccessor may be implemented by ImageService
 type layerAccessor interface {
-	GetLayerByID(cid string) (layer.RWLayer, error)
+	GetLayerByID(cid string) (container.RWLayer, error)
 }
 
 func (daemon *Daemon) restore(cfg *configStore) error {

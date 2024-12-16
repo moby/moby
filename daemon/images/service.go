@@ -2,6 +2,7 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync/atomic"
 
@@ -117,7 +118,7 @@ func (i *ImageService) Children(_ context.Context, id image.ID) ([]image.ID, err
 // CreateLayer creates a filesystem layer for a container.
 // called from create.go
 // TODO: accept an opt struct instead of container?
-func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
+func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (container.RWLayer, error) {
 	var layerID layer.ChainID
 	if container.ImageID != "" {
 		img, err := i.imageStore.Get(container.ImageID)
@@ -138,7 +139,7 @@ func (i *ImageService) CreateLayer(container *container.Container, initFunc laye
 
 // GetLayerByID returns a layer by ID
 // called from daemon.go Daemon.restore().
-func (i *ImageService) GetLayerByID(cid string) (layer.RWLayer, error) {
+func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 	return i.layerStore.GetRWLayer(cid)
 }
 
@@ -171,8 +172,13 @@ func (i *ImageService) StorageDriver() string {
 
 // ReleaseLayer releases a layer allowing it to be removed
 // called from delete.go Daemon.cleanupContainer().
-func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
-	metaData, err := i.layerStore.ReleaseRWLayer(rwlayer)
+func (i *ImageService) ReleaseLayer(rwlayer container.RWLayer) error {
+	l, ok := rwlayer.(layer.RWLayer)
+	if !ok {
+		return fmt.Errorf("unexpected RWLayer type: %T", rwlayer)
+	}
+
+	metaData, err := i.layerStore.ReleaseRWLayer(l)
 	layer.LogReleaseMetadata(metaData)
 	if err != nil && !errors.Is(err, layer.ErrMountDoesNotExist) && !errors.Is(err, os.ErrNotExist) {
 		return errors.Wrapf(err, "driver %q failed to remove root filesystem",
