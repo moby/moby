@@ -9,6 +9,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -28,7 +29,6 @@ import (
 	"github.com/klauspost/compress/zstd"
 	"github.com/moby/patternmatcher"
 	"github.com/moby/sys/sequential"
-	"github.com/pkg/errors"
 )
 
 // ImpliedDirectoryMode represents the mode (Unix permissions) applied to directories that are implied by files in a
@@ -762,11 +762,11 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 			chownOpts = &idtools.Identity{UID: hdr.Uid, GID: hdr.Gid}
 		}
 		if err := os.Lchown(path, chownOpts.UID, chownOpts.GID); err != nil {
-			msg := "failed to Lchown %q for UID %d, GID %d"
+			var msg string
 			if inUserns && errors.Is(err, syscall.EINVAL) {
-				msg += " (try increasing the number of subordinate IDs in /etc/subuid and /etc/subgid)"
+				msg = " (try increasing the number of subordinate IDs in /etc/subuid and /etc/subgid)"
 			}
-			return errors.Wrapf(err, msg, path, hdr.Uid, hdr.Gid)
+			return fmt.Errorf("failed to Lchown %q for UID %d, GID %d%s: %w", path, hdr.Uid, hdr.Gid, msg, err)
 		}
 	}
 
