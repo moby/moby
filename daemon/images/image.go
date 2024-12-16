@@ -45,11 +45,6 @@ type manifest struct {
 	Config ocispec.Descriptor `json:"config"`
 }
 
-func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform, setupInit func(string) error) error {
-	// Only makes sense when containerd image store is used
-	panic("not implemented")
-}
-
 func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.Image, platform ocispec.Platform) (bool, error) {
 	ls, err := i.leases.ListResources(ctx, leases.Lease{ID: imageKey(img.ID().String())})
 	if err != nil {

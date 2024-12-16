@@ -45,14 +45,11 @@ type ImageService interface {
 	SquashImage(id, parent string) (string, error)
 	ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetype.InspectResponse, error)
 
-	// Containerd related methods
-
-	PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform, setupInit func(string) error) error
-
 	// Layers
 
 	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error)
 	CreateLayer(container *container.Container, initFunc layer.MountInit) (container.RWLayer, error)
+	GetLayerByID(cid string) (container.RWLayer, error)
 	LayerStoreStatus() [][2]string
 	GetLayerMountID(cid string) (string, error)
 	ReleaseLayer(rwlayer container.RWLayer) error

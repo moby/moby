@@ -11,42 +11,30 @@ import (
 
 // Mount mounts the container filesystem in a temporary location, use defer imageService.Unmount
 // to unmount the filesystem when calling this
-func (i *ImageService) Mount(ctx context.Context, container *container.Container) error {
-	snapshotter := i.client.SnapshotService(container.Driver)
-	mounts, err := snapshotter.Mounts(ctx, container.ID)
+func (i *ImageService) Mount(ctx context.Context, ctr *container.Container) error {
+	if ctr.RWLayer == nil {
+		return errors.New("RWLayer of container " + ctr.ID + " is unexpectedly nil")
+	}
+
+	root, err := ctr.RWLayer.Mount(ctr.GetMountLabel())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to mount container %s: %w", ctr.ID, err)
 	}
 
-	var root string
-	if root, err = i.refCountMounter.Mount(mounts, container.ID); err != nil {
-		return fmt.Errorf("failed to mount %s: %w", root, err)
-	}
+	log.G(ctx).WithFields(log.Fields{"ctr": ctr.ID, "root": root, "snapshotter": ctr.Driver}).Debug("ctr mounted via snapshotter")
 
-	log.G(ctx).WithFields(log.Fields{"container": container.ID, "root": root, "snapshotter": container.Driver}).Debug("container mounted via snapshotter")
-
-	container.BaseFS = root
+	ctr.BaseFS = root
 	return nil
 }
 
 // Unmount unmounts the container base filesystem
-func (i *ImageService) Unmount(ctx context.Context, container *container.Container) error {
-	baseFS := container.BaseFS
-	if baseFS == "" {
-		target, err := i.refCountMounter.Mounted(container.ID)
-		if err != nil {
-			log.G(ctx).WithField("containerID", container.ID).Warn("failed to determine if container is already mounted")
-		}
-		if target == "" {
-			return errors.New("BaseFS is empty")
-		}
-		baseFS = target
+func (i *ImageService) Unmount(ctx context.Context, ctr *container.Container) error {
+	if ctr.RWLayer == nil {
+		return errors.New("RWLayer of container " + ctr.ID + " is unexpectedly nil")
 	}
 
-	if err := i.refCountMounter.Unmount(baseFS); err != nil {
-		log.G(ctx).WithField("container", container.ID).WithError(err).Error("error unmounting container")
-		return fmt.Errorf("failed to unmount %s: %w", baseFS, err)
+	if err := ctr.RWLayer.Unmount(); err != nil {
+		return fmt.Errorf("failed to unmount container %s: %w", ctr.ID, err)
 	}
-
 	return nil
 }
