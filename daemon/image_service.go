@@ -52,10 +52,10 @@ type ImageService interface {
 	// Layers
 
 	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error)
-	CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error)
+	CreateLayer(container *container.Container, initFunc layer.MountInit) (container.RWLayer, error)
 	LayerStoreStatus() [][2]string
 	GetLayerMountID(cid string) (string, error)
-	ReleaseLayer(rwlayer layer.RWLayer) error
+	ReleaseLayer(rwlayer container.RWLayer) error
 	LayerDiskUsage(ctx context.Context) (int64, error)
 	GetContainerLayerSize(ctx context.Context, containerID string) (int64, int64, error)
 	Mount(ctx context.Context, container *container.Container) error
@@ -64,7 +64,7 @@ type ImageService interface {
 
 	// Windows specific
 
-	GetLayerFolders(img *image.Image, rwLayer layer.RWLayer, containerID string) ([]string, error)
+	GetLayerFolders(img *image.Image, rwLayer container.RWLayer, containerID string) ([]string, error)
 
 	// Build
 
