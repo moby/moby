@@ -1737,7 +1737,6 @@ func externalKeyTest(t *testing.T, reexec bool) {
 		if err := cnt.Delete(context.Background()); err != nil {
 			t.Fatal(err)
 		}
-		osl.GC()
 	}()
 
 	// Join endpoint to sandbox before SetKey

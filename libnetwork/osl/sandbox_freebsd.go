@@ -21,8 +21,3 @@ func NewSandbox(key string, osCreate, isRestore bool) (*Namespace, error) {
 func GetSandboxForExternalKey(path string, key string) (*Namespace, error) {
 	return nil, nil
 }
-
-// GC triggers garbage collection of namespace path right away
-// and waits for it.
-func GC() {
-}

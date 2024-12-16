@@ -9,7 +9,6 @@ import (
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/ipams/defaultipam"
-	"github.com/docker/docker/libnetwork/osl"
 )
 
 func TestHostsEntries(t *testing.T) {
@@ -71,6 +70,4 @@ fe90::2	somehost.example.com somehost
 	if len(ctrlr.sandboxes) != 0 {
 		t.Fatalf("controller sandboxes is not empty. len = %d", len(ctrlr.sandboxes))
 	}
-
-	osl.GC()
 }
