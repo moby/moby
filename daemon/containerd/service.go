@@ -111,7 +111,7 @@ func (i *ImageService) CountImages(ctx context.Context) int {
 // CreateLayer creates a filesystem layer for a container.
 // called from create.go
 // TODO: accept an opt struct instead of container?
-func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
+func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (container.RWLayer, error) {
 	return nil, errdefs.NotImplemented(errdefs.NotImplemented(errors.New("not implemented")))
 }
 
@@ -145,7 +145,7 @@ func (i *ImageService) StorageDriver() string {
 
 // ReleaseLayer releases a layer allowing it to be removed
 // called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
-func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
+func (i *ImageService) ReleaseLayer(rwlayer container.RWLayer) error {
 	return errdefs.NotImplemented(errors.New("not implemented"))
 }
 
