@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -761,20 +762,20 @@ func TestBuildEmitsImageCreateEvent(t *testing.T) {
 			out := bytes.NewBuffer(nil)
 			_, err = io.Copy(out, resp.Body)
 			assert.NilError(t, err)
-
-			t.Log(out.String())
+			buildLogs := out.String()
 
 			eventsChan, errs := apiClient.Events(ctx, events.ListOptions{
 				Since: since.Format(time.RFC3339Nano),
 				Until: time.Now().Format(time.RFC3339Nano),
 			})
+
+			var eventsReceived []string
 			imageCreateEvts := 0
 			finished := false
 			for !finished {
 				select {
 				case evt := <-eventsChan:
-					t.Log("Got event type:", evt.Type, "action:", evt.Action)
-
+					eventsReceived = append(eventsReceived, fmt.Sprintf("type: %v, action: %v", evt.Type, evt.Action))
 					if evt.Type == events.ImageEventType && evt.Action == events.ActionCreate {
 						imageCreateEvts++
 					}
@@ -784,7 +785,10 @@ func TestBuildEmitsImageCreateEvent(t *testing.T) {
 				}
 			}
 
-			assert.Check(t, is.Equal(1, imageCreateEvts))
+			if !assert.Check(t, is.Equal(1, imageCreateEvts)) {
+				t.Logf("build-logs:\n%s", buildLogs)
+				t.Logf("events received:\n%s", strings.Join(eventsReceived, "\n"))
+			}
 		})
 	}
 }
