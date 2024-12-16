@@ -158,13 +158,13 @@ func assertChainConfig(d *driver, t *testing.T) {
 
 	err = setupHashNetIpset(ipsetExtBridges4, unix.AF_INET)
 	assert.NilError(t, err)
-	d.natChain, d.filterChain, d.isolationChain1, d.isolationChain2, err = setupIPChains(d.config, iptables.IPv4)
+	err = setupIPChains(d.config, iptables.IPv4)
 	assert.NilError(t, err)
 
 	if d.config.EnableIP6Tables {
 		err = setupHashNetIpset(ipsetExtBridges6, unix.AF_INET6)
 		assert.NilError(t, err)
-		d.natChainV6, d.filterChainV6, d.isolationChain1V6, d.isolationChain2V6, err = setupIPChains(d.config, iptables.IPv6)
+		err = setupIPChains(d.config, iptables.IPv6)
 		assert.NilError(t, err)
 	}
 }
@@ -492,7 +492,7 @@ func TestMirroredWSL2Workaround(t *testing.T) {
 				config.UserlandProxyPath = "some-proxy"
 				config.EnableUserlandProxy = true
 			}
-			_, _, _, _, err := setupIPChains(config, iptables.IPv4)
+			err := setupIPChains(config, iptables.IPv4)
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(mirroredWSL2Rule().Exists(), tc.expLoopback0Rule))
 		})

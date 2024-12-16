@@ -148,20 +148,12 @@ var newPortDriverClient = func(ctx context.Context) (portDriverClient, error) {
 }
 
 type driver struct {
-	config            configuration
-	natChain          *iptables.ChainInfo
-	filterChain       *iptables.ChainInfo
-	isolationChain1   *iptables.ChainInfo
-	isolationChain2   *iptables.ChainInfo
-	natChainV6        *iptables.ChainInfo
-	filterChainV6     *iptables.ChainInfo
-	isolationChain1V6 *iptables.ChainInfo
-	isolationChain2V6 *iptables.ChainInfo
-	networks          map[string]*bridgeNetwork
-	store             *datastore.Store
-	nlh               nlwrap.Handle
-	portDriverClient  portDriverClient
-	configNetwork     sync.Mutex
+	config           configuration
+	networks         map[string]*bridgeNetwork
+	store            *datastore.Store
+	nlh              nlwrap.Handle
+	portDriverClient portDriverClient
+	configNetwork    sync.Mutex
 	sync.Mutex
 }
 
@@ -407,21 +399,6 @@ func (n *bridgeNetwork) iptablesEnabled(version iptables.IPVersion) (bool, error
 	return n.driver.config.EnableIPTables, nil
 }
 
-func (n *bridgeNetwork) getDriverChains(version iptables.IPVersion) (*iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, error) {
-	n.Lock()
-	defer n.Unlock()
-
-	if n.driver == nil {
-		return nil, nil, nil, nil, types.InvalidParameterErrorf("no driver found")
-	}
-
-	if version == iptables.IPv6 {
-		return n.driver.natChainV6, n.driver.filterChainV6, n.driver.isolationChain1V6, n.driver.isolationChain2V6, nil
-	}
-
-	return n.driver.natChain, n.driver.filterChain, n.driver.isolationChain1, n.driver.isolationChain2, nil
-}
-
 func (n *bridgeNetwork) getNetworkBridgeName() string {
 	n.Lock()
 	config := n.config
@@ -505,17 +482,9 @@ func (n *bridgeNetwork) isolateNetwork(enable bool) error {
 
 func (d *driver) configure(option map[string]interface{}) error {
 	var (
-		config            configuration
-		err               error
-		natChain          *iptables.ChainInfo
-		filterChain       *iptables.ChainInfo
-		isolationChain1   *iptables.ChainInfo
-		isolationChain2   *iptables.ChainInfo
-		natChainV6        *iptables.ChainInfo
-		filterChainV6     *iptables.ChainInfo
-		isolationChain1V6 *iptables.ChainInfo
-		isolationChain2V6 *iptables.ChainInfo
-		pdc               portDriverClient
+		config configuration
+		err    error
+		pdc    portDriverClient
 	)
 
 	switch opt := option[netlabel.GenericData].(type) {
@@ -539,7 +508,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 		if err := setupHashNetIpset(ipsetExtBridges4, unix.AF_INET); err != nil {
 			return err
 		}
-		natChain, filterChain, isolationChain1, isolationChain2, err = setupIPChains(config, iptables.IPv4)
+		err = setupIPChains(config, iptables.IPv4)
 		if err != nil {
 			return err
 		}
@@ -547,7 +516,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 		// Make sure on firewall reload, first thing being re-played is chains creation
 		iptables.OnReloaded(func() {
 			log.G(context.TODO()).Debugf("Recreating iptables chains on firewall reload")
-			if _, _, _, _, err := setupIPChains(config, iptables.IPv4); err != nil {
+			if err := setupIPChains(config, iptables.IPv4); err != nil {
 				log.G(context.TODO()).WithError(err).Error("Error reloading iptables chains")
 			}
 		})
@@ -568,7 +537,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 			// Continue, IPv4 will work (as below).
 			log.G(context.TODO()).WithError(err).Warn("ip6tables is enabled, but cannot set up IPv6 ipset")
 		} else {
-			natChainV6, filterChainV6, isolationChain1V6, isolationChain2V6, err = setupIPChains(config, iptables.IPv6)
+			err = setupIPChains(config, iptables.IPv6)
 			if err != nil {
 				// If the chains couldn't be set up, it's probably because the kernel has no IPv6
 				// support, or it doesn't have module ip6_tables loaded. It won't be possible to
@@ -580,7 +549,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 				// Make sure on firewall reload, first thing being re-played is chains creation
 				iptables.OnReloaded(func() {
 					log.G(context.TODO()).Debugf("Recreating ip6tables chains on firewall reload")
-					if _, _, _, _, err := setupIPChains(config, iptables.IPv6); err != nil {
+					if err := setupIPChains(config, iptables.IPv6); err != nil {
 						log.G(context.TODO()).WithError(err).Error("Error reloading ip6tables chains")
 					}
 				})
@@ -597,14 +566,6 @@ func (d *driver) configure(option map[string]interface{}) error {
 	}
 
 	d.Lock()
-	d.natChain = natChain
-	d.filterChain = filterChain
-	d.isolationChain1 = isolationChain1
-	d.isolationChain2 = isolationChain2
-	d.natChainV6 = natChainV6
-	d.filterChainV6 = filterChainV6
-	d.isolationChain1V6 = isolationChain1V6
-	d.isolationChain2V6 = isolationChain2V6
 	d.portDriverClient = pdc
 	d.config = config
 	d.Unlock()
