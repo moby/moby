@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/leases"
-	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -142,19 +140,6 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ba
 			return err
 		}
 		container.RWLayer = nil
-	} else {
-		if daemon.UsesSnapshotter() {
-			ls := daemon.containerdClient.LeasesService()
-			lease := leases.Lease{
-				ID: container.ID,
-			}
-			if err := ls.Delete(context.Background(), lease, leases.SynchronousDelete); err != nil {
-				if !cerrdefs.IsNotFound(err) {
-					container.SetRemovalError(err)
-					return err
-				}
-			}
-		}
 	}
 
 	// Hold the container lock while deleting the container root directory
