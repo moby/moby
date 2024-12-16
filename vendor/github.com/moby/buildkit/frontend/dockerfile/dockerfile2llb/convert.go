@@ -376,6 +376,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 					}
 				}
 				allDispatchStates.addState(ds)
+				ds.base = nil // reset base set by addState
 				continue
 			}
 		}
@@ -1065,6 +1066,8 @@ func (ds *dispatchState) init() {
 	ds.state = ds.base.state
 	ds.platform = ds.base.platform
 	ds.image = clone(ds.base.image)
+	// onbuild triggers to not carry over from base stage
+	ds.image.Config.OnBuild = nil
 	ds.baseImg = cloneX(ds.base.baseImg)
 	// Utilize the same path index as our base image so we propagate
 	// the paths we use back to the base image.
