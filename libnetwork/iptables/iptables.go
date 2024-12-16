@@ -65,10 +65,7 @@ const (
 var (
 	iptablesPath  string
 	ip6tablesPath string
-	supportsXlock = false
-	// used to lock iptables commands if xtables lock is not supported
-	bestEffortLock sync.Mutex
-	initOnce       sync.Once
+	initOnce      sync.Once
 )
 
 // IPTable defines struct with [IPVersion].
@@ -113,14 +110,6 @@ func detectIptables() {
 		return
 	}
 	iptablesPath = path
-
-	// The --wait flag was added in iptables v1.6.0.
-	// TODO remove this check once we drop support for CentOS/RHEL 7, which uses an older version of iptables
-	if out, err := exec.Command(path, "--wait", "-L", "-n").CombinedOutput(); err != nil {
-		log.G(context.TODO()).WithError(err).Infof("unable to detect if iptables supports xlock: 'iptables --wait -L -n': `%s`", strings.TrimSpace(string(out)))
-	} else {
-		supportsXlock = true
-	}
 
 	path, err = exec.LookPath("ip6tables")
 	if err != nil {
@@ -458,13 +447,7 @@ func (iptable IPTable) raw(args ...string) ([]byte, error) {
 		commandName = "ip6tables"
 	}
 
-	if supportsXlock {
-		args = append([]string{"--wait"}, args...)
-	} else {
-		bestEffortLock.Lock()
-		defer bestEffortLock.Unlock()
-	}
-
+	args = append([]string{"--wait"}, args...)
 	log.G(context.TODO()).Debugf("%s, %v", path, args)
 
 	startTime := time.Now()
