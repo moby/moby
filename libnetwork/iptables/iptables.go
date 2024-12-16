@@ -424,3 +424,57 @@ func (iptable IPTable) EnsureJumpRule(fromChain, toChain string, rule ...string)
 	}
 	return nil
 }
+
+type Rule struct {
+	IPVer IPVersion
+	Table Table
+	Chain string
+	Args  []string
+}
+
+// Exists returns true if the rule exists in the kernel.
+func (r Rule) Exists() bool {
+	return GetIptable(r.IPVer).Exists(r.Table, r.Chain, r.Args...)
+}
+
+func (r Rule) cmdArgs(op Action) []string {
+	return append([]string{"-t", string(r.Table), string(op), r.Chain}, r.Args...)
+}
+
+func (r Rule) exec(op Action) error {
+	return GetIptable(r.IPVer).RawCombinedOutput(r.cmdArgs(op)...)
+}
+
+// Append appends the rule to the end of the chain. If the rule already exists anywhere in the
+// chain, this is a no-op.
+func (r Rule) Append() error {
+	if r.Exists() {
+		return nil
+	}
+	return r.exec(Append)
+}
+
+// Insert inserts the rule at the head of the chain. If the rule already exists anywhere in the
+// chain, this is a no-op.
+func (r Rule) Insert() error {
+	if r.Exists() {
+		return nil
+	}
+	return r.exec(Insert)
+}
+
+// Delete deletes the rule from the kernel. If the rule does not exist, this is a no-op.
+func (r Rule) Delete() error {
+	if !r.Exists() {
+		return nil
+	}
+	return r.exec(Delete)
+}
+
+func (r Rule) String() string {
+	cmd := append([]string{"iptables"}, r.cmdArgs("-A")...)
+	if r.IPVer == IPv6 {
+		cmd[0] = "ip6tables"
+	}
+	return strings.Join(cmd, " ")
+}
