@@ -4,7 +4,6 @@ import (
 	"io"
 
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/archive"
 )
 
 // RWLayer represents a writable layer for a container.
@@ -27,10 +26,6 @@ type RWLayer interface {
 	// as calculated by the total size of the files
 	// changed in the mutable layer.
 	Size() (int64, error)
-
-	// Changes returns the set of changes for the mutable layer
-	// from the base layer.
-	Changes() ([]archive.Change, error)
 
 	// Metadata returns the low level metadata for the mutable layer
 	Metadata() (map[string]string, error)
