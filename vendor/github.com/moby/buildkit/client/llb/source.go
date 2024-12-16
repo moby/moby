@@ -20,7 +20,7 @@ import (
 )
 
 type SourceOp struct {
-	MarshalCache
+	cache       MarshalCache
 	id          string
 	attrs       map[string]string
 	output      Output
@@ -49,7 +49,10 @@ func (s *SourceOp) Validate(ctx context.Context, c *Constraints) error {
 }
 
 func (s *SourceOp) Marshal(ctx context.Context, constraints *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
-	if dgst, dt, md, srcs, err := s.Load(constraints); err == nil {
+	cache := s.cache.Acquire()
+	defer cache.Release()
+
+	if dgst, dt, md, srcs, err := cache.Load(constraints); err == nil {
 		return dgst, dt, md, srcs, nil
 	}
 
@@ -82,7 +85,7 @@ func (s *SourceOp) Marshal(ctx context.Context, constraints *Constraints) (diges
 		return "", nil, nil, nil, err
 	}
 
-	return s.Store(dt, md, s.constraints.SourceLocations, constraints)
+	return cache.Store(dt, md, s.constraints.SourceLocations, constraints)
 }
 
 func (s *SourceOp) Output() Output {
