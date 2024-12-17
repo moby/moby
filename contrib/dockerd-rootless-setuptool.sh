@@ -212,22 +212,6 @@ init() {
 		fi
 	fi
 
-	# instruction: RHEL/CentOS 7 requires setting max_user_namespaces
-	if [ -f /proc/sys/user/max_user_namespaces ]; then
-		if [ "0" = "$(cat /proc/sys/user/max_user_namespaces)" ]; then
-			instructions=$(
-				cat <<- EOI
-					${instructions}
-					# Set user.max_user_namespaces
-					cat <<EOT > /etc/sysctl.d/51-rootless.conf
-					user.max_user_namespaces = 28633
-					EOT
-					sysctl --system
-				EOI
-			)
-		fi
-	fi
-
 	# instructions: validate subuid/subgid files for current user
 	if ! grep -q "^$USERNAME_ESCAPED:\|^$(id -u):" /etc/subuid 2> /dev/null; then
 		instructions=$(
