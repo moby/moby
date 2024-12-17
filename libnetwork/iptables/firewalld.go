@@ -12,22 +12,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// IPV defines the table string
-//
-// Deprecated: use [IPVersion]
-type IPV = IPVersion
-
-const (
-	// Iptables point ipv4 table
-	//
-	// Deprecated: use [IPv4].
-	Iptables IPV = IPv4
-	// IP6Tables point to ipv6 table
-	//
-	// Deprecated: use [IPv6].
-	IP6Tables IPV = IPv6
-)
-
 const (
 	dbusInterface   = "org.fedoraproject.FirewallD1"
 	dbusPath        = "/org/fedoraproject/FirewallD1"
@@ -172,13 +156,6 @@ func checkRunning() bool {
 	var zone string
 	err := connection.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
 	return err == nil
-}
-
-// Passthrough method simply passes args through to iptables/ip6tables.
-//
-// Deprecated: this function is only used internally and will be removed in the next release.
-func Passthrough(ipv IPVersion, args ...string) ([]byte, error) {
-	return passthrough(ipv, args...)
 }
 
 // passthrough method simply passes args through to iptables/ip6tables
