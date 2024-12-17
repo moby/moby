@@ -117,28 +117,43 @@ func MarshalConstraints(base, override *Constraints) (*pb.Op, *pb.OpMetadata) {
 }
 
 type MarshalCache struct {
-	cache sync.Map
+	mu    sync.Mutex
+	cache map[*Constraints]*marshalCacheResult
 }
 
-func (mc *MarshalCache) Load(c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
-	v, ok := mc.cache.Load(c)
+type MarshalCacheInstance struct {
+	*MarshalCache
+}
+
+func (mc *MarshalCache) Acquire() *MarshalCacheInstance {
+	mc.mu.Lock()
+	return &MarshalCacheInstance{mc}
+}
+
+func (mc *MarshalCacheInstance) Load(c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
+	res, ok := mc.cache[c]
 	if !ok {
 		return "", nil, nil, nil, cerrdefs.ErrNotFound
 	}
-
-	res := v.(*marshalCacheResult)
 	return res.digest, res.dt, res.md, res.srcs, nil
 }
 
-func (mc *MarshalCache) Store(dt []byte, md *pb.OpMetadata, srcs []*SourceLocation, c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
+func (mc *MarshalCacheInstance) Store(dt []byte, md *pb.OpMetadata, srcs []*SourceLocation, c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
 	res := &marshalCacheResult{
 		digest: digest.FromBytes(dt),
 		dt:     dt,
 		md:     md,
 		srcs:   srcs,
 	}
-	mc.cache.Store(c, res)
+	if mc.cache == nil {
+		mc.cache = make(map[*Constraints]*marshalCacheResult)
+	}
+	mc.cache[c] = res
 	return res.digest, res.dt, res.md, res.srcs, nil
+}
+
+func (mc *MarshalCacheInstance) Release() {
+	mc.mu.Unlock()
 }
 
 type marshalCacheResult struct {
