@@ -736,11 +736,18 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 
 	delete(ctr.NetworkSettings.Networks, n.ID())
 
-	if err := daemon.updateEndpointNetworkSettings(cfg, ctr, n, ep); err != nil {
-		return err
-	}
-
 	if nwName == network.DefaultNetwork {
+		// Legacy links must be prepared before the Endpoint.Join, because the network
+		// driver needs info about them - and, the daemon's network settings need to be
+		// filled-in to do that prep. So, do both here.
+		//
+		// However, this means if the Endpoint.Join drops the endpoint's IPv6 address
+		// (because there's a sysctl setting or some equivalent disabling IPv6 on the
+		// interface), host entries for IPv6 addresses of the linked container will be
+		// left behind in the container's /etc/hosts file.
+		if err := daemon.updateEndpointNetworkSettings(cfg, ctr, n, ep); err != nil {
+			return err
+		}
 		if err := daemon.addLegacyLinks(ctx, cfg, ctr, endpointConfig, sb); err != nil {
 			return err
 		}
@@ -751,7 +758,14 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 		return err
 	}
 
+	// Connect the container to the network. Note that this will release the IPv6
+	// address assigned to the Endpoint, if IPv6 is disabled on the interface
+	// (probably by an endpoint specific sysctl setting).
 	if err := ep.Join(ctx, sb, joinOptions...); err != nil {
+		return err
+	}
+
+	if err := daemon.updateEndpointNetworkSettings(cfg, ctr, n, ep); err != nil {
 		return err
 	}
 
