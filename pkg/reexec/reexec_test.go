@@ -6,8 +6,10 @@ import (
 	"testing"
 )
 
+const testReExec = "test-reexec"
+
 func init() {
-	Register("reexec", func() {
+	Register(testReExec, func() {
 		panic("Return Error")
 	})
 	Init()
@@ -16,17 +18,17 @@ func init() {
 func TestRegister(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
-			const expected = `reexec func already registered under name "reexec"`
+			const expected = `reexec func already registered under name "test-reexec"`
 			if r != expected {
 				t.Errorf("got %q, want %q", r, expected)
 			}
 		}
 	}()
-	Register("reexec", func() {})
+	Register(testReExec, func() {})
 }
 
 func TestCommand(t *testing.T) {
-	cmd := Command("reexec")
+	cmd := Command(testReExec)
 	w, err := cmd.StdinPipe()
 	if err != nil {
 		t.Fatalf("Error on pipe creation: %v", err)
