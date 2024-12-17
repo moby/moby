@@ -693,7 +693,7 @@ func tarUntar(t *testing.T, origin string, options *TarOptions) ([]Change, error
 	defer archive.Close()
 
 	buf := make([]byte, 10)
-	if _, err := archive.Read(buf); err != nil {
+	if _, err := io.ReadFull(archive, buf); err != nil {
 		return nil, err
 	}
 	wrap := io.MultiReader(bytes.NewReader(buf), archive)
