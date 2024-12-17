@@ -174,8 +174,15 @@ func checkRunning() bool {
 	return err == nil
 }
 
-// Passthrough method simply passes args through to iptables/ip6tables
+// Passthrough method simply passes args through to iptables/ip6tables.
+//
+// Deprecated: this function is only used internally and will be removed in the next release.
 func Passthrough(ipv IPVersion, args ...string) ([]byte, error) {
+	return passthrough(ipv, args...)
+}
+
+// passthrough method simply passes args through to iptables/ip6tables
+func passthrough(ipv IPVersion, args ...string) ([]byte, error) {
 	var output string
 	log.G(context.TODO()).Debugf("Firewalld passthrough: %s, %s", ipv, args)
 	if err := connection.sysObj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
