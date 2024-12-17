@@ -55,8 +55,6 @@ type ImageService interface {
 	ReleaseLayer(rwlayer container.RWLayer) error
 	LayerDiskUsage(ctx context.Context) (int64, error)
 	GetContainerLayerSize(ctx context.Context, containerID string) (int64, int64, error)
-	Mount(ctx context.Context, container *container.Container) error
-	Unmount(ctx context.Context, container *container.Container) error
 	Changes(ctx context.Context, container *container.Container) ([]archive.Change, error)
 
 	// Windows specific
