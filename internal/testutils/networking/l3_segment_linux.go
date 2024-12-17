@@ -16,7 +16,7 @@ import (
 // host lives in the current network namespace (eg. where dockerd runs).
 const CurrentNetns = ""
 
-func runCommand(t *testing.T, cmd string, args ...string) string {
+func runCommand(t *testing.T, cmd string, args ...string) (string, error) {
 	t.Helper()
 	t.Log(strings.Join(append([]string{cmd}, args...), " "))
 
@@ -25,11 +25,7 @@ func runCommand(t *testing.T, cmd string, args ...string) string {
 	c.Stdout = &b
 	c.Stderr = &b
 	err := c.Run()
-	if err != nil {
-		t.Log(b.String())
-		t.Fatalf("Error: %v", err)
-	}
-	return b.String()
+	return b.String(), err
 }
 
 // L3Segment simulates a switched, dual-stack capable network that
@@ -56,10 +52,10 @@ func NewL3Segment(t *testing.T, nsName string, addrs ...netip.Prefix) *L3Segment
 		}
 	}()
 
-	l3.bridge.Run(t, "ip", "link", "add", l3.bridge.Iface, "type", "bridge")
+	l3.bridge.MustRun(t, "ip", "link", "add", l3.bridge.Iface, "type", "bridge")
 	for _, addr := range addrs {
-		l3.bridge.Run(t, "ip", "addr", "add", addr.String(), "dev", l3.bridge.Iface, "nodad")
-		l3.bridge.Run(t, "ip", "link", "set", l3.bridge.Iface, "up")
+		l3.bridge.MustRun(t, "ip", "addr", "add", addr.String(), "dev", l3.bridge.Iface, "nodad")
+		l3.bridge.MustRun(t, "ip", "link", "set", l3.bridge.Iface, "up")
 	}
 
 	return l3
@@ -77,12 +73,12 @@ func (l3 *L3Segment) AddHost(t *testing.T, hostname, nsName, ifname string, addr
 	host := newHost(t, nsName, ifname)
 	l3.Hosts[hostname] = host
 
-	host.Run(t, "ip", "link", "add", hostname, "netns", l3.bridge.ns, "type", "veth", "peer", "name", host.Iface)
-	l3.bridge.Run(t, "ip", "link", "set", hostname, "up", "master", l3.bridge.Iface)
-	host.Run(t, "ip", "link", "set", host.Iface, "up")
+	host.MustRun(t, "ip", "link", "add", hostname, "netns", l3.bridge.ns, "type", "veth", "peer", "name", host.Iface)
+	l3.bridge.MustRun(t, "ip", "link", "set", hostname, "up", "master", l3.bridge.Iface)
+	host.MustRun(t, "ip", "link", "set", host.Iface, "up")
 
 	for _, addr := range addrs {
-		host.Run(t, "ip", "addr", "add", addr.String(), "dev", host.Iface, "nodad")
+		host.MustRun(t, "ip", "addr", "add", addr.String(), "dev", host.Iface, "nodad")
 	}
 }
 
@@ -106,7 +102,10 @@ func newHost(t *testing.T, nsName, ifname string) Host {
 	}
 
 	if nsName != CurrentNetns {
-		runCommand(t, "ip", "netns", "add", nsName)
+		if out, err := runCommand(t, "ip", "netns", "add", nsName); err != nil {
+			t.Log(out)
+			t.Fatalf("Error: %v", err)
+		}
 	}
 
 	return Host{
@@ -115,16 +114,28 @@ func newHost(t *testing.T, nsName, ifname string) Host {
 	}
 }
 
-// Run executes the provided command in the host's network namespace
-// and returns its combined stdout/stderr.
-func (h Host) Run(t *testing.T, cmd string, args ...string) string {
+// Run executes the provided command in the host's network namespace,
+// returns its combined stdout/stderr, and error.
+func (h Host) Run(t *testing.T, cmd string, args ...string) (string, error) {
 	t.Helper()
-
 	if h.ns != CurrentNetns {
 		args = append([]string{"netns", "exec", h.ns, cmd}, args...)
 		cmd = "ip"
 	}
 	return runCommand(t, cmd, args...)
+}
+
+// MustRun executes the provided command in the host's network namespace
+// and returns its combined stdout/stderr, failing the test if the
+// command returns an error.
+func (h Host) MustRun(t *testing.T, cmd string, args ...string) string {
+	t.Helper()
+	out, err := h.Run(t, cmd, args...)
+	if err != nil {
+		t.Log(out)
+		t.Fatalf("Error: %v", err)
+	}
+	return out
 }
 
 // Do run the provided function in the host's network namespace.
@@ -169,9 +180,12 @@ func (h Host) Destroy(t *testing.T) {
 	// both veth ends will be deleted instantaneously.
 	//
 	// Hence, we need to do just that here.
-	h.Run(t, "ip", "link", "delete", h.Iface)
+	h.MustRun(t, "ip", "link", "delete", h.Iface)
 
 	if h.ns != CurrentNetns {
-		runCommand(t, "ip", "netns", "delete", h.ns)
+		if out, err := runCommand(t, "ip", "netns", "delete", h.ns); err != nil {
+			t.Log(out)
+			t.Fatalf("Error: %v", err)
+		}
 	}
 }
