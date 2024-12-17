@@ -158,13 +158,6 @@ func checkRunning() bool {
 	return err == nil
 }
 
-// Passthrough method simply passes args through to iptables/ip6tables.
-//
-// Deprecated: this function is only used internally and will be removed in the next release.
-func Passthrough(ipv IPVersion, args ...string) ([]byte, error) {
-	return passthrough(ipv, args...)
-}
-
 // passthrough method simply passes args through to iptables/ip6tables
 func passthrough(ipv IPVersion, args ...string) ([]byte, error) {
 	var output string
