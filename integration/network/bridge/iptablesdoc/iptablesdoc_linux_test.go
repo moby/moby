@@ -118,8 +118,17 @@ var index = []section{
 	{
 		name: "usernet-internal.md",
 		networks: []networkDesc{{
-			name:     "bridge1",
+			name:     "bridgeICC",
 			internal: true,
+			containers: []ctrDesc{
+				{
+					name: "c1",
+				},
+			},
+		}, {
+			name:     "bridgeNoICC",
+			internal: true,
+			noICC:    true,
 			containers: []ctrDesc{
 				{
 					name: "c1",
