@@ -25,16 +25,8 @@ func createNewChain(t *testing.T) (*IPTable, *ChainInfo, *ChainInfo) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = iptable.ProgramChain(natChain, bridgeName, false, true)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	filterChain, err := iptable.NewChain(chainName, Filter)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = iptable.ProgramChain(filterChain, bridgeName, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}

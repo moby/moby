@@ -1165,7 +1165,7 @@ func TestCleanupIptableRules(t *testing.T) {
 	assert.NilError(t, setupHashNetIpset(ipsetExtBridges6, unix.AF_INET6))
 
 	for _, version := range ipVersions {
-		_, _, _, _, err := setupIPChains(configs[version], version)
+		err := setupIPChains(configs[version], version)
 		assert.NilError(t, err, "version:%s", version)
 
 		iptable := iptables.GetIptable(version)

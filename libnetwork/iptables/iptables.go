@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/rootless"
 )
 
@@ -181,96 +180,6 @@ func (iptable IPTable) NewChain(name string, table Table) (*ChainInfo, error) {
 		Table:     table,
 		IPVersion: iptable.ipVersion,
 	}, nil
-}
-
-// ProgramChain is used to add rules to a chain
-func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) error {
-	if c.Name == "" {
-		return errors.New("could not program chain, missing chain name")
-	}
-
-	// Either add or remove the interface from the firewalld zone, if firewalld is running.
-	if enable {
-		if err := AddInterfaceFirewalld(bridgeName); err != nil {
-			return err
-		}
-	} else {
-		if err := DelInterfaceFirewalld(bridgeName); err != nil && !errdefs.IsNotFound(err) {
-			return err
-		}
-	}
-
-	switch c.Table {
-	case Nat:
-		preroute := []string{
-			"-m", "addrtype",
-			"--dst-type", "LOCAL",
-			"-j", c.Name,
-		}
-		if !iptable.Exists(Nat, "PREROUTING", preroute...) && enable {
-			if err := c.Prerouting(Append, preroute...); err != nil {
-				return fmt.Errorf("failed to inject %s in PREROUTING chain: %s", c.Name, err)
-			}
-		} else if iptable.Exists(Nat, "PREROUTING", preroute...) && !enable {
-			if err := c.Prerouting(Delete, preroute...); err != nil {
-				return fmt.Errorf("failed to remove %s in PREROUTING chain: %s", c.Name, err)
-			}
-		}
-		output := []string{
-			"-m", "addrtype",
-			"--dst-type", "LOCAL",
-			"-j", c.Name,
-		}
-		if !hairpinMode {
-			output = append(output, "!", "--dst", loopbackAddress(iptable.ipVersion))
-		}
-		if !iptable.Exists(Nat, "OUTPUT", output...) && enable {
-			if err := c.Output(Append, output...); err != nil {
-				return fmt.Errorf("failed to inject %s in OUTPUT chain: %s", c.Name, err)
-			}
-		} else if iptable.Exists(Nat, "OUTPUT", output...) && !enable {
-			if err := c.Output(Delete, output...); err != nil {
-				return fmt.Errorf("failed to inject %s in OUTPUT chain: %s", c.Name, err)
-			}
-		}
-	case Filter:
-		if bridgeName == "" {
-			return fmt.Errorf("could not program chain %s/%s, missing bridge name", c.Table, c.Name)
-		}
-
-		// Delete legacy per-bridge jump to the DOCKER chain from the FORWARD chain, if it exists.
-		// These rules have been replaced by an ipset-matching rule.
-		link := []string{
-			"-o", bridgeName,
-			"-j", c.Name,
-		}
-		if iptable.Exists(Filter, "FORWARD", link...) {
-			del := append([]string{string(Delete), "FORWARD"}, link...)
-			if output, err := iptable.Raw(del...); err != nil {
-				return err
-			} else if len(output) != 0 {
-				return fmt.Errorf("could not delete linking rule from %s/%s: %s", c.Table, c.Name, output)
-			}
-		}
-
-		// Delete legacy per-bridge related/established rule if it exists. These rules
-		// have been replaced by an ipset-matching rule.
-		establish := []string{
-			"-o", bridgeName,
-			"-m", "conntrack",
-			"--ctstate", "RELATED,ESTABLISHED",
-			"-j", "ACCEPT",
-		}
-		if iptable.Exists(Filter, "FORWARD", establish...) {
-			del := append([]string{string(Delete), "FORWARD"}, establish...)
-			if output, err := iptable.Raw(del...); err != nil {
-				return err
-			} else if len(output) != 0 {
-				return fmt.Errorf("could not delete establish rule from %s: %s", c.Table, output)
-			}
-		}
-	}
-	return nil
 }
 
 // RemoveExistingChain removes existing chain from the table.
