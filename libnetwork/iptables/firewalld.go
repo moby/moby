@@ -12,22 +12,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// IPV defines the table string
-//
-// Deprecated: use [IPVersion]
-type IPV = IPVersion
-
-const (
-	// Iptables point ipv4 table
-	//
-	// Deprecated: use [IPv4].
-	Iptables IPV = IPv4
-	// IP6Tables point to ipv6 table
-	//
-	// Deprecated: use [IPv6].
-	IP6Tables IPV = IPv6
-)
-
 const (
 	dbusInterface   = "org.fedoraproject.FirewallD1"
 	dbusPath        = "/org/fedoraproject/FirewallD1"
