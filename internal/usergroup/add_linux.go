@@ -1,4 +1,4 @@
-package idtools // import "github.com/docker/docker/pkg/idtools"
+package usergroup
 
 import (
 	"fmt"
