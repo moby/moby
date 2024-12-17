@@ -3,7 +3,7 @@
 // Handlers can be registered with a name and the argv 0 of the exec of
 // the binary will be used to find and execute custom init paths.
 //
-// It is used in dockerd to work around forking limitations when using Go.
+// It is used to work around forking limitations when using Go.
 package reexec
 
 import (
@@ -36,10 +36,29 @@ func Init() bool {
 	return false
 }
 
-// Self returns the path to the current process's binary. On Linux, it
-// returns "/proc/self/exe", which provides the in-memory version of the
-// current binary, whereas on other platforms it attempts to looks up the
-// absolute path for os.Args[0], or otherwise returns os.Args[0] as-is.
+// Command returns an [*exec.Cmd] with its Path set to the path of the current
+// binary using the result of [Self].
+//
+// On Linux, the Pdeathsig of [*exec.Cmd.SysProcAttr] is set to SIGTERM.
+// This signal is sent to the process when the OS thread that created
+// the process dies.
+//
+// It is the caller's responsibility to ensure that the creating thread is
+// not terminated prematurely. See https://go.dev/issue/27505 for more details.
+func Command(args ...string) *exec.Cmd {
+	return command(args...)
+}
+
+// Self returns the path to the current process's binary.
+//
+// On Linux, it returns "/proc/self/exe", which provides the in-memory version
+// of the current binary. This makes it safe to delete or replace the on-disk
+// binary (os.Args[0]).
+//
+// On Other platforms, it attempts to look up the absolute path for os.Args[0],
+// or otherwise returns os.Args[0] as-is. For example if current binary is
+// "my-binary" at "/usr/bin/" (or "my-binary.exe" at "C:\" on Windows),
+// then it returns "/usr/bin/my-binary" and "C:\my-binary.exe" respectively.
 func Self() string {
 	if runtime.GOOS == "linux" {
 		return "/proc/self/exe"
