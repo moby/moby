@@ -1,4 +1,4 @@
-//go:build freebsd || darwin || windows
+//go:build !linux
 
 package reexec
 
