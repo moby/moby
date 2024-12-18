@@ -8,8 +8,8 @@ import (
 
 	winio "github.com/Microsoft/go-winio"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
+	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
 )

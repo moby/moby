@@ -8,8 +8,8 @@ import (
 
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	"github.com/moby/sys/reexec"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
