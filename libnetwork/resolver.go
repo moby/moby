@@ -589,9 +589,7 @@ func (r *Resolver) forwardExtDNS(ctx context.Context, proto string, remoteAddr n
 			r.log(ctx).Debugf("[resolver] external DNS %s:%s returned response with no answers:\n%s", proto, extDNS.IPStr, resp)
 		}
 		resp.Compress = true
-		span.AddEvent("response from upstream server", trace.WithAttributes(
-			attribute.String("libnet.resolver.resp", resp.String()),
-		))
+		span.AddEvent("response from upstream server")
 		return resp
 	}
 
