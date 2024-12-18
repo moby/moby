@@ -11,7 +11,7 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/reexec"
+	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )

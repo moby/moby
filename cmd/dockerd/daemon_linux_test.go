@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/pkg/reexec"
+	"github.com/moby/sys/reexec"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 )
