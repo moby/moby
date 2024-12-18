@@ -388,7 +388,7 @@ func (ep *Endpoint) hasGatewayOrDefaultRoute() bool {
 	defer ep.mu.Unlock()
 
 	if ep.joinInfo != nil {
-		if len(ep.joinInfo.gw) > 0 {
+		if len(ep.joinInfo.gw) > 0 || len(ep.joinInfo.gw6) > 0 {
 			return true
 		}
 		for _, route := range ep.joinInfo.StaticRoutes {

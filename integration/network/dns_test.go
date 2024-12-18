@@ -90,3 +90,39 @@ func TestIntDNSAsExtDNS(t *testing.T) {
 		})
 	}
 }
+
+// TestExtDNSInIPv6OnlyNw checks that an IPv6-only bridge network has external
+// DNS access.
+func TestExtDNSInIPv6OnlyNw(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "No IPv6 Windows")
+	skip.If(t, testEnv.IsRootless, "Can't use resolver on host in rootless mode")
+	ctx := setupTest(t)
+
+	// Start a DNS server on the loopback interface.
+	network.StartDaftDNS(t, "127.0.0.1")
+
+	// Set up a temp resolv.conf pointing at that DNS server, and a daemon using it.
+	tmpFileName := network.WriteTempResolvConf(t, "127.0.0.1")
+	d := daemon.New(t, daemon.WithEnvVars("DOCKER_TEST_RESOLV_CONF_PATH="+tmpFileName), daemon.WithExperimental())
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	netName := "v6only"
+	network.CreateNoError(ctx, t, c, netName,
+		network.WithDriver("bridge"),
+		network.WithIPv4(false),
+		network.WithIPv6(),
+	)
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	ctrId := container.Run(ctx, t, c, container.WithNetworkMode(netName))
+	defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+
+	res, err := container.Exec(ctx, c, ctrId, []string{"nslookup", "test.example"})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(res.ExitCode, 0))
+	assert.Check(t, is.Contains(res.Stdout(), network.DNSRespAddr))
+}
