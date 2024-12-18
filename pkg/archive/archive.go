@@ -19,6 +19,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -229,12 +230,51 @@ func (r *readCloserWrapper) Close() error {
 
 		return nil
 	}
-	return r.closer()
+	if r.closer != nil {
+		return r.closer()
+	}
+	return nil
+}
+
+var (
+	bufioReader32KPool = &sync.Pool{
+		New: func() interface{} { return bufio.NewReaderSize(nil, 32*1024) },
+	}
+)
+
+type bufferedReader struct {
+	buf *bufio.Reader
+}
+
+func newBufferedReader(r io.Reader) *bufferedReader {
+	buf := bufioReader32KPool.Get().(*bufio.Reader)
+	buf.Reset(r)
+	return &bufferedReader{buf}
+}
+
+func (r *bufferedReader) Read(p []byte) (n int, err error) {
+	if r.buf == nil {
+		return 0, io.EOF
+	}
+	n, err = r.buf.Read(p)
+	if err == io.EOF {
+		r.buf.Reset(nil)
+		bufioReader32KPool.Put(r.buf)
+		r.buf = nil
+	}
+	return
+}
+
+func (r *bufferedReader) Peek(n int) ([]byte, error) {
+	if r.buf == nil {
+		return nil, io.EOF
+	}
+	return r.buf.Peek(n)
 }
 
 // DecompressStream decompresses the archive and returns a ReaderCloser with the decompressed archive.
 func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
-	buf := bufio.NewReaderSize(archive, 32*1024)
+	buf := newBufferedReader(archive)
 	bs, err := buf.Peek(10)
 	if err != nil && err != io.EOF {
 		// Note: we'll ignore any io.EOF error because there are some odd
@@ -246,25 +286,12 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	wrapReader := func(r io.Reader, cancel context.CancelFunc) io.ReadCloser {
-		return &readCloserWrapper{
-			Reader: r,
-			closer: func() error {
-				if cancel != nil {
-					cancel()
-				}
-				if readCloser, ok := r.(io.ReadCloser); ok {
-					readCloser.Close()
-				}
-				return nil
-			},
-		}
-	}
-
 	compression := DetectCompression(bs)
 	switch compression {
 	case Uncompressed:
-		return wrapReader(buf, nil), nil
+		return &readCloserWrapper{
+			Reader: buf,
+		}, nil
 	case Gzip:
 		ctx, cancel := context.WithCancel(context.Background())
 
@@ -273,10 +300,18 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 			cancel()
 			return nil, err
 		}
-		return wrapReader(gzReader, cancel), nil
+		return &readCloserWrapper{
+			Reader: gzReader,
+			closer: func() error {
+				cancel()
+				return gzReader.Close()
+			},
+		}, nil
 	case Bzip2:
 		bz2Reader := bzip2.NewReader(buf)
-		return wrapReader(bz2Reader, nil), nil
+		return &readCloserWrapper{
+			Reader: bz2Reader,
+		}, nil
 	case Xz:
 		ctx, cancel := context.WithCancel(context.Background())
 
@@ -285,13 +320,26 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 			cancel()
 			return nil, err
 		}
-		return wrapReader(xzReader, cancel), nil
+
+		return &readCloserWrapper{
+			Reader: xzReader,
+			closer: func() error {
+				cancel()
+				return xzReader.Close()
+			},
+		}, nil
 	case Zstd:
 		zstdReader, err := zstd.NewReader(buf)
 		if err != nil {
 			return nil, err
 		}
-		return wrapReader(zstdReader, nil), nil
+		return &readCloserWrapper{
+			Reader: zstdReader,
+			closer: func() error {
+				zstdReader.Close()
+				return nil
+			},
+		}, nil
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
