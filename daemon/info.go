@@ -53,8 +53,6 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 		ID:                 daemon.id,
 		Images:             daemon.imageService.CountImages(ctx),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
-		BridgeNfIptables:   !sysInfo.BridgeNFCallIPTablesDisabled,
-		BridgeNfIP6tables:  !sysInfo.BridgeNFCallIP6TablesDisabled,
 		Name:               hostName(ctx),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
 		LoggingDriver:      daemon.defaultLogConfig.Type,

@@ -5546,13 +5546,28 @@ definitions:
         type: "boolean"
         example: true
       BridgeNfIptables:
-        description: "Indicates if `bridge-nf-call-iptables` is available on the host."
+        description: |
+          Indicates if `bridge-nf-call-iptables` is available on the host when
+          the daemon was started.
+
+          <p><br /></p>
+
+          > **Deprecated**: netfilter module is now loaded on-demand and no longer
+          > during daemon startup, making this field obsolete. This field is always
+          > `false` and will be removed in a API v1.49.
         type: "boolean"
-        example: true
+        example: false
       BridgeNfIp6tables:
-        description: "Indicates if `bridge-nf-call-ip6tables` is available on the host."
+        description: |
+          Indicates if `bridge-nf-call-ip6tables` is available on the host.
+
+          <p><br /></p>
+
+          > **Deprecated**: netfilter module is now loaded on-demand, and no longer
+          > during daemon startup, making this field obsolete. This field is always
+          > `false` and will be removed in a API v1.49.
         type: "boolean"
-        example: true
+        example: false
       Debug:
         description: |
           Indicates if the daemon is running in debug-mode / with debug-level
