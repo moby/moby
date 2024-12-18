@@ -1,4 +1,4 @@
-package configs
+package cgroups
 
 import "fmt"
 
