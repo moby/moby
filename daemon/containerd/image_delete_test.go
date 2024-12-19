@@ -10,7 +10,7 @@ import (
 	"github.com/containerd/log/logtest"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
-	dimages "github.com/docker/docker/daemon/images"
+	dimages "github.com/docker/docker/daemon/images/gdstore"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

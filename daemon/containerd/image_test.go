@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/log/logtest"
 	"github.com/distribution/reference"
-	dockerimages "github.com/docker/docker/daemon/images"
+	dockerimages "github.com/docker/docker/daemon/images/gdstore"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 

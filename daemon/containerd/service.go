@@ -17,7 +17,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
-	dimages "github.com/docker/docker/daemon/images"
+	dimages "github.com/docker/docker/daemon/images/gdstore"
 	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"

@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/image"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
-	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/images/gdstore"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/testutil"
@@ -54,7 +54,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 		IDMapping:                 idtools.IdentityMapping{},
 		ExperimentalEnabled:       false,
 	})
-	i := images.NewImageService(images.ImageServiceConfig{
+	i := gdstore.NewImageService(gdstore.ImageServiceConfig{
 		LayerStore: layerStore,
 	})
 

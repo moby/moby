@@ -27,7 +27,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	distreference "github.com/distribution/reference"
-	dimages "github.com/docker/docker/daemon/images"
+	dimages "github.com/docker/docker/daemon/images/gdstore"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
