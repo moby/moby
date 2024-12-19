@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/tracing"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
@@ -289,8 +289,8 @@ func (s *saveSession) save(ctx context.Context, outStream io.Writer) error {
 
 			taggedManifest := untaggedMfstDesc
 			taggedManifest.Annotations = map[string]string{
-				images.AnnotationImageName: ref.String(),
-				ocispec.AnnotationRefName:  ref.Tag(),
+				c8dimages.AnnotationImageName: ref.String(),
+				ocispec.AnnotationRefName:     ref.Tag(),
 			}
 			manifestDescriptors = append(manifestDescriptors, taggedManifest)
 		}

@@ -6,8 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/images"
-	containerdimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
@@ -191,7 +190,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 // also deletes dangling parents if there is no conflict in doing so.
 // Parent images are removed quietly, and if there is any issue/conflict
 // it is logged but does not halt execution/an error is not returned.
-func (i *ImageService) deleteAll(ctx context.Context, imgID image.ID, all []images.Image, c conflictType, prune bool) (records []imagetypes.DeleteResponse, err error) {
+func (i *ImageService) deleteAll(ctx context.Context, imgID image.ID, all []c8dimages.Image, c conflictType, prune bool) (records []imagetypes.DeleteResponse, err error) {
 	// Workaround for: https://github.com/moby/buildkit/issues/3797
 	possiblyDeletedConfigs := map[digest.Digest]struct{}{}
 	if len(all) > 0 && i.content != nil {
@@ -203,7 +202,7 @@ func (i *ImageService) deleteAll(ctx context.Context, imgID image.ID, all []imag
 				handled[img.Target.Digest] = struct{}{}
 			}
 			err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, d ocispec.Descriptor) error {
-				if images.IsConfigType(d.MediaType) {
+				if c8dimages.IsConfigType(d.MediaType) {
 					possiblyDeletedConfigs[d.Digest] = struct{}{}
 				}
 				return nil
@@ -221,7 +220,7 @@ func (i *ImageService) deleteAll(ctx context.Context, imgID image.ID, all []imag
 		}
 	}()
 
-	var parents []containerdimages.Image
+	var parents []c8dimages.Image
 	if prune {
 		// TODO(dmcgowan): Consider using GC labels to walk for deletion
 		parents, err = i.parents(ctx, imgID)
@@ -279,11 +278,11 @@ func isImageIDPrefix(imageID, possiblePrefix string) bool {
 //
 // Note: All imgs should have the same target, only the image name will be considered
 // for determining whether images are the same.
-func (i *ImageService) getSameReferences(ctx context.Context, named reference.Named, imgs []images.Image) ([]images.Image, error) {
+func (i *ImageService) getSameReferences(ctx context.Context, named reference.Named, imgs []c8dimages.Image) ([]c8dimages.Image, error) {
 	var (
 		tag        string
-		sameRef    []images.Image
-		digestRefs = []images.Image{}
+		sameRef    []c8dimages.Image
+		digestRefs = []c8dimages.Image{}
 		allTags    bool
 	)
 	if named != nil {
@@ -352,7 +351,7 @@ const (
 // images and untagged references are appended to the given records. If any
 // error or conflict is encountered, it will be returned immediately without
 // deleting the image.
-func (i *ImageService) imageDeleteHelper(ctx context.Context, img images.Image, all []images.Image, records *[]imagetypes.DeleteResponse, extra conflictType) error {
+func (i *ImageService) imageDeleteHelper(ctx context.Context, img c8dimages.Image, all []c8dimages.Image, records *[]imagetypes.DeleteResponse, extra conflictType) error {
 	// First, determine if this image has any conflicts. Ignore soft conflicts
 	// if force is true.
 	c := conflictHard | extra
@@ -375,7 +374,7 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img images.Image, 
 			return err
 		}
 		if len(children) > 0 {
-			_, err = i.images.Create(ctx, images.Image{
+			_, err = i.images.Create(ctx, c8dimages.Image{
 				Name:      danglingImageName(img.Target.Digest),
 				Target:    img.Target,
 				CreatedAt: time.Now(),
@@ -388,7 +387,7 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img images.Image, 
 	}
 
 	// TODO: Add target option
-	err = i.images.Delete(ctx, img.Name, images.SynchronousDelete())
+	err = i.images.Delete(ctx, img.Name, c8dimages.SynchronousDelete())
 	if err != nil {
 		return err
 	}
@@ -423,14 +422,14 @@ func (idc *imageDeleteConflict) Error() string {
 	return fmt.Sprintf("conflict: unable to delete %s (%s) - %s", idc.reference, forceMsg, idc.message)
 }
 
-func (imageDeleteConflict) Conflict() {}
+func (*imageDeleteConflict) Conflict() {}
 
 // checkImageDeleteConflict returns a conflict representing
 // any issue preventing deletion of the given image ID, and
 // nil if there are none. It takes a bitmask representing a
 // filter for which conflict types the caller cares about,
 // and will only check for these conflict types.
-func (i *ImageService) checkImageDeleteConflict(ctx context.Context, imgID image.ID, all []images.Image, mask conflictType) error {
+func (i *ImageService) checkImageDeleteConflict(ctx context.Context, imgID image.ID, all []c8dimages.Image, mask conflictType) error {
 	if mask&conflictRunningContainer != 0 {
 		running := func(c *container.Container) bool {
 			return c.ImageID == imgID && c.IsRunning()

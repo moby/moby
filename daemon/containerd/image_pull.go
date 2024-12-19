@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/remotes/docker"
 	cerrdefs "github.com/containerd/errdefs"
@@ -117,8 +117,8 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	}
 
 	jobs := newJobs()
-	h := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-		if images.IsLayerType(desc.MediaType) {
+	h := c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		if c8dimages.IsLayerType(desc.MediaType) {
 			jobs.Add(desc)
 		}
 		return nil, nil
@@ -153,8 +153,8 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	}()
 
 	var sentPullingFrom, sentSchema1Deprecation bool
-	ah := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-		if desc.MediaType == images.MediaTypeDockerSchema1Manifest && !sentSchema1Deprecation {
+	ah := c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		if desc.MediaType == c8dimages.MediaTypeDockerSchema1Manifest && !sentSchema1Deprecation {
 			err := distribution.DeprecatedSchema1ImageError(ref)
 			if os.Getenv("DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE") == "" {
 				log.G(context.TODO()).Warn(err.Error())
@@ -163,11 +163,11 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 			progress.Message(out, "", err.Error())
 			sentSchema1Deprecation = true
 		}
-		if images.IsLayerType(desc.MediaType) {
+		if c8dimages.IsLayerType(desc.MediaType) {
 			id := stringid.TruncateID(desc.Digest.String())
 			progress.Update(out, id, "Pulling fs layer")
 		}
-		if images.IsManifestType(desc.MediaType) {
+		if c8dimages.IsManifestType(desc.MediaType) {
 			if !sentPullingFrom {
 				var tagOrDigest string
 				if tagged, ok := ref.(reference.Tagged); ok {
@@ -179,7 +179,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 				sentPullingFrom = true
 			}
 
-			available, _, _, missing, err := images.Check(ctx, i.content, desc, p)
+			available, _, _, missing, err := c8dimages.Check(ctx, i.content, desc, p)
 			if err != nil {
 				return nil, err
 			}

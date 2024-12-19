@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes/docker"
 	distreference "github.com/distribution/reference"
 	imagestore "github.com/docker/docker/image"
@@ -99,7 +99,7 @@ func (li *localImporter) importInlineCache(ctx context.Context, dt []byte, cc so
 		desc := ocispec.Descriptor{
 			Digest:      dgst,
 			Size:        -1,
-			MediaType:   images.MediaTypeDockerSchema2Layer,
+			MediaType:   c8dimages.MediaTypeDockerSchema2Layer,
 			Annotations: map[string]string{},
 		}
 		if createdAt := createdDates[i]; createdAt != "" {

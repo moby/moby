@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	containerdimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
@@ -139,9 +139,9 @@ func (i *ImageService) size(ctx context.Context, desc ocispec.Descriptor, platfo
 	var size atomic.Int64
 
 	cs := i.content
-	handler := containerdimages.LimitManifests(containerdimages.ChildrenHandler(cs), platform, 1)
+	handler := c8dimages.LimitManifests(c8dimages.ChildrenHandler(cs), platform, 1)
 
-	var wh containerdimages.HandlerFunc = func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+	var wh c8dimages.HandlerFunc = func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		children, err := handler(ctx, desc)
 		if err != nil {
 			if !cerrdefs.IsNotFound(err) {
@@ -155,7 +155,7 @@ func (i *ImageService) size(ctx context.Context, desc ocispec.Descriptor, platfo
 	}
 
 	l := semaphore.NewWeighted(3)
-	if err := containerdimages.Dispatch(ctx, wh, l, desc); err != nil {
+	if err := c8dimages.Dispatch(ctx, wh, l, desc); err != nil {
 		return 0, err
 	}
 

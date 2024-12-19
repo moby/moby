@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
@@ -136,7 +136,7 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 	}
 
 	id := image.ID(manifestDesc.Digest.String())
-	img := images.Image{
+	img := c8dimages.Image{
 		Name:      refString,
 		Target:    manifestDesc,
 		CreatedAt: createdAt,
@@ -296,7 +296,7 @@ func writeBlobAndReturnDigest(ctx context.Context, cs content.Store, mt string, 
 }
 
 // unpackImage unpacks the platform-specific manifest of a image into the snapshotter.
-func (i *ImageService) unpackImage(ctx context.Context, snapshotter string, img images.Image, manifestDesc ocispec.Descriptor) error {
+func (i *ImageService) unpackImage(ctx context.Context, snapshotter string, img c8dimages.Image, manifestDesc ocispec.Descriptor) error {
 	c8dImg, err := i.NewImageManifest(ctx, img, manifestDesc)
 	if err != nil {
 		return err

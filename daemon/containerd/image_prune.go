@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	containerdimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/tracing"
 	cerrdefs "github.com/containerd/errdefs"
@@ -106,7 +106,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 	// How many images make reference to a particular target digest.
 	digestRefCount := map[digest.Digest]int{}
 	// Images considered for pruning.
-	imagesToPrune := map[string]containerdimages.Image{}
+	imagesToPrune := map[string]c8dimages.Image{}
 	for _, img := range allImages {
 		digestRefCount[img.Target.Digest] += 1
 
@@ -154,7 +154,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 // and returns a map of used image digests.
 func filterImagesUsedByContainers(ctx context.Context,
 	allContainers []*container.Container,
-	imagesToPrune map[string]containerdimages.Image,
+	imagesToPrune map[string]c8dimages.Image,
 ) (usedDigests map[digest.Digest]struct{}) {
 	ctx, span := tracing.StartSpan(ctx, "filterImagesUsedByContainers")
 	span.SetAttributes(tracing.Attribute("count", len(allContainers)))
@@ -211,7 +211,7 @@ func filterImagesUsedByContainers(ctx context.Context,
 }
 
 // pruneAll deletes all images in the imagesToPrune map.
-func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]containerdimages.Image) (*image.PruneReport, error) {
+func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8dimages.Image) (*image.PruneReport, error) {
 	report := image.PruneReport{}
 
 	ctx, span := tracing.StartSpan(ctx, "ImageService.pruneAll")
@@ -235,7 +235,7 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]co
 
 		err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, desc ocispec.Descriptor) error {
 			blobs = append(blobs, desc)
-			if containerdimages.IsConfigType(desc.MediaType) {
+			if c8dimages.IsConfigType(desc.MediaType) {
 				possiblyDeletedConfigs[desc.Digest] = struct{}{}
 			}
 			return nil
@@ -247,7 +247,7 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]co
 			}
 			continue
 		}
-		err = i.images.Delete(ctx, img.Name, containerdimages.SynchronousDelete())
+		err = i.images.Delete(ctx, img.Name, c8dimages.SynchronousDelete())
 		if err != nil && !cerrdefs.IsNotFound(err) {
 			errs = multierror.Append(errs, err)
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -293,7 +293,7 @@ func (i *ImageService) unleaseSnapshotsFromDeletedConfigs(ctx context.Context, p
 	var errs error
 	for _, img := range all {
 		err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, desc ocispec.Descriptor) error {
-			if containerdimages.IsConfigType(desc.MediaType) {
+			if c8dimages.IsConfigType(desc.MediaType) {
 				delete(possiblyDeletedConfigs, desc.Digest)
 			}
 			return nil

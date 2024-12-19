@@ -3,7 +3,7 @@ package containerd
 import (
 	"context"
 
-	"github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 )
@@ -29,7 +29,7 @@ func (i *ImageService) LogImageEvent(imageID, refName string, action events.Acti
 }
 
 // logImageEvent generates an event related to an image with only name attribute.
-func (i *ImageService) logImageEvent(img images.Image, refName string, action events.Action) {
+func (i *ImageService) logImageEvent(img c8dimages.Image, refName string, action events.Action) {
 	attributes := map[string]string{}
 	if refName != "" {
 		attributes["name"] = refName

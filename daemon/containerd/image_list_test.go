@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/log/logtest"
 	"github.com/containerd/platforms"
@@ -24,11 +24,11 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func imagesFromIndex(index ...*ocispec.Index) []images.Image {
-	var imgs []images.Image
+func imagesFromIndex(index ...*ocispec.Index) []c8dimages.Image {
+	var imgs []c8dimages.Image
 	for _, idx := range index {
 		for _, desc := range idx.Manifests {
-			imgs = append(imgs, images.Image{
+			imgs = append(imgs, c8dimages.Image{
 				Name:   desc.Annotations["io.containerd.image.name"],
 				Target: desc,
 			})
@@ -186,7 +186,7 @@ func TestImageList(t *testing.T) {
 
 	blobsDir := t.TempDir()
 
-	toContainerdImage := func(t *testing.T, imageFunc specialimage.SpecialImageFunc) images.Image {
+	toContainerdImage := func(t *testing.T, imageFunc specialimage.SpecialImageFunc) c8dimages.Image {
 		idx, err := imageFunc(blobsDir)
 		assert.NilError(t, err)
 
@@ -203,14 +203,14 @@ func TestImageList(t *testing.T) {
 
 	for _, tc := range []struct {
 		name   string
-		images []images.Image
+		images []c8dimages.Image
 		opts   imagetypes.ListOptions
 
 		check func(*testing.T, []*imagetypes.Summary)
 	}{
 		{
 			name:   "one multi-layer image",
-			images: []images.Image{multilayer},
+			images: []c8dimages.Image{multilayer},
 			check: func(t *testing.T, all []*imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 1))
 
@@ -227,7 +227,7 @@ func TestImageList(t *testing.T) {
 		},
 		{
 			name:   "one image with two platforms is still one entry",
-			images: []images.Image{twoplatform},
+			images: []c8dimages.Image{twoplatform},
 			check: func(t *testing.T, all []*imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 1))
 
@@ -253,7 +253,7 @@ func TestImageList(t *testing.T) {
 		},
 		{
 			name:   "two images are two entries",
-			images: []images.Image{multilayer, twoplatform},
+			images: []c8dimages.Image{multilayer, twoplatform},
 			check: func(t *testing.T, all []*imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 2))
 
@@ -282,14 +282,14 @@ func TestImageList(t *testing.T) {
 		},
 		{
 			name:   "three images, one is an empty index",
-			images: []images.Image{multilayer, emptyIndex, twoplatform},
+			images: []c8dimages.Image{multilayer, emptyIndex, twoplatform},
 			check: func(t *testing.T, all []*imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 3))
 			},
 		},
 		{
 			name:   "one good image, second has config as a target",
-			images: []images.Image{multilayer, configTarget},
+			images: []c8dimages.Image{multilayer, configTarget},
 			check: func(t *testing.T, all []*imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 2))
 
@@ -312,7 +312,7 @@ func TestImageList(t *testing.T) {
 		},
 		{
 			name:   "a non-container image manifest",
-			images: []images.Image{textplain},
+			images: []c8dimages.Image{textplain},
 			check: func(t *testing.T, all []*imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 1))
 

@@ -13,7 +13,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
-	containerdimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/rootfs"
@@ -204,12 +204,12 @@ func newROLayerForImage(ctx context.Context, imgDesc *ocispec.Descriptor, i *Ima
 		platMatcher = platforms.Only(*platform)
 	}
 
-	confDesc, err := containerdimages.Config(ctx, i.content, *imgDesc, platMatcher)
+	confDesc, err := c8dimages.Config(ctx, i.content, *imgDesc, platMatcher)
 	if err != nil {
 		return nil, err
 	}
 
-	diffIDs, err := containerdimages.RootFS(ctx, i.content, confDesc)
+	diffIDs, err := c8dimages.RootFS(ctx, i.content, confDesc)
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +448,7 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		if err != nil {
 			return nil, err
 		}
-		parentImageManifest, err := containerdimages.Manifest(ctx, i.content, parentDesc, platforms.Default())
+		parentImageManifest, err := c8dimages.Manifest(ctx, i.content, parentDesc, platforms.Default())
 		if err != nil {
 			return nil, err
 		}
@@ -476,7 +476,7 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		}
 
 		layers = append(layers, ocispec.Descriptor{
-			MediaType: containerdimages.MediaTypeDockerSchema2LayerGzip,
+			MediaType: c8dimages.MediaTypeDockerSchema2LayerGzip,
 			Digest:    layerDigest,
 			Size:      info.Size,
 		})
@@ -505,7 +505,7 @@ func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec
 		return "", err
 	}
 
-	img := containerdimages.Image{
+	img := c8dimages.Image{
 		Name:      danglingImageName(manifestDesc.Digest),
 		Target:    manifestDesc,
 		CreatedAt: time.Now(),

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/metadata"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/snapshots"
@@ -31,32 +31,32 @@ func TestLookup(t *testing.T) {
 		images: metadata.NewImageStore(mdb),
 	}
 
-	ubuntuLatest := images.Image{
+	ubuntuLatest := c8dimages.Image{
 		Name:   "docker.io/library/ubuntu:latest",
 		Target: desc(10),
 	}
-	ubuntuLatestWithDigest := images.Image{
+	ubuntuLatestWithDigest := c8dimages.Image{
 		Name:   "docker.io/library/ubuntu:latest@" + digestFor(10).String(),
 		Target: desc(10),
 	}
-	ubuntuLatestWithOldDigest := images.Image{
+	ubuntuLatestWithOldDigest := c8dimages.Image{
 		Name:   "docker.io/library/ubuntu:latest@" + digestFor(11).String(),
 		Target: desc(11),
 	}
-	ambiguousShortName := images.Image{
+	ambiguousShortName := c8dimages.Image{
 		Name:   "docker.io/library/abcdef:latest",
 		Target: desc(12),
 	}
-	ambiguousShortNameWithDigest := images.Image{
+	ambiguousShortNameWithDigest := c8dimages.Image{
 		Name:   "docker.io/library/abcdef:latest@" + digestFor(12).String(),
 		Target: desc(12),
 	}
-	shortNameIsHashAlgorithm := images.Image{
+	shortNameIsHashAlgorithm := c8dimages.Image{
 		Name:   "docker.io/library/sha256:defcab",
 		Target: desc(13),
 	}
 
-	testImages := []images.Image{
+	testImages := []c8dimages.Image{
 		ubuntuLatest,
 		ubuntuLatestWithDigest,
 		ubuntuLatestWithOldDigest,
@@ -80,33 +80,33 @@ func TestLookup(t *testing.T) {
 
 	for _, tc := range []struct {
 		lookup string
-		img    *images.Image
-		all    []images.Image
+		img    *c8dimages.Image
+		all    []c8dimages.Image
 		err    error
 	}{
 		{
 			// Get ubuntu images with default "latest" tag
 			lookup: "ubuntu",
 			img:    &ubuntuLatest,
-			all:    []images.Image{ubuntuLatest, ubuntuLatestWithDigest},
+			all:    []c8dimages.Image{ubuntuLatest, ubuntuLatestWithDigest},
 		},
 		{
 			// Get all images by image id
 			lookup: ubuntuLatest.Target.Digest.String(),
 			img:    nil,
-			all:    []images.Image{ubuntuLatest, ubuntuLatestWithDigest},
+			all:    []c8dimages.Image{ubuntuLatest, ubuntuLatestWithDigest},
 		},
 		{
 			// Fail to lookup reference with no tag, reference has both tag and digest
 			lookup: "ubuntu@" + ubuntuLatestWithOldDigest.Target.Digest.String(),
 			img:    nil,
-			all:    []images.Image{ubuntuLatestWithOldDigest},
+			all:    []c8dimages.Image{ubuntuLatestWithOldDigest},
 		},
 		{
 			// Get all image with both tag and digest
 			lookup: "ubuntu:latest@" + ubuntuLatestWithOldDigest.Target.Digest.String(),
 			img:    &ubuntuLatestWithOldDigest,
-			all:    []images.Image{ubuntuLatestWithOldDigest},
+			all:    []c8dimages.Image{ubuntuLatestWithOldDigest},
 		},
 		{
 			// Fail to lookup reference with no tag for digest that doesn't exist
@@ -122,7 +122,7 @@ func TestLookup(t *testing.T) {
 			// Get abcdef image which also matches short image id
 			lookup: "abcdef",
 			img:    &ambiguousShortName,
-			all:    []images.Image{ambiguousShortName, ambiguousShortNameWithDigest},
+			all:    []c8dimages.Image{ambiguousShortName, ambiguousShortNameWithDigest},
 		},
 		{
 			// Fail to lookup image named "sha256" with tag that doesn't exist
@@ -133,13 +133,13 @@ func TestLookup(t *testing.T) {
 			// Lookup with shortened image id
 			lookup: ambiguousShortName.Target.Digest.Encoded()[:8],
 			img:    nil,
-			all:    []images.Image{ambiguousShortName, ambiguousShortNameWithDigest},
+			all:    []c8dimages.Image{ambiguousShortName, ambiguousShortNameWithDigest},
 		},
 		{
 			// Lookup an actual image named "sha256" in the default namespace
 			lookup: "sha256:defcab",
 			img:    &shortNameIsHashAlgorithm,
-			all:    []images.Image{shortNameIsHashAlgorithm},
+			all:    []c8dimages.Image{shortNameIsHashAlgorithm},
 		},
 	} {
 		t.Run(tc.lookup, func(t *testing.T) {
@@ -172,7 +172,7 @@ func TestLookup(t *testing.T) {
 		svc := &ImageService{
 			images: &mutateOnGetImageStore{
 				Store: service.images,
-				getMutations: []images.Image{
+				getMutations: []c8dimages.Image{
 					{
 						Name:   "docker.io/test/volatile:inconsistent",
 						Target: desc(18),
@@ -206,7 +206,7 @@ func TestLookup(t *testing.T) {
 		svc := &ImageService{
 			images: &mutateOnGetImageStore{
 				Store: service.images,
-				getMutations: []images.Image{
+				getMutations: []c8dimages.Image{
 					{
 						Name:   "docker.io/test/volatile:retried",
 						Target: desc(16),
@@ -233,12 +233,12 @@ func TestLookup(t *testing.T) {
 }
 
 type mutateOnGetImageStore struct {
-	images.Store
-	getMutations []images.Image
+	c8dimages.Store
+	getMutations []c8dimages.Image
 	t            *testing.T
 }
 
-func (m *mutateOnGetImageStore) Get(ctx context.Context, name string) (images.Image, error) {
+func (m *mutateOnGetImageStore) Get(ctx context.Context, name string) (c8dimages.Image, error) {
 	img, err := m.Store.Get(ctx, name)
 	if len(m.getMutations) > 0 {
 		m.Store.Update(ctx, m.getMutations[0])

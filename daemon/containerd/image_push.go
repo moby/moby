@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
-	containerdimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	containerdlabels "github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
@@ -21,7 +20,7 @@ import (
 	"github.com/docker/docker/api/types/auxprogress"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
-	dimages "github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -45,7 +44,7 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 	start := time.Now()
 	defer func() {
 		if retErr == nil {
-			dimages.ImageActions.WithValues("push").UpdateSince(start)
+			images.ImageActions.WithValues("push").UpdateSince(start)
 		}
 	}()
 	out := streamformatter.NewJSONProgressOutput(outStream, false)
@@ -150,12 +149,12 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 		return err
 	}
 
-	addLayerJobs := containerdimages.HandlerFunc(
+	addLayerJobs := c8dimages.HandlerFunc(
 		func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 			switch {
-			case containerdimages.IsIndexType(desc.MediaType),
-				containerdimages.IsManifestType(desc.MediaType),
-				containerdimages.IsConfigType(desc.MediaType):
+			case c8dimages.IsIndexType(desc.MediaType),
+				c8dimages.IsManifestType(desc.MediaType),
+				c8dimages.IsConfigType(desc.MediaType):
 			default:
 				jobsQueue.Add(desc)
 			}
@@ -164,15 +163,15 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 		},
 	)
 
-	handlerWrapper := func(h images.Handler) images.Handler {
-		return containerdimages.Handlers(addLayerJobs, h)
+	handlerWrapper := func(h c8dimages.Handler) c8dimages.Handler {
+		return c8dimages.Handlers(addLayerJobs, h)
 	}
 
 	err = remotes.PushContent(ctx, pusher, target, store, limiter, platforms.All, handlerWrapper)
 	if err != nil {
 		// If push failed because of a missing content, no specific platform was requested
 		// and the target is an index, select a platform-specific manifest to push instead.
-		if cerrdefs.IsNotFound(err) && containerdimages.IsIndexType(target.MediaType) && platform == nil {
+		if cerrdefs.IsNotFound(err) && c8dimages.IsIndexType(target.MediaType) && platform == nil {
 			var newTarget ocispec.Descriptor
 			newTarget, err = i.getPushDescriptor(ctx, img, nil)
 			if err != nil {
@@ -215,7 +214,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 	return nil
 }
 
-func (i *ImageService) getPushDescriptor(ctx context.Context, img containerdimages.Image, platform *ocispec.Platform) (ocispec.Descriptor, error) {
+func (i *ImageService) getPushDescriptor(ctx context.Context, img c8dimages.Image, platform *ocispec.Platform) (ocispec.Descriptor, error) {
 	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, platform)
 
 	anyMissing := false
@@ -311,7 +310,7 @@ func appendDistributionSourceLabel(ctx context.Context, realStore content.Store,
 	}
 
 	handler := presentChildrenHandler(realStore, appendSource)
-	if err := containerdimages.Dispatch(ctx, handler, nil, target); err != nil {
+	if err := c8dimages.Dispatch(ctx, handler, nil, target); err != nil {
 		// Shouldn't happen, but even if it would fail, then make it only a warning
 		// because it doesn't affect the pushed data.
 		log.G(ctx).WithError(err).Warn("failed to append distribution source labels to pushed content")
@@ -355,10 +354,10 @@ func findMissingMountable(ctx context.Context, store content.Store, queue *jobs,
 			return nil, nil
 		}
 
-		return containerdimages.Children(ctx, store, desc)
+		return c8dimages.Children(ctx, store, desc)
 	}
 
-	err = containerdimages.Dispatch(ctx, containerdimages.HandlerFunc(handler), limiter, target)
+	err = c8dimages.Dispatch(ctx, c8dimages.HandlerFunc(handler), limiter, target)
 	if err != nil {
 		return nil, err
 	}
@@ -424,10 +423,10 @@ func (source distributionSource) GetReference(dgst digest.Digest) (reference.Nam
 // canBeMounted returns if the content with given media type can be cross-repo
 // mounted when pushing it to a remote reference ref.
 func canBeMounted(mediaType string, targetRef reference.Named, source distributionSource) bool {
-	if containerdimages.IsManifestType(mediaType) {
+	if c8dimages.IsManifestType(mediaType) {
 		return false
 	}
-	if containerdimages.IsIndexType(mediaType) {
+	if c8dimages.IsIndexType(mediaType) {
 		return false
 	}
 

@@ -19,7 +19,7 @@ import (
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/protobuf"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	cerrdefs "github.com/containerd/errdefs"
@@ -162,7 +162,7 @@ func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin
 		// write checkpoint to the content store
 		tar := archive.Diff(ctx, "", checkpointDir)
 		var err error
-		checkpoint, err = c.client.writeContent(ctx, images.MediaTypeContainerd1Checkpoint, checkpointDir, tar)
+		checkpoint, err = c.client.writeContent(ctx, c8dimages.MediaTypeContainerd1Checkpoint, checkpointDir, tar)
 		// remove the checkpoint when we're done
 		defer func() {
 			if checkpoint != nil {
@@ -448,7 +448,7 @@ func (t *task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit 
 
 	var cpDesc *ocispec.Descriptor
 	for _, m := range index.Manifests {
-		if m.MediaType == images.MediaTypeContainerd1Checkpoint {
+		if m.MediaType == c8dimages.MediaTypeContainerd1Checkpoint {
 			cpDesc = &m //nolint:gosec
 			break
 		}

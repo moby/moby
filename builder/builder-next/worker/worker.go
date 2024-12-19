@@ -9,7 +9,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/gc"
-	"github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/rootfs"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
@@ -351,7 +351,7 @@ func (w *Worker) GetRemotes(ctx context.Context, ref cache.ImmutableRef, createI
 	descriptors := make([]ocispec.Descriptor, len(diffIDs))
 	for i, dgst := range diffIDs {
 		descriptors[i] = ocispec.Descriptor{
-			MediaType: images.MediaTypeDockerSchema2Layer,
+			MediaType: c8dimages.MediaTypeDockerSchema2Layer,
 			Digest:    digest.Digest(dgst),
 			Size:      -1,
 		}

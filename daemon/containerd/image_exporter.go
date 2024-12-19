@@ -8,7 +8,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
-	containerdimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/images/archive"
 	"github.com/containerd/containerd/leases"
 	cerrdefs "github.com/containerd/errdefs"
@@ -78,7 +78,7 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 		return i.leaseContent(ctx, i.content, target)
 	}
 
-	exportImage := func(ctx context.Context, img containerdimages.Image, ref reference.Named) error {
+	exportImage := func(ctx context.Context, img c8dimages.Image, ref reference.Named) error {
 		target := img.Target
 
 		if platform != nil {
@@ -106,7 +106,7 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 
 			for k, v := range orgTarget.Annotations {
 				switch k {
-				case containerdimages.AnnotationImageName, ocispec.AnnotationRefName:
+				case c8dimages.AnnotationImageName, ocispec.AnnotationRefName:
 					// Strip image name/tag annotations from the descriptor.
 					// Otherwise containerd will use it as name.
 				default:
@@ -221,7 +221,7 @@ func (i *ImageService) leaseContent(ctx context.Context, store content.Store, de
 	}
 	lease := leases.Lease{ID: lid}
 	leasesManager := i.client.LeasesService()
-	return containerdimages.Walk(ctx, containerdimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+	return c8dimages.Walk(ctx, c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		_, err := store.Info(ctx, desc.Digest)
 		if err != nil {
 			if errors.Is(err, cerrdefs.ErrNotFound) {
@@ -238,7 +238,7 @@ func (i *ImageService) leaseContent(ctx context.Context, store content.Store, de
 			return nil, errdefs.System(err)
 		}
 
-		return containerdimages.Children(ctx, store, desc)
+		return c8dimages.Children(ctx, store, desc)
 	}), desc)
 }
 
@@ -286,7 +286,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 			// Even in case of a single-platform image, the manifest descriptor
 			// doesn't have a platform set, so it won't be filtered out by the
 			// FilterPlatform containerd handler.
-			if errors.Is(err, containerdimages.ErrEmptyWalk) {
+			if errors.Is(err, c8dimages.ErrEmptyWalk) {
 				return errdefs.NotFound(errors.Wrapf(err, "requested platform (%s) not found", p))
 			}
 			if cerrdefs.IsNotFound(err) {
@@ -381,7 +381,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 
 // verifyImagesProvidePlatform checks if the requested platform is loaded.
 // If the requested platform is not loaded, it returns an error.
-func (i *ImageService) verifyImagesProvidePlatform(ctx context.Context, imgs []containerdimages.Image, platform ocispec.Platform, pm platforms.Matcher) error {
+func (i *ImageService) verifyImagesProvidePlatform(ctx context.Context, imgs []c8dimages.Image, platform ocispec.Platform, pm platforms.Matcher) error {
 	if len(imgs) == 0 {
 		return errdefs.NotFound(fmt.Errorf("no images providing the requested platform %s found", platforms.FormatAll(platform)))
 	}
