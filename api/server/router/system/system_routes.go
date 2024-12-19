@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/containerd/log"
@@ -18,6 +19,7 @@ import (
 	"github.com/docker/docker/api/types/system"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -44,6 +46,23 @@ func (s *systemRouter) pingHandler(ctx context.Context, w http.ResponseWriter, r
 		w.Header().Set("Content-Length", "0")
 		return nil
 	}
+
+	if capabilitiesQueryValue := r.URL.Query().Get("capabilities"); capabilitiesQueryValue != "" {
+		wantedCapabilitiesVersion, err := strconv.Atoi(capabilitiesQueryValue)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		caps, err := s.handleCapabilities(ctx, wantedCapabilitiesVersion)
+		if err != nil {
+			log.G(ctx).WithError(err).Error("failed")
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			return httputils.WriteJSON(w, http.StatusOK, types.PingBody{
+				Capabilities: caps,
+			})
+		}
+	}
+
 	_, err := w.Write([]byte{'O', 'K'})
 	return err
 }
@@ -55,6 +74,15 @@ func (s *systemRouter) swarmStatus() string {
 		}
 	}
 	return string(swarm.LocalNodeStateInactive)
+}
+
+func (s *systemRouter) handleCapabilities(ctx context.Context, capabilitiesVersion int) (*system.Capabilities, error) {
+	log.G(ctx).WithField("version", capabilitiesVersion).Debug("capabilities requested")
+	caps, err := s.backend.SystemCapabilities(ctx, capabilitiesVersion)
+	if err != nil {
+		return nil, err
+	}
+	return &caps, nil
 }
 
 func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
