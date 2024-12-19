@@ -811,19 +811,18 @@ func setPerPortNAT(b portBinding, ipv iptables.IPVersion, proxyPath string, brid
 	if ipv == iptables.IPv6 {
 		args = append(args, "!", "-s", "fe80::/10")
 	}
-	rule := iptRule{ipv: ipv, table: iptables.Nat, chain: DockerChain, args: args}
+	rule := iptables.Rule{IPVer: ipv, Table: iptables.Nat, Chain: DockerChain, Args: args}
 	if err := appendOrDelChainRule(rule, "DNAT", enable); err != nil {
 		return err
 	}
 
-	args = []string{
+	rule = iptables.Rule{IPVer: ipv, Table: iptables.Nat, Chain: "POSTROUTING", Args: []string{
 		"-p", b.Proto.String(),
 		"-s", b.IP.String(),
 		"-d", b.IP.String(),
 		"--dport", strconv.Itoa(int(b.Port)),
 		"-j", "MASQUERADE",
-	}
-	rule = iptRule{ipv: ipv, table: iptables.Nat, chain: "POSTROUTING", args: args}
+	}}
 	if err := appendOrDelChainRule(rule, "MASQUERADE", hairpinMode && enable); err != nil {
 		return err
 	}
@@ -836,15 +835,14 @@ func setPerPortForwarding(b portBinding, ipv iptables.IPVersion, bridgeName stri
 	// chain (a per-network DROP rule, which must come after these per-port
 	// per-container ACCEPT rules, is appended to the chain when the network
 	// is created).
-	args := []string{
+	rule := iptables.Rule{IPVer: ipv, Table: iptables.Filter, Chain: DockerChain, Args: []string{
 		"!", "-i", bridgeName,
 		"-o", bridgeName,
 		"-p", b.Proto.String(),
 		"-d", b.IP.String(),
 		"--dport", strconv.Itoa(int(b.Port)),
 		"-j", "ACCEPT",
-	}
-	rule := iptRule{ipv: ipv, table: iptables.Filter, chain: DockerChain, args: args}
+	}}
 	if err := programChainRule(rule, "OPEN PORT", enable); err != nil {
 		return err
 	}
@@ -857,13 +855,12 @@ func setPerPortForwarding(b portBinding, ipv iptables.IPVersion, bridgeName stri
 		// to fill the checksum.
 		//
 		// https://github.com/torvalds/linux/commit/c80fafbbb59ef9924962f83aac85531039395b18
-		args = []string{
+		rule := iptables.Rule{IPVer: ipv, Table: iptables.Mangle, Chain: "POSTROUTING", Args: []string{
 			"-p", b.Proto.String(),
 			"--sport", strconv.Itoa(int(b.Port)),
 			"-j", "CHECKSUM",
 			"--checksum-fill",
-		}
-		rule := iptRule{ipv: ipv, table: iptables.Mangle, chain: "POSTROUTING", args: args}
+		}}
 		if err := appendOrDelChainRule(rule, "SCTP CHECKSUM", enable); err != nil {
 			return err
 		}

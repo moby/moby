@@ -9,7 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"golang.org/x/sync/errgroup"
+	"gotest.tools/v3/assert"
 )
 
 const (
@@ -252,4 +254,54 @@ func TestExistsRaw(t *testing.T) {
 			t.Fatalf("Invalid detection. i=%d", i)
 		}
 	}
+}
+
+func TestRule(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	assert.NilError(t, exec.Command("iptables", "-N", "TESTCHAIN").Run())
+
+	rule := Rule{IPVer: IPv4, Table: Filter, Chain: "TESTCHAIN", Args: []string{"-j", "RETURN"}}
+	assert.NilError(t, rule.Insert())
+	assert.Equal(t, rule.Exists(), true)
+	assert.Equal(t, mustDumpChain(t, Filter, "TESTCHAIN"), `-N TESTCHAIN
+-A TESTCHAIN -j RETURN
+`)
+
+	// Test that Insert is idempotent
+	assert.NilError(t, rule.Insert())
+	assert.Equal(t, mustDumpChain(t, Filter, "TESTCHAIN"), `-N TESTCHAIN
+-A TESTCHAIN -j RETURN
+`)
+
+	rule = Rule{IPVer: IPv4, Table: Filter, Chain: "TESTCHAIN", Args: []string{"-j", "ACCEPT"}}
+	assert.NilError(t, rule.Append())
+	assert.Equal(t, rule.Exists(), true)
+	assert.Equal(t, mustDumpChain(t, Filter, "TESTCHAIN"), `-N TESTCHAIN
+-A TESTCHAIN -j RETURN
+-A TESTCHAIN -j ACCEPT
+`)
+
+	// Test that Append is idempotent
+	assert.NilError(t, rule.Append())
+	assert.Equal(t, mustDumpChain(t, Filter, "TESTCHAIN"), `-N TESTCHAIN
+-A TESTCHAIN -j RETURN
+-A TESTCHAIN -j ACCEPT
+`)
+
+	assert.NilError(t, rule.Delete())
+	assert.Equal(t, rule.Exists(), false)
+	assert.Equal(t, mustDumpChain(t, Filter, "TESTCHAIN"), `-N TESTCHAIN
+-A TESTCHAIN -j RETURN
+`)
+
+	// Test that Delete is idempotent
+	assert.NilError(t, rule.Delete())
+}
+
+func mustDumpChain(t *testing.T, table Table, chain string) string {
+	t.Helper()
+	out, err := exec.Command("iptables", "-t", string(table), "-S", chain).CombinedOutput()
+	assert.NilError(t, err, "output:\n%s", out)
+	return string(out)
 }
