@@ -2,7 +2,6 @@ package distribution // import "github.com/docker/docker/distribution"
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -90,8 +89,8 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor, p ocispec.Plat
 			continue
 		}
 		// TODO(thaJeztah): should we also take the user-provided platform into account (if any)?
-		if strings.EqualFold("windows", manifestDescriptor.Platform.OS) {
-			if err := checkImageCompatibility("windows", manifestDescriptor.Platform.OSVersion); err != nil {
+		if manifestDescriptor.Platform.OS == "windows" {
+			if err := checkImageCompatibility(manifestDescriptor.Platform.OS, manifestDescriptor.Platform.OSVersion); err != nil {
 				skip()
 				continue
 			}
@@ -132,21 +131,43 @@ func (mbv manifestsByVersion) Swap(i, j int) {
 	mbv.list[i], mbv.list[j] = mbv.list[j], mbv.list[i]
 }
 
-// checkImageCompatibility blocks pulling incompatible images based on a later OS build
+// checkImageCompatibility tries to check whether a Windows image is incompatible
+// with the host's OS version. It is a no-op for non-Windows images. It returns
+// an error if the image is incompatible, but ignores failures when parsing
+// imageOSVersion.
+//
 // Fixes https://github.com/moby/moby/issues/36184.
 func checkImageCompatibility(imageOS, imageOSVersion string) error {
-	if imageOS == "windows" {
-		hostOSV := osversion.Get()
-		splitImageOSVersion := strings.Split(imageOSVersion, ".") // eg 10.0.16299.nnnn
-		if len(splitImageOSVersion) >= 3 {
-			if imageOSBuild, err := strconv.Atoi(splitImageOSVersion[2]); err == nil {
-				if imageOSBuild > int(hostOSV.Build) {
-					errMsg := fmt.Sprintf("a Windows version %s.%s.%s-based image is incompatible with a %s host", splitImageOSVersion[0], splitImageOSVersion[1], splitImageOSVersion[2], hostOSV.ToString())
-					log.G(context.TODO()).Debugf(errMsg)
-					return errors.New(errMsg)
-				}
-			}
-		}
+	if imageOS != "windows" {
+		return nil
+	}
+
+	splitImageOSVersion := strings.SplitN(imageOSVersion, ".", 4) // eg 10.0.16299.nnnn
+	if len(splitImageOSVersion) < 3 {
+		return nil
+	}
+	imgMajor, err := strconv.ParseUint(splitImageOSVersion[0], 10, 8)
+	if err != nil {
+		return nil
+	}
+	imgMinor, err := strconv.ParseUint(splitImageOSVersion[1], 10, 8)
+	if err != nil {
+		return nil
+	}
+	imgBuild, err := strconv.ParseUint(splitImageOSVersion[2], 10, 16)
+	if err != nil {
+		return nil
+	}
+	imgOSV := osversion.OSVersion{
+		MajorVersion: uint8(imgMajor),
+		MinorVersion: uint8(imgMinor),
+		Build:        uint16(imgBuild),
+	}
+
+	if hostOSV := osversion.Get(); !osversion.CheckHostAndContainerCompat(hostOSV, imgOSV) {
+		err = fmt.Errorf("a Windows version %s-based image is incompatible with a %s host", imgOSV, hostOSV)
+		log.G(context.TODO()).WithError(err).Debug("image is incompatible with host")
+		return err
 	}
 	return nil
 }
