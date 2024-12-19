@@ -183,6 +183,7 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) erro
 			id:                 sbs.ID,
 			controller:         sbs.c,
 			containerID:        sbs.Cid,
+			epPriority:         sbs.EpPriority,
 			extDNS:             sbs.ExtDNS,
 			endpoints:          []*Endpoint{},
 			populatedEndpoints: map[string]struct{}{},
