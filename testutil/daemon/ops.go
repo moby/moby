@@ -135,3 +135,11 @@ func WithEnvVars(vars ...string) Option {
 		d.extraEnv = append(d.extraEnv, vars...)
 	}
 }
+
+// WithResolvConf allows a test to provide a resolv.conf file to be used as the
+// basis for resolv.conf in the container, instead of the host's /etc/resolv.conf.
+func WithResolvConf(path string) Option {
+	return func(d *Daemon) {
+		d.extraEnv = append(d.extraEnv, "DOCKER_TEST_RESOLV_CONF_PATH="+path)
+	}
+}
