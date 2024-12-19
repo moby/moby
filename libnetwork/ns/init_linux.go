@@ -8,13 +8,13 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/internal/modprobe"
-	"github.com/vishvananda/netlink"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/vishvananda/netns"
 )
 
 var (
 	initNs   netns.NsHandle
-	initNl   *netlink.Handle
+	initNl   nlwrap.Handle
 	initOnce sync.Once
 	// NetlinkSocketsTimeout represents the default timeout duration for the sockets
 	NetlinkSocketsTimeout = 3 * time.Second
@@ -27,7 +27,7 @@ func Init() {
 	if err != nil {
 		log.G(context.TODO()).Errorf("could not get initial namespace: %v", err)
 	}
-	initNl, err = netlink.NewHandle(getSupportedNlFamilies()...)
+	initNl, err = nlwrap.NewHandle(getSupportedNlFamilies()...)
 	if err != nil {
 		log.G(context.TODO()).Errorf("could not create netlink handle on initial namespace: %v", err)
 	}
@@ -49,7 +49,7 @@ func getHandler() netns.NsHandle {
 }
 
 // NlHandle returns the netlink handler
-func NlHandle() *netlink.Handle {
+func NlHandle() nlwrap.Handle {
 	initOnce.Do(Init)
 	return initNl
 }

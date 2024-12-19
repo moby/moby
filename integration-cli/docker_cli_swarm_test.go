@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	remoteipam "github.com/docker/docker/libnetwork/ipams/remote/api"
@@ -718,7 +719,7 @@ func setupRemoteGlobalNetworkPlugin(t *testing.T, mux *http.ServeMux, url, netDr
 
 	mux.HandleFunc(fmt.Sprintf("/%s.DeleteEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		if link, err := netlink.LinkByName("cnt0"); err == nil {
+		if link, err := nlwrap.LinkByName("cnt0"); err == nil {
 			err := netlink.LinkDel(link)
 			assert.NilError(t, err)
 		}

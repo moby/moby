@@ -9,13 +9,14 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
 // checkConntrackProgrammable checks if the handle supports the
 // NETLINK_NETFILTER and the base modules are loaded.
-func checkConntrackProgrammable(nlh *netlink.Handle) error {
+func checkConntrackProgrammable(nlh nlwrap.Handle) error {
 	if !nlh.SupportsNetlinkFamily(syscall.NETLINK_NETFILTER) {
 		return errors.New("conntrack is not available")
 	}
@@ -24,7 +25,7 @@ func checkConntrackProgrammable(nlh *netlink.Handle) error {
 
 // DeleteConntrackEntries deletes all the conntrack connections on the host for the specified IP
 // Returns the number of flows deleted for IPv4, IPv6 else error
-func DeleteConntrackEntries(nlh *netlink.Handle, ipv4List []net.IP, ipv6List []net.IP) error {
+func DeleteConntrackEntries(nlh nlwrap.Handle, ipv4List []net.IP, ipv6List []net.IP) error {
 	if err := checkConntrackProgrammable(nlh); err != nil {
 		return err
 	}
@@ -56,7 +57,7 @@ func DeleteConntrackEntries(nlh *netlink.Handle, ipv4List []net.IP, ipv6List []n
 	return nil
 }
 
-func DeleteConntrackEntriesByPort(nlh *netlink.Handle, proto types.Protocol, ports []uint16) error {
+func DeleteConntrackEntriesByPort(nlh nlwrap.Handle, proto types.Protocol, ports []uint16) error {
 	if err := checkConntrackProgrammable(nlh); err != nil {
 		return err
 	}
@@ -75,13 +76,13 @@ func DeleteConntrackEntriesByPort(nlh *netlink.Handle, proto types.Protocol, por
 			continue
 		}
 
-		v4FlowPurged, err := nlh.ConntrackDeleteFilter(netlink.ConntrackTable, syscall.AF_INET, filter)
+		v4FlowPurged, err := nlh.ConntrackDeleteFilters(netlink.ConntrackTable, syscall.AF_INET, filter)
 		if err != nil {
 			log.G(context.TODO()).Warnf("Failed to delete conntrack state for IPv4 %s port %d: %v", proto.String(), port, err)
 		}
 		totalIPv4FlowPurged += v4FlowPurged
 
-		v6FlowPurged, err := nlh.ConntrackDeleteFilter(netlink.ConntrackTable, syscall.AF_INET6, filter)
+		v6FlowPurged, err := nlh.ConntrackDeleteFilters(netlink.ConntrackTable, syscall.AF_INET6, filter)
 		if err != nil {
 			log.G(context.TODO()).Warnf("Failed to delete conntrack state for IPv6 %s port %d: %v", proto.String(), port, err)
 		}
@@ -95,12 +96,12 @@ func DeleteConntrackEntriesByPort(nlh *netlink.Handle, proto types.Protocol, por
 	return nil
 }
 
-func purgeConntrackState(nlh *netlink.Handle, family netlink.InetFamily, ipAddress net.IP) (uint, error) {
+func purgeConntrackState(nlh nlwrap.Handle, family netlink.InetFamily, ipAddress net.IP) (uint, error) {
 	filter := &netlink.ConntrackFilter{}
 	// NOTE: doing the flush using the ipAddress is safe because today there cannot be multiple networks with the same subnet
 	// so it will not be possible to flush flows that are of other containers
 	if err := filter.AddIP(netlink.ConntrackNatAnyIP, ipAddress); err != nil {
 		return 0, err
 	}
-	return nlh.ConntrackDeleteFilter(netlink.ConntrackTable, family, filter)
+	return nlh.ConntrackDeleteFilters(netlink.ConntrackTable, family, filter)
 }

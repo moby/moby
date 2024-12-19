@@ -3,6 +3,7 @@ package netlink
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -40,7 +41,6 @@ func (s Scope) String() string {
 		return "unknown"
 	}
 }
-
 
 const (
 	FLAG_ONLINK    NextHopFlag = unix.RTNH_F_ONLINK
@@ -274,6 +274,16 @@ type SEG6LocalEncap struct {
 	In6Addr  net.IP
 	Iif      int
 	Oif      int
+	bpf      bpfObj
+}
+
+func (e *SEG6LocalEncap) SetProg(progFd int, progName string) error {
+	if progFd <= 0 {
+		return fmt.Errorf("seg6local bpf SetProg: invalid fd")
+	}
+	e.bpf.progFd = progFd
+	e.bpf.progName = progName
+	return nil
 }
 
 func (e *SEG6LocalEncap) Type() int {
@@ -307,6 +317,22 @@ func (e *SEG6LocalEncap) Decode(buf []byte) error {
 		case nl.SEG6_LOCAL_OIF:
 			e.Oif = int(native.Uint32(attr.Value[0:4]))
 			e.Flags[nl.SEG6_LOCAL_OIF] = true
+		case nl.SEG6_LOCAL_BPF:
+			var bpfAttrs []syscall.NetlinkRouteAttr
+			bpfAttrs, err = nl.ParseRouteAttr(attr.Value)
+			bpfobj := bpfObj{}
+			for _, bpfAttr := range bpfAttrs {
+				switch bpfAttr.Attr.Type {
+				case nl.LWT_BPF_PROG_FD:
+					bpfobj.progFd = int(native.Uint32(bpfAttr.Value))
+				case nl.LWT_BPF_PROG_NAME:
+					bpfobj.progName = string(bpfAttr.Value)
+				default:
+					err = fmt.Errorf("seg6local bpf decode: unknown attribute: Type %d", bpfAttr.Attr)
+				}
+			}
+			e.bpf = bpfobj
+			e.Flags[nl.SEG6_LOCAL_BPF] = true
 		}
 	}
 	return err
@@ -368,6 +394,16 @@ func (e *SEG6LocalEncap) Encode() ([]byte, error) {
 		native.PutUint32(attr[4:], uint32(e.Oif))
 		res = append(res, attr...)
 	}
+	if e.Flags[nl.SEG6_LOCAL_BPF] {
+		attr := nl.NewRtAttr(nl.SEG6_LOCAL_BPF, []byte{})
+		if e.bpf.progFd != 0 {
+			attr.AddRtAttr(nl.LWT_BPF_PROG_FD, nl.Uint32Attr(uint32(e.bpf.progFd)))
+		}
+		if e.bpf.progName != "" {
+			attr.AddRtAttr(nl.LWT_BPF_PROG_NAME, nl.ZeroTerminated(e.bpf.progName))
+		}
+		res = append(res, attr.Serialize()...)
+	}
 	return res, err
 }
 func (e *SEG6LocalEncap) String() string {
@@ -401,11 +437,14 @@ func (e *SEG6LocalEncap) String() string {
 	}
 	if e.Flags[nl.SEG6_LOCAL_SRH] {
 		segs := make([]string, 0, len(e.Segments))
-		//append segment backwards (from n to 0) since seg#0 is the last segment.
+		// append segment backwards (from n to 0) since seg#0 is the last segment.
 		for i := len(e.Segments); i > 0; i-- {
 			segs = append(segs, e.Segments[i-1].String())
 		}
 		strs = append(strs, fmt.Sprintf("segs %d [ %s ]", len(e.Segments), strings.Join(segs, " ")))
+	}
+	if e.Flags[nl.SEG6_LOCAL_BPF] {
+		strs = append(strs, fmt.Sprintf("bpf %s[%d]", e.bpf.progName, e.bpf.progFd))
 	}
 	return strings.Join(strs, " ")
 }
@@ -438,7 +477,7 @@ func (e *SEG6LocalEncap) Equal(x Encap) bool {
 	if !e.InAddr.Equal(o.InAddr) || !e.In6Addr.Equal(o.In6Addr) {
 		return false
 	}
-	if e.Action != o.Action || e.Table != o.Table || e.Iif != o.Iif || e.Oif != o.Oif {
+	if e.Action != o.Action || e.Table != o.Table || e.Iif != o.Iif || e.Oif != o.Oif || e.bpf != o.bpf {
 		return false
 	}
 	return true
@@ -590,6 +629,109 @@ func (e *BpfEncap) Equal(x Encap) bool {
 	return true
 }
 
+// IP6tnlEncap definition
+type IP6tnlEncap struct {
+	ID       uint64
+	Dst      net.IP
+	Src      net.IP
+	Hoplimit uint8
+	TC       uint8
+	Flags    uint16
+}
+
+func (e *IP6tnlEncap) Type() int {
+	return nl.LWTUNNEL_ENCAP_IP6
+}
+
+func (e *IP6tnlEncap) Decode(buf []byte) error {
+	attrs, err := nl.ParseRouteAttr(buf)
+	if err != nil {
+		return err
+	}
+	for _, attr := range attrs {
+		switch attr.Attr.Type {
+		case nl.LWTUNNEL_IP6_ID:
+			e.ID = uint64(native.Uint64(attr.Value[0:4]))
+		case nl.LWTUNNEL_IP6_DST:
+			e.Dst = net.IP(attr.Value[:])
+		case nl.LWTUNNEL_IP6_SRC:
+			e.Src = net.IP(attr.Value[:])
+		case nl.LWTUNNEL_IP6_HOPLIMIT:
+			e.Hoplimit = attr.Value[0]
+		case nl.LWTUNNEL_IP6_TC:
+			// e.TC = attr.Value[0]
+			err = fmt.Errorf("decoding TC in IP6tnlEncap is not supported")
+		case nl.LWTUNNEL_IP6_FLAGS:
+			// e.Flags = uint16(native.Uint16(attr.Value[0:2]))
+			err = fmt.Errorf("decoding FLAG in IP6tnlEncap is not supported")
+		case nl.LWTUNNEL_IP6_PAD:
+			err = fmt.Errorf("decoding PAD in IP6tnlEncap is not supported")
+		case nl.LWTUNNEL_IP6_OPTS:
+			err = fmt.Errorf("decoding OPTS in IP6tnlEncap is not supported")
+		}
+	}
+	return err
+}
+
+func (e *IP6tnlEncap) Encode() ([]byte, error) {
+
+	final := []byte{}
+
+	resID := make([]byte, 12)
+	native.PutUint16(resID, 12) //  2+2+8
+	native.PutUint16(resID[2:], nl.LWTUNNEL_IP6_ID)
+	native.PutUint64(resID[4:], 0)
+	final = append(final, resID...)
+
+	resDst := make([]byte, 4)
+	native.PutUint16(resDst, 20) //  2+2+16
+	native.PutUint16(resDst[2:], nl.LWTUNNEL_IP6_DST)
+	resDst = append(resDst, e.Dst...)
+	final = append(final, resDst...)
+
+	resSrc := make([]byte, 4)
+	native.PutUint16(resSrc, 20)
+	native.PutUint16(resSrc[2:], nl.LWTUNNEL_IP6_SRC)
+	resSrc = append(resSrc, e.Src...)
+	final = append(final, resSrc...)
+
+	// resTc := make([]byte, 5)
+	// native.PutUint16(resTc, 5)
+	// native.PutUint16(resTc[2:], nl.LWTUNNEL_IP6_TC)
+	// resTc[4] = e.TC
+	// final = append(final,resTc...)
+
+	resHops := make([]byte, 5)
+	native.PutUint16(resHops, 5)
+	native.PutUint16(resHops[2:], nl.LWTUNNEL_IP6_HOPLIMIT)
+	resHops[4] = e.Hoplimit
+	final = append(final, resHops...)
+
+	// resFlags := make([]byte, 6)
+	// native.PutUint16(resFlags, 6)
+	// native.PutUint16(resFlags[2:], nl.LWTUNNEL_IP6_FLAGS)
+	// native.PutUint16(resFlags[4:], e.Flags)
+	// final = append(final,resFlags...)
+
+	return final, nil
+}
+
+func (e *IP6tnlEncap) String() string {
+	return fmt.Sprintf("id %d src %s dst %s hoplimit %d tc %d flags 0x%.4x", e.ID, e.Src, e.Dst, e.Hoplimit, e.TC, e.Flags)
+}
+
+func (e *IP6tnlEncap) Equal(x Encap) bool {
+	o, ok := x.(*IP6tnlEncap)
+	if !ok {
+		return false
+	}
+
+	if e.ID != o.ID || e.Flags != o.Flags || e.Hoplimit != o.Hoplimit || e.Src.Equal(o.Src) || e.Dst.Equal(o.Dst) || e.TC != o.TC {
+		return false
+	}
+	return true
+}
+
 type Via struct {
 	AddrFamily int
 	Addr       net.IP
@@ -656,7 +798,8 @@ func RouteAdd(route *Route) error {
 func (h *Handle) RouteAdd(route *Route) error {
 	flags := unix.NLM_F_CREATE | unix.NLM_F_EXCL | unix.NLM_F_ACK
 	req := h.newNetlinkRequest(unix.RTM_NEWROUTE, flags)
-	return h.routeHandle(route, req, nl.NewRtMsg())
+	_, err := h.routeHandle(route, req, nl.NewRtMsg())
+	return err
 }
 
 // RouteAppend will append a route to the system.
@@ -670,7 +813,8 @@ func RouteAppend(route *Route) error {
 func (h *Handle) RouteAppend(route *Route) error {
 	flags := unix.NLM_F_CREATE | unix.NLM_F_APPEND | unix.NLM_F_ACK
 	req := h.newNetlinkRequest(unix.RTM_NEWROUTE, flags)
-	return h.routeHandle(route, req, nl.NewRtMsg())
+	_, err := h.routeHandle(route, req, nl.NewRtMsg())
+	return err
 }
 
 // RouteAddEcmp will add a route to the system.
@@ -682,7 +826,23 @@ func RouteAddEcmp(route *Route) error {
 func (h *Handle) RouteAddEcmp(route *Route) error {
 	flags := unix.NLM_F_CREATE | unix.NLM_F_ACK
 	req := h.newNetlinkRequest(unix.RTM_NEWROUTE, flags)
-	return h.routeHandle(route, req, nl.NewRtMsg())
+	_, err := h.routeHandle(route, req, nl.NewRtMsg())
+	return err
+}
+
+// RouteChange will change an existing route in the system.
+// Equivalent to: `ip route change $route`
+func RouteChange(route *Route) error {
+	return pkgHandle.RouteChange(route)
+}
+
+// RouteChange will change an existing route in the system.
+// Equivalent to: `ip route change $route`
+func (h *Handle) RouteChange(route *Route) error {
+	flags := unix.NLM_F_REPLACE | unix.NLM_F_ACK
+	req := h.newNetlinkRequest(unix.RTM_NEWROUTE, flags)
+	_, err := h.routeHandle(route, req, nl.NewRtMsg())
+	return err
 }
 
 // RouteReplace will add a route to the system.
@@ -696,7 +856,8 @@ func RouteReplace(route *Route) error {
 func (h *Handle) RouteReplace(route *Route) error {
 	flags := unix.NLM_F_CREATE | unix.NLM_F_REPLACE | unix.NLM_F_ACK
 	req := h.newNetlinkRequest(unix.RTM_NEWROUTE, flags)
-	return h.routeHandle(route, req, nl.NewRtMsg())
+	_, err := h.routeHandle(route, req, nl.NewRtMsg())
+	return err
 }
 
 // RouteDel will delete a route from the system.
@@ -709,12 +870,27 @@ func RouteDel(route *Route) error {
 // Equivalent to: `ip route del $route`
 func (h *Handle) RouteDel(route *Route) error {
 	req := h.newNetlinkRequest(unix.RTM_DELROUTE, unix.NLM_F_ACK)
-	return h.routeHandle(route, req, nl.NewRtDelMsg())
+	_, err := h.routeHandle(route, req, nl.NewRtDelMsg())
+	return err
 }
 
-func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
-	if (route.Dst == nil || route.Dst.IP == nil) && route.Src == nil && route.Gw == nil && route.MPLSDst == nil {
-		return fmt.Errorf("one of Dst.IP, Src, or Gw must not be nil")
+func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) ([][]byte, error) {
+	if err := h.prepareRouteReq(route, req, msg); err != nil {
+		return nil, err
+	}
+	return req.Execute(unix.NETLINK_ROUTE, 0)
+}
+
+func (h *Handle) routeHandleIter(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg, f func(msg []byte) bool) error {
+	if err := h.prepareRouteReq(route, req, msg); err != nil {
+		return err
+	}
+	return req.ExecuteIter(unix.NETLINK_ROUTE, 0, f)
+}
+
+func (h *Handle) prepareRouteReq(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
+	if req.NlMsghdr.Type != unix.RTM_GETROUTE && (route.Dst == nil || route.Dst.IP == nil) && route.Src == nil && route.Gw == nil && route.MPLSDst == nil {
+		return fmt.Errorf("either Dst.IP, Src.IP or Gw must be set")
 	}
 
 	family := -1
@@ -968,24 +1144,29 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 
 	msg.Flags = uint32(route.Flags)
 	msg.Scope = uint8(route.Scope)
-	msg.Family = uint8(family)
+	// only overwrite family if it was not set in msg
+	if msg.Family == 0 {
+		msg.Family = uint8(family)
+	}
 	req.AddData(msg)
 	for _, attr := range rtAttrs {
 		req.AddData(attr)
 	}
 
-	b := make([]byte, 4)
-	native.PutUint32(b, uint32(route.LinkIndex))
-
-	req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
-
-	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
-	return err
+	if (req.NlMsghdr.Type != unix.RTM_GETROUTE) || (req.NlMsghdr.Type == unix.RTM_GETROUTE && route.LinkIndex > 0) {
+		b := make([]byte, 4)
+		native.PutUint32(b, uint32(route.LinkIndex))
+		req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
+	}
+	return nil
 }
 
 // RouteList gets a list of routes in the system.
 // Equivalent to: `ip route show`.
 // The list can be filtered by link and ip family.
+//
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func RouteList(link Link, family int) ([]Route, error) {
 	return pkgHandle.RouteList(link, family)
 }
@@ -993,14 +1174,17 @@ func RouteList(link Link, family int) ([]Route, error) {
 // RouteList gets a list of routes in the system.
 // Equivalent to: `ip route show`.
 // The list can be filtered by link and ip family.
+//
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func (h *Handle) RouteList(link Link, family int) ([]Route, error) {
-	var routeFilter *Route
+	routeFilter := &Route{}
 	if link != nil {
-		routeFilter = &Route{
-			LinkIndex: link.Attrs().Index,
-		}
+		routeFilter.LinkIndex = link.Attrs().Index
+
+		return h.RouteListFiltered(family, routeFilter, RT_FILTER_OIF)
 	}
-	return h.RouteListFiltered(family, routeFilter, RT_FILTER_OIF)
+	return h.RouteListFiltered(family, routeFilter, 0)
 }
 
 // RouteListFiltered gets a list of routes in the system filtered with specified rules.
@@ -1011,69 +1195,103 @@ func RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, e
 
 // RouteListFiltered gets a list of routes in the system filtered with specified rules.
 // All rules must be defined in RouteFilter struct
+//
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func (h *Handle) RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, error) {
-	req := h.newNetlinkRequest(unix.RTM_GETROUTE, unix.NLM_F_DUMP)
-	rtmsg := nl.NewRtMsg()
-	rtmsg.Family = uint8(family)
-	req.AddData(rtmsg)
-
-	msgs, err := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWROUTE)
+	var res []Route
+	err := h.RouteListFilteredIter(family, filter, filterMask, func(route Route) (cont bool) {
+		res = append(res, route)
+		return true
+	})
 	if err != nil {
 		return nil, err
 	}
+	return res, nil
+}
 
-	var res []Route
-	for _, m := range msgs {
+// RouteListFilteredIter passes each route that matches the filter to the given iterator func.  Iteration continues
+// until all routes are loaded or the func returns false.
+//
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
+func RouteListFilteredIter(family int, filter *Route, filterMask uint64, f func(Route) (cont bool)) error {
+	return pkgHandle.RouteListFilteredIter(family, filter, filterMask, f)
+}
+
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
+func (h *Handle) RouteListFilteredIter(family int, filter *Route, filterMask uint64, f func(Route) (cont bool)) error {
+	req := h.newNetlinkRequest(unix.RTM_GETROUTE, unix.NLM_F_DUMP)
+	rtmsg := &nl.RtMsg{}
+	rtmsg.Family = uint8(family)
+
+	var parseErr error
+	executeErr := h.routeHandleIter(filter, req, rtmsg, func(m []byte) bool {
 		msg := nl.DeserializeRtMsg(m)
+		if family != FAMILY_ALL && msg.Family != uint8(family) {
+			// Ignore routes not matching requested family
+			return true
+		}
 		if msg.Flags&unix.RTM_F_CLONED != 0 {
 			// Ignore cloned routes
-			continue
+			return true
 		}
 		if msg.Table != unix.RT_TABLE_MAIN {
-			if filter == nil || filter != nil && filterMask&RT_FILTER_TABLE == 0 {
+			if filter == nil || filterMask&RT_FILTER_TABLE == 0 {
 				// Ignore non-main tables
-				continue
+				return true
 			}
 		}
 		route, err := deserializeRoute(m)
 		if err != nil {
-			return nil, err
+			parseErr = err
+			return false
 		}
 		if filter != nil {
 			switch {
 			case filterMask&RT_FILTER_TABLE != 0 && filter.Table != unix.RT_TABLE_UNSPEC && route.Table != filter.Table:
-				continue
+				return true
 			case filterMask&RT_FILTER_PROTOCOL != 0 && route.Protocol != filter.Protocol:
-				continue
+				return true
 			case filterMask&RT_FILTER_SCOPE != 0 && route.Scope != filter.Scope:
-				continue
+				return true
 			case filterMask&RT_FILTER_TYPE != 0 && route.Type != filter.Type:
-				continue
+				return true
 			case filterMask&RT_FILTER_TOS != 0 && route.Tos != filter.Tos:
-				continue
+				return true
 			case filterMask&RT_FILTER_REALM != 0 && route.Realm != filter.Realm:
-				continue
+				return true
 			case filterMask&RT_FILTER_OIF != 0 && route.LinkIndex != filter.LinkIndex:
-				continue
+				return true
 			case filterMask&RT_FILTER_IIF != 0 && route.ILinkIndex != filter.ILinkIndex:
-				continue
+				return true
 			case filterMask&RT_FILTER_GW != 0 && !route.Gw.Equal(filter.Gw):
-				continue
+				return true
 			case filterMask&RT_FILTER_SRC != 0 && !route.Src.Equal(filter.Src):
-				continue
+				return true
 			case filterMask&RT_FILTER_DST != 0:
 				if filter.MPLSDst == nil || route.MPLSDst == nil || (*filter.MPLSDst) != (*route.MPLSDst) {
+					if filter.Dst == nil {
+						filter.Dst = genZeroIPNet(family)
+					}
 					if !ipNetEqual(route.Dst, filter.Dst) {
-						continue
+						return true
 					}
 				}
 			case filterMask&RT_FILTER_HOPLIMIT != 0 && route.Hoplimit != filter.Hoplimit:
-				continue
+				return true
 			}
 		}
-		res = append(res, route)
+		return f(route)
+	})
+	if executeErr != nil && !errors.Is(executeErr, ErrDumpInterrupted) {
+		return executeErr
 	}
-	return res, nil
+	if parseErr != nil {
+		return parseErr
+	}
+	return executeErr
 }
 
 // deserializeRoute decodes a binary netlink message into a Route struct
@@ -1257,6 +1475,27 @@ func deserializeRoute(m []byte) (Route, error) {
 		}
 	}
 
+	// Same logic to generate "default" dst with iproute2 implementation
+	if route.Dst == nil {
+		var addLen int
+		var ip net.IP
+		switch msg.Family {
+		case FAMILY_V4:
+			addLen = net.IPv4len
+			ip = net.IPv4zero
+		case FAMILY_V6:
+			addLen = net.IPv6len
+			ip = net.IPv6zero
+		}
+
+		if addLen != 0 {
+			route.Dst = &net.IPNet{
+				IP:   ip,
+				Mask: net.CIDRMask(int(msg.Dst_len), 8*addLen),
+			}
+		}
+	}
+
 	if len(encap.Value) != 0 && len(encapType.Value) != 0 {
 		typ := int(native.Uint16(encapType.Value[0:2]))
 		var e Encap
@@ -1291,10 +1530,14 @@ func deserializeRoute(m []byte) (Route, error) {
 // RouteGetOptions contains a set of options to use with
 // RouteGetWithOptions
 type RouteGetOptions struct {
-	Iif     string
-	Oif     string
-	VrfName string
-	SrcAddr net.IP
+	Iif      string
+	IifIndex int
+	Oif      string
+	VrfName  string
+	SrcAddr  net.IP
+	UID      *uint32
+	Mark     uint32
+	FIBMatch bool
 }
 
 // RouteGetWithOptions gets a route to a specific destination from the host system.
@@ -1330,6 +1573,9 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 		msg.Src_len = bitlen
 	}
 	msg.Flags = unix.RTM_F_LOOKUP_TABLE
+	if options != nil && options.FIBMatch {
+		msg.Flags |= unix.RTM_F_FIB_MATCH
+	}
 	req.AddData(msg)
 
 	rtaDst := nl.NewRtAttr(unix.RTA_DST, destinationData)
@@ -1337,7 +1583,7 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 
 	if options != nil {
 		if options.VrfName != "" {
-			link, err := LinkByName(options.VrfName)
+			link, err := h.LinkByName(options.VrfName)
 			if err != nil {
 				return nil, err
 			}
@@ -1347,20 +1593,27 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 			req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
 		}
 
+		iifIndex := 0
 		if len(options.Iif) > 0 {
-			link, err := LinkByName(options.Iif)
+			link, err := h.LinkByName(options.Iif)
 			if err != nil {
 				return nil, err
 			}
 
+			iifIndex = link.Attrs().Index
+		} else if options.IifIndex > 0 {
+			iifIndex = options.IifIndex
+		}
+
+		if iifIndex > 0 {
 			b := make([]byte, 4)
-			native.PutUint32(b, uint32(link.Attrs().Index))
+			native.PutUint32(b, uint32(iifIndex))
 
 			req.AddData(nl.NewRtAttr(unix.RTA_IIF, b))
 		}
 
 		if len(options.Oif) > 0 {
-			link, err := LinkByName(options.Oif)
+			link, err := h.LinkByName(options.Oif)
 			if err != nil {
 				return nil, err
 			}
@@ -1380,6 +1633,21 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 			}
 
 			req.AddData(nl.NewRtAttr(unix.RTA_SRC, srcAddr))
+		}
+
+		if options.UID != nil {
+			uid := *options.UID
+			b := make([]byte, 4)
+			native.PutUint32(b, uid)
+
+			req.AddData(nl.NewRtAttr(unix.RTA_UID, b))
+		}
+
+		if options.Mark > 0 {
+			b := make([]byte, 4)
+			native.PutUint32(b, options.Mark)
+
+			req.AddData(nl.NewRtAttr(unix.RTA_MARK, b))
 		}
 	}
 
@@ -1408,38 +1676,58 @@ func (h *Handle) RouteGet(destination net.IP) ([]Route, error) {
 // RouteSubscribe takes a chan down which notifications will be sent
 // when routes are added or deleted. Close the 'done' chan to stop subscription.
 func RouteSubscribe(ch chan<- RouteUpdate, done <-chan struct{}) error {
-	return routeSubscribeAt(netns.None(), netns.None(), ch, done, nil, false)
+	return routeSubscribeAt(netns.None(), netns.None(), ch, done, nil, false, 0, nil, false)
 }
 
 // RouteSubscribeAt works like RouteSubscribe plus it allows the caller
 // to choose the network namespace in which to subscribe (ns).
 func RouteSubscribeAt(ns netns.NsHandle, ch chan<- RouteUpdate, done <-chan struct{}) error {
-	return routeSubscribeAt(ns, netns.None(), ch, done, nil, false)
+	return routeSubscribeAt(ns, netns.None(), ch, done, nil, false, 0, nil, false)
 }
 
 // RouteSubscribeOptions contains a set of options to use with
 // RouteSubscribeWithOptions.
 type RouteSubscribeOptions struct {
-	Namespace     *netns.NsHandle
-	ErrorCallback func(error)
-	ListExisting  bool
+	Namespace              *netns.NsHandle
+	ErrorCallback          func(error)
+	ListExisting           bool
+	ReceiveBufferSize      int
+	ReceiveBufferForceSize bool
+	ReceiveTimeout         *unix.Timeval
 }
 
 // RouteSubscribeWithOptions work like RouteSubscribe but enable to
 // provide additional options to modify the behavior. Currently, the
 // namespace can be provided as well as an error callback.
+//
+// When options.ListExisting is true, options.ErrorCallback may be
+// called with [ErrDumpInterrupted] to indicate that results from
+// the initial dump of links may be inconsistent or incomplete.
 func RouteSubscribeWithOptions(ch chan<- RouteUpdate, done <-chan struct{}, options RouteSubscribeOptions) error {
 	if options.Namespace == nil {
 		none := netns.None()
 		options.Namespace = &none
 	}
-	return routeSubscribeAt(*options.Namespace, netns.None(), ch, done, options.ErrorCallback, options.ListExisting)
+	return routeSubscribeAt(*options.Namespace, netns.None(), ch, done, options.ErrorCallback, options.ListExisting,
+		options.ReceiveBufferSize, options.ReceiveTimeout, options.ReceiveBufferForceSize)
 }
 
-func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <-chan struct{}, cberr func(error), listExisting bool) error {
+func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <-chan struct{}, cberr func(error), listExisting bool,
+	rcvbuf int, rcvTimeout *unix.Timeval, rcvbufForce bool) error {
 	s, err := nl.SubscribeAt(newNs, curNs, unix.NETLINK_ROUTE, unix.RTNLGRP_IPV4_ROUTE, unix.RTNLGRP_IPV6_ROUTE)
 	if err != nil {
 		return err
+	}
+	if rcvTimeout != nil {
+		if err := s.SetReceiveTimeout(rcvTimeout); err != nil {
+			return err
+		}
+	}
+	if rcvbuf != 0 {
+		err = s.SetReceiveBufferSize(rcvbuf, rcvbufForce)
+		if err != nil {
+			return err
+		}
 	}
 	if done != nil {
 		go func() {
@@ -1474,6 +1762,9 @@ func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <
 				continue
 			}
 			for _, m := range msgs {
+				if m.Header.Flags&unix.NLM_F_DUMP_INTR != 0 && cberr != nil {
+					cberr(ErrDumpInterrupted)
+				}
 				if m.Header.Type == unix.NLMSG_DONE {
 					continue
 				}
@@ -1495,7 +1786,11 @@ func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <
 					}
 					continue
 				}
-				ch <- RouteUpdate{Type: m.Header.Type, Route: route}
+				ch <- RouteUpdate{
+					Type:    m.Header.Type,
+					NlFlags: m.Header.Flags & (unix.NLM_F_REPLACE | unix.NLM_F_EXCL | unix.NLM_F_CREATE | unix.NLM_F_APPEND),
+					Route:   route,
+				}
 			}
 		}
 	}()
@@ -1523,7 +1818,7 @@ func (p RouteProtocol) String() string {
 		return "gated"
 	case unix.RTPROT_ISIS:
 		return "isis"
-	//case unix.RTPROT_KEEPALIVED:
+	// case unix.RTPROT_KEEPALIVED:
 	//	return "keepalived"
 	case unix.RTPROT_KERNEL:
 		return "kernel"
@@ -1552,4 +1847,25 @@ func (p RouteProtocol) String() string {
 	default:
 		return strconv.Itoa(int(p))
 	}
+}
+
+// genZeroIPNet returns 0.0.0.0/0 or ::/0 for IPv4 or IPv6, otherwise nil
+func genZeroIPNet(family int) *net.IPNet {
+	var addLen int
+	var ip net.IP
+	switch family {
+	case FAMILY_V4:
+		addLen = net.IPv4len
+		ip = net.IPv4zero
+	case FAMILY_V6:
+		addLen = net.IPv6len
+		ip = net.IPv6zero
+	}
+	if addLen != 0 {
+		return &net.IPNet{
+			IP:   ip,
+			Mask: net.CIDRMask(0, 8*addLen),
+		}
+	}
+	return nil
 }
