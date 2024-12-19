@@ -36,9 +36,11 @@ import (
 	networktypes "github.com/docker/docker/api/types/network"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
+	systemtypes "github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/capabilities"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/daemon/config"
 	ctrd "github.com/docker/docker/daemon/containerd"
@@ -149,6 +151,8 @@ type Daemon struct {
 	mdDB *bbolt.DB
 
 	usesSnapshotter bool
+
+	capabilitiesManager capabilities.Manager
 }
 
 // ID returns the daemon id
@@ -201,6 +205,10 @@ func (daemon *Daemon) Features() map[string]bool {
 // UsesSnapshotter returns true if feature flag to use containerd snapshotter is enabled
 func (daemon *Daemon) UsesSnapshotter() bool {
 	return daemon.usesSnapshotter
+}
+
+func (daemon *Daemon) SystemCapabilities(ctx context.Context, requestedVersion int) (systemtypes.Capabilities, error) {
+	return daemon.capabilitiesManager.GetCapabilities(ctx, requestedVersion)
 }
 
 // layerAccessor may be implemented by ImageService
@@ -836,6 +844,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		Runtimes: rts,
 	}
 	d.configStore.Store(cfgStore)
+
+	d.capabilitiesManager = capabilities.NewManager(d)
 
 	// TEST_INTEGRATION_USE_SNAPSHOTTER is used for integration tests only.
 	if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
