@@ -27,7 +27,7 @@ func TestResolvConfLocalhostIPv6(t *testing.T) {
 
 	tmpFileName := network.WriteTempResolvConf(t, "127.0.0.53")
 
-	d := daemon.New(t, daemon.WithEnvVars("DOCKER_TEST_RESOLV_CONF_PATH="+tmpFileName))
+	d := daemon.New(t, daemon.WithResolvConf(tmpFileName))
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
@@ -79,8 +79,7 @@ func TestInternalNetworkDNS(t *testing.T) {
 	network.StartDaftDNS(t, "127.0.0.1")
 
 	// Set up a temp resolv.conf pointing at that DNS server, and a daemon using it.
-	tmpFileName := network.WriteTempResolvConf(t, "127.0.0.1")
-	d := daemon.New(t, daemon.WithEnvVars("DOCKER_TEST_RESOLV_CONF_PATH="+tmpFileName))
+	d := daemon.New(t, daemon.WithResolvConf(network.WriteTempResolvConf(t, "127.0.0.1")))
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
