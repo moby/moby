@@ -429,38 +429,37 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, error) {
 	var gcPolicy []client.PruneInfo
 	if conf.GC.Enabled {
-		var (
-			defaultKeepStorage int64
-			err                error
-		)
-
-		if conf.GC.DefaultKeepStorage != "" {
-			defaultKeepStorage, err = units.RAMInBytes(conf.GC.DefaultKeepStorage)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to parse defaultKeepStorage")
-			}
-		}
-
 		if conf.GC.Policy == nil {
+			var defaultKeepStorage int64
+			if conf.GC.DefaultKeepStorage != "" {
+				b, err := units.RAMInBytes(conf.GC.DefaultKeepStorage)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to parse defaultKeepStorage")
+				}
+				defaultKeepStorage = b
+			}
 			gcPolicy = mobyworker.DefaultGCPolicy(root, defaultKeepStorage)
 		} else {
 			gcPolicy = make([]client.PruneInfo, len(conf.GC.Policy))
 			for i, p := range conf.GC.Policy {
-				var b int64
+				var keepStorage int64
 				if p.KeepStorage != "" {
-					b, err = units.RAMInBytes(p.KeepStorage)
+					b, err := units.RAMInBytes(p.KeepStorage)
 					if err != nil {
 						return nil, errors.Wrapf(err, "failed to parse keepStorage")
 					}
-				}
-				if b == 0 {
-					b = defaultKeepStorage
+					// don't set a default here, zero is a valid value when
+					// specified by the user, as the gc-policy may be determined
+					// through other filters;
+					// https://github.com/moby/moby/pull/49062#issuecomment-2554981829
+					keepStorage = b
 				}
 
 				// FIXME(thaJeztah): wire up new options https://github.com/moby/moby/issues/48639
+				var err error
 				gcPolicy[i], err = toBuildkitPruneInfo(types.BuildCachePruneOptions{
 					All:         p.All,
-					KeepStorage: b,
+					KeepStorage: keepStorage,
 					Filters:     filters.Args(p.Filter),
 				})
 				if err != nil {
