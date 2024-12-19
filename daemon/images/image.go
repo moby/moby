@@ -162,10 +162,6 @@ func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.I
 	return false, nil
 }
 
-func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, options backend.GetImageOpts) (*ocispec.Descriptor, error) {
-	panic("not implemented")
-}
-
 // GetImage returns an image corresponding to the image referred to by refOrID.
 func (i *ImageService) GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (retImg *image.Image, retErr error) {
 	defer func() {

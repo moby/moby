@@ -47,17 +47,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 
 	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, options.Platform)
 
-	imgV1, err := i.getImageV1(ctx, img, pm)
-	if err != nil {
-		return nil, err
-	}
-
-	return imgV1, nil
-}
-
-// getImageV1 gets the containerd image as a docker v1 image struct.
-func (i *ImageService) getImageV1(ctx context.Context, img containerdimages.Image, platform platforms.MatchComparer) (*image.Image, error) {
-	im, err := i.getBestPresentImageManifest(ctx, img, platform)
+	im, err := i.getBestPresentImageManifest(ctx, img, pm)
 	if err != nil {
 		return nil, err
 	}
@@ -76,24 +66,12 @@ func (i *ImageService) getImageV1(ctx context.Context, img containerdimages.Imag
 		imgV1.Parent = image.ID(parent)
 	}
 
+	target := im.Target()
+	imgV1.Details = &image.Details{
+		ManifestDescriptor: &target,
+	}
+
 	return imgV1, nil
-}
-
-func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, options backend.GetImageOpts) (*ocispec.Descriptor, error) {
-	img, err := i.resolveImage(ctx, refOrID)
-	if err != nil {
-		return nil, err
-	}
-
-	pm := i.matchRequestedOrDefault(platforms.Only, options.Platform)
-
-	im, err := i.getBestPresentImageManifest(ctx, img, pm)
-	if err != nil {
-		return nil, err
-	}
-
-	desc := im.Target()
-	return &desc, nil
 }
 
 // getBestPresentImageManifest returns a platform-specific image manifest that best matches the provided platform matcher.
