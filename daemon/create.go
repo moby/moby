@@ -137,15 +137,8 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 		if err != nil {
 			return nil, err
 		}
-		// when using the containerd store, we need to get the actual
-		// image manifest so we can store it and later deterministically
-		// resolve the specific image the container is running
-		if daemon.UsesSnapshotter() {
-			imgManifest, err = daemon.imageService.GetImageManifest(ctx, opts.params.Config.Image, backend.GetImageOpts{Platform: opts.params.Platform})
-			if err != nil {
-				log.G(ctx).WithError(err).Error("failed to find image manifest")
-				return nil, err
-			}
+		if img.Details != nil {
+			imgManifest = img.Details.ManifestDescriptor
 		}
 		platform = img.Platform()
 		imgID = img.ID()
