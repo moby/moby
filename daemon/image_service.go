@@ -48,7 +48,6 @@ type ImageService interface {
 	// Containerd related methods
 
 	PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform, setupInit func(string) error) error
-	GetImageManifest(ctx context.Context, refOrID string, options backend.GetImageOpts) (*ocispec.Descriptor, error)
 
 	// Layers
 

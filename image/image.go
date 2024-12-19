@@ -121,6 +121,13 @@ type Details struct {
 	Metadata    map[string]string
 	Driver      string
 	LastUpdated time.Time
+
+	// ManifestDescriptor is the descriptor of the platform-specific manifest
+	// chosen by the [GetImage] call that returned this image.
+	// The exact descriptor depends on the [GetImageOpts.Platform] field
+	// passed to [GetImage] and the content availability.
+	// This is only set by the containerd image service.
+	ManifestDescriptor *ocispec.Descriptor
 }
 
 // RawJSON returns the immutable JSON associated with the image.
