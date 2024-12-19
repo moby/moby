@@ -815,6 +815,7 @@ definitions:
               - "default"
               - "process"
               - "hyperv"
+              - ""
 
   ContainerConfig:
     description: |
@@ -2723,6 +2724,7 @@ definitions:
               - "default"
               - "process"
               - "hyperv"
+              - ""
       Resources:
         description: "Resource requirements which apply to each individual container created as part of the service."
         type: "object"
@@ -3828,6 +3830,7 @@ definitions:
           - "default"
           - "hyperv"
           - "process"
+          - ""
       InitBinary:
         description: |
           Name and, optional, path of the `docker-init` binary.

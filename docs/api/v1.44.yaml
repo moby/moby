@@ -1172,6 +1172,7 @@ definitions:
               - "default"
               - "process"
               - "hyperv"
+              - ""
           MaskedPaths:
             type: "array"
             description: |
@@ -4128,6 +4129,7 @@ definitions:
               - "default"
               - "process"
               - "hyperv"
+              - ""
           Init:
             description: |
               Run an init inside the container that forwards signals and reaps
@@ -5692,6 +5694,7 @@ definitions:
           - "default"
           - "hyperv"
           - "process"
+          - ""
       InitBinary:
         description: |
           Name and, optional, path of the `docker-init` binary.
