@@ -3,6 +3,7 @@
 package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
 
 import (
+	"errors"
 	"io"
 	"net"
 	"os/user"
@@ -10,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/pkg/errors"
 )
 
 func init() {
