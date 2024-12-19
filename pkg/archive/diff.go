@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 )
 
@@ -20,8 +19,6 @@ import (
 // Returns the size in bytes of the contents of the layer.
 func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64, err error) {
 	tr := tar.NewReader(layer)
-	trBuf := pools.BufioReader32KPool.Get(tr)
-	defer pools.BufioReader32KPool.Put(trBuf)
 
 	var dirs []*tar.Header
 	unpackedPaths := make(map[string]struct{})
@@ -160,8 +157,7 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 				}
 			}
 
-			trBuf.Reset(tr)
-			srcData := io.Reader(trBuf)
+			srcData := io.Reader(tr)
 			srcHdr := hdr
 
 			// Hard links into /.wh..wh.plnk don't work, as we don't extract that directory, so
