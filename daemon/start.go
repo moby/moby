@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
-	mobyc8dstore "github.com/docker/docker/daemon/containerd"
+	mobyc8dstore "github.com/docker/docker/daemon/images/containerd"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/pkg/errors"
