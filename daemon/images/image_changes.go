@@ -3,8 +3,10 @@ package images
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 )
 
@@ -15,5 +17,9 @@ func (i *ImageService) Changes(ctx context.Context, container *container.Contain
 	if container.RWLayer == nil {
 		return nil, errors.New("RWLayer of container " + container.Name + " is unexpectedly nil")
 	}
-	return container.RWLayer.Changes()
+	rwLayer, ok := container.RWLayer.(layer.RWLayer)
+	if !ok {
+		return nil, fmt.Errorf("container %s has an unexpected RWLayer type: %T", container.Name, container.RWLayer)
+	}
+	return rwLayer.Changes()
 }
