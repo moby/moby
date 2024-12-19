@@ -569,8 +569,7 @@ func TestIPVlanDNS(t *testing.T) {
 
 	net.StartDaftDNS(t, "127.0.0.1")
 
-	tmpFileName := net.WriteTempResolvConf(t, "127.0.0.1")
-	d := daemon.New(t, daemon.WithEnvVars("DOCKER_TEST_RESOLV_CONF_PATH="+tmpFileName))
+	d := daemon.New(t, daemon.WithResolvConf(net.GenResolvConf("127.0.0.1")))
 	d.StartWithBusybox(ctx, t)
 	t.Cleanup(func() { d.Stop(t) })
 	c := d.NewClientT(t)
