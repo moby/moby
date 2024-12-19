@@ -7,7 +7,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/snapshots"
@@ -29,7 +29,7 @@ import (
 // ImageService implements daemon.ImageService
 type ImageService struct {
 	client              *containerd.Client
-	images              images.Store
+	images              c8dimages.Store
 	content             content.Store
 	containers          container.Store
 	snapshotterServices map[string]snapshots.Snapshotter

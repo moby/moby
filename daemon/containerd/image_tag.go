@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	containerdimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
@@ -21,7 +21,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 		return errors.Wrapf(err, "failed to resolve image id %q to a descriptor", imageID.String())
 	}
 
-	newImg := containerdimages.Image{
+	newImg := c8dimages.Image{
 		Name:   newTag.String(),
 		Target: targetImage.Target,
 		Labels: targetImage.Labels,
@@ -34,7 +34,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 // If an image with the same name already exists, it will be replaced.
 // Overwritten image will be persisted as a dangling image if it's a last
 // reference to that image.
-func (i *ImageService) createOrReplaceImage(ctx context.Context, newImg containerdimages.Image) error {
+func (i *ImageService) createOrReplaceImage(ctx context.Context, newImg c8dimages.Image) error {
 	// Delete the source dangling image, as it's no longer dangling.
 	// Unless, the image to be created itself is dangling.
 	danglingName := danglingImageName(newImg.Target.Digest)

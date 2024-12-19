@@ -3,7 +3,7 @@ package containerd
 import (
 	"context"
 
-	containerdimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
@@ -16,7 +16,7 @@ const imageNameDanglingPrefix = "moby-dangling@"
 // softImageDelete deletes the image, making sure that there are other images
 // that reference the content of the deleted image.
 // If no other image exists, a dangling one is created.
-func (i *ImageService) softImageDelete(ctx context.Context, img containerdimages.Image, imgs []containerdimages.Image) error {
+func (i *ImageService) softImageDelete(ctx context.Context, img c8dimages.Image, imgs []c8dimages.Image) error {
 	// From this point explicitly ignore the passed context
 	// and don't allow to interrupt operation in the middle.
 
@@ -42,13 +42,13 @@ func (i *ImageService) softImageDelete(ctx context.Context, img containerdimages
 	return nil
 }
 
-func (i *ImageService) ensureDanglingImage(ctx context.Context, from containerdimages.Image) error {
+func (i *ImageService) ensureDanglingImage(ctx context.Context, from c8dimages.Image) error {
 	danglingImage := from
 
 	danglingImage.Labels = make(map[string]string)
 	for k, v := range from.Labels {
 		switch k {
-		case containerdimages.AnnotationImageName, ocispec.AnnotationRefName:
+		case c8dimages.AnnotationImageName, ocispec.AnnotationRefName:
 			// Don't copy name labels.
 		default:
 			danglingImage.Labels[k] = v
@@ -69,7 +69,7 @@ func danglingImageName(digest digest.Digest) string {
 	return imageNameDanglingPrefix + digest.String()
 }
 
-func isDanglingImage(image containerdimages.Image) bool {
+func isDanglingImage(image c8dimages.Image) bool {
 	// TODO: Also check for expired
 	return image.Name == danglingImageName(image.Target.Digest)
 }

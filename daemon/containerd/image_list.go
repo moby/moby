@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/snapshots"
 	cerrdefs "github.com/containerd/errdefs"
@@ -93,7 +93,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		return usage.Size, nil
 	}
 
-	uniqueImages := map[digest.Digest]images.Image{}
+	uniqueImages := map[digest.Digest]c8dimages.Image{}
 	tagsByDigest := map[digest.Digest][]string{}
 	intermediateImages := map[digest.Digest]struct{}{}
 
@@ -205,7 +205,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 // imageSummary returns a summary of the image, including the total size of the image and all its platforms.
 // It also returns the chainIDs of all the layers of the image (including all its platforms).
 // All return values will be nil if the image should be skipped.
-func (i *ImageService) imageSummary(ctx context.Context, img images.Image, platformMatcher platforms.MatchComparer,
+func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, platformMatcher platforms.MatchComparer,
 	opts imagetypes.ListOptions, tagsByDigest map[digest.Digest][]string,
 ) (_ *imagetypes.Summary, allChainIDs []digest.Digest, _ error) {
 	var manifestSummaries []imagetypes.ManifestSummary
@@ -509,7 +509,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 	return summary, nil
 }
 
-type imageFilterFunc func(image images.Image) bool
+type imageFilterFunc func(image c8dimages.Image) bool
 
 // setupFilters constructs an imageFilterFunc from the given imageFilters.
 //
@@ -523,7 +523,7 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 			return err
 		}
 		if img != nil && img.Created != nil {
-			fltrs = append(fltrs, func(candidate images.Image) bool {
+			fltrs = append(fltrs, func(candidate c8dimages.Image) bool {
 				cand, err := i.GetImage(ctx, candidate.Name, backend.GetImageOpts{})
 				if err != nil {
 					return false
@@ -543,7 +543,7 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 			return err
 		}
 		if img != nil && img.Created != nil {
-			fltrs = append(fltrs, func(candidate images.Image) bool {
+			fltrs = append(fltrs, func(candidate c8dimages.Image) bool {
 				cand, err := i.GetImage(ctx, candidate.Name, backend.GetImageOpts{})
 				if err != nil {
 					return false
@@ -568,7 +568,7 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		}
 		until := time.Unix(seconds, nanoseconds)
 
-		fltrs = append(fltrs, func(image images.Image) bool {
+		fltrs = append(fltrs, func(image c8dimages.Image) bool {
 			created := image.CreatedAt
 			return created.Before(until)
 		})
@@ -591,13 +591,13 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		if err != nil {
 			return nil, err
 		}
-		fltrs = append(fltrs, func(image images.Image) bool {
+		fltrs = append(fltrs, func(image c8dimages.Image) bool {
 			return danglingValue == isDanglingImage(image)
 		})
 	}
 
 	if refs := imageFilters.Get("reference"); len(refs) != 0 {
-		fltrs = append(fltrs, func(image images.Image) bool {
+		fltrs = append(fltrs, func(image c8dimages.Image) bool {
 			ref, err := reference.ParseNormalizedNamed(image.Name)
 			if err != nil {
 				return false
@@ -615,7 +615,7 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		})
 	}
 
-	return func(image images.Image) bool {
+	return func(image c8dimages.Image) bool {
 		for _, filter := range fltrs {
 			if !filter(image) {
 				return false
@@ -628,7 +628,7 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 // setupLabelFilter parses filter args for "label" and "label!" and returns a
 // filter func which will check if any image config from the given image has
 // labels that match given predicates.
-func setupLabelFilter(ctx context.Context, store content.Store, fltrs filters.Args) (func(image images.Image) bool, error) {
+func setupLabelFilter(ctx context.Context, store content.Store, fltrs filters.Args) (func(image c8dimages.Image) bool, error) {
 	type labelCheck struct {
 		key        string
 		value      string
@@ -666,14 +666,14 @@ func setupLabelFilter(ctx context.Context, store content.Store, fltrs filters.Ar
 		return nil, nil
 	}
 
-	return func(image images.Image) bool {
+	return func(image c8dimages.Image) bool {
 		// This is not an error, but a signal to Dispatch that it should stop
 		// processing more content (otherwise it will run for all children).
 		// It will be returned once a matching config is found.
 		errFoundConfig := errors.New("success, found matching config")
 
-		err := images.Dispatch(ctx, presentChildrenHandler(store, images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) (subdescs []ocispec.Descriptor, err error) {
-			if !images.IsConfigType(desc.MediaType) {
+		err := c8dimages.Dispatch(ctx, presentChildrenHandler(store, c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) (subdescs []ocispec.Descriptor, err error) {
+			if !c8dimages.IsConfigType(desc.MediaType) {
 				return nil, nil
 			}
 			var cfg configLabels

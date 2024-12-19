@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
@@ -237,7 +237,7 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 }
 
 func (p *pullProgress) finished(ctx context.Context, out progress.Output, desc ocispec.Descriptor) {
-	if images.IsLayerType(desc.MediaType) {
+	if c8dimages.IsLayerType(desc.MediaType) {
 		p.layers = append(p.layers, desc)
 	}
 }
@@ -279,7 +279,7 @@ func (p *pushProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 				}
 				progress.Update(out, id, "Mounted from "+from)
 			} else if status.Exists {
-				if images.IsLayerType(j.MediaType) {
+				if c8dimages.IsLayerType(j.MediaType) {
 					progress.Update(out, id, "Layer already exists")
 				} else {
 					progress.Update(out, id, "Already exists")

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	containerdimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
@@ -84,7 +84,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string, platform *
 		}}, history...)
 	}
 
-	findParents := func(img containerdimages.Image) []containerdimages.Image {
+	findParents := func(img c8dimages.Image) []c8dimages.Image {
 		imgs, err := i.getParentsByBuilderLabel(ctx, img)
 		if err != nil {
 			log.G(ctx).WithFields(log.Fields{
@@ -129,7 +129,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string, platform *
 	return history, nil
 }
 
-func getImageTags(ctx context.Context, imgs []containerdimages.Image) []string {
+func getImageTags(ctx context.Context, imgs []c8dimages.Image) []string {
 	var tags []string
 	for _, img := range imgs {
 		if isDanglingImage(img) {
@@ -154,7 +154,7 @@ func getImageTags(ctx context.Context, imgs []containerdimages.Image) []string {
 // getParentsByBuilderLabel finds images that were a base for the given image
 // by an image label set by the legacy builder.
 // NOTE: This only works for images built with legacy builder (not Buildkit).
-func (i *ImageService) getParentsByBuilderLabel(ctx context.Context, img containerdimages.Image) ([]containerdimages.Image, error) {
+func (i *ImageService) getParentsByBuilderLabel(ctx context.Context, img c8dimages.Image) ([]c8dimages.Image, error) {
 	parent, ok := img.Labels[imageLabelClassicBuilderParent]
 	if !ok || parent == "" {
 		return nil, nil

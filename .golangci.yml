@@ -96,6 +96,8 @@ linters-settings:
       # own errdefs package (or vice-versa).
       - pkg: github.com/containerd/errdefs
         alias: cerrdefs
+      - pkg: github.com/containerd/containerd/images
+        alias: c8dimages
       - pkg: github.com/opencontainers/image-spec/specs-go/v1
         alias: ocispec
 

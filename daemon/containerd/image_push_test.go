@@ -10,7 +10,7 @@ import (
 	"slices"
 	"testing"
 
-	containerdimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/errdefs"
@@ -25,7 +25,7 @@ type pushTestCase struct {
 	indexPlatforms     []ocispec.Platform // all platforms supported by the image
 	availablePlatforms []ocispec.Platform // platforms available locally
 	requestPlatform    *ocispec.Platform  // platform requested by the client (not the platform selected for push!)
-	check              func(t *testing.T, img containerdimages.Image, pushDescriptor ocispec.Descriptor, err error)
+	check              func(t *testing.T, img c8dimages.Image, pushDescriptor ocispec.Descriptor, err error)
 	daemonPlatform     *ocispec.Platform
 }
 
@@ -228,7 +228,7 @@ func TestImagePushIndex(t *testing.T) {
 	}
 }
 
-func deletePlatform(ctx context.Context, imgSvc *ImageService, img containerdimages.Image, platform ocispec.Platform) error {
+func deletePlatform(ctx context.Context, imgSvc *ImageService, img c8dimages.Image, platform ocispec.Platform) error {
 	var blobs []ocispec.Descriptor
 	pm := platforms.OnlyStrict(platform)
 	err := imgSvc.walkImageManifests(ctx, img, func(im *ImageManifest) error {
@@ -261,15 +261,15 @@ func deletePlatform(ctx context.Context, imgSvc *ImageService, img containerdima
 }
 
 // wholeIndexSelected asserts that the push descriptor candidate is for the whole index.
-func wholeIndexSelected(t *testing.T, img containerdimages.Image, pushDescriptor ocispec.Descriptor, err error) {
+func wholeIndexSelected(t *testing.T, img c8dimages.Image, pushDescriptor ocispec.Descriptor, err error) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(pushDescriptor.Digest, img.Target.Digest))
 }
 
 // singleManifestSelected asserts that the push descriptor candidate is for a single platform-specific manifest.
-func singleManifestSelected(platform ocispec.Platform) func(t *testing.T, img containerdimages.Image, pushDescriptor ocispec.Descriptor, err error) {
+func singleManifestSelected(platform ocispec.Platform) func(t *testing.T, img c8dimages.Image, pushDescriptor ocispec.Descriptor, err error) {
 	pm := platforms.OnlyStrict(platform)
-	return func(t *testing.T, img containerdimages.Image, pushDescriptor ocispec.Descriptor, err error) {
+	return func(t *testing.T, img c8dimages.Image, pushDescriptor ocispec.Descriptor, err error) {
 		assert.NilError(t, err)
 		assert.Assert(t, is.Equal(pushDescriptor.MediaType, ocispec.MediaTypeImageManifest), "the push descriptor isn't for a manifest")
 		assert.Assert(t, pushDescriptor.Platform != nil, "the push descriptor doesn't have a platform")
@@ -278,11 +278,11 @@ func singleManifestSelected(platform ocispec.Platform) func(t *testing.T, img co
 }
 
 // candidateNotFound asserts that the no matching candidate was found.
-func candidateNotFound(t *testing.T, _ containerdimages.Image, desc ocispec.Descriptor, err error) {
+func candidateNotFound(t *testing.T, _ c8dimages.Image, desc ocispec.Descriptor, err error) {
 	assert.Check(t, errdefs.IsNotFound(err), "expected NotFound error, got %v, candidate: %v", err, desc.Platform)
 }
 
 // multipleCandidates asserts that multiple matching candidates were found and no decision could be made.
-func multipleCandidates(t *testing.T, _ containerdimages.Image, desc ocispec.Descriptor, err error) {
+func multipleCandidates(t *testing.T, _ c8dimages.Image, desc ocispec.Descriptor, err error) {
 	assert.Check(t, errdefs.IsConflict(err), "expected Conflict error, got %v, candidate: %v", err, desc.Platform)
 }

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	containerdimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
@@ -77,7 +77,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 // getBestPresentImageManifest returns a platform-specific image manifest that best matches the provided platform matcher.
 // Only locally available platform images are considered.
 // If no image manifest matches the platform, an error is returned.
-func (i *ImageService) getBestPresentImageManifest(ctx context.Context, img containerdimages.Image, pm platforms.MatchComparer) (*ImageManifest, error) {
+func (i *ImageService) getBestPresentImageManifest(ctx context.Context, img c8dimages.Image, pm platforms.MatchComparer) (*ImageManifest, error) {
 	var best *ImageManifest
 	var bestPlatform ocispec.Platform
 
@@ -123,24 +123,24 @@ func (i *ImageService) resolveDescriptor(ctx context.Context, refOrID string) (o
 }
 
 // ResolveImage looks up an image by reference or identifier in the image store.
-func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (containerdimages.Image, error) {
+func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (c8dimages.Image, error) {
 	return i.resolveImage(ctx, refOrID)
 }
 
-func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (containerdimages.Image, error) {
+func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (c8dimages.Image, error) {
 	parsed, err := reference.ParseAnyReference(refOrID)
 	if err != nil {
-		return containerdimages.Image{}, errdefs.InvalidParameter(err)
+		return c8dimages.Image{}, errdefs.InvalidParameter(err)
 	}
 
 	digested, ok := parsed.(reference.Digested)
 	if ok {
 		imgs, err := i.images.List(ctx, "target.digest=="+digested.Digest().String())
 		if err != nil {
-			return containerdimages.Image{}, errors.Wrap(err, "failed to lookup digest")
+			return c8dimages.Image{}, errors.Wrap(err, "failed to lookup digest")
 		}
 		if len(imgs) == 0 {
-			return containerdimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
+			return c8dimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
 		}
 
 		// If reference is both Named and Digested, make sure we don't match
@@ -158,7 +158,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 					return img, nil
 				}
 			}
-			return containerdimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
+			return c8dimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
 		}
 
 		return imgs[0], nil
@@ -171,7 +171,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 	} else {
 		// TODO(containerd): error translation can use common function
 		if !cerrdefs.IsNotFound(err) {
-			return containerdimages.Image{}, err
+			return c8dimages.Image{}, err
 		}
 	}
 
@@ -183,11 +183,11 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 		}
 		imgs, err := i.images.List(ctx, filters...)
 		if err != nil {
-			return containerdimages.Image{}, err
+			return c8dimages.Image{}, err
 		}
 
 		if len(imgs) == 0 {
-			return containerdimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
+			return c8dimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
 		}
 		if len(imgs) > 1 {
 			digests := map[digest.Digest]struct{}{}
@@ -199,24 +199,24 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 			}
 
 			if len(digests) > 1 {
-				return containerdimages.Image{}, errdefs.NotFound(errors.New("ambiguous reference"))
+				return c8dimages.Image{}, errdefs.NotFound(errors.New("ambiguous reference"))
 			}
 		}
 
 		return imgs[0], nil
 	}
 
-	return containerdimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
+	return c8dimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
 }
 
 // getAllImagesWithRepository returns a slice of images which name is a reference
 // pointing to the same repository as the given reference.
-func (i *ImageService) getAllImagesWithRepository(ctx context.Context, ref reference.Named) ([]containerdimages.Image, error) {
+func (i *ImageService) getAllImagesWithRepository(ctx context.Context, ref reference.Named) ([]c8dimages.Image, error) {
 	nameFilter := "^" + regexp.QuoteMeta(ref.Name()) + ":" + reference.TagRegexp.String() + "$"
 	return i.images.List(ctx, "name~="+strconv.Quote(nameFilter))
 }
 
-func imageFamiliarName(img containerdimages.Image) string {
+func imageFamiliarName(img c8dimages.Image) string {
 	if isDanglingImage(img) {
 		return img.Target.Digest.String()
 	}
@@ -275,13 +275,13 @@ func convertError(err error) error {
 //
 //	An error looking up refOrID or no images found with matching name or target. Note that the first
 //	argument may be nil with a nil error if the second argument is non-empty.
-func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string) (*containerdimages.Image, []containerdimages.Image, error) {
+func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string) (*c8dimages.Image, []c8dimages.Image, error) {
 	parsed, err := reference.ParseAnyReference(refOrID)
 	if err != nil {
 		return nil, nil, errdefs.InvalidParameter(err)
 	}
 	var dgst digest.Digest
-	var img *containerdimages.Image
+	var img *c8dimages.Image
 
 	if idWithoutAlgo := checkTruncatedID(refOrID); idWithoutAlgo != "" { // Valid ID.
 		if d, ok := parsed.(reference.Digested); ok {

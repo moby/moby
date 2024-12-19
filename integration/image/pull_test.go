@@ -14,7 +14,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/content/local"
-	"github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
@@ -81,14 +81,14 @@ func createTestImage(ctx context.Context, t testing.TB, store content.Store) oci
 		Versioned: specs.Versioned{
 			SchemaVersion: 2,
 		},
-		MediaType: images.MediaTypeDockerSchema2Manifest,
+		MediaType: c8dimages.MediaTypeDockerSchema2Manifest,
 		Config: ocispec.Descriptor{
-			MediaType: images.MediaTypeDockerSchema2Config,
+			MediaType: c8dimages.MediaTypeDockerSchema2Config,
 			Digest:    configDigest,
 			Size:      int64(len(imgJSON)),
 		},
 		Layers: []ocispec.Descriptor{{
-			MediaType: images.MediaTypeDockerSchema2Layer,
+			MediaType: c8dimages.MediaTypeDockerSchema2Layer,
 			Digest:    layerDigest,
 			Size:      info.Size,
 		}},
@@ -108,7 +108,7 @@ func createTestImage(ctx context.Context, t testing.TB, store content.Store) oci
 	assert.Check(t, w.Close())
 
 	return ocispec.Descriptor{
-		MediaType: images.MediaTypeDockerSchema2Manifest,
+		MediaType: c8dimages.MediaTypeDockerSchema2Manifest,
 		Digest:    manifestDigest,
 		Size:      int64(len(manifestJSON)),
 	}

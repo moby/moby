@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/containerd/containerd"
-	containerdimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
@@ -42,12 +42,12 @@ func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentIma
 			}
 		}
 
-		desc, err := containerdimages.Config(ctx, cs, img.Target, matcher)
+		desc, err := c8dimages.Config(ctx, cs, img.Target, matcher)
 		if err != nil {
 			return err
 		}
 
-		diffIDs, err := containerdimages.RootFS(ctx, cs, desc)
+		diffIDs, err := c8dimages.RootFS(ctx, cs, desc)
 		if err != nil {
 			return err
 		}
