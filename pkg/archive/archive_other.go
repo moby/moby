@@ -1,6 +1,6 @@
 //go:build !linux
 
-package archive // import "github.com/docker/docker/pkg/archive"
+package archive
 
 func getWhiteoutConverter(format WhiteoutFormat) tarWhiteoutConverter {
 	return nil

@@ -1,6 +1,6 @@
 //go:build !linux && !windows
 
-package archive // import "github.com/docker/docker/pkg/archive"
+package archive
 
 import "golang.org/x/sys/unix"
 

@@ -1,6 +1,6 @@
 //go:build !linux && !darwin && !freebsd && !netbsd
 
-package archive // import "github.com/docker/docker/pkg/archive"
+package archive
 
 func lgetxattr(path string, attr string) ([]byte, error) {
 	return nil, nil
