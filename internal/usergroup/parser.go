@@ -72,15 +72,15 @@ func parseSubidFile(path, username string) (subIDRanges, error) {
 			return rangeList, fmt.Errorf("Cannot parse subuid/gid information: Format not correct for %s file", path)
 		}
 		if parts[0] == username || username == "ALL" {
-			startid, err := strconv.Atoi(parts[1])
+			startid, err := strconv.ParseUint(parts[1], 10, 32)
 			if err != nil {
 				return rangeList, fmt.Errorf("String to int conversion failed during subuid/gid parsing of %s: %v", path, err)
 			}
-			length, err := strconv.Atoi(parts[2])
+			length, err := strconv.ParseUint(parts[2], 10, 32)
 			if err != nil {
 				return rangeList, fmt.Errorf("String to int conversion failed during subuid/gid parsing of %s: %v", path, err)
 			}
-			rangeList = append(rangeList, subIDRange{startid, length})
+			rangeList = append(rangeList, subIDRange{int(startid), int(length)})
 		}
 	}
 
