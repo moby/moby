@@ -189,8 +189,7 @@ func selectGatewayEndpoint(endpoints []*Endpoint) (ep4, ep6 *Endpoint) {
 		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
 			continue
 		}
-		gw4 := len(ep.Gateway()) != 0
-		gw6 := len(ep.GatewayIPv6()) != 0
+		gw4, gw6 := ep.hasGatewayOrDefaultRoute()
 		if gw4 && gw6 {
 			// The first dual-stack endpoint is the gateway, no need to search further.
 			//
