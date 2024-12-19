@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
 	containerdimages "github.com/containerd/containerd/images"
 	containerdlabels "github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/remotes"
@@ -21,7 +20,7 @@ import (
 	"github.com/docker/docker/api/types/auxprogress"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
-	dimages "github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -45,7 +44,7 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 	start := time.Now()
 	defer func() {
 		if retErr == nil {
-			dimages.ImageActions.WithValues("push").UpdateSince(start)
+			images.ImageActions.WithValues("push").UpdateSince(start)
 		}
 	}()
 	out := streamformatter.NewJSONProgressOutput(outStream, false)
@@ -164,7 +163,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 		},
 	)
 
-	handlerWrapper := func(h images.Handler) images.Handler {
+	handlerWrapper := func(h containerdimages.Handler) containerdimages.Handler {
 		return containerdimages.Handlers(addLayerJobs, h)
 	}
 
