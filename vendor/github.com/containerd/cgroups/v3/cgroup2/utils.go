@@ -32,9 +32,9 @@ import (
 
 	"github.com/containerd/cgroups/v3/cgroup2/stats"
 
+	"github.com/containerd/log"
 	"github.com/godbus/dbus/v5"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -264,7 +264,7 @@ func getStatFileContentUint64(filePath string) uint64 {
 
 	res, err := parseUint(trimmed, 10, 64)
 	if err != nil {
-		logrus.Errorf("unable to parse %q as a uint from Cgroup file %q", trimmed, filePath)
+		log.L.Errorf("unable to parse %q as a uint from Cgroup file %q", trimmed, filePath)
 		return res
 	}
 
@@ -432,7 +432,7 @@ func hugePageSizes() []string {
 
 		hPageSizes, err = getHugePageSizeFromFilenames(files)
 		if err != nil {
-			logrus.Warnf("hugePageSizes: %s", err)
+			log.L.Warnf("hugePageSizes: %s", err)
 		}
 	})
 
@@ -507,14 +507,16 @@ func getStatPSIFromFile(path string) *stats.PSIStats {
 		if pv != nil {
 			err = parsePSIData(parts[1:], pv)
 			if err != nil {
-				logrus.Errorf("failed to read file %s: %v", path, err)
+				log.L.WithError(err).Errorf("failed to read file %s", path)
 				return nil
 			}
 		}
 	}
 
 	if err := sc.Err(); err != nil {
-		logrus.Errorf("unable to parse PSI data: %v", err)
+		if !errors.Is(err, unix.ENOTSUP) && !errors.Is(err, unix.EOPNOTSUPP) {
+			log.L.WithError(err).Error("unable to parse PSI data")
+		}
 		return nil
 	}
 	return psistats

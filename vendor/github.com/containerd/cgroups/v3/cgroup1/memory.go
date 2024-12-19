@@ -433,7 +433,7 @@ func getMemorySettings(resources *specs.LinuxResources) []memorySettings {
 		},
 		{
 			name:  "kmem.limit_in_bytes",
-			value: mem.Kernel,
+			value: mem.Kernel, //nolint:staticcheck // SA1019: mem.Kernel is deprecated
 		},
 		{
 			name:  "kmem.tcp.limit_in_bytes",
