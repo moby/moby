@@ -1,10 +1,10 @@
-package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
+package chrootarchive
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
@@ -20,11 +20,11 @@ func doUnpack(decompressedArchive io.Reader, relDest, root string, options *arch
 func doPack(relSrc, root string, options *archive.TarOptions) (io.ReadCloser, error) {
 	tb, err := archive.NewTarballer(relSrc, options)
 	if err != nil {
-		return nil, errors.Wrap(err, "error processing tar file")
+		return nil, fmt.Errorf("error processing tar file: %w", err)
 	}
 	err = goInChroot(root, tb.Do)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not chroot")
+		return nil, fmt.Errorf("could not chroot: %w", err)
 	}
 	return tb.Reader(), nil
 }

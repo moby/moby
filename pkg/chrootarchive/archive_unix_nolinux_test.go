@@ -1,6 +1,6 @@
 //go:build unix && !linux
 
-package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
+package chrootarchive
 
 import (
 	"testing"
