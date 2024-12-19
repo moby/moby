@@ -90,14 +90,22 @@ func (sb *Sandbox) updateGateway(ep4, ep6 *Endpoint) error {
 	}
 	osSbox.UnsetGateway()     //nolint:errcheck
 	osSbox.UnsetGatewayIPv6() //nolint:errcheck
+	osSbox.UnsetDefaultRouteIPv4()
+	osSbox.UnsetDefaultRouteIPv6()
 
 	if populated4 {
 		ep4.mu.Lock()
 		joinInfo := ep4.joinInfo
 		ep4.mu.Unlock()
 
-		if err := osSbox.SetGateway(joinInfo.gw); err != nil {
-			return fmt.Errorf("failed to set gateway while updating gateway: %v", err)
+		if joinInfo.gw != nil {
+			if err := osSbox.SetGateway(joinInfo.gw); err != nil {
+				return fmt.Errorf("failed to set gateway while updating gateway: %v", err)
+			}
+		} else {
+			if err := osSbox.SetDefaultRouteIPv4(ep4.iface.srcName); err != nil {
+				return fmt.Errorf("failed to set IPv4 default route while updating gateway: %v", err)
+			}
 		}
 	}
 
@@ -106,8 +114,14 @@ func (sb *Sandbox) updateGateway(ep4, ep6 *Endpoint) error {
 		joinInfo := ep6.joinInfo
 		ep6.mu.Unlock()
 
-		if err := osSbox.SetGatewayIPv6(joinInfo.gw6); err != nil {
-			return fmt.Errorf("failed to set IPv6 gateway while updating gateway: %v", err)
+		if joinInfo.gw6 != nil {
+			if err := osSbox.SetGatewayIPv6(joinInfo.gw6); err != nil {
+				return fmt.Errorf("failed to set IPv6 gateway while updating gateway: %v", err)
+			}
+		} else {
+			if err := osSbox.SetDefaultRouteIPv6(ep6.iface.srcName); err != nil {
+				return fmt.Errorf("failed to set IPv6 default route while updating gateway: %v", err)
+			}
 		}
 	}
 
