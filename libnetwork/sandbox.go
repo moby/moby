@@ -603,7 +603,7 @@ func (sb *Sandbox) clearNetworkResources(origEp *Endpoint) error {
 
 	if (gwepAfter4 != nil && gwepBefore4 != gwepAfter4) || (gwepAfter6 != nil && gwepBefore6 != gwepAfter6) {
 		if err := sb.updateGateway(gwepAfter4, gwepAfter6); err != nil {
-			return err
+			return fmt.Errorf("updating gateway endpoint: %w", err)
 		}
 	}
 

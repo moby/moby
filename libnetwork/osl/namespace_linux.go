@@ -229,6 +229,8 @@ type Namespace struct {
 	iFaces              []*Interface
 	gw                  net.IP
 	gwv6                net.IP
+	defRoute4SrcName    string
+	defRoute6SrcName    string
 	staticRoutes        []*types.StaticRoute
 	neighbors           []*neigh
 	nextIfIndex         map[string]int
@@ -247,6 +249,17 @@ func (n *Namespace) Interfaces() []*Interface {
 	ifaces := make([]*Interface, len(n.iFaces))
 	copy(ifaces, n.iFaces)
 	return ifaces
+}
+
+func (n *Namespace) ifaceBySrcName(srcName string) *Interface {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	for _, iface := range n.iFaces {
+		if iface.srcName == srcName {
+			return iface
+		}
+	}
+	return nil
 }
 
 func (n *Namespace) loopbackUp() error {

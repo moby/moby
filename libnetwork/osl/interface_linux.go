@@ -514,12 +514,16 @@ func setInterfaceRoutes(ctx context.Context, nlh nlwrap.Handle, iface netlink.Li
 	defer span.End()
 
 	for _, route := range i.Routes() {
-		err := nlh.RouteAdd(&netlink.Route{
+		if route.IP.IsUnspecified() {
+			// Don't set up a default route now, it'll be set later if this interface is
+			// selected as the default gateway.
+			continue
+		}
+		if err := nlh.RouteAdd(&netlink.Route{
 			Scope:     netlink.SCOPE_LINK,
 			LinkIndex: iface.Attrs().Index,
 			Dst:       route,
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}
