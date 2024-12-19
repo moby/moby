@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 )
 
 var (

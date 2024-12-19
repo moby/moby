@@ -26,7 +26,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/quota"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/moby/locker"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/userns"
