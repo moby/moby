@@ -20,6 +20,7 @@ import (
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/registry"
@@ -112,6 +113,10 @@ func (i *ImageService) CountImages(ctx context.Context) int {
 // called from create.go
 // TODO: accept an opt struct instead of container?
 func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
+	return nil, errdefs.NotImplemented(errdefs.NotImplemented(errors.New("not implemented")))
+}
+
+func (i *ImageService) CreateLayerFromImage(img *image.Image, layerName string, rwLayerOpts *layer.CreateRWLayerOpts) (layer.RWLayer, error) {
 	return nil, errdefs.NotImplemented(errdefs.NotImplemented(errors.New("not implemented")))
 }
 
