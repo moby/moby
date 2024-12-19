@@ -1,4 +1,4 @@
-package archive // import "github.com/docker/docker/pkg/archive"
+package archive
 
 import (
 	"bytes"
@@ -9,7 +9,6 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/docker/docker/pkg/system"
 	"golang.org/x/sys/unix"
 )
 
@@ -74,12 +73,8 @@ func walkchunk(path string, fi os.FileInfo, dir string, root *FileInfo) error {
 		parent:   parent,
 	}
 	cpath := filepath.Join(dir, path)
-	stat, err := system.FromStatT(fi.Sys().(*syscall.Stat_t))
-	if err != nil {
-		return err
-	}
-	info.stat = stat
-	info.capability, _ = system.Lgetxattr(cpath, "security.capability") // lgetxattr(2): fs access
+	info.stat = fi
+	info.capability, _ = lgetxattr(cpath, "security.capability") // lgetxattr(2): fs access
 	parent.children[info.name] = info
 	return nil
 }

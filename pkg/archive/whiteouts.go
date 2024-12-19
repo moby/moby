@@ -1,4 +1,4 @@
-package archive // import "github.com/docker/docker/pkg/archive"
+package archive
 
 // Whiteouts are files with a special meaning for the layered filesystem.
 // Docker uses AUFS whiteout files inside exported archives. In other

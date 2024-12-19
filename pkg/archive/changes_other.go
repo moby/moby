@@ -1,6 +1,6 @@
 //go:build !linux
 
-package archive // import "github.com/docker/docker/pkg/archive"
+package archive
 
 import (
 	"fmt"
@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	"github.com/docker/docker/pkg/system"
 )
 
 func collectFileInfoForChanges(oldDir, newDir string) (*FileInfo, *FileInfo, error) {
@@ -72,7 +70,7 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 			return fmt.Errorf("collectFileInfo: Unexpectedly no parent for %s", relPath)
 		}
 
-		s, err := system.Lstat(path)
+		s, err := os.Lstat(path)
 		if err != nil {
 			return err
 		}
@@ -84,11 +82,7 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 			stat:     s,
 		}
 
-		// system.Lgetxattr is only implemented on Linux and produces an error
-		// on other platforms. This code is intentionally left commented-out
-		// as a reminder to include this code if this would ever be implemented
-		// on other platforms.
-		// info.capability, _ = system.Lgetxattr(path, "security.capability")
+		info.capability, _ = lgetxattr(path, "security.capability")
 
 		parent.children[info.name] = info
 

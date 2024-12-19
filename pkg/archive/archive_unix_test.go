@@ -1,6 +1,6 @@
 //go:build !windows
 
-package archive // import "github.com/docker/docker/pkg/archive"
+package archive
 
 import (
 	"archive/tar"
@@ -14,7 +14,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/sys/userns"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
@@ -199,11 +198,11 @@ func TestTarWithBlockCharFifo(t *testing.T) {
 	err = os.WriteFile(filepath.Join(origin, "1"), []byte("hello world"), 0o700)
 	assert.NilError(t, err)
 
-	err = system.Mknod(filepath.Join(origin, "2"), unix.S_IFBLK, int(system.Mkdev(int64(12), int64(5))))
+	err = mknod(filepath.Join(origin, "2"), unix.S_IFBLK, unix.Mkdev(uint32(12), uint32(5)))
 	assert.NilError(t, err)
-	err = system.Mknod(filepath.Join(origin, "3"), unix.S_IFCHR, int(system.Mkdev(int64(12), int64(5))))
+	err = mknod(filepath.Join(origin, "3"), unix.S_IFCHR, unix.Mkdev(uint32(12), uint32(5)))
 	assert.NilError(t, err)
-	err = system.Mknod(filepath.Join(origin, "4"), unix.S_IFIFO, int(system.Mkdev(int64(12), int64(5))))
+	err = mknod(filepath.Join(origin, "4"), unix.S_IFIFO, unix.Mkdev(uint32(12), uint32(5)))
 	assert.NilError(t, err)
 
 	dest, err := os.MkdirTemp("", "docker-test-tar-hardlink-dest")

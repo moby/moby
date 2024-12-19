@@ -1,4 +1,4 @@
-package archive // import "github.com/docker/docker/pkg/archive"
+package archive
 
 import (
 	"archive/tar"
@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/system"
 )
 
 // Errors used or returned by this file.
@@ -203,7 +202,7 @@ func CopyInfoDestinationPath(path string) (info CopyInfo, err error) {
 			return CopyInfo{}, err
 		}
 
-		if !system.IsAbs(linkTarget) {
+		if !filepath.IsAbs(linkTarget) {
 			// Join with the parent directory.
 			dstParent, _ := SplitPathDirEntry(path)
 			linkTarget = filepath.Join(dstParent, linkTarget)

@@ -1,5 +1,5 @@
 // Package archive provides helper functions for dealing with archive files.
-package archive // import "github.com/docker/docker/pkg/archive"
+package archive
 
 import (
 	"archive/tar"
@@ -26,7 +26,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/system"
 	"github.com/klauspost/compress/zstd"
 	"github.com/moby/patternmatcher"
 	"github.com/moby/sys/sequential"
@@ -507,7 +506,7 @@ func ReadSecurityXattrToTarHeader(path string, hdr *tar.Header) error {
 		vfsCapRevision2 = 2
 		vfsCapRevision3 = 3
 	)
-	capability, _ := system.Lgetxattr(path, "security.capability")
+	capability, _ := lgetxattr(path, "security.capability")
 	if capability != nil {
 		if capability[versionOffset] == vfsCapRevision3 {
 			// Convert VFS_CAP_REVISION_3 to VFS_CAP_REVISION_2 as root UID makes no
@@ -799,7 +798,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 		if !ok {
 			continue
 		}
-		if err := system.Lsetxattr(path, xattr, []byte(value), 0); err != nil {
+		if err := lsetxattr(path, xattr, []byte(value), 0); err != nil {
 			if bestEffortXattrs && errors.Is(err, syscall.ENOTSUP) || errors.Is(err, syscall.EPERM) {
 				// EPERM occurs if modifying xattrs is not allowed. This can
 				// happen when running in userns with restrictions (ChromeOS).
@@ -822,26 +821,22 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 		return err
 	}
 
-	aTime := hdr.AccessTime
-	if aTime.Before(hdr.ModTime) {
-		// Last access time should never be before last modified time.
-		aTime = hdr.ModTime
-	}
+	aTime := boundTime(latestTime(hdr.AccessTime, hdr.ModTime))
+	mTime := boundTime(hdr.ModTime)
 
-	// system.Chtimes doesn't support a NOFOLLOW flag atm
+	// chtimes doesn't support a NOFOLLOW flag atm
 	if hdr.Typeflag == tar.TypeLink {
 		if fi, err := os.Lstat(hdr.Linkname); err == nil && (fi.Mode()&os.ModeSymlink == 0) {
-			if err := system.Chtimes(path, aTime, hdr.ModTime); err != nil {
+			if err := chtimes(path, aTime, mTime); err != nil {
 				return err
 			}
 		}
 	} else if hdr.Typeflag != tar.TypeSymlink {
-		if err := system.Chtimes(path, aTime, hdr.ModTime); err != nil {
+		if err := chtimes(path, aTime, mTime); err != nil {
 			return err
 		}
 	} else {
-		ts := []syscall.Timespec{timeToTimespec(aTime), timeToTimespec(hdr.ModTime)}
-		if err := system.LUtimesNano(path, ts); err != nil && err != system.ErrNotSupportedPlatform {
+		if err := lchtimes(path, aTime, mTime); err != nil {
 			return err
 		}
 	}
@@ -1201,7 +1196,7 @@ loop:
 		// #nosec G305 -- The header was checked for path traversal before it was appended to the dirs slice.
 		path := filepath.Join(dest, hdr.Name)
 
-		if err := system.Chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
+		if err := chtimes(path, boundTime(latestTime(hdr.AccessTime, hdr.ModTime)), boundTime(hdr.ModTime)); err != nil {
 			return err
 		}
 	}
@@ -1350,7 +1345,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		dst = filepath.Join(dst, filepath.Base(src))
 	}
 	// Create the holding directory if necessary
-	if err := system.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
 		return err
 	}
 

@@ -1,4 +1,4 @@
-package archive // import "github.com/docker/docker/pkg/archive"
+package archive
 
 import (
 	"archive/tar"
@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/sys/userns"
 	"golang.org/x/sys/unix"
 )
@@ -39,7 +38,7 @@ func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os
 		}
 
 		// convert opaque dirs to AUFS format by writing an empty file with the prefix
-		opaque, err := system.Lgetxattr(path, opaqueXattrName)
+		opaque, err := lgetxattr(path, opaqueXattrName)
 		if err != nil {
 			return nil, err
 		}

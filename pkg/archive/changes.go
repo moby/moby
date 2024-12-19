@@ -1,4 +1,4 @@
-package archive // import "github.com/docker/docker/pkg/archive"
+package archive
 
 import (
 	"archive/tar"
@@ -6,17 +6,16 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/system"
 )
 
 // ChangeType represents the change type.
@@ -72,11 +71,6 @@ func sameFsTime(a, b time.Time) bool {
 	return a.Equal(b) ||
 		(a.Unix() == b.Unix() &&
 			(a.Nanosecond() == 0 || b.Nanosecond() == 0))
-}
-
-func sameFsTimeSpec(a, b syscall.Timespec) bool {
-	return a.Sec == b.Sec &&
-		(a.Nsec == b.Nsec || a.Nsec == 0 || b.Nsec == 0)
 }
 
 // Changes walks the path rw and determines changes for the files in the path,
@@ -210,7 +204,7 @@ func changes(layers []string, rw string, dc deleteChange, sc skipChange) ([]Chan
 type FileInfo struct {
 	parent     *FileInfo
 	name       string
-	stat       *system.StatT
+	stat       fs.FileInfo
 	children   map[string]*FileInfo
 	capability []byte
 	added      bool
