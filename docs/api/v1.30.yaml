@@ -738,6 +738,7 @@ definitions:
               - "default"
               - "process"
               - "hyperv"
+              - ""
 
   ContainerConfig:
     description: |
@@ -7582,6 +7583,7 @@ paths:
             example:
               ListenAddr: "0.0.0.0:2377"
               AdvertiseAddr: "192.168.1.1:2377"
+              DataPathAddr: "192.168.1.1"
               RemoteAddrs:
                 - "node1:2377"
               JoinToken: "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-7p73s1dx5in4tatdymyhg9hu2"
