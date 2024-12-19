@@ -8,7 +8,7 @@ import (
 )
 
 type DiffOp struct {
-	MarshalCache
+	cache       MarshalCache
 	lower       Output
 	upper       Output
 	output      Output
@@ -31,7 +31,10 @@ func (m *DiffOp) Validate(ctx context.Context, constraints *Constraints) error {
 }
 
 func (m *DiffOp) Marshal(ctx context.Context, constraints *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
-	if dgst, dt, md, srcs, err := m.Load(constraints); err == nil {
+	cache := m.cache.Acquire()
+	defer cache.Release()
+
+	if dgst, dt, md, srcs, err := cache.Load(constraints); err == nil {
 		return dgst, dt, md, srcs, nil
 	}
 	if err := m.Validate(ctx, constraints); err != nil {
@@ -72,7 +75,7 @@ func (m *DiffOp) Marshal(ctx context.Context, constraints *Constraints) (digest.
 		return "", nil, nil, nil, err
 	}
 
-	return m.Store(dt, md, m.constraints.SourceLocations, constraints)
+	return cache.Store(dt, md, m.constraints.SourceLocations, constraints)
 }
 
 func (m *DiffOp) Output() Output {

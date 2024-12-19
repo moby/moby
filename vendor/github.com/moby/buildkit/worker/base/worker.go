@@ -211,6 +211,14 @@ func NewWorker(ctx context.Context, opt WorkerOpt) (*Worker, error) {
 	}, nil
 }
 
+func (w *Worker) GarbageCollect(ctx context.Context) error {
+	if w.WorkerOpt.GarbageCollect == nil {
+		return nil
+	}
+	_, err := w.WorkerOpt.GarbageCollect(ctx)
+	return err
+}
+
 func (w *Worker) Close() error {
 	var rerr error
 	if err := w.MetadataStore.Close(); err != nil {

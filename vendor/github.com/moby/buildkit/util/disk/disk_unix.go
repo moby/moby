@@ -1,5 +1,4 @@
 //go:build !windows && !openbsd
-// +build !windows,!openbsd
 
 package disk
 

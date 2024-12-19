@@ -17,5 +17,5 @@ type IsolationSettings struct {
 	DebugPort int64  `json:"DebugPort,omitempty"`
 	// Optional data passed by host on isolated virtual machine start
 	LaunchData string `json:"LaunchData,omitempty"`
-	HclEnabled bool   `json:"HclEnabled,omitempty"`
+	HclEnabled *bool  `json:"HclEnabled,omitempty"`
 }

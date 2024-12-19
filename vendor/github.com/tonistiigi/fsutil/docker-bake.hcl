@@ -6,6 +6,27 @@ variable "DESTDIR" {
   default = "./bin"
 }
 
+target "_platforms" {
+  platforms = [
+    "darwin/amd64",
+    "darwin/arm64",
+    "freebsd/amd64",
+    "freebsd/arm64",
+    "linux/386",
+    "linux/amd64",
+    "linux/arm",
+    "linux/arm64",
+    "linux/ppc64le",
+    "linux/s390x",
+    "netbsd/amd64",
+    "netbsd/arm64",
+    "openbsd/amd64",
+    "openbsd/arm64",
+    "windows/amd64",
+    "windows/arm64"
+  ]
+}
+
 group "default" {
   targets = ["build"]
 }
@@ -38,6 +59,10 @@ target "lint" {
   args = {
     GO_VERSION = "${GO_VERSION}"
   }
+}
+
+target "lint-cross" {
+  inherits = ["lint", "_platforms"]
 }
 
 target "validate-generated-files" {
@@ -86,6 +111,5 @@ target "shfmt" {
 }
 
 target "cross" {
-  inherits = ["build"]
-  platforms = ["linux/amd64", "linux/386", "linux/arm64", "linux/arm", "linux/ppc64le", "linux/s390x", "darwin/amd64", "darwin/arm64", "windows/amd64", "windows/arm64", "freebsd/amd64", "freebsd/arm64"]
+  inherits = ["build", "_platforms"]
 }
