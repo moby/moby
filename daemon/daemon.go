@@ -41,9 +41,9 @@ import (
 	"github.com/docker/docker/container"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/daemon/config"
-	ctrd "github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/daemon/events"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
+	ctrd "github.com/docker/docker/daemon/images/containerd"
 	"github.com/docker/docker/daemon/images/gdstore"
 	dlogger "github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
