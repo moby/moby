@@ -214,7 +214,8 @@ func (i *ImageService) createDiff(ctx context.Context, name string, sn snapshots
 		sn.Remove(ctx, lowerKey)
 	})
 
-	newDesc, err := comparer.Compare(ctx, lower, upper)
+	mediaType := ocispec.MediaTypeImageLayerGzip
+	newDesc, err := comparer.Compare(ctx, lower, upper, diff.WithMediaType(mediaType))
 	if err != nil {
 		return nil, "", errors.Wrap(err, "CreateDiff")
 	}
@@ -248,11 +249,7 @@ func (i *ImageService) createDiff(ctx context.Context, name string, sn snapshots
 		return nil, "", err
 	}
 
-	return &ocispec.Descriptor{
-		MediaType: ocispec.MediaTypeImageLayerGzip,
-		Digest:    newDesc.Digest,
-		Size:      cinfo.Size,
-	}, diffID, nil
+	return &newDesc, diffID, nil
 }
 
 // applyDiffLayer will apply diff layer content created by createDiff into the snapshotter.
