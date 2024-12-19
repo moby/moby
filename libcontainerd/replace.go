@@ -23,8 +23,7 @@ func ReplaceContainer(ctx context.Context, client types.Client, id string, spec 
 		return ctr, err
 	}
 
-	log := log.G(ctx).WithContext(ctx).WithField("container", id)
-	log.Debug("A container already exists with the same ID. Attempting to clean up the old container.")
+	log.G(ctx).WithContext(ctx).WithField("container", id).Debug("A container already exists with the same ID. Attempting to clean up the old container.")
 	ctr, err = client.LoadContainer(ctx, id)
 	if err != nil {
 		if errdefs.IsNotFound(err) {
