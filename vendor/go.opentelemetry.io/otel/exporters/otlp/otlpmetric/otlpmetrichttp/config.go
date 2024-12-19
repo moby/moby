@@ -1,21 +1,12 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package otlpmetrichttp // import "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 
 import (
 	"crypto/tls"
+	"net/http"
+	"net/url"
 	"time"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp/internal/oconf"
@@ -26,6 +17,11 @@ import (
 // Compression describes the compression used for payloads sent to the
 // collector.
 type Compression oconf.Compression
+
+// HTTPTransportProxyFunc is a function that resolves which URL to use as proxy for a given request.
+// This type is compatible with http.Transport.Proxy and can be used to set a custom proxy function
+// to the OTLP HTTP client.
+type HTTPTransportProxyFunc func(*http.Request) (*url.URL, error)
 
 const (
 	// NoCompression tells the driver to send payloads without
@@ -74,6 +70,26 @@ func (w wrappedOption) applyHTTPOption(cfg oconf.Config) oconf.Config {
 // passed, "localhost:4318" will be used.
 func WithEndpoint(endpoint string) Option {
 	return wrappedOption{oconf.WithEndpoint(endpoint)}
+}
+
+// WithEndpointURL sets the target endpoint URL the Exporter will connect to.
+//
+// If the OTEL_EXPORTER_OTLP_ENDPOINT or OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+// environment variable is set, and this option is not passed, that variable
+// value will be used. If both are set, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+// will take precedence.
+//
+// If both this option and WithEndpoint are used, the last used option will
+// take precedence.
+//
+// If an invalid URL is provided, the default value will be kept.
+//
+// By default, if an environment variable is not set, and this option is not
+// passed, "localhost:4318" will be used.
+//
+// This option has no effect if WithGRPCConn is used.
+func WithEndpointURL(u string) Option {
+	return wrappedOption{oconf.WithEndpointURL(u)}
 }
 
 // WithCompression sets the compression strategy the Exporter will use to
@@ -196,4 +212,11 @@ func WithTemporalitySelector(selector metric.TemporalitySelector) Option {
 // explicitly passed for a view matching an instrument.
 func WithAggregationSelector(selector metric.AggregationSelector) Option {
 	return wrappedOption{oconf.WithAggregationSelector(selector)}
+}
+
+// WithProxy sets the Proxy function the client will use to determine the
+// proxy to use for an HTTP request. If this option is not used, the client
+// will use [http.ProxyFromEnvironment].
+func WithProxy(pf HTTPTransportProxyFunc) Option {
+	return wrappedOption{oconf.WithProxy(oconf.HTTPTransportProxyFunc(pf))}
 }
