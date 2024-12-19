@@ -800,6 +800,7 @@ definitions:
               - "default"
               - "process"
               - "hyperv"
+              - ""
 
   ContainerConfig:
     description: |
@@ -3793,6 +3794,7 @@ definitions:
           - "default"
           - "hyperv"
           - "process"
+          - ""
       InitBinary:
         description: |
           Name and, optional, path of the `docker-init` binary.

@@ -820,6 +820,7 @@ definitions:
               - "default"
               - "process"
               - "hyperv"
+              - ""
           MaskedPaths:
             type: "array"
             description: "The list of paths to be masked inside the container (this overrides the default set of paths)"
@@ -2773,6 +2774,7 @@ definitions:
               - "default"
               - "process"
               - "hyperv"
+              - ""
           Init:
             description: "Run an init inside the container that forwards signals and reaps processes. This field is omitted if empty, and the default (as configured on the daemon) is used."
             type: "boolean"
@@ -3915,6 +3917,7 @@ definitions:
           - "default"
           - "hyperv"
           - "process"
+          - ""
       InitBinary:
         description: |
           Name and, optional, path of the `docker-init` binary.
