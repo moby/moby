@@ -696,8 +696,6 @@ func buildRouters(opts routerOptions) []router.Router {
 			opts.daemon.ImageService(),
 			opts.daemon.RegistryService(),
 			opts.daemon.ReferenceStore,
-			opts.daemon.ImageService().DistributionServices().ImageStore,
-			opts.daemon.ImageService().DistributionServices().LayerStore,
 		),
 		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildkit, opts.daemon.Features),
 		volume.NewRouter(opts.daemon.VolumesService(), opts.cluster),
