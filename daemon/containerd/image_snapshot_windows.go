@@ -13,8 +13,8 @@ func (i *ImageService) copyAndUnremapRootFS(ctx context.Context, dst, src []moun
 	return nil
 }
 
-func (i *ImageService) remapSnapshot(ctx context.Context, snapshotter snapshots.Snapshotter, id string, parentSnapshot string) error {
-	return nil
+func (i *ImageService) remapSnapshot(ctx context.Context, snapshotter snapshots.Snapshotter, id string, parentSnapshot string) ([]mount.Mount, error) {
+	return nil, nil
 }
 
 func (i *ImageService) unremapRootFS(ctx context.Context, mounts []mount.Mount) error {
