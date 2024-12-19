@@ -422,7 +422,7 @@ func (idc *imageDeleteConflict) Error() string {
 	return fmt.Sprintf("conflict: unable to delete %s (%s) - %s", idc.reference, forceMsg, idc.message)
 }
 
-func (imageDeleteConflict) Conflict() {}
+func (*imageDeleteConflict) Conflict() {}
 
 // checkImageDeleteConflict returns a conflict representing
 // any issue preventing deletion of the given image ID, and
