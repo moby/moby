@@ -425,6 +425,13 @@ func (lcm *lazyCacheManager) Save(key *solver.CacheKey, s solver.Result, created
 	return lcm.main.Save(key, s, createdAt)
 }
 
+func (lcm *lazyCacheManager) ReleaseUnreferenced(ctx context.Context) error {
+	if err := lcm.wait(); err != nil {
+		return err
+	}
+	return lcm.main.ReleaseUnreferenced(ctx)
+}
+
 func (lcm *lazyCacheManager) wait() error {
 	<-lcm.waitCh
 	return lcm.err

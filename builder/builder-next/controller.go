@@ -193,6 +193,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		LeaseManager:   wo.LeaseManager,
 		ContentStore:   wo.ContentStore,
 		TraceCollector: getTraceExporter(ctx),
+		GarbageCollect: w.GarbageCollect,
 	})
 }
 
@@ -381,6 +382,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		Layers:            layers,
 		Platforms:         archutil.SupportedPlatforms(true),
 		LeaseManager:      lm,
+		GarbageCollect:    mdb.GarbageCollect,
 		Labels:            getLabels(opt, nil),
 	}
 
@@ -420,6 +422,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		HistoryDB:      historyDB,
 		HistoryConfig:  historyConf,
 		TraceCollector: getTraceExporter(ctx),
+		GarbageCollect: w.GarbageCollect,
 	})
 }
 

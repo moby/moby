@@ -9,7 +9,7 @@ import (
 )
 
 type MergeOp struct {
-	MarshalCache
+	cache       MarshalCache
 	inputs      []Output
 	output      Output
 	constraints Constraints
@@ -32,7 +32,10 @@ func (m *MergeOp) Validate(ctx context.Context, constraints *Constraints) error 
 }
 
 func (m *MergeOp) Marshal(ctx context.Context, constraints *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
-	if dgst, dt, md, srcs, err := m.Load(constraints); err == nil {
+	cache := m.cache.Acquire()
+	defer cache.Release()
+
+	if dgst, dt, md, srcs, err := cache.Load(constraints); err == nil {
 		return dgst, dt, md, srcs, nil
 	}
 
@@ -59,7 +62,7 @@ func (m *MergeOp) Marshal(ctx context.Context, constraints *Constraints) (digest
 		return "", nil, nil, nil, err
 	}
 
-	return m.Store(dt, md, m.constraints.SourceLocations, constraints)
+	return cache.Store(dt, md, m.constraints.SourceLocations, constraints)
 }
 
 func (m *MergeOp) Output() Output {
