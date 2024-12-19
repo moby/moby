@@ -16,7 +16,7 @@ import (
 
 func toStatusCode(err error) codes.Code {
 	// checks if err implements GRPCStatus() *"google.golang.org/grpc/status".Status,
-	// wraps an error defined in "github.com/containerd/containerd/errdefs", or is a
+	// wraps an error defined in "github.com/containerd/errdefs", or is a
 	// context timeout or cancelled error
 	if s, ok := status.FromError(errdefs.ToGRPC(err)); ok {
 		return s.Code()

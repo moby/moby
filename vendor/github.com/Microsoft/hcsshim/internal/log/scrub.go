@@ -55,7 +55,7 @@ func ScrubProcessParameters(s string) (string, error) {
 	}
 	pp.Environment = map[string]string{_scrubbedReplacement: _scrubbedReplacement}
 
-	b, err := encodeBuffer(bytes.NewBuffer(b[:0]), pp)
+	b, err := encode(pp)
 	if err != nil {
 		return "", err
 	}
@@ -89,11 +89,11 @@ func scrubBridgeCreate(m genMap) error {
 }
 
 func scrubLinuxHostedSystem(m genMap) error {
-	if m, ok := index(m, "OciSpecification"); ok {
+	if m, ok := index(m, "OciSpecification"); ok { //nolint:govet // shadow
 		if _, ok := m["annotations"]; ok {
 			m["annotations"] = map[string]string{_scrubbedReplacement: _scrubbedReplacement}
 		}
-		if m, ok := index(m, "process"); ok {
+		if m, ok := index(m, "process"); ok { //nolint:govet // shadow
 			if _, ok := m["env"]; ok {
 				m["env"] = []string{_scrubbedReplacement}
 				return nil
@@ -113,7 +113,7 @@ func scrubExecuteProcess(m genMap) error {
 	if !isRequestBase(m) {
 		return ErrUnknownType
 	}
-	if m, ok := index(m, "Settings"); ok {
+	if m, ok := index(m, "Settings"); ok { //nolint:govet // shadow
 		if ss, ok := m["ProcessParameters"]; ok {
 			// ProcessParameters is a json encoded struct passed as a regular sting field
 			s, ok := ss.(string)

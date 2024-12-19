@@ -89,6 +89,8 @@ var (
 	DisableHostPortVersion = VersionRanges{VersionRange{MinVersion: Version{Major: 15, Minor: 1}, MaxVersion: Version{Major: math.MaxInt32, Minor: math.MaxInt32}}}
 	// HNS 15.4 allows for Modify Loadbalancer support
 	ModifyLoadbalancerVersion = VersionRanges{VersionRange{MinVersion: Version{Major: 15, Minor: 4}, MaxVersion: Version{Major: math.MaxInt32, Minor: math.MaxInt32}}}
+	// HNS 15.4 allows for Accelnet support
+	AccelnetVersion = VersionRanges{VersionRange{MinVersion: Version{Major: 15, Minor: 4}, MaxVersion: Version{Major: math.MaxInt32, Minor: math.MaxInt32}}}
 )
 
 // GetGlobals returns the global properties of the HCN Service.

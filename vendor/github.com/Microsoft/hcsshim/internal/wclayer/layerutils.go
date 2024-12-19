@@ -7,6 +7,10 @@ package wclayer
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"syscall"
 
 	"github.com/Microsoft/go-winio/pkg/guid"
@@ -100,4 +104,24 @@ func layerPathsToDescriptors(ctx context.Context, parentLayerPaths []string) ([]
 	}
 
 	return layers, nil
+}
+
+// GetLayerUvmBuild looks for a file named `uvmbuildversion` at `layerPath\uvmbuildversion` and returns the
+// build number of the UVM from that file.
+func GetLayerUvmBuild(layerPath string) (uint16, error) {
+	data, err := os.ReadFile(filepath.Join(layerPath, UvmBuildFileName))
+	if err != nil {
+		return 0, err
+	}
+	ver, err := strconv.ParseUint(string(data), 10, 16)
+	if err != nil {
+		return 0, err
+	}
+	return uint16(ver), nil
+}
+
+// WriteLayerUvmBuildFile writes a file at path `layerPath\uvmbuildversion` that contains the given `build`
+// version for future reference.
+func WriteLayerUvmBuildFile(layerPath string, build uint16) error {
+	return os.WriteFile(filepath.Join(layerPath, UvmBuildFileName), []byte(fmt.Sprintf("%d", build)), 0777)
 }

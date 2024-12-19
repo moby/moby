@@ -4,6 +4,7 @@ package regstate
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -44,8 +45,8 @@ func (err *NotFoundError) Error() string {
 }
 
 func IsNotFoundError(err error) bool {
-	_, ok := err.(*NotFoundError)
-	return ok
+	var e *NotFoundError
+	return errors.As(err, &e)
 }
 
 type NoStateError struct {
@@ -152,7 +153,8 @@ func (k *Key) openid(id string) (*Key, error) {
 	escaped := url.PathEscape(id)
 	fullpath := filepath.Join(k.Name, escaped)
 	nk, err := k.open(escaped)
-	if perr, ok := err.(*os.PathError); ok && perr.Err == syscall.ERROR_FILE_NOT_FOUND {
+	var perr *os.PathError
+	if errors.As(err, &perr) && errors.Is(perr.Err, syscall.ERROR_FILE_NOT_FOUND) {
 		return nil, &NotFoundError{id}
 	}
 	if err != nil {
@@ -165,7 +167,7 @@ func (k *Key) Remove(id string) error {
 	escaped := url.PathEscape(id)
 	err := registry.DeleteKey(k.Key, escaped)
 	if err != nil {
-		if err == syscall.ERROR_FILE_NOT_FOUND {
+		if err == syscall.ERROR_FILE_NOT_FOUND { //nolint:errorlint
 			return &NotFoundError{id}
 		}
 		return &os.PathError{Op: "RegDeleteKey", Path: filepath.Join(k.Name, escaped), Err: err}
@@ -215,7 +217,7 @@ func (k *Key) set(id string, create bool, key string, state interface{}) error {
 		err = sk.SetBinaryValue(key, js)
 	}
 	if err != nil {
-		if err == syscall.ERROR_FILE_NOT_FOUND {
+		if err == syscall.ERROR_FILE_NOT_FOUND { //nolint:errorlint
 			return &NoStateError{id, key}
 		}
 		return &os.PathError{Op: "RegSetValueEx", Path: sk.Name + ":" + key, Err: err}
@@ -239,7 +241,7 @@ func (k *Key) Clear(id, key string) error {
 	defer sk.Close()
 	err = sk.DeleteValue(key)
 	if err != nil {
-		if err == syscall.ERROR_FILE_NOT_FOUND {
+		if err == syscall.ERROR_FILE_NOT_FOUND { //nolint:errorlint
 			return &NoStateError{id, key}
 		}
 		return &os.PathError{Op: "RegDeleteValue", Path: sk.Name + ":" + key, Err: err}
@@ -278,7 +280,7 @@ func (k *Key) Get(id, key string, state interface{}) error {
 		js, _, err = sk.GetBinaryValue(key)
 	}
 	if err != nil {
-		if err == syscall.ERROR_FILE_NOT_FOUND {
+		if err == syscall.ERROR_FILE_NOT_FOUND { //nolint:errorlint
 			return &NoStateError{id, key}
 		}
 		return &os.PathError{Op: "RegQueryValueEx", Path: sk.Name + ":" + key, Err: err}
