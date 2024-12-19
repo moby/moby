@@ -22,7 +22,7 @@ import (
 	"github.com/docker/docker/builder/builder-next/exporter/mobyexporter"
 	"github.com/docker/docker/builder/builder-next/exporter/overrides"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/images/gdstore"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/opts"
@@ -82,7 +82,7 @@ type Opt struct {
 	SessionManager      *session.Manager
 	Root                string
 	EngineID            string
-	Dist                images.DistributionServices
+	Dist                gdstore.DistributionServices
 	ImageTagger         mobyexporter.ImageTagger
 	NetworkController   *libnetwork.Controller
 	DefaultCgroupParent string

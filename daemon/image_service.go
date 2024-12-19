@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/images/gdstore"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
@@ -68,7 +68,7 @@ type ImageService interface {
 
 	// Other
 
-	DistributionServices() images.DistributionServices
+	DistributionServices() gdstore.DistributionServices
 	Children(ctx context.Context, id image.ID) ([]image.ID, error)
 	Cleanup() error
 	StorageDriver() string

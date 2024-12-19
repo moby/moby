@@ -1,4 +1,4 @@
-package images // import "github.com/docker/docker/daemon/images"
+package gdstore // import "github.com/docker/docker/daemon/images"
 
 import (
 	"encoding/json"

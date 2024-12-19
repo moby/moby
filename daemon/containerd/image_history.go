@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	imagetype "github.com/docker/docker/api/types/image"
-	dimages "github.com/docker/docker/daemon/images"
+	dimages "github.com/docker/docker/daemon/images/gdstore"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

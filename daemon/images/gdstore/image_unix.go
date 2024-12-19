@@ -1,6 +1,6 @@
 //go:build linux || freebsd
 
-package images // import "github.com/docker/docker/daemon/images"
+package gdstore // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"

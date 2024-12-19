@@ -1,7 +1,7 @@
-package images // import "github.com/docker/docker/daemon/images"
+package gdstore // import "github.com/docker/docker/daemon/images"
 
 import (
-	metrics "github.com/docker/go-metrics"
+	"github.com/docker/go-metrics"
 )
 
 // ImageActions measures the time it takes to process some image actions.

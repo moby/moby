@@ -18,7 +18,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	registrytypes "github.com/docker/docker/api/types/registry"
-	dimages "github.com/docker/docker/daemon/images"
+	dimages "github.com/docker/docker/daemon/images/gdstore"
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"

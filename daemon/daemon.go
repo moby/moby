@@ -44,7 +44,7 @@ import (
 	ctrd "github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/daemon/events"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
-	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/images/gdstore"
 	dlogger "github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/snapshotter"
@@ -1132,7 +1132,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			return nil, err
 		}
 
-		imgSvcConfig := images.ImageServiceConfig{
+		imgSvcConfig := gdstore.ImageServiceConfig{
 			ContainerStore:            d.containers,
 			DistributionMetadataStore: distributionMetadataStore,
 			EventsService:             d.EventsService,
@@ -1162,7 +1162,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		// TODO: imageStore, distributionMetadataStore, and ReferenceStore are only
 		// used above to run migration. They could be initialized in ImageService
 		// if migration is called from daemon/images. layerStore might move as well.
-		d.imageService = images.NewImageService(imgSvcConfig)
+		d.imageService = gdstore.NewImageService(imgSvcConfig)
 
 		log.G(ctx).Debugf("Max Concurrent Downloads: %d", imgSvcConfig.MaxConcurrentDownloads)
 		log.G(ctx).Debugf("Max Concurrent Uploads: %d", imgSvcConfig.MaxConcurrentUploads)
@@ -1213,7 +1213,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 }
 
 // DistributionServices returns services controlling daemon storage
-func (daemon *Daemon) DistributionServices() images.DistributionServices {
+func (daemon *Daemon) DistributionServices() gdstore.DistributionServices {
 	return daemon.imageService.DistributionServices()
 }
 
