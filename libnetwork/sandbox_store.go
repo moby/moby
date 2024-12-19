@@ -257,6 +257,10 @@ func (c *Controller) sandboxRestore(activeSandboxes map[string]interface{}) erro
 			continue
 		}
 
+		for _, ep := range sb.endpoints {
+			sb.populatedEndpoints[ep.id] = struct{}{}
+		}
+
 		// reconstruct osl sandbox field
 		if !sb.config.useDefaultSandBox {
 			if err := sb.restoreOslSandbox(); err != nil {
