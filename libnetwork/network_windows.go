@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/libnetwork/drivers/windows"
 	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/ipams/windowsipam"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/pkg/errors"
 )
 
@@ -239,4 +240,18 @@ func defaultIpamForNetworkType(networkType string) string {
 		return windowsipam.DefaultIPAM
 	}
 	return defaultipam.DriverName
+}
+
+func (n *Network) validateAdvertiseAddrNMsgs() (*int, error) {
+	if _, ok := n.DriverOptions()[netlabel.AdvertiseAddrNMsgs]; ok {
+		return nil, fmt.Errorf(netlabel.AdvertiseAddrNMsgs + " is not supported on Windows")
+	}
+	return nil, nil
+}
+
+func (n *Network) validateAdvertiseAddrInterval() (*time.Duration, error) {
+	if _, ok := n.DriverOptions()[netlabel.AdvertiseAddrIntervalMs]; ok {
+		return nil, fmt.Errorf(netlabel.AdvertiseAddrIntervalMs + " is not supported on Windows")
+	}
+	return nil, nil
 }
