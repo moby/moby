@@ -17,7 +17,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/images/gdstore"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	dockerarchive "github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -132,7 +132,7 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 		}
 
 		if len(imgs) == 0 {
-			return gdstore.ErrImageDoesNotExist{Ref: ref}
+			return images.ErrImageDoesNotExist{Ref: ref}
 		}
 
 		for _, img := range imgs {

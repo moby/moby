@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/daemon/images/gdstore"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
@@ -140,7 +140,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (c8dima
 			return c8dimages.Image{}, errors.Wrap(err, "failed to lookup digest")
 		}
 		if len(imgs) == 0 {
-			return c8dimages.Image{}, gdstore.ErrImageDoesNotExist{Ref: parsed}
+			return c8dimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
 		}
 
 		// If reference is both Named and Digested, make sure we don't match
@@ -158,7 +158,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (c8dima
 					return img, nil
 				}
 			}
-			return c8dimages.Image{}, gdstore.ErrImageDoesNotExist{Ref: parsed}
+			return c8dimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
 		}
 
 		return imgs[0], nil
@@ -187,7 +187,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (c8dima
 		}
 
 		if len(imgs) == 0 {
-			return c8dimages.Image{}, gdstore.ErrImageDoesNotExist{Ref: parsed}
+			return c8dimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
 		}
 		if len(imgs) > 1 {
 			digests := map[digest.Digest]struct{}{}
@@ -206,7 +206,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (c8dima
 		return imgs[0], nil
 	}
 
-	return c8dimages.Image{}, gdstore.ErrImageDoesNotExist{Ref: parsed}
+	return c8dimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
 }
 
 // getAllImagesWithRepository returns a slice of images which name is a reference
@@ -310,7 +310,7 @@ func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string)
 			}
 
 			if len(imgs) == 0 {
-				return nil, nil, gdstore.ErrImageDoesNotExist{Ref: parsed}
+				return nil, nil, images.ErrImageDoesNotExist{Ref: parsed}
 			}
 
 			for _, limg := range imgs {
@@ -354,7 +354,7 @@ func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string)
 			// There will be no exact match found but the caller may attempt
 			// to match across images with the matching target.
 			if dgst == "" {
-				return nil, nil, gdstore.ErrImageDoesNotExist{Ref: parsed}
+				return nil, nil, images.ErrImageDoesNotExist{Ref: parsed}
 			}
 		} else {
 			img = &cimg
@@ -375,7 +375,7 @@ func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string)
 	}
 	if len(imgs) == 0 {
 		if img == nil {
-			return nil, nil, gdstore.ErrImageDoesNotExist{Ref: parsed}
+			return nil, nil, images.ErrImageDoesNotExist{Ref: parsed}
 		}
 		err = errInconsistentData
 	} else if img != nil {

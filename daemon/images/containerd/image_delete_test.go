@@ -10,7 +10,7 @@ import (
 	"github.com/containerd/log/logtest"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
-	dimages "github.com/docker/docker/daemon/images/gdstore"
+	"github.com/docker/docker/daemon/images"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -29,7 +29,7 @@ func TestImageDelete(t *testing.T) {
 	}{
 		{
 			ref: "nothingthere",
-			err: dimages.ErrImageDoesNotExist{Ref: nameTag("nothingthere", "latest")},
+			err: images.ErrImageDoesNotExist{Ref: nameTag("nothingthere", "latest")},
 		},
 		{
 			ref: "justoneimage",
@@ -216,7 +216,7 @@ func TestImageDelete(t *testing.T) {
 					Target: desc(16),
 				},
 			},
-			err: dimages.ErrImageDoesNotExist{Ref: nameDigest("repoanddigestzerocase", digestFor(16))},
+			err: images.ErrImageDoesNotExist{Ref: nameDigest("repoanddigestzerocase", digestFor(16))},
 		},
 	} {
 		t.Run(tc.ref, func(t *testing.T) {

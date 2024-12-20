@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/images/gdstore"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
@@ -75,7 +76,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 	if img == nil {
 		if len(all) == 0 {
 			parsed, _ := reference.ParseAnyReference(imageRef)
-			return nil, gdstore.ErrImageDoesNotExist{Ref: parsed}
+			return nil, images.ErrImageDoesNotExist{Ref: parsed}
 		}
 		imgID = image.ID(all[0].Target.Digest)
 		var named reference.Named
@@ -90,7 +91,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		}
 
 		if len(sameRef) == 0 && named != nil {
-			return nil, gdstore.ErrImageDoesNotExist{Ref: named}
+			return nil, images.ErrImageDoesNotExist{Ref: named}
 		}
 
 		if len(sameRef) == len(all) && !force {
