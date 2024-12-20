@@ -27,14 +27,14 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 			"method":      r.Method,
 			"request-url": r.RequestURI,
 			"vars":        vars,
-			"status":      http.StatusOK,
 		}
+		logger.WithFields(fields).Debugf("handling %s request", r.Method)
 		defer func() {
 			if retErr != nil {
 				fields["error-response"] = retErr
 				fields["status"] = httpstatus.FromError(retErr)
+				logger.WithFields(fields).Debugf("error response for %s request", r.Method)
 			}
-			logger.WithFields(fields).Debugf("handling %s request", r.Method)
 		}()
 
 		if r.Method != http.MethodPost {
