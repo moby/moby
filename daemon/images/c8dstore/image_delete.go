@@ -14,7 +14,6 @@ import (
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/daemon/images/gdstore"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
@@ -58,7 +57,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 	start := time.Now()
 	defer func() {
 		if retErr == nil {
-			gdstore.ImageActions.WithValues("delete").UpdateSince(start)
+			images.ImageActions.WithValues("delete").UpdateSince(start)
 		}
 	}()
 

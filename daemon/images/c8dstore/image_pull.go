@@ -18,7 +18,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	registrytypes "github.com/docker/docker/api/types/registry"
-	dimages "github.com/docker/docker/daemon/images/gdstore"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
@@ -34,7 +34,7 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 	start := time.Now()
 	defer func() {
 		if retErr == nil {
-			dimages.ImageActions.WithValues("pull").UpdateSince(start)
+			images.ImageActions.WithValues("pull").UpdateSince(start)
 		}
 	}()
 	out := streamformatter.NewJSONProgressOutput(outStream, false)

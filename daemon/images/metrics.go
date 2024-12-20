@@ -1,4 +1,4 @@
-package gdstore // import "github.com/docker/docker/daemon/images"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"github.com/docker/go-metrics"

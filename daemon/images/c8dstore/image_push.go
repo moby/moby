@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/api/types/auxprogress"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/daemon/images/gdstore"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -44,7 +44,7 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 	start := time.Now()
 	defer func() {
 		if retErr == nil {
-			gdstore.ImageActions.WithValues("push").UpdateSince(start)
+			images.ImageActions.WithValues("push").UpdateSince(start)
 		}
 	}()
 	out := streamformatter.NewJSONProgressOutput(outStream, false)

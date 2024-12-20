@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
@@ -173,7 +174,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		return nil, err
 	}
 
-	ImageActions.WithValues("delete").UpdateSince(start)
+	images.ImageActions.WithValues("delete").UpdateSince(start)
 
 	return records, nil
 }
