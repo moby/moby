@@ -1213,8 +1213,12 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 }
 
 // DistributionServices returns services controlling daemon storage
-func (daemon *Daemon) DistributionServices() gdstore.DistributionServices {
-	return daemon.imageService.DistributionServices()
+func (daemon *Daemon) DistributionServices() *gdstore.DistributionServices {
+	if gd, ok := daemon.imageService.(*gdstore.ImageService); ok {
+		s := gd.DistributionServices()
+		return &s
+	}
+	return nil
 }
 
 func (daemon *Daemon) waitForStartupDone() {

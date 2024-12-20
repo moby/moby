@@ -410,11 +410,10 @@ func newRouterOptions(ctx context.Context, cfg *config.Config, d *daemon.Daemon,
 		return routerOptions{}, err
 	}
 
-	bk, err := buildkit.New(ctx, buildkit.Opt{
+	opt := buildkit.Opt{
 		SessionManager:      sm,
 		Root:                filepath.Join(cfg.Root, "buildkit"),
 		EngineID:            d.ID(),
-		Dist:                d.DistributionServices(),
 		ImageTagger:         d.ImageService(),
 		NetworkController:   d.NetworkController(),
 		DefaultCgroupParent: newCgroupParent(cfg),
@@ -432,7 +431,13 @@ func newRouterOptions(ctx context.Context, cfg *config.Config, d *daemon.Daemon,
 			Exported: d.ImageExportedByBuildkit,
 			Named:    d.ImageNamedByBuildkit,
 		},
-	})
+	}
+
+	if dist := d.DistributionServices(); dist != nil {
+		opt.Dist = *dist
+	}
+
+	bk, err := buildkit.New(ctx, opt)
 	if err != nil {
 		return routerOptions{}, err
 	}

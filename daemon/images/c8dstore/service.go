@@ -17,7 +17,6 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
-	dimages "github.com/docker/docker/daemon/images/gdstore"
 	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
@@ -89,11 +88,6 @@ func (i *ImageService) snapshotterService(snapshotter string) snapshots.Snapshot
 	}
 
 	return s
-}
-
-// DistributionServices return services controlling daemon image storage.
-func (i *ImageService) DistributionServices() dimages.DistributionServices {
-	return dimages.DistributionServices{}
 }
 
 // CountImages returns the number of images stored by ImageService
