@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/internal/testutils/storeutils"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -191,7 +192,7 @@ func assertBridgeConfig(config *networkConfiguration, br *bridgeInterface, d *dr
 // Regression test for https://github.com/moby/moby/issues/46445
 func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver()
+	d := newDriver(storeutils.NewTempStore(t))
 	dc := &configuration{
 		EnableIPTables:  true,
 		EnableIP6Tables: true,
@@ -364,7 +365,7 @@ func TestOutgoingNATRules(t *testing.T) {
 				EnableIP6Tables: tc.enableIP6Tables,
 			}
 			r := &testRegisterer{t: t}
-			if err := Register(r, map[string]interface{}{netlabel.GenericData: dc}); err != nil {
+			if err := Register(r, storeutils.NewTempStore(t), map[string]interface{}{netlabel.GenericData: dc}); err != nil {
 				t.Fatal(err)
 			}
 			if r.d == nil {

@@ -7,13 +7,16 @@ import (
 	"net"
 	"testing"
 
+	"github.com/docker/docker/internal/testutils/storeutils"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
+	"gotest.tools/v3/assert"
 )
 
 func testNetwork(networkType string, t *testing.T) {
-	d := newDriver(networkType)
+	d, err := newDriver(networkType, storeutils.NewTempStore(t))
+	assert.NilError(t, err)
 	bnw, _ := types.ParseCIDR("172.16.0.0/24")
 	br, _ := types.ParseCIDR("172.16.0.1/16")
 
@@ -30,7 +33,7 @@ func testNetwork(networkType string, t *testing.T) {
 		},
 	}
 
-	err := d.CreateNetwork("dummy", netOption, nil, ipdList, nil)
+	err = d.CreateNetwork("dummy", netOption, nil, ipdList, nil)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}

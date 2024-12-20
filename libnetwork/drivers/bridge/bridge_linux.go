@@ -167,15 +167,16 @@ const (
 )
 
 // New constructs a new bridge driver
-func newDriver() *driver {
+func newDriver(store *datastore.Store) *driver {
 	return &driver{
+		store:    store,
 		networks: map[string]*bridgeNetwork{},
 	}
 }
 
 // Register registers a new instance of bridge driver.
-func Register(r driverapi.Registerer, config map[string]interface{}) error {
-	d := newDriver()
+func Register(r driverapi.Registerer, store *datastore.Store, config map[string]interface{}) error {
+	d := newDriver(store)
 	if err := d.configure(config); err != nil {
 		return err
 	}
@@ -570,7 +571,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 	d.config = config
 	d.Unlock()
 
-	return d.initStore(option)
+	return d.initStore()
 }
 
 func setupHashNetIpset(name string, family uint8) error {

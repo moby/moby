@@ -3,13 +3,14 @@ package libnetwork
 import (
 	"fmt"
 
+	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/null"
 	"github.com/docker/docker/libnetwork/drivers/windows"
 	"github.com/docker/docker/libnetwork/drivers/windows/overlay"
 )
 
-func registerNetworkDrivers(r driverapi.Registerer, driverConfig func(string) map[string]interface{}) error {
+func registerNetworkDrivers(r driverapi.Registerer, store *datastore.Store, _ func(string) map[string]interface{}) error {
 	for _, nr := range []struct {
 		ntype    string
 		register func(driverapi.Registerer) error
@@ -22,5 +23,5 @@ func registerNetworkDrivers(r driverapi.Registerer, driverConfig func(string) ma
 		}
 	}
 
-	return windows.RegisterBuiltinLocalDrivers(r, driverConfig)
+	return windows.RegisterBuiltinLocalDrivers(r, store)
 }

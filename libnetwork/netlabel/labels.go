@@ -57,9 +57,6 @@ const (
 	// HostIPv6 is the Source-IPv6 Address used to SNAT IPv6 container traffic
 	HostIPv6 = Prefix + ".host_ipv6"
 
-	// LocalKVClient constants represents the local kv store client
-	LocalKVClient = DriverPrivatePrefix + "localkv_client"
-
 	// NoProxy6To4 disables proxying from an IPv6 host port to an IPv4-only
 	// container, when the default binding address is 0.0.0.0. This label
 	// is intended for internal use, it may be removed in a future release.
