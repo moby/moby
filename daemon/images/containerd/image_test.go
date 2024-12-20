@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/log/logtest"
 	"github.com/distribution/reference"
-	dockerimages "github.com/docker/docker/daemon/images/gdstore"
+	"github.com/docker/docker/daemon/images"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
@@ -111,12 +111,12 @@ func TestLookup(t *testing.T) {
 		{
 			// Fail to lookup reference with no tag for digest that doesn't exist
 			lookup: "ubuntu@" + digestFor(20).String(),
-			err:    dockerimages.ErrImageDoesNotExist{Ref: nameDigest("ubuntu", digestFor(20))},
+			err:    images.ErrImageDoesNotExist{Ref: nameDigest("ubuntu", digestFor(20))},
 		},
 		{
 			// Fail to lookup reference with nonexistent tag
 			lookup: "ubuntu:nonexistent",
-			err:    dockerimages.ErrImageDoesNotExist{Ref: nameTag("ubuntu", "nonexistent")},
+			err:    images.ErrImageDoesNotExist{Ref: nameTag("ubuntu", "nonexistent")},
 		},
 		{
 			// Get abcdef image which also matches short image id
@@ -127,7 +127,7 @@ func TestLookup(t *testing.T) {
 		{
 			// Fail to lookup image named "sha256" with tag that doesn't exist
 			lookup: "sha256:abcdef",
-			err:    dockerimages.ErrImageDoesNotExist{Ref: nameTag("sha256", "abcdef")},
+			err:    images.ErrImageDoesNotExist{Ref: nameTag("sha256", "abcdef")},
 		},
 		{
 			// Lookup with shortened image id

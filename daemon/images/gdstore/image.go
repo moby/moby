@@ -3,7 +3,6 @@ package gdstore // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 
 	"github.com/containerd/containerd/content"
@@ -14,28 +13,13 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
-
-// ErrImageDoesNotExist is error returned when no image can be found for a reference.
-type ErrImageDoesNotExist struct {
-	Ref reference.Reference
-}
-
-func (e ErrImageDoesNotExist) Error() string {
-	ref := e.Ref
-	if named, ok := ref.(reference.Named); ok {
-		ref = reference.TagNameOnly(named)
-	}
-	return fmt.Sprintf("No such image: %s", reference.FamiliarString(ref))
-}
-
-// NotFound implements the NotFound interface
-func (e ErrImageDoesNotExist) NotFound() {}
 
 type manifestList struct {
 	Manifests []ocispec.Descriptor `json:"manifests"`
@@ -205,12 +189,12 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 	if !ok {
 		digested, ok := ref.(reference.Digested)
 		if !ok {
-			return nil, ErrImageDoesNotExist{Ref: ref}
+			return nil, images.ErrImageDoesNotExist{Ref: ref}
 		}
 		if img, err := i.imageStore.Get(image.ID(digested.Digest())); err == nil {
 			return img, nil
 		}
-		return nil, ErrImageDoesNotExist{Ref: ref}
+		return nil, images.ErrImageDoesNotExist{Ref: ref}
 	}
 
 	if dgst, err := i.referenceStore.Get(namedRef); err == nil {
@@ -224,12 +208,12 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 	if id, err := i.imageStore.Search(refOrID); err == nil {
 		img, err := i.imageStore.Get(id)
 		if err != nil {
-			return nil, ErrImageDoesNotExist{Ref: ref}
+			return nil, images.ErrImageDoesNotExist{Ref: ref}
 		}
 		return img, nil
 	}
 
-	return nil, ErrImageDoesNotExist{Ref: ref}
+	return nil, images.ErrImageDoesNotExist{Ref: ref}
 }
 
 // OnlyPlatformWithFallback uses `platforms.Only` with a fallback to handle the case where the platform
