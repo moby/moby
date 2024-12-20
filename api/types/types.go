@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/api/types/volume"
 )
 
@@ -34,6 +35,24 @@ type Ping struct {
 	// should use other ways to get the current swarm status, such as the /swarm
 	// endpoint.
 	SwarmStatus *swarm.Status
+
+	// Capabilities provides information about specific capabilities
+	// the daemon might or might not support.
+	//
+	// Can be nil if capabilities are not requested, or if the client is communicating
+	// with an older daemon that does not support requesting capabilities.
+	Capabilities *system.Capabilities
+}
+
+// PingBody represents the body of the `GET /_ping` endpoint, when
+// it's Content-Type is `json/application`.
+type PingBody struct {
+	Capabilities *system.Capabilities `json:"capabilities,omitempty"`
+}
+
+// PingOptions holds parameters for the Ping endpoint.
+type PingOptions struct {
+	Capabilities bool
 }
 
 // ComponentVersion describes the version information for a specific component.

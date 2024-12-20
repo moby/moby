@@ -8,7 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/system"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -33,7 +35,7 @@ func TestPingFail(t *testing.T) {
 		}),
 	}
 
-	ping, err := client.Ping(context.Background())
+	ping, err := client.Ping(context.Background(), types.PingOptions{})
 	assert.Check(t, is.ErrorContains(err, "some error with the server"))
 	assert.Check(t, is.Equal(false, ping.Experimental))
 	assert.Check(t, is.Equal("", ping.APIVersion))
@@ -41,7 +43,7 @@ func TestPingFail(t *testing.T) {
 	assert.Check(t, is.Equal(si, ping.SwarmStatus))
 
 	withHeader = true
-	ping2, err := client.Ping(context.Background())
+	ping2, err := client.Ping(context.Background(), types.PingOptions{})
 	assert.Check(t, is.ErrorContains(err, "some error with the server"))
 	assert.Check(t, is.Equal(true, ping2.Experimental))
 	assert.Check(t, is.Equal("awesome", ping2.APIVersion))
@@ -57,7 +59,7 @@ func TestPingWithError(t *testing.T) {
 		}),
 	}
 
-	ping, err := client.Ping(context.Background())
+	ping, err := client.Ping(context.Background(), types.PingOptions{})
 	assert.Check(t, is.ErrorContains(err, "some connection error"))
 	assert.Check(t, is.Equal(false, ping.Experimental))
 	assert.Check(t, is.Equal("", ping.APIVersion))
@@ -79,11 +81,83 @@ func TestPingSuccess(t *testing.T) {
 			return resp, nil
 		}),
 	}
-	ping, err := client.Ping(context.Background())
+	ping, err := client.Ping(context.Background(), types.PingOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, ping.Experimental))
 	assert.Check(t, is.Equal("awesome", ping.APIVersion))
 	assert.Check(t, is.Equal(swarm.Status{NodeState: "active", ControlAvailable: true}, *ping.SwarmStatus))
+}
+
+func TestPingEngineCapabilities(t *testing.T) {
+	testCases := []struct {
+		doc           string
+		body          string
+		expected      *system.Capabilities
+		expectedError string
+	}{
+		{
+			doc:      "empty",
+			expected: nil,
+		},
+		{
+			doc:      "older daemons",
+			body:     "OK",
+			expected: nil,
+		},
+		{
+			doc:  "valid single",
+			body: `{"capabilities": {"_v":1, "data": { "registry-client-auth": true } } }`,
+			expected: &system.Capabilities{
+				Version: 1,
+				Data: map[string]any{
+					"registry-client-auth": true,
+				},
+			},
+		},
+		{
+			doc:  "known and unknown keys",
+			body: `{"capabilities":  {"_v":1, "data": { "meow": false, "registry-client-auth": true} } }`,
+			expected: &system.Capabilities{
+				Version: 1,
+				Data: map[string]any{
+					"registry-client-auth": true,
+					"meow":                 false,
+				},
+			},
+		},
+		{
+			doc:           "invalid body",
+			body:          "bork",
+			expectedError: "failed to parse ping body: expected capabilities, found 'bork'",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.doc, func(t *testing.T) {
+			client := &Client{
+				client: newMockClient(func(req *http.Request) (*http.Response, error) {
+					capabilitiesQuery := req.URL.Query()["capabilities"][0]
+					assert.Equal(t, capabilitiesQuery, "1")
+
+					resp := &http.Response{StatusCode: http.StatusOK}
+					resp.Header = http.Header{}
+					resp.Header.Set("API-Version", "awesome")
+					resp.Body = io.NopCloser(strings.NewReader(tc.body))
+
+					return resp, nil
+				}),
+			}
+
+			ping, err := client.Ping(context.Background(), types.PingOptions{Capabilities: true})
+			if tc.expectedError == "" {
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal("awesome", ping.APIVersion))
+				assert.DeepEqual(t, tc.expected, ping.Capabilities)
+			} else {
+				assert.ErrorContains(t, err, tc.expectedError)
+			}
+		})
+	}
 }
 
 // TestPingHeadFallback tests that the client falls back to GET if HEAD fails.
@@ -125,7 +199,7 @@ func TestPingHeadFallback(t *testing.T) {
 					return resp, nil
 				}),
 			}
-			ping, _ := client.Ping(context.Background())
+			ping, _ := client.Ping(context.Background(), types.PingOptions{})
 			assert.Check(t, is.Equal(ping.APIVersion, tc.expected))
 		})
 	}

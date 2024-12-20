@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -73,7 +74,7 @@ func TestWithUserAgent(t *testing.T) {
 			})),
 		)
 		assert.Check(t, err)
-		_, err = c.Ping(context.Background())
+		_, err = c.Ping(context.Background(), types.PingOptions{})
 		assert.Check(t, err)
 		assert.Check(t, c.Close())
 	})
@@ -88,7 +89,7 @@ func TestWithUserAgent(t *testing.T) {
 			})),
 		)
 		assert.Check(t, err)
-		_, err = c.Ping(context.Background())
+		_, err = c.Ping(context.Background(), types.PingOptions{})
 		assert.Check(t, err)
 		assert.Check(t, c.Close())
 	})
@@ -102,7 +103,7 @@ func TestWithUserAgent(t *testing.T) {
 			})),
 		)
 		assert.Check(t, err)
-		_, err = c.Ping(context.Background())
+		_, err = c.Ping(context.Background(), types.PingOptions{})
 		assert.Check(t, err)
 		assert.Check(t, c.Close())
 	})
@@ -116,7 +117,7 @@ func TestWithUserAgent(t *testing.T) {
 			})),
 		)
 		assert.Check(t, err)
-		_, err = c.Ping(context.Background())
+		_, err = c.Ping(context.Background(), types.PingOptions{})
 		assert.Check(t, err)
 		assert.Check(t, c.Close())
 	})
@@ -131,7 +132,7 @@ func TestWithUserAgent(t *testing.T) {
 			})),
 		)
 		assert.Check(t, err)
-		_, err = c.Ping(context.Background())
+		_, err = c.Ping(context.Background(), types.PingOptions{})
 		assert.Check(t, err)
 		assert.Check(t, c.Close())
 	})
