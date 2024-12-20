@@ -128,20 +128,26 @@ func IsBuiltinLocalDriver(networkType string) bool {
 	return ok
 }
 
-// New constructs a new bridge driver
-func newDriver(networkType string) *driver {
-	return &driver{name: networkType, networks: map[string]*hnsNetwork{}}
+func newDriver(networkType string, store *datastore.Store) (*driver, error) {
+	d := &driver{
+		name:     networkType,
+		store:    store,
+		networks: map[string]*hnsNetwork{},
+	}
+	err := d.initStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize %q driver: %w", networkType, err)
+	}
+	return d, nil
 }
 
-// GetInit returns an initializer for the given network type
-func RegisterBuiltinLocalDrivers(r driverapi.Registerer, driverConfig func(string) map[string]interface{}) error {
+// RegisterBuiltinLocalDrivers registers the builtin local drivers.
+func RegisterBuiltinLocalDrivers(r driverapi.Registerer, store *datastore.Store) error {
 	for networkType := range builtinLocalDrivers {
-		d := newDriver(networkType)
-		err := d.initStore(driverConfig(networkType))
+		d, err := newDriver(networkType, store)
 		if err != nil {
-			return fmt.Errorf("failed to initialize %q driver: %w", networkType, err)
+			return err
 		}
-
 		err = r.RegisterDriver(networkType, d, driverapi.Capability{
 			DataScope:         scope.Local,
 			ConnectivityScope: scope.Local,

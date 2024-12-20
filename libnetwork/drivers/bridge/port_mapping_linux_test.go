@@ -14,6 +14,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/internal/testutils/storeutils"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
@@ -27,7 +28,7 @@ import (
 
 func TestPortMappingConfig(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver()
+	d := newDriver(storeutils.NewTempStore(t))
 
 	config := &configuration{
 		EnableIPTables: true,
@@ -111,7 +112,7 @@ func TestPortMappingV6Config(t *testing.T) {
 		t.Fatalf("Could not bring loopback iface up: %v", err)
 	}
 
-	d := newDriver()
+	d := newDriver(storeutils.NewTempStore(t))
 
 	config := &configuration{
 		EnableIPTables:  true,
@@ -828,7 +829,7 @@ func TestAddPortMappings(t *testing.T) {
 					GwModeIPv4: tc.gwMode4,
 					GwModeIPv6: tc.gwMode6,
 				},
-				driver: newDriver(),
+				driver: newDriver(storeutils.NewTempStore(t)),
 			}
 			genericOption := map[string]interface{}{
 				netlabel.GenericData: &configuration{

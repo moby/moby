@@ -133,7 +133,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		return nil, err
 	}
 
-	if err := registerNetworkDrivers(&c.drvRegistry, c.makeDriverConfig); err != nil {
+	if err := registerNetworkDrivers(&c.drvRegistry, c.store, c.makeDriverConfig); err != nil {
 		return nil, err
 	}
 
@@ -333,9 +333,7 @@ func (c *Controller) makeDriverConfig(ntype string) map[string]interface{} {
 		return nil
 	}
 
-	cfg := map[string]interface{}{
-		netlabel.LocalKVClient: c.store,
-	}
+	cfg := map[string]interface{}{}
 	for _, label := range c.cfg.Labels {
 		key, val, _ := strings.Cut(label, "=")
 		if !strings.HasPrefix(key, netlabel.DriverPrefix+"."+ntype) {

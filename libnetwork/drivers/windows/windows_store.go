@@ -10,7 +10,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -19,23 +18,15 @@ const (
 	windowsEndpointPrefix = "windows-endpoint"
 )
 
-func (d *driver) initStore(option map[string]interface{}) error {
-	if data, ok := option[netlabel.LocalKVClient]; ok {
-		var ok bool
-		d.store, ok = data.(*datastore.Store)
-		if !ok {
-			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
-		}
+func (d *driver) initStore() error {
+	err := d.populateNetworks()
+	if err != nil {
+		return err
+	}
 
-		err := d.populateNetworks()
-		if err != nil {
-			return err
-		}
-
-		err = d.populateEndpoints()
-		if err != nil {
-			return err
-		}
+	err = d.populateEndpoints()
+	if err != nil {
+		return err
 	}
 
 	return nil
