@@ -14,6 +14,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/go-connections/tlsconfig"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // HostCertsDir returns the config directory for a specific host.
@@ -115,7 +116,7 @@ func Headers(userAgent string, metaHeaders http.Header) []transport.RequestModif
 
 // newTransport returns a new HTTP transport. If tlsConfig is nil, it uses the
 // default TLS configuration.
-func newTransport(tlsConfig *tls.Config) *http.Transport {
+func newTransport(tlsConfig *tls.Config) http.RoundTripper {
 	if tlsConfig == nil {
 		tlsConfig = tlsconfig.ServerDefault()
 	}
@@ -125,12 +126,14 @@ func newTransport(tlsConfig *tls.Config) *http.Transport {
 		KeepAlive: 30 * time.Second,
 	}
 
-	return &http.Transport{
-		Proxy:               http.ProxyFromEnvironment,
-		DialContext:         direct.DialContext,
-		TLSHandshakeTimeout: 10 * time.Second,
-		TLSClientConfig:     tlsConfig,
-		// TODO(dmcgowan): Call close idle connections when complete and use keep alive
-		DisableKeepAlives: true,
-	}
+	return otelhttp.NewTransport(
+		&http.Transport{
+			Proxy:               http.ProxyFromEnvironment,
+			DialContext:         direct.DialContext,
+			TLSHandshakeTimeout: 10 * time.Second,
+			TLSClientConfig:     tlsConfig,
+			// TODO(dmcgowan): Call close idle connections when complete and use keep alive
+			DisableKeepAlives: true,
+		},
+	)
 }
