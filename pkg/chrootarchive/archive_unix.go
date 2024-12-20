@@ -1,8 +1,9 @@
 //go:build !windows
 
-package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
+package chrootarchive
 
 import (
+	"errors"
 	"io"
 	"net"
 	"os/user"
@@ -10,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/pkg/errors"
 )
 
 func init() {
