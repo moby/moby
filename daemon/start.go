@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
-	mobyc8dstore "github.com/docker/docker/daemon/images/containerd"
+	"github.com/docker/docker/daemon/images/c8dstore"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/pkg/errors"
@@ -191,7 +191,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		// Only set the image if we are using containerd for image storage.
 		// This is for metadata purposes only.
 		// Other lower-level components may make use of this information.
-		is, ok := daemon.imageService.(*mobyc8dstore.ImageService)
+		is, ok := daemon.imageService.(*c8dstore.ImageService)
 		if !ok {
 			return nil
 		}

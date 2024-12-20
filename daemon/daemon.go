@@ -43,7 +43,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/events"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
-	ctrd "github.com/docker/docker/daemon/images/containerd"
+	"github.com/docker/docker/daemon/images/c8dstore"
 	"github.com/docker/docker/daemon/images/gdstore"
 	dlogger "github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
@@ -1070,7 +1070,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		if err := configureKernelSecuritySupport(&cfgStore.Config, driverName); err != nil {
 			return nil, err
 		}
-		d.imageService = ctrd.NewService(ctrd.ImageServiceConfig{
+		d.imageService = c8dstore.NewService(c8dstore.ImageServiceConfig{
 			Client:          d.containerdClient,
 			Containers:      d.containers,
 			Snapshotter:     driverName,
