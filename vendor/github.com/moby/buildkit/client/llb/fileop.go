@@ -5,6 +5,7 @@ import (
 	_ "crypto/sha256" // for opencontainers/go-digest
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -563,7 +564,7 @@ func (a *fileActionCopy) toProtoAction(ctx context.Context, parent string, base 
 }
 
 func (a *fileActionCopy) sourcePath(ctx context.Context) (string, error) {
-	p := path.Clean(a.src)
+	p := filepath.ToSlash(path.Clean(a.src))
 	dir := "/"
 	var err error
 	if !path.IsAbs(p) {
@@ -745,7 +746,10 @@ func (ms *marshalState) add(fa *FileAction, c *Constraints) (*fileActionState, e
 }
 
 func (f *FileOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
-	if dgst, dt, md, srcs, err := f.Load(c); err == nil {
+	cache := f.Acquire()
+	defer cache.Release()
+
+	if dgst, dt, md, srcs, err := cache.Load(c); err == nil {
 		return dgst, dt, md, srcs, nil
 	}
 
@@ -815,7 +819,7 @@ func (f *FileOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 	if err != nil {
 		return "", nil, nil, nil, err
 	}
-	return f.Store(dt, md, f.constraints.SourceLocations, c)
+	return cache.Store(dt, md, f.constraints.SourceLocations, c)
 }
 
 func normalizePath(parent, p string, keepSlash bool) string {

@@ -12,6 +12,7 @@ func clone(src dockerspec.DockerOCIImage) dockerspec.DockerOCIImage {
 	img.Config.Env = append([]string{}, src.Config.Env...)
 	img.Config.Cmd = append([]string{}, src.Config.Cmd...)
 	img.Config.Entrypoint = append([]string{}, src.Config.Entrypoint...)
+	img.Config.OnBuild = append([]string{}, src.Config.OnBuild...)
 	return img
 }
 
