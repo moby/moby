@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/moby/sys/userns"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
@@ -81,7 +82,7 @@ func TestTarWithHardLink(t *testing.T) {
 	defer os.RemoveAll(dest)
 
 	// we'll do this in two steps to separate failure
-	fh, err := Tar(origin, Uncompressed)
+	fh, err := Tar(origin, compression.None)
 	assert.NilError(t, err)
 
 	// ensure we can read the whole thing with no error, before writing back out
@@ -89,7 +90,7 @@ func TestTarWithHardLink(t *testing.T) {
 	assert.NilError(t, err)
 
 	bRdr := bytes.NewReader(buf)
-	err = Untar(bRdr, dest, &TarOptions{Compression: Uncompressed})
+	err = Untar(bRdr, dest, &TarOptions{Compression: compression.None})
 	assert.NilError(t, err)
 
 	i1, err = getInode(filepath.Join(dest, "1"))
@@ -132,7 +133,7 @@ func TestTarWithHardLinkAndRebase(t *testing.T) {
 	dstDir, srcBase := SplitPathDirEntry(origin)
 	_, dstBase := SplitPathDirEntry(dest)
 	content := RebaseArchiveEntries(bRdr, srcBase, dstBase)
-	err = Untar(content, dstDir, &TarOptions{Compression: Uncompressed, NoLchown: true, NoOverwriteDirNonDir: true})
+	err = Untar(content, dstDir, &TarOptions{Compression: compression.None, NoLchown: true, NoOverwriteDirNonDir: true})
 	assert.NilError(t, err)
 
 	i1, err = getInode(filepath.Join(dest, "1"))
@@ -210,7 +211,7 @@ func TestTarWithBlockCharFifo(t *testing.T) {
 	defer os.RemoveAll(dest)
 
 	// we'll do this in two steps to separate failure
-	fh, err := Tar(origin, Uncompressed)
+	fh, err := Tar(origin, compression.None)
 	assert.NilError(t, err)
 
 	// ensure we can read the whole thing with no error, before writing back out
@@ -218,14 +219,14 @@ func TestTarWithBlockCharFifo(t *testing.T) {
 	assert.NilError(t, err)
 
 	bRdr := bytes.NewReader(buf)
-	err = Untar(bRdr, dest, &TarOptions{Compression: Uncompressed})
+	err = Untar(bRdr, dest, &TarOptions{Compression: compression.None})
 	assert.NilError(t, err)
 
-	changes, err := ChangesDirs(origin, dest)
+	ch, err := ChangesDirs(origin, dest)
 	assert.NilError(t, err)
 
-	if len(changes) > 0 {
-		t.Fatalf("Tar with special device (block, char, fifo) should keep them (recreate them when untar) : %v", changes)
+	if len(ch) > 0 {
+		t.Fatalf("Tar with special device (block, char, fifo) should keep them (recreate them when untar) : %v", ch)
 	}
 }
 
@@ -253,7 +254,7 @@ func TestTarUntarWithXattr(t *testing.T) {
 	out, err := exec.Command("setcap", "cap_block_suspend+ep", filepath.Join(origin, "2")).CombinedOutput()
 	assert.NilError(t, err, string(out))
 
-	tarball, err := Tar(origin, Uncompressed)
+	tarball, err := Tar(origin, compression.None)
 	assert.NilError(t, err)
 	defer tarball.Close()
 	rdr := tar.NewReader(tarball)
@@ -274,9 +275,9 @@ func TestTarUntarWithXattr(t *testing.T) {
 		}
 	}
 
-	for _, c := range []Compression{
-		Uncompressed,
-		Gzip,
+	for _, c := range []compression.Compression{
+		compression.None,
+		compression.Gzip,
 	} {
 		changes, err := tarUntar(t, origin, &TarOptions{
 			Compression:     c,

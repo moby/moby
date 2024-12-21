@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/docker/docker/pkg/archive/compression"
 )
 
 func TestApplyLayerInvalidFilenames(t *testing.T) {
@@ -331,7 +333,7 @@ func makeTestLayer(paths []string) (rc io.ReadCloser, err error) {
 			}
 		}
 	}
-	archive, err := Tar(tmpDir, Uncompressed)
+	archive, err := Tar(tmpDir, compression.None)
 	if err != nil {
 		return
 	}

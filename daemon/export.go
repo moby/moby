@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/pkg/chrootarchive"
 )
 
@@ -45,7 +46,7 @@ func (daemon *Daemon) ContainerExport(ctx context.Context, name string, out io.W
 func (daemon *Daemon) containerExport(ctx context.Context, container *container.Container, out io.Writer) error {
 	err := daemon.imageService.PerformWithBaseFS(ctx, container, func(basefs string) error {
 		archv, err := chrootarchive.Tar(basefs, &archive.TarOptions{
-			Compression: archive.Uncompressed,
+			Compression: compression.None,
 			IDMap:       daemon.idMapping,
 		}, basefs)
 		if err != nil {

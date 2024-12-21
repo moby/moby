@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/sys/userns"
 	"gotest.tools/v3/assert"
@@ -148,7 +149,7 @@ func TestCompressStreamXzUnsupported(t *testing.T) {
 	}
 	defer dest.Close()
 
-	_, err = CompressStream(dest, Xz)
+	_, err = CompressStream(dest, compression.Xz)
 	if err == nil {
 		t.Fatalf("Should fail as xz is unsupported for compression format.")
 	}
@@ -161,7 +162,7 @@ func TestCompressStreamBzip2Unsupported(t *testing.T) {
 	}
 	defer dest.Close()
 
-	_, err = CompressStream(dest, Bzip2)
+	_, err = CompressStream(dest, compression.Bzip2)
 	if err == nil {
 		t.Fatalf("Should fail as bzip2 is unsupported for compression format.")
 	}
@@ -177,54 +178,6 @@ func TestCompressStreamInvalid(t *testing.T) {
 	_, err = CompressStream(dest, -1)
 	if err == nil {
 		t.Fatalf("Should fail as xz is unsupported for compression format.")
-	}
-}
-
-func TestExtensionInvalid(t *testing.T) {
-	compression := Compression(-1)
-	output := compression.Extension()
-	if output != "" {
-		t.Fatalf("The extension of an invalid compression should be an empty string.")
-	}
-}
-
-func TestExtensionUncompressed(t *testing.T) {
-	compression := Uncompressed
-	output := compression.Extension()
-	if output != "tar" {
-		t.Fatalf("The extension of an uncompressed archive should be 'tar'.")
-	}
-}
-
-func TestExtensionBzip2(t *testing.T) {
-	compression := Bzip2
-	output := compression.Extension()
-	if output != "tar.bz2" {
-		t.Fatalf("The extension of a bzip2 archive should be 'tar.bz2'")
-	}
-}
-
-func TestExtensionGzip(t *testing.T) {
-	compression := Gzip
-	output := compression.Extension()
-	if output != "tar.gz" {
-		t.Fatalf("The extension of a gzip archive should be 'tar.gz'")
-	}
-}
-
-func TestExtensionXz(t *testing.T) {
-	compression := Xz
-	output := compression.Extension()
-	if output != "tar.xz" {
-		t.Fatalf("The extension of a xz archive should be 'tar.xz'")
-	}
-}
-
-func TestExtensionZstd(t *testing.T) {
-	compression := Zstd
-	output := compression.Extension()
-	if output != "tar.zst" {
-		t.Fatalf("The extension of a zstd archive should be 'tar.zst'")
 	}
 }
 
@@ -698,10 +651,10 @@ func tarUntar(t *testing.T, origin string, options *TarOptions) ([]Change, error
 	}
 	wrap := io.MultiReader(bytes.NewReader(buf), archive)
 
-	detectedCompression := DetectCompression(buf)
-	compression := options.Compression
-	if detectedCompression.Extension() != compression.Extension() {
-		return nil, fmt.Errorf("Wrong compression detected. Actual compression: %s, found %s", compression.Extension(), detectedCompression.Extension())
+	detectedCompression := compression.Detect(buf)
+	comp := options.Compression
+	if detectedCompression.Extension() != comp.Extension() {
+		return nil, fmt.Errorf("Wrong compression detected. Actual compression: %s, found %s", comp.Extension(), detectedCompression.Extension())
 	}
 
 	tmp, err := os.MkdirTemp("", "docker-test-untar")
@@ -717,34 +670,6 @@ func tarUntar(t *testing.T, origin string, options *TarOptions) ([]Change, error
 	}
 
 	return ChangesDirs(origin, tmp)
-}
-
-func TestDetectCompressionZstd(t *testing.T) {
-	// test zstd compression without skippable frames.
-	compressedData := []byte{
-		0x28, 0xb5, 0x2f, 0xfd, // magic number of Zstandard frame: 0xFD2FB528
-		0x04, 0x00, 0x31, 0x00, 0x00, // frame header
-		0x64, 0x6f, 0x63, 0x6b, 0x65, 0x72, // data block "docker"
-		0x16, 0x0e, 0x21, 0xc3, // content checksum
-	}
-	compression := DetectCompression(compressedData)
-	if compression != Zstd {
-		t.Fatal("Unexpected compression")
-	}
-	// test zstd compression with skippable frames.
-	hex := []byte{
-		0x50, 0x2a, 0x4d, 0x18, // magic number of skippable frame: 0x184D2A50 to 0x184D2A5F
-		0x04, 0x00, 0x00, 0x00, // frame size
-		0x5d, 0x00, 0x00, 0x00, // user data
-		0x28, 0xb5, 0x2f, 0xfd, // magic number of Zstandard frame: 0xFD2FB528
-		0x04, 0x00, 0x31, 0x00, 0x00, // frame header
-		0x64, 0x6f, 0x63, 0x6b, 0x65, 0x72, // data block "docker"
-		0x16, 0x0e, 0x21, 0xc3, // content checksum
-	}
-	compression = DetectCompression(hex)
-	if compression != Zstd {
-		t.Fatal("Unexpected compression")
-	}
 }
 
 func TestTarUntar(t *testing.T) {
@@ -763,9 +688,9 @@ func TestTarUntar(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, c := range []Compression{
-		Uncompressed,
-		Gzip,
+	for _, c := range []compression.Compression{
+		compression.None,
+		compression.Gzip,
 	} {
 		changes, err := tarUntar(t, origin, &TarOptions{
 			Compression:     c,

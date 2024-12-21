@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/skip"
@@ -135,7 +136,7 @@ func TestRemoveDirectory(t *testing.T) {
 
 func makeTestArchiveContext(t *testing.T, dir string) builder.Source {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	tarStream, err := archive.Tar(dir, archive.Uncompressed)
+	tarStream, err := archive.Tar(dir, compression.None)
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}

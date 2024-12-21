@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -35,7 +36,7 @@ func TestImageLoadMissing(t *testing.T) {
 	imgSvc.defaultPlatformOverride = platforms.Only(linuxAmd64)
 
 	tryLoad := func(ctx context.Context, t *testing.T, dir string, platform ocispec.Platform) error {
-		tarRc, err := archive.Tar(dir, archive.Uncompressed)
+		tarRc, err := archive.Tar(dir, compression.None)
 		assert.NilError(t, err)
 		defer tarRc.Close()
 

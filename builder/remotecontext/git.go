@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext/git"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 )
 
 // MakeGitContext returns a Context from gitURL that is cloned in a temporary directory.
@@ -17,7 +18,7 @@ func MakeGitContext(gitURL string) (builder.Source, error) {
 		return nil, err
 	}
 
-	c, err := archive.Tar(root, archive.Uncompressed)
+	c, err := archive.Tar(root, compression.None)
 	if err != nil {
 		return nil, err
 	}

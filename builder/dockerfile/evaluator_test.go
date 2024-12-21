@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/sys/reexec"
 	"gotest.tools/v3/assert"
@@ -107,7 +108,7 @@ func TestDispatch(t *testing.T) {
 				createTestTempFile(t, contextDir, filename, content, 0o777)
 			}
 
-			tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
+			tarStream, err := archive.Tar(contextDir, compression.None)
 			if err != nil {
 				t.Fatalf("Error when creating tar stream: %s", err)
 			}

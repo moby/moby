@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
 )
@@ -314,7 +315,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 		filter = []string{f}
 	}
 	archv, err := chrootarchive.Tar(basePath, &archive.TarOptions{
-		Compression:  archive.Uncompressed,
+		Compression:  compression.None,
 		IncludeFiles: filter,
 	}, container.BaseFS)
 	if err != nil {

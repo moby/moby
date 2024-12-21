@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/fakegit"
@@ -2008,7 +2009,7 @@ func (s *DockerCLIBuildSuite) TestBuildAddLocalAndRemoteFilesWithAndWithoutCache
 	}
 }
 
-func testContextTar(c *testing.T, compression archive.Compression) {
+func testContextTar(c *testing.T, comp compression.Compression) {
 	ctx := fakecontext.New(c, "",
 		fakecontext.WithDockerfile(`FROM busybox
 ADD foo /foo
@@ -2018,21 +2019,21 @@ CMD ["cat", "/foo"]`),
 		}),
 	)
 	defer ctx.Close()
-	context, err := archive.Tar(ctx.Dir, compression)
+	buildContext, err := archive.Tar(ctx.Dir, comp)
 	if err != nil {
 		c.Fatalf("failed to build context tar: %v", err)
 	}
 	const name = "contexttar"
 
-	cli.BuildCmd(c, name, build.WithStdinContext(context))
+	cli.BuildCmd(c, name, build.WithStdinContext(buildContext))
 }
 
 func (s *DockerCLIBuildSuite) TestBuildContextTarGzip(c *testing.T) {
-	testContextTar(c, archive.Gzip)
+	testContextTar(c, compression.Gzip)
 }
 
 func (s *DockerCLIBuildSuite) TestBuildContextTarNoCompression(c *testing.T) {
-	testContextTar(c, archive.Uncompressed)
+	testContextTar(c, compression.None)
 }
 
 func (s *DockerCLIBuildSuite) TestBuildNoContext(c *testing.T) {
