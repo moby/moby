@@ -160,6 +160,17 @@ func LinkList() (links []netlink.Link, err error) {
 	return links, discardErrDumpInterrupted(err)
 }
 
+// LinkSubscribeWithOptions calls netlink.LinkSubscribeWithOptions, retrying if necessary.
+// Close the done channel when done (rather than just sending on it), so that goroutines
+// started by the netlink package are all stopped.
+func LinkSubscribeWithOptions(ch chan<- netlink.LinkUpdate, done <-chan struct{}, options netlink.LinkSubscribeOptions) (err error) {
+	retryOnIntr(func() error {
+		err = netlink.LinkSubscribeWithOptions(ch, done, options) //nolint:forbidigo
+		return err
+	})
+	return err
+}
+
 // RouteList calls nlh.Handle.RouteList, retrying if necessary.
 func (nlh Handle) RouteList(link netlink.Link, family int) (routes []netlink.Route, err error) {
 	retryOnIntr(func() error {
