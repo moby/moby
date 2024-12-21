@@ -14,7 +14,7 @@ import (
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/images/gdstore"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/multierror"
@@ -89,7 +89,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 				Variant:      img.Variant,
 			}
 
-			if !images.OnlyPlatformWithFallback(p).Match(imgPlat) {
+			if !gdstore.OnlyPlatformWithFallback(p).Match(imgPlat) {
 				warnings = append(warnings, fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.Format(imgPlat), platforms.Format(p)))
 			}
 		}
@@ -184,18 +184,12 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	ctr.HostConfig.StorageOpt = opts.params.HostConfig.StorageOpt
 	ctr.ImageManifest = imgManifest
 
-	if daemon.UsesSnapshotter() {
-		if err := daemon.imageService.PrepareSnapshot(ctx, ctr.ID, opts.params.Config.Image, opts.params.Platform, setupInitLayer(daemon.idMapping)); err != nil {
-			return nil, err
-		}
-	} else {
-		// Set RWLayer for container after mount labels have been set
-		rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping))
-		if err != nil {
-			return nil, errdefs.System(err)
-		}
-		ctr.RWLayer = rwLayer
+	// Set RWLayer for container after mount labels have been set
+	rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping))
+	if err != nil {
+		return nil, errdefs.System(err)
 	}
+	ctr.RWLayer = rwLayer
 
 	current := idtools.CurrentIdentity()
 	if err := idtools.MkdirAndChown(ctr.Root, 0o710, idtools.Identity{UID: current.UID, GID: daemon.IdentityMapping().RootPair().GID}); err != nil {
