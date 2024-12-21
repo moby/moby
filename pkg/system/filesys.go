@@ -17,3 +17,11 @@ import (
 func IsAbs(path string) bool {
 	return filepath.IsAbs(path) || strings.HasPrefix(path, string(os.PathSeparator))
 }
+
+// MkdirAll creates a directory named path along with any necessary parents,
+// with permission specified by attribute perm for all dir created.
+//
+// Deprecated: [os.MkdirAll] now natively supports Windows GUID volume paths, and should be used instead. This alias will be removed in the next release.
+func MkdirAll(path string, perm os.FileMode) error {
+	return os.MkdirAll(path, perm)
+}

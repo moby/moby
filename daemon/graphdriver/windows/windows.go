@@ -31,7 +31,6 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/longpath"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-units"
 	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
@@ -103,7 +102,7 @@ func InitFilter(home string, options []string, _ idtools.IdentityMapping) (graph
 
 	// Setting file-mode is a no-op on Windows, so passing "0" to make it more
 	// transparent that the filemode passed has no effect.
-	if err = system.MkdirAll(home, 0); err != nil {
+	if err = os.MkdirAll(home, 0); err != nil {
 		return nil, errors.Wrapf(err, "windowsfilter failed to create '%s'", home)
 	}
 

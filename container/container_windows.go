@@ -9,7 +9,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/pkg/system"
 )
 
 const (
@@ -46,7 +45,7 @@ func (container *Container) CreateSecretSymlinks() error {
 		if err != nil {
 			return err
 		}
-		if err := system.MkdirAll(filepath.Dir(resolvedPath), 0); err != nil {
+		if err := os.MkdirAll(filepath.Dir(resolvedPath), 0); err != nil {
 			return err
 		}
 		if err := os.Symlink(filepath.Join(containerInternalSecretMountPath, r.SecretID), resolvedPath); err != nil {
@@ -96,7 +95,7 @@ func (container *Container) CreateConfigSymlinks() error {
 		if err != nil {
 			return err
 		}
-		if err := system.MkdirAll(filepath.Dir(resolvedPath), 0); err != nil {
+		if err := os.MkdirAll(filepath.Dir(resolvedPath), 0); err != nil {
 			return err
 		}
 		if err := os.Symlink(filepath.Join(containerInternalConfigsDirPath, configRef.ConfigID), resolvedPath); err != nil {

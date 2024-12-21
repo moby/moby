@@ -66,7 +66,6 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin"
 	pluginexec "github.com/docker/docker/plugin/executor/containerd"
 	refstore "github.com/docker/docker/reference"
@@ -810,7 +809,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
 	}
 	if isWindows {
-		if err := system.MkdirAll(realTmp, 0); err != nil {
+		if err := os.MkdirAll(realTmp, 0); err != nil {
 			return nil, fmt.Errorf("Unable to create the TempDir (%s): %s", realTmp, err)
 		}
 		os.Setenv("TEMP", realTmp)

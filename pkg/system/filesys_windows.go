@@ -2,7 +2,7 @@ package system // import "github.com/docker/docker/pkg/system"
 
 import (
 	"os"
-	"regexp"
+	"path/filepath"
 	"syscall"
 	"unsafe"
 
@@ -12,11 +12,6 @@ import (
 // SddlAdministratorsLocalSystem is local administrators plus NT AUTHORITY\System.
 const SddlAdministratorsLocalSystem = "D:P(A;OICI;GA;;;BA)(A;OICI;GA;;;SY)"
 
-// volumePath is a regular expression to check if a path is a Windows
-// volume path (e.g., "\\?\Volume{4c1b02c1-d990-11dc-99ae-806e6f6e6963}"
-// or "\\?\Volume{4c1b02c1-d990-11dc-99ae-806e6f6e6963}\").
-var volumePath = regexp.MustCompile(`^\\\\\?\\Volume{[a-z0-9-]+}\\?$`)
-
 // MkdirAllWithACL is a custom version of os.MkdirAll modified for use on Windows
 // so that it is both volume path aware, and can create a directory with
 // an appropriate SDDL defined ACL.
@@ -25,26 +20,23 @@ func MkdirAllWithACL(path string, _ os.FileMode, sddl string) error {
 	if err != nil {
 		return &os.PathError{Op: "mkdirall", Path: path, Err: err}
 	}
-	return mkdirall(path, sa)
+	return mkdirAllWithACL(path, sa)
 }
 
-// MkdirAll is a custom version of os.MkdirAll that is volume path aware for
-// Windows. It can be used as a drop-in replacement for os.MkdirAll.
-func MkdirAll(path string, _ os.FileMode) error {
-	return mkdirall(path, nil)
-}
-
-// mkdirall is a custom version of os.MkdirAll modified for use on Windows
-// so that it is both volume path aware, and can create a directory with
-// a DACL.
-func mkdirall(path string, perm *windows.SecurityAttributes) error {
-	if volumePath.MatchString(path) {
-		return nil
+// mkdirAllWithACL is a custom version of os.MkdirAll with DACL support on Windows.
+// It is fully identical to [os.MkdirAll] if no DACL is provided.
+//
+// Code in this function is based on the implementation in [go1.23.4].
+//
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+//
+// [go1.23.4]: https://github.com/golang/go/blob/go1.23.4/src/os/path.go#L12-L66
+func mkdirAllWithACL(path string, perm *windows.SecurityAttributes) error {
+	if perm == nil {
+		return os.MkdirAll(path, 0)
 	}
-
-	// The rest of this method is largely copied from os.MkdirAll and should be kept
-	// as-is to ensure compatibility.
-
 	// Fast path: if we can tell whether path is a directory or file, stop with success or error.
 	dir, err := os.Stat(path)
 	if err == nil {
@@ -55,19 +47,25 @@ func mkdirall(path string, perm *windows.SecurityAttributes) error {
 	}
 
 	// Slow path: make sure parent exists and then call Mkdir for path.
-	i := len(path)
-	for i > 0 && os.IsPathSeparator(path[i-1]) { // Skip trailing path separator.
+
+	// Extract the parent folder from path by first removing any trailing
+	// path separator and then scanning backward until finding a path
+	// separator or reaching the beginning of the string.
+	i := len(path) - 1
+	for i >= 0 && os.IsPathSeparator(path[i]) {
 		i--
 	}
-
-	j := i
-	for j > 0 && !os.IsPathSeparator(path[j-1]) { // Scan backward over element.
-		j--
+	for i >= 0 && !os.IsPathSeparator(path[i]) {
+		i--
+	}
+	if i < 0 {
+		i = 0
 	}
 
-	if j > 1 {
-		// Create parent.
-		err = mkdirall(fixRootDirectory(path[:j-1]), perm)
+	// If there is a parent directory, and it is not the volume name,
+	// recurse to ensure parent directory exists.
+	if parent := path[:i]; len(parent) > len(filepath.VolumeName(path)) {
+		err = mkdirAllWithACL(parent, perm)
 		if err != nil {
 			return err
 		}
@@ -109,17 +107,6 @@ func mkdirWithACL(name string, sa *windows.SecurityAttributes) error {
 		return &os.PathError{Op: "mkdir", Path: name, Err: err}
 	}
 	return nil
-}
-
-// fixRootDirectory fixes a reference to a drive's root directory to
-// have the required trailing slash.
-func fixRootDirectory(p string) string {
-	if len(p) == len(`\\?\c:`) {
-		if os.IsPathSeparator(p[0]) && os.IsPathSeparator(p[1]) && p[2] == '?' && os.IsPathSeparator(p[3]) && p[5] == ':' {
-			return p + `\`
-		}
-	}
-	return p
 }
 
 func makeSecurityAttributes(sddl string) (*windows.SecurityAttributes, error) {
