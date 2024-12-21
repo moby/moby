@@ -16,7 +16,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/process"
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/pelletier/go-toml"
 	"github.com/pkg/errors"
@@ -93,7 +92,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 		}
 	}
 
-	if err := system.MkdirAll(stateDir, 0o700); err != nil {
+	if err := os.MkdirAll(stateDir, 0o700); err != nil {
 		return nil, err
 	}
 
