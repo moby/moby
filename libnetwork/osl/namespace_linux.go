@@ -389,7 +389,8 @@ func (n *Namespace) Destroy() error {
 func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error {
 	// restore interfaces
 	for iface, opts := range interfaces {
-		i, err := newInterface(n, iface.SrcName, iface.DstPrefix, opts...)
+		i, err := newInterface(n, iface.SrcName, iface.DstPrefix, iface.DstName, opts...)
+		// TODO(aker)
 		if err != nil {
 			return err
 		}
@@ -404,7 +405,7 @@ func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.
 			// restore from the namespace
 			for _, link := range links {
 				ifaceName := link.Attrs().Name
-				if i.dstName == "vxlan" && strings.HasPrefix(ifaceName, "vxlan") {
+				if i.dstPrefix == "vxlan" && strings.HasPrefix(ifaceName, "vxlan") {
 					i.dstName = ifaceName
 					break
 				}
@@ -425,7 +426,7 @@ func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.
 					}
 				}
 				// This is to find the interface name of the pair in overlay sandbox
-				if i.master != "" && i.dstName == "veth" && strings.HasPrefix(ifaceName, "veth") {
+				if i.master != "" && i.dstPrefix == "veth" && strings.HasPrefix(ifaceName, "veth") {
 					i.dstName = ifaceName
 				}
 			}

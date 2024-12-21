@@ -1620,7 +1620,7 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, ok := stats["eth0"]; !ok {
-		t.Fatalf("Did not find eth0 statistics")
+		t.Fatalf("Did not find eth0 statistics -- stats: %+v", stats)
 	}
 
 	// Now test the container joining another network

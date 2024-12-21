@@ -1,6 +1,6 @@
 //go:build !windows
 
-package macvlan // import "github.com/docker/docker/integration/network/macvlan"
+package overlay // import "github.com/docker/docker/integration/network/overlay"
 
 import (
 	"context"
@@ -22,7 +22,7 @@ var (
 func TestMain(m *testing.M) {
 	shutdown := testutil.ConfigureTracing()
 
-	ctx, span := otel.Tracer("").Start(context.Background(), "integration/network/macvlan/TestMain")
+	ctx, span := otel.Tracer("").Start(context.Background(), "integration/network/overlay/TestMain")
 	baseContext = ctx
 
 	var err error

@@ -24,11 +24,12 @@ import (
 
 // newInterface creates a new interface in the given namespace using the
 // provided options.
-func newInterface(ns *Namespace, srcName, dstPrefix string, options ...IfaceOption) (*Interface, error) {
+func newInterface(ns *Namespace, srcName, dstPrefix, dstName string, options ...IfaceOption) (*Interface, error) {
 	i := &Interface{
-		srcName: srcName,
-		dstName: dstPrefix,
-		ns:      ns,
+		srcName:   srcName,
+		dstPrefix: dstPrefix,
+		dstName:   dstName,
+		ns:        ns,
 	}
 	for _, opt := range options {
 		if opt != nil {
@@ -54,6 +55,7 @@ func newInterface(ns *Namespace, srcName, dstPrefix string, options ...IfaceOpti
 // network settings.
 type Interface struct {
 	srcName     string
+	dstPrefix   string
 	dstName     string
 	master      string
 	dstMaster   string
@@ -73,9 +75,7 @@ func (i *Interface) SrcName() string {
 }
 
 // DstName returns the name that will be assigned to the interface once
-// moved inside a network namespace. When the caller passes in a DstName,
-// it is only expected to pass a prefix. The name will be modified with an
-// auto-generated suffix.
+// moved inside a network namespace.
 func (i *Interface) DstName() string {
 	return i.dstName
 }
@@ -179,18 +179,19 @@ func moveLink(ctx context.Context, nlhHost nlwrap.Handle, iface netlink.Link, i 
 	return nil
 }
 
-// AddInterface adds an existing Interface to the sandbox. The operation will rename
-// from the Interface SrcName to DstName as it moves, and reconfigure the
-// interface according to the specified settings. The caller is expected
-// to only provide a prefix for DstName. The AddInterface api will auto-generate
-// an appropriate suffix for the DstName to disambiguate.
-func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix string, options ...IfaceOption) error {
+// AddInterface adds an existing Interface to the sandbox. The operation will
+// rename from the Interface SrcName to DstName as it moves, and reconfigure
+// the interface according to the specified settings. If dstPrefix is provided,
+// but not dstName, AddInterface will auto-generate a unique suffix and append
+// it to dstPrefix.
+func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix, dstName string, options ...IfaceOption) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.AddInterface", trace.WithAttributes(
 		attribute.String("srcName", srcName),
-		attribute.String("dstPrefix", dstPrefix)))
+		attribute.String("dstPrefix", dstPrefix),
+		attribute.String("dstName", dstName)))
 	defer span.End()
 
-	i, err := newInterface(n, srcName, dstPrefix, options...)
+	i, err := newInterface(n, srcName, dstPrefix, dstName, options...)
 	if err != nil {
 		return err
 	}
@@ -198,7 +199,7 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix string,
 	n.mu.Lock()
 	if n.isDefault {
 		i.dstName = i.srcName
-	} else {
+	} else if i.dstName == "" {
 		i.dstName = fmt.Sprintf("%s%d", dstPrefix, n.nextIfIndex[dstPrefix])
 		n.nextIfIndex[dstPrefix]++
 	}

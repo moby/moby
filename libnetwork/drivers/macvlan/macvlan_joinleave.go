@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
 	"go.opentelemetry.io/otel"
@@ -17,7 +18,7 @@ import (
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, _ map[string]interface{}) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.macvlan.Join", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid),
@@ -102,7 +103,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		jinfo.DisableGatewayService()
 	}
 	iNames := jinfo.InterfaceName()
-	err = iNames.SetNames(vethName, containerVethPrefix)
+	err = iNames.SetNames(vethName, containerVethPrefix, netlabel.GetIfname(epOpts))
 	if err != nil {
 		return err
 	}
