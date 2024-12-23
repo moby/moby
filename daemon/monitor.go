@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/metrics"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/restartmanager"
 	"github.com/pkg/errors"
@@ -19,11 +20,11 @@ import (
 func (daemon *Daemon) setStateCounter(c *container.Container) {
 	switch c.StateString() {
 	case "paused":
-		stateCtr.set(c.ID, "paused")
+		metrics.StateCtr.Set(c.ID, "paused")
 	case "running":
-		stateCtr.set(c.ID, "running")
+		metrics.StateCtr.Set(c.ID, "running")
 	default:
-		stateCtr.set(c.ID, "stopped")
+		metrics.StateCtr.Set(c.ID, "stopped")
 	}
 }
 
