@@ -7,6 +7,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
@@ -64,7 +65,7 @@ func (gdw *NaiveDiffDriver) Diff(id, parent string) (arch io.ReadCloser, err err
 	}()
 
 	if parent == "" {
-		tarArchive, err := archive.Tar(layerFs, archive.Uncompressed)
+		tarArchive, err := archive.Tar(layerFs, compression.None)
 		if err != nil {
 			return nil, err
 		}

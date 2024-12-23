@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/pkg/idtools"
 	"gotest.tools/v3/skip"
 )
@@ -48,7 +49,7 @@ func TestChrootTarUntar(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(src, "lolo"), []byte("hello lolo"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	stream, err := archive.Tar(src, archive.Uncompressed)
+	stream, err := archive.Tar(src, compression.None)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +74,7 @@ func TestChrootUntarWithHugeExcludesList(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(src, "toto"), []byte("hello toto"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	stream, err := archive.Tar(src, archive.Uncompressed)
+	stream, err := archive.Tar(src, compression.None)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,7 +277,7 @@ func TestChrootUntarPath(t *testing.T) {
 	}
 
 	// Untar a tar file
-	stream, err := archive.Tar(src, archive.Uncompressed)
+	stream, err := archive.Tar(src, compression.None)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -353,7 +354,7 @@ func TestChrootApplyDotDotFile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(src, "..gitme"), []byte(""), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	stream, err := archive.Tar(src, archive.Uncompressed)
+	stream, err := archive.Tar(src, compression.None)
 	if err != nil {
 		t.Fatal(err)
 	}

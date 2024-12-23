@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/vfs"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
@@ -600,7 +601,7 @@ func tarFromFiles(files ...FileApplier) ([]byte, error) {
 		}
 	}
 
-	r, err := archive.Tar(td, archive.Uncompressed)
+	r, err := archive.Tar(td, compression.None)
 	if err != nil {
 		return nil, err
 	}

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/pkg/archive/compression"
 )
 
 // Errors used or returned by this file.
@@ -116,7 +117,7 @@ func TarResourceRebase(sourcePath, rebaseName string) (content io.ReadCloser, er
 func TarResourceRebaseOpts(sourceBase string, rebaseName string) *TarOptions {
 	filter := []string{sourceBase}
 	return &TarOptions{
-		Compression:      Uncompressed,
+		Compression:      compression.None,
 		IncludeFiles:     filter,
 		IncludeSourceDir: true,
 		RebaseNames: map[string]string{

@@ -11,7 +11,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 )
@@ -338,7 +338,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(d.transfer.context(), downloadReader), progressOutput, size, descriptor.ID(), "Extracting")
 			defer reader.Close()
 
-			inflatedLayerData, err := archive.DecompressStream(reader)
+			inflatedLayerData, err := compression.DecompressStream(reader)
 			if err != nil {
 				d.err = fmt.Errorf("could not get decompression stream: %v", err)
 				return

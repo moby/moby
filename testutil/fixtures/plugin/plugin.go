@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/plugin"
 	registrypkg "github.com/docker/docker/registry"
 	"github.com/pkg/errors"
@@ -205,7 +206,7 @@ func makePluginBundle(inPath string, opts ...CreateOpt) (io.ReadCloser, error) {
 	if err := archive.NewDefaultArchiver().CopyFileWithTar(cfg.binPath, filepath.Join(inPath, "rootfs", p.Entrypoint[0])); err != nil {
 		return nil, errors.Wrap(err, "error copying plugin binary to rootfs path")
 	}
-	tar, err := archive.Tar(inPath, archive.Uncompressed)
+	tar, err := archive.Tar(inPath, compression.None)
 	return tar, errors.Wrap(err, "error making plugin archive")
 }
 

@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/internal/ioutils"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/sys/sequential"
 	"github.com/opencontainers/go-digest"
@@ -393,7 +394,7 @@ func (s *saveSession) writeTar(ctx context.Context, tempDir string, outStream io
 	ctx, span := tracing.StartSpan(ctx, "writeTar")
 	defer span.End()
 
-	fs, err := archive.Tar(tempDir, archive.Uncompressed)
+	fs, err := archive.Tar(tempDir, compression.None)
 	if err != nil {
 		span.SetStatus(err)
 		return err

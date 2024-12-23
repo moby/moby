@@ -20,7 +20,7 @@ import (
 	v1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/internal/ioutils"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -231,7 +231,7 @@ func (l *tarexporter) loadLayer(ctx context.Context, filename string, rootFS ima
 		r = rawTar
 	}
 
-	inflatedLayerData, err := archive.DecompressStream(ioutils.NewCtxReader(ctx, r))
+	inflatedLayerData, err := compression.DecompressStream(ioutils.NewCtxReader(ctx, r))
 	if err != nil {
 		return nil, err
 	}

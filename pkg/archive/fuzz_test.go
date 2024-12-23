@@ -7,13 +7,6 @@ import (
 	fuzz "github.com/AdaLogics/go-fuzz-headers"
 )
 
-func FuzzDecompressStream(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
-		r := bytes.NewReader(data)
-		_, _ = DecompressStream(r)
-	})
-}
-
 func FuzzUntar(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte) {
 		ff := fuzz.NewConsumer(data)

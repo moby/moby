@@ -729,7 +729,6 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 	diffPath := d.getDiffPath(id)
 	logger.Debugf("Tar with options on %s", diffPath)
 	return archive.TarWithOptions(diffPath, &archive.TarOptions{
-		Compression:    archive.Uncompressed,
 		IDMap:          d.idMap,
 		WhiteoutFormat: archive.OverlayWhiteoutFormat,
 	})

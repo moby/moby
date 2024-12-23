@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
@@ -71,7 +72,7 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 	if runtime.GOOS != "windows" {
 		skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	}
-	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
+	tarStream, err := archive.Tar(contextDir, compression.None)
 	assert.NilError(t, err)
 
 	defer func() {
