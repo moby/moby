@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/daemon/internal/filedescriptors"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/internal/platform"
 	"github.com/docker/docker/pkg/meminfo"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -45,7 +46,7 @@ func doWithTrace[T any](ctx context.Context, name string, f func() T) T {
 // multiple things and is often used for debugging.
 // The only case valid early return is when the caller doesn't want the result anymore (ie context cancelled).
 func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
-	defer gometrics.StartTimer(hostInfoFunctions.WithValues("system_info"))()
+	defer gometrics.StartTimer(metrics.HostInfoFunctions.WithValues("system_info"))()
 
 	sysInfo := daemon.RawSysInfo()
 	cfg := daemon.config()
@@ -104,7 +105,7 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 // multiple things and is often used for debugging.
 // The only case valid early return is when the caller doesn't want the result anymore (ie context cancelled).
 func (daemon *Daemon) SystemVersion(ctx context.Context) (types.Version, error) {
-	defer gometrics.StartTimer(hostInfoFunctions.WithValues("system_version"))()
+	defer gometrics.StartTimer(metrics.HostInfoFunctions.WithValues("system_version"))()
 
 	kernelVer := kernelVersion(ctx)
 	cfg := daemon.config()
@@ -208,7 +209,7 @@ func (daemon *Daemon) fillSecurityOptions(v *system.Info, sysInfo *sysinfo.SysIn
 }
 
 func (daemon *Daemon) fillContainerStates(v *system.Info) {
-	cRunning, cPaused, cStopped := stateCtr.get()
+	cRunning, cPaused, cStopped := metrics.StateCtr.Get()
 	v.Containers = cRunning + cPaused + cStopped
 	v.ContainersPaused = cPaused
 	v.ContainersRunning = cRunning
@@ -324,7 +325,7 @@ func operatingSystem(ctx context.Context) (operatingSystem string) {
 	ctx, span := tracing.StartSpan(ctx, "operatingSystem")
 	defer span.End()
 
-	defer gometrics.StartTimer(hostInfoFunctions.WithValues("operating_system"))()
+	defer gometrics.StartTimer(metrics.HostInfoFunctions.WithValues("operating_system"))()
 
 	if s, err := operatingsystem.GetOperatingSystem(); err != nil {
 		log.G(ctx).WithError(err).Warn("Could not get operating system name")
@@ -345,7 +346,7 @@ func osVersion(ctx context.Context) (version string) {
 	ctx, span := tracing.StartSpan(ctx, "osVersion")
 	defer span.End()
 
-	defer gometrics.StartTimer(hostInfoFunctions.WithValues("os_version"))()
+	defer gometrics.StartTimer(metrics.HostInfoFunctions.WithValues("os_version"))()
 
 	version, err := operatingsystem.GetOperatingSystemVersion()
 	if err != nil {

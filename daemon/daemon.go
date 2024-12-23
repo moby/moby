@@ -54,6 +54,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/layer"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/libnetwork"
@@ -94,36 +95,35 @@ type configStore struct {
 
 // Daemon holds information about the Docker daemon.
 type Daemon struct {
-	id                    string
-	repository            string
-	containers            container.Store
-	containersReplica     *container.ViewDB
-	execCommands          *container.ExecStore
-	imageService          ImageService
-	configStore           atomic.Pointer[configStore]
-	configReload          sync.Mutex
-	statsCollector        *stats.Collector
-	defaultLogConfig      containertypes.LogConfig
-	registryService       *registry.Service
-	EventsService         *events.Events
-	netController         *libnetwork.Controller
-	volumes               *volumesservice.VolumesService
-	root                  string
-	sysInfoOnce           sync.Once
-	sysInfo               *sysinfo.SysInfo
-	shutdown              bool
-	idMapping             idtools.IdentityMapping
-	PluginStore           *plugin.Store // TODO: remove
-	pluginManager         *plugin.Manager
-	linkIndex             *linkIndex
-	containerdClient      *containerd.Client
-	containerd            libcontainerdtypes.Client
-	defaultIsolation      containertypes.Isolation // Default isolation mode on Windows
-	clusterProvider       cluster.Provider
-	cluster               Cluster
-	genericResources      []swarm.GenericResource
-	metricsPluginListener net.Listener
-	ReferenceStore        refstore.Store
+	id                string
+	repository        string
+	containers        container.Store
+	containersReplica *container.ViewDB
+	execCommands      *container.ExecStore
+	imageService      ImageService
+	configStore       atomic.Pointer[configStore]
+	configReload      sync.Mutex
+	statsCollector    *stats.Collector
+	defaultLogConfig  containertypes.LogConfig
+	registryService   *registry.Service
+	EventsService     *events.Events
+	netController     *libnetwork.Controller
+	volumes           *volumesservice.VolumesService
+	root              string
+	sysInfoOnce       sync.Once
+	sysInfo           *sysinfo.SysInfo
+	shutdown          bool
+	idMapping         idtools.IdentityMapping
+	PluginStore       *plugin.Store // TODO: remove
+	pluginManager     *plugin.Manager
+	linkIndex         *linkIndex
+	containerdClient  *containerd.Client
+	containerd        libcontainerdtypes.Client
+	defaultIsolation  containertypes.Isolation // Default isolation mode on Windows
+	clusterProvider   cluster.Provider
+	cluster           Cluster
+	genericResources  []swarm.GenericResource
+	ReferenceStore    refstore.Store
 
 	machineMemory uint64
 
@@ -903,11 +903,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d.registryService = registryService
 	dlogger.RegisterPluginGetter(d.PluginStore)
 
-	metricsSockPath, err := d.listenMetricsSock(&cfgStore.Config)
-	if err != nil {
+	if err := metrics.RegisterPlugin(d.PluginStore, filepath.Join(cfgStore.ExecRoot, "metrics.sock")); err != nil {
 		return nil, err
 	}
-	registerMetricsPluginCallback(d.PluginStore, metricsSockPath)
 
 	backoffConfig := backoff.DefaultConfig
 	backoffConfig.MaxDelay = 3 * time.Second
@@ -1194,7 +1192,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		log.G(ctx).Warn(w)
 	}
 
-	engineInfo.WithValues(
+	metrics.EngineInfo.WithValues(
 		dockerversion.Version,
 		dockerversion.GitCommit,
 		info.Architecture,
@@ -1205,8 +1203,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		info.OSVersion,
 		info.ID,
 	).Set(1)
-	engineCpus.Set(float64(info.NCPU))
-	engineMemory.Set(float64(info.MemTotal))
+	metrics.EngineCPUs.Set(float64(info.NCPU))
+	metrics.EngineMemory.Set(float64(info.MemTotal))
 
 	log.G(ctx).WithFields(log.Fields{
 		"version":                dockerversion.Version,
@@ -1285,7 +1283,7 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 		// check if there are any running containers, if none we should do some cleanup
 		if ls, err := daemon.Containers(ctx, &containertypes.ListOptions{}); len(ls) != 0 || err != nil {
 			// metrics plugins still need some cleanup
-			daemon.cleanupMetricsPlugins()
+			metrics.CleanupPlugin(daemon.PluginStore)
 			return err
 		}
 	}
@@ -1328,7 +1326,7 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 		daemon.DaemonLeavesCluster()
 	}
 
-	daemon.cleanupMetricsPlugins()
+	metrics.CleanupPlugin(daemon.PluginStore)
 
 	// Shutdown plugins after containers and layerstore. Don't change the order.
 	daemon.pluginShutdown()

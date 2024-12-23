@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/internal/multierror"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork"
@@ -260,7 +261,7 @@ func (daemon *Daemon) updateNetwork(cfg *config.Config, ctr *container.Container
 		return fmt.Errorf("Update network failed: Failure in refresh sandbox %s: %v", sid, err)
 	}
 
-	networkActions.WithValues("update").UpdateSince(start)
+	metrics.NetworkActions.WithValues("update").UpdateSince(start)
 
 	return nil
 }
@@ -441,7 +442,7 @@ func (daemon *Daemon) allocateNetwork(ctx context.Context, cfg *config.Config, c
 	if _, err := ctr.WriteHostConfig(); err != nil {
 		return err
 	}
-	networkActions.WithValues("allocate").UpdateSince(start)
+	metrics.NetworkActions.WithValues("allocate").UpdateSince(start)
 	return nil
 }
 
@@ -769,7 +770,7 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 	ctr.NetworkSettings.Ports = getPortMapInfo(sb)
 
 	daemon.LogNetworkEventWithAttributes(n, events.ActionConnect, map[string]string{"container": ctr.ID})
-	networkActions.WithValues("connect").UpdateSince(start)
+	metrics.NetworkActions.WithValues("connect").UpdateSince(start)
 	return nil
 }
 
@@ -969,7 +970,7 @@ func (daemon *Daemon) releaseNetwork(ctx context.Context, ctr *container.Contain
 	for _, nw := range networks {
 		daemon.tryDetachContainerFromClusterNetwork(nw, ctr)
 	}
-	networkActions.WithValues("release").UpdateSince(start)
+	metrics.NetworkActions.WithValues("release").UpdateSince(start)
 }
 
 func errRemovalContainer(containerID string) error {

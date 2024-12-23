@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/internal/metrics"
 )
 
 const (
@@ -123,7 +124,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 			return nil, err
 		}
 	case <-execConfig.Started:
-		healthCheckStartDuration.UpdateSince(startTime)
+		metrics.HealthCheckStartDuration.UpdateSince(startTime)
 	}
 
 	if !tm.Stop() {
@@ -290,10 +291,10 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 			ctx, cancelProbe := context.WithCancel(context.Background())
 			results := make(chan *containertypes.HealthcheckResult, 1)
 			go func() {
-				healthChecksCounter.Inc()
+				metrics.HealthChecksCounter.Inc()
 				result, err := probe.run(ctx, d, c)
 				if err != nil {
-					healthChecksFailedCounter.Inc()
+					metrics.HealthChecksFailedCounter.Inc()
 					log.G(ctx).Warnf("Health check for container %s error: %v", c.ID, err)
 					results <- &containertypes.HealthcheckResult{
 						ExitCode: -1,
