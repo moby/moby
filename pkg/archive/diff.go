@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/pkg/pools"
 )
 
@@ -225,7 +226,7 @@ func ApplyUncompressedLayer(dest string, layer io.Reader, options *TarOptions) (
 
 // IsEmpty checks if the tar archive is empty (doesn't contain any entries).
 func IsEmpty(rd io.Reader) (bool, error) {
-	decompRd, err := DecompressStream(rd)
+	decompRd, err := compression.DecompressStream(rd)
 	if err != nil {
 		return true, fmt.Errorf("failed to decompress archive: %v", err)
 	}
@@ -251,7 +252,7 @@ func applyLayerHandler(dest string, layer io.Reader, options *TarOptions, decomp
 	defer restore()
 
 	if decompress {
-		decompLayer, err := DecompressStream(layer)
+		decompLayer, err := compression.DecompressStream(layer)
 		if err != nil {
 			return 0, err
 		}

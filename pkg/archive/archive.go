@@ -4,19 +4,14 @@ package archive
 import (
 	"archive/tar"
 	"bufio"
-	"bytes"
-	"compress/bzip2"
-	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -26,7 +21,6 @@ import (
 	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/pools"
-	"github.com/klauspost/compress/zstd"
 	"github.com/moby/patternmatcher"
 	"github.com/moby/sys/sequential"
 )
@@ -119,7 +113,7 @@ func IsArchivePath(path string) bool {
 		return false
 	}
 	defer file.Close()
-	rdr, err := DecompressStream(file)
+	rdr, err := compression.DecompressStream(file)
 	if err != nil {
 		return false
 	}
@@ -134,35 +128,6 @@ func IsArchivePath(path string) bool {
 // Deprecated: use [compression.Detect].
 func DetectCompression(source []byte) compression.Compression {
 	return compression.Detect(source)
-}
-
-func xzDecompress(ctx context.Context, archive io.Reader) (io.ReadCloser, error) {
-	args := []string{"xz", "-d", "-c", "-q"}
-
-	return cmdStream(exec.CommandContext(ctx, args[0], args[1:]...), archive)
-}
-
-func gzDecompress(ctx context.Context, buf io.Reader) (io.ReadCloser, error) {
-	if noPigzEnv := os.Getenv("MOBY_DISABLE_PIGZ"); noPigzEnv != "" {
-		noPigz, err := strconv.ParseBool(noPigzEnv)
-		if err != nil {
-			log.G(ctx).WithError(err).Warn("invalid value in MOBY_DISABLE_PIGZ env var")
-		}
-		if noPigz {
-			log.G(ctx).Debugf("Use of pigz is disabled due to MOBY_DISABLE_PIGZ=%s", noPigzEnv)
-			return gzip.NewReader(buf)
-		}
-	}
-
-	unpigzPath, err := exec.LookPath("unpigz")
-	if err != nil {
-		log.G(ctx).Debugf("unpigz binary not found, falling back to go gzip library")
-		return gzip.NewReader(buf)
-	}
-
-	log.G(ctx).Debugf("Using %s to decompress", unpigzPath)
-
-	return cmdStream(exec.CommandContext(ctx, unpigzPath, "-d", "-c"), buf)
 }
 
 type readCloserWrapper struct {
@@ -184,91 +149,17 @@ func (r *readCloserWrapper) Close() error {
 }
 
 // DecompressStream decompresses the archive and returns a ReaderCloser with the decompressed archive.
+//
+// Deprecated: use [compression.DecompressStream].
 func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
-	p := pools.BufioReader32KPool
-	buf := p.Get(archive)
-	bs, err := buf.Peek(10)
-	if err != nil && err != io.EOF {
-		// Note: we'll ignore any io.EOF error because there are some odd
-		// cases where the layer.tar file will be empty (zero bytes) and
-		// that results in an io.EOF from the Peek() call. So, in those
-		// cases we'll just treat it as a non-compressed stream and
-		// that means just create an empty layer.
-		// See Issue 18170
-		return nil, err
-	}
-
-	wrapReader := func(r io.Reader, cancel context.CancelFunc) io.ReadCloser {
-		return &readCloserWrapper{
-			Reader: r,
-			closer: func() error {
-				if cancel != nil {
-					cancel()
-				}
-				if readCloser, ok := r.(io.ReadCloser); ok {
-					readCloser.Close()
-				}
-				p.Put(buf)
-				return nil
-			},
-		}
-	}
-
-	compressionType := compression.Detect(bs)
-	switch compressionType {
-	case compression.None:
-		return wrapReader(buf, nil), nil
-	case compression.Gzip:
-		ctx, cancel := context.WithCancel(context.Background())
-
-		gzReader, err := gzDecompress(ctx, buf)
-		if err != nil {
-			cancel()
-			return nil, err
-		}
-		return wrapReader(gzReader, cancel), nil
-	case compression.Bzip2:
-		bz2Reader := bzip2.NewReader(buf)
-		return wrapReader(bz2Reader, nil), nil
-	case compression.Xz:
-		ctx, cancel := context.WithCancel(context.Background())
-
-		xzReader, err := xzDecompress(ctx, buf)
-		if err != nil {
-			cancel()
-			return nil, err
-		}
-		return wrapReader(xzReader, cancel), nil
-	case compression.Zstd:
-		zstdReader, err := zstd.NewReader(buf)
-		if err != nil {
-			return nil, err
-		}
-		return wrapReader(zstdReader, nil), nil
-	default:
-		return nil, fmt.Errorf("unsupported compression format %s", (&compressionType).Extension())
-	}
+	return compression.DecompressStream(archive)
 }
 
 // CompressStream compresses the dest with specified compression algorithm.
+//
+// Deprecated: use [compression.CompressStream].
 func CompressStream(dest io.Writer, comp compression.Compression) (io.WriteCloser, error) {
-	p := pools.BufioWriter32KPool
-	buf := p.Get(dest)
-	switch comp {
-	case compression.None:
-		writeBufWrapper := p.NewWriteCloserWrapper(buf, buf)
-		return writeBufWrapper, nil
-	case compression.Gzip:
-		gzWriter := gzip.NewWriter(dest)
-		writeBufWrapper := p.NewWriteCloserWrapper(buf, gzWriter)
-		return writeBufWrapper, nil
-	case compression.Bzip2, compression.Xz:
-		// archive/bzip2 does not support writing, and there is no xz support at all
-		// However, this is not a problem as docker only currently generates gzipped tars
-		return nil, fmt.Errorf("unsupported compression format %s", (&comp).Extension())
-	default:
-		return nil, fmt.Errorf("unsupported compression format %s", (&comp).Extension())
-	}
+	return compression.CompressStream(dest, comp)
 }
 
 // TarModifierFunc is a function that can be passed to ReplaceFileTarWrapper to
@@ -1197,7 +1088,7 @@ func untarHandler(tarArchive io.Reader, dest string, options *TarOptions, decomp
 
 	r := tarArchive
 	if decompress {
-		decompressedArchive, err := DecompressStream(tarArchive)
+		decompressedArchive, err := compression.DecompressStream(tarArchive)
 		if err != nil {
 			return err
 		}
@@ -1345,44 +1236,4 @@ func remapIDs(idMapping idtools.IdentityMapping, hdr *tar.Header) error {
 	ids, err := idMapping.ToHost(idtools.Identity{UID: hdr.Uid, GID: hdr.Gid})
 	hdr.Uid, hdr.Gid = ids.UID, ids.GID
 	return err
-}
-
-// cmdStream executes a command, and returns its stdout as a stream.
-// If the command fails to run or doesn't complete successfully, an error
-// will be returned, including anything written on stderr.
-func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, error) {
-	cmd.Stdin = input
-	pipeR, pipeW := io.Pipe()
-	cmd.Stdout = pipeW
-	var errBuf bytes.Buffer
-	cmd.Stderr = &errBuf
-
-	// Run the command and return the pipe
-	if err := cmd.Start(); err != nil {
-		return nil, err
-	}
-
-	// Ensure the command has exited before we clean anything up
-	done := make(chan struct{})
-
-	// Copy stdout to the returned pipe
-	go func() {
-		if err := cmd.Wait(); err != nil {
-			pipeW.CloseWithError(fmt.Errorf("%s: %s", err, errBuf.String()))
-		} else {
-			pipeW.Close()
-		}
-		close(done)
-	}()
-
-	return &readCloserWrapper{
-		Reader: pipeR,
-		closer: func() error {
-			// Close pipeR, and then wait for the command to complete before returning. We have to close pipeR first, as
-			// cmd.Wait waits for any non-file stdout/stderr/stdin to close.
-			err := pipeR.Close()
-			<-done
-			return err
-		},
-	}, nil
 }
