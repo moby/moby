@@ -44,6 +44,12 @@ var (
 
 	// StateCtr tracks container states
 	StateCtr = newStateCounter(metricsNS, metricsNS.NewDesc("container_states", "The count of containers in various states", gometrics.Unit("containers"), "state"))
+
+	// EventsCounter tracks the number of events logged
+	EventsCounter = metricsNS.NewCounter("events", "The number of events logged")
+
+	// EventSubscribers tracks the number of current subscribers to events
+	EventSubscribers = metricsNS.NewGauge("events_subscribers", "The number of current subscribers to events", gometrics.Total)
 )
 
 func init() {
