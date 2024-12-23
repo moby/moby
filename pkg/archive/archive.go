@@ -11,9 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"runtime/debug"
 	"strings"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -128,24 +126,6 @@ func IsArchivePath(path string) bool {
 // Deprecated: use [compression.Detect].
 func DetectCompression(source []byte) compression.Compression {
 	return compression.Detect(source)
-}
-
-type readCloserWrapper struct {
-	io.Reader
-	closer func() error
-	closed atomic.Bool
-}
-
-func (r *readCloserWrapper) Close() error {
-	if !r.closed.CompareAndSwap(false, true) {
-		log.G(context.TODO()).Error("subsequent attempt to close readCloserWrapper")
-		if log.GetLevel() >= log.DebugLevel {
-			log.G(context.TODO()).Errorf("stack trace: %s", string(debug.Stack()))
-		}
-
-		return nil
-	}
-	return r.closer()
 }
 
 // DecompressStream decompresses the archive and returns a ReaderCloser with the decompressed archive.
