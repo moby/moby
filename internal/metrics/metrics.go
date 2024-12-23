@@ -16,6 +16,7 @@ var (
 	NetworkActions = metricsNS.NewLabeledTimer("network_actions", "The number of seconds it takes to process each network action", "action")
 	// HostInfoFunctions tracks the time taken to gather host information
 	HostInfoFunctions = metricsNS.NewLabeledTimer("host_info_functions", "The number of seconds it takes to call functions gathering info about the host", "function")
+	ImageActions      = metricsNS.NewLabeledTimer("image_actions", "The number of seconds it takes to process each image action", "action")
 
 	// EngineInfo provides information about the engine and its environment
 	EngineInfo = metricsNS.NewLabeledGauge("engine", "The information related to the engine and the OS it is running on", gometrics.Unit("info"),

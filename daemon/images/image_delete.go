@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 )
@@ -173,7 +174,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		return nil, err
 	}
 
-	ImageActions.WithValues("delete").UpdateSince(start)
+	metrics.ImageActions.WithValues("delete").UpdateSince(start)
 
 	return records, nil
 }
