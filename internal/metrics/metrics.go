@@ -60,6 +60,10 @@ func init() {
 	gometrics.Register(metricsNS)
 }
 
+func StartTimer(t gometrics.Timer) func() {
+	return gometrics.StartTimer(t)
+}
+
 // StateCounter tracks container states
 type StateCounter struct {
 	mu     sync.RWMutex
