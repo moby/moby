@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/system"
@@ -66,7 +66,7 @@ func FromArchive(tarStream io.Reader) (builder.Source, error) {
 		}
 	}()
 
-	decompressedStream, err := archive.DecompressStream(tarStream)
+	decompressedStream, err := compression.DecompressStream(tarStream)
 	if err != nil {
 		return nil, err
 	}

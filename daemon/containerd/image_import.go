@@ -20,7 +20,6 @@ import (
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/google/uuid"
@@ -190,7 +189,7 @@ func saveArchive(ctx context.Context, cs content.Store, layerReader io.Reader) (
 
 		return compressedDigest, uncompressedDigest, mediaType, nil
 	case compression.Bzip2, compression.Xz:
-		r, err := archive.DecompressStream(bufRd)
+		r, err := compression.DecompressStream(bufRd)
 		if err != nil {
 			return "", "", "", errdefs.InvalidParameter(err)
 		}
@@ -228,7 +227,7 @@ func writeCompressedBlob(ctx context.Context, cs content.Store, mediaType string
 	digester := digest.Canonical.Digester()
 
 	// Decompress the piped blob.
-	decompressedStream, err := archive.DecompressStream(pr)
+	decompressedStream, err := compression.DecompressStream(pr)
 	if err == nil {
 		// Feed the digester with decompressed data.
 		_, err = io.Copy(digester.Hash(), decompressedStream)
@@ -254,7 +253,7 @@ func compressAndWriteBlob(ctx context.Context, cs content.Store, comp compressio
 	defer pr.Close()
 	defer pw.Close()
 
-	compressor, err := archive.CompressStream(pw, comp)
+	compressor, err := compression.CompressStream(pw, comp)
 	if err != nil {
 		return "", "", errdefs.InvalidParameter(err)
 	}

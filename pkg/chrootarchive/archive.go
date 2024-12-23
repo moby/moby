@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/archive/compression"
 	"github.com/docker/docker/pkg/idtools"
 )
 
@@ -76,7 +77,7 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 
 	r := io.NopCloser(tarArchive)
 	if decompress {
-		decompressedArchive, err := archive.DecompressStream(tarArchive)
+		decompressedArchive, err := compression.DecompressStream(tarArchive)
 		if err != nil {
 			return err
 		}

@@ -706,7 +706,7 @@ func NewTarballer(srcPath string, options *TarOptions) (*Tarballer, error) {
 
 	pipeReader, pipeWriter := io.Pipe()
 
-	compressWriter, err := CompressStream(pipeWriter, options.Compression)
+	compressWriter, err := compression.CompressStream(pipeWriter, options.Compression)
 	if err != nil {
 		return nil, err
 	}
