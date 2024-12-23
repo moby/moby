@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/plugin"
-	metrics "github.com/docker/go-metrics"
+	gometrics "github.com/docker/go-metrics"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -30,7 +30,7 @@ func (daemon *Daemon) listenMetricsSock(cfg *config.Config) (string, error) {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/metrics", metrics.Handler())
+	mux.Handle("/metrics", gometrics.Handler())
 	go func() {
 		log.G(context.TODO()).Debugf("metrics API listening on %s", l.Addr())
 		srv := &http.Server{

@@ -1,12 +1,12 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
-	metrics "github.com/docker/go-metrics"
+	gometrics "github.com/docker/go-metrics"
 )
 
 var (
-	buildsTriggered metrics.Counter
-	buildsFailed    metrics.LabeledCounter
+	buildsTriggered gometrics.Counter
+	buildsFailed    gometrics.LabeledCounter
 )
 
 // Build metrics prometheus messages, these values must be initialized before
@@ -23,7 +23,7 @@ const (
 )
 
 func init() {
-	buildMetrics := metrics.NewNamespace("builder", "", nil)
+	buildMetrics := gometrics.NewNamespace("builder", "", nil)
 
 	buildsTriggered = buildMetrics.NewCounter("builds_triggered", "Number of triggered image builds")
 	buildsFailed = buildMetrics.NewLabeledCounter("builds_failed", "Number of failed image builds", "reason")
@@ -40,5 +40,5 @@ func init() {
 		buildsFailed.WithValues(r)
 	}
 
-	metrics.Register(buildMetrics)
+	gometrics.Register(buildMetrics)
 }

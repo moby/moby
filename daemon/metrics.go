@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
-	metrics "github.com/docker/go-metrics"
+	gometrics "github.com/docker/go-metrics"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -16,13 +16,13 @@ import (
 const metricsPluginType = "MetricsCollector"
 
 var (
-	metricsNS = metrics.NewNamespace("engine", "daemon", nil)
+	metricsNS = gometrics.NewNamespace("engine", "daemon", nil)
 
 	containerActions  = metricsNS.NewLabeledTimer("container_actions", "The number of seconds it takes to process each container action", "action")
 	networkActions    = metricsNS.NewLabeledTimer("network_actions", "The number of seconds it takes to process each network action", "action")
 	hostInfoFunctions = metricsNS.NewLabeledTimer("host_info_functions", "The number of seconds it takes to call functions gathering info about the host", "function")
 
-	engineInfo = metricsNS.NewLabeledGauge("engine", "The information related to the engine and the OS it is running on", metrics.Unit("info"),
+	engineInfo = metricsNS.NewLabeledGauge("engine", "The information related to the engine and the OS it is running on", gometrics.Unit("info"),
 		"version",
 		"commit",
 		"architecture",
@@ -33,14 +33,14 @@ var (
 		"os_version",
 		"daemon_id", // ID is a randomly generated unique identifier (e.g. UUID4)
 	)
-	engineCpus   = metricsNS.NewGauge("engine_cpus", "The number of cpus that the host system of the engine has", metrics.Unit("cpus"))
-	engineMemory = metricsNS.NewGauge("engine_memory", "The number of bytes of memory that the host system of the engine has", metrics.Bytes)
+	engineCpus   = metricsNS.NewGauge("engine_cpus", "The number of cpus that the host system of the engine has", gometrics.Unit("cpus"))
+	engineMemory = metricsNS.NewGauge("engine_memory", "The number of bytes of memory that the host system of the engine has", gometrics.Bytes)
 
 	healthChecksCounter       = metricsNS.NewCounter("health_checks", "The total number of health checks")
 	healthChecksFailedCounter = metricsNS.NewCounter("health_checks_failed", "The total number of failed health checks")
 	healthCheckStartDuration  = metricsNS.NewTimer("health_check_start_duration", "The number of seconds it takes to prepare to run health checks")
 
-	stateCtr = newStateCounter(metricsNS, metricsNS.NewDesc("container_states", "The count of containers in various states", metrics.Unit("containers"), "state"))
+	stateCtr = newStateCounter(metricsNS, metricsNS.NewDesc("container_states", "The count of containers in various states", gometrics.Unit("containers"), "state"))
 )
 
 func init() {
@@ -54,7 +54,7 @@ func init() {
 		containerActions.WithValues(a).Update(0)
 	}
 
-	metrics.Register(metricsNS)
+	gometrics.Register(metricsNS)
 }
 
 type stateCounter struct {
@@ -63,7 +63,7 @@ type stateCounter struct {
 	desc   *prometheus.Desc
 }
 
-func newStateCounter(ns *metrics.Namespace, desc *prometheus.Desc) *stateCounter {
+func newStateCounter(ns *gometrics.Namespace, desc *prometheus.Desc) *stateCounter {
 	c := &stateCounter{
 		states: make(map[string]string),
 		desc:   desc,
