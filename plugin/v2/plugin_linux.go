@@ -1,3 +1,6 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.19
+
 package v2 // import "github.com/docker/docker/plugin/v2"
 
 import (
@@ -6,7 +9,10 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/internal/rootless/mountopts"
+	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -135,6 +141,36 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 
 	if p.modifyRuntimeSpec != nil {
 		p.modifyRuntimeSpec(&s)
+	}
+
+	// Rootless mode requires modifying the mount flags
+	// https://github.com/moby/moby/issues/47248#issuecomment-1927776700
+	// https://github.com/moby/moby/pull/47558
+	if userns.RunningInUserNS() {
+		for i := range s.Mounts {
+			m := &s.Mounts[i]
+			for _, o := range m.Options {
+				switch o {
+				case "bind", "rbind":
+					if _, err := os.Lstat(m.Source); err != nil {
+						if errors.Is(err, os.ErrNotExist) {
+							continue
+						}
+						return nil, err
+					}
+					// UnprivilegedMountFlags gets the set of mount flags that are set on the mount that contains the given
+					// path and are locked by CL_UNPRIVILEGED. This is necessary to ensure that
+					// bind-mounting "with options" will not fail with user namespaces, due to
+					// kernel restrictions that require user namespace mounts to preserve
+					// CL_UNPRIVILEGED locked flags.
+					unpriv, err := mountopts.UnprivilegedMountFlags(m.Source)
+					if err != nil {
+						return nil, errors.Wrapf(err, "failed to get unprivileged mount flags for %+v", m)
+					}
+					m.Options = sliceutil.Dedup(append(m.Options, unpriv...))
+				}
+			}
+		}
 	}
 
 	return &s, nil
