@@ -6,9 +6,56 @@ import (
 	"fmt"
 	"net"
 	"slices"
+	"sync"
 
 	"golang.org/x/sys/unix"
 )
+
+// arpData is intended to be per-netns.
+type arpData struct {
+	mu       sync.Mutex // Lock access to refCount and sd.
+	sd       *int       // Socket used to send ARP messages, non-nil only while refCount > 0.
+	refCount int        // Count of [UnsolARP] objects using sd.
+}
+
+func (ad *arpData) init() (retErr error) {
+	ad.mu.Lock()
+	defer ad.mu.Unlock()
+
+	ad.refCount++
+	if ad.sd != nil {
+		return nil
+	}
+	defer func() {
+		if retErr != nil {
+			ad.refCount = 0
+		}
+	}()
+
+	sd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_DGRAM|unix.SOCK_CLOEXEC, 0)
+	if err != nil {
+		return fmt.Errorf("create socket: %w", err)
+	}
+	ad.sd = &sd
+
+	return nil
+}
+
+func (ad *arpData) release() error {
+	ad.mu.Lock()
+	defer ad.mu.Unlock()
+
+	if ad.sd == nil || ad.refCount == 0 {
+		return fmt.Errorf("invalid release of ARP socket")
+	}
+	ad.refCount--
+	if ad.refCount == 0 {
+		err := unix.Close(*ad.sd)
+		ad.sd = nil
+		return err
+	}
+	return nil
+}
 
 var (
 	arpTemplate = []byte{
@@ -26,17 +73,16 @@ var (
 )
 
 type UnsolARP struct {
+	ad  *arpData
 	pkt []byte
-	sd  int
 	sa  *unix.SockaddrLinklayer
 }
 
 // NewUnsolARP returns a pointer to an object that can send unsolicited ARPs on
 // the interface with ifIndex, for ip and mac.
-func NewUnsolARP(_ context.Context, ip net.IP, mac net.HardwareAddr, ifIndex int) (*UnsolARP, error) {
-	sd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_DGRAM|unix.SOCK_CLOEXEC, 0)
-	if err != nil {
-		return nil, fmt.Errorf("create socket: %w", err)
+func (ld *L2Disco) NewUnsolARP(_ context.Context, ip net.IP, mac net.HardwareAddr, ifIndex int) (*UnsolARP, error) {
+	if err := ld.arpData.init(); err != nil {
+		return nil, err
 	}
 
 	pkt := slices.Clone(arpTemplate)
@@ -53,23 +99,20 @@ func NewUnsolARP(_ context.Context, ip net.IP, mac net.HardwareAddr, ifIndex int
 	copy(sa.Addr[:], bcastMAC)
 
 	return &UnsolARP{
+		ad:  &ld.arpData,
 		pkt: pkt,
-		sd:  sd,
 		sa:  sa,
 	}, nil
 }
 
 // Send sends an unsolicited ARP message.
 func (ua *UnsolARP) Send() error {
-	return unix.Sendto(ua.sd, ua.pkt, 0, ua.sa)
+	return unix.Sendto(*ua.ad.sd, ua.pkt, 0, ua.sa)
 }
 
 // Close releases resources.
-func (ua *UnsolARP) Close() {
-	if ua.sd >= 0 {
-		_ = unix.Close(ua.sd)
-		ua.sd = -1
-	}
+func (ua *UnsolARP) Close() error {
+	return ua.ad.release()
 }
 
 // From https://github.com/mdlayher/packet/blob/f9999b41d9cfb0586e75467db1c81cfde4f965ba/packet_linux.go#L238-L248

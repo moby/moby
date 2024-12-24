@@ -16,6 +16,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/unshare"
+	"github.com/docker/docker/libnetwork/internal/l2disco"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl/kernel"
 	"github.com/docker/docker/libnetwork/types"
@@ -236,6 +237,7 @@ type Namespace struct {
 	ipv6LoEnabledOnce   sync.Once
 	ipv6LoEnabledCached bool
 	nlHandle            nlwrap.Handle
+	l2disco             l2disco.L2Disco
 	mu                  sync.Mutex
 }
 

@@ -420,10 +420,14 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 	}
 	cleanup := func() {
 		if arpSender != nil {
-			arpSender.Close()
+			if err := arpSender.Close(); err != nil {
+				log.G(ctx).WithError(err).Error("failed to close arp sender")
+			}
 		}
 		if naSender != nil {
-			naSender.Close()
+			if err := naSender.Close(); err != nil {
+				log.G(ctx).WithError(err).Error("failed to close na sender")
+			}
 		}
 	}
 	stillSending := false
@@ -495,14 +499,14 @@ func (n *Namespace) prepAdvertiseAddrs(ctx context.Context, i *Interface, ifInde
 	if err := n.InvokeFunc(func() {
 		if i.address != nil {
 			var err error
-			ua, err = l2disco.NewUnsolARP(ctx, i.Address().IP, i.MacAddress(), ifIndex)
+			ua, err = n.l2disco.NewUnsolARP(ctx, i.Address().IP, i.MacAddress(), ifIndex)
 			if err != nil {
 				log.G(ctx).WithError(err).Warn("Failed to prepare unsolicited ARP")
 			}
 		}
 		if i.addressIPv6 != nil {
 			var err error
-			un, err = l2disco.NewUnsolNA(ctx, i.AddressIPv6().IP, i.MacAddress(), ifIndex)
+			un, err = n.l2disco.NewUnsolNA(ctx, i.AddressIPv6().IP, i.MacAddress(), ifIndex)
 			if err != nil {
 				log.G(ctx).WithError(err).Warn("Failed to prepare unsolicited NA")
 			}
