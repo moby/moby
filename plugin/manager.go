@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/fswriter"
 	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/registry"
 	"github.com/moby/pubsub"
@@ -281,7 +281,7 @@ func (pm *Manager) save(p *v2.Plugin) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal plugin json")
 	}
-	if err := ioutils.AtomicWriteFile(filepath.Join(pm.config.Root, p.GetID(), configFileName), pluginJSON, 0o600); err != nil {
+	if err := fswriter.AtomicWriteFile(filepath.Join(pm.config.Root, p.GetID(), configFileName), pluginJSON, 0o600); err != nil {
 		return errors.Wrap(err, "failed to write atomically plugin json")
 	}
 	return nil
