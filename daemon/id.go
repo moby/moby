@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/atomicwriter"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
@@ -24,7 +24,7 @@ func LoadOrCreateID(root string) (string, error) {
 	idb, err := os.ReadFile(idPath)
 	if os.IsNotExist(err) {
 		id = uuid.New().String()
-		if err := ioutils.AtomicWriteFile(idPath, []byte(id), os.FileMode(0o600)); err != nil {
+		if err := atomicwriter.WriteFile(idPath, []byte(id), os.FileMode(0o600)); err != nil {
 			return "", errors.Wrap(err, "error saving ID file")
 		}
 	} else if err != nil {

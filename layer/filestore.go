@@ -12,6 +12,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/distribution"
+	"github.com/docker/docker/pkg/atomicwriter"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -29,7 +30,7 @@ type fileMetadataStore struct {
 
 type fileMetadataTransaction struct {
 	store *fileMetadataStore
-	ws    *ioutils.AtomicWriteSet
+	ws    *atomicwriter.WriteSet
 }
 
 // newFSMetadataStore returns an instance of a metadata store
@@ -66,7 +67,7 @@ func (fms *fileMetadataStore) StartTransaction() (*fileMetadataTransaction, erro
 	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		return nil, err
 	}
-	ws, err := ioutils.NewAtomicWriteSet(tmpDir)
+	ws, err := atomicwriter.NewWriteSet(tmpDir)
 	if err != nil {
 		return nil, err
 	}

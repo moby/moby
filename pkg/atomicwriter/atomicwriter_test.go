@@ -1,4 +1,4 @@
-package ioutils // import "github.com/docker/docker/pkg/ioutils"
+package atomicwriter
 
 import (
 	"bytes"
@@ -21,7 +21,7 @@ func TestAtomicWriteToFile(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	expected := []byte("barbaz")
-	if err := AtomicWriteFile(filepath.Join(tmpDir, "foo"), expected, testMode); err != nil {
+	if err := WriteFile(filepath.Join(tmpDir, "foo"), expected, testMode); err != nil {
 		t.Fatalf("Error writing to file: %v", err)
 	}
 
@@ -51,7 +51,7 @@ func TestAtomicWriteSetCommit(t *testing.T) {
 	}
 
 	targetDir := filepath.Join(tmpDir, "target")
-	ws, err := NewAtomicWriteSet(filepath.Join(tmpDir, "tmp"))
+	ws, err := NewWriteSet(filepath.Join(tmpDir, "tmp"))
 	if err != nil {
 		t.Fatalf("Error creating atomic write set: %s", err)
 	}
@@ -94,7 +94,7 @@ func TestAtomicWriteSetCancel(t *testing.T) {
 		t.Fatalf("Error creating tmp directory: %s", err)
 	}
 
-	ws, err := NewAtomicWriteSet(filepath.Join(tmpDir, "tmp"))
+	ws, err := NewWriteSet(filepath.Join(tmpDir, "tmp"))
 	if err != nil {
 		t.Fatalf("Error creating atomic write set: %s", err)
 	}

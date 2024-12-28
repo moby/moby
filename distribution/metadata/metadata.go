@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/atomicwriter"
 )
 
 // Store implements a K/V store for mapping distribution-related IDs
@@ -60,7 +60,7 @@ func (store *FSMetadataStore) Set(namespace, key string, value []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	return ioutils.AtomicWriteFile(path, value, 0o644)
+	return atomicwriter.WriteFile(path, value, 0o644)
 }
 
 // Delete removes data indexed by namespace and key. The data file named after

@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/atomicwriter"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -315,7 +315,7 @@ func (store *refStore) save() error {
 	if err != nil {
 		return err
 	}
-	return ioutils.AtomicWriteFile(store.jsonPath, jsonData, 0o600)
+	return atomicwriter.WriteFile(store.jsonPath, jsonData, 0o600)
 }
 
 func (store *refStore) reload() error {

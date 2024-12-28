@@ -23,9 +23,9 @@ import (
 	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/docker/internal/directory"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/atomicwriter"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/quota"
 	"github.com/docker/go-units"
@@ -393,7 +393,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 	}
 
 	// Write link id to link file
-	if err := ioutils.AtomicWriteFile(path.Join(dir, "link"), []byte(lid), 0o644); err != nil {
+	if err := atomicwriter.WriteFile(path.Join(dir, "link"), []byte(lid), 0o644); err != nil {
 		return err
 	}
 
@@ -406,7 +406,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return err
 	}
 
-	if err := ioutils.AtomicWriteFile(path.Join(d.dir(parent), "committed"), []byte{}, 0o600); err != nil {
+	if err := atomicwriter.WriteFile(path.Join(d.dir(parent), "committed"), []byte{}, 0o600); err != nil {
 		return err
 	}
 
@@ -415,7 +415,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return err
 	}
 	if lower != "" {
-		if err := ioutils.AtomicWriteFile(path.Join(dir, lowerFile), []byte(lower), 0o644); err != nil {
+		if err := atomicwriter.WriteFile(path.Join(dir, lowerFile), []byte(lower), 0o644); err != nil {
 			return err
 		}
 	}
