@@ -9,7 +9,6 @@ import (
 
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/broadcaster"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
 )
@@ -25,8 +24,8 @@ import (
 // a kind of "broadcaster".
 type Config struct {
 	wg        sync.WaitGroup
-	stdout    *broadcaster.Unbuffered
-	stderr    *broadcaster.Unbuffered
+	stdout    *unbuffered
+	stderr    *unbuffered
 	stdin     io.ReadCloser
 	stdinPipe io.WriteCloser
 	dio       *cio.DirectIO
@@ -36,18 +35,18 @@ type Config struct {
 // the standard err and standard out to new unbuffered broadcasters.
 func NewConfig() *Config {
 	return &Config{
-		stderr: new(broadcaster.Unbuffered),
-		stdout: new(broadcaster.Unbuffered),
+		stderr: new(unbuffered),
+		stdout: new(unbuffered),
 	}
 }
 
 // Stdout returns the standard output in the configuration.
-func (c *Config) Stdout() *broadcaster.Unbuffered {
+func (c *Config) Stdout() io.Writer {
 	return c.stdout
 }
 
 // Stderr returns the standard error in the configuration.
-func (c *Config) Stderr() *broadcaster.Unbuffered {
+func (c *Config) Stderr() io.Writer {
 	return c.stderr
 }
 
