@@ -15,7 +15,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/pools"
 )
 
 // ChangeType represents the change type.
@@ -388,9 +387,6 @@ func ExportChanges(dir string, changes []Change, idMap idtools.IdentityMapping) 
 	reader, writer := io.Pipe()
 	go func() {
 		ta := newTarAppender(idMap, writer, nil)
-
-		// this buffer is needed for the duration of this piped stream
-		defer pools.BufioWriter32KPool.Put(ta.Buffer)
 
 		sort.Sort(changesByPath(changes))
 

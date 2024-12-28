@@ -19,13 +19,13 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/pools"
 	"github.com/klauspost/compress/zstd"
 	"github.com/moby/patternmatcher"
 	"github.com/moby/sys/sequential"
@@ -230,13 +230,51 @@ func (r *readCloserWrapper) Close() error {
 
 		return nil
 	}
-	return r.closer()
+	if r.closer != nil {
+		return r.closer()
+	}
+	return nil
+}
+
+var (
+	bufioReader32KPool = &sync.Pool{
+		New: func() interface{} { return bufio.NewReaderSize(nil, 32*1024) },
+	}
+)
+
+type bufferedReader struct {
+	buf *bufio.Reader
+}
+
+func newBufferedReader(r io.Reader) *bufferedReader {
+	buf := bufioReader32KPool.Get().(*bufio.Reader)
+	buf.Reset(r)
+	return &bufferedReader{buf}
+}
+
+func (r *bufferedReader) Read(p []byte) (n int, err error) {
+	if r.buf == nil {
+		return 0, io.EOF
+	}
+	n, err = r.buf.Read(p)
+	if err == io.EOF {
+		r.buf.Reset(nil)
+		bufioReader32KPool.Put(r.buf)
+		r.buf = nil
+	}
+	return
+}
+
+func (r *bufferedReader) Peek(n int) ([]byte, error) {
+	if r.buf == nil {
+		return nil, io.EOF
+	}
+	return r.buf.Peek(n)
 }
 
 // DecompressStream decompresses the archive and returns a ReaderCloser with the decompressed archive.
 func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
-	p := pools.BufioReader32KPool
-	buf := p.Get(archive)
+	buf := newBufferedReader(archive)
 	bs, err := buf.Peek(10)
 	if err != nil && err != io.EOF {
 		// Note: we'll ignore any io.EOF error because there are some odd
@@ -248,26 +286,12 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	wrapReader := func(r io.Reader, cancel context.CancelFunc) io.ReadCloser {
-		return &readCloserWrapper{
-			Reader: r,
-			closer: func() error {
-				if cancel != nil {
-					cancel()
-				}
-				if readCloser, ok := r.(io.ReadCloser); ok {
-					readCloser.Close()
-				}
-				p.Put(buf)
-				return nil
-			},
-		}
-	}
-
 	compression := DetectCompression(bs)
 	switch compression {
 	case Uncompressed:
-		return wrapReader(buf, nil), nil
+		return &readCloserWrapper{
+			Reader: buf,
+		}, nil
 	case Gzip:
 		ctx, cancel := context.WithCancel(context.Background())
 
@@ -276,10 +300,18 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 			cancel()
 			return nil, err
 		}
-		return wrapReader(gzReader, cancel), nil
+		return &readCloserWrapper{
+			Reader: gzReader,
+			closer: func() error {
+				cancel()
+				return gzReader.Close()
+			},
+		}, nil
 	case Bzip2:
 		bz2Reader := bzip2.NewReader(buf)
-		return wrapReader(bz2Reader, nil), nil
+		return &readCloserWrapper{
+			Reader: bz2Reader,
+		}, nil
 	case Xz:
 		ctx, cancel := context.WithCancel(context.Background())
 
@@ -288,30 +320,44 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 			cancel()
 			return nil, err
 		}
-		return wrapReader(xzReader, cancel), nil
+
+		return &readCloserWrapper{
+			Reader: xzReader,
+			closer: func() error {
+				cancel()
+				return xzReader.Close()
+			},
+		}, nil
 	case Zstd:
 		zstdReader, err := zstd.NewReader(buf)
 		if err != nil {
 			return nil, err
 		}
-		return wrapReader(zstdReader, nil), nil
+		return &readCloserWrapper{
+			Reader: zstdReader,
+			closer: func() error {
+				zstdReader.Close()
+				return nil
+			},
+		}, nil
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
 }
 
+type nopWriteCloser struct {
+	io.Writer
+}
+
+func (nopWriteCloser) Close() error { return nil }
+
 // CompressStream compresses the dest with specified compression algorithm.
 func CompressStream(dest io.Writer, compression Compression) (io.WriteCloser, error) {
-	p := pools.BufioWriter32KPool
-	buf := p.Get(dest)
 	switch compression {
 	case Uncompressed:
-		writeBufWrapper := p.NewWriteCloserWrapper(buf, buf)
-		return writeBufWrapper, nil
+		return nopWriteCloser{dest}, nil
 	case Gzip:
-		gzWriter := gzip.NewWriter(dest)
-		writeBufWrapper := p.NewWriteCloserWrapper(buf, gzWriter)
-		return writeBufWrapper, nil
+		return gzip.NewWriter(dest), nil
 	case Bzip2, Xz:
 		// archive/bzip2 does not support writing, and there is no xz support at all
 		// However, this is not a problem as docker only currently generates gzipped tars
@@ -382,7 +428,7 @@ func ReplaceFileTarWrapper(inputTarStream io.ReadCloser, mods map[string]TarModi
 					pipeWriter.CloseWithError(err)
 					return
 				}
-				if _, err := pools.Copy(tarWriter, tarReader); err != nil {
+				if _, err := copyWithBuffer(tarWriter, tarReader); err != nil {
 					pipeWriter.CloseWithError(err)
 					return
 				}
@@ -529,7 +575,6 @@ type tarWhiteoutConverter interface {
 
 type tarAppender struct {
 	TarWriter *tar.Writer
-	Buffer    *bufio.Writer
 
 	// for hardlink mapping
 	SeenFiles       map[uint64]string
@@ -547,7 +592,6 @@ func newTarAppender(idMapping idtools.IdentityMapping, writer io.Writer, chownOp
 	return &tarAppender{
 		SeenFiles:       make(map[uint64]string),
 		TarWriter:       tar.NewWriter(writer),
-		Buffer:          pools.BufioWriter32KPool.Get(nil),
 		IdentityMapping: idMapping,
 		ChownOpts:       chownOpts,
 	}
@@ -665,14 +709,8 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 			return err
 		}
 
-		ta.Buffer.Reset(ta.TarWriter)
-		defer ta.Buffer.Reset(nil)
-		_, err = pools.Copy(ta.Buffer, file)
+		_, err = copyWithBuffer(ta.TarWriter, file)
 		file.Close()
-		if err != nil {
-			return err
-		}
-		err = ta.Buffer.Flush()
 		if err != nil {
 			return err
 		}
@@ -718,7 +756,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 		if err != nil {
 			return err
 		}
-		if _, err := pools.Copy(file, reader); err != nil {
+		if _, err := copyWithBuffer(file, reader); err != nil {
 			file.Close()
 			return err
 		}
@@ -929,9 +967,6 @@ func (t *Tarballer) Do() {
 		}
 	}()
 
-	// this buffer is needed for the duration of this piped stream
-	defer pools.BufioWriter32KPool.Put(ta.Buffer)
-
 	// In general we log errors here but ignore them because
 	// during e.g. a diff operation the container can continue
 	// mutating the filesystem and we can see transient errors
@@ -1087,8 +1122,6 @@ func (t *Tarballer) Do() {
 // Unpack unpacks the decompressedArchive to dest with options.
 func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) error {
 	tr := tar.NewReader(decompressedArchive)
-	trBuf := pools.BufioReader32KPool.Get(nil)
-	defer pools.BufioReader32KPool.Put(trBuf)
 
 	var dirs []*tar.Header
 	whiteoutConverter := getWhiteoutConverter(options.WhiteoutFormat)
@@ -1165,7 +1198,6 @@ loop:
 				}
 			}
 		}
-		trBuf.Reset(tr)
 
 		if err := remapIDs(options.IDMap, hdr); err != nil {
 			return err
@@ -1181,7 +1213,7 @@ loop:
 			}
 		}
 
-		if err := createTarFile(path, dest, hdr, trBuf, options); err != nil {
+		if err := createTarFile(path, dest, hdr, tr, options); err != nil {
 			return err
 		}
 
@@ -1384,7 +1416,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 			if err := tw.WriteHeader(hdr); err != nil {
 				return err
 			}
-			if _, err := pools.Copy(tw, srcF); err != nil {
+			if _, err := copyWithBuffer(tw, srcF); err != nil {
 				return err
 			}
 			return nil

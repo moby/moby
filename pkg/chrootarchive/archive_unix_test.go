@@ -67,6 +67,8 @@ func TestUntarWithMaliciousSymlinks(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, string(hostData), "I am a host file")
 
+	io.Copy(io.Discard, tee)
+
 	// Now test by chrooting to an attacker controlled path
 	// This should succeed as is and overwrite a "host" file
 	// Note that this would be a mis-use of this function.
