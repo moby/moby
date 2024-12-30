@@ -1,6 +1,10 @@
 # syntax=docker/dockerfile:1
 
+<<<<<<< HEAD
 ARG GO_VERSION=1.23.9
+=======
+ARG GO_VERSION=1.24.3
+>>>>>>> e991c7185d (update to go1.24.3)
 ARG BASE_DEBIAN_DISTRO="bookworm"
 ARG PROTOC_VERSION=3.11.4
 
