@@ -41,10 +41,10 @@ import (
 	"github.com/docker/docker/container"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/daemon/config"
-	ctrd "github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/daemon/events"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
-	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/images/c8dstore"
+	"github.com/docker/docker/daemon/images/gdstore"
 	dlogger "github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/snapshotter"
@@ -202,11 +202,6 @@ func (daemon *Daemon) UsesSnapshotter() bool {
 	return daemon.usesSnapshotter
 }
 
-// layerAccessor may be implemented by ImageService
-type layerAccessor interface {
-	GetLayerByID(cid string) (layer.RWLayer, error)
-}
-
 func (daemon *Daemon) restore(cfg *configStore) error {
 	var mapLock sync.Mutex
 	containers := make(map[string]*container.Container)
@@ -248,14 +243,12 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 				logger.Debugf("not restoring container because it was created with another storage driver (%s)", c.Driver)
 				return
 			}
-			if accessor, ok := daemon.imageService.(layerAccessor); ok {
-				rwlayer, err := accessor.GetLayerByID(c.ID)
-				if err != nil {
-					logger.WithError(err).Error("failed to load container mount")
-					return
-				}
-				c.RWLayer = rwlayer
+			rwlayer, err := daemon.imageService.GetLayerByID(c.ID)
+			if err != nil {
+				logger.WithError(err).Error("failed to load container mount")
+				return
 			}
+			c.RWLayer = rwlayer
 			logger.WithFields(log.Fields{
 				"running": c.IsRunning(),
 				"paused":  c.IsPaused(),
@@ -1076,7 +1069,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		if err := configureKernelSecuritySupport(&cfgStore.Config, driverName); err != nil {
 			return nil, err
 		}
-		d.imageService = ctrd.NewService(ctrd.ImageServiceConfig{
+		d.imageService = c8dstore.NewService(c8dstore.ImageServiceConfig{
 			Client:          d.containerdClient,
 			Containers:      d.containers,
 			Snapshotter:     driverName,
@@ -1138,7 +1131,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			return nil, err
 		}
 
-		imgSvcConfig := images.ImageServiceConfig{
+		imgSvcConfig := gdstore.ImageServiceConfig{
 			ContainerStore:            d.containers,
 			DistributionMetadataStore: distributionMetadataStore,
 			EventsService:             d.EventsService,
@@ -1168,7 +1161,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		// TODO: imageStore, distributionMetadataStore, and ReferenceStore are only
 		// used above to run migration. They could be initialized in ImageService
 		// if migration is called from daemon/images. layerStore might move as well.
-		d.imageService = images.NewImageService(imgSvcConfig)
+		d.imageService = gdstore.NewImageService(imgSvcConfig)
 
 		log.G(ctx).Debugf("Max Concurrent Downloads: %d", imgSvcConfig.MaxConcurrentDownloads)
 		log.G(ctx).Debugf("Max Concurrent Uploads: %d", imgSvcConfig.MaxConcurrentUploads)
@@ -1219,8 +1212,12 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 }
 
 // DistributionServices returns services controlling daemon storage
-func (daemon *Daemon) DistributionServices() images.DistributionServices {
-	return daemon.imageService.DistributionServices()
+func (daemon *Daemon) DistributionServices() *gdstore.DistributionServices {
+	if gd, ok := daemon.imageService.(*gdstore.ImageService); ok {
+		s := gd.DistributionServices()
+		return &s
+	}
+	return nil
 }
 
 func (daemon *Daemon) waitForStartupDone() {
@@ -1351,12 +1348,44 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 
 // Mount sets container.BaseFS
 func (daemon *Daemon) Mount(container *container.Container) error {
-	return daemon.imageService.Mount(context.Background(), container)
+	ctx := context.TODO()
+
+	if container.RWLayer == nil {
+		return errors.New("RWLayer of container " + container.ID + " is unexpectedly nil")
+	}
+	dir, err := container.RWLayer.Mount(container.GetMountLabel())
+	if err != nil {
+		return err
+	}
+	log.G(ctx).WithFields(log.Fields{"container": container.ID, "root": dir, "storage-driver": container.Driver}).Debug("container mounted via layerStore")
+
+	if container.BaseFS != "" && container.BaseFS != dir {
+		// The mount path reported by the graph driver should always be trusted on Windows, since the
+		// volume path for a given mounted layer may change over time.  This should only be an error
+		// on non-Windows operating systems.
+		if runtime.GOOS != "windows" {
+			daemon.Unmount(container)
+			driver := daemon.ImageService().StorageDriver()
+			return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
+				driver, container.ID, container.BaseFS, dir)
+		}
+	}
+	container.BaseFS = dir // TODO: combine these fields
+	return nil
 }
 
 // Unmount unsets the container base filesystem
 func (daemon *Daemon) Unmount(container *container.Container) error {
-	return daemon.imageService.Unmount(context.Background(), container)
+	ctx := context.TODO()
+	if container.RWLayer == nil {
+		return errors.New("RWLayer of container " + container.ID + " is unexpectedly nil")
+	}
+	if err := container.RWLayer.Unmount(); err != nil {
+		log.G(ctx).WithField("container", container.ID).WithError(err).Error("error unmounting container")
+		return err
+	}
+
+	return nil
 }
 
 // Subnets return the IPv4 and IPv6 subnets of networks that are manager by Docker.
