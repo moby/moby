@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/quota"
 	"github.com/docker/go-units"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -100,7 +99,7 @@ func (d *Driver) Cleanup() error {
 
 func (d *Driver) parseOptions(options []string) error {
 	for _, option := range options {
-		key, val, err := parsers.ParseKeyValueOpt(option)
+		key, val, err := graphdriver.ParseStorageOptKeyValue(option)
 		if err != nil {
 			return errdefs.InvalidParameter(err)
 		}

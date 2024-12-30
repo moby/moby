@@ -11,6 +11,8 @@ import (
 
 // ParseKeyValueOpt parses and validates the specified string as a key/value
 // pair (key=value).
+//
+// Deprecated: use [strings.Cut] instead. This utility was only used internally, and will be removed in the next release.
 func ParseKeyValueOpt(opt string) (key string, value string, err error) {
 	k, v, ok := strings.Cut(opt, "=")
 	if !ok {

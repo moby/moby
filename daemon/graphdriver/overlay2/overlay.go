@@ -26,7 +26,6 @@ import (
 	"github.com/docker/docker/pkg/atomicwriter"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/quota"
 	"github.com/docker/go-units"
 	"github.com/moby/locker"
@@ -235,7 +234,7 @@ func isMounted(path string) bool {
 func parseOptions(options []string) (*overlayOptions, error) {
 	o := &overlayOptions{}
 	for _, option := range options {
-		key, val, err := parsers.ParseKeyValueOpt(option)
+		key, val, err := graphdriver.ParseStorageOptKeyValue(option)
 		if err != nil {
 			return nil, err
 		}
