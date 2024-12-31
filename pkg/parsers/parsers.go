@@ -77,21 +77,21 @@ func parseUintList(val string, maximum int) (map[int]bool, error) {
 			availableInts[v] = true
 		} else {
 			minS, maxS, _ := strings.Cut(r, "-")
-			min, err := strconv.Atoi(minS)
+			minAvailable, err := strconv.Atoi(minS)
 			if err != nil {
 				return nil, errInvalidFormat
 			}
-			max, err := strconv.Atoi(maxS)
+			maxAvailable, err := strconv.Atoi(maxS)
 			if err != nil {
 				return nil, errInvalidFormat
 			}
-			if max < min {
+			if maxAvailable < minAvailable {
 				return nil, errInvalidFormat
 			}
-			if maximum != 0 && max > maximum {
+			if maximum != 0 && maxAvailable > maximum {
 				return nil, fmt.Errorf("value of out range, maximum is %d", maximum)
 			}
-			for i := min; i <= max; i++ {
+			for i := minAvailable; i <= maxAvailable; i++ {
 				availableInts[i] = true
 			}
 		}
