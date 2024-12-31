@@ -304,7 +304,7 @@ func readProcBool(path string) bool {
 	return strings.TrimSpace(string(val)) == "1"
 }
 
-func isCpusetListAvailable(provided, available string) (bool, error) {
+func isCpusetListAvailable(requested, available string) (bool, error) {
 	parsedAvailable, err := parsers.ParseUintList(available)
 	if err != nil {
 		return false, err
@@ -317,11 +317,11 @@ func isCpusetListAvailable(provided, available string) (bool, error) {
 			maxCPUs = m
 		}
 	}
-	parsedProvided, err := parsers.ParseUintListMaximum(provided, maxCPUs)
+	parsedRequested, err := parsers.ParseUintListMaximum(requested, maxCPUs)
 	if err != nil {
 		return false, err
 	}
-	for k := range parsedProvided {
+	for k := range parsedRequested {
 		if !parsedAvailable[k] {
 			return false, nil
 		}
