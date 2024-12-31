@@ -135,13 +135,13 @@ type cgroupPids struct {
 // IsCpusetCpusAvailable returns `true` if the provided string set is contained
 // in cgroup's cpuset.cpus set, `false` otherwise.
 // If error is not nil a parsing error occurred.
-func (c cgroupCpusetInfo) IsCpusetCpusAvailable(provided string) (bool, error) {
-	return isCpusetListAvailable(provided, c.Cpus)
+func (c cgroupCpusetInfo) IsCpusetCpusAvailable(requested string) (bool, error) {
+	return isCpusetListAvailable(requested, c.Cpus)
 }
 
 // IsCpusetMemsAvailable returns `true` if the provided string set is contained
 // in cgroup's cpuset.mems set, `false` otherwise.
 // If error is not nil a parsing error occurred.
-func (c cgroupCpusetInfo) IsCpusetMemsAvailable(provided string) (bool, error) {
-	return isCpusetListAvailable(provided, c.Mems)
+func (c cgroupCpusetInfo) IsCpusetMemsAvailable(requested string) (bool, error) {
+	return isCpusetListAvailable(requested, c.Mems)
 }
