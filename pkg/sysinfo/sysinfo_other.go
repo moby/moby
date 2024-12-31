@@ -7,6 +7,6 @@ func New(options ...Opt) *SysInfo {
 	return &SysInfo{}
 }
 
-func isCpusetListAvailable(string, string) (bool, error) {
+func isCpusetListAvailable(string, map[int]struct{}) (bool, error) {
 	return false, nil
 }

@@ -124,9 +124,17 @@ type cgroupCpusetInfo struct {
 	// or "cpuset.cpus" (cgroups v1).
 	Cpus string
 
+	// CPUSets holds the list of available cpusets parsed from "cpuset.cpus.effective" (cgroups v2)
+	// or "cpuset.cpus" (cgroups v1).
+	CPUSets map[int]struct{}
+
 	// Available Cpuset's memory nodes as read from "cpuset.mems.effective" (cgroups v2)
 	// or "cpuset.mems" (cgroups v1).
 	Mems string
+
+	// MemSets holds the list of available cpusets parsed from "cpuset.mems.effective" (cgroups v2)
+	// or "cpuset.mems" (cgroups v1).
+	MemSets map[int]struct{}
 }
 
 type cgroupPids struct {
@@ -138,12 +146,12 @@ type cgroupPids struct {
 // in cgroup's cpuset.cpus set, `false` otherwise.
 // If error is not nil a parsing error occurred.
 func (c cgroupCpusetInfo) IsCpusetCpusAvailable(requested string) (bool, error) {
-	return isCpusetListAvailable(requested, c.Cpus)
+	return isCpusetListAvailable(requested, c.CPUSets)
 }
 
 // IsCpusetMemsAvailable returns `true` if the provided string set is contained
 // in cgroup's cpuset.mems set, `false` otherwise.
 // If error is not nil a parsing error occurred.
 func (c cgroupCpusetInfo) IsCpusetMemsAvailable(requested string) (bool, error) {
-	return isCpusetListAvailable(requested, c.Mems)
+	return isCpusetListAvailable(requested, c.MemSets)
 }

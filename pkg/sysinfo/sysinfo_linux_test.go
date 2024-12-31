@@ -83,12 +83,16 @@ func TestIsCpusetListAvailable(t *testing.T) {
 		{"01,3", "0-4", true, false},
 		{"", "0-7", true, false},
 		{"1--42", "0-7", false, true},
-		{"1-42", "00-1,8,,9", false, true},
+		{"1-42", "00-1,8,9", false, true},
 		{"1,41-42", "43,45", false, false},
 		{"0-3", "", false, false},
 	}
 	for _, c := range cases {
-		r, err := isCpusetListAvailable(c.provided, c.available)
+		available, err := parseUintList(c.available, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, err := isCpusetListAvailable(c.provided, available)
 		if (c.err && err == nil) && r != c.res {
 			t.Fatalf("Expected pair: %v, %v for %s, %s. Got %v, %v instead", c.res, c.err, c.provided, c.available, (c.err && err == nil), r)
 		}
@@ -96,16 +100,17 @@ func TestIsCpusetListAvailable(t *testing.T) {
 }
 
 func TestParseUintList(t *testing.T) {
-	valids := map[string]map[int]bool{
+	yes := struct{}{}
+	valids := map[string]map[int]struct{}{
 		"":             {},
-		"7":            {7: true},
-		"1-6":          {1: true, 2: true, 3: true, 4: true, 5: true, 6: true},
-		"0-7":          {0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true},
-		"0,3-4,7,8-10": {0: true, 3: true, 4: true, 7: true, 8: true, 9: true, 10: true},
-		"0-0,0,1-4":    {0: true, 1: true, 2: true, 3: true, 4: true},
-		"03,1-3":       {1: true, 2: true, 3: true},
-		"3,2,1":        {1: true, 2: true, 3: true},
-		"0-2,3,1":      {0: true, 1: true, 2: true, 3: true},
+		"7":            {7: yes},
+		"1-6":          {1: yes, 2: yes, 3: yes, 4: yes, 5: yes, 6: yes},
+		"0-7":          {0: yes, 1: yes, 2: yes, 3: yes, 4: yes, 5: yes, 6: yes, 7: yes},
+		"0,3-4,7,8-10": {0: yes, 3: yes, 4: yes, 7: yes, 8: yes, 9: yes, 10: yes},
+		"0-0,0,1-4":    {0: yes, 1: yes, 2: yes, 3: yes, 4: yes},
+		"03,1-3":       {1: yes, 2: yes, 3: yes},
+		"3,2,1":        {1: yes, 2: yes, 3: yes},
+		"0-2,3,1":      {0: yes, 1: yes, 2: yes, 3: yes},
 	}
 	for k, v := range valids {
 		out, err := parseUintList(k, 0)

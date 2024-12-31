@@ -241,12 +241,24 @@ func applyCPUSetCgroupInfo(info *SysInfo) {
 		return
 	}
 	info.Cpus = strings.TrimSpace(string(cpus))
+	cpuSets, err := parseUintList(info.Cpus, 0)
+	if err != nil {
+		info.Warnings = append(info.Warnings, "Unable to parse cpuset cpus: "+err.Error())
+		return
+	}
+	info.CPUSets = cpuSets
 
 	mems, err := os.ReadFile(path.Join(mountPoint, "cpuset.mems"))
 	if err != nil {
 		return
 	}
 	info.Mems = strings.TrimSpace(string(mems))
+	memSets, err := parseUintList(info.Cpus, 0)
+	if err != nil {
+		info.Warnings = append(info.Warnings, "Unable to parse cpuset mems: "+err.Error())
+		return
+	}
+	info.MemSets = memSets
 }
 
 // applyPIDSCgroupInfo adds whether the pids cgroup controller is available to the info.
@@ -319,11 +331,7 @@ func readProcBool(path string) bool {
 // defaultMaxCPUs is the normal maximum number of CPUs on Linux.
 const defaultMaxCPUs = 8192
 
-func isCpusetListAvailable(requested, available string) (bool, error) {
-	parsedAvailable, err := parseUintList(available, 0)
-	if err != nil {
-		return false, err
-	}
+func isCpusetListAvailable(requested string, available map[int]struct{}) (bool, error) {
 	// Start with the normal maximum number of CPUs on Linux, but accept
 	// more if we actually have more CPUs available.
 	//
@@ -336,7 +344,7 @@ func isCpusetListAvailable(requested, available string) (bool, error) {
 	//
 	// More details in https://github.com/docker-archive/engine/pull/70#issuecomment-458458288
 	maxCPUs := defaultMaxCPUs
-	for m := range parsedAvailable {
+	for m := range available {
 		if m > maxCPUs {
 			maxCPUs = m
 		}
@@ -346,7 +354,7 @@ func isCpusetListAvailable(requested, available string) (bool, error) {
 		return false, err
 	}
 	for k := range parsedRequested {
-		if !parsedAvailable[k] {
+		if _, ok := available[k]; !ok {
 			return false, nil
 		}
 	}
@@ -357,7 +365,7 @@ func isCpusetListAvailable(requested, available string) (bool, error) {
 // found in some cgroup file (e.g. `cpuset.cpus`, `cpuset.mems`), which could be
 // one of the formats below. Note that duplicates are actually allowed in the
 // input string. It returns a `map[int]bool` with available elements from `val`
-// set to `true`. Values larger than `maximum` cause an error if max is non zero,
+// set to `true`. Values larger than `maximum` cause an error if max is non-zero,
 // in order to stop the map becoming excessively large.
 // Supported formats:
 //
@@ -368,16 +376,15 @@ func isCpusetListAvailable(requested, available string) (bool, error) {
 //	03,1-3      <- this is gonna get parsed as [1,2,3]
 //	3,2,1
 //	0-2,3,1
-func parseUintList(val string, maximum int) (map[int]bool, error) {
+func parseUintList(val string, maximum int) (map[int]struct{}, error) {
 	if val == "" {
-		return map[int]bool{}, nil
+		return map[int]struct{}{}, nil
 	}
 
-	availableInts := make(map[int]bool)
-	split := strings.Split(val, ",")
+	availableInts := make(map[int]struct{})
 	errInvalidFormat := fmt.Errorf("invalid format: %s", val)
 
-	for _, r := range split {
+	for _, r := range strings.Split(val, ",") {
 		if !strings.Contains(r, "-") {
 			v, err := strconv.Atoi(r)
 			if err != nil {
@@ -386,7 +393,7 @@ func parseUintList(val string, maximum int) (map[int]bool, error) {
 			if maximum != 0 && v > maximum {
 				return nil, fmt.Errorf("value of out range, maximum is %d", maximum)
 			}
-			availableInts[v] = true
+			availableInts[v] = struct{}{}
 		} else {
 			minS, maxS, _ := strings.Cut(r, "-")
 			minAvailable, err := strconv.Atoi(minS)
@@ -404,7 +411,7 @@ func parseUintList(val string, maximum int) (map[int]bool, error) {
 				return nil, fmt.Errorf("value of out range, maximum is %d", maximum)
 			}
 			for i := minAvailable; i <= maxAvailable; i++ {
-				availableInts[i] = true
+				availableInts[i] = struct{}{}
 			}
 		}
 	}
