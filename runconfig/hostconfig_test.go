@@ -27,14 +27,12 @@ func TestValidateResources(t *testing.T) {
 			FailureMsg:               "Expected valid configuration",
 		},
 		{
-			ConfigCPURealtimePeriod:  5000,
-			ConfigCPURealtimeRuntime: 5000,
-			SysInfoCPURealtime:       false,
-			ErrorExpected:            true,
-			FailureMsg:               "Expected failure when cpu-rt-period is set but kernel doesn't support it",
+			ConfigCPURealtimePeriod: 5000,
+			SysInfoCPURealtime:      false,
+			ErrorExpected:           true,
+			FailureMsg:              "Expected failure when cpu-rt-period is set but kernel doesn't support it",
 		},
 		{
-			ConfigCPURealtimePeriod:  5000,
 			ConfigCPURealtimeRuntime: 5000,
 			SysInfoCPURealtime:       false,
 			ErrorExpected:            true,
