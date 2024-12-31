@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/sysinfo"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -16,6 +17,7 @@ func TestValidateResources(t *testing.T) {
 		doc                string
 		resources          container.Resources
 		sysInfoCPURealtime bool
+		sysInfoCPUShares   bool
 		expectedError      string
 	}
 
@@ -54,6 +56,14 @@ func TestValidateResources(t *testing.T) {
 			sysInfoCPURealtime: true,
 			expectedError:      "cpu real-time runtime cannot be higher than cpu real-time period",
 		},
+		{
+			doc: "negative CPU shares",
+			resources: container.Resources{
+				CPUShares: -1,
+			},
+			sysInfoCPUShares: true,
+			expectedError:    "invalid CPU shares (-1): value must be a positive integer",
+		},
 	}
 
 	for _, tc := range tests {
@@ -63,9 +73,11 @@ func TestValidateResources(t *testing.T) {
 
 			var si sysinfo.SysInfo
 			si.CPURealtime = tc.sysInfoCPURealtime
+			si.CPUShares = tc.sysInfoCPUShares
 
 			err := validateResources(&hc, &si)
 			if tc.expectedError != "" {
+				assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
 				assert.Check(t, is.Error(err, tc.expectedError))
 			} else {
 				assert.NilError(t, err)
