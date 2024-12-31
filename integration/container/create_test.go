@@ -644,6 +644,11 @@ func TestCreateInvalidHostConfig(t *testing.T) {
 			hc:          container.HostConfig{Annotations: map[string]string{"": "a"}},
 			expectedErr: "Error response from daemon: invalid Annotations: the empty string is not permitted as an annotation key",
 		},
+		{
+			doc:         "invalid CPUShares",
+			hc:          container.HostConfig{Resources: container.Resources{CPUShares: -1}},
+			expectedErr: "Error response from daemon: invalid CPU shares (-1): value must be a positive integer",
+		},
 	}
 
 	for _, tc := range testCases {
