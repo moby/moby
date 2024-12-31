@@ -316,14 +316,26 @@ func readProcBool(path string) bool {
 	return strings.TrimSpace(string(val)) == "1"
 }
 
+// defaultMaxCPUs is the normal maximum number of CPUs on Linux.
+const defaultMaxCPUs = 8192
+
 func isCpusetListAvailable(requested, available string) (bool, error) {
 	parsedAvailable, err := parsers.ParseUintList(available)
 	if err != nil {
 		return false, err
 	}
-	// 8192 is the normal maximum number of CPUs in Linux, so accept numbers up to this
-	// or more if we actually have more CPUs.
-	maxCPUs := 8192
+	// Start with the normal maximum number of CPUs on Linux, but accept
+	// more if we actually have more CPUs available.
+	//
+	// This limit was added in f8e876d7616469d07b8b049ecb48967eeb8fa7a5
+	// to address CVE-2018-20699:
+	//
+	// Using a value such as `--cpuset-mems=1-9223372036854775807` would cause
+	// dockerd to run out of memory allocating a map of the values in the
+	// validation code. Set limits to the normal limit of the number of CPUs.
+	//
+	// More details in https://github.com/docker-archive/engine/pull/70#issuecomment-458458288
+	maxCPUs := defaultMaxCPUs
 	for m := range parsedAvailable {
 		if m > maxCPUs {
 			maxCPUs = m
