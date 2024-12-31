@@ -120,10 +120,12 @@ type cgroupCpusetInfo struct {
 	// Whether Cpuset is supported or not
 	Cpuset bool
 
-	// Available Cpuset's cpus
+	// Available Cpuset's cpus as read from "cpuset.cpus.effective" (cgroups v2)
+	// or "cpuset.cpus" (cgroups v1).
 	Cpus string
 
-	// Available Cpuset's memory nodes
+	// Available Cpuset's memory nodes as read from "cpuset.mems.effective" (cgroups v2)
+	// or "cpuset.mems" (cgroups v1).
 	Mems string
 }
 
