@@ -304,14 +304,17 @@ func readProcBool(path string) bool {
 	return strings.TrimSpace(string(val)) == "1"
 }
 
+// defaultMaxCPUs is the normal maximum number of CPUs on Linux.
+const defaultMaxCPUs = 8192
+
 func isCpusetListAvailable(requested, available string) (bool, error) {
 	parsedAvailable, err := parsers.ParseUintList(available)
 	if err != nil {
 		return false, err
 	}
-	// 8192 is the normal maximum number of CPUs in Linux, so accept numbers up to this
-	// or more if we actually have more CPUs.
-	maxCPUs := 8192
+	// Start with the normal maximum number of CPUs on Linux, but accept
+	// more if we actually have more CPUs available.
+	maxCPUs := defaultMaxCPUs
 	for m := range parsedAvailable {
 		if m > maxCPUs {
 			maxCPUs = m
