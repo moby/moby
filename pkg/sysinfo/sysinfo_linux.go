@@ -271,23 +271,35 @@ func applyNetworkingInfo(info *SysInfo) {
 
 // applyAppArmorInfo adds whether AppArmor is enabled to the info.
 func applyAppArmorInfo(info *SysInfo) {
-	if _, err := os.Stat("/sys/kernel/security/apparmor"); !os.IsNotExist(err) {
-		if _, err := os.ReadFile("/sys/kernel/security/apparmor/profiles"); err == nil {
-			info.AppArmor = true
-		}
-	}
+	info.AppArmor = apparmorSupported()
 }
 
 // applyCgroupNsInfo adds whether cgroupns is enabled to the info.
 func applyCgroupNsInfo(info *SysInfo) {
-	if _, err := os.Stat("/proc/self/ns/cgroup"); !os.IsNotExist(err) {
-		info.CgroupNamespaces = true
-	}
+	info.CgroupNamespaces = cgroupnsSupported()
 }
 
 // applySeccompInfo checks if Seccomp is supported, via CONFIG_SECCOMP.
 func applySeccompInfo(info *SysInfo) {
 	info.Seccomp = seccomp.IsEnabled()
+}
+
+// apparmorSupported adds whether AppArmor is enabled.
+func apparmorSupported() bool {
+	if _, err := os.Stat("/sys/kernel/security/apparmor"); !os.IsNotExist(err) {
+		if _, err := os.ReadFile("/sys/kernel/security/apparmor/profiles"); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// cgroupnsSupported adds whether cgroup namespaces are supported.
+func cgroupnsSupported() bool {
+	if _, err := os.Stat("/proc/self/ns/cgroup"); !os.IsNotExist(err) {
+		return true
+	}
+	return false
 }
 
 func cgroupEnabled(mountPoint, name string) bool {

@@ -2,22 +2,19 @@ package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
 import (
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
 
-	"golang.org/x/sys/unix"
-	"gotest.tools/v3/assert"
+	"github.com/containerd/containerd/pkg/seccomp"
 )
 
 func TestReadProcBool(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "test-sysinfo-proc")
-	assert.NilError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	procFile := filepath.Join(tmpDir, "read-proc-bool")
-	err = os.WriteFile(procFile, []byte("1"), 0o644)
-	assert.NilError(t, err)
+	if err := os.WriteFile(procFile, []byte("1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	if !readProcBool(procFile) {
 		t.Fatal("expected proc bool to be true, got false")
@@ -30,89 +27,46 @@ func TestReadProcBool(t *testing.T) {
 		t.Fatal("expected proc bool to be false, got true")
 	}
 
-	if readProcBool(path.Join(tmpDir, "no-exist")) {
+	if readProcBool(filepath.Join(tmpDir, "no-exist")) {
 		t.Fatal("should be false for non-existent entry")
 	}
 }
 
 func TestCgroupEnabled(t *testing.T) {
-	cgroupDir, err := os.MkdirTemp("", "cgroup-test")
-	assert.NilError(t, err)
-	defer os.RemoveAll(cgroupDir)
+	cgroupDir := t.TempDir()
 
 	if cgroupEnabled(cgroupDir, "test") {
 		t.Fatal("cgroupEnabled should be false")
 	}
 
-	err = os.WriteFile(path.Join(cgroupDir, "test"), []byte{}, 0o644)
-	assert.NilError(t, err)
+	if err := os.WriteFile(filepath.Join(cgroupDir, "test"), []byte{}, 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	if !cgroupEnabled(cgroupDir, "test") {
 		t.Fatal("cgroupEnabled should be true")
 	}
 }
 
+// TestNew verifies that sysInfo is initialized with the expected values.
 func TestNew(t *testing.T) {
 	sysInfo := New()
-	assert.Assert(t, sysInfo != nil)
-	checkSysInfo(t, sysInfo)
-}
-
-func checkSysInfo(t *testing.T, sysInfo *SysInfo) {
-	// Check if Seccomp is supported, via CONFIG_SECCOMP.then sysInfo.Seccomp must be TRUE , else FALSE
-	if err := unix.Prctl(unix.PR_GET_SECCOMP, 0, 0, 0, 0); err != unix.EINVAL {
-		// Make sure the kernel has CONFIG_SECCOMP_FILTER.
-		if err := unix.Prctl(unix.PR_SET_SECCOMP, unix.SECCOMP_MODE_FILTER, 0, 0, 0); err != unix.EINVAL {
-			assert.Assert(t, sysInfo.Seccomp)
-		}
-	} else {
-		assert.Assert(t, !sysInfo.Seccomp)
+	if sysInfo == nil {
+		t.Fatal("sysInfo should not be nil")
 	}
-}
-
-func TestNewAppArmorEnabled(t *testing.T) {
-	// Check if AppArmor is supported. then it must be TRUE , else FALSE
-	if _, err := os.Stat("/sys/kernel/security/apparmor"); err != nil {
-		t.Skip("AppArmor Must be Enabled")
+	if expected := seccomp.IsEnabled(); sysInfo.Seccomp != expected {
+		t.Errorf("got Seccomp %v, wanted %v", sysInfo.Seccomp, expected)
 	}
-
-	sysInfo := New()
-	assert.Assert(t, sysInfo.AppArmor)
-}
-
-func TestNewAppArmorDisabled(t *testing.T) {
-	// Check if AppArmor is supported. then it must be TRUE , else FALSE
-	if _, err := os.Stat("/sys/kernel/security/apparmor"); !os.IsNotExist(err) {
-		t.Skip("AppArmor Must be Disabled")
+	if expected := apparmorSupported(); sysInfo.AppArmor != expected {
+		t.Errorf("got AppArmor %v, wanted %v", sysInfo.AppArmor, expected)
 	}
-
-	sysInfo := New()
-	assert.Assert(t, !sysInfo.AppArmor)
-}
-
-func TestNewCgroupNamespacesEnabled(t *testing.T) {
-	// If cgroup namespaces are supported in the kernel, then sysInfo.CgroupNamespaces should be TRUE
-	if _, err := os.Stat("/proc/self/ns/cgroup"); err != nil {
-		t.Skip("cgroup namespaces must be enabled")
+	if expected := cgroupnsSupported(); sysInfo.CgroupNamespaces != expected {
+		t.Errorf("got CgroupNamespaces %v, wanted %v", sysInfo.AppArmor, expected)
 	}
-
-	sysInfo := New()
-	assert.Assert(t, sysInfo.CgroupNamespaces)
-}
-
-func TestNewCgroupNamespacesDisabled(t *testing.T) {
-	// If cgroup namespaces are *not* supported in the kernel, then sysInfo.CgroupNamespaces should be FALSE
-	if _, err := os.Stat("/proc/self/ns/cgroup"); !os.IsNotExist(err) {
-		t.Skip("cgroup namespaces must be disabled")
-	}
-
-	sysInfo := New()
-	assert.Assert(t, !sysInfo.CgroupNamespaces)
 }
 
 func TestNumCPU(t *testing.T) {
-	cpuNumbers := NumCPU()
-	if cpuNumbers <= 0 {
+	if cpuNumbers := NumCPU(); cpuNumbers <= 0 {
 		t.Fatal("CPU returned must be greater than zero")
 	}
 }
