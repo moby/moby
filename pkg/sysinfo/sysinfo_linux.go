@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/cgroups/v3/cgroup1"
 	"github.com/containerd/containerd/pkg/seccomp"
 	"github.com/containerd/log"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/moby/sys/mountinfo"
 )
 
@@ -313,4 +314,29 @@ func readProcBool(path string) bool {
 		return false
 	}
 	return strings.TrimSpace(string(val)) == "1"
+}
+
+func isCpusetListAvailable(provided, available string) (bool, error) {
+	parsedAvailable, err := parsers.ParseUintList(available)
+	if err != nil {
+		return false, err
+	}
+	// 8192 is the normal maximum number of CPUs in Linux, so accept numbers up to this
+	// or more if we actually have more CPUs.
+	maxCPUs := 8192
+	for m := range parsedAvailable {
+		if m > maxCPUs {
+			maxCPUs = m
+		}
+	}
+	parsedProvided, err := parsers.ParseUintListMaximum(provided, maxCPUs)
+	if err != nil {
+		return false, err
+	}
+	for k := range parsedProvided {
+		if !parsedAvailable[k] {
+			return false, nil
+		}
+	}
+	return true, nil
 }
