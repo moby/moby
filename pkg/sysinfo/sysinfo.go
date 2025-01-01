@@ -1,8 +1,6 @@
 // Package sysinfo stores information about which features a kernel supports.
 package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
-import "github.com/docker/docker/pkg/parsers"
-
 // Opt for New().
 type Opt func(info *SysInfo)
 
@@ -146,29 +144,4 @@ func (c cgroupCpusetInfo) IsCpusetCpusAvailable(provided string) (bool, error) {
 // If error is not nil a parsing error occurred.
 func (c cgroupCpusetInfo) IsCpusetMemsAvailable(provided string) (bool, error) {
 	return isCpusetListAvailable(provided, c.Mems)
-}
-
-func isCpusetListAvailable(provided, available string) (bool, error) {
-	parsedAvailable, err := parsers.ParseUintList(available)
-	if err != nil {
-		return false, err
-	}
-	// 8192 is the normal maximum number of CPUs in Linux, so accept numbers up to this
-	// or more if we actually have more CPUs.
-	maxCPUs := 8192
-	for m := range parsedAvailable {
-		if m > maxCPUs {
-			maxCPUs = m
-		}
-	}
-	parsedProvided, err := parsers.ParseUintListMaximum(provided, maxCPUs)
-	if err != nil {
-		return false, err
-	}
-	for k := range parsedProvided {
-		if !parsedAvailable[k] {
-			return false, nil
-		}
-	}
-	return true, nil
 }
