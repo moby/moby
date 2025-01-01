@@ -778,7 +778,7 @@ func checkSystem() error {
 
 // configureMaxThreads sets the Go runtime max threads threshold
 // which is 90% of the kernel setting from /proc/sys/kernel/threads-max
-func configureMaxThreads(config *config.Config) error {
+func configureMaxThreads(ctx context.Context) error {
 	mt, err := os.ReadFile("/proc/sys/kernel/threads-max")
 	if err != nil {
 		return err
@@ -789,7 +789,7 @@ func configureMaxThreads(config *config.Config) error {
 	}
 	maxThreads := (mtint / 100) * 90
 	debug.SetMaxThreads(maxThreads)
-	log.G(context.TODO()).Debugf("Golang's threads limit set to %d", maxThreads)
+	log.G(ctx).Debugf("Golang's threads limit set to %d", maxThreads)
 	return nil
 }
 

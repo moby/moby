@@ -228,7 +228,7 @@ func configureKernelSecuritySupport(config *config.Config, driverName string) er
 }
 
 // configureMaxThreads sets the Go runtime max threads threshold
-func configureMaxThreads(config *config.Config) error {
+func configureMaxThreads(_ context.Context) error {
 	return nil
 }
 
