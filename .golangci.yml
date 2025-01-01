@@ -61,6 +61,9 @@ linters-settings:
       - pkg: ^sync/atomic$
         p: ^atomic\.(Add|CompareAndSwap|Load|Store|Swap).
         msg: Go 1.19 atomic types should be used instead.
+      - pkg: ^regexp$
+        p: ^regexp\.MustCompile
+        msg: Use internal/lazyregexp.New instead.
       - pkg: github.com/vishvananda/netlink$
         p: ^netlink\.(Handle\.)?(AddrList|BridgeVlanList|ChainList|ClassList|ConntrackTableList|ConntrackDeleteFilter$|ConntrackDeleteFilters|DevLinkGetDeviceList|DevLinkGetAllPortList|DevlinkGetDeviceParams|FilterList|FouList|GenlFamilyList|GTPPDPList|LinkByName|LinkByAlias|LinkList|LinkSubscribeWithOptions|NeighList$|NeighProxyList|NeighListExecute|NeighSubscribeWithOptions|LinkGetProtinfo|QdiscList|RdmaLinkList|RdmaLinkByName|RdmaLinkDel|RouteList|RouteListFilteredIter|RuleListFiltered$|RouteSubscribeWithOptions|RuleList$|RuleListFiltered|SocketGet|SocketDiagTCPInfo|SocketDiagTCP|SocketDiagUDPInfo|SocketDiagUDP|UnixSocketDiagInfo|UnixSocketDiag|VDPAGetDevConfigList|VDPAGetDevList|VDPAGetMGMTDevList|XfrmPolicyList|XfrmStateList)
         msg: Use internal nlwrap package for EINTR handling.
@@ -176,6 +179,18 @@ issues:
       path: _test\.go
       linters:
         - govet
+    - text: 'use of `regexp.MustCompile` forbidden'
+      path: _test\.go
+      linters:
+        - forbidigo
+    - text: 'use of `regexp.MustCompile` forbidden'
+      path: "internal/lazyregexp"
+      linters:
+        - forbidigo
+    - text: 'use of `regexp.MustCompile` forbidden'
+      path: "libnetwork/cmd/networkdb-test/dbclient"
+      linters:
+        - forbidigo
 
   # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
   max-issues-per-linter: 0
