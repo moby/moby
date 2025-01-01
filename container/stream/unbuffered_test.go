@@ -1,4 +1,4 @@
-package broadcaster // import "github.com/docker/docker/pkg/broadcaster"
+package stream
 
 import (
 	"bytes"
@@ -28,7 +28,7 @@ func (dw *dummyWriter) Close() error {
 }
 
 func TestUnbuffered(t *testing.T) {
-	writer := new(Unbuffered)
+	writer := new(unbuffered)
 
 	// Test 1: Both bufferA and bufferB should contain "foo"
 	bufferA := &dummyWriter{}
@@ -114,7 +114,7 @@ func (d devNullCloser) Write(buf []byte) (int, error) {
 
 // This test checks for races. It is only useful when run with the race detector.
 func TestRaceUnbuffered(t *testing.T) {
-	writer := new(Unbuffered)
+	writer := new(unbuffered)
 	c := make(chan bool)
 	go func() {
 		writer.Add(devNullCloser(0))
@@ -125,7 +125,7 @@ func TestRaceUnbuffered(t *testing.T) {
 }
 
 func BenchmarkUnbuffered(b *testing.B) {
-	writer := new(Unbuffered)
+	writer := new(unbuffered)
 	setUpWriter := func() {
 		for i := 0; i < 100; i++ {
 			writer.Add(devNullCloser(0))
