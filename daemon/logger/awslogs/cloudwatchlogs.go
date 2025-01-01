@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/pkg/errors"
 )
 
@@ -264,29 +265,31 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 	return containerStreamConfig, nil
 }
 
+// formatSequences matches each strftime format sequence.
+var formatSequences = lazyregexp.New("%.")
+
 // Parses awslogs-multiline-pattern and awslogs-datetime-format options
 // If awslogs-datetime-format is present, convert the format from strftime
 // to regexp and return.
 // If awslogs-multiline-pattern is present, compile regexp and return
 func parseMultilineOptions(info logger.Info) (*regexp.Regexp, error) {
 	dateTimeFormat := info.Config[datetimeFormatKey]
-	multilinePatternKey := info.Config[multilinePatternKey]
+	multilinePattern := info.Config[multilinePatternKey]
 	// strftime input is parsed into a regular expression
 	if dateTimeFormat != "" {
-		// %. matches each strftime format sequence and ReplaceAllStringFunc
+		// match each strftime format sequence and ReplaceAllStringFunc
 		// looks up each format sequence in the conversion table strftimeToRegex
 		// to replace with a defined regular expression
-		r := regexp.MustCompile("%.")
-		multilinePatternKey = r.ReplaceAllStringFunc(dateTimeFormat, func(s string) string {
+		multilinePattern = formatSequences.ReplaceAllStringFunc(dateTimeFormat, func(s string) string {
 			return strftimeToRegex[s]
 		})
 	}
-	if multilinePatternKey != "" {
-		multilinePattern, err := regexp.Compile(multilinePatternKey)
+	if multilinePattern != "" {
+		multilinePatternRe, err := regexp.Compile(multilinePattern)
 		if err != nil {
-			return nil, errors.Wrapf(err, "awslogs could not parse multiline pattern key %q", multilinePatternKey)
+			return nil, errors.Wrapf(err, "awslogs could not parse multiline pattern key %q", multilinePatternRe)
 		}
-		return multilinePattern, nil
+		return multilinePatternRe, nil
 	}
 	return nil, nil
 }
