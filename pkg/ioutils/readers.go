@@ -61,35 +61,6 @@ func NewReaderErrWrapper(r io.Reader, closer func()) io.Reader {
 	}
 }
 
-// OnEOFReader wraps an io.ReadCloser and a function
-// the function will run at the end of file or close the file.
-type OnEOFReader struct {
-	Rc io.ReadCloser
-	Fn func()
-}
-
-func (r *OnEOFReader) Read(p []byte) (n int, err error) {
-	n, err = r.Rc.Read(p)
-	if err == io.EOF {
-		r.runFunc()
-	}
-	return
-}
-
-// Close closes the file and run the function.
-func (r *OnEOFReader) Close() error {
-	err := r.Rc.Close()
-	r.runFunc()
-	return err
-}
-
-func (r *OnEOFReader) runFunc() {
-	if fn := r.Fn; fn != nil {
-		fn()
-		r.Fn = nil
-	}
-}
-
 // cancelReadCloser wraps an io.ReadCloser with a context for cancelling read
 // operations.
 type cancelReadCloser struct {
