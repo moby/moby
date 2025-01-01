@@ -245,11 +245,11 @@ func parseSecurityOpt(securityOptions *container.SecurityOptions, config *contai
 		case "seccomp":
 			securityOptions.SeccompProfile = v
 		case "no-new-privileges":
-			noNewPrivileges, err := strconv.ParseBool(v)
+			nnp, err := strconv.ParseBool(v)
 			if err != nil {
 				return fmt.Errorf("invalid --security-opt 2: %q", opt)
 			}
-			securityOptions.NoNewPrivileges = noNewPrivileges
+			securityOptions.NoNewPrivileges = nnp
 		default:
 			return fmt.Errorf("invalid --security-opt 2: %q", opt)
 		}
