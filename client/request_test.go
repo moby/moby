@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
@@ -105,7 +106,7 @@ func TestInfiniteError(t *testing.T) {
 		}),
 	}
 
-	_, err := client.Ping(context.Background())
+	_, err := client.Ping(context.Background(), types.PingOptions{})
 	assert.Check(t, is.ErrorContains(err, "request returned Internal Server Error"))
 }
 

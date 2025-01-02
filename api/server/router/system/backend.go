@@ -27,6 +27,7 @@ type DiskUsageOptions struct {
 // Backend is the methods that need to be implemented to provide
 // system specific functionality.
 type Backend interface {
+	SystemCapabilities(context.Context, int) (system.Capabilities, error)
 	SystemInfo(context.Context) (*system.Info, error)
 	SystemVersion(context.Context) (types.Version, error)
 	SystemDiskUsage(ctx context.Context, opts DiskUsageOptions) (*types.DiskUsage, error)
