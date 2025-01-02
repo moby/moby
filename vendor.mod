@@ -13,7 +13,7 @@ require (
 	code.cloudfoundry.org/clock v1.1.0
 	dario.cat/mergo v1.0.1
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24
-	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161
+	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c
 	github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0
 	github.com/Microsoft/go-winio v0.6.2
 	github.com/Microsoft/hcsshim v0.12.8
