@@ -436,7 +436,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 func (d *driver) DeleteNetwork(nid string) error {
 	n, err := d.getNetwork(nid)
 	if err != nil {
-		return types.InternalMaskableErrorf("%s", err)
+		return types.InternalMaskableErrorf("%v", err)
 	}
 
 	n.Lock()
@@ -446,7 +446,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	if n.created {
 		_, err = hcsshim.HNSNetworkRequest("DELETE", config.HnsID, "")
 		if err != nil && err.Error() != errNotFound {
-			return types.ForbiddenErrorf(err.Error())
+			return types.ForbiddenErrorf("%v", err)
 		}
 	}
 
@@ -777,7 +777,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 func (d *driver) DeleteEndpoint(nid, eid string) error {
 	n, err := d.getNetwork(nid)
 	if err != nil {
-		return types.InternalMaskableErrorf("%s", err)
+		return types.InternalMaskableErrorf("%v", err)
 	}
 
 	ep, err := n.getEndpoint(eid)
@@ -887,7 +887,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 func (d *driver) Leave(nid, eid string) error {
 	network, err := d.getNetwork(nid)
 	if err != nil {
-		return types.InternalMaskableErrorf("%s", err)
+		return types.InternalMaskableErrorf("%v", err)
 	}
 
 	// Ensure that the endpoint exists

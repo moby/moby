@@ -1438,7 +1438,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 func (d *driver) Leave(nid, eid string) error {
 	network, err := d.getNetwork(nid)
 	if err != nil {
-		return types.InternalMaskableErrorf("%s", err)
+		return types.InternalMaskableErrorf("%v", err)
 	}
 
 	endpoint, err := network.getEndpoint(eid)
