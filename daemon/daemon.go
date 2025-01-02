@@ -812,10 +812,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		if err := os.MkdirAll(realTmp, 0); err != nil {
 			return nil, fmt.Errorf("Unable to create the TempDir (%s): %s", realTmp, err)
 		}
-		os.Setenv("TEMP", realTmp)
-		os.Setenv("TMP", realTmp)
+		_ = os.Setenv("TEMP", realTmp)
+		_ = os.Setenv("TMP", realTmp)
 	} else {
-		os.Setenv("TMPDIR", realTmp)
+		_ = os.Setenv("TMPDIR", realTmp)
 	}
 
 	if err := initRuntimesDir(config); err != nil {
