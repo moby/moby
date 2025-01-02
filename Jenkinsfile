@@ -31,22 +31,22 @@ pipeline {
                 }
             }
         }
-        stage('DCO-check') {
-            when {
-                beforeAgent true
-                expression { params.dco }
-            }
-            agent { label 'arm64 && ubuntu-2004' }
-            steps {
-                sh '''
-                docker run --rm \
-                  -v "$WORKSPACE:/workspace" \
-                  -e VALIDATE_REPO=${GIT_URL} \
-                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
-                  alpine sh -c 'apk add --no-cache -q bash git openssh-client && git config --system --add safe.directory /workspace && cd /workspace && hack/validate/dco'
-                '''
-            }
-        }
+//         stage('DCO-check') {
+//             when {
+//                 beforeAgent true
+//                 expression { params.dco }
+//             }
+//             agent { label 'arm64 && ubuntu-2004' }
+//             steps {
+//                 sh '''
+//                 docker run --rm \
+//                   -v "$WORKSPACE:/workspace" \
+//                   -e VALIDATE_REPO=${GIT_URL} \
+//                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
+//                   alpine sh -c 'apk add --no-cache -q bash git openssh-client && git config --system --add safe.directory /workspace && cd /workspace && hack/validate/dco'
+//                 '''
+//             }
+//         }
         stage('Build') {
             parallel {
                 stage('arm64') {

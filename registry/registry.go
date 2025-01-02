@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/internal/registryclient/transport"
 	"github.com/docker/go-connections/tlsconfig"
 )
 

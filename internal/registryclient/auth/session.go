@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/distribution/registry/client"
-	"github.com/docker/distribution/registry/client/auth/challenge"
-	"github.com/docker/distribution/registry/client/transport"
+	client "github.com/docker/docker/internal/registryclient"
+	"github.com/docker/docker/internal/registryclient/auth/challenge"
+	"github.com/docker/docker/internal/registryclient/transport"
 )
 
 var (
@@ -393,7 +393,6 @@ type getTokenResponse struct {
 }
 
 func (th *tokenHandler) fetchTokenWithBasicAuth(realm *url.URL, service string, scopes []string) (token string, expiration time.Time, err error) {
-
 	req, err := http.NewRequest("GET", realm.String(), nil)
 	if err != nil {
 		return "", time.Time{}, err

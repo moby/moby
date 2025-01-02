@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/internal/registryclient/transport"
 )
 
 // v1PingResult contains the information returned when pinging a registry. It
