@@ -65,7 +65,7 @@ func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 				"",
 			)
 			assert.Check(t, is.ErrorContains(err, tc.expectedError))
-			assert.Check(t, errdefs.IsNotFound(err))
+			assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 		})
 	}
 }
@@ -90,7 +90,7 @@ func TestCreateLinkToNonExistingContainer(t *testing.T) {
 		"",
 	)
 	assert.Check(t, is.ErrorContains(err, "could not get container for no-such-container"))
-	assert.Check(t, errdefs.IsInvalidParameter(err))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
 }
 
 func TestCreateWithInvalidEnv(t *testing.T) {
@@ -130,7 +130,7 @@ func TestCreateWithInvalidEnv(t *testing.T) {
 				"",
 			)
 			assert.Check(t, is.ErrorContains(err, tc.expectedError))
-			assert.Check(t, errdefs.IsInvalidParameter(err))
+			assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
 		})
 	}
 }
@@ -177,7 +177,7 @@ func TestCreateTmpfsMountsTarget(t *testing.T) {
 			"",
 		)
 		assert.Check(t, is.ErrorContains(err, tc.expectedError))
-		assert.Check(t, errdefs.IsInvalidParameter(err))
+		assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
 	}
 }
 
@@ -419,7 +419,7 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 
 			resp, err := apiClient.ContainerCreate(ctx, &cfg, &container.HostConfig{}, nil, nil, "")
 			assert.Check(t, is.Equal(len(resp.Warnings), 0))
-			assert.Check(t, errdefs.IsInvalidParameter(err))
+			assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
 			assert.ErrorContains(t, err, tc.expectedErr)
 		})
 	}
@@ -515,7 +515,7 @@ func TestCreateVolumesFromNonExistingContainer(t *testing.T) {
 		nil,
 		"",
 	)
-	assert.Check(t, errdefs.IsInvalidParameter(err))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
 }
 
 // Test that we can create a container from an image that is for a different platform even if a platform was not specified
