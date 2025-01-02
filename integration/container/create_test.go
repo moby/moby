@@ -76,9 +76,9 @@ func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 func TestCreateLinkToNonExistingContainer(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "legacy links are not supported on windows")
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	_, err := c.ContainerCreate(ctx,
+	_, err := apiClient.ContainerCreate(ctx,
 		&container.Config{
 			Image: "busybox",
 		},
@@ -505,9 +505,9 @@ func TestCreateDifferentPlatform(t *testing.T) {
 
 func TestCreateVolumesFromNonExistingContainer(t *testing.T) {
 	ctx := setupTest(t)
-	cli := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	_, err := cli.ContainerCreate(
+	_, err := apiClient.ContainerCreate(
 		ctx,
 		&container.Config{Image: "busybox"},
 		&container.HostConfig{VolumesFrom: []string{"nosuchcontainer"}},
@@ -525,9 +525,9 @@ func TestCreatePlatformSpecificImageNoPlatform(t *testing.T) {
 
 	skip.If(t, testEnv.DaemonInfo.Architecture == "arm", "test only makes sense to run on non-arm systems")
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "test image is only available on linux")
-	cli := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	_, err := cli.ContainerCreate(
+	_, err := apiClient.ContainerCreate(
 		ctx,
 		&container.Config{Image: "arm32v7/hello-world"},
 		&container.HostConfig{},
