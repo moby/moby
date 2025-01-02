@@ -334,6 +334,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 		})
 
 		drvOptions := make(map[string]string)
+		var labels map[string]string
 		nid := ""
 		if n != nil {
 			nid = n.ID()
@@ -348,6 +349,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 
 			// restore option if it existed before
 			drvOptions = n.DriverOptions()
+			labels = n.Labels()
 			n.Delete()
 		}
 		netOption := map[string]string{
@@ -386,6 +388,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 				netlabel.EnableIPv4:  true,
 			}),
 			libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
+			libnetwork.NetworkOptionLabels(labels),
 		)
 		if err != nil {
 			log.G(context.TODO()).Errorf("Error occurred when creating network %v", err)
