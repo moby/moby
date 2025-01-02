@@ -15,13 +15,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"testing"
 	"time"
 
 	"code.cloudfoundry.org/clock"
 	"github.com/coreos/go-systemd/v22/journal"
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 
@@ -109,7 +109,7 @@ func NewT(t *testing.T, outpath string) *Sender {
 	return s
 }
 
-var validVarName = regexp.MustCompile("^[A-Z0-9][A-Z0-9_]*$")
+var validVarName = lazyregexp.New("^[A-Z0-9][A-Z0-9_]*$")
 
 // Send is a drop-in replacement for
 // github.com/coreos/go-systemd/v22/journal.Send.

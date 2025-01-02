@@ -3,11 +3,12 @@ package idtools // import "github.com/docker/docker/pkg/idtools"
 import (
 	"fmt"
 	"os/exec"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/docker/docker/internal/lazyregexp"
 )
 
 // add a user and/or group to Linux /etc/passwd, /etc/group using standard
@@ -18,7 +19,7 @@ import (
 var (
 	once        sync.Once
 	userCommand string
-	idOutRegexp = regexp.MustCompile(`uid=([0-9]+).*gid=([0-9]+)`)
+	idOutRegexp = lazyregexp.New(`uid=([0-9]+).*gid=([0-9]+)`)
 )
 
 const (

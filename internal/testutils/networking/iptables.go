@@ -2,12 +2,13 @@ package networking
 
 import (
 	"os/exec"
-	"regexp"
 	"testing"
+
+	"github.com/docker/docker/internal/lazyregexp"
 )
 
 // Find the policy in, for example "Chain FORWARD (policy ACCEPT)".
-var rePolicy = regexp.MustCompile("policy ([A-Z]+)")
+var rePolicy = lazyregexp.New("policy ([A-Z]+)")
 
 // SetFilterForwardPolicies sets the default policy for the FORWARD chain in
 // the filter tables for both IPv4 and IPv6. The original policy is restored

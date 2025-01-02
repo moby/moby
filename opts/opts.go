@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"net"
 	"path"
-	"regexp"
 	"strings"
 
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/docker/go-units"
 )
 
 var (
-	alphaRegexp  = regexp.MustCompile(`[a-zA-Z]`)
-	domainRegexp = regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
+	alphaRegexp  = lazyregexp.New(`[a-zA-Z]`)
+	domainRegexp = lazyregexp.New(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
 )
 
 // ListOpts holds a list of values and a validation function.

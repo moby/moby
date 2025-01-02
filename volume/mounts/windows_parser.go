@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/internal/lazyregexp"
 )
 
 // NewWindowsParser creates a parser with Windows semantics.
@@ -78,16 +78,16 @@ const (
 )
 
 var (
-	volumeNameRegexp          = regexp.MustCompile(`^` + rxName + `$`)
-	reservedNameRegexp        = regexp.MustCompile(`^` + rxReservedNames + `$`)
-	hostDirRegexp             = regexp.MustCompile(`^` + rxHostDir + `$`)
-	mountDestinationRegexp    = regexp.MustCompile(`^` + rxDestination + `$`)
-	windowsSplitRawSpecRegexp = regexp.MustCompile(`^` + rxSource + rxDestination + rxMode + `$`)
+	volumeNameRegexp          = lazyregexp.New(`^` + rxName + `$`)
+	reservedNameRegexp        = lazyregexp.New(`^` + rxReservedNames + `$`)
+	hostDirRegexp             = lazyregexp.New(`^` + rxHostDir + `$`)
+	mountDestinationRegexp    = lazyregexp.New(`^` + rxDestination + `$`)
+	windowsSplitRawSpecRegexp = lazyregexp.New(`^` + rxSource + rxDestination + rxMode + `$`)
 )
 
 type mountValidator func(mnt *mount.Mount) error
 
-func (p *windowsParser) splitRawSpec(raw string, splitRegexp *regexp.Regexp) ([]string, error) {
+func (p *windowsParser) splitRawSpec(raw string, splitRegexp *lazyregexp.Regexp) ([]string, error) {
 	match := splitRegexp.FindStringSubmatch(strings.ToLower(raw))
 	if len(match) == 0 {
 		return nil, errInvalidSpec(raw)
