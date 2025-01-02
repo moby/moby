@@ -158,6 +158,15 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			// create the volume
 			v, err := daemon.volumes.Create(ctx, bind.Name, bind.Driver, volumeopts.WithCreateReference(container.ID))
 			if err != nil {
+				if errdefs.IsNotFound(err) {
+					// Using a non-existing plugin is an invalid parameter, and should
+					// not return a "notfound" error on container create, because that
+					// error is used to indicate the container's image isn't found and
+					// must be pulled.
+					//
+					// See https://github.com/moby/moby/issues/48772
+					return errdefs.InvalidParameter(err)
+				}
 				return err
 			}
 			bind.Volume = &volumeWrapper{v: v, s: daemon.volumes}
@@ -218,6 +227,15 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 				v, err = daemon.volumes.Create(ctx, mp.Name, mp.Driver, volumeopts.WithCreateReference(container.ID))
 			}
 			if err != nil {
+				if errdefs.IsNotFound(err) {
+					// Using a non-existing plugin is an invalid parameter, and should
+					// not return a "notfound" error on container create, because that
+					// error is used to indicate the container's image isn't found and
+					// must be pulled.
+					//
+					// See https://github.com/moby/moby/issues/48772
+					return errdefs.InvalidParameter(err)
+				}
 				return err
 			}
 
