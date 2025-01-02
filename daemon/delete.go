@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/containerfs"
+	"github.com/docker/docker/internal/metrics"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 )
@@ -54,7 +55,7 @@ func (daemon *Daemon) containerRm(cfg *config.Config, name string, opts *backend
 	}
 
 	err = daemon.cleanupContainer(ctr, *opts)
-	containerActions.WithValues("delete").UpdateSince(start)
+	metrics.ContainerActions.WithValues("delete").UpdateSince(start)
 
 	return err
 }
@@ -183,7 +184,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ba
 		daemon.releaseName(name)
 	}
 	container.SetRemoved()
-	stateCtr.del(container.ID)
+	metrics.StateCtr.Delete(container.ID)
 
 	daemon.LogContainerEvent(container, events.ActionDestroy)
 	return nil

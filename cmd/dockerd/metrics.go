@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	metrics "github.com/docker/go-metrics"
+	gometrics "github.com/docker/go-metrics"
 )
 
 func startMetricsServer(addr string) error {
@@ -23,7 +23,7 @@ func startMetricsServer(addr string) error {
 		return err
 	}
 	mux := http.NewServeMux()
-	mux.Handle("/metrics", metrics.Handler())
+	mux.Handle("/metrics", gometrics.Handler())
 	go func() {
 		log.G(context.TODO()).Infof("metrics API listening on %s", l.Addr())
 		srv := &http.Server{
