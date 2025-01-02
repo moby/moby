@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
-	ctr "github.com/docker/docker/integration/internal/container"
+	testContainer "github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/testutil"
@@ -256,7 +256,7 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 		err = apiClient.ContainerStart(ctx, c.ID, container.StartOptions{})
 		assert.NilError(t, err)
 
-		poll.WaitOn(t, ctr.IsInState(ctx, apiClient, c.ID, "exited"))
+		poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, c.ID, "exited"))
 
 		checkInspect(t, ctx, name, tc.expected)
 	}
@@ -334,7 +334,7 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 		err = apiClient.ContainerStart(ctx, c.ID, container.StartOptions{})
 		assert.NilError(t, err)
 
-		poll.WaitOn(t, ctr.IsInState(ctx, apiClient, c.ID, "exited"))
+		poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, c.ID, "exited"))
 
 		checkInspect(t, ctx, name, tc.expected)
 	}
@@ -432,12 +432,12 @@ func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	id := ctr.Create(ctx, t, apiClient,
-		ctr.WithVolume("/foo"),
-		ctr.WithTmpfs("/foo"),
-		ctr.WithVolume("/bar"),
-		ctr.WithTmpfs("/bar:size=999"),
-		ctr.WithCmd("/bin/sh", "-c", "mount | grep '/foo' | grep tmpfs && mount | grep '/bar' | grep tmpfs"),
+	id := testContainer.Create(ctx, t, apiClient,
+		testContainer.WithVolume("/foo"),
+		testContainer.WithTmpfs("/foo"),
+		testContainer.WithVolume("/bar"),
+		testContainer.WithTmpfs("/bar:size=999"),
+		testContainer.WithCmd("/bin/sh", "-c", "mount | grep '/foo' | grep tmpfs && mount | grep '/bar' | grep tmpfs"),
 	)
 
 	defer func() {
@@ -638,10 +638,10 @@ func TestCreateWithCustomMACs(t *testing.T) {
 
 	attachCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
-	res := ctr.RunAttach(attachCtx, t, apiClient,
-		ctr.WithCmd("ip", "-o", "link", "show"),
-		ctr.WithNetworkMode("bridge"),
-		ctr.WithMacAddress("bridge", "02:32:1c:23:00:04"))
+	res := testContainer.RunAttach(attachCtx, t, apiClient,
+		testContainer.WithCmd("ip", "-o", "link", "show"),
+		testContainer.WithNetworkMode("bridge"),
+		testContainer.WithMacAddress("bridge", "02:32:1c:23:00:04"))
 
 	assert.Equal(t, res.ExitCode, 0)
 	assert.Equal(t, res.Stderr.String(), "")
@@ -682,7 +682,7 @@ func TestContainerdContainerImageInfo(t *testing.T) {
 
 	// Currently a containerd container is only created when the container is started.
 	// So start the container and then inspect the containerd container to verify the image info.
-	id := ctr.Run(ctx, t, apiClient, func(cfg *ctr.TestContainerConfig) {
+	id := testContainer.Run(ctx, t, apiClient, func(cfg *testContainer.TestContainerConfig) {
 		// busybox is the default (as of this writing) used by the test client, but lets be explicit here.
 		cfg.Config.Image = "busybox"
 	})
