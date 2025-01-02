@@ -77,12 +77,6 @@ if [ "$AUTO_GOPATH" ]; then
 	export GOPATH="${PWD}/.gopath"
 fi
 
-if [ ! "$GOPATH" ]; then
-	echo >&2 'error: missing GOPATH; please see https://pkg.go.dev/cmd/go#hdr-GOPATH_environment_variable'
-	echo >&2 '  alternatively, set AUTO_GOPATH=1'
-	exit 1
-fi
-
 if [ -z "${EXCLUDE_AUTO_BUILDTAG_JOURNALD:-}" ] && ${PKG_CONFIG} 'libsystemd' 2> /dev/null; then
 	DOCKER_BUILDTAGS+=" journald"
 fi
