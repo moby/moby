@@ -203,7 +203,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 	_, err := hcsshim.HNSNetworkRequest("DELETE", n.hnsID, "")
 	if err != nil {
-		return types.ForbiddenErrorf(err.Error())
+		return types.ForbiddenErrorf("%v", err)
 	}
 
 	d.deleteNetwork(nid)
