@@ -40,9 +40,9 @@ func TestNoOverlayfsWarningsAboutUndefinedBehaviors(t *testing.T) {
 			return err
 		}},
 		{name: "cp to container", operation: func(t *testing.T) error {
-			archive, err := archive.Generate("new-file", "hello-world")
+			archiveReader, err := archive.Generate("new-file", "hello-world")
 			assert.NilError(t, err, "failed to create a temporary archive")
-			return apiClient.CopyToContainer(ctx, cID, "/", archive, containertypes.CopyToContainerOptions{})
+			return apiClient.CopyToContainer(ctx, cID, "/", archiveReader, containertypes.CopyToContainerOptions{})
 		}},
 		{name: "cp from container", operation: func(*testing.T) error {
 			rc, _, err := apiClient.CopyFromContainer(ctx, cID, "/file")

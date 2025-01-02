@@ -688,11 +688,11 @@ func TestContainerdContainerImageInfo(t *testing.T) {
 	})
 	defer apiClient.ContainerRemove(ctx, id, container.RemoveOptions{Force: true})
 
-	client, err := containerd.New(info.Containerd.Address, containerd.WithDefaultNamespace(info.Containerd.Namespaces.Containers))
+	c8dClient, err := containerd.New(info.Containerd.Address, containerd.WithDefaultNamespace(info.Containerd.Namespaces.Containers))
 	assert.NilError(t, err)
-	defer client.Close()
+	defer c8dClient.Close()
 
-	ctr, err := client.ContainerService().Get(ctx, id)
+	ctr, err := c8dClient.ContainerService().Get(ctx, id)
 	assert.NilError(t, err)
 
 	if testEnv.UsingSnapshotter() {
