@@ -19,20 +19,20 @@ func TestNoOverlayfsWarningsAboutUndefinedBehaviors(t *testing.T) {
 	skip.If(t, testEnv.IsRootless(), "root is needed for reading kernel log")
 
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	cID := container.Run(ctx, t, client, container.WithCmd("sh", "-c", `while true; do echo $RANDOM >>/file; sleep 0.1; done`))
+	cID := container.Run(ctx, t, apiClient, container.WithCmd("sh", "-c", `while true; do echo $RANDOM >>/file; sleep 0.1; done`))
 
 	tests := []struct {
 		name      string
 		operation func(t *testing.T) error
 	}{
 		{name: "diff", operation: func(*testing.T) error {
-			_, err := client.ContainerDiff(ctx, cID)
+			_, err := apiClient.ContainerDiff(ctx, cID)
 			return err
 		}},
 		{name: "export", operation: func(*testing.T) error {
-			rc, err := client.ContainerExport(ctx, cID)
+			rc, err := apiClient.ContainerExport(ctx, cID)
 			if err == nil {
 				defer rc.Close()
 				_, err = io.Copy(io.Discard, rc)
@@ -40,12 +40,12 @@ func TestNoOverlayfsWarningsAboutUndefinedBehaviors(t *testing.T) {
 			return err
 		}},
 		{name: "cp to container", operation: func(t *testing.T) error {
-			archive, err := archive.Generate("new-file", "hello-world")
+			archiveReader, err := archive.Generate("new-file", "hello-world")
 			assert.NilError(t, err, "failed to create a temporary archive")
-			return client.CopyToContainer(ctx, cID, "/", archive, containertypes.CopyToContainerOptions{})
+			return apiClient.CopyToContainer(ctx, cID, "/", archiveReader, containertypes.CopyToContainerOptions{})
 		}},
 		{name: "cp from container", operation: func(*testing.T) error {
-			rc, _, err := client.CopyFromContainer(ctx, cID, "/file")
+			rc, _, err := apiClient.CopyFromContainer(ctx, cID, "/file")
 			if err == nil {
 				defer rc.Close()
 				_, err = io.Copy(io.Discard, rc)
