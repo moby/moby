@@ -383,28 +383,37 @@ func (ep *Endpoint) SetGatewayIPv6(gw6 net.IP) error {
 }
 
 // hasGatewayOrDefaultRoute returns true if ep has a gateway, or a route to '0.0.0.0'/'::'.
-func (ep *Endpoint) hasGatewayOrDefaultRoute() bool {
+func (ep *Endpoint) hasGatewayOrDefaultRoute() (v4, v6 bool) {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
 	if ep.joinInfo != nil {
-		if len(ep.joinInfo.gw) > 0 || len(ep.joinInfo.gw6) > 0 {
-			return true
-		}
-		for _, route := range ep.joinInfo.StaticRoutes {
-			if route.Destination.IP.IsUnspecified() && net.IP(route.Destination.Mask).IsUnspecified() {
-				return true
+		v4 = len(ep.joinInfo.gw) > 0
+		v6 = len(ep.joinInfo.gw6) > 0
+		if !v4 || !v6 {
+			for _, route := range ep.joinInfo.StaticRoutes {
+				if route.Destination.IP.IsUnspecified() && net.IP(route.Destination.Mask).IsUnspecified() {
+					if route.Destination.IP.To4() == nil {
+						v6 = true
+					} else {
+						v4 = true
+					}
+				}
 			}
 		}
 	}
-	if ep.iface != nil {
+	if ep.iface != nil && (!v4 || !v6) {
 		for _, route := range ep.iface.routes {
 			if route.IP.IsUnspecified() && net.IP(route.Mask).IsUnspecified() {
-				return true
+				if route.IP.To4() == nil {
+					v6 = true
+				} else {
+					v4 = true
+				}
 			}
 		}
 	}
-	return false
+	return v4, v6
 }
 
 func (ep *Endpoint) retrieveFromStore() (*Endpoint, error) {

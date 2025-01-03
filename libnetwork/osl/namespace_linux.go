@@ -229,6 +229,8 @@ type Namespace struct {
 	iFaces              []*Interface
 	gw                  net.IP
 	gwv6                net.IP
+	defRoute4SrcName    string
+	defRoute6SrcName    string
 	staticRoutes        []*types.StaticRoute
 	neighbors           []*neigh
 	nextIfIndex         map[string]int
@@ -247,6 +249,17 @@ func (n *Namespace) Interfaces() []*Interface {
 	ifaces := make([]*Interface, len(n.iFaces))
 	copy(ifaces, n.iFaces)
 	return ifaces
+}
+
+func (n *Namespace) ifaceBySrcName(srcName string) *Interface {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	for _, iface := range n.iFaces {
+		if iface.srcName == srcName {
+			return iface
+		}
+	}
+	return nil
 }
 
 func (n *Namespace) loopbackUp() error {
@@ -385,8 +398,8 @@ func (n *Namespace) Destroy() error {
 	return nil
 }
 
-// Restore restores the network namespace.
-func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error {
+// RestoreInterfaces restores the network namespace's interfaces.
+func (n *Namespace) RestoreInterfaces(interfaces map[Iface][]IfaceOption) error {
 	// restore interfaces
 	for iface, opts := range interfaces {
 		i, err := newInterface(n, iface.SrcName, iface.DstPrefix, opts...)
@@ -409,18 +422,31 @@ func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.
 					break
 				}
 				// find the interface name by ip
+				findIfname := func(needle *net.IPNet, haystack []netlink.Addr) (string, bool) {
+					for _, addr := range haystack {
+						if addr.IPNet.String() == needle.String() {
+							return ifaceName, true
+						}
+					}
+					return "", false
+				}
 				if i.address != nil {
 					addresses, err := n.nlHandle.AddrList(link, netlink.FAMILY_V4)
 					if err != nil {
 						return err
 					}
-					for _, addr := range addresses {
-						if addr.IPNet.String() == i.address.String() {
-							i.dstName = ifaceName
-							break
-						}
+					if name, found := findIfname(i.address, addresses); found {
+						i.dstName = name
+						break
 					}
-					if i.dstName == ifaceName {
+				}
+				if i.addressIPv6 != nil {
+					addresses, err := n.nlHandle.AddrList(link, netlink.FAMILY_V6)
+					if err != nil {
+						return err
+					}
+					if name, found := findIfname(i.address, addresses); found {
+						i.dstName = name
 						break
 					}
 				}
@@ -446,18 +472,34 @@ func (n *Namespace) Restore(interfaces map[Iface][]IfaceOption, routes []*types.
 			n.mu.Unlock()
 		}
 	}
-
-	// restore routes and gateways
-	n.mu.Lock()
-	n.staticRoutes = append(n.staticRoutes, routes...)
-	if len(gw) > 0 {
-		n.gw = gw
-	}
-	if len(gw6) > 0 {
-		n.gwv6 = gw6
-	}
-	n.mu.Unlock()
 	return nil
+}
+
+func (n *Namespace) RestoreRoutes(routes []*types.StaticRoute) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.staticRoutes = append(n.staticRoutes, routes...)
+}
+
+func (n *Namespace) RestoreGateway(ipv4 bool, gw net.IP, srcName string) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	if gw == nil {
+		// There's no gateway address, so the default route is bound to the interface.
+		if ipv4 {
+			n.defRoute4SrcName = srcName
+		} else {
+			n.defRoute6SrcName = srcName
+		}
+		return
+	}
+
+	if ipv4 {
+		n.gw = gw
+	} else {
+		n.gwv6 = gw
+	}
 }
 
 // IPv6LoEnabled returns true if the loopback interface had an IPv6 address when
