@@ -39,7 +39,6 @@ import (
 	"github.com/docker/docker/daemon/internal/fstype"
 	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/go-units"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/userns"
@@ -121,7 +120,7 @@ func parseOptions(opt []string) (btrfsOptions, bool, error) {
 	var options btrfsOptions
 	userDiskQuota := false
 	for _, option := range opt {
-		key, val, err := parsers.ParseKeyValueOpt(option)
+		key, val, err := graphdriver.ParseStorageOptKeyValue(option)
 		if err != nil {
 			return options, userDiskQuota, err
 		}
