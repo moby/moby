@@ -319,9 +319,35 @@ func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) e
 		if sysctls := ep.getSysctls(); len(sysctls) > 0 {
 			ifaceOptions = append(ifaceOptions, osl.WithSysctls(sysctls))
 		}
+		if nMsgs, ok := ep.getAdvertiseAddrNMsgs(); ok {
+			ifaceOptions = append(ifaceOptions, osl.WithAdvertiseAddrCount(nMsgs))
+		}
+		if interval, ok := ep.getAdvertiseAddrInterval(); ok {
+			ifaceOptions = append(ifaceOptions, osl.WithAdvertiseAddrInterval(interval))
+		}
 
 		if err := sb.osSbox.AddInterface(ctx, i.srcName, i.dstPrefix, ifaceOptions...); err != nil {
 			return fmt.Errorf("failed to add interface %s to sandbox: %v", i.srcName, err)
+		}
+
+		// If IPv6 is configured and the address isn't on the interface, it was applied successfully
+		// but then removed by a sysctl setting. Release the address and update the interface config.
+		if i.addrv6 != nil {
+			if oslIface := sb.osSbox.GetInterface(i.srcName); oslIface != nil {
+				if oslIface.AddressIPv6() == nil {
+					ep.dropIPv6Address(ctx)
+					if joinInfo != nil {
+						joinInfo.gw6 = nil
+					}
+					if err := ep.network.getController().updateToStore(ctx, ep); err != nil {
+						return err
+					}
+					// The Sandbox's list of endpoints is sorted based on IPv6 connectivity, so
+					// make sure this one's in the right place.
+					sb.removeEndpoint(ep)
+					sb.addEndpoint(ep)
+				}
+			}
 		}
 
 		if len(ep.virtualIP) > 0 && lbModeIsDSR {

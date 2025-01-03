@@ -403,21 +403,19 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 		t.Fatalf("Unexpected: %v", nw.config.DefaultGatewayIPv6)
 	}
 
-	// In short here we are testing --fixed-cidr-v6 daemon option
-	// plus --mac-address run option
-	te := newTestEndpoint(ipdList[0].Pool, 20)
-	te.iface.mac = netutils.MustParseMAC("aa:bb:cc:dd:ee:ff")
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), map[string]interface{}{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Check that a MAC address is generated if not already configured.
+	te1 := newTestEndpoint(ipdList[0].Pool, 20)
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te1.Interface(), map[string]interface{}{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(te1.iface.mac, 6))
 
-	if !nwV6.Contains(te.Interface().AddressIPv6().IP) {
-		t.Fatalf("endpoint got assigned address outside of container network(%s): %s", nwV6.String(), te.Interface().AddressIPv6())
-	}
-	if te.Interface().AddressIPv6().IP.String() != "2001:db8:2600:2700:2800:aabb:ccdd:eeff" {
-		t.Fatalf("Unexpected endpoint IPv6 address: %v", te.Interface().AddressIPv6().IP)
-	}
+	// Check that a configured --mac-address isn't overwritten by a generated address.
+	te2 := newTestEndpoint(ipdList[0].Pool, 20)
+	const macAddr = "aa:bb:cc:dd:ee:ff"
+	te2.iface.mac = netutils.MustParseMAC(macAddr)
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep2", te2.Interface(), map[string]interface{}{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(te2.iface.mac.String(), macAddr))
 }
 
 func TestCreate(t *testing.T) {
@@ -578,6 +576,20 @@ func newTestEndpoint(nw *net.IPNet, ordinal byte) *testEndpoint {
 	addr := types.GetIPNetCopy(nw)
 	addr.IP[len(addr.IP)-1] = ordinal
 	return &testEndpoint{iface: &testInterface{addr: addr}}
+}
+
+// newTestEndpoint46 is like newTestEndpoint, but assigns an IPv6 address as well as IPv4.
+func newTestEndpoint46(nw4, nw6 *net.IPNet, ordinal byte) *testEndpoint {
+	addr4 := types.GetIPNetCopy(nw4)
+	addr4.IP[len(addr4.IP)-1] = ordinal
+	addr6 := types.GetIPNetCopy(nw6)
+	addr6.IP[len(addr6.IP)-1] = ordinal
+	return &testEndpoint{
+		iface: &testInterface{
+			addr:   addr4,
+			addrv6: addr6,
+		},
+	}
 }
 
 func (te *testEndpoint) Interface() *testInterface {

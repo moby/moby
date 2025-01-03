@@ -30,12 +30,12 @@ func TestLinkCreate(t *testing.T) {
 	}
 
 	ipdList := getIPv4Data(t)
-	err := d.CreateNetwork("dummy", option, nil, ipdList, getIPv6Data(t))
+	ipd6List := getIPv6Data(t)
+	err := d.CreateNetwork("dummy", option, nil, ipdList, ipd6List)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
-
-	te := newTestEndpoint(ipdList[0].Pool, 10)
+	te := newTestEndpoint46(ipdList[0].Pool, ipd6List[0].Pool, 10)
 	err = d.CreateEndpoint(context.Background(), "dummy", "", te.Interface(), nil)
 	if err != nil {
 		if _, ok := err.(InvalidEndpointIDError); !ok {
