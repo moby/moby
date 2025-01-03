@@ -14,6 +14,8 @@ import (
 // "-n", and "-P" options to omit looking up user-names, host-names, and port-
 // names. See [LSOF(8)].
 //
+// Deprecated: this function is only used internally, and will be removed in the next release.
+//
 // [LSOF(8)]: https://opensource.apple.com/source/lsof/lsof-49/lsof/lsof.man.auto.html
 func GetTotalUsedFds() int {
 	output, err := exec.Command("lsof", "-lnP", "-Ff", "-p", strconv.Itoa(os.Getpid())).CombinedOutput()

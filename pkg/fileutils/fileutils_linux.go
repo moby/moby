@@ -13,6 +13,8 @@ import (
 
 // GetTotalUsedFds Returns the number of used File Descriptors by
 // reading it via /proc filesystem.
+//
+// Deprecated: this function is only used internally, and will be removed in the next release.
 func GetTotalUsedFds(ctx context.Context) int {
 	ctx, span := tracing.StartSpan(ctx, "GetTotalUsedFds")
 	defer span.End()
