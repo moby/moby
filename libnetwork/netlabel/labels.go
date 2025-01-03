@@ -39,6 +39,15 @@ const (
 	// DriverMTU constant represents the MTU size for the network driver
 	DriverMTU = DriverPrefix + ".mtu"
 
+	// AdvertiseAddrNMsgs is the number of unsolicited ARP/NA messages that will be sent to
+	// advertise an interface's IP and MAC addresses.
+	AdvertiseAddrNMsgs = Prefix + ".advertise_addr_nmsgs"
+
+	// AdvertiseAddrInterval is the minimum amount of time to wait before sending
+	// the next ARP/NA advertisement for an interface's IP and MAC addresses,
+	// as a duration string parseable by time.ParseDuration().
+	AdvertiseAddrInterval = Prefix + ".advertise_addr_interval"
+
 	// OverlayVxlanIDList constant represents a list of VXLAN Ids as csv
 	OverlayVxlanIDList = DriverPrefix + ".overlay.vxlanid_list"
 
