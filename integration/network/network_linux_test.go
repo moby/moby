@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/internal/testutils/networking"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -387,9 +388,83 @@ func checkCtrRoutes(t *testing.T, ctx context.Context, apiClient client.APIClien
 		return s == ""
 	})
 
-	assert.Equal(t, len(routes), expRoutes, "expected %d routes, got %d:\n%s", expRoutes, len(routes), strings.Join(routes, "\n"))
+	assert.Check(t, is.Equal(len(routes), expRoutes), "expected %d routes, got %d:\n%s", expRoutes, len(routes), strings.Join(routes, "\n"))
 	defFound := slices.ContainsFunc(routes, func(s string) bool {
 		return strings.Contains(s, expDefRoute)
 	})
-	assert.Assert(t, defFound, "default route %q not found:\n%s", expDefRoute, strings.Join(routes, "\n"))
+	assert.Check(t, defFound, "default route %q not found:\n%s", expDefRoute, strings.Join(routes, "\n"))
+}
+
+// TestMixL3IPVlanAndBridge checks that a container can be connected to a layer-3
+// ipvlan network as well as a bridge ... the bridge network will set up a
+// default gateway, if selected as the gateway endpoint. The ipvlan driver sets
+// up a connected route to 0.0.0.0 or [::], a route via a specific interface with
+// no next-hop address (because the next-hop address can't be ARP'd to determine
+// the interface). These two types of route cannot be set up at the same time.
+// So, the ipvlan's route must be treated like the default gateway and only get
+// set up when the ipvlan is selected as the gateway endpoint.
+// Regression test for https://github.com/moby/moby/issues/48576
+func TestMixL3IPVlanAndBridge(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "no ipvlan on Windows")
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.48"), "gw-priority requires API v1.48")
+	skip.If(t, testEnv.IsRootless, "can't see the dummy parent interface from the rootless namespace")
+
+	ctx := testutil.StartSpan(baseContext, t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const brNetName = "brnet"
+	network.CreateNoError(ctx, t, c, brNetName,
+		network.WithOption(netlabel.ContainerIfacePrefix, "bri"),
+		network.WithIPv6(),
+		network.WithIPAM("192.168.123.0/24", "192.168.123.1"),
+		network.WithIPAM("fd6f:36f8:3005::/64", "fd6f:36f8:3005::1"),
+	)
+	defer network.RemoveNoError(ctx, t, c, brNetName)
+
+	// Create a dummy parent interface rather than letting the driver do it because,
+	// when the driver creates its own, it becomes a '--internal' network and no
+	// default route is configured.
+	const parentIfName = "di-dummy0"
+	CreateMasterDummy(ctx, t, parentIfName)
+	defer DeleteInterface(ctx, t, parentIfName)
+
+	const ipvNetName = "ipvnet"
+	network.CreateNoError(ctx, t, c, ipvNetName,
+		network.WithDriver("ipvlan"),
+		network.WithOption("ipvlan_mode", "l3"),
+		network.WithOption("parent", parentIfName),
+		network.WithIPv6(),
+		network.WithIPAM("192.168.124.0/24", ""),
+		network.WithIPAM("fd7d:8755:51ba::/64", ""),
+	)
+	defer network.RemoveNoError(ctx, t, c, ipvNetName)
+
+	// Create a container connected to both networks, bridge network acting as gateway.
+	ctrId := container.Run(ctx, t, c,
+		container.WithNetworkMode(brNetName),
+		container.WithEndpointSettings(brNetName,
+			&networktypes.EndpointSettings{GwPriority: 1},
+		),
+		container.WithEndpointSettings(ipvNetName, &networktypes.EndpointSettings{}),
+	)
+	defer container.Remove(ctx, t, c, ctrId, containertypes.RemoveOptions{Force: true})
+	// Expect three IPv4 routes: the default, plus one per network.
+	checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET, 3, "default via 192.168.123.1 dev bri")
+	// Expect seven IPv6 routes: the default, plus UL, LL, and multicast routes per network.
+	checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET6, 7, "default via fd6f:36f8:3005::1 dev bri")
+
+	// Disconnect the bridge network, expect the ipvlan's default route to be set up.
+	c.NetworkDisconnect(ctx, brNetName, ctrId, false)
+	checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET, 2, "default dev eth")
+	checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET6, 4, "default dev eth")
+
+	// Reconnect the bridge network, with gw-priority=1 so it gets the gateway back.
+	// Expect the ipvlan's default route to be removed.
+	c.NetworkConnect(ctx, brNetName, ctrId, &networktypes.EndpointSettings{GwPriority: 1})
+	checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET, 3, "default via 192.168.123.1 dev bri")
+	checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET6, 7, "default via fd6f:36f8:3005::1 dev bri")
 }
