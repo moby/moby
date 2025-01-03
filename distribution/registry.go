@@ -12,7 +12,6 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
-	"github.com/docker/distribution/registry/client/transport"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
@@ -95,7 +94,7 @@ func newRepository(
 	}
 
 	modifiers := registry.Headers(dockerversion.DockerUserAgent(ctx), metaHeaders)
-	authTransport := transport.NewTransport(base, modifiers...)
+	authTransport := newTransport(base, modifiers...)
 
 	challengeManager, err := registry.PingV2Registry(endpoint.URL, authTransport)
 	if err != nil {
@@ -126,7 +125,8 @@ func newRepository(
 		basicHandler := auth.NewBasicHandler(creds)
 		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
 	}
-	tr := transport.NewTransport(base, modifiers...)
+
+	tr := newTransport(base, modifiers...)
 
 	// FIXME(thaJeztah): should this just take the original repoInfo.Name instead of converting the remote name back to a named reference?
 	repoNameRef, err := reference.WithName(repoName)
