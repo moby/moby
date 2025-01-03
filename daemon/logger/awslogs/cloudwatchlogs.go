@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -77,10 +77,11 @@ type logStream struct {
 	forceFlushInterval time.Duration
 	multilinePattern   *regexp.Regexp
 	client             api
-	messages           chan *logger.Message
-	lock               sync.RWMutex
-	closed             bool
-	sequenceToken      *string
+
+	messages *loggerutils.MessageQueue
+	closed   atomic.Bool
+
+	sequenceToken *string
 }
 
 type logStreamConfig struct {
@@ -159,7 +160,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		forceFlushInterval: containerStreamConfig.forceFlushInterval,
 		multilinePattern:   containerStreamConfig.multilinePattern,
 		client:             client,
-		messages:           make(chan *logger.Message, containerStreamConfig.maxBufferedEvents),
+		messages:           loggerutils.NewMessageQueue(containerStreamConfig.maxBufferedEvents),
 	}
 
 	creationDone := make(chan bool)
@@ -169,12 +170,10 @@ func New(info logger.Info) (logger.Logger, error) {
 			maxBackoff := 32
 			for {
 				// If logger is closed we are done
-				containerStream.lock.RLock()
-				if containerStream.closed {
-					containerStream.lock.RUnlock()
+				if containerStream.closed.Load() {
 					break
 				}
-				containerStream.lock.RUnlock()
+
 				err := containerStream.create()
 				if err == nil {
 					break
@@ -429,25 +428,26 @@ func (l *logStream) BufSize() int {
 	return maximumBytesPerEvent
 }
 
+var errClosed = errors.New("awslogs is closed")
+
 // Log submits messages for logging by an instance of the awslogs logging driver
 func (l *logStream) Log(msg *logger.Message) error {
-	l.lock.RLock()
-	defer l.lock.RUnlock()
-	if l.closed {
-		return errors.New("awslogs is closed")
+	// No need to check if we are closed here since the queue will be closed
+	// (i.e. returns false) in this case.
+	ctx := context.TODO()
+	if err := l.messages.Enqueue(ctx, msg); err != nil {
+		if err == loggerutils.ErrQueueClosed {
+			return errClosed
+		}
+		return err
 	}
-	l.messages <- msg
 	return nil
 }
 
 // Close closes the instance of the awslogs logging driver
 func (l *logStream) Close() error {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-	if !l.closed {
-		close(l.messages)
-	}
-	l.closed = true
+	l.closed.Store(true)
+	l.messages.Close()
 	return nil
 }
 
@@ -564,6 +564,8 @@ func (l *logStream) collectBatch(created chan bool) {
 	var eventBuffer []byte
 	var eventBufferTimestamp int64
 	batch := newEventBatch()
+
+	chLogs := l.messages.Receiver()
 	for {
 		select {
 		case t := <-ticker.C:
@@ -579,7 +581,7 @@ func (l *logStream) collectBatch(created chan bool) {
 			}
 			l.publishBatch(batch)
 			batch.reset()
-		case msg, more := <-l.messages:
+		case msg, more := <-chLogs:
 			if !more {
 				// Flush event buffer and release resources
 				l.processEvent(batch, eventBuffer, eventBufferTimestamp)
