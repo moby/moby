@@ -150,6 +150,10 @@ issues:
       path: "api/types/(volume|container)/"
       linters:
         - revive
+    # FIXME temporarily suppress these until we migrated these to internal.
+    - text: "SA1019: fileutils\\.GetTotalUsedFds"
+      linters:
+        - staticcheck
     # FIXME temporarily suppress these (see https://github.com/gotestyourself/gotest.tools/issues/272)
     - text: "SA1019: (assert|cmp|is)\\.ErrorType is deprecated"
       linters:
