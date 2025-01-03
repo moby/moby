@@ -704,7 +704,7 @@ func (s *DockerCLIRunSuite) TestRunInvalidCpusetCpusFlagValue(c *testing.T) {
 			break
 		}
 	}
-	out, _, err := dockerCmdWithError("run", "--cpuset-cpus", strconv.Itoa(invalid), "busybox", "true")
+	out, _, err := dockerCmdWithError("create", "--cpuset-cpus", strconv.Itoa(invalid), "busybox", "true")
 	assert.ErrorContains(c, err, "")
 	expected := fmt.Sprintf("Error response from daemon: Requested CPUs are not available - requested %s, available: %s", strconv.Itoa(invalid), sysInfo.Cpus)
 	assert.Assert(c, is.Contains(out, expected))
@@ -723,7 +723,7 @@ func (s *DockerCLIRunSuite) TestRunInvalidCpusetMemsFlagValue(c *testing.T) {
 			break
 		}
 	}
-	out, _, err := dockerCmdWithError("run", "--cpuset-mems", strconv.Itoa(invalid), "busybox", "true")
+	out, _, err := dockerCmdWithError("create", "--cpuset-mems", strconv.Itoa(invalid), "busybox", "true")
 	assert.ErrorContains(c, err, "")
 	expected := fmt.Sprintf("Error response from daemon: Requested memory nodes are not available - requested %s, available: %s", strconv.Itoa(invalid), sysInfo.Mems)
 	assert.Assert(c, is.Contains(out, expected))
