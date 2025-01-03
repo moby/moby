@@ -2,18 +2,25 @@ package distribution // import "github.com/docker/docker/distribution"
 
 import (
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"os/exec"
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 )
 
-const compressionBufSize = 32768
+const (
+	compressionBufSize = 32768
+	envUsePigz         = "MOBY_ENABLE_PIGZ"
+)
 
 // Push initiates a push operation on ref. ref is the specific variant of the
 // image to push. If no tag is provided, all tags are pushed.
@@ -101,9 +108,27 @@ func Push(ctx context.Context, ref reference.Named, config *ImagePushConfig) err
 // is finished. This allows the caller to make sure the goroutine finishes
 // before it releases any resources connected with the reader that was
 // passed in.
-func compress(in io.Reader) (io.ReadCloser, chan struct{}) {
-	compressionDone := make(chan struct{})
+func compress(ctx context.Context, in io.Reader) (io.ReadCloser, chan struct{}) {
+	usePigz := os.Getenv(envUsePigz)
 
+	// Only use pigz when MOBY_ENABLE_PIGZ is true. Any other value, no matter
+	// valid or not, will result to use gzip.
+	if usePigz == "true" {
+		path, err := exec.LookPath("pigz")
+		if err == nil {
+			log.G(ctx).Debugln("use pigz to compress")
+			return pigzCompress(ctx, in, path)
+		}
+		// When look path for pigz failed, use gzip as fallback
+		log.G(ctx).Warnln("enable pigz configured, but no pigz found in path. use gzip as fallback")
+	}
+
+	log.G(ctx).Debugln("use gzip to compress")
+	return gzipCompress(in)
+}
+
+func gzipCompress(in io.Reader) (io.ReadCloser, chan struct{}) {
+	compressionDone := make(chan struct{})
 	pipeReader, pipeWriter := io.Pipe()
 	// Use a bufio.Writer to avoid excessive chunking in HTTP request.
 	bufWriter := bufio.NewWriterSize(pipeWriter, compressionBufSize)
@@ -126,4 +151,37 @@ func compress(in io.Reader) (io.ReadCloser, chan struct{}) {
 	}()
 
 	return pipeReader, compressionDone
+}
+
+func pigzCompress(ctx context.Context, in io.Reader, pigzPath string) (io.ReadCloser, chan struct{}) {
+	pipeReader, pipeWriter := io.Pipe()
+	var errBuf bytes.Buffer
+
+	cmd := exec.CommandContext(ctx, pigzPath, "-c")
+	cmd.Stdin = in
+	cmd.Stdout = pipeWriter
+	cmd.Stderr = &errBuf
+
+	done := make(chan struct{})
+
+	if err := cmd.Start(); err != nil {
+		pipeWriter.CloseWithError(fmt.Errorf("could not get compression stream: %v", err))
+		close(done)
+		return pipeReader, done
+	}
+
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			pipeWriter.CloseWithError(fmt.Errorf("%s: %s", err, errBuf.String()))
+		} else {
+			pipeWriter.Close()
+		}
+		close(done)
+	}()
+
+	return ioutils.NewReadCloserWrapper(pipeReader, func() error {
+		err := pipeReader.Close()
+		<-done
+		return err
+	}), done
 }
