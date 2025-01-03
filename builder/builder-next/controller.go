@@ -148,7 +148,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	}
 	wo.Executor = exec
 
-	w, err := mobyworker.NewContainerdWorker(ctx, wo, opt.Callbacks)
+	w, err := mobyworker.NewContainerdWorker(ctx, wo, opt.Callbacks, rt)
 	if err != nil {
 		return nil, err
 	}
