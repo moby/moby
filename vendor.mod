@@ -78,7 +78,7 @@ require (
 	github.com/moby/sys/symlink v0.3.0
 	github.com/moby/sys/user v0.3.0
 	github.com/moby/sys/userns v0.1.0
-	github.com/moby/term v0.5.0
+	github.com/moby/term v0.5.2
 	github.com/morikuni/aec v1.0.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
