@@ -445,7 +445,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 	if n.created {
 		_, err = hcsshim.HNSNetworkRequest("DELETE", config.HnsID, "")
-		if err != nil && err.Error() != errNotFound {
+		if err != nil && !strings.EqualFold(err.Error(), errNotFound) {
 			return types.ForbiddenErrorf("%v", err)
 		}
 	}
@@ -794,7 +794,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	n.Unlock()
 
 	_, err = hcsshim.HNSEndpointRequest("DELETE", ep.profileID, "")
-	if err != nil && err.Error() != errNotFound {
+	if err != nil && !strings.EqualFold(err.Error(), errNotFound) {
 		return err
 	}
 
