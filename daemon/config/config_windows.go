@@ -2,6 +2,7 @@ package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -88,4 +89,18 @@ func validatePlatformConfig(conf *Config) error {
 		log.G(context.TODO()).Warn(`WARNING: MTU for the default network is not configurable on Windows, and this option will be ignored.`)
 	}
 	return nil
+}
+
+// validatePlatformExecOpt validates if the given exec-opt and value are valid
+// for the current platform.
+func validatePlatformExecOpt(opt, value string) error {
+	switch opt {
+	case "isolation":
+		// TODO(thaJeztah): add validation that's currently in Daemon.setDefaultIsolation()
+		return nil
+	case "native.cgroupdriver":
+		return fmt.Errorf("option '%s' is only supported on linux", opt)
+	default:
+		return fmt.Errorf("unknown option: '%s'", opt)
+	}
 }
