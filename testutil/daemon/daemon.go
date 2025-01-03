@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -88,6 +89,8 @@ type Daemon struct {
 	usernsRemap                string
 	rootlessUser               *user.User
 	rootlessXDGRuntimeDir      string
+	resolvConfContent          string
+	ResolvConfPathOverride     string // Path to a replacement for "/etc/resolv.conf", or empty.
 
 	// swarm related field
 	swarmListenAddr string
@@ -144,6 +147,15 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 
 	for _, op := range ops {
 		op(d)
+	}
+
+	if len(d.resolvConfContent) > 0 {
+		path := filepath.Join(d.Folder, "resolv.conf")
+		if err := os.WriteFile(path, []byte(d.resolvConfContent), 0644); err != nil {
+			return nil, fmt.Errorf("failed to write docker resolv.conf to %q: %v", path, err)
+		}
+		d.extraEnv = append(d.extraEnv, "DOCKER_TEST_RESOLV_CONF_PATH="+path)
+		d.ResolvConfPathOverride = path
 	}
 
 	if d.rootlessUser != nil {
