@@ -19,10 +19,10 @@ import (
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/cmd/dockerd/debug"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/internal/filedescriptors"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/internal/platform"
-	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/meminfo"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
@@ -225,7 +225,7 @@ func (daemon *Daemon) fillContainerStates(v *system.Info) {
 // https://github.com/docker/cli/blob/v20.10.12/cli/command/system/info.go#L239-L244
 func (daemon *Daemon) fillDebugInfo(ctx context.Context, v *system.Info) {
 	v.Debug = debug.IsEnabled()
-	v.NFd = fileutils.GetTotalUsedFds(ctx)
+	v.NFd = filedescriptors.GetTotalUsedFds(ctx)
 	v.NGoroutines = runtime.NumGoroutine()
 	v.NEventsListener = daemon.EventsService.SubscribersCount()
 }
