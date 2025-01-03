@@ -258,7 +258,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) (retErr error) {
+func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, options map[string]interface{}) (retErr error) {
 	join := &api.JoinRequest{
 		NetworkID:  nid,
 		EndpointID: eid,
@@ -285,7 +285,7 @@ func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo 
 
 	ifaceName := res.InterfaceName
 	if iface := jinfo.InterfaceName(); iface != nil && ifaceName != nil {
-		if err := iface.SetNames(ifaceName.SrcName, ifaceName.DstPrefix); err != nil {
+		if err := iface.SetNames(ifaceName.SrcName, ifaceName.DstPrefix, ""); err != nil {
 			return fmt.Errorf("failed to set interface name: %s", err)
 		}
 	}

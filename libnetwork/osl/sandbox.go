@@ -12,7 +12,7 @@ const (
 )
 
 type Iface struct {
-	SrcName, DstPrefix string
+	SrcName, DstPrefix, DstName string
 }
 
 // IfaceOption is a function option type to set interface options.

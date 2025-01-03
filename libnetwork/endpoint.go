@@ -536,7 +536,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		return fmt.Errorf("failed to get driver during join: %v", err)
 	}
 
-	if err := d.Join(ctx, nid, epid, sb.Key(), ep, sb.Labels()); err != nil {
+	if err := d.Join(ctx, nid, epid, sb.Key(), ep, ep.generic, sb.Labels()); err != nil {
 		return err
 	}
 	defer func() {

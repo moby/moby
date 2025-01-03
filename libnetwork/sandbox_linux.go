@@ -256,7 +256,8 @@ func (sb *Sandbox) restoreOslSandbox() error {
 		if len(i.llAddrs) != 0 {
 			ifaceOptions = append(ifaceOptions, osl.WithLinkLocalAddresses(i.llAddrs))
 		}
-		interfaces[osl.Iface{SrcName: i.srcName, DstPrefix: i.dstPrefix}] = ifaceOptions
+		iface := osl.Iface{SrcName: i.srcName, DstPrefix: i.dstPrefix, DstName: i.dstName}
+		interfaces[iface] = ifaceOptions
 		if joinInfo != nil {
 			routes = append(routes, joinInfo.StaticRoutes...)
 		}
@@ -320,7 +321,7 @@ func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) e
 			ifaceOptions = append(ifaceOptions, osl.WithSysctls(sysctls))
 		}
 
-		if err := sb.osSbox.AddInterface(ctx, i.srcName, i.dstPrefix, ifaceOptions...); err != nil {
+		if err := sb.osSbox.AddInterface(ctx, i.srcName, i.dstPrefix, i.dstName, ifaceOptions...); err != nil {
 			return fmt.Errorf("failed to add interface %s to sandbox: %v", i.srcName, err)
 		}
 

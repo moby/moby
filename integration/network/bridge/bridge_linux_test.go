@@ -14,6 +14,7 @@ import (
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/internal/testutils/networking"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -314,4 +315,22 @@ func TestFilterForwardPolicy(t *testing.T) {
 			assert.Check(t, is.Equal(getSysctls(), sysctls{tc.expForwarding, tc.expForwarding, tc.expForwarding}))
 		})
 	}
+}
+
+func TestEndpointWithCustomIfname(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	ctrID := ctr.Run(ctx, t, apiClient,
+		ctr.WithCmd("ip", "-o", "link", "show", "foobar"),
+		ctr.WithEndpointSettings("bridge", &networktypes.EndpointSettings{
+			DriverOpts: map[string]string{
+				netlabel.Ifname: "foobar",
+			},
+		}))
+	defer ctr.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
+
+	out, err := ctr.Output(ctx, apiClient, ctrID)
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(out.Stdout, ": foobar@if"), "expected ': foobar@if' in 'ip link show':\n%s", out.Stdout)
 }
