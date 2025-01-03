@@ -10,8 +10,8 @@ import (
 	"slices"
 	"testing"
 
-	c8dimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/namespaces"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/testutils/specialimage"

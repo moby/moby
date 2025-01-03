@@ -162,6 +162,9 @@ type Config struct {
 	// This variable is sourced from environment variable AWS_REQUEST_MIN_COMPRESSION_SIZE_BYTES or
 	// the shared config profile attribute request_min_compression_size_bytes
 	RequestMinCompressSizeBytes int64
+
+	// Controls how a resolved AWS account ID is handled for endpoint routing.
+	AccountIDEndpointMode AccountIDEndpointMode
 }
 
 // NewConfig returns a new Config pointer that can be chained with builder

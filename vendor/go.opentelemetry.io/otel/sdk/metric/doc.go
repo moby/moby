@@ -31,6 +31,14 @@
 // is being run on. That way when multiple instances of the code are collected
 // at a single endpoint their origin is decipherable.
 //
+// To avoid leaking memory, the SDK returns the same instrument for calls to
+// create new instruments with the same Name, Unit, and Description.
+// Importantly, callbacks provided using metric.WithFloat64Callback or
+// metric.WithInt64Callback will only apply for the first instrument created
+// with a given Name, Unit, and Description. Instead, use
+// Meter.RegisterCallback and Registration.Unregister to add and remove
+// callbacks without leaking memory.
+//
 // See [go.opentelemetry.io/otel/metric] for more information about
 // the metric API.
 //

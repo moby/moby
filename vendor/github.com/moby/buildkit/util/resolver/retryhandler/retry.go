@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd/images"
-	remoteserrors "github.com/containerd/containerd/remotes/errors"
+	"github.com/containerd/containerd/v2/core/images"
+	remoteserrors "github.com/containerd/containerd/v2/core/remotes/errors"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )

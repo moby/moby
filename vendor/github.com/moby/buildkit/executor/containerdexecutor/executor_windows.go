@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/containerd/containerd"
-	containerdoci "github.com/containerd/containerd/oci"
+	ctd "github.com/containerd/containerd/v2/client"
+	containerdoci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/continuity/fs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/executor"
@@ -97,8 +97,8 @@ func (w *containerdExecutor) createOCISpec(ctx context.Context, id, _, _ string,
 	return spec, releaseAll, nil
 }
 
-func (d *containerState) getTaskOpts() ([]containerd.NewTaskOpts, error) {
-	return []containerd.NewTaskOpts{containerd.WithRootFS(d.rootMounts)}, nil
+func (d *containerState) getTaskOpts() ([]ctd.NewTaskOpts, error) {
+	return []ctd.NewTaskOpts{ctd.WithRootFS(d.rootMounts)}, nil
 }
 
 func setArgs(spec *specs.Process, args []string) {

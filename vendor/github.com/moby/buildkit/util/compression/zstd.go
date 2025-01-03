@@ -4,8 +4,8 @@ import (
 	"context"
 	"io"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/images"
 	"github.com/klauspost/compress/zstd"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )

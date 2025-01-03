@@ -7,7 +7,7 @@
 package label
 
 import (
-	snpkg "github.com/containerd/containerd/pkg/snapshotters"
+	snpkg "github.com/containerd/containerd/v2/pkg/snapshotters"
 )
 
 // For package compatibility, we still keep the old exported name here.

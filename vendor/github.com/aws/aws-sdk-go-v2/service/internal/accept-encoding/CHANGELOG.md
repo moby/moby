@@ -1,3 +1,19 @@
+# v1.11.3 (2024-06-28)
+
+* No change notes available for this release.
+
+# v1.11.2 (2024-03-29)
+
+* No change notes available for this release.
+
+# v1.11.1 (2024-02-21)
+
+* No change notes available for this release.
+
+# v1.11.0 (2024-02-13)
+
+* **Feature**: Bump minimum Go version to 1.20 per our language support policy.
+
 # v1.10.4 (2023-12-07)
 
 * No change notes available for this release.

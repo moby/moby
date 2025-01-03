@@ -4,8 +4,8 @@ import (
 	"context"
 
 	api "github.com/containerd/containerd/api/services/content/v1"
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/services/content/contentserver"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/plugins/services/content/contentserver"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/session"
 	digest "github.com/opencontainers/go-digest"

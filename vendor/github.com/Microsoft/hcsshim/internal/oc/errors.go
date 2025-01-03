@@ -6,7 +6,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/containerd/containerd/errdefs"
+	errdefs "github.com/containerd/errdefs/pkg/errgrpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

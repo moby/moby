@@ -3,7 +3,7 @@ package snapshot
 import (
 	"os"
 
-	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )

@@ -14,15 +14,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/gc"
-	c8dimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/leases"
-	cdreference "github.com/containerd/containerd/reference"
-	ctdreference "github.com/containerd/containerd/reference"
-	"github.com/containerd/containerd/remotes"
-	"github.com/containerd/containerd/remotes/docker"
-	"github.com/containerd/containerd/remotes/docker/schema1" //nolint:staticcheck // Ignore SA1019: "github.com/containerd/containerd/remotes/docker/schema1" is deprecated: use images formatted in Docker Image Manifest v2, Schema 2, or OCI Image Spec v1.
+	"github.com/containerd/containerd/v2/core/content"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/containerd/v2/core/remotes"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	"github.com/containerd/containerd/v2/core/remotes/docker/schema1" //nolint:staticcheck // Ignore SA1019: "github.com/containerd/containerd/remotes/docker/schema1" is deprecated: use images formatted in Docker Image Manifest v2, Schema 2, or OCI Image Spec v1.
+	"github.com/containerd/containerd/v2/pkg/gc"
+	cdreference "github.com/containerd/containerd/v2/pkg/reference"
+	ctdreference "github.com/containerd/containerd/v2/pkg/reference"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
@@ -524,7 +524,11 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 		handlers         []c8dimages.Handler
 	)
 	if p.desc.MediaType == c8dimages.MediaTypeDockerSchema1Manifest {
-		schema1Converter = schema1.NewConverter(p.is.ContentStore, fetcher)
+		schema1Converter, err = schema1.NewConverter(p.is.ContentStore, fetcher)
+		if err != nil {
+			stopProgress()
+			return nil, err
+		}
 		handlers = append(handlers, schema1Converter)
 
 		// TODO: Optimize to do dispatch and integrate pulling with download manager,

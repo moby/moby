@@ -825,14 +825,13 @@ func (cc *ClientConn) newAddrConnLocked(addrs []resolver.Address, opts balancer.
 	}
 
 	ac := &addrConn{
-		state:          connectivity.Idle,
-		cc:             cc,
-		addrs:          copyAddresses(addrs),
-		scopts:         opts,
-		dopts:          cc.dopts,
-		channelz:       channelz.RegisterSubChannel(cc.channelz, ""),
-		resetBackoff:   make(chan struct{}),
-		stateReadyChan: make(chan struct{}),
+		state:        connectivity.Idle,
+		cc:           cc,
+		addrs:        copyAddresses(addrs),
+		scopts:       opts,
+		dopts:        cc.dopts,
+		channelz:     channelz.RegisterSubChannel(cc.channelz, ""),
+		resetBackoff: make(chan struct{}),
 	}
 	ac.ctx, ac.cancel = context.WithCancel(cc.ctx)
 	// Start with our address set to the first address; this may be updated if
@@ -1141,10 +1140,15 @@ func (cc *ClientConn) Close() error {
 
 	<-cc.resolverWrapper.serializer.Done()
 	<-cc.balancerWrapper.serializer.Done()
-
+	var wg sync.WaitGroup
 	for ac := range conns {
-		ac.tearDown(ErrClientConnClosing)
+		wg.Add(1)
+		go func(ac *addrConn) {
+			defer wg.Done()
+			ac.tearDown(ErrClientConnClosing)
+		}(ac)
 	}
+	wg.Wait()
 	cc.addTraceEvent("deleted")
 	// TraceEvent needs to be called before RemoveEntry, as TraceEvent may add
 	// trace reference to the entity being deleted, and thus prevent it from being
@@ -1179,8 +1183,7 @@ type addrConn struct {
 	addrs   []resolver.Address // All addresses that the resolver resolved to.
 
 	// Use updateConnectivityState for updating addrConn's connectivity state.
-	state          connectivity.State
-	stateReadyChan chan struct{} // closed and recreated on every READY state change.
+	state connectivity.State
 
 	backoffIdx   int // Needs to be stateful for resetConnectBackoff.
 	resetBackoff chan struct{}
@@ -1251,6 +1254,8 @@ func (ac *addrConn) resetTransportAndUnlock() {
 	ac.mu.Unlock()
 
 	if err := ac.tryAllAddrs(acCtx, addrs, connectDeadline); err != nil {
+		// TODO: #7534 - Move re-resolution requests into the pick_first LB policy
+		// to ensure one resolution request per pass instead of per subconn failure.
 		ac.cc.resolveNow(resolver.ResolveNowOptions{})
 		ac.mu.Lock()
 		if acCtx.Err() != nil {
@@ -1292,7 +1297,7 @@ func (ac *addrConn) resetTransportAndUnlock() {
 	ac.mu.Unlock()
 }
 
-// tryAllAddrs tries to creates a connection to the addresses, and stop when at
+// tryAllAddrs tries to create a connection to the addresses, and stop when at
 // the first successful one. It returns an error if no address was successfully
 // connected, or updates ac appropriately with the new transport.
 func (ac *addrConn) tryAllAddrs(ctx context.Context, addrs []resolver.Address, connectDeadline time.Time) error {
@@ -1502,29 +1507,6 @@ func (ac *addrConn) getReadyTransport() transport.ClientTransport {
 		return ac.transport
 	}
 	return nil
-}
-
-// getTransport waits until the addrconn is ready and returns the transport.
-// If the context expires first, returns an appropriate status.  If the
-// addrConn is stopped first, returns an Unavailable status error.
-func (ac *addrConn) getTransport(ctx context.Context) (transport.ClientTransport, error) {
-	for ctx.Err() == nil {
-		ac.mu.Lock()
-		t, state, sc := ac.transport, ac.state, ac.stateReadyChan
-		ac.mu.Unlock()
-		if state == connectivity.Ready {
-			return t, nil
-		}
-		if state == connectivity.Shutdown {
-			return nil, status.Errorf(codes.Unavailable, "SubConn shutting down")
-		}
-
-		select {
-		case <-ctx.Done():
-		case <-sc:
-		}
-	}
-	return nil, status.FromContextError(ctx.Err()).Err()
 }
 
 // tearDown starts to tear down the addrConn.

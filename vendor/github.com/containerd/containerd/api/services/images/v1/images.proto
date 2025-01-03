@@ -140,4 +140,10 @@ message DeleteImageRequest {
 	//
 	// Default is false
 	bool sync = 2;
+
+	// Target value for image to be deleted
+	//
+	// If image descriptor does not match the same digest,
+	// the delete operation will return "not found" error.
+	optional containerd.types.Descriptor target = 3;
 }

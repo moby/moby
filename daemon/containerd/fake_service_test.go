@@ -10,11 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/metadata"
-	"github.com/containerd/containerd/snapshots"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/containerd/v2/core/metadata"
+	"github.com/containerd/containerd/v2/core/snapshots"
+	"github.com/containerd/containerd/v2/defaults"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
@@ -29,7 +30,7 @@ func fakeImageService(t testing.TB, ctx context.Context, cs content.Store) *Imag
 	mdb := newTestDB(ctx, t)
 
 	snapshotters := map[string]snapshots.Snapshotter{
-		containerd.DefaultSnapshotter: snapshotter,
+		defaults.DefaultSnapshotter: snapshotter,
 	}
 
 	service := &ImageService{
@@ -38,7 +39,7 @@ func fakeImageService(t testing.TB, ctx context.Context, cs content.Store) *Imag
 		content:             cs,
 		eventsService:       daemonevents.New(),
 		snapshotterServices: snapshotters,
-		snapshotter:         containerd.DefaultSnapshotter,
+		snapshotter:         defaults.DefaultSnapshotter,
 	}
 
 	// containerd.Image gets the services directly from containerd.Client

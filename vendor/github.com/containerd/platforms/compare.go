@@ -72,6 +72,66 @@ func platformVector(platform specs.Platform) []specs.Platform {
 		if variant == "" {
 			variant = "v8"
 		}
+
+		majorVariant, minorVariant, hasMinor := strings.Cut(variant, ".")
+		if armMajor, err := strconv.Atoi(strings.TrimPrefix(majorVariant, "v")); err == nil && armMajor >= 8 {
+			armMinor := 0
+			if len(variant) == 4 {
+				if minor, err := strconv.Atoi(minorVariant); err == nil && hasMinor {
+					armMinor = minor
+				}
+			}
+
+			if armMajor == 9 {
+				for minor := armMinor - 1; minor >= 0; minor-- {
+					arm64Variant := "v" + strconv.Itoa(armMajor) + "." + strconv.Itoa(minor)
+					if minor == 0 {
+						arm64Variant = "v" + strconv.Itoa(armMajor)
+					}
+					vector = append(vector, specs.Platform{
+						Architecture: platform.Architecture,
+						OS:           platform.OS,
+						OSVersion:    platform.OSVersion,
+						OSFeatures:   platform.OSFeatures,
+						Variant:      arm64Variant,
+					})
+				}
+
+				// v9.0 diverged from v8.5, meaning that v9.x is compatible with v8.{x+5} until v9.4/v8.9
+				armMinor = armMinor + 5
+				if armMinor > 9 {
+					armMinor = 9
+				}
+				armMajor = 8
+				vector = append(vector, specs.Platform{
+					Architecture: platform.Architecture,
+					OS:           platform.OS,
+					OSVersion:    platform.OSVersion,
+					OSFeatures:   platform.OSFeatures,
+					Variant:      "v8." + strconv.Itoa(armMinor),
+				})
+			}
+
+			for minor := armMinor - 1; minor >= 0; minor-- {
+				arm64Variant := "v" + strconv.Itoa(armMajor) + "." + strconv.Itoa(minor)
+				if minor == 0 {
+					arm64Variant = "v" + strconv.Itoa(armMajor)
+				}
+				vector = append(vector, specs.Platform{
+					Architecture: platform.Architecture,
+					OS:           platform.OS,
+					OSVersion:    platform.OSVersion,
+					OSFeatures:   platform.OSFeatures,
+					Variant:      arm64Variant,
+				})
+			}
+		}
+
+		// All arm64/v8.x and arm64/v9.x are compatible with arm/v8 (32-bits) and below.
+		// There's no arm64 v9 variant, so it's normalized to v8.
+		if strings.HasPrefix(variant, "v8.") || strings.HasPrefix(variant, "v9.") {
+			variant = "v8"
+		}
 		vector = append(vector, platformVector(specs.Platform{
 			Architecture: "arm",
 			OS:           platform.OS,
@@ -87,6 +147,8 @@ func platformVector(platform specs.Platform) []specs.Platform {
 // Only returns a match comparer for a single platform
 // using default resolution logic for the platform.
 //
+// For arm64/v9.x, will also match arm64/v9.{0..x-1} and arm64/v8.{0..x+5}
+// For arm64/v8.x, will also match arm64/v8.{0..x-1}
 // For arm/v8, will also match arm/v7, arm/v6 and arm/v5
 // For arm/v7, will also match arm/v6 and arm/v5
 // For arm/v6, will also match arm/v5

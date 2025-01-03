@@ -817,6 +817,8 @@ func (c *CNIConfig) GCNetworkList(ctx context.Context, list *NetworkConfigList, 
 		}
 		if args != nil {
 			inject["cni.dev/valid-attachments"] = args.ValidAttachments
+			// #1101: spec used incorrect variable name
+			inject["cni.dev/attachments"] = args.ValidAttachments
 		}
 
 		for _, plugin := range list.Plugins {
