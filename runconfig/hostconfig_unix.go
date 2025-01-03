@@ -7,6 +7,7 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/sysinfo"
 )
 
@@ -51,10 +52,17 @@ func validateQoS(hc *container.HostConfig) error {
 // cpu-rt-runtime and cpu-rt-period can not be greater than their parent, cpu-rt-runtime requires sys_nice
 func validateResources(hc *container.HostConfig, si *sysinfo.SysInfo) error {
 	if (hc.Resources.CPURealtimePeriod != 0 || hc.Resources.CPURealtimeRuntime != 0) && !si.CPURealtime {
-		return fmt.Errorf("Your kernel does not support CPU real-time scheduler")
+		return errdefs.InvalidParameter(fmt.Errorf("Your kernel does not support CPU real-time scheduler"))
 	}
 	if hc.Resources.CPURealtimePeriod != 0 && hc.Resources.CPURealtimeRuntime != 0 && hc.Resources.CPURealtimeRuntime > hc.Resources.CPURealtimePeriod {
-		return fmt.Errorf("cpu real-time runtime cannot be higher than cpu real-time period")
+		return errdefs.InvalidParameter(fmt.Errorf("cpu real-time runtime cannot be higher than cpu real-time period"))
+	}
+	// We're only producing an error when supported to preserve old behavior.
+	// The OCI runtime may still reject the config though.
+	if si.CPUShares {
+		if hc.Resources.CPUShares < 0 {
+			return errdefs.InvalidParameter(fmt.Errorf("invalid CPU shares (%d): value must be a positive integer", hc.Resources.CPUShares))
+		}
 	}
 	return nil
 }
