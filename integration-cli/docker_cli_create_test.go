@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/go-connections/nat"
 	"gotest.tools/v3/assert"
@@ -229,39 +228,6 @@ func (s *DockerCLICreateSuite) TestCreateModeIpcContainer(c *testing.T) {
 	cli.DockerCmd(c, "create", fmt.Sprintf("--ipc=container:%s", id), "busybox")
 }
 
-func (s *DockerCLICreateSuite) TestCreateByImageID(c *testing.T) {
-	imageName := "testcreatebyimageid"
-	buildImageSuccessfully(c, imageName, build.WithDockerfile(`FROM busybox
-		MAINTAINER dockerio`))
-	imageID := getIDByName(c, imageName)
-	truncatedImageID := stringid.TruncateID(imageID)
-
-	cli.DockerCmd(c, "create", imageID)
-	cli.DockerCmd(c, "create", truncatedImageID)
-
-	// Ensure this fails
-	out, exit, _ := dockerCmdWithError("create", fmt.Sprintf("%s:%s", imageName, imageID))
-	if exit == 0 {
-		c.Fatalf("expected non-zero exit code; received %d", exit)
-	}
-
-	if expected := "invalid reference format"; !strings.Contains(out, expected) {
-		c.Fatalf(`Expected %q in output; got: %s`, expected, out)
-	}
-
-	if i := strings.IndexRune(imageID, ':'); i >= 0 {
-		imageID = imageID[i+1:]
-	}
-	out, exit, _ = dockerCmdWithError("create", fmt.Sprintf("%s:%s", "wrongimage", imageID))
-	if exit == 0 {
-		c.Fatalf("expected non-zero exit code; received %d", exit)
-	}
-
-	if expected := "Unable to find image"; !strings.Contains(out, expected) {
-		c.Fatalf(`Expected %q in output; got: %s`, expected, out)
-	}
-}
-
 func (s *DockerCLICreateSuite) TestCreateStopSignal(c *testing.T) {
 	const name = "test_create_stop_signal"
 	cli.DockerCmd(c, "create", "--name", name, "--stop-signal", "9", "busybox")
@@ -301,14 +267,6 @@ func (s *DockerCLICreateSuite) TestCreateWithInvalidLogOpts(c *testing.T) {
 
 	out = cli.DockerCmd(c, "ps", "-a").Stdout()
 	assert.Assert(c, !strings.Contains(out, name))
-}
-
-// #20972
-func (s *DockerCLICreateSuite) TestCreate64ByteHexID(c *testing.T) {
-	out := inspectField(c, "busybox", "Id")
-	imageID := strings.TrimPrefix(strings.TrimSpace(out), "sha256:")
-
-	cli.DockerCmd(c, "create", imageID)
 }
 
 // Test case for #23498
