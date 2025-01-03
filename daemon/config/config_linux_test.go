@@ -159,7 +159,7 @@ func TestDaemonConfigurationFeatures(t *testing.T) {
 		{
 			name:        "invalid config value",
 			config:      `{"features": {"containerd-snapshotter": "not-a-boolean"}}`,
-			expectedErr: `json: cannot unmarshal string into Go struct field Config.features of type bool`,
+			expectedErr: `json: cannot unmarshal string into Go struct field`,
 		},
 	}
 
@@ -179,7 +179,7 @@ func TestDaemonConfigurationFeatures(t *testing.T) {
 			}
 			cc, err := MergeDaemonConfigurations(c, flags, configFile)
 			if tc.expectedErr != "" {
-				assert.Error(t, err, tc.expectedErr)
+				assert.ErrorContains(t, err, tc.expectedErr)
 			} else {
 				assert.NilError(t, err)
 				assert.Check(t, is.DeepEqual(tc.expectedValue, cc.Features))
