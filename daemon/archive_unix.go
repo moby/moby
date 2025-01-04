@@ -97,7 +97,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 // noOverwriteDirNonDir is true then it will be an error if unpacking the
 // given content would cause an existing directory to be replaced with a non-
 // directory and vice versa.
-func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) (err error) {
+func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error {
 	container.Lock()
 	defer container.Unlock()
 

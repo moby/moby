@@ -149,7 +149,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 // directory and vice versa.
 //
 // FIXME(thaJeztah): copyUIDGID is not supported on Windows, but currently ignored silently
-func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) (err error) {
+func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -158,12 +158,12 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		return err
 	}
 
-	if err = daemon.Mount(container); err != nil {
+	if err := daemon.Mount(container); err != nil {
 		return err
 	}
 	defer daemon.Unmount(container)
 
-	err = daemon.mountVolumes(container)
+	err := daemon.mountVolumes(container)
 	defer container.DetachAndUnmount(daemon.LogVolumeEvent)
 	if err != nil {
 		return err
@@ -224,10 +224,11 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		}
 	} else {
 		baseRel, err = filepath.Rel(container.BaseFS, resolvedPath)
+		if err != nil {
+			return err
+		}
 	}
-	if err != nil {
-		return err
-	}
+
 	// Make it an absolute path.
 	absPath = filepath.Join(string(filepath.Separator), baseRel)
 
