@@ -17,14 +17,17 @@ func (daemon *Daemon) ContainerStatPath(name string, path string) (stat *contain
 	}
 
 	stat, err = daemon.containerStatPath(ctr, path)
-	if err == nil {
-		return stat, nil
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, containerFileNotFound{path, name}
+		}
+		// TODO(thaJeztah): check if daemon.containerStatPath returns any errors that are not typed; if not, then return as-is
+		if errdefs.IsInvalidParameter(err) {
+			return nil, err
+		}
+		return nil, errdefs.System(err)
 	}
-
-	if os.IsNotExist(err) {
-		return nil, containerFileNotFound{path, name}
-	}
-	return nil, errdefs.System(err)
+	return stat, nil
 }
 
 // ContainerArchivePath creates an archive of the filesystem resource at the
@@ -37,14 +40,17 @@ func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io
 	}
 
 	content, stat, err = daemon.containerArchivePath(ctr, path)
-	if err == nil {
-		return content, stat, nil
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil, containerFileNotFound{path, name}
+		}
+		// TODO(thaJeztah): check if daemon.containerArchivePath returns any errors that are not typed; if not, then return as-is
+		if errdefs.IsInvalidParameter(err) {
+			return nil, nil, err
+		}
+		return nil, nil, errdefs.System(err)
 	}
-
-	if os.IsNotExist(err) {
-		return nil, nil, containerFileNotFound{path, name}
-	}
-	return nil, nil, errdefs.System(err)
+	return content, stat, nil
 }
 
 // ContainerExtractToDir extracts the given archive to the specified location
@@ -60,12 +66,15 @@ func (daemon *Daemon) ContainerExtractToDir(name, path string, copyUIDGID, noOve
 	}
 
 	err = daemon.containerExtractToDir(ctr, path, copyUIDGID, noOverwriteDirNonDir, content)
-	if err == nil {
-		return nil
+	if err != nil {
+		if os.IsNotExist(err) {
+			return containerFileNotFound{path, name}
+		}
+		// TODO(thaJeztah): check if daemon.containerExtractToDir returns any errors that are not typed; if not, then return as-is
+		if errdefs.IsInvalidParameter(err) {
+			return err
+		}
+		return errdefs.System(err)
 	}
-
-	if os.IsNotExist(err) {
-		return containerFileNotFound{path, name}
-	}
-	return errdefs.System(err)
+	return nil
 }
