@@ -6,13 +6,14 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/sys/user"
 	"gotest.tools/v3/assert"
 )
 
 func TestCreateIDMapOrder(t *testing.T) {
-	subidRanges := subIDRanges{
-		{100000, 1000},
-		{1000, 1},
+	subidRanges := []user.SubID{
+		{Name: "", SubID: 100000, Count: 1000},
+		{Name: "", SubID: 1000, Count: 1},
 	}
 
 	idMap := createIDMap(subidRanges)
@@ -43,17 +44,19 @@ dockremap:231072:65536`
 	if err := os.WriteFile(fnamePath, []byte(fcontent), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	ranges, err := parseSubidFile(fnamePath, "dockremap")
+	ranges, err := user.ParseSubIDFileFilter(fnamePath, func(sid user.SubID) bool {
+		return sid.Name == "dockremap"
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(ranges) != 1 {
 		t.Fatalf("wanted 1 element in ranges, got %d instead", len(ranges))
 	}
-	if ranges[0].Start != 231072 {
-		t.Fatalf("wanted 231072, got %d instead", ranges[0].Start)
+	if ranges[0].SubID != 231072 {
+		t.Fatalf("wanted 231072, got %d instead", ranges[0].SubID)
 	}
-	if ranges[0].Length != 65536 {
-		t.Fatalf("wanted 65536, got %d instead", ranges[0].Length)
+	if ranges[0].Count != 65536 {
+		t.Fatalf("wanted 65536, got %d instead", ranges[0].Count)
 	}
 }
