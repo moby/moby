@@ -115,3 +115,16 @@ func TestDecodeContainerConfigIsolation(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeContainerConfigPrivileged(t *testing.T) {
+	requestJSON, err := json.Marshal(container.CreateRequest{HostConfig: &container.HostConfig{Privileged: true}})
+	assert.NilError(t, err)
+
+	_, _, _, err = decodeContainerConfig(bytes.NewReader(requestJSON), sysinfo.New())
+	if runtime.GOOS == "windows" {
+		const expected = "Windows does not support privileged mode"
+		assert.Check(t, is.Error(err, expected))
+	} else {
+		assert.NilError(t, err)
+	}
+}
