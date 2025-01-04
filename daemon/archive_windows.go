@@ -147,6 +147,8 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 // noOverwriteDirNonDir is true then it will be an error if unpacking the
 // given content would cause an existing directory to be replaced with a non-
 // directory and vice versa.
+//
+// FIXME(thaJeztah): copyUIDGID is not supported on Windows, but currently ignored silently
 func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) (err error) {
 	container.Lock()
 	defer container.Unlock()
@@ -239,17 +241,6 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	}
 
 	options := daemon.defaultTarCopyOptions(noOverwriteDirNonDir)
-
-	if copyUIDGID {
-		var err error
-		// tarCopyOptions will appropriately pull in the right uid/gid for the
-		// user/group and will set the options.
-		options, err = daemon.tarCopyOptions(container, noOverwriteDirNonDir)
-		if err != nil {
-			return err
-		}
-	}
-
 	if err := chrootarchive.UntarWithRoot(content, resolvedPath, options, container.BaseFS); err != nil {
 		return err
 	}
