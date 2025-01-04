@@ -229,16 +229,9 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		}
 	}
 
-	// Make it an absolute path.
 	absPath = filepath.Join(string(filepath.Separator), baseRel)
-
-	toVolume, err := checkIfPathIsInAVolume(container, absPath)
-	if err != nil {
+	if err := checkWritablePath(container, absPath); err != nil {
 		return err
-	}
-
-	if !toVolume && container.HostConfig.ReadonlyRootfs {
-		return errdefs.InvalidParameter(errors.New("container rootfs is marked read-only"))
 	}
 
 	options := daemon.defaultTarCopyOptions(noOverwriteDirNonDir)
@@ -324,14 +317,16 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 	return reader, nil
 }
 
-// checkIfPathIsInAVolume checks if the path is in a volume. If it is, it
-// cannot be in a read-only volume. If it  is not in a volume, the container
-// cannot be configured with a read-only rootfs.
+// checkWritablePath is a no-op on Windows, which does not support read-only
+// rootFS for containers, does not support read-only volumes, or extracting
+// to a mount point inside a volume.
 //
-// This is a no-op on Windows which does not support read-only volumes, or
-// extracting to a mount point inside a volume. TODO Windows: FIXME Post-TP5
-func checkIfPathIsInAVolume(container *container.Container, absPath string) (bool, error) {
-	return false, nil
+// TODO(thaJeztah): add check for writable path once windows supports read-only rootFS and (read-only) volumes during copy
+//
+// - e5261d6e4a1e96d4c0fa4b4480042046b695eda1 added "FIXME Post-TP4 / TP5"; check whether this would be possible to implement on Windows.
+// - e5261d6e4a1e96d4c0fa4b4480042046b695eda1 added "or extracting to a mount point inside a volume"; check whether this is is still true, and adjust this check accordingly
+func checkWritablePath(_ *container.Container, _ string) error {
+	return nil
 }
 
 // isOnlineFSOperationPermitted returns an error if an online filesystem operation
