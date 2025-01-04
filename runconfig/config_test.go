@@ -14,53 +14,43 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-type f struct {
-	file       string
-	entrypoint strslice.StrSlice
-}
-
 func TestDecodeContainerConfig(t *testing.T) {
-	var (
-		tests   []f
-		imgName string
-	)
+	type testCase struct {
+		doc        string
+		imgName    string
+		fixture    string
+		entrypoint strslice.StrSlice
+	}
 
 	// FIXME (thaJeztah): update fixtures for more current versions.
-	if runtime.GOOS != "windows" {
-		imgName = "ubuntu"
-		tests = []f{
-			{"fixtures/unix/container_config_1_19.json", strslice.StrSlice{"bash"}},
-		}
-	} else {
-		imgName = "windows"
-		tests = []f{
-			{"fixtures/windows/container_config_1_19.json", strslice.StrSlice{"cmd"}},
-		}
+	tests := []testCase{
+		{
+			doc:        "API 1.19 windows",
+			imgName:    "windows",
+			fixture:    "fixtures/windows/container_config_1_19.json",
+			entrypoint: strslice.StrSlice{"cmd"},
+		},
+		{
+			doc:        "API 1.19 unix",
+			imgName:    "ubuntu",
+			fixture:    "fixtures/unix/container_config_1_19.json",
+			entrypoint: strslice.StrSlice{"bash"},
+		},
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.file, func(t *testing.T) {
-			b, err := os.ReadFile(tc.file)
-			if err != nil {
-				t.Fatal(err)
-			}
+		t.Run(tc.doc, func(t *testing.T) {
+			b, err := os.ReadFile(tc.fixture)
+			assert.NilError(t, err)
 
 			c, h, _, err := decodeContainerConfig(bytes.NewReader(b), sysinfo.New())
-			if err != nil {
-				t.Fatal(err)
-			}
+			assert.NilError(t, err)
 
-			if c.Image != imgName {
-				t.Fatalf("Expected %s image, found %s", imgName, c.Image)
-			}
+			assert.Check(t, is.Equal(c.Image, tc.imgName))
+			assert.Check(t, is.DeepEqual(c.Entrypoint, tc.entrypoint))
 
-			if len(c.Entrypoint) != len(tc.entrypoint) {
-				t.Fatalf("Expected %v, found %v", tc.entrypoint, c.Entrypoint)
-			}
-
-			if h != nil && h.Memory != 1000 {
-				t.Fatalf("Expected memory to be 1000, found %d", h.Memory)
-			}
+			var expected int64 = 1000
+			assert.Check(t, is.Equal(h.Memory, expected))
 		})
 	}
 }
