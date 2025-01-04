@@ -3,10 +3,73 @@
 package idtools
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"syscall"
+
+	"github.com/moby/sys/user"
 )
+
+// LoadIdentityMapping takes a requested username and
+// using the data from /etc/sub{uid,gid} ranges, creates the
+// proper uid and gid remapping ranges for that user/group pair
+func LoadIdentityMapping(name string) (IdentityMapping, error) {
+	// TODO: Consider adding support for calling out to "getent"
+	usr, err := user.LookupUser(name)
+	if err != nil {
+		return IdentityMapping{}, fmt.Errorf("could not get user for username %s: %v", name, err)
+	}
+
+	subuidRanges, err := lookupSubRangesFile("/etc/subuid", usr)
+	if err != nil {
+		return IdentityMapping{}, err
+	}
+	subgidRanges, err := lookupSubRangesFile("/etc/subgid", usr)
+	if err != nil {
+		return IdentityMapping{}, err
+	}
+
+	return IdentityMapping{
+		UIDMaps: subuidRanges,
+		GIDMaps: subgidRanges,
+	}, nil
+}
+
+func lookupSubRangesFile(path string, usr user.User) ([]IDMap, error) {
+	uidstr := strconv.Itoa(usr.Uid)
+	rangeList, err := user.ParseSubIDFileFilter(path, func(sid user.SubID) bool {
+		return sid.Name == uidstr
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(rangeList) == 0 {
+		rangeList, err = user.ParseSubIDFileFilter(path, func(sid user.SubID) bool {
+			return sid.Name == usr.Name
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(rangeList) == 0 {
+		return nil, fmt.Errorf("no subuid ranges found for user %q", usr.Name)
+	}
+
+	idMap := []IDMap{}
+
+	containerID := 0
+	for _, idrange := range rangeList {
+		idMap = append(idMap, IDMap{
+			ContainerID: containerID,
+			HostID:      int(idrange.SubID),
+			Size:        int(idrange.Count),
+		})
+		containerID = containerID + int(idrange.Count)
+	}
+	return idMap, nil
+}
 
 func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting bool) error {
 	path, err := filepath.Abs(path)
