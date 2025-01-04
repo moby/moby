@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/sysinfo"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -73,17 +74,17 @@ func TestDecodeContainerConfigIsolation(t *testing.T) {
 		{
 			isolation:   "invalid",
 			invalid:     true,
-			expectedErr: `Invalid isolation: "invalid"`,
+			expectedErr: `invalid isolation (invalid):`,
 		},
 		{
 			isolation:   "process",
 			invalid:     runtime.GOOS != "windows",
-			expectedErr: `Invalid isolation: "process"`,
+			expectedErr: `invalid isolation (process):`,
 		},
 		{
 			isolation:   "hyperv",
 			invalid:     runtime.GOOS != "windows",
-			expectedErr: `Invalid isolation: "hyperv"`,
+			expectedErr: `invalid isolation (hyperv):`,
 		},
 	}
 	for _, tc := range tests {
@@ -99,6 +100,7 @@ func TestDecodeContainerConfigIsolation(t *testing.T) {
 			_, _, _, err = decodeContainerConfig(bytes.NewReader(b), sysinfo.New())
 			if tc.invalid {
 				assert.Check(t, is.ErrorContains(err, tc.expectedErr))
+				assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
 			} else {
 				assert.NilError(t, err)
 			}
@@ -112,8 +114,9 @@ func TestDecodeContainerConfigPrivileged(t *testing.T) {
 
 	_, _, _, err = decodeContainerConfig(bytes.NewReader(requestJSON), sysinfo.New())
 	if runtime.GOOS == "windows" {
-		const expected = "Windows does not support privileged mode"
+		const expected = "invalid option: privileged mode is not supported for Windows containers"
 		assert.Check(t, is.Error(err, expected))
+		assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
 	} else {
 		assert.NilError(t, err)
 	}

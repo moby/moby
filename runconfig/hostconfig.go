@@ -13,7 +13,7 @@ func validateNetContainerMode(c *container.Config, hc *container.HostConfig) err
 	}
 
 	if hc.NetworkMode.ConnectedContainer() == "" {
-		return validationError("Invalid network mode: invalid container format container:<name|id>")
+		return validationError("invalid network mode: invalid container format container:<name|id>")
 	}
 
 	if c.Hostname != "" {
