@@ -347,17 +347,13 @@ func checkIfPathIsInAVolume(container *container.Container, absPath string) (boo
 // cannot have their file-system interrogated from the host as the filter is
 // loaded inside the utility VM, not the host.
 // IMPORTANT: The container lock MUST be held when calling this function.
-func (daemon *Daemon) isOnlineFSOperationPermitted(container *container.Container) error {
-	if !container.Running {
+func (daemon *Daemon) isOnlineFSOperationPermitted(ctr *container.Container) error {
+	if !ctr.Running {
 		return nil
 	}
 
 	// Determine isolation. If not specified in the hostconfig, use daemon default.
-	actualIsolation := container.HostConfig.Isolation
-	if containertypes.Isolation.IsDefault(containertypes.Isolation(actualIsolation)) {
-		actualIsolation = daemon.defaultIsolation
-	}
-	if containertypes.Isolation.IsHyperV(actualIsolation) {
+	if ctr.HostConfig.Isolation.IsHyperV() || ctr.HostConfig.Isolation.IsDefault() && daemon.defaultIsolation.IsHyperV() {
 		return errors.New("filesystem operations against a running Hyper-V container are not supported")
 	}
 	return nil
