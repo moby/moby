@@ -125,20 +125,6 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 
   **Note**: defining runtime arguments via the command line is not supported.
 
-**--allow-nondistributable-artifacts**=[]
-  Push nondistributable artifacts to the specified registries.
-
-  List can contain elements with CIDR notation to specify a whole subnet.
-
-  This option is useful when pushing images containing nondistributable
-  artifacts to a registry on an air-gapped network so hosts on that network can
-  pull the images without connecting to another server.
-
-  **Warning**: Nondistributable artifacts typically have restrictions on how
-  and where they can be distributed and shared. Only use this feature to push
-  artifacts to private registries and ensure that you are in compliance with
-  any terms that cover redistributing nondistributable artifacts.
-
 **--authorization-plugin**=""
   Set authorization plugins to load
 
