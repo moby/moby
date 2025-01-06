@@ -283,15 +283,18 @@ func (sb *Sandbox) restoreOslSandbox() error {
 		}
 	}
 
-	gwep4, gwep6 := sb.getGatewayEndpoint()
-	if gwep4 != nil {
-		if err := sb.osSbox.Restore(interfaces, routes, gwep4.joinInfo.gw, gwep4.joinInfo.gw6); err != nil {
-			return err
-		}
+	if err := sb.osSbox.RestoreInterfaces(interfaces); err != nil {
+		return err
 	}
-	if gwep6 != nil {
-		if err := sb.osSbox.Restore(interfaces, routes, gwep6.joinInfo.gw, gwep6.joinInfo.gw6); err != nil {
-			return err
+	if len(routes) > 0 {
+		sb.osSbox.RestoreRoutes(routes)
+	}
+	if gwEp4, gwEp6 := sb.getGatewayEndpoint(); gwEp4 != nil || gwEp6 != nil {
+		if gwEp4 != nil {
+			sb.osSbox.RestoreGateway(true, gwEp4.joinInfo.gw, gwEp4.iface.srcName)
+		}
+		if gwEp6 != nil {
+			sb.osSbox.RestoreGateway(false, gwEp6.joinInfo.gw6, gwEp6.iface.srcName)
 		}
 	}
 

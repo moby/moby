@@ -167,7 +167,8 @@ func (sb *Sandbox) storeDelete() error {
 	})
 }
 
-func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) error {
+// sandboxRestore restores Sandbox objects from the store, deleting them if they're not active.
+func (c *Controller) sandboxRestore(activeSandboxes map[string]interface{}) error {
 	sandboxStates, err := c.store.List(&sbState{c: c})
 	if err != nil {
 		if err == datastore.ErrKeyNotFound {
@@ -183,6 +184,7 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) erro
 			id:                 sbs.ID,
 			controller:         sbs.c,
 			containerID:        sbs.Cid,
+			epPriority:         sbs.EpPriority,
 			extDNS:             sbs.ExtDNS,
 			endpoints:          []*Endpoint{},
 			populatedEndpoints: map[string]struct{}{},
@@ -253,6 +255,10 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) erro
 				log.G(context.TODO()).Errorf("Failed to delete sandbox %s while trying to cleanup: %v", sb.id, err)
 			}
 			continue
+		}
+
+		for _, ep := range sb.endpoints {
+			sb.populatedEndpoints[ep.id] = struct{}{}
 		}
 
 		// reconstruct osl sandbox field

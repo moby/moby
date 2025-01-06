@@ -389,10 +389,17 @@ func checkCtrRoutes(t *testing.T, ctx context.Context, apiClient client.APIClien
 	})
 
 	assert.Check(t, is.Equal(len(routes), expRoutes), "expected %d routes, got %d:\n%s", expRoutes, len(routes), strings.Join(routes, "\n"))
-	defFound := slices.ContainsFunc(routes, func(s string) bool {
-		return strings.Contains(s, expDefRoute)
-	})
-	assert.Check(t, defFound, "default route %q not found:\n%s", expDefRoute, strings.Join(routes, "\n"))
+	if expDefRoute == "" {
+		defFound := slices.ContainsFunc(routes, func(s string) bool {
+			return strings.HasPrefix(s, "default")
+		})
+		assert.Check(t, !defFound, "unexpected default route\n%s", strings.Join(routes, "\n"))
+	} else {
+		defFound := slices.ContainsFunc(routes, func(s string) bool {
+			return strings.Contains(s, expDefRoute)
+		})
+		assert.Check(t, defFound, "default route %q not found:\n%s", expDefRoute, strings.Join(routes, "\n"))
+	}
 }
 
 // TestMixL3IPVlanAndBridge checks that a container can be connected to a layer-3
@@ -410,61 +417,110 @@ func TestMixL3IPVlanAndBridge(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "can't see the dummy parent interface from the rootless namespace")
 
 	ctx := testutil.StartSpan(baseContext, t)
-	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t)
-	defer d.Stop(t)
-	c := d.NewClientT(t)
-	defer c.Close()
 
-	const brNetName = "brnet"
-	network.CreateNoError(ctx, t, c, brNetName,
-		network.WithOption(netlabel.ContainerIfacePrefix, "bri"),
-		network.WithIPv6(),
-		network.WithIPAM("192.168.123.0/24", "192.168.123.1"),
-		network.WithIPAM("fd6f:36f8:3005::/64", "fd6f:36f8:3005::1"),
-	)
-	defer network.RemoveNoError(ctx, t, c, brNetName)
+	tests := []struct {
+		name        string
+		liveRestore bool
+	}{
+		{
+			name: "no live restore",
+		},
+		{
+			// If the daemon is restarted with a running container, the osSbox structure
+			// must be repopulated correctly in order for gateways to be removed then
+			// re-added when network connections change.
+			name:        "live restore",
+			liveRestore: true,
+		},
+	}
 
-	// Create a dummy parent interface rather than letting the driver do it because,
-	// when the driver creates its own, it becomes a '--internal' network and no
-	// default route is configured.
-	const parentIfName = "di-dummy0"
-	CreateMasterDummy(ctx, t, parentIfName)
-	defer DeleteInterface(ctx, t, parentIfName)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
 
-	const ipvNetName = "ipvnet"
-	network.CreateNoError(ctx, t, c, ipvNetName,
-		network.WithDriver("ipvlan"),
-		network.WithOption("ipvlan_mode", "l3"),
-		network.WithOption("parent", parentIfName),
-		network.WithIPv6(),
-		network.WithIPAM("192.168.124.0/24", ""),
-		network.WithIPAM("fd7d:8755:51ba::/64", ""),
-	)
-	defer network.RemoveNoError(ctx, t, c, ipvNetName)
+			// experimental is needed for a WithIPv4(false) network.
+			d := daemon.New(t, daemon.WithExperimental())
+			var daemonArgs []string
+			if tc.liveRestore {
+				daemonArgs = append(daemonArgs, "--live-restore")
+			}
+			d.StartWithBusybox(ctx, t, daemonArgs...)
+			defer d.Stop(t)
+			c := d.NewClientT(t)
+			defer c.Close()
 
-	// Create a container connected to both networks, bridge network acting as gateway.
-	ctrId := container.Run(ctx, t, c,
-		container.WithNetworkMode(brNetName),
-		container.WithEndpointSettings(brNetName,
-			&networktypes.EndpointSettings{GwPriority: 1},
-		),
-		container.WithEndpointSettings(ipvNetName, &networktypes.EndpointSettings{}),
-	)
-	defer container.Remove(ctx, t, c, ctrId, containertypes.RemoveOptions{Force: true})
-	// Expect three IPv4 routes: the default, plus one per network.
-	checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET, 3, "default via 192.168.123.1 dev bri")
-	// Expect seven IPv6 routes: the default, plus UL, LL, and multicast routes per network.
-	checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET6, 7, "default via fd6f:36f8:3005::1 dev bri")
+			const br46NetName = "br46net"
+			network.CreateNoError(ctx, t, c, br46NetName,
+				network.WithOption(netlabel.ContainerIfacePrefix, "bds"),
+				network.WithIPv6(),
+				network.WithIPAM("192.168.123.0/24", "192.168.123.1"),
+				network.WithIPAM("fd6f:36f8:3005::/64", "fd6f:36f8:3005::1"),
+			)
+			defer network.RemoveNoError(ctx, t, c, br46NetName)
 
-	// Disconnect the bridge network, expect the ipvlan's default route to be set up.
-	c.NetworkDisconnect(ctx, brNetName, ctrId, false)
-	checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET, 2, "default dev eth")
-	checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET6, 4, "default dev eth")
+			const br6NetName = "br6net"
+			network.CreateNoError(ctx, t, c, br6NetName,
+				network.WithOption(netlabel.ContainerIfacePrefix, "bss"),
+				network.WithIPv4(false),
+				network.WithIPv6(),
+				network.WithIPAM("fdc9:adaf:b5da::/64", "fdc9:adaf:b5da::1"),
+			)
+			defer network.RemoveNoError(ctx, t, c, br6NetName)
 
-	// Reconnect the bridge network, with gw-priority=1 so it gets the gateway back.
-	// Expect the ipvlan's default route to be removed.
-	c.NetworkConnect(ctx, brNetName, ctrId, &networktypes.EndpointSettings{GwPriority: 1})
-	checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET, 3, "default via 192.168.123.1 dev bri")
-	checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET6, 7, "default via fd6f:36f8:3005::1 dev bri")
+			// Create a dummy parent interface rather than letting the driver do it because,
+			// when the driver creates its own, it becomes a '--internal' network and no
+			// default route is configured.
+			const parentIfName = "di-dummy0"
+			CreateMasterDummy(ctx, t, parentIfName)
+			defer DeleteInterface(ctx, t, parentIfName)
+
+			const ipvNetName = "ipvnet"
+			network.CreateNoError(ctx, t, c, ipvNetName,
+				network.WithDriver("ipvlan"),
+				network.WithOption("ipvlan_mode", "l3"),
+				network.WithOption("parent", parentIfName),
+				network.WithIPv6(),
+				network.WithIPAM("192.168.124.0/24", ""),
+				network.WithIPAM("fd7d:8755:51ba::/64", ""),
+			)
+			defer network.RemoveNoError(ctx, t, c, ipvNetName)
+
+			// Create a container connected to all three networks, bridge network acting as gateway.
+			ctrId := container.Run(ctx, t, c,
+				container.WithNetworkMode(br46NetName),
+				container.WithEndpointSettings(br46NetName,
+					&networktypes.EndpointSettings{GwPriority: 1},
+				),
+				container.WithEndpointSettings(br6NetName, &networktypes.EndpointSettings{}),
+				container.WithEndpointSettings(ipvNetName, &networktypes.EndpointSettings{}),
+			)
+			defer container.Remove(ctx, t, c, ctrId, containertypes.RemoveOptions{Force: true})
+
+			if tc.liveRestore {
+				d.Restart(t, daemonArgs...)
+			}
+
+			// Expect three IPv4 routes: the default, plus one per network.
+			checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET, 3, "default via 192.168.123.1 dev bds")
+			// Expect ten IPv6 routes: the default, plus UL, LL, and multicast routes per network.
+			checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET6, 10, "default via fd6f:36f8:3005::1 dev bds")
+
+			// Disconnect the dual-stack bridge network, expect the ipvlan's default route to be set up.
+			c.NetworkDisconnect(ctx, br46NetName, ctrId, false)
+			checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET, 2, "default dev eth")
+			checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET6, 7, "default dev eth")
+
+			// Disconnect the ipvlan, expect the IPv6-only network to be the gateway, with no IPv4 gateway.
+			// (For this to work in the live-restore case the "dstName" of the interface must have been
+			// restored in the osSbox, based on matching the running interface's IPv6 address.)
+			c.NetworkDisconnect(ctx, ipvNetName, ctrId, false)
+			checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET, 0, "")
+			checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET6, 4, "default via fdc9:adaf:b5da::1 dev bss")
+
+			// Reconnect the dual-stack bridge, expect it to be the gateway for both addr families.
+			c.NetworkConnect(ctx, br46NetName, ctrId, &networktypes.EndpointSettings{GwPriority: 1})
+			checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET, 2, "default via 192.168.123.1 dev bds")
+			checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET6, 7, "default via fd6f:36f8:3005::1 dev bds")
+		})
+	}
 }
