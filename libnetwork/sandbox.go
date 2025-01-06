@@ -509,7 +509,7 @@ func (sb *Sandbox) hasExternalAccess() bool {
 		if nw.Internal() || nw.Type() == "null" || nw.Type() == "host" {
 			continue
 		}
-		if ep.hasGatewayOrDefaultRoute() {
+		if v4, v6 := ep.hasGatewayOrDefaultRoute(); v4 || v6 {
 			return true
 		}
 	}
@@ -603,7 +603,7 @@ func (sb *Sandbox) clearNetworkResources(origEp *Endpoint) error {
 
 	if (gwepAfter4 != nil && gwepBefore4 != gwepAfter4) || (gwepAfter6 != nil && gwepBefore6 != gwepAfter6) {
 		if err := sb.updateGateway(gwepAfter4, gwepAfter6); err != nil {
-			return err
+			return fmt.Errorf("updating gateway endpoint: %w", err)
 		}
 	}
 
@@ -648,34 +648,35 @@ func (sb *Sandbox) joinLeaveEnd() {
 	}
 }
 
+// Less defines an ordering over endpoints, with better candidates for the default
+// gateway sorted first.
+//
 // <=> Returns true if a < b, false if a > b and advances to next level if a == b
 // epi.prio <=> epj.prio           # 2 < 1
 // epi.gw <=> epj.gw               # non-gw < gw
 // epi.internal <=> epj.internal   # non-internal < internal
-// epi.joininfo <=> epj.joininfo   # ipv6 < ipv4
+// epi.hasGw <=> epj.hasGw         # (gw4 and gw6) < (gw4 or gw6) < (no gw)
 // epi.name <=> epj.name           # bar < foo
 func (epi *Endpoint) Less(epj *Endpoint) bool {
-	var prioi, prioj int
-
 	sbi, _ := epi.getSandbox()
 	sbj, _ := epj.getSandbox()
 
 	// Prio defaults to 0
+	var prioi, prioj int
 	if sbi != nil {
 		prioi = sbi.epPriority[epi.ID()]
 	}
 	if sbj != nil {
 		prioj = sbj.epPriority[epj.ID()]
 	}
-
 	if prioi != prioj {
 		return prioi > prioj
 	}
 
-	gwi := epi.endpointInGWNetwork()
-	gwj := epj.endpointInGWNetwork()
-	if gwi != gwj {
-		return gwj
+	gwNeti := epi.endpointInGWNetwork()
+	gwNetj := epj.endpointInGWNetwork()
+	if gwNeti != gwNetj {
+		return gwNetj
 	}
 
 	inti := epi.getNetwork().Internal()
@@ -684,28 +685,20 @@ func (epi *Endpoint) Less(epj *Endpoint) bool {
 		return intj
 	}
 
-	jii := 0
-	if epi.joinInfo != nil {
-		if epi.joinInfo.gw != nil {
-			jii = jii + 1
+	gwCount := func(ep *Endpoint) int {
+		gw4, gw6 := ep.hasGatewayOrDefaultRoute()
+		if gw4 && gw6 {
+			return 2
 		}
-		if epi.joinInfo.gw6 != nil {
-			jii = jii + 2
+		if gw4 || gw6 {
+			return 1
 		}
+		return 0
 	}
-
-	jij := 0
-	if epj.joinInfo != nil {
-		if epj.joinInfo.gw != nil {
-			jij = jij + 1
-		}
-		if epj.joinInfo.gw6 != nil {
-			jij = jij + 2
-		}
-	}
-
-	if jii != jij {
-		return jii > jij
+	gwCounti := gwCount(epi)
+	gwCountj := gwCount(epj)
+	if gwCounti != gwCountj {
+		return gwCounti > gwCountj
 	}
 
 	return epi.network.Name() < epj.network.Name()

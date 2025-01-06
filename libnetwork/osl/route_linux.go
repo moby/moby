@@ -1,8 +1,12 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.22 && (linux || freebsd)
+
 package osl
 
 import (
 	"fmt"
 	"net"
+	"slices"
 
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
@@ -202,4 +206,127 @@ func (n *Namespace) RemoveStaticRoute(r *types.StaticRoute) error {
 	}
 	n.mu.Unlock()
 	return nil
+}
+
+// SetDefaultRouteIPv4 sets up a connected route to 0.0.0.0 via the Interface
+// with srcName, if that Interface has a route to 0.0.0.0. Otherwise, it
+// returns an error.
+func (n *Namespace) SetDefaultRouteIPv4(srcName string) error {
+	if err := n.setDefaultRoute(srcName, func(ipNet *net.IPNet) bool {
+		return ipNet.IP.IsUnspecified() && ipNet.IP.To4() != nil
+	}); err != nil {
+		return fmt.Errorf("setting IPv4 default route to interface with srcName '%s': %w", srcName, err)
+	}
+
+	n.mu.Lock()
+	n.defRoute4SrcName = srcName
+	n.mu.Unlock()
+	return nil
+}
+
+// SetDefaultRouteIPv6 sets up a connected route to [::] via the Interface
+// with srcName, if that Interface has a route to [::]. Otherwise, it
+// returns an error.
+func (n *Namespace) SetDefaultRouteIPv6(srcName string) error {
+	if err := n.setDefaultRoute(srcName, func(ipNet *net.IPNet) bool {
+		return ipNet.IP.IsUnspecified() && ipNet.IP.To4() == nil
+	}); err != nil {
+		return fmt.Errorf("setting IPv6 default route to interface with srcName '%s': %w", srcName, err)
+	}
+
+	n.mu.Lock()
+	n.defRoute6SrcName = srcName
+	n.mu.Unlock()
+	return nil
+}
+
+func (n *Namespace) setDefaultRoute(srcName string, routeMatcher func(*net.IPNet) bool) error {
+	iface := n.ifaceBySrcName(srcName)
+	if iface == nil {
+		return fmt.Errorf("no interface")
+	}
+
+	ridx := slices.IndexFunc(iface.routes, routeMatcher)
+	if ridx == -1 {
+		return fmt.Errorf("no default route")
+	}
+
+	link, err := n.nlHandle.LinkByName(iface.dstName)
+	if err != nil {
+		return fmt.Errorf("no link src:%s dst:%s", srcName, iface.dstName)
+	}
+
+	if err := n.nlHandle.RouteAdd(&netlink.Route{
+		Scope:     netlink.SCOPE_LINK,
+		LinkIndex: link.Attrs().Index,
+		Dst:       iface.routes[ridx],
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// UnsetDefaultRouteIPv4 unsets the previously set default IPv4 default route
+// in the sandbox. It is a no-op if no gateway was set.
+func (n *Namespace) UnsetDefaultRouteIPv4() error {
+	n.mu.Lock()
+	srcName := n.defRoute4SrcName
+	n.mu.Unlock()
+
+	if err := n.unsetDefaultRoute(srcName, func(ipNet *net.IPNet) bool {
+		return ipNet.IP.IsUnspecified() && ipNet.IP.To4() != nil
+	}); err != nil {
+		return fmt.Errorf("removing IPv4 default route to interface with srcName '%s': %w", srcName, err)
+	}
+
+	n.mu.Lock()
+	n.defRoute4SrcName = ""
+	n.mu.Unlock()
+	return nil
+}
+
+// UnsetDefaultRouteIPv6 unsets the previously set default IPv6 default route
+// in the sandbox. It is a no-op if no gateway was set.
+func (n *Namespace) UnsetDefaultRouteIPv6() error {
+	n.mu.Lock()
+	srcName := n.defRoute6SrcName
+	n.mu.Unlock()
+
+	if err := n.unsetDefaultRoute(srcName, func(ipNet *net.IPNet) bool {
+		return ipNet.IP.IsUnspecified() && ipNet.IP.To4() == nil
+	}); err != nil {
+		return fmt.Errorf("removing IPv6 default route to interface with srcName '%s': %w", srcName, err)
+	}
+
+	n.mu.Lock()
+	n.defRoute6SrcName = ""
+	n.mu.Unlock()
+	return nil
+}
+
+func (n *Namespace) unsetDefaultRoute(srcName string, routeMatcher func(*net.IPNet) bool) error {
+	if srcName == "" {
+		return nil
+	}
+
+	iface := n.ifaceBySrcName(srcName)
+	if iface == nil {
+		return nil
+	}
+
+	ridx := slices.IndexFunc(iface.routes, routeMatcher)
+	if ridx == -1 {
+		return fmt.Errorf("no default route")
+	}
+
+	link, err := n.nlHandle.LinkByName(iface.dstName)
+	if err != nil {
+		return fmt.Errorf("no link")
+	}
+
+	return n.nlHandle.RouteDel(&netlink.Route{
+		Scope:     netlink.SCOPE_LINK,
+		LinkIndex: link.Attrs().Index,
+		Dst:       iface.routes[ridx],
+	})
 }
