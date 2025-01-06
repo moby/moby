@@ -1,8 +1,6 @@
 // Package sysinfo stores information about which features a kernel supports.
 package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
-import "github.com/docker/docker/pkg/parsers"
-
 // Opt for New().
 type Opt func(info *SysInfo)
 
@@ -122,10 +120,12 @@ type cgroupCpusetInfo struct {
 	// Whether Cpuset is supported or not
 	Cpuset bool
 
-	// Available Cpuset's cpus
+	// Available Cpuset's cpus as read from "cpuset.cpus.effective" (cgroups v2)
+	// or "cpuset.cpus" (cgroups v1).
 	Cpus string
 
-	// Available Cpuset's memory nodes
+	// Available Cpuset's memory nodes as read from "cpuset.mems.effective" (cgroups v2)
+	// or "cpuset.mems" (cgroups v1).
 	Mems string
 }
 
@@ -137,38 +137,13 @@ type cgroupPids struct {
 // IsCpusetCpusAvailable returns `true` if the provided string set is contained
 // in cgroup's cpuset.cpus set, `false` otherwise.
 // If error is not nil a parsing error occurred.
-func (c cgroupCpusetInfo) IsCpusetCpusAvailable(provided string) (bool, error) {
-	return isCpusetListAvailable(provided, c.Cpus)
+func (c cgroupCpusetInfo) IsCpusetCpusAvailable(requested string) (bool, error) {
+	return isCpusetListAvailable(requested, c.Cpus)
 }
 
 // IsCpusetMemsAvailable returns `true` if the provided string set is contained
 // in cgroup's cpuset.mems set, `false` otherwise.
 // If error is not nil a parsing error occurred.
-func (c cgroupCpusetInfo) IsCpusetMemsAvailable(provided string) (bool, error) {
-	return isCpusetListAvailable(provided, c.Mems)
-}
-
-func isCpusetListAvailable(provided, available string) (bool, error) {
-	parsedAvailable, err := parsers.ParseUintList(available)
-	if err != nil {
-		return false, err
-	}
-	// 8192 is the normal maximum number of CPUs in Linux, so accept numbers up to this
-	// or more if we actually have more CPUs.
-	maxCPUs := 8192
-	for m := range parsedAvailable {
-		if m > maxCPUs {
-			maxCPUs = m
-		}
-	}
-	parsedProvided, err := parsers.ParseUintListMaximum(provided, maxCPUs)
-	if err != nil {
-		return false, err
-	}
-	for k := range parsedProvided {
-		if !parsedAvailable[k] {
-			return false, nil
-		}
-	}
-	return true, nil
+func (c cgroupCpusetInfo) IsCpusetMemsAvailable(requested string) (bool, error) {
+	return isCpusetListAvailable(requested, c.Mems)
 }
