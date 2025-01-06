@@ -20,7 +20,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/testutil"
 	"github.com/moby/sys/mount"
@@ -694,12 +693,10 @@ func (s *DockerCLIRunSuite) TestRunSwapLessThanMemoryLimit(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunInvalidCpusetCpusFlagValue(c *testing.T) {
 	testRequires(c, cgroupCpuset, testEnv.IsLocalDaemon)
 
-	sysInfo := sysinfo.New()
-	cpus, err := parsers.ParseUintList(sysInfo.Cpus)
-	assert.NilError(c, err)
+	cpus := sysinfo.New().CPUSets
 	var invalid int
 	for i := 0; i <= len(cpus)+1; i++ {
-		if !cpus[i] {
+		if _, ok := cpus[i]; !ok {
 			invalid = i
 			break
 		}
@@ -713,12 +710,10 @@ func (s *DockerCLIRunSuite) TestRunInvalidCpusetCpusFlagValue(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunInvalidCpusetMemsFlagValue(c *testing.T) {
 	testRequires(c, cgroupCpuset)
 
-	sysInfo := sysinfo.New()
-	mems, err := parsers.ParseUintList(sysInfo.Mems)
-	assert.NilError(c, err)
+	mems := sysinfo.New().MemSets
 	var invalid int
 	for i := 0; i <= len(mems)+1; i++ {
-		if !mems[i] {
+		if _, ok := mems[i]; !ok {
 			invalid = i
 			break
 		}
