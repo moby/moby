@@ -34,6 +34,8 @@ func ParseKeyValueOpt(opt string) (key string, value string, err error) {
 //	03,1-3      <- this is gonna get parsed as [1,2,3]
 //	3,2,1
 //	0-2,3,1
+//
+// Deprecated: ParseUintListMaximum was only used internally and will be removed in the next release.
 func ParseUintListMaximum(val string, maximum int) (map[int]bool, error) {
 	return parseUintList(val, maximum)
 }
@@ -52,6 +54,8 @@ func ParseUintListMaximum(val string, maximum int) (map[int]bool, error) {
 //	03,1-3      <- this is gonna get parsed as [1,2,3]
 //	3,2,1
 //	0-2,3,1
+//
+// Deprecated: ParseUintList was only used internally and will be removed in the next release.
 func ParseUintList(val string) (map[int]bool, error) {
 	return parseUintList(val, 0)
 }
