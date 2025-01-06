@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -221,6 +222,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 		name        string
 		field       string
 		config      *Config
+		platform    string
 		expectedErr string
 	}{
 		{
@@ -352,6 +354,62 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			},
 			expectedErr: "invalid logging level: foobar",
 		},
+		{
+			name: "exec-opt without value",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					ExecOptions: []string{"no-value"},
+				},
+			},
+			expectedErr: "invalid exec-opt (no-value): must be formatted 'opt=value'",
+		},
+		{
+			name: "exec-opt with empty value",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					ExecOptions: []string{"empty-value="},
+				},
+			},
+			expectedErr: "invalid exec-opt (empty-value=): must be formatted 'opt=value'",
+		},
+		{
+			name: "exec-opt without key",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					ExecOptions: []string{"=empty-key"},
+				},
+			},
+			expectedErr: "invalid exec-opt (=empty-key): must be formatted 'opt=value'",
+		},
+		{
+			name: "exec-opt unknown option",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					ExecOptions: []string{"unknown-option=any-value"},
+				},
+			},
+			expectedErr: "invalid exec-opt (unknown-option=any-value): unknown option: 'unknown-option'",
+		},
+		{
+			name: "exec-opt invalid on linux",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					ExecOptions: []string{"isolation=default"},
+				},
+			},
+			platform:    "linux",
+			expectedErr: "invalid exec-opt (isolation=default): option 'isolation' is only supported on windows",
+		},
+		{
+			name: "exec-opt invalid on windows",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					ExecOptions: []string{"native.cgroupdriver=systemd"},
+				},
+			},
+			platform:    "windows",
+			expectedErr: "invalid exec-opt (native.cgroupdriver=systemd): option 'native.cgroupdriver' is only supported on linux",
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -363,7 +421,11 @@ func TestValidateConfigurationErrors(t *testing.T) {
 				assert.Check(t, mergo.Merge(cfg, tc.config, mergo.WithOverride))
 			}
 			err = Validate(cfg)
-			assert.Error(t, err, tc.expectedErr)
+			if tc.platform != "" && tc.platform != runtime.GOOS {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tc.expectedErr)
+			}
 		})
 	}
 }

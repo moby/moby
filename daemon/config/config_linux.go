@@ -245,6 +245,20 @@ func validatePlatformConfig(conf *Config) error {
 	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
 }
 
+// validatePlatformExecOpt validates if the given exec-opt and value are valid
+// for the current platform.
+func validatePlatformExecOpt(opt, value string) error {
+	switch opt {
+	case "isolation":
+		return fmt.Errorf("option '%s' is only supported on windows", opt)
+	case "native.cgroupdriver":
+		// TODO(thaJeztah): add validation that's currently in daemon.verifyCgroupDriver
+		return nil
+	default:
+		return fmt.Errorf("unknown option: '%s'", opt)
+	}
+}
+
 // verifyUserlandProxyConfig verifies if a valid userland-proxy path
 // is configured if userland-proxy is enabled.
 func verifyUserlandProxyConfig(conf *Config) error {
