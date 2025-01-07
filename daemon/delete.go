@@ -125,6 +125,10 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ba
 	container.Lock()
 	container.Dead = true
 
+	// Copy RWLayer for releasing and clear the reference while holding the container lock.
+	rwLayer := container.RWLayer
+	container.RWLayer = nil
+
 	// Save container state to disk. So that if error happens before
 	// container meta file got removed from disk, then a restart of
 	// docker should not make a dead container alive.
@@ -135,13 +139,17 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ba
 
 	// When container creation fails and `RWLayer` has not been created yet, we
 	// do not call `ReleaseRWLayer`
-	if container.RWLayer != nil {
-		if err := daemon.imageService.ReleaseLayer(container.RWLayer); err != nil {
+	if rwLayer != nil {
+		if err := daemon.imageService.ReleaseLayer(rwLayer); err != nil {
+			// Restore the reference on error as it possibly was not released.
+			container.Lock()
+			container.RWLayer = rwLayer
+			container.Unlock()
+
 			err = errors.Wrapf(err, "container %s", container.ID)
 			container.SetRemovalError(err)
 			return err
 		}
-		container.RWLayer = nil
 	} else {
 		if daemon.UsesSnapshotter() {
 			ls := daemon.containerdClient.LeasesService()
