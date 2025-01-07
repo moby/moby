@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/internal/lazyregexp"
+	"github.com/moby/sys/user"
 )
 
 // add a user and/or group to Linux /etc/passwd, /etc/group using standard
@@ -129,38 +130,44 @@ func createSubordinateRanges(name string) error {
 }
 
 func findNextUIDRange() (int, error) {
-	ranges, err := parseSubuid("ALL")
+	ranges, err := user.CurrentUserSubUIDs()
 	if err != nil {
 		return -1, fmt.Errorf("couldn't parse all ranges in /etc/subuid file: %v", err)
 	}
-	sort.Sort(ranges)
+	sortRanges(ranges)
 	return findNextRangeStart(ranges)
 }
 
 func findNextGIDRange() (int, error) {
-	ranges, err := parseSubgid("ALL")
+	ranges, err := user.CurrentUserSubGIDs()
 	if err != nil {
 		return -1, fmt.Errorf("couldn't parse all ranges in /etc/subgid file: %v", err)
 	}
-	sort.Sort(ranges)
+	sortRanges(ranges)
 	return findNextRangeStart(ranges)
 }
 
-func findNextRangeStart(rangeList subIDRanges) (int, error) {
-	startID := defaultRangeStart
-	for _, arange := range rangeList {
-		if wouldOverlap(arange, startID) {
-			startID = arange.Start + arange.Length
-		}
-	}
-	return startID, nil
+func sortRanges(ranges []user.SubID) {
+	sort.Slice(ranges, func(i, j int) bool {
+		return ranges[i].SubID < ranges[j].SubID
+	})
 }
 
-func wouldOverlap(arange subIDRange, ID int) bool {
-	low := ID
-	high := ID + defaultRangeLen
-	if (low >= arange.Start && low <= arange.Start+arange.Length) ||
-		(high <= arange.Start+arange.Length && high >= arange.Start) {
+func findNextRangeStart(rangeList []user.SubID) (int, error) {
+	var startID int64 = defaultRangeStart
+	for _, arange := range rangeList {
+		if wouldOverlap(arange, startID) {
+			startID = arange.SubID + arange.Count
+		}
+	}
+	return int(startID), nil
+}
+
+func wouldOverlap(arange user.SubID, ID int64) bool {
+	var low int64 = ID
+	var high int64 = ID + defaultRangeLen
+	if (low >= arange.SubID && low <= arange.SubID+arange.Count) ||
+		(high <= arange.SubID+arange.Count && high >= arange.SubID) {
 		return true
 	}
 	return false
