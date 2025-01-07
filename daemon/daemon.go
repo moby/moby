@@ -1360,7 +1360,7 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 		if runtime.GOOS != "windows" {
 			daemon.Unmount(container)
 			driver := daemon.ImageService().StorageDriver()
-			return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
+			return fmt.Errorf("driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
 				driver, container.ID, container.BaseFS, dir)
 		}
 	}
