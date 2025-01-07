@@ -209,9 +209,9 @@ func (i *ImageService) ReleaseLayer(rwlayer container.RWLayer) error {
 }
 
 func (i *ImageService) prepareInitLayer(ctx context.Context, id string, parent string, setupInit func(string) error) error {
-	snapshotter := i.client.SnapshotService(i.StorageDriver())
+	sn := i.client.SnapshotService(i.StorageDriver())
 
-	mounts, err := snapshotter.Prepare(ctx, id+"-init-key", parent)
+	mounts, err := sn.Prepare(ctx, id+"-init-key", parent)
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,7 @@ func (i *ImageService) prepareInitLayer(ctx context.Context, id string, parent s
 		}
 	}
 
-	return snapshotter.Commit(ctx, id+"-init", id+"-init-key")
+	return sn.Commit(ctx, id+"-init", id+"-init-key")
 }
 
 // calculateSnapshotParentUsage returns the usage of all ancestors of the
