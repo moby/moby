@@ -228,11 +228,11 @@ func LoadIdentityMapping(name string) (IdentityMapping, error) {
 		return IdentityMapping{}, fmt.Errorf("could not get user for username %s: %v", name, err)
 	}
 
-	subuidRanges, err := lookupSubUIDRanges(usr)
+	subuidRanges, err := lookupSubRangesFile("/etc/subuid", usr)
 	if err != nil {
 		return IdentityMapping{}, err
 	}
-	subgidRanges, err := lookupSubGIDRanges(usr)
+	subgidRanges, err := lookupSubRangesFile("/etc/subgid", usr)
 	if err != nil {
 		return IdentityMapping{}, err
 	}
@@ -243,36 +243,28 @@ func LoadIdentityMapping(name string) (IdentityMapping, error) {
 	}, nil
 }
 
-func lookupSubUIDRanges(usr user.User) ([]IDMap, error) {
-	rangeList, err := parseSubuid(strconv.Itoa(usr.Uid))
+func lookupSubRangesFile(path string, usr user.User) ([]IDMap, error) {
+	uidstr := strconv.Itoa(usr.Uid)
+	rangeList, err := user.ParseSubIDFileFilter(path, func(sid user.SubID) bool {
+		return sid.Name == usr.Name || sid.Name == uidstr
+	})
 	if err != nil {
 		return nil, err
-	}
-	if len(rangeList) == 0 {
-		rangeList, err = parseSubuid(usr.Name)
-		if err != nil {
-			return nil, err
-		}
 	}
 	if len(rangeList) == 0 {
 		return nil, fmt.Errorf("no subuid ranges found for user %q", usr.Name)
 	}
-	return createIDMap(rangeList), nil
-}
 
-func lookupSubGIDRanges(usr user.User) ([]IDMap, error) {
-	rangeList, err := parseSubgid(strconv.Itoa(usr.Uid))
-	if err != nil {
-		return nil, err
+	idMap := []IDMap{}
+
+	containerID := 0
+	for _, idrange := range rangeList {
+		idMap = append(idMap, IDMap{
+			ContainerID: containerID,
+			HostID:      int(idrange.SubID),
+			Size:        int(idrange.Count),
+		})
+		containerID = containerID + int(idrange.Count)
 	}
-	if len(rangeList) == 0 {
-		rangeList, err = parseSubgid(usr.Name)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if len(rangeList) == 0 {
-		return nil, fmt.Errorf("no subgid ranges found for user %q", usr.Name)
-	}
-	return createIDMap(rangeList), nil
+	return idMap, nil
 }
