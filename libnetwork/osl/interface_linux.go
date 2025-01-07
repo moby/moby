@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"go.opentelemetry.io/otel"
@@ -480,17 +479,17 @@ func (n *Namespace) setSysctls(ctx context.Context, ifName string, sysctls []str
 			if fi, err := os.Stat(sysPath); err != nil || !fi.Mode().IsRegular() {
 				errF = fmt.Errorf("%s is not a sysctl file", sysPath)
 			} else if curVal, err := os.ReadFile(sysPath); err != nil {
-				errF = errors.Wrapf(err, "unable to read '%s'", sysPath)
+				errF = fmt.Errorf("unable to read '%s': %w", sysPath, err)
 			} else if strings.TrimSpace(string(curVal)) == v {
 				// The value is already correct, don't try to write the file in case
 				// "/proc/sys/net" is a read-only filesystem.
 			} else if err := os.WriteFile(sysPath, []byte(v), 0o644); err != nil {
-				errF = errors.Wrapf(err, "unable to write to '%s'", sysPath)
+				errF = fmt.Errorf("unable to write to '%s': %w", sysPath, err)
 			}
 		}
 
 		if err := n.InvokeFunc(f); err != nil {
-			return errors.Wrapf(err, "failed to run sysctl setter in network namespace")
+			return fmt.Errorf("failed to run sysctl setter in network namespace: %w", err)
 		}
 		if errF != nil {
 			return errF
