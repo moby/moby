@@ -45,7 +45,7 @@ func TestParseUintList(t *testing.T) {
 		"0-2,3,1":      {0: true, 1: true, 2: true, 3: true},
 	}
 	for k, v := range valids {
-		out, err := ParseUintList(k)
+		out, err := parseUintList(k, 0)
 		if err != nil {
 			t.Fatalf("Expected not to fail, got %v", err)
 		}
@@ -63,7 +63,7 @@ func TestParseUintList(t *testing.T) {
 		"-1,0",
 	}
 	for _, v := range invalids {
-		if out, err := ParseUintList(v); err == nil {
+		if out, err := parseUintList(v, 0); err == nil {
 			t.Fatalf("Expected failure with %s but got %v", v, out)
 		}
 	}
@@ -71,13 +71,13 @@ func TestParseUintList(t *testing.T) {
 
 func TestParseUintListMaximumLimits(t *testing.T) {
 	v := "10,1000"
-	if _, err := ParseUintListMaximum(v, 0); err != nil {
+	if _, err := parseUintList(v, 0); err != nil {
 		t.Fatalf("Expected not to fail, got %v", err)
 	}
-	if _, err := ParseUintListMaximum(v, 1000); err != nil {
+	if _, err := parseUintList(v, 1000); err != nil {
 		t.Fatalf("Expected not to fail, got %v", err)
 	}
-	if out, err := ParseUintListMaximum(v, 100); err == nil {
+	if out, err := parseUintList(v, 100); err == nil {
 		t.Fatalf("Expected failure with %s but got %v", v, out)
 	}
 }
