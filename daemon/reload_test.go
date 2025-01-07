@@ -6,7 +6,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/images/gdstore"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/registry"
 	"gotest.tools/v3/assert"
@@ -24,7 +24,7 @@ func muteLogs(t *testing.T) {
 func newDaemonForReloadT(t *testing.T, cfg *config.Config) *Daemon {
 	t.Helper()
 	daemon := &Daemon{
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
+		imageService: gdstore.NewImageService(gdstore.ImageServiceConfig{}),
 	}
 	var err error
 	daemon.registryService, err = registry.NewService(registry.ServiceOptions{})
@@ -62,7 +62,7 @@ func TestDaemonReloadLabels(t *testing.T) {
 
 func TestDaemonReloadMirrors(t *testing.T) {
 	daemon := &Daemon{
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
+		imageService: gdstore.NewImageService(gdstore.ImageServiceConfig{}),
 	}
 	muteLogs(t)
 
@@ -161,7 +161,7 @@ func TestDaemonReloadMirrors(t *testing.T) {
 
 func TestDaemonReloadInsecureRegistries(t *testing.T) {
 	daemon := &Daemon{
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
+		imageService: gdstore.NewImageService(gdstore.ImageServiceConfig{}),
 	}
 	muteLogs(t)
 

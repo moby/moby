@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
@@ -45,26 +44,21 @@ type ImageService interface {
 	SquashImage(id, parent string) (string, error)
 	ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetype.InspectResponse, error)
 
-	// Containerd related methods
-
-	PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform, setupInit func(string) error) error
-
 	// Layers
 
 	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error)
-	CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error)
+	CreateLayer(container *container.Container, initFunc layer.MountInit) (container.RWLayer, error)
+	GetLayerByID(cid string) (container.RWLayer, error)
 	LayerStoreStatus() [][2]string
 	GetLayerMountID(cid string) (string, error)
-	ReleaseLayer(rwlayer layer.RWLayer) error
+	ReleaseLayer(rwlayer container.RWLayer) error
 	LayerDiskUsage(ctx context.Context) (int64, error)
 	GetContainerLayerSize(ctx context.Context, containerID string) (int64, int64, error)
-	Mount(ctx context.Context, container *container.Container) error
-	Unmount(ctx context.Context, container *container.Container) error
 	Changes(ctx context.Context, container *container.Container) ([]archive.Change, error)
 
 	// Windows specific
 
-	GetLayerFolders(img *image.Image, rwLayer layer.RWLayer, containerID string) ([]string, error)
+	GetLayerFolders(img *image.Image, rwLayer container.RWLayer, containerID string) ([]string, error)
 
 	// Build
 
@@ -72,8 +66,6 @@ type ImageService interface {
 	CommitBuildStep(ctx context.Context, c backend.CommitConfig) (image.ID, error)
 
 	// Other
-
-	DistributionServices() images.DistributionServices
 	Children(ctx context.Context, id image.ID) ([]image.ID, error)
 	Cleanup() error
 	StorageDriver() string

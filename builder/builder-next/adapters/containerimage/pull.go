@@ -27,7 +27,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	distreference "github.com/distribution/reference"
-	dimages "github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/images/gdstore"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -929,7 +929,7 @@ func cacheKeyFromConfig(dt []byte) digest.Digest {
 }
 
 func platformMatches(img *image.Image, p *ocispec.Platform) bool {
-	return dimages.OnlyPlatformWithFallback(*p).Match(ocispec.Platform{
+	return gdstore.OnlyPlatformWithFallback(*p).Match(ocispec.Platform{
 		Architecture: img.Architecture,
 		OS:           img.OS,
 		OSVersion:    img.OSVersion,
