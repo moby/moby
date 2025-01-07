@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/container"
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -57,7 +58,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 	start := time.Now()
 	defer func() {
 		if retErr == nil {
-			dimages.ImageActions.WithValues("delete").UpdateSince(start)
+			metrics.ImageActions.WithValues("delete").UpdateSince(start)
 		}
 	}()
 

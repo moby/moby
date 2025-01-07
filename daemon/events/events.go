@@ -5,6 +5,7 @@ import (
 	"time"
 
 	eventtypes "github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/internal/metrics"
 	"github.com/moby/pubsub"
 )
 
@@ -33,7 +34,7 @@ func New() *Events {
 // of interface{}, so you need type assertion), and a function to call
 // to stop the stream of events.
 func (e *Events) Subscribe() ([]eventtypes.Message, chan interface{}, func()) {
-	eventSubscribers.Inc()
+	metrics.EventSubscribers.Inc()
 	e.mu.Lock()
 	current := make([]eventtypes.Message, len(e.events))
 	copy(current, e.events)
@@ -50,7 +51,7 @@ func (e *Events) Subscribe() ([]eventtypes.Message, chan interface{}, func()) {
 // last events, a channel in which you can expect new events (in form
 // of interface{}, so you need type assertion).
 func (e *Events) SubscribeTopic(since, until time.Time, ef *Filter) ([]eventtypes.Message, chan interface{}) {
-	eventSubscribers.Inc()
+	metrics.EventSubscribers.Inc()
 	e.mu.Lock()
 
 	var topic func(m interface{}) bool
@@ -74,7 +75,7 @@ func (e *Events) SubscribeTopic(since, until time.Time, ef *Filter) ([]eventtype
 
 // Evict evicts listener from pubsub
 func (e *Events) Evict(l chan interface{}) {
-	eventSubscribers.Dec()
+	metrics.EventSubscribers.Dec()
 	e.pub.Evict(l)
 }
 
@@ -107,7 +108,7 @@ func (e *Events) Log(action eventtypes.Action, eventType eventtypes.Type, actor 
 // PublishMessage broadcasts event to listeners. Each listener has 100 milliseconds to
 // receive the event or it will be skipped.
 func (e *Events) PublishMessage(jm eventtypes.Message) {
-	eventsCounter.Inc()
+	metrics.EventsCounter.Inc()
 
 	e.mu.Lock()
 	if len(e.events) == cap(e.events) {
