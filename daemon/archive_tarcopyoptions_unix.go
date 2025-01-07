@@ -4,6 +4,7 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/internal/usergroup"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
 )
@@ -13,7 +14,7 @@ func (daemon *Daemon) tarCopyOptions(container *container.Container, noOverwrite
 		return daemon.defaultTarCopyOptions(noOverwriteDirNonDir), nil
 	}
 
-	user, err := idtools.LookupUser(container.Config.User)
+	user, err := usergroup.LookupUser(container.Config.User)
 	if err != nil {
 		return nil, err
 	}

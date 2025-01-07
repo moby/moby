@@ -1,16 +1,20 @@
-package idtools // import "github.com/docker/docker/pkg/idtools"
+package idtools
 
 import (
 	"os"
 )
 
 const (
+	// Deprecated: copy value locally
 	SeTakeOwnershipPrivilege = "SeTakeOwnershipPrivilege"
 )
 
 const (
+	// Deprecated: copy value locally
 	ContainerAdministratorSidString = "S-1-5-93-2-1"
-	ContainerUserSidString          = "S-1-5-93-2-2"
+
+	// Deprecated: copy value locally
+	ContainerUserSidString = "S-1-5-93-2-2"
 )
 
 // This is currently a wrapper around [os.MkdirAll] since currently

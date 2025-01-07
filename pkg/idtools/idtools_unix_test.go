@@ -1,26 +1,17 @@
 //go:build !windows
 
-package idtools // import "github.com/docker/docker/pkg/idtools"
+package idtools
 
 import (
 	"fmt"
 	"os"
-	"os/exec"
-	stduser "os/user"
 	"path/filepath"
-	"syscall"
 	"testing"
 
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
-
-	"github.com/moby/sys/user"
-)
-
-const (
-	tempUser = "tempuser"
 )
 
 type node struct {
@@ -327,41 +318,6 @@ func compareTrees(left, right map[string]node) error {
 	return nil
 }
 
-func delUser(t *testing.T, name string) {
-	out, err := exec.Command("userdel", name).CombinedOutput()
-	assert.Check(t, err, out)
-}
-
-func TestParseSubidFileWithNewlinesAndComments(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "parsesubid")
-	if err != nil {
-		t.Fatal(err)
-	}
-	fnamePath := filepath.Join(tmpDir, "testsubuid")
-	fcontent := `tss:100000:65536
-# empty default subuid/subgid file
-
-dockremap:231072:65536`
-	if err := os.WriteFile(fnamePath, []byte(fcontent), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	ranges, err := user.ParseSubIDFileFilter(fnamePath, func(sid user.SubID) bool {
-		return sid.Name == "dockremap"
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(ranges) != 1 {
-		t.Fatalf("wanted 1 element in ranges, got %d instead", len(ranges))
-	}
-	if ranges[0].SubID != 231072 {
-		t.Fatalf("wanted 231072, got %d instead", ranges[0].SubID)
-	}
-	if ranges[0].Count != 65536 {
-		t.Fatalf("wanted 65536, got %d instead", ranges[0].Count)
-	}
-}
-
 func TestGetRootUIDGID(t *testing.T) {
 	uidMap := []IDMap{
 		{
@@ -406,72 +362,6 @@ func TestToContainer(t *testing.T) {
 	containerID, err := toContainer(2, uidMap)
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(uidMap[0].ContainerID, containerID))
-}
-
-func TestNewIDMappings(t *testing.T) {
-	RequiresRoot(t)
-	_, _, err := AddNamespaceRangesUser(tempUser)
-	assert.Check(t, err)
-	defer delUser(t, tempUser)
-
-	tempUser, err := stduser.Lookup(tempUser)
-	assert.Check(t, err)
-
-	idMapping, err := LoadIdentityMapping(tempUser.Username)
-	assert.Check(t, err)
-
-	rootUID, rootGID, err := GetRootUIDGID(idMapping.UIDMaps, idMapping.GIDMaps)
-	assert.Check(t, err)
-
-	dirName, err := os.MkdirTemp("", "mkdirall")
-	assert.Check(t, err, "Couldn't create temp directory")
-	defer os.RemoveAll(dirName)
-
-	err = MkdirAllAndChown(dirName, 0o700, Identity{UID: rootUID, GID: rootGID})
-	assert.Check(t, err, "Couldn't change ownership of file path. Got error")
-	cmd := exec.Command("ls", "-la", dirName)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Credential: &syscall.Credential{Uid: uint32(rootUID), Gid: uint32(rootGID)},
-	}
-	out, err := cmd.CombinedOutput()
-	assert.Check(t, err, "Unable to access %s directory with user UID:%d and GID:%d:\n%s", dirName, rootUID, rootGID, string(out))
-}
-
-func TestLookupUserAndGroup(t *testing.T) {
-	RequiresRoot(t)
-	uid, gid, err := AddNamespaceRangesUser(tempUser)
-	assert.Check(t, err)
-	defer delUser(t, tempUser)
-
-	fetchedUser, err := LookupUser(tempUser)
-	assert.Check(t, err)
-
-	fetchedUserByID, err := LookupUID(uid)
-	assert.Check(t, err)
-	assert.Check(t, is.DeepEqual(fetchedUserByID, fetchedUser))
-
-	fetchedGroup, err := LookupGroup(tempUser)
-	assert.Check(t, err)
-
-	fetchedGroupByID, err := LookupGID(gid)
-	assert.Check(t, err)
-	assert.Check(t, is.DeepEqual(fetchedGroupByID, fetchedGroup))
-}
-
-func TestLookupUserAndGroupThatDoesNotExist(t *testing.T) {
-	fakeUser := "fakeuser"
-	_, err := LookupUser(fakeUser)
-	assert.Check(t, is.Error(err, `getent unable to find entry "fakeuser" in passwd database`))
-
-	_, err = LookupUID(-1)
-	assert.Check(t, is.ErrorContains(err, ""))
-
-	fakeGroup := "fakegroup"
-	_, err = LookupGroup(fakeGroup)
-	assert.Check(t, is.Error(err, `getent unable to find entry "fakegroup" in group database`))
-
-	_, err = LookupGID(-1)
-	assert.Check(t, is.ErrorContains(err, ""))
 }
 
 // TestMkdirIsNotDir checks that mkdirAs() function (used by MkdirAll...)
