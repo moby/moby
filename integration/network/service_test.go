@@ -532,3 +532,67 @@ func TestCustomIfnameCollidesWithExistingIface(t *testing.T) {
 	assert.ErrorContains(t, err, "error renaming interface")
 	assert.ErrorContains(t, err, "file exists")
 }
+
+func TestCustomIfnameWithMatchingDynamicPrefix(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "custom interface name is only supported by Linux netdrivers")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	defer d.Stop(t)
+	d.StartWithBusybox(ctx, t)
+
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	network.CreateNoError(ctx, t, apiClient, "testnet0",
+		network.WithDriver("bridge"),
+		network.WithIPAM("10.0.0.0/24", "10.0.0.1"))
+	defer network.RemoveNoError(ctx, t, apiClient, "testnet0")
+
+	network.CreateNoError(ctx, t, apiClient, "testnet1",
+		network.WithDriver("bridge"),
+		network.WithIPAM("10.0.1.0/24", "10.0.1.1"))
+	defer network.RemoveNoError(ctx, t, apiClient, "testnet1")
+
+	network.CreateNoError(ctx, t, apiClient, "testnet2",
+		network.WithDriver("bridge"),
+		network.WithIPAM("10.0.2.0/24", "10.0.2.1"))
+	defer network.RemoveNoError(ctx, t, apiClient, "testnet2")
+
+	ctrId := container.Run(ctx, t, apiClient,
+		container.WithCmd("top"),
+		container.WithEndpointSettings("testnet0", &networktypes.EndpointSettings{
+			DriverOpts: map[string]string{
+				netlabel.Ifname: "eth1",
+			},
+		}),
+		container.WithEndpointSettings("testnet1", &networktypes.EndpointSettings{}),
+	)
+	defer container.Remove(ctx, t, apiClient, ctrId, containertypes.RemoveOptions{Force: true})
+
+	checkIfaceAddr(t, ctx, apiClient, ctrId, "eth0", "inet 10.0.1.2/24")
+	checkIfaceAddr(t, ctx, apiClient, ctrId, "eth1", "inet 10.0.0.2/24")
+
+	err := apiClient.NetworkConnect(ctx, "testnet2", ctrId, nil)
+	assert.NilError(t, err)
+	checkIfaceAddr(t, ctx, apiClient, ctrId, "eth2", "inet 10.0.2.2/24")
+
+	// Disconnect from testnet1 (ie. eth0), and testnet2 (ie. eth2)
+	err = apiClient.NetworkDisconnect(ctx, "testnet1", ctrId, false)
+	assert.NilError(t, err)
+	err = apiClient.NetworkDisconnect(ctx, "testnet2", ctrId, false)
+	assert.NilError(t, err)
+
+	// Reconnect to testnet2 -- it should now provide eth0.
+	err = apiClient.NetworkConnect(ctx, "testnet2", ctrId, nil)
+	assert.NilError(t, err)
+	checkIfaceAddr(t, ctx, apiClient, ctrId, "eth0", "inet 10.0.2.2/24")
+}
+
+func checkIfaceAddr(t *testing.T, ctx context.Context, apiClient client.APIClient, ctrId string, iface string, expectedAddr string) {
+	res, err := container.Exec(ctx, apiClient, ctrId, []string{"ip", "-o", "addr", "show", iface})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(res.ExitCode, 0))
+	assert.Check(t, strings.Contains(res.Stdout(), expectedAddr), "expected '%s' in 'ip addr show %s':\n%s", expectedAddr, iface, res.Stdout())
+}

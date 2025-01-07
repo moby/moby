@@ -113,7 +113,7 @@ func NewSandbox(key string, osCreate, isRestore bool) (*Namespace, error) {
 		once.Do(createBasePath)
 	}
 
-	n := &Namespace{path: key, isDefault: !osCreate, nextIfIndex: make(map[string]int)}
+	n := &Namespace{path: key, isDefault: !osCreate}
 
 	sboxNs, err := netns.GetFromPath(n.path)
 	if err != nil {
@@ -156,7 +156,7 @@ func GetSandboxForExternalKey(basePath string, key string) (*Namespace, error) {
 	if err := mountNetworkNamespace(basePath, key); err != nil {
 		return nil, err
 	}
-	n := &Namespace{path: key, nextIfIndex: make(map[string]int)}
+	n := &Namespace{path: key}
 
 	sboxNs, err := netns.GetFromPath(n.path)
 	if err != nil {
@@ -233,7 +233,6 @@ type Namespace struct {
 	defRoute6SrcName    string
 	staticRoutes        []*types.StaticRoute
 	neighbors           []*neigh
-	nextIfIndex         map[string]int
 	isDefault           bool // isDefault is true when Namespace represents the host network namespace. It is safe to access it concurrently.
 	ipv6LoEnabledOnce   sync.Once
 	ipv6LoEnabledCached bool
@@ -456,18 +455,7 @@ func (n *Namespace) RestoreInterfaces(interfaces map[Iface][]IfaceOption) error 
 				}
 			}
 
-			var index int
-			if idx := strings.TrimPrefix(i.dstName, iface.DstPrefix); idx != "" {
-				index, err = strconv.Atoi(idx)
-				if err != nil {
-					return fmt.Errorf("failed to restore interface in network namespace %q: invalid dstName for interface: %s: %v", n.path, i.dstName, err)
-				}
-			}
-			index++
 			n.mu.Lock()
-			if index > n.nextIfIndex[iface.DstPrefix] {
-				n.nextIfIndex[iface.DstPrefix] = index
-			}
 			n.iFaces = append(n.iFaces, i)
 			n.mu.Unlock()
 		}

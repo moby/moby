@@ -511,7 +511,7 @@ func TestAddRemoveInterface(t *testing.T) {
 		t.Fatalf("Failed to add interfaces to sandbox: %v", err)
 	}
 
-	verifySandbox(t, s, []string{"1", "2", "3"})
+	verifySandbox(t, s, []string{"0", "1", "2"})
 
 	err = s.Destroy()
 	if err != nil {
