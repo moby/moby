@@ -209,7 +209,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 
 	appendDistributionSourceLabel(ctx, realStore, targetRef, target)
 
-	i.LogImageEvent(reference.FamiliarString(targetRef), reference.FamiliarName(targetRef), events.ActionPush)
+	i.LogImageEvent(ctx, reference.FamiliarString(targetRef), reference.FamiliarName(targetRef), events.ActionPush)
 
 	return nil
 }

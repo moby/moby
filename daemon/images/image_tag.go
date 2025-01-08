@@ -17,6 +17,6 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 	if err := i.imageStore.SetLastUpdated(imageID); err != nil {
 		return err
 	}
-	i.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
+	i.LogImageEvent(ctx, imageID.String(), reference.FamiliarString(newTag), events.ActionTag)
 	return nil
 }

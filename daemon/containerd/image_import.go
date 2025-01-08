@@ -154,7 +154,7 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 	if err != nil {
 		logger.WithError(err).Debug("failed to unpack image")
 	} else {
-		i.LogImageEvent(id.String(), id.String(), events.ActionImport)
+		i.LogImageEvent(ctx, id.String(), id.String(), events.ActionImport)
 	}
 
 	return id, err

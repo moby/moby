@@ -38,7 +38,7 @@ type Config struct {
 	// and endpoint lookup.
 	RegistryService RegistryResolver
 	// ImageEventLogger notifies events for a given image
-	ImageEventLogger func(id, name string, action events.Action)
+	ImageEventLogger func(ctx context.Context, id, name string, action events.Action)
 	// MetadataStore is the storage backend for distribution-specific
 	// metadata.
 	MetadataStore metadata.Store

@@ -524,7 +524,7 @@ func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec
 	}
 
 	id := image.ID(img.Target.Digest)
-	i.LogImageEvent(id.String(), id.String(), events.ActionCreate)
+	i.LogImageEvent(ctx, id.String(), id.String(), events.ActionCreate)
 
 	if err := i.unpackImage(ctx, i.StorageDriver(), img, manifestDesc); err != nil {
 		return "", err
