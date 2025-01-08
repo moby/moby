@@ -943,7 +943,7 @@ func (o defBrOptsV4) bip() (bip, optName string) {
 }
 
 func (o defBrOptsV4) defGw() (gw net.IP, optName, auxAddrLabel string) {
-	return o.cfg.DefaultGatewayIPv4, "default-gateway", "DefaultGatewayIPv4"
+	return o.cfg.DefaultGatewayIPv4, "default-gateway", bridge.DefaultGatewayV4AuxKey
 }
 
 type defBrOptsV6 struct {
@@ -963,7 +963,7 @@ func (o defBrOptsV6) bip() (bip, optName string) {
 }
 
 func (o defBrOptsV6) defGw() (gw net.IP, optName, auxAddrLabel string) {
-	return o.cfg.DefaultGatewayIPv6, "default-gateway-v6", "DefaultGatewayIPv6"
+	return o.cfg.DefaultGatewayIPv6, "default-gateway-v6", bridge.DefaultGatewayV6AuxKey
 }
 
 type defBrOpts interface {
