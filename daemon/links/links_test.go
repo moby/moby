@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/docker/go-connections/nat"
+	"gotest.tools/v3/assert"
 )
 
 func TestLinkNaming(t *testing.T) {
@@ -40,20 +41,14 @@ func TestLinkNew(t *testing.T) {
 		"6379/tcp": struct{}{},
 	})
 
-	if link.Name != "/db/docker" {
-		t.Fail()
+	expected := &Link{
+		Name:     "/db/docker",
+		ParentIP: "172.0.17.3",
+		ChildIP:  "172.0.17.2",
+		Ports:    []nat.Port{"6379/tcp"},
 	}
-	if link.ParentIP != "172.0.17.3" {
-		t.Fail()
-	}
-	if link.ChildIP != "172.0.17.2" {
-		t.Fail()
-	}
-	for _, p := range link.Ports {
-		if p != "6379/tcp" {
-			t.Fail()
-		}
-	}
+
+	assert.DeepEqual(t, expected, link)
 }
 
 func TestLinkEnv(t *testing.T) {
