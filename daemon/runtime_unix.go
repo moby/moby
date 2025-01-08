@@ -21,7 +21,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/shimopts"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/atomicwriter"
 	"github.com/opencontainers/runtime-spec/specs-go/features"
 	"github.com/pkg/errors"
 )
@@ -191,7 +191,7 @@ func wrapRuntime(dir, name, binary string, args []string) (string, error) {
 	// containers.
 	suffix := base32Disemvoweled.EncodeToString(sum.Sum(nil))
 	scriptPath := filepath.Join(dir, name+"."+suffix)
-	if err := ioutils.AtomicWriteFile(scriptPath, wrapper.Bytes(), 0o700); err != nil {
+	if err := atomicwriter.WriteFile(scriptPath, wrapper.Bytes(), 0o700); err != nil {
 		return "", err
 	}
 	return scriptPath, nil

@@ -1,4 +1,4 @@
-package ioutils // import "github.com/docker/docker/pkg/ioutils"
+package atomicwriter
 
 import (
 	"io"
@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 )
 
-// NewAtomicFileWriter returns WriteCloser so that writing to it writes to a
+// New returns a WriteCloser so that writing to it writes to a
 // temporary file and closing it atomically changes the temporary file to
 // destination path. Writing and closing concurrently is not allowed.
 // NOTE: umask is not considered for the file's permissions.
-func NewAtomicFileWriter(filename string, perm os.FileMode) (io.WriteCloser, error) {
+func New(filename string, perm os.FileMode) (io.WriteCloser, error) {
 	f, err := os.CreateTemp(filepath.Dir(filename), ".tmp-"+filepath.Base(filename))
 	if err != nil {
 		return nil, err
@@ -27,10 +27,10 @@ func NewAtomicFileWriter(filename string, perm os.FileMode) (io.WriteCloser, err
 	}, nil
 }
 
-// AtomicWriteFile atomically writes data to a file named by filename and with the specified permission bits.
+// WriteFile atomically writes data to a file named by filename and with the specified permission bits.
 // NOTE: umask is not considered for the file's permissions.
-func AtomicWriteFile(filename string, data []byte, perm os.FileMode) error {
-	f, err := NewAtomicFileWriter(filename, perm)
+func WriteFile(filename string, data []byte, perm os.FileMode) error {
+	f, err := New(filename, perm)
 	if err != nil {
 		return err
 	}
@@ -82,32 +82,32 @@ func (w *atomicFileWriter) Close() (retErr error) {
 	return nil
 }
 
-// AtomicWriteSet is used to atomically write a set
+// WriteSet is used to atomically write a set
 // of files and ensure they are visible at the same time.
 // Must be committed to a new directory.
-type AtomicWriteSet struct {
+type WriteSet struct {
 	root string
 }
 
-// NewAtomicWriteSet creates a new atomic write set to
+// NewWriteSet creates a new atomic write set to
 // atomically create a set of files. The given directory
 // is used as the base directory for storing files before
 // commit. If no temporary directory is given the system
 // default is used.
-func NewAtomicWriteSet(tmpDir string) (*AtomicWriteSet, error) {
+func NewWriteSet(tmpDir string) (*WriteSet, error) {
 	td, err := os.MkdirTemp(tmpDir, "write-set-")
 	if err != nil {
 		return nil, err
 	}
 
-	return &AtomicWriteSet{
+	return &WriteSet{
 		root: td,
 	}, nil
 }
 
 // WriteFile writes a file to the set, guaranteeing the file
 // has been synced.
-func (ws *AtomicWriteSet) WriteFile(filename string, data []byte, perm os.FileMode) error {
+func (ws *WriteSet) WriteFile(filename string, data []byte, perm os.FileMode) error {
 	f, err := ws.FileWriter(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {
 		return err
@@ -136,7 +136,7 @@ func (w syncFileCloser) Close() error {
 
 // FileWriter opens a file writer inside the set. The file
 // should be synced and closed before calling commit.
-func (ws *AtomicWriteSet) FileWriter(name string, flag int, perm os.FileMode) (io.WriteCloser, error) {
+func (ws *WriteSet) FileWriter(name string, flag int, perm os.FileMode) (io.WriteCloser, error) {
 	f, err := os.OpenFile(filepath.Join(ws.root, name), flag, perm)
 	if err != nil {
 		return nil, err
@@ -146,18 +146,18 @@ func (ws *AtomicWriteSet) FileWriter(name string, flag int, perm os.FileMode) (i
 
 // Cancel cancels the set and removes all temporary data
 // created in the set.
-func (ws *AtomicWriteSet) Cancel() error {
+func (ws *WriteSet) Cancel() error {
 	return os.RemoveAll(ws.root)
 }
 
 // Commit moves all created files to the target directory. The
 // target directory must not exist and the parent of the target
 // directory must exist.
-func (ws *AtomicWriteSet) Commit(target string) error {
+func (ws *WriteSet) Commit(target string) error {
 	return os.Rename(ws.root, target)
 }
 
 // String returns the location the set is writing to.
-func (ws *AtomicWriteSet) String() string {
+func (ws *WriteSet) String() string {
 	return ws.root
 }

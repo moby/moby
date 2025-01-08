@@ -31,8 +31,8 @@ import (
 	"github.com/docker/docker/layer"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/oci"
+	"github.com/docker/docker/pkg/atomicwriter"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/restartmanager"
 	"github.com/docker/docker/volume"
 	volumemounts "github.com/docker/docker/volume/mounts"
@@ -193,7 +193,7 @@ func (container *Container) toDisk() (*Container, error) {
 	}
 
 	// Save container settings
-	f, err := ioutils.NewAtomicFileWriter(pth, 0o600)
+	f, err := atomicwriter.New(pth, 0o600)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +273,7 @@ func (container *Container) WriteHostConfig() (*containertypes.HostConfig, error
 		return nil, err
 	}
 
-	f, err := ioutils.NewAtomicFileWriter(pth, 0o600)
+	f, err := atomicwriter.New(pth, 0o600)
 	if err != nil {
 		return nil, err
 	}

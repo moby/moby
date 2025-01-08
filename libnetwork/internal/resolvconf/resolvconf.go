@@ -31,7 +31,7 @@ import (
 	"text/template"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/atomicwriter"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -370,7 +370,7 @@ func (rc *ResolvConf) WriteFile(path, hashPath string, perm os.FileMode) error {
 
 	// Write the hash file.
 	if hashPath != "" {
-		hashFile, err := ioutils.NewAtomicFileWriter(hashPath, perm)
+		hashFile, err := atomicwriter.New(hashPath, perm)
 		if err != nil {
 			return errSystem{err}
 		}
