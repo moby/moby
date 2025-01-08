@@ -2,6 +2,7 @@ package links // import "github.com/docker/docker/daemon/links"
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -15,25 +16,18 @@ func TestLinkNaming(t *testing.T) {
 		"6379/tcp": struct{}{},
 	})
 
-	rawEnv := link.ToEnv()
-	env := make(map[string]string, len(rawEnv))
-	for _, e := range rawEnv {
-		parts := strings.Split(e, "=")
-		if len(parts) != 2 {
-			t.FailNow()
-		}
-		env[parts[0]] = parts[1]
+	expectedEnv := []string{
+		"DOCKER_1_NAME=/db/docker-1",
+		"DOCKER_1_PORT=tcp://172.0.17.2:6379",
+		"DOCKER_1_PORT_6379_TCP=tcp://172.0.17.2:6379",
+		"DOCKER_1_PORT_6379_TCP_ADDR=172.0.17.2",
+		"DOCKER_1_PORT_6379_TCP_PORT=6379",
+		"DOCKER_1_PORT_6379_TCP_PROTO=tcp",
 	}
 
-	value, ok := env["DOCKER_1_PORT"]
-
-	if !ok {
-		t.Fatal("DOCKER_1_PORT not found in env")
-	}
-
-	if value != "tcp://172.0.17.2:6379" {
-		t.Fatalf("Expected 172.0.17.2:6379, got %s", env["DOCKER_1_PORT"])
-	}
+	actual := link.ToEnv()
+	sort.Strings(actual) // order of env-vars is not relevant
+	assert.DeepEqual(t, expectedEnv, actual)
 }
 
 func TestLinkNew(t *testing.T) {
