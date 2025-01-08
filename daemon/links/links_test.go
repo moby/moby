@@ -9,17 +9,10 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// Just to make life easier
-func newPortNoError(proto, port string) nat.Port {
-	p, _ := nat.NewPort(proto, port)
-	return p
-}
-
 func TestLinkNaming(t *testing.T) {
-	ports := make(nat.PortSet)
-	ports[newPortNoError("tcp", "6379")] = struct{}{}
-
-	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, ports)
+	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, nat.PortSet{
+		"6379/tcp": struct{}{},
+	})
 
 	rawEnv := link.ToEnv()
 	env := make(map[string]string, len(rawEnv))
@@ -43,10 +36,9 @@ func TestLinkNaming(t *testing.T) {
 }
 
 func TestLinkNew(t *testing.T) {
-	ports := make(nat.PortSet)
-	ports[newPortNoError("tcp", "6379")] = struct{}{}
-
-	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, ports)
+	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, nat.PortSet{
+		"6379/tcp": struct{}{},
+	})
 
 	if link.Name != "/db/docker" {
 		t.Fail()
@@ -58,17 +50,16 @@ func TestLinkNew(t *testing.T) {
 		t.Fail()
 	}
 	for _, p := range link.Ports {
-		if p != newPortNoError("tcp", "6379") {
+		if p != "6379/tcp" {
 			t.Fail()
 		}
 	}
 }
 
 func TestLinkEnv(t *testing.T) {
-	ports := make(nat.PortSet)
-	ports[newPortNoError("tcp", "6379")] = struct{}{}
-
-	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports)
+	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, nat.PortSet{
+		"6379/tcp": struct{}{},
+	})
 
 	rawEnv := link.ToEnv()
 	env := make(map[string]string, len(rawEnv))
@@ -103,12 +94,11 @@ func TestLinkEnv(t *testing.T) {
 }
 
 func TestLinkMultipleEnv(t *testing.T) {
-	ports := make(nat.PortSet)
-	ports[newPortNoError("tcp", "6379")] = struct{}{}
-	ports[newPortNoError("tcp", "6380")] = struct{}{}
-	ports[newPortNoError("tcp", "6381")] = struct{}{}
-
-	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports)
+	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, nat.PortSet{
+		"6379/tcp": struct{}{},
+		"6380/tcp": struct{}{},
+		"6381/tcp": struct{}{},
+	})
 
 	rawEnv := link.ToEnv()
 	env := make(map[string]string, len(rawEnv))
@@ -149,12 +139,11 @@ func TestLinkMultipleEnv(t *testing.T) {
 }
 
 func TestLinkPortRangeEnv(t *testing.T) {
-	ports := make(nat.PortSet)
-	ports[newPortNoError("tcp", "6379")] = struct{}{}
-	ports[newPortNoError("tcp", "6380")] = struct{}{}
-	ports[newPortNoError("tcp", "6381")] = struct{}{}
-
-	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports)
+	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, nat.PortSet{
+		"6379/tcp": struct{}{},
+		"6380/tcp": struct{}{},
+		"6381/tcp": struct{}{},
+	})
 
 	rawEnv := link.ToEnv()
 	env := make(map[string]string, len(rawEnv))
