@@ -4,6 +4,7 @@ package addrset
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/netip"
 	"strings"
@@ -172,6 +173,35 @@ func (as *AddrSet) getBitmap(addr netip.Addr) (*bitmap.Bitmap, netip.Prefix, err
 		as.bitmaps[bmKey] = bm
 	}
 	return bm, bmKey, nil
+}
+
+// Selected returns the number of selected addresses in the set.
+// If the amount of selected addresses is greater than the maximum uint64, it returns the maximum uint64.
+func (as *AddrSet) Selected() (selected uint64) {
+	bits := as.pool.Addr().BitLen() - as.pool.Bits()
+	// If there are no bitmaps, all addresses are unselected.
+	if len(as.bitmaps) == 0 {
+		return 0
+	}
+	bms := uint64(1)
+	// If the subnet is bigger than Bitmap's capacity, calculate the number of bitmaps we have.
+	if bits > maxBitsPerBitmap {
+		bms = 1 << (bits - maxBitsPerBitmap)
+	}
+
+	// Calculate the number of selected addresses in each bitmap.
+	for _, bm := range as.bitmaps {
+		if bms > 0 {
+			bms--
+		}
+		s := bm.Bits() - bm.Unselected()
+		if selected > math.MaxUint64-s {
+			return math.MaxUint64
+		}
+		selected += s
+	}
+
+	return selected
 }
 
 func (as *AddrSet) addrsPerBitmap() uint64 {
