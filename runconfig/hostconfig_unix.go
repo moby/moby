@@ -31,7 +31,7 @@ func validateNetMode(c *container.Config, hc *container.HostConfig) error {
 // which is LXC container isolation
 func validateIsolation(hc *container.HostConfig) error {
 	if !hc.Isolation.IsValid() {
-		return fmt.Errorf("Invalid isolation: %q - %s only supports 'default'", hc.Isolation, runtime.GOOS)
+		return validationError(fmt.Sprintf("invalid isolation (%s): %s only supports 'default'", hc.Isolation, runtime.GOOS))
 	}
 	return nil
 }
@@ -39,10 +39,10 @@ func validateIsolation(hc *container.HostConfig) error {
 // validateQoS performs platform specific validation of the QoS settings
 func validateQoS(hc *container.HostConfig) error {
 	if hc.IOMaximumBandwidth != 0 {
-		return fmt.Errorf("Invalid QoS settings: %s does not support configuration of maximum bandwidth", runtime.GOOS)
+		return validationError(fmt.Sprintf("invalid option: QoS maximum bandwidth configuration is not supported on %s", runtime.GOOS))
 	}
 	if hc.IOMaximumIOps != 0 {
-		return fmt.Errorf("Invalid QoS settings: %s does not support configuration of maximum IOPs", runtime.GOOS)
+		return validationError(fmt.Sprintf("invalid option: QoS maximum IOPs configuration is not supported on %s", runtime.GOOS))
 	}
 	return nil
 }
@@ -51,10 +51,10 @@ func validateQoS(hc *container.HostConfig) error {
 // cpu-rt-runtime and cpu-rt-period can not be greater than their parent, cpu-rt-runtime requires sys_nice
 func validateResources(hc *container.HostConfig, si *sysinfo.SysInfo) error {
 	if (hc.Resources.CPURealtimePeriod != 0 || hc.Resources.CPURealtimeRuntime != 0) && !si.CPURealtime {
-		return fmt.Errorf("Your kernel does not support CPU real-time scheduler")
+		return validationError("kernel does not support CPU real-time scheduler")
 	}
 	if hc.Resources.CPURealtimePeriod != 0 && hc.Resources.CPURealtimeRuntime != 0 && hc.Resources.CPURealtimeRuntime > hc.Resources.CPURealtimePeriod {
-		return fmt.Errorf("cpu real-time runtime cannot be higher than cpu real-time period")
+		return validationError("cpu real-time runtime cannot be higher than cpu real-time period")
 	}
 	return nil
 }
