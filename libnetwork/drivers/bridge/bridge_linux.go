@@ -640,7 +640,7 @@ func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error)
 	return config, err
 }
 
-func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []driverapi.IPAMData) error {
+func (c *networkConfiguration) processIPAM(ipamV4Data, ipamV6Data []driverapi.IPAMData) error {
 	if len(ipamV4Data) > 1 || len(ipamV6Data) > 1 {
 		return types.ForbiddenErrorf("bridge driver doesn't support multiple subnets")
 	}
@@ -745,7 +745,7 @@ func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (s
 	return "", nil
 }
 
-// Create a new network using bridge plugin
+// CreateNetwork creates a new network using the bridge driver.
 func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	// Sanity checks
 	d.Lock()
@@ -772,7 +772,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	}
 
 	// Add IP addresses/gateways to the configuration.
-	if err = config.processIPAM(id, ipV4Data, ipV6Data); err != nil {
+	if err = config.processIPAM(ipV4Data, ipV6Data); err != nil {
 		return err
 	}
 
