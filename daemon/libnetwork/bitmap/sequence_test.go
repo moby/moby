@@ -5,6 +5,9 @@ import (
 	"math/rand"
 	"testing"
 	"time"
+
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestSequenceGetAvailableBit(t *testing.T) {
@@ -1229,5 +1232,171 @@ func TestMarshalJSON(t *testing.T) {
 				t.Errorf("Unmarshaled a different bitmap: want %q, got %q", hstr, h2str)
 			}
 		})
+	}
+}
+
+func TestBlockMask(t *testing.T) {
+	assert.Check(t, is.Equal(uint32(0xffffffff), hiBlockMask(0)))
+	assert.Check(t, is.Equal(uint32(0x7fffffff), hiBlockMask(1)))
+	assert.Check(t, is.Equal(uint32(0x3fffffff), hiBlockMask(2)))
+	assert.Check(t, is.Equal(uint32(0x0000ffff), hiBlockMask(16)))
+	assert.Check(t, is.Equal(uint32(0x00000001), hiBlockMask(31)))
+	assert.Check(t, is.Equal(uint32(0x00000000), hiBlockMask(32)))
+	assert.Check(t, is.Equal(uint32(0x00000000), hiBlockMask(33)))
+	assert.Check(t, is.Equal(uint32(0x80000000), loBlockMask(0)))
+	assert.Check(t, is.Equal(uint32(0xc0000000), loBlockMask(1)))
+	assert.Check(t, is.Equal(uint32(0xe0000000), loBlockMask(2)))
+	assert.Check(t, is.Equal(uint32(0xffff0000), loBlockMask(15)))
+	assert.Check(t, is.Equal(uint32(0xffff8000), loBlockMask(16)))
+	assert.Check(t, is.Equal(uint32(0xfffffffe), loBlockMask(30)))
+	assert.Check(t, is.Equal(uint32(0xffffffff), loBlockMask(31)))
+}
+
+func TestSeqOnceCount(t *testing.T) {
+	input := []struct {
+		sq       *sequence
+		start    uint64
+		end      uint64
+		expected uint64
+		expErr   string
+	}{
+		{&sequence{block: 0x00000000, count: 1, next: nil}, 0, 31, 0, ""},
+		{&sequence{block: 0x00000001, count: 1, next: nil}, 0, 31, 1, ""},
+		{&sequence{block: 0x00000001, count: 1, next: nil}, 31, 31, 1, ""},
+		{&sequence{block: 0x00000001, count: 1, next: nil}, 0, 8, 0, ""},
+		{&sequence{block: 0x9f800101, count: 1, next: nil}, 0, 7, 6, ""},
+		{&sequence{block: 0x9f800101, count: 1, next: nil}, 1, 8, 6, ""},
+		{&sequence{block: 0x9f800101, count: 1, next: nil}, 16, 30, 1, ""},
+		{&sequence{block: 0x80000000, count: 1, next: nil}, 0, 0, 1, ""},
+		{&sequence{block: 0x80000000, count: 1, next: nil}, 0, 31, 1, ""},
+		{&sequence{block: 0xaaaaaaaa, count: 1, next: nil}, 0, 31, 16, ""},
+		{&sequence{block: 0x55555555, count: 1, next: nil}, 0, 31, 16, ""},
+		{&sequence{block: 0x0000ffff, count: 1, next: nil}, 0, 31, 16, ""},
+		{&sequence{block: 0x0000ffff, count: 1, next: nil}, 15, 31, 16, ""},
+		{&sequence{block: 0x0000ffff, count: 1, next: nil}, 0, 15, 0, ""},
+		{&sequence{block: 0xffff0000, count: 1, next: nil}, 0, 31, 16, ""},
+		{&sequence{block: 0xfffffffe, count: 1, next: nil}, 0, 30, 31, ""},
+		{&sequence{block: 0x7fffffff, count: 1, next: nil}, 0, 0, 0, ""},
+		{&sequence{block: 0xffffffff, count: 1, next: nil}, 16, 31, 16, ""},
+		{&sequence{block: 0xffffffff, count: 1, next: nil}, 0, 31, 32, ""},
+		{&sequence{block: 0x00000000, count: 2, next: nil}, 0, 63, 0, ""},
+		{&sequence{block: 0x00000001, count: 2, next: nil}, 0, 62, 1, ""},
+		{&sequence{block: 0x00000001, count: 2, next: nil}, 0, 63, 2, ""},
+		{&sequence{block: 0xffffffff, count: 2, next: nil}, 0, 63, 64, ""},
+		{&sequence{block: 0xffffffff, count: 2, next: nil}, 0, 64, 0, "is outside of the bitmap size"},
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0000f001, count: 2}}, 0, 63, 6, ""},
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0f000001, count: 2}}, 0, 95, 11, ""},
+		{&sequence{block: 0x00000000, count: 1, next: &sequence{block: 0xffffffff, count: 1, next: nil}}, 0, 63, 32, ""},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x00000000, count: 1, next: nil}}, 0, 63, 32, ""},
+		{&sequence{block: 0x00000001, count: 1, next: &sequence{block: 0x00000001, count: 1, next: nil}}, 0, 63, 2, ""},
+		{&sequence{block: 0x00000001, count: 1, next: &sequence{block: 0x00000001, count: 1, next: nil}}, 1, 62, 1, ""},
+		{&sequence{block: 0x00000001, count: 1, next: &sequence{block: 0x00000001, count: 1, next: &sequence{block: 0x00000001, count: 1}}}, 0, 95, 3, ""},
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0xf0000001, count: 2, next: &sequence{block: 0x00000001, count: 1}}}, 0, 127, 12, ""},
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0xf0000001, count: 3, next: &sequence{block: 0x00000001, count: 1, next: &sequence{block: 0x00000001, count: 1}}}}, 0, 191, 18, ""},
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0xf0000001, count: 3, next: &sequence{block: 0x00000001, count: 1, next: &sequence{block: 0x00000001, count: 1}}}}, 0, 200, 0, "is outside of the bitmap size"},
+	}
+
+	for _, tc := range input {
+		got, err := tc.sq.onesCount(tc.start, tc.end)
+		if tc.expErr != "" {
+			assert.Check(t, is.ErrorContains(err, tc.expErr))
+		} else {
+			assert.NilError(t, err)
+		}
+		assert.Check(t, is.Equal(got, tc.expected))
+	}
+}
+
+func TestBitMapOnceCount(t *testing.T) {
+	type SelectedRange struct {
+		start uint64
+		end   uint64
+	}
+	type CheckCase struct {
+		start    uint64
+		end      uint64
+		expected uint64
+		expErr   string
+	}
+	type TestCase struct {
+		capacity uint64
+		selected []SelectedRange
+		cc       []CheckCase
+	}
+	input := []TestCase{
+		{
+			uint64(5 * blockLen),
+			[]SelectedRange{},
+			[]CheckCase{
+				{0, 0, 0, ""},
+				{0, 31, 0, ""},
+				{31, 31, 0, ""},
+				{0, 64, 0, ""},
+				{0, uint64(5*blockLen - 1), 0, ""},
+				{0, uint64(5 * blockLen), 0, "invalid range: start(0) and/or end(160) are out of the bitmap size(160)"},
+			},
+		}, {
+			uint64(5 * blockLen),
+			[]SelectedRange{
+				{0, 0},
+			},
+			[]CheckCase{
+				{0, 0, 1, ""},
+				{0, 31, 1, ""},
+				{1, 31, 0, ""},
+				{31, 31, 0, ""},
+			},
+		}, {
+			uint64(5 * blockLen),
+			[]SelectedRange{
+				{1, 31}},
+			[]CheckCase{
+				{0, 0, 0, ""},
+				{0, 31, 31, ""},
+				{1, 31, 31, ""},
+				{31, 31, 1, ""},
+			},
+		}, {
+			uint64(5 * blockLen),
+			[]SelectedRange{
+				{31, 64}},
+			[]CheckCase{
+				{0, 31, 1, ""},
+				{32, 63, 32, ""},
+				{64, 95, 1, ""},
+				{0, uint64(5*blockLen - 1), 34, ""},
+			},
+		}, {
+			uint64(5 * blockLen),
+			[]SelectedRange{
+				{31, 96}},
+			[]CheckCase{
+				{32, 63, 32, ""},
+				{31, 96, 66, ""},
+				{0, uint64(5*blockLen - 1), 66, ""},
+			},
+		},
+	}
+
+	for _, tc := range input {
+		bm := New(tc.capacity)
+		// set configured bits
+		for _, s := range tc.selected {
+			// set all bits in the range
+			for i := s.start; i <= s.end; i++ {
+				_, err := bm.SetAnyInRange(s.start, s.end, true)
+				assert.NilError(t, err)
+			}
+		}
+		// check ones count
+		for _, tc := range tc.cc {
+			got, err := bm.OnesCount(tc.start, tc.end)
+			if tc.expErr != "" {
+				assert.Check(t, is.ErrorContains(err, tc.expErr))
+			} else {
+				assert.NilError(t, err)
+			}
+			assert.Check(t, is.Equal(got, tc.expected))
+		}
 	}
 }
