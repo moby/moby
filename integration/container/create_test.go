@@ -19,6 +19,7 @@ import (
 	testContainer "github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/oci"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/testutil"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -66,6 +67,75 @@ func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 			)
 			assert.Check(t, is.ErrorContains(err, tc.expectedError))
 			assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+		})
+	}
+}
+
+func TestCreateByImageID(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	img, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox")
+	assert.NilError(t, err)
+
+	imgIDWithAlgorithm := img.ID
+	imgID, _ := strings.CutPrefix(imgIDWithAlgorithm, "sha256:")
+	imgShortID := stringid.TruncateID(imgID)
+
+	testCases := []struct {
+		doc             string
+		image           string
+		expectedErrType func(error) bool
+		expectedErr     string
+	}{
+		{
+			doc:   "image ID with algorithm",
+			image: imgIDWithAlgorithm,
+		},
+		{
+			// test case for https://github.com/moby/moby/issues/20972
+			doc:   "image ID without algorithm",
+			image: imgID,
+		},
+		{
+			doc:   "image short-ID",
+			image: imgShortID,
+		},
+		{
+			doc:             "image with ID and algorithm as tag",
+			image:           "busybox:" + imgIDWithAlgorithm,
+			expectedErrType: errdefs.IsInvalidParameter,
+			expectedErr:     "Error response from daemon: invalid reference format",
+		},
+		{
+			doc:             "image with ID as tag",
+			image:           "busybox:" + imgID,
+			expectedErrType: errdefs.IsNotFound,
+			expectedErr:     "Error response from daemon: No such image: busybox:" + imgID,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.doc, func(t *testing.T) {
+			t.Parallel()
+			ctx := testutil.StartSpan(ctx, t)
+			resp, err := apiClient.ContainerCreate(ctx,
+				&container.Config{Image: tc.image},
+				&container.HostConfig{},
+				&network.NetworkingConfig{},
+				nil,
+				"",
+			)
+			if tc.expectedErr != "" {
+				assert.Check(t, is.DeepEqual(resp, container.CreateResponse{}))
+				assert.Check(t, is.Error(err, tc.expectedErr))
+				assert.Check(t, is.ErrorType(err, tc.expectedErrType))
+			} else {
+				assert.Check(t, resp.ID != "")
+				assert.NilError(t, err)
+			}
+			// cleanup the container if one was created.
+			_ = apiClient.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true})
 		})
 	}
 }
