@@ -8,17 +8,26 @@
 package tarexport
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"syscall"
+	"time"
+
+	"github.com/docker/docker/pkg/system"
 )
 
-func MkdirAll(path string, perm FileMode) error {
+// mkdirAllWithChtimes is nearly an identical copy to the [os.MkdirAll] but
+// tracks created directories and applies the provided mtime and atime using
+// [system.Chtimes].
+func mkdirAllWithChtimes(path string, perm os.FileMode, atime, mtime time.Time) error {
 	// Fast path: if we can tell whether path is a directory or file, stop with success or error.
-	dir, err := Stat(path)
+	dir, err := os.Stat(path)
 	if err == nil {
 		if dir.IsDir() {
 			return nil
 		}
-		return &PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
+		return &os.PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
 	}
 
 	// Slow path: make sure parent exists and then call Mkdir for path.
@@ -27,10 +36,10 @@ func MkdirAll(path string, perm FileMode) error {
 	// path separator and then scanning backward until finding a path
 	// separator or reaching the beginning of the string.
 	i := len(path) - 1
-	for i >= 0 && IsPathSeparator(path[i]) {
+	for i >= 0 && os.IsPathSeparator(path[i]) {
 		i--
 	}
-	for i >= 0 && !IsPathSeparator(path[i]) {
+	for i >= 0 && !os.IsPathSeparator(path[i]) {
 		i--
 	}
 	if i < 0 {
@@ -39,23 +48,27 @@ func MkdirAll(path string, perm FileMode) error {
 
 	// If there is a parent directory, and it is not the volume name,
 	// recurse to ensure parent directory exists.
-	if parent := path[:i]; len(parent) > len(filepathlite.VolumeName(path)) {
-		err = MkdirAll(parent, perm)
+	if parent := path[:i]; len(parent) > len(filepath.VolumeName(path)) {
+		err = mkdirAllWithChtimes(parent, perm, atime, mtime)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Parent now exists; invoke Mkdir and use its result.
-	err = Mkdir(path, perm)
+	err = os.Mkdir(path, perm)
 	if err != nil {
 		// Handle arguments like "foo/." by
 		// double-checking that directory doesn't exist.
-		dir, err1 := Lstat(path)
+		dir, err1 := os.Lstat(path)
 		if err1 == nil && dir.IsDir() {
 			return nil
 		}
 		return err
+	}
+
+	if err := system.Chtimes(path, atime, mtime); err != nil {
+		return fmt.Errorf("applying atime=%v and mtime=%v: %w", atime, mtime, err)
 	}
 	return nil
 }
