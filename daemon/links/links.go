@@ -53,10 +53,6 @@ func (l *Link) ToEnv() []string {
 	_, n := path.Split(l.Name)
 	alias := strings.ReplaceAll(strings.ToUpper(n), "-", "_")
 
-	if p := l.getDefaultPort(); p != nil {
-		env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
-	}
-
 	// sort the ports so that we can bulk the continuous ports together
 	nat.Sort(l.Ports, func(ip, jp nat.Port) bool {
 		// If the two ports have the same number, tcp takes priority
@@ -66,6 +62,9 @@ func (l *Link) ToEnv() []string {
 
 	for i := 0; i < len(l.Ports); {
 		p := l.Ports[i]
+		if i == 0 {
+			env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
+		}
 		j := nextContiguous(l.Ports, p.Int(), i)
 		if j > i+1 {
 			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_START=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
@@ -121,22 +120,4 @@ func nextContiguous(ports []nat.Port, value int, index int) int {
 		value++
 	}
 	return len(ports) - 1
-}
-
-// Default port rules
-func (l *Link) getDefaultPort() *nat.Port {
-	var p nat.Port
-	i := len(l.Ports)
-
-	if i == 0 {
-		return nil
-	} else if i > 1 {
-		nat.Sort(l.Ports, func(ip, jp nat.Port) bool {
-			// If the two ports have the same number, tcp takes priority
-			// Sort in desc order
-			return ip.Int() < jp.Int() || (ip.Int() == jp.Int() && strings.ToLower(ip.Proto()) == "tcp")
-		})
-	}
-	p = l.Ports[0]
-	return &p
 }
