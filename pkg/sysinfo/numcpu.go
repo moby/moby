@@ -4,12 +4,9 @@ import (
 	"runtime"
 )
 
-// NumCPU returns the number of CPUs. On Linux and Windows, it returns
-// the number of CPUs which are currently online. On other platforms,
-// it's the equivalent of [runtime.NumCPU].
+// NumCPU returns the number of CPUs. It's the equivalent of [runtime.NumCPU].
+//
+// Deprecated: Use [runtime.NumCPU] instead. It will be removed in the next release.
 func NumCPU() int {
-	if ncpu := numCPU(); ncpu > 0 {
-		return ncpu
-	}
 	return runtime.NumCPU()
 }

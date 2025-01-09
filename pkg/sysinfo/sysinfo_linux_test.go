@@ -66,12 +66,6 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestNumCPU(t *testing.T) {
-	if cpuNumbers := NumCPU(); cpuNumbers <= 0 {
-		t.Fatal("CPU returned must be greater than zero")
-	}
-}
-
 func TestIsCpusetListAvailable(t *testing.T) {
 	cases := []struct {
 		provided  string
