@@ -30,11 +30,6 @@ func TestUserChain(t *testing.T) {
 		userChain []string
 	}{
 		{
-			iptables: false,
-			insert:   false,
-			fwdChain: []string{"-P FORWARD ACCEPT"},
-		},
-		{
 			iptables:  true,
 			insert:    false,
 			fwdChain:  []string{"-P FORWARD ACCEPT", "-A FORWARD -j DOCKER-USER"},
@@ -45,6 +40,11 @@ func TestUserChain(t *testing.T) {
 			insert:    true,
 			fwdChain:  []string{"-P FORWARD ACCEPT", "-A FORWARD -j DOCKER-USER", "-A FORWARD -j DROP"},
 			userChain: []string{"-N DOCKER-USER", "-A DOCKER-USER -j RETURN"},
+		},
+		{
+			iptables: false,
+			insert:   false,
+			fwdChain: []string{"-P FORWARD ACCEPT"},
 		},
 	}
 
