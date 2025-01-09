@@ -492,7 +492,7 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 	// Here we don't set the lower limit and it is up to the underlying platform (e.g., Linux) to return an error.
 	// The error message is 0.01 so that this is consistent with Windows
 	if resources.NanoCPUs != 0 {
-		nc := sysinfo.NumCPU()
+		nc := runtime.NumCPU()
 		if resources.NanoCPUs < 0 || resources.NanoCPUs > int64(nc)*1e9 {
 			return warnings, fmt.Errorf("range of CPUs is from 0.01 to %[1]d.00, as there are only %[1]d CPUs available", nc)
 		}

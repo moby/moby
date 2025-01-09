@@ -65,7 +65,7 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 		OSType:             runtime.GOOS,
 		Architecture:       platform.Architecture(),
 		RegistryConfig:     doWithTrace(ctx, "registry.ServiceConfig", daemon.registryService.ServiceConfig),
-		NCPU:               doWithTrace(ctx, "sysinfo.NumCPU", sysinfo.NumCPU),
+		NCPU:               doWithTrace(ctx, "runtime.NumCPU", runtime.NumCPU),
 		MemTotal:           memInfo(ctx).MemTotal,
 		GenericResources:   daemon.genericResources,
 		DockerRootDir:      cfg.Root,

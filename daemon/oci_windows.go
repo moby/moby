@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/Microsoft/hcsshim"
@@ -18,7 +19,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/oci"
-	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -428,7 +428,7 @@ func setResourcesInSpec(c *container.Container, s *specs.Spec, isHyperV bool) {
 				}
 			}
 		} else {
-			cpuMaximum = uint16(c.HostConfig.NanoCPUs / int64(sysinfo.NumCPU()) / (1e9 / 10000))
+			cpuMaximum = uint16(c.HostConfig.NanoCPUs / int64(runtime.NumCPU()) / (1e9 / 10000))
 			if cpuMaximum < 1 {
 				// The requested NanoCPUs is so small that we rounded to 0, use 1 instead
 				cpuMaximum = 1
