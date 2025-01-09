@@ -24,14 +24,9 @@ type Link struct {
 
 // NewLink initializes a new Link struct with the provided options.
 func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.Port]struct{}) *Link {
-	var (
-		i     int
-		ports = make([]nat.Port, len(exposedPorts))
-	)
-
+	ports := make([]nat.Port, 0, len(exposedPorts))
 	for p := range exposedPorts {
-		ports[i] = p
-		i++
+		ports = append(ports, p)
 	}
 
 	return &Link{
