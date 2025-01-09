@@ -339,8 +339,12 @@ type flusher interface {
 	Flush()
 }
 
+type nopFlusher struct{}
+
+func (f *nopFlusher) Flush() {}
+
 func wrapOutputBufferedUntilRequestRead(rc io.ReadCloser, out io.Writer) (io.ReadCloser, io.Writer) {
-	var fl flusher = &ioutils.NopFlusher{}
+	var fl flusher = &nopFlusher{}
 	if f, ok := out.(flusher); ok {
 		fl = f
 	}

@@ -156,6 +156,12 @@ issues:
       linters:
         - staticcheck
 
+    # FIXME temporarily suppress these until they are moved internal to container/streams.
+    - text: "SA1019: ioutils\\.(ErrClosed|BytesPipe|NewBytesPipe)"
+      path: "container/stream/"
+      linters:
+        - staticcheck
+
     - text: "ineffectual assignment to ctx"
       source: "ctx[, ].*=.*\\(ctx[,)]"
       linters:

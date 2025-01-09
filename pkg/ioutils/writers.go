@@ -24,10 +24,9 @@ func NopWriteCloser(w io.Writer) io.WriteCloser {
 }
 
 // NopFlusher represents a type which flush operation is nop.
-type NopFlusher struct{}
-
-// Flush is a nop operation.
-func (f *NopFlusher) Flush() {}
+//
+// Deprecated: NopFlusher is only used internally and will be removed in the next release.
+type NopFlusher = nopFlusher
 
 type writeCloserWrapper struct {
 	io.Writer
@@ -55,12 +54,16 @@ func NewWriteCloserWrapper(r io.Writer, closer func() error) io.WriteCloser {
 // of bytes written to the writer during a "session".
 // This can be convenient when write return is masked
 // (e.g., json.Encoder.Encode())
+//
+// Deprecated: this type is no longer used and will be removed in the next release.
 type WriteCounter struct {
 	Count  int64
 	Writer io.Writer
 }
 
 // NewWriteCounter returns a new WriteCounter.
+//
+// Deprecated: this function is no longer used and will be removed in the next release.
 func NewWriteCounter(w io.Writer) *WriteCounter {
 	return &WriteCounter{
 		Writer: w,
