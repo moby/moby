@@ -109,10 +109,3 @@ func TestNewCgroupNamespacesDisabled(t *testing.T) {
 	sysInfo := New()
 	assert.Assert(t, !sysInfo.CgroupNamespaces)
 }
-
-func TestNumCPU(t *testing.T) {
-	cpuNumbers := NumCPU()
-	if cpuNumbers <= 0 {
-		t.Fatal("CPU returned must be greater than zero")
-	}
-}
