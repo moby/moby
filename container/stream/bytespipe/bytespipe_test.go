@@ -1,4 +1,4 @@
-package ioutils // import "github.com/docker/docker/pkg/ioutils"
+package bytespipe
 
 import (
 	"crypto/sha256"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestBytesPipeRead(t *testing.T) {
-	buf := NewBytesPipe()
+	buf := New()
 	_, _ = buf.Write([]byte("12"))
 	_, _ = buf.Write([]byte("34"))
 	_, _ = buf.Write([]byte("56"))
@@ -49,7 +49,7 @@ func TestBytesPipeRead(t *testing.T) {
 }
 
 func TestBytesPipeWrite(t *testing.T) {
-	buf := NewBytesPipe()
+	buf := New()
 	_, _ = buf.Write([]byte("12"))
 	_, _ = buf.Write([]byte("34"))
 	_, _ = buf.Write([]byte("56"))
@@ -62,7 +62,7 @@ func TestBytesPipeWrite(t *testing.T) {
 
 // Regression test for #41941.
 func TestBytesPipeDeadlock(t *testing.T) {
-	bp := NewBytesPipe()
+	bp := New()
 	bp.buf = []*fixedBuffer{getBuffer(blockThreshold)}
 
 	rd := make(chan error)
@@ -145,7 +145,7 @@ func TestBytesPipeWriteRandomChunks(t *testing.T) {
 		expected := hex.EncodeToString(hash.Sum(nil))
 
 		// write/read through buffer
-		buf := NewBytesPipe()
+		buf := New()
 		hash.Reset()
 
 		done := make(chan struct{})
@@ -186,7 +186,7 @@ func BenchmarkBytesPipeWrite(b *testing.B) {
 	testData := []byte("pretty short line, because why not?")
 	for i := 0; i < b.N; i++ {
 		readBuf := make([]byte, 1024)
-		buf := NewBytesPipe()
+		buf := New()
 		go func() {
 			var err error
 			for err == nil {
@@ -205,7 +205,7 @@ func BenchmarkBytesPipeRead(b *testing.B) {
 	rd := make([]byte, 512)
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		buf := NewBytesPipe()
+		buf := New()
 		for j := 0; j < 500; j++ {
 			_, _ = buf.Write(make([]byte, 1024))
 		}
