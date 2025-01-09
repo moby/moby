@@ -54,11 +54,7 @@ func (l *Link) ToEnv() []string {
 	alias := strings.ReplaceAll(strings.ToUpper(n), "-", "_")
 
 	// sort the ports so that we can bulk the continuous ports together
-	nat.Sort(l.Ports, func(ip, jp nat.Port) bool {
-		// If the two ports have the same number, tcp takes priority
-		// Sort in desc order
-		return ip.Int() < jp.Int() || (ip.Int() == jp.Int() && strings.ToLower(ip.Proto()) == "tcp")
-	})
+	nat.Sort(l.Ports, withTCPPriority)
 
 	for i := 0; i < len(l.Ports); {
 		p := l.Ports[i]
@@ -106,6 +102,23 @@ func (l *Link) ToEnv() []string {
 		}
 	}
 	return env
+}
+
+// withTCPPriority prioritizes ports using TCP over other protocols before
+// comparing port-number and protocol.
+func withTCPPriority(ip, jp nat.Port) bool {
+	if strings.EqualFold(ip.Proto(), jp.Proto()) {
+		return ip.Int() < jp.Int()
+	}
+
+	if strings.EqualFold(ip.Proto(), "tcp") {
+		return true
+	}
+	if strings.EqualFold(jp.Proto(), "tcp") {
+		return false
+	}
+
+	return strings.ToLower(ip.Proto()) < strings.ToLower(jp.Proto())
 }
 
 func nextContiguous(ports []nat.Port, value int, index int) int {

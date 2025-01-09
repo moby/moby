@@ -60,6 +60,35 @@ func TestLinkEnv(t *testing.T) {
 	assert.DeepEqual(t, expectedEnv, actual)
 }
 
+// TestSortPorts verifies that ports are sorted with TCP taking priority,
+// and ports with the same protocol to be sorted by port.
+func TestSortPorts(t *testing.T) {
+	ports := []nat.Port{
+		"6379/tcp",
+		"6376/udp",
+		"6380/tcp",
+		"6376/sctp",
+		"6381/tcp",
+		"6381/udp",
+		"6375/udp",
+		"6375/sctp",
+	}
+
+	expected := []nat.Port{
+		"6379/tcp",
+		"6380/tcp",
+		"6381/tcp",
+		"6375/sctp",
+		"6376/sctp",
+		"6375/udp",
+		"6376/udp",
+		"6381/udp",
+	}
+
+	nat.Sort(ports, withTCPPriority)
+	assert.DeepEqual(t, expected, ports)
+}
+
 func TestLinkMultipleEnv(t *testing.T) {
 	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, nat.PortSet{
 		"6379/tcp": struct{}{},
