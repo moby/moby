@@ -137,10 +137,10 @@ func getPidsLimit(config containertypes.Resources) *specs.LinuxPids {
 func getCPUResources(config containertypes.Resources) (*specs.LinuxCPU, error) {
 	cpu := specs.LinuxCPU{}
 
-	if config.CPUShares < 0 {
-		return nil, fmt.Errorf("shares: invalid argument")
-	}
-	if config.CPUShares > 0 {
+	if config.CPUShares != 0 {
+		if config.CPUShares < 0 {
+			return nil, fmt.Errorf("invalid CPU shares (%d): value must be a positive integer", config.CPUShares)
+		}
 		shares := uint64(config.CPUShares)
 		cpu.Shares = &shares
 	}

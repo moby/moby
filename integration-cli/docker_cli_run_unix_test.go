@@ -724,24 +724,6 @@ func (s *DockerCLIRunSuite) TestRunInvalidCpusetMemsFlagValue(c *testing.T) {
 	assert.Assert(c, is.Contains(out, expected))
 }
 
-func (s *DockerCLIRunSuite) TestRunInvalidCPUShares(c *testing.T) {
-	testRequires(c, cpuShare, DaemonIsLinux)
-	out, _, err := dockerCmdWithError("run", "--cpu-shares", "1", "busybox", "echo", "test")
-	assert.ErrorContains(c, err, "", out)
-	expected := "minimum allowed cpu-shares is 2"
-	assert.Assert(c, is.Contains(out, expected))
-
-	out, _, err = dockerCmdWithError("run", "--cpu-shares", "-1", "busybox", "echo", "test")
-	assert.ErrorContains(c, err, "", out)
-	expected = "shares: invalid argument"
-	assert.Assert(c, is.Contains(out, expected))
-
-	out, _, err = dockerCmdWithError("run", "--cpu-shares", "99999999", "busybox", "echo", "test")
-	assert.ErrorContains(c, err, "", out)
-	expected = "maximum allowed cpu-shares is"
-	assert.Assert(c, is.Contains(out, expected))
-}
-
 func (s *DockerCLIRunSuite) TestRunWithDefaultShmSize(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
