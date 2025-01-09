@@ -141,10 +141,9 @@ func TestIPRangeAt64BitLimit(t *testing.T) {
 	c := testEnv.APIClient()
 
 	tests := []struct {
-		name       string
-		subnet     string
-		ipRange    string
-		expCtrFail bool
+		name    string
+		subnet  string
+		ipRange string
 	}{
 		{
 			name:    "ipRange before end of 64-bit subnet",
@@ -155,22 +154,11 @@ func TestIPRangeAt64BitLimit(t *testing.T) {
 			name:    "ipRange at end of 64-bit subnet",
 			subnet:  "fda9:8d04:086e::/64",
 			ipRange: "fda9:8d04:086e::ffff:ffff:ffff:fffe/127",
-			// FIXME(robmry) - there should be two addresses available for
-			//  allocation, just like the previous test. One for the gateway
-			//  and one for the container. But, because the Bitmap in the
-			//  allocator can't cope with a range that includes MaxUint64,
-			//  only one address is currently available - so the container
-			//  will not start.
-			expCtrFail: true,
 		},
 		{
 			name:    "ipRange at 64-bit boundary inside 56-bit subnet",
 			subnet:  "fda9:8d04:086e::/56",
 			ipRange: "fda9:8d04:086e:aa:ffff:ffff:ffff:fffe/127",
-			// FIXME(robmry) - same issue as above, but this time the ip-range
-			//  is in the middle of the subnet (on a 64-bit boundary) rather
-			//  than at the top end.
-			expCtrFail: true,
 		},
 	}
 
@@ -187,12 +175,7 @@ func TestIPRangeAt64BitLimit(t *testing.T) {
 			id := ctr.Create(ctx, t, c, ctr.WithNetworkMode(netName))
 			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 			err := c.ContainerStart(ctx, id, containertypes.StartOptions{})
-			if tc.expCtrFail {
-				assert.Assert(t, err != nil)
-				t.Skipf("XFAIL Container startup failed with error: %v", err)
-			} else {
-				assert.NilError(t, err)
-			}
+			assert.NilError(t, err)
 		})
 	}
 }

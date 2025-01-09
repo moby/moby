@@ -5,7 +5,7 @@ import (
 	"net/netip"
 	"strings"
 
-	"github.com/docker/docker/libnetwork/bitmap"
+	"github.com/docker/docker/libnetwork/internal/addrset"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -17,7 +17,7 @@ type PoolID struct {
 
 // PoolData contains the configured pool data
 type PoolData struct {
-	addrs    *bitmap.Bitmap
+	addrs    *addrset.AddrSet
 	children map[netip.Prefix]struct{}
 
 	// Whether to implicitly release the pool once it no longer has any children.
