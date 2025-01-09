@@ -513,10 +513,19 @@ func TestPushReservation(t *testing.T) {
 	}
 
 	for n, i := range input {
-		mask := pushReservation(i.bytePos, i.bitPos, i.mask, false)
+		// The mask should only change if a bit is set/unset. Check whether a change is
+		// expected by comparing input and expected output before calling pushReservation,
+		// because the input (i.mask) is mutated.
+		expChanged := !i.mask.equal(i.newMask)
+
+		mask, changed := pushReservation(i.bytePos, i.bitPos, i.mask, false)
 		if !mask.equal(i.newMask) {
 			t.Fatalf("Error in (%d) pushReservation():\n%s + (%d,%d):\nExp: %s\nGot: %s,",
 				n, i.mask.toString(), i.bytePos, i.bitPos, i.newMask.toString(), mask.toString())
+		}
+		if expChanged != changed {
+			t.Errorf("Error in (%d) pushReservation():\n%s + (%d,%d):\nGot changed %v, expected %v",
+				n, i.mask.toString(), i.bytePos, i.bitPos, changed, expChanged)
 		}
 	}
 }

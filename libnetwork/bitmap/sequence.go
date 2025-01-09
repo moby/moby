@@ -263,11 +263,14 @@ func (h *Bitmap) set(ordinal, start, end uint64, any bool, release bool, serial 
 		return ret, err
 	}
 
-	h.head = pushReservation(bytePos, bitPos, h.head, release)
-	if release {
-		h.unselected++
-	} else {
-		h.unselected--
+	var changed bool
+	h.head, changed = pushReservation(bytePos, bitPos, h.head, release)
+	if changed {
+		if release {
+			h.unselected++
+		} else {
+			h.unselected--
+		}
 	}
 
 	return ret, nil
@@ -481,14 +484,16 @@ func findSequence(head *sequence, bytePos uint64) (*sequence, *sequence, uint64,
 // A) block is first in current:         [prev seq] [new] [modified current seq] [next seq]
 // B) block is last in current:          [prev seq] [modified current seq] [new] [next seq]
 // C) block is in the middle of current: [prev seq] [curr pre] [new] [curr post] [next seq]
-func pushReservation(bytePos, bitPos uint64, head *sequence, release bool) *sequence {
+//
+// Return value changed is true if the bit value was changed.
+func pushReservation(bytePos, bitPos uint64, head *sequence, release bool) (_ *sequence, changed bool) {
 	// Store list's head
 	newHead := head
 
 	// Find the sequence containing this byte
 	current, previous, precBlocks, inBlockBytePos := findSequence(head, bytePos)
 	if current == nil {
-		return newHead
+		return newHead, false
 	}
 
 	// Construct updated block
@@ -502,7 +507,7 @@ func pushReservation(bytePos, bitPos uint64, head *sequence, release bool) *sequ
 
 	// Quit if it was a redundant request
 	if current.block == newBlock {
-		return newHead
+		return newHead, false
 	}
 
 	// Current sequence inevitably looses one block, update count
@@ -539,7 +544,7 @@ func pushReservation(bytePos, bitPos uint64, head *sequence, release bool) *sequ
 		// No merging or empty current possible here
 	}
 
-	return newHead
+	return newHead, true
 }
 
 // Removes the current sequence from the list if empty, adjusting the head pointer if needed
