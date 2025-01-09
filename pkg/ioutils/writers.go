@@ -24,10 +24,9 @@ func NopWriteCloser(w io.Writer) io.WriteCloser {
 }
 
 // NopFlusher represents a type which flush operation is nop.
-type NopFlusher struct{}
-
-// Flush is a nop operation.
-func (f *NopFlusher) Flush() {}
+//
+// Deprecated: NopFlusher is only used internally and will be removed in the next release.
+type NopFlusher = nopFlusher
 
 type writeCloserWrapper struct {
 	io.Writer
