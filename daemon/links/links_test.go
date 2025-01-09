@@ -96,3 +96,17 @@ func TestLinkMultipleEnv(t *testing.T) {
 	sort.Strings(actual) // order of env-vars is not relevant
 	assert.DeepEqual(t, expectedEnv, actual)
 }
+
+func BenchmarkLinkMultipleEnv(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, nat.PortSet{
+			"6300/udp": struct{}{},
+			"6379/tcp": struct{}{},
+			"6380/tcp": struct{}{},
+			"6381/tcp": struct{}{},
+			"6382/udp": struct{}{},
+		})
+	}
+}
