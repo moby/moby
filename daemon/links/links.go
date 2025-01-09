@@ -126,7 +126,7 @@ func nextContiguous(ports []nat.Port, value int, index int) int {
 		return index
 	}
 	for i := index + 1; i < len(ports); i++ {
-		if ports[i].Int() > value+1 {
+		if ports[i].Int() > value+1 || !strings.EqualFold(ports[i].Proto(), ports[i-1].Proto()) {
 			return i - 1
 		}
 

@@ -91,15 +91,23 @@ func TestSortPorts(t *testing.T) {
 
 func TestLinkMultipleEnv(t *testing.T) {
 	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, nat.PortSet{
+		"6300/udp": struct{}{},
 		"6379/tcp": struct{}{},
 		"6380/tcp": struct{}{},
 		"6381/tcp": struct{}{},
+		"6382/udp": struct{}{},
 	})
 
 	expectedEnv := []string{
 		"DOCKER_ENV_PASSWORD=gordon",
 		"DOCKER_NAME=/db/docker",
 		"DOCKER_PORT=tcp://172.0.17.2:6379",
+
+		"DOCKER_PORT_6300_UDP=udp://172.0.17.2:6300",
+		"DOCKER_PORT_6300_UDP_ADDR=172.0.17.2",
+		"DOCKER_PORT_6300_UDP_PORT=6300",
+		"DOCKER_PORT_6300_UDP_PROTO=udp",
+
 		"DOCKER_PORT_6379_TCP=tcp://172.0.17.2:6379",
 		"DOCKER_PORT_6379_TCP_ADDR=172.0.17.2",
 		"DOCKER_PORT_6379_TCP_ADDR=172.0.17.2", // FIXME(thaJeztah): duplicate?
@@ -120,6 +128,11 @@ func TestLinkMultipleEnv(t *testing.T) {
 		"DOCKER_PORT_6381_TCP_ADDR=172.0.17.2",
 		"DOCKER_PORT_6381_TCP_PORT=6381",
 		"DOCKER_PORT_6381_TCP_PROTO=tcp",
+
+		"DOCKER_PORT_6382_UDP=udp://172.0.17.2:6382",
+		"DOCKER_PORT_6382_UDP_ADDR=172.0.17.2",
+		"DOCKER_PORT_6382_UDP_PORT=6382",
+		"DOCKER_PORT_6382_UDP_PROTO=udp",
 	}
 
 	sort.Strings(actual) // order of env-vars is not relevant
