@@ -19,22 +19,3 @@ func TestWriteCloserWrapperClose(t *testing.T) {
 		t.Fatalf("writeCloserWrapper should have call the anonymous function.")
 	}
 }
-
-func TestNopWriteCloser(t *testing.T) {
-	writer := bytes.NewBuffer([]byte{})
-	wrapper := NopWriteCloser(writer)
-	if err := wrapper.Close(); err != nil {
-		t.Fatal("NopWriteCloser always return nil on Close.")
-	}
-}
-
-func TestNopWriter(t *testing.T) {
-	nw := &NopWriter{}
-	l, err := nw.Write([]byte{'c'})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if l != 1 {
-		t.Fatalf("Expected 1 got %d", l)
-	}
-}
