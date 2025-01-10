@@ -32,7 +32,7 @@ func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 	//             are decoupled, we should assign it only when it's really needed.
 	i.bridgeIPv4 = config.AddressIPv4
 
-	if !config.InhibitIPv4 {
+	if !config.InhibitIPv4 && !config.GwModeIPv4.isolated() {
 		addrv4List, err := i.addresses(netlink.FAMILY_V4)
 		if err != nil {
 			return fmt.Errorf("failed to retrieve bridge interface addresses: %v", err)

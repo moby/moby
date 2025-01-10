@@ -13,10 +13,12 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
+	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -300,20 +302,84 @@ func TestFilterForwardPolicy(t *testing.T) {
 	}
 }
 
-// TestPointToPoint checks that a "/31" --internal network with inhibit_ipv4
-// has two addresses available for containers (no address is reserved for a
-// gateway, because it won't be used).
+// TestPointToPoint checks that a "/31" --internal network with inhibit_ipv4,
+// or gateway mode "isolated" has two addresses available for containers (no
+// address is reserved for a gateway, because it won't be used).
 func TestPointToPoint(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	const netName = "testp2pbridge"
+	testcases := []struct {
+		name   string
+		netOpt func(*networktypes.CreateOptions)
+	}{
+		{
+			name:   "inhibit_ipv4",
+			netOpt: network.WithOption(bridge.InhibitIPv4, "true"),
+		},
+		{
+			name:   "isolated",
+			netOpt: network.WithOption(bridge.IPv4GatewayMode, "isolated"),
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
+			const netName = "testp2pbridge"
+			network.CreateNoError(ctx, t, apiClient, netName,
+				network.WithIPAM("192.168.135.0/31", ""),
+				network.WithInternal(),
+				tc.netOpt,
+			)
+			defer network.RemoveNoError(ctx, t, apiClient, netName)
+
+			const ctrName = "ctr1"
+			id := ctr.Run(ctx, t, apiClient,
+				ctr.WithNetworkMode(netName),
+				ctr.WithName(ctrName),
+			)
+			defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			res := ctr.RunAttach(attachCtx, t, apiClient,
+				ctr.WithCmd([]string{"ping", "-c1", "-W3", ctrName}...),
+				ctr.WithNetworkMode(netName),
+			)
+			defer apiClient.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+			assert.Check(t, is.Equal(res.ExitCode, 0))
+			assert.Check(t, is.Equal(res.Stderr.Len(), 0))
+			assert.Check(t, is.Contains(res.Stdout.String(), "1 packets transmitted, 1 packets received"))
+		})
+	}
+}
+
+// TestIsolated tests an internal network with gateway mode "isolated".
+func TestIsolated(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "can't inspect bridge addrs in rootless netns")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	const netName = "testisol"
+	const bridgeName = "br-" + netName
 	network.CreateNoError(ctx, t, apiClient, netName,
-		network.WithIPAM("192.168.135.0/31", ""),
+		network.WithIPv6(),
 		network.WithInternal(),
-		network.WithOption(bridge.InhibitIPv4, "true"),
+		network.WithOption(bridge.IPv4GatewayMode, "isolated"),
+		network.WithOption(bridge.IPv6GatewayMode, "isolated"),
+		network.WithOption(bridge.BridgeName, bridgeName),
 	)
 	defer network.RemoveNoError(ctx, t, apiClient, netName)
+
+	// The bridge should not have any IP addresses.
+	link, err := nlwrap.LinkByName(bridgeName)
+	assert.NilError(t, err)
+	addrs, err := nlwrap.AddrList(link, netlink.FAMILY_ALL)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(len(addrs), 0))
 
 	const ctrName = "ctr1"
 	id := ctr.Run(ctx, t, apiClient,
@@ -322,14 +388,19 @@ func TestPointToPoint(t *testing.T) {
 	)
 	defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 
-	attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	res := ctr.RunAttach(attachCtx, t, apiClient,
-		ctr.WithCmd([]string{"ping", "-c1", "-W3", ctrName}...),
-		ctr.WithNetworkMode(netName),
-	)
-	defer apiClient.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
-	assert.Check(t, is.Equal(res.ExitCode, 0))
-	assert.Check(t, is.Equal(res.Stderr.Len(), 0))
-	assert.Check(t, is.Contains(res.Stdout.String(), "1 packets transmitted, 1 packets received"))
+	ping := func(t *testing.T, ipv string) {
+		t.Helper()
+		attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		res := ctr.RunAttach(attachCtx, t, apiClient,
+			ctr.WithCmd([]string{"ping", "-c1", "-W3", ipv, "ctr1"}...),
+			ctr.WithNetworkMode(netName),
+		)
+		defer apiClient.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+		assert.Check(t, is.Equal(res.ExitCode, 0))
+		assert.Check(t, is.Equal(res.Stderr.Len(), 0))
+		assert.Check(t, is.Contains(res.Stdout.String(), "1 packets transmitted, 1 packets received"))
+	}
+	ping(t, "-4")
+	ping(t, "-6")
 }
