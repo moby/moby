@@ -16,17 +16,18 @@
 
 syntax = "proto3";
 
-package containerd.types.transfer;
+package containerd.types;
 
-import "github.com/containerd/containerd/api/types/descriptor.proto";
+import "github.com/containerd/containerd/api/types/fieldpath.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/containerd/containerd/api/types/transfer";
+option go_package = "github.com/containerd/containerd/api/types;types";
 
-message Progress {
-	string event = 1;
-	string name = 2;
-	repeated string parents = 3;
-	int64 progress = 4;
-	int64 total = 5;
-	containerd.types.Descriptor desc = 6;
+message Envelope {
+	option (containerd.types.fieldpath) = true;
+	google.protobuf.Timestamp timestamp = 1;
+	string namespace = 2;
+	string topic = 3;
+	google.protobuf.Any event = 4;
 }
