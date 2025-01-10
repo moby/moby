@@ -10,7 +10,6 @@ import (
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/log"
 	"github.com/docker/docker/container/stream/bytespipe"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
 )
 
@@ -86,8 +85,14 @@ func (c *Config) NewInputPipes() {
 
 // NewNopInputPipe creates a new input pipe that will silently drop all messages in the input.
 func (c *Config) NewNopInputPipe() {
-	c.stdinPipe = ioutils.NopWriteCloser(io.Discard)
+	c.stdinPipe = &nopWriteCloser{io.Discard}
 }
+
+type nopWriteCloser struct {
+	io.Writer
+}
+
+func (w *nopWriteCloser) Close() error { return nil }
 
 // CloseStreams ensures that the configured streams are properly closed.
 func (c *Config) CloseStreams() error {

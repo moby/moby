@@ -21,6 +21,8 @@ type nopWriteCloser struct {
 func (w *nopWriteCloser) Close() error { return nil }
 
 // NopWriteCloser returns a nopWriteCloser.
+//
+// Deprecated: This function is no longer used and will be removed in the next release.
 func NopWriteCloser(w io.Writer) io.WriteCloser {
 	return &nopWriteCloser{w}
 }
