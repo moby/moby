@@ -1,4 +1,4 @@
-package ioutils // import "github.com/docker/docker/pkg/ioutils"
+package bytespipe
 
 import (
 	"errors"
@@ -18,8 +18,6 @@ const blockThreshold = 1e6
 
 var (
 	// ErrClosed is returned when Write is called on a closed BytesPipe.
-	//
-	// Deprecated: this type is only used internally, and will be removed in the next release.
 	ErrClosed = errors.New("write to closed BytesPipe")
 
 	bufPools     = make(map[int]*sync.Pool)
@@ -30,8 +28,6 @@ var (
 // All written data may be read at most once. Also, BytesPipe allocates
 // and releases new byte slices to adjust to current needs, so the buffer
 // won't be overgrown after peak loads.
-//
-// Deprecated: this type is only used internally, and will be removed in the next release.
 type BytesPipe struct {
 	mu        sync.Mutex
 	wait      *sync.Cond
@@ -41,12 +37,10 @@ type BytesPipe struct {
 	readBlock bool  // check read BytesPipe is Wait() or not
 }
 
-// NewBytesPipe creates new BytesPipe, initialized by specified slice.
+// New creates new BytesPipe, initialized by specified slice.
 // If buf is nil, then it will be initialized with slice which cap is 64.
 // buf will be adjusted in a way that len(buf) == 0, cap(buf) == cap(buf).
-//
-// Deprecated: this function is only used internally, and will be removed in the next release.
-func NewBytesPipe() *BytesPipe {
+func New() *BytesPipe {
 	bp := &BytesPipe{}
 	bp.buf = append(bp.buf, getBuffer(minCap))
 	bp.wait = sync.NewCond(&bp.mu)
