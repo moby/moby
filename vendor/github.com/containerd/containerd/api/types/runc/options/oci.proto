@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package containerd.runc.v1;
 
-option go_package = "github.com/containerd/containerd/runtime/v2/runc/options;options";
+option go_package = "github.com/containerd/containerd/api/types/runc/options;options";
 
 message Options {
 	// disable pivot root when creating a container
@@ -21,17 +21,19 @@ message Options {
 	string root = 7;
 	// criu binary path.
 	//
-	// Deprecated: runc option --criu is now ignored (with a warning), and the
-	// option will be removed entirely in a future release. Users who need a non-
-	// standard criu binary should rely on the standard way of looking up binaries
-	// in $PATH.
-	string criu_path = 8 [deprecated = true];
+	// Removed in containerd v2.0: string criu_path = 8;
+	reserved 8;
 	// enable systemd cgroups
 	bool systemd_cgroup = 9;
 	// criu image path
 	string criu_image_path = 10;
 	// criu work path
 	string criu_work_path = 11;
+	// task api address, can be a unix domain socket, or vsock address.
+	// it is in the form of ttrpc+unix://path/to/uds or grpc+vsock://<vsock cid>:<port>.
+	string task_api_address = 12;
+	// task api version, currently supported value is 2 and 3.
+	uint32 task_api_version = 13;
 }
 
 message CheckpointOptions {

@@ -16,12 +16,12 @@ import (
 	"github.com/containerd/containerd"
 	apievents "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/api/types"
+	runcoptions "github.com/containerd/containerd/api/types/runc/options"
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/content"
 	c8dimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/protobuf"
-	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/typeurl/v2"
@@ -57,7 +57,7 @@ type container struct {
 	client *client
 	c8dCtr containerd.Container
 
-	v2runcoptions *v2runcoptions.Options
+	v2runcoptions *runcoptions.Options
 }
 
 type task struct {
@@ -140,7 +140,7 @@ func (c *client) NewContainer(ctx context.Context, id string, ociSpec *specs.Spe
 		client: c,
 		c8dCtr: ctr,
 	}
-	if x, ok := runtimeOptions.(*v2runcoptions.Options); ok {
+	if x, ok := runtimeOptions.(*runcoptions.Options); ok {
 		created.v2runcoptions = x
 	}
 	return &created, nil
@@ -208,7 +208,7 @@ func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin
 	if runtime.GOOS != "windows" {
 		taskOpts = append(taskOpts, func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
 			if c.v2runcoptions != nil {
-				opts := proto.Clone(c.v2runcoptions).(*v2runcoptions.Options)
+				opts := proto.Clone(c.v2runcoptions).(*runcoptions.Options)
 				opts.IoUid = uint32(uid)
 				opts.IoGid = uint32(gid)
 				info.Options = opts
@@ -411,11 +411,11 @@ func (p process) Status(ctx context.Context) (containerd.Status, error) {
 func (c *container) getCheckpointOptions(exit bool) containerd.CheckpointTaskOpts {
 	return func(r *containerd.CheckpointTaskInfo) error {
 		if r.Options == nil && c.v2runcoptions != nil {
-			r.Options = &v2runcoptions.CheckpointOptions{}
+			r.Options = &runcoptions.CheckpointOptions{}
 		}
 
 		switch opts := r.Options.(type) {
-		case *v2runcoptions.CheckpointOptions:
+		case *runcoptions.CheckpointOptions:
 			opts.Exit = exit
 		}
 
