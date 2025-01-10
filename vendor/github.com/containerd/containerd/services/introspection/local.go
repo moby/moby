@@ -98,7 +98,7 @@ func (l *Local) UpdateLocal(root string) {
 func (l *Local) Plugins(ctx context.Context, req *api.PluginsRequest, _ ...grpc.CallOption) (*api.PluginsResponse, error) {
 	filter, err := filters.ParseAll(req.Filters...)
 	if err != nil {
-		return nil, errdefs.ToGRPCf(errdefs.ErrInvalidArgument, err.Error())
+		return nil, errdefs.ToGRPC(err)
 	}
 
 	var plugins []*api.Plugin
