@@ -1,5 +1,5 @@
 file {
-  name: "github.com/containerd/containerd/runtime/v2/runc/options/oci.proto"
+  name: "github.com/containerd/containerd/core/runtime/v2/runc/options/oci.proto"
   package: "containerd.runc.v1"
   message_type {
     name: "Options"
@@ -53,16 +53,6 @@ file {
       json_name: "root"
     }
     field {
-      name: "criu_path"
-      number: 8
-      label: LABEL_OPTIONAL
-      type: TYPE_STRING
-      options {
-        deprecated: true
-      }
-      json_name: "criuPath"
-    }
-    field {
       name: "systemd_cgroup"
       number: 9
       label: LABEL_OPTIONAL
@@ -82,6 +72,24 @@ file {
       label: LABEL_OPTIONAL
       type: TYPE_STRING
       json_name: "criuWorkPath"
+    }
+    field {
+      name: "task_api_address"
+      number: 12
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "taskApiAddress"
+    }
+    field {
+      name: "task_api_version"
+      number: 13
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT32
+      json_name: "taskApiVersion"
+    }
+    reserved_range {
+      start: 8
+      end: 9
     }
   }
   message_type {
@@ -161,7 +169,7 @@ file {
     }
   }
   options {
-    go_package: "github.com/containerd/containerd/runtime/v2/runc/options;options"
+    go_package: "github.com/containerd/containerd/v2/core/runtime/v2/runc/options;options"
   }
   syntax: "proto3"
 }
