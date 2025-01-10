@@ -27,14 +27,3 @@ func TestNopWriteCloser(t *testing.T) {
 		t.Fatal("NopWriteCloser always return nil on Close.")
 	}
 }
-
-func TestNopWriter(t *testing.T) {
-	nw := &NopWriter{}
-	l, err := nw.Write([]byte{'c'})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if l != 1 {
-		t.Fatalf("Expected 1 got %d", l)
-	}
-}

@@ -5,15 +5,6 @@ import (
 	"sync/atomic"
 )
 
-// NopWriter represents a type which write operation is nop.
-//
-// Deprecated: use [io.Discard] instead. This type will be removed in the next release.
-type NopWriter struct{}
-
-func (*NopWriter) Write(buf []byte) (int, error) {
-	return len(buf), nil
-}
-
 type nopWriteCloser struct {
 	io.Writer
 }
