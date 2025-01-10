@@ -40,27 +40,6 @@ func NewReadCloserWrapper(r io.Reader, closer func() error) io.ReadCloser {
 	}
 }
 
-type readerErrWrapper struct {
-	reader io.Reader
-	closer func()
-}
-
-func (r *readerErrWrapper) Read(p []byte) (int, error) {
-	n, err := r.reader.Read(p)
-	if err != nil {
-		r.closer()
-	}
-	return n, err
-}
-
-// NewReaderErrWrapper returns a new io.Reader.
-func NewReaderErrWrapper(r io.Reader, closer func()) io.Reader {
-	return &readerErrWrapper{
-		reader: r,
-		closer: closer,
-	}
-}
-
 // cancelReadCloser wraps an io.ReadCloser with a context for cancelling read
 // operations.
 type cancelReadCloser struct {
