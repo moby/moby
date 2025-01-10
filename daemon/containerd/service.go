@@ -20,7 +20,6 @@ import (
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/registry"
 	"github.com/pkg/errors"
@@ -108,13 +107,6 @@ func (i *ImageService) CountImages(ctx context.Context) int {
 	return len(imgs)
 }
 
-// CreateLayer creates a filesystem layer for a container.
-// called from create.go
-// TODO: accept an opt struct instead of container?
-func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
-	return nil, errdefs.NotImplemented(errdefs.NotImplemented(errors.New("not implemented")))
-}
-
 // LayerStoreStatus returns the status for each layer store
 // called from info.go
 func (i *ImageService) LayerStoreStatus() [][2]string {
@@ -141,12 +133,6 @@ func (i *ImageService) Cleanup() error {
 // used by the ImageService.
 func (i *ImageService) StorageDriver() string {
 	return i.snapshotter
-}
-
-// ReleaseLayer releases a layer allowing it to be removed
-// called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
-func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
-	return errdefs.NotImplemented(errors.New("not implemented"))
 }
 
 // LayerDiskUsage returns the number of bytes used by layer stores

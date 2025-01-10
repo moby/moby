@@ -28,7 +28,6 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/atomicwriter"
@@ -70,9 +69,9 @@ type Container struct {
 	// State also provides a [sync.Mutex] which is used as lock for both
 	// the Container and State.
 	*State          `json:"State"`
-	Root            string        `json:"-"` // Path to the "home" of the container, including metadata.
-	BaseFS          string        `json:"-"` // Path to the graphdriver mountpoint
-	RWLayer         layer.RWLayer `json:"-"`
+	Root            string  `json:"-"` // Path to the "home" of the container, including metadata.
+	BaseFS          string  `json:"-"` // Path to the graphdriver mountpoint
+	RWLayer         RWLayer `json:"-"`
 	ID              string
 	Created         time.Time
 	Managed         bool
