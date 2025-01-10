@@ -18,10 +18,8 @@ syntax = "proto3";
 
 package containerd.services.events.ttrpc.v1;
 
-import "github.com/containerd/containerd/api/types/fieldpath.proto";
-import "google/protobuf/any.proto";
+import "github.com/containerd/containerd/api/types/event.proto";
 import "google/protobuf/empty.proto";
-import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/containerd/containerd/api/services/ttrpc/events/v1;events";
 
@@ -35,13 +33,5 @@ service Events {
 }
 
 message ForwardRequest {
-	Envelope envelope = 1;
-}
-
-message Envelope {
-	option (containerd.types.fieldpath) = true;
-	google.protobuf.Timestamp timestamp = 1;
-	string namespace = 2;
-	string topic = 3;
-	google.protobuf.Any event = 4;
+	containerd.types.Envelope envelope = 1;
 }

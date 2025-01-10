@@ -136,7 +136,7 @@ func (s *service) Delete(ctx context.Context, req *api.DeleteContentRequest) (*p
 	log.G(ctx).WithField("digest", req.Digest).Debugf("delete content")
 	dg, err := digest.Parse(req.Digest)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	if err := s.store.Delete(ctx, dg); err != nil {
