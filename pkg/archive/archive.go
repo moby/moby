@@ -472,11 +472,33 @@ func (compression *Compression) Extension() string {
 	return ""
 }
 
+// assert that we implement [tar.FileInfoNames].
+//
+// TODO(thaJeztah): disabled to allow compiling on < go1.23. un-comment once we drop support for older versions of go.
+// var _ tar.FileInfoNames = (*nosysFileInfo)(nil)
+
 // nosysFileInfo hides the system-dependent info of the wrapped FileInfo to
 // prevent tar.FileInfoHeader from introspecting it and potentially calling into
 // glibc.
+//
+// It implements [tar.FileInfoNames] to further prevent [tar.FileInfoHeader]
+// from performing any lookups on go1.23 and up. see https://go.dev/issue/50102
 type nosysFileInfo struct {
 	os.FileInfo
+}
+
+// Uname stubs out looking up username. It implements [tar.FileInfoNames]
+// to prevent [tar.FileInfoHeader] from loading libraries to perform
+// username lookups.
+func (fi nosysFileInfo) Uname() (string, error) {
+	return "", nil
+}
+
+// Gname stubs out looking up group-name. It implements [tar.FileInfoNames]
+// to prevent [tar.FileInfoHeader] from loading libraries to perform
+// username lookups.
+func (fi nosysFileInfo) Gname() (string, error) {
+	return "", nil
 }
 
 func (fi nosysFileInfo) Sys() interface{} {
