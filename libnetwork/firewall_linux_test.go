@@ -28,16 +28,16 @@ func TestUserChain(t *testing.T) {
 		append   bool // append other rules to FORWARD
 	}{
 		{
-			iptables: false,
-			append:   false,
-		},
-		{
 			iptables: true,
 			append:   false,
 		},
 		{
 			iptables: true,
 			append:   true,
+		},
+		{
+			iptables: false,
+			append:   false,
 		},
 	}
 
