@@ -80,13 +80,19 @@ func (wf *WriteFlusher) Close() error {
 	return nil
 }
 
+// nopFlusher represents a type which flush operation is nop.
+type nopFlusher struct{}
+
+// Flush is a nop operation.
+func (f *nopFlusher) Flush() {}
+
 // NewWriteFlusher returns a new WriteFlusher.
 func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	var fl flusher
 	if f, ok := w.(flusher); ok {
 		fl = f
 	} else {
-		fl = &NopFlusher{}
+		fl = &nopFlusher{}
 	}
 	return &WriteFlusher{w: w, flusher: fl, closed: make(chan struct{}), flushed: make(chan struct{})}
 }
