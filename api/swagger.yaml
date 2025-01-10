@@ -435,6 +435,14 @@ definitions:
             description: "Source path inside the volume. Must be relative without any back traversals."
             type: "string"
             example: "dir-inside-volume/subdirectory"
+      ImageOptions:
+        description: "Optional configuration for the `image` type."
+        type: "object"
+        properties:
+          Subpath:
+            description: "Source path inside the image. Must be relative without any back traversals."
+            type: "string"
+            example: "dir-inside-image/subdirectory"
       TmpfsOptions:
         description: "Optional configuration for the `tmpfs` type."
         type: "object"

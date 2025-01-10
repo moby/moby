@@ -127,8 +127,8 @@ func TestRunMountImage(t *testing.T) {
 
 	for _, tc := range []struct {
 		name         string
+		opts         mount.ImageOptions
 		cmd          []string
-		volumeTarget string
 		createErr    string
 		startErr     string
 		expected     string
@@ -136,12 +136,20 @@ func TestRunMountImage(t *testing.T) {
 	}{
 		{name: "image", cmd: []string{"cat", "/image/foo"}, expected: "bar"},
 		{name: "image_tag", cmd: []string{"cat", "/image/foo"}, expected: "bar"},
+
+		{name: "subdir", opts: mount.ImageOptions{Subpath: "subdir"}, cmd: []string{"ls", "/image"}, expected: "hello"},
+		{name: "subdir link", opts: mount.ImageOptions{Subpath: "hack/good"}, cmd: []string{"ls", "/image"}, expected: "hello"},
+		{name: "subdir link outside context", opts: mount.ImageOptions{Subpath: "hack/bad"}, cmd: []string{"ls", "/image"}, startErr: (&safepath.ErrEscapesBase{}).Error()},
+		{name: "file", opts: mount.ImageOptions{Subpath: "subdir/hello"}, cmd: []string{"cat", "/image"}, expected: "world"},
+		{name: "relative with backtracks", opts: mount.ImageOptions{Subpath: "../../../../../../etc/passwd"}, cmd: []string{"cat", "/image"}, createErr: "subpath must be a relative path within the volume"},
+		{name: "not existing", opts: mount.ImageOptions{Subpath: "not-existing-path"}, cmd: []string{"cat", "/image"}, startErr: (&safepath.ErrNotAccessible{}).Error()},
+
 		{name: "image_remove", cmd: []string{"cat", "/image/foo"}, expected: "bar"},
 		// Expected is duplicated because the container runs twice
 		{name: "image_remove_force", cmd: []string{"cat", "/image/foo"}, expected: "barbar"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			testImage := setupTestImage(t, ctx, apiClient, tc.name)
+			testImage := setupTestImage(t, ctx, apiClient, tc.name, testEnv.UsingSnapshotter())
 			if testImage != "" {
 				defer apiClient.ImageRemove(ctx, testImage, image.RemoveOptions{Force: true})
 			}
@@ -154,9 +162,10 @@ func TestRunMountImage(t *testing.T) {
 			hostCfg := containertypes.HostConfig{
 				Mounts: []mount.Mount{
 					{
-						Type:   mount.TypeImage,
-						Source: testImage,
-						Target: "/image",
+						Type:         mount.TypeImage,
+						Source:       testImage,
+						Target:       "/image",
+						ImageOptions: &tc.opts,
 					},
 				},
 			}
@@ -207,7 +216,7 @@ func TestRunMountImage(t *testing.T) {
 			assert.Check(t, err)
 
 			inspect, err := apiClient.ContainerInspect(ctx, id)
-			if assert.Check(t, err) {
+			if tc.startErr == "" && assert.Check(t, err) {
 				assert.Check(t, is.Equal(inspect.State.ExitCode, 0))
 			}
 
@@ -289,16 +298,31 @@ func setupTestVolume(t *testing.T, client client.APIClient) string {
 	return volumeName
 }
 
-func setupTestImage(t *testing.T, ctx context.Context, client client.APIClient, test string) string {
+func setupTestImage(t *testing.T, ctx context.Context, client client.APIClient, test string, snapshotter bool) string {
 	imgName := "test-image"
 
 	if test == "image_tag" {
 		imgName += ":foo"
 	}
 
+	var symlink string
+	if snapshotter {
+		symlink = "../../../../rootfs"
+	} else {
+		symlink = "../../../../../docker"
+	}
+
+	//nolint:dupword // ignore "Duplicate words (subdir) found (dupword)"
 	dockerfile := `
+		FROM busybox as symlink
+		RUN mkdir /hack \
+			&& ln -s "../subdir" /hack/good \
+			&& ln -s "` + symlink + `" /hack/bad
+		#--
 		FROM scratch
-		ADD foo /
+		COPY foo /
+		COPY subdir subdir
+		COPY --from=symlink /hack /hack
 		`
 
 	source := fakecontext.New(
@@ -306,6 +330,7 @@ func setupTestImage(t *testing.T, ctx context.Context, client client.APIClient, 
 		"",
 		fakecontext.WithDockerfile(dockerfile),
 		fakecontext.WithFile("foo", "bar"),
+		fakecontext.WithFile("subdir/hello", "world"),
 	)
 	defer source.Close()
 

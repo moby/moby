@@ -219,6 +219,20 @@ func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtoo
 		return volumePath, clean, nil
 	}
 
+	if m.Type == mounttypes.TypeImage {
+		if m.Spec.ImageOptions != nil && m.Spec.ImageOptions.Subpath != "" {
+			subpath := m.Spec.ImageOptions.Subpath
+
+			safePath, err := safepath.Join(ctx, m.Source, subpath)
+			if err != nil {
+				return "", noCleanup, err
+			}
+			m.safePaths = append(m.safePaths, safePath)
+			log.G(ctx).Debugf("mounting (%s|%s) via %s", m.Source, subpath, safePath.Path())
+			return safePath.Path(), safePath.Close, nil
+		}
+	}
+
 	if len(m.Source) == 0 {
 		return "", noCleanup, fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
 	}

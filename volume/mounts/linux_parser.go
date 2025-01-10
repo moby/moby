@@ -74,6 +74,9 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 		if mnt.VolumeOptions != nil {
 			return &errMountConfig{mnt, errExtraField("VolumeOptions")}
 		}
+		if mnt.ImageOptions != nil {
+			return &errMountConfig{mnt, errExtraField("ImageOptions")}
+		}
 
 		if err := linuxValidateAbsolute(mnt.Source); err != nil {
 			return &errMountConfig{mnt, err}
@@ -95,6 +98,9 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 		if mnt.BindOptions != nil {
 			return &errMountConfig{mnt, errExtraField("BindOptions")}
 		}
+		if mnt.ImageOptions != nil {
+			return &errMountConfig{mnt, errExtraField("ImageOptions")}
+		}
 		anonymousVolume := len(mnt.Source) == 0
 
 		if mnt.VolumeOptions != nil && mnt.VolumeOptions.Subpath != "" {
@@ -113,6 +119,9 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 		if mnt.BindOptions != nil {
 			return &errMountConfig{mnt, errExtraField("BindOptions")}
 		}
+		if mnt.ImageOptions != nil {
+			return &errMountConfig{mnt, errExtraField("ImageOptions")}
+		}
 		if len(mnt.Source) != 0 {
 			return &errMountConfig{mnt, errExtraField("Source")}
 		}
@@ -128,6 +137,11 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 		}
 		if len(mnt.Source) == 0 {
 			return &errMountConfig{mnt, errMissingField("Source")}
+		}
+		if mnt.ImageOptions != nil && mnt.ImageOptions.Subpath != "" {
+			if !filepath.IsLocal(mnt.ImageOptions.Subpath) {
+				return &errMountConfig{mnt, errInvalidSubpath}
+			}
 		}
 	default:
 		return &errMountConfig{mnt, errors.New("mount type unknown")}
