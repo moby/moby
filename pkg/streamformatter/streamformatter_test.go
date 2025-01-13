@@ -42,14 +42,14 @@ func TestFormatStatus(t *testing.T) {
 
 func TestFormatError(t *testing.T) {
 	res := FormatError(errors.New("Error for formatter"))
-	expected := `{"errorDetail":{"message":"Error for formatter"},"error":"Error for formatter"}` + "\r\n"
+	const expected = `{"errorDetail":{"message":"Error for formatter"}}` + streamNewline
 	assert.Check(t, is.Equal(expected, string(res)))
 }
 
 func TestFormatJSONError(t *testing.T) {
 	err := &jsonmessage.JSONError{Code: 50, Message: "Json error"}
 	res := FormatError(err)
-	expected := `{"errorDetail":{"code":50,"message":"Json error"},"error":"Json error"}` + streamNewline
+	const expected = `{"errorDetail":{"code":50,"message":"Json error"}}` + streamNewline
 	assert.Check(t, is.Equal(expected, string(res)))
 }
 

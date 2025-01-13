@@ -2725,13 +2725,9 @@ definitions:
         type: "string"
       stream:
         type: "string"
-      error:
-        type: "string"
       errorDetail:
         $ref: "#/definitions/ErrorDetail"
       status:
-        type: "string"
-      progress:
         type: "string"
       progressDetail:
         $ref: "#/definitions/ProgressDetail"
@@ -2830,13 +2826,9 @@ definitions:
     properties:
       id:
         type: "string"
-      error:
-        type: "string"
       errorDetail:
         $ref: "#/definitions/ErrorDetail"
       status:
-        type: "string"
-      progress:
         type: "string"
       progressDetail:
         $ref: "#/definitions/ProgressDetail"
@@ -2844,11 +2836,7 @@ definitions:
   PushImageInfo:
     type: "object"
     properties:
-      error:
-        type: "string"
       status:
-        type: "string"
-      progress:
         type: "string"
       progressDetail:
         $ref: "#/definitions/ProgressDetail"

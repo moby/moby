@@ -143,16 +143,14 @@ func (p *JSONProgress) width() int {
 // the created time, where it from, status, ID of the
 // message. It's used for docker events.
 type JSONMessage struct {
-	Stream          string        `json:"stream,omitempty"`
-	Status          string        `json:"status,omitempty"`
-	Progress        *JSONProgress `json:"progressDetail,omitempty"`
-	ProgressMessage string        `json:"progress,omitempty"` // deprecated
-	ID              string        `json:"id,omitempty"`
-	From            string        `json:"from,omitempty"`
-	Time            int64         `json:"time,omitempty"`
-	TimeNano        int64         `json:"timeNano,omitempty"`
-	Error           *JSONError    `json:"errorDetail,omitempty"`
-	ErrorMessage    string        `json:"error,omitempty"` // deprecated
+	Stream   string        `json:"stream,omitempty"`
+	Status   string        `json:"status,omitempty"`
+	Progress *JSONProgress `json:"progressDetail,omitempty"`
+	ID       string        `json:"id,omitempty"`
+	From     string        `json:"from,omitempty"`
+	Time     int64         `json:"time,omitempty"`
+	TimeNano int64         `json:"timeNano,omitempty"`
+	Error    *JSONError    `json:"errorDetail,omitempty"`
 	// Aux contains out-of-band data, such as digests for push signing and image id after building.
 	Aux *json.RawMessage `json:"aux,omitempty"`
 }
@@ -199,8 +197,6 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	}
 	if jm.Progress != nil && isTerminal {
 		fmt.Fprintf(out, "%s %s%s", jm.Status, jm.Progress.String(), endl)
-	} else if jm.ProgressMessage != "" { // deprecated
-		fmt.Fprintf(out, "%s %s%s", jm.Status, jm.ProgressMessage, endl)
 	} else if jm.Stream != "" {
 		fmt.Fprintf(out, "%s%s", jm.Stream, endl)
 	} else {
@@ -251,7 +247,7 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 		if jm.Progress != nil {
 			jm.Progress.terminalFd = terminalFd
 		}
-		if jm.ID != "" && (jm.Progress != nil || jm.ProgressMessage != "") {
+		if jm.ID != "" && jm.Progress != nil {
 			line, ok := ids[jm.ID]
 			if !ok {
 				// NOTE: This approach of using len(id) to
