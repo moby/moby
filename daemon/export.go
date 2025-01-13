@@ -71,11 +71,17 @@ func (daemon *Daemon) containerExport(ctx context.Context, ctr *container.Contai
 		return err
 	}
 
-	if err := ctx.Err(); err != nil {
-		return err
-	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	context.AfterFunc(ctx, func() {
+		_ = archv.Close()
+	})
+
 	// Stream the entire contents of the container (basically a volatile snapshot)
 	if _, err := io.Copy(out, archv); err != nil {
+		if err := ctx.Err(); err != nil {
+			return errdefs.Cancelled(err)
+		}
 		return err
 	}
 
