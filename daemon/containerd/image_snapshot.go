@@ -133,18 +133,9 @@ func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 		return nil, errdefs.NotFound(fmt.Errorf("RW layer for container %s not found", cid))
 	}
 
-	ls := i.client.LeasesService()
-	lss, err := ls.List(ctx, "id=="+cid)
+	lease, err := i.getLeaseByID(ctx, cid)
 	if err != nil {
 		return nil, err
-	}
-
-	switch len(lss) {
-	case 0:
-		return nil, errdefs.NotFound(errors.New("rw layer lease not found for container " + cid))
-	default:
-		log.G(ctx).WithFields(log.Fields{"container": cid, "leases": lss}).Warn("multiple leases with the same id found, this should not happen")
-	case 1:
 	}
 
 	root, err := i.refCountMounter.Mounted(cid)
@@ -157,7 +148,7 @@ func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 		snapshotterName: i.StorageDriver(),
 		snapshotter:     sn,
 		refCountMounter: i.refCountMounter,
-		lease:           lss[0],
+		lease:           lease,
 		root:            root,
 	}, nil
 
@@ -264,4 +255,21 @@ func calculateSnapshotTotalUsage(ctx context.Context, snapshotter snapshots.Snap
 		next = info.Parent
 	}
 	return total, nil
+}
+
+func (i *ImageService) getLeaseByID(ctx context.Context, id string) (leases.Lease, error) {
+	ls := i.client.LeasesService()
+	lss, err := ls.List(ctx, "id=="+id)
+	if err != nil {
+		return leases.Lease{}, nil
+	}
+
+	switch len(lss) {
+	case 0:
+		return leases.Lease{}, errdefs.NotFound(errors.New("lease not found" + id))
+	default:
+		log.G(ctx).WithFields(log.Fields{"lease": id, "leases": lss}).Warn("multiple leases with the same id found, this should not happen")
+	case 1:
+	}
+	return lss[0], nil
 }
