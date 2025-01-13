@@ -16,7 +16,6 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	dockerarchive "github.com/docker/docker/pkg/archive"
@@ -24,21 +23,6 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
-
-func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Container, fn func(root string) error) error {
-	snapshotter := i.client.SnapshotService(c.Driver)
-	mounts, err := snapshotter.Mounts(ctx, c.ID)
-	if err != nil {
-		return err
-	}
-	path, err := i.refCountMounter.Mount(mounts, c.ID)
-	if err != nil {
-		return err
-	}
-	defer i.refCountMounter.Unmount(path)
-
-	return fn(path)
-}
 
 // ExportImage exports a list of images to the given output stream. The
 // exported images are archived into a tar when written to the output
