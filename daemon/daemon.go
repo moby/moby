@@ -1347,7 +1347,7 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 	if container.RWLayer == nil {
 		return errors.New("RWLayer of container " + container.ID + " is unexpectedly nil")
 	}
-	dir, err := container.RWLayer.Mount(container.GetMountLabel())
+	dir, err := container.RWLayer.Mount(ctx, container.GetMountLabel())
 	if err != nil {
 		return err
 	}
@@ -1374,7 +1374,7 @@ func (daemon *Daemon) Unmount(container *container.Container) error {
 	if container.RWLayer == nil {
 		return errors.New("RWLayer of container " + container.ID + " is unexpectedly nil")
 	}
-	if err := container.RWLayer.Unmount(); err != nil {
+	if err := container.RWLayer.Unmount(context.WithoutCancel(ctx)); err != nil {
 		log.G(ctx).WithField("container", container.ID).WithError(err).Error("error unmounting container")
 		return err
 	}

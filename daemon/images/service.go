@@ -134,13 +134,33 @@ func (i *ImageService) CreateLayer(container *container.Container, initFunc laye
 		StorageOpt: container.HostConfig.StorageOpt,
 	}
 
-	return i.layerStore.CreateRWLayer(container.ID, layerID, rwLayerOpts)
+	rl, err := i.layerStore.CreateRWLayer(container.ID, layerID, rwLayerOpts)
+	if err != nil {
+		return nil, err
+	}
+	return rwLayerCtx{rl}, nil
 }
 
 // GetLayerByID returns a layer by ID
 // called from daemon.go Daemon.restore().
 func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
-	return i.layerStore.GetRWLayer(cid)
+	rl, err := i.layerStore.GetRWLayer(cid)
+	if err != nil {
+		return nil, err
+	}
+	return rwLayerCtx{rl}, nil
+}
+
+type rwLayerCtx struct {
+	layer.RWLayer
+}
+
+func (r rwLayerCtx) Mount(_ context.Context, mountLabel string) (string, error) {
+	return r.RWLayer.Mount(mountLabel)
+}
+
+func (r rwLayerCtx) Unmount(_ context.Context) error {
+	return r.RWLayer.Unmount()
 }
 
 // LayerStoreStatus returns the status for each layer store

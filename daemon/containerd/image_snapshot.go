@@ -102,9 +102,7 @@ func (l *rwLayer) mounts(ctx context.Context) ([]mount.Mount, error) {
 	return l.snapshotter.Mounts(ctx, l.id)
 }
 
-func (l *rwLayer) Mount(mountLabel string) (string, error) {
-	ctx := context.TODO()
-
+func (l *rwLayer) Mount(ctx context.Context, mountLabel string) (string, error) {
 	// TODO: Investigate how we can handle mountLabel
 	_ = mountLabel
 	mounts, err := l.mounts(ctx)
@@ -165,9 +163,7 @@ func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 
 }
 
-func (l *rwLayer) Unmount() error {
-	ctx := context.TODO()
-
+func (l *rwLayer) Unmount(ctx context.Context) error {
 	if l.root == "" {
 		target, err := l.refCountMounter.Mounted(l.id)
 		if err != nil {
