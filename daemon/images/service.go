@@ -118,7 +118,7 @@ func (i *ImageService) Children(_ context.Context, id image.ID) ([]image.ID, err
 // CreateLayer creates a filesystem layer for a container.
 // called from create.go
 // TODO: accept an opt struct instead of container?
-func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (container.RWLayer, error) {
+func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (container.Layer, error) {
 	var layerID layer.ChainID
 	if container.ImageID != "" {
 		img, err := i.imageStore.Get(container.ImageID)
@@ -143,7 +143,7 @@ func (i *ImageService) CreateLayer(container *container.Container, initFunc laye
 
 // GetLayerByID returns a layer by ID
 // called from daemon.go Daemon.restore().
-func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
+func (i *ImageService) GetLayerByID(cid string) (container.Layer, error) {
 	rl, err := i.layerStore.GetRWLayer(cid)
 	if err != nil {
 		return nil, err
@@ -153,6 +153,10 @@ func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 
 type rwLayerCtx struct {
 	layer.RWLayer
+}
+
+func (r rwLayerCtx) Writable() bool {
+	return true
 }
 
 func (r rwLayerCtx) Mount(_ context.Context, mountLabel string) (string, error) {
@@ -192,7 +196,7 @@ func (i *ImageService) StorageDriver() string {
 
 // ReleaseLayer releases a layer allowing it to be removed
 // called from delete.go Daemon.cleanupContainer().
-func (i *ImageService) ReleaseLayer(rwlayer container.RWLayer) error {
+func (i *ImageService) ReleaseLayer(rwlayer container.Layer) error {
 	l, ok := rwlayer.(layer.RWLayer)
 	if !ok {
 		return fmt.Errorf("unexpected RWLayer type: %T", rwlayer)

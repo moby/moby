@@ -20,6 +20,11 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+type ImageLayerService interface {
+	GetImageLayer(ctx context.Context, img *image.Image) (container.Layer, error)
+	ReleaseImageLayer(ctx context.Context, l container.Layer) error
+}
+
 // ImageService is a temporary interface to assist in the migration to the
 // containerd image-store. This interface should not be considered stable,
 // and may change over time.
@@ -46,22 +51,22 @@ type ImageService interface {
 
 	// Layers
 
-	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error)
-	CreateLayer(container *container.Container, initFunc layer.MountInit) (container.RWLayer, error)
-	GetLayerByID(cid string) (container.RWLayer, error)
+	CreateLayer(container *container.Container, initFunc layer.MountInit) (container.Layer, error)
+	GetLayerByID(cid string) (container.Layer, error)
 	LayerStoreStatus() [][2]string
 	GetLayerMountID(cid string) (string, error)
-	ReleaseLayer(rwlayer container.RWLayer) error
+	ReleaseLayer(rwlayer container.Layer) error
 	LayerDiskUsage(ctx context.Context) (int64, error)
 	GetContainerLayerSize(ctx context.Context, containerID string) (int64, int64, error)
 	Changes(ctx context.Context, container *container.Container) ([]archive.Change, error)
 
 	// Windows specific
 
-	GetLayerFolders(img *image.Image, rwLayer container.RWLayer, containerID string) ([]string, error)
+	GetLayerFolders(img *image.Image, rwLayer container.Layer, containerID string) ([]string, error)
 
 	// Build
 
+	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error)
 	MakeImageCache(ctx context.Context, cacheFrom []string) (builder.ImageCache, error)
 	CommitBuildStep(ctx context.Context, c backend.CommitConfig) (image.ID, error)
 

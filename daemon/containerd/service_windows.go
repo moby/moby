@@ -10,12 +10,12 @@ import (
 )
 
 // GetLayerFolders returns the layer folders from an image RootFS.
-func (i *ImageService) GetLayerFolders(img *image.Image, layer container.RWLayer, containerID string) ([]string, error) {
+func (i *ImageService) GetLayerFolders(img *image.Image, layer container.Layer, containerID string) ([]string, error) {
 	if layer == nil {
 		return nil, errors.New("RWLayer is unexpectedly nil")
 	}
 
-	c8dLayer, ok := layer.(*rwLayer)
+	c8dLayer, ok := layer.(*snapshotLayer)
 	if !ok {
 		return nil, fmt.Errorf("unexpected layer type: %T", layer)
 	}
