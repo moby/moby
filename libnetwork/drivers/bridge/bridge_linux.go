@@ -170,6 +170,7 @@ const (
 func newDriver(store *datastore.Store) *driver {
 	return &driver{
 		store:    store,
+		nlh:      ns.NlHandle(),
 		networks: map[string]*bridgeNetwork{},
 	}
 }
@@ -814,13 +815,6 @@ func (d *driver) checkConflict(config *networkConfiguration) error {
 }
 
 func (d *driver) createNetwork(config *networkConfiguration) (err error) {
-	// Initialize handle when needed
-	d.Lock()
-	if d.nlh.Handle == nil {
-		d.nlh = ns.NlHandle()
-	}
-	d.Unlock()
-
 	// Create or retrieve the bridge L3 interface
 	bridgeIface, err := newInterface(d.nlh, config)
 	if err != nil {
