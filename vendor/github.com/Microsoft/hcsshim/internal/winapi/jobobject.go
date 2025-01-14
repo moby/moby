@@ -28,7 +28,7 @@ const (
 // https://docs.microsoft.com/en-us/windows/win32/procthread/job-object-security-and-access-rights
 const (
 	JOB_OBJECT_QUERY      = 0x0004
-	JOB_OBJECT_ALL_ACCESS = 0x1F001F
+	JOB_OBJECT_ALL_ACCESS = 0x1F003F
 )
 
 // IO limit flags
@@ -160,6 +160,21 @@ type JOBOBJECT_ASSOCIATE_COMPLETION_PORT struct {
 	CompletionPort windows.Handle
 }
 
+//	typedef struct _SILOOBJECT_BASIC_INFORMATION {
+//	    DWORD SiloId;
+//	    DWORD SiloParentId;
+//	    DWORD NumberOfProcesses;
+//	    BOOLEAN IsInServerSilo;
+//	    BYTE  Reserved[3];
+//	} SILOOBJECT_BASIC_INFORMATION, *PSILOOBJECT_BASIC_INFORMATION;
+type SILOOBJECT_BASIC_INFORMATION struct {
+	SiloID            uint32
+	SiloParentID      uint32
+	NumberOfProcesses uint32
+	IsInServerSilo    bool
+	Reserved          [3]uint8
+}
+
 // BOOL IsProcessInJob(
 // 		HANDLE ProcessHandle,
 // 		HANDLE JobHandle,
@@ -184,7 +199,7 @@ type JOBOBJECT_ASSOCIATE_COMPLETION_PORT struct {
 //		LPCWSTR lpName
 // );
 //
-//sys OpenJobObject(desiredAccess uint32, inheritHandle int32, lpName *uint16) (handle windows.Handle, err error) = kernel32.OpenJobObjectW
+//sys OpenJobObject(desiredAccess uint32, inheritHandle bool, lpName *uint16) (handle windows.Handle, err error) = kernel32.OpenJobObjectW
 
 // DWORD SetIoRateControlInformationJobObject(
 //		HANDLE                                hJob,
