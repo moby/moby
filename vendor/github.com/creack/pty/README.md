@@ -10,7 +10,7 @@ go get github.com/creack/pty
 
 ## Examples
 
-Note that those examples are for demonstration purpose only, to showcase how to use the library. They are not meant to be used in any kind of production environment.
+Note that those examples are for demonstration purpose only, to showcase how to use the library. They are not meant to be used in any kind of production environment. If you want to **set deadlines to work** and `Close()` **interrupting** `Read()` on the returned `*os.File`, you will need to call `syscall.SetNonblock` manually.
 
 ### Command
 
