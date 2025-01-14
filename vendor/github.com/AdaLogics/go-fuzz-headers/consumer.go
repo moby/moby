@@ -48,6 +48,7 @@ type ConsumeFuzzer struct {
 	NumberOfCalls        int
 	position             uint32
 	fuzzUnexportedFields bool
+	forceUTF8Strings     bool
 	curDepth             int
 	Funcs                map[reflect.Type]reflect.Value
 }
@@ -102,6 +103,14 @@ func (f *ConsumeFuzzer) AllowUnexportedFields() {
 
 func (f *ConsumeFuzzer) DisallowUnexportedFields() {
 	f.fuzzUnexportedFields = false
+}
+
+func (f *ConsumeFuzzer) AllowNonUTF8Strings() {
+	f.forceUTF8Strings = false
+}
+
+func (f *ConsumeFuzzer) DisallowNonUTF8Strings() {
+	f.forceUTF8Strings = true
 }
 
 func (f *ConsumeFuzzer) GenerateStruct(targetStruct interface{}) error {
@@ -224,6 +233,14 @@ func (f *ConsumeFuzzer) fuzzStruct(e reflect.Value, customFunctions bool) error 
 		if e.CanSet() {
 			e.Set(uu)
 		}
+	case reflect.Uint:
+		newInt, err := f.GetUint()
+		if err != nil {
+			return err
+		}
+		if e.CanSet() {
+			e.SetUint(uint64(newInt))
+		}
 	case reflect.Uint16:
 		newInt, err := f.GetUint16()
 		if err != nil {
@@ -308,6 +325,14 @@ func (f *ConsumeFuzzer) fuzzStruct(e reflect.Value, customFunctions bool) error 
 		}
 		if e.CanSet() {
 			e.SetUint(uint64(b))
+		}
+	case reflect.Bool:
+		b, err := f.GetBool()
+		if err != nil {
+			return err
+		}
+		if e.CanSet() {
+			e.SetBool(b)
 		}
 	}
 	return nil
@@ -410,6 +435,23 @@ func (f *ConsumeFuzzer) GetUint64() (uint64, error) {
 	return binary.BigEndian.Uint64(u64), nil
 }
 
+func (f *ConsumeFuzzer) GetUint() (uint, error) {
+	var zero uint
+	size := int(unsafe.Sizeof(zero))
+	if size == 8 {
+		u64, err := f.GetUint64()
+		if err != nil {
+			return 0, err
+		}
+		return uint(u64), nil
+	}
+	u32, err := f.GetUint32()
+	if err != nil {
+		return 0, err
+	}
+	return uint(u32), nil
+}
+
 func (f *ConsumeFuzzer) GetBytes() ([]byte, error) {
 	var length uint32
 	var err error
@@ -461,7 +503,11 @@ func (f *ConsumeFuzzer) GetString() (string, error) {
 		return "nil", errors.New("numbers overflow")
 	}
 	f.position = byteBegin + length
-	return string(f.data[byteBegin:f.position]), nil
+	s := string(f.data[byteBegin:f.position])
+	if f.forceUTF8Strings {
+		s = strings.ToValidUTF8(s, "")
+	}
+	return s, nil
 }
 
 func (f *ConsumeFuzzer) GetBool() (bool, error) {
