@@ -17,9 +17,7 @@ func (sb *Sandbox) restoreHostsPath() {}
 
 func (sb *Sandbox) restoreResolvConfPath() {}
 
-func (sb *Sandbox) addHostsEntries(_ context.Context, ifaceIP []netip.Addr) error {
-	return nil
-}
+func (sb *Sandbox) addHostsEntries(_ context.Context, ifaceIP []netip.Addr) {}
 
 func (sb *Sandbox) deleteHostsEntries(ifaceAddrs []netip.Addr) {}
 
