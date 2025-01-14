@@ -146,7 +146,7 @@ require (
 	github.com/containerd/go-runc v1.1.0 // indirect
 	github.com/containerd/nydus-snapshotter v0.14.0 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.15.1 // indirect
-	github.com/containerd/ttrpc v1.2.5 // indirect
+	github.com/containerd/ttrpc v1.2.7 // indirect
 	github.com/containernetworking/cni v1.2.2 // indirect
 	github.com/containernetworking/plugins v1.5.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.3.5 // indirect
