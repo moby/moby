@@ -3,4 +3,4 @@
 
 // Package exemplar provides an implementation of the OpenTelemetry exemplar
 // reservoir to be used in metric collection pipelines.
-package exemplar // import "go.opentelemetry.io/otel/sdk/metric/internal/exemplar"
+package exemplar // import "go.opentelemetry.io/otel/sdk/metric/exemplar"

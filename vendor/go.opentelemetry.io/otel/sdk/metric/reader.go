@@ -34,7 +34,7 @@ var errNonPositiveDuration = fmt.Errorf("non-positive duration")
 // start of bi-directional control flow.
 //
 // Typically, push-based exporters that are periodic will
-// implement PeroidicExporter themselves and construct a
+// implement PeriodicExporter themselves and construct a
 // PeriodicReader to satisfy this interface.
 //
 // Pull-based exporters will typically implement Register

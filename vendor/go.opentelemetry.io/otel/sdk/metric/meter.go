@@ -185,6 +185,11 @@ func (m *meter) Int64ObservableCounter(name string, options ...metric.Int64Obser
 // configured with options. The instrument is used to asynchronously record
 // int64 measurements once per a measurement collection cycle. Only the
 // measurements recorded during the collection cycle are exported.
+//
+// If Int64ObservableUpDownCounter is invoked repeatedly with the same Name,
+// Description, and Unit, only the first set of callbacks provided are used.
+// Use meter.RegisterCallback and Registration.Unregister to manage callbacks
+// if instrumentation can be created multiple times with different callbacks.
 func (m *meter) Int64ObservableUpDownCounter(name string, options ...metric.Int64ObservableUpDownCounterOption) (metric.Int64ObservableUpDownCounter, error) {
 	cfg := metric.NewInt64ObservableUpDownCounterConfig(options...)
 	id := Instrument{
@@ -201,6 +206,11 @@ func (m *meter) Int64ObservableUpDownCounter(name string, options ...metric.Int6
 // configured with options. The instrument is used to asynchronously record
 // instantaneous int64 measurements once per a measurement collection cycle.
 // Only the measurements recorded during the collection cycle are exported.
+//
+// If Int64ObservableGauge is invoked repeatedly with the same Name,
+// Description, and Unit, only the first set of callbacks provided are used.
+// Use meter.RegisterCallback and Registration.Unregister to manage callbacks
+// if instrumentation can be created multiple times with different callbacks.
 func (m *meter) Int64ObservableGauge(name string, options ...metric.Int64ObservableGaugeOption) (metric.Int64ObservableGauge, error) {
 	cfg := metric.NewInt64ObservableGaugeConfig(options...)
 	id := Instrument{
@@ -334,6 +344,11 @@ func (m *meter) Float64ObservableCounter(name string, options ...metric.Float64O
 // and configured with options. The instrument is used to asynchronously record
 // float64 measurements once per a measurement collection cycle. Only the
 // measurements recorded during the collection cycle are exported.
+//
+// If Float64ObservableUpDownCounter is invoked repeatedly with the same Name,
+// Description, and Unit, only the first set of callbacks provided are used.
+// Use meter.RegisterCallback and Registration.Unregister to manage callbacks
+// if instrumentation can be created multiple times with different callbacks.
 func (m *meter) Float64ObservableUpDownCounter(name string, options ...metric.Float64ObservableUpDownCounterOption) (metric.Float64ObservableUpDownCounter, error) {
 	cfg := metric.NewFloat64ObservableUpDownCounterConfig(options...)
 	id := Instrument{
@@ -350,6 +365,11 @@ func (m *meter) Float64ObservableUpDownCounter(name string, options ...metric.Fl
 // configured with options. The instrument is used to asynchronously record
 // instantaneous float64 measurements once per a measurement collection cycle.
 // Only the measurements recorded during the collection cycle are exported.
+//
+// If Float64ObservableGauge is invoked repeatedly with the same Name,
+// Description, and Unit, only the first set of callbacks provided are used.
+// Use meter.RegisterCallback and Registration.Unregister to manage callbacks
+// if instrumentation can be created multiple times with different callbacks.
 func (m *meter) Float64ObservableGauge(name string, options ...metric.Float64ObservableGaugeOption) (metric.Float64ObservableGauge, error) {
 	cfg := metric.NewFloat64ObservableGaugeConfig(options...)
 	id := Instrument{
@@ -439,7 +459,7 @@ func (m *meter) RegisterCallback(f metric.Callback, insts ...metric.Observable) 
 				}
 				continue
 			}
-			reg.registerInt64(o.observablID)
+			reg.registerInt64(o.observableID)
 		case float64Observable:
 			if err := o.registerable(m); err != nil {
 				if !errors.Is(err, errEmptyAgg) {
@@ -447,7 +467,7 @@ func (m *meter) RegisterCallback(f metric.Callback, insts ...metric.Observable) 
 				}
 				continue
 			}
-			reg.registerFloat64(o.observablID)
+			reg.registerFloat64(o.observableID)
 		default:
 			// Instrument external to the SDK.
 			return nil, fmt.Errorf("invalid observable: from different implementation")
@@ -468,14 +488,14 @@ func (m *meter) RegisterCallback(f metric.Callback, insts ...metric.Observable) 
 type observer struct {
 	embedded.Observer
 
-	float64 map[observablID[float64]]struct{}
-	int64   map[observablID[int64]]struct{}
+	float64 map[observableID[float64]]struct{}
+	int64   map[observableID[int64]]struct{}
 }
 
 func newObserver() observer {
 	return observer{
-		float64: make(map[observablID[float64]]struct{}),
-		int64:   make(map[observablID[int64]]struct{}),
+		float64: make(map[observableID[float64]]struct{}),
+		int64:   make(map[observableID[int64]]struct{}),
 	}
 }
 
@@ -483,11 +503,11 @@ func (r observer) len() int {
 	return len(r.float64) + len(r.int64)
 }
 
-func (r observer) registerFloat64(id observablID[float64]) {
+func (r observer) registerFloat64(id observableID[float64]) {
 	r.float64[id] = struct{}{}
 }
 
-func (r observer) registerInt64(id observablID[int64]) {
+func (r observer) registerInt64(id observableID[int64]) {
 	r.int64[id] = struct{}{}
 }
 
@@ -516,7 +536,7 @@ func (r observer) ObserveFloat64(o metric.Float64Observable, v float64, opts ...
 		return
 	}
 
-	if _, registered := r.float64[oImpl.observablID]; !registered {
+	if _, registered := r.float64[oImpl.observableID]; !registered {
 		if !oImpl.dropAggregation {
 			global.Error(errUnregObserver, "failed to record",
 				"name", oImpl.name,
@@ -551,7 +571,7 @@ func (r observer) ObserveInt64(o metric.Int64Observable, v int64, opts ...metric
 		return
 	}
 
-	if _, registered := r.int64[oImpl.observablID]; !registered {
+	if _, registered := r.int64[oImpl.observableID]; !registered {
 		if !oImpl.dropAggregation {
 			global.Error(errUnregObserver, "failed to record",
 				"name", oImpl.name,

@@ -11,13 +11,12 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/sdk/metric/internal/exemplar"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 type buckets[N int64 | float64] struct {
 	attrs attribute.Set
-	res   exemplar.FilteredReservoir[N]
+	res   FilteredExemplarReservoir[N]
 
 	counts   []uint64
 	count    uint64
@@ -48,13 +47,13 @@ type histValues[N int64 | float64] struct {
 	noSum  bool
 	bounds []float64
 
-	newRes   func() exemplar.FilteredReservoir[N]
+	newRes   func() FilteredExemplarReservoir[N]
 	limit    limiter[*buckets[N]]
 	values   map[attribute.Distinct]*buckets[N]
 	valuesMu sync.Mutex
 }
 
-func newHistValues[N int64 | float64](bounds []float64, noSum bool, limit int, r func() exemplar.FilteredReservoir[N]) *histValues[N] {
+func newHistValues[N int64 | float64](bounds []float64, noSum bool, limit int, r func() FilteredExemplarReservoir[N]) *histValues[N] {
 	// The responsibility of keeping all buckets correctly associated with the
 	// passed boundaries is ultimately this type's responsibility. Make a copy
 	// here so we can always guarantee this. Or, in the case of failure, have
@@ -109,7 +108,7 @@ func (s *histValues[N]) measure(ctx context.Context, value N, fltrAttr attribute
 
 // newHistogram returns an Aggregator that summarizes a set of measurements as
 // an histogram.
-func newHistogram[N int64 | float64](boundaries []float64, noMinMax, noSum bool, limit int, r func() exemplar.FilteredReservoir[N]) *histogram[N] {
+func newHistogram[N int64 | float64](boundaries []float64, noMinMax, noSum bool, limit int, r func() FilteredExemplarReservoir[N]) *histogram[N] {
 	return &histogram[N]{
 		histValues: newHistValues[N](boundaries, noSum, limit, r),
 		noMinMax:   noMinMax,

@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package exemplar // import "go.opentelemetry.io/otel/sdk/metric/internal/exemplar"
+package exemplar // import "go.opentelemetry.io/otel/sdk/metric/exemplar"
 
 import (
 	"context"

@@ -12,7 +12,6 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/sdk/metric/internal/exemplar"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
@@ -31,7 +30,7 @@ const (
 // expoHistogramDataPoint is a single data point in an exponential histogram.
 type expoHistogramDataPoint[N int64 | float64] struct {
 	attrs attribute.Set
-	res   exemplar.FilteredReservoir[N]
+	res   FilteredExemplarReservoir[N]
 
 	count uint64
 	min   N
@@ -42,14 +41,14 @@ type expoHistogramDataPoint[N int64 | float64] struct {
 	noMinMax bool
 	noSum    bool
 
-	scale int
+	scale int32
 
 	posBuckets expoBuckets
 	negBuckets expoBuckets
 	zeroCount  uint64
 }
 
-func newExpoHistogramDataPoint[N int64 | float64](attrs attribute.Set, maxSize, maxScale int, noMinMax, noSum bool) *expoHistogramDataPoint[N] {
+func newExpoHistogramDataPoint[N int64 | float64](attrs attribute.Set, maxSize int, maxScale int32, noMinMax, noSum bool) *expoHistogramDataPoint[N] {
 	f := math.MaxFloat64
 	max := N(f) // if N is int64, max will overflow to -9223372036854775808
 	min := N(-f)
@@ -119,11 +118,13 @@ func (p *expoHistogramDataPoint[N]) record(v N) {
 }
 
 // getBin returns the bin v should be recorded into.
-func (p *expoHistogramDataPoint[N]) getBin(v float64) int {
-	frac, exp := math.Frexp(v)
+func (p *expoHistogramDataPoint[N]) getBin(v float64) int32 {
+	frac, expInt := math.Frexp(v)
+	// 11-bit exponential.
+	exp := int32(expInt) // nolint: gosec
 	if p.scale <= 0 {
 		// Because of the choice of fraction is always 1 power of two higher than we want.
-		correction := 1
+		var correction int32 = 1
 		if frac == .5 {
 			// If v is an exact power of two the frac will be .5 and the exp
 			// will be one higher than we want.
@@ -131,7 +132,7 @@ func (p *expoHistogramDataPoint[N]) getBin(v float64) int {
 		}
 		return (exp - correction) >> (-p.scale)
 	}
-	return exp<<p.scale + int(math.Log(frac)*scaleFactors[p.scale]) - 1
+	return exp<<p.scale + int32(math.Log(frac)*scaleFactors[p.scale]) - 1
 }
 
 // scaleFactors are constants used in calculating the logarithm index. They are
@@ -162,20 +163,20 @@ var scaleFactors = [21]float64{
 
 // scaleChange returns the magnitude of the scale change needed to fit bin in
 // the bucket. If no scale change is needed 0 is returned.
-func (p *expoHistogramDataPoint[N]) scaleChange(bin, startBin, length int) int {
+func (p *expoHistogramDataPoint[N]) scaleChange(bin, startBin int32, length int) int32 {
 	if length == 0 {
 		// No need to rescale if there are no buckets.
 		return 0
 	}
 
-	low := startBin
-	high := bin
+	low := int(startBin)
+	high := int(bin)
 	if startBin >= bin {
-		low = bin
-		high = startBin + length - 1
+		low = int(bin)
+		high = int(startBin) + length - 1
 	}
 
-	count := 0
+	var count int32
 	for high-low >= p.maxSize {
 		low = low >> 1
 		high = high >> 1
@@ -189,39 +190,39 @@ func (p *expoHistogramDataPoint[N]) scaleChange(bin, startBin, length int) int {
 
 // expoBuckets is a set of buckets in an exponential histogram.
 type expoBuckets struct {
-	startBin int
+	startBin int32
 	counts   []uint64
 }
 
 // record increments the count for the given bin, and expands the buckets if needed.
 // Size changes must be done before calling this function.
-func (b *expoBuckets) record(bin int) {
+func (b *expoBuckets) record(bin int32) {
 	if len(b.counts) == 0 {
 		b.counts = []uint64{1}
 		b.startBin = bin
 		return
 	}
 
-	endBin := b.startBin + len(b.counts) - 1
+	endBin := int(b.startBin) + len(b.counts) - 1
 
 	// if the new bin is inside the current range
-	if bin >= b.startBin && bin <= endBin {
+	if bin >= b.startBin && int(bin) <= endBin {
 		b.counts[bin-b.startBin]++
 		return
 	}
 	// if the new bin is before the current start add spaces to the counts
 	if bin < b.startBin {
 		origLen := len(b.counts)
-		newLength := endBin - bin + 1
+		newLength := endBin - int(bin) + 1
 		shift := b.startBin - bin
 
 		if newLength > cap(b.counts) {
 			b.counts = append(b.counts, make([]uint64, newLength-len(b.counts))...)
 		}
 
-		copy(b.counts[shift:origLen+shift], b.counts[:])
+		copy(b.counts[shift:origLen+int(shift)], b.counts[:])
 		b.counts = b.counts[:newLength]
-		for i := 1; i < shift; i++ {
+		for i := 1; i < int(shift); i++ {
 			b.counts[i] = 0
 		}
 		b.startBin = bin
@@ -229,17 +230,17 @@ func (b *expoBuckets) record(bin int) {
 		return
 	}
 	// if the new is after the end add spaces to the end
-	if bin > endBin {
-		if bin-b.startBin < cap(b.counts) {
+	if int(bin) > endBin {
+		if int(bin-b.startBin) < cap(b.counts) {
 			b.counts = b.counts[:bin-b.startBin+1]
-			for i := endBin + 1 - b.startBin; i < len(b.counts); i++ {
+			for i := endBin + 1 - int(b.startBin); i < len(b.counts); i++ {
 				b.counts[i] = 0
 			}
 			b.counts[bin-b.startBin] = 1
 			return
 		}
 
-		end := make([]uint64, bin-b.startBin-len(b.counts)+1)
+		end := make([]uint64, int(bin-b.startBin)-len(b.counts)+1)
 		b.counts = append(b.counts, end...)
 		b.counts[bin-b.startBin] = 1
 	}
@@ -247,7 +248,7 @@ func (b *expoBuckets) record(bin int) {
 
 // downscale shrinks a bucket by a factor of 2*s. It will sum counts into the
 // correct lower resolution bucket.
-func (b *expoBuckets) downscale(delta int) {
+func (b *expoBuckets) downscale(delta int32) {
 	// Example
 	// delta = 2
 	// Original offset: -6
@@ -262,19 +263,19 @@ func (b *expoBuckets) downscale(delta int) {
 		return
 	}
 
-	steps := 1 << delta
+	steps := int32(1) << delta
 	offset := b.startBin % steps
 	offset = (offset + steps) % steps // to make offset positive
 	for i := 1; i < len(b.counts); i++ {
-		idx := i + offset
-		if idx%steps == 0 {
-			b.counts[idx/steps] = b.counts[i]
+		idx := i + int(offset)
+		if idx%int(steps) == 0 {
+			b.counts[idx/int(steps)] = b.counts[i]
 			continue
 		}
-		b.counts[idx/steps] += b.counts[i]
+		b.counts[idx/int(steps)] += b.counts[i]
 	}
 
-	lastIdx := (len(b.counts) - 1 + offset) / steps
+	lastIdx := (len(b.counts) - 1 + int(offset)) / int(steps)
 	b.counts = b.counts[:lastIdx+1]
 	b.startBin = b.startBin >> delta
 }
@@ -282,12 +283,12 @@ func (b *expoBuckets) downscale(delta int) {
 // newExponentialHistogram returns an Aggregator that summarizes a set of
 // measurements as an exponential histogram. Each histogram is scoped by attributes
 // and the aggregation cycle the measurements were made in.
-func newExponentialHistogram[N int64 | float64](maxSize, maxScale int32, noMinMax, noSum bool, limit int, r func() exemplar.FilteredReservoir[N]) *expoHistogram[N] {
+func newExponentialHistogram[N int64 | float64](maxSize, maxScale int32, noMinMax, noSum bool, limit int, r func() FilteredExemplarReservoir[N]) *expoHistogram[N] {
 	return &expoHistogram[N]{
 		noSum:    noSum,
 		noMinMax: noMinMax,
 		maxSize:  int(maxSize),
-		maxScale: int(maxScale),
+		maxScale: maxScale,
 
 		newRes: r,
 		limit:  newLimiter[*expoHistogramDataPoint[N]](limit),
@@ -303,9 +304,9 @@ type expoHistogram[N int64 | float64] struct {
 	noSum    bool
 	noMinMax bool
 	maxSize  int
-	maxScale int
+	maxScale int32
 
-	newRes   func() exemplar.FilteredReservoir[N]
+	newRes   func() FilteredExemplarReservoir[N]
 	limit    limiter[*expoHistogramDataPoint[N]]
 	values   map[attribute.Distinct]*expoHistogramDataPoint[N]
 	valuesMu sync.Mutex
@@ -354,15 +355,15 @@ func (e *expoHistogram[N]) delta(dest *metricdata.Aggregation) int {
 		hDPts[i].StartTime = e.start
 		hDPts[i].Time = t
 		hDPts[i].Count = val.count
-		hDPts[i].Scale = int32(val.scale)
+		hDPts[i].Scale = val.scale
 		hDPts[i].ZeroCount = val.zeroCount
 		hDPts[i].ZeroThreshold = 0.0
 
-		hDPts[i].PositiveBucket.Offset = int32(val.posBuckets.startBin)
+		hDPts[i].PositiveBucket.Offset = val.posBuckets.startBin
 		hDPts[i].PositiveBucket.Counts = reset(hDPts[i].PositiveBucket.Counts, len(val.posBuckets.counts), len(val.posBuckets.counts))
 		copy(hDPts[i].PositiveBucket.Counts, val.posBuckets.counts)
 
-		hDPts[i].NegativeBucket.Offset = int32(val.negBuckets.startBin)
+		hDPts[i].NegativeBucket.Offset = val.negBuckets.startBin
 		hDPts[i].NegativeBucket.Counts = reset(hDPts[i].NegativeBucket.Counts, len(val.negBuckets.counts), len(val.negBuckets.counts))
 		copy(hDPts[i].NegativeBucket.Counts, val.negBuckets.counts)
 
@@ -407,15 +408,15 @@ func (e *expoHistogram[N]) cumulative(dest *metricdata.Aggregation) int {
 		hDPts[i].StartTime = e.start
 		hDPts[i].Time = t
 		hDPts[i].Count = val.count
-		hDPts[i].Scale = int32(val.scale)
+		hDPts[i].Scale = val.scale
 		hDPts[i].ZeroCount = val.zeroCount
 		hDPts[i].ZeroThreshold = 0.0
 
-		hDPts[i].PositiveBucket.Offset = int32(val.posBuckets.startBin)
+		hDPts[i].PositiveBucket.Offset = val.posBuckets.startBin
 		hDPts[i].PositiveBucket.Counts = reset(hDPts[i].PositiveBucket.Counts, len(val.posBuckets.counts), len(val.posBuckets.counts))
 		copy(hDPts[i].PositiveBucket.Counts, val.posBuckets.counts)
 
-		hDPts[i].NegativeBucket.Offset = int32(val.negBuckets.startBin)
+		hDPts[i].NegativeBucket.Offset = val.negBuckets.startBin
 		hDPts[i].NegativeBucket.Counts = reset(hDPts[i].NegativeBucket.Counts, len(val.negBuckets.counts), len(val.negBuckets.counts))
 		copy(hDPts[i].NegativeBucket.Counts, val.negBuckets.counts)
 

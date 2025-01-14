@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package exemplar // import "go.opentelemetry.io/otel/sdk/metric/internal/exemplar"
+package exemplar // import "go.opentelemetry.io/otel/sdk/metric/exemplar"
 
 import "math"
 
@@ -28,7 +28,8 @@ type Value struct {
 func NewValue[N int64 | float64](value N) Value {
 	switch v := any(value).(type) {
 	case int64:
-		return Value{t: Int64ValueType, val: uint64(v)}
+		// This can be later converted back to int64 (overflow not checked).
+		return Value{t: Int64ValueType, val: uint64(v)} // nolint:gosec
 	case float64:
 		return Value{t: Float64ValueType, val: math.Float64bits(v)}
 	}
@@ -42,7 +43,8 @@ func (v Value) Type() ValueType { return v.t }
 // Int64ValueType, 0 is returned.
 func (v Value) Int64() int64 {
 	if v.t == Int64ValueType {
-		return int64(v.val)
+		// Assumes the correct int64 was stored in v.val based on type.
+		return int64(v.val) // nolint: gosec
 	}
 	return 0
 }
