@@ -75,3 +75,64 @@ func tearDownCNIConfig(t *testing.T, confDir string) {
 		t.Fatalf("Failed to cleanup CNI configs: %v", err)
 	}
 }
+
+func buildFakeConfig(t *testing.T) (string, string) {
+	conf := `
+	{
+	"cniVersion": "1.1.0",
+	"name": "containerd-net",
+	"plugins": [
+		{
+		"type": "bridge",
+		"bridge": "cni0",
+		"isGateway": true,
+		"ipMasq": true,
+		"promiscMode": true,
+		"ipam": {
+			"type": "host-ipam",
+			"ranges": [
+			[{
+				"subnet": "10.88.0.0/16"
+			}],
+			[{
+				"subnet": "2001:4860:4860::/64"
+			}]
+			],
+			"routes": [
+			{ "dst": "0.0.0.0/0" },
+			{ "dst": "::/0" }
+			]
+		}
+		},
+		{
+		"type": "portmap",
+		"capabilities": {"portMappings": true}
+		}
+	]
+	}`
+
+	cniDir, err := makeTmpDir("fakecni")
+	if err != nil {
+		t.Fatalf("Failed to create plugin config dir: %v", err)
+	}
+
+	cniConfDir := path.Join(cniDir, "net.d")
+	err = os.MkdirAll(cniConfDir, 0777)
+	if err != nil {
+		t.Fatalf("Failed to create network config dir: %v", err)
+	}
+
+	networkConfig1 := path.Join(cniConfDir, "mocknetwork1.conflist")
+	f1, err := os.Create(networkConfig1)
+	if err != nil {
+		t.Fatalf("Failed to create network config %v: %v", f1, err)
+	}
+
+	_, err = f1.WriteString(conf)
+	if err != nil {
+		t.Fatalf("Failed to write network config file %v: %v", f1, err)
+	}
+	f1.Close()
+
+	return cniDir, cniConfDir
+}
