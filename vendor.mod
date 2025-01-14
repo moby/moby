@@ -8,7 +8,7 @@ module github.com/docker/docker
 go 1.22.0
 
 require (
-	cloud.google.com/go/compute/metadata v0.3.0
+	cloud.google.com/go/compute/metadata v0.5.0
 	cloud.google.com/go/logging v1.9.0
 	code.cloudfoundry.org/clock v1.1.0
 	dario.cat/mergo v1.0.1
