@@ -33,6 +33,10 @@ func (sb *Sandbox) NetnsPath() (path string, ok bool) {
 	return "", false
 }
 
+func (sb *Sandbox) canPopulateNetworkResources() bool {
+	return true
+}
+
 func (sb *Sandbox) populateNetworkResources(context.Context, *Endpoint) error {
 	// not implemented on Windows (Sandbox.osSbox is always nil)
 	return nil
