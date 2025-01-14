@@ -560,21 +560,41 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		return err
 	}
 
-	// Current endpoint(s) providing external connectivity for the sandbox
+	// Current endpoint(s) providing external connectivity for the Sandbox.
+	// If ep is selected as a gateway endpoint once it's been added to the Sandbox,
+	// these are the endpoints that need to be un-gateway'd.
 	gwepBefore4, gwepBefore6 := sb.getGatewayEndpoint()
 
 	sb.addEndpoint(ep)
 
-	if err := sb.populateNetworkResources(ctx, ep); err != nil {
-		return err
-	}
-
-	if err := addEpToResolver(ctx, n.Name(), ep.Name(), &sb.config, ep.iface, n.Resolvers()); err != nil {
-		return errdefs.System(err)
+	// For Linux, at this point, in most cases, the container task has been created
+	// and the container's network namespace (sb.osSbox) is ready to be configured
+	// with addresses, routes and so on. The exception is when the SetKey re-exec is
+	// used by a build container. In that case, the osSbox doesn't exist yet. So,
+	// stop here and SetKey will finish off the configuration when it's ready.
+	// For Windows, canPopulateNetworkResources() is always true.
+	if sb.canPopulateNetworkResources() {
+		if err := sb.populateNetworkResources(ctx, ep); err != nil {
+			return err
+		}
+		if err := ep.populateNetworkResources(ctx, sb); err != nil {
+			return err
+		}
+		if err := ep.updateExternalConnectivity(ctx, sb, gwepBefore4, gwepBefore6); err != nil {
+			return err
+		}
 	}
 
 	if err := n.getController().storeEndpoint(ctx, ep); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (ep *Endpoint) populateNetworkResources(ctx context.Context, sb *Sandbox) (retErr error) {
+	n := ep.getNetwork()
+	if err := addEpToResolver(ctx, n.Name(), ep.Name(), &sb.config, ep.iface, n.Resolvers()); err != nil {
+		return errdefs.System(err)
 	}
 
 	if err := ep.addDriverInfoToCluster(); err != nil {
@@ -603,7 +623,14 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	if sb.resolver != nil {
 		sb.resolver.SetForwardingPolicy(sb.hasExternalAccess())
 	}
+	return nil
+}
 
+// updateExternalConnectivity configures an Endpoint when it becomes the gateway
+// endpoint for a network, revoking external connectivity from the previous gateway
+// endpoints, if necessary. (It does not update the Sandbox's default gateway, the
+// Sandbox takes care of that. This is just about network driver config.)
+func (ep *Endpoint) updateExternalConnectivity(ctx context.Context, sb *Sandbox, gwepBefore4, gwepBefore6 *Endpoint) (retErr error) {
 	gwepAfter4, gwepAfter6 := sb.getGatewayEndpoint()
 
 	log.G(ctx).Infof("sbJoin: gwep4 '%s'->'%s', gwep6 '%s'->'%s'",

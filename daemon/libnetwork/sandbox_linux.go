@@ -161,6 +161,16 @@ func (sb *Sandbox) SetKey(ctx context.Context, basePath string) error {
 	oldosSbox := sb.osSbox
 	sb.mu.Unlock()
 
+	osSbox, err := osl.GetSandboxForExternalKey(basePath, sb.Key())
+	if err != nil {
+		return err
+	}
+
+	// Make sure the list of endpoints is stable while configuring them and selecting a
+	// gateway endpoint. Endpoints added after sbJoin will handle their setup.
+	sb.joinLeaveMu.Lock()
+	defer sb.joinLeaveMu.Unlock()
+
 	if oldosSbox != nil {
 		// If we already have an OS sandbox, release the network resources from that
 		// and destroy the OS snab. We are moving into a new home further down. Note that none
@@ -168,11 +178,6 @@ func (sb *Sandbox) SetKey(ctx context.Context, basePath string) error {
 		if err := sb.releaseOSSbox(); err != nil {
 			log.G(ctx).WithError(err).Error("Error destroying os sandbox")
 		}
-	}
-
-	osSbox, err := osl.GetSandboxForExternalKey(basePath, sb.Key())
-	if err != nil {
-		return err
 	}
 
 	sb.mu.Lock()
@@ -198,11 +203,11 @@ func (sb *Sandbox) SetKey(ctx context.Context, basePath string) error {
 		return err
 	}
 
-	for _, ep := range sb.Endpoints() {
-		if err = sb.populateNetworkResources(ctx, ep); err != nil {
-			return err
-		}
-	}
+	// If the Sandbox already has endpoints it's because sbJoin has been called for
+	// them - but configuration of addresses/routes (and so on) didn't complete because
+	// there was nowhere for it to go before the osSbox was set up. So, finish that
+	// configuration now.
+	sb.finishEndpointConfig(ctx)
 
 	return nil
 }
@@ -314,6 +319,42 @@ func (sb *Sandbox) restoreOslSandbox() error {
 	return nil
 }
 
+// finishEndpointConfig is to finish configuration of any Endpoint that was added to the
+// Sandbox (via sbJoin) before sb.osSbox had been set up.
+func (sb *Sandbox) finishEndpointConfig(ctx context.Context) error {
+	eps := sb.Endpoints()
+	if len(eps) == 0 {
+		return nil
+	}
+	for _, ep := range eps {
+		if err := sb.populateNetworkResources(ctx, ep); err != nil {
+			return err
+		}
+		if err := ep.populateNetworkResources(ctx, sb); err != nil {
+			return err
+		}
+	}
+
+	gwep4, gwep6 := sb.getGatewayEndpoint()
+	if gwep4 != nil {
+		if err := gwep4.updateExternalConnectivity(ctx, sb, nil, nil); err != nil {
+			return err
+		}
+	}
+	if gwep6 != nil && gwep6 != gwep4 {
+		if err := gwep6.updateExternalConnectivity(ctx, sb, nil, nil); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (sb *Sandbox) canPopulateNetworkResources() bool {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+	return sb.osSbox != nil
+}
+
 func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Sandbox.populateNetworkResources", trace.WithAttributes(
 		attribute.String("endpoint.Name", ep.Name())))
@@ -322,7 +363,7 @@ func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) e
 	sb.mu.Lock()
 	if sb.osSbox == nil {
 		sb.mu.Unlock()
-		return nil
+		return fmt.Errorf("cannot populate network resources for container %s, no osSbox", sb.ContainerID())
 	}
 	inDelete := sb.inDelete
 	sb.mu.Unlock()
