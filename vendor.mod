@@ -29,7 +29,7 @@ require (
 	github.com/containerd/containerd v1.7.25
 	github.com/containerd/containerd/api v1.8.0
 	github.com/containerd/continuity v0.4.5
-	github.com/containerd/errdefs v0.3.0
+	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v0.2.1
