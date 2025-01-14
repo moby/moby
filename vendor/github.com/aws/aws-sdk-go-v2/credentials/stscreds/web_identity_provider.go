@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -135,6 +136,11 @@ func (p *WebIdentityRoleProvider) Retrieve(ctx context.Context) (aws.Credentials
 		return aws.Credentials{}, fmt.Errorf("failed to retrieve credentials, %w", err)
 	}
 
+	var accountID string
+	if resp.AssumedRoleUser != nil {
+		accountID = getAccountID(resp.AssumedRoleUser)
+	}
+
 	// InvalidIdentityToken error is a temporary error that can occur
 	// when assuming an Role with a JWT web identity token.
 
@@ -145,6 +151,19 @@ func (p *WebIdentityRoleProvider) Retrieve(ctx context.Context) (aws.Credentials
 		Source:          WebIdentityProviderName,
 		CanExpire:       true,
 		Expires:         *resp.Credentials.Expiration,
+		AccountID:       accountID,
 	}
 	return value, nil
+}
+
+// extract accountID from arn with format "arn:partition:service:region:account-id:[resource-section]"
+func getAccountID(u *types.AssumedRoleUser) string {
+	if u.Arn == nil {
+		return ""
+	}
+	parts := strings.Split(*u.Arn, ":")
+	if len(parts) < 5 {
+		return ""
+	}
+	return parts[4]
 }

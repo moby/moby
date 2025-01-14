@@ -13,10 +13,20 @@ import (
 	smithyio "github.com/aws/smithy-go/io"
 	"github.com/aws/smithy-go/middleware"
 	"github.com/aws/smithy-go/ptr"
+	smithytime "github.com/aws/smithy-go/time"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"io"
 	"strings"
+	"time"
 )
+
+func deserializeS3Expires(v string) (*time.Time, error) {
+	t, err := smithytime.ParseHTTPDate(v)
+	if err != nil {
+		return nil, nil
+	}
+	return &t, nil
+}
 
 type awsRestjson1_deserializeOpCreateToken struct {
 }
@@ -581,11 +591,17 @@ func awsRestjson1_deserializeOpErrorRegisterClient(response *smithyhttp.Response
 	case strings.EqualFold("InvalidClientMetadataException", errorCode):
 		return awsRestjson1_deserializeErrorInvalidClientMetadataException(response, errorBody)
 
+	case strings.EqualFold("InvalidRedirectUriException", errorCode):
+		return awsRestjson1_deserializeErrorInvalidRedirectUriException(response, errorBody)
+
 	case strings.EqualFold("InvalidRequestException", errorCode):
 		return awsRestjson1_deserializeErrorInvalidRequestException(response, errorBody)
 
 	case strings.EqualFold("InvalidScopeException", errorCode):
 		return awsRestjson1_deserializeErrorInvalidScopeException(response, errorBody)
+
+	case strings.EqualFold("UnsupportedGrantTypeException", errorCode):
+		return awsRestjson1_deserializeErrorUnsupportedGrantTypeException(response, errorBody)
 
 	default:
 		genericError := &smithy.GenericAPIError{
@@ -1158,6 +1174,42 @@ func awsRestjson1_deserializeErrorInvalidGrantException(response *smithyhttp.Res
 	return output
 }
 
+func awsRestjson1_deserializeErrorInvalidRedirectUriException(response *smithyhttp.Response, errorBody *bytes.Reader) error {
+	output := &types.InvalidRedirectUriException{}
+	var buff [1024]byte
+	ringBuffer := smithyio.NewRingBuffer(buff[:])
+
+	body := io.TeeReader(errorBody, ringBuffer)
+	decoder := json.NewDecoder(body)
+	decoder.UseNumber()
+	var shape interface{}
+	if err := decoder.Decode(&shape); err != nil && err != io.EOF {
+		var snapshot bytes.Buffer
+		io.Copy(&snapshot, ringBuffer)
+		err = &smithy.DeserializationError{
+			Err:      fmt.Errorf("failed to decode response body, %w", err),
+			Snapshot: snapshot.Bytes(),
+		}
+		return err
+	}
+
+	err := awsRestjson1_deserializeDocumentInvalidRedirectUriException(&output, shape)
+
+	if err != nil {
+		var snapshot bytes.Buffer
+		io.Copy(&snapshot, ringBuffer)
+		err = &smithy.DeserializationError{
+			Err:      fmt.Errorf("failed to decode response body, %w", err),
+			Snapshot: snapshot.Bytes(),
+		}
+		return err
+	}
+
+	errorBody.Seek(0, io.SeekStart)
+
+	return output
+}
+
 func awsRestjson1_deserializeErrorInvalidRequestException(response *smithyhttp.Response, errorBody *bytes.Reader) error {
 	output := &types.InvalidRequestException{}
 	var buff [1024]byte
@@ -1684,6 +1736,55 @@ func awsRestjson1_deserializeDocumentInvalidGrantException(v **types.InvalidGran
 	var sv *types.InvalidGrantException
 	if *v == nil {
 		sv = &types.InvalidGrantException{}
+	} else {
+		sv = *v
+	}
+
+	for key, value := range shape {
+		switch key {
+		case "error":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected Error to be of type string, got %T instead", value)
+				}
+				sv.Error_ = ptr.String(jtv)
+			}
+
+		case "error_description":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected ErrorDescription to be of type string, got %T instead", value)
+				}
+				sv.Error_description = ptr.String(jtv)
+			}
+
+		default:
+			_, _ = key, value
+
+		}
+	}
+	*v = sv
+	return nil
+}
+
+func awsRestjson1_deserializeDocumentInvalidRedirectUriException(v **types.InvalidRedirectUriException, value interface{}) error {
+	if v == nil {
+		return fmt.Errorf("unexpected nil of type %T", v)
+	}
+	if value == nil {
+		return nil
+	}
+
+	shape, ok := value.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("unexpected JSON type %v", value)
+	}
+
+	var sv *types.InvalidRedirectUriException
+	if *v == nil {
+		sv = &types.InvalidRedirectUriException{}
 	} else {
 		sv = *v
 	}

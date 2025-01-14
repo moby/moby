@@ -1,3 +1,117 @@
+# v1.17.27 (2024-07-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.26 (2024-07-10.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.25 (2024-07-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.24 (2024-07-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.23 (2024-06-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.22 (2024-06-26)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.21 (2024-06-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.20 (2024-06-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.19 (2024-06-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.18 (2024-06-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.17 (2024-06-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.16 (2024-05-23)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.15 (2024-05-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.14 (2024-05-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.13 (2024-05-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.12 (2024-05-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.11 (2024-04-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.10 (2024-03-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.9 (2024-03-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.8 (2024-03-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.7 (2024-03-07)
+
+* **Bug Fix**: Remove dependency on go-cmp.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.6 (2024-03-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.5 (2024-03-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.4 (2024-02-23)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.3 (2024-02-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.2 (2024-02-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.1 (2024-02-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.0 (2024-02-13)
+
+* **Feature**: Bump minimum Go version to 1.20 per our language support policy.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.16.16 (2024-01-18)
 
 * **Dependency Update**: Updated to the latest SDK module versions
