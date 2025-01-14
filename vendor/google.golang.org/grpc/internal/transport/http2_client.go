@@ -86,9 +86,9 @@ type http2Client struct {
 	writerDone chan struct{} // sync point to enable testing.
 	// goAway is closed to notify the upper layer (i.e., addrConn.transportMonitor)
 	// that the server sent GoAway on this transport.
-	goAway chan struct{}
-
-	framer *framer
+	goAway        chan struct{}
+	keepaliveDone chan struct{} // Closed when the keepalive goroutine exits.
+	framer        *framer
 	// controlBuf delivers all the control related tasks (e.g., window
 	// updates, reset streams, and various settings) to the controller.
 	// Do not access controlBuf with mu held.
@@ -335,6 +335,7 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 		readerDone:            make(chan struct{}),
 		writerDone:            make(chan struct{}),
 		goAway:                make(chan struct{}),
+		keepaliveDone:         make(chan struct{}),
 		framer:                newFramer(conn, writeBufSize, readBufSize, opts.SharedWriteBuffer, maxHeaderListSize),
 		fc:                    &trInFlow{limit: uint32(icwz)},
 		scheme:                scheme,
@@ -527,8 +528,9 @@ func (t *http2Client) getPeer() *peer.Peer {
 // to be the last frame loopy writes to the transport.
 func (t *http2Client) outgoingGoAwayHandler(g *goAway) (bool, error) {
 	t.mu.Lock()
-	defer t.mu.Unlock()
-	if err := t.framer.fr.WriteGoAway(t.nextID-2, http2.ErrCodeNo, g.debugData); err != nil {
+	maxStreamID := t.nextID - 2
+	t.mu.Unlock()
+	if err := t.framer.fr.WriteGoAway(maxStreamID, http2.ErrCodeNo, g.debugData); err != nil {
 		return false, err
 	}
 	return false, g.closeConn
@@ -772,7 +774,7 @@ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (*Stream,
 	hdr := &headerFrame{
 		hf:        headerFields,
 		endStream: false,
-		initStream: func(id uint32) error {
+		initStream: func(uint32) error {
 			t.mu.Lock()
 			// TODO: handle transport closure in loopy instead and remove this
 			// initStream is never called when transport is draining.
@@ -1008,6 +1010,9 @@ func (t *http2Client) Close(err error) {
 		// should unblock it so that the goroutine eventually exits.
 		t.kpDormancyCond.Signal()
 	}
+	// Append info about previous goaways if there were any, since this may be important
+	// for understanding the root cause for this connection to be closed.
+	goAwayDebugMessage := t.goAwayDebugMessage
 	t.mu.Unlock()
 
 	// Per HTTP/2 spec, a GOAWAY frame must be sent before closing the
@@ -1025,11 +1030,13 @@ func (t *http2Client) Close(err error) {
 	}
 	t.cancel()
 	t.conn.Close()
+	// Waits for the reader and keepalive goroutines to exit before returning to
+	// ensure all resources are cleaned up before Close can return.
+	<-t.readerDone
+	if t.keepaliveEnabled {
+		<-t.keepaliveDone
+	}
 	channelz.RemoveEntry(t.channelz.ID)
-	// Append info about previous goaways if there were any, since this may be important
-	// for understanding the root cause for this connection to be closed.
-	_, goAwayDebugMessage := t.GetGoAwayReason()
-
 	var st *status.Status
 	if len(goAwayDebugMessage) > 0 {
 		st = status.Newf(codes.Unavailable, "closing transport due to: %v, received prior goaway: %v", err, goAwayDebugMessage)
@@ -1316,11 +1323,11 @@ func (t *http2Client) handlePing(f *http2.PingFrame) {
 	t.controlBuf.put(pingAck)
 }
 
-func (t *http2Client) handleGoAway(f *http2.GoAwayFrame) {
+func (t *http2Client) handleGoAway(f *http2.GoAwayFrame) error {
 	t.mu.Lock()
 	if t.state == closing {
 		t.mu.Unlock()
-		return
+		return nil
 	}
 	if f.ErrCode == http2.ErrCodeEnhanceYourCalm && string(f.DebugData()) == "too_many_pings" {
 		// When a client receives a GOAWAY with error code ENHANCE_YOUR_CALM and debug
@@ -1332,8 +1339,7 @@ func (t *http2Client) handleGoAway(f *http2.GoAwayFrame) {
 	id := f.LastStreamID
 	if id > 0 && id%2 == 0 {
 		t.mu.Unlock()
-		t.Close(connectionErrorf(true, nil, "received goaway with non-zero even-numbered stream id: %v", id))
-		return
+		return connectionErrorf(true, nil, "received goaway with non-zero even-numbered stream id: %v", id)
 	}
 	// A client can receive multiple GoAways from the server (see
 	// https://github.com/grpc/grpc-go/issues/1387).  The idea is that the first
@@ -1350,8 +1356,7 @@ func (t *http2Client) handleGoAway(f *http2.GoAwayFrame) {
 		// If there are multiple GoAways the first one should always have an ID greater than the following ones.
 		if id > t.prevGoAwayID {
 			t.mu.Unlock()
-			t.Close(connectionErrorf(true, nil, "received goaway with stream id: %v, which exceeds stream id of previous goaway: %v", id, t.prevGoAwayID))
-			return
+			return connectionErrorf(true, nil, "received goaway with stream id: %v, which exceeds stream id of previous goaway: %v", id, t.prevGoAwayID)
 		}
 	default:
 		t.setGoAwayReason(f)
@@ -1375,8 +1380,7 @@ func (t *http2Client) handleGoAway(f *http2.GoAwayFrame) {
 	t.prevGoAwayID = id
 	if len(t.activeStreams) == 0 {
 		t.mu.Unlock()
-		t.Close(connectionErrorf(true, nil, "received goaway and there are no active streams"))
-		return
+		return connectionErrorf(true, nil, "received goaway and there are no active streams")
 	}
 
 	streamsToClose := make([]*Stream, 0)
@@ -1393,6 +1397,7 @@ func (t *http2Client) handleGoAway(f *http2.GoAwayFrame) {
 	for _, stream := range streamsToClose {
 		t.closeStream(stream, errStreamDrain, false, http2.ErrCodeNo, statusGoAway, nil, false)
 	}
+	return nil
 }
 
 // setGoAwayReason sets the value of t.goAwayReason based
@@ -1628,7 +1633,13 @@ func (t *http2Client) readServerPreface() error {
 // network connection.  If the server preface is not read successfully, an
 // error is pushed to errCh; otherwise errCh is closed with no error.
 func (t *http2Client) reader(errCh chan<- error) {
-	defer close(t.readerDone)
+	var errClose error
+	defer func() {
+		close(t.readerDone)
+		if errClose != nil {
+			t.Close(errClose)
+		}
+	}()
 
 	if err := t.readServerPreface(); err != nil {
 		errCh <- err
@@ -1667,11 +1678,10 @@ func (t *http2Client) reader(errCh chan<- error) {
 					t.closeStream(s, status.Error(code, msg), true, http2.ErrCodeProtocol, status.New(code, msg), nil, false)
 				}
 				continue
-			} else {
-				// Transport error.
-				t.Close(connectionErrorf(true, err, "error reading from server: %v", err))
-				return
 			}
+			// Transport error.
+			errClose = connectionErrorf(true, err, "error reading from server: %v", err)
+			return
 		}
 		switch frame := frame.(type) {
 		case *http2.MetaHeadersFrame:
@@ -1685,7 +1695,7 @@ func (t *http2Client) reader(errCh chan<- error) {
 		case *http2.PingFrame:
 			t.handlePing(frame)
 		case *http2.GoAwayFrame:
-			t.handleGoAway(frame)
+			errClose = t.handleGoAway(frame)
 		case *http2.WindowUpdateFrame:
 			t.handleWindowUpdate(frame)
 		default:
@@ -1696,15 +1706,15 @@ func (t *http2Client) reader(errCh chan<- error) {
 	}
 }
 
-func minTime(a, b time.Duration) time.Duration {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // keepalive running in a separate goroutine makes sure the connection is alive by sending pings.
 func (t *http2Client) keepalive() {
+	var err error
+	defer func() {
+		close(t.keepaliveDone)
+		if err != nil {
+			t.Close(err)
+		}
+	}()
 	p := &ping{data: [8]byte{}}
 	// True iff a ping has been sent, and no data has been received since then.
 	outstandingPing := false
@@ -1728,7 +1738,7 @@ func (t *http2Client) keepalive() {
 				continue
 			}
 			if outstandingPing && timeoutLeft <= 0 {
-				t.Close(connectionErrorf(true, nil, "keepalive ping failed to receive ACK within timeout"))
+				err = connectionErrorf(true, nil, "keepalive ping failed to receive ACK within timeout")
 				return
 			}
 			t.mu.Lock()
@@ -1770,7 +1780,7 @@ func (t *http2Client) keepalive() {
 			// timeoutLeft. This will ensure that we wait only for kp.Time
 			// before sending out the next ping (for cases where the ping is
 			// acked).
-			sleepDuration := minTime(t.kp.Time, timeoutLeft)
+			sleepDuration := min(t.kp.Time, timeoutLeft)
 			timeoutLeft -= sleepDuration
 			timer.Reset(sleepDuration)
 		case <-t.ctx.Done():
