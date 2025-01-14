@@ -234,13 +234,6 @@ func copyMap(m map[int64]string) map[int64]string {
 	return n
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func (c *channelMap) getTopChannels(id int64, maxResults int) ([]*Channel, bool) {
 	if maxResults <= 0 {
 		maxResults = EntriesPerPage
