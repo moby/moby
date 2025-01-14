@@ -1,3 +1,100 @@
+# v1.22.4 (2024-07-18)
+
+* No change notes available for this release.
+
+# v1.22.3 (2024-07-10.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.2 (2024-07-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.1 (2024-06-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.0 (2024-06-26)
+
+* **Feature**: Support list-of-string endpoint parameter.
+
+# v1.21.1 (2024-06-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.21.0 (2024-06-18)
+
+* **Feature**: Track usage of various AWS SDK features in user-agent string.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.12 (2024-06-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.11 (2024-06-07)
+
+* **Bug Fix**: Add clock skew correction on all service clients
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.10 (2024-06-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.9 (2024-05-23)
+
+* No change notes available for this release.
+
+# v1.20.8 (2024-05-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.7 (2024-05-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.6 (2024-05-08)
+
+* **Bug Fix**: GoDoc improvement
+
+# v1.20.5 (2024-04-05)
+
+* No change notes available for this release.
+
+# v1.20.4 (2024-03-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.3 (2024-03-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.2 (2024-03-07)
+
+* **Bug Fix**: Remove dependency on go-cmp.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.1 (2024-02-23)
+
+* **Bug Fix**: Move all common, SDK-side middleware stack ops into the service client module to prevent cross-module compatibility issues in the future.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.0 (2024-02-22)
+
+* **Feature**: Add middleware stack snapshot tests.
+
+# v1.19.2 (2024-02-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.1 (2024-02-20)
+
+* **Bug Fix**: When sourcing values for a service's `EndpointParameters`, the lack of a configured region (i.e. `options.Region == ""`) will now translate to a `nil` value for `EndpointParameters.Region` instead of a pointer to the empty string `""`. This will result in a much more explicit error when calling an operation instead of an obscure hostname lookup failure.
+
+# v1.19.0 (2024-02-13)
+
+* **Feature**: Bump minimum Go version to 1.20 per our language support policy.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.18.7 (2024-01-18)
 
 * No change notes available for this release.

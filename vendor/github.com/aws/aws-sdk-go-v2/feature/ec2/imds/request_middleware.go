@@ -56,6 +56,7 @@ func addRequestMiddleware(stack *middleware.Stack,
 
 	// Operation timeout
 	err = stack.Initialize.Add(&operationTimeout{
+		Disabled:       options.DisableDefaultTimeout,
 		DefaultTimeout: defaultOperationTimeout,
 	}, middleware.Before)
 	if err != nil {
@@ -260,6 +261,7 @@ const (
 // Otherwise the timeout cleanup will race the resource being consumed
 // upstream.
 type operationTimeout struct {
+	Disabled       bool
 	DefaultTimeout time.Duration
 }
 
@@ -270,6 +272,10 @@ func (m *operationTimeout) HandleInitialize(
 ) (
 	output middleware.InitializeOutput, metadata middleware.Metadata, err error,
 ) {
+	if m.Disabled {
+		return next.HandleInitialize(ctx, input)
+	}
+
 	if _, ok := ctx.Deadline(); !ok && m.DefaultTimeout != 0 {
 		var cancelFn func()
 		ctx, cancelFn = context.WithTimeout(ctx, m.DefaultTimeout)

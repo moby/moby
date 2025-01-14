@@ -27,11 +27,19 @@ func GetIsPresigning(ctx context.Context) bool {
 
 type isPresigningKey struct{}
 
-// AddAsIsPresigingMiddleware adds a middleware to the head of the stack that
+// AddAsIsPresigningMiddleware adds a middleware to the head of the stack that
 // will update the stack's context to be flagged as being invoked for the
 // purpose of presigning.
-func AddAsIsPresigingMiddleware(stack *middleware.Stack) error {
+func AddAsIsPresigningMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(asIsPresigningMiddleware{}, middleware.Before)
+}
+
+// AddAsIsPresigingMiddleware is an alias for backwards compatibility.
+//
+// Deprecated: This API was released with a typo. Use
+// [AddAsIsPresigningMiddleware] instead.
+func AddAsIsPresigingMiddleware(stack *middleware.Stack) error {
+	return AddAsIsPresigningMiddleware(stack)
 }
 
 type asIsPresigningMiddleware struct{}

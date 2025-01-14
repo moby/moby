@@ -198,7 +198,11 @@
       "supportsFIPS" : true
     },
     "regionRegex" : "^eu\\-isoe\\-\\w+\\-\\d+$",
-    "regions" : { }
+    "regions" : {
+      "eu-isoe-west-1" : {
+        "description" : "EU ISOE West"
+      }
+    }
   }, {
     "id" : "aws-iso-f",
     "outputs" : {
