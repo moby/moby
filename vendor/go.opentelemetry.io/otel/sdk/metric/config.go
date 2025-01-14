@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/resource"
 )
 
@@ -103,7 +104,11 @@ func (o optionFunc) apply(conf config) config {
 // go.opentelemetry.io/otel/sdk/resource package will be used.
 func WithResource(res *resource.Resource) Option {
 	return optionFunc(func(conf config) config {
-		conf.res = res
+		var err error
+		conf.res, err = resource.Merge(resource.Environment(), res)
+		if err != nil {
+			otel.Handle(err)
+		}
 		return conf
 	})
 }

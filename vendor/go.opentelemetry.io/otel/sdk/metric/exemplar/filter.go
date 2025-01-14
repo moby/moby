@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package exemplar // import "go.opentelemetry.io/otel/sdk/metric/internal/exemplar"
+package exemplar // import "go.opentelemetry.io/otel/sdk/metric/exemplar"
 
 import (
 	"context"
@@ -16,10 +16,10 @@ import (
 // Reservoir in making a sampling decision.
 type Filter func(context.Context) bool
 
-// SampledFilter is a [Filter] that will only offer measurements
+// TraceBasedFilter is a [Filter] that will only offer measurements
 // if the passed context associated with the measurement contains a sampled
 // [go.opentelemetry.io/otel/trace.SpanContext].
-func SampledFilter(ctx context.Context) bool {
+func TraceBasedFilter(ctx context.Context) bool {
 	return trace.SpanContextFromContext(ctx).IsSampled()
 }
 

@@ -282,9 +282,13 @@ func TestCDISpecDirs(t *testing.T) {
 	}
 }
 
-// TestOtelMeterLeak tests for a memory leak in the OTEL meter implementation.
-// Once the fixed OTEL is vendored, this test will fail - the workaround
-// and this test should be removed then.
+// TestOtelMeterLeak is a regression test for a memory leak in the OTEL meter
+// implementation that was fixed in OTEL v1.30.0.
+//
+// See:
+// - https://github.com/open-telemetry/opentelemetry-go-contrib/issues/5190
+// - https://github.com/moby/moby/pull/48690
+// - https://github.com/moby/moby/issues/48144
 func TestOtelMeterLeak(t *testing.T) {
 	meter := otel.Meter("foo")
 
@@ -302,8 +306,9 @@ func TestOtelMeterLeak(t *testing.T) {
 	allocs := after.Mallocs - before.Mallocs
 	t.Log("Allocations:", allocs)
 
-	if allocs < 10 {
-		// TODO: Remove Workaround OTEL memory leak in cmd/dockerd/daemon.go
-		t.Fatal("Allocations count decreased. OTEL leak workaround is no longer needed!")
+	// currently, with OTel v1.31.0, allocations is 3; add some margin to
+	// check for unexpectedly more than that.
+	if allocs > 10 {
+		t.Fatalf("Possible OTel leak; got more than 10 allocations (allocs: %d).", allocs)
 	}
 }

@@ -14,7 +14,7 @@ import (
 )
 
 // ReadTLSConfigFromFile reads a PEM certificate file and creates
-// a tls.Config that will use this certifate to verify a server certificate.
+// a tls.Config that will use this certificate to verify a server certificate.
 func ReadTLSConfigFromFile(path string) (*tls.Config, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {

@@ -63,8 +63,9 @@ func (w wrappedOption) applyHTTPOption(cfg oconf.Config) oconf.Config {
 //
 // If the OTEL_EXPORTER_OTLP_ENDPOINT or OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
 // environment variable is set, and this option is not passed, that variable
-// value will be used. If both are set, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
-// will take precedence.
+// value will be used. If both environment variables are set,
+// OTEL_EXPORTER_OTLP_METRICS_ENDPOINT will take precedence. If an environment
+// variable is set, and this option is passed, this option will take precedence.
 //
 // By default, if an environment variable is not set, and this option is not
 // passed, "localhost:4318" will be used.
@@ -76,8 +77,9 @@ func WithEndpoint(endpoint string) Option {
 //
 // If the OTEL_EXPORTER_OTLP_ENDPOINT or OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
 // environment variable is set, and this option is not passed, that variable
-// value will be used. If both are set, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
-// will take precedence.
+// value will be used. If both environment variables are set,
+// OTEL_EXPORTER_OTLP_METRICS_ENDPOINT will take precedence. If an environment
+// variable is set, and this option is passed, this option will take precedence.
 //
 // If both this option and WithEndpoint are used, the last used option will
 // take precedence.
