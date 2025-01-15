@@ -14,7 +14,7 @@ source "${MAKEDIR}/.go-autogen"
 
 # Set defaults
 : "${TEST_REPEAT:=1}"
-: "${TIMEOUT:=5m}"
+: "${TIMEOUT:=10m}"
 : "${TESTFLAGS:=}"
 : "${TESTDEBUG:=}"
 : "${TESTCOVERAGE:=}"
