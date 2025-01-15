@@ -210,19 +210,20 @@ func (a *Allocator) getAddrSpace(as string, v6 bool) (*addrSpace, error) {
 }
 
 func newPoolData(pool netip.Prefix) *PoolData {
-	// Generate the new address masks.
 	h := addrset.New(pool)
 
-	// Pre-reserve the network address on IPv4 networks large
-	// enough to have one (i.e., anything bigger than a /31).
-	numAddresses := uint64(1) << uint(pool.Addr().BitLen()-pool.Bits())
-	if !(pool.Addr().Is4() && numAddresses <= 2) {
+	// Reserve the first address in the range for the:
+	// - IPv4 network address
+	//   - Except in a /31 point-to-point link, https://datatracker.ietf.org/doc/html/rfc3021
+	// - IPv6 Subnet-Router anycast address, https://datatracker.ietf.org/doc/html/rfc4291#section-2.6.1
+	bits := pool.Addr().BitLen() - pool.Bits()
+	if !pool.Addr().Is4() || bits > 1 {
 		h.Add(pool.Addr())
 	}
 
-	// Pre-reserve the broadcast address on IPv4 networks large
-	// enough to have one (i.e., anything bigger than a /31).
-	if pool.Addr().Is4() && numAddresses > 2 {
+	// For IPv4, reserve the broadcast address.
+	// - Except in a /31 point-to-point link, https://datatracker.ietf.org/doc/html/rfc3021
+	if pool.Addr().Is4() && bits > 1 {
 		h.Add(netiputil.LastAddr(pool))
 	}
 
