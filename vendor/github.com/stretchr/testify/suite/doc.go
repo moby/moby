@@ -5,6 +5,8 @@
 // or individual tests (depending on which interface(s) you
 // implement).
 //
+// The suite package does not support parallel tests. See [issue 934].
+//
 // A testing suite is usually built by first extending the built-in
 // suite functionality from suite.Suite in testify.  Alternatively,
 // you could reproduce that logic on your own if you wanted (you
@@ -63,4 +65,6 @@
 //	func TestExampleTestSuite(t *testing.T) {
 //	    suite.Run(t, new(ExampleTestSuite))
 //	}
+//
+// [issue 934]: https://github.com/stretchr/testify/issues/934
 package suite

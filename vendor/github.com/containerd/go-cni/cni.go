@@ -135,11 +135,20 @@ func (c *libcni) Load(opts ...Opt) error {
 
 // Status returns the status of CNI initialization.
 func (c *libcni) Status() error {
+	if err := c.ready(); err != nil {
+		return err
+	}
 	c.RLock()
 	defer c.RUnlock()
-	if len(c.networks) < c.networkCount {
-		return ErrCNINotInitialized
+	// STATUS is only called for CNI Version 1.1.0 or greater. It is ignored for previous versions.
+	for _, v := range c.networks {
+		err := c.cniConfig.GetStatusNetworkList(context.Background(), v.config)
+
+		if err != nil {
+			return err
+		}
 	}
+
 	return nil
 }
 
@@ -153,9 +162,11 @@ func (c *libcni) Networks() []*Network {
 
 // Setup setups the network in the namespace and returns a Result
 func (c *libcni) Setup(ctx context.Context, id string, path string, opts ...NamespaceOpts) (*Result, error) {
-	if err := c.Status(); err != nil {
+	if err := c.ready(); err != nil {
 		return nil, err
 	}
+	c.RLock()
+	defer c.RUnlock()
 	ns, err := newNamespace(id, path, opts...)
 	if err != nil {
 		return nil, err
@@ -169,9 +180,11 @@ func (c *libcni) Setup(ctx context.Context, id string, path string, opts ...Name
 
 // SetupSerially setups the network in the namespace and returns a Result
 func (c *libcni) SetupSerially(ctx context.Context, id string, path string, opts ...NamespaceOpts) (*Result, error) {
-	if err := c.Status(); err != nil {
+	if err := c.ready(); err != nil {
 		return nil, err
 	}
+	c.RLock()
+	defer c.RUnlock()
 	ns, err := newNamespace(id, path, opts...)
 	if err != nil {
 		return nil, err
@@ -232,9 +245,11 @@ func (c *libcni) attachNetworks(ctx context.Context, ns *Namespace) ([]*types100
 
 // Remove removes the network config from the namespace
 func (c *libcni) Remove(ctx context.Context, id string, path string, opts ...NamespaceOpts) error {
-	if err := c.Status(); err != nil {
+	if err := c.ready(); err != nil {
 		return err
 	}
+	c.RLock()
+	defer c.RUnlock()
 	ns, err := newNamespace(id, path, opts...)
 	if err != nil {
 		return err
@@ -260,9 +275,11 @@ func (c *libcni) Remove(ctx context.Context, id string, path string, opts ...Nam
 
 // Check checks if the network is still in desired state
 func (c *libcni) Check(ctx context.Context, id string, path string, opts ...NamespaceOpts) error {
-	if err := c.Status(); err != nil {
+	if err := c.ready(); err != nil {
 		return err
 	}
+	c.RLock()
+	defer c.RUnlock()
 	ns, err := newNamespace(id, path, opts...)
 	if err != nil {
 		return err
@@ -309,4 +326,14 @@ func (c *libcni) GetConfig() *ConfigResult {
 
 func (c *libcni) reset() {
 	c.networks = nil
+}
+
+func (c *libcni) ready() error {
+	c.RLock()
+	defer c.RUnlock()
+	if len(c.networks) < c.networkCount {
+		return ErrCNINotInitialized
+	}
+
+	return nil
 }
