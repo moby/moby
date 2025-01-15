@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/v2/core/content"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/session"
 	digest "github.com/opencontainers/go-digest"

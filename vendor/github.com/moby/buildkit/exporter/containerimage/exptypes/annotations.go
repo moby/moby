@@ -49,7 +49,7 @@ func (k AnnotationKey) PlatformString() string {
 	if k.Platform == nil {
 		return ""
 	}
-	return platforms.Format(*k.Platform)
+	return platforms.FormatAll(*k.Platform)
 }
 
 func AnnotationIndexKey(key string) string {

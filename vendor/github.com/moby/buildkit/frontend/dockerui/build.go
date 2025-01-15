@@ -70,7 +70,7 @@ func (bc *Client) Build(ctx context.Context, fn BuildFunc) (*ResultBuilder, erro
 			}
 
 			p = platforms.Normalize(p)
-			k := platforms.Format(p)
+			k := platforms.FormatAll(p)
 
 			if bc.MultiPlatformRequested {
 				res.AddRef(k, ref)

@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/pkg/errors"
 )
 

@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"time"
 
-	c8dimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/tracing"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"

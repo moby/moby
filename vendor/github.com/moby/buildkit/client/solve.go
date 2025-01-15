@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	contentlocal "github.com/containerd/containerd/content/local"
+	"github.com/containerd/containerd/v2/core/content"
+	contentlocal "github.com/containerd/containerd/v2/plugins/content/local"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/client/ociindex"
@@ -345,7 +345,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 		}
 		for storePath, tag := range cacheOpt.storesToUpdate {
 			idx := ociindex.NewStoreIndex(storePath)
-			if err := idx.Put(tag, manifestDesc); err != nil {
+			if err := idx.Put(manifestDesc, ociindex.Tag(tag)); err != nil {
 				return nil, err
 			}
 		}
@@ -360,12 +360,16 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 			return nil, err
 		}
 		for _, storePath := range storesToUpdate {
-			tag := "latest"
+			names := []ociindex.NameOrTag{ociindex.Tag("latest")}
 			if t, ok := res.ExporterResponse["image.name"]; ok {
-				tag = t
+				inp := strings.Split(t, ",")
+				names = make([]ociindex.NameOrTag, len(inp))
+				for i, n := range inp {
+					names[i] = ociindex.Name(n)
+				}
 			}
 			idx := ociindex.NewStoreIndex(storePath)
-			if err := idx.Put(tag, manifestDesc); err != nil {
+			if err := idx.Put(manifestDesc, names...); err != nil {
 				return nil, err
 			}
 		}

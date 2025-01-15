@@ -1,7 +1,7 @@
 package worker
 
 import (
-	"github.com/containerd/containerd/filters"
+	"github.com/containerd/containerd/v2/pkg/filters"
 	"github.com/hashicorp/go-multierror"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/log"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/archive"

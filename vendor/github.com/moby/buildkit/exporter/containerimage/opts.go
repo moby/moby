@@ -17,6 +17,7 @@ type ImageCommitOpts struct {
 	ImageName   string
 	RefCfg      cacheconfig.RefConfig
 	OCITypes    bool
+	OCIArtifact bool
 	Annotations AnnotationsGroup
 	Epoch       *time.Time
 
@@ -49,6 +50,8 @@ func (c *ImageCommitOpts) Load(ctx context.Context, opt map[string]string) (map[
 			c.ImageName = v
 		case exptypes.OptKeyOCITypes:
 			err = parseBoolWithDefault(&c.OCITypes, k, v, true)
+		case exptypes.OptKeyOCIArtifact:
+			err = parseBool(&c.OCIArtifact, k, v)
 		case exptypes.OptKeyForceInlineAttestations:
 			err = parseBool(&c.ForceInlineAttestations, k, v)
 		case exptypes.OptKeyPreferNondistLayers:
@@ -66,6 +69,9 @@ func (c *ImageCommitOpts) Load(ctx context.Context, opt map[string]string) (map[
 
 	if c.RefCfg.Compression.Type.OnlySupportOCITypes() {
 		c.EnableOCITypes(ctx, c.RefCfg.Compression.Type.String())
+	}
+	if c.OCIArtifact && !c.OCITypes {
+		c.EnableOCITypes(ctx, "oci-artifact")
 	}
 
 	c.Annotations = c.Annotations.Merge(as)

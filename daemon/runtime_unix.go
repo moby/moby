@@ -16,7 +16,7 @@ import (
 	"strings"
 
 	runcoptions "github.com/containerd/containerd/api/types/runc/options"
-	"github.com/containerd/containerd/plugin"
+	"github.com/containerd/containerd/v2/plugins"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
@@ -56,7 +56,7 @@ func stockRuntimes() map[string]string {
 
 func defaultV2ShimConfig(conf *config.Config, runtimePath string) *shimConfig {
 	shim := &shimConfig{
-		Shim: plugin.RuntimeRuncV2,
+		Shim: plugins.RuntimeRuncV2,
 		Opts: &runcoptions.Options{
 			BinaryName:    runtimePath,
 			Root:          filepath.Join(conf.ExecRoot, "runtime-"+defaultRuntimeName),

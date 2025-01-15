@@ -53,7 +53,7 @@ func ParsePlatforms(meta map[string][]byte) (Platforms, error) {
 		}
 	}
 	p = platforms.Normalize(p)
-	pk := platforms.Format(p)
+	pk := platforms.FormatAll(p)
 	ps := Platforms{
 		Platforms: []Platform{{ID: pk, Platform: p}},
 	}

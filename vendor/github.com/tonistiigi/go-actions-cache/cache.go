@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -219,7 +218,7 @@ func (c *Cache) Load(ctx context.Context, keys ...string) (*Entry, error) {
 		return nil, errors.WithStack(err)
 	}
 	var ce Entry
-	dt, err := ioutil.ReadAll(io.LimitReader(resp.Body, 32*1024))
+	dt, err := io.ReadAll(io.LimitReader(resp.Body, 32*1024))
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -252,7 +251,7 @@ func (c *Cache) reserve(ctx context.Context, key string) (int, error) {
 		return 0, errors.WithStack(err)
 	}
 
-	dt, err = ioutil.ReadAll(io.LimitReader(resp.Body, 32*1024))
+	dt, err = io.ReadAll(io.LimitReader(resp.Body, 32*1024))
 	if err != nil {
 		return 0, errors.WithStack(err)
 	}
@@ -281,7 +280,7 @@ func (c *Cache) commit(ctx context.Context, id int, size int64) error {
 	if err != nil {
 		return errors.Wrapf(err, "error committing cache %d", id)
 	}
-	dt, err = ioutil.ReadAll(io.LimitReader(resp.Body, 32*1024))
+	dt, err = io.ReadAll(io.LimitReader(resp.Body, 32*1024))
 	if err != nil {
 		return err
 	}
@@ -411,7 +410,7 @@ func (c *Cache) uploadChunk(ctx context.Context, id int, ra io.ReaderAt, off, n 
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	dt, err := ioutil.ReadAll(io.LimitReader(resp.Body, 32*1024))
+	dt, err := io.ReadAll(io.LimitReader(resp.Body, 32*1024))
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -635,7 +634,7 @@ func checkResponse(resp *http.Response) error {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return nil
 	}
-	dt, err := ioutil.ReadAll(utfbom.SkipOnly(io.LimitReader(resp.Body, 32*1024)))
+	dt, err := io.ReadAll(utfbom.SkipOnly(io.LimitReader(resp.Body, 32*1024)))
 	if err != nil {
 		return errors.WithStack(err)
 	}

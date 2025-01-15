@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/v2/core/content"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd/cio"
+	"github.com/containerd/containerd/v2/pkg/cio"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	containertypes "github.com/docker/docker/api/types/container"

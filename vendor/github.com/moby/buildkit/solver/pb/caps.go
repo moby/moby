@@ -68,6 +68,7 @@ const (
 	CapFileRmNoFollowSymlink                  apicaps.CapID = "file.rm.nofollowsymlink"
 	CapFileCopyAlwaysReplaceExistingDestPaths apicaps.CapID = "file.copy.alwaysreplaceexistingdestpaths"
 	CapFileCopyModeStringFormat               apicaps.CapID = "file.copy.modestring"
+	CapFileSymlinkCreate                      apicaps.CapID = "file.symlink.create"
 
 	CapConstraints apicaps.CapID = "constraints"
 	CapPlatform    apicaps.CapID = "platform"
@@ -398,6 +399,12 @@ func init() {
 
 	Caps.Init(apicaps.Cap{
 		ID:      CapFileCopyAlwaysReplaceExistingDestPaths,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapFileSymlinkCreate,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})

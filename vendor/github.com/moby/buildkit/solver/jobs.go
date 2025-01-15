@@ -734,10 +734,12 @@ func (j *Job) walkProvenance(ctx context.Context, e Edge, f func(ProvenanceProvi
 	visited[e.Vertex.Digest()] = struct{}{}
 	if st, ok := j.list.actives[e.Vertex.Digest()]; ok {
 		st.mu.Lock()
-		if wp, ok := st.op.op.(ProvenanceProvider); ok {
-			if err := f(wp); err != nil {
-				st.mu.Unlock()
-				return err
+		if st.op != nil && st.op.op != nil {
+			if wp, ok := st.op.op.(ProvenanceProvider); ok {
+				if err := f(wp); err != nil {
+					st.mu.Unlock()
+					return err
+				}
 			}
 		}
 		st.mu.Unlock()
