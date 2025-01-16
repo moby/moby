@@ -325,6 +325,52 @@ func (sb *Sandbox) addEndpoint(ep *Endpoint) {
 	sb.endpoints = slices.Insert(sb.endpoints, i, ep)
 }
 
+func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Sandbox.populateNetworkResources", trace.WithAttributes(
+		attribute.String("endpoint.Name", ep.Name())))
+	defer span.End()
+
+	if err := sb.populateNetworkResourcesOS(ctx, ep); err != nil {
+		return err
+	}
+
+	if err := ep.addDriverInfoToCluster(); err != nil {
+		return err
+	}
+	defer func() {
+		if retErr != nil {
+			if e := ep.deleteDriverInfoFromCluster(); e != nil {
+				log.G(ctx).WithError(e).Error("Could not delete endpoint state from cluster on join failure")
+			}
+		}
+	}()
+
+	// Load balancing endpoints should never have a default gateway nor
+	// should they alter the status of a network's default gateway
+	if !ep.loadBalancer || sb.ingress {
+		if sb.needDefaultGW() {
+			if sb.getEndpointInGWNetwork() == nil {
+				// sb.populateNetworkResources() will be called recursively for the new
+				// gateway endpoint. So, it'll set the resolver's forwarding policy.
+				return sb.setupDefaultGW()
+			}
+		} else if err := sb.clearDefaultGW(); err != nil {
+			log.G(ctx).WithFields(log.Fields{
+				"error": err,
+				"sid":   sb.ID(),
+				"cid":   sb.ContainerID(),
+			}).Warn("Failure while disconnecting sandbox from gateway network")
+		}
+
+		// Enable upstream forwarding if the sandbox gained external connectivity.
+		if sb.resolver != nil {
+			sb.resolver.SetForwardingPolicy(sb.hasExternalAccess())
+		}
+	}
+
+	return nil
+}
+
 func (sb *Sandbox) GetEndpoint(id string) *Endpoint {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()

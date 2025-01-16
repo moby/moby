@@ -10,9 +10,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/netutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // Linux-specific container configuration flags.
@@ -330,9 +327,6 @@ func (sb *Sandbox) finishEndpointConfig(ctx context.Context) error {
 		if err := sb.populateNetworkResources(ctx, ep); err != nil {
 			return err
 		}
-		if err := ep.populateNetworkResources(ctx, sb); err != nil {
-			return err
-		}
 	}
 
 	gwep4, gwep6 := sb.getGatewayEndpoint()
@@ -355,11 +349,7 @@ func (sb *Sandbox) canPopulateNetworkResources() bool {
 	return sb.osSbox != nil
 }
 
-func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) error {
-	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Sandbox.populateNetworkResources", trace.WithAttributes(
-		attribute.String("endpoint.Name", ep.Name())))
-	defer span.End()
-
+func (sb *Sandbox) populateNetworkResourcesOS(ctx context.Context, ep *Endpoint) error {
 	sb.mu.Lock()
 	if sb.osSbox == nil {
 		sb.mu.Unlock()

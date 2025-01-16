@@ -22,7 +22,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"github.com/moby/moby/v2/errdefs"
 	"go.opentelemetry.io/otel"
 )
 
@@ -577,9 +576,6 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		if err := sb.populateNetworkResources(ctx, ep); err != nil {
 			return err
 		}
-		if err := ep.populateNetworkResources(ctx, sb); err != nil {
-			return err
-		}
 		if err := ep.updateExternalConnectivity(ctx, sb, gwepBefore4, gwepBefore6); err != nil {
 			return err
 		}
@@ -587,41 +583,6 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 
 	if err := n.getController().storeEndpoint(ctx, ep); err != nil {
 		return err
-	}
-	return nil
-}
-
-func (ep *Endpoint) populateNetworkResources(ctx context.Context, sb *Sandbox) (retErr error) {
-	n := ep.getNetwork()
-	if err := addEpToResolver(ctx, n.Name(), ep.Name(), &sb.config, ep.iface, n.Resolvers()); err != nil {
-		return errdefs.System(err)
-	}
-
-	if err := ep.addDriverInfoToCluster(); err != nil {
-		return err
-	}
-
-	defer func() {
-		if retErr != nil {
-			if e := ep.deleteDriverInfoFromCluster(); e != nil {
-				log.G(ctx).WithError(e).Error("Could not delete endpoint state from cluster on join failure")
-			}
-		}
-	}()
-
-	// Load balancing endpoints should never have a default gateway nor
-	// should they alter the status of a network's default gateway
-	if ep.loadBalancer && !sb.ingress {
-		return nil
-	}
-
-	if sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
-		return sb.setupDefaultGW()
-	}
-
-	// Enable upstream forwarding if the sandbox gained external connectivity.
-	if sb.resolver != nil {
-		sb.resolver.SetForwardingPolicy(sb.hasExternalAccess())
 	}
 	return nil
 }
@@ -674,16 +635,6 @@ func (ep *Endpoint) updateExternalConnectivity(ctx context.Context, sb *Sandbox,
 	// Tell the new endpoint whether it's a gateway.
 	if err := ep.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
 		return err
-	}
-
-	if !sb.needDefaultGW() {
-		if e := sb.clearDefaultGW(); e != nil {
-			log.G(ctx).WithFields(log.Fields{
-				"error": e,
-				"sid":   sb.ID(),
-				"cid":   sb.ContainerID(),
-			}).Warn("Failure while disconnecting sandbox from gateway network")
-		}
 	}
 
 	return nil
