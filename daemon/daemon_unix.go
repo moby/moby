@@ -256,7 +256,7 @@ func parseSecurityOpt(securityOptions *container.SecurityOptions, config *contai
 			if err != nil {
 				return fmt.Errorf("invalid --security-opt 2: %q", opt)
 			}
-			securityOptions.WritableCgroups = writableCgroups
+			securityOptions.WritableCgroups = &writableCgroups
 		default:
 			return fmt.Errorf("invalid --security-opt 2: %q", opt)
 		}

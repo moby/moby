@@ -402,6 +402,7 @@ func TestSeccomp(t *testing.T) {
 
 func TestCgroupRW(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsRootless, "can't test writable cgroups in rootless (permission denied)")
 	skip.If(t, testEnv.IsUserNamespace, "can't test writable cgroups in user namespaces (permission denied)")
 
 	ctx := setupTest(t)
