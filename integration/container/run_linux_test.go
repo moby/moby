@@ -407,54 +407,65 @@ func TestCgroupRW(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	type testCase struct {
+		name             string
 		ops              []func(*container.TestContainerConfig)
 		expectedErrMsg   string
 		expectedExitCode int
 	}
 	testCases := []testCase{
 		{
-			ops: nil,
-			// no err msg, so, success
+			name: "nil",
+			ops:  nil,
+			// no err msg, because disabled-by-default
+			expectedExitCode: 1,
 		},
 		{
-			ops: []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups=true")},
+			name: "writable=true",
+			ops:  []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups=true")},
 			// no err msg, because this is correct key=value
 			expectedExitCode: 0,
 		},
 		{
-			ops: []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups=false")},
+			name: "writable=false",
+			ops:  []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups=false")},
 			// no err msg, because this is correct key=value
 			expectedExitCode: 1,
 		},
 		{
+			name:           "writeable=true",
 			ops:            []func(*container.TestContainerConfig){container.WithSecurityOpt("writeable-cgroups=true")},
 			expectedErrMsg: `Error response from daemon: invalid --security-opt 2: "writeable-cgroups=true"`,
 		},
 		{
+			name:           "writable=1",
 			ops:            []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups=1")},
 			expectedErrMsg: `Error response from daemon: invalid --security-opt 2: "writable-cgroups=1"`,
 		},
 		{
+			name:           "writable=potato",
 			ops:            []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups=potato")},
 			expectedErrMsg: `Error response from daemon: invalid --security-opt 2: "writable-cgroups=potato"`,
 		},
 	}
 	for _, tc := range testCases {
-		config := container.NewTestConfig(tc.ops...)
-		resp, err := container.CreateFromConfig(ctx, apiClient, config)
-		if err != nil {
-			assert.Equal(t, tc.expectedErrMsg, err.Error())
-			continue
-		}
-		// TODO check if ro or not
-		err = apiClient.ContainerStart(ctx, resp.ID, containertypes.StartOptions{})
-		assert.NilError(t, err)
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			config := container.NewTestConfig(tc.ops...)
+			resp, err := container.CreateFromConfig(ctx, apiClient, config)
+			if err != nil {
+				assert.Equal(t, tc.expectedErrMsg, err.Error())
+				return
+			}
+			// TODO check if ro or not
+			err = apiClient.ContainerStart(ctx, resp.ID, containertypes.StartOptions{})
+			assert.NilError(t, err)
 
-		res, err := container.Exec(ctx, apiClient, resp.ID, []string{"mkdir", "/sys/fs/cgroup/foo"})
-		assert.NilError(t, err)
-		assert.Equal(t, tc.expectedExitCode, res.ExitCode)
-		if tc.expectedExitCode != 0 {
-			assert.Check(t, is.Contains(res.Stderr(), "Read-only file system"))
-		}
+			res, err := container.Exec(ctx, apiClient, resp.ID, []string{"mkdir", "/sys/fs/cgroup/foo"})
+			assert.NilError(t, err)
+			assert.Equal(t, tc.expectedExitCode, res.ExitCode)
+			if tc.expectedExitCode != 0 {
+				assert.Check(t, is.Contains(res.Stderr(), "Read-only file system"))
+			}
+		})
 	}
 }
