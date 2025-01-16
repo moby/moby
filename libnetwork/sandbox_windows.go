@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"context"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/osl"
 )
 
@@ -37,8 +38,11 @@ func (sb *Sandbox) canPopulateNetworkResources() bool {
 	return true
 }
 
-func (sb *Sandbox) populateNetworkResources(context.Context, *Endpoint) error {
-	// not implemented on Windows (Sandbox.osSbox is always nil)
+func (sb *Sandbox) populateNetworkResourcesOS(ctx context.Context, ep *Endpoint) error {
+	n := ep.getNetwork()
+	if err := addEpToResolver(ctx, n.Name(), ep.Name(), &sb.config, ep.iface, n.Resolvers()); err != nil {
+		return errdefs.System(err)
+	}
 	return nil
 }
 
