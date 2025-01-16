@@ -402,6 +402,7 @@ func TestSeccomp(t *testing.T) {
 
 func TestCgroupRW(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsUserNamespace, "can't test writable cgroups in user namespaces (permission denied)")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
@@ -462,10 +463,13 @@ func TestCgroupRW(t *testing.T) {
 
 			res, err := container.Exec(ctx, apiClient, resp.ID, []string{"mkdir", "/sys/fs/cgroup/foo"})
 			assert.NilError(t, err)
-			assert.Equal(t, tc.expectedExitCode, res.ExitCode)
 			if tc.expectedExitCode != 0 {
 				assert.Check(t, is.Contains(res.Stderr(), "Read-only file system"))
+			} else {
+				assert.Equal(t, res.Stderr(), "")
 			}
+			assert.Equal(t, res.Stdout(), "")
+			assert.Equal(t, tc.expectedExitCode, res.ExitCode)
 		})
 	}
 }
