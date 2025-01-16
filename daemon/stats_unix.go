@@ -44,8 +44,9 @@ func (daemon *Daemon) stats(c *container.Container) (*containertypes.StatsRespon
 		}
 		return nil, err
 	}
-	s := &containertypes.StatsResponse{}
-	s.Read = cs.Read
+	s := &containertypes.StatsResponse{
+		Read: cs.Read,
+	}
 	stats := cs.Metrics
 	switch t := stats.(type) {
 	case *statsV1.Metrics:

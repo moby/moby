@@ -27,9 +27,10 @@ func (daemon *Daemon) stats(c *container.Container) (*containertypes.StatsRespon
 	}
 
 	// Start with an empty structure
-	s := &containertypes.StatsResponse{}
-	s.Stats.Read = stats.Read
-	s.Stats.NumProcs = platform.NumProcs()
+	s := &containertypes.StatsResponse{
+		Read:     stats.Read,
+		NumProcs: platform.NumProcs(),
+	}
 
 	if stats.HCSStats != nil {
 		hcss := stats.HCSStats
