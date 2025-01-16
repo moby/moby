@@ -323,12 +323,12 @@ func (sb *Sandbox) finishEndpointConfig(ctx context.Context) error {
 
 	gwep4, gwep6 := sb.getGatewayEndpoint()
 	if gwep4 != nil {
-		if err := gwep4.updateExternalConnectivity(ctx, sb, nil, nil); err != nil {
+		if err := sb.updateExternalConnectivity(ctx, gwep4, nil, nil); err != nil {
 			return err
 		}
 	}
 	if gwep6 != nil && gwep6 != gwep4 {
-		if err := gwep6.updateExternalConnectivity(ctx, sb, nil, nil); err != nil {
+		if err := sb.updateExternalConnectivity(ctx, gwep6, nil, nil); err != nil {
 			return err
 		}
 	}
