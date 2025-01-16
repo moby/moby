@@ -548,17 +548,6 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		ep.joinInfo.gw6 = nil
 	}
 
-	if !n.getController().isAgent() {
-		if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
-			n.updateSvcRecord(context.WithoutCancel(ctx), ep, true)
-		}
-	}
-
-	sb.addHostsEntries(ctx, ep.getEtcHostsAddrs())
-	if err := sb.updateDNS(n.enableIPv6); err != nil {
-		return err
-	}
-
 	// Current endpoint(s) providing external connectivity for the Sandbox.
 	// If ep is selected as a gateway endpoint once it's been added to the Sandbox,
 	// these are the endpoints that need to be un-gateway'd.

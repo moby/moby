@@ -432,6 +432,12 @@ func (sb *Sandbox) populateNetworkResourcesOS(ctx context.Context, ep *Endpoint)
 		}
 	}
 
+	sb.addHostsEntries(ctx, ep.getEtcHostsAddrs())
+	// Make sure /etc/resolv.conf is set up.
+	if err := sb.updateDNS(ep.getNetwork().enableIPv6); err != nil {
+		return err
+	}
+
 	// Populate load balancer only after updating all the other
 	// information including gateway and other routes so that
 	// loadbalancers are populated all the network state is in
