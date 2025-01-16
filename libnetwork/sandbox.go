@@ -16,6 +16,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/etchosts"
 	"github.com/docker/docker/libnetwork/osl"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -347,6 +348,14 @@ func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) (
 
 	if err := sb.populateNetworkResourcesOS(ctx, ep); err != nil {
 		return err
+	}
+
+	// Populate DNS records.
+	n := ep.getNetwork()
+	if !n.getController().isAgent() {
+		if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
+			n.updateSvcRecord(context.WithoutCancel(ctx), ep, true)
+		}
 	}
 
 	if err := ep.addDriverInfoToCluster(); err != nil {
