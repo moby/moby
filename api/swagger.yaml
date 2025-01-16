@@ -5299,6 +5299,551 @@ definitions:
           type: "string"
         example: []
 
+  ContainerStatsResponse:
+    description: |
+      Statistics sample for a container.
+    type: "object"
+    x-go-name: "StatsResponse"
+    title: "ContainerStatsResponse"
+    properties:
+      name:
+        description: "Name of the container"
+        type: "string"
+        x-nullable: true
+        example: "boring_wozniak"
+      id:
+        description: "ID of the container"
+        type: "string"
+        x-nullable: true
+        example: "ede54ee1afda366ab42f824e8a5ffd195155d853ceaec74a927f249ea270c743"
+      read:
+        description: |
+          Date and time at which this sample was collected.
+          The value is formatted as [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt)
+          with nano-seconds.
+        type: "string"
+        format: "date-time"
+        example: "2025-01-16T13:55:22.165243637Z"
+      preread:
+        description: |
+          Date and time at which this first sample was collected. This field
+          is not propagated if the "one-shot" option is set. If the "one-shot"
+          option is set, this field may be omitted, empty, or set to a default
+          date (`0001-01-01T00:00:00Z`).
+
+          The value is formatted as [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt)
+          with nano-seconds.
+        type: "string"
+        format: "date-time"
+        example: "2025-01-16T13:55:21.160452595Z"
+      pids_stats:
+        $ref: "#/definitions/ContainerPidsStats"
+      blkio_stats:
+        $ref: "#/definitions/ContainerBlkioStats"
+      num_procs:
+        description: |
+          The number of processors on the system.
+
+          This field is Windows-specific and always zero for Linux containers.
+        type: "integer"
+        format: "uint32"
+        example: 16
+      storage_stats:
+        $ref: "#/definitions/ContainerStorageStats"
+      cpu_stats:
+        $ref: "#/definitions/ContainerCPUStats"
+      precpu_stats:
+        $ref: "#/definitions/ContainerCPUStats"
+      memory_stats:
+        $ref: "#/definitions/ContainerMemoryStats"
+      networks:
+        description: |
+          Network statistics for the container per interface.
+
+          This field is omitted if the container has no networking enabled.
+        x-nullable: true
+        additionalProperties:
+          $ref: "#/definitions/ContainerNetworkStats"
+        example:
+          eth0:
+            rx_bytes: 5338
+            rx_dropped: 0
+            rx_errors: 0
+            rx_packets: 36
+            tx_bytes: 648
+            tx_dropped: 0
+            tx_errors: 0
+            tx_packets: 8
+          eth5:
+            rx_bytes: 4641
+            rx_dropped: 0
+            rx_errors: 0
+            rx_packets: 26
+            tx_bytes: 690
+            tx_dropped: 0
+            tx_errors: 0
+            tx_packets: 9
+
+  ContainerBlkioStats:
+    description: |
+      BlkioStats stores all IO service stats for data read and write.
+
+      This type is Linux-specific and holds many fields that are specific to cgroups v1.
+      On a cgroup v2 host, all fields other than `io_service_bytes_recursive`
+      are omitted or `null`.
+
+      This type is only populated on Linux and omitted for Windows containers.
+    type: "object"
+    x-go-name: "BlkioStats"
+    x-nullable: true
+    properties:
+      io_service_bytes_recursive:
+        type: "array"
+        items:
+          $ref: "#/definitions/ContainerBlkioStatEntry"
+      io_serviced_recursive:
+        description: |
+          This field is only available when using Linux containers with
+          cgroups v1. It is omitted or `null` when using cgroups v2.
+        x-nullable: true
+        type: "array"
+        items:
+          $ref: "#/definitions/ContainerBlkioStatEntry"
+      io_queue_recursive:
+        description: |
+          This field is only available when using Linux containers with
+          cgroups v1. It is omitted or `null` when using cgroups v2.
+        x-nullable: true
+        type: "array"
+        items:
+          $ref: "#/definitions/ContainerBlkioStatEntry"
+      io_service_time_recursive:
+        description: |
+          This field is only available when using Linux containers with
+          cgroups v1. It is omitted or `null` when using cgroups v2.
+        x-nullable: true
+        type: "array"
+        items:
+          $ref: "#/definitions/ContainerBlkioStatEntry"
+      io_wait_time_recursive:
+        description: |
+          This field is only available when using Linux containers with
+          cgroups v1. It is omitted or `null` when using cgroups v2.
+        x-nullable: true
+        type: "array"
+        items:
+          $ref: "#/definitions/ContainerBlkioStatEntry"
+      io_merged_recursive:
+        description: |
+          This field is only available when using Linux containers with
+          cgroups v1. It is omitted or `null` when using cgroups v2.
+        x-nullable: true
+        type: "array"
+        items:
+          $ref: "#/definitions/ContainerBlkioStatEntry"
+      io_time_recursive:
+        description: |
+          This field is only available when using Linux containers with
+          cgroups v1. It is omitted or `null` when using cgroups v2.
+        x-nullable: true
+        type: "array"
+        items:
+          $ref: "#/definitions/ContainerBlkioStatEntry"
+      sectors_recursive:
+        description: |
+          This field is only available when using Linux containers with
+          cgroups v1. It is omitted or `null` when using cgroups v2.
+        x-nullable: true
+        type: "array"
+        items:
+          $ref: "#/definitions/ContainerBlkioStatEntry"
+    example:
+      io_service_bytes_recursive: [
+        {"major": 254, "minor": 0, "op": "read", "value": 7593984},
+        {"major": 254, "minor": 0, "op": "write", "value": 100}
+      ]
+      io_serviced_recursive: null
+      io_queue_recursive: null
+      io_service_time_recursive: null
+      io_wait_time_recursive: null
+      io_merged_recursive: null
+      io_time_recursive: null
+      sectors_recursive: null
+
+  ContainerBlkioStatEntry:
+    description: |
+      Blkio stats entry.
+
+      This type is Linux-specific and omitted for Windows containers.
+    type: "object"
+    x-go-name: "BlkioStatEntry"
+    x-nullable: true
+    properties:
+      major:
+        type: "integer"
+        format: "uint64"
+        example: 254
+      minor:
+        type: "integer"
+        format: "uint64"
+        example: 0
+      op:
+        type: "string"
+        example: "read"
+      value:
+        type: "integer"
+        format: "uint64"
+        example: 7593984
+
+  ContainerCPUStats:
+    description: |
+      CPU related info of the container
+    type: "object"
+    x-go-name: "CPUStats"
+    x-nullable: true
+    properties:
+      cpu_usage:
+        $ref: "#/definitions/ContainerCPUUsage"
+      system_cpu_usage:
+        description: |
+          System Usage.
+
+          This field is Linux-specific and omitted for Windows containers.
+        type: "integer"
+        format: "uint64"
+        x-nullable: true
+        example: 5
+      online_cpus:
+        description: |
+          Number of online CPUs.
+
+          This field is Linux-specific and omitted for Windows containers.
+        type: "integer"
+        format: "uint32"
+        x-nullable: true
+        example: 5
+      throttling_data:
+        $ref: "#/definitions/ContainerThrottlingData"
+
+  ContainerCPUUsage:
+    description: |
+      All CPU stats aggregated since container inception.
+    type: "object"
+    x-go-name: "CPUUsage"
+    x-nullable: true
+    properties:
+      total_usage:
+        description: |
+          Total CPU time consumed in nanoseconds (Linux) or 100's of nanoseconds (Windows).
+        type: "integer"
+        format: "uint64"
+        example: 29912000
+      percpu_usage:
+        description: |
+          Total CPU time (in nanoseconds) consumed per core (Linux).
+
+          This field is Linux-specific when using cgroups v1. It is omitted
+          when using cgroups v2 and Windows containers.
+        type: "array"
+        x-nullable: true
+        items:
+          type: "integer"
+          format: "uint64"
+          example: 29912000
+
+      usage_in_kernelmode:
+        description: |
+          Time (in nanoseconds) spent by tasks of the cgroup in kernel mode (Linux),
+          or time spent (in 100's of nanoseconds) by all container processes in
+          kernel mode (Windows).
+
+          Not populated for Windows containers using Hyper-V isolation.
+        type: "integer"
+        format: "uint64"
+        example: 21994000
+      usage_in_usermode:
+        description: |
+          Time (in nanoseconds) spent by tasks of the cgroup in user mode (Linux),
+          or time spent (in 100's of nanoseconds) by all container processes in
+          kernel mode (Windows).
+
+          Not populated for Windows containers using Hyper-V isolation.
+        type: "integer"
+        format: "uint64"
+        example: 7918000
+
+  ContainerPidsStats:
+    description: |
+      PidsStats contains Linux-specific stats of a container's process-IDs (PIDs).
+
+      This type is Linux-specific and omitted for Windows containers.
+    type: "object"
+    x-go-name: "PidsStats"
+    x-nullable: true
+    properties:
+      current:
+        description: |
+          Current is the number of PIDs in the cgroup.
+        type: "integer"
+        format: "uint64"
+        x-nullable: true
+        example: 5
+      limit:
+        description: |
+          Limit is the hard limit on the number of pids in the cgroup.
+          A "Limit" of 0 means that there is no limit.
+        type: "integer"
+        format: "uint64"
+        x-nullable: true
+        example: 18446744073709551615
+
+  ContainerThrottlingData:
+    description: |
+      CPU throttling stats of the container.
+
+      This type is Linux-specific and omitted for Windows containers.
+    type: "object"
+    x-go-name: "ThrottlingData"
+    x-nullable: true
+    properties:
+      periods:
+        description: |
+          Number of periods with throttling active.
+        type: "integer"
+        format: "uint64"
+        example: 0
+      throttled_periods:
+        description: |
+          Number of periods when the container hit its throttling limit.
+        type: "integer"
+        format: "uint64"
+        example: 0
+      throttled_time:
+        description: |
+          Aggregated time (in nanoseconds) the container was throttled for.
+        type: "integer"
+        format: "uint64"
+        example: 0
+
+  ContainerMemoryStats:
+    description: |
+      Aggregates all memory stats since container inception on Linux.
+      Windows returns stats for commit and private working set only.
+    type: "object"
+    x-go-name: "MemoryStats"
+    properties:
+      usage:
+        description: |
+          Current `res_counter` usage for memory.
+
+          This field is Linux-specific and omitted for Windows containers.
+        type: "integer"
+        format: "uint64"
+        x-nullable: true
+        example: 0
+      max_usage:
+        description: |
+          Maximum usage ever recorded.
+
+          This field is Linux-specific and only supported on cgroups v1.
+          It is omitted when using cgroups v2 and for Windows containers.
+        type: "integer"
+        format: "uint64"
+        x-nullable: true
+        example: 0
+      stats:
+        description: |
+          All the stats exported via memory.stat. when using cgroups v2.
+
+          This field is Linux-specific and omitted for Windows containers.
+        type: "object"
+        additionalProperties:
+          type: "integer"
+          format: "uint64"
+          x-nullable: true
+        example:
+          {
+            "active_anon": 1572864,
+            "active_file": 5115904,
+            "anon": 1572864,
+            "anon_thp": 0,
+            "file": 7626752,
+            "file_dirty": 0,
+            "file_mapped": 2723840,
+            "file_writeback": 0,
+            "inactive_anon": 0,
+            "inactive_file": 2510848,
+            "kernel_stack": 16384,
+            "pgactivate": 0,
+            "pgdeactivate": 0,
+            "pgfault": 2042,
+            "pglazyfree": 0,
+            "pglazyfreed": 0,
+            "pgmajfault": 45,
+            "pgrefill": 0,
+            "pgscan": 0,
+            "pgsteal": 0,
+            "shmem": 0,
+            "slab": 1180928,
+            "slab_reclaimable": 725576,
+            "slab_unreclaimable": 455352,
+            "sock": 0,
+            "thp_collapse_alloc": 0,
+            "thp_fault_alloc": 1,
+            "unevictable": 0,
+            "workingset_activate": 0,
+            "workingset_nodereclaim": 0,
+            "workingset_refault": 0
+          }
+      failcnt:
+        description: |
+          Number of times memory usage hits limits.
+
+          This field is Linux-specific and only supported on cgroups v1.
+          It is omitted when using cgroups v2 and for Windows containers.
+        type: "integer"
+        format: "uint64"
+        x-nullable: true
+        example: 0
+      limit:
+        description: |
+          This field is Linux-specific and omitted for Windows containers.
+        type: "integer"
+        format: "uint64"
+        x-nullable: true
+        example: 8217579520
+      commitbytes:
+        description: |
+          Committed bytes.
+
+          This field is Windows-specific and omitted for Linux containers.
+        type: "integer"
+        format: "uint64"
+        x-nullable: true
+        example: 0
+      commitpeakbytes:
+        description: |
+          Peak committed bytes.
+
+          This field is Windows-specific and omitted for Linux containers.
+        type: "integer"
+        format: "uint64"
+        x-nullable: true
+        example: 0
+      privateworkingset:
+        description: |
+          Private working set.
+
+          This field is Windows-specific and omitted for Linux containers.
+        type: "integer"
+        format: "uint64"
+        x-nullable: true
+        example: 0
+
+  ContainerNetworkStats:
+    description: |
+      Aggregates the network stats of one container
+    type: "object"
+    x-go-name: "NetworkStats"
+    x-nullable: true
+    properties:
+      rx_bytes:
+        description: |
+          Bytes received. Windows and Linux.
+        type: "integer"
+        format: "uint64"
+        example: 5338
+      rx_packets:
+        description: |
+          Packets received. Windows and Linux.
+        type: "integer"
+        format: "uint64"
+        example: 36
+      rx_errors:
+        description: |
+          Received errors. Not used on Windows.
+
+          This field is Linux-specific and always zero for Windows containers.
+        type: "integer"
+        format: "uint64"
+        example: 0
+      rx_dropped:
+        description: |
+          Incoming packets dropped. Windows and Linux.
+        type: "integer"
+        format: "uint64"
+        example: 0
+      tx_bytes:
+        description: |
+          Bytes sent. Windows and Linux.
+        type: "integer"
+        format: "uint64"
+        example: 1200
+      tx_packets:
+        description: |
+          Packets sent. Windows and Linux.
+        type: "integer"
+        format: "uint64"
+        example: 12
+      tx_errors:
+        description: |
+          Sent errors. Not used on Windows.
+
+          This field is Linux-specific and always zero for Windows containers.
+        type: "integer"
+        format: "uint64"
+        example: 0
+      tx_dropped:
+        description: |
+          Outgoing packets dropped. Windows and Linux.
+        type: "integer"
+        format: "uint64"
+        example: 0
+      endpoint_id:
+        description: |
+          Endpoint ID. Not used on Linux.
+
+          This field is Windows-specific and omitted for Linux containers.
+        type: "string"
+        x-nullable: true
+      instance_id:
+        description: |
+          Instance ID. Not used on Linux.
+
+          This field is Windows-specific and omitted for Linux containers.
+        type: "string"
+        x-nullable: true
+
+  ContainerStorageStats:
+    description: |
+      StorageStats is the disk I/O stats for read/write on Windows.
+
+      This type is Windows-specific and omitted for Linux containers.
+    type: "object"
+    x-go-name: "StorageStats"
+    x-nullable: true
+    properties:
+      read_count_normalized:
+        type: "integer"
+        format: "uint64"
+        x-nullable: true
+        example: 7593984
+      read_size_bytes:
+        type: "integer"
+        format: "uint64"
+        x-nullable: true
+        example: 7593984
+      write_count_normalized:
+        type: "integer"
+        format: "uint64"
+        x-nullable: true
+        example: 7593984
+      write_size_bytes:
+        type: "integer"
+        format: "uint64"
+        x-nullable: true
+        example: 7593984
+
   ContainerWaitResponse:
     description: "OK response to ContainerWait operation"
     type: "object"
@@ -7757,99 +8302,7 @@ paths:
         200:
           description: "no error"
           schema:
-            type: "object"
-          examples:
-            application/json:
-              read: "2015-01-08T22:57:31.547920715Z"
-              pids_stats:
-                current: 3
-              networks:
-                eth0:
-                  rx_bytes: 5338
-                  rx_dropped: 0
-                  rx_errors: 0
-                  rx_packets: 36
-                  tx_bytes: 648
-                  tx_dropped: 0
-                  tx_errors: 0
-                  tx_packets: 8
-                eth5:
-                  rx_bytes: 4641
-                  rx_dropped: 0
-                  rx_errors: 0
-                  rx_packets: 26
-                  tx_bytes: 690
-                  tx_dropped: 0
-                  tx_errors: 0
-                  tx_packets: 9
-              memory_stats:
-                stats:
-                  total_pgmajfault: 0
-                  cache: 0
-                  mapped_file: 0
-                  total_inactive_file: 0
-                  pgpgout: 414
-                  rss: 6537216
-                  total_mapped_file: 0
-                  writeback: 0
-                  unevictable: 0
-                  pgpgin: 477
-                  total_unevictable: 0
-                  pgmajfault: 0
-                  total_rss: 6537216
-                  total_rss_huge: 6291456
-                  total_writeback: 0
-                  total_inactive_anon: 0
-                  rss_huge: 6291456
-                  hierarchical_memory_limit: 67108864
-                  total_pgfault: 964
-                  total_active_file: 0
-                  active_anon: 6537216
-                  total_active_anon: 6537216
-                  total_pgpgout: 414
-                  total_cache: 0
-                  inactive_anon: 0
-                  active_file: 0
-                  pgfault: 964
-                  inactive_file: 0
-                  total_pgpgin: 477
-                max_usage: 6651904
-                usage: 6537216
-                failcnt: 0
-                limit: 67108864
-              blkio_stats: {}
-              cpu_stats:
-                cpu_usage:
-                  percpu_usage:
-                    - 8646879
-                    - 24472255
-                    - 36438778
-                    - 30657443
-                  usage_in_usermode: 50000000
-                  total_usage: 100215355
-                  usage_in_kernelmode: 30000000
-                system_cpu_usage: 739306590000000
-                online_cpus: 4
-                throttling_data:
-                  periods: 0
-                  throttled_periods: 0
-                  throttled_time: 0
-              precpu_stats:
-                cpu_usage:
-                  percpu_usage:
-                    - 8646879
-                    - 24350896
-                    - 36438778
-                    - 30657443
-                  usage_in_usermode: 50000000
-                  total_usage: 100093996
-                  usage_in_kernelmode: 30000000
-                system_cpu_usage: 9492140000000
-                online_cpus: 4
-                throttling_data:
-                  periods: 0
-                  throttled_periods: 0
-                  throttled_time: 0
+            $ref: "#/definitions/ContainerStatsResponse"
         404:
           description: "no such container"
           schema:
