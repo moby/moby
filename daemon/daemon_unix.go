@@ -41,7 +41,6 @@ import (
 	lntypes "github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
@@ -453,9 +452,6 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 		}
 		if resources.KernelMemory > 0 && resources.KernelMemory < linuxMinMemory {
 			return warnings, fmt.Errorf("Minimum kernel memory limit allowed is 6MB")
-		}
-		if !kernel.CheckKernelVersion(4, 0, 0) {
-			warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 		}
 	}
 	if resources.OomKillDisable != nil && !sysInfo.OomKillDisable {
