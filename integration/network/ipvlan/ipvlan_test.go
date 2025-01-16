@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -631,5 +632,73 @@ func TestIPVlanDNS(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestPointToPoint checks that no gateway is reserved for an ipvlan network unless needed.
+func TestPointToPoint(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "can't see dummy parent interface from rootless netns")
+
+	ctx := testutil.StartSpan(baseContext, t)
+	apiClient := testEnv.APIClient()
+
+	const parentIfname = "di-dummy0"
+	n.CreateMasterDummy(ctx, t, parentIfname)
+	defer n.DeleteInterface(ctx, t, parentIfname)
+
+	tests := []struct {
+		name   string
+		parent string
+		mode   string
+	}{
+		{
+			// An ipvlan network with no parent interface is "internal".
+			name: "internal",
+			mode: "l2",
+		},
+		{
+			// An L3 ipvlan does not need a gateway, because it's L3 (so, can't
+			// resolve a next-hop address). A "/31" ipvlan with two containers
+			// may not be particularly useful, but the check is that no address is
+			// reserved for a gateway in an L3 network.
+			name:   "l3",
+			parent: parentIfname,
+			mode:   "l3",
+		},
+		{
+			name:   "l3s",
+			parent: parentIfname,
+			mode:   "l3s",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+			const netName = "p2pipvlan"
+			net.CreateNoError(ctx, t, apiClient, netName,
+				net.WithIPvlan(tc.parent, tc.mode),
+				net.WithIPAM("192.168.135.0/31", ""),
+			)
+			defer net.RemoveNoError(ctx, t, apiClient, netName)
+
+			const ctrName = "ctr1"
+			id := container.Run(ctx, t, apiClient,
+				container.WithNetworkMode(netName),
+				container.WithName(ctrName),
+			)
+			defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			res := container.RunAttach(attachCtx, t, apiClient,
+				container.WithCmd([]string{"ping", "-c1", "-W3", ctrName}...),
+				container.WithNetworkMode(netName),
+			)
+			defer apiClient.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+			assert.Check(t, is.Equal(res.ExitCode, 0))
+			assert.Check(t, is.Equal(res.Stderr.Len(), 0))
+			assert.Check(t, is.Contains(res.Stdout.String(), "1 packets transmitted, 1 packets received"))
+		})
 	}
 }

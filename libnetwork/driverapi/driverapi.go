@@ -3,6 +3,8 @@ package driverapi
 import (
 	"context"
 	"net"
+
+	"github.com/docker/docker/libnetwork/options"
 )
 
 // NetworkPluginEndpointType represents the Endpoint Type used by Plugin system
@@ -83,6 +85,13 @@ type Driver interface {
 
 	// IsBuiltIn returns true if it is a built-in driver
 	IsBuiltIn() bool
+}
+
+// GwAllocChecker is an optional interface for a network driver.
+type GwAllocChecker interface {
+	// GetSkipGwAlloc returns true if the opts describe a network
+	// that does not need a gateway IPv4/IPv6 address, else false.
+	GetSkipGwAlloc(opts options.Generic) (skipIPv4, skipIPv6 bool, err error)
 }
 
 // NetworkInfo provides a go interface for drivers to provide network

@@ -40,7 +40,6 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	// if parent interface not specified, create a dummy type link to use named dummy+net_id
 	if config.Parent == "" {
 		config.Parent = getDummyName(config.ID)
-		config.Internal = true
 	}
 	foundExisting, err := d.createNetwork(config)
 	if err != nil {
@@ -60,6 +59,15 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	}
 
 	return nil
+}
+
+func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error) {
+	cfg, err := parseNetworkOptions("dummy", opts)
+	if err != nil {
+		return false, false, err
+	}
+	// "--internal" networks don't need a gateway address.
+	return cfg.Internal, cfg.Internal, nil
 }
 
 // createNetwork is used by new network callbacks and persistent network cache
@@ -223,6 +231,11 @@ func parseNetworkOptions(id string, option options.Generic) (*configuration, err
 	// loopback is not a valid parent link
 	if config.Parent == "lo" {
 		return nil, fmt.Errorf("loopback interface is not a valid macvlan parent link")
+	}
+
+	// With no parent interface, the network is "internal".
+	if config.Parent == "" {
+		config.Internal = true
 	}
 
 	config.ID = id

@@ -14,6 +14,7 @@ import (
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/internal/testutils/networking"
+	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -314,4 +315,38 @@ func TestFilterForwardPolicy(t *testing.T) {
 			assert.Check(t, is.Equal(getSysctls(), sysctls{tc.expForwarding, tc.expForwarding, tc.expForwarding}))
 		})
 	}
+}
+
+// TestPointToPoint checks that a "/31" --internal network with inhibit_ipv4
+// has two addresses available for containers (no address is reserved for a
+// gateway, because it won't be used).
+func TestPointToPoint(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	const netName = "testp2pbridge"
+	network.CreateNoError(ctx, t, apiClient, netName,
+		network.WithIPAM("192.168.135.0/31", ""),
+		network.WithInternal(),
+		network.WithOption(bridge.InhibitIPv4, "true"),
+	)
+	defer network.RemoveNoError(ctx, t, apiClient, netName)
+
+	const ctrName = "ctr1"
+	id := ctr.Run(ctx, t, apiClient,
+		ctr.WithNetworkMode(netName),
+		ctr.WithName(ctrName),
+	)
+	defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+	attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	res := ctr.RunAttach(attachCtx, t, apiClient,
+		ctr.WithCmd([]string{"ping", "-c1", "-W3", ctrName}...),
+		ctr.WithNetworkMode(netName),
+	)
+	defer apiClient.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+	assert.Check(t, is.Equal(res.ExitCode, 0))
+	assert.Check(t, is.Equal(res.Stderr.Len(), 0))
+	assert.Check(t, is.Contains(res.Stdout.String(), "1 packets transmitted, 1 packets received"))
 }

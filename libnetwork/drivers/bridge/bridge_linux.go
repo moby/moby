@@ -746,6 +746,19 @@ func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (s
 	return "", nil
 }
 
+func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error) {
+	// The network doesn't exist yet, so use a dummy id that's long enough to be
+	// truncated to a short-id (12 characters) and used in the bridge device name.
+	cfg, err := parseNetworkOptions("dummyNetworkId", opts)
+	if err != nil {
+		return false, false, err
+	}
+	// cfg.InhibitIPv4 means no gateway address will be assigned to the bridge, if
+	// the network is also cfg.Internal, there will not be a default route to use
+	// the gateway address either.
+	return cfg.InhibitIPv4 && cfg.Internal, false, nil
+}
+
 // CreateNetwork creates a new network using the bridge driver.
 func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	// Sanity checks

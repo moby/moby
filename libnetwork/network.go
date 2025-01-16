@@ -206,6 +206,8 @@ type Network struct {
 	configFrom       string
 	loadBalancerIP   net.IP
 	loadBalancerMode string
+	skipGwAllocIPv4  bool
+	skipGwAllocIPv6  bool
 	platformNetwork  //nolint:nolintlint,unused // only populated on windows
 	mu               sync.Mutex
 }
@@ -466,6 +468,8 @@ func (n *Network) CopyTo(o datastore.KVObject) error {
 	dstN.configFrom = n.configFrom
 	dstN.loadBalancerIP = n.loadBalancerIP
 	dstN.loadBalancerMode = n.loadBalancerMode
+	dstN.skipGwAllocIPv4 = n.skipGwAllocIPv4
+	dstN.skipGwAllocIPv6 = n.skipGwAllocIPv6
 
 	// copy labels
 	if dstN.labels == nil {
@@ -584,6 +588,8 @@ func (n *Network) MarshalJSON() ([]byte, error) {
 	netMap["configFrom"] = n.configFrom
 	netMap["loadBalancerIP"] = n.loadBalancerIP
 	netMap["loadBalancerMode"] = n.loadBalancerMode
+	netMap["skipGwAllocIPv4"] = n.skipGwAllocIPv4
+	netMap["skipGwAllocIPv6"] = n.skipGwAllocIPv6
 	return json.Marshal(netMap)
 }
 
@@ -706,6 +712,12 @@ func (n *Network) UnmarshalJSON(b []byte) (err error) {
 	n.loadBalancerMode = loadBalancerModeDefault
 	if v, ok := netMap["loadBalancerMode"]; ok {
 		n.loadBalancerMode = v.(string)
+	}
+	if v, ok := netMap["skipGwAllocIPv4"]; ok {
+		n.skipGwAllocIPv4 = v.(bool)
+	}
+	if v, ok := netMap["skipGwAllocIPv6"]; ok {
+		n.skipGwAllocIPv6 = v.(bool)
 	}
 	return nil
 }
@@ -1515,18 +1527,21 @@ func (n *Network) ipamAllocate() (retErr error) {
 
 func (n *Network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 	var (
-		cfgList  *[]*IpamConf
-		infoList *[]*IpamInfo
-		err      error
+		cfgList     *[]*IpamConf
+		infoList    *[]*IpamInfo
+		skipGwAlloc bool
+		err         error
 	)
 
 	switch ipVer {
 	case 4:
 		cfgList = &n.ipamV4Config
 		infoList = &n.ipamV4Info
+		skipGwAlloc = n.skipGwAllocIPv4
 	case 6:
 		cfgList = &n.ipamV6Config
 		infoList = &n.ipamV6Info
+		skipGwAlloc = n.skipGwAllocIPv6
 	default:
 		return types.InternalErrorf("incorrect ip version passed to ipam allocate: %d", ipVer)
 	}
@@ -1577,16 +1592,19 @@ func (n *Network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 			}
 		}()
 
-		if gws, ok := d.Meta[netlabel.Gateway]; ok {
-			if d.Gateway, err = types.ParseCIDR(gws); err != nil {
-				return types.InvalidParameterErrorf("failed to parse gateway address (%v) returned by ipam driver: %v", gws, err)
+		// If there's no user-configured gateway address but the IPAM driver returned a gw when it
+		// set up the pool, use it. (It doesn't need to be requested/reserved in IPAM.)
+		if cfg.Gateway == "" {
+			if gws, ok := d.Meta[netlabel.Gateway]; ok {
+				if d.Gateway, err = types.ParseCIDR(gws); err != nil {
+					return types.InvalidParameterErrorf("failed to parse gateway address (%v) returned by ipam driver: %v", gws, err)
+				}
 			}
 		}
 
-		// If user requested a specific gateway, libnetwork will allocate it
-		// irrespective of whether ipam driver returned a gateway already.
-		// If none of the above is true, libnetwork will allocate one.
-		if cfg.Gateway != "" || d.Gateway == nil {
+		// If there's still no gateway, reserve cfg.Gateway if the user specified it. Else,
+		// if the driver wants a gateway, let the IPAM driver select an address.
+		if d.Gateway == nil && (cfg.Gateway != "" || !skipGwAlloc) {
 			gatewayOpts := map[string]string{
 				ipamapi.RequestAddressType: netlabel.Gateway,
 			}
@@ -1652,6 +1670,9 @@ func (n *Network) ipamReleaseVersion(ipVer int, ipam ipamapi.Ipam) {
 
 	for _, d := range *infoList {
 		if d.Gateway != nil {
+			// FIXME(robmry) - if an IPAM driver returned a gateway in Meta[netlabel.Gateway], and
+			// no user config overrode that address, it wasn't explicitly allocated so it shouldn't
+			// be released here?
 			if err := ipam.ReleaseAddress(d.PoolID, d.Gateway.IP); err != nil {
 				log.G(context.TODO()).Warnf("Failed to release gateway ip address %s on delete of network %s (%s): %v", d.Gateway.IP, n.Name(), n.ID(), err)
 			}

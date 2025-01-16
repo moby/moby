@@ -562,8 +562,14 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 
 	// Make sure we have a driver available for this network type
 	// before we allocate anything.
-	if _, err := nw.driver(true); err != nil {
+	if d, err := nw.driver(true); err != nil {
 		return nil, err
+	} else if gac, ok := d.(driverapi.GwAllocChecker); ok {
+		// Give the driver a chance to say it doesn't need a gateway IP address.
+		nw.skipGwAllocIPv4, nw.skipGwAllocIPv6, err = gac.GetSkipGwAlloc(nw.generic)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// From this point on, we need the network specific configuration,
