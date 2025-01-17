@@ -910,8 +910,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
+	// Set the max backoff delay to match our containerd.WithTimeout(),
+	// aligning with how containerd client's defaults sets this;
+	// https://github.com/containerd/containerd/blob/v2.0.2/client/client.go#L129-L136
 	backoffConfig := backoff.DefaultConfig
-	backoffConfig.MaxDelay = 3 * time.Second
+	backoffConfig.MaxDelay = 60 * time.Second
 	connParams := grpc.ConnectParams{
 		Backoff: backoffConfig,
 	}
