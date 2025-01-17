@@ -283,8 +283,6 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 			gopts := []grpc.DialOption{
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 				grpc.WithContextDialer(dialer.ContextDialer),
-				grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
-				grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
 				grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
 				grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),
 			}
