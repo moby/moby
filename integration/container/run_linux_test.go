@@ -422,6 +422,12 @@ func TestCgroupRW(t *testing.T) {
 			expectedExitCode: 1,
 		},
 		{
+			name: "writable",
+			ops:  []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups")},
+			// no err msg, because this is correct key=bool
+			expectedExitCode: 0,
+		},
+		{
 			name: "writable=true",
 			ops:  []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups=true")},
 			// no err msg, because this is correct key=value

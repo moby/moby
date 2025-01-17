@@ -221,6 +221,11 @@ func parseSecurityOpt(securityOptions *container.SecurityOptions, config *contai
 			securityOptions.NoNewPrivileges = true
 			continue
 		}
+		if opt == "writable-cgroups" {
+			trueVal := true
+			securityOptions.WritableCgroups = &trueVal
+			continue
+		}
 		if opt == "disable" {
 			labelOpts = append(labelOpts, "disable")
 			continue
