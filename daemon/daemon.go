@@ -919,38 +919,18 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		// ------------------------------------------------------------------
 		// options below are copied from containerd client's default options
 		//
-		// TODO(thaJeztah): update this list once https://github.com/containerd/containerd/pull/10250/commits/63b46881753588624b2eac986660458318581330 is in the 1.7 release.
+		// We need to set these options, because setting any custom DialOptions
+		// currently overwrites (not appends to) the defaults;
+		// https://github.com/containerd/containerd/blob/v2.0.2/client/client.go#L129-L141
+		//
+		// TODO(thaJeztah): use containerd.WithExtraDialOpts() once https://github.com/containerd/containerd/pull/11276 is merged and in a release.
 		// ------------------------------------------------------------------
-
-		// WithReturnConnectionError makes sure that the following containerd
-		// request is reliable, and that connection errors are returned.
-		//
-		// NOTE: In one edge case with high load pressure, kernel kills
-		// dockerd, containerd and containerd-shims caused by OOM.
-		// When both dockerd and containerd restart, but containerd
-		// will take time to recover all the existing containers. Before
-		// containerd serving, dockerd will failed with gRPC error.
-		// That bad thing is that restore action will still ignore the
-		// any non-NotFound errors and returns running state for
-		// already stopped container. It is unexpected behavior. And
-		// we need to restart dockerd to make sure that anything is OK.
-		//
-		// It is painful. Add WithBlock can prevent the edge case. And
-		// in common cases, containerd will be serving in shortly.
-		// It is not harm to add WithBlock for containerd connection.
-		//
-		// TODO(thaJeztah): update this list once https://github.com/containerd/containerd/pull/10250/commits/63b46881753588624b2eac986660458318581330 is in the 1.7 release.
-		grpc.WithReturnConnectionError(),  //nolint:staticcheck // Ignore SA1019: grpc.WithReturnConnectionError is deprecated: this DialOption is not supported by NewClient. Will be supported throughout
-		grpc.FailOnNonTempDialError(true), //nolint:staticcheck // Ignore SA1019: grpc.WithReturnConnectionError is deprecated: this DialOption is not supported by NewClient. Will be supported throughout
-
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithConnectParams(connParams),
 		grpc.WithContextDialer(dialer.ContextDialer),
-
 		// ------------------------------------------------------------------
-		// end of options copied from containerd's default
+		// end of options copied from containerd client's default
 		// ------------------------------------------------------------------
-
 		grpc.WithStatsHandler(tracing.ClientStatsHandler(otelgrpc.WithTracerProvider(otel.GetTracerProvider()))),
 		grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
 		grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),
