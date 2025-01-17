@@ -467,7 +467,16 @@ func TestCgroupRW(t *testing.T) {
 			err = apiClient.ContainerStart(ctx, resp.ID, containertypes.StartOptions{})
 			assert.NilError(t, err)
 
-			res, err := container.Exec(ctx, apiClient, resp.ID, []string{"mkdir", "/sys/fs/cgroup/foo"})
+			res, err := container.Exec(ctx, apiClient, resp.ID, []string{"sh", "-ec", `
+				# see also "contrib/check-config.sh" for the same test
+				if [ "$(stat -f -c %t /sys/fs/cgroup 2> /dev/null)" = '63677270' ]; then
+					# nice, must be cgroupsv2
+					exec mkdir /sys/fs/cgroup/foo
+				else
+					# boo, must be cgroupsv1
+					exec mkdir /sys/fs/cgroup/pids/foo
+				fi
+			`})
 			assert.NilError(t, err)
 			if tc.expectedExitCode != 0 {
 				assert.Check(t, is.Contains(res.Stderr(), "Read-only file system"))
