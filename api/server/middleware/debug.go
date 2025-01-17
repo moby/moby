@@ -27,14 +27,15 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 			"method":      r.Method,
 			"request-url": r.RequestURI,
 			"vars":        vars,
-			"status":      http.StatusOK,
 		}
+		logger.WithFields(fields).Debugf("handling %s request", r.Method)
 		defer func() {
 			if retErr != nil {
+				// TODO(thaJeztah): unify this with Server.makeHTTPHandler, which also logs internal server errors as error-log. See https://github.com/moby/moby/pull/48740#discussion_r1816675574
 				fields["error-response"] = retErr
 				fields["status"] = httpstatus.FromError(retErr)
+				logger.WithFields(fields).Debugf("error response for %s request", r.Method)
 			}
-			logger.WithFields(fields).Debugf("handling %s request", r.Method)
 		}()
 
 		if r.Method != http.MethodPost {
