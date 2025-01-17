@@ -105,6 +105,11 @@ jobs:
         platform: ${{ fromJson(needs.prepare.outputs.platforms) }}
     steps:
       -
+        name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      -
         name: Prepare
         run: |
           platform=${{ matrix.platform }}
@@ -137,9 +142,10 @@ jobs:
         id: bake
         uses: docker/bake-action@v6
         with:
+          source: .
           files: |
             ./docker-bake.hcl
-            cwd:///tmp/bake-meta.json
+            /tmp/bake-meta.json
           targets: bin-image
           set: |
             *.platform=${{ matrix.platform }}
