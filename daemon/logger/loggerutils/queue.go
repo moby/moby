@@ -11,7 +11,7 @@ import (
 // MessageQueue is a queue for log messages.
 //
 // [MessageQueue.Enqueue] will block when the queue is full.
-// To dequeue messages call [MessageQueue.Reciever] and pull messsages off the
+// To dequeue messages call [MessageQueue.Receiver] and pull messages off the
 // returned channel.
 //
 // Closing only prevents new messages from being added to the queue.
