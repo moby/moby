@@ -307,12 +307,12 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 
 	defer func() {
 		if cErr != nil {
-			log.G(context.TODO()).Debugf("Cleaning up layer %s: %v", layer.cacheID, cErr)
+			log.G(context.TODO()).WithFields(log.Fields{"cache-id": layer.cacheID, "error": cErr}).Debug("Cleaning up cache layer after error")
 			if err := ls.driver.Remove(layer.cacheID); err != nil {
-				log.G(context.TODO()).Errorf("Error cleaning up cache layer %s: %v", layer.cacheID, err)
+				log.G(context.TODO()).WithFields(log.Fields{"cache-id": layer.cacheID, "error": err}).Error("Error cleaning up cache layer after error")
 			}
 			if err := tx.Cancel(); err != nil {
-				log.G(context.TODO()).Errorf("Error canceling metadata transaction %q: %s", tx.String(), err)
+				log.G(context.TODO()).WithFields(log.Fields{"cache-id": layer.cacheID, "error": err, "tx": tx.String()}).Error("Error canceling metadata transaction")
 			}
 		}
 	}()
