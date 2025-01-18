@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netlink/nl"
 )
 
 // DockerChain: DOCKER iptable chain name
@@ -237,8 +238,15 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 			CIDR: uint8(cidr),
 		}
 		if err := netlink.IpsetAdd(ipsetName, ipsetEntry); err != nil {
-			return fmt.Errorf("failed to add bridge %s (%s) to ipset: %w",
-				config.BridgeName, maskedAddr, err)
+			if !errors.Is(err, nl.IPSetError(nl.IPSET_ERR_EXIST)) {
+				return fmt.Errorf("failed to add bridge %s (%s) to ipset: %w",
+					config.BridgeName, maskedAddr, err)
+			}
+			log.G(context.TODO()).WithFields(log.Fields{
+				"ipset":  ipsetName,
+				"bridge": config.BridgeName,
+				"subnet": maskedAddr,
+			}).Warnf("Subnet was already in the ipset")
 		}
 		n.registerIptCleanFunc(func() error {
 			return netlink.IpsetDel(ipsetName, ipsetEntry)
