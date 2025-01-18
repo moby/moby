@@ -623,14 +623,12 @@ func (c *Controller) gc() {
 	}()
 
 	for _, w := range workers {
-		func(w worker.Worker) {
-			eg.Go(func() error {
-				if policy := w.GCPolicy(); len(policy) > 0 {
-					return w.Prune(ctx, ch, policy...)
-				}
-				return nil
-			})
-		}(w)
+		eg.Go(func() error {
+			if policy := w.GCPolicy(); len(policy) > 0 {
+				return w.Prune(ctx, ch, policy...)
+			}
+			return nil
+		})
 	}
 
 	err = eg.Wait()

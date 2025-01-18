@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/pkg/errors"
 	fstypes "github.com/tonistiigi/fsutil/types"
 )
 
@@ -40,13 +41,22 @@ func NewFileHash(path string, fi os.FileInfo) (hash.Hash, error) {
 }
 
 func NewFromStat(stat *fstypes.Stat) (hash.Hash, error) {
+	// Clear the irregular file bit if this is some kind of special
+	// file. Pre-Go 1.23 behavior would only add the irregular file
+	// bit to regular files with non-handled reparse points.
+	// Current versions of Go now apply them to directories too.
+	// archive/tar.FileInfoHeader does not handle the irregular bit.
+	if stat.Mode&uint32(os.ModeType&^os.ModeIrregular) != 0 {
+		stat.Mode &^= uint32(os.ModeIrregular)
+	}
+
 	// Clear the socket bit since archive/tar.FileInfoHeader does not handle it
 	stat.Mode &^= uint32(os.ModeSocket)
 
 	fi := &statInfo{stat}
 	hdr, err := tar.FileInfoHeader(fi, stat.Linkname)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to checksum file %s", stat.Path)
 	}
 	hdr.Name = "" // note: empty name is different from current has in docker build. Name is added on recursive directory scan instead
 	hdr.Devmajor = stat.Devmajor

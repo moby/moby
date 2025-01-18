@@ -134,6 +134,10 @@ func (cli *GitCLI) Run(ctx context.Context, args ...string) (_ []byte, err error
 	if cli.git != "" {
 		gitBinary = cli.git
 	}
+	proxyEnvVars := [...]string{
+		"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "ALL_PROXY",
+		"http_proxy", "https_proxy", "no_proxy", "all_proxy",
+	}
 
 	for {
 		var cmd *exec.Cmd
@@ -189,6 +193,11 @@ func (cli *GitCLI) Run(ctx context.Context, args ...string) (_ []byte, err error
 			"GIT_CONFIG_NOSYSTEM=1", // Disable reading from system gitconfig.
 			"HOME=/dev/null",        // Disable reading from user gitconfig.
 			"LC_ALL=C",              // Ensure consistent output.
+		}
+		for _, ev := range proxyEnvVars {
+			if v, ok := os.LookupEnv(ev); ok {
+				cmd.Env = append(cmd.Env, ev+"="+v)
+			}
 		}
 		if cli.sshAuthSock != "" {
 			cmd.Env = append(cmd.Env, "SSH_AUTH_SOCK="+cli.sshAuthSock)

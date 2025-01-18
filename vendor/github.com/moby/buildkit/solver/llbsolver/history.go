@@ -680,6 +680,8 @@ func (h *HistoryQueue) Update(ctx context.Context, e *controlapi.BuildHistoryEve
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	e = e.CloneVT()
+
 	if e.Type == controlapi.BuildHistoryEventType_STARTED {
 		h.active[e.Record.Ref] = e.Record
 		h.ps.Send(e)
