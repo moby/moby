@@ -266,8 +266,7 @@ func (daemon *Daemon) reloadLiveRestore(txn *reloadTxn, newCfg *configStore, con
 // reloadNetworkDiagnosticPort updates the network controller starting the diagnostic if the config is valid
 func (daemon *Daemon) reloadNetworkDiagnosticPort(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	txn.OnCommit(func() error {
-		if conf == nil || daemon.netController == nil || !conf.IsValueSet("network-diagnostic-port") ||
-			conf.NetworkDiagnosticPort < 1 || conf.NetworkDiagnosticPort > 65535 {
+		if conf == nil || daemon.netController == nil || !conf.IsValueSet("network-diagnostic-port") || conf.NetworkDiagnosticPort == 0 {
 			// If there is no config make sure that the diagnostic is off
 			if daemon.netController != nil {
 				daemon.netController.StopDiagnostic()
