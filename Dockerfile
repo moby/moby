@@ -643,6 +643,11 @@ COPY --link --from=containerutil /build/ /
 COPY --link --from=vpnkit        /       /
 COPY --link --from=build         /build  /
 
+# usage:
+# > docker buildx bake bin-image
+FROM all AS bin-image
+COPY --link contrib/init /contrib/init
+
 # smoke tests
 # usage:
 # > docker buildx bake binary-smoketest
