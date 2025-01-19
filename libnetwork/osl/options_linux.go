@@ -119,3 +119,13 @@ func WithAdvertiseAddrInterval(interval time.Duration) IfaceOption {
 		return nil
 	}
 }
+
+// WithCreatedInContainer can be used to say the network driver created the
+// interface in the container's network namespace (and, therefore, it doesn't
+// need to be moved into that namespace.)
+func WithCreatedInContainer(cic bool) IfaceOption {
+	return func(i *Interface) error {
+		i.createdInContainer = cic
+		return nil
+	}
+}

@@ -106,6 +106,7 @@ type Interface struct {
 	// advertiseAddrInterval is the interval between unsolicited ARP/NA messages sent to
 	// advertise the interface's addresses.
 	advertiseAddrInterval time.Duration
+	createdInContainer    bool
 	ns                    *Namespace
 }
 
@@ -265,7 +266,7 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix string,
 		}); err != nil {
 			return fmt.Errorf("failed to create bridge %q: %v", i.srcName, err)
 		}
-	} else {
+	} else if !i.createdInContainer {
 		// Find the network interface identified by the SrcName attribute.
 		iface, err := nlhHost.LinkByName(i.srcName)
 		if err != nil {

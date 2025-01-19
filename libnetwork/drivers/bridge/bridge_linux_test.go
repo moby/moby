@@ -26,9 +26,11 @@ import (
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
 )
 
 func TestEndpointMarshalling(t *testing.T) {
@@ -418,6 +420,84 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 	assert.Check(t, is.Equal(te2.iface.mac.String(), macAddr))
 }
 
+func TestCreateVeth(t *testing.T) {
+	tests := []struct {
+		name                  string
+		netnsName             string
+		createNetns           bool
+		expCreatedInContainer bool
+	}{
+		{
+			name: "host netns",
+		},
+		{
+			name:                  "container netns",
+			netnsName:             "testnsctr",
+			createNetns:           true,
+			expCreatedInContainer: true,
+		},
+		{
+			name:      "netns not created",
+			netnsName: "testnsctr",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a "host" network namespace with a netlink handle.
+			const hostNsName = "testnshost"
+			res := icmd.RunCommand("ip", "netns", "add", hostNsName)
+			assert.Assert(t, is.Equal(res.ExitCode, 0))
+			defer icmd.RunCommand("ip", "netns", "del", hostNsName)
+			nsh, err := netns.GetFromPath("/var/run/netns/" + hostNsName)
+			assert.NilError(t, err)
+			defer nsh.Close()
+			nlh, err := nlwrap.NewHandleAt(nsh)
+			assert.NilError(t, err)
+			defer nlh.Close()
+
+			netnsPath := ""
+			if tc.netnsName != "" {
+				netnsPath = "/var/run/netns/" + tc.netnsName
+			}
+			if tc.createNetns {
+				res := icmd.RunCommand("ip", "netns", "add", tc.netnsName)
+				assert.Assert(t, is.Equal(res.ExitCode, 0))
+				defer icmd.RunCommand("ip", "netns", "del", tc.netnsName)
+			}
+
+			const hostIfName = "vethtesth"
+			const containerIfName = "vethtestc"
+			defer func() {
+				// Just in case anything ends up in the host's netns, make sure it doesn't hang around ...
+				icmd.RunCommand("ip", "link", "del", hostIfName)
+				icmd.RunCommand("ip", "link", "del", containerIfName)
+			}()
+
+			iface := &testInterface{netnsPath: netnsPath}
+			nlhCtr, err := createVeth(context.Background(), hostIfName, containerIfName, iface, nlh)
+			assert.Check(t, err)
+
+			assert.Check(t, is.Equal(iface.createdInContainer, tc.expCreatedInContainer))
+			if tc.expCreatedInContainer {
+				assert.Check(t, nlhCtr != nil)
+				res := icmd.RunCommand("ip", "netns", "exec", hostNsName, "ip", "link", "show", hostIfName)
+				assert.Check(t, is.Equal(res.ExitCode, 0))
+				res = icmd.RunCommand("ip", "netns", "exec", hostNsName, "ip", "link", "show", containerIfName)
+				assert.Check(t, is.Equal(res.ExitCode, 1))
+				res = icmd.RunCommand("ip", "netns", "exec", tc.netnsName, "ip", "link", "show", containerIfName)
+				assert.Check(t, is.Equal(res.ExitCode, 0))
+			} else {
+				assert.Check(t, nlhCtr == nil)
+				res := icmd.RunCommand("ip", "netns", "exec", hostNsName, "ip", "link", "show", hostIfName)
+				assert.Check(t, is.Equal(res.ExitCode, 0))
+				res = icmd.RunCommand("ip", "netns", "exec", hostNsName, "ip", "link", "show", containerIfName)
+				assert.Check(t, is.Equal(res.ExitCode, 0))
+			}
+		})
+	}
+}
+
 func TestCreate(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
@@ -558,11 +638,13 @@ func verifyV4INCEntries(networks map[string]*bridgeNetwork, t *testing.T) {
 }
 
 type testInterface struct {
-	mac     net.HardwareAddr
-	addr    *net.IPNet
-	addrv6  *net.IPNet
-	srcName string
-	dstName string
+	mac                net.HardwareAddr
+	addr               *net.IPNet
+	addrv6             *net.IPNet
+	srcName            string
+	dstName            string
+	createdInContainer bool
+	netnsPath          string
 }
 
 type testEndpoint struct {
@@ -635,6 +717,14 @@ func setAddress(ifaceAddr **net.IPNet, address *net.IPNet) error {
 	}
 	*ifaceAddr = types.GetIPNetCopy(address)
 	return nil
+}
+
+func (i *testInterface) NetnsPath() string {
+	return i.netnsPath
+}
+
+func (i *testInterface) SetCreatedInContainer(cic bool) {
+	i.createdInContainer = cic
 }
 
 func (i *testInterface) SetNames(srcName string, dstName string) error {

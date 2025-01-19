@@ -37,15 +37,17 @@ type EndpointInfo interface {
 
 // EndpointInterface holds interface addresses bound to the endpoint.
 type EndpointInterface struct {
-	mac       net.HardwareAddr
-	addr      *net.IPNet
-	addrv6    *net.IPNet
-	llAddrs   []*net.IPNet
-	srcName   string
-	dstPrefix string
-	routes    []*net.IPNet
-	v4PoolID  string
-	v6PoolID  string
+	mac                net.HardwareAddr
+	addr               *net.IPNet
+	addrv6             *net.IPNet
+	llAddrs            []*net.IPNet
+	srcName            string
+	dstPrefix          string
+	routes             []*net.IPNet
+	v4PoolID           string
+	v6PoolID           string
+	netnsPath          string
+	createdInContainer bool
 }
 
 func (epi *EndpointInterface) MarshalJSON() ([]byte, error) {
@@ -75,6 +77,7 @@ func (epi *EndpointInterface) MarshalJSON() ([]byte, error) {
 	epMap["routes"] = routes
 	epMap["v4PoolID"] = epi.v4PoolID
 	epMap["v6PoolID"] = epi.v6PoolID
+	epMap["createdInContainer"] = epi.createdInContainer
 	return json.Marshal(epMap)
 }
 
@@ -132,6 +135,9 @@ func (epi *EndpointInterface) UnmarshalJSON(b []byte) error {
 	epi.v4PoolID = epMap["v4PoolID"].(string)
 	epi.v6PoolID = epMap["v6PoolID"].(string)
 
+	if v, ok := epMap["createdInContainer"]; ok {
+		epi.createdInContainer = v.(bool)
+	}
 	return nil
 }
 
@@ -143,6 +149,7 @@ func (epi *EndpointInterface) CopyTo(dstEpi *EndpointInterface) error {
 	dstEpi.dstPrefix = epi.dstPrefix
 	dstEpi.v4PoolID = epi.v4PoolID
 	dstEpi.v6PoolID = epi.v6PoolID
+	dstEpi.createdInContainer = epi.createdInContainer
 	if len(epi.llAddrs) != 0 {
 		dstEpi.llAddrs = make([]*net.IPNet, 0, len(epi.llAddrs))
 		dstEpi.llAddrs = append(dstEpi.llAddrs, epi.llAddrs...)
@@ -267,6 +274,18 @@ func (epi *EndpointInterface) SetNames(srcName string, dstPrefix string) error {
 	epi.srcName = srcName
 	epi.dstPrefix = dstPrefix
 	return nil
+}
+
+// NetnsPath returns the path of the network namespace, if there is one. Else "".
+func (epi *EndpointInterface) NetnsPath() string {
+	return epi.netnsPath
+}
+
+// SetCreatedInContainer can be called by the driver to indicate that it's
+// created the network interface in the container's network namespace (so,
+// it doesn't need to be moved there).
+func (epi *EndpointInterface) SetCreatedInContainer(cic bool) {
+	epi.createdInContainer = cic
 }
 
 func (ep *Endpoint) InterfaceName() driverapi.InterfaceNameInfo {

@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"syscall"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
@@ -26,6 +27,7 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -1157,12 +1159,12 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	}
 
 	// Generate and add the interface pipe host <-> sandbox
-	veth := &netlink.Veth{
-		LinkAttrs: netlink.LinkAttrs{Name: hostIfName, TxQLen: 0},
-		PeerName:  containerIfName,
-	}
-	if err = d.nlh.LinkAdd(veth); err != nil {
-		return types.InternalErrorf("failed to add the host (%s) <=> sandbox (%s) pair interfaces: %v", hostIfName, containerIfName, err)
+	nlhSb := d.nlh
+	if nlh, err := createVeth(ctx, hostIfName, containerIfName, ifInfo, d.nlh); err != nil {
+		return err
+	} else if nlh != nil {
+		defer nlh.Close()
+		nlhSb = *nlh
 	}
 
 	// Get the host side pipe interface handler
@@ -1179,13 +1181,13 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	}()
 
 	// Get the sandbox side pipe interface handler
-	sbox, err := d.nlh.LinkByName(containerIfName)
+	sbox, err := nlhSb.LinkByName(containerIfName)
 	if err != nil {
 		return types.InternalErrorf("failed to find sandbox side interface %s: %v", containerIfName, err)
 	}
 	defer func() {
 		if err != nil {
-			if err := d.nlh.LinkDel(sbox); err != nil {
+			if err := nlhSb.LinkDel(sbox); err != nil {
 				log.G(ctx).WithError(err).Warnf("Failed to delete sandbox side interface (%s)'s link", containerIfName)
 			}
 		}
@@ -1201,7 +1203,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		if err != nil {
 			return types.InternalErrorf("failed to set MTU on host interface %s: %v", hostIfName, err)
 		}
-		err = d.nlh.LinkSetMTU(sbox, config.Mtu)
+		err = nlhSb.LinkSetMTU(sbox, config.Mtu)
 		if err != nil {
 			return types.InternalErrorf("failed to set MTU on sandbox interface %s: %v", containerIfName, err)
 		}
@@ -1246,6 +1248,58 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	}
 
 	return nil
+}
+
+// createVeth creates a veth device with one end in the container's network namespace,
+// if it can get hold of the netns path and open the handles. In that case, it returns
+// a netlink handle in the container's namespace that must be closed by the caller.
+//
+// If the netns path isn't available, possibly because the netns hasn't been created
+// yet, or it's not possible to get a netns or netlink handle in the container's
+// namespace - both ends of the veth device are created in nlh's netns, and no netlink
+// handle is returned.
+//
+// (Only the error from creating the interface is returned. Failure to create the
+// interface in the container's netns is not an error.)
+func createVeth(ctx context.Context, hostIfName, containerIfName string, ifInfo driverapi.InterfaceInfo, nlh nlwrap.Handle) (nlhCtr *nlwrap.Handle, retErr error) {
+	veth := &netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{Name: hostIfName, TxQLen: 0},
+		PeerName:  containerIfName,
+	}
+
+	if nspath := ifInfo.NetnsPath(); nspath == "" {
+		log.G(ctx).WithField("ifname", containerIfName).Debug("No container netns path, creating interface in host netns")
+	} else if netnsh, err := netns.GetFromPath(nspath); err != nil {
+		log.G(ctx).WithFields(log.Fields{
+			"error":  err,
+			"netns":  nspath,
+			"ifname": containerIfName,
+		}).Warn("No container netns, creating interface in host netns")
+	} else {
+		defer netnsh.Close()
+
+		if nh, err := nlwrap.NewHandleAt(netnsh, syscall.NETLINK_ROUTE); err != nil {
+			log.G(ctx).WithFields(log.Fields{
+				"error": err,
+				"netns": nspath,
+			}).Warn("No netlink handle for container, creating interface in host netns")
+		} else {
+			defer func() {
+				if retErr != nil {
+					nh.Close()
+				}
+			}()
+
+			veth.PeerNamespace = netlink.NsFd(netnsh)
+			nlhCtr = &nh
+			ifInfo.SetCreatedInContainer(true)
+		}
+	}
+
+	if err := nlh.LinkAdd(veth); err != nil {
+		return nil, types.InternalErrorf("failed to add the host (%s) <=> sandbox (%s) pair interfaces: %v", hostIfName, containerIfName, err)
+	}
+	return nlhCtr, nil
 }
 
 func (d *driver) linkUp(ctx context.Context, host netlink.Link) error {

@@ -183,6 +183,10 @@ func (test *testEndpoint) SetGatewayIPv6(ipv6 net.IP) error {
 	return nil
 }
 
+func (test *testEndpoint) NetnsPath() string { return "" }
+
+func (test *testEndpoint) SetCreatedInContainer(bool) {}
+
 func (test *testEndpoint) SetNames(src string, dst string) error {
 	if test.src != src {
 		test.t.Fatalf(`Wrong SrcName; expected "%s", got "%s"`, test.src, src)
@@ -570,6 +574,10 @@ func (r *rollbackEndpoint) SetMacAddress(mac net.HardwareAddr) error {
 func (r *rollbackEndpoint) SetIPAddress(ip *net.IPNet) error {
 	return errors.New("invalid ip")
 }
+
+func (r *rollbackEndpoint) NetnsPath() string { return "" }
+
+func (r *rollbackEndpoint) SetCreatedInContainer(bool) {}
 
 func TestRollback(t *testing.T) {
 	plugin := "test-net-driver-rollback"
