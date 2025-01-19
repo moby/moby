@@ -76,16 +76,18 @@ func (s *Server) EnableDiagnostic(ip string, port int) {
 	defer s.mu.Unlock()
 
 	s.port = port
+	log.G(context.TODO()).WithFields(log.Fields{"port": s.port, "ip": ip}).Warn("Starting network diagnostic server")
 
 	// FIXME(thaJeztah): this check won't allow re-configuring the port on reload.
 	if s.enable {
-		log.G(context.TODO()).Info("The server is already up and running")
+		log.G(context.TODO()).WithFields(log.Fields{"port": s.port, "ip": ip}).Info("Network diagnostic server is already up and running")
 		return
 	}
 
-	log.G(context.TODO()).Infof("Starting the diagnostic server listening on %d for commands", port)
+	addr := net.JoinHostPort(ip, strconv.Itoa(s.port))
+	log.G(context.TODO()).WithFields(log.Fields{"port": s.port, "ip": ip}).Infof("Starting network diagnostic server listening on %s for commands", addr)
 	srv := &http.Server{
-		Addr:              net.JoinHostPort(ip, strconv.Itoa(port)),
+		Addr:              addr,
 		Handler:           s,
 		ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
 	}
@@ -110,11 +112,13 @@ func (s *Server) DisableDiagnostic() {
 		return
 	}
 	if s.srv != nil {
-		s.srv.Shutdown(context.Background()) //nolint:errcheck
+		if err := s.srv.Shutdown(context.Background()); err != nil {
+			log.G(context.TODO()).WithError(err).Warn("Error during network diagnostic server shutdown")
+		}
 		s.srv = nil
 	}
 	s.enable = false
-	log.G(context.TODO()).Info("Disabling the diagnostic server")
+	log.G(context.TODO()).Info("Network diagnostic server shutdown complete")
 }
 
 // IsDiagnosticEnabled returns true when the debug is enabled
