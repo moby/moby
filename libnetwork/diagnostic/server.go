@@ -77,6 +77,7 @@ func (s *Server) EnableDiagnostic(ip string, port int) {
 
 	s.port = port
 
+	// FIXME(thaJeztah): this check won't allow re-configuring the port on reload.
 	if s.enable {
 		log.G(context.TODO()).Info("The server is already up and running")
 		return
@@ -108,9 +109,10 @@ func (s *Server) DisableDiagnostic() {
 	if !s.enable {
 		return
 	}
-
-	s.srv.Shutdown(context.Background()) //nolint:errcheck
-	s.srv = nil
+	if s.srv != nil {
+		s.srv.Shutdown(context.Background()) //nolint:errcheck
+		s.srv = nil
+	}
 	s.enable = false
 	log.G(context.TODO()).Info("Disabling the diagnostic server")
 }

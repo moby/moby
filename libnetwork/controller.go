@@ -1094,18 +1094,14 @@ func (c *Controller) Stop() {
 // StartDiagnostic starts the network diagnostic server listening on port.
 func (c *Controller) StartDiagnostic(port int) {
 	c.mu.Lock()
-	if !c.diagnosticServer.IsDiagnosticEnabled() {
-		c.diagnosticServer.EnableDiagnostic("127.0.0.1", port)
-	}
+	c.diagnosticServer.EnableDiagnostic("127.0.0.1", port)
 	c.mu.Unlock()
 }
 
 // StopDiagnostic stops the network diagnostic server.
 func (c *Controller) StopDiagnostic() {
 	c.mu.Lock()
-	if c.diagnosticServer.IsDiagnosticEnabled() {
-		c.diagnosticServer.DisableDiagnostic()
-	}
+	c.diagnosticServer.DisableDiagnostic()
 	c.mu.Unlock()
 }
 
