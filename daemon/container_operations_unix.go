@@ -30,15 +30,13 @@ import (
 )
 
 func (daemon *Daemon) setupLinkedContainers(ctr *container.Container) ([]string, error) {
-	var env []string
-	children := daemon.children(ctr)
-
 	bridgeSettings := ctr.NetworkSettings.Networks[network.DefaultNetwork]
 	if bridgeSettings == nil || bridgeSettings.EndpointSettings == nil {
 		return nil, nil
 	}
 
-	for linkAlias, child := range children {
+	var env []string
+	for linkAlias, child := range daemon.children(ctr) {
 		if !child.IsRunning() {
 			return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
 		}
