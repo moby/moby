@@ -105,6 +105,9 @@ func (s *Server) EnableDiagnostic(ip string, port int) {
 func (s *Server) DisableDiagnostic() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if !s.enable {
+		return
+	}
 
 	s.srv.Shutdown(context.Background()) //nolint:errcheck
 	s.srv = nil
