@@ -70,8 +70,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
 }
 
-// EnableDiagnostic opens a TCP socket to debug the passed network DB
-func (s *Server) EnableDiagnostic(ip string, port int) {
+// Enable opens a TCP socket to debug the passed network DB
+func (s *Server) Enable(ip string, port int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -104,8 +104,8 @@ func (s *Server) EnableDiagnostic(ip string, port int) {
 	}(s)
 }
 
-// DisableDiagnostic stop the debug and closes the tcp socket
-func (s *Server) DisableDiagnostic() {
+// Shutdown stop the debug and closes the tcp socket
+func (s *Server) Shutdown() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.enable {
@@ -121,8 +121,8 @@ func (s *Server) DisableDiagnostic() {
 	log.G(context.TODO()).Info("Network diagnostic server shutdown complete")
 }
 
-// IsDiagnosticEnabled returns true when the debug is enabled
-func (s *Server) IsDiagnosticEnabled() bool {
+// Enabled returns true when the debug is enabled
+func (s *Server) Enabled() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.enable
