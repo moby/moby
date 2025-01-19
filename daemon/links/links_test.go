@@ -9,7 +9,7 @@ import (
 )
 
 func TestLinkNaming(t *testing.T) {
-	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, nat.PortSet{
+	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, nat.PortSet{
 		"6379/tcp": struct{}{},
 	})
 
@@ -22,7 +22,6 @@ func TestLinkNaming(t *testing.T) {
 		"DOCKER_1_PORT_6379_TCP_PROTO=tcp",
 	}
 
-	actual := link.ToEnv()
 	sort.Strings(actual) // order of env-vars is not relevant
 	assert.DeepEqual(t, expectedEnv, actual)
 }
@@ -43,7 +42,7 @@ func TestLinkNew(t *testing.T) {
 }
 
 func TestLinkEnv(t *testing.T) {
-	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, nat.PortSet{
+	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, nat.PortSet{
 		"6379/tcp": struct{}{},
 	})
 
@@ -57,13 +56,12 @@ func TestLinkEnv(t *testing.T) {
 		"DOCKER_PORT_6379_TCP_PROTO=tcp",
 	}
 
-	actual := link.ToEnv()
 	sort.Strings(actual) // order of env-vars is not relevant
 	assert.DeepEqual(t, expectedEnv, actual)
 }
 
 func TestLinkMultipleEnv(t *testing.T) {
-	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, nat.PortSet{
+	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, nat.PortSet{
 		"6379/tcp": struct{}{},
 		"6380/tcp": struct{}{},
 		"6381/tcp": struct{}{},
@@ -95,7 +93,6 @@ func TestLinkMultipleEnv(t *testing.T) {
 		"DOCKER_PORT_6381_TCP_PROTO=tcp",
 	}
 
-	actual := link.ToEnv()
 	sort.Strings(actual) // order of env-vars is not relevant
 	assert.DeepEqual(t, expectedEnv, actual)
 }

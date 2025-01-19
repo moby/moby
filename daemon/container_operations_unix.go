@@ -46,7 +46,7 @@ func (daemon *Daemon) setupLinkedContainers(ctr *container.Container) ([]string,
 			return nil, fmt.Errorf("container %s not attached to default bridge network", child.ID)
 		}
 
-		link := links.NewLink(
+		linkEnvVars := links.EnvVars(
 			bridgeSettings.IPAddress,
 			childBridgeSettings.IPAddress,
 			linkAlias,
@@ -54,7 +54,7 @@ func (daemon *Daemon) setupLinkedContainers(ctr *container.Container) ([]string,
 			child.Config.ExposedPorts,
 		)
 
-		env = append(env, link.ToEnv()...)
+		env = append(env, linkEnvVars...)
 	}
 
 	return env, nil

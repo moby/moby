@@ -22,6 +22,12 @@ type Link struct {
 	Ports []nat.Port
 }
 
+// EnvVars generates environment variables for the linked container
+// for the Link with the given options.
+func EnvVars(parentIP, childIP, name string, env []string, exposedPorts map[nat.Port]struct{}) []string {
+	return NewLink(parentIP, childIP, name, env, exposedPorts).ToEnv()
+}
+
 // NewLink initializes a new Link struct with the provided options.
 func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.Port]struct{}) *Link {
 	ports := make([]nat.Port, 0, len(exposedPorts))
