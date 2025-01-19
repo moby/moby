@@ -176,15 +176,16 @@ func stackTrace(w http.ResponseWriter, r *http.Request) {
 
 	// audit logs
 	logger := log.G(context.TODO()).WithFields(log.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
-	logger.Info("stack trace")
+	logger.Info("collecting stack trace")
 
+	// FIXME(thaJeztah): make path configurable, or use same location as used by daemon.setupDumpStackTrap
 	path, err := stack.DumpToFile("/tmp/")
 	if err != nil {
-		logger.WithError(err).Error("failed to write goroutines dump")
+		logger.WithError(err).Error("failed to write stack trace to file")
 		_, _ = HTTPReply(w, FailCommand(err), jsonOutput)
 	} else {
-		logger.Info("stack trace done")
-		_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: "goroutine stacks written to " + path}), jsonOutput)
+		logger.WithField("file", path).Info("wrote stack trace to file")
+		_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: "goroutine stacks written to " + path + "\n"}), jsonOutput)
 	}
 }
 
