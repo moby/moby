@@ -54,7 +54,18 @@ func loadBridgeNetFilterModule(fullPath string) error {
 }
 
 // Enable bridge net filtering if not already enabled. See GitHub issue #11404
-func enableBridgeNetFiltering(nfParam string) error {
+func enableBridgeNetFiltering(nfParam string) (retErr error) {
+	defer func() {
+		if retErr != nil {
+			if os.Getenv("DOCKER_IGNORE_BR_NETFILTER_ERROR") == "1" {
+				log.G(context.TODO()).WithError(retErr).Warnf("Continuing without enabling br_netfilter")
+				retErr = nil
+				return
+			}
+			retErr = fmt.Errorf("%w: set environment variable DOCKER_IGNORE_BR_NETFILTER_ERROR=1 to ignore", retErr)
+		}
+	}()
+
 	if err := loadBridgeNetFilterModule(nfParam); err != nil {
 		return fmt.Errorf("cannot restrict inter-container communication or run without the userland proxy: %w", err)
 	}
@@ -68,7 +79,7 @@ func enableBridgeNetFiltering(nfParam string) error {
 			}
 			err = errors.New("ensure that the br_netfilter kernel module is loaded")
 		}
-		return fmt.Errorf("cannot restrict inter-container communication: %v", err)
+		return fmt.Errorf("cannot restrict inter-container communication or run without the userland proxy: %v", err)
 	}
 	if !enabled {
 		return os.WriteFile(nfParam, []byte{'1', '\n'}, 0o644)
