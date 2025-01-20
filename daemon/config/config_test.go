@@ -319,6 +319,24 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			},
 		*/
 		{
+			name: "negative network-diagnostic-port",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					NetworkDiagnosticPort: -1,
+				},
+			},
+			expectedErr: "invalid network-diagnostic-port (-1): value must be between 0 and 65535",
+		},
+		{
+			name: "network-diagnostic-port out of range",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					NetworkDiagnosticPort: 65536,
+				},
+			},
+			expectedErr: "invalid network-diagnostic-port (65536): value must be between 0 and 65535",
+		},
+		{
 			name: "generic resource without =",
 			config: &Config{
 				CommonConfig: CommonConfig{

@@ -734,6 +734,9 @@ func Validate(config *Config) error {
 	if config.MaxDownloadAttempts < 0 {
 		return errors.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
 	}
+	if config.NetworkDiagnosticPort < 0 || config.NetworkDiagnosticPort > 65535 {
+		return errors.Errorf("invalid network-diagnostic-port (%d): value must be between 0 and 65535", config.NetworkDiagnosticPort)
+	}
 
 	if _, err := ParseGenericResources(config.NodeGenericResources); err != nil {
 		return err

@@ -62,7 +62,7 @@ func Server(args []string) {
 	nDB.RegisterDiagnosticHandlers(server)
 	server.HandleFunc("/myip", ipaddress)
 	dummyclient.RegisterDiagnosticHandlers(server, nDB)
-	server.EnableDiagnostic("", port)
+	server.Enable("", port)
 	// block here
 	select {}
 }
