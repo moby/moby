@@ -46,4 +46,3 @@ Scenarios:
   - [Container on a routed-mode network, with a published port](generated/usernet-portmap-routed.md)
   - [Container on a nat-unprotected network, with a published port](generated/usernet-portmap-natunprot.md)
   - [Swarm service, with a published port](generated/swarm-portmap.md)
-  - [Container on a user-defined network, with a port published on a specific HostIP](generated/usernet-portmap-hostip.md)
