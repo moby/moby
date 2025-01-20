@@ -22,7 +22,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.22.10"
+  GO_VERSION: "1.22.11"
   ALPINE_VERSION: "3.20"
   DESTDIR: ./build
 
