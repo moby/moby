@@ -14,6 +14,7 @@ on:
     branches:
       - 'master'
       - '[0-9]+.[0-9]+'
+      - '[0-9]+.x'
     tags:
       - 'v*'
   pull_request:
