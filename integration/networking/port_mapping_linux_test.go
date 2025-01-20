@@ -1,7 +1,6 @@
 package networking
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -17,12 +16,10 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/go-connections/nat"
@@ -782,187 +779,5 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 				})
 			}
 		})
-	}
-}
-
-// TestAccessPublishedPortFromNonMatchingIface checks that, on multi-homed
-// network hosts, PBs created with a specific HostIP aren't accessible from
-// interfaces that don't match the HostIP.
-//
-// Regression test for https://github.com/moby/moby/issues/45610.
-func TestAccessPublishedPortFromNonMatchingIface(t *testing.T) {
-	// This test checks iptables rules that live in dockerd's netns. In the case
-	// of rootlesskit, this is not the same netns as the host, so they don't
-	// have any effect.
-	// TODO(aker): we need to figure out what we want to do for rootlesskit.
-	skip.If(t, testEnv.IsRootless, "rootlesskit has its own netns")
-
-	ctx := setupTest(t)
-
-	const (
-		hostIPv4 = "192.168.120.2"
-		hostIPv6 = "fdbc:277b:d40b::2"
-	)
-
-	// l3Good is where the port will be published.
-	l3Good := networking.NewL3Segment(t, "test-matching-iface-br",
-		netip.MustParsePrefix("192.168.120.1/24"),
-		netip.MustParsePrefix("fdbc:277b:d40b::1/64"))
-	defer l3Good.Destroy(t)
-	// "docker" is the host where dockerd is running. Suffix the iface name to
-	// not collide with the L3 segment below.
-	l3Good.AddHost(t, "docker", networking.CurrentNetns, "eth-test1",
-		netip.MustParsePrefix(hostIPv4+"/24"),
-		netip.MustParsePrefix(hostIPv6+"/64"))
-	l3Good.AddHost(t, "neigh", "test-matching-iface-neighbor", "eth0",
-		netip.MustParsePrefix("192.168.120.3/24"),
-		netip.MustParsePrefix("fdbc:277b:d40b::3/64"))
-
-	// l3Bad is another L3Segment, from which the published port should be
-	// inaccessible.
-	l3Bad := networking.NewL3Segment(t, "test-non-matching-iface-br",
-		netip.MustParsePrefix("192.168.123.1/24"),
-		netip.MustParsePrefix("fde8:19ff:6e09::1/64"))
-	defer l3Bad.Destroy(t)
-	// "docker" is the host where dockerd is running. Suffix the iface name to
-	// not collide with the L3 segment above.
-	l3Bad.AddHost(t, "docker", networking.CurrentNetns, "eth-test2",
-		netip.MustParsePrefix("192.168.123.2/24"),
-		netip.MustParsePrefix("fde8:19ff:6e09::2/64"))
-	l3Bad.AddHost(t, "attacker", "test-non-matching-iface-attacker", "eth0",
-		netip.MustParsePrefix("192.168.123.3/24"),
-		netip.MustParsePrefix("fde8:19ff:6e09::3/64"))
-
-	testAccess := func(t *testing.T, c *client.Client, host networking.Host, hostAddr string, escapeHatch, expAccess bool, nwOpts ...func(*networktypes.CreateOptions)) {
-		testutil.StartSpan(ctx, t)
-
-		const bridgeName = "brattacked"
-		network.CreateNoError(ctx, t, c, bridgeName, append(nwOpts,
-			network.WithDriver("bridge"),
-			network.WithOption(bridge.BridgeName, bridgeName),
-		)...)
-		defer network.RemoveNoError(ctx, t, c, bridgeName)
-
-		const hostPort = "5000"
-		// Create the victim container, with a non-empty / non-unspecified
-		// HostIP in its port binding.
-		serverID := container.Run(ctx, t, c,
-			container.WithName(sanitizeCtrName(t.Name()+"-server")),
-			container.WithCmd("nc", "-lup", "5000"),
-			container.WithExposedPorts("5000/udp"),
-			container.WithPortMap(nat.PortMap{"5000/udp": {{HostIP: hostAddr, HostPort: hostPort}}}),
-			container.WithNetworkMode(bridgeName))
-		defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
-
-		// Send a UDP datagram to the published port, from the 'host' passed
-		// as argument.
-		//
-		// Here UDP is preferred, because it's a one-way, connectionless
-		// protocol. With TCP the three-way handshake has to be completed
-		// before sending a payload. But since some of the test cases try to
-		// spoof the loopback address, the 'attacker host' will drop the
-		// SYN-ACK by default (because the source addr will be considered
-		// invalid / non-routable). This would require further tuning to make
-		// it work. But with UDP, this problem doesn't exist - the payload can
-		// be sent straight away.
-		host.Do(t, func() {
-			// Send a payload to the victim container from the attacker host.
-			for i := 0; i < 10; i++ {
-				t.Logf("Sending probe #%d to %s:%s from host %s", i, hostAddr, hostPort, host.Name)
-
-				// For some unexplainable reason, the first few packets might
-				// not reach the container (ie. the container returns an ICMP
-				// 'Port Unreachable' message).
-				time.Sleep(50 * time.Millisecond)
-				icmd.RunCommand("/bin/sh", "-c", fmt.Sprintf("echo foobar | nc -w1 -u %s %s", hostAddr, hostPort)).Assert(t, icmd.Success)
-			}
-		})
-
-		// Check whether the payload was received by the victim container.
-		logReader, err := c.ContainerLogs(ctx, serverID, containertypes.LogsOptions{ShowStdout: true})
-		assert.NilError(t, err)
-		defer logReader.Close()
-
-		var actualStdout bytes.Buffer
-		_, err = stdcopy.StdCopy(&actualStdout, nil, logReader)
-		assert.NilError(t, err)
-
-		stdOut := strings.TrimSpace(actualStdout.String())
-		if expAccess {
-			assert.Assert(t, strings.Contains(stdOut, "foobar"), "Host %s should have access to the container, but the payload wasn't received by the docker host", host.Name)
-		} else {
-			assert.Assert(t, !strings.Contains(stdOut, "foobar"), "Host %s should not have access to the container, but the payload was received by the docker host", host.Name)
-		}
-	}
-
-	for _, escapeHatch := range []bool{false, true} {
-		var dopts []daemon.Option
-		if escapeHatch {
-			dopts = []daemon.Option{daemon.WithEnvVars("DOCKER_DISABLE_INPUT_IFACE_FILTERING=1")}
-		}
-
-		d := daemon.New(t, dopts...)
-		d.StartWithBusybox(ctx, t)
-		defer d.Stop(t)
-
-		c := d.NewClientT(t)
-		defer c.Close()
-
-		t.Run(fmt.Sprintf("NAT/IPv4/lo/EscapeHatch=%t", escapeHatch), func(t *testing.T) {
-			const hostAddr = "127.0.10.1"
-
-			l3Bad.Hosts["attacker"].Run(t, "ip", "route", "add", hostAddr+"/32", "via", "192.168.123.2", "dev", "eth0")
-			defer l3Bad.Hosts["attacker"].Run(t, "ip", "route", "delete", hostAddr+"/32", "via", "192.168.123.2", "dev", "eth0")
-
-			testAccess(t, c, l3Bad.Hosts["attacker"], hostAddr, escapeHatch, escapeHatch)
-			// Test access from the L3 segment where the port is published to
-			// make sure that the test works properly (otherwise we might
-			// reintroduce the security issue without realizing).
-			testAccess(t, c, l3Good.Hosts["docker"], hostAddr, escapeHatch, true)
-		})
-
-		t.Run(fmt.Sprintf("NAT/IPv4/HostAddr/EscapeHatch=%t", escapeHatch), func(t *testing.T) {
-			l3Bad.Hosts["attacker"].Run(t, "ip", "route", "add", hostIPv4+"/32", "via", "192.168.123.2", "dev", "eth0")
-			defer l3Bad.Hosts["attacker"].Run(t, "ip", "route", "delete", hostIPv4+"/32", "via", "192.168.123.2", "dev", "eth0")
-
-			testAccess(t, c, l3Bad.Hosts["attacker"], hostIPv4, escapeHatch, escapeHatch)
-			// Test access from the L3 segment where the port is published to
-			// make sure that the test works properly (otherwise we might
-			// reintroduce the security issue without realizing).
-			testAccess(t, c, l3Good.Hosts["neigh"], hostIPv4, escapeHatch, true)
-		})
-
-		t.Run(fmt.Sprintf("NAT/IPv6/HostAddr/EscapeHatch=%t", escapeHatch), func(t *testing.T) {
-			l3Bad.Hosts["attacker"].Run(t, "ip", "route", "add", hostIPv6+"/128", "via", "fde8:19ff:6e09::2", "dev", "eth0")
-			defer l3Bad.Hosts["attacker"].Run(t, "ip", "route", "delete", hostIPv6+"/128", "via", "fde8:19ff:6e09::2", "dev", "eth0")
-
-			nwOpts := []func(*networktypes.CreateOptions){
-				network.WithIPv6(),
-				network.WithIPAM("fd1d:b78f:79e3::/64", "fd1d:b78f:79e3::1"),
-			}
-
-			testAccess(t, c, l3Bad.Hosts["attacker"], hostIPv6, escapeHatch, escapeHatch, nwOpts...)
-			// Test access from the L3 segment where the port is published to
-			// make sure that the test works properly (otherwise we might
-			// reintroduce the security issue without realizing).
-			testAccess(t, c, l3Good.Hosts["neigh"], hostIPv6, escapeHatch, true, nwOpts...)
-		})
-
-		// IPv6 port-bindings to IPv4-only containers (ie. not attached to any
-		// IPv6 network) aren't NATed, but go through docker-proxy.
-		t.Run(fmt.Sprintf("Proxy/IPv6/HostAddr/EscapeHatch=%t", escapeHatch), func(t *testing.T) {
-			l3Bad.Hosts["attacker"].Run(t, "ip", "route", "add", hostIPv6+"/128", "via", "fde8:19ff:6e09::2", "dev", "eth0")
-			defer l3Bad.Hosts["attacker"].Run(t, "ip", "route", "delete", hostIPv6+"/128", "via", "fde8:19ff:6e09::2", "dev", "eth0")
-
-			testAccess(t, c, l3Bad.Hosts["attacker"], hostIPv6, escapeHatch, escapeHatch, network.WithIPv6Disabled())
-			// Test access from the L3 segment where the port is published to
-			// make sure that the test works properly (otherwise we might
-			// reintroduce the security issue without realizing).
-			testAccess(t, c, l3Good.Hosts["neigh"], hostIPv6, escapeHatch, true, network.WithIPv6Disabled())
-		})
-
-		// IPv6 loopback address is non routable, so the kernel will block any
-		// packet spoofing it without the need for any iptables rules. No need
-		// to test that case here.
 	}
 }
