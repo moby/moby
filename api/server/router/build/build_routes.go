@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
@@ -244,7 +245,8 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 			return err
 		}
 		_, err = output.Write(streamformatter.FormatError(err))
-		if err != nil {
+		// don't log broken pipe errors as this is the normal case when a client aborts.
+		if err != nil && !errors.Is(err, syscall.EPIPE) {
 			log.G(ctx).WithError(err).Warn("could not write error response")
 		}
 		return nil
