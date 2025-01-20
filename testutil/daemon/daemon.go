@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -827,6 +828,17 @@ func (d *Daemon) ReloadConfig() error {
 		return errors.Errorf("[%s] daemon reload event timed out after 30 seconds", d.id)
 	}
 	return nil
+}
+
+// SetEnvVar updates the set of extra env variables for the daemon, to take
+// effect on the next start/restart.
+func (d *Daemon) SetEnvVar(name, val string) {
+	prefix := name + "="
+	if idx := slices.IndexFunc(d.extraEnv, func(ev string) bool { return strings.HasPrefix(ev, prefix) }); idx > 0 {
+		d.extraEnv[idx] = prefix + val
+		return
+	}
+	d.extraEnv = append(d.extraEnv, prefix+val)
 }
 
 // LoadBusybox image into the daemon
