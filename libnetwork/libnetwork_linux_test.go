@@ -101,13 +101,11 @@ func TestNull(t *testing.T) {
 	err = ep.Leave(context.Background(), cnt)
 	assert.NilError(t, err)
 
-	if err := ep.Delete(context.Background(), false); err != nil {
-		t.Fatal(err)
-	}
+	err = ep.Delete(context.Background(), false)
+	assert.NilError(t, err)
 
-	if err := cnt.Delete(context.Background()); err != nil {
-		t.Fatal(err)
-	}
+	err = cnt.Delete(context.Background())
+	assert.NilError(t, err)
 
 	// host type is special network. Cannot be removed.
 	err = network.Delete()
@@ -245,13 +243,11 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 	}
 
 	// Done testing. Now cleanup.
-	if err := ep.Delete(context.Background(), false); err != nil {
-		t.Fatal(err)
-	}
+	err = ep.Delete(context.Background(), false)
+	assert.NilError(t, err)
 
-	if err := network.Delete(); err != nil {
-		t.Fatal(err)
-	}
+	err = network.Delete()
+	assert.NilError(t, err)
 }
 
 func TestNetworkConfig(t *testing.T) {
@@ -343,14 +339,12 @@ func TestNetworkConfig(t *testing.T) {
 	}
 
 	// Delete network
-	if err := network.Delete(); err != nil {
-		t.Fatal(err)
-	}
+	err = network.Delete()
+	assert.NilError(t, err)
 
 	// Verify the config network can now be removed
-	if err := configNetwork.Delete(); err != nil {
-		t.Fatal(err)
-	}
+	err = configNetwork.Delete()
+	assert.NilError(t, err)
 }
 
 func TestUnknownNetwork(t *testing.T) {
@@ -410,9 +404,8 @@ func TestUnknownEndpoint(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Done testing. Now cleanup
-	if err := network.Delete(); err != nil {
-		t.Fatal(err)
-	}
+	err = network.Delete()
+	assert.NilError(t, err)
 }
 
 func TestNetworkEndpointsWalkers(t *testing.T) {
@@ -643,9 +636,7 @@ func TestControllerQuery(t *testing.T) {
 	}
 
 	g, err = controller.NetworkByName("network1")
-	if err != nil {
-		t.Fatalf("Unexpected failure for NetworkByName(): %v", err)
-	}
+	assert.NilError(t, err)
 	if g == nil {
 		t.Fatalf("NetworkByName() did not find the network")
 	}
@@ -655,17 +646,13 @@ func TestControllerQuery(t *testing.T) {
 	}
 
 	g, err = controller.NetworkByID(net1.ID())
-	if err != nil {
-		t.Fatalf("Unexpected failure for NetworkByID(): %v", err)
-	}
+	assert.NilError(t, err)
 	if net1.ID() != g.ID() {
 		t.Fatalf("NetworkByID() returned unexpected element: %v", g)
 	}
 
 	g, err = controller.NetworkByName("network2")
-	if err != nil {
-		t.Fatalf("Unexpected failure for NetworkByName(): %v", err)
-	}
+	assert.NilError(t, err)
 	if g == nil {
 		t.Fatalf("NetworkByName() did not find the network")
 	}
@@ -675,9 +662,7 @@ func TestControllerQuery(t *testing.T) {
 	}
 
 	g, err = controller.NetworkByID(net2.ID())
-	if err != nil {
-		t.Fatalf("Unexpected failure for NetworkByID(): %v", err)
-	}
+	assert.NilError(t, err)
 	if net2.ID() != g.ID() {
 		t.Fatalf("NetworkByID() returned unexpected element: %v", g)
 	}
@@ -933,14 +918,10 @@ func TestLeaveAll(t *testing.T) {
 	assert.NilError(t, err)
 
 	err = ep1.Join(context.Background(), cnt)
-	if err != nil {
-		t.Fatalf("Failed to join ep1: %v", err)
-	}
+	assert.NilError(t, err, "Failed to join ep1")
 
 	err = ep2.Join(context.Background(), cnt)
-	if err != nil {
-		t.Fatalf("Failed to join ep2: %v", err)
-	}
+	assert.NilError(t, err, "Failed to join ep2")
 
 	err = cnt.Delete(context.Background())
 	assert.NilError(t, err)
@@ -1072,18 +1053,16 @@ func TestInvalidRemoteDriver(t *testing.T) {
 		fmt.Fprintln(w, `{"Implements": ["InvalidDriver"]}`)
 	})
 
-	if err := os.MkdirAll(specPath, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	err := os.MkdirAll(specPath, 0o755)
+	assert.NilError(t, err)
 	defer func() {
 		if err := os.RemoveAll(specPath); err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	if err := os.WriteFile(filepath.Join(specPath, "invalid-network-driver.spec"), []byte(server.URL), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	err = os.WriteFile(filepath.Join(specPath, "invalid-network-driver.spec"), []byte(server.URL), 0o644)
+	assert.NilError(t, err)
 
 	ctrlr, err := libnetwork.New(config.OptionDataDir(t.TempDir()))
 	assert.NilError(t, err)
@@ -1125,18 +1104,16 @@ func TestValidRemoteDriver(t *testing.T) {
 		fmt.Fprintf(w, "null")
 	})
 
-	if err := os.MkdirAll(specPath, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	err := os.MkdirAll(specPath, 0o755)
+	assert.NilError(t, err)
 	defer func() {
 		if err := os.RemoveAll(specPath); err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	if err := os.WriteFile(filepath.Join(specPath, "valid-network-driver.spec"), []byte(server.URL), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	err = os.WriteFile(filepath.Join(specPath, "valid-network-driver.spec"), []byte(server.URL), 0o644)
+	assert.NilError(t, err)
 
 	controller := newController(t)
 	n, err := controller.NewNetwork("valid-network-driver", "dummy", "",
@@ -1217,32 +1194,26 @@ func TestHost(t *testing.T) {
 	ep1, err := network.CreateEndpoint(context.Background(), "testep1")
 	assert.NilError(t, err)
 
-	if err := ep1.Join(context.Background(), sbx1); err != nil {
-		t.Fatal(err)
-	}
+	err = ep1.Join(context.Background(), sbx1)
+	assert.NilError(t, err)
 
 	ep2, err := network.CreateEndpoint(context.Background(), "testep2")
 	assert.NilError(t, err)
 
-	if err := ep2.Join(context.Background(), sbx2); err != nil {
-		t.Fatal(err)
-	}
+	err = ep2.Join(context.Background(), sbx2)
+	assert.NilError(t, err)
 
-	if err := ep1.Leave(context.Background(), sbx1); err != nil {
-		t.Fatal(err)
-	}
+	err = ep1.Leave(context.Background(), sbx1)
+	assert.NilError(t, err)
 
-	if err := ep2.Leave(context.Background(), sbx2); err != nil {
-		t.Fatal(err)
-	}
+	err = ep2.Leave(context.Background(), sbx2)
+	assert.NilError(t, err)
 
-	if err := ep1.Delete(context.Background(), false); err != nil {
-		t.Fatal(err)
-	}
+	err = ep1.Delete(context.Background(), false)
+	assert.NilError(t, err)
 
-	if err := ep2.Delete(context.Background(), false); err != nil {
-		t.Fatal(err)
-	}
+	err = ep2.Delete(context.Background(), false)
+	assert.NilError(t, err)
 
 	// Try to create another host endpoint and join/leave that.
 	cnt3, err := controller.NewSandbox(context.Background(), "host_c3",
@@ -1260,39 +1231,30 @@ func TestHost(t *testing.T) {
 	ep3, err := network.CreateEndpoint(context.Background(), "testep3")
 	assert.NilError(t, err)
 
-	if err := ep3.Join(context.Background(), sbx2); err != nil {
-		t.Fatal(err)
-	}
+	err = ep3.Join(context.Background(), sbx2)
+	assert.NilError(t, err)
 
-	if err := ep3.Leave(context.Background(), sbx2); err != nil {
-		t.Fatal(err)
-	}
+	err = ep3.Leave(context.Background(), sbx2)
+	assert.NilError(t, err)
 
-	if err := ep3.Delete(context.Background(), false); err != nil {
-		t.Fatal(err)
-	}
+	err = ep3.Delete(context.Background(), false)
+	assert.NilError(t, err)
 }
 
 func checkSandbox(t *testing.T, info libnetwork.EndpointInfo) {
 	key := info.Sandbox().Key()
 	sbNs, err := netns.GetFromPath(key)
-	if err != nil {
-		t.Fatalf("Failed to get network namespace path %q: %v", key, err)
-	}
+	assert.NilError(t, err, "Failed to get network namespace path %q", key)
 	defer sbNs.Close()
 
 	nh, err := nlwrap.NewHandleAt(sbNs)
 	assert.NilError(t, err)
 
 	_, err = nh.LinkByName("eth0")
-	if err != nil {
-		t.Fatalf("Could not find the interface eth0 inside the sandbox: %v", err)
-	}
+	assert.NilError(t, err, "Could not find the interface eth0 inside the sandbox")
 
 	_, err = nh.LinkByName("eth1")
-	if err != nil {
-		t.Fatalf("Could not find the interface eth1 inside the sandbox: %v", err)
-	}
+	assert.NilError(t, err, "Could not find the interface eth1 inside the sandbox")
 }
 
 func TestEndpointJoin(t *testing.T) {
@@ -1372,7 +1334,6 @@ func TestEndpointJoin(t *testing.T) {
 		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionExtraHost("web", "192.168.0.1"))
 	assert.NilError(t, err)
-
 	defer func() {
 		if err := sb.Delete(context.Background()); err != nil {
 			t.Fatal(err)
@@ -1543,25 +1504,20 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	}
 
 	// Create a new OS sandbox using the osl API before using it in SetKey
-	if extOsBox, err := osl.NewSandbox("ValidKey", true, false); err != nil {
-		t.Fatalf("Failed to create new osl sandbox")
-	} else {
-		defer func() {
-			if err := extOsBox.Destroy(); err != nil {
-				log.G(context.TODO()).Warnf("Failed to remove os sandbox: %v", err)
-			}
-		}()
-	}
+	extOsBox, err := osl.NewSandbox("ValidKey", true, false)
+	assert.NilError(t, err, "Failed to create new osl sandbox")
+	defer func() {
+		if err := extOsBox.Destroy(); err != nil {
+			log.G(context.TODO()).Warnf("Failed to remove os sandbox: %v", err)
+		}
+	}()
 
 	if reexec {
-		err := reexecSetKey("ValidKey", containerID, controller.ID())
-		if err != nil {
-			t.Fatalf("libnetwork-setkey failed with %v", err)
-		}
+		err = reexecSetKey("ValidKey", containerID, controller.ID())
+		assert.NilError(t, err, "libnetwork-setkey failed")
 	} else {
-		if err := sbox.SetKey(context.Background(), "ValidKey"); err != nil {
-			t.Fatalf("Setkey failed with %v", err)
-		}
+		err = sbox.SetKey(context.Background(), "ValidKey")
+		assert.NilError(t, err, "setkey failed")
 	}
 
 	// Join endpoint to sandbox after SetKey
@@ -1783,13 +1739,12 @@ func TestParallel(t *testing.T) {
 	assert.NilError(t, err)
 
 	sboxes := make([]*libnetwork.Sandbox, numThreads)
-	if sboxes[first-1], err = controller.NewSandbox(context.Background(), fmt.Sprintf("%drace", first), libnetwork.OptionUseDefaultSandbox()); err != nil {
-		t.Fatal(err)
-	}
+	sboxes[first-1], err = controller.NewSandbox(context.Background(), fmt.Sprintf("%drace", first), libnetwork.OptionUseDefaultSandbox())
+	assert.NilError(t, err)
+
 	for thd := first + 1; thd <= last; thd++ {
-		if sboxes[thd-1], err = controller.NewSandbox(context.Background(), fmt.Sprintf("%drace", thd)); err != nil {
-			t.Fatal(err)
-		}
+		sboxes[thd-1], err = controller.NewSandbox(context.Background(), fmt.Sprintf("%drace", thd))
+		assert.NilError(t, err)
 	}
 
 	pt := parallelTester{
@@ -1804,9 +1759,8 @@ func TestParallel(t *testing.T) {
 	for i := first; i <= last; i++ {
 		eg.Go(func() error { return pt.Do(t, i) })
 	}
-	if err := eg.Wait(); err != nil {
-		t.Fatalf("%+v", err)
-	}
+	err = eg.Wait()
+	assert.NilError(t, err)
 }
 
 func TestBridge(t *testing.T) {
