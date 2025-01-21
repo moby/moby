@@ -387,34 +387,19 @@ type MaskableError interface {
 }
 
 // InvalidParameterError is an interface for errors originated by a bad request
-type InvalidParameterError interface {
-	// InvalidParameter makes implementer into InvalidParameterError type
-	InvalidParameter()
-}
+type InvalidParameterError = errdefs.ErrInvalidParameter
 
 // NotFoundError is an interface for errors raised because a needed resource is not available
-type NotFoundError interface {
-	// NotFound makes implementer into NotFoundError type
-	NotFound()
-}
+type NotFoundError = errdefs.ErrNotFound
 
 // ForbiddenError is an interface for errors which denote a valid request that cannot be honored
-type ForbiddenError interface {
-	// Forbidden makes implementer into ForbiddenError type
-	Forbidden()
-}
+type ForbiddenError = errdefs.ErrForbidden
 
 // UnavailableError is an interface for errors returned when the required service is not available
-type UnavailableError interface {
-	// Unavailable makes implementer into UnavailableError type
-	Unavailable()
-}
+type UnavailableError = errdefs.ErrUnavailable
 
 // NotImplementedError is an interface for errors raised because of requested functionality is not yet implemented
-type NotImplementedError interface {
-	// NotImplemented makes implementer into NotImplementedError type
-	NotImplemented()
-}
+type NotImplementedError = errdefs.ErrNotImplemented
 
 // InternalError is an interface for errors raised because of an internal error
 type InternalError interface {
@@ -433,22 +418,22 @@ func InvalidParameterErrorf(format string, params ...interface{}) error {
 
 // NotFoundErrorf creates an instance of NotFoundError
 func NotFoundErrorf(format string, params ...interface{}) error {
-	return notFound(fmt.Sprintf(format, params...))
+	return errdefs.NotFound(fmt.Errorf(format, params...))
 }
 
 // ForbiddenErrorf creates an instance of ForbiddenError
 func ForbiddenErrorf(format string, params ...interface{}) error {
-	return forbidden(fmt.Sprintf(format, params...))
+	return errdefs.Forbidden(fmt.Errorf(format, params...))
 }
 
 // UnavailableErrorf creates an instance of UnavailableError
 func UnavailableErrorf(format string, params ...interface{}) error {
-	return unavailable(fmt.Sprintf(format, params...))
+	return errdefs.Unavailable(fmt.Errorf(format, params...))
 }
 
 // NotImplementedErrorf creates an instance of NotImplementedError
 func NotImplementedErrorf(format string, params ...interface{}) error {
-	return notImpl(fmt.Sprintf(format, params...))
+	return errdefs.NotImplemented(fmt.Errorf(format, params...))
 }
 
 // InternalErrorf creates an instance of InternalError
@@ -464,33 +449,6 @@ func InternalMaskableErrorf(format string, params ...interface{}) error {
 /***********************
  * Internal Error Types
  ***********************/
-type notFound string
-
-func (nf notFound) Error() string {
-	return string(nf)
-}
-func (nf notFound) NotFound() {}
-
-type forbidden string
-
-func (frb forbidden) Error() string {
-	return string(frb)
-}
-func (frb forbidden) Forbidden() {}
-
-type unavailable string
-
-func (ns unavailable) Error() string {
-	return string(ns)
-}
-func (ns unavailable) Unavailable() {}
-
-type notImpl string
-
-func (ni notImpl) Error() string {
-	return string(ni)
-}
-func (ni notImpl) NotImplemented() {}
 
 type internal string
 
