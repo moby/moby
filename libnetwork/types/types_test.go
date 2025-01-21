@@ -129,8 +129,8 @@ func TestCompareIPMask(t *testing.T) {
 	}
 }
 
-func TestUtilGetHostPartIP(t *testing.T) {
-	input := []struct {
+func TestGetHostPartIP(t *testing.T) {
+	tests := []struct {
 		ip   net.IP
 		mask net.IPMask
 		host net.IP
@@ -163,28 +163,25 @@ func TestUtilGetHostPartIP(t *testing.T) {
 		},
 	}
 
-	for _, i := range input {
-		h, err := GetHostPartIP(i.ip, i.mask)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !i.host.Equal(h) {
-			t.Fatalf("Failed to return expected host ip. Expected: %s. Got: %s", i.host, h)
-		}
+	for _, tc := range tests {
+		h, err := GetHostPartIP(tc.ip, tc.mask)
+		assert.NilError(t, err)
+		assert.Assert(t, tc.host.Equal(h), "Failed to return expected host ip. Expected: %s. Got: %s", tc.host, h)
 	}
 
+	const expectedErr = "cannot compute host portion ip address because ip and mask are not compatible"
+
 	// ip as v6 and mask as v4 are not compatible
-	if _, err := GetHostPartIP(net.ParseIP("2001:DB8:2002:2001:FFFF:ABCD:EEAB:00CD"), []byte{0xff, 0xff, 0xff, 0}); err == nil {
-		t.Fatalf("Unexpected success")
-	}
+	_, err := GetHostPartIP(net.ParseIP("2001:DB8:2002:2001:FFFF:ABCD:EEAB:00CD"), []byte{0xff, 0xff, 0xff, 0})
+	assert.Check(t, is.ErrorContains(err, expectedErr))
+
 	// ip as v4 and non conventional mask
-	if _, err := GetHostPartIP(net.ParseIP("173.32.4.5"), []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0}); err == nil {
-		t.Fatalf("Unexpected success")
-	}
+	_, err = GetHostPartIP(net.ParseIP("173.32.4.5"), []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0})
+	assert.Check(t, is.ErrorContains(err, expectedErr))
+
 	// ip as v4 and non conventional mask
-	if _, err := GetHostPartIP(net.ParseIP("173.32.4.5"), []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0}); err == nil {
-		t.Fatalf("Unexpected success")
-	}
+	_, err = GetHostPartIP(net.ParseIP("173.32.4.5"), []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0})
+	assert.Check(t, is.ErrorContains(err, expectedErr))
 }
 
 func TestUtilGetBroadcastIP(t *testing.T) {
