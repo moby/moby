@@ -268,7 +268,7 @@ var v4inV6MaskPrefix = []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x
 // compareIPMask checks if the passed ip and mask are semantically compatible.
 // It returns the byte indexes for the address and mask so that caller can
 // do bitwise operations without modifying address representation.
-func compareIPMask(ip net.IP, mask net.IPMask) (is int, ms int, err error) {
+func compareIPMask(ip net.IP, mask net.IPMask) (is int, ms int, _ error) {
 	// Find the effective starting of address and mask
 	if len(ip) == net.IPv6len && ip.To4() != nil {
 		is = 12
@@ -278,9 +278,9 @@ func compareIPMask(ip net.IP, mask net.IPMask) (is int, ms int, err error) {
 	}
 	// Check if address and mask are semantically compatible
 	if len(ip[is:]) != len(mask[ms:]) {
-		err = fmt.Errorf("ip and mask are not compatible: (%#v, %#v)", ip, mask)
+		return 0, 0, fmt.Errorf("ip and mask are not compatible: (%s, %s)", ip, mask)
 	}
-	return
+	return is, ms, nil
 }
 
 // GetHostPartIP returns the host portion of the ip address identified by the mask.
