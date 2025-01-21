@@ -73,11 +73,11 @@ func getEmptyGenericOption() map[string]interface{} {
 
 func getPortMapping() []types.PortBinding {
 	return []types.PortBinding{
-		{Proto: types.TCP, Port: uint16(230), HostPort: uint16(23000)},
-		{Proto: types.UDP, Port: uint16(200), HostPort: uint16(22000)},
-		{Proto: types.TCP, Port: uint16(120), HostPort: uint16(12000)},
-		{Proto: types.TCP, Port: uint16(320), HostPort: uint16(32000), HostPortEnd: uint16(32999)},
-		{Proto: types.UDP, Port: uint16(420), HostPort: uint16(42000), HostPortEnd: uint16(42001)},
+		{Proto: types.TCP, Port: 230, HostPort: 23000},
+		{Proto: types.UDP, Port: 200, HostPort: 22000},
+		{Proto: types.TCP, Port: 120, HostPort: 12000},
+		{Proto: types.TCP, Port: 320, HostPort: 32000, HostPortEnd: 32999},
+		{Proto: types.UDP, Port: 420, HostPort: 42000, HostPortEnd: 42001},
 	}
 }
 
