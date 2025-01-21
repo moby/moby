@@ -9517,7 +9517,13 @@ paths:
       parameters:
         - name: "fromImage"
           in: "query"
-          description: "Name of the image to pull. The name may include a tag or digest. This parameter may only be used when pulling an image. The pull is cancelled if the HTTP connection is closed."
+          description: |
+            Name of the image to pull. If the name includes a tag or digest, specific behavior applies:
+
+            - If only `fromImage` includes a tag, that tag is used.
+            - If both `fromImage` and `tag` are provided, `tag` takes precedence.
+            - If `fromImage` includes a digest, the image is pulled by digest, and `tag` is ignored.
+            - If neither a tag nor digest is specified, all tags are pulled.
           type: "string"
         - name: "fromSrc"
           in: "query"
