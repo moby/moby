@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
 )
@@ -169,7 +170,7 @@ func (c *Controller) defaultGwNetwork() (*Network, error) {
 	defer func() { <-procGwNetwork }()
 
 	n, err := c.NetworkByName(libnGWNetwork)
-	if _, ok := err.(types.NotFoundError); ok {
+	if errdefs.IsNotFound(err) {
 		n, err = c.createGWNetwork()
 	}
 	return n, err
