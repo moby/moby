@@ -154,16 +154,14 @@ func TestNetworkName(t *testing.T) {
 		t.Fatalf("Expected to fail with ErrInvalidName error. Got %v", err)
 	}
 
-	networkName := "testnetwork"
+	const networkName = "testnetwork"
 	n, err := createTestNetwork(controller, bridgeNetType, networkName, netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
 		assert.Check(t, n.Delete())
 	}()
 
-	if n.Name() != networkName {
-		t.Fatalf("Expected network name %s, got %s", networkName, n.Name())
-	}
+	assert.Check(t, is.Equal(n.Name(), networkName))
 }
 
 func TestNetworkType(t *testing.T) {
@@ -183,9 +181,7 @@ func TestNetworkType(t *testing.T) {
 		assert.Check(t, n.Delete())
 	}()
 
-	if n.Type() != bridgeNetType {
-		t.Fatalf("Expected network type %s, got %s", bridgeNetType, n.Type())
-	}
+	assert.Check(t, is.Equal(n.Type(), bridgeNetType))
 }
 
 func TestNetworkID(t *testing.T) {
@@ -205,9 +201,7 @@ func TestNetworkID(t *testing.T) {
 		assert.Check(t, n.Delete())
 	}()
 
-	if n.ID() == "" {
-		t.Fatal("Expected non-empty network id")
-	}
+	assert.Check(t, n.ID() != "", "Expected non-empty network id")
 }
 
 func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
@@ -434,15 +428,10 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 
 	// Test list methods on net1
 	epList1 := net1.Endpoints()
-	if len(epList1) != 2 {
-		t.Fatalf("Endpoints() returned wrong number of elements: %d instead of 2", len(epList1))
-	}
+	assert.Check(t, is.Len(epList1, 2), "Endpoints() returned wrong number of elements")
 	// endpoint order is not guaranteed
-	for _, e := range epList1 {
-		if e != ep11 && e != ep12 {
-			t.Fatal("Endpoints() did not return all the expected elements")
-		}
-	}
+	assert.Check(t, is.Contains(epList1, ep11), "Endpoints() did not return all the expected elements")
+	assert.Check(t, is.Contains(epList1, ep12), "Endpoints() did not return all the expected elements")
 
 	// Test Endpoint Walk method
 	var epName string
@@ -458,12 +447,8 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	// Look for ep1 on network1
 	epName = "ep11"
 	net1.WalkEndpoints(wlk)
-	if epWanted == nil {
-		t.Fatal(err)
-	}
-	if ep11 != epWanted {
-		t.Fatal(err)
-	}
+	assert.Assert(t, epWanted != nil)
+	assert.Assert(t, is.Equal(epWanted, ep11))
 
 	ctx := context.TODO()
 	current := len(controller.Networks(ctx))
@@ -483,9 +468,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	}()
 
 	// Test Networks method
-	if len(controller.Networks(ctx)) != current+1 {
-		t.Fatalf("Did not find the expected number of networks")
-	}
+	assert.Assert(t, is.Len(controller.Networks(ctx), current+1))
 
 	// Test Network Walk method
 	var netName string
@@ -501,21 +484,13 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	// Look for network named "network1" and "network2"
 	netName = "network1"
 	controller.WalkNetworks(nwWlk)
-	if netWanted == nil {
-		t.Fatal(err)
-	}
-	if net1.ID() != netWanted.ID() {
-		t.Fatal(err)
-	}
+	assert.Assert(t, netWanted != nil)
+	assert.Check(t, is.Equal(net1.ID(), netWanted.ID()))
 
 	netName = "network2"
 	controller.WalkNetworks(nwWlk)
-	if netWanted == nil {
-		t.Fatal(err)
-	}
-	if net2.ID() != netWanted.ID() {
-		t.Fatal(err)
-	}
+	assert.Assert(t, netWanted != nil)
+	assert.Check(t, is.Equal(net2.ID(), netWanted.ID()))
 }
 
 func TestDuplicateEndpoint(t *testing.T) {
@@ -613,35 +588,21 @@ func TestControllerQuery(t *testing.T) {
 
 	g, err = controller.NetworkByName("network1")
 	assert.NilError(t, err)
-	if g == nil {
-		t.Fatalf("NetworkByName() did not find the network")
-	}
-
-	if g != net1 {
-		t.Fatalf("NetworkByName() returned the wrong network")
-	}
+	assert.Assert(t, g != nil, "NetworkByName() did not find the network")
+	assert.Assert(t, is.Equal(g, net1), "NetworkByName() returned the wrong network")
 
 	g, err = controller.NetworkByID(net1.ID())
 	assert.NilError(t, err)
-	if net1.ID() != g.ID() {
-		t.Fatalf("NetworkByID() returned unexpected element: %v", g)
-	}
+	assert.Assert(t, is.Equal(net1.ID(), g.ID()), "NetworkByID() returned unexpected element: %v", g)
 
 	g, err = controller.NetworkByName("network2")
 	assert.NilError(t, err)
-	if g == nil {
-		t.Fatalf("NetworkByName() did not find the network")
-	}
-
-	if g != net2 {
-		t.Fatalf("NetworkByName() returned the wrong network")
-	}
+	assert.Check(t, g != nil, "NetworkByName() did not find the network")
+	assert.Check(t, is.Equal(g, net2), "NetworkByName() returned the wrong network")
 
 	g, err = controller.NetworkByID(net2.ID())
 	assert.NilError(t, err)
-	if net2.ID() != g.ID() {
-		t.Fatalf("NetworkByID() returned unexpected element: %v", g)
-	}
+	assert.Check(t, is.Equal(g.ID(), net2.ID()), "NetworkByID() returned unexpected element: %v", g)
 }
 
 func TestNetworkQuery(t *testing.T) {
@@ -675,9 +636,7 @@ func TestNetworkQuery(t *testing.T) {
 
 	e, err := net1.EndpointByName("ep11")
 	assert.NilError(t, err)
-	if ep11 != e {
-		t.Fatalf("EndpointByName() returned %v instead of %v", e, ep11)
-	}
+	assert.Check(t, is.Equal(e, ep11), "EndpointByName() returned the wrong endpoint")
 
 	_, err = net1.EndpointByName("")
 	if err == nil {
@@ -694,15 +653,11 @@ func TestNetworkQuery(t *testing.T) {
 	if _, ok := err.(libnetwork.ErrNoSuchEndpoint); !ok {
 		t.Fatal(err)
 	}
-	if e != nil {
-		t.Fatalf("EndpointByName(): expected nil, got %v", e)
-	}
+	assert.Check(t, is.Nil(e), "EndpointByName() returned endpoint on error")
 
 	e, err = net1.EndpointByID(ep12.ID())
 	assert.NilError(t, err)
-	if ep12.ID() != e.ID() {
-		t.Fatalf("EndpointByID() returned %v instead of %v", e, ep12)
-	}
+	assert.Check(t, is.Equal(e.ID(), ep12.ID()), "EndpointByID() returned the wrong endpoint")
 
 	_, err = net1.EndpointByID("")
 	if err == nil {
@@ -975,9 +930,6 @@ func TestEndpointUpdateParent(t *testing.T) {
 func TestInvalidRemoteDriver(t *testing.T) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
-	if server == nil {
-		t.Fatal("Failed to start an HTTP Server")
-	}
 	defer server.Close()
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
@@ -1012,9 +964,6 @@ func TestInvalidRemoteDriver(t *testing.T) {
 func TestValidRemoteDriver(t *testing.T) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
-	if server == nil {
-		t.Fatal("Failed to start an HTTP Server")
-	}
 	defer server.Close()
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
@@ -1212,23 +1161,17 @@ func TestEndpointJoin(t *testing.T) {
 	// Validate if ep.Info() only gives me IP address info and not names and gateway during CreateEndpoint()
 	info := ep1.Info()
 	iface := info.Iface()
-	if iface.Address() != nil && iface.Address().IP.To4() == nil {
-		t.Fatalf("Invalid IP address returned: %v", iface.Address())
+	if iface.Address() != nil {
+		assert.Check(t, iface.Address().IP.To4() != nil, "Invalid IP address returned: %v", iface.Address())
 	}
-	if iface.AddressIPv6() != nil && iface.AddressIPv6().IP == nil {
-		t.Fatalf("Invalid IPv6 address returned: %v", iface.Address())
-	}
-
-	if len(info.Gateway()) != 0 {
-		t.Fatalf("Expected empty gateway for an empty endpoint. Instead found a gateway: %v", info.Gateway())
-	}
-	if len(info.GatewayIPv6()) != 0 {
-		t.Fatalf("Expected empty gateway for an empty ipv6 endpoint. Instead found a gateway: %v", info.GatewayIPv6())
+	if iface.AddressIPv6() != nil {
+		// Should be nil if it's an IPv6 address;https://github.com/moby/moby/pull/49329#discussion_r1925981233
+		assert.Check(t, iface.AddressIPv6().IP.To4() == nil, "Invalid IPv6 address returned: %v", iface.AddressIPv6())
 	}
 
-	if info.Sandbox() != nil {
-		t.Fatalf("Expected an empty sandbox key for an empty endpoint. Instead found a non-empty sandbox key: %s", info.Sandbox().Key())
-	}
+	assert.Check(t, is.Len(info.Gateway(), 0), "Expected empty gateway for an empty endpoint. Instead found a gateway: %v", info.Gateway())
+	assert.Check(t, is.Len(info.GatewayIPv6(), 0), "Expected empty gateway for an empty ipv6 endpoint. Instead found a gateway: %v", info.GatewayIPv6())
+	assert.Check(t, is.Nil(info.Sandbox()), "Expected an empty sandbox key for an empty endpoint")
 
 	// test invalid joins
 	err = ep1.Join(context.Background(), nil)
@@ -1264,28 +1207,18 @@ func TestEndpointJoin(t *testing.T) {
 
 	// Validate if ep.Info() only gives valid gateway and sandbox key after has container has joined.
 	info = ep1.Info()
-	if len(info.Gateway()) == 0 {
-		t.Fatalf("Expected a valid gateway for a joined endpoint. Instead found an invalid gateway: %v", info.Gateway())
-	}
-	if len(info.GatewayIPv6()) == 0 {
-		t.Fatalf("Expected a valid ipv6 gateway for a joined endpoint. Instead found an invalid gateway: %v", info.GatewayIPv6())
-	}
-
-	if info.Sandbox() == nil {
-		t.Fatalf("Expected an non-empty sandbox key for a joined endpoint. Instead found an empty sandbox key")
-	}
+	assert.Check(t, len(info.Gateway()) > 0, "Expected a valid gateway for a joined endpoint")
+	assert.Check(t, len(info.GatewayIPv6()) > 0, "Expected a valid ipv6 gateway for a joined endpoint")
+	assert.Check(t, info.Sandbox() != nil, "Expected an non-empty sandbox key for a joined endpoint")
 
 	// Check endpoint provided container information
-	if ep1.Info().Sandbox().Key() != sb.Key() {
-		t.Fatalf("Endpoint Info returned unexpected sandbox key: %s", sb.Key())
-	}
+	assert.Check(t, is.Equal(sb.Key(), ep1.Info().Sandbox().Key()), "Endpoint Info returned unexpected sandbox key: %s", sb.Key())
 
 	// Attempt retrieval of endpoint interfaces statistics
 	stats, err := sb.Statistics()
 	assert.NilError(t, err)
-	if _, ok := stats["eth0"]; !ok {
-		t.Fatalf("Did not find eth0 statistics")
-	}
+	_, ok := stats["eth0"]
+	assert.Assert(t, ok, "Did not find eth0 statistics")
 
 	// Now test the container joining another network
 	n2, err := createTestNetwork(controller, bridgeNetType, "testnetwork2",
@@ -1312,9 +1245,7 @@ func TestEndpointJoin(t *testing.T) {
 		assert.Check(t, ep2.Leave(context.Background(), sb))
 	}()
 
-	if ep1.Info().Sandbox().Key() != ep2.Info().Sandbox().Key() {
-		t.Fatalf("ep1 and ep2 returned different container sandbox key")
-	}
+	assert.Check(t, is.Equal(ep1.Info().Sandbox().Key(), ep2.Info().Sandbox().Key()), "ep1 and ep2 returned different container sandbox key")
 
 	checkSandbox(t, info)
 }
@@ -1379,9 +1310,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	}()
 
 	sbox := ep.Info().Sandbox()
-	if sbox == nil {
-		t.Fatalf("Expected to have a valid Sandbox")
-	}
+	assert.Assert(t, sbox != nil, "Expected to have a valid Sandbox")
 
 	if reexec {
 		err := reexecSetKey("this-must-fail", containerID, controller.ID())
@@ -1419,9 +1348,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 		assert.Check(t, ep2.Leave(context.Background(), sbox))
 	}()
 
-	if ep.Info().Sandbox().Key() != ep2.Info().Sandbox().Key() {
-		t.Fatalf("ep1 and ep2 returned different container sandbox key")
-	}
+	assert.Assert(t, is.Equal(ep.Info().Sandbox().Key(), ep2.Info().Sandbox().Key()), "ep1 and ep2 returned different container sandbox key")
 
 	checkSandbox(t, ep.Info())
 }
@@ -1684,21 +1611,18 @@ func TestBridge(t *testing.T) {
 
 	epInfo, err := ep.DriverInfo()
 	assert.NilError(t, err)
+
 	pmd, ok := epInfo[netlabel.PortMap]
-	if !ok {
-		t.Fatalf("Could not find expected info in endpoint data")
-	}
+	assert.Assert(t, ok, "Could not find expected info in endpoint data")
+
 	pm, ok := pmd.([]types.PortBinding)
-	if !ok {
-		t.Fatalf("Unexpected format for port mapping in endpoint operational data")
-	}
+	assert.Assert(t, ok, "Unexpected format for port mapping in endpoint operational data")
+
 	expectedLen := 10
 	if !isV6Listenable() {
 		expectedLen = 5
 	}
-	if len(pm) != expectedLen {
-		t.Fatalf("Incomplete data for port mapping in endpoint operational data: %d", len(pm))
-	}
+	assert.Check(t, is.Len(pm, expectedLen), "Incomplete data for port mapping in endpoint operational data")
 }
 
 var (
