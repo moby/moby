@@ -173,6 +173,36 @@ tags:
     x-displayName: "System"
 
 definitions:
+  Capabilities:
+    x-extendedDiscriminator: _v
+    description: "Represents engine capabilities"
+    type: "object"
+    required:
+      - _v
+    properties:
+      _v:
+        type: "integer"
+      data:
+        type: "object"
+
+  CapabilitiesV1:
+    allOf:
+      - $ref: "#/definitions/Capabilities"
+      - type: "object"
+        properties:
+          _v:
+            type: "integer"
+            enum:
+              - 1
+          data:
+            type: "object"
+            properties:
+              registry-client-auth:
+                description: "Whether the engine supports client auth handling."
+                type: "boolean"
+                x-nullable: true
+                example: true
+
   Port:
     type: "object"
     description: "An open port on a container"
@@ -10155,6 +10185,90 @@ paths:
           description: "server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
+      tags: ["System"]
+  # Using a zero-width character here to define a separate /_ping endpoint to describe the
+  # /_ping?capabilities=1 API since otherwise Swagger won't allow us to define multiple
+  # responses for the same endpoint depending on query parameter.
+  # This is however supported by OpenAPI v3.
+  # See: https://github.com/OAI/OpenAPI-Specification/issues/146
+  # and https://github.com/OAI/OpenAPI-Specification/issues/182
+  /_ping​:
+    get:
+      summary: "/_ping?capabilities=1"
+      description: |
+        This is the same endpoint as `GET /_ping`, but describes the different
+        response when it is called with the `capabilities=1` query parameter.
+
+        In this case, the daemon instead responds with a `Content-Type` of
+        `application/json` and writes a json represenation of the engine's
+        capabilities in the response body.
+      operationId: "SystemPingCapabilities"
+      produces: ["application/json"]
+      parameters:
+        - name: "capabilities"
+          in: "query"
+          description: The capabilities API version being requested.
+          # marked as required since this is a separate endpoint in the swagger yaml.
+          required: true
+          type: "string"
+          enum: ["1"]
+      responses:
+        200:
+          description: "no error"
+          schema:
+            $ref: "#/definitions/Capabilities"
+          headers:
+            Api-Version:
+              type: "string"
+              description: "Max API Version the server supports"
+            Builder-Version:
+              type: "string"
+              description: |
+                Default version of docker image builder
+
+                The default on Linux is version "2" (BuildKit), but the daemon
+                can be configured to recommend version "1" (classic Builder).
+                Windows does not yet support BuildKit for native Windows images,
+                and uses "1" (classic builder) as a default.
+
+                This value is a recommendation as advertised by the daemon, and
+                it is up to the client to choose which builder to use.
+              default: "2"
+            Docker-Experimental:
+              type: "boolean"
+              description: "If the server is running with experimental mode enabled"
+            Swarm:
+              type: "string"
+              enum:
+                [
+                  "inactive",
+                  "pending",
+                  "error",
+                  "locked",
+                  "active/worker",
+                  "active/manager",
+                ]
+              description: |
+                Contains information about Swarm status of the daemon,
+                and if the daemon is acting as a manager or worker node.
+              default: "inactive"
+            Cache-Control:
+              type: "string"
+              default: "no-cache, no-store, must-revalidate"
+            Pragma:
+              type: "string"
+              default: "no-cache"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+          headers:
+            Cache-Control:
+              type: "string"
+              default: "no-cache, no-store, must-revalidate"
+            Pragma:
+              type: "string"
+              default: "no-cache"
       tags: ["System"]
   /commit:
     post:
