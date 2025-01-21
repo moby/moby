@@ -370,5 +370,5 @@ func (aSpace *addrSpace) releaseAddress(nw, sub netip.Prefix, address netip.Addr
 
 	defer log.G(context.TODO()).Debugf("Released address Address:%v Sequence:%s", address, p.addrs)
 
-	return p.addrs.Unset(netiputil.HostID(address, uint(nw.Bits())))
+	return p.addrs.Remove(address)
 }
