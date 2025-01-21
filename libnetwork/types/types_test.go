@@ -3,87 +3,59 @@ package types
 import (
 	"net"
 	"testing"
+
+	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestErrorConstructors(t *testing.T) {
 	var err error
+	var ok bool
 
 	err = InvalidParameterErrorf("Io ho %d uccello", 1)
-	if err.Error() != "Io ho 1 uccello" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(InvalidParameterError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); ok {
-		t.Fatal(err)
-	}
+	assert.Check(t, is.Error(err, "Io ho 1 uccello"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	_, ok = err.(MaskableError)
+	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = NotFoundErrorf("Can't find the %s", "keys")
-	if err.Error() != "Can't find the keys" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(NotFoundError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); ok {
-		t.Fatal(err)
-	}
+	assert.Check(t, is.Error(err, "Can't find the keys"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	_, ok = err.(MaskableError)
+	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = ForbiddenErrorf("Can't open door %d", 2)
-	if err.Error() != "Can't open door 2" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(ForbiddenError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); ok {
-		t.Fatal(err)
-	}
+	assert.Check(t, is.Error(err, "Can't open door 2"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	_, ok = err.(MaskableError)
+	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = NotImplementedErrorf("Functionality %s is not implemented", "x")
-	if err.Error() != "Functionality x is not implemented" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(NotImplementedError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); ok {
-		t.Fatal(err)
-	}
+	assert.Check(t, is.Error(err, "Functionality x is not implemented"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotImplemented))
+	_, ok = err.(MaskableError)
+	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = UnavailableErrorf("Driver %s is not available", "mh")
-	if err.Error() != "Driver mh is not available" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(UnavailableError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); ok {
-		t.Fatal(err)
-	}
+	assert.Check(t, is.Error(err, "Driver mh is not available"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsUnavailable))
+	_, ok = err.(MaskableError)
+	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = InternalErrorf("Not sure what happened")
-	if err.Error() != "Not sure what happened" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(InternalError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); ok {
-		t.Fatal(err)
-	}
+	assert.Check(t, is.Error(err, "Not sure what happened"))
+	_, ok = err.(InternalError)
+	assert.Check(t, ok, "error should be InternalError: %[1]v (%[1]T)", err)
+	_, ok = err.(MaskableError)
+	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = InternalMaskableErrorf("Minor issue, it can be ignored")
-	if err.Error() != "Minor issue, it can be ignored" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(InternalError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); !ok {
-		t.Fatal(err)
-	}
+	assert.Check(t, is.Error(err, "Minor issue, it can be ignored"))
+	_, ok = err.(InternalError)
+	assert.Check(t, ok, "error should be InternalError: %[1]v (%[1]T)", err)
+	_, ok = err.(MaskableError)
+	assert.Check(t, ok, "error should be maskable: %[1]v (%[1]T)", err)
 }
 
 func TestCompareIPMask(t *testing.T) {
