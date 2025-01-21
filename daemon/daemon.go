@@ -910,39 +910,30 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
+	// Set the max backoff delay to match our containerd.WithTimeout(),
+	// aligning with how containerd client's defaults sets this;
+	// https://github.com/containerd/containerd/blob/v2.0.2/client/client.go#L129-L136
 	backoffConfig := backoff.DefaultConfig
-	backoffConfig.MaxDelay = 3 * time.Second
+	backoffConfig.MaxDelay = 60 * time.Second
 	connParams := grpc.ConnectParams{
 		Backoff: backoffConfig,
 	}
 	gopts := []grpc.DialOption{
-		// WithBlock makes sure that the following containerd request
-		// is reliable.
+		// ------------------------------------------------------------------
+		// options below are copied from containerd client's default options
 		//
-		// NOTE: In one edge case with high load pressure, kernel kills
-		// dockerd, containerd and containerd-shims caused by OOM.
-		// When both dockerd and containerd restart, but containerd
-		// will take time to recover all the existing containers. Before
-		// containerd serving, dockerd will failed with gRPC error.
-		// That bad thing is that restore action will still ignore the
-		// any non-NotFound errors and returns running state for
-		// already stopped container. It is unexpected behavior. And
-		// we need to restart dockerd to make sure that anything is OK.
+		// We need to set these options, because setting any custom DialOptions
+		// currently overwrites (not appends to) the defaults;
+		// https://github.com/containerd/containerd/blob/v2.0.2/client/client.go#L129-L141
 		//
-		// It is painful. Add WithBlock can prevent the edge case. And
-		// n common case, the containerd will be serving in shortly.
-		// It is not harm to add WithBlock for containerd connection.
-		//
-		// TODO(thaJeztah): update this list once https://github.com/containerd/containerd/pull/10250/commits/63b46881753588624b2eac986660458318581330 is in the 1.7 release.
-		grpc.WithBlock(), //nolint:staticcheck // Ignore SA1019: grpc.WithBlock is deprecated: this DialOption is not supported by NewClient. Will be supported throughout 1.x.
-
+		// TODO(thaJeztah): use containerd.WithExtraDialOpts() once https://github.com/containerd/containerd/pull/11276 is merged and in a release.
+		// ------------------------------------------------------------------
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithConnectParams(connParams),
 		grpc.WithContextDialer(dialer.ContextDialer),
-
-		// TODO(stevvooe): We may need to allow configuration of this on the client.
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
-		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
+		// ------------------------------------------------------------------
+		// end of options copied from containerd client's default
+		// ------------------------------------------------------------------
 		grpc.WithStatsHandler(tracing.ClientStatsHandler(otelgrpc.WithTracerProvider(otel.GetTracerProvider()))),
 		grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
 		grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),

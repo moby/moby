@@ -280,19 +280,15 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				continue
 			}
 
-			gopts := []grpc.DialOption{
-				grpc.WithTransportCredentials(insecure.NewCredentials()),
-				grpc.WithContextDialer(dialer.ContextDialer),
-				grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
-				grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
-				grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
-				grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),
-			}
-
 			client, err = containerd.New(
 				r.GRPC.Address,
 				containerd.WithTimeout(60*time.Second),
-				containerd.WithDialOpts(gopts),
+				containerd.WithDialOpts([]grpc.DialOption{
+					grpc.WithTransportCredentials(insecure.NewCredentials()),
+					grpc.WithContextDialer(dialer.ContextDialer),
+					grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
+					grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),
+				}),
 			)
 			if err != nil {
 				r.logger.WithError(err).Error("failed connecting to containerd")
