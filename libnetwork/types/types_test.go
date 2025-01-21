@@ -2,6 +2,7 @@ package types
 
 import (
 	"net"
+	"strconv"
 	"testing"
 
 	"github.com/docker/docker/errdefs"
@@ -59,7 +60,7 @@ func TestErrorConstructors(t *testing.T) {
 }
 
 func TestCompareIPMask(t *testing.T) {
-	input := []struct {
+	tests := []struct {
 		ip    net.IP
 		mask  net.IPMask
 		is    int
@@ -113,17 +114,18 @@ func TestCompareIPMask(t *testing.T) {
 		},
 	}
 
-	for ind, i := range input {
-		is, ms, err := compareIPMask(i.ip, i.mask)
-		if i.isErr {
-			if err == nil {
-				t.Fatalf("Incorrect error condition for element %d. is: %d, ms: %d, err: %v", ind, is, ms, err)
+	for i, tc := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			actualIs, actualMs, err := compareIPMask(tc.ip, tc.mask)
+			if tc.isErr {
+				const expectedErr = "ip and mask are not compatible"
+				assert.Check(t, is.ErrorContains(err, expectedErr))
+			} else {
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal(actualIs, tc.is))
+				assert.Check(t, is.Equal(actualMs, tc.ms))
 			}
-		} else {
-			if i.is != is || i.ms != ms {
-				t.Fatalf("expected is: %d, ms: %d. Got is: %d, ms: %d for element %d", i.is, i.ms, is, ms, ind)
-			}
-		}
+		})
 	}
 }
 
