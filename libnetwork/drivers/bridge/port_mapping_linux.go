@@ -726,30 +726,27 @@ func (n *bridgeNetwork) releasePorts(ep *bridgeEndpoint) error {
 func (n *bridgeNetwork) releasePortBindings(pbs []portBinding) error {
 	var errs []error
 	for _, pb := range pbs {
-		var errS, errPD, errP error
 		if pb.boundSocket != nil {
-			errS = pb.boundSocket.Close()
-			if errS != nil {
-				errS = fmt.Errorf("failed to close socket for port mapping %s: %w", pb, errS)
+			if err := pb.boundSocket.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("failed to close socket for port mapping %s: %w", pb, err))
 			}
 		}
 		if pb.portDriverRemove != nil {
-			errPD = pb.portDriverRemove()
-		}
-		if pb.stopProxy != nil {
-			errP = pb.stopProxy()
-			if errP != nil {
-				errP = fmt.Errorf("failed to stop userland proxy for port mapping %s: %w", pb, errP)
+			if err := pb.portDriverRemove(); err != nil {
+				errs = append(errs, err)
 			}
 		}
-		errN := n.setPerPortIptables(pb, false)
-		if errN != nil {
-			errN = fmt.Errorf("failed to remove iptables rules for port mapping %s: %w", pb, errN)
+		if pb.stopProxy != nil {
+			if err := pb.stopProxy(); err != nil {
+				errs = append(errs, fmt.Errorf("failed to stop userland proxy for port mapping %s: %w", pb, err))
+			}
+		}
+		if err := n.setPerPortIptables(pb, false); err != nil {
+			errs = append(errs, fmt.Errorf("failed to remove iptables rules for port mapping %s: %w", pb, err))
 		}
 		if pb.HostPort > 0 {
 			portallocator.Get().ReleasePort(pb.childHostIP, pb.Proto.String(), int(pb.HostPort))
 		}
-		errs = append(errs, errS, errPD, errP, errN)
 	}
 	return errors.Join(errs...)
 }
