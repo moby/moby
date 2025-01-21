@@ -105,15 +105,15 @@ jobs:
         platform: ${{ fromJson(needs.prepare.outputs.platforms) }}
     steps:
       -
-        name: Prepare
-        run: |
-          platform=${{ matrix.platform }}
-          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
-      -
         name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      -
+        name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
       -
         name: Download meta bake definition
         uses: actions/download-artifact@v4
@@ -140,8 +140,9 @@ jobs:
       -
         name: Build
         id: bake
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v6
         with:
+          source: .
           files: |
             ./docker-bake.hcl
             /tmp/bake-meta.json

@@ -52,7 +52,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v6
         with:
           targets: dev
           set: |
@@ -138,7 +138,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v6
         with:
           targets: dev
           set: |
@@ -192,7 +192,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v6
         with:
           targets: dev
           set: |
@@ -250,7 +250,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v6
         with:
           targets: dev
           set: |
@@ -396,7 +396,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v6
         with:
           targets: dev
           set: |
