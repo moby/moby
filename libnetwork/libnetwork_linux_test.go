@@ -982,7 +982,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		fmt.Fprintln(w, `{"Implements": ["InvalidDriver"]}`)
+		_, _ = fmt.Fprintln(w, `{"Implements": ["InvalidDriver"]}`)
 	})
 
 	err := os.MkdirAll(specPath, 0o755)
@@ -1019,19 +1019,19 @@ func TestValidRemoteDriver(t *testing.T) {
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		fmt.Fprintf(w, `{"Implements": ["%s"]}`, driverapi.NetworkPluginEndpointType)
+		_, _ = fmt.Fprintf(w, `{"Implements": ["%s"]}`, driverapi.NetworkPluginEndpointType)
 	})
 	mux.HandleFunc(fmt.Sprintf("/%s.GetCapabilities", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		fmt.Fprintf(w, `{"Scope":"local"}`)
+		_, _ = fmt.Fprintf(w, `{"Scope":"local"}`)
 	})
 	mux.HandleFunc(fmt.Sprintf("/%s.CreateNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		fmt.Fprintf(w, "null")
+		_, _ = fmt.Fprintf(w, "null")
 	})
 	mux.HandleFunc(fmt.Sprintf("/%s.DeleteNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		fmt.Fprintf(w, "null")
+		_, _ = fmt.Fprintf(w, "null")
 	})
 
 	err := os.MkdirAll(specPath, 0o755)
@@ -1717,7 +1717,7 @@ func isV6Listenable() bool {
 			log.G(context.TODO()).Debugf("port_mapping: v6Listenable=false (%v)", err)
 		} else {
 			v6ListenableCached = true
-			ln.Close()
+			_ = ln.Close()
 		}
 	})
 	return v6ListenableCached
