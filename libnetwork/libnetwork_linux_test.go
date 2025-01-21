@@ -158,9 +158,7 @@ func TestNetworkName(t *testing.T) {
 	n, err := createTestNetwork(controller, bridgeNetType, networkName, netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := n.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n.Delete())
 	}()
 
 	if n.Name() != networkName {
@@ -182,9 +180,7 @@ func TestNetworkType(t *testing.T) {
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := n.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n.Delete())
 	}()
 
 	if n.Type() != bridgeNetType {
@@ -206,9 +202,7 @@ func TestNetworkID(t *testing.T) {
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := n.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n.Delete())
 	}()
 
 	if n.ID() == "" {
@@ -423,25 +417,19 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	net1, err := createTestNetwork(controller, bridgeNetType, "network1", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := net1.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, net1.Delete())
 	}()
 
 	ep11, err := net1.CreateEndpoint(context.Background(), "ep11")
 	assert.NilError(t, err)
 	defer func() {
-		if err := ep11.Delete(context.Background(), false); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep11.Delete(context.Background(), false))
 	}()
 
 	ep12, err := net1.CreateEndpoint(context.Background(), "ep12")
 	assert.NilError(t, err)
 	defer func() {
-		if err := ep12.Delete(context.Background(), false); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep12.Delete(context.Background(), false))
 	}()
 
 	// Test list methods on net1
@@ -491,9 +479,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	net2, err := createTestNetwork(controller, bridgeNetType, "network2", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := net2.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, net2.Delete())
 	}()
 
 	// Test Networks method
@@ -545,26 +531,20 @@ func TestDuplicateEndpoint(t *testing.T) {
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := n.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n.Delete())
 	}()
 
 	ep, err := n.CreateEndpoint(context.Background(), "ep1")
 	assert.NilError(t, err)
 	defer func() {
-		if err := ep.Delete(context.Background(), false); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep.Delete(context.Background(), false))
 	}()
 
 	ep2, err := n.CreateEndpoint(context.Background(), "ep1")
 	defer func() {
 		// Cleanup ep2 as well, else network cleanup might fail for failure cases
 		if ep2 != nil {
-			if err := ep2.Delete(context.Background(), false); err != nil {
-				t.Fatal(err)
-			}
+			assert.NilError(t, ep2.Delete(context.Background(), false))
 		}
 	}()
 
@@ -591,9 +571,7 @@ func TestControllerQuery(t *testing.T) {
 	net1, err := createTestNetwork(controller, bridgeNetType, "network1", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := net1.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, net1.Delete())
 	}()
 
 	// Create network 2
@@ -606,9 +584,7 @@ func TestControllerQuery(t *testing.T) {
 	net2, err := createTestNetwork(controller, bridgeNetType, "network2", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := net2.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, net2.Delete())
 	}()
 
 	_, err = controller.NetworkByName("")
@@ -682,25 +658,19 @@ func TestNetworkQuery(t *testing.T) {
 	net1, err := createTestNetwork(controller, bridgeNetType, "network1", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := net1.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, net1.Delete())
 	}()
 
 	ep11, err := net1.CreateEndpoint(context.Background(), "ep11")
 	assert.NilError(t, err)
 	defer func() {
-		if err := ep11.Delete(context.Background(), false); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep11.Delete(context.Background(), false))
 	}()
 
 	ep12, err := net1.CreateEndpoint(context.Background(), "ep12")
 	assert.NilError(t, err)
 	defer func() {
-		if err := ep12.Delete(context.Background(), false); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep12.Delete(context.Background(), false))
 	}()
 
 	e, err := net1.EndpointByName("ep11")
@@ -757,9 +727,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := n.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n.Delete())
 	}()
 
 	n2, err := createTestNetwork(controller, bridgeNetType, "testnetwork2", options.Generic{
@@ -770,37 +738,28 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := n2.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n2.Delete())
 	}()
 
 	ep, err := n.CreateEndpoint(context.Background(), "ep1")
 	assert.NilError(t, err)
 	defer func() {
-		err = ep.Delete(context.Background(), false)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep.Delete(context.Background(), false))
 	}()
 
 	cnt, err := controller.NewSandbox(context.Background(), containerID,
 		libnetwork.OptionHostname("test"),
 		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionExtraHost("web", "192.168.0.1"))
+	assert.NilError(t, err)
 	defer func() {
-		if err := cnt.Delete(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, cnt.Delete(context.Background()))
 	}()
 
 	err = ep.Join(context.Background(), cnt)
 	assert.NilError(t, err)
 	defer func() {
-		err = ep.Leave(context.Background(), cnt)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep.Leave(context.Background(), cnt))
 	}()
 
 	err = ep.Delete(context.Background(), false)
@@ -825,17 +784,13 @@ func TestEndpointMultipleJoins(t *testing.T) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := n.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n.Delete())
 	}()
 
 	ep, err := n.CreateEndpoint(context.Background(), "ep1")
 	assert.NilError(t, err)
 	defer func() {
-		if err := ep.Delete(context.Background(), false); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep.Delete(context.Background(), false))
 	}()
 
 	sbx1, err := controller.NewSandbox(context.Background(), containerID,
@@ -845,26 +800,19 @@ func TestEndpointMultipleJoins(t *testing.T) {
 	)
 	assert.NilError(t, err)
 	defer func() {
-		if err := sbx1.Delete(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, sbx1.Delete(context.Background()))
 	}()
 
 	sbx2, err := controller.NewSandbox(context.Background(), "c2")
 	assert.NilError(t, err)
 	defer func() {
-		if err := sbx2.Delete(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, sbx2.Delete(context.Background()))
 	}()
 
 	err = ep.Join(context.Background(), sbx1)
 	assert.NilError(t, err)
 	defer func() {
-		err = ep.Leave(context.Background(), sbx1)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep.Leave(context.Background(), sbx1))
 	}()
 
 	err = ep.Join(context.Background(), sbx2)
@@ -890,9 +838,7 @@ func TestLeaveAll(t *testing.T) {
 	assert.NilError(t, err)
 	defer func() {
 		// If this goes through, it means cnt.Delete() effectively detached from all the endpoints
-		if err := n.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n.Delete())
 	}()
 
 	n2, err := createTestNetwork(controller, bridgeNetType, "testnetwork2", options.Generic{
@@ -903,9 +849,7 @@ func TestLeaveAll(t *testing.T) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := n2.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n2.Delete())
 	}()
 
 	ep1, err := n.CreateEndpoint(context.Background(), "ep1")
@@ -939,17 +883,13 @@ func TestContainerInvalidLeave(t *testing.T) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := n.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n.Delete())
 	}()
 
 	ep, err := n.CreateEndpoint(context.Background(), "ep1")
 	assert.NilError(t, err)
 	defer func() {
-		if err := ep.Delete(context.Background(), false); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep.Delete(context.Background(), false))
 	}()
 
 	cnt, err := controller.NewSandbox(context.Background(), containerID,
@@ -958,9 +898,7 @@ func TestContainerInvalidLeave(t *testing.T) {
 		libnetwork.OptionExtraHost("web", "192.168.0.1"))
 	assert.NilError(t, err)
 	defer func() {
-		if err := cnt.Delete(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, cnt.Delete(context.Background()))
 	}()
 
 	err = ep.Leave(context.Background(), cnt)
@@ -999,9 +937,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := n.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n.Delete())
 	}()
 
 	ep1, err := n.CreateEndpoint(context.Background(), "ep1")
@@ -1016,9 +952,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 		libnetwork.OptionExtraHost("web", "192.168.0.1"))
 	assert.NilError(t, err)
 	defer func() {
-		if err := sbx1.Delete(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, sbx1.Delete(context.Background()))
 	}()
 
 	sbx2, err := controller.NewSandbox(context.Background(), "c2",
@@ -1028,9 +962,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 		libnetwork.OptionExtraHost("web", "192.168.0.2"))
 	assert.NilError(t, err)
 	defer func() {
-		if err := sbx2.Delete(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, sbx2.Delete(context.Background()))
 	}()
 
 	err = ep1.Join(context.Background(), sbx1)
@@ -1056,9 +988,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 	err := os.MkdirAll(specPath, 0o755)
 	assert.NilError(t, err)
 	defer func() {
-		if err := os.RemoveAll(specPath); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, os.RemoveAll(specPath))
 	}()
 
 	err = os.WriteFile(filepath.Join(specPath, "invalid-network-driver.spec"), []byte(server.URL), 0o644)
@@ -1107,9 +1037,7 @@ func TestValidRemoteDriver(t *testing.T) {
 	err := os.MkdirAll(specPath, 0o755)
 	assert.NilError(t, err)
 	defer func() {
-		if err := os.RemoveAll(specPath); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, os.RemoveAll(specPath))
 	}()
 
 	err = os.WriteFile(filepath.Join(specPath, "valid-network-driver.spec"), []byte(server.URL), 0o644)
@@ -1126,9 +1054,7 @@ func TestValidRemoteDriver(t *testing.T) {
 		return
 	}
 	defer func() {
-		if err := n.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n.Delete())
 	}()
 }
 
@@ -1173,9 +1099,7 @@ func TestHost(t *testing.T) {
 		libnetwork.OptionUseDefaultSandbox())
 	assert.NilError(t, err)
 	defer func() {
-		if err := sbx1.Delete(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, sbx1.Delete(context.Background()))
 	}()
 
 	sbx2, err := controller.NewSandbox(context.Background(), "host_c2",
@@ -1185,9 +1109,7 @@ func TestHost(t *testing.T) {
 		libnetwork.OptionUseDefaultSandbox())
 	assert.NilError(t, err)
 	defer func() {
-		if err := sbx2.Delete(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, sbx2.Delete(context.Background()))
 	}()
 
 	network := makeTesthostNetwork(t, controller)
@@ -1223,9 +1145,7 @@ func TestHost(t *testing.T) {
 		libnetwork.OptionUseDefaultSandbox())
 	assert.NilError(t, err)
 	defer func() {
-		if err := cnt3.Delete(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, cnt3.Delete(context.Background()))
 	}()
 
 	ep3, err := network.CreateEndpoint(context.Background(), "testep3")
@@ -1245,7 +1165,9 @@ func checkSandbox(t *testing.T, info libnetwork.EndpointInfo) {
 	key := info.Sandbox().Key()
 	sbNs, err := netns.GetFromPath(key)
 	assert.NilError(t, err, "Failed to get network namespace path %q", key)
-	defer sbNs.Close()
+	defer func() {
+		assert.Check(t, sbNs.Close())
+	}()
 
 	nh, err := nlwrap.NewHandleAt(sbNs)
 	assert.NilError(t, err)
@@ -1278,17 +1200,13 @@ func TestEndpointJoin(t *testing.T) {
 	)
 	assert.NilError(t, err)
 	defer func() {
-		if err := n1.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n1.Delete())
 	}()
 
 	ep1, err := n1.CreateEndpoint(context.Background(), "ep1")
 	assert.NilError(t, err)
 	defer func() {
-		if err := ep1.Delete(context.Background(), false); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep1.Delete(context.Background(), false))
 	}()
 
 	// Validate if ep.Info() only gives me IP address info and not names and gateway during CreateEndpoint()
@@ -1335,18 +1253,13 @@ func TestEndpointJoin(t *testing.T) {
 		libnetwork.OptionExtraHost("web", "192.168.0.1"))
 	assert.NilError(t, err)
 	defer func() {
-		if err := sb.Delete(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, sb.Delete(context.Background()))
 	}()
 
 	err = ep1.Join(context.Background(), sb)
 	assert.NilError(t, err)
 	defer func() {
-		err = ep1.Leave(context.Background(), sb)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep1.Leave(context.Background(), sb))
 	}()
 
 	// Validate if ep.Info() only gives valid gateway and sandbox key after has container has joined.
@@ -1384,26 +1297,19 @@ func TestEndpointJoin(t *testing.T) {
 		}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := n2.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n2.Delete())
 	}()
 
 	ep2, err := n2.CreateEndpoint(context.Background(), "ep2")
 	assert.NilError(t, err)
 	defer func() {
-		if err := ep2.Delete(context.Background(), false); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep2.Delete(context.Background(), false))
 	}()
 
 	err = ep2.Join(context.Background(), sb)
 	assert.NilError(t, err)
 	defer func() {
-		err = ep2.Leave(context.Background(), sb)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep2.Leave(context.Background(), sb))
 	}()
 
 	if ep1.Info().Sandbox().Key() != ep2.Info().Sandbox().Key() {
@@ -1429,9 +1335,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := n.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n.Delete())
 	}()
 
 	n2, err := createTestNetwork(controller, bridgeNetType, "testnetwork2", options.Generic{
@@ -1442,27 +1346,19 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		if err := n2.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, n2.Delete())
 	}()
 
 	ep, err := n.CreateEndpoint(context.Background(), "ep1")
 	assert.NilError(t, err)
 	defer func() {
-		err = ep.Delete(context.Background(), false)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep.Delete(context.Background(), false))
 	}()
 
 	ep2, err := n2.CreateEndpoint(context.Background(), "ep2")
 	assert.NilError(t, err)
 	defer func() {
-		err = ep2.Delete(context.Background(), false)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep2.Delete(context.Background(), false))
 	}()
 
 	cnt, err := controller.NewSandbox(context.Background(), containerID,
@@ -1470,20 +1366,16 @@ func externalKeyTest(t *testing.T, reexec bool) {
 		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionUseExternalKey(),
 		libnetwork.OptionExtraHost("web", "192.168.0.1"))
+	assert.NilError(t, err)
 	defer func() {
-		if err := cnt.Delete(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, cnt.Delete(context.Background()))
 	}()
 
 	// Join endpoint to sandbox before SetKey
 	err = ep.Join(context.Background(), cnt)
 	assert.NilError(t, err)
 	defer func() {
-		err = ep.Leave(context.Background(), cnt)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep.Leave(context.Background(), cnt))
 	}()
 
 	sbox := ep.Info().Sandbox()
@@ -1524,10 +1416,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	err = ep2.Join(context.Background(), sbox)
 	assert.NilError(t, err)
 	defer func() {
-		err = ep2.Leave(context.Background(), sbox)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, ep2.Leave(context.Background(), sbox))
 	}()
 
 	if ep.Info().Sandbox().Key() != ep2.Info().Sandbox().Key() {
@@ -1608,8 +1497,7 @@ func TestResolvConf(t *testing.T) {
 			n := tc.makeNet(t, c)
 			if tc.delNet {
 				defer func() {
-					err := n.Delete()
-					assert.Check(t, err)
+					assert.Check(t, n.Delete())
 				}()
 			}
 
@@ -1620,22 +1508,19 @@ func TestResolvConf(t *testing.T) {
 			sb, err := c.NewSandbox(context.Background(), containerID, sbOpts...)
 			assert.NilError(t, err)
 			defer func() {
-				err := sb.Delete(context.Background())
-				assert.Check(t, err)
+				assert.Check(t, sb.Delete(context.Background()))
 			}()
 
 			ep, err := n.CreateEndpoint(context.Background(), "ep", tc.epOpts...)
 			assert.NilError(t, err)
 			defer func() {
-				err := ep.Delete(context.Background(), false)
-				assert.Check(t, err)
+				assert.Check(t, ep.Delete(context.Background(), false))
 			}()
 
 			err = ep.Join(context.Background(), sb)
 			assert.NilError(t, err)
 			defer func() {
-				err := ep.Leave(context.Background(), sb)
-				assert.Check(t, err)
+				assert.Check(t, ep.Leave(context.Background(), sb))
 			}()
 
 			finfo, err := os.Stat(resolvConfPath)
@@ -1782,9 +1667,7 @@ func TestBridge(t *testing.T) {
 	network, err := createTestNetwork(controller, bridgeNetType, "testnetwork", netOption, ipamV4ConfList, ipamV6ConfList)
 	assert.NilError(t, err)
 	defer func() {
-		if err := network.Delete(); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, network.Delete())
 	}()
 
 	ep, err := network.CreateEndpoint(context.Background(), "testep")
@@ -1793,9 +1676,7 @@ func TestBridge(t *testing.T) {
 	sb, err := controller.NewSandbox(context.Background(), containerID, libnetwork.OptionPortMapping(getPortMapping()))
 	assert.NilError(t, err)
 	defer func() {
-		if err := sb.Delete(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, sb.Delete(context.Background()))
 	}()
 
 	err = ep.Join(context.Background(), sb)
