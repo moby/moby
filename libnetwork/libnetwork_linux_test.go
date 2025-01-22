@@ -546,28 +546,17 @@ func TestControllerQuery(t *testing.T) {
 	}()
 
 	_, err = controller.NetworkByName("")
-	if err == nil {
-		t.Fatalf("NetworkByName() succeeded with invalid target name")
-	}
-	if _, ok := err.(libnetwork.ErrInvalidName); !ok {
-		t.Fatalf("Expected NetworkByName() to fail with ErrInvalidName error. Got: %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "invalid name:"))
 
 	_, err = controller.NetworkByID("")
-	if err == nil {
-		t.Fatalf("NetworkByID() succeeded with invalid target id")
-	}
-	if _, ok := err.(libnetwork.ErrInvalidID); !ok {
-		t.Fatalf("NetworkByID() failed with unexpected error: %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "invalid id:"))
 
 	g, err := controller.NetworkByID("network1")
-	if err == nil {
-		t.Fatalf("Unexpected success for NetworkByID(): %v", g)
-	}
-	if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok {
-		t.Fatalf("NetworkByID() failed with unexpected error: %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.Error(err, "network network1 not found"))
+	assert.Check(t, is.Nil(g), "search network using name as ID should not yield a result")
 
 	g, err = controller.NetworkByName("network1")
 	assert.NilError(t, err)
