@@ -678,13 +678,12 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	}()
 
 	err = ep.Delete(context.Background(), false)
-	if err == nil {
-		t.Fatal("Expected to fail. But instead succeeded")
-	}
 
-	if _, ok := err.(*libnetwork.ActiveContainerError); !ok {
-		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
-	}
+	var activeContainerError *libnetwork.ActiveContainerError
+	assert.Check(t, errors.As(err, &activeContainerError))
+	assert.Check(t, is.ErrorContains(err, "has active containers"))
+	// TODO(thaJeztah): should this be [errdefs.ErrConflict] or [errdefs.ErrInvalidParameter]?
+	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
 }
 
 func TestEndpointMultipleJoins(t *testing.T) {
