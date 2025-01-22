@@ -514,13 +514,9 @@ func TestDuplicateEndpoint(t *testing.T) {
 		}
 	}()
 
-	if err == nil {
-		t.Fatal("Expected to fail. But instead succeeded")
-	}
-
-	if _, ok := err.(types.ForbiddenError); !ok {
-		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
-	}
+	// TODO(thaJeztah): should this be [errdefs.ErrConflict] or [errdefs.ErrInvalidParameter]?
+	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.Error(err, "endpoint with name ep1 already exists in network testnetwork"))
 }
 
 func TestControllerQuery(t *testing.T) {
