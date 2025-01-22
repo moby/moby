@@ -16,7 +16,7 @@ on:
   workflow_call:
 
 env:
-  ALPINE_VERSION: "3.20"
+  ALPINE_VERSION: "3.21"
 
 jobs:
   run:
