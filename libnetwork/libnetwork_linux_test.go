@@ -730,13 +730,9 @@ func TestEndpointMultipleJoins(t *testing.T) {
 	}()
 
 	err = ep.Join(context.Background(), sbx2)
-	if err == nil {
-		t.Fatal("Expected to fail multiple joins for the same endpoint")
-	}
-
-	if _, ok := err.(types.ForbiddenError); !ok {
-		t.Fatalf("Failed with unexpected error type: %T. Desc: %s", err, err.Error())
-	}
+	// TODO(thaJeztah): should this be [errdefs.ErrConflict] or [errdefs.ErrInvalidParameter]?
+	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.Error(err, "another container is attached to the same network endpoint"))
 }
 
 func TestLeaveAll(t *testing.T) {
