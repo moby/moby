@@ -244,12 +244,9 @@ func TestNetworkConfig(t *testing.T) {
 		libnetwork.NetworkOptionConfigFrom("anotherConfigNw"),
 	)
 
-	if err == nil {
-		t.Fatal("Expected to fail. But instead succeeded")
-	}
-	if _, ok := err.(types.ForbiddenError); !ok {
-		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
-	}
+	// TODO(thaJeztah): should this be [errdefs.ErrInvalidParameter]?
+	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.Error(err, "a configuration network cannot depend on another configuration network"))
 
 	// Create supported config network
 	option := options.Generic{
@@ -277,14 +274,14 @@ func TestNetworkConfig(t *testing.T) {
 		libnetwork.NetworkOptionAttachable(true),
 		libnetwork.NetworkOptionIngress(true),
 	} {
-		_, err = controller.NewNetwork(bridgeNetType, "testBR", "",
-			libnetwork.NetworkOptionConfigOnly(), opt)
-		if err == nil {
-			t.Fatalf("Expected to fail. But instead succeeded for option: %d", i)
-		}
-		if _, ok := err.(types.ForbiddenError); !ok {
-			t.Fatalf("Did not fail with expected error. Actual error: %v", err)
-		}
+		t.Run(fmt.Sprintf("config-only-%d", i), func(t *testing.T) {
+			_, err = controller.NewNetwork(bridgeNetType, "testBR", "",
+				libnetwork.NetworkOptionConfigOnly(), opt)
+
+			// TODO(thaJeztah): should this be [errdefs.ErrInvalidParameter]?
+			assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+			assert.Check(t, is.Error(err, "configuration network can only contain network specific fields. Network operator fields like [ ingress | internal | attachable | scope ] are not supported."))
+		})
 	}
 
 	// Verify a network cannot be created with both config-from and network specific configurations
@@ -297,14 +294,22 @@ func TestNetworkConfig(t *testing.T) {
 		libnetwork.NetworkOptionLabels(map[string]string{"number": "two"}),
 		libnetwork.NetworkOptionDriverOpts(map[string]string{"com.docker.network.driver.mtu": "1600"}),
 	} {
-		_, err = controller.NewNetwork(bridgeNetType, "testBR", "",
-			libnetwork.NetworkOptionConfigFrom("config_network0"), opt)
-		if err == nil {
-			t.Fatalf("Expected to fail. But instead succeeded for option: %d", i)
-		}
-		if _, ok := err.(types.ForbiddenError); !ok {
-			t.Fatalf("Did not fail with expected error. Actual error: %v", err)
-		}
+		t.Run(fmt.Sprintf("config-from-%d", i), func(t *testing.T) {
+			_, err = controller.NewNetwork(bridgeNetType, "testBR", "",
+				libnetwork.NetworkOptionConfigFrom("config_network0"), opt)
+
+			// TODO(thaJeztah): should this be [errdefs.ErrInvalidParameter]?
+			assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+
+			//nolint:dupword // ignore "Duplicate words (network) found (dupword)"
+			// Doing a partial match here omn the error-string here, as this produces either;
+			//
+			// 	user specified configurations are not supported if the network depends on a configuration network
+			// 	network driver options are not supported if the network depends on a configuration network
+			//
+			// We can  consider changing this to a proper test-table.
+			assert.Check(t, is.ErrorContains(err, `not supported if the network depends on a configuration network`))
+		})
 	}
 
 	// Create a valid network
@@ -314,13 +319,9 @@ func TestNetworkConfig(t *testing.T) {
 
 	// Verify the config network cannot be removed
 	err = configNetwork.Delete()
-	if err == nil {
-		t.Fatal("Expected to fail. But instead succeeded")
-	}
-
-	if _, ok := err.(types.ForbiddenError); !ok {
-		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
-	}
+	// TODO(thaJeztah): should this be [errdefs.ErrConflict] or [errdefs.ErrInvalidParameter]?
+	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.Error(err, `configuration network "config_network0" is in use`))
 
 	// Delete network
 	err = network.Delete()
