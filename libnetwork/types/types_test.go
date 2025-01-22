@@ -2,92 +2,65 @@ package types
 
 import (
 	"net"
+	"strconv"
 	"testing"
+
+	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestErrorConstructors(t *testing.T) {
 	var err error
+	var ok bool
 
 	err = InvalidParameterErrorf("Io ho %d uccello", 1)
-	if err.Error() != "Io ho 1 uccello" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(InvalidParameterError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); ok {
-		t.Fatal(err)
-	}
+	assert.Check(t, is.Error(err, "Io ho 1 uccello"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	_, ok = err.(MaskableError)
+	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = NotFoundErrorf("Can't find the %s", "keys")
-	if err.Error() != "Can't find the keys" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(NotFoundError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); ok {
-		t.Fatal(err)
-	}
+	assert.Check(t, is.Error(err, "Can't find the keys"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	_, ok = err.(MaskableError)
+	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = ForbiddenErrorf("Can't open door %d", 2)
-	if err.Error() != "Can't open door 2" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(ForbiddenError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); ok {
-		t.Fatal(err)
-	}
+	assert.Check(t, is.Error(err, "Can't open door 2"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	_, ok = err.(MaskableError)
+	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = NotImplementedErrorf("Functionality %s is not implemented", "x")
-	if err.Error() != "Functionality x is not implemented" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(NotImplementedError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); ok {
-		t.Fatal(err)
-	}
+	assert.Check(t, is.Error(err, "Functionality x is not implemented"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotImplemented))
+	_, ok = err.(MaskableError)
+	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = UnavailableErrorf("Driver %s is not available", "mh")
-	if err.Error() != "Driver mh is not available" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(UnavailableError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); ok {
-		t.Fatal(err)
-	}
+	assert.Check(t, is.Error(err, "Driver mh is not available"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsUnavailable))
+	_, ok = err.(MaskableError)
+	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = InternalErrorf("Not sure what happened")
-	if err.Error() != "Not sure what happened" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(InternalError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); ok {
-		t.Fatal(err)
-	}
+	assert.Check(t, is.Error(err, "Not sure what happened"))
+	_, ok = err.(InternalError)
+	assert.Check(t, ok, "error should be InternalError: %[1]v (%[1]T)", err)
+	_, ok = err.(MaskableError)
+	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = InternalMaskableErrorf("Minor issue, it can be ignored")
-	if err.Error() != "Minor issue, it can be ignored" {
-		t.Fatal(err)
-	}
-	if _, ok := err.(InternalError); !ok {
-		t.Fatal(err)
-	}
-	if _, ok := err.(MaskableError); !ok {
-		t.Fatal(err)
-	}
+	assert.Check(t, is.Error(err, "Minor issue, it can be ignored"))
+	_, ok = err.(InternalError)
+	assert.Check(t, ok, "error should be InternalError: %[1]v (%[1]T)", err)
+	_, ok = err.(MaskableError)
+	assert.Check(t, ok, "error should be maskable: %[1]v (%[1]T)", err)
 }
 
 func TestCompareIPMask(t *testing.T) {
-	input := []struct {
+	tests := []struct {
 		ip    net.IP
 		mask  net.IPMask
 		is    int
@@ -141,22 +114,23 @@ func TestCompareIPMask(t *testing.T) {
 		},
 	}
 
-	for ind, i := range input {
-		is, ms, err := compareIPMask(i.ip, i.mask)
-		if i.isErr {
-			if err == nil {
-				t.Fatalf("Incorrect error condition for element %d. is: %d, ms: %d, err: %v", ind, is, ms, err)
+	for i, tc := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			actualIs, actualMs, err := compareIPMask(tc.ip, tc.mask)
+			if tc.isErr {
+				const expectedErr = "ip and mask are not compatible"
+				assert.Check(t, is.ErrorContains(err, expectedErr))
+			} else {
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal(actualIs, tc.is))
+				assert.Check(t, is.Equal(actualMs, tc.ms))
 			}
-		} else {
-			if i.is != is || i.ms != ms {
-				t.Fatalf("expected is: %d, ms: %d. Got is: %d, ms: %d for element %d", i.is, i.ms, is, ms, ind)
-			}
-		}
+		})
 	}
 }
 
-func TestUtilGetHostPartIP(t *testing.T) {
-	input := []struct {
+func TestGetHostPartIP(t *testing.T) {
+	tests := []struct {
 		ip   net.IP
 		mask net.IPMask
 		host net.IP
@@ -189,32 +163,29 @@ func TestUtilGetHostPartIP(t *testing.T) {
 		},
 	}
 
-	for _, i := range input {
-		h, err := GetHostPartIP(i.ip, i.mask)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !i.host.Equal(h) {
-			t.Fatalf("Failed to return expected host ip. Expected: %s. Got: %s", i.host, h)
-		}
+	for _, tc := range tests {
+		h, err := GetHostPartIP(tc.ip, tc.mask)
+		assert.NilError(t, err)
+		assert.Assert(t, tc.host.Equal(h), "Failed to return expected host ip. Expected: %s. Got: %s", tc.host, h)
 	}
+
+	const expectedErr = "cannot compute host portion ip address because ip and mask are not compatible"
 
 	// ip as v6 and mask as v4 are not compatible
-	if _, err := GetHostPartIP(net.ParseIP("2001:DB8:2002:2001:FFFF:ABCD:EEAB:00CD"), []byte{0xff, 0xff, 0xff, 0}); err == nil {
-		t.Fatalf("Unexpected success")
-	}
+	_, err := GetHostPartIP(net.ParseIP("2001:DB8:2002:2001:FFFF:ABCD:EEAB:00CD"), []byte{0xff, 0xff, 0xff, 0})
+	assert.Check(t, is.ErrorContains(err, expectedErr))
+
 	// ip as v4 and non conventional mask
-	if _, err := GetHostPartIP(net.ParseIP("173.32.4.5"), []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0}); err == nil {
-		t.Fatalf("Unexpected success")
-	}
+	_, err = GetHostPartIP(net.ParseIP("173.32.4.5"), []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0})
+	assert.Check(t, is.ErrorContains(err, expectedErr))
+
 	// ip as v4 and non conventional mask
-	if _, err := GetHostPartIP(net.ParseIP("173.32.4.5"), []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0}); err == nil {
-		t.Fatalf("Unexpected success")
-	}
+	_, err = GetHostPartIP(net.ParseIP("173.32.4.5"), []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0})
+	assert.Check(t, is.ErrorContains(err, expectedErr))
 }
 
-func TestUtilGetBroadcastIP(t *testing.T) {
-	input := []struct {
+func TestGetBroadcastIP(t *testing.T) {
+	tests := []struct {
 		ip    net.IP
 		mask  net.IPMask
 		bcast net.IP
@@ -271,28 +242,25 @@ func TestUtilGetBroadcastIP(t *testing.T) {
 		},
 	}
 
-	for _, i := range input {
-		h, err := GetBroadcastIP(i.ip, i.mask)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !i.bcast.Equal(h) {
-			t.Fatalf("Failed to return expected host ip. Expected: %s. Got: %s", i.bcast, h)
-		}
+	for _, tc := range tests {
+		h, err := GetBroadcastIP(tc.ip, tc.mask)
+		assert.NilError(t, err)
+		assert.Assert(t, tc.bcast.Equal(h), "Failed to return expected host ip. Expected: %s. Got: %s", tc.bcast, h)
 	}
 
+	const expectedErr = "cannot compute broadcast ip address because ip and mask are not compatible"
+
 	// ip as v6 and mask as v4 are not compatible
-	if _, err := GetBroadcastIP(net.ParseIP("2001:DB8:2002:2001:FFFF:ABCD:EEAB:00CD"), []byte{0xff, 0xff, 0xff, 0}); err == nil {
-		t.Fatalf("Unexpected success")
-	}
+	_, err := GetBroadcastIP(net.ParseIP("2001:DB8:2002:2001:FFFF:ABCD:EEAB:00CD"), []byte{0xff, 0xff, 0xff, 0})
+	assert.Check(t, is.ErrorContains(err, expectedErr))
+
 	// ip as v4 and non conventional mask
-	if _, err := GetBroadcastIP(net.ParseIP("173.32.4.5"), []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0}); err == nil {
-		t.Fatalf("Unexpected success")
-	}
+	_, err = GetBroadcastIP(net.ParseIP("173.32.4.5"), []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0})
+	assert.Check(t, is.ErrorContains(err, expectedErr))
+
 	// ip as v4 and non conventional mask
-	if _, err := GetBroadcastIP(net.ParseIP("173.32.4.5"), []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0}); err == nil {
-		t.Fatalf("Unexpected success")
-	}
+	_, err = GetBroadcastIP(net.ParseIP("173.32.4.5"), []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0})
+	assert.Check(t, is.ErrorContains(err, expectedErr))
 }
 
 func TestParseCIDR(t *testing.T) {

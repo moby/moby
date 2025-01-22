@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork"
@@ -81,11 +82,6 @@ func getPortMapping() []types.PortBinding {
 	}
 }
 
-func isNotFound(err error) bool {
-	_, ok := (err).(types.NotFoundError)
-	return ok
-}
-
 func TestNull(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
@@ -141,13 +137,7 @@ func TestUnknownDriver(t *testing.T) {
 	controller := newController(t)
 
 	_, err := createTestNetwork(controller, "unknowndriver", "testnetwork", options.Generic{}, nil, nil)
-	if err == nil {
-		t.Fatal("Expected to fail. But instead succeeded")
-	}
-
-	if !isNotFound(err) {
-		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestNilRemoteDriver(t *testing.T) {
@@ -156,13 +146,7 @@ func TestNilRemoteDriver(t *testing.T) {
 
 	_, err := controller.NewNetwork("framerelay", "dummy", "",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
-	if err == nil {
-		t.Fatal("Expected to fail. But instead succeeded")
-	}
-
-	if !isNotFound(err) {
-		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestNetworkName(t *testing.T) {
@@ -1274,7 +1258,7 @@ func TestValidRemoteDriver(t *testing.T) {
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err != nil {
 		// Only fail if we could not find the plugin driver
-		if isNotFound(err) {
+		if errdefs.IsNotFound(err) {
 			t.Fatal(err)
 		}
 		return
