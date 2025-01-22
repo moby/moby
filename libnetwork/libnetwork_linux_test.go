@@ -369,12 +369,8 @@ func TestUnknownEndpoint(t *testing.T) {
 	assert.NilError(t, err)
 
 	_, err = network.CreateEndpoint(context.Background(), "")
-	if err == nil {
-		t.Fatal("Expected to fail. But instead succeeded")
-	}
-	if _, ok := err.(libnetwork.ErrInvalidName); !ok {
-		t.Fatalf("Expected to fail with ErrInvalidName error. Actual error: %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter), "Expected to fail with ErrInvalidName error")
+	assert.Check(t, is.ErrorContains(err, "invalid name:"))
 
 	ep, err := network.CreateEndpoint(context.Background(), "testep")
 	assert.NilError(t, err)
