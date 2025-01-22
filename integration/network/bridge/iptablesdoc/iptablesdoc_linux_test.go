@@ -174,6 +174,18 @@ var index = []section{
 			},
 		}},
 	},
+	{
+		name: "usernet-portmap-lo.md",
+		networks: []networkDesc{{
+			name: "bridge1",
+			containers: []ctrDesc{
+				{
+					name:         "c1",
+					portMappings: nat.PortMap{"80/tcp": {{HostIP: "127.0.0.1", HostPort: "8080"}}},
+				},
+			},
+		}},
+	},
 }
 
 // iptCmdType is used to look up iptCmds in the markdown (can't use an int

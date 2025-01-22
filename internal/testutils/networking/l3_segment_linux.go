@@ -76,6 +76,7 @@ func (l3 *L3Segment) AddHost(t *testing.T, hostname, nsName, ifname string, addr
 	host.MustRun(t, "ip", "link", "add", hostname, "netns", l3.bridge.ns, "type", "veth", "peer", "name", host.Iface)
 	l3.bridge.MustRun(t, "ip", "link", "set", hostname, "up", "master", l3.bridge.Iface)
 	host.MustRun(t, "ip", "link", "set", host.Iface, "up")
+	host.MustRun(t, "ip", "link", "set", "lo", "up")
 
 	for _, addr := range addrs {
 		host.MustRun(t, "ip", "addr", "add", addr.String(), "dev", host.Iface, "nodad")
@@ -145,25 +146,27 @@ func (h Host) MustRun(t *testing.T, cmd string, args ...string) string {
 func (h Host) Do(t *testing.T, fn func()) {
 	t.Helper()
 
-	targetNs, err := netns.GetFromName(h.ns)
-	if err != nil {
-		t.Fatalf("failed to get netns handle: %v", err)
-	}
-	defer targetNs.Close()
+	if h.ns != CurrentNetns {
+		targetNs, err := netns.GetFromName(h.ns)
+		if err != nil {
+			t.Fatalf("failed to get netns handle: %v", err)
+		}
+		defer targetNs.Close()
 
-	origNs, err := netns.Get()
-	if err != nil {
-		t.Fatalf("failed to get current netns: %v", err)
-	}
-	defer origNs.Close()
+		origNs, err := netns.Get()
+		if err != nil {
+			t.Fatalf("failed to get current netns: %v", err)
+		}
+		defer origNs.Close()
 
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
 
-	if err := netns.Set(targetNs); err != nil {
-		t.Fatalf("failed to enter netns: %v", err)
+		if err := netns.Set(targetNs); err != nil {
+			t.Fatalf("failed to enter netns: %v", err)
+		}
+		defer netns.Set(origNs)
 	}
-	defer netns.Set(origNs)
 
 	fn()
 }

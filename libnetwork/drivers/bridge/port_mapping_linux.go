@@ -195,6 +195,9 @@ func (n *bridgeNetwork) addPortMappings(
 		if err := n.setPerPortIptables(b, true); err != nil {
 			return nil, err
 		}
+		if err := n.filterPortMappedOnLoopback(b, true); err != nil {
+			return nil, err
+		}
 		if err := n.filterDirectAccess(b, true); err != nil {
 			return nil, err
 		}
@@ -747,6 +750,9 @@ func (n *bridgeNetwork) releasePortBindings(pbs []portBinding) error {
 		if err := n.setPerPortIptables(pb, false); err != nil {
 			errs = append(errs, fmt.Errorf("failed to remove iptables rules for port mapping %s: %w", pb, err))
 		}
+		if err := n.filterPortMappedOnLoopback(pb, false); err != nil {
+			errs = append(errs, err)
+		}
 		if err := n.filterDirectAccess(pb, false); err != nil {
 			errs = append(errs, err)
 		}
@@ -867,6 +873,44 @@ func setPerPortForwarding(b portBinding, ipv iptables.IPVersion, bridgeName stri
 		if err := appendOrDelChainRule(rule, "SCTP CHECKSUM", enable); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// filterPortMappedOnLoopback adds an iptables rule that drops remote
+// connections to ports mapped on loopback addresses.
+//
+// This is a no-ip if the portBinding is for IPv6 (IPv6 loopback address is
+// non-routable), or over a network with gw_mode=routed (PBs in routed mode
+// don't map ports on the host).
+func (n *bridgeNetwork) filterPortMappedOnLoopback(b portBinding, enable bool) error {
+	hostIP := b.childHostIP
+	if b.HostPort == 0 || !hostIP.IsLoopback() || b.childHostIP.To4() == nil {
+		return nil
+	}
+
+	acceptMirrored := iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
+		"-p", b.Proto.String(),
+		"-d", hostIP.String(),
+		"--dport", strconv.Itoa(int(b.HostPort)),
+		"-i", "loopback0",
+		"-j", "ACCEPT",
+	}}
+	enableMirrored := enable && isRunningUnderWSL2MirroredMode()
+	if err := appendOrDelChainRule(acceptMirrored, "LOOPBACK FILTERING - ACCEPT MIRRORED", enableMirrored); err != nil {
+		return err
+	}
+
+	drop := iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
+		"-p", b.Proto.String(),
+		"-d", hostIP.String(),
+		"--dport", strconv.Itoa(int(b.HostPort)),
+		"!", "-i", "lo",
+		"-j", "DROP",
+	}}
+	if err := appendOrDelChainRule(drop, "LOOPBACK FILTERING - DROP", enable); err != nil {
+		return err
 	}
 
 	return nil
