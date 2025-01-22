@@ -56,20 +56,6 @@ func (nnr NetworkNameError) Error() string {
 // Conflict denotes the type of this error
 func (nnr NetworkNameError) Conflict() {}
 
-// UnknownNetworkError is returned when libnetwork could not find in its database
-// a network with the same name and id.
-type UnknownNetworkError struct {
-	name string
-	id   string
-}
-
-func (une *UnknownNetworkError) Error() string {
-	return fmt.Sprintf("unknown network %s id %s", une.name, une.id)
-}
-
-// NotFound denotes the type of this error
-func (une *UnknownNetworkError) NotFound() {}
-
 // ActiveEndpointsError is returned when a network is deleted which has active
 // endpoints in it.
 type ActiveEndpointsError struct {
