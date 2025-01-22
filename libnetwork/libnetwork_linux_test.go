@@ -220,13 +220,11 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 	assert.NilError(t, err)
 
 	err = network.Delete()
-	if err == nil {
-		t.Fatal("Expected to fail. But instead succeeded")
-	}
-
-	if _, ok := err.(*libnetwork.ActiveEndpointsError); !ok {
-		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
-	}
+	var activeEndpointsError *libnetwork.ActiveEndpointsError
+	assert.Check(t, errors.As(err, &activeEndpointsError))
+	assert.Check(t, is.ErrorContains(err, "has active endpoints"))
+	// TODO(thaJeztah): should this be [errdefs.ErrConflict] or [errdefs.ErrInvalidParameter]?
+	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
 
 	// Done testing. Now cleanup.
 	err = ep.Delete(context.Background(), false)
