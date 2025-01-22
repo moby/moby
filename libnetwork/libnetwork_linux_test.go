@@ -1118,20 +1118,18 @@ func TestEndpointJoin(t *testing.T) {
 
 	// test invalid joins
 	err = ep1.Join(context.Background(), nil)
-	if err == nil {
-		t.Fatalf("Expected to fail join with nil Sandbox")
-	}
-	if _, ok := err.(types.InvalidParameterError); !ok {
-		t.Fatalf("Unexpected error type returned: %T", err)
-	}
+	assert.Assert(t, is.ErrorType(err, errdefs.IsInvalidParameter), "Expected to fail join with nil Sandbox")
+	// FIXME(thaJeztah): this error includes the raw data of the sandbox (as `<nil>`), which is not very informative
+	assert.Check(t, is.Error(err, "invalid Sandbox passed to endpoint join: <nil>"))
 
 	fsbx := &libnetwork.Sandbox{}
-	if err = ep1.Join(context.Background(), fsbx); err == nil {
-		t.Fatalf("Expected to fail join with invalid Sandbox")
-	}
-	if _, ok := err.(types.InvalidParameterError); !ok {
-		t.Fatalf("Unexpected error type returned: %T", err)
-	}
+	err = ep1.Join(context.Background(), fsbx)
+	assert.Assert(t, is.ErrorType(err, errdefs.IsInvalidParameter), "Expected to fail join with invalid Sandbox")
+
+	//nolint:dupword // ignore "Duplicate words (map[]) found (dupword)"
+	// FIXME(thaJeztah): this error includes the raw data of the sandbox, which is not very human-readable or informative;
+	//	invalid Sandbox passed to endpoint join: &{  {{    []} {   [] [] []} map[] false false []} [] <nil> <nil> <nil> {{{} 0} {0 0}} [] map[] map[] <nil> 0 false false false false false []  {0 0} {0 0}}
+	assert.Check(t, is.ErrorContains(err, "invalid Sandbox passed to endpoint join"))
 
 	sb, err := controller.NewSandbox(context.Background(), containerID,
 		libnetwork.OptionHostname("test"),
