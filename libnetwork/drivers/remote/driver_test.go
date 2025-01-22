@@ -17,6 +17,7 @@ import (
 
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/plugins"
@@ -342,7 +343,15 @@ func TestRemoteDriver(t *testing.T) {
 
 	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
 		return map[string]interface{}{
-			"Scope": "global",
+			"Scope":          "global",
+			"GwAllocChecker": true,
+		}
+	})
+	handle(t, mux, "GwAllocCheck", func(msg map[string]interface{}) interface{} {
+		options := msg["Options"].(map[string]interface{})
+		return map[string]interface{}{
+			"SkipIPv4": options["skip4"].(bool),
+			"SkipIPv6": options["skip6"].(bool),
 		}
 	})
 	handle(t, mux, "CreateNetwork", func(msg map[string]interface{}) interface{} {
@@ -433,6 +442,19 @@ func TestRemoteDriver(t *testing.T) {
 		t.Fatal(err)
 	} else if c.DataScope != scope.Global {
 		t.Fatalf("get capability '%s', expecting 'global'", c.DataScope)
+	}
+
+	skipIPv4, skipIPv6, err := d.GetSkipGwAlloc(options.Generic{"skip4": true, "skip6": false})
+	if err != nil {
+		t.Fatal(err)
+	} else if !skipIPv4 || skipIPv6 {
+		t.Fatalf("GetSkipGwAlloc, got skipIPv4:%t skipIPv6:%t", skipIPv4, skipIPv6)
+	}
+	skipIPv4, skipIPv6, err = d.GetSkipGwAlloc(options.Generic{"skip4": false, "skip6": true})
+	if err != nil {
+		t.Fatal(err)
+	} else if skipIPv4 || !skipIPv6 {
+		t.Fatalf("GetSkipGwAlloc, got skipIPv4:%t skipIPv6:%t", skipIPv4, skipIPv6)
 	}
 
 	netID := "dummy-network"

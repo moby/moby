@@ -56,12 +56,37 @@ Other entries in the list value are allowed; `"NetworkDriver"` indicates that th
 After Handshake, the remote driver will receive another POST message to the URL `/NetworkDriver.GetCapabilities` with no payload. The driver's response should have the form:
 
 	{
-		"Scope":             "local"
-		"ConnectivityScope": "global"
+		"Scope":             "local",
+		"ConnectivityScope": "global",
+		"GwAllocChecker":    false
 	}
 
 Value of "Scope" should be either "local" or "global" which indicates whether the resource allocations for this driver's network can be done only locally to the node or globally across the cluster of nodes. Any other value will fail driver's registration and return an error to the caller.
 Similarly, value of "ConnectivityScope" should be either "local" or "global" which indicates whether the driver's network can provide connectivity only locally to this node or globally across the cluster of nodes. If the value is missing, libnetwork will set it to the value of "Scope". should be either "local" or "global" which indicates
+
+The field "GwAllocChecker" can be omitted but, if set to "true", the proxy will make a request to `/NetworkDriver.GwAllocCheck` before a request to `/NetworkDriver.CreateNetwork`.
+
+### Gateway Allocation Check
+
+If the proxy returned `"GwAllocChecker": true` in its capabilities response, the remote process shall receive a POST to the URL `/NetworkDriver.GwAllocCheck` of the form
+
+    {
+		"Options": {
+			...
+		}
+    }
+
+The value of `Options` is the same as the map that will be sent in the `/NetworkDriver.CreateNetwork` request.
+
+The response must have the form
+
+    {
+		"SkipIPv4": false,
+		"SkipIPv6": false
+    }
+
+* If `"SkipIPv4"` is `true` and no `Gateway` address is included in the IPv4 IPAM configuration, LibNetwork will not allocate an address for the network gateway.
+* Similarly `"SkipIPv6"` can be used to tell LibNetwork to skip allocation of an IPv6 network gateway address.
 
 ### Create network
 

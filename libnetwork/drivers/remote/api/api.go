@@ -26,6 +26,10 @@ type GetCapabilityResponse struct {
 	Response
 	Scope             string
 	ConnectivityScope string
+
+	// GwAllocChecker is used by the driver to report that it will accept a
+	// [GwAllocCheckerRequest] at "GwAllocCheck".
+	GwAllocChecker bool
 }
 
 // AllocateNetworkRequest requests allocation of new network by manager
@@ -58,6 +62,27 @@ type FreeNetworkRequest struct {
 // FreeNetworkResponse is the response to a request for freeing a network.
 type FreeNetworkResponse struct {
 	Response
+}
+
+// GwAllocCheckerRequest is the body of a request sent to "GwAllocCheck", if the
+// driver reported capability "GwAllocChecker". This request is sent before the
+// [CreateNetworkRequest].
+type GwAllocCheckerRequest struct {
+	// Options has the same form as Options in [CreateNetworkRequest].
+	Options map[string]interface{}
+}
+
+// GwAllocCheckerResponse is the response to a [GwAllocCheckerRequest].
+type GwAllocCheckerResponse struct {
+	Response
+	// SkipIPv4, if true, tells Docker that when it creates a network with the
+	// Options in the [GwAllocCheckerRequest] it should not reserve an IPv4
+	// gateway address.
+	SkipIPv4 bool
+	// SkipIPv6, if true, tells Docker that when it creates a network with the
+	// Options in the [GwAllocCheckerRequest] it should not reserve an IPv6
+	// gateway address.
+	SkipIPv6 bool
 }
 
 // CreateNetworkRequest requests a new network.
