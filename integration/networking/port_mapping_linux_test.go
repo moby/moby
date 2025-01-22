@@ -1,6 +1,7 @@
 package networking
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -16,10 +17,12 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/go-connections/nat"
@@ -780,4 +783,107 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestAccessPublishedPortFromAnotherNetwork checks that a container can access
+// ports published on the host by a container attached to a different network
+// using both its gateway IP address, and the host IP address.
+//
+// Regression test for https://github.com/moby/moby/pull/49310.
+func TestAccessPublishedPortFromAnotherNetwork(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "rootlesskit maps ports on loopback in its own netns")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const servnet = "servnet"
+	network.CreateNoError(ctx, t, c, servnet,
+		network.WithDriver("bridge"),
+		network.WithOption(bridge.BridgeName, servnet),
+		network.WithIPv6(),
+	)
+	defer network.RemoveNoError(ctx, t, c, servnet)
+
+	const clientnet = "clientnet"
+	network.CreateNoError(ctx, t, c, clientnet,
+		network.WithDriver("bridge"),
+		network.WithOption(bridge.BridgeName, clientnet),
+		network.WithIPv6(),
+		network.WithIPAM("192.168.123.0/24", "192.168.123.1"),
+		network.WithIPAM("fde5:4427:8b32::/64", "fde5:4427:8b32::1"),
+	)
+	defer network.RemoveNoError(ctx, t, c, clientnet)
+
+	const (
+		hostIPv4 = "10.0.128.2"
+		hostIPv6 = "fd3f:69a1:3233::2"
+	)
+
+	defer enableIPv6OnAll(t)()
+	// Add well-known addresses to the host.
+	assert.NilError(t, exec.Command("ip", "addr", "add", hostIPv4+"/24", "dev", "eth0").Run())
+	defer exec.Command("ip", "addr", "del", hostIPv4+"/24", "dev", "eth0").Run()
+	assert.NilError(t, exec.Command("ip", "addr", "add", hostIPv6+"/64", "dev", "eth0").Run())
+	defer exec.Command("ip", "addr", "del", hostIPv6+"/64", "dev", "eth0").Run()
+
+	for _, tc := range []struct {
+		name  string
+		daddr string
+	}{
+		{
+			name:  "IPv4/Gateway",
+			daddr: "192.168.123.1",
+		},
+		{
+			name:  "IPv6/Gateway",
+			daddr: "fde5:4427:8b32::1",
+		},
+		{
+			name:  "IPv4/Host",
+			daddr: hostIPv4,
+		},
+		{
+			name:  "IPv6/Host",
+			daddr: hostIPv6,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			serverID := container.Run(ctx, t, c,
+				container.WithName("server"),
+				container.WithCmd("nc", "-lp", "5000"),
+				container.WithExposedPorts("5000/tcp"),
+				container.WithPortMap(nat.PortMap{"5000/tcp": {{HostPort: "5000"}}}),
+				container.WithNetworkMode(servnet))
+			defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
+
+			clientID := container.Run(ctx, t, c,
+				container.WithName("client"),
+				container.WithCmd("/bin/sh", "-c", fmt.Sprintf("echo foobar | nc -w1 %s 5000", tc.daddr)),
+				container.WithNetworkMode(clientnet))
+			defer c.ContainerRemove(ctx, clientID, containertypes.RemoveOptions{Force: true})
+
+			logs := getContainerStdout(t, ctx, c, serverID)
+			assert.Assert(t, is.Contains(logs, "foobar"), "Payload was not received by the server container")
+		})
+	}
+}
+
+func getContainerStdout(t *testing.T, ctx context.Context, c *client.Client, ctrID string) string {
+	logReader, err := c.ContainerLogs(ctx, ctrID, containertypes.LogsOptions{
+		ShowStdout: true,
+	})
+	assert.NilError(t, err)
+	defer logReader.Close()
+
+	var logs bytes.Buffer
+	_, err = stdcopy.StdCopy(&logs, nil, logReader)
+	assert.NilError(t, err)
+
+	return logs.String()
 }
