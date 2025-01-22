@@ -812,27 +812,21 @@ func TestContainerInvalidLeave(t *testing.T) {
 	}()
 
 	err = ep.Leave(context.Background(), cnt)
-	if err == nil {
-		t.Fatal("Expected to fail leave from an endpoint which has no active join")
-	}
-	if _, ok := err.(types.ForbiddenError); !ok {
-		t.Fatalf("Failed with unexpected error type: %T. Desc: %s", err, err.Error())
-	}
+	assert.Assert(t, is.ErrorType(err, errdefs.IsForbidden), "Expected to fail leave from an endpoint which has no active join")
+	assert.Check(t, is.Error(err, "cannot leave endpoint with no attached sandbox"))
 
-	if err = ep.Leave(context.Background(), nil); err == nil {
-		t.Fatalf("Expected to fail leave nil Sandbox")
-	}
-	if _, ok := err.(types.InvalidParameterError); !ok {
-		t.Fatalf("Unexpected error type returned: %T. Desc: %s", err, err.Error())
-	}
+	err = ep.Leave(context.Background(), nil)
+	assert.Assert(t, is.ErrorType(err, errdefs.IsInvalidParameter), "Expected to fail leave with a nil Sandbox")
+	// FIXME(thaJeztah): this error includes the raw data of the sandbox (as `<nil>`), which is not very informative
+	assert.Check(t, is.Error(err, "invalid Sandbox passed to endpoint leave: <nil>"))
 
 	fsbx := &libnetwork.Sandbox{}
-	if err = ep.Leave(context.Background(), fsbx); err == nil {
-		t.Fatalf("Expected to fail leave with invalid Sandbox")
-	}
-	if _, ok := err.(types.InvalidParameterError); !ok {
-		t.Fatalf("Unexpected error type returned: %T. Desc: %s", err, err.Error())
-	}
+	err = ep.Leave(context.Background(), fsbx)
+	assert.Assert(t, is.ErrorType(err, errdefs.IsInvalidParameter), "Expected to fail leave with invalid Sandbox")
+	//nolint:dupword // Ignore "Duplicate words (map[]) found (dupword)"
+	// FIXME(thaJeztah): this error includes the raw data of the sandbox, which is not very human-readable or informative;
+	//	invalid Sandbox passed to endpoint leave: &{  {{    []} {   [] [] []} map[] false false []} [] <nil> <nil> <nil> {{{} 0} {0 0}} [] map[] map[] <nil> 0 false false false false false []  {0 0} {0 0}}
+	assert.Check(t, is.ErrorContains(err, "invalid Sandbox passed to endpoint leave"))
 }
 
 func TestEndpointUpdateParent(t *testing.T) {
