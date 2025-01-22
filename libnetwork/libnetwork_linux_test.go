@@ -901,13 +901,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 
 	_, err = ctrlr.NewNetwork("invalid-network-driver", "dummy", "",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
-	if err == nil {
-		t.Fatal("Expected to fail. But instead succeeded")
-	}
-
-	if !errors.Is(err, plugins.ErrNotImplements) {
-		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
-	}
+	assert.Check(t, is.ErrorIs(err, plugins.ErrNotImplements))
 }
 
 func TestValidRemoteDriver(t *testing.T) {
