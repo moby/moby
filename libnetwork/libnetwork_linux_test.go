@@ -109,12 +109,10 @@ func TestNull(t *testing.T) {
 
 	// host type is special network. Cannot be removed.
 	err = network.Delete()
-	if err == nil {
-		t.Fatal(err)
-	}
-	if _, ok := err.(types.ForbiddenError); !ok {
-		t.Fatalf("Unexpected error type")
-	}
+
+	// TODO(thaJeztah): should this be an [errdefs.ErrInvalidParameter] ?
+	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.Error(err, `network of type "null" cannot be deleted`))
 }
 
 func TestUnknownDriver(t *testing.T) {
