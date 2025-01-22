@@ -120,7 +120,10 @@ func TestUnknownDriver(t *testing.T) {
 	controller := newController(t)
 
 	_, err := createTestNetwork(controller, "unknowndriver", "testnetwork", options.Generic{}, nil, nil)
+
+	// TODO(thaJeztah): should attempting to use a non-existing plugin/driver return an [errdefs.ErrInvalidParameter] ?
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.Error(err, "could not find plugin unknowndriver in v1 plugin registry: plugin not found"))
 }
 
 func TestNilRemoteDriver(t *testing.T) {
