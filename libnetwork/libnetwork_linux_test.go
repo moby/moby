@@ -349,13 +349,8 @@ func TestUnknownNetwork(t *testing.T) {
 	assert.NilError(t, err)
 
 	err = network.Delete()
-	if err == nil {
-		t.Fatal("Expected to fail. But instead succeeded")
-	}
-
-	if _, ok := err.(*libnetwork.UnknownNetworkError); !ok {
-		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorContains(err, "unknown network testnetwork id"))
 }
 
 func TestUnknownEndpoint(t *testing.T) {
