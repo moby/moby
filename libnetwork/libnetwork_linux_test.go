@@ -150,13 +150,7 @@ func TestNetworkName(t *testing.T) {
 	}
 
 	_, err := createTestNetwork(controller, bridgeNetType, "", netOption, nil, nil)
-	if err == nil {
-		t.Fatal("Expected to fail. But instead succeeded")
-	}
-
-	if _, ok := err.(libnetwork.ErrInvalidName); !ok {
-		t.Fatalf("Expected to fail with ErrInvalidName error. Got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter), "Expected to fail with ErrInvalidName error")
 
 	const networkName = "testnetwork"
 	n, err := createTestNetwork(controller, bridgeNetType, networkName, netOption, nil, nil)
