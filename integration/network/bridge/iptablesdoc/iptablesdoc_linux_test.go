@@ -188,6 +188,8 @@ const (
 	iptCmdSFilterDocker4  iptCmdType = "SFilterDocker4"
 	iptCmdLNat4           iptCmdType = "LNat4"
 	iptCmdSNat4           iptCmdType = "SNat4"
+	iptCmdLRaw4           iptCmdType = "LRaw4"
+	iptCmdSRaw4           iptCmdType = "SRaw4"
 )
 
 var iptCmds = map[iptCmdType][]string{
@@ -198,6 +200,8 @@ var iptCmds = map[iptCmdType][]string{
 	iptCmdSFilterDocker4:  {"iptables", "-S", "DOCKER"},
 	iptCmdLNat4:           {"iptables", "-nvL", "--line-numbers", "-t", "nat"},
 	iptCmdSNat4:           {"iptables", "-S", "-t", "nat"},
+	iptCmdLRaw4:           {"iptables", "-nvL", "--line-numbers", "-t", "raw"},
+	iptCmdSRaw4:           {"iptables", "-S", "-t", "raw"},
 }
 
 func TestBridgeIptablesDoc(t *testing.T) {

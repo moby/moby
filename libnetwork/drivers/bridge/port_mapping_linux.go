@@ -176,9 +176,9 @@ func (n *bridgeNetwork) addPortMappings(
 	}
 
 	for i := range bindings {
-		if pdc != nil && bindings[i].HostPort != 0 {
+		b := bindings[i]
+		if pdc != nil && b.HostPort != 0 {
 			var err error
-			b := &bindings[i]
 			hip, ok := netip.AddrFromSlice(b.HostIP)
 			if !ok {
 				return nil, fmt.Errorf("invalid host IP address in %s", b)
@@ -187,12 +187,15 @@ func (n *bridgeNetwork) addPortMappings(
 			if !ok {
 				return nil, fmt.Errorf("invalid child host IP address %s in %s", b.childHostIP, b)
 			}
-			b.portDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip, chip, int(b.HostPort))
+			bindings[i].portDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip, chip, int(b.HostPort))
 			if err != nil {
 				return nil, err
 			}
 		}
-		if err := n.setPerPortIptables(bindings[i], true); err != nil {
+		if err := n.setPerPortIptables(b, true); err != nil {
+			return nil, err
+		}
+		if err := n.filterDirectAccess(b, true); err != nil {
 			return nil, err
 		}
 	}
@@ -744,6 +747,9 @@ func (n *bridgeNetwork) releasePortBindings(pbs []portBinding) error {
 		if err := n.setPerPortIptables(pb, false); err != nil {
 			errs = append(errs, fmt.Errorf("failed to remove iptables rules for port mapping %s: %w", pb, err))
 		}
+		if err := n.filterDirectAccess(pb, false); err != nil {
+			errs = append(errs, err)
+		}
 		if pb.HostPort > 0 {
 			portallocator.Get().ReleasePort(pb.childHostIP, pb.Proto.String(), int(pb.HostPort))
 		}
@@ -861,6 +867,38 @@ func setPerPortForwarding(b portBinding, ipv iptables.IPVersion, bridgeName stri
 		if err := appendOrDelChainRule(rule, "SCTP CHECKSUM", enable); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// filterDirectAccess adds an iptables rule that drops 'direct' remote
+// connections made to the container's IP address, when the network gateway
+// mode is "nat".
+//
+// This is a no-op if the gw_mode is "nat-unprotected" or "routed".
+func (n *bridgeNetwork) filterDirectAccess(b portBinding, enable bool) error {
+	ipv := iptables.IPv4
+	if b.IP.To4() == nil {
+		ipv = iptables.IPv6
+	}
+
+	// gw_mode=nat-unprotected means there's minimal security for NATed ports,
+	// so don't filter direct access.
+	if n.gwMode(ipv).unprotected() || n.gwMode(ipv).routed() {
+		return nil
+	}
+
+	bridgeName := n.getNetworkBridgeName()
+	drop := iptables.Rule{IPVer: ipv, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
+		"-p", b.Proto.String(),
+		"-d", b.IP.String(), // Container IP address
+		"--dport", strconv.Itoa(int(b.Port)), // Container port
+		"!", "-i", bridgeName,
+		"-j", "DROP",
+	}}
+	if err := appendOrDelChainRule(drop, "DIRECT ACCESS FILTERING - DROP", enable); err != nil {
+		return err
 	}
 
 	return nil

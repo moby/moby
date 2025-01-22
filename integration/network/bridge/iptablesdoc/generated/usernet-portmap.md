@@ -92,7 +92,7 @@ Note that:
 [1]: https://github.com/moby/moby/blob/675c2ac2db93e38bb9c5a6615d4155a969535fd9/libnetwork/drivers/bridge/port_mapping_linux.go#L795
 [2]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L252
 
-And the corresponding nat table:
+The corresponding nat table:
 
     Chain PREROUTING (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -135,3 +135,27 @@ And the corresponding nat table:
     
 
 </details>
+
+And the raw table:
+
+    Chain PREROUTING (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DROP       6    --  !bridge1 *       0.0.0.0/0            192.0.2.2            tcp dpt:80
+    
+    Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    
+
+<details>
+<summary>iptables commands</summary>
+
+    -P PREROUTING ACCEPT
+    -P OUTPUT ACCEPT
+    -A PREROUTING -d 192.0.2.2/32 ! -i bridge1 -p tcp -m tcp --dport 80 -j DROP
+    
+
+</details>
+
+[filterDirectAccess][3] adds a DROP rule to the raw-PREROUTING chain to block direct remote access to the mapped port.
+
+[3]: https://github.com/search?q=repo%3Amoby%2Fmoby%20filterDirectAccess&type=code

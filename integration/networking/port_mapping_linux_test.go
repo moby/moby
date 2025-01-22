@@ -728,6 +728,11 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 		"nat-unprotected": pingSuccess,
 		"routed":          pingSuccess,
 	}
+	expMappedPortHTTP := map[string]string{
+		"nat":             httpFail,
+		"nat-unprotected": httpSuccess,
+		"routed":          httpSuccess,
+	}
 	expUnmappedPortHTTP := map[string]string{
 		"nat":             httpFail,
 		"nat-unprotected": httpSuccess,
@@ -769,13 +774,13 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 					testPing(t, "ping6", networks[gwMode].ipv6, expPingExit[gwMode])
 				})
 				t.Run(gwMode+"/v4/http/80", func(t *testing.T) {
-					testHttp(t, networks[gwMode].ipv4, "80", httpSuccess)
+					testHttp(t, networks[gwMode].ipv4, "80", expMappedPortHTTP[gwMode])
 				})
 				t.Run(gwMode+"/v4/http/81", func(t *testing.T) {
 					testHttp(t, networks[gwMode].ipv4, "81", expUnmappedPortHTTP[gwMode])
 				})
 				t.Run(gwMode+"/v6/http/80", func(t *testing.T) {
-					testHttp(t, networks[gwMode].ipv6, "80", httpSuccess)
+					testHttp(t, networks[gwMode].ipv6, "80", expMappedPortHTTP[gwMode])
 				})
 				t.Run(gwMode+"/v6/http/81", func(t *testing.T) {
 					testHttp(t, networks[gwMode].ipv6, "81", expUnmappedPortHTTP[gwMode])
@@ -872,6 +877,201 @@ func TestAccessPublishedPortFromAnotherNetwork(t *testing.T) {
 			assert.Assert(t, is.Contains(logs, "foobar"), "Payload was not received by the server container")
 		})
 	}
+}
+
+// TestDirectRemoteAccessOnExposedPort checks that remote hosts can't directly
+// reach a container on one of its exposed port. That is, if container has the
+// IP address 172.17.24.2, and its port 443 is exposed on the host, no remote
+// host should be able to reach 172.17.24.2:443 directly.
+//
+// Regression test for https://github.com/moby/moby/issues/45610.
+func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
+	// This test checks iptables rules that live in dockerd's netns. In the case
+	// of rootlesskit, this is not the same netns as the host, so they don't
+	// have any effect.
+	// TODO(aker): we need to figure out what we want to do for rootlesskit.
+	// skip.If(t, testEnv.IsRootless, "rootlesskit has its own netns")
+
+	ctx := setupTest(t)
+
+	const (
+		hostIPv4 = "192.168.120.2"
+		hostIPv6 = "fdbc:277b:d40b::2"
+	)
+
+	l3 := networking.NewL3Segment(t, "test-direct-remote-access",
+		netip.MustParsePrefix("192.168.120.1/24"),
+		netip.MustParsePrefix("fdbc:277b:d40b::1/64"))
+	defer l3.Destroy(t)
+	// "docker" is the host where dockerd is running.
+	l3.AddHost(t, "docker", networking.CurrentNetns, "test-eth",
+		netip.MustParsePrefix(hostIPv4+"/24"),
+		netip.MustParsePrefix(hostIPv6+"/64"))
+	l3.AddHost(t, "attacker", "test-direct-remote-access-attacker", "eth0",
+		netip.MustParsePrefix("192.168.120.3/24"),
+		netip.MustParsePrefix("fdbc:277b:d40b::3/64"))
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+	for _, tc := range []struct {
+		name         string
+		gwMode       string
+		gwAddr       netip.Prefix
+		ipv4Disabled bool
+		ipv6Disabled bool
+	}{
+		{
+			name:   "NAT/IPv4",
+			gwMode: "nat",
+			gwAddr: netip.MustParsePrefix("172.24.10.1/24"),
+		},
+		{
+			name:   "NAT/IPv6",
+			gwMode: "nat",
+			gwAddr: netip.MustParsePrefix("fda9:a651:db6d::1/64"),
+		},
+		{
+			name:   "NAT unprotected/IPv4",
+			gwMode: "nat-unprotected",
+			gwAddr: netip.MustParsePrefix("172.24.10.1/24"),
+		},
+		{
+			name:   "NAT unprotected/IPv6",
+			gwMode: "nat-unprotected",
+			gwAddr: netip.MustParsePrefix("fda9:a651:db6d::1/64"),
+		},
+		{
+			name:         "Proxy/IPv4",
+			gwMode:       "nat",
+			gwAddr:       netip.MustParsePrefix("fd05:b021:403f::1/64"),
+			ipv4Disabled: true,
+		},
+		{
+			name:         "Proxy/IPv6",
+			gwMode:       "nat",
+			gwAddr:       netip.MustParsePrefix("172.24.11.1/24"),
+			ipv6Disabled: true,
+		},
+		{
+			name:   "Routed/IPv4",
+			gwMode: "routed",
+			gwAddr: netip.MustParsePrefix("172.24.12.1/24"),
+		},
+		{
+			name:   "Routed/IPv6",
+			gwMode: "routed",
+			gwAddr: netip.MustParsePrefix("fd82:5787:b217::1/64"),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			skip.If(t, tc.gwMode == "routed" && testEnv.IsRootless(), "rootlesskit doesn't support routed mode as it's running in a separate netns")
+
+			testutil.StartSpan(ctx, t)
+
+			nwOpts := []func(*networktypes.CreateOptions){
+				network.WithIPAM(tc.gwAddr.Masked().String(), tc.gwAddr.Addr().String()),
+				network.WithOption(bridge.IPv4GatewayMode, tc.gwMode),
+				network.WithOption(bridge.IPv6GatewayMode, tc.gwMode),
+			}
+
+			if tc.ipv4Disabled {
+				nwOpts = append(nwOpts, network.WithIPv4Disabled())
+			}
+			if tc.ipv6Disabled {
+				nwOpts = append(nwOpts, network.WithIPv6Disabled())
+			}
+			if tc.gwAddr.Addr().Is6() {
+				nwOpts = append(nwOpts, network.WithIPv6())
+			}
+
+			const bridgeName = "brattacked"
+			network.CreateNoError(ctx, t, c, bridgeName, append(nwOpts,
+				network.WithDriver("bridge"),
+				network.WithOption(bridge.BridgeName, bridgeName),
+			)...)
+			defer network.RemoveNoError(ctx, t, c, bridgeName)
+
+			const hostPort = "5000"
+			hostIP := hostIPv4
+			if tc.gwAddr.Addr().Is6() {
+				hostIP = hostIPv6
+			}
+
+			ctrIP := tc.gwAddr.Addr().Next()
+
+			test := func(t *testing.T, host networking.Host, daddr, payload string) bool {
+				serverID := container.Run(ctx, t, c,
+					container.WithName(sanitizeCtrName(t.Name()+"-server")),
+					container.WithCmd("nc", "-lup", "5000"),
+					container.WithExposedPorts("5000/udp"),
+					container.WithPortMap(nat.PortMap{"5000/udp": {{HostPort: hostPort}}}),
+					container.WithNetworkMode(bridgeName),
+					container.WithEndpointSettings(bridgeName, &networktypes.EndpointSettings{
+						IPAddress:   ctrIP.String(),
+						IPPrefixLen: ctrIP.BitLen(),
+					}))
+				defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
+
+				return sendPayloadFromHost(t, host, daddr, hostPort, payload, func() bool {
+					logs := getContainerStdout(t, ctx, c, serverID)
+					return strings.Contains(logs, payload)
+				})
+			}
+
+			if tc.gwMode != "routed" {
+				// Send a payload to the port mapped on the host -- this should work
+				res := test(t, l3.Hosts["attacker"], hostIP, "foobar")
+				assert.Assert(t, res, "Remote host should have access to port published on the host, but no payload was received by the container")
+			}
+
+			// Now send a payload directly to the container. With gw_mode=routed,
+			// this should work. With gw_mode=nat, this should fail.
+			expDirectAccess := tc.gwMode == "routed" || (tc.gwMode == "nat-unprotected" && !testEnv.IsRootless())
+
+			l3.Hosts["attacker"].Run(t, "ip", "route", "add", tc.gwAddr.Masked().String(), "via", hostIP, "dev", "eth0")
+			defer l3.Hosts["attacker"].Run(t, "ip", "route", "delete", tc.gwAddr.Masked().String(), "via", hostIP, "dev", "eth0")
+
+			res := test(t, l3.Hosts["attacker"], ctrIP.String(), "bar baz")
+			if expDirectAccess {
+				assert.Assert(t, res, "Remote host should have direct access to the published port, but no payload was received by the container")
+			} else {
+				assert.Assert(t, !res, "Remote host should not have direct access to the published port, but payload was received by the container")
+			}
+		})
+	}
+}
+
+// Send a payload to daddr:dport a few times from the 'host' netns. Stop
+// sending payloads when 'check' returns true. Return the result of 'check'.
+//
+// UDP is preferred here as it's a one-way, connectionless protocol. With TCP
+// the three-way handshake has to be completed before sending a payload, but
+// since some test cases try to spoof the loopback address, the 'attacker host'
+// will drop the SYN-ACK by default (because the source addr will be considered
+// invalid / non-routable). This would require further tuning to make it work.
+// With UDP, this problem doesn't exist - the payload can be sent straight away.
+// But UDP is inherently unreliable, so we need to send the payload multiple
+// times.
+func sendPayloadFromHost(t *testing.T, host networking.Host, daddr, dport, payload string, check func() bool) bool {
+	var res bool
+	host.Do(t, func() {
+		for i := 0; i < 10; i++ {
+			t.Logf("Sending probe #%d to %s:%s from host %s", i, daddr, dport, host.Name)
+			icmd.RunCommand("/bin/sh", "-c", fmt.Sprintf("echo '%s' | nc -w1 -u %s %s", payload, daddr, dport)).Assert(t, icmd.Success)
+
+			res = check()
+			if res {
+				return
+			}
+
+			time.Sleep(50 * time.Millisecond)
+		}
+	})
+	return res
 }
 
 func getContainerStdout(t *testing.T, ctx context.Context, c *client.Client, ctrID string) string {

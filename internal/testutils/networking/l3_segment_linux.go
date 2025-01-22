@@ -45,7 +45,7 @@ func NewL3Segment(t *testing.T, nsName string, addrs ...netip.Prefix) *L3Segment
 		Hosts: map[string]Host{},
 	}
 
-	l3.bridge = newHost(t, nsName, "br0")
+	l3.bridge = newHost(t, "bridge", nsName, "br0")
 	defer func() {
 		if t.Failed() {
 			l3.Destroy(t)
@@ -70,7 +70,7 @@ func (l3 *L3Segment) AddHost(t *testing.T, hostname, nsName, ifname string, addr
 		t.Fatalf("hostname too long")
 	}
 
-	host := newHost(t, nsName, ifname)
+	host := newHost(t, hostname, nsName, ifname)
 	l3.Hosts[hostname] = host
 
 	host.MustRun(t, "ip", "link", "add", hostname, "netns", l3.bridge.ns, "type", "veth", "peer", "name", host.Iface)
@@ -83,6 +83,7 @@ func (l3 *L3Segment) AddHost(t *testing.T, hostname, nsName, ifname string, addr
 }
 
 func (l3 *L3Segment) Destroy(t *testing.T) {
+	t.Helper()
 	for _, host := range l3.Hosts {
 		host.Destroy(t)
 	}
@@ -90,11 +91,12 @@ func (l3 *L3Segment) Destroy(t *testing.T) {
 }
 
 type Host struct {
+	Name  string
 	Iface string // Iface is the interface name in the host network namespace.
 	ns    string // ns is the network namespace name.
 }
 
-func newHost(t *testing.T, nsName, ifname string) Host {
+func newHost(t *testing.T, hostname, nsName, ifname string) Host {
 	t.Helper()
 
 	if len(ifname) >= syscall.IFNAMSIZ {
@@ -109,6 +111,7 @@ func newHost(t *testing.T, nsName, ifname string) Host {
 	}
 
 	return Host{
+		Name:  hostname,
 		Iface: ifname,
 		ns:    nsName,
 	}
