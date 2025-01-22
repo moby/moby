@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
 )
 
@@ -74,7 +75,12 @@ func Push(ctx context.Context, ref reference.Named, config *ImagePushConfig) err
 				}
 			}
 
-			log.G(ctx).Errorf("Not continuing with push after error: %v", err)
+			// FIXME(thaJeztah): cleanup error and context handling in this package, as it's really messy.
+			if errdefs.IsContext(err) {
+				log.G(ctx).WithError(err).Info("Not continuing with push after error")
+			} else {
+				log.G(ctx).WithError(err).Error("Not continuing with push after error")
+			}
 			return err
 		}
 

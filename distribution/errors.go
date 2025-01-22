@@ -82,6 +82,10 @@ func (e unsupportedMediaTypeError) Error() string {
 // information which is not used by the returned error gets output to
 // log at info level.
 func translatePullError(err error, ref reference.Named) error {
+	// FIXME(thaJeztah): cleanup error and context handling in this package, as it's really messy.
+	if errdefs.IsContext(err) {
+		return err
+	}
 	switch v := err.(type) {
 	case errcode.Errors:
 		if len(v) != 0 {
@@ -122,6 +126,10 @@ func isNotFound(err error) bool {
 // continueOnError returns true if we should fallback to the next endpoint
 // as a result of this error.
 func continueOnError(err error, mirrorEndpoint bool) bool {
+	// FIXME(thaJeztah): cleanup error and context handling in this package, as it's really messy.
+	if errdefs.IsContext(err) {
+		return false
+	}
 	switch v := err.(type) {
 	case errcode.Errors:
 		if len(v) == 0 {
@@ -142,12 +150,13 @@ func continueOnError(err error, mirrorEndpoint bool) bool {
 		return false
 	case error:
 		return !strings.Contains(err.Error(), strings.ToLower(syscall.ESRCH.Error()))
+	default:
+		// let's be nice and fallback if the error is a completely
+		// unexpected one.
+		// If new errors have to be handled in some way, please
+		// add them to the switch above.
+		return true
 	}
-	// let's be nice and fallback if the error is a completely
-	// unexpected one.
-	// If new errors have to be handled in some way, please
-	// add them to the switch above.
-	return true
 }
 
 // retryOnError wraps the error in xfer.DoNotRetry if we should not retry the
