@@ -1440,12 +1440,12 @@ func (pt parallelTester) Do(t *testing.T, thrNumber int) error {
 
 	for i := 0; i < pt.iterCnt; i++ {
 		if err := ep.Join(context.Background(), sb); err != nil {
-			if _, ok := err.(types.ForbiddenError); !ok {
+			if !errdefs.IsForbidden(err) {
 				return errors.Wrapf(err, "thread %d", thrNumber)
 			}
 		}
 		if err := ep.Leave(context.Background(), sb); err != nil {
-			if _, ok := err.(types.ForbiddenError); !ok {
+			if !errdefs.IsForbidden(err) {
 				return errors.Wrapf(err, "thread %d", thrNumber)
 			}
 		}
