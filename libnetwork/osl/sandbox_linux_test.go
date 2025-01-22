@@ -384,7 +384,9 @@ func TestSandboxCreate(t *testing.T) {
 		err = s.AddInterface(context.Background(), i.SrcName(), i.DstName(),
 			WithIsBridge(i.Bridge()),
 			WithIPv4Address(i.Address()),
-			WithIPv6Address(i.AddressIPv6()))
+			WithIPv6Address(i.AddressIPv6()),
+			WithAdvertiseAddrNMsgs(0), // Made-up IP addresses, can't sent ARP/NA messages.
+		)
 		if err != nil {
 			t.Fatalf("Failed to add interfaces to sandbox: %v", err)
 		}
@@ -482,6 +484,7 @@ func TestAddRemoveInterface(t *testing.T) {
 			WithIsBridge(i.Bridge()),
 			WithIPv4Address(i.Address()),
 			WithIPv6Address(i.AddressIPv6()),
+			WithAdvertiseAddrNMsgs(0), // Made-up IP addresses, can't sent ARP/NA messages.
 		)
 		if err != nil {
 			t.Fatalf("Failed to add interfaces to sandbox: %v", err)
@@ -502,6 +505,7 @@ func TestAddRemoveInterface(t *testing.T) {
 		WithIsBridge(i.Bridge()),
 		WithIPv4Address(i.Address()),
 		WithIPv6Address(i.AddressIPv6()),
+		WithAdvertiseAddrNMsgs(0), // Made-up IP addresses, can't sent ARP/NA messages.
 	)
 	if err != nil {
 		t.Fatalf("Failed to add interfaces to sandbox: %v", err)

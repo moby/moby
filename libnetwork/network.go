@@ -6,6 +6,7 @@ package libnetwork
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -188,7 +189,6 @@ type Network struct {
 	ipamV6Info       []*IpamInfo
 	enableIPv4       bool
 	enableIPv6       bool
-	postIPv6         bool
 	epCnt            *endpointCnt
 	generic          options.Generic
 	dbIndex          uint64
@@ -364,7 +364,11 @@ func (n *Network) validateConfiguration() error {
 				"[ ingress | internal | attachable | scope ] are not supported.")
 		}
 	}
-	if n.configFrom != "" {
+	if n.configFrom == "" {
+		if err := n.validateAdvertiseAddrConfig(); err != nil {
+			return err
+		}
+	} else {
 		if n.configOnly {
 			return types.ForbiddenErrorf("a configuration network cannot depend on another configuration network")
 		}
@@ -456,7 +460,6 @@ func (n *Network) CopyTo(o datastore.KVObject) error {
 	dstN.enableIPv4 = n.enableIPv4
 	dstN.enableIPv6 = n.enableIPv6
 	dstN.persist = n.persist
-	dstN.postIPv6 = n.postIPv6
 	dstN.dbIndex = n.dbIndex
 	dstN.dbExists = n.dbExists
 	dstN.drvOnce = n.drvOnce
@@ -533,6 +536,35 @@ func (n *Network) getEpCnt() *endpointCnt {
 	return n.epCnt
 }
 
+func (n *Network) validateAdvertiseAddrConfig() error {
+	var errs []error
+	_, err := n.validatedAdvertiseAddrNMsgs()
+	errs = append(errs, err)
+	_, err = n.validatedAdvertiseAddrInterval()
+	errs = append(errs, err)
+	return errors.Join(errs...)
+}
+
+func (n *Network) advertiseAddrNMsgs() (int, bool) {
+	v, err := n.validatedAdvertiseAddrNMsgs()
+	if err != nil || v == nil {
+		// On Linux, config was validated before network creation. This
+		// path is for un-set values and unsupported platforms.
+		return 0, false
+	}
+	return *v, true
+}
+
+func (n *Network) advertiseAddrInterval() (time.Duration, bool) {
+	v, err := n.validatedAdvertiseAddrInterval()
+	if err != nil || v == nil {
+		// On Linux, config was validated before network creation. This
+		// path is for un-set values and unsupported platforms.
+		return 0, false
+	}
+	return *v, true
+}
+
 // TODO : Can be made much more generic with the help of reflection (but has some golang limitations)
 func (n *Network) MarshalJSON() ([]byte, error) {
 	netMap := make(map[string]interface{})
@@ -551,7 +583,6 @@ func (n *Network) MarshalJSON() ([]byte, error) {
 		netMap["generic"] = n.generic
 	}
 	netMap["persist"] = n.persist
-	netMap["postIPv6"] = n.postIPv6
 	if len(n.ipamV4Config) > 0 {
 		ics, err := json.Marshal(n.ipamV4Config)
 		if err != nil {
@@ -653,9 +684,6 @@ func (n *Network) UnmarshalJSON(b []byte) (err error) {
 	}
 	if v, ok := netMap["persist"]; ok {
 		n.persist = v.(bool)
-	}
-	if v, ok := netMap["postIPv6"]; ok {
-		n.postIPv6 = v.(bool)
 	}
 	if v, ok := netMap["ipamType"]; ok {
 		n.ipamType = v.(string)
@@ -861,16 +889,6 @@ func NetworkOptionLabels(labels map[string]string) NetworkOption {
 func NetworkOptionDynamic() NetworkOption {
 	return func(n *Network) {
 		n.dynamic = true
-	}
-}
-
-// NetworkOptionDeferIPv6Alloc instructs the network to defer the IPV6 address allocation until after the endpoint has been created
-// It is being provided to support the specific docker daemon flags where user can deterministically assign an IPv6 address
-// to a container as combination of fixed-cidr-v6 + mac-address
-// TODO: Remove this option setter once we support endpoint ipam options
-func NetworkOptionDeferIPv6Alloc(enable bool) NetworkOption {
-	return func(n *Network) {
-		n.postIPv6 = enable
 	}
 }
 
@@ -1222,7 +1240,7 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 
 	wantIPv6 := n.enableIPv6 && !ep.disableIPv6
 
-	if err = ep.assignAddress(ipam, n.enableIPv4, wantIPv6 && !n.postIPv6); err != nil {
+	if err = ep.assignAddress(ipam, n.enableIPv4, wantIPv6); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -1254,14 +1272,6 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 			}
 		}
 	}()
-
-	if wantIPv6 {
-		if err = ep.assignAddress(ipam, false, n.postIPv6); err != nil {
-			return nil, err
-		}
-	} else {
-		ep.iface.addrv6 = nil
-	}
 
 	if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
 		n.updateSvcRecord(context.WithoutCancel(ctx), ep, true)

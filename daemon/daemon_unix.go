@@ -988,29 +988,11 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		return err
 	}
 
-	var deferIPv6Alloc bool
 	var ipamV6Conf []*libnetwork.IpamConf
 	if cfg.EnableIPv6 {
 		ipamV6Conf, err = getDefaultBridgeIPAMConf(bridgeName, userManagedBridge, defBrOptsV6{cfg})
 		if err != nil {
 			return err
-		}
-		// If the subnet has at least 48 host bits, preserve the legacy default bridge
-		// behaviour of constructing a MAC address from the IPv4 address, then
-		// constructing an IPv6 addresses based on that MAC address. Tell libnetwork to
-		// defer the IPv6 address allocation for endpoints on this network until after
-		// the driver has created the endpoint and proposed an IPv4 address. Libnetwork
-		// will then reserve this address with the ipam driver. If no preferred pool has
-		// been set the built-in ULA prefix will be used, assume it has at-least 48-bits.
-		if len(ipamV6Conf) == 0 || ipamV6Conf[0].PreferredPool == "" {
-			deferIPv6Alloc = true
-		} else {
-			_, ppNet, err := net.ParseCIDR(ipamV6Conf[0].PreferredPool)
-			if err != nil {
-				return err
-			}
-			ones, _ := ppNet.Mask.Size()
-			deferIPv6Alloc = ones <= 80
 		}
 	}
 
@@ -1020,7 +1002,7 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 		libnetwork.NetworkOptionEnableIPv6(cfg.EnableIPv6),
 		libnetwork.NetworkOptionDriverOpts(netOption),
 		libnetwork.NetworkOptionIpam("default", "", ipamV4Conf, ipamV6Conf, nil),
-		libnetwork.NetworkOptionDeferIPv6Alloc(deferIPv6Alloc))
+	)
 	if err != nil {
 		return fmt.Errorf(`error creating default %q network: %v`, network.NetworkBridge, err)
 	}

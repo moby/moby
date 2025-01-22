@@ -2,12 +2,15 @@ package networking
 
 import (
 	"context"
+	"encoding/hex"
 	"flag"
 	"fmt"
+	"math"
 	"net"
 	"net/netip"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -540,17 +543,6 @@ func TestDefaultBridgeIPv6(t *testing.T) {
 			const networkName = "bridge"
 			inspect := container.Inspect(ctx, t, c, cID)
 			gIPv6 := inspect.NetworkSettings.Networks[networkName].GlobalIPv6Address
-
-			// The container's MAC and IPv6 addresses should be derived from the
-			// IPAM-allocated IPv4 address.
-			addr4, err := netip.ParseAddr(inspect.NetworkSettings.Networks[networkName].IPAddress)
-			assert.NilError(t, err)
-			mac, err := net.ParseMAC(inspect.NetworkSettings.Networks[networkName].MacAddress)
-			assert.NilError(t, err)
-			assert.Check(t, is.DeepEqual(addr4.AsSlice(), []byte(mac)[2:]))
-			addr6, err := netip.ParseAddr(gIPv6)
-			assert.NilError(t, err)
-			assert.Check(t, is.DeepEqual(addr4.AsSlice(), addr6.AsSlice()[12:]))
 
 			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
@@ -1263,4 +1255,287 @@ func checkProxies(ctx context.Context, t *testing.T, c *client.Client, daemonPid
 	}
 
 	assert.DeepEqual(t, gotProxies, wantProxies)
+}
+
+// Check that a gratuitous ARP / neighbour advertisement is sent for a new
+// container's addresses.
+// - start ctr1, ctr2
+// - ping ctr2 from ctr1, ctr1's arp/neighbour caches learns ctr2's addresses.
+// - restart ctr2 with the same IP addresses, it should get new random MAC addresses.
+// - check that ctr1's arp/neighbour caches are updated.
+func TestAdvertiseAddresses(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "can't listen for ARP/NA messages in rootlesskit's namespace")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	testcases := []struct {
+		name            string
+		netOpts         []func(*networktypes.CreateOptions)
+		ipv6LinkLocal   bool
+		stopCtr2After   time.Duration
+		expNetCreateErr string
+		expNoMACUpdate  bool
+		expNMsgs        int
+		expInterval     time.Duration
+	}{
+		{
+			name:        "defaults",
+			expNMsgs:    3,
+			expInterval: time.Second,
+		},
+		{
+			name: "disable advertise addrs",
+			netOpts: []func(*networktypes.CreateOptions){
+				network.WithOption(netlabel.AdvertiseAddrNMsgs, "0"),
+			},
+			expNoMACUpdate: true,
+		},
+		{
+			name: "single message",
+			netOpts: []func(*networktypes.CreateOptions){
+				network.WithOption(netlabel.AdvertiseAddrNMsgs, "1"),
+			},
+			expNMsgs: 1,
+		},
+		{
+			name: "min interval",
+			netOpts: []func(*networktypes.CreateOptions){
+				network.WithOption(netlabel.AdvertiseAddrIntervalMs, "100"),
+			},
+			expNMsgs:    3,
+			expInterval: 100 * time.Millisecond,
+		},
+		{
+			name: "cancel",
+			netOpts: []func(*networktypes.CreateOptions){
+				network.WithOption(netlabel.AdvertiseAddrIntervalMs, "2000"),
+			},
+			stopCtr2After: 200 * time.Millisecond,
+			expNMsgs:      1,
+		},
+		{
+			name:          "ipv6 link local subnet",
+			ipv6LinkLocal: true,
+			expNMsgs:      3,
+			expInterval:   time.Second,
+		},
+		{
+			name: "interval too short",
+			netOpts: []func(*networktypes.CreateOptions){
+				network.WithOption(netlabel.AdvertiseAddrIntervalMs, "99"),
+			},
+			expNetCreateErr: "Error response from daemon: com.docker.network.advertise_addr_ms must be in the range 100 to 2000",
+		},
+		{
+			name: "interval too long",
+			netOpts: []func(*networktypes.CreateOptions){
+				network.WithOption(netlabel.AdvertiseAddrIntervalMs, "2001"),
+			},
+			expNetCreateErr: "Error response from daemon: com.docker.network.advertise_addr_ms must be in the range 100 to 2000",
+		},
+		{
+			name: "nonsense interval",
+			netOpts: []func(*networktypes.CreateOptions){
+				network.WithOption(netlabel.AdvertiseAddrIntervalMs, "nonsense"),
+			},
+			expNetCreateErr: `Error response from daemon: value for option com.docker.network.advertise_addr_ms "nonsense" must be integer milliseconds`,
+		},
+		{
+			name: "negative msg count",
+			netOpts: []func(*networktypes.CreateOptions){
+				network.WithOption(netlabel.AdvertiseAddrNMsgs, "-1"),
+			},
+			expNetCreateErr: "Error response from daemon: com.docker.network.advertise_addr_nmsgs must be in the range 0 to 3",
+		},
+		{
+			name: "too many msgs",
+			netOpts: []func(*networktypes.CreateOptions){
+				network.WithOption(netlabel.AdvertiseAddrNMsgs, "4"),
+			},
+			expNetCreateErr: "Error response from daemon: com.docker.network.advertise_addr_nmsgs must be in the range 0 to 3",
+		},
+		{
+			name: "nonsense msg count",
+			netOpts: []func(*networktypes.CreateOptions){
+				network.WithOption(netlabel.AdvertiseAddrNMsgs, "nonsense"),
+			},
+			expNetCreateErr: `Error response from daemon: value for option com.docker.network.advertise_addr_nmsgs "nonsense" must be an integer`,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
+			const netName = "dsnet"
+			const brName = "br-advaddr"
+			netOpts := append([]func(*networktypes.CreateOptions){
+				network.WithOption(bridge.BridgeName, brName),
+				network.WithIPv6(),
+				network.WithIPAM("172.22.22.0/24", "172.22.22.1"),
+			}, tc.netOpts...)
+			if tc.ipv6LinkLocal {
+				netOpts = append(netOpts, network.WithIPAM("fe80:1234::/64", "fe80:1234::1"))
+			} else {
+				netOpts = append(netOpts, network.WithIPAM("fd3c:e70a:962c::/64", "fd3c:e70a:962c::1"))
+			}
+			_, err := network.Create(ctx, c, netName, netOpts...)
+			if tc.expNetCreateErr != "" {
+				assert.ErrorContains(t, err, tc.expNetCreateErr)
+				return
+			}
+			defer network.RemoveNoError(ctx, t, c, netName)
+
+			stopARPListen := network.CollectBcastARPs(t, brName)
+			defer stopARPListen()
+			stopICMP6Listen := network.CollectICMP6(t, brName)
+			defer stopICMP6Listen()
+
+			ctr1Id := container.Run(ctx, t, c, container.WithName("ctr1"), container.WithNetworkMode(netName))
+			defer c.ContainerRemove(ctx, ctr1Id, containertypes.RemoveOptions{Force: true})
+
+			const ctr2Name = "ctr2"
+			const ctr2Addr4 = "172.22.22.22"
+			ctr2Addr6 := "fd3c:e70a:962c::2222"
+			if tc.ipv6LinkLocal {
+				ctr2Addr6 = "fe80:1234::2222"
+			}
+			ctr2Id := container.Run(ctx, t, c,
+				container.WithName(ctr2Name),
+				container.WithNetworkMode(netName),
+				container.WithIPv4(netName, ctr2Addr4),
+				container.WithIPv6(netName, ctr2Addr6),
+			)
+			// Defer a closure so the updated ctr2Id is used after the container's restarted.
+			defer func() {
+				if ctr2Id != "" {
+					c.ContainerRemove(ctx, ctr2Id, containertypes.RemoveOptions{Force: true})
+				}
+			}()
+
+			ctr2OrigMAC := container.Inspect(ctx, t, c, ctr2Id).NetworkSettings.Networks[netName].MacAddress
+
+			// Ping from ctr1 to ctr2 using both IPv4 and IPv6, to populate ctr1's arp/neighbour caches.
+			pingRes := container.ExecT(ctx, t, c, ctr1Id, []string{"ping", "-4", "-c1", ctr2Name})
+			assert.Assert(t, is.Equal(pingRes.ExitCode, 0))
+			pingRes = container.ExecT(ctx, t, c, ctr1Id, []string{"ping", "-6", "-c1", ctr2Name})
+			assert.Assert(t, is.Equal(pingRes.ExitCode, 0))
+
+			// Search the output from "ip neigh show" for entries for ip, return
+			// the associated MAC address.
+			findNeighMAC := func(neighOut, ip string) string {
+				t.Helper()
+				for _, line := range strings.Split(neighOut, "\n") {
+					// Lines look like ...
+					// 172.22.22.22 dev eth0 lladdr 36:bc:ce:67:f3:e4 ref 1 used 0/7/0 probes 1 DELAY
+					fields := strings.Fields(line)
+					if len(fields) >= 5 && fields[0] == ip {
+						return fields[4]
+					}
+				}
+				t.Fatalf("No entry for %s in '%s'", ip, neighOut)
+				return ""
+			}
+
+			// ctr1 should now have arp/neighbour entries for ctr2
+			ctr1Neighs := container.ExecT(ctx, t, c, ctr1Id, []string{"ip", "neigh", "show"})
+			assert.Assert(t, is.Equal(ctr1Neighs.ExitCode, 0))
+			t.Logf("ctr1 initial neighbours:\n%s", ctr1Neighs.Combined())
+			macBefore := findNeighMAC(ctr1Neighs.Stdout(), ctr2Addr4)
+			assert.Equal(t, macBefore, findNeighMAC(ctr1Neighs.Stdout(), ctr2Addr6))
+
+			// Stop ctr2, start a new container with the same addresses.
+			c.ContainerRemove(ctx, ctr2Id, containertypes.RemoveOptions{Force: true})
+			ctr1Neighs = container.ExecT(ctx, t, c, ctr1Id, []string{"ip", "neigh", "show"})
+			assert.Assert(t, is.Equal(ctr1Neighs.ExitCode, 0))
+			t.Logf("ctr1 neighbours after ctr2 stop:\n%s", ctr1Neighs.Combined())
+			ctr2Id = container.Run(ctx, t, c,
+				container.WithName(ctr2Name),
+				container.WithNetworkMode(netName),
+				container.WithIPv4(netName, ctr2Addr4),
+				container.WithIPv6(netName, ctr2Addr6),
+			)
+			// The original defer will stop ctr2Id.
+
+			ctr2NewMAC := container.Inspect(ctx, t, c, ctr2Id).NetworkSettings.Networks[netName].MacAddress
+			assert.Check(t, ctr2OrigMAC != ctr2NewMAC, "expected restarted ctr2 to have a different MAC address")
+
+			ctr1Neighs = container.ExecT(ctx, t, c, ctr1Id, []string{"ip", "neigh", "show"})
+			assert.Assert(t, is.Equal(ctr1Neighs.ExitCode, 0))
+			t.Logf("ctr1 neighbours after ctr2 restart:\n%s", ctr1Neighs.Combined())
+			macAfter := findNeighMAC(ctr1Neighs.Stdout(), ctr2Addr4)
+			assert.Check(t, is.Equal(macAfter, findNeighMAC(ctr1Neighs.Stdout(), ctr2Addr6)))
+			if tc.expNoMACUpdate {
+				// The neighbour table shouldn't have changed.
+				assert.Check(t, macBefore == macAfter, "Expected ctr1's ARP/ND cache not to have updated")
+			} else {
+				// The new ctr2's interface should have a new random MAC address, and ctr1's
+				// arp/neigh caches should have been updated by ctr2's gratuitous ARP/NA.
+				assert.Check(t, macBefore != macAfter, "Expected ctr1's ARP/ND cache to have updated")
+			}
+
+			if tc.stopCtr2After > 0 {
+				time.Sleep(tc.stopCtr2After)
+				c.ContainerRemove(ctx, ctr2Id, containertypes.RemoveOptions{Force: true})
+				ctr2Id = ""
+			}
+
+			t.Log("Sleeping for 5s to collect ARP/NA messages...")
+			time.Sleep(5 * time.Second)
+
+			// Check ARP/NA messages received for ctr2's new address (all unsolicited).
+
+			ctr2NewHwAddr, err := net.ParseMAC(ctr2NewMAC)
+			assert.NilError(t, err)
+
+			checkPkts := func(pktDesc string, pkts []network.TimestampedPkt, matchIP netip.Addr, unpack func(pkt network.TimestampedPkt) (sh net.HardwareAddr, sp netip.Addr, err error)) {
+				t.Helper()
+				var count int
+				var lastTimestamp time.Time
+
+				// Find the packets of-interest, and check the intervals between them.
+				for i, p := range pkts {
+					ha, pa, err := unpack(p)
+					if err != nil {
+						t.Logf("%s %d: %s: %s: %s",
+							pktDesc, i+1, p.ReceivedAt.Format("15:04:05.000"), hex.EncodeToString(p.Data), err)
+						continue
+					}
+					t.Logf("%s %d: %s '%s' is at '%s'", pktDesc, i+1, p.ReceivedAt.Format("15:04:05.000"), pa, ha)
+					if pa != matchIP || slices.Compare(ha, ctr2NewHwAddr) != 0 {
+						continue
+					}
+					count += 1
+					var interval time.Duration
+					if !lastTimestamp.IsZero() {
+						interval = p.ReceivedAt.Sub(lastTimestamp)
+						// For test pass/fail, arbitrary limit on how early or late ARP/NA messages can be.
+						// They should never be sent early, but if there's a delay in receiving one packet
+						// the interval to the next may be shorted than the configured interval.
+						// Send variance should be a lot less than this but, this is enough to check that
+						// the interval is configurable, while (hopefully) avoiding flakiness on a busy host ...
+						const okIntervalDelta = 100 * time.Millisecond
+						assert.Check(t, time.Duration(math.Abs(float64(interval-tc.expInterval))) < okIntervalDelta,
+							"interval %s is expected to be within %s of configured interval %s",
+							interval, okIntervalDelta, tc.expInterval)
+					}
+					t.Logf("---> found %s %d, interval:%s", pktDesc, count, interval)
+					lastTimestamp = p.ReceivedAt
+				}
+
+				assert.Check(t, is.Equal(count, tc.expNMsgs), pktDesc+" message count")
+			}
+
+			arps := stopARPListen()
+			checkPkts("ARP", arps, netip.MustParseAddr(ctr2Addr4), network.UnpackUnsolARP)
+
+			icmps := stopICMP6Listen()
+			checkPkts("ICMP6", icmps, netip.MustParseAddr(ctr2Addr6), network.UnpackUnsolNA)
+		})
+	}
 }
