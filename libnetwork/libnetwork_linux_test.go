@@ -611,20 +611,12 @@ func TestNetworkQuery(t *testing.T) {
 	assert.Check(t, is.Equal(e, ep11), "EndpointByName() returned the wrong endpoint")
 
 	_, err = net1.EndpointByName("")
-	if err == nil {
-		t.Fatalf("EndpointByName() succeeded with invalid target name")
-	}
-	if _, ok := err.(libnetwork.ErrInvalidName); !ok {
-		t.Fatalf("Expected EndpointByName() to fail with ErrInvalidName error. Got: %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "invalid name:"))
 
 	e, err = net1.EndpointByName("IamNotAnEndpoint")
-	if err == nil {
-		t.Fatalf("EndpointByName() succeeded with unknown target name")
-	}
-	if _, ok := err.(libnetwork.ErrNoSuchEndpoint); !ok {
-		t.Fatal(err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.Error(err, "endpoint IamNotAnEndpoint not found"))
 	assert.Check(t, is.Nil(e), "EndpointByName() returned endpoint on error")
 
 	e, err = net1.EndpointByID(ep12.ID())
@@ -632,12 +624,8 @@ func TestNetworkQuery(t *testing.T) {
 	assert.Check(t, is.Equal(e.ID(), ep12.ID()), "EndpointByID() returned the wrong endpoint")
 
 	_, err = net1.EndpointByID("")
-	if err == nil {
-		t.Fatalf("EndpointByID() succeeded with invalid target id")
-	}
-	if _, ok := err.(libnetwork.ErrInvalidID); !ok {
-		t.Fatalf("EndpointByID() failed with unexpected error: %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "invalid id:"))
 }
 
 const containerID = "valid_c"
