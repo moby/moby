@@ -484,12 +484,7 @@ func (n *bridgeNetwork) isolateNetwork(enable bool) error {
 }
 
 func (d *driver) configure(option map[string]interface{}) error {
-	var (
-		config configuration
-		err    error
-		pdc    portDriverClient
-	)
-
+	var config configuration
 	switch opt := option[netlabel.GenericData].(type) {
 	case options.Generic:
 		opaqueConfig, err := options.GenerateFromModel(opt, &configuration{})
@@ -511,8 +506,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 		if err := setupHashNetIpset(ipsetExtBridges4, unix.AF_INET); err != nil {
 			return err
 		}
-		err = setupIPChains(config, iptables.IPv4)
-		if err != nil {
+		if err := setupIPChains(config, iptables.IPv4); err != nil {
 			return err
 		}
 
@@ -560,6 +554,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 		}
 	}
 
+	var pdc portDriverClient
 	if config.Rootless {
 		var err error
 		pdc, err = newPortDriverClient(context.TODO())
