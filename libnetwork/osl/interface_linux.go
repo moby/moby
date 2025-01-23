@@ -350,6 +350,9 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix string,
 }
 
 func waitForIfUpped(ctx context.Context, ns netns.NsHandle, ifIndex int) (bool, error) {
+	ctx, span := otel.Tracer("").Start(context.WithoutCancel(ctx), "libnetwork.osl.waitforIfUpped")
+	defer span.End()
+
 	update := make(chan netlink.LinkUpdate, 100)
 	upped := make(chan struct{})
 	opts := netlink.LinkSubscribeOptions{
@@ -398,6 +401,7 @@ func waitForIfUpped(ctx context.Context, ns netns.NsHandle, ifIndex int) (bool, 
 	for {
 		select {
 		case <-timerC:
+			log.G(ctx).Warnf("timeout in waitForIfUpped")
 			return false, nil
 		case u, ok := <-update:
 			if !ok {
