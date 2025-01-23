@@ -50,16 +50,16 @@ func TestEndpointMarshalling(t *testing.T) {
 			ExposedPorts: []types.TransportPort{
 				{
 					Proto: 6,
-					Port:  uint16(18),
+					Port:  18,
 				},
 			},
 			PortBindings: []types.PortBinding{
 				{
 					Proto:       6,
 					IP:          net.ParseIP("17210.33.9.56"),
-					Port:        uint16(18),
-					HostPort:    uint16(3000),
-					HostPortEnd: uint16(14000),
+					Port:        18,
+					HostPort:    3000,
+					HostPortEnd: 14000,
 				},
 			},
 		},
@@ -68,20 +68,20 @@ func TestEndpointMarshalling(t *testing.T) {
 				PortBinding: types.PortBinding{
 					Proto:       17,
 					IP:          net.ParseIP("172.33.9.56"),
-					Port:        uint16(99),
+					Port:        99,
 					HostIP:      net.ParseIP("10.10.100.2"),
-					HostPort:    uint16(9900),
-					HostPortEnd: uint16(10000),
+					HostPort:    9900,
+					HostPortEnd: 10000,
 				},
 			},
 			{
 				PortBinding: types.PortBinding{
 					Proto:       6,
 					IP:          net.ParseIP("171.33.9.56"),
-					Port:        uint16(55),
+					Port:        55,
 					HostIP:      net.ParseIP("10.11.100.2"),
-					HostPort:    uint16(5500),
-					HostPortEnd: uint16(55000),
+					HostPort:    5500,
+					HostPortEnd: 55000,
 				},
 			},
 		},
@@ -778,17 +778,17 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 
 func getExposedPorts() []types.TransportPort {
 	return []types.TransportPort{
-		{Proto: types.TCP, Port: uint16(5000)},
-		{Proto: types.UDP, Port: uint16(400)},
-		{Proto: types.TCP, Port: uint16(600)},
+		{Proto: types.TCP, Port: 5000},
+		{Proto: types.UDP, Port: 400},
+		{Proto: types.TCP, Port: 600},
 	}
 }
 
 func getPortMapping() []types.PortBinding {
 	return []types.PortBinding{
-		{Proto: types.TCP, Port: uint16(230), HostPort: uint16(23000)},
-		{Proto: types.UDP, Port: uint16(200), HostPort: uint16(22000)},
-		{Proto: types.TCP, Port: uint16(120), HostPort: uint16(12000)},
+		{Proto: types.TCP, Port: 230, HostPort: 23000},
+		{Proto: types.UDP, Port: 200, HostPort: 22000},
+		{Proto: types.TCP, Port: 120, HostPort: 12000},
 	}
 }
 
