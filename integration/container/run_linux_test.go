@@ -399,3 +399,92 @@ func TestSeccomp(t *testing.T) {
 		}
 	}
 }
+
+func TestCgroupRW(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsRootless, "can't test writable cgroups in rootless (permission denied)")
+	skip.If(t, testEnv.IsUserNamespace, "can't test writable cgroups in user namespaces (permission denied)")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	type testCase struct {
+		name             string
+		ops              []func(*container.TestContainerConfig)
+		expectedErrMsg   string
+		expectedExitCode int
+	}
+	testCases := []testCase{
+		{
+			name: "nil",
+			ops:  nil,
+			// no err msg, because disabled-by-default
+			expectedExitCode: 1,
+		},
+		{
+			name: "writable",
+			ops:  []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups")},
+			// no err msg, because this is correct key=bool
+			expectedExitCode: 0,
+		},
+		{
+			name: "writable=true",
+			ops:  []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups=true")},
+			// no err msg, because this is correct key=value
+			expectedExitCode: 0,
+		},
+		{
+			name: "writable=false",
+			ops:  []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups=false")},
+			// no err msg, because this is correct key=value
+			expectedExitCode: 1,
+		},
+		{
+			name:           "writeable=true",
+			ops:            []func(*container.TestContainerConfig){container.WithSecurityOpt("writeable-cgroups=true")},
+			expectedErrMsg: `Error response from daemon: invalid --security-opt 2: "writeable-cgroups=true"`,
+		},
+		{
+			name:           "writable=1",
+			ops:            []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups=1")},
+			expectedErrMsg: `Error response from daemon: invalid --security-opt 2: "writable-cgroups=1"`,
+		},
+		{
+			name:           "writable=potato",
+			ops:            []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups=potato")},
+			expectedErrMsg: `Error response from daemon: invalid --security-opt 2: "writable-cgroups=potato"`,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			config := container.NewTestConfig(tc.ops...)
+			resp, err := container.CreateFromConfig(ctx, apiClient, config)
+			if err != nil {
+				assert.Equal(t, tc.expectedErrMsg, err.Error())
+				return
+			}
+			// TODO check if ro or not
+			err = apiClient.ContainerStart(ctx, resp.ID, containertypes.StartOptions{})
+			assert.NilError(t, err)
+
+			res, err := container.Exec(ctx, apiClient, resp.ID, []string{"sh", "-ec", `
+				# see also "contrib/check-config.sh" for the same test
+				if [ "$(stat -f -c %t /sys/fs/cgroup 2> /dev/null)" = '63677270' ]; then
+					# nice, must be cgroupsv2
+					exec mkdir /sys/fs/cgroup/foo
+				else
+					# boo, must be cgroupsv1
+					exec mkdir /sys/fs/cgroup/pids/foo
+				fi
+			`})
+			assert.NilError(t, err)
+			if tc.expectedExitCode != 0 {
+				assert.Check(t, is.Contains(res.Stderr(), "Read-only file system"))
+			} else {
+				assert.Equal(t, res.Stderr(), "")
+			}
+			assert.Equal(t, res.Stdout(), "")
+			assert.Equal(t, tc.expectedExitCode, res.ExitCode)
+		})
+	}
+}

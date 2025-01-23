@@ -664,9 +664,21 @@ func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container, 
 			}
 		}
 
+		// if the user didn't specify otherwise, default to the value of privileged
+		writableCgroups := c.HostConfig.Privileged
+		if c.WritableCgroups != nil {
+			if daemonCfg.Rootless || daemon.idMapping.UIDMaps != nil {
+				// error if the user requested a configuration we can't explicitly support
+				return errors.New("option WritableCgroups conflicts with user namespaces and rootless mode")
+			}
+			writableCgroups = *c.WritableCgroups
+		}
 		// TODO: until a kernel/mount solution exists for handling remount in a user namespace,
 		// we must clear the readonly flag for the cgroups mount (@mrunalp concurs)
-		if uidMap := daemon.idMapping.UIDMaps; uidMap != nil || c.HostConfig.Privileged {
+		if daemon.idMapping.UIDMaps != nil {
+			writableCgroups = true
+		}
+		if writableCgroups {
 			for i, m := range s.Mounts {
 				if m.Type == "cgroup" {
 					clearReadOnly(&s.Mounts[i])

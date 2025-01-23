@@ -127,6 +127,7 @@ type SecurityOptions struct {
 	AppArmorProfile string
 	SeccompProfile  string
 	NoNewPrivileges bool
+	WritableCgroups *bool
 }
 
 type localLogCacheMeta struct {

@@ -221,6 +221,11 @@ func parseSecurityOpt(securityOptions *container.SecurityOptions, config *contai
 			securityOptions.NoNewPrivileges = true
 			continue
 		}
+		if opt == "writable-cgroups" {
+			trueVal := true
+			securityOptions.WritableCgroups = &trueVal
+			continue
+		}
 		if opt == "disable" {
 			labelOpts = append(labelOpts, "disable")
 			continue
@@ -251,6 +256,12 @@ func parseSecurityOpt(securityOptions *container.SecurityOptions, config *contai
 				return fmt.Errorf("invalid --security-opt 2: %q", opt)
 			}
 			securityOptions.NoNewPrivileges = nnp
+		case "writable-cgroups":
+			writableCgroups, err := strconv.ParseBool(v)
+			if err != nil {
+				return fmt.Errorf("invalid --security-opt 2: %q", opt)
+			}
+			securityOptions.WritableCgroups = &writableCgroups
 		default:
 			return fmt.Errorf("invalid --security-opt 2: %q", opt)
 		}
