@@ -1334,21 +1334,6 @@ func (n *Network) EndpointByName(name string) (*Endpoint, error) {
 	return e, nil
 }
 
-// EndpointByID should *never* be called as it's going to create a 2nd instance of an Endpoint. The first one lives in
-// the Sandbox the endpoint is attached to. Instead, the endpoint should be retrieved by calling [Sandbox.Endpoints()].
-func (n *Network) EndpointByID(id string) (*Endpoint, error) {
-	if id == "" {
-		return nil, ErrInvalidID(id)
-	}
-
-	ep, err := n.getEndpointFromStore(id)
-	if err != nil {
-		return nil, ErrNoSuchEndpoint(id)
-	}
-
-	return ep, nil
-}
-
 // updateSvcRecord adds or deletes local DNS records for a given Endpoint.
 func (n *Network) updateSvcRecord(ctx context.Context, ep *Endpoint, isAdd bool) {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.updateSvcRecord", trace.WithAttributes(
