@@ -14,16 +14,6 @@ func (nsn ErrNoSuchNetwork) Error() string {
 // NotFound denotes the type of this error
 func (nsn ErrNoSuchNetwork) NotFound() {}
 
-// ErrNoSuchEndpoint is returned when an endpoint query finds no result
-type ErrNoSuchEndpoint string
-
-func (nse ErrNoSuchEndpoint) Error() string {
-	return fmt.Sprintf("endpoint %s not found", string(nse))
-}
-
-// NotFound denotes the type of this error
-func (nse ErrNoSuchEndpoint) NotFound() {}
-
 // ErrInvalidID is returned when a query-by-id method is being invoked
 // with an empty id parameter
 type ErrInvalidID string
