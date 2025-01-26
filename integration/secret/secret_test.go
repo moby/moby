@@ -268,7 +268,7 @@ func TestTemplatedSecret(t *testing.T) {
 	templatedSecret, err := c.SecretCreate(ctx, secretSpec)
 	assert.Check(t, err)
 
-	serviceName := "svc_" + t.Name()
+	const serviceName = "svc_templated_secret"
 	serviceID := swarm.CreateService(ctx, t, d,
 		swarm.ServiceWithSecret(
 			&swarmtypes.SecretReference{
@@ -314,23 +314,31 @@ func TestTemplatedSecret(t *testing.T) {
 	tasks := swarm.GetRunningTasks(ctx, t, c, serviceID)
 	assert.Assert(t, len(tasks) > 0, "no running tasks found for service %s", serviceID)
 
-	attach := swarm.ExecTask(ctx, t, d, tasks[0], container.ExecOptions{
+	resp := swarm.ExecTask(ctx, t, d, tasks[0], container.ExecOptions{
 		Cmd:          []string{"/bin/cat", "/run/secrets/templated_secret"},
 		AttachStdout: true,
 		AttachStderr: true,
 	})
 
-	expect := "SERVICE_NAME=" + serviceName + "\n" +
-		"this is a secret\n" +
-		"this is a config\n"
-	assertAttachedStream(t, attach, expect)
+	const expect = "SERVICE_NAME=" + serviceName + "\nthis is a secret\nthis is a config\n"
+	var outBuf, errBuf bytes.Buffer
+	_, err = stdcopy.StdCopy(&outBuf, &errBuf, resp.Reader)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(outBuf.String(), expect))
+	assert.Check(t, is.Equal(errBuf.String(), ""))
 
-	attach = swarm.ExecTask(ctx, t, d, tasks[0], container.ExecOptions{
+	outBuf.Reset()
+	errBuf.Reset()
+	resp = swarm.ExecTask(ctx, t, d, tasks[0], container.ExecOptions{
 		Cmd:          []string{"mount"},
 		AttachStdout: true,
 		AttachStderr: true,
 	})
-	assertAttachedStream(t, attach, "tmpfs on /run/secrets/templated_secret type tmpfs")
+
+	_, err = stdcopy.StdCopy(&outBuf, &errBuf, resp.Reader)
+	assert.NilError(t, err)
+	assert.Check(t, is.Contains(outBuf.String(), "tmpfs on /run/secrets/templated_secret type tmpfs"), "expected to be mounted as tmpfs")
+	assert.Check(t, is.Equal(errBuf.String(), ""))
 }
 
 // Test case for 28884
@@ -379,13 +387,6 @@ func TestSecretCreateResolve(t *testing.T) {
 	entries, err = c.SecretList(ctx, types.SecretListOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, is.Equal(0, len(entries)))
-}
-
-func assertAttachedStream(t *testing.T, attach types.HijackedResponse, expect string) {
-	buf := bytes.NewBuffer(nil)
-	_, err := stdcopy.StdCopy(buf, buf, attach.Reader)
-	assert.NilError(t, err)
-	assert.Check(t, is.Contains(buf.String(), expect))
 }
 
 func secretNamesFromList(entries []swarmtypes.Secret) []string {
