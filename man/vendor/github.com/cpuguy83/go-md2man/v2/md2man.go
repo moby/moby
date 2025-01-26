@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"os"
 
 	"github.com/cpuguy83/go-md2man/v2/md2man"
@@ -28,7 +28,7 @@ func main() {
 	}
 	defer inFile.Close() // nolint: errcheck
 
-	doc, err := io.ReadAll(inFile)
+	doc, err := ioutil.ReadAll(inFile)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

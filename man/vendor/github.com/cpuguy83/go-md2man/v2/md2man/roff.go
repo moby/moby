@@ -104,7 +104,7 @@ func (r *roffRenderer) RenderNode(w io.Writer, node *blackfriday.Node, entering 
 			node.Parent.Prev.Type == blackfriday.Heading &&
 			node.Parent.Prev.FirstChild != nil &&
 			bytes.EqualFold(node.Parent.Prev.FirstChild.Literal, []byte("NAME")) {
-			before, after, found := bytes.Cut(node.Literal, []byte(" - "))
+			before, after, found := bytesCut(node.Literal, []byte(" - "))
 			escapeSpecialChars(w, before)
 			if found {
 				out(w, ` \- `)
@@ -405,4 +405,13 @@ func escapeSpecialCharsLine(w io.Writer, text []byte) {
 
 		w.Write([]byte{'\\', text[i]}) // nolint: errcheck
 	}
+}
+
+// bytesCut is a copy of [bytes.Cut] to provide compatibility with go1.17
+// and older. We can remove this once we drop support  for go1.17 and older.
+func bytesCut(s, sep []byte) (before, after []byte, found bool) {
+	if i := bytes.Index(s, sep); i >= 0 {
+		return s[:i], s[i+len(sep):], true
+	}
+	return s, nil, false
 }
