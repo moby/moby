@@ -498,9 +498,37 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 			}
 		}
 		if naSender != nil {
-			if err := naSender.Send(); err != nil {
-				log.G(ctx).WithError(err).Warn("Failed to send unsolicited NA")
-				errs = append(errs, err)
+			// FIXME(robmry) - retry if this fails, but still return the error.
+			// In CI, the send has failed a couple of times with "write ip ::1->ff02::1: sendmsg: network is unreachable".
+			// Can't repro locally, so - try find out whether a retry helps and it's something racing, or it's a
+			// persistent problem.
+			for c := range 3 {
+				if c > 0 {
+					time.Sleep(50 * time.Millisecond)
+				}
+
+				routes, rgErr := nlh.RouteGetWithOptions(net.IPv6linklocalallnodes, &netlink.RouteGetOptions{
+					IifIndex: ifIndex,
+					SrcAddr:  net.IPv6loopback,
+				})
+				var routeStr string
+				if rgErr != nil {
+					routeStr = fmt.Sprintf("RouteGet->'%s'", rgErr.Error())
+				} else if len(routes) != 1 {
+					routeStr = fmt.Sprintf("RouteGet->%d routes", len(routes))
+				} else {
+					routeStr = fmt.Sprintf("RouteGet->'%s'", routes[0].String())
+				}
+
+				if err := naSender.Send(); err != nil {
+					log.G(ctx).WithError(err).Warn("Failed to send unsolicited NA")
+					errs = append(errs, fmt.Errorf("%s: %w", routeStr, err))
+					continue
+				}
+				if c > 0 {
+					errs = append(errs, fmt.Errorf("success"))
+				}
+				break
 			}
 		}
 		return errors.Join(errs...)
