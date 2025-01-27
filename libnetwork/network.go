@@ -1177,7 +1177,7 @@ func (n *Network) addEndpoint(ctx context.Context, ep *Endpoint) error {
 func (n *Network) CreateEndpoint(ctx context.Context, name string, options ...EndpointOption) (*Endpoint, error) {
 	var err error
 	if strings.TrimSpace(name) == "" {
-		return nil, ErrInvalidName(name)
+		return nil, types.InvalidParameterErrorf("invalid name: name is empty")
 	}
 
 	if n.ConfigOnly() {
@@ -1310,10 +1310,10 @@ func (n *Network) WalkEndpoints(walker EndpointWalker) {
 }
 
 // EndpointByName returns the Endpoint which has the passed name. If not found,
-// the error ErrNoSuchEndpoint is returned.
+// an [errdefs.ErrNotFound] is returned.
 func (n *Network) EndpointByName(name string) (*Endpoint, error) {
 	if name == "" {
-		return nil, ErrInvalidName(name)
+		return nil, types.InvalidParameterErrorf("invalid name: name is empty")
 	}
 	var e *Endpoint
 
@@ -1328,7 +1328,7 @@ func (n *Network) EndpointByName(name string) (*Endpoint, error) {
 	n.WalkEndpoints(s)
 
 	if e == nil {
-		return nil, ErrNoSuchEndpoint(name)
+		return nil, errdefs.NotFound(fmt.Errorf("endpoint %s not found", name))
 	}
 
 	return e, nil

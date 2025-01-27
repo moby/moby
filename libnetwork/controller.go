@@ -474,7 +474,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	}
 
 	if strings.TrimSpace(name) == "" {
-		return nil, ErrInvalidName(name)
+		return nil, types.InvalidParameterErrorf("invalid name: name is empty")
 	}
 
 	// Make sure two concurrent calls to this method won't create conflicting
@@ -837,7 +837,7 @@ func (c *Controller) WalkNetworks(walker NetworkWalker) {
 // If not found, the error [ErrNoSuchNetwork] is returned.
 func (c *Controller) NetworkByName(name string) (*Network, error) {
 	if name == "" {
-		return nil, ErrInvalidName(name)
+		return nil, types.InvalidParameterErrorf("invalid name: name is empty")
 	}
 	var n *Network
 
@@ -860,7 +860,7 @@ func (c *Controller) NetworkByName(name string) (*Network, error) {
 // If not found, the error [ErrNoSuchNetwork] is returned.
 func (c *Controller) NetworkByID(id string) (*Network, error) {
 	if id == "" {
-		return nil, ErrInvalidID(id)
+		return nil, types.InvalidParameterErrorf("invalid id: id is empty")
 	}
 	return c.getNetworkFromStore(id)
 }
@@ -974,7 +974,7 @@ func (c *Controller) NewSandbox(ctx context.Context, containerID string, options
 // [types.NotFoundError] if no Sandbox was found for the container.
 func (c *Controller) GetSandbox(containerID string) (*Sandbox, error) {
 	if containerID == "" {
-		return nil, ErrInvalidID("id is empty")
+		return nil, types.InvalidParameterErrorf("invalid id: id is empty")
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -998,7 +998,7 @@ func (c *Controller) GetSandbox(containerID string) (*Sandbox, error) {
 // If not found, a [types.NotFoundError] is returned.
 func (c *Controller) SandboxByID(id string) (*Sandbox, error) {
 	if id == "" {
-		return nil, ErrInvalidID(id)
+		return nil, types.InvalidParameterErrorf("invalid id: id is empty")
 	}
 	c.mu.Lock()
 	s, ok := c.sandboxes[id]

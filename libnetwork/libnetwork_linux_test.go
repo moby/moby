@@ -552,7 +552,7 @@ func TestControllerQuery(t *testing.T) {
 
 	_, err = controller.NetworkByID("")
 	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
-	assert.Check(t, is.ErrorContains(err, "invalid id:"))
+	assert.Check(t, is.Error(err, "invalid id: id is empty"))
 
 	g, err := controller.NetworkByID("network1")
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))

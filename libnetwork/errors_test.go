@@ -10,11 +10,6 @@ import (
 )
 
 func TestErrorInterfaces(t *testing.T) {
-	badRequestErrorList := []error{ErrInvalidID(""), ErrInvalidName("")}
-	for _, err := range badRequestErrorList {
-		assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
-	}
-
 	maskableErrorList := []error{ManagerRedirectError("")}
 	for _, err := range maskableErrorList {
 		switch u := err.(type) {
@@ -24,7 +19,7 @@ func TestErrorInterfaces(t *testing.T) {
 		}
 	}
 
-	notFoundErrorList := []error{ErrNoSuchNetwork(""), ErrNoSuchEndpoint("")}
+	notFoundErrorList := []error{ErrNoSuchNetwork("")}
 	for _, err := range notFoundErrorList {
 		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	}
