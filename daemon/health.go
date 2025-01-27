@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -452,11 +451,8 @@ func getShell(cntr *container.Container) []string {
 	if len(cntr.Config.Shell) != 0 {
 		return cntr.Config.Shell
 	}
-	if runtime.GOOS != "windows" {
-		return []string{"/bin/sh", "-c"}
+	if cntr.ImagePlatform.OS == "windows" {
+		return []string{"cmd", "/S", "/C"}
 	}
-	if cntr.ImagePlatform.OS != runtime.GOOS {
-		return []string{"/bin/sh", "-c"}
-	}
-	return []string{"cmd", "/S", "/C"}
+	return []string{"/bin/sh", "-c"}
 }
