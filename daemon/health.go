@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/internal/metrics"
 )
@@ -69,18 +68,16 @@ type cmdProbe struct {
 // Returns the exit code and probe output (if any)
 func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container) (*containertypes.HealthcheckResult, error) {
 	startTime := time.Now()
-	cmdSlice := strslice.StrSlice(cntr.Config.Healthcheck.Test)[1:]
+	cmd := cntr.Config.Healthcheck.Test[1:]
 	if p.shell {
-		cmdSlice = append(getShell(cntr), cmdSlice...)
+		cmd = append(getShell(cntr), cmd...)
 	}
-	entrypoint, args := d.getEntrypointAndArgs(strslice.StrSlice{}, cmdSlice)
 	execConfig := container.NewExecConfig(cntr)
 	execConfig.OpenStdin = false
 	execConfig.OpenStdout = true
 	execConfig.OpenStderr = true
 	execConfig.DetachKeys = []byte{}
-	execConfig.Entrypoint = entrypoint
-	execConfig.Args = args
+	execConfig.Entrypoint, execConfig.Args = cmd[0], cmd[1:]
 	execConfig.Tty = false
 	execConfig.Privileged = false
 	execConfig.User = cntr.Config.User

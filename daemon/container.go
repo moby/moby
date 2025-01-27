@@ -11,7 +11,6 @@ import (
 	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
@@ -149,7 +148,7 @@ func (daemon *Daemon) newContainer(name string, platform ocispec.Platform, confi
 			config.Hostname = id[:12]
 		}
 	}
-	entrypoint, args := daemon.getEntrypointAndArgs(config.Entrypoint, config.Cmd)
+	entrypoint, args := getEntrypointAndArgs(config.Entrypoint, config.Cmd)
 
 	base := container.NewBaseContainer(id, filepath.Join(daemon.repository, id))
 	base.Created = time.Now().UTC()
@@ -165,6 +164,13 @@ func (daemon *Daemon) newContainer(name string, platform ocispec.Platform, confi
 	base.ImagePlatform = platform
 	base.OS = platform.OS //nolint:staticcheck // ignore SA1019: field is deprecated, but still set for compatibility
 	return base, err
+}
+
+func getEntrypointAndArgs(configEntrypoint, configCmd []string) (string, []string) {
+	if len(configEntrypoint) == 0 {
+		return configCmd[0], configCmd[1:]
+	}
+	return configEntrypoint[0], append(configEntrypoint[1:], configCmd...)
 }
 
 // GetByName returns a container given a name.
@@ -185,13 +191,6 @@ func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
 		return nil, fmt.Errorf("Could not find container for entity id %s", id)
 	}
 	return e, nil
-}
-
-func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint strslice.StrSlice, configCmd strslice.StrSlice) (string, []string) {
-	if len(configEntrypoint) != 0 {
-		return configEntrypoint[0], append(configEntrypoint[1:], configCmd...)
-	}
-	return configCmd[0], configCmd[1:]
 }
 
 func (daemon *Daemon) setSecurityOptions(cfg *config.Config, container *container.Container, hostConfig *containertypes.HostConfig) error {

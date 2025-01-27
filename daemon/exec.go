@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/errdefs"
@@ -100,9 +99,6 @@ func (daemon *Daemon) ContainerExecCreate(name string, options *containertypes.E
 		return "", err
 	}
 
-	cmd := strslice.StrSlice(options.Cmd)
-	entrypoint, args := daemon.getEntrypointAndArgs(strslice.StrSlice{}, cmd)
-
 	keys := []byte{}
 	if options.DetachKeys != "" {
 		keys, err = term.ToBytes(options.DetachKeys)
@@ -117,8 +113,7 @@ func (daemon *Daemon) ContainerExecCreate(name string, options *containertypes.E
 	execConfig.OpenStdout = options.AttachStdout
 	execConfig.OpenStderr = options.AttachStderr
 	execConfig.DetachKeys = keys
-	execConfig.Entrypoint = entrypoint
-	execConfig.Args = args
+	execConfig.Entrypoint, execConfig.Args = options.Cmd[0], options.Cmd[1:]
 	execConfig.Tty = options.Tty
 	execConfig.ConsoleSize = options.ConsoleSize
 	execConfig.Privileged = options.Privileged
