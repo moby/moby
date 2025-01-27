@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/oci"
@@ -63,7 +62,7 @@ func TestEnv2Variables(t *testing.T) {
 		"var1=val1",
 		"var2=val2",
 	}
-	assert.Check(t, is.DeepEqual(expected, sb.state.runConfig.Env))
+	assert.Check(t, is.DeepEqual(sb.state.runConfig.Env, expected))
 }
 
 func TestEnvValueWithExistingRunConfigEnv(t *testing.T) {
@@ -81,7 +80,7 @@ func TestEnvValueWithExistingRunConfigEnv(t *testing.T) {
 		"var1=val1",
 		"var2=fromenv",
 	}
-	assert.Check(t, is.DeepEqual(expected, sb.state.runConfig.Env))
+	assert.Check(t, is.DeepEqual(sb.state.runConfig.Env, expected))
 }
 
 func TestMaintainer(t *testing.T) {
@@ -91,7 +90,7 @@ func TestMaintainer(t *testing.T) {
 	cmd := &instructions.MaintainerCommand{Maintainer: maintainerEntry}
 	err := dispatch(context.TODO(), sb, cmd)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(maintainerEntry, sb.state.maintainer))
+	assert.Check(t, is.Equal(sb.state.maintainer, maintainerEntry))
 }
 
 func TestLabel(t *testing.T) {
@@ -127,17 +126,17 @@ func TestFromScratch(t *testing.T) {
 
 	assert.NilError(t, err)
 	assert.Check(t, sb.state.hasFromImage())
-	assert.Check(t, is.Equal("", sb.state.imageID))
+	assert.Check(t, is.Equal(sb.state.imageID, ""))
 	// TODO(thaJeztah): use github.com/moby/buildkit/util/system.DefaultPathEnv() once https://github.com/moby/buildkit/pull/3158 is resolved.
-	expected := "PATH=" + oci.DefaultPathEnv(runtime.GOOS)
-	assert.Check(t, is.DeepEqual([]string{expected}, sb.state.runConfig.Env))
+	expected := []string{"PATH=" + oci.DefaultPathEnv(runtime.GOOS)}
+	assert.Check(t, is.DeepEqual(sb.state.runConfig.Env, expected))
 }
 
 func TestFromWithArg(t *testing.T) {
 	tag, expected := ":sometag", "expectedthisid"
 
 	getImage := func(name string) (builder.Image, builder.ROLayer, error) {
-		assert.Check(t, is.Equal("alpine"+tag, name))
+		assert.Check(t, is.Equal(name, "alpine"+tag))
 		return &mockImage{id: "expectedthisid"}, nil, nil
 	}
 	b := newBuilderWithMockBackend(t)
@@ -159,8 +158,8 @@ func TestFromWithArg(t *testing.T) {
 	err = initializeStage(context.TODO(), sb, cmd)
 	assert.NilError(t, err)
 
-	assert.Check(t, is.Equal(expected, sb.state.imageID))
-	assert.Check(t, is.Equal(expected, sb.state.baseImage.ImageID()))
+	assert.Check(t, is.Equal(sb.state.imageID, expected))
+	assert.Check(t, is.Equal(sb.state.baseImage.ImageID(), expected))
 	assert.Check(t, is.Len(sb.state.buildArgs.GetAllAllowed(), 0))
 	assert.Check(t, is.Len(sb.state.buildArgs.GetAllMeta(), 1))
 }
@@ -185,7 +184,7 @@ func TestFromWithUndefinedArg(t *testing.T) {
 	tag, expected := "sometag", "expectedthisid"
 
 	getImage := func(name string) (builder.Image, builder.ROLayer, error) {
-		assert.Check(t, is.Equal("alpine", name))
+		assert.Check(t, is.Equal(name, "alpine"))
 		return &mockImage{id: "expectedthisid"}, nil, nil
 	}
 	b := newBuilderWithMockBackend(t)
@@ -199,7 +198,7 @@ func TestFromWithUndefinedArg(t *testing.T) {
 	}
 	err := initializeStage(context.TODO(), sb, cmd)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(expected, sb.state.imageID))
+	assert.Check(t, is.Equal(sb.state.imageID, expected))
 }
 
 func TestFromMultiStageWithNamedStage(t *testing.T) {
@@ -227,7 +226,7 @@ func TestOnbuild(t *testing.T) {
 	}
 	err := dispatch(context.TODO(), sb, cmd)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal("ADD . /app/src", sb.state.runConfig.OnBuild[0]))
+	assert.Check(t, is.Equal(sb.state.runConfig.OnBuild[0], "ADD . /app/src"))
 }
 
 func TestWorkdir(t *testing.T) {
@@ -244,32 +243,30 @@ func TestWorkdir(t *testing.T) {
 
 	err := dispatch(context.TODO(), sb, cmd)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(workingDir, sb.state.runConfig.WorkingDir))
+	assert.Check(t, is.Equal(sb.state.runConfig.WorkingDir, workingDir))
 }
 
 func TestCmd(t *testing.T) {
 	b := newBuilderWithMockBackend(t)
 	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
 	sb.state.baseImage = &mockImage{}
-	command := "./executable"
 
-	cmd := &instructions.CmdCommand{
+	err := dispatch(context.TODO(), sb, &instructions.CmdCommand{
 		ShellDependantCmdLine: instructions.ShellDependantCmdLine{
-			CmdLine:      strslice.StrSlice{command},
+			CmdLine:      []string{"./executable"},
 			PrependShell: true,
 		},
-	}
-	err := dispatch(context.TODO(), sb, cmd)
+	})
 	assert.NilError(t, err)
 
-	var expectedCommand strslice.StrSlice
+	var expectedCommand []string
 	if runtime.GOOS == "windows" {
-		expectedCommand = []string{"cmd", "/S", "/C", command}
+		expectedCommand = []string{"cmd", "/S", "/C", "./executable"}
 	} else {
-		expectedCommand = []string{"/bin/sh", "-c", command}
+		expectedCommand = []string{"/bin/sh", "-c", "./executable"}
 	}
 
-	assert.Check(t, is.DeepEqual(expectedCommand, sb.state.runConfig.Cmd))
+	assert.Check(t, is.DeepEqual([]string(sb.state.runConfig.Cmd), expectedCommand))
 	assert.Check(t, sb.state.cmdSet)
 }
 
@@ -285,7 +282,7 @@ func TestHealthcheckNone(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Assert(t, sb.state.runConfig.Healthcheck != nil)
-	assert.Check(t, is.DeepEqual([]string{"NONE"}, sb.state.runConfig.Healthcheck.Test))
+	assert.Check(t, is.DeepEqual(sb.state.runConfig.Healthcheck.Test, []string{"NONE"}))
 }
 
 func TestHealthcheckCmd(t *testing.T) {
@@ -301,32 +298,29 @@ func TestHealthcheckCmd(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Assert(t, sb.state.runConfig.Healthcheck != nil)
-	assert.Check(t, is.DeepEqual(expectedTest, sb.state.runConfig.Healthcheck.Test))
+	assert.Check(t, is.DeepEqual(sb.state.runConfig.Healthcheck.Test, expectedTest))
 }
 
 func TestEntrypoint(t *testing.T) {
 	b := newBuilderWithMockBackend(t)
 	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
 	sb.state.baseImage = &mockImage{}
-	entrypointCmd := "/usr/sbin/nginx"
 
-	cmd := &instructions.EntrypointCommand{
+	err := dispatch(context.TODO(), sb, &instructions.EntrypointCommand{
 		ShellDependantCmdLine: instructions.ShellDependantCmdLine{
-			CmdLine:      strslice.StrSlice{entrypointCmd},
+			CmdLine:      []string{"/usr/sbin/nginx"},
 			PrependShell: true,
 		},
-	}
-	err := dispatch(context.TODO(), sb, cmd)
+	})
 	assert.NilError(t, err)
-	assert.Assert(t, sb.state.runConfig.Entrypoint != nil)
 
-	var expectedEntrypoint strslice.StrSlice
+	var expectedEntrypoint []string
 	if runtime.GOOS == "windows" {
-		expectedEntrypoint = []string{"cmd", "/S", "/C", entrypointCmd}
+		expectedEntrypoint = []string{"cmd", "/S", "/C", "/usr/sbin/nginx"}
 	} else {
-		expectedEntrypoint = []string{"/bin/sh", "-c", entrypointCmd}
+		expectedEntrypoint = []string{"/bin/sh", "-c", "/usr/sbin/nginx"}
 	}
-	assert.Check(t, is.DeepEqual(expectedEntrypoint, sb.state.runConfig.Entrypoint))
+	assert.Check(t, is.DeepEqual([]string(sb.state.runConfig.Entrypoint), expectedEntrypoint))
 }
 
 func TestExpose(t *testing.T) {
@@ -357,7 +351,7 @@ func TestUser(t *testing.T) {
 	}
 	err := dispatch(context.TODO(), sb, cmd)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal("test", sb.state.runConfig.User))
+	assert.Check(t, is.Equal(sb.state.runConfig.User, "test"))
 }
 
 func TestVolume(t *testing.T) {
@@ -384,14 +378,14 @@ func TestStopSignal(t *testing.T) {
 	b := newBuilderWithMockBackend(t)
 	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
 	sb.state.baseImage = &mockImage{}
-	signal := "SIGKILL"
+	const signal = "SIGKILL"
 
 	cmd := &instructions.StopSignalCommand{
 		Signal: signal,
 	}
 	err := dispatch(context.TODO(), sb, cmd)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(signal, sb.state.runConfig.StopSignal))
+	assert.Check(t, is.Equal(sb.state.runConfig.StopSignal, signal))
 }
 
 func TestArg(t *testing.T) {
@@ -405,21 +399,21 @@ func TestArg(t *testing.T) {
 	assert.NilError(t, err)
 
 	expected := map[string]string{argName: argVal}
-	assert.Check(t, is.DeepEqual(expected, sb.state.buildArgs.GetAllAllowed()))
+	assert.Check(t, is.DeepEqual(sb.state.buildArgs.GetAllAllowed(), expected))
 }
 
 func TestShell(t *testing.T) {
 	b := newBuilderWithMockBackend(t)
 	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
 
-	shellCmd := "powershell"
-	cmd := &instructions.ShellCommand{Shell: strslice.StrSlice{shellCmd}}
-
-	err := dispatch(context.TODO(), sb, cmd)
+	shellCmd := []string{"powershell"}
+	err := dispatch(context.TODO(), sb, &instructions.ShellCommand{
+		Shell: shellCmd,
+	})
 	assert.NilError(t, err)
 
-	expectedShell := strslice.StrSlice([]string{shellCmd})
-	assert.Check(t, is.DeepEqual(expectedShell, sb.state.runConfig.Shell))
+	expected := shellCmd
+	assert.Check(t, is.DeepEqual([]string(sb.state.runConfig.Shell), expected))
 }
 
 func TestPrependEnvOnCmd(t *testing.T) {
@@ -429,10 +423,10 @@ func TestPrependEnvOnCmd(t *testing.T) {
 	args := []string{"sorted=nope", "args=not", "http_proxy=foo", "NO_PROXY=YA"}
 	cmd := []string{"foo", "bar"}
 	cmdWithEnv := prependEnvOnCmd(buildArgs, args, cmd)
-	expected := strslice.StrSlice([]string{
+	expected := []string{
 		"|3", "NO_PROXY=YA", "args=not", "sorted=nope", "foo", "bar",
-	})
-	assert.Check(t, is.DeepEqual(expected, cmdWithEnv))
+	}
+	assert.Check(t, is.DeepEqual(cmdWithEnv, expected))
 }
 
 func TestRunWithBuildArgs(t *testing.T) {
@@ -443,23 +437,23 @@ func TestRunWithBuildArgs(t *testing.T) {
 	sb := newDispatchRequest(b, '`', nil, args, newStagesBuildResults())
 
 	runConfig := &container.Config{}
-	origCmd := strslice.StrSlice([]string{"cmd", "in", "from", "image"})
+	origCmd := []string{"cmd", "in", "from", "image"}
 
-	var cmdWithShell strslice.StrSlice
+	var cmdWithShell []string
 	if runtime.GOOS == "windows" {
-		cmdWithShell = strslice.StrSlice([]string{strings.Join(append(getShell(runConfig, runtime.GOOS), []string{"echo foo"}...), " ")})
+		cmdWithShell = []string{strings.Join(append(getShell(runConfig, runtime.GOOS), []string{"echo foo"}...), " ")}
 	} else {
-		cmdWithShell = strslice.StrSlice(append(getShell(runConfig, runtime.GOOS), "echo foo"))
+		cmdWithShell = append(getShell(runConfig, runtime.GOOS), "echo foo")
 	}
 
 	envVars := []string{"|1", "one=two"}
-	cachedCmd := strslice.StrSlice(append(envVars, cmdWithShell...))
+	cachedCmd := append(envVars, cmdWithShell...)
 
 	imageCache := &mockImageCache{
 		getCacheFunc: func(parentID string, cfg *container.Config) (string, error) {
 			// Check the runConfig.Cmd sent to probeCache()
-			assert.Check(t, is.DeepEqual(cachedCmd, cfg.Cmd))
-			assert.Check(t, is.DeepEqual(strslice.StrSlice(nil), cfg.Entrypoint))
+			assert.Check(t, is.DeepEqual([]string(cfg.Cmd), cachedCmd))
+			assert.Check(t, is.Nil(cfg.Entrypoint))
 			return "", nil
 		},
 	}
@@ -469,9 +463,9 @@ func TestRunWithBuildArgs(t *testing.T) {
 		return imageCache
 	}
 
-	imageProber, err := newImageProber(context.TODO(), mockBackend, nil, false)
+	prober, err := newImageProber(context.TODO(), mockBackend, nil, false)
 	assert.NilError(t, err, "Could not create image prober")
-	b.imageProber = imageProber
+	b.imageProber = prober
 
 	mockBackend.getImageFunc = func(_ string) (builder.Image, builder.ROLayer, error) {
 		return &mockImage{
@@ -481,16 +475,16 @@ func TestRunWithBuildArgs(t *testing.T) {
 	}
 	mockBackend.containerCreateFunc = func(config backend.ContainerCreateConfig) (container.CreateResponse, error) {
 		// Check the runConfig.Cmd sent to create()
-		assert.Check(t, is.DeepEqual(cmdWithShell, config.Config.Cmd))
+		assert.Check(t, is.DeepEqual([]string(config.Config.Cmd), cmdWithShell))
 		assert.Check(t, is.Contains(config.Config.Env, "one=two"))
-		assert.Check(t, is.DeepEqual(strslice.StrSlice{""}, config.Config.Entrypoint))
+		assert.Check(t, is.DeepEqual([]string(config.Config.Entrypoint), []string{""}))
 		return container.CreateResponse{ID: "12345"}, nil
 	}
 	mockBackend.commitFunc = func(cfg backend.CommitConfig) (image.ID, error) {
 		// Check the runConfig.Cmd sent to commit()
-		assert.Check(t, is.DeepEqual(origCmd, cfg.Config.Cmd))
-		assert.Check(t, is.DeepEqual(cachedCmd, cfg.ContainerConfig.Cmd))
-		assert.Check(t, is.DeepEqual(strslice.StrSlice(nil), cfg.Config.Entrypoint))
+		assert.Check(t, is.DeepEqual([]string(cfg.Config.Cmd), origCmd))
+		assert.Check(t, is.DeepEqual([]string(cfg.ContainerConfig.Cmd), cachedCmd))
+		assert.Check(t, is.Nil(cfg.Config.Entrypoint))
 		return "", nil
 	}
 	from := &instructions.Stage{BaseName: "abcdef"}
@@ -511,13 +505,13 @@ func TestRunWithBuildArgs(t *testing.T) {
 	runint, err := instructions.ParseInstruction(node)
 	assert.NilError(t, err)
 	runinst := runint.(*instructions.RunCommand)
-	runinst.CmdLine = strslice.StrSlice{"echo foo"}
+	runinst.CmdLine = []string{"echo foo"}
 	runinst.PrependShell = true
 
 	assert.NilError(t, dispatch(context.TODO(), sb, runinst))
 
 	// Check that runConfig.Cmd has not been modified by run
-	assert.Check(t, is.DeepEqual(origCmd, sb.state.runConfig.Cmd))
+	assert.Check(t, is.DeepEqual([]string(sb.state.runConfig.Cmd), origCmd))
 }
 
 func TestRunIgnoresHealthcheck(t *testing.T) {
@@ -526,7 +520,7 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 	sb := newDispatchRequest(b, '`', nil, args, newStagesBuildResults())
 	b.disableCommit = false
 
-	origCmd := strslice.StrSlice([]string{"cmd", "in", "from", "image"})
+	origCmd := []string{"cmd", "in", "from", "image"}
 
 	imageCache := &mockImageCache{
 		getCacheFunc: func(parentID string, cfg *container.Config) (string, error) {
@@ -577,7 +571,7 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 
 	mockBackend.containerCreateFunc = func(config backend.ContainerCreateConfig) (container.CreateResponse, error) {
 		// Check the Healthcheck is disabled.
-		assert.Check(t, is.DeepEqual([]string{"NONE"}, config.Config.Healthcheck.Test))
+		assert.Check(t, is.DeepEqual(config.Config.Healthcheck.Test, []string{"NONE"}))
 		return container.CreateResponse{ID: "123456"}, nil
 	}
 
@@ -588,7 +582,7 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 	run.PrependShell = true
 
 	assert.NilError(t, dispatch(context.TODO(), sb, run))
-	assert.Check(t, is.DeepEqual(expectedTest, sb.state.runConfig.Healthcheck.Test))
+	assert.Check(t, is.DeepEqual(sb.state.runConfig.Healthcheck.Test, expectedTest))
 }
 
 func TestDispatchUnsupportedOptions(t *testing.T) {

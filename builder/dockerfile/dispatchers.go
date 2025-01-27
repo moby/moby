@@ -17,7 +17,6 @@ import (
 
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -367,7 +366,7 @@ func dispatchRun(ctx context.Context, d dispatchRequest, c *instructions.RunComm
 		withCmd(cmdFromArgs),
 		withArgsEscaped(argsEscaped),
 		withEnv(append(stateRunConfig.Env, buildArgs...)),
-		withEntrypointOverride(saveCmd, strslice.StrSlice{""}),
+		withEntrypointOverride(saveCmd, []string{""}),
 		withoutHealthcheck())
 
 	cID, err := d.builder.create(ctx, runConfig)
@@ -412,7 +411,7 @@ func dispatchRun(ctx context.Context, d dispatchRequest, c *instructions.RunComm
 // remove any unreferenced built-in args from the environment variables.
 // These args are transparent so resulting image should be the same regardless
 // of the value.
-func prependEnvOnCmd(buildArgs *BuildArgs, buildArgVars []string, cmd strslice.StrSlice) strslice.StrSlice {
+func prependEnvOnCmd(buildArgs *BuildArgs, buildArgVars []string, cmd []string) []string {
 	tmpBuildEnv := make([]string, 0, len(buildArgVars))
 	for _, env := range buildArgVars {
 		key, _, _ := strings.Cut(env, "=")

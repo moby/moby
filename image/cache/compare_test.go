@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -38,12 +37,12 @@ func TestCompare(t *testing.T) {
 	volumes3["/test3"] = struct{}{}
 	envs1 := []string{"ENV1=value1", "ENV2=value2"}
 	envs2 := []string{"ENV1=value1", "ENV3=value3"}
-	entrypoint1 := strslice.StrSlice{"/bin/sh", "-c"}
-	entrypoint2 := strslice.StrSlice{"/bin/sh", "-d"}
-	entrypoint3 := strslice.StrSlice{"/bin/sh", "-c", "echo"}
-	cmd1 := strslice.StrSlice{"/bin/sh", "-c"}
-	cmd2 := strslice.StrSlice{"/bin/sh", "-d"}
-	cmd3 := strslice.StrSlice{"/bin/sh", "-c", "echo"}
+	entrypoint1 := []string{"/bin/sh", "-c"}
+	entrypoint2 := []string{"/bin/sh", "-d"}
+	entrypoint3 := []string{"/bin/sh", "-c", "echo"}
+	cmd1 := []string{"/bin/sh", "-c"}
+	cmd2 := []string{"/bin/sh", "-d"}
+	cmd3 := []string{"/bin/sh", "-c", "echo"}
 	labels1 := map[string]string{"LABEL1": "value1", "LABEL2": "value2"}
 	labels2 := map[string]string{"LABEL1": "value1", "LABEL2": "value3"}
 	labels3 := map[string]string{"LABEL1": "value1", "LABEL2": "value2", "LABEL3": "value3"}

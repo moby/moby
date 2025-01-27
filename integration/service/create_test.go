@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/strslice"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
@@ -448,8 +447,8 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	// verify that the container has the capabilities option set
 	ctnr, err := client.ContainerInspect(ctx, tasks[0].Status.ContainerStatus.ContainerID)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, ctnr.HostConfig.CapAdd, strslice.StrSlice(capAdd))
-	assert.DeepEqual(t, ctnr.HostConfig.CapDrop, strslice.StrSlice(capDrop))
+	assert.DeepEqual(t, []string(ctnr.HostConfig.CapAdd), capAdd)
+	assert.DeepEqual(t, []string(ctnr.HostConfig.CapDrop), capDrop)
 
 	// verify that the task has the capabilities option set in the task object
 	assert.DeepEqual(t, tasks[0].Spec.ContainerSpec.CapabilityAdd, capAdd)

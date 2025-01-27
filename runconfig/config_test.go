@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/sysinfo"
 	"gotest.tools/v3/assert"
@@ -20,7 +19,7 @@ func TestDecodeContainerConfig(t *testing.T) {
 		doc        string
 		imgName    string
 		fixture    string
-		entrypoint strslice.StrSlice
+		entrypoint []string
 	}
 
 	// FIXME (thaJeztah): update fixtures for more current versions.
@@ -29,13 +28,13 @@ func TestDecodeContainerConfig(t *testing.T) {
 			doc:        "API 1.19 windows",
 			imgName:    "windows",
 			fixture:    "fixtures/windows/container_config_1_19.json",
-			entrypoint: strslice.StrSlice{"cmd"},
+			entrypoint: []string{"cmd"},
 		},
 		{
 			doc:        "API 1.19 unix",
 			imgName:    "ubuntu",
 			fixture:    "fixtures/unix/container_config_1_19.json",
-			entrypoint: strslice.StrSlice{"bash"},
+			entrypoint: []string{"bash"},
 		},
 	}
 
@@ -48,7 +47,7 @@ func TestDecodeContainerConfig(t *testing.T) {
 			assert.NilError(t, err)
 
 			assert.Check(t, is.Equal(c.Image, tc.imgName))
-			assert.Check(t, is.DeepEqual(c.Entrypoint, tc.entrypoint))
+			assert.Check(t, is.DeepEqual([]string(c.Entrypoint), tc.entrypoint))
 
 			var expected int64 = 1000
 			assert.Check(t, is.Equal(h.Memory, expected))
