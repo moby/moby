@@ -1536,6 +1536,9 @@ func TestAdvertiseAddresses(t *testing.T) {
 
 			icmps := stopICMP6Listen()
 			checkPkts("ICMP6", icmps, netip.MustParseAddr(ctr2Addr6), network.UnpackUnsolNA)
+			if t.Failed() {
+				d.TailLogsT(t, 100)
+			}
 		})
 	}
 }
