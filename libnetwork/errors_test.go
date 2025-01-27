@@ -10,11 +10,6 @@ import (
 )
 
 func TestErrorInterfaces(t *testing.T) {
-	badRequestErrorList := []error{ErrInvalidName("")}
-	for _, err := range badRequestErrorList {
-		assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
-	}
-
 	maskableErrorList := []error{ManagerRedirectError("")}
 	for _, err := range maskableErrorList {
 		switch u := err.(type) {

@@ -14,17 +14,6 @@ func (nsn ErrNoSuchNetwork) Error() string {
 // NotFound denotes the type of this error
 func (nsn ErrNoSuchNetwork) NotFound() {}
 
-// ErrInvalidName is returned when a query-by-name or resource create method is
-// invoked with an empty name parameter
-type ErrInvalidName string
-
-func (in ErrInvalidName) Error() string {
-	return fmt.Sprintf("invalid name: %s", string(in))
-}
-
-// InvalidParameter denotes the type of this error
-func (in ErrInvalidName) InvalidParameter() {}
-
 // NetworkNameError is returned when a network with the same name already exists.
 type NetworkNameError string
 
