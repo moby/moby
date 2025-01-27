@@ -655,12 +655,11 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 			Options: na.Network.IPAM.Driver.Options,
 		}
 		for _, ic := range na.Network.IPAM.Configs {
-			c := network.IPAMConfig{
+			options.IPAM.Config = append(options.IPAM.Config, network.IPAMConfig{
 				Subnet:  ic.Subnet,
 				IPRange: ic.Range,
 				Gateway: ic.Gateway,
-			}
-			options.IPAM.Config = append(options.IPAM.Config, c)
+			})
 		}
 	}
 
