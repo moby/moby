@@ -625,36 +625,37 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 	if !ok {
 		return clustertypes.NetworkCreateRequest{}, errors.New("container: unknown network referenced")
 	}
+	nw := na.Network
 
 	ipv4Enabled := true
-	ipv6Enabled := na.Network.Spec.Ipv6Enabled
+	ipv6Enabled := nw.Spec.Ipv6Enabled
 	options := network.CreateOptions{
-		// ID:     na.Network.ID,
-		Labels:     na.Network.Spec.Annotations.Labels,
-		Internal:   na.Network.Spec.Internal,
-		Attachable: na.Network.Spec.Attachable,
-		Ingress:    convert.IsIngressNetwork(na.Network),
+		// ID:     nw.ID,
+		Labels:     nw.Spec.Annotations.Labels,
+		Internal:   nw.Spec.Internal,
+		Attachable: nw.Spec.Attachable,
+		Ingress:    convert.IsIngressNetwork(nw),
 		EnableIPv4: &ipv4Enabled,
 		EnableIPv6: &ipv6Enabled,
 		Scope:      scope.Swarm,
 	}
 
-	if na.Network.Spec.GetNetwork() != "" {
+	if nw.Spec.GetNetwork() != "" {
 		options.ConfigFrom = &network.ConfigReference{
-			Network: na.Network.Spec.GetNetwork(),
+			Network: nw.Spec.GetNetwork(),
 		}
 	}
 
-	if na.Network.DriverState != nil {
-		options.Driver = na.Network.DriverState.Name
-		options.Options = na.Network.DriverState.Options
+	if nw.DriverState != nil {
+		options.Driver = nw.DriverState.Name
+		options.Options = nw.DriverState.Options
 	}
-	if na.Network.IPAM != nil {
+	if nw.IPAM != nil {
 		options.IPAM = &network.IPAM{
-			Driver:  na.Network.IPAM.Driver.Name,
-			Options: na.Network.IPAM.Driver.Options,
+			Driver:  nw.IPAM.Driver.Name,
+			Options: nw.IPAM.Driver.Options,
 		}
-		for _, ic := range na.Network.IPAM.Configs {
+		for _, ic := range nw.IPAM.Configs {
 			options.IPAM.Config = append(options.IPAM.Config, network.IPAMConfig{
 				Subnet:  ic.Subnet,
 				IPRange: ic.Range,
@@ -664,7 +665,7 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 	}
 
 	return clustertypes.NetworkCreateRequest{
-		ID: na.Network.ID,
+		ID: nw.ID,
 		CreateRequest: network.CreateRequest{
 			Name:          name,
 			CreateOptions: options,
