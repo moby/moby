@@ -207,12 +207,8 @@ func (c *containerAdapter) waitNodeAttachments(ctx context.Context) error {
 }
 
 func (c *containerAdapter) createNetworks(ctx context.Context) error {
-	for name := range c.container.networksAttachments {
-		ncr, err := c.container.networkCreateRequest(name)
-		if err != nil {
-			return err
-		}
-
+	for name, nw := range c.container.networksAttachments {
+		ncr := networkCreateRequest(name, nw.Network)
 		if err := c.backend.CreateManagedNetwork(ncr); err != nil { // todo name missing
 			if _, ok := err.(libnetwork.NetworkNameError); ok {
 				continue

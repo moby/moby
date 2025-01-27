@@ -3,7 +3,6 @@ package container // import "github.com/docker/docker/daemon/cluster/executor/co
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -620,13 +619,7 @@ func (c *containerConfig) serviceConfig() *clustertypes.ServiceConfig {
 	return svcCfg
 }
 
-func (c *containerConfig) networkCreateRequest(name string) (clustertypes.NetworkCreateRequest, error) {
-	na, ok := c.networksAttachments[name]
-	if !ok {
-		return clustertypes.NetworkCreateRequest{}, errors.New("container: unknown network referenced")
-	}
-	nw := na.Network
-
+func networkCreateRequest(name string, nw *api.Network) clustertypes.NetworkCreateRequest {
 	ipv4Enabled := true
 	ipv6Enabled := nw.Spec.Ipv6Enabled
 	options := network.CreateOptions{
@@ -670,7 +663,7 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 			Name:          name,
 			CreateOptions: options,
 		},
-	}, nil
+	}
 }
 
 func (c *containerConfig) applyPrivileges(hc *containertypes.HostConfig) {
