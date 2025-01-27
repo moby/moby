@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
@@ -1021,7 +1022,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 
 	n, err := c.getNetworkFromStore(id)
 	if err != nil {
-		return &UnknownNetworkError{name: name, id: id}
+		return errdefs.NotFound(fmt.Errorf("unknown network %s id %s", name, id))
 	}
 
 	// Only remove ingress on force removal or explicit LB endpoint removal
@@ -1054,7 +1055,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 		// Reload the network from the store to update the epcnt.
 		n, err = c.getNetworkFromStore(id)
 		if err != nil {
-			return &UnknownNetworkError{name: name, id: id}
+			return errdefs.NotFound(fmt.Errorf("unknown network %s id %s", name, id))
 		}
 	}
 

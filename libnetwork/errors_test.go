@@ -24,7 +24,7 @@ func TestErrorInterfaces(t *testing.T) {
 		}
 	}
 
-	notFoundErrorList := []error{&UnknownNetworkError{}, ErrNoSuchNetwork(""), ErrNoSuchEndpoint("")}
+	notFoundErrorList := []error{ErrNoSuchNetwork(""), ErrNoSuchEndpoint("")}
 	for _, err := range notFoundErrorList {
 		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	}
