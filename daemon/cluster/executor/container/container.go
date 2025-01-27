@@ -36,8 +36,8 @@ const (
 // containerConfig converts task properties into docker container compatible
 // components.
 type containerConfig struct {
-	task                *api.Task
-	networksAttachments map[string]*api.NetworkAttachment
+	task     *api.Task
+	networks map[string]*api.Network
 }
 
 // newContainerConfig returns a validated container config. No methods should
@@ -64,9 +64,16 @@ func (c *containerConfig) setTask(t *api.Task, node *api.NodeDescription) error 
 	}
 
 	// index the networks by name
-	c.networksAttachments = make(map[string]*api.NetworkAttachment, len(t.Networks))
+	c.networks = make(map[string]*api.Network, len(t.Networks))
 	for _, attachment := range t.Networks {
-		c.networksAttachments[attachment.Network.Spec.Annotations.Name] = attachment
+		// It looks like using a map is only for convenience, but not used
+		// for validation, nor for looking up the network by name. The name
+		// is part of the Network's properties (Network.Spec.Annotations.Name),
+		// and effectively only used for debugging; we should consider to
+		// change it to a slice.
+		//
+		// TODO(thaJeztah): should this check for empty and duplicate names?
+		c.networks[attachment.Network.Spec.Annotations.Name] = attachment.Network
 	}
 
 	c.task = t
@@ -660,7 +667,7 @@ func networkCreateRequest(name string, nw *api.Network) clustertypes.NetworkCrea
 	return clustertypes.NetworkCreateRequest{
 		ID: nw.ID,
 		CreateRequest: network.CreateRequest{
-			Name:          name,
+			Name:          name, // TODO(thaJeztah): this is the same as [nw.Spec.Annotations.Name]; consider using that instead
 			CreateOptions: options,
 		},
 	}
