@@ -14,17 +14,6 @@ func (nsn ErrNoSuchNetwork) Error() string {
 // NotFound denotes the type of this error
 func (nsn ErrNoSuchNetwork) NotFound() {}
 
-// ErrInvalidID is returned when a query-by-id method is being invoked
-// with an empty id parameter
-type ErrInvalidID string
-
-func (ii ErrInvalidID) Error() string {
-	return fmt.Sprintf("invalid id: %s", string(ii))
-}
-
-// InvalidParameter denotes the type of this error
-func (ii ErrInvalidID) InvalidParameter() {}
-
 // ErrInvalidName is returned when a query-by-name or resource create method is
 // invoked with an empty name parameter
 type ErrInvalidName string
