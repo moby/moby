@@ -23,7 +23,7 @@ on:
 
 env:
   GO_VERSION: "1.22.10"
-  ALPINE_VERSION: "3.19"
+  ALPINE_VERSION: "3.20"
   DESTDIR: ./build
 
 jobs:
