@@ -7,56 +7,6 @@ import (
 	"net"
 )
 
-// ErrConfigExists error is returned when driver already has a config applied.
-type ErrConfigExists struct{}
-
-func (ece *ErrConfigExists) Error() string {
-	return "configuration already exists, bridge configuration can be applied only once"
-}
-
-// Forbidden denotes the type of this error
-func (ece *ErrConfigExists) Forbidden() {}
-
-// ErrInvalidNetworkConfig error is returned when a network is created on a driver without valid config.
-type ErrInvalidNetworkConfig struct{}
-
-func (einc *ErrInvalidNetworkConfig) Error() string {
-	return "trying to create a network on a driver without valid config"
-}
-
-// Forbidden denotes the type of this error
-func (einc *ErrInvalidNetworkConfig) Forbidden() {}
-
-// ErrInvalidEndpointConfig error is returned when an endpoint create is attempted with an invalid endpoint configuration.
-type ErrInvalidEndpointConfig struct{}
-
-func (eiec *ErrInvalidEndpointConfig) Error() string {
-	return "trying to create an endpoint with an invalid endpoint configuration"
-}
-
-// InvalidParameter denotes the type of this error
-func (eiec *ErrInvalidEndpointConfig) InvalidParameter() {}
-
-// ErrNetworkExists error is returned when a network already exists and another network is created.
-type ErrNetworkExists struct{}
-
-func (ene *ErrNetworkExists) Error() string {
-	return "network already exists, bridge can only have one network"
-}
-
-// Forbidden denotes the type of this error
-func (ene *ErrNetworkExists) Forbidden() {}
-
-// ErrIfaceName error is returned when a new name could not be generated.
-type ErrIfaceName struct{}
-
-func (ein *ErrIfaceName) Error() string {
-	return "failed to find name for new interface"
-}
-
-// InternalError denotes the type of this error
-func (ein *ErrIfaceName) InternalError() {}
-
 // ErrNoIPAddr error is returned when bridge has no IPv4 address configured.
 type ErrNoIPAddr struct{}
 
@@ -86,16 +36,6 @@ func (eim ErrInvalidMtu) Error() string {
 
 // InvalidParameter denotes the type of this error
 func (eim ErrInvalidMtu) InvalidParameter() {}
-
-// ErrUnsupportedAddressType is returned when the specified address type is not supported.
-type ErrUnsupportedAddressType string
-
-func (uat ErrUnsupportedAddressType) Error() string {
-	return fmt.Sprintf("unsupported address type: %s", string(uat))
-}
-
-// InvalidParameter denotes the type of this error
-func (uat ErrUnsupportedAddressType) InvalidParameter() {}
 
 // InvalidNetworkIDError is returned when the passed
 // network id for an existing network is not a known id.
@@ -141,17 +81,6 @@ func (ndbee NonDefaultBridgeExistError) Error() string {
 // Forbidden denotes the type of this error
 func (ndbee NonDefaultBridgeExistError) Forbidden() {}
 
-// NonDefaultBridgeNeedsIPError is returned when a non-default
-// bridge config is passed but it has no ip configured
-type NonDefaultBridgeNeedsIPError string
-
-func (ndbee NonDefaultBridgeNeedsIPError) Error() string {
-	return fmt.Sprintf("bridge device with non default name %s must have a valid IP address", string(ndbee))
-}
-
-// Forbidden denotes the type of this error
-func (ndbee NonDefaultBridgeNeedsIPError) Forbidden() {}
-
 // IPv4AddrAddError is returned when IPv4 address could not be added to the bridge.
 type IPv4AddrAddError struct {
 	IP  *net.IPNet
@@ -173,11 +102,4 @@ type IPv4AddrNoMatchError struct {
 
 func (ipv4 *IPv4AddrNoMatchError) Error() string {
 	return fmt.Sprintf("bridge IPv4 (%s) does not match requested configuration %s", ipv4.IP, ipv4.CfgIP)
-}
-
-// IPv6AddrNoMatchError is returned when the bridge's IPv6 address does not match configured.
-type IPv6AddrNoMatchError net.IPNet
-
-func (ipv6 *IPv6AddrNoMatchError) Error() string {
-	return fmt.Sprintf("bridge IPv6 addresses do not match the expected bridge configuration %s", (*net.IPNet)(ipv6).String())
 }
