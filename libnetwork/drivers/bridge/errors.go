@@ -17,13 +17,6 @@ func (ece *ErrConfigExists) Error() string {
 // Forbidden denotes the type of this error
 func (ece *ErrConfigExists) Forbidden() {}
 
-// ErrInvalidDriverConfig error is returned when Bridge Driver is passed an invalid config
-type ErrInvalidDriverConfig struct{}
-
-func (eidc *ErrInvalidDriverConfig) Error() string {
-	return "Invalid configuration passed to Bridge Driver"
-}
-
 // ErrInvalidNetworkConfig error is returned when a network is created on a driver without valid config.
 type ErrInvalidNetworkConfig struct{}
 

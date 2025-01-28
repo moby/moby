@@ -499,7 +499,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 	case nil:
 		// No GenericData option set. Use defaults.
 	default:
-		return &ErrInvalidDriverConfig{}
+		return errdefs.InvalidParameter(fmt.Errorf("invalid configuration type (%T) passed", opt))
 	}
 
 	if config.EnableIPTables {
