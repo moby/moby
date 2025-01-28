@@ -133,10 +133,8 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 func TestLinkDelete(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver(storeutils.NewTempStore(t))
-
-	if err := d.configure(nil); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
+	err := d.configure(nil)
+	assert.NilError(t, err)
 
 	option := map[string]interface{}{
 		netlabel.GenericData: &networkConfiguration{
@@ -147,28 +145,17 @@ func TestLinkDelete(t *testing.T) {
 	}
 
 	ipdList := getIPv4Data(t)
-	err := d.CreateNetwork("dummy", option, nil, ipdList, getIPv6Data(t))
-	if err != nil {
-		t.Fatalf("Failed to create bridge: %v", err)
-	}
+	err = d.CreateNetwork("dummy", option, nil, ipdList, getIPv6Data(t))
+	assert.NilError(t, err, "Failed to create bridge")
 
 	te := newTestEndpoint(ipdList[0].Pool, 30)
 	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), nil)
-	if err != nil {
-		t.Fatalf("Failed to create a link: %s", err.Error())
-	}
+	assert.NilError(t, err)
 
 	err = d.DeleteEndpoint("dummy", "")
-	if err != nil {
-		if _, ok := err.(InvalidEndpointIDError); !ok {
-			t.Fatalf("Failed with a wrong error :%s", err.Error())
-		}
-	} else {
-		t.Fatal("Failed to detect invalid config")
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Assert(t, is.Error(err, "invalid endpoint id: "))
 
 	err = d.DeleteEndpoint("dummy", "ep1")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
