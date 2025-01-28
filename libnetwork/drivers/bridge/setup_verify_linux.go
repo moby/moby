@@ -27,7 +27,7 @@ func setupVerifyAndReconcileIPv4(config *networkConfiguration, i *bridgeInterfac
 
 	// Verify that the bridge IPv4 address matches the requested configuration.
 	if config.AddressIPv4 != nil && !addrv4.IP.Equal(config.AddressIPv4.IP) {
-		return &IPv4AddrNoMatchError{IP: addrv4.IP, CfgIP: config.AddressIPv4.IP}
+		return fmt.Errorf("bridge IPv4 (%s) does not match requested configuration %s", addrv4.IP, config.AddressIPv4.IP)
 	}
 
 	return nil

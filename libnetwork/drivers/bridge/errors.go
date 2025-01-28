@@ -4,7 +4,6 @@ package bridge
 
 import (
 	"fmt"
-	"net"
 )
 
 // ErrInvalidGateway is returned when the user provided default gateway (v4/v6) is not valid.
@@ -70,13 +69,3 @@ func (ndbee NonDefaultBridgeExistError) Error() string {
 
 // Forbidden denotes the type of this error
 func (ndbee NonDefaultBridgeExistError) Forbidden() {}
-
-// IPv4AddrNoMatchError is returned when the bridge's IPv4 address does not match configured.
-type IPv4AddrNoMatchError struct {
-	IP    net.IP
-	CfgIP net.IP
-}
-
-func (ipv4 *IPv4AddrNoMatchError) Error() string {
-	return fmt.Sprintf("bridge IPv4 (%s) does not match requested configuration %s", ipv4.IP, ipv4.CfgIP)
-}
