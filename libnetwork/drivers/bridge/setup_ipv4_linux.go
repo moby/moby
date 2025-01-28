@@ -48,7 +48,7 @@ func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 			}
 			log.G(context.TODO()).Debugf("Assigning address to bridge interface %s: %s", config.BridgeName, config.AddressIPv4)
 			if err := i.nlh.AddrAdd(i.Link, &netlink.Addr{IPNet: config.AddressIPv4}); err != nil {
-				return &IPv4AddrAddError{IP: config.AddressIPv4, Err: err}
+				return fmt.Errorf("failed to add IPv4 address %s to bridge: %v", config.AddressIPv4, err)
 			}
 		}
 	}
@@ -63,7 +63,7 @@ func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 
 func setupGatewayIPv4(config *networkConfiguration, i *bridgeInterface) error {
 	if !i.bridgeIPv4.Contains(config.DefaultGatewayIPv4) {
-		return &ErrInvalidGateway{}
+		return errInvalidGateway
 	}
 	if config.Internal {
 		return types.InvalidParameterErrorf("no gateway can be set on an internal bridge network")

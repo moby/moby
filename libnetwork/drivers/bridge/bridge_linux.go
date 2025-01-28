@@ -235,7 +235,7 @@ func ValidateFixedCIDRV6(val string) error {
 // Whatever can be assessed a priori before attempting any programming.
 func (c *networkConfiguration) Validate() error {
 	if c.Mtu < 0 {
-		return ErrInvalidMtu(c.Mtu)
+		return errdefs.InvalidParameter(fmt.Errorf("invalid MTU number: %d", c.Mtu))
 	}
 
 	if c.EnableIPv4 {
@@ -246,7 +246,7 @@ func (c *networkConfiguration) Validate() error {
 		// If default gw is specified, it must be part of bridge subnet
 		if c.DefaultGatewayIPv4 != nil {
 			if !c.AddressIPv4.Contains(c.DefaultGatewayIPv4) {
-				return &ErrInvalidGateway{}
+				return errInvalidGateway
 			}
 		}
 	}
@@ -266,7 +266,7 @@ func (c *networkConfiguration) Validate() error {
 		}
 		// If a default gw is specified, it must belong to AddressIPv6's subnet
 		if c.DefaultGatewayIPv6 != nil && !c.AddressIPv6.Contains(c.DefaultGatewayIPv6) {
-			return &ErrInvalidGateway{}
+			return errInvalidGateway
 		}
 	}
 
@@ -447,7 +447,7 @@ func (n *bridgeNetwork) getPortDriverClient() portDriverClient {
 
 func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 	if eid == "" {
-		return nil, InvalidEndpointIDError(eid)
+		return nil, invalidEndpointIDError(eid)
 	}
 
 	n.Lock()
@@ -499,7 +499,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 	case nil:
 		// No GenericData option set. Use defaults.
 	default:
-		return &ErrInvalidDriverConfig{}
+		return errdefs.InvalidParameter(fmt.Errorf("invalid configuration type (%T) passed", opt))
 	}
 
 	if config.EnableIPTables {
@@ -1116,7 +1116,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	n.Lock()
 	if n.id != nid {
 		n.Unlock()
-		return InvalidNetworkIDError(nid)
+		return invalidNetworkIDError(nid)
 	}
 	n.Unlock()
 
@@ -1329,7 +1329,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	n.Lock()
 	if n.id != nid {
 		n.Unlock()
-		return InvalidNetworkIDError(nid)
+		return invalidNetworkIDError(nid)
 	}
 	n.Unlock()
 
@@ -1339,7 +1339,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 		return err
 	}
 	if ep == nil {
-		return EndpointNotFoundError(eid)
+		return endpointNotFoundError(eid)
 	}
 
 	// Remove it
@@ -1390,7 +1390,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 	n.Lock()
 	if n.id != nid {
 		n.Unlock()
-		return nil, InvalidNetworkIDError(nid)
+		return nil, invalidNetworkIDError(nid)
 	}
 	n.Unlock()
 
@@ -1449,7 +1449,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	}
 
 	if endpoint == nil {
-		return EndpointNotFoundError(eid)
+		return endpointNotFoundError(eid)
 	}
 
 	endpoint.containerConfig, err = parseContainerOptions(options)
@@ -1491,7 +1491,7 @@ func (d *driver) Leave(nid, eid string) error {
 	}
 
 	if endpoint == nil {
-		return EndpointNotFoundError(eid)
+		return endpointNotFoundError(eid)
 	}
 
 	if !network.config.EnableICC {
@@ -1520,7 +1520,7 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 	}
 
 	if endpoint == nil {
-		return EndpointNotFoundError(eid)
+		return endpointNotFoundError(eid)
 	}
 
 	endpoint.extConnConfig, err = parseConnectivityOptions(options)
@@ -1580,7 +1580,7 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 	}
 
 	if endpoint == nil {
-		return EndpointNotFoundError(eid)
+		return endpointNotFoundError(eid)
 	}
 
 	err = network.releasePorts(endpoint)
@@ -1638,7 +1638,7 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 				return err
 			}
 			if parentEndpoint == nil {
-				return InvalidEndpointIDError(p)
+				return invalidEndpointIDError(p)
 			}
 
 			l, err := newLink(parentEndpoint.addr.IP, endpoint.addr.IP, ec.ExposedPorts, network.config.BridgeName)
@@ -1662,7 +1662,7 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 			return err
 		}
 		if childEndpoint == nil {
-			return InvalidEndpointIDError(c)
+			return invalidEndpointIDError(c)
 		}
 		if childEndpoint.extConnConfig == nil || childEndpoint.extConnConfig.ExposedPorts == nil {
 			continue
