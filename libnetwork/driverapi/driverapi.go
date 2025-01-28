@@ -127,6 +127,14 @@ type InterfaceInfo interface {
 
 	// AddressIPv6 returns the IPv6 address.
 	AddressIPv6() *net.IPNet
+
+	// NetnsPath returns the path of the network namespace, if there is one. Else "".
+	NetnsPath() string
+
+	// SetCreatedInContainer can be called by the driver to indicate that it's
+	// created the network interface in the container's network namespace (so,
+	// it doesn't need to be moved there).
+	SetCreatedInContainer(bool)
 }
 
 // InterfaceNameInfo provides a go interface for the drivers to assign names

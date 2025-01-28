@@ -912,6 +912,10 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		}
 	}
 
+	if path, ok := sb.NetnsPath(); ok {
+		createOptions = append(createOptions, libnetwork.WithNetnsPath(path))
+	}
+
 	return createOptions, nil
 }
 

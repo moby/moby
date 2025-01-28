@@ -1254,6 +1254,12 @@ func JoinOptionPriority(prio int) EndpointOption {
 	}
 }
 
+func WithNetnsPath(path string) EndpointOption {
+	return func(ep *Endpoint) {
+		ep.iface.netnsPath = path
+	}
+}
+
 func (ep *Endpoint) assignAddress(ipam ipamapi.Ipam, assignIPv4, assignIPv6 bool) error {
 	n := ep.getNetwork()
 	if n.hasSpecialDriver() {

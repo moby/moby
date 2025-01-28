@@ -145,3 +145,10 @@ func (test *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType int, 
 func (test *testEndpoint) DisableGatewayService() {
 	test.disableGatewayService = true
 }
+
+func (test *testEndpoint) NetnsPath() string {
+	return ""
+}
+
+func (test *testEndpoint) SetCreatedInContainer(bool) {
+}
