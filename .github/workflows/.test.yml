@@ -46,7 +46,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v6
         with:
           targets: dev
           set: |
@@ -128,7 +128,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v6
         with:
           targets: dev
           set: |
@@ -178,7 +178,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v6
         with:
           targets: dev
           set: |
@@ -232,7 +232,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v6
         with:
           targets: dev
           set: |
@@ -374,7 +374,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v6
         with:
           targets: dev
           set: |
