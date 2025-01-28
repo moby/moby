@@ -447,7 +447,7 @@ func (n *bridgeNetwork) getPortDriverClient() portDriverClient {
 
 func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 	if eid == "" {
-		return nil, InvalidEndpointIDError(eid)
+		return nil, invalidEndpointIDError(eid)
 	}
 
 	n.Lock()
@@ -1116,7 +1116,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	n.Lock()
 	if n.id != nid {
 		n.Unlock()
-		return InvalidNetworkIDError(nid)
+		return invalidNetworkIDError(nid)
 	}
 	n.Unlock()
 
@@ -1329,7 +1329,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	n.Lock()
 	if n.id != nid {
 		n.Unlock()
-		return InvalidNetworkIDError(nid)
+		return invalidNetworkIDError(nid)
 	}
 	n.Unlock()
 
@@ -1339,7 +1339,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 		return err
 	}
 	if ep == nil {
-		return EndpointNotFoundError(eid)
+		return endpointNotFoundError(eid)
 	}
 
 	// Remove it
@@ -1390,7 +1390,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 	n.Lock()
 	if n.id != nid {
 		n.Unlock()
-		return nil, InvalidNetworkIDError(nid)
+		return nil, invalidNetworkIDError(nid)
 	}
 	n.Unlock()
 
@@ -1449,7 +1449,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	}
 
 	if endpoint == nil {
-		return EndpointNotFoundError(eid)
+		return endpointNotFoundError(eid)
 	}
 
 	endpoint.containerConfig, err = parseContainerOptions(options)
@@ -1491,7 +1491,7 @@ func (d *driver) Leave(nid, eid string) error {
 	}
 
 	if endpoint == nil {
-		return EndpointNotFoundError(eid)
+		return endpointNotFoundError(eid)
 	}
 
 	if !network.config.EnableICC {
@@ -1520,7 +1520,7 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 	}
 
 	if endpoint == nil {
-		return EndpointNotFoundError(eid)
+		return endpointNotFoundError(eid)
 	}
 
 	endpoint.extConnConfig, err = parseConnectivityOptions(options)
@@ -1580,7 +1580,7 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 	}
 
 	if endpoint == nil {
-		return EndpointNotFoundError(eid)
+		return endpointNotFoundError(eid)
 	}
 
 	err = network.releasePorts(endpoint)
@@ -1638,7 +1638,7 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 				return err
 			}
 			if parentEndpoint == nil {
-				return InvalidEndpointIDError(p)
+				return invalidEndpointIDError(p)
 			}
 
 			l, err := newLink(parentEndpoint.addr.IP, endpoint.addr.IP, ec.ExposedPorts, network.config.BridgeName)
@@ -1662,7 +1662,7 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 			return err
 		}
 		if childEndpoint == nil {
-			return InvalidEndpointIDError(c)
+			return invalidEndpointIDError(c)
 		}
 		if childEndpoint.extConnConfig == nil || childEndpoint.extConnConfig.ExposedPorts == nil {
 			continue

@@ -12,35 +12,35 @@ import (
 // errInvalidGateway is returned when the user provided default gateway (v4/v6) is not valid.
 var errInvalidGateway = errdefs.InvalidParameter(errors.New("default gateway ip must be part of the network"))
 
-// InvalidNetworkIDError is returned when the passed
+// invalidNetworkIDError is returned when the passed
 // network id for an existing network is not a known id.
-type InvalidNetworkIDError string
+type invalidNetworkIDError string
 
-func (inie InvalidNetworkIDError) Error() string {
-	return fmt.Sprintf("invalid network id %s", string(inie))
+func (e invalidNetworkIDError) Error() string {
+	return fmt.Sprintf("invalid network id %s", string(e))
 }
 
 // NotFound denotes the type of this error
-func (inie InvalidNetworkIDError) NotFound() {}
+func (e invalidNetworkIDError) NotFound() {}
 
-// InvalidEndpointIDError is returned when the passed
+// invalidEndpointIDError is returned when the passed
 // endpoint id is not valid.
-type InvalidEndpointIDError string
+type invalidEndpointIDError string
 
-func (ieie InvalidEndpointIDError) Error() string {
-	return fmt.Sprintf("invalid endpoint id: %s", string(ieie))
+func (e invalidEndpointIDError) Error() string {
+	return fmt.Sprintf("invalid endpoint id: %s", string(e))
 }
 
 // InvalidParameter denotes the type of this error
-func (ieie InvalidEndpointIDError) InvalidParameter() {}
+func (e invalidEndpointIDError) InvalidParameter() {}
 
-// EndpointNotFoundError is returned when the no endpoint
+// endpointNotFoundError is returned when the no endpoint
 // with the passed endpoint id is found.
-type EndpointNotFoundError string
+type endpointNotFoundError string
 
-func (enfe EndpointNotFoundError) Error() string {
-	return fmt.Sprintf("endpoint not found: %s", string(enfe))
+func (e endpointNotFoundError) Error() string {
+	return fmt.Sprintf("endpoint not found: %s", string(e))
 }
 
 // NotFound denotes the type of this error
-func (enfe EndpointNotFoundError) NotFound() {}
+func (e endpointNotFoundError) NotFound() {}
