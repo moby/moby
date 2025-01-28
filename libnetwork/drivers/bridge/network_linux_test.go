@@ -108,10 +108,8 @@ func TestLinkCreateTwo(t *testing.T) {
 func TestLinkCreateNoEnableIPv6(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver(storeutils.NewTempStore(t))
-
-	if err := d.configure(nil); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
+	err := d.configure(nil)
+	assert.NilError(t, err)
 
 	option := map[string]interface{}{
 		netlabel.GenericData: &networkConfiguration{
@@ -121,24 +119,15 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 	}
 
 	ipdList := getIPv4Data(t)
-	err := d.CreateNetwork("dummy", option, nil, ipdList, getIPv6Data(t))
-	if err != nil {
-		t.Fatalf("Failed to create bridge: %v", err)
-	}
+	err = d.CreateNetwork("dummy", option, nil, ipdList, getIPv6Data(t))
+	assert.NilError(t, err, "Failed to create bridge")
+
 	te := newTestEndpoint(ipdList[0].Pool, 30)
 	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te.Interface(), nil)
-	if err != nil {
-		t.Fatalf("Failed to create a link: %s", err.Error())
-	}
+	assert.NilError(t, err)
 
-	iface := te.iface
-	if iface.addrv6 != nil && iface.addrv6.IP.To16() != nil {
-		t.Fatalf("Expected IPv6 address to be nil when IPv6 is not enabled. Got IPv6 = %s", iface.addrv6.String())
-	}
-
-	if te.gw6.To16() != nil {
-		t.Fatalf("Expected GatewayIPv6 to be nil when IPv6 is not enabled. Got GatewayIPv6 = %s", te.gw6.String())
-	}
+	assert.Check(t, is.Nil(te.iface.addrv6), "Expected IPv6 address to be nil when IPv6 is not enabled, got %s", te.iface.addrv6)
+	assert.Check(t, is.Nil(te.gw6), "Expected GatewayIPv6 to be nil when IPv6 is not enabled, got %s", te.gw6)
 }
 
 func TestLinkDelete(t *testing.T) {
