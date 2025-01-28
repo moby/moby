@@ -44,14 +44,3 @@ func (enfe EndpointNotFoundError) Error() string {
 
 // NotFound denotes the type of this error
 func (enfe EndpointNotFoundError) NotFound() {}
-
-// NonDefaultBridgeExistError is returned when a non-default
-// bridge config is passed but it does not already exist.
-type NonDefaultBridgeExistError string
-
-func (ndbee NonDefaultBridgeExistError) Error() string {
-	return fmt.Sprintf("bridge device with non default name %s must be created manually", string(ndbee))
-}
-
-// Forbidden denotes the type of this error
-func (ndbee NonDefaultBridgeExistError) Forbidden() {}
