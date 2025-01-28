@@ -16,16 +16,6 @@ func (eig *ErrInvalidGateway) Error() string {
 // InvalidParameter denotes the type of this error
 func (eig *ErrInvalidGateway) InvalidParameter() {}
 
-// ErrInvalidMtu is returned when the user provided MTU is not valid.
-type ErrInvalidMtu int
-
-func (eim ErrInvalidMtu) Error() string {
-	return fmt.Sprintf("invalid MTU number: %d", int(eim))
-}
-
-// InvalidParameter denotes the type of this error
-func (eim ErrInvalidMtu) InvalidParameter() {}
-
 // InvalidNetworkIDError is returned when the passed
 // network id for an existing network is not a known id.
 type InvalidNetworkIDError string

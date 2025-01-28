@@ -235,7 +235,7 @@ func ValidateFixedCIDRV6(val string) error {
 // Whatever can be assessed a priori before attempting any programming.
 func (c *networkConfiguration) Validate() error {
 	if c.Mtu < 0 {
-		return ErrInvalidMtu(c.Mtu)
+		return errdefs.InvalidParameter(fmt.Errorf("invalid MTU number: %d", c.Mtu))
 	}
 
 	if c.EnableIPv4 {
