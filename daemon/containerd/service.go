@@ -8,6 +8,7 @@ import (
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/content"
 	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/plugins"
@@ -42,6 +43,10 @@ type ImageService struct {
 
 	// defaultPlatformOverride is used in tests to override the host platform.
 	defaultPlatformOverride platforms.MatchComparer
+}
+
+func (i *ImageService) LeasesService() leases.Manager {
+	return i.client.LeasesService()
 }
 
 type registryResolver interface {
@@ -79,6 +84,10 @@ func NewService(config ImageServiceConfig) *ImageService {
 		refCountMounter: config.RefCountMounter,
 		idMapping:       config.IDMapping,
 	}
+}
+
+func (i *ImageService) ContentStore() content.Store {
+	return i.content
 }
 
 func (i *ImageService) snapshotterService(snapshotter string) snapshots.Snapshotter {
