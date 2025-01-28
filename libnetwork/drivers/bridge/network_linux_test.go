@@ -8,7 +8,6 @@ import (
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/internal/testutils/storeutils"
-	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -81,10 +80,8 @@ func TestLinkCreate(t *testing.T) {
 func TestLinkCreateTwo(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver(storeutils.NewTempStore(t))
-
-	if err := d.configure(nil); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
+	err := d.configure(nil)
+	assert.NilError(t, err)
 
 	option := map[string]interface{}{
 		netlabel.GenericData: &networkConfiguration{
@@ -95,26 +92,17 @@ func TestLinkCreateTwo(t *testing.T) {
 	}
 
 	ipdList := getIPv4Data(t)
-	err := d.CreateNetwork("dummy", option, nil, ipdList, getIPv6Data(t))
-	if err != nil {
-		t.Fatalf("Failed to create bridge: %v", err)
-	}
+	err = d.CreateNetwork("dummy", option, nil, ipdList, getIPv6Data(t))
+	assert.NilError(t, err, "Failed to create bridge")
 
 	te1 := newTestEndpoint(ipdList[0].Pool, 11)
 	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te1.Interface(), nil)
-	if err != nil {
-		t.Fatalf("Failed to create a link: %s", err.Error())
-	}
+	assert.NilError(t, err)
 
 	te2 := newTestEndpoint(ipdList[0].Pool, 12)
 	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te2.Interface(), nil)
-	if err != nil {
-		if _, ok := err.(driverapi.ErrEndpointExists); !ok {
-			t.Fatalf("Failed with a wrong error: %s", err.Error())
-		}
-	} else {
-		t.Fatal("Expected to fail while trying to add same endpoint twice")
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Assert(t, is.Error(err, "Endpoint (ep) already exists (Only one endpoint allowed)"), "Failed to detect duplicate endpoint id on same network")
 }
 
 func TestLinkCreateNoEnableIPv6(t *testing.T) {
