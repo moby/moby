@@ -3,18 +3,14 @@
 package bridge
 
 import (
+	"errors"
 	"fmt"
+
+	"github.com/docker/docker/errdefs"
 )
 
-// ErrInvalidGateway is returned when the user provided default gateway (v4/v6) is not valid.
-type ErrInvalidGateway struct{}
-
-func (eig *ErrInvalidGateway) Error() string {
-	return "default gateway ip must be part of the network"
-}
-
-// InvalidParameter denotes the type of this error
-func (eig *ErrInvalidGateway) InvalidParameter() {}
+// errInvalidGateway is returned when the user provided default gateway (v4/v6) is not valid.
+var errInvalidGateway = errdefs.InvalidParameter(errors.New("default gateway ip must be part of the network"))
 
 // InvalidNetworkIDError is returned when the passed
 // network id for an existing network is not a known id.

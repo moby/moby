@@ -63,7 +63,7 @@ func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 
 func setupGatewayIPv4(config *networkConfiguration, i *bridgeInterface) error {
 	if !i.bridgeIPv4.Contains(config.DefaultGatewayIPv4) {
-		return &ErrInvalidGateway{}
+		return errInvalidGateway
 	}
 	if config.Internal {
 		return types.InvalidParameterErrorf("no gateway can be set on an internal bridge network")

@@ -246,7 +246,7 @@ func (c *networkConfiguration) Validate() error {
 		// If default gw is specified, it must be part of bridge subnet
 		if c.DefaultGatewayIPv4 != nil {
 			if !c.AddressIPv4.Contains(c.DefaultGatewayIPv4) {
-				return &ErrInvalidGateway{}
+				return errInvalidGateway
 			}
 		}
 	}
@@ -266,7 +266,7 @@ func (c *networkConfiguration) Validate() error {
 		}
 		// If a default gw is specified, it must belong to AddressIPv6's subnet
 		if c.DefaultGatewayIPv6 != nil && !c.AddressIPv6.Contains(c.DefaultGatewayIPv6) {
-			return &ErrInvalidGateway{}
+			return errInvalidGateway
 		}
 	}
 
