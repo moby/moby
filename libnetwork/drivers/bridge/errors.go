@@ -7,13 +7,6 @@ import (
 	"net"
 )
 
-// ErrNoIPAddr error is returned when bridge has no IPv4 address configured.
-type ErrNoIPAddr struct{}
-
-func (enip *ErrNoIPAddr) Error() string {
-	return "bridge has no IPv4 address configured"
-}
-
 // ErrInvalidGateway is returned when the user provided default gateway (v4/v6) is not valid.
 type ErrInvalidGateway struct{}
 

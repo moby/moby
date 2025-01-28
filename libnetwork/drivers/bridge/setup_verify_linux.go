@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -21,7 +22,7 @@ func setupVerifyAndReconcileIPv4(config *networkConfiguration, i *bridgeInterfac
 
 	// Verify that the bridge has an IPv4 address.
 	if addrv4.IPNet == nil {
-		return &ErrNoIPAddr{}
+		return errors.New("bridge has no IPv4 address configured")
 	}
 
 	// Verify that the bridge IPv4 address matches the requested configuration.
