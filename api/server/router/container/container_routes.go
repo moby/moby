@@ -688,6 +688,12 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		Platform:                    platform,
 		DefaultReadOnlyNonRecursive: defaultReadOnlyNonRecursive,
 	})
+
+	// Log warnings for debugging, regardless if the request was successful or not.
+	if len(ccr.Warnings) > 0 {
+		log.G(ctx).WithField("warnings", ccr.Warnings).Debug("warnings encountered during container create request")
+	}
+
 	if err != nil {
 		return err
 	}
