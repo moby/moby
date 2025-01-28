@@ -37,7 +37,7 @@ Note that:
 [1]: https://github.com/moby/moby/blob/675c2ac2db93e38bb9c5a6615d4155a969535fd9/libnetwork/drivers/bridge/port_mapping_linux.go#L795
 [2]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L252
 
-And the corresponding nat table:
+The corresponding nat table:
 
     {{index . "LNat4"}}
 
@@ -47,3 +47,18 @@ And the corresponding nat table:
     {{index . "SNat4"}}
 
 </details>
+
+And the raw table:
+
+    {{index . "LRaw4"}}
+
+<details>
+<summary>iptables commands</summary>
+
+    {{index . "SRaw4"}}
+
+</details>
+
+[filterDirectAccess][3] adds a DROP rule to the raw-PREROUTING chain to block direct remote access to the mapped port.
+
+[3]: https://github.com/search?q=repo%3Amoby%2Fmoby%20filterDirectAccess&type=code

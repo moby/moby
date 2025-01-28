@@ -1,13 +1,16 @@
-## Container on a user-defined network, with a published port
+## Container on a user-defined network, with a port published on a loopback address
 
-Adding a network running a container with a mapped port, equivalent to:
+Adding a network running a container with a port mapped on a loopback address, equivalent to:
 
 	docker network create \
 	  -o com.docker.network.bridge.name=bridge1 \
 	  --subnet 192.0.2.0/24 --gateway 192.0.2.1 bridge1
-	docker run --network bridge1 -p 8080:80 --name c1 busybox
+	docker run --network bridge1 -p 127.0.0.1:8080:80 --name c1 busybox
 
-The filter table is updated as follows:
+The filter and nat tables are identical to [nat mode][0]:
+
+<details>
+<summary>filter table</summary>
 
     Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -45,9 +48,6 @@ The filter table is updated as follows:
     1        0     0 RETURN     0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     
 
-<details>
-<summary>iptables commands</summary>
-
     -P INPUT ACCEPT
     -P FORWARD ACCEPT
     -P OUTPUT ACCEPT
@@ -73,26 +73,8 @@ The filter table is updated as follows:
 
 </details>
 
-Note that:
-
- - In the FORWARD chain, rule 6 for outgoing traffic from the new network has been
-   appended to the end of the chain.
- - In the DOCKER-ISOLATION chains, rules equivalent to the docker0 rules have
-   also been inserted for the new bridge.
- - In the DOCKER chain, there is an ACCEPT rule for TCP port 80 packets routed
-   to the container's address. This rule is added when the container is created
-   (unlike all the other rules so-far, which were created during driver or
-   network initialisation). [setPerPortForwarding][1]
-   - These per-port rules are inserted at the head of the chain, so that they
-     appear before the network's DROP rule [setDefaultForwardRule][2] which is
-     always appended to the end of the chain. In this case, because `docker0` was
-     created before `bridge1`, the `bridge1` rules appear above and below the
-     `docker0` DROP rule.
-
-[1]: https://github.com/moby/moby/blob/675c2ac2db93e38bb9c5a6615d4155a969535fd9/libnetwork/drivers/bridge/port_mapping_linux.go#L795
-[2]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L252
-
-The corresponding nat table:
+<details>
+<summary>nat table</summary>
 
     Chain PREROUTING (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -114,11 +96,8 @@ The corresponding nat table:
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 RETURN     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0           
     2        0     0 RETURN     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
-    3        0     0 DNAT       6    --  !bridge1 *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8080 to:192.0.2.2:80
+    3        0     0 DNAT       6    --  !bridge1 *       0.0.0.0/0            127.0.0.1            tcp dpt:8080 to:192.0.2.2:80
     
-
-<details>
-<summary>iptables commands</summary>
 
     -P PREROUTING ACCEPT
     -P INPUT ACCEPT
@@ -131,16 +110,15 @@ The corresponding nat table:
     -A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
     -A DOCKER -i bridge1 -j RETURN
     -A DOCKER -i docker0 -j RETURN
-    -A DOCKER ! -i bridge1 -p tcp -m tcp --dport 8080 -j DNAT --to-destination 192.0.2.2:80
+    -A DOCKER -d 127.0.0.1/32 ! -i bridge1 -p tcp -m tcp --dport 8080 -j DNAT --to-destination 192.0.2.2:80
     
 
 </details>
 
-And the raw table:
-
     Chain PREROUTING (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DROP       6    --  !bridge1 *       0.0.0.0/0            192.0.2.2            tcp dpt:80
+    1        0     0 DROP       6    --  !lo    *       0.0.0.0/0            127.0.0.1            tcp dpt:8080
+    2        0     0 DROP       6    --  !bridge1 *       0.0.0.0/0            192.0.2.2            tcp dpt:80
     
     Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -151,11 +129,14 @@ And the raw table:
 
     -P PREROUTING ACCEPT
     -P OUTPUT ACCEPT
+    -A PREROUTING -d 127.0.0.1/32 ! -i lo -p tcp -m tcp --dport 8080 -j DROP
     -A PREROUTING -d 192.0.2.2/32 ! -i bridge1 -p tcp -m tcp --dport 80 -j DROP
     
 
 </details>
 
-[filterDirectAccess][3] adds a DROP rule to the raw-PREROUTING chain to block direct remote access to the mapped port.
+[filterPortMappedOnLoopback][1] adds an extra rule in the raw-PREROUTING chain to DROP remote traffic destined to the
+port mapped on the loopback address.
 
-[3]: https://github.com/search?q=repo%3Amoby%2Fmoby%20filterDirectAccess&type=code
+[0]: usernet-portmap.md
+[1]: https://github.com/search?q=repo%3Amoby%2Fmoby%20filterPortMappedOnLoopback&type=code
