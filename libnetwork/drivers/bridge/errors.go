@@ -71,16 +71,6 @@ func (ndbee NonDefaultBridgeExistError) Error() string {
 // Forbidden denotes the type of this error
 func (ndbee NonDefaultBridgeExistError) Forbidden() {}
 
-// IPv4AddrAddError is returned when IPv4 address could not be added to the bridge.
-type IPv4AddrAddError struct {
-	IP  *net.IPNet
-	Err error
-}
-
-func (ipv4 *IPv4AddrAddError) Error() string {
-	return fmt.Sprintf("failed to add IPv4 address %s to bridge: %v", ipv4.IP, ipv4.Err)
-}
-
 // IPv4AddrNoMatchError is returned when the bridge's IPv4 address does not match configured.
 type IPv4AddrNoMatchError struct {
 	IP    net.IP
