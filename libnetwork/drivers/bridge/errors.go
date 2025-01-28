@@ -14,9 +14,6 @@ func (enip *ErrNoIPAddr) Error() string {
 	return "bridge has no IPv4 address configured"
 }
 
-// InternalError denotes the type of this error
-func (enip *ErrNoIPAddr) InternalError() {}
-
 // ErrInvalidGateway is returned when the user provided default gateway (v4/v6) is not valid.
 type ErrInvalidGateway struct{}
 
@@ -90,9 +87,6 @@ type IPv4AddrAddError struct {
 func (ipv4 *IPv4AddrAddError) Error() string {
 	return fmt.Sprintf("failed to add IPv4 address %s to bridge: %v", ipv4.IP, ipv4.Err)
 }
-
-// InternalError denotes the type of this error
-func (ipv4 *IPv4AddrAddError) InternalError() {}
 
 // IPv4AddrNoMatchError is returned when the bridge's IPv4 address does not match configured.
 type IPv4AddrNoMatchError struct {
