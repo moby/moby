@@ -27,10 +27,10 @@ jobs:
         run: exit 0
 
   check-changelog:
-    if: contains(join(github.event.pull_request.labels.*.name, ','), 'impact/')
     runs-on: ubuntu-20.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     env:
+      HAS_IMPACT_LABEL: ${{ contains(join(github.event.pull_request.labels.*.name, ','), 'impact/') }}
       PR_BODY: |
         ${{ github.event.pull_request.body }}
     steps:
@@ -42,15 +42,23 @@ jobs:
           # Strip empty lines
           desc=$(echo "$block" |  awk NF)
 
-          if [ -z "$desc" ]; then
-            echo "::error::Changelog section is empty. Please provide a description for the changelog."
-            exit 1
-          fi
+          if [ "$HAS_IMPACT_LABEL" = "true" ]; then
+            if [ -z "$desc" ]; then
+              echo "::error::Changelog section is empty. Please provide a description for the changelog."
+              exit 1
+            fi
 
-          len=$(echo -n "$desc" | wc -c)
-          if [[ $len -le 6 ]]; then
-            echo "::error::Description looks too short: $desc"
-            exit 1
+            len=$(echo -n "$desc" | wc -c)
+            if [[ $len -le 6 ]]; then
+              echo "::error::Description looks too short: $desc"
+              exit 1
+            fi
+          else
+            if [ -n "$desc" ]; then
+              echo "::error::PR has a changelog description, but no changelog label"
+              echo "::error::Please add the relevant 'impact/' label to the PR or remove the changelog description"
+              exit 1
+            fi
           fi
 
           echo "This PR will be included in the release notes with the following note:"
