@@ -274,6 +274,7 @@ func TestDaemonProxy(t *testing.T) {
 			"HTTPS_PROXY="+proxyServer.URL,
 			"NO_PROXY=example.com",
 			"OTEL_EXPORTER_OTLP_ENDPOINT=", // To avoid OTEL hitting the proxy.
+			"DOCKER_KEEP_DEFAULT_BRIDGE=y",
 		))
 		c := d.NewClientT(t)
 
@@ -312,6 +313,7 @@ func TestDaemonProxy(t *testing.T) {
 			"NO_PROXY=ignore.invalid",
 			"no_proxy=ignore.invalid",
 			"OTEL_EXPORTER_OTLP_ENDPOINT=", // To avoid OTEL hitting the proxy.
+			"DOCKER_KEEP_DEFAULT_BRIDGE=y",
 		))
 		d.Start(t, "--iptables=false", "--ip6tables=false", "--http-proxy", proxyServer.URL, "--https-proxy", proxyServer.URL, "--no-proxy", "example.com")
 		defer d.Stop(t)
@@ -363,6 +365,7 @@ func TestDaemonProxy(t *testing.T) {
 			"NO_PROXY=ignore.invalid",
 			"no_proxy=ignore.invalid",
 			"OTEL_EXPORTER_OTLP_ENDPOINT=", // To avoid OTEL hitting the proxy.
+			"DOCKER_KEEP_DEFAULT_BRIDGE=y",
 		))
 		c := d.NewClientT(t)
 
@@ -434,6 +437,7 @@ func TestDaemonProxy(t *testing.T) {
 
 		d := daemon.New(t, daemon.WithEnvVars(
 			"OTEL_EXPORTER_OTLP_ENDPOINT=", // To avoid OTEL hitting the proxy.
+			"DOCKER_KEEP_DEFAULT_BRIDGE=y",
 		))
 		d.Start(t, "--iptables=false", "--ip6tables=false", "--http-proxy", proxyRawURL, "--https-proxy", proxyRawURL, "--no-proxy", "example.com")
 		defer d.Stop(t)
@@ -463,7 +467,7 @@ func testLiveRestoreAutoRemove(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 
 	run := func(t *testing.T) (*daemon.Daemon, func(), string) {
-		d := daemon.New(t)
+		d := daemon.New(t, daemon.WithEnvVars("DOCKER_KEEP_DEFAULT_BRIDGE=y"))
 		d.StartWithBusybox(ctx, t, "--live-restore", "--iptables=false", "--ip6tables=false")
 		t.Cleanup(func() {
 			d.Stop(t)
@@ -526,7 +530,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 	t.Parallel()
 	ctx := testutil.StartSpan(baseContext, t)
 
-	d := daemon.New(t)
+	d := daemon.New(t, daemon.WithEnvVars("DOCKER_KEEP_DEFAULT_BRIDGE=y"))
 	d.StartWithBusybox(ctx, t, "--live-restore", "--iptables=false", "--ip6tables=false")
 	defer func() {
 		d.Stop(t)
@@ -679,7 +683,7 @@ func testLiveRestoreUserChainsSetup(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 
 	t.Run("user chains should be inserted", func(t *testing.T) {
-		d := daemon.New(t)
+		d := daemon.New(t, daemon.WithEnvVars("DOCKER_KEEP_DEFAULT_BRIDGE=y"))
 		d.StartWithBusybox(ctx, t, "--live-restore")
 		t.Cleanup(func() {
 			d.Stop(t)
