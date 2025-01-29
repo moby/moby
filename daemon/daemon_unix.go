@@ -855,7 +855,7 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 
 	if len(activeSandboxes) > 0 {
 		log.G(context.TODO()).Info("there are running containers, updated network configuration will not take affect")
-	} else if err := configureNetworking(daemon.netController, cfg); err != nil {
+	} else if err := createDefaultNetworks(daemon.netController, cfg); err != nil {
 		return err
 	}
 
@@ -864,7 +864,13 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 	return nil
 }
 
-func configureNetworking(controller *libnetwork.Controller, conf *config.Config) error {
+// createDefaultNetworks creates the default "none" and "host" networks if they
+// don't exist, and recreates the default bridge network.
+//
+// It's caller responsibility to make sure that it's safe to recreate the
+// default bridge network, ie. either live-restore is disabled or no containers
+// are currently running.
+func createDefaultNetworks(controller *libnetwork.Controller, conf *config.Config) error {
 	// Create predefined network "none"
 	if n, _ := controller.NetworkByName(network.NetworkNone); n == nil {
 		if _, err := controller.NewNetwork("null", network.NetworkNone, "", libnetwork.NetworkOptionPersist(true)); err != nil {
