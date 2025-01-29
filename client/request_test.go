@@ -154,11 +154,10 @@ func TestResponseErrors(t *testing.T) {
 		},
 		{
 			// Server response that's valid JSON, but not the expected (types.ErrorResponse) scheme
-			// TODO(thaJeztah): consider returning (partial) raw response for these
 			doc:         "incorrect JSON scheme",
 			contentType: "application/json",
 			response:    `{"error":"Some error occurred"}`,
-			expected:    `Error response from daemon: `,
+			expected:    `Error response from daemon: API returned a 400 (Bad Request) but provided no error-message`,
 		},
 		{
 			// TODO(thaJeztah): improve handling of such errors; we can return the generic "502 Bad Gateway" instead
