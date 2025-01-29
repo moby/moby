@@ -3,10 +3,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 // AuthHeader is the name of the header used to send encoded registry
@@ -98,7 +97,7 @@ func decodeAuthConfigFromReader(rdr io.Reader) (*AuthConfig, error) {
 }
 
 func invalid(err error) error {
-	return errInvalidParameter{errors.Wrap(err, "invalid X-Registry-Auth header")}
+	return errInvalidParameter{fmt.Errorf("invalid X-Registry-Auth header: %w", err)}
 }
 
 type errInvalidParameter struct{ error }
