@@ -266,7 +266,8 @@ RUN --mount=source=hack/dockerfile/cli.sh,target=/download-or-build-cli.sh \
     --mount=type=cache,target=/root/.cache/go-build,id=dockercli-build-$TARGETPLATFORM \
         rm -f ./.git/*.lock \
      && /download-or-build-cli.sh ${DOCKERCLI_VERSION} ${DOCKERCLI_REPOSITORY} /build \
-     && /build/docker --version
+     && /build/docker --version \
+     && /build/docker completion bash >/completion.bash
 
 FROM base AS dockercli-integration
 WORKDIR /go/src/github.com/docker/cli
@@ -517,9 +518,8 @@ RUN useradd --create-home --gid docker unprivilegeduser \
  && chown -R unprivilegeduser /home/unprivilegeduser
 # Let us use a .bashrc file
 RUN ln -sfv /go/src/github.com/docker/docker/.bashrc ~/.bashrc
-# Activate bash completion and include Docker's completion if mounted with DOCKER_BASH_COMPLETION_PATH
+# Activate bash completion
 RUN echo "source /usr/share/bash-completion/bash_completion" >> /etc/bash.bashrc
-RUN ln -s /usr/local/completion/bash/docker /etc/bash_completion.d/docker
 RUN ldconfig
 # Set dev environment as safe git directory to prevent "dubious ownership" errors
 # when bind-mounting the source into the dev-container. See https://github.com/moby/moby/pull/44930
@@ -569,6 +569,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             libsystemd-dev \
             yamllint
 COPY --link --from=dockercli             /build/ /usr/local/cli
+COPY --link --from=dockercli             /completion.bash /etc/bash_completion.d/docker
 COPY --link --from=dockercli-integration /build/ /usr/local/cli-integration
 
 FROM base AS build
