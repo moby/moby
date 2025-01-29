@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -16,7 +17,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
