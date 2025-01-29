@@ -891,7 +891,7 @@ func configureNetworking(controller *libnetwork.Controller, conf *config.Config)
 
 	if !conf.DisableBridge {
 		// Initialize default driver "bridge"
-		if err := initBridgeDriver(controller, conf.BridgeConfig); err != nil {
+		if err := createDefaultBridgeNetwork(controller, conf.BridgeConfig); err != nil {
 			return err
 		}
 	} else {
@@ -980,7 +980,7 @@ type defBrOpts interface {
 	defGw() (gw net.IP, optName, auxAddrLabel string)
 }
 
-func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig) error {
+func createDefaultBridgeNetwork(controller *libnetwork.Controller, cfg config.BridgeConfig) error {
 	bridgeName, userManagedBridge := getDefaultBridgeName(cfg)
 	netOption := map[string]string{
 		bridge.BridgeName:         bridgeName,
