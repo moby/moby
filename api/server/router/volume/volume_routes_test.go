@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http/httptest"
 	"testing"
 
@@ -637,6 +638,24 @@ func (b *fakeVolumeBackend) Remove(_ context.Context, name string, o ...opts.Rem
 
 func (b *fakeVolumeBackend) Prune(_ context.Context, _ filters.Args) (*volume.PruneReport, error) {
 	return nil, nil
+}
+
+func (b *fakeVolumeBackend) Export(
+	_ context.Context,
+	name string,
+	out io.Writer,
+	_ func(string) error,
+	_ func(string) error,
+	_ bool,
+) error {
+	v, ok := b.volumes[name]
+	if !ok {
+		return errdefs.NotFound(fmt.Errorf("volume %s not found", name))
+	}
+
+	_, err := out.Write([]byte(fmt.Sprintf("%s exported", v.Name)))
+
+	return err
 }
 
 type fakeClusterBackend struct {

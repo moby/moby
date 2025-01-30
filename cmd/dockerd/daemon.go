@@ -697,7 +697,7 @@ func buildRouters(opts routerOptions) []router.Router {
 			opts.daemon.ReferenceStore,
 		),
 		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildkit, opts.daemon.Features),
-		volume.NewRouter(opts.daemon.VolumesService(), opts.cluster),
+		volume.NewRouter(opts.daemon.VolumesService(), opts.cluster, opts.daemon),
 		build.NewRouter(opts.buildBackend, opts.daemon),
 		sessionrouter.NewRouter(opts.sessionManager),
 		swarmrouter.NewRouter(opts.cluster),

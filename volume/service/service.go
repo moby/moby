@@ -2,6 +2,8 @@ package service // import "github.com/docker/docker/volume/service"
 
 import (
 	"context"
+	"io"
+	"runtime"
 	"strconv"
 	"sync/atomic"
 
@@ -11,6 +13,7 @@ import (
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/directory"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/stringid"
@@ -125,6 +128,11 @@ func (s *VolumesService) Mount(ctx context.Context, vol *volumetypes.Volume, ref
 		}
 		return "", err
 	}
+
+	if v.IsExporting() {
+		return "", errors.Errorf("volume %s is already in the process of being exported", vol.Name)
+	}
+
 	return v.Mount(ref)
 }
 
@@ -142,6 +150,11 @@ func (s *VolumesService) Unmount(ctx context.Context, vol *volumetypes.Volume, r
 		}
 		return err
 	}
+
+	if v.IsExporting() {
+		return errors.Errorf("volume %s is already in the process of being exported", vol.Name)
+	}
+
 	return v.Unmount(ref)
 }
 
@@ -274,6 +287,79 @@ func (s *VolumesService) List(ctx context.Context, filter filters.Args) (volumes
 	}
 
 	return s.volumesToAPI(ctx, volumes, useCachedPath(true)), warnings, nil
+}
+
+// Export export a local volume to a tarball.
+// An error is returned if the volume is not exists.
+func (s *VolumesService) Export(
+	ctx context.Context,
+	name string,
+	out io.Writer,
+	pauseContainerFn func(string) error,
+	unpauseContainerFn func(string) error,
+	pause bool,
+) error {
+	if runtime.GOOS == "windows" {
+		return errors.New("exporting volumes is not supported on Windows")
+	}
+
+	v, err := s.vs.Get(ctx, name)
+	if err != nil {
+		if IsNotExist(err) {
+			err = errdefs.NotFound(err)
+		}
+		return err
+	}
+
+	if v.DriverName() != volume.DefaultDriverName {
+		return errors.Errorf("exporting volumes is not supported for driver %s", v.DriverName())
+	}
+
+	if v.IsExporting() {
+		return errors.Errorf("volume %s is already in the process of being exported", name)
+	}
+
+	v.SetExporting(true)
+	defer v.SetExporting(false)
+
+	if pause {
+		s.vs.globalLock.RLock()
+		ctrIDs := make([]string, 0, len(s.vs.refs[name]))
+		for ctrID := range s.vs.refs[name] {
+			ctrIDs = append(ctrIDs, ctrID)
+		}
+		s.vs.globalLock.RUnlock()
+
+		for _, ctrID := range ctrIDs {
+			if err := pauseContainerFn(ctrID); err != nil {
+				return errors.Wrap(err, "error while pausing container")
+			}
+			defer func() {
+				if err := unpauseContainerFn(ctrID); err != nil {
+					log.G(ctx).WithError(err).Error("error while unpausing container")
+				}
+			}()
+		}
+	}
+
+	c, err := archive.Tar(v.Path(), archive.Uncompressed)
+	if err != nil {
+		return errors.Wrap(err, "error while creating volume tar stream")
+	}
+
+	defer func() {
+		if err := c.Close(); err != nil {
+			log.G(ctx).WithError(err).Error("error while closing volume tar stream")
+		}
+	}()
+
+	_, err = io.Copy(out, c)
+	if err != nil {
+		return errors.Wrap(err, "error while copying volume tar stream")
+	}
+
+	s.eventLogger.LogVolumeEvent(name, events.ActionExport, nil)
+	return nil
 }
 
 // Shutdown shuts down the image service and dependencies

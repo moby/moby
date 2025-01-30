@@ -338,3 +338,17 @@ VOLUME ` + volDest
 	assert.NilError(t, err)
 	assert.Assert(t, is.Contains(pruneReport.VolumesDeleted, volumeName))
 }
+
+func TestVolumeExport(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot export volumes on Windows")
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+
+	ctx := setupTest(t)
+	client := testEnv.APIClient()
+
+	v, err := client.VolumeCreate(ctx, volume.CreateOptions{})
+	assert.NilError(t, err)
+
+	_, err = client.VolumeExport(ctx, v.Name, true)
+	assert.NilError(t, err)
+}

@@ -279,6 +279,8 @@ type localVolume struct {
 	active activeMount
 	// reference to Root instances quotaCtl
 	quotaCtl *quota.Control
+	// isExporting is true if the volume is being exported
+	isExporting bool
 }
 
 // Name returns the name of the given Volume.
@@ -361,6 +363,14 @@ func (v *localVolume) Unmount(id string) error {
 
 func (v *localVolume) Status() map[string]interface{} {
 	return nil
+}
+
+func (v *localVolume) IsExporting() bool {
+	return v.isExporting
+}
+
+func (v *localVolume) SetExporting(exporting bool) {
+	v.isExporting = exporting
 }
 
 func (v *localVolume) loadOpts() error {

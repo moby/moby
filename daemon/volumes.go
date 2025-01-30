@@ -327,3 +327,11 @@ func (v *volumeWrapper) Status() map[string]interface{} {
 func (v *volumeWrapper) LiveRestoreVolume(ctx context.Context, ref string) error {
 	return v.s.LiveRestoreVolume(ctx, v.v, ref)
 }
+
+func (v *volumeWrapper) IsExporting() bool {
+	return v.v.IsExporting
+}
+
+func (v *volumeWrapper) SetExporting(exporting bool) {
+	v.v.IsExporting = exporting
+}
