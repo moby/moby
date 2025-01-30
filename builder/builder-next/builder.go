@@ -185,8 +185,6 @@ func (b *Builder) DiskUsage(ctx context.Context) ([]*types.BuildCache, error) {
 }
 
 // Prune clears all reclaimable build cache.
-//
-// FIXME(thaJeztah): wire up new options https://github.com/moby/moby/issues/48639
 func (b *Builder) Prune(ctx context.Context, opts types.BuildCachePruneOptions) (int64, []string, error) {
 	ch := make(chan *controlapi.UsageRecord)
 
@@ -215,6 +213,8 @@ func (b *Builder) Prune(ctx context.Context, opts types.BuildCachePruneOptions) 
 			All:           pi.All,
 			KeepDuration:  int64(pi.KeepDuration),
 			ReservedSpace: pi.ReservedSpace,
+			MaxUsedSpace:  pi.MaxUsedSpace,
+			MinFreeSpace:  pi.MinFreeSpace,
 			Filter:        pi.Filter,
 		}, &pruneProxy{
 			streamProxy: streamProxy{ctx: ctx},
@@ -638,7 +638,6 @@ func toBuildkitUlimits(inp []*container.Ulimit) (string, error) {
 	return strings.Join(ulimits, ","), nil
 }
 
-// FIXME(thaJeztah): wire-up new fields; see https://github.com/moby/moby/issues/48639
 func toBuildkitPruneInfo(opts types.BuildCachePruneOptions) (client.PruneInfo, error) {
 	var until time.Duration
 	untilValues := opts.Filters.Get("until")          // canonical
@@ -693,10 +692,17 @@ func toBuildkitPruneInfo(opts types.BuildCachePruneOptions) (client.PruneInfo, e
 			}
 		}
 	}
+
+	if opts.ReservedSpace == 0 && opts.KeepStorage != 0 {
+		opts.ReservedSpace = opts.KeepStorage
+	}
+
 	return client.PruneInfo{
 		All:           opts.All,
 		KeepDuration:  until,
-		ReservedSpace: opts.KeepStorage,
+		ReservedSpace: opts.ReservedSpace,
+		MaxUsedSpace:  opts.MaxUsedSpace,
+		MinFreeSpace:  opts.MinFreeSpace,
 		Filter:        []string{strings.Join(bkFilter, ",")},
 	}, nil
 }
