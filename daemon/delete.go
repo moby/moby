@@ -68,14 +68,13 @@ func (daemon *Daemon) rmLink(cfg *config.Config, container *container.Container,
 	}
 
 	parent = strings.TrimSuffix(parent, "/")
-	pe, err := daemon.containersReplica.Snapshot().GetID(parent)
+	parentID, err := daemon.containersReplica.Snapshot().GetID(parent)
 	if err != nil {
 		return fmt.Errorf("Cannot get parent %s for link name %s", parent, name)
 	}
 
 	daemon.releaseName(name)
-	parentContainer, _ := daemon.GetContainer(pe)
-	if parentContainer != nil {
+	if parentContainer := daemon.containers.Get(parentID); parentContainer != nil {
 		daemon.linkIndex.unlink(name, container, parentContainer)
 		if err := daemon.updateNetwork(cfg, parentContainer); err != nil {
 			log.G(context.TODO()).Debugf("Could not update network to remove link %s: %v", n, err)
