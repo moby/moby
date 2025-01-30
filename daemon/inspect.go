@@ -99,6 +99,11 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 	// make a copy to play with
 	hostConfig := *container.HostConfig
 
+	if hostConfig.Init == nil && daemon.configStore.Init {
+		init := true
+		hostConfig.Init = &init
+	}
+
 	children := daemon.children(container)
 	hostConfig.Links = nil // do not expose the internal structure
 	for linkAlias, child := range children {
