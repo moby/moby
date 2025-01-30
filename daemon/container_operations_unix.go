@@ -36,7 +36,7 @@ func (daemon *Daemon) setupLinkedContainers(ctr *container.Container) ([]string,
 	}
 
 	var env []string
-	for linkAlias, child := range daemon.children(ctr) {
+	for linkAlias, child := range daemon.linkIndex.children(ctr) {
 		if !child.IsRunning() {
 			return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
 		}
@@ -74,10 +74,10 @@ func (daemon *Daemon) addLegacyLinks(
 		return nil
 	}
 
-	children := daemon.children(ctr)
+	children := daemon.linkIndex.children(ctr)
 	var parents map[string]*container.Container
 	if !cfg.DisableBridge && ctr.HostConfig.NetworkMode.IsPrivate() {
-		parents = daemon.parents(ctr)
+		parents = daemon.linkIndex.parents(ctr)
 	}
 	if len(children) == 0 && len(parents) == 0 {
 		return nil
