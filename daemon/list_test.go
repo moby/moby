@@ -2,9 +2,11 @@ package daemon
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -25,7 +27,6 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	defer os.RemoveAll(root)
-
 	os.Exit(m.Run())
 }
 
@@ -51,6 +52,7 @@ func setupContainerWithName(t *testing.T, name string, daemon *Daemon) *containe
 	c.Name = name
 	c.Running = true
 	c.HostConfig = &containertypes.HostConfig{}
+	c.Created = time.Now()
 
 	// these are for passing the refreshImage reducer
 	c.ImageID = computedImageID
@@ -79,7 +81,46 @@ func containerListContainsName(containers []*containertypes.Summary, name string
 	return false
 }
 
-func TestListInvalidFilter(t *testing.T) {
+func TestContainerList(t *testing.T) {
+	db, err := container.NewViewDB()
+	assert.NilError(t, err)
+	d := &Daemon{
+		containersReplica: db,
+	}
+
+	// test list with different number of containers
+	for _, num := range []int{0, 1, 2, 4, 8, 16, 32, 64, 100} {
+		t.Run(fmt.Sprintf("%d containers", num), func(t *testing.T) {
+			db, err := container.NewViewDB() // new DB to ignore prior containers
+			assert.NilError(t, err)
+			d = &Daemon{
+				containersReplica: db,
+			}
+
+			// create the containers
+			containers := make([]*container.Container, num)
+			for i := range num {
+				name := fmt.Sprintf("cont-%d", i)
+				containers[i] = setupContainerWithName(t, name, d)
+				// ensure container timestamps are separated enough so the
+				// sort used by d.Containers() can deterministically sort them.
+				containers[i].Created = containers[i].Created.Add(time.Millisecond)
+			}
+
+			// list them and verify correctness
+			containerList, err := d.Containers(context.Background(), &containertypes.ListOptions{All: true})
+			assert.NilError(t, err)
+			assert.Assert(t, is.Len(containerList, num))
+
+			for i := range num {
+				// container list should be ordered in descending creation order
+				assert.Assert(t, is.Equal(containerList[i].Names[0], containers[num-1-i].Name))
+			}
+		})
+	}
+}
+
+func TestContainerList_InvalidFilter(t *testing.T) {
 	db, err := container.NewViewDB()
 	assert.NilError(t, err)
 	d := &Daemon{
@@ -92,7 +133,7 @@ func TestListInvalidFilter(t *testing.T) {
 	assert.Assert(t, is.Error(err, "invalid filter 'invalid'"))
 }
 
-func TestNameFilter(t *testing.T) {
+func TestContainerList_NameFilter(t *testing.T) {
 	db, err := container.NewViewDB()
 	assert.NilError(t, err)
 	d := &Daemon{
@@ -139,4 +180,52 @@ func TestNameFilter(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(containerListWithPrefix, 1))
 	assert.Assert(t, containerListContainsName(containerListWithPrefix, three.Name))
+}
+
+func TestContainerList_LimitFilter(t *testing.T) {
+	db, err := container.NewViewDB()
+	assert.NilError(t, err)
+	d := &Daemon{
+		containersReplica: db,
+	}
+
+	// start containers
+	num := 32
+	containers := make([]*container.Container, num)
+	for i := range num {
+		name := fmt.Sprintf("cont-%d", i)
+		containers[i] = setupContainerWithName(t, name, d)
+	}
+
+	t.Run("limit 1 container", func(t *testing.T) {
+		limit := 1
+		containerList, err := d.Containers(context.Background(), &containertypes.ListOptions{Limit: limit})
+		assert.NilError(t, err)
+		expectedListLen := min(num, limit)
+		assert.Assert(t, is.Len(containerList, expectedListLen))
+	})
+
+	t.Run("limit less than num containers", func(t *testing.T) {
+		limit := 20
+		containerList, err := d.Containers(context.Background(), &containertypes.ListOptions{Limit: limit})
+		assert.NilError(t, err)
+		expectedListLen := min(num, limit)
+		assert.Assert(t, is.Len(containerList, expectedListLen))
+	})
+
+	t.Run("limit equal num containers", func(t *testing.T) {
+		limit := 32
+		containerList, err := d.Containers(context.Background(), &containertypes.ListOptions{Limit: limit})
+		assert.NilError(t, err)
+		expectedListLen := min(num, limit)
+		assert.Assert(t, is.Len(containerList, expectedListLen))
+	})
+
+	t.Run("limit greater than num containers", func(t *testing.T) {
+		limit := 40
+		containerList, err := d.Containers(context.Background(), &containertypes.ListOptions{Limit: limit})
+		assert.NilError(t, err)
+		expectedListLen := min(num, limit)
+		assert.Assert(t, is.Len(containerList, expectedListLen))
+	})
 }

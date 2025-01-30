@@ -15,8 +15,38 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func TestListAnnotations(t *testing.T) {
+func TestContainerList(t *testing.T) {
 	ctx := setupTest(t)
+	apiClient := request.NewAPIClient(t)
+
+	// remove all existing containers
+	container.RemoveAll(ctx, t, apiClient)
+
+	// create the containers
+	num := 64
+	containers := make([]string, num)
+	for i := range num {
+		id := container.Create(ctx, t, apiClient)
+		defer container.Remove(ctx, t, apiClient, id, containertypes.RemoveOptions{Force: true})
+		containers[i] = id
+	}
+
+	// list them and verify correctness
+	containerList, err := apiClient.ContainerList(ctx, containertypes.ListOptions{All: true})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(containerList, num))
+	for i := range num {
+		// container list should be ordered in descending creation order
+		assert.Assert(t, is.Equal(containerList[i].ID, containers[num-1-i]))
+	}
+}
+
+func TestContainerList_Annotations(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := request.NewAPIClient(t)
+
+	// remove any existing containers
+	container.RemoveAll(ctx, t, apiClient)
 
 	annotations := map[string]string{
 		"foo":                       "bar",
@@ -48,13 +78,22 @@ func TestListAnnotations(t *testing.T) {
 	}
 }
 
-func TestListFilter(t *testing.T) {
+func TestContainerList_Filter(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
+
+	// remove any existing containers
+	container.RemoveAll(ctx, t, apiClient)
 
 	prev := container.Create(ctx, t, apiClient)
 	top := container.Create(ctx, t, apiClient)
 	next := container.Create(ctx, t, apiClient)
+
+	defer func() {
+		container.Remove(ctx, t, apiClient, prev, containertypes.RemoveOptions{Force: true})
+		container.Remove(ctx, t, apiClient, top, containertypes.RemoveOptions{Force: true})
+		container.Remove(ctx, t, apiClient, next, containertypes.RemoveOptions{Force: true})
+	}()
 
 	containerIDs := func(containers []containertypes.Summary) []string {
 		var entries []string
@@ -86,7 +125,7 @@ func TestListFilter(t *testing.T) {
 }
 
 // TestListPlatform verifies that containers have a platform set
-func TestListImageManifestPlatform(t *testing.T) {
+func TestContainerList_ImageManifestPlatform(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, !testEnv.UsingSnapshotter())
@@ -94,13 +133,17 @@ func TestListImageManifestPlatform(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	container.Create(ctx, t, apiClient)
+	// remove any existing containers
+	container.RemoveAll(ctx, t, apiClient)
+
+	id := container.Create(ctx, t, apiClient)
+	defer container.Remove(ctx, t, apiClient, id, containertypes.RemoveOptions{Force: true})
 
 	containers, err := apiClient.ContainerList(ctx, containertypes.ListOptions{
 		All: true,
 	})
 	assert.NilError(t, err)
-	assert.Check(t, len(containers) > 0)
+	assert.Assert(t, len(containers) > 0)
 
 	ctr := containers[0]
 	if assert.Check(t, ctr.ImageManifestDescriptor != nil && ctr.ImageManifestDescriptor.Platform != nil) {
