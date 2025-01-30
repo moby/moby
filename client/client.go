@@ -304,8 +304,7 @@ func (cli *Client) getAPIPath(ctx context.Context, p string, query url.Values) s
 	var apiPath string
 	_ = cli.checkVersion(ctx)
 	if cli.version != "" {
-		v := strings.TrimPrefix(cli.version, "v")
-		apiPath = path.Join(cli.basePath, "/v"+v, p)
+		apiPath = path.Join(cli.basePath, "/v"+strings.TrimPrefix(cli.version, "v"), p)
 	} else {
 		apiPath = path.Join(cli.basePath, p)
 	}

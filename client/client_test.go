@@ -420,6 +420,58 @@ func TestNegotiateAPIVersionWithFixedVersion(t *testing.T) {
 	assert.Equal(t, client.ClientVersion(), customVersion)
 }
 
+// TestCustomAPIVersion tests initializing the client with a custom
+// version.
+func TestCustomAPIVersion(t *testing.T) {
+	tests := []struct {
+		version  string
+		expected string
+	}{
+		{
+			version:  "",
+			expected: api.DefaultVersion,
+		},
+		{
+			version:  "1.0",
+			expected: "1.0",
+		},
+		{
+			version:  "9.99",
+			expected: "9.99",
+		},
+		{
+			version:  "v",
+			expected: api.DefaultVersion,
+		},
+		{
+			version:  "v1.0",
+			expected: "1.0",
+		},
+		{
+			version:  "v9.99",
+			expected: "9.99",
+		},
+		{
+			// When manually setting a version, no validation happens.
+			// so anything is accepted.
+			version:  "something-weird",
+			expected: "something-weird",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.version, func(t *testing.T) {
+			client, err := NewClientWithOpts(WithVersion(tc.version))
+			assert.NilError(t, err)
+			assert.Equal(t, client.ClientVersion(), tc.expected)
+
+			t.Setenv(EnvOverrideAPIVersion, tc.expected)
+			client, err = NewClientWithOpts(WithVersionFromEnv())
+			assert.NilError(t, err)
+			assert.Equal(t, client.ClientVersion(), tc.expected)
+		})
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (rtf roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
