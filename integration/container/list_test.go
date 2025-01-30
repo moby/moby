@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
@@ -13,6 +14,29 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
+
+func TestList(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := request.NewAPIClient(t)
+
+	// start a random number of containers (between 0->64)
+	num := rand.Intn(64)
+	containers := make([]string, num)
+	for i := range num {
+		id := container.Create(ctx, t, apiClient)
+		defer container.Remove(ctx, t, apiClient, id, containertypes.RemoveOptions{Force: true})
+		containers[i] = id
+	}
+
+	// list them and verify correctness
+	containerList, err := apiClient.ContainerList(ctx, containertypes.ListOptions{All: true})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(containerList, num))
+	for i := range num {
+		// container list should be ordered in descending creation order
+		assert.Assert(t, is.Equal(containerList[i].ID, containers[num-1-i]))
+	}
+}
 
 func TestListAnnotations(t *testing.T) {
 	ctx := setupTest(t)
