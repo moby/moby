@@ -62,7 +62,7 @@ info:
     Engine releases in the near future should support this version of the API,
     so your client will continue to work even if it is talking to a newer Engine.
 
-    The API uses an open schema model, which means server may add extra properties
+    The API uses an open schema model, which means the server may add extra properties
     to responses. Likewise, the server will ignore any extra query parameters and
     request body properties. When you write clients, you need to ignore additional
     properties in responses to ensure they do not break when talking to newer
