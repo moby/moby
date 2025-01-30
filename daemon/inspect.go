@@ -99,7 +99,8 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 	// make a copy to play with
 	hostConfig := *container.HostConfig
 
-	children := daemon.children(container)
+	// Add information for legacy links
+	children := daemon.linkIndex.children(container)
 	hostConfig.Links = nil // do not expose the internal structure
 	for linkAlias, child := range children {
 		hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
