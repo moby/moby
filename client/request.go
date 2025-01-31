@@ -234,8 +234,35 @@ func (cli *Client) checkResponseErr(serverResp serverResponse) error {
 		if err := json.Unmarshal(body, &errorResponse); err != nil {
 			return errors.Wrap(err, "Error reading JSON")
 		}
-		daemonErr = errors.New(strings.TrimSpace(errorResponse.Message))
+		if errorResponse.Message == "" {
+			// Error-message is empty, which means that we successfully parsed the
+			// JSON-response (no error produced), but it didn't contain an error
+			// message. This could either be because the response was empty, or
+			// the response was valid JSON, but not with the expected schema
+			// ([types.ErrorResponse]).
+			//
+			// We cannot use "strict" JSON handling (json.NewDecoder with DisallowUnknownFields)
+			// due to the API using an open schema (we must anticipate fields
+			// being added to [types.ErrorResponse] in the future, and not
+			// reject those responses.
+			//
+			// For these cases, we construct an error with the status-code
+			// returned, but we could consider returning (a truncated version
+			// of) the actual response as-is.
+			//
+			// TODO(thaJeztah): consider adding a log.Debug to allow clients to debug the actual response when enabling debug logging.
+			daemonErr = fmt.Errorf(`API returned a %d (%s) but provided no error-message`,
+				serverResp.statusCode,
+				http.StatusText(serverResp.statusCode),
+			)
+		} else {
+			daemonErr = errors.New(strings.TrimSpace(errorResponse.Message))
+		}
 	} else {
+		// Fall back to returning the response as-is for API versions < 1.24
+		// that didn't support JSON error responses, and for situations
+		// where a plain text error is returned. This branch may also catch
+		// situations where a proxy is involved, returning a HTML response.
 		daemonErr = errors.New(strings.TrimSpace(string(body)))
 	}
 	return errors.Wrap(daemonErr, "Error response from daemon")
