@@ -155,7 +155,7 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 
 	if len(d.resolvConfContent) > 0 {
 		path := filepath.Join(d.Folder, "resolv.conf")
-		if err := os.WriteFile(path, []byte(d.resolvConfContent), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(d.resolvConfContent), 0o644); err != nil {
 			return nil, fmt.Errorf("failed to write docker resolv.conf to %q: %v", path, err)
 		}
 		d.extraEnv = append(d.extraEnv, "DOCKER_TEST_RESOLV_CONF_PATH="+path)
@@ -868,14 +868,14 @@ func (d *Daemon) LoadImage(ctx context.Context, t testing.TB, img string) {
 	assert.NilError(t, err, "[%s] failed to create client", d.id)
 	defer clientHost.Close()
 
-	reader, err := clientHost.ImageSave(ctx, []string{img}, image.SaveOptions{})
+	reader, err := clientHost.ImageSaveWithOptions(ctx, []string{img}, image.SaveOptions{})
 	assert.NilError(t, err, "[%s] failed to download %s", d.id, img)
 	defer reader.Close()
 
 	c := d.NewClientT(t)
 	defer c.Close()
 
-	resp, err := c.ImageLoad(ctx, reader, image.LoadOptions{Quiet: true})
+	resp, err := c.ImageLoadWithOptions(ctx, reader, image.LoadOptions{Quiet: true})
 	assert.NilError(t, err, "[%s] failed to load %s", d.id, img)
 	defer resp.Body.Close()
 }

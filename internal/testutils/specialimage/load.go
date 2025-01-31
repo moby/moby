@@ -30,7 +30,7 @@ func Load(ctx context.Context, t *testing.T, apiClient client.APIClient, imageFu
 
 	defer rc.Close()
 
-	resp, err := apiClient.ImageLoad(ctx, rc, image.LoadOptions{Quiet: true})
+	resp, err := apiClient.ImageLoadWithOptions(ctx, rc, image.LoadOptions{Quiet: true})
 	assert.NilError(t, err, "Failed to load dangling image")
 
 	defer resp.Body.Close()

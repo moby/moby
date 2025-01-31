@@ -65,7 +65,7 @@ func TestSaveCheckTimes(t *testing.T) {
 	img, err := client.ImageInspect(ctx, repoName)
 	assert.NilError(t, err)
 
-	rdr, err := client.ImageSave(ctx, []string{repoName}, image.SaveOptions{})
+	rdr, err := client.ImageSaveWithOptions(ctx, []string{repoName}, image.SaveOptions{})
 	assert.NilError(t, err)
 
 	tarfs := tarIndexFS(t, rdr)
@@ -139,7 +139,7 @@ func TestSaveOCI(t *testing.T) {
 			inspect, err := client.ImageInspect(ctx, tc.image)
 			assert.NilError(t, err)
 
-			rdr, err := client.ImageSave(ctx, []string{tc.image}, image.SaveOptions{})
+			rdr, err := client.ImageSaveWithOptions(ctx, []string{tc.image}, image.SaveOptions{})
 			assert.NilError(t, err)
 			defer rdr.Close()
 
@@ -224,7 +224,7 @@ func TestSavePlatform(t *testing.T) {
 	_, err := client.ImageInspect(ctx, repoName)
 	assert.NilError(t, err)
 
-	_, err = client.ImageSave(ctx, []string{repoName}, image.SaveOptions{
+	_, err = client.ImageSaveWithOptions(ctx, []string{repoName}, image.SaveOptions{
 		Platforms: []ocispec.Platform{
 			{Architecture: "amd64", OS: "linux"},
 			{Architecture: "arm64", OS: "linux", Variant: "v8"},
@@ -264,7 +264,7 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 	idBar := makeImage("busybox:latest", tagBar)
 	idBusybox := busyboxImg.ID
 
-	rdr, err := client.ImageSave(ctx, []string{repoName, "busybox:latest"}, image.SaveOptions{})
+	rdr, err := client.ImageSaveWithOptions(ctx, []string{repoName, "busybox:latest"}, image.SaveOptions{})
 	assert.NilError(t, err)
 	defer rdr.Close()
 
@@ -321,7 +321,7 @@ RUN touch /opt/a/b/c && chown user:user /opt/a/b/c`
 
 	imgID := build.Do(ctx, t, client, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)))
 
-	rdr, err := client.ImageSave(ctx, []string{imgID}, image.SaveOptions{})
+	rdr, err := client.ImageSaveWithOptions(ctx, []string{imgID}, image.SaveOptions{})
 	assert.NilError(t, err)
 	defer rdr.Close()
 

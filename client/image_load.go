@@ -13,10 +13,23 @@ import (
 // It's up to the caller to close the io.ReadCloser in the
 // ImageLoadResponse returned by this function.
 //
+// Deprecated: use [Client.ImageLoadWithOptions] instead.
+func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, quiet bool) (image.LoadResponse, error) {
+	return cli.imageLoad(ctx, input, image.LoadOptions{Quiet: quiet})
+}
+
+// ImageLoadWithOptions loads an image in the docker host from the client host.
+// It's up to the caller to close the io.ReadCloser in the
+// ImageLoadResponse returned by this function.
+//
 // Platform is an optional parameter that specifies the platform to load from
 // the provided multi-platform image. This is only has effect if the input image
 // is a multi-platform image.
-func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, opts image.LoadOptions) (image.LoadResponse, error) {
+func (cli *Client) ImageLoadWithOptions(ctx context.Context, input io.Reader, opts image.LoadOptions) (image.LoadResponse, error) {
+	return cli.imageLoad(ctx, input, opts)
+}
+
+func (cli *Client) imageLoad(ctx context.Context, input io.Reader, opts image.LoadOptions) (image.LoadResponse, error) {
 	query := url.Values{}
 	query.Set("quiet", "0")
 	if opts.Quiet {

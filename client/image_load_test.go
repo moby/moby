@@ -20,7 +20,7 @@ func TestImageLoadError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.ImageLoad(context.Background(), nil, image.LoadOptions{Quiet: true})
+	_, err := client.ImageLoadWithOptions(context.Background(), nil, image.LoadOptions{Quiet: true})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -97,7 +97,7 @@ func TestImageLoad(t *testing.T) {
 			}
 
 			input := bytes.NewReader([]byte(expectedInput))
-			imageLoadResponse, err := client.ImageLoad(context.Background(), input, image.LoadOptions{
+			imageLoadResponse, err := client.ImageLoadWithOptions(context.Background(), input, image.LoadOptions{
 				Quiet:     tc.quiet,
 				Platforms: tc.platforms,
 			})
