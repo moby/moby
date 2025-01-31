@@ -234,25 +234,21 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix, dstNam
 		return err
 	}
 
-	n.mu.Lock()
 	if n.isDefault {
 		i.dstName = i.srcName
 	} else if i.dstName == "" {
+		n.mu.Lock()
 		i.dstName = fmt.Sprintf("%s%d", dstPrefix, n.nextIfIndex[dstPrefix])
 		n.nextIfIndex[dstPrefix]++
+		n.mu.Unlock()
 	}
 
-	path := n.path
-	isDefault := n.isDefault
-	nlh := n.nlHandle
 	nlhHost := ns.NlHandle()
-	n.mu.Unlock()
-
 	newNs := netns.None()
-	if !isDefault {
-		newNs, err = netns.GetFromPath(path)
+	if !n.isDefault {
+		newNs, err = netns.GetFromPath(n.path)
 		if err != nil {
-			return fmt.Errorf("failed get network namespace %q: %v", path, err)
+			return fmt.Errorf("failed get network namespace %q: %v", n.path, err)
 		}
 		defer newNs.Close()
 	}
@@ -260,7 +256,7 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix, dstNam
 	// If it is a bridge interface we have to create the bridge inside
 	// the namespace so don't try to lookup the interface using srcName
 	if i.bridge {
-		if err := nlh.LinkAdd(&netlink.Bridge{
+		if err := n.nlHandle.LinkAdd(&netlink.Bridge{
 			LinkAttrs: netlink.LinkAttrs{
 				Name: i.srcName,
 			},
@@ -277,7 +273,7 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix, dstNam
 		// Move the network interface to the destination
 		// namespace only if the namespace is not a default
 		// type
-		if !isDefault {
+		if !n.isDefault {
 			if err := moveLink(ctx, nlhHost, iface, i, newNs); err != nil {
 				return err
 			}
@@ -285,26 +281,26 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix, dstNam
 	}
 
 	// Find the network interface identified by the SrcName attribute.
-	iface, err := nlh.LinkByName(i.srcName)
+	iface, err := n.nlHandle.LinkByName(i.srcName)
 	if err != nil {
 		return fmt.Errorf("failed to get link by name %q: %v", i.srcName, err)
 	}
 
 	// Down the interface before configuring
-	if err := nlh.LinkSetDown(iface); err != nil {
+	if err := n.nlHandle.LinkSetDown(iface); err != nil {
 		return fmt.Errorf("failed to set link down: %v", err)
 	}
 
 	// Configure the interface now this is moved in the proper namespace.
-	if err := n.configureInterface(ctx, nlh, iface, i); err != nil {
+	if err := n.configureInterface(ctx, n.nlHandle, iface, i); err != nil {
 		// If configuring the device fails move it back to the host namespace
 		// and change the name back to the source name. This allows the caller
 		// to properly cleanup the interface. Its important especially for
 		// interfaces with global attributes, ex: vni id for vxlan interfaces.
-		if nerr := nlh.LinkSetName(iface, i.SrcName()); nerr != nil {
+		if nerr := n.nlHandle.LinkSetName(iface, i.SrcName()); nerr != nil {
 			log.G(ctx).Errorf("renaming interface (%s->%s) failed, %v after config error %v", i.DstName(), i.SrcName(), nerr, err)
 		}
-		if nerr := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); nerr != nil {
+		if nerr := n.nlHandle.LinkSetNsFd(iface, ns.ParseHandlerInt()); nerr != nil {
 			log.G(ctx).Errorf("moving interface %s to host ns failed, %v, after config error %v", i.SrcName(), nerr, err)
 		}
 		return err
@@ -312,14 +308,14 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix, dstNam
 
 	// Up the interface.
 	cnt := 0
-	for err = nlh.LinkSetUp(iface); err != nil && cnt < 3; cnt++ {
+	for err = n.nlHandle.LinkSetUp(iface); err != nil && cnt < 3; cnt++ {
 		ctx, span2 := otel.Tracer("").Start(ctx, "libnetwork.osl.retryingLinkUp", trace.WithAttributes(
 			attribute.String("srcName", srcName),
 			attribute.String("dstPrefix", dstPrefix)))
 		defer span2.End()
 		log.G(ctx).Debugf("retrying link setup because of: %v", err)
 		time.Sleep(10 * time.Millisecond)
-		err = nlh.LinkSetUp(iface)
+		err = n.nlHandle.LinkSetUp(iface)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to set link up: %v", err)
@@ -327,7 +323,7 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix, dstNam
 	log.G(ctx).Debug("link has been set to up")
 
 	// Set the routes on the interface. This can only be done when the interface is up.
-	if err := setInterfaceRoutes(ctx, nlh, iface, i); err != nil {
+	if err := setInterfaceRoutes(ctx, n.nlHandle, iface, i); err != nil {
 		return fmt.Errorf("error setting interface %q routes to %q: %v", iface.Attrs().Name, i.Routes(), err)
 	}
 
@@ -342,8 +338,8 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix, dstNam
 		if err := waitForBridgePort(ctx, nlhHost, iface); err != nil {
 			return fmt.Errorf("check bridge port state: %w", err)
 		}
-		waitForMcastRoute(ctx, iface.Attrs().Index, i, nlh)
-		if err := n.advertiseAddrs(ctx, iface.Attrs().Index, i, nlh); err != nil {
+		waitForMcastRoute(ctx, iface.Attrs().Index, i, n.nlHandle)
+		if err := n.advertiseAddrs(ctx, iface.Attrs().Index, i, n.nlHandle); err != nil {
 			return fmt.Errorf("failed to advertise addresses: %w", err)
 		}
 	}

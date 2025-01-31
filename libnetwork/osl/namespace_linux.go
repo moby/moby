@@ -225,7 +225,7 @@ func createNamespaceFile(path string) error {
 // or sets the gateway etc. It holds a list of Interfaces, routes etc., and more
 // can be added dynamically.
 type Namespace struct {
-	path                string
+	path                string // path is the absolute path to the network namespace. It is safe to access it concurrently.
 	iFaces              []*Interface
 	gw                  net.IP
 	gwv6                net.IP
@@ -234,10 +234,10 @@ type Namespace struct {
 	staticRoutes        []*types.StaticRoute
 	neighbors           []*neigh
 	nextIfIndex         map[string]int
-	isDefault           bool
+	isDefault           bool // isDefault is true when Namespace represents the host network namespace. It is safe to access it concurrently.
 	ipv6LoEnabledOnce   sync.Once
 	ipv6LoEnabledCached bool
-	nlHandle            nlwrap.Handle
+	nlHandle            nlwrap.Handle // nlHandle is the netlink handle for the network namespace. It is safe to access it concurrently.
 	mu                  sync.Mutex
 }
 
