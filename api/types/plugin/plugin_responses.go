@@ -1,4 +1,4 @@
-package types // import "github.com/docker/docker/api/types"
+package plugin
 
 import (
 	"encoding/json"
@@ -6,11 +6,11 @@ import (
 	"sort"
 )
 
-// PluginsListResponse contains the response for the Engine API
-type PluginsListResponse []*Plugin
+// ListResponse contains the response for the Engine API
+type ListResponse []*Plugin
 
 // UnmarshalJSON implements json.Unmarshaler for PluginInterfaceType
-func (t *PluginInterfaceType) UnmarshalJSON(p []byte) error {
+func (t *InterfaceType) UnmarshalJSON(p []byte) error {
 	versionIndex := len(p)
 	prefixIndex := 0
 	if len(p) < 2 || p[0] != '"' || p[len(p)-1] != '"' {
@@ -36,35 +36,35 @@ loop:
 }
 
 // MarshalJSON implements json.Marshaler for PluginInterfaceType
-func (t *PluginInterfaceType) MarshalJSON() ([]byte, error) {
+func (t *InterfaceType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.String())
 }
 
 // String implements fmt.Stringer for PluginInterfaceType
-func (t PluginInterfaceType) String() string {
+func (t InterfaceType) String() string {
 	return fmt.Sprintf("%s.%s/%s", t.Prefix, t.Capability, t.Version)
 }
 
-// PluginPrivilege describes a permission the user has to accept
+// Privilege describes a permission the user has to accept
 // upon installing a plugin.
-type PluginPrivilege struct {
+type Privilege struct {
 	Name        string
 	Description string
 	Value       []string
 }
 
-// PluginPrivileges is a list of PluginPrivilege
-type PluginPrivileges []PluginPrivilege
+// Privileges is a list of Privilege
+type Privileges []Privilege
 
-func (s PluginPrivileges) Len() int {
+func (s Privileges) Len() int {
 	return len(s)
 }
 
-func (s PluginPrivileges) Less(i, j int) bool {
+func (s Privileges) Less(i, j int) bool {
 	return s[i].Name < s[j].Name
 }
 
-func (s PluginPrivileges) Swap(i, j int) {
+func (s Privileges) Swap(i, j int) {
 	sort.Strings(s[i].Value)
 	sort.Strings(s[j].Value)
 	s[i], s[j] = s[j], s[i]

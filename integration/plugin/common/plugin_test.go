@@ -16,6 +16,7 @@ import (
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/docker/docker/api/types"
+	plugintypes "github.com/docker/docker/api/types/plugin"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -112,7 +113,7 @@ func TestPluginInstall(t *testing.T) {
 		repo := path.Join(registry.DefaultURL, name+":latest")
 		assert.NilError(t, plugin.CreateInRegistry(ctx, repo, nil))
 
-		rdr, err := client.PluginInstall(ctx, repo, types.PluginInstallOptions{Disabled: true, RemoteRef: repo})
+		rdr, err := client.PluginInstall(ctx, repo, plugintypes.InstallOptions{Disabled: true, RemoteRef: repo})
 		assert.NilError(t, err)
 		defer rdr.Close()
 
@@ -149,10 +150,10 @@ func TestPluginInstall(t *testing.T) {
 			}
 		}), buf)
 
-		err = client.PluginRemove(ctx, repo, types.PluginRemoveOptions{Force: true})
+		err = client.PluginRemove(ctx, repo, plugintypes.RemoveOptions{Force: true})
 		assert.NilError(t, err)
 
-		rdr, err = client.PluginInstall(ctx, repo, types.PluginInstallOptions{
+		rdr, err = client.PluginInstall(ctx, repo, plugintypes.InstallOptions{
 			Disabled:  true,
 			RemoteRef: repo + "@" + digest,
 		})
@@ -180,7 +181,7 @@ func TestPluginInstall(t *testing.T) {
 		authEncoded, err := json.Marshal(auth)
 		assert.NilError(t, err)
 
-		rdr, err := client.PluginInstall(ctx, repo, types.PluginInstallOptions{
+		rdr, err := client.PluginInstall(ctx, repo, plugintypes.InstallOptions{
 			RegistryAuth: base64.URLEncoding.EncodeToString(authEncoded),
 			Disabled:     true,
 			RemoteRef:    repo,
@@ -234,7 +235,7 @@ func TestPluginInstall(t *testing.T) {
 		assert.NilError(t, plugin.CreateInRegistry(ctx, repo, nil, plugin.WithInsecureRegistry(regURL)))
 
 		client := d.NewClientT(t)
-		rdr, err := client.PluginInstall(ctx, repo, types.PluginInstallOptions{Disabled: true, RemoteRef: repo})
+		rdr, err := client.PluginInstall(ctx, repo, plugintypes.InstallOptions{Disabled: true, RemoteRef: repo})
 		assert.NilError(t, err)
 		defer rdr.Close()
 
@@ -267,9 +268,9 @@ func TestPluginsWithRuntimes(t *testing.T) {
 	client := d.NewClientT(t)
 
 	assert.NilError(t, plugin.Create(ctx, client, "test:latest"))
-	defer client.PluginRemove(ctx, "test:latest", types.PluginRemoveOptions{Force: true})
+	defer client.PluginRemove(ctx, "test:latest", plugintypes.RemoveOptions{Force: true})
 
-	assert.NilError(t, client.PluginEnable(ctx, "test:latest", types.PluginEnableOptions{Timeout: 30}))
+	assert.NilError(t, client.PluginEnable(ctx, "test:latest", plugintypes.EnableOptions{Timeout: 30}))
 
 	p := filepath.Join(dir, "myrt")
 	script := fmt.Sprintf(`#!/bin/sh

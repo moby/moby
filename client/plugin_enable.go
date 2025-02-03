@@ -5,11 +5,11 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/plugin"
 )
 
 // PluginEnable enables a plugin
-func (cli *Client) PluginEnable(ctx context.Context, name string, options types.PluginEnableOptions) error {
+func (cli *Client) PluginEnable(ctx context.Context, name string, options plugin.EnableOptions) error {
 	query := url.Values{}
 	query.Set("timeout", strconv.Itoa(options.Timeout))
 

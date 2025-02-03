@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -20,7 +20,7 @@ func TestPluginEnableError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	err := client.PluginEnable(context.Background(), "plugin_name", types.PluginEnableOptions{})
+	err := client.PluginEnable(context.Background(), "plugin_name", plugin.EnableOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -42,7 +42,7 @@ func TestPluginEnable(t *testing.T) {
 		}),
 	}
 
-	err := client.PluginEnable(context.Background(), "plugin_name", types.PluginEnableOptions{})
+	err := client.PluginEnable(context.Background(), "plugin_name", plugin.EnableOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

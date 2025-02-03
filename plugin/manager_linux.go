@@ -10,7 +10,7 @@ import (
 
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/plugin"
 	"github.com/docker/docker/daemon/initlayer"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
@@ -213,7 +213,7 @@ func (pm *Manager) Shutdown() {
 	}
 }
 
-func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest, manifestDigest digest.Digest, blobsums []digest.Digest, tmpRootFSDir string, privileges *types.PluginPrivileges) (err error) {
+func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest, manifestDigest digest.Digest, blobsums []digest.Digest, tmpRootFSDir string, privileges *plugin.Privileges) (err error) {
 	config, err := pm.setupNewPlugin(configDigest, privileges)
 	if err != nil {
 		return err
@@ -266,28 +266,28 @@ func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest, manifestDigest dige
 	return errors.Wrap(err, "error saving upgraded plugin config")
 }
 
-func (pm *Manager) setupNewPlugin(configDigest digest.Digest, privileges *types.PluginPrivileges) (types.PluginConfig, error) {
+func (pm *Manager) setupNewPlugin(configDigest digest.Digest, privileges *plugin.Privileges) (plugin.Config, error) {
 	configRA, err := pm.blobStore.ReaderAt(context.TODO(), ocispec.Descriptor{Digest: configDigest})
 	if err != nil {
-		return types.PluginConfig{}, err
+		return plugin.Config{}, err
 	}
 	defer configRA.Close()
 
 	configR := content.NewReader(configRA)
 
-	var config types.PluginConfig
+	var config plugin.Config
 	dec := json.NewDecoder(configR)
 	if err := dec.Decode(&config); err != nil {
-		return types.PluginConfig{}, errors.Wrapf(err, "failed to parse config")
+		return plugin.Config{}, errors.Wrapf(err, "failed to parse config")
 	}
 	if dec.More() {
-		return types.PluginConfig{}, errors.New("invalid config json")
+		return plugin.Config{}, errors.New("invalid config json")
 	}
 
 	requiredPrivileges := computePrivileges(config)
 	if privileges != nil {
 		if err := validatePrivileges(requiredPrivileges, *privileges); err != nil {
-			return types.PluginConfig{}, err
+			return plugin.Config{}, err
 		}
 	}
 
@@ -295,7 +295,7 @@ func (pm *Manager) setupNewPlugin(configDigest digest.Digest, privileges *types.
 }
 
 // createPlugin creates a new plugin. take lock before calling.
-func (pm *Manager) createPlugin(name string, configDigest, manifestDigest digest.Digest, blobsums []digest.Digest, rootFSDir string, privileges *types.PluginPrivileges, opts ...CreateOpt) (p *v2.Plugin, err error) {
+func (pm *Manager) createPlugin(name string, configDigest, manifestDigest digest.Digest, blobsums []digest.Digest, rootFSDir string, privileges *plugin.Privileges, opts ...CreateOpt) (p *v2.Plugin, err error) {
 	if err := pm.config.Store.validateName(name); err != nil { // todo: this check is wrong. remove store
 		return nil, errdefs.InvalidParameter(err)
 	}
@@ -306,7 +306,7 @@ func (pm *Manager) createPlugin(name string, configDigest, manifestDigest digest
 	}
 
 	p = &v2.Plugin{
-		PluginObj: types.Plugin{
+		PluginObj: plugin.Plugin{
 			Name:   name,
 			ID:     stringid.GenerateRandomID(),
 			Config: config,
