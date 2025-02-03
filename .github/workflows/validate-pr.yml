@@ -11,7 +11,7 @@ permissions:
 
 on:
   pull_request:
-    types: [opened, edited, labeled, unlabeled]
+    types: [opened, edited, labeled, unlabeled, synchronize]
 
 jobs:
   check-area-label:
