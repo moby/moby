@@ -22,6 +22,14 @@ func TestPluginEnableError(t *testing.T) {
 
 	err := client.PluginEnable(context.Background(), "plugin_name", types.PluginEnableOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.PluginEnable(context.Background(), "", types.PluginEnableOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.PluginEnable(context.Background(), "    ", types.PluginEnableOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestPluginEnable(t *testing.T) {

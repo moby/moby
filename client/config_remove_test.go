@@ -31,6 +31,14 @@ func TestConfigRemoveError(t *testing.T) {
 
 	err := client.ConfigRemove(context.Background(), "config_id")
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.ConfigRemove(context.Background(), "")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.ConfigRemove(context.Background(), "    ")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestConfigRemove(t *testing.T) {

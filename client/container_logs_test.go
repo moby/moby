@@ -24,6 +24,14 @@ func TestContainerLogsNotFoundError(t *testing.T) {
 	}
 	_, err := client.ContainerLogs(context.Background(), "container_id", container.LogsOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+
+	_, err = client.ContainerLogs(context.Background(), "", container.LogsOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, err = client.ContainerLogs(context.Background(), "    ", container.LogsOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestContainerLogsError(t *testing.T) {

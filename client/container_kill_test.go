@@ -20,6 +20,14 @@ func TestContainerKillError(t *testing.T) {
 	}
 	err := client.ContainerKill(context.Background(), "nothing", "SIGKILL")
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.ContainerKill(context.Background(), "", "")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.ContainerKill(context.Background(), "    ", "")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestContainerKill(t *testing.T) {

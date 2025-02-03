@@ -19,8 +19,16 @@ func TestContainerStopError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	err := client.ContainerStop(context.Background(), "nothing", container.StopOptions{})
+	err := client.ContainerStop(context.Background(), "container_id", container.StopOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.ContainerStop(context.Background(), "", container.StopOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.ContainerStop(context.Background(), "    ", container.StopOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 // TestContainerStopConnectionError verifies that connection errors occurring
@@ -31,7 +39,7 @@ func TestContainerStopConnectionError(t *testing.T) {
 	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	err = client.ContainerStop(context.Background(), "nothing", container.StopOptions{})
+	err = client.ContainerStop(context.Background(), "container_id", container.StopOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
@@ -40,7 +48,7 @@ func TestContainerStop(t *testing.T) {
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
 			s := req.URL.Query().Get("signal")
 			if s != "SIGKILL" {

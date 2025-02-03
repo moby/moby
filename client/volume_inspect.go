@@ -17,8 +17,9 @@ func (cli *Client) VolumeInspect(ctx context.Context, volumeID string) (volume.V
 
 // VolumeInspectWithRaw returns the information about a specific volume in the docker host and its raw representation
 func (cli *Client) VolumeInspectWithRaw(ctx context.Context, volumeID string) (volume.Volume, []byte, error) {
-	if volumeID == "" {
-		return volume.Volume{}, nil, objectNotFoundError{object: "volume", id: volumeID}
+	volumeID, err := trimID("volume", volumeID)
+	if err != nil {
+		return volume.Volume{}, nil, err
 	}
 
 	var vol volume.Volume

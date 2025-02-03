@@ -20,6 +20,14 @@ func TestContainerResizeError(t *testing.T) {
 	}
 	err := client.ContainerResize(context.Background(), "container_id", container.ResizeOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.ContainerResize(context.Background(), "", container.ResizeOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.ContainerResize(context.Background(), "    ", container.ResizeOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestContainerExecResizeError(t *testing.T) {

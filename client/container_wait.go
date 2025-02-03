@@ -33,6 +33,12 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, condit
 	resultC := make(chan container.WaitResponse)
 	errC := make(chan error, 1)
 
+	containerID, err := trimID("container", containerID)
+	if err != nil {
+		errC <- err
+		return resultC, errC
+	}
+
 	// Make sure we negotiated (if the client is configured to do so),
 	// as code below contains API-version specific handling of options.
 	//

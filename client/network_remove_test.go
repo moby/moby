@@ -21,6 +21,14 @@ func TestNetworkRemoveError(t *testing.T) {
 
 	err := client.NetworkRemove(context.Background(), "network_id")
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.NetworkRemove(context.Background(), "")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.NetworkRemove(context.Background(), "    ")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestNetworkRemove(t *testing.T) {

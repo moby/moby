@@ -22,6 +22,14 @@ func TestNodeUpdateError(t *testing.T) {
 
 	err := client.NodeUpdate(context.Background(), "node_id", swarm.Version{}, swarm.NodeSpec{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.NodeUpdate(context.Background(), "", swarm.Version{}, swarm.NodeSpec{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.NodeUpdate(context.Background(), "    ", swarm.Version{}, swarm.NodeSpec{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestNodeUpdate(t *testing.T) {

@@ -20,6 +20,14 @@ func TestContainerUnpauseError(t *testing.T) {
 	}
 	err := client.ContainerUnpause(context.Background(), "nothing")
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.ContainerUnpause(context.Background(), "")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.ContainerUnpause(context.Background(), "    ")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestContainerUnpause(t *testing.T) {

@@ -12,9 +12,11 @@ import (
 
 // ContainerInspect returns the container information.
 func (cli *Client) ContainerInspect(ctx context.Context, containerID string) (container.InspectResponse, error) {
-	if containerID == "" {
-		return container.InspectResponse{}, objectNotFoundError{object: "container", id: containerID}
+	containerID, err := trimID("container", containerID)
+	if err != nil {
+		return container.InspectResponse{}, err
 	}
+
 	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/json", nil, nil)
 	defer ensureReaderClosed(serverResp)
 	if err != nil {
@@ -28,9 +30,11 @@ func (cli *Client) ContainerInspect(ctx context.Context, containerID string) (co
 
 // ContainerInspectWithRaw returns the container information and its raw representation.
 func (cli *Client) ContainerInspectWithRaw(ctx context.Context, containerID string, getSize bool) (container.InspectResponse, []byte, error) {
-	if containerID == "" {
-		return container.InspectResponse{}, nil, objectNotFoundError{object: "container", id: containerID}
+	containerID, err := trimID("container", containerID)
+	if err != nil {
+		return container.InspectResponse{}, nil, err
 	}
+
 	query := url.Values{}
 	if getSize {
 		query.Set("size", "1")

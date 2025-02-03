@@ -25,6 +25,14 @@ func TestCheckpointDeleteError(t *testing.T) {
 	})
 
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.CheckpointDelete(context.Background(), "", checkpoint.DeleteOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.CheckpointDelete(context.Background(), "    ", checkpoint.DeleteOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestCheckpointDelete(t *testing.T) {

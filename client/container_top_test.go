@@ -23,6 +23,14 @@ func TestContainerTopError(t *testing.T) {
 	}
 	_, err := client.ContainerTop(context.Background(), "nothing", []string{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	_, err = client.ContainerTop(context.Background(), "", []string{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, err = client.ContainerTop(context.Background(), "    ", []string{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestContainerTop(t *testing.T) {

@@ -69,7 +69,12 @@ func TestNetworkInspect(t *testing.T) {
 	t.Run("empty ID", func(t *testing.T) {
 		// verify that the client does not create a request if the network-ID/name is empty.
 		_, err := client.NetworkInspect(context.Background(), "", network.InspectOptions{})
-		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+		assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+		assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+		_, err = client.NetworkInspect(context.Background(), "    ", network.InspectOptions{})
+		assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+		assert.Check(t, is.ErrorContains(err, "value is empty"))
 	})
 	t.Run("no options", func(t *testing.T) {
 		r, err := client.NetworkInspect(context.Background(), "network_id", network.InspectOptions{})

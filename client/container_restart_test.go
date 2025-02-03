@@ -21,6 +21,14 @@ func TestContainerRestartError(t *testing.T) {
 	}
 	err := client.ContainerRestart(context.Background(), "nothing", container.StopOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.ContainerRestart(context.Background(), "", container.StopOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.ContainerRestart(context.Background(), "    ", container.StopOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 // TestContainerRestartConnectionError verifies that connection errors occurring

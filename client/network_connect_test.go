@@ -23,6 +23,15 @@ func TestNetworkConnectError(t *testing.T) {
 
 	err := client.NetworkConnect(context.Background(), "network_id", "container_id", nil)
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	// Empty network ID or container ID
+	err = client.NetworkConnect(context.Background(), "", "container_id", nil)
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.NetworkConnect(context.Background(), "network_id", "", nil)
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {

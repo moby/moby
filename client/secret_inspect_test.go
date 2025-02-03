@@ -53,7 +53,12 @@ func TestSecretInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.SecretInspectWithRaw(context.Background(), "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, _, err = client.SecretInspectWithRaw(context.Background(), "    ")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestSecretInspect(t *testing.T) {

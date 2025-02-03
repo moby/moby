@@ -23,6 +23,14 @@ func TestContainerCommitError(t *testing.T) {
 	}
 	_, err := client.ContainerCommit(context.Background(), "nothing", container.CommitOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	_, err = client.ContainerCommit(context.Background(), "", container.CommitOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, err = client.ContainerCommit(context.Background(), "    ", container.CommitOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestContainerCommit(t *testing.T) {

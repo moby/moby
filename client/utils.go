@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
@@ -12,6 +13,23 @@ import (
 )
 
 var headerRegexp = lazyregexp.New(`\ADocker/.+\s\((.+)\)\z`)
+
+type emptyIDError string
+
+func (e emptyIDError) InvalidParameter() {}
+
+func (e emptyIDError) Error() string {
+	return "invalid " + string(e) + " name or ID: value is empty"
+}
+
+// trimID trims the given object-ID / name, returning an error if it's empty.
+func trimID(objType, id string) (string, error) {
+	id = strings.TrimSpace(id)
+	if len(id) == 0 {
+		return "", emptyIDError(objType)
+	}
+	return id, nil
+}
 
 // getDockerOS returns the operating system based on the server header from the daemon.
 func getDockerOS(serverHeader string) string {

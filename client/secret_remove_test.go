@@ -31,6 +31,14 @@ func TestSecretRemoveError(t *testing.T) {
 
 	err := client.SecretRemove(context.Background(), "secret_id")
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.SecretRemove(context.Background(), "")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.SecretRemove(context.Background(), "   ")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestSecretRemove(t *testing.T) {

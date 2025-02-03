@@ -21,6 +21,14 @@ func TestVolumeRemoveError(t *testing.T) {
 
 	err := client.VolumeRemove(context.Background(), "volume_id", false)
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.VolumeRemove(context.Background(), "", false)
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.VolumeRemove(context.Background(), "    ", false)
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 // TestVolumeRemoveConnectionError verifies that connection errors occurring
