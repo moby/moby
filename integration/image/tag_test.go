@@ -19,7 +19,7 @@ func TestTagUnprefixedRepoByNameOrName(t *testing.T) {
 	assert.NilError(t, err)
 
 	// By ID
-	insp, _, err := client.ImageInspectWithRaw(ctx, "busybox")
+	insp, err := client.ImageInspect(ctx, "busybox")
 	assert.NilError(t, err)
 	err = client.ImageTag(ctx, insp.ID, "testfoobarbaz")
 	assert.NilError(t, err)
@@ -78,7 +78,7 @@ func TestTagOfficialNames(t *testing.T) {
 			assert.NilError(t, err)
 
 			// ensure we don't have multiple tag names.
-			insp, _, err := client.ImageInspectWithRaw(ctx, "busybox")
+			insp, err := client.ImageInspect(ctx, "busybox")
 			assert.NilError(t, err)
 			// TODO(vvoland): Not sure what's actually being tested here. Is is still doing anything useful?
 			assert.Assert(t, !is.Contains(insp.RepoTags, name)().Success())
@@ -100,6 +100,6 @@ func TestTagMatchesDigest(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "refusing to create a tag with a digest reference"))
 
 	// check that no new image matches the digest
-	_, _, err = client.ImageInspectWithRaw(ctx, digest)
+	_, err = client.ImageInspect(ctx, digest)
 	assert.Check(t, is.ErrorContains(err, fmt.Sprintf("No such image: %s", digest)))
 }

@@ -195,7 +195,7 @@ func TestRunMountImage(t *testing.T) {
 
 			// Test image mounted is in use logic
 			if tc.name == "image_remove" {
-				img, _, _ := apiClient.ImageInspectWithRaw(ctx, testImage)
+				img, _ := apiClient.ImageInspect(ctx, testImage)
 				imgId := strings.Split(img.ID, ":")[1]
 				_, removeErr := apiClient.ImageRemove(ctx, testImage, image.RemoveOptions{})
 				assert.ErrorContains(t, removeErr, fmt.Sprintf(`container %s is using its referenced image %s`, id[:12], imgId[:12]))
@@ -298,7 +298,7 @@ func setupTestVolume(t *testing.T, client client.APIClient) string {
 	return volumeName
 }
 
-func setupTestImage(t *testing.T, ctx context.Context, client client.APIClient, test string, snapshotter bool) string {
+func setupTestImage(t *testing.T, ctx context.Context, apiClient client.APIClient, test string, snapshotter bool) string {
 	imgName := "test-image"
 
 	if test == "image_tag" {
@@ -334,7 +334,7 @@ func setupTestImage(t *testing.T, ctx context.Context, client client.APIClient, 
 	)
 	defer source.Close()
 
-	resp, err := client.ImageBuild(ctx,
+	resp, err := apiClient.ImageBuild(ctx,
 		source.AsTarReader(t),
 		types.ImageBuildOptions{
 			Remove:      false,
@@ -348,7 +348,7 @@ func setupTestImage(t *testing.T, ctx context.Context, client client.APIClient, 
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
-	_, _, err = client.ImageInspectWithRaw(ctx, imgName)
+	_, err = apiClient.ImageInspect(ctx, imgName)
 	if err != nil {
 		t.Log(out)
 	}

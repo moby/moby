@@ -29,7 +29,7 @@ func TestRemoveImageOrphaning(t *testing.T) {
 	assert.NilError(t, err)
 
 	// verifies that reference now points to first image
-	resp, _, err := client.ImageInspectWithRaw(ctx, imgName)
+	resp, err := client.ImageInspect(ctx, imgName)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(resp.ID, commitResp1.ID))
 
@@ -42,7 +42,7 @@ func TestRemoveImageOrphaning(t *testing.T) {
 	assert.NilError(t, err)
 
 	// verifies that reference now points to second image
-	resp, _, err = client.ImageInspectWithRaw(ctx, imgName)
+	resp, err = client.ImageInspect(ctx, imgName)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(resp.ID, commitResp2.ID))
 
@@ -51,12 +51,12 @@ func TestRemoveImageOrphaning(t *testing.T) {
 	assert.NilError(t, err)
 
 	// check if the first image is still there
-	resp, _, err = client.ImageInspectWithRaw(ctx, commitResp1.ID)
+	resp, err = client.ImageInspect(ctx, commitResp1.ID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(resp.ID, commitResp1.ID))
 
 	// check if the second image has been deleted
-	_, _, err = client.ImageInspectWithRaw(ctx, commitResp2.ID)
+	_, err = client.ImageInspect(ctx, commitResp2.ID)
 	assert.Check(t, is.ErrorContains(err, "No such image:"))
 }
 
@@ -69,7 +69,7 @@ func TestRemoveByDigest(t *testing.T) {
 	err := client.ImageTag(ctx, "busybox", "test-remove-by-digest:latest")
 	assert.NilError(t, err)
 
-	inspect, _, err := client.ImageInspectWithRaw(ctx, "test-remove-by-digest")
+	inspect, err := client.ImageInspect(ctx, "test-remove-by-digest")
 	assert.NilError(t, err)
 
 	id := ""
@@ -85,9 +85,9 @@ func TestRemoveByDigest(t *testing.T) {
 	_, err = client.ImageRemove(ctx, id, image.RemoveOptions{})
 	assert.NilError(t, err)
 
-	inspect, _, err = client.ImageInspectWithRaw(ctx, "busybox")
+	inspect, err = client.ImageInspect(ctx, "busybox")
 	assert.Check(t, err, "busybox image got deleted")
 
-	inspect, _, err = client.ImageInspectWithRaw(ctx, "test-remove-by-digest")
+	inspect, err = client.ImageInspect(ctx, "test-remove-by-digest")
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }

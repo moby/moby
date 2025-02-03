@@ -81,11 +81,11 @@ func TestImagesFilterUntil(t *testing.T) {
 		imgs[i] = id.ID
 	}
 
-	olderImage, _, err := client.ImageInspectWithRaw(ctx, imgs[2])
+	olderImage, err := client.ImageInspect(ctx, imgs[2])
 	assert.NilError(t, err)
 	olderUntil := olderImage.Created
 
-	laterImage, _, err := client.ImageInspectWithRaw(ctx, imgs[3])
+	laterImage, err := client.ImageInspect(ctx, imgs[3])
 	assert.NilError(t, err)
 	laterUntil := laterImage.Created
 

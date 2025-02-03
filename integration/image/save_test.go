@@ -62,7 +62,7 @@ func TestSaveCheckTimes(t *testing.T) {
 	client := testEnv.APIClient()
 
 	const repoName = "busybox:latest"
-	img, _, err := client.ImageInspectWithRaw(ctx, repoName)
+	img, err := client.ImageInspect(ctx, repoName)
 	assert.NilError(t, err)
 
 	rdr, err := client.ImageSave(ctx, []string{repoName}, image.SaveOptions{})
@@ -99,7 +99,7 @@ func TestSaveOCI(t *testing.T) {
 	client := testEnv.APIClient()
 
 	const busybox = "busybox:latest"
-	inspectBusybox, _, err := client.ImageInspectWithRaw(ctx, busybox)
+	inspectBusybox, err := client.ImageInspect(ctx, busybox)
 	assert.NilError(t, err)
 
 	type testCase struct {
@@ -136,7 +136,7 @@ func TestSaveOCI(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.image, func(t *testing.T) {
 			// Get information about the original image.
-			inspect, _, err := client.ImageInspectWithRaw(ctx, tc.image)
+			inspect, err := client.ImageInspect(ctx, tc.image)
 			assert.NilError(t, err)
 
 			rdr, err := client.ImageSave(ctx, []string{tc.image}, image.SaveOptions{})
@@ -221,7 +221,7 @@ func TestSavePlatform(t *testing.T) {
 	client := testEnv.APIClient()
 
 	const repoName = "busybox:latest"
-	_, _, err := client.ImageInspectWithRaw(ctx, repoName)
+	_, err := client.ImageInspect(ctx, repoName)
 	assert.NilError(t, err)
 
 	_, err = client.ImageSave(ctx, []string{repoName}, image.SaveOptions{
@@ -253,7 +253,7 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 		return res.ID
 	}
 
-	busyboxImg, _, err := client.ImageInspectWithRaw(ctx, "busybox:latest")
+	busyboxImg, err := client.ImageInspect(ctx, "busybox:latest")
 	assert.NilError(t, err)
 
 	const repoName = "foobar-save-multi-images-test"

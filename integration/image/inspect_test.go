@@ -1,10 +1,12 @@
 package image
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -16,11 +18,12 @@ func TestImageInspectEmptyTagsAndDigests(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "build-empty-images is not called on Windows")
 	ctx := setupTest(t)
 
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	danglingID := specialimage.Load(ctx, t, client, specialimage.Dangling)
+	danglingID := specialimage.Load(ctx, t, apiClient, specialimage.Dangling)
 
-	inspect, raw, err := client.ImageInspectWithRaw(ctx, danglingID)
+	var raw bytes.Buffer
+	inspect, err := apiClient.ImageInspect(ctx, danglingID, client.ImageInspectWithRawResponse(&raw))
 	assert.NilError(t, err)
 
 	// Must be a zero length array, not null.
@@ -28,7 +31,7 @@ func TestImageInspectEmptyTagsAndDigests(t *testing.T) {
 	assert.Check(t, is.Len(inspect.RepoDigests, 0))
 
 	var rawJson map[string]interface{}
-	err = json.Unmarshal(raw, &rawJson)
+	err = json.Unmarshal(raw.Bytes(), &rawJson)
 	assert.NilError(t, err)
 
 	// Check if the raw json is also an array, not null.
@@ -42,7 +45,7 @@ func TestImageInspectUniqueRepoDigests(t *testing.T) {
 
 	client := testEnv.APIClient()
 
-	before, _, err := client.ImageInspectWithRaw(ctx, "busybox")
+	before, err := client.ImageInspect(ctx, "busybox")
 	assert.NilError(t, err)
 
 	for _, tag := range []string{"master", "newest"} {
@@ -54,7 +57,7 @@ func TestImageInspectUniqueRepoDigests(t *testing.T) {
 		}()
 	}
 
-	after, _, err := client.ImageInspectWithRaw(ctx, "busybox")
+	after, err := client.ImageInspect(ctx, "busybox")
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Len(after.RepoDigests, len(before.RepoDigests)))
@@ -65,7 +68,7 @@ func TestImageInspectDescriptor(t *testing.T) {
 
 	client := testEnv.APIClient()
 
-	inspect, _, err := client.ImageInspectWithRaw(ctx, "busybox")
+	inspect, err := client.ImageInspect(ctx, "busybox")
 	assert.NilError(t, err)
 
 	if !testEnv.UsingSnapshotter() {

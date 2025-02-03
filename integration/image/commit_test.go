@@ -29,7 +29,7 @@ func TestCommitInheritsEnv(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	image1, _, err := client.ImageInspectWithRaw(ctx, commitResp1.ID)
+	image1, err := client.ImageInspect(ctx, commitResp1.ID)
 	assert.NilError(t, err)
 
 	expectedEnv1 := []string{"PATH=/bin"}
@@ -43,7 +43,7 @@ func TestCommitInheritsEnv(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	image2, _, err := client.ImageInspectWithRaw(ctx, commitResp2.ID)
+	image2, err := client.ImageInspect(ctx, commitResp2.ID)
 	assert.NilError(t, err)
 	expectedEnv2 := []string{"PATH=/usr/bin:/bin"}
 	assert.Check(t, is.DeepEqual(expectedEnv2, image2.Config.Env))
