@@ -2,10 +2,12 @@ package buildkit
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	ctd "github.com/containerd/containerd/v2/client"
@@ -430,37 +432,29 @@ func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, er
 	var gcPolicy []client.PruneInfo
 	if conf.GC.Enabled {
 		if conf.GC.Policy == nil {
-			var defaultKeepStorage int64
-			if conf.GC.DefaultKeepStorage != "" {
-				b, err := units.RAMInBytes(conf.GC.DefaultKeepStorage)
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to parse defaultKeepStorage")
-				}
-				defaultKeepStorage = b
+			reservedSpace, maxUsedSpace, minFreeSpace, err := parseGCPolicy(config.BuilderGCRule{
+				ReservedSpace: conf.GC.DefaultReservedSpace,
+				MaxUsedSpace:  conf.GC.DefaultMaxUsedSpace,
+				MinFreeSpace:  conf.GC.DefaultMinFreeSpace,
+			}, "default")
+			if err != nil {
+				return nil, err
 			}
-			gcPolicy = mobyworker.DefaultGCPolicy(root, defaultKeepStorage)
+			gcPolicy = mobyworker.DefaultGCPolicy(root, reservedSpace, maxUsedSpace, minFreeSpace)
 		} else {
 			gcPolicy = make([]client.PruneInfo, len(conf.GC.Policy))
 			for i, p := range conf.GC.Policy {
-				var keepStorage int64
-				if p.KeepStorage != "" {
-					b, err := units.RAMInBytes(p.KeepStorage)
-					if err != nil {
-						return nil, errors.Wrapf(err, "failed to parse keepStorage")
-					}
-					// don't set a default here, zero is a valid value when
-					// specified by the user, as the gc-policy may be determined
-					// through other filters;
-					// https://github.com/moby/moby/pull/49062#issuecomment-2554981829
-					keepStorage = b
+				reservedSpace, maxUsedSpace, minFreeSpace, err := parseGCPolicy(p, "")
+				if err != nil {
+					return nil, err
 				}
 
-				// FIXME(thaJeztah): wire up new options https://github.com/moby/moby/issues/48639
-				var err error
 				gcPolicy[i], err = toBuildkitPruneInfo(types.BuildCachePruneOptions{
-					All:         p.All,
-					KeepStorage: keepStorage,
-					Filters:     filters.Args(p.Filter),
+					All:           p.All,
+					ReservedSpace: reservedSpace,
+					MaxUsedSpace:  maxUsedSpace,
+					MinFreeSpace:  minFreeSpace,
+					Filters:       filters.Args(p.Filter),
 				})
 				if err != nil {
 					return nil, err
@@ -469,6 +463,41 @@ func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, er
 		}
 	}
 	return gcPolicy, nil
+}
+
+func parseGCPolicy(p config.BuilderGCRule, prefix string) (reservedSpace, maxUsedSpace, minFreeSpace int64, err error) {
+	errorString := func(key string) string {
+		if prefix != "" {
+			key = prefix + strings.ToTitle(key)
+		}
+		return fmt.Sprintf("failed to parse %s", key)
+	}
+
+	if p.ReservedSpace != "" {
+		b, err := units.RAMInBytes(p.ReservedSpace)
+		if err != nil {
+			return 0, 0, 0, errors.Wrap(err, errorString("reservedSpace"))
+		}
+		reservedSpace = b
+	}
+
+	if p.MaxUsedSpace != "" {
+		b, err := units.RAMInBytes(p.MaxUsedSpace)
+		if err != nil {
+			return 0, 0, 0, errors.Wrap(err, errorString("maxUsedSpace"))
+		}
+		maxUsedSpace = b
+	}
+
+	if p.MinFreeSpace != "" {
+		b, err := units.RAMInBytes(p.MinFreeSpace)
+		if err != nil {
+			return 0, 0, 0, errors.Wrap(err, errorString("minFreeSpace"))
+		}
+		minFreeSpace = b
+	}
+
+	return reservedSpace, maxUsedSpace, minFreeSpace, nil
 }
 
 func getEntitlements(conf config.BuilderConfig) []string {

@@ -71,6 +71,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   `GET /debug/pprof/profile`, `GET /debug/pprof/symbol`, `GET /debug/pprof/trace`,
   `GET /debug/pprof/{name}`) are now also accessible through the versioned-API
   paths (`/v<API-version>/<endpoint>`).
+* `POST /build/prune` renames `keep-bytes` to `reserved-space` and now supports
+  additional prune parameters `max-used-space` and `min-free-space`.
 
 ## v1.47 API changes
 

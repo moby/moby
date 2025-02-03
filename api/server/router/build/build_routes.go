@@ -178,19 +178,55 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 	if err != nil {
 		return err
 	}
-	ksfv := r.FormValue("keep-storage")
-	if ksfv == "" {
-		ksfv = "0"
-	}
-	ks, err := strconv.Atoi(ksfv)
-	if err != nil {
-		return invalidParam{errors.Wrapf(err, "keep-storage is in bytes and expects an integer, got %v", ksfv)}
-	}
 
 	opts := types.BuildCachePruneOptions{
-		All:         httputils.BoolValue(r, "all"),
-		Filters:     fltrs,
-		KeepStorage: int64(ks),
+		All:     httputils.BoolValue(r, "all"),
+		Filters: fltrs,
+	}
+
+	parseBytesFromFormValue := func(name string) (int64, error) {
+		if fv := r.FormValue(name); fv != "" {
+			bs, err := strconv.Atoi(fv)
+			if err != nil {
+				return 0, invalidParam{errors.Wrapf(err, "%s is in bytes and expects an integer, got %v", name, fv)}
+			}
+			return int64(bs), nil
+		}
+		return 0, nil
+	}
+
+	version := httputils.VersionFromContext(ctx)
+	if versions.GreaterThanOrEqualTo(version, "1.48") {
+		bs, err := parseBytesFromFormValue("reserved-space")
+		if err != nil {
+			return err
+		} else if bs == 0 {
+			// Deprecated parameter. Only checked if reserved-space is not used.
+			bs, err = parseBytesFromFormValue("keep-storage")
+			if err != nil {
+				return err
+			}
+		}
+		opts.ReservedSpace = bs
+
+		if bs, err := parseBytesFromFormValue("max-used-space"); err != nil {
+			return err
+		} else {
+			opts.MaxUsedSpace = bs
+		}
+
+		if bs, err := parseBytesFromFormValue("min-free-space"); err != nil {
+			return err
+		} else {
+			opts.MinFreeSpace = bs
+		}
+	} else {
+		// Only keep-storage was valid in pre-1.48 versions.
+		bs, err := parseBytesFromFormValue("keep-storage")
+		if err != nil {
+			return err
+		}
+		opts.ReservedSpace = bs
 	}
 
 	report, err := br.backend.PruneCache(ctx, opts)

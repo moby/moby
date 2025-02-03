@@ -169,9 +169,11 @@ type BuildCache struct {
 
 // BuildCachePruneOptions hold parameters to prune the build cache
 type BuildCachePruneOptions struct {
-	All         bool
-	KeepStorage int64
-	Filters     filters.Args
+	All           bool
+	ReservedSpace int64
+	MaxUsedSpace  int64
+	MinFreeSpace  int64
+	Filters       filters.Args
 
-	// FIXME(thaJeztah): add new options; see https://github.com/moby/moby/issues/48639
+	KeepStorage int64 // Deprecated: deprecated in API 1.48.
 }
