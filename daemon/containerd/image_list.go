@@ -169,6 +169,9 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 				return nil
 			}
 
+			if !opts.Manifests {
+				image.Manifests = nil
+			}
 			resultsMut.Lock()
 			summaries = append(summaries, image)
 

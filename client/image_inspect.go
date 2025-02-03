@@ -30,6 +30,17 @@ func ImageInspectWithRawResponse(raw *bytes.Buffer) ImageInspectOption {
 	})
 }
 
+// ImageInspectWithManifests sets manifests API option for the image inspect operation.
+// This option is only available for API version 1.48 and up.
+// With this option set, the image inspect operation response will have the
+// [image.InspectResponse.Manifests] field populated if the server is multi-platform capable.
+func ImageInspectWithManifests(manifests bool) ImageInspectOption {
+	return imageInspectOptionFunc(func(clientOpts *imageInspectOpts) error {
+		clientOpts.apiOptions.Manifests = manifests
+		return nil
+	})
+}
+
 // ImageInspectWithAPIOpts sets the API options for the image inspect operation.
 func ImageInspectWithAPIOpts(opts image.InspectOptions) ImageInspectOption {
 	return imageInspectOptionFunc(func(clientOpts *imageInspectOpts) error {
@@ -57,6 +68,13 @@ func (cli *Client) ImageInspect(ctx context.Context, imageID string, inspectOpts
 	}
 
 	query := url.Values{}
+	if opts.apiOptions.Manifests {
+		if err := cli.NewVersionError(ctx, "1.48", "manifests"); err != nil {
+			return image.InspectResponse{}, err
+		}
+		query.Set("manifests", "1")
+	}
+
 	serverResp, err := cli.get(ctx, "/images/"+imageID+"/json", query, nil)
 	defer ensureReaderClosed(serverResp)
 	if err != nil {

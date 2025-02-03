@@ -2016,6 +2016,21 @@ definitions:
           compatibility.
         x-nullable: true
         $ref: "#/definitions/OCIDescriptor"
+      Manifests:
+        description: |
+            Manifests is a list of image manifests available in this image. It
+            provides a more detailed view of the platform-specific image manifests or
+            other image-attached data like build attestations.
+
+            Only available if the daemon provides a multi-platform image store
+            and the `manifests` option is set in the inspect request.
+
+            WARNING: This is experimental and may change at any time without any backward
+            compatibility.
+        type: "array"
+        x-nullable: true
+        items:
+          $ref: "#/definitions/ImageManifestSummary"
       RepoTags:
         description: |
           List of image names/tags in the local image cache that reference this
@@ -9648,6 +9663,12 @@ paths:
           description: "Image name or id"
           type: "string"
           required: true
+        - name: "manifests"
+          in: "query"
+          description: "Include Manifests in the image summary."
+          type: "boolean"
+          default: false
+          required: false
       tags: ["Image"]
   /images/{name}/history:
     get:

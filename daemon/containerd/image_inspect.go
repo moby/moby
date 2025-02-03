@@ -22,7 +22,7 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
+func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
 	c8dImg, err := i.resolveImage(ctx, refOrID)
 	if err != nil {
 		return nil, err
@@ -90,13 +90,18 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 		log.G(ctx).WithError(err).Warn("failed to determine Parent property")
 	}
 
-	repoTags, repoDigests := i.collectRepoTagsAndDigests(ctx, tagged)
+	var manifests []imagetypes.ManifestSummary
+	if opts.Manifests {
+		manifests = multi.Manifests
+	}
+
+	repoTags, repoDigests := collectRepoTagsAndDigests(ctx, tagged)
 
 	return &imagetypes.InspectResponse{
 		ID:            target.Digest.String(),
 		RepoTags:      repoTags,
 		Descriptor:    &target,
-		RepoDigests:   sliceutil.Dedup(repoDigests),
+		RepoDigests:   repoDigests,
 		Parent:        parent,
 		Comment:       comment,
 		Created:       created,
@@ -108,6 +113,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 		Os:            img.OS,
 		OsVersion:     img.OSVersion,
 		Size:          size,
+		Manifests:     manifests,
 		GraphDriver: storage.DriverData{
 			Name: i.snapshotter,
 			Data: nil,
@@ -122,10 +128,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 	}, nil
 }
 
-// collectRepoTagsAndDigests returns repoTags and repoDigests for images with the same target.
-func (i *ImageService) collectRepoTagsAndDigests(ctx context.Context, tagged []c8dimages.Image) (
-	repoTags []string, repoDigests []string,
-) {
+func collectRepoTagsAndDigests(ctx context.Context, tagged []c8dimages.Image) (repoTags []string, repoDigests []string) {
 	repoTags = make([]string, 0, len(tagged))
 	repoDigests = make([]string, 0, len(tagged))
 	for _, img := range tagged {
@@ -164,7 +167,7 @@ func (i *ImageService) collectRepoTagsAndDigests(ctx context.Context, tagged []c
 		}
 		repoDigests = append(repoDigests, reference.FamiliarString(digested))
 	}
-	return repoTags, repoDigests
+	return sliceutil.Dedup(repoTags), sliceutil.Dedup(repoDigests)
 }
 
 // size returns the total size of the image's packed resources.
