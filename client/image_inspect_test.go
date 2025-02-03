@@ -23,7 +23,7 @@ func TestImageInspectError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, _, err := client.ImageInspectWithRaw(context.Background(), "nothing")
+	_, err := client.ImageInspect(context.Background(), "nothing")
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -32,7 +32,7 @@ func TestImageInspectImageNotFound(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 
-	_, _, err := client.ImageInspectWithRaw(context.Background(), "unknown")
+	_, err := client.ImageInspect(context.Background(), "unknown")
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
@@ -42,7 +42,7 @@ func TestImageInspectWithEmptyID(t *testing.T) {
 			return nil, errors.New("should not make request")
 		}),
 	}
-	_, _, err := client.ImageInspectWithRaw(context.Background(), "")
+	_, err := client.ImageInspect(context.Background(), "")
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
@@ -68,7 +68,7 @@ func TestImageInspect(t *testing.T) {
 		}),
 	}
 
-	imageInspect, _, err := client.ImageInspectWithRaw(context.Background(), "image_id")
+	imageInspect, err := client.ImageInspect(context.Background(), "image_id")
 	if err != nil {
 		t.Fatal(err)
 	}
