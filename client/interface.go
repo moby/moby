@@ -39,9 +39,14 @@ type CommonAPIClient interface {
 	ServerVersion(ctx context.Context) (types.Version, error)
 	NegotiateAPIVersion(ctx context.Context)
 	NegotiateAPIVersionPing(types.Ping)
-	DialHijack(ctx context.Context, url, proto string, meta map[string][]string) (net.Conn, error)
+	HijackDialer
 	Dialer() func(context.Context) (net.Conn, error)
 	Close() error
+}
+
+// HijackDialer defines methods for a hijack dialer.
+type HijackDialer interface {
+	DialHijack(ctx context.Context, url, proto string, meta map[string][]string) (net.Conn, error)
 }
 
 // ContainerAPIClient defines API client methods for the containers
