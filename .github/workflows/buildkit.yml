@@ -22,6 +22,7 @@ on:
   pull_request:
 
 env:
+  GO_VERSION: "1.22.12"
   DESTDIR: ./build
 
 jobs:
