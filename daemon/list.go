@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 )
 
 var acceptedPsFilterTags = map[string]bool{
@@ -105,11 +106,7 @@ func (daemon *Daemon) Containers(ctx context.Context, config *containertypes.Lis
 		return nil, err
 	}
 
-	var (
-		view       = daemon.containersReplica.Snapshot()
-		containers = []*containertypes.Summary{}
-	)
-
+	view := daemon.containersReplica.Snapshot()
 	filter, err := daemon.foldFilter(ctx, view, config)
 	if err != nil {
 		return nil, err
@@ -118,68 +115,63 @@ func (daemon *Daemon) Containers(ctx context.Context, config *containertypes.Lis
 	// shortcut to only look at a subset of containers if specific name
 	// or ID matches were provided by the user--otherwise we potentially
 	// end up querying many more containers than intended
+	//
+	// TODO (thaJeztah): given containersReplica.Snapshot() provides a "consistent read-only view of the database" (which indicates "de-referenced copy", is there any reason we wouldn't use a []*container.Snapshot (pointer-slice)?.
 	containerList, err := daemon.filterByNameIDMatches(view, filter)
 	if err != nil {
 		return nil, err
 	}
 	numContainers := len(containerList)
-	results := make(chan *containertypes.Summary, numContainers)
 
 	// Get the info for each container in the list; this can be slow so we
 	// dispatch a set number of worker goroutines to do the jobs. We choose
 	// log2(numContainers) workers to avoid creating too many goroutines
 	// for large number of containers.
-	numWorkers := log2(numContainers)
+	numWorkers := int(math.Log2(float64(numContainers)))
 	if numWorkers < 1 {
 		numWorkers = 1
 	}
-	workers := make(chan struct{}, numWorkers)
 
-	var wg sync.WaitGroup
-	for i := range containerList {
-		currentContainer := &containerList[i]
-		switch includeContainerInList(currentContainer, filter) {
+	resultsMut := sync.Mutex{}
+	results := make([]*containertypes.Summary, 0, min(len(containerList), filter.Limit))
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(numWorkers)
+
+	for _, ctr := range containerList {
+		switch includeContainerInList(&ctr, filter) {
 		case excludeContainer:
 			continue
 		case stopIteration:
 			break
 		default:
 			filter.idx++
-			workers <- struct{}{} // acquire worker slot
-			wg.Add(1)
 
-			// worker function
-			go func(c *container.Snapshot) {
-				defer func() {
-					wg.Done()
-					<-workers // release worker slot
-				}()
-
+			g.Go(func() error {
 				// refresh the container image info (in case the image changed in
 				// the repository)
-				newC := daemon.refreshImage(ctx, currentContainer)
+				newC := daemon.refreshImage(ctx, &ctr)
 
 				// get the image size (calculation is slow)
 				if filter.Size {
-					sizeRw, sizeRootFs, err := daemon.imageService.GetContainerLayerSize(ctx, newC.ID)
+					var err error
+					newC.SizeRw, newC.SizeRootFs, err = daemon.imageService.GetContainerLayerSize(ctx, newC.ID)
 					if err != nil {
-						return
+						return err
 					}
-					newC.SizeRw = sizeRw
-					newC.SizeRootFs = sizeRootFs
 				}
-				results <- newC
-			}(currentContainer)
+				resultsMut.Lock()
+				results = append(results, newC)
+				resultsMut.Unlock()
+				return nil
+			})
 		}
 	}
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-	for c := range results {
-		containers = append(containers, c)
+
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
-	return containers, nil
+
+	return results, nil
 }
 
 func (daemon *Daemon) filterByNameIDMatches(view *container.View, filter *listContext) ([]container.Snapshot, error) {
@@ -662,9 +654,4 @@ func populateImageFilterByParents(ctx context.Context, ancestorMap map[image.ID]
 		ancestorMap[imageID] = true
 	}
 	return nil
-}
-
-// log2 calculates the floor of log base 2 of a number.
-func log2(n int) int {
-	return int(math.Log2(float64(n)))
 }

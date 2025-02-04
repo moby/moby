@@ -3,7 +3,6 @@ package daemon
 import (
 	"context"
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -213,6 +212,6 @@ func TestLimitFilter(t *testing.T) {
 	limit := rand.Intn(64)
 	containerList, err := d.Containers(context.Background(), &containertypes.ListOptions{Limit: limit})
 	assert.NilError(t, err)
-	expectedListLen := int(math.Min(float64(num), float64(limit)))
+	expectedListLen := min(num, limit)
 	assert.Assert(t, is.Len(containerList, expectedListLen))
 }
