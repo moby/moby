@@ -701,6 +701,10 @@ func (e *exitError) Cause() error {
 	return e.cause
 }
 
+func (e *exitError) Unwrap() error {
+	return e.cause
+}
+
 // checkHealth blocks until unhealthy container is detected or ctx exits
 func (r *controller) checkHealth(ctx context.Context) error {
 	eventq := r.adapter.events(ctx)
