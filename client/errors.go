@@ -2,11 +2,11 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 )
 
 // errConnectionFailed implements an error returned when connection failed.
@@ -29,10 +29,18 @@ func IsErrConnectionFailed(err error) bool {
 }
 
 // ErrorConnectionFailed returns an error with host in the error message when connection to docker daemon failed.
+//
+// Deprecated: this function was only used internally, and will be removed in the next release.
 func ErrorConnectionFailed(host string) error {
+	return connectionFailed(host)
+}
+
+// connectionFailed returns an error with host in the error message when connection
+// to docker daemon failed.
+func connectionFailed(host string) error {
 	var err error
 	if host == "" {
-		err = fmt.Errorf("Cannot connect to the Docker daemon. Is the docker daemon running on this host?")
+		err = errors.New("Cannot connect to the Docker daemon. Is the docker daemon running on this host?")
 	} else {
 		err = fmt.Errorf("Cannot connect to the Docker daemon at %s. Is the docker daemon running?", host)
 	}

@@ -154,21 +154,24 @@ func (cli *Client) doRequest(req *http.Request) (serverResponse, error) {
 			return serverResp, err
 		}
 
-		if uErr, ok := err.(*url.Error); ok {
-			if nErr, ok := uErr.Err.(*net.OpError); ok {
+		var uErr *url.Error
+		if errors.As(err, &uErr) {
+			var nErr *net.OpError
+			if errors.As(uErr.Err, &nErr) {
 				if os.IsPermission(nErr.Err) {
 					return serverResp, errConnectionFailed{errors.Wrapf(err, "permission denied while trying to connect to the Docker daemon socket at %v", cli.host)}
 				}
 			}
 		}
 
-		if nErr, ok := err.(net.Error); ok {
+		var nErr net.Error
+		if errors.As(err, &nErr) {
 			// FIXME(thaJeztah): any net.Error should be considered a connection error (but we should include the original error)?
 			if nErr.Timeout() {
-				return serverResp, ErrorConnectionFailed(cli.host)
+				return serverResp, connectionFailed(cli.host)
 			}
 			if strings.Contains(nErr.Error(), "connection refused") || strings.Contains(nErr.Error(), "dial unix") {
-				return serverResp, ErrorConnectionFailed(cli.host)
+				return serverResp, connectionFailed(cli.host)
 			}
 		}
 
