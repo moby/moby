@@ -22,7 +22,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.22.11"
+  GO_VERSION: "1.22.12"
   GIT_PAGER: "cat"
   PAGER: "cat"
 
