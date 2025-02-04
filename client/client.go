@@ -449,6 +449,10 @@ func (cli *Client) dialerFromTransport() func(context.Context, string, string) (
 //
 // ["docker dial-stdio"]: https://github.com/docker/cli/pull/1014
 func (cli *Client) Dialer() func(context.Context) (net.Conn, error) {
+	return cli.dialer()
+}
+
+func (cli *Client) dialer() func(context.Context) (net.Conn, error) {
 	return func(ctx context.Context) (net.Conn, error) {
 		if dialFn := cli.dialerFromTransport(); dialFn != nil {
 			return dialFn(ctx, cli.proto, cli.addr)
