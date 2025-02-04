@@ -168,10 +168,10 @@ func (cli *Client) doRequest(req *http.Request) (serverResponse, error) {
 		if errors.As(err, &nErr) {
 			// FIXME(thaJeztah): any net.Error should be considered a connection error (but we should include the original error)?
 			if nErr.Timeout() {
-				return serverResp, ErrorConnectionFailed(cli.host)
+				return serverResp, connectionFailed(cli.host)
 			}
 			if strings.Contains(nErr.Error(), "connection refused") || strings.Contains(nErr.Error(), "dial unix") {
-				return serverResp, ErrorConnectionFailed(cli.host)
+				return serverResp, connectionFailed(cli.host)
 			}
 		}
 
