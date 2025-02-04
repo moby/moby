@@ -25,12 +25,8 @@ type CommonAPIClient interface {
 	ContainerAPIClient
 	DistributionAPIClient
 	ImageAPIClient
-	NodeAPIClient
 	NetworkAPIClient
 	PluginAPIClient
-	ServiceAPIClient
-	SwarmAPIClient
-	SecretAPIClient
 	SystemAPIClient
 	VolumeAPIClient
 	ClientVersion() string
@@ -42,6 +38,17 @@ type CommonAPIClient interface {
 	HijackDialer
 	Dialer() func(context.Context) (net.Conn, error)
 	Close() error
+	SwarmManagementAPIClient
+}
+
+// SwarmManagementAPIClient defines all methods for managing Swarm-specific
+// objects.
+type SwarmManagementAPIClient interface {
+	SwarmAPIClient
+	NodeAPIClient
+	ServiceAPIClient
+	SecretAPIClient
+	ConfigAPIClient
 }
 
 // HijackDialer defines methods for a hijack dialer.
