@@ -99,6 +99,9 @@ const DummyHost = "api.moby.localhost"
 // recent version before negotiation was introduced.
 const fallbackAPIVersion = "1.24"
 
+// Ensure that Client always implements APIClient.
+var _ APIClient = &Client{}
+
 // Client is the API client that performs all operations
 // against a docker server.
 type Client struct {
