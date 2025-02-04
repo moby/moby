@@ -21,6 +21,14 @@ func TestServiceRemoveError(t *testing.T) {
 
 	err := client.ServiceRemove(context.Background(), "service_id")
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.ServiceRemove(context.Background(), "")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.ServiceRemove(context.Background(), "    ")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestServiceRemoveNotFoundError(t *testing.T) {

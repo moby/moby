@@ -24,6 +24,14 @@ func TestContainerInspectError(t *testing.T) {
 
 	_, err := client.ContainerInspect(context.Background(), "nothing")
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	_, err = client.ContainerInspect(context.Background(), "")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, err = client.ContainerInspect(context.Background(), "    ")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestContainerInspectContainerNotFound(t *testing.T) {
@@ -42,7 +50,12 @@ func TestContainerInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.ContainerInspectWithRaw(context.Background(), "", true)
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, _, err = client.ContainerInspectWithRaw(context.Background(), "    ", true)
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestContainerInspect(t *testing.T) {

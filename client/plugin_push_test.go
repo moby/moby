@@ -22,6 +22,14 @@ func TestPluginPushError(t *testing.T) {
 
 	_, err := client.PluginPush(context.Background(), "plugin_name", "")
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	_, err = client.PluginPush(context.Background(), "", "")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, err = client.PluginPush(context.Background(), "    ", "")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestPluginPush(t *testing.T) {

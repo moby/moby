@@ -23,6 +23,14 @@ func TestServiceUpdateError(t *testing.T) {
 
 	_, err := client.ServiceUpdate(context.Background(), "service_id", swarm.Version{}, swarm.ServiceSpec{}, types.ServiceUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	_, err = client.ServiceUpdate(context.Background(), "", swarm.Version{}, swarm.ServiceSpec{}, types.ServiceUpdateOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, err = client.ServiceUpdate(context.Background(), "    ", swarm.Version{}, swarm.ServiceSpec{}, types.ServiceUpdateOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 // TestServiceUpdateConnectionError verifies that connection errors occurring

@@ -22,6 +22,14 @@ func TestPluginRemoveError(t *testing.T) {
 
 	err := client.PluginRemove(context.Background(), "plugin_name", types.PluginRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.PluginRemove(context.Background(), "", types.PluginRemoveOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.PluginRemove(context.Background(), "   ", types.PluginRemoveOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestPluginRemove(t *testing.T) {

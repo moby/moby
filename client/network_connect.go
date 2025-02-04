@@ -8,6 +8,16 @@ import (
 
 // NetworkConnect connects a container to an existent network in the docker host.
 func (cli *Client) NetworkConnect(ctx context.Context, networkID, containerID string, config *network.EndpointSettings) error {
+	networkID, err := trimID("network", networkID)
+	if err != nil {
+		return err
+	}
+
+	containerID, err = trimID("container", containerID)
+	if err != nil {
+		return err
+	}
+
 	nc := network.ConnectOptions{
 		Container:      containerID,
 		EndpointConfig: config,

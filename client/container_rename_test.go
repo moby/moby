@@ -20,6 +20,14 @@ func TestContainerRenameError(t *testing.T) {
 	}
 	err := client.ContainerRename(context.Background(), "nothing", "newNothing")
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.ContainerRename(context.Background(), "", "newNothing")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.ContainerRename(context.Background(), "    ", "newNothing")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestContainerRename(t *testing.T) {

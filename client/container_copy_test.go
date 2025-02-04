@@ -23,6 +23,14 @@ func TestContainerStatPathError(t *testing.T) {
 	}
 	_, err := client.ContainerStatPath(context.Background(), "container_id", "path")
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	_, err = client.ContainerStatPath(context.Background(), "", "path")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, err = client.ContainerStatPath(context.Background(), "    ", "path")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestContainerStatPathNotFoundError(t *testing.T) {
@@ -99,6 +107,14 @@ func TestCopyToContainerError(t *testing.T) {
 	}
 	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.CopyToContainer(context.Background(), "", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.CopyToContainer(context.Background(), "    ", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestCopyToContainerNotFoundError(t *testing.T) {
@@ -173,6 +189,14 @@ func TestCopyFromContainerError(t *testing.T) {
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	_, _, err = client.CopyFromContainer(context.Background(), "", "path/to/file")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, _, err = client.CopyFromContainer(context.Background(), "    ", "path/to/file")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestCopyFromContainerNotFoundError(t *testing.T) {

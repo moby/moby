@@ -23,6 +23,15 @@ func TestNetworkDisconnectError(t *testing.T) {
 
 	err := client.NetworkDisconnect(context.Background(), "network_id", "container_id", false)
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	// Empty network ID or container ID
+	err = client.NetworkDisconnect(context.Background(), "", "container_id", false)
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.NetworkDisconnect(context.Background(), "network_id", "", false)
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestNetworkDisconnect(t *testing.T) {

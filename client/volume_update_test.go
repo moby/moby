@@ -21,8 +21,16 @@ func TestVolumeUpdateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	err := client.VolumeUpdate(context.Background(), "", swarm.Version{}, volumetypes.UpdateOptions{})
+	err := client.VolumeUpdate(context.Background(), "volume", swarm.Version{}, volumetypes.UpdateOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.VolumeUpdate(context.Background(), "", swarm.Version{}, volumetypes.UpdateOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.VolumeUpdate(context.Background(), "    ", swarm.Version{}, volumetypes.UpdateOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestVolumeUpdate(t *testing.T) {

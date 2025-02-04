@@ -33,7 +33,12 @@ func TestTaskInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.TaskInspectWithRaw(context.Background(), "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, _, err = client.TaskInspectWithRaw(context.Background(), "    ")
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestTaskInspect(t *testing.T) {

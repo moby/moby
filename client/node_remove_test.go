@@ -22,6 +22,14 @@ func TestNodeRemoveError(t *testing.T) {
 
 	err := client.NodeRemove(context.Background(), "node_id", types.NodeRemoveOptions{Force: false})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.NodeRemove(context.Background(), "", types.NodeRemoveOptions{Force: false})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.NodeRemove(context.Background(), "    ", types.NodeRemoveOptions{Force: false})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestNodeRemove(t *testing.T) {

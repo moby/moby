@@ -21,6 +21,14 @@ func TestContainerRemoveError(t *testing.T) {
 	}
 	err := client.ContainerRemove(context.Background(), "container_id", container.RemoveOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.ContainerRemove(context.Background(), "", container.RemoveOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.ContainerRemove(context.Background(), "    ", container.RemoveOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestContainerRemoveNotFoundError(t *testing.T) {

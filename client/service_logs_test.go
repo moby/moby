@@ -29,6 +29,14 @@ func TestServiceLogsError(t *testing.T) {
 		Since: "2006-01-02TZ",
 	})
 	assert.Check(t, is.ErrorContains(err, `parsing time "2006-01-02TZ"`))
+
+	_, err = client.ServiceLogs(context.Background(), "", container.LogsOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, err = client.ServiceLogs(context.Background(), "    ", container.LogsOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestServiceLogs(t *testing.T) {

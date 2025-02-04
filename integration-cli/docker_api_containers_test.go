@@ -1391,7 +1391,8 @@ func (s *DockerAPISuite) TestContainerAPIDeleteWithEmptyName(c *testing.T) {
 	defer apiClient.Close()
 
 	err = apiClient.ContainerRemove(testutil.GetContext(c), "", container.RemoveOptions{})
-	assert.Check(c, errdefs.IsNotFound(err))
+	assert.Check(c, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(c, is.ErrorContains(err, "value is empty"))
 }
 
 func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) {

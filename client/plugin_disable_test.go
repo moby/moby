@@ -22,6 +22,14 @@ func TestPluginDisableError(t *testing.T) {
 
 	err := client.PluginDisable(context.Background(), "plugin_name", types.PluginDisableOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.PluginDisable(context.Background(), "", types.PluginDisableOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.PluginDisable(context.Background(), "    ", types.PluginDisableOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestPluginDisable(t *testing.T) {

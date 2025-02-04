@@ -43,7 +43,12 @@ func TestServiceInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.ServiceInspectWithRaw(context.Background(), "", types.ServiceInspectOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, _, err = client.ServiceInspectWithRaw(context.Background(), "    ", types.ServiceInspectOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestServiceInspect(t *testing.T) {

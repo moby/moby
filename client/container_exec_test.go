@@ -21,8 +21,17 @@ func TestContainerExecCreateError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
+
 	_, err := client.ContainerExecCreate(context.Background(), "container_id", container.ExecOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	_, err = client.ContainerExecCreate(context.Background(), "", container.ExecOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, err = client.ContainerExecCreate(context.Background(), "    ", container.ExecOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 // TestContainerExecCreateConnectionError verifies that connection errors occurring
@@ -33,7 +42,7 @@ func TestContainerExecCreateConnectionError(t *testing.T) {
 	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	_, err = client.ContainerExecCreate(context.Background(), "", container.ExecOptions{})
+	_, err = client.ContainerExecCreate(context.Background(), "container_id", container.ExecOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 

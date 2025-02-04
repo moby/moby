@@ -26,6 +26,14 @@ func TestCheckpointCreateError(t *testing.T) {
 	})
 
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
+	err = client.CheckpointCreate(context.Background(), "", checkpoint.CreateOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.CheckpointCreate(context.Background(), "    ", checkpoint.CreateOptions{})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestCheckpointCreate(t *testing.T) {
@@ -36,7 +44,7 @@ func TestCheckpointCreate(t *testing.T) {
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
 
 			if req.Method != http.MethodPost {
