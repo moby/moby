@@ -15,7 +15,7 @@ import (
 // Example:
 //
 //	bkclient.New(ctx, "", ClientOpts(c)...)
-func ClientOpts(c client.CommonAPIClient) []bkclient.ClientOpt {
+func ClientOpts(c client.HijackDialer) []bkclient.ClientOpt {
 	return []bkclient.ClientOpt{
 		bkclient.WithSessionDialer(func(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error) {
 			return c.DialHijack(ctx, "/session", proto, meta)

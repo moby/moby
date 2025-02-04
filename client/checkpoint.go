@@ -6,11 +6,11 @@ import (
 	"github.com/docker/docker/api/types/checkpoint"
 )
 
-type apiClientExperimental interface {
-	CheckpointAPIClient
-}
-
-// CheckpointAPIClient defines API client methods for the checkpoints
+// CheckpointAPIClient defines API client methods for the checkpoints.
+//
+// Experimental: checkpoint and restore is still an experimental feature,
+// and only available if the daemon is running with experimental features
+// enabled.
 type CheckpointAPIClient interface {
 	CheckpointCreate(ctx context.Context, container string, options checkpoint.CreateOptions) error
 	CheckpointDelete(ctx context.Context, container string, options checkpoint.DeleteOptions) error

@@ -20,17 +20,23 @@ import (
 )
 
 // CommonAPIClient is the common methods between stable and experimental versions of APIClient.
-type CommonAPIClient interface {
+//
+// Deprecated: use [APIClient] instead. This type will be an alias for [APIClient] in the next release, and removed after.
+type CommonAPIClient = stableAPIClient
+
+// APIClient is an interface that clients that talk with a docker server must implement.
+type APIClient interface {
+	stableAPIClient
+	CheckpointAPIClient // CheckpointAPIClient is still experimental.
+}
+
+type stableAPIClient interface {
 	ConfigAPIClient
 	ContainerAPIClient
 	DistributionAPIClient
 	ImageAPIClient
-	NodeAPIClient
 	NetworkAPIClient
 	PluginAPIClient
-	ServiceAPIClient
-	SwarmAPIClient
-	SecretAPIClient
 	SystemAPIClient
 	VolumeAPIClient
 	ClientVersion() string
@@ -39,9 +45,25 @@ type CommonAPIClient interface {
 	ServerVersion(ctx context.Context) (types.Version, error)
 	NegotiateAPIVersion(ctx context.Context)
 	NegotiateAPIVersionPing(types.Ping)
-	DialHijack(ctx context.Context, url, proto string, meta map[string][]string) (net.Conn, error)
+	HijackDialer
 	Dialer() func(context.Context) (net.Conn, error)
 	Close() error
+	SwarmManagementAPIClient
+}
+
+// SwarmManagementAPIClient defines all methods for managing Swarm-specific
+// objects.
+type SwarmManagementAPIClient interface {
+	SwarmAPIClient
+	NodeAPIClient
+	ServiceAPIClient
+	SecretAPIClient
+	ConfigAPIClient
+}
+
+// HijackDialer defines methods for a hijack dialer.
+type HijackDialer interface {
+	DialHijack(ctx context.Context, url, proto string, meta map[string][]string) (net.Conn, error)
 }
 
 // ContainerAPIClient defines API client methods for the containers
