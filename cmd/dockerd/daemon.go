@@ -43,6 +43,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/daemon/listeners"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/internal/otelutil"
@@ -719,6 +720,11 @@ func buildRouters(opts routerOptions) []router.Router {
 				}
 			}
 		}
+	}
+
+	imageSvc := opts.daemon.ImageService()
+	if c8dstore, ok := imageSvc.(*containerd.ImageService); ok {
+		routers = append(routers, image.NewContentRouter(c8dstore.ContentStore(), c8dstore.LeasesService()))
 	}
 
 	return routers

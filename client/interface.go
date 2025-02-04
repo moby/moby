@@ -33,6 +33,7 @@ type CommonAPIClient interface {
 	SecretAPIClient
 	SystemAPIClient
 	VolumeAPIClient
+	ContentStore(ctx context.Context, opts ...ContentStoreSessionOpt) (ContentStoreSession, error)
 	ClientVersion() string
 	DaemonHost() string
 	HTTPClient() *http.Client
