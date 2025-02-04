@@ -30,6 +30,11 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 		return types.HijackedResponse{}, err
 	}
 
+	if versions.LessThan(cli.ClientVersion(), "1.42") {
+		// Prior to 1.42, Content-Type is always set to raw-stream and not relevant
+		mediaType = ""
+	}
+
 	return types.NewHijackedResponse(conn, mediaType), err
 }
 
@@ -96,13 +101,7 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 		hc.r.Reset(nil)
 	}
 
-	var mediaType string
-	if versions.GreaterThanOrEqualTo(cli.ClientVersion(), "1.42") {
-		// Prior to 1.42, Content-Type is always set to raw-stream and not relevant
-		mediaType = resp.Header.Get("Content-Type")
-	}
-
-	return conn, mediaType, nil
+	return conn, resp.Header.Get("Content-Type"), nil
 }
 
 // hijackedConn wraps a net.Conn and is returned by setupHijackConn in the case
