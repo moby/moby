@@ -39,6 +39,10 @@ func (f fallbackError) Cause() error {
 	return f.err
 }
 
+func (f fallbackError) Unwrap() error {
+	return f.err
+}
+
 type notFoundError struct {
 	cause errcode.Error
 	ref   reference.Named
@@ -61,6 +65,10 @@ func (e notFoundError) Error() string {
 func (e notFoundError) NotFound() {}
 
 func (e notFoundError) Cause() error {
+	return e.cause
+}
+
+func (e notFoundError) Unwrap() error {
 	return e.cause
 }
 
