@@ -111,7 +111,7 @@ func (i *bridgeInterface) programIPv6Addresses(config *networkConfiguration) err
 		// Ignore the prefix length when comparing addresses, it's informational
 		// (RFC-5942 section 4), and removing/re-adding an address that's still valid
 		// would disrupt traffic on live-restore.
-		if ea != addrPrefix.Addr() {
+		if ea != addrPrefix.Addr() || config.GwModeIPv6.isolated() {
 			err := i.nlh.AddrDel(i.Link, &existingAddr) //#nosec G601 -- Memory aliasing is not an issue in practice as the &existingAddr pointer is not retained by the callee after the AddrDel() call returns.
 			if err != nil {
 				log.G(context.TODO()).WithFields(log.Fields{
