@@ -251,7 +251,8 @@ func (n *Namespace) Interfaces() []*Interface {
 	return ifaces
 }
 
-func (n *Namespace) ifaceBySrcName(srcName string) *Interface {
+// InterfaceBySrcName returns a pointer to the Interface with a matching srcName, else nil.
+func (n *Namespace) InterfaceBySrcName(srcName string) *Interface {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	for _, iface := range n.iFaces {
@@ -518,7 +519,6 @@ func (n *Namespace) IPv6LoEnabled() bool {
 func (n *Namespace) RefreshIPv6LoEnabled() {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-
 	// If anything goes wrong, assume no-IPv6.
 	n.ipv6LoEnabledCached = false
 	iface, err := n.nlHandle.LinkByName("lo")

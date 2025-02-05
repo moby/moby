@@ -69,4 +69,11 @@ const (
 	// container, when the default binding address is 0.0.0.0. This label
 	// is intended for internal use, it may be removed in a future release.
 	NoProxy6To4 = DriverPrivatePrefix + ".no_proxy_6to4"
+
+	// NoIPv6 can be used as a ProgramExternalConnectivity option to tell the
+	// driver that, even if CreateEndpoint was supplied an IPv6 address, when the
+	// endpoint was configured it lost its IPv6 address (probably because of a sysctl
+	// setting). This label is intended for internal use, it may be removed in a
+	// future release.
+	NoIPv6 = DriverPrivatePrefix + ".no_ipv6"
 )

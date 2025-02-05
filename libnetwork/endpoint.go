@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/ipamapi"
@@ -553,18 +552,9 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		ep.joinInfo.gw6 = nil
 	}
 
-	if !n.getController().isAgent() {
-		if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
-			n.updateSvcRecord(context.WithoutCancel(ctx), ep, true)
-		}
-	}
-
-	sb.addHostsEntries(ctx, ep.getEtcHostsAddrs())
-	if err := sb.updateDNS(n.enableIPv6); err != nil {
-		return err
-	}
-
-	// Current endpoint(s) providing external connectivity for the sandbox
+	// Current endpoint(s) providing external connectivity for the Sandbox.
+	// If ep is selected as a gateway endpoint once it's been added to the Sandbox,
+	// these are the endpoints that need to be un-gateway'd.
 	gwepBefore4, gwepBefore6 := sb.getGatewayEndpoint()
 
 	sb.addEndpoint(ep)
@@ -574,149 +564,24 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		}
 	}()
 
-	if err := sb.populateNetworkResources(ctx, ep); err != nil {
-		return err
-	}
-
-	if err := addEpToResolver(ctx, n.Name(), ep.Name(), &sb.config, ep.iface, n.Resolvers()); err != nil {
-		return errdefs.System(err)
+	// For Linux, at this point, in most cases, the container task has been created
+	// and the container's network namespace (sb.osSbox) is ready to be configured
+	// with addresses, routes and so on. The exception is when the SetKey re-exec is
+	// used by a build container. In that case, the osSbox doesn't exist yet. So,
+	// stop here and SetKey will finish off the configuration when it's ready.
+	// For Windows, canPopulateNetworkResources() is always true.
+	if sb.canPopulateNetworkResources() {
+		if err := sb.populateNetworkResources(ctx, ep); err != nil {
+			return err
+		}
+		if err := sb.updateExternalConnectivity(ctx, ep, gwepBefore4, gwepBefore6); err != nil {
+			return err
+		}
 	}
 
 	if err := n.getController().updateToStore(ctx, ep); err != nil {
 		return err
 	}
-
-	if err := ep.addDriverInfoToCluster(); err != nil {
-		return err
-	}
-
-	defer func() {
-		if retErr != nil {
-			if e := ep.deleteDriverInfoFromCluster(); e != nil {
-				log.G(ctx).WithError(e).Error("Could not delete endpoint state from cluster on join failure")
-			}
-		}
-	}()
-
-	// Load balancing endpoints should never have a default gateway nor
-	// should they alter the status of a network's default gateway
-	if ep.loadBalancer && !sb.ingress {
-		return nil
-	}
-
-	if sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
-		return sb.setupDefaultGW()
-	}
-
-	// Enable upstream forwarding if the sandbox gained external connectivity.
-	if sb.resolver != nil {
-		sb.resolver.SetForwardingPolicy(sb.hasExternalAccess())
-	}
-
-	gwepAfter4, gwepAfter6 := sb.getGatewayEndpoint()
-	if ep == gwepAfter4 || ep == gwepAfter6 {
-		// When the driver programs external connectivity for a Sandbox to use an
-		// IPv4-only Endpoint, it may choose to map ports from host IPv6 addresses (as
-		// well as host IPv4) to the Endpoint's IPv4 address. But, it must not do that if
-		// there is an IPv6-only Endpoint acting as the IPv6 gateway.
-		//
-		// So, for an IPv4-only Endpoint acting as a gateway, "noProxy6To4=true" must be
-		// set if the Sandbox has a different Endpoint acting as IPv6 gateway. And, if ep
-		// becoming the gateway changes noProxy6To4, the IPv4 gateway must be reset.
-		//
-		// This happens naturally in most cases. For example, if ep is dual-stack, sb had
-		// an IPv4-only gateway and no IPv6 gateway - connectivity will be revoked from
-		// the original IPv4-only gateway Endpoint and given to ep. So the old gateway
-		// won't be mapping from the host-IPv6 address.
-		//
-		// But, if ep is IPv6 only, an existing IPv4 only gateway may be proxying 6To4.
-		// So, its connectivity needs to be revoked and re-added with noProxy6To4 set.
-		// Similarly, when an IPv6-only gateway is disconnected from the Sandbox,
-		// gwepAfter6 will become nil and noProxy6To4 needs to be cleared in the
-		// configuration of an IPv4-only gateway.
-		//
-		// Note that revoking/restoring external connectivity will result in the bridge
-		// driver assigning new host ports for port mappings where the host port is not
-		// specified.
-		noProxy6To4Before := gwepBefore4 != nil && gwepBefore6 != nil && gwepBefore4 != gwepBefore6
-		noProxy6To4After := gwepAfter4 != nil && gwepAfter6 != nil && gwepAfter4 != gwepAfter6
-		restartGw4 := ep != gwepAfter4 && noProxy6To4Before != noProxy6To4After
-
-		// If ep is the new IPv4 gateway, remove the old IPv4 gateway.
-		if gwepBefore4 != nil && (ep == gwepAfter4 || restartGw4) {
-			role := "IPv4"
-			if gwepAfter6 == gwepAfter4 {
-				role = "dual-stack"
-			}
-			log.G(ctx).WithFields(log.Fields{
-				"noProxy6To4": noProxy6To4Before,
-			}).Debug("Revoking external connectivity on endpoint")
-			undoFunc, err := gwepBefore4.revokeExternalConnectivity()
-			if err != nil {
-				return err
-			}
-			if restartGw4 {
-				// The IPv4 gateway hasn't changed, but its noProxy6To4 setting has. So,
-				// restore it as the gateway with that new setting.
-				log.G(ctx).WithFields(log.Fields{
-					"noProxy6To4": noProxy6To4After,
-					"role":        role,
-				}).Debug("Programming IPv4 gateway endpoint")
-				labelsAfter := sb.Labels()
-				labelsAfter[netlabel.NoProxy6To4] = noProxy6To4After
-				if err := undoFunc(ctx, labelsAfter); err != nil {
-					log.G(ctx).WithError(err).Warn("Failed to restore IPv4 connectivity")
-				}
-			} else {
-				defer func() {
-					if retErr != nil {
-						labelsBefore := sb.Labels()
-						labelsBefore[netlabel.NoProxy6To4] = noProxy6To4Before
-						if err := undoFunc(ctx, labelsBefore); err != nil {
-							log.G(ctx).WithError(err).Warn("Failed to restore connectivity during rollback")
-						}
-					}
-				}()
-			}
-		}
-		// If ep is the new IPv6 gateway, there's an old IPv6 gateway to remove, and it
-		// wasn't also the IPv4 gateway (removed already) - remove the old gateway.
-		if ep == gwepAfter6 && gwepBefore6 != nil && gwepBefore6 != gwepBefore4 {
-			log.G(ctx).Debug("Programming IPv6 gateway endpoint")
-			undoFunc, err := gwepBefore6.revokeExternalConnectivity()
-			if err != nil {
-				return err
-			}
-			defer func() {
-				if retErr != nil {
-					if err := undoFunc(ctx, sb.Labels()); err != nil {
-						log.G(ctx).WithError(err).Warn("Failed to restore IPv6 connectivity during rollback")
-					}
-				}
-			}()
-		}
-		if !n.internal {
-			log.G(ctx).Debugf("Programming external connectivity on endpoint")
-			labels := sb.Labels()
-			labels[netlabel.NoProxy6To4] = noProxy6To4After
-			if err := d.ProgramExternalConnectivity(ctx, n.ID(), ep.ID(), labels); err != nil {
-				return errdefs.System(fmt.Errorf(
-					"driver failed programming external connectivity on endpoint %s (%s): %v",
-					ep.Name(), ep.ID(), err))
-			}
-		}
-	}
-
-	if !sb.needDefaultGW() {
-		if e := sb.clearDefaultGW(); e != nil {
-			log.G(ctx).WithFields(log.Fields{
-				"error": e,
-				"sid":   sb.ID(),
-				"cid":   sb.ContainerID(),
-			}).Warn("Failure while disconnecting sandbox from gateway network")
-		}
-	}
-
 	return nil
 }
 
@@ -962,6 +827,9 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 				}
 			} else if moveExtConn4 {
 				log.G(ctx).Debugf("Programming IPv6 gateway endpoint %s (%s)", ep.Name(), ep.ID())
+				if gwepAfter4.Iface().AddressIPv6() == nil {
+					labels[netlabel.NoIPv6] = true
+				}
 				if err := gwepAfter4.programExternalConnectivity(ctx, labels); err != nil {
 					role := "IPv4"
 					if gwepAfter6 == gwepAfter4 {
@@ -1045,7 +913,7 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 		return err
 	}
 
-	ep.releaseAddress()
+	ep.releaseIPAddresses()
 
 	if err := n.getEpCnt().DecEndpointCnt(); err != nil {
 		log.G(ctx).Warnf("failed to decrement endpoint count for ep %s: %v", ep.ID(), err)
@@ -1340,7 +1208,7 @@ func (ep *Endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 	return fmt.Errorf("no available IPv%d addresses on this network's address pools: %s (%s)", ipVer, n.Name(), n.ID())
 }
 
-func (ep *Endpoint) releaseAddress() {
+func (ep *Endpoint) releaseIPAddresses() {
 	n := ep.getNetwork()
 	if n.hasSpecialDriver() {
 		return
@@ -1365,6 +1233,50 @@ func (ep *Endpoint) releaseAddress() {
 			log.G(context.TODO()).Warnf("Failed to release ip address %s on delete of endpoint %s (%s): %v", ep.iface.addrv6.IP, ep.Name(), ep.ID(), err)
 		}
 	}
+}
+
+func (ep *Endpoint) releaseIPv6Address(ctx context.Context) (*endpointJoinInfo, error) {
+	ep.mu.Lock()
+	joinInfo := ep.joinInfo
+	addrv6 := ep.iface.addrv6
+	v6PoolId := ep.iface.v6PoolID
+	network := ep.network
+	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
+		"net": network.Name(),
+		"ep":  ep.name,
+		"ip":  ep.iface.addrv6,
+	}))
+	ep.mu.Unlock()
+
+	if addrv6 == nil || network.hasSpecialDriver() {
+		return joinInfo, nil
+	}
+
+	log.G(ctx).Debug("Releasing IPv6 address for endpoint")
+
+	ipam, _, err := network.getController().getIPAMDriver(network.ipamType)
+	if err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to retrieve ipam driver to release IPv6 address")
+		return nil, err
+	}
+
+	if err := ipam.ReleaseAddress(v6PoolId, addrv6.IP); err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to release IPv6 address")
+		return nil, err
+	}
+
+	ep.mu.Lock()
+	ep.iface.addrv6 = nil
+	if ep.joinInfo != nil {
+		ep.joinInfo.gw6 = nil
+	}
+	ep.mu.Unlock()
+
+	if err := ep.network.getController().updateToStore(ctx, ep); err != nil {
+		return nil, err
+	}
+
+	return joinInfo, nil
 }
 
 func (c *Controller) cleanupLocalEndpoints() error {
