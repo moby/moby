@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/remote/api"
+	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/plugingetter"
@@ -20,8 +21,9 @@ import (
 var _ discoverapi.Discover = (*driver)(nil)
 
 type driver struct {
-	endpoint    *plugins.Client
-	networkType string
+	endpoint       *plugins.Client
+	networkType    string
+	gwAllocChecker bool
 }
 
 type maybeError interface {
@@ -112,6 +114,8 @@ func (d *driver) getCapabilities() (*driverapi.Capability, error) {
 		return nil, fmt.Errorf("invalid capability: expecting 'local' or 'global', got %s", capResp.Scope)
 	}
 
+	d.gwAllocChecker = capResp.GwAllocChecker
+
 	return c, nil
 }
 
@@ -166,6 +170,17 @@ func (d *driver) CreateNetwork(id string, options map[string]interface{}, nInfo 
 		IPv6Data:  ipV6Data,
 	}
 	return d.call("CreateNetwork", create, &api.CreateNetworkResponse{})
+}
+
+func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error) {
+	if !d.gwAllocChecker {
+		return false, false, nil
+	}
+	resp := &api.GwAllocCheckerResponse{}
+	if err := d.call("GwAllocCheck", &api.GwAllocCheckerRequest{Options: opts}, resp); err != nil {
+		return false, false, err
+	}
+	return resp.SkipIPv4, resp.SkipIPv6, nil
 }
 
 func (d *driver) DeleteNetwork(nid string) error {
