@@ -151,7 +151,19 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		}
 
 		using := func(c *container.Container) bool {
-			return c.ImageID == imgID
+			if c.ImageID == imgID {
+				return true
+			}
+
+			for _, mp := range c.MountPoints {
+				if mp.Type == "image" {
+					if mp.Spec.Source == string(imgID) {
+						return true
+					}
+				}
+			}
+
+			return false
 		}
 		// TODO: Should this also check parentage here?
 		ctr := i.containers.First(using)

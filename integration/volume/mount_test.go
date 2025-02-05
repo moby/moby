@@ -1,12 +1,17 @@
 package volume
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
@@ -14,6 +19,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/safepath"
+	"github.com/docker/docker/testutil/fakecontext"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -112,6 +118,114 @@ func TestRunMountVolumeSubdir(t *testing.T) {
 	}
 }
 
+func TestRunMountImage(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.48"), "skip test from new feature")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "image mounts not supported on Windows")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	for _, tc := range []struct {
+		name         string
+		opts         mount.ImageOptions
+		cmd          []string
+		createErr    string
+		startErr     string
+		expected     string
+		skipPlatform string
+	}{
+		{name: "image", cmd: []string{"cat", "/image/foo"}, expected: "bar"},
+		{name: "image_tag", cmd: []string{"cat", "/image/foo"}, expected: "bar"},
+
+		{name: "subdir", opts: mount.ImageOptions{Subpath: "subdir"}, cmd: []string{"ls", "/image"}, expected: "hello"},
+		{name: "subdir link", opts: mount.ImageOptions{Subpath: "hack/good"}, cmd: []string{"ls", "/image"}, expected: "hello"},
+		{name: "subdir link outside context", opts: mount.ImageOptions{Subpath: "hack/bad"}, cmd: []string{"ls", "/image"}, startErr: (&safepath.ErrEscapesBase{}).Error()},
+		{name: "file", opts: mount.ImageOptions{Subpath: "subdir/hello"}, cmd: []string{"cat", "/image"}, expected: "world"},
+		{name: "relative with backtracks", opts: mount.ImageOptions{Subpath: "../../../../../../etc/passwd"}, cmd: []string{"cat", "/image"}, createErr: "subpath must be a relative path within the volume"},
+		{name: "not existing", opts: mount.ImageOptions{Subpath: "not-existing-path"}, cmd: []string{"cat", "/image"}, startErr: (&safepath.ErrNotAccessible{}).Error()},
+
+		{name: "image_remove", cmd: []string{"cat", "/image/foo"}, expected: "bar"},
+		// Expected is duplicated because the container runs twice
+		{name: "image_remove_force", cmd: []string{"cat", "/image/foo"}, expected: "barbar"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			testImage := setupTestImage(t, ctx, apiClient, tc.name, testEnv.UsingSnapshotter())
+			if testImage != "" {
+				defer apiClient.ImageRemove(ctx, testImage, image.RemoveOptions{Force: true})
+			}
+
+			cfg := containertypes.Config{
+				Image: "busybox",
+				Cmd:   tc.cmd,
+			}
+
+			hostCfg := containertypes.HostConfig{
+				Mounts: []mount.Mount{
+					{
+						Type:         mount.TypeImage,
+						Source:       testImage,
+						Target:       "/image",
+						ImageOptions: &tc.opts,
+					},
+				},
+			}
+
+			startContainer := func(id string) {
+				startErr := apiClient.ContainerStart(ctx, id, containertypes.StartOptions{})
+				if tc.startErr != "" {
+					assert.ErrorContains(t, startErr, tc.startErr)
+					return
+				}
+				assert.NilError(t, startErr)
+			}
+
+			ctrName := strings.ReplaceAll(t.Name(), "/", "_")
+			create, creatErr := apiClient.ContainerCreate(ctx, &cfg, &hostCfg, &network.NetworkingConfig{}, nil, ctrName)
+			id := create.ID
+			if id != "" {
+				defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+			}
+
+			if tc.createErr != "" {
+				assert.ErrorContains(t, creatErr, tc.createErr)
+				return
+			}
+			assert.NilError(t, creatErr, "container creation failed")
+			startContainer(id)
+
+			// Test image mounted is in use logic
+			if tc.name == "image_remove" {
+				img, _, _ := apiClient.ImageInspectWithRaw(ctx, testImage)
+				imgId := strings.Split(img.ID, ":")[1]
+				_, removeErr := apiClient.ImageRemove(ctx, testImage, image.RemoveOptions{})
+				assert.ErrorContains(t, removeErr, fmt.Sprintf(`container %s is using its referenced image %s`, id[:12], imgId[:12]))
+			}
+
+			// Test that the container servives a restart when mounted image is removed
+			if tc.name == "image_remove_force" {
+				stopErr := apiClient.ContainerStop(ctx, id, containertypes.StopOptions{})
+				assert.NilError(t, stopErr)
+
+				_, removeErr := apiClient.ImageRemove(ctx, testImage, image.RemoveOptions{Force: true})
+				assert.NilError(t, removeErr)
+
+				startContainer(id)
+			}
+
+			output, err := container.Output(ctx, apiClient, id)
+			assert.Check(t, err)
+
+			inspect, err := apiClient.ContainerInspect(ctx, id)
+			if tc.startErr == "" && assert.Check(t, err) {
+				assert.Check(t, is.Equal(inspect.State.ExitCode, 0))
+			}
+
+			assert.Check(t, is.Equal(strings.TrimSpace(output.Stderr), ""))
+			assert.Check(t, is.Equal(strings.TrimSpace(output.Stdout), tc.expected))
+		})
+	}
+}
+
 // setupTestVolume sets up a volume with:
 // .
 // |-- bar.txt                        (file with "foo")
@@ -182,4 +296,63 @@ func setupTestVolume(t *testing.T, client client.APIClient) string {
 	assert.Assert(t, is.Equal(inspect.State.ExitCode, 0))
 
 	return volumeName
+}
+
+func setupTestImage(t *testing.T, ctx context.Context, client client.APIClient, test string, snapshotter bool) string {
+	imgName := "test-image"
+
+	if test == "image_tag" {
+		imgName += ":foo"
+	}
+
+	var symlink string
+	if snapshotter {
+		symlink = "../../../../rootfs"
+	} else {
+		symlink = "../../../../../docker"
+	}
+
+	//nolint:dupword // ignore "Duplicate words (subdir) found (dupword)"
+	dockerfile := `
+		FROM busybox as symlink
+		RUN mkdir /hack \
+			&& ln -s "../subdir" /hack/good \
+			&& ln -s "` + symlink + `" /hack/bad
+		#--
+		FROM scratch
+		COPY foo /
+		COPY subdir subdir
+		COPY --from=symlink /hack /hack
+		`
+
+	source := fakecontext.New(
+		t,
+		"",
+		fakecontext.WithDockerfile(dockerfile),
+		fakecontext.WithFile("foo", "bar"),
+		fakecontext.WithFile("subdir/hello", "world"),
+	)
+	defer source.Close()
+
+	resp, err := client.ImageBuild(ctx,
+		source.AsTarReader(t),
+		types.ImageBuildOptions{
+			Remove:      false,
+			ForceRemove: false,
+			Tags:        []string{imgName},
+		})
+	assert.NilError(t, err)
+
+	out := bytes.NewBuffer(nil)
+	_, err = io.Copy(out, resp.Body)
+	assert.Check(t, resp.Body.Close())
+	assert.NilError(t, err)
+
+	_, _, err = client.ImageInspectWithRaw(ctx, imgName)
+	if err != nil {
+		t.Log(out)
+	}
+	assert.NilError(t, err)
+
+	return imgName
 }

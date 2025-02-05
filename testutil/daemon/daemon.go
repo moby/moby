@@ -856,20 +856,24 @@ func (d *Daemon) SetEnvVar(name, val string) {
 
 // LoadBusybox image into the daemon
 func (d *Daemon) LoadBusybox(ctx context.Context, t testing.TB) {
+	d.LoadImage(ctx, t, "busybox:latest")
+}
+
+func (d *Daemon) LoadImage(ctx context.Context, t testing.TB, img string) {
 	t.Helper()
 	clientHost, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(t, err, "[%s] failed to create client", d.id)
 	defer clientHost.Close()
 
-	reader, err := clientHost.ImageSave(ctx, []string{"busybox:latest"}, image.SaveOptions{})
-	assert.NilError(t, err, "[%s] failed to download busybox", d.id)
+	reader, err := clientHost.ImageSave(ctx, []string{img}, image.SaveOptions{})
+	assert.NilError(t, err, "[%s] failed to download %s", d.id, img)
 	defer reader.Close()
 
 	c := d.NewClientT(t)
 	defer c.Close()
 
 	resp, err := c.ImageLoad(ctx, reader, image.LoadOptions{Quiet: true})
-	assert.NilError(t, err, "[%s] failed to load busybox", d.id)
+	assert.NilError(t, err, "[%s] failed to load %s", d.id, img)
 	defer resp.Body.Close()
 }
 

@@ -649,6 +649,11 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 			// reinitialize this field.
 			epConfig.GwPriority = 0
 		}
+		for _, m := range hostConfig.Mounts {
+			if m.Type == mount.TypeImage {
+				return errdefs.InvalidParameter(errors.New(`Mount type "Image" needs API v1.48 or newer`))
+			}
+		}
 	}
 
 	var warnings []string
