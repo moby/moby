@@ -10,6 +10,6 @@ import (
 )
 
 // GetLayerFolders returns the layer folders from an image RootFS.
-func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer container.RWLayer, containerID string) ([]string, error) {
+func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer container.Layer, containerID string) ([]string, error) {
 	return nil, errdefs.NotImplemented(errors.New("not implemented"))
 }

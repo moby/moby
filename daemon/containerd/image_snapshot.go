@@ -11,44 +11,26 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/image-spec/identity"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
 // CreateLayer creates a new layer for a container.
 // TODO(vvoland): Decouple from container
-func (i *ImageService) CreateLayer(ctr *container.Container, initFunc layer.MountInit) (container.RWLayer, error) {
+func (i *ImageService) CreateLayer(ctr *container.Container, initFunc layer.MountInit) (container.Layer, error) {
 	ctx := context.TODO()
 
 	var parentSnapshot string
 	if ctr.ImageManifest != nil {
-		img := c8dimages.Image{
-			Target: *ctr.ImageManifest,
-		}
-		platformImg, err := i.NewImageManifest(ctx, img, img.Target)
+		s, err := i.getImageSnapshot(ctx, *ctr.ImageManifest)
 		if err != nil {
 			return nil, err
 		}
-		unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
-		if err != nil {
-			return nil, err
-		}
-
-		if !unpacked {
-			if err := platformImg.Unpack(ctx, i.snapshotter); err != nil {
-				return nil, err
-			}
-		}
-
-		diffIDs, err := platformImg.RootFS(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		parentSnapshot = identity.ChainID(diffIDs).String()
+		parentSnapshot = s
 	}
 
 	id := ctr.ID
@@ -80,7 +62,7 @@ func (i *ImageService) CreateLayer(ctr *container.Container, initFunc layer.Moun
 		return nil, err
 	}
 
-	return &rwLayer{
+	return &snapshotLayer{
 		id:              id,
 		snapshotterName: i.StorageDriver(),
 		snapshotter:     sn,
@@ -89,42 +71,94 @@ func (i *ImageService) CreateLayer(ctr *container.Container, initFunc layer.Moun
 	}, nil
 }
 
-type rwLayer struct {
-	id              string
-	snapshotter     snapshots.Snapshotter
-	snapshotterName string
-	refCountMounter snapshotter.Mounter
-	root            string
-	lease           leases.Lease
+func (i *ImageService) GetImageLayer(ctx context.Context, img *image.Image) (container.Layer, error) {
+	if img.Details.ManifestDescriptor == nil {
+		return nil, fmt.Errorf("no manifest descriptor found for image %s", img.ID)
+	}
+
+	snapshotID, err := i.getImageSnapshot(ctx, *img.Details.ManifestDescriptor)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshotterName := i.snapshotter
+	leaseId := "imagelayer-" + snapshotID
+	lm := i.client.LeasesService()
+
+	lease, err := getLeaseByID(ctx, lm, leaseId)
+	if err != nil {
+		if !errdefs.IsNotFound(err) {
+			return nil, err
+		}
+
+		lease, err = lm.Create(ctx, leases.WithID(leaseId))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := lm.AddResource(ctx, lease, leases.Resource{
+		Type: "snapshots/" + snapshotterName,
+		ID:   snapshotID,
+	}); err != nil {
+		if err := lm.Delete(ctx, lease, leases.SynchronousDelete); err != nil {
+			log.G(ctx).WithError(err).Warn("failed to cleanup lease")
+		}
+		return nil, err
+	}
+
+	return &snapshotLayer{
+		id:              snapshotID,
+		readonly:        true,
+		snapshotterName: i.StorageDriver(),
+		snapshotter:     i.client.SnapshotService(i.StorageDriver()),
+		refCountMounter: i.refCountMounter,
+		lease:           lease,
+	}, nil
 }
 
-func (l *rwLayer) mounts(ctx context.Context) ([]mount.Mount, error) {
-	return l.snapshotter.Mounts(ctx, l.id)
+func (i *ImageService) ReleaseImageLayer(ctx context.Context, l container.Layer) error {
+	c8dLayer, ok := l.(*snapshotLayer)
+	if !ok {
+		return fmt.Errorf("invalid layer type %T", l)
+	}
+
+	ls := i.client.LeasesService()
+	if err := ls.Delete(ctx, c8dLayer.lease, leases.SynchronousDelete); err != nil {
+		if !cerrdefs.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
 }
 
-func (l *rwLayer) Mount(mountLabel string) (string, error) {
-	ctx := context.TODO()
-
-	// TODO: Investigate how we can handle mountLabel
-	_ = mountLabel
-	mounts, err := l.mounts(ctx)
+func (i *ImageService) getImageSnapshot(ctx context.Context, desc ocispec.Descriptor) (string, error) {
+	platformImg, err := i.NewImageManifest(ctx, c8dimages.Image{Target: desc}, desc)
+	if err != nil {
+		return "", err
+	}
+	unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
 	if err != nil {
 		return "", err
 	}
 
-	var root string
-	if root, err = l.refCountMounter.Mount(mounts, l.id); err != nil {
-		return "", fmt.Errorf("failed to mount %s: %w", root, err)
+	if !unpacked {
+		if err := platformImg.Unpack(ctx, i.snapshotter); err != nil {
+			return "", err
+		}
 	}
-	l.root = root
 
-	log.G(ctx).WithFields(log.Fields{"container": l.id, "root": root, "snapshotter": l.snapshotterName}).Debug("container mounted via snapshotter")
-	return root, nil
+	diffIDs, err := platformImg.RootFS(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	return identity.ChainID(diffIDs).String(), nil
 }
 
 // GetLayerByID returns a layer by ID
 // called from daemon.go Daemon.restore().
-func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
+func (i *ImageService) GetLayerByID(cid string) (container.Layer, error) {
 	ctx := context.TODO()
 
 	sn := i.client.SnapshotService(i.StorageDriver())
@@ -135,18 +169,9 @@ func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 		return nil, errdefs.NotFound(fmt.Errorf("RW layer for container %s not found", cid))
 	}
 
-	ls := i.client.LeasesService()
-	lss, err := ls.List(ctx, "id=="+cid)
+	lease, err := getLeaseByID(ctx, i.client.LeasesService(), cid)
 	if err != nil {
 		return nil, err
-	}
-
-	switch len(lss) {
-	case 0:
-		return nil, errdefs.NotFound(errors.New("rw layer lease not found for container " + cid))
-	default:
-		log.G(ctx).WithFields(log.Fields{"container": cid, "leases": lss}).Warn("multiple leases with the same id found, this should not happen")
-	case 1:
 	}
 
 	root, err := i.refCountMounter.Mounted(cid)
@@ -154,47 +179,21 @@ func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 		log.G(ctx).WithField("container", cid).Warn("failed to determine if container is already mounted")
 	}
 
-	return &rwLayer{
+	return &snapshotLayer{
 		id:              cid,
 		snapshotterName: i.StorageDriver(),
 		snapshotter:     sn,
 		refCountMounter: i.refCountMounter,
-		lease:           lss[0],
+		lease:           lease,
 		root:            root,
 	}, nil
 
 }
 
-func (l *rwLayer) Unmount() error {
-	ctx := context.TODO()
-
-	if l.root == "" {
-		target, err := l.refCountMounter.Mounted(l.id)
-		if err != nil {
-			log.G(ctx).WithField("id", l.id).Warn("failed to determine if container is already mounted")
-		}
-		if target == "" {
-			return errors.New("layer not mounted")
-		}
-		l.root = target
-	}
-
-	if err := l.refCountMounter.Unmount(l.root); err != nil {
-		log.G(ctx).WithField("container", l.id).WithError(err).Error("error unmounting container")
-		return fmt.Errorf("failed to unmount %s: %w", l.root, err)
-	}
-
-	return nil
-}
-
-func (l rwLayer) Metadata() (map[string]string, error) {
-	return nil, nil
-}
-
 // ReleaseLayer releases a layer allowing it to be removed
 // called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
-func (i *ImageService) ReleaseLayer(rwlayer container.RWLayer) error {
-	c8dLayer, ok := rwlayer.(*rwLayer)
+func (i *ImageService) ReleaseLayer(rwlayer container.Layer) error {
+	c8dLayer, ok := rwlayer.(*snapshotLayer)
 	if !ok {
 		return fmt.Errorf("invalid layer type %T", rwlayer)
 	}
@@ -268,4 +267,20 @@ func calculateSnapshotTotalUsage(ctx context.Context, snapshotter snapshots.Snap
 		next = info.Parent
 	}
 	return total, nil
+}
+
+func getLeaseByID(ctx context.Context, lm leases.Manager, id string) (leases.Lease, error) {
+	lss, err := lm.List(ctx, "id=="+id)
+	if err != nil {
+		return leases.Lease{}, nil
+	}
+
+	switch len(lss) {
+	case 0:
+		return leases.Lease{}, errdefs.NotFound(errors.New("lease not found" + id))
+	default:
+		log.G(ctx).WithFields(log.Fields{"lease": id, "leases": lss}).Warn("multiple leases with the same id found, this should not happen")
+	case 1:
+	}
+	return lss[0], nil
 }

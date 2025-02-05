@@ -69,9 +69,9 @@ type Container struct {
 	// State also provides a [sync.Mutex] which is used as lock for both
 	// the Container and State.
 	*State          `json:"State"`
-	Root            string  `json:"-"` // Path to the "home" of the container, including metadata.
-	BaseFS          string  `json:"-"` // Path to the graphdriver mountpoint
-	RWLayer         RWLayer `json:"-"`
+	Root            string `json:"-"` // Path to the "home" of the container, including metadata.
+	BaseFS          string `json:"-"` // Path to the graphdriver mountpoint
+	RWLayer         Layer  `json:"-"`
 	ID              string
 	Created         time.Time
 	Managed         bool
