@@ -11679,9 +11679,12 @@ paths:
           type: "string"
         - name: "timeout"
           in: "query"
-          description: "Set the HTTP client timeout (in seconds)"
+          description: |
+            Set the HTTP client timeout (in seconds)
+
           type: "integer"
-          default: 0
+          minimum: 1
+          default: 30
       tags: ["Plugin"]
   /plugins/{name}/disable:
     post:
