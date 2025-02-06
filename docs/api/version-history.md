@@ -82,6 +82,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   paths (`/v<API-version>/<endpoint>`).
 * `POST /build/prune` renames `keep-bytes` to `reserved-space` and now supports
   additional prune parameters `max-used-space` and `min-free-space`.
+* `GET /containers/json` now includes `Platform` information for containers,
+  describing platform details of the image that the container was created with
+  (`Architecture`, `OS`, and optional: `OSVersion`, `OSFeatures`, `Variant`).
 
 ## v1.47 API changes
 

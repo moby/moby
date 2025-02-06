@@ -213,6 +213,12 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 			b.VirtualSize = b.Size //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.44.
 		}
 	}
+	if versions.LessThan(version, "1.48") {
+		// Platform information was added in API 1.48
+		for _, c := range systemDiskUsage.Containers {
+			c.Platform = nil
+		}
+	}
 
 	du := types.DiskUsage{
 		BuildCache:  buildCache,
