@@ -5,15 +5,13 @@ import (
 )
 
 const (
-	// Deprecated: copy value locally
 	SeTakeOwnershipPrivilege = "SeTakeOwnershipPrivilege"
 )
 
+// TODO(thaJeztah): these magic consts need a source of reference, and should be defined in a canonical location
 const (
-	// Deprecated: copy value locally
 	ContainerAdministratorSidString = "S-1-5-93-2-1"
 
-	// Deprecated: copy value locally
 	ContainerUserSidString = "S-1-5-93-2-2"
 )
 
