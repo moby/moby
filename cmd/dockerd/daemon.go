@@ -176,7 +176,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to load listeners")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	waitForContainerDShutdown, err := cli.initContainerd(ctx)
 	if waitForContainerDShutdown != nil {
 		defer waitForContainerDShutdown(10 * time.Second)
@@ -190,7 +190,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	httpServer := &http.Server{
 		ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
 	}
-	apiShutdownCtx, apiShutdownCancel := context.WithCancel(context.Background())
+	apiShutdownCtx, apiShutdownCancel := context.WithCancel(context.WithoutCancel(ctx))
 	apiShutdownDone := make(chan struct{})
 	trap.Trap(cli.stop)
 	go func() {
@@ -283,7 +283,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 
 	c, err := createAndStartCluster(cli, d)
 	if err != nil {
-		log.G(ctx).Fatalf("Error starting cluster component: %v", err)
+		log.G(ctx).WithError(err).Fatalf("Error starting cluster component")
 	}
 
 	// Restart all autostart containers which has a swarm endpoint
@@ -291,20 +291,17 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	// initialized the cluster.
 	d.RestartSwarmContainers()
 
-	log.G(ctx).Info("Daemon has completed initialization")
-
-	// Get a the current daemon config, because the daemon sets up config
-	// during initialization. We cannot user the cli.Config for that reason,
-	// as that only holds the config that was set by the user.
-	//
-	// FIXME(thaJeztah): better separate runtime and config data?
-	daemonCfg := d.Config()
-	routerOpts, err := newRouterOptions(ctx, &daemonCfg, d, c)
+	b, shutdownBuildKit, err := initBuildkit(ctx, d)
 	if err != nil {
-		return err
+		return fmt.Errorf("error initializing buildkit: %w", err)
 	}
 
-	routers := buildRouters(routerOpts)
+	routers := buildRouters(routerOptions{
+		features: d.Features,
+		daemon:   d,
+		cluster:  c,
+		builder:  b,
+	})
 	httpServer.Handler = apiServer.CreateMux(ctx, routers...)
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
@@ -313,6 +310,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 
 	// after the daemon is done setting up we can notify systemd api
 	notifyReady()
+	log.G(ctx).Info("Daemon has completed initialization")
 
 	// Daemon is fully initialized. Start handling API traffic
 	// and wait for serve API to complete.
@@ -347,9 +345,8 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	notifyStopping()
 	shutdownDaemon(ctx, d)
 
-	if err := routerOpts.buildkit.Close(); err != nil {
-		log.G(ctx).WithError(err).Error("Failed to close buildkit")
-	}
+	// shutdown / close BuildKit backend
+	shutdownBuildKit()
 
 	// Stop notification processing and any background processes
 	cancel()
@@ -389,26 +386,21 @@ func setOTLPProtoDefault() {
 	}
 }
 
-type routerOptions struct {
-	sessionManager *session.Manager
-	buildBackend   *buildbackend.Backend
-	features       func() map[string]bool
-	buildkit       *buildkit.Builder
-	daemon         *daemon.Daemon
-	cluster        *cluster.Cluster
-}
+func initBuildkit(ctx context.Context, d *daemon.Daemon) (_ builderOptions, closeFn func(), _ error) {
+	log.G(ctx).Info("Initializing buildkit")
+	closeFn = func() {}
 
-func newRouterOptions(ctx context.Context, cfg *config.Config, d *daemon.Daemon, c *cluster.Cluster) (routerOptions, error) {
 	sm, err := session.NewManager()
 	if err != nil {
-		return routerOptions{}, errors.Wrap(err, "failed to create sessionmanager")
+		return builderOptions{}, closeFn, errors.Wrap(err, "failed to create sessionmanager")
 	}
 
 	manager, err := dockerfile.NewBuildManager(d.BuilderBackend(), d.IdentityMapping())
 	if err != nil {
-		return routerOptions{}, err
+		return builderOptions{}, closeFn, err
 	}
 
+	cfg := d.Config()
 	bk, err := buildkit.New(ctx, buildkit.Opt{
 		SessionManager:      sm,
 		Root:                filepath.Join(cfg.Root, "buildkit"),
@@ -416,10 +408,10 @@ func newRouterOptions(ctx context.Context, cfg *config.Config, d *daemon.Daemon,
 		Dist:                d.DistributionServices(),
 		ImageTagger:         d.ImageService(),
 		NetworkController:   d.NetworkController(),
-		DefaultCgroupParent: newCgroupParent(cfg),
+		DefaultCgroupParent: newCgroupParent(&cfg),
 		RegistryHosts:       d.RegistryHosts,
 		BuilderConfig:       cfg.Builder,
-		Rootless:            daemon.Rootless(cfg),
+		Rootless:            daemon.Rootless(&cfg),
 		IdentityMapping:     d.IdentityMapping(),
 		DNSConfig:           cfg.DNSConfig,
 		ApparmorProfile:     daemon.DefaultApparmorProfile(),
@@ -433,22 +425,40 @@ func newRouterOptions(ctx context.Context, cfg *config.Config, d *daemon.Daemon,
 		},
 	})
 	if err != nil {
-		return routerOptions{}, err
+		return builderOptions{}, closeFn, errors.Wrap(err, "error creating buildkit instance")
 	}
 
 	bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk, d.EventsService)
 	if err != nil {
-		return routerOptions{}, errors.Wrap(err, "failed to create buildmanager")
+		return builderOptions{}, closeFn, errors.Wrap(err, "failed to create builder backend")
 	}
 
-	return routerOptions{
-		sessionManager: sm,
-		buildBackend:   bb,
-		features:       d.Features,
+	log.G(ctx).Info("Completed buildkit initialization")
+
+	closeFn = func() {
+		if err := bk.Close(); err != nil {
+			log.G(ctx).WithError(err).Error("Failed to close buildkit")
+		}
+	}
+
+	return builderOptions{
+		backend:        bb,
 		buildkit:       bk,
-		daemon:         d,
-		cluster:        c,
-	}, nil
+		sessionManager: sm,
+	}, closeFn, nil
+}
+
+type routerOptions struct {
+	features func() map[string]bool
+	daemon   *daemon.Daemon
+	cluster  *cluster.Cluster
+	builder  builderOptions
+}
+
+type builderOptions struct {
+	backend        *buildbackend.Backend
+	buildkit       *buildkit.Builder
+	sessionManager *session.Manager
 }
 
 func (cli *daemonCLI) reloadConfig() {
@@ -696,10 +706,10 @@ func buildRouters(opts routerOptions) []router.Router {
 			opts.daemon.RegistryService(),
 			opts.daemon.ReferenceStore,
 		),
-		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildkit, opts.daemon.Features),
+		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.builder.buildkit, opts.daemon.Features),
 		volume.NewRouter(opts.daemon.VolumesService(), opts.cluster),
-		build.NewRouter(opts.buildBackend, opts.daemon),
-		sessionrouter.NewRouter(opts.sessionManager),
+		build.NewRouter(opts.builder.backend, opts.daemon),
+		sessionrouter.NewRouter(opts.builder.sessionManager),
 		swarmrouter.NewRouter(opts.cluster),
 		pluginrouter.NewRouter(opts.daemon.PluginManager()),
 		distributionrouter.NewRouter(opts.daemon.ImageBackend()),
@@ -707,8 +717,8 @@ func buildRouters(opts routerOptions) []router.Router {
 		debugrouter.NewRouter(),
 	}
 
-	if opts.buildBackend != nil {
-		routers = append(routers, grpcrouter.NewRouter(opts.buildBackend))
+	if opts.builder.backend != nil {
+		routers = append(routers, grpcrouter.NewRouter(opts.builder.backend))
 	}
 
 	if opts.daemon.HasExperimental() {
