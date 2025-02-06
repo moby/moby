@@ -228,8 +228,13 @@ init() {
 		fi
 	fi
 
-	# instructions: validate subuid/subgid files for current user
-	if ! grep -q "^$USERNAME_ESCAPED:\|^$(id -u):" /etc/subuid 2> /dev/null; then
+	# instructions: validate subuid for current user
+	if command -v "getsubids" > /dev/null 2>&1; then
+		getsubids "$USERNAME" > /dev/null 2>&1 || getsubids "$(id -u)" > /dev/null 2>&1
+	else
+		grep -q "^$USERNAME_ESCAPED:\|^$(id -u):" /etc/subuid 2> /dev/null
+	fi
+	if [ $? -ne 0 ]; then
 		instructions=$(
 			cat <<- EOI
 				${instructions}
@@ -238,7 +243,14 @@ init() {
 			EOI
 		)
 	fi
-	if ! grep -q "^$USERNAME_ESCAPED:\|^$(id -u):" /etc/subgid 2> /dev/null; then
+
+	# instructions: validate subgid for current user
+	if command -v "getsubids" > /dev/null 2>&1; then
+		getsubids -g "$USERNAME" > /dev/null 2>&1 || getsubids -g "$(id -u)" > /dev/null 2>&1
+	else
+		grep -q "^$USERNAME_ESCAPED:\|^$(id -u):" /etc/subgid 2> /dev/null
+	fi
+	if [ $? -ne 0 ]; then
 		instructions=$(
 			cat <<- EOI
 				${instructions}
