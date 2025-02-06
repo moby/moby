@@ -75,7 +75,7 @@ func TestCreateByImageID(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	img, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox")
+	img, err := apiClient.ImageInspect(ctx, "busybox")
 	assert.NilError(t, err)
 
 	imgIDWithAlgorithm := img.ID
@@ -547,7 +547,7 @@ func TestCreateDifferentPlatform(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	img, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox:latest")
+	img, err := apiClient.ImageInspect(ctx, "busybox:latest")
 	assert.NilError(t, err)
 	assert.Assert(t, img.Architecture != "")
 

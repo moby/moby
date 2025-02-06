@@ -151,7 +151,9 @@ type GetImageOpts struct {
 }
 
 // ImageInspectOpts holds parameters to inspect an image.
-type ImageInspectOpts struct{}
+type ImageInspectOpts struct {
+	Manifests bool
+}
 
 // CommitConfig is the configuration for creating an image as part of a build.
 type CommitConfig struct {

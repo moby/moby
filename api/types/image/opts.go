@@ -103,6 +103,11 @@ type LoadOptions struct {
 	Platforms []ocispec.Platform
 }
 
+type InspectOptions struct {
+	// Manifests returns the image manifests.
+	Manifests bool
+}
+
 // SaveOptions holds parameters to save images.
 type SaveOptions struct {
 	// Platforms selects the platforms to save if the image is a

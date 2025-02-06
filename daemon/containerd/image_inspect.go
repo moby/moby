@@ -17,76 +17,57 @@ import (
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/storage"
 	"github.com/docker/docker/internal/sliceutil"
+	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/semaphore"
 )
 
-func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
-	img, err := i.GetImage(ctx, refOrID, backend.GetImageOpts{})
+func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
+	c8dImg, err := i.resolveImage(ctx, refOrID)
 	if err != nil {
 		return nil, err
 	}
 
-	lastUpdated := time.Unix(0, 0)
-
-	tagged, err := i.images.List(ctx, "target.digest=="+img.ImageID())
+	target := c8dImg.Target
+	tagged, err := i.images.List(ctx, "target.digest=="+target.Digest.String())
 	if err != nil {
 		return nil, err
 	}
 
-	// This could happen only if the image was deleted after the GetImage call above.
+	// This could happen only if the image was deleted after the resolveImage call above.
 	if len(tagged) == 0 {
 		return nil, errInconsistentData
 	}
 
-	platform := matchAllWithPreference(platforms.Default())
-
-	size, err := i.size(ctx, tagged[0].Target, platform)
-	if err != nil {
-		return nil, err
-	}
-	target := tagged[0].Target
-
-	repoTags := make([]string, 0, len(tagged))
-	repoDigests := make([]string, 0, len(tagged))
+	lastUpdated := time.Unix(0, 0)
 	for _, i := range tagged {
 		if i.UpdatedAt.After(lastUpdated) {
 			lastUpdated = i.UpdatedAt
 		}
-		if isDanglingImage(i) {
-			if len(tagged) > 1 {
-				// This is unexpected - dangling image should be deleted
-				// as soon as another image with the same target is created.
-				// Log a warning, but don't error out the whole operation.
-				log.G(ctx).WithField("refs", tagged).Warn("multiple images have the same target, but one of them is still dangling")
-			}
-			continue
-		}
+	}
 
-		name, err := reference.ParseNamed(i.Name)
-		if err != nil {
-			log.G(ctx).WithField("name", name).WithError(err).Error("failed to parse image name as reference")
-			// Include the malformed name in RepoTags to be consistent with `docker image ls`.
-			repoTags = append(repoTags, i.Name)
-			continue
-		}
+	platform := matchAllWithPreference(platforms.Default())
+	size, err := i.size(ctx, target, platform)
+	if err != nil {
+		return nil, err
+	}
 
-		repoTags = append(repoTags, reference.FamiliarString(name))
-		if _, ok := name.(reference.Digested); ok {
-			repoDigests = append(repoDigests, reference.FamiliarString(name))
-			// Image name is a digested reference already, so no need to create a digested reference.
-			continue
-		}
+	multi, err := i.multiPlatformSummary(ctx, c8dImg, platform)
+	if err != nil {
+		return nil, err
+	}
 
-		digested, err := reference.WithDigest(reference.TrimNamed(name), target.Digest)
-		if err != nil {
-			// This could only happen if digest is invalid, but considering that
-			// we get it from the Descriptor it's highly unlikely.
-			// Log error just in case.
-			log.G(ctx).WithError(err).Error("failed to create digested reference")
-			continue
+	if multi.Best == nil {
+		return nil, &errPlatformNotFound{
+			wanted:   platforms.DefaultSpec(),
+			imageRef: refOrID,
 		}
-		repoDigests = append(repoDigests, reference.FamiliarString(digested))
+	}
+
+	best := multi.Best
+	var img imagespec.DockerOCIImage
+	if err := best.ReadConfig(ctx, &img); err != nil {
+		return nil, err
 	}
 
 	var comment string
@@ -104,22 +85,35 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 		layers = append(layers, layer.String())
 	}
 
+	parent, err := i.getImageLabelByDigest(ctx, target.Digest, imageLabelClassicBuilderParent)
+	if err != nil {
+		log.G(ctx).WithError(err).Warn("failed to determine Parent property")
+	}
+
+	var manifests []imagetypes.ManifestSummary
+	if opts.Manifests {
+		manifests = multi.Manifests
+	}
+
+	repoTags, repoDigests := collectRepoTagsAndDigests(ctx, tagged)
+
 	return &imagetypes.InspectResponse{
-		ID:            img.ImageID(),
+		ID:            target.Digest.String(),
 		RepoTags:      repoTags,
 		Descriptor:    &target,
-		RepoDigests:   sliceutil.Dedup(repoDigests),
-		Parent:        img.Parent.String(),
+		RepoDigests:   repoDigests,
+		Parent:        parent,
 		Comment:       comment,
 		Created:       created,
 		DockerVersion: "",
 		Author:        img.Author,
-		Config:        img.Config,
+		Config:        dockerOCIImageConfigToContainerConfig(img.Config),
 		Architecture:  img.Architecture,
 		Variant:       img.Variant,
 		Os:            img.OS,
 		OsVersion:     img.OSVersion,
 		Size:          size,
+		Manifests:     manifests,
 		GraphDriver: storage.DriverData{
 			Name: i.snapshotter,
 			Data: nil,
@@ -132,6 +126,48 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 			LastTagTime: lastUpdated,
 		},
 	}, nil
+}
+
+func collectRepoTagsAndDigests(ctx context.Context, tagged []c8dimages.Image) (repoTags []string, repoDigests []string) {
+	repoTags = make([]string, 0, len(tagged))
+	repoDigests = make([]string, 0, len(tagged))
+	for _, img := range tagged {
+		if isDanglingImage(img) {
+			if len(tagged) > 1 {
+				// This is unexpected - dangling image should be deleted
+				// as soon as another image with the same target is created.
+				// Log a warning, but don't error out the whole operation.
+				log.G(ctx).WithField("refs", tagged).Warn("multiple images have the same target, but one of them is still dangling")
+			}
+			continue
+		}
+
+		name, err := reference.ParseNamed(img.Name)
+		if err != nil {
+			log.G(ctx).WithField("name", name).WithError(err).Error("failed to parse image name as reference")
+			// Include the malformed name in RepoTags to be consistent with `docker image ls`.
+			repoTags = append(repoTags, img.Name)
+			continue
+		}
+
+		repoTags = append(repoTags, reference.FamiliarString(name))
+		if _, ok := name.(reference.Digested); ok {
+			repoDigests = append(repoDigests, reference.FamiliarString(name))
+			// Image name is a digested reference already, so no need to create a digested reference.
+			continue
+		}
+
+		digested, err := reference.WithDigest(reference.TrimNamed(name), img.Target.Digest)
+		if err != nil {
+			// This could only happen if digest is invalid, but considering that
+			// we get it from the Descriptor it's highly unlikely.
+			// Log error just in case.
+			log.G(ctx).WithError(err).Error("failed to create digested reference")
+			continue
+		}
+		repoDigests = append(repoDigests, reference.FamiliarString(digested))
+	}
+	return sliceutil.Dedup(repoTags), sliceutil.Dedup(repoDigests)
 }
 
 // size returns the total size of the image's packed resources.

@@ -65,7 +65,7 @@ func TestBuildSquashParent(t *testing.T) {
 	resp.Body.Close()
 	assert.NilError(t, err)
 
-	inspect, _, err := client.ImageInspectWithRaw(ctx, name)
+	inspect, err := client.ImageInspect(ctx, name)
 	assert.NilError(t, err)
 	origID := inspect.ID
 
@@ -114,7 +114,7 @@ func TestBuildSquashParent(t *testing.T) {
 	testHistory, err := client.ImageHistory(ctx, name, image.HistoryOptions{})
 	assert.NilError(t, err)
 
-	inspect, _, err = client.ImageInspectWithRaw(ctx, name)
+	inspect, err = client.ImageInspect(ctx, name)
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(testHistory, len(origHistory)+1))
 	assert.Check(t, is.Len(inspect.RootFS.Layers, 2))

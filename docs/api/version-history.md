@@ -51,6 +51,13 @@ keywords: "API, Docker, rcli, REST, documentation"
   image store.
   WARNING: This is experimental and may change at any time without any backward
   compatibility.
+* `GET /images/{name}/json` response now will return the `Manifests` field
+  containing information about the sub-manifests contained in the image index.
+  This includes things like platform-specific manifests and build attestations.
+  The new field will only be populated if the request also sets the `manifests`
+  query parameter to `true`.
+  This acts the same as in the `GET /images/json` endpoint.
+  WARNING: This is experimental and may change at any time without any backward compatibility.
 * `GET /containers/{name}/json` now returns an `ImageManifestDescriptor` field
   containing the OCI descriptor of the platform-specific image manifest of the
   image that was used to create the container.

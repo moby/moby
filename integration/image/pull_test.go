@@ -209,7 +209,7 @@ func TestImagePullKeepOldAsDangling(t *testing.T) {
 
 	apiClient := d.NewClientT(t)
 
-	inspect1, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox:latest")
+	inspect1, err := apiClient.ImageInspect(ctx, "busybox:latest")
 	assert.NilError(t, err)
 
 	prevID := inspect1.ID
@@ -231,6 +231,6 @@ func TestImagePullKeepOldAsDangling(t *testing.T) {
 
 	t.Log(b.String())
 
-	_, _, err = apiClient.ImageInspectWithRaw(ctx, prevID)
+	_, err = apiClient.ImageInspect(ctx, prevID)
 	assert.NilError(t, err)
 }

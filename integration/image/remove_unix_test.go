@@ -76,7 +76,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	_, err = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	assert.NilError(t, err)
-	img, _, err := client.ImageInspectWithRaw(ctx, imgName)
+	img, err := client.ImageInspect(ctx, imgName)
 	assert.NilError(t, err)
 
 	// Mark latest image layer to immutable

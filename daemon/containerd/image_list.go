@@ -160,7 +160,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 
 	for _, img := range uniqueImages {
 		eg.Go(func() error {
-			image, allChainsIDs, err := i.imageSummary(egCtx, img, platformMatcher, opts, tagsByDigest)
+			image, multiSummary, err := i.imageSummary(egCtx, img, platformMatcher, opts, tagsByDigest)
 			if err != nil {
 				return err
 			}
@@ -169,12 +169,15 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 				return nil
 			}
 
+			if !opts.Manifests {
+				image.Manifests = nil
+			}
 			resultsMut.Lock()
 			summaries = append(summaries, image)
 
 			if opts.SharedSize {
-				root = append(root, &allChainsIDs)
-				for _, id := range allChainsIDs {
+				root = append(root, &multiSummary.AllChainIDs)
+				for _, id := range multiSummary.AllChainIDs {
 					layers[id] = layers[id] + 1
 				}
 			}
@@ -202,27 +205,31 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 	return summaries, nil
 }
 
-// imageSummary returns a summary of the image, including the total size of the image and all its platforms.
-// It also returns the chainIDs of all the layers of the image (including all its platforms).
-// All return values will be nil if the image should be skipped.
-func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, platformMatcher platforms.MatchComparer,
-	opts imagetypes.ListOptions, tagsByDigest map[digest.Digest][]string,
-) (_ *imagetypes.Summary, allChainIDs []digest.Digest, _ error) {
-	var manifestSummaries []imagetypes.ManifestSummary
+type multiPlatformSummary struct {
+	// Image is the containerd image object.
+	Image c8dimages.Image
 
-	// Total size of the image including all its platform
-	var totalSize int64
+	// Manifests contains the summaries of manifests present in this image.
+	Manifests []imagetypes.ManifestSummary
 
-	// ChainIDs of all the layers of the image (including all its platform)
-	var allChainsIDs []digest.Digest
+	// AllChainIDs contains the chainIDs of all the layers of the image (including all its platforms).
+	AllChainIDs []digest.Digest
 
-	// Count of containers using the image
-	var containersCount int64
+	// TotalSize is the total size of the image including all its platform.
+	TotalSize int64
 
-	// Single platform image manifest preferred by the platform matcher
-	var best *ImageManifest
-	var bestPlatform ocispec.Platform
+	// ContainersCount is the count of containers using the image.
+	ContainersCount int64
 
+	// Best is the single platform image manifest preferred by the platform matcher.
+	Best *ImageManifest
+
+	// BestPlatform is the platform of the best image.
+	BestPlatform ocispec.Platform
+}
+
+func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.Image, platformMatcher platforms.MatchComparer) (*multiPlatformSummary, error) {
+	var summary multiPlatformSummary
 	err := i.walkReachableImageManifests(ctx, img, func(img *ImageManifest) error {
 		target := img.Target()
 
@@ -245,11 +252,9 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 			Kind:       imagetypes.ManifestKindUnknown,
 		}
 
-		if opts.Manifests {
-			defer func() {
-				manifestSummaries = append(manifestSummaries, mfstSummary)
-			}()
-		}
+		defer func() {
+			summary.Manifests = append(summary.Manifests, mfstSummary)
+		}()
 
 		contentSize, err := img.Size(ctx)
 		if err != nil {
@@ -258,7 +263,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 			}
 		} else {
 			mfstSummary.Size.Content = contentSize
-			totalSize += contentSize
+			summary.TotalSize += contentSize
 			mfstSummary.Size.Total += contentSize
 		}
 
@@ -335,20 +340,20 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 			// contentSize was already added to total, adjust it by the difference
 			// between the newly calculated size and the old size.
 			d := imgContentSize - contentSize
-			totalSize += d
+			summary.TotalSize += d
 			mfstSummary.Size.Total += d
 		}
 
 		mfstSummary.ImageData.Size.Unpacked = unpackedSize
 		mfstSummary.Size.Total += unpackedSize
-		totalSize += unpackedSize
+		summary.TotalSize += unpackedSize
 
-		allChainsIDs = append(allChainsIDs, chainIDs...)
+		summary.AllChainIDs = append(summary.AllChainIDs, chainIDs...)
 
 		for _, c := range i.containers.List() {
 			if c.ImageManifest != nil && c.ImageManifest.Digest == target.Digest {
 				mfstSummary.ImageData.Containers = append(mfstSummary.ImageData.Containers, c.ID)
-				containersCount++
+				summary.ContainersCount++
 			}
 		}
 
@@ -361,9 +366,9 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 			return nil
 		}
 
-		if best == nil || platformMatcher.Less(platform, bestPlatform) {
-			best = img
-			bestPlatform = platform
+		if summary.Best == nil || platformMatcher.Less(platform, summary.BestPlatform) {
+			summary.Best = img
+			summary.BestPlatform = platform
 		}
 
 		return nil
@@ -375,17 +380,32 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 				"image": img.Name,
 			}).Warn("unexpected image target (neither a manifest nor index)")
 		} else {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
+	return &summary, nil
+}
+
+// imageSummary returns a summary of the image, including the total size of the image and all its platforms.
+// It also returns the chainIDs of all the layers of the image (including all its platforms).
+// All return values will be nil if the image should be skipped.
+func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, platformMatcher platforms.MatchComparer,
+	opts imagetypes.ListOptions, tagsByDigest map[digest.Digest][]string,
+) (*imagetypes.Summary, *multiPlatformSummary, error) {
+	summary, err := i.multiPlatformSummary(ctx, img, platformMatcher)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	best := summary.Best
 	if best == nil {
 		target := img.Target
 		return &imagetypes.Summary{
 			ID:          target.Digest.String(),
 			RepoDigests: []string{target.Digest.String()},
 			RepoTags:    tagsByDigest[target.Digest],
-			Size:        totalSize,
+			Size:        summary.TotalSize,
 			// -1 indicates that the value has not been set (avoids ambiguity
 			// between 0 (default) and "not set". We cannot use a pointer (nil)
 			// for this, as the JSON representation uses "omitempty", which would
@@ -400,15 +420,15 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 	if err != nil {
 		return nil, nil, err
 	}
-	image.Size = totalSize
-	image.Manifests = manifestSummaries
+	image.Size = summary.TotalSize
+	image.Manifests = summary.Manifests
 	target := img.Target
 	image.Descriptor = &target
 
 	if opts.ContainerCount {
-		image.Containers = containersCount
+		image.Containers = summary.ContainersCount
 	}
-	return image, allChainsIDs, nil
+	return image, summary, nil
 }
 
 func (i *ImageService) singlePlatformSize(ctx context.Context, imgMfst *ImageManifest) (unpackedSize int64, contentSize int64, _ error) {

@@ -114,7 +114,7 @@ func TestImportWithCustomPlatform(t *testing.T) {
 				imagetypes.ImportOptions{Platform: tc.platform})
 			assert.NilError(t, err)
 
-			inspect, _, err := client.ImageInspectWithRaw(ctx, reference)
+			inspect, err := client.ImageInspect(ctx, reference)
 			assert.NilError(t, err)
 			assert.Equal(t, inspect.Os, tc.expected.OS)
 			assert.Equal(t, inspect.Architecture, tc.expected.Architecture)
