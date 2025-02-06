@@ -642,6 +642,7 @@ type testInterface struct {
 	addr               *net.IPNet
 	addrv6             *net.IPNet
 	srcName            string
+	dstPrefix          string
 	dstName            string
 	createdInContainer bool
 	netnsPath          string
@@ -727,8 +728,9 @@ func (i *testInterface) SetCreatedInContainer(cic bool) {
 	i.createdInContainer = cic
 }
 
-func (i *testInterface) SetNames(srcName string, dstName string) error {
+func (i *testInterface) SetNames(srcName, dstPrefix, dstName string) error {
 	i.srcName = srcName
+	i.dstPrefix = dstPrefix
 	i.dstName = dstName
 	return nil
 }
@@ -818,7 +820,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
 
-	err = d.Join(context.Background(), "net1", "ep1", "sbox", te, sbOptions)
+	err = d.Join(context.Background(), "net1", "ep1", "sbox", te, nil, sbOptions)
 	if err != nil {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
@@ -922,7 +924,7 @@ func TestLinkContainers(t *testing.T) {
 	sbOptions := make(map[string]interface{})
 	sbOptions[netlabel.ExposedPorts] = exposedPorts
 
-	err = d.Join(context.Background(), "net1", "ep1", "sbox", te1, sbOptions)
+	err = d.Join(context.Background(), "net1", "ep1", "sbox", te1, nil, sbOptions)
 	if err != nil {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
@@ -953,7 +955,7 @@ func TestLinkContainers(t *testing.T) {
 		"ChildEndpoints": []string{"ep1"},
 	}
 
-	err = d.Join(context.Background(), "net1", "ep2", "", te2, sbOptions)
+	err = d.Join(context.Background(), "net1", "ep2", "", te2, nil, sbOptions)
 	if err != nil {
 		t.Fatal("Failed to link ep1 and ep2")
 	}
@@ -1011,7 +1013,7 @@ func TestLinkContainers(t *testing.T) {
 		"ChildEndpoints": []string{"ep1", "ep4"},
 	}
 
-	err = d.Join(context.Background(), "net1", "ep2", "", te2, sbOptions)
+	err = d.Join(context.Background(), "net1", "ep2", "", te2, nil, sbOptions)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1228,7 +1230,7 @@ func TestSetDefaultGw(t *testing.T) {
 		t.Fatalf("Failed to create endpoint: %v", err)
 	}
 
-	err = d.Join(context.Background(), "dummy", "ep", "sbox", te, nil)
+	err = d.Join(context.Background(), "dummy", "ep", "sbox", te, nil, nil)
 	if err != nil {
 		t.Fatalf("Failed to join endpoint: %v", err)
 	}

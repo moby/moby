@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/plugins"
+	"gotest.tools/v3/assert"
 )
 
 func decodeToMap(r *http.Request) (res map[string]interface{}, err error) {
@@ -82,8 +83,9 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 
 type testEndpoint struct {
 	t                     *testing.T
-	src                   string
-	dst                   string
+	srcName               string
+	dstPrefix             string
+	dstName               string
 	address               string
 	addressIPv6           string
 	macAddress            string
@@ -188,13 +190,10 @@ func (test *testEndpoint) NetnsPath() string { return "" }
 
 func (test *testEndpoint) SetCreatedInContainer(bool) {}
 
-func (test *testEndpoint) SetNames(src string, dst string) error {
-	if test.src != src {
-		test.t.Fatalf(`Wrong SrcName; expected "%s", got "%s"`, test.src, src)
-	}
-	if test.dst != dst {
-		test.t.Fatalf(`Wrong DstPrefix; expected "%s", got "%s"`, test.dst, dst)
-	}
+func (test *testEndpoint) SetNames(srcName, dstPrefix, dstName string) error {
+	assert.Equal(test.t, test.srcName, srcName)
+	assert.Equal(test.t, test.dstPrefix, dstPrefix)
+	assert.Equal(test.t, test.dstName, dstName)
 	return nil
 }
 
@@ -322,8 +321,8 @@ func TestRemoteDriver(t *testing.T) {
 
 	ep := &testEndpoint{
 		t:              t,
-		src:            "vethsrc",
-		dst:            "vethdst",
+		srcName:        "vethsrc",
+		dstPrefix:      "vethdst",
 		address:        "192.168.5.7/16",
 		addressIPv6:    "2001:DB8::5:7/48",
 		macAddress:     "ab:cd:ef:ee:ee:ee",
@@ -390,8 +389,9 @@ func TestRemoteDriver(t *testing.T) {
 			"HostsPath":      ep.hostsPath,
 			"ResolvConfPath": ep.resolvConfPath,
 			"InterfaceName": map[string]interface{}{
-				"SrcName":   ep.src,
-				"DstPrefix": ep.dst,
+				"SrcName":   ep.srcName,
+				"DstPrefix": ep.dstPrefix,
+				"DstName":   ep.dstName,
 			},
 			"StaticRoutes": []map[string]interface{}{
 				{
@@ -478,7 +478,7 @@ func TestRemoteDriver(t *testing.T) {
 	}
 
 	joinOpts := map[string]interface{}{"foo": "fooValue"}
-	err = d.Join(context.Background(), netID, endID, "sandbox-key", ep, joinOpts)
+	err = d.Join(context.Background(), netID, endID, "sandbox-key", ep, nil, joinOpts)
 	if err != nil {
 		t.Fatal(err)
 	}

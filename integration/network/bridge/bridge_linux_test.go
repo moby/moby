@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/vishvananda/netlink"
@@ -403,4 +404,22 @@ func TestIsolated(t *testing.T) {
 	}
 	ping(t, "-4")
 	ping(t, "-6")
+}
+
+func TestEndpointWithCustomIfname(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	ctrID := ctr.Run(ctx, t, apiClient,
+		ctr.WithCmd("ip", "-o", "link", "show", "foobar"),
+		ctr.WithEndpointSettings("bridge", &networktypes.EndpointSettings{
+			DriverOpts: map[string]string{
+				netlabel.Ifname: "foobar",
+			},
+		}))
+	defer ctr.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
+
+	out, err := ctr.Output(ctx, apiClient, ctrID)
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(out.Stdout, ": foobar@if"), "expected ': foobar@if' in 'ip link show':\n%s", out.Stdout)
 }

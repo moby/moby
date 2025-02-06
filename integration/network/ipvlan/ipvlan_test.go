@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
 	n "github.com/docker/docker/integration/network"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -681,4 +682,34 @@ func TestPointToPoint(t *testing.T) {
 			assert.Check(t, is.Contains(res.Stdout.String(), "1 packets transmitted, 1 packets received"))
 		})
 	}
+}
+
+func TestEndpointWithCustomIfname(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	// master dummy interface 'di' notation represent 'docker ipvlan'
+	const master = "di-dummy0"
+	n.CreateMasterDummy(ctx, t, master)
+	defer n.DeleteInterface(ctx, t, master)
+
+	// create a network specifying the desired sub-interface name
+	const netName = "ipvlan-custom-ifname"
+	net.CreateNoError(ctx, t, apiClient, netName, net.WithIPvlan("di-dummy0.70", ""))
+
+	ctrID := container.Run(ctx, t, apiClient,
+		container.WithCmd("ip", "-o", "link", "show", "foobar"),
+		container.WithEndpointSettings(netName, &network.EndpointSettings{
+			DriverOpts: map[string]string{
+				netlabel.Ifname: "foobar",
+			},
+		}))
+	defer container.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
+
+	out, err := container.Output(ctx, apiClient, ctrID)
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(out.Stdout, ": foobar@if"), "expected ': foobar@if' in 'ip link show':\n%s", out.Stdout)
 }

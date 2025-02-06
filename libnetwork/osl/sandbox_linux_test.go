@@ -22,11 +22,11 @@ import (
 )
 
 const (
-	vethName1     = "wierdlongname1"
-	vethName2     = "wierdlongname2"
-	vethName3     = "wierdlongname3"
-	vethName4     = "wierdlongname4"
-	sboxIfaceName = "containername"
+	vethName1       = "wierdlongname1"
+	vethName2       = "wierdlongname2"
+	vethName3       = "wierdlongname3"
+	vethName4       = "wierdlongname4"
+	sboxIfacePrefix = "containername"
 )
 
 func generateRandomName(prefix string, size int) (string, error) {
@@ -85,16 +85,16 @@ func newInfo(t *testing.T, hnd nlwrap.Handle) (*Namespace, error) {
 	// This is needed for cleanup on DeleteEndpoint()
 	intf1 := &Interface{
 		srcName:     vethName2,
-		dstName:     sboxIfaceName,
+		dstPrefix:   sboxIfacePrefix,
 		address:     addr,
 		addressIPv6: addrv6,
 		routes:      []*net.IPNet{route},
 	}
 
 	intf2 := &Interface{
-		srcName: "testbridge",
-		dstName: sboxIfaceName,
-		bridge:  true,
+		srcName:   "testbridge",
+		dstPrefix: sboxIfacePrefix,
+		bridge:    true,
 	}
 
 	err = hnd.LinkAdd(&netlink.Veth{
@@ -106,9 +106,9 @@ func newInfo(t *testing.T, hnd nlwrap.Handle) (*Namespace, error) {
 	}
 
 	intf3 := &Interface{
-		srcName: vethName4,
-		dstName: sboxIfaceName,
-		master:  "testbridge",
+		srcName:   vethName4,
+		dstPrefix: sboxIfacePrefix,
+		master:    "testbridge",
 	}
 
 	return &Namespace{
@@ -132,10 +132,10 @@ func verifySandbox(t *testing.T, ns *Namespace, ifaceSuffixes []string) {
 	defer nh.Close()
 
 	for _, suffix := range ifaceSuffixes {
-		_, err = nh.LinkByName(sboxIfaceName + suffix)
+		_, err = nh.LinkByName(sboxIfacePrefix + suffix)
 		if err != nil {
 			t.Fatalf("Could not find the interface %s inside the sandbox: %v",
-				sboxIfaceName+suffix, err)
+				sboxIfacePrefix+suffix, err)
 		}
 	}
 }
@@ -381,7 +381,7 @@ func TestSandboxCreate(t *testing.T) {
 	}
 
 	for _, i := range tbox.Interfaces() {
-		err = s.AddInterface(context.Background(), i.SrcName(), i.DstName(),
+		err = s.AddInterface(context.Background(), i.SrcName(), i.dstPrefix, i.DstName(),
 			WithIsBridge(i.Bridge()),
 			WithIPv4Address(i.Address()),
 			WithIPv6Address(i.AddressIPv6()),
@@ -480,7 +480,7 @@ func TestAddRemoveInterface(t *testing.T) {
 	}
 
 	for _, i := range tbox.Interfaces() {
-		err = s.AddInterface(context.Background(), i.SrcName(), i.DstName(),
+		err = s.AddInterface(context.Background(), i.SrcName(), i.dstPrefix, i.DstName(),
 			WithIsBridge(i.Bridge()),
 			WithIPv4Address(i.Address()),
 			WithIPv6Address(i.AddressIPv6()),
@@ -501,7 +501,7 @@ func TestAddRemoveInterface(t *testing.T) {
 	verifySandbox(t, s, []string{"1", "2"})
 
 	i := tbox.Interfaces()[0]
-	err = s.AddInterface(context.Background(), i.SrcName(), i.DstName(),
+	err = s.AddInterface(context.Background(), i.SrcName(), i.dstPrefix, i.DstName(),
 		WithIsBridge(i.Bridge()),
 		WithIPv4Address(i.Address()),
 		WithIPv6Address(i.AddressIPv6()),
@@ -511,7 +511,7 @@ func TestAddRemoveInterface(t *testing.T) {
 		t.Fatalf("Failed to add interfaces to sandbox: %v", err)
 	}
 
-	verifySandbox(t, s, []string{"1", "2", "3"})
+	verifySandbox(t, s, []string{"0", "1", "2"})
 
 	err = s.Destroy()
 	if err != nil {
