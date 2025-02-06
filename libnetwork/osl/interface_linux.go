@@ -341,6 +341,7 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix string,
 		if err := waitForBridgePort(ctx, nlhHost, iface); err != nil {
 			return fmt.Errorf("check bridge port state: %w", err)
 		}
+		waitForMcastRoute(ctx, iface.Attrs().Index, i, nlh)
 		if err := n.advertiseAddrs(ctx, iface.Attrs().Index, i, nlh); err != nil {
 			return fmt.Errorf("failed to advertise addresses: %w", err)
 		}
@@ -535,6 +536,47 @@ func stpEnabled(ctx context.Context, name string) bool {
 	return len(stpState) > 0 && stpState[0] != '0'
 }
 
+// waitForMcastRoute waits for an interface to have a route from ::1 to the IPv6 LL all-nodes
+// address (ff02::1), if that route is needed to send a neighbour advertisement for an IPv6
+// interface address.
+//
+// After waiting, or a failure, if there is no route - no error is returned. The NA send may
+// fail, but try it anyway.
+//
+// In CI, the NA send failed with "write ip ::1->ff02::1: sendmsg: network is unreachable".
+// That error has not been seen since addition of the check that the veth's parent bridge port
+// is forwarding, so that may have been the issue. But, in case it's a timing problem that's
+// only less-likely because of delay caused by that check, make sure the route exists.
+func waitForMcastRoute(ctx context.Context, ifIndex int, i *Interface, nlh nlwrap.Handle) {
+	if i.addressIPv6 == nil || i.advertiseAddrNMsgs == 0 {
+		return
+	}
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.waitForMcastRoute")
+	defer span.End()
+
+	const pollInterval = 10 * time.Millisecond
+	const maxWait = 200 * time.Millisecond
+	for range int64(maxWait / pollInterval) {
+		routes, err := nlh.RouteGetWithOptions(net.IPv6linklocalallnodes, &netlink.RouteGetOptions{
+			IifIndex: ifIndex,
+			SrcAddr:  net.IPv6loopback,
+		})
+		if errors.Is(err, unix.EMSGSIZE) {
+			// FIXME(robmry) - if EMSGSIZE is returned (why?), it seems to be persistent.
+			//  So, skip the delay and continue to the NA send as it seems to succeed.
+			log.G(ctx).Info("Skipping check for route to send NA, EMSGSIZE")
+			return
+		}
+		if err != nil || len(routes) == 0 {
+			log.G(ctx).WithFields(log.Fields{"error": err, "nroutes": len(routes)}).Info("Waiting for route to send NA")
+			time.Sleep(pollInterval)
+			continue
+		}
+		return
+	}
+	log.G(ctx).WithField("", maxWait).Warn("No route for neighbour advertisement")
+}
+
 // advertiseAddrs triggers send unsolicited ARP and Neighbour Advertisement
 // messages, so that caches are updated with the MAC address currently associated
 // with the interface's IP addresses.
@@ -609,37 +651,9 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 			}
 		}
 		if naSender != nil {
-			// FIXME(robmry) - retry if this fails, but still return the error.
-			// In CI, the send has failed a couple of times with "write ip ::1->ff02::1: sendmsg: network is unreachable".
-			// Can't repro locally, so - try find out whether a retry helps and it's something racing, or it's a
-			// persistent problem.
-			for c := range 3 {
-				if c > 0 {
-					time.Sleep(50 * time.Millisecond)
-				}
-
-				routes, rgErr := nlh.RouteGetWithOptions(net.IPv6linklocalallnodes, &netlink.RouteGetOptions{
-					IifIndex: ifIndex,
-					SrcAddr:  net.IPv6loopback,
-				})
-				var routeStr string
-				if rgErr != nil {
-					routeStr = fmt.Sprintf("RouteGet->'%s'", rgErr.Error())
-				} else if len(routes) != 1 {
-					routeStr = fmt.Sprintf("RouteGet->%d routes", len(routes))
-				} else {
-					routeStr = fmt.Sprintf("RouteGet->'%s'", routes[0].String())
-				}
-
-				if err := naSender.Send(); err != nil {
-					log.G(ctx).WithError(err).Warn("Failed to send unsolicited NA")
-					errs = append(errs, fmt.Errorf("%s: %w", routeStr, err))
-					continue
-				}
-				if c > 0 {
-					errs = append(errs, fmt.Errorf("success"))
-				}
-				break
+			if err := naSender.Send(); err != nil {
+				log.G(ctx).WithError(err).Warn("Failed to send unsolicited NA")
+				errs = append(errs, err)
 			}
 		}
 		return errors.Join(errs...)
