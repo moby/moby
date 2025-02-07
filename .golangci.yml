@@ -12,6 +12,7 @@ linters:
     - importas
     - ineffassign
     - misspell      # Detects commonly misspelled English words in comments.
+    - nilnesserr    # Detects returning nil errors. It combines the features of nilness and nilerr,
     - revive        # Metalinter; drop-in replacement for golint.
     - staticcheck
     - typecheck
