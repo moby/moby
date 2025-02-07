@@ -403,7 +403,7 @@ func (i *ImageService) verifyImagesProvidePlatform(ctx context.Context, imgs []c
 		}
 	}
 
-	msg := ""
+	var msg string
 	switch len(incompleteImgs) {
 	case 0:
 		// Success - All images provide the requested platform.
