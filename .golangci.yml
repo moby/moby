@@ -24,6 +24,7 @@ linters:
     - typecheck
     - unconvert     # Detects unnecessary type conversions.
     - unused
+    - wastedassign  # Detects wasted assignment statements.
 
   disable:
     - errcheck
@@ -170,6 +171,11 @@ issues:
     - text: "SA1019: (assert|cmp|is)\\.ErrorType is deprecated"
       linters:
         - staticcheck
+
+    # FIXME: ignoring unused assigns to ctx for now; too many hits in libnetwork/xxx functions that setup traces
+    - text: "assigned to ctx, but never used afterwards"
+      linters:
+        - wastedassign
 
     - text: "ineffectual assignment to ctx"
       source: "ctx[, ].*=.*\\(ctx[,)]"
