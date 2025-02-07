@@ -12,6 +12,7 @@ linters:
     - iface         # Detects incorrect use of interfaces. Currently only used for "identical" interfaces in the same package.
     - importas
     - ineffassign
+    - makezero      # Finds slice declarations with non-zero initial length.
     - misspell      # Detects commonly misspelled English words in comments.
     - nilnesserr    # Detects returning nil errors. It combines the features of nilness and nilerr,
     - revive        # Metalinter; drop-in replacement for golint.
