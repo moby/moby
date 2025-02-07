@@ -1222,7 +1222,7 @@ func checkProxies(ctx context.Context, t *testing.T, c *client.Client, daemonPid
 		return fmt.Sprintf("%s:%s/%s <-> %s:%s", hostIP, hostPort, proto, ctrIP, ctrPort)
 	}
 
-	wantProxies := make([]string, len(exp))
+	wantProxies := make([]string, 0, len(exp))
 	for _, e := range exp {
 		inspect := container.Inspect(ctx, t, c, e.ctrName)
 		nw := inspect.NetworkSettings.Networks[e.ctrNetName]
@@ -1233,7 +1233,7 @@ func checkProxies(ctx context.Context, t *testing.T, c *client.Client, daemonPid
 		wantProxies = append(wantProxies, makeExpStr(e.proto, e.hostIP, e.hostPort, ctrIP, e.ctrPort))
 	}
 
-	gotProxies := make([]string, len(exp))
+	gotProxies := make([]string, 0, len(exp))
 	res, err := exec.Command("ps", "-f", "--ppid", strconv.Itoa(daemonPid)).CombinedOutput()
 	assert.NilError(t, err)
 	for _, line := range strings.Split(string(res), "\n") {
