@@ -9,6 +9,7 @@ linters:
     - gosimple
     - govet
     - forbidigo
+    - iface         # Detects incorrect use of interfaces. Currently only used for "identical" interfaces in the same package.
     - importas
     - ineffassign
     - misspell      # Detects commonly misspelled English words in comments.
