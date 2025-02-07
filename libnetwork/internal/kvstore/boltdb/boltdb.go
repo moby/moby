@@ -74,8 +74,8 @@ func (b *BoltDB) Put(key string, value []byte) error {
 		}
 
 		dbIndex := b.dbIndex.Add(1)
-		dbval := make([]byte, libkvmetadatalen)
-		binary.LittleEndian.PutUint64(dbval, dbIndex)
+		dbval := make([]byte, 0, libkvmetadatalen+len(value))
+		dbval = binary.LittleEndian.AppendUint64(dbval, dbIndex)
 		dbval = append(dbval, value...)
 
 		return bucket.Put([]byte(key), dbval)
@@ -195,7 +195,6 @@ func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair) (*s
 	defer b.mu.Unlock()
 
 	var dbIndex uint64
-	dbval := make([]byte, libkvmetadatalen)
 	err := b.client.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(b.boltBucket)
 		if bucket == nil {
@@ -224,7 +223,8 @@ func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair) (*s
 			}
 		}
 		dbIndex = b.dbIndex.Add(1)
-		binary.LittleEndian.PutUint64(dbval, dbIndex)
+		dbval := make([]byte, 0, libkvmetadatalen+len(value))
+		dbval = binary.LittleEndian.AppendUint64(dbval, dbIndex)
 		dbval = append(dbval, value...)
 		return bucket.Put([]byte(key), dbval)
 	})
