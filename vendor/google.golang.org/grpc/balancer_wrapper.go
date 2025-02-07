@@ -189,6 +189,7 @@ func (ccb *ccBalancerWrapper) NewSubConn(addrs []resolver.Address, opts balancer
 		ac:            ac,
 		producers:     make(map[balancer.ProducerBuilder]*refCountedProducer),
 		stateListener: opts.StateListener,
+		healthData:    newHealthData(connectivity.Idle),
 	}
 	ac.acbw = acbw
 	return acbw, nil
@@ -254,12 +255,32 @@ func (ccb *ccBalancerWrapper) Target() string {
 // acBalancerWrapper is a wrapper on top of ac for balancers.
 // It implements balancer.SubConn interface.
 type acBalancerWrapper struct {
+	internal.EnforceSubConnEmbedding
 	ac            *addrConn          // read-only
 	ccb           *ccBalancerWrapper // read-only
 	stateListener func(balancer.SubConnState)
 
 	producersMu sync.Mutex
 	producers   map[balancer.ProducerBuilder]*refCountedProducer
+
+	// Access to healthData is protected by healthMu.
+	healthMu sync.Mutex
+	// healthData is stored as a pointer to detect when the health listener is
+	// dropped or updated. This is required as closures can't be compared for
+	// equality.
+	healthData *healthData
+}
+
+// healthData holds data related to health state reporting.
+type healthData struct {
+	// connectivityState stores the most recent connectivity state delivered
+	// to the LB policy. This is stored to avoid sending updates when the
+	// SubConn has already exited connectivity state READY.
+	connectivityState connectivity.State
+}
+
+func newHealthData(s connectivity.State) *healthData {
+	return &healthData{connectivityState: s}
 }
 
 // updateState is invoked by grpc to push a subConn state update to the
@@ -279,6 +300,24 @@ func (acbw *acBalancerWrapper) updateState(s connectivity.State, curAddr resolve
 		if s == connectivity.Ready {
 			setConnectedAddress(&scs, curAddr)
 		}
+		// Invalidate the health listener by updating the healthData.
+		acbw.healthMu.Lock()
+		// A race may occur if a health listener is registered soon after the
+		// connectivity state is set but before the stateListener is called.
+		// Two cases may arise:
+		// 1. The new state is not READY: RegisterHealthListener has checks to
+		//    ensure no updates are sent when the connectivity state is not
+		//    READY.
+		// 2. The new state is READY: This means that the old state wasn't Ready.
+		//    The RegisterHealthListener API mentions that a health listener
+		//    must not be registered when a SubConn is not ready to avoid such
+		//    races. When this happens, the LB policy would get health updates
+		//    on the old listener. When the LB policy registers a new listener
+		//    on receiving the connectivity update, the health updates will be
+		//    sent to the new health listener.
+		acbw.healthData = newHealthData(scs.ConnectivityState)
+		acbw.healthMu.Unlock()
+
 		acbw.stateListener(scs)
 	})
 }
@@ -372,4 +411,42 @@ func (acbw *acBalancerWrapper) closeProducers() {
 		pData.close()
 		delete(acbw.producers, pb)
 	}
+}
+
+// RegisterHealthListener accepts a health listener from the LB policy. It sends
+// updates to the health listener as long as the SubConn's connectivity state
+// doesn't change and a new health listener is not registered. To invalidate
+// the currently registered health listener, acbw updates the healthData. If a
+// nil listener is registered, the active health listener is dropped.
+func (acbw *acBalancerWrapper) RegisterHealthListener(listener func(balancer.SubConnState)) {
+	acbw.healthMu.Lock()
+	defer acbw.healthMu.Unlock()
+	// listeners should not be registered when the connectivity state
+	// isn't Ready. This may happen when the balancer registers a listener
+	// after the connectivityState is updated, but before it is notified
+	// of the update.
+	if acbw.healthData.connectivityState != connectivity.Ready {
+		return
+	}
+	// Replace the health data to stop sending updates to any previously
+	// registered health listeners.
+	hd := newHealthData(connectivity.Ready)
+	acbw.healthData = hd
+	if listener == nil {
+		return
+	}
+
+	acbw.ccb.serializer.TrySchedule(func(ctx context.Context) {
+		if ctx.Err() != nil || acbw.ccb.balancer == nil {
+			return
+		}
+		// Don't send updates if a new listener is registered.
+		acbw.healthMu.Lock()
+		defer acbw.healthMu.Unlock()
+		curHD := acbw.healthData
+		if curHD != hd {
+			return
+		}
+		listener(balancer.SubConnState{ConnectivityState: connectivity.Ready})
+	})
 }
