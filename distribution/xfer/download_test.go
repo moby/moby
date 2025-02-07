@@ -193,7 +193,7 @@ func (d *mockDownloadDescriptor) mockTarStream() io.ReadCloser {
 	// The mock implementation returns the ID repeated 5 times as a tar
 	// stream instead of actual tar data. The data is ignored except for
 	// computing IDs.
-	return io.NopCloser(bytes.NewBuffer([]byte(d.id + d.id + d.id + d.id + d.id)))
+	return io.NopCloser(bytes.NewBufferString(d.id + d.id + d.id + d.id + d.id))
 }
 
 // Download is called to perform the download.
