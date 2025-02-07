@@ -267,17 +267,26 @@ func (s *Store) emptyBranchWithParents(tx *bolt.Tx, id []byte) error {
 	if backlinks := tx.Bucket([]byte(backlinksBucket)).Bucket(id); backlinks != nil {
 		if err := backlinks.ForEach(func(k, v []byte) error {
 			if subLinks := tx.Bucket([]byte(linksBucket)).Bucket(k); subLinks != nil {
+				// Perform deletion outside of the iteration.
+				// https://github.com/etcd-io/bbolt/pull/611
+				var toDelete []string
 				if err := subLinks.ForEach(func(k, v []byte) error {
 					parts := bytes.Split(k, []byte("@"))
 					if len(parts) != 2 {
 						return errors.Errorf("invalid key %s", k)
 					}
 					if bytes.Equal(id, parts[1]) {
-						return subLinks.Delete(k)
+						toDelete = append(toDelete, string(k))
 					}
 					return nil
 				}); err != nil {
 					return err
+				}
+
+				for _, k := range toDelete {
+					if err := subLinks.Delete([]byte(k)); err != nil {
+						return err
+					}
 				}
 
 				if isEmptyBucket(subLinks) {
