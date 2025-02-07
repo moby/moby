@@ -206,17 +206,17 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		return nil, errors.Errorf("Client and MainContext cannot both be provided")
 	}
 
-	namedContext := func(ctx context.Context, name string, copt dockerui.ContextOpt) (*llb.State, *dockerspec.DockerOCIImage, error) {
+	namedContext := func(name string, copt dockerui.ContextOpt) (*dockerui.NamedContext, error) {
 		if opt.Client == nil {
-			return nil, nil, nil
+			return nil, nil
 		}
 		if !strings.EqualFold(name, "scratch") && !strings.EqualFold(name, "context") {
 			if copt.Platform == nil {
 				copt.Platform = opt.TargetPlatform
 			}
-			return opt.Client.NamedContext(ctx, name, copt)
+			return opt.Client.NamedContext(name, copt)
 		}
-		return nil, nil, nil
+		return nil, nil
 	}
 
 	lint, err := newRuleLinter(dt, &opt)
@@ -349,7 +349,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		}
 
 		if st.Name != "" {
-			s, img, err := namedContext(ctx, st.Name, dockerui.ContextOpt{
+			nc, err := namedContext(st.Name, dockerui.ContextOpt{
 				Platform:       ds.platform,
 				ResolveMode:    opt.ImageResolveMode.String(),
 				AsyncLocalOpts: ds.asyncLocalOpts,
@@ -357,25 +357,8 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			if err != nil {
 				return nil, err
 			}
-			if s != nil {
-				ds.dispatched = true
-				ds.state = *s
-				if img != nil {
-					// timestamps are inherited as-is, regardless to SOURCE_DATE_EPOCH
-					// https://github.com/moby/buildkit/issues/4614
-					ds.image = *img
-					if img.Architecture != "" && img.OS != "" {
-						ds.platform = &ocispecs.Platform{
-							OS:           img.OS,
-							Architecture: img.Architecture,
-							Variant:      img.Variant,
-							OSVersion:    img.OSVersion,
-						}
-						if img.OSFeatures != nil {
-							ds.platform.OSFeatures = append([]string{}, img.OSFeatures...)
-						}
-					}
-				}
+			if nc != nil {
+				ds.namedContext = nc
 				allDispatchStates.addState(ds)
 				ds.base = nil // reset base set by addState
 				continue
@@ -467,7 +450,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			// resolve image config for every stage
 			if d.base == nil && !d.dispatched && !d.resolved {
 				d.resolved = reachable // avoid re-resolving if called again after onbuild
-				if d.stage.BaseName == emptyImageName {
+				if d.stage.BaseName == emptyImageName && d.namedContext == nil {
 					d.state = llb.Scratch()
 					d.image = emptyImage(platformOpt.targetPlatform)
 					d.platform = &platformOpt.targetPlatform
@@ -499,25 +482,58 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 						d.stage.BaseName = reference.TagNameOnly(ref).String()
 
 						var isScratch bool
-						st, img, err := namedContext(ctx, d.stage.BaseName, dockerui.ContextOpt{
-							ResolveMode:    opt.ImageResolveMode.String(),
-							Platform:       platform,
-							AsyncLocalOpts: d.asyncLocalOpts,
-						})
-						if err != nil {
-							return err
-						}
-						if st != nil {
-							if img != nil {
-								d.image = *img
-							} else {
-								d.image = emptyImage(platformOpt.targetPlatform)
-							}
-							d.state = st.Platform(*platform)
-							d.platform = platform
-							return nil
-						}
 						if reachable {
+							// stage was named context
+							if d.namedContext != nil {
+								st, img, err := d.namedContext.Load(ctx)
+								if err != nil {
+									return err
+								}
+								d.dispatched = true
+								d.state = *st
+								if img != nil {
+									// timestamps are inherited as-is, regardless to SOURCE_DATE_EPOCH
+									// https://github.com/moby/buildkit/issues/4614
+									d.image = *img
+									if img.Architecture != "" && img.OS != "" {
+										d.platform = &ocispecs.Platform{
+											OS:           img.OS,
+											Architecture: img.Architecture,
+											Variant:      img.Variant,
+											OSVersion:    img.OSVersion,
+										}
+										if img.OSFeatures != nil {
+											d.platform.OSFeatures = append([]string{}, img.OSFeatures...)
+										}
+									}
+								}
+								return nil
+							}
+
+							// check if base is named context
+							nc, err := namedContext(d.stage.BaseName, dockerui.ContextOpt{
+								ResolveMode:    opt.ImageResolveMode.String(),
+								Platform:       platform,
+								AsyncLocalOpts: d.asyncLocalOpts,
+							})
+							if err != nil {
+								return err
+							}
+							if nc != nil {
+								st, img, err := nc.Load(ctx)
+								if err != nil {
+									return err
+								}
+								if img != nil {
+									d.image = *img
+								} else {
+									d.image = emptyImage(platformOpt.targetPlatform)
+								}
+								d.state = st.Platform(*platform)
+								d.platform = platform
+								return nil
+							}
+
 							prefix := "["
 							if opt.MultiPlatformRequested && platform != nil {
 								prefix += platforms.FormatAll(*platform) + " "
@@ -1015,19 +1031,20 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 }
 
 type dispatchState struct {
-	opt         dispatchOpt
-	state       llb.State
-	image       dockerspec.DockerOCIImage
-	platform    *ocispecs.Platform
-	stage       instructions.Stage
-	base        *dispatchState
-	baseImg     *dockerspec.DockerOCIImage // immutable, unlike image
-	dispatched  bool
-	resolved    bool // resolved is set to true if base image has been resolved
-	onBuildInit bool
-	deps        map[*dispatchState]instructions.Command
-	buildArgs   []instructions.KeyValuePairOptional
-	commands    []command
+	opt          dispatchOpt
+	state        llb.State
+	image        dockerspec.DockerOCIImage
+	namedContext *dockerui.NamedContext
+	platform     *ocispecs.Platform
+	stage        instructions.Stage
+	base         *dispatchState
+	baseImg      *dockerspec.DockerOCIImage // immutable, unlike image
+	dispatched   bool
+	resolved     bool // resolved is set to true if base image has been resolved
+	onBuildInit  bool
+	deps         map[*dispatchState]instructions.Command
+	buildArgs    []instructions.KeyValuePairOptional
+	commands     []command
 	// ctxPaths marks the paths this dispatchState uses from the build context.
 	ctxPaths map[string]struct{}
 	// paths marks the paths that are used by this dispatchState.

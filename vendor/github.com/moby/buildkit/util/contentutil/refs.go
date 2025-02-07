@@ -16,12 +16,41 @@ import (
 	"github.com/pkg/errors"
 )
 
-func ProviderFromRef(ref string) (ocispecs.Descriptor, content.Provider, error) {
+type ResolveOpt struct {
+	Credentials func(string) (string, string, error)
+}
+
+type ResolveOptFunc func(*ResolveOpt)
+
+func WithCredentials(c func(string) (string, string, error)) ResolveOptFunc {
+	return func(o *ResolveOpt) {
+		o.Credentials = func(host string) (string, string, error) {
+			if host == "registry-1.docker.io" {
+				host = "https://index.docker.io/v1/"
+			}
+			return c(host)
+		}
+	}
+}
+
+func ProviderFromRef(ref string, opts ...ResolveOptFunc) (ocispecs.Descriptor, content.Provider, error) {
 	headers := http.Header{}
 	headers.Set("User-Agent", version.UserAgent())
-	remote := docker.NewResolver(docker.ResolverOptions{
+
+	var ro ResolveOpt
+	for _, f := range opts {
+		f(&ro)
+	}
+
+	dro := docker.ResolverOptions{
 		Headers: headers,
-	})
+	}
+	if ro.Credentials != nil {
+		dro.Hosts = docker.ConfigureDefaultRegistries(
+			docker.WithAuthorizer(docker.NewDockerAuthorizer(docker.WithAuthCreds(ro.Credentials))),
+		)
+	}
+	remote := docker.NewResolver(dro)
 
 	name, desc, err := remote.Resolve(context.TODO(), ref)
 	if err != nil {

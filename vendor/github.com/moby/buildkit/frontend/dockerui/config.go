@@ -18,7 +18,6 @@ import (
 	"github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/flightcontrol"
-	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/patternmatcher/ignorefile"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -452,10 +451,10 @@ func (bc *Client) MainContext(ctx context.Context, opts ...llb.LocalOption) (*ll
 	return &st, nil
 }
 
-func (bc *Client) NamedContext(ctx context.Context, name string, opt ContextOpt) (*llb.State, *dockerspec.DockerOCIImage, error) {
+func (bc *Client) NamedContext(name string, opt ContextOpt) (*NamedContext, error) {
 	named, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "invalid context name %s", name)
+		return nil, errors.Wrapf(err, "invalid context name %s", name)
 	}
 	name = strings.TrimSuffix(reference.FamiliarString(named), ":latest")
 
@@ -464,11 +463,11 @@ func (bc *Client) NamedContext(ctx context.Context, name string, opt ContextOpt)
 		pp = *opt.Platform
 	}
 	pname := name + "::" + platforms.FormatAll(platforms.Normalize(pp))
-	st, img, err := bc.namedContext(ctx, name, pname, opt)
-	if err != nil || st != nil {
-		return st, img, err
+	nc, err := bc.namedContext(name, pname, opt)
+	if err != nil || nc != nil {
+		return nc, err
 	}
-	return bc.namedContext(ctx, name, name, opt)
+	return bc.namedContext(name, name, opt)
 }
 
 func (bc *Client) IsNoCache(name string) bool {

@@ -96,6 +96,9 @@ const (
 
 	// GC/Prune controls allow MinFreeSpace and MaxUsedSpace to be set
 	CapGCFreeSpaceFilter apicaps.CapID = "gc.freespacefilter"
+
+	// ListenBuildHistory requests support server-side filters
+	CapHistoryFilters apicaps.CapID = "history.filter"
 )
 
 func init() {
@@ -502,6 +505,12 @@ func init() {
 
 	Caps.Init(apicaps.Cap{
 		ID:      CapGCFreeSpaceFilter,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapHistoryFilters,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})
