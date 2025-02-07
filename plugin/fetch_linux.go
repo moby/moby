@@ -237,7 +237,13 @@ func withFetchProgress(cs content.Store, out progress.Output, ref reference.Name
 			defer timer.Stop()
 
 			var pulling bool
-			var ctxErr error
+			var (
+				// make sure we can still fetch from the content store
+				// if the main context is cancelled
+				// TODO: Might need to add some sort of timeout; see https://github.com/moby/moby/issues/49413
+				ctxErr      error
+				noCancelCTX = context.WithoutCancel(ctx)
+			)
 
 			for {
 				timer.Reset(100 * time.Millisecond)
@@ -245,21 +251,18 @@ func withFetchProgress(cs content.Store, out progress.Output, ref reference.Name
 				select {
 				case <-ctx.Done():
 					ctxErr = ctx.Err()
-					// make sure we can still fetch from the content store
-					// TODO: Might need to add some sort of timeout
-					ctx = context.Background()
 				case <-timer.C:
 				}
 
-				s, err := cs.Status(ctx, key)
+				s, err := cs.Status(noCancelCTX, key)
 				if err != nil {
 					if !cerrdefs.IsNotFound(err) {
-						log.G(ctx).WithError(err).WithField("layerDigest", desc.Digest.String()).Error("Error looking up status of plugin layer pull")
+						log.G(noCancelCTX).WithError(err).WithField("layerDigest", desc.Digest.String()).Error("Error looking up status of plugin layer pull")
 						progress.Update(out, id, err.Error())
 						return
 					}
 
-					if _, err := cs.Info(ctx, desc.Digest); err == nil {
+					if _, err := cs.Info(noCancelCTX, desc.Digest); err == nil {
 						progress.Update(out, id, "Download complete")
 						return
 					}
