@@ -865,7 +865,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[string]string,
 	// configs over Spec configs.
 	if n.IPAM != nil {
 		ipamConfigs = n.IPAM.Configs
-	} else if n.Spec.IPAM != nil {
+	} else if n.Spec.IPAM != nil && len(n.Spec.IPAM.Configs) > 0 {
 		ipamConfigs = make([]*api.IPAMConfig, len(n.Spec.IPAM.Configs))
 		copy(ipamConfigs, n.Spec.IPAM.Configs)
 	}
@@ -873,7 +873,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[string]string,
 	// Append an empty slot for subnet allocation if there are no
 	// IPAM configs from either spec or state.
 	if len(ipamConfigs) == 0 {
-		ipamConfigs = append(ipamConfigs, &api.IPAMConfig{Family: api.IPAMConfig_IPV4})
+		ipamConfigs = []*api.IPAMConfig{{Family: api.IPAMConfig_IPV4}}
 	}
 
 	// Update the runtime IPAM configurations with initial state
