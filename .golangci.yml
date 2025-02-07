@@ -17,6 +17,7 @@ linters:
     - misspell      # Detects commonly misspelled English words in comments.
     - nilnesserr    # Detects returning nil errors. It combines the features of nilness and nilerr,
     - revive        # Metalinter; drop-in replacement for golint.
+    - spancheck     # Detects mistakes with OpenTelemetry/Census spans.
     - staticcheck
     - typecheck
     - unconvert     # Detects unnecessary type conversions.
@@ -114,6 +115,13 @@ linters-settings:
       # FIXME make sure all packages have a description. Currently, there's many packages without.
       - name: package-comments
         disabled: true
+
+  spancheck:
+    # Default: ["end"]
+    checks:
+      - end             # check that `span.End()` is called
+      - record-error    # check that `span.RecordError(err)` is called when an error is returned
+      - set-status      # check that `span.SetStatus(codes.Error, msg)` is called when an error is returned
 
 issues:
   # The default exclusion rules are a bit too permissive, so copying the relevant ones below
