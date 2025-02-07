@@ -13,7 +13,7 @@ import (
 // pair (key=value).
 //
 // Deprecated: use [strings.Cut] instead. This utility was only used internally, and will be removed in the next release.
-func ParseKeyValueOpt(opt string) (key string, value string, err error) {
+func ParseKeyValueOpt(opt string) (key string, value string, _ error) {
 	k, v, ok := strings.Cut(opt, "=")
 	if !ok {
 		return "", "", fmt.Errorf("unable to parse key/value option: %s", opt)
