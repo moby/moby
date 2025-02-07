@@ -23,13 +23,15 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-var tmp string
-
-func init() {
-	tmp = "/tmp/"
-	if runtime.GOOS == "windows" {
-		tmp = os.Getenv("TEMP") + `\`
+// toUnix converts the given path to forward-slashes with the drive letter removed,
+// to allow using it for paths used in "sh". It is a no-op on non-Windows. The
+// given path must be absolute and on the system-drive.
+func toUnix(t *testing.T, filePath string) string {
+	unixPath, err := checkSystemDriveAndRemoveDriveLetter(filePath)
+	if err != nil {
+		t.Fatal(err)
 	}
+	return filepath.ToSlash(unixPath)
 }
 
 var defaultArchiver = NewDefaultArchiver()
@@ -51,55 +53,51 @@ func defaultCopyWithTar(src, dst string) error {
 }
 
 func TestIsArchivePathDir(t *testing.T) {
-	cmd := exec.Command("sh", "-c", "mkdir -p /tmp/archivedir")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Fail to create an archive file for test : %s.", output)
-	}
-	if IsArchivePath(tmp + "archivedir") {
+	if IsArchivePath(t.TempDir()) {
 		t.Fatalf("Incorrectly recognised directory as an archive")
 	}
 }
 
 func TestIsArchivePathInvalidFile(t *testing.T) {
-	cmd := exec.Command("sh", "-c", "dd if=/dev/zero bs=1024 count=1 of=/tmp/archive && gzip --stdout /tmp/archive > /tmp/archive.gz")
+	tmpDir := t.TempDir()
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("dd if=/dev/zero bs=1024 count=1 of=%[1]s/archive && gzip --stdout %[1]s/archive > %[1]s/archive.gz", toUnix(t, tmpDir)))
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Fail to create an archive file for test : %s.", output)
 	}
-	if IsArchivePath(tmp + "archive") {
+	if IsArchivePath(filepath.Join(tmpDir, "archive")) {
 		t.Fatalf("Incorrectly recognised invalid tar path as archive")
 	}
-	if IsArchivePath(tmp + "archive.gz") {
+	if IsArchivePath(filepath.Join(tmpDir, "archive.gz")) {
 		t.Fatalf("Incorrectly recognised invalid compressed tar path as archive")
 	}
 }
 
 func TestIsArchivePathTar(t *testing.T) {
-	whichTar := "tar"
-	cmdStr := fmt.Sprintf("touch /tmp/archivedata && %s -cf /tmp/archive /tmp/archivedata && gzip --stdout /tmp/archive > /tmp/archive.gz", whichTar)
+	tmpDir := t.TempDir()
+	cmdStr := fmt.Sprintf("touch %[1]s/archivedata && tar -cf %[1]s/archive %[1]s/archivedata && gzip --stdout %[1]s/archive > %[1]s/archive.gz", toUnix(t, tmpDir))
 	cmd := exec.Command("sh", "-c", cmdStr)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Fail to create an archive file for test : %s.", output)
 	}
-	if !IsArchivePath(tmp + "/archive") {
+	if !IsArchivePath(filepath.Join(tmpDir, "archive")) {
 		t.Fatalf("Did not recognise valid tar path as archive")
 	}
-	if !IsArchivePath(tmp + "archive.gz") {
+	if !IsArchivePath(filepath.Join(tmpDir, "archive.gz")) {
 		t.Fatalf("Did not recognise valid compressed tar path as archive")
 	}
 }
 
 func testDecompressStream(t *testing.T, ext, compressCommand string) io.Reader {
-	cmd := exec.Command("sh", "-c",
-		fmt.Sprintf("touch /tmp/archive && %s /tmp/archive", compressCommand))
+	tmpDir := t.TempDir()
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("touch %[1]s/archive && %[2]s %[1]s/archive", toUnix(t, tmpDir), compressCommand))
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to create an archive file for test : %s.", output)
 	}
 	filename := "archive." + ext
-	archive, err := os.Open(tmp + filename)
+	archive, err := os.Open(filepath.Join(tmpDir, filename))
 	if err != nil {
 		t.Fatalf("Failed to open file %s: %v", filename, err)
 	}
@@ -142,7 +140,7 @@ func TestDecompressStreamZstd(t *testing.T) {
 }
 
 func TestCompressStreamXzUnsupported(t *testing.T) {
-	dest, err := os.Create(tmp + "dest")
+	dest, err := os.Create(filepath.Join(t.TempDir(), "dest"))
 	if err != nil {
 		t.Fatalf("Fail to create the destination file")
 	}
@@ -155,7 +153,7 @@ func TestCompressStreamXzUnsupported(t *testing.T) {
 }
 
 func TestCompressStreamBzip2Unsupported(t *testing.T) {
-	dest, err := os.Create(tmp + "dest")
+	dest, err := os.Create(filepath.Join(t.TempDir(), "dest"))
 	if err != nil {
 		t.Fatalf("Fail to create the destination file")
 	}
@@ -168,7 +166,7 @@ func TestCompressStreamBzip2Unsupported(t *testing.T) {
 }
 
 func TestCompressStreamInvalid(t *testing.T) {
-	dest, err := os.Create(tmp + "dest")
+	dest, err := os.Create(filepath.Join(t.TempDir(), "dest"))
 	if err != nil {
 		t.Fatalf("Fail to create the destination file")
 	}
@@ -300,14 +298,7 @@ func TestUntarPathWithInvalidDest(t *testing.T) {
 	}
 
 	// Translate back to Unix semantics as next exec.Command is run under sh
-	srcFileU := srcFile
-	tarFileU := tarFile
-	if runtime.GOOS == "windows" {
-		tarFileU = "/tmp/" + filepath.Base(filepath.Dir(tarFile)) + "/src.tar"
-		srcFileU = "/tmp/" + filepath.Base(filepath.Dir(srcFile)) + "/src"
-	}
-
-	cmd := exec.Command("sh", "-c", "tar cf "+tarFileU+" "+srcFileU)
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("tar cf %s %s", toUnix(t, tarFile), toUnix(t, srcFile)))
 	_, err = cmd.CombinedOutput()
 	assert.NilError(t, err)
 
@@ -347,14 +338,7 @@ func TestUntarPath(t *testing.T) {
 		t.Fatalf("Fail to create the destination file")
 	}
 
-	// Translate back to Unix semantics as next exec.Command is run under sh
-	srcFileU := srcFile
-	tarFileU := tarFile
-	if runtime.GOOS == "windows" {
-		tarFileU = "/tmp/" + filepath.Base(filepath.Dir(tarFile)) + "/src.tar"
-		srcFileU = "/tmp/" + filepath.Base(filepath.Dir(srcFile)) + "/src"
-	}
-	cmd := exec.Command("sh", "-c", "tar cf "+tarFileU+" "+srcFileU)
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("tar cf %s %s", toUnix(t, tarFile), toUnix(t, srcFile)))
 	_, err = cmd.CombinedOutput()
 	assert.NilError(t, err)
 
@@ -362,7 +346,7 @@ func TestUntarPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UntarPath shouldn't throw an error, %s.", err)
 	}
-	expectedFile := filepath.Join(destFolder, srcFileU)
+	expectedFile := filepath.Join(destFolder, srcFile)
 	_, err = os.Stat(expectedFile)
 	if err != nil {
 		t.Fatalf("Destination folder should contain the source file but did not.")
@@ -383,14 +367,7 @@ func TestUntarPathWithDestinationFile(t *testing.T) {
 		_ = f.Close()
 	}
 
-	// Translate back to Unix semantics as next exec.Command is run under sh
-	srcFileU := srcFile
-	tarFileU := tarFile
-	if runtime.GOOS == "windows" {
-		tarFileU = "/tmp/" + filepath.Base(filepath.Dir(tarFile)) + "/src.tar"
-		srcFileU = "/tmp/" + filepath.Base(filepath.Dir(srcFile)) + "/src"
-	}
-	cmd := exec.Command("sh", "-c", "tar cf "+tarFileU+" "+srcFileU)
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("tar cf %s %s", toUnix(t, tarFile), toUnix(t, srcFile)))
 	_, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
@@ -422,15 +399,7 @@ func TestUntarPathWithDestinationSrcFileAsFolder(t *testing.T) {
 		_ = f.Close()
 	}
 
-	// Translate back to Unix semantics as next exec.Command is run under sh
-	srcFileU := srcFile
-	tarFileU := tarFile
-	if runtime.GOOS == "windows" {
-		tarFileU = "/tmp/" + filepath.Base(filepath.Dir(tarFile)) + "/src.tar"
-		srcFileU = "/tmp/" + filepath.Base(filepath.Dir(srcFile)) + "/src"
-	}
-
-	cmd := exec.Command("sh", "-c", "tar cf "+tarFileU+" "+srcFileU)
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("tar cf %s %s", toUnix(t, tarFile), toUnix(t, srcFile)))
 	_, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
@@ -441,7 +410,7 @@ func TestUntarPathWithDestinationSrcFileAsFolder(t *testing.T) {
 		t.Fatalf("Fail to create the destination folder")
 	}
 	// Let's create a folder that will has the same path as the extracted file (from tar)
-	destSrcFileAsFolder := filepath.Join(destFolder, srcFileU)
+	destSrcFileAsFolder := filepath.Join(destFolder, srcFile)
 	err = os.MkdirAll(destSrcFileAsFolder, 0o740)
 	if err != nil {
 		t.Fatal(err)
