@@ -4,6 +4,7 @@ linters:
     - depguard
     - dupword       # Detects duplicate words.
     - exptostd      # Detects functions from golang.org/x/exp/ that can be replaced by std functions.
+    - fatcontext    # Detects nested contexts in loops and function literals.
     - goimports
     - gosec         # Detects security problems.
     - gosimple
