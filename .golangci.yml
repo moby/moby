@@ -1,5 +1,6 @@
 linters:
   enable:
+    - asasalint     # Detects "[]any" used as argument for variadic "func(...any)".
     - copyloopvar   # Detects places where loop variables are copied.
     - depguard
     - dupword       # Detects duplicate words.
