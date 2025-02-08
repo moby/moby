@@ -3,6 +3,7 @@ linters:
     - asasalint     # Detects "[]any" used as argument for variadic "func(...any)".
     - copyloopvar   # Detects places where loop variables are copied.
     - depguard
+    - dogsled       # Detects assignments with too many blank identifiers.
     - dupword       # Detects duplicate words.
     - exptostd      # Detects functions from golang.org/x/exp/ that can be replaced by std functions.
     - fatcontext    # Detects nested contexts in loops and function literals.
