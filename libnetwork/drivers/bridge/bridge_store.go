@@ -313,18 +313,48 @@ func (ep *bridgeEndpoint) UnmarshalJSON(b []byte) error {
 	ep.id = epMap["id"].(string)
 	ep.nid = epMap["nid"].(string)
 	ep.srcName = epMap["SrcName"].(string)
-	d, _ := json.Marshal(epMap["ContainerConfig"])
+
+	// TODO(thaJeztah): these nullify ep.containerConfig, ep.extConnConfig, and ep.portMapping
+	//  if "ContainerConfig", "ExternalConnConfig", or "PortMapping" are not present or invalid
+	//  is this the intent? Or should this leave values untouched if present but invalid?
+	//
+	// Alternatively, it could be checking if the value is set (and not nil), otherwise
+	// explicitly nullify like (or variants of);
+	//
+	//  if c, ok := epMap["ContainerConfig"]; ok && c != nil {
+	//  	if d, err := json.Marshal(c); err != nil {
+	//  		log.G(context.TODO()).Warnf("Failed to encode endpoint container config %v", err)
+	//  	} else if err := json.Unmarshal(d, &ep.containerConfig); err != nil {
+	//  		log.G(context.TODO()).Warnf("Failed to decode endpoint container config %v", err)
+	//  	}
+	//  } else {
+	//  	ep.containerConfig = nil
+	//  }
+
+	d, err := json.Marshal(epMap["ContainerConfig"])
+	if err != nil {
+		log.G(context.TODO()).Warnf("Failed to encode endpoint container config %v", err)
+	}
 	if err := json.Unmarshal(d, &ep.containerConfig); err != nil {
 		log.G(context.TODO()).Warnf("Failed to decode endpoint container config %v", err)
 	}
-	d, _ = json.Marshal(epMap["ExternalConnConfig"])
+
+	d, err = json.Marshal(epMap["ExternalConnConfig"])
+	if err != nil {
+		log.G(context.TODO()).Warnf("Failed to encode endpoint external connectivity configuration %v", err)
+	}
 	if err := json.Unmarshal(d, &ep.extConnConfig); err != nil {
 		log.G(context.TODO()).Warnf("Failed to decode endpoint external connectivity configuration %v", err)
 	}
-	d, _ = json.Marshal(epMap["PortMapping"])
+
+	d, err = json.Marshal(epMap["PortMapping"])
+	if err != nil {
+		log.G(context.TODO()).Warnf("Failed to encode endpoint port mapping %v", err)
+	}
 	if err := json.Unmarshal(d, &ep.portMapping); err != nil {
 		log.G(context.TODO()).Warnf("Failed to decode endpoint port mapping %v", err)
 	}
+
 	// Until release 27.0, HostPortEnd in PortMapping (operational data) was left at
 	// the value it had in ExternalConnConfig.PortBindings (configuration). So, for
 	// example, if the configured host port range was 8000-8009 and the allocated
