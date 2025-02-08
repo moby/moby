@@ -86,14 +86,12 @@ func TestUntarWithMaliciousSymlinks(t *testing.T) {
 // host data into the archive.
 func TestTarWithMaliciousSymlinks(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	dir, err := os.MkdirTemp("", t.Name())
-	assert.NilError(t, err)
-	// defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	t.Log(dir)
 
 	root := filepath.Join(dir, "root")
 
-	err = os.Mkdir(root, 0o755)
+	err := os.Mkdir(root, 0o755)
 	assert.NilError(t, err)
 
 	hostFileData := []byte("I am a host file")
