@@ -2,7 +2,6 @@ package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
@@ -380,7 +379,6 @@ func GetConflictFreeLabels(labels []string) ([]string, error) {
 
 // Reload reads the configuration in the host and reloads the daemon and server.
 func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error {
-	log.G(context.TODO()).Infof("Got signal to reload configuration, reloading from: %s", configFile)
 	newConfig, err := getConflictFreeConfiguration(configFile, flags)
 	if err != nil {
 		if flags.Changed("config-file") || !os.IsNotExist(err) {
