@@ -10,6 +10,7 @@ linters:
     - exhaustive    # Detects missing options in enum switch statements.
     - exptostd      # Detects functions from golang.org/x/exp/ that can be replaced by std functions.
     - fatcontext    # Detects nested contexts in loops and function literals.
+    - gocheckcompilerdirectives # Detects invalid go compiler directive comments (//go:).
     - goimports
     - gosec         # Detects security problems.
     - gosimple
