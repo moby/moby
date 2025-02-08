@@ -562,6 +562,8 @@ func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector
 					m.Source = "stdout"
 				case swarmapi.LogStreamStderr:
 					m.Source = "stderr"
+				default:
+					// TODO(thaJeztah): make switch exhaustive; add swarmapi.LogStreamUnknown
 				}
 				m.Line = msg.Data
 
