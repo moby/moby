@@ -66,6 +66,8 @@ func RunningTasksCount(ctx context.Context, client client.ServiceAPIClient, serv
 				if task.Status.Err != "" {
 					taskError = task.Status.Err
 				}
+			default:
+				// not interested in other states.
 			}
 		}
 
@@ -125,6 +127,8 @@ func JobComplete(ctx context.Context, client client.ServiceAPIClient, service sw
 				runningID = append(runningID, task.ID)
 			case swarmtypes.TaskStateComplete:
 				completed++
+			default:
+				// not interested in other states.
 			}
 		}
 
