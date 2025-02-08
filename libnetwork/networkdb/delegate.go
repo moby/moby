@@ -67,9 +67,10 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 			log.G(context.TODO()).Infof("%v(%v): Node leave event for %s/%s", nDB.config.Hostname, nDB.config.NodeID, n.Name, n.Addr)
 		}
 		return moved
+	default:
+		// TODO(thaJeztah): make switch exhaustive; add networkdb.NodeEventTypeInvalid
+		return false
 	}
-
-	return false
 }
 
 func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
@@ -227,6 +228,8 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 		op = opUpdate
 	case TableEventTypeDelete:
 		op = opDelete
+	default:
+		// TODO(thaJeztah): make switch exhaustive; add networkdb.TableEventTypeInvalid
 	}
 
 	nDB.broadcaster.Write(makeEvent(op, tEvent.TableName, tEvent.NetworkID, tEvent.Key, tEvent.Value))
