@@ -386,6 +386,8 @@ func (p *linuxParser) parseMountSpec(cfg mount.Mount, validateBindSourceExists b
 			// default propagation mode.
 			mp.Propagation = linuxDefaultPropagationMode
 		}
+	default:
+		// TODO(thaJeztah): make switch exhaustive: anything to do for mount.TypeNamedPipe, mount.TypeCluster ?
 	}
 	return mp, nil
 }
