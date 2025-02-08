@@ -59,7 +59,6 @@ import (
 	"github.com/docker/go-connections/sockets"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // DummyHost is a hostname used for local communication.
@@ -141,7 +140,7 @@ type Client struct {
 	// negotiateLock is used to single-flight the version negotiation process
 	negotiateLock sync.Mutex
 
-	tp trace.TracerProvider
+	traceOpts []otelhttp.Option
 
 	// When the client transport is an *http.Transport (default) we need to do some extra things (like closing idle connections).
 	// Store the original transport as the http.Client transport will be wrapped with tracing libs.
@@ -203,6 +202,12 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 		client:  client,
 		proto:   hostURL.Scheme,
 		addr:    hostURL.Host,
+
+		traceOpts: []otelhttp.Option{
+			otelhttp.WithSpanNameFormatter(func(_ string, req *http.Request) string {
+				return req.Method + " " + req.URL.Path
+			}),
+		},
 	}
 
 	for _, op := range ops {
@@ -230,13 +235,7 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 		}
 	}
 
-	c.client.Transport = otelhttp.NewTransport(
-		c.client.Transport,
-		otelhttp.WithTracerProvider(c.tp),
-		otelhttp.WithSpanNameFormatter(func(_ string, req *http.Request) string {
-			return req.Method + " " + req.URL.Path
-		}),
-	)
+	c.client.Transport = otelhttp.NewTransport(c.client.Transport, c.traceOpts...)
 
 	return c, nil
 }

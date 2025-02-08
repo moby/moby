@@ -12,6 +12,7 @@ import (
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -227,8 +228,13 @@ func WithAPIVersionNegotiation() Opt {
 // WithTraceProvider sets the trace provider for the client.
 // If this is not set then the global trace provider will be used.
 func WithTraceProvider(provider trace.TracerProvider) Opt {
+	return WithTraceOptions(otelhttp.WithTracerProvider(provider))
+}
+
+// WithTraceOptions sets tracing span options for the client.
+func WithTraceOptions(opts ...otelhttp.Option) Opt {
 	return func(c *Client) error {
-		c.tp = provider
+		c.traceOpts = append(c.traceOpts, opts...)
 		return nil
 	}
 }
