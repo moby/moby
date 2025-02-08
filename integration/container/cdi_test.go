@@ -25,14 +25,12 @@ func TestCreateWithCDIDevices(t *testing.T) {
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	cwd, err := os.Getwd()
-	assert.NilError(t, err)
-	configPath := filepath.Join(cwd, "daemon.json")
-	err = os.WriteFile(configPath, []byte(`{"features": {"cdi": true}}`), 0o644)
-	defer os.Remove(configPath)
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "daemon.json")
+	err := os.WriteFile(configPath, []byte(`{"features": {"cdi": true}}`), 0o644)
 	assert.NilError(t, err)
 	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t, "--config-file", configPath, "--cdi-spec-dir="+filepath.Join(cwd, "testdata", "cdi"))
+	d.StartWithBusybox(ctx, t, "--config-file", configPath, "--cdi-spec-dir="+filepath.Join(tmpDir, "testdata", "cdi"))
 	defer d.Stop(t)
 
 	apiClient := d.NewClientT(t)
