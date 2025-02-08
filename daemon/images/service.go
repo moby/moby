@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	dockerreference "github.com/docker/docker/reference"
-	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
@@ -222,8 +221,7 @@ func (i *ImageService) getLayerRefs() map[layer.ChainID]int {
 	tmpImages := i.imageStore.Map()
 	layerRefs := map[layer.ChainID]int{}
 	for id, img := range tmpImages {
-		dgst := digest.Digest(id)
-		if len(i.referenceStore.References(dgst)) == 0 && len(i.imageStore.Children(id)) != 0 {
+		if len(i.referenceStore.References(id)) == 0 && len(i.imageStore.Children(id)) != 0 {
 			continue
 		}
 
