@@ -120,11 +120,10 @@ func (epi *EndpointInterface) UnmarshalJSON(b []byte) error {
 	epi.srcName = epMap["srcName"].(string)
 	epi.dstPrefix = epMap["dstPrefix"].(string)
 
-	rb, _ := json.Marshal(epMap["routes"])
-	var routes []string
-
 	// TODO(cpuguy83): linter noticed we don't check the error here... no idea why but it seems like it could introduce problems if we start checking
-	json.Unmarshal(rb, &routes) //nolint:errcheck
+	rb, _ := json.Marshal(epMap["routes"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
+	var routes []string
+	_ = json.Unmarshal(rb, &routes) //nolint:errcheck
 
 	epi.routes = make([]*net.IPNet, 0)
 	for _, route := range routes {
@@ -487,13 +486,13 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 
 	var tStaticRoute []types.StaticRoute
 	if v, ok := epMap["StaticRoutes"]; ok {
-		tb, _ := json.Marshal(v)
 		// TODO(cpuguy83): Linter caught that we aren't checking errors here
 		// I don't know why we aren't other than potentially the data is not always expected to be right?
 		// This is why I'm not adding the error check.
 		//
 		// In any case for posterity please if you figure this out document it or check the error
-		json.Unmarshal(tb, &tStaticRoute) //nolint:errcheck
+		tb, _ := json.Marshal(v)              //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
+		_ = json.Unmarshal(tb, &tStaticRoute) //nolint:errcheck
 	}
 	var StaticRoutes []*types.StaticRoute
 	for _, r := range tStaticRoute {
