@@ -6,6 +6,7 @@ linters:
     - dogsled       # Detects assignments with too many blank identifiers.
     - dupword       # Detects duplicate words.
     - durationcheck # Detect cases where two time.Duration values are being multiplied in possibly erroneous ways.
+    - errchkjson    # Detects unsupported types passed to json encoding functions and reports if checks for the returned error can be omitted.
     - exptostd      # Detects functions from golang.org/x/exp/ that can be replaced by std functions.
     - fatcontext    # Detects nested contexts in loops and function literals.
     - goimports
