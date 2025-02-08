@@ -171,6 +171,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		}
 
 		daemon.LogContainerEvent(c, events.ActionOOM)
+		return nil
 	case libcontainerdtypes.EventExit:
 		if ei.ProcessID == ei.ContainerID {
 			return daemon.handleContainerExit(c, &ei)
@@ -225,6 +226,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			"execID":   ei.ProcessID,
 			"exitCode": strconv.Itoa(exitCode),
 		})
+		return nil
 	case libcontainerdtypes.EventStart:
 		c.Lock()
 		defer c.Unlock()
@@ -268,6 +270,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			daemon.LogContainerEvent(c, events.ActionStart)
 		}
 
+		return nil
 	case libcontainerdtypes.EventPaused:
 		c.Lock()
 		defer c.Unlock()
@@ -281,6 +284,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			}
 			daemon.LogContainerEvent(c, events.ActionPause)
 		}
+		return nil
 	case libcontainerdtypes.EventResumed:
 		c.Lock()
 		defer c.Unlock()
@@ -295,8 +299,11 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			}
 			daemon.LogContainerEvent(c, events.ActionUnPause)
 		}
+		return nil
+	default:
+		// TODO(thaJeztah): make switch exhaustive; add types.EventUnknown, types.EventCreate, types.EventExecAdded, types.EventExecStarted
+		return nil
 	}
-	return nil
 }
 
 func (daemon *Daemon) autoRemove(cfg *config.Config, c *container.Container) {
