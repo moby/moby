@@ -5,6 +5,7 @@ linters:
     - depguard
     - dogsled       # Detects assignments with too many blank identifiers.
     - dupword       # Detects duplicate words.
+    - durationcheck # Detect cases where two time.Duration values are being multiplied in possibly erroneous ways.
     - exptostd      # Detects functions from golang.org/x/exp/ that can be replaced by std functions.
     - fatcontext    # Detects nested contexts in loops and function literals.
     - goimports
