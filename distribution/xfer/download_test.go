@@ -403,12 +403,11 @@ func TestMaxDownloadAttempts(t *testing.T) {
 				})
 
 			progressChan := make(chan progress.Progress)
-			progressDone := make(chan struct{})
+			defer close(progressChan)
 
 			go func() {
 				for range progressChan {
 				}
-				close(progressDone)
 			}()
 
 			var currentDownloads atomic.Int32
