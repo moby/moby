@@ -24,6 +24,7 @@ linters:
     - misspell      # Detects commonly misspelled English words in comments.
     - nilnesserr    # Detects returning nil errors. It combines the features of nilness and nilerr,
     - nosprintfhostport # Detects misuse of Sprintf to construct a host with port in a URL.
+    - reassign      # Detects reassigning a top-level variable in another package.
     - revive        # Metalinter; drop-in replacement for golint.
     - spancheck     # Detects mistakes with OpenTelemetry/Census spans.
     - staticcheck
