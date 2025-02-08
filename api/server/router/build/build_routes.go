@@ -62,9 +62,21 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		BuildID:        r.FormValue("buildid"),
 	}
 
-	if runtime.GOOS != "windows" && options.SecurityOpt != nil {
-		// SecurityOpt only supports "credentials-spec" on Windows, and not used on other platforms.
-		return nil, invalidParam{errors.New("security options are not supported on " + runtime.GOOS)}
+	if len(options.SecurityOpt) > 0 {
+		// SecurityOpt only supports "credentialspec" on Windows, and not used on other platforms.
+		if runtime.GOOS != "windows" {
+			return nil, invalidParam{errors.New("security options are not supported on " + runtime.GOOS)}
+		}
+		for _, secOpt := range options.SecurityOpt {
+			opt, _, ok := strings.Cut(secOpt, "=")
+			if !ok {
+				return nil, invalidParam{errors.New("invalid security option: no equals sign in supplied value " + secOpt)}
+			}
+			// FIXME(thaJeztah): options should not be case-insensitive
+			if !strings.EqualFold(opt, "credentialspec") {
+				return nil, invalidParam{errors.New("security option not supported: " + opt)}
+			}
+		}
 	}
 
 	if httputils.BoolValue(r, "forcerm") {
