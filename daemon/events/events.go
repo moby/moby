@@ -100,6 +100,8 @@ func (e *Events) Log(action eventtypes.Action, eventType eventtypes.Type, actor 
 	case eventtypes.ImageEventType:
 		jm.ID = actor.ID
 		jm.Status = string(action)
+	default:
+		// TODO(thaJeztah): make switch exhaustive
 	}
 
 	e.PublishMessage(jm)
