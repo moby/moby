@@ -7,6 +7,7 @@ linters:
     - dupword       # Detects duplicate words.
     - durationcheck # Detect cases where two time.Duration values are being multiplied in possibly erroneous ways.
     - errchkjson    # Detects unsupported types passed to json encoding functions and reports if checks for the returned error can be omitted.
+    - exhaustive    # Detects missing options in enum switch statements.
     - exptostd      # Detects functions from golang.org/x/exp/ that can be replaced by std functions.
     - fatcontext    # Detects nested contexts in loops and function literals.
     - goimports
@@ -68,6 +69,19 @@ linters-settings:
       - "true"    # some tests use this as expected output
       - "false"   # some tests use this as expected output
       - "root"    # for tests using "ls" output with files owned by "root:root"
+
+  exhaustive:
+    # Program elements to check for exhaustiveness.
+    # Default: [ switch ]
+    check:
+      - switch
+      # - map # TODO(thaJeztah): also enable for maps
+    # Presence of "default" case in switch statements satisfies exhaustiveness,
+    # even if all enum members are not listed.
+    # Default: false
+    #
+    # TODO(thaJeztah): consider not allowing this to catch new values being added (and falling through to "default")
+    default-signifies-exhaustive: true
 
   forbidigo:
     forbid:
