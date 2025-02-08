@@ -1,4 +1,4 @@
-### Get the required software for Linux or macOS
+# Get the required software for Linux or macOS
 
 This page explains how to get the software you need to use a Linux or macOS
 machine for Moby development. Before you begin contributing you must have:
@@ -47,10 +47,9 @@ depending on your OS.
 
 ## Task 4. Install or upgrade Docker
 
-If you haven't already, install the Docker software using the
-<a href="https://docs.docker.com/engine/installation/" target="_blank">instructions for your operating system</a>.
+If you haven't already, [install the Docker Engine](https://docs.docker.com/engine/install/).
 If you have an existing installation, check your version and make sure you have
-the latest Docker.
+the latest version of Docker.
 
 To check if `docker` is already installed on Linux:
 
@@ -90,7 +89,7 @@ You must log out and log back in for this modification to take effect.
 
 ## Where to go next
 
-In the next section, you'll [configure the project to be properly recognized by the IDE](set-up-ide.md).
+Optionally, you can [configure the project to be properly recognized by the IDE](set-up-ide.md).
 
-If you don't want to use IDE, you can proceed to the next step
+If you don't want to use an IDE, you can proceed to the next step
 and [learn how to set up and configure Git for contributing to Moby](set-up-git.md).
