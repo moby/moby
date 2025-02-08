@@ -172,8 +172,9 @@ func (e *Executor) ProcessEvent(id string, et libcontainerdtypes.EventType, ei l
 			p.deleteTaskAndContainer(context.Background())
 		}
 		return e.exitHandler.HandleExitEvent(ei.ContainerID)
+	default:
+		return nil
 	}
-	return nil
 }
 
 type rio struct {
