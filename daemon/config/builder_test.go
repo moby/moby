@@ -59,8 +59,10 @@ func TestBuilderGC_DeprecatedKeepStorage(t *testing.T) {
 }`))
 	defer tempFile.Remove()
 	configFile := tempFile.Path()
+	config, err := New()
+	assert.NilError(t, err)
 
-	cfg, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
+	cfg, err := MergeDaemonConfigurations(config, nil, configFile)
 	assert.NilError(t, err)
 	assert.Assert(t, cfg.Builder.GC.Enabled)
 	f1 := filters.NewArgs()
