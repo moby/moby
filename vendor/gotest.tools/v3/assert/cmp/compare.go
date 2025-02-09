@@ -248,7 +248,7 @@ type causer interface {
 }
 
 func formatErrorMessage(err error) string {
-	//nolint:errorlint // unwrapping is not appropriate here
+	//nolint:errorlint,nolintlint // unwrapping is not appropriate here
 	if _, ok := err.(causer); ok {
 		return fmt.Sprintf("%q\n%+v", err, err)
 	}
@@ -286,6 +286,7 @@ func isNil(obj interface{}, msgFunc func(reflect.Value) string) Comparison {
 }
 
 // ErrorType succeeds if err is not nil and is of the expected type.
+// New code should use [ErrorIs] instead.
 //
 // Expected can be one of:
 //
@@ -306,8 +307,6 @@ func isNil(obj interface{}, msgFunc func(reflect.Value) string) Comparison {
 //	reflect.Type
 //
 // Fails if err does not implement the [reflect.Type].
-//
-// Deprecated: Use [ErrorIs]
 func ErrorType(err error, expected interface{}) Comparison {
 	return func() Result {
 		switch expectedType := expected.(type) {

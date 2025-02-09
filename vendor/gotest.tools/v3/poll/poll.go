@@ -9,6 +9,7 @@ import (
 
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/internal/assert"
+	"gotest.tools/v3/internal/format"
 )
 
 // TestingT is the subset of [testing.T] used by [WaitOn]
@@ -90,7 +91,7 @@ func (r result) Error() error {
 // polling. The message text will be used as the failure message if the timeout
 // is reached.
 func Continue(message string, args ...interface{}) Result {
-	return result{message: fmt.Sprintf(message, args...)}
+	return result{message: format.Message(append([]interface{}{message}, args...)...)}
 }
 
 // Success returns a [Result] where Done() returns true, which indicates to [WaitOn]
@@ -151,7 +152,7 @@ func Compare(compare cmp.Comparison) Result {
 	if assert.RunComparison(buf, assert.ArgsAtZeroIndex, compare) {
 		return Success()
 	}
-	return Continue(buf.String())
+	return Continue("%v", buf.String())
 }
 
 type logBuffer struct {

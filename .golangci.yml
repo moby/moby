@@ -151,10 +151,6 @@ issues:
       path: "api/types/(volume|container)/"
       linters:
         - revive
-    # FIXME temporarily suppress these (see https://github.com/gotestyourself/gotest.tools/issues/272)
-    - text: "SA1019: (assert|cmp|is)\\.ErrorType is deprecated"
-      linters:
-        - staticcheck
 
     - text: "ineffectual assignment to ctx"
       source: "ctx[, ].*=.*\\(ctx[,)]"

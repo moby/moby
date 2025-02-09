@@ -50,8 +50,8 @@ func errProblem(reason string, err error) problem {
 	return problem(fmt.Sprintf("%s: %s", reason, err))
 }
 
-func existenceProblem(filename, reason string, args ...interface{}) problem {
-	return problem(filename + ": " + fmt.Sprintf(reason, args...))
+func existenceProblem(filename string, msgAndArgs ...interface{}) problem {
+	return problem(filename + ": " + format.Message(msgAndArgs...))
 }
 
 func eqResource(x, y resource) []problem {
