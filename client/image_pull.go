@@ -45,7 +45,7 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options image.P
 	if err != nil {
 		return nil, err
 	}
-	return resp.body, nil
+	return resp.Body, nil
 }
 
 // getAPITagFromNamedRef returns a tag from the specified reference.

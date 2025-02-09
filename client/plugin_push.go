@@ -20,5 +20,5 @@ func (cli *Client) PluginPush(ctx context.Context, name string, registryAuth str
 	if err != nil {
 		return nil, err
 	}
-	return resp.body, nil
+	return resp.Body, nil
 }

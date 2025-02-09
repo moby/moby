@@ -40,15 +40,15 @@ func (cli *Client) BuildCachePrune(ctx context.Context, opts types.BuildCachePru
 	}
 	query.Set("filters", f)
 
-	serverResp, err := cli.post(ctx, "/build/prune", query, nil, nil)
-	defer ensureReaderClosed(serverResp)
+	resp, err := cli.post(ctx, "/build/prune", query, nil, nil)
+	defer ensureReaderClosed(resp)
 
 	if err != nil {
 		return nil, err
 	}
 
 	report := types.BuildCachePruneReport{}
-	if err := json.NewDecoder(serverResp.body).Decode(&report); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
 		return nil, errors.Wrap(err, "error retrieving disk usage")
 	}
 

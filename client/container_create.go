@@ -79,13 +79,13 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 		NetworkingConfig: networkingConfig,
 	}
 
-	serverResp, err := cli.post(ctx, "/containers/create", query, body, nil)
-	defer ensureReaderClosed(serverResp)
+	resp, err := cli.post(ctx, "/containers/create", query, body, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return response, err
 	}
 
-	err = json.NewDecoder(serverResp.body).Decode(&response)
+	err = json.NewDecoder(resp.Body).Decode(&response)
 	return response, err
 }
 

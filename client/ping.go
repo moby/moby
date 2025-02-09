@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
 )
 
 // Ping pings the server and returns the value of the "Docker-Experimental",
@@ -28,49 +27,54 @@ func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 	if err != nil {
 		return ping, err
 	}
-	serverResp, err := cli.doRequest(req)
-	if err == nil {
-		defer ensureReaderClosed(serverResp)
-		switch serverResp.statusCode {
+	resp, err := cli.doRequest(req)
+	if err != nil {
+		if IsErrConnectionFailed(err) {
+			return ping, err
+		}
+		// We managed to connect, but got some error; continue and try GET request.
+	} else {
+		defer ensureReaderClosed(resp)
+		switch resp.StatusCode {
 		case http.StatusOK, http.StatusInternalServerError:
 			// Server handled the request, so parse the response
-			return parsePingResponse(cli, serverResp)
+			return parsePingResponse(cli, resp)
 		}
-	} else if IsErrConnectionFailed(err) {
-		return ping, err
 	}
 
 	// HEAD failed; fallback to GET.
 	req.Method = http.MethodGet
-	serverResp, err = cli.doRequest(req)
-	defer ensureReaderClosed(serverResp)
+	resp, err = cli.doRequest(req)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return ping, err
 	}
-	return parsePingResponse(cli, serverResp)
+	return parsePingResponse(cli, resp)
 }
 
-func parsePingResponse(cli *Client, resp serverResponse) (types.Ping, error) {
-	var ping types.Ping
-	if resp.header == nil {
-		err := cli.checkResponseErr(resp)
-		return ping, errdefs.FromStatusCode(err, resp.statusCode)
+func parsePingResponse(cli *Client, resp *http.Response) (types.Ping, error) {
+	if resp == nil {
+		return types.Ping{}, nil
 	}
-	ping.APIVersion = resp.header.Get("Api-Version")
-	ping.OSType = resp.header.Get("Ostype")
-	if resp.header.Get("Docker-Experimental") == "true" {
+
+	var ping types.Ping
+	if resp.Header == nil {
+		return ping, cli.checkResponseErr(resp)
+	}
+	ping.APIVersion = resp.Header.Get("Api-Version")
+	ping.OSType = resp.Header.Get("Ostype")
+	if resp.Header.Get("Docker-Experimental") == "true" {
 		ping.Experimental = true
 	}
-	if bv := resp.header.Get("Builder-Version"); bv != "" {
+	if bv := resp.Header.Get("Builder-Version"); bv != "" {
 		ping.BuilderVersion = types.BuilderVersion(bv)
 	}
-	if si := resp.header.Get("Swarm"); si != "" {
+	if si := resp.Header.Get("Swarm"); si != "" {
 		state, role, _ := strings.Cut(si, "/")
 		ping.SwarmStatus = &swarm.Status{
 			NodeState:        swarm.LocalNodeState(state),
 			ControlAvailable: role == "manager",
 		}
 	}
-	err := cli.checkResponseErr(resp)
-	return ping, errdefs.FromStatusCode(err, resp.statusCode)
+	return ping, cli.checkResponseErr(resp)
 }

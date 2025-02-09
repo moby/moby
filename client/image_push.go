@@ -63,10 +63,10 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options image.Pu
 	if err != nil {
 		return nil, err
 	}
-	return resp.body, nil
+	return resp.Body, nil
 }
 
-func (cli *Client) tryImagePush(ctx context.Context, imageID string, query url.Values, registryAuth string) (serverResponse, error) {
+func (cli *Client) tryImagePush(ctx context.Context, imageID string, query url.Values, registryAuth string) (*http.Response, error) {
 	return cli.post(ctx, "/images/"+imageID+"/push", query, nil, http.Header{
 		registry.AuthHeader: {registryAuth},
 	})

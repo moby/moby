@@ -19,6 +19,6 @@ func (cli *Client) RegistryLogin(ctx context.Context, auth registry.AuthConfig) 
 	}
 
 	var response registry.AuthenticateOKBody
-	err = json.NewDecoder(resp.body).Decode(&response)
+	err = json.NewDecoder(resp.Body).Decode(&response)
 	return response, err
 }

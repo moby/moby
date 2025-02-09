@@ -53,5 +53,5 @@ func (cli *Client) ServiceLogs(ctx context.Context, serviceID string, options co
 	if err != nil {
 		return nil, err
 	}
-	return resp.body, nil
+	return resp.Body, nil
 }

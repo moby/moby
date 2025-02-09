@@ -34,6 +34,6 @@ func (cli *Client) ServiceList(ctx context.Context, options types.ServiceListOpt
 	}
 
 	var services []swarm.Service
-	err = json.NewDecoder(resp.body).Decode(&services)
+	err = json.NewDecoder(resp.Body).Decode(&services)
 	return services, err
 }

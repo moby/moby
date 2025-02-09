@@ -20,14 +20,14 @@ func (cli *Client) VolumesPrune(ctx context.Context, pruneFilters filters.Args) 
 		return volume.PruneReport{}, err
 	}
 
-	serverResp, err := cli.post(ctx, "/volumes/prune", query, nil, nil)
-	defer ensureReaderClosed(serverResp)
+	resp, err := cli.post(ctx, "/volumes/prune", query, nil, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return volume.PruneReport{}, err
 	}
 
 	var report volume.PruneReport
-	if err := json.NewDecoder(serverResp.body).Decode(&report); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
 		return volume.PruneReport{}, fmt.Errorf("Error retrieving volume prune report: %v", err)
 	}
 

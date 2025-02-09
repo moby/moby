@@ -15,10 +15,10 @@ func (cli *Client) ContainerExport(ctx context.Context, containerID string) (io.
 		return nil, err
 	}
 
-	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/export", url.Values{}, nil)
+	resp, err := cli.get(ctx, "/containers/"+containerID+"/export", url.Values{}, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return serverResp.body, nil
+	return resp.Body, nil
 }

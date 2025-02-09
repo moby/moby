@@ -16,13 +16,13 @@ func (cli *Client) TaskInspectWithRaw(ctx context.Context, taskID string) (swarm
 		return swarm.Task{}, nil, err
 	}
 
-	serverResp, err := cli.get(ctx, "/tasks/"+taskID, nil, nil)
-	defer ensureReaderClosed(serverResp)
+	resp, err := cli.get(ctx, "/tasks/"+taskID, nil, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return swarm.Task{}, nil, err
 	}
 
-	body, err := io.ReadAll(serverResp.body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return swarm.Task{}, nil, err
 	}

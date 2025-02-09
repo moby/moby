@@ -40,7 +40,7 @@ func (cli *Client) ContainerExecCreate(ctx context.Context, containerID string, 
 	}
 
 	var response container.ExecCreateResponse
-	err = json.NewDecoder(resp.body).Decode(&response)
+	err = json.NewDecoder(resp.Body).Decode(&response)
 	return response, err
 }
 
@@ -75,7 +75,7 @@ func (cli *Client) ContainerExecInspect(ctx context.Context, execID string) (con
 		return response, err
 	}
 
-	err = json.NewDecoder(resp.body).Decode(&response)
+	err = json.NewDecoder(resp.Body).Decode(&response)
 	ensureReaderClosed(resp)
 	return response, err
 }

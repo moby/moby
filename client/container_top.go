@@ -28,6 +28,6 @@ func (cli *Client) ContainerTop(ctx context.Context, containerID string, argumen
 	}
 
 	var response container.TopResponse
-	err = json.NewDecoder(resp.body).Decode(&response)
+	err = json.NewDecoder(resp.Body).Decode(&response)
 	return response, err
 }
