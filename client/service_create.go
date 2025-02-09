@@ -73,7 +73,7 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 		return response, err
 	}
 
-	err = json.NewDecoder(resp.body).Decode(&response)
+	err = json.NewDecoder(resp.Body).Decode(&response)
 	if resolveWarning != "" {
 		response.Warnings = append(response.Warnings, resolveWarning)
 	}

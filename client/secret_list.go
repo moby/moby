@@ -33,6 +33,6 @@ func (cli *Client) SecretList(ctx context.Context, options types.SecretListOptio
 	}
 
 	var secrets []swarm.Secret
-	err = json.NewDecoder(resp.body).Decode(&secrets)
+	err = json.NewDecoder(resp.Body).Decode(&secrets)
 	return secrets, err
 }

@@ -30,6 +30,6 @@ func (cli *Client) NodeList(ctx context.Context, options types.NodeListOptions) 
 	}
 
 	var nodes []swarm.Node
-	err = json.NewDecoder(resp.body).Decode(&nodes)
+	err = json.NewDecoder(resp.Body).Decode(&nodes)
 	return nodes, err
 }

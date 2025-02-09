@@ -67,9 +67,8 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, condit
 	go func() {
 		defer ensureReaderClosed(resp)
 
-		body := resp.body
 		responseText := bytes.NewBuffer(nil)
-		stream := io.TeeReader(body, responseText)
+		stream := io.TeeReader(resp.Body, responseText)
 
 		var res container.WaitResponse
 		if err := json.NewDecoder(stream).Decode(&res); err != nil {
@@ -111,7 +110,7 @@ func (cli *Client) legacyContainerWait(ctx context.Context, containerID string) 
 		defer ensureReaderClosed(resp)
 
 		var res container.WaitResponse
-		if err := json.NewDecoder(resp.body).Decode(&res); err != nil {
+		if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 			errC <- err
 			return
 		}

@@ -36,7 +36,7 @@ func (cli *Client) NetworkInspectWithRaw(ctx context.Context, networkID string, 
 		return network.Inspect{}, nil, err
 	}
 
-	raw, err := io.ReadAll(resp.body)
+	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return network.Inspect{}, nil, err
 	}

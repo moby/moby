@@ -22,17 +22,18 @@ func (cli *Client) VolumeInspectWithRaw(ctx context.Context, volumeID string) (v
 		return volume.Volume{}, nil, err
 	}
 
-	var vol volume.Volume
 	resp, err := cli.get(ctx, "/volumes/"+volumeID, nil, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return vol, nil, err
+		return volume.Volume{}, nil, err
 	}
 
-	body, err := io.ReadAll(resp.body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return vol, nil, err
+		return volume.Volume{}, nil, err
 	}
+
+	var vol volume.Volume
 	rdr := bytes.NewReader(body)
 	err = json.NewDecoder(rdr).Decode(&vol)
 	return vol, body, err
