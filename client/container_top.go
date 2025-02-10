@@ -10,10 +10,10 @@ import (
 )
 
 // ContainerTop shows process information from within a container.
-func (cli *Client) ContainerTop(ctx context.Context, containerID string, arguments []string) (container.ContainerTopOKBody, error) {
+func (cli *Client) ContainerTop(ctx context.Context, containerID string, arguments []string) (container.TopResponse, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return container.ContainerTopOKBody{}, err
+		return container.TopResponse{}, err
 	}
 
 	query := url.Values{}
@@ -24,10 +24,10 @@ func (cli *Client) ContainerTop(ctx context.Context, containerID string, argumen
 	resp, err := cli.get(ctx, "/containers/"+containerID+"/top", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return container.ContainerTopOKBody{}, err
+		return container.TopResponse{}, err
 	}
 
-	var response container.ContainerTopOKBody
+	var response container.TopResponse
 	err = json.NewDecoder(resp.body).Decode(&response)
 	return response, err
 }

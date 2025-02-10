@@ -5326,6 +5326,21 @@ definitions:
           type: "string"
         example: []
 
+  ContainerUpdateResponse:
+    type: "object"
+    title: "ContainerUpdateResponse"
+    x-go-name: "UpdateResponse"
+    description: |-
+      Response for a successful container-update.
+    properties:
+      Warnings:
+        type: "array"
+        description: |-
+          Warnings encountered when updating the container.
+        items:
+          type: "string"
+        example: ["Published ports are discarded when using host network mode"]
+
   ContainerStatsResponse:
     description: |
       Statistics sample for a container.
@@ -5870,6 +5885,58 @@ definitions:
         format: "uint64"
         x-nullable: true
         example: 7593984
+
+  ContainerTopResponse:
+    type: "object"
+    x-go-name: "TopResponse"
+    title: "ContainerTopResponse"
+    description: |-
+      Container "top" response.
+    properties:
+      Titles:
+        description: "The ps column titles"
+        type: "array"
+        items:
+          type: "string"
+        example:
+          Titles:
+            - "UID"
+            - "PID"
+            - "PPID"
+            - "C"
+            - "STIME"
+            - "TTY"
+            - "TIME"
+            - "CMD"
+      Processes:
+        description: |-
+          Each process running in the container, where each process
+          is an array of values corresponding to the titles.
+        type: "array"
+        items:
+          type: "array"
+          items:
+            type: "string"
+        example:
+          Processes:
+            -
+              - "root"
+              - "13642"
+              - "882"
+              - "0"
+              - "17:03"
+              - "pts/0"
+              - "00:00:00"
+              - "/bin/bash"
+            -
+              - "root"
+              - "13735"
+              - "13642"
+              - "0"
+              - "17:06"
+              - "pts/0"
+              - "00:00:00"
+              - "sleep 10"
 
   ContainerWaitResponse:
     description: "OK response to ContainerWait operation"
@@ -8072,54 +8139,7 @@ paths:
         200:
           description: "no error"
           schema:
-            type: "object"
-            title: "ContainerTopResponse"
-            description: "OK response to ContainerTop operation"
-            properties:
-              Titles:
-                description: "The ps column titles"
-                type: "array"
-                items:
-                  type: "string"
-              Processes:
-                description: |
-                  Each process running in the container, where each is process
-                  is an array of values corresponding to the titles.
-                type: "array"
-                items:
-                  type: "array"
-                  items:
-                    type: "string"
-          examples:
-            application/json:
-              Titles:
-                - "UID"
-                - "PID"
-                - "PPID"
-                - "C"
-                - "STIME"
-                - "TTY"
-                - "TIME"
-                - "CMD"
-              Processes:
-                -
-                  - "root"
-                  - "13642"
-                  - "882"
-                  - "0"
-                  - "17:03"
-                  - "pts/0"
-                  - "00:00:00"
-                  - "/bin/bash"
-                -
-                  - "root"
-                  - "13735"
-                  - "13642"
-                  - "0"
-                  - "17:06"
-                  - "pts/0"
-                  - "00:00:00"
-                  - "sleep 10"
+            $ref: "#/definitions/ContainerTopResponse"
         404:
           description: "no such container"
           schema:
@@ -8560,14 +8580,7 @@ paths:
         200:
           description: "The container has been updated."
           schema:
-            type: "object"
-            title: "ContainerUpdateResponse"
-            description: "OK response to ContainerUpdate operation"
-            properties:
-              Warnings:
-                type: "array"
-                items:
-                  type: "string"
+            $ref: "#/definitions/ContainerUpdateResponse"
         404:
           description: "no such container"
           schema:

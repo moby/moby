@@ -8,19 +8,19 @@ import (
 )
 
 // ContainerUpdate updates the resources of a container.
-func (cli *Client) ContainerUpdate(ctx context.Context, containerID string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error) {
+func (cli *Client) ContainerUpdate(ctx context.Context, containerID string, updateConfig container.UpdateConfig) (container.UpdateResponse, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return container.ContainerUpdateOKBody{}, err
+		return container.UpdateResponse{}, err
 	}
 
 	serverResp, err := cli.post(ctx, "/containers/"+containerID+"/update", nil, updateConfig, nil)
 	defer ensureReaderClosed(serverResp)
 	if err != nil {
-		return container.ContainerUpdateOKBody{}, err
+		return container.UpdateResponse{}, err
 	}
 
-	var response container.ContainerUpdateOKBody
+	var response container.UpdateResponse
 	err = json.NewDecoder(serverResp.body).Decode(&response)
 	return response, err
 }
