@@ -15,14 +15,14 @@ func (cli *Client) ContainerDiff(ctx context.Context, containerID string) ([]con
 		return nil, err
 	}
 
-	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/changes", url.Values{}, nil)
-	defer ensureReaderClosed(serverResp)
+	resp, err := cli.get(ctx, "/containers/"+containerID+"/changes", url.Values{}, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return nil, err
 	}
 
 	var changes []container.FilesystemChange
-	err = json.NewDecoder(serverResp.body).Decode(&changes)
+	err = json.NewDecoder(resp.Body).Decode(&changes)
 	if err != nil {
 		return nil, err
 	}

@@ -24,7 +24,7 @@ func (cli *Client) ConfigInspectWithRaw(ctx context.Context, id string) (swarm.C
 		return swarm.Config{}, nil, err
 	}
 
-	body, err := io.ReadAll(resp.body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return swarm.Config{}, nil, err
 	}

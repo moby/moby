@@ -56,6 +56,6 @@ func (cli *Client) ContainerCommit(ctx context.Context, containerID string, opti
 		return response, err
 	}
 
-	err = json.NewDecoder(resp.body).Decode(&response)
+	err = json.NewDecoder(resp.Body).Decode(&response)
 	return response, err
 }

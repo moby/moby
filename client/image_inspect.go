@@ -75,8 +75,8 @@ func (cli *Client) ImageInspect(ctx context.Context, imageID string, inspectOpts
 		query.Set("manifests", "1")
 	}
 
-	serverResp, err := cli.get(ctx, "/images/"+imageID+"/json", query, nil)
-	defer ensureReaderClosed(serverResp)
+	resp, err := cli.get(ctx, "/images/"+imageID+"/json", query, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return image.InspectResponse{}, err
 	}
@@ -86,7 +86,7 @@ func (cli *Client) ImageInspect(ctx context.Context, imageID string, inspectOpts
 		buf = &bytes.Buffer{}
 	}
 
-	if _, err := io.Copy(buf, serverResp.body); err != nil {
+	if _, err := io.Copy(buf, resp.Body); err != nil {
 		return image.InspectResponse{}, err
 	}
 

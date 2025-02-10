@@ -36,9 +36,9 @@ func (cli *Client) Events(ctx context.Context, options events.ListOptions) (<-ch
 			errs <- err
 			return
 		}
-		defer resp.body.Close()
+		defer resp.Body.Close()
 
-		decoder := json.NewDecoder(resp.body)
+		decoder := json.NewDecoder(resp.Body)
 
 		close(started)
 		for {

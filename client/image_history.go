@@ -23,13 +23,13 @@ func (cli *Client) ImageHistory(ctx context.Context, imageID string, opts image.
 		query.Set("platform", p)
 	}
 
-	serverResp, err := cli.get(ctx, "/images/"+imageID+"/history", query, nil)
-	defer ensureReaderClosed(serverResp)
+	resp, err := cli.get(ctx, "/images/"+imageID+"/history", query, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return nil, err
 	}
 
 	var history []image.HistoryResponseItem
-	err = json.NewDecoder(serverResp.body).Decode(&history)
+	err = json.NewDecoder(resp.Body).Decode(&history)
 	return history, err
 }

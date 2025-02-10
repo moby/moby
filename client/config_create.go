@@ -20,6 +20,6 @@ func (cli *Client) ConfigCreate(ctx context.Context, config swarm.ConfigSpec) (t
 		return response, err
 	}
 
-	err = json.NewDecoder(resp.body).Decode(&response)
+	err = json.NewDecoder(resp.Body).Decode(&response)
 	return response, err
 }

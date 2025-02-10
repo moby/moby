@@ -17,14 +17,14 @@ func (cli *Client) ContainerInspect(ctx context.Context, containerID string) (co
 		return container.InspectResponse{}, err
 	}
 
-	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/json", nil, nil)
-	defer ensureReaderClosed(serverResp)
+	resp, err := cli.get(ctx, "/containers/"+containerID+"/json", nil, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return container.InspectResponse{}, err
 	}
 
 	var response container.InspectResponse
-	err = json.NewDecoder(serverResp.body).Decode(&response)
+	err = json.NewDecoder(resp.Body).Decode(&response)
 	return response, err
 }
 
@@ -39,13 +39,13 @@ func (cli *Client) ContainerInspectWithRaw(ctx context.Context, containerID stri
 	if getSize {
 		query.Set("size", "1")
 	}
-	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/json", query, nil)
-	defer ensureReaderClosed(serverResp)
+	resp, err := cli.get(ctx, "/containers/"+containerID+"/json", query, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return container.InspectResponse{}, nil, err
 	}
 
-	body, err := io.ReadAll(serverResp.body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return container.InspectResponse{}, nil, err
 	}

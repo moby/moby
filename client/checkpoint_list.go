@@ -23,6 +23,6 @@ func (cli *Client) CheckpointList(ctx context.Context, container string, options
 		return checkpoints, err
 	}
 
-	err = json.NewDecoder(resp.body).Decode(&checkpoints)
+	err = json.NewDecoder(resp.Body).Decode(&checkpoints)
 	return checkpoints, err
 }
