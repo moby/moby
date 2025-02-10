@@ -52,7 +52,7 @@ func TestContainerTop(t *testing.T) {
 				return nil, fmt.Errorf("args not set in URL query properly. Expected 'arg1 arg2', got %v", args)
 			}
 
-			b, err := json.Marshal(container.ContainerTopOKBody{
+			b, err := json.Marshal(container.TopResponse{
 				Processes: [][]string{
 					{"p1", "p2"},
 					{"p3"},

@@ -15,6 +15,11 @@ import (
 // Deprecated: use [UpdateResponse]. This alias will be removed in the next release.
 type ContainerUpdateOKBody = UpdateResponse
 
+// ContainerTopOKBody OK response to ContainerTop operation
+//
+// Deprecated: use [TopResponse]. This alias will be removed in the next release.
+type ContainerTopOKBody = TopResponse
+
 // PruneReport contains the response for Engine API:
 // POST "/containers/prune"
 type PruneReport struct {
