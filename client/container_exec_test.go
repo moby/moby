@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
@@ -67,7 +66,7 @@ func TestContainerExecCreate(t *testing.T) {
 			if execConfig.User != "user" {
 				return nil, fmt.Errorf("expected an execConfig with User == 'user', got %v", execConfig)
 			}
-			b, err := json.Marshal(types.IDResponse{
+			b, err := json.Marshal(container.ExecCreateResponse{
 				ID: "exec_id",
 			})
 			if err != nil {
