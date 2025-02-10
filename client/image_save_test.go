@@ -19,7 +19,7 @@ func TestImageSaveError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImageSave(context.Background(), []string{"nothing"}, image.SaveOptions{})
+	_, err := client.ImageSaveWithOptions(context.Background(), []string{"nothing"}, image.SaveOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -75,7 +75,7 @@ func TestImageSave(t *testing.T) {
 					}, nil
 				}),
 			}
-			resp, err := client.ImageSave(context.Background(), []string{"image_id1", "image_id2"}, tc.options)
+			resp, err := client.ImageSaveWithOptions(context.Background(), []string{"image_id1", "image_id2"}, tc.options)
 			assert.NilError(t, err)
 			defer assert.NilError(t, resp.Close())
 

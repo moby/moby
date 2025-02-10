@@ -122,14 +122,22 @@ type ImageAPIClient interface {
 	ImageInspectWithRaw(ctx context.Context, image string) (image.InspectResponse, []byte, error)
 	ImageInspect(ctx context.Context, image string, _ ...ImageInspectOption) (image.InspectResponse, error)
 	ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
-	ImageLoad(ctx context.Context, input io.Reader, opts image.LoadOptions) (image.LoadResponse, error)
+	ImageLoadWithOptions(ctx context.Context, input io.Reader, opts image.LoadOptions) (image.LoadResponse, error)
 	ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
 	ImagePush(ctx context.Context, ref string, options image.PushOptions) (io.ReadCloser, error)
 	ImageRemove(ctx context.Context, image string, options image.RemoveOptions) ([]image.DeleteResponse, error)
-	ImageSave(ctx context.Context, images []string, opts image.SaveOptions) (io.ReadCloser, error)
+	ImageSaveWithOptions(ctx context.Context, images []string, opts image.SaveOptions) (io.ReadCloser, error)
 	ImageSearch(ctx context.Context, term string, options registry.SearchOptions) ([]registry.SearchResult, error)
 	ImageTag(ctx context.Context, image, ref string) error
 	ImagesPrune(ctx context.Context, pruneFilter filters.Args) (image.PruneReport, error)
+	ImageAPIClientDeprecated
+}
+
+// ImageAPIClientDeprecated defines API client methods for the images that
+// are deprecated, but kept for backward compatibility.
+type ImageAPIClientDeprecated interface {
+	ImageLoad(ctx context.Context, input io.Reader, quiet bool) (image.LoadResponse, error)
+	ImageSave(ctx context.Context, images []string) (io.ReadCloser, error)
 }
 
 // NetworkAPIClient defines API client methods for the networks
