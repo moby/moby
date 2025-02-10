@@ -969,6 +969,12 @@ func (n *bridgeNetwork) reapplyPerPortIptables(needsReconfig func(portBinding) b
 			if err := n.setPerPortIptables(b, true); err != nil {
 				log.G(context.TODO()).Warnf("Failed to reconfigure NAT %s: %s", b, err)
 			}
+			if err := n.filterPortMappedOnLoopback(b, true); err != nil {
+				log.G(context.TODO()).Warnf("Failed to reconfigure NAT %s: %s", b, err)
+			}
+			if err := n.filterDirectAccess(b, true); err != nil {
+				log.G(context.TODO()).Warnf("Failed to reconfigure NAT %s: %s", b, err)
+			}
 		}
 	}
 }
