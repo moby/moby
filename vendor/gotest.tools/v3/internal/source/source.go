@@ -10,6 +10,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path/filepath"
 	"runtime"
 )
 
@@ -35,6 +36,19 @@ func CallExprArgs(stackIndex int) ([]ast.Expr, error) {
 	}
 	debug("call stack position: %s:%d", filename, line)
 
+	// Normally, `go` will compile programs with absolute paths in
+	// the debug metadata. However, in the name of reproducibility,
+	// Bazel uses a compilation strategy that results in relative paths
+	// (otherwise, since Bazel uses a random tmp dir for compile and sandboxing,
+	// the resulting binaries would change across compiles/test runs).
+	if inBazelTest && !filepath.IsAbs(filename) {
+		var err error
+		filename, err = bazelSourcePath(filename)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	fileset := token.NewFileSet()
 	astFile, err := parser.ParseFile(fileset, filename, nil, parser.AllErrors)
 	if err != nil {
@@ -58,7 +72,7 @@ func getNodeAtLine(fileset *token.FileSet, astFile ast.Node, lineNum int) (ast.N
 			return node, err
 		}
 	}
-	return nil, nil
+	return nil, errors.New("failed to find expression")
 }
 
 func scanToLine(fileset *token.FileSet, node ast.Node, lineNum int) ast.Node {
@@ -78,11 +92,8 @@ func scanToLine(fileset *token.FileSet, node ast.Node, lineNum int) ast.Node {
 
 func getCallExprArgs(fileset *token.FileSet, astFile ast.Node, line int) ([]ast.Expr, error) {
 	node, err := getNodeAtLine(fileset, astFile, line)
-	switch {
-	case err != nil:
+	if err != nil {
 		return nil, err
-	case node == nil:
-		return nil, fmt.Errorf("failed to find an expression")
 	}
 
 	debug("found node: %s", debugFormatNode{node})
@@ -90,7 +101,7 @@ func getCallExprArgs(fileset *token.FileSet, astFile ast.Node, line int) ([]ast.
 	visitor := &callExprVisitor{}
 	ast.Walk(visitor, node)
 	if visitor.expr == nil {
-		return nil, errors.New("failed to find call expression")
+		return nil, errors.New("failed to find an expression")
 	}
 	debug("callExpr: %s", debugFormatNode{visitor.expr})
 	return visitor.expr.Args, nil

@@ -112,7 +112,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20241021214115-324edc3d5d38
 	google.golang.org/grpc v1.68.1
 	google.golang.org/protobuf v1.35.2
-	gotest.tools/v3 v3.5.1
+	gotest.tools/v3 v3.5.2
 	resenje.org/singleflight v0.4.3
 	tags.cncf.io/container-device-interface v0.8.0
 )
