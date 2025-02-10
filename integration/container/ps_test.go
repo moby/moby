@@ -47,3 +47,25 @@ func TestPsFilter(t *testing.T) {
 		assert.Check(t, is.Contains(containerIDs(results), prev))
 	})
 }
+
+// TestPsPlatform verifies that containers have a platform set
+func TestPsPlatform(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	container.Create(ctx, t, apiClient)
+
+	containers, err := apiClient.ContainerList(ctx, containertypes.ListOptions{
+		All: true,
+	})
+	assert.NilError(t, err)
+	assert.Check(t, len(containers) > 0)
+
+	ctr := containers[0]
+	if assert.Check(t, ctr.Platform != nil) {
+		// Check that at least OS and Architecture have a value. Other values
+		// depend on the platform on which we're running the test.
+		assert.Equal(t, ctr.Platform.OS, testEnv.DaemonInfo.OSType)
+		assert.Check(t, ctr.Platform.Architecture != "")
+	}
+}

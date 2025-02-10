@@ -3,6 +3,7 @@ package container
 import (
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/mount"
@@ -108,6 +109,52 @@ type State struct {
 	Health     *Health `json:",omitempty"`
 }
 
+// ImagePlatform describes the platform which the image in the manifest runs on.
+// This type is our equivalent of ocispec.Platform, but implements fmt.Stringer
+// interface.
+type ImagePlatform struct {
+	// Architecture field specifies the CPU architecture, for example
+	// `amd64` or `ppc64le`.
+	Architecture string `json:"architecture"`
+
+	// OS specifies the operating system, for example `linux` or `windows`.
+	OS string `json:"os"`
+
+	// OSVersion is an optional field specifying the operating system
+	// version, for example on Windows `10.0.14393.1066`.
+	OSVersion string `json:"os.version,omitempty"`
+
+	// OSFeatures is an optional field specifying an array of strings,
+	// each listing a required OS feature (for example on Windows `win32k`).
+	OSFeatures []string `json:"os.features,omitempty"`
+
+	// Variant is an optional field specifying a variant of the CPU, for
+	// example `v7` to specify ARMv7 when architecture is `arm`.
+	Variant string `json:"variant,omitempty"`
+}
+
+// String implements the fmt.Stringer interface, and returns a formatted string
+// representing the container image's platform (e.g. linux/arm/v7).
+//
+// Similar to containerd's platforms.Format(), but returns an empty string
+// instead of "unknown" if no OS is present: https://github.com/containerd/containerd/blob/v1.5.2/platforms/platforms.go#L243-L263
+func (platform *ImagePlatform) String() string {
+	if platform == nil || platform.OS == "" {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString(platform.OS)
+	for _, s := range []string{platform.Architecture, platform.Variant} {
+		if s == "" {
+			continue
+		}
+		sb.WriteByte('/')
+		sb.WriteString(s)
+	}
+	return sb.String()
+}
+
 // Summary contains response of Engine API:
 // GET "/containers/json"
 type Summary struct {
@@ -115,6 +162,7 @@ type Summary struct {
 	Names      []string
 	Image      string
 	ImageID    string
+	Platform   *ImagePlatform `json:",omitempty"`
 	Command    string
 	Created    int64
 	Ports      []Port
