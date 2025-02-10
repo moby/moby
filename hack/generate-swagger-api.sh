@@ -18,6 +18,7 @@ swagger generate model -f api/swagger.yaml \
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/container --skip-validator -C api/swagger-gen.yaml \
 	-n ContainerCreateResponse \
+	-n ContainerUpdateResponse \
 	-n ContainerWaitResponse \
 	-n ContainerWaitExitError \
 	-n ChangeType \
@@ -45,7 +46,6 @@ swagger generate operation -f api/swagger.yaml \
 	-T api/templates --skip-responses --skip-parameters --skip-validator \
 	-n Authenticate \
 	-n ContainerTop \
-	-n ContainerUpdate \
 	-n ImageHistory
 
 swagger generate model -f api/swagger.yaml \
