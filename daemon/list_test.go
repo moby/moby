@@ -2,9 +2,12 @@ package daemon
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -25,6 +28,8 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	defer os.RemoveAll(root)
+
+	rand.Seed(time.Now().UnixNano())
 
 	os.Exit(m.Run())
 }
@@ -77,6 +82,49 @@ func containerListContainsName(containers []*containertypes.Summary, name string
 	}
 
 	return false
+}
+
+func TestList(t *testing.T) {
+	db, err := container.NewViewDB()
+	assert.NilError(t, err)
+	d := &Daemon{
+		containersReplica: db,
+	}
+
+	// test list with no containers
+	containerList, err := d.Containers(context.Background(), &containertypes.ListOptions{})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(containerList, 0))
+
+	// test list of one container
+	one := setupContainerWithName(t, "a1", d)
+	containerList, err = d.Containers(context.Background(), &containertypes.ListOptions{})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(containerList, 1))
+	assert.Assert(t, containerListContainsName(containerList, one.Name))
+
+	// test list with random number of containers
+	db2, err := container.NewViewDB() // new DB to ignore prior containers
+	assert.NilError(t, err)
+	d = &Daemon{
+		containersReplica: db2,
+	}
+
+	// start a random number of containers (between 0->256)
+	num := rand.Intn(256)
+	containers := make([]*container.Container, num)
+	for i := range num {
+		name := fmt.Sprintf("cont-%d", i)
+		containers[i] = setupContainerWithName(t, name, d)
+	}
+
+	// list them and verify correctness
+	containerList, err = d.Containers(context.Background(), &containertypes.ListOptions{})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(containerList, num))
+	for i := range num {
+		assert.Assert(t, containerListContainsName(containerList, containers[i].Name))
+	}
 }
 
 func TestListInvalidFilter(t *testing.T) {
@@ -139,4 +187,31 @@ func TestNameFilter(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(containerListWithPrefix, 1))
 	assert.Assert(t, containerListContainsName(containerListWithPrefix, three.Name))
+}
+
+func TestLimitFilter(t *testing.T) {
+	db, err := container.NewViewDB()
+	assert.NilError(t, err)
+	d := &Daemon{
+		containersReplica: db,
+	}
+
+	// start a number of containers
+	num := rand.Intn(64)
+	containers := make([]*container.Container, num)
+	for i := range num {
+		name := fmt.Sprintf("cont-%d", i)
+		containers[i] = setupContainerWithName(t, name, d)
+	}
+
+	// list them with the limit option and verify correctness; note that the limit
+	// option only limits the size of the list, but there are no guarantees as to
+	// which containers are in that list (e.g., if limit is 10, it does not mean
+	// the list will have the first 10 containers we created; it will have any 10
+	// of the containers we created).
+	limit := rand.Intn(64)
+	containerList, err := d.Containers(context.Background(), &containertypes.ListOptions{Limit: limit})
+	assert.NilError(t, err)
+	expectedListLen := min(num, limit)
+	assert.Assert(t, is.Len(containerList, expectedListLen))
 }
