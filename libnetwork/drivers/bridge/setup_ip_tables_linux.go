@@ -246,7 +246,7 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 				"ipset":  ipsetName,
 				"bridge": config.BridgeName,
 				"subnet": maskedAddr,
-			}).Warnf("Subnet was already in the ipset")
+			}).Debug("Subnet was already in the ipset")
 		}
 		n.registerIptCleanFunc(func() error {
 			return netlink.IpsetDel(ipsetName, ipsetEntry)
