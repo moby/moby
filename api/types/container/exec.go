@@ -1,5 +1,13 @@
 package container
 
+import "github.com/docker/docker/api/types/common"
+
+// ExecCreateResponse is the response for a successful exec-create request.
+// It holds the ID of the exec that was created.
+//
+// TODO(thaJeztah): make this a distinct type.
+type ExecCreateResponse = common.IDResponse
+
 // ExecOptions is a small subset of the Config struct that holds the configuration
 // for the exec feature of docker.
 type ExecOptions struct {
