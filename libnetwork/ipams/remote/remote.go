@@ -253,3 +253,7 @@ func (a *allocator) ReleaseAddress(poolID string, address net.IP) error {
 func (a *allocator) IsBuiltIn() bool {
 	return false
 }
+
+func (a *allocator) UsedAddrs(poolID string) (uint64, uint64, error) {
+	return 0, 0, nil
+}

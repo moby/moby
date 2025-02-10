@@ -55,6 +55,9 @@ type Ipam interface {
 
 	// IsBuiltIn returns true if it is a built-in driver.
 	IsBuiltIn() bool
+
+	// UsedAddrs returns the number of allocated IPs in the subnet and ip range pool for IPv4
+	UsedAddrs(poolID string) (uint64, uint64, error)
 }
 
 type PoolRequest struct {

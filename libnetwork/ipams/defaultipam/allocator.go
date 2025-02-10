@@ -319,3 +319,18 @@ func getAddress(base netip.Prefix, addrSet *addrset.AddrSet, prefAddress netip.A
 func (a *Allocator) IsBuiltIn() bool {
 	return true
 }
+
+func (a *Allocator) UsedAddrs(poolID string) (usedIPs, usedAllocationIPs uint64, err error) {
+	log.G(context.TODO()).Debugf("UsedAddrs(%s)", poolID)
+	k, err := PoolIDFromString(poolID)
+	if err != nil {
+		return 0, 0, types.InvalidParameterErrorf("invalid pool id: %s", poolID)
+	}
+
+	aSpace, err := a.getAddrSpace(k.AddressSpace, k.Is6())
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return aSpace.UsedAddrs(k.Subnet)
+}
