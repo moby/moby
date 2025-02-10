@@ -107,7 +107,7 @@ func (s *DockerCLIRunSuite) TestRunAttachDetach(c *testing.T) {
 	assert.NilError(c, cmd.Start())
 	cli.WaitRun(c, name)
 
-	_, err = cpty.Write([]byte("hello\n"))
+	_, err = cpty.WriteString("hello\n")
 	assert.NilError(c, err)
 
 	out, err := bufio.NewReader(stdout).ReadString('\n')
@@ -166,7 +166,7 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachFromFlag(c *testing.T) {
 	}
 	cli.WaitRun(c, name)
 
-	if _, err := cpty.Write([]byte("hello\n")); err != nil {
+	if _, err := cpty.WriteString("hello\n"); err != nil {
 		c.Fatal(err)
 	}
 
@@ -280,7 +280,7 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachFromConfig(c *testing.T) {
 	}
 	cli.WaitRun(c, name)
 
-	if _, err := cpty.Write([]byte("hello\n")); err != nil {
+	if _, err := cpty.WriteString("hello\n"); err != nil {
 		c.Fatal(err)
 	}
 
@@ -361,7 +361,7 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) 
 	}
 	cli.WaitRun(c, name)
 
-	if _, err := cpty.Write([]byte("hello\n")); err != nil {
+	if _, err := cpty.WriteString("hello\n"); err != nil {
 		c.Fatal(err)
 	}
 
@@ -400,8 +400,8 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) 
 
 func (s *DockerCLIRunSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *testing.T) {
 	const name = "attach-detach"
-	keyA := []byte{97}
-	keyB := []byte{98}
+	const keyA = "a"
+	const keyB = "b"
 
 	cli.DockerCmd(c, "run", "--name", name, "-itd", "busybox", "cat")
 
@@ -423,19 +423,19 @@ func (s *DockerCLIRunSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *te
 	cli.WaitRun(c, name)
 
 	// Invalid escape sequence aba, should print aba in output
-	if _, err := cpty.Write(keyA); err != nil {
+	if _, err := cpty.WriteString(keyA); err != nil {
 		c.Fatal(err)
 	}
 	time.Sleep(100 * time.Millisecond)
-	if _, err := cpty.Write(keyB); err != nil {
+	if _, err := cpty.WriteString(keyB); err != nil {
 		c.Fatal(err)
 	}
 	time.Sleep(100 * time.Millisecond)
-	if _, err := cpty.Write(keyA); err != nil {
+	if _, err := cpty.WriteString(keyA); err != nil {
 		c.Fatal(err)
 	}
 	time.Sleep(100 * time.Millisecond)
-	if _, err := cpty.Write([]byte("\n")); err != nil {
+	if _, err := cpty.WriteString("\n"); err != nil {
 		c.Fatal(err)
 	}
 
@@ -443,8 +443,10 @@ func (s *DockerCLIRunSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *te
 	if err != nil {
 		c.Fatal(err)
 	}
-	if strings.TrimSpace(out) != "aba" {
-		c.Fatalf("expected 'aba', got %q", out)
+
+	expected := keyA + keyB + keyA
+	if strings.TrimSpace(out) != expected {
+		c.Fatalf("expected '%s', got %q", expected, out)
 	}
 }
 
@@ -877,7 +879,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshare(c *testing.T) {
 	}
 	defer tmpFile.Close()
 
-	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
+	if _, err := tmpFile.WriteString(jsonData); err != nil {
 		c.Fatal(err)
 	}
 	icmd.RunCommand(dockerBinary, "run", "--security-opt", "apparmor=unconfined",
@@ -912,7 +914,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyChmod(c *testing.T) {
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 
-	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
+	if _, err := tmpFile.WriteString(jsonData); err != nil {
 		c.Fatal(err)
 	}
 	icmd.RunCommand(dockerBinary, "run", "--security-opt", "seccomp="+tmpFile.Name(),
@@ -949,7 +951,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshareUserns(c *testing.T)
 	}
 	defer tmpFile.Close()
 
-	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
+	if _, err := tmpFile.WriteString(jsonData); err != nil {
 		c.Fatal(err)
 	}
 	icmd.RunCommand(dockerBinary, "run",
@@ -1415,7 +1417,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *testing.T) {
 	tmpFile, err := os.CreateTemp("", "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
-	_, err = tmpFile.Write([]byte(jsonData))
+	_, err = tmpFile.WriteString(jsonData)
 	assert.NilError(c, err)
 
 	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
@@ -1442,7 +1444,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *testing.T) {
 	tmpFile, err := os.CreateTemp("", "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
-	_, err = tmpFile.Write([]byte(jsonData))
+	_, err = tmpFile.WriteString(jsonData)
 	assert.NilError(c, err)
 
 	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
@@ -1480,7 +1482,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *testing.T) {
 	tmpFile, err := os.CreateTemp("", "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
-	_, err = tmpFile.Write([]byte(jsonData))
+	_, err = tmpFile.WriteString(jsonData)
 	assert.NilError(c, err)
 
 	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
@@ -1514,7 +1516,7 @@ func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *testing.T)
 	tmpFile, err := os.CreateTemp("", "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
-	_, err = tmpFile.Write([]byte(jsonData))
+	_, err = tmpFile.WriteString(jsonData)
 	assert.NilError(c, err)
 
 	// 2) restart the daemon and add a custom seccomp profile in which we deny chmod

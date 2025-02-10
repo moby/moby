@@ -1,11 +1,11 @@
 package archive
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"syscall"
 	"unsafe"
 
@@ -143,7 +143,7 @@ func (w *walker) walk(path string, i1, i2 os.FileInfo) (err error) {
 		ni1 := names1[ix1]
 		ni2 := names2[ix2]
 
-		switch bytes.Compare([]byte(ni1.name), []byte(ni2.name)) {
+		switch strings.Compare(ni1.name, ni2.name) {
 		case -1: // ni1 < ni2 -- advance ni1
 			// we will not encounter ni1 in names2
 			names = append(names, ni1.name)

@@ -286,15 +286,16 @@ func (h *Bitmap) validateOrdinal(ordinal uint64) error {
 
 // MarshalBinary encodes h into a binary representation.
 func (h *Bitmap) MarshalBinary() ([]byte, error) {
-	ba := make([]byte, 16)
-	binary.BigEndian.PutUint64(ba[0:], h.bits)
-	binary.BigEndian.PutUint64(ba[8:], h.unselected)
 	bm, err := h.head.toByteArray()
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize head: %v", err)
 	}
-	ba = append(ba, bm...)
 
+	// Pre-allocate capacity for "bits" and "unselected" (16 bytes) and head.
+	ba := make([]byte, 0, 16+len(bm))
+	ba = binary.BigEndian.AppendUint64(ba, h.bits)
+	ba = binary.BigEndian.AppendUint64(ba, h.unselected)
+	ba = append(ba, bm...)
 	return ba, nil
 }
 

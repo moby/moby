@@ -231,12 +231,12 @@ func HTTPReply(w http.ResponseWriter, r *HTTPResult, j *JSONOutput) (int, error)
 		if j.prettyPrint {
 			response, err = json.MarshalIndent(r, "", "  ")
 			if err != nil {
-				response, _ = json.MarshalIndent(FailCommand(err), "", "  ")
+				response, _ = json.MarshalIndent(FailCommand(err), "", "  ") //nolint:errchkjson // ignore "Error return value of `encoding/json.MarshalIndent` is not checked: unsafe type `StringInterface`"
 			}
 		} else {
 			response, err = json.Marshal(r)
 			if err != nil {
-				response, _ = json.Marshal(FailCommand(err))
+				response, _ = json.Marshal(FailCommand(err)) //nolint:errchkjson // ignore "Error return value of `encoding/json.MarshalIndent` is not checked: unsafe type `StringInterface`"
 			}
 		}
 	} else {

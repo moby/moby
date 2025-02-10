@@ -145,19 +145,19 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	//
 	// If anyone ever comes here and figures out one way or another if we can/should be checking these errors and it turns out we can't... then please document *why*
 
-	ib, _ := json.Marshal(epMap["ep_iface"])
-	json.Unmarshal(ib, &ep.iface) //nolint:errcheck
+	ib, _ := json.Marshal(epMap["ep_iface"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
+	_ = json.Unmarshal(ib, &ep.iface)        //nolint:errcheck
 
-	jb, _ := json.Marshal(epMap["joinInfo"])
-	json.Unmarshal(jb, &ep.joinInfo) //nolint:errcheck
+	jb, _ := json.Marshal(epMap["joinInfo"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
+	_ = json.Unmarshal(jb, &ep.joinInfo)     //nolint:errcheck
 
-	tb, _ := json.Marshal(epMap["exposed_ports"])
+	tb, _ := json.Marshal(epMap["exposed_ports"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
 	var tPorts []types.TransportPort
-	json.Unmarshal(tb, &tPorts) //nolint:errcheck
+	_ = json.Unmarshal(tb, &tPorts) //nolint:errcheck
 	ep.exposedPorts = tPorts
 
-	cb, _ := json.Marshal(epMap["sandbox"])
-	json.Unmarshal(cb, &ep.sandboxID) //nolint:errcheck
+	cb, _ := json.Marshal(epMap["sandbox"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
+	_ = json.Unmarshal(cb, &ep.sandboxID)   //nolint:errcheck
 
 	if v, ok := epMap["generic"]; ok {
 		ep.generic = v.(map[string]interface{})
@@ -234,24 +234,24 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 		ep.loadBalancer = v.(bool)
 	}
 
-	sal, _ := json.Marshal(epMap["svcAliases"])
+	sal, _ := json.Marshal(epMap["svcAliases"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
 	var svcAliases []string
-	json.Unmarshal(sal, &svcAliases) //nolint:errcheck
+	_ = json.Unmarshal(sal, &svcAliases) //nolint:errcheck
 	ep.svcAliases = svcAliases
 
-	pc, _ := json.Marshal(epMap["ingressPorts"])
+	pc, _ := json.Marshal(epMap["ingressPorts"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
 	var ingressPorts []*PortConfig
-	json.Unmarshal(pc, &ingressPorts) //nolint:errcheck
+	_ = json.Unmarshal(pc, &ingressPorts) //nolint:errcheck
 	ep.ingressPorts = ingressPorts
 
-	ma, _ := json.Marshal(epMap["myAliases"])
+	ma, _ := json.Marshal(epMap["myAliases"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
 	var myAliases []string
-	json.Unmarshal(ma, &myAliases) //nolint:errcheck
+	_ = json.Unmarshal(ma, &myAliases) //nolint:errcheck
 
 	_, hasDNSNames := epMap["dnsNames"]
-	dn, _ := json.Marshal(epMap["dnsNames"])
+	dn, _ := json.Marshal(epMap["dnsNames"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
 	var dnsNames []string
-	json.Unmarshal(dn, &dnsNames)
+	_ = json.Unmarshal(dn, &dnsNames) //nolint:errcheck
 	ep.dnsNames = dnsNames
 
 	// TODO(aker): remove this migration code in v27

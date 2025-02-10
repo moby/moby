@@ -239,9 +239,10 @@ func (s *State) conditionAlreadyMet(condition WaitCondition) bool {
 		return !s.Running
 	case WaitConditionRemoved:
 		return s.Removed
+	default:
+		// TODO(thaJeztah): how do we want to handle "WaitConditionNextExit"?
+		return false
 	}
-
-	return false
 }
 
 // IsRunning returns whether the running flag is set. Used by Container to check whether a container is running.
