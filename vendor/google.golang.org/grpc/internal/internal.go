@@ -29,8 +29,6 @@ import (
 )
 
 var (
-	// WithHealthCheckFunc is set by dialoptions.go
-	WithHealthCheckFunc any // func (HealthChecker) DialOption
 	// HealthCheckFunc is used to provide client-side LB channel health checking
 	HealthCheckFunc HealthChecker
 	// BalancerUnregister is exported by package balancer to unregister a balancer.
@@ -149,6 +147,20 @@ var (
 	// other features, including the CSDS service.
 	NewXDSResolverWithConfigForTesting any // func([]byte) (resolver.Builder, error)
 
+	// NewXDSResolverWithClientForTesting creates a new xDS resolver builder
+	// using the provided xDS client instead of creating a new one using the
+	// bootstrap configuration specified by the supported environment variables.
+	// The resolver.Builder is meant to be used in conjunction with the
+	// grpc.WithResolvers DialOption. The resolver.Builder does not take
+	// ownership of the provided xDS client and it is the responsibility of the
+	// caller to close the client when no longer required.
+	//
+	// Testing Only
+	//
+	// This function should ONLY be used for testing and may not work with some
+	// other features, including the CSDS service.
+	NewXDSResolverWithClientForTesting any // func(xdsclient.XDSClient) (resolver.Builder, error)
+
 	// RegisterRLSClusterSpecifierPluginForTesting registers the RLS Cluster
 	// Specifier Plugin for testing purposes, regardless of the XDSRLS environment
 	// variable.
@@ -255,3 +267,9 @@ const (
 // It currently has an experimental suffix which would be removed once
 // end-to-end testing of the policy is completed.
 const RLSLoadBalancingPolicyName = "rls_experimental"
+
+// EnforceSubConnEmbedding is used to enforce proper SubConn implementation
+// embedding.
+type EnforceSubConnEmbedding interface {
+	enforceSubConnEmbedding()
+}

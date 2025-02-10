@@ -63,7 +63,7 @@ require (
 	github.com/miekg/dns v1.1.57
 	github.com/mistifyio/go-zfs/v3 v3.0.1
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.19.0
+	github.com/moby/buildkit v0.19.0-rc3.0.20250206165433-f3aafa79f131
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
@@ -110,7 +110,7 @@ require (
 	golang.org/x/text v0.21.0
 	golang.org/x/time v0.6.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20241021214115-324edc3d5d38
-	google.golang.org/grpc v1.68.1
+	google.golang.org/grpc v1.69.4
 	google.golang.org/protobuf v1.35.2
 	gotest.tools/v3 v3.5.2
 	resenje.org/singleflight v0.4.3
