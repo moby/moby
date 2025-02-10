@@ -868,7 +868,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, fmt.Errorf("error setting default isolation mode: %v", err)
 	}
 
-	if err := configureMaxThreads(&cfgStore.Config); err != nil {
+	if err := configureMaxThreads(ctx); err != nil {
 		log.G(ctx).Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
