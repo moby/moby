@@ -73,7 +73,7 @@ type ContainerAPIClient interface {
 	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *ocispec.Platform, containerName string) (container.CreateResponse, error)
 	ContainerDiff(ctx context.Context, container string) ([]container.FilesystemChange, error)
 	ContainerExecAttach(ctx context.Context, execID string, options container.ExecAttachOptions) (types.HijackedResponse, error)
-	ContainerExecCreate(ctx context.Context, container string, options container.ExecOptions) (types.IDResponse, error)
+	ContainerExecCreate(ctx context.Context, container string, options container.ExecOptions) (container.ExecCreateResponse, error)
 	ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error)
 	ContainerExecResize(ctx context.Context, execID string, options container.ResizeOptions) error
 	ContainerExecStart(ctx context.Context, execID string, options container.ExecStartOptions) error

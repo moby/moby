@@ -61,7 +61,7 @@ func (c *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusCreated, &types.IDResponse{
+	return httputils.WriteJSON(w, http.StatusCreated, &container.ExecCreateResponse{
 		ID: id,
 	})
 }
