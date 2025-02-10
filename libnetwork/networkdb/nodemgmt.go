@@ -72,6 +72,8 @@ func (nDB *NetworkDB) changeNodeState(nodeName string, newState nodeState) (bool
 
 		delete(m, nodeName)
 		nDB.failedNodes[nodeName] = n
+	default:
+		// TODO(thaJeztah): make switch exhaustive; add networkdb.nodeNotFound
 	}
 
 	log.G(context.TODO()).Infof("Node %s change state %s --> %s", nodeName, nodeStateName[currState], nodeStateName[newState])

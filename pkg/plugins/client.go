@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	defaultTimeOut = 30
+	defaultTimeOut = 30 * time.Second
 
 	// dummyHost is a hostname used for local communication.
 	//
@@ -107,7 +107,7 @@ type RequestOpts struct {
 	Timeout time.Duration
 
 	// testTimeOut is used during tests to limit the max timeout in [abort]
-	testTimeOut int
+	testTimeOut time.Duration
 }
 
 // WithRequestTimeout sets a timeout duration for plugin requests
@@ -239,7 +239,7 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool,
 }
 
 func backoff(retries int) time.Duration {
-	b, maxTimeout := 1, defaultTimeOut
+	b, maxTimeout := 1*time.Second, defaultTimeOut
 	for b < maxTimeout && retries > 0 {
 		b *= 2
 		retries--
@@ -247,18 +247,18 @@ func backoff(retries int) time.Duration {
 	if b > maxTimeout {
 		b = maxTimeout
 	}
-	return time.Duration(b) * time.Second
+	return b
 }
 
 // testNonExistingPlugin is a special plugin-name, which overrides defaultTimeOut in tests.
 const testNonExistingPlugin = "this-plugin-does-not-exist"
 
-func abort(start time.Time, timeOff time.Duration, overrideTimeout int) bool {
+func abort(start time.Time, timeOff time.Duration, overrideTimeout time.Duration) bool {
 	to := defaultTimeOut
 	if overrideTimeout > 0 {
 		to = overrideTimeout
 	}
-	return timeOff+time.Since(start) >= time.Duration(to)*time.Second
+	return timeOff+time.Since(start) >= to
 }
 
 func httpScheme(u *url.URL) string {

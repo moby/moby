@@ -306,6 +306,9 @@ func volumeAvailabilityFromGRPC(availability swarmapi.VolumeSpec_VolumeAvailabil
 		return volumetypes.AvailabilityActive
 	case swarmapi.VolumeAvailabilityPause:
 		return volumetypes.AvailabilityPause
+	case swarmapi.VolumeAvailabilityDrain:
+		return volumetypes.AvailabilityDrain
+	default:
+		return volumetypes.AvailabilityDrain
 	}
-	return volumetypes.AvailabilityDrain
 }

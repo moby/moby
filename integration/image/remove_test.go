@@ -81,13 +81,13 @@ func TestRemoveByDigest(t *testing.T) {
 	}
 	assert.Assert(t, id != "")
 
-	t.Logf("removing %s", id)
 	_, err = client.ImageRemove(ctx, id, image.RemoveOptions{})
-	assert.NilError(t, err)
+	assert.NilError(t, err, "error reemoving %s", id)
 
-	inspect, err = client.ImageInspect(ctx, "busybox")
-	assert.Check(t, err, "busybox image got deleted")
+	_, err = client.ImageInspect(ctx, "busybox")
+	assert.NilError(t, err, "busybox image got deleted")
 
 	inspect, err = client.ImageInspect(ctx, "test-remove-by-digest")
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.DeepEqual(inspect, image.InspectResponse{}))
 }

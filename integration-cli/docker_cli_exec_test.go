@@ -410,20 +410,20 @@ func (s *DockerCLIExecSuite) TestRunMutableNetworkFiles(c *testing.T) {
 		assert.NilError(c, err)
 
 		if _, err := f.Seek(0, 0); err != nil {
-			f.Close()
+			_ = f.Close()
 			c.Fatal(err)
 		}
 
 		if err := f.Truncate(0); err != nil {
-			f.Close()
+			_ = f.Close()
 			c.Fatal(err)
 		}
 
-		if _, err := f.Write([]byte("success2\n")); err != nil {
-			f.Close()
+		if _, err := f.WriteString("success2\n"); err != nil {
+			_ = f.Close()
 			c.Fatal(err)
 		}
-		f.Close()
+		_ = f.Close()
 
 		res := cli.DockerCmd(c, "exec", contID, "cat", "/etc/"+fn).Stdout()
 		assert.Equal(c, res, "success2\n")

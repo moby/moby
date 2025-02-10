@@ -82,7 +82,7 @@ func (p *volumePlugin) Close() {
 	p.Server.Close()
 }
 
-func newVolumePlugin(c *testing.T, name string) *volumePlugin {
+func newVolumePlugin(t *testing.T, name string) *volumePlugin {
 	mux := http.NewServeMux()
 	s := &volumePlugin{Server: httptest.NewServer(mux), ec: &eventCounter{}, vols: make(map[string]vol)}
 
@@ -105,15 +105,18 @@ func newVolumePlugin(c *testing.T, name string) *volumePlugin {
 	}
 
 	send := func(w http.ResponseWriter, data interface{}) {
-		switch t := data.(type) {
+		switch d := data.(type) {
 		case error:
-			http.Error(w, t.Error(), 500)
+			http.Error(w, d.Error(), 500)
 		case string:
 			w.Header().Set("Content-Type", plugins.VersionMimetype)
-			fmt.Fprintln(w, t)
+			_, _ = fmt.Fprintln(w, d)
 		default:
 			w.Header().Set("Content-Type", plugins.VersionMimetype)
-			json.NewEncoder(w).Encode(&data)
+			err := json.NewEncoder(w).Encode(&data)
+			if err != nil {
+				t.Logf("Error encoding plugin response: %v", err)
+			}
 		}
 	}
 
@@ -264,10 +267,10 @@ func newVolumePlugin(c *testing.T, name string) *volumePlugin {
 	})
 
 	err := os.MkdirAll("/etc/docker/plugins", 0o755)
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 
 	err = os.WriteFile("/etc/docker/plugins/"+name+".spec", []byte(s.Server.URL), 0o644)
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 	return s
 }
 

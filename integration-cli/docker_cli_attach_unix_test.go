@@ -104,11 +104,11 @@ func (s *DockerCLIAttachSuite) TestAttachAfterDetach(c *testing.T) {
 
 	go func() {
 		time.Sleep(500 * time.Millisecond)
-		cpty.Write([]byte("\n"))
+		_, _ = cpty.WriteString("\n")
 		time.Sleep(500 * time.Millisecond)
 
 		nBytes, err = cpty.Read(bytes)
-		cpty.Close()
+		_ = cpty.Close()
 		readErr <- err
 	}()
 
@@ -141,7 +141,7 @@ func (s *DockerCLIAttachSuite) TestAttachDetach(c *testing.T) {
 	assert.NilError(c, err)
 	cli.WaitRun(c, id)
 
-	_, err = cpty.Write([]byte("hello\n"))
+	_, err = cpty.WriteString("hello\n")
 	assert.NilError(c, err)
 	out, err = bufio.NewReader(stdout).ReadString('\n')
 	assert.NilError(c, err)

@@ -96,10 +96,13 @@ func TestDecodeContainerConfigIsolation(t *testing.T) {
 			})
 			assert.NilError(t, err)
 
-			_, _, _, err = decodeContainerConfig(bytes.NewReader(b), sysinfo.New())
+			cfg, hostConfig, nwConfig, err := decodeContainerConfig(bytes.NewReader(b), sysinfo.New())
 			if tc.invalid {
 				assert.Check(t, is.ErrorContains(err, tc.expectedErr))
 				assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+				assert.Check(t, is.Nil(cfg))
+				assert.Check(t, is.Nil(hostConfig))
+				assert.Check(t, is.Nil(nwConfig))
 			} else {
 				assert.NilError(t, err)
 			}
@@ -111,11 +114,14 @@ func TestDecodeContainerConfigPrivileged(t *testing.T) {
 	requestJSON, err := json.Marshal(container.CreateRequest{HostConfig: &container.HostConfig{Privileged: true}})
 	assert.NilError(t, err)
 
-	_, _, _, err = decodeContainerConfig(bytes.NewReader(requestJSON), sysinfo.New())
+	cfg, hostConfig, nwConfig, err := decodeContainerConfig(bytes.NewReader(requestJSON), sysinfo.New())
 	if runtime.GOOS == "windows" {
 		const expected = "invalid option: privileged mode is not supported for Windows containers"
 		assert.Check(t, is.Error(err, expected))
 		assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+		assert.Check(t, is.Nil(cfg))
+		assert.Check(t, is.Nil(hostConfig))
+		assert.Check(t, is.Nil(nwConfig))
 	} else {
 		assert.NilError(t, err)
 	}

@@ -1,21 +1,37 @@
 linters:
   enable:
+    - asasalint     # Detects "[]any" used as argument for variadic "func(...any)".
     - copyloopvar   # Detects places where loop variables are copied.
     - depguard
+    - dogsled       # Detects assignments with too many blank identifiers.
     - dupword       # Detects duplicate words.
+    - durationcheck # Detect cases where two time.Duration values are being multiplied in possibly erroneous ways.
+    - errchkjson    # Detects unsupported types passed to json encoding functions and reports if checks for the returned error can be omitted.
+    - exhaustive    # Detects missing options in enum switch statements.
+    - exptostd      # Detects functions from golang.org/x/exp/ that can be replaced by std functions.
+    - fatcontext    # Detects nested contexts in loops and function literals.
+    - gocheckcompilerdirectives # Detects invalid go compiler directive comments (//go:).
     - goimports
     - gosec         # Detects security problems.
     - gosimple
     - govet
     - forbidigo
+    - iface         # Detects incorrect use of interfaces. Currently only used for "identical" interfaces in the same package.
     - importas
     - ineffassign
+    - makezero      # Finds slice declarations with non-zero initial length.
+    - mirror        # Detects wrong mirror patterns of bytes/strings usage.
     - misspell      # Detects commonly misspelled English words in comments.
+    - nilnesserr    # Detects returning nil errors. It combines the features of nilness and nilerr,
+    - nosprintfhostport # Detects misuse of Sprintf to construct a host with port in a URL.
+    - reassign      # Detects reassigning a top-level variable in another package.
     - revive        # Metalinter; drop-in replacement for golint.
+    - spancheck     # Detects mistakes with OpenTelemetry/Census spans.
     - staticcheck
     - typecheck
     - unconvert     # Detects unnecessary type conversions.
     - unused
+    - wastedassign  # Detects wasted assignment statements.
 
   disable:
     - errcheck
@@ -55,6 +71,19 @@ linters-settings:
       - "true"    # some tests use this as expected output
       - "false"   # some tests use this as expected output
       - "root"    # for tests using "ls" output with files owned by "root:root"
+
+  exhaustive:
+    # Program elements to check for exhaustiveness.
+    # Default: [ switch ]
+    check:
+      - switch
+      # - map # TODO(thaJeztah): also enable for maps
+    # Presence of "default" case in switch statements satisfies exhaustiveness,
+    # even if all enum members are not listed.
+    # Default: false
+    #
+    # TODO(thaJeztah): consider not allowing this to catch new values being added (and falling through to "default")
+    default-signifies-exhaustive: true
 
   forbidigo:
     forbid:
@@ -110,6 +139,13 @@ linters-settings:
       - name: package-comments
         disabled: true
 
+  spancheck:
+    # Default: ["end"]
+    checks:
+      - end             # check that `span.End()` is called
+      - record-error    # check that `span.RecordError(err)` is called when an error is returned
+      - set-status      # check that `span.SetStatus(codes.Error, msg)` is called when an error is returned
+
 issues:
   # The default exclusion rules are a bit too permissive, so copying the relevant ones below
   exclude-use-default: false
@@ -151,6 +187,11 @@ issues:
       path: "api/types/(volume|container)/"
       linters:
         - revive
+
+    # FIXME: ignoring unused assigns to ctx for now; too many hits in libnetwork/xxx functions that setup traces
+    - text: "assigned to ctx, but never used afterwards"
+      linters:
+        - wastedassign
 
     - text: "ineffectual assignment to ctx"
       source: "ctx[, ].*=.*\\(ctx[,)]"
