@@ -71,7 +71,7 @@ func (c *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusCreated, &types.IDResponse{ID: imgID})
+	return httputils.WriteJSON(w, http.StatusCreated, &container.CommitResponse{ID: imgID})
 }
 
 func (c *containerRouter) getContainersJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

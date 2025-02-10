@@ -4,12 +4,15 @@ set -eu
 swagger generate model -f api/swagger.yaml \
 	-t api -m types --skip-validator -C api/swagger-gen.yaml \
 	-n ErrorResponse \
-	-n IdResponse \
 	-n Plugin \
 	-n PluginDevice \
 	-n PluginMount \
 	-n PluginEnv \
 	-n PluginInterfaceType
+
+swagger generate model -f api/swagger.yaml \
+	-t api -m types/common --skip-validator -C api/swagger-gen.yaml \
+	-n IDResponse
 
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/storage --skip-validator -C api/swagger-gen.yaml \
