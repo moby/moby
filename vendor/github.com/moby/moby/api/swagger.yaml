@@ -2530,6 +2530,27 @@ definitions:
         x-nullable: true
       # TODO: Add Services (only present when "verbose" is set).
 
+  NetworkResponse:
+    description: "OK response to Network list and get operations"
+    allOf:
+      - $ref: "#/definitions/Network"
+      - type: "object"
+        properties:
+          State:
+            type: "object"
+            properties:
+              IPAM:
+                description: |
+                  The IPAM state of the network, containing information about
+                  allocated and available IP addresses in the network's subnets.
+                type: "object"
+                additionalProperties:
+                  $ref: "#/definitions/IPAMState"
+                example:
+                  "172.20.0.0/16":
+                    AllocatedIPsInSubnet: 4
+                    AvailableIPsInIPRangePool: 255
+
   ConfigReference:
     description: |
       The config-only network source to provide the configuration for
@@ -2586,6 +2607,18 @@ definitions:
         type: "object"
         additionalProperties:
           type: "string"
+
+  IPAMState:
+    type: "object"
+    properties:
+      AllocatedIPsInSubnet:
+        type: integer
+        example: 4
+        description: "Number of IP addresses allocated in this subnet."
+      AvailableIPsInIPRangePool:
+        type: integer
+        example: 252
+        description: "Number of available IP addresses in the pool for this subnet."
 
   NetworkContainer:
     type: "object"
@@ -11016,7 +11049,7 @@ paths:
           schema:
             type: "array"
             items:
-              $ref: "#/definitions/Network"
+              $ref: "#/definitions/NetworkResponse"
           examples:
             application/json:
               - Name: "bridge"
@@ -11041,6 +11074,11 @@ paths:
                   com.docker.network.bridge.host_binding_ipv4: "0.0.0.0"
                   com.docker.network.bridge.name: "docker0"
                   com.docker.network.driver.mtu: "1500"
+                State:
+                  IPAM:
+                    "172.17.0.0/16":
+                      "AllocatedIPsInSubnet": 3,
+                      "AvailableIPsInIPRangePool": 65533,
               - Name: "none"
                 Id: "e086a3893b05ab69242d3c44e49483a3bbbd3a26b46baa8f61ab797c1088d794"
                 Created: "0001-01-01T00:00:00Z"
@@ -11107,7 +11145,7 @@ paths:
         200:
           description: "No error"
           schema:
-            $ref: "#/definitions/Network"
+            $ref: "#/definitions/NetworkResponse"
         404:
           description: "Network not found"
           schema:

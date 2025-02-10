@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
@@ -27,6 +29,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/errdefs"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -2189,4 +2192,52 @@ func (n *Network) deleteLoadBalancerSandbox() error {
 		return fmt.Errorf("Failed to delete %s sandbox: %v", sandboxName, err)
 	}
 	return nil
+}
+
+// ipamState returns the IPAM state.
+func (n *Network) ipamState(ctx context.Context) map[string]network.IPAMState {
+	if n.hasSpecialDriver() {
+		log.G(ctx).Debugf("special driver %s does not support network state", n.Type())
+		return nil
+	}
+
+	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
+	if err != nil {
+		log.G(ctx).WithError(err).Warnf("failed to get ipam driver %s", n.ipamType)
+		return nil
+	}
+
+	ipam4Infos, _ := n.IpamInfo()
+	// Only IPv4 is calculated, as the IPAM state only supports IPv4.
+	if len(ipam4Infos) == 0 {
+		return nil
+	}
+
+	ipamState := map[string]network.IPAMState{}
+	for _, ii := range ipam4Infos {
+		cidr, is, err := ipam.GetIPAMState(ii.PoolID)
+		if err != nil {
+			log.G(ctx).WithError(err).Warnf("failed to get IPAM state for pool %s", ii.PoolID)
+			continue
+		}
+		ipamState[cidr] = is
+	}
+	return ipamState
+}
+
+// State returns the network state, which includes IPAM state.
+func (n *Network) State(ctx context.Context) *network.NetworkState {
+
+	version := httputils.VersionFromContext(ctx)
+	if versions.LessThan(version, "1.52") {
+		return nil
+	}
+
+	ipamState := n.ipamState(ctx)
+	if ipamState == nil {
+		return nil
+	}
+	return &network.NetworkState{
+		IPAM: ipamState,
+	}
 }

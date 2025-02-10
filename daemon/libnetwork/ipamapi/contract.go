@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/netip"
 
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
@@ -55,6 +56,9 @@ type Ipam interface {
 
 	// IsBuiltIn returns true if it is a built-in driver.
 	IsBuiltIn() bool
+
+	// GetAllocatedIPs returns the number of allocated IPs in the subnet and ip-range pool for IPv4
+	GetIPAMState(poolID string) (cidr string, ipamState network.IPAMState, err error)
 }
 
 type PoolRequest struct {
