@@ -4,12 +4,10 @@
 package defaultipam
 
 import (
-	"context"
 	"net/netip"
 	"slices"
 	"sync"
 
-	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipamutils"
@@ -97,13 +95,13 @@ func (aSpace *addrSpace) allocateSubnetL(nw, sub netip.Prefix) error {
 		if aSpace.overlaps(nw) {
 			return ipamapi.ErrPoolOverlap
 		}
-		return aSpace.allocatePool(nw)
+		return aSpace.allocatePool(nw, sub)
 	}
 
 	// Look for parent pool
 	_, ok := aSpace.subnets[nw]
 	if !ok {
-		if err := aSpace.allocatePool(nw); err != nil {
+		if err := aSpace.allocatePool(nw, sub); err != nil {
 			return err
 		}
 		aSpace.subnets[nw].autoRelease = true
@@ -123,10 +121,10 @@ func (aSpace *addrSpace) overlaps(nw netip.Prefix) bool {
 	return false
 }
 
-func (aSpace *addrSpace) allocatePool(nw netip.Prefix) error {
+func (aSpace *addrSpace) allocatePool(nw, sub netip.Prefix) error {
 	n, _ := slices.BinarySearchFunc(aSpace.allocated, nw, netiputil.PrefixCompare)
 	aSpace.allocated = slices.Insert(aSpace.allocated, n, nw)
-	aSpace.subnets[nw] = newPoolData(nw)
+	aSpace.subnets[nw] = newPoolData(nw, sub)
 	return nil
 }
 
@@ -147,7 +145,7 @@ func (aSpace *addrSpace) allocatePredefinedPool(reserved []netip.Prefix) (netip.
 	makeAlloc := func(subnet netip.Prefix) netip.Prefix {
 		// it.ia tracks the position of the mergeIter within aSpace.allocated.
 		aSpace.allocated = slices.Insert(aSpace.allocated, it.ia, subnet)
-		aSpace.subnets[subnet] = newPoolData(subnet)
+		aSpace.subnets[subnet] = newPoolData(subnet, netip.Prefix{})
 		return subnet
 	}
 
@@ -325,25 +323,7 @@ func (aSpace *addrSpace) requestAddress(nw, sub netip.Prefix, prefAddress netip.
 		return netip.Addr{}, types.NotFoundErrorf("cannot find address pool for poolID:%v/%v", nw, sub)
 	}
 
-	if prefAddress != (netip.Addr{}) && !nw.Contains(prefAddress) {
-		return netip.Addr{}, ipamapi.ErrIPOutOfRange
-	}
-
-	if sub != (netip.Prefix{}) {
-		if _, ok := p.children[sub]; !ok {
-			return netip.Addr{}, types.NotFoundErrorf("cannot find address pool for poolID:%v/%v", nw, sub)
-		}
-	}
-
-	// In order to request for a serial ip address allocation, callers can pass in the option to request
-	// IP allocation serially or first available IP in the subnet
-	serial := opts[ipamapi.AllocSerialPrefix] == "true"
-	ip, err := getAddress(nw, p.addrs, prefAddress, sub, serial)
-	if err != nil {
-		return netip.Addr{}, err
-	}
-
-	return ip, nil
+	return p.RequestAddress(nw, sub, prefAddress, opts)
 }
 
 func (aSpace *addrSpace) releaseAddress(nw, sub netip.Prefix, address netip.Addr) error {
@@ -354,21 +334,21 @@ func (aSpace *addrSpace) releaseAddress(nw, sub netip.Prefix, address netip.Addr
 	if !ok {
 		return types.NotFoundErrorf("cannot find address pool for %v/%v", nw, sub)
 	}
-	if sub != (netip.Prefix{}) {
-		if _, ok := p.children[sub]; !ok {
-			return types.NotFoundErrorf("cannot find address pool for poolID:%v/%v", nw, sub)
-		}
+
+	return p.ReleaseAddress(nw, sub, address)
+}
+
+// UsedAddrs returns the number of used addresses in the subnet and address pool
+func (aSpace *addrSpace) UsedAddrs(nw netip.Prefix) (usedAddrsSubnet, usedAddrsRange uint64, err error) {
+	aSpace.mu.Lock()
+	defer aSpace.mu.Unlock()
+
+	p, ok := aSpace.subnets[nw]
+	if !ok {
+		return 0, 0, types.NotFoundErrorf("cannot find address pool for %v", nw)
 	}
 
-	if !address.IsValid() {
-		return types.InvalidParameterErrorf("invalid address")
-	}
+	usedAddrsSubnet, usedAddrsRange = p.UsedAddrs()
 
-	if !nw.Contains(address) {
-		return ipamapi.ErrIPOutOfRange
-	}
-
-	defer log.G(context.TODO()).Debugf("Released address Address:%v Sequence:%s", address, p.addrs)
-
-	return p.addrs.Remove(address)
+	return usedAddrsSubnet, usedAddrsRange, nil
 }
