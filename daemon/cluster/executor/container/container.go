@@ -722,6 +722,8 @@ func (c *containerConfig) applyPrivileges(hc *containertypes.HostConfig) {
 			// Profile is bytes, but those bytes are actually a string. This is
 			// basically verbatim what happens in the cli after a file is read.
 			hc.SecurityOpt = append(hc.SecurityOpt, fmt.Sprintf("seccomp=%s", seccomp.Profile))
+		default:
+			// TODO(thaJeztah): make switch exhaustive; add api.Privileges_SeccompOpts_DEFAULT
 		}
 	}
 

@@ -96,6 +96,7 @@ func (daemon *Daemon) Reload(conf *config.Config) error {
 
 	var txn reloadTxn
 	for _, reload := range []func(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error{
+		// TODO(thaJeztah): most of these are defined as method, but don't use the daemon receiver; consider making them regular functions.
 		daemon.reloadPlatform,
 		daemon.reloadDebug,
 		daemon.reloadMaxConcurrentDownloadsAndUploads,
@@ -115,18 +116,6 @@ func (daemon *Daemon) Reload(conf *config.Config) error {
 		}
 	}
 
-	jsonString, _ := json.Marshal(&struct {
-		*config.Config
-		config.Proxies `json:"proxies"`
-	}{
-		Config: &newCfg.Config,
-		Proxies: config.Proxies{
-			HTTPProxy:  config.MaskCredentials(newCfg.HTTPProxy),
-			HTTPSProxy: config.MaskCredentials(newCfg.HTTPSProxy),
-			NoProxy:    config.MaskCredentials(newCfg.NoProxy),
-		},
-	})
-	log.G(context.TODO()).Infof("Reloaded configuration: %s", jsonString)
 	daemon.configStore.Store(newCfg)
 	daemon.LogDaemonEventWithAttributes(events.ActionReload, attributes)
 	return txn.Commit()

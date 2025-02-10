@@ -78,8 +78,8 @@ func TestParseWithMultipleFuncs(t *testing.T) {
 	assertNum(t, 2, len(f.Args))
 	assertNum(t, 2, len(f.Returns))
 	arg = f.Args[0]
-	assertName(t, "a", f.Args[0].Name)
-	assertName(t, "string", f.Args[0].ArgType)
+	assertName(t, "a", arg.Name)
+	assertName(t, "string", arg.ArgType)
 	arg = f.Args[1]
 	assertName(t, "b", arg.Name)
 	assertName(t, "string", arg.ArgType)

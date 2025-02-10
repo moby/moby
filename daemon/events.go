@@ -279,6 +279,8 @@ func eventTimestamp(meta swarmapi.Meta, action swarmapi.WatchActionKind) time.Ti
 		// There is no timestamp from store message for remove operations.
 		// Use current time.
 		eventTime = time.Now()
+	default:
+		// TODO(thaJeztah): make switch exhaustive: anything to do for swarmapi.WatchActionKindUnknown or "other" ?
 	}
 	return eventTime
 }

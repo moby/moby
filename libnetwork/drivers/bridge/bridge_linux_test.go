@@ -975,7 +975,7 @@ func TestLinkContainers(t *testing.T) {
 		}
 
 		regex = fmt.Sprintf("%s spt:%d", pm.Proto.String(), pm.Port)
-		matched, _ := regexp.MatchString(regex, string(out[:]))
+		matched, _ := regexp.Match(regex, out[:])
 		if !matched {
 			t.Fatalf("IP Tables programming failed %s", string(out[:]))
 		}
@@ -1001,7 +1001,7 @@ func TestLinkContainers(t *testing.T) {
 		}
 
 		regex = fmt.Sprintf("%s spt:%d", pm.Proto.String(), pm.Port)
-		matched, _ := regexp.MatchString(regex, string(out[:]))
+		matched, _ := regexp.Match(regex, out[:])
 		if matched {
 			t.Fatalf("Leave should have deleted relevant IPTables rules  %s", string(out[:]))
 		}
@@ -1029,7 +1029,7 @@ func TestLinkContainers(t *testing.T) {
 			}
 
 			regex = fmt.Sprintf("%s spt:%d", pm.Proto.String(), pm.Port)
-			matched, _ := regexp.MatchString(regex, string(out[:]))
+			matched, _ := regexp.Match(regex, out[:])
 			if matched {
 				t.Fatalf("Error handling should rollback relevant IPTables rules  %s", string(out[:]))
 			}

@@ -409,6 +409,8 @@ func (p *windowsParser) parseMountSpec(cfg mount.Mount, convertTargetToBackslash
 		mp.Source = strings.ReplaceAll(cfg.Source, `/`, `\`)
 	case mount.TypeNamedPipe:
 		mp.Source = strings.ReplaceAll(cfg.Source, `/`, `\`)
+	default:
+		// TODO(thaJeztah): make switch exhaustive: anything to do for mount.TypeTmpfs, mount.TypeCluster, mount.TypeImage ?
 	}
 	// cleanup trailing `\` except for paths like `c:\`
 	if len(mp.Source) > 3 && mp.Source[len(mp.Source)-1] == '\\' {

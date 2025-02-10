@@ -281,6 +281,8 @@ func (r *controller) Start(ctx context.Context) error {
 					return err
 				}
 				return nil
+			default:
+				// TODO(thaJeztah): make switch exhaustive
 			}
 		case <-ctx.Done():
 			return ctx.Err()
@@ -467,6 +469,8 @@ func (r *controller) waitReady(pctx context.Context) error {
 		switch ctnr.State.Status {
 		case "running", "exited", "dead":
 			return nil
+		default:
+			// TODO(thaJeztah): make switch exhaustive
 		}
 	}
 
@@ -480,6 +484,8 @@ func (r *controller) waitReady(pctx context.Context) error {
 			switch event.Action {
 			case "start":
 				return nil
+			default:
+				// TODO(thaJeztah): make switch exhaustive
 			}
 		case <-ctx.Done():
 			return ctx.Err()
@@ -719,9 +725,7 @@ func (r *controller) checkHealth(ctx context.Context) error {
 			if !r.matchevent(event) {
 				continue
 			}
-
-			switch event.Action {
-			case events.ActionHealthStatusUnhealthy:
+			if event.Action == events.ActionHealthStatusUnhealthy {
 				return ErrContainerUnhealthy
 			}
 		}

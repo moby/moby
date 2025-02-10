@@ -146,7 +146,7 @@ func BenchmarkTail(b *testing.B) {
 	defer f.Close()
 	defer os.RemoveAll(f.Name())
 	for i := 0; i < 10000; i++ {
-		if _, err := f.Write([]byte("tailfile pretty interesting line\n")); err != nil {
+		if _, err := f.WriteString("tailfile pretty interesting line\n"); err != nil {
 			b.Fatal(err)
 		}
 	}

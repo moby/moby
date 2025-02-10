@@ -4088,8 +4088,8 @@ func (s *DockerCLIRunSuite) TestRunDuplicateMount(c *testing.T) {
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 
-	data := "touch-me-foo-bar\n"
-	if _, err := tmpFile.Write([]byte(data)); err != nil {
+	const data = "touch-me-foo-bar\n"
+	if _, err := tmpFile.WriteString(data); err != nil {
 		c.Fatal(err)
 	}
 
