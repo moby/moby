@@ -324,3 +324,25 @@ func getAddress(base netip.Prefix, addrSet *addrset.AddrSet, prefAddress netip.A
 func (a *Allocator) IsBuiltIn() bool {
 	return true
 }
+
+// GetAllocatedIPs returns the number of addresses allocated in both the subnet and the ip-range pool.
+//   - allocatedIPsInSubnet: The number of addresses allocated in the subnet.
+//     This value is limited by the uint64 capacity; if the actual count exceeds this limit,
+//     the maximum uint64 value is returned.
+//   - allocatedIPsInPool: The number of addresses allocated in the ip-range pool.
+//     Also limited by uint64 capacity; if it reaches the maximum value, it is treated as frozen
+//     and should no longer be modified.
+func (a *Allocator) GetAllocatedIPs(poolID string) (allocatedIPsInSubnet, allocatedIPsInPool uint64, err error) {
+	log.G(context.TODO()).Debugf("GetAllocatedIPs(%s)", poolID)
+	k, err := PoolIDFromString(poolID)
+	if err != nil {
+		return 0, 0, types.InvalidParameterErrorf("invalid pool id: %s", poolID)
+	}
+
+	aSpace, err := a.getAddrSpace(k.AddressSpace, k.Is6())
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return aSpace.GetAllocatedIPs(k.Subnet)
+}
