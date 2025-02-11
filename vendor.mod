@@ -110,7 +110,7 @@ require (
 	golang.org/x/text v0.21.0
 	golang.org/x/time v0.6.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20241021214115-324edc3d5d38
-	google.golang.org/grpc v1.68.1
+	google.golang.org/grpc v1.69.4
 	google.golang.org/protobuf v1.35.2
 	gotest.tools/v3 v3.5.2
 	resenje.org/singleflight v0.4.3
