@@ -11,10 +11,10 @@ import (
 )
 
 // ContainerExecCreate creates a new exec configuration to run an exec process.
-func (cli *Client) ContainerExecCreate(ctx context.Context, containerID string, options container.ExecOptions) (types.IDResponse, error) {
+func (cli *Client) ContainerExecCreate(ctx context.Context, containerID string, options container.ExecOptions) (container.ExecCreateResponse, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return types.IDResponse{}, err
+		return container.ExecCreateResponse{}, err
 	}
 
 	// Make sure we negotiated (if the client is configured to do so),
@@ -23,11 +23,11 @@ func (cli *Client) ContainerExecCreate(ctx context.Context, containerID string, 
 	// Normally, version-negotiation (if enabled) would not happen until
 	// the API request is made.
 	if err := cli.checkVersion(ctx); err != nil {
-		return types.IDResponse{}, err
+		return container.ExecCreateResponse{}, err
 	}
 
 	if err := cli.NewVersionError(ctx, "1.25", "env"); len(options.Env) != 0 && err != nil {
-		return types.IDResponse{}, err
+		return container.ExecCreateResponse{}, err
 	}
 	if versions.LessThan(cli.ClientVersion(), "1.42") {
 		options.ConsoleSize = nil
@@ -36,10 +36,10 @@ func (cli *Client) ContainerExecCreate(ctx context.Context, containerID string, 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/exec", nil, options, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return types.IDResponse{}, err
+		return container.ExecCreateResponse{}, err
 	}
 
-	var response types.IDResponse
+	var response container.ExecCreateResponse
 	err = json.NewDecoder(resp.body).Decode(&response)
 	return response, err
 }

@@ -2908,9 +2908,10 @@ definitions:
     example:
       message: "Something went wrong."
 
-  IdResponse:
+  IDResponse:
     description: "Response to an API call that returns just an Id"
     type: "object"
+    x-go-name: "IDResponse"
     required: ["Id"]
     properties:
       Id:
@@ -10233,7 +10234,7 @@ paths:
         201:
           description: "no error"
           schema:
-            $ref: "#/definitions/IdResponse"
+            $ref: "#/definitions/IDResponse"
         404:
           description: "no such container"
           schema:
@@ -10627,7 +10628,7 @@ paths:
         201:
           description: "no error"
           schema:
-            $ref: "#/definitions/IdResponse"
+            $ref: "#/definitions/IDResponse"
         404:
           description: "no such container"
           schema:
@@ -13107,7 +13108,7 @@ paths:
         201:
           description: "no error"
           schema:
-            $ref: "#/definitions/IdResponse"
+            $ref: "#/definitions/IDResponse"
         409:
           description: "name conflicts with an existing object"
           schema:
@@ -13314,7 +13315,7 @@ paths:
         201:
           description: "no error"
           schema:
-            $ref: "#/definitions/IdResponse"
+            $ref: "#/definitions/IDResponse"
         409:
           description: "name conflicts with an existing object"
           schema:
