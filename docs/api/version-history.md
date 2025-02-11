@@ -17,6 +17,13 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.48](https://docs.docker.com/reference/api/engine/version/v1.48/) documentation
 
+* Deprecated: The "error" and "progress" fields in streaming responses for
+  endpoints that return a JSON progress response, such as `POST /images/create`,
+  `POST /images/{name}/push`, and `POST /build` are deprecated. These fields
+  were marked deprecated in API v1.4 (docker v0.6.0) and API v1.8 (docker v0.7.1)
+  respectively, but still returned. These fields will be left empty or will
+  be omitted in a future API version. Users should use the information in the
+  `errorDetail` and `progressDetail` fields instead.
 * Deprecated: The "allow-nondistributable-artifacts" daemon configuration is
   deprecated and enabled by default. The  `AllowNondistributableArtifactsCIDRs`
   and `AllowNondistributableArtifactsHostnames` fields in the `RegistryConfig`
