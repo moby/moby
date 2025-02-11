@@ -9,7 +9,9 @@ import (
 	"github.com/docker/docker/api/types/storage"
 )
 
-// IDResponse Response to an API call that returns just an Id
+// IDResponse Response to an API call that returns just an Id.
+//
+// Deprecated: use either [container.CommitResponse] or [container.ExecCreateResponse]. It will be removed in the next release.
 type IDResponse = common.IDResponse
 
 // ContainerJSONBase contains response of Engine API GET "/containers/{name:.*}/json"
