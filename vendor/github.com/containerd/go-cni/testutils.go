@@ -23,22 +23,11 @@ import (
 	"testing"
 )
 
-func makeTmpDir(prefix string) (string, error) {
-	tmpDir, err := os.MkdirTemp("", prefix)
-	if err != nil {
-		return "", err
-	}
-	return tmpDir, nil
-}
-
 func makeFakeCNIConfig(t *testing.T) (string, string) {
-	cniDir, err := makeTmpDir("fakecni")
-	if err != nil {
-		t.Fatalf("Failed to create plugin config dir: %v", err)
-	}
+	cniDir := t.TempDir()
 
 	cniConfDir := path.Join(cniDir, "net.d")
-	err = os.MkdirAll(cniConfDir, 0777)
+	err := os.MkdirAll(cniConfDir, 0777)
 	if err != nil {
 		t.Fatalf("Failed to create network config dir: %v", err)
 	}
@@ -67,13 +56,6 @@ func makeFakeCNIConfig(t *testing.T) (string, string) {
 	}
 	f2.Close()
 	return cniDir, cniConfDir
-}
-
-func tearDownCNIConfig(t *testing.T, confDir string) {
-	err := os.RemoveAll(confDir)
-	if err != nil {
-		t.Fatalf("Failed to cleanup CNI configs: %v", err)
-	}
 }
 
 func buildFakeConfig(t *testing.T) (string, string) {
@@ -111,13 +93,10 @@ func buildFakeConfig(t *testing.T) (string, string) {
 	]
 	}`
 
-	cniDir, err := makeTmpDir("fakecni")
-	if err != nil {
-		t.Fatalf("Failed to create plugin config dir: %v", err)
-	}
+	cniDir := t.TempDir()
 
 	cniConfDir := path.Join(cniDir, "net.d")
-	err = os.MkdirAll(cniConfDir, 0777)
+	err := os.MkdirAll(cniConfDir, 0777)
 	if err != nil {
 		t.Fatalf("Failed to create network config dir: %v", err)
 	}

@@ -69,8 +69,6 @@ type Config struct {
 // interfaces created in the namespace. It returns an error if validation of
 // results fails, or if a network could not be found.
 func (c *libcni) createResult(results []*types100.Result) (*Result, error) {
-	c.RLock()
-	defer c.RUnlock()
 	r := &Result{
 		Interfaces: make(map[string]*Config),
 		raw:        results,
