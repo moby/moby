@@ -94,8 +94,7 @@ func (s *DockerCLIBuildSuite) TestBuildAddChangeOwnership(c *testing.T) {
 			RUN [ $(stat -c %U:%G "/bar") = 'root:root' ]
 			RUN [ $(stat -c %U:%G "/bar/foo") = 'root:root' ]
 			`
-		tmpDir, err := os.MkdirTemp("", "fake-context")
-		assert.NilError(c, err)
+		tmpDir := c.TempDir()
 		testFile, err := os.Create(filepath.Join(tmpDir, "foo"))
 		if err != nil {
 			c.Fatalf("failed to create foo file: %v", err)

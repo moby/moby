@@ -380,8 +380,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuthLoginWithSchem
 
 	const imgRepo = privateRegistryURL + "/dockercli/busybox:authtest"
 
-	tmp, err := os.MkdirTemp("", "integration-cli-")
-	assert.NilError(c, err)
+	tmp := c.TempDir()
 
 	externalAuthConfig := `{ "credsStore": "shell-test" }`
 
@@ -422,8 +421,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuth(c *testing.T)
 
 	const imgRepo = privateRegistryURL + "/dockercli/busybox:authtest"
 
-	tmp, err := os.MkdirTemp("", "integration-cli-")
-	assert.NilError(c, err)
+	tmp := c.TempDir()
 
 	externalAuthConfig := `{ "credsStore": "shell-test" }`
 

@@ -25,14 +25,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestCloseRootDirectory(t *testing.T) {
-	contextDir, err := os.MkdirTemp("", "builder-tarsum-test")
-	defer os.RemoveAll(contextDir)
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
+	src := makeTestArchiveContext(t, t.TempDir())
+	err := src.Close()
 
-	src := makeTestArchiveContext(t, contextDir)
-	err = src.Close()
 	if err != nil {
 		t.Fatalf("Error while executing Close: %s", err)
 	}
@@ -45,8 +40,7 @@ func TestCloseRootDirectory(t *testing.T) {
 }
 
 func TestHashFile(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
-	defer cleanup()
+	contextDir := t.TempDir()
 
 	createTestTempFile(t, contextDir, filename, contents, 0o755)
 
@@ -69,8 +63,7 @@ func TestHashFile(t *testing.T) {
 }
 
 func TestHashSubdir(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
-	defer cleanup()
+	contextDir := t.TempDir()
 
 	contextSubdir := filepath.Join(contextDir, "builder-tarsum-test-subdir")
 	err := os.Mkdir(contextSubdir, 0o755)
@@ -104,10 +97,12 @@ func TestHashSubdir(t *testing.T) {
 }
 
 func TestRemoveDirectory(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
-	defer cleanup()
+	contextDir := t.TempDir()
 
-	contextSubdir := createTestTempSubdir(t, contextDir, "builder-tarsum-test-subdir")
+	contextSubdir, err := os.MkdirTemp(contextDir, "builder-tarsum-test-subdir")
+	if err != nil {
+		t.Fatalf("Error when creating directory %s with prefix %s: %s", contextDir, "builder-tarsum-test-subdir", err)
+	}
 
 	relativePath, err := filepath.Rel(contextDir, contextSubdir)
 	if err != nil {

@@ -3,7 +3,6 @@ package metadata // import "github.com/docker/docker/distribution/metadata"
 import (
 	"encoding/hex"
 	"math/rand"
-	"os"
 	"reflect"
 	"testing"
 
@@ -12,13 +11,7 @@ import (
 )
 
 func TestV2MetadataService(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "blobsum-storage-service-test")
-	if err != nil {
-		t.Fatalf("could not create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	metadataStore, err := NewFSMetadataStore(tmpDir)
+	metadataStore, err := NewFSMetadataStore(t.TempDir())
 	if err != nil {
 		t.Fatalf("could not create metadata store: %v", err)
 	}

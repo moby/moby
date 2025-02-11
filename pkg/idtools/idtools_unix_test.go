@@ -21,11 +21,7 @@ type node struct {
 
 func TestMkdirAllAndChown(t *testing.T) {
 	RequiresRoot(t)
-	dirName, err := os.MkdirTemp("", "mkdirall")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(dirName)
+	dirName := t.TempDir()
 
 	testTree := map[string]node{
 		"usr":              {0, 0},
@@ -82,9 +78,7 @@ func TestMkdirAllAndChown(t *testing.T) {
 
 func TestMkdirAllAndChownNew(t *testing.T) {
 	RequiresRoot(t)
-	dirName, err := os.MkdirTemp("", "mkdirnew")
-	assert.NilError(t, err)
-	defer os.RemoveAll(dirName)
+	dirName := t.TempDir()
 
 	testTree := map[string]node{
 		"usr":              {0, 0},
@@ -96,7 +90,7 @@ func TestMkdirAllAndChownNew(t *testing.T) {
 	assert.NilError(t, buildTree(dirName, testTree))
 
 	// test adding a directory to a pre-existing dir; only the new dir is owned by the uid/gid
-	err = MkdirAllAndChownNew(filepath.Join(dirName, "usr", "share"), 0o755, Identity{UID: 99, GID: 99})
+	err := MkdirAllAndChownNew(filepath.Join(dirName, "usr", "share"), 0o755, Identity{UID: 99, GID: 99})
 	assert.NilError(t, err)
 
 	testTree["usr/share"] = node{99, 99}
@@ -214,11 +208,7 @@ func setWorkingDirectory(t *testing.T, dir string) {
 
 func TestMkdirAndChown(t *testing.T) {
 	RequiresRoot(t)
-	dirName, err := os.MkdirTemp("", "mkdir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(dirName)
+	dirName := t.TempDir()
 
 	testTree := map[string]node{
 		"usr": {0, 0},
