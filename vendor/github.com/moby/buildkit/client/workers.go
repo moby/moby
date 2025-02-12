@@ -18,6 +18,7 @@ type WorkerInfo struct {
 	Platforms       []ocispecs.Platform `json:"platforms"`
 	GCPolicy        []PruneInfo         `json:"gcPolicy"`
 	BuildkitVersion BuildkitVersion     `json:"buildkitVersion"`
+	CDIDevices      []CDIDevice         `json:"cdiDevices"`
 }
 
 // ListWorkers lists all active workers
@@ -42,6 +43,7 @@ func (c *Client) ListWorkers(ctx context.Context, opts ...ListWorkersOption) ([]
 			Platforms:       pb.ToSpecPlatforms(w.Platforms),
 			GCPolicy:        fromAPIGCPolicy(w.GCPolicy),
 			BuildkitVersion: fromAPIBuildkitVersion(w.BuildkitVersion),
+			CDIDevices:      fromAPICDIDevices(w.CDIDevices),
 		})
 	}
 

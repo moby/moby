@@ -45,6 +45,7 @@ import (
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/bboltcachestorage"
+	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
 	"github.com/moby/buildkit/util/archutil"
@@ -59,6 +60,7 @@ import (
 	"go.etcd.io/bbolt"
 	bolt "go.etcd.io/bbolt"
 	"go.opentelemetry.io/otel/sdk/trace"
+	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
 func newController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
@@ -110,6 +112,11 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 
 	dns := getDNSConfig(opt.DNSConfig)
 
+	cdiManager, err := getCDIManager(opt.CDISpecDirs)
+	if err != nil {
+		return nil, err
+	}
+
 	workerOpts := containerd.WorkerOptions{
 		Root:            opt.Root,
 		Address:         opt.ContainerdAddress,
@@ -123,6 +130,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		NetworkOpt:      nc,
 		ApparmorProfile: opt.ApparmorProfile,
 		Selinux:         false,
+		CDIManager:      cdiManager,
 	}
 
 	wo, err := containerd.NewWorkerOpt(workerOpts, ctd.WithTimeout(60*time.Second))
@@ -144,7 +152,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	wo.RegistryHosts = opt.RegistryHosts
 	wo.Labels = getLabels(opt, wo.Labels)
 
-	exec, err := newExecutor(opt.Root, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping, opt.ApparmorProfile)
+	exec, err := newExecutor(opt.Root, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping, opt.ApparmorProfile, cdiManager)
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +326,12 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 
 	dns := getDNSConfig(opt.DNSConfig)
 
-	exec, err := newExecutor(root, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping, opt.ApparmorProfile)
+	cdiManager, err := getCDIManager(opt.CDISpecDirs)
+	if err != nil {
+		return nil, err
+	}
+
+	exec, err := newExecutor(root, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping, opt.ApparmorProfile, cdiManager)
 	if err != nil {
 		return nil, err
 	}
@@ -386,6 +399,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		LeaseManager:      lm,
 		GarbageCollect:    mdb.GarbageCollect,
 		Labels:            getLabels(opt, nil),
+		CDIManager:        cdiManager,
 	}
 
 	wc := &worker.Controller{}
@@ -528,4 +542,25 @@ func getLabels(opt Opt, labels map[string]string) map[string]string {
 		}
 	}
 	return labels
+}
+
+func getCDIManager(specDirs []string) (*cdidevices.Manager, error) {
+	// TODO: intentionally not returning nil here on empty specDirs as not handled in all code-paths yet
+	cdiCache, err := func() (*cdi.Cache, error) {
+		cdiCache, err := cdi.NewCache(
+			cdi.WithSpecDirs(specDirs...),
+			cdi.WithAutoRefresh(false),
+		)
+		if err != nil {
+			return nil, err
+		}
+		if err := cdiCache.Refresh(); err != nil {
+			return nil, err
+		}
+		return cdiCache, nil
+	}()
+	if err != nil {
+		return nil, errors.Wrapf(err, "CDI registry initialization failure")
+	}
+	return cdidevices.NewManager(cdiCache), nil
 }

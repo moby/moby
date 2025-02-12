@@ -17,7 +17,9 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/profiles/seccomp"
 	"github.com/moby/buildkit/snapshot"
+	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/entitlements/security"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	selinux "github.com/opencontainers/selinux/go-selinux"
@@ -145,6 +147,34 @@ func generateRlimitOpts(ulimits []*pb.Ulimit) ([]oci.SpecOpts, error) {
 			s.Process.Rlimits = rlimits
 			return nil
 		},
+	}, nil
+}
+
+// genereateCDIOptions creates the OCI runtime spec options for injecting CDI
+// devices.
+func generateCDIOpts(manager *cdidevices.Manager, devs []*pb.CDIDevice) ([]oci.SpecOpts, error) {
+	if len(devs) == 0 {
+		return nil, nil
+	}
+
+	withCDIDevices := func(devs []*pb.CDIDevice) oci.SpecOpts {
+		return func(ctx context.Context, _ oci.Client, c *containers.Container, s *specs.Spec) error {
+			if err := manager.Refresh(); err != nil {
+				bklog.G(ctx).Warnf("CDI registry refresh failed: %v", err)
+			}
+			if err := manager.InjectDevices(s, devs...); err != nil {
+				return errors.Wrapf(err, "CDI device injection failed")
+			}
+			// One crucial thing to keep in mind is that CDI device injection
+			// might add OCI Spec environment variables, hooks, and mounts as
+			// well. Therefore, it is important that none of the corresponding
+			// OCI Spec fields are reset up in the call stack once we return.
+			return nil
+		}
+	}
+
+	return []oci.SpecOpts{
+		withCDIDevices(devs),
 	}, nil
 }
 

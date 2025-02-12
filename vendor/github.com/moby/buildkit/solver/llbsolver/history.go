@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/containerd/v2/pkg/filters"
 	cerrdefs "github.com/containerd/errdefs"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client"
@@ -23,12 +25,14 @@ import (
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/db"
+	"github.com/moby/buildkit/util/gitutil"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/iohelper"
 	"github.com/moby/buildkit/util/leaseutil"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/tonistiigi/go-csvvalue"
 	bolt "go.etcd.io/bbolt"
 	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
@@ -39,6 +43,13 @@ import (
 const (
 	recordsBucket = "_records"
 	versionBucket = "_version"
+)
+
+const (
+	statusRunning   = "running"
+	statusCompleted = "completed"
+	statusError     = "error"
+	statusCanceled  = "canceled"
 )
 
 type HistoryQueueOpt struct {
@@ -997,6 +1008,12 @@ func (h *HistoryQueue) Listen(ctx context.Context, req *controlapi.BuildHistoryR
 			}
 		}
 		h.mu.Unlock()
+
+		events, err := filterHistoryEvents(events, req.Filter, req.Limit)
+		if err != nil {
+			return err
+		}
+
 		for _, e := range events {
 			if e == nil || e.Record == nil {
 				continue
@@ -1026,6 +1043,207 @@ func (h *HistoryQueue) Listen(ctx context.Context, req *controlapi.BuildHistoryR
 			return nil
 		}
 	}
+}
+
+func filterHistoryEvents(in []*controlapi.BuildHistoryEvent, filters []string, limit int32) ([]*controlapi.BuildHistoryEvent, error) {
+	f, err := parseFilters(filters)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]*controlapi.BuildHistoryEvent, 0, len(in))
+
+	if len(f) == 0 {
+		out = in
+	} else {
+	loop0:
+		for _, ev := range in {
+			for _, fn := range f {
+				if fn(ev) {
+					out = append(out, ev)
+					continue loop0
+				}
+			}
+		}
+	}
+
+	if limit != 0 {
+		if limit < 0 {
+			return nil, errors.Errorf("invalid limit %d", limit)
+		}
+		slices.SortFunc(out, func(a, b *controlapi.BuildHistoryEvent) int {
+			if a.Record == nil || b.Record == nil {
+				return 0
+			}
+			if a.Record == nil {
+				return 1
+			}
+			return b.Record.CreatedAt.AsTime().Compare(a.Record.CreatedAt.AsTime())
+		})
+		if int32(len(out)) > limit {
+			out = out[:limit]
+		}
+	}
+	return out, nil
+}
+
+func parseFilters(in []string) ([]func(*controlapi.BuildHistoryEvent) bool, error) {
+	if len(in) == 0 {
+		return nil, nil
+	}
+
+	var out []func(*controlapi.BuildHistoryEvent) bool
+	for _, in := range in {
+		fns, err := parseFilter(in)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, func(ev *controlapi.BuildHistoryEvent) bool {
+			for _, fn := range fns {
+				if !fn(ev) {
+					return false
+				}
+			}
+			return true
+		})
+	}
+	return out, nil
+}
+
+func timeBasedFilter(f string) (func(*controlapi.BuildHistoryEvent) bool, error) {
+	key, sep, value, _ := cutAny(f, []string{">=", "<=", ">", "<"})
+	var cmp int64
+	switch key {
+	case "startedAt", "completedAt":
+		v, err := time.ParseDuration(value)
+		if err == nil {
+			tm := time.Now().Add(-v)
+			cmp = tm.Unix()
+		} else {
+			tm, err := time.Parse(time.RFC3339, value)
+			if err != nil {
+				return nil, errors.Errorf("invalid time %s", value)
+			}
+			cmp = tm.Unix()
+		}
+	case "duration":
+		v, err := time.ParseDuration(value)
+		if err != nil {
+			return nil, errors.Errorf("invalid duration %s", value)
+		}
+		cmp = int64(v)
+	default:
+		return nil, nil
+	}
+
+	return func(ev *controlapi.BuildHistoryEvent) bool {
+		if ev.Record == nil {
+			return false
+		}
+		var val int64
+		switch key {
+		case "startedAt":
+			val = ev.Record.CreatedAt.AsTime().Unix()
+		case "completedAt":
+			if ev.Record.CompletedAt != nil {
+				val = ev.Record.CompletedAt.AsTime().Unix()
+			}
+		case "duration":
+			if ev.Record.CompletedAt != nil {
+				val = int64(ev.Record.CompletedAt.AsTime().Sub(ev.Record.CreatedAt.AsTime()))
+			}
+		}
+		switch sep {
+		case ">=":
+			return val >= cmp
+		case "<=":
+			return val <= cmp
+		case ">":
+			return val > cmp
+		default:
+			return val < cmp
+		}
+	}, nil
+}
+
+func parseFilter(in string) ([]func(*controlapi.BuildHistoryEvent) bool, error) {
+	var out []func(*controlapi.BuildHistoryEvent) bool
+
+	fields, err := csvvalue.Fields(in, nil)
+	if err != nil {
+		return nil, err
+	}
+	var staticFilters []string
+
+	for _, f := range fields {
+		fn, err := timeBasedFilter(f)
+		if err != nil {
+			return nil, err
+		}
+		if fn == nil {
+			staticFilters = append(staticFilters, f)
+			continue
+		}
+		out = append(out, fn)
+	}
+
+	filter, err := filters.ParseAll(strings.Join(staticFilters, ","))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse history filters %v", in)
+	}
+
+	out = append(out, func(ev *controlapi.BuildHistoryEvent) bool {
+		if ev.Record == nil {
+			return false
+		}
+		return filter.Match(adaptHistoryRecord(ev.Record))
+	})
+	return out, nil
+}
+
+func adaptHistoryRecord(rec *controlapi.BuildHistoryRecord) filters.Adaptor {
+	return filters.AdapterFunc(func(fieldpath []string) (string, bool) {
+		if len(fieldpath) == 0 {
+			return "", false
+		}
+
+		switch fieldpath[0] {
+		case "ref":
+			return rec.Ref, rec.Ref != ""
+		case "status":
+			if rec.CompletedAt != nil {
+				if rec.Error != nil {
+					if strings.Contains(rec.Error.Message, "context canceled") {
+						return statusCanceled, true
+					}
+					return statusError, true
+				}
+				return statusCompleted, true
+			}
+			return statusRunning, true
+		case "repository":
+			v, ok := rec.FrontendAttrs["vcs:source"]
+			if ok {
+				return v, true
+			}
+			if context, ok := rec.FrontendAttrs["context"]; ok {
+				if ref, err := gitutil.ParseGitRef(context); err == nil {
+					return ref.Remote, true
+				}
+			}
+			return "", false
+		}
+		return "", false
+	})
+}
+
+func cutAny(in string, opt []string) (before string, sep string, after string, found bool) {
+	for _, s := range opt {
+		if i := strings.Index(in, s); i >= 0 {
+			return in[:i], s, in[i+len(s):], true
+		}
+	}
+	return "", "", "", false
 }
 
 type pubsub[T any] struct {

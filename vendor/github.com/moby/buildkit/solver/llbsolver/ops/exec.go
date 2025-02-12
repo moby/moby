@@ -199,6 +199,20 @@ func (e *ExecOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 		cm.Deps[i].PreprocessFunc = unlazyResultFunc
 	}
 
+	for _, d := range e.op.CdiDevices {
+		setup, ok := e.w.CDIManager().OnDemandInstaller(d.Name)
+		if ok {
+			prev := cm.Deps[0].PreprocessFunc
+			cm.Deps[0].PreprocessFunc = func(ctx context.Context, r solver.Result, g session.Group) error {
+				if err := prev(ctx, r, g); err != nil {
+					return err
+				}
+				// we could pass glibc/musl type in here based on rootfs to get correct dynamic libs
+				return setup(ctx)
+			}
+		}
+	}
+
 	return cm, true, nil
 }
 
@@ -432,6 +446,7 @@ func (e *ExecOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 		ReadonlyRootFS:            p.ReadonlyRootFS,
 		ExtraHosts:                extraHosts,
 		Ulimit:                    e.op.Meta.Ulimit,
+		CDIDevices:                e.op.CdiDevices,
 		CgroupParent:              e.op.Meta.CgroupParent,
 		NetMode:                   e.op.Network,
 		SecurityMode:              e.op.Security,

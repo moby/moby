@@ -180,6 +180,8 @@ message BuildHistoryRequest {
 	bool ActiveOnly = 1;
 	string Ref = 2;
 	bool EarlyExit = 3;
+	repeated string Filter = 4;
+	int32 Limit = 5;
 }
 
 enum BuildHistoryEventType {

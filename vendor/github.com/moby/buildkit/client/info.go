@@ -18,6 +18,13 @@ type BuildkitVersion struct {
 	Revision string `json:"revision"`
 }
 
+type CDIDevice struct {
+	Name        string            `json:"name"`
+	AutoAllow   bool              `json:"autoAllow"`
+	Annotations map[string]string `json:"annotations"`
+	OnDemand    bool              `json:"onDemand"`
+}
+
 func (c *Client) Info(ctx context.Context) (*Info, error) {
 	res, err := c.ControlClient().Info(ctx, &controlapi.InfoRequest{})
 	if err != nil {
@@ -37,4 +44,17 @@ func fromAPIBuildkitVersion(in *apitypes.BuildkitVersion) BuildkitVersion {
 		Version:  in.Version,
 		Revision: in.Revision,
 	}
+}
+
+func fromAPICDIDevices(in []*apitypes.CDIDevice) []CDIDevice {
+	var out []CDIDevice
+	for _, d := range in {
+		out = append(out, CDIDevice{
+			Name:        d.Name,
+			AutoAllow:   d.AutoAllow,
+			Annotations: d.Annotations,
+			OnDemand:    d.OnDemand,
+		})
+	}
+	return out
 }

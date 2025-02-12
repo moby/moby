@@ -19,6 +19,7 @@ import (
 	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/executor/runcexecutor"
 	"github.com/moby/buildkit/identity"
+	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -26,7 +27,7 @@ import (
 
 const networkName = "bridge"
 
-func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfig *oci.DNSConfig, rootless bool, idmap idtools.IdentityMapping, apparmorProfile string) (executor.Executor, error) {
+func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfig *oci.DNSConfig, rootless bool, idmap idtools.IdentityMapping, apparmorProfile string, cdiManager *cdidevices.Manager) (executor.Executor, error) {
 	netRoot := filepath.Join(root, "net")
 	networkProviders := map[pb.NetMode]network.Provider{
 		pb.NetMode_UNSET: &bridgeProvider{Controller: net, Root: netRoot},
@@ -74,6 +75,7 @@ func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfi
 		DNS:                 dnsConfig,
 		ApparmorProfile:     apparmorProfile,
 		ResourceMonitor:     rm,
+		CDIManager:          cdiManager,
 	}, networkProviders)
 }
 

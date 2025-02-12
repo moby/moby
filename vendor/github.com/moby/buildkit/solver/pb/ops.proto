@@ -47,6 +47,7 @@ message ExecOp {
 	NetMode network = 3;
 	SecurityMode security = 4;
 	repeated SecretEnv secretenv = 5;
+	repeated CDIDevice cdiDevices = 6;
 }
 
 // Meta is a set of arguments for ExecOp.
@@ -93,6 +94,15 @@ message SecretEnv {
 	string ID = 1;
 	string name = 2;
 	bool optional = 3;
+}
+
+// CDIDevice specifies a CDI device information.
+message CDIDevice {
+	// Fully qualified CDI device name (e.g., vendor.com/gpu=gpudevice1)
+	// https://github.com/cncf-tags/container-device-interface/blob/main/SPEC.md
+	string name = 1;
+	// Optional defines if CDI device is required.
+	bool optional = 2;
 }
 
 // Mount specifies how to mount an input Op as a filesystem.

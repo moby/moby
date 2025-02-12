@@ -400,6 +400,11 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon) (_ builderOptions, clos
 		return builderOptions{}, closeFn, err
 	}
 
+	var cdiSpecDirs []string
+	if d.Features()["cdi"] {
+		cdiSpecDirs = d.Config().CDISpecDirs
+	}
+
 	cfg := d.Config()
 	bk, err := buildkit.New(ctx, buildkit.Opt{
 		SessionManager:      sm,
@@ -423,6 +428,7 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon) (_ builderOptions, clos
 			Exported: d.ImageExportedByBuildkit,
 			Named:    d.ImageNamedByBuildkit,
 		},
+		CDISpecDirs: cdiSpecDirs,
 	})
 	if err != nil {
 		return builderOptions{}, closeFn, errors.Wrap(err, "error creating buildkit instance")

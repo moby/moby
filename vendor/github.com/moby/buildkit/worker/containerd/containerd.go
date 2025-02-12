@@ -16,6 +16,7 @@ import (
 	"github.com/moby/buildkit/executor/containerdexecutor"
 	"github.com/moby/buildkit/executor/oci"
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
+	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/network/netproviders"
 	"github.com/moby/buildkit/util/winlayers"
@@ -43,6 +44,7 @@ type WorkerOptions struct {
 	ParallelismSem  *semaphore.Weighted
 	TraceSocket     string
 	Runtime         *RuntimeInfo
+	CDIManager      *cdidevices.Manager
 }
 
 // NewWorkerOpt creates a WorkerOpt.
@@ -162,6 +164,7 @@ func newContainerd(client *ctd.Client, workerOpts WorkerOptions) (base.WorkerOpt
 		TraceSocket:      workerOpts.TraceSocket,
 		Rootless:         workerOpts.Rootless,
 		Runtime:          workerOpts.Runtime,
+		CDIManager:       workerOpts.CDIManager,
 		NetworkProviders: np,
 	}
 
@@ -182,6 +185,7 @@ func newContainerd(client *ctd.Client, workerOpts WorkerOptions) (base.WorkerOpt
 		GarbageCollect:   gc,
 		ParallelismSem:   workerOpts.ParallelismSem,
 		MountPoolRoot:    filepath.Join(root, "cachemounts"),
+		CDIManager:       workerOpts.CDIManager,
 	}
 	return opt, nil
 }

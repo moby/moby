@@ -12,6 +12,7 @@ message WorkerRecord {
 	repeated pb.Platform platforms = 3;
 	repeated GCPolicy GCPolicy = 4;
 	BuildkitVersion BuildkitVersion = 5;
+	repeated CDIDevice CDIDevices = 6;
 }
 
 message GCPolicy {
@@ -29,4 +30,11 @@ message BuildkitVersion {
 	string package = 1;
 	string version = 2;
 	string revision = 3;
+}
+
+message CDIDevice {
+	string Name = 1;
+	bool AutoAllow = 2;
+	map<string, string> Annotations = 3;
+	bool OnDemand = 4;
 }
