@@ -8,7 +8,7 @@ import (
 
 // SanitizeRepoAndTags parses the raw names to a slice of repoAndTag.
 // It removes duplicates and validates each repoName and tag to not contain a digest.
-func SanitizeRepoAndTags(names []string) (repoAndTags []string, err error) {
+func SanitizeRepoAndTags(names []string) (repoAndTags []string, _ error) {
 	uniqNames := map[string]struct{}{}
 	for _, repo := range names {
 		if repo == "" {

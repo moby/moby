@@ -49,15 +49,18 @@ func (ipnet *NetIPNet) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON sets the IPNet from a byte array of JSON
-func (ipnet *NetIPNet) UnmarshalJSON(b []byte) (err error) {
-	var ipnetStr string
-	if err = json.Unmarshal(b, &ipnetStr); err == nil {
-		var cidr *net.IPNet
-		if _, cidr, err = net.ParseCIDR(ipnetStr); err == nil {
-			*ipnet = NetIPNet(*cidr)
-		}
+func (ipnet *NetIPNet) UnmarshalJSON(b []byte) error {
+	var ipNetStr string
+	err := json.Unmarshal(b, &ipNetStr)
+	if err != nil {
+		return err
 	}
-	return
+	_, cidr, err := net.ParseCIDR(ipNetStr)
+	if err != nil {
+		return err
+	}
+	*ipnet = NetIPNet(*cidr)
+	return nil
 }
 
 // IndexInfo contains information about a registry
