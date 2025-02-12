@@ -1260,13 +1260,9 @@ func TestCleanupIptableRules(t *testing.T) {
 	}
 
 	ipVersions := []iptables.IPVersion{iptables.IPv4, iptables.IPv6}
-	configs := map[iptables.IPVersion]configuration{
-		iptables.IPv4: {EnableIPTables: true},
-		iptables.IPv6: {EnableIP6Tables: true},
-	}
 
 	for _, version := range ipVersions {
-		err := setupIPChains(configs[version], version)
+		err := setupIPChains(version, true)
 		assert.NilError(t, err, "version:%s", version)
 
 		iptable := iptables.GetIptable(version)

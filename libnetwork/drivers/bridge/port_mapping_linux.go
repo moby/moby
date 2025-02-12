@@ -792,11 +792,11 @@ func (n *iptablesNetwork) modPorts(ctx context.Context, pbs []types.PortBinding,
 
 func (n *iptablesNetwork) setPerPortIptables(ctx context.Context, b types.PortBinding, enable bool) error {
 	v := iptables.IPv4
-	enabled := n.Enable4
+	enabled := n.fw.IPv4
 	config := n.Config4
 	if b.IP.To4() == nil {
 		v = iptables.IPv6
-		enabled = n.Enable6
+		enabled = n.fw.IPv6
 		config = n.Config6
 	}
 
@@ -851,7 +851,7 @@ func (n *iptablesNetwork) setPerPortNAT(ipv iptables.IPVersion, b types.PortBind
 		"-j", "DNAT",
 		"--to-destination", net.JoinHostPort(b.IP.String(), strconv.Itoa(int(b.Port))),
 	}
-	if !n.Hairpin {
+	if !n.fw.Hairpin {
 		args = append(args, "!", "-i", n.IfName)
 	}
 	if ipv == iptables.IPv6 {
@@ -869,7 +869,7 @@ func (n *iptablesNetwork) setPerPortNAT(ipv iptables.IPVersion, b types.PortBind
 		"--dport", strconv.Itoa(int(b.Port)),
 		"-j", "MASQUERADE",
 	}}
-	if err := appendOrDelChainRule(rule, "MASQUERADE", n.Hairpin && enable); err != nil {
+	if err := appendOrDelChainRule(rule, "MASQUERADE", n.fw.Hairpin && enable); err != nil {
 		return err
 	}
 
