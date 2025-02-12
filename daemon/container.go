@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
@@ -275,6 +276,11 @@ func validateHostConfig(hostConfig *containertypes.HostConfig) (warnings []strin
 	parser := volumemounts.NewParser()
 	for _, c := range hostConfig.Mounts {
 		cfg := c
+
+		if cfg.Type == mount.TypeImage {
+			warnings = append(warnings, "Image mount is an experimental feature")
+		}
+
 		if err := parser.ValidateMountConfig(&cfg); err != nil {
 			return warnings, err
 		}
