@@ -36,6 +36,7 @@ var TypeToRR = map[uint16]func() RR{
 	TypeHIP:        func() RR { return new(HIP) },
 	TypeHTTPS:      func() RR { return new(HTTPS) },
 	TypeIPSECKEY:   func() RR { return new(IPSECKEY) },
+	TypeISDN:       func() RR { return new(ISDN) },
 	TypeKEY:        func() RR { return new(KEY) },
 	TypeKX:         func() RR { return new(KX) },
 	TypeL32:        func() RR { return new(L32) },
@@ -59,6 +60,7 @@ var TypeToRR = map[uint16]func() RR{
 	TypeNSEC3:      func() RR { return new(NSEC3) },
 	TypeNSEC3PARAM: func() RR { return new(NSEC3PARAM) },
 	TypeNULL:       func() RR { return new(NULL) },
+	TypeNXT:        func() RR { return new(NXT) },
 	TypeOPENPGPKEY: func() RR { return new(OPENPGPKEY) },
 	TypeOPT:        func() RR { return new(OPT) },
 	TypePTR:        func() RR { return new(PTR) },
@@ -204,6 +206,7 @@ func (rr *HINFO) Header() *RR_Header      { return &rr.Hdr }
 func (rr *HIP) Header() *RR_Header        { return &rr.Hdr }
 func (rr *HTTPS) Header() *RR_Header      { return &rr.Hdr }
 func (rr *IPSECKEY) Header() *RR_Header   { return &rr.Hdr }
+func (rr *ISDN) Header() *RR_Header       { return &rr.Hdr }
 func (rr *KEY) Header() *RR_Header        { return &rr.Hdr }
 func (rr *KX) Header() *RR_Header         { return &rr.Hdr }
 func (rr *L32) Header() *RR_Header        { return &rr.Hdr }
@@ -227,6 +230,7 @@ func (rr *NSEC) Header() *RR_Header       { return &rr.Hdr }
 func (rr *NSEC3) Header() *RR_Header      { return &rr.Hdr }
 func (rr *NSEC3PARAM) Header() *RR_Header { return &rr.Hdr }
 func (rr *NULL) Header() *RR_Header       { return &rr.Hdr }
+func (rr *NXT) Header() *RR_Header        { return &rr.Hdr }
 func (rr *OPENPGPKEY) Header() *RR_Header { return &rr.Hdr }
 func (rr *OPT) Header() *RR_Header        { return &rr.Hdr }
 func (rr *PTR) Header() *RR_Header        { return &rr.Hdr }
@@ -434,6 +438,13 @@ func (rr *IPSECKEY) len(off int, compression map[string]struct{}) int {
 		l += len(rr.GatewayHost) + 1
 	}
 	l += base64.StdEncoding.DecodedLen(len(rr.PublicKey))
+	return l
+}
+
+func (rr *ISDN) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += len(rr.Address) + 1
+	l += len(rr.SubAddress) + 1
 	return l
 }
 
@@ -966,6 +977,10 @@ func (rr *IPSECKEY) copy() RR {
 	}
 }
 
+func (rr *ISDN) copy() RR {
+	return &ISDN{rr.Hdr, rr.Address, rr.SubAddress}
+}
+
 func (rr *KEY) copy() RR {
 	return &KEY{*rr.DNSKEY.copy().(*DNSKEY)}
 }
@@ -1090,6 +1105,10 @@ func (rr *NSEC3PARAM) copy() RR {
 
 func (rr *NULL) copy() RR {
 	return &NULL{rr.Hdr, rr.Data}
+}
+
+func (rr *NXT) copy() RR {
+	return &NXT{*rr.NSEC.copy().(*NSEC)}
 }
 
 func (rr *OPENPGPKEY) copy() RR {
