@@ -531,19 +531,12 @@ func TestMirroredWSL2LoopbackFiltering(t *testing.T) {
 			restoreWslinfoPath := simulateWSL2MirroredMode(t, tc.loopback0, tc.wslinfoPerm)
 			defer restoreWslinfoPath()
 
-			nw := bridgeNetwork{
-				driver: &driver{
-					config: configuration{EnableIPTables: true},
-				},
-			}
-			err := nw.filterPortMappedOnLoopback(context.TODO(), portBinding{
-				PortBinding: types.PortBinding{
-					Proto:    types.TCP,
-					IP:       net.ParseIP("127.0.0.1"),
-					HostPort: 8000,
-				},
-				childHostIP: net.ParseIP("127.0.0.1"),
-			}, true)
+			hostIP := net.ParseIP("127.0.0.1")
+			err := filterPortMappedOnLoopback(context.TODO(), types.PortBinding{
+				Proto:    types.TCP,
+				IP:       hostIP,
+				HostPort: 8000,
+			}, hostIP, true)
 			assert.NilError(t, err)
 
 			// Checking this after trying to create rules, to make sure the init code in iptables/firewalld.go has run.

@@ -391,21 +391,6 @@ func parseErr(label, value, errString string) error {
 	return types.InvalidParameterErrorf("failed to parse %s value: %v (%s)", label, value, errString)
 }
 
-func (n *bridgeNetwork) iptablesEnabled(version iptables.IPVersion) (bool, error) {
-	n.Lock()
-	defer n.Unlock()
-	if n.driver == nil {
-		return false, types.InvalidParameterErrorf("no driver found")
-	}
-
-	n.driver.Lock()
-	defer n.driver.Unlock()
-	if version == iptables.IPv6 {
-		return n.driver.config.EnableIP6Tables, nil
-	}
-	return n.driver.config.EnableIPTables, nil
-}
-
 func (n *bridgeNetwork) newIptablesNetwork() (*iptablesNetwork, error) {
 	config4, err := makeNetworkConfigFam(n.config.HostIPv4, n.bridge.bridgeIPv4, n.gwMode(iptables.IPv4))
 	if err != nil {
@@ -449,14 +434,6 @@ func makeNetworkConfigFam(hostIP net.IP, bridgePrefix *net.IPNet, gwm gwMode) (n
 		c.Prefix = p.Masked()
 	}
 	return c, nil
-}
-
-func (n *bridgeNetwork) getNetworkBridgeName() string {
-	n.Lock()
-	config := n.config
-	n.Unlock()
-
-	return config.BridgeName
 }
 
 func (n *bridgeNetwork) getNATDisabled() (ipv4, ipv6 bool) {
