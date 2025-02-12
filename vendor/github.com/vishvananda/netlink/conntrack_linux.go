@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/vishvananda/netlink/nl"
@@ -159,13 +159,19 @@ func (h *Handle) ConntrackDeleteFilter(table ConntrackTableType, family InetFami
 // ConntrackDeleteFilters deletes entries on the specified table matching any of the specified filters using the netlink handle passed
 // conntrack -D [table] parameters         Delete conntrack or expectation
 func (h *Handle) ConntrackDeleteFilters(table ConntrackTableType, family InetFamily, filters ...CustomConntrackFilter) (uint, error) {
+	var finalErr error
 	res, err := h.dumpConntrackTable(table, family)
 	if err != nil {
-		return 0, err
+		if !errors.Is(err, ErrDumpInterrupted) {
+			return 0, err
+		}
+		// This allows us to at least do a best effort to try to clean the
+		// entries matching the filter.
+		finalErr = err
 	}
 
+	var totalFilterErrors int
 	var matched uint
-	var errMsgs []string
 	for _, dataRaw := range res {
 		flow := parseRawData(dataRaw)
 		for _, filter := range filters {
@@ -173,19 +179,20 @@ func (h *Handle) ConntrackDeleteFilters(table ConntrackTableType, family InetFam
 				req2 := h.newConntrackRequest(table, family, nl.IPCTNL_MSG_CT_DELETE, unix.NLM_F_ACK)
 				// skip the first 4 byte that are the netfilter header, the newConntrackRequest is adding it already
 				req2.AddRawData(dataRaw[4:])
-				if _, err = req2.Execute(unix.NETLINK_NETFILTER, 0); err == nil {
+				if _, err = req2.Execute(unix.NETLINK_NETFILTER, 0); err == nil || errors.Is(err, fs.ErrNotExist) {
 					matched++
 					// flow is already deleted, no need to match on other filters and continue to the next flow.
 					break
+				} else {
+					totalFilterErrors++
 				}
-				errMsgs = append(errMsgs, fmt.Sprintf("failed to delete conntrack flow '%s': %s", flow.String(), err.Error()))
 			}
 		}
 	}
-	if len(errMsgs) > 0 {
-		return matched, fmt.Errorf(strings.Join(errMsgs, "; "))
+	if totalFilterErrors > 0 {
+		finalErr = errors.Join(finalErr, fmt.Errorf("failed to delete %d conntrack flows with %d filters", totalFilterErrors, len(filters)))
 	}
-	return matched, nil
+	return matched, finalErr
 }
 
 func (h *Handle) newConntrackRequest(table ConntrackTableType, family InetFamily, operation, flags int) *nl.NetlinkRequest {
