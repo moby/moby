@@ -5109,6 +5109,17 @@ definitions:
       ImageID:
         description: "The ID of the image that this container was created from"
         type: "string"
+      ImageManifestDescriptor:
+        $ref: "#/definitions/OCIDescriptor"
+        x-nullable: true
+        description: |
+          OCI descriptor of the platform-specific manifest of the image
+          the container was created from.
+
+          Note: Only available if the daemon provides a multi-platform
+          image store.
+
+          This field is not populated in the `GET /system/df` endpoint.
       Command:
         description: "Command to run when starting the container"
         type: "string"

@@ -121,19 +121,20 @@ type State struct {
 // Summary contains response of Engine API:
 // GET "/containers/json"
 type Summary struct {
-	ID         string `json:"Id"`
-	Names      []string
-	Image      string
-	ImageID    string
-	Command    string
-	Created    int64
-	Ports      []Port
-	SizeRw     int64 `json:",omitempty"`
-	SizeRootFs int64 `json:",omitempty"`
-	Labels     map[string]string
-	State      string
-	Status     string
-	HostConfig struct {
+	ID                      string `json:"Id"`
+	Names                   []string
+	Image                   string
+	ImageID                 string
+	ImageManifestDescriptor *ocispec.Descriptor `json:"ImageManifestDescriptor,omitempty"`
+	Command                 string
+	Created                 int64
+	Ports                   []Port
+	SizeRw                  int64 `json:",omitempty"`
+	SizeRootFs              int64 `json:",omitempty"`
+	Labels                  map[string]string
+	State                   string
+	Status                  string
+	HostConfig              struct {
 		NetworkMode string            `json:",omitempty"`
 		Annotations map[string]string `json:",omitempty"`
 	}
@@ -183,5 +184,5 @@ type InspectResponse struct {
 	Config          *Config
 	NetworkSettings *NetworkSettings
 	// ImageManifestDescriptor is the descriptor of a platform-specific manifest of the image used to create the container.
-	ImageManifestDescriptor *ocispec.Descriptor `json:",omitempty"`
+	ImageManifestDescriptor *ocispec.Descriptor `json:"ImageManifestDescriptor,omitempty"`
 }

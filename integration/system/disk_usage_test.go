@@ -107,6 +107,9 @@ func TestDiskUsage(t *testing.T) {
 				// previously used prev.Images[0].Size, which may differ from content data
 				assert.Check(t, is.Equal(du.Containers[0].SizeRootFs, du.LayersSize))
 
+				// ImageManifestDescriptor should NOT be populated.
+				assert.Check(t, is.Nil(du.Containers[0].ImageManifestDescriptor))
+
 				return du
 			},
 		},
