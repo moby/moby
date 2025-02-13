@@ -23,6 +23,16 @@ type IPAMConfig struct {
 	AuxAddress map[string]string `json:"AuxiliaryAddresses,omitempty"`
 }
 
+// IPAMState represents IPAM state
+type IPAMState struct {
+	Subnet  string `json:",omitempty"`
+	IPRange string `json:",omitempty"`
+	// Counter of allocated IPs in the subnet
+	AllocatedIPsInSubnet uint64 `json:",omitempty"`
+	// Counter of allocated IPs in the allocation pool
+	AllocatedIPsInPool uint64 `json:",omitempty"`
+}
+
 type ipFamily string
 
 const (
