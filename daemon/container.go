@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
@@ -228,15 +229,17 @@ func (daemon *Daemon) verifyContainerSettings(daemonCfg *configStore, hostConfig
 	if err = validateContainerConfig(config); err != nil {
 		return warnings, err
 	}
-	if err := validateHostConfig(hostConfig); err != nil {
+
+	warns, err := validateHostConfig(hostConfig)
+	warnings = append(warnings, warns...)
+	if err != nil {
 		return warnings, err
 	}
 
 	// Now do platform-specific verification
-	warnings, err = verifyPlatformContainerSettings(daemon, daemonCfg, hostConfig, update)
-	for _, w := range warnings {
-		log.G(context.TODO()).Warn(w)
-	}
+	warns, err = verifyPlatformContainerSettings(daemon, daemonCfg, hostConfig, update)
+	warnings = append(warnings, warns...)
+
 	return warnings, err
 }
 
@@ -261,45 +264,50 @@ func validateContainerConfig(config *containertypes.Config) error {
 	return validateHealthCheck(config.Healthcheck)
 }
 
-func validateHostConfig(hostConfig *containertypes.HostConfig) error {
+func validateHostConfig(hostConfig *containertypes.HostConfig) (warnings []string, _ error) {
 	if hostConfig == nil {
-		return nil
+		return nil, nil
 	}
 
 	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
-		return errors.Errorf("can't create 'AutoRemove' container with restart policy")
+		return warnings, errors.Errorf("can't create 'AutoRemove' container with restart policy")
 	}
 	// Validate mounts; check if host directories still exist
 	parser := volumemounts.NewParser()
 	for _, c := range hostConfig.Mounts {
 		cfg := c
+
+		if cfg.Type == mount.TypeImage {
+			warnings = append(warnings, "Image mount is an experimental feature")
+		}
+
 		if err := parser.ValidateMountConfig(&cfg); err != nil {
-			return err
+			return warnings, err
 		}
 	}
 	for _, extraHost := range hostConfig.ExtraHosts {
 		if _, err := opts.ValidateExtraHost(extraHost); err != nil {
-			return err
+			return warnings, err
 		}
 	}
 	if err := validatePortBindings(hostConfig.PortBindings); err != nil {
-		return err
+		return warnings, err
 	}
 	if err := containertypes.ValidateRestartPolicy(hostConfig.RestartPolicy); err != nil {
-		return err
+		return warnings, err
 	}
 	if err := validateCapabilities(hostConfig); err != nil {
-		return err
+		return warnings, err
 	}
 	if !hostConfig.Isolation.IsValid() {
-		return errors.Errorf("invalid isolation '%s' on %s", hostConfig.Isolation, runtime.GOOS)
+		return warnings, errors.Errorf("invalid isolation '%s' on %s", hostConfig.Isolation, runtime.GOOS)
 	}
 	for k := range hostConfig.Annotations {
 		if k == "" {
-			return errors.Errorf("invalid Annotations: the empty string is not permitted as an annotation key")
+			return warnings, errors.Errorf("invalid Annotations: the empty string is not permitted as an annotation key")
 		}
 	}
-	return nil
+	return warnings, nil
 }
 
 func validateCapabilities(hostConfig *containertypes.HostConfig) error {
