@@ -13,15 +13,15 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 )
 
-func (n *Network) AddPorts(ctx context.Context, pbs []types.PortBinding) error {
+func (n *network) AddPorts(ctx context.Context, pbs []types.PortBinding) error {
 	return n.modPorts(ctx, pbs, true)
 }
 
-func (n *Network) DelPorts(ctx context.Context, pbs []types.PortBinding) error {
+func (n *network) DelPorts(ctx context.Context, pbs []types.PortBinding) error {
 	return n.modPorts(ctx, pbs, false)
 }
 
-func (n *Network) modPorts(ctx context.Context, pbs []types.PortBinding, enable bool) error {
+func (n *network) modPorts(ctx context.Context, pbs []types.PortBinding, enable bool) error {
 	for _, pb := range pbs {
 		if err := n.setPerPortIptables(ctx, pb, enable); err != nil {
 			return err
@@ -32,7 +32,7 @@ func (n *Network) modPorts(ctx context.Context, pbs []types.PortBinding, enable 
 
 // setPerPortIptables configures rules required by port binding b. Rules are added if
 // enable is true, else removed.
-func (n *Network) setPerPortIptables(ctx context.Context, b types.PortBinding, enable bool) error {
+func (n *network) setPerPortIptables(ctx context.Context, b types.PortBinding, enable bool) error {
 	v := iptables.IPv4
 	enabled := n.ipt.IPv4
 	config := n.Config4
@@ -76,7 +76,7 @@ func (n *Network) setPerPortIptables(ctx context.Context, b types.PortBinding, e
 
 // setPerPortNAT configures DNAT and MASQUERADE rules for port binding b. Rules are added if
 // enable is true, else removed.
-func (n *Network) setPerPortNAT(ipv iptables.IPVersion, b types.PortBinding, enable bool) error {
+func (n *network) setPerPortNAT(ipv iptables.IPVersion, b types.PortBinding, enable bool) error {
 	if b.HostPort == 0 {
 		// NAT is disabled.
 		return nil
@@ -224,7 +224,7 @@ func filterPortMappedOnLoopback(ctx context.Context, b types.PortBinding, hostIP
 // by an older version of the daemon.
 //
 // TODO(robmry) - remove this once there's no upgrade path from 28.0.x or 28.1.x.
-func (n *Network) dropLegacyFilterDirectAccess(ctx context.Context, b types.PortBinding) error {
+func (n *network) dropLegacyFilterDirectAccess(ctx context.Context, b types.PortBinding) error {
 	if rawRulesDisabled(ctx) {
 		return nil
 	}
