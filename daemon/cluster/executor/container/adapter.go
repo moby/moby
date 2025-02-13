@@ -353,6 +353,8 @@ func (c *containerAdapter) checkMounts() error {
 			if _, err := os.Stat(mount.Source); os.IsNotExist(err) {
 				return fmt.Errorf("invalid bind mount source, source path not found: %s", mount.Source)
 			}
+		default:
+			// TODO(thaJeztah): make switch exhaustive; add api.MountTypeVolume, api.MountTypeTmpfs, api.MountTypeNamedPipe, api.MountTypeCluster
 		}
 	}
 
@@ -542,6 +544,8 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 				apiOptions.ShowStdout = true
 			case api.LogStreamStderr:
 				apiOptions.ShowStderr = true
+			default:
+				// TODO(thaJeztah): make switch exhaustive; add api.LogStreamUnknown
 			}
 		}
 	}

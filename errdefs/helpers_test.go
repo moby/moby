@@ -8,10 +8,6 @@ import (
 
 var errTest = errors.New("this is a test")
 
-type causal interface {
-	Cause() error
-}
-
 func TestNotFound(t *testing.T) {
 	if IsNotFound(errTest) {
 		t.Fatalf("did not expect not found error, got %T", errTest)
@@ -20,7 +16,7 @@ func TestNotFound(t *testing.T) {
 	if !IsNotFound(e) {
 		t.Fatalf("expected not found error, got: %T", e)
 	}
-	if cause := e.(causal).Cause(); cause != errTest {
+	if cause := e.(causer).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
 	if !errors.Is(e, errTest) {
@@ -41,7 +37,7 @@ func TestConflict(t *testing.T) {
 	if !IsConflict(e) {
 		t.Fatalf("expected conflict error, got: %T", e)
 	}
-	if cause := e.(causal).Cause(); cause != errTest {
+	if cause := e.(causer).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
 	if !errors.Is(e, errTest) {
@@ -62,7 +58,7 @@ func TestForbidden(t *testing.T) {
 	if !IsForbidden(e) {
 		t.Fatalf("expected forbidden error, got: %T", e)
 	}
-	if cause := e.(causal).Cause(); cause != errTest {
+	if cause := e.(causer).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
 	if !errors.Is(e, errTest) {
@@ -83,7 +79,7 @@ func TestInvalidParameter(t *testing.T) {
 	if !IsInvalidParameter(e) {
 		t.Fatalf("expected invalid argument error, got %T", e)
 	}
-	if cause := e.(causal).Cause(); cause != errTest {
+	if cause := e.(causer).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
 	if !errors.Is(e, errTest) {
@@ -104,7 +100,7 @@ func TestNotImplemented(t *testing.T) {
 	if !IsNotImplemented(e) {
 		t.Fatalf("expected not implemented error, got %T", e)
 	}
-	if cause := e.(causal).Cause(); cause != errTest {
+	if cause := e.(causer).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
 	if !errors.Is(e, errTest) {
@@ -125,7 +121,7 @@ func TestNotModified(t *testing.T) {
 	if !IsNotModified(e) {
 		t.Fatalf("expected not modified error, got %T", e)
 	}
-	if cause := e.(causal).Cause(); cause != errTest {
+	if cause := e.(causer).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
 	if !errors.Is(e, errTest) {
@@ -146,7 +142,7 @@ func TestUnauthorized(t *testing.T) {
 	if !IsUnauthorized(e) {
 		t.Fatalf("expected unauthorized error, got %T", e)
 	}
-	if cause := e.(causal).Cause(); cause != errTest {
+	if cause := e.(causer).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
 	if !errors.Is(e, errTest) {
@@ -167,7 +163,7 @@ func TestUnknown(t *testing.T) {
 	if !IsUnknown(e) {
 		t.Fatalf("expected unknown error, got %T", e)
 	}
-	if cause := e.(causal).Cause(); cause != errTest {
+	if cause := e.(causer).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
 	if !errors.Is(e, errTest) {
@@ -188,7 +184,7 @@ func TestCancelled(t *testing.T) {
 	if !IsCancelled(e) {
 		t.Fatalf("expected cancelled error, got %T", e)
 	}
-	if cause := e.(causal).Cause(); cause != errTest {
+	if cause := e.(causer).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
 	if !errors.Is(e, errTest) {
@@ -209,7 +205,7 @@ func TestDeadline(t *testing.T) {
 	if !IsDeadline(e) {
 		t.Fatalf("expected deadline error, got %T", e)
 	}
-	if cause := e.(causal).Cause(); cause != errTest {
+	if cause := e.(causer).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
 	if !errors.Is(e, errTest) {
@@ -230,7 +226,7 @@ func TestDataLoss(t *testing.T) {
 	if !IsDataLoss(e) {
 		t.Fatalf("expected data loss error, got %T", e)
 	}
-	if cause := e.(causal).Cause(); cause != errTest {
+	if cause := e.(causer).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
 	if !errors.Is(e, errTest) {
@@ -251,7 +247,7 @@ func TestUnavailable(t *testing.T) {
 	if !IsUnavailable(e) {
 		t.Fatalf("expected unavaillable error, got %T", e)
 	}
-	if cause := e.(causal).Cause(); cause != errTest {
+	if cause := e.(causer).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
 	if !errors.Is(e, errTest) {
@@ -272,7 +268,7 @@ func TestSystem(t *testing.T) {
 	if !IsSystem(e) {
 		t.Fatalf("expected system error, got %T", e)
 	}
-	if cause := e.(causal).Cause(); cause != errTest {
+	if cause := e.(causer).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
 	if !errors.Is(e, errTest) {

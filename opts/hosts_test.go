@@ -107,7 +107,7 @@ func TestParseDockerDaemonHost(t *testing.T) {
 		"npipe://":                "npipe://" + DefaultNamedPipe,
 		"npipe:////./pipe/foo":    "npipe:////./pipe/foo",
 		"tcp://":                  DefaultTCPHost,
-		"tcp://:5555":             fmt.Sprintf("tcp://%s:5555", DefaultHTTPHost),
+		"tcp://:5555":             fmt.Sprintf("tcp://%s:5555", DefaultHTTPHost), //nolint:nosprintfhostport // sprintf is more readable for this case.
 		"tcp://[::1]":             fmt.Sprintf("tcp://[::1]:%d", DefaultHTTPPort),
 		"tcp://[::1]:":            fmt.Sprintf("tcp://[::1]:%d", DefaultHTTPPort),
 		"tcp://[::1]:5555":        "tcp://[::1]:5555",

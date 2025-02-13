@@ -128,26 +128,26 @@ func (daemon *Daemon) Containers(ctx context.Context, config *containertypes.Lis
 			continue
 		case stopIteration:
 			return containers, nil
-		}
-
-		// transform internal container struct into api structs
-		newC, err := daemon.refreshImage(ctx, currentContainer)
-		if err != nil {
-			return nil, err
-		}
-
-		// release lock because size calculation is slow
-		if filter.Size {
-			sizeRw, sizeRootFs, err := daemon.imageService.GetContainerLayerSize(ctx, newC.ID)
+		case includeContainer:
+			// transform internal container struct into api structs
+			newC, err := daemon.refreshImage(ctx, currentContainer)
 			if err != nil {
 				return nil, err
 			}
-			newC.SizeRw = sizeRw
-			newC.SizeRootFs = sizeRootFs
-		}
-		if newC != nil {
-			containers = append(containers, newC)
-			filter.idx++
+
+			// release lock because size calculation is slow
+			if filter.Size {
+				sizeRw, sizeRootFs, err := daemon.imageService.GetContainerLayerSize(ctx, newC.ID)
+				if err != nil {
+					return nil, err
+				}
+				newC.SizeRw = sizeRw
+				newC.SizeRootFs = sizeRootFs
+			}
+			if newC != nil {
+				containers = append(containers, newC)
+				filter.idx++
+			}
 		}
 	}
 

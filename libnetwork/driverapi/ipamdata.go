@@ -49,7 +49,7 @@ func (i *IPAMData) UnmarshalJSON(data []byte) error {
 		}
 	}
 	if v, ok := m["AuxAddresses"]; ok {
-		b, _ := json.Marshal(v)
+		b, _ := json.Marshal(v) //nolint:errchkjson // FIXME: Error return value of unsafe type `interface{}` is unchecked (errchkjson)
 		var am map[string]string
 		if err = json.Unmarshal(b, &am); err != nil {
 			return err

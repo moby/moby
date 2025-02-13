@@ -81,5 +81,7 @@ func respond(err error, w io.Writer) {
 	if err != nil {
 		res.Err = err.Error()
 	}
-	json.NewEncoder(w).Encode(&res)
+	if err := json.NewEncoder(w).Encode(&res); err != nil {
+		panic("failed to encode response: " + err.Error())
+	}
 }

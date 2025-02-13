@@ -232,7 +232,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateNotAffectMonitorRestartPolicy(c *testin
 	assert.NilError(c, cmd.Start())
 	defer cmd.Process.Kill()
 
-	_, err = cpty.Write([]byte("exit\n"))
+	_, err = cpty.WriteString("exit\n")
 	assert.NilError(c, err)
 
 	assert.NilError(c, cmd.Wait())

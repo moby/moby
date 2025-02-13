@@ -60,7 +60,7 @@ func TestRCOption(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			rc, err := Parse(bytes.NewBuffer([]byte("options "+tc.options)), "")
+			rc, err := Parse(bytes.NewBufferString("options "+tc.options), "")
 			assert.NilError(t, err)
 			value, found := rc.Option(tc.search)
 			assert.Check(t, is.Equal(found, tc.expFound))
@@ -103,7 +103,7 @@ func TestRCWrite(t *testing.T) {
 		},
 	}
 
-	rc, err := Parse(bytes.NewBuffer([]byte("nameserver 1.2.3.4")), "")
+	rc, err := Parse(bytes.NewBufferString("nameserver 1.2.3.4"), "")
 	assert.NilError(t, err)
 
 	for _, tc := range testcases {
@@ -211,7 +211,7 @@ func TestRCModify(t *testing.T) {
 			if len(tc.inputOptions) != 0 {
 				input += "options " + strings.Join(tc.inputOptions, " ") + "\n"
 			}
-			rc, err := Parse(bytes.NewBuffer([]byte(input)), "")
+			rc, err := Parse(bytes.NewBufferString(input), "")
 			assert.NilError(t, err)
 			assert.Check(t, is.DeepEqual(a2s(rc.NameServers()), tc.inputNS))
 			assert.Check(t, is.DeepEqual(rc.Search(), tc.inputSearch))
@@ -308,7 +308,7 @@ func TestRCTransformForLegacyNw(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			tc := tc
-			rc, err := Parse(bytes.NewBuffer([]byte(tc.input)), "/etc/resolv.conf")
+			rc, err := Parse(bytes.NewBufferString(tc.input), "/etc/resolv.conf")
 			assert.NilError(t, err)
 			if tc.overrideNS != nil {
 				rc.OverrideNameServers(s2a(tc.overrideNS))
@@ -415,7 +415,7 @@ func TestRCTransformForIntNS(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			tc := tc
-			rc, err := Parse(bytes.NewBuffer([]byte(tc.input)), "/etc/resolv.conf")
+			rc, err := Parse(bytes.NewBufferString(tc.input), "/etc/resolv.conf")
 			assert.NilError(t, err)
 
 			if tc.intNameServer == "" {
@@ -489,7 +489,7 @@ func TestRCTransformForIntNSInvalidNdots(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			content := "nameserver 8.8.8.8\n" + tc.options
-			rc, err := Parse(bytes.NewBuffer([]byte(content)), "/etc/resolv.conf")
+			rc, err := Parse(bytes.NewBufferString(content), "/etc/resolv.conf")
 			assert.NilError(t, err)
 			_, err = rc.TransformForIntNS(netip.MustParseAddr("127.0.0.11"), tc.reqdOptions)
 			assert.NilError(t, err)
@@ -532,7 +532,7 @@ func TestRCInvalidNS(t *testing.T) {
 	d := t.TempDir()
 
 	// A resolv.conf with an invalid nameserver address.
-	rc, err := Parse(bytes.NewBuffer([]byte("nameserver 1.2.3.4.5")), "")
+	rc, err := Parse(bytes.NewBufferString("nameserver 1.2.3.4.5"), "")
 	assert.NilError(t, err)
 
 	path := filepath.Join(d, "resolv.conf")
@@ -545,7 +545,7 @@ func TestRCInvalidNS(t *testing.T) {
 }
 
 func TestRCSetHeader(t *testing.T) {
-	rc, err := Parse(bytes.NewBuffer([]byte("nameserver 127.0.0.53")), "/etc/resolv.conf")
+	rc, err := Parse(bytes.NewBufferString("nameserver 127.0.0.53"), "/etc/resolv.conf")
 	assert.NilError(t, err)
 
 	rc.SetHeader("# This is a comment.")
@@ -566,7 +566,7 @@ nameserver 127.0.0.53
 options ndots:1
 unrecognised thing
 `
-	rc, err := Parse(bytes.NewBuffer([]byte(input)), "/etc/resolv.conf")
+	rc, err := Parse(bytes.NewBufferString(input), "/etc/resolv.conf")
 	assert.NilError(t, err)
 
 	d := t.TempDir()

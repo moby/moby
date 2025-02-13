@@ -115,7 +115,7 @@ func (daemon *Daemon) Reload(conf *config.Config) error {
 		}
 	}
 
-	jsonString, _ := json.Marshal(&struct {
+	redactedConfig := struct {
 		*config.Config
 		config.Proxies `json:"proxies"`
 	}{
@@ -125,8 +125,14 @@ func (daemon *Daemon) Reload(conf *config.Config) error {
 			HTTPSProxy: config.MaskCredentials(newCfg.HTTPSProxy),
 			NoProxy:    config.MaskCredentials(newCfg.NoProxy),
 		},
-	})
-	log.G(context.TODO()).Infof("Reloaded configuration: %s", jsonString)
+	}
+	jsonData, err := json.Marshal(&redactedConfig)
+	if err != nil {
+		log.G(context.TODO()).WithError(err).Warn("Error when marshaling configuration for printing")
+		log.G(context.TODO()).Info("Reloaded configuration")
+	} else {
+		log.G(context.TODO()).Infof("Reloaded configuration: %s", jsonData)
+	}
 	daemon.configStore.Store(newCfg)
 	daemon.LogDaemonEventWithAttributes(events.ActionReload, attributes)
 	return txn.Commit()

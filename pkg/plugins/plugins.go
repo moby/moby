@@ -204,10 +204,10 @@ func (p *Plugin) implements(kind string) bool {
 func loadWithRetry(name string, retry bool) (*Plugin, error) {
 	registry := NewLocalRegistry()
 	start := time.Now()
-	var testTimeOut int
+	var testTimeOut time.Duration
 	if name == testNonExistingPlugin {
 		// override the timeout in tests
-		testTimeOut = 2
+		testTimeOut = 2 * time.Second
 	}
 	var retries int
 	for {
