@@ -2,6 +2,7 @@ package cnmallocator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
@@ -16,6 +17,8 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/pkg/plugingetter"
+	gogotypes "github.com/gogo/protobuf/types"
+	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	"github.com/pkg/errors"
@@ -111,7 +114,8 @@ func (p *Provider) NewAllocator(netConfig *networkallocator.Config) (networkallo
 		return nil, fmt.Errorf("failed to initialize IPAM driver plugins: %w", err)
 	}
 
-	return na, nil
+	p.na = na
+	return p.na, nil
 }
 
 // Allocate allocates all the necessary resources both general
@@ -979,4 +983,42 @@ func setIPAMSerialAlloc(opts map[string]string) map[string]string {
 		opts[ipamapi.AllocSerialPrefix] = "true"
 	}
 	return opts
+}
+
+func (na *cnmNetworkAllocator) UpdateNetworkState(net *api.Network) error {
+	n := na.getNetwork(net.ID)
+	if n == nil {
+		return fmt.Errorf("network state not found for network %s", net.ID)
+	}
+
+	ipam, _, _, err := na.resolveIPAM(n.nw)
+	if err != nil {
+		return errors.Wrap(err, "failed to resolve IPAM for updating network state")
+	}
+
+	state := networktypes.NetworkState{
+		IPAM: make(map[string]networktypes.IPAMState),
+	}
+	for _, p := range n.pools {
+		pi, err := defaultipam.PoolIDFromString(p)
+		if err != nil {
+			return fmt.Errorf("failed to parse pool ID %s: %v", p, err)
+		}
+		ipamSt := networktypes.IPAMState{}
+		ipamSt.AllocatedIPsInSubnet, ipamSt.AvailableIPsInIPRangePool, err = ipam.GetAllocatedIPs(p)
+		if err != nil {
+			return fmt.Errorf("failed to get available IPs for pool %s: %v", p, err)
+		}
+		state.IPAM[pi.Subnet.String()] = ipamSt
+	}
+
+	stringifyState, err := json.Marshal(&state)
+	if err != nil {
+		return errors.Wrapf(err, "failed to marshal network state for network %s", net.ID)
+	}
+	net.State = &gogotypes.Any{
+		TypeUrl: "types.docker.com/NetworkState",
+		Value:   stringifyState,
+	}
+	return nil
 }

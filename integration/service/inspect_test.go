@@ -42,7 +42,7 @@ func TestInspect(t *testing.T) {
 		ID:   id,
 		Spec: serviceSpec,
 		Meta: swarmtypes.Meta{
-			Version:   swarmtypes.Version{Index: uint64(11)},
+			Version:   swarmtypes.Version{Index: uint64(12)},
 			CreatedAt: now,
 			UpdatedAt: now,
 		},

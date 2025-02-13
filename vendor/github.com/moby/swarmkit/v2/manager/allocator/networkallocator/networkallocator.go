@@ -85,6 +85,9 @@ type NetworkAllocator interface {
 
 	// IsAttachmentAllocated If lb endpoint is allocated on the node
 	IsAttachmentAllocated(node *api.Node, networkAttachment *api.NetworkAttachment) bool
+
+	// UpdateNetworkState updates the network state
+	UpdateNetworkState(network *api.Network) error
 }
 
 // Config is used to store network related cluster config in the Manager.
@@ -108,12 +111,18 @@ type DriverValidator interface {
 	ValidateIPAMDriver(*api.Driver) error
 }
 
+// NetworkStateUpdater is an interface for updating the network state in the store.
+type NetworkStateUpdater interface {
+	UpdateNetworkState(*api.Network) error
+}
+
 // Provider provides network allocation functionality.
 type Provider interface {
 	DriverValidator
 	PredefinedNetworks() []PredefinedNetworkData
 	SetDefaultVXLANUDPPort(uint32) error
 	NewAllocator(*Config) (NetworkAllocator, error)
+	UpdateNetworkState(*api.Network) error
 }
 
 // IsIngressNetwork check if the network is an ingress network
