@@ -7215,6 +7215,14 @@ file {
       type: TYPE_BOOL
       json_name: "pendingDelete"
     }
+    field {
+      name: "state"
+      number: 7
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".google.protobuf.Any"
+      json_name: "state"
+    }
     options {
       70001 {
         1 {

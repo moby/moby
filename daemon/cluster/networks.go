@@ -78,27 +78,28 @@ func (c *Cluster) getNetworks(filters *swarmapi.ListNetworksRequest_Filters) ([]
 	networks := make([]network.Inspect, 0, len(r.Networks))
 
 	for _, nw := range r.Networks {
-		networks = append(networks, convert.BasicNetworkFromGRPC(*nw))
+		networks = append(networks, convert.BasicNetworkFromGRPC(ctx, *nw))
 	}
 
 	return networks, nil
 }
 
 // GetNetwork returns a cluster network by an ID.
-func (c *Cluster) GetNetwork(input string) (network.Inspect, error) {
+func (c *Cluster) GetNetwork(input string) (ni network.Inspect, err error) {
 	var nw *swarmapi.Network
 
-	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	if err = c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		n, err := getNetwork(ctx, state.controlClient, input)
 		if err != nil {
 			return err
 		}
 		nw = n
+		ni = convert.BasicNetworkFromGRPC(ctx, *nw)
 		return nil
 	}); err != nil {
 		return network.Inspect{}, err
 	}
-	return convert.BasicNetworkFromGRPC(*nw), nil
+	return ni, nil
 }
 
 // GetNetworksByName returns cluster managed networks by name.

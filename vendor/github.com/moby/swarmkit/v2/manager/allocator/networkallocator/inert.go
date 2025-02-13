@@ -1,6 +1,7 @@
 package networkallocator
 
 import (
+	"context"
 	"errors"
 
 	"github.com/moby/swarmkit/v2/api"
@@ -126,4 +127,8 @@ func (Inert) IsServiceAllocated(s *api.Service, flags ...func(*ServiceAllocation
 // IsTaskAllocated returns true iff [Inert.AllocateTask] would return nil.
 func (Inert) IsTaskAllocated(t *api.Task) bool {
 	return (Inert{}).AllocateTask(t) == nil
+}
+
+func (Inert) UpdateNetworkState(context.Context, *api.Network) error {
+	return nil
 }

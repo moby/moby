@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	networktypes "github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/v2/daemon/cluster/convert"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/remote"
 	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
@@ -15,6 +17,7 @@ import (
 	remoteipam "github.com/moby/moby/v2/daemon/libnetwork/ipams/remote"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
@@ -979,4 +982,37 @@ func setIPAMSerialAlloc(opts map[string]string) map[string]string {
 		opts[ipamapi.AllocSerialPrefix] = "true"
 	}
 	return opts
+}
+
+// UpdateNetworkState updates the network state with the current IPAM state for the given network.
+func (na *cnmNetworkAllocator) UpdateNetworkState(ctx context.Context, net *api.Network) error {
+	n := na.getNetwork(net.ID)
+	if n == nil {
+		return types.NotFoundErrorf("network with %s is not found.", net.ID)
+	}
+
+	ipam, _, _, err := na.resolveIPAM(n.nw)
+	if err != nil {
+		return errors.Wrapf(err, "failed to resolve IPAM for updating network state for network %s", net.ID)
+	}
+
+	state := networktypes.NetworkState{
+		IPAM: make(map[string]networktypes.IPAMState),
+	}
+	for _, poolID := range n.pools {
+		cidr, is, err := ipam.GetIPAMState(poolID)
+		if err != nil {
+			log.G(ctx).WithError(err).Warnf("failed to get IPAM state for pool %s", poolID)
+			continue
+		}
+		state.IPAM[cidr] = is
+	}
+
+	ns, err := convert.NetworkStateToGRPC(ctx, &state)
+	if err != nil {
+		return errors.Wrapf(err, "failed to convert network state for network %s", net.ID)
+	}
+	net.State = ns
+
+	return nil
 }

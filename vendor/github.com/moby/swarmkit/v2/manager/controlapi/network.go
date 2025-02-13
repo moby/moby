@@ -6,6 +6,7 @@ import (
 
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/identity"
+	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/allocator"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	"github.com/moby/swarmkit/v2/manager/state/store"
@@ -148,6 +149,11 @@ func (s *Server) GetNetwork(ctx context.Context, request *api.GetNetworkRequest)
 	if n == nil {
 		return nil, status.Errorf(codes.NotFound, "network %s not found", request.NetworkID)
 	}
+
+	if err := s.netStateUpdater.UpdateNetworkState(ctx, n); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get IPAM data for network %s: %v", request.NetworkID, err)
+	}
+
 	return &api.GetNetworkResponse{
 		Network: n,
 	}, nil
@@ -290,6 +296,13 @@ func (s *Server) ListNetworks(ctx context.Context, request *api.ListNetworksRequ
 				return filterMatchLabels(e.Spec.Annotations.Labels, request.Filters.Labels)
 			},
 		)
+	}
+
+	for _, n := range networks {
+		if err := s.netStateUpdater.UpdateNetworkState(ctx, n); err != nil {
+			log.G(ctx).WithError(err).Errorf("failed to get IPAM data for network %s", n.ID)
+			continue // If we cannot get the IPAM data for a network, we skip it.
+		}
 	}
 
 	return &api.ListNetworksResponse{

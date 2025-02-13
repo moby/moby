@@ -1,8 +1,11 @@
 package convert
 
 import (
+	"context"
+	"encoding/json"
 	"strings"
 
+	"github.com/containerd/log"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
@@ -136,8 +139,51 @@ func swarmPortConfigToAPIPortConfig(portConfig *swarmapi.PortConfig) types.PortC
 	}
 }
 
+const (
+	// jsonNetworkStateTypeURL is the type URL for the NetworkState.
+	jsonNetworkStateTypeURL = "types.docker.com/json/NetworkState"
+)
+
+func NetworkStateToGRPC(ctx context.Context, ns *network.NetworkState) (*gogotypes.Any, error) {
+	if len(ns.IPAM) == 0 {
+		return nil, nil
+	}
+
+	stringifyState, err := json.Marshal(ns)
+	if err != nil {
+		log.G(ctx).WithError(err).Warnf("Failed to marshal network state %v", ns)
+		return nil, err
+	}
+	return &gogotypes.Any{
+		TypeUrl: jsonNetworkStateTypeURL,
+		Value:   stringifyState,
+	}, nil
+}
+
+func NetworkStateFromGRPC(ctx context.Context, n *swarmapi.Network) (ns *network.NetworkState) {
+	ns = &network.NetworkState{}
+
+	if n.State != nil {
+		switch n.State.TypeUrl {
+		case jsonNetworkStateTypeURL:
+			if err := json.Unmarshal(n.State.Value, ns); err != nil {
+				log.G(ctx).WithError(err).Warnf("Failed to unmarshal network state for network %s", n.ID)
+			}
+		default:
+			log.G(ctx).Warnf("Unknown network state type %s for network %s", n.State.TypeUrl, n.ID)
+		}
+	}
+
+	// If the network state is not set, we return nil.
+	if ns.IPAM == nil {
+		return nil
+	}
+
+	return ns
+}
+
 // BasicNetworkFromGRPC converts a grpc Network to a NetworkResource.
-func BasicNetworkFromGRPC(n swarmapi.Network) network.Inspect {
+func BasicNetworkFromGRPC(ctx context.Context, n swarmapi.Network) network.Inspect {
 	spec := n.Spec
 	var ipam network.IPAM
 	if n.IPAM != nil {
@@ -163,6 +209,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) network.Inspect {
 		EnableIPv4: true,
 		EnableIPv6: spec.Ipv6Enabled,
 		IPAM:       ipam,
+		State:      NetworkStateFromGRPC(ctx, &n),
 		Internal:   spec.Internal,
 		Attachable: spec.Attachable,
 		Ingress:    IsIngressNetwork(&n),

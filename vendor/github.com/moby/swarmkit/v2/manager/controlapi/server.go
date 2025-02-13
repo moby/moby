@@ -16,23 +16,28 @@ var (
 
 // Server is the Cluster API gRPC server.
 type Server struct {
-	store          *store.MemoryStore
-	raft           *raft.Node
-	securityConfig *ca.SecurityConfig
-	netvalidator   networkallocator.DriverValidator
-	dr             *drivers.DriverProvider
+	store           *store.MemoryStore
+	raft            *raft.Node
+	securityConfig  *ca.SecurityConfig
+	netvalidator    networkallocator.DriverValidator
+	dr              *drivers.DriverProvider
+	netStateUpdater networkallocator.NetworkStateUpdater
 }
 
 // NewServer creates a Cluster API server.
-func NewServer(store *store.MemoryStore, raft *raft.Node, securityConfig *ca.SecurityConfig, nv networkallocator.DriverValidator, dr *drivers.DriverProvider) *Server {
+func NewServer(store *store.MemoryStore, raft *raft.Node, securityConfig *ca.SecurityConfig, nv networkallocator.DriverValidator, dr *drivers.DriverProvider, nsu networkallocator.NetworkStateUpdater) *Server {
 	if nv == nil {
 		nv = networkallocator.InertProvider{}
 	}
+	if nsu == nil {
+		nsu = networkallocator.Inert{}
+	}
 	return &Server{
-		store:          store,
-		dr:             dr,
-		raft:           raft,
-		securityConfig: securityConfig,
-		netvalidator:   nv,
+		store:           store,
+		dr:              dr,
+		raft:            raft,
+		securityConfig:  securityConfig,
+		netvalidator:    nv,
+		netStateUpdater: nsu,
 	}
 }
