@@ -39,7 +39,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 
 	// Combine the network list returned by Docker daemon if it is not already
 	// returned by the cluster manager
-	localNetworks, err := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: versions.LessThan(httputils.VersionFromContext(ctx), "1.28")})
+	localNetworks, err := n.backend.GetNetworks(ctx, filter, backend.NetworkListConfig{Detailed: versions.LessThan(httputils.VersionFromContext(ctx), "1.28")})
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 	if networkScope != "" {
 		filter.Add("scope", networkScope)
 	}
-	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: true, Verbose: verbose})
+	networks, _ := n.backend.GetNetworks(ctx, filter, backend.NetworkListConfig{Detailed: true, Verbose: verbose})
 	for _, nw := range networks {
 		if nw.ID == term {
 			return httputils.WriteJSON(w, http.StatusOK, nw)
@@ -275,7 +275,7 @@ func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	nw, err := n.findUniqueNetwork(vars["id"])
+	nw, err := n.findUniqueNetwork(ctx, vars["id"])
 	if err != nil {
 		return err
 	}
@@ -317,12 +317,12 @@ func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWr
 // For full name and partial ID, save the result first, and process later
 // in case multiple records was found based on the same term
 // TODO (yongtang): should we wrap with version here for backward compatibility?
-func (n *networkRouter) findUniqueNetwork(term string) (network.Inspect, error) {
+func (n *networkRouter) findUniqueNetwork(ctx context.Context, term string) (network.Inspect, error) {
 	listByFullName := map[string]network.Inspect{}
 	listByPartialID := map[string]network.Inspect{}
 
 	filter := filters.NewArgs(filters.Arg("idOrName", term))
-	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: true})
+	networks, _ := n.backend.GetNetworks(ctx, filter, backend.NetworkListConfig{Detailed: true})
 	for _, nw := range networks {
 		if nw.ID == term {
 			return nw, nil
