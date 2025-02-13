@@ -11,6 +11,13 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 )
 
+type IPVersion uint8
+
+const (
+	IPv4 IPVersion = 4
+	IPv6 IPVersion = 6
+)
+
 // Config contains top-level settings for the firewaller.
 type Config struct {
 	// IPv4 true means IPv4 firewalling is required.
@@ -63,6 +70,9 @@ type Firewaller interface {
 	// NewNetwork returns an object that can be used to add published ports and legacy
 	// links for a bridge network.
 	NewNetwork(ctx context.Context, nc NetworkConfig) (Network, error)
+	// FilterForwardDrop sets the default policy of the FORWARD chain in the filter
+	// table to DROP.
+	FilterForwardDrop(ctx context.Context, ipv IPVersion) error
 }
 
 // Network can be used to manipulate firewall rules for a bridge network.
