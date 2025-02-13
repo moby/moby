@@ -77,6 +77,13 @@ func WithBinaryFiles(files map[string]*bytes.Buffer) func(*Fake) error {
 	}
 }
 
+// WithDir adds an empty directory in the build context
+func WithDir(dir string) func(*Fake) error {
+	return func(ctx *Fake) error {
+		return ctx.addDir(dir)
+	}
+}
+
 // Fake creates directories that can be used as a build context
 type Fake struct {
 	Dir string
@@ -96,6 +103,11 @@ func (f *Fake) addFile(file string, content []byte) error {
 		}
 	}
 	return os.WriteFile(fp, content, 0o644)
+}
+
+func (f *Fake) addDir(dir string) error {
+	fp := filepath.Join(f.Dir, filepath.FromSlash(dir))
+	return os.Mkdir(fp, 0755)
 }
 
 // Delete a file at a path
