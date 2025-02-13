@@ -198,10 +198,12 @@ func IsDomainName(s string) (labels int, ok bool) {
 		off    int
 		begin  int
 		wasDot bool
+		escape bool
 	)
 	for i := 0; i < len(s); i++ {
 		switch s[i] {
 		case '\\':
+			escape = !escape
 			if off+1 > lenmsg {
 				return labels, false
 			}
@@ -217,6 +219,7 @@ func IsDomainName(s string) (labels int, ok bool) {
 
 			wasDot = false
 		case '.':
+			escape = false
 			if i == 0 && len(s) > 1 {
 				// leading dots are not legal except for the root zone
 				return labels, false
@@ -243,10 +246,13 @@ func IsDomainName(s string) (labels int, ok bool) {
 			labels++
 			begin = i + 1
 		default:
+			escape = false
 			wasDot = false
 		}
 	}
-
+	if escape {
+		return labels, false
+	}
 	return labels, true
 }
 

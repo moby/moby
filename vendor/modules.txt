@@ -740,7 +740,7 @@ github.com/klauspost/compress/internal/cpuinfo
 github.com/klauspost/compress/internal/snapref
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
-# github.com/miekg/dns v1.1.57
+# github.com/miekg/dns v1.1.61
 ## explicit; go 1.19
 github.com/miekg/dns
 # github.com/mistifyio/go-zfs/v3 v3.0.1
