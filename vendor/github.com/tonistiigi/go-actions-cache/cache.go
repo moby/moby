@@ -56,27 +56,54 @@ func NewBlob(dt []byte) Blob {
 }
 
 func TryEnv(opt Opt) (*Cache, error) {
+	var v2 bool
+	if v, ok := os.LookupEnv("ACTIONS_CACHE_SERVICE_V2"); ok {
+		if b, err := strconv.ParseBool(v); err == nil {
+			v2 = b
+		}
+	}
+
+	if v, ok := os.LookupEnv("ACTIONS_CACHE_API_FORCE_VERSION"); ok && v != "" {
+		switch v {
+		case "v1":
+			v2 = false
+		case "v2":
+			v2 = true
+		default:
+			return nil, errors.Errorf("invalid ACTIONS_CACHE_API_FORCE_VERSION %q", v)
+		}
+	}
+
+	var token string
+	var cacheURL string
+	if v2 {
+		cacheURL, _ = os.LookupEnv("ACTIONS_RESULTS_URL")
+	} else {
+		// ACTIONS_CACHE_URL=https://artifactcache.actions.githubusercontent.com/xxx/
+		cacheURL, _ = os.LookupEnv("ACTIONS_CACHE_URL")
+	}
+
 	tokenEnc, ok := os.LookupEnv("GHCACHE_TOKEN_ENC")
 	if ok {
-		url, token, err := decryptToken(tokenEnc, os.Getenv("GHCACHE_TOKEN_PW"))
+		url, tkn, err := decryptToken(tokenEnc, os.Getenv("GHCACHE_TOKEN_PW"))
 		if err != nil {
 			return nil, err
 		}
-		return New(token, url, opt)
+		if cacheURL == "" {
+			cacheURL = url
+		}
+		token = tkn
 	}
 
-	token, ok := os.LookupEnv("ACTIONS_RUNTIME_TOKEN")
-	if !ok {
+	if token == "" {
+		token, _ = os.LookupEnv("ACTIONS_RUNTIME_TOKEN")
+	}
+
+	if token == "" {
 		return nil, nil
 	}
 
-	// ACTIONS_CACHE_URL=https://artifactcache.actions.githubusercontent.com/xxx/
-	cacheURL, ok := os.LookupEnv("ACTIONS_CACHE_URL")
-	if !ok {
-		return nil, nil
-	}
-
-	return New(token, cacheURL, opt)
+	return New(token, cacheURL, v2, opt)
 }
 
 type Opt struct {
@@ -85,7 +112,7 @@ type Opt struct {
 	BackoffPool *BackoffPool
 }
 
-func New(token, url string, opt Opt) (*Cache, error) {
+func New(token, url string, v2 bool, opt Opt) (*Cache, error) {
 	tk, _, err := new(jwt.Parser).ParseUnverified(token, jwt.MapClaims{})
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -146,6 +173,7 @@ func New(token, url string, opt Opt) (*Cache, error) {
 		Token:     tk,
 		IssuedAt:  nbft,
 		ExpiresAt: expt,
+		IsV2:      v2,
 	}, nil
 }
 
@@ -195,6 +223,7 @@ type Cache struct {
 	Token     *jwt.Token
 	IssuedAt  time.Time
 	ExpiresAt time.Time
+	IsV2      bool
 }
 
 func (c *Cache) Scopes() []Scope {
@@ -202,6 +231,13 @@ func (c *Cache) Scopes() []Scope {
 }
 
 func (c *Cache) Load(ctx context.Context, keys ...string) (*Entry, error) {
+	if c.IsV2 {
+		return c.loadV2(ctx, keys...)
+	}
+	return c.loadV1(ctx, keys...)
+}
+
+func (c *Cache) loadV1(ctx context.Context, keys ...string) (*Entry, error) {
 	u, err := url.Parse(c.url("cache"))
 	if err != nil {
 		return nil, err
@@ -235,7 +271,23 @@ func (c *Cache) Load(ctx context.Context, keys ...string) (*Entry, error) {
 	return &ce, nil
 }
 
-func (c *Cache) reserve(ctx context.Context, key string) (int, error) {
+func (c *Cache) reserve(ctx context.Context, key string) (string, string, error) {
+	if c.IsV2 {
+		url, err := c.reserveV2(ctx, key)
+		if err != nil {
+			return "", "", err
+		}
+		return key, url, nil
+	}
+	cid, err := c.reserveV1(ctx, key)
+	if err != nil {
+		return "", "", err
+	}
+	sid := strconv.Itoa(cid)
+	return sid, sid, nil
+}
+
+func (c *Cache) reserveV1(ctx context.Context, key string) (int, error) {
 	dt, err := json.Marshal(ReserveCacheReq{Key: key, Version: version(key)})
 	if err != nil {
 		return 0, errors.WithStack(err)
@@ -266,19 +318,26 @@ func (c *Cache) reserve(ctx context.Context, key string) (int, error) {
 	return cr.CacheID, nil
 }
 
-func (c *Cache) commit(ctx context.Context, id int, size int64) error {
+func (c *Cache) commit(ctx context.Context, id string, size int64) error {
+	if c.IsV2 {
+		return c.commitV2(ctx, id, size)
+	}
+	return c.commitV1(ctx, id, size)
+}
+
+func (c *Cache) commitV1(ctx context.Context, id string, size int64) error {
 	dt, err := json.Marshal(CommitCacheReq{Size: size})
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	req := c.newRequest("POST", c.url(fmt.Sprintf("caches/%d", id)), func() io.Reader {
+	req := c.newRequest("POST", c.url(fmt.Sprintf("caches/%s", id)), func() io.Reader {
 		return bytes.NewReader(dt)
 	})
 	req.headers["Content-Type"] = "application/json"
 	Log("commit cache %s, size %d", req.url, size)
 	resp, err := c.doWithRetries(ctx, req)
 	if err != nil {
-		return errors.Wrapf(err, "error committing cache %d", id)
+		return errors.Wrapf(err, "error committing cache %s", id)
 	}
 	dt, err = io.ReadAll(io.LimitReader(resp.Body, 32*1024))
 	if err != nil {
@@ -290,7 +349,14 @@ func (c *Cache) commit(ctx context.Context, id int, size int64) error {
 	return resp.Body.Close()
 }
 
-func (c *Cache) upload(ctx context.Context, id int, b Blob) error {
+func (c *Cache) upload(ctx context.Context, url string, b Blob) error {
+	if c.IsV2 {
+		return c.uploadV2(ctx, url, b)
+	}
+	return c.uploadV1(ctx, url, b)
+}
+
+func (c *Cache) uploadV1(ctx context.Context, id string, b Blob) error {
 	var mu sync.Mutex
 	eg, ctx := errgroup.WithContext(ctx)
 	offset := int64(0)
@@ -320,12 +386,12 @@ func (c *Cache) upload(ctx context.Context, id int, b Blob) error {
 }
 
 func (c *Cache) Save(ctx context.Context, key string, b Blob) error {
-	id, err := c.reserve(ctx, key)
+	id, url, err := c.reserve(ctx, key)
 	if err != nil {
 		return err
 	}
 
-	if err := c.upload(ctx, id, b); err != nil {
+	if err := c.upload(ctx, url, b); err != nil {
 		return err
 	}
 
@@ -370,10 +436,11 @@ loop0:
 				return errors.Wrapf(err, "failed to parse %s index", key)
 			}
 		}
-		var cacheID int
+		var cacheID string
+		var url string
 		for {
 			idx++
-			cacheID, err = c.reserve(ctx, fmt.Sprintf("%s#%d", key, idx))
+			cacheID, url, err = c.reserve(ctx, fmt.Sprintf("%s#%d", key, idx))
 			if err != nil {
 				if errors.Is(err, os.ErrExist) {
 					if blocked <= forceTimeout {
@@ -391,15 +458,15 @@ loop0:
 			}
 			break
 		}
-		if err := c.upload(ctx, cacheID, b); err != nil {
+		if err := c.upload(ctx, url, b); err != nil {
 			return nil
 		}
 		return c.commit(ctx, cacheID, b.Size())
 	}
 }
 
-func (c *Cache) uploadChunk(ctx context.Context, id int, ra io.ReaderAt, off, n int64) error {
-	req := c.newRequest("PATCH", c.url(fmt.Sprintf("caches/%d", id)), func() io.Reader {
+func (c *Cache) uploadChunk(ctx context.Context, id string, ra io.ReaderAt, off, n int64) error {
+	req := c.newRequest("PATCH", c.url(fmt.Sprintf("caches/%s", id)), func() io.Reader {
 		return io.NewSectionReader(ra, off, n)
 	})
 	req.headers["Content-Type"] = "application/octet-stream"
@@ -433,12 +500,12 @@ func (c *Cache) newRequest(method, url string, body func() io.Reader) *request {
 }
 
 func (c *Cache) doWithRetries(ctx context.Context, r *request) (*http.Response, error) {
-	var err error
+	var lastErr error
 	max := time.Now().Add(c.opt.Timeout)
 	for {
 		if err1 := c.opt.BackoffPool.Wait(ctx, time.Until(max)); err1 != nil {
-			if err != nil {
-				return nil, errors.Wrapf(err, "%v", err1)
+			if lastErr != nil {
+				return nil, errors.Wrapf(lastErr, "%v", err1)
 			}
 			return nil, err1
 		}
@@ -458,6 +525,7 @@ func (c *Cache) doWithRetries(ctx context.Context, r *request) (*http.Response, 
 			if errors.As(err, &he) {
 				if he.StatusCode == http.StatusTooManyRequests {
 					c.opt.BackoffPool.Delay()
+					lastErr = err
 					continue
 				}
 			}
@@ -512,9 +580,10 @@ type CommitCacheReq struct {
 }
 
 type Entry struct {
-	Key   string `json:"cacheKey"`
-	Scope string `json:"scope"`
-	URL   string `json:"archiveLocation"`
+	Key         string `json:"cacheKey"`
+	Scope       string `json:"scope"`
+	URL         string `json:"archiveLocation"`
+	IsAzureBlob bool   `json:"isAzureBlob"`
 
 	client *http.Client
 }
@@ -529,6 +598,9 @@ func (ce *Entry) WriteTo(ctx context.Context, w io.Writer) error {
 
 // Download returns a ReaderAtCloser for pulling the data. Concurrent reads are not allowed
 func (ce *Entry) Download(ctx context.Context) ReaderAtCloser {
+	if ce.IsAzureBlob {
+		return ce.downloadV2(ctx)
+	}
 	return toReaderAtCloser(func(offset int64) (io.ReadCloser, error) {
 		req, err := http.NewRequest("GET", ce.URL, nil)
 		if err != nil {
@@ -644,7 +716,25 @@ func checkResponse(resp *http.Response) error {
 	} else if gae.Message != "" {
 		err = errors.WithStack(gae)
 	} else {
-		err = errors.Errorf("unknown error %s: %s", resp.Status, dt)
+		var errorV2 struct {
+			Code string `json:"code"`
+			Msg  string `json:"message"`
+		}
+		if err1 := json.Unmarshal(dt, &errorV2); err1 == nil && errorV2.Code != "" {
+			gae.Message = errorV2.Msg
+			if gae.Message == "" {
+				gae.Message = errorV2.Code
+			} else {
+				gae.Message = resp.Status
+			}
+			if errorV2.Code == "already_exists" {
+				errorV2.Code = "ArtifactCacheItemAlreadyExistsException"
+			}
+			gae.TypeKey = errorV2.Code
+			err = errors.WithStack(gae)
+		} else {
+			err = errors.Errorf("unknown error %s: %s", resp.Status, dt)
+		}
 	}
 
 	return HTTPError{

@@ -60,7 +60,9 @@ func (j *Job) Status(ctx context.Context, ch chan *client.SolveStatus) error {
 					bklog.G(ctx).Warnf("progress %s log without vertex info", p.ID)
 					continue
 				}
-				v.Vertex = vtx.(digest.Digest)
+				if v.Vertex == "" {
+					v.Vertex = vtx.(digest.Digest)
+				}
 				v.Timestamp = p.Timestamp
 				ss.Logs = append(ss.Logs, &v)
 			case client.VertexWarning:
@@ -69,7 +71,9 @@ func (j *Job) Status(ctx context.Context, ch chan *client.SolveStatus) error {
 					bklog.G(ctx).Warnf("progress %s warning without vertex info", p.ID)
 					continue
 				}
-				v.Vertex = vtx.(digest.Digest)
+				if v.Vertex == "" {
+					v.Vertex = vtx.(digest.Digest)
+				}
 				ss.Warnings = append(ss.Warnings, &v)
 			}
 		}

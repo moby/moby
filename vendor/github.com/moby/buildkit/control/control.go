@@ -33,6 +33,7 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/bboltcachestorage"
 	"github.com/moby/buildkit/solver/llbsolver"
+	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/llbsolver/proc"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/bklog"
@@ -586,6 +587,7 @@ func (c *Controller) ListWorkers(ctx context.Context, r *controlapi.ListWorkersR
 			Platforms:       pb.PlatformsFromSpec(w.Platforms(true)),
 			GCPolicy:        toPBGCPolicy(w.GCPolicy()),
 			BuildkitVersion: toPBBuildkitVersion(w.BuildkitVersion()),
+			CDIDevices:      toPBCDIDevices(w.CDIManager()),
 		})
 	}
 	return resp, nil
@@ -682,6 +684,23 @@ func toPBBuildkitVersion(in client.BuildkitVersion) *apitypes.BuildkitVersion {
 		Version:  in.Version,
 		Revision: in.Revision,
 	}
+}
+
+func toPBCDIDevices(manager *cdidevices.Manager) []*apitypes.CDIDevice {
+	if manager == nil {
+		return nil
+	}
+	devs := manager.ListDevices()
+	out := make([]*apitypes.CDIDevice, 0, len(devs))
+	for _, dev := range devs {
+		out = append(out, &apitypes.CDIDevice{
+			Name:        dev.Name,
+			AutoAllow:   true, // TODO
+			Annotations: dev.Annotations,
+			OnDemand:    dev.OnDemand,
+		})
+	}
+	return out
 }
 
 func findDuplicateCacheOptions(cacheOpts []*controlapi.CacheOptionsEntry) ([]*controlapi.CacheOptionsEntry, error) {

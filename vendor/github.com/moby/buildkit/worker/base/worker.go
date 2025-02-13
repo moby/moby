@@ -33,6 +33,7 @@ import (
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
 	"github.com/moby/buildkit/snapshot/imagerefchecker"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
 	"github.com/moby/buildkit/solver/llbsolver/ops"
 	"github.com/moby/buildkit/solver/pb"
@@ -82,6 +83,7 @@ type WorkerOpt struct {
 	MetadataStore    *metadata.Store
 	MountPoolRoot    string
 	ResourceMonitor  *resources.Monitor
+	CDIManager       *cdidevices.Manager
 }
 
 // Worker is a local worker instance with dedicated snapshotter, cache, and so on.
@@ -243,6 +245,10 @@ func (w *Worker) ContentStore() *containerdsnapshot.Store {
 
 func (w *Worker) LeaseManager() *leaseutil.Manager {
 	return w.WorkerOpt.LeaseManager
+}
+
+func (w *Worker) CDIManager() *cdidevices.Manager {
+	return w.WorkerOpt.CDIManager
 }
 
 func (w *Worker) ID() string {

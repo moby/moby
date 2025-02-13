@@ -35,6 +35,7 @@ import (
 	"github.com/moby/buildkit/snapshot"
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
 	"github.com/moby/buildkit/solver/llbsolver/ops"
 	"github.com/moby/buildkit/solver/pb"
@@ -86,6 +87,7 @@ type Opt struct {
 	Exporter          exporter.Exporter
 	Layers            LayerAccess
 	Platforms         []ocispec.Platform
+	CDIManager        *cdidevices.Manager
 }
 
 // Worker is a local worker instance with dedicated snapshotter, cache, and so on.
@@ -478,6 +480,10 @@ func (w *Worker) Executor() executor.Executor {
 // CacheManager returns cache.Manager for accessing local storage
 func (w *Worker) CacheManager() cache.Manager {
 	return w.Opt.CacheManager
+}
+
+func (w *Worker) CDIManager() *cdidevices.Manager {
+	return w.Opt.CDIManager
 }
 
 type discardProgress struct{}

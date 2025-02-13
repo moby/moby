@@ -88,7 +88,7 @@ func (w *containerdExecutor) createOCISpec(ctx context.Context, id, _, _ string,
 	}
 
 	processMode := oci.ProcessSandbox // FIXME(AkihiroSuda)
-	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, "", "", namespace, "", processMode, nil, "", false, w.traceSocket, opts...)
+	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, "", "", namespace, "", processMode, nil, "", false, w.traceSocket, nil, opts...)
 	if err != nil {
 		releaseAll()
 		return nil, nil, err
