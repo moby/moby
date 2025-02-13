@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/api/types/network"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -2192,4 +2193,60 @@ func (n *Network) deleteLoadBalancerSandbox() error {
 		return fmt.Errorf("Failed to delete %s sandbox: %v", sandboxName, err)
 	}
 	return nil
+}
+
+// State returns the network state, which includes IPAM state.
+func (n *Network) State(ctx context.Context) *network.NetworkState {
+	if n.hasSpecialDriver() {
+		log.G(ctx).Warnf("special driver %s does not support network state", n.Type())
+		return nil
+	}
+
+	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
+	if err != nil {
+		log.G(ctx).Warnf("failed to get ipam driver %s: %v", n.ipamType, err)
+		return nil
+	}
+
+	var state network.NetworkState
+	state.IPAM = make(map[string]network.IPAMState)
+
+	ipam4Infos, _ := n.IpamInfo()
+	for _, ii := range ipam4Infos {
+		pi, err := defaultipam.PoolIDFromString(ii.PoolID)
+		if err != nil {
+			log.G(ctx).Warnf("failed to parse pool ID %s: %v", ii.PoolID, err)
+			continue
+		}
+		AllocatedIPsInSubnet, AllocatedIPsInPool, err := ipam.GetAllocatedIPs(ii.PoolID)
+		if err != nil {
+			log.G(ctx).Warnf("failed to get available IPs for pool %s: %v", ii.PoolID, err)
+			continue
+		}
+
+		// Calculate the capacity of the pool, which is currently just a CIDR.
+		// Only IPv4 is calculated, as the IPAM state only supports IPv4.
+		capacity := func(cidr netip.Prefix) (uint64, error) {
+			if !cidr.Addr().Is4() {
+				return 0, fmt.Errorf("IPAM state only supports IPv4 CIDRs, got %s", cidr)
+			}
+			return uint64(1) << (32 - cidr.Bits()), nil
+		}
+		// If subnet has ip-range specified, use it, otherwise use the subnet CIDR.
+		poolCidr := pi.Subnet
+		if pi.ChildSubnet != (netip.Prefix{}) {
+			poolCidr = pi.ChildSubnet
+		}
+		poolCapacity, err := capacity(poolCidr)
+		if err != nil {
+			log.G(ctx).Warnf("failed to get capacity for pool %s: %v", ii.PoolID, err)
+			continue
+		}
+		state.IPAM[pi.Subnet.String()] = network.IPAMState{
+			AllocatedIPsInSubnet:      AllocatedIPsInSubnet,
+			AvailableIPsInIPRangePool: poolCapacity - AllocatedIPsInPool,
+		}
+	}
+
+	return &state
 }
