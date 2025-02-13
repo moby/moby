@@ -113,6 +113,13 @@ func (c *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 		}
 	}
 
+	if versions.LessThan(version, "1.48") {
+		// ImageManifestDescriptor information was added in API 1.48
+		for _, c := range containers {
+			c.ImageManifestDescriptor = nil
+		}
+	}
+
 	return httputils.WriteJSON(w, http.StatusOK, containers)
 }
 

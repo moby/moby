@@ -26,6 +26,12 @@ func (daemon *Daemon) containerDiskUsage(ctx context.Context) ([]*container.Summ
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve container list: %v", err)
 		}
+
+		// Remove image manifest descriptor from the result as it should not be included.
+		// https://github.com/moby/moby/pull/49407#discussion_r1954396666
+		for _, c := range containers {
+			c.ImageManifestDescriptor = nil
+		}
 		return containers, nil
 	})
 	return res, err

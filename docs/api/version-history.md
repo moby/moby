@@ -89,6 +89,10 @@ keywords: "API, Docker, rcli, REST, documentation"
   paths (`/v<API-version>/<endpoint>`).
 * `POST /build/prune` renames `keep-bytes` to `reserved-space` and now supports
   additional prune parameters `max-used-space` and `min-free-space`.
+* `GET /containers/json` now returns an `ImageManifestDescriptor` field
+  matching the same field in `/containers/{name}/json`.
+  This field is only populated if the daemon provides a multi-platform image
+  store.
 
 ## v1.47 API changes
 
