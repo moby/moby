@@ -1,8 +1,11 @@
 package convert
 
 import (
+	"context"
+	"encoding/json"
 	"strings"
 
+	"github.com/containerd/log"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
@@ -137,7 +140,7 @@ func swarmPortConfigToAPIPortConfig(portConfig *swarmapi.PortConfig) types.PortC
 }
 
 // BasicNetworkFromGRPC converts a grpc Network to a NetworkResource.
-func BasicNetworkFromGRPC(n swarmapi.Network) network.Inspect {
+func BasicNetworkFromGRPC(ctx context.Context, n swarmapi.Network) network.Inspect {
 	spec := n.Spec
 	var ipam network.IPAM
 	if n.IPAM != nil {
@@ -155,6 +158,35 @@ func BasicNetworkFromGRPC(n swarmapi.Network) network.Inspect {
 			})
 		}
 	}
+	netState := &network.NetworkState{}
+	if n.State != nil {
+		env := network.StringifyEnvelope{}
+		if err := json.Unmarshal(n.State.Value, &env); err != nil {
+			log.G(ctx).WithError(err).Warnf("Failed to unmarshal network state for network %s", n.ID)
+		} else if env.Type != network.NetworkStateType {
+			log.G(ctx).Warnf("network state for network %s has unexpected message type %s", n.ID, env.Type)
+		} else {
+			switch env.Version {
+			case 1:
+				if env.Data != nil {
+					if err := json.Unmarshal(env.Data, netState); err != nil {
+						log.G(ctx).WithError(err).Warnf("Failed to unmarshal network state for network %s", n.ID)
+					}
+				}
+			default:
+				log.G(ctx).Warnf("network state for network %s has unsupported version  %d", n.ID, env.Version)
+				if env.Version > 1 && env.Data != nil {
+					log.G(ctx).Warnf("Try to unmarshal it anyway since the version is higher %d than supported %d and might be backward compatible for network %s", env.Version, 1, n.ID)
+					if err := json.Unmarshal(env.Data, netState); err != nil {
+						log.G(ctx).WithError(err).Warnf("Failed to unmarshal network state for network %s", n.ID)
+					}
+				}
+			}
+		}
+	}
+	if netState.IPAM == nil {
+		netState = nil
+	}
 
 	nr := network.Inspect{
 		ID:         n.ID,
@@ -163,6 +195,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) network.Inspect {
 		EnableIPv4: true,
 		EnableIPv6: spec.Ipv6Enabled,
 		IPAM:       ipam,
+		State:      netState,
 		Internal:   spec.Internal,
 		Attachable: spec.Attachable,
 		Ingress:    IsIngressNetwork(&n),

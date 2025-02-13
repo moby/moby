@@ -1,6 +1,7 @@
 package network
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/moby/moby/api/types/filters"
@@ -74,6 +75,19 @@ type DisconnectOptions struct {
 type NetworkState struct {
 	IPAM map[string]IPAMState `json:",omitempty"` // IPAM state of the network
 }
+
+// StringifyEnvelope is used to marshal and unmarshal the Network state into JSON.
+// This allows the state to be passed between Moby components via SwarmKit
+// without introducing Moby-specific details into SwarmKit.
+type StringifyEnvelope struct {
+	Type    string          `json:"type"`
+	Version int             `json:"version"`
+	Data    json.RawMessage `json:"data"`
+}
+
+const (
+	NetworkStateType = "moby.network.state"
+)
 
 // Inspect is the body of the "get network" http response message.
 type Inspect struct {

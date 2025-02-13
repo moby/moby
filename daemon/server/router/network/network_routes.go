@@ -141,11 +141,13 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		// return the network. Skipped using isMatchingScope because it is true if the scope
 		// is not set which would be case if the client API v1.30
 		if strings.HasPrefix(nwk.ID, term) || networkScope == scope.Swarm {
-			// If we have a previous match "backend", return it, we need verbose when enabled
+			// If we have a previous match "backend", return it with updated State, we need verbose when enabled
 			// ex: overlay/partial_ID or name/swarm_scope
 			if nwv, ok := listByPartialID[nwk.ID]; ok {
+				nwv.State = nwk.State
 				nwk = nwv
 			} else if nwv, ok = listByFullName[nwk.ID]; ok {
+				nwv.State = nwk.State
 				nwk = nwv
 			}
 			return httputils.WriteJSON(w, http.StatusOK, nwk)
@@ -161,16 +163,24 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 			// Check the ID collision as we are in swarm scope here, and
 			// the map (of the listByFullName) may have already had a
 			// network with the same ID (from local scope previously)
-			if _, ok := listByFullName[nw.ID]; !ok {
+			// If we have a previous match "backend", return it with updated State, we need verbose when enabled
+			if nwk, ok := listByFullName[nw.ID]; !ok {
 				listByFullName[nw.ID] = nw
+			} else {
+				nwk.State = nw.State
+				listByFullName[nw.ID] = nwk
 			}
 		}
 		if strings.HasPrefix(nw.ID, term) {
 			// Check the ID collision as we are in swarm scope here, and
 			// the map (of the listByPartialID) may have already had a
 			// network with the same ID (from local scope previously)
-			if _, ok := listByPartialID[nw.ID]; !ok {
+			// If we have a previous match "backend", return it with updated State, we need verbose when enabled
+			if nwk, ok := listByPartialID[nw.ID]; !ok {
 				listByPartialID[nw.ID] = nw
+			} else {
+				nwk.State = nw.State
+				listByFullName[nw.ID] = nwk
 			}
 		}
 	}
