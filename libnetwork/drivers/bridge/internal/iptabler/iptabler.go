@@ -91,6 +91,32 @@ func NewIptabler(ctx context.Context, config firewaller.Config) (firewaller.Fire
 	return ipt, nil
 }
 
+func (ipt *iptabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVersion) error {
+	var iptv iptables.IPVersion
+	switch ipv {
+	case firewaller.IPv4:
+		iptv = iptables.IPv4
+	case firewaller.IPv6:
+		iptv = iptables.IPv6
+	default:
+		return fmt.Errorf("unknown IP version %v", ipv)
+	}
+	iptable := iptables.GetIptable(iptv)
+	if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+		return err
+	}
+	iptables.OnReloaded(func() {
+		log.G(ctx).WithFields(log.Fields{"ipv": ipv}).Debug("Setting the default DROP policy on firewall reload")
+		if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+			log.G(ctx).WithFields(log.Fields{
+				"error": err,
+				"ipv":   ipv,
+			}).Warn("Failed to set the default DROP policy on firewall reload")
+		}
+	})
+	return nil
+}
+
 func setupIPChains(ctx context.Context, version iptables.IPVersion, hairpin bool) (retErr error) {
 	iptable := iptables.GetIptable(version)
 

@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/iptables"
+	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 )
 
 const (
@@ -17,7 +17,7 @@ const (
 	ipv6ForwardConfAll     = "/proc/sys/net/ipv6/conf/all/forwarding"
 )
 
-func setupIPv4Forwarding(wantFilterForwardDrop bool) (retErr error) {
+func setupIPv4Forwarding(fw firewaller.Firewaller, wantFilterForwardDrop bool) (retErr error) {
 	changed, err := configureIPForwarding(ipv4ForwardConf, '1')
 	if err != nil {
 		return err
@@ -34,14 +34,14 @@ func setupIPv4Forwarding(wantFilterForwardDrop bool) (retErr error) {
 
 	// When enabling ip_forward set the default policy on forward chain to drop.
 	if changed && wantFilterForwardDrop {
-		if err := setFilterForwardDrop(iptables.IPv4); err != nil {
+		if err := fw.FilterForwardDrop(context.TODO(), firewaller.IPv4); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func setupIPv6Forwarding(wantFilterForwardDrop bool) (retErr error) {
+func setupIPv6Forwarding(fw firewaller.Firewaller, wantFilterForwardDrop bool) (retErr error) {
 	// Set IPv6 default.forwarding, if needed.
 	// FIXME(robmry) - is it necessary to set this, setting "all" (below) does the job?
 	changedDef, err := configureIPForwarding(ipv6ForwardConfDefault, '1')
@@ -74,7 +74,7 @@ func setupIPv6Forwarding(wantFilterForwardDrop bool) (retErr error) {
 	}
 
 	if (changedAll || changedDef) && wantFilterForwardDrop {
-		if err := setFilterForwardDrop(iptables.IPv6); err != nil {
+		if err := fw.FilterForwardDrop(context.TODO(), firewaller.IPv6); err != nil {
 			return err
 		}
 	}
@@ -97,21 +97,4 @@ func configureIPForwarding(file string, val byte) (changed bool, _ error) {
 		return false, fmt.Errorf("failed to set IP forwarding '%s' = '%c': %w", file, val, err)
 	}
 	return true, nil
-}
-
-func setFilterForwardDrop(ipv iptables.IPVersion) error {
-	iptable := iptables.GetIptable(ipv)
-	if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
-		return err
-	}
-	iptables.OnReloaded(func() {
-		log.G(context.TODO()).WithFields(log.Fields{"ipv": ipv}).Debug("Setting the default DROP policy on firewall reload")
-		if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
-			log.G(context.TODO()).WithFields(log.Fields{
-				"error": err,
-				"ipv":   ipv,
-			}).Warn("Failed to set the default DROP policy on firewall reload")
-		}
-	})
-	return nil
 }
