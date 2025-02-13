@@ -464,11 +464,10 @@ func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions)
 			return err
 		}
 		defer f.Close()
-		options := &archive.TarOptions{
+		return archiver.Untar(f, destPath, &archive.TarOptions{
 			IDMap:            archiver.IDMapping,
 			BestEffortXattrs: true,
-		}
-		return archiver.Untar(f, destPath, options)
+		})
 	}
 
 	destExistsAsDir, err := isExistingDirectory(destPath)
