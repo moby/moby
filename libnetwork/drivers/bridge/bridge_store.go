@@ -89,7 +89,7 @@ func (d *driver) populateEndpoints() error {
 		}
 		n.endpoints[ep.id] = ep
 		netip4, netip6 := ep.netipAddrs()
-		if err := n.iptablesNetwork.AddEndpoint(context.TODO(), netip4, netip6); err != nil {
+		if err := n.firewallerNetwork.AddEndpoint(context.TODO(), netip4, netip6); err != nil {
 			log.G(context.TODO()).WithFields(log.Fields{
 				"error": err,
 				"ep.id": ep.id,

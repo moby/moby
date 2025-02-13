@@ -8,6 +8,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/internal/modprobe"
+	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/libnetwork/iptables"
 )
 
@@ -34,37 +35,30 @@ const (
 	isolationChain2 = "DOCKER-ISOLATION-STAGE-2"
 )
 
-type FirewallConfig struct {
-	IPv4               bool
-	IPv6               bool
-	Hairpin            bool
-	AllowDirectRouting bool
+type iptabler struct {
+	config firewaller.Config
 }
 
-type Iptabler struct {
-	FirewallConfig
-}
+func NewIptabler(config firewaller.Config) (firewaller.Firewaller, error) {
+	ipt := &iptabler{config: config}
 
-func NewIptabler(config FirewallConfig) (*Iptabler, error) {
-	ipt := &Iptabler{FirewallConfig: config}
-
-	if ipt.IPv4 {
+	if ipt.config.IPv4 {
 		removeIPChains(iptables.IPv4)
 
-		if err := setupIPChains(iptables.IPv4, ipt.Hairpin); err != nil {
+		if err := setupIPChains(iptables.IPv4, ipt.config.Hairpin); err != nil {
 			return nil, err
 		}
 
 		// Make sure on firewall reload, first thing being re-played is chains creation
 		iptables.OnReloaded(func() {
 			log.G(context.TODO()).Debugf("Recreating iptables chains on firewall reload")
-			if err := setupIPChains(iptables.IPv4, ipt.Hairpin); err != nil {
+			if err := setupIPChains(iptables.IPv4, ipt.config.Hairpin); err != nil {
 				log.G(context.TODO()).WithError(err).Error("Error reloading iptables chains")
 			}
 		})
 	}
 
-	if ipt.IPv6 {
+	if ipt.config.IPv6 {
 		if err := modprobe.LoadModules(context.TODO(), func() error {
 			iptable := iptables.GetIptable(iptables.IPv6)
 			_, err := iptable.Raw("-t", "filter", "-n", "-L", "FORWARD")
@@ -75,7 +69,7 @@ func NewIptabler(config FirewallConfig) (*Iptabler, error) {
 
 		removeIPChains(iptables.IPv6)
 
-		err := setupIPChains(iptables.IPv6, ipt.Hairpin)
+		err := setupIPChains(iptables.IPv6, ipt.config.Hairpin)
 		if err != nil {
 			// If the chains couldn't be set up, it's probably because the kernel has no IPv6
 			// support, or it doesn't have module ip6_tables loaded. It won't be possible to
@@ -87,7 +81,7 @@ func NewIptabler(config FirewallConfig) (*Iptabler, error) {
 			// Make sure on firewall reload, first thing being re-played is chains creation
 			iptables.OnReloaded(func() {
 				log.G(context.TODO()).Debugf("Recreating ip6tables chains on firewall reload")
-				if err := setupIPChains(iptables.IPv6, ipt.Hairpin); err != nil {
+				if err := setupIPChains(iptables.IPv6, ipt.config.Hairpin); err != nil {
 					log.G(context.TODO()).WithError(err).Error("Error reloading ip6tables chains")
 				}
 			})
