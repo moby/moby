@@ -10,6 +10,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -159,6 +160,8 @@ func TestBridgeICC(t *testing.T) {
 			defer c.ContainerRemove(ctx, id1, containertypes.RemoveOptions{
 				Force: true,
 			})
+
+			networking.FirewalldReload(t, d)
 
 			pingHost := tc.pingHost
 			if pingHost == "" {
@@ -575,6 +578,7 @@ func TestInternalNwConnectivity(t *testing.T) {
 		container.WithNetworkMode(bridgeName),
 	)
 	defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+	networking.FirewalldReload(t, d)
 
 	execCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
