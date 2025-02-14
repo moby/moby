@@ -17,6 +17,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
@@ -179,49 +180,44 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 
 	var committedIdx []int
 	for idx, desc := range p.layers {
-		// Find the snapshot corresponding to this layer
-		walkFilter := "labels.\"" + snapshotters.TargetLayerDigestLabel + "\"==" + p.layers[idx].Digest.String()
-
-		err := p.snapshotter.Walk(ctx, func(ctx context.Context, sn snapshots.Info) error {
-			if sn.Kind == snapshots.KindActive {
-				if p.unpackStart == nil {
-					p.unpackStart = make(map[digest.Digest]time.Time)
-				}
-				var seconds int64
-				if began, ok := p.unpackStart[desc.Digest]; !ok {
-					p.unpackStart[desc.Digest] = time.Now()
-				} else {
-					seconds = int64(time.Since(began).Seconds())
-				}
-
-				// We _could_ get the current size of snapshot by calling Usage, but this is too expensive
-				// and could impact performance. So we just show the "Extracting" message with the elapsed time as progress.
-				out.WriteProgress(
-					progress.Progress{
-						ID:     stringid.TruncateID(desc.Digest.Encoded()),
-						Action: "Extracting",
-						// Start from 1s, because without Total, 0 won't be shown at all.
-						Current: 1 + seconds,
-						Units:   "s",
-					})
-				return nil
-			}
-
-			if sn.Kind == snapshots.KindCommitted {
-				out.WriteProgress(progress.Progress{
-					ID:         stringid.TruncateID(desc.Digest.Encoded()),
-					Action:     "Pull complete",
-					HideCounts: true,
-					LastUpdate: true,
-				})
-
-				committedIdx = append(committedIdx, idx)
-				return nil
-			}
-			return nil
-		}, walkFilter)
+		sn, err := findMatchingSnapshot(ctx, p.snapshotter, desc)
 		if err != nil {
+			if errdefs.IsNotFound(err) {
+				continue
+			}
 			return err
+		}
+
+		if sn.Kind == snapshots.KindActive {
+			if p.unpackStart == nil {
+				p.unpackStart = make(map[digest.Digest]time.Time)
+			}
+			var seconds int64
+			if began, ok := p.unpackStart[desc.Digest]; !ok {
+				p.unpackStart[desc.Digest] = time.Now()
+			} else {
+				seconds = int64(time.Since(began).Seconds())
+			}
+
+			// We _could_ get the current size of snapshot by calling Usage, but this is too expensive
+			// and could impact performance. So we just show the "Extracting" message with the elapsed time as progress.
+			out.WriteProgress(
+				progress.Progress{
+					ID:     stringid.TruncateID(desc.Digest.Encoded()),
+					Action: "Extracting",
+					// Start from 1s, because without Total, 0 won't be shown at all.
+					Current: 1 + seconds,
+					Units:   "s",
+				})
+		} else if sn.Kind == snapshots.KindCommitted {
+			out.WriteProgress(progress.Progress{
+				ID:         stringid.TruncateID(desc.Digest.Encoded()),
+				Action:     "Pull complete",
+				HideCounts: true,
+				LastUpdate: true,
+			})
+
+			committedIdx = append(committedIdx, idx)
 		}
 	}
 
@@ -234,6 +230,34 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 	}
 
 	return nil
+}
+
+// findMatchingSnapshot finds the snapshot corresponding to the layer chain of the given layer descriptor.
+// It returns an error if no matching snapshot is found.
+// layerDesc MUST point to a layer descriptor and have a non-empty TargetImageLayersLabel annotation.
+// For pull, these are added by snapshotters.AppendInfoHandlerWrapper
+func findMatchingSnapshot(ctx context.Context, sn snapshots.Snapshotter, layerDesc ocispec.Descriptor) (snapshots.Info, error) {
+	chainID, ok := layerDesc.Annotations[snapshotters.TargetImageLayersLabel]
+	if !ok {
+		return snapshots.Info{}, errdefs.NotFound(errors.New("missing " + snapshotters.TargetImageLayersLabel + " annotation"))
+	}
+
+	// Find the snapshot corresponding to this layer chain
+	walkFilter := "labels.\"" + snapshotters.TargetImageLayersLabel + "\"==\"" + chainID + "\""
+
+	var matchingSnapshot *snapshots.Info
+	err := sn.Walk(ctx, func(ctx context.Context, sn snapshots.Info) error {
+		matchingSnapshot = &sn
+		return nil
+	}, walkFilter)
+	if err != nil {
+		return snapshots.Info{}, err
+	}
+	if matchingSnapshot == nil {
+		return snapshots.Info{}, errdefs.NotFound(errors.New("no matching snapshot found"))
+	}
+
+	return *matchingSnapshot, nil
 }
 
 func (p *pullProgress) finished(ctx context.Context, out progress.Output, desc ocispec.Descriptor) {
