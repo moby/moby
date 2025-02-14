@@ -43,12 +43,7 @@ func (l *link) Enable() error {
 	linkFunction := func() error {
 		return linkContainers(iptables.Append, l.parentIP, l.childIP, l.ports, l.bridge, false)
 	}
-	if err := linkFunction(); err != nil {
-		return err
-	}
-
-	iptables.OnReloaded(func() { _ = linkFunction() })
-	return nil
+	return linkFunction()
 }
 
 func (l *link) Disable() {
