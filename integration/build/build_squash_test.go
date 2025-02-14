@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -109,9 +108,9 @@ func TestBuildSquashParent(t *testing.T) {
 		container.WithCmd("/bin/sh", "-c", `[ "$(echo $HELLO)" = "world" ]`),
 	)
 
-	origHistory, err := client.ImageHistory(ctx, origID, image.HistoryOptions{})
+	origHistory, err := client.ImageHistory(ctx, origID)
 	assert.NilError(t, err)
-	testHistory, err := client.ImageHistory(ctx, name, image.HistoryOptions{})
+	testHistory, err := client.ImageHistory(ctx, name)
 	assert.NilError(t, err)
 
 	inspect, err = client.ImageInspect(ctx, name)

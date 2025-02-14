@@ -124,7 +124,7 @@ type ImageAPIClient interface {
 	ImagesPrune(ctx context.Context, pruneFilter filters.Args) (image.PruneReport, error)
 
 	ImageInspect(ctx context.Context, image string, _ ...ImageInspectOption) (image.InspectResponse, error)
-	ImageHistory(ctx context.Context, image string, opts image.HistoryOptions) ([]image.HistoryResponseItem, error)
+	ImageHistory(ctx context.Context, image string, _ ...ImageHistoryOption) ([]image.HistoryResponseItem, error)
 	ImageLoad(ctx context.Context, input io.Reader, opts image.LoadOptions) (image.LoadResponse, error)
 	ImageSave(ctx context.Context, images []string, opts image.SaveOptions) (io.ReadCloser, error)
 
