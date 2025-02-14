@@ -18,7 +18,7 @@ func TestImageHistoryError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImageHistory(context.Background(), "nothing", image.HistoryOptions{})
+	_, err := client.ImageHistory(context.Background(), "nothing")
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -49,13 +49,11 @@ func TestImageHistory(t *testing.T) {
 		},
 	}
 
-	imageHistories, err := client.ImageHistory(context.Background(), "image_id", image.HistoryOptions{
-		Platform: &ocispec.Platform{
-			Architecture: "arm64",
-			OS:           "linux",
-			Variant:      "v8",
-		},
-	})
+	imageHistories, err := client.ImageHistory(context.Background(), "image_id", ImageHistoryWithPlatform(ocispec.Platform{
+		Architecture: "arm64",
+		OS:           "linux",
+		Variant:      "v8",
+	}))
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(imageHistories, expected))
 }

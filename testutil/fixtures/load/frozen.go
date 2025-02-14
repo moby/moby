@@ -92,7 +92,7 @@ func imageExists(ctx context.Context, client client.APIClient, name string) bool
 	return err == nil
 }
 
-func loadFrozenImages(ctx context.Context, client client.APIClient) error {
+func loadFrozenImages(ctx context.Context, apiClient client.APIClient) error {
 	ctx, span := otel.Tracer("").Start(ctx, "load frozen images")
 	defer span.End()
 
@@ -111,7 +111,7 @@ func loadFrozenImages(ctx context.Context, client client.APIClient) error {
 	tarCmd.Start()
 	defer tarCmd.Wait()
 
-	resp, err := client.ImageLoad(ctx, out, image.LoadOptions{Quiet: true})
+	resp, err := apiClient.ImageLoad(ctx, out, client.ImageLoadWithQuiet(true))
 	if err != nil {
 		return errors.Wrap(err, "failed to load frozen images")
 	}

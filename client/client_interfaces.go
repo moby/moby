@@ -113,23 +113,30 @@ type ImageAPIClient interface {
 	BuildCachePrune(ctx context.Context, opts types.BuildCachePruneOptions) (*types.BuildCachePruneReport, error)
 	BuildCancel(ctx context.Context, id string) error
 	ImageCreate(ctx context.Context, parentReference string, options image.CreateOptions) (io.ReadCloser, error)
-	ImageHistory(ctx context.Context, image string, opts image.HistoryOptions) ([]image.HistoryResponseItem, error)
 	ImageImport(ctx context.Context, source image.ImportSource, ref string, options image.ImportOptions) (io.ReadCloser, error)
 
+	ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
+	ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
+	ImagePush(ctx context.Context, ref string, options image.PushOptions) (io.ReadCloser, error)
+	ImageRemove(ctx context.Context, image string, options image.RemoveOptions) ([]image.DeleteResponse, error)
+	ImageSearch(ctx context.Context, term string, options registry.SearchOptions) ([]registry.SearchResult, error)
+	ImageTag(ctx context.Context, image, ref string) error
+	ImagesPrune(ctx context.Context, pruneFilter filters.Args) (image.PruneReport, error)
+
+	ImageInspect(ctx context.Context, image string, _ ...ImageInspectOption) (image.InspectResponse, error)
+	ImageHistory(ctx context.Context, image string, _ ...ImageHistoryOption) ([]image.HistoryResponseItem, error)
+	ImageLoad(ctx context.Context, input io.Reader, _ ...ImageLoadOption) (image.LoadResponse, error)
+	ImageSave(ctx context.Context, images []string, _ ...ImageSaveOption) (io.ReadCloser, error)
+
+	ImageAPIClientDeprecated
+}
+
+// ImageAPIClientDeprecated defines deprecated methods of the ImageAPIClient.
+type ImageAPIClientDeprecated interface {
 	// ImageInspectWithRaw returns the image information and its raw representation.
 	//
 	// Deprecated: Use [Client.ImageInspect] instead. Raw response can be obtained using the [ImageInspectWithRawResponse] option.
 	ImageInspectWithRaw(ctx context.Context, image string) (image.InspectResponse, []byte, error)
-	ImageInspect(ctx context.Context, image string, _ ...ImageInspectOption) (image.InspectResponse, error)
-	ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
-	ImageLoad(ctx context.Context, input io.Reader, opts image.LoadOptions) (image.LoadResponse, error)
-	ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
-	ImagePush(ctx context.Context, ref string, options image.PushOptions) (io.ReadCloser, error)
-	ImageRemove(ctx context.Context, image string, options image.RemoveOptions) ([]image.DeleteResponse, error)
-	ImageSave(ctx context.Context, images []string, opts image.SaveOptions) (io.ReadCloser, error)
-	ImageSearch(ctx context.Context, term string, options registry.SearchOptions) ([]registry.SearchResult, error)
-	ImageTag(ctx context.Context, image, ref string) error
-	ImagesPrune(ctx context.Context, pruneFilter filters.Args) (image.PruneReport, error)
 }
 
 // NetworkAPIClient defines API client methods for the networks

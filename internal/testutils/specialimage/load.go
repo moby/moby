@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -30,7 +29,7 @@ func Load(ctx context.Context, t *testing.T, apiClient client.APIClient, imageFu
 
 	defer rc.Close()
 
-	resp, err := apiClient.ImageLoad(ctx, rc, image.LoadOptions{Quiet: true})
+	resp, err := apiClient.ImageLoad(ctx, rc, client.ImageLoadWithQuiet(true))
 	assert.NilError(t, err, "Failed to load dangling image")
 
 	defer resp.Body.Close()
