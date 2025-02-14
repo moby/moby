@@ -301,15 +301,14 @@ func (v *View) transform(ctr *Container) *Snapshot {
 	}
 	snapshot := &Snapshot{
 		Summary: container.Summary{
-			ID:                      ctr.ID,
-			Names:                   v.getNames(ctr.ID),
-			ImageID:                 ctr.ImageID.String(),
-			ImageManifestDescriptor: ctr.ImageManifest,
-			Ports:                   []container.Port{},
-			Mounts:                  ctr.GetMountPoints(),
-			State:                   ctr.State.StateString(),
-			Status:                  ctr.State.String(),
-			Created:                 ctr.Created.Unix(),
+			ID:      ctr.ID,
+			Names:   v.getNames(ctr.ID),
+			ImageID: ctr.ImageID.String(),
+			Ports:   []container.Port{},
+			Mounts:  ctr.GetMountPoints(),
+			State:   ctr.State.StateString(),
+			Status:  ctr.State.String(),
+			Created: ctr.Created.Unix(),
 		},
 		CreatedAt:    ctr.Created,
 		StartedAt:    ctr.StartedAt,
@@ -417,8 +416,12 @@ func (v *View) transform(ctr *Container) *Snapshot {
 	}
 	snapshot.NetworkSettings = &container.NetworkSettingsSummary{Networks: networks}
 
-	if ctr.ImageManifest != nil && ctr.ImageManifest.Platform == nil {
-		ctr.ImageManifest.Platform = &ctr.ImagePlatform
+	if ctr.ImageManifest != nil {
+		imageManifest := *ctr.ImageManifest
+		if imageManifest.Platform == nil {
+			imageManifest.Platform = &ctr.ImagePlatform
+		}
+		snapshot.Summary.ImageManifestDescriptor = &imageManifest
 	}
 
 	return snapshot
