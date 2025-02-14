@@ -545,7 +545,9 @@ func getLabels(opt Opt, labels map[string]string) map[string]string {
 }
 
 func getCDIManager(specDirs []string) (*cdidevices.Manager, error) {
-	// TODO: intentionally not returning nil here on empty specDirs as not handled in all code-paths yet
+	if len(specDirs) == 0 {
+		return nil, nil
+	}
 	cdiCache, err := func() (*cdi.Cache, error) {
 		cdiCache, err := cdi.NewCache(
 			cdi.WithSpecDirs(specDirs...),

@@ -19,12 +19,13 @@ func CheckInvalidPlatforms[T comparable](ctx context.Context, res *result.Result
 		return nil, err
 	}
 
-	if req.Request != "" {
-		return nil, nil
-	}
-
-	if _, ok := res.Metadata[exptypes.ExporterPlatformsKey]; len(res.Refs) > 0 && !ok {
-		return nil, errors.Errorf("build result contains multiple refs without platforms mapping")
+	if _, ok := res.Metadata[exptypes.ExporterPlatformsKey]; !ok {
+		if len(res.Refs) > 0 {
+			return nil, errors.Errorf("build result contains multiple refs without platforms mapping")
+		} else if res.IsEmpty() {
+			// No results and no exporter key. Don't run this check.
+			return nil, nil
+		}
 	}
 
 	isMap := len(res.Refs) > 0

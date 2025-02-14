@@ -18,7 +18,7 @@ var (
 
 var (
 	UserCNIConfigPath = DefaultCNIConfigPath
-	CDISpecDirs       []string
+	CDISpecDirs       = []string{filepath.Join(os.Getenv("ProgramData"), "buildkitd", "cdi")}
 )
 
 func UserAddress() string {

@@ -39,6 +39,7 @@ const (
 	attrTimeout    = "timeout"
 	attrToken      = "token"
 	attrURL        = "url"
+	attrURLV2      = "url_v2"
 	attrRepository = "repository"
 	attrGHToken    = "ghtoken"
 	attrAPIVersion = "version"
@@ -78,6 +79,12 @@ func getConfig(attrs map[string]string) (*Config, error) {
 			return nil, errors.Wrapf(err, "failed to parse api version %q, expected positive integer", apiVersion)
 		}
 		apiVersionInt = int(i)
+	}
+	if apiVersionInt != 1 {
+		if v, ok := attrs[attrURLV2]; ok {
+			url = v
+			apiVersionInt = 2
+		}
 	}
 	// best effort on old clients
 	if apiVersionInt == 0 {
