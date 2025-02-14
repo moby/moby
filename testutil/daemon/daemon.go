@@ -875,7 +875,7 @@ func (d *Daemon) LoadImage(ctx context.Context, t testing.TB, img string) {
 	c := d.NewClientT(t)
 	defer c.Close()
 
-	resp, err := c.ImageLoad(ctx, reader, image.LoadOptions{Quiet: true})
+	resp, err := c.ImageLoad(ctx, reader, client.ImageLoadWithQuiet(true))
 	assert.NilError(t, err, "[%s] failed to load %s", d.id, img)
 	defer resp.Body.Close()
 }

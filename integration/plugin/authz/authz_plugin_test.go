@@ -439,13 +439,13 @@ func imageSave(ctx context.Context, client client.APIClient, path, imgRef string
 	return err
 }
 
-func imageLoad(ctx context.Context, client client.APIClient, path string) error {
+func imageLoad(ctx context.Context, apiClient client.APIClient, path string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	response, err := client.ImageLoad(ctx, file, image.LoadOptions{Quiet: true})
+	response, err := apiClient.ImageLoad(ctx, file, client.ImageLoadWithQuiet(true))
 	if err != nil {
 		return err
 	}
