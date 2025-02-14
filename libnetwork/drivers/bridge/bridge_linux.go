@@ -1432,6 +1432,14 @@ func (d *driver) handleFirewalldReloadNw(nid string) {
 	}
 	nw.portMapper.ReMapAll()
 
+	// Restore the inter-network connectivity (INC) rules.
+	if err := nw.isolateNetwork(true); err != nil {
+		log.G(context.TODO()).WithFields(log.Fields{
+			"network": nw.id,
+			"error":   err,
+		}).Warn("Failed to restore inter-network iptables rules on firewalld reload")
+	}
+
 	// Re-add legacy links - only added during ProgramExternalConnectivity, but legacy
 	// links are default-bridge-only, and it's not possible to connect a container to
 	// the default bridge and a user-defined network. So, the default bridge is always

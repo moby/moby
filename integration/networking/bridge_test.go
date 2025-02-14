@@ -354,6 +354,7 @@ func TestBridgeINC(t *testing.T) {
 			defer c.ContainerRemove(ctx, id1, containertypes.RemoveOptions{
 				Force: true,
 			})
+			networking.FirewalldReload(t, d)
 
 			ctr1Info := container.Inspect(ctx, t, c, id1)
 			targetAddr := ctr1Info.NetworkSettings.Networks[bridge1].IPAddress
