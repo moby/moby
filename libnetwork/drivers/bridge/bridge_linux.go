@@ -1283,12 +1283,6 @@ func (d *driver) Leave(nid, eid string) error {
 		return EndpointNotFoundError(eid)
 	}
 
-	if !network.config.EnableICC {
-		if err = d.link(network, endpoint, false); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -1384,6 +1378,12 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 		return fmt.Errorf("failed to update bridge endpoint %.7s to store: %v", endpoint.id, err)
 	}
 
+	if !network.config.EnableICC {
+		if err = d.link(network, endpoint, false); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -1431,6 +1431,24 @@ func (d *driver) handleFirewalldReloadNw(nid string) {
 		}
 	}
 	nw.portMapper.ReMapAll()
+
+	// Re-add legacy links - only added during ProgramExternalConnectivity, but legacy
+	// links are default-bridge-only, and it's not possible to connect a container to
+	// the default bridge and a user-defined network. So, the default bridge is always
+	// the gateway and, if there are legacy links configured they need to be set up.
+	if !nw.config.EnableICC {
+		nw.Lock()
+		defer nw.Unlock()
+		for _, ep := range nw.endpoints {
+			if err := d.link(nw, ep, true); err != nil {
+				log.G(context.Background()).WithFields(log.Fields{
+					"nid":   nw.id,
+					"eid":   ep.id,
+					"error": err,
+				}).Error("Failed to re-create link on firewalld reload")
+			}
+		}
+	}
 	log.G(context.TODO()).Info("Restored iptables rules on firewalld reload")
 }
 
