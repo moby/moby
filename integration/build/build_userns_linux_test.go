@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -78,7 +77,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, buf, 0, false, nil)
 	assert.NilError(t, err)
 
-	reader, err := clientUserRemap.ImageSave(ctx, []string{imageTag}, image.SaveOptions{})
+	reader, err := clientUserRemap.ImageSave(ctx, []string{imageTag})
 	assert.NilError(t, err, "failed to download capabilities image")
 	defer reader.Close()
 

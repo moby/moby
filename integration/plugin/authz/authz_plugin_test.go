@@ -424,8 +424,8 @@ func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-func imageSave(ctx context.Context, client client.APIClient, path, imgRef string) error {
-	responseReader, err := client.ImageSave(ctx, []string{imgRef}, image.SaveOptions{})
+func imageSave(ctx context.Context, apiClient client.APIClient, path, imgRef string) error {
+	responseReader, err := apiClient.ImageSave(ctx, []string{imgRef})
 	if err != nil {
 		return err
 	}

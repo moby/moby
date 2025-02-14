@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/container"
@@ -868,7 +867,7 @@ func (d *Daemon) LoadImage(ctx context.Context, t testing.TB, img string) {
 	assert.NilError(t, err, "[%s] failed to create client", d.id)
 	defer clientHost.Close()
 
-	reader, err := clientHost.ImageSave(ctx, []string{img}, image.SaveOptions{})
+	reader, err := clientHost.ImageSave(ctx, []string{img})
 	assert.NilError(t, err, "[%s] failed to download %s", d.id, img)
 	defer reader.Close()
 

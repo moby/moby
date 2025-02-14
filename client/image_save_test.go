@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -19,7 +18,8 @@ func TestImageSaveError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImageSave(context.Background(), []string{"nothing"}, image.SaveOptions{})
+	armv64 := ocispec.Platform{Architecture: "arm64", OS: "linux", Variant: "v8"}
+	_, err := client.ImageSave(context.Background(), []string{"nothing"}, ImageSaveWithPlatforms(armv64))
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -30,7 +30,7 @@ func TestImageSave(t *testing.T) {
 	)
 	tests := []struct {
 		doc                 string
-		options             image.SaveOptions
+		options             []ImageSaveOption
 		expectedQueryParams url.Values
 	}{
 		{
@@ -41,8 +41,8 @@ func TestImageSave(t *testing.T) {
 		},
 		{
 			doc: "platform",
-			options: image.SaveOptions{
-				Platforms: []ocispec.Platform{{Architecture: "arm64", OS: "linux", Variant: "v8"}},
+			options: []ImageSaveOption{
+				ImageSaveWithPlatforms(ocispec.Platform{Architecture: "arm64", OS: "linux", Variant: "v8"}),
 			},
 			expectedQueryParams: url.Values{
 				"names":    {"image_id1", "image_id2"},
@@ -51,11 +51,11 @@ func TestImageSave(t *testing.T) {
 		},
 		{
 			doc: "multiple platforms",
-			options: image.SaveOptions{
-				Platforms: []ocispec.Platform{
-					{Architecture: "arm64", OS: "linux", Variant: "v8"},
-					{Architecture: "amd64", OS: "linux"},
-				},
+			options: []ImageSaveOption{
+				ImageSaveWithPlatforms(
+					ocispec.Platform{Architecture: "arm64", OS: "linux", Variant: "v8"},
+					ocispec.Platform{Architecture: "amd64", OS: "linux"},
+				),
 			},
 			expectedQueryParams: url.Values{
 				"names":    {"image_id1", "image_id2"},
@@ -75,7 +75,7 @@ func TestImageSave(t *testing.T) {
 					}, nil
 				}),
 			}
-			resp, err := client.ImageSave(context.Background(), []string{"image_id1", "image_id2"}, tc.options)
+			resp, err := client.ImageSave(context.Background(), []string{"image_id1", "image_id2"}, tc.options...)
 			assert.NilError(t, err)
 			defer assert.NilError(t, resp.Close())
 
