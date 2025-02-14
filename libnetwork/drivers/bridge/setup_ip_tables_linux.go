@@ -130,6 +130,9 @@ func (n *bridgeNetwork) setupIP6Tables(config *networkConfiguration, i *bridgeIn
 		return errors.New("Cannot program chains, EnableIP6Tables is disabled")
 	}
 
+	if i.bridgeIPv6 == nil {
+		return nil
+	}
 	maskedAddrv6 := &net.IPNet{
 		IP:   i.bridgeIPv6.IP.Mask(i.bridgeIPv6.Mask),
 		Mask: i.bridgeIPv6.Mask,
