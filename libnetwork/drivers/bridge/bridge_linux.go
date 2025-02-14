@@ -402,11 +402,11 @@ func parseErr(label, value, errString string) error {
 }
 
 func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (firewaller.Network, error) {
-	config4, err := makeNetworkConfigFam(n.config.HostIPv4, n.bridge.bridgeIPv4, n.gwMode(iptables.IPv4))
+	config4, err := makeNetworkConfigFam(n.config.HostIPv4, n.bridge.bridgeIPv4, n.gwMode(firewaller.IPv4))
 	if err != nil {
 		return nil, err
 	}
-	config6, err := makeNetworkConfigFam(n.config.HostIPv6, n.bridge.bridgeIPv6, n.gwMode(iptables.IPv6))
+	config6, err := makeNetworkConfigFam(n.config.HostIPv6, n.bridge.bridgeIPv6, n.gwMode(firewaller.IPv6))
 	if err != nil {
 		return nil, err
 	}
@@ -450,10 +450,10 @@ func (n *bridgeNetwork) getNATDisabled() (ipv4, ipv6 bool) {
 	return n.config.GwModeIPv4.routed(), n.config.GwModeIPv6.routed()
 }
 
-func (n *bridgeNetwork) gwMode(v iptables.IPVersion) gwMode {
+func (n *bridgeNetwork) gwMode(v firewaller.IPVersion) gwMode {
 	n.Lock()
 	defer n.Unlock()
-	if v == iptables.IPv4 {
+	if v == firewaller.IPv4 {
 		return n.config.GwModeIPv4
 	}
 	return n.config.GwModeIPv6
