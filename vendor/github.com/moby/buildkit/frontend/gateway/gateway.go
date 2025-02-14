@@ -191,22 +191,14 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 		if err != nil {
 			return nil, err
 		}
-		nc, err := dc.NamedContext(source, dockerui.ContextOpt{
+		st, dockerImage, err := dc.NamedContext(ctx, source, dockerui.ContextOpt{
 			CaptureDigest: &mfstDigest,
 		})
 		if err != nil {
 			return nil, err
 		}
-		var st *llb.State
-		if nc != nil {
-			var dockerImage *dockerspec.DockerOCIImage
-			st, dockerImage, err = nc.Load(ctx)
-			if err != nil {
-				return nil, err
-			}
-			if dockerImage != nil {
-				img = *dockerImage
-			}
+		if dockerImage != nil {
+			img = *dockerImage
 		}
 		if st == nil {
 			sourceRef, err := reference.ParseNormalizedNamed(source)

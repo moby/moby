@@ -14,19 +14,6 @@ variable "ACTIONS_CACHE_URL" {
   default = null
 }
 
-variable "ACTIONS_CACHE_SERVICE_V2" {
-  default = null
-}
-
-variable "ACTIONS_RESULTS_URL" {
-  default = null
-}
-
-variable "ACTIONS_CACHE_API_FORCE_VERSION" {
-  default = null
-}
-
-
 group "default" {
   targets = ["test"]
 }
@@ -38,9 +25,6 @@ target "test" {
     GO_VERSION = GO_VERSION
     GITHUB_REPOSITORY = GITHUB_REPOSITORY
     ACTIONS_CACHE_URL = ACTIONS_CACHE_URL
-    ACTIONS_CACHE_API_FORCE_VERSION = ACTIONS_CACHE_API_FORCE_VERSION
-    ACTIONS_CACHE_SERVICE_V2 = ACTIONS_CACHE_SERVICE_V2
-    ACTIONS_RESULTS_URL = ACTIONS_RESULTS_URL
   }
   secret = [
     "id=GITHUB_TOKEN,env=GITHUB_TOKEN",

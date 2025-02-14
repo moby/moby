@@ -97,7 +97,6 @@ type Opt struct {
 	ContainerdAddress   string
 	ContainerdNamespace string
 	Callbacks           exporter.BuildkitCallbacks
-	CDISpecDirs         []string
 }
 
 // Builder can build using BuildKit backend

@@ -28,44 +28,6 @@ github.com/AdaLogics/go-fuzz-headers
 # github.com/AdamKorcz/go-118-fuzz-build v0.0.0-20231105174938-2b5cbb29f3e2
 ## explicit; go 1.18
 github.com/AdamKorcz/go-118-fuzz-build/testing
-# github.com/Azure/azure-sdk-for-go/sdk/azcore v1.16.0
-## explicit; go 1.18
-github.com/Azure/azure-sdk-for-go/sdk/azcore
-github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud
-github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/exported
-github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/log
-github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers
-github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers/async
-github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers/body
-github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers/fake
-github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers/loc
-github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers/op
-github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/shared
-github.com/Azure/azure-sdk-for-go/sdk/azcore/log
-github.com/Azure/azure-sdk-for-go/sdk/azcore/policy
-github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime
-github.com/Azure/azure-sdk-for-go/sdk/azcore/streaming
-github.com/Azure/azure-sdk-for-go/sdk/azcore/to
-github.com/Azure/azure-sdk-for-go/sdk/azcore/tracing
-# github.com/Azure/azure-sdk-for-go/sdk/internal v1.10.0
-## explicit; go 1.18
-github.com/Azure/azure-sdk-for-go/sdk/internal/diag
-github.com/Azure/azure-sdk-for-go/sdk/internal/errorinfo
-github.com/Azure/azure-sdk-for-go/sdk/internal/exported
-github.com/Azure/azure-sdk-for-go/sdk/internal/log
-github.com/Azure/azure-sdk-for-go/sdk/internal/poller
-github.com/Azure/azure-sdk-for-go/sdk/internal/temporal
-github.com/Azure/azure-sdk-for-go/sdk/internal/uuid
-# github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.5.0
-## explicit; go 1.18
-github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob
-github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror
-github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blockblob
-github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/base
-github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/exported
-github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/generated
-github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/shared
-github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas
 # github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c
 ## explicit; go 1.16
 github.com/Azure/go-ansiterm
@@ -755,7 +717,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.20.0-rc1.0.20250212151618-2f7007eec399
+# github.com/moby/buildkit v0.19.0
 ## explicit; go 1.22.0
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -835,7 +797,6 @@ github.com/moby/buildkit/solver/bboltcachestorage
 github.com/moby/buildkit/solver/errdefs
 github.com/moby/buildkit/solver/internal/pipe
 github.com/moby/buildkit/solver/llbsolver
-github.com/moby/buildkit/solver/llbsolver/cdidevices
 github.com/moby/buildkit/solver/llbsolver/errdefs
 github.com/moby/buildkit/solver/llbsolver/file
 github.com/moby/buildkit/solver/llbsolver/mounts
@@ -1175,7 +1136,7 @@ github.com/tonistiigi/dchapes-mode
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy
 github.com/tonistiigi/fsutil/types
-# github.com/tonistiigi/go-actions-cache v0.0.0-20250211194249-bd99cf5bbc65
+# github.com/tonistiigi/go-actions-cache v0.0.0-20241210095730-017636a73805
 ## explicit; go 1.22
 github.com/tonistiigi/go-actions-cache
 # github.com/tonistiigi/go-archvariant v1.0.0

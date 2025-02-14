@@ -22,7 +22,6 @@ import (
 	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	gatewayapi "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/identity"
-	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
 	"github.com/pkg/errors"
@@ -41,7 +40,6 @@ type containerdExecutor struct {
 	traceSocket      string
 	rootless         bool
 	runtime          *RuntimeInfo
-	cdiManager       *cdidevices.Manager
 }
 
 // OnCreateRuntimer provides an alternative to OCI hooks for applying network
@@ -74,7 +72,6 @@ type ExecutorOptions struct {
 	TraceSocket      string
 	Rootless         bool
 	Runtime          *RuntimeInfo
-	CDIManager       *cdidevices.Manager
 }
 
 // New creates a new executor backed by connection to containerd API
@@ -95,7 +92,6 @@ func New(executorOpts ExecutorOptions) executor.Executor {
 		traceSocket:      executorOpts.TraceSocket,
 		rootless:         executorOpts.Rootless,
 		runtime:          executorOpts.Runtime,
-		cdiManager:       executorOpts.CDIManager,
 	}
 }
 

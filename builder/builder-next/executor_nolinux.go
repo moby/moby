@@ -13,10 +13,9 @@ import (
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 	resourcetypes "github.com/moby/buildkit/executor/resources/types"
-	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 )
 
-func newExecutor(_, _ string, _ *libnetwork.Controller, _ *oci.DNSConfig, _ bool, _ idtools.IdentityMapping, _ string, _ *cdidevices.Manager) (executor.Executor, error) {
+func newExecutor(_, _ string, _ *libnetwork.Controller, _ *oci.DNSConfig, _ bool, _ idtools.IdentityMapping, _ string) (executor.Executor, error) {
 	return &stubExecutor{}, nil
 }
 

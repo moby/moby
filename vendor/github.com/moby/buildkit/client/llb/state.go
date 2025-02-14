@@ -295,7 +295,6 @@ func (s State) Run(ro ...RunOption) ExecState {
 	}
 	exec.secrets = ei.Secrets
 	exec.ssh = ei.SSH
-	exec.cdiDevices = ei.CDIDevices
 
 	return ExecState{
 		State: s.WithOutput(exec.Output()),
