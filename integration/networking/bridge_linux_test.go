@@ -1621,8 +1621,8 @@ func TestAdvertiseAddresses(t *testing.T) {
 				ctr2Id = ""
 			}
 
-			t.Log("Sleeping for 5s to collect ARP/NA messages...")
-			time.Sleep(5 * time.Second)
+			t.Log("Sleeping for 7s to collect ARP/NA messages...")
+			time.Sleep(7 * time.Second)
 
 			// Check ARP/NA messages received for ctr2's new address (all unsolicited).
 
