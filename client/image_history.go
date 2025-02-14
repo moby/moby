@@ -10,16 +10,6 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// ImageHistoryOption is a type representing functional options for the image history operation.
-type ImageHistoryOption interface {
-	Apply(*imageHistoryOpts) error
-}
-type imageHistoryOptionFunc func(opt *imageHistoryOpts) error
-
-func (f imageHistoryOptionFunc) Apply(o *imageHistoryOpts) error {
-	return f(o)
-}
-
 // ImageHistoryWithPlatform sets the platform for the image history operation.
 func ImageHistoryWithPlatform(platform ocispec.Platform) ImageHistoryOption {
 	return imageHistoryOptionFunc(func(opt *imageHistoryOpts) error {
@@ -29,10 +19,6 @@ func ImageHistoryWithPlatform(platform ocispec.Platform) ImageHistoryOption {
 		opt.apiOptions.Platform = &platform
 		return nil
 	})
-}
-
-type imageHistoryOpts struct {
-	apiOptions image.HistoryOptions
 }
 
 // ImageHistory returns the changes in an image in history format.
