@@ -794,3 +794,26 @@ func TestMaskURLCredentials(t *testing.T) {
 		assert.Equal(t, maskedURL, test.maskedURL)
 	}
 }
+
+func TestSanitize(t *testing.T) {
+	const (
+		userPass    = "myuser:mypassword@"
+		proxyRawURL = "https://" + userPass + "example.org"
+		proxyURL    = "https://xxxxx:xxxxx@example.org"
+	)
+	sanitizedCfg := Sanitize(Config{
+		CommonConfig: CommonConfig{
+			Proxies: Proxies{
+				HTTPProxy:  proxyRawURL,
+				HTTPSProxy: proxyRawURL,
+				NoProxy:    proxyRawURL,
+			},
+		},
+	})
+	expectedProxies := Proxies{
+		HTTPProxy:  proxyURL,
+		HTTPSProxy: proxyURL,
+		NoProxy:    proxyURL,
+	}
+	assert.Check(t, is.DeepEqual(sanitizedCfg.Proxies, expectedProxies))
+}

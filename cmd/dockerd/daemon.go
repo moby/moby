@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -469,14 +470,15 @@ type builderOptions struct {
 
 func (cli *daemonCLI) reloadConfig() {
 	ctx := context.TODO()
+	log.G(ctx).WithField("config-file", *cli.configFile).Info("Got signal to reload configuration")
 	reload := func(c *config.Config) {
 		if err := validateAuthzPlugins(c.AuthorizationPlugins, cli.d.PluginStore); err != nil {
-			log.G(ctx).Fatalf("Error validating authorization plugin: %v", err)
+			log.G(ctx).WithError(err).Fatal("Error validating authorization plugin")
 			return
 		}
 
 		if err := cli.d.Reload(c); err != nil {
-			log.G(ctx).Errorf("Error reconfiguring the daemon: %v", err)
+			log.G(ctx).WithError(err).Error("Error reconfiguring the daemon")
 			return
 		}
 
@@ -497,7 +499,17 @@ func (cli *daemonCLI) reloadConfig() {
 	}
 
 	if err := config.Reload(*cli.configFile, cli.flags, reload); err != nil {
-		log.G(ctx).Error(err)
+		log.G(ctx).WithError(err).Error("Error reloading configuration")
+		return
+	}
+
+	sanitizedConfig := config.Sanitize(cli.d.Config())
+	jsonData, err := json.Marshal(sanitizedConfig)
+	if err != nil {
+		log.G(context.TODO()).WithError(err).Warn("Error when marshaling configuration for printing")
+		log.G(context.TODO()).Info("Reloaded configuration")
+	} else {
+		log.G(context.TODO()).WithField("config", string(jsonData)).Info("Reloaded configuration")
 	}
 }
 

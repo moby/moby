@@ -440,7 +440,7 @@ func TestDaemonProxy(t *testing.T) {
 		err := d.Signal(syscall.SIGHUP)
 		assert.NilError(t, err)
 
-		poll.WaitOn(t, d.PollCheckLogs(ctx, daemon.ScanLogsMatchAll("Reloaded configuration:", proxyURL)))
+		poll.WaitOn(t, d.PollCheckLogs(ctx, daemon.ScanLogsMatchAll("Reloaded configuration", proxyURL)))
 
 		ok, logs := d.ScanLogsT(ctx, t, daemon.ScanLogsMatchString(userPass))
 		assert.Assert(t, !ok, "logs should not contain the non-sanitized proxy URL: %s", logs)
