@@ -463,7 +463,7 @@ func init() {
 
 	Caps.Init(apicaps.Cap{
 		ID:      CapRemoteCacheAzBlob,
-		Enabled: false,
+		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})
 

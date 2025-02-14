@@ -1443,18 +1443,14 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 			}
 			chopt.Mode = os.FileMode(p)
 		} else {
-			if featureCopyChmodNonOctalEnabled {
-				if _, err := mode.Parse(cfg.chmod); err != nil {
-					var ne *strconv.NumError
-					if errors.As(err, &ne) {
-						return nonOctalErr // return nonOctalErr for compatibility if the value looks numeric
-					}
-					return err
+			if _, err := mode.Parse(cfg.chmod); err != nil {
+				var ne *strconv.NumError
+				if errors.As(err, &ne) {
+					return nonOctalErr // return nonOctalErr for compatibility if the value looks numeric
 				}
-				chopt.ModeStr = cfg.chmod
-			} else {
-				return nonOctalErr
+				return err
 			}
+			chopt.ModeStr = cfg.chmod
 		}
 	}
 

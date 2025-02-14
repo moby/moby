@@ -199,16 +199,18 @@ func (e *ExecOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 		cm.Deps[i].PreprocessFunc = unlazyResultFunc
 	}
 
-	for _, d := range e.op.CdiDevices {
-		setup, ok := e.w.CDIManager().OnDemandInstaller(d.Name)
-		if ok {
-			prev := cm.Deps[0].PreprocessFunc
-			cm.Deps[0].PreprocessFunc = func(ctx context.Context, r solver.Result, g session.Group) error {
-				if err := prev(ctx, r, g); err != nil {
-					return err
+	if e.w != nil && e.w.CDIManager() != nil {
+		for _, d := range e.op.CdiDevices {
+			setup, ok := e.w.CDIManager().OnDemandInstaller(d.Name)
+			if ok {
+				prev := cm.Deps[0].PreprocessFunc
+				cm.Deps[0].PreprocessFunc = func(ctx context.Context, r solver.Result, g session.Group) error {
+					if err := prev(ctx, r, g); err != nil {
+						return err
+					}
+					// we could pass glibc/musl type in here based on rootfs to get correct dynamic libs
+					return setup(ctx)
 				}
-				// we could pass glibc/musl type in here based on rootfs to get correct dynamic libs
-				return setup(ctx)
 			}
 		}
 	}

@@ -755,7 +755,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.20.0-rc1.0.20250212151618-2f7007eec399
+# github.com/moby/buildkit v0.20.0-rc2
 ## explicit; go 1.22.0
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -1068,7 +1068,7 @@ github.com/opencontainers/runtime-tools/validate/capabilities
 github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
 github.com/opencontainers/selinux/pkg/pwalkdir
-# github.com/package-url/packageurl-go v0.1.1-0.20220428063043-89078438f170
+# github.com/package-url/packageurl-go v0.1.1
 ## explicit; go 1.17
 github.com/package-url/packageurl-go
 # github.com/pelletier/go-toml v1.9.5
