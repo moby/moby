@@ -33,14 +33,14 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 	headers.Add("X-Registry-Config", base64.URLEncoding.EncodeToString(buf))
 	headers.Set("Content-Type", "application/x-tar")
 
-	serverResp, err := cli.postRaw(ctx, "/build", query, buildContext, headers)
+	resp, err := cli.postRaw(ctx, "/build", query, buildContext, headers)
 	if err != nil {
 		return types.ImageBuildResponse{}, err
 	}
 
 	return types.ImageBuildResponse{
-		Body:   serverResp.body,
-		OSType: getDockerOS(serverResp.header.Get("Server")),
+		Body:   resp.Body,
+		OSType: getDockerOS(resp.Header.Get("Server")),
 	}, nil
 }
 

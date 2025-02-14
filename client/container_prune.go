@@ -20,14 +20,14 @@ func (cli *Client) ContainersPrune(ctx context.Context, pruneFilters filters.Arg
 		return container.PruneReport{}, err
 	}
 
-	serverResp, err := cli.post(ctx, "/containers/prune", query, nil, nil)
-	defer ensureReaderClosed(serverResp)
+	resp, err := cli.post(ctx, "/containers/prune", query, nil, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return container.PruneReport{}, err
 	}
 
 	var report container.PruneReport
-	if err := json.NewDecoder(serverResp.body).Decode(&report); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
 		return container.PruneReport{}, fmt.Errorf("Error retrieving disk usage: %v", err)
 	}
 

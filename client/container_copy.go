@@ -24,12 +24,12 @@ func (cli *Client) ContainerStatPath(ctx context.Context, containerID, path stri
 	query := url.Values{}
 	query.Set("path", filepath.ToSlash(path)) // Normalize the paths used in the API.
 
-	response, err := cli.head(ctx, "/containers/"+containerID+"/archive", query, nil)
-	defer ensureReaderClosed(response)
+	resp, err := cli.head(ctx, "/containers/"+containerID+"/archive", query, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return container.PathStat{}, err
 	}
-	return getContainerPathStatFromHeader(response.header)
+	return getContainerPathStatFromHeader(resp.Header)
 }
 
 // CopyToContainer copies content into the container filesystem.
@@ -71,7 +71,7 @@ func (cli *Client) CopyFromContainer(ctx context.Context, containerID, srcPath s
 	query := make(url.Values, 1)
 	query.Set("path", filepath.ToSlash(srcPath)) // Normalize the paths used in the API.
 
-	response, err := cli.get(ctx, "/containers/"+containerID+"/archive", query, nil)
+	resp, err := cli.get(ctx, "/containers/"+containerID+"/archive", query, nil)
 	if err != nil {
 		return nil, container.PathStat{}, err
 	}
@@ -82,11 +82,11 @@ func (cli *Client) CopyFromContainer(ctx context.Context, containerID, srcPath s
 	// copy it locally. Along with the stat info about the local destination,
 	// we have everything we need to handle the multiple possibilities there
 	// can be when copying a file/dir from one location to another file/dir.
-	stat, err := getContainerPathStatFromHeader(response.header)
+	stat, err := getContainerPathStatFromHeader(resp.Header)
 	if err != nil {
 		return nil, stat, fmt.Errorf("unable to get resource stat from response: %s", err)
 	}
-	return response.body, stat, err
+	return resp.Body, stat, err
 }
 
 func getContainerPathStatFromHeader(header http.Header) (container.PathStat, error) {

@@ -30,10 +30,10 @@ func (cli *Client) ImageCreate(ctx context.Context, parentReference string, opti
 	if err != nil {
 		return nil, err
 	}
-	return resp.body, nil
+	return resp.Body, nil
 }
 
-func (cli *Client) tryImageCreate(ctx context.Context, query url.Values, registryAuth string) (serverResponse, error) {
+func (cli *Client) tryImageCreate(ctx context.Context, query url.Values, registryAuth string) (*http.Response, error) {
 	return cli.post(ctx, "/images/create", query, nil, http.Header{
 		registry.AuthHeader: {registryAuth},
 	})

@@ -33,6 +33,6 @@ func (cli *Client) ConfigList(ctx context.Context, options types.ConfigListOptio
 	}
 
 	var configs []swarm.Config
-	err = json.NewDecoder(resp.body).Decode(&configs)
+	err = json.NewDecoder(resp.Body).Decode(&configs)
 	return configs, err
 }

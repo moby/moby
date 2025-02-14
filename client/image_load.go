@@ -48,7 +48,7 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...I
 		return image.LoadResponse{}, err
 	}
 	return image.LoadResponse{
-		Body: resp.body,
-		JSON: resp.header.Get("Content-Type") == "application/json",
+		Body: resp.Body,
+		JSON: resp.Header.Get("Content-Type") == "application/json",
 	}, nil
 }

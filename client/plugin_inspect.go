@@ -21,7 +21,7 @@ func (cli *Client) PluginInspectWithRaw(ctx context.Context, name string) (*type
 		return nil, nil, err
 	}
 
-	body, err := io.ReadAll(resp.body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, nil, err
 	}

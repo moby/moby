@@ -14,13 +14,13 @@ func (cli *Client) ContainerUpdate(ctx context.Context, containerID string, upda
 		return container.UpdateResponse{}, err
 	}
 
-	serverResp, err := cli.post(ctx, "/containers/"+containerID+"/update", nil, updateConfig, nil)
-	defer ensureReaderClosed(serverResp)
+	resp, err := cli.post(ctx, "/containers/"+containerID+"/update", nil, updateConfig, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return container.UpdateResponse{}, err
 	}
 
 	var response container.UpdateResponse
-	err = json.NewDecoder(serverResp.body).Decode(&response)
+	err = json.NewDecoder(resp.Body).Decode(&response)
 	return response, err
 }

@@ -43,11 +43,11 @@ func (cli *Client) ImageSearch(ctx context.Context, term string, options registr
 		return results, err
 	}
 
-	err = json.NewDecoder(resp.body).Decode(&results)
+	err = json.NewDecoder(resp.Body).Decode(&results)
 	return results, err
 }
 
-func (cli *Client) tryImageSearch(ctx context.Context, query url.Values, registryAuth string) (serverResponse, error) {
+func (cli *Client) tryImageSearch(ctx context.Context, query url.Values, registryAuth string) (*http.Response, error) {
 	return cli.get(ctx, "/images/search", query, http.Header{
 		registry.AuthHeader: {registryAuth},
 	})

@@ -21,13 +21,13 @@ func (cli *Client) ServiceInspectWithRaw(ctx context.Context, serviceID string, 
 
 	query := url.Values{}
 	query.Set("insertDefaults", fmt.Sprintf("%v", opts.InsertDefaults))
-	serverResp, err := cli.get(ctx, "/services/"+serviceID, query, nil)
-	defer ensureReaderClosed(serverResp)
+	resp, err := cli.get(ctx, "/services/"+serviceID, query, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return swarm.Service{}, nil, err
 	}
 
-	body, err := io.ReadAll(serverResp.body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return swarm.Service{}, nil, err
 	}

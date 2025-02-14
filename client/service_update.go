@@ -80,8 +80,8 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 		return swarm.ServiceUpdateResponse{}, err
 	}
 
-	response := swarm.ServiceUpdateResponse{}
-	err = json.NewDecoder(resp.body).Decode(&response)
+	var response swarm.ServiceUpdateResponse
+	err = json.NewDecoder(resp.Body).Decode(&response)
 	if resolveWarning != "" {
 		response.Warnings = append(response.Warnings, resolveWarning)
 	}

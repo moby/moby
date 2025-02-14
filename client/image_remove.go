@@ -19,13 +19,13 @@ func (cli *Client) ImageRemove(ctx context.Context, imageID string, options imag
 		query.Set("noprune", "1")
 	}
 
-	var dels []image.DeleteResponse
 	resp, err := cli.delete(ctx, "/images/"+imageID, query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return dels, err
+		return nil, err
 	}
 
-	err = json.NewDecoder(resp.body).Decode(&dels)
+	var dels []image.DeleteResponse
+	err = json.NewDecoder(resp.Body).Decode(&dels)
 	return dels, err
 }

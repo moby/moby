@@ -237,6 +237,7 @@ func TestInfiniteError(t *testing.T) {
 	}
 
 	_, err := client.Ping(context.Background())
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 	assert.Check(t, is.ErrorContains(err, "request returned Internal Server Error"))
 }
 

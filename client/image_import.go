@@ -44,5 +44,5 @@ func (cli *Client) ImageImport(ctx context.Context, source image.ImportSource, r
 	if err != nil {
 		return nil, err
 	}
-	return resp.body, nil
+	return resp.Body, nil
 }

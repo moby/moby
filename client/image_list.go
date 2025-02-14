@@ -56,12 +56,12 @@ func (cli *Client) ImageList(ctx context.Context, options image.ListOptions) ([]
 		query.Set("manifests", "1")
 	}
 
-	serverResp, err := cli.get(ctx, "/images/json", query, nil)
-	defer ensureReaderClosed(serverResp)
+	resp, err := cli.get(ctx, "/images/json", query, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return images, err
 	}
 
-	err = json.NewDecoder(serverResp.body).Decode(&images)
+	err = json.NewDecoder(resp.Body).Decode(&images)
 	return images, err
 }
