@@ -195,12 +195,6 @@ func (n *bridgeNetwork) addPortMappings(
 		if err := n.setPerPortIptables(b, true); err != nil {
 			return nil, err
 		}
-		if err := n.filterPortMappedOnLoopback(b, true); err != nil {
-			return nil, err
-		}
-		if err := n.filterDirectAccess(b, true); err != nil {
-			return nil, err
-		}
 	}
 
 	// Now the iptables rules are set up, it's safe to start the userland proxy.
@@ -750,12 +744,6 @@ func (n *bridgeNetwork) releasePortBindings(pbs []portBinding) error {
 		if err := n.setPerPortIptables(pb, false); err != nil {
 			errs = append(errs, fmt.Errorf("failed to remove iptables rules for port mapping %s: %w", pb, err))
 		}
-		if err := n.filterPortMappedOnLoopback(pb, false); err != nil {
-			errs = append(errs, err)
-		}
-		if err := n.filterDirectAccess(pb, false); err != nil {
-			errs = append(errs, err)
-		}
 		if pb.HostPort > 0 {
 			portallocator.Get().ReleasePort(pb.childHostIP, pb.Proto.String(), int(pb.HostPort))
 		}
@@ -764,19 +752,27 @@ func (n *bridgeNetwork) releasePortBindings(pbs []portBinding) error {
 }
 
 func (n *bridgeNetwork) setPerPortIptables(b portBinding, enable bool) error {
-	if (b.IP.To4() != nil) != (b.HostIP.To4() != nil) {
-		// The binding is between containerV4 and hostV6 (not vice-versa as that
-		// will have been rejected earlier). It's handled by docker-proxy, so no
-		// additional iptables rules are required.
-		return nil
-	}
 	v := iptables.IPv4
 	if b.IP.To4() == nil {
 		v = iptables.IPv6
 	}
-
 	if enabled, err := n.iptablesEnabled(v); err != nil || !enabled {
 		// Nothing to do, iptables/ip6tables is not enabled.
+		return nil
+	}
+
+	if err := n.filterPortMappedOnLoopback(b, enable); err != nil {
+		return err
+	}
+
+	if err := n.filterDirectAccess(b, enable); err != nil {
+		return err
+	}
+
+	if (b.IP.To4() != nil) != (b.HostIP.To4() != nil) {
+		// The binding is between containerV4 and hostV6 (not vice versa as that
+		// will have been rejected earlier). It's handled by docker-proxy. So, no
+		// further iptables rules are required.
 		return nil
 	}
 
@@ -967,13 +963,7 @@ func (n *bridgeNetwork) reapplyPerPortIptables(needsReconfig func(portBinding) b
 	for _, b := range allPBs {
 		if needsReconfig(b) {
 			if err := n.setPerPortIptables(b, true); err != nil {
-				log.G(context.TODO()).Warnf("Failed to reconfigure NAT %s: %s", b, err)
-			}
-			if err := n.filterPortMappedOnLoopback(b, true); err != nil {
-				log.G(context.TODO()).Warnf("Failed to reconfigure NAT %s: %s", b, err)
-			}
-			if err := n.filterDirectAccess(b, true); err != nil {
-				log.G(context.TODO()).Warnf("Failed to reconfigure NAT %s: %s", b, err)
+				log.G(context.TODO()).Warnf("Failed to reconfigure iptables on firewalld reload %s: %s", b, err)
 			}
 		}
 	}
