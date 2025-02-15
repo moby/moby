@@ -434,11 +434,10 @@ func (l *splunkLogger) worker() {
 }
 
 func (l *splunkLogger) postMessages(messages []*splunkMessage, lastChance bool) []*splunkMessage {
-	messagesLen := len(messages)
-
 	ctx, cancel := context.WithTimeout(context.Background(), batchSendTimeout)
 	defer cancel()
 
+	messagesLen := len(messages)
 	for i := 0; i < messagesLen; i += l.postMessagesBatchSize {
 		upperBound := i + l.postMessagesBatchSize
 		if upperBound > messagesLen {
@@ -456,9 +455,9 @@ func (l *splunkLogger) postMessages(messages []*splunkMessage, lastChance bool) 
 				// we could not send and return buffer minus one batch size
 				for j := i; j < upperBound; j++ {
 					if jsonEvent, err := json.Marshal(messages[j]); err != nil {
-						log.G(ctx).Error(err)
+						log.G(ctx).WithError(err).Error("Failed to send a message and failed to encode to JSON")
 					} else {
-						log.G(ctx).Error(fmt.Errorf("Failed to send a message '%s'", string(jsonEvent)))
+						log.G(ctx).WithField("message", string(jsonEvent)).Error("Failed to send a message")
 					}
 				}
 				return messages[upperBound:messagesLen]
