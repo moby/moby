@@ -49,6 +49,9 @@ import (
 const (
 	configFileName     = "config.v2.json"
 	hostConfigFileName = "hostconfig.json"
+
+	// defaultStopSignal is the default syscall signal used to stop a container.
+	defaultStopSignal = syscall.SIGTERM
 )
 
 // ExitStatus provides exit reasons for a container.
@@ -584,7 +587,7 @@ func (container *Container) StopSignal() syscall.Signal {
 	}
 
 	if stopSignal == 0 {
-		stopSignal, _ = signal.ParseSignal(defaultStopSignal)
+		stopSignal = defaultStopSignal
 	}
 	return stopSignal
 }

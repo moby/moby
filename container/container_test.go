@@ -3,12 +3,12 @@ package container // import "github.com/docker/docker/container"
 import (
 	"fmt"
 	"path/filepath"
+	"syscall"
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
-	"github.com/moby/sys/signal"
 	"gotest.tools/v3/assert"
 )
 
@@ -17,17 +17,14 @@ func TestContainerStopSignal(t *testing.T) {
 		Config: &container.Config{},
 	}
 
-	expected, err := signal.ParseSignal(defaultStopSignal)
-	assert.NilError(t, err)
-
 	s := c.StopSignal()
-	assert.Equal(t, s, expected)
+	assert.Equal(t, s, defaultStopSignal)
 
 	c = &Container{
 		Config: &container.Config{StopSignal: "SIGKILL"},
 	}
 	s = c.StopSignal()
-	expected = 9
+	expected := syscall.SIGKILL
 	assert.Equal(t, s, expected)
 }
 

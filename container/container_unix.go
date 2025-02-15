@@ -21,9 +21,6 @@ import (
 )
 
 const (
-	// defaultStopSignal is the default syscall signal used to stop a container.
-	defaultStopSignal = "SIGTERM"
-
 	// defaultStopTimeout sets the default time, in seconds, to wait
 	// for the graceful container stop before forcefully terminating it.
 	defaultStopTimeout = 10
