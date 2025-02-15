@@ -26,6 +26,12 @@ func TestContainerStopSignal(t *testing.T) {
 	s = c.StopSignal()
 	expected := syscall.SIGKILL
 	assert.Equal(t, s, expected)
+
+	c = &Container{
+		Config: &container.Config{StopSignal: "NOSUCHSIGNAL"},
+	}
+	s = c.StopSignal()
+	assert.Equal(t, s, defaultStopSignal)
 }
 
 func TestContainerStopTimeout(t *testing.T) {

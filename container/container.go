@@ -581,13 +581,13 @@ func (container *Container) IsDestinationMounted(destination string) bool {
 
 // StopSignal returns the signal used to stop the container.
 func (container *Container) StopSignal() syscall.Signal {
-	var stopSignal syscall.Signal
+	stopSignal := defaultStopSignal
 	if container.Config.StopSignal != "" {
-		stopSignal, _ = signal.ParseSignal(container.Config.StopSignal)
-	}
-
-	if stopSignal == 0 {
-		stopSignal = defaultStopSignal
+		// signal.ParseSignal returns "-1" for invalid or unknown signals.
+		sig, err := signal.ParseSignal(container.Config.StopSignal)
+		if err == nil && sig > 0 {
+			stopSignal = sig
+		}
 	}
 	return stopSignal
 }
