@@ -255,7 +255,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
-	attrs, err := info.ExtraAttributes(nil)
+	extraAttrs, err := info.ExtraAttributes(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -318,14 +318,14 @@ func New(info logger.Info) (logger.Logger, error) {
 	case splunkFormatInline:
 		nullEvent := &splunkMessageEvent{
 			Tag:   tag,
-			Attrs: attrs,
+			Attrs: extraAttrs,
 		}
 
 		loggerWrapper = &splunkLoggerInline{splLogger, nullEvent}
 	case splunkFormatJSON:
 		nullEvent := &splunkMessageEvent{
 			Tag:   tag,
-			Attrs: attrs,
+			Attrs: extraAttrs,
 		}
 
 		loggerWrapper = &splunkLoggerJSON{&splunkLoggerInline{splLogger, nullEvent}}
@@ -335,7 +335,7 @@ func New(info logger.Info) (logger.Logger, error) {
 			prefix.WriteString(tag)
 			prefix.WriteString(" ")
 		}
-		for key, value := range attrs {
+		for key, value := range extraAttrs {
 			prefix.WriteString(key)
 			prefix.WriteString("=")
 			prefix.WriteString(value)

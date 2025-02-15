@@ -81,7 +81,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
-	attrs, err := info.ExtraAttributes(nil)
+	extraAttrs, err := info.ExtraAttributes(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -92,13 +92,13 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, err
 	}
 	if tag != "" {
-		attrs["tag"] = tag
+		extraAttrs["tag"] = tag
 	}
 
 	var extra json.RawMessage
-	if len(attrs) > 0 {
+	if len(extraAttrs) > 0 {
 		var err error
-		extra, err = json.Marshal(attrs)
+		extra, err = json.Marshal(extraAttrs)
 		if err != nil {
 			return nil, err
 		}

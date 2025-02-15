@@ -156,7 +156,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, fmt.Errorf("unable to connect or authenticate with Google Cloud Logging: %v", err)
 	}
 
-	extraAttributes, err := info.ExtraAttributes(nil)
+	extraAttrs, err := info.ExtraAttributes(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func New(info logger.Info) (logger.Logger, error) {
 			ImageName: info.ContainerImageName,
 			ImageID:   info.ContainerImageID,
 			Created:   info.ContainerCreated,
-			Metadata:  extraAttributes,
+			Metadata:  extraAttrs,
 		},
 	}
 
