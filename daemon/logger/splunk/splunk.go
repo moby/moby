@@ -529,8 +529,10 @@ func (l *splunkLogger) tryPostMessages(ctx context.Context, messages []*splunkMe
 		return err
 	}
 	defer func() {
-		pools.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		// Drain  and close the body to let the transport reuse the connection.
+		// see https://github.com/google/go-github/pull/317/files#r57536827
+		_, _ = pools.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
 	}()
 	if resp.StatusCode != http.StatusOK {
 		rdr := io.LimitReader(resp.Body, maxResponseSize)
@@ -629,8 +631,10 @@ func verifySplunkConnection(l *splunkLogger) error {
 		return err
 	}
 	defer func() {
-		pools.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		// Drain  and close the body to let the transport reuse the connection.
+		// see https://github.com/google/go-github/pull/317/files#r57536827
+		_, _ = pools.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
 	}()
 
 	if resp.StatusCode != http.StatusOK {
