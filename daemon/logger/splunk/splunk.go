@@ -414,10 +414,10 @@ func (l *splunkLogger) worker() {
 			if !open {
 				l.postMessages(messages, true)
 				l.lock.Lock()
-				defer l.lock.Unlock()
 				l.transport.CloseIdleConnections()
 				l.closed = true
 				l.closedCond.Signal()
+				l.lock.Unlock()
 				return
 			}
 			messages = append(messages, message)
