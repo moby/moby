@@ -289,18 +289,9 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
-	var splunkFormat string
-	if splunkFormatParsed, ok := info.Config[splunkFormatKey]; ok {
-		switch splunkFormatParsed {
-		case splunkFormatInline:
-		case splunkFormatJSON:
-		case splunkFormatRaw:
-		default:
-			return nil, fmt.Errorf("Unknown format specified %s, supported formats are inline, json and raw", splunkFormat)
-		}
-		splunkFormat = splunkFormatParsed
-	} else {
-		splunkFormat = splunkFormatInline
+	splunkFormat := splunkFormatInline
+	if f, ok := info.Config[splunkFormatKey]; ok {
+		splunkFormat = f
 	}
 
 	var loggerWrapper splunkLoggerInterface
@@ -335,7 +326,7 @@ func New(info logger.Info) (logger.Logger, error) {
 
 		loggerWrapper = &splunkLoggerRaw{splLogger, prefix.Bytes()}
 	default:
-		return nil, fmt.Errorf("Unexpected format %s", splunkFormat)
+		return nil, fmt.Errorf("unknown format specified %s, supported formats are inline, json and raw", splunkFormat)
 	}
 
 	go loggerWrapper.worker()
