@@ -267,7 +267,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		streamChannelSize     = getAdvancedOptionInt(envVarStreamChannelSize, defaultStreamChannelSize)
 	)
 
-	logger := &splunkLogger{
+	splLogger := &splunkLogger{
 		client:                client,
 		transport:             transport,
 		url:                   splunkURL.String(),
@@ -292,7 +292,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 	if verifyConnection {
-		err = verifySplunkConnection(logger)
+		err = verifySplunkConnection(splLogger)
 		if err != nil {
 			return nil, err
 		}
@@ -321,14 +321,14 @@ func New(info logger.Info) (logger.Logger, error) {
 			Attrs: attrs,
 		}
 
-		loggerWrapper = &splunkLoggerInline{logger, nullEvent}
+		loggerWrapper = &splunkLoggerInline{splLogger, nullEvent}
 	case splunkFormatJSON:
 		nullEvent := &splunkMessageEvent{
 			Tag:   tag,
 			Attrs: attrs,
 		}
 
-		loggerWrapper = &splunkLoggerJSON{&splunkLoggerInline{logger, nullEvent}}
+		loggerWrapper = &splunkLoggerJSON{&splunkLoggerInline{splLogger, nullEvent}}
 	case splunkFormatRaw:
 		var prefix bytes.Buffer
 		if tag != "" {
@@ -342,7 +342,7 @@ func New(info logger.Info) (logger.Logger, error) {
 			prefix.WriteString(" ")
 		}
 
-		loggerWrapper = &splunkLoggerRaw{logger, prefix.Bytes()}
+		loggerWrapper = &splunkLoggerRaw{splLogger, prefix.Bytes()}
 	default:
 		return nil, fmt.Errorf("Unexpected format %s", splunkFormat)
 	}
