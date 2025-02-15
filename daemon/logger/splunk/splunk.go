@@ -227,27 +227,8 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
-	transport := &http.Transport{
-		TLSClientConfig: tlsConfig,
-		Proxy:           http.ProxyFromEnvironment,
-	}
-	client := &http.Client{
-		Transport: transport,
-	}
-
-	source := info.Config[splunkSourceKey]
-	sourceType := info.Config[splunkSourceTypeKey]
-	index := info.Config[splunkIndexKey]
-
-	nullMessage := &splunkMessage{
-		Host:       hostname,
-		Source:     source,
-		SourceType: sourceType,
-		Index:      index,
-	}
-
 	// Allow user to remove tag from the messages by setting tag to empty string
-	tag := ""
+	var tag string
 	if tagTemplate, ok := info.Config[tagKey]; !ok || tagTemplate != "" {
 		tag, err = loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
 		if err != nil {
@@ -267,12 +248,22 @@ func New(info logger.Info) (logger.Logger, error) {
 		streamChannelSize     = getAdvancedOptionInt(envVarStreamChannelSize, defaultStreamChannelSize)
 	)
 
+	transport := &http.Transport{
+		TLSClientConfig: tlsConfig,
+		Proxy:           http.ProxyFromEnvironment,
+	}
+
 	splLogger := &splunkLogger{
-		client:                client,
-		transport:             transport,
-		url:                   splunkURL.String(),
-		auth:                  "Splunk " + splunkToken,
-		nullMessage:           nullMessage,
+		client:    &http.Client{Transport: transport},
+		transport: transport,
+		url:       splunkURL.String(),
+		auth:      "Splunk " + splunkToken,
+		nullMessage: &splunkMessage{
+			Host:       hostname,
+			Source:     info.Config[splunkSourceKey],
+			SourceType: info.Config[splunkSourceTypeKey],
+			Index:      info.Config[splunkIndexKey],
+		},
 		gzipCompression:       gzipCompression,
 		gzipCompressionLevel:  gzipCompressionLevel,
 		stream:                make(chan *splunkMessage, streamChannelSize),
