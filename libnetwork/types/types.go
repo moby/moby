@@ -117,6 +117,16 @@ func (p *PortBinding) GetCopy() PortBinding {
 	}
 }
 
+// Equal returns true if o has the same values as p, else false.
+func (p *PortBinding) Equal(o *PortBinding) bool {
+	return p.Proto == o.Proto &&
+		p.IP.Equal(o.IP) &&
+		p.Port == o.Port &&
+		p.HostIP.Equal(o.HostIP) &&
+		p.HostPort == o.HostPort &&
+		p.HostPortEnd == o.HostPortEnd
+}
+
 // String returns the PortBinding structure in the form "HostIP:HostPort:IP:Port/Proto",
 // omitting un-set fields apart from Port.
 func (p PortBinding) String() string {

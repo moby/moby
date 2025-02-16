@@ -509,7 +509,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 	}
 
 	var err error
-	d.firewaller, err = iptabler.NewIptabler(context.Background(), firewaller.Config{
+	d.firewaller, err = newFirewaller(context.Background(), firewaller.Config{
 		IPv4:               config.EnableIPTables,
 		IPv6:               config.EnableIP6Tables,
 		Hairpin:            !config.EnableUserlandProxy || config.UserlandProxyPath == "",
@@ -518,7 +518,6 @@ func (d *driver) configure(option map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
-	iptables.OnReloaded(d.handleFirewalldReload)
 
 	var pdc portDriverClient
 	if config.Rootless {
@@ -534,7 +533,13 @@ func (d *driver) configure(option map[string]interface{}) error {
 	d.config = config
 	d.Unlock()
 
+	iptables.OnReloaded(d.handleFirewalldReload)
+
 	return d.initStore()
+}
+
+var newFirewaller = func(ctx context.Context, config firewaller.Config) (firewaller.Firewaller, error) {
+	return iptabler.NewIptabler(ctx, config)
 }
 
 func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {
