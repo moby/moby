@@ -15,7 +15,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/internal/testutils/storeutils"
-	"github.com/docker/docker/libnetwork/iptables"
+	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/portallocator"
@@ -28,6 +28,8 @@ import (
 
 func TestPortMappingConfig(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
+	useStubFirewaller(t)
+
 	d := newDriver(storeutils.NewTempStore(t))
 
 	config := &configuration{
@@ -764,6 +766,7 @@ func TestAddPortMappings(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
+			useStubFirewaller(t)
 
 			// Mock the startProxy function used by the code under test.
 			origStartProxy := startProxy
@@ -884,62 +887,39 @@ func TestAddPortMappings(t *testing.T) {
 			}
 			assert.Assert(t, is.Len(pbs, len(tc.expPBs)))
 
-			// Check the iptables rules.
+			fw := n.driver.firewaller.(*firewaller.StubFirewaller)
+			assert.Check(t, is.Equal(fw.Hairpin, tc.proxyPath == ""))
+			assert.Check(t, fw.IPv4)
+			assert.Check(t, fw.IPv6)
+
+			fnw := n.firewallerNetwork.(*firewaller.StubFirewallerNetwork)
+			assert.Check(t, !fnw.Internal)
+			assert.Check(t, !fnw.ICC)
+			assert.Check(t, !fnw.Masquerade)
+
+			if n.config.HostIPv4 == nil {
+				assert.Check(t, !fnw.Config4.HostIP.IsValid())
+			} else {
+				assert.Check(t, is.Equal(fnw.Config4.HostIP.String(), n.config.HostIPv4.String()))
+			}
+			assert.Check(t, is.Equal(fnw.Config4.Routed, tc.gwMode4.routed()))
+			assert.Check(t, !fnw.Config4.Unprotected)
+
+			if n.config.HostIPv6 == nil {
+				assert.Check(t, !fnw.Config6.HostIP.IsValid())
+			} else {
+				assert.Check(t, is.Equal(fnw.Config6.HostIP.String(), n.config.HostIPv6.String()))
+			}
+			assert.Check(t, is.Equal(fnw.Config6.Routed, tc.gwMode6.routed()))
+			assert.Check(t, !fnw.Config6.Unprotected)
+
+			assert.Check(t, is.Len(fnw.Ports, len(tc.expPBs)))
 			for _, expPB := range tc.expPBs {
-				var disableNAT bool
-				var addrM, addrD, addrH string
-				var ipv iptables.IPVersion
-				hip := expChildIP(expPB.HostIP)
-				if expPB.IP.To4() == nil {
-					disableNAT = tc.gwMode6.routed()
-					ipv = iptables.IPv6
-					addrM = ctrIP6.IP.String() + "/128"
-					addrD = "[" + ctrIP6.IP.String() + "]"
-					addrH = hip.String() + "/128"
-				} else {
-					disableNAT = tc.gwMode4.routed()
-					ipv = iptables.IPv4
-					addrM = ctrIP4.IP.String() + "/32"
-					addrD = ctrIP4.IP.String()
-					addrH = hip.String() + "/32"
-				}
-				if hip.IsUnspecified() {
-					addrH = "0/0"
-				}
-
-				// Check the MASQUERADE rule.
-				masqRule := fmt.Sprintf("-s %s -d %s -p %s -m %s --dport %d -j MASQUERADE",
-					addrM, addrM, expPB.Proto, expPB.Proto, expPB.Port)
-				ir := iptables.Rule{IPVer: ipv, Table: iptables.Nat, Chain: "POSTROUTING", Args: strings.Split(masqRule, " ")}
-				if disableNAT || tc.proxyPath != "" {
-					assert.Check(t, !ir.Exists(), fmt.Sprintf("unexpected rule %s", ir))
-				} else {
-					assert.Check(t, ir.Exists(), fmt.Sprintf("expected rule %s", ir))
-				}
-
-				// Check the DNAT rule.
-				dnatRule := ""
-				if ipv == iptables.IPv6 && !tc.gwMode6.routed() {
-					dnatRule += "! -s fe80::/10 "
-				}
-				if tc.proxyPath != "" {
-					// No docker-proxy, so expect "hairpinMode".
-					dnatRule += "! -i dummybridge "
-				}
-				dnatRule += fmt.Sprintf("-d %s -p %s -m %s --dport %d -j DNAT --to-destination %s:%d",
-					addrH, expPB.Proto, expPB.Proto, expPB.HostPort, addrD, expPB.Port)
-				ir = iptables.Rule{IPVer: ipv, Table: iptables.Nat, Chain: "DOCKER", Args: strings.Split(dnatRule, " ")}
-				if disableNAT {
-					assert.Check(t, !ir.Exists(), fmt.Sprintf("unexpected rule %s", ir))
-				} else {
-					assert.Check(t, ir.Exists(), fmt.Sprintf("expected rule %s", ir))
-				}
-
-				// Check that the container's port is open.
-				filterRule := fmt.Sprintf("-d %s ! -i dummybridge -o dummybridge -p %s -m %s --dport %d -j ACCEPT",
-					addrM, expPB.Proto, expPB.Proto, expPB.Port)
-				ir = iptables.Rule{IPVer: ipv, Table: iptables.Filter, Chain: "DOCKER", Args: strings.Split(filterRule, " ")}
-				assert.Check(t, ir.Exists(), fmt.Sprintf("expected rule %s", ir))
+				expPBCopy := expPB
+				expPBCopy.HostPortEnd = expPB.HostPort
+				expPBCopy.HostIP = expChildIP(expPB.HostIP)
+				assert.Check(t, fnw.PortExists(expPBCopy),
+					"expected port mapping %v (%v)", expPBCopy, expChildIP(expPB.HostIP))
 			}
 
 			// Release anything that was allocated.
