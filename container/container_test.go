@@ -2,14 +2,13 @@ package container // import "github.com/docker/docker/container"
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
-	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
-	"github.com/moby/sys/signal"
 	"gotest.tools/v3/assert"
 )
 
@@ -18,23 +17,21 @@ func TestContainerStopSignal(t *testing.T) {
 		Config: &container.Config{},
 	}
 
-	def, err := signal.ParseSignal(defaultStopSignal)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	s := c.StopSignal()
-	if s != def {
-		t.Fatalf("Expected %v, got %v", def, s)
-	}
+	assert.Equal(t, s, defaultStopSignal)
 
 	c = &Container{
 		Config: &container.Config{StopSignal: "SIGKILL"},
 	}
 	s = c.StopSignal()
-	if s != 9 {
-		t.Fatalf("Expected 9, got %v", s)
+	expected := syscall.SIGKILL
+	assert.Equal(t, s, expected)
+
+	c = &Container{
+		Config: &container.Config{StopSignal: "NOSUCHSIGNAL"},
 	}
+	s = c.StopSignal()
+	assert.Equal(t, s, defaultStopSignal)
 }
 
 func TestContainerStopTimeout(t *testing.T) {
@@ -43,38 +40,30 @@ func TestContainerStopTimeout(t *testing.T) {
 	}
 
 	s := c.StopTimeout()
-	if s != defaultStopTimeout {
-		t.Fatalf("Expected %v, got %v", defaultStopTimeout, s)
-	}
+	assert.Equal(t, s, defaultStopTimeout)
 
 	stopTimeout := 15
 	c = &Container{
 		Config: &container.Config{StopTimeout: &stopTimeout},
 	}
 	s = c.StopTimeout()
-	if s != stopTimeout {
-		t.Fatalf("Expected %v, got %v", stopTimeout, s)
-	}
+	assert.Equal(t, s, stopTimeout)
 }
 
 func TestContainerSecretReferenceDestTarget(t *testing.T) {
-	ref := &swarmtypes.SecretReference{
-		File: &swarmtypes.SecretReferenceFileTarget{
+	ref := &swarm.SecretReference{
+		File: &swarm.SecretReferenceFileTarget{
 			Name: "app",
 		},
 	}
 
 	d := getSecretTargetPath(ref)
 	expected := filepath.Join(containerSecretMountPath, "app")
-	if d != expected {
-		t.Fatalf("expected secret dest %q; received %q", expected, d)
-	}
+	assert.Equal(t, d, expected)
 }
 
 func TestContainerLogPathSetForJSONFileLogger(t *testing.T) {
-	containerRoot, err := os.MkdirTemp("", "TestContainerLogPathSetForJSONFileLogger")
-	assert.NilError(t, err)
-	defer os.RemoveAll(containerRoot)
+	containerRoot := t.TempDir()
 
 	c := &Container{
 		Config: &container.Config{},
@@ -83,13 +72,15 @@ func TestContainerLogPathSetForJSONFileLogger(t *testing.T) {
 				Type: jsonfilelog.Name,
 			},
 		},
-		ID:   "TestContainerLogPathSetForJSONFileLogger",
+		ID:   t.Name(),
 		Root: containerRoot,
 	}
 
 	logger, err := c.StartLogger()
 	assert.NilError(t, err)
-	defer logger.Close()
+	defer func() {
+		assert.NilError(t, logger.Close())
+	}()
 
 	expectedLogPath, err := filepath.Abs(filepath.Join(containerRoot, fmt.Sprintf("%s-json.log", c.ID)))
 	assert.NilError(t, err)
@@ -97,9 +88,7 @@ func TestContainerLogPathSetForJSONFileLogger(t *testing.T) {
 }
 
 func TestContainerLogPathSetForRingLogger(t *testing.T) {
-	containerRoot, err := os.MkdirTemp("", "TestContainerLogPathSetForRingLogger")
-	assert.NilError(t, err)
-	defer os.RemoveAll(containerRoot)
+	containerRoot := t.TempDir()
 
 	c := &Container{
 		Config: &container.Config{},
@@ -111,13 +100,15 @@ func TestContainerLogPathSetForRingLogger(t *testing.T) {
 				},
 			},
 		},
-		ID:   "TestContainerLogPathSetForRingLogger",
+		ID:   t.Name(),
 		Root: containerRoot,
 	}
 
 	logger, err := c.StartLogger()
 	assert.NilError(t, err)
-	defer logger.Close()
+	defer func() {
+		assert.NilError(t, logger.Close())
+	}()
 
 	expectedLogPath, err := filepath.Abs(filepath.Join(containerRoot, fmt.Sprintf("%s-json.log", c.ID)))
 	assert.NilError(t, err)
