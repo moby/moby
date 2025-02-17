@@ -965,13 +965,18 @@ definitions:
           ContainerIDFile:
             type: "string"
             description: "Path to a file where the container ID is written"
+            example: ""
           LogConfig:
             type: "object"
             description: "The logging configuration for this container"
             properties:
               Type:
+                description: |-
+                  Name of the logging driver used for the container or "none"
+                  if logging is disabled.
                 type: "string"
                 enum:
+                  - "local"
                   - "json-file"
                   - "syslog"
                   - "journald"
@@ -982,9 +987,14 @@ definitions:
                   - "etwlogs"
                   - "none"
               Config:
+                description: |-
+                  Driver-specific configuration options for the logging driver.
                 type: "object"
                 additionalProperties:
                   type: "string"
+                example:
+                  "max-file": "5"
+                  "max-size": "10m"
           NetworkMode:
             type: "string"
             description: |
@@ -1027,6 +1037,7 @@ definitions:
             items:
               type: "integer"
               minimum: 0
+            example: [80, 64]
           Annotations:
             type: "object"
             description: |
@@ -1129,7 +1140,8 @@ definitions:
               - `"host"`: use the host's PID namespace inside the container
           Privileged:
             type: "boolean"
-            description: "Gives the container full access to the host."
+            description: |-
+              Gives the container full access to the host.
           PublishAllPorts:
             type: "boolean"
             description: |
@@ -1186,18 +1198,20 @@ definitions:
             minimum: 0
           Sysctls:
             type: "object"
-            description: |
+            x-nullable: true
+            description: |-
               A list of kernel parameters (sysctls) to set in the container.
-              For example:
 
-              ```
-              {"net.ipv4.ip_forward": "1"}
-              ```
+              This field is omitted if not set.
             additionalProperties:
               type: "string"
+            example:
+              "net.ipv4.ip_forward": "1"
           Runtime:
             type: "string"
-            description: "Runtime to use with this container."
+            x-nullable: true
+            description: |-
+              Runtime to use with this container.
           # Applicable to Windows
           Isolation:
             type: "string"
@@ -1215,6 +1229,18 @@ definitions:
               the default set of paths).
             items:
               type: "string"
+            example:
+              - "/proc/asound"
+              - "/proc/acpi"
+              - "/proc/kcore"
+              - "/proc/keys"
+              - "/proc/latency_stats"
+              - "/proc/timer_list"
+              - "/proc/timer_stats"
+              - "/proc/sched_debug"
+              - "/proc/scsi"
+              - "/sys/firmware"
+              - "/sys/devices/virtual/powercap"
           ReadonlyPaths:
             type: "array"
             description: |
@@ -1222,6 +1248,12 @@ definitions:
               (this overrides the default set of paths).
             items:
               type: "string"
+            example:
+              - "/proc/bus"
+              - "/proc/fs"
+              - "/proc/irq"
+              - "/proc/sys"
+              - "/proc/sysrq-trigger"
 
   ContainerConfig:
     description: |
@@ -1238,8 +1270,14 @@ definitions:
           The domain name to use for the container.
         type: "string"
       User:
-        description: "The user that commands are run as inside the container."
+        description: |-
+          Commands run as this user inside the container. If omitted, commands
+          run as the user specified in the image the container was started from.
+
+          Can be either user-name or UID, and optional group-name or GID,
+          separated by a colon (`<user-name|UID>[<:group-name|GID>]`).
         type: "string"
+        example: "123:456"
       AttachStdin:
         description: "Whether to attach to `stdin`."
         type: "boolean"
@@ -5091,6 +5129,182 @@ definitions:
       Warnings:
         - "unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"
 
+  ContainerInspectResponse:
+    type: "object"
+    title: "ContainerInspectResponse"
+    x-go-name: "InspectResponse"
+    properties:
+      Id:
+        description: |-
+          The ID of this container as a 128-bit (64-character) hexadecimal string (32 bytes).
+        type: "string"
+        x-go-name: "ID"
+        minLength: 64
+        maxLength: 64
+        pattern: "^[0-9a-fA-F]{64}$"
+        example: "aa86eacfb3b3ed4cd362c1e88fc89a53908ad05fb3a4103bca3f9b28292d14bf"
+      Created:
+        description: |-
+          Date and time at which the container was created, formatted in
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
+        type: "string"
+        format: "dateTime"
+        x-nullable: true
+        example: "2025-02-17T17:43:39.64001363Z"
+      Path:
+        description: |-
+          The path to the command being run
+        type: "string"
+        example: "/bin/sh"
+      Args:
+        description: "The arguments to the command being run"
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "-c"
+          - "exit 9"
+      State:
+        $ref: "#/definitions/ContainerState"
+      Image:
+        description: |-
+          The ID (digest) of the image that this container was created from.
+        type: "string"
+        example: "sha256:72297848456d5d37d1262630108ab308d3e9ec7ed1c3286a32fe09856619a782"
+      ResolvConfPath:
+        description: |-
+          Location of the `/etc/resolv.conf` generated for the container on the
+          host.
+
+          This file is managed through the docker daemon, and should not be
+          accessed or modified by other tools.
+        type: "string"
+        example: "/var/lib/docker/containers/aa86eacfb3b3ed4cd362c1e88fc89a53908ad05fb3a4103bca3f9b28292d14bf/resolv.conf"
+      HostnamePath:
+        description: |-
+          Location of the `/etc/hostname` generated for the container on the
+          host.
+
+          This file is managed through the docker daemon, and should not be
+          accessed or modified by other tools.
+        type: "string"
+        example: "/var/lib/docker/containers/aa86eacfb3b3ed4cd362c1e88fc89a53908ad05fb3a4103bca3f9b28292d14bf/hostname"
+      HostsPath:
+        description: |-
+          Location of the `/etc/hosts` generated for the container on the
+          host.
+
+          This file is managed through the docker daemon, and should not be
+          accessed or modified by other tools.
+        type: "string"
+        example: "/var/lib/docker/containers/aa86eacfb3b3ed4cd362c1e88fc89a53908ad05fb3a4103bca3f9b28292d14bf/hosts"
+      LogPath:
+        description: |-
+          Location of the file used to buffer the container's logs. Depending on
+          the logging-driver used for the container, this field may be omitted.
+
+          This file is managed through the docker daemon, and should not be
+          accessed or modified by other tools.
+        type: "string"
+        x-nullable: true
+        example: "/var/lib/docker/containers/5b7c7e2b992aa426584ce6c47452756066be0e503a08b4516a433a54d2f69e59/5b7c7e2b992aa426584ce6c47452756066be0e503a08b4516a433a54d2f69e59-json.log"
+      Name:
+        description: |-
+          The name associated with this container.
+
+          For historic reasons, the name may be prefixed with a forward-slash (`/`).
+        type: "string"
+        example: "/funny_chatelet"
+      RestartCount:
+        description: |-
+          Number of times the container was restarted since it was created,
+          or since daemon was started.
+        type: "integer"
+        example: 0
+      Driver:
+        description: |-
+          The storage-driver used for the container's filesystem (graph-driver
+          or snapshotter).
+        type: "string"
+        example: "overlayfs"
+      Platform:
+        description: |-
+          The platform (operating system) for which the container was created.
+
+          This field was introduced for the experimental "LCOW" (Linux Containers
+          On Windows) features, which has been removed. In most cases, this field
+          is equal to the host's operating system (`linux` or `windows`).
+        type: "string"
+        example: "linux"
+      ImageManifestDescriptor:
+        $ref: "#/definitions/OCIDescriptor"
+        description: |-
+          OCI descriptor of the platform-specific manifest of the image
+          the container was created from.
+
+          Note: Only available if the daemon provides a multi-platform
+          image store.
+      MountLabel:
+        description: |-
+          SELinux mount label set for the container.
+        type: "string"
+        example: ""
+      ProcessLabel:
+        description: |-
+          SELinux process label set for the container.
+        type: "string"
+        example: ""
+      AppArmorProfile:
+        description: |-
+          The AppArmor profile set for the container.
+        type: "string"
+        example: ""
+      ExecIDs:
+        description: |-
+          IDs of exec instances that are running in the container.
+        type: "array"
+        items:
+          type: "string"
+        x-nullable: true
+        example:
+          - "b35395de42bc8abd327f9dd65d913b9ba28c74d2f0734eeeae84fa1c616a0fca"
+          - "3fc1232e5cd20c8de182ed81178503dc6437f4e7ef12b52cc5e8de020652f1c4"
+      HostConfig:
+        $ref: "#/definitions/HostConfig"
+      GraphDriver:
+        $ref: "#/definitions/DriverData"
+      SizeRw:
+        description: |-
+          The size of files that have been created or changed by this container.
+
+          This field is omitted by default, and only set when size is requested
+          in the API request.
+        type: "integer"
+        format: "int64"
+        x-nullable: true
+        example: "122880"
+      SizeRootFs:
+        description: |-
+          The total size of all files in the read-only layers from the image
+          that the container uses. These layers can be shared between containers.
+
+          This field is omitted by default, and only set when size is requested
+          in the API request.
+        type: "integer"
+        format: "int64"
+        x-nullable: true
+        example: "1653948416"
+      Mounts:
+        description: |-
+          List of mounts used by the container.
+        type: "array"
+        items:
+          $ref: "#/definitions/MountPoint"
+      Config:
+        $ref: "#/definitions/ContainerConfig"
+      NetworkSettings:
+        $ref: "#/definitions/NetworkSettings"
+
   ContainerSummary:
     type: "object"
     properties:
@@ -7915,246 +8129,7 @@ paths:
         200:
           description: "no error"
           schema:
-            type: "object"
-            title: "ContainerInspectResponse"
-            properties:
-              Id:
-                description: "The ID of the container"
-                type: "string"
-              Created:
-                description: "The time the container was created"
-                type: "string"
-              Path:
-                description: "The path to the command being run"
-                type: "string"
-              Args:
-                description: "The arguments to the command being run"
-                type: "array"
-                items:
-                  type: "string"
-              State:
-                $ref: "#/definitions/ContainerState"
-              Image:
-                description: "The container's image ID"
-                type: "string"
-              ResolvConfPath:
-                type: "string"
-              HostnamePath:
-                type: "string"
-              HostsPath:
-                type: "string"
-              LogPath:
-                type: "string"
-              Name:
-                type: "string"
-              RestartCount:
-                type: "integer"
-              Driver:
-                type: "string"
-              Platform:
-                type: "string"
-              ImageManifestDescriptor:
-                $ref: "#/definitions/OCIDescriptor"
-                description: |
-                  OCI descriptor of the platform-specific manifest of the image
-                  the container was created from.
-
-                  Note: Only available if the daemon provides a multi-platform
-                  image store.
-              MountLabel:
-                type: "string"
-              ProcessLabel:
-                type: "string"
-              AppArmorProfile:
-                type: "string"
-              ExecIDs:
-                description: "IDs of exec instances that are running in the container."
-                type: "array"
-                items:
-                  type: "string"
-                x-nullable: true
-              HostConfig:
-                $ref: "#/definitions/HostConfig"
-              GraphDriver:
-                $ref: "#/definitions/DriverData"
-              SizeRw:
-                description: |
-                  The size of files that have been created or changed by this
-                  container.
-                type: "integer"
-                format: "int64"
-              SizeRootFs:
-                description: "The total size of all the files in this container."
-                type: "integer"
-                format: "int64"
-              Mounts:
-                type: "array"
-                items:
-                  $ref: "#/definitions/MountPoint"
-              Config:
-                $ref: "#/definitions/ContainerConfig"
-              NetworkSettings:
-                $ref: "#/definitions/NetworkSettings"
-          examples:
-            application/json:
-              AppArmorProfile: ""
-              Args:
-                - "-c"
-                - "exit 9"
-              Config:
-                AttachStderr: true
-                AttachStdin: false
-                AttachStdout: true
-                Cmd:
-                  - "/bin/sh"
-                  - "-c"
-                  - "exit 9"
-                Domainname: ""
-                Env:
-                  - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-                Healthcheck:
-                  Test: ["CMD-SHELL", "exit 0"]
-                Hostname: "ba033ac44011"
-                Image: "ubuntu"
-                Labels:
-                  com.example.vendor: "Acme"
-                  com.example.license: "GPL"
-                  com.example.version: "1.0"
-                MacAddress: ""
-                NetworkDisabled: false
-                OpenStdin: false
-                StdinOnce: false
-                Tty: false
-                User: ""
-                Volumes:
-                  /volumes/data: {}
-                WorkingDir: ""
-                StopSignal: "SIGTERM"
-                StopTimeout: 10
-              Created: "2015-01-06T15:47:31.485331387Z"
-              Driver: "overlay2"
-              ExecIDs:
-                - "b35395de42bc8abd327f9dd65d913b9ba28c74d2f0734eeeae84fa1c616a0fca"
-                - "3fc1232e5cd20c8de182ed81178503dc6437f4e7ef12b52cc5e8de020652f1c4"
-              HostConfig:
-                MaximumIOps: 0
-                MaximumIOBps: 0
-                BlkioWeight: 0
-                BlkioWeightDevice:
-                  - {}
-                BlkioDeviceReadBps:
-                  - {}
-                BlkioDeviceWriteBps:
-                  - {}
-                BlkioDeviceReadIOps:
-                  - {}
-                BlkioDeviceWriteIOps:
-                  - {}
-                ContainerIDFile: ""
-                CpusetCpus: ""
-                CpusetMems: ""
-                CpuPercent: 80
-                CpuShares: 0
-                CpuPeriod: 100000
-                CpuRealtimePeriod: 1000000
-                CpuRealtimeRuntime: 10000
-                Devices: []
-                DeviceRequests:
-                  - Driver: "nvidia"
-                    Count: -1
-                    DeviceIDs": ["0", "1", "GPU-fef8089b-4820-abfc-e83e-94318197576e"]
-                    Capabilities: [["gpu", "nvidia", "compute"]]
-                    Options:
-                      property1: "string"
-                      property2: "string"
-                IpcMode: ""
-                Memory: 0
-                MemorySwap: 0
-                MemoryReservation: 0
-                OomKillDisable: false
-                OomScoreAdj: 500
-                NetworkMode: "bridge"
-                PidMode: ""
-                PortBindings: {}
-                Privileged: false
-                ReadonlyRootfs: false
-                PublishAllPorts: false
-                RestartPolicy:
-                  MaximumRetryCount: 2
-                  Name: "on-failure"
-                LogConfig:
-                  Type: "json-file"
-                Sysctls:
-                  net.ipv4.ip_forward: "1"
-                Ulimits:
-                  - {}
-                VolumeDriver: ""
-                ShmSize: 67108864
-              HostnamePath: "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hostname"
-              HostsPath: "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hosts"
-              LogPath: "/var/lib/docker/containers/1eb5fabf5a03807136561b3c00adcd2992b535d624d5e18b6cdc6a6844d9767b/1eb5fabf5a03807136561b3c00adcd2992b535d624d5e18b6cdc6a6844d9767b-json.log"
-              Id: "ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39"
-              Image: "04c5d3b7b0656168630d3ba35d8889bd0e9caafcaeb3004d2bfbc47e7c5d35d2"
-              MountLabel: ""
-              Name: "/boring_euclid"
-              NetworkSettings:
-                Bridge: ""
-                SandboxID: ""
-                HairpinMode: false
-                LinkLocalIPv6Address: ""
-                LinkLocalIPv6PrefixLen: 0
-                SandboxKey: ""
-                EndpointID: ""
-                Gateway: ""
-                GlobalIPv6Address: ""
-                GlobalIPv6PrefixLen: 0
-                IPAddress: ""
-                IPPrefixLen: 0
-                IPv6Gateway: ""
-                MacAddress: ""
-                Networks:
-                  bridge:
-                    NetworkID: "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812"
-                    EndpointID: "7587b82f0dada3656fda26588aee72630c6fab1536d36e394b2bfbcf898c971d"
-                    Gateway: "172.17.0.1"
-                    IPAddress: "172.17.0.2"
-                    IPPrefixLen: 16
-                    IPv6Gateway: ""
-                    GlobalIPv6Address: ""
-                    GlobalIPv6PrefixLen: 0
-                    MacAddress: "02:42:ac:12:00:02"
-              Path: "/bin/sh"
-              ProcessLabel: ""
-              ResolvConfPath: "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/resolv.conf"
-              RestartCount: 1
-              State:
-                Error: ""
-                ExitCode: 9
-                FinishedAt: "2015-01-06T15:47:32.080254511Z"
-                Health:
-                  Status: "healthy"
-                  FailingStreak: 0
-                  Log:
-                    - Start: "2019-12-22T10:59:05.6385933Z"
-                      End: "2019-12-22T10:59:05.8078452Z"
-                      ExitCode: 0
-                      Output: ""
-                OOMKilled: false
-                Dead: false
-                Paused: false
-                Pid: 0
-                Restarting: false
-                Running: true
-                StartedAt: "2015-01-06T15:47:32.072697474Z"
-                Status: "running"
-              Mounts:
-                - Name: "fac362...80535"
-                  Source: "/data"
-                  Destination: "/data"
-                  Driver: "local"
-                  Mode: "ro,Z"
-                  RW: false
-                  Propagation: ""
+            $ref: "#/definitions/ContainerInspectResponse"
         404:
           description: "no such container"
           schema:
