@@ -112,20 +112,22 @@ func (daemon *Daemon) cleanupMounts(cfg *config.Config) error {
 	return os.Remove(unmountFile)
 }
 
-func getCleanPatterns(id string) (regexps []*regexp.Regexp) {
+func getCleanPatterns(id string) []*regexp.Regexp {
 	var patterns []string
 	if id == "" {
 		id = "[0-9a-f]{64}"
 		patterns = append(patterns, "containers/"+id+"/mounts/shm", "containers/"+id+"/shm")
 	}
 	patterns = append(patterns, "overlay2/"+id+"/merged$", "zfs/graph/"+id+"$")
+
+	var regexps []*regexp.Regexp
 	for _, p := range patterns {
 		r, err := regexp.Compile(p)
 		if err == nil {
 			regexps = append(regexps, r)
 		}
 	}
-	return
+	return regexps
 }
 
 func shouldUnmountRoot(root string, info *mountinfo.Info) bool {
