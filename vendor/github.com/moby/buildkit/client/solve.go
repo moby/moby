@@ -7,6 +7,7 @@ import (
 	"io"
 	"maps"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -24,7 +25,6 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	spb "github.com/moby/buildkit/sourcepolicy/pb"
 	"github.com/moby/buildkit/util/bklog"
-	"github.com/moby/buildkit/util/entitlements"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"
@@ -45,7 +45,7 @@ type SolveOpt struct {
 	CacheExports          []CacheOptionsEntry
 	CacheImports          []CacheOptionsEntry
 	Session               []session.Attachable
-	AllowedEntitlements   []entitlements.Entitlement
+	AllowedEntitlements   []string
 	SharedSession         *session.Session // TODO: refactor to better session syncing
 	SessionPreInitialized bool             // TODO: refactor to better session syncing
 	Internal              bool
@@ -277,7 +277,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 			FrontendAttrs:           frontendAttrs,
 			FrontendInputs:          frontendInputs,
 			Cache:                   &cacheOpt.options,
-			Entitlements:            entitlementsToPB(opt.AllowedEntitlements),
+			Entitlements:            slices.Clone(opt.AllowedEntitlements),
 			Internal:                opt.Internal,
 			SourcePolicy:            opt.SourcePolicy,
 		})
@@ -552,12 +552,4 @@ func prepareMounts(opt *SolveOpt) (map[string]fsutil.FS, error) {
 		mounts[k] = mount
 	}
 	return mounts, nil
-}
-
-func entitlementsToPB(entitlements []entitlements.Entitlement) []string {
-	clone := make([]string, len(entitlements))
-	for i, e := range entitlements {
-		clone[i] = string(e)
-	}
-	return clone
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/llbsolver/ops/opsutils"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
@@ -109,7 +110,7 @@ func NormalizeRuntimePlatforms() LoadOpt {
 	}
 }
 
-func ValidateEntitlements(ent entitlements.Set) LoadOpt {
+func ValidateEntitlements(ent entitlements.Set, cdiManager *cdidevices.Manager) LoadOpt {
 	return func(op *pb.Op, _ *pb.OpMetadata, opt *solver.VertexOptions) error {
 		switch op := op.Op.(type) {
 		case *pb.Op_Exec:
@@ -119,6 +120,75 @@ func ValidateEntitlements(ent entitlements.Set) LoadOpt {
 			}
 			if err := ent.Check(v); err != nil {
 				return err
+			}
+			if device := op.Exec.CdiDevices; len(device) > 0 {
+				var cfg *entitlements.DevicesConfig
+				if ent, ok := ent[entitlements.EntitlementDevice]; ok {
+					cfg, ok = ent.(*entitlements.DevicesConfig)
+					if !ok {
+						return errors.Errorf("invalid device entitlement config %T", ent)
+					}
+				}
+				if cfg != nil && cfg.All {
+					return nil
+				}
+
+				var allowedDevices []*pb.CDIDevice
+				var nonAliasedDevices []*pb.CDIDevice
+				if cfg != nil {
+					for _, d := range op.Exec.CdiDevices {
+						if newName, ok := cfg.Devices[d.Name]; ok && newName != "" {
+							d.Name = newName
+							allowedDevices = append(allowedDevices, d)
+						} else {
+							nonAliasedDevices = append(nonAliasedDevices, d)
+						}
+					}
+				} else {
+					nonAliasedDevices = op.Exec.CdiDevices
+				}
+
+				mountedDevices, err := cdiManager.FindDevices(nonAliasedDevices...)
+				if err != nil {
+					return err
+				}
+				if len(mountedDevices) == 0 {
+					op.Exec.CdiDevices = allowedDevices
+					return nil
+				}
+
+				grantedDevices := make(map[string]struct{})
+				if cfg != nil {
+					for d := range cfg.Devices {
+						resolved, err := cdiManager.FindDevices(&pb.CDIDevice{Name: d})
+						if err != nil {
+							return err
+						}
+						for _, r := range resolved {
+							grantedDevices[r] = struct{}{}
+						}
+					}
+				}
+
+				var forbidden []string
+				for _, d := range mountedDevices {
+					if _, ok := grantedDevices[d]; !ok {
+						if dev := cdiManager.GetDevice(d); !dev.AutoAllow {
+							forbidden = append(forbidden, d)
+							continue
+						}
+					}
+					allowedDevices = append(allowedDevices, &pb.CDIDevice{Name: d})
+				}
+
+				if len(forbidden) > 0 {
+					if len(forbidden) == 1 {
+						return errors.Errorf("device %s is requested by the build but not allowed", forbidden[0])
+					}
+					return errors.Errorf("devices %s are requested by the build but not allowed", strings.Join(forbidden, ", "))
+				}
+
+				op.Exec.CdiDevices = allowedDevices
 			}
 		}
 		return nil
