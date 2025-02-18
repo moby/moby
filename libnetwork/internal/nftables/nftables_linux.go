@@ -70,6 +70,15 @@ var (
 	enableOnce sync.Once
 )
 
+var (
+	// ErrRuleExist is returned when a rule is added, but it already exists in the same
+	// rule group of a chain.
+	ErrRuleExist = errors.New("rule exists")
+	// ErrRuleNotExist is returned when a rule is removed, but does not exist in the
+	// rule group of a chain.
+	ErrRuleNotExist = errors.New("rule does not exist")
+)
+
 // BaseChainType enumerates the base chain types.
 // See https://wiki.nftables.org/wiki-nftables/index.php/Configuring_chains#Base_chain_types
 type BaseChainType string
@@ -509,7 +518,7 @@ func (c ChainRef) AppendRule(ctx context.Context, group RuleGroup, rule string, 
 		rule = fmt.Sprintf(rule, args...)
 	}
 	if rg, ok := c.c.ruleGroups[group]; ok && slices.Contains(rg, rule) {
-		return fmt.Errorf("rule %q already exists", rule)
+		return ErrRuleExist
 	}
 	c.c.ruleGroups[group] = append(c.c.ruleGroups[group], rule)
 	c.c.Dirty = true
@@ -545,7 +554,7 @@ func (c ChainRef) DeleteRule(ctx context.Context, group RuleGroup, rule string, 
 	origLen := len(rg)
 	c.c.ruleGroups[group] = slices.DeleteFunc(rg, func(r string) bool { return r == rule })
 	if len(c.c.ruleGroups[group]) == origLen {
-		return fmt.Errorf("rule %q does not exist", rule)
+		return ErrRuleNotExist
 	}
 	c.c.Dirty = true
 	log.G(ctx).WithFields(log.Fields{

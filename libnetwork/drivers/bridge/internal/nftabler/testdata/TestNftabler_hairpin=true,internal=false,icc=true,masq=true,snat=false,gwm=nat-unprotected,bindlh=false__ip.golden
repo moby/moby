@@ -42,6 +42,7 @@ table ip docker-bridges {
 	}
 
 	chain nat-prerouting-and-output {
+		tcp dport 8080 counter packets 0 bytes 0 dnat to 192.168.0.2:80 comment "DNAT"
 	}
 
 	chain raw-PREROUTING {
@@ -61,6 +62,7 @@ table ip docker-bridges {
 
 	chain nat-postrouting-in__br-dummy {
 		fib saddr type local counter packets 0 bytes 0 masquerade comment "MASQUERADE FROM HOST"
+		ip saddr 192.168.0.2 ip daddr 192.168.0.2 tcp dport 80 counter packets 0 bytes 0 masquerade comment "MASQ TO OWN PORT"
 	}
 
 	chain nat-postrouting-out__br-dummy {
