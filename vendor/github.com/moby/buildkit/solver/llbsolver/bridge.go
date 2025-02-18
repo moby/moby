@@ -138,7 +138,7 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 	}
 	dpc := &detectPrunedCacheID{}
 
-	edge, err := Load(ctx, def, polEngine, dpc.Load, ValidateEntitlements(ent), WithCacheSources(cms), NormalizeRuntimePlatforms(), WithValidateCaps())
+	edge, err := Load(ctx, def, polEngine, dpc.Load, ValidateEntitlements(ent, w.CDIManager()), WithCacheSources(cms), NormalizeRuntimePlatforms(), WithValidateCaps())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load LLB")
 	}
