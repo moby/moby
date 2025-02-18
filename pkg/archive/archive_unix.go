@@ -73,14 +73,12 @@ func statUnix(fi os.FileInfo, hdr *tar.Header) error {
 	return nil
 }
 
-func getInodeFromStat(stat interface{}) (inode uint64, err error) {
+func getInodeFromStat(stat interface{}) (inode uint64) {
 	s, ok := stat.(*syscall.Stat_t)
-
-	if ok {
-		inode = s.Ino
+	if !ok {
+		return 0
 	}
-
-	return
+	return s.Ino
 }
 
 func getFileUIDGID(stat interface{}) (idtools.Identity, error) {

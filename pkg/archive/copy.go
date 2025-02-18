@@ -25,11 +25,11 @@ var copyPool = sync.Pool{
 	New: func() interface{} { s := make([]byte, 32*1024); return &s },
 }
 
-func copyWithBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
+func copyWithBuffer(dst io.Writer, src io.Reader) error {
 	buf := copyPool.Get().(*[]byte)
-	written, err = io.CopyBuffer(dst, src, *buf)
+	_, err := io.CopyBuffer(dst, src, *buf)
 	copyPool.Put(buf)
-	return
+	return err
 }
 
 // PreserveTrailingDotOrSeparator returns the given cleaned path (after
@@ -105,13 +105,13 @@ func TarResource(sourceInfo CopyInfo) (content io.ReadCloser, err error) {
 
 // TarResourceRebase is like TarResource but renames the first path element of
 // items in the resulting tar archive to match the given rebaseName if not "".
-func TarResourceRebase(sourcePath, rebaseName string) (content io.ReadCloser, err error) {
+func TarResourceRebase(sourcePath, rebaseName string) (content io.ReadCloser, _ error) {
 	sourcePath = normalizePath(sourcePath)
-	if _, err = os.Lstat(sourcePath); err != nil {
+	if _, err := os.Lstat(sourcePath); err != nil {
 		// Catches the case where the source does not exist or is not a
 		// directory if asserted to be a directory, as this also causes an
 		// error.
-		return
+		return nil, err
 	}
 
 	// Separate the source path between its directory and
@@ -442,11 +442,12 @@ func CopyTo(content io.Reader, srcInfo CopyInfo, dstPath string) error {
 // whether to follow symbol link or not, if followLink is true, resolvedPath will return
 // link target of any symbol link file, else it will only resolve symlink of directory
 // but return symbol link file itself without resolving.
-func ResolveHostSourcePath(path string, followLink bool) (resolvedPath, rebaseName string, err error) {
+func ResolveHostSourcePath(path string, followLink bool) (resolvedPath, rebaseName string, _ error) {
 	if followLink {
+		var err error
 		resolvedPath, err = filepath.EvalSymlinks(path)
 		if err != nil {
-			return
+			return "", "", err
 		}
 
 		resolvedPath, rebaseName = GetRebaseName(path, resolvedPath)
@@ -454,10 +455,9 @@ func ResolveHostSourcePath(path string, followLink bool) (resolvedPath, rebaseNa
 		dirPath, basePath := filepath.Split(path)
 
 		// if not follow symbol link, then resolve symbol link of parent dir
-		var resolvedDirPath string
-		resolvedDirPath, err = filepath.EvalSymlinks(dirPath)
+		resolvedDirPath, err := filepath.EvalSymlinks(dirPath)
 		if err != nil {
-			return
+			return "", "", err
 		}
 		// resolvedDirPath will have been cleaned (no trailing path separators) so
 		// we can manually join it with the base path element.
