@@ -34,7 +34,9 @@ const (
 )
 
 const (
-	fwdInICCRuleGroup = iota + initialRuleGroup + 1
+	fwdInLegacyLinksRuleGroup = iota + initialRuleGroup + 1
+	fwdInICCRuleGroup
+	fwdInPortsRuleGroup
 	fwdInFinalRuleGroup
 )
 

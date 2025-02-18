@@ -42,6 +42,7 @@ table ip docker-bridges {
 	}
 
 	chain nat-prerouting-and-output {
+		iifname != "br-dummy" tcp dport 8080 counter packets 0 bytes 0 dnat to 192.168.0.2:80 comment "DNAT"
 	}
 
 	chain raw-PREROUTING {
