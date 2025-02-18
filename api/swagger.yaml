@@ -5309,20 +5309,46 @@ definitions:
     type: "object"
     properties:
       Id:
-        description: "The ID of this container"
+        description: |-
+          The ID of this container as a 128-bit (64-character) hexadecimal string (32 bytes).
         type: "string"
         x-go-name: "ID"
+        minLength: 64
+        maxLength: 64
+        pattern: "^[0-9a-fA-F]{64}$"
+        example: "aa86eacfb3b3ed4cd362c1e88fc89a53908ad05fb3a4103bca3f9b28292d14bf"
       Names:
-        description: "The names that this container has been given"
+        description: |-
+          The names associated with this container. Most containers have a single
+          name, but when using legacy "links", the container can have multiple
+          names.
+
+          For historic reasons, names are prefixed with a forward-slash (`/`).
         type: "array"
         items:
           type: "string"
+        example:
+          - "/funny_chatelet"
       Image:
-        description: "The name of the image used when creating this container"
+        description: |-
+          The name or ID of the image used to create the container.
+
+          This field shows the image reference as was specified when creating the container,
+          which can be in its canonical form (e.g., `docker.io/library/ubuntu:latest`
+          or `docker.io/library/ubuntu@sha256:72297848456d5d37d1262630108ab308d3e9ec7ed1c3286a32fe09856619a782`),
+          short form (e.g., `ubuntu:latest`)), or the ID(-prefix) of the image (e.g., `72297848456d`).
+
+          The content of this field can be updated at runtime if the image used to
+          create the container is untagged, in which case the field is updated to
+          contain the the image ID (digest) it was resolved to in its canonical,
+          non-truncated form (e.g., `sha256:72297848456d5d37d1262630108ab308d3e9ec7ed1c3286a32fe09856619a782`).
         type: "string"
+        example: "docker.io/library/ubuntu:latest"
       ImageID:
-        description: "The ID of the image that this container was created from"
+        description: |-
+          The ID (digest) of the image that this container was created from.
         type: "string"
+        example: "sha256:72297848456d5d37d1262630108ab308d3e9ec7ed1c3286a32fe09856619a782"
       ImageManifestDescriptor:
         $ref: "#/definitions/OCIDescriptor"
         x-nullable: true
@@ -5337,55 +5363,112 @@ definitions:
       Command:
         description: "Command to run when starting the container"
         type: "string"
+        example: "/bin/bash"
       Created:
-        description: "When the container was created"
+        description: |-
+          Date and time at which the container was created as a Unix timestamp
+          (number of seconds since EPOCH).
         type: "integer"
         format: "int64"
+        example: "1739811096"
       Ports:
-        description: "The ports exposed by this container"
+        description: |-
+          Port-mappings for the container.
         type: "array"
         items:
           $ref: "#/definitions/Port"
       SizeRw:
-        description: "The size of files that have been created or changed by this container"
+        description: |-
+          The size of files that have been created or changed by this container.
+
+          This field is omitted by default, and only set when size is requested
+          in the API request.
         type: "integer"
         format: "int64"
+        x-nullable: true
+        example: "122880"
       SizeRootFs:
-        description: "The total size of all the files in this container"
+        description: |-
+          The total size of all files in the read-only layers from the image
+          that the container uses. These layers can be shared between containers.
+
+          This field is omitted by default, and only set when size is requested
+          in the API request.
         type: "integer"
         format: "int64"
+        x-nullable: true
+        example: "1653948416"
       Labels:
         description: "User-defined key/value metadata."
         type: "object"
         additionalProperties:
           type: "string"
+        example:
+          com.example.vendor: "Acme"
+          com.example.license: "GPL"
+          com.example.version: "1.0"
       State:
-        description: "The state of this container (e.g. `Exited`)"
+        description: |
+          The state of this container.
         type: "string"
+        enum:
+          - "created"
+          - "running"
+          - "paused"
+          - "restarting"
+          - "exited"
+          - "removing"
+          - "dead"
+        example: "running"
       Status:
-        description: "Additional human-readable status of this container (e.g. `Exit 0`)"
+        description: |-
+          Additional human-readable status of this container (e.g. `Exit 0`)
         type: "string"
+        example: "Up 4 days"
       HostConfig:
         type: "object"
+        description: |-
+          Summary of host-specific runtime information of the container. This
+          is a reduced set of information in the container's "HostConfig" as
+          available in the container "inspect" response.
         properties:
           NetworkMode:
+            description: |-
+              Networking mode (`host`, `none`, `container:<id>`) or name of the
+              primary network the container is using.
+
+              This field is primarily for backward compatibility. The container
+              can be connected to multiple networks for which information can be
+              found in the `NetworkSettings.Networks` field, which enumerates
+              settings per network.
             type: "string"
+            example: "mynetwork"
           Annotations:
-            description: "Arbitrary key-value metadata attached to container"
+            description: |-
+              Arbitrary key-value metadata attached to the container.
             type: "object"
             x-nullable: true
             additionalProperties:
               type: "string"
+            example:
+              io.kubernetes.docker.type: "container"
+              io.kubernetes.sandbox.id: "3befe639bed0fd6afdd65fd1fa84506756f59360ec4adc270b0fdac9be22b4d3"
       NetworkSettings:
-        description: "A summary of the container's network settings"
+        description: |-
+          Summary of the container's network settings
         type: "object"
         properties:
           Networks:
             type: "object"
+            description: |-
+              Summary of network-settings for each network the container is
+              attached to.
             additionalProperties:
               $ref: "#/definitions/EndpointSettings"
       Mounts:
         type: "array"
+        description: |-
+          List of mounts used by the container.
         items:
           $ref: "#/definitions/MountPoint"
 
@@ -7267,7 +7350,7 @@ definitions:
         description: |
           The media type of the object this schema refers to.
         type: "string"
-        example: "application/vnd.docker.distribution.manifest.v2+json"
+        example: "application/vnd.oci.image.manifest.v1+json"
       digest:
         description: |
           The digest of the targeted content.
@@ -7278,27 +7361,52 @@ definitions:
           The size in bytes of the blob.
         type: "integer"
         format: "int64"
-        example: 3987495
-        # TODO Not yet including these fields for now, as they are nil / omitted in our response.
-        # urls:
-        #   description: |
-        #     List of URLs from which this object MAY be downloaded.
-        #   type: "array"
-        #   items:
-        #     type: "string"
-        #     format: "uri"
-        # annotations:
-        #   description: |
-        #     Arbitrary metadata relating to the targeted content.
-        #   type: "object"
-        #   additionalProperties:
-        #     type: "string"
-        # platform:
-        #   $ref: "#/definitions/OCIPlatform"
+        example: 424
+      urls:
+        description: |-
+          List of URLs from which this object MAY be downloaded.
+        type: "array"
+        items:
+          type: "string"
+          format: "uri"
+        x-nullable: true
+      annotations:
+        description: |-
+          Arbitrary metadata relating to the targeted content.
+        type: "object"
+        x-nullable: true
+        additionalProperties:
+          type: "string"
+        example:
+          "com.docker.official-images.bashbrew.arch": "amd64"
+          "org.opencontainers.image.base.digest": "sha256:0d0ef5c914d3ea700147da1bd050c59edb8bb12ca312f3800b29d7c8087eabd8"
+          "org.opencontainers.image.base.name": "scratch"
+          "org.opencontainers.image.created": "2025-01-27T00:00:00Z"
+          "org.opencontainers.image.revision": "9fabb4bad5138435b01857e2fe9363e2dc5f6a79"
+          "org.opencontainers.image.source": "https://git.launchpad.net/cloud-images/+oci/ubuntu-base"
+          "org.opencontainers.image.url": "https://hub.docker.com/_/ubuntu"
+          "org.opencontainers.image.version": "24.04"
+      data:
+        type: string
+        x-nullable: true
+        description: |-
+          Data is an embedding of the targeted content. This is encoded as a base64
+          string when marshalled to JSON (automatically, by encoding/json). If
+          present, Data can be used directly to avoid fetching the targeted content.
+        example: null
+      platform:
+        $ref: "#/definitions/OCIPlatform"
+      artifactType:
+        description: |-
+          ArtifactType is the IANA media type of this artifact.
+        type: "string"
+        x-nullable: true
+        example: null
 
   OCIPlatform:
     type: "object"
     x-go-name: Platform
+    x-nullable: true
     description: |
       Describes the platform which the image in the manifest runs on, as defined
       in the [OCI Image Index Specification](https://github.com/opencontainers/image-spec/blob/v1.0.1/image-index.md).
@@ -7768,143 +7876,6 @@ paths:
             type: "array"
             items:
               $ref: "#/definitions/ContainerSummary"
-          examples:
-            application/json:
-              - Id: "8dfafdbc3a40"
-                Names:
-                  - "/boring_feynman"
-                Image: "ubuntu:latest"
-                ImageID: "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82"
-                Command: "echo 1"
-                Created: 1367854155
-                State: "Exited"
-                Status: "Exit 0"
-                Ports:
-                  - PrivatePort: 2222
-                    PublicPort: 3333
-                    Type: "tcp"
-                Labels:
-                  com.example.vendor: "Acme"
-                  com.example.license: "GPL"
-                  com.example.version: "1.0"
-                SizeRw: 12288
-                SizeRootFs: 0
-                HostConfig:
-                  NetworkMode: "default"
-                  Annotations:
-                    io.kubernetes.docker.type: "container"
-                NetworkSettings:
-                  Networks:
-                    bridge:
-                      NetworkID: "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812"
-                      EndpointID: "2cdc4edb1ded3631c81f57966563e5c8525b81121bb3706a9a9a3ae102711f3f"
-                      Gateway: "172.17.0.1"
-                      IPAddress: "172.17.0.2"
-                      IPPrefixLen: 16
-                      IPv6Gateway: ""
-                      GlobalIPv6Address: ""
-                      GlobalIPv6PrefixLen: 0
-                      MacAddress: "02:42:ac:11:00:02"
-                Mounts:
-                  - Name: "fac362...80535"
-                    Source: "/data"
-                    Destination: "/data"
-                    Driver: "local"
-                    Mode: "ro,Z"
-                    RW: false
-                    Propagation: ""
-              - Id: "9cd87474be90"
-                Names:
-                  - "/coolName"
-                Image: "ubuntu:latest"
-                ImageID: "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82"
-                Command: "echo 222222"
-                Created: 1367854155
-                State: "Exited"
-                Status: "Exit 0"
-                Ports: []
-                Labels: {}
-                SizeRw: 12288
-                SizeRootFs: 0
-                HostConfig:
-                  NetworkMode: "default"
-                  Annotations:
-                    io.kubernetes.docker.type: "container"
-                    io.kubernetes.sandbox.id: "3befe639bed0fd6afdd65fd1fa84506756f59360ec4adc270b0fdac9be22b4d3"
-                NetworkSettings:
-                  Networks:
-                    bridge:
-                      NetworkID: "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812"
-                      EndpointID: "88eaed7b37b38c2a3f0c4bc796494fdf51b270c2d22656412a2ca5d559a64d7a"
-                      Gateway: "172.17.0.1"
-                      IPAddress: "172.17.0.8"
-                      IPPrefixLen: 16
-                      IPv6Gateway: ""
-                      GlobalIPv6Address: ""
-                      GlobalIPv6PrefixLen: 0
-                      MacAddress: "02:42:ac:11:00:08"
-                Mounts: []
-              - Id: "3176a2479c92"
-                Names:
-                  - "/sleepy_dog"
-                Image: "ubuntu:latest"
-                ImageID: "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82"
-                Command: "echo 3333333333333333"
-                Created: 1367854154
-                State: "Exited"
-                Status: "Exit 0"
-                Ports: []
-                Labels: {}
-                SizeRw: 12288
-                SizeRootFs: 0
-                HostConfig:
-                  NetworkMode: "default"
-                  Annotations:
-                    io.kubernetes.image.id: "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82"
-                    io.kubernetes.image.name: "ubuntu:latest"
-                NetworkSettings:
-                  Networks:
-                    bridge:
-                      NetworkID: "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812"
-                      EndpointID: "8b27c041c30326d59cd6e6f510d4f8d1d570a228466f956edf7815508f78e30d"
-                      Gateway: "172.17.0.1"
-                      IPAddress: "172.17.0.6"
-                      IPPrefixLen: 16
-                      IPv6Gateway: ""
-                      GlobalIPv6Address: ""
-                      GlobalIPv6PrefixLen: 0
-                      MacAddress: "02:42:ac:11:00:06"
-                Mounts: []
-              - Id: "4cb07b47f9fb"
-                Names:
-                  - "/running_cat"
-                Image: "ubuntu:latest"
-                ImageID: "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82"
-                Command: "echo 444444444444444444444444444444444"
-                Created: 1367854152
-                State: "Exited"
-                Status: "Exit 0"
-                Ports: []
-                Labels: {}
-                SizeRw: 12288
-                SizeRootFs: 0
-                HostConfig:
-                  NetworkMode: "default"
-                  Annotations:
-                    io.kubernetes.config.source: "api"
-                NetworkSettings:
-                  Networks:
-                    bridge:
-                      NetworkID: "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812"
-                      EndpointID: "d91c7b2f0644403d7ef3095985ea0e2370325cd2332ff3a3225c4247328e66e9"
-                      Gateway: "172.17.0.1"
-                      IPAddress: "172.17.0.5"
-                      IPPrefixLen: 16
-                      IPv6Gateway: ""
-                      GlobalIPv6Address: ""
-                      GlobalIPv6PrefixLen: 0
-                      MacAddress: "02:42:ac:11:00:05"
-                Mounts: []
         400:
           description: "bad parameter"
           schema:
