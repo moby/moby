@@ -2,6 +2,7 @@ package cdidevices
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/moby/buildkit/solver/pb"
@@ -13,7 +14,10 @@ import (
 	"tags.cncf.io/container-device-interface/pkg/parser"
 )
 
-const deviceAnnotationClass = "org.mobyproject.buildkit.device.class"
+const (
+	deviceAnnotationClass     = "org.mobyproject.buildkit.device.class"
+	deviceAnnotationAutoAllow = "org.mobyproject.buildkit.device.autoallow"
+)
 
 var installers = map[string]Setup{}
 
@@ -35,15 +39,36 @@ type Device struct {
 }
 
 type Manager struct {
-	cache  *cdi.Cache
-	locker *locker.Locker
+	cache       *cdi.Cache
+	locker      *locker.Locker
+	autoAllowed map[string]struct{}
 }
 
-func NewManager(cache *cdi.Cache) *Manager {
-	return &Manager{
-		cache:  cache,
-		locker: locker.New(),
+func NewManager(cache *cdi.Cache, autoAllowed []string) *Manager {
+	m := make(map[string]struct{})
+	for _, d := range autoAllowed {
+		m[d] = struct{}{}
 	}
+	return &Manager{
+		cache:       cache,
+		locker:      locker.New(),
+		autoAllowed: m,
+	}
+}
+
+func (m *Manager) isAutoAllowed(kind, name string, annotations map[string]string) bool {
+	if _, ok := m.autoAllowed[name]; ok {
+		return true
+	}
+	if _, ok := m.autoAllowed[kind]; ok {
+		return true
+	}
+	if v, ok := annotations[deviceAnnotationAutoAllow]; ok {
+		if b, err := strconv.ParseBool(v); err == nil && b {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Manager) ListDevices() []Device {
@@ -53,10 +78,11 @@ func (m *Manager) ListDevices() []Device {
 	for _, dev := range devs {
 		kind, _, _ := strings.Cut(dev, "=")
 		dd := m.cache.GetDevice(dev)
+		annotations := deviceAnnotations(dd)
 		out = append(out, Device{
 			Name:        dev,
-			AutoAllow:   true, // TODO
-			Annotations: deviceAnnotations(dd),
+			AutoAllow:   m.isAutoAllowed(kind, dev, annotations),
+			Annotations: annotations,
 		})
 		kinds[kind] = struct{}{}
 	}
@@ -69,12 +95,23 @@ func (m *Manager) ListDevices() []Device {
 			continue
 		}
 		out = append(out, Device{
-			Name:     k,
-			OnDemand: true,
+			Name:      k,
+			OnDemand:  true,
+			AutoAllow: true,
 		})
 	}
 
 	return out
+}
+
+func (m *Manager) GetDevice(name string) Device {
+	kind, _, _ := strings.Cut(name, "=")
+	annotations := deviceAnnotations(m.cache.GetDevice(name))
+	return Device{
+		Name:        name,
+		AutoAllow:   m.isAutoAllowed(kind, name, annotations),
+		Annotations: annotations,
+	}
 }
 
 func (m *Manager) Refresh() error {
@@ -82,7 +119,7 @@ func (m *Manager) Refresh() error {
 }
 
 func (m *Manager) InjectDevices(spec *specs.Spec, devs ...*pb.CDIDevice) error {
-	pdevs, err := m.parseDevices(devs...)
+	pdevs, err := m.FindDevices(devs...)
 	if err != nil {
 		return err
 	} else if len(pdevs) == 0 {
@@ -93,13 +130,17 @@ func (m *Manager) InjectDevices(spec *specs.Spec, devs ...*pb.CDIDevice) error {
 	return err
 }
 
-func (m *Manager) parseDevices(devs ...*pb.CDIDevice) ([]string, error) {
+func (m *Manager) FindDevices(devs ...*pb.CDIDevice) ([]string, error) {
 	var out []string
+	if len(devs) == 0 {
+		return out, nil
+	}
+	list := m.cache.ListDevices()
 	for _, dev := range devs {
 		if dev == nil {
 			continue
 		}
-		pdev, err := m.parseDevice(dev)
+		pdev, err := m.parseDevice(dev, list)
 		if err != nil {
 			return nil, err
 		} else if len(pdev) == 0 {
@@ -110,7 +151,7 @@ func (m *Manager) parseDevices(devs ...*pb.CDIDevice) ([]string, error) {
 	return dedupSlice(out), nil
 }
 
-func (m *Manager) parseDevice(dev *pb.CDIDevice) ([]string, error) {
+func (m *Manager) parseDevice(dev *pb.CDIDevice, all []string) ([]string, error) {
 	var out []string
 
 	kind, name, _ := strings.Cut(dev.Name, "=")
@@ -127,7 +168,7 @@ func (m *Manager) parseDevice(dev *pb.CDIDevice) ([]string, error) {
 	switch name {
 	case "":
 		// first device of kind if no name is specified
-		for _, d := range m.cache.ListDevices() {
+		for _, d := range all {
 			if strings.HasPrefix(d, kind+"=") {
 				out = append(out, d)
 				break
@@ -135,14 +176,14 @@ func (m *Manager) parseDevice(dev *pb.CDIDevice) ([]string, error) {
 		}
 	case "*":
 		// all devices of kind if the name is a wildcard
-		for _, d := range m.cache.ListDevices() {
+		for _, d := range all {
 			if strings.HasPrefix(d, kind+"=") {
 				out = append(out, d)
 			}
 		}
 	default:
 		// the specified device
-		for _, d := range m.cache.ListDevices() {
+		for _, d := range all {
 			if d == dev.Name {
 				out = append(out, d)
 				break
@@ -150,7 +191,7 @@ func (m *Manager) parseDevice(dev *pb.CDIDevice) ([]string, error) {
 		}
 		if len(out) == 0 {
 			// check class annotation if name unknown
-			for _, d := range m.cache.ListDevices() {
+			for _, d := range all {
 				if !strings.HasPrefix(d, kind+"=") {
 					continue
 				}
@@ -213,6 +254,9 @@ func (m *Manager) OnDemandInstaller(name string) (func(context.Context) error, b
 		if err := m.cache.Refresh(); err != nil {
 			return errors.Wrapf(err, "failed to refresh CDI cache")
 		}
+
+		// TODO: this needs to be set as annotation to survive reboot
+		m.autoAllowed[name] = struct{}{}
 
 		return nil
 	}, true

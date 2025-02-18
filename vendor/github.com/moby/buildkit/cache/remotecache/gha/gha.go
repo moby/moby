@@ -63,10 +63,6 @@ func getConfig(attrs map[string]string) (*Config, error) {
 	if !ok {
 		scope = "buildkit"
 	}
-	url, ok := attrs[attrURL]
-	if !ok {
-		return nil, errors.Errorf("url not set for github actions cache")
-	}
 	token, ok := attrs[attrToken]
 	if !ok {
 		return nil, errors.Errorf("token not set for github actions cache")
@@ -80,11 +76,18 @@ func getConfig(attrs map[string]string) (*Config, error) {
 		}
 		apiVersionInt = int(i)
 	}
+	var url string
 	if apiVersionInt != 1 {
 		if v, ok := attrs[attrURLV2]; ok {
 			url = v
 			apiVersionInt = 2
 		}
+	}
+	if v, ok := attrs[attrURL]; ok && url == "" {
+		url = v
+	}
+	if url == "" {
+		return nil, errors.Errorf("url not set for github actions cache")
 	}
 	// best effort on old clients
 	if apiVersionInt == 0 {
