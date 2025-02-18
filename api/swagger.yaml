@@ -10719,6 +10719,7 @@ paths:
                 items:
                   type: "integer"
                   minimum: 0
+                example: [80, 64]
               DetachKeys:
                 type: "string"
                 description: |
@@ -10805,9 +10806,11 @@ paths:
               Detach:
                 type: "boolean"
                 description: "Detach from the command."
+                example: false
               Tty:
                 type: "boolean"
                 description: "Allocate a pseudo-TTY."
+                example: true
               ConsoleSize:
                 type: "array"
                 description: "Initial console size, as an `[height, width]` array."
@@ -10817,10 +10820,7 @@ paths:
                 items:
                   type: "integer"
                   minimum: 0
-            example:
-              Detach: false
-              Tty: true
-              ConsoleSize: [80, 64]
+                example: [80, 64]
         - name: "id"
           in: "path"
           description: "Exec instance ID"
