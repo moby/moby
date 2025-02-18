@@ -620,7 +620,7 @@ func (pm *Manager) Set(name string, args []string) error {
 
 // CreateFromContext creates a plugin from the given pluginDir which contains
 // both the rootfs and the config.json and a repoName with optional tag.
-func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, options *types.PluginCreateOptions) (err error) {
+func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, options *types.PluginCreateOptions) (retErr error) {
 	pm.muGC.RLock()
 	defer pm.muGC.RUnlock()
 
@@ -641,7 +641,11 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	if err != nil {
 		return errors.Wrap(err, "failed to create temp directory")
 	}
-	defer os.RemoveAll(tmpRootFSDir)
+	defer func() {
+		if err := os.RemoveAll(tmpRootFSDir); err != nil {
+			log.G(ctx).WithError(err).Warn("failed to remove temp rootfs directory")
+		}
+	}()
 
 	var configJSON []byte
 	rootFS := splitConfigRootFSFromTar(tarCtx, &configJSON)
@@ -686,7 +690,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 		return err
 	}
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			go pm.GC()
 		}
 	}()
@@ -713,13 +717,13 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	configDigest := configBlob.Digest()
 	layers := []digest.Digest{rootFSBlob.Digest()}
 
-	manifest, err := buildManifest(ctx, pm.blobStore, configDigest, layers)
+	mfst, err := buildManifest(ctx, pm.blobStore, configDigest, layers)
 	if err != nil {
 		return err
 	}
-	desc, err := writeManifest(ctx, pm.blobStore, &manifest)
+	desc, err := writeManifest(ctx, pm.blobStore, &mfst)
 	if err != nil {
-		return
+		return err
 	}
 
 	p, err := pm.createPlugin(name, configDigest, desc.Digest, layers, tmpRootFSDir, nil)
