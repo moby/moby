@@ -16,13 +16,13 @@ import (
 func (ls *layerStore) ChecksumForGraphID(id, parent, newTarDataPath string) (diffID DiffID, size int64, err error) {
 	rawarchive, err := ls.driver.Diff(id, parent)
 	if err != nil {
-		return
+		return "", 0, err
 	}
 	defer rawarchive.Close()
 
 	f, err := os.Create(newTarDataPath)
 	if err != nil {
-		return
+		return "", 0, err
 	}
 	defer f.Close()
 	mfz := gzip.NewWriter(f)
@@ -33,14 +33,13 @@ func (ls *layerStore) ChecksumForGraphID(id, parent, newTarDataPath string) (dif
 
 	archive, err := asm.NewInputTarStream(rawarchive, packerCounter, nil)
 	if err != nil {
-		return
+		return "", 0, err
 	}
 	dgst, err := digest.FromReader(archive)
 	if err != nil {
-		return
+		return "", 0, err
 	}
-	diffID = DiffID(dgst)
-	return
+	return DiffID(dgst), size, nil
 }
 
 func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID DiffID, tarDataFile string, size int64) (Layer, error) {
