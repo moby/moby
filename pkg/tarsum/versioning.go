@@ -147,7 +147,7 @@ func v1TarHeaderSelect(h *tar.Header) (orderedHeaders [][2]string) {
 	// Finally, append the sorted xattrs.
 	orderedHeaders = append(orderedHeaders, xattrs...)
 
-	return
+	return orderedHeaders
 }
 
 var registeredHeaderSelectors = map[Version]tarHeaderSelectFunc{
