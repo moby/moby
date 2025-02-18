@@ -630,7 +630,7 @@ COPY --from=build         /build  /
 # smoke tests
 # usage:
 # > docker buildx bake binary-smoketest
-FROM --platform=$TARGETPLATFORM base AS smoketest
+FROM base AS smoketest
 WORKDIR /usr/local/bin
 COPY --from=build /build .
 RUN <<EOT
