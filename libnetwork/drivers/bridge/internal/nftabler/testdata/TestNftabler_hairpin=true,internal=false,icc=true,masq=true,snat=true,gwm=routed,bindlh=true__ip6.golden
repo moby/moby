@@ -42,6 +42,7 @@ table ip6 docker-bridges {
 	}
 
 	chain nat-prerouting-and-output {
+		ip6 saddr != fe80::/10 ip6 daddr ::1 tcp dport 8080 counter packets 0 bytes 0 dnat to [fd49:efd7:54aa::1]:80 comment "DNAT"
 	}
 
 	chain raw-PREROUTING {
@@ -52,6 +53,7 @@ table ip6 docker-bridges {
 		ct state established,related counter packets 0 bytes 0 accept
 		meta l4proto ipv6-icmp counter packets 0 bytes 0 accept comment "ICMP"
 		iifname "br-dummy" counter packets 0 bytes 0 accept comment "ICC"
+		ip6 daddr fd49:efd7:54aa::1 tcp dport 80 counter packets 0 bytes 0 accept
 		counter packets 0 bytes 0 drop comment "UNPUBLISHED PORT DROP"
 	}
 
@@ -62,6 +64,7 @@ table ip6 docker-bridges {
 
 	chain nat-postrouting-in__br-dummy {
 		fib saddr type local counter packets 0 bytes 0 snat to fd34:d0d4:672f::123 comment "SNAT FROM HOST"
+		ip6 saddr fd49:efd7:54aa::1 ip6 daddr fd49:efd7:54aa::1 tcp dport 80 counter packets 0 bytes 0 masquerade comment "MASQ TO OWN PORT"
 	}
 
 	chain nat-postrouting-out__br-dummy {

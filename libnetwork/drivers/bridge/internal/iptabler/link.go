@@ -39,6 +39,7 @@ func (n *network) DelLink(ctx context.Context, parentIP, childIP netip.Addr, por
 				"port":     port.Port,
 				"protocol": port.Proto.String(),
 				"bridge":   n.config.IfName,
+				"error":    err,
 			}).Warn("Failed to remove link between containers")
 		}
 	}
