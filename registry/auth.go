@@ -66,13 +66,13 @@ func (scs staticCredentialStore) SetRefreshToken(*url.URL, string, string) {
 // loginV2 tries to login to the v2 registry server. The given registry
 // endpoint will be pinged to get authorization challenges. These challenges
 // will be used to authenticate against the registry to validate credentials.
-func loginV2(authConfig *registry.AuthConfig, endpoint APIEndpoint, userAgent string) (status string, token string, _ error) {
+func loginV2(authConfig *registry.AuthConfig, endpoint APIEndpoint, userAgent string) (token string, _ error) {
 	endpointStr := strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
 	log.G(context.TODO()).Debugf("attempting v2 login to registry endpoint %s", endpointStr)
 
 	req, err := http.NewRequest(http.MethodGet, endpointStr, nil)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	var (
@@ -84,22 +84,22 @@ func loginV2(authConfig *registry.AuthConfig, endpoint APIEndpoint, userAgent st
 
 	loginClient, err := v2AuthHTTPClient(endpoint.URL, authTrans, modifiers, creds, nil)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	resp, err := loginClient.Do(req)
 	if err != nil {
 		err = translateV2AuthError(err)
-		return "", "", err
+		return "", err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
-		return "Login Succeeded", credentialAuthConfig.IdentityToken, nil
+	if resp.StatusCode != http.StatusOK {
+		// TODO(dmcgowan): Attempt to further interpret result, status code and error code string
+		return "", errors.Errorf("login attempt to %s failed with status: %d %s", endpointStr, resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
 
-	// TODO(dmcgowan): Attempt to further interpret result, status code and error code string
-	return "", "", errors.Errorf("login attempt to %s failed with status: %d %s", endpointStr, resp.StatusCode, http.StatusText(resp.StatusCode))
+	return credentialAuthConfig.IdentityToken, nil
 }
 
 func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifiers []transport.RequestModifier, creds auth.CredentialStore, scopes []auth.Scope) (*http.Client, error) {

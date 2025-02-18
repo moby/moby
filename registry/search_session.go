@@ -83,12 +83,12 @@ type onEOFReader struct {
 	Fn func()
 }
 
-func (r *onEOFReader) Read(p []byte) (n int, err error) {
-	n, err = r.Rc.Read(p)
+func (r *onEOFReader) Read(p []byte) (int, error) {
+	n, err := r.Rc.Read(p)
 	if err == io.EOF {
 		r.runFunc()
 	}
-	return
+	return n, err
 }
 
 // Close closes the file and run the function.
