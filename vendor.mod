@@ -82,7 +82,7 @@ require (
 	github.com/morikuni/aec v1.0.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
-	github.com/opencontainers/runc v1.2.3
+	github.com/opencontainers/runc v1.2.1-0.20241214170132-28b65d3d2367 // FIXME(thaJeztah): testing https://github.com/opencontainers/runc/pull/4472
 	github.com/opencontainers/runtime-spec v1.2.0
 	github.com/opencontainers/selinux v1.11.1
 	github.com/pelletier/go-toml v1.9.5

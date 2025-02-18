@@ -1,6 +1,6 @@
 //go:build !linux
 
-package configs
+package cgroups
 
 // Cgroup holds properties of a cgroup on Linux
 // TODO Windows: This can ultimately be entirely factored out on Windows as
