@@ -294,7 +294,7 @@ func (n *Namespace) RemoveAliasIP(ifName string, ip *net.IPNet) error {
 
 // DisableARPForVIP disables ARP replies and requests for VIP addresses
 // on a particular interface.
-func (n *Namespace) DisableARPForVIP(srcName string) (Err error) {
+func (n *Namespace) DisableARPForVIP(srcName string) (retErr error) {
 	dstName := ""
 	for _, i := range n.Interfaces() {
 		if i.SrcName() == srcName {
@@ -309,19 +309,19 @@ func (n *Namespace) DisableARPForVIP(srcName string) (Err error) {
 	err := n.InvokeFunc(func() {
 		path := filepath.Join("/proc/sys/net/ipv4/conf", dstName, "arp_ignore")
 		if err := os.WriteFile(path, []byte{'1', '\n'}, 0o644); err != nil {
-			Err = fmt.Errorf("Failed to set %s to 1: %v", path, err)
+			retErr = fmt.Errorf("Failed to set %s to 1: %v", path, err)
 			return
 		}
 		path = filepath.Join("/proc/sys/net/ipv4/conf", dstName, "arp_announce")
 		if err := os.WriteFile(path, []byte{'2', '\n'}, 0o644); err != nil {
-			Err = fmt.Errorf("Failed to set %s to 2: %v", path, err)
+			retErr = fmt.Errorf("Failed to set %s to 2: %v", path, err)
 			return
 		}
 	})
 	if err != nil {
 		return err
 	}
-	return
+	return retErr
 }
 
 // InvokeFunc invoke a function in the network namespace.
