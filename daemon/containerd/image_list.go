@@ -413,7 +413,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 			SharedSize: -1,
 			Containers: -1,
 			Descriptor: &target,
-		}, nil, nil
+		}, summary, nil
 	}
 
 	image, err := i.singlePlatformImage(ctx, i.content, tagsByDigest[best.RealTarget.Digest], best)

@@ -104,7 +104,7 @@ func BenchmarkImageList(b *testing.B) {
 
 		b.Run(strconv.Itoa(count)+"-images", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, err := imgSvc.Images(ctx, imagetypes.ListOptions{All: true})
+				_, err := imgSvc.Images(ctx, imagetypes.ListOptions{All: true, SharedSize: true})
 				assert.NilError(b, err)
 			}
 		})
@@ -129,7 +129,7 @@ func TestImageListCheckTotalSize(t *testing.T) {
 	_, err = service.images.Create(ctx, imagesFromIndex(twoplatform)[0])
 	assert.NilError(t, err)
 
-	all, err := service.Images(ctx, imagetypes.ListOptions{Manifests: true})
+	all, err := service.Images(ctx, imagetypes.ListOptions{Manifests: true, SharedSize: true})
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Len(all, 1))
@@ -204,7 +204,6 @@ func TestImageList(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		images []c8dimages.Image
-		opts   imagetypes.ListOptions
 
 		check func(*testing.T, []*imagetypes.Summary)
 	}{
@@ -334,8 +333,10 @@ func TestImageList(t *testing.T) {
 				assert.NilError(t, err)
 			}
 
-			opts := tc.opts
-			opts.Manifests = true
+			opts := imagetypes.ListOptions{
+				Manifests:  true,
+				SharedSize: true,
+			}
 			all, err := service.Images(ctx, opts)
 			assert.NilError(t, err)
 
