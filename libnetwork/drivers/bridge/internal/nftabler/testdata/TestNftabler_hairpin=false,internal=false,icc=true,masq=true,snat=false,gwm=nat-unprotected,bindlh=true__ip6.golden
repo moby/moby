@@ -42,6 +42,7 @@ table ip6 docker-bridges {
 	}
 
 	chain nat-prerouting-and-output {
+		iifname != "br-dummy" ip6 saddr != fe80::/10 ip6 daddr ::1 tcp dport 8080 counter packets 0 bytes 0 dnat to [fd49:efd7:54aa::1]:80 comment "DNAT"
 	}
 
 	chain raw-PREROUTING {
