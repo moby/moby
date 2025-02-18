@@ -58,22 +58,22 @@ func TestMain(m *testing.M) {
 	os.Exit(testRun(m))
 }
 
-func testRun(m *testing.M) (ret int) {
-	// Global set up
-
-	var err error
+func testRun(m *testing.M) (exitCode int) {
+	var retErr error
 
 	shutdown := testutil.ConfigureTracing()
 	ctx, span := otel.Tracer("").Start(context.Background(), "integration-cli/TestMain")
 	defer func() {
-		if err != nil {
-			span.SetStatus(codes.Error, err.Error())
-			ret = 255
-		} else {
-			if ret != 0 {
-				span.SetAttributes(attribute.Int("exitCode", ret))
-				span.SetStatus(codes.Error, "m.Run() exited with non-zero code")
+		if retErr != nil {
+			span.SetStatus(codes.Error, retErr.Error())
+			if exitCode == 0 {
+				// Should never happen, but in case we forgot to set a code :)
+				exitCode = 255
 			}
+		}
+		if exitCode != 0 {
+			span.SetAttributes(attribute.Int("exitCode", exitCode))
+			span.SetStatus(codes.Error, "m.Run() exited with non-zero code")
 		}
 		span.End()
 		shutdown(ctx)
@@ -81,9 +81,9 @@ func testRun(m *testing.M) (ret int) {
 
 	baseContext = ctx
 
-	testEnv, err = environment.New(ctx)
-	if err != nil {
-		return
+	testEnv, retErr = environment.New(ctx)
+	if retErr != nil {
+		return 255
 	}
 
 	if testEnv.IsLocalDaemon() {
@@ -92,9 +92,9 @@ func testRun(m *testing.M) (ret int) {
 
 	dockerBinary = testEnv.DockerBinary()
 
-	err = ienv.EnsureFrozenImagesLinux(ctx, &testEnv.Execution)
-	if err != nil {
-		return
+	retErr = ienv.EnsureFrozenImagesLinux(ctx, &testEnv.Execution)
+	if retErr != nil {
+		return 255
 	}
 
 	testEnv.Print()
