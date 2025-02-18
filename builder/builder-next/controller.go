@@ -549,10 +549,7 @@ func getCDIManager(specDirs []string) (*cdidevices.Manager, error) {
 		return nil, nil
 	}
 	cdiCache, err := func() (*cdi.Cache, error) {
-		cdiCache, err := cdi.NewCache(
-			cdi.WithSpecDirs(specDirs...),
-			cdi.WithAutoRefresh(false),
-		)
+		cdiCache, err := cdi.NewCache(cdi.WithSpecDirs(specDirs...))
 		if err != nil {
 			return nil, err
 		}
@@ -564,5 +561,6 @@ func getCDIManager(specDirs []string) (*cdidevices.Manager, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "CDI registry initialization failure")
 	}
-	return cdidevices.NewManager(cdiCache), nil
+	// TODO: add support for auto-allowed devices from config
+	return cdidevices.NewManager(cdiCache, nil), nil
 }
