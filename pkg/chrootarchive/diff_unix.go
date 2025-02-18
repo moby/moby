@@ -13,7 +13,7 @@ import (
 // applyLayerHandler parses a diff in the standard layer format from `layer`, and
 // applies it to the directory `dest`. Returns the size in bytes of the
 // contents of the layer.
-func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions, decompress bool) (size int64, err error) {
+func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions, decompress bool) (size int64, _ error) {
 	if decompress {
 		decompressed, err := archive.DecompressStream(layer)
 		if err != nil {
