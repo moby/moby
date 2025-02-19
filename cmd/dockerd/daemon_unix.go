@@ -99,14 +99,14 @@ func allocateDaemonPort(addr string) error {
 	return nil
 }
 
-func newCgroupParent(config *config.Config) string {
+func newCgroupParent(cfg *config.Config) string {
 	cgroupParent := "docker"
-	useSystemd := daemon.UsingSystemd(config)
+	useSystemd := daemon.UsingSystemd(cfg)
 	if useSystemd {
 		cgroupParent = "system.slice"
 	}
-	if config.CgroupParent != "" {
-		cgroupParent = config.CgroupParent
+	if cfg.CgroupParent != "" {
+		cgroupParent = cfg.CgroupParent
 	}
 	if useSystemd {
 		cgroupParent = cgroupParent + ":" + "docker" + ":"

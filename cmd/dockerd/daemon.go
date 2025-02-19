@@ -470,13 +470,13 @@ type builderOptions struct {
 func (cli *daemonCLI) reloadConfig() {
 	ctx := context.TODO()
 	log.G(ctx).WithField("config-file", *cli.configFile).Info("Got signal to reload configuration")
-	reload := func(c *config.Config) {
-		if err := validateAuthzPlugins(c.AuthorizationPlugins, cli.d.PluginStore); err != nil {
+	reload := func(cfg *config.Config) {
+		if err := validateAuthzPlugins(cfg.AuthorizationPlugins, cli.d.PluginStore); err != nil {
 			log.G(ctx).WithError(err).Fatal("Error validating authorization plugin")
 			return
 		}
 
-		if err := cli.d.Reload(c); err != nil {
+		if err := cli.d.Reload(cfg); err != nil {
 			log.G(ctx).WithError(err).Error("Error reconfiguring the daemon")
 			return
 		}
@@ -484,14 +484,14 @@ func (cli *daemonCLI) reloadConfig() {
 		// Apply our own configuration only after the daemon reload has succeeded. We
 		// don't want to partially apply the config if the daemon is unhappy with it.
 
-		cli.authzMiddleware.SetPlugins(c.AuthorizationPlugins)
+		cli.authzMiddleware.SetPlugins(cfg.AuthorizationPlugins)
 
-		if c.IsValueSet("debug") {
+		if cfg.IsValueSet("debug") {
 			debugEnabled := debug.IsEnabled()
 			switch {
-			case debugEnabled && !c.Debug: // disable debug
+			case debugEnabled && !cfg.Debug: // disable debug
 				debug.Disable()
-			case c.Debug && !debugEnabled: // enable debug
+			case cfg.Debug && !debugEnabled: // enable debug
 				debug.Enable()
 			}
 		}
@@ -674,24 +674,24 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 
 // normalizeHosts normalizes the configured config.Hosts and remove duplicates.
 // It returns an error if it fails to parse a host.
-func normalizeHosts(config *config.Config) error {
-	if len(config.Hosts) == 0 {
+func normalizeHosts(cfg *config.Config) error {
+	if len(cfg.Hosts) == 0 {
 		// if no hosts are configured, create a single entry slice, so that the
 		// default is used.
 		//
 		// TODO(thaJeztah) implement a cleaner way for this; this depends on a
 		//                 side-effect of how we parse empty/partial hosts.
-		config.Hosts = make([]string, 1)
+		cfg.Hosts = make([]string, 1)
 	}
-	hosts := make([]string, 0, len(config.Hosts))
-	seen := make(map[string]struct{}, len(config.Hosts))
+	hosts := make([]string, 0, len(cfg.Hosts))
+	seen := make(map[string]struct{}, len(cfg.Hosts))
 
 	useTLS := DefaultTLSValue
-	if config.TLS != nil {
-		useTLS = *config.TLS
+	if cfg.TLS != nil {
+		useTLS = *cfg.TLS
 	}
 
-	for _, h := range config.Hosts {
+	for _, h := range cfg.Hosts {
 		host, err := dopts.ParseHost(useTLS, honorXDG, h)
 		if err != nil {
 			return err
@@ -703,7 +703,7 @@ func normalizeHosts(config *config.Config) error {
 		hosts = append(hosts, host)
 	}
 	sort.Strings(hosts)
-	config.Hosts = hosts
+	cfg.Hosts = hosts
 	return nil
 }
 
@@ -801,21 +801,21 @@ func (cli *daemonCLI) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) 
 	return opts, nil
 }
 
-func newAPIServerTLSConfig(config *config.Config) (*tls.Config, error) {
+func newAPIServerTLSConfig(cfg *config.Config) (*tls.Config, error) {
 	var tlsConfig *tls.Config
-	if config.TLS != nil && *config.TLS {
+	if cfg.TLS != nil && *cfg.TLS {
 		var (
 			clientAuth tls.ClientAuthType
 			err        error
 		)
-		if config.TLSVerify == nil || *config.TLSVerify {
+		if cfg.TLSVerify == nil || *cfg.TLSVerify {
 			// server requires and verifies client's certificate
 			clientAuth = tls.RequireAndVerifyClientCert
 		}
 		tlsConfig, err = tlsconfig.Server(tlsconfig.Options{
-			CAFile:             config.TLSOptions.CAFile,
-			CertFile:           config.TLSOptions.CertFile,
-			KeyFile:            config.TLSOptions.KeyFile,
+			CAFile:             cfg.TLSOptions.CAFile,
+			CertFile:           cfg.TLSOptions.CertFile,
+			KeyFile:            cfg.TLSOptions.KeyFile,
 			ExclusiveRootPools: true,
 			ClientAuth:         clientAuth,
 		})
@@ -830,19 +830,19 @@ func newAPIServerTLSConfig(config *config.Config) (*tls.Config, error) {
 // checkTLSAuthOK checks basically for an explicitly disabled TLS/TLSVerify
 // Going forward we do not want to support a scenario where dockerd listens
 // on TCP without either TLS client auth (or an explicit opt-in to disable it)
-func checkTLSAuthOK(c *config.Config) bool {
-	if c.TLS == nil {
+func checkTLSAuthOK(cfg *config.Config) bool {
+	if cfg.TLS == nil {
 		// Either TLS is enabled by default, in which case TLS verification should be enabled by default, or explicitly disabled
 		// Or TLS is disabled by default... in any of these cases, we can just take the default value as to how to proceed
 		return DefaultTLSValue
 	}
 
-	if !*c.TLS {
+	if !*cfg.TLS {
 		// TLS is explicitly disabled, which is supported
 		return true
 	}
 
-	if c.TLSVerify == nil {
+	if cfg.TLSVerify == nil {
 		// this actually shouldn't happen since we set TLSVerify on the config object anyway
 		// But in case it does get here, be cautious and assume this is not supported.
 		return false
@@ -1007,16 +1007,16 @@ func configureDaemonLogs(conf *config.Config) {
 	}
 }
 
-func configureProxyEnv(conf *config.Config) {
-	if p := conf.HTTPProxy; p != "" {
+func configureProxyEnv(cfg *config.Config) {
+	if p := cfg.HTTPProxy; p != "" {
 		overrideProxyEnv("HTTP_PROXY", p)
 		overrideProxyEnv("http_proxy", p)
 	}
-	if p := conf.HTTPSProxy; p != "" {
+	if p := cfg.HTTPSProxy; p != "" {
 		overrideProxyEnv("HTTPS_PROXY", p)
 		overrideProxyEnv("https_proxy", p)
 	}
-	if p := conf.NoProxy; p != "" {
+	if p := cfg.NoProxy; p != "" {
 		overrideProxyEnv("NO_PROXY", p)
 		overrideProxyEnv("no_proxy", p)
 	}

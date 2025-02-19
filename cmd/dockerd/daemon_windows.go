@@ -24,13 +24,13 @@ func getDefaultDaemonConfigFile() string {
 }
 
 // setPlatformOptions applies platform-specific CLI configuration options.
-func setPlatformOptions(conf *config.Config) error {
-	if conf.Pidfile == "" {
+func setPlatformOptions(cfg *config.Config) error {
+	if cfg.Pidfile == "" {
 		// On Windows, the pid-file location is relative to the daemon's data-root,
 		// which is configurable, so we cannot use a fixed default location.
 		// Instead, we set the location here, after we parsed command-line flags
 		// and loaded the configuration file (if any).
-		conf.Pidfile = filepath.Join(conf.Root, "docker.pid")
+		cfg.Pidfile = filepath.Join(cfg.Root, "docker.pid")
 	}
 	return nil
 }
@@ -96,7 +96,7 @@ func allocateDaemonPort(addr string) error {
 	return nil
 }
 
-func newCgroupParent(config *config.Config) string {
+func newCgroupParent(*config.Config) string {
 	return ""
 }
 

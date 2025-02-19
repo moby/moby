@@ -41,8 +41,8 @@ func notifyStopping() {
 	go systemdDaemon.SdNotify(false, systemdDaemon.SdNotifyStopping)
 }
 
-func validateCPURealtimeOptions(config *config.Config) error {
-	if config.CPURealtimePeriod == 0 && config.CPURealtimeRuntime == 0 {
+func validateCPURealtimeOptions(cfg *config.Config) error {
+	if cfg.CPURealtimePeriod == 0 && cfg.CPURealtimeRuntime == 0 {
 		return nil
 	}
 	if cdcgroups.Mode() == cdcgroups.Unified {
