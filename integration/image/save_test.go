@@ -13,11 +13,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/platforms"
 	"github.com/cpuguy83/tar2go"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/testutils"
@@ -213,23 +213,75 @@ func TestSaveOCI(t *testing.T) {
 	}
 }
 
-// TODO(thaJeztah): this test currently only checks invalid cases; update this test to use a table-test and test both valid and invalid platform options.
 func TestSavePlatform(t *testing.T) {
+	// TODO(p1-0tr): figure out correct versions here
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.48"), "OCI layout support was introduced in v29")
+	skip.If(t, !testEnv.UsingSnapshotter())
+
 	ctx := setupTest(t)
 
 	t.Parallel()
 	apiClient := testEnv.APIClient()
 
-	const repoName = "busybox:latest"
-	_, err := apiClient.ImageInspect(ctx, repoName)
+	testPlatforms := []ocispec.Platform{
+		{OS: "linux", Architecture: "amd64"},
+		{OS: "linux", Architecture: "arm64", Variant: "v8"},
+		{OS: "linux", Architecture: "armhf"},
+	}
+	imageRef := specialimage.Load(ctx, t, apiClient, func(dir string) (*ocispec.Index, error) {
+		idx, _, err := specialimage.MultiPlatform(dir, "multiplatform:latest", testPlatforms)
+		return idx, err
+	})
+
+	inspect, err := apiClient.ImageInspect(ctx, "multiplatform:latest", client.ImageInspectWithManifests(true))
 	assert.NilError(t, err)
 
-	_, err = apiClient.ImageSave(ctx, []string{repoName}, client.ImageSaveWithPlatforms(
-		ocispec.Platform{Architecture: "amd64", OS: "linux"},
-		ocispec.Platform{Architecture: "arm64", OS: "linux", Variant: "v8"},
-	))
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
-	assert.Check(t, is.Error(err, "Error response from daemon: multiple platform parameters not supported"))
+	rdr, err := apiClient.ImageSave(ctx, []string{imageRef}, client.ImageSaveWithPlatforms(testPlatforms[:2]...))
+	assert.NilError(t, err)
+	defer rdr.Close()
+
+	tarfs := tarIndexFS(t, rdr)
+
+	indexData, err := fs.ReadFile(tarfs, "index.json")
+	assert.NilError(t, err, "failed to read index.json")
+
+	var index ocispec.Index
+	assert.NilError(t, json.Unmarshal(indexData, &index), "failed to unmarshal index.json")
+
+	assert.Assert(t, is.Len(index.Manifests, 1))
+	assert.Equal(t, index.Manifests[0].MediaType, "application/vnd.oci.image.index.v1+json")
+
+	idxData, err := fs.ReadFile(tarfs, "blobs/sha256/"+index.Manifests[0].Digest.Encoded())
+	assert.NilError(t, err)
+
+	var idx ocispec.Index
+	assert.NilError(t, json.Unmarshal(idxData, &idx))
+
+	missingPlatformMatcher := platforms.Any(testPlatforms[2])
+
+	assert.Assert(t, is.Len(idx.Manifests, len(inspect.Manifests)))
+	for i := range len(idx.Manifests) {
+		if missingPlatformMatcher.Match(*idx.Manifests[i].Platform) {
+			_, err := fs.ReadFile(tarfs, "blobs/sha256/"+idx.Manifests[i].Digest.Encoded())
+			assert.ErrorContains(t, err, "file does not exist")
+		} else {
+			manifestData, err := fs.ReadFile(tarfs, "blobs/sha256/"+idx.Manifests[i].Digest.Encoded())
+			assert.NilError(t, err)
+
+			var manifest ocispec.Manifest
+			assert.NilError(t, json.Unmarshal(manifestData, &manifest))
+
+			configData, err := fs.ReadFile(tarfs, "blobs/sha256/"+manifest.Config.Digest.Encoded())
+			assert.NilError(t, err)
+
+			var config ocispec.Image
+			assert.NilError(t, json.Unmarshal(configData, &config))
+
+			assert.Equal(t, config.Platform.Architecture, inspect.Manifests[i].Descriptor.Platform.Architecture)
+			assert.Equal(t, config.Platform.OS, inspect.Manifests[i].Descriptor.Platform.OS)
+			assert.Equal(t, config.Platform.Variant, inspect.Manifests[i].Descriptor.Platform.Variant)
+		}
+	}
 }
 
 func TestSaveRepoWithMultipleImages(t *testing.T) {

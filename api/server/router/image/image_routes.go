@@ -246,22 +246,16 @@ func (ir *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, 
 		names = r.Form["names"]
 	}
 
-	var platform *ocispec.Platform
+	var platformSpecs []ocispec.Platform
 	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.48") {
-		if formPlatforms := r.Form["platform"]; len(formPlatforms) > 1 {
-			// TODO(thaJeztah): remove once we support multiple platforms: see https://github.com/moby/moby/issues/48759
-			return errdefs.InvalidParameter(errors.New("multiple platform parameters not supported"))
-		}
-		if formPlatform := r.Form.Get("platform"); formPlatform != "" {
-			p, err := httputils.DecodePlatform(formPlatform)
-			if err != nil {
-				return err
-			}
-			platform = p
+		var err error
+		platformSpecs, err = httputils.DecodePlatforms(r.Form["platform"])
+		if err != nil {
+			return err
 		}
 	}
 
-	if err := ir.backend.ExportImage(ctx, names, platform, output); err != nil {
+	if err := ir.backend.ExportImage(ctx, names, platformSpecs, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
