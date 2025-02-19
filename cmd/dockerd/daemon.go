@@ -281,7 +281,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to start metrics server")
 	}
 
-	c, err := createAndStartCluster(cli, d)
+	c, err := createAndStartCluster(d, cli.Config)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("Error starting cluster component")
 	}
@@ -928,20 +928,20 @@ func loadListeners(cfg *config.Config, tlsConfig *tls.Config) ([]net.Listener, [
 	return lss, hosts, nil
 }
 
-func createAndStartCluster(cli *daemonCLI, d *daemon.Daemon) (*cluster.Cluster, error) {
+func createAndStartCluster(d *daemon.Daemon, cfg *config.Config) (*cluster.Cluster, error) {
 	name, _ := os.Hostname()
 	c, err := cluster.New(cluster.Config{
-		Root:                   cli.Config.Root,
+		Root:                   cfg.Root,
 		Name:                   name,
 		Backend:                d,
 		VolumeBackend:          d.VolumesService(),
 		ImageBackend:           d.ImageBackend(),
 		PluginBackend:          d.PluginManager(),
 		NetworkSubnetsProvider: d,
-		DefaultAdvertiseAddr:   cli.Config.SwarmDefaultAdvertiseAddr,
-		RaftHeartbeatTick:      cli.Config.SwarmRaftHeartbeatTick,
-		RaftElectionTick:       cli.Config.SwarmRaftElectionTick,
-		RuntimeRoot:            getSwarmRunRoot(cli.Config),
+		DefaultAdvertiseAddr:   cfg.SwarmDefaultAdvertiseAddr,
+		RaftHeartbeatTick:      cfg.SwarmRaftHeartbeatTick,
+		RaftElectionTick:       cfg.SwarmRaftElectionTick,
+		RuntimeRoot:            getSwarmRunRoot(cfg),
 	})
 	if err != nil {
 		return nil, err
