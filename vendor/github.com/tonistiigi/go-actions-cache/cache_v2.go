@@ -185,6 +185,7 @@ func (c *Cache) newRequestV2(url string, body func() io.Reader) *request {
 		headers: map[string]string{
 			"Authorization": "Bearer " + c.Token.Raw,
 			"Content-Type":  "application/json",
+			"User-Agent":    c.opt.UserAgent,
 		},
 	}
 }
