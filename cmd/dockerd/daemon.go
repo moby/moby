@@ -941,7 +941,7 @@ func createAndStartCluster(cli *daemonCLI, d *daemon.Daemon) (*cluster.Cluster, 
 		DefaultAdvertiseAddr:   cli.Config.SwarmDefaultAdvertiseAddr,
 		RaftHeartbeatTick:      cli.Config.SwarmRaftHeartbeatTick,
 		RaftElectionTick:       cli.Config.SwarmRaftElectionTick,
-		RuntimeRoot:            cli.getSwarmRunRoot(),
+		RuntimeRoot:            getSwarmRunRoot(cli.Config),
 	})
 	if err != nil {
 		return nil, err

@@ -66,8 +66,8 @@ func (cli *daemonCLI) setupConfigReloadTrap() {
 
 // getSwarmRunRoot gets the root directory for swarm to store runtime state
 // For example, the control socket
-func (cli *daemonCLI) getSwarmRunRoot() string {
-	return filepath.Join(cli.Config.ExecRoot, "swarm")
+func getSwarmRunRoot(cfg *config.Config) string {
+	return filepath.Join(cfg.ExecRoot, "swarm")
 }
 
 // allocateDaemonPort ensures that there are no containers
