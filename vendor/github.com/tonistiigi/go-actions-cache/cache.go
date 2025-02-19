@@ -27,6 +27,8 @@ var UploadConcurrency = 4
 var UploadChunkSize = 32 * 1024 * 1024
 var noValidateToken bool
 
+const defaultUserAgent = "go-actions-cache/1.0"
+
 var Log = func(string, ...interface{}) {}
 
 type Blob interface {
@@ -110,6 +112,7 @@ type Opt struct {
 	Client      *http.Client
 	Timeout     time.Duration
 	BackoffPool *BackoffPool
+	UserAgent   string
 }
 
 func New(token, url string, v2 bool, opt Opt) (*Cache, error) {
@@ -186,6 +189,9 @@ func optsWithDefaults(opt Opt) Opt {
 	}
 	if opt.BackoffPool == nil {
 		opt.BackoffPool = defaultBackoffPool
+	}
+	if opt.UserAgent == "" {
+		opt.UserAgent = defaultUserAgent
 	}
 	return opt
 }
@@ -495,6 +501,7 @@ func (c *Cache) newRequest(method, url string, body func() io.Reader) *request {
 		headers: map[string]string{
 			"Authorization": "Bearer " + c.Token.Raw,
 			"Accept":        "application/json;api-version=6.0-preview.1",
+			"User-Agent":    c.opt.UserAgent,
 		},
 	}
 }

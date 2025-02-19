@@ -22,6 +22,7 @@ import (
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/tracing"
+	bkversion "github.com/moby/buildkit/version"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -140,8 +141,9 @@ type exporter struct {
 func NewExporter(c *Config) (remotecache.Exporter, error) {
 	cc := v1.NewCacheChains()
 	cache, err := actionscache.New(c.Token, c.URL, c.Version > 1, actionscache.Opt{
-		Client:  tracing.DefaultClient,
-		Timeout: c.Timeout,
+		Client:    tracing.DefaultClient,
+		Timeout:   c.Timeout,
+		UserAgent: bkversion.UserAgent(),
 	})
 	if err != nil {
 		return nil, err
@@ -315,8 +317,9 @@ type importer struct {
 
 func NewImporter(c *Config) (remotecache.Importer, error) {
 	cache, err := actionscache.New(c.Token, c.URL, c.Version > 1, actionscache.Opt{
-		Client:  tracing.DefaultClient,
-		Timeout: c.Timeout,
+		Client:    tracing.DefaultClient,
+		Timeout:   c.Timeout,
+		UserAgent: bkversion.UserAgent(),
 	})
 	if err != nil {
 		return nil, err
