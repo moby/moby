@@ -37,6 +37,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+const errSetupNetworking = "failed to set up container networking"
+
 func ipAddresses(ips []net.IP) []string {
 	var addrs []string
 	for _, ip := range ips {

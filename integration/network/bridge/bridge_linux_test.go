@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
+	"github.com/docker/go-connections/nat"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -422,4 +423,34 @@ func TestEndpointWithCustomIfname(t *testing.T) {
 	out, err := ctr.Output(ctx, apiClient, ctrID)
 	assert.NilError(t, err)
 	assert.Assert(t, strings.Contains(out.Stdout, ": foobar@if"), "expected ': foobar@if' in 'ip link show':\n%s", out.Stdout)
+}
+
+// TestPublishedPortAlreadyInUse checks that a container that can't start
+// because of one its published port being already in use doesn't end up
+// triggering the restart loop.
+//
+// Regression test for: https://github.com/moby/moby/issues/49501
+func TestPublishedPortAlreadyInUse(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	ctr1 := ctr.Run(ctx, t, apiClient,
+		ctr.WithCmd("top"),
+		ctr.WithExposedPorts("80/tcp"),
+		ctr.WithPortMap(nat.PortMap{"80/tcp": {{HostPort: "8000"}}}))
+	defer ctr.Remove(ctx, t, apiClient, ctr1, containertypes.RemoveOptions{Force: true})
+
+	ctr2 := ctr.Create(ctx, t, apiClient,
+		ctr.WithCmd("top"),
+		ctr.WithRestartPolicy(containertypes.RestartPolicyAlways),
+		ctr.WithExposedPorts("80/tcp"),
+		ctr.WithPortMap(nat.PortMap{"80/tcp": {{HostPort: "8000"}}}))
+	defer ctr.Remove(ctx, t, apiClient, ctr2, containertypes.RemoveOptions{Force: true})
+
+	err := apiClient.ContainerStart(ctx, ctr2, containertypes.StartOptions{})
+	assert.Assert(t, is.ErrorContains(err, "failed to set up container networking"))
+
+	inspect, err := apiClient.ContainerInspect(ctx, ctr2)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(inspect.State.Status, "created"))
 }

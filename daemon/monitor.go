@@ -3,6 +3,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/containerd/log"
@@ -31,6 +32,20 @@ func (daemon *Daemon) setStateCounter(c *container.Container) {
 func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontainerdtypes.EventInfo) error {
 	var ctrExitStatus container.ExitStatus
 	c.Lock()
+
+	// If the latest container error is related to networking setup, don't try
+	// to restart the container, and don't change the container state to
+	// 'exited'. This happens when, for example, [daemon.allocateNetwork] fails
+	// due to published ports being already in use. In that case, we want to
+	// keep the container in the 'created' state.
+	//
+	// c.ErrorMsg is set by [daemon.containerStart], and doesn't preserve the
+	// error type (because this field is persisted on disk). So, use string
+	// matching instead of usual error comparison methods.
+	if strings.Contains(c.ErrorMsg, errSetupNetworking) {
+		c.Unlock()
+		return nil
+	}
 
 	cfg := daemon.config()
 
