@@ -30,7 +30,14 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 // LoadImage uploads a set of images into the repository. This is the
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
-func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platform *ocispec.Platform, outStream io.Writer, quiet bool) error {
+func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platformSpecs []ocispec.Platform, outStream io.Writer, quiet bool) error {
+	if len(platformSpecs) > 1 {
+		return errdefs.InvalidParameter(errors.New("multiple platform parameters not supported"))
+	}
+	var platform *ocispec.Platform
+	if len(platformSpecs) == 1 {
+		platform = &platformSpecs[0]
+	}
 	imageExporter := tarexport.NewTarExporter(i.imageStore, i.layerStore, i.referenceStore, i, platform)
 	return imageExporter.Load(ctx, inTar, outStream, quiet)
 }

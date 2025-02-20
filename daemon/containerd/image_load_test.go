@@ -45,7 +45,7 @@ func TestImageLoadMissing(t *testing.T) {
 			t.Log(buf.String())
 		}()
 
-		return imgSvc.LoadImage(ctx, tarRc, &platform, &buf, true)
+		return imgSvc.LoadImage(ctx, tarRc, []ocispec.Platform{platform}, &buf, true)
 	}
 
 	clearStore := func(ctx context.Context, t *testing.T) {

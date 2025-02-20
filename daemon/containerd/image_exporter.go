@@ -245,14 +245,30 @@ func (i *ImageService) leaseContent(ctx context.Context, store content.Store, de
 // LoadImage uploads a set of images into the repository. This is the
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
-func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platform *ocispec.Platform, outStream io.Writer, quiet bool) error {
+func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platformSpecs []ocispec.Platform, outStream io.Writer, quiet bool) error {
 	decompressed, err := dockerarchive.DecompressStream(inTar)
 	if err != nil {
 		return errors.Wrap(err, "failed to decompress input tar archive")
 	}
 	defer decompressed.Close()
 
-	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, platform)
+	var platform *ocispec.Platform
+	if len(platformSpecs) == 1 {
+		platform = &platformSpecs[0]
+	}
+
+	var pm platforms.MatchComparer
+	if len(platformSpecs) > 1 {
+		var normalisedPlatforms []ocispec.Platform
+		for _, plat := range platformSpecs {
+			normalisedPlatforms = append(normalisedPlatforms, platforms.Normalize(plat))
+		}
+		platformSpecs = normalisedPlatforms
+
+		pm = platforms.Ordered(normalisedPlatforms...)
+	} else {
+		pm = i.matchRequestedOrDefault(platforms.OnlyStrict, platform)
+	}
 
 	opts := []containerd.ImportOpt{
 		containerd.WithImportPlatform(pm),

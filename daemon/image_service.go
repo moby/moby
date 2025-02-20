@@ -31,7 +31,7 @@ type ImageService interface {
 	CreateImage(ctx context.Context, config []byte, parent string, contentStoreDigest digest.Digest) (builder.Image, error)
 	ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]imagetype.DeleteResponse, error)
 	ExportImage(ctx context.Context, names []string, platformSpecs []ocispec.Platform, outStream io.Writer) error
-	LoadImage(ctx context.Context, inTar io.ReadCloser, platform *ocispec.Platform, outStream io.Writer, quiet bool) error
+	LoadImage(ctx context.Context, inTar io.ReadCloser, platformSpecs []ocispec.Platform, outStream io.Writer, quiet bool) error
 	Images(ctx context.Context, opts imagetype.ListOptions) ([]*imagetype.Summary, error)
 	LogImageEvent(ctx context.Context, imageID, refName string, action events.Action)
 	CountImages(ctx context.Context) int
