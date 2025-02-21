@@ -1110,26 +1110,19 @@ func supportedEntitlements(ents []string) []entitlements.Entitlement {
 		if e == string(entitlements.EntitlementSecurityInsecure) {
 			out = append(out, entitlements.EntitlementSecurityInsecure)
 		}
-		if e == string(entitlements.EntitlementDevice) {
-			out = append(out, entitlements.EntitlementDevice)
-		}
 	}
 	return out
 }
 
 func loadEntitlements(b solver.Builder) (entitlements.Set, error) {
-	var ent entitlements.Set = map[entitlements.Entitlement]entitlements.EntitlementsConfig{}
+	var ent entitlements.Set = map[entitlements.Entitlement]struct{}{}
 	err := b.EachValue(context.TODO(), keyEntitlements, func(v interface{}) error {
 		set, ok := v.(entitlements.Set)
 		if !ok {
 			return errors.Errorf("invalid entitlements %T", v)
 		}
-		for k, v := range set {
-			if prev, ok := ent[k]; ok && prev != nil {
-				prev.Merge(v)
-			} else {
-				ent[k] = v
-			}
+		for k := range set {
+			ent[k] = struct{}{}
 		}
 		return nil
 	})

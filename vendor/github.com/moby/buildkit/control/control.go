@@ -695,7 +695,7 @@ func toPBCDIDevices(manager *cdidevices.Manager) []*apitypes.CDIDevice {
 	for _, dev := range devs {
 		out = append(out, &apitypes.CDIDevice{
 			Name:        dev.Name,
-			AutoAllow:   dev.AutoAllow,
+			AutoAllow:   true, // TODO
 			Annotations: dev.Annotations,
 			OnDemand:    dev.OnDemand,
 		})
