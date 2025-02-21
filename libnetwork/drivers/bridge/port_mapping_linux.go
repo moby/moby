@@ -16,6 +16,7 @@ import (
 	"unsafe"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/libnetwork/drivers/bridge/internal/rlkclient"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/portallocator"
@@ -46,6 +47,9 @@ type portBinding struct {
 	// stopProxy is a function to stop the userland proxy for this binding,
 	// if a proxy has been started - else nil.
 	stopProxy func() error
+	// rootlesskitUnsupported is set to true when the port binding is not
+	// supported by the port driver of RootlessKit.
+	rootlesskitUnsupported bool
 }
 
 // childPortBinding is pb.PortBinding, with the host address the daemon
@@ -189,6 +193,14 @@ func (n *bridgeNetwork) addPortMappings(
 			}
 			bindings[i].portDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip, chip, int(b.HostPort))
 			if err != nil {
+				var pErr *rlkclient.ProtocolUnsupportedError
+				if errors.As(err, &pErr) {
+					log.G(ctx).WithFields(log.Fields{
+						"error": pErr,
+					}).Warnf("discarding request for %q", net.JoinHostPort(hip.String(), strconv.Itoa(int(b.HostPort))))
+					bindings[i].rootlesskitUnsupported = true
+					continue
+				}
 				return nil, err
 			}
 		}
@@ -208,7 +220,7 @@ func (n *bridgeNetwork) addPortMappings(
 		somaxconn = -1 // silently capped to "/proc/sys/net/core/somaxconn"
 	}
 	for i := range bindings {
-		if bindings[i].boundSocket == nil {
+		if bindings[i].boundSocket == nil || bindings[i].rootlesskitUnsupported {
 			continue
 		}
 		if bindings[i].Proto == types.TCP {
