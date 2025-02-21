@@ -1,0 +1,4 @@
+-N DOCKER-FORWARD
+-A DOCKER-FORWARD -m set --match-set docker-ext-bridges-v6 dst -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A DOCKER-FORWARD -j DOCKER-ISOLATION-STAGE-1
+-A DOCKER-FORWARD -m set --match-set docker-ext-bridges-v6 dst -j DOCKER
