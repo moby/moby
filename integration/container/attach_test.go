@@ -73,7 +73,7 @@ func TestAttachDisconnectLeak(t *testing.T) {
 
 	// Use a new daemon to make sure stuff from other tests isn't affecting the
 	// goroutine count.
-	d := daemon.New(t)
+	d := daemon.New(t, daemon.WithEnvVars("DOCKER_KEEP_DEFAULT_BRIDGE=y"))
 	defer d.Cleanup(t)
 
 	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")

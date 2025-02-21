@@ -26,7 +26,7 @@ func TestReadPluginNoRead(t *testing.T) {
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	d := daemon.New(t)
+	d := daemon.New(t, daemon.WithEnvVars("DOCKER_KEEP_DEFAULT_BRIDGE=y"))
 	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
