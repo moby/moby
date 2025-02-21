@@ -19,11 +19,7 @@ The filter table is the same as with the userland proxy enabled.
     Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DOCKER-USER  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    2        0     0 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst ctstate RELATED,ESTABLISHED
-    3        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    4        0     0 DOCKER     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst
-    5        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
-    6        0     0 ACCEPT     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0           
+    2        0     0 DOCKER-FORWARD  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     
     Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -33,6 +29,14 @@ The filter table is the same as with the userland proxy enabled.
     1        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
     2        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
     3        0     0 DROP       0    --  !bridge1 bridge1  0.0.0.0/0            0.0.0.0/0           
+    
+    Chain DOCKER-FORWARD (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst ctstate RELATED,ESTABLISHED
+    2        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    3        0     0 DOCKER     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst
+    4        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
+    5        0     0 ACCEPT     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-ISOLATION-STAGE-1 (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -53,18 +57,20 @@ The filter table is the same as with the userland proxy enabled.
     -P FORWARD ACCEPT
     -P OUTPUT ACCEPT
     -N DOCKER
+    -N DOCKER-FORWARD
     -N DOCKER-ISOLATION-STAGE-1
     -N DOCKER-ISOLATION-STAGE-2
     -N DOCKER-USER
     -A FORWARD -j DOCKER-USER
-    -A FORWARD -m set --match-set docker-ext-bridges-v4 dst -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    -A FORWARD -j DOCKER-ISOLATION-STAGE-1
-    -A FORWARD -m set --match-set docker-ext-bridges-v4 dst -j DOCKER
-    -A FORWARD -i docker0 -j ACCEPT
-    -A FORWARD -i bridge1 -j ACCEPT
+    -A FORWARD -j DOCKER-FORWARD
     -A DOCKER -d 192.0.2.2/32 ! -i bridge1 -o bridge1 -p tcp -m tcp --dport 80 -j ACCEPT
     -A DOCKER ! -i docker0 -o docker0 -j DROP
     -A DOCKER ! -i bridge1 -o bridge1 -j DROP
+    -A DOCKER-FORWARD -m set --match-set docker-ext-bridges-v4 dst -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-FORWARD -j DOCKER-ISOLATION-STAGE-1
+    -A DOCKER-FORWARD -m set --match-set docker-ext-bridges-v4 dst -j DOCKER
+    -A DOCKER-FORWARD -i docker0 -j ACCEPT
+    -A DOCKER-FORWARD -i bridge1 -j ACCEPT
     -A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
     -A DOCKER-ISOLATION-STAGE-1 -i bridge1 ! -o bridge1 -j DOCKER-ISOLATION-STAGE-2
     -A DOCKER-ISOLATION-STAGE-2 -o bridge1 -j DROP

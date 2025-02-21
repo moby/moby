@@ -18,7 +18,8 @@ import (
 
 // DockerChain: DOCKER iptable chain name
 const (
-	DockerChain = "DOCKER"
+	DockerChain        = "DOCKER"
+	DockerForwardChain = "DOCKER-FORWARD"
 
 	// Isolation between bridge networks is achieved in two stages by means
 	// of the following two chains in the filter table. The first chain matches
@@ -79,6 +80,18 @@ func setupIPChains(config configuration, version iptables.IPVersion) (retErr err
 		}
 	}()
 
+	_, err = iptable.NewChain(DockerForwardChain, iptables.Filter)
+	if err != nil {
+		return fmt.Errorf("failed to create FILTER chain %s: %v", DockerForwardChain, err)
+	}
+	defer func() {
+		if retErr != nil {
+			if err := iptable.RemoveExistingChain(DockerForwardChain, iptables.Filter); err != nil {
+				log.G(context.TODO()).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", DockerForwardChain, err)
+			}
+		}
+	}()
+
 	_, err = iptable.NewChain(IsolationChain1, iptables.Filter)
 	if err != nil {
 		return fmt.Errorf("failed to create FILTER isolation chain: %v", err)
@@ -121,14 +134,32 @@ func setupIPChains(config configuration, version iptables.IPVersion) (retErr err
 	if version == iptables.IPv6 {
 		ipsetName = ipsetExtBridges6
 	}
-	if err := iptable.EnsureJumpRule("FORWARD", DockerChain,
+	// Delete rules that may have been added to the FORWARD chain by moby 28.0.0.
+	if err := iptable.DeleteJumpRule("FORWARD", DockerChain,
 		"-m", "set", "--match-set", ipsetName, "dst"); err != nil {
 		return fmt.Errorf("%w (kernel module netfilter_xt_set is required)", err)
 	}
-	if err := iptable.EnsureJumpRule("FORWARD", IsolationChain1); err != nil {
+	if err := iptable.DeleteJumpRule("FORWARD", IsolationChain1); err != nil {
 		return err
 	}
-	if err := iptable.EnsureJumpRule("FORWARD", "ACCEPT",
+	if err := iptable.DeleteJumpRule("FORWARD", "ACCEPT",
+		"-m", "set", "--match-set", ipsetName, "dst",
+		"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED",
+	); err != nil {
+		return err
+	}
+	// Create rules in the DockerForward chain.
+	if err := iptable.EnsureJumpRule("FORWARD", DockerForwardChain); err != nil {
+		return err
+	}
+	if err := iptable.EnsureJumpRule(DockerForwardChain, DockerChain,
+		"-m", "set", "--match-set", ipsetName, "dst"); err != nil {
+		return err
+	}
+	if err := iptable.EnsureJumpRule(DockerForwardChain, IsolationChain1); err != nil {
+		return err
+	}
+	if err := iptable.EnsureJumpRule(DockerForwardChain, "ACCEPT",
 		"-m", "set", "--match-set", ipsetName, "dst",
 		"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED",
 	); err != nil {
@@ -452,24 +483,31 @@ func setupNonInternalNetworkRules(ipVer iptables.IPVersion, config *networkConfi
 	// to ACCEPT packets that weren't ICC - an extra rule was needed to enable
 	// ICC if needed. Those rules are now combined. So, outRuleNoICC is only
 	// needed for ICC=false, along with the DROP rule for ICC added by setIcc.
-	outRuleNoICC := iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: "FORWARD", Args: []string{
+	outRuleNoICC := iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{
 		"-i", config.BridgeName,
 		"!", "-o", config.BridgeName,
 		"-j", "ACCEPT",
 	}}
-	if config.EnableICC {
-		// Remove the legacy rule for ICC (which didn't accept outgoing traffic), if one has been
-		// left behind by an old daemon.
-		if err := outRuleNoICC.Delete(); err != nil {
-			return err
+	// If there's a version of outRuleNoICC in the FORWARD chain, created by moby 28.0.0 or older, delete it.
+	if enable {
+		if err := outRuleNoICC.WithChain("FORWARD").Delete(); err != nil {
+			return fmt.Errorf("deleting FORWARD chain outRuleNoICC: %w", err)
 		}
+	}
+	if config.EnableICC {
 		// Accept outgoing traffic to anywhere, including other containers on this bridge.
-		outRuleICC := iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: "FORWARD", Args: []string{
+		outRuleICC := iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{
 			"-i", config.BridgeName,
 			"-j", "ACCEPT",
 		}}
 		if err := appendOrDelChainRule(outRuleICC, "ACCEPT OUTGOING", enable); err != nil {
 			return err
+		}
+		// If there's a version of outRuleICC in the FORWARD chain, created by moby 28.0.0 or older, delete it.
+		if enable {
+			if err := outRuleICC.WithChain("FORWARD").Delete(); err != nil {
+				return fmt.Errorf("deleting FORWARD chain outRuleICC: %w", err)
+			}
 		}
 	} else {
 		// Accept outgoing traffic to anywhere, apart from other containers on this bridge.
@@ -510,8 +548,8 @@ func appendOrDelChainRule(rule iptables.Rule, ruleDescr string, append bool) err
 
 func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, internal, insert bool) error {
 	args := []string{"-i", bridgeIface, "-o", bridgeIface, "-j"}
-	acceptRule := iptables.Rule{IPVer: version, Table: iptables.Filter, Chain: "FORWARD", Args: append(args, "ACCEPT")}
-	dropRule := iptables.Rule{IPVer: version, Table: iptables.Filter, Chain: "FORWARD", Args: append(args, "DROP")}
+	acceptRule := iptables.Rule{IPVer: version, Table: iptables.Filter, Chain: DockerForwardChain, Args: append(args, "ACCEPT")}
+	dropRule := iptables.Rule{IPVer: version, Table: iptables.Filter, Chain: DockerForwardChain, Args: append(args, "DROP")}
 
 	// The accept rule is no longer required for a bridge with external connectivity, because
 	// ICC traffic is allowed by the outgoing-packets rule created by setupIptablesInternal.
@@ -535,6 +573,16 @@ func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, internal,
 	} else {
 		if err := dropRule.Delete(); err != nil {
 			log.G(context.TODO()).WithError(err).Warn("Failed to delete ICC drop rule")
+		}
+	}
+
+	// Delete rules that may have been inserted into the FORWARD chain by moby 28.0.0 or older.
+	if insert {
+		if err := acceptRule.WithChain("FORWARD").Delete(); err != nil {
+			return fmt.Errorf("deleting FORWARD chain accept rule: %w", err)
+		}
+		if err := dropRule.WithChain("FORWARD").Delete(); err != nil {
+			return fmt.Errorf("deleting FORWARD chain drop rule: %w", err)
 		}
 	}
 	return nil
@@ -617,6 +665,7 @@ func removeIPChains(version iptables.IPVersion) {
 	for _, chainInfo := range []iptables.ChainInfo{
 		{Name: DockerChain, Table: iptables.Nat, IPVersion: version},
 		{Name: DockerChain, Table: iptables.Filter, IPVersion: version},
+		{Name: DockerForwardChain, Table: iptables.Filter, IPVersion: version},
 		{Name: IsolationChain1, Table: iptables.Filter, IPVersion: version},
 		{Name: IsolationChain2, Table: iptables.Filter, IPVersion: version},
 		{Name: oldIsolationChain, Table: iptables.Filter, IPVersion: version},

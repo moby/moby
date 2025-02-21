@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/docker/docker/libnetwork/drivers/bridge"
+
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/iptables"
@@ -62,6 +64,15 @@ func TestUserChain(t *testing.T) {
 				fmt.Sprintf("TestUserChain_iptables-%v_append-%v_fwdinit4", tc.iptables, tc.append))
 			golden.Assert(t, getRules(t, iptable6, fwdChainName),
 				fmt.Sprintf("TestUserChain_iptables-%v_append-%v_fwdinit6", tc.iptables, tc.append))
+			if tc.iptables {
+				golden.Assert(t, getRules(t, iptable4, bridge.DockerForwardChain),
+					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_dockerfwdinit4", tc.iptables, tc.append))
+				golden.Assert(t, getRules(t, iptable6, bridge.DockerForwardChain),
+					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_dockerfwdinit6", tc.iptables, tc.append))
+			} else {
+				assert.Check(t, !iptables.GetIptable(iptables.IPv4).ExistChain(bridge.DockerForwardChain, fwdChainName),
+					"Chain %s should not exist", bridge.DockerForwardChain)
+			}
 
 			if tc.append {
 				_, err := iptable4.Raw("-A", fwdChainName, "-j", "DROP")
@@ -75,6 +86,15 @@ func TestUserChain(t *testing.T) {
 				fmt.Sprintf("TestUserChain_iptables-%v_append-%v_fwdafter4", tc.iptables, tc.append))
 			golden.Assert(t, getRules(t, iptable6, fwdChainName),
 				fmt.Sprintf("TestUserChain_iptables-%v_append-%v_fwdafter6", tc.iptables, tc.append))
+			if tc.iptables {
+				golden.Assert(t, getRules(t, iptable4, bridge.DockerForwardChain),
+					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_dockerfwdafter4", tc.iptables, tc.append))
+				golden.Assert(t, getRules(t, iptable6, bridge.DockerForwardChain),
+					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_dockerfwdafter6", tc.iptables, tc.append))
+			} else {
+				assert.Check(t, !iptables.GetIptable(iptables.IPv4).ExistChain(bridge.DockerForwardChain, fwdChainName),
+					"Chain %s should not exist", bridge.DockerForwardChain)
+			}
 
 			if tc.iptables {
 				golden.Assert(t, getRules(t, iptable4, usrChainName),
