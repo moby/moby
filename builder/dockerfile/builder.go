@@ -84,14 +84,13 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	builderOptions := builderOptions{
+	b, err := newBuilder(ctx, builderOptions{
 		Options:        config.Options,
 		ProgressWriter: config.ProgressWriter,
 		Backend:        bm.backend,
 		PathCache:      bm.pathCache,
 		IDMapping:      bm.idMapping,
-	}
-	b, err := newBuilder(ctx, builderOptions)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +134,7 @@ func newBuilder(ctx context.Context, options builderOptions) (*Builder, error) {
 		config = new(types.ImageBuildOptions)
 	}
 
-	imageProber, err := newImageProber(ctx, options.Backend, config.CacheFrom, config.NoCache)
+	imgProber, err := newImageProber(ctx, options.Backend, config.CacheFrom, config.NoCache)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +149,7 @@ func newBuilder(ctx context.Context, options builderOptions) (*Builder, error) {
 		idMapping:        options.IDMapping,
 		imageSources:     newImageSources(options),
 		pathCache:        options.PathCache,
-		imageProber:      imageProber,
+		imageProber:      imgProber,
 		containerManager: newContainerManager(options.Backend),
 	}
 
@@ -169,7 +168,7 @@ func newBuilder(ctx context.Context, options builderOptions) (*Builder, error) {
 
 // Build 'LABEL' command(s) from '--label' options and add to the last stage
 func buildLabelOptions(labels map[string]string, stages []instructions.Stage) {
-	keys := []string{}
+	var keys []string
 	for key := range labels {
 		keys = append(keys, key)
 	}
@@ -208,15 +207,15 @@ func (b *Builder) build(ctx context.Context, source builder.Source, dockerfile *
 	buildLabelOptions(b.options.Labels, stages)
 
 	dockerfile.PrintWarnings(b.Stderr)
-	dispatchState, err := b.dispatchDockerfileWithCancellation(ctx, stages, metaArgs, dockerfile.EscapeToken, source)
+	state, err := b.dispatchDockerfileWithCancellation(ctx, stages, metaArgs, dockerfile.EscapeToken, source)
 	if err != nil {
 		return nil, err
 	}
-	if dispatchState.imageID == "" {
+	if state.imageID == "" {
 		buildsFailed.WithValues(metricsDockerfileEmptyError).Inc()
 		return nil, errors.New("No image was generated. Is your Dockerfile empty?")
 	}
-	return &builder.Result{ImageID: dispatchState.imageID, FromImage: dispatchState.baseImage}, nil
+	return &builder.Result{ImageID: state.imageID, FromImage: state.baseImage}, nil
 }
 
 func emitImageID(aux *streamformatter.AuxFormatter, state *dispatchState) error {
@@ -243,13 +242,13 @@ func processMetaArg(meta instructions.ArgCommand, shlex *shell.Lex, args *BuildA
 }
 
 func printCommand(out io.Writer, currentCommandIndex int, totalCommands int, cmd interface{}) int {
-	fmt.Fprintf(out, stepFormat, currentCommandIndex, totalCommands, cmd)
-	fmt.Fprintln(out)
+	_, _ = fmt.Fprintf(out, stepFormat, currentCommandIndex, totalCommands, cmd)
+	_, _ = fmt.Fprintln(out)
 	return currentCommandIndex + 1
 }
 
 func (b *Builder) dispatchDockerfileWithCancellation(ctx context.Context, parseResult []instructions.Stage, metaArgs []instructions.ArgCommand, escapeToken rune, source builder.Source) (*dispatchState, error) {
-	dispatchRequest := dispatchRequest{}
+	request := dispatchRequest{}
 	buildArgs := NewBuildArgs(b.options.BuildArgs)
 	totalCommands := len(metaArgs) + len(parseResult)
 	currentCommandIndex := 1
@@ -273,19 +272,19 @@ func (b *Builder) dispatchDockerfileWithCancellation(ctx context.Context, parseR
 		if err := stagesResults.checkStageNameAvailable(stage.Name); err != nil {
 			return nil, err
 		}
-		dispatchRequest = newDispatchRequest(b, escapeToken, source, buildArgs, stagesResults)
+		request = newDispatchRequest(b, escapeToken, source, buildArgs, stagesResults)
 
 		currentCommandIndex = printCommand(b.Stdout, currentCommandIndex, totalCommands, stage.SourceCode)
-		if err := initializeStage(ctx, dispatchRequest, &stage); err != nil {
+		if err := initializeStage(ctx, request, &stage); err != nil {
 			return nil, err
 		}
-		dispatchRequest.state.updateRunConfig()
-		fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(dispatchRequest.state.imageID))
+		request.state.updateRunConfig()
+		_, _ = fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(request.state.imageID))
 		for _, cmd := range stage.Commands {
 			select {
 			case <-ctx.Done():
 				log.G(ctx).Debug("Builder: build cancelled!")
-				fmt.Fprint(b.Stdout, "Build cancelled\n")
+				_, _ = fmt.Fprint(b.Stdout, "Build cancelled\n")
 				buildsFailed.WithValues(metricsBuildCanceled).Inc()
 				return nil, errors.New("Build cancelled")
 			default:
@@ -294,22 +293,22 @@ func (b *Builder) dispatchDockerfileWithCancellation(ctx context.Context, parseR
 
 			currentCommandIndex = printCommand(b.Stdout, currentCommandIndex, totalCommands, cmd)
 
-			if err := dispatch(ctx, dispatchRequest, cmd); err != nil {
+			if err := dispatch(ctx, request, cmd); err != nil {
 				return nil, err
 			}
-			dispatchRequest.state.updateRunConfig()
-			fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(dispatchRequest.state.imageID))
+			request.state.updateRunConfig()
+			_, _ = fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(request.state.imageID))
 		}
-		if err := emitImageID(b.Aux, dispatchRequest.state); err != nil {
+		if err := emitImageID(b.Aux, request.state); err != nil {
 			return nil, err
 		}
-		buildArgs.MergeReferencedArgs(dispatchRequest.state.buildArgs)
-		if err := commitStage(dispatchRequest.state, stagesResults); err != nil {
+		buildArgs.MergeReferencedArgs(request.state.buildArgs)
+		if err := commitStage(request.state, stagesResults); err != nil {
 			return nil, err
 		}
 	}
 	buildArgs.WarnOnUnusedBuildArgs(b.Stdout)
-	return dispatchRequest.state, nil
+	return request.state, nil
 }
 
 // BuildFromConfig builds directly from `changes`, treating it as if it were the contents of a Dockerfile

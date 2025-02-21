@@ -273,11 +273,11 @@ func ConsumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, s
 			if err == io.EOF {
 				err = nil
 			}
-			return
+			return n, err
 		}
 		select {
 		case <-stop:
-			return
+			return n, err
 		case <-time.After(interval):
 		}
 	}

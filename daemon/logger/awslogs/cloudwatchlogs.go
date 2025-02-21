@@ -673,15 +673,13 @@ func effectiveLen(line string) int {
 // UTF-8 encoded bytes with the Unicode replacement character (a 3-byte UTF-8
 // sequence, represented in Go as utf8.RuneError)
 func findValidSplit(line string, maxBytes int) (splitOffset, effectiveBytes int) {
-	for offset, rune := range line {
-		splitOffset = offset
-		if effectiveBytes+utf8.RuneLen(rune) > maxBytes {
-			return splitOffset, effectiveBytes
+	for offset, char := range line {
+		if effectiveBytes+utf8.RuneLen(char) > maxBytes {
+			return offset, effectiveBytes
 		}
-		effectiveBytes += utf8.RuneLen(rune)
+		effectiveBytes += utf8.RuneLen(char)
 	}
-	splitOffset = len(line)
-	return
+	return len(line), effectiveBytes
 }
 
 // publishBatch calls PutLogEvents for a given set of InputLogEvents,

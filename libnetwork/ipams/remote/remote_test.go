@@ -18,9 +18,10 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func decodeToMap(r *http.Request) (res map[string]interface{}, err error) {
-	err = json.NewDecoder(r.Body).Decode(&res)
-	return
+func decodeToMap(r *http.Request) (map[string]interface{}, error) {
+	var res map[string]interface{}
+	err := json.NewDecoder(r.Body).Decode(&res)
+	return res, err
 }
 
 func handle(t *testing.T, mux *http.ServeMux, method string, h func(map[string]interface{}) interface{}) {
@@ -49,7 +50,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 
 	defer func() {
 		if t.Failed() {
-			os.RemoveAll(specPath)
+			_ = os.RemoveAll(specPath)
 		}
 	}()
 
@@ -64,7 +65,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		fmt.Fprintf(w, `{"Implements": ["%s"]}`, ipamapi.PluginEndpointType)
+		_, _ = fmt.Fprintf(w, `{"Implements": ["%s"]}`, ipamapi.PluginEndpointType)
 	})
 
 	return func() {

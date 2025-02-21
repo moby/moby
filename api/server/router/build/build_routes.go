@@ -352,14 +352,14 @@ type syncWriter struct {
 	mu sync.Mutex
 }
 
-func (s *syncWriter) Write(b []byte) (count int, err error) {
+func (s *syncWriter) Write(b []byte) (int, error) {
 	s.mu.Lock()
-	count, err = s.w.Write(b)
-	s.mu.Unlock()
-	return
+	defer s.mu.Unlock()
+	return s.w.Write(b)
 }
 
 func buildProgressWriter(out io.Writer, wantAux bool, createProgressReader func(io.ReadCloser) io.ReadCloser) backend.ProgressWriter {
+	// see https://github.com/moby/moby/pull/21406
 	out = &syncWriter{w: out}
 
 	var aux *streamformatter.AuxFormatter

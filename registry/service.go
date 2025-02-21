@@ -52,7 +52,7 @@ func (s *Service) ReplaceConfig(options ServiceOptions) (commit func(), err erro
 // Auth contacts the public registry with the provided credentials,
 // and returns OK if authentication was successful.
 // It can be used to verify the validity of a client's credentials.
-func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (status, token string, err error) {
+func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (statusMessage, token string, _ error) {
 	// TODO Use ctx when searching for repositories
 	registryHostName := IndexHostname
 
@@ -77,19 +77,28 @@ func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, use
 		return "", "", invalidParam(err)
 	}
 
+	var lastErr error
 	for _, endpoint := range endpoints {
-		status, token, err = loginV2(authConfig, endpoint, userAgent)
-		if err == nil {
-			return
+		authToken, err := loginV2(authConfig, endpoint, userAgent)
+		if err != nil {
+			if errdefs.IsUnauthorized(err) {
+				// Failed to authenticate; don't continue with (non-TLS) endpoints.
+				return "", "", err
+			}
+			// Try next endpoint
+			log.G(ctx).WithFields(log.Fields{
+				"error":    err,
+				"endpoint": endpoint,
+			}).Infof("Error logging in to endpoint, trying next endpoint")
+			lastErr = err
+			continue
 		}
-		if errdefs.IsUnauthorized(err) {
-			// Failed to authenticate; don't continue with (non-TLS) endpoints.
-			return status, token, err
-		}
-		log.G(ctx).WithError(err).Infof("Error logging in to endpoint, trying next endpoint")
+
+		// TODO(thaJeztah): move the statusMessage to the API endpoint; we don't need to produce that here?
+		return "Login Succeeded", authToken, nil
 	}
 
-	return "", "", err
+	return "", "", lastErr
 }
 
 // ResolveRepository splits a repository name into its components

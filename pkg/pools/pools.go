@@ -76,11 +76,11 @@ func (bp *bufferPool) Put(b *[]byte) {
 }
 
 // Copy is a convenience wrapper which uses a buffer to avoid allocation in io.Copy.
-func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
+func Copy(dst io.Writer, src io.Reader) (written int64, _ error) {
 	buf := buffer32KPool.Get()
-	written, err = io.CopyBuffer(dst, src, *buf)
+	written, err := io.CopyBuffer(dst, src, *buf)
 	buffer32KPool.Put(buf)
-	return
+	return written, err
 }
 
 // NewReadCloserWrapper returns a wrapper which puts the bufio.Reader back
@@ -88,7 +88,7 @@ func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
 func (bufPool *BufioReaderPool) NewReadCloserWrapper(buf *bufio.Reader, r io.Reader) io.ReadCloser {
 	return ioutils.NewReadCloserWrapper(r, func() error {
 		if readCloser, ok := r.(io.ReadCloser); ok {
-			readCloser.Close()
+			_ = readCloser.Close()
 		}
 		bufPool.Put(buf)
 		return nil
@@ -127,9 +127,9 @@ func (bufPool *BufioWriterPool) Put(b *bufio.Writer) {
 // into the pool and closes the writer if it's an io.WriteCloser.
 func (bufPool *BufioWriterPool) NewWriteCloserWrapper(buf *bufio.Writer, w io.Writer) io.WriteCloser {
 	return ioutils.NewWriteCloserWrapper(w, func() error {
-		buf.Flush()
+		_ = buf.Flush()
 		if writeCloser, ok := w.(io.WriteCloser); ok {
-			writeCloser.Close()
+			_ = writeCloser.Close()
 		}
 		bufPool.Put(buf)
 		return nil
