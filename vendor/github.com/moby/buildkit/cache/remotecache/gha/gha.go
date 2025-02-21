@@ -22,7 +22,6 @@ import (
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/tracing"
-	bkversion "github.com/moby/buildkit/version"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -64,6 +63,10 @@ func getConfig(attrs map[string]string) (*Config, error) {
 	if !ok {
 		scope = "buildkit"
 	}
+	url, ok := attrs[attrURL]
+	if !ok {
+		return nil, errors.Errorf("url not set for github actions cache")
+	}
 	token, ok := attrs[attrToken]
 	if !ok {
 		return nil, errors.Errorf("token not set for github actions cache")
@@ -77,18 +80,11 @@ func getConfig(attrs map[string]string) (*Config, error) {
 		}
 		apiVersionInt = int(i)
 	}
-	var url string
 	if apiVersionInt != 1 {
 		if v, ok := attrs[attrURLV2]; ok {
 			url = v
 			apiVersionInt = 2
 		}
-	}
-	if v, ok := attrs[attrURL]; ok && url == "" {
-		url = v
-	}
-	if url == "" {
-		return nil, errors.Errorf("url not set for github actions cache")
 	}
 	// best effort on old clients
 	if apiVersionInt == 0 {
@@ -141,9 +137,8 @@ type exporter struct {
 func NewExporter(c *Config) (remotecache.Exporter, error) {
 	cc := v1.NewCacheChains()
 	cache, err := actionscache.New(c.Token, c.URL, c.Version > 1, actionscache.Opt{
-		Client:    tracing.DefaultClient,
-		Timeout:   c.Timeout,
-		UserAgent: bkversion.UserAgent(),
+		Client:  tracing.DefaultClient,
+		Timeout: c.Timeout,
 	})
 	if err != nil {
 		return nil, err
@@ -317,9 +312,8 @@ type importer struct {
 
 func NewImporter(c *Config) (remotecache.Importer, error) {
 	cache, err := actionscache.New(c.Token, c.URL, c.Version > 1, actionscache.Opt{
-		Client:    tracing.DefaultClient,
-		Timeout:   c.Timeout,
-		UserAgent: bkversion.UserAgent(),
+		Client:  tracing.DefaultClient,
+		Timeout: c.Timeout,
 	})
 	if err != nil {
 		return nil, err

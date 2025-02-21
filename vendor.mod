@@ -256,3 +256,5 @@ exclude (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 )
+
+replace github.com/moby/buildkit => github.com/jsternberg/buildkit v0.12.1-0.20250221163505-414325d98d19

@@ -77,9 +77,8 @@ type OTELConfig struct {
 }
 
 type CDIConfig struct {
-	Disabled    *bool    `toml:"disabled"`
-	SpecDirs    []string `toml:"specDirs"`
-	AutoAllowed []string `toml:"autoAllowed"`
+	Disabled *bool    `toml:"disabled"`
+	SpecDirs []string `toml:"specDirs"`
 }
 
 type GCConfig struct {
