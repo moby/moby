@@ -210,7 +210,9 @@ check_flags \
 	NETFILTER_XT_MATCH_CONNTRACK \
 	NETFILTER_XT_MATCH_IPVS \
 	NETFILTER_XT_MARK \
+	NETFILTER_XT_SET \
 	IP_NF_NAT NF_NAT \
+	IP_SET IP_SET_HASH_NET \
 	POSIX_MQUEUE
 # (POSIX_MQUEUE is required for bind-mounting /dev/mqueue into containers)
 
