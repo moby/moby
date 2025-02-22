@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/libnetwork/scope"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -159,4 +160,15 @@ func TestSwarmScopedNetFromConfig(t *testing.T) {
 		net.WithScope(scope.Swarm),
 	)
 	assert.NilError(t, err)
+
+	serviceID := swarm.CreateService(ctx, t, d,
+		swarm.ServiceWithName("test-ssnfc"),
+		swarm.ServiceWithNetwork(swarmNetName),
+	)
+	defer func() {
+		err := c.ServiceRemove(ctx, serviceID)
+		assert.NilError(t, err)
+	}()
+
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, c, serviceID, 1), swarm.ServicePoll)
 }

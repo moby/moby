@@ -286,7 +286,7 @@ func TestNetworkConfig(t *testing.T) {
 
 	// Verify a network cannot be created with both config-from and network specific configurations
 	for i, opt := range []libnetwork.NetworkOption{
-		libnetwork.NetworkOptionEnableIPv4(true),
+		libnetwork.NetworkOptionEnableIPv4(false),
 		libnetwork.NetworkOptionEnableIPv6(true),
 		libnetwork.NetworkOptionIpam("my-ipam", "", nil, nil, nil),
 		libnetwork.NetworkOptionIpam("", "", ipamV4ConfList, nil, nil),

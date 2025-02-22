@@ -499,6 +499,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 		networkType:      networkType,
 		generic:          map[string]interface{}{netlabel.GenericData: make(map[string]string)},
 		ipamType:         defaultIpam,
+		enableIPv4:       true,
 		id:               id,
 		created:          time.Now(),
 		ctrlr:            c,
@@ -553,7 +554,6 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 		if err := configNetwork.applyConfigurationTo(nw); err != nil {
 			return nil, types.InternalErrorf("Failed to apply configuration: %v", err)
 		}
-		nw.generic[netlabel.Internal] = nw.internal
 		defer func() {
 			if retErr == nil && !skipCfgEpCount {
 				if err := configNetwork.getEpCnt().IncEndpointCnt(); err != nil {

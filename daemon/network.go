@@ -310,7 +310,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create networktypes.Crea
 		}
 	}
 
-	enableIPv4 := create.ConfigFrom == nil
+	enableIPv4 := true
 	if create.EnableIPv4 != nil {
 		enableIPv4 = *create.EnableIPv4
 	} else if v, ok := networkOptions[netlabel.EnableIPv4]; ok {
