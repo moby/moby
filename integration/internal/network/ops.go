@@ -50,10 +50,31 @@ func WithInternal() func(*network.CreateOptions) {
 	}
 }
 
+// WithConfigOnly sets the ConfigOnly flag in the create network request
+func WithConfigOnly(co bool) func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
+		n.ConfigOnly = co
+	}
+}
+
+// WithConfigFrom sets the ConfigOnly flag in the create network request
+func WithConfigFrom(name string) func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
+		n.ConfigFrom = &network.ConfigReference{Network: name}
+	}
+}
+
 // WithAttachable sets Attachable flag on the create network request
 func WithAttachable() func(*network.CreateOptions) {
 	return func(n *network.CreateOptions) {
 		n.Attachable = true
+	}
+}
+
+// WithScope sets the network scope.
+func WithScope(s string) func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
+		n.Scope = s
 	}
 }
 
