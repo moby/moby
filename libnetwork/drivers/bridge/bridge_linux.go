@@ -513,7 +513,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 		removeIPChains(iptables.IPv4)
 
 		if err := setupHashNetIpset(ipsetExtBridges4, unix.AF_INET); err != nil {
-			return err
+			return fmt.Errorf("%w (kernel modules ip_set, ip_set_hash_net and netfilter_xt_set are required)", err)
 		}
 		if err := setupIPChains(config, iptables.IPv4); err != nil {
 			return err
@@ -541,7 +541,8 @@ func (d *driver) configure(option map[string]interface{}) error {
 
 		if err := setupHashNetIpset(ipsetExtBridges6, unix.AF_INET6); err != nil {
 			// Continue, IPv4 will work (as below).
-			log.G(context.TODO()).WithError(err).Warn("ip6tables is enabled, but cannot set up IPv6 ipset")
+			log.G(context.TODO()).WithError(err).Warn(
+				"ip6tables is enabled, but cannot set up IPv6 ipset (kernel modules ip_set, ip_set_hash_net and netfilter_xt_set are required)")
 		} else {
 			err = setupIPChains(config, iptables.IPv6)
 			if err != nil {
@@ -585,10 +586,10 @@ func setupHashNetIpset(name string, family uint8) error {
 		Replace: true,
 		Family:  family,
 	}); err != nil {
-		return err
+		return fmt.Errorf("creating ipset %s: %w", name, err)
 	}
 	if err := netlink.IpsetFlush(name); err != nil {
-		return err
+		return fmt.Errorf("flushing ipset %s: %w", name, err)
 	}
 	return nil
 }

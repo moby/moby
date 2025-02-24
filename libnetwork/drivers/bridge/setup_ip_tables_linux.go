@@ -123,7 +123,7 @@ func setupIPChains(config configuration, version iptables.IPVersion) (retErr err
 	}
 	if err := iptable.EnsureJumpRule("FORWARD", DockerChain,
 		"-m", "set", "--match-set", ipsetName, "dst"); err != nil {
-		return err
+		return fmt.Errorf("%w (kernel module netfilter_xt_set is required)", err)
 	}
 	if err := iptable.EnsureJumpRule("FORWARD", IsolationChain1); err != nil {
 		return err
