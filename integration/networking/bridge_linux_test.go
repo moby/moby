@@ -1542,3 +1542,21 @@ func TestAdvertiseAddresses(t *testing.T) {
 		})
 	}
 }
+
+// TestNetworkInspectGateway checks that gateways reported in inspect output are parseable as addresses.
+func TestNetworkInspectGateway(t *testing.T) {
+	ctx := setupTest(t)
+	c := testEnv.APIClient()
+
+	const netName = "test-inspgw"
+	nid, err := network.Create(ctx, c, netName, network.WithIPv6())
+	assert.NilError(t, err)
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	insp, err := c.NetworkInspect(ctx, nid, networktypes.InspectOptions{})
+	assert.NilError(t, err)
+	for _, ipamCfg := range insp.IPAM.Config {
+		_, err := netip.ParseAddr(ipamCfg.Gateway)
+		assert.Check(t, err)
+	}
+}

@@ -751,9 +751,13 @@ func buildIPAMResources(nw *libnetwork.Network) networktypes.IPAM {
 				if info.IPAMData.Pool == nil {
 					continue
 				}
+				var gw string
+				if info.IPAMData.Gateway != nil {
+					gw = info.IPAMData.Gateway.IP.String()
+				}
 				ipamConfig = append(ipamConfig, networktypes.IPAMConfig{
 					Subnet:  info.IPAMData.Pool.String(),
-					Gateway: info.IPAMData.Gateway.String(),
+					Gateway: gw,
 				})
 			}
 		}
