@@ -1,7 +1,7 @@
 {
-  "name": "moby",
+  "name": "0xA1819563c8F39b9Bb8bA8728391FEBebe06b9890",
   "build": {
-    "context": "..",
+    "context": ".gh pr checkout 49532.",
     "dockerfile": "../Dockerfile",
     "target": "devcontainer"
   },
@@ -14,7 +14,7 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "golang.go"
+        "golang.go-ethereum"
       ]
     }
   }
