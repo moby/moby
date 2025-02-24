@@ -13,7 +13,6 @@ import (
 	"slices"
 	"strconv"
 	"syscall"
-	"unsafe"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/rlkclient"
@@ -687,14 +686,7 @@ func bindSCTP(cfg portBindingReq, port int) (_ portBinding, retErr error) {
 		syscall.SetsockoptInt(sd, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 1)
 	}
 
-	options := sctp.InitMsg{NumOstreams: sctp.SCTP_MAX_STREAM}
-	if _, _, errno := syscall.Syscall6(syscall.SYS_SETSOCKOPT,
-		uintptr(sd),
-		sctp.SOL_SCTP,
-		sctp.SCTP_INITMSG,
-		uintptr(unsafe.Pointer(&options)), // #nosec G103 -- Ignore "G103: Use of unsafe calls should be audited"
-		unsafe.Sizeof(options),
-		0); errno != 0 {
+	if errno := setSCTPInitMsg(sd, sctp.InitMsg{NumOstreams: sctp.SCTP_MAX_STREAM}); errno != 0 {
 		return portBinding{}, errno
 	}
 
