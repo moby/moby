@@ -114,7 +114,7 @@ require (
 	google.golang.org/protobuf v1.35.2
 	gotest.tools/v3 v3.5.2
 	resenje.org/singleflight v0.4.3
-	tags.cncf.io/container-device-interface v0.8.0
+	tags.cncf.io/container-device-interface v0.8.1
 )
 
 require (
