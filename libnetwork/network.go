@@ -373,9 +373,12 @@ func (n *Network) validateConfiguration() error {
 		if n.configOnly {
 			return types.ForbiddenErrorf("a configuration network cannot depend on another configuration network")
 		}
+		// Check that no config has been set for this --config-from network.
+		// (Note that the default for enableIPv4 is 'true', ipamType has its own default,
+		// and other settings are zero valued by default.)
 		if n.ipamType != "" &&
 			n.ipamType != defaultIpamForNetworkType(n.networkType) ||
-			n.enableIPv4 || n.enableIPv6 ||
+			!n.enableIPv4 || n.enableIPv6 ||
 			len(n.labels) > 0 || len(n.ipamOptions) > 0 ||
 			len(n.ipamV4Config) > 0 || len(n.ipamV6Config) > 0 {
 			return types.ForbiddenErrorf("user specified configurations are not supported if the network depends on a configuration network")
@@ -443,6 +446,15 @@ func (n *Network) applyConfigurationTo(to *Network) error {
 			to.generic[k] = v
 		}
 	}
+
+	// Network drivers only see generic flags. So, make sure they match.
+	if to.generic == nil {
+		to.generic = options.Generic{}
+	}
+	to.generic[netlabel.Internal] = to.internal
+	to.generic[netlabel.EnableIPv4] = to.enableIPv4
+	to.generic[netlabel.EnableIPv6] = to.enableIPv6
+
 	return nil
 }
 
@@ -642,11 +654,9 @@ func (n *Network) UnmarshalJSON(b []byte) (err error) {
 		}
 	}
 	n.networkType = netMap["networkType"].(string)
+	n.enableIPv4 = true // Default for networks created before the option to disable IPv4 was added.
 	if v, ok := netMap["enableIPv4"]; ok {
 		n.enableIPv4 = v.(bool)
-	} else {
-		// Set enableIPv4 for IPv4 networks created before the option was added.
-		_, n.enableIPv4 = netMap["ipamV4Info"]
 	}
 	n.enableIPv6 = netMap["enableIPv6"].(bool)
 

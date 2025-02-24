@@ -499,6 +499,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 		networkType:      networkType,
 		generic:          map[string]interface{}{netlabel.GenericData: make(map[string]string)},
 		ipamType:         defaultIpam,
+		enableIPv4:       true,
 		id:               id,
 		created:          time.Now(),
 		ctrlr:            c,
@@ -543,6 +544,25 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 		return nil, types.ForbiddenErrorf("Ingress network can only be global scope network")
 	}
 
+	// From this point on, we need the network specific configuration,
+	// which may come from a configuration-only network
+	if nw.configFrom != "" {
+		configNetwork, err := c.getConfigNetwork(nw.configFrom)
+		if err != nil {
+			return nil, types.NotFoundErrorf("configuration network %q does not exist", nw.configFrom)
+		}
+		if err := configNetwork.applyConfigurationTo(nw); err != nil {
+			return nil, types.InternalErrorf("Failed to apply configuration: %v", err)
+		}
+		defer func() {
+			if retErr == nil && !skipCfgEpCount {
+				if err := configNetwork.getEpCnt().IncEndpointCnt(); err != nil {
+					log.G(context.TODO()).Warnf("Failed to update reference count for configuration network %q on creation of network %q: %v", configNetwork.Name(), nw.name, err)
+				}
+			}
+		}()
+	}
+
 	// At this point the network scope is still unknown if not set by user
 	if (caps.DataScope == scope.Global || nw.scope == scope.Swarm) &&
 		c.isSwarmNode() && !nw.dynamic {
@@ -570,26 +590,6 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	// From this point on, we need the network specific configuration,
-	// which may come from a configuration-only network
-	if nw.configFrom != "" {
-		configNetwork, err := c.getConfigNetwork(nw.configFrom)
-		if err != nil {
-			return nil, types.NotFoundErrorf("configuration network %q does not exist", nw.configFrom)
-		}
-		if err := configNetwork.applyConfigurationTo(nw); err != nil {
-			return nil, types.InternalErrorf("Failed to apply configuration: %v", err)
-		}
-		nw.generic[netlabel.Internal] = nw.internal
-		defer func() {
-			if retErr == nil && !skipCfgEpCount {
-				if err := configNetwork.getEpCnt().IncEndpointCnt(); err != nil {
-					log.G(context.TODO()).Warnf("Failed to update reference count for configuration network %q on creation of network %q: %v", configNetwork.Name(), nw.name, err)
-				}
-			}
-		}()
 	}
 
 	if err := nw.ipamAllocate(); err != nil {
