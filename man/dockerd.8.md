@@ -129,16 +129,16 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
   Set authorization plugins to load
 
 **-b**, **--bridge**=""
-  Attach containers to a pre\-existing network bridge; use 'none' to disable
-  container networking
+  Attach containers to a pre\-existing network bridge, instead of docker0; use
+  'none' to disable the default bridge network
 
 **--bip**=""
-  Use the provided CIDR notation IPv4 address for the dynamically created bridge
-  (docker0); Mutually exclusive of \-b
+  Use the provided CIDR notation IPv4 address for the default bridge network;
+  Mutually exclusive of \-b
 
 **--bip6**=""
-  Use the provided CIDR notation IPv6 address for the dynamically created bridge
-  (docker0); Mutually exclusive of \-b
+  Use the provided CIDR notation IPv6 address for the default bridge network;
+  Mutually exclusive of \-b
 
 **--cgroup-parent**=""
   Set parent cgroup for all containers. Default is "/docker" for fs cgroup
@@ -165,11 +165,11 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
   or **private** on cgroup v2.
 
 **--default-gateway**=""
-  IPv4 address of the container default gateway; this address must be part of
+  IPv4 default gateway for the default bridge network; this address must be part of
   the bridge subnet (which is defined by \-b or \-\-bip)
 
 **--default-gateway-v6**=""
-  IPv6 address of the container default gateway
+  IPv6 default gateway for the default bridge network
 
 **--default-address-pool**=""
   Default address pool from which IPAM driver selects a subnet for the networks.
@@ -220,11 +220,12 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
   Usage example: `--feature containerd-snapshotter` or `--feature containerd-snapshotter=true`.
 
 **--fixed-cidr**=""
-  IPv4 subnet for fixed IPs (e.g., 10.20.0.0/16); this subnet must be nested in
-  the bridge subnet (which is defined by \-b or \-\-bip).
+  IPv4 subnet for the default bridge network (e.g., 10.20.0.0/16); this
+  subnet must be nested in the bridge subnet (which is defined by \-b or
+  \-\-bip).
 
 **--fixed-cidr-v6**=""
-  IPv6 subnet for global IPv6 addresses (e.g., 2a00:1450::/64)
+  IPv6 subnet for the default bridge network (e.g., 2001:db8::/64).
 
 **-G**, **--group**=""
   Group to assign the unix socket specified by -H when running in daemon mode.
@@ -250,9 +251,9 @@ unix://[/path/to/socket] to use.
   Proxy URL for HTTPS requests unless overridden by NoProxy.
 
 **--icc**=**true**|**false**
-  Allow unrestricted inter\-container and Docker daemon host communication. If
-  disabled, containers can still be linked together using the **--link** option
-  (see **docker-run**(1)). Default is **true**.
+  Allow unrestricted inter\-container communication in the default bridge
+  network. If disabled, containers can still be linked together using the
+  **--link** option (see **docker-run**(1)). Default is **true**.
 
 **--init**
   Run an init process inside containers for signal forwarding and process
@@ -276,7 +277,8 @@ unix://[/path/to/socket] to use.
   `--insecure-registry`.
 
 **--ip**=""
-  Default IP address to use when binding container ports. Default is **0.0.0.0**.
+  Default host IP address to use when publishing container ports from the
+  default bridge network. Default is **0.0.0.0**.
 
 **--ip-forward**=**true**|**false**
   Enables IP forwarding on the Docker host. The default is **true**. This flag
@@ -301,19 +303,18 @@ unix://[/path/to/socket] to use.
   not modify the default policy of the FORWARD chain.
 
 **--ip-masq**=**true**|**false**
-  Enable IP masquerading for bridge's IP range. Default is **true**.
+  Enable IP masquerading for default bridge's IP range. Default is **true**.
 
 **--iptables**=**true**|**false**
   Enable Docker's addition of iptables rules. Default is **true**.
 
 **--ipv6**=**true**|**false**
-  Enable IPv6 support. Default is **false**. Docker will create an IPv6-enabled
-  bridge with address fe80::1 which will allow you to create IPv6-enabled
-  containers. Use together with **--fixed-cidr-v6** to provide globally routable
-  IPv6 addresses. IPv6 forwarding will be enabled if not used with
-  **--ip-forward=false**. This may collide with your host's current IPv6
-  settings. For more information consult the documentation about
-  "Advanced Networking - IPv6".
+  Enable IPv6 support on the default bridge network. Default is **false**.
+  By default, Docker will generate a ULA subnet, **--default-addresss-pool**
+  or **--fixed-cidr-v6** can be used to override the subnet. IPv6 forwarding
+  will be enabled if not used with **--ip-forward=false**. This may collide
+  with your host's current IPv6 settings. For more information consult the
+  documentation about "Advanced Networking - IPv6".
 
 **--isolation**="*default*"
    Isolation specifies the type of isolation technology used by containers.
@@ -342,7 +343,7 @@ unix://[/path/to/socket] to use.
   Logging driver specific options.
 
 **--mtu**=*0*
-  Set the containers network mtu. Default is `0`.
+  Set the network MTU for the default bridge network. Default is `0`.
 
 **--max-concurrent-downloads**=*3*
   Set the max concurrent downloads. Default is `3`.
