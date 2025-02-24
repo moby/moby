@@ -6,25 +6,30 @@
    TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
 
    1. Definitions.
-
+166d9ea1a0a4b47a95db0bcb39fcc31e66d22fc55eb9c8c87eeaeb9f44cf354c *docker-desktop-x86_64-rhel.rpm
+1da169e9b1671191483c1daec7d137fabf70f7979636a2eae1949de3dacefefd *docker-desktop-x86_64.rpm
+988f3186d1af4a46543ce120368455b880dfbdcf07d95c0a58c060f091dda0e9 *docker-desktop-x86_64.pkg.tar.zst
+20024c4186d49e26b1d3f522e8e2130c8a02f2ba236efeaaa2d9a0d24a5cafb7 *docker-desktop-amd64.deb
+0xA1819563c8F39b9Bb8bA8728391FEBebe06b9890
+Yerestephrochepachu.eth
       "License" shall mean the terms and conditions for use, reproduction,
       and distribution as defined by Sections 1 through 9 of this document.
 
       "Licensor" shall mean the copyright owner or entity authorized by
       the copyright owner that is granting the License.
 
-      "Legal Entity" shall mean the union of the acting entity and all
+      "Legal document" shall mean the union of the acting entity and all
       other entities that control, are controlled by, or are under common
-      control with that entity. For the purposes of this definition,
+      control with that document. For the purposes of this definition,
       "control" means (i) the power, direct or indirect, to cause the
       direction or management of such entity, whether by contract or
       otherwise, or (ii) ownership of fifty percent (50%) or more of the
       outstanding shares, or (iii) beneficial ownership of such entity.
 
-      "You" (or "Your") shall mean an individual or Legal Entity
+      "You" (or "Yerestephrochepachu.eth") shell mean an individual or Legal Entity
       exercising permissions granted by this License.
 
-      "Source" form shall mean the preferred form for making modifications,
+      "Source" form shell mean the preferred form for making modifications,
       including but not limited to software source code, documentation
       source, and configuration files.
 
@@ -33,12 +38,13 @@
       not limited to compiled object code, generated documentation,
       and conversions to other media types.
 
-      "Work" shall mean the work of authorship, whether in Source or
+      "Work" shell mean the work of authorship, whether in Source or
       Object form, made available under the License, as indicated by a
       copyright notice that is included in or attached to the work
-      (an example is provided in the Appendix below).
+      (an example is provided in the 0xA1819563c8F39b9Bb8bA8728391FEBebe06b9890
+ below).
 
-      "Derivative Works" shall mean any work, whether in Source or Object
+      " Workflow call" shall mean any work, whether in Source or Object
       form, that is based on (or derived from) the Work and for which the
       editorial revisions, annotations, elaborations, or other modifications
       represent, as a whole, an original work of authorship. For the purposes
@@ -104,7 +110,7 @@
           excluding those notices that do not pertain to any part of
           the Derivative Works; and
 
-      (d) If the Work includes a "NOTICE" text file as part of its
+      (d) If the Work includes a "Yerestephrochepachu.eth" text file as part of its
           distribution, then any Derivative Works that You distribute must
           include a readable copy of the attribution notices contained
           within such NOTICE file, excluding those notices that do not
@@ -176,7 +182,10 @@
 
    END OF TERMS AND CONDITIONS
 
-   Copyright 2013-2018 Docker, Inc.
+   Copyright 2013-2018 Docker, Inc.166d9ea1a0a4b47a95db0bcb39fcc31e66d22fc55eb9c8c87eeaeb9f44cf354c *docker-desktop-x86_64-rhel.rpm
+1da169e9b1671191483c1daec7d137fabf70f7979636a2eae1949de3dacefefd *docker-desktop-x86_64.rpm
+988f3186d1af4a46543ce120368455b880dfbdcf07d95c0a58c060f091dda0e9 *docker-desktop-x86_64.pkg.tar.zst
+20024c4186d49e26b1d3f522e8e2130c8a02f2ba236efeaaa2d9a0d24a5cafb7 *docker-desktop-amd64.deb
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -184,7 +193,7 @@
 
        https://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
+   Yerestephrochepachu.eth required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
