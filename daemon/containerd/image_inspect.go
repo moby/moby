@@ -23,6 +23,9 @@ import (
 )
 
 func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
+	// TODO: Pass in opts
+	var requestedPlatform *ocispec.Platform
+
 	c8dImg, err := i.resolveImage(ctx, refOrID)
 	if err != nil {
 		return nil, err
@@ -46,7 +49,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 		}
 	}
 
-	platform := matchAllWithPreference(platforms.Default())
+	platform := i.matchRequestedOrDefault(platforms.OnlyStrict, requestedPlatform)
 	size, err := i.size(ctx, target, platform)
 	if err != nil {
 		return nil, err
@@ -57,32 +60,19 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 		return nil, err
 	}
 
-	if multi.Best == nil {
+	//nolint:govet // TODO: requestedPlatform is always nil, but should be passed by the caller
+	if multi.Best == nil && requestedPlatform != nil {
 		return nil, &errPlatformNotFound{
-			wanted:   platforms.DefaultSpec(),
 			imageRef: refOrID,
+			wanted:   *requestedPlatform,
 		}
 	}
 
-	best := multi.Best
 	var img imagespec.DockerOCIImage
-	if err := best.ReadConfig(ctx, &img); err != nil {
-		return nil, err
-	}
-
-	var comment string
-	if len(comment) == 0 && len(img.History) > 0 {
-		comment = img.History[len(img.History)-1].Comment
-	}
-
-	var created string
-	if img.Created != nil {
-		created = img.Created.Format(time.RFC3339Nano)
-	}
-
-	var layers []string
-	for _, layer := range img.RootFS.DiffIDs {
-		layers = append(layers, layer.String())
+	if multi.Best != nil {
+		if err := multi.Best.ReadConfig(ctx, &img); err != nil {
+			return nil, err
+		}
 	}
 
 	parent, err := i.getImageLabelByDigest(ctx, target.Digest, imageLabelClassicBuilderParent)
@@ -97,35 +87,49 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 
 	repoTags, repoDigests := collectRepoTagsAndDigests(ctx, tagged)
 
-	return &imagetypes.InspectResponse{
+	resp := &imagetypes.InspectResponse{
 		ID:            target.Digest.String(),
 		RepoTags:      repoTags,
 		Descriptor:    &target,
 		RepoDigests:   repoDigests,
 		Parent:        parent,
-		Comment:       comment,
-		Created:       created,
 		DockerVersion: "",
-		Author:        img.Author,
-		Config:        dockerOCIImageConfigToContainerConfig(img.Config),
-		Architecture:  img.Architecture,
-		Variant:       img.Variant,
-		Os:            img.OS,
-		OsVersion:     img.OSVersion,
 		Size:          size,
 		Manifests:     manifests,
 		GraphDriver: storage.DriverData{
 			Name: i.snapshotter,
 			Data: nil,
 		},
-		RootFS: imagetypes.RootFS{
-			Type:   img.RootFS.Type,
-			Layers: layers,
-		},
 		Metadata: imagetypes.Metadata{
 			LastTagTime: lastUpdated,
 		},
-	}, nil
+	}
+
+	if multi.Best != nil {
+		resp.Author = img.Author
+		resp.Config = dockerOCIImageConfigToContainerConfig(img.Config)
+		resp.Architecture = img.Architecture
+		resp.Variant = img.Variant
+		resp.Os = img.OS
+		resp.OsVersion = img.OSVersion
+
+		if len(img.History) > 0 {
+			resp.Comment = img.History[len(img.History)-1].Comment
+		}
+
+		if img.Created != nil {
+			resp.Created = img.Created.Format(time.RFC3339Nano)
+		}
+
+		resp.RootFS = imagetypes.RootFS{
+			Type: img.RootFS.Type,
+		}
+		for _, layer := range img.RootFS.DiffIDs {
+			resp.RootFS.Layers = append(resp.RootFS.Layers, layer.String())
+		}
+	}
+
+	return resp, nil
 }
 
 func collectRepoTagsAndDigests(ctx context.Context, tagged []c8dimages.Image) (repoTags []string, repoDigests []string) {
