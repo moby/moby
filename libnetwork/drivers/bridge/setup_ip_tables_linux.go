@@ -13,13 +13,14 @@ import (
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netlink/nl"
 )
 
 // DockerChain: DOCKER iptable chain name
 const (
 	DockerChain        = "DOCKER"
 	DockerForwardChain = "DOCKER-FORWARD"
+	DockerBridgeChain  = "DOCKER-BRIDGE"
+	DockerCTChain      = "DOCKER-CT"
 
 	// Isolation between bridge networks is achieved in two stages by means
 	// of the following two chains in the filter table. The first chain matches
@@ -33,11 +34,6 @@ const (
 
 	IsolationChain1 = "DOCKER-ISOLATION-STAGE-1"
 	IsolationChain2 = "DOCKER-ISOLATION-STAGE-2"
-
-	// ipset names for IPv4 and IPv6 bridge subnets that don't belong
-	// to --internal networks.
-	ipsetExtBridges4 = "docker-ext-bridges-v4"
-	ipsetExtBridges6 = "docker-ext-bridges-v6"
 )
 
 // Path to the executable installed in Linux under WSL2 that reports on
@@ -92,6 +88,30 @@ func setupIPChains(config configuration, version iptables.IPVersion) (retErr err
 		}
 	}()
 
+	_, err = iptable.NewChain(DockerBridgeChain, iptables.Filter)
+	if err != nil {
+		return fmt.Errorf("failed to create FILTER chain %s: %v", DockerBridgeChain, err)
+	}
+	defer func() {
+		if retErr != nil {
+			if err := iptable.RemoveExistingChain(DockerBridgeChain, iptables.Filter); err != nil {
+				log.G(context.TODO()).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", DockerBridgeChain, err)
+			}
+		}
+	}()
+
+	_, err = iptable.NewChain(DockerCTChain, iptables.Filter)
+	if err != nil {
+		return fmt.Errorf("failed to create FILTER chain %s: %v", DockerCTChain, err)
+	}
+	defer func() {
+		if retErr != nil {
+			if err := iptable.RemoveExistingChain(DockerCTChain, iptables.Filter); err != nil {
+				log.G(context.TODO()).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", DockerCTChain, err)
+			}
+		}
+	}()
+
 	_, err = iptable.NewChain(IsolationChain1, iptables.Filter)
 	if err != nil {
 		return fmt.Errorf("failed to create FILTER isolation chain: %v", err)
@@ -130,14 +150,32 @@ func setupIPChains(config configuration, version iptables.IPVersion) (retErr err
 	// Make sure the filter-FORWARD chain has rules to accept related packets and
 	// jump to the isolation and docker chains. (Re-)insert at the top of the table,
 	// in reverse order.
-	ipsetName := ipsetExtBridges4
-	if version == iptables.IPv6 {
-		ipsetName = ipsetExtBridges6
+	if err := iptable.EnsureJumpRule("FORWARD", DockerForwardChain); err != nil {
+		return err
 	}
+	if err := iptable.EnsureJumpRule(DockerForwardChain, DockerBridgeChain); err != nil {
+		return err
+	}
+	if err := iptable.EnsureJumpRule(DockerForwardChain, IsolationChain1); err != nil {
+		return err
+	}
+	if err := iptable.EnsureJumpRule(DockerForwardChain, DockerCTChain); err != nil {
+		return err
+	}
+
+	if err := mirroredWSL2Workaround(config, version); err != nil {
+		return err
+	}
+
 	// Delete rules that may have been added to the FORWARD chain by moby 28.0.0.
+	ipsetName := "docker-ext-bridges-v4"
+	if version == iptables.IPv6 {
+		ipsetName = "docker-ext-bridges-v6"
+	}
 	if err := iptable.DeleteJumpRule("FORWARD", DockerChain,
 		"-m", "set", "--match-set", ipsetName, "dst"); err != nil {
-		return fmt.Errorf("%w (kernel module netfilter_xt_set is required)", err)
+		log.G(context.TODO()).WithFields(log.Fields{"error": err, "set": ipsetName}).Debug(
+			"deleting legacy ipset dest match rule")
 	}
 	if err := iptable.DeleteJumpRule("FORWARD", IsolationChain1); err != nil {
 		return err
@@ -146,28 +184,8 @@ func setupIPChains(config configuration, version iptables.IPVersion) (retErr err
 		"-m", "set", "--match-set", ipsetName, "dst",
 		"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED",
 	); err != nil {
-		return err
-	}
-	// Create rules in the DockerForward chain.
-	if err := iptable.EnsureJumpRule("FORWARD", DockerForwardChain); err != nil {
-		return err
-	}
-	if err := iptable.EnsureJumpRule(DockerForwardChain, DockerChain,
-		"-m", "set", "--match-set", ipsetName, "dst"); err != nil {
-		return err
-	}
-	if err := iptable.EnsureJumpRule(DockerForwardChain, IsolationChain1); err != nil {
-		return err
-	}
-	if err := iptable.EnsureJumpRule(DockerForwardChain, "ACCEPT",
-		"-m", "set", "--match-set", ipsetName, "dst",
-		"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED",
-	); err != nil {
-		return err
-	}
-
-	if err := mirroredWSL2Workaround(config, version); err != nil {
-		return err
+		log.G(context.TODO()).WithFields(log.Fields{"error": err, "set": ipsetName}).Debug(
+			"deleting legacy ipset conntrack rule")
 	}
 
 	return nil
@@ -221,11 +239,6 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 	// Pickup this configuration option from driver
 	hairpinMode := !driverConfig.EnableUserlandProxy
 
-	ipsetName := ipsetExtBridges4
-	if ipVersion == iptables.IPv6 {
-		ipsetName = ipsetExtBridges6
-	}
-
 	if config.Internal {
 		if err = setupInternalNetworkRules(config.BridgeName, maskedAddr, config.EnableICC, true); err != nil {
 			return fmt.Errorf("Failed to Setup IP tables: %w", err)
@@ -260,28 +273,26 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 			return err
 		}
 
-		cidr, _ := maskedAddr.Mask.Size()
-		if cidr == 0 {
-			return fmt.Errorf("no CIDR for bridge %s addr %s", config.BridgeName, maskedAddr)
-		}
-		ipsetEntry := &netlink.IPSetEntry{
-			IP:   maskedAddr.IP,
-			CIDR: uint8(cidr),
-		}
-		if err := netlink.IpsetAdd(ipsetName, ipsetEntry); err != nil {
-			if !errors.Is(err, nl.IPSetError(nl.IPSET_ERR_EXIST)) {
-				return fmt.Errorf("failed to add bridge %s (%s) to ipset: %w",
-					config.BridgeName, maskedAddr, err)
-			}
-			// Re-adding an IP address to an ipset on firewalld reload is expected, not an error.
-			log.G(context.TODO()).WithFields(log.Fields{
-				"ipset":  ipsetName,
-				"bridge": config.BridgeName,
-				"subnet": maskedAddr,
-			}).Debug("Subnet was already in the ipset")
+		ctRule := iptables.Rule{IPVer: ipVersion, Table: iptables.Filter, Chain: DockerCTChain, Args: []string{
+			"-o", config.BridgeName,
+			"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED",
+			"-j", "ACCEPT",
+		}}
+		if err := appendOrDelChainRule(ctRule, "bridge ct related", true); err != nil {
+			return err
 		}
 		n.registerIptCleanFunc(func() error {
-			return netlink.IpsetDel(ipsetName, ipsetEntry)
+			return appendOrDelChainRule(ctRule, "bridge ct related", false)
+		})
+		jumpToDockerRule := iptables.Rule{IPVer: ipVersion, Table: iptables.Filter, Chain: DockerBridgeChain, Args: []string{
+			"-o", config.BridgeName,
+			"-j", DockerChain,
+		}}
+		if err := appendOrDelChainRule(jumpToDockerRule, "jump to docker", true); err != nil {
+			return err
+		}
+		n.registerIptCleanFunc(func() error {
+			return appendOrDelChainRule(jumpToDockerRule, "jump to docker", false)
 		})
 	}
 	return nil

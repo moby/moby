@@ -31,7 +31,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/sys/unix"
 )
 
 const (
@@ -521,9 +520,6 @@ func (d *driver) configure(option map[string]interface{}) error {
 	if config.EnableIPTables {
 		removeIPChains(iptables.IPv4)
 
-		if err := setupHashNetIpset(ipsetExtBridges4, unix.AF_INET); err != nil {
-			return fmt.Errorf("%w (kernel modules ip_set, ip_set_hash_net and netfilter_xt_set are required)", err)
-		}
 		if err := setupIPChains(config, iptables.IPv4); err != nil {
 			return err
 		}
@@ -548,28 +544,21 @@ func (d *driver) configure(option map[string]interface{}) error {
 
 		removeIPChains(iptables.IPv6)
 
-		if err := setupHashNetIpset(ipsetExtBridges6, unix.AF_INET6); err != nil {
-			// Continue, IPv4 will work (as below).
-			log.G(context.TODO()).WithError(err).Warn(
-				"ip6tables is enabled, but cannot set up IPv6 ipset (kernel modules ip_set, ip_set_hash_net and netfilter_xt_set are required)")
+		if err := setupIPChains(config, iptables.IPv6); err != nil {
+			// If the chains couldn't be set up, it's probably because the kernel has no IPv6
+			// support, or it doesn't have module ip6_tables loaded. It won't be possible to
+			// create IPv6 networks without enabling ip6_tables in the kernel, or disabling
+			// ip6tables in the daemon config. But, allow the daemon to start because IPv4
+			// will work. So, log the problem, and continue.
+			log.G(context.TODO()).WithError(err).Warn("ip6tables is enabled, but cannot set up ip6tables chains")
 		} else {
-			err = setupIPChains(config, iptables.IPv6)
-			if err != nil {
-				// If the chains couldn't be set up, it's probably because the kernel has no IPv6
-				// support, or it doesn't have module ip6_tables loaded. It won't be possible to
-				// create IPv6 networks without enabling ip6_tables in the kernel, or disabling
-				// ip6tables in the daemon config. But, allow the daemon to start because IPv4
-				// will work. So, log the problem, and continue.
-				log.G(context.TODO()).WithError(err).Warn("ip6tables is enabled, but cannot set up ip6tables chains")
-			} else {
-				// Make sure on firewall reload, first thing being re-played is chains creation
-				iptables.OnReloaded(func() {
-					log.G(context.TODO()).Debugf("Recreating ip6tables chains on firewall reload")
-					if err := setupIPChains(config, iptables.IPv6); err != nil {
-						log.G(context.TODO()).WithError(err).Error("Error reloading ip6tables chains")
-					}
-				})
-			}
+			// Make sure on firewall reload, first thing being re-played is chains creation
+			iptables.OnReloaded(func() {
+				log.G(context.TODO()).Debugf("Recreating ip6tables chains on firewall reload")
+				if err := setupIPChains(config, iptables.IPv6); err != nil {
+					log.G(context.TODO()).WithError(err).Error("Error reloading ip6tables chains")
+				}
+			})
 		}
 	}
 
@@ -588,19 +577,6 @@ func (d *driver) configure(option map[string]interface{}) error {
 	d.Unlock()
 
 	return d.initStore()
-}
-
-func setupHashNetIpset(name string, family uint8) error {
-	if err := netlink.IpsetCreate(name, "hash:net", netlink.IpsetCreateOptions{
-		Replace: true,
-		Family:  family,
-	}); err != nil {
-		return fmt.Errorf("creating ipset %s: %w", name, err)
-	}
-	if err := netlink.IpsetFlush(name); err != nil {
-		return fmt.Errorf("flushing ipset %s: %w", name, err)
-	}
-	return nil
 }
 
 func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {

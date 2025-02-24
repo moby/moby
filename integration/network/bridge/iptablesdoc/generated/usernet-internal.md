@@ -35,11 +35,19 @@ The filter table is updated as follows:
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
     
+    Chain DOCKER-BRIDGE (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DOCKER     0    --  *      docker0  0.0.0.0/0            0.0.0.0/0           
+    
+    Chain DOCKER-CT (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 ACCEPT     0    --  *      docker0  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+    
     Chain DOCKER-FORWARD (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst ctstate RELATED,ESTABLISHED
+    1        0     0 DOCKER-CT  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     2        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    3        0     0 DOCKER     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst
+    3        0     0 DOCKER-BRIDGE  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     4        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
     5        0     0 ACCEPT     0    --  bridgeICC bridgeICC  0.0.0.0/0            0.0.0.0/0           
     6        0     0 DROP       0    --  bridgeNoICC bridgeNoICC  0.0.0.0/0            0.0.0.0/0           
@@ -68,6 +76,8 @@ The filter table is updated as follows:
     -P FORWARD ACCEPT
     -P OUTPUT ACCEPT
     -N DOCKER
+    -N DOCKER-BRIDGE
+    -N DOCKER-CT
     -N DOCKER-FORWARD
     -N DOCKER-ISOLATION-STAGE-1
     -N DOCKER-ISOLATION-STAGE-2
@@ -75,9 +85,11 @@ The filter table is updated as follows:
     -A FORWARD -j DOCKER-USER
     -A FORWARD -j DOCKER-FORWARD
     -A DOCKER ! -i docker0 -o docker0 -j DROP
-    -A DOCKER-FORWARD -m set --match-set docker-ext-bridges-v4 dst -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-BRIDGE -o docker0 -j DOCKER
+    -A DOCKER-CT -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-FORWARD -j DOCKER-CT
     -A DOCKER-FORWARD -j DOCKER-ISOLATION-STAGE-1
-    -A DOCKER-FORWARD -m set --match-set docker-ext-bridges-v4 dst -j DOCKER
+    -A DOCKER-FORWARD -j DOCKER-BRIDGE
     -A DOCKER-FORWARD -i docker0 -j ACCEPT
     -A DOCKER-FORWARD -i bridgeICC -o bridgeICC -j ACCEPT
     -A DOCKER-FORWARD -i bridgeNoICC -o bridgeNoICC -j DROP

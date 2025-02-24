@@ -21,18 +21,28 @@ The filter table is:
     Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
     
-    Chain DOCKER (1 references)
+    Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
     2        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
     3        0     0 ACCEPT     1    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
     4        0     0 DROP       0    --  !bridge1 bridge1  0.0.0.0/0            0.0.0.0/0           
     
+    Chain DOCKER-BRIDGE (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DOCKER     0    --  *      docker0  0.0.0.0/0            0.0.0.0/0           
+    2        0     0 DOCKER     0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
+    
+    Chain DOCKER-CT (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 ACCEPT     0    --  *      docker0  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+    2        0     0 ACCEPT     0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+    
     Chain DOCKER-FORWARD (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst ctstate RELATED,ESTABLISHED
+    1        0     0 DOCKER-CT  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     2        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    3        0     0 DOCKER     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst
+    3        0     0 DOCKER-BRIDGE  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     4        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
     5        0     0 ACCEPT     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0           
     
@@ -60,6 +70,8 @@ The filter table is:
     -P FORWARD ACCEPT
     -P OUTPUT ACCEPT
     -N DOCKER
+    -N DOCKER-BRIDGE
+    -N DOCKER-CT
     -N DOCKER-FORWARD
     -N DOCKER-ISOLATION-STAGE-1
     -N DOCKER-ISOLATION-STAGE-2
@@ -70,9 +82,13 @@ The filter table is:
     -A DOCKER ! -i docker0 -o docker0 -j DROP
     -A DOCKER -o bridge1 -p icmp -j ACCEPT
     -A DOCKER ! -i bridge1 -o bridge1 -j DROP
-    -A DOCKER-FORWARD -m set --match-set docker-ext-bridges-v4 dst -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-BRIDGE -o docker0 -j DOCKER
+    -A DOCKER-BRIDGE -o bridge1 -j DOCKER
+    -A DOCKER-CT -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-CT -o bridge1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-FORWARD -j DOCKER-CT
     -A DOCKER-FORWARD -j DOCKER-ISOLATION-STAGE-1
-    -A DOCKER-FORWARD -m set --match-set docker-ext-bridges-v4 dst -j DOCKER
+    -A DOCKER-FORWARD -j DOCKER-BRIDGE
     -A DOCKER-FORWARD -i docker0 -j ACCEPT
     -A DOCKER-FORWARD -i bridge1 -j ACCEPT
     -A DOCKER-ISOLATION-STAGE-1 -i bridge1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
@@ -115,7 +131,7 @@ needed._
 The ICMP rule, as shown by `iptables -L`, looks alarming until you spot that it's
 for `prot 1`:
 
-    Chain DOCKER (1 references)
+    Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
     2        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
