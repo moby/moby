@@ -126,7 +126,7 @@ func TestImageListCheckTotalSize(t *testing.T) {
 	ctx = logtest.WithT(ctx, t)
 	service := fakeImageService(t, ctx, cs)
 
-	_, err = service.images.Create(ctx, imagesFromIndex(twoplatform)[0])
+	img, err := service.images.Create(ctx, imagesFromIndex(twoplatform)[0])
 	assert.NilError(t, err)
 
 	all, err := service.Images(ctx, imagetypes.ListOptions{Manifests: true, SharedSize: true})
@@ -173,6 +173,32 @@ func TestImageListCheckTotalSize(t *testing.T) {
 	// TODO: This should also include the Size.Unpacked, but the test snapshotter doesn't do anything yet
 	assert.Check(t, is.Equal(all[0].Manifests[0].Size.Total, amd64ManifestSize+amd64ConfigSize+amd64LayerSize))
 	assert.Check(t, is.Equal(all[0].Manifests[1].Size.Total, amd64ManifestSize+amd64ConfigSize+amd64LayerSize))
+
+	t.Run("without layers", func(t *testing.T) {
+		var layers []ocispec.Descriptor
+		err = service.walkPresentChildren(ctx, img.Target, func(ctx context.Context, desc ocispec.Descriptor) error {
+			if c8dimages.IsLayerType(desc.MediaType) {
+				layers = append(layers, desc)
+			}
+			return nil
+		})
+		assert.NilError(t, err)
+
+		for _, layer := range layers {
+			err := cs.Delete(ctx, layer.Digest)
+			assert.NilError(t, err, "failed to delete layer %s", layer.Digest)
+		}
+
+		all, err := service.Images(ctx, imagetypes.ListOptions{Manifests: true, SharedSize: true})
+		assert.NilError(t, err)
+
+		assert.Assert(t, is.Len(all, 1))
+		assert.Check(t, is.Equal(all[0].Size, allTotalSize-indexSize-arm64LayerSize-amd64LayerSize))
+
+		assert.Assert(t, is.Len(all[0].Manifests, 2))
+		assert.Check(t, is.Equal(all[0].Manifests[0].Size.Content, arm64ManifestSize+arm64ConfigSize))
+		assert.Check(t, is.Equal(all[0].Manifests[1].Size.Content, amd64ManifestSize+amd64ConfigSize))
+	})
 }
 
 func blobSize(t *testing.T, ctx context.Context, cs content.Store, dgst digest.Digest) int64 {
