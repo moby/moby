@@ -101,13 +101,13 @@ func newCgroupParent(*config.Config) string {
 }
 
 func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
-	defer func() { system.EnableContainerdRuntime(cli.ContainerdAddr) }()
+	defer func() { system.EnableContainerdRuntime(cli.Config.ContainerdAddr) }()
 
-	if cli.ContainerdAddr != "" {
+	if cli.Config.ContainerdAddr != "" {
 		return nil, nil
 	}
 
-	if cli.DefaultRuntime != config.WindowsV2RuntimeName {
+	if cli.Config.DefaultRuntime != config.WindowsV2RuntimeName {
 		return nil, nil
 	}
 

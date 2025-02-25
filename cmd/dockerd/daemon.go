@@ -1040,7 +1040,7 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 	}
 	if ok {
 		// detected a system containerd at the given address.
-		cli.ContainerdAddr = systemContainerdAddr
+		cli.Config.ContainerdAddr = systemContainerdAddr
 		return nil, nil
 	}
 
@@ -1050,11 +1050,11 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 		return nil, errors.Wrap(err, "failed to generate containerd options")
 	}
 
-	r, err := supervisor.Start(ctx, filepath.Join(cli.Root, "containerd"), filepath.Join(cli.ExecRoot, "containerd"), opts...)
+	r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start containerd")
 	}
-	cli.ContainerdAddr = r.Address()
+	cli.Config.ContainerdAddr = r.Address()
 
 	// Try to wait for containerd to shutdown
 	return r.WaitTimeout, nil
