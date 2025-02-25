@@ -171,9 +171,9 @@ import (
 // > For example, a module containing code that uses the Go 1.21 language version
 // > should have a go.mod file with a go line such as go 1.21 or go 1.21.3.
 // > If a specific source file should be compiled only when using a newer Go
-// > toolchain, adding //go:build go1.22 to that source file both ensures that
-// > only Go 1.22 and newer toolchains will compile the file and also changes
-// > the language version in that file to Go 1.22.
+// > toolchain, adding //go:build go1.23 to that source file both ensures that
+// > only Go 1.23 and newer toolchains will compile the file and also changes
+// > the language version in that file to Go 1.23.
 //
 // This file is a generated module that imports all packages provided in
 // the repository, which replicates an external consumer using our code
