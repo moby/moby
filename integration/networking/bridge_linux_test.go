@@ -24,6 +24,7 @@ import (
 	n "github.com/docker/docker/integration/network"
 	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
+	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
@@ -1559,4 +1560,67 @@ func TestNetworkInspectGateway(t *testing.T) {
 		_, err := netip.ParseAddr(ipamCfg.Gateway)
 		assert.Check(t, err)
 	}
+}
+
+// TestDropInForwardChain checks that a DROP rule appended to the filter-FORWARD chain
+// by some other application is processed after docker's rules (so, it doesn't break docker's
+// networking).
+// Regression test for https://github.com/moby/moby/pull/49518
+func TestDropInForwardChain(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "rootless has its own netns")
+
+	// Run the test in its own netns, to avoid interfering with iptables on the test host.
+	const l3SegHost = "difc"
+	l3 := networking.NewL3Segment(t, "test-"+l3SegHost)
+	defer l3.Destroy(t)
+	hostAddrs := []netip.Prefix{
+		netip.MustParsePrefix("192.168.111.222/24"),
+		netip.MustParsePrefix("fdeb:6de4:e407::111/64"),
+	}
+	l3.AddHost(t, l3SegHost, "ns-"+l3SegHost, "eth0", hostAddrs...)
+
+	// Insert DROP rules at the end of the FORWARD chain. If these end up out-of-order, packets
+	// will be dropped before Docker's rules can accept them.
+	l3.Hosts[l3SegHost].Do(t, func() {
+		dropRule := []string{"-A", "FORWARD", "-j", "DROP", "-m", "comment", "--comment", "test drop rule"}
+		out, err := iptables.GetIptable(iptables.IPv4).Raw(dropRule...)
+		assert.NilError(t, err, "adding drop rule: %s", out)
+		out, err = iptables.GetIptable(iptables.IPv6).Raw(dropRule...)
+		assert.NilError(t, err, "adding drop rule: %s", out)
+
+		// Run without OTEL because there's no routing from this netns for it - which
+		// means the daemon doesn't shut down cleanly, causing the test to fail.
+		ctx := setupTest(t)
+		d := daemon.New(t, daemon.WithEnvVars("OTEL_EXPORTER_OTLP_ENDPOINT="))
+		// Disable docker-proxy, so the iptables rules aren't bypassed.
+		d.StartWithBusybox(ctx, t, "--userland-proxy=false")
+		defer d.Stop(t)
+		c := d.NewClientT(t)
+		defer c.Close()
+
+		const netName46 = "net46"
+		_ = network.CreateNoError(ctx, t, c, netName46, network.WithIPv6())
+		defer network.RemoveNoError(ctx, t, c, netName46)
+
+		// Start an http server.
+		const hostPort = "8080"
+		ctrId := container.Run(ctx, t, c,
+			container.WithNetworkMode(netName46),
+			container.WithExposedPorts("80"),
+			container.WithPortMap(nat.PortMap{"80": {{HostPort: hostPort}}}),
+			container.WithCmd("httpd", "-f"),
+		)
+		defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+
+		// Make an HTTP request from a new container, via the published port on the host addresses.
+		// Expect a "404", not a timeout due to packets dropped by the FORWARD chain's extra rule.
+		for _, ha := range hostAddrs {
+			url := "http://" + net.JoinHostPort(ha.Addr().String(), hostPort)
+			res := container.RunAttach(ctx, t, c,
+				container.WithNetworkMode(netName46),
+				container.WithCmd("wget", "-T3", url),
+			)
+			assert.Check(t, is.Contains(res.Stderr.String(), "404 Not Found"), "URL: %s", url)
+		}
+	})
 }

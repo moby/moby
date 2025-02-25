@@ -31,18 +31,29 @@ The FORWARD chain rules are numbered in the output above, they are:
      Docker won't add rules to the DOCKER-USER chain, it's only for user-defined rules.
      It's (mostly) kept at the top of the by deleting it and re-creating after each
      new network is created, while traffic may be running for other networks.
-  2. Early ACCEPT for any RELATED,ESTABLISHED traffic to a docker bridge. This rule
+  2. Unconditional jump to DOCKER-FORWARD.
+     This is set up by libnetwork, in [setupUserChain][10].
+
+Once the daemon has initialised, it doesn't touch these rules. Users are free to
+append rules to the FORWARD chain, and they'll run after DOCKER's rules (or to
+the DOCKER-USER chain, for rules that run before DOCKER's).
+
+The DOCKER-FORWARD chain contains the first stage of Docker's filter rules. Initial
+rules are inserted at the top of the table, then not touched. Per-network rules
+are appended.
+
+  1. Early ACCEPT for any RELATED,ESTABLISHED traffic to a docker bridge. This rule
      matches against an `ipset` called `docker-ext-bridges-v4` (`v6` for IPv6). The
      set contains the CIDR address of each docker network, and it is updated as networks
      are created and deleted. This rule is created during driver initialisation, in
      `setupIPChains`.
-  3. Unconditional jump to DOCKER-ISOLATION-STAGE-1.
+  2. Unconditional jump to DOCKER-ISOLATION-STAGE-1.
      Also created during driver initialisation, in `setupIPChains`.
-  4. Jump to DOCKER, for any packet destined for any bridge network, identified by
+  3. Jump to DOCKER, for any packet destined for any bridge network, identified by
      matching against the `docker-ext-bridge-v[46]` set.
      Also created during driver initialisation, in `setupIPChains`.
      The DOCKER chain implements per-port/protocol filtering for each container.
-  5. ACCEPT any packet leaving a network, set up when the network is created, in
+  4. ACCEPT any packet leaving a network, set up when the network is created, in
      `setupIPTablesInternal`. Note that this accepts any packet leaving the
      network that's made it through the DOCKER and isolation chains, whether the
      destination is external or another network.

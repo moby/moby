@@ -13,12 +13,7 @@ The filter table is:
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DOCKER-USER  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     2        0     0 DOCKER-INGRESS  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    3        0     0 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst ctstate RELATED,ESTABLISHED
-    4        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    5        0     0 DOCKER     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst
-    6        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
-    7        0     0 DROP       0    --  docker_gwbridge docker_gwbridge  0.0.0.0/0            0.0.0.0/0           
-    8        0     0 ACCEPT     0    --  docker_gwbridge !docker_gwbridge  0.0.0.0/0            0.0.0.0/0           
+    3        0     0 DOCKER-FORWARD  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     
     Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -27,6 +22,15 @@ The filter table is:
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
     2        0     0 DROP       0    --  !docker_gwbridge docker_gwbridge  0.0.0.0/0            0.0.0.0/0           
+    
+    Chain DOCKER-FORWARD (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst ctstate RELATED,ESTABLISHED
+    2        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    3        0     0 DOCKER     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst
+    4        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
+    5        0     0 DROP       0    --  docker_gwbridge docker_gwbridge  0.0.0.0/0            0.0.0.0/0           
+    6        0     0 ACCEPT     0    --  docker_gwbridge !docker_gwbridge  0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-INGRESS (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -56,20 +60,22 @@ The filter table is:
     -P FORWARD ACCEPT
     -P OUTPUT ACCEPT
     -N DOCKER
+    -N DOCKER-FORWARD
     -N DOCKER-INGRESS
     -N DOCKER-ISOLATION-STAGE-1
     -N DOCKER-ISOLATION-STAGE-2
     -N DOCKER-USER
     -A FORWARD -j DOCKER-USER
     -A FORWARD -j DOCKER-INGRESS
-    -A FORWARD -m set --match-set docker-ext-bridges-v4 dst -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    -A FORWARD -j DOCKER-ISOLATION-STAGE-1
-    -A FORWARD -m set --match-set docker-ext-bridges-v4 dst -j DOCKER
-    -A FORWARD -i docker0 -j ACCEPT
-    -A FORWARD -i docker_gwbridge -o docker_gwbridge -j DROP
-    -A FORWARD -i docker_gwbridge ! -o docker_gwbridge -j ACCEPT
+    -A FORWARD -j DOCKER-FORWARD
     -A DOCKER ! -i docker0 -o docker0 -j DROP
     -A DOCKER ! -i docker_gwbridge -o docker_gwbridge -j DROP
+    -A DOCKER-FORWARD -m set --match-set docker-ext-bridges-v4 dst -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-FORWARD -j DOCKER-ISOLATION-STAGE-1
+    -A DOCKER-FORWARD -m set --match-set docker-ext-bridges-v4 dst -j DOCKER
+    -A DOCKER-FORWARD -i docker0 -j ACCEPT
+    -A DOCKER-FORWARD -i docker_gwbridge -o docker_gwbridge -j DROP
+    -A DOCKER-FORWARD -i docker_gwbridge ! -o docker_gwbridge -j ACCEPT
     -A DOCKER-INGRESS -p tcp -m tcp --dport 8080 -j ACCEPT
     -A DOCKER-INGRESS -p tcp -m tcp --sport 8080 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     -A DOCKER-INGRESS -j RETURN
@@ -87,7 +93,7 @@ Note that:
  - There's a bridge network called `docker_gwbridge` for swarm ingress.
    - Its rules follow the usual pattern for a network with inter-container communication disabled.
 - There's an additional chain `DOCKER-INGRESS`.
-  - The jump to `DOCKER-INGRESS` is in the `FORWARD` chain, after the jump to `DOCKER-USER`.
+  - The jump to `DOCKER-INGRESS` is in the `FORWARD` chain.
 
 And the corresponding nat table:
 

@@ -1,4 +1,5 @@
-//go:build linux
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.22 && linux
 
 package iptables
 
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -415,14 +417,24 @@ func (iptable IPTable) AddReturnRule(chain string) error {
 
 // EnsureJumpRule ensures the jump rule is on top
 func (iptable IPTable) EnsureJumpRule(fromChain, toChain string, rule ...string) error {
+	if err := iptable.DeleteJumpRule(fromChain, toChain, rule...); err != nil {
+		return err
+	}
+	rule = append(rule, "-j", toChain)
+	if err := iptable.RawCombinedOutput(append([]string{"-I", fromChain}, rule...)...); err != nil {
+		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %v", toChain, fromChain, err)
+	}
+	return nil
+}
+
+// DeleteJumpRule deletes a rule added by EnsureJumpRule. It's a no-op if the rule
+// doesn't exist.
+func (iptable IPTable) DeleteJumpRule(fromChain, toChain string, rule ...string) error {
 	rule = append(rule, "-j", toChain)
 	if iptable.Exists(Filter, fromChain, rule...) {
 		if err := iptable.RawCombinedOutput(append([]string{"-D", fromChain}, rule...)...); err != nil {
 			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %v", toChain, fromChain, err)
 		}
-	}
-	if err := iptable.RawCombinedOutput(append([]string{"-I", fromChain}, rule...)...); err != nil {
-		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %v", toChain, fromChain, err)
 	}
 	return nil
 }
@@ -445,6 +457,14 @@ func (r Rule) cmdArgs(op Action) []string {
 
 func (r Rule) exec(op Action) error {
 	return GetIptable(r.IPVer).RawCombinedOutput(r.cmdArgs(op)...)
+}
+
+// WithChain returns a version of the rule with its Chain field set to chain.
+func (r Rule) WithChain(chain string) Rule {
+	wc := r
+	wc.Args = slices.Clone(r.Args)
+	wc.Chain = chain
+	return wc
 }
 
 // Append appends the rule to the end of the chain. If the rule already exists anywhere in the

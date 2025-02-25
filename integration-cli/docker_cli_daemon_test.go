@@ -30,6 +30,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/testutil"
@@ -718,7 +719,7 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *testing.T) {
 	d.StartWithBusybox(testutil.GetContext(c), c, "--bridge", bridgeName, "--icc=false")
 	defer d.Restart(c)
 
-	result := icmd.RunCommand("sh", "-c", "iptables -vL FORWARD | grep DROP")
+	result := icmd.RunCommand("sh", "-c", "iptables -vL "+bridge.DockerForwardChain+" | grep DROP")
 	result.Assert(c, icmd.Success)
 
 	// strip whitespace and newlines to verify we only found a single DROP
@@ -769,7 +770,7 @@ func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *testing.T) {
 	d.StartWithBusybox(testutil.GetContext(c), c, "--bridge", bridgeName, "--icc=false")
 	defer d.Restart(c)
 
-	result := icmd.RunCommand("sh", "-c", "iptables -vL FORWARD | grep DROP")
+	result := icmd.RunCommand("sh", "-c", "iptables -vL "+bridge.DockerForwardChain+" | grep DROP")
 	result.Assert(c, icmd.Success)
 
 	// strip whitespace and newlines to verify we only found a single DROP

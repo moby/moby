@@ -20,7 +20,7 @@ Note that:
  - There's a bridge network called `docker_gwbridge` for swarm ingress.
    - Its rules follow the usual pattern for a network with inter-container communication disabled.
 - There's an additional chain `DOCKER-INGRESS`.
-  - The jump to `DOCKER-INGRESS` is in the `FORWARD` chain, after the jump to `DOCKER-USER`.
+  - The jump to `DOCKER-INGRESS` is in the `FORWARD` chain.
 
 And the corresponding nat table:
 
