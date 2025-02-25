@@ -564,6 +564,14 @@ func (w *watch) update(dirErrors map[string]error, removed ...string) bool {
 		update bool
 	)
 
+	// If we failed to create an fsnotify.Watcher we have a nil watcher here
+	// (but with autoRefresh left on). One known case when this can happen is
+	// if we have too many open files. In that case we always return true and
+	// force a refresh.
+	if w.watcher == nil {
+		return true
+	}
+
 	for dir, ok = range w.tracked {
 		if ok {
 			continue
