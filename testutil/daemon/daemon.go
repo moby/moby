@@ -1,5 +1,5 @@
 // FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.22
+//go:build go1.23
 
 package daemon // import "github.com/docker/docker/testutil/daemon"
 
@@ -154,7 +154,7 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 
 	if len(d.resolvConfContent) > 0 {
 		path := filepath.Join(d.Folder, "resolv.conf")
-		if err := os.WriteFile(path, []byte(d.resolvConfContent), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(d.resolvConfContent), 0o644); err != nil {
 			return nil, fmt.Errorf("failed to write docker resolv.conf to %q: %v", path, err)
 		}
 		d.extraEnv = append(d.extraEnv, "DOCKER_TEST_RESOLV_CONF_PATH="+path)
