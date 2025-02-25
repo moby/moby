@@ -24,7 +24,7 @@ The FORWARD chain's policy shown above is ACCEPT. However:
 
 [1]: https://github.com/moby/moby/blob/cff4f20c44a3a7c882ed73934dec6a77246c6323/libnetwork/drivers/bridge/setup_ip_forwarding.go#L44
 
-The FORWARD chain rules are numbered in the output above, they are:
+The FORWARD chain rules, explained in the order they appear in the output above, are:
 
   1. Unconditional jump to DOCKER-USER.
      This is set up by libnetwork, in [setupUserChain][10].
@@ -40,23 +40,26 @@ the DOCKER-USER chain, for rules that run before DOCKER's).
 
 The DOCKER-FORWARD chain contains the first stage of Docker's filter rules. Initial
 rules are inserted at the top of the table, then not touched. Per-network rules
-are appended.
+are appended. The DOCKER-FORWARD chain rules, explained in the order they appear in
+the output above, are:
 
-  1. Early ACCEPT for any RELATED,ESTABLISHED traffic to a docker bridge. This rule
-     matches against an `ipset` called `docker-ext-bridges-v4` (`v6` for IPv6). The
-     set contains the CIDR address of each docker network, and it is updated as networks
-     are created and deleted. This rule is created during driver initialisation, in
-     `setupIPChains`.
+  1. Unconditional jump to DOCKER-CT.
+     Created during driver initialisation, in `setupIPChains`.
   2. Unconditional jump to DOCKER-ISOLATION-STAGE-1.
      Also created during driver initialisation, in `setupIPChains`.
-  3. Jump to DOCKER, for any packet destined for any bridge network, identified by
-     matching against the `docker-ext-bridge-v[46]` set.
+  3. Unconditional jump to DOCKER-BRIDGE.
      Also created during driver initialisation, in `setupIPChains`.
-     The DOCKER chain implements per-port/protocol filtering for each container.
   4. ACCEPT any packet leaving a network, set up when the network is created, in
      `setupIPTablesInternal`. Note that this accepts any packet leaving the
      network that's made it through the DOCKER and isolation chains, whether the
      destination is external or another network.
+
+The DOCKER-CT chain is an early ACCEPT for any RELATED,ESTABLISHED traffic to a
+docker bridge. It contains a conntrack ACCEPT rule for each bridge network.
+
+DOCKER-BRIDGE has a rule for each bridge network, to jump to the DOCKER chain.
+
+The DOCKER chain implements per-port/protocol filtering for each container.
 
 [10]: https://github.com/moby/moby/blob/e05848c0025b67a16aaafa8cdff95d5e2c064105/libnetwork/firewall_linux.go#L50
 [11]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L230-L232

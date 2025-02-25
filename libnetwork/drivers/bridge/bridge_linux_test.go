@@ -27,7 +27,6 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
-	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -1265,9 +1264,6 @@ func TestCleanupIptableRules(t *testing.T) {
 		iptables.IPv4: {EnableIPTables: true},
 		iptables.IPv6: {EnableIP6Tables: true},
 	}
-
-	assert.NilError(t, setupHashNetIpset(ipsetExtBridges4, unix.AF_INET))
-	assert.NilError(t, setupHashNetIpset(ipsetExtBridges6, unix.AF_INET6))
 
 	for _, version := range ipVersions {
 		err := setupIPChains(configs[version], version)

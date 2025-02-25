@@ -21,7 +21,7 @@ The filter table is:
 
 By comparison with [ICC=true][1]:
 
-  - Rules 6 and 7 replace the accept rule for outgoing packets.
+  - DOCKER-FORWARD rules 6 and 7 replace the accept rule for outgoing packets.
     - Rule 6, added by `setIcc`, drops any packet sent from the internal network to itself.
     - Rule 7, added by `setupIPTablesInternal` accepts any other outgoing packet.
 
