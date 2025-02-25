@@ -26,7 +26,7 @@ type pbeCipher interface {
 	create(key []byte) (cipher.Block, error)
 	// deriveKey returns a key derived from the given password and salt.
 	deriveKey(salt, password []byte, iterations int) []byte
-	// deriveKey returns an IV derived from the given password and salt.
+	// deriveIV returns an IV derived from the given password and salt.
 	deriveIV(salt, password []byte, iterations int) []byte
 }
 
