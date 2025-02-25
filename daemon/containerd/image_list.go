@@ -406,6 +406,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 			RepoDigests: []string{target.Digest.String()},
 			RepoTags:    tagsByDigest[target.Digest],
 			Size:        summary.TotalSize,
+			Manifests:   summary.Manifests,
 			// -1 indicates that the value has not been set (avoids ambiguity
 			// between 0 (default) and "not set". We cannot use a pointer (nil)
 			// for this, as the JSON representation uses "omitempty", which would

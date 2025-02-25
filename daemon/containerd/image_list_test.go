@@ -198,6 +198,16 @@ func TestImageList(t *testing.T) {
 	emptyIndex := toContainerdImage(t, specialimage.EmptyIndex)
 	configTarget := toContainerdImage(t, specialimage.ConfigTarget)
 	textplain := toContainerdImage(t, specialimage.TextPlain)
+	missingMultiPlatform := toContainerdImage(t, func(dir string) (*ocispec.Index, error) {
+		idx, _, err := specialimage.PartialMultiPlatform(dir, "missingmp:latest", specialimage.PartialOpts{
+			Stored: nil,
+			Missing: []ocispec.Platform{
+				{OS: "linux", Architecture: "arm64"},
+				{OS: "linux", Architecture: "amd64"},
+			},
+		})
+		return idx, err
+	})
 
 	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
 
@@ -320,7 +330,15 @@ func TestImageList(t *testing.T) {
 				}
 				assert.Check(t, is.Equal(all[0].ID, textplain.Target.Digest.String()))
 
-				assert.Assert(t, is.Len(all[0].Manifests, 0))
+				assert.Assert(t, is.Len(all[0].Manifests, 1))
+			},
+		},
+		{
+			name:   "multi-platform with no platforms available locally",
+			images: []c8dimages.Image{missingMultiPlatform},
+			check: func(t *testing.T, all []*imagetypes.Summary) {
+				assert.Assert(t, is.Len(all, 1))
+				assert.Check(t, is.Len(all[0].Manifests, 2))
 			},
 		},
 	} {
