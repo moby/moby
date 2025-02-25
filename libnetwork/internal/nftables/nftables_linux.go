@@ -1,5 +1,5 @@
 // FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.22
+//go:build go1.23
 
 // Package nftables provides methods to create an nftables table and manage its maps, sets,
 // chains, and rules.
@@ -141,7 +141,7 @@ func Enabled() bool {
 	return nftPath != ""
 }
 
-//////////////////////////////
+// ////////////////////////////
 // Tables
 
 // table is the internal representation of an nftables table.
@@ -293,7 +293,7 @@ func (t TableRef) Apply(ctx context.Context) error {
 	return nil
 }
 
-//////////////////////////////
+// ////////////////////////////
 // Chains
 
 // RuleGroup is used to allocate rules within a chain to a group. These groups are
@@ -469,7 +469,7 @@ func (c ChainRef) DeleteRule(group RuleGroup, rule string, args ...interface{}) 
 	return nil
 }
 
-//////////////////////////////
+// ////////////////////////////
 // VMaps
 
 // vMap is the internal representation of an nftables verdict map.
@@ -555,7 +555,7 @@ func (v VMapRef) DeleteElement(key string) error {
 	return nil
 }
 
-//////////////////////////////
+// ////////////////////////////
 // Sets
 
 // set is the internal representation of an nftables set.
@@ -647,7 +647,7 @@ func (s SetRef) DeleteElement(element string) error {
 	return nil
 }
 
-//////////////////////////////
+// ////////////////////////////
 // Internal
 
 /* Can't make text/template range over this, not sure why ...
