@@ -766,19 +766,19 @@ func initMiddlewares(_ context.Context, s *apiserver.Server, cfg *config.Config,
 	return authzMiddleware, nil
 }
 
-func (cli *daemonCLI) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
+func getContainerdDaemonOpts(cfg *config.Config) ([]supervisor.DaemonOpt, error) {
 	var opts []supervisor.DaemonOpt
-	if cli.Debug {
+	if cfg.Debug {
 		opts = append(opts, supervisor.WithLogLevel("debug"))
 	} else {
-		opts = append(opts, supervisor.WithLogLevel(cli.LogLevel))
+		opts = append(opts, supervisor.WithLogLevel(cfg.LogLevel))
 	}
 
-	if logFormat := cli.Config.LogFormat; logFormat != "" {
+	if logFormat := cfg.LogFormat; logFormat != "" {
 		opts = append(opts, supervisor.WithLogFormat(logFormat))
 	}
 
-	if !cli.CriContainerd {
+	if !cfg.CriContainerd {
 		// CRI support in the managed daemon is currently opt-in.
 		//
 		// It's disabled by default, originally because it was listening on
@@ -1045,7 +1045,7 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 	}
 
 	log.G(ctx).Info("containerd not running, starting managed containerd")
-	opts, err := cli.getContainerdDaemonOpts()
+	opts, err := getContainerdDaemonOpts(cli.Config)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate containerd options")
 	}
