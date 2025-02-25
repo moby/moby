@@ -55,13 +55,13 @@ jobs:
           fi
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v5
         with:
           targets: dev
           set: |
@@ -79,7 +79,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Create matrix
         id: scripts
@@ -104,7 +104,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       -
@@ -112,10 +112,10 @@ jobs:
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v5
         with:
           targets: dev
           set: |
@@ -133,16 +133,16 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v5
         with:
           targets: dev
           set: |
@@ -162,7 +162,7 @@ jobs:
           tree -nh /tmp/reports
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           directory: ./bundles
           env_vars: RUNNER_OS
@@ -170,9 +170,9 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: unit-reports
+          name: test-reports-unit-${{ inputs.storage }}
           path: /tmp/reports/*
           retention-days: 1
 
@@ -185,14 +185,14 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       -
         name: Download reports
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: unit-reports
+          name: test-reports-unit-${{ inputs.storage }}
           path: /tmp/reports
       -
         name: Install teststat
@@ -211,16 +211,16 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v5
         with:
           targets: dev
           set: |
@@ -246,9 +246,9 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: docker-py-reports
+          name: test-reports-docker-py-${{ inputs.storage }}
           path: /tmp/reports/*
 
   integration-flaky:
@@ -259,16 +259,16 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v5
         with:
           targets: dev
           set: |
@@ -299,7 +299,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -317,10 +317,10 @@ jobs:
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v5
         with:
           targets: dev
           set: |
@@ -336,10 +336,12 @@ jobs:
         name: Prepare reports
         if: always()
         run: |
-          reportsPath="/tmp/reports/${{ matrix.os }}"
+          reportsName=${{ matrix.os }}
           if [ -n "${{ matrix.mode }}" ]; then
-            reportsPath="$reportsPath-${{ matrix.mode }}"
+            reportsName="$reportsName-${{ matrix.mode }}"
           fi
+          reportsPath="/tmp/reports/$reportsName"
+          echo "TESTREPORTS_NAME=$reportsName" >> $GITHUB_ENV
           mkdir -p bundles $reportsPath
           find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
           tar -xzf /tmp/reports.tar.gz -C $reportsPath
@@ -347,7 +349,7 @@ jobs:
           tree -nh $reportsPath
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
@@ -360,9 +362,9 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: integration-reports
+          name: test-reports-integration-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
 
   integration-report:
@@ -374,15 +376,16 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       -
         name: Download reports
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: integration-reports
           path: /tmp/reports
+          pattern: test-reports-integration-${{ inputs.storage }}-*
+          merge-multiple: true
       -
         name: Install teststat
         run: |
@@ -401,10 +404,10 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       -
@@ -441,16 +444,16 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v5
         with:
           targets: dev
           set: |
@@ -467,7 +470,9 @@ jobs:
         name: Prepare reports
         if: always()
         run: |
-          reportsPath=/tmp/reports/$(echo -n "${{ matrix.test }}" | sha256sum | cut -d " " -f 1)
+          reportsName=$(echo -n "${{ matrix.test }}" | sha256sum | cut -d " " -f 1)
+          reportsPath=/tmp/reports/$reportsName
+          echo "TESTREPORTS_NAME=$reportsName" >> $GITHUB_ENV
           mkdir -p bundles $reportsPath
           echo "${{ matrix.test }}" | tr -s '|' '\n' | tee -a "$reportsPath/tests.txt"
           find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
@@ -476,7 +481,7 @@ jobs:
           tree -nh $reportsPath
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
@@ -489,9 +494,9 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: integration-cli-reports
+          name: test-reports-integration-cli-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
 
   integration-cli-report:
@@ -503,15 +508,16 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
       -
         name: Download reports
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: integration-cli-reports
           path: /tmp/reports
+          pattern: test-reports-integration-cli-${{ inputs.storage }}-*
+          merge-multiple: true
       -
         name: Install teststat
         run: |
@@ -531,7 +537,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Create matrix
         id: platforms
@@ -555,7 +561,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Prepare
         run: |
@@ -563,13 +569,13 @@ jobs:
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
       -
         name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Test
-        uses: docker/bake-action@v2
+        uses: docker/bake-action@v5
         with:
           targets: binary-smoketest
           set: |
