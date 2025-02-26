@@ -1,0 +1,13 @@
+name: Task
+description: A project task
+type: "task"
+labels:
+  - needs/triage
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is the task?
+    validations:
+      required: true
