@@ -359,31 +359,32 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 }
 
 func (c *client) extractResourcesFromSpec(spec *specs.Spec, configuration *hcsshim.ContainerConfig) {
-	if spec.Windows.Resources != nil {
-		if spec.Windows.Resources.CPU != nil {
-			if spec.Windows.Resources.CPU.Count != nil {
-				// This check is being done here rather than in adaptContainerSettings
-				// because we don't want to update the HostConfig in case this container
-				// is moved to a host with more CPUs than this one.
-				cpuCount := *spec.Windows.Resources.CPU.Count
-				hostCPUCount := uint64(runtime.NumCPU())
-				if cpuCount > hostCPUCount {
-					c.logger.Warnf("Changing requested CPUCount of %d to current number of processors, %d", cpuCount, hostCPUCount)
-					cpuCount = hostCPUCount
-				}
-				configuration.ProcessorCount = uint32(cpuCount)
+	if spec.Windows.Resources == nil {
+		return
+	}
+	if spec.Windows.Resources.CPU != nil {
+		if spec.Windows.Resources.CPU.Count != nil {
+			// This check is being done here rather than in adaptContainerSettings
+			// because we don't want to update the HostConfig in case this container
+			// is moved to a host with more CPUs than this one.
+			cpuCount := *spec.Windows.Resources.CPU.Count
+			hostCPUCount := uint64(runtime.NumCPU())
+			if cpuCount > hostCPUCount {
+				c.logger.Warnf("Changing requested CPUCount of %d to current number of processors, %d", cpuCount, hostCPUCount)
+				cpuCount = hostCPUCount
 			}
-			if spec.Windows.Resources.CPU.Shares != nil {
-				configuration.ProcessorWeight = uint64(*spec.Windows.Resources.CPU.Shares)
-			}
-			if spec.Windows.Resources.CPU.Maximum != nil {
-				configuration.ProcessorMaximum = int64(*spec.Windows.Resources.CPU.Maximum)
-			}
+			configuration.ProcessorCount = uint32(cpuCount)
 		}
-		if spec.Windows.Resources.Memory != nil {
-			if spec.Windows.Resources.Memory.Limit != nil {
-				configuration.MemoryMaximumInMB = int64(*spec.Windows.Resources.Memory.Limit) / 1024 / 1024
-			}
+		if spec.Windows.Resources.CPU.Shares != nil {
+			configuration.ProcessorWeight = uint64(*spec.Windows.Resources.CPU.Shares)
+		}
+		if spec.Windows.Resources.CPU.Maximum != nil {
+			configuration.ProcessorMaximum = int64(*spec.Windows.Resources.CPU.Maximum)
+		}
+	}
+	if spec.Windows.Resources.Memory != nil {
+		if spec.Windows.Resources.Memory.Limit != nil {
+			configuration.MemoryMaximumInMB = int64(*spec.Windows.Resources.Memory.Limit) / 1024 / 1024
 		}
 	}
 }
