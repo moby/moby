@@ -1023,13 +1023,13 @@ func (t *task) Status(ctx context.Context) (containerd.Status, error) {
 	return containerd.Status{Status: s}, nil
 }
 
-func (*task) UpdateResources(ctx context.Context, resources *libcontainerdtypes.Resources) error {
+func (*task) UpdateResources(context.Context, *libcontainerdtypes.Resources) error {
 	// Updating resource isn't supported on Windows
 	// but we should return nil for enabling updating container
 	return nil
 }
 
-func (*task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit bool) error {
+func (*task) CreateCheckpoint(context.Context, string, bool) error {
 	return errors.New("Windows: Containers do not support checkpoints")
 }
 
