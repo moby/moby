@@ -12,8 +12,7 @@ The filter table is:
     Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DOCKER-USER  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DOCKER-INGRESS  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    3        0     0 DOCKER-FORWARD  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    2        0     0 DOCKER-FORWARD  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     
     Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -35,12 +34,13 @@ The filter table is:
     
     Chain DOCKER-FORWARD (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DOCKER-CT  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    3        0     0 DOCKER-BRIDGE  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    4        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
-    5        0     0 DROP       0    --  docker_gwbridge docker_gwbridge  0.0.0.0/0            0.0.0.0/0           
-    6        0     0 ACCEPT     0    --  docker_gwbridge !docker_gwbridge  0.0.0.0/0            0.0.0.0/0           
+    1        0     0 DOCKER-INGRESS  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    2        0     0 DOCKER-CT  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    3        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    4        0     0 DOCKER-BRIDGE  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    5        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
+    6        0     0 DROP       0    --  docker_gwbridge docker_gwbridge  0.0.0.0/0            0.0.0.0/0           
+    7        0     0 ACCEPT     0    --  docker_gwbridge !docker_gwbridge  0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-INGRESS (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -78,7 +78,6 @@ The filter table is:
     -N DOCKER-ISOLATION-STAGE-2
     -N DOCKER-USER
     -A FORWARD -j DOCKER-USER
-    -A FORWARD -j DOCKER-INGRESS
     -A FORWARD -j DOCKER-FORWARD
     -A DOCKER ! -i docker0 -o docker0 -j DROP
     -A DOCKER ! -i docker_gwbridge -o docker_gwbridge -j DROP
@@ -86,6 +85,7 @@ The filter table is:
     -A DOCKER-BRIDGE -o docker_gwbridge -j DOCKER
     -A DOCKER-CT -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     -A DOCKER-CT -o docker_gwbridge -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-FORWARD -j DOCKER-INGRESS
     -A DOCKER-FORWARD -j DOCKER-CT
     -A DOCKER-FORWARD -j DOCKER-ISOLATION-STAGE-1
     -A DOCKER-FORWARD -j DOCKER-BRIDGE
@@ -109,7 +109,7 @@ Note that:
  - There's a bridge network called `docker_gwbridge` for swarm ingress.
    - Its rules follow the usual pattern for a network with inter-container communication disabled.
 - There's an additional chain `DOCKER-INGRESS`.
-  - The jump to `DOCKER-INGRESS` is in the `FORWARD` chain.
+  - The jump to `DOCKER-INGRESS` is first in the `DOCKER-FORWARD` chain.
 
 And the corresponding nat table:
 
