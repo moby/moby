@@ -150,11 +150,11 @@ func (c *client) Version(ctx context.Context) (containerd.Version, error) {
 //			"ImagePath": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c\\\\UtilityVM"
 //		},
 //	}
-func (c *client) NewContainer(_ context.Context, id string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) (libcontainerdtypes.Container, error) {
+func (c *client) NewContainer(_ context.Context, id string, spec *specs.Spec, _ string, _ interface{}, _ ...containerd.NewContainerOpts) (libcontainerdtypes.Container, error) {
 	if spec.Linux != nil {
 		return nil, errors.New("linux containers are not supported on this platform")
 	}
-	ctr, err := c.createWindows(id, spec, runtimeOptions)
+	ctr, err := c.createWindows(id, spec)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +179,7 @@ func (c *client) NewContainer(_ context.Context, id string, spec *specs.Spec, sh
 	return ctr, nil
 }
 
-func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions interface{}) (*container, error) {
+func (c *client) createWindows(id string, spec *specs.Spec) (*container, error) {
 	logger := c.logger.WithField("container", id)
 	configuration := &hcsshim.ContainerConfig{
 		SystemType:              "Container",
