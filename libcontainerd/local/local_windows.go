@@ -151,31 +151,32 @@ func (c *client) Version(ctx context.Context) (containerd.Version, error) {
 //		},
 //	}
 func (c *client) NewContainer(_ context.Context, id string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) (libcontainerdtypes.Container, error) {
-	var err error
 	if spec.Linux != nil {
 		return nil, errors.New("linux containers are not supported on this platform")
 	}
 	ctr, err := c.createWindows(id, spec, runtimeOptions)
+	if err != nil {
+		return nil, err
+	}
 
-	if err == nil {
-		c.eventQ.Append(id, func() {
-			ei := libcontainerdtypes.EventInfo{
-				ContainerID: id,
-			}
+	c.eventQ.Append(id, func() {
+		c.logger.WithFields(log.Fields{
+			"container": id,
+			"event":     libcontainerdtypes.EventCreate,
+		}).Info("sending event")
+
+		err := c.backend.ProcessEvent(id, libcontainerdtypes.EventCreate, libcontainerdtypes.EventInfo{
+			ContainerID: id,
+		})
+		if err != nil {
 			c.logger.WithFields(log.Fields{
 				"container": id,
 				"event":     libcontainerdtypes.EventCreate,
-			}).Info("sending event")
-			err := c.backend.ProcessEvent(id, libcontainerdtypes.EventCreate, ei)
-			if err != nil {
-				c.logger.WithError(err).WithFields(log.Fields{
-					"container": id,
-					"event":     libcontainerdtypes.EventCreate,
-				}).Error("failed to process event")
-			}
-		})
-	}
-	return ctr, err
+				"error":     err,
+			}).Error("failed to process event")
+		}
+	})
+	return ctr, nil
 }
 
 func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions interface{}) (*container, error) {
