@@ -96,12 +96,13 @@ type Daemon struct {
 	ResolvConfPathOverride     string // Path to a replacement for "/etc/resolv.conf", or empty.
 
 	// swarm related field
-	swarmListenAddr string
-	SwarmPort       int // FIXME(vdemeester) should probably not be exported
-	DefaultAddrPool []string
-	SubnetSize      uint32
-	DataPathPort    uint32
-	OOMScoreAdjust  int
+	swarmListenAddr   string
+	swarmWithIptables bool
+	SwarmPort         int // FIXME(vdemeester) should probably not be exported
+	DefaultAddrPool   []string
+	SubnetSize        uint32
+	DataPathPort      uint32
+	OOMScoreAdjust    int
 	// cached information
 	CachedInfo system.Info
 }

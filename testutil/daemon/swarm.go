@@ -16,18 +16,21 @@ const (
 	defaultSwarmListenAddr = "0.0.0.0"
 )
 
-var startArgs = []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
+var (
+	startArgsWithIptables = []string{"--swarm-default-advertise-addr=lo"}
+	startArgs             = []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
+)
 
 // StartNode (re)starts the daemon
 func (d *Daemon) StartNode(t testing.TB) {
 	t.Helper()
-	d.Start(t, startArgs...)
+	d.Start(t, d.startArgs()...)
 }
 
 // StartNodeWithBusybox starts daemon to be used as a swarm node, and loads the busybox image
 func (d *Daemon) StartNodeWithBusybox(ctx context.Context, t testing.TB) {
 	t.Helper()
-	d.StartWithBusybox(ctx, t, startArgs...)
+	d.StartWithBusybox(ctx, t, d.startArgs()...)
 }
 
 // RestartNode restarts a daemon to be used as a swarm node
@@ -35,7 +38,7 @@ func (d *Daemon) RestartNode(t testing.TB) {
 	t.Helper()
 	// avoid networking conflicts
 	d.Stop(t)
-	d.Start(t, startArgs...)
+	d.Start(t, d.startArgs()...)
 }
 
 // StartAndSwarmInit starts the daemon (with busybox) and init the swarm
@@ -196,4 +199,11 @@ func (d *Daemon) JoinTokens(t testing.TB) swarm.JoinTokens {
 	sw, err := cli.SwarmInspect(context.Background())
 	assert.NilError(t, err)
 	return sw.JoinTokens
+}
+
+func (d *Daemon) startArgs() []string {
+	if d.swarmWithIptables {
+		return startArgsWithIptables
+	}
+	return startArgs
 }

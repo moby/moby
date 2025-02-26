@@ -74,6 +74,13 @@ func WithSwarmListenAddr(listenAddr string) Option {
 	}
 }
 
+// WithSwarmIptables enabled/disables iptables for swarm nodes
+func WithSwarmIptables(useIptables bool) Option {
+	return func(d *Daemon) {
+		d.swarmWithIptables = useIptables
+	}
+}
+
 // WithSwarmDefaultAddrPool sets the swarm default address pool to use for swarm mode
 func WithSwarmDefaultAddrPool(defaultAddrPool []string) Option {
 	return func(d *Daemon) {
