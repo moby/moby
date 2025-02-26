@@ -8,7 +8,7 @@ ARG XX_VERSION=1.6.1
 ARG VPNKIT_VERSION=0.5.0
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
-ARG DOCKERCLI_VERSION=v28.0.0-rc.1
+ARG DOCKERCLI_VERSION=v28.0.1
 ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
 
 # cli version used for integration-cli tests
@@ -16,7 +16,7 @@ ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
 ARG DOCKERCLI_INTEGRATION_VERSION=v17.06.2-ce
 # BUILDX_VERSION is the version of buildx to install in the dev container.
 ARG BUILDX_VERSION=0.20.1
-ARG COMPOSE_VERSION=v2.32.4
+ARG COMPOSE_VERSION=v2.33.1
 
 ARG SYSTEMD="false"
 ARG FIREWALLD="false"
