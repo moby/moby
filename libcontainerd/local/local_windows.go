@@ -78,21 +78,17 @@ type container struct {
 const defaultOwner = "docker"
 
 type client struct {
-	stateDir string
-	backend  libcontainerdtypes.Backend
-	logger   *log.Entry
-	eventQ   queue.Queue
+	backend libcontainerdtypes.Backend
+	logger  *log.Entry
+	eventQ  queue.Queue
 }
 
 // NewClient creates a new local executor for windows
-func NewClient(ctx context.Context, cli *containerd.Client, stateDir, ns string, b libcontainerdtypes.Backend) (libcontainerdtypes.Client, error) {
-	c := &client{
-		stateDir: stateDir,
-		backend:  b,
-		logger:   log.G(ctx).WithField("module", "libcontainerd").WithField("namespace", ns),
-	}
-
-	return c, nil
+func NewClient(ctx context.Context, b libcontainerdtypes.Backend) (libcontainerdtypes.Client, error) {
+	return &client{
+		backend: b,
+		logger:  log.G(ctx).WithField("module", "libcontainerd"),
+	}, nil
 }
 
 func (c *client) Version(ctx context.Context) (containerd.Version, error) {
