@@ -1,0 +1,17 @@
+name: A large feature or project
+description: A large feature or project that can be broken down into smaller tasks
+type: "epic"
+labels:
+  - needs/triage
+  - kind/epic
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: |
+        Describe the feature or project to be completed in this epic, and why it is important. 
+        Include any relevant links or resources, any known constraints, dependencies, or risks, 
+        and any other context that will help the team understand the scope and impact of this epic.
+    validations:
+      required: true
