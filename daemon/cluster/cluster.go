@@ -99,9 +99,6 @@ type Config struct {
 	// path to store runtime state, such as the swarm control socket
 	RuntimeRoot string
 
-	// WatchStream is a channel to pass watch API notifications to daemon
-	WatchStream chan *swarmapi.WatchMessage
-
 	// RaftHeartbeatTick is the number of ticks for heartbeat of quorum members
 	RaftHeartbeatTick uint32
 
@@ -121,7 +118,7 @@ type Cluster struct {
 	config       Config
 	configEvent  chan lncluster.ConfigEventType // todo: make this array and goroutine safe
 	attachers    map[string]*attacher
-	watchStream  chan *swarmapi.WatchMessage
+	watchStream  chan *swarmapi.WatchMessage // watchStream is a channel to pass watch API notifications to daemon.
 }
 
 // attacher manages the in-memory attachment state of a container
@@ -163,7 +160,10 @@ func New(config Config) (*Cluster, error) {
 		configEvent: make(chan lncluster.ConfigEventType, 10),
 		runtimeRoot: config.RuntimeRoot,
 		attachers:   make(map[string]*attacher),
-		watchStream: config.WatchStream,
+
+		// watchStream uses a buffered channel to pass changes from store watch API to daemon.
+		// A buffer allows store watch API and daemon processing to not wait for each other
+		watchStream: make(chan *swarmapi.WatchMessage, 32),
 	}
 	return c, nil
 }
