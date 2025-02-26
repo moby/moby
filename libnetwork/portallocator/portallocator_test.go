@@ -1,6 +1,7 @@
 package portallocator
 
 import (
+	"errors"
 	"net"
 	"testing"
 
@@ -83,9 +84,8 @@ func TestReleaseUnreadledPort(t *testing.T) {
 
 	_, err = p.RequestPort(net.IPv4zero, "tcp", 5000)
 
-	switch err.(type) {
-	case ErrPortAlreadyAllocated:
-	default:
+	var expectedErrType alreadyAllocatedErr
+	if !errors.As(err, &expectedErrType) {
 		t.Fatalf("Expected port allocation error got %s", err)
 	}
 }
@@ -93,8 +93,8 @@ func TestReleaseUnreadledPort(t *testing.T) {
 func TestUnknowProtocol(t *testing.T) {
 	p := newInstance()
 
-	if _, err := p.RequestPort(net.IPv4zero, "tcpp", 0); err != ErrUnknownProtocol {
-		t.Fatalf("Expected error %s got %s", ErrUnknownProtocol, err)
+	if _, err := p.RequestPort(net.IPv4zero, "tcpp", 0); err != errUnknownProtocol {
+		t.Fatalf("Expected error %s got %s", errUnknownProtocol, err)
 	}
 }
 
@@ -112,8 +112,8 @@ func TestAllocateAllPorts(t *testing.T) {
 		}
 	}
 
-	if _, err := p.RequestPort(net.IPv4zero, "tcp", 0); err != ErrAllPortsAllocated {
-		t.Fatalf("Expected error %s got %s", ErrAllPortsAllocated, err)
+	if _, err := p.RequestPort(net.IPv4zero, "tcp", 0); err != errAllPortsAllocated {
+		t.Fatalf("Expected error %s got %s", errAllPortsAllocated, err)
 	}
 
 	_, err := p.RequestPort(net.IPv4zero, "udp", 0)
@@ -281,8 +281,8 @@ func TestPortAllocationWithCustomRange(t *testing.T) {
 		t.Fatal("Allocated the same port from a custom range")
 	}
 	// request 3rd port from the range of 2
-	if _, err := p.RequestPortInRange(net.IPv4zero, "tcp", start, end); err != ErrAllPortsAllocated {
-		t.Fatalf("Expected error %s got %s", ErrAllPortsAllocated, err)
+	if _, err := p.RequestPortInRange(net.IPv4zero, "tcp", start, end); err != errAllPortsAllocated {
+		t.Fatalf("Expected error %s got %s", errAllPortsAllocated, err)
 	}
 }
 

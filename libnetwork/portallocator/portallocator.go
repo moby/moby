@@ -17,44 +17,22 @@ import (
 type ipMapping map[string]protoMap
 
 var (
-	// ErrAllPortsAllocated is returned when no more ports are available
-	ErrAllPortsAllocated = errors.New("all ports are allocated")
-	// ErrUnknownProtocol is returned when an unknown protocol was specified
-	ErrUnknownProtocol = errors.New("unknown protocol")
+	// errAllPortsAllocated is returned when no more ports are available
+	errAllPortsAllocated = errors.New("all ports are allocated")
+	// errUnknownProtocol is returned when an unknown protocol was specified
+	errUnknownProtocol = errors.New("unknown protocol")
 	once               sync.Once
 	instance           *PortAllocator
 )
 
-// ErrPortAlreadyAllocated is the returned error information when a requested port is already being used
-type ErrPortAlreadyAllocated struct {
+// alreadyAllocatedErr is the returned error information when a requested port is already being used
+type alreadyAllocatedErr struct {
 	ip   string
 	port int
 }
 
-func newErrPortAlreadyAllocated(ip string, port int) ErrPortAlreadyAllocated {
-	return ErrPortAlreadyAllocated{
-		ip:   ip,
-		port: port,
-	}
-}
-
-// IP returns the address to which the used port is associated
-func (e ErrPortAlreadyAllocated) IP() string {
-	return e.ip
-}
-
-// Port returns the value of the already used port
-func (e ErrPortAlreadyAllocated) Port() int {
-	return e.port
-}
-
-// IPPort returns the address and the port in the form ip:port
-func (e ErrPortAlreadyAllocated) IPPort() string {
-	return fmt.Sprintf("%s:%d", e.ip, e.port)
-}
-
 // Error is the implementation of error.Error interface
-func (e ErrPortAlreadyAllocated) Error() string {
+func (e alreadyAllocatedErr) Error() string {
 	return fmt.Sprintf("Bind for %s:%d failed: port is already allocated", e.ip, e.port)
 }
 
@@ -139,7 +117,7 @@ func (p *PortAllocator) RequestPortInRange(ip net.IP, proto string, portStart, p
 // and returns that port or error if port is already busy.
 func (p *PortAllocator) RequestPortsInRange(ips []net.IP, proto string, portStart, portEnd int) (int, error) {
 	if proto != "tcp" && proto != "udp" && proto != "sctp" {
-		return 0, ErrUnknownProtocol
+		return 0, errUnknownProtocol
 	}
 
 	if portStart != 0 || portEnd != 0 {
@@ -169,7 +147,7 @@ func (p *PortAllocator) RequestPortsInRange(ips []net.IP, proto string, portStar
 	if portStart > 0 && portStart == portEnd {
 		for i, pMap := range pMaps {
 			if _, allocated := pMap.p[portStart]; allocated {
-				return 0, newErrPortAlreadyAllocated(ips[i].String(), portStart)
+				return 0, alreadyAllocatedErr{ip: ips[i].String(), port: portStart}
 			}
 		}
 		for _, pMap := range pMaps {
@@ -206,7 +184,7 @@ func (p *PortAllocator) RequestPortsInRange(ips []net.IP, proto string, portStar
 			return port, nil
 		}
 	}
-	return 0, ErrAllPortsAllocated
+	return 0, errAllPortsAllocated
 }
 
 // ReleasePort releases port from global ports pool for specified ip and proto.
