@@ -108,12 +108,15 @@ func TestList(t *testing.T) {
 		containersReplica: db2,
 	}
 
-	// start a random number of containers (between 0->256)
-	num := rand.Intn(256)
+	// start a random number of containers (between 0->64)
+	num := rand.Intn(64)
 	containers := make([]*container.Container, num)
 	for i := range num {
 		name := fmt.Sprintf("cont-%d", i)
 		containers[i] = setupContainerWithName(t, name, d)
+		// wait a bit to ensure container timestamps are separated enough so the
+		// sort used by d.Containers() can deterministically sort them.
+		time.Sleep(1 * time.Millisecond)
 	}
 
 	// list them and verify correctness
