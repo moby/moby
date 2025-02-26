@@ -17,7 +17,6 @@ import (
 )
 
 func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	ctx := setupTest(t)
 
 	d := swarm.NewSwarm(ctx, t, testEnv)
@@ -79,7 +78,6 @@ func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 }
 
 func TestDockerNetworkReConnect(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	ctx := setupTest(t)
 
 	d := swarm.NewSwarm(ctx, t, testEnv)
@@ -120,7 +118,6 @@ func TestDockerNetworkReConnect(t *testing.T) {
 
 // Check that a swarm-scoped network can't have EnableIPv4=false.
 func TestSwarmNoDisableIPv4(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	ctx := setupTest(t)
 
 	d := swarm.NewSwarm(ctx, t, testEnv)
@@ -138,7 +135,6 @@ func TestSwarmNoDisableIPv4(t *testing.T) {
 
 // Regression test for https://github.com/docker/cli/issues/5857
 func TestSwarmScopedNetFromConfig(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
 	ctx := setupTest(t)
 
