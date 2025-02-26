@@ -113,7 +113,7 @@ type Cluster struct {
 	mu           sync.RWMutex
 	controlMutex sync.RWMutex // protect init/join/leave user operations
 	nr           *nodeRunner
-	root         string
+	stateDir     string
 	runtimeRoot  string
 	config       Config
 	configEvent  chan lncluster.ConfigEventType // todo: make this array and goroutine safe
@@ -136,12 +136,12 @@ type attacher struct {
 
 // New creates a new Cluster instance using provided config.
 func New(config Config) (*Cluster, error) {
-	root := filepath.Join(config.Root, swarmDirName)
-	if err := os.MkdirAll(root, 0o700); err != nil {
+	stateDir := filepath.Join(config.Root, swarmDirName)
+	if err := os.MkdirAll(stateDir, 0o700); err != nil {
 		return nil, err
 	}
 	if config.RuntimeRoot == "" {
-		config.RuntimeRoot = root
+		config.RuntimeRoot = stateDir
 	}
 	if config.RaftHeartbeatTick == 0 {
 		config.RaftHeartbeatTick = 1
@@ -155,7 +155,7 @@ func New(config Config) (*Cluster, error) {
 		return nil, err
 	}
 	c := &Cluster{
-		root:        root,
+		stateDir:    stateDir,
 		config:      config,
 		configEvent: make(chan lncluster.ConfigEventType, 10),
 		runtimeRoot: config.RuntimeRoot,
@@ -172,9 +172,7 @@ func New(config Config) (*Cluster, error) {
 // TODO The split between New and Start can be join again when the SendClusterEvent
 // method is no longer required
 func (c *Cluster) Start() error {
-	root := filepath.Join(c.config.Root, swarmDirName)
-
-	nodeConfig, err := loadPersistentState(root)
+	nodeConfig, err := loadPersistentState(c.stateDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil

@@ -128,7 +128,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		c.nr = nil
 		c.mu.Unlock()
 		if !req.ForceNewCluster { // if failure on first attempt don't keep state
-			if err := clearPersistentState(c.root); err != nil {
+			if err := clearPersistentState(c.stateDir); err != nil {
 				return "", err
 			}
 		}
@@ -207,7 +207,7 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 			c.mu.Lock()
 			c.nr = nil
 			c.mu.Unlock()
-			if err := clearPersistentState(c.root); err != nil {
+			if err := clearPersistentState(c.stateDir); err != nil {
 				return err
 			}
 		}
@@ -421,7 +421,7 @@ func (c *Cluster) Leave(ctx context.Context, force bool) error {
 	}
 
 	// todo: cleanup optional?
-	if err := clearPersistentState(c.root); err != nil {
+	if err := clearPersistentState(c.stateDir); err != nil {
 		return err
 	}
 	c.config.Backend.DaemonLeavesCluster()
