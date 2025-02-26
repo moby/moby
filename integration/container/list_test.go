@@ -20,6 +20,9 @@ func TestList(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := request.NewAPIClient(t)
 
+	// remove any existing containers
+	container.RemoveAll(ctx, t, apiClient)
+
 	// start a random number of containers (between 0->64)
 	num := rand.Intn(64)
 	containers := make([]string, num)
@@ -41,6 +44,10 @@ func TestList(t *testing.T) {
 
 func TestListAnnotations(t *testing.T) {
 	ctx := setupTest(t)
+	apiClient := request.NewAPIClient(t)
+
+	// remove any existing containers
+	container.RemoveAll(ctx, t, apiClient)
 
 	annotations := map[string]string{
 		"foo":                       "bar",
@@ -76,9 +83,18 @@ func TestListFilter(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
+	// remove any existing containers
+	container.RemoveAll(ctx, t, apiClient)
+
 	prev := container.Create(ctx, t, apiClient)
 	top := container.Create(ctx, t, apiClient)
 	next := container.Create(ctx, t, apiClient)
+
+	defer func() {
+		container.Remove(ctx, t, apiClient, prev, containertypes.RemoveOptions{Force: true})
+		container.Remove(ctx, t, apiClient, top, containertypes.RemoveOptions{Force: true})
+		container.Remove(ctx, t, apiClient, next, containertypes.RemoveOptions{Force: true})
+	}()
 
 	containerIDs := func(containers []containertypes.Summary) []string {
 		var entries []string
@@ -118,7 +134,11 @@ func TestListImageManifestPlatform(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	container.Create(ctx, t, apiClient)
+	// remove any existing containers
+	container.RemoveAll(ctx, t, apiClient)
+
+	id := container.Create(ctx, t, apiClient)
+	defer container.Remove(ctx, t, apiClient, id, containertypes.RemoveOptions{Force: true})
 
 	containers, err := apiClient.ContainerList(ctx, containertypes.ListOptions{
 		All: true,
