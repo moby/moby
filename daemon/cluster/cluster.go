@@ -137,9 +137,6 @@ type attacher struct {
 // New creates a new Cluster instance using provided config.
 func New(config Config) (*Cluster, error) {
 	stateDir := filepath.Join(config.Root, swarmDirName)
-	if err := os.MkdirAll(stateDir, 0o700); err != nil {
-		return nil, err
-	}
 	if config.RuntimeRoot == "" {
 		config.RuntimeRoot = stateDir
 	}
@@ -151,9 +148,6 @@ func New(config Config) (*Cluster, error) {
 		config.RaftElectionTick = 10 * config.RaftHeartbeatTick
 	}
 
-	if err := os.MkdirAll(config.RuntimeRoot, 0o700); err != nil {
-		return nil, err
-	}
 	c := &Cluster{
 		stateDir:    stateDir,
 		config:      config,
@@ -172,6 +166,10 @@ func New(config Config) (*Cluster, error) {
 // TODO The split between New and Start can be join again when the SendClusterEvent
 // method is no longer required
 func (c *Cluster) Start() error {
+	// Create state-dir and runtime root if missing.
+	if err := os.MkdirAll(c.stateDir, 0o700); err != nil {
+		return err
+	}
 	nodeConfig, err := loadPersistentState(c.stateDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -180,6 +178,12 @@ func (c *Cluster) Start() error {
 		return err
 	}
 
+	// Create runtime root if missing. It is used for the control-socket on Linux.
+	//
+	// TODO(thaJeztah): this should probably be done as part of "nodeRunner.start()", which constructs the socket.
+	if err := os.MkdirAll(c.config.RuntimeRoot, 0o700); err != nil {
+		return err
+	}
 	nr, err := c.newNodeRunner(*nodeConfig)
 	if err != nil {
 		return err
