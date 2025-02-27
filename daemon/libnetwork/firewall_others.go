@@ -6,4 +6,4 @@ func (c *Controller) selectFirewallBackend() error {
 	return nil
 }
 
-func (c *Controller) setupUserChains() {}
+func (c *Controller) setupPlatformFirewall() {}
