@@ -30,7 +30,7 @@ func (e *Execution) Clean(ctx context.Context, t testing.TB) {
 	apiClient := e.APIClient()
 
 	platform := e.DaemonInfo.OSType
-	if (platform != "windows") || (platform == "windows" && e.DaemonInfo.Isolation == "hyperv") {
+	if platform != "windows" || e.DaemonInfo.Isolation == "hyperv" {
 		unpauseAllContainers(ctx, t, apiClient)
 	}
 	deleteAllContainers(ctx, t, apiClient, e.protectedElements.containers)
