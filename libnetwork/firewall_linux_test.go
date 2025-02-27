@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/drivers/bridge"
@@ -14,6 +15,7 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
+	"gotest.tools/v3/icmd"
 )
 
 const (
@@ -24,6 +26,15 @@ const (
 func TestUserChain(t *testing.T) {
 	iptable4 := iptables.GetIptable(iptables.IPv4)
 	iptable6 := iptables.GetIptable(iptables.IPv6)
+
+	res := icmd.RunCommand("iptables", "--version")
+	assert.NilError(t, res.Error)
+	noChainErr := "No chain/target/match by that name"
+	if strings.Contains(res.Combined(), "nf_tables") {
+		// For a non-existent chain, iptables-nft "-S <chain>" reports:
+		//  ip6tables v1.8.9 (nf_tables): chain `<chain>' in table `filter' is incompatible, use 'nft' tool.
+		noChainErr = "incompatible, use 'nft' tool"
+	}
 
 	tests := []struct {
 		iptables bool
@@ -103,9 +114,9 @@ func TestUserChain(t *testing.T) {
 					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_usrafter6", tc.iptables, tc.append))
 			} else {
 				_, err := iptable4.Raw("-S", usrChainName)
-				assert.Check(t, is.ErrorContains(err, "No chain/target/match by that name"), "ipv4 chain %v: created unexpectedly", usrChainName)
+				assert.Check(t, is.ErrorContains(err, noChainErr), "ipv4 chain %v: created unexpectedly", usrChainName)
 				_, err = iptable6.Raw("-S", usrChainName)
-				assert.Check(t, is.ErrorContains(err, "No chain/target/match by that name"), "ipv6 chain %v: created unexpectedly", usrChainName)
+				assert.Check(t, is.ErrorContains(err, noChainErr), "ipv6 chain %v: created unexpectedly", usrChainName)
 			}
 		})
 	}
