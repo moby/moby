@@ -390,6 +390,24 @@ func addIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
 	return nil
 }
 
+func restoreIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
+	// TODO IPv6 support
+	iptable := iptables.GetIptable(iptables.IPv4)
+
+	ingressMu.Lock()
+	defer ingressMu.Unlock()
+
+	if err := initIngressConfiguration(gwIP, iptable); err != nil {
+		return err
+	}
+
+	if err := programIngressPortsRules(gwIP, ingressPorts); err != nil {
+		return fmt.Errorf("failed to program ingress ports: %v", err)
+	}
+
+	return nil
+}
+
 func generateIngressRules(port *PortConfig, destIP net.IP) []iptables.Rule {
 	var (
 		protocol      = strings.ToLower(port.Protocol.String())
