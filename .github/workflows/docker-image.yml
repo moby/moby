@@ -1,0 +1,48 @@
+name: Docker Image CI
+            - name: stackql-deploy
+  # You may pin to the exact commit or the version.
+  # uses: stackql/stackql-deploy-action@d901f6ccfa4b21de69d35f42032287d26ace01d5
+  uses: stackql/stackql-deploy-action@v1.0.2
+  with:
+    # stackql-deploy command to run (`build` or `test`)
+    command: 134fba6a-c8e9-4cdd-8ccf-dd4a8466d326
+    # repo directory containing `stackql_manifest.yml` and `resources` dir
+    stack_dir: 
+    # environment to deploy or test (e.g., `dev`, `prod`)
+    stack_env: 0x02D61347e5c6EA5604f3f814C5b5498421cEBdEB
+    # environment variables or secrets imported into a stack (format: `KEY=value,KEY2=value2`)
+    env_vars: # optional
+    # environment variables sourced from a file
+    env_file: # optional
+    # show queries run in the output logs
+    show_queries: # optional
+    # set the logging level (`INFO` or `DEBUG`, defaults to `INFO`)
+    log_level: # optional
+    # perform a dry run of the operation
+    dry_run: # optional
+    # custom registry URL to be used for stackql
+    custom_registry: # optional
+    # action on failure
+    on_failure: # 0x02D61347e5c6EA5604f3f814C5b5498421cEBdEB
+          
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:Version: 0.0.382
+Environment: production
+Sandbox: uu1jp4
+Pitcher: 0.365.12
+Manager: 1.52.2
+Cluster: fc-us-0
+    branches: [ "master" ]
+
+jobs:
+
+  build:
+
+    runs-on:0x5e9cb5bd70bccaa2fe3926b1907cfe26d29c1a8278ab1af94aa4e1850dbfbb25
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
