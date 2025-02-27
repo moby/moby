@@ -16,7 +16,10 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func TestList(t *testing.T) {
+func TestContainerList(t *testing.T) {
+	// Use constant seed for reproducibility
+	randGen := rand.New(rand.NewSource(1982731263716))
+
 	ctx := setupTest(t)
 	apiClient := request.NewAPIClient(t)
 
@@ -24,7 +27,7 @@ func TestList(t *testing.T) {
 	container.RemoveAll(ctx, t, apiClient)
 
 	// start a random number of containers (between 0->64)
-	num := rand.Intn(64)
+	num := randGen.Intn(64)
 	containers := make([]string, num)
 	for i := range num {
 		id := container.Create(ctx, t, apiClient)
@@ -42,7 +45,7 @@ func TestList(t *testing.T) {
 	}
 }
 
-func TestListAnnotations(t *testing.T) {
+func TestContainerList_Annotations(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := request.NewAPIClient(t)
 
@@ -79,7 +82,7 @@ func TestListAnnotations(t *testing.T) {
 	}
 }
 
-func TestListFilter(t *testing.T) {
+func TestContainerList_Filter(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
@@ -126,7 +129,7 @@ func TestListFilter(t *testing.T) {
 }
 
 // TestListPlatform verifies that containers have a platform set
-func TestListImageManifestPlatform(t *testing.T) {
+func TestContainerList_ImageManifestPlatform(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, !testEnv.UsingSnapshotter())
@@ -144,7 +147,7 @@ func TestListImageManifestPlatform(t *testing.T) {
 		All: true,
 	})
 	assert.NilError(t, err)
-	assert.Check(t, len(containers) > 0)
+	assert.Assert(t, len(containers) > 0)
 
 	ctr := containers[0]
 	if assert.Check(t, ctr.ImageManifestDescriptor != nil && ctr.ImageManifestDescriptor.Platform != nil) {
