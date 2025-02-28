@@ -258,16 +258,18 @@ github.com/cenkalti/backoff/v4
 # github.com/cespare/xxhash/v2 v2.3.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
-# github.com/cilium/ebpf v0.16.0
-## explicit; go 1.21
+# github.com/cilium/ebpf v0.17.3
+## explicit; go 1.22
 github.com/cilium/ebpf
 github.com/cilium/ebpf/asm
 github.com/cilium/ebpf/btf
 github.com/cilium/ebpf/internal
 github.com/cilium/ebpf/internal/kallsyms
 github.com/cilium/ebpf/internal/kconfig
+github.com/cilium/ebpf/internal/linux
 github.com/cilium/ebpf/internal/sys
 github.com/cilium/ebpf/internal/sysenc
+github.com/cilium/ebpf/internal/testutils/fdtrace
 github.com/cilium/ebpf/internal/tracefs
 github.com/cilium/ebpf/internal/unix
 github.com/cilium/ebpf/link
@@ -1403,9 +1405,6 @@ golang.org/x/crypto/pkcs12/internal/rc2
 golang.org/x/crypto/salsa20/salsa
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
-# golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
-## explicit; go 1.22.0
-golang.org/x/exp/constraints
 # golang.org/x/mod v0.22.0
 ## explicit; go 1.22.0
 golang.org/x/mod/internal/lazyregexp
