@@ -258,6 +258,7 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	testCases := []struct {
+		privileged  bool
 		maskedPaths []string
 		expected    []string
 	}{
@@ -273,6 +274,11 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 			maskedPaths: []string{"/proc/kcore", "/proc/keys"},
 			expected:    []string{"/proc/kcore", "/proc/keys"},
 		},
+		{
+			privileged:  true,
+			maskedPaths: nil,
+			expected:    nil,
+		},
 	}
 
 	checkInspect := func(t *testing.T, ctx context.Context, name string, expected []string) {
@@ -286,15 +292,20 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 		cfg, ok := inspectJSON["HostConfig"].(map[string]interface{})
 		assert.Check(t, is.Equal(true, ok), name)
 
-		maskedPaths, ok := cfg["MaskedPaths"].([]interface{})
-		assert.Check(t, is.Equal(true, ok), name)
+		if expected != nil {
+			maskedPaths, ok := cfg["MaskedPaths"].([]interface{})
+			assert.Check(t, is.Equal(true, ok), name)
 
-		mps := make([]string, 0, len(maskedPaths))
-		for _, mp := range maskedPaths {
-			mps = append(mps, mp.(string))
+			mps := make([]string, 0, len(maskedPaths))
+			for _, mp := range maskedPaths {
+				mps = append(mps, mp.(string))
+			}
+
+			assert.DeepEqual(t, expected, mps)
+		} else {
+			_, ok := cfg["MaskedPaths"].([]interface{})
+			assert.Check(t, is.Equal(false, ok), name)
 		}
-
-		assert.DeepEqual(t, expected, mps)
 	}
 
 	// TODO: This should be using subtests
@@ -305,7 +316,9 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 			Image: "busybox",
 			Cmd:   []string{"true"},
 		}
-		hc := container.HostConfig{}
+		hc := container.HostConfig{
+			Privileged: tc.privileged,
+		}
 		if tc.maskedPaths != nil {
 			hc.MaskedPaths = tc.maskedPaths
 		}
