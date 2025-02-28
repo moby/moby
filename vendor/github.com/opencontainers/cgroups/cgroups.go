@@ -2,8 +2,6 @@ package cgroups
 
 import (
 	"errors"
-
-	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
 var (
@@ -18,11 +16,11 @@ var (
 
 	// DevicesSetV1 and DevicesSetV2 are functions to set devices for
 	// cgroup v1 and v2, respectively. Unless
-	// [github.com/opencontainers/runc/libcontainer/cgroups/devices]
+	// [github.com/opencontainers/cgroups/devices]
 	// package is imported, it is set to nil, so cgroup managers can't
 	// manage devices.
-	DevicesSetV1 func(path string, r *configs.Resources) error
-	DevicesSetV2 func(path string, r *configs.Resources) error
+	DevicesSetV1 func(path string, r *Resources) error
+	DevicesSetV2 func(path string, r *Resources) error
 )
 
 type Manager interface {
@@ -42,7 +40,7 @@ type Manager interface {
 	GetStats() (*Stats, error)
 
 	// Freeze sets the freezer cgroup to the specified state.
-	Freeze(state configs.FreezerState) error
+	Freeze(state FreezerState) error
 
 	// Destroy removes cgroup.
 	Destroy() error
@@ -54,7 +52,7 @@ type Manager interface {
 	// Set sets cgroup resources parameters/limits. If the argument is nil,
 	// the resources specified during Manager creation (or the previous call
 	// to Set) are used.
-	Set(r *configs.Resources) error
+	Set(r *Resources) error
 
 	// GetPaths returns cgroup path(s) to save in a state file in order to
 	// restore later.
@@ -67,10 +65,10 @@ type Manager interface {
 	GetPaths() map[string]string
 
 	// GetCgroups returns the cgroup data as configured.
-	GetCgroups() (*configs.Cgroup, error)
+	GetCgroups() (*Cgroup, error)
 
 	// GetFreezerState retrieves the current FreezerState of the cgroup.
-	GetFreezerState() (configs.FreezerState, error)
+	GetFreezerState() (FreezerState, error)
 
 	// Exists returns whether the cgroup path exists or not.
 	Exists() bool
