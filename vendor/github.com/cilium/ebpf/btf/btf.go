@@ -99,16 +99,16 @@ func (mt *mutableTypes) copy() *mutableTypes {
 		return nil
 	}
 
+	// Prevent concurrent modification of mt.copiedTypeIDs.
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
+
 	mtCopy := &mutableTypes{
 		mt.imm,
 		sync.RWMutex{},
 		make(map[Type]Type, len(mt.copies)),
 		make(map[Type]TypeID, len(mt.copiedTypeIDs)),
 	}
-
-	// Prevent concurrent modification of mt.copiedTypeIDs.
-	mt.mu.RLock()
-	defer mt.mu.RUnlock()
 
 	copiesOfCopies := make(map[Type]Type, len(mt.copies))
 	for orig, copy := range mt.copies {
@@ -443,13 +443,19 @@ func fixupDatasec(types []Type, sectionSizes map[string]uint32, offsets map[symb
 		// Some Datasecs are virtual and don't have corresponding ELF sections.
 		switch name {
 		case ".ksyms":
-			// .ksyms describes forward declarations of kfunc signatures.
+			// .ksyms describes forward declarations of kfunc signatures, as well as
+			// references to kernel symbols.
 			// Nothing to fix up, all sizes and offsets are 0.
 			for _, vsi := range ds.Vars {
-				_, ok := vsi.Type.(*Func)
-				if !ok {
-					// Only Funcs are supported in the .ksyms Datasec.
-					return fmt.Errorf("data section %s: expected *btf.Func, not %T: %w", name, vsi.Type, ErrNotSupported)
+				switch t := vsi.Type.(type) {
+				case *Func:
+					continue
+				case *Var:
+					if _, ok := t.Type.(*Void); !ok {
+						return fmt.Errorf("data section %s: expected %s to be *Void, not %T: %w", name, vsi.Type.TypeName(), vsi.Type, ErrNotSupported)
+					}
+				default:
+					return fmt.Errorf("data section %s: expected to be either *btf.Func or *btf.Var, not %T: %w", name, vsi.Type, ErrNotSupported)
 				}
 			}
 
@@ -695,5 +701,13 @@ func (iter *TypesIterator) Next() bool {
 	iter.Type, ok = iter.spec.typeByID(iter.id)
 	iter.id++
 	iter.done = !ok
+	if !iter.done {
+		// Skip declTags, during unmarshaling declTags become `Tags` fields of other types.
+		// We keep them in the spec to avoid holes in the ID space, but for the purposes of
+		// iteration, they are not useful to the user.
+		if _, ok := iter.Type.(*declTag); ok {
+			return iter.Next()
+		}
+	}
 	return !iter.done
 }
