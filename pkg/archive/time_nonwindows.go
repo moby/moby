@@ -17,12 +17,13 @@ func chtimes(name string, atime time.Time, mtime time.Time) error {
 	return os.Chtimes(name, atime, mtime)
 }
 
-func timeToTimespec(time time.Time) (ts unix.Timespec) {
+func timeToTimespec(time time.Time) unix.Timespec {
 	if time.IsZero() {
 		// Return UTIME_OMIT special value
-		ts.Sec = 0
-		ts.Nsec = (1 << 30) - 2
-		return
+		return unix.Timespec{
+			Sec:  0,
+			Nsec: (1 << 30) - 2,
+		}
 	}
 	return unix.NsecToTimespec(time.UnixNano())
 }

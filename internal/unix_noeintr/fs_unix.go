@@ -25,7 +25,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 		err = unix.Mount(source, target, fstype, flags, data)
 		return err
 	})
-	return
+	return err
 }
 
 func Unmount(target string, flags int) (err error) {
@@ -33,7 +33,7 @@ func Unmount(target string, flags int) (err error) {
 		err = unix.Unmount(target, flags)
 		return err
 	})
-	return
+	return err
 }
 
 func Open(path string, mode int, perm uint32) (fd int, err error) {
@@ -41,7 +41,7 @@ func Open(path string, mode int, perm uint32) (fd int, err error) {
 		fd, err = unix.Open(path, mode, perm)
 		return err
 	})
-	return
+	return fd, err
 }
 
 func Close(fd int) (err error) {
@@ -49,7 +49,7 @@ func Close(fd int) (err error) {
 		err = unix.Close(fd)
 		return err
 	})
-	return
+	return err
 }
 
 func Openat(dirfd int, path string, mode int, perms uint32) (fd int, err error) {
@@ -57,7 +57,7 @@ func Openat(dirfd int, path string, mode int, perms uint32) (fd int, err error) 
 		fd, err = unix.Openat(dirfd, path, mode, perms)
 		return err
 	})
-	return
+	return fd, err
 }
 
 func Openat2(dirfd int, path string, how *unix.OpenHow) (fd int, err error) {
@@ -65,7 +65,7 @@ func Openat2(dirfd int, path string, how *unix.OpenHow) (fd int, err error) {
 		fd, err = unix.Openat2(dirfd, path, how)
 		return err
 	})
-	return
+	return fd, err
 }
 
 func Fstat(fd int, stat *unix.Stat_t) (err error) {
@@ -73,7 +73,7 @@ func Fstat(fd int, stat *unix.Stat_t) (err error) {
 		err = unix.Fstat(fd, stat)
 		return err
 	})
-	return
+	return err
 }
 
 func Fstatat(fd int, path string, stat *unix.Stat_t, flags int) (err error) {
@@ -81,5 +81,5 @@ func Fstatat(fd int, path string, stat *unix.Stat_t, flags int) (err error) {
 		err = unix.Fstatat(fd, path, stat, flags)
 		return err
 	})
-	return
+	return err
 }

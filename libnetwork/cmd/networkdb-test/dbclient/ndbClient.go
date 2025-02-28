@@ -248,7 +248,7 @@ func checkTable(ctx context.Context, ips []string, port, networkName, tableName 
 			if successTime != 0 {
 				opTime = time.Duration(successTime-startTime) / time.Millisecond
 				log.G(ctx).Infof("Check table passed, the cluster converged in %d msec", opTime)
-				return
+				return opTime
 			}
 			log.G(ctx).Fatal("Test failed, there is still entries in the tables of the nodes")
 		default:

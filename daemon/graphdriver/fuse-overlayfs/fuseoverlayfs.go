@@ -504,25 +504,22 @@ func fusermountU(mountpoint string) (unmounted bool) {
 	// Attempt to unmount the FUSE mount using either fusermount or fusermount3.
 	// If they fail, fallback to unix.Unmount
 	for _, v := range []string{"fusermount3", "fusermount"} {
-		err := exec.Command(v, "-u", mountpoint).Run()
-		if err != nil && !os.IsNotExist(err) {
-			log.G(context.TODO()).Debugf("Error unmounting %s with %s - %v", mountpoint, v, err)
+		if err := exec.Command(v, "-u", mountpoint).Run(); err != nil {
+			if !os.IsNotExist(err) {
+				log.G(context.TODO()).WithError(err).Debugf("Error unmounting %s with %s", mountpoint, v)
+			}
+			continue
 		}
-		if err == nil {
-			unmounted = true
-			break
-		}
+		return true
 	}
 	// If fusermount|fusermount3 failed to unmount the FUSE file system, make sure all
 	// pending changes are propagated to the file system
-	if !unmounted {
-		fd, err := unix.Open(mountpoint, unix.O_DIRECTORY, 0)
-		if err == nil {
-			if err := unix.Syncfs(fd); err != nil {
-				log.G(context.TODO()).Debugf("Error Syncfs(%s) - %v", mountpoint, err)
-			}
-			unix.Close(fd)
+	fd, err := unix.Open(mountpoint, unix.O_DIRECTORY, 0)
+	if err == nil {
+		if err := unix.Syncfs(fd); err != nil {
+			log.G(context.TODO()).WithError(err).Debugf("Error Syncfs(%s)", mountpoint)
 		}
+		_ = unix.Close(fd)
 	}
-	return
+	return false
 }

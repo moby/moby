@@ -167,17 +167,21 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 	return messageChan, ctr.Config.Tty, nil
 }
 
-func (daemon *Daemon) getLogger(container *container.Container) (l logger.Logger, created bool, err error) {
+func (daemon *Daemon) getLogger(container *container.Container) (_ logger.Logger, created bool, _ error) {
+	var logDriver logger.Logger
 	container.Lock()
 	if container.State.Running {
-		l = container.LogDriver
+		logDriver = container.LogDriver
 	}
 	container.Unlock()
-	if l == nil {
-		created = true
-		l, err = container.StartLogger()
+	if logDriver != nil {
+		return logDriver, false, nil
 	}
-	return
+	logDriver, err := container.StartLogger()
+	if err != nil {
+		return nil, false, err
+	}
+	return logDriver, true, nil
 }
 
 // mergeAndVerifyLogConfig merges the daemon log config to the container's log config if the container's log driver is not specified.

@@ -236,11 +236,9 @@ func (r *readCloserWrapper) Close() error {
 	return nil
 }
 
-var (
-	bufioReader32KPool = &sync.Pool{
-		New: func() interface{} { return bufio.NewReaderSize(nil, 32*1024) },
-	}
-)
+var bufioReader32KPool = &sync.Pool{
+	New: func() interface{} { return bufio.NewReaderSize(nil, 32*1024) },
+}
 
 type bufferedReader struct {
 	buf *bufio.Reader
@@ -252,17 +250,17 @@ func newBufferedReader(r io.Reader) *bufferedReader {
 	return &bufferedReader{buf}
 }
 
-func (r *bufferedReader) Read(p []byte) (n int, err error) {
+func (r *bufferedReader) Read(p []byte) (int, error) {
 	if r.buf == nil {
 		return 0, io.EOF
 	}
-	n, err = r.buf.Read(p)
+	n, err := r.buf.Read(p)
 	if err == io.EOF {
 		r.buf.Reset(nil)
 		bufioReader32KPool.Put(r.buf)
 		r.buf = nil
 	}
-	return
+	return n, err
 }
 
 func (r *bufferedReader) Peek(n int) ([]byte, error) {
@@ -428,7 +426,7 @@ func ReplaceFileTarWrapper(inputTarStream io.ReadCloser, mods map[string]TarModi
 					pipeWriter.CloseWithError(err)
 					return
 				}
-				if _, err := copyWithBuffer(tarWriter, tarReader); err != nil {
+				if err := copyWithBuffer(tarWriter, tarReader); err != nil {
 					pipeWriter.CloseWithError(err)
 					return
 				}
@@ -658,10 +656,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	// if it's not a directory and has more than 1 link,
 	// it's hard linked, so set the type flag accordingly
 	if !fi.IsDir() && hasHardlinks(fi) {
-		inode, err := getInodeFromStat(fi.Sys())
-		if err != nil {
-			return err
-		}
+		inode := getInodeFromStat(fi.Sys())
 		// a link should have a name that it links too
 		// and that linked name should be first in the tar archive
 		if oldpath, ok := ta.SeenFiles[inode]; ok {
@@ -731,7 +726,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 			return err
 		}
 
-		_, err = copyWithBuffer(ta.TarWriter, file)
+		err = copyWithBuffer(ta.TarWriter, file)
 		file.Close()
 		if err != nil {
 			return err
@@ -778,11 +773,11 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 		if err != nil {
 			return err
 		}
-		if _, err := copyWithBuffer(file, reader); err != nil {
-			file.Close()
+		if err := copyWithBuffer(file, reader); err != nil {
+			_ = file.Close()
 			return err
 		}
-		file.Close()
+		_ = file.Close()
 
 	case tar.TypeBlock, tar.TypeChar:
 		if inUserns { // cannot create devices in a userns
@@ -1438,7 +1433,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 			if err := tw.WriteHeader(hdr); err != nil {
 				return err
 			}
-			if _, err := copyWithBuffer(tw, srcF); err != nil {
+			if err := copyWithBuffer(tw, srcF); err != nil {
 				return err
 			}
 			return nil

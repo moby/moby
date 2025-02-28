@@ -33,7 +33,7 @@ func getTestTempDirs(t *testing.T) (tmpDirA, tmpDirB string) {
 	tmpDirB, err = os.MkdirTemp("", "archive-copy-test")
 	assert.NilError(t, err)
 
-	return
+	return tmpDirA, tmpDirB
 }
 
 func isNotDir(err error) bool {
@@ -46,57 +46,56 @@ func joinTrailingSep(pathElements ...string) string {
 	return fmt.Sprintf("%s%c", joined, filepath.Separator)
 }
 
-func fileContentsEqual(t *testing.T, filenameA, filenameB string) (err error) {
+func fileContentsEqual(t *testing.T, filenameA, filenameB string) error {
 	t.Logf("checking for equal file contents: %q and %q\n", filenameA, filenameB)
 
 	fileA, err := os.Open(filenameA)
 	if err != nil {
-		return
+		return err
 	}
 	defer fileA.Close()
 
 	fileB, err := os.Open(filenameB)
 	if err != nil {
-		return
+		return err
 	}
 	defer fileB.Close()
 
 	hasher := sha256.New()
 
-	if _, err = io.Copy(hasher, fileA); err != nil {
-		return
+	if _, err := io.Copy(hasher, fileA); err != nil {
+		return err
 	}
 
 	hashA := hasher.Sum(nil)
 	hasher.Reset()
 
-	if _, err = io.Copy(hasher, fileB); err != nil {
-		return
+	if _, err := io.Copy(hasher, fileB); err != nil {
+		return err
 	}
 
 	hashB := hasher.Sum(nil)
 
 	if !bytes.Equal(hashA, hashB) {
-		err = fmt.Errorf("file content hashes not equal - expected %s, got %s", hex.EncodeToString(hashA), hex.EncodeToString(hashB))
+		return fmt.Errorf("file content hashes not equal - expected %s, got %s", hex.EncodeToString(hashA), hex.EncodeToString(hashB))
 	}
 
-	return
+	return nil
 }
 
-func dirContentsEqual(t *testing.T, newDir, oldDir string) (err error) {
-	t.Logf("checking for equal directory contents: %q and %q\n", newDir, oldDir)
+func dirContentsEqual(t *testing.T, newDir, oldDir string) error {
+	t.Logf("checking for equal directory contents: %q and %q", newDir, oldDir)
 
-	var changes []Change
-
-	if changes, err = ChangesDirs(newDir, oldDir); err != nil {
-		return
+	c, err := ChangesDirs(newDir, oldDir)
+	if err != nil {
+		return err
 	}
 
-	if len(changes) != 0 {
-		err = fmt.Errorf("expected no changes between directories, but got: %v", changes)
+	if len(c) != 0 {
+		return fmt.Errorf("expected no changes between directories, but got: %v", c)
 	}
 
-	return
+	return nil
 }
 
 func logDirContents(t *testing.T, dirPath string) {
