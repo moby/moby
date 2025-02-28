@@ -1,4 +1,4 @@
-package internal
+package linux
 
 import (
 	"debug/elf"
@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 
+	"github.com/cilium/ebpf/internal"
 	"github.com/cilium/ebpf/internal/unix"
 )
 
@@ -82,7 +83,7 @@ type elfNoteHeader struct {
 // vdsoLinuxVersionCode returns the LINUX_VERSION_CODE embedded in
 // the ELF notes section of the binary provided by the reader.
 func vdsoLinuxVersionCode(r io.ReaderAt) (uint32, error) {
-	hdr, err := NewSafeELFFile(r)
+	hdr, err := internal.NewSafeELFFile(r)
 	if err != nil {
 		return 0, fmt.Errorf("reading vDSO ELF: %w", err)
 	}
@@ -110,7 +111,7 @@ func vdsoLinuxVersionCode(r io.ReaderAt) (uint32, error) {
 			var name string
 			if n.NameSize > 0 {
 				// Read the note name, aligned to 4 bytes.
-				buf := make([]byte, Align(n.NameSize, 4))
+				buf := make([]byte, internal.Align(n.NameSize, 4))
 				if err := binary.Read(sr, hdr.ByteOrder, &buf); err != nil {
 					return 0, fmt.Errorf("reading note name: %w", err)
 				}
@@ -132,7 +133,7 @@ func vdsoLinuxVersionCode(r io.ReaderAt) (uint32, error) {
 				}
 
 				// Discard the note descriptor if it exists but we're not interested in it.
-				if _, err := io.CopyN(io.Discard, sr, int64(Align(n.DescSize, 4))); err != nil {
+				if _, err := io.CopyN(io.Discard, sr, int64(internal.Align(n.DescSize, 4))); err != nil {
 					return 0, err
 				}
 			}

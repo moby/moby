@@ -78,7 +78,9 @@ func NewFromID(id ID) (Link, error) {
 	return wrapRawLink(&RawLink{fd, ""})
 }
 
-// LoadPinnedLink loads a link that was persisted into a bpffs.
+// LoadPinnedLink loads a Link from a pin (file) on the BPF virtual filesystem.
+//
+// Requires at least Linux 5.7.
 func LoadPinnedLink(fileName string, opts *ebpf.LoadPinOptions) (Link, error) {
 	raw, err := loadPinnedRawLink(fileName, opts)
 	if err != nil {
@@ -350,12 +352,17 @@ func AttachRawLink(opts RawLinkOptions) (*RawLink, error) {
 }
 
 func loadPinnedRawLink(fileName string, opts *ebpf.LoadPinOptions) (*RawLink, error) {
-	fd, err := sys.ObjGet(&sys.ObjGetAttr{
+	fd, typ, err := sys.ObjGetTyped(&sys.ObjGetAttr{
 		Pathname:  sys.NewStringPointer(fileName),
 		FileFlags: opts.Marshal(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("load pinned link: %w", err)
+	}
+
+	if typ != sys.BPF_TYPE_LINK {
+		_ = fd.Close()
+		return nil, fmt.Errorf("%s is not a Link", fileName)
 	}
 
 	return &RawLink{fd, fileName}, nil
@@ -380,7 +387,7 @@ func (l *RawLink) Close() error {
 // Calling Close on a pinned Link will not break the link
 // until the pin is removed.
 func (l *RawLink) Pin(fileName string) error {
-	if err := internal.Pin(l.pinnedPath, fileName, l.fd); err != nil {
+	if err := sys.Pin(l.pinnedPath, fileName, l.fd); err != nil {
 		return err
 	}
 	l.pinnedPath = fileName
@@ -389,7 +396,7 @@ func (l *RawLink) Pin(fileName string) error {
 
 // Unpin implements the Link interface.
 func (l *RawLink) Unpin() error {
-	if err := internal.Unpin(l.pinnedPath); err != nil {
+	if err := sys.Unpin(l.pinnedPath); err != nil {
 		return err
 	}
 	l.pinnedPath = ""

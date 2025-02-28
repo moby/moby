@@ -9,3 +9,5 @@ ringbuf/ @florianl
 btf/ @dylandreimerink
 
 cmd/bpf2go/ @mejedi
+
+docs/ @ti-mo

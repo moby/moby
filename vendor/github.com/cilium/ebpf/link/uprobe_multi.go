@@ -47,7 +47,7 @@ func (ex *Executable) UretprobeMulti(symbols []string, prog *ebpf.Program, opts 
 	// The return probe is not limited for symbols entry, so there's no special
 	// setup for return uprobes (other than the extra flag). The symbols, opts.Offsets
 	// and opts.Addresses arrays follow the same logic as for entry uprobes.
-	return ex.uprobeMulti(symbols, prog, opts, unix.BPF_F_UPROBE_MULTI_RETURN)
+	return ex.uprobeMulti(symbols, prog, opts, sys.BPF_F_UPROBE_MULTI_RETURN)
 }
 
 func (ex *Executable) uprobeMulti(symbols []string, prog *ebpf.Program, opts *UprobeMultiOptions, flags uint32) (Link, error) {
@@ -99,8 +99,11 @@ func (ex *Executable) uprobeMulti(symbols []string, prog *ebpf.Program, opts *Up
 	if errors.Is(err, unix.ESRCH) {
 		return nil, fmt.Errorf("%w (specified pid not found?)", os.ErrNotExist)
 	}
+	// Since Linux commit 46ba0e49b642 ("bpf: fix multi-uprobe PID filtering
+	// logic"), if the provided pid overflows MaxInt32 (turning it negative), the
+	// kernel will return EINVAL instead of ESRCH.
 	if errors.Is(err, unix.EINVAL) {
-		return nil, fmt.Errorf("%w (missing symbol or prog's AttachType not AttachTraceUprobeMulti?)", err)
+		return nil, fmt.Errorf("%w (invalid pid, missing symbol or prog's AttachType not AttachTraceUprobeMulti?)", err)
 	}
 
 	if err != nil {
@@ -168,11 +171,11 @@ type uprobeMultiLink struct {
 
 var _ Link = (*uprobeMultiLink)(nil)
 
-func (kml *uprobeMultiLink) Update(prog *ebpf.Program) error {
+func (kml *uprobeMultiLink) Update(_ *ebpf.Program) error {
 	return fmt.Errorf("update uprobe_multi: %w", ErrNotSupported)
 }
 
-var haveBPFLinkUprobeMulti = internal.NewFeatureTest("bpf_link_uprobe_multi", "6.6", func() error {
+var haveBPFLinkUprobeMulti = internal.NewFeatureTest("bpf_link_uprobe_multi", func() error {
 	prog, err := ebpf.NewProgram(&ebpf.ProgramSpec{
 		Name: "probe_upm_link",
 		Type: ebpf.Kprobe,
@@ -213,4 +216,4 @@ var haveBPFLinkUprobeMulti = internal.NewFeatureTest("bpf_link_uprobe_multi", "6
 	// should not happen
 	fd.Close()
 	return errors.New("successfully attached uprobe_multi to /, kernel bug?")
-})
+}, "6.6")
