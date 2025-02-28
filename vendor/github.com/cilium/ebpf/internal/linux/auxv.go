@@ -1,9 +1,11 @@
-package internal
+package linux
 
 import (
-	"errors"
+	"fmt"
 	"io"
-	_ "unsafe"
+
+	"github.com/cilium/ebpf/internal"
+	"github.com/cilium/ebpf/internal/unix"
 )
 
 type auxvPairReader interface {
@@ -17,11 +19,8 @@ const (
 	_AT_SYSINFO_EHDR = 33 // Offset to vDSO blob in process image
 )
 
-//go:linkname runtime_getAuxv runtime.getAuxv
-func runtime_getAuxv() []uintptr
-
 type auxvRuntimeReader struct {
-	data  []uintptr
+	data  [][2]uintptr
 	index int
 }
 
@@ -37,20 +36,23 @@ func (r *auxvRuntimeReader) ReadAuxvPair() (uint64, uint64, error) {
 	// we manually add the (_AT_NULL, _AT_NULL) pair at the end
 	// that is not provided by the go runtime
 	var tag, value uintptr
-	if r.index+1 < len(r.data) {
-		tag, value = r.data[r.index], r.data[r.index+1]
+	if r.index < len(r.data) {
+		tag, value = r.data[r.index][0], r.data[r.index][1]
 	} else {
 		tag, value = _AT_NULL, _AT_NULL
 	}
-	r.index += 2
+	r.index += 1
 	return uint64(tag), uint64(value), nil
 }
 
 func newAuxvRuntimeReader() (auxvPairReader, error) {
-	data := runtime_getAuxv()
+	if !internal.OnLinux {
+		return nil, fmt.Errorf("read auxv from runtime: %w", internal.ErrNotSupportedOnOS)
+	}
 
-	if len(data)%2 != 0 {
-		return nil, errors.New("malformed auxv passed from runtime")
+	data, err := unix.Auxv()
+	if err != nil {
+		return nil, fmt.Errorf("read auxv from runtime: %w", err)
 	}
 
 	return &auxvRuntimeReader{
