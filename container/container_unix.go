@@ -244,14 +244,6 @@ func (container *Container) UnmountSecrets() error {
 	return mount.RecursiveUnmount(p)
 }
 
-type conflictingUpdateOptions string
-
-func (e conflictingUpdateOptions) Error() string {
-	return string(e)
-}
-
-func (e conflictingUpdateOptions) Conflict() {}
-
 // UpdateContainer updates configuration of a container. Callers must hold a Lock on the Container.
 func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
 	// update resources of container

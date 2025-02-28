@@ -856,3 +856,11 @@ func (i *rio) Wait() {
 
 	i.IO.Wait()
 }
+
+type conflictingUpdateOptions string
+
+func (e conflictingUpdateOptions) Error() string {
+	return string(e)
+}
+
+func (e conflictingUpdateOptions) Conflict() {}
