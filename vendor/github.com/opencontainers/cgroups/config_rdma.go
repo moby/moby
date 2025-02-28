@@ -1,4 +1,4 @@
-package configs
+package cgroups
 
 // LinuxRdma for Linux cgroup 'rdma' resource management (Linux 4.11)
 type LinuxRdma struct {
