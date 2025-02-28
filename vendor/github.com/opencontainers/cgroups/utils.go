@@ -332,8 +332,8 @@ func getHugePageSizeFromFilenames(fileNames []string) ([]string, error) {
 
 	for _, file := range fileNames {
 		// example: hugepages-1048576kB
-		val := strings.TrimPrefix(file, "hugepages-")
-		if len(val) == len(file) {
+		val, ok := strings.CutPrefix(file, "hugepages-")
+		if !ok {
 			// Unexpected file name: no prefix found, ignore it.
 			continue
 		}
