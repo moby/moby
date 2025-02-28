@@ -78,21 +78,17 @@ type container struct {
 const defaultOwner = "docker"
 
 type client struct {
-	stateDir string
-	backend  libcontainerdtypes.Backend
-	logger   *log.Entry
-	eventQ   queue.Queue
+	backend libcontainerdtypes.Backend
+	logger  *log.Entry
+	eventQ  queue.Queue
 }
 
 // NewClient creates a new local executor for windows
-func NewClient(ctx context.Context, cli *containerd.Client, stateDir, ns string, b libcontainerdtypes.Backend) (libcontainerdtypes.Client, error) {
-	c := &client{
-		stateDir: stateDir,
-		backend:  b,
-		logger:   log.G(ctx).WithField("module", "libcontainerd").WithField("namespace", ns),
-	}
-
-	return c, nil
+func NewClient(ctx context.Context, b libcontainerdtypes.Backend) (libcontainerdtypes.Client, error) {
+	return &client{
+		backend: b,
+		logger:  log.G(ctx).WithField("module", "libcontainerd"),
+	}, nil
 }
 
 func (c *client) Version(ctx context.Context) (containerd.Version, error) {
@@ -150,35 +146,36 @@ func (c *client) Version(ctx context.Context) (containerd.Version, error) {
 //			"ImagePath": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c\\\\UtilityVM"
 //		},
 //	}
-func (c *client) NewContainer(_ context.Context, id string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) (libcontainerdtypes.Container, error) {
-	var err error
+func (c *client) NewContainer(_ context.Context, id string, spec *specs.Spec, _ string, _ interface{}, _ ...containerd.NewContainerOpts) (libcontainerdtypes.Container, error) {
 	if spec.Linux != nil {
 		return nil, errors.New("linux containers are not supported on this platform")
 	}
-	ctr, err := c.createWindows(id, spec, runtimeOptions)
+	ctr, err := c.createWindows(id, spec)
+	if err != nil {
+		return nil, err
+	}
 
-	if err == nil {
-		c.eventQ.Append(id, func() {
-			ei := libcontainerdtypes.EventInfo{
-				ContainerID: id,
-			}
+	c.eventQ.Append(id, func() {
+		c.logger.WithFields(log.Fields{
+			"container": id,
+			"event":     libcontainerdtypes.EventCreate,
+		}).Info("sending event")
+
+		err := c.backend.ProcessEvent(id, libcontainerdtypes.EventCreate, libcontainerdtypes.EventInfo{
+			ContainerID: id,
+		})
+		if err != nil {
 			c.logger.WithFields(log.Fields{
 				"container": id,
 				"event":     libcontainerdtypes.EventCreate,
-			}).Info("sending event")
-			err := c.backend.ProcessEvent(id, libcontainerdtypes.EventCreate, ei)
-			if err != nil {
-				c.logger.WithError(err).WithFields(log.Fields{
-					"container": id,
-					"event":     libcontainerdtypes.EventCreate,
-				}).Error("failed to process event")
-			}
-		})
-	}
-	return ctr, err
+				"error":     err,
+			}).Error("failed to process event")
+		}
+	})
+	return ctr, nil
 }
 
-func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions interface{}) (*container, error) {
+func (c *client) createWindows(id string, spec *specs.Spec) (*container, error) {
 	logger := c.logger.WithField("container", id)
 	configuration := &hcsshim.ContainerConfig{
 		SystemType:              "Container",
@@ -359,31 +356,32 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 }
 
 func (c *client) extractResourcesFromSpec(spec *specs.Spec, configuration *hcsshim.ContainerConfig) {
-	if spec.Windows.Resources != nil {
-		if spec.Windows.Resources.CPU != nil {
-			if spec.Windows.Resources.CPU.Count != nil {
-				// This check is being done here rather than in adaptContainerSettings
-				// because we don't want to update the HostConfig in case this container
-				// is moved to a host with more CPUs than this one.
-				cpuCount := *spec.Windows.Resources.CPU.Count
-				hostCPUCount := uint64(runtime.NumCPU())
-				if cpuCount > hostCPUCount {
-					c.logger.Warnf("Changing requested CPUCount of %d to current number of processors, %d", cpuCount, hostCPUCount)
-					cpuCount = hostCPUCount
-				}
-				configuration.ProcessorCount = uint32(cpuCount)
+	if spec.Windows.Resources == nil {
+		return
+	}
+	if spec.Windows.Resources.CPU != nil {
+		if spec.Windows.Resources.CPU.Count != nil {
+			// This check is being done here rather than in adaptContainerSettings
+			// because we don't want to update the HostConfig in case this container
+			// is moved to a host with more CPUs than this one.
+			cpuCount := *spec.Windows.Resources.CPU.Count
+			hostCPUCount := uint64(runtime.NumCPU())
+			if cpuCount > hostCPUCount {
+				c.logger.Warnf("Changing requested CPUCount of %d to current number of processors, %d", cpuCount, hostCPUCount)
+				cpuCount = hostCPUCount
 			}
-			if spec.Windows.Resources.CPU.Shares != nil {
-				configuration.ProcessorWeight = uint64(*spec.Windows.Resources.CPU.Shares)
-			}
-			if spec.Windows.Resources.CPU.Maximum != nil {
-				configuration.ProcessorMaximum = int64(*spec.Windows.Resources.CPU.Maximum)
-			}
+			configuration.ProcessorCount = uint32(cpuCount)
 		}
-		if spec.Windows.Resources.Memory != nil {
-			if spec.Windows.Resources.Memory.Limit != nil {
-				configuration.MemoryMaximumInMB = int64(*spec.Windows.Resources.Memory.Limit) / 1024 / 1024
-			}
+		if spec.Windows.Resources.CPU.Shares != nil {
+			configuration.ProcessorWeight = uint64(*spec.Windows.Resources.CPU.Shares)
+		}
+		if spec.Windows.Resources.CPU.Maximum != nil {
+			configuration.ProcessorMaximum = int64(*spec.Windows.Resources.CPU.Maximum)
+		}
+	}
+	if spec.Windows.Resources.Memory != nil {
+		if spec.Windows.Resources.Memory.Limit != nil {
+			configuration.MemoryMaximumInMB = int64(*spec.Windows.Resources.Memory.Limit) / 1024 / 1024
 		}
 	}
 }
@@ -1025,13 +1023,13 @@ func (t *task) Status(ctx context.Context) (containerd.Status, error) {
 	return containerd.Status{Status: s}, nil
 }
 
-func (*task) UpdateResources(ctx context.Context, resources *libcontainerdtypes.Resources) error {
+func (*task) UpdateResources(context.Context, *libcontainerdtypes.Resources) error {
 	// Updating resource isn't supported on Windows
 	// but we should return nil for enabling updating container
 	return nil
 }
 
-func (*task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit bool) error {
+func (*task) CreateCheckpoint(context.Context, string, bool) error {
 	return errors.New("Windows: Containers do not support checkpoints")
 }
 
