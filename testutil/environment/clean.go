@@ -81,7 +81,7 @@ func deleteAllContainers(ctx context.Context, t testing.TB, apiclient client.Con
 			Force:         true,
 			RemoveVolumes: true,
 		})
-		if err == nil || errdefs.IsNotFound(err) || alreadyExists.MatchString(err.Error()) || isErrNotFoundSwarmClassic(err) {
+		if err == nil || errdefs.IsNotFound(err) || alreadyExists.MatchString(err.Error()) {
 			continue
 		}
 		assert.Check(t, err, "failed to remove %s", ctr.ID)
@@ -140,10 +140,6 @@ func deleteAllVolumes(ctx context.Context, t testing.TB, c client.VolumeAPIClien
 			continue
 		}
 		err := c.VolumeRemove(ctx, v.Name, true)
-		// Docker EE may list volumes that no longer exist.
-		if isErrNotFoundSwarmClassic(err) {
-			continue
-		}
 		assert.Check(t, err, "failed to remove volume %s", v.Name)
 	}
 }
@@ -185,10 +181,4 @@ func deleteAllPlugins(ctx context.Context, t testing.TB, c client.PluginAPIClien
 		err := c.PluginRemove(ctx, p.Name, types.PluginRemoveOptions{Force: true})
 		assert.Check(t, err, "failed to remove plugin %s", p.ID)
 	}
-}
-
-// Swarm classic aggregates node errors and returns a 500 so we need to check
-// the error string instead of just IsErrNotFound().
-func isErrNotFoundSwarmClassic(err error) bool {
-	return err != nil && strings.Contains(strings.ToLower(err.Error()), "no such")
 }
