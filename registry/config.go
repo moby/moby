@@ -318,14 +318,20 @@ func ValidateMirror(val string) (string, error) {
 // ValidateIndexName validates an index name. It is used by the daemon to
 // validate the daemon configuration.
 func ValidateIndexName(val string) (string, error) {
-	// TODO: upstream this to check to reference package
-	if val == "index.docker.io" {
-		val = "docker.io"
-	}
+	val = normalizeIndexName(val)
 	if strings.HasPrefix(val, "-") || strings.HasSuffix(val, "-") {
 		return "", invalidParamf("invalid index name (%s). Cannot begin or end with a hyphen", val)
 	}
 	return val, nil
+}
+
+func normalizeIndexName(val string) string {
+	// TODO(thaJeztah): consider normalizing other known options, such as "(https://)registry-1.docker.io", "https://index.docker.io/v1/".
+	// TODO: upstream this to check to reference package
+	if val == "index.docker.io" {
+		return "docker.io"
+	}
+	return val
 }
 
 func hasScheme(reposName string) bool {
@@ -357,25 +363,20 @@ func validateHostPort(s string) error {
 }
 
 // newIndexInfo returns IndexInfo configuration from indexName
-func newIndexInfo(config *serviceConfig, indexName string) (*registry.IndexInfo, error) {
-	var err error
-	indexName, err = ValidateIndexName(indexName)
-	if err != nil {
-		return nil, err
-	}
+func newIndexInfo(config *serviceConfig, indexName string) *registry.IndexInfo {
+	indexName = normalizeIndexName(indexName)
 
 	// Return any configured index info, first.
 	if index, ok := config.IndexConfigs[indexName]; ok {
-		return index, nil
+		return index
 	}
 
 	// Construct a non-configured index info.
 	return &registry.IndexInfo{
-		Name:     indexName,
-		Mirrors:  make([]string, 0),
-		Secure:   config.isSecureIndex(indexName),
-		Official: false,
-	}, nil
+		Name:    indexName,
+		Mirrors: make([]string, 0),
+		Secure:  config.isSecureIndex(indexName),
+	}
 }
 
 // GetAuthConfigKey special-cases using the full index address of the official
@@ -388,11 +389,8 @@ func GetAuthConfigKey(index *registry.IndexInfo) string {
 }
 
 // newRepositoryInfo validates and breaks down a repository name into a RepositoryInfo
-func newRepositoryInfo(config *serviceConfig, name reference.Named) (*RepositoryInfo, error) {
-	index, err := newIndexInfo(config, reference.Domain(name))
-	if err != nil {
-		return nil, err
-	}
+func newRepositoryInfo(config *serviceConfig, name reference.Named) *RepositoryInfo {
+	index := newIndexInfo(config, reference.Domain(name))
 	var officialRepo bool
 	if index.Official {
 		// RepositoryInfo.Official indicates whether the image repository
@@ -406,7 +404,7 @@ func newRepositoryInfo(config *serviceConfig, name reference.Named) (*Repository
 		Name:     reference.TrimNamed(name),
 		Index:    index,
 		Official: officialRepo,
-	}, nil
+	}
 }
 
 // ParseRepositoryInfo performs the breakdown of a repository name into a
@@ -414,5 +412,5 @@ func newRepositoryInfo(config *serviceConfig, name reference.Named) (*Repository
 //
 // It is used by the Docker cli to interact with registry-related endpoints.
 func ParseRepositoryInfo(reposName reference.Named) (*RepositoryInfo, error) {
-	return newRepositoryInfo(emptyServiceConfig, reposName)
+	return newRepositoryInfo(emptyServiceConfig, reposName), nil
 }
