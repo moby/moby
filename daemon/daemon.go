@@ -75,6 +75,7 @@ import (
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/locker"
+	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
 	"go.etcd.io/bbolt"
@@ -113,7 +114,7 @@ type Daemon struct {
 	sysInfoOnce       sync.Once
 	sysInfo           *sysinfo.SysInfo
 	shutdown          bool
-	idMapping         idtools.IdentityMapping
+	idMapping         user.IdentityMapping
 	PluginStore       *plugin.Store // TODO: remove
 	pluginManager     *plugin.Manager
 	linkIndex         *linkIndex
@@ -791,7 +792,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err != nil {
 		return nil, err
 	}
-	rootIDs := idMapping.RootPair()
+	uid, gid := idMapping.RootPair()
 
 	// set up the tmpDir to use a canonical path
 	tmp, err := prepareTempDir(config.Root)
@@ -878,10 +879,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	daemonRepo := filepath.Join(cfgStore.Root, "containers")
-	if err := idtools.MkdirAllAndChown(daemonRepo, 0o710, idtools.Identity{
-		UID: idtools.CurrentIdentity().UID,
-		GID: rootIDs.GID,
-	}); err != nil {
+	if err := user.MkdirAllAndChown(daemonRepo, 0o710, os.Getuid(), gid); err != nil {
 		return nil, err
 	}
 
@@ -999,7 +997,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	log.G(ctx).Debugf("Using default logging driver %s", d.defaultLogConfig.Type)
 
-	d.volumes, err = volumesservice.NewVolumeService(cfgStore.Root, d.PluginStore, rootIDs, d)
+	d.volumes, err = volumesservice.NewVolumeService(cfgStore.Root, d.PluginStore, idtools.Identity{UID: uid, GID: gid}, d)
 	if err != nil {
 		return nil, err
 	}
@@ -1074,15 +1072,15 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			RegistryHosts:   d.RegistryHosts,
 			Registry:        d.registryService,
 			EventsService:   d.EventsService,
-			IDMapping:       idMapping,
-			RefCountMounter: snapshotter.NewMounter(config.Root, driverName, idMapping),
+			IDMapping:       idtools.FromUserIdentityMapping(idMapping),
+			RefCountMounter: snapshotter.NewMounter(config.Root, driverName, idtools.FromUserIdentityMapping(idMapping)),
 		})
 	} else {
 		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
 			Root:               cfgStore.Root,
 			GraphDriver:        driverName,
 			GraphDriverOptions: cfgStore.GraphOptions,
-			IDMapping:          idMapping,
+			IDMapping:          idtools.FromUserIdentityMapping(idMapping),
 		})
 		if err != nil {
 			return nil, err
@@ -1423,7 +1421,7 @@ func prepareTempDir(rootDir string) (string, error) {
 			}
 		}
 	}
-	return tmpDir, idtools.MkdirAllAndChown(tmpDir, 0o700, idtools.CurrentIdentity())
+	return tmpDir, user.MkdirAllAndChown(tmpDir, 0o700, os.Getuid(), os.Getegid())
 }
 
 func (daemon *Daemon) setGenericResources(conf *config.Config) error {
@@ -1545,7 +1543,8 @@ func CreateDaemonRoot(config *config.Config) error {
 	if err != nil {
 		return err
 	}
-	return setupDaemonRoot(config, realRoot, idMapping.RootPair())
+	uid, gid := idMapping.RootPair()
+	return setupDaemonRoot(config, realRoot, uid, gid)
 }
 
 // RemapContainerdNamespaces returns the right containerd namespaces to use:
@@ -1561,16 +1560,16 @@ func RemapContainerdNamespaces(config *config.Config) (ns string, pluginNs strin
 	if idMapping.Empty() {
 		return config.ContainerdNamespace, config.ContainerdPluginNamespace, nil
 	}
-	root := idMapping.RootPair()
+	uid, gid := idMapping.RootPair()
 
 	ns = config.ContainerdNamespace
 	if _, ok := config.ValuesSet["containerd-namespace"]; !ok {
-		ns = fmt.Sprintf("%s-%d.%d", config.ContainerdNamespace, root.UID, root.GID)
+		ns = fmt.Sprintf("%s-%d.%d", config.ContainerdNamespace, uid, gid)
 	}
 
 	pluginNs = config.ContainerdPluginNamespace
 	if _, ok := config.ValuesSet["containerd-plugin-namespace"]; !ok {
-		pluginNs = fmt.Sprintf("%s-%d.%d", config.ContainerdPluginNamespace, root.UID, root.GID)
+		pluginNs = fmt.Sprintf("%s-%d.%d", config.ContainerdPluginNamespace, uid, gid)
 	}
 
 	return ns, pluginNs, nil
@@ -1601,7 +1600,7 @@ func (daemon *Daemon) GetAttachmentStore() *network.AttachmentStore {
 
 // IdentityMapping returns uid/gid mapping or a SID (in the case of Windows) for the builder
 func (daemon *Daemon) IdentityMapping() idtools.IdentityMapping {
-	return daemon.idMapping
+	return idtools.FromUserIdentityMapping(daemon.idMapping)
 }
 
 // ImageService returns the Daemon's ImageService
