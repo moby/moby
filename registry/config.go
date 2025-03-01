@@ -363,12 +363,19 @@ func newRepositoryInfo(config *serviceConfig, name reference.Named) (*Repository
 	if err != nil {
 		return nil, err
 	}
-	official := !strings.ContainsRune(reference.FamiliarName(name), '/')
+	var officialRepo bool
+	if index.Official {
+		// RepositoryInfo.Official indicates whether the image repository
+		// is an official (docker library official images) repository.
+		//
+		// We only need to check this if the image-repository is on Docker Hub.
+		officialRepo = !strings.ContainsRune(reference.FamiliarName(name), '/')
+	}
 
 	return &RepositoryInfo{
 		Name:     reference.TrimNamed(name),
 		Index:    index,
-		Official: official,
+		Official: officialRepo,
 	}, nil
 }
 
