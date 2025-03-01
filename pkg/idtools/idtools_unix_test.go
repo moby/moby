@@ -334,7 +334,7 @@ func TestGetRootUIDGID(t *testing.T) {
 		},
 	}
 
-	uid, gid, err := GetRootUIDGID(uidMap, gidMap)
+	uid, gid, err := getRootUIDGID(uidMap, gidMap)
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(os.Geteuid(), uid))
 	assert.Check(t, is.Equal(os.Getegid(), gid))
@@ -346,7 +346,7 @@ func TestGetRootUIDGID(t *testing.T) {
 			Size:        1,
 		},
 	}
-	_, _, err = GetRootUIDGID(uidMapError, gidMap)
+	_, _, err = getRootUIDGID(uidMapError, gidMap)
 	assert.Check(t, is.Error(err, "Container ID 0 cannot be mapped to a host ID"))
 }
 
@@ -362,20 +362,6 @@ func TestToContainer(t *testing.T) {
 	containerID, err := toContainer(2, uidMap)
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(uidMap[0].ContainerID, containerID))
-}
-
-// TestMkdirIsNotDir checks that mkdirAs() function (used by MkdirAll...)
-// returns a correct error in case a directory which it is about to create
-// already exists but is a file (rather than a directory).
-func TestMkdirIsNotDir(t *testing.T) {
-	file, err := os.CreateTemp("", t.Name())
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.Remove(file.Name())
-
-	err = mkdirAs(file.Name(), 0o755, Identity{UID: 0, GID: 0}, false, false)
-	assert.Check(t, is.Error(err, "mkdir "+file.Name()+": not a directory"))
 }
 
 func RequiresRoot(t *testing.T) {

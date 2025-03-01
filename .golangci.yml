@@ -212,6 +212,10 @@ issues:
       linters:
         - staticcheck
 
+    - text: "SA1019: idtools\\.(CurrentIdentity|FromUserIdentityMapping|IDMap|MkdirAndChown|MkdirAllAndChown|MkdirAllAndChownNew) is deprecated"
+      linters:
+        - staticcheck
+
     # Ignore "nested context in function literal (fatcontext)" as we intentionally set up tracing on a base-context for tests.
     # FIXME(thaJeztah): see if there's a more iodiomatic way to do this.
     - text: 'nested context in function literal'
