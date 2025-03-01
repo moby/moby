@@ -191,7 +191,7 @@ func (daemon *Daemon) fillSecurityOptions(v *system.Info, sysInfo *sysinfo.SysIn
 	if selinux.GetEnabled() {
 		securityOptions = append(securityOptions, "name=selinux")
 	}
-	if rootIDs := daemon.idMapping.RootPair(); rootIDs.UID != 0 || rootIDs.GID != 0 {
+	if uid, gid := daemon.idMapping.RootPair(); uid != 0 || gid != 0 {
 		securityOptions = append(securityOptions, "name=userns")
 	}
 	if Rootless(cfg) {
