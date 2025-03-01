@@ -7,7 +7,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/pkg/idtools"
+	mobyuser "github.com/moby/sys/user"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -29,14 +29,13 @@ func TestNewIDMappings(t *testing.T) {
 	idMapping, err := LoadIdentityMapping(tempUser.Username)
 	assert.Check(t, err)
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(idMapping.UIDMaps, idMapping.GIDMaps)
-	assert.Check(t, err)
+	rootUID, rootGID := idMapping.RootPair()
 
 	dirName, err := os.MkdirTemp("", "mkdirall")
 	assert.Check(t, err, "Couldn't create temp directory")
 	defer os.RemoveAll(dirName)
 
-	err = idtools.MkdirAllAndChown(dirName, 0o700, idtools.Identity{UID: rootUID, GID: rootGID})
+	err = mobyuser.MkdirAllAndChown(dirName, 0o700, rootUID, rootGID)
 	assert.Check(t, err, "Couldn't change ownership of file path. Got error")
 	cmd := exec.Command("ls", "-la", dirName)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
