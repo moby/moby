@@ -108,6 +108,26 @@ type IdentityMapping struct {
 	GIDMaps []IDMap `json:"GIDMaps"`
 }
 
+// FromUserIdentityMapping converts a user.IdentityMapping to an idtools.IdentityMapping
+func FromUserIdentityMapping(u user.IdentityMapping) IdentityMapping {
+	return IdentityMapping{
+		UIDMaps: fromUserIDMap(u.UIDMaps),
+		GIDMaps: fromUserIDMap(u.GIDMaps),
+	}
+}
+
+func fromUserIDMap(u []user.IDMap) []IDMap {
+	m := make([]IDMap, len(u))
+	for i := range u {
+		m[i] = IDMap{
+			ContainerID: int(u[i].ID),
+			HostID:      int(u[i].ParentID),
+			Size:        int(u[i].Count),
+		}
+	}
+	return m
+}
+
 // RootPair returns a uid and gid pair for the root user. The error is ignored
 // because a root user always exists, and the defaults are correct when the uid
 // and gid maps are empty.
@@ -151,6 +171,7 @@ func (i IdentityMapping) Empty() bool {
 }
 
 // CurrentIdentity returns the identity of the current process
+// Deprecated: use os.Getuid() and os.Getegid() instead
 func CurrentIdentity() Identity {
 	return Identity{UID: os.Getuid(), GID: os.Getegid()}
 }
