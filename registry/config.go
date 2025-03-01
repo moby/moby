@@ -412,5 +412,70 @@ func newRepositoryInfo(config *serviceConfig, name reference.Named) *RepositoryI
 //
 // It is used by the Docker cli to interact with registry-related endpoints.
 func ParseRepositoryInfo(reposName reference.Named) (*RepositoryInfo, error) {
-	return newRepositoryInfo(emptyServiceConfig, reposName), nil
+	indexName := normalizeIndexName(reference.Domain(reposName))
+	if indexName == IndexName {
+		officialRepo := !strings.ContainsRune(reference.FamiliarName(reposName), '/')
+		return &RepositoryInfo{
+			Name: reference.TrimNamed(reposName),
+			Index: &registry.IndexInfo{
+				Name:     IndexName,
+				Mirrors:  []string{},
+				Secure:   true,
+				Official: true,
+			},
+			Official: officialRepo,
+		}, nil
+	}
+
+	insecure := false
+	if isInsecure(indexName) {
+		insecure = true
+	}
+
+	return &RepositoryInfo{
+		Name: reference.TrimNamed(reposName),
+		Index: &registry.IndexInfo{
+			Name:    indexName,
+			Mirrors: []string{},
+			Secure:  !insecure,
+		},
+	}, nil
+}
+
+// isInsecure is used to detect whether a registry domain or IP-address is allowed
+// to use an insecure (non-TLS, or self-signed cert) connection according to the
+// defaults, which allows for insecure connections with registries running on a
+// loopback address ("localhost", "::1/128", "127.0.0.0/8").
+//
+// It is used in situations where we don't have access to the daemon's configuration,
+// for example, when used from the client / CLI.
+func isInsecure(hostNameOrIP string) bool {
+	// Attempt to strip port if present; this also strips brackets for
+	// IPv6 addresses with a port (e.g. "[::1]:5000").
+	//
+	// This is best-effort; we'll continue using the address as-is if it fails.
+	if host, _, err := net.SplitHostPort(hostNameOrIP); err == nil {
+		hostNameOrIP = host
+	}
+	if hostNameOrIP == "127.0.0.1" || hostNameOrIP == "::1" || strings.EqualFold(hostNameOrIP, "localhost") {
+		// Fast path; no need to resolve these, assuming nobody overrides
+		// "localhost" for anything else than a loopback address (sorry, not sorry).
+		return true
+	}
+
+	var addresses []net.IP
+	if ip := net.ParseIP(hostNameOrIP); ip != nil {
+		addresses = append(addresses, ip)
+	} else {
+		// Try to resolve the host's IP-addresses.
+		addrs, _ := lookupIP(hostNameOrIP)
+		addresses = append(addresses, addrs...)
+	}
+
+	for _, addr := range addresses {
+		if addr.IsLoopback() {
+			return true
+		}
+	}
+	return false
 }
