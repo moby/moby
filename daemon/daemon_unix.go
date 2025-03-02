@@ -45,6 +45,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/moby/sys/mount"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -1250,9 +1251,10 @@ func removeDefaultBridgeInterface() {
 	}
 }
 
-func setupInitLayer(idMapping idtools.IdentityMapping) func(string) error {
+func setupInitLayer(idMapping user.IdentityMapping) func(string) error {
 	return func(initPath string) error {
-		return initlayer.Setup(initPath, idMapping.RootPair())
+		uid, gid := idMapping.RootPair()
+		return initlayer.Setup(initPath, idtools.Identity{UID: uid, GID: gid})
 	}
 }
 
@@ -1349,9 +1351,9 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 	return username, groupname, nil
 }
 
-func setupRemappedRoot(config *config.Config) (idtools.IdentityMapping, error) {
+func setupRemappedRoot(config *config.Config) (user.IdentityMapping, error) {
 	if runtime.GOOS != "linux" && config.RemappedRoot != "" {
-		return idtools.IdentityMapping{}, fmt.Errorf("User namespaces are only supported on Linux")
+		return user.IdentityMapping{}, fmt.Errorf("User namespaces are only supported on Linux")
 	}
 
 	// if the daemon was started with remapped root option, parse
@@ -1359,13 +1361,13 @@ func setupRemappedRoot(config *config.Config) (idtools.IdentityMapping, error) {
 	if config.RemappedRoot != "" {
 		username, groupname, err := parseRemappedRoot(config.RemappedRoot)
 		if err != nil {
-			return idtools.IdentityMapping{}, err
+			return user.IdentityMapping{}, err
 		}
 		if username == "root" {
 			// Cannot setup user namespaces with a 1-to-1 mapping; "--root=0:0" is a no-op
 			// effectively
 			log.G(context.TODO()).Warn("User namespaces: root cannot be remapped with itself; user namespaces are OFF")
-			return idtools.IdentityMapping{}, nil
+			return user.IdentityMapping{}, nil
 		}
 		log.G(context.TODO()).Infof("User namespaces: ID ranges will be mapped to subuid/subgid ranges of: %s", username)
 		// update remapped root setting now that we have resolved them to actual names
@@ -1373,14 +1375,14 @@ func setupRemappedRoot(config *config.Config) (idtools.IdentityMapping, error) {
 
 		mappings, err := usergroup.LoadIdentityMapping(username)
 		if err != nil {
-			return idtools.IdentityMapping{}, errors.Wrap(err, "Can't create ID mappings")
+			return user.IdentityMapping{}, errors.Wrap(err, "Can't create ID mappings")
 		}
 		return mappings, nil
 	}
-	return idtools.IdentityMapping{}, nil
+	return user.IdentityMapping{}, nil
 }
 
-func setupDaemonRoot(config *config.Config, rootDir string, remappedRoot idtools.Identity) error {
+func setupDaemonRoot(config *config.Config, rootDir string, uid, gid int) error {
 	config.Root = rootDir
 	// the docker root metadata directory needs to have execute permissions for all users (g+x,o+x)
 	// so that syscalls executing as non-root, operating on subdirectories of the graph root
@@ -1400,9 +1402,9 @@ func setupDaemonRoot(config *config.Config, rootDir string, remappedRoot idtools
 		}
 	}
 
-	id := idtools.Identity{UID: idtools.CurrentIdentity().UID, GID: remappedRoot.GID}
+	curuid := os.Getuid()
 	// First make sure the current root dir has the correct perms.
-	if err := idtools.MkdirAllAndChown(config.Root, 0o710, id); err != nil {
+	if err := user.MkdirAllAndChown(config.Root, 0o710, curuid, gid); err != nil {
 		return errors.Wrapf(err, "could not create or set daemon root permissions: %s", config.Root)
 	}
 
@@ -1411,10 +1413,10 @@ func setupDaemonRoot(config *config.Config, rootDir string, remappedRoot idtools
 	// a new subdirectory with ownership set to the remapped uid/gid (so as to allow
 	// `chdir()` to work for containers namespaced to that uid/gid)
 	if config.RemappedRoot != "" {
-		config.Root = filepath.Join(rootDir, fmt.Sprintf("%d.%d", remappedRoot.UID, remappedRoot.GID))
+		config.Root = filepath.Join(rootDir, fmt.Sprintf("%d.%d", uid, gid))
 		log.G(context.TODO()).Debugf("Creating user namespaced daemon root: %s", config.Root)
 		// Create the root directory if it doesn't exist
-		if err := idtools.MkdirAllAndChown(config.Root, 0o710, id); err != nil {
+		if err := user.MkdirAllAndChown(config.Root, 0o710, curuid, gid); err != nil {
 			return fmt.Errorf("Cannot create daemon root: %s: %v", config.Root, err)
 		}
 		// we also need to verify that any pre-existing directories in the path to
@@ -1427,7 +1429,7 @@ func setupDaemonRoot(config *config.Config, rootDir string, remappedRoot idtools
 			if dirPath == "/" {
 				break
 			}
-			if !canAccess(dirPath, remappedRoot) {
+			if !canAccess(dirPath, uid, gid) {
 				return fmt.Errorf("a subdirectory in your graphroot path (%s) restricts access to the remapped root uid/gid; please fix by allowing 'o+x' permissions on existing directories", config.Root)
 			}
 		}
@@ -1445,7 +1447,7 @@ func setupDaemonRoot(config *config.Config, rootDir string, remappedRoot idtools
 // Note: this is a very rudimentary check, and may not produce accurate results,
 // so should not be used for anything other than the current use, see:
 // https://github.com/moby/moby/issues/43724
-func canAccess(path string, pair idtools.Identity) bool {
+func canAccess(path string, uid, gid int) bool {
 	statInfo, err := os.Stat(path)
 	if err != nil {
 		return false
@@ -1456,11 +1458,11 @@ func canAccess(path string, pair idtools.Identity) bool {
 		return true
 	}
 	ssi := statInfo.Sys().(*syscall.Stat_t)
-	if ssi.Uid == uint32(pair.UID) && (perms&0o100 == 0o100) {
+	if ssi.Uid == uint32(uid) && (perms&0o100 == 0o100) {
 		// owner access.
 		return true
 	}
-	if ssi.Gid == uint32(pair.GID) && (perms&0o010 == 0o010) {
+	if ssi.Gid == uint32(gid) && (perms&0o010 == 0o010) {
 		// group access.
 		return true
 	}

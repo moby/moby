@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/idtools"
+	mobyuser "github.com/moby/sys/user"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -29,7 +30,7 @@ func TestNewIDMappings(t *testing.T) {
 	idMapping, err := LoadIdentityMapping(tempUser.Username)
 	assert.Check(t, err)
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(idMapping.UIDMaps, idMapping.GIDMaps)
+	rootUID, rootGID, err := mobyuser.GetRootUIDGID(idMapping.UIDMaps, idMapping.GIDMaps)
 	assert.Check(t, err)
 
 	dirName, err := os.MkdirTemp("", "mkdirall")

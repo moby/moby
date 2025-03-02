@@ -360,13 +360,13 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	}
 }
 
-func specMapping(s []idtools.IDMap) []specs.LinuxIDMapping {
+func specMapping(s []user.IDMap) []specs.LinuxIDMapping {
 	var ids []specs.LinuxIDMapping
 	for _, item := range s {
 		ids = append(ids, specs.LinuxIDMapping{
-			HostID:      uint32(item.HostID),
-			ContainerID: uint32(item.ContainerID),
-			Size:        uint32(item.Size),
+			HostID:      uint32(item.ParentID),
+			ContainerID: uint32(item.ID),
+			Size:        uint32(item.Count),
 		})
 	}
 	return ids
@@ -712,7 +712,8 @@ func withCommonOptions(daemon *Daemon, daemonCfg *dconfig.Config, c *container.C
 			Path:     c.BaseFS,
 			Readonly: c.HostConfig.ReadonlyRootfs,
 		}
-		if err := c.SetupWorkingDirectory(daemon.idMapping.RootPair()); err != nil {
+		uid, gid := daemon.idMapping.RootPair()
+		if err := c.SetupWorkingDirectory(idtools.Identity{UID: uid, GID: gid}); err != nil {
 			return err
 		}
 		cwd := c.Config.WorkingDir
