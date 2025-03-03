@@ -23,7 +23,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 type mockManifestGetter struct {
@@ -210,12 +210,12 @@ func TestManifestStore(t *testing.T) {
 		m2, err := store.Get(ctx, desc, ref)
 		checkIngest(t, cs, desc)
 		assert.NilError(t, err)
-		assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
-		assert.Check(t, cmp.Equal(mg.gets, 1))
+		assert.Check(t, is.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
+		assert.Check(t, is.Equal(mg.gets, 1))
 
 		i, err := cs.Info(ctx, desc.Digest)
 		assert.NilError(t, err)
-		assert.Check(t, cmp.Equal(i.Digest, desc.Digest))
+		assert.Check(t, is.Equal(i.Digest, desc.Digest))
 
 		distKey, distSource := makeDistributionSourceLabel(ref)
 		assert.Check(t, hasDistributionSource(i.Labels[distKey], distSource))
@@ -224,8 +224,8 @@ func TestManifestStore(t *testing.T) {
 		m2, err = store.Get(ctx, desc, ref)
 		checkIngest(t, cs, desc)
 		assert.NilError(t, err)
-		assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
-		assert.Check(t, cmp.Equal(mg.gets, 1))
+		assert.Check(t, is.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
+		assert.Check(t, is.Equal(mg.gets, 1))
 
 		t.Run("digested", func(t *testing.T) {
 			ref, err := reference.WithDigest(ref, desc.Digest)
@@ -247,12 +247,12 @@ func TestManifestStore(t *testing.T) {
 		m2, err := store.Get(ctx, desc, ref)
 		checkIngest(t, cs, desc)
 		assert.NilError(t, err)
-		assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
-		assert.Check(t, cmp.Equal(mg.gets, 0))
+		assert.Check(t, is.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
+		assert.Check(t, is.Equal(mg.gets, 0))
 
 		i, err := cs.Info(ctx, desc.Digest)
 		assert.NilError(t, err)
-		assert.Check(t, cmp.Equal(i.Digest, desc.Digest))
+		assert.Check(t, is.Equal(i.Digest, desc.Digest))
 	})
 
 	// This is for the case of pull by digest where we don't know the media type of the manifest until it's actually pulled.
@@ -267,8 +267,8 @@ func TestManifestStore(t *testing.T) {
 			m2, err := store.Get(ctx, desc, ref)
 			checkIngest(t, cs, desc)
 			assert.NilError(t, err)
-			assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
-			assert.Check(t, cmp.Equal(mg.gets, 1))
+			assert.Check(t, is.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
+			assert.Check(t, is.Equal(mg.gets, 1))
 		})
 
 		t.Run("with cache", func(t *testing.T) {
@@ -282,8 +282,8 @@ func TestManifestStore(t *testing.T) {
 				m2, err := store.Get(ctx, desc, ref)
 				checkIngest(t, cs, desc)
 				assert.NilError(t, err)
-				assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
-				assert.Check(t, cmp.Equal(mg.gets, 0))
+				assert.Check(t, is.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
+				assert.Check(t, is.Equal(mg.gets, 0))
 			})
 
 			t.Run("cached manifest has no media type", func(t *testing.T) {
@@ -296,8 +296,8 @@ func TestManifestStore(t *testing.T) {
 				m2, err := store.Get(ctx, desc, ref)
 				checkIngest(t, cs, desc)
 				assert.NilError(t, err)
-				assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
-				assert.Check(t, cmp.Equal(mg.gets, 0))
+				assert.Check(t, is.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
+				assert.Check(t, is.Equal(mg.gets, 0))
 			})
 		})
 	})
@@ -318,8 +318,8 @@ func TestManifestStore(t *testing.T) {
 			m2, err := store.Get(ctx, desc, ref)
 			checkIngest(t, cs, desc)
 			assert.NilError(t, err)
-			assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
-			assert.Check(t, cmp.Equal(mg.gets, 1))
+			assert.Check(t, is.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
+			assert.Check(t, is.Equal(mg.gets, 1))
 
 			_, err = cs.Info(ctx, desc.Digest)
 			// Nothing here since we couldn't persist
@@ -337,8 +337,8 @@ func TestManifestStore(t *testing.T) {
 			m2, err := store.Get(ctx, desc, ref)
 			checkIngest(t, cs, desc)
 			assert.NilError(t, err)
-			assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
-			assert.Check(t, cmp.Equal(mg.gets, 1))
+			assert.Check(t, is.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
+			assert.Check(t, is.Equal(mg.gets, 1))
 
 			_, err = cs.Info(ctx, desc.Digest)
 			// Nothing here since we couldn't persist
