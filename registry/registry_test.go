@@ -248,15 +248,11 @@ func TestNewIndexInfo(t *testing.T) {
 	overrideLookupIP(t)
 	testIndexInfo := func(config *serviceConfig, expectedIndexInfos map[string]*registry.IndexInfo) {
 		for indexName, expectedIndexInfo := range expectedIndexInfos {
-			index, err := newIndexInfo(config, indexName)
-			if err != nil {
-				t.Fatal(err)
-			} else {
-				assert.Check(t, is.Equal(index.Name, expectedIndexInfo.Name), indexName+" name")
-				assert.Check(t, is.Equal(index.Official, expectedIndexInfo.Official), indexName+" is official")
-				assert.Check(t, is.Equal(index.Secure, expectedIndexInfo.Secure), indexName+" is secure")
-				assert.Check(t, is.Equal(len(index.Mirrors), len(expectedIndexInfo.Mirrors)), indexName+" mirrors")
-			}
+			index := newIndexInfo(config, indexName)
+			assert.Check(t, is.Equal(index.Name, expectedIndexInfo.Name), indexName+" name")
+			assert.Check(t, is.Equal(index.Official, expectedIndexInfo.Official), indexName+" is official")
+			assert.Check(t, is.Equal(index.Secure, expectedIndexInfo.Secure), indexName+" is secure")
+			assert.Check(t, is.Equal(len(index.Mirrors), len(expectedIndexInfo.Mirrors)), indexName+" mirrors")
 		}
 	}
 

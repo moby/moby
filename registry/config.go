@@ -56,8 +56,38 @@ var (
 		Host:   DefaultRegistryHost,
 	}
 
-	emptyServiceConfig, _ = newServiceConfig(ServiceOptions{})
-	validHostPortRegex    = lazyregexp.New(`^` + reference.DomainRegexp.String() + `$`)
+	// ipv6Loopback is the CIDR for the IPv6 loopback address ("::1"); "::1/128"
+	ipv6Loopback = &net.IPNet{
+		IP:   net.IPv6loopback,
+		Mask: net.CIDRMask(128, 128),
+	}
+
+	// ipv4Loopback is the CIDR for IPv4 loopback addresses ("127.0.0.0/8")
+	ipv4Loopback = &net.IPNet{
+		IP:   net.IPv4(127, 0, 0, 0),
+		Mask: net.CIDRMask(8, 32),
+	}
+
+	// emptyServiceConfig is a default service-config for situations where
+	// no config-file is available (e.g. when used in the CLI). If won't
+	// have mirrors configured, but does have the default insecure registry
+	// CIDRs for loopback interfaces configured.
+	emptyServiceConfig = &serviceConfig{
+		IndexConfigs: map[string]*registry.IndexInfo{
+			IndexName: {
+				Name:     IndexName,
+				Mirrors:  make([]string, 0),
+				Secure:   true,
+				Official: true,
+			},
+		},
+		InsecureRegistryCIDRs: []*registry.NetIPNet{
+			(*registry.NetIPNet)(ipv6Loopback),
+			(*registry.NetIPNet)(ipv4Loopback),
+		},
+	}
+
+	validHostPortRegex = lazyregexp.New(`^` + reference.DomainRegexp.String() + `$`)
 
 	// certsDir is used to override defaultCertsDir.
 	certsDir string
@@ -288,14 +318,20 @@ func ValidateMirror(val string) (string, error) {
 // ValidateIndexName validates an index name. It is used by the daemon to
 // validate the daemon configuration.
 func ValidateIndexName(val string) (string, error) {
-	// TODO: upstream this to check to reference package
-	if val == "index.docker.io" {
-		val = "docker.io"
-	}
+	val = normalizeIndexName(val)
 	if strings.HasPrefix(val, "-") || strings.HasSuffix(val, "-") {
 		return "", invalidParamf("invalid index name (%s). Cannot begin or end with a hyphen", val)
 	}
 	return val, nil
+}
+
+func normalizeIndexName(val string) string {
+	// TODO(thaJeztah): consider normalizing other known options, such as "(https://)registry-1.docker.io", "https://index.docker.io/v1/".
+	// TODO: upstream this to check to reference package
+	if val == "index.docker.io" {
+		return "docker.io"
+	}
+	return val
 }
 
 func hasScheme(reposName string) bool {
@@ -327,25 +363,20 @@ func validateHostPort(s string) error {
 }
 
 // newIndexInfo returns IndexInfo configuration from indexName
-func newIndexInfo(config *serviceConfig, indexName string) (*registry.IndexInfo, error) {
-	var err error
-	indexName, err = ValidateIndexName(indexName)
-	if err != nil {
-		return nil, err
-	}
+func newIndexInfo(config *serviceConfig, indexName string) *registry.IndexInfo {
+	indexName = normalizeIndexName(indexName)
 
 	// Return any configured index info, first.
 	if index, ok := config.IndexConfigs[indexName]; ok {
-		return index, nil
+		return index
 	}
 
 	// Construct a non-configured index info.
 	return &registry.IndexInfo{
-		Name:     indexName,
-		Mirrors:  make([]string, 0),
-		Secure:   config.isSecureIndex(indexName),
-		Official: false,
-	}, nil
+		Name:    indexName,
+		Mirrors: make([]string, 0),
+		Secure:  config.isSecureIndex(indexName),
+	}
 }
 
 // GetAuthConfigKey special-cases using the full index address of the official
@@ -358,18 +389,22 @@ func GetAuthConfigKey(index *registry.IndexInfo) string {
 }
 
 // newRepositoryInfo validates and breaks down a repository name into a RepositoryInfo
-func newRepositoryInfo(config *serviceConfig, name reference.Named) (*RepositoryInfo, error) {
-	index, err := newIndexInfo(config, reference.Domain(name))
-	if err != nil {
-		return nil, err
+func newRepositoryInfo(config *serviceConfig, name reference.Named) *RepositoryInfo {
+	index := newIndexInfo(config, reference.Domain(name))
+	var officialRepo bool
+	if index.Official {
+		// RepositoryInfo.Official indicates whether the image repository
+		// is an official (docker library official images) repository.
+		//
+		// We only need to check this if the image-repository is on Docker Hub.
+		officialRepo = !strings.ContainsRune(reference.FamiliarName(name), '/')
 	}
-	official := !strings.ContainsRune(reference.FamiliarName(name), '/')
 
 	return &RepositoryInfo{
 		Name:     reference.TrimNamed(name),
 		Index:    index,
-		Official: official,
-	}, nil
+		Official: officialRepo,
+	}
 }
 
 // ParseRepositoryInfo performs the breakdown of a repository name into a
@@ -377,5 +412,5 @@ func newRepositoryInfo(config *serviceConfig, name reference.Named) (*Repository
 //
 // It is used by the Docker cli to interact with registry-related endpoints.
 func ParseRepositoryInfo(reposName reference.Named) (*RepositoryInfo, error) {
-	return newRepositoryInfo(emptyServiceConfig, reposName)
+	return newRepositoryInfo(emptyServiceConfig, reposName), nil
 }

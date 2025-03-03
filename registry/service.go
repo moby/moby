@@ -97,7 +97,8 @@ func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, use
 func (s *Service) ResolveRepository(name reference.Named) (*RepositoryInfo, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return newRepositoryInfo(s.config, name)
+	// TODO(thaJeztah): remove error return as it's no longer used.
+	return newRepositoryInfo(s.config, name), nil
 }
 
 // APIEndpoint represents a remote API endpoint
