@@ -5,13 +5,13 @@ import (
 
 	"github.com/docker/docker/api/types/filters"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestFilterWithPrune(t *testing.T) {
 	f := filters.NewArgs()
 	assert.NilError(t, withPrune(f))
-	assert.Check(t, cmp.Len(f.Get("label"), 1))
+	assert.Check(t, is.Len(f.Get("label"), 1))
 	assert.Check(t, f.Match("label", AnonymousLabel))
 
 	f = filters.NewArgs(
@@ -20,7 +20,7 @@ func TestFilterWithPrune(t *testing.T) {
 	)
 	assert.NilError(t, withPrune(f))
 
-	assert.Check(t, cmp.Len(f.Get("label"), 3))
+	assert.Check(t, is.Len(f.Get("label"), 3))
 	assert.Check(t, f.Match("label", AnonymousLabel))
 	assert.Check(t, f.Match("label", "foo=bar"))
 	assert.Check(t, f.Match("label", "bar=baz"))
@@ -31,7 +31,7 @@ func TestFilterWithPrune(t *testing.T) {
 	)
 	assert.NilError(t, withPrune(f))
 
-	assert.Check(t, cmp.Len(f.Get("label"), 1))
+	assert.Check(t, is.Len(f.Get("label"), 1))
 	assert.Check(t, f.Match("label", "foo=bar"))
 
 	f = filters.NewArgs(
@@ -40,17 +40,17 @@ func TestFilterWithPrune(t *testing.T) {
 	)
 	assert.NilError(t, withPrune(f))
 
-	assert.Check(t, cmp.Len(f.Get("label"), 1))
+	assert.Check(t, is.Len(f.Get("label"), 1))
 	assert.Check(t, f.Match("label", "foo=bar"))
 
 	f = filters.NewArgs(filters.Arg("all", "0"))
 	assert.NilError(t, withPrune(f))
-	assert.Check(t, cmp.Len(f.Get("label"), 1))
+	assert.Check(t, is.Len(f.Get("label"), 1))
 	assert.Check(t, f.Match("label", AnonymousLabel))
 
 	f = filters.NewArgs(filters.Arg("all", "false"))
 	assert.NilError(t, withPrune(f))
-	assert.Check(t, cmp.Len(f.Get("label"), 1))
+	assert.Check(t, is.Len(f.Get("label"), 1))
 	assert.Check(t, f.Match("label", AnonymousLabel))
 
 	f = filters.NewArgs(filters.Arg("all", ""))

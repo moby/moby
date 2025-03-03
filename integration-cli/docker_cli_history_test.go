@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
 	is "gotest.tools/v3/assert/cmp"
 )
 
@@ -127,7 +126,7 @@ func (s *DockerCLIHistorySuite) TestHistoryHumanOptionTrue(c *testing.T) {
 			endIndex = len(lines[i])
 		}
 		sizeString := lines[i][startIndex:endIndex]
-		assert.Assert(c, cmp.Regexp("^"+humanSizeRegexRaw+"$",
+		assert.Assert(c, is.Regexp("^"+humanSizeRegexRaw+"$",
 			strings.TrimSpace(sizeString)), fmt.Sprintf("The size '%s' was not in human format", sizeString))
 	}
 }

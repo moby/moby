@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/integration/internal/termtest"
 	"github.com/docker/docker/pkg/stdcopy"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
@@ -164,8 +164,8 @@ func testLogs(t *testing.T, logDriver string) {
 				// which breaks the parsed output: https://github.com/moby/moby/issues/43710
 				if strings.Contains(testEnv.DaemonInfo.OperatingSystem, "Windows Server Version 1809") {
 					if tc.logOps.ShowStdout {
-						assert.Check(t, cmp.Contains(stdout.String(), "this is fine"))
-						assert.Check(t, cmp.Contains(stdout.String(), "accidents happen"))
+						assert.Check(t, is.Contains(stdout.String(), "this is fine"))
+						assert.Check(t, is.Contains(stdout.String(), "accidents happen"))
 					} else {
 						assert.DeepEqual(t, stdoutStr, "")
 					}

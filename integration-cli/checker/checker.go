@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 // Compare defines the interface to compare values
@@ -29,14 +29,14 @@ func True() Compare {
 // Equals checks if the value is equal to the given value
 func Equals(y interface{}) Compare {
 	return func(x interface{}) assert.BoolOrComparison {
-		return cmp.Equal(x, y)
+		return is.Equal(x, y)
 	}
 }
 
 // Contains checks if the value contains the given value
 func Contains(y interface{}) Compare {
 	return func(x interface{}) assert.BoolOrComparison {
-		return cmp.Contains(x, y)
+		return is.Contains(x, y)
 	}
 }
 
@@ -47,7 +47,7 @@ func Not(c Compare) Compare {
 		switch r := r.(type) {
 		case bool:
 			return !r
-		case cmp.Comparison:
+		case is.Comparison:
 			return !r().Success()
 		default:
 			panic(fmt.Sprintf("unexpected type %T", r))
@@ -58,21 +58,21 @@ func Not(c Compare) Compare {
 // DeepEquals checks if two values are equal
 func DeepEquals(y interface{}) Compare {
 	return func(x interface{}) assert.BoolOrComparison {
-		return cmp.DeepEqual(x, y)
+		return is.DeepEqual(x, y)
 	}
 }
 
 // HasLen checks if the value has the expected number of elements
 func HasLen(y int) Compare {
 	return func(x interface{}) assert.BoolOrComparison {
-		return cmp.Len(x, y)
+		return is.Len(x, y)
 	}
 }
 
 // IsNil checks if the value is nil
 func IsNil() Compare {
 	return func(x interface{}) assert.BoolOrComparison {
-		return cmp.Nil(x)
+		return is.Nil(x)
 	}
 }
 

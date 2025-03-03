@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
 )
@@ -427,7 +427,7 @@ func pollCheck(t *testing.T, f checkF, compare func(x interface{}) assert.BoolOr
 			if r {
 				return poll.Success()
 			}
-		case cmp.Comparison:
+		case is.Comparison:
 			if r().Success() {
 				return poll.Success()
 			}

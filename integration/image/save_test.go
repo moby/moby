@@ -27,7 +27,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
@@ -75,7 +74,7 @@ func TestSaveCheckTimes(t *testing.T) {
 
 	var ls []imageSaveManifestEntry
 	assert.NilError(t, json.Unmarshal(dt, &ls))
-	assert.Assert(t, cmp.Len(ls, 1))
+	assert.Assert(t, is.Len(ls, 1))
 
 	info, err := fs.Stat(tarfs, ls[0].Config)
 	assert.NilError(t, err)
@@ -300,7 +299,7 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 	} else {
 		sort.Strings(actual)
 		sort.Strings(expected)
-		assert.Assert(t, cmp.DeepEqual(actual, expected), "archive does not contains the right layers: got %v, expected %v", actual, expected)
+		assert.Assert(t, is.DeepEqual(actual, expected), "archive does not contains the right layers: got %v, expected %v", actual, expected)
 	}
 }
 
