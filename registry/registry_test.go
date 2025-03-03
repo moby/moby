@@ -331,17 +331,18 @@ func TestParseRepositoryInfo(t *testing.T) {
 
 func TestNewIndexInfo(t *testing.T) {
 	overrideLookupIP(t)
-	testIndexInfo := func(config *serviceConfig, expectedIndexInfos map[string]*registry.IndexInfo) {
-		for indexName, expectedIndexInfo := range expectedIndexInfos {
-			index := newIndexInfo(config, indexName)
-			assert.Check(t, is.Equal(index.Name, expectedIndexInfo.Name), indexName+" name")
-			assert.Check(t, is.Equal(index.Official, expectedIndexInfo.Official), indexName+" is official")
-			assert.Check(t, is.Equal(index.Secure, expectedIndexInfo.Secure), indexName+" is secure")
-			assert.Check(t, is.Equal(len(index.Mirrors), len(expectedIndexInfo.Mirrors)), indexName+" mirrors")
+	testIndexInfo := func(t *testing.T, config *serviceConfig, expectedIndexInfos map[string]*registry.IndexInfo) {
+		for indexName, expected := range expectedIndexInfos {
+			t.Run(indexName, func(t *testing.T) {
+				actual := newIndexInfo(config, indexName)
+				assert.Check(t, is.Equal(actual.Name, expected.Name))
+				assert.Check(t, is.Equal(actual.Official, expected.Official))
+				assert.Check(t, is.Equal(actual.Secure, expected.Secure))
+				assert.Check(t, is.Equal(len(actual.Mirrors), len(expected.Mirrors)))
+			})
 		}
 	}
 
-	config := emptyServiceConfig
 	var noMirrors []string
 	expectedIndexInfos := map[string]*registry.IndexInfo{
 		IndexName: {
@@ -369,15 +370,11 @@ func TestNewIndexInfo(t *testing.T) {
 			Mirrors:  noMirrors,
 		},
 	}
-	testIndexInfo(config, expectedIndexInfos)
+	t.Run("no mirrors", func(t *testing.T) {
+		testIndexInfo(t, emptyServiceConfig, expectedIndexInfos)
+	})
 
 	publicMirrors := []string{"http://mirror1.local", "http://mirror2.local"}
-	var err error
-	config, err = newServiceConfig(ServiceOptions{
-		Mirrors:            publicMirrors,
-		InsecureRegistries: []string{"example.com"},
-	})
-	assert.NilError(t, err)
 
 	expectedIndexInfos = map[string]*registry.IndexInfo{
 		IndexName: {
@@ -423,12 +420,15 @@ func TestNewIndexInfo(t *testing.T) {
 			Mirrors:  noMirrors,
 		},
 	}
-	testIndexInfo(config, expectedIndexInfos)
-
-	config, err = newServiceConfig(ServiceOptions{
-		InsecureRegistries: []string{"42.42.0.0/16"},
+	t.Run("mirrors", func(t *testing.T) {
+		config, err := newServiceConfig(ServiceOptions{
+			Mirrors:            publicMirrors,
+			InsecureRegistries: []string{"example.com"},
+		})
+		assert.NilError(t, err)
+		testIndexInfo(t, config, expectedIndexInfos)
 	})
-	assert.NilError(t, err)
+
 	expectedIndexInfos = map[string]*registry.IndexInfo{
 		"example.com": {
 			Name:     "example.com",
@@ -461,7 +461,13 @@ func TestNewIndexInfo(t *testing.T) {
 			Mirrors:  noMirrors,
 		},
 	}
-	testIndexInfo(config, expectedIndexInfos)
+	t.Run("custom insecure", func(t *testing.T) {
+		config, err := newServiceConfig(ServiceOptions{
+			InsecureRegistries: []string{"42.42.0.0/16"},
+		})
+		assert.NilError(t, err)
+		testIndexInfo(t, config, expectedIndexInfos)
+	})
 }
 
 func TestMirrorEndpointLookup(t *testing.T) {
