@@ -774,7 +774,7 @@ func (p *process) CloseStdin(context.Context) error {
 // Pause handles pause requests for containers
 func (t *task) Pause(_ context.Context) error {
 	if t.ctr.ociSpec.Windows.HyperV == nil {
-		return cerrdefs.ErrNotImplemented
+		return errdefs.NotImplemented(errors.WithStack(errors.New("not implemented for containers using process isolation")))
 	}
 
 	t.ctr.mu.Lock()
