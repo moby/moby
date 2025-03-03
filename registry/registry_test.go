@@ -288,10 +288,11 @@ func TestNewIndexInfo(t *testing.T) {
 
 	publicMirrors := []string{"http://mirror1.local", "http://mirror2.local"}
 	var err error
-	config, err = makeServiceConfig(publicMirrors, []string{"example.com"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	config, err = newServiceConfig(ServiceOptions{
+		Mirrors:            publicMirrors,
+		InsecureRegistries: []string{"example.com"},
+	})
+	assert.NilError(t, err)
 
 	expectedIndexInfos = map[string]*registry.IndexInfo{
 		IndexName: {
@@ -339,10 +340,10 @@ func TestNewIndexInfo(t *testing.T) {
 	}
 	testIndexInfo(config, expectedIndexInfos)
 
-	config, err = makeServiceConfig(nil, []string{"42.42.0.0/16"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	config, err = newServiceConfig(ServiceOptions{
+		InsecureRegistries: []string{"42.42.0.0/16"},
+	})
+	assert.NilError(t, err)
 	expectedIndexInfos = map[string]*registry.IndexInfo{
 		"example.com": {
 			Name:     "example.com",
@@ -387,10 +388,10 @@ func TestMirrorEndpointLookup(t *testing.T) {
 		}
 		return false
 	}
-	cfg, err := makeServiceConfig([]string{"https://my.mirror"}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg, err := newServiceConfig(ServiceOptions{
+		Mirrors: []string{"https://my.mirror"},
+	})
+	assert.NilError(t, err)
 	s := Service{config: cfg}
 
 	imageName, err := reference.WithName(IndexName + "/test/image")
@@ -447,13 +448,13 @@ func TestIsSecureIndex(t *testing.T) {
 		{"invalid.example.com:5000", []string{"invalid.example.com"}, true},
 		{"invalid.example.com:5000", []string{"invalid.example.com:5000"}, false},
 	}
-	for _, tt := range tests {
-		config, err := makeServiceConfig(nil, tt.insecureRegistries)
-		if err != nil {
-			t.Error(err)
-		}
-		if sec := config.isSecureIndex(tt.addr); sec != tt.expected {
-			t.Errorf("isSecureIndex failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
-		}
+	for _, tc := range tests {
+		config, err := newServiceConfig(ServiceOptions{
+			InsecureRegistries: tc.insecureRegistries,
+		})
+		assert.NilError(t, err)
+
+		sec := config.isSecureIndex(tc.addr)
+		assert.Equal(t, sec, tc.expected, "isSecureIndex failed for %q %v, expected %v got %v", tc.addr, tc.insecureRegistries, tc.expected, sec)
 	}
 }

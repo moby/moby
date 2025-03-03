@@ -68,13 +68,6 @@ func makePublicIndex() *registry.IndexInfo {
 	}
 }
 
-func makeServiceConfig(mirrors []string, insecureRegistries []string) (*serviceConfig, error) {
-	return newServiceConfig(ServiceOptions{
-		Mirrors:            mirrors,
-		InsecureRegistries: insecureRegistries,
-	})
-}
-
 func writeHeaders(w http.ResponseWriter) {
 	h := w.Header()
 	h.Add("Server", "docker-tests/mock")
