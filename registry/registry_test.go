@@ -42,7 +42,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 		LocalName     string
 	}
 
-	expectedRepoInfos := map[string]staticRepositoryInfo{
+	tests := map[string]staticRepositoryInfo{
 		"fooo/bar": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
@@ -225,22 +225,20 @@ func TestParseRepositoryInfo(t *testing.T) {
 		},
 	}
 
-	for reposName, expectedRepoInfo := range expectedRepoInfos {
-		named, err := reference.ParseNormalizedNamed(reposName)
-		if err != nil {
-			t.Error(err)
-		}
+	for reposName, expected := range tests {
+		t.Run(reposName, func(t *testing.T) {
+			named, err := reference.ParseNormalizedNamed(reposName)
+			assert.NilError(t, err)
 
-		repoInfo, err := ParseRepositoryInfo(named)
-		if err != nil {
-			t.Error(err)
-		} else {
-			assert.Check(t, is.Equal(repoInfo.Index.Name, expectedRepoInfo.Index.Name), reposName)
-			assert.Check(t, is.Equal(reference.Path(repoInfo.Name), expectedRepoInfo.RemoteName), reposName)
-			assert.Check(t, is.Equal(reference.FamiliarName(repoInfo.Name), expectedRepoInfo.LocalName), reposName)
-			assert.Check(t, is.Equal(repoInfo.Name.Name(), expectedRepoInfo.CanonicalName), reposName)
-			assert.Check(t, is.Equal(repoInfo.Index.Official, expectedRepoInfo.Index.Official), reposName)
-		}
+			repoInfo, err := ParseRepositoryInfo(named)
+			assert.NilError(t, err)
+
+			assert.Check(t, is.Equal(repoInfo.Index.Name, expected.Index.Name))
+			assert.Check(t, is.Equal(reference.Path(repoInfo.Name), expected.RemoteName))
+			assert.Check(t, is.Equal(reference.FamiliarName(repoInfo.Name), expected.LocalName))
+			assert.Check(t, is.Equal(repoInfo.Name.Name(), expected.CanonicalName))
+			assert.Check(t, is.Equal(repoInfo.Index.Official, expected.Index.Official))
+		})
 	}
 }
 
