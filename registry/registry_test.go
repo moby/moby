@@ -120,6 +120,54 @@ func TestParseRepositoryInfo(t *testing.T) {
 			LocalName:     "127.0.0.1:8000/privatebase",
 			CanonicalName: "127.0.0.1:8000/privatebase",
 		},
+		"[::1]:8000/private/moonbase": {
+			Index: &registry.IndexInfo{
+				Name:     "[::1]:8000",
+				Mirrors:  []string{},
+				Official: false,
+				Secure:   false,
+			},
+			RemoteName:    "private/moonbase",
+			LocalName:     "[::1]:8000/private/moonbase",
+			CanonicalName: "[::1]:8000/private/moonbase",
+		},
+		"[::1]:8000/privatebase": {
+			Index: &registry.IndexInfo{
+				Name:     "[::1]:8000",
+				Mirrors:  []string{},
+				Official: false,
+				Secure:   false,
+			},
+			RemoteName:    "privatebase",
+			LocalName:     "[::1]:8000/privatebase",
+			CanonicalName: "[::1]:8000/privatebase",
+		},
+		// IPv6 only has a single loopback address, so ::2 is not a loopback,
+		// hence not marked "insecure".
+		"[::2]:8000/private/moonbase": {
+			Index: &registry.IndexInfo{
+				Name:     "[::2]:8000",
+				Mirrors:  []string{},
+				Official: false,
+				Secure:   true,
+			},
+			RemoteName:    "private/moonbase",
+			LocalName:     "[::2]:8000/private/moonbase",
+			CanonicalName: "[::2]:8000/private/moonbase",
+		},
+		// IPv6 only has a single loopback address, so ::2 is not a loopback,
+		// hence not marked "insecure".
+		"[::2]:8000/privatebase": {
+			Index: &registry.IndexInfo{
+				Name:     "[::2]:8000",
+				Mirrors:  []string{},
+				Official: false,
+				Secure:   true,
+			},
+			RemoteName:    "privatebase",
+			LocalName:     "[::2]:8000/privatebase",
+			CanonicalName: "[::2]:8000/privatebase",
+		},
 		"localhost:8000/private/moonbase": {
 			Index: &registry.IndexInfo{
 				Name:     "localhost:8000",
