@@ -76,7 +76,7 @@ var (
 		IndexConfigs: map[string]*registry.IndexInfo{
 			IndexName: {
 				Name:     IndexName,
-				Mirrors:  make([]string, 0),
+				Mirrors:  []string{},
 				Secure:   true,
 				Official: true,
 			},
@@ -211,7 +211,7 @@ skip:
 			// Assume `host:port` if not CIDR.
 			indexConfigs[r] = &registry.IndexInfo{
 				Name:     r,
-				Mirrors:  make([]string, 0),
+				Mirrors:  []string{},
 				Secure:   false,
 				Official: false,
 			}
@@ -374,7 +374,7 @@ func newIndexInfo(config *serviceConfig, indexName string) *registry.IndexInfo {
 	// Construct a non-configured index info.
 	return &registry.IndexInfo{
 		Name:    indexName,
-		Mirrors: make([]string, 0),
+		Mirrors: []string{},
 		Secure:  config.isSecureIndex(indexName),
 	}
 }
