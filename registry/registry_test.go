@@ -46,7 +46,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"fooo/bar": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "fooo/bar",
 			LocalName:     "fooo/bar",
@@ -55,7 +57,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"library/ubuntu": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "library/ubuntu",
 			LocalName:     "ubuntu",
@@ -64,7 +68,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"nonlibrary/ubuntu": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "nonlibrary/ubuntu",
 			LocalName:     "nonlibrary/ubuntu",
@@ -73,7 +79,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"ubuntu": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "library/ubuntu",
 			LocalName:     "ubuntu",
@@ -82,7 +90,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"other/library": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "other/library",
 			LocalName:     "other/library",
@@ -91,7 +101,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"127.0.0.1:8000/private/moonbase": {
 			Index: &registry.IndexInfo{
 				Name:     "127.0.0.1:8000",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   false,
 			},
 			RemoteName:    "private/moonbase",
 			LocalName:     "127.0.0.1:8000/private/moonbase",
@@ -100,7 +112,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"127.0.0.1:8000/privatebase": {
 			Index: &registry.IndexInfo{
 				Name:     "127.0.0.1:8000",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   false,
 			},
 			RemoteName:    "privatebase",
 			LocalName:     "127.0.0.1:8000/privatebase",
@@ -109,7 +123,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"localhost:8000/private/moonbase": {
 			Index: &registry.IndexInfo{
 				Name:     "localhost:8000",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   false,
 			},
 			RemoteName:    "private/moonbase",
 			LocalName:     "localhost:8000/private/moonbase",
@@ -118,7 +134,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"localhost:8000/privatebase": {
 			Index: &registry.IndexInfo{
 				Name:     "localhost:8000",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   false,
 			},
 			RemoteName:    "privatebase",
 			LocalName:     "localhost:8000/privatebase",
@@ -127,7 +145,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"example.com/private/moonbase": {
 			Index: &registry.IndexInfo{
 				Name:     "example.com",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   true,
 			},
 			RemoteName:    "private/moonbase",
 			LocalName:     "example.com/private/moonbase",
@@ -136,7 +156,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"example.com/privatebase": {
 			Index: &registry.IndexInfo{
 				Name:     "example.com",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   true,
 			},
 			RemoteName:    "privatebase",
 			LocalName:     "example.com/privatebase",
@@ -145,7 +167,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"example.com:8000/private/moonbase": {
 			Index: &registry.IndexInfo{
 				Name:     "example.com:8000",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   true,
 			},
 			RemoteName:    "private/moonbase",
 			LocalName:     "example.com:8000/private/moonbase",
@@ -154,7 +178,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"example.com:8000/privatebase": {
 			Index: &registry.IndexInfo{
 				Name:     "example.com:8000",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   true,
 			},
 			RemoteName:    "privatebase",
 			LocalName:     "example.com:8000/privatebase",
@@ -163,7 +189,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"localhost/private/moonbase": {
 			Index: &registry.IndexInfo{
 				Name:     "localhost",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   false,
 			},
 			RemoteName:    "private/moonbase",
 			LocalName:     "localhost/private/moonbase",
@@ -172,7 +200,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"localhost/privatebase": {
 			Index: &registry.IndexInfo{
 				Name:     "localhost",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   false,
 			},
 			RemoteName:    "privatebase",
 			LocalName:     "localhost/privatebase",
@@ -181,7 +211,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		IndexName + "/public/moonbase": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "public/moonbase",
 			LocalName:     "public/moonbase",
@@ -190,7 +222,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"index." + IndexName + "/public/moonbase": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "public/moonbase",
 			LocalName:     "public/moonbase",
@@ -199,7 +233,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"ubuntu-12.04-base": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
@@ -208,7 +244,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		IndexName + "/ubuntu-12.04-base": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
@@ -217,7 +255,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"index." + IndexName + "/ubuntu-12.04-base": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
@@ -233,11 +273,10 @@ func TestParseRepositoryInfo(t *testing.T) {
 			repoInfo, err := ParseRepositoryInfo(named)
 			assert.NilError(t, err)
 
-			assert.Check(t, is.Equal(repoInfo.Index.Name, expected.Index.Name))
+			assert.Check(t, is.DeepEqual(repoInfo.Index, expected.Index))
 			assert.Check(t, is.Equal(reference.Path(repoInfo.Name), expected.RemoteName))
 			assert.Check(t, is.Equal(reference.FamiliarName(repoInfo.Name), expected.LocalName))
 			assert.Check(t, is.Equal(repoInfo.Name.Name(), expected.CanonicalName))
-			assert.Check(t, is.Equal(repoInfo.Index.Official, expected.Index.Official))
 		})
 	}
 }
