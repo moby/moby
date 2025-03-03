@@ -99,9 +99,6 @@ type Config struct {
 	// path to store runtime state, such as the swarm control socket
 	RuntimeRoot string
 
-	// WatchStream is a channel to pass watch API notifications to daemon
-	WatchStream chan *swarmapi.WatchMessage
-
 	// RaftHeartbeatTick is the number of ticks for heartbeat of quorum members
 	RaftHeartbeatTick uint32
 
@@ -116,12 +113,12 @@ type Cluster struct {
 	mu           sync.RWMutex
 	controlMutex sync.RWMutex // protect init/join/leave user operations
 	nr           *nodeRunner
-	root         string
+	stateDir     string
 	runtimeRoot  string
 	config       Config
 	configEvent  chan lncluster.ConfigEventType // todo: make this array and goroutine safe
 	attachers    map[string]*attacher
-	watchStream  chan *swarmapi.WatchMessage
+	watchStream  chan *swarmapi.WatchMessage // watchStream is a channel to pass watch API notifications to daemon.
 }
 
 // attacher manages the in-memory attachment state of a container
@@ -139,12 +136,9 @@ type attacher struct {
 
 // New creates a new Cluster instance using provided config.
 func New(config Config) (*Cluster, error) {
-	root := filepath.Join(config.Root, swarmDirName)
-	if err := os.MkdirAll(root, 0o700); err != nil {
-		return nil, err
-	}
+	stateDir := filepath.Join(config.Root, swarmDirName)
 	if config.RuntimeRoot == "" {
-		config.RuntimeRoot = root
+		config.RuntimeRoot = stateDir
 	}
 	if config.RaftHeartbeatTick == 0 {
 		config.RaftHeartbeatTick = 1
@@ -154,16 +148,16 @@ func New(config Config) (*Cluster, error) {
 		config.RaftElectionTick = 10 * config.RaftHeartbeatTick
 	}
 
-	if err := os.MkdirAll(config.RuntimeRoot, 0o700); err != nil {
-		return nil, err
-	}
 	c := &Cluster{
-		root:        root,
+		stateDir:    stateDir,
 		config:      config,
 		configEvent: make(chan lncluster.ConfigEventType, 10),
 		runtimeRoot: config.RuntimeRoot,
 		attachers:   make(map[string]*attacher),
-		watchStream: config.WatchStream,
+
+		// watchStream uses a buffered channel to pass changes from store watch API to daemon.
+		// A buffer allows store watch API and daemon processing to not wait for each other
+		watchStream: make(chan *swarmapi.WatchMessage, 32),
 	}
 	return c, nil
 }
@@ -172,9 +166,11 @@ func New(config Config) (*Cluster, error) {
 // TODO The split between New and Start can be join again when the SendClusterEvent
 // method is no longer required
 func (c *Cluster) Start() error {
-	root := filepath.Join(c.config.Root, swarmDirName)
-
-	nodeConfig, err := loadPersistentState(root)
+	// Create state-dir and runtime root if missing.
+	if err := os.MkdirAll(c.stateDir, 0o700); err != nil {
+		return err
+	}
+	nodeConfig, err := loadPersistentState(c.stateDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -182,6 +178,12 @@ func (c *Cluster) Start() error {
 		return err
 	}
 
+	// Create runtime root if missing. It is used for the control-socket on Linux.
+	//
+	// TODO(thaJeztah): this should probably be done as part of "nodeRunner.start()", which constructs the socket.
+	if err := os.MkdirAll(c.config.RuntimeRoot, 0o700); err != nil {
+		return err
+	}
 	nr, err := c.newNodeRunner(*nodeConfig)
 	if err != nil {
 		return err

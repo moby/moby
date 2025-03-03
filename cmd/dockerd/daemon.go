@@ -60,7 +60,6 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/tracing/detect"
-	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -931,11 +930,6 @@ func loadListeners(cfg *config.Config, tlsConfig *tls.Config) ([]net.Listener, [
 
 func createAndStartCluster(cli *daemonCLI, d *daemon.Daemon) (*cluster.Cluster, error) {
 	name, _ := os.Hostname()
-
-	// Use a buffered channel to pass changes from store watch API to daemon
-	// A buffer allows store watch API and daemon processing to not wait for each other
-	watchStream := make(chan *swarmapi.WatchMessage, 32)
-
 	c, err := cluster.New(cluster.Config{
 		Root:                   cli.Config.Root,
 		Name:                   name,
@@ -948,7 +942,6 @@ func createAndStartCluster(cli *daemonCLI, d *daemon.Daemon) (*cluster.Cluster, 
 		RaftHeartbeatTick:      cli.Config.SwarmRaftHeartbeatTick,
 		RaftElectionTick:       cli.Config.SwarmRaftElectionTick,
 		RuntimeRoot:            cli.getSwarmRunRoot(),
-		WatchStream:            watchStream,
 	})
 	if err != nil {
 		return nil, err
