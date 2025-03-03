@@ -69,7 +69,7 @@ var (
 	}
 
 	// emptyServiceConfig is a default service-config for situations where
-	// no config-file is available (e.g. when used in the CLI). If won't
+	// no config-file is available (e.g. when used in the CLI). It won't
 	// have mirrors configured, but does have the default insecure registry
 	// CIDRs for loopback interfaces configured.
 	emptyServiceConfig = &serviceConfig{
