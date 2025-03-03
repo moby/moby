@@ -407,6 +407,46 @@ func TestNewIndexInfo(t *testing.T) {
 			Secure:   false,
 			Mirrors:  []string{},
 		},
+		"127.255.255.255": {
+			Name:     "127.255.255.255",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"127.255.255.255:5000": {
+			Name:     "127.255.255.255:5000",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"::1": {
+			Name:     "::1",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"[::1]:5000": {
+			Name:     "[::1]:5000",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		// IPv6 only has a single loopback address, so ::2 is not a loopback,
+		// hence not marked "insecure".
+		"::2": {
+			Name:     "::2",
+			Official: false,
+			Secure:   true,
+			Mirrors:  []string{},
+		},
+		// IPv6 only has a single loopback address, so ::2 is not a loopback,
+		// hence not marked "insecure".
+		"[::2]:5000": {
+			Name:     "[::2]:5000",
+			Official: false,
+			Secure:   true,
+			Mirrors:  []string{},
+		},
 		"other.com": {
 			Name:     "other.com",
 			Official: false,
@@ -448,6 +488,18 @@ func TestNewIndexInfo(t *testing.T) {
 			Name:     "127.0.0.1:5000",
 			Official: false,
 			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"42.42.0.1:5000": {
+			Name:     "42.42.0.1:5000",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"42.43.0.1:5000": {
+			Name:     "42.43.0.1:5000",
+			Official: false,
+			Secure:   true,
 			Mirrors:  []string{},
 		},
 		"other.com": {
