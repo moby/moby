@@ -40,7 +40,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 		RemoteName    string
 		CanonicalName string
 		LocalName     string
-		Official      bool
 	}
 
 	expectedRepoInfos := map[string]staticRepositoryInfo{
@@ -52,7 +51,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "fooo/bar",
 			LocalName:     "fooo/bar",
 			CanonicalName: "docker.io/fooo/bar",
-			Official:      false,
 		},
 		"library/ubuntu": {
 			Index: &registry.IndexInfo{
@@ -62,7 +60,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "library/ubuntu",
 			LocalName:     "ubuntu",
 			CanonicalName: "docker.io/library/ubuntu",
-			Official:      true,
 		},
 		"nonlibrary/ubuntu": {
 			Index: &registry.IndexInfo{
@@ -72,7 +69,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "nonlibrary/ubuntu",
 			LocalName:     "nonlibrary/ubuntu",
 			CanonicalName: "docker.io/nonlibrary/ubuntu",
-			Official:      false,
 		},
 		"ubuntu": {
 			Index: &registry.IndexInfo{
@@ -82,7 +78,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "library/ubuntu",
 			LocalName:     "ubuntu",
 			CanonicalName: "docker.io/library/ubuntu",
-			Official:      true,
 		},
 		"other/library": {
 			Index: &registry.IndexInfo{
@@ -92,7 +87,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "other/library",
 			LocalName:     "other/library",
 			CanonicalName: "docker.io/other/library",
-			Official:      false,
 		},
 		"127.0.0.1:8000/private/moonbase": {
 			Index: &registry.IndexInfo{
@@ -102,7 +96,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "private/moonbase",
 			LocalName:     "127.0.0.1:8000/private/moonbase",
 			CanonicalName: "127.0.0.1:8000/private/moonbase",
-			Official:      false,
 		},
 		"127.0.0.1:8000/privatebase": {
 			Index: &registry.IndexInfo{
@@ -112,7 +105,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "privatebase",
 			LocalName:     "127.0.0.1:8000/privatebase",
 			CanonicalName: "127.0.0.1:8000/privatebase",
-			Official:      false,
 		},
 		"localhost:8000/private/moonbase": {
 			Index: &registry.IndexInfo{
@@ -122,7 +114,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "private/moonbase",
 			LocalName:     "localhost:8000/private/moonbase",
 			CanonicalName: "localhost:8000/private/moonbase",
-			Official:      false,
 		},
 		"localhost:8000/privatebase": {
 			Index: &registry.IndexInfo{
@@ -132,7 +123,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "privatebase",
 			LocalName:     "localhost:8000/privatebase",
 			CanonicalName: "localhost:8000/privatebase",
-			Official:      false,
 		},
 		"example.com/private/moonbase": {
 			Index: &registry.IndexInfo{
@@ -142,7 +132,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "private/moonbase",
 			LocalName:     "example.com/private/moonbase",
 			CanonicalName: "example.com/private/moonbase",
-			Official:      false,
 		},
 		"example.com/privatebase": {
 			Index: &registry.IndexInfo{
@@ -152,7 +141,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "privatebase",
 			LocalName:     "example.com/privatebase",
 			CanonicalName: "example.com/privatebase",
-			Official:      false,
 		},
 		"example.com:8000/private/moonbase": {
 			Index: &registry.IndexInfo{
@@ -162,7 +150,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "private/moonbase",
 			LocalName:     "example.com:8000/private/moonbase",
 			CanonicalName: "example.com:8000/private/moonbase",
-			Official:      false,
 		},
 		"example.com:8000/privatebase": {
 			Index: &registry.IndexInfo{
@@ -172,7 +159,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "privatebase",
 			LocalName:     "example.com:8000/privatebase",
 			CanonicalName: "example.com:8000/privatebase",
-			Official:      false,
 		},
 		"localhost/private/moonbase": {
 			Index: &registry.IndexInfo{
@@ -182,7 +168,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "private/moonbase",
 			LocalName:     "localhost/private/moonbase",
 			CanonicalName: "localhost/private/moonbase",
-			Official:      false,
 		},
 		"localhost/privatebase": {
 			Index: &registry.IndexInfo{
@@ -192,7 +177,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "privatebase",
 			LocalName:     "localhost/privatebase",
 			CanonicalName: "localhost/privatebase",
-			Official:      false,
 		},
 		IndexName + "/public/moonbase": {
 			Index: &registry.IndexInfo{
@@ -202,7 +186,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "public/moonbase",
 			LocalName:     "public/moonbase",
 			CanonicalName: "docker.io/public/moonbase",
-			Official:      false,
 		},
 		"index." + IndexName + "/public/moonbase": {
 			Index: &registry.IndexInfo{
@@ -212,7 +195,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "public/moonbase",
 			LocalName:     "public/moonbase",
 			CanonicalName: "docker.io/public/moonbase",
-			Official:      false,
 		},
 		"ubuntu-12.04-base": {
 			Index: &registry.IndexInfo{
@@ -222,7 +204,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
 			CanonicalName: "docker.io/library/ubuntu-12.04-base",
-			Official:      true,
 		},
 		IndexName + "/ubuntu-12.04-base": {
 			Index: &registry.IndexInfo{
@@ -232,7 +213,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
 			CanonicalName: "docker.io/library/ubuntu-12.04-base",
-			Official:      true,
 		},
 		"index." + IndexName + "/ubuntu-12.04-base": {
 			Index: &registry.IndexInfo{
@@ -242,7 +222,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
 			CanonicalName: "docker.io/library/ubuntu-12.04-base",
-			Official:      true,
 		},
 	}
 
@@ -261,7 +240,6 @@ func TestParseRepositoryInfo(t *testing.T) {
 			assert.Check(t, is.Equal(reference.FamiliarName(repoInfo.Name), expectedRepoInfo.LocalName), reposName)
 			assert.Check(t, is.Equal(repoInfo.Name.Name(), expectedRepoInfo.CanonicalName), reposName)
 			assert.Check(t, is.Equal(repoInfo.Index.Official, expectedRepoInfo.Index.Official), reposName)
-			assert.Check(t, is.Equal(repoInfo.Official, expectedRepoInfo.Official), reposName)
 		}
 	}
 }
