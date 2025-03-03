@@ -335,94 +335,90 @@ func TestNewIndexInfo(t *testing.T) {
 		for indexName, expected := range expectedIndexInfos {
 			t.Run(indexName, func(t *testing.T) {
 				actual := newIndexInfo(config, indexName)
-				assert.Check(t, is.Equal(actual.Name, expected.Name))
-				assert.Check(t, is.Equal(actual.Official, expected.Official))
-				assert.Check(t, is.Equal(actual.Secure, expected.Secure))
-				assert.Check(t, is.Equal(len(actual.Mirrors), len(expected.Mirrors)))
+				assert.Check(t, is.DeepEqual(actual, expected))
 			})
 		}
 	}
 
-	var noMirrors []string
 	expectedIndexInfos := map[string]*registry.IndexInfo{
 		IndexName: {
 			Name:     IndexName,
 			Official: true,
 			Secure:   true,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"index." + IndexName: {
 			Name:     IndexName,
 			Official: true,
 			Secure:   true,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"example.com": {
 			Name:     "example.com",
 			Official: false,
 			Secure:   true,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"127.0.0.1:5000": {
 			Name:     "127.0.0.1:5000",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 	}
 	t.Run("no mirrors", func(t *testing.T) {
 		testIndexInfo(t, emptyServiceConfig, expectedIndexInfos)
 	})
 
-	publicMirrors := []string{"http://mirror1.local", "http://mirror2.local"}
-
 	expectedIndexInfos = map[string]*registry.IndexInfo{
 		IndexName: {
 			Name:     IndexName,
 			Official: true,
 			Secure:   true,
-			Mirrors:  publicMirrors,
+			Mirrors:  []string{"http://mirror1.local/", "http://mirror2.local/"},
 		},
 		"index." + IndexName: {
 			Name:     IndexName,
 			Official: true,
 			Secure:   true,
-			Mirrors:  publicMirrors,
+			Mirrors:  []string{"http://mirror1.local/", "http://mirror2.local/"},
 		},
 		"example.com": {
 			Name:     "example.com",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"example.com:5000": {
 			Name:     "example.com:5000",
 			Official: false,
 			Secure:   true,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"127.0.0.1": {
 			Name:     "127.0.0.1",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"127.0.0.1:5000": {
 			Name:     "127.0.0.1:5000",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"other.com": {
 			Name:     "other.com",
 			Official: false,
 			Secure:   true,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 	}
 	t.Run("mirrors", func(t *testing.T) {
+		// Note that newServiceConfig calls ValidateMirror internally, which normalizes
+		// mirror-URLs to have a trailing slash.
 		config, err := newServiceConfig(ServiceOptions{
-			Mirrors:            publicMirrors,
+			Mirrors:            []string{"http://mirror1.local", "http://mirror2.local"},
 			InsecureRegistries: []string{"example.com"},
 		})
 		assert.NilError(t, err)
@@ -434,31 +430,31 @@ func TestNewIndexInfo(t *testing.T) {
 			Name:     "example.com",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"example.com:5000": {
 			Name:     "example.com:5000",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"127.0.0.1": {
 			Name:     "127.0.0.1",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"127.0.0.1:5000": {
 			Name:     "127.0.0.1:5000",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"other.com": {
 			Name:     "other.com",
 			Official: false,
 			Secure:   true,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 	}
 	t.Run("custom insecure", func(t *testing.T) {
