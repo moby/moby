@@ -18,7 +18,7 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/tailfile"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 )
 
@@ -276,7 +276,7 @@ func waitForMsg(t *testing.T, lw *logger.LogWatcher, expected string, timeout ti
 		assert.NilError(t, err)
 	case msg, ok := <-lw.Msg:
 		assert.Assert(t, ok, "log producer gone before log message arrived")
-		assert.Check(t, cmp.Equal(string(msg.Line), expected))
+		assert.Check(t, is.Equal(string(msg.Line), expected))
 	case <-timer.C:
 		t.Fatal("timeout waiting for log message")
 	}
