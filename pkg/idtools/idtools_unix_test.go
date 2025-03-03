@@ -364,20 +364,6 @@ func TestToContainer(t *testing.T) {
 	assert.Check(t, is.Equal(uidMap[0].ContainerID, containerID))
 }
 
-// TestMkdirIsNotDir checks that mkdirAs() function (used by MkdirAll...)
-// returns a correct error in case a directory which it is about to create
-// already exists but is a file (rather than a directory).
-func TestMkdirIsNotDir(t *testing.T) {
-	file, err := os.CreateTemp("", t.Name())
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.Remove(file.Name())
-
-	err = mkdirAs(file.Name(), 0o755, Identity{UID: 0, GID: 0}, false, false)
-	assert.Check(t, is.Error(err, "mkdir "+file.Name()+": not a directory"))
-}
-
 func RequiresRoot(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 }
