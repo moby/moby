@@ -31,8 +31,24 @@ import (
 // outStream is the writer which the images are written to.
 //
 // TODO(thaJeztah): produce JSON stream progress response and image events; see https://github.com/moby/moby/issues/43910
-func (i *ImageService) ExportImage(ctx context.Context, names []string, platform *ocispec.Platform, outStream io.Writer) error {
-	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, platform)
+func (i *ImageService) ExportImage(ctx context.Context, names []string, platformSpecs []ocispec.Platform, outStream io.Writer) error {
+	var platform *ocispec.Platform
+	// Preserve old behaviour for single platform - have exportImage set the exported
+	// manifest to the one matching the selected platform.
+	// For multiple platforms, just rely on the exporter to filter out platforms not
+	// matching the requested specs (this will keep all platforms in the top level
+	// manifest, but will skip blobs of the filtered out images).
+	if len(platformSpecs) == 1 {
+		platform = &platformSpecs[0]
+	}
+
+	var normalisedPlatforms []ocispec.Platform
+	for _, plat := range platformSpecs {
+		normalisedPlatforms = append(normalisedPlatforms, platforms.Normalize(plat))
+	}
+	platformSpecs = normalisedPlatforms
+
+	pm := platforms.Ordered(normalisedPlatforms...)
 
 	opts := []archive.ExportOpt{
 		archive.WithSkipNonDistributableBlobs(),
@@ -229,14 +245,30 @@ func (i *ImageService) leaseContent(ctx context.Context, store content.Store, de
 // LoadImage uploads a set of images into the repository. This is the
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
-func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platform *ocispec.Platform, outStream io.Writer, quiet bool) error {
+func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platformSpecs []ocispec.Platform, outStream io.Writer, quiet bool) error {
 	decompressed, err := dockerarchive.DecompressStream(inTar)
 	if err != nil {
 		return errors.Wrap(err, "failed to decompress input tar archive")
 	}
 	defer decompressed.Close()
 
-	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, platform)
+	var platform *ocispec.Platform
+	if len(platformSpecs) == 1 {
+		platform = &platformSpecs[0]
+	}
+
+	var pm platforms.MatchComparer
+	if len(platformSpecs) > 1 {
+		var normalisedPlatforms []ocispec.Platform
+		for _, plat := range platformSpecs {
+			normalisedPlatforms = append(normalisedPlatforms, platforms.Normalize(plat))
+		}
+		platformSpecs = normalisedPlatforms
+
+		pm = platforms.Ordered(normalisedPlatforms...)
+	} else {
+		pm = i.matchRequestedOrDefault(platforms.OnlyStrict, platform)
+	}
 
 	opts := []containerd.ImportOpt{
 		containerd.WithImportPlatform(pm),
