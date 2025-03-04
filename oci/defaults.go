@@ -1,8 +1,12 @@
 package oci // import "github.com/docker/docker/oci"
 
 import (
+	"fmt"
+	"os"
 	"runtime"
+	"sync"
 
+	"github.com/docker/docker/internal/platform"
 	"github.com/docker/docker/oci/caps"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -102,19 +106,7 @@ func DefaultLinuxSpec() specs.Spec {
 			},
 		},
 		Linux: &specs.Linux{
-			MaskedPaths: []string{
-				"/proc/asound",
-				"/proc/acpi",
-				"/proc/kcore",
-				"/proc/keys",
-				"/proc/latency_stats",
-				"/proc/timer_list",
-				"/proc/timer_stats",
-				"/proc/sched_debug",
-				"/proc/scsi",
-				"/sys/firmware",
-				"/sys/devices/virtual/powercap",
-			},
+			MaskedPaths: defaultLinuxMaskedPaths(),
 			ReadonlyPaths: []string{
 				"/proc/bus",
 				"/proc/fs",
@@ -194,3 +186,33 @@ func DefaultLinuxSpec() specs.Spec {
 		},
 	}
 }
+
+// defaultLinuxMaskedPaths returns the default list of paths to mask in a Linux
+// container. The paths won't change while the docker daemon is running, so just
+// compute them once.
+var defaultLinuxMaskedPaths = sync.OnceValue(func() []string {
+	maskedPaths := []string{
+		"/proc/asound",
+		"/proc/acpi",
+		"/proc/interrupts", // https://github.com/moby/moby/security/advisories/GHSA-6fw5-f8r9-fgfm
+		"/proc/kcore",
+		"/proc/keys",
+		"/proc/latency_stats",
+		"/proc/timer_list",
+		"/proc/timer_stats",
+		"/proc/sched_debug",
+		"/proc/scsi",
+		"/sys/firmware",
+		"/sys/devices/virtual/powercap", // https://github.com/moby/moby/security/advisories/GHSA-jq35-85cj-fj4p
+	}
+
+	// https://github.com/moby/moby/security/advisories/GHSA-6fw5-f8r9-fgfm
+	cpus := platform.PossibleCPU()
+	for _, cpu := range cpus {
+		path := fmt.Sprintf("/sys/devices/system/cpu/cpu%d/thermal_throttle", cpu)
+		if _, err := os.Stat(path); err == nil {
+			maskedPaths = append(maskedPaths, path)
+		}
+	}
+	return maskedPaths
+})
