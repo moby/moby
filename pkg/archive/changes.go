@@ -83,7 +83,7 @@ func aufsMetadataSkip(path string) (skip bool, err error) {
 	if err != nil {
 		skip = true
 	}
-	return
+	return skip, err
 }
 
 func aufsDeletedFile(root, path string, fi os.FileInfo) (string, error) {

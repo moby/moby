@@ -322,12 +322,13 @@ func GetBroadcastIP(ip net.IP, mask net.IPMask) (net.IP, error) {
 }
 
 // ParseCIDR returns the *net.IPNet represented by the passed CIDR notation
-func ParseCIDR(cidr string) (n *net.IPNet, e error) {
-	var i net.IP
-	if i, n, e = net.ParseCIDR(cidr); e == nil {
-		n.IP = i
+func ParseCIDR(cidr string) (*net.IPNet, error) {
+	ip, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return nil, err
 	}
-	return
+	ipNet.IP = ip
+	return ipNet, nil
 }
 
 const (

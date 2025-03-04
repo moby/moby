@@ -1,6 +1,7 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"mime"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/builder/remotecontext/urlutil"
@@ -363,15 +365,15 @@ func getFilenameForDownload(path string, resp *http.Response) string {
 	return ""
 }
 
-func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote builder.Source, p string, err error) {
+func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote builder.Source, p string, retErr error) {
 	u, err := url.Parse(srcURL)
 	if err != nil {
-		return
+		return nil, "", err
 	}
 
 	resp, err := remotecontext.GetWithStatusError(srcURL)
 	if err != nil {
-		return
+		return nil, "", err
 	}
 
 	filename := getFilenameForDownload(u.Path, resp)
@@ -379,11 +381,13 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 	// Prepare file in a tmp dir
 	tmpDir, err := longpath.MkdirTemp("", "docker-remote")
 	if err != nil {
-		return
+		return nil, "", err
 	}
 	defer func() {
-		if err != nil {
-			os.RemoveAll(tmpDir)
+		if retErr != nil {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				log.G(context.TODO()).WithError(err).Debug("error cleaning up temp-directory after failing to download source")
+			}
 		}
 	}()
 	// If filename is empty, the returned filename will be "" but
@@ -395,19 +399,26 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 	tmpFileName = filepath.Join(tmpDir, tmpFileName)
 	tmpFile, err := os.OpenFile(tmpFileName, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
-		return
+		return nil, "", err
 	}
+	defer func() {
+		if retErr != nil {
+			// Ignore os.ErrClosed errors, as the file may already be closed in this function.
+			if err := tmpFile.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+				log.G(context.TODO()).WithError(err).Debug("error closing temp-file after failing to download source")
+			}
+		}
+	}()
 
 	progressOutput := streamformatter.NewJSONProgressOutput(output, true)
 	progressReader := progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Downloading")
 	// Download and dump result to tmp file
 	// TODO: add filehash directly
 	if _, err = io.Copy(tmpFile, progressReader); err != nil {
-		tmpFile.Close()
-		return
+		return nil, "", err
 	}
 	// TODO: how important is this random blank line to the output?
-	fmt.Fprintln(stdout)
+	_, _ = fmt.Fprintln(stdout)
 
 	// Set the mtime to the Last-Modified header value if present
 	// Otherwise just remove atime and mtime
@@ -422,10 +433,13 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 		}
 	}
 
-	tmpFile.Close()
+	// TODO(thaJeztah): was there a reason for this file to be closed _before_ system.Chtimes, or could we unconditionally close this in a defer?
+	if err := tmpFile.Close(); err != nil {
+		log.G(context.TODO()).WithError(err).Debug("error closing temp-file before chtimes")
+	}
 
 	if err = system.Chtimes(tmpFileName, mTime, mTime); err != nil {
-		return
+		return nil, "", err
 	}
 
 	lc, err := remotecontext.NewLazySource(tmpDir)

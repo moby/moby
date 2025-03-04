@@ -28,23 +28,20 @@ const ClientSessionRemote = "client-session"
 
 // Detect returns a context and dockerfile from remote location or local
 // archive.
-func Detect(config backend.BuildConfig) (remote builder.Source, dockerfile *parser.Result, err error) {
+func Detect(config backend.BuildConfig) (remote builder.Source, dockerfile *parser.Result, _ error) {
 	remoteURL := config.Options.RemoteContext
-	dockerfilePath := config.Options.Dockerfile
-
 	switch {
 	case remoteURL == "":
-		remote, dockerfile, err = newArchiveRemote(config.Source, dockerfilePath)
+		return newArchiveRemote(config.Source, config.Options.Dockerfile)
 	case remoteURL == ClientSessionRemote:
 		return nil, nil, errdefs.InvalidParameter(errors.New("experimental session with v1 builder is no longer supported, use builder version v2 (BuildKit) instead"))
 	case urlutil.IsGitURL(remoteURL):
-		remote, dockerfile, err = newGitRemote(remoteURL, dockerfilePath)
+		return newGitRemote(remoteURL, config.Options.Dockerfile)
 	case urlutil.IsURL(remoteURL):
-		remote, dockerfile, err = newURLRemote(remoteURL, dockerfilePath, config.ProgressWriter.ProgressReaderFunc)
+		return newURLRemote(remoteURL, config.Options.Dockerfile, config.ProgressWriter.ProgressReaderFunc)
 	default:
-		err = fmt.Errorf("remoteURL (%s) could not be recognized as URL", remoteURL)
+		return nil, nil, fmt.Errorf("remoteURL (%s) could not be recognized as URL", remoteURL)
 	}
-	return
 }
 
 func newArchiveRemote(rc io.ReadCloser, dockerfilePath string) (builder.Source, *parser.Result, error) {

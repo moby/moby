@@ -45,8 +45,8 @@ func Generate(input ...string) (io.Reader, error) {
 	return buf, nil
 }
 
-func parseStringPairs(input ...string) (output [][2]string) {
-	output = make([][2]string, 0, len(input)/2+1)
+func parseStringPairs(input ...string) [][2]string {
+	output := make([][2]string, 0, len(input)/2+1)
 	for i := 0; i < len(input); i += 2 {
 		var pair [2]string
 		pair[0] = input[i]
@@ -55,5 +55,5 @@ func parseStringPairs(input ...string) (output [][2]string) {
 		}
 		output = append(output, pair)
 	}
-	return
+	return output
 }

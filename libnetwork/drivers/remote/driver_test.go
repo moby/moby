@@ -24,9 +24,10 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func decodeToMap(r *http.Request) (res map[string]interface{}, err error) {
-	err = json.NewDecoder(r.Body).Decode(&res)
-	return
+func decodeToMap(r *http.Request) (map[string]interface{}, error) {
+	var res map[string]interface{}
+	err := json.NewDecoder(r.Body).Decode(&res)
+	return res, err
 }
 
 func handle(t *testing.T, mux *http.ServeMux, method string, h func(map[string]interface{}) interface{}) {

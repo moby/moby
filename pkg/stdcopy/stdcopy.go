@@ -43,9 +43,9 @@ type stdWriter struct {
 // It inserts the prefix header before the buffer,
 // so stdcopy.StdCopy knows where to multiplex the output.
 // It makes stdWriter to implement io.Writer.
-func (w *stdWriter) Write(p []byte) (n int, err error) {
+func (w *stdWriter) Write(p []byte) (int, error) {
 	if w == nil || w.Writer == nil {
-		return 0, errors.New("Writer not instantiated")
+		return 0, errors.New("writer not instantiated")
 	}
 	if p == nil {
 		return 0, nil
@@ -57,7 +57,7 @@ func (w *stdWriter) Write(p []byte) (n int, err error) {
 	buf.Write(header[:])
 	buf.Write(p)
 
-	n, err = w.Writer.Write(buf.Bytes())
+	n, err := w.Writer.Write(buf.Bytes())
 	n -= stdWriterPrefixLen
 	if n < 0 {
 		n = 0
@@ -65,7 +65,7 @@ func (w *stdWriter) Write(p []byte) (n int, err error) {
 
 	buf.Reset()
 	bufPool.Put(buf)
-	return
+	return n, err
 }
 
 // NewStdWriter instantiates a new Writer.

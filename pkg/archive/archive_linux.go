@@ -20,7 +20,7 @@ func getWhiteoutConverter(format WhiteoutFormat) tarWhiteoutConverter {
 
 type overlayWhiteoutConverter struct{}
 
-func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os.FileInfo) (wo *tar.Header, err error) {
+func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os.FileInfo) (wo *tar.Header, _ error) {
 	// convert whiteouts to AUFS format
 	if fi.Mode()&os.ModeCharDevice != 0 && hdr.Devmajor == 0 && hdr.Devminor == 0 {
 		// we just rename the file and make it normal
@@ -31,38 +31,41 @@ func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os
 		hdr.Size = 0
 	}
 
-	if fi.Mode()&os.ModeDir != 0 {
-		opaqueXattrName := "trusted.overlay.opaque"
-		if userns.RunningInUserNS() {
-			opaqueXattrName = "user.overlay.opaque"
-		}
-
-		// convert opaque dirs to AUFS format by writing an empty file with the prefix
-		opaque, err := lgetxattr(path, opaqueXattrName)
-		if err != nil {
-			return nil, err
-		}
-		if len(opaque) == 1 && opaque[0] == 'y' {
-			delete(hdr.PAXRecords, paxSchilyXattr+opaqueXattrName)
-
-			// create a header for the whiteout file
-			// it should inherit some properties from the parent, but be a regular file
-			wo = &tar.Header{
-				Typeflag:   tar.TypeReg,
-				Mode:       hdr.Mode & int64(os.ModePerm),
-				Name:       filepath.Join(hdr.Name, WhiteoutOpaqueDir), // #nosec G305 -- An archive is being created, not extracted.
-				Size:       0,
-				Uid:        hdr.Uid,
-				Uname:      hdr.Uname,
-				Gid:        hdr.Gid,
-				Gname:      hdr.Gname,
-				AccessTime: hdr.AccessTime,
-				ChangeTime: hdr.ChangeTime,
-			}
-		}
+	if fi.Mode()&os.ModeDir == 0 {
+		// FIXME(thaJeztah): return a sentinel error instead of nil, nil
+		return nil, nil
 	}
 
-	return
+	opaqueXattrName := "trusted.overlay.opaque"
+	if userns.RunningInUserNS() {
+		opaqueXattrName = "user.overlay.opaque"
+	}
+
+	// convert opaque dirs to AUFS format by writing an empty file with the prefix
+	opaque, err := lgetxattr(path, opaqueXattrName)
+	if err != nil {
+		return nil, err
+	}
+	if len(opaque) != 1 || opaque[0] != 'y' {
+		// FIXME(thaJeztah): return a sentinel error instead of nil, nil
+		return nil, nil
+	}
+	delete(hdr.PAXRecords, paxSchilyXattr+opaqueXattrName)
+
+	// create a header for the whiteout file
+	// it should inherit some properties from the parent, but be a regular file
+	return &tar.Header{
+		Typeflag:   tar.TypeReg,
+		Mode:       hdr.Mode & int64(os.ModePerm),
+		Name:       filepath.Join(hdr.Name, WhiteoutOpaqueDir), // #nosec G305 -- An archive is being created, not extracted.
+		Size:       0,
+		Uid:        hdr.Uid,
+		Uname:      hdr.Uname,
+		Gid:        hdr.Gid,
+		Gname:      hdr.Gname,
+		AccessTime: hdr.AccessTime,
+		ChangeTime: hdr.ChangeTime,
+	}, nil
 }
 
 func (c overlayWhiteoutConverter) ConvertRead(hdr *tar.Header, path string) (bool, error) {

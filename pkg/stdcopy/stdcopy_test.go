@@ -90,11 +90,11 @@ func getSrcBuffer(stdOutBytes, stdErrBytes []byte) (buffer *bytes.Buffer, err er
 	dstOut := NewStdWriter(buffer, Stdout)
 	_, err = dstOut.Write(stdOutBytes)
 	if err != nil {
-		return
+		return buffer, err
 	}
 	dstErr := NewStdWriter(buffer, Stderr)
 	_, err = dstErr.Write(stdErrBytes)
-	return
+	return buffer, err
 }
 
 func TestStdCopyWriteAndRead(t *testing.T) {
