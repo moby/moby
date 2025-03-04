@@ -192,7 +192,7 @@ jobs:
       -
         name: Test
         run: |
-          make -o build test-docker-py
+          make TEST_SKIP_INTEGRATION_CLI=1 -o build test-docker-py
       -
         name: Prepare reports
         if: always()
