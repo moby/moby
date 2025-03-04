@@ -219,7 +219,7 @@ jobs:
           retention-days: 1
 
   integration-flaky:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     steps:
@@ -264,9 +264,9 @@ jobs:
         with:
           script: |
             let includes = [
-              { os: 'ubuntu-20.04', mode: '' },
-              { os: 'ubuntu-20.04', mode: 'rootless' },
-              { os: 'ubuntu-20.04', mode: 'systemd' },
+              // { os: 'ubuntu-20.04', mode: '' }, // FIXME: temporarily disabled during brownouts of ubuntu 20.04; https://github.com/moby/moby/pull/49579
+              // { os: 'ubuntu-20.04', mode: 'rootless' }, // FIXME: temporarily disabled during brownouts of ubuntu 20.04; https://github.com/moby/moby/pull/49579
+              // { os: 'ubuntu-20.04', mode: 'systemd' }, // FIXME: temporarily disabled during brownouts of ubuntu 20.04; https://github.com/moby/moby/pull/49579
               { os: 'ubuntu-24.04', mode: '' },
               { os: 'ubuntu-22.04', mode: 'rootless' },
               // { os: 'ubuntu-24.04', mode: 'rootless' },  // FIXME: https://github.com/moby/moby/pull/49579#issuecomment-2698622223
@@ -485,7 +485,7 @@ jobs:
           echo ${{ steps.set.outputs.matrix }}
 
   integration-cli:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     needs:
