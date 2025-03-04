@@ -289,6 +289,16 @@ func strSlicesEqual(a, b []string) bool {
 	return true
 }
 
+const (
+	// Example IP-addresses as defined in [RFC 5737], [RFC 3849, section 2].
+	//
+	// [RFC 5737]: https://datatracker.ietf.org/doc/html/rfc5737
+	// [RFC 3849, section 2]: https://datatracker.ietf.org/doc/html/rfc3849#section-2
+	testNS1 = "192.0.2.1"
+	testNS2 = "2001:db8::1"
+	testNS3 = "203.0.113.3"
+)
+
 func TestBuild(t *testing.T) {
 	tmpDir := t.TempDir()
 	file, err := os.CreateTemp(tmpDir, "")
@@ -296,12 +306,18 @@ func TestBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f, err := Build(file.Name(), []string{"ns1", "ns2", "ns3"}, []string{"search1"}, []string{"opt1"})
+	f, err := Build(file.Name(), []string{testNS1, testNS2, testNS3}, []string{"search1"}, []string{"opt1"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	const expected = "search search1\nnameserver ns1\nnameserver ns2\nnameserver ns3\noptions opt1\n"
+	const expected = `nameserver 192.0.2.1
+nameserver 2001:db8::1
+nameserver 203.0.113.3
+search search1
+options opt1
+`
+
 	if !bytes.Equal(f.Content, []byte(expected)) {
 		t.Errorf("Expected to find '%s' got '%s'", expected, f.Content)
 	}
@@ -321,12 +337,17 @@ func TestBuildWithZeroLengthDomainSearch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f, err := Build(file.Name(), []string{"ns1", "ns2", "ns3"}, []string{"."}, []string{"opt1"})
+	f, err := Build(file.Name(), []string{testNS1, testNS2, testNS3}, []string{"."}, []string{"opt1"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	const expected = "nameserver ns1\nnameserver ns2\nnameserver ns3\noptions opt1\n"
+	const expected = `nameserver 192.0.2.1
+nameserver 2001:db8::1
+nameserver 203.0.113.3
+options opt1
+`
+
 	if !bytes.Equal(f.Content, []byte(expected)) {
 		t.Errorf("Expected to find '%s' got '%s'", expected, f.Content)
 	}
@@ -346,12 +367,17 @@ func TestBuildWithNoOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f, err := Build(file.Name(), []string{"ns1", "ns2", "ns3"}, []string{"search1"}, []string{})
+	f, err := Build(file.Name(), []string{testNS1, testNS2, testNS3}, []string{"search1"}, []string{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	const expected = "search search1\nnameserver ns1\nnameserver ns2\nnameserver ns3\n"
+	const expected = `nameserver 192.0.2.1
+nameserver 2001:db8::1
+nameserver 203.0.113.3
+search search1
+`
+
 	if !bytes.Equal(f.Content, []byte(expected)) {
 		t.Errorf("Expected to find '%s' got '%s'", expected, f.Content)
 	}
