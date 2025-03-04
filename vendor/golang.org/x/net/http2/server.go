@@ -50,6 +50,7 @@ import (
 
 	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2/hpack"
+	"golang.org/x/net/internal/httpcommon"
 )
 
 const (
@@ -812,8 +813,7 @@ const maxCachedCanonicalHeadersKeysSize = 2048
 
 func (sc *serverConn) canonicalHeader(v string) string {
 	sc.serveG.check()
-	buildCommonHeaderMapsOnce()
-	cv, ok := commonCanonHeader[v]
+	cv, ok := httpcommon.CachedCanonicalHeader(v)
 	if ok {
 		return cv
 	}

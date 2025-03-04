@@ -80,6 +80,7 @@ type handshakeTransport struct {
 	pendingPackets   [][]byte // Used when a key exchange is in progress.
 	writePacketsLeft uint32
 	writeBytesLeft   int64
+	userAuthComplete bool // whether the user authentication phase is complete
 
 	// If the read loop wants to schedule a kex, it pings this
 	// channel, and the write loop will send out a kex
@@ -552,16 +553,25 @@ func (t *handshakeTransport) sendKexInit() error {
 	return nil
 }
 
+var errSendBannerPhase = errors.New("ssh: SendAuthBanner outside of authentication phase")
+
 func (t *handshakeTransport) writePacket(p []byte) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	switch p[0] {
 	case msgKexInit:
 		return errors.New("ssh: only handshakeTransport can send kexInit")
 	case msgNewKeys:
 		return errors.New("ssh: only handshakeTransport can send newKeys")
+	case msgUserAuthBanner:
+		if t.userAuthComplete {
+			return errSendBannerPhase
+		}
+	case msgUserAuthSuccess:
+		t.userAuthComplete = true
 	}
 
-	t.mu.Lock()
-	defer t.mu.Unlock()
 	if t.writeError != nil {
 		return t.writeError
 	}

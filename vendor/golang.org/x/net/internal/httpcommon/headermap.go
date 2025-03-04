@@ -1,8 +1,8 @@
-// Copyright 2014 The Go Authors. All rights reserved.
+// Copyright 2025 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package http2
+package httpcommon
 
 import (
 	"net/http"
@@ -88,7 +88,9 @@ func buildCommonHeaderMaps() {
 	}
 }
 
-func lowerHeader(v string) (lower string, ascii bool) {
+// LowerHeader returns the lowercase form of a header name,
+// used on the wire for HTTP/2 and HTTP/3 requests.
+func LowerHeader(v string) (lower string, ascii bool) {
 	buildCommonHeaderMapsOnce()
 	if s, ok := commonLowerHeader[v]; ok {
 		return s, true
@@ -96,10 +98,18 @@ func lowerHeader(v string) (lower string, ascii bool) {
 	return asciiToLower(v)
 }
 
-func canonicalHeader(v string) string {
+// CanonicalHeader canonicalizes a header name. (For example, "host" becomes "Host".)
+func CanonicalHeader(v string) string {
 	buildCommonHeaderMapsOnce()
 	if s, ok := commonCanonHeader[v]; ok {
 		return s
 	}
 	return http.CanonicalHeaderKey(v)
+}
+
+// CachedCanonicalHeader returns the canonical form of a well-known header name.
+func CachedCanonicalHeader(v string) (string, bool) {
+	buildCommonHeaderMapsOnce()
+	s, ok := commonCanonHeader[v]
+	return s, ok
 }
