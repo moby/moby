@@ -73,14 +73,13 @@ func statUnix(fi os.FileInfo, hdr *tar.Header) error {
 	return nil
 }
 
-func getInodeFromStat(stat interface{}) (inode uint64, err error) {
+func getInodeFromStat(stat interface{}) (uint64, error) {
 	s, ok := stat.(*syscall.Stat_t)
-
-	if ok {
-		inode = s.Ino
+	if !ok {
+		// FIXME(thaJeztah): this should likely return an error; see https://github.com/moby/moby/pull/49493#discussion_r1979152897
+		return 0, nil
 	}
-
-	return
+	return s.Ino, nil
 }
 
 func getFileUIDGID(stat interface{}) (idtools.Identity, error) {

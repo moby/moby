@@ -32,14 +32,14 @@ func (pp *logPluginProxy) StartLogging(file string, info Info) (err error) {
 	req.File = file
 	req.Info = info
 	if err = pp.Call("LogDriver.StartLogging", req, &ret); err != nil {
-		return
+		return err
 	}
 
 	if ret.Err != "" {
-		err = errors.New(ret.Err)
+		return errors.New(ret.Err)
 	}
 
-	return
+	return nil
 }
 
 type logPluginProxyStopLoggingRequest struct {
@@ -58,14 +58,14 @@ func (pp *logPluginProxy) StopLogging(file string) (err error) {
 
 	req.File = file
 	if err = pp.Call("LogDriver.StopLogging", req, &ret); err != nil {
-		return
+		return err
 	}
 
 	if ret.Err != "" {
-		err = errors.New(ret.Err)
+		return errors.New(ret.Err)
 	}
 
-	return
+	return nil
 }
 
 type logPluginProxyCapabilitiesResponse struct {
@@ -77,16 +77,14 @@ func (pp *logPluginProxy) Capabilities() (cap Capability, err error) {
 	var ret logPluginProxyCapabilitiesResponse
 
 	if err = pp.Call("LogDriver.Capabilities", nil, &ret); err != nil {
-		return
+		return Capability{}, err
 	}
-
-	cap = ret.Cap
 
 	if ret.Err != "" {
-		err = errors.New(ret.Err)
+		return Capability{}, errors.New(ret.Err)
 	}
 
-	return
+	return ret.Cap, nil
 }
 
 type logPluginProxyReadLogsRequest struct {
@@ -95,9 +93,8 @@ type logPluginProxyReadLogsRequest struct {
 }
 
 func (pp *logPluginProxy) ReadLogs(info Info, config ReadConfig) (stream io.ReadCloser, err error) {
-	var req logPluginProxyReadLogsRequest
-
-	req.Info = info
-	req.Config = config
-	return pp.Stream("LogDriver.ReadLogs", req)
+	return pp.Stream("LogDriver.ReadLogs", logPluginProxyReadLogsRequest{
+		Info:   info,
+		Config: config,
+	})
 }

@@ -22,6 +22,7 @@ linters:
     - makezero      # Finds slice declarations with non-zero initial length.
     - mirror        # Detects wrong mirror patterns of bytes/strings usage.
     - misspell      # Detects commonly misspelled English words in comments.
+    - nakedret      # Detects uses of naked returns.
     - nilnesserr    # Detects returning nil errors. It combines the features of nilness and nilerr,
     - nosprintfhostport # Detects misuse of Sprintf to construct a host with port in a URL.
     - reassign      # Detects reassigning a top-level variable in another package.
@@ -135,6 +136,11 @@ linters-settings:
       # Enforce that gotest.tools/v3/assert/cmp is always aliased as "is"
       - pkg: gotest.tools/v3/assert/cmp
         alias: is
+
+  nakedret:
+    # Disallow naked returns if func has more lines of code than this setting.
+    # Default: 30
+     max-func-lines: 0
 
   revive:
     rules:

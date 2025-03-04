@@ -1567,7 +1567,7 @@ func RemapContainerdNamespaces(config *config.Config) (ns string, pluginNs strin
 		pluginNs = fmt.Sprintf("%s-%d.%d", config.ContainerdPluginNamespace, root.UID, root.GID)
 	}
 
-	return
+	return ns, pluginNs, nil
 }
 
 // checkpointAndSave grabs a container lock to safely call container.CheckpointTo

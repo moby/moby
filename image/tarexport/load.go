@@ -426,7 +426,7 @@ mainloop:
 		}
 		ret[i].parentID = ""
 	}
-	return
+	return ret
 }
 
 func checkValidParent(img, parent *image.Image) bool {

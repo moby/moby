@@ -399,7 +399,7 @@ func (c *Cluster) Cleanup() {
 	c.mu.Unlock()
 }
 
-func managerStats(client swarmapi.ControlClient, currentNodeID string) (current bool, reachable int, unreachable int, err error) {
+func managerStats(client swarmapi.ControlClient, currentNodeID string) (current bool, reachable int, unreachable int, _ error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	nodes, err := client.ListNodes(
@@ -422,7 +422,7 @@ func managerStats(client swarmapi.ControlClient, currentNodeID string) (current 
 			}
 		}
 	}
-	return
+	return current, reachable, unreachable, nil
 }
 
 func detectLockedError(err error) error {
