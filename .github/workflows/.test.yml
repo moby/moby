@@ -285,7 +285,7 @@ jobs:
           retention-days: 1
 
   integration-report:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     if: always()
