@@ -5,10 +5,12 @@
 package httpcommon
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/http/httptrace"
+	"net/textproto"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,9 +23,21 @@ var (
 	ErrRequestHeaderListSize = errors.New("request header list larger than peer's advertised limit")
 )
 
+// Request is a subset of http.Request.
+// It'd be simpler to pass an *http.Request, of course, but we can't depend on net/http
+// without creating a dependency cycle.
+type Request struct {
+	URL                 *url.URL
+	Method              string
+	Host                string
+	Header              map[string][]string
+	Trailer             map[string][]string
+	ActualContentLength int64 // 0 means 0, -1 means unknown
+}
+
 // EncodeHeadersParam is parameters to EncodeHeaders.
 type EncodeHeadersParam struct {
-	Request *http.Request
+	Request Request
 
 	// AddGzipHeader indicates that an "accept-encoding: gzip" header should be
 	// added to the request.
@@ -47,11 +61,11 @@ type EncodeHeadersResult struct {
 // It validates a request and calls headerf with each pseudo-header and header
 // for the request.
 // The headerf function is called with the validated, canonicalized header name.
-func EncodeHeaders(param EncodeHeadersParam, headerf func(name, value string)) (res EncodeHeadersResult, _ error) {
+func EncodeHeaders(ctx context.Context, param EncodeHeadersParam, headerf func(name, value string)) (res EncodeHeadersResult, _ error) {
 	req := param.Request
 
 	// Check for invalid connection-level headers.
-	if err := checkConnHeaders(req); err != nil {
+	if err := checkConnHeaders(req.Header); err != nil {
 		return res, err
 	}
 
@@ -73,7 +87,10 @@ func EncodeHeaders(param EncodeHeadersParam, headerf func(name, value string)) (
 
 	// isNormalConnect is true if this is a non-extended CONNECT request.
 	isNormalConnect := false
-	protocol := req.Header.Get(":protocol")
+	var protocol string
+	if vv := req.Header[":protocol"]; len(vv) > 0 {
+		protocol = vv[0]
+	}
 	if req.Method == "CONNECT" && protocol == "" {
 		isNormalConnect = true
 	} else if protocol != "" && req.Method != "CONNECT" {
@@ -107,9 +124,7 @@ func EncodeHeaders(param EncodeHeadersParam, headerf func(name, value string)) (
 		return res, fmt.Errorf("invalid HTTP trailer %s", err)
 	}
 
-	contentLength := ActualContentLength(req)
-
-	trailers, err := commaSeparatedTrailers(req)
+	trailers, err := commaSeparatedTrailers(req.Trailer)
 	if err != nil {
 		return res, err
 	}
@@ -123,7 +138,7 @@ func EncodeHeaders(param EncodeHeadersParam, headerf func(name, value string)) (
 		f(":authority", host)
 		m := req.Method
 		if m == "" {
-			m = http.MethodGet
+			m = "GET"
 		}
 		f(":method", m)
 		if !isNormalConnect {
@@ -198,8 +213,8 @@ func EncodeHeaders(param EncodeHeadersParam, headerf func(name, value string)) (
 				f(k, v)
 			}
 		}
-		if shouldSendReqContentLength(req.Method, contentLength) {
-			f("content-length", strconv.FormatInt(contentLength, 10))
+		if shouldSendReqContentLength(req.Method, req.ActualContentLength) {
+			f("content-length", strconv.FormatInt(req.ActualContentLength, 10))
 		}
 		if param.AddGzipHeader {
 			f("accept-encoding", "gzip")
@@ -225,7 +240,7 @@ func EncodeHeaders(param EncodeHeadersParam, headerf func(name, value string)) (
 		}
 	}
 
-	trace := httptrace.ContextClientTrace(req.Context())
+	trace := httptrace.ContextClientTrace(ctx)
 
 	// Header list size is ok. Write the headers.
 	enumerateHeaders(func(name, value string) {
@@ -243,19 +258,19 @@ func EncodeHeaders(param EncodeHeadersParam, headerf func(name, value string)) (
 		}
 	})
 
-	res.HasBody = contentLength != 0
+	res.HasBody = req.ActualContentLength != 0
 	res.HasTrailers = trailers != ""
 	return res, nil
 }
 
 // IsRequestGzip reports whether we should add an Accept-Encoding: gzip header
 // for a request.
-func IsRequestGzip(req *http.Request, disableCompression bool) bool {
+func IsRequestGzip(method string, header map[string][]string, disableCompression bool) bool {
 	// TODO(bradfitz): this is a copy of the logic in net/http. Unify somewhere?
 	if !disableCompression &&
-		req.Header.Get("Accept-Encoding") == "" &&
-		req.Header.Get("Range") == "" &&
-		req.Method != "HEAD" {
+		len(header["Accept-Encoding"]) == 0 &&
+		len(header["Range"]) == 0 &&
+		method != "HEAD" {
 		// Request gzip only, not deflate. Deflate is ambiguous and
 		// not as universally supported anyway.
 		// See: https://zlib.net/zlib_faq.html#faq39
@@ -280,22 +295,22 @@ func IsRequestGzip(req *http.Request, disableCompression bool) bool {
 //
 // Certain headers are special-cased as okay but not transmitted later.
 // For example, we allow "Transfer-Encoding: chunked", but drop the header when encoding.
-func checkConnHeaders(req *http.Request) error {
-	if v := req.Header.Get("Upgrade"); v != "" {
-		return fmt.Errorf("invalid Upgrade request header: %q", req.Header["Upgrade"])
+func checkConnHeaders(h map[string][]string) error {
+	if vv := h["Upgrade"]; len(vv) > 0 && (vv[0] != "" && vv[0] != "chunked") {
+		return fmt.Errorf("invalid Upgrade request header: %q", vv)
 	}
-	if vv := req.Header["Transfer-Encoding"]; len(vv) > 0 && (len(vv) > 1 || vv[0] != "" && vv[0] != "chunked") {
+	if vv := h["Transfer-Encoding"]; len(vv) > 0 && (len(vv) > 1 || vv[0] != "" && vv[0] != "chunked") {
 		return fmt.Errorf("invalid Transfer-Encoding request header: %q", vv)
 	}
-	if vv := req.Header["Connection"]; len(vv) > 0 && (len(vv) > 1 || vv[0] != "" && !asciiEqualFold(vv[0], "close") && !asciiEqualFold(vv[0], "keep-alive")) {
+	if vv := h["Connection"]; len(vv) > 0 && (len(vv) > 1 || vv[0] != "" && !asciiEqualFold(vv[0], "close") && !asciiEqualFold(vv[0], "keep-alive")) {
 		return fmt.Errorf("invalid Connection request header: %q", vv)
 	}
 	return nil
 }
 
-func commaSeparatedTrailers(req *http.Request) (string, error) {
-	keys := make([]string, 0, len(req.Trailer))
-	for k := range req.Trailer {
+func commaSeparatedTrailers(trailer map[string][]string) (string, error) {
+	keys := make([]string, 0, len(trailer))
+	for k := range trailer {
 		k = CanonicalHeader(k)
 		switch k {
 		case "Transfer-Encoding", "Trailer", "Content-Length":
@@ -308,19 +323,6 @@ func commaSeparatedTrailers(req *http.Request) (string, error) {
 		return strings.Join(keys, ","), nil
 	}
 	return "", nil
-}
-
-// ActualContentLength returns a sanitized version of
-// req.ContentLength, where 0 actually means zero (not unknown) and -1
-// means unknown.
-func ActualContentLength(req *http.Request) int64 {
-	if req.Body == nil || req.Body == http.NoBody {
-		return 0
-	}
-	if req.ContentLength != 0 {
-		return req.ContentLength
-	}
-	return -1
 }
 
 // validPseudoPath reports whether v is a valid :path pseudo-header
@@ -340,7 +342,7 @@ func validPseudoPath(v string) bool {
 	return (len(v) > 0 && v[0] == '/') || v == "*"
 }
 
-func validateHeaders(hdrs http.Header) string {
+func validateHeaders(hdrs map[string][]string) string {
 	for k, vv := range hdrs {
 		if !httpguts.ValidHeaderFieldName(k) && k != ":protocol" {
 			return fmt.Sprintf("name %q", k)
@@ -375,5 +377,91 @@ func shouldSendReqContentLength(method string, contentLength int64) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// ServerRequestParam is parameters to NewServerRequest.
+type ServerRequestParam struct {
+	Method                  string
+	Scheme, Authority, Path string
+	Protocol                string
+	Header                  map[string][]string
+}
+
+// ServerRequestResult is the result of NewServerRequest.
+type ServerRequestResult struct {
+	// Various http.Request fields.
+	URL        *url.URL
+	RequestURI string
+	Trailer    map[string][]string
+
+	NeedsContinue bool // client provided an "Expect: 100-continue" header
+
+	// If the request should be rejected, this is a short string suitable for passing
+	// to the http2 package's CountError function.
+	// It might be a bit odd to return errors this way rather than returing an error,
+	// but this ensures we don't forget to include a CountError reason.
+	InvalidReason string
+}
+
+func NewServerRequest(rp ServerRequestParam) ServerRequestResult {
+	needsContinue := httpguts.HeaderValuesContainsToken(rp.Header["Expect"], "100-continue")
+	if needsContinue {
+		delete(rp.Header, "Expect")
+	}
+	// Merge Cookie headers into one "; "-delimited value.
+	if cookies := rp.Header["Cookie"]; len(cookies) > 1 {
+		rp.Header["Cookie"] = []string{strings.Join(cookies, "; ")}
+	}
+
+	// Setup Trailers
+	var trailer map[string][]string
+	for _, v := range rp.Header["Trailer"] {
+		for _, key := range strings.Split(v, ",") {
+			key = textproto.CanonicalMIMEHeaderKey(textproto.TrimString(key))
+			switch key {
+			case "Transfer-Encoding", "Trailer", "Content-Length":
+				// Bogus. (copy of http1 rules)
+				// Ignore.
+			default:
+				if trailer == nil {
+					trailer = make(map[string][]string)
+				}
+				trailer[key] = nil
+			}
+		}
+	}
+	delete(rp.Header, "Trailer")
+
+	// "':authority' MUST NOT include the deprecated userinfo subcomponent
+	// for "http" or "https" schemed URIs."
+	// https://www.rfc-editor.org/rfc/rfc9113.html#section-8.3.1-2.3.8
+	if strings.IndexByte(rp.Authority, '@') != -1 && (rp.Scheme == "http" || rp.Scheme == "https") {
+		return ServerRequestResult{
+			InvalidReason: "userinfo_in_authority",
+		}
+	}
+
+	var url_ *url.URL
+	var requestURI string
+	if rp.Method == "CONNECT" && rp.Protocol == "" {
+		url_ = &url.URL{Host: rp.Authority}
+		requestURI = rp.Authority // mimic HTTP/1 server behavior
+	} else {
+		var err error
+		url_, err = url.ParseRequestURI(rp.Path)
+		if err != nil {
+			return ServerRequestResult{
+				InvalidReason: "bad_path",
+			}
+		}
+		requestURI = rp.Path
+	}
+
+	return ServerRequestResult{
+		URL:           url_,
+		NeedsContinue: needsContinue,
+		RequestURI:    requestURI,
+		Trailer:       trailer,
 	}
 }
