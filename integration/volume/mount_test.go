@@ -181,7 +181,7 @@ func TestRunMountImage(t *testing.T) {
 			create, creatErr := apiClient.ContainerCreate(ctx, &cfg, &hostCfg, &network.NetworkingConfig{}, nil, ctrName)
 			id := create.ID
 			if id != "" {
-				defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+				defer container.Remove(ctx, t, apiClient, id, containertypes.RemoveOptions{Force: true})
 			}
 
 			if tc.createErr != "" {
