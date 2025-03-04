@@ -42,11 +42,13 @@ func TestParseRepositoryInfo(t *testing.T) {
 		LocalName     string
 	}
 
-	expectedRepoInfos := map[string]staticRepositoryInfo{
+	tests := map[string]staticRepositoryInfo{
 		"fooo/bar": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "fooo/bar",
 			LocalName:     "fooo/bar",
@@ -55,7 +57,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"library/ubuntu": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "library/ubuntu",
 			LocalName:     "ubuntu",
@@ -64,7 +68,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"nonlibrary/ubuntu": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "nonlibrary/ubuntu",
 			LocalName:     "nonlibrary/ubuntu",
@@ -73,7 +79,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"ubuntu": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "library/ubuntu",
 			LocalName:     "ubuntu",
@@ -82,7 +90,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"other/library": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "other/library",
 			LocalName:     "other/library",
@@ -91,7 +101,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"127.0.0.1:8000/private/moonbase": {
 			Index: &registry.IndexInfo{
 				Name:     "127.0.0.1:8000",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   false,
 			},
 			RemoteName:    "private/moonbase",
 			LocalName:     "127.0.0.1:8000/private/moonbase",
@@ -100,16 +112,68 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"127.0.0.1:8000/privatebase": {
 			Index: &registry.IndexInfo{
 				Name:     "127.0.0.1:8000",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   false,
 			},
 			RemoteName:    "privatebase",
 			LocalName:     "127.0.0.1:8000/privatebase",
 			CanonicalName: "127.0.0.1:8000/privatebase",
 		},
+		"[::1]:8000/private/moonbase": {
+			Index: &registry.IndexInfo{
+				Name:     "[::1]:8000",
+				Mirrors:  []string{},
+				Official: false,
+				Secure:   false,
+			},
+			RemoteName:    "private/moonbase",
+			LocalName:     "[::1]:8000/private/moonbase",
+			CanonicalName: "[::1]:8000/private/moonbase",
+		},
+		"[::1]:8000/privatebase": {
+			Index: &registry.IndexInfo{
+				Name:     "[::1]:8000",
+				Mirrors:  []string{},
+				Official: false,
+				Secure:   false,
+			},
+			RemoteName:    "privatebase",
+			LocalName:     "[::1]:8000/privatebase",
+			CanonicalName: "[::1]:8000/privatebase",
+		},
+		// IPv6 only has a single loopback address, so ::2 is not a loopback,
+		// hence not marked "insecure".
+		"[::2]:8000/private/moonbase": {
+			Index: &registry.IndexInfo{
+				Name:     "[::2]:8000",
+				Mirrors:  []string{},
+				Official: false,
+				Secure:   true,
+			},
+			RemoteName:    "private/moonbase",
+			LocalName:     "[::2]:8000/private/moonbase",
+			CanonicalName: "[::2]:8000/private/moonbase",
+		},
+		// IPv6 only has a single loopback address, so ::2 is not a loopback,
+		// hence not marked "insecure".
+		"[::2]:8000/privatebase": {
+			Index: &registry.IndexInfo{
+				Name:     "[::2]:8000",
+				Mirrors:  []string{},
+				Official: false,
+				Secure:   true,
+			},
+			RemoteName:    "privatebase",
+			LocalName:     "[::2]:8000/privatebase",
+			CanonicalName: "[::2]:8000/privatebase",
+		},
 		"localhost:8000/private/moonbase": {
 			Index: &registry.IndexInfo{
 				Name:     "localhost:8000",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   false,
 			},
 			RemoteName:    "private/moonbase",
 			LocalName:     "localhost:8000/private/moonbase",
@@ -118,7 +182,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"localhost:8000/privatebase": {
 			Index: &registry.IndexInfo{
 				Name:     "localhost:8000",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   false,
 			},
 			RemoteName:    "privatebase",
 			LocalName:     "localhost:8000/privatebase",
@@ -127,7 +193,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"example.com/private/moonbase": {
 			Index: &registry.IndexInfo{
 				Name:     "example.com",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   true,
 			},
 			RemoteName:    "private/moonbase",
 			LocalName:     "example.com/private/moonbase",
@@ -136,7 +204,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"example.com/privatebase": {
 			Index: &registry.IndexInfo{
 				Name:     "example.com",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   true,
 			},
 			RemoteName:    "privatebase",
 			LocalName:     "example.com/privatebase",
@@ -145,7 +215,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"example.com:8000/private/moonbase": {
 			Index: &registry.IndexInfo{
 				Name:     "example.com:8000",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   true,
 			},
 			RemoteName:    "private/moonbase",
 			LocalName:     "example.com:8000/private/moonbase",
@@ -154,7 +226,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"example.com:8000/privatebase": {
 			Index: &registry.IndexInfo{
 				Name:     "example.com:8000",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   true,
 			},
 			RemoteName:    "privatebase",
 			LocalName:     "example.com:8000/privatebase",
@@ -163,7 +237,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"localhost/private/moonbase": {
 			Index: &registry.IndexInfo{
 				Name:     "localhost",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   false,
 			},
 			RemoteName:    "private/moonbase",
 			LocalName:     "localhost/private/moonbase",
@@ -172,7 +248,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"localhost/privatebase": {
 			Index: &registry.IndexInfo{
 				Name:     "localhost",
+				Mirrors:  []string{},
 				Official: false,
+				Secure:   false,
 			},
 			RemoteName:    "privatebase",
 			LocalName:     "localhost/privatebase",
@@ -181,7 +259,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		IndexName + "/public/moonbase": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "public/moonbase",
 			LocalName:     "public/moonbase",
@@ -190,7 +270,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"index." + IndexName + "/public/moonbase": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "public/moonbase",
 			LocalName:     "public/moonbase",
@@ -199,7 +281,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"ubuntu-12.04-base": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
@@ -208,7 +292,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		IndexName + "/ubuntu-12.04-base": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
@@ -217,7 +303,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 		"index." + IndexName + "/ubuntu-12.04-base": {
 			Index: &registry.IndexInfo{
 				Name:     IndexName,
+				Mirrors:  []string{},
 				Official: true,
+				Secure:   true,
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
@@ -225,157 +313,209 @@ func TestParseRepositoryInfo(t *testing.T) {
 		},
 	}
 
-	for reposName, expectedRepoInfo := range expectedRepoInfos {
-		named, err := reference.ParseNormalizedNamed(reposName)
-		if err != nil {
-			t.Error(err)
-		}
+	for reposName, expected := range tests {
+		t.Run(reposName, func(t *testing.T) {
+			named, err := reference.ParseNormalizedNamed(reposName)
+			assert.NilError(t, err)
 
-		repoInfo, err := ParseRepositoryInfo(named)
-		if err != nil {
-			t.Error(err)
-		} else {
-			assert.Check(t, is.Equal(repoInfo.Index.Name, expectedRepoInfo.Index.Name), reposName)
-			assert.Check(t, is.Equal(reference.Path(repoInfo.Name), expectedRepoInfo.RemoteName), reposName)
-			assert.Check(t, is.Equal(reference.FamiliarName(repoInfo.Name), expectedRepoInfo.LocalName), reposName)
-			assert.Check(t, is.Equal(repoInfo.Name.Name(), expectedRepoInfo.CanonicalName), reposName)
-			assert.Check(t, is.Equal(repoInfo.Index.Official, expectedRepoInfo.Index.Official), reposName)
-		}
+			repoInfo, err := ParseRepositoryInfo(named)
+			assert.NilError(t, err)
+
+			assert.Check(t, is.DeepEqual(repoInfo.Index, expected.Index))
+			assert.Check(t, is.Equal(reference.Path(repoInfo.Name), expected.RemoteName))
+			assert.Check(t, is.Equal(reference.FamiliarName(repoInfo.Name), expected.LocalName))
+			assert.Check(t, is.Equal(repoInfo.Name.Name(), expected.CanonicalName))
+		})
 	}
 }
 
 func TestNewIndexInfo(t *testing.T) {
 	overrideLookupIP(t)
-	testIndexInfo := func(config *serviceConfig, expectedIndexInfos map[string]*registry.IndexInfo) {
-		for indexName, expectedIndexInfo := range expectedIndexInfos {
-			index := newIndexInfo(config, indexName)
-			assert.Check(t, is.Equal(index.Name, expectedIndexInfo.Name), indexName+" name")
-			assert.Check(t, is.Equal(index.Official, expectedIndexInfo.Official), indexName+" is official")
-			assert.Check(t, is.Equal(index.Secure, expectedIndexInfo.Secure), indexName+" is secure")
-			assert.Check(t, is.Equal(len(index.Mirrors), len(expectedIndexInfo.Mirrors)), indexName+" mirrors")
+	testIndexInfo := func(t *testing.T, config *serviceConfig, expectedIndexInfos map[string]*registry.IndexInfo) {
+		for indexName, expected := range expectedIndexInfos {
+			t.Run(indexName, func(t *testing.T) {
+				actual := newIndexInfo(config, indexName)
+				assert.Check(t, is.DeepEqual(actual, expected))
+			})
 		}
 	}
 
-	config := emptyServiceConfig
-	var noMirrors []string
 	expectedIndexInfos := map[string]*registry.IndexInfo{
 		IndexName: {
 			Name:     IndexName,
 			Official: true,
 			Secure:   true,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"index." + IndexName: {
 			Name:     IndexName,
 			Official: true,
 			Secure:   true,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"example.com": {
 			Name:     "example.com",
 			Official: false,
 			Secure:   true,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"127.0.0.1:5000": {
 			Name:     "127.0.0.1:5000",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 	}
-	testIndexInfo(config, expectedIndexInfos)
-
-	publicMirrors := []string{"http://mirror1.local", "http://mirror2.local"}
-	var err error
-	config, err = makeServiceConfig(publicMirrors, []string{"example.com"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Run("no mirrors", func(t *testing.T) {
+		testIndexInfo(t, emptyServiceConfig, expectedIndexInfos)
+	})
 
 	expectedIndexInfos = map[string]*registry.IndexInfo{
 		IndexName: {
 			Name:     IndexName,
 			Official: true,
 			Secure:   true,
-			Mirrors:  publicMirrors,
+			Mirrors:  []string{"http://mirror1.local/", "http://mirror2.local/"},
 		},
 		"index." + IndexName: {
 			Name:     IndexName,
 			Official: true,
 			Secure:   true,
-			Mirrors:  publicMirrors,
+			Mirrors:  []string{"http://mirror1.local/", "http://mirror2.local/"},
 		},
 		"example.com": {
 			Name:     "example.com",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"example.com:5000": {
 			Name:     "example.com:5000",
 			Official: false,
 			Secure:   true,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"127.0.0.1": {
 			Name:     "127.0.0.1",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"127.0.0.1:5000": {
 			Name:     "127.0.0.1:5000",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
+		},
+		"127.255.255.255": {
+			Name:     "127.255.255.255",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"127.255.255.255:5000": {
+			Name:     "127.255.255.255:5000",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"::1": {
+			Name:     "::1",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"[::1]:5000": {
+			Name:     "[::1]:5000",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		// IPv6 only has a single loopback address, so ::2 is not a loopback,
+		// hence not marked "insecure".
+		"::2": {
+			Name:     "::2",
+			Official: false,
+			Secure:   true,
+			Mirrors:  []string{},
+		},
+		// IPv6 only has a single loopback address, so ::2 is not a loopback,
+		// hence not marked "insecure".
+		"[::2]:5000": {
+			Name:     "[::2]:5000",
+			Official: false,
+			Secure:   true,
+			Mirrors:  []string{},
 		},
 		"other.com": {
 			Name:     "other.com",
 			Official: false,
 			Secure:   true,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 	}
-	testIndexInfo(config, expectedIndexInfos)
+	t.Run("mirrors", func(t *testing.T) {
+		// Note that newServiceConfig calls ValidateMirror internally, which normalizes
+		// mirror-URLs to have a trailing slash.
+		config, err := newServiceConfig(ServiceOptions{
+			Mirrors:            []string{"http://mirror1.local", "http://mirror2.local"},
+			InsecureRegistries: []string{"example.com"},
+		})
+		assert.NilError(t, err)
+		testIndexInfo(t, config, expectedIndexInfos)
+	})
 
-	config, err = makeServiceConfig(nil, []string{"42.42.0.0/16"})
-	if err != nil {
-		t.Fatal(err)
-	}
 	expectedIndexInfos = map[string]*registry.IndexInfo{
 		"example.com": {
 			Name:     "example.com",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"example.com:5000": {
 			Name:     "example.com:5000",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"127.0.0.1": {
 			Name:     "127.0.0.1",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 		"127.0.0.1:5000": {
 			Name:     "127.0.0.1:5000",
 			Official: false,
 			Secure:   false,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
+		},
+		"42.42.0.1:5000": {
+			Name:     "42.42.0.1:5000",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"42.43.0.1:5000": {
+			Name:     "42.43.0.1:5000",
+			Official: false,
+			Secure:   true,
+			Mirrors:  []string{},
 		},
 		"other.com": {
 			Name:     "other.com",
 			Official: false,
 			Secure:   true,
-			Mirrors:  noMirrors,
+			Mirrors:  []string{},
 		},
 	}
-	testIndexInfo(config, expectedIndexInfos)
+	t.Run("custom insecure", func(t *testing.T) {
+		config, err := newServiceConfig(ServiceOptions{
+			InsecureRegistries: []string{"42.42.0.0/16"},
+		})
+		assert.NilError(t, err)
+		testIndexInfo(t, config, expectedIndexInfos)
+	})
 }
 
 func TestMirrorEndpointLookup(t *testing.T) {
@@ -387,10 +527,10 @@ func TestMirrorEndpointLookup(t *testing.T) {
 		}
 		return false
 	}
-	cfg, err := makeServiceConfig([]string{"https://my.mirror"}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg, err := newServiceConfig(ServiceOptions{
+		Mirrors: []string{"https://my.mirror"},
+	})
+	assert.NilError(t, err)
 	s := Service{config: cfg}
 
 	imageName, err := reference.WithName(IndexName + "/test/image")
@@ -447,13 +587,13 @@ func TestIsSecureIndex(t *testing.T) {
 		{"invalid.example.com:5000", []string{"invalid.example.com"}, true},
 		{"invalid.example.com:5000", []string{"invalid.example.com:5000"}, false},
 	}
-	for _, tt := range tests {
-		config, err := makeServiceConfig(nil, tt.insecureRegistries)
-		if err != nil {
-			t.Error(err)
-		}
-		if sec := config.isSecureIndex(tt.addr); sec != tt.expected {
-			t.Errorf("isSecureIndex failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
-		}
+	for _, tc := range tests {
+		config, err := newServiceConfig(ServiceOptions{
+			InsecureRegistries: tc.insecureRegistries,
+		})
+		assert.NilError(t, err)
+
+		sec := config.isSecureIndex(tc.addr)
+		assert.Equal(t, sec, tc.expected, "isSecureIndex failed for %q %v, expected %v got %v", tc.addr, tc.insecureRegistries, tc.expected, sec)
 	}
 }

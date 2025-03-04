@@ -117,7 +117,7 @@ func TestLoadInsecureRegistries(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		config := emptyServiceConfig
+		config := &serviceConfig{}
 		err := config.loadInsecureRegistries(testCase.registries)
 		if testCase.err == "" {
 			if err != nil {
