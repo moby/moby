@@ -104,8 +104,6 @@ func TestRunMountVolumeSubdir(t *testing.T) {
 
 			output, err := container.Output(ctx, apiClient, id)
 			assert.Check(t, err)
-			t.Logf("stdout:\n%s", output.Stdout)
-			t.Logf("stderr:\n%s", output.Stderr)
 
 			inspect, err := apiClient.ContainerInspect(ctx, id)
 			if assert.Check(t, err) {
