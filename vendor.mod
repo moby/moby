@@ -5,7 +5,7 @@
 
 module github.com/docker/docker
 
-go 1.22.0
+go 1.23.0
 
 require (
 	cloud.google.com/go/compute/metadata v0.5.2
@@ -80,9 +80,9 @@ require (
 	github.com/moby/sys/userns v0.1.0
 	github.com/moby/term v0.5.2
 	github.com/morikuni/aec v1.0.0
+	github.com/opencontainers/cgroups v0.0.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
-	github.com/opencontainers/runc v1.2.3
 	github.com/opencontainers/runtime-spec v1.2.0
 	github.com/opencontainers/selinux v1.11.1
 	github.com/pelletier/go-toml v1.9.5
@@ -105,9 +105,9 @@ require (
 	go.opentelemetry.io/otel/trace v1.31.0
 	golang.org/x/mod v0.22.0
 	golang.org/x/net v0.33.0
-	golang.org/x/sync v0.10.0
-	golang.org/x/sys v0.29.0
-	golang.org/x/text v0.21.0
+	golang.org/x/sync v0.11.0
+	golang.org/x/sys v0.30.0
+	golang.org/x/text v0.22.0
 	golang.org/x/time v0.6.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20241021214115-324edc3d5d38
 	google.golang.org/grpc v1.69.4
@@ -142,7 +142,7 @@ require (
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cilium/ebpf v0.16.0 // indirect
+	github.com/cilium/ebpf v0.17.3 // indirect
 	github.com/container-storage-interface/spec v1.5.0 // indirect
 	github.com/containerd/console v1.0.4 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
@@ -154,7 +154,7 @@ require (
 	github.com/containerd/ttrpc v1.2.7 // indirect
 	github.com/containernetworking/cni v1.2.3 // indirect
 	github.com/containernetworking/plugins v1.5.1 // indirect
-	github.com/cyphar/filepath-securejoin v0.3.5 // indirect
+	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
@@ -229,9 +229,8 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
-	golang.org/x/crypto v0.31.0 // indirect
-	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
-	golang.org/x/oauth2 v0.23.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
+	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/tools v0.27.0 // indirect
 	google.golang.org/api v0.155.0 // indirect
 	google.golang.org/genproto v0.0.0-20240123012728-ef4313101c80 // indirect; TODO(thaJeztah): should we keep this one aligned with the other google.golang.org/genproto/xxx modules?

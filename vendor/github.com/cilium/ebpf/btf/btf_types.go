@@ -39,6 +39,7 @@ const (
 	kindFloat // Float
 	// Added 5.16
 	kindDeclTag // DeclTag
+	// Added 5.17
 	kindTypeTag // TypeTag
 	// Added 6.0
 	kindEnum64 // Enum64

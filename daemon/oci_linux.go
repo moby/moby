@@ -27,7 +27,7 @@ import (
 	"github.com/moby/sys/mountinfo"
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/opencontainers/cgroups"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
