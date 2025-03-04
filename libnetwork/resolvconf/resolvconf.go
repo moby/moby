@@ -128,16 +128,16 @@ func GetOptions(resolvConf []byte) []string {
 // Note that the resolv.conf file is written, but the hash file is not.
 func Build(path string, nameservers, dnsSearch, dnsOptions []string) (*File, error) {
 	content := bytes.NewBuffer(nil)
+	for _, dns := range nameservers {
+		if _, err := content.WriteString("nameserver " + dns + "\n"); err != nil {
+			return nil, err
+		}
+	}
 	if len(dnsSearch) > 0 {
 		if searchString := strings.Join(dnsSearch, " "); strings.Trim(searchString, " ") != "." {
 			if _, err := content.WriteString("search " + searchString + "\n"); err != nil {
 				return nil, err
 			}
-		}
-	}
-	for _, dns := range nameservers {
-		if _, err := content.WriteString("nameserver " + dns + "\n"); err != nil {
-			return nil, err
 		}
 	}
 	if len(dnsOptions) > 0 {

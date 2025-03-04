@@ -311,10 +311,10 @@ func TestBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	const expected = `search search1
-nameserver 192.0.2.1
+	const expected = `nameserver 192.0.2.1
 nameserver 2001:db8::1
 nameserver 203.0.113.3
+search search1
 options opt1
 `
 
@@ -372,10 +372,10 @@ func TestBuildWithNoOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	const expected = `search search1
-nameserver 192.0.2.1
+	const expected = `nameserver 192.0.2.1
 nameserver 2001:db8::1
 nameserver 203.0.113.3
+search search1
 `
 
 	if !bytes.Equal(f.Content, []byte(expected)) {
