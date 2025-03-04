@@ -234,30 +234,25 @@ func TestRunMountImage(t *testing.T) {
 // |   |-- root                       (symlink to /)
 // |   |-- good                       (symlink to ../subdir)
 // |   |-- bad                        (symlink to root)
-func setupTestVolume(t *testing.T, client client.APIClient) string {
+func setupTestVolume(t *testing.T, apiClient client.APIClient) string {
 	t.Helper()
 	ctx := context.Background()
 
 	volumeName := t.Name() + "-volume"
 
-	err := client.VolumeRemove(ctx, volumeName, true)
+	err := apiClient.VolumeRemove(ctx, volumeName, true)
 	assert.NilError(t, err, "failed to clean volume")
 
-	_, err = client.VolumeCreate(ctx, volume.CreateOptions{
+	_, err = apiClient.VolumeCreate(ctx, volume.CreateOptions{
 		Name: volumeName,
 	})
 	assert.NilError(t, err, "failed to setup volume")
 
-	mount := mount.Mount{
-		Type:   mount.TypeVolume,
-		Source: volumeName,
-		Target: "/volume",
-	}
-
 	rootFs := "/"
+	target := "/volume"
 	if testEnv.DaemonInfo.OSType == "windows" {
-		mount.Target = `C:\volume`
 		rootFs = `C:`
+		target = `C:\volume`
 	}
 
 	initCmd := "echo foo > /volume/bar.txt && " +
@@ -271,7 +266,11 @@ func setupTestVolume(t *testing.T, client client.APIClient) string {
 		"mkdir /volume/hack/iwanttobehackedwithtoctou"
 
 	opts := []func(*container.TestContainerConfig){
-		container.WithMount(mount),
+		container.WithMount(mount.Mount{
+			Type:   mount.TypeVolume,
+			Source: volumeName,
+			Target: target,
+		}),
 		container.WithCmd("sh", "-c", initCmd+"; ls -lah /volume /volume/hack/"),
 	}
 	if testEnv.DaemonInfo.OSType == "windows" {
@@ -279,17 +278,14 @@ func setupTestVolume(t *testing.T, client client.APIClient) string {
 		opts = append(opts, container.WithIsolation(containertypes.IsolationProcess))
 	}
 
-	cid := container.Run(ctx, t, client, opts...)
-	defer client.ContainerRemove(ctx, cid, containertypes.RemoveOptions{Force: true})
-	output, err := container.Output(ctx, client, cid)
-
-	t.Logf("Setup stderr:\n%s", output.Stderr)
-	t.Logf("Setup stdout:\n%s", output.Stdout)
+	cid := container.Run(ctx, t, apiClient, opts...)
+	defer container.Remove(ctx, t, apiClient, cid, containertypes.RemoveOptions{Force: true})
+	output, err := container.Output(ctx, apiClient, cid)
 
 	assert.NilError(t, err)
 	assert.Assert(t, is.Equal(output.Stderr, ""))
 
-	inspect, err := client.ContainerInspect(ctx, cid)
+	inspect, err := apiClient.ContainerInspect(ctx, cid)
 	assert.NilError(t, err)
 	assert.Assert(t, is.Equal(inspect.State.ExitCode, 0))
 
