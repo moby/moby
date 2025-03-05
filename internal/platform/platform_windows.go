@@ -69,3 +69,8 @@ func NumProcs() uint32 {
 	_, _, _ = syscall.SyscallN(procGetSystemInfo.Addr(), uintptr(unsafe.Pointer(&sysinfo)))
 	return sysinfo.dwNumberOfProcessors
 }
+
+func possibleCPUs() []int {
+	// not implemented
+	return nil
+}
