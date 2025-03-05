@@ -34,7 +34,7 @@ jobs:
     uses: ./.github/workflows/.dco.yml
 
   build-dev:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-dco
@@ -84,7 +84,7 @@ jobs:
       storage: ${{ matrix.storage }}
 
   validate-prepare:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10 # guardrails timeout for the whole job
     needs:
       - validate-dco
@@ -106,7 +106,7 @@ jobs:
           echo ${{ steps.scripts.outputs.matrix }}
 
   validate:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 30 # guardrails timeout for the whole job
     needs:
       - validate-prepare
@@ -144,7 +144,7 @@ jobs:
           make -o build validate-${{ matrix.script }}
 
   smoke-prepare:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10 # guardrails timeout for the whole job
     needs:
       - validate-dco
@@ -166,7 +166,7 @@ jobs:
           echo ${{ steps.platforms.outputs.matrix }}
 
   smoke:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 20 # guardrails timeout for the whole job
     needs:
       - smoke-prepare
