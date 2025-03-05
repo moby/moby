@@ -5,7 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blockblob"
 	"github.com/pkg/errors"
@@ -45,8 +48,18 @@ func (c *Cache) reserveV2(ctx context.Context, key string) (string, error) {
 	return cr.SignedUploadURL, nil
 }
 
+var azureOptions = &blockblob.ClientOptions{
+	ClientOptions: azcore.ClientOptions{
+		Retry: policy.RetryOptions{
+			MaxRetries:    10,
+			MaxRetryDelay: 2 * time.Minute,
+			RetryDelay:    10 * time.Second,
+		},
+	},
+}
+
 func (c *Cache) uploadV2(ctx context.Context, url string, b Blob) error {
-	client, err := blockblob.NewClientWithNoCredential(url, nil)
+	client, err := blockblob.NewClientWithNoCredential(url, azureOptions)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -62,7 +75,7 @@ func (c *Cache) uploadV2(ctx context.Context, url string, b Blob) error {
 
 func (ce *Entry) downloadV2(ctx context.Context) ReaderAtCloser {
 	return toReaderAtCloser(func(offset int64) (io.ReadCloser, error) {
-		client, err := blockblob.NewClientWithNoCredential(ce.URL, nil)
+		client, err := blockblob.NewClientWithNoCredential(ce.URL, azureOptions)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
