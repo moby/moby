@@ -7,10 +7,13 @@ import (
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/content"
 	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/snapshots"
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/errdefs"
 	"github.com/moby/buildkit/util/attestation"
+	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -236,4 +239,38 @@ func (m *ImageManifest) ReadConfig(ctx context.Context, outConfig interface{}) e
 	}
 
 	return readJSON(ctx, m.ContentStore(), configDesc, outConfig)
+}
+
+// PresentContentSize returns the size of the image's content that is present in the content store.
+func (m *ImageManifest) PresentContentSize(ctx context.Context) (int64, error) {
+	cs := m.ContentStore()
+	var size int64
+	err := c8dimages.Walk(ctx, presentChildrenHandler(cs,
+		c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+			size += desc.Size
+			return nil, nil
+		})),
+		m.Target())
+	return size, err
+}
+
+// SnapshotUsage returns the disk usage of the image's snapshots.
+func (m *ImageManifest) SnapshotUsage(ctx context.Context, snapshotter snapshots.Snapshotter) (snapshots.Usage, error) {
+	diffIDs, err := m.RootFS(ctx)
+	if err != nil {
+		return snapshots.Usage{}, errors.Wrapf(err, "failed to get rootfs of image %s", m.Name())
+	}
+
+	imageSnapshotID := identity.ChainID(diffIDs).String()
+	unpackedUsage, err := calculateSnapshotTotalUsage(ctx, snapshotter, imageSnapshotID)
+	if err != nil {
+		if !cerrdefs.IsNotFound(err) {
+			log.G(ctx).WithError(err).WithFields(log.Fields{
+				"image":      m.Name(),
+				"snapshotID": imageSnapshotID,
+			}).Warn("failed to calculate unpacked size of image")
+		}
+		unpackedUsage = snapshots.Usage{Size: 0}
+	}
+	return unpackedUsage, nil
 }
