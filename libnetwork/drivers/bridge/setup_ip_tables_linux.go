@@ -677,6 +677,8 @@ func removeIPChains(version iptables.IPVersion) {
 		{Name: DockerChain, Table: iptables.Nat, IPVersion: version},
 		{Name: DockerChain, Table: iptables.Filter, IPVersion: version},
 		{Name: DockerForwardChain, Table: iptables.Filter, IPVersion: version},
+		{Name: DockerBridgeChain, Table: iptables.Filter, IPVersion: version},
+		{Name: DockerCTChain, Table: iptables.Filter, IPVersion: version},
 		{Name: IsolationChain1, Table: iptables.Filter, IPVersion: version},
 		{Name: IsolationChain2, Table: iptables.Filter, IPVersion: version},
 		{Name: oldIsolationChain, Table: iptables.Filter, IPVersion: version},
