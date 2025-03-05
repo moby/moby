@@ -12,8 +12,8 @@ import (
 	"github.com/docker/docker/layer"
 )
 
-func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
-	img, err := i.GetImage(ctx, refOrID, backend.GetImageOpts{})
+func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
+	img, err := i.GetImage(ctx, refOrID, backend.GetImageOpts{Platform: opts.Platform})
 	if err != nil {
 		return nil, err
 	}

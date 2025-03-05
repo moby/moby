@@ -61,4 +61,38 @@ func TestImageInspect(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("inspect image with platform parameter", func(t *testing.T) {
+		ctx := logtest.WithT(ctx, t)
+		service := fakeImageService(t, ctx, cs)
+
+		multiPlatformImage := toContainerdImage(t, func(dir string) (*ocispec.Index, error) {
+			idx, _, err := specialimage.MultiPlatform(dir, "multiplatform:latest", []ocispec.Platform{
+				{OS: "linux", Architecture: "amd64"},
+				{OS: "linux", Architecture: "arm64"},
+			})
+			return idx, err
+		})
+
+		_, err := service.images.Create(ctx, multiPlatformImage)
+		assert.NilError(t, err)
+
+		// Test with amd64 platform
+		amd64Platform := &ocispec.Platform{OS: "linux", Architecture: "amd64"}
+		inspectAmd64, err := service.ImageInspect(ctx, multiPlatformImage.Name, backend.ImageInspectOpts{
+			Platform: amd64Platform,
+		})
+		assert.NilError(t, err)
+		assert.Equal(t, inspectAmd64.Architecture, "amd64")
+		assert.Equal(t, inspectAmd64.Os, "linux")
+
+		// Test with arm64 platform
+		arm64Platform := &ocispec.Platform{OS: "linux", Architecture: "arm64"}
+		inspectArm64, err := service.ImageInspect(ctx, multiPlatformImage.Name, backend.ImageInspectOpts{
+			Platform: arm64Platform,
+		})
+		assert.NilError(t, err)
+		assert.Equal(t, inspectArm64.Architecture, "arm64")
+		assert.Equal(t, inspectArm64.Os, "linux")
+	})
 }
