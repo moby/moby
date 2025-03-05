@@ -11,7 +11,6 @@ import (
 
 	"github.com/containerd/containerd/v2/core/content"
 	c8dimages "github.com/containerd/containerd/v2/core/images"
-	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/pkg/labels"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
@@ -317,33 +316,15 @@ func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.I
 		if target.Platform == nil {
 			mfstSummary.ImageData.Platform = dockerImage.Platform
 		}
+		logger = logger.WithField("platform", mfstSummary.ImageData.Platform)
 
 		chainIDs := identity.ChainIDs(dockerImage.RootFS.DiffIDs)
 
-		unpackedSize, imgContentSize, err := i.singlePlatformSize(ctx, img)
+		snapshotUsage, err := img.SnapshotUsage(ctx, i.snapshotterService(i.snapshotter))
 		if err != nil {
-			logger.WithError(err).Warn("failed to determine platform specific size")
-			return nil
+			logger.WithFields(log.Fields{"error": err}).Warn("failed to determine platform specific unpacked size")
 		}
-
-		// If the image-specific content size calculation produces different result
-		// than the "generic" one, adjust the total size with the difference.
-		// Note: This shouldn't happen unless the implementation changes or the
-		// content is added/removed during the list operation.
-		if contentSize != imgContentSize {
-			logger.WithFields(log.Fields{
-				"contentSize":    contentSize,
-				"imgContentSize": imgContentSize,
-			}).Warn("content size calculation mismatch")
-
-			mfstSummary.Size.Content = contentSize
-
-			// contentSize was already added to total, adjust it by the difference
-			// between the newly calculated size and the old size.
-			d := imgContentSize - contentSize
-			summary.TotalSize += d
-			mfstSummary.Size.Total += d
-		}
+		unpackedSize := snapshotUsage.Size
 
 		mfstSummary.ImageData.Size.Unpacked = unpackedSize
 		mfstSummary.Size.Total += unpackedSize
@@ -433,35 +414,6 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 	return image, summary, nil
 }
 
-func (i *ImageService) singlePlatformSize(ctx context.Context, imgMfst *ImageManifest) (unpackedSize int64, contentSize int64, _ error) {
-	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
-	snapshotter := i.snapshotterService(i.snapshotter)
-
-	diffIDs, err := imgMfst.RootFS(ctx)
-	if err != nil {
-		return -1, -1, errors.Wrapf(err, "failed to get rootfs of image %s", imgMfst.Name())
-	}
-
-	imageSnapshotID := identity.ChainID(diffIDs).String()
-	unpackedUsage, err := calculateSnapshotTotalUsage(ctx, snapshotter, imageSnapshotID)
-	if err != nil {
-		if !cerrdefs.IsNotFound(err) {
-			log.G(ctx).WithError(err).WithFields(log.Fields{
-				"image":      imgMfst.Name(),
-				"snapshotID": imageSnapshotID,
-			}).Warn("failed to calculate unpacked size of image")
-		}
-		unpackedUsage = snapshots.Usage{Size: 0}
-	}
-
-	contentSize, err = imgMfst.Size(ctx)
-	if err != nil {
-		return -1, -1, err
-	}
-
-	return unpackedUsage.Size, contentSize, nil
-}
-
 func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, imageManifest *ImageManifest) (*imagetypes.Summary, error) {
 	var repoDigests []string
 	rawImg := imageManifest.Metadata()
@@ -501,9 +453,15 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		return nil, err
 	}
 
-	unpackedSize, contentSize, err := i.singlePlatformSize(ctx, imageManifest)
+	snapshotUsage, err := imageManifest.SnapshotUsage(ctx, i.snapshotterService(i.snapshotter))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to calculate size of image %s", imageManifest.Name())
+		log.G(ctx).WithFields(log.Fields{"image": imageManifest.Name(), "error": err}).Warn("failed to calculate unpacked size of image")
+	}
+	unpackedSize := snapshotUsage.Size
+
+	contentSize, err := imageManifest.PresentContentSize(ctx)
+	if err != nil {
+		log.G(ctx).WithFields(log.Fields{"image": imageManifest.Name(), "error": err}).Warn("failed to calculate content size of image")
 	}
 
 	// totalSize is the size of the image's packed layers and snapshots
