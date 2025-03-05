@@ -14,6 +14,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/internal/cleanups"
+	"github.com/docker/docker/pkg/idtools"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/pkg/errors"
 )
@@ -61,7 +62,8 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 			return nil
 		}
 
-		path, clean, err := m.Setup(ctx, c.MountLabel, daemon.idMapping.RootPair(), checkfunc)
+		uid, gid := daemon.idMapping.RootPair()
+		path, clean, err := m.Setup(ctx, c.MountLabel, idtools.Identity{UID: uid, GID: gid}, checkfunc)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -106,13 +108,13 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 	// if we are going to mount any of the network files from container
 	// metadata, the ownership must be set properly for potential container
 	// remapped root (user namespaces)
-	rootIDs := daemon.idMapping.RootPair()
+	uid, gid := daemon.idMapping.RootPair()
 	for _, mnt := range netMounts {
 		// we should only modify ownership of network files within our own container
 		// metadata repository. If the user specifies a mount path external, it is
 		// up to the user to make sure the file has proper ownership for userns
 		if strings.Index(mnt.Source, daemon.repository) == 0 {
-			if err := os.Chown(mnt.Source, rootIDs.UID, rootIDs.GID); err != nil {
+			if err := os.Chown(mnt.Source, uid, gid); err != nil {
 				return nil, nil, err
 			}
 		}
