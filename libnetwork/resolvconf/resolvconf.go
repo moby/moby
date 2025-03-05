@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"net/netip"
 	"os"
-	"strings"
 
 	"github.com/docker/docker/libnetwork/internal/resolvconf"
 	"github.com/opencontainers/go-digest"
@@ -127,31 +126,33 @@ func GetOptions(resolvConf []byte) []string {
 //
 // Note that the resolv.conf file is written, but the hash file is not.
 func Build(path string, nameservers, dnsSearch, dnsOptions []string) (*File, error) {
-	content := bytes.NewBuffer(nil)
-	if len(dnsSearch) > 0 {
-		if searchString := strings.Join(dnsSearch, " "); strings.Trim(searchString, " ") != "." {
-			if _, err := content.WriteString("search " + searchString + "\n"); err != nil {
-				return nil, err
-			}
-		}
-	}
-	for _, dns := range nameservers {
-		if _, err := content.WriteString("nameserver " + dns + "\n"); err != nil {
+	var ns []netip.Addr
+	for _, addr := range nameservers {
+		ipAddr, err := netip.ParseAddr(addr)
+		if err != nil {
 			return nil, err
 		}
+		ns = append(ns, ipAddr)
 	}
-	if len(dnsOptions) > 0 {
-		if optsString := strings.Join(dnsOptions, " "); strings.Trim(optsString, " ") != "" {
-			if _, err := content.WriteString("options " + optsString + "\n"); err != nil {
-				return nil, err
-			}
-		}
-	}
+	rc := resolvconf.ResolvConf{}
+	rc.OverrideNameServers(ns)
+	rc.OverrideSearch(dnsSearch)
+	rc.OverrideOptions(dnsOptions)
 
-	if err := os.WriteFile(path, content.Bytes(), 0o644); err != nil {
+	content, err := rc.Generate(false)
+	if err != nil {
 		return nil, err
 	}
 
-	hash := digest.FromBytes(content.Bytes())
-	return &File{Content: content.Bytes(), Hash: []byte(hash)}, nil
+	// Write the resolv.conf file - it's bind-mounted into the container, so can't
+	// move a temp file into place, just have to truncate and write it.
+	//
+	// TODO(thaJeztah): the Build function is currently only used by BuildKit, which only uses "File.Content", and doesn't require the file to be written.
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		return nil, err
+	}
+
+	// TODO(thaJeztah): the Build function is currently only used by BuildKit, which does not use the Hash
+	hash := digest.FromBytes(content)
+	return &File{Content: content, Hash: []byte(hash)}, nil
 }
