@@ -815,6 +815,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			target.image.OSFeatures = append([]string{}, platformOpt.targetPlatform.OSFeatures...)
 		}
 	}
+	target.image.Platform = platforms.Normalize(target.image.Platform)
 
 	return target, nil
 }
