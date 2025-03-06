@@ -198,8 +198,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		// httpServer.Shutdown() will return immediately,
 		// which is what we want.
 		<-cli.apiShutdown
-		err := httpServer.Shutdown(apiShutdownCtx)
-		if err != nil {
+		if err := httpServer.Shutdown(apiShutdownCtx); err != nil {
 			log.G(ctx).WithError(err).Error("Error shutting down http server")
 		}
 		close(apiShutdownDone)
@@ -217,8 +216,8 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 			// cli.start() has returned without cli.stop() being called,
 			// e.g. because the daemon failed to start.
 			// Stop the HTTP server with no grace period.
-			if closeErr := httpServer.Close(); closeErr != nil {
-				log.G(ctx).WithError(closeErr).Error("Error closing http server")
+			if err := httpServer.Close(); err != nil {
+				log.G(ctx).WithError(err).Error("Error closing http server")
 			}
 		}
 	}()
