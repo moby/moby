@@ -281,7 +281,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 
 	c, err := createAndStartCluster(d, cli.Config)
 	if err != nil {
-		log.G(ctx).WithError(err).Fatalf("Error starting cluster component")
+		return fmt.Errorf("failed to start cluster component: %w", err)
 	}
 
 	// Restart all autostart containers which has a swarm endpoint
