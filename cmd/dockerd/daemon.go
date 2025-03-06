@@ -113,18 +113,8 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		debug.Enable()
 	}
 
-	if cli.Config.Experimental {
-		log.G(ctx).Warn("Running experimental build")
-	}
-
-	if cli.Config.IsRootless() {
-		log.G(ctx).Warn("Running in rootless mode. This mode has feature limitations.")
-	}
-	if rootless.RunningWithRootlessKit() {
-		log.G(ctx).Info("Running with RootlessKit integration")
-		if !cli.Config.IsRootless() {
-			return fmt.Errorf("rootless mode needs to be enabled for running with RootlessKit")
-		}
+	if rootless.RunningWithRootlessKit() && !cli.Config.IsRootless() {
+		return fmt.Errorf("rootless mode needs to be enabled for running with RootlessKit")
 	}
 
 	// return human-friendly error before creating files
@@ -164,11 +154,19 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	}
 
 	if cli.Config.IsRootless() {
+		log.G(ctx).Warn("Running in rootless mode. This mode has feature limitations.")
+		if rootless.RunningWithRootlessKit() {
+			log.G(ctx).Info("Running with RootlessKit integration")
+		}
+
 		// Set sticky bit if XDG_RUNTIME_DIR is set && the file is actually under XDG_RUNTIME_DIR
 		if _, err := homedir.StickRuntimeDirContents(potentiallyUnderRuntimeDir); err != nil {
 			// StickRuntimeDirContents returns nil error if XDG_RUNTIME_DIR is just unset
 			log.G(ctx).WithError(err).Warn("cannot set sticky bit on files under XDG_RUNTIME_DIR")
 		}
+	}
+	if cli.Config.Experimental {
+		log.G(ctx).Warn("Running with experimental features enabled")
 	}
 
 	lss, hosts, err := loadListeners(cli.Config, cli.apiTLSConfig)
