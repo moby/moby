@@ -92,9 +92,9 @@ func defaultCertPath() string {
 }
 
 // newDaemonOptions returns a new daemonFlags
-func newDaemonOptions(config *config.Config) *daemonOptions {
+func newDaemonOptions(cfg *config.Config) *daemonOptions {
 	return &daemonOptions{
-		daemonConfig: config,
+		daemonConfig: cfg,
 		configFile:   getDefaultDaemonConfigFile(),
 	}
 }

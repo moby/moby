@@ -113,18 +113,8 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		debug.Enable()
 	}
 
-	if cli.Config.Experimental {
-		log.G(ctx).Warn("Running experimental build")
-	}
-
-	if cli.Config.IsRootless() {
-		log.G(ctx).Warn("Running in rootless mode. This mode has feature limitations.")
-	}
-	if rootless.RunningWithRootlessKit() {
-		log.G(ctx).Info("Running with RootlessKit integration")
-		if !cli.Config.IsRootless() {
-			return fmt.Errorf("rootless mode needs to be enabled for running with RootlessKit")
-		}
+	if rootless.RunningWithRootlessKit() && !cli.Config.IsRootless() {
+		return fmt.Errorf("rootless mode needs to be enabled for running with RootlessKit")
 	}
 
 	// return human-friendly error before creating files
@@ -164,11 +154,19 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	}
 
 	if cli.Config.IsRootless() {
+		log.G(ctx).Warn("Running in rootless mode. This mode has feature limitations.")
+		if rootless.RunningWithRootlessKit() {
+			log.G(ctx).Info("Running with RootlessKit integration")
+		}
+
 		// Set sticky bit if XDG_RUNTIME_DIR is set && the file is actually under XDG_RUNTIME_DIR
 		if _, err := homedir.StickRuntimeDirContents(potentiallyUnderRuntimeDir); err != nil {
 			// StickRuntimeDirContents returns nil error if XDG_RUNTIME_DIR is just unset
 			log.G(ctx).WithError(err).Warn("cannot set sticky bit on files under XDG_RUNTIME_DIR")
 		}
+	}
+	if cli.Config.Experimental {
+		log.G(ctx).Warn("Running with experimental features enabled")
 	}
 
 	lss, hosts, err := loadListeners(cli.Config, cli.apiTLSConfig)
@@ -200,8 +198,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		// httpServer.Shutdown() will return immediately,
 		// which is what we want.
 		<-cli.apiShutdown
-		err := httpServer.Shutdown(apiShutdownCtx)
-		if err != nil {
+		if err := httpServer.Shutdown(apiShutdownCtx); err != nil {
 			log.G(ctx).WithError(err).Error("Error shutting down http server")
 		}
 		close(apiShutdownDone)
@@ -219,8 +216,8 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 			// cli.start() has returned without cli.stop() being called,
 			// e.g. because the daemon failed to start.
 			// Stop the HTTP server with no grace period.
-			if closeErr := httpServer.Close(); closeErr != nil {
-				log.G(ctx).WithError(closeErr).Error("Error closing http server")
+			if err := httpServer.Close(); err != nil {
+				log.G(ctx).WithError(err).Error("Error closing http server")
 			}
 		}
 	}()
@@ -281,9 +278,9 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to start metrics server")
 	}
 
-	c, err := createAndStartCluster(cli, d)
+	c, err := createAndStartCluster(d, cli.Config)
 	if err != nil {
-		log.G(ctx).WithError(err).Fatalf("Error starting cluster component")
+		return fmt.Errorf("failed to start cluster component: %w", err)
 	}
 
 	// Restart all autostart containers which has a swarm endpoint
@@ -470,13 +467,13 @@ type builderOptions struct {
 func (cli *daemonCLI) reloadConfig() {
 	ctx := context.TODO()
 	log.G(ctx).WithField("config-file", *cli.configFile).Info("Got signal to reload configuration")
-	reload := func(c *config.Config) {
-		if err := validateAuthzPlugins(c.AuthorizationPlugins, cli.d.PluginStore); err != nil {
+	reload := func(cfg *config.Config) {
+		if err := validateAuthzPlugins(cfg.AuthorizationPlugins, cli.d.PluginStore); err != nil {
 			log.G(ctx).WithError(err).Fatal("Error validating authorization plugin")
 			return
 		}
 
-		if err := cli.d.Reload(c); err != nil {
+		if err := cli.d.Reload(cfg); err != nil {
 			log.G(ctx).WithError(err).Error("Error reconfiguring the daemon")
 			return
 		}
@@ -484,14 +481,14 @@ func (cli *daemonCLI) reloadConfig() {
 		// Apply our own configuration only after the daemon reload has succeeded. We
 		// don't want to partially apply the config if the daemon is unhappy with it.
 
-		cli.authzMiddleware.SetPlugins(c.AuthorizationPlugins)
+		cli.authzMiddleware.SetPlugins(cfg.AuthorizationPlugins)
 
-		if c.IsValueSet("debug") {
+		if cfg.IsValueSet("debug") {
 			debugEnabled := debug.IsEnabled()
 			switch {
-			case debugEnabled && !c.Debug: // disable debug
+			case debugEnabled && !cfg.Debug: // disable debug
 				debug.Disable()
-			case c.Debug && !debugEnabled: // enable debug
+			case cfg.Debug && !debugEnabled: // enable debug
 				debug.Enable()
 			}
 		}
@@ -674,24 +671,24 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 
 // normalizeHosts normalizes the configured config.Hosts and remove duplicates.
 // It returns an error if it fails to parse a host.
-func normalizeHosts(config *config.Config) error {
-	if len(config.Hosts) == 0 {
+func normalizeHosts(cfg *config.Config) error {
+	if len(cfg.Hosts) == 0 {
 		// if no hosts are configured, create a single entry slice, so that the
 		// default is used.
 		//
 		// TODO(thaJeztah) implement a cleaner way for this; this depends on a
 		//                 side-effect of how we parse empty/partial hosts.
-		config.Hosts = make([]string, 1)
+		cfg.Hosts = make([]string, 1)
 	}
-	hosts := make([]string, 0, len(config.Hosts))
-	seen := make(map[string]struct{}, len(config.Hosts))
+	hosts := make([]string, 0, len(cfg.Hosts))
+	seen := make(map[string]struct{}, len(cfg.Hosts))
 
 	useTLS := DefaultTLSValue
-	if config.TLS != nil {
-		useTLS = *config.TLS
+	if cfg.TLS != nil {
+		useTLS = *cfg.TLS
 	}
 
-	for _, h := range config.Hosts {
+	for _, h := range cfg.Hosts {
 		host, err := dopts.ParseHost(useTLS, honorXDG, h)
 		if err != nil {
 			return err
@@ -703,7 +700,7 @@ func normalizeHosts(config *config.Config) error {
 		hosts = append(hosts, host)
 	}
 	sort.Strings(hosts)
-	config.Hosts = hosts
+	cfg.Hosts = hosts
 	return nil
 }
 
@@ -766,19 +763,19 @@ func initMiddlewares(_ context.Context, s *apiserver.Server, cfg *config.Config,
 	return authzMiddleware, nil
 }
 
-func (cli *daemonCLI) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
+func getContainerdDaemonOpts(cfg *config.Config) ([]supervisor.DaemonOpt, error) {
 	var opts []supervisor.DaemonOpt
-	if cli.Debug {
+	if cfg.Debug {
 		opts = append(opts, supervisor.WithLogLevel("debug"))
 	} else {
-		opts = append(opts, supervisor.WithLogLevel(cli.LogLevel))
+		opts = append(opts, supervisor.WithLogLevel(cfg.LogLevel))
 	}
 
-	if logFormat := cli.Config.LogFormat; logFormat != "" {
+	if logFormat := cfg.LogFormat; logFormat != "" {
 		opts = append(opts, supervisor.WithLogFormat(logFormat))
 	}
 
-	if !cli.CriContainerd {
+	if !cfg.CriContainerd {
 		// CRI support in the managed daemon is currently opt-in.
 		//
 		// It's disabled by default, originally because it was listening on
@@ -801,21 +798,21 @@ func (cli *daemonCLI) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) 
 	return opts, nil
 }
 
-func newAPIServerTLSConfig(config *config.Config) (*tls.Config, error) {
+func newAPIServerTLSConfig(cfg *config.Config) (*tls.Config, error) {
 	var tlsConfig *tls.Config
-	if config.TLS != nil && *config.TLS {
+	if cfg.TLS != nil && *cfg.TLS {
 		var (
 			clientAuth tls.ClientAuthType
 			err        error
 		)
-		if config.TLSVerify == nil || *config.TLSVerify {
+		if cfg.TLSVerify == nil || *cfg.TLSVerify {
 			// server requires and verifies client's certificate
 			clientAuth = tls.RequireAndVerifyClientCert
 		}
 		tlsConfig, err = tlsconfig.Server(tlsconfig.Options{
-			CAFile:             config.TLSOptions.CAFile,
-			CertFile:           config.TLSOptions.CertFile,
-			KeyFile:            config.TLSOptions.KeyFile,
+			CAFile:             cfg.TLSOptions.CAFile,
+			CertFile:           cfg.TLSOptions.CertFile,
+			KeyFile:            cfg.TLSOptions.KeyFile,
 			ExclusiveRootPools: true,
 			ClientAuth:         clientAuth,
 		})
@@ -830,19 +827,19 @@ func newAPIServerTLSConfig(config *config.Config) (*tls.Config, error) {
 // checkTLSAuthOK checks basically for an explicitly disabled TLS/TLSVerify
 // Going forward we do not want to support a scenario where dockerd listens
 // on TCP without either TLS client auth (or an explicit opt-in to disable it)
-func checkTLSAuthOK(c *config.Config) bool {
-	if c.TLS == nil {
+func checkTLSAuthOK(cfg *config.Config) bool {
+	if cfg.TLS == nil {
 		// Either TLS is enabled by default, in which case TLS verification should be enabled by default, or explicitly disabled
 		// Or TLS is disabled by default... in any of these cases, we can just take the default value as to how to proceed
 		return DefaultTLSValue
 	}
 
-	if !*c.TLS {
+	if !*cfg.TLS {
 		// TLS is explicitly disabled, which is supported
 		return true
 	}
 
-	if c.TLSVerify == nil {
+	if cfg.TLSVerify == nil {
 		// this actually shouldn't happen since we set TLSVerify on the config object anyway
 		// But in case it does get here, be cautious and assume this is not supported.
 		return false
@@ -928,20 +925,20 @@ func loadListeners(cfg *config.Config, tlsConfig *tls.Config) ([]net.Listener, [
 	return lss, hosts, nil
 }
 
-func createAndStartCluster(cli *daemonCLI, d *daemon.Daemon) (*cluster.Cluster, error) {
+func createAndStartCluster(d *daemon.Daemon, cfg *config.Config) (*cluster.Cluster, error) {
 	name, _ := os.Hostname()
 	c, err := cluster.New(cluster.Config{
-		Root:                   cli.Config.Root,
+		Root:                   cfg.Root,
 		Name:                   name,
 		Backend:                d,
 		VolumeBackend:          d.VolumesService(),
 		ImageBackend:           d.ImageBackend(),
 		PluginBackend:          d.PluginManager(),
 		NetworkSubnetsProvider: d,
-		DefaultAdvertiseAddr:   cli.Config.SwarmDefaultAdvertiseAddr,
-		RaftHeartbeatTick:      cli.Config.SwarmRaftHeartbeatTick,
-		RaftElectionTick:       cli.Config.SwarmRaftElectionTick,
-		RuntimeRoot:            cli.getSwarmRunRoot(),
+		DefaultAdvertiseAddr:   cfg.SwarmDefaultAdvertiseAddr,
+		RaftHeartbeatTick:      cfg.SwarmRaftHeartbeatTick,
+		RaftElectionTick:       cfg.SwarmRaftElectionTick,
+		RuntimeRoot:            getSwarmRunRoot(cfg),
 	})
 	if err != nil {
 		return nil, err
@@ -1007,16 +1004,16 @@ func configureDaemonLogs(conf *config.Config) {
 	}
 }
 
-func configureProxyEnv(conf *config.Config) {
-	if p := conf.HTTPProxy; p != "" {
+func configureProxyEnv(cfg *config.Config) {
+	if p := cfg.HTTPProxy; p != "" {
 		overrideProxyEnv("HTTP_PROXY", p)
 		overrideProxyEnv("http_proxy", p)
 	}
-	if p := conf.HTTPSProxy; p != "" {
+	if p := cfg.HTTPSProxy; p != "" {
 		overrideProxyEnv("HTTPS_PROXY", p)
 		overrideProxyEnv("https_proxy", p)
 	}
-	if p := conf.NoProxy; p != "" {
+	if p := cfg.NoProxy; p != "" {
 		overrideProxyEnv("NO_PROXY", p)
 		overrideProxyEnv("no_proxy", p)
 	}
@@ -1040,21 +1037,21 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 	}
 	if ok {
 		// detected a system containerd at the given address.
-		cli.ContainerdAddr = systemContainerdAddr
+		cli.Config.ContainerdAddr = systemContainerdAddr
 		return nil, nil
 	}
 
 	log.G(ctx).Info("containerd not running, starting managed containerd")
-	opts, err := cli.getContainerdDaemonOpts()
+	opts, err := getContainerdDaemonOpts(cli.Config)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate containerd options")
 	}
 
-	r, err := supervisor.Start(ctx, filepath.Join(cli.Root, "containerd"), filepath.Join(cli.ExecRoot, "containerd"), opts...)
+	r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start containerd")
 	}
-	cli.ContainerdAddr = r.Address()
+	cli.Config.ContainerdAddr = r.Address()
 
 	// Try to wait for containerd to shutdown
 	return r.WaitTimeout, nil
