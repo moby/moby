@@ -47,11 +47,10 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	client := d.NewClientT(t)
 
 	layerStore, _ := layer.NewStoreFromOptions(layer.StoreOptions{
-		Root:                d.Root,
-		GraphDriver:         d.StorageDriver(),
-		GraphDriverOptions:  nil,
-		IDMapping:           idtools.IdentityMapping{},
-		ExperimentalEnabled: false,
+		Root:               d.Root,
+		GraphDriver:        d.StorageDriver(),
+		GraphDriverOptions: nil,
+		IDMapping:          idtools.IdentityMapping{},
 	})
 	i := images.NewImageService(images.ImageServiceConfig{
 		LayerStore: layerStore,

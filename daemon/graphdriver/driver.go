@@ -140,7 +140,7 @@ func getDriver(name string, config Options) (Driver, error) {
 	log.G(context.TODO()).WithFields(log.Fields{"driver": name, "home-dir": config.Root}).Error("Failed to GetDriver graph")
 
 	// TODO(thaJeztah): remove in next release.
-	if config.ExperimentalEnabled && os.Getenv("DOCKERD_DEPRECATED_GRAPHDRIVER_PLUGINS") != "" {
+	if os.Getenv("DOCKERD_DEPRECATED_GRAPHDRIVER_PLUGINS") != "" {
 		return nil, fmt.Errorf("DEPRECATED: Support for experimental graphdriver plugins has been removed. See https://docs.docker.com/go/deprecated/")
 	}
 
