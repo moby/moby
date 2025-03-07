@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -16,7 +17,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
+	pkgError "github.com/pkg/errors"
 )
 
 // serverResponse is a wrapper for http API responses.
@@ -145,7 +146,7 @@ func (cli *Client) doRequest(req *http.Request) (serverResponse, error) {
 		}
 
 		if cli.scheme == "https" && strings.Contains(err.Error(), "bad certificate") {
-			return serverResp, errConnectionFailed{errors.Wrap(err, "the server probably has client authentication (--tlsverify) enabled; check your TLS client certification settings")}
+			return serverResp, errConnectionFailed{pkgError.Wrap(err, "the server probably has client authentication (--tlsverify) enabled; check your TLS client certification settings")}
 		}
 
 		// Don't decorate context sentinel errors; users may be comparing to
@@ -157,7 +158,7 @@ func (cli *Client) doRequest(req *http.Request) (serverResponse, error) {
 		if uErr, ok := err.(*url.Error); ok {
 			if nErr, ok := uErr.Err.(*net.OpError); ok {
 				if os.IsPermission(nErr.Err) {
-					return serverResp, errConnectionFailed{errors.Wrapf(err, "permission denied while trying to connect to the Docker daemon socket at %v", cli.host)}
+					return serverResp, errConnectionFailed{pkgError.Wrapf(err, "permission denied while trying to connect to the Docker daemon socket at %v", cli.host)}
 				}
 			}
 		}
@@ -185,14 +186,14 @@ func (cli *Client) doRequest(req *http.Request) (serverResponse, error) {
 		if strings.Contains(err.Error(), `open //./pipe/docker_engine`) {
 			// Checks if client is running with elevated privileges
 			if f, elevatedErr := os.Open(`\\.\PHYSICALDRIVE0`); elevatedErr != nil {
-				err = errors.Wrap(err, "in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect")
+				err = pkgError.Wrap(err, "in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect")
 			} else {
 				_ = f.Close()
-				err = errors.Wrap(err, "this error may indicate that the docker daemon is not running")
+				err = pkgError.Wrap(err, "this error may indicate that the docker daemon is not running")
 			}
 		}
 
-		return serverResp, errConnectionFailed{errors.Wrap(err, "error during connect")}
+		return serverResp, errConnectionFailed{pkgError.Wrap(err, "error during connect")}
 	}
 
 	if resp != nil {
@@ -232,13 +233,13 @@ func (cli *Client) checkResponseErr(serverResp serverResponse) error {
 	if serverResp.header.Get("Content-Type") == "application/json" && (cli.version == "" || versions.GreaterThan(cli.version, "1.23")) {
 		var errorResponse types.ErrorResponse
 		if err := json.Unmarshal(body, &errorResponse); err != nil {
-			return errors.Wrap(err, "Error reading JSON")
+			return pkgError.Wrap(err, "Error reading JSON")
 		}
 		daemonErr = errors.New(strings.TrimSpace(errorResponse.Message))
 	} else {
 		daemonErr = errors.New(strings.TrimSpace(string(body)))
 	}
-	return errors.Wrap(daemonErr, "Error response from daemon")
+	return pkgError.Wrap(daemonErr, "Error response from daemon")
 }
 
 func (cli *Client) addHeaders(req *http.Request, headers http.Header) *http.Request {
