@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/pkg/process"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/sys/mount"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
@@ -251,14 +252,14 @@ func (daemon *Daemon) setupIPCDirs(ctr *container.Container) error {
 		fallthrough
 
 	case ipcMode.IsShareable():
-		rootIDs := daemon.idMapping.RootPair()
+		uid, gid := daemon.idMapping.RootPair()
 		if !ctr.HasMountFor("/dev/shm") {
 			shmPath, err := ctr.ShmResourcePath()
 			if err != nil {
 				return err
 			}
 
-			if err := idtools.MkdirAllAndChown(shmPath, 0o700, rootIDs); err != nil {
+			if err := user.MkdirAllAndChown(shmPath, 0o700, uid, gid); err != nil {
 				return err
 			}
 
@@ -266,7 +267,7 @@ func (daemon *Daemon) setupIPCDirs(ctr *container.Container) error {
 			if err := unix.Mount("shm", shmPath, "tmpfs", uintptr(unix.MS_NOEXEC|unix.MS_NOSUID|unix.MS_NODEV), label.FormatMountLabel(shmproperty, ctr.GetMountLabel())); err != nil {
 				return fmt.Errorf("mounting shm tmpfs: %s", err)
 			}
-			if err := os.Chown(shmPath, rootIDs.UID, rootIDs.GID); err != nil {
+			if err := os.Chown(shmPath, uid, gid); err != nil {
 				return err
 			}
 			ctr.ShmPath = shmPath
@@ -298,7 +299,7 @@ func (daemon *Daemon) setupSecretDir(ctr *container.Container) (setupErr error) 
 	}
 
 	// retrieve possible remapped range start for root UID, GID
-	rootIDs := daemon.idMapping.RootPair()
+	ruid, rgid := daemon.idMapping.RootPair()
 
 	for _, s := range ctr.SecretReferences {
 		// TODO (ehazlett): use type switch when more are supported
@@ -313,7 +314,7 @@ func (daemon *Daemon) setupSecretDir(ctr *container.Container) (setupErr error) 
 		if err != nil {
 			return errors.Wrap(err, "error getting secret file path")
 		}
-		if err := idtools.MkdirAllAndChown(filepath.Dir(fPath), 0o700, rootIDs); err != nil {
+		if err := user.MkdirAllAndChown(filepath.Dir(fPath), 0o700, ruid, rgid); err != nil {
 			return errors.Wrap(err, "error creating secret mount path")
 		}
 
@@ -338,7 +339,7 @@ func (daemon *Daemon) setupSecretDir(ctr *container.Container) (setupErr error) 
 			return err
 		}
 
-		if err := os.Chown(fPath, rootIDs.UID+uid, rootIDs.GID+gid); err != nil {
+		if err := os.Chown(fPath, ruid+uid, rgid+gid); err != nil {
 			return errors.Wrap(err, "error setting ownership for secret")
 		}
 		if err := os.Chmod(fPath, s.File.Mode); err != nil {
@@ -364,7 +365,7 @@ func (daemon *Daemon) setupSecretDir(ctr *container.Container) (setupErr error) 
 		if err != nil {
 			return errors.Wrap(err, "error getting config file path for container")
 		}
-		if err := idtools.MkdirAllAndChown(filepath.Dir(fPath), 0o700, rootIDs); err != nil {
+		if err := user.MkdirAllAndChown(filepath.Dir(fPath), 0o700, ruid, rgid); err != nil {
 			return errors.Wrap(err, "error creating config mount path")
 		}
 
@@ -389,7 +390,7 @@ func (daemon *Daemon) setupSecretDir(ctr *container.Container) (setupErr error) 
 			return err
 		}
 
-		if err := os.Chown(fPath, rootIDs.UID+uid, rootIDs.GID+gid); err != nil {
+		if err := os.Chown(fPath, ruid+uid, rgid+gid); err != nil {
 			return errors.Wrap(err, "error setting ownership for config")
 		}
 		if err := os.Chmod(fPath, configRef.File.Mode); err != nil {
@@ -404,18 +405,18 @@ func (daemon *Daemon) setupSecretDir(ctr *container.Container) (setupErr error) 
 // In practice this is using a tmpfs mount and is used for both "configs" and "secrets"
 func (daemon *Daemon) createSecretsDir(ctr *container.Container) error {
 	// retrieve possible remapped range start for root UID, GID
-	rootIDs := daemon.idMapping.RootPair()
+	uid, gid := daemon.idMapping.RootPair()
 	dir, err := ctr.SecretMountPath()
 	if err != nil {
 		return errors.Wrap(err, "error getting container secrets dir")
 	}
 
 	// create tmpfs
-	if err := idtools.MkdirAllAndChown(dir, 0o700, rootIDs); err != nil {
+	if err := user.MkdirAllAndChown(dir, 0o700, uid, gid); err != nil {
 		return errors.Wrap(err, "error creating secret local mount path")
 	}
 
-	tmpfsOwnership := fmt.Sprintf("uid=%d,gid=%d", rootIDs.UID, rootIDs.GID)
+	tmpfsOwnership := fmt.Sprintf("uid=%d,gid=%d", uid, gid)
 	if err := mount.Mount("tmpfs", dir, "tmpfs", "nodev,nosuid,noexec,"+tmpfsOwnership); err != nil {
 		return errors.Wrap(err, "unable to setup secret mount")
 	}
@@ -430,8 +431,8 @@ func (daemon *Daemon) remountSecretDir(ctr *container.Container) error {
 	if err := label.Relabel(dir, ctr.MountLabel, false); err != nil {
 		log.G(context.TODO()).WithError(err).WithField("dir", dir).Warn("Error while attempting to set selinux label")
 	}
-	rootIDs := daemon.idMapping.RootPair()
-	tmpfsOwnership := fmt.Sprintf("uid=%d,gid=%d", rootIDs.UID, rootIDs.GID)
+	uid, gid := daemon.idMapping.RootPair()
+	tmpfsOwnership := fmt.Sprintf("uid=%d,gid=%d", uid, gid)
 
 	// remount secrets ro
 	if err := mount.Mount("tmpfs", dir, "tmpfs", "remount,ro,"+tmpfsOwnership); err != nil {
