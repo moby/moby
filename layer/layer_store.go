@@ -43,12 +43,11 @@ type layerStore struct {
 
 // StoreOptions are the options used to create a new Store instance
 type StoreOptions struct {
-	Root                      string
-	MetadataStorePathTemplate string
-	GraphDriver               string
-	GraphDriverOptions        []string
-	IDMapping                 idtools.IdentityMapping
-	ExperimentalEnabled       bool
+	Root                string
+	GraphDriver         string
+	GraphDriverOptions  []string
+	IDMapping           idtools.IdentityMapping
+	ExperimentalEnabled bool
 }
 
 // NewStoreFromOptions creates a new Store instance
@@ -67,9 +66,9 @@ func NewStoreFromOptions(options StoreOptions) (Store, error) {
 	}
 	log.G(context.TODO()).Debugf("Initialized graph driver %s", driver)
 
-	root := fmt.Sprintf(options.MetadataStorePathTemplate, driver)
-
-	return newStoreFromGraphDriver(root, driver)
+	driverName := driver.String()
+	layerDBRoot := filepath.Join(options.Root, "image", driverName, "layerdb")
+	return newStoreFromGraphDriver(layerDBRoot, driver)
 }
 
 // newStoreFromGraphDriver creates a new Store instance using the provided
