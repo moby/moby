@@ -33,7 +33,7 @@ env:
 
 jobs:
   unit-prepare:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     outputs:
@@ -63,7 +63,7 @@ jobs:
           echo ${{ steps.set.outputs.includes }}
 
   unit:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     needs:
@@ -133,7 +133,7 @@ jobs:
           retention-days: 1
 
   unit-report:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     if: always()
@@ -162,7 +162,7 @@ jobs:
           find /tmp/reports -type f -name '*-go-test-report.json' -exec teststat -markdown {} \+ >> $GITHUB_STEP_SUMMARY
 
   docker-py:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     steps:
@@ -192,7 +192,7 @@ jobs:
       -
         name: Test
         run: |
-          make -o build test-docker-py
+          make TEST_SKIP_INTEGRATION_CLI=1 -o build test-docker-py
       -
         name: Prepare reports
         if: always()
@@ -251,7 +251,7 @@ jobs:
           TEST_SKIP_INTEGRATION_CLI: 1
 
   integration-prepare:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     outputs:
@@ -267,14 +267,15 @@ jobs:
               { os: 'ubuntu-20.04', mode: '' },
               { os: 'ubuntu-20.04', mode: 'rootless' },
               { os: 'ubuntu-20.04', mode: 'systemd' },
-              { os: 'ubuntu-22.04', mode: '' },
+              { os: 'ubuntu-24.04', mode: '' },
               { os: 'ubuntu-22.04', mode: 'rootless' },
-              { os: 'ubuntu-22.04', mode: 'systemd' },
+              // { os: 'ubuntu-24.04', mode: 'rootless' },  // FIXME: https://github.com/moby/moby/pull/49579#issuecomment-2698622223
+              { os: 'ubuntu-24.04', mode: 'systemd' },
               // { os: 'ubuntu-20.04', mode: 'rootless-systemd' }, // FIXME: https://github.com/moby/moby/issues/44084
-              // { os: 'ubuntu-22.04', mode: 'rootless-systemd' }, // FIXME: https://github.com/moby/moby/issues/44084
+              // { os: 'ubuntu-24.04', mode: 'rootless-systemd' }, // FIXME: https://github.com/moby/moby/issues/44084
             ];
             if ("${{ inputs.storage }}" == "snapshotter") {
-              includes.push({ os: 'ubuntu-22.04', mode: 'firewalld' });
+              includes.push({ os: 'ubuntu-24.04', mode: 'firewalld' });
             }
             await core.group(`Set matrix`, async () => {
               core.info(`matrix: ${JSON.stringify(includes)}`);
@@ -383,7 +384,7 @@ jobs:
           retention-days: 1
 
   integration-report:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     if: always()
@@ -413,7 +414,7 @@ jobs:
           find /tmp/reports -type f -name '*-go-test-report.json' -exec teststat -markdown {} \+ >> $GITHUB_STEP_SUMMARY
 
   integration-cli-prepare:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     outputs:
@@ -572,7 +573,7 @@ jobs:
           retention-days: 1
 
   integration-cli-report:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     if: always()

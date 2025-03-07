@@ -15,7 +15,7 @@ on:
 
 jobs:
   check-area-label:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     steps:
       - name: Missing `area/` label
@@ -27,7 +27,7 @@ jobs:
         run: exit 0
 
   check-changelog:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     env:
       HAS_IMPACT_LABEL: ${{ contains(join(github.event.pull_request.labels.*.name, ','), 'impact/') }}
@@ -65,7 +65,7 @@ jobs:
           echo "$desc"
 
   check-pr-branch:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     env:
       PR_TITLE: ${{ github.event.pull_request.title }}
