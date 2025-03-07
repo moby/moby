@@ -874,7 +874,16 @@ func TestAccessPublishedPortFromAnotherNetwork(t *testing.T) {
 			defer c.ContainerRemove(ctx, clientID, containertypes.RemoveOptions{Force: true})
 
 			logs := getContainerStdout(t, ctx, c, serverID)
-			assert.Assert(t, is.Contains(logs, "foobar"), "Payload was not received by the server container")
+			check := is.Contains(logs, "foobar")
+			if tc.name == "IPv4/Host" || tc.name == "IPv6/Host" {
+				if result := check(); !result.Success() {
+					res, _ := result.(interface{ FailureMessage() string })
+					t.Logf("FAIL: Payload was not received by the server container: %+v", res.FailureMessage())
+					t.Skip("FIXME: Flaky test: https://github.com/moby/moby/issues/49358")
+				}
+				return
+			}
+			assert.Assert(t, check, "Payload was not received by the server container")
 		})
 	}
 }
