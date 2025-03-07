@@ -170,19 +170,6 @@ EOT
 FROM binary-dummy AS delve-unsupported
 FROM delve-${DELVE_SUPPORTED} AS delve
 
-FROM base AS tomll
-# GOTOML_VERSION specifies the version of the tomll binary to build and install
-# from the https://github.com/pelletier/go-toml repository. This binary is used
-# in CI in the hack/validate/toml script.
-#
-# When updating this version, consider updating the github.com/pelletier/go-toml
-# dependency in vendor.mod accordingly.
-ARG GOTOML_VERSION=v1.8.1
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ GO111MODULE=on go install "github.com/pelletier/go-toml/cmd/tomll@${GOTOML_VERSION}" \
-     && /build/tomll --help
-
 FROM base AS gowinres
 # GOWINRES_VERSION defines go-winres tool version
 ARG GOWINRES_VERSION=v0.3.1
@@ -461,7 +448,6 @@ FROM base AS dev-systemd-false
 COPY --link --from=frozen-images /build/ /docker-frozen-images
 COPY --link --from=swagger       /build/ /usr/local/bin/
 COPY --link --from=delve         /build/ /usr/local/bin/
-COPY --link --from=tomll         /build/ /usr/local/bin/
 COPY --link --from=gowinres      /build/ /usr/local/bin/
 COPY --link --from=tini          /build/ /usr/local/bin/
 COPY --link --from=registry      /build/ /usr/local/bin/
