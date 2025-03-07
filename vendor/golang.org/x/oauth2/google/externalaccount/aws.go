@@ -28,7 +28,7 @@ import (
 
 // AwsSecurityCredentials models AWS security credentials.
 type AwsSecurityCredentials struct {
-	// AccessKeyId is the AWS Access Key ID - Required.
+	// AccessKeyID is the AWS Access Key ID - Required.
 	AccessKeyID string `json:"AccessKeyID"`
 	// SecretAccessKey is the AWS Secret Access Key - Required.
 	SecretAccessKey string `json:"SecretAccessKey"`

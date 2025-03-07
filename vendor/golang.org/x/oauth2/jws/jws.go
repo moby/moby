@@ -165,11 +165,11 @@ func Encode(header *Header, c *ClaimSet, key *rsa.PrivateKey) (string, error) {
 // Verify tests whether the provided JWT token's signature was produced by the private key
 // associated with the supplied public key.
 func Verify(token string, key *rsa.PublicKey) error {
-	parts := strings.Split(token, ".")
-	if len(parts) != 3 {
+	if strings.Count(token, ".") != 2 {
 		return errors.New("jws: invalid token received, token must have 3 parts")
 	}
 
+	parts := strings.SplitN(token, ".", 3)
 	signedContent := parts[0] + "." + parts[1]
 	signatureString, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil {
