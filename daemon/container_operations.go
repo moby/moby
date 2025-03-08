@@ -761,12 +761,12 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 	if !ctr.Managed {
 		// add container name/alias to DNS
 		if err := daemon.ActivateContainerServiceBinding(ctr.Name); err != nil {
-			return fmt.Errorf("Activate container service binding for %s failed: %v", ctr.Name, err)
+			return fmt.Errorf("activate container service binding for %s failed: %v", ctr.Name, err)
 		}
 	}
 
 	if err := updateJoinInfo(ctr.NetworkSettings, n, ep); err != nil {
-		return fmt.Errorf("Updating join info failed: %v", err)
+		return fmt.Errorf("updating join info failed: %v", err)
 	}
 
 	ctr.NetworkSettings.Ports = getPortMapInfo(sb)

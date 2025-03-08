@@ -20,7 +20,7 @@ import (
 
 // containerStatPath stats the filesystem resource at the specified path in this
 // container. Returns stat info about the resource.
-func (daemon *Daemon) containerStatPath(container *container.Container, path string) (stat *containertypes.PathStat, err error) {
+func (daemon *Daemon) containerStatPath(container *container.Container, path string) (*containertypes.PathStat, error) {
 	container.Lock()
 	defer container.Unlock()
 
@@ -36,11 +36,11 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 // containerArchivePath creates an archive of the filesystem resource at the specified
 // path in this container. Returns a tar archive of the resource and stat info
 // about the resource.
-func (daemon *Daemon) containerArchivePath(container *container.Container, path string) (content io.ReadCloser, stat *containertypes.PathStat, err error) {
+func (daemon *Daemon) containerArchivePath(container *container.Container, path string) (content io.ReadCloser, stat *containertypes.PathStat, retErr error) {
 	container.Lock()
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			// Wait to unlock the container until the archive is fully read
 			// (see the ReadCloseWrapper func below) or if there is an error
 			// before that occurs.
@@ -54,8 +54,8 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 	}
 
 	defer func() {
-		if err != nil {
-			cfs.Close()
+		if retErr != nil {
+			_ = cfs.Close()
 		}
 	}()
 
