@@ -23,8 +23,7 @@ import (
 )
 
 func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
-	// TODO: Pass in opts
-	var requestedPlatform *ocispec.Platform
+	requestedPlatform := opts.Platform
 
 	c8dImg, err := i.resolveImage(ctx, refOrID)
 	if err != nil {
