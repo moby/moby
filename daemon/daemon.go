@@ -901,13 +901,17 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
+	const connTimeout = 60 * time.Second
+
 	// Set the max backoff delay to match our containerd.WithTimeout(),
 	// aligning with how containerd client's defaults sets this;
 	// https://github.com/containerd/containerd/blob/v2.0.2/client/client.go#L129-L136
 	backoffConfig := backoff.DefaultConfig
-	backoffConfig.MaxDelay = 60 * time.Second
+	backoffConfig.MaxDelay = connTimeout
 	connParams := grpc.ConnectParams{
 		Backoff: backoffConfig,
+		// TODO: Remove after https://github.com/containerd/containerd/pull/11508
+		MinConnectTimeout: connTimeout,
 	}
 	gopts := []grpc.DialOption{
 		// ------------------------------------------------------------------
@@ -931,11 +935,15 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	if cfgStore.ContainerdAddr != "" {
+		log.G(ctx).WithFields(log.Fields{
+			"address": cfgStore.ContainerdAddr,
+			"timeout": connTimeout,
+		}).Info("Creating a containerd client")
 		d.containerdClient, err = containerd.New(
 			cfgStore.ContainerdAddr,
 			containerd.WithDefaultNamespace(cfgStore.ContainerdNamespace),
 			containerd.WithDialOpts(gopts),
-			containerd.WithTimeout(60*time.Second),
+			containerd.WithTimeout(connTimeout),
 		)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to dial %q", cfgStore.ContainerdAddr)
@@ -950,7 +958,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 				cfgStore.ContainerdAddr,
 				containerd.WithDefaultNamespace(cfgStore.ContainerdPluginNamespace),
 				containerd.WithDialOpts(gopts),
-				containerd.WithTimeout(60*time.Second),
+				containerd.WithTimeout(connTimeout),
 			)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to dial %q", cfgStore.ContainerdAddr)
