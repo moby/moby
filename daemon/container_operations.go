@@ -173,7 +173,7 @@ func (daemon *Daemon) updateNetworkSettings(ctr *container.Container, n *libnetw
 	}
 
 	if !ctr.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
-		return runconfig.ErrConflictHostNetwork
+		return runconfig.ErrConflictConnectToHostNetwork
 	}
 
 	for s, v := range ctr.NetworkSettings.Networks {
@@ -1053,7 +1053,7 @@ func (daemon *Daemon) DisconnectFromNetwork(ctx context.Context, ctr *container.
 		delete(ctr.NetworkSettings.Networks, networkName)
 	} else if err == nil {
 		if ctr.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
-			return runconfig.ErrConflictHostNetwork
+			return runconfig.ErrConflictDisconnectFromHostNetwork
 		}
 
 		if err := daemon.disconnectFromNetwork(ctx, ctr, n, false); err != nil {

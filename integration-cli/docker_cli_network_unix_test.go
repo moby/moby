@@ -1155,7 +1155,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectToHostFromOtherNetwork(c *t
 	cli.DockerCmd(c, "network", "disconnect", "bridge", "container1")
 	out, _, err := dockerCmdWithError("network", "connect", "host", "container1")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, is.Contains(out, runconfig.ErrConflictHostNetwork.Error()))
+	assert.Assert(c, is.Contains(out, runconfig.ErrConflictConnectToHostNetwork.Error()))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkDisconnectFromHost(c *testing.T) {
@@ -1163,7 +1163,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDisconnectFromHost(c *testing.T) {
 	cli.WaitRun(c, "container1")
 	out, _, err := dockerCmdWithError("network", "disconnect", "host", "container1")
 	assert.Assert(c, err != nil, "Should err out disconnect from host")
-	assert.Assert(c, is.Contains(out, runconfig.ErrConflictHostNetwork.Error()))
+	assert.Assert(c, is.Contains(out, runconfig.ErrConflictDisconnectFromHostNetwork.Error()))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkConnectWithPortMapping(c *testing.T) {
