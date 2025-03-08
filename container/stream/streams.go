@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 
 	"github.com/containerd/containerd/v2/pkg/cio"
 	"github.com/containerd/log"
@@ -29,6 +30,8 @@ type Config struct {
 	stdin     io.ReadCloser
 	stdinPipe io.WriteCloser
 	dio       *cio.DirectIO
+	// closed is set to true when CloseStreams is called
+	closed atomic.Bool
 }
 
 // NewConfig creates a stream config and initializes
@@ -98,6 +101,8 @@ func (w *nopWriteCloser) Close() error { return nil }
 func (c *Config) CloseStreams() error {
 	var errs error
 
+	c.closed.Store(true)
+
 	if c.stdin != nil {
 		if err := c.stdin.Close(); err != nil {
 			errs = errors.Join(errs, fmt.Errorf("error close stdin: %w", err))
@@ -123,13 +128,16 @@ func (c *Config) CopyToPipe(iop *cio.DirectIO) {
 	copyFunc := func(name string, w io.Writer, r io.ReadCloser) {
 		c.wg.Add(1)
 		go func() {
+			defer c.wg.Done()
 			if _, err := pools.Copy(w, r); err != nil {
+				if c.closed.Load() {
+					return
+				}
 				log.G(ctx).WithFields(log.Fields{"stream": name, "error": err}).Error("copy stream failed")
 			}
-			if err := r.Close(); err != nil {
+			if err := r.Close(); err != nil && !c.closed.Load() {
 				log.G(ctx).WithFields(log.Fields{"stream": name, "error": err}).Warn("close stream failed")
 			}
-			c.wg.Done()
 		}()
 	}
 
@@ -145,9 +153,12 @@ func (c *Config) CopyToPipe(iop *cio.DirectIO) {
 			go func() {
 				_, err := pools.Copy(iop.Stdin, stdin)
 				if err != nil {
+					if c.closed.Load() {
+						return
+					}
 					log.G(ctx).WithFields(log.Fields{"stream": "stdin", "error": err}).Error("copy stream failed")
 				}
-				if err := iop.Stdin.Close(); err != nil {
+				if err := iop.Stdin.Close(); err != nil && !c.closed.Load() {
 					log.G(ctx).WithFields(log.Fields{"stream": "stdin", "error": err}).Warn("close stream failed")
 				}
 			}()
