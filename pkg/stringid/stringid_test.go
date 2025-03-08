@@ -1,7 +1,11 @@
 package stringid // import "github.com/docker/docker/pkg/stringid"
 
 import (
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestGenerateRandomID(t *testing.T) {
@@ -55,32 +59,25 @@ func TestTruncateID(t *testing.T) {
 	}
 }
 
-func TestAllNum(t *testing.T) {
-	tests := []struct {
-		doc, id  string
-		expected bool
-	}{
-		{
-			doc:      "mixed letters and numbers",
-			id:       "4e38e38c8ce0",
-			expected: false,
-		},
-		{
-			doc:      "letters only",
-			id:       "deadbeefcafe",
-			expected: false,
-		},
-		{
-			doc:      "numbers only",
-			id:       "012345678912",
-			expected: true,
-		},
+func TestUUIDv7(t *testing.T) {
+	idv7, err := uuid.NewV7()
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, tc := range tests {
-		t.Run(tc.doc, func(t *testing.T) {
-			if actual := allNum(tc.id); actual != tc.expected {
-				t.Errorf("expected %q to be %t, got %t, ", tc.id, !tc.expected, actual)
-			}
-		})
-	}
+	cleanID := strings.ReplaceAll(idv7.String(), "-", "")
+	fullID := cleanID + padding
+	shortID := cleanID[:shortLen]
+	t.Log("UUIDv7:       ", idv7.String(), "(", len(idv7.String()), " chars )")
+	t.Log("UUIDv7 clean: ", cleanID, "(", len(cleanID), "chars )")
+	t.Log("FULL ID:      ", fullID, "(", len(fullID), "chars )")
+	t.Log("SHORT ID:     ", shortID, "(", len(shortID), "chars )")
+	t.Log("URN:          ", idv7.URN())
+	t.Log("VERSION:      ", idv7.Version())
+	t.Log("VARIANT:      ", idv7.Variant())
+	t.Log("TIME:         ", idv7.Time())
+	t.Log("RFC3339:      ", time.Unix(idv7.Time().UnixTime()).Format(time.RFC3339Nano))
+	parsed, _ := toUUID(cleanID)
+	t.Log("Parsed:       ", parsed.String())
+	t.Log("Parsed short: ", uuid.Must(toUUID(shortID)))
+	t.Log("LEGACY:       ", GenerateRandomID())
 }
