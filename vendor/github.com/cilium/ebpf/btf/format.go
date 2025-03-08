@@ -161,6 +161,9 @@ func (gf *GoFormatter) writeTypeLit(typ Type, depth int) error {
 	case *Datasec:
 		err = gf.writeDatasecLit(v, depth)
 
+	case *Var:
+		err = gf.writeTypeLit(v.Type, depth)
+
 	default:
 		return fmt.Errorf("type %T: %w", v, ErrNotSupported)
 	}
