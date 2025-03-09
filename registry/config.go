@@ -114,7 +114,7 @@ func setCertsDir(dir string) string {
 			// for docker/cli.
 			//
 			// [rootless.RunningWithRootlessKit]: https://github.com/moby/moby/blob/b4bdf12daec84caaf809a639f923f7370d4926ad/pkg/rootless/rootless.go#L5-L8
-			if configHome, err := homedir.GetConfigHome(); err == nil {
+			if configHome, _ := homedir.GetConfigHome(); configHome != "" {
 				certsDir = filepath.Join(configHome, "docker/certs.d")
 				return
 			}
@@ -135,6 +135,7 @@ func SetCertsDir(path string) {
 
 // CertsDir is the directory where certificates are stored.
 func CertsDir() string {
+	// call setCertsDir with an empty path to synchronise with [SetCertsDir]
 	return setCertsDir("")
 }
 

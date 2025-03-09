@@ -29,7 +29,7 @@ func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 
 	tlsConfig.InsecureSkipVerify = !isSecure
 
-	if isSecure && CertsDir() != "" {
+	if isSecure {
 		hostDir := HostCertsDir(hostname)
 		log.G(context.TODO()).Debugf("hostDir: %s", hostDir)
 		if err := ReadCertsDirectory(tlsConfig, hostDir); err != nil {
