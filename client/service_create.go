@@ -37,6 +37,11 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 	if err := validateServiceSpec(service); err != nil {
 		return response, err
 	}
+	if versions.LessThan(cli.version, "1.30") {
+		if err := validateAPIVersion(service, cli.version); err != nil {
+			return response, err
+		}
+	}
 
 	// ensure that the image is tagged
 	var resolveWarning string
@@ -188,6 +193,21 @@ func validateServiceSpec(s swarm.ServiceSpec) error {
 	}
 	if s.TaskTemplate.ContainerSpec != nil && (s.TaskTemplate.Runtime != "" && s.TaskTemplate.Runtime != swarm.RuntimeContainer) {
 		return errors.New("mismatched runtime with container spec")
+	}
+	return nil
+}
+
+func validateAPIVersion(c swarm.ServiceSpec, apiVersion string) error {
+	for _, m := range c.TaskTemplate.ContainerSpec.Mounts {
+		if m.BindOptions != nil {
+			if m.BindOptions.NonRecursive && versions.LessThan(apiVersion, "1.40") {
+				return errors.Errorf("bind-recursive=disabled requires API v1.40 or later")
+			}
+			// ReadOnlyNonRecursive can be safely ignored when API < 1.44
+			if m.BindOptions.ReadOnlyForceRecursive && versions.LessThan(apiVersion, "1.44") {
+				return errors.Errorf("bind-recursive=readonly requires API v1.44 or later")
+			}
+		}
 	}
 	return nil
 }

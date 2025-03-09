@@ -3,6 +3,7 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/url"
 	"path"
 	"sort"
@@ -53,6 +54,19 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 		if platform != nil && platform.OS == "linux" && versions.LessThan(cli.ClientVersion(), "1.42") {
 			// When using API under 1.42, the Linux daemon doesn't respect the ConsoleSize
 			hostConfig.ConsoleSize = [2]uint{0, 0}
+		}
+		if versions.LessThan(cli.ClientVersion(), "1.44") {
+			for _, m := range hostConfig.Mounts {
+				if m.BindOptions != nil {
+					// ReadOnlyNonRecursive can be safely ignored when API < 1.44
+					if m.BindOptions.ReadOnlyForceRecursive {
+						return response, errors.New("bind-recursive=readonly requires API v1.44 or later")
+					}
+					if m.BindOptions.NonRecursive && versions.LessThan(cli.ClientVersion(), "1.40") {
+						return response, errors.New("bind-recursive=disabled requires API v1.40 or later")
+					}
+				}
+			}
 		}
 
 		hostConfig.CapAdd = normalizeCapabilities(hostConfig.CapAdd)
