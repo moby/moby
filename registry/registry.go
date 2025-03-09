@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/containerd/log"
@@ -19,6 +18,12 @@ import (
 
 // HostCertsDir returns the config directory for a specific host.
 func HostCertsDir(hostname string) string {
+	// TODO(thaJeztah): deprecate this function, but it has external users: https://github.com/mesosphere/mindthegap/blob/main/images/httputils/configurable_tls_transport.go#L40-L44
+	return hostCertsDir(hostname)
+}
+
+// hostCertsDir returns the config directory for a specific host.
+func hostCertsDir(hostname string) string {
 	return filepath.Join(CertsDir(), cleanPath(hostname))
 }
 
@@ -26,11 +31,10 @@ func HostCertsDir(hostname string) string {
 func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 	// PreferredServerCipherSuites should have no effect
 	tlsConfig := tlsconfig.ServerDefault()
-
 	tlsConfig.InsecureSkipVerify = !isSecure
 
-	if isSecure && CertsDir() != "" {
-		hostDir := HostCertsDir(hostname)
+	if isSecure {
+		hostDir := hostCertsDir(hostname)
 		log.G(context.TODO()).Debugf("hostDir: %s", hostDir)
 		if err := ReadCertsDirectory(tlsConfig, hostDir); err != nil {
 			return nil, err
@@ -59,7 +63,8 @@ func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 	}
 
 	for _, f := range fs {
-		if strings.HasSuffix(f.Name(), ".crt") {
+		switch filepath.Ext(f.Name()) {
+		case ".crt":
 			if tlsConfig.RootCAs == nil {
 				systemPool, err := tlsconfig.SystemCertPool()
 				if err != nil {
@@ -67,17 +72,17 @@ func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 				}
 				tlsConfig.RootCAs = systemPool
 			}
-			log.G(context.TODO()).Debugf("crt: %s", filepath.Join(directory, f.Name()))
-			data, err := os.ReadFile(filepath.Join(directory, f.Name()))
+			fileName := filepath.Join(directory, f.Name())
+			log.G(context.TODO()).Debugf("crt: %s", fileName)
+			data, err := os.ReadFile(fileName)
 			if err != nil {
 				return err
 			}
 			tlsConfig.RootCAs.AppendCertsFromPEM(data)
-		}
-		if strings.HasSuffix(f.Name(), ".cert") {
+		case ".cert":
 			certName := f.Name()
 			keyName := certName[:len(certName)-5] + ".key"
-			log.G(context.TODO()).Debugf("cert: %s", filepath.Join(directory, f.Name()))
+			log.G(context.TODO()).Debugf("cert: %s", filepath.Join(directory, certName))
 			if !hasFile(fs, keyName) {
 				return invalidParamf("missing key %s for client certificate %s. CA certificates must use the extension .crt", keyName, certName)
 			}
@@ -86,11 +91,10 @@ func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 				return err
 			}
 			tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
-		}
-		if strings.HasSuffix(f.Name(), ".key") {
+		case ".key":
 			keyName := f.Name()
 			certName := keyName[:len(keyName)-4] + ".cert"
-			log.G(context.TODO()).Debugf("key: %s", filepath.Join(directory, f.Name()))
+			log.G(context.TODO()).Debugf("key: %s", filepath.Join(directory, keyName))
 			if !hasFile(fs, certName) {
 				return invalidParamf("missing client certificate %s for key %s", certName, keyName)
 			}
