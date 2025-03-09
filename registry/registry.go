@@ -19,6 +19,12 @@ import (
 
 // HostCertsDir returns the config directory for a specific host.
 func HostCertsDir(hostname string) string {
+	// TODO(thaJeztah): deprecate this function, but it has external users: https://github.com/mesosphere/mindthegap/blob/main/images/httputils/configurable_tls_transport.go#L40-L44
+	return hostCertsDir(hostname)
+}
+
+// hostCertsDir returns the config directory for a specific host.
+func hostCertsDir(hostname string) string {
 	return filepath.Join(CertsDir(), cleanPath(hostname))
 }
 
@@ -26,11 +32,10 @@ func HostCertsDir(hostname string) string {
 func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 	// PreferredServerCipherSuites should have no effect
 	tlsConfig := tlsconfig.ServerDefault()
-
 	tlsConfig.InsecureSkipVerify = !isSecure
 
 	if isSecure {
-		hostDir := HostCertsDir(hostname)
+		hostDir := hostCertsDir(hostname)
 		log.G(context.TODO()).Debugf("hostDir: %s", hostDir)
 		if err := ReadCertsDirectory(tlsConfig, hostDir); err != nil {
 			return nil, err
