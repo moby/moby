@@ -154,5 +154,24 @@ func splitReposSearchTerm(reposName string) (string, string) {
 // for that.
 func ParseSearchIndexInfo(reposName string) (*registry.IndexInfo, error) {
 	indexName, _ := splitReposSearchTerm(reposName)
-	return newIndexInfo(emptyServiceConfig, indexName), nil
+	indexName = normalizeIndexName(indexName)
+	if indexName == IndexName {
+		return &registry.IndexInfo{
+			Name:     IndexName,
+			Mirrors:  []string{},
+			Secure:   true,
+			Official: true,
+		}, nil
+	}
+
+	insecure := false
+	if isInsecure(indexName) {
+		insecure = true
+	}
+
+	return &registry.IndexInfo{
+		Name:    indexName,
+		Mirrors: []string{},
+		Secure:  !insecure,
+	}, nil
 }
