@@ -11,12 +11,12 @@ import (
 // destination path. Writing and closing concurrently is not allowed.
 // NOTE: umask is not considered for the file's permissions.
 func New(filename string, perm os.FileMode) (io.WriteCloser, error) {
-	f, err := os.CreateTemp(filepath.Dir(filename), ".tmp-"+filepath.Base(filename))
+	abspath, err := filepath.Abs(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	abspath, err := filepath.Abs(filename)
+	f, err := os.CreateTemp(filepath.Dir(abspath), ".tmp-"+filepath.Base(filename))
 	if err != nil {
 		return nil, err
 	}
