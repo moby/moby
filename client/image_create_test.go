@@ -25,11 +25,14 @@ func TestImageCreateError(t *testing.T) {
 }
 
 func TestImageCreate(t *testing.T) {
-	expectedURL := "/images/create"
-	expectedImage := "test:5000/my_image"
-	expectedTag := "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-	expectedReference := fmt.Sprintf("%s@%s", expectedImage, expectedTag)
-	expectedRegistryAuth := "eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsiYXV0aCI6ImRHOTBid289IiwiZW1haWwiOiJqb2huQGRvZS5jb20ifX0="
+	const (
+		expectedURL          = "/images/create"
+		expectedImage        = "docker.io/test/my_image"
+		expectedTag          = "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+		specifiedReference   = "test/my_image:latest@" + expectedTag
+		expectedRegistryAuth = "eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsiYXV0aCI6ImRHOTBid289IiwiZW1haWwiOiJqb2huQGRvZS5jb20ifX0="
+	)
+
 	client := &Client{
 		client: newMockClient(func(r *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(r.URL.Path, expectedURL) {
@@ -58,7 +61,7 @@ func TestImageCreate(t *testing.T) {
 		}),
 	}
 
-	createResponse, err := client.ImageCreate(context.Background(), expectedReference, image.CreateOptions{
+	createResponse, err := client.ImageCreate(context.Background(), specifiedReference, image.CreateOptions{
 		RegistryAuth: expectedRegistryAuth,
 	})
 	if err != nil {
