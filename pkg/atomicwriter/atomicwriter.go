@@ -4,19 +4,28 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/moby/sys/sequential"
 )
 
 // New returns a WriteCloser so that writing to it writes to a
 // temporary file and closing it atomically changes the temporary file to
 // destination path. Writing and closing concurrently is not allowed.
 // NOTE: umask is not considered for the file's permissions.
+//
+// New uses [sequential.CreateTemp] to use sequential file access on Windows,
+// avoiding depleting the standby list un-necessarily. On Linux, this equates to
+// a regular [os.CreateTemp]. Refer to the [Win32 API documentation] for details
+// on sequential file access.
+//
+// [Win32 API documentation]: https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea#FILE_FLAG_SEQUENTIAL_SCAN
 func New(filename string, perm os.FileMode) (io.WriteCloser, error) {
-	f, err := os.CreateTemp(filepath.Dir(filename), ".tmp-"+filepath.Base(filename))
+	abspath, err := filepath.Abs(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	abspath, err := filepath.Abs(filename)
+	f, err := sequential.CreateTemp(filepath.Dir(abspath), ".tmp-"+filepath.Base(filename))
 	if err != nil {
 		return nil, err
 	}
@@ -136,8 +145,15 @@ func (w syncFileCloser) Close() error {
 
 // FileWriter opens a file writer inside the set. The file
 // should be synced and closed before calling commit.
+//
+// FileWriter uses [sequential.OpenFile] to use sequential file access on Windows,
+// avoiding depleting the standby list un-necessarily. On Linux, this equates to
+// a regular [os.OpenFile]. Refer to the [Win32 API documentation] for details
+// on sequential file access.
+//
+// [Win32 API documentation]: https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea#FILE_FLAG_SEQUENTIAL_SCAN
 func (ws *WriteSet) FileWriter(name string, flag int, perm os.FileMode) (io.WriteCloser, error) {
-	f, err := os.OpenFile(filepath.Join(ws.root, name), flag, perm)
+	f, err := sequential.OpenFile(filepath.Join(ws.root, name), flag, perm)
 	if err != nil {
 		return nil, err
 	}
