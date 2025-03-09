@@ -12,6 +12,12 @@ type Config struct {
 // ConfigSpec represents a config specification from a config in swarm
 type ConfigSpec struct {
 	Annotations
+
+	// Data is the data to store as a config.
+	//
+	// The maximum allowed size is 1000KB, as defined in [MaxConfigSize].
+	//
+	// [MaxConfigSize]: https://pkg.go.dev/github.com/moby/swarmkit/v2@v2.0.0-20250103191802-8c1959736554/manager/controlapi#MaxConfigSize
 	Data []byte `json:",omitempty"`
 
 	// Templating controls whether and how to evaluate the config payload as
