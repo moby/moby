@@ -4,13 +4,17 @@ import (
 	"context"
 	"net"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/internal/lazyregexp"
+	"github.com/docker/docker/pkg/homedir"
 )
 
 // ServiceOptions holds command line options.
@@ -89,23 +93,49 @@ var (
 
 	validHostPortRegex = lazyregexp.New(`^` + reference.DomainRegexp.String() + `$`)
 
-	// certsDir is used to override defaultCertsDir.
-	certsDir string
+	// certsDir is used to override defaultCertsDir when running with rootlessKit.
+	//
+	// TODO(thaJeztah): change to a sync.OnceValue once we remove [SetCertsDir]
+	// TODO(thaJeztah): certsDir should not be a package variable, but stored in our config, and passed when needed.
+	setCertsDirOnce sync.Once
+	certsDir        string
 )
+
+func setCertsDir(dir string) string {
+	setCertsDirOnce.Do(func() {
+		if dir != "" {
+			certsDir = dir
+			return
+		}
+		if os.Getenv("ROOTLESSKIT_STATE_DIR") != "" {
+			// Configure registry.CertsDir() when running in rootless-mode
+			// This is the equivalent of [rootless.RunningWithRootlessKit],
+			// but inlining it to prevent adding that as a dependency
+			// for docker/cli.
+			//
+			// [rootless.RunningWithRootlessKit]: https://github.com/moby/moby/blob/b4bdf12daec84caaf809a639f923f7370d4926ad/pkg/rootless/rootless.go#L5-L8
+			if configHome, err := homedir.GetConfigHome(); err == nil {
+				certsDir = filepath.Join(configHome, "docker/certs.d")
+				return
+			}
+		}
+		certsDir = defaultCertsDir
+	})
+	return certsDir
+}
 
 // SetCertsDir allows the default certs directory to be changed. This function
 // is used at daemon startup to set the correct location when running in
 // rootless mode.
+//
+// Deprecated: the cert-directory is now automatically selected when running with rootlessKit, and should no longer be set manually.
 func SetCertsDir(path string) {
-	certsDir = path
+	setCertsDir(path)
 }
 
 // CertsDir is the directory where certificates are stored.
 func CertsDir() string {
-	if certsDir != "" {
-		return certsDir
-	}
-	return defaultCertsDir
+	return setCertsDir("")
 }
 
 // newServiceConfig returns a new instance of ServiceConfig

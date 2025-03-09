@@ -79,7 +79,6 @@ func newDaemonCommand() (*cobra.Command, error) {
 	flags := cmd.Flags()
 	flags.BoolP("version", "v", false, "Print version information and quit")
 	flags.StringVar(&opts.configFile, "config-file", opts.configFile, "Daemon configuration file")
-	configureCertsDir()
 	opts.installFlags(flags)
 	installConfigFlags(opts.daemonConfig, flags)
 	installServiceFlags(flags)
