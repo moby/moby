@@ -16,7 +16,7 @@ func New(filename string, perm os.FileMode) (io.WriteCloser, error) {
 		return nil, err
 	}
 
-	f, err := os.CreateTemp(filepath.Dir(filename), ".tmp-"+filepath.Base(filename))
+	f, err := os.CreateTemp(filepath.Dir(abspath), ".tmp-"+filepath.Base(filename))
 	if err != nil {
 		return nil, err
 	}
