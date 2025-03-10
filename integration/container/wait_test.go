@@ -39,7 +39,6 @@ func TestWaitNonBlocked(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
 
 			ctx := testutil.StartSpan(ctx, t)
 			containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
@@ -81,14 +80,14 @@ func TestWaitBlocked(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
 			for i := 0; i < 100; i++ {
 				t.Run(strconv.Itoa(i), func(t *testing.T) {
 					ctx := testutil.StartSpan(ctx, t)
 					containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
 					waitResC, errC := cli.ContainerWait(ctx, containerID, "")
 
-					err := cli.ContainerStop(ctx, containerID, containertypes.StopOptions{})
+					timeout := 10
+					err := cli.ContainerStop(ctx, containerID, containertypes.StopOptions{Timeout: &timeout})
 					assert.NilError(t, err)
 
 					select {
@@ -134,7 +133,6 @@ func TestWaitConditions(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
 			opts := append([]func(*container.TestContainerConfig){
 				container.WithCmd("sh", "-c", "read -r; exit 99"),
@@ -205,7 +203,6 @@ func TestWaitRestartedContainer(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
 			for i := 0; i < 100; i++ {
 				t.Run(strconv.Itoa(i), func(t *testing.T) {
 					ctx := testutil.StartSpan(ctx, t)
@@ -217,7 +214,7 @@ func TestWaitRestartedContainer(t *testing.T) {
 					// Container is running now, wait for exit
 					waitResC, errC := cli.ContainerWait(ctx, containerID, tc.waitCond)
 
-					timeout := 5
+					timeout := 10
 					// On Windows it will always timeout, because our process won't receive SIGTERM
 					// Skip to force killing immediately
 					if isWindowDaemon {
