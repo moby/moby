@@ -1,0 +1,3 @@
+-P PREROUTING ACCEPT
+-P OUTPUT ACCEPT
+-A PREROUTING -d fd30:1159:a755::2/128 ! -i docker0 -p tcp -m tcp --dport 80 -j DROP

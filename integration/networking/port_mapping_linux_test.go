@@ -28,6 +28,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
@@ -1178,4 +1179,61 @@ func getContainerStdout(t *testing.T, ctx context.Context, c *client.Client, ctr
 	assert.NilError(t, err)
 
 	return logs.String()
+}
+
+// TestSkipRawRules checks that when env var DOCKER_INSECURE_NO_IPTABLES_RAW=1, no rules are added to
+// the iptables "raw" table - as a workaround for kernels that don't have CONFIG_IP_NF_RAW.
+// See https://github.com/moby/moby/issues/49557
+func TestSkipRawRules(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "can't use L3Segment, or check iptables rules")
+
+	testcases := []struct {
+		name          string
+		noIptablesRaw string
+	}{
+		{
+			name:          "skip=false",
+			noIptablesRaw: "0",
+		},
+		{
+			name:          "skip=true",
+			noIptablesRaw: "1",
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Run in a new netns, to make sure there are no raw rules left behind by other tests
+			const l3SegHost = "skip-raw"
+			l3 := networking.NewL3Segment(t, "test-"+l3SegHost)
+			defer l3.Destroy(t)
+			hostAddrs := []netip.Prefix{
+				netip.MustParsePrefix("192.168.234.0/24"),
+				netip.MustParsePrefix("fd3f:c09d:715b::/64"),
+			}
+			l3.AddHost(t, l3SegHost, "ns-"+l3SegHost, "eth0", hostAddrs...)
+			l3.Hosts[l3SegHost].Do(t, func() {
+				ctx := setupTest(t)
+				d := daemon.New(t, daemon.WithEnvVars("DOCKER_INSECURE_NO_IPTABLES_RAW="+tc.noIptablesRaw))
+				d.StartWithBusybox(ctx, t, "--ipv6", "--bip=192.168.0.1/24", "--bip6=fd30:1159:a755::1/64")
+				defer d.Stop(t)
+				c := d.NewClientT(t)
+				defer c.Close()
+
+				ctrId := container.Run(ctx, t, c,
+					container.WithExposedPorts("80/tcp"),
+					container.WithPortMap(nat.PortMap{"80/tcp": {
+						{HostIP: "127.0.0.1", HostPort: "8080"},
+						{HostPort: "8081"},
+					}}),
+				)
+				defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+
+				res4 := icmd.RunCommand("iptables", "-S", "-t", "raw")
+				golden.Assert(t, res4.Stdout(), t.Name()+"_ipv4.golden")
+				res6 := icmd.RunCommand("ip6tables", "-S", "-t", "raw")
+				golden.Assert(t, res6.Stdout(), t.Name()+"_ipv6.golden")
+			})
+		})
+	}
 }

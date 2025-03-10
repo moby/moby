@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"context"
 	"net"
 	"os"
 	"os/exec"
@@ -541,7 +542,7 @@ func TestMirroredWSL2LoopbackFiltering(t *testing.T) {
 					config: configuration{EnableIPTables: true},
 				},
 			}
-			err := nw.filterPortMappedOnLoopback(portBinding{
+			err := nw.filterPortMappedOnLoopback(context.TODO(), portBinding{
 				PortBinding: types.PortBinding{
 					Proto:    types.TCP,
 					IP:       net.ParseIP("127.0.0.1"),
