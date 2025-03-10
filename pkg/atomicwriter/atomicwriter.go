@@ -2,16 +2,74 @@ package atomicwriter
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 )
+
+func validateDestination(fileName string) error {
+	if fileName == "" {
+		return errors.New("file name is empty")
+	}
+
+	// Deliberately using Lstat here to match the behavior of [os.Rename],
+	// which is used when completing the write and does not resolve symlinks.
+	//
+	// TODO(thaJeztah): decide whether we want to disallow symlinks or to follow them.
+	if fi, err := os.Lstat(fileName); err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to stat output path: %w", err)
+		}
+	} else if err := validateFileMode(fi.Mode()); err != nil {
+		return err
+	}
+	if dir := filepath.Dir(fileName); dir != "" && dir != "." {
+		if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("invalid file path: %w", err)
+		}
+	}
+	return nil
+}
+
+func validateFileMode(mode os.FileMode) error {
+	switch {
+	case mode.IsRegular():
+		return nil // Regular file
+	case mode&os.ModeDir != 0:
+		return errors.New("cannot write to a directory")
+	// TODO(thaJeztah): decide whether we want to disallow symlinks or to follow them.
+	// case mode&os.ModeSymlink != 0:
+	// 	return errors.New("cannot write to a symbolic link directly")
+	case mode&os.ModeNamedPipe != 0:
+		return errors.New("cannot write to a named pipe (FIFO)")
+	case mode&os.ModeSocket != 0:
+		return errors.New("cannot write to a socket")
+	case mode&os.ModeDevice != 0:
+		if mode&os.ModeCharDevice != 0 {
+			return errors.New("cannot write to a character device file")
+		}
+		return errors.New("cannot write to a block device file")
+	case mode&os.ModeSetuid != 0:
+		return errors.New("cannot write to a setuid file")
+	case mode&os.ModeSetgid != 0:
+		return errors.New("cannot write to a setgid file")
+	case mode&os.ModeSticky != 0:
+		return errors.New("cannot write to a sticky bit file")
+	default:
+		// Unknown file mode; let's assume it works
+		return nil
+	}
+}
 
 // New returns a WriteCloser so that writing to it writes to a
 // temporary file and closing it atomically changes the temporary file to
 // destination path. Writing and closing concurrently is not allowed.
 // NOTE: umask is not considered for the file's permissions.
 func New(filename string, perm os.FileMode) (io.WriteCloser, error) {
+	if err := validateDestination(filename); err != nil {
+		return nil, err
+	}
 	abspath, err := filepath.Abs(filename)
 	if err != nil {
 		return nil, err

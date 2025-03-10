@@ -120,9 +120,40 @@ func TestNewInvalid(t *testing.T) {
 			t.Errorf("Should produce a 'not found' error, but got %[1]T (%[1]v)", err)
 		}
 	})
+	t.Run("empty filename", func(t *testing.T) {
+		writer, err := New("", testMode())
+		if writer != nil {
+			t.Errorf("Should not have created writer")
+		}
+		if err == nil || err.Error() != "file name is empty" {
+			t.Errorf("Should produce a 'file name is empty' error, but got %[1]T (%[1]v)", err)
+		}
+	})
+	t.Run("directory", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		writer, err := New(tmpDir, testMode())
+		if writer != nil {
+			t.Errorf("Should not have created writer")
+		}
+		if err == nil || err.Error() != "cannot write to a directory" {
+			t.Errorf("Should produce a 'cannot write to a directory' error, but got %[1]T (%[1]v)", err)
+		}
+	})
 }
 
 func TestWriteFile(t *testing.T) {
+	t.Run("empty filename", func(t *testing.T) {
+		err := WriteFile("", nil, testMode())
+		if err == nil || err.Error() != "file name is empty" {
+			t.Errorf("Should produce a 'file name is empty' error, but got %[1]T (%[1]v)", err)
+		}
+	})
+	t.Run("write to directory", func(t *testing.T) {
+		err := WriteFile(t.TempDir(), nil, testMode())
+		if err == nil || err.Error() != "cannot write to a directory" {
+			t.Errorf("Should produce a 'cannot write to a directory' error, but got %[1]T (%[1]v)", err)
+		}
+	})
 	t.Run("write to file", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		fileName := filepath.Join(tmpDir, "test.txt")
