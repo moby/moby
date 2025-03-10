@@ -303,6 +303,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		LeaseManager:    lm,
 		ContentStore:    store,
 		GarbageCollect:  mdb.GarbageCollect,
+		Root:            root,
 	})
 	if err != nil {
 		return nil, err
