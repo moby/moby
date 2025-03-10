@@ -58,7 +58,7 @@ func TestStopContainerWithTimeout(t *testing.T) {
 		forcefulKillExitCode = 0x40010004
 	}
 
-	testCmd := container.WithCmd("sh", "-c", "sleep 2 && exit 42")
+	testCmd := container.WithCmd("sh", "-c", "sleep 10 && exit 42")
 	testData := []struct {
 		doc              string
 		timeout          int
@@ -74,12 +74,12 @@ func TestStopContainerWithTimeout(t *testing.T) {
 		{
 			doc:              "too small timeout: expect forceful container kill",
 			expectedExitCode: forcefulKillExitCode,
-			timeout:          1,
+			timeout:          2,
 		},
 		{
 			doc:              "big enough timeout: expect graceful container stop",
 			expectedExitCode: 42,
-			timeout:          3, // longer than "sleep 5" cmd
+			timeout:          20, // longer than "sleep 10" cmd
 		},
 		{
 			doc:              "unlimited timeout: expect graceful container stop",
