@@ -53,13 +53,10 @@ func TestStateRunStop(t *testing.T) {
 		// shouldn't take more than 50 milliseconds.
 		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 		defer cancel()
-
-		if i != 1 {
-			// Expectx exit code to be i-1 since it should be the exit
-			// code from the previous loop or 0 for the created state.
-			if status := <-s.Wait(ctx, WaitConditionNotRunning); status.ExitCode() != i-1 {
-				t.Fatalf("ExitCode %v, expected %v, err %q", status.ExitCode(), i-1, status.Err())
-			}
+		// Expectx exit code to be i-1 since it should be the exit
+		// code from the previous loop or 0 for the created state.
+		if status := <-s.Wait(ctx, WaitConditionNotRunning); status.ExitCode() != i-1 {
+			t.Fatalf("ExitCode %v, expected %v, err %q", status.ExitCode(), i-1, status.Err())
 		}
 
 		// A wait with WaitConditionNextExit should block until the
