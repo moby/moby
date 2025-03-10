@@ -93,8 +93,14 @@ func TestNew(t *testing.T) {
 						t.Errorf("Unexpected file name for temp-file: %s", tmpFileName)
 					}
 
+					// Closing the writer without writing should clean up the temp-file,
+					// and should not replace the destination file.
 					if err = writer.Close(); err != nil {
 						t.Errorf("Error closing writer: %v", err)
+					}
+					assertFileCount(t, actualParentDir, origFileCount)
+					if tc == "existing-file" {
+						assertFile(t, fileName, []byte("original content"), testMode())
 					}
 				})
 			}

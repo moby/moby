@@ -1,6 +1,7 @@
 package atomicwriter
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -49,10 +50,12 @@ type atomicFileWriter struct {
 	f        *os.File
 	fn       string
 	writeErr error
+	written  bool
 	perm     os.FileMode
 }
 
 func (w *atomicFileWriter) Write(dt []byte) (int, error) {
+	w.written = true
 	n, err := w.f.Write(dt)
 	if err != nil {
 		w.writeErr = err
@@ -62,12 +65,12 @@ func (w *atomicFileWriter) Write(dt []byte) (int, error) {
 
 func (w *atomicFileWriter) Close() (retErr error) {
 	defer func() {
-		if retErr != nil || w.writeErr != nil {
-			os.Remove(w.f.Name())
+		if err := os.Remove(w.f.Name()); !errors.Is(err, os.ErrNotExist) && retErr == nil {
+			retErr = err
 		}
 	}()
 	if err := w.f.Sync(); err != nil {
-		w.f.Close()
+		_ = w.f.Close()
 		return err
 	}
 	if err := w.f.Close(); err != nil {
@@ -76,7 +79,7 @@ func (w *atomicFileWriter) Close() (retErr error) {
 	if err := os.Chmod(w.f.Name(), w.perm); err != nil {
 		return err
 	}
-	if w.writeErr == nil {
+	if w.writeErr == nil && w.written {
 		return os.Rename(w.f.Name(), w.fn)
 	}
 	return nil
