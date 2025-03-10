@@ -24,12 +24,27 @@ func (cli *Client) ImageInspect(ctx context.Context, imageID string, inspectOpts
 		}
 	}
 
+	if opts.apiOptions.Manifests && opts.apiOptions.Platform != nil {
+		return image.InspectResponse{}, fmt.Errorf("manifests and platform options cannot both be set")
+	}
+
 	query := url.Values{}
 	if opts.apiOptions.Manifests {
 		if err := cli.NewVersionError(ctx, "1.48", "manifests"); err != nil {
 			return image.InspectResponse{}, err
 		}
 		query.Set("manifests", "1")
+	}
+
+	if opts.apiOptions.Platform != nil {
+		if err := cli.NewVersionError(ctx, "1.48", "platform"); err != nil {
+			return image.InspectResponse{}, err
+		}
+		platform, err := encodePlatform(opts.apiOptions.Platform)
+		if err != nil {
+			return image.InspectResponse{}, err
+		}
+		query.Set("platform", platform)
 	}
 
 	resp, err := cli.get(ctx, "/images/"+imageID+"/json", query, nil)
