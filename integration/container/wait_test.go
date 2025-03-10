@@ -1,6 +1,7 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -38,7 +39,6 @@ func TestWaitNonBlocked(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
 
 			ctx := testutil.StartSpan(ctx, t)
 			containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
@@ -80,21 +80,25 @@ func TestWaitBlocked(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
-			ctx := testutil.StartSpan(ctx, t)
-			containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
-			waitResC, errC := cli.ContainerWait(ctx, containerID, "")
+			for i := 0; i < 100; i++ {
+				t.Run(strconv.Itoa(i), func(t *testing.T) {
+					ctx := testutil.StartSpan(ctx, t)
+					containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
+					waitResC, errC := cli.ContainerWait(ctx, containerID, "")
 
-			err := cli.ContainerStop(ctx, containerID, containertypes.StopOptions{})
-			assert.NilError(t, err)
+					timeout := 10
+					err := cli.ContainerStop(ctx, containerID, containertypes.StopOptions{Timeout: &timeout})
+					assert.NilError(t, err)
 
-			select {
-			case err := <-errC:
-				assert.NilError(t, err)
-			case waitRes := <-waitResC:
-				assert.Check(t, is.Equal(tc.expectedCode, waitRes.StatusCode))
-			case <-time.After(2 * time.Second):
-				t.Fatal("timeout waiting for `docker wait`")
+					select {
+					case err := <-errC:
+						assert.NilError(t, err)
+					case waitRes := <-waitResC:
+						assert.Check(t, is.Equal(tc.expectedCode, waitRes.StatusCode))
+					case <-time.After(2 * time.Second):
+						t.Fatal("timeout waiting for `docker wait`")
+					}
+				})
 			}
 		})
 	}
@@ -129,7 +133,6 @@ func TestWaitConditions(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
 			opts := append([]func(*container.TestContainerConfig){
 				container.WithCmd("sh", "-c", "read -r; exit 99"),
@@ -200,37 +203,40 @@ func TestWaitRestartedContainer(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
-			ctx := testutil.StartSpan(ctx, t)
-			containerID := container.Run(ctx, t, cli,
-				container.WithCmd("sh", "-c", "trap 'exit 5' SIGTERM; while true; do sleep 0.1; done"),
-			)
-			defer cli.ContainerRemove(ctx, containerID, containertypes.RemoveOptions{Force: true})
+			for i := 0; i < 100; i++ {
+				t.Run(strconv.Itoa(i), func(t *testing.T) {
+					ctx := testutil.StartSpan(ctx, t)
+					containerID := container.Run(ctx, t, cli,
+						container.WithCmd("sh", "-c", "trap 'exit 5' SIGTERM; while true; do sleep 0.1; done"),
+					)
+					defer cli.ContainerRemove(ctx, containerID, containertypes.RemoveOptions{Force: true})
 
-			// Container is running now, wait for exit
-			waitResC, errC := cli.ContainerWait(ctx, containerID, tc.waitCond)
+					// Container is running now, wait for exit
+					waitResC, errC := cli.ContainerWait(ctx, containerID, tc.waitCond)
 
-			timeout := 5
-			// On Windows it will always timeout, because our process won't receive SIGTERM
-			// Skip to force killing immediately
-			if isWindowDaemon {
-				timeout = 0
-			}
+					timeout := 10
+					// On Windows it will always timeout, because our process won't receive SIGTERM
+					// Skip to force killing immediately
+					if isWindowDaemon {
+						timeout = 0
+					}
 
-			err := cli.ContainerRestart(ctx, containerID, containertypes.StopOptions{Timeout: &timeout, Signal: "SIGTERM"})
-			assert.NilError(t, err)
+					err := cli.ContainerRestart(ctx, containerID, containertypes.StopOptions{Timeout: &timeout, Signal: "SIGTERM"})
+					assert.NilError(t, err)
 
-			select {
-			case err := <-errC:
-				t.Fatalf("Unexpected error: %v", err)
-			case <-time.After(time.Second * 3):
-				t.Fatalf("Wait should end after restart")
-			case waitRes := <-waitResC:
-				expectedCode := int64(5)
+					select {
+					case err := <-errC:
+						t.Fatalf("Unexpected error: %v", err)
+					case <-time.After(time.Second * 3):
+						t.Fatalf("Wait should end after restart")
+					case waitRes := <-waitResC:
+						expectedCode := int64(5)
 
-				if !isWindowDaemon {
-					assert.Check(t, is.Equal(expectedCode, waitRes.StatusCode))
-				}
+						if !isWindowDaemon {
+							assert.Check(t, is.Equal(expectedCode, waitRes.StatusCode))
+						}
+					}
+				})
 			}
 		})
 	}
