@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -38,6 +39,81 @@ func assertFile(t *testing.T, fileName string, fileContent []byte, expectedMode 
 	if st.Mode() != expectedMode {
 		t.Errorf("Mode mismatched, expected %o, got %o", expectedMode, st.Mode())
 	}
+}
+
+// assertFileCount asserts the given directory has the expected number
+// of files, and returns the list of files found.
+func assertFileCount(t *testing.T, directory string, expected int) []os.DirEntry {
+	t.Helper()
+	files, err := os.ReadDir(directory)
+	if err != nil {
+		t.Fatalf("Error reading dir: %v", err)
+	}
+	if len(files) != expected {
+		t.Errorf("Expected %d files, got %d: %v", expected, len(files), files)
+	}
+	return files
+}
+
+func TestNew(t *testing.T) {
+	for _, tc := range []string{"normal", "symlinked"} {
+		tmpDir := t.TempDir()
+		parentDir := tmpDir
+		actualParentDir := parentDir
+		if tc == "symlinked" {
+			actualParentDir = filepath.Join(tmpDir, "parent-dir")
+			if err := os.Mkdir(actualParentDir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			parentDir = filepath.Join(tmpDir, "parent-dir-symlink")
+			if err := os.Symlink(actualParentDir, parentDir); err != nil {
+				t.Fatal(err)
+			}
+		}
+		t.Run(tc, func(t *testing.T) {
+			for _, tc := range []string{"new-file", "existing-file"} {
+				t.Run(tc, func(t *testing.T) {
+					fileName := filepath.Join(parentDir, "test.txt")
+					var origFileCount int
+					if tc == "existing-file" {
+						if err := os.WriteFile(fileName, []byte("original content"), testMode()); err != nil {
+							t.Fatalf("Error writing file: %v", err)
+						}
+						origFileCount = 1
+					}
+					writer, err := New(fileName, testMode())
+					if writer == nil {
+						t.Errorf("Writer is nil")
+					}
+					if err != nil {
+						t.Fatalf("Error creating new atomicwriter: %v", err)
+					}
+					files := assertFileCount(t, actualParentDir, origFileCount+1)
+					if tmpFileName := files[0].Name(); !strings.HasPrefix(tmpFileName, ".tmp-test.txt") {
+						t.Errorf("Unexpected file name for temp-file: %s", tmpFileName)
+					}
+
+					if err = writer.Close(); err != nil {
+						t.Errorf("Error closing writer: %v", err)
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestNewInvalid(t *testing.T) {
+	t.Run("missing target dir", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		fileName := filepath.Join(tmpDir, "missing-dir", "test.txt")
+		writer, err := New(fileName, testMode())
+		if writer != nil {
+			t.Errorf("Should not have created writer")
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			t.Errorf("Should produce a 'not found' error, but got %[1]T (%[1]v)", err)
+		}
+	})
 }
 
 func TestWriteFile(t *testing.T) {
