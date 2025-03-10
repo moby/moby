@@ -88,7 +88,7 @@ require (
 	github.com/pelletier/go-toml v1.9.5
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.20.5
-	github.com/rootless-containers/rootlesskit/v2 v2.3.2
+	github.com/rootless-containers/rootlesskit/v2 v2.3.4
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.6
@@ -106,7 +106,7 @@ require (
 	golang.org/x/mod v0.22.0
 	golang.org/x/net v0.36.0
 	golang.org/x/sync v0.11.0
-	golang.org/x/sys v0.30.0
+	golang.org/x/sys v0.31.0
 	golang.org/x/text v0.22.0
 	golang.org/x/time v0.6.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20241021214115-324edc3d5d38
@@ -153,7 +153,7 @@ require (
 	github.com/containerd/stargz-snapshotter/estargz v0.16.3 // indirect
 	github.com/containerd/ttrpc v1.2.7 // indirect
 	github.com/containernetworking/cni v1.2.3 // indirect
-	github.com/containernetworking/plugins v1.5.1 // indirect
+	github.com/containernetworking/plugins v1.6.2 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect

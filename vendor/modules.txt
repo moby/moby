@@ -461,8 +461,8 @@ github.com/containernetworking/cni/pkg/types/create
 github.com/containernetworking/cni/pkg/types/internal
 github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
-# github.com/containernetworking/plugins v1.5.1
-## explicit; go 1.20
+# github.com/containernetworking/plugins v1.6.2
+## explicit; go 1.23
 github.com/containernetworking/plugins/pkg/ns
 # github.com/coreos/go-systemd/v22 v22.5.0
 ## explicit; go 1.12
@@ -1117,8 +1117,8 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rootless-containers/rootlesskit/v2 v2.3.2
-## explicit; go 1.21.0
+# github.com/rootless-containers/rootlesskit/v2 v2.3.4
+## explicit; go 1.23.0
 github.com/rootless-containers/rootlesskit/v2/pkg/api
 github.com/rootless-containers/rootlesskit/v2/pkg/api/client
 github.com/rootless-containers/rootlesskit/v2/pkg/httputil
@@ -1445,8 +1445,8 @@ golang.org/x/oauth2/jwt
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
 golang.org/x/sync/syncmap
-# golang.org/x/sys v0.30.0
-## explicit; go 1.18
+# golang.org/x/sys v0.31.0
+## explicit; go 1.23.0
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
