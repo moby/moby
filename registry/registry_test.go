@@ -331,6 +331,38 @@ func TestParseRepositoryInfo(t *testing.T) {
 
 func TestNewIndexInfo(t *testing.T) {
 	overrideLookupIP(t)
+
+	// ipv6Loopback is the CIDR for the IPv6 loopback address ("::1"); "::1/128"
+	ipv6Loopback := &net.IPNet{
+		IP:   net.IPv6loopback,
+		Mask: net.CIDRMask(128, 128),
+	}
+
+	// ipv4Loopback is the CIDR for IPv4 loopback addresses ("127.0.0.0/8")
+	ipv4Loopback := &net.IPNet{
+		IP:   net.IPv4(127, 0, 0, 0),
+		Mask: net.CIDRMask(8, 32),
+	}
+
+	// emptyServiceConfig is a default service-config for situations where
+	// no config-file is available (e.g. when used in the CLI). It won't
+	// have mirrors configured, but does have the default insecure registry
+	// CIDRs for loopback interfaces configured.
+	emptyServiceConfig := &serviceConfig{
+		IndexConfigs: map[string]*registry.IndexInfo{
+			IndexName: {
+				Name:     IndexName,
+				Mirrors:  []string{},
+				Secure:   true,
+				Official: true,
+			},
+		},
+		InsecureRegistryCIDRs: []*registry.NetIPNet{
+			(*registry.NetIPNet)(ipv6Loopback),
+			(*registry.NetIPNet)(ipv4Loopback),
+		},
+	}
+
 	testIndexInfo := func(t *testing.T, config *serviceConfig, expectedIndexInfos map[string]*registry.IndexInfo) {
 		for indexName, expected := range expectedIndexInfos {
 			t.Run(indexName, func(t *testing.T) {
