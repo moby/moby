@@ -2,6 +2,7 @@ package platform
 
 import (
 	"context"
+	"runtime"
 	"sync"
 
 	"github.com/containerd/log"
@@ -28,4 +29,23 @@ func Architecture() string {
 		}
 	})
 	return arch
+}
+
+// PossibleCPU returns the set of possible CPUs on the host (which is equal or
+// larger to the number of CPUs currently online). The returned set may be a
+// single CPU number ({0}), or a continuous range of CPU numbers ({0,1,2,3}), or
+// a non-continuous range of CPU numbers ({0,1,2,3,12,13,14,15}).
+func PossibleCPU() []int {
+	if ncpu := possibleCPUs(); ncpu != nil {
+		return ncpu
+	}
+
+	// Fallback in case possibleCPUs() fails.
+	var cpus []int
+	ncpu := runtime.NumCPU()
+	for i := 0; i <= ncpu; i++ {
+		cpus = append(cpus, i)
+	}
+
+	return cpus
 }
