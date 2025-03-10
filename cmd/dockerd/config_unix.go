@@ -4,13 +4,9 @@ package main
 
 import (
 	"net"
-	"path/filepath"
 
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/pkg/rootless"
-	"github.com/docker/docker/registry"
 	"github.com/spf13/pflag"
 )
 
@@ -58,15 +54,4 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	// Note that conf.BridgeConfig.UserlandProxyPath and honorXDG are configured according to the value of rootless.RunningWithRootlessKit, not the value of --rootless.
 	flags.BoolVar(&conf.Rootless, "rootless", conf.Rootless, "Enable rootless mode; typically used with RootlessKit")
 	flags.StringVar(&conf.CgroupNamespaceMode, "default-cgroupns-mode", conf.CgroupNamespaceMode, `Default mode for containers cgroup namespace ("host" | "private")`)
-}
-
-// configureCertsDir configures registry.CertsDir() depending on if the daemon
-// is running in rootless mode or not.
-func configureCertsDir() {
-	if rootless.RunningWithRootlessKit() {
-		configHome, err := homedir.GetConfigHome()
-		if err == nil {
-			registry.SetCertsDir(filepath.Join(configHome, "docker/certs.d"))
-		}
-	}
 }
