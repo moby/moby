@@ -929,6 +929,7 @@ func driverOptions(config *config.Config) nwconfig.Option {
 			"EnableUserlandProxy":      config.BridgeConfig.EnableUserlandProxy,
 			"UserlandProxyPath":        config.BridgeConfig.UserlandProxyPath,
 			"Rootless":                 config.Rootless,
+			"RestoreDefaultBridge":     config.LiveRestoreEnabled,
 		},
 	})
 }

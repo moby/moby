@@ -62,6 +62,7 @@ type configuration struct {
 	EnableUserlandProxy      bool
 	UserlandProxyPath        string
 	Rootless                 bool
+	RestoreDefaultBridge     bool
 }
 
 // networkConfiguration for network specific configuration
@@ -994,7 +995,9 @@ func (d *driver) deleteNetwork(nid string) error {
 		// case whatever caused the failure can be fixed for a future daemon restart). But,
 		// it's not in d.networks. To prevent the driver's state from getting out of step
 		// with its parent, make sure it's not in the store before reporting that it does
-		// not exist.
+		// not exist. This also deletes the default bridge network when it's re-created
+		// on non-live-restore daemon startup (the default bridge is not restored from the
+		// store on startup, apart from on live-restore).
 		if err := d.storeDelete(&networkConfiguration{ID: nid}); err != nil && err != datastore.ErrKeyNotFound {
 			log.G(context.TODO()).WithFields(log.Fields{
 				"error":   err,

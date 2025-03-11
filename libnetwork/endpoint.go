@@ -872,7 +872,14 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 		if moveExtConn4 || moveExtConn6 {
 			log.G(ctx).Debug("Revoking external connectivity on endpoint")
 			if err := d.RevokeExternalConnectivity(n.id, ep.id); err != nil {
-				log.G(ctx).WithError(err).Warn("driver failed revoking external connectivity on endpoint")
+				// If live-restore is not enabled, the default bridge network is not restored on
+				// daemon startup, it's deleted and re-created later. If the daemon shut down
+				// with a container attached to the default bridge, it gets deleted but there's no
+				// external connectivity to revoke. So, there's no need to log an error here if the
+				// default bridge network doesn't exist.
+				if n.name != "bridge" || !errdefs.IsNotFound(err) {
+					log.G(ctx).WithError(err).Warn("driver failed revoking external connectivity on endpoint")
+				}
 			}
 		}
 
