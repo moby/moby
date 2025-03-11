@@ -300,8 +300,8 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix, dstNam
 		if err := waitForBridgePort(ctx, ns.NlHandle(), iface); err != nil {
 			return fmt.Errorf("check bridge port state: %w", err)
 		}
-		waitForMcastRoute(ctx, iface.Attrs().Index, i, n.nlHandle)
-		if err := n.advertiseAddrs(ctx, iface.Attrs().Index, i, n.nlHandle); err != nil {
+		mcastRouteOk := waitForMcastRoute(ctx, iface.Attrs().Index, i, n.nlHandle)
+		if err := n.advertiseAddrs(ctx, iface.Attrs().Index, i, n.nlHandle, mcastRouteOk); err != nil {
 			return fmt.Errorf("failed to advertise addresses: %w", err)
 		}
 	}
@@ -606,9 +606,9 @@ func stpEnabled(ctx context.Context, name string) bool {
 // That error has not been seen since addition of the check that the veth's parent bridge port
 // is forwarding, so that may have been the issue. But, in case it's a timing problem that's
 // only less-likely because of delay caused by that check, make sure the route exists.
-func waitForMcastRoute(ctx context.Context, ifIndex int, i *Interface, nlh nlwrap.Handle) {
+func waitForMcastRoute(ctx context.Context, ifIndex int, i *Interface, nlh nlwrap.Handle) bool {
 	if i.addressIPv6 == nil || i.advertiseAddrNMsgs == 0 {
-		return
+		return true
 	}
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.waitForMcastRoute")
 	defer span.End()
@@ -624,16 +624,17 @@ func waitForMcastRoute(ctx context.Context, ifIndex int, i *Interface, nlh nlwra
 			// FIXME(robmry) - if EMSGSIZE is returned (why?), it seems to be persistent.
 			//  So, skip the delay and continue to the NA send as it seems to succeed.
 			log.G(ctx).Info("Skipping check for route to send NA, EMSGSIZE")
-			return
+			return true
 		}
 		if err != nil || len(routes) == 0 {
 			log.G(ctx).WithFields(log.Fields{"error": err, "nroutes": len(routes)}).Info("Waiting for route to send NA")
 			time.Sleep(pollInterval)
 			continue
 		}
-		return
+		return true
 	}
 	log.G(ctx).WithField("", maxWait).Warn("No route for neighbour advertisement")
+	return false
 }
 
 // advertiseAddrs triggers send unsolicited ARP and Neighbour Advertisement
@@ -646,16 +647,17 @@ func waitForMcastRoute(ctx context.Context, ifIndex int, i *Interface, nlh nlwra
 // until the ARP/Neighbour cache entries expire.
 //
 // Note that the kernel's arp_notify sysctl setting is not respected.
-func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interface, nlh nlwrap.Handle) error {
+func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interface, nlh nlwrap.Handle, mcastRouteOk bool) error {
 	mac := i.MacAddress()
 	address4 := i.Address()
 	address6 := i.AddressIPv6()
 	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
-		"iface": i.dstName,
-		"ifi":   ifIndex,
-		"mac":   mac.String(),
-		"ip4":   address4,
-		"ip6":   address6,
+		"iface":        i.dstName,
+		"ifi":          ifIndex,
+		"mac":          mac.String(),
+		"ip4":          address4,
+		"ip6":          address6,
+		"mcastRouteOk": mcastRouteOk,
 	}))
 
 	if address4 == nil && address6 == nil {
@@ -712,7 +714,11 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 		if naSender != nil {
 			if err := naSender.Send(); err != nil {
 				log.G(ctx).WithError(err).Warn("Failed to send unsolicited NA")
-				errs = append(errs, err)
+				// If there was no multicast route and the network is unreachable, ignore the
+				// error - this happens when a macvlan's parent interface is down.
+				if mcastRouteOk || !errors.Is(err, unix.ENETUNREACH) {
+					errs = append(errs, err)
+				}
 			}
 		}
 		return errors.Join(errs...)
