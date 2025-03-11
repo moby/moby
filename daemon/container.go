@@ -81,7 +81,9 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 	if ctr.ImagePlatform.Architecture == "" {
 		migration := daemonPlatformReader{
 			imageService: daemon.imageService,
-			content:      daemon.containerdClient.ContentStore(),
+		}
+		if daemon.containerdClient != nil {
+			migration.content = daemon.containerdClient.ContentStore()
 		}
 		migrateContainerOS(context.TODO(), migration, ctr)
 	}
