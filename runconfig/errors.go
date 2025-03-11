@@ -5,8 +5,10 @@ const (
 	ErrConflictContainerNetworkAndLinks validationError = "conflicting options: container type network can't be used with links. This would result in undefined behavior"
 	// ErrConflictSharedNetwork conflict between private and other networks
 	ErrConflictSharedNetwork validationError = "container sharing network namespace with another container or host cannot be connected to any other network"
-	// ErrConflictHostNetwork conflict from being disconnected from host network or connected to host network.
-	ErrConflictHostNetwork validationError = "container cannot be disconnected from host network or connected to host network"
+	// ErrConflictConnectToHostNetwork error when attempting to connect a container to host network when not in host network mode
+	ErrConflictConnectToHostNetwork validationError = "cannot connect container to host network - container must be created in host network mode"
+	// ErrConflictDisconnectFromHostNetwork error when attempting to disconnect a container from host network when in host network mode
+	ErrConflictDisconnectFromHostNetwork validationError = "cannot disconnect container from host network - container was created in host network mode"
 	// ErrConflictNoNetwork conflict between private and other networks
 	ErrConflictNoNetwork validationError = "container cannot be connected to multiple networks with one of the networks in private (none) mode"
 	// ErrConflictNetworkAndDNS conflict between --dns and the network mode
