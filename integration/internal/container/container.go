@@ -7,12 +7,14 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+	"unicode"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 )
@@ -55,6 +57,17 @@ func NewTestConfig(ops ...func(*TestContainerConfig)) *TestContainerConfig {
 // Create creates a container with the specified options, asserting that there was no error.
 func Create(ctx context.Context, t *testing.T, apiClient client.APIClient, ops ...func(*TestContainerConfig)) string {
 	t.Helper()
+
+	var name string
+	for _, c := range t.Name() {
+		if unicode.IsLetter(c) || unicode.IsDigit(c) {
+			name += string(c)
+		}
+	}
+	name += "-" + testutil.GenerateRandomAlphaOnlyString(10)
+
+	ops = append([]func(*TestContainerConfig){WithName(name)}, ops...)
+
 	config := NewTestConfig(ops...)
 	c, err := apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
 	assert.NilError(t, err)
