@@ -165,6 +165,17 @@ target "bin-image-cross" {
 }
 
 #
+# dind
+#
+
+target "dind" {
+  inherits = ["_common"]
+  target = "dind"
+  tags = ["docker-dind"]
+  output = ["type=docker"]
+}
+
+#
 # dev
 #
 
