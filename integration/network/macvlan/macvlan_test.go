@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/skip"
 )
 
@@ -669,4 +670,29 @@ func TestEndpointWithCustomIfname(t *testing.T) {
 	out, err := container.Output(ctx, apiClient, ctrID)
 	assert.NilError(t, err)
 	assert.Assert(t, strings.Contains(out.Stdout, ": foobar@if"), "expected ': foobar@if' in 'ip link show':\n%s", out.Stdout)
+}
+
+// TestParentDown checks that when a macvlan's parent is down, a container can still
+// be attached.
+// Regression test for https://github.com/moby/moby/issues/49593
+func TestParentDown(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	const tap = "dummytap0"
+	res := icmd.RunCommand("ip", "tuntap", "add", "mode", "tap", tap)
+	res.Assert(t, icmd.Success)
+	defer icmd.RunCommand("ip", "link", "del", tap)
+
+	const netName = "testnet-macvlan"
+	net.CreateNoError(ctx, t, apiClient, netName,
+		net.WithMacvlan(tap),
+		net.WithIPv6(),
+	)
+
+	ctrID := container.Run(ctx, t, apiClient, container.WithNetworkMode(netName))
+	defer container.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
 }
