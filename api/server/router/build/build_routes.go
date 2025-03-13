@@ -37,7 +37,7 @@ func (e invalidParam) InvalidParameter() {}
 
 func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBuildOptions, error) {
 	options := &types.ImageBuildOptions{
-		Version:        types.BuilderV1, // Builder V1 is the default, but can be overridden
+		Version:        types.BuilderBuildKit,
 		Dockerfile:     r.FormValue("dockerfile"),
 		SuppressOutput: httputils.BoolValue(r, "q"),
 		NoCache:        httputils.BoolValue(r, "nocache"),
