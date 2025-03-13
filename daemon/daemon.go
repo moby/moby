@@ -1079,11 +1079,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		})
 	} else {
 		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
-			Root:                cfgStore.Root,
-			GraphDriver:         driverName,
-			GraphDriverOptions:  cfgStore.GraphOptions,
-			IDMapping:           idMapping,
-			ExperimentalEnabled: cfgStore.Experimental,
+			Root:               cfgStore.Root,
+			GraphDriver:        driverName,
+			GraphDriverOptions: cfgStore.GraphOptions,
+			IDMapping:          idMapping,
 		})
 		if err != nil {
 			return nil, err

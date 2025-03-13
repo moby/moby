@@ -17,7 +17,6 @@ import (
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
@@ -47,11 +46,8 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	client := d.NewClientT(t)
 
 	layerStore, _ := layer.NewStoreFromOptions(layer.StoreOptions{
-		Root:                d.Root,
-		GraphDriver:         d.StorageDriver(),
-		GraphDriverOptions:  nil,
-		IDMapping:           idtools.IdentityMapping{},
-		ExperimentalEnabled: false,
+		Root:        d.Root,
+		GraphDriver: d.StorageDriver(),
 	})
 	i := images.NewImageService(images.ImageServiceConfig{
 		LayerStore: layerStore,
