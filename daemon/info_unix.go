@@ -159,6 +159,10 @@ func (daemon *Daemon) fillPlatformInfo(ctx context.Context, v *system.Info, sysI
 	if !v.IPv4Forwarding {
 		v.Warnings = append(v.Warnings, "WARNING: IPv4 forwarding is disabled")
 	}
+	// Env-var belonging to the bridge driver, disables use of the iptables "raw" table.
+	if os.Getenv("DOCKER_INSECURE_NO_IPTABLES_RAW") == "1" {
+		v.Warnings = append(v.Warnings, "WARNING: DOCKER_INSECURE_NO_IPTABLES_RAW is set")
+	}
 	return nil
 }
 
