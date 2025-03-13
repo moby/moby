@@ -457,18 +457,31 @@ func setupNonInternalNetworkRules(ipVer iptables.IPVersion, config *networkConfi
 	hpNatRule := iptables.Rule{IPVer: ipVer, Table: iptables.Nat, Chain: "POSTROUTING", Args: hpNatArgs}
 
 	// Set NAT.
-	if nat && config.EnableIPMasquerade {
-		if err := programChainRule(natRule, "NAT", enable); err != nil {
-			return err
+	if config.EnableIPMasquerade {
+		if nat {
+			if err := programChainRule(natRule, "NAT", enable); err != nil {
+				return err
+			}
 		}
-	}
-	if !nat || (config.EnableIPMasquerade && !hairpin) {
-		skipDNAT := iptables.Rule{IPVer: ipVer, Table: iptables.Nat, Chain: DockerChain, Args: []string{
-			"-i", config.BridgeName,
-			"-j", "RETURN",
-		}}
-		if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
-			return err
+		// If the userland proxy is running (!hairpin), skip DNAT for packets originating from
+		// this new network. Then, the proxy can pick up the packet from the host address the dest
+		// port is published to. Otherwise, if the packet is DNAT'd, it's forwarded straight to the
+		// target network, and will be dropped by network isolation rules if it didn't originate in
+		// the same bridge network. (So, with the proxy enabled, this skip allows a container in one
+		// network to reach a port published by a container in another bridge network.)
+		//
+		// If the userland proxy is disabled, don't skip, so packets will be DNAT'd. That will
+		// enable access to ports published by containers in the same network. But, the INC rules
+		// will block access to that published port from containers in other networks. (However,
+		// users may add a rule to DOCKER-USER to work around the INC rules if needed.)
+		if !hairpin {
+			skipDNAT := iptables.Rule{IPVer: ipVer, Table: iptables.Nat, Chain: DockerChain, Args: []string{
+				"-i", config.BridgeName,
+				"-j", "RETURN",
+			}}
+			if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
+				return err
+			}
 		}
 	}
 
