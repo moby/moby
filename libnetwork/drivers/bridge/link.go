@@ -5,18 +5,18 @@ package bridge
 import (
 	"context"
 	"fmt"
-	"net"
+	"net/netip"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/types"
 )
 
-func (n *iptablesNetwork) AddLink(ctx context.Context, parentIP, childIP net.IP, ports []types.TransportPort) error {
-	if parentIP == nil {
+func (n *iptablesNetwork) AddLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort) error {
+	if !parentIP.IsValid() || parentIP.IsUnspecified() {
 		return fmt.Errorf("cannot link to a container with an empty parent IP address")
 	}
-	if childIP == nil {
+	if !childIP.IsValid() || childIP.IsUnspecified() {
 		return fmt.Errorf("cannot link to a container with an empty child IP address")
 	}
 
@@ -29,7 +29,7 @@ func (n *iptablesNetwork) AddLink(ctx context.Context, parentIP, childIP net.IP,
 	return nil
 }
 
-func (n *iptablesNetwork) DelLink(ctx context.Context, parentIP, childIP net.IP, ports []types.TransportPort) {
+func (n *iptablesNetwork) DelLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort) {
 	chain := iptables.ChainInfo{Name: DockerChain}
 	for _, port := range ports {
 		if err := chain.Link(iptables.Delete, parentIP, childIP, int(port.Port), port.Proto.String(), n.IfName); err != nil {
