@@ -263,17 +263,16 @@ func (s *DockerCLILogsSuite) TestLogsFollowSlowStdoutConsumer(c *testing.T) {
 // ConsumeWithSpeed reads chunkSize bytes from reader before sleeping
 // for interval duration. Returns total read bytes. Send true to the
 // stop channel to return before reading to EOF on the reader.
-func ConsumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, stop chan bool) (n int, err error) {
+func ConsumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, stop chan bool) (n int, _ error) {
 	buffer := make([]byte, chunkSize)
 	for {
-		var readBytes int
-		readBytes, err = reader.Read(buffer)
+		readBytes, err := reader.Read(buffer)
 		n += readBytes
 		if err != nil {
-			if err == io.EOF {
-				err = nil
+			if err != io.EOF {
+				return n, err
 			}
-			return n, err
+			return n, nil
 		}
 		select {
 		case <-stop:

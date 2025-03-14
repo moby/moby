@@ -1,6 +1,7 @@
 package layer // import "github.com/docker/docker/layer"
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -36,17 +37,6 @@ func newFileMetadataStore(t *testing.T) (*fileMetadataStore, string, func()) {
 	}
 }
 
-func assertNotDirectoryError(t *testing.T, err error) {
-	perr, ok := err.(*os.PathError)
-	if !ok {
-		t.Fatalf("Unexpected error %#v, expected path error", err)
-	}
-
-	if perr.Err != syscall.ENOTDIR {
-		t.Fatalf("Unexpected error %s, expected %s", perr.Err, syscall.ENOTDIR)
-	}
-}
-
 func TestCommitFailure(t *testing.T) {
 	fms, td, cleanup := newFileMetadataStore(t)
 	defer cleanup()
@@ -68,7 +58,9 @@ func TestCommitFailure(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error committing with invalid layer parent directory")
 	}
-	assertNotDirectoryError(t, err)
+	if !errors.Is(err, syscall.ENOTDIR) {
+		t.Errorf("Unexpected error %s (%[1]T), expected %s", err, syscall.ENOTDIR)
+	}
 }
 
 func TestStartTransactionFailure(t *testing.T) {
@@ -83,7 +75,9 @@ func TestStartTransactionFailure(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error starting transaction with invalid layer parent directory")
 	}
-	assertNotDirectoryError(t, err)
+	if !errors.Is(err, syscall.ENOTDIR) {
+		t.Errorf("Unexpected error %s (%[1]T), expected %s", err, syscall.ENOTDIR)
+	}
 
 	if err := os.Remove(filepath.Join(td, "tmp")); err != nil {
 		t.Fatal(err)

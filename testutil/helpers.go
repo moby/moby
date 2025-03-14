@@ -30,7 +30,7 @@ var DevZero io.Reader = devZero{}
 
 type devZero struct{}
 
-func (d devZero) Read(p []byte) (n int, err error) {
+func (d devZero) Read(p []byte) (int, error) {
 	for i := range p {
 		p[i] = 0
 	}

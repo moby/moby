@@ -339,7 +339,7 @@ func fillDriverWarnings(v *system.Info) {
 // Output example from `docker-init --version`:
 //
 //	tini version 0.18.0 - git.fec3683
-func parseInitVersion(v string) (version string, commit string, err error) {
+func parseInitVersion(v string) (version string, commit string, _ error) {
 	parts := strings.Split(v, " - ")
 
 	if len(parts) >= 2 {
@@ -353,9 +353,9 @@ func parseInitVersion(v string) (version string, commit string, err error) {
 		version = strings.TrimPrefix(parts[0], "tini version ")
 	}
 	if version == "" && commit == "" {
-		err = errors.Errorf("unknown output format: %s", v)
+		return "", "", errors.Errorf("unknown output format: %s", v)
 	}
-	return version, commit, err
+	return version, commit, nil
 }
 
 // parseRuntimeVersion parses the output of `[runtime] --version` and extracts the
@@ -366,7 +366,7 @@ func parseInitVersion(v string) (version string, commit string, err error) {
 //	runc version 1.0.0-rc5+dev
 //	commit: 69663f0bd4b60df09991c08812a60108003fa340
 //	spec: 1.0.0
-func parseRuntimeVersion(v string) (runtime, version, commit string, err error) {
+func parseRuntimeVersion(v string) (runtime, version, commit string, _ error) {
 	lines := strings.Split(strings.TrimSpace(v), "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "version") {
@@ -381,12 +381,12 @@ func parseRuntimeVersion(v string) (runtime, version, commit string, err error) 
 		}
 	}
 	if version == "" && commit == "" {
-		err = errors.Errorf("unknown output format: %s", v)
+		return runtime, "", "", errors.Errorf("unknown output format: %s", v)
 	}
-	return runtime, version, commit, err
+	return runtime, version, commit, nil
 }
 
-func parseDefaultRuntimeVersion(rts *runtimes) (runtime, version, commit string, err error) {
+func parseDefaultRuntimeVersion(rts *runtimes) (runtime, version, commit string, _ error) {
 	shim, opts, err := rts.Get(rts.Default)
 	if err != nil {
 		return "", "", "", err
@@ -407,7 +407,7 @@ func parseDefaultRuntimeVersion(rts *runtimes) (runtime, version, commit string,
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to parse %s version: %w", rt, err)
 	}
-	return runtime, version, commit, err
+	return runtime, version, commit, nil
 }
 
 func cgroupNamespacesEnabled(sysInfo *sysinfo.SysInfo, cfg *config.Config) bool {
