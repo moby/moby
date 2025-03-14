@@ -2,6 +2,7 @@ package plugin // import "github.com/docker/docker/api/server/router/plugin"
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/pkg/errors"
@@ -203,14 +205,20 @@ func (pr *pluginRouter) enablePlugin(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
-	name := vars["name"]
-	timeout, err := strconv.Atoi(r.Form.Get("timeout"))
-	if err != nil {
-		return err
+	var timeout int
+	if r.Form.Has("timeout") {
+		var err error
+		timeout, err = strconv.Atoi(r.Form.Get("timeout"))
+		if err != nil {
+			return errdefs.InvalidParameter(fmt.Errorf("invalid timeout: %w", err))
+		}
+		if timeout < 1 {
+			return errdefs.InvalidParameter(errors.New("invalid timeout: value must be 1 second or more"))
+		}
 	}
-	config := &backend.PluginEnableConfig{Timeout: timeout}
 
-	return pr.backend.Enable(name, config)
+	name := vars["name"]
+	return pr.backend.Enable(name, &backend.PluginEnableConfig{Timeout: timeout})
 }
 
 func (pr *pluginRouter) disablePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
