@@ -24,7 +24,7 @@ func TestContainerKillOnDaemonStart(t *testing.T) {
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	d := daemon.New(t)
+	d := daemon.New(t, daemon.WithEnvVars("DOCKER_KEEP_DEFAULT_BRIDGE=y"))
 	defer d.Cleanup(t)
 
 	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
@@ -64,7 +64,7 @@ func TestNetworkStateCleanupOnDaemonStart(t *testing.T) {
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	d := daemon.New(t)
+	d := daemon.New(t, daemon.WithEnvVars("DOCKER_KEEP_DEFAULT_BRIDGE=y"))
 	defer d.Cleanup(t)
 
 	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
