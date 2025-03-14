@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 
 	"github.com/containerd/log"
@@ -191,88 +192,156 @@ func setupIPChains(config configuration, version iptables.IPVersion) (retErr err
 	return nil
 }
 
-func (n *bridgeNetwork) setupIP4Tables(config *networkConfiguration, i *bridgeInterface) error {
-	maskedAddrv4 := &net.IPNet{
-		IP:   i.bridgeIPv4.IP.Mask(i.bridgeIPv4.Mask),
-		Mask: i.bridgeIPv4.Mask,
-	}
-	return n.setupIPTables(iptables.IPv4, maskedAddrv4, config, i)
+type networkConfigFam struct {
+	HostIP      netip.Addr
+	Prefix      netip.Prefix
+	Routed      bool
+	Unprotected bool
 }
 
-func (n *bridgeNetwork) setupIP6Tables(config *networkConfiguration, i *bridgeInterface) error {
-	maskedAddrv6 := &net.IPNet{
-		IP:   i.bridgeIPv6.IP.Mask(i.bridgeIPv6.Mask),
-		Mask: i.bridgeIPv6.Mask,
-	}
-	return n.setupIPTables(iptables.IPv6, maskedAddrv6, config, i)
+type networkConfig struct {
+	IfName     string
+	Internal   bool
+	ICC        bool
+	Masquerade bool
+	Config4    networkConfigFam
+	Config6    networkConfigFam
+	Hairpin    bool
+	Enable4    bool
+	Enable6    bool
 }
 
-func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *net.IPNet, config *networkConfiguration, i *bridgeInterface) error {
-	var err error
+type iptablesNetwork struct {
+	networkConfig
+	cleanFuncs iptablesCleanFuncs
+}
 
-	d := n.driver
-	d.Lock()
-	driverConfig := d.config
-	d.Unlock()
-
-	// Pickup this configuration option from driver
-	hairpinMode := !driverConfig.EnableUserlandProxy
-
-	if config.Internal {
-		if err = setupInternalNetworkRules(config.BridgeName, maskedAddr, config.EnableICC, true); err != nil {
-			return fmt.Errorf("Failed to Setup IP tables: %w", err)
+func newIptablesNetwork(nc networkConfig) (_ *iptablesNetwork, retErr error) {
+	n := &iptablesNetwork{
+		networkConfig: nc,
+	}
+	defer func() {
+		if retErr != nil {
+			n.delNetworkLevelRules()
 		}
-		n.registerIptCleanFunc(func() error {
-			return setupInternalNetworkRules(config.BridgeName, maskedAddr, config.EnableICC, false)
-		})
-	} else {
-		if err = setupNonInternalNetworkRules(ipVersion, config, maskedAddr, hairpinMode, true); err != nil {
-			return fmt.Errorf("Failed to Setup IP tables: %w", err)
-		}
-		n.registerIptCleanFunc(func() error {
-			return setupNonInternalNetworkRules(ipVersion, config, maskedAddr, hairpinMode, false)
-		})
+	}()
 
-		if err := iptables.AddInterfaceFirewalld(config.BridgeName); err != nil {
+	if err := n.reapplyNetworkLevelRules(); err != nil {
+		return nil, err
+	}
+	return n, nil
+}
+
+func (n *iptablesNetwork) reapplyNetworkLevelRules() error {
+	if n.Enable4 {
+		if err := n.configure(iptables.IPv4, n.Config4); err != nil {
 			return err
 		}
-		n.registerIptCleanFunc(func() error {
-			if err := iptables.DelInterfaceFirewalld(config.BridgeName); err != nil && !errdefs.IsNotFound(err) {
+	}
+	if n.Enable6 {
+		if err := n.configure(iptables.IPv6, n.Config6); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (n *iptablesNetwork) delNetworkLevelRules() error {
+	var errs []error
+	for _, cleanFunc := range n.cleanFuncs {
+		if err := cleanFunc(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	n.cleanFuncs = nil
+	return errors.Join(errs...)
+}
+
+func (n *iptablesNetwork) configure(ipv iptables.IPVersion, conf networkConfigFam) error {
+	if !conf.Prefix.IsValid() {
+		// Delete INC rules, in case they were created by a 28.0.0 daemon that didn't check
+		// whether the network had iptables/ip6tables enabled.
+		// This preserves https://github.com/moby/moby/commit/8cc4d1d4a2b6408232041f9ba4dff966eba80cc0
+		return setINC(ipv, n.IfName, conf.Routed, false)
+	}
+	if err := n.setupIPTables(ipv, conf); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (n *iptablesNetwork) registerCleanFunc(clean iptableCleanFunc) {
+	n.cleanFuncs = append(n.cleanFuncs, clean)
+}
+
+func (n *iptablesNetwork) setupIPTables(ipVersion iptables.IPVersion, config networkConfigFam) error {
+	if n.Internal {
+		if err := setupInternalNetworkRules(n.IfName, config.Prefix, n.ICC, true); err != nil {
+			return fmt.Errorf("Failed to Setup IP tables: %w", err)
+		}
+		n.registerCleanFunc(func() error {
+			return setupInternalNetworkRules(n.IfName, config.Prefix, n.ICC, false)
+		})
+	} else {
+		if err := n.setupNonInternalNetworkRules(ipVersion, config, true); err != nil {
+			return fmt.Errorf("Failed to Setup IP tables: %w", err)
+		}
+		n.registerCleanFunc(func() error {
+			return n.setupNonInternalNetworkRules(ipVersion, config, false)
+		})
+
+		if err := iptables.AddInterfaceFirewalld(n.IfName); err != nil {
+			return err
+		}
+		n.registerCleanFunc(func() error {
+			if err := iptables.DelInterfaceFirewalld(n.IfName); err != nil && !errdefs.IsNotFound(err) {
 				return err
 			}
 			return nil
 		})
 
-		err = deleteLegacyFilterRules(ipVersion, config.BridgeName)
-		if err != nil {
+		if err := deleteLegacyFilterRules(ipVersion, n.IfName); err != nil {
 			return fmt.Errorf("failed to delete legacy rules in filter-FORWARD: %w", err)
 		}
 
-		if err := n.setDefaultForwardRule(ipVersion, config.BridgeName); err != nil {
+		err := setDefaultForwardRule(ipVersion, n.IfName, config.Unprotected, true)
+		if err != nil {
 			return err
 		}
+		n.registerCleanFunc(func() error {
+			return setDefaultForwardRule(ipVersion, n.IfName, config.Unprotected, false)
+		})
 
 		ctRule := iptables.Rule{IPVer: ipVersion, Table: iptables.Filter, Chain: DockerCTChain, Args: []string{
-			"-o", config.BridgeName,
+			"-o", n.IfName,
 			"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED",
 			"-j", "ACCEPT",
 		}}
 		if err := appendOrDelChainRule(ctRule, "bridge ct related", true); err != nil {
 			return err
 		}
-		n.registerIptCleanFunc(func() error {
+		n.registerCleanFunc(func() error {
 			return appendOrDelChainRule(ctRule, "bridge ct related", false)
 		})
 		jumpToDockerRule := iptables.Rule{IPVer: ipVersion, Table: iptables.Filter, Chain: DockerBridgeChain, Args: []string{
-			"-o", config.BridgeName,
+			"-o", n.IfName,
 			"-j", DockerChain,
 		}}
 		if err := appendOrDelChainRule(jumpToDockerRule, "jump to docker", true); err != nil {
 			return err
 		}
-		n.registerIptCleanFunc(func() error {
+		n.registerCleanFunc(func() error {
 			return appendOrDelChainRule(jumpToDockerRule, "jump to docker", false)
 		})
+
+		// Register the cleanup function first. Then, if setINC fails after creating
+		// some rules, they will be deleted.
+		n.registerCleanFunc(func() error {
+			return setINC(ipVersion, n.IfName, config.Routed, false)
+		})
+		if err := setINC(ipVersion, n.IfName, config.Routed, true); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -380,16 +449,13 @@ func loopbackAddress(version iptables.IPVersion) string {
 	}
 }
 
-func (n *bridgeNetwork) setDefaultForwardRule(
-	ipVersion iptables.IPVersion,
-	bridgeName string,
-) error {
+func setDefaultForwardRule(ipVersion iptables.IPVersion, ifName string, unprotected bool, enable bool) error {
 	// Normally, DROP anything that hasn't been ACCEPTed by a per-port/protocol
 	// rule. This prevents direct access to un-mapped ports from remote hosts
 	// that can route directly to the container's address (by setting up a
 	// route via the host's address).
 	action := "DROP"
-	if n.gwMode(ipVersion).unprotected() {
+	if unprotected {
 		// If the user really wants to allow all access from the wider network,
 		// explicitly ACCEPT anything so that the filter-FORWARD chain's
 		// default policy can't interfere.
@@ -397,46 +463,37 @@ func (n *bridgeNetwork) setDefaultForwardRule(
 	}
 
 	rule := iptables.Rule{IPVer: ipVersion, Table: iptables.Filter, Chain: DockerChain, Args: []string{
-		"!", "-i", bridgeName,
-		"-o", bridgeName,
+		"!", "-i", ifName,
+		"-o", ifName,
 		"-j", action,
 	}}
 
 	// Append to the filter table's DOCKER chain (the default rule must follow
 	// per-port ACCEPT rules, which will be inserted at the top of the chain).
-	if err := appendOrDelChainRule(rule, "DEFAULT FWD", true); err != nil {
+	if err := appendOrDelChainRule(rule, "DEFAULT FWD", enable); err != nil {
 		return fmt.Errorf("failed to add default-drop rule: %w", err)
 	}
-	n.registerIptCleanFunc(func() error {
-		return appendOrDelChainRule(rule, "DEFAULT FWD", false)
-	})
 	return nil
 }
 
-func setupNonInternalNetworkRules(ipVer iptables.IPVersion, config *networkConfiguration, addr *net.IPNet, hairpin, enable bool) error {
-	hostIP := config.HostIPv4
-	nat := !config.GwModeIPv4.routed()
-	if ipVer == iptables.IPv6 {
-		hostIP = config.HostIPv6
-		nat = !config.GwModeIPv6.routed()
-	}
-
+func (n *iptablesNetwork) setupNonInternalNetworkRules(ipVer iptables.IPVersion, config networkConfigFam, enable bool) error {
 	var natArgs, hpNatArgs []string
-	if hostIP != nil {
+	if config.HostIP.IsValid() {
 		// The user wants IPv4/IPv6 SNAT with the given address.
-		hostAddr := hostIP.String()
-		natArgs = []string{"-s", addr.String(), "!", "-o", config.BridgeName, "-j", "SNAT", "--to-source", hostAddr}
-		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", config.BridgeName, "-j", "SNAT", "--to-source", hostAddr}
+		hostAddr := config.HostIP.String()
+		natArgs = []string{"-s", config.Prefix.String(), "!", "-o", n.IfName, "-j", "SNAT", "--to-source", hostAddr}
+		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", n.IfName, "-j", "SNAT", "--to-source", hostAddr}
 	} else {
 		// Use MASQUERADE, which picks the src-ip based on next-hop from the route table
-		natArgs = []string{"-s", addr.String(), "!", "-o", config.BridgeName, "-j", "MASQUERADE"}
-		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", config.BridgeName, "-j", "MASQUERADE"}
+		natArgs = []string{"-s", config.Prefix.String(), "!", "-o", n.IfName, "-j", "MASQUERADE"}
+		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", n.IfName, "-j", "MASQUERADE"}
 	}
 	natRule := iptables.Rule{IPVer: ipVer, Table: iptables.Nat, Chain: "POSTROUTING", Args: natArgs}
 	hpNatRule := iptables.Rule{IPVer: ipVer, Table: iptables.Nat, Chain: "POSTROUTING", Args: hpNatArgs}
 
 	// Set NAT.
-	if config.EnableIPMasquerade {
+	nat := !config.Routed
+	if n.Masquerade {
 		if nat {
 			if err := programChainRule(natRule, "NAT", enable); err != nil {
 				return err
@@ -453,9 +510,9 @@ func setupNonInternalNetworkRules(ipVer iptables.IPVersion, config *networkConfi
 		// enable access to ports published by containers in the same network. But, the INC rules
 		// will block access to that published port from containers in other networks. (However,
 		// users may add a rule to DOCKER-USER to work around the INC rules if needed.)
-		if !hairpin {
+		if !n.Hairpin {
 			skipDNAT := iptables.Rule{IPVer: ipVer, Table: iptables.Nat, Chain: DockerChain, Args: []string{
-				"-i", config.BridgeName,
+				"-i", n.IfName,
 				"-j", "RETURN",
 			}}
 			if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
@@ -466,18 +523,18 @@ func setupNonInternalNetworkRules(ipVer iptables.IPVersion, config *networkConfi
 
 	// In hairpin mode, masquerade traffic from localhost. If hairpin is disabled or if we're tearing down
 	// that bridge, make sure the iptables rule isn't lying around.
-	if err := programChainRule(hpNatRule, "MASQ LOCAL HOST", enable && hairpin); err != nil {
+	if err := programChainRule(hpNatRule, "MASQ LOCAL HOST", enable && n.Hairpin); err != nil {
 		return err
 	}
 
 	// Set Inter Container Communication.
-	if err := setIcc(ipVer, config.BridgeName, config.EnableICC, false, enable); err != nil {
+	if err := setIcc(ipVer, n.IfName, n.ICC, false, enable); err != nil {
 		return err
 	}
 
 	// Allow ICMP in routed mode.
 	if !nat {
-		if err := setICMP(ipVer, config.BridgeName, enable); err != nil {
+		if err := setICMP(ipVer, n.IfName, enable); err != nil {
 			return err
 		}
 	}
@@ -487,8 +544,8 @@ func setupNonInternalNetworkRules(ipVer iptables.IPVersion, config *networkConfi
 	// ICC if needed. Those rules are now combined. So, outRuleNoICC is only
 	// needed for ICC=false, along with the DROP rule for ICC added by setIcc.
 	outRuleNoICC := iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{
-		"-i", config.BridgeName,
-		"!", "-o", config.BridgeName,
+		"-i", n.IfName,
+		"!", "-o", n.IfName,
 		"-j", "ACCEPT",
 	}}
 	// If there's a version of outRuleNoICC in the FORWARD chain, created by moby 28.0.0 or older, delete it.
@@ -497,10 +554,10 @@ func setupNonInternalNetworkRules(ipVer iptables.IPVersion, config *networkConfi
 			return fmt.Errorf("deleting FORWARD chain outRuleNoICC: %w", err)
 		}
 	}
-	if config.EnableICC {
+	if n.ICC {
 		// Accept outgoing traffic to anywhere, including other containers on this bridge.
 		outRuleICC := iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{
-			"-i", config.BridgeName,
+			"-i", n.IfName,
 			"-j", "ACCEPT",
 		}}
 		if err := appendOrDelChainRule(outRuleICC, "ACCEPT OUTGOING", enable); err != nil {
@@ -595,7 +652,7 @@ func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, internal,
 // Install rules only if they aren't present, remove only if they are.
 // If this method returns an error, it doesn't roll back any rules it has added.
 // No error is returned if rules cannot be removed (errors are just logged).
-func setINC(version iptables.IPVersion, iface string, gwm gwMode, enable bool) (retErr error) {
+func setINC(version iptables.IPVersion, iface string, routed, enable bool) (retErr error) {
 	iptable := iptables.GetIptable(version)
 	actionI, actionA := iptables.Insert, iptables.Append
 	actionMsg := "add"
@@ -604,7 +661,7 @@ func setINC(version iptables.IPVersion, iface string, gwm gwMode, enable bool) (
 		actionMsg = "remove"
 	}
 
-	if gwm.routed() {
+	if routed {
 		// Anything is allowed into a routed network at this stage, so RETURN. Port
 		// filtering rules in the DOCKER chain will drop anything that's not destined
 		// for an open port.
@@ -681,7 +738,7 @@ func removeIPChains(version iptables.IPVersion) {
 	}
 }
 
-func setupInternalNetworkRules(bridgeIface string, addr *net.IPNet, icc, insert bool) error {
+func setupInternalNetworkRules(bridgeIface string, prefix netip.Prefix, icc, insert bool) error {
 	var version iptables.IPVersion
 	var inDropRule, outDropRule iptables.Rule
 
@@ -696,19 +753,19 @@ func setupInternalNetworkRules(bridgeIface string, addr *net.IPNet, icc, insert 
 		}
 	}
 
-	if addr.IP.To4() != nil {
+	if prefix.Addr().Is4() {
 		version = iptables.IPv4
 		inDropRule = iptables.Rule{
 			IPVer: version,
 			Table: iptables.Filter,
 			Chain: IsolationChain1,
-			Args:  []string{"-i", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"},
+			Args:  []string{"-i", bridgeIface, "!", "-d", prefix.String(), "-j", "DROP"},
 		}
 		outDropRule = iptables.Rule{
 			IPVer: version,
 			Table: iptables.Filter,
 			Chain: IsolationChain1,
-			Args:  []string{"-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"},
+			Args:  []string{"-o", bridgeIface, "!", "-s", prefix.String(), "-j", "DROP"},
 		}
 	} else {
 		version = iptables.IPv6
@@ -716,13 +773,13 @@ func setupInternalNetworkRules(bridgeIface string, addr *net.IPNet, icc, insert 
 			IPVer: version,
 			Table: iptables.Filter,
 			Chain: IsolationChain1,
-			Args:  []string{"-i", bridgeIface, "!", "-o", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"},
+			Args:  []string{"-i", bridgeIface, "!", "-o", bridgeIface, "!", "-d", prefix.String(), "-j", "DROP"},
 		}
 		outDropRule = iptables.Rule{
 			IPVer: version,
 			Table: iptables.Filter,
 			Chain: IsolationChain1,
-			Args:  []string{"!", "-i", bridgeIface, "-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"},
+			Args:  []string{"!", "-i", bridgeIface, "-o", bridgeIface, "!", "-s", prefix.String(), "-j", "DROP"},
 		}
 	}
 
