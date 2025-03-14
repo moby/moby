@@ -1627,12 +1627,21 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 			if parentEndpoint == nil {
 				return invalidEndpointIDError(p)
 			}
+			parentAddr, ok := netip.AddrFromSlice(parentEndpoint.addr.IP)
+			if !ok {
+				return fmt.Errorf("invalid parent endpoint IP: %s", parentEndpoint.addr.IP)
+			}
+			childAddr, ok := netip.AddrFromSlice(endpoint.addr.IP)
+			if !ok {
+				return fmt.Errorf("invalid parent endpoint IP: %s", endpoint.addr.IP)
+			}
+
 			if enable {
-				if err := network.iptablesNetwork.AddLink(context.TODO(), parentEndpoint.addr.IP, endpoint.addr.IP, ec.ExposedPorts); err != nil {
+				if err := network.iptablesNetwork.AddLink(context.TODO(), parentAddr, childAddr, ec.ExposedPorts); err != nil {
 					return err
 				}
 			} else {
-				network.iptablesNetwork.DelLink(context.TODO(), parentEndpoint.addr.IP, endpoint.addr.IP, ec.ExposedPorts)
+				network.iptablesNetwork.DelLink(context.TODO(), parentAddr, childAddr, ec.ExposedPorts)
 			}
 		}
 	}
@@ -1648,13 +1657,21 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 		if childEndpoint.extConnConfig == nil || childEndpoint.extConnConfig.ExposedPorts == nil {
 			continue
 		}
+		parentAddr, ok := netip.AddrFromSlice(endpoint.addr.IP)
+		if !ok {
+			return fmt.Errorf("invalid parent endpoint IP: %s", endpoint.addr.IP)
+		}
+		childAddr, ok := netip.AddrFromSlice(childEndpoint.addr.IP)
+		if !ok {
+			return fmt.Errorf("invalid parent endpoint IP: %s", childEndpoint.addr.IP)
+		}
 
 		if enable {
-			if err := network.iptablesNetwork.AddLink(context.TODO(), endpoint.addr.IP, childEndpoint.addr.IP, childEndpoint.extConnConfig.ExposedPorts); err != nil {
+			if err := network.iptablesNetwork.AddLink(context.TODO(), parentAddr, childAddr, childEndpoint.extConnConfig.ExposedPorts); err != nil {
 				return err
 			}
 		} else {
-			network.iptablesNetwork.DelLink(context.TODO(), endpoint.addr.IP, childEndpoint.addr.IP, childEndpoint.extConnConfig.ExposedPorts)
+			network.iptablesNetwork.DelLink(context.TODO(), parentAddr, childAddr, childEndpoint.extConnConfig.ExposedPorts)
 		}
 	}
 
