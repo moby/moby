@@ -35,8 +35,10 @@ although we will keep your name confidential if you request it. We also like to
 send gifts - if you're into swag, make sure to let us know. We do not currently
 offer a paid security bounty program at this time.
 
+
 ## Supported Versions
 
 This project uses long-lived branches to maintain releases. Refer to
-[BRANCHES-AND-TAGS.md](project/BRANCHES-AND-TAGS.md) in the default branch to
+[RELEASES.md](project/RELEASES.md) in the default branch to
 learn about the current maintenance status of each branch.
+    
