@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/oci"
+	"github.com/docker/docker/pkg/idtools"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -27,8 +28,8 @@ func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, con
 	}
 	defer daemon.Unmount(container)
 
-	rootIDs := daemon.idMapping.RootPair()
-	if err := container.SetupWorkingDirectory(rootIDs); err != nil {
+	uid, gid := daemon.idMapping.RootPair()
+	if err := container.SetupWorkingDirectory(idtools.Identity{UID: uid, GID: gid}); err != nil {
 		return err
 	}
 
@@ -107,8 +108,8 @@ func (daemon *Daemon) populateVolume(ctx context.Context, c *container.Container
 		}
 		return err
 	}
-
-	volumePath, cleanup, err := mnt.Setup(ctx, c.MountLabel, daemon.idMapping.RootPair(), nil)
+	uid, gid := daemon.idMapping.RootPair()
+	volumePath, cleanup, err := mnt.Setup(ctx, c.MountLabel, idtools.Identity{UID: uid, GID: gid}, nil)
 	if err != nil {
 		if errdefs.IsNotFound(err) {
 			return nil

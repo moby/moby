@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/idtools"
 )
 
 // ContainerExport writes the contents of the container to the given
@@ -65,7 +66,7 @@ func (daemon *Daemon) containerExport(ctx context.Context, ctr *container.Contai
 
 	archv, err := chrootarchive.Tar(basefs, &archive.TarOptions{
 		Compression: archive.Uncompressed,
-		IDMap:       daemon.idMapping,
+		IDMap:       idtools.FromUserIdentityMapping(daemon.idMapping),
 	}, basefs)
 	if err != nil {
 		return err

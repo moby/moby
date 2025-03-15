@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/sys/user"
 )
 
@@ -140,28 +139,28 @@ func getExitCode(err error) (int, error) {
 // LoadIdentityMapping takes a requested username and
 // using the data from /etc/sub{uid,gid} ranges, creates the
 // proper uid and gid remapping ranges for that user/group pair
-func LoadIdentityMapping(name string) (idtools.IdentityMapping, error) {
+func LoadIdentityMapping(name string) (user.IdentityMapping, error) {
 	usr, err := LookupUser(name)
 	if err != nil {
-		return idtools.IdentityMapping{}, fmt.Errorf("could not get user for username %s: %v", name, err)
+		return user.IdentityMapping{}, fmt.Errorf("could not get user for username %s: %v", name, err)
 	}
 
 	subuidRanges, err := lookupSubRangesFile("/etc/subuid", usr)
 	if err != nil {
-		return idtools.IdentityMapping{}, err
+		return user.IdentityMapping{}, err
 	}
 	subgidRanges, err := lookupSubRangesFile("/etc/subgid", usr)
 	if err != nil {
-		return idtools.IdentityMapping{}, err
+		return user.IdentityMapping{}, err
 	}
 
-	return idtools.IdentityMapping{
+	return user.IdentityMapping{
 		UIDMaps: subuidRanges,
 		GIDMaps: subgidRanges,
 	}, nil
 }
 
-func lookupSubRangesFile(path string, usr user.User) ([]idtools.IDMap, error) {
+func lookupSubRangesFile(path string, usr user.User) ([]user.IDMap, error) {
 	uidstr := strconv.Itoa(usr.Uid)
 	rangeList, err := user.ParseSubIDFileFilter(path, func(sid user.SubID) bool {
 		return sid.Name == usr.Name || sid.Name == uidstr
@@ -173,16 +172,16 @@ func lookupSubRangesFile(path string, usr user.User) ([]idtools.IDMap, error) {
 		return nil, fmt.Errorf("no subuid ranges found for user %q", usr.Name)
 	}
 
-	idMap := []idtools.IDMap{}
+	idMap := []user.IDMap{}
 
-	containerID := 0
+	containerID := int64(0)
 	for _, idrange := range rangeList {
-		idMap = append(idMap, idtools.IDMap{
-			ContainerID: containerID,
-			HostID:      int(idrange.SubID),
-			Size:        int(idrange.Count),
+		idMap = append(idMap, user.IDMap{
+			ID:       containerID,
+			ParentID: idrange.SubID,
+			Count:    idrange.Count,
 		})
-		containerID = containerID + int(idrange.Count)
+		containerID = containerID + idrange.Count
 	}
 	return idMap, nil
 }
