@@ -232,19 +232,20 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 		return err
 	}
 
+	// Ensure the newly pulled image is added as a dangling image.
+	if newImage, err := i.resolveImage(ctx, img.Name()); err == nil {
+		if err := i.ensureDanglingImage(ctx, newImage); err != nil {
+			log.G(ctx).WithError(err).Warn("failed to mark new image as dangling")
+		}
+	} else if !cerrdefs.IsNotFound(err) {
+		log.G(ctx).WithError(err).Warn("failed to resolve newly pulled image")
+	}
+
 	logger := log.G(ctx).WithFields(log.Fields{
 		"digest": img.Target().Digest,
 		"remote": ref.String(),
 	})
 	logger.Info("image pulled")
-
-	// The pull succeeded, so try to remove any dangling image we have for this target
-	err = i.images.Delete(context.WithoutCancel(ctx), danglingImageName(img.Target().Digest))
-	if err != nil && !cerrdefs.IsNotFound(err) {
-		// Image pull succeeded, but cleaning up the dangling image failed. Ignore the
-		// error to not mark the pull as failed.
-		logger.WithError(err).Warn("unexpected error while removing outdated dangling image reference")
-	}
 
 	i.LogImageEvent(ctx, reference.FamiliarString(ref), reference.FamiliarName(ref), events.ActionPull)
 	outNewImg = img
