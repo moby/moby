@@ -192,16 +192,6 @@ func setupIPChains(config configuration, version iptables.IPVersion) (retErr err
 }
 
 func (n *bridgeNetwork) setupIP4Tables(config *networkConfiguration, i *bridgeInterface) error {
-	d := n.driver
-	d.Lock()
-	driverConfig := d.config
-	d.Unlock()
-
-	// Sanity check.
-	if !driverConfig.EnableIPTables {
-		return errors.New("Cannot program chains, EnableIPTable is disabled")
-	}
-
 	maskedAddrv4 := &net.IPNet{
 		IP:   i.bridgeIPv4.IP.Mask(i.bridgeIPv4.Mask),
 		Mask: i.bridgeIPv4.Mask,
@@ -210,21 +200,10 @@ func (n *bridgeNetwork) setupIP4Tables(config *networkConfiguration, i *bridgeIn
 }
 
 func (n *bridgeNetwork) setupIP6Tables(config *networkConfiguration, i *bridgeInterface) error {
-	d := n.driver
-	d.Lock()
-	driverConfig := d.config
-	d.Unlock()
-
-	// Sanity check.
-	if !driverConfig.EnableIP6Tables {
-		return errors.New("Cannot program chains, EnableIP6Tables is disabled")
-	}
-
 	maskedAddrv6 := &net.IPNet{
 		IP:   i.bridgeIPv6.IP.Mask(i.bridgeIPv6.Mask),
 		Mask: i.bridgeIPv6.Mask,
 	}
-
 	return n.setupIPTables(iptables.IPv6, maskedAddrv6, config, i)
 }
 
