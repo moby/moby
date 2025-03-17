@@ -939,9 +939,10 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 
 		// We want to track firewalld configuration so that
 		// if it is started/reloaded, the rules can be applied correctly
-		{config.EnableIPv4 && d.config.EnableIPTables, network.setupFirewalld},
-		// same for IPv6
-		{config.EnableIPv6 && d.config.EnableIP6Tables, network.setupFirewalld6},
+		{
+			(config.EnableIPv4 && d.config.EnableIPTables) || (config.EnableIPv6 && d.config.EnableIP6Tables),
+			network.setupFirewalld,
+		},
 
 		// Setup DefaultGatewayIPv4
 		{config.DefaultGatewayIPv4 != nil, setupGatewayIPv4},
