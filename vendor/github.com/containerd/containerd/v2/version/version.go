@@ -19,11 +19,12 @@ package version
 import "runtime"
 
 var (
+	Name = "containerd"
 	// Package is filled at linking time
 	Package = "github.com/containerd/containerd/v2"
 
 	// Version holds the complete version number. Filled in at linking time.
-	Version = "2.0.3+unknown"
+	Version = "2.0.4+unknown"
 
 	// Revision is filled with the VCS (e.g. git) revision being used to build
 	// the program at linking time.
