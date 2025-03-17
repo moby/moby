@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net"
+	"os"
 	"sync"
 	"syscall"
 	"time"
@@ -49,7 +50,8 @@ type connTrackMap map[connTrackKey]*connTrackEntry
 // connTrackEntry wraps a UDP connection to provide thread-safe [net.Conn.Write]
 // and [net.Conn.Close] operations.
 type connTrackEntry struct {
-	conn *net.UDPConn
+	conn  *net.UDPConn
+	lastW time.Time
 	// This lock should be held before calling Write or Close on the wrapped
 	// net.UDPConn. Read can be called concurrently to these operations.
 	//
@@ -62,6 +64,12 @@ func newConnTrackEntry(conn *net.UDPConn) *connTrackEntry {
 		conn: conn,
 		mu:   sync.Mutex{},
 	}
+}
+
+func (cte *connTrackEntry) lastWrite() time.Time {
+	cte.mu.Lock()
+	defer cte.mu.Unlock()
+	return cte.lastW
 }
 
 // UDPProxy is proxy for which handles UDP datagrams. It implements the Proxy
@@ -120,6 +128,15 @@ func (proxy *UDPProxy) replyLoop(cte *connTrackEntry, serverAddr net.IP, clientA
 				// and continue until DefaultConnTrackTimeout
 				// expires:
 				goto again
+			}
+			// If the UDP connection is one-sided (i.e. the backend never sends
+			// replies), the connTrackEntry should not be GC'd until no writes
+			// happen for proxy.connTrackTimeout.
+			//
+			// Since the ReadDeadline is set to proxy.connTrackTimeout, in such
+			// case, the connTrackEntry will be GC'd at most after 2 * proxy.connTrackTimeout.
+			if errors.Is(err, os.ErrDeadlineExceeded) && time.Since(cte.lastWrite()) < proxy.connTrackTimeout {
+				continue
 			}
 			return
 		}
@@ -186,6 +203,7 @@ func (proxy *UDPProxy) Run() {
 				break
 			}
 			i += written
+			cte.lastW = time.Now()
 		}
 		cte.mu.Unlock()
 	}
