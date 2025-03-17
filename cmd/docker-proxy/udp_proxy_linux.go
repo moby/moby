@@ -43,7 +43,25 @@ func newConnTrackKey(addr *net.UDPAddr) *connTrackKey {
 	}
 }
 
-type connTrackMap map[connTrackKey]*net.UDPConn
+type connTrackMap map[connTrackKey]*connTrackEntry
+
+// connTrackEntry wraps a UDP connection to provide thread-safe [net.Conn.Write]
+// and [net.Conn.Close] operations.
+type connTrackEntry struct {
+	conn *net.UDPConn
+	// This lock should be held before calling Write or Close on the wrapped
+	// net.UDPConn. Read can be called concurrently to these operations.
+	//
+	// Never lock mu without locking UDPProxy.connTrackLock first.
+	mu sync.Mutex
+}
+
+func newConnTrackEntry(conn *net.UDPConn) *connTrackEntry {
+	return &connTrackEntry{
+		conn: conn,
+		mu:   sync.Mutex{},
+	}
+}
 
 // UDPProxy is proxy for which handles UDP datagrams. It implements the Proxy
 // interface to handle UDP traffic forwarding between the frontend and backend
@@ -68,12 +86,13 @@ func NewUDPProxy(listener *net.UDPConn, backendAddr *net.UDPAddr, ipVer ipVersio
 	}, nil
 }
 
-func (proxy *UDPProxy) replyLoop(proxyConn *net.UDPConn, serverAddr net.IP, clientAddr *net.UDPAddr, clientKey *connTrackKey) {
+func (proxy *UDPProxy) replyLoop(cte *connTrackEntry, serverAddr net.IP, clientAddr *net.UDPAddr, clientKey *connTrackKey) {
 	defer func() {
 		proxy.connTrackLock.Lock()
 		delete(proxy.connTrackTable, *clientKey)
+		cte.mu.Lock()
 		proxy.connTrackLock.Unlock()
-		proxyConn.Close()
+		cte.conn.Close()
 	}()
 
 	var oob []byte
@@ -87,9 +106,9 @@ func (proxy *UDPProxy) replyLoop(proxyConn *net.UDPConn, serverAddr net.IP, clie
 
 	readBuf := make([]byte, UDPBufSize)
 	for {
-		proxyConn.SetReadDeadline(time.Now().Add(UDPConnTrackTimeout))
+		cte.conn.SetReadDeadline(time.Now().Add(UDPConnTrackTimeout))
 	again:
-		read, err := proxyConn.Read(readBuf)
+		read, err := cte.conn.Read(readBuf)
 		if err != nil {
 			if err, ok := err.(*net.OpError); ok && err.Err == syscall.ECONNREFUSED {
 				// This will happen if the last write failed
@@ -134,15 +153,16 @@ func (proxy *UDPProxy) Run() {
 
 		fromKey := newConnTrackKey(from)
 		proxy.connTrackLock.Lock()
-		proxyConn, hit := proxy.connTrackTable[*fromKey]
+		cte, hit := proxy.connTrackTable[*fromKey]
 		if !hit {
-			proxyConn, err = net.DialUDP("udp", nil, proxy.backendAddr)
+			proxyConn, err := net.DialUDP("udp", nil, proxy.backendAddr)
 			if err != nil {
 				log.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
 				proxy.connTrackLock.Unlock()
 				continue
 			}
-			proxy.connTrackTable[*fromKey] = proxyConn
+			cte = newConnTrackEntry(proxyConn)
+			proxy.connTrackTable[*fromKey] = cte
 
 			daddr, err := readDestFromCmsg(oob, proxy.ipVer)
 			if err != nil {
@@ -151,17 +171,20 @@ func (proxy *UDPProxy) Run() {
 				continue
 			}
 
-			go proxy.replyLoop(proxyConn, daddr, from, fromKey)
+			go proxy.replyLoop(cte, daddr, from, fromKey)
 		}
+		cte.mu.Lock()
 		proxy.connTrackLock.Unlock()
+		cte.conn.SetWriteDeadline(time.Now().Add(UDPConnTrackTimeout))
 		for i := 0; i != read; {
-			written, err := proxyConn.Write(readBuf[i:read])
+			written, err := cte.conn.Write(readBuf[i:read])
 			if err != nil {
 				log.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
 				break
 			}
 			i += written
 		}
+		cte.mu.Unlock()
 	}
 }
 
@@ -194,12 +217,15 @@ func readDestFromCmsg(oob []byte, ipVer ipVersion) (_ net.IP, err error) {
 	return cm.Dst, nil
 }
 
-// Close stops forwarding the traffic.
+// Close ungracefully stops forwarding the traffic.
 func (proxy *UDPProxy) Close() {
 	proxy.listener.Close()
 	proxy.connTrackLock.Lock()
 	defer proxy.connTrackLock.Unlock()
-	for _, conn := range proxy.connTrackTable {
-		conn.Close()
+	for _, cte := range proxy.connTrackTable {
+		// Unlike the GC logic in replyLoop, we want to close the connections
+		// immediately, even if there are pending and in-progress writes. So no
+		// need to lock cte.mu here.
+		cte.conn.Close()
 	}
 }
