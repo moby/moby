@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	// UDPConnTrackTimeout is the timeout used for UDP connection tracking
-	UDPConnTrackTimeout = 90 * time.Second
+	// DefaultConnTrackTimeout is the default timeout used for UDP connection
+	// tracking.
+	DefaultConnTrackTimeout = 90 * time.Second
 	// UDPBufSize is the buffer size for the UDP proxy
 	UDPBufSize = 65507
 )
@@ -67,22 +68,24 @@ func newConnTrackEntry(conn *net.UDPConn) *connTrackEntry {
 // interface to handle UDP traffic forwarding between the frontend and backend
 // addresses.
 type UDPProxy struct {
-	listener       *net.UDPConn
-	frontendAddr   *net.UDPAddr
-	backendAddr    *net.UDPAddr
-	connTrackTable connTrackMap
-	connTrackLock  sync.Mutex
-	ipVer          ipVersion
+	listener         *net.UDPConn
+	frontendAddr     *net.UDPAddr
+	backendAddr      *net.UDPAddr
+	connTrackTable   connTrackMap
+	connTrackLock    sync.Mutex
+	connTrackTimeout time.Duration
+	ipVer            ipVersion
 }
 
 // NewUDPProxy creates a new UDPProxy.
 func NewUDPProxy(listener *net.UDPConn, backendAddr *net.UDPAddr, ipVer ipVersion) (*UDPProxy, error) {
 	return &UDPProxy{
-		listener:       listener,
-		frontendAddr:   listener.LocalAddr().(*net.UDPAddr),
-		backendAddr:    backendAddr,
-		connTrackTable: make(connTrackMap),
-		ipVer:          ipVer,
+		listener:         listener,
+		frontendAddr:     listener.LocalAddr().(*net.UDPAddr),
+		backendAddr:      backendAddr,
+		connTrackTable:   make(connTrackMap),
+		connTrackTimeout: DefaultConnTrackTimeout,
+		ipVer:            ipVer,
 	}, nil
 }
 
@@ -106,7 +109,7 @@ func (proxy *UDPProxy) replyLoop(cte *connTrackEntry, serverAddr net.IP, clientA
 
 	readBuf := make([]byte, UDPBufSize)
 	for {
-		cte.conn.SetReadDeadline(time.Now().Add(UDPConnTrackTimeout))
+		cte.conn.SetReadDeadline(time.Now().Add(proxy.connTrackTimeout))
 	again:
 		read, err := cte.conn.Read(readBuf)
 		if err != nil {
@@ -114,7 +117,7 @@ func (proxy *UDPProxy) replyLoop(cte *connTrackEntry, serverAddr net.IP, clientA
 				// This will happen if the last write failed
 				// (e.g: nothing is actually listening on the
 				// proxied port on the container), ignore it
-				// and continue until UDPConnTrackTimeout
+				// and continue until DefaultConnTrackTimeout
 				// expires:
 				goto again
 			}
@@ -175,7 +178,7 @@ func (proxy *UDPProxy) Run() {
 		}
 		cte.mu.Lock()
 		proxy.connTrackLock.Unlock()
-		cte.conn.SetWriteDeadline(time.Now().Add(UDPConnTrackTimeout))
+		cte.conn.SetWriteDeadline(time.Now().Add(proxy.connTrackTimeout))
 		for i := 0; i != read; {
 			written, err := cte.conn.Write(readBuf[i:read])
 			if err != nil {
