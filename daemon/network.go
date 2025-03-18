@@ -1005,7 +1005,7 @@ func getPortMapInfo(sb *libnetwork.Sandbox) nat.PortMap {
 	}
 
 	for _, ep := range sb.Endpoints() {
-		pm, _ = getEndpointPortMapInfo(ep)
+		pm = getEndpointPortMapInfo(ep)
 		if len(pm) > 0 {
 			break
 		}
@@ -1013,16 +1013,16 @@ func getPortMapInfo(sb *libnetwork.Sandbox) nat.PortMap {
 	return pm
 }
 
-func getEndpointPortMapInfo(ep *libnetwork.Endpoint) (nat.PortMap, error) {
+func getEndpointPortMapInfo(ep *libnetwork.Endpoint) nat.PortMap {
 	pm := nat.PortMap{}
 	driverInfo, err := ep.DriverInfo()
 	if err != nil {
-		return pm, err
+		return pm
 	}
 
 	if driverInfo == nil {
 		// It is not an error for epInfo to be nil
-		return pm, nil
+		return pm
 	}
 
 	if expData, ok := driverInfo[netlabel.ExposedPorts]; ok {
@@ -1030,7 +1030,8 @@ func getEndpointPortMapInfo(ep *libnetwork.Endpoint) (nat.PortMap, error) {
 			for _, tp := range exposedPorts {
 				natPort, err := nat.NewPort(tp.Proto.String(), strconv.Itoa(int(tp.Port)))
 				if err != nil {
-					return pm, fmt.Errorf("Error parsing Port value(%v):%v", tp.Port, err)
+					log.G(context.TODO()).Errorf("invalid exposed port %s: %v", tp.String(), err)
+					continue
 				}
 				pm[natPort] = nil
 			}
@@ -1039,7 +1040,7 @@ func getEndpointPortMapInfo(ep *libnetwork.Endpoint) (nat.PortMap, error) {
 
 	mapData, ok := driverInfo[netlabel.PortMap]
 	if !ok {
-		return pm, nil
+		return pm
 	}
 
 	if portMapping, ok := mapData.([]lntypes.PortBinding); ok {
@@ -1047,7 +1048,8 @@ func getEndpointPortMapInfo(ep *libnetwork.Endpoint) (nat.PortMap, error) {
 			// Use an empty string for the host port if there's no port assigned.
 			natPort, err := nat.NewPort(pp.Proto.String(), strconv.Itoa(int(pp.Port)))
 			if err != nil {
-				return pm, err
+				log.G(context.TODO()).Errorf("invalid port binding %s: %v", pp, err)
+				continue
 			}
 			var hp string
 			if pp.HostPort > 0 {
@@ -1058,7 +1060,7 @@ func getEndpointPortMapInfo(ep *libnetwork.Endpoint) (nat.PortMap, error) {
 		}
 	}
 
-	return pm, nil
+	return pm
 }
 
 // buildEndpointInfo sets endpoint-related fields on container.NetworkSettings based on the provided network and endpoint.
