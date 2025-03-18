@@ -43,20 +43,18 @@ type layerStore struct {
 
 // StoreOptions are the options used to create a new Store instance
 type StoreOptions struct {
-	Root                string
-	GraphDriver         string
-	GraphDriverOptions  []string
-	IDMapping           idtools.IdentityMapping
-	ExperimentalEnabled bool
+	Root               string
+	GraphDriver        string
+	GraphDriverOptions []string
+	IDMapping          idtools.IdentityMapping
 }
 
 // NewStoreFromOptions creates a new Store instance
 func NewStoreFromOptions(options StoreOptions) (Store, error) {
 	driver, err := graphdriver.New(options.GraphDriver, graphdriver.Options{
-		Root:                options.Root,
-		DriverOptions:       options.GraphDriverOptions,
-		IDMap:               options.IDMapping,
-		ExperimentalEnabled: options.ExperimentalEnabled,
+		Root:          options.Root,
+		DriverOptions: options.GraphDriverOptions,
+		IDMap:         options.IDMapping,
 	})
 	if err != nil {
 		if options.GraphDriver != "" {
