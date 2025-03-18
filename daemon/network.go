@@ -1005,24 +1005,16 @@ func getPortMapInfo(sb *libnetwork.Sandbox) nat.PortMap {
 	}
 
 	for _, ep := range sb.Endpoints() {
-		pm = getEndpointPortMapInfo(ep)
-		if len(pm) > 0 {
-			break
-		}
+		getEndpointPortMapInfo(pm, ep)
 	}
 	return pm
 }
 
-func getEndpointPortMapInfo(ep *libnetwork.Endpoint) nat.PortMap {
-	pm := nat.PortMap{}
-	driverInfo, err := ep.DriverInfo()
-	if err != nil {
-		return pm
-	}
-
+func getEndpointPortMapInfo(pm nat.PortMap, ep *libnetwork.Endpoint) {
+	driverInfo, _ := ep.DriverInfo()
 	if driverInfo == nil {
 		// It is not an error for epInfo to be nil
-		return pm
+		return
 	}
 
 	if expData, ok := driverInfo[netlabel.ExposedPorts]; ok {
@@ -1033,14 +1025,16 @@ func getEndpointPortMapInfo(ep *libnetwork.Endpoint) nat.PortMap {
 					log.G(context.TODO()).Errorf("invalid exposed port %s: %v", tp.String(), err)
 					continue
 				}
-				pm[natPort] = nil
+				if _, ok := pm[natPort]; !ok {
+					pm[natPort] = nil
+				}
 			}
 		}
 	}
 
 	mapData, ok := driverInfo[netlabel.PortMap]
 	if !ok {
-		return pm
+		return
 	}
 
 	if portMapping, ok := mapData.([]lntypes.PortBinding); ok {
@@ -1059,8 +1053,6 @@ func getEndpointPortMapInfo(ep *libnetwork.Endpoint) nat.PortMap {
 			pm[natPort] = append(pm[natPort], natBndg)
 		}
 	}
-
-	return pm
 }
 
 // buildEndpointInfo sets endpoint-related fields on container.NetworkSettings based on the provided network and endpoint.
