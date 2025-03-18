@@ -785,14 +785,6 @@ func updateJoinInfo(networkSettings *network.Settings, n *libnetwork.Network, ep
 		return errors.New("invalid network settings while building port map info")
 	}
 
-	if len(networkSettings.Ports) == 0 {
-		pm, err := getEndpointPortMapInfo(ep)
-		if err != nil {
-			return err
-		}
-		networkSettings.Ports = pm
-	}
-
 	epInfo := ep.Info()
 	if epInfo == nil {
 		// It is not an error to get an empty endpoint info
