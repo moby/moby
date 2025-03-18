@@ -129,7 +129,8 @@ func New(address string, opts ...Opt) (*Client, error) {
 		backoffConfig := backoff.DefaultConfig
 		backoffConfig.MaxDelay = copts.timeout
 		connParams := grpc.ConnectParams{
-			Backoff: backoffConfig,
+			Backoff:           backoffConfig,
+			MinConnectTimeout: copts.timeout,
 		}
 		gopts := []grpc.DialOption{
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
