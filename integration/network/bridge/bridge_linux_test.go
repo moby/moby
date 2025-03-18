@@ -454,3 +454,42 @@ func TestPublishedPortAlreadyInUse(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspect.State.Status, "created"))
 }
+
+// TestAllPortMappingsAreReturned check that dual-stack ports mapped through
+// different networks are correctly reported as dual-stakc.
+//
+// Regression test for https://github.com/moby/moby/issues/49654.
+func TestAllPortMappingsAreReturned(t *testing.T) {
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--userland-proxy=false")
+	defer d.Stop(t)
+
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	nwV4 := network.CreateNoError(ctx, t, apiClient, "testnetv4")
+	defer network.RemoveNoError(ctx, t, apiClient, nwV4)
+
+	nwV6 := network.CreateNoError(ctx, t, apiClient, "testnetv6",
+		network.WithIPv4(false),
+		network.WithIPv6())
+	defer network.RemoveNoError(ctx, t, apiClient, nwV6)
+
+	ctrID := ctr.Run(ctx, t, apiClient,
+		ctr.WithExposedPorts("80/tcp", "81/tcp"),
+		ctr.WithPortMap(nat.PortMap{"80/tcp": {{HostPort: "8000"}}}),
+		ctr.WithEndpointSettings("testnetv4", &networktypes.EndpointSettings{}),
+		ctr.WithEndpointSettings("testnetv6", &networktypes.EndpointSettings{}))
+	defer ctr.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
+
+	inspect := ctr.Inspect(ctx, t, apiClient, ctrID)
+	assert.DeepEqual(t, inspect.NetworkSettings.Ports, nat.PortMap{
+		"80/tcp": []nat.PortBinding{
+			{HostIP: "0.0.0.0", HostPort: "8000"},
+			{HostIP: "::", HostPort: "8000"},
+		},
+		"81/tcp": nil,
+	})
+}

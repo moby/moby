@@ -1005,24 +1005,16 @@ func getPortMapInfo(sb *libnetwork.Sandbox) nat.PortMap {
 	}
 
 	for _, ep := range sb.Endpoints() {
-		pm, _ = getEndpointPortMapInfo(ep)
-		if len(pm) > 0 {
-			break
-		}
+		getEndpointPortMapInfo(pm, ep)
 	}
 	return pm
 }
 
-func getEndpointPortMapInfo(ep *libnetwork.Endpoint) (nat.PortMap, error) {
-	pm := nat.PortMap{}
-	driverInfo, err := ep.DriverInfo()
-	if err != nil {
-		return pm, err
-	}
-
+func getEndpointPortMapInfo(pm nat.PortMap, ep *libnetwork.Endpoint) {
+	driverInfo, _ := ep.DriverInfo()
 	if driverInfo == nil {
 		// It is not an error for epInfo to be nil
-		return pm, nil
+		return
 	}
 
 	if expData, ok := driverInfo[netlabel.ExposedPorts]; ok {
@@ -1030,16 +1022,19 @@ func getEndpointPortMapInfo(ep *libnetwork.Endpoint) (nat.PortMap, error) {
 			for _, tp := range exposedPorts {
 				natPort, err := nat.NewPort(tp.Proto.String(), strconv.Itoa(int(tp.Port)))
 				if err != nil {
-					return pm, fmt.Errorf("Error parsing Port value(%v):%v", tp.Port, err)
+					log.G(context.TODO()).Errorf("invalid exposed port %s: %v", tp.String(), err)
+					continue
 				}
-				pm[natPort] = nil
+				if _, ok := pm[natPort]; !ok {
+					pm[natPort] = nil
+				}
 			}
 		}
 	}
 
 	mapData, ok := driverInfo[netlabel.PortMap]
 	if !ok {
-		return pm, nil
+		return
 	}
 
 	if portMapping, ok := mapData.([]lntypes.PortBinding); ok {
@@ -1047,7 +1042,8 @@ func getEndpointPortMapInfo(ep *libnetwork.Endpoint) (nat.PortMap, error) {
 			// Use an empty string for the host port if there's no port assigned.
 			natPort, err := nat.NewPort(pp.Proto.String(), strconv.Itoa(int(pp.Port)))
 			if err != nil {
-				return pm, err
+				log.G(context.TODO()).Errorf("invalid port binding %s: %v", pp, err)
+				continue
 			}
 			var hp string
 			if pp.HostPort > 0 {
@@ -1057,8 +1053,6 @@ func getEndpointPortMapInfo(ep *libnetwork.Endpoint) (nat.PortMap, error) {
 			pm[natPort] = append(pm[natPort], natBndg)
 		}
 	}
-
-	return pm, nil
 }
 
 // buildEndpointInfo sets endpoint-related fields on container.NetworkSettings based on the provided network and endpoint.
