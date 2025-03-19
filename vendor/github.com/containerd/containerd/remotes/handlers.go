@@ -81,6 +81,8 @@ func MakeRefKey(ctx context.Context, desc ocispec.Descriptor) string {
 		return "layer-" + key
 	case images.IsKnownConfig(mt):
 		return "config-" + key
+	case images.IsAttestationType(desc.MediaType):
+		return "attestation-" + key
 	default:
 		log.G(ctx).Warnf("reference for unknown type: %s", mt)
 		return "unknown-" + key
