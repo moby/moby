@@ -24,6 +24,16 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
 
+  exclude-dirs:
+    - api
+    - cluster
+    - design
+    - docs
+    - docs/man
+    - releases
+    - reports
+    - test # e2e scripts
+
   # Only using / doesn't work due to https://github.com/golangci/golangci-lint/issues/1398.
   exclude-rules:
     - path: 'cmd[\\/]containerd[\\/]builtins[\\/]'
@@ -85,12 +95,3 @@ linters-settings:
 
 run:
   timeout: 8m
-  skip-dirs:
-    - api
-    - cluster
-    - design
-    - docs
-    - docs/man
-    - releases
-    - reports
-    - test # e2e scripts
