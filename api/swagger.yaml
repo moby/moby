@@ -6856,6 +6856,8 @@ definitions:
               description: "The network pool size"
               type: "integer"
               example: "24"
+      FirewallBackend:
+        $ref: "#/definitions/FirewallInfo"
       Warnings:
         description: |
           List of warnings / informational messages about missing features, or
@@ -6938,6 +6940,37 @@ definitions:
             type: "string"
             default: "plugins.moby"
             example: "plugins.moby"
+
+  FirewallInfo:
+    description: |
+      Information about the daemon's firewalling configuration.
+
+      This field is currently only used on Linux, and omitted on other platforms.
+    type: "object"
+    x-nullable: true
+    properties:
+      Driver:
+        description: |
+          The name of the firewall backend driver.
+        type: "string"
+        example: "nftables"
+      Info:
+        description: |
+          Information about the firewall backend, provided as
+          "label" / "value" pairs.
+
+          <p><br /></p>
+
+          > **Note**: The information returned in this field, including the
+          > formatting of values and labels, should not be considered stable,
+          > and may change without notice.
+        type: "array"
+        items:
+          type: "array"
+          items:
+            type: "string"
+        example:
+          - ["ReloadedAt", "2025-01-01T00:00:00Z"]
 
   # PluginsInfo is a temp struct holding Plugins name
   # registered with docker daemon. It is used by Info struct

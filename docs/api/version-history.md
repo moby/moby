@@ -21,6 +21,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   encoded OCI Platform type) allowing to specify a platform of the multi-platform
   image to inspect.
   This option is mutually exclusive with the `manifests` option.
+* `GET /info` now returns a `FirewallBackend` containing information about
+  the daemon's firewalling configuration.
 
 ## v1.48 API changes
 
