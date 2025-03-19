@@ -84,7 +84,7 @@ jobs:
         run: |
           CACHE_DEV_SCOPE=dev
           if [[ "${{ matrix.mode }}" == *"firewalld"* ]]; then
-            echo "DOCKER_FIREWALLD=true" >> $GITHUB_ENV
+            echo "FIREWALLD=true" >> $GITHUB_ENV
             CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
           fi
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
@@ -318,7 +318,7 @@ jobs:
             CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}systemd"
           fi
           if [[ "${{ matrix.mode }}" == *"firewalld"* ]]; then
-            echo "DOCKER_FIREWALLD=true" >> $GITHUB_ENV
+            echo "FIREWALLD=true" >> $GITHUB_ENV
             CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
           fi
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
@@ -508,7 +508,7 @@ jobs:
         run: |
           CACHE_DEV_SCOPE=dev
           if [[ "${{ matrix.mode }}" == *"firewalld"* ]]; then
-            echo "DOCKER_FIREWALLD=true" >> $GITHUB_ENV
+            echo "FIREWALLD=true" >> $GITHUB_ENV
             CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
           fi
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
