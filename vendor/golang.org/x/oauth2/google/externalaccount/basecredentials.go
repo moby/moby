@@ -263,7 +263,7 @@ const (
 	fileTypeJSON = "json"
 )
 
-// Format contains information needed to retireve a subject token for URL or File sourced credentials.
+// Format contains information needed to retrieve a subject token for URL or File sourced credentials.
 type Format struct {
 	// Type should be either "text" or "json". This determines whether the file or URL sourced credentials
 	// expect a simple text subject token or if the subject token will be contained in a JSON object.
@@ -278,20 +278,52 @@ type Format struct {
 type CredentialSource struct {
 	// File is the location for file sourced credentials.
 	// One field amongst File, URL, Executable, or EnvironmentID should be provided, depending on the kind of credential in question.
+	//
+	// Important: If you accept a credential configuration (credential
+	// JSON/File/Stream) from an external source for authentication to Google
+	// Cloud Platform, you must validate it before providing it to any Google
+	// API or library. Providing an unvalidated credential configuration to
+	// Google APIs can compromise the security of your systems and data. For
+	// more information, refer to [Validate credential configurations from
+	// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
 	File string `json:"file"`
 
 	// Url is the URL to call for URL sourced credentials.
 	// One field amongst File, URL, Executable, or EnvironmentID should be provided, depending on the kind of credential in question.
+	//
+	// Important: If you accept a credential configuration (credential
+	// JSON/File/Stream) from an external source for authentication to Google
+	// Cloud Platform, you must validate it before providing it to any Google
+	// API or library. Providing an unvalidated credential configuration to
+	// Google APIs can compromise the security of your systems and data. For
+	// more information, refer to [Validate credential configurations from
+	// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
 	URL string `json:"url"`
 	// Headers are the headers to attach to the request for URL sourced credentials.
 	Headers map[string]string `json:"headers"`
 
 	// Executable is the configuration object for executable sourced credentials.
 	// One field amongst File, URL, Executable, or EnvironmentID should be provided, depending on the kind of credential in question.
+	//
+	// Important: If you accept a credential configuration (credential
+	// JSON/File/Stream) from an external source for authentication to Google
+	// Cloud Platform, you must validate it before providing it to any Google
+	// API or library. Providing an unvalidated credential configuration to
+	// Google APIs can compromise the security of your systems and data. For
+	// more information, refer to [Validate credential configurations from
+	// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
 	Executable *ExecutableConfig `json:"executable"`
 
 	// EnvironmentID is the EnvironmentID used for AWS sourced credentials. This should start with "AWS".
 	// One field amongst File, URL, Executable, or EnvironmentID should be provided, depending on the kind of credential in question.
+	//
+	// Important: If you accept a credential configuration (credential
+	// JSON/File/Stream) from an external source for authentication to Google
+	// Cloud Platform, you must validate it before providing it to any Google
+	// API or library. Providing an unvalidated credential configuration to
+	// Google APIs can compromise the security of your systems and data. For
+	// more information, refer to [Validate credential configurations from
+	// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
 	EnvironmentID string `json:"environment_id"`
 	// RegionURL is the metadata URL to retrieve the region from for EC2 AWS credentials.
 	RegionURL string `json:"region_url"`
@@ -329,7 +361,7 @@ type SubjectTokenSupplier interface {
 type AwsSecurityCredentialsSupplier interface {
 	// AwsRegion should return the AWS region or an error.
 	AwsRegion(ctx context.Context, options SupplierOptions) (string, error)
-	// GetAwsSecurityCredentials should return a valid set of AwsSecurityCredentials or an error.
+	// AwsSecurityCredentials should return a valid set of AwsSecurityCredentials or an error.
 	// The external account token source does not cache the returned security credentials, so caching
 	// logic should be implemented in the supplier to prevent multiple requests for the same security credentials.
 	AwsSecurityCredentials(ctx context.Context, options SupplierOptions) (*AwsSecurityCredentials, error)

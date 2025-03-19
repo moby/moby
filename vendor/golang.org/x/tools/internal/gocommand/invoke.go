@@ -16,7 +16,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -29,7 +28,7 @@ import (
 	"golang.org/x/tools/internal/event/label"
 )
 
-// An Runner will run go command invocations and serialize
+// A Runner will run go command invocations and serialize
 // them if it sees a concurrency error.
 type Runner struct {
 	// once guards the runner initialization.
@@ -142,7 +141,7 @@ func (runner *Runner) runPiped(ctx context.Context, inv Invocation, stdout, stde
 
 	// Wait for all in-progress go commands to return before proceeding,
 	// to avoid load concurrency errors.
-	for i := 0; i < maxInFlight; i++ {
+	for range maxInFlight {
 		select {
 		case <-ctx.Done():
 			return ctx.Err(), ctx.Err()
@@ -180,7 +179,7 @@ type Invocation struct {
 	CleanEnv   bool
 	Env        []string
 	WorkingDir string
-	Logf       func(format string, args ...interface{})
+	Logf       func(format string, args ...any)
 }
 
 // Postcondition: both error results have same nilness.
@@ -250,16 +249,13 @@ func (i *Invocation) run(ctx context.Context, stdout, stderr io.Writer) error {
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
-	// cmd.WaitDelay was added only in go1.20 (see #50436).
-	if waitDelay := reflect.ValueOf(cmd).Elem().FieldByName("WaitDelay"); waitDelay.IsValid() {
-		// https://go.dev/issue/59541: don't wait forever copying stderr
-		// after the command has exited.
-		// After CL 484741 we copy stdout manually, so we we'll stop reading that as
-		// soon as ctx is done. However, we also don't want to wait around forever
-		// for stderr. Give a much-longer-than-reasonable delay and then assume that
-		// something has wedged in the kernel or runtime.
-		waitDelay.Set(reflect.ValueOf(30 * time.Second))
-	}
+	// https://go.dev/issue/59541: don't wait forever copying stderr
+	// after the command has exited.
+	// After CL 484741 we copy stdout manually, so we we'll stop reading that as
+	// soon as ctx is done. However, we also don't want to wait around forever
+	// for stderr. Give a much-longer-than-reasonable delay and then assume that
+	// something has wedged in the kernel or runtime.
+	cmd.WaitDelay = 30 * time.Second
 
 	// The cwd gets resolved to the real path. On Darwin, where
 	// /tmp is a symlink, this breaks anything that expects the
@@ -392,7 +388,9 @@ func runCmdContext(ctx context.Context, cmd *exec.Cmd) (err error) {
 		case err := <-resChan:
 			return err
 		case <-timer.C:
-			HandleHangingGoCommand(startTime, cmd)
+			// HandleHangingGoCommand terminates this process.
+			// Pass off resChan in case we can collect the command error.
+			handleHangingGoCommand(startTime, cmd, resChan)
 		case <-ctx.Done():
 		}
 	} else {
@@ -417,8 +415,6 @@ func runCmdContext(ctx context.Context, cmd *exec.Cmd) (err error) {
 	}
 
 	// Didn't shut down in response to interrupt. Kill it hard.
-	// TODO(rfindley): per advice from bcmills@, it may be better to send SIGQUIT
-	// on certain platforms, such as unix.
 	if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) && debug {
 		log.Printf("error killing the Go command: %v", err)
 	}
@@ -426,15 +422,17 @@ func runCmdContext(ctx context.Context, cmd *exec.Cmd) (err error) {
 	return <-resChan
 }
 
-func HandleHangingGoCommand(start time.Time, cmd *exec.Cmd) {
+// handleHangingGoCommand outputs debugging information to help diagnose the
+// cause of a hanging Go command, and then exits with log.Fatalf.
+func handleHangingGoCommand(start time.Time, cmd *exec.Cmd, resChan chan error) {
 	switch runtime.GOOS {
-	case "linux", "darwin", "freebsd", "netbsd":
+	case "linux", "darwin", "freebsd", "netbsd", "openbsd":
 		fmt.Fprintln(os.Stderr, `DETECTED A HANGING GO COMMAND
 
-The gopls test runner has detected a hanging go command. In order to debug
-this, the output of ps and lsof/fstat is printed below.
+			The gopls test runner has detected a hanging go command. In order to debug
+			this, the output of ps and lsof/fstat is printed below.
 
-See golang/go#54461 for more details.`)
+			See golang/go#54461 for more details.`)
 
 		fmt.Fprintln(os.Stderr, "\nps axo ppid,pid,command:")
 		fmt.Fprintln(os.Stderr, "-------------------------")
@@ -442,7 +440,7 @@ See golang/go#54461 for more details.`)
 		psCmd.Stdout = os.Stderr
 		psCmd.Stderr = os.Stderr
 		if err := psCmd.Run(); err != nil {
-			panic(fmt.Sprintf("running ps: %v", err))
+			log.Printf("Handling hanging Go command: running ps: %v", err)
 		}
 
 		listFiles := "lsof"
@@ -456,10 +454,24 @@ See golang/go#54461 for more details.`)
 		listFilesCmd.Stdout = os.Stderr
 		listFilesCmd.Stderr = os.Stderr
 		if err := listFilesCmd.Run(); err != nil {
-			panic(fmt.Sprintf("running %s: %v", listFiles, err))
+			log.Printf("Handling hanging Go command: running %s: %v", listFiles, err)
+		}
+		// Try to extract information about the slow go process by issuing a SIGQUIT.
+		if err := cmd.Process.Signal(sigStuckProcess); err == nil {
+			select {
+			case err := <-resChan:
+				stderr := "not a bytes.Buffer"
+				if buf, _ := cmd.Stderr.(*bytes.Buffer); buf != nil {
+					stderr = buf.String()
+				}
+				log.Printf("Quit hanging go command:\n\terr:%v\n\tstderr:\n%v\n\n", err, stderr)
+			case <-time.After(5 * time.Second):
+			}
+		} else {
+			log.Printf("Sending signal %d to hanging go command: %v", sigStuckProcess, err)
 		}
 	}
-	panic(fmt.Sprintf("detected hanging go command (golang/go#54461); waited %s\n\tcommand:%s\n\tpid:%d", time.Since(start), cmd, cmd.Process.Pid))
+	log.Fatalf("detected hanging go command (golang/go#54461); waited %s\n\tcommand:%s\n\tpid:%d", time.Since(start), cmd, cmd.Process.Pid)
 }
 
 func cmdDebugStr(cmd *exec.Cmd) string {
