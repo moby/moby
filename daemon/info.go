@@ -93,6 +93,7 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 	daemon.fillSecurityOptions(v, sysInfo, &cfg.Config)
 	daemon.fillLicense(v)
 	daemon.fillDefaultAddressPools(ctx, v, &cfg.Config)
+	daemon.fillFirewallInfo(v)
 
 	return v, nil
 }
@@ -282,6 +283,13 @@ func (daemon *Daemon) fillDefaultAddressPools(ctx context.Context, v *system.Inf
 			Size: pool.Size,
 		})
 	}
+}
+
+func (daemon *Daemon) fillFirewallInfo(v *system.Info) {
+	if daemon.netController == nil {
+		return
+	}
+	v.FirewallBackend = daemon.netController.FirewallBackend()
 }
 
 func hostName(ctx context.Context) string {
