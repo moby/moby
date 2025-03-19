@@ -11,10 +11,10 @@ import (
 	"go/token"
 	"go/types"
 	"sort"
-	"strings"
 
 	"golang.org/x/tools/internal/aliases"
 	"golang.org/x/tools/internal/pkgbits"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 // A pkgReader holds the shared state for reading a unified IR package
@@ -71,7 +71,6 @@ func UImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 	}
 
 	s := string(data)
-	s = s[:strings.LastIndex(s, "\n$$\n")]
 	input := pkgbits.NewPkgDecoder(path, s)
 	pkg = readUnifiedPackage(fset, nil, imports, input)
 	return
@@ -266,7 +265,12 @@ func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types.Package {
 func (r *reader) doPkg() *types.Package {
 	path := r.String()
 	switch path {
-	case "":
+	// cmd/compile emits path="main" for main packages because
+	// that's the linker symbol prefix it used; but we need
+	// the package's path as it would be reported by go list,
+	// hence "main" below.
+	// See test at go/packages.TestMainPackagePathInModeTypes.
+	case "", "main":
 		path = r.p.PkgPath()
 	case "builtin":
 		return nil // universe
@@ -562,14 +566,15 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 				// If the underlying type is an interface, we need to
 				// duplicate its methods so we can replace the receiver
 				// parameter's type (#49906).
-				if iface, ok := aliases.Unalias(underlying).(*types.Interface); ok && iface.NumExplicitMethods() != 0 {
+				if iface, ok := types.Unalias(underlying).(*types.Interface); ok && iface.NumExplicitMethods() != 0 {
 					methods := make([]*types.Func, iface.NumExplicitMethods())
 					for i := range methods {
 						fn := iface.ExplicitMethod(i)
 						sig := fn.Type().(*types.Signature)
 
 						recv := types.NewVar(fn.Pos(), fn.Pkg(), "", named)
-						methods[i] = types.NewFunc(fn.Pos(), fn.Pkg(), fn.Name(), types.NewSignature(recv, sig.Params(), sig.Results(), sig.Variadic()))
+						typesinternal.SetVarKind(recv, typesinternal.RecvVar)
+						methods[i] = types.NewFunc(fn.Pos(), fn.Pkg(), fn.Name(), types.NewSignatureType(recv, nil, nil, sig.Params(), sig.Results(), sig.Variadic()))
 					}
 
 					embeds := make([]types.Type, iface.NumEmbeddeds())
@@ -616,7 +621,9 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 		case pkgbits.ObjVar:
 			pos := r.pos()
 			typ := r.typ()
-			declare(types.NewVar(pos, objPkg, objName, typ))
+			v := types.NewVar(pos, objPkg, objName, typ)
+			typesinternal.SetVarKind(v, typesinternal.PackageVar)
+			declare(v)
 		}
 	}
 
@@ -737,4 +744,18 @@ func pkgScope(pkg *types.Package) *types.Scope {
 		return pkg.Scope()
 	}
 	return types.Universe
+}
+
+// See cmd/compile/internal/types.SplitVargenSuffix.
+func splitVargenSuffix(name string) (base, suffix string) {
+	i := len(name)
+	for i > 0 && name[i-1] >= '0' && name[i-1] <= '9' {
+		i--
+	}
+	const dot = "·"
+	if i >= len(dot) && name[i-len(dot):i] == dot {
+		i -= len(dot)
+		return name[:i], name[i:]
+	}
+	return name, ""
 }

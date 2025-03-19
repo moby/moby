@@ -181,8 +181,11 @@ type DiffRequest struct {
 	// Labels are the labels to apply to the generated content
 	// on content store commit.
 	Labels map[string]string `protobuf:"bytes,5,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	// SourceDateEpoch specifies the timestamp used for whiteouts to provide control for reproducibility.
+	// SourceDateEpoch specifies the timestamp used to provide control for reproducibility.
 	// See also https://reproducible-builds.org/docs/source-date-epoch/ .
+	//
+	// Since containerd v2.0, the whiteout timestamps are set to zero (1970-01-01),
+	// not to the source date epoch.
 	SourceDateEpoch *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=source_date_epoch,json=sourceDateEpoch,proto3" json:"source_date_epoch,omitempty"`
 }
 
