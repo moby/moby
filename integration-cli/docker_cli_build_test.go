@@ -6209,7 +6209,9 @@ func (s *DockerCLIBuildSuite) TestBuildEmitsEvents(t *testing.T) {
 				name: "no tag",
 				args: []string{},
 				check: func(t *testing.T, stdout string) {
-					assert.Check(t, is.Contains(stdout, "image create"))
+					if assert.Check(t, is.Contains(stdout, "image create")) {
+						assert.Check(t, strings.Count(stdout, "image create") == 1)
+					}
 					assert.Check(t, !strings.Contains(stdout, "image tag"))
 				},
 			},
@@ -6217,8 +6219,12 @@ func (s *DockerCLIBuildSuite) TestBuildEmitsEvents(t *testing.T) {
 				name: "with tag",
 				args: []string{"-t", "testbuildemitsimagetagevent"},
 				check: func(t *testing.T, stdout string) {
-					assert.Check(t, is.Contains(stdout, "image create"))
-					assert.Check(t, is.Contains(stdout, "image tag"))
+					if assert.Check(t, is.Contains(stdout, "image create")) {
+						assert.Check(t, strings.Count(stdout, "image create") == 1)
+					}
+					if assert.Check(t, is.Contains(stdout, "image tag")) {
+						assert.Check(t, strings.Count(stdout, "image tag") == 1)
+					}
 					assert.Check(t, is.Contains(stdout, "testbuildemitsimagetagevent"))
 				},
 			},
