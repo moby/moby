@@ -1,16 +1,75 @@
 package atomicwriter
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 )
+
+func validateDestination(fileName string) error {
+	if fileName == "" {
+		return errors.New("file name is empty")
+	}
+
+	// Deliberately using Lstat here to match the behavior of [os.Rename],
+	// which is used when completing the write and does not resolve symlinks.
+	//
+	// TODO(thaJeztah): decide whether we want to disallow symlinks or to follow them.
+	if fi, err := os.Lstat(fileName); err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to stat output path: %w", err)
+		}
+	} else if err := validateFileMode(fi.Mode()); err != nil {
+		return err
+	}
+	if dir := filepath.Dir(fileName); dir != "" && dir != "." {
+		if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("invalid file path: %w", err)
+		}
+	}
+	return nil
+}
+
+func validateFileMode(mode os.FileMode) error {
+	switch {
+	case mode.IsRegular():
+		return nil // Regular file
+	case mode&os.ModeDir != 0:
+		return errors.New("cannot write to a directory")
+	// TODO(thaJeztah): decide whether we want to disallow symlinks or to follow them.
+	// case mode&os.ModeSymlink != 0:
+	// 	return errors.New("cannot write to a symbolic link directly")
+	case mode&os.ModeNamedPipe != 0:
+		return errors.New("cannot write to a named pipe (FIFO)")
+	case mode&os.ModeSocket != 0:
+		return errors.New("cannot write to a socket")
+	case mode&os.ModeDevice != 0:
+		if mode&os.ModeCharDevice != 0 {
+			return errors.New("cannot write to a character device file")
+		}
+		return errors.New("cannot write to a block device file")
+	case mode&os.ModeSetuid != 0:
+		return errors.New("cannot write to a setuid file")
+	case mode&os.ModeSetgid != 0:
+		return errors.New("cannot write to a setgid file")
+	case mode&os.ModeSticky != 0:
+		return errors.New("cannot write to a sticky bit file")
+	default:
+		// Unknown file mode; let's assume it works
+		return nil
+	}
+}
 
 // New returns a WriteCloser so that writing to it writes to a
 // temporary file and closing it atomically changes the temporary file to
 // destination path. Writing and closing concurrently is not allowed.
 // NOTE: umask is not considered for the file's permissions.
 func New(filename string, perm os.FileMode) (io.WriteCloser, error) {
+	if err := validateDestination(filename); err != nil {
+		return nil, err
+	}
 	abspath, err := filepath.Abs(filename)
 	if err != nil {
 		return nil, err
@@ -49,10 +108,12 @@ type atomicFileWriter struct {
 	f        *os.File
 	fn       string
 	writeErr error
+	written  bool
 	perm     os.FileMode
 }
 
 func (w *atomicFileWriter) Write(dt []byte) (int, error) {
+	w.written = true
 	n, err := w.f.Write(dt)
 	if err != nil {
 		w.writeErr = err
@@ -62,12 +123,12 @@ func (w *atomicFileWriter) Write(dt []byte) (int, error) {
 
 func (w *atomicFileWriter) Close() (retErr error) {
 	defer func() {
-		if retErr != nil || w.writeErr != nil {
-			os.Remove(w.f.Name())
+		if err := os.Remove(w.f.Name()); !errors.Is(err, os.ErrNotExist) && retErr == nil {
+			retErr = err
 		}
 	}()
 	if err := w.f.Sync(); err != nil {
-		w.f.Close()
+		_ = w.f.Close()
 		return err
 	}
 	if err := w.f.Close(); err != nil {
@@ -76,7 +137,7 @@ func (w *atomicFileWriter) Close() (retErr error) {
 	if err := os.Chmod(w.f.Name(), w.perm); err != nil {
 		return err
 	}
-	if w.writeErr == nil {
+	if w.writeErr == nil && w.written {
 		return os.Rename(w.f.Name(), w.fn)
 	}
 	return nil
