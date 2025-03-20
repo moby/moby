@@ -189,6 +189,7 @@ func TestIPRangeAt64BitLimit(t *testing.T) {
 // told not to).
 func TestFilterForwardPolicy(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "rootless has its own netns")
+	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
 	ctx := setupTest(t)
 
 	// Set up a netns for each test to avoid sysctl and iptables pollution.

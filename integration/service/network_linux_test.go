@@ -184,6 +184,7 @@ func TestSwarmScopedNetFromConfig(t *testing.T) {
 func TestDockerIngressChainPosition(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
+	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
 	ctx := setupTest(t)
 
 	// Run the test in its own netns, to avoid interfering with iptables on the test host.

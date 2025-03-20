@@ -215,6 +215,7 @@ var iptCmds = map[iptCmdType][]string{
 }
 
 func TestBridgeIptablesDoc(t *testing.T) {
+	skip.If(t, networking.FirewalldRunning(), "can't document iptables rules, running under firewalld")
 	skip.If(t, testEnv.IsRootless)
 	ctx := setupTest(t)
 
