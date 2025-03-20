@@ -3,15 +3,19 @@ package containerd
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
+	"github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/plugins/content/local"
 	"github.com/containerd/platforms"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/pkg/archive"
@@ -108,4 +112,63 @@ func TestImageLoadMissing(t *testing.T) {
 			assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 		})
 	})
+}
+
+func TestImageLoadDangling(t *testing.T) {
+	linuxAmd64 := ocispec.Platform{OS: "linux", Architecture: "amd64"}
+
+	ctx := namespaces.WithNamespace(context.TODO(), "testing-"+t.Name())
+
+	store, err := local.NewLabeledStore(t.TempDir(), &memoryLabelStore{})
+	assert.NilError(t, err)
+
+	imgSvc := fakeImageService(t, ctx, store)
+	// Mock the daemon platform.
+	imgSvc.defaultPlatformOverride = platforms.Only(linuxAmd64)
+
+	tryLoad := func(ctx context.Context, t *testing.T, dir string, platform ocispec.Platform) error {
+		tarRc, err := archive.Tar(dir, archive.Uncompressed)
+		assert.NilError(t, err)
+		defer tarRc.Close()
+
+		buf := bytes.Buffer{}
+
+		defer func() {
+			t.Log(buf.String())
+		}()
+
+		return imgSvc.LoadImage(ctx, tarRc, &platform, &buf, true)
+	}
+
+	imgDataDir := t.TempDir()
+	r := rand.NewSource(0x9127371238)
+	_, err = specialimage.RandomSinglePlatform(imgDataDir, linuxAmd64, r)
+	assert.NilError(t, err)
+
+	err = tryLoad(ctx, t, imgDataDir, linuxAmd64)
+	assert.NilError(t, err)
+
+	// Use containerd client to verify the dangling image exists.
+	c8dimgs, err := imgSvc.client.ListImages(ctx)
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(c8dimgs, 2))
+
+	// Both images should refer to the same digest.
+	dgsts := make(map[string]struct{})
+	for _, img := range c8dimgs {
+		dgsts[img.Target().Digest.String()] = struct{}{}
+	}
+	assert.Check(t, is.Len(dgsts, 1))
+
+	// One of these should be tagged as moby-dangling.
+	want := fmt.Sprintf("moby-dangling@%s", c8dimgs[0].Target().Digest)
+	index := slices.IndexFunc(c8dimgs, func(img client.Image) bool {
+		return img.Name() == want
+	})
+	assert.Check(t, index >= 0, "cannot find dangling image: %s", want)
+
+	// Ensure image service still only returns one image.
+	imgs, err := imgSvc.Images(ctx, image.ListOptions{All: true})
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(imgs, 1))
 }
