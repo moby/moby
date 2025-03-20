@@ -59,7 +59,6 @@ func (s *DockerAPISuite) TestAPIClientVersionOldNotSupported(c *testing.T) {
 
 	resp, body, err := request.Get(testutil.GetContext(c), "/v"+version+"/version")
 	assert.NilError(c, err)
-	defer body.Close()
 	assert.Equal(c, resp.StatusCode, http.StatusBadRequest)
 	expected := fmt.Sprintf("client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", version, testEnv.DaemonVersion.MinAPIVersion)
 	b, err := request.ReadBody(body)
