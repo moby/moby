@@ -3,39 +3,18 @@
 package bridge
 
 import (
-	"errors"
-
 	"github.com/docker/docker/libnetwork/iptables"
 )
 
 func (n *bridgeNetwork) setupFirewalld(config *networkConfiguration, i *bridgeInterface) error {
-	d := n.driver
-	d.Lock()
-	driverConfig := d.config
-	d.Unlock()
-
-	// Sanity check.
-	if !driverConfig.EnableIPTables {
-		return errors.New("no need to register firewalld hooks, iptables is disabled")
+	// FIXME(robmry) - these reload functions aren't deleted when the network is deleted.
+	//  So, a firewalld reload leads to creation of zombie rules belonging to those networks.
+	if n.driver.config.EnableIPTables && config.EnableIPv4 {
+		iptables.OnReloaded(func() { n.setupIP4Tables(config, i) })
 	}
-
-	iptables.OnReloaded(func() { n.setupIP4Tables(config, i) })
-	iptables.OnReloaded(n.reapplyPerPortIptables4)
-	return nil
-}
-
-func (n *bridgeNetwork) setupFirewalld6(config *networkConfiguration, i *bridgeInterface) error {
-	d := n.driver
-	d.Lock()
-	driverConfig := d.config
-	d.Unlock()
-
-	// Sanity check.
-	if !driverConfig.EnableIP6Tables {
-		return errors.New("no need to register firewalld hooks, ip6tables is disabled")
+	if n.driver.config.EnableIP6Tables && config.EnableIPv6 {
+		iptables.OnReloaded(func() { n.setupIP6Tables(config, i) })
 	}
-
-	iptables.OnReloaded(func() { n.setupIP6Tables(config, i) })
-	iptables.OnReloaded(n.reapplyPerPortIptables6)
+	iptables.OnReloaded(n.reapplyPerPortIptables)
 	return nil
 }

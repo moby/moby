@@ -962,15 +962,7 @@ func rawRulesDisabled(ctx context.Context) bool {
 	return false
 }
 
-func (n *bridgeNetwork) reapplyPerPortIptables4() {
-	n.reapplyPerPortIptables(func(b portBinding) bool { return b.IP.To4() != nil })
-}
-
-func (n *bridgeNetwork) reapplyPerPortIptables6() {
-	n.reapplyPerPortIptables(func(b portBinding) bool { return b.IP.To4() == nil })
-}
-
-func (n *bridgeNetwork) reapplyPerPortIptables(needsReconfig func(portBinding) bool) {
+func (n *bridgeNetwork) reapplyPerPortIptables() {
 	n.Lock()
 	var allPBs []portBinding
 	for _, ep := range n.endpoints {
@@ -979,10 +971,8 @@ func (n *bridgeNetwork) reapplyPerPortIptables(needsReconfig func(portBinding) b
 	n.Unlock()
 
 	for _, b := range allPBs {
-		if needsReconfig(b) {
-			if err := n.setPerPortIptables(context.Background(), b, true); err != nil {
-				log.G(context.TODO()).Warnf("Failed to reconfigure iptables on firewalld reload %s: %s", b, err)
-			}
+		if err := n.setPerPortIptables(context.Background(), b, true); err != nil {
+			log.G(context.TODO()).Warnf("Failed to reconfigure iptables on firewalld reload %s: %s", b, err)
 		}
 	}
 }
