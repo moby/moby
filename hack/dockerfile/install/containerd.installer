@@ -15,13 +15,31 @@ set -e
 # the binary version you may also need to update the vendor version to pick up
 # bug fixes or new APIs, however, usually the Go packages are built from a
 # commit from the master branch.
-: "${CONTAINERD_VERSION:=v1.7.27}"
+: "${CONTAINERD_VERSION:=v1.7.27@05044ec0a9a75232cad458027ca83437aae3f4da}"
+
+git_checkout_tag_with_hash() {
+	TAG="$(echo "$1" | cut -d@ -f1)"
+	HASH=""
+	case "$1" in
+		*@*)
+			HASH="$(echo "$1" | cut -d@ -f2)"
+			;;
+	esac
+	git checkout "$TAG"
+	HEAD="$(git rev-parse HEAD)"
+	if [ -z "$HASH" ]; then
+		echo >&2 "WARNING: ${TAG}: commit hash was not specified (got ${HEAD})"
+	elif [ "$HEAD" != "$HASH" ]; then
+		echo >&2 "ERROR: ${TAG}: expected ${HASH}, got ${HEAD}"
+		exit 1
+	fi
+}
 
 install_containerd() (
 	echo "Install containerd version $CONTAINERD_VERSION"
 	git clone https://github.com/containerd/containerd.git "$GOPATH/src/github.com/containerd/containerd"
 	cd "$GOPATH/src/github.com/containerd/containerd"
-	git checkout -q "$CONTAINERD_VERSION"
+	git_checkout_tag_with_hash "$CONTAINERD_VERSION"
 
 	export BUILDTAGS='netgo osusergo static_build'
 	export EXTRA_FLAGS=${GO_BUILDMODE}

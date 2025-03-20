@@ -2,6 +2,8 @@
 
 : ${DOCKERCLI_CHANNEL:=stable}
 : ${DOCKERCLI_VERSION:=18.06.3-ce}
+# TODO: verify the hashes of the binaries and the git repo
+# (although dockercli installed in thie script is used only for running tests)
 
 install_dockercli() {
 	echo "Install docker/cli version $DOCKERCLI_VERSION from $DOCKERCLI_CHANNEL"

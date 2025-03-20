@@ -9,7 +9,25 @@ set -e
 # the containerd project first, and update both after that is merged.
 #
 # When updating RUNC_VERSION, consider updating runc in vendor.mod accordingly
-: "${RUNC_VERSION:=v1.2.6}"
+: "${RUNC_VERSION:=v1.2.6@e89a29929c775025419ab0d218a43588b4c12b9a}"
+
+git_checkout_tag_with_hash() {
+	TAG="$(echo "$1" | cut -d@ -f1)"
+	HASH=""
+	case "$1" in
+		*@*)
+			HASH="$(echo "$1" | cut -d@ -f2)"
+			;;
+	esac
+	git checkout "$TAG"
+	HEAD="$(git rev-parse HEAD)"
+	if [ -z "$HASH" ]; then
+		echo >&2 "WARNING: ${TAG}: commit hash was not specified (got ${HEAD})"
+	elif [ "$HEAD" != "$HASH" ]; then
+		echo >&2 "ERROR: ${TAG}: expected ${HASH}, got ${HEAD}"
+		exit 1
+	fi
+}
 
 install_runc() {
 	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp"}"
@@ -17,7 +35,7 @@ install_runc() {
 	echo "Install runc version $RUNC_VERSION (build tags: $RUNC_BUILDTAGS)"
 	git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc"
 	cd "$GOPATH/src/github.com/opencontainers/runc"
-	git checkout -q "$RUNC_VERSION"
+	git_checkout_tag_with_hash "$RUNC_VERSION"
 	if [ -z "$1" ]; then
 		target=static
 	else
