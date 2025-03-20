@@ -91,8 +91,8 @@ func (s *DockerAPISuite) TestPostContainersAttachContainerNotFound(c *testing.T)
 func (s *DockerAPISuite) TestGetContainersWsAttachContainerNotFound(c *testing.T) {
 	ctx := testutil.GetContext(c)
 	res, body, err := request.Get(ctx, "/containers/doesnotexist/attach/ws")
-	assert.Equal(c, res.StatusCode, http.StatusNotFound)
 	assert.NilError(c, err)
+	assert.Equal(c, res.StatusCode, http.StatusNotFound)
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
 	expected := "No such container: doesnotexist"
@@ -207,7 +207,7 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 	assert.NilError(c, err)
 
 	defer resp.Conn.Close()
-	resp.Conn.SetReadDeadline(time.Now().Add(time.Second))
+	assert.NilError(c, resp.Conn.SetReadDeadline(time.Now().Add(time.Second)))
 
 	_, err = resp.Conn.Write([]byte("success"))
 	assert.NilError(c, err)
