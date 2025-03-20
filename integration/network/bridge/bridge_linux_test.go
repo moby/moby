@@ -400,12 +400,17 @@ func TestIsolated(t *testing.T) {
 			ctr.WithNetworkMode(netName),
 		)
 		defer apiClient.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+		if ipv == "-6" && networking.FirewalldRunning() {
+			// FIXME(robmry) - this fails due to https://github.com/moby/moby/issues/49680
+			assert.Check(t, is.Equal(res.ExitCode, 1))
+			t.Skip("XFAIL - IPv6, firewalld, isolated - see https://github.com/moby/moby/issues/49680")
+		}
 		assert.Check(t, is.Equal(res.ExitCode, 0))
 		assert.Check(t, is.Equal(res.Stderr.Len(), 0))
 		assert.Check(t, is.Contains(res.Stdout.String(), "1 packets transmitted, 1 packets received"))
 	}
-	ping(t, "-4")
-	ping(t, "-6")
+	t.Run("ipv4", func(t *testing.T) { ping(t, "-4") })
+	t.Run("ipv6", func(t *testing.T) { ping(t, "-6") })
 }
 
 func TestEndpointWithCustomIfname(t *testing.T) {
