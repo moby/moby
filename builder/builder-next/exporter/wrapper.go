@@ -82,7 +82,7 @@ func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter
 	}
 
 	if i.callbacks.Named != nil {
-		for _, name := range strings.Split(out[string(exptypes.OptKeyName)], ",") {
+		for _, name := range strings.Split(out["image.name"], ",") {
 			ref, err := reference.ParseNormalizedNamed(name)
 			if err != nil {
 				// Shouldn't happen, but log if it does and continue.
@@ -93,8 +93,9 @@ func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter
 				continue
 			}
 
-			namedTagged := reference.TagNameOnly(ref).(reference.NamedTagged)
-			i.callbacks.Named(ctx, namedTagged, desc)
+			if namedTagged, ok := reference.TagNameOnly(ref).(reference.NamedTagged); ok {
+				i.callbacks.Named(ctx, namedTagged, desc)
+			}
 		}
 	}
 
