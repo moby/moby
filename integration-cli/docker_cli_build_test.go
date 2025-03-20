@@ -6230,7 +6230,9 @@ func (s *DockerCLIBuildSuite) TestBuildEmitsEvents(t *testing.T) {
 			},
 		} {
 			t.Run(fmt.Sprintf("buildkit=%v/%s", builder.buildkit, tc.name), func(t *testing.T) {
-				skip.If(t, DaemonIsWindows, "Buildkit is not supported on Windows")
+				if builder.buildkit {
+					skip.If(t, DaemonIsWindows, "Buildkit is not supported on Windows")
+				}
 
 				time.Sleep(time.Second)
 				before := time.Now()
