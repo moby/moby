@@ -1185,6 +1185,7 @@ func getContainerStdout(t *testing.T, ctx context.Context, c *client.Client, ctr
 // the iptables "raw" table - as a workaround for kernels that don't have CONFIG_IP_NF_RAW.
 // See https://github.com/moby/moby/issues/49557
 func TestSkipRawRules(t *testing.T) {
+	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
 	skip.If(t, testEnv.IsRootless, "can't use L3Segment, or check iptables rules")
 
 	testcases := []struct {
