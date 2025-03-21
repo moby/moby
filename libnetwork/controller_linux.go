@@ -12,6 +12,14 @@ import (
 	"github.com/docker/docker/libnetwork/osl"
 )
 
+// FirewallBackend returns the name of the firewall backend for "docker info".
+func (c *Controller) FirewallBackend() string {
+	if iptables.FirewalldRunning() {
+		return "iptables+firewalld"
+	}
+	return "iptables"
+}
+
 // enabledIptablesVersions returns the iptables versions that are enabled
 // for the controller.
 func (c *Controller) enabledIptablesVersions() []iptables.IPVersion {

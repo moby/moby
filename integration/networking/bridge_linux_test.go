@@ -1686,6 +1686,7 @@ func TestNetworkInspectGateway(t *testing.T) {
 // networking).
 // Regression test for https://github.com/moby/moby/pull/49518
 func TestDropInForwardChain(t *testing.T) {
+	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
 	skip.If(t, testEnv.IsRootless, "rootless has its own netns")
 
 	// Run the test in its own netns, to avoid interfering with iptables on the test host.

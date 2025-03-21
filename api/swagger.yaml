@@ -6856,6 +6856,13 @@ definitions:
               description: "The network pool size"
               type: "integer"
               example: "24"
+      FirewallBackend:
+        description: |
+          The mechanism the daemon will use to create firewall rules.
+
+          Omitted on Windows hosts.
+        type: "string"
+        example: "iptables"
       Warnings:
         description: |
           List of warnings / informational messages about missing features, or

@@ -35,6 +35,10 @@ var (
 	onReloaded       []*func() // callbacks when Firewalld has been reloaded
 )
 
+func FirewalldRunning() bool {
+	return firewalldRunning
+}
+
 // firewalldInit initializes firewalld management code.
 func firewalldInit() error {
 	var err error
