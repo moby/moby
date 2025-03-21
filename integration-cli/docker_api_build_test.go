@@ -122,7 +122,6 @@ RUN echo 'right'
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusOK)
 
-	defer body.Close()
 	content, err := request.ReadBody(body)
 	assert.NilError(c, err)
 
