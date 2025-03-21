@@ -172,7 +172,7 @@ func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan erro
 	return errs
 }
 
-func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64, err error) {
+func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64, _ error) {
 	if len(keys) == 0 {
 		keys = defaultEscapeSequence
 	}

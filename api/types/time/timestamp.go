@@ -105,23 +105,23 @@ func GetTimestamp(value string, reference time.Time) (string, error) {
 //	since := time.Unix(seconds, nanoseconds)
 //
 // returns seconds as defaultSeconds if value == ""
-func ParseTimestamps(value string, defaultSeconds int64) (seconds int64, nanoseconds int64, err error) {
+func ParseTimestamps(value string, defaultSeconds int64) (seconds int64, nanoseconds int64, _ error) {
 	if value == "" {
 		return defaultSeconds, 0, nil
 	}
 	return parseTimestamp(value)
 }
 
-func parseTimestamp(value string) (sec int64, nsec int64, err error) {
+func parseTimestamp(value string) (seconds int64, nanoseconds int64, _ error) {
 	s, n, ok := strings.Cut(value, ".")
-	sec, err = strconv.ParseInt(s, 10, 64)
+	sec, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
 		return sec, 0, err
 	}
 	if !ok {
 		return sec, 0, nil
 	}
-	nsec, err = strconv.ParseInt(n, 10, 64)
+	nsec, err := strconv.ParseInt(n, 10, 64)
 	if err != nil {
 		return sec, nsec, err
 	}

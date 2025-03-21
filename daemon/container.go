@@ -226,10 +226,10 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.
-func (daemon *Daemon) verifyContainerSettings(daemonCfg *configStore, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, err error) {
+func (daemon *Daemon) verifyContainerSettings(daemonCfg *configStore, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, _ error) {
 	// First perform verification of settings common across all platforms.
-	if err = validateContainerConfig(config); err != nil {
-		return warnings, err
+	if err := validateContainerConfig(config); err != nil {
+		return nil, err
 	}
 
 	warns, err := validateHostConfig(hostConfig)

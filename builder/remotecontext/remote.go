@@ -43,11 +43,11 @@ func downloadRemote(remoteURL string) (string, io.ReadCloser, error) {
 
 // GetWithStatusError does an http.Get() and returns an error if the
 // status code is 4xx or 5xx.
-func GetWithStatusError(address string) (resp *http.Response, err error) {
-	resp, err = http.Get(address) // #nosec G107 -- ignore G107: Potential HTTP request made with variable url
+func GetWithStatusError(address string) (*http.Response, error) {
+	resp, err := http.Get(address) // #nosec G107 -- ignore G107: Potential HTTP request made with variable url
 	if err != nil {
-		if uerr, ok := err.(*url.Error); ok {
-			if derr, ok := uerr.Err.(*net.DNSError); ok && !derr.IsTimeout {
+		if uErr, ok := err.(*url.Error); ok {
+			if dErr, ok := uErr.Err.(*net.DNSError); ok && !dErr.IsTimeout {
 				return nil, errdefs.NotFound(err)
 			}
 		}
@@ -58,7 +58,7 @@ func GetWithStatusError(address string) (resp *http.Response, err error) {
 	}
 	msg := fmt.Sprintf("failed to GET %s with status %s", address, resp.Status)
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if err != nil {
 		return nil, errdefs.System(errors.New(msg + ": error reading body"))
 	}
@@ -73,8 +73,9 @@ func GetWithStatusError(address string) (resp *http.Response, err error) {
 		return nil, errdefs.Unauthorized(errors.New(msg))
 	case http.StatusForbidden:
 		return nil, errdefs.Forbidden(errors.New(msg))
+	default:
+		return nil, errdefs.Unknown(errors.New(msg))
 	}
-	return nil, errdefs.Unknown(errors.New(msg))
 }
 
 // inspectResponse looks into the http response data at r to determine whether its

@@ -209,7 +209,7 @@ func (s nameInoSlice) Less(i, j int) bool { return s[i].name < s[j].name }
 // numbers further up the stack when reading directory contents. Unlike
 // os.Readdirnames, which returns a list of filenames, this function returns a
 // list of {filename,inode} pairs.
-func readdirnames(dirname string) (names []nameIno, err error) {
+func readdirnames(dirname string) ([]nameIno, error) {
 	var (
 		size = 100
 		buf  = make([]byte, 4096)
@@ -224,7 +224,7 @@ func readdirnames(dirname string) (names []nameIno, err error) {
 	}
 	defer f.Close()
 
-	names = make([]nameIno, 0, size) // Empty with room to grow.
+	names := make([]nameIno, 0, size) // Empty with room to grow.
 	for {
 		// Refill the buffer if necessary
 		if bufp >= nbuf {

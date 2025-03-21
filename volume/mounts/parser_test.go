@@ -12,7 +12,7 @@ import (
 
 type mockFiProvider struct{}
 
-func (mockFiProvider) fileInfo(path string) (exists, isDir bool, err error) {
+func (mockFiProvider) fileInfo(path string) (exists, isDir bool, _ error) {
 	dirs := map[string]struct{}{
 		`c:\`:                    {},
 		`c:\windows\`:            {},
