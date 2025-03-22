@@ -55,6 +55,9 @@ func (cli *Client) ImageList(ctx context.Context, options image.ListOptions) ([]
 	if options.Manifests && versions.GreaterThanOrEqualTo(cli.version, "1.47") {
 		query.Set("manifests", "1")
 	}
+	if options.ContainerCount && versions.GreaterThanOrEqualTo(cli.version, "1.47") {
+		query.Set("container-count", "1")
+	}
 
 	resp, err := cli.get(ctx, "/images/json", query, nil)
 	defer ensureReaderClosed(resp)
