@@ -130,11 +130,13 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 		}
 
 		dgst := img.Target.Digest
-		uniqueImages[dgst] = img
-
 		if isDangling {
+			if _, ok := uniqueImages[dgst]; !ok {
+				uniqueImages[dgst] = img
+			}
 			continue
 		}
+		uniqueImages[dgst] = img
 
 		ref, err := reference.ParseNormalizedNamed(img.Name)
 		if err != nil {
