@@ -32,7 +32,7 @@ func (cli *Client) ContainerCommit(ctx context.Context, containerID string, opti
 		if tagged, ok := ref.(reference.Tagged); ok {
 			tag = tagged.Tag()
 		}
-		repository = reference.FamiliarName(ref)
+		repository = ref.Name()
 	}
 
 	query := url.Values{}
