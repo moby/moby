@@ -1,7 +1,10 @@
 package specialimage
 
 import (
+	"encoding/json"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/distribution/reference"
@@ -74,4 +77,33 @@ func blobPaths(descriptors []ocispec.Descriptor) []string {
 		paths = append(paths, blobPath(d))
 	}
 	return paths
+}
+
+func readJson(path string, v any) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(content, v)
+}
+
+func LegacyManifest(dir string, imageRef string, mfstDesc ocispec.Descriptor) error {
+	legacyManifests := []manifestItem{}
+
+	var mfst ocispec.Manifest
+	if err := readJson(filepath.Join(dir, blobPath(mfstDesc)), &mfst); err != nil {
+		return err
+	}
+
+	legacyManifests = append(legacyManifests, manifestItem{
+		Config:   blobPath(mfst.Config),
+		RepoTags: []string{imageRef},
+		Layers:   blobPaths(mfst.Layers),
+	})
+
+	if err := writeJson(legacyManifests, filepath.Join(dir, "manifest.json")); err != nil {
+		return err
+	}
+
+	return nil
 }

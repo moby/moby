@@ -13,6 +13,18 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.49 API changes
+
+[Docker Engine API v1.49](https://docs.docker.com/reference/api/engine/version/v1.49/) documentation
+
+* `GET /images/{name}/json` now supports a `platform` parameter (JSON
+  encoded OCI Platform type) allowing to specify a platform of the multi-platform
+  image to inspect.
+  If the daemon does not provide a multi-platform image store, this option will
+  make the server return an error if the actual image platform doesn't match this
+  platform.
+  This option is mutually exclusive with the `manifests` option.
+
 ## v1.48 API changes
 
 [Docker Engine API v1.48](https://docs.docker.com/reference/api/engine/version/v1.48/) documentation
