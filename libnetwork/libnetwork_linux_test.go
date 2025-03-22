@@ -1188,6 +1188,10 @@ func TestExternalKey(t *testing.T) {
 	externalKeyTest(t, false)
 }
 
+func TestExternalKeyWithReexec(t *testing.T) {
+	externalKeyTest(t, true)
+}
+
 func externalKeyTest(t *testing.T, reexec bool) {
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
