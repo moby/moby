@@ -124,9 +124,9 @@ func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadClose
 	return daemon.containerAttach(ctr, &cfg, false, doStream)
 }
 
-func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.AttachConfig, logs, doStream bool) error {
-	if logs {
-		logDriver, logCreated, err := daemon.getLogger(c)
+func (daemon *Daemon) containerAttach(ctr *container.Container, cfg *stream.AttachConfig, enableLogs, doStream bool) error {
+	if enableLogs {
+		logDriver, logCreated, err := daemon.getLogger(ctr)
 		if err != nil {
 			return err
 		}
@@ -141,13 +141,13 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 		if !ok {
 			return logger.ErrReadLogsNotSupported{}
 		}
-		logs := cLog.ReadLogs(context.TODO(), logger.ReadConfig{Tail: -1})
-		defer logs.ConsumerGone()
+		logWatcher := cLog.ReadLogs(context.TODO(), logger.ReadConfig{Tail: -1})
+		defer logWatcher.ConsumerGone()
 
 	LogLoop:
 		for {
 			select {
-			case msg, ok := <-logs.Msg:
+			case msg, ok := <-logWatcher.Msg:
 				if !ok {
 					break LogLoop
 				}
@@ -157,14 +157,14 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 				if msg.Source == "stderr" && cfg.Stderr != nil {
 					cfg.Stderr.Write(msg.Line)
 				}
-			case err := <-logs.Err:
+			case err := <-logWatcher.Err:
 				log.G(context.TODO()).Errorf("Error streaming logs: %v", err)
 				break LogLoop
 			}
 		}
 	}
 
-	daemon.LogContainerEvent(c, events.ActionAttach)
+	daemon.LogContainerEvent(ctr, events.ActionAttach)
 
 	if !doStream {
 		return nil
@@ -180,24 +180,24 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 		cfg.Stdin = r
 	}
 
-	if !c.Config.OpenStdin {
+	if !ctr.Config.OpenStdin {
 		cfg.Stdin = nil
 	}
 
-	if c.Config.StdinOnce && !c.Config.Tty {
+	if ctr.Config.StdinOnce && !ctr.Config.Tty {
 		// Wait for the container to stop before returning.
-		waitChan := c.Wait(context.Background(), container.WaitConditionNotRunning)
+		waitChan := ctr.Wait(context.Background(), container.WaitConditionNotRunning)
 		defer func() {
 			<-waitChan // Ignore returned exit code.
 		}()
 	}
 
-	ctx := c.AttachContext()
-	err := <-c.StreamConfig.CopyStreams(ctx, cfg)
+	ctx := ctr.AttachContext()
+	err := <-ctr.StreamConfig.CopyStreams(ctx, cfg)
 	if err != nil {
 		var ierr term.EscapeError
 		if errors.Is(err, context.Canceled) || errors.As(err, &ierr) {
-			daemon.LogContainerEvent(c, events.ActionDetach)
+			daemon.LogContainerEvent(ctr, events.ActionDetach)
 		} else {
 			log.G(ctx).Errorf("attach failed with error: %v", err)
 		}
