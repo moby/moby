@@ -130,7 +130,10 @@ func (daemon *Daemon) containerAttach(ctr *container.Container, cfg *stream.Atta
 		if logCreated {
 			defer func() {
 				if err = logDriver.Close(); err != nil {
-					log.G(context.TODO()).Errorf("Error closing logger: %v", err)
+					log.G(context.TODO()).WithFields(log.Fields{
+						"error":     err,
+						"container": ctr.ID,
+					}).Error("Error closing logger")
 				}
 			}()
 		}
@@ -155,7 +158,10 @@ func (daemon *Daemon) containerAttach(ctr *container.Container, cfg *stream.Atta
 					cfg.Stderr.Write(msg.Line)
 				}
 			case err := <-logWatcher.Err:
-				log.G(context.TODO()).Errorf("Error streaming logs: %v", err)
+				log.G(context.TODO()).WithFields(log.Fields{
+					"error":     err,
+					"container": ctr.ID,
+				}).Error("Error streaming logs")
 				break LogLoop
 			}
 		}
@@ -171,7 +177,9 @@ func (daemon *Daemon) containerAttach(ctr *container.Container, cfg *stream.Atta
 		r, w := io.Pipe()
 		go func(stdin io.ReadCloser) {
 			io.Copy(w, stdin)
-			log.G(context.TODO()).Debug("Closing buffered stdin pipe")
+			log.G(context.TODO()).WithFields(log.Fields{
+				"container": ctr.ID,
+			}).Debug("Closing buffered stdin pipe")
 			w.Close()
 		}(cfg.Stdin)
 		cfg.Stdin = r
@@ -196,7 +204,10 @@ func (daemon *Daemon) containerAttach(ctr *container.Container, cfg *stream.Atta
 		if errors.Is(err, context.Canceled) || errors.As(err, &ierr) {
 			daemon.LogContainerEvent(ctr, events.ActionDetach)
 		} else {
-			log.G(ctx).Errorf("attach failed with error: %v", err)
+			log.G(ctx).WithFields(log.Fields{
+				"error":     err,
+				"container": ctr.ID,
+			}).Error("attach failed with error")
 		}
 	}
 
