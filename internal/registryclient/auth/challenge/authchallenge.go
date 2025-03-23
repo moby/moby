@@ -45,13 +45,13 @@ type Manager interface {
 // to a backend.
 func NewSimpleManager() Manager {
 	return &simpleManager{
-		Challenges: make(map[string][]Challenge),
+		challenges: make(map[string][]Challenge),
 	}
 }
 
 type simpleManager struct {
-	sync.RWMutex
-	Challenges map[string][]Challenge
+	mu         sync.RWMutex
+	challenges map[string][]Challenge
 }
 
 func normalizeURL(endpoint *url.URL) {
@@ -62,9 +62,9 @@ func normalizeURL(endpoint *url.URL) {
 func (m *simpleManager) GetChallenges(endpoint url.URL) ([]Challenge, error) {
 	normalizeURL(&endpoint)
 
-	m.RLock()
-	defer m.RUnlock()
-	challenges := m.Challenges[endpoint.String()]
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	challenges := m.challenges[endpoint.String()]
 	return challenges, nil
 }
 
@@ -80,9 +80,9 @@ func (m *simpleManager) AddResponse(resp *http.Response) error {
 	}
 	normalizeURL(&urlCopy)
 
-	m.Lock()
-	defer m.Unlock()
-	m.Challenges[urlCopy.String()] = challenges
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.challenges[urlCopy.String()] = challenges
 	return nil
 }
 
