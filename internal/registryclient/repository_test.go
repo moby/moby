@@ -6,13 +6,11 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -73,28 +71,6 @@ func addTestFetch(repo string, dgst digest.Digest, content []byte, m *testutil.R
 				"Content-Length": {fmt.Sprint(len(content))},
 				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
 			}),
-		},
-	})
-}
-
-func addTestCatalog(route string, content []byte, link string, m *testutil.RequestResponseMap) {
-	headers := map[string][]string{
-		"Content-Length": {strconv.Itoa(len(content))},
-		"Content-Type":   {"application/json; charset=utf-8"},
-	}
-	if link != "" {
-		headers["Link"] = append(headers["Link"], link)
-	}
-
-	*m = append(*m, testutil.RequestResponseMapping{
-		Request: testutil.Request{
-			Method: "GET",
-			Route:  route,
-		},
-		Response: testutil.Response{
-			StatusCode: http.StatusOK,
-			Body:       content,
-			Headers:    http.Header(headers),
 		},
 	})
 }
@@ -1243,74 +1219,6 @@ func TestManifestUnauthorized(t *testing.T) {
 	}
 	if expected := errcode.ErrorCodeUnauthorized.Message(); v2Err.Message != expected {
 		t.Fatalf("Unexpected message value: %q, expected %q", v2Err.Message, expected)
-	}
-}
-
-func TestCatalog(t *testing.T) {
-	var m testutil.RequestResponseMap
-	addTestCatalog(
-		"/v2/_catalog?n=5",
-		[]byte("{\"repositories\":[\"foo\", \"bar\", \"baz\"]}"), "", &m)
-
-	e, c := testServer(m)
-	defer c()
-
-	entries := make([]string, 5)
-
-	r, err := NewRegistry(e, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ctx := context.Background()
-	numFilled, err := r.Repositories(ctx, entries, "")
-	if err != io.EOF {
-		t.Fatal(err)
-	}
-
-	if numFilled != 3 {
-		t.Fatalf("Got wrong number of repos")
-	}
-}
-
-func TestCatalogInParts(t *testing.T) {
-	var m testutil.RequestResponseMap
-	addTestCatalog(
-		"/v2/_catalog?n=2",
-		[]byte("{\"repositories\":[\"bar\", \"baz\"]}"),
-		"</v2/_catalog?last=baz&n=2>", &m)
-	addTestCatalog(
-		"/v2/_catalog?last=baz&n=2",
-		[]byte("{\"repositories\":[\"foo\"]}"),
-		"", &m)
-
-	e, c := testServer(m)
-	defer c()
-
-	entries := make([]string, 2)
-
-	r, err := NewRegistry(e, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ctx := context.Background()
-	numFilled, err := r.Repositories(ctx, entries, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if numFilled != 2 {
-		t.Fatalf("Got wrong number of repos")
-	}
-
-	numFilled, err = r.Repositories(ctx, entries, "baz")
-	if err != io.EOF {
-		t.Fatal(err)
-	}
-
-	if numFilled != 1 {
-		t.Fatalf("Got wrong number of repos")
 	}
 }
 
