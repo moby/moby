@@ -72,7 +72,6 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		return nil, false, logger.ErrReadLogsNotSupported{}
 	}
 
-	follow := config.Follow && !cLogCreated
 	tailLines, err := strconv.Atoi(config.Tail)
 	if err != nil {
 		tailLines = -1
@@ -96,14 +95,13 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		until = time.Unix(s, n)
 	}
 
-	readConfig := logger.ReadConfig{
+	follow := config.Follow && !cLogCreated
+	logs := logReader.ReadLogs(ctx, logger.ReadConfig{
 		Since:  since,
 		Until:  until,
 		Tail:   tailLines,
 		Follow: follow,
-	}
-
-	logs := logReader.ReadLogs(ctx, readConfig)
+	})
 
 	// past this point, we can't possibly return any errors, so we can just
 	// start a goroutine and return to tell the caller not to expect errors
