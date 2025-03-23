@@ -33,12 +33,10 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, req *backend.Containe
 		return err
 	}
 	if ctr.IsPaused() {
-		err := fmt.Errorf("container %s is paused, unpause the container before attach", prefixOrName)
-		return errdefs.Conflict(err)
+		return errdefs.Conflict(fmt.Errorf("container %s is paused, unpause the container before attach", prefixOrName))
 	}
 	if ctr.IsRestarting() {
-		err := fmt.Errorf("container %s is restarting, wait until the container is running", prefixOrName)
-		return errdefs.Conflict(err)
+		return errdefs.Conflict(fmt.Errorf("container %s is restarting, wait until the container is running", prefixOrName))
 	}
 
 	cfg := stream.AttachConfig{
@@ -50,8 +48,6 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, req *backend.Containe
 		DetachKeys: keys,
 	}
 	ctr.StreamConfig.AttachStreams(&cfg)
-
-	multiplexed := !ctr.Config.Tty && req.MuxStreams
 
 	clientCtx, closeNotify := context.WithCancel(context.Background())
 	defer closeNotify()
@@ -68,6 +64,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, req *backend.Containe
 		}
 	}()
 
+	multiplexed := !ctr.Config.Tty && req.MuxStreams
 	inStream, outStream, errStream, err := req.GetStreams(multiplexed, closeNotify)
 	if err != nil {
 		return err
