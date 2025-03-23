@@ -187,15 +187,15 @@ func descriptorFromResponse(response *http.Response) (distribution.Descriptor, e
 
 	digestHeader := headers.Get("Docker-Content-Digest")
 	if digestHeader == "" {
-		bytes, err := io.ReadAll(response.Body)
+		content, err := io.ReadAll(response.Body)
 		if err != nil {
 			return distribution.Descriptor{}, err
 		}
-		_, desc, err := distribution.UnmarshalManifest(ctHeader, bytes)
+		_, mfst, err := distribution.UnmarshalManifest(ctHeader, content)
 		if err != nil {
 			return distribution.Descriptor{}, err
 		}
-		return desc, nil
+		return mfst, nil
 	}
 
 	dgst, err := digest.Parse(digestHeader)

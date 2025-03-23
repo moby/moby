@@ -156,7 +156,7 @@ func parseValueAndParams(header string) (value string, params map[string]string)
 	params = make(map[string]string)
 	value, s := expectToken(header)
 	if value == "" {
-		return
+		return value, params
 	}
 	value = strings.ToLower(value)
 	s = "," + skipSpace(s)
@@ -164,21 +164,21 @@ func parseValueAndParams(header string) (value string, params map[string]string)
 		var pkey string
 		pkey, s = expectToken(skipSpace(s[1:]))
 		if pkey == "" {
-			return
+			return value, params
 		}
 		if !strings.HasPrefix(s, "=") {
-			return
+			return value, params
 		}
 		var pvalue string
 		pvalue, s = expectTokenOrQuoted(s[1:])
 		if pvalue == "" {
-			return
+			return value, params
 		}
 		pkey = strings.ToLower(pkey)
 		params[pkey] = pvalue
 		s = skipSpace(s)
 	}
-	return
+	return value, params
 }
 
 func skipSpace(s string) (rest string) {

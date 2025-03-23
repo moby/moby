@@ -66,7 +66,7 @@ func testServerWithAuth(rrm testutil.RequestResponseMap, authenticate string, au
 // ping pings the provided endpoint to determine its required authorization challenges.
 // If a version header is provided, the versions will be returned.
 func ping(manager challenge.Manager, endpoint, versionHeader string) ([]APIVersion, error) {
-	resp, err := http.Get(endpoint)
+	resp, err := http.Get(endpoint) // #nosec G107 -- ignore potential HTTP request made with variable url
 	if err != nil {
 		return nil, err
 	}
