@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const tokenDelimiter = "."
+
 type Parser struct {
 	// If populated, only these methods will be considered valid.
 	validMethods []string
@@ -136,9 +138,10 @@ func (p *Parser) ParseWithClaims(tokenString string, claims Claims, keyFunc Keyf
 // It's only ever useful in cases where you know the signature is valid (since it has already
 // been or will be checked elsewhere in the stack) and you want to extract values from it.
 func (p *Parser) ParseUnverified(tokenString string, claims Claims) (token *Token, parts []string, err error) {
-	parts = strings.Split(tokenString, ".")
-	if len(parts) != 3 {
-		return nil, parts, newError("token contains an invalid number of segments", ErrTokenMalformed)
+	var ok bool
+	parts, ok = splitToken(tokenString)
+	if !ok {
+		return nil, nil, newError("token contains an invalid number of segments", ErrTokenMalformed)
 	}
 
 	token = &Token{Raw: tokenString}
@@ -194,6 +197,33 @@ func (p *Parser) ParseUnverified(tokenString string, claims Claims) (token *Toke
 	}
 
 	return token, parts, nil
+}
+
+// splitToken splits a token string into three parts: header, claims, and signature. It will only
+// return true if the token contains exactly two delimiters and three parts. In all other cases, it
+// will return nil parts and false.
+func splitToken(token string) ([]string, bool) {
+	parts := make([]string, 3)
+	header, remain, ok := strings.Cut(token, tokenDelimiter)
+	if !ok {
+		return nil, false
+	}
+	parts[0] = header
+	claims, remain, ok := strings.Cut(remain, tokenDelimiter)
+	if !ok {
+		return nil, false
+	}
+	parts[1] = claims
+	// One more cut to ensure the signature is the last part of the token and there are no more
+	// delimiters. This avoids an issue where malicious input could contain additional delimiters
+	// causing unecessary overhead parsing tokens.
+	signature, _, unexpected := strings.Cut(remain, tokenDelimiter)
+	if unexpected {
+		return nil, false
+	}
+	parts[2] = signature
+
+	return parts, true
 }
 
 // DecodeSegment decodes a JWT specific base64url encoding. This function will

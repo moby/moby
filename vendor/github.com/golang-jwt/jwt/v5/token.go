@@ -75,7 +75,7 @@ func (t *Token) SignedString(key interface{}) (string, error) {
 }
 
 // SigningString generates the signing string.  This is the most expensive part
-// of the whole deal.  Unless you need this for something special, just go
+// of the whole deal. Unless you need this for something special, just go
 // straight for the SignedString.
 func (t *Token) SigningString() (string, error) {
 	h, err := json.Marshal(t.Header)
