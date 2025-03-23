@@ -960,21 +960,17 @@ func (c *containerRouter) postContainersResize(ctx context.Context, w http.Respo
 }
 
 func (c *containerRouter) postContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	err := httputils.ParseForm(r)
-	if err != nil {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 	containerName := vars["name"]
-
-	_, upgrade := r.Header["Upgrade"]
-	detachKeys := r.FormValue("detachKeys")
-
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
 		return errdefs.InvalidParameter(errors.Errorf("error attaching to container %s, hijack connection missing", containerName))
 	}
 
 	contentType := types.MediaTypeRawStream
+	_, upgrade := r.Header["Upgrade"]
 	setupStreams := func(multiplexed bool, cancel func()) (io.ReadCloser, io.Writer, io.Writer, error) {
 		conn, _, err := hijacker.Hijack()
 		if err != nil {
@@ -1004,18 +1000,16 @@ func (c *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		return ioutils.NewReadCloserWrapper(conn, closer), conn, conn, nil
 	}
 
-	attachConfig := &backend.ContainerAttachConfig{
+	if err := c.backend.ContainerAttach(containerName, &backend.ContainerAttachConfig{
 		GetStreams: setupStreams,
 		UseStdin:   httputils.BoolValue(r, "stdin"),
 		UseStdout:  httputils.BoolValue(r, "stdout"),
 		UseStderr:  httputils.BoolValue(r, "stderr"),
 		Logs:       httputils.BoolValue(r, "logs"),
 		Stream:     httputils.BoolValue(r, "stream"),
-		DetachKeys: detachKeys,
+		DetachKeys: r.FormValue("detachKeys"),
 		MuxStreams: true,
-	}
-
-	if err = c.backend.ContainerAttach(containerName, attachConfig); err != nil {
+	}); err != nil {
 		log.G(ctx).WithError(err).Errorf("Handler for %s %s returned error", r.Method, r.URL.Path)
 		// Remember to close stream if error happens
 		conn, _, errHijack := hijacker.Hijack()
@@ -1036,9 +1030,6 @@ func (c *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		return err
 	}
 	containerName := vars["name"]
-
-	var err error
-	detachKeys := r.FormValue("detachKeys")
 
 	done := make(chan struct{})
 	started := make(chan struct{})
@@ -1076,18 +1067,16 @@ func (c *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		useStderr = httputils.BoolValue(r, "stderr")
 	}
 
-	attachConfig := &backend.ContainerAttachConfig{
+	err := c.backend.ContainerAttach(containerName, &backend.ContainerAttachConfig{
 		GetStreams: setupStreams,
 		UseStdin:   useStdin,
 		UseStdout:  useStdout,
 		UseStderr:  useStderr,
 		Logs:       httputils.BoolValue(r, "logs"),
 		Stream:     httputils.BoolValue(r, "stream"),
-		DetachKeys: detachKeys,
+		DetachKeys: r.FormValue("detachKeys"),
 		MuxStreams: false, // never multiplex, as we rely on websocket to manage distinct streams
-	}
-
-	err = c.backend.ContainerAttach(containerName, attachConfig)
+	})
 	close(done)
 	select {
 	case <-started:
