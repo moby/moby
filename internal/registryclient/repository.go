@@ -92,7 +92,7 @@ type Repository interface {
 	// implementations to avoid implementing ServeBlob.
 
 	// Tags returns a reference to this repositories tag service
-	Tags(ctx context.Context) distribution.TagService
+	Tags(ctx context.Context) *TagService
 }
 
 type repository struct {
@@ -129,23 +129,23 @@ func (r *repository) Manifests(ctx context.Context, options ...distribution.Mani
 	}, nil
 }
 
-func (r *repository) Tags(ctx context.Context) distribution.TagService {
-	return &tags{
+func (r *repository) Tags(ctx context.Context) *TagService {
+	return &TagService{
 		client: r.client,
 		ub:     r.ub,
 		name:   r.Named(),
 	}
 }
 
-// tags implements remote tagging operations.
-type tags struct {
+// TagService provides access to information about tagged objects.
+type TagService struct {
 	client *http.Client
 	ub     *v2.URLBuilder
 	name   reference.Named
 }
 
 // All returns all tags
-func (t *tags) All(ctx context.Context) ([]string, error) {
+func (t *TagService) All(ctx context.Context) ([]string, error) {
 	var tags []string
 
 	listURLStr, err := t.ub.BuildTagsURL(t.name)
@@ -240,7 +240,7 @@ func descriptorFromResponse(response *http.Response) (distribution.Descriptor, e
 // Get issues a HEAD request for a Manifest against its named endpoint in order
 // to construct a descriptor for the tag.  If the registry doesn't support HEADing
 // a manifest, fallback to GET.
-func (t *tags) Get(ctx context.Context, tag string) (distribution.Descriptor, error) {
+func (t *TagService) Get(ctx context.Context, tag string) (distribution.Descriptor, error) {
 	ref, err := reference.WithTag(t.name, tag)
 	if err != nil {
 		return distribution.Descriptor{}, err
@@ -289,18 +289,6 @@ func (t *tags) Get(ctx context.Context, tag string) (distribution.Descriptor, er
 		}
 		return distribution.Descriptor{}, HandleErrorResponse(resp)
 	}
-}
-
-func (t *tags) Lookup(ctx context.Context, digest distribution.Descriptor) ([]string, error) {
-	panic("not implemented")
-}
-
-func (t *tags) Tag(ctx context.Context, tag string, desc distribution.Descriptor) error {
-	panic("not implemented")
-}
-
-func (t *tags) Untag(ctx context.Context, tag string) error {
-	panic("not implemented")
 }
 
 type manifests struct {
