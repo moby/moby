@@ -22,6 +22,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/progress"
 	refstore "github.com/moby/moby/v2/daemon/internal/refstore"
+	"github.com/moby/moby/v2/daemon/internal/registryclient"
 	"github.com/moby/moby/v2/daemon/internal/registryclient/transport"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
@@ -66,7 +67,7 @@ type puller struct {
 	endpoint        registry.APIEndpoint
 	config          *ImagePullConfig
 	repoName        reference.Named
-	repo            distribution.Repository
+	repo            registryclient.Repository
 	manifestStore   *manifestStore
 }
 
@@ -143,7 +144,7 @@ type layerDescriptor struct {
 	digest          digest.Digest
 	diffID          layer.DiffID
 	repoName        reference.Named
-	repo            distribution.Repository
+	repo            registryclient.Repository
 	metadataService metadata.V2MetadataService
 	tmpFile         *os.File
 	verifier        digest.Verifier

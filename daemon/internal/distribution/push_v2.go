@@ -17,7 +17,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/distribution/xfer"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/progress"
-	client "github.com/moby/moby/v2/daemon/internal/registryclient"
+	"github.com/moby/moby/v2/daemon/internal/registryclient"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/moby/moby/v2/pkg/ioutils"
@@ -49,7 +49,7 @@ type pusher struct {
 	endpoint        registry.APIEndpoint
 	repoName        reference.Named
 	config          *ImagePushConfig
-	repo            distribution.Repository
+	repo            registryclient.Repository
 
 	// pushState is state built by the Upload functions.
 	pushState pushState
@@ -246,7 +246,7 @@ type pushDescriptor struct {
 	hmacKey          []byte
 	repoName         reference.Named
 	ref              reference.Named
-	repo             distribution.Repository
+	repo             registryclient.Repository
 	pushState        *pushState
 	remoteDescriptor distribution.Descriptor
 	// a set of digests whose presence has been checked in a target repository
@@ -326,7 +326,7 @@ func (pd *pushDescriptor) Upload(ctx context.Context, progressOutput progress.Ou
 				continue
 			}
 
-			createOpts = append(createOpts, client.WithMountFrom(canonicalRef))
+			createOpts = append(createOpts, registryclient.WithMountFrom(canonicalRef))
 		}
 
 		// send the layer

@@ -6,12 +6,12 @@ import (
 	"net/http"
 
 	"github.com/distribution/reference"
-	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/moby/moby/api/pkg/authconfig"
 	"github.com/moby/moby/api/types/registry"
 	distributionpkg "github.com/moby/moby/v2/daemon/internal/distribution"
+	"github.com/moby/moby/v2/daemon/internal/registryclient"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -75,7 +75,7 @@ func (dr *distributionRouter) getDistributionInfo(ctx context.Context, w http.Re
 	return lastErr
 }
 
-func fetchManifest(ctx context.Context, distrepo distribution.Repository, namedRef reference.Named) (registry.DistributionInspect, error) {
+func fetchManifest(ctx context.Context, distrepo registryclient.Repository, namedRef reference.Named) (registry.DistributionInspect, error) {
 	var distributionInspect registry.DistributionInspect
 	if canonicalRef, ok := namedRef.(reference.Canonical); !ok {
 		namedRef = reference.TagNameOnly(namedRef)

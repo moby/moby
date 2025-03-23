@@ -15,6 +15,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/progress"
 	refstore "github.com/moby/moby/v2/daemon/internal/refstore"
+	"github.com/moby/moby/v2/daemon/internal/registryclient"
 	registrypkg "github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
@@ -610,14 +611,14 @@ func taggedMetadata(key string, dgst string, sourceRepo string) metadata.V2Metad
 }
 
 type mockRepo struct {
-	distribution.Repository
+	registryclient.Repository
 	t        *testing.T
 	errors   map[digest.Digest]error
 	blobs    map[digest.Digest]distribution.Descriptor
 	requests []string
 }
 
-var _ distribution.Repository = &mockRepo{}
+var _ registryclient.Repository = &mockRepo{}
 
 func (m *mockRepo) Blobs(ctx context.Context) distribution.BlobStore {
 	return &mockBlobStore{

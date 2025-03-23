@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
-	"github.com/docker/distribution"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/network"
@@ -17,6 +16,7 @@ import (
 	containerpkg "github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/internal/registryclient"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/libnetwork/cluster"
 	networktypes "github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -74,6 +74,6 @@ type VolumeBackend interface {
 // ImageBackend is used by an executor to perform image operations
 type ImageBackend interface {
 	PullImage(ctx context.Context, ref reference.Named, options imagebackend.PullOptions) error
-	GetRepositories(context.Context, reference.Named, *registry.AuthConfig) ([]distribution.Repository, error)
+	GetRepositories(context.Context, reference.Named, *registry.AuthConfig) ([]registryclient.Repository, error)
 	GetImage(ctx context.Context, refOrID string, options imagebackend.GetImageOpts) (*image.Image, error)
 }

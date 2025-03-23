@@ -5,7 +5,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/distribution"
+	"github.com/moby/moby/v2/daemon/internal/registryclient"
 	"github.com/moby/moby/v2/errdefs"
 )
 
@@ -16,7 +16,7 @@ import (
 //
 // It returns an error if it was unable to reach any of the registries for
 // the given reference, or if the provided reference is invalid.
-func GetRepositories(ctx context.Context, ref reference.Named, config *ImagePullConfig) ([]distribution.Repository, error) {
+func GetRepositories(ctx context.Context, ref reference.Named, config *ImagePullConfig) ([]registryclient.Repository, error) {
 	repoName := reference.TrimNamed(ref)
 	// makes sure name is not empty or `scratch`
 	if err := validateRepoName(repoName); err != nil {
@@ -29,7 +29,7 @@ func GetRepositories(ctx context.Context, ref reference.Named, config *ImagePull
 	}
 
 	var (
-		repositories []distribution.Repository
+		repositories []registryclient.Repository
 		lastError    error
 	)
 	for _, endpoint := range endpoints {
