@@ -173,9 +173,9 @@ func (daemon *Daemon) containerAttach(ctr *container.Container, cfg *stream.Atta
 	if cfg.Stdin != nil {
 		r, w := io.Pipe()
 		go func(stdin io.ReadCloser) {
-			defer w.Close()
-			defer log.G(context.TODO()).Debug("Closing buffered stdin pipe")
 			io.Copy(w, stdin)
+			log.G(context.TODO()).Debug("Closing buffered stdin pipe")
+			w.Close()
 		}(cfg.Stdin)
 		cfg.Stdin = r
 	}
