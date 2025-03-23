@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -42,7 +43,7 @@ func newRandomBlob(size int) (digest.Digest, []byte) {
 func addTestFetch(repo string, dgst digest.Digest, content []byte, m *testutil.RequestResponseMap) {
 	*m = append(*m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
-			Method: "GET",
+			Method: http.MethodGet,
 			Route:  "/v2/" + repo + "/blobs/" + dgst.String(),
 		},
 		Response: testutil.Response{
@@ -57,7 +58,7 @@ func addTestFetch(repo string, dgst digest.Digest, content []byte, m *testutil.R
 
 	*m = append(*m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
-			Method: "HEAD",
+			Method: http.MethodHead,
 			Route:  "/v2/" + repo + "/blobs/" + dgst.String(),
 		},
 		Response: testutil.Response{
@@ -76,7 +77,7 @@ func TestBlobDelete(t *testing.T) {
 	repo, _ := reference.WithName("test.example.com/repo1")
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
-			Method: "DELETE",
+			Method: http.MethodDelete,
 			Route:  "/v2/" + repo.Name() + "/blobs/" + dgst.String(),
 		},
 		Response: testutil.Response{
@@ -136,7 +137,7 @@ func TestBlobExistsNoContentLength(t *testing.T) {
 	dgst, content := newRandomBlob(1024)
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
-			Method: "GET",
+			Method: http.MethodGet,
 			Route:  "/v2/" + repo.Name() + "/blobs/" + dgst.String(),
 		},
 		Response: testutil.Response{
@@ -151,7 +152,7 @@ func TestBlobExistsNoContentLength(t *testing.T) {
 
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
-			Method: "HEAD",
+			Method: http.MethodHead,
 			Route:  "/v2/" + repo.Name() + "/blobs/" + dgst.String(),
 		},
 		Response: testutil.Response{
@@ -226,7 +227,7 @@ func TestBlobUploadChunked(t *testing.T) {
 	uuids := []string{uuid.NewString()}
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
-			Method: "POST",
+			Method: http.MethodPost,
 			Route:  "/v2/" + repo.Name() + "/blobs/uploads/",
 		},
 		Response: testutil.Response{
@@ -245,7 +246,7 @@ func TestBlobUploadChunked(t *testing.T) {
 		newOffset := offset + len(chunk)
 		m = append(m, testutil.RequestResponseMapping{
 			Request: testutil.Request{
-				Method: "PATCH",
+				Method: http.MethodPatch,
 				Route:  "/v2/" + repo.Name() + "/blobs/uploads/" + uuids[i],
 				Body:   chunk,
 			},
@@ -263,7 +264,7 @@ func TestBlobUploadChunked(t *testing.T) {
 	}
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
-			Method: "PUT",
+			Method: http.MethodPut,
 			Route:  "/v2/" + repo.Name() + "/blobs/uploads/" + uuids[len(uuids)-1],
 			QueryParams: map[string][]string{
 				"digest": {dgst.String()},
@@ -280,7 +281,7 @@ func TestBlobUploadChunked(t *testing.T) {
 	})
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
-			Method: "HEAD",
+			Method: http.MethodHead,
 			Route:  "/v2/" + repo.Name() + "/blobs/" + dgst.String(),
 		},
 		Response: testutil.Response{
@@ -341,7 +342,7 @@ func TestBlobUploadMonolithic(t *testing.T) {
 	uploadID := uuid.NewString()
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
-			Method: "POST",
+			Method: http.MethodPost,
 			Route:  "/v2/" + repo.Name() + "/blobs/uploads/",
 		},
 		Response: testutil.Response{
@@ -356,7 +357,7 @@ func TestBlobUploadMonolithic(t *testing.T) {
 	})
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
-			Method: "PATCH",
+			Method: http.MethodPatch,
 			Route:  "/v2/" + repo.Name() + "/blobs/uploads/" + uploadID,
 			Body:   b1,
 		},
@@ -373,7 +374,7 @@ func TestBlobUploadMonolithic(t *testing.T) {
 	})
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
-			Method: "PUT",
+			Method: http.MethodPut,
 			Route:  "/v2/" + repo.Name() + "/blobs/uploads/" + uploadID,
 			QueryParams: map[string][]string{
 				"digest": {dgst.String()},
@@ -390,7 +391,7 @@ func TestBlobUploadMonolithic(t *testing.T) {
 	})
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
-			Method: "HEAD",
+			Method: http.MethodHead,
 			Route:  "/v2/" + repo.Name() + "/blobs/" + dgst.String(),
 		},
 		Response: testutil.Response{
@@ -452,7 +453,7 @@ func TestBlobMount(t *testing.T) {
 
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
-			Method:      "POST",
+			Method:      http.MethodPost,
 			Route:       "/v2/" + repo.Name() + "/blobs/uploads/",
 			QueryParams: map[string][]string{"from": {sourceRepo.Name()}, "mount": {dgst.String()}},
 		},
@@ -467,7 +468,7 @@ func TestBlobMount(t *testing.T) {
 	})
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
-			Method: "HEAD",
+			Method: http.MethodHead,
 			Route:  "/v2/" + repo.Name() + "/blobs/" + dgst.String(),
 		},
 		Response: testutil.Response{
@@ -495,15 +496,14 @@ func TestBlobMount(t *testing.T) {
 		t.Fatalf("Expected blob writer to be nil, was %v", bw)
 	}
 
-	if ebm, ok := err.(distribution.ErrBlobMounted); ok {
+	var ebm distribution.ErrBlobMounted
+	if errors.As(err, &ebm) {
 		if ebm.From.Digest() != dgst {
 			t.Fatalf("Unexpected digest: %s, expected %s", ebm.From.Digest(), dgst)
 		}
 		if ebm.From.Name() != sourceRepo.Name() {
 			t.Fatalf("Unexpected from: %s, expected %s", ebm.From.Name(), sourceRepo)
 		}
-	} else {
-		t.Fatalf("Unexpected error: %v, expected an ErrBlobMounted", err)
 	}
 }
 
@@ -523,7 +523,7 @@ func TestManifestTags(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		m = append(m, testutil.RequestResponseMapping{
 			Request: testutil.Request{
-				Method: "GET",
+				Method: http.MethodGet,
 				Route:  "/v2/" + repo.Name() + "/tags/list",
 			},
 			Response: testutil.Response{
@@ -573,15 +573,15 @@ func TestObtainsErrorForMissingTag(t *testing.T) {
 	repo, _ := reference.WithName("test.example.com/repo")
 
 	var m testutil.RequestResponseMap
-	var errors errcode.Errors
-	errors = append(errors, v2.ErrorCodeManifestUnknown.WithDetail("unknown manifest"))
-	errBytes, err := json.Marshal(errors)
+	var errs errcode.Errors
+	errs = append(errs, v2.ErrorCodeManifestUnknown.WithDetail("unknown manifest"))
+	errBytes, err := json.Marshal(errs)
 	if err != nil {
 		t.Fatal(err)
 	}
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
-			Method: "GET",
+			Method: http.MethodGet,
 			Route:  "/v2/" + repo.Name() + "/manifests/1.0.0",
 		},
 		Response: testutil.Response{
@@ -620,7 +620,7 @@ func TestManifestTagsPaginated(t *testing.T) {
 	tagsList := []string{"tag1", "tag2", "funtag"}
 	var m testutil.RequestResponseMap
 	for i := 0; i < 3; i++ {
-		body, err := json.Marshal(map[string]interface{}{
+		body, err := json.Marshal(map[string]any{
 			"name": "test.example.com/repo/tags/list",
 			"tags": []string{tagsList[i]},
 		})
@@ -655,7 +655,7 @@ func TestManifestTagsPaginated(t *testing.T) {
 
 		m = append(m, testutil.RequestResponseMapping{
 			Request: testutil.Request{
-				Method:      "GET",
+				Method:      http.MethodGet,
 				Route:       "/v2/" + repo.Name() + "/tags/list",
 				QueryParams: queryParams,
 			},
@@ -725,12 +725,12 @@ func TestSanitizeLocation(t *testing.T) {
 			expected:    "https://mwhahaha.com/v2/foo/baasdf?_state=asdfasfdasdfasdf",
 		},
 	} {
-		fatalf := func(format string, args ...interface{}) {
+		fatalf := func(format string, args ...any) {
 			t.Fatalf(testcase.description+": "+format, args...)
 		}
 
 		s, err := sanitizeLocation(testcase.location, testcase.source)
-		if err != testcase.err {
+		if !errors.Is(err, testcase.err) {
 			if testcase.err != nil {
 				fatalf("expected error: %v != %v", err, testcase)
 			} else {

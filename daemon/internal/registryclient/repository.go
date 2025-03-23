@@ -187,15 +187,15 @@ func descriptorFromResponse(response *http.Response) (distribution.Descriptor, e
 
 	digestHeader := headers.Get("Docker-Content-Digest")
 	if digestHeader == "" {
-		bytes, err := io.ReadAll(response.Body)
+		content, err := io.ReadAll(response.Body)
 		if err != nil {
 			return distribution.Descriptor{}, err
 		}
-		_, desc, err := distribution.UnmarshalManifest(ctHeader, bytes)
+		_, mfst, err := distribution.UnmarshalManifest(ctHeader, content)
 		if err != nil {
 			return distribution.Descriptor{}, err
 		}
-		return desc, nil
+		return mfst, nil
 	}
 
 	dgst, err := digest.Parse(digestHeader)
@@ -231,7 +231,7 @@ func (t *tags) Get(ctx context.Context, tag string) (distribution.Descriptor, er
 	}
 
 	newRequest := func(method string) (*http.Response, error) {
-		req, err := http.NewRequest(method, u, nil)
+		req, err := http.NewRequest(method, u, http.NoBody)
 		if err != nil {
 			return nil, err
 		}
@@ -243,14 +243,14 @@ func (t *tags) Get(ctx context.Context, tag string) (distribution.Descriptor, er
 		return resp, err
 	}
 
-	resp, err := newRequest("HEAD")
+	resp, err := newRequest(http.MethodHead)
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
 	defer resp.Body.Close()
 
 	switch {
-	case resp.StatusCode >= 200 && resp.StatusCode < 400 && len(resp.Header.Get("Docker-Content-Digest")) > 0:
+	case resp.StatusCode >= 200 && resp.StatusCode < 400 && resp.Header.Get("Docker-Content-Digest") != "":
 		// if the response is a success AND a Docker-Content-Digest can be retrieved from the headers
 		return descriptorFromResponse(resp)
 	default:
@@ -258,7 +258,7 @@ func (t *tags) Get(ctx context.Context, tag string) (distribution.Descriptor, er
 		// Issue a GET request:
 		//   - for data from a server that does not handle HEAD
 		//   - to get error details in case of a failure
-		resp, err = newRequest("GET")
+		resp, err = newRequest(http.MethodGet)
 		if err != nil {
 			return distribution.Descriptor{}, err
 		}
@@ -325,10 +325,10 @@ type etagOption struct{ tag, etag string }
 
 func (o etagOption) Apply(ms distribution.ManifestService) error {
 	if ms, ok := ms.(*manifests); ok {
-		ms.etags[o.tag] = fmt.Sprintf(`"%s"`, o.etag)
+		ms.etags[o.tag] = fmt.Sprintf(`%q`, o.etag)
 		return nil
 	}
-	return fmt.Errorf("etag options is a client-only option")
+	return errors.New("etag options is a client-only option")
 }
 
 // ReturnContentDigest allows a client to set a the content digest on
@@ -391,7 +391,7 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 		return nil, err
 	}
 
-	req, err := http.NewRequest("GET", u, nil)
+	req, err := http.NewRequest(http.MethodGet, u, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -475,7 +475,7 @@ func (ms *manifests) Put(ctx context.Context, m distribution.Manifest, options .
 		return "", err
 	}
 
-	putRequest, err := http.NewRequest("PUT", manifestURL, bytes.NewReader(p))
+	putRequest, err := http.NewRequest(http.MethodPut, manifestURL, bytes.NewReader(p))
 	if err != nil {
 		return "", err
 	}
@@ -510,7 +510,7 @@ func (ms *manifests) Delete(ctx context.Context, dgst digest.Digest) error {
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest("DELETE", u, nil)
+	req, err := http.NewRequest(http.MethodDelete, u, http.NoBody)
 	if err != nil {
 		return err
 	}
@@ -615,16 +615,16 @@ func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribut
 	return writer.Commit(ctx, desc)
 }
 
-type optionFunc func(interface{}) error
+type optionFunc func(any) error
 
-func (f optionFunc) Apply(v interface{}) error {
+func (f optionFunc) Apply(v any) error {
 	return f(v)
 }
 
 // WithMountFrom returns a BlobCreateOption which designates that the blob should be
 // mounted from the given canonical reference.
 func WithMountFrom(ref reference.Canonical) distribution.BlobCreateOption {
-	return optionFunc(func(v interface{}) error {
+	return optionFunc(func(v any) error {
 		opts, ok := v.(*distribution.CreateOptions)
 		if !ok {
 			return fmt.Errorf("unexpected options type: %T", v)
@@ -658,7 +658,7 @@ func (bs *blobs) Create(ctx context.Context, options ...distribution.BlobCreateO
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", u, nil)
+	req, err := http.NewRequest(http.MethodPost, u, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -758,7 +758,7 @@ func (bs *blobStatter) Clear(ctx context.Context, dgst digest.Digest) error {
 		return err
 	}
 
-	req, err := http.NewRequest("DELETE", blobURL, nil)
+	req, err := http.NewRequest(http.MethodDelete, blobURL, http.NoBody)
 	if err != nil {
 		return err
 	}

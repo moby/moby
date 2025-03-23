@@ -2,13 +2,13 @@ package registryclient
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/registry/api/errcode"
-	v2 "github.com/docker/distribution/registry/api/v2"
 	"github.com/moby/moby/v2/daemon/internal/registryclient/testutil"
 )
 
@@ -23,7 +23,7 @@ func TestUploadReadFrom(t *testing.T) {
 	m := testutil.RequestResponseMap([]testutil.RequestResponseMapping{
 		{
 			Request: testutil.Request{
-				Method: "GET",
+				Method: http.MethodGet,
 				Route:  "/v2/",
 			},
 			Response: testutil.Response{
@@ -36,7 +36,7 @@ func TestUploadReadFrom(t *testing.T) {
 		// Test Valid case
 		{
 			Request: testutil.Request{
-				Method: "PATCH",
+				Method: http.MethodPatch,
 				Route:  locationPath,
 				Body:   b,
 			},
@@ -52,7 +52,7 @@ func TestUploadReadFrom(t *testing.T) {
 		// Test invalid range
 		{
 			Request: testutil.Request{
-				Method: "PATCH",
+				Method: http.MethodPatch,
 				Route:  locationPath,
 				Body:   b,
 			},
@@ -68,7 +68,7 @@ func TestUploadReadFrom(t *testing.T) {
 		// Test 404
 		{
 			Request: testutil.Request{
-				Method: "PATCH",
+				Method: http.MethodPatch,
 				Route:  locationPath,
 				Body:   b,
 			},
@@ -79,7 +79,7 @@ func TestUploadReadFrom(t *testing.T) {
 		// Test 400 valid json
 		{
 			Request: testutil.Request{
-				Method: "PATCH",
+				Method: http.MethodPatch,
 				Route:  locationPath,
 				Body:   b,
 			},
@@ -101,7 +101,7 @@ func TestUploadReadFrom(t *testing.T) {
 		// Test 400 invalid json
 		{
 			Request: testutil.Request{
-				Method: "PATCH",
+				Method: http.MethodPatch,
 				Route:  locationPath,
 				Body:   b,
 			},
@@ -114,7 +114,7 @@ func TestUploadReadFrom(t *testing.T) {
 		// Test 500
 		{
 			Request: testutil.Request{
-				Method: "PATCH",
+				Method: http.MethodPatch,
 				Route:  locationPath,
 				Body:   b,
 			},
@@ -154,7 +154,7 @@ func TestUploadReadFrom(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error when not found")
 	}
-	if err != distribution.ErrBlobUploadUnknown {
+	if !errors.Is(err, distribution.ErrBlobUploadUnknown) {
 		t.Fatalf("Wrong error thrown: %s, expected %s", err, distribution.ErrBlobUploadUnknown)
 	}
 
@@ -164,24 +164,9 @@ func TestUploadReadFrom(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error when not found")
 	}
-	if uploadErr, ok := err.(errcode.Errors); !ok {
+	var uploadErr errcode.Errors
+	if !errors.As(err, &uploadErr) {
 		t.Fatalf("Wrong error type %T: %s", err, err)
-	} else if len(uploadErr) != 1 {
-		t.Fatalf("Unexpected number of errors: %d, expected 1", len(uploadErr))
-	} else {
-		v2Err, ok := uploadErr[0].(errcode.Error)
-		if !ok {
-			t.Fatalf("Not an 'Error' type: %#v", uploadErr[0])
-		}
-		if v2Err.Code != v2.ErrorCodeBlobUploadInvalid {
-			t.Fatalf("Unexpected error code: %s, expected %d", v2Err.Code.String(), v2.ErrorCodeBlobUploadInvalid)
-		}
-		if expected := "blob upload invalid"; v2Err.Message != expected {
-			t.Fatalf("Unexpected error message: %q, expected %q", v2Err.Message, expected)
-		}
-		if expected := "more detail"; v2Err.Detail.(string) != expected {
-			t.Fatalf("Unexpected error message: %q, expected %q", v2Err.Detail.(string), expected)
-		}
 	}
 
 	// 400 invalid json

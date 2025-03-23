@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"errors"
 
 	"github.com/docker/distribution"
 	prometheus "github.com/docker/distribution/metrics"
@@ -21,7 +22,7 @@ type Metrics struct {
 //
 // Usually, this is just a proxy to dcontext.GetLogger.
 type Logger interface {
-	Errorf(format string, args ...interface{})
+	Errorf(format string, args ...any)
 }
 
 // MetricsTracker represents a metric tracker
@@ -65,7 +66,7 @@ func (cbds *cachedBlobStatter) Stat(ctx context.Context, dgst digest.Digest) (di
 	cacheCount.WithValues("Request").Inc(1)
 	desc, err := cbds.cache.Stat(ctx, dgst)
 	if err != nil {
-		if err != distribution.ErrBlobUnknown {
+		if !errors.Is(err, distribution.ErrBlobUnknown) {
 			logErrorf(ctx, cbds.tracker, "error retrieving descriptor from cache: %v", err)
 		}
 
@@ -113,7 +114,7 @@ func (cbds *cachedBlobStatter) SetDescriptor(ctx context.Context, dgst digest.Di
 	return nil
 }
 
-func logErrorf(ctx context.Context, tracker MetricsTracker, format string, args ...interface{}) {
+func logErrorf(ctx context.Context, tracker MetricsTracker, format string, args ...any) {
 	if tracker == nil {
 		return
 	}

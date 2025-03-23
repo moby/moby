@@ -35,7 +35,7 @@ func (hbu *httpBlobUpload) handleErrorResponse(resp *http.Response) error {
 }
 
 func (hbu *httpBlobUpload) ReadFrom(r io.Reader) (n int64, err error) {
-	req, err := http.NewRequest("PATCH", hbu.location, io.NopCloser(r))
+	req, err := http.NewRequest(http.MethodPatch, hbu.location, io.NopCloser(r))
 	if err != nil {
 		return 0, err
 	}
@@ -69,7 +69,7 @@ func (hbu *httpBlobUpload) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func (hbu *httpBlobUpload) Write(p []byte) (n int, err error) {
-	req, err := http.NewRequest("PATCH", hbu.location, bytes.NewReader(p))
+	req, err := http.NewRequest(http.MethodPatch, hbu.location, bytes.NewReader(p))
 	if err != nil {
 		return 0, err
 	}
@@ -116,7 +116,7 @@ func (hbu *httpBlobUpload) StartedAt() time.Time {
 
 func (hbu *httpBlobUpload) Commit(ctx context.Context, desc distribution.Descriptor) (distribution.Descriptor, error) {
 	// TODO(dmcgowan): Check if already finished, if so just fetch
-	req, err := http.NewRequest("PUT", hbu.location, nil)
+	req, err := http.NewRequest(http.MethodPut, hbu.location, http.NoBody)
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
@@ -139,7 +139,7 @@ func (hbu *httpBlobUpload) Commit(ctx context.Context, desc distribution.Descrip
 }
 
 func (hbu *httpBlobUpload) Cancel(context.Context) error {
-	req, err := http.NewRequest("DELETE", hbu.location, nil)
+	req, err := http.NewRequest(http.MethodDelete, hbu.location, http.NoBody)
 	if err != nil {
 		return err
 	}

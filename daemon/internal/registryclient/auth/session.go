@@ -177,10 +177,10 @@ func (rs RegistryScope) String() string {
 
 // Logger defines the injectable logging interface, used on TokenHandlers.
 type Logger interface {
-	Debugf(format string, args ...interface{})
+	Debugf(format string, args ...any)
 }
 
-func logDebugf(logger Logger, format string, args ...interface{}) {
+func logDebugf(logger Logger, format string, args ...any) {
 	if logger == nil {
 		return
 	}
@@ -345,7 +345,7 @@ func (th *tokenHandler) fetchTokenWithOAuth(realm *url.URL, refreshToken, servic
 		form.Set("access_type", "offline")
 	} else {
 		// refuse to do oauth without a grant type
-		return "", time.Time{}, fmt.Errorf("no supported grant type")
+		return "", time.Time{}, errors.New("no supported grant type")
 	}
 
 	resp, err := th.client().PostForm(realm.String(), form)
@@ -393,7 +393,7 @@ type getTokenResponse struct {
 }
 
 func (th *tokenHandler) fetchTokenWithBasicAuth(realm *url.URL, service string, scopes []string) (token string, expiration time.Time, err error) {
-	req, err := http.NewRequest("GET", realm.String(), nil)
+	req, err := http.NewRequest(http.MethodGet, realm.String(), http.NoBody)
 	if err != nil {
 		return "", time.Time{}, err
 	}

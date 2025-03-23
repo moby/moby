@@ -50,26 +50,26 @@ func TestAuthChallengeNormalization(t *testing.T) {
 func testAuthChallengeNormalization(t *testing.T, host string) {
 	scm := NewSimpleManager()
 
-	url, err := url.Parse(fmt.Sprintf("http://%s/v2/", host))
+	registryURL, err := url.Parse(fmt.Sprintf("http://%s/v2/", host))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	resp := &http.Response{
 		Request: &http.Request{
-			URL: url,
+			URL: registryURL,
 		},
 		Header:     make(http.Header),
 		StatusCode: http.StatusUnauthorized,
 	}
-	resp.Header.Add("WWW-Authenticate", fmt.Sprintf("Bearer realm=\"https://%s/token\",service=\"registry.example.com\"", host))
+	resp.Header.Add("WWW-Authenticate", fmt.Sprintf(`Bearer realm="https://%s/token",service="registry.example.com"`, host))
 
 	err = scm.AddResponse(resp)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	lowered := *url
+	lowered := *registryURL
 	lowered.Host = strings.ToLower(lowered.Host)
 	lowered.Host = canonicalAddr(&lowered)
 	c, err := scm.GetChallenges(lowered)
@@ -85,19 +85,19 @@ func testAuthChallengeNormalization(t *testing.T, host string) {
 func testAuthChallengeConcurrent(t *testing.T, host string) {
 	scm := NewSimpleManager()
 
-	url, err := url.Parse(fmt.Sprintf("http://%s/v2/", host))
+	registryURL, err := url.Parse(fmt.Sprintf("http://%s/v2/", host))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	resp := &http.Response{
 		Request: &http.Request{
-			URL: url,
+			URL: registryURL,
 		},
 		Header:     make(http.Header),
 		StatusCode: http.StatusUnauthorized,
 	}
-	resp.Header.Add("WWW-Authenticate", fmt.Sprintf("Bearer realm=\"https://%s/token\",service=\"registry.example.com\"", host))
+	resp.Header.Add("WWW-Authenticate", fmt.Sprintf(`Bearer realm="https://%s/token",service="registry.example.com"`, host))
 	var s sync.WaitGroup
 	s.Add(2)
 	go func() {
@@ -111,7 +111,7 @@ func testAuthChallengeConcurrent(t *testing.T, host string) {
 	}()
 	go func() {
 		defer s.Done()
-		lowered := *url
+		lowered := *registryURL
 		lowered.Host = strings.ToLower(lowered.Host)
 		for k := 0; k < 200; k++ {
 			_, err := scm.GetChallenges(lowered)
