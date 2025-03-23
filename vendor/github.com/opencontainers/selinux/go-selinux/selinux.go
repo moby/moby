@@ -41,6 +41,10 @@ var (
 	// ErrVerifierNil is returned when a context verifier function is nil.
 	ErrVerifierNil = errors.New("verifier function is nil")
 
+	// ErrNotTGLeader is returned by [SetKeyLabel] if the calling thread
+	// is not the thread group leader.
+	ErrNotTGLeader = errors.New("calling thread is not the thread group leader")
+
 	// CategoryRange allows the upper bound on the category range to be adjusted
 	CategoryRange = DefaultCategoryRange
 
@@ -180,10 +184,14 @@ func PeerLabel(fd uintptr) (string, error) {
 }
 
 // SetKeyLabel takes a process label and tells the kernel to assign the
-// label to the next kernel keyring that gets created. Calls to SetKeyLabel
-// should be wrapped in runtime.LockOSThread()/runtime.UnlockOSThread() until
-// the kernel keyring is created to guarantee another goroutine does not migrate
-// to the current thread before execution is complete.
+// label to the next kernel keyring that gets created.
+//
+// Calls to SetKeyLabel should be wrapped in
+// runtime.LockOSThread()/runtime.UnlockOSThread() until the kernel keyring is
+// created to guarantee another goroutine does not migrate to the current
+// thread before execution is complete.
+//
+// Only the thread group leader can set key label.
 func SetKeyLabel(label string) error {
 	return setKeyLabel(label)
 }

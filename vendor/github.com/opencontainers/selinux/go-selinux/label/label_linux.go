@@ -79,12 +79,6 @@ func InitLabels(options []string) (plabel string, mlabel string, retErr error) {
 	return processLabel, mountLabel, nil
 }
 
-// Deprecated: The GenLabels function is only to be used during the transition
-// to the official API. Use InitLabels(strings.Fields(options)) instead.
-func GenLabels(options string) (string, string, error) {
-	return InitLabels(strings.Fields(options))
-}
-
 // SetFileLabel modifies the "path" label to the specified file label
 func SetFileLabel(path string, fileLabel string) error {
 	if !selinux.GetEnabled() || fileLabel == "" {
@@ -122,11 +116,6 @@ func Relabel(path string, fileLabel string, shared bool) error {
 	}
 	return selinux.Chcon(path, fileLabel, true)
 }
-
-// DisableSecOpt returns a security opt that can disable labeling
-// support for future container processes
-// Deprecated: use selinux.DisableSecOpt
-var DisableSecOpt = selinux.DisableSecOpt
 
 // Validate checks that the label does not include unexpected options
 func Validate(label string) error {
