@@ -53,10 +53,10 @@ func addTestFetch(repo string, dgst digest.Digest, content []byte, m *testutil.R
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
 			Body:       content,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length": {fmt.Sprint(len(content))},
 				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
-			}),
+			},
 		},
 	})
 
@@ -67,10 +67,10 @@ func addTestFetch(repo string, dgst digest.Digest, content []byte, m *testutil.R
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length": {fmt.Sprint(len(content))},
 				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
-			}),
+			},
 		},
 	})
 }
@@ -86,9 +86,9 @@ func TestBlobDelete(t *testing.T) {
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusAccepted,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length": {"0"},
-			}),
+			},
 		},
 	})
 
@@ -147,10 +147,9 @@ func TestBlobExistsNoContentLength(t *testing.T) {
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
 			Body:       content,
-			Headers: http.Header(map[string][]string{
-				//			"Content-Length": {fmt.Sprint(len(content))},
+			Headers: http.Header{
 				"Last-Modified": {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
-			}),
+			},
 		},
 	})
 
@@ -161,10 +160,9 @@ func TestBlobExistsNoContentLength(t *testing.T) {
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
-			Headers: http.Header(map[string][]string{
-				//			"Content-Length": {fmt.Sprint(len(content))},
+			Headers: http.Header{
 				"Last-Modified": {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
-			}),
+			},
 		},
 	})
 	e, c := testServer(m)
@@ -236,12 +234,12 @@ func TestBlobUploadChunked(t *testing.T) {
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusAccepted,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length":     {"0"},
 				"Location":           {"/v2/" + repo.Name() + "/blobs/uploads/" + uuids[0]},
 				"Docker-Upload-UUID": {uuids[0]},
 				"Range":              {"0-0"},
-			}),
+			},
 		},
 	})
 	offset := 0
@@ -256,12 +254,12 @@ func TestBlobUploadChunked(t *testing.T) {
 			},
 			Response: testutil.Response{
 				StatusCode: http.StatusAccepted,
-				Headers: http.Header(map[string][]string{
+				Headers: http.Header{
 					"Content-Length":     {"0"},
 					"Location":           {"/v2/" + repo.Name() + "/blobs/uploads/" + uuids[i+1]},
 					"Docker-Upload-UUID": {uuids[i+1]},
 					"Range":              {fmt.Sprintf("%d-%d", offset, newOffset-1)},
-				}),
+				},
 			},
 		})
 		offset = newOffset
@@ -276,11 +274,11 @@ func TestBlobUploadChunked(t *testing.T) {
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusCreated,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length":        {"0"},
 				"Docker-Content-Digest": {dgst.String()},
 				"Content-Range":         {fmt.Sprintf("0-%d", offset-1)},
-			}),
+			},
 		},
 	})
 	m = append(m, testutil.RequestResponseMapping{
@@ -290,10 +288,10 @@ func TestBlobUploadChunked(t *testing.T) {
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length": {fmt.Sprint(offset)},
 				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
-			}),
+			},
 		},
 	})
 
@@ -351,12 +349,12 @@ func TestBlobUploadMonolithic(t *testing.T) {
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusAccepted,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length":     {"0"},
 				"Location":           {"/v2/" + repo.Name() + "/blobs/uploads/" + uploadID},
 				"Docker-Upload-UUID": {uploadID},
 				"Range":              {"0-0"},
-			}),
+			},
 		},
 	})
 	m = append(m, testutil.RequestResponseMapping{
@@ -367,13 +365,13 @@ func TestBlobUploadMonolithic(t *testing.T) {
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusAccepted,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Location":              {"/v2/" + repo.Name() + "/blobs/uploads/" + uploadID},
 				"Docker-Upload-UUID":    {uploadID},
 				"Content-Length":        {"0"},
 				"Docker-Content-Digest": {dgst.String()},
 				"Range":                 {fmt.Sprintf("0-%d", len(b1)-1)},
-			}),
+			},
 		},
 	})
 	m = append(m, testutil.RequestResponseMapping{
@@ -386,11 +384,11 @@ func TestBlobUploadMonolithic(t *testing.T) {
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusCreated,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length":        {"0"},
 				"Docker-Content-Digest": {dgst.String()},
 				"Content-Range":         {fmt.Sprintf("0-%d", len(b1)-1)},
-			}),
+			},
 		},
 	})
 	m = append(m, testutil.RequestResponseMapping{
@@ -400,10 +398,10 @@ func TestBlobUploadMonolithic(t *testing.T) {
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length": {fmt.Sprint(len(b1))},
 				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
-			}),
+			},
 		},
 	})
 
@@ -463,11 +461,11 @@ func TestBlobMount(t *testing.T) {
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusCreated,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length":        {"0"},
 				"Location":              {"/v2/" + repo.Name() + "/blobs/" + dgst.String()},
 				"Docker-Content-Digest": {dgst.String()},
-			}),
+			},
 		},
 	})
 	m = append(m, testutil.RequestResponseMapping{
@@ -477,10 +475,10 @@ func TestBlobMount(t *testing.T) {
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length": {fmt.Sprint(len(content))},
 				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
-			}),
+			},
 		},
 	})
 
@@ -552,9 +550,9 @@ func addTestManifestWithEtag(repo reference.Named, reference string, content []b
 	getReqWithEtag := testutil.Request{
 		Method: "GET",
 		Route:  "/v2/" + repo.Name() + "/manifests/" + reference,
-		Headers: http.Header(map[string][]string{
+		Headers: http.Header{
 			"If-None-Match": {fmt.Sprintf(`"%s"`, dgst)},
-		}),
+		},
 	}
 
 	var getRespWithEtag testutil.Response
@@ -562,21 +560,21 @@ func addTestManifestWithEtag(repo reference.Named, reference string, content []b
 		getRespWithEtag = testutil.Response{
 			StatusCode: http.StatusNotModified,
 			Body:       []byte{},
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length": {"0"},
 				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
 				"Content-Type":   {schema1.MediaTypeSignedManifest},
-			}),
+			},
 		}
 	} else {
 		getRespWithEtag = testutil.Response{
 			StatusCode: http.StatusOK,
 			Body:       content,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length": {fmt.Sprint(len(content))},
 				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
 				"Content-Type":   {schema1.MediaTypeSignedManifest},
-			}),
+			},
 		}
 	}
 	*m = append(*m, testutil.RequestResponseMapping{Request: getReqWithEtag, Response: getRespWithEtag})
@@ -599,12 +597,12 @@ func addTestManifest(repo reference.Named, reference string, mediatype string, c
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
 			Body:       content,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length":        {fmt.Sprint(len(content))},
 				"Last-Modified":         {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
 				"Content-Type":          {mediatype},
 				"Docker-Content-Digest": {contentDigestString(mediatype, content)},
-			}),
+			},
 		},
 	})
 	*m = append(*m, testutil.RequestResponseMapping{
@@ -614,12 +612,12 @@ func addTestManifest(repo reference.Named, reference string, mediatype string, c
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length":        {fmt.Sprint(len(content))},
 				"Last-Modified":         {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
 				"Content-Type":          {mediatype},
 				"Docker-Content-Digest": {digest.Canonical.FromBytes(content).String()},
-			}),
+			},
 		},
 	})
 }
@@ -633,11 +631,11 @@ func addTestManifestWithoutDigestHeader(repo reference.Named, reference string, 
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
 			Body:       content,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length": {fmt.Sprint(len(content))},
 				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
 				"Content-Type":   {mediatype},
-			}),
+			},
 		},
 	})
 	*m = append(*m, testutil.RequestResponseMapping{
@@ -647,11 +645,11 @@ func addTestManifestWithoutDigestHeader(repo reference.Named, reference string, 
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length": {fmt.Sprint(len(content))},
 				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
 				"Content-Type":   {mediatype},
-			}),
+			},
 		},
 	})
 }
@@ -715,13 +713,13 @@ func TestV1ManifestFetch(t *testing.T) {
 		t.Fatal("Manifest does not exist")
 	}
 
-	manifest, err := ms.Get(ctx, dgst)
+	mfst, err := ms.Get(ctx, dgst)
 	if err != nil {
 		t.Fatal(err)
 	}
-	v1manifest, ok := manifest.(*schema1.SignedManifest)
+	v1manifest, ok := mfst.(*schema1.SignedManifest)
 	if !ok {
-		t.Fatalf("Unexpected manifest type from Get: %T", manifest)
+		t.Fatalf("Unexpected manifest type from Get: %T", mfst)
 	}
 
 	if err := checkEqualManifest(v1manifest, m1); err != nil {
@@ -729,13 +727,13 @@ func TestV1ManifestFetch(t *testing.T) {
 	}
 
 	var contentDigest digest.Digest
-	manifest, err = ms.Get(ctx, dgst, distribution.WithTag("latest"), ReturnContentDigest(&contentDigest))
+	mfst, err = ms.Get(ctx, dgst, distribution.WithTag("latest"), ReturnContentDigest(&contentDigest))
 	if err != nil {
 		t.Fatal(err)
 	}
-	v1manifest, ok = manifest.(*schema1.SignedManifest)
+	v1manifest, ok = mfst.(*schema1.SignedManifest)
 	if !ok {
-		t.Fatalf("Unexpected manifest type from Get: %T", manifest)
+		t.Fatalf("Unexpected manifest type from Get: %T", mfst)
 	}
 
 	if err = checkEqualManifest(v1manifest, m1); err != nil {
@@ -746,13 +744,13 @@ func TestV1ManifestFetch(t *testing.T) {
 		t.Fatalf("Unexpected returned content digest %v, expected %v", contentDigest, dgst)
 	}
 
-	manifest, err = ms.Get(ctx, dgst, distribution.WithTag("badcontenttype"))
+	mfst, err = ms.Get(ctx, dgst, distribution.WithTag("badcontenttype"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	v1manifest, ok = manifest.(*schema1.SignedManifest)
+	v1manifest, ok = mfst.(*schema1.SignedManifest)
 	if !ok {
-		t.Fatalf("Unexpected manifest type from Get: %T", manifest)
+		t.Fatalf("Unexpected manifest type from Get: %T", mfst)
 	}
 
 	if err = checkEqualManifest(v1manifest, m1); err != nil {
@@ -837,7 +835,7 @@ func TestManifestFetchWithAccept(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		ms.Get(ctx, dgst, distribution.WithManifestMediaTypes(testCase.mediaTypes))
+		_, _ = ms.Get(ctx, dgst, distribution.WithManifestMediaTypes(testCase.mediaTypes))
 		actual := <-headers
 		if testCase.sort {
 			sort.Strings(actual)
@@ -861,9 +859,9 @@ func TestManifestDelete(t *testing.T) {
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusAccepted,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length": {"0"},
-			}),
+			},
 		},
 	})
 
@@ -907,10 +905,10 @@ func TestManifestPut(t *testing.T) {
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusAccepted,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length":        {"0"},
 				"Docker-Content-Digest": {dgst.String()},
-			}),
+			},
 		},
 	})
 
@@ -923,10 +921,10 @@ func TestManifestPut(t *testing.T) {
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusAccepted,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Length":        {"0"},
 				"Docker-Content-Digest": {putDgst.String()},
-			}),
+			},
 		},
 	})
 
@@ -976,10 +974,10 @@ func TestManifestTags(t *testing.T) {
 			Response: testutil.Response{
 				StatusCode: http.StatusOK,
 				Body:       tagsList,
-				Headers: http.Header(map[string][]string{
+				Headers: http.Header{
 					"Content-Length": {fmt.Sprint(len(tagsList))},
 					"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
-				}),
+				},
 			},
 		})
 	}
@@ -994,12 +992,12 @@ func TestManifestTags(t *testing.T) {
 	ctx := context.Background()
 	tagService := r.Tags(ctx)
 
-	tags, err := tagService.All(ctx)
+	allTags, err := tagService.All(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tags) != 3 {
-		t.Fatalf("Wrong number of tags returned: %d, expected 3", len(tags))
+	if len(allTags) != 3 {
+		t.Fatalf("Wrong number of tags returned: %d, expected 3", len(allTags))
 	}
 
 	expected := map[string]struct{}{
@@ -1007,7 +1005,7 @@ func TestManifestTags(t *testing.T) {
 		"tag2":   {},
 		"funtag": {},
 	}
-	for _, t := range tags {
+	for _, t := range allTags {
 		delete(expected, t)
 	}
 	if len(expected) != 0 {
@@ -1034,9 +1032,9 @@ func TestObtainsErrorForMissingTag(t *testing.T) {
 		Response: testutil.Response{
 			StatusCode: http.StatusNotFound,
 			Body:       errBytes,
-			Headers: http.Header(map[string][]string{
+			Headers: http.Header{
 				"Content-Type": {"application/json; charset=utf-8"},
-			}),
+			},
 		},
 	})
 	e, c := testServer(m)
@@ -1123,10 +1121,10 @@ func TestManifestTagsPaginated(t *testing.T) {
 			link = s.URL + relativeLink
 		}
 
-		headers := http.Header(map[string][]string{
+		headers := http.Header{
 			"Content-Length": {fmt.Sprint(len(body))},
 			"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
-		})
+		}
 		if link != "" {
 			headers.Set("Link", fmt.Sprintf(`<%s>; rel="next"`, link))
 		}
@@ -1155,12 +1153,12 @@ func TestManifestTagsPaginated(t *testing.T) {
 	ctx := context.Background()
 	tagService := r.Tags(ctx)
 
-	tags, err := tagService.All(ctx)
+	allTags, err := tagService.All(ctx)
 	if err != nil {
-		t.Fatal(tags, err)
+		t.Fatal(allTags, err)
 	}
-	if len(tags) != 3 {
-		t.Fatalf("Wrong number of tags returned: %d, expected 3", len(tags))
+	if len(allTags) != 3 {
+		t.Fatalf("Wrong number of tags returned: %d, expected 3", len(allTags))
 	}
 
 	expected := map[string]struct{}{
@@ -1168,7 +1166,7 @@ func TestManifestTagsPaginated(t *testing.T) {
 		"tag2":   {},
 		"funtag": {},
 	}
-	for _, t := range tags {
+	for _, t := range allTags {
 		delete(expected, t)
 	}
 	if len(expected) != 0 {

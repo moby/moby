@@ -28,9 +28,9 @@ func TestUploadReadFrom(t *testing.T) {
 			},
 			Response: testutil.Response{
 				StatusCode: http.StatusOK,
-				Headers: http.Header(map[string][]string{
+				Headers: http.Header{
 					"Docker-Distribution-API-Version": {"registry/2.0"},
-				}),
+				},
 			},
 		},
 		// Test Valid case
@@ -42,11 +42,11 @@ func TestUploadReadFrom(t *testing.T) {
 			},
 			Response: testutil.Response{
 				StatusCode: http.StatusAccepted,
-				Headers: http.Header(map[string][]string{
+				Headers: http.Header{
 					"Docker-Upload-UUID": {"46603072-7a1b-4b41-98f9-fd8a7da89f9b"},
 					"Location":           {locationPath},
 					"Range":              {"0-63"},
-				}),
+				},
 			},
 		},
 		// Test invalid range
