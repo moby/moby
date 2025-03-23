@@ -526,7 +526,7 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 }
 
 type mockBlobStoreWithCreate struct {
-	mockBlobStore
+	mockBlobService
 	repo *mockRepoWithBlob
 }
 
@@ -538,9 +538,9 @@ type mockRepoWithBlob struct {
 	mockRepo
 }
 
-func (m *mockRepoWithBlob) Blobs(ctx context.Context) distribution.BlobStore {
+func (m *mockRepoWithBlob) Blobs(ctx context.Context) distribution.BlobService {
 	blob := &mockBlobStoreWithCreate{}
-	blob.mockBlobStore.repo = &m.mockRepo
+	blob.mockBlobService.repo = &m.mockRepo
 	blob.repo = m
 	return blob
 }
@@ -620,20 +620,20 @@ type mockRepo struct {
 
 var _ registryclient.Repository = &mockRepo{}
 
-func (m *mockRepo) Blobs(ctx context.Context) distribution.BlobStore {
-	return &mockBlobStore{
+func (m *mockRepo) Blobs(ctx context.Context) distribution.BlobService {
+	return &mockBlobService{
 		repo: m,
 	}
 }
 
-type mockBlobStore struct {
-	distribution.BlobStore
+type mockBlobService struct {
+	distribution.BlobService
 	repo *mockRepo
 }
 
-var _ distribution.BlobStore = &mockBlobStore{}
+var _ distribution.BlobService = &mockBlobService{}
 
-func (m *mockBlobStore) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
+func (m *mockBlobService) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
 	m.repo.requests = append(m.repo.requests, dgst.String())
 	if err, exists := m.repo.errors[dgst]; exists {
 		return distribution.Descriptor{}, err

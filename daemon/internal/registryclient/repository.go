@@ -85,11 +85,7 @@ type Repository interface {
 	Manifests(ctx context.Context, options ...distribution.ManifestServiceOption) (distribution.ManifestService, error)
 
 	// Blobs returns a reference to this repository's blob service.
-	Blobs(ctx context.Context) distribution.BlobStore
-
-	// TODO(stevvooe): The above BlobStore return can probably be relaxed to
-	// be a BlobService for use with clients. This will allow such
-	// implementations to avoid implementing ServeBlob.
+	Blobs(ctx context.Context) distribution.BlobService
 
 	// Tags returns a reference to this repositories tag service
 	Tags(ctx context.Context) *TagService
@@ -105,7 +101,7 @@ func (r *repository) Named() reference.Named {
 	return r.name
 }
 
-func (r *repository) Blobs(ctx context.Context) distribution.BlobStore {
+func (r *repository) Blobs(ctx context.Context) distribution.BlobService {
 	statter := &blobStatter{
 		name:   r.name,
 		ub:     r.ub,
@@ -546,7 +542,6 @@ type blobs struct {
 	client *http.Client
 
 	statter distribution.BlobDescriptorService
-	distribution.BlobDeleter
 }
 
 func sanitizeLocation(location, base string) (string, error) {
@@ -594,10 +589,6 @@ func (bs *blobs) Open(ctx context.Context, dgst digest.Digest) (distribution.Rea
 			}
 			return HandleErrorResponse(resp)
 		}), nil
-}
-
-func (bs *blobs) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, dgst digest.Digest) error {
-	panic("not implemented")
 }
 
 func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribution.Descriptor, error) {
@@ -706,10 +697,6 @@ func (bs *blobs) Create(ctx context.Context, options ...distribution.BlobCreateO
 
 func (bs *blobs) Resume(ctx context.Context, id string) (distribution.BlobWriter, error) {
 	panic("not implemented")
-}
-
-func (bs *blobs) Delete(ctx context.Context, dgst digest.Digest) error {
-	return bs.statter.Clear(ctx, dgst)
 }
 
 type blobStatter struct {

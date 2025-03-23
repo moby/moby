@@ -71,38 +71,6 @@ func addTestFetch(repo string, dgst digest.Digest, content []byte, m *testutil.R
 	})
 }
 
-func TestBlobDelete(t *testing.T) {
-	dgst, _ := newRandomBlob(1024)
-	var m testutil.RequestResponseMap
-	repo, _ := reference.WithName("test.example.com/repo1")
-	m = append(m, testutil.RequestResponseMapping{
-		Request: testutil.Request{
-			Method: http.MethodDelete,
-			Route:  "/v2/" + repo.Name() + "/blobs/" + dgst.String(),
-		},
-		Response: testutil.Response{
-			StatusCode: http.StatusAccepted,
-			Headers: http.Header{
-				"Content-Length": {"0"},
-			},
-		},
-	})
-
-	e, c := testServer(m)
-	defer c()
-
-	ctx := context.Background()
-	r, err := NewRepository(repo, e, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	l := r.Blobs(ctx)
-	err = l.Delete(ctx, dgst)
-	if err != nil {
-		t.Errorf("Error deleting blob: %s", err.Error())
-	}
-}
-
 func TestBlobFetch(t *testing.T) {
 	d1, b1 := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
