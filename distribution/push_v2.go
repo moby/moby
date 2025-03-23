@@ -19,7 +19,7 @@ import (
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
-	client "github.com/docker/docker/internal/registryclient"
+	"github.com/docker/docker/internal/registryclient"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
@@ -54,7 +54,7 @@ type pusher struct {
 	endpoint        registry.APIEndpoint
 	repoInfo        *registry.RepositoryInfo
 	config          *ImagePushConfig
-	repo            distribution.Repository
+	repo            registryclient.Repository
 
 	// pushState is state built by the Upload functions.
 	pushState pushState
@@ -277,7 +277,7 @@ type pushDescriptor struct {
 	repoInfo         reference.Named
 	ref              reference.Named
 	endpoint         registry.APIEndpoint
-	repo             distribution.Repository
+	repo             registryclient.Repository
 	pushState        *pushState
 	remoteDescriptor distribution.Descriptor
 	// a set of digests whose presence has been checked in a target repository
@@ -357,7 +357,7 @@ func (pd *pushDescriptor) Upload(ctx context.Context, progressOutput progress.Ou
 				continue
 			}
 
-			createOpts = append(createOpts, client.WithMountFrom(canonicalRef))
+			createOpts = append(createOpts, registryclient.WithMountFrom(canonicalRef))
 		}
 
 		// send the layer

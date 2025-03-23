@@ -56,7 +56,7 @@ func checkHTTPRedirect(req *http.Request, via []*http.Request) error {
 }
 
 // NewRepository creates a new Repository for the given repository name and base URL.
-func NewRepository(name reference.Named, baseURL string, transport http.RoundTripper) (distribution.Repository, error) {
+func NewRepository(name reference.Named, baseURL string, transport http.RoundTripper) (Repository, error) {
 	ub, err := v2.NewURLBuilderFromString(baseURL, false)
 	if err != nil {
 		return nil, err
@@ -73,6 +73,26 @@ func NewRepository(name reference.Named, baseURL string, transport http.RoundTri
 		ub:     ub,
 		name:   name,
 	}, nil
+}
+
+// Repository is a named collection of manifests and layers.
+type Repository interface {
+	// Named returns the name of the repository.
+	Named() reference.Named
+
+	// Manifests returns a reference to this repository's manifest service.
+	// with the supplied options applied.
+	Manifests(ctx context.Context, options ...distribution.ManifestServiceOption) (distribution.ManifestService, error)
+
+	// Blobs returns a reference to this repository's blob service.
+	Blobs(ctx context.Context) distribution.BlobStore
+
+	// TODO(stevvooe): The above BlobStore return can probably be relaxed to
+	// be a BlobService for use with clients. This will allow such
+	// implementations to avoid implementing ServeBlob.
+
+	// Tags returns a reference to this repositories tag service
+	Tags(ctx context.Context) distribution.TagService
 }
 
 type repository struct {

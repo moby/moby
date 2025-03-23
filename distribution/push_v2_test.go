@@ -12,6 +12,7 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution/metadata"
+	"github.com/docker/docker/internal/registryclient"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
 	refstore "github.com/docker/docker/reference"
@@ -612,14 +613,14 @@ func taggedMetadata(key string, dgst string, sourceRepo string) metadata.V2Metad
 }
 
 type mockRepo struct {
-	distribution.Repository
+	registryclient.Repository
 	t        *testing.T
 	errors   map[digest.Digest]error
 	blobs    map[digest.Digest]distribution.Descriptor
 	requests []string
 }
 
-var _ distribution.Repository = &mockRepo{}
+var _ registryclient.Repository = &mockRepo{}
 
 func (m *mockRepo) Blobs(ctx context.Context) distribution.BlobStore {
 	return &mockBlobStore{

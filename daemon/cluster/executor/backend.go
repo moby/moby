@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
-	"github.com/docker/distribution"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -20,6 +19,7 @@ import (
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/registryclient"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/cluster"
 	networktypes "github.com/docker/docker/libnetwork/types"
@@ -75,6 +75,6 @@ type VolumeBackend interface {
 // ImageBackend is used by an executor to perform image operations
 type ImageBackend interface {
 	PullImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
-	GetRepositories(context.Context, reference.Named, *registry.AuthConfig) ([]distribution.Repository, error)
+	GetRepositories(context.Context, reference.Named, *registry.AuthConfig) ([]registryclient.Repository, error)
 	GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*image.Image, error)
 }
