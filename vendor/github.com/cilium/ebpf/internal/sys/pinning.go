@@ -1,4 +1,4 @@
-package internal
+package sys
 
 import (
 	"errors"
@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/cilium/ebpf/internal/sys"
+	"github.com/cilium/ebpf/internal/linux"
 	"github.com/cilium/ebpf/internal/unix"
 )
 
-func Pin(currentPath, newPath string, fd *sys.FD) error {
+func Pin(currentPath, newPath string, fd *FD) error {
 	if newPath == "" {
 		return errors.New("given pinning path cannot be empty")
 	}
@@ -19,7 +19,7 @@ func Pin(currentPath, newPath string, fd *sys.FD) error {
 		return nil
 	}
 
-	fsType, err := FSType(filepath.Dir(newPath))
+	fsType, err := linux.FSType(filepath.Dir(newPath))
 	if err != nil {
 		return err
 	}
@@ -30,8 +30,8 @@ func Pin(currentPath, newPath string, fd *sys.FD) error {
 	defer runtime.KeepAlive(fd)
 
 	if currentPath == "" {
-		return sys.ObjPin(&sys.ObjPinAttr{
-			Pathname: sys.NewStringPointer(newPath),
+		return ObjPin(&ObjPinAttr{
+			Pathname: NewStringPointer(newPath),
 			BpfFd:    fd.Uint(),
 		})
 	}
@@ -47,8 +47,8 @@ func Pin(currentPath, newPath string, fd *sys.FD) error {
 		return fmt.Errorf("unable to move pinned object to new path %v: %w", newPath, err)
 	}
 	// Internal state not in sync with the file system so let's fix it.
-	return sys.ObjPin(&sys.ObjPinAttr{
-		Pathname: sys.NewStringPointer(newPath),
+	return ObjPin(&ObjPinAttr{
+		Pathname: NewStringPointer(newPath),
 		BpfFd:    fd.Uint(),
 	})
 }

@@ -66,15 +66,12 @@ type MapSpec struct {
 	Pinning PinType
 
 	// Specify numa node during map creation
-	// (effective only if unix.BPF_F_NUMA_NODE flag is set,
+	// (effective only if sys.BPF_F_NUMA_NODE flag is set,
 	// which can be imported from golang.org/x/sys/unix)
 	NumaNode uint32
 
 	// The initial contents of the map. May be nil.
 	Contents []MapKV
-
-	// Whether to freeze a map after setting its initial contents.
-	Freeze bool
 
 	// InnerMap is used as a template for ArrayOfMaps and HashOfMaps
 	InnerMap *MapSpec
@@ -161,6 +158,17 @@ func (spec *MapSpec) fixupMagicFields() (*MapSpec, error) {
 			// behaviour in the past.
 			spec.MaxEntries = n
 		}
+
+	case CPUMap:
+		n, err := PossibleCPU()
+		if err != nil {
+			return nil, fmt.Errorf("fixup cpu map: %w", err)
+		}
+
+		if n := uint32(n); spec.MaxEntries == 0 || spec.MaxEntries > n {
+			// Perform clamping similar to PerfEventArray.
+			spec.MaxEntries = n
+		}
 	}
 
 	return spec, nil
@@ -188,6 +196,14 @@ func (ms *MapSpec) dataSection() ([]byte, *btf.Datasec, error) {
 	}
 
 	return value, ds, nil
+}
+
+func (ms *MapSpec) readOnly() bool {
+	return (ms.Flags & sys.BPF_F_RDONLY_PROG) > 0
+}
+
+func (ms *MapSpec) writeOnly() bool {
+	return (ms.Flags & sys.BPF_F_WRONLY_PROG) > 0
 }
 
 // MapKV is used to initialize the contents of a Map.
@@ -222,7 +238,7 @@ func (ms *MapSpec) Compatible(m *Map) error {
 
 	// BPF_F_RDONLY_PROG is set unconditionally for devmaps. Explicitly allow this
 	// mismatch.
-	if !((ms.Type == DevMap || ms.Type == DevMapHash) && m.flags^ms.Flags == unix.BPF_F_RDONLY_PROG) &&
+	if !((ms.Type == DevMap || ms.Type == DevMapHash) && m.flags^ms.Flags == sys.BPF_F_RDONLY_PROG) &&
 		m.flags != ms.Flags {
 		diffs = append(diffs, fmt.Sprintf("Flags: %d changed to %d", m.flags, ms.Flags))
 	}
@@ -254,6 +270,8 @@ type Map struct {
 	pinnedPath string
 	// Per CPU maps return values larger than the size in the spec
 	fullValueSize int
+
+	memory *Memory
 }
 
 // NewMapFromFD creates a map from a raw fd.
@@ -359,7 +377,7 @@ func newMapWithOptions(spec *MapSpec, opts MapOptions) (_ *Map, err error) {
 			return nil, errors.New("inner maps cannot be pinned")
 		}
 
-		template, err := spec.InnerMap.createMap(nil, opts)
+		template, err := spec.InnerMap.createMap(nil)
 		if err != nil {
 			return nil, fmt.Errorf("inner map: %w", err)
 		}
@@ -371,7 +389,7 @@ func newMapWithOptions(spec *MapSpec, opts MapOptions) (_ *Map, err error) {
 		innerFd = template.fd
 	}
 
-	m, err := spec.createMap(innerFd, opts)
+	m, err := spec.createMap(innerFd)
 	if err != nil {
 		return nil, err
 	}
@@ -387,9 +405,54 @@ func newMapWithOptions(spec *MapSpec, opts MapOptions) (_ *Map, err error) {
 	return m, nil
 }
 
+// Memory returns a memory-mapped region for the Map. The Map must have been
+// created with the BPF_F_MMAPABLE flag. Repeated calls to Memory return the
+// same mapping. Callers are responsible for coordinating access to Memory.
+func (m *Map) Memory() (*Memory, error) {
+	if m.memory != nil {
+		return m.memory, nil
+	}
+
+	if m.flags&sys.BPF_F_MMAPABLE == 0 {
+		return nil, fmt.Errorf("Map was not created with the BPF_F_MMAPABLE flag: %w", ErrNotSupported)
+	}
+
+	size, err := m.memorySize()
+	if err != nil {
+		return nil, err
+	}
+
+	mm, err := newMemory(m.FD(), size)
+	if err != nil {
+		return nil, fmt.Errorf("creating new Memory: %w", err)
+	}
+
+	m.memory = mm
+
+	return mm, nil
+}
+
+func (m *Map) memorySize() (int, error) {
+	switch m.Type() {
+	case Array:
+		// In Arrays, values are always laid out on 8-byte boundaries regardless of
+		// architecture. Multiply by MaxEntries and align the result to the host's
+		// page size.
+		size := int(internal.Align(m.ValueSize(), 8) * m.MaxEntries())
+		size = internal.Align(size, os.Getpagesize())
+		return size, nil
+	case Arena:
+		// For Arenas, MaxEntries denotes the maximum number of pages available to
+		// the arena.
+		return int(m.MaxEntries()) * os.Getpagesize(), nil
+	}
+
+	return 0, fmt.Errorf("determine memory size of map type %s: %w", m.Type(), ErrNotSupported)
+}
+
 // createMap validates the spec's properties and creates the map in the kernel
 // using the given opts. It does not populate or freeze the map.
-func (spec *MapSpec) createMap(inner *sys.FD, opts MapOptions) (_ *Map, err error) {
+func (spec *MapSpec) createMap(inner *sys.FD) (_ *Map, err error) {
 	closeOnError := func(closer io.Closer) {
 		if err != nil {
 			closer.Close()
@@ -416,7 +479,7 @@ func (spec *MapSpec) createMap(inner *sys.FD, opts MapOptions) (_ *Map, err erro
 		KeySize:    spec.KeySize,
 		ValueSize:  spec.ValueSize,
 		MaxEntries: spec.MaxEntries,
-		MapFlags:   sys.MapFlags(spec.Flags),
+		MapFlags:   spec.Flags,
 		NumaNode:   spec.NumaNode,
 	}
 
@@ -474,32 +537,32 @@ func handleMapCreateError(attr sys.MapCreateAttr, spec *MapSpec, err error) erro
 	if errors.Is(err, unix.EINVAL) && spec.Type == UnspecifiedMap {
 		return fmt.Errorf("map create: cannot use type %s", UnspecifiedMap)
 	}
-	if errors.Is(err, unix.EINVAL) && spec.Flags&unix.BPF_F_NO_PREALLOC > 0 {
+	if errors.Is(err, unix.EINVAL) && spec.Flags&sys.BPF_F_NO_PREALLOC > 0 {
 		return fmt.Errorf("map create: %w (noPrealloc flag may be incompatible with map type %s)", err, spec.Type)
 	}
 
-	switch spec.Type {
-	case ArrayOfMaps, HashOfMaps:
+	if spec.Type.canStoreMap() {
 		if haveFeatErr := haveNestedMaps(); haveFeatErr != nil {
 			return fmt.Errorf("map create: %w", haveFeatErr)
 		}
 	}
-	if spec.Flags&(unix.BPF_F_RDONLY_PROG|unix.BPF_F_WRONLY_PROG) > 0 || spec.Freeze {
+
+	if spec.readOnly() || spec.writeOnly() {
 		if haveFeatErr := haveMapMutabilityModifiers(); haveFeatErr != nil {
 			return fmt.Errorf("map create: %w", haveFeatErr)
 		}
 	}
-	if spec.Flags&unix.BPF_F_MMAPABLE > 0 {
+	if spec.Flags&sys.BPF_F_MMAPABLE > 0 {
 		if haveFeatErr := haveMmapableMaps(); haveFeatErr != nil {
 			return fmt.Errorf("map create: %w", haveFeatErr)
 		}
 	}
-	if spec.Flags&unix.BPF_F_INNER_MAP > 0 {
+	if spec.Flags&sys.BPF_F_INNER_MAP > 0 {
 		if haveFeatErr := haveInnerMaps(); haveFeatErr != nil {
 			return fmt.Errorf("map create: %w", haveFeatErr)
 		}
 	}
-	if spec.Flags&unix.BPF_F_NO_PREALLOC > 0 {
+	if spec.Flags&sys.BPF_F_NO_PREALLOC > 0 {
 		if haveFeatErr := haveNoPreallocMaps(); haveFeatErr != nil {
 			return fmt.Errorf("map create: %w", haveFeatErr)
 		}
@@ -530,6 +593,7 @@ func newMap(fd *sys.FD, name string, typ MapType, keySize, valueSize, maxEntries
 		flags,
 		"",
 		int(valueSize),
+		nil,
 	}
 
 	if !typ.hasPerCPUValue() {
@@ -577,7 +641,12 @@ func (m *Map) Flags() uint32 {
 	return m.flags
 }
 
-// Info returns metadata about the map.
+// Info returns metadata about the map. This was first introduced in Linux 4.5,
+// but newer kernels support more MapInfo fields with the introduction of more
+// features. See [MapInfo] and its methods for more details.
+//
+// Returns an error wrapping ErrNotSupported if the kernel supports neither
+// BPF_OBJ_GET_INFO_BY_FD nor reading map information from /proc/self/fdinfo.
 func (m *Map) Info() (*MapInfo, error) {
 	return newMapInfoFromFd(m.fd)
 }
@@ -604,7 +673,7 @@ func (m *Map) Handle() (*btf.Handle, error) {
 type MapLookupFlags uint64
 
 // LookupLock look up the value of a spin-locked map.
-const LookupLock MapLookupFlags = unix.BPF_F_LOCK
+const LookupLock MapLookupFlags = sys.BPF_F_LOCK
 
 // Lookup retrieves a value from a Map.
 //
@@ -1336,6 +1405,7 @@ func (m *Map) Clone() (*Map, error) {
 		m.flags,
 		"",
 		m.fullValueSize,
+		nil,
 	}, nil
 }
 
@@ -1349,7 +1419,7 @@ func (m *Map) Clone() (*Map, error) {
 // This requires bpffs to be mounted above fileName.
 // See https://docs.cilium.io/en/stable/network/kubernetes/configuration/#mounting-bpffs-with-systemd
 func (m *Map) Pin(fileName string) error {
-	if err := internal.Pin(m.pinnedPath, fileName, m.fd); err != nil {
+	if err := sys.Pin(m.pinnedPath, fileName, m.fd); err != nil {
 		return err
 	}
 	m.pinnedPath = fileName
@@ -1362,7 +1432,7 @@ func (m *Map) Pin(fileName string) error {
 //
 // Unpinning an unpinned Map returns nil.
 func (m *Map) Unpin() error {
-	if err := internal.Unpin(m.pinnedPath); err != nil {
+	if err := sys.Unpin(m.pinnedPath); err != nil {
 		return err
 	}
 	m.pinnedPath = ""
@@ -1400,7 +1470,7 @@ func (m *Map) finalize(spec *MapSpec) error {
 		}
 	}
 
-	if spec.Freeze {
+	if isConstantDataSection(spec.Name) || isKconfigSection(spec.Name) {
 		if err := m.Freeze(); err != nil {
 			return fmt.Errorf("freezing map: %w", err)
 		}
@@ -1501,14 +1571,21 @@ func (m *Map) unmarshalValue(value any, buf sysenc.Buffer) error {
 	return buf.Unmarshal(value)
 }
 
-// LoadPinnedMap loads a Map from a BPF file.
+// LoadPinnedMap opens a Map from a pin (file) on the BPF virtual filesystem.
+//
+// Requires at least Linux 4.5.
 func LoadPinnedMap(fileName string, opts *LoadPinOptions) (*Map, error) {
-	fd, err := sys.ObjGet(&sys.ObjGetAttr{
+	fd, typ, err := sys.ObjGetTyped(&sys.ObjGetAttr{
 		Pathname:  sys.NewStringPointer(fileName),
 		FileFlags: opts.Marshal(),
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	if typ != sys.BPF_TYPE_MAP {
+		_ = fd.Close()
+		return nil, fmt.Errorf("%s is not a Map", fileName)
 	}
 
 	m, err := newMapFromFD(fd)
@@ -1530,6 +1607,10 @@ func unmarshalMap(buf sysenc.Buffer) (*Map, error) {
 
 // marshalMap marshals the fd of a map into a buffer in host endianness.
 func marshalMap(m *Map, length int) ([]byte, error) {
+	if m == nil {
+		return nil, errors.New("can't marshal a nil Map")
+	}
+
 	if length != 4 {
 		return nil, fmt.Errorf("can't marshal map to %d bytes", length)
 	}

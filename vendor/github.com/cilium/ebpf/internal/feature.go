@@ -3,15 +3,25 @@ package internal
 import (
 	"errors"
 	"fmt"
+	"runtime"
+	"strings"
 	"sync"
 )
 
-// ErrNotSupported indicates that a feature is not supported by the current kernel.
+// ErrNotSupported indicates that a feature is not supported.
 var ErrNotSupported = errors.New("not supported")
+
+// ErrNotSupportedOnOS indicates that a feature is not supported on the current
+// operating system.
+var ErrNotSupportedOnOS = fmt.Errorf("%w on %s", ErrNotSupported, runtime.GOOS)
 
 // UnsupportedFeatureError is returned by FeatureTest() functions.
 type UnsupportedFeatureError struct {
-	// The minimum Linux mainline version required for this feature.
+	// The minimum version required for this feature.
+	//
+	// On Linux this refers to the mainline kernel version, on other platforms
+	// to the version of the runtime.
+	//
 	// Used for the error string, and for sanity checking during testing.
 	MinimumVersion Version
 
@@ -58,11 +68,44 @@ type FeatureTest struct {
 type FeatureTestFn func() error
 
 // NewFeatureTest is a convenient way to create a single [FeatureTest].
-func NewFeatureTest(name, version string, fn FeatureTestFn) func() error {
+//
+// versions specifies in which version of a BPF runtime a feature appeared.
+// The format is "GOOS:Major.Minor[.Patch]". GOOS may be omitted when targeting
+// Linux. Returns [ErrNotSupportedOnOS] if there is no version specified for the
+// current OS.
+func NewFeatureTest(name string, fn FeatureTestFn, versions ...string) func() error {
+	const nativePrefix = runtime.GOOS + ":"
+
+	if len(versions) == 0 {
+		return func() error {
+			return fmt.Errorf("feature test %q: no versions specified", name)
+		}
+	}
+
 	ft := &FeatureTest{
-		Name:    name,
-		Version: version,
-		Fn:      fn,
+		Name: name,
+		Fn:   fn,
+	}
+
+	for _, version := range versions {
+		if strings.HasPrefix(version, nativePrefix) {
+			ft.Version = strings.TrimPrefix(version, nativePrefix)
+			break
+		}
+
+		if OnLinux && !strings.ContainsRune(version, ':') {
+			// Allow version numbers without a GOOS prefix on Linux.
+			ft.Version = version
+			break
+		}
+	}
+
+	if ft.Version == "" {
+		return func() error {
+			// We don't return an UnsupportedFeatureError here, since that will
+			// trigger version checks which don't make sense.
+			return fmt.Errorf("%s: %w", name, ErrNotSupportedOnOS)
+		}
 	}
 
 	return ft.execute
