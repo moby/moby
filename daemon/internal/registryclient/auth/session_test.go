@@ -50,7 +50,6 @@ func (w *testAuthenticationWrapper) ServeHTTP(rw http.ResponseWriter, r *http.Re
 func testServerWithAuth(rrm testutil.RequestResponseMap, authenticate string, authCheck func(string) bool) (string, func()) {
 	h := testutil.NewHandler(rrm)
 	wrapper := &testAuthenticationWrapper{
-
 		headers: http.Header(map[string][]string{
 			"X-API-Version":       {"registry/2.0"},
 			"X-Multi-API-Version": {"registry/2.0", "registry/2.1", "trust/1.0"},

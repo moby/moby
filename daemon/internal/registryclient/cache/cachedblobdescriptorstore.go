@@ -39,10 +39,8 @@ type cachedBlobStatter struct {
 	tracker MetricsTracker
 }
 
-var (
-	// cacheCount is the number of total cache request received/hits/misses
-	cacheCount = prometheus.StorageNamespace.NewLabeledCounter("cache", "The number of cache request received", "type")
-)
+// cacheCount is the number of total cache request received/hits/misses
+var cacheCount = prometheus.StorageNamespace.NewLabeledCounter("cache", "The number of cache request received", "type")
 
 // NewCachedBlobStatter creates a new statter which prefers a cache and
 // falls back to a backend.
@@ -93,7 +91,6 @@ fallback:
 	}
 
 	return desc, err
-
 }
 
 func (cbds *cachedBlobStatter) Clear(ctx context.Context, dgst digest.Digest) error {

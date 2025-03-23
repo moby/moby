@@ -66,7 +66,7 @@ func (hbu *httpBlobUpload) ReadFrom(r io.Reader) (n int64, err error) {
 		return 0, fmt.Errorf("bad range format: %s", rng)
 	}
 
-	return (end - start + 1), nil
+	return end - start + 1, nil
 }
 
 func (hbu *httpBlobUpload) Write(p []byte) (n int, err error) {
@@ -100,7 +100,7 @@ func (hbu *httpBlobUpload) Write(p []byte) (n int, err error) {
 		return 0, fmt.Errorf("bad range format: %s", rng)
 	}
 
-	return (end - start + 1), nil
+	return end - start + 1, nil
 }
 
 func (hbu *httpBlobUpload) Size() int64 {
@@ -139,7 +139,7 @@ func (hbu *httpBlobUpload) Commit(ctx context.Context, desc distribution.Descrip
 	return hbu.statter.Stat(ctx, desc.Digest)
 }
 
-func (hbu *httpBlobUpload) Cancel(ctx context.Context) error {
+func (hbu *httpBlobUpload) Cancel(context.Context) error {
 	req, err := http.NewRequest("DELETE", hbu.location, nil)
 	if err != nil {
 		return err
