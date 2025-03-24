@@ -17,11 +17,7 @@ import (
 // It returns an error if it was unable to reach any of the registries for
 // the given reference, or if the provided reference is invalid.
 func GetRepositories(ctx context.Context, ref reference.Named, config *ImagePullConfig) ([]distribution.Repository, error) {
-	repoInfo, err := config.RegistryService.ResolveRepository(ref)
-	if err != nil {
-		return nil, errdefs.InvalidParameter(err)
-	}
-	repoName := repoInfo.Name
+	repoName := reference.TrimNamed(ref)
 	// makes sure name is not empty or `scratch`
 	if err := validateRepoName(repoName); err != nil {
 		return nil, errdefs.InvalidParameter(err)
