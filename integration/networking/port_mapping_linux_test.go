@@ -398,6 +398,12 @@ func TestAccessPublishedPortFromHost(t *testing.T) {
 							// the userland-proxy is required for these addresses.
 							continue
 						}
+						if networking.FirewalldRunning() {
+							// FIXME(robmry) - With firewalld running, this test is flaky.
+							// - it always seems to fail in CI, but not in a local dev container.
+							// - tracked by https://github.com/moby/moby/issues/49695
+							continue
+						}
 						addr += "%25" + iface
 					}
 
