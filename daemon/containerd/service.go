@@ -15,6 +15,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	dimages "github.com/docker/docker/daemon/images"
@@ -45,7 +46,7 @@ type ImageService struct {
 }
 
 type registryResolver interface {
-	ResolveRepository(name reference.Named) (*registry.RepositoryInfo, error)
+	ResolveAuthConfig(map[string]registrytypes.AuthConfig, reference.Named) registrytypes.AuthConfig
 	LookupPullEndpoints(hostname string) ([]registry.APIEndpoint, error)
 	LookupPushEndpoints(hostname string) ([]registry.APIEndpoint, error)
 }
