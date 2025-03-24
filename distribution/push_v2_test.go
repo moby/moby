@@ -398,7 +398,7 @@ func TestLayerAlreadyExists(t *testing.T) {
 		ms := &mockV2MetadataService{}
 		pd := &pushDescriptor{
 			hmacKey:  []byte(tc.hmacKey),
-			repoInfo: repoInfo,
+			repoName: repoInfo,
 			layer: &storeLayer{
 				Layer: layer.EmptyLayer,
 			},
@@ -581,7 +581,7 @@ func TestPushRegistryWhenAuthInfoEmpty(t *testing.T) {
 	}
 	pd := &pushDescriptor{
 		hmacKey:  []byte("abcd"),
-		repoInfo: repoInfo,
+		repoName: repoInfo,
 		layer: &storeLayer{
 			Layer: layer.EmptyLayer,
 		},
