@@ -41,12 +41,6 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 	}
 
 	repoName, _ := reference.ParseNormalizedNamed("testremotename")
-	repoInfo := &registrypkg.RepositoryInfo{
-		Name: repoName,
-		Index: &registry.IndexInfo{
-			Name: "testrepo",
-		},
-	}
 	imagePullConfig := &ImagePullConfig{
 		Config: Config{
 			MetaHeaders: http.Header{},
@@ -55,7 +49,7 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 			},
 		},
 	}
-	p := newPuller(registrypkg.APIEndpoint{URL: uri}, repoInfo, imagePullConfig, nil)
+	p := newPuller(registrypkg.APIEndpoint{URL: uri}, repoName, imagePullConfig, nil)
 	ctx := context.Background()
 	p.repo, err = newRepository(ctx, repoName, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {

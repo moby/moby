@@ -344,12 +344,6 @@ func testNewPuller(t *testing.T, rawurl string) *puller {
 	repoName, err := reference.ParseNormalizedNamed("testremotename")
 	assert.NilError(t, err)
 
-	repoInfo := &registry.RepositoryInfo{
-		Name: repoName,
-		Index: &registrytypes.IndexInfo{
-			Name: "testrepo",
-		},
-	}
 	imagePullConfig := &ImagePullConfig{
 		Config: Config{
 			AuthConfig: &registrytypes.AuthConfig{
@@ -358,7 +352,7 @@ func testNewPuller(t *testing.T, rawurl string) *puller {
 		},
 	}
 
-	p := newPuller(registry.APIEndpoint{URL: uri}, repoInfo, imagePullConfig, nil)
+	p := newPuller(registry.APIEndpoint{URL: uri}, repoName, imagePullConfig, nil)
 	p.repo, err = newRepository(context.Background(), repoName, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	assert.NilError(t, err)
 	return p

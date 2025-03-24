@@ -52,12 +52,12 @@ func (e imageConfigPullError) Error() string {
 }
 
 // newPuller returns a puller to pull from a v2 registry.
-func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, config *ImagePullConfig, local ContentStore) *puller {
+func newPuller(endpoint registry.APIEndpoint, repoName reference.Named, config *ImagePullConfig, local ContentStore) *puller {
 	return &puller{
 		metadataService: metadata.NewV2MetadataService(config.MetadataStore),
 		endpoint:        endpoint,
 		config:          config,
-		repoInfo:        repoInfo,
+		repoName:        repoName,
 		manifestStore: &manifestStore{
 			local: local,
 		},
@@ -68,14 +68,14 @@ type puller struct {
 	metadataService metadata.V2MetadataService
 	endpoint        registry.APIEndpoint
 	config          *ImagePullConfig
-	repoInfo        *registry.RepositoryInfo
+	repoName        reference.Named
 	repo            distribution.Repository
 	manifestStore   *manifestStore
 }
 
 func (p *puller) pull(ctx context.Context, ref reference.Named) (err error) {
-	// TODO(thaJeztah): do we need p.repoInfo at all, as it would probably be same as ref?
-	p.repo, err = newRepository(ctx, p.repoInfo.Name, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	// TODO(thaJeztah): do we need p.repoName at all, as it would probably be same as ref?
+	p.repo, err = newRepository(ctx, p.repoName, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		log.G(ctx).Warnf("Error getting v2 registry: %v", err)
 		return err
@@ -559,7 +559,7 @@ func (p *puller) pullSchema1(ctx context.Context, ref reference.Reference, unver
 
 		descriptors = append(descriptors, &layerDescriptor{
 			digest:          blobSum,
-			repoName:        p.repoInfo.Name,
+			repoName:        p.repoName,
 			repo:            p.repo,
 			metadataService: p.metadataService,
 		})
@@ -624,7 +624,7 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 		descriptors = append(descriptors, &layerDescriptor{
 			digest:          d.Digest,
 			repo:            p.repo,
-			repoName:        p.repoInfo.Name,
+			repoName:        p.repoName,
 			metadataService: p.metadataService,
 			src:             d,
 		})

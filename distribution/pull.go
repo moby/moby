@@ -20,7 +20,7 @@ import (
 func Pull(ctx context.Context, ref reference.Named, config *ImagePullConfig, local ContentStore) error {
 	repoInfo, err := pullEndpoints(ctx, config.RegistryService, ref, func(ctx context.Context, repoInfo registry.RepositoryInfo, endpoint registry.APIEndpoint) error {
 		log.G(ctx).Debugf("Trying to pull %s from %s", reference.FamiliarName(repoInfo.Name), endpoint.URL)
-		return newPuller(endpoint, &repoInfo, config, local).pull(ctx, ref)
+		return newPuller(endpoint, repoInfo.Name, config, local).pull(ctx, ref)
 	})
 
 	if err == nil {
