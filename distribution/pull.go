@@ -76,12 +76,7 @@ func addDigestReference(store refstore.Store, ref reference.Named, dgst digest.D
 func pullEndpoints(ctx context.Context, registryService RegistryResolver, ref reference.Named,
 	f func(context.Context, reference.Named, registry.APIEndpoint) error,
 ) (reference.Named, error) {
-	// Resolve the Repository name from fqn to RepositoryInfo
-	repoInfo, err := registryService.ResolveRepository(ref)
-	if err != nil {
-		return nil, err
-	}
-	repoName := repoInfo.Name
+	repoName := reference.TrimNamed(ref)
 
 	// makes sure name is not `scratch`
 	if err := validateRepoName(repoName); err != nil {
