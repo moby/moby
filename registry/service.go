@@ -119,7 +119,14 @@ func (s *Service) ResolveRepository(name reference.Named) (*RepositoryInfo, erro
 func (s *Service) ResolveAuthConfig(authConfigs map[string]registry.AuthConfig, ref reference.Named) registry.AuthConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	registryInfo := newIndexInfo(s.config, reference.Domain(ref))
+	// Simplified version of "newIndexInfo" without handling of insecure
+	// registries and mirrors, as we don't need that information to resolve
+	// the auth-config.
+	indexName := normalizeIndexName(reference.Domain(ref))
+	registryInfo, ok := s.config.IndexConfigs[indexName]
+	if !ok {
+		registryInfo = &registry.IndexInfo{Name: indexName}
+	}
 	return ResolveAuthConfig(authConfigs, registryInfo)
 }
 
