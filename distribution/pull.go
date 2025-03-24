@@ -18,9 +18,9 @@ import (
 // Pull initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
 func Pull(ctx context.Context, ref reference.Named, config *ImagePullConfig, local ContentStore) error {
-	repoInfo, err := pullEndpoints(ctx, config.RegistryService, ref, func(ctx context.Context, repoInfo registry.RepositoryInfo, endpoint registry.APIEndpoint) error {
-		log.G(ctx).Debugf("Trying to pull %s from %s", reference.FamiliarName(repoInfo.Name), endpoint.URL)
-		return newPuller(endpoint, repoInfo.Name, config, local).pull(ctx, ref)
+	repoInfo, err := pullEndpoints(ctx, config.RegistryService, ref, func(ctx context.Context, repoName reference.Named, endpoint registry.APIEndpoint) error {
+		log.G(ctx).Debugf("Trying to pull %s from %s", reference.FamiliarName(repoName), endpoint.URL)
+		return newPuller(endpoint, repoName, config, local).pull(ctx, ref)
 	})
 
 	if err == nil {
@@ -33,8 +33,8 @@ func Pull(ctx context.Context, ref reference.Named, config *ImagePullConfig, loc
 // Tags returns available tags for the given image in the remote repository.
 func Tags(ctx context.Context, ref reference.Named, config *Config) ([]string, error) {
 	var tags []string
-	_, err := pullEndpoints(ctx, config.RegistryService, ref, func(ctx context.Context, repoInfo registry.RepositoryInfo, endpoint registry.APIEndpoint) error {
-		repo, err := newRepository(ctx, repoInfo.Name, endpoint, config.MetaHeaders, config.AuthConfig, "pull")
+	_, err := pullEndpoints(ctx, config.RegistryService, ref, func(ctx context.Context, repoName reference.Named, endpoint registry.APIEndpoint) error {
+		repo, err := newRepository(ctx, repoName, endpoint, config.MetaHeaders, config.AuthConfig, "pull")
 		if err != nil {
 			return err
 		}
@@ -74,20 +74,21 @@ func addDigestReference(store refstore.Store, ref reference.Named, dgst digest.D
 }
 
 func pullEndpoints(ctx context.Context, registryService RegistryResolver, ref reference.Named,
-	f func(context.Context, registry.RepositoryInfo, registry.APIEndpoint) error,
+	f func(context.Context, reference.Named, registry.APIEndpoint) error,
 ) (*registry.RepositoryInfo, error) {
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := registryService.ResolveRepository(ref)
 	if err != nil {
 		return nil, err
 	}
+	repoName := repoInfo.Name
 
 	// makes sure name is not `scratch`
-	if err := validateRepoName(repoInfo.Name); err != nil {
+	if err := validateRepoName(repoName); err != nil {
 		return repoInfo, err
 	}
 
-	endpoints, err := registryService.LookupPullEndpoints(reference.Domain(repoInfo.Name))
+	endpoints, err := registryService.LookupPullEndpoints(reference.Domain(repoName))
 	if err != nil {
 		return repoInfo, err
 	}
@@ -110,7 +111,7 @@ func pullEndpoints(ctx context.Context, registryService RegistryResolver, ref re
 
 		log.G(ctx).Debugf("Trying to pull %s from %s", reference.FamiliarName(repoInfo.Name), endpoint.URL)
 
-		if err := f(ctx, *repoInfo, endpoint); err != nil {
+		if err := f(ctx, repoName, endpoint); err != nil {
 			if _, ok := err.(fallbackError); !ok && continueOnError(err, endpoint.Mirror) {
 				err = fallbackError{
 					err:         err,
