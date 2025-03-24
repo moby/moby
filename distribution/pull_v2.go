@@ -143,7 +143,7 @@ func (p *puller) writeStatus(requestedTag string, layersDownloaded bool) {
 type layerDescriptor struct {
 	digest          digest.Digest
 	diffID          layer.DiffID
-	repoInfo        *registry.RepositoryInfo
+	repoName        reference.Named
 	repo            distribution.Repository
 	metadataService metadata.V2MetadataService
 	tmpFile         *os.File
@@ -332,7 +332,7 @@ func (ld *layerDescriptor) truncateDownloadFile() error {
 
 func (ld *layerDescriptor) Registered(diffID layer.DiffID) {
 	// Cache mapping from this layer's DiffID to the blobsum
-	_ = ld.metadataService.Add(diffID, metadata.V2Metadata{Digest: ld.digest, SourceRepository: ld.repoInfo.Name.Name()})
+	_ = ld.metadataService.Add(diffID, metadata.V2Metadata{Digest: ld.digest, SourceRepository: ld.repoName.Name()})
 }
 
 func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform) (tagUpdated bool, err error) {
@@ -559,7 +559,7 @@ func (p *puller) pullSchema1(ctx context.Context, ref reference.Reference, unver
 
 		descriptors = append(descriptors, &layerDescriptor{
 			digest:          blobSum,
-			repoInfo:        p.repoInfo,
+			repoName:        p.repoInfo.Name,
 			repo:            p.repo,
 			metadataService: p.metadataService,
 		})
@@ -624,7 +624,7 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 		descriptors = append(descriptors, &layerDescriptor{
 			digest:          d.Digest,
 			repo:            p.repo,
-			repoInfo:        p.repoInfo,
+			repoName:        p.repoInfo.Name,
 			metadataService: p.metadataService,
 			src:             d,
 		})
