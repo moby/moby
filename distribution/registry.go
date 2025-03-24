@@ -72,11 +72,11 @@ func init() {
 // providing timeout settings and authentication support, and also verifies the
 // remote API version.
 func newRepository(
-	ctx context.Context, repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint,
+	ctx context.Context, ref reference.Named, endpoint registry.APIEndpoint,
 	metaHeaders http.Header, authConfig *registrytypes.AuthConfig, actions ...string,
 ) (distribution.Repository, error) {
 	// Trim the hostname to form the RemoteName
-	repoName := reference.Path(repoInfo.Name)
+	repoName := reference.Path(ref)
 
 	direct := &net.Dialer{
 		Timeout:   30 * time.Second,

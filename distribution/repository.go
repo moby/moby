@@ -21,12 +21,13 @@ func GetRepositories(ctx context.Context, ref reference.Named, config *ImagePull
 	if err != nil {
 		return nil, errdefs.InvalidParameter(err)
 	}
+	repoName := repoInfo.Name
 	// makes sure name is not empty or `scratch`
-	if err := validateRepoName(repoInfo.Name); err != nil {
+	if err := validateRepoName(repoName); err != nil {
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	endpoints, err := config.RegistryService.LookupPullEndpoints(reference.Domain(repoInfo.Name))
+	endpoints, err := config.RegistryService.LookupPullEndpoints(reference.Domain(repoName))
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +37,7 @@ func GetRepositories(ctx context.Context, ref reference.Named, config *ImagePull
 		lastError    error
 	)
 	for _, endpoint := range endpoints {
-		repo, err := newRepository(ctx, repoInfo, endpoint, nil, config.AuthConfig, "pull")
+		repo, err := newRepository(ctx, repoName, endpoint, nil, config.AuthConfig, "pull")
 		if err != nil {
 			log.G(ctx).WithFields(log.Fields{"endpoint": endpoint.URL.String(), "error": err}).Info("endpoint")
 			lastError = err

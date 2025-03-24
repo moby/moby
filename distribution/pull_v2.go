@@ -74,8 +74,8 @@ type puller struct {
 }
 
 func (p *puller) pull(ctx context.Context, ref reference.Named) (err error) {
-	// TODO(tiborvass): was ReceiveTimeout
-	p.repo, err = newRepository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	// TODO(thaJeztah): do we need p.repoInfo at all, as it would probably be same as ref?
+	p.repo, err = newRepository(ctx, p.repoInfo.Name, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		log.G(ctx).Warnf("Error getting v2 registry: %v", err)
 		return err

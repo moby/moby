@@ -34,7 +34,7 @@ func Pull(ctx context.Context, ref reference.Named, config *ImagePullConfig, loc
 func Tags(ctx context.Context, ref reference.Named, config *Config) ([]string, error) {
 	var tags []string
 	_, err := pullEndpoints(ctx, config.RegistryService, ref, func(ctx context.Context, repoInfo registry.RepositoryInfo, endpoint registry.APIEndpoint) error {
-		repo, err := newRepository(ctx, &repoInfo, endpoint, config.MetaHeaders, config.AuthConfig, "pull")
+		repo, err := newRepository(ctx, repoInfo.Name, endpoint, config.MetaHeaders, config.AuthConfig, "pull")
 		if err != nil {
 			return err
 		}
