@@ -557,14 +557,12 @@ func (p *puller) pullSchema1(ctx context.Context, ref reference.Reference, unver
 			continue
 		}
 
-		layerDescriptor := &layerDescriptor{
+		descriptors = append(descriptors, &layerDescriptor{
 			digest:          blobSum,
 			repoInfo:        p.repoInfo,
 			repo:            p.repo,
 			metadataService: p.metadataService,
-		}
-
-		descriptors = append(descriptors, layerDescriptor)
+		})
 	}
 
 	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, descriptors, p.config.ProgressOutput)
@@ -623,15 +621,13 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 		if err := checkSupportedMediaType(d.MediaType); err != nil {
 			return "", err
 		}
-		layerDescriptor := &layerDescriptor{
+		descriptors = append(descriptors, &layerDescriptor{
 			digest:          d.Digest,
 			repo:            p.repo,
 			repoInfo:        p.repoInfo,
 			metadataService: p.metadataService,
 			src:             d,
-		}
-
-		descriptors = append(descriptors, layerDescriptor)
+		})
 	}
 
 	configChan := make(chan []byte, 1)
@@ -867,20 +863,17 @@ func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfst
 			}
 			progress.Message(p.config.ProgressOutput, "", err.Error())
 
-			platform := toOCIPlatform(match.Platform)
-			id, _, err = p.pullSchema1(ctx, manifestRef, v, platform)
+			id, _, err = p.pullSchema1(ctx, manifestRef, v, toOCIPlatform(match.Platform))
 			if err != nil {
 				return "", "", err
 			}
 		case *schema2.DeserializedManifest:
-			platform := toOCIPlatform(match.Platform)
-			id, _, err = p.pullSchema2(ctx, manifestRef, v, platform)
+			id, _, err = p.pullSchema2(ctx, manifestRef, v, toOCIPlatform(match.Platform))
 			if err != nil {
 				return "", "", err
 			}
 		case *ocischema.DeserializedManifest:
-			platform := toOCIPlatform(match.Platform)
-			id, _, err = p.pullOCI(ctx, manifestRef, v, platform)
+			id, _, err = p.pullOCI(ctx, manifestRef, v, toOCIPlatform(match.Platform))
 			if err != nil {
 				return "", "", err
 			}

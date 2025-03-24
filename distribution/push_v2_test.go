@@ -507,7 +507,7 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 		}
 		imagePushConfig.ReferenceStore = &mockReferenceStore{}
 		repoInfo, _ := reference.ParseNormalizedNamed("xujihui1985/test.img")
-		pusher := &pusher{
+		testPusher := &pusher{
 			config: imagePushConfig,
 			repoInfo: &registrypkg.RepositoryInfo{
 				Name: repoInfo,
@@ -519,9 +519,9 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 				},
 			},
 		}
-		pusher.push(context.Background())
-		if pusher.pushState.hasAuthInfo != authInfo.expected {
-			t.Errorf("hasAuthInfo does not match expected: %t != %t", authInfo.expected, pusher.pushState.hasAuthInfo)
+		_ = testPusher.push(context.Background())
+		if testPusher.pushState.hasAuthInfo != authInfo.expected {
+			t.Errorf("hasAuthInfo does not match expected: %t != %t", authInfo.expected, testPusher.pushState.hasAuthInfo)
 		}
 	}
 }
