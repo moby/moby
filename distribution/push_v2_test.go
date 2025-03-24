@@ -506,12 +506,10 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 			RegistryToken: authInfo.registryToken,
 		}
 		imagePushConfig.ReferenceStore = &mockReferenceStore{}
-		repoInfo, _ := reference.ParseNormalizedNamed("xujihui1985/test.img")
+		repoName, _ := reference.ParseNormalizedNamed("xujihui1985/test.img")
 		testPusher := &pusher{
-			config: imagePushConfig,
-			repoInfo: &registrypkg.RepositoryInfo{
-				Name: repoInfo,
-			},
+			config:   imagePushConfig,
+			repoName: repoName,
 			endpoint: registrypkg.APIEndpoint{
 				URL: &url.URL{
 					Scheme: "https",

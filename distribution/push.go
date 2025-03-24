@@ -58,7 +58,7 @@ func Push(ctx context.Context, ref reference.Named, config *ImagePushConfig) err
 
 		log.G(ctx).Debugf("Trying to push %s to %s", repoInfo.Name.Name(), endpoint.URL)
 
-		if err := newPusher(ref, endpoint, repoInfo, config).push(ctx); err != nil {
+		if err := newPusher(ref, endpoint, repoInfo.Name, config).push(ctx); err != nil {
 			// Was this push cancelled? If so, don't try to fall
 			// back.
 			select {
