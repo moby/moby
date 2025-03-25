@@ -164,7 +164,7 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPref
 ARG GO_VERSION=1.23.8
 ARG GOTESTSUM_VERSION=v1.12.0
 ARG GOWINRES_VERSION=v0.3.1
-ARG CONTAINERD_VERSION=v1.7.27
+ARG CONTAINERD_VERSION=v2.0.4
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
