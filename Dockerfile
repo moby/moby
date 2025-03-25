@@ -248,7 +248,7 @@ WORKDIR /usr/src/runc
 # This version should usually match the version that is used by the containerd version
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged.
-ARG RUNC_VERSION=v1.3.6
+ARG RUNC_VERSION=v1.4.3
 ADD https://github.com/opencontainers/runc.git?ref=${RUNC_VERSION}&keep-git-dir=1 .
 
 FROM base AS runc-build
