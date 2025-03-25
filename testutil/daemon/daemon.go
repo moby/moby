@@ -38,14 +38,14 @@ import (
 
 // LogT is the subset of the testing.TB interface used by the daemon.
 type LogT interface {
-	Logf(string, ...interface{})
+	Logf(string, ...any)
 }
 
 // nopLog is a no-op implementation of LogT that is used in daemons created by
 // NewDaemon (where no testing.TB is available).
 type nopLog struct{}
 
-func (nopLog) Logf(string, ...interface{}) {}
+func (nopLog) Logf(string, ...any) {}
 
 const (
 	defaultDockerdBinary         = "dockerd"
