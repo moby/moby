@@ -417,7 +417,6 @@ func newRepositoryInfo(config *serviceConfig, name reference.Named) *RepositoryI
 func ParseRepositoryInfo(reposName reference.Named) (*RepositoryInfo, error) {
 	indexName := normalizeIndexName(reference.Domain(reposName))
 	if indexName == IndexName {
-		officialRepo := !strings.ContainsRune(reference.FamiliarName(reposName), '/')
 		return &RepositoryInfo{
 			Name: reference.TrimNamed(reposName),
 			Index: &registry.IndexInfo{
@@ -426,13 +425,8 @@ func ParseRepositoryInfo(reposName reference.Named) (*RepositoryInfo, error) {
 				Secure:   true,
 				Official: true,
 			},
-			Official: officialRepo,
+			Official: !strings.ContainsRune(reference.FamiliarName(reposName), '/'),
 		}, nil
-	}
-
-	insecure := false
-	if isInsecure(indexName) {
-		insecure = true
 	}
 
 	return &RepositoryInfo{
@@ -440,7 +434,7 @@ func ParseRepositoryInfo(reposName reference.Named) (*RepositoryInfo, error) {
 		Index: &registry.IndexInfo{
 			Name:    indexName,
 			Mirrors: []string{},
-			Secure:  !insecure,
+			Secure:  !isInsecure(indexName),
 		},
 	}, nil
 }
