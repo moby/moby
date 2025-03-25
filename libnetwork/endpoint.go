@@ -84,7 +84,7 @@ type Endpoint struct {
 	dnsNames          []string
 	disableResolution bool
 	disableIPv6       bool
-	generic           map[string]interface{}
+	generic           map[string]any
 	prefAddress       net.IP
 	prefAddressV6     net.IP
 	ipamOptions       map[string]string
@@ -105,7 +105,7 @@ func (ep *Endpoint) MarshalJSON() ([]byte, error) {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
-	epMap := make(map[string]interface{})
+	epMap := make(map[string]any)
 	epMap["name"] = ep.name
 	epMap["id"] = ep.id
 	epMap["ep_iface"] = ep.iface
@@ -132,7 +132,7 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
-	var epMap map[string]interface{}
+	var epMap map[string]any
 	if err := json.Unmarshal(b, &epMap); err != nil {
 		return err
 	}
@@ -160,14 +160,14 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	_ = json.Unmarshal(cb, &ep.sandboxID)   //nolint:errcheck
 
 	if v, ok := epMap["generic"]; ok {
-		ep.generic = v.(map[string]interface{})
+		ep.generic = v.(map[string]any)
 
 		if opt, ok := ep.generic[netlabel.PortMap]; ok {
 			pblist := []types.PortBinding{}
 
-			for i := 0; i < len(opt.([]interface{})); i++ {
+			for i := 0; i < len(opt.([]any)); i++ {
 				pb := types.PortBinding{}
-				tmp := opt.([]interface{})[i].(map[string]interface{})
+				tmp := opt.([]any)[i].(map[string]any)
 
 				bytes, err := json.Marshal(tmp)
 				if err != nil {
@@ -187,9 +187,9 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 		if opt, ok := ep.generic[netlabel.ExposedPorts]; ok {
 			tplist := []types.TransportPort{}
 
-			for i := 0; i < len(opt.([]interface{})); i++ {
+			for i := 0; i < len(opt.([]any)); i++ {
 				tp := types.TransportPort{}
-				tmp := opt.([]interface{})[i].(map[string]interface{})
+				tmp := opt.([]any)[i].(map[string]any)
 
 				bytes, err := json.Marshal(tmp)
 				if err != nil {
@@ -720,7 +720,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	return nil
 }
 
-func (ep *Endpoint) programExternalConnectivity(ctx context.Context, labels map[string]interface{}) error {
+func (ep *Endpoint) programExternalConnectivity(ctx context.Context, labels map[string]any) error {
 	log.G(ctx).Debugf("Programming external connectivity on endpoint %s (%s)", ep.Name(), ep.ID())
 	extN, err := ep.getNetworkFromStore()
 	if err != nil {
@@ -737,7 +737,7 @@ func (ep *Endpoint) programExternalConnectivity(ctx context.Context, labels map[
 	return nil
 }
 
-func (ep *Endpoint) revokeExternalConnectivity() (func(context.Context, map[string]interface{}) error, error) {
+func (ep *Endpoint) revokeExternalConnectivity() (func(context.Context, map[string]any) error, error) {
 	extN, err := ep.getNetworkFromStore()
 	if err != nil {
 		return nil, types.InternalErrorf("failed to get network from store for revoking external connectivity: %v", err)
@@ -751,7 +751,7 @@ func (ep *Endpoint) revokeExternalConnectivity() (func(context.Context, map[stri
 			"driver failed revoking external connectivity on endpoint %s (%s): %v",
 			ep.Name(), ep.ID(), err)
 	}
-	return func(ctx context.Context, labels map[string]interface{}) error {
+	return func(ctx context.Context, labels map[string]any) error {
 		return extD.ProgramExternalConnectivity(context.WithoutCancel(ctx), ep.network.ID(), ep.ID(), labels)
 	}, nil
 }
@@ -1122,7 +1122,7 @@ func (ep *Endpoint) getEtcHostsAddrs() []netip.Addr {
 
 // EndpointOptionGeneric function returns an option setter for a Generic option defined
 // in a Dictionary of Key-Value pair
-func EndpointOptionGeneric(generic map[string]interface{}) EndpointOption {
+func EndpointOptionGeneric(generic map[string]any) EndpointOption {
 	return func(ep *Endpoint) {
 		for k, v := range generic {
 			ep.generic[k] = v
@@ -1369,7 +1369,7 @@ func (ep *Endpoint) releaseAddress() {
 
 func (c *Controller) cleanupLocalEndpoints() error {
 	// Get used endpoints
-	eps := make(map[string]interface{})
+	eps := make(map[string]any)
 	for _, sb := range c.sandboxes {
 		for _, ep := range sb.endpoints {
 			eps[ep.id] = true

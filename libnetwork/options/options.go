@@ -53,7 +53,7 @@ type Generic map[string]any
 //
 // The return value is of the same type than the model (including a potential
 // pointer qualifier).
-func GenerateFromModel(options Generic, model interface{}) (interface{}, error) {
+func GenerateFromModel(options Generic, model any) (any, error) {
 	modType := reflect.TypeOf(model)
 
 	// If the model is of pointer type, we need to dereference for New.

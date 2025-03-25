@@ -40,7 +40,7 @@ type Config struct {
 	NetworkControlPlaneMTU int
 	DefaultAddressPool     []*ipamutils.NetworkToSplit
 	DatastoreBucket        string
-	ActiveSandboxes        map[string]interface{}
+	ActiveSandboxes        map[string]any
 	PluginGetter           plugingetter.PluginGetter
 }
 
@@ -149,7 +149,7 @@ func OptionNetworkControlPlaneMTU(exp int) Option {
 
 // OptionActiveSandboxes function returns an option setter for passing the sandboxes
 // which were active during previous daemon life
-func OptionActiveSandboxes(sandboxes map[string]interface{}) Option {
+func OptionActiveSandboxes(sandboxes map[string]any) Option {
 	return func(c *Config) {
 		c.ActiveSandboxes = sandboxes
 	}
