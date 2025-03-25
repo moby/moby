@@ -42,6 +42,15 @@ func (i *ImageService) softImageDelete(ctx context.Context, img c8dimages.Image,
 	return nil
 }
 
+// EnsureDanglingImage will ensure the image referred to by refOrID is left dangling when it is overridden.
+func (i *ImageService) EnsureDanglingImage(ctx context.Context, refOrID string) error {
+	img, err := i.resolveImage(ctx, refOrID)
+	if err != nil {
+		return err
+	}
+	return i.ensureDanglingImage(ctx, img)
+}
+
 func (i *ImageService) ensureDanglingImage(ctx context.Context, from c8dimages.Image) error {
 	danglingImage := from
 

@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/containerd/log"
 	distref "github.com/distribution/reference"
+	c8dexporter "github.com/docker/docker/builder/builder-next/exporter"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/moby/buildkit/exporter"
@@ -37,7 +38,7 @@ type Opt struct {
 	ImageTagger           ImageTagger
 	ContentStore          content.Store
 	LeaseManager          leases.Manager
-	ImageExportedCallback func(ctx context.Context, id string, desc ocispec.Descriptor)
+	ImageExportedCallback func(ctx context.Context, src *exporter.Source, attrs map[string]string) c8dexporter.ExportedCallback
 }
 
 type imageExporter struct {
@@ -134,6 +135,11 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 		config = inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, ps.Platforms[0].ID)]
 	}
 
+	var exported c8dexporter.ExportedCallback
+	if e.opt.ImageExportedCallback != nil {
+		exported = e.opt.ImageExportedCallback(ctx, inp, e.attrs)
+	}
+
 	var diffs []digest.Digest
 	if ref != nil {
 		layersDone := oneOffProgress(ctx, "exporting layers")
@@ -227,8 +233,8 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 		return nil, nil, fmt.Errorf("failed to create a temporary descriptor reference: %w", err)
 	}
 
-	if e.opt.ImageExportedCallback != nil {
-		e.opt.ImageExportedCallback(ctx, id.String(), descRef.Descriptor())
+	if exported != nil {
+		exported(ctx, id.String(), descRef.Descriptor())
 	}
 
 	return resp, descRef, nil
