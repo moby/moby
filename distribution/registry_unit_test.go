@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 	registrypkg "github.com/docker/docker/registry"
+	"gotest.tools/v3/assert"
 )
 
 const secretRegistryToken = "mysecrettoken"
@@ -25,7 +25,7 @@ type tokenPassThruHandler struct {
 func (h *tokenPassThruHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.reached = true
 	if strings.Contains(r.Header.Get("Authorization"), secretRegistryToken) {
-		log.G(context.TODO()).Debug("Detected registry token in auth header")
+		// Detected registry token in auth header
 		h.gotToken = true
 	}
 	if h.shouldSend401 == nil || h.shouldSend401(r.RequestURI) {
@@ -36,11 +36,11 @@ func (h *tokenPassThruHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 
 func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 	uri, err := url.Parse(ts.URL)
-	if err != nil {
-		t.Fatalf("could not parse url from test server: %v", err)
-	}
+	assert.NilError(t, err, "could not parse url from test server")
 
-	repoName, _ := reference.ParseNormalizedNamed("testremotename")
+	repoName, err := reference.ParseNormalizedNamed("testremotename")
+	assert.NilError(t, err)
+
 	imagePullConfig := &ImagePullConfig{
 		Config: Config{
 			MetaHeaders: http.Header{},
@@ -56,9 +56,10 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 		t.Fatal(err)
 	}
 
-	log.G(ctx).Debug("About to pull")
+	tag, err := reference.WithTag(repoName, "tag_goes_here")
+	assert.NilError(t, err)
+
 	// We expect it to fail, since we haven't mock'd the full registry exchange in our handler above
-	tag, _ := reference.WithTag(repoName, "tag_goes_here")
 	_ = p.pullRepository(ctx, tag)
 }
 
@@ -69,12 +70,8 @@ func TestTokenPassThru(t *testing.T) {
 
 	testTokenPassThru(t, ts)
 
-	if !handler.reached {
-		t.Fatal("Handler not reached")
-	}
-	if !handler.gotToken {
-		t.Fatal("Failed to receive registry token")
-	}
+	assert.Check(t, handler.reached, "Handler not reached")
+	assert.Check(t, handler.gotToken, "Failed to receive registry token")
 }
 
 func TestTokenPassThruDifferentHost(t *testing.T) {
@@ -94,10 +91,6 @@ func TestTokenPassThruDifferentHost(t *testing.T) {
 
 	testTokenPassThru(t, tsredirect)
 
-	if !handler.reached {
-		t.Fatal("Handler not reached")
-	}
-	if handler.gotToken {
-		t.Fatal("Redirect should not forward Authorization header to another host")
-	}
+	assert.Check(t, handler.reached, "Handler not reached")
+	assert.Check(t, !handler.gotToken, "Redirect should not forward Authorization header to another host")
 }
