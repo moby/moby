@@ -132,7 +132,7 @@ type IpamInfo struct {
 
 // MarshalJSON encodes IpamInfo into json message
 func (i *IpamInfo) MarshalJSON() ([]byte, error) {
-	m := map[string]interface{}{
+	m := map[string]any{
 		"PoolID": i.PoolID,
 	}
 	v, err := json.Marshal(&i.IPAMData)
@@ -150,7 +150,7 @@ func (i *IpamInfo) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON decodes json message into PoolData
 func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 	var (
-		m   map[string]interface{}
+		m   map[string]any
 		err error
 	)
 	if err = json.Unmarshal(data, &m); err != nil {
@@ -387,10 +387,10 @@ func (n *Network) validateConfiguration() error {
 			if data, ok := n.generic[netlabel.GenericData]; ok {
 				var (
 					driverOptions map[string]string
-					opts          interface{}
+					opts          any
 				)
 				switch t := data.(type) {
-				case map[string]interface{}, map[string]string:
+				case map[string]any, map[string]string:
 					opts = t
 				}
 				ba, err := json.Marshal(opts)
@@ -580,7 +580,7 @@ func (n *Network) advertiseAddrInterval() (time.Duration, bool) {
 
 // TODO : Can be made much more generic with the help of reflection (but has some golang limitations)
 func (n *Network) MarshalJSON() ([]byte, error) {
-	netMap := make(map[string]interface{})
+	netMap := make(map[string]any)
 	netMap["name"] = n.name
 	netMap["id"] = n.id
 	netMap["created"] = n.created
@@ -639,7 +639,7 @@ func (n *Network) MarshalJSON() ([]byte, error) {
 
 // TODO : Can be made much more generic with the help of reflection (but has some golang limitations)
 func (n *Network) UnmarshalJSON(b []byte) (err error) {
-	var netMap map[string]interface{}
+	var netMap map[string]any
 	if err := json.Unmarshal(b, &netMap); err != nil {
 		return err
 	}
@@ -662,7 +662,7 @@ func (n *Network) UnmarshalJSON(b []byte) (err error) {
 
 	// if we weren't unmarshaling to netMap we could simply set n.labels
 	// unfortunately, we can't because map[string]interface{} != map[string]string
-	if labels, ok := netMap["labels"].(map[string]interface{}); ok {
+	if labels, ok := netMap["labels"].(map[string]any); ok {
 		n.labels = make(map[string]string, len(labels))
 		for label, value := range labels {
 			n.labels[label] = value.(string)
@@ -670,7 +670,7 @@ func (n *Network) UnmarshalJSON(b []byte) (err error) {
 	}
 
 	if v, ok := netMap["ipamOptions"]; ok {
-		if iOpts, ok := v.(map[string]interface{}); ok {
+		if iOpts, ok := v.(map[string]any); ok {
 			n.ipamOptions = make(map[string]string, len(iOpts))
 			for k, v := range iOpts {
 				n.ipamOptions[k] = v.(string)
@@ -679,7 +679,7 @@ func (n *Network) UnmarshalJSON(b []byte) (err error) {
 	}
 
 	if v, ok := netMap["generic"]; ok {
-		n.generic = v.(map[string]interface{})
+		n.generic = v.(map[string]any)
 		// Restore opts in their map[string]string form
 		if v, ok := n.generic[netlabel.GenericData]; ok {
 			var lmap map[string]string
@@ -768,10 +768,10 @@ type NetworkOption func(n *Network)
 
 // NetworkOptionGeneric function returns an option setter for a Generic option defined
 // in a Dictionary of Key-Value pair
-func NetworkOptionGeneric(generic map[string]interface{}) NetworkOption {
+func NetworkOptionGeneric(generic map[string]any) NetworkOption {
 	return func(n *Network) {
 		if n.generic == nil {
-			n.generic = make(map[string]interface{})
+			n.generic = make(map[string]any)
 		}
 		if val, ok := generic[netlabel.EnableIPv4]; ok {
 			n.enableIPv4 = val.(bool)
@@ -807,7 +807,7 @@ func NetworkOptionPersist(persist bool) NetworkOption {
 func NetworkOptionEnableIPv4(enableIPv4 bool) NetworkOption {
 	return func(n *Network) {
 		if n.generic == nil {
-			n.generic = make(map[string]interface{})
+			n.generic = make(map[string]any)
 		}
 		n.enableIPv4 = enableIPv4
 		n.generic[netlabel.EnableIPv4] = enableIPv4
@@ -818,7 +818,7 @@ func NetworkOptionEnableIPv4(enableIPv4 bool) NetworkOption {
 func NetworkOptionEnableIPv6(enableIPv6 bool) NetworkOption {
 	return func(n *Network) {
 		if n.generic == nil {
-			n.generic = make(map[string]interface{})
+			n.generic = make(map[string]any)
 		}
 		n.enableIPv6 = enableIPv6
 		n.generic[netlabel.EnableIPv6] = enableIPv6
@@ -830,7 +830,7 @@ func NetworkOptionEnableIPv6(enableIPv6 bool) NetworkOption {
 func NetworkOptionInternalNetwork() NetworkOption {
 	return func(n *Network) {
 		if n.generic == nil {
-			n.generic = make(map[string]interface{})
+			n.generic = make(map[string]any)
 		}
 		n.internal = true
 		n.generic[netlabel.Internal] = true
@@ -879,7 +879,7 @@ func NetworkOptionLBEndpoint(ip net.IP) NetworkOption {
 func NetworkOptionDriverOpts(opts map[string]string) NetworkOption {
 	return func(n *Network) {
 		if n.generic == nil {
-			n.generic = make(map[string]interface{})
+			n.generic = make(map[string]any)
 		}
 		if opts == nil {
 			opts = make(map[string]string)
@@ -1207,7 +1207,7 @@ func (n *Network) CreateEndpoint(ctx context.Context, name string, options ...En
 func (n *Network) createEndpoint(ctx context.Context, name string, options ...EndpointOption) (*Endpoint, error) {
 	var err error
 
-	ep := &Endpoint{name: name, generic: make(map[string]interface{}), iface: &EndpointInterface{}}
+	ep := &Endpoint{name: name, generic: make(map[string]any), iface: &EndpointInterface{}}
 	ep.id = stringid.GenerateRandomID()
 
 	// Initialize ep.network with a possibly stale copy of n. We need this to get network from

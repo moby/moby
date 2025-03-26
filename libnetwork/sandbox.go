@@ -91,7 +91,7 @@ type resolvConfPathConfig struct {
 type containerConfig struct {
 	hostsPathConfig
 	resolvConfPathConfig
-	generic           map[string]interface{}
+	generic           map[string]any
 	useDefaultSandBox bool
 	useExternalKey    bool
 	exposedPorts      []types.TransportPort
@@ -116,10 +116,10 @@ func (sb *Sandbox) Key() string {
 }
 
 // Labels returns the sandbox's labels.
-func (sb *Sandbox) Labels() map[string]interface{} {
+func (sb *Sandbox) Labels() map[string]any {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
-	opts := make(map[string]interface{}, len(sb.config.generic))
+	opts := make(map[string]any, len(sb.config.generic))
 	for k, v := range sb.config.generic {
 		opts[k] = v
 	}
@@ -270,9 +270,9 @@ func (sb *Sandbox) Refresh(ctx context.Context, options ...SandboxOption) error 
 	return nil
 }
 
-func (sb *Sandbox) UpdateLabels(labels map[string]interface{}) {
+func (sb *Sandbox) UpdateLabels(labels map[string]any) {
 	if sb.config.generic == nil {
-		sb.config.generic = make(map[string]interface{}, len(labels))
+		sb.config.generic = make(map[string]any, len(labels))
 	}
 	for k, v := range labels {
 		sb.config.generic[k] = v

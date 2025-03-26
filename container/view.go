@@ -435,7 +435,7 @@ type containerByIDIndexer struct{}
 const terminator = "\x00"
 
 // FromObject implements the memdb.SingleIndexer interface for Container objects
-func (e *containerByIDIndexer) FromObject(obj interface{}) (bool, []byte, error) {
+func (e *containerByIDIndexer) FromObject(obj any) (bool, []byte, error) {
 	c, ok := obj.(*Container)
 	if !ok {
 		return false, nil, fmt.Errorf("%T is not a Container", obj)
@@ -445,7 +445,7 @@ func (e *containerByIDIndexer) FromObject(obj interface{}) (bool, []byte, error)
 }
 
 // FromArgs implements the memdb.Indexer interface
-func (e *containerByIDIndexer) FromArgs(args ...interface{}) ([]byte, error) {
+func (e *containerByIDIndexer) FromArgs(args ...any) ([]byte, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("must provide only a single argument")
 	}
@@ -457,7 +457,7 @@ func (e *containerByIDIndexer) FromArgs(args ...interface{}) ([]byte, error) {
 	return []byte(arg + terminator), nil
 }
 
-func (e *containerByIDIndexer) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+func (e *containerByIDIndexer) PrefixFromArgs(args ...any) ([]byte, error) {
 	val, err := e.FromArgs(args...)
 	if err != nil {
 		return nil, err
@@ -470,7 +470,7 @@ func (e *containerByIDIndexer) PrefixFromArgs(args ...interface{}) ([]byte, erro
 // namesByNameIndexer is used to index container name associations by name.
 type namesByNameIndexer struct{}
 
-func (e *namesByNameIndexer) FromObject(obj interface{}) (bool, []byte, error) {
+func (e *namesByNameIndexer) FromObject(obj any) (bool, []byte, error) {
 	n, ok := obj.(nameAssociation)
 	if !ok {
 		return false, nil, fmt.Errorf(`%T does not have type "nameAssociation"`, obj)
@@ -480,7 +480,7 @@ func (e *namesByNameIndexer) FromObject(obj interface{}) (bool, []byte, error) {
 	return true, []byte(n.name + terminator), nil
 }
 
-func (e *namesByNameIndexer) FromArgs(args ...interface{}) ([]byte, error) {
+func (e *namesByNameIndexer) FromArgs(args ...any) ([]byte, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("must provide only a single argument")
 	}
@@ -495,7 +495,7 @@ func (e *namesByNameIndexer) FromArgs(args ...interface{}) ([]byte, error) {
 // namesByContainerIDIndexer is used to index container names by container ID.
 type namesByContainerIDIndexer struct{}
 
-func (e *namesByContainerIDIndexer) FromObject(obj interface{}) (bool, []byte, error) {
+func (e *namesByContainerIDIndexer) FromObject(obj any) (bool, []byte, error) {
 	n, ok := obj.(nameAssociation)
 	if !ok {
 		return false, nil, fmt.Errorf(`%T does not have type "nameAssociation"`, obj)
@@ -505,7 +505,7 @@ func (e *namesByContainerIDIndexer) FromObject(obj interface{}) (bool, []byte, e
 	return true, []byte(n.containerID + terminator), nil
 }
 
-func (e *namesByContainerIDIndexer) FromArgs(args ...interface{}) ([]byte, error) {
+func (e *namesByContainerIDIndexer) FromArgs(args ...any) ([]byte, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("must provide only a single argument")
 	}

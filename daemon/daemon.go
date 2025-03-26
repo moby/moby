@@ -263,7 +263,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 
 	removeContainers := make(map[string]*container.Container)
 	restartContainers := make(map[*container.Container]chan struct{})
-	activeSandboxes := make(map[string]interface{})
+	activeSandboxes := make(map[string]any)
 
 	for _, c := range containers {
 		group.Add(1)
@@ -967,7 +967,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 		var (
 			shim     string
-			shimOpts interface{}
+			shimOpts any
 		)
 		if runtime.GOOS != "windows" {
 			shim, shimOpts, err = rts.Get("")
@@ -1446,7 +1446,7 @@ func isBridgeNetworkDisabled(conf *config.Config) bool {
 	return conf.BridgeConfig.Iface == config.DisableNetworkBridge
 }
 
-func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.PluginGetter, hostID string, activeSandboxes map[string]interface{}) ([]nwconfig.Option, error) {
+func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.PluginGetter, hostID string, activeSandboxes map[string]any) ([]nwconfig.Option, error) {
 	options := []nwconfig.Option{
 		nwconfig.OptionDataDir(filepath.Join(conf.Root, config.LibnetDataPath)),
 		nwconfig.OptionExecRoot(conf.GetExecRoot()),
