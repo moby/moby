@@ -297,9 +297,7 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix, dstNam
 
 	// If the interface is up, send unsolicited ARP/NA messages if necessary.
 	if up {
-		if err := waitForBridgePort(ctx, ns.NlHandle(), iface); err != nil {
-			return fmt.Errorf("check bridge port state: %w", err)
-		}
+		waitForBridgePort(ctx, ns.NlHandle(), iface)
 		mcastRouteOk := waitForMcastRoute(ctx, iface.Attrs().Index, i, n.nlHandle)
 		if err := n.advertiseAddrs(ctx, iface.Attrs().Index, i, n.nlHandle, mcastRouteOk); err != nil {
 			return fmt.Errorf("failed to advertise addresses: %w", err)
@@ -489,11 +487,13 @@ func waitForIfUpped(ctx context.Context, ns netns.NsHandle, ifIndex int) (bool, 
 }
 
 // waitForBridgePort checks whether link iface is a veth. If it is, and the other
-// end of the veth is slaved to a bridge, waits for the bridge port's state to be
-// "forwarding". If STP is enabled on the bridge, it doesn't wait.
-func waitForBridgePort(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link) error {
+// end of the veth is slaved to a bridge, waits for up to maxWait for the bridge
+// port's state to be "forwarding". If STP is enabled on the bridge, it doesn't
+// wait. If the port is still not forwarding when this returns, at-least the
+// first unsolicited ARP/NA packets may be dropped.
+func waitForBridgePort(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link) {
 	if iface.Type() != "veth" {
-		return nil
+		return
 	}
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.waitForBridgePort")
 	defer span.End()
@@ -503,7 +503,7 @@ func waitForBridgePort(ctx context.Context, nlh nlwrap.Handle, iface netlink.Lin
 	parentIndex := iface.Attrs().ParentIndex
 	if parentIndex <= 0 {
 		log.G(ctx).Debug("veth has no parent index")
-		return nil
+		return
 	}
 	parentIface, err := nlh.LinkByIndex(parentIndex)
 	if err != nil {
@@ -512,16 +512,21 @@ func waitForBridgePort(ctx context.Context, nlh nlwrap.Handle, iface netlink.Lin
 		// addresses so the unsolicited ARPs aren't essential. If the first one goes
 		// missing because the bridge's port isn't forwarding yet, it's ok.
 		log.G(ctx).WithFields(log.Fields{"parentIndex": parentIndex, "error": err}).Debug("No parent interface")
-		return nil
+		return
 	}
 	// If the other end of the veth has a MasterIndex, that's a bridge.
 	if parentIface.Attrs().MasterIndex <= 0 {
 		log.G(ctx).Debug("veth is not connected to a bridge")
-		return nil
+		return
 	}
 	bridgeIface, err := nlh.LinkByIndex(parentIface.Attrs().MasterIndex)
 	if err != nil {
-		return fmt.Errorf("get bridge link by index %d: %w", parentIface.Attrs().MasterIndex, err)
+		log.G(ctx).WithFields(log.Fields{
+			"parentIndex": parentIndex,
+			"masterIndex": parentIface.Attrs().MasterIndex,
+			"error":       err,
+		}).Warn("No parent bridge link")
+		return
 	}
 
 	// Ideally, we'd read the port state via netlink. But, vishvananda/netlink needs a
@@ -539,8 +544,8 @@ func waitForBridgePort(ctx context.Context, nlh nlwrap.Handle, iface netlink.Lin
 	// bridge network's own bridge. But, could be on a user-supplied bridge
 	// and, if it is, it won't be forwarding within the timeout here.
 	if stpEnabled(ctx, bridgeIface.Attrs().Name) {
-		log.G(ctx).Debug("STP is enabled, not waiting for port to be forwarding")
-		return nil
+		log.G(ctx).Info("STP is enabled, not waiting for port to be forwarding")
+		return
 	}
 
 	// Read the port state from "/sys/class/net/<bridge>/brif/<veth>/state".
@@ -551,9 +556,9 @@ func waitForBridgePort(ctx context.Context, nlh nlwrap.Handle, iface netlink.Lin
 		// In integration tests where the daemon is running in its own netns, the bridge
 		// device isn't visible in "/sys/class/net". So, just wait for hopefully-long-enough
 		// for the bridge's port to be ready.
-		log.G(ctx).WithField("port", path).Debug("Failed to open port state file, waiting")
+		log.G(ctx).WithField("port", path).Warn("Failed to open port state file, waiting for 20ms")
 		time.Sleep(20 * time.Millisecond)
-		return nil
+		return
 	}
 	defer portStateFile.Close()
 
@@ -561,14 +566,19 @@ func waitForBridgePort(ctx context.Context, nlh nlwrap.Handle, iface netlink.Lin
 	// quickly, and not for long.)
 	const pollInterval = 10 * time.Millisecond
 	const maxWait = 200 * time.Millisecond
+	var stateFileContent [2]byte
 	for range int64(maxWait / pollInterval) {
-		var stateFileContent [2]byte
 		n, err := portStateFile.ReadAt(stateFileContent[:], 0)
 		if err != nil {
-			return fmt.Errorf("read %q: %w", path, err)
+			log.G(ctx).WithFields(log.Fields{
+				"filename": path,
+				"error":    err,
+			}).Warn("Failed to read bridge port state")
+			return
 		}
 		if n == 0 {
-			return fmt.Errorf("empty file %q", path)
+			log.G(ctx).WithField("filename", path).Warn("Empty bridge port state file")
+			return
 		}
 		// Forwarding is state '3'.
 		// https://elixir.bootlin.com/linux/v6.13/source/include/uapi/linux/if_bridge.h#L49-L53
@@ -578,9 +588,12 @@ func waitForBridgePort(ctx context.Context, nlh nlwrap.Handle, iface netlink.Lin
 			continue
 		}
 		log.G(ctx).Debug("Bridge port is forwarding")
-		return nil
+		return
 	}
-	return fmt.Errorf("bridge port not forwarding after %v", maxWait)
+	log.G(ctx).WithFields(log.Fields{
+		"portState": stateFileContent[0],
+		"waitTime":  maxWait,
+	}).Warn("Bridge port not forwarding")
 }
 
 // stpEnabled returns true if "/sys/class/net/<name>/bridge/stp_state" can be read
