@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+set -e
+
+# This script verifies that all packages have the correct //go:build directives set.
+# This is necessary because when our code is consumed as a dependency in "module mode",
+# Go will implicitly generate a go.mod and assume "go1.16" language version if one
+# doesn't exist. Starting with Go 1.21, this causes compilation errors for any code
+# using features from newer Go versions.
+
+make -C ./internal/gocompat
