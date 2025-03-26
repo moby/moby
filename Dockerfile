@@ -52,6 +52,11 @@ COPY --from=build-dummy /build /build
 # base
 FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS base
 COPY --from=xx / /
+# Disable collecting local telemetry, as collected by Go and Delve;
+#
+# - https://github.com/go-delve/delve/blob/v1.24.1/CHANGELOG.md#1231-2024-09-23
+# - https://go.dev/doc/telemetry#background
+RUN go telemetry off && [ "$(go telemetry)" = "off" ] || { echo "Failed to disable Go telemetry"; exit 1; }
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 RUN apt-get update && apt-get install --no-install-recommends -y file
 ENV GO111MODULE=off
