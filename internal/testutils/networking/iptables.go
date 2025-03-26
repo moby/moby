@@ -2,6 +2,7 @@ package networking
 
 import (
 	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/internal/lazyregexp"
@@ -43,4 +44,9 @@ func SetFilterForwardPolicies(t *testing.T, policy string) {
 			}
 		})
 	}
+}
+
+func FirewalldRunning() bool {
+	state, err := exec.Command("firewall-cmd", "--state").CombinedOutput()
+	return err == nil && strings.TrimSpace(string(state)) == "running"
 }
