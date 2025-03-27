@@ -29,7 +29,6 @@ import (
 	"github.com/containerd/containerd/v2/pkg/dialer"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	dist "github.com/docker/distribution"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -55,6 +54,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/metrics"
+	"github.com/docker/docker/internal/registryclient"
 	"github.com/docker/docker/layer"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/libnetwork"
@@ -1658,7 +1658,7 @@ type imageBackend struct {
 //
 // It returns an error if it was unable to reach any of the registries for
 // the given reference, or if the provided reference is invalid.
-func (i *imageBackend) GetRepositories(ctx context.Context, ref reference.Named, authConfig *registrytypes.AuthConfig) ([]dist.Repository, error) {
+func (i *imageBackend) GetRepositories(ctx context.Context, ref reference.Named, authConfig *registrytypes.AuthConfig) ([]registryclient.Repository, error) {
 	return distribution.GetRepositories(ctx, ref, &distribution.ImagePullConfig{
 		Config: distribution.Config{
 			AuthConfig:      authConfig,

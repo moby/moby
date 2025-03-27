@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"strconv"
+
+	"github.com/docker/docker/internal/lazyregexp"
 )
 
 var (
-	contentRangeRegexp = regexp.MustCompile(`bytes ([0-9]+)-([0-9]+)/([0-9]+|\\*)`)
+	contentRangeRegexp = lazyregexp.New(`bytes ([0-9]+)-([0-9]+)/([0-9]+|\\*)`)
 
 	// ErrWrongCodeForByteRange is returned if the client sends a request
 	// with a Range header but the server returns a 2xx or 3xx code other

@@ -18,11 +18,12 @@ import (
 	"github.com/docker/distribution/manifest/ocischema"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
 	v1 "github.com/docker/docker/image/v1"
+	"github.com/docker/docker/internal/registryclient"
+	"github.com/docker/docker/internal/registryclient/transport"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
@@ -69,7 +70,7 @@ type puller struct {
 	endpoint        registry.APIEndpoint
 	config          *ImagePullConfig
 	repoInfo        *registry.RepositoryInfo
-	repo            distribution.Repository
+	repo            registryclient.Repository
 	manifestStore   *manifestStore
 }
 
@@ -144,7 +145,7 @@ type layerDescriptor struct {
 	digest          digest.Digest
 	diffID          layer.DiffID
 	repoInfo        *registry.RepositoryInfo
-	repo            distribution.Repository
+	repo            registryclient.Repository
 	metadataService metadata.V2MetadataService
 	tmpFile         *os.File
 	verifier        digest.Verifier

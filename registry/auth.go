@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/distribution/registry/client/auth"
-	"github.com/docker/distribution/registry/client/auth/challenge"
-	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/internal/registryclient/auth"
+	"github.com/docker/docker/internal/registryclient/auth/challenge"
+	"github.com/docker/docker/internal/registryclient/transport"
 	"github.com/pkg/errors"
 )
 

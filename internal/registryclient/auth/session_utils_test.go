@@ -28,7 +28,7 @@ func (v APIVersion) String() string {
 func APIVersions(resp *http.Response, versionHeader string) []APIVersion {
 	versions := []APIVersion{}
 	if versionHeader != "" {
-		for _, supportedVersions := range resp.Header[http.CanonicalHeaderKey(versionHeader)] {
+		for _, supportedVersions := range resp.Header.Values(versionHeader) {
 			for _, version := range strings.Fields(supportedVersions) {
 				versions = append(versions, ParseAPIVersion(version))
 			}

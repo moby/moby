@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/distribution/reference"
-	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	distributionpkg "github.com/docker/docker/distribution"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/registryclient"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -76,7 +76,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 	return lastErr
 }
 
-func (s *distributionRouter) fetchManifest(ctx context.Context, distrepo distribution.Repository, namedRef reference.Named) (registry.DistributionInspect, error) {
+func (s *distributionRouter) fetchManifest(ctx context.Context, distrepo registryclient.Repository, namedRef reference.Named) (registry.DistributionInspect, error) {
 	var distributionInspect registry.DistributionInspect
 	if canonicalRef, ok := namedRef.(reference.Canonical); !ok {
 		namedRef = reference.TagNameOnly(namedRef)
