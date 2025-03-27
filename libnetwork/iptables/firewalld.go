@@ -31,14 +31,26 @@ type Conn struct {
 var (
 	connection *Conn
 
-	firewalldRunning bool      // is Firewalld service running
-	onReloaded       []*func() // callbacks when Firewalld has been reloaded
+	firewalldInitCalled bool
+	firewalldRunning    bool      // is Firewalld service running
+	onReloaded          []*func() // callbacks when Firewalld has been reloaded
 )
+
+// UsingFirewalld returns true if iptables rules will be applied via firewalld's
+// passthrough interface. The error return is non-nil if the status cannot be
+// determined because the initialisation function has not been called.
+func UsingFirewalld() (bool, error) {
+	if !firewalldInitCalled {
+		return false, fmt.Errorf("iptables.firewalld is not initialised")
+	}
+	return firewalldRunning, nil
+}
 
 // firewalldInit initializes firewalld management code.
 func firewalldInit() error {
 	var err error
 
+	firewalldInitCalled = true
 	if connection, err = newConnection(); err != nil {
 		return fmt.Errorf("Failed to connect to D-Bus system bus: %v", err)
 	}
