@@ -284,13 +284,14 @@ RUN --mount=source=hack/dockerfile/cli.sh,target=/download-or-build-cli.sh \
 # runc
 FROM base AS runc-src
 WORKDIR /usr/src/runc
-RUN git init . && git remote add origin "https://github.com/opencontainers/runc.git"
+RUN git init . && git remote add origin "https://github.com/rata/runc.git"
 # RUNC_VERSION should match the version that is used by the containerd version
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged. When updating RUNC_VERSION,
 # consider updating runc in vendor.mod accordingly.
-ARG RUNC_VERSION=v1.2.6
-RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ARG RUNC_VERSION=b2658005fa3847c465c7a03429f46fa05b848936
+RUN git fetch -q origin "${RUNC_VERSION}" && git checkout -q ${RUNC_VERSION}
+# RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS runc-build
 WORKDIR /go/src/github.com/opencontainers/runc
