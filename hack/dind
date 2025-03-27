@@ -52,6 +52,8 @@ if [ -d /sys/kernel/security ] && ! mountpoint -q /sys/kernel/security; then
 fi
 
 # Mount /tmp (conditionally)
+# /tmp must be 'exec,rw', and 'dev' to allow mknod to work for the
+# pkg/archive/archive_linux_test.go tests.
 if ! mountpoint -q /tmp; then
 	mount -t tmpfs none /tmp
 fi

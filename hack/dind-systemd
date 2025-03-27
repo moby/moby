@@ -19,6 +19,13 @@ if [ ! -t 0 ]; then
 	exit 1
 fi
 
+# Mount /tmp (conditionally)
+# /tmp must be 'exec,rw', and 'dev' (defaults) to allow mknod to work for the
+# pkg/archive/archive_linux_test.go tests.
+if ! mountpoint -q /tmp; then
+	mount -t tmpfs none /tmp
+fi
+
 # Change mount propagation to shared, which SystemD PID 1 would normally do
 # itself when started by the kernel. SystemD skips that when it detects it is
 # running in a container.
