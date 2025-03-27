@@ -82,7 +82,8 @@ func (p *pusher) push(ctx context.Context) (err error) {
 	}
 
 	if err = p.pushRepository(ctx); err != nil {
-		if continueOnError(err, p.endpoint.Mirror) {
+		// [Service.LookupPushEndpoints] never returns mirror endpoint.
+		if continueOnError(err, false) {
 			return fallbackError{
 				err:         err,
 				transportOK: true,
