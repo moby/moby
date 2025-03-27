@@ -16,7 +16,7 @@ import (
 // UnpackLayer unpack `layer` to a `dest`. The stream `layer` can be
 // compressed or uncompressed.
 // Returns the size in bytes of the contents of the layer.
-func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64, err error) {
+func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64, _ error) {
 	tr := tar.NewReader(layer)
 
 	var dirs []*tar.Header
@@ -70,8 +70,7 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 		}
 
 		// Ensure that the parent directory exists.
-		err = createImpliedDirectories(dest, hdr, options)
-		if err != nil {
+		if err := createImpliedDirectories(dest, hdr, options); err != nil {
 			return 0, err
 		}
 
@@ -84,7 +83,8 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 				basename := filepath.Base(hdr.Name)
 				aufsHardlinks[basename] = hdr
 				if aufsTempdir == "" {
-					if aufsTempdir, err = os.MkdirTemp(dest, "dockerplnk"); err != nil {
+					aufsTempdir, err = os.MkdirTemp(dest, "dockerplnk")
+					if err != nil {
 						return 0, err
 					}
 					defer os.RemoveAll(aufsTempdir)
@@ -114,11 +114,10 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 		if strings.HasPrefix(base, WhiteoutPrefix) {
 			dir := filepath.Dir(path)
 			if base == WhiteoutOpaqueDir {
-				_, err := os.Lstat(dir)
-				if err != nil {
+				if _, err := os.Lstat(dir); err != nil {
 					return 0, err
 				}
-				err = filepath.WalkDir(dir, func(path string, info os.DirEntry, err error) error {
+				err := filepath.WalkDir(dir, func(path string, info os.DirEntry, err error) error {
 					if err != nil {
 						if os.IsNotExist(err) {
 							err = nil // parent was deleted
