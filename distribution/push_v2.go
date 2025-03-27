@@ -155,7 +155,6 @@ func (p *pusher) pushTag(ctx context.Context, ref reference.NamedTagged, id dige
 		hmacKey:         hmacKey,
 		repoName:        p.repoName,
 		ref:             p.ref,
-		endpoint:        p.endpoint,
 		repo:            p.repo,
 		pushState:       &p.pushState,
 	}
@@ -276,7 +275,6 @@ type pushDescriptor struct {
 	hmacKey          []byte
 	repoName         reference.Named
 	ref              reference.Named
-	endpoint         registry.APIEndpoint
 	repo             distribution.Repository
 	pushState        *pushState
 	remoteDescriptor distribution.Descriptor
