@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/registry"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
@@ -137,11 +138,10 @@ func (i *ImageService) StorageDriver() string {
 
 // LayerDiskUsage returns the number of bytes used by layer stores
 // called from disk_usage.go
-func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
-	var allLayersSize int64
+func (i *ImageService) LayerDiskUsage(ctx context.Context) (allLayersSize int64, err error) {
 	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
 	snapshotter := i.client.SnapshotService(i.snapshotter)
-	snapshotter.Walk(ctx, func(ctx context.Context, info snapshots.Info) error {
+	err = snapshotter.Walk(ctx, func(ctx context.Context, info snapshots.Info) error {
 		usage, err := snapshotter.Usage(ctx, info.Name)
 		if err != nil {
 			return err
@@ -149,6 +149,37 @@ func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 		allLayersSize += usage.Size
 		return nil
 	})
+	if err != nil {
+		return allLayersSize, err
+	}
+
+	// Include the size of content size from the images.
+	imgs, err := i.images.List(ctx)
+	if err != nil {
+		return allLayersSize, err
+	}
+
+	visitedImages := make(map[digest.Digest]struct{})
+	for _, img := range imgs {
+		if _, ok := visitedImages[img.Target.Digest]; ok {
+			continue
+		}
+		visitedImages[img.Target.Digest] = struct{}{}
+
+		if err = i.walkReachableImageManifests(ctx, img, func(imageManifest *ImageManifest) error {
+			size, err := imageManifest.PresentContentSize(ctx)
+			if err != nil {
+				return err
+			}
+			allLayersSize += size
+			return nil
+		}); err != nil {
+			return allLayersSize, err
+		}
+	}
+	if err != nil {
+		return 0, err
+	}
 	return allLayersSize, nil
 }
 
