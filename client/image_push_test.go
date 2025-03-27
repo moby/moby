@@ -79,7 +79,7 @@ func TestImagePushWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T)
 }
 
 func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
-	expectedURL := "/images/myimage/push"
+	const expectedURL = "/images/docker.io/myname/myimage/push"
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
@@ -109,7 +109,7 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 	privilegeFunc := func(_ context.Context) (string, error) {
 		return "IAmValid", nil
 	}
-	resp, err := client.ImagePush(context.Background(), "myimage:tag", image.PushOptions{
+	resp, err := client.ImagePush(context.Background(), "myname/myimage:tag", image.PushOptions{
 		RegistryAuth:  "NotValid",
 		PrivilegeFunc: privilegeFunc,
 	})
@@ -126,8 +126,10 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 }
 
 func TestImagePushWithoutErrors(t *testing.T) {
-	expectedOutput := "hello world"
-	expectedURLFormat := "/images/%s/push"
+	const (
+		expectedURLFormat = "/images/%s/push"
+		expectedOutput    = "hello world"
+	)
 	testCases := []struct {
 		all           bool
 		reference     string
@@ -137,26 +139,51 @@ func TestImagePushWithoutErrors(t *testing.T) {
 		{
 			all:           false,
 			reference:     "myimage",
-			expectedImage: "myimage",
+			expectedImage: "docker.io/library/myimage",
 			expectedTag:   "latest",
 		},
 		{
 			all:           false,
 			reference:     "myimage:tag",
-			expectedImage: "myimage",
+			expectedImage: "docker.io/library/myimage",
 			expectedTag:   "tag",
 		},
 		{
 			all:           true,
 			reference:     "myimage",
-			expectedImage: "myimage",
+			expectedImage: "docker.io/library/myimage",
 			expectedTag:   "",
 		},
 		{
 			all:           true,
 			reference:     "myimage:anything",
-			expectedImage: "myimage",
+			expectedImage: "docker.io/library/myimage",
 			expectedTag:   "",
+		},
+		{
+			reference:     "myname/myimage",
+			expectedImage: "docker.io/myname/myimage",
+			expectedTag:   "latest",
+		},
+		{
+			reference:     "docker.io/myname/myimage",
+			expectedImage: "docker.io/myname/myimage",
+			expectedTag:   "latest",
+		},
+		{
+			reference:     "index.docker.io/myname/myimage:tag",
+			expectedImage: "docker.io/myname/myimage",
+			expectedTag:   "tag",
+		},
+		{
+			reference:     "localhost/myname/myimage",
+			expectedImage: "localhost/myname/myimage",
+			expectedTag:   "latest",
+		},
+		{
+			reference:     "registry.example.com:5000/myimage:tag",
+			expectedImage: "registry.example.com:5000/myimage",
+			expectedTag:   "tag",
 		},
 	}
 	for _, tc := range testCases {
