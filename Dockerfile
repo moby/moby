@@ -57,6 +57,9 @@ COPY --from=xx / /
 # - https://github.com/go-delve/delve/blob/v1.24.1/CHANGELOG.md#1231-2024-09-23
 # - https://go.dev/doc/telemetry#background
 RUN go telemetry off && [ "$(go telemetry)" = "off" ] || { echo "Failed to disable Go telemetry"; exit 1; }
+ADD --checksum=sha256:42a445ed5b1e02c5dea20801176192ee4a3812bc051fc6c62962ca3d73de343f --chmod=0755 \
+        https://raw.githubusercontent.com/containerd/nerdctl/refs/tags/v2.0.4/hack/git-checkout-tag-with-hash.sh \
+        /usr/local/bin/
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 RUN apt-get update && apt-get install --no-install-recommends -y file
 ENV GO111MODULE=off
@@ -190,8 +193,6 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 # containerd
 FROM base AS containerd-src
-WORKDIR /usr/src/containerd
-RUN git init . && git remote add origin "https://github.com/containerd/containerd.git"
 # CONTAINERD_VERSION is used to build containerd binaries, and used for the
 # integration tests. The distributed docker .deb and .rpm packages depend on a
 # separate (containerd.io) package, which may be a different version as is
@@ -199,8 +200,11 @@ RUN git init . && git remote add origin "https://github.com/containerd/container
 # When updating the binary version you may also need to update the vendor
 # version to pick up bug fixes or new APIs, however, usually the Go packages
 # are built from a commit from the master branch.
-ARG CONTAINERD_VERSION=v1.7.27
-RUN git fetch -q --depth 1 origin "${CONTAINERD_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ARG CONTAINERD_VERSION=v1.7.27@05044ec0a9a75232cad458027ca83437aae3f4da
+RUN cd /usr/src && \
+  git clone --depth=1 --branch "${CONTAINERD_VERSION%@*}" https://github.com/containerd/containerd.git && \
+  cd containerd && \
+  git-checkout-tag-with-hash.sh "${CONTAINERD_VERSION}"
 
 FROM base AS containerd-build
 WORKDIR /go/src/github.com/containerd/containerd
@@ -283,14 +287,15 @@ RUN --mount=source=hack/dockerfile/cli.sh,target=/download-or-build-cli.sh \
 
 # runc
 FROM base AS runc-src
-WORKDIR /usr/src/runc
-RUN git init . && git remote add origin "https://github.com/opencontainers/runc.git"
 # RUNC_VERSION should match the version that is used by the containerd version
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged. When updating RUNC_VERSION,
 # consider updating runc in vendor.mod accordingly.
-ARG RUNC_VERSION=v1.2.6
-RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ARG RUNC_VERSION=v1.2.6@e89a29929c775025419ab0d218a43588b4c12b9a
+RUN cd /usr/src && \
+  git clone --depth=1 --branch "${RUNC_VERSION%@*}" https://github.com/opencontainers/runc.git && \
+  cd runc && \
+  git-checkout-tag-with-hash.sh "${RUNC_VERSION}"
 
 FROM base AS runc-build
 WORKDIR /go/src/github.com/opencontainers/runc
@@ -319,12 +324,13 @@ FROM runc-${TARGETOS} AS runc
 
 # tini
 FROM base AS tini-src
-WORKDIR /usr/src/tini
-RUN git init . && git remote add origin "https://github.com/krallin/tini.git"
 # TINI_VERSION specifies the version of tini (docker-init) to build. This
 # binary is used when starting containers with the `--init` option.
-ARG TINI_VERSION=v0.19.0
-RUN git fetch -q --depth 1 origin "${TINI_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ARG TINI_VERSION=v0.19.0@de40ad007797e0dcd8b7126f27bb87401d224240
+RUN cd /usr/src && \
+  git clone --depth=1 --branch "${TINI_VERSION%@*}" https://github.com/krallin/tini.git && \
+  cd tini && \
+  git-checkout-tag-with-hash.sh "${TINI_VERSION}"
 
 FROM base AS tini-build
 WORKDIR /go/src/github.com/krallin/tini
@@ -354,11 +360,12 @@ FROM tini-${TARGETOS} AS tini
 
 # rootlesskit
 FROM base AS rootlesskit-src
-WORKDIR /usr/src/rootlesskit
-RUN git init . && git remote add origin "https://github.com/rootless-containers/rootlesskit.git"
 # When updating, also update vendor.mod and hack/dockerfile/install/rootlesskit.installer accordingly.
-ARG ROOTLESSKIT_VERSION=v2.3.4
-RUN git fetch -q --depth 1 origin "${ROOTLESSKIT_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ARG ROOTLESSKIT_VERSION=v2.3.4@59a459df858d39ad5f4eafa305545907bf0c48ab
+RUN cd /usr/src && \
+  git clone --depth=1 --branch "${ROOTLESSKIT_VERSION%@*}" https://github.com/rootless-containers/rootlesskit.git && \
+  cd rootlesskit && \
+  git-checkout-tag-with-hash.sh "${ROOTLESSKIT_VERSION}"
 
 FROM base AS rootlesskit-build
 WORKDIR /go/src/github.com/rootless-containers/rootlesskit
