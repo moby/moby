@@ -1,6 +1,7 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
+	"context"
 	"net/url"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 )
 
 func (s *Service) lookupV2Endpoints(hostname string, includeMirrors bool) ([]APIEndpoint, error) {
+	ctx := context.TODO()
 	var endpoints []APIEndpoint
 	if hostname == DefaultNamespace || hostname == IndexHostname {
 		if includeMirrors {
@@ -19,7 +21,8 @@ func (s *Service) lookupV2Endpoints(hostname string, includeMirrors bool) ([]API
 				if err != nil {
 					return nil, invalidParam(err)
 				}
-				mirrorTLSConfig, err := newTLSConfig(mirrorURL.Host, s.config.isSecureIndex(mirrorURL.Host))
+				// TODO(thaJeztah); this should all be memoized when loading the config. We're resolving mirrors and loading TLS config every time.
+				mirrorTLSConfig, err := newTLSConfig(ctx, mirrorURL.Host, s.config.isSecureIndex(mirrorURL.Host))
 				if err != nil {
 					return nil, err
 				}
@@ -39,7 +42,7 @@ func (s *Service) lookupV2Endpoints(hostname string, includeMirrors bool) ([]API
 		return endpoints, nil
 	}
 
-	tlsConfig, err := newTLSConfig(hostname, s.config.isSecureIndex(hostname))
+	tlsConfig, err := newTLSConfig(ctx, hostname, s.config.isSecureIndex(hostname))
 	if err != nil {
 		return nil, err
 	}

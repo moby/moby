@@ -29,15 +29,15 @@ func hostCertsDir(hostname string) string {
 }
 
 // newTLSConfig constructs a client TLS configuration based on server defaults
-func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
+func newTLSConfig(ctx context.Context, hostname string, isSecure bool) (*tls.Config, error) {
 	// PreferredServerCipherSuites should have no effect
 	tlsConfig := tlsconfig.ServerDefault()
 	tlsConfig.InsecureSkipVerify = !isSecure
 
 	if isSecure {
 		hostDir := hostCertsDir(hostname)
-		log.G(context.TODO()).Debugf("hostDir: %s", hostDir)
-		if err := ReadCertsDirectory(tlsConfig, hostDir); err != nil {
+		log.G(ctx).Debugf("hostDir: %s", hostDir)
+		if err := loadTLSConfig(ctx, hostDir, tlsConfig); err != nil {
 			return nil, err
 		}
 	}
@@ -58,6 +58,12 @@ func hasFile(files []os.DirEntry, name string) bool {
 // including roots and certificate pairs and updates the
 // provided TLS configuration.
 func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
+	return loadTLSConfig(context.TODO(), directory, tlsConfig)
+}
+
+// loadTLSConfig reads the directory for TLS certificates including roots and
+// certificate pairs, and updates the provided TLS configuration.
+func loadTLSConfig(ctx context.Context, directory string, tlsConfig *tls.Config) error {
 	fs, err := os.ReadDir(directory)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -67,6 +73,9 @@ func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 	}
 
 	for _, f := range fs {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		switch filepath.Ext(f.Name()) {
 		case ".crt":
 			if tlsConfig.RootCAs == nil {
@@ -77,7 +86,7 @@ func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 				tlsConfig.RootCAs = systemPool
 			}
 			fileName := filepath.Join(directory, f.Name())
-			log.G(context.TODO()).Debugf("crt: %s", fileName)
+			log.G(ctx).Debugf("crt: %s", fileName)
 			data, err := os.ReadFile(fileName)
 			if err != nil {
 				return err
@@ -86,7 +95,7 @@ func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 		case ".cert":
 			certName := f.Name()
 			keyName := certName[:len(certName)-5] + ".key"
-			log.G(context.TODO()).Debugf("cert: %s", filepath.Join(directory, certName))
+			log.G(ctx).Debugf("cert: %s", filepath.Join(directory, certName))
 			if !hasFile(fs, keyName) {
 				return invalidParamf("missing key %s for client certificate %s. CA certificates must use the extension .crt", keyName, certName)
 			}
@@ -98,7 +107,7 @@ func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 		case ".key":
 			keyName := f.Name()
 			certName := keyName[:len(keyName)-4] + ".cert"
-			log.G(context.TODO()).Debugf("key: %s", filepath.Join(directory, keyName))
+			log.G(ctx).Debugf("key: %s", filepath.Join(directory, keyName))
 			if !hasFile(fs, certName) {
 				return invalidParamf("missing client certificate %s for key %s", certName, keyName)
 			}

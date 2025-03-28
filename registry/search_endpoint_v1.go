@@ -32,7 +32,7 @@ type v1Endpoint struct {
 // newV1Endpoint parses the given address to return a registry endpoint.
 // TODO: remove. This is only used by search.
 func newV1Endpoint(index *registry.IndexInfo, headers http.Header) (*v1Endpoint, error) {
-	tlsConfig, err := newTLSConfig(index.Name, index.Secure)
+	tlsConfig, err := newTLSConfig(context.TODO(), index.Name, index.Secure)
 	if err != nil {
 		return nil, err
 	}
