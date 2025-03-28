@@ -552,6 +552,11 @@ func TestMirroredWSL2LoopbackFiltering(t *testing.T) {
 			}, true)
 			assert.NilError(t, err)
 
+			// Checking this after trying to create rules, to make sure the init code in iptables/firewalld.go has run.
+			if fw, _ := iptables.UsingFirewalld(); fw {
+				t.Skip("firewalld is running in the host netns, it can't modify rules in the test's netns")
+			}
+
 			out, err := exec.Command("iptables-save", "-t", "raw").CombinedOutput()
 			assert.NilError(t, err)
 

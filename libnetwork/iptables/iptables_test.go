@@ -257,6 +257,10 @@ func TestExistsRaw(t *testing.T) {
 }
 
 func TestRule(t *testing.T) {
+	_ = firewalldInit()
+	if res, _ := UsingFirewalld(); res {
+		t.Skip("firewalld in host netns cannot create rules in the test's netns")
+	}
 	defer netnsutils.SetupTestOSContext(t)()
 
 	assert.NilError(t, exec.Command("iptables", "-N", "TESTCHAIN").Run())
