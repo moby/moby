@@ -38,12 +38,12 @@ const (
 // newPusher creates a new pusher for pushing to a v2 registry.
 // The parameters are passed through to the underlying pusher implementation for
 // use during the actual push operation.
-func newPusher(ref reference.Named, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, config *ImagePushConfig) *pusher {
+func newPusher(ref reference.Named, endpoint registry.APIEndpoint, repoName reference.Named, config *ImagePushConfig) *pusher {
 	return &pusher{
 		metadataService: metadata.NewV2MetadataService(config.MetadataStore),
 		ref:             ref,
 		endpoint:        endpoint,
-		repoInfo:        repoInfo,
+		repoName:        repoName,
 		config:          config,
 	}
 }
@@ -52,7 +52,7 @@ type pusher struct {
 	metadataService metadata.V2MetadataService
 	ref             reference.Named
 	endpoint        registry.APIEndpoint
-	repoInfo        *registry.RepositoryInfo
+	repoName        reference.Named
 	config          *ImagePushConfig
 	repo            distribution.Repository
 
@@ -74,7 +74,7 @@ type pushState struct {
 func (p *pusher) push(ctx context.Context) (err error) {
 	p.pushState.remoteLayers = make(map[layer.DiffID]distribution.Descriptor)
 
-	p.repo, err = newRepository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
+	p.repo, err = newRepository(ctx, p.repoName, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
 	p.pushState.hasAuthInfo = p.config.AuthConfig.RegistryToken != "" || (p.config.AuthConfig.Username != "" && p.config.AuthConfig.Password != "")
 	if err != nil {
 		log.G(ctx).Debugf("Error getting v2 registry: %v", err)
@@ -118,7 +118,7 @@ func (p *pusher) pushRepository(ctx context.Context) (err error) {
 	}
 
 	if pushed == 0 {
-		return fmt.Errorf("no tags to push for %s", reference.FamiliarName(p.repoInfo.Name))
+		return fmt.Errorf("no tags to push for %s", reference.FamiliarName(p.repoName))
 	}
 
 	return nil
@@ -153,7 +153,7 @@ func (p *pusher) pushTag(ctx context.Context, ref reference.NamedTagged, id dige
 	descriptorTemplate := pushDescriptor{
 		metadataService: p.metadataService,
 		hmacKey:         hmacKey,
-		repoInfo:        p.repoInfo.Name,
+		repoName:        p.repoName,
 		ref:             p.ref,
 		endpoint:        p.endpoint,
 		repo:            p.repo,
@@ -274,7 +274,7 @@ type pushDescriptor struct {
 	layer            PushLayer
 	metadataService  metadata.V2MetadataService
 	hmacKey          []byte
-	repoInfo         reference.Named
+	repoName         reference.Named
 	ref              reference.Named
 	endpoint         registry.APIEndpoint
 	repo             distribution.Repository
@@ -328,7 +328,7 @@ func (pd *pushDescriptor) Upload(ctx context.Context, progressOutput progress.Ou
 	var layerUpload distribution.BlobWriter
 
 	// Attempt to find another repository in the same registry to mount the layer from to avoid an unnecessary upload
-	candidates := getRepositoryMountCandidates(pd.repoInfo, pd.hmacKey, maxMountAttempts, metaData)
+	candidates := getRepositoryMountCandidates(pd.repoName, pd.hmacKey, maxMountAttempts, metaData)
 	isUnauthorizedError := false
 	for _, mc := range candidates {
 		mountCandidate := mc
@@ -377,7 +377,7 @@ func (pd *pushDescriptor) Upload(ctx context.Context, progressOutput progress.Ou
 			// Cache mapping from this layer's DiffID to the blobsum
 			if err := pd.metadataService.TagAndAdd(diffID, pd.hmacKey, metadata.V2Metadata{
 				Digest:           err.Descriptor.Digest,
-				SourceRepository: pd.repoInfo.Name(),
+				SourceRepository: pd.repoName.Name(),
 			}); err != nil {
 				return distribution.Descriptor{}, xfer.DoNotRetry{Err: err}
 			}
@@ -496,7 +496,7 @@ func (pd *pushDescriptor) uploadUsingSession(
 	// Cache mapping from this layer's DiffID to the blobsum
 	if err := pd.metadataService.TagAndAdd(diffID, pd.hmacKey, metadata.V2Metadata{
 		Digest:           pushDigest,
-		SourceRepository: pd.repoInfo.Name(),
+		SourceRepository: pd.repoName.Name(),
 	}); err != nil {
 		return distribution.Descriptor{}, xfer.DoNotRetry{Err: err}
 	}
@@ -529,13 +529,13 @@ func (pd *pushDescriptor) layerAlreadyExists(
 	// filter the metadata
 	candidates := []metadata.V2Metadata{}
 	for _, meta := range v2Metadata {
-		if len(meta.SourceRepository) > 0 && !checkOtherRepositories && meta.SourceRepository != pd.repoInfo.Name() {
+		if len(meta.SourceRepository) > 0 && !checkOtherRepositories && meta.SourceRepository != pd.repoName.Name() {
 			continue
 		}
 		candidates = append(candidates, meta)
 	}
 	// sort the candidates by similarity
-	sortV2MetadataByLikenessAndAge(pd.repoInfo, pd.hmacKey, candidates)
+	sortV2MetadataByLikenessAndAge(pd.repoName, pd.hmacKey, candidates)
 
 	digestToMetadata := make(map[digest.Digest]*metadata.V2Metadata)
 	// an array of unique blob digests ordered from the best mount candidates to worst
@@ -560,16 +560,16 @@ func (pd *pushDescriptor) layerAlreadyExists(
 attempts:
 	for _, dgst := range layerDigests {
 		meta := digestToMetadata[dgst]
-		log.G(ctx).Debugf("Checking for presence of layer %s (%s) in %s", diffID, dgst, pd.repoInfo.Name())
+		log.G(ctx).Debugf("Checking for presence of layer %s (%s) in %s", diffID, dgst, pd.repoName.Name())
 		desc, err = pd.repo.Blobs(ctx).Stat(ctx, dgst)
 		pd.checkedDigests[meta.Digest] = struct{}{}
 		switch err {
 		case nil:
-			if m, ok := digestToMetadata[desc.Digest]; !ok || m.SourceRepository != pd.repoInfo.Name() || !metadata.CheckV2MetadataHMAC(m, pd.hmacKey) {
+			if m, ok := digestToMetadata[desc.Digest]; !ok || m.SourceRepository != pd.repoName.Name() || !metadata.CheckV2MetadataHMAC(m, pd.hmacKey) {
 				// cache mapping from this layer's DiffID to the blobsum
 				if err := pd.metadataService.TagAndAdd(diffID, pd.hmacKey, metadata.V2Metadata{
 					Digest:           desc.Digest,
-					SourceRepository: pd.repoInfo.Name(),
+					SourceRepository: pd.repoName.Name(),
 				}); err != nil {
 					return distribution.Descriptor{}, false, xfer.DoNotRetry{Err: err}
 				}
@@ -578,12 +578,12 @@ attempts:
 			exists = true
 			break attempts
 		case distribution.ErrBlobUnknown:
-			if meta.SourceRepository == pd.repoInfo.Name() {
+			if meta.SourceRepository == pd.repoName.Name() {
 				// remove the mapping to the target repository
 				pd.metadataService.Remove(*meta)
 			}
 		default:
-			log.G(ctx).WithError(err).Debugf("Failed to check for presence of layer %s (%s) in %s", diffID, dgst, pd.repoInfo.Name())
+			log.G(ctx).WithError(err).Debugf("Failed to check for presence of layer %s (%s) in %s", diffID, dgst, pd.repoName.Name())
 		}
 	}
 

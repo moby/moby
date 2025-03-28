@@ -14,14 +14,13 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/distribution/reference"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/snapshotter"
+	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/registry"
 	"github.com/pkg/errors"
 )
 
@@ -34,7 +33,7 @@ type ImageService struct {
 	snapshotterServices map[string]snapshots.Snapshotter
 	snapshotter         string
 	registryHosts       docker.RegistryHosts
-	registryService     registryResolver
+	registryService     distribution.RegistryResolver
 	eventsService       *daemonevents.Events
 	pruneRunning        atomic.Bool
 	refCountMounter     snapshotter.Mounter
@@ -44,19 +43,12 @@ type ImageService struct {
 	defaultPlatformOverride platforms.MatchComparer
 }
 
-type registryResolver interface {
-	IsInsecureRegistry(host string) bool
-	ResolveRepository(name reference.Named) (*registry.RepositoryInfo, error)
-	LookupPullEndpoints(hostname string) ([]registry.APIEndpoint, error)
-	LookupPushEndpoints(hostname string) ([]registry.APIEndpoint, error)
-}
-
 type ImageServiceConfig struct {
 	Client          *containerd.Client
 	Containers      container.Store
 	Snapshotter     string
 	RegistryHosts   docker.RegistryHosts
-	Registry        registryResolver
+	Registry        distribution.RegistryResolver
 	EventsService   *daemonevents.Events
 	RefCountMounter snapshotter.Mounter
 	IDMapping       idtools.IdentityMapping

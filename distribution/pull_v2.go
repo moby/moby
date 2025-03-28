@@ -52,12 +52,12 @@ func (e imageConfigPullError) Error() string {
 }
 
 // newPuller returns a puller to pull from a v2 registry.
-func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, config *ImagePullConfig, local ContentStore) *puller {
+func newPuller(endpoint registry.APIEndpoint, repoName reference.Named, config *ImagePullConfig, local ContentStore) *puller {
 	return &puller{
 		metadataService: metadata.NewV2MetadataService(config.MetadataStore),
 		endpoint:        endpoint,
 		config:          config,
-		repoInfo:        repoInfo,
+		repoName:        repoName,
 		manifestStore: &manifestStore{
 			local: local,
 		},
@@ -68,14 +68,14 @@ type puller struct {
 	metadataService metadata.V2MetadataService
 	endpoint        registry.APIEndpoint
 	config          *ImagePullConfig
-	repoInfo        *registry.RepositoryInfo
+	repoName        reference.Named
 	repo            distribution.Repository
 	manifestStore   *manifestStore
 }
 
 func (p *puller) pull(ctx context.Context, ref reference.Named) (err error) {
-	// TODO(tiborvass): was ReceiveTimeout
-	p.repo, err = newRepository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	// TODO(thaJeztah): do we need p.repoName at all, as it would probably be same as ref?
+	p.repo, err = newRepository(ctx, p.repoName, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		log.G(ctx).Warnf("Error getting v2 registry: %v", err)
 		return err
@@ -143,7 +143,7 @@ func (p *puller) writeStatus(requestedTag string, layersDownloaded bool) {
 type layerDescriptor struct {
 	digest          digest.Digest
 	diffID          layer.DiffID
-	repoInfo        *registry.RepositoryInfo
+	repoName        reference.Named
 	repo            distribution.Repository
 	metadataService metadata.V2MetadataService
 	tmpFile         *os.File
@@ -332,7 +332,7 @@ func (ld *layerDescriptor) truncateDownloadFile() error {
 
 func (ld *layerDescriptor) Registered(diffID layer.DiffID) {
 	// Cache mapping from this layer's DiffID to the blobsum
-	_ = ld.metadataService.Add(diffID, metadata.V2Metadata{Digest: ld.digest, SourceRepository: ld.repoInfo.Name.Name()})
+	_ = ld.metadataService.Add(diffID, metadata.V2Metadata{Digest: ld.digest, SourceRepository: ld.repoName.Name()})
 }
 
 func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform) (tagUpdated bool, err error) {
@@ -557,14 +557,12 @@ func (p *puller) pullSchema1(ctx context.Context, ref reference.Reference, unver
 			continue
 		}
 
-		layerDescriptor := &layerDescriptor{
+		descriptors = append(descriptors, &layerDescriptor{
 			digest:          blobSum,
-			repoInfo:        p.repoInfo,
+			repoName:        p.repoName,
 			repo:            p.repo,
 			metadataService: p.metadataService,
-		}
-
-		descriptors = append(descriptors, layerDescriptor)
+		})
 	}
 
 	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, descriptors, p.config.ProgressOutput)
@@ -623,15 +621,13 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 		if err := checkSupportedMediaType(d.MediaType); err != nil {
 			return "", err
 		}
-		layerDescriptor := &layerDescriptor{
+		descriptors = append(descriptors, &layerDescriptor{
 			digest:          d.Digest,
 			repo:            p.repo,
-			repoInfo:        p.repoInfo,
+			repoName:        p.repoName,
 			metadataService: p.metadataService,
 			src:             d,
-		}
-
-		descriptors = append(descriptors, layerDescriptor)
+		})
 	}
 
 	configChan := make(chan []byte, 1)
@@ -867,20 +863,17 @@ func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfst
 			}
 			progress.Message(p.config.ProgressOutput, "", err.Error())
 
-			platform := toOCIPlatform(match.Platform)
-			id, _, err = p.pullSchema1(ctx, manifestRef, v, platform)
+			id, _, err = p.pullSchema1(ctx, manifestRef, v, toOCIPlatform(match.Platform))
 			if err != nil {
 				return "", "", err
 			}
 		case *schema2.DeserializedManifest:
-			platform := toOCIPlatform(match.Platform)
-			id, _, err = p.pullSchema2(ctx, manifestRef, v, platform)
+			id, _, err = p.pullSchema2(ctx, manifestRef, v, toOCIPlatform(match.Platform))
 			if err != nil {
 				return "", "", err
 			}
 		case *ocischema.DeserializedManifest:
-			platform := toOCIPlatform(match.Platform)
-			id, _, err = p.pullOCI(ctx, manifestRef, v, platform)
+			id, _, err = p.pullOCI(ctx, manifestRef, v, toOCIPlatform(match.Platform))
 			if err != nil {
 				return "", "", err
 			}

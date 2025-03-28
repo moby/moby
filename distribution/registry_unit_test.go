@@ -40,13 +40,7 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 		t.Fatalf("could not parse url from test server: %v", err)
 	}
 
-	n, _ := reference.ParseNormalizedNamed("testremotename")
-	repoInfo := &registrypkg.RepositoryInfo{
-		Name: n,
-		Index: &registry.IndexInfo{
-			Name: "testrepo",
-		},
-	}
+	repoName, _ := reference.ParseNormalizedNamed("testremotename")
 	imagePullConfig := &ImagePullConfig{
 		Config: Config{
 			MetaHeaders: http.Header{},
@@ -55,16 +49,16 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 			},
 		},
 	}
-	p := newPuller(registrypkg.APIEndpoint{URL: uri}, repoInfo, imagePullConfig, nil)
+	p := newPuller(registrypkg.APIEndpoint{URL: uri}, repoName, imagePullConfig, nil)
 	ctx := context.Background()
-	p.repo, err = newRepository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	p.repo, err = newRepository(ctx, repoName, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	log.G(ctx).Debug("About to pull")
 	// We expect it to fail, since we haven't mock'd the full registry exchange in our handler above
-	tag, _ := reference.WithTag(n, "tag_goes_here")
+	tag, _ := reference.WithTag(repoName, "tag_goes_here")
 	_ = p.pullRepository(ctx, tag)
 }
 

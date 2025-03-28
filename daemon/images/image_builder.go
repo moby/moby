@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
-	registrypkg "github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -158,12 +157,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 	pullRegistryAuth := &registry.AuthConfig{}
 	if len(authConfigs) > 0 {
 		// The request came with a full auth config, use it
-		repoInfo, err := i.registryService.ResolveRepository(ref)
-		if err != nil {
-			return nil, err
-		}
-
-		resolvedConfig := registrypkg.ResolveAuthConfig(authConfigs, repoInfo.Index)
+		resolvedConfig := i.registryService.ResolveAuthConfig(authConfigs, ref)
 		pullRegistryAuth = &resolvedConfig
 	}
 

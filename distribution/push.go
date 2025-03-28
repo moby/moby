@@ -21,22 +21,18 @@ const compressionBufSize = 32768
 func Push(ctx context.Context, ref reference.Named, config *ImagePushConfig) error {
 	// FIXME: Allow to interrupt current push when new push of same image is done.
 
-	// Resolve the Repository name from fqn to RepositoryInfo
-	repoInfo, err := config.RegistryService.ResolveRepository(ref)
+	repoName := reference.TrimNamed(ref)
+
+	endpoints, err := config.RegistryService.LookupPushEndpoints(reference.Domain(repoName))
 	if err != nil {
 		return err
 	}
 
-	endpoints, err := config.RegistryService.LookupPushEndpoints(reference.Domain(repoInfo.Name))
-	if err != nil {
-		return err
-	}
+	progress.Messagef(config.ProgressOutput, "", "The push refers to repository [%s]", repoName.Name())
 
-	progress.Messagef(config.ProgressOutput, "", "The push refers to repository [%s]", repoInfo.Name.Name())
-
-	associations := config.ReferenceStore.ReferencesByName(repoInfo.Name)
+	associations := config.ReferenceStore.ReferencesByName(repoName)
 	if len(associations) == 0 {
-		return fmt.Errorf("An image does not exist locally with the tag: %s", reference.FamiliarName(repoInfo.Name))
+		return fmt.Errorf("An image does not exist locally with the tag: %s", reference.FamiliarName(repoName))
 	}
 
 	var (
@@ -56,9 +52,9 @@ func Push(ctx context.Context, ref reference.Named, config *ImagePushConfig) err
 			}
 		}
 
-		log.G(ctx).Debugf("Trying to push %s to %s", repoInfo.Name.Name(), endpoint.URL)
+		log.G(ctx).Debugf("Trying to push %s to %s", repoName.Name(), endpoint.URL)
 
-		if err := newPusher(ref, endpoint, repoInfo, config).push(ctx); err != nil {
+		if err := newPusher(ref, endpoint, repoName, config).push(ctx); err != nil {
 			// Was this push cancelled? If so, don't try to fall
 			// back.
 			select {
@@ -84,12 +80,12 @@ func Push(ctx context.Context, ref reference.Named, config *ImagePushConfig) err
 			return err
 		}
 
-		config.ImageEventLogger(ctx, reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), events.ActionPush)
+		config.ImageEventLogger(ctx, reference.FamiliarString(ref), reference.FamiliarName(repoName), events.ActionPush)
 		return nil
 	}
 
 	if lastErr == nil {
-		lastErr = fmt.Errorf("no endpoints found for %s", repoInfo.Name.Name())
+		lastErr = fmt.Errorf("no endpoints found for %s", repoName.Name())
 	}
 	return lastErr
 }

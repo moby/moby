@@ -398,7 +398,7 @@ func TestLayerAlreadyExists(t *testing.T) {
 		ms := &mockV2MetadataService{}
 		pd := &pushDescriptor{
 			hmacKey:  []byte(tc.hmacKey),
-			repoInfo: repoInfo,
+			repoName: repoInfo,
 			layer: &storeLayer{
 				Layer: layer.EmptyLayer,
 			},
@@ -506,12 +506,10 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 			RegistryToken: authInfo.registryToken,
 		}
 		imagePushConfig.ReferenceStore = &mockReferenceStore{}
-		repoInfo, _ := reference.ParseNormalizedNamed("xujihui1985/test.img")
-		pusher := &pusher{
-			config: imagePushConfig,
-			repoInfo: &registrypkg.RepositoryInfo{
-				Name: repoInfo,
-			},
+		repoName, _ := reference.ParseNormalizedNamed("xujihui1985/test.img")
+		testPusher := &pusher{
+			config:   imagePushConfig,
+			repoName: repoName,
 			endpoint: registrypkg.APIEndpoint{
 				URL: &url.URL{
 					Scheme: "https",
@@ -519,9 +517,9 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 				},
 			},
 		}
-		pusher.push(context.Background())
-		if pusher.pushState.hasAuthInfo != authInfo.expected {
-			t.Errorf("hasAuthInfo does not match expected: %t != %t", authInfo.expected, pusher.pushState.hasAuthInfo)
+		_ = testPusher.push(context.Background())
+		if testPusher.pushState.hasAuthInfo != authInfo.expected {
+			t.Errorf("hasAuthInfo does not match expected: %t != %t", authInfo.expected, testPusher.pushState.hasAuthInfo)
 		}
 	}
 }
@@ -583,7 +581,7 @@ func TestPushRegistryWhenAuthInfoEmpty(t *testing.T) {
 	}
 	pd := &pushDescriptor{
 		hmacKey:  []byte("abcd"),
-		repoInfo: repoInfo,
+		repoName: repoInfo,
 		layer: &storeLayer{
 			Layer: layer.EmptyLayer,
 		},

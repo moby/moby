@@ -341,15 +341,9 @@ func testNewPuller(t *testing.T, rawurl string) *puller {
 	uri, err := url.Parse(rawurl)
 	assert.NilError(t, err, "could not parse url from test server: %v", rawurl)
 
-	n, err := reference.ParseNormalizedNamed("testremotename")
+	repoName, err := reference.ParseNormalizedNamed("testremotename")
 	assert.NilError(t, err)
 
-	repoInfo := &registry.RepositoryInfo{
-		Name: n,
-		Index: &registrytypes.IndexInfo{
-			Name: "testrepo",
-		},
-	}
 	imagePullConfig := &ImagePullConfig{
 		Config: Config{
 			AuthConfig: &registrytypes.AuthConfig{
@@ -358,8 +352,8 @@ func testNewPuller(t *testing.T, rawurl string) *puller {
 		},
 	}
 
-	p := newPuller(registry.APIEndpoint{URL: uri}, repoInfo, imagePullConfig, nil)
-	p.repo, err = newRepository(context.Background(), p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	p := newPuller(registry.APIEndpoint{URL: uri}, repoName, imagePullConfig, nil)
+	p.repo, err = newRepository(context.Background(), repoName, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	assert.NilError(t, err)
 	return p
 }
