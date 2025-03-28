@@ -170,19 +170,13 @@ func assertChainConfig(d *driver, t *testing.T) {
 func assertBridgeConfig(config *networkConfiguration, br *bridgeInterface, d *driver, t *testing.T) {
 	nw := bridgeNetwork{
 		config: config,
+		driver: d,
+		bridge: br,
 	}
-	nw.driver = d
 
-	// Attempt programming of ip tables.
-	err := nw.setupIP4Tables(config, br)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	if d.config.EnableIP6Tables {
-		if err := nw.setupIP6Tables(config, br); err != nil {
-			t.Fatalf("%v", err)
-		}
-	}
+	fwn, err := nw.newIptablesNetwork()
+	assert.NilError(t, err)
+	assert.Check(t, fwn != nil, "no firewaller network")
 }
 
 // Regression test for https://github.com/moby/moby/issues/46445
