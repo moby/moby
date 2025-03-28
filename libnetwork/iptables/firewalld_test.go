@@ -3,7 +3,7 @@
 package iptables
 
 import (
-	"net"
+	"net/netip"
 	"strconv"
 	"testing"
 
@@ -49,8 +49,8 @@ func TestReloaded(t *testing.T) {
 	defer iptable.Raw("-D", "FORWARD", "-j", "FWD")
 
 	// copy-pasted from iptables_test:TestLink
-	ip1 := net.ParseIP("192.168.1.1")
-	ip2 := net.ParseIP("192.168.1.2")
+	ip1 := netip.MustParseAddr("192.168.1.1")
+	ip2 := netip.MustParseAddr("192.168.1.2")
 	const port = 1234
 	const proto = "tcp"
 

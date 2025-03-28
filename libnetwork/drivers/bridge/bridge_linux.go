@@ -130,12 +130,12 @@ type bridgeEndpoint struct {
 }
 
 type bridgeNetwork struct {
-	id            string
-	bridge        *bridgeInterface // The bridge's L3 interface
-	config        *networkConfiguration
-	endpoints     map[string]*bridgeEndpoint // key: endpoint id
-	driver        *driver                    // The network's driver
-	iptCleanFuncs iptablesCleanFuncs
+	id              string
+	bridge          *bridgeInterface // The bridge's L3 interface
+	config          *networkConfiguration
+	endpoints       map[string]*bridgeEndpoint // key: endpoint id
+	driver          *driver                    // The network's driver
+	iptablesNetwork *iptablesNetwork
 	sync.Mutex
 }
 
@@ -391,10 +391,6 @@ func parseErr(label, value, errString string) error {
 	return types.InvalidParameterErrorf("failed to parse %s value: %v (%s)", label, value, errString)
 }
 
-func (n *bridgeNetwork) registerIptCleanFunc(clean iptableCleanFunc) {
-	n.iptCleanFuncs = append(n.iptCleanFuncs, clean)
-}
-
 func (n *bridgeNetwork) iptablesEnabled(version iptables.IPVersion) (bool, error) {
 	n.Lock()
 	defer n.Unlock()
@@ -408,6 +404,51 @@ func (n *bridgeNetwork) iptablesEnabled(version iptables.IPVersion) (bool, error
 		return n.driver.config.EnableIP6Tables, nil
 	}
 	return n.driver.config.EnableIPTables, nil
+}
+
+func (n *bridgeNetwork) newIptablesNetwork() (*iptablesNetwork, error) {
+	config4, err := makeNetworkConfigFam(n.config.HostIPv4, n.bridge.bridgeIPv4, n.gwMode(iptables.IPv4))
+	if err != nil {
+		return nil, err
+	}
+	config6, err := makeNetworkConfigFam(n.config.HostIPv6, n.bridge.bridgeIPv6, n.gwMode(iptables.IPv6))
+	if err != nil {
+		return nil, err
+	}
+	return newIptablesNetwork(networkConfig{
+		IfName:     n.config.BridgeName,
+		Internal:   n.config.Internal,
+		ICC:        n.config.EnableICC,
+		Masquerade: n.config.EnableIPMasquerade,
+		Config4:    config4,
+		Config6:    config6,
+		Hairpin:    !n.driver.config.EnableUserlandProxy || n.driver.config.UserlandProxyPath == "",
+		Enable4:    n.driver.config.EnableIPTables,
+		Enable6:    n.driver.config.EnableIP6Tables,
+	})
+}
+
+func makeNetworkConfigFam(hostIP net.IP, bridgePrefix *net.IPNet, gwm gwMode) (networkConfigFam, error) {
+	c := networkConfigFam{
+		Routed:      gwm.routed(),
+		Unprotected: gwm.unprotected(),
+	}
+	if hostIP != nil {
+		var ok bool
+		c.HostIP, ok = netip.AddrFromSlice(hostIP)
+		if !ok {
+			return networkConfigFam{}, fmt.Errorf("invalid host address %q", hostIP)
+		}
+		c.HostIP = c.HostIP.Unmap()
+	}
+	if bridgePrefix != nil {
+		p, ok := netiputil.ToPrefix(bridgePrefix)
+		if !ok {
+			return networkConfigFam{}, fmt.Errorf("invalid bridge prefix %s", bridgePrefix)
+		}
+		c.Prefix = p.Masked()
+	}
+	return c, nil
 }
 
 func (n *bridgeNetwork) getNetworkBridgeName() string {
@@ -463,41 +504,6 @@ func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 	}
 
 	return nil, nil
-}
-
-// Install (enable=true) or remove (enable=false) the iptables rules needed to isolate this network
-// from each of the other bridge networks
-func (n *bridgeNetwork) isolateNetwork(enable bool) error {
-	n.Lock()
-	thisConfig := n.config
-	n.Unlock()
-
-	if thisConfig.Internal {
-		return nil
-	}
-
-	if n.driver.config.EnableIPTables {
-		// Only create the rules if the network has IPv4 enabled. But, always delete
-		// rules, in case they were set up by an older daemon that didn't check whether
-		// the network has IPv4.
-		if !enable || thisConfig.EnableIPv4 {
-			if err := setINC(iptables.IPv4, thisConfig.BridgeName, thisConfig.GwModeIPv4, enable); err != nil {
-				return err
-			}
-		}
-	}
-	if n.driver.config.EnableIP6Tables {
-		// Only create the rules if the network has IPv6 enabled. But, always delete
-		// rules, in case they were set up by an older daemon that didn't check whether
-		// the network has IPv6.
-		if !enable || thisConfig.EnableIPv6 {
-			if err := setINC(iptables.IPv6, thisConfig.BridgeName, thisConfig.GwModeIPv6, enable); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 func (d *driver) configure(option map[string]interface{}) error {
@@ -853,21 +859,6 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		}
 	}()
 
-	// Add inter-network communication rules.
-	setupNetworkIsolationRules := func(config *networkConfiguration, i *bridgeInterface) error {
-		if err := network.isolateNetwork(true); err != nil {
-			if errRollback := network.isolateNetwork(false); errRollback != nil {
-				log.G(context.TODO()).WithError(errRollback).Warnf("Failed on removing the inter-network iptables rules on cleanup")
-			}
-			return errdefs.System(err)
-		}
-		// register the cleanup function
-		network.registerIptCleanFunc(func() error {
-			return network.isolateNetwork(false)
-		})
-		return nil
-	}
-
 	// Prepare the bridge setup configuration
 	bridgeSetup := newBridgeSetup(config, bridgeIface)
 
@@ -931,12 +922,6 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		// Setup Loopback Addresses Routing
 		{!d.config.EnableUserlandProxy, setupLoopbackAddressesRouting},
 
-		// Setup IPTables.
-		{config.EnableIPv4 && d.config.EnableIPTables, network.setupIP4Tables},
-
-		// Setup IP6Tables.
-		{config.EnableIPv6 && d.config.EnableIP6Tables, network.setupIP6Tables},
-
 		// We want to track firewalld configuration so that
 		// if it is started/reloaded, the rules can be applied correctly
 		{
@@ -950,9 +935,6 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		// Setup DefaultGatewayIPv6
 		{config.DefaultGatewayIPv6 != nil, setupGatewayIPv6},
 
-		// Add inter-network communication rules.
-		{d.config.EnableIPTables || d.config.EnableIP6Tables, setupNetworkIsolationRules},
-
 		// Configure bridge networking filtering if needed and IP tables are enabled
 		{enableBrNfCallIptables && d.config.EnableIPTables, setupIPv4BridgeNetFiltering},
 		{enableBrNfCallIptables && d.config.EnableIP6Tables, setupIPv6BridgeNetFiltering},
@@ -961,6 +943,15 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 			bridgeSetup.queueStep(step.Fn)
 		}
 	}
+
+	bridgeSetup.queueStep(func(*networkConfiguration, *bridgeInterface) error {
+		n, err := network.newIptablesNetwork()
+		if err != nil {
+			return err
+		}
+		network.iptablesNetwork = n
+		return nil
+	})
 
 	// Apply the prepared list of steps, and abort at the first error.
 	bridgeSetup.queueStep(setupDeviceUp)
@@ -1054,12 +1045,10 @@ func (d *driver) deleteNetwork(nid string) error {
 		// Don't delete the bridge interface if it was not created by libnetwork.
 	}
 
-	// clean all relevant iptables rules
-	for _, cleanFunc := range n.iptCleanFuncs {
-		if errClean := cleanFunc(); errClean != nil {
-			log.G(context.TODO()).Warnf("Failed to clean iptables rules for bridge network: %v", errClean)
-		}
+	if err := n.iptablesNetwork.delNetworkLevelRules(); err != nil {
+		log.G(context.TODO()).WithError(err).Warnf("Failed to clean iptables rules for bridge network")
 	}
+
 	return d.storeDelete(config)
 }
 
@@ -1619,17 +1608,15 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 		return nil
 	}
 
-	// Try to keep things atomic. addedLinks keeps track of links that were
-	// successfully added. If any error occurred, then roll back all.
-	var addedLinks []*link
-	defer func() {
-		if retErr == nil {
-			return
-		}
-		for _, l := range addedLinks {
-			l.Disable()
-		}
-	}()
+	// Try to keep things atomic when adding - if there's an error, recurse with enable=false
+	// to delete everything that might have been created.
+	if enable {
+		defer func() {
+			if retErr != nil {
+				d.link(network, endpoint, false)
+			}
+		}()
+	}
 
 	if ec.ExposedPorts != nil {
 		for _, p := range cc.ParentEndpoints {
@@ -1640,18 +1627,21 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 			if parentEndpoint == nil {
 				return invalidEndpointIDError(p)
 			}
-
-			l, err := newLink(parentEndpoint.addr.IP, endpoint.addr.IP, ec.ExposedPorts, network.config.BridgeName)
-			if err != nil {
-				return err
+			parentAddr, ok := netip.AddrFromSlice(parentEndpoint.addr.IP)
+			if !ok {
+				return fmt.Errorf("invalid parent endpoint IP: %s", parentEndpoint.addr.IP)
 			}
+			childAddr, ok := netip.AddrFromSlice(endpoint.addr.IP)
+			if !ok {
+				return fmt.Errorf("invalid parent endpoint IP: %s", endpoint.addr.IP)
+			}
+
 			if enable {
-				if err := l.Enable(); err != nil {
+				if err := network.iptablesNetwork.AddLink(context.TODO(), parentAddr, childAddr, ec.ExposedPorts); err != nil {
 					return err
 				}
-				addedLinks = append(addedLinks, l)
 			} else {
-				l.Disable()
+				network.iptablesNetwork.DelLink(context.TODO(), parentAddr, childAddr, ec.ExposedPorts)
 			}
 		}
 	}
@@ -1667,18 +1657,21 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 		if childEndpoint.extConnConfig == nil || childEndpoint.extConnConfig.ExposedPorts == nil {
 			continue
 		}
-
-		l, err := newLink(endpoint.addr.IP, childEndpoint.addr.IP, childEndpoint.extConnConfig.ExposedPorts, network.config.BridgeName)
-		if err != nil {
-			return err
+		parentAddr, ok := netip.AddrFromSlice(endpoint.addr.IP)
+		if !ok {
+			return fmt.Errorf("invalid parent endpoint IP: %s", endpoint.addr.IP)
 		}
+		childAddr, ok := netip.AddrFromSlice(childEndpoint.addr.IP)
+		if !ok {
+			return fmt.Errorf("invalid parent endpoint IP: %s", childEndpoint.addr.IP)
+		}
+
 		if enable {
-			if err := l.Enable(); err != nil {
+			if err := network.iptablesNetwork.AddLink(context.TODO(), parentAddr, childAddr, childEndpoint.extConnConfig.ExposedPorts); err != nil {
 				return err
 			}
-			addedLinks = append(addedLinks, l)
 		} else {
-			l.Disable()
+			network.iptablesNetwork.DelLink(context.TODO(), parentAddr, childAddr, childEndpoint.extConnConfig.ExposedPorts)
 		}
 	}
 
