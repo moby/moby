@@ -59,7 +59,10 @@ func hasFile(files []os.DirEntry, name string) bool {
 // provided TLS configuration.
 func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 	fs, err := os.ReadDir(directory)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return invalidParam(err)
 	}
 
