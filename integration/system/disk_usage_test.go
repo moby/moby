@@ -70,7 +70,8 @@ func TestDiskUsage(t *testing.T) {
 				assert.Check(t, is.Equal(du.Images[0].RepoTags[0], "busybox:latest"))
 
 				// Image size is layer size + content size, should be greater than total layer size
-				assert.Assert(t, du.Images[0].Size >= du.LayersSize)
+				assert.Check(t, du.Images[0].Size >= du.LayersSize)
+				assert.Equal(t, du.Images[0].Size, du.TotalSize)
 
 				// If size is greater, than content exists and should have a repodigest
 				if du.Images[0].Size > du.LayersSize {
@@ -142,6 +143,7 @@ func TestDiskUsage(t *testing.T) {
 						},
 					},
 					expected: types.DiskUsage{
+						TotalSize:  stepDU.TotalSize,
 						LayersSize: stepDU.LayersSize,
 						Images:     stepDU.Images,
 					},
@@ -190,6 +192,7 @@ func TestDiskUsage(t *testing.T) {
 						},
 					},
 					expected: types.DiskUsage{
+						TotalSize:  stepDU.TotalSize,
 						LayersSize: stepDU.LayersSize,
 						Images:     stepDU.Images,
 						BuildCache: stepDU.BuildCache,
@@ -220,6 +223,7 @@ func TestDiskUsage(t *testing.T) {
 						},
 					},
 					expected: types.DiskUsage{
+						TotalSize:  stepDU.TotalSize,
 						LayersSize: stepDU.LayersSize,
 						Images:     stepDU.Images,
 						Volumes:    stepDU.Volumes,
@@ -236,6 +240,7 @@ func TestDiskUsage(t *testing.T) {
 						},
 					},
 					expected: types.DiskUsage{
+						TotalSize:  stepDU.TotalSize,
 						LayersSize: stepDU.LayersSize,
 						Containers: stepDU.Containers,
 						Images:     stepDU.Images,
@@ -253,6 +258,7 @@ func TestDiskUsage(t *testing.T) {
 						},
 					},
 					expected: types.DiskUsage{
+						TotalSize:  stepDU.TotalSize,
 						LayersSize: stepDU.LayersSize,
 						Containers: stepDU.Containers,
 						Images:     stepDU.Images,

@@ -128,27 +128,18 @@ func (i *ImageService) StorageDriver() string {
 	return i.snapshotter
 }
 
-// LayerDiskUsage returns the number of bytes used by layer stores
+// ImageDiskUsage returns the number of bytes used by content and layer stores
 // called from disk_usage.go
-func (i *ImageService) LayerDiskUsage(ctx context.Context) (allLayersSize int64, err error) {
-	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
-	snapshotter := i.client.SnapshotService(i.snapshotter)
-	err = snapshotter.Walk(ctx, func(ctx context.Context, info snapshots.Info) error {
-		usage, err := snapshotter.Usage(ctx, info.Name)
-		if err != nil {
-			return err
-		}
-		allLayersSize += usage.Size
-		return nil
-	})
+func (i *ImageService) ImageDiskUsage(ctx context.Context) (layersSize, contentSize int64, err error) {
+	layersSize, err = i.LayerDiskUsage(ctx)
 	if err != nil {
-		return allLayersSize, err
+		return 0, 0, err
 	}
 
 	// Include the size of content size from the images.
 	imgs, err := i.images.List(ctx)
 	if err != nil {
-		return allLayersSize, err
+		return 0, 0, err
 	}
 
 	visitedImages := make(map[digest.Digest]struct{})
@@ -163,16 +154,32 @@ func (i *ImageService) LayerDiskUsage(ctx context.Context) (allLayersSize int64,
 			if err != nil {
 				return err
 			}
-			allLayersSize += size
+			contentSize += size
 			return nil
 		}); err != nil {
-			return allLayersSize, err
+			return 0, 0, err
 		}
 	}
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	return allLayersSize, nil
+	return layersSize, contentSize, nil
+}
+
+// LayerDiskUsage returns the number of bytes used by layer stores
+// called from disk_usage.go
+func (i *ImageService) LayerDiskUsage(ctx context.Context) (allLayersSize int64, err error) {
+	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
+	snapshotter := i.client.SnapshotService(i.snapshotter)
+	err = snapshotter.Walk(ctx, func(ctx context.Context, info snapshots.Info) error {
+		usage, err := snapshotter.Usage(ctx, info.Name)
+		if err != nil {
+			return err
+		}
+		allLayersSize += usage.Size
+		return nil
+	})
+	return allLayersSize, err
 }
 
 // UpdateConfig values

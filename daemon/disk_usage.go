@@ -69,17 +69,19 @@ func (daemon *Daemon) localVolumesSize(ctx context.Context) ([]*volume.Volume, e
 	return volumes, err
 }
 
+type layerDiskUsage struct {
+	LayersSize  int64
+	ContentSize int64
+}
+
 // layerDiskUsage obtains information about layer disk usage from image service
 // and makes sure that only one size calculation is performed at the same time.
-func (daemon *Daemon) layerDiskUsage(ctx context.Context) (int64, error) {
-	usage, _, err := daemon.usageLayer.Do(ctx, struct{}{}, func(ctx context.Context) (int64, error) {
-		usage, err := daemon.imageService.LayerDiskUsage(ctx)
-		if err != nil {
-			return 0, err
-		}
-		return usage, nil
+func (daemon *Daemon) layerDiskUsage(ctx context.Context) (int64, int64, error) {
+	usage, _, err := daemon.usageLayer.Do(ctx, struct{}{}, func(ctx context.Context) (usage layerDiskUsage, err error) {
+		usage.LayersSize, usage.ContentSize, err = daemon.imageService.ImageDiskUsage(ctx)
+		return usage, err
 	})
-	return usage, err
+	return usage.LayersSize, usage.ContentSize, err
 }
 
 // SystemDiskUsage returns information about the daemon data disk usage.
@@ -97,8 +99,9 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context, opts system.DiskUsage
 	}
 
 	var (
-		images     []*image.Summary
-		layersSize int64
+		images      []*image.Summary
+		layersSize  int64
+		contentSize int64
 	)
 	if opts.Images {
 		eg.Go(func() error {
@@ -108,7 +111,7 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context, opts system.DiskUsage
 		})
 		eg.Go(func() error {
 			var err error
-			layersSize, err = daemon.layerDiskUsage(ctx)
+			layersSize, contentSize, err = daemon.layerDiskUsage(ctx)
 			return err
 		})
 	}
@@ -126,6 +129,7 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context, opts system.DiskUsage
 		return nil, err
 	}
 	return &types.DiskUsage{
+		TotalSize:  layersSize + contentSize,
 		LayersSize: layersSize,
 		Containers: containers,
 		Volumes:    volumes,

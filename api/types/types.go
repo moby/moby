@@ -87,6 +87,7 @@ type DiskUsageOptions struct {
 // DiskUsage contains response of Engine API:
 // GET "/system/df"
 type DiskUsage struct {
+	TotalSize   int64 `json:",omitempty"` // API 1.49 or above
 	LayersSize  int64
 	Images      []*image.Summary
 	Containers  []*container.Summary

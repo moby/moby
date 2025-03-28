@@ -133,7 +133,7 @@ type Daemon struct {
 	usageContainers singleflight.Group[struct{}, []*containertypes.Summary]
 	usageImages     singleflight.Group[struct{}, []*imagetypes.Summary]
 	usageVolumes    singleflight.Group[struct{}, []*volume.Volume]
-	usageLayer      singleflight.Group[struct{}, int64]
+	usageLayer      singleflight.Group[struct{}, layerDiskUsage]
 
 	pruneRunning atomic.Bool
 	hosts        map[string]bool // hosts stores the addresses the daemon is listening on

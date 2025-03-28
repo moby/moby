@@ -43,6 +43,7 @@ type ImageService interface {
 	CommitImage(ctx context.Context, c backend.CommitConfig) (image.ID, error)
 	SquashImage(id, parent string) (string, error)
 	ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetype.InspectResponse, error)
+	ImageDiskUsage(ctx context.Context) (layerSize, contentSize int64, err error)
 
 	// Layers
 
