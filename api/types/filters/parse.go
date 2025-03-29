@@ -67,7 +67,10 @@ func ToJSON(a Args) (string, error) {
 // then the encoded format will use an older legacy format where the values are a
 // list of strings, instead of a set.
 //
-// Deprecated: do not use in any new code; use ToJSON instead
+// Deprecated: do not use in any new code; use ToJSON instead.
+//
+// TODO(thaJeztah): move this wrappeer to the client. The server no longer supports API < 1.24,
+// but the client still provide older API versions, and is the only place this is used.
 func ToParamWithVersion(version string, a Args) (string, error) {
 	if a.Len() == 0 {
 		return "", nil
@@ -91,17 +94,9 @@ func FromJSON(p string) (Args, error) {
 
 	raw := []byte(p)
 	err := json.Unmarshal(raw, &args)
-	if err == nil {
-		return args, nil
-	}
-
-	// Fallback to parsing arguments in the legacy slice format
-	deprecated := map[string][]string{}
-	if legacyErr := json.Unmarshal(raw, &deprecated); legacyErr != nil {
+	if err != nil {
 		return args, &invalidFilter{}
 	}
-
-	args.fields = deprecatedArgs(deprecated)
 	return args, nil
 }
 
@@ -307,18 +302,6 @@ func (args Args) Clone() (newArgs Args) {
 		newArgs.fields[k] = mm
 	}
 	return newArgs
-}
-
-func deprecatedArgs(d map[string][]string) map[string]map[string]bool {
-	m := map[string]map[string]bool{}
-	for k, v := range d {
-		values := map[string]bool{}
-		for _, vv := range v {
-			values[vv] = true
-		}
-		m[k] = values
-	}
-	return m
 }
 
 func convertArgsToSlice(f map[string]map[string]bool) map[string][]string {
