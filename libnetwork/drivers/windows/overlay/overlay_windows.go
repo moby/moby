@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"net"
+	"net/netip"
 	"sync"
 
 	"github.com/Microsoft/hcsshim"
@@ -82,7 +83,13 @@ func (d *driver) convertToOverlayNetwork(v *hcsshim.HNSNetwork) *network {
 			}
 		}
 
-		gwIP := net.ParseIP(hnsSubnet.GatewayAddress)
+		gwAddr, err := netip.ParseAddr(hnsSubnet.GatewayAddress)
+		if err != nil {
+			log.G(context.TODO()).Errorf("HNS returned an invalid gateway address while restoring overlay networks: %v", err)
+		}
+
+		gwIP := net.IP(gwAddr.WithZone("").AsSlice())
+
 		localsubnet := &subnet{
 			vni:  uint32(vsidPolicy.VSID),
 			gwIP: &gwIP,

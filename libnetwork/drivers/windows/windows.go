@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,6 +25,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/docker/docker/libnetwork/scope"
@@ -86,7 +88,7 @@ type hnsEndpoint struct {
 	epConnectivity *EndpointConnectivity // User specified parameters
 	portMapping    []types.PortBinding   // Operation port bindings
 	addr           *net.IPNet
-	gateway        net.IP
+	gatewayV4      net.IP
 	dbIndex        uint64
 	dbExists       bool
 }
@@ -246,10 +248,6 @@ func (d *driver) parseNetworkOptions(id string, genericOptions map[string]string
 }
 
 func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []driverapi.IPAMData) error {
-	if len(ipamV6Data) > 0 {
-		return types.ForbiddenErrorf("windowsshim driver doesn't support v6 subnets")
-	}
-
 	if len(ipamV4Data) == 0 {
 		return types.InvalidParameterErrorf("network %s requires ipv4 configuration", id)
 	}
@@ -281,7 +279,7 @@ func (d *driver) createNetwork(config *networkConfiguration) *hnsNetwork {
 }
 
 // Create a new network
-func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) (retErr error) {
 	if _, err := d.getNetwork(id); err == nil {
 		return types.ForbiddenErrorf("network %s exists", id)
 	}
@@ -317,6 +315,18 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		subnets := []hcsshim.Subnet{}
 
 		for _, ipData := range ipV4Data {
+			subnet := hcsshim.Subnet{
+				AddressPrefix: ipData.Pool.String(),
+			}
+
+			if ipData.Gateway != nil {
+				subnet.GatewayAddress = ipData.Gateway.IP.String()
+			}
+
+			subnets = append(subnets, subnet)
+		}
+
+		for _, ipData := range ipV6Data {
 			subnet := hcsshim.Subnet{
 				AddressPrefix: ipData.Pool.String(),
 			}
@@ -383,7 +393,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		n.created = true
 
 		defer func() {
-			if err != nil {
+			if retErr != nil {
 				d.DeleteNetwork(n.id)
 			}
 		}()
@@ -391,18 +401,25 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		hnsIPv4Data := make([]driverapi.IPAMData, len(hnsresponse.Subnets))
 
 		for i, subnet := range hnsresponse.Subnets {
-			var gwIP, subnetIP *net.IPNet
-
-			// The gateway returned from HNS is an IPAddress.
-			// We need to convert it to an IPNet to use as the Gateway of driverapi.IPAMData struct
-			gwCIDR := subnet.GatewayAddress + "/32"
-			_, gwIP, err = net.ParseCIDR(gwCIDR)
+			// The gateway returned from HNS is an IPAddress. We need to
+			// convert it to an IPNet to use as the Gateway of driverapi.IPAMData
+			// struct.
+			// For IPv6, HNS returns a GatewayAddress containing a zone
+			// identifier, even for non-LL addrs. Package 'net' doesn't
+			// understand zone identifiers. netip.PrefixFrom takes care of
+			// stripping it.
+			gwAddr, err := netip.ParseAddr(subnet.GatewayAddress)
 			if err != nil {
-				return err
+				return fmt.Errorf("HNS returned an invalid gateway address: %w", err)
 			}
 
-			hnsIPv4Data[i].Gateway = gwIP
-			_, subnetIP, err = net.ParseCIDR(subnet.AddressPrefix)
+			if gwAddr.Is4() {
+				hnsIPv4Data[i].Gateway = netiputil.ToIPNet(netip.PrefixFrom(gwAddr, 32))
+			} else {
+				hnsIPv4Data[i].Gateway = netiputil.ToIPNet(netip.PrefixFrom(gwAddr, 128))
+			}
+
+			_, subnetIP, err := net.ParseCIDR(subnet.AddressPrefix)
 			if err != nil {
 				return err
 			}
@@ -743,7 +760,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	}
 
 	if hnsresponse.GatewayAddress != "" {
-		endpoint.gateway = net.ParseIP(hnsresponse.GatewayAddress)
+		endpoint.gatewayV4 = net.ParseIP(hnsresponse.GatewayAddress)
 	}
 
 	endpoint.profileID = hnsresponse.Id
@@ -864,7 +881,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		return err
 	}
 
-	err = jinfo.SetGateway(endpoint.gateway)
+	err = jinfo.SetGateway(endpoint.gatewayV4)
 	if err != nil {
 		return err
 	}
