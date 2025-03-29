@@ -146,7 +146,8 @@ target "all-cross" {
 #
 
 target "bin-image" {
-  inherits = ["all", "docker-metadata-action"]
+  inherits = ["_common", "docker-metadata-action"]
+  target = "bin-image"
   output = ["type=docker"]
 }
 
