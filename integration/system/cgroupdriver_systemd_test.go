@@ -34,7 +34,7 @@ func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	d := daemon.New(t)
+	d := daemon.New(t, daemon.WithEnvVars("DOCKER_KEEP_DEFAULT_BRIDGE=y"))
 	c := d.NewClientT(t)
 
 	d.StartWithBusybox(ctx, t, "--exec-opt", "native.cgroupdriver=systemd", "--iptables=false", "--ip6tables=false")
