@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
@@ -70,8 +69,7 @@ func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Arg
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
-			dgst := digest.Digest(id)
-			if len(i.referenceStore.References(dgst)) == 0 && len(i.imageStore.Children(id)) != 0 {
+			if len(i.referenceStore.References(id)) == 0 && len(i.imageStore.Children(id)) != 0 {
 				continue
 			}
 			if !until.IsZero() && (img.Created == nil || img.Created.After(until)) {
@@ -96,7 +94,7 @@ deleteImagesLoop:
 		}
 
 		deletedImages := []imagetypes.DeleteResponse{}
-		refs := i.referenceStore.References(id.Digest())
+		refs := i.referenceStore.References(id)
 		if len(refs) > 0 {
 			shouldDelete := !danglingOnly
 			if !shouldDelete {
@@ -122,7 +120,7 @@ deleteImagesLoop:
 				}
 			}
 		} else {
-			hex := id.Digest().Encoded()
+			hex := id.Encoded()
 			imgDel, err := i.ImageDelete(ctx, hex, false, true)
 			if imageDeleteFailed(hex, err) {
 				continue
