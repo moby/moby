@@ -31,8 +31,8 @@ type v1Endpoint struct {
 
 // newV1Endpoint parses the given address to return a registry endpoint.
 // TODO: remove. This is only used by search.
-func newV1Endpoint(index *registry.IndexInfo, headers http.Header) (*v1Endpoint, error) {
-	tlsConfig, err := newTLSConfig(context.TODO(), index.Name, index.Secure)
+func newV1Endpoint(ctx context.Context, index *registry.IndexInfo, headers http.Header) (*v1Endpoint, error) {
+	tlsConfig, err := newTLSConfig(ctx, index.Name, index.Secure)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func newV1Endpoint(index *registry.IndexInfo, headers http.Header) (*v1Endpoint,
 		}
 
 		// registry is insecure and HTTPS failed, fallback to HTTP.
-		log.G(context.TODO()).WithError(err).Debugf("error from registry %q marked as insecure - insecurely falling back to HTTP", endpoint)
+		log.G(ctx).WithError(err).Debugf("error from registry %q marked as insecure - insecurely falling back to HTTP", endpoint)
 		endpoint.URL.Scheme = "http"
 		if _, err2 := endpoint.ping(); err2 != nil {
 			return nil, invalidParamf("invalid registry endpoint %q. HTTPS attempt: %v. HTTP attempt: %v", endpoint, err, err2)

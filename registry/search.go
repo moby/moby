@@ -99,7 +99,7 @@ func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, 
 		remoteName = strings.TrimPrefix(remoteName, "library/")
 	}
 
-	endpoint, err := newV1Endpoint(index, headers)
+	endpoint, err := newV1Endpoint(ctx, index, headers)
 	if err != nil {
 		return nil, err
 	}
