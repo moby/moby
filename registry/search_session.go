@@ -26,8 +26,8 @@ type session struct {
 }
 
 type authTransport struct {
-	http.RoundTripper
-	*registry.AuthConfig
+	base       http.RoundTripper
+	authConfig *registry.AuthConfig
 
 	alwaysSetBasicAuth bool
 	token              []string
@@ -54,8 +54,8 @@ func newAuthTransport(base http.RoundTripper, authConfig *registry.AuthConfig, a
 		base = http.DefaultTransport
 	}
 	return &authTransport{
-		RoundTripper:       base,
-		AuthConfig:         authConfig,
+		base:               base,
+		authConfig:         authConfig,
 		alwaysSetBasicAuth: alwaysSetBasicAuth,
 		modReq:             make(map[*http.Request]*http.Request),
 	}
@@ -114,7 +114,7 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	// a 302 redirect is detected by looking at the Referrer header as go http package adds said header.
 	// This is safe as Docker doesn't set Referrer in other scenarios.
 	if orig.Header.Get("Referer") != "" && !trustedLocation(orig) {
-		return tr.RoundTripper.RoundTrip(orig)
+		return tr.base.RoundTrip(orig)
 	}
 
 	req := cloneRequest(orig)
@@ -123,22 +123,22 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	tr.mu.Unlock()
 
 	if tr.alwaysSetBasicAuth {
-		if tr.AuthConfig == nil {
+		if tr.authConfig == nil {
 			return nil, errors.New("unexpected error: empty auth config")
 		}
-		req.SetBasicAuth(tr.Username, tr.Password)
-		return tr.RoundTripper.RoundTrip(req)
+		req.SetBasicAuth(tr.authConfig.Username, tr.authConfig.Password)
+		return tr.base.RoundTrip(req)
 	}
 
 	// Don't override
 	if req.Header.Get("Authorization") == "" {
-		if req.Header.Get("X-Docker-Token") == "true" && tr.AuthConfig != nil && len(tr.Username) > 0 {
-			req.SetBasicAuth(tr.Username, tr.Password)
+		if req.Header.Get("X-Docker-Token") == "true" && tr.authConfig != nil && len(tr.authConfig.Username) > 0 {
+			req.SetBasicAuth(tr.authConfig.Username, tr.authConfig.Password)
 		} else if len(tr.token) > 0 {
 			req.Header.Set("Authorization", "Token "+strings.Join(tr.token, ","))
 		}
 	}
-	resp, err := tr.RoundTripper.RoundTrip(req)
+	resp, err := tr.base.RoundTrip(req)
 	if err != nil {
 		tr.mu.Lock()
 		delete(tr.modReq, orig)
@@ -164,7 +164,7 @@ func (tr *authTransport) CancelRequest(req *http.Request) {
 	type canceler interface {
 		CancelRequest(*http.Request)
 	}
-	if cr, ok := tr.RoundTripper.(canceler); ok {
+	if cr, ok := tr.base.(canceler); ok {
 		tr.mu.Lock()
 		modReq := tr.modReq[req]
 		delete(tr.modReq, req)
