@@ -84,7 +84,6 @@ func (s *Service) Search(ctx context.Context, searchFilters filters.Args, term s
 }
 
 func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, headers http.Header) (*registry.SearchResults, error) {
-	// TODO Use ctx when searching for repositories
 	if hasScheme(term) {
 		return nil, invalidParamf("invalid repository name: repository name (%s) should not have a scheme", term)
 	}
@@ -131,7 +130,7 @@ func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, 
 		}
 	}
 
-	return newSession(client, endpoint).searchRepositories(remoteName, limit)
+	return newSession(client, endpoint).searchRepositories(ctx, remoteName, limit)
 }
 
 // splitReposSearchTerm breaks a search term into an index name and remote name

@@ -213,7 +213,7 @@ func newSession(client *http.Client, endpoint *v1Endpoint) *session {
 const defaultSearchLimit = 25
 
 // searchRepositories performs a search against the remote repository
-func (r *session) searchRepositories(term string, limit int) (*registry.SearchResults, error) {
+func (r *session) searchRepositories(ctx context.Context, term string, limit int) (*registry.SearchResults, error) {
 	if limit == 0 {
 		limit = defaultSearchLimit
 	}
@@ -221,9 +221,9 @@ func (r *session) searchRepositories(term string, limit int) (*registry.SearchRe
 		return nil, invalidParamf("limit %d is outside the range of [1, 100]", limit)
 	}
 	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(fmt.Sprintf("%d", limit))
-	log.G(context.TODO()).WithField("url", u).Debug("searchRepositories")
+	log.G(ctx).WithField("url", u).Debug("searchRepositories")
 
-	req, err := http.NewRequest(http.MethodGet, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, invalidParamWrapf(err, "error building request")
 	}

@@ -70,7 +70,7 @@ func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func TestSearchRepositories(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	results, err := r.searchRepositories("fakequery", 25)
+	results, err := r.searchRepositories(context.Background(), "fakequery", 25)
 	if err != nil {
 		t.Fatal(err)
 	}
