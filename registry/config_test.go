@@ -9,47 +9,126 @@ import (
 )
 
 func TestValidateMirror(t *testing.T) {
-	valid := []string{
-		"http://mirror-1.example.com",
-		"http://mirror-1.example.com/",
-		"https://mirror-1.example.com",
-		"https://mirror-1.example.com/",
-		"http://localhost",
-		"https://localhost",
-		"http://localhost:5000",
-		"https://localhost:5000",
-		"http://127.0.0.1",
-		"https://127.0.0.1",
-		"http://127.0.0.1:5000",
-		"https://127.0.0.1:5000",
-		"http://mirror-1.example.com/v1/",
-		"https://mirror-1.example.com/v1/",
+	tests := []struct {
+		input       string
+		output      string
+		expectedErr string
+	}{
+		// Valid cases
+		{
+			input:  "http://mirror-1.example.com",
+			output: "http://mirror-1.example.com/",
+		},
+		{
+			input:  "http://mirror-1.example.com/",
+			output: "http://mirror-1.example.com/",
+		},
+		{
+			input:  "https://mirror-1.example.com",
+			output: "https://mirror-1.example.com/",
+		},
+		{
+			input:  "https://mirror-1.example.com/",
+			output: "https://mirror-1.example.com/",
+		},
+		{
+			input:  "http://localhost",
+			output: "http://localhost/",
+		},
+		{
+			input:  "https://localhost",
+			output: "https://localhost/",
+		},
+		{
+			input:  "http://localhost:5000",
+			output: "http://localhost:5000/",
+		},
+		{
+			input:  "https://localhost:5000",
+			output: "https://localhost:5000/",
+		},
+		{
+			input:  "http://127.0.0.1",
+			output: "http://127.0.0.1/",
+		},
+		{
+			input:  "https://127.0.0.1",
+			output: "https://127.0.0.1/",
+		},
+		{
+			input:  "http://127.0.0.1:5000",
+			output: "http://127.0.0.1:5000/",
+		},
+		{
+			input:  "https://127.0.0.1:5000",
+			output: "https://127.0.0.1:5000/",
+		},
+		{
+			input:  "http://mirror-1.example.com/v1/",
+			output: "http://mirror-1.example.com/v1/",
+		},
+		{
+			input:  "https://mirror-1.example.com/v1/",
+			output: "https://mirror-1.example.com/v1/",
+		},
+
+		// Invalid cases
+		{
+			input:       "!invalid!://%as%",
+			expectedErr: `invalid mirror: "!invalid!://%as%" is not a valid URI: parse "!invalid!://%as%": first path segment in URL cannot contain colon`,
+		},
+		{
+			input:       "ftp://mirror-1.example.com",
+			expectedErr: `invalid mirror: unsupported scheme "ftp" in "ftp://mirror-1.example.com"`,
+		},
+		{
+			input:       "http://mirror-1.example.com/?q=foo",
+			expectedErr: `invalid mirror: query or fragment at end of the URI "http://mirror-1.example.com/?q=foo"`,
+		},
+		{
+			input:       "http://mirror-1.example.com/v1/?q=foo",
+			expectedErr: `invalid mirror: query or fragment at end of the URI "http://mirror-1.example.com/v1/?q=foo"`,
+		},
+		{
+			input:       "http://mirror-1.example.com/v1/?q=foo#frag",
+			expectedErr: `invalid mirror: query or fragment at end of the URI "http://mirror-1.example.com/v1/?q=foo#frag"`,
+		},
+		{
+			input:       "http://mirror-1.example.com?q=foo",
+			expectedErr: `invalid mirror: query or fragment at end of the URI "http://mirror-1.example.com?q=foo"`,
+		},
+		{
+			input:       "https://mirror-1.example.com#frag",
+			expectedErr: `invalid mirror: query or fragment at end of the URI "https://mirror-1.example.com#frag"`,
+		},
+		{
+			input:       "https://mirror-1.example.com/#frag",
+			expectedErr: `invalid mirror: query or fragment at end of the URI "https://mirror-1.example.com/#frag"`,
+		},
+		{
+			input:       "http://foo:bar@mirror-1.example.com/",
+			expectedErr: `invalid mirror: username/password not allowed in URI "http://foo:xxxxx@mirror-1.example.com/"`,
+		},
+		{
+			input:       "https://mirror-1.example.com/v1/#frag",
+			expectedErr: `invalid mirror: query or fragment at end of the URI "https://mirror-1.example.com/v1/#frag"`,
+		},
+		{
+			input:       "https://mirror-1.example.com?q",
+			expectedErr: `invalid mirror: query or fragment at end of the URI "https://mirror-1.example.com?q"`,
+		},
 	}
 
-	invalid := []string{
-		"!invalid!://%as%",
-		"ftp://mirror-1.example.com",
-		"http://mirror-1.example.com/?q=foo",
-		"http://mirror-1.example.com/v1/?q=foo",
-		"http://mirror-1.example.com/v1/?q=foo#frag",
-		"http://mirror-1.example.com?q=foo",
-		"https://mirror-1.example.com#frag",
-		"https://mirror-1.example.com/#frag",
-		"http://foo:bar@mirror-1.example.com/",
-		"https://mirror-1.example.com/v1/#frag",
-		"https://mirror-1.example.com?q",
-	}
-
-	for _, address := range valid {
-		if ret, err := ValidateMirror(address); err != nil || ret == "" {
-			t.Errorf("ValidateMirror(`"+address+"`) got %s %s", ret, err)
-		}
-	}
-
-	for _, address := range invalid {
-		if ret, err := ValidateMirror(address); err == nil || ret != "" {
-			t.Errorf("ValidateMirror(`"+address+"`) got %s %s", ret, err)
-		}
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			out, err := ValidateMirror(tc.input)
+			if tc.expectedErr != "" {
+				assert.Error(t, err, tc.expectedErr)
+			} else {
+				assert.NilError(t, err)
+			}
+			assert.Check(t, is.Equal(out, tc.output))
+		})
 	}
 }
 

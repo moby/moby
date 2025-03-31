@@ -294,12 +294,15 @@ func isCIDRMatch(cidrs []*registry.NetIPNet, URLHost string) bool {
 	return false
 }
 
-// ValidateMirror validates an HTTP(S) registry mirror. It is used by the daemon
-// to validate the daemon configuration.
-func ValidateMirror(val string) (string, error) {
-	uri, err := url.Parse(val)
+// ValidateMirror validates and normalizes an HTTP(S) registry mirror. It
+// returns an error if the given mirrorURL is invalid, or the normalized
+// format for the URL otherwise.
+//
+// It is used by the daemon to validate the daemon configuration.
+func ValidateMirror(mirrorURL string) (string, error) {
+	uri, err := url.Parse(mirrorURL)
 	if err != nil {
-		return "", invalidParamWrapf(err, "invalid mirror: %q is not a valid URI", val)
+		return "", invalidParamWrapf(err, "invalid mirror: %q is not a valid URI", mirrorURL)
 	}
 	if uri.Scheme != "http" && uri.Scheme != "https" {
 		return "", invalidParamf("invalid mirror: unsupported scheme %q in %q", uri.Scheme, uri)
@@ -312,7 +315,7 @@ func ValidateMirror(val string) (string, error) {
 		uri.User = url.UserPassword(uri.User.Username(), "xxxxx")
 		return "", invalidParamf("invalid mirror: username/password not allowed in URI %q", uri)
 	}
-	return strings.TrimSuffix(val, "/") + "/", nil
+	return strings.TrimSuffix(mirrorURL, "/") + "/", nil
 }
 
 // ValidateIndexName validates an index name. It is used by the daemon to
