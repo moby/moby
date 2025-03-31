@@ -179,7 +179,7 @@ func authorizeClient(client *http.Client, authConfig *registry.AuthConfig, endpo
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside all our requests.
 	if endpoint.String() != IndexServer && endpoint.URL.Scheme == "https" {
-		info, err := endpoint.ping()
+		info, err := endpoint.ping(context.TODO())
 		if err != nil {
 			return err
 		}

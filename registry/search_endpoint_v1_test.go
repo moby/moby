@@ -18,7 +18,7 @@ func TestV1EndpointPing(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		regInfo, err := ep.ping()
+		regInfo, err := ep.ping(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
