@@ -1608,17 +1608,15 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 		return nil
 	}
 
-	// Try to keep things atomic. addedLinks keeps track of links that were
-	// successfully added. If any error occurred, then roll back all.
-	var addedLinks []*link
-	defer func() {
-		if retErr == nil {
-			return
-		}
-		for _, l := range addedLinks {
-			l.Disable()
-		}
-	}()
+	// Try to keep things atomic when adding - if there's an error, recurse with enable=false
+	// to delete everything that might have been created.
+	if enable {
+		defer func() {
+			if retErr != nil {
+				d.link(network, endpoint, false)
+			}
+		}()
+	}
 
 	if ec.ExposedPorts != nil {
 		for _, p := range cc.ParentEndpoints {
@@ -1629,18 +1627,21 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 			if parentEndpoint == nil {
 				return invalidEndpointIDError(p)
 			}
-
-			l, err := newLink(parentEndpoint.addr.IP, endpoint.addr.IP, ec.ExposedPorts, network.config.BridgeName)
-			if err != nil {
-				return err
+			parentAddr, ok := netip.AddrFromSlice(parentEndpoint.addr.IP)
+			if !ok {
+				return fmt.Errorf("invalid parent endpoint IP: %s", parentEndpoint.addr.IP)
 			}
+			childAddr, ok := netip.AddrFromSlice(endpoint.addr.IP)
+			if !ok {
+				return fmt.Errorf("invalid parent endpoint IP: %s", endpoint.addr.IP)
+			}
+
 			if enable {
-				if err := l.Enable(); err != nil {
+				if err := network.iptablesNetwork.AddLink(context.TODO(), parentAddr, childAddr, ec.ExposedPorts); err != nil {
 					return err
 				}
-				addedLinks = append(addedLinks, l)
 			} else {
-				l.Disable()
+				network.iptablesNetwork.DelLink(context.TODO(), parentAddr, childAddr, ec.ExposedPorts)
 			}
 		}
 	}
@@ -1656,18 +1657,21 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 		if childEndpoint.extConnConfig == nil || childEndpoint.extConnConfig.ExposedPorts == nil {
 			continue
 		}
-
-		l, err := newLink(endpoint.addr.IP, childEndpoint.addr.IP, childEndpoint.extConnConfig.ExposedPorts, network.config.BridgeName)
-		if err != nil {
-			return err
+		parentAddr, ok := netip.AddrFromSlice(endpoint.addr.IP)
+		if !ok {
+			return fmt.Errorf("invalid parent endpoint IP: %s", endpoint.addr.IP)
 		}
+		childAddr, ok := netip.AddrFromSlice(childEndpoint.addr.IP)
+		if !ok {
+			return fmt.Errorf("invalid parent endpoint IP: %s", childEndpoint.addr.IP)
+		}
+
 		if enable {
-			if err := l.Enable(); err != nil {
+			if err := network.iptablesNetwork.AddLink(context.TODO(), parentAddr, childAddr, childEndpoint.extConnConfig.ExposedPorts); err != nil {
 				return err
 			}
-			addedLinks = append(addedLinks, l)
 		} else {
-			l.Disable()
+			network.iptablesNetwork.DelLink(context.TODO(), parentAddr, childAddr, childEndpoint.extConnConfig.ExposedPorts)
 		}
 	}
 
