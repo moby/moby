@@ -30,13 +30,13 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	dist "github.com/docker/distribution"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	imagetypes "github.com/docker/docker/api/types/image"
 	networktypes "github.com/docker/docker/api/types/network"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
@@ -130,10 +130,10 @@ type Daemon struct {
 	seccompProfile     []byte
 	seccompProfilePath string
 
-	usageContainers singleflight.Group[struct{}, []*containertypes.Summary]
+	usageContainers singleflight.Group[struct{}, *types.ContainerDiskUsage]
 	usageImages     singleflight.Group[struct{}, []*imagetypes.Summary]
-	usageVolumes    singleflight.Group[struct{}, []*volume.Volume]
-	usageLayer      singleflight.Group[struct{}, layerDiskUsage]
+	usageVolumes    singleflight.Group[struct{}, *types.VolumeDiskUsage]
+	usageLayer      singleflight.Group[struct{}, int64]
 
 	pruneRunning atomic.Bool
 	hosts        map[string]bool // hosts stores the addresses the daemon is listening on

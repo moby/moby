@@ -87,13 +87,38 @@ type DiskUsageOptions struct {
 // DiskUsage contains response of Engine API:
 // GET "/system/df"
 type DiskUsage struct {
-	TotalSize   int64 `json:",omitempty"` // API 1.49 or above
-	LayersSize  int64
-	Images      []*image.Summary
-	Containers  []*container.Summary
-	Volumes     []*volume.Volume
-	BuildCache  []*BuildCache
-	BuilderSize int64 `json:",omitempty"` // Deprecated: deprecated in API 1.38, and no longer used since API 1.40.
+	Images     *ImageDiskUsage
+	Containers *ContainerDiskUsage
+	Volumes    *VolumeDiskUsage
+	BuildCache *BuildCacheDiskUsage
+}
+
+// ImageDiskUsage contains the image disk usage information.
+type ImageDiskUsage struct {
+	TotalSize   int64
+	Reclaimable int64
+	Items       []*image.Summary
+}
+
+// ContainerDiskUsage contains the container disk usage information.
+type ContainerDiskUsage struct {
+	TotalSize   int64
+	Reclaimable int64
+	Items       []*container.Summary
+}
+
+// VolumeDiskUsage contains the container disk usage information.
+type VolumeDiskUsage struct {
+	TotalSize   int64
+	Reclaimable int64
+	Items       []*volume.Volume
+}
+
+// BuildCacheDiskUsage contains the build cache disk usage information.
+type BuildCacheDiskUsage struct {
+	TotalSize   int64
+	Reclaimable int64
+	Items       []*BuildCache
 }
 
 // BuildCachePruneReport contains the response for Engine API:

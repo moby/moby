@@ -200,14 +200,7 @@ func (i *ImageService) ReleaseLayer(rwlayer container.RWLayer) error {
 
 // ImageDiskUsage returns the number of bytes used by content and layer stores
 // called from disk_usage.go
-func (i *ImageService) ImageDiskUsage(ctx context.Context) (layersSize, contentSize int64, err error) {
-	layersSize, err = i.LayerDiskUsage(ctx)
-	return layersSize, 0, err
-}
-
-// LayerDiskUsage returns the number of bytes used by layer stores
-// called from disk_usage.go
-func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
+func (i *ImageService) ImageDiskUsage(ctx context.Context) (int64, error) {
 	var allLayersSize int64
 	layerRefs := i.getLayerRefs()
 	allLayers := i.layerStore.Map()

@@ -11,13 +11,16 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/router/build"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/system"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -208,27 +211,53 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 			b.Parent = "" //nolint:staticcheck // ignore SA1019 (Parent field is deprecated)
 		}
 	}
-	if versions.LessThan(version, "1.44") {
-		for _, b := range systemDiskUsage.Images {
+	if versions.LessThan(version, "1.44") && systemDiskUsage != nil && systemDiskUsage.Images != nil {
+		for _, b := range systemDiskUsage.Images.Items {
 			b.VirtualSize = b.Size //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.44.
 		}
 	}
-	if systemDiskUsage != nil && versions.LessThan(version, "1.49") {
-		systemDiskUsage.TotalSize = 0
-	}
 
-	du := types.DiskUsage{
-		BuildCache:  buildCache,
-		BuilderSize: builderSize,
+	du := types.DiskUsage{}
+	if getBuildCache {
+		du.BuildCache = &types.BuildCacheDiskUsage{
+			TotalSize: builderSize,
+			Items:     buildCache,
+		}
 	}
 	if systemDiskUsage != nil {
-		du.TotalSize = systemDiskUsage.TotalSize
-		du.LayersSize = systemDiskUsage.LayersSize
 		du.Images = systemDiskUsage.Images
 		du.Containers = systemDiskUsage.Containers
 		du.Volumes = systemDiskUsage.Volumes
 	}
-	return httputils.WriteJSON(w, http.StatusOK, du)
+
+	if versions.GreaterThanOrEqualTo(version, "1.49") {
+		return httputils.WriteJSON(w, http.StatusOK, du)
+	}
+
+	// Pre 1.49 response.
+	var deprecated struct {
+		LayersSize  int64
+		Images      []*image.Summary
+		Containers  []*container.Summary
+		Volumes     []*volume.Volume
+		BuildCache  []*types.BuildCache
+		BuilderSize int64 `json:",omitempty"` // Deprecated: deprecated in API 1.38, and no longer used since API 1.40.
+	}
+	if du.Images != nil {
+		deprecated.LayersSize = du.Images.TotalSize
+		deprecated.Images = du.Images.Items
+	}
+	if du.Containers != nil {
+		deprecated.Containers = du.Containers.Items
+	}
+	if du.Volumes != nil {
+		deprecated.Volumes = du.Volumes.Items
+	}
+	if du.BuildCache != nil {
+		deprecated.BuildCache = du.BuildCache.Items
+	}
+	deprecated.BuilderSize = builderSize
+	return httputils.WriteJSON(w, http.StatusOK, deprecated)
 }
 
 type invalidRequestError struct {
