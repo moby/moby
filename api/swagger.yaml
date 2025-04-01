@@ -10537,6 +10537,7 @@ paths:
             If not provided, the full multi-platform image will be saved.
 
             Example: `{"os": "linux", "architecture": "arm", "variant": "v5"}`
+      tags: ["Image"]
   /images/get:
     get:
       summary: "Export several images"
