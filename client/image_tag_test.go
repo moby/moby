@@ -95,7 +95,7 @@ func TestImageTagHexSource(t *testing.T) {
 }
 
 func TestImageTag(t *testing.T) {
-	expectedURL := "/images/image_id/tag"
+	const expectedURL = "/images/image_id/tag"
 	tagCases := []struct {
 		reference           string
 		expectedQueryParams map[string]string
@@ -103,37 +103,37 @@ func TestImageTag(t *testing.T) {
 		{
 			reference: "repository:tag1",
 			expectedQueryParams: map[string]string{
-				"repo": "repository",
+				"repo": "docker.io/library/repository",
 				"tag":  "tag1",
 			},
 		}, {
 			reference: "another_repository:latest",
 			expectedQueryParams: map[string]string{
-				"repo": "another_repository",
+				"repo": "docker.io/library/another_repository",
 				"tag":  "latest",
 			},
 		}, {
 			reference: "another_repository",
 			expectedQueryParams: map[string]string{
-				"repo": "another_repository",
+				"repo": "docker.io/library/another_repository",
 				"tag":  "latest",
 			},
 		}, {
 			reference: "test/another_repository",
 			expectedQueryParams: map[string]string{
-				"repo": "test/another_repository",
+				"repo": "docker.io/test/another_repository",
 				"tag":  "latest",
 			},
 		}, {
 			reference: "test/another_repository:tag1",
 			expectedQueryParams: map[string]string{
-				"repo": "test/another_repository",
+				"repo": "docker.io/test/another_repository",
 				"tag":  "tag1",
 			},
 		}, {
 			reference: "test/test/another_repository:tag1",
 			expectedQueryParams: map[string]string{
-				"repo": "test/test/another_repository",
+				"repo": "docker.io/test/test/another_repository",
 				"tag":  "tag1",
 			},
 		}, {

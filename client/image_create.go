@@ -21,7 +21,7 @@ func (cli *Client) ImageCreate(ctx context.Context, parentReference string, opti
 	}
 
 	query := url.Values{}
-	query.Set("fromImage", reference.FamiliarName(ref))
+	query.Set("fromImage", ref.Name())
 	query.Set("tag", getAPITagFromNamedRef(ref))
 	if options.Platform != "" {
 		query.Set("platform", strings.ToLower(options.Platform))

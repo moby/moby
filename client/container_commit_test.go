@@ -33,13 +33,15 @@ func TestContainerCommitError(t *testing.T) {
 }
 
 func TestContainerCommit(t *testing.T) {
-	expectedURL := "/commit"
-	expectedContainerID := "container_id"
-	specifiedReference := "repository_name:tag"
-	expectedRepositoryName := "repository_name"
-	expectedTag := "tag"
-	expectedComment := "comment"
-	expectedAuthor := "author"
+	const (
+		expectedURL            = "/commit"
+		expectedContainerID    = "container_id"
+		specifiedReference     = "repository_name:tag"
+		expectedRepositoryName = "docker.io/library/repository_name"
+		expectedTag            = "tag"
+		expectedComment        = "comment"
+		expectedAuthor         = "author"
+	)
 	expectedChanges := []string{"change1", "change2"}
 
 	client := &Client{
