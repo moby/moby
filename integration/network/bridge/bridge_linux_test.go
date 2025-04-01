@@ -23,6 +23,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/skip"
 )
 
@@ -498,4 +499,62 @@ func TestAllPortMappingsAreReturned(t *testing.T) {
 		},
 		"81/tcp": nil,
 	})
+}
+
+// TestFirewalldReloadNoZombies checks that when firewalld is reloaded, rules
+// belonging to deleted networks/containers do not reappear.
+func TestFirewalldReloadNoZombies(t *testing.T) {
+	skip.If(t, !networking.FirewalldRunning(), "firewalld is not running")
+	skip.If(t, testEnv.IsRootless, "no firewalld in rootless netns")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+
+	const bridgeName = "br-fwdreload"
+	removed := false
+	nw := network.CreateNoError(ctx, t, c, "testnet",
+		network.WithOption(bridge.BridgeName, bridgeName))
+	defer func() {
+		if !removed {
+			network.RemoveNoError(ctx, t, c, nw)
+		}
+	}()
+
+	cid := ctr.Run(ctx, t, c,
+		ctr.WithExposedPorts("80/tcp", "81/tcp"),
+		ctr.WithPortMap(nat.PortMap{"80/tcp": {{HostPort: "8000"}}}))
+	defer func() {
+		if !removed {
+			ctr.Remove(ctx, t, c, cid, containertypes.RemoveOptions{Force: true})
+		}
+	}()
+
+	iptablesSave := icmd.Command("iptables-save")
+	resBeforeDel := icmd.RunCmd(iptablesSave)
+	assert.NilError(t, resBeforeDel.Error)
+	assert.Check(t, strings.Contains(resBeforeDel.Combined(), bridgeName),
+		"With container: expected rules for %s in: %s", bridgeName, resBeforeDel.Combined())
+
+	// Delete the container and its network.
+	ctr.Remove(ctx, t, c, cid, containertypes.RemoveOptions{Force: true})
+	network.RemoveNoError(ctx, t, c, nw)
+	removed = true
+
+	// Check the network does not appear in iptables rules.
+	resAfterDel := icmd.RunCmd(iptablesSave)
+	assert.NilError(t, resAfterDel.Error)
+	assert.Check(t, !strings.Contains(resAfterDel.Combined(), bridgeName),
+		"After deletes: did not expect rules for %s in: %s", bridgeName, resAfterDel.Combined())
+
+	// firewall-cmd --reload, and wait for the daemon to restore rules.
+	networking.FirewalldReload(t, d)
+
+	// Check that rules for the deleted container/network have not reappeared.
+	resAfterReload := icmd.RunCmd(iptablesSave)
+	assert.NilError(t, resAfterReload.Error)
+	assert.Check(t, !strings.Contains(resAfterReload.Combined(), bridgeName),
+		"After deletes: did not expect rules for %s in: %s", bridgeName, resAfterReload.Combined())
 }
