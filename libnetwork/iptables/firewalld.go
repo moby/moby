@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/rootless"
@@ -33,8 +35,13 @@ var (
 	connection *Conn
 
 	firewalldInitCalled bool
-	firewalldRunning    bool      // is Firewalld service running
-	onReloaded          []*func() // callbacks when Firewalld has been reloaded
+	firewalldRunning    bool // is Firewalld service running
+	// Time of the last firewalld reload, acquire firewalldReloadedAtMu before reading/writing.
+	firewalldReloadedAt   time.Time
+	firewalldReloadedAtMu sync.Mutex
+	// Mutex to serialise firewalld reload callbacks.
+	firewalldReloadMu sync.Mutex
+	onReloaded        []*func() // callbacks when Firewalld has been reloaded
 )
 
 // UsingFirewalld returns true if iptables rules will be applied via firewalld's
@@ -48,6 +55,15 @@ func UsingFirewalld() (bool, error) {
 		return false, fmt.Errorf("iptables.firewalld is not initialised")
 	}
 	return firewalldRunning, nil
+}
+
+// FirewalldReloadedAt returns the time at which the daemon last completed a
+// firewalld reload, or a nil-valued time.Time if it has not been reloaded
+// since the daemon started.
+func FirewalldReloadedAt() time.Time {
+	firewalldReloadedAtMu.Lock()
+	defer firewalldReloadedAtMu.Unlock()
+	return firewalldReloadedAt
 }
 
 // firewalldInit initializes firewalld management code.
@@ -149,9 +165,15 @@ func connectionLost() {
 
 // call all callbacks
 func reloaded() {
+	firewalldReloadMu.Lock()
+	defer firewalldReloadMu.Unlock()
 	for _, pf := range onReloaded {
 		(*pf)()
 	}
+
+	firewalldReloadedAtMu.Lock()
+	defer firewalldReloadedAtMu.Unlock()
+	firewalldReloadedAt = time.Now()
 }
 
 // OnReloaded add callback
