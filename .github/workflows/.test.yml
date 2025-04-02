@@ -47,7 +47,6 @@ jobs:
           script: |
             let includes = [
               { mode: '' },
-              { mode: 'rootless' },
               { mode: 'systemd' },
             ];
             if ("${{ inputs.storage }}" == "snapshotter") {
@@ -83,12 +82,6 @@ jobs:
         name: Prepare
         run: |
           CACHE_DEV_SCOPE=dev
-          if [[ "${{ matrix.mode }}" == *"rootless"* ]]; then
-            # In rootless mode, tests will run in the host's namspace not the rootlesskit
-            # namespace. So, probably no different to non-rootless unit tests and can be
-            # removed from the test matrix.
-            echo "DOCKER_ROOTLESS=1" >> $GITHUB_ENV
-          fi
           if [[ "${{ matrix.mode }}" == *"firewalld"* ]]; then
             echo "FIREWALLD=true" >> $GITHUB_ENV
             CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
