@@ -2,14 +2,12 @@ package buildkit
 
 import (
 	"context"
-	"net"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/buildkit/executor"
@@ -21,13 +19,14 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
+	"github.com/moby/buildkit/util/network/cniprovider"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 const networkName = "bridge"
 
-func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfig *oci.DNSConfig, rootless bool, idmap user.IdentityMapping, apparmorProfile string, cdiManager *cdidevices.Manager) (executor.Executor, error) {
+func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfig *oci.DNSConfig, rootless bool, idmap user.IdentityMapping, apparmorProfile string, cdiManager *cdidevices.Manager, _, _ string, _ cniprovider.Opt) (executor.Executor, error) {
 	netRoot := filepath.Join(root, "net")
 	networkProviders := map[pb.NetMode]network.Provider{
 		pb.NetMode_UNSET: &bridgeProvider{Controller: net, Root: netRoot},
@@ -172,23 +171,4 @@ func (iface *lnInterface) Close() error {
 		}()
 	}
 	return iface.err
-}
-
-func getDNSConfig(cfg config.DNSConfig) *oci.DNSConfig {
-	if cfg.DNS != nil || cfg.DNSSearch != nil || cfg.DNSOptions != nil {
-		return &oci.DNSConfig{
-			Nameservers:   ipAddresses(cfg.DNS),
-			SearchDomains: cfg.DNSSearch,
-			Options:       cfg.DNSOptions,
-		}
-	}
-	return nil
-}
-
-func ipAddresses(ips []net.IP) []string {
-	var addrs []string
-	for _, ip := range ips {
-		addrs = append(addrs, ip.String())
-	}
-	return addrs
 }
