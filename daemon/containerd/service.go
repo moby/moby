@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
@@ -90,13 +91,42 @@ func (i *ImageService) DistributionServices() dimages.DistributionServices {
 
 // CountImages returns the number of images stored by ImageService
 // called from info.go
-func (i *ImageService) CountImages(ctx context.Context) int {
+func (i *ImageService) CountImages(ctx context.Context) (count int) {
 	imgs, err := i.client.ListImages(ctx)
 	if err != nil {
 		return 0
 	}
 
-	return len(imgs)
+	// Exclude dangling images from the count if there's a non-dangling image
+	// with the same digest.
+	// Track which image digests have been encountered and whether they were
+	// tagged.
+	imageDigestIsTagged := map[digest.Digest]bool{}
+	for _, img := range imgs {
+		dgst := img.Target().Digest
+
+		// Check if the current image matches the dangling name.
+		isDangling := img.Name() == danglingImageName(dgst)
+
+		// Check if we've seen this image and, if we've seen it, whether
+		// it was tagged.
+		isTagged, seen := imageDigestIsTagged[dgst]
+
+		// Update this image with whether it's been tagged.
+		if !isTagged {
+			imageDigestIsTagged[dgst] = !isDangling
+		}
+
+		// If this image has been seen and either the current image is dangling
+		// or the previous image was dangling, then skip counting it.
+		if seen && (isDangling || !isTagged) {
+			continue
+		}
+
+		// Include this image in the count.
+		count++
+	}
+	return count
 }
 
 // LayerStoreStatus returns the status for each layer store
