@@ -263,7 +263,7 @@ func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
 	}()
 
 	if !n.sboxInit {
-		n.initErr = n.initSandbox()
+		n.initErr = n.initSandbox(false)
 		doInitPeerDB = n.initErr == nil
 		// If there was an error, we cannot recover it
 		n.sboxInit = true
@@ -580,8 +580,10 @@ func (n *network) cleanupStaleSandboxes() {
 		})
 }
 
-func (n *network) initSandbox() error {
+func (n *network) initSandbox(restore bool) error {
+	n.Lock()
 	n.initEpoch++
+	n.Unlock()
 
 	// If there are any stale sandboxes related to this network
 	// from previous daemon life clean it up here
@@ -595,6 +597,11 @@ func (n *network) initSandbox() error {
 
 	// this is needed to let the peerAdd configure the sandbox
 	n.sbox = sbox
+
+	// Initialize the multicast routing
+	if err := n.initMulticast(); err != nil {
+		log.G(context.TODO()).Errorf("failed to initialize multicast routing for overlay network %s: %v", n.id, err)
+	}
 
 	return nil
 }
