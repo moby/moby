@@ -105,7 +105,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 				if err != nil {
 					return nil, err
 				}
-				if nn, err := reference.ParseNormalizedNamed(ref.Name); err == nil {
+				if nn, err := reference.ParseNormalizedNamed(ref.Name); err == nil && !isDanglingImage(ref) {
 					familiarRef := reference.FamiliarString(nn)
 					i.logImageEvent(ref, familiarRef, events.ActionUnTag)
 					records = append(records, imagetypes.DeleteResponse{Untagged: familiarRef})
@@ -136,7 +136,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 				if err != nil {
 					return nil, err
 				}
-				if nn, err := reference.ParseNormalizedNamed(ref.Name); err == nil {
+				if nn, err := reference.ParseNormalizedNamed(ref.Name); err == nil && !isDanglingImage(ref) {
 					familiarRef := reference.FamiliarString(nn)
 					i.logImageEvent(ref, familiarRef, events.ActionUnTag)
 					records = append(records, imagetypes.DeleteResponse{Untagged: familiarRef})
@@ -190,8 +190,11 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 				return nil, err
 			}
 
-			i.logImageEvent(*img, familiarRef, events.ActionUnTag)
-			records := []imagetypes.DeleteResponse{{Untagged: familiarRef}}
+			var records []imagetypes.DeleteResponse
+			if !isDanglingImage(*img) {
+				i.logImageEvent(*img, familiarRef, events.ActionUnTag)
+				records = []imagetypes.DeleteResponse{{Untagged: familiarRef}}
+			}
 			return records, nil
 		}
 	}
