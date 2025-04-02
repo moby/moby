@@ -311,6 +311,8 @@ const (
 	nanoSecondsPerSecond = 1e9
 )
 
+var procStatPath = "/proc/stat"
+
 // getSystemCPUUsage returns the host system's cpu usage in
 // nanoseconds and number of online CPUs. An error is returned
 // if the format of the underlying file does not match.
@@ -320,17 +322,28 @@ const (
 // provided. See `man 5 proc` for details on specific field
 // information.
 func getSystemCPUUsage() (cpuUsage uint64, cpuNum uint32, _ error) {
-	f, err := os.Open("/proc/stat")
+	f, err := os.Open(procStatPath)
 	if err != nil {
 		return 0, 0, err
 	}
 	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if len(line) < 4 || line[:3] != "cpu" {
-			break // Assume all cpu* records are at the front, like glibc https://github.com/bminor/glibc/blob/5d00c201b9a2da768a79ea8d5311f257871c0b43/sysdeps/unix/sysv/linux/getsysstats.c#L108-L135
+	rdr := bufio.NewReaderSize(f, 1024)
+
+	for {
+		data, isPartial, err := rdr.ReadLine()
+
+		if err != nil {
+			return 0, 0, fmt.Errorf("error scanning '%s' file: %w", procStatPath, err)
+		}
+		// Assume all cpu* records are at the start of the file, like glibc:
+		// https://github.com/bminor/glibc/blob/5d00c201b9a2da768a79ea8d5311f257871c0b43/sysdeps/unix/sysv/linux/getsysstats.c#L108-L135
+		if isPartial || len(data) < 4 {
+			break
+		}
+		line := string(data)
+		if line[:3] != "cpu" {
+			break
 		}
 		if line[3] == ' ' {
 			parts := strings.Fields(line)
@@ -351,10 +364,6 @@ func getSystemCPUUsage() (cpuUsage uint64, cpuNum uint32, _ error) {
 		if '0' <= line[3] && line[3] <= '9' {
 			cpuNum++
 		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return 0, 0, fmt.Errorf("error scanning '/proc/stat' file: %w", err)
 	}
 	return cpuUsage, cpuNum, nil
 }
