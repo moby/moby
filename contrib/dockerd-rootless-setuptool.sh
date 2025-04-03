@@ -143,7 +143,15 @@ init() {
 
 	# instruction: iptables dependency check
 	faced_iptables_error=""
-	if ! command -v iptables > /dev/null 2>&1 && [ ! -f /sbin/iptables ] && [ ! -f /usr/sbin/iptables ]; then
+	# Many OSs now use iptables-nft by default so, check for module nf_tables by default. But,
+	# if "iptables --version" worked and reported "legacy", check for module ip_tables instead.
+	iptables_module="nf_tables"
+	iptables_command=$(PATH=$PATH:/sbin:/usr/sbin command -v iptables 2> /dev/null) || :
+	if [ -n "$iptables_command" ]; then
+		iptables_version=$($iptables_command --version 2> /dev/null) || :
+		case $iptables_version in
+			*legacy*) iptables_module="ip_tables" ;;
+		esac
 		faced_iptables_error=1
 		if [ -z "$OPT_SKIP_IPTABLES" ]; then
 			if command -v apt-get > /dev/null 2>&1; then
@@ -178,14 +186,14 @@ init() {
 	fi
 
 	# instruction: ip_tables module dependency check
-	if ! grep -q ip_tables /proc/modules 2> /dev/null && ! grep -q ip_tables /lib/modules/$(uname -r)/modules.builtin 2> /dev/null; then
+	if ! grep -q $iptables_module /proc/modules 2> /dev/null && ! grep -q $iptables_module /lib/modules/$(uname -r)/modules.builtin 2> /dev/null; then
 		faced_iptables_error=1
 		if [ -z "$OPT_SKIP_IPTABLES" ]; then
 			instructions=$(
 				cat <<- EOI
 					${instructions}
-					# Load ip_tables module
-					modprobe ip_tables
+					# Load $iptables_module module
+					modprobe $iptables_module
 				EOI
 			)
 		fi
