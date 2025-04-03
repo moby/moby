@@ -1,3 +1,5 @@
+// Package atomicwriter provides utilities to perform atomic writes to a
+// file or set of files.
 package atomicwriter
 
 import (
