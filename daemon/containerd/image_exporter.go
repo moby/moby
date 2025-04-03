@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	dockerarchive "github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -243,14 +244,6 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 
 		// Create an additional image with dangling name for imported images...
 		containerd.WithDigestRef(danglingImageName),
-		// ... but only if they don't have a name or it's invalid.
-		containerd.WithSkipDigestRef(func(nameFromArchive string) bool {
-			if nameFromArchive == "" {
-				return false
-			}
-			_, err := reference.ParseNormalizedNamed(nameFromArchive)
-			return err == nil
-		}),
 	}
 
 	if platform == nil {
@@ -280,6 +273,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 		log.G(ctx).WithError(err).Debug("failed to import image to containerd")
 		return errdefs.System(err)
 	}
+	imgs = filterDanglingImagesWithReference(imgs)
 
 	if platform != nil {
 		// Verify that the requested platform is available for the loaded images.
@@ -415,4 +409,24 @@ func (i *ImageService) verifyImagesProvidePlatform(ctx context.Context, imgs []c
 	}
 
 	return errdefs.NotFound(fmt.Errorf(msg, strings.Join(incompleteImgs, ", "), platforms.FormatAll(platform)))
+}
+
+func filterDanglingImagesWithReference(imgs []c8dimages.Image) []c8dimages.Image {
+	taggedDigests := make(map[digest.Digest]bool)
+	for _, img := range imgs {
+		if !isDanglingImage(img) {
+			taggedDigests[img.Target.Digest] = true
+		}
+	}
+
+	for i := 0; i < len(imgs); {
+		img := imgs[i]
+		if isDanglingImage(img) && taggedDigests[img.Target.Digest] {
+			imgs[i], imgs[len(imgs)-1] = imgs[len(imgs)-1], imgs[i]
+			imgs = imgs[:len(imgs)-1]
+			continue
+		}
+		i++
+	}
+	return imgs
 }

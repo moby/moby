@@ -103,14 +103,13 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 		return nil, err
 	}
 
-	// How many images make reference to a particular target digest.
 	digestRefCount := map[digest.Digest]int{}
 	// Images considered for pruning.
 	imagesToPrune := map[string]c8dimages.Image{}
 	for _, img := range allImages {
-		digestRefCount[img.Target.Digest] += 1
+		isDangling := isDanglingImage(img)
 
-		if !danglingOnly || isDanglingImage(img) {
+		if !danglingOnly || isDangling {
 			canBePruned := filterFunc(img)
 			log.G(ctx).WithFields(log.Fields{
 				"image":       img.Name,
@@ -120,19 +119,27 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 			if canBePruned {
 				imagesToPrune[img.Name] = img
 			}
+
+			if !isDangling {
+				// Count the number of non-dangling references.
+				digestRefCount[img.Target.Digest] += 1
+			}
 		}
 	}
 
+	// Mark which images are used by a container.
 	usedDigests := filterImagesUsedByContainers(ctx, i.containers.List(), imagesToPrune)
 
 	// Sort images by name to make the behavior deterministic and consistent with graphdrivers.
 	sorted := make([]string, 0, len(imagesToPrune))
-	for name := range imagesToPrune {
+	for name, img := range imagesToPrune {
+		if isDanglingImage(img) {
+			continue
+		}
 		sorted = append(sorted, name)
 	}
 	sort.Strings(sorted)
 
-	// Make sure we don't delete the last image of a particular digest used by any container.
 	for _, name := range sorted {
 		img := imagesToPrune[name]
 		dgst := img.Target.Digest
@@ -142,11 +149,26 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 			continue
 		}
 
-		if _, isUsed := usedDigests[dgst]; isUsed {
+		// Check if we need to restrict deletion of this image.
+		if _, isUsed := usedDigests[dgst]; !isUsed {
+			digestRefCount[dgst] -= 1
+			continue
+		}
+		delete(imagesToPrune, name)
+	}
+
+	// Look through the digest ref count and used digests to ensure
+	// any dangling images related to those digests are not deleted.
+	// The dangling images weren't part of the original ref count and
+	// were previously excluded.
+	for dgst, count := range digestRefCount {
+		if _, isUsed := usedDigests[dgst]; isUsed || count > 0 {
+			name := danglingImageName(dgst)
 			delete(imagesToPrune, name)
 		}
 	}
 
+	// Perform the prune on the set of images.
 	return i.pruneAll(ctx, imagesToPrune)
 }
 

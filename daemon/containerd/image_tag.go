@@ -80,14 +80,12 @@ func (i *ImageService) createOrReplaceImage(ctx context.Context, newImg c8dimage
 	})
 	logger.Info("image created")
 
-	if !creatingDangling {
-		defer i.LogImageEvent(ctx, string(newImg.Target.Digest), imageFamiliarName(newImg), events.ActionTag)
+	if err := i.ensureDanglingImage(ctx, newImg); err != nil {
+		logger.WithError(err).Warn("failed to mark new image as dangling")
+	}
 
-		if err := i.images.Delete(ctx, danglingName); err != nil {
-			if !cerrdefs.IsNotFound(err) {
-				logger.WithError(err).Warn("unexpected error when deleting dangling image")
-			}
-		}
+	if !creatingDangling {
+		i.LogImageEvent(ctx, string(newImg.Target.Digest), imageFamiliarName(newImg), events.ActionTag)
 	}
 
 	return nil
