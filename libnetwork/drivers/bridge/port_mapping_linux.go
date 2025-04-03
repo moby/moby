@@ -203,9 +203,10 @@ func (n *bridgeNetwork) addPortMappings(
 				return nil, err
 			}
 		}
-		if err := n.setPerPortIptables(ctx, b, true); err != nil {
-			return nil, err
-		}
+	}
+
+	if err := n.iptablesNetwork.AddPorts(ctx, mergeChildHostIPs(bindings)); err != nil {
+		return nil, err
 	}
 
 	// Now the iptables rules are set up, it's safe to start the userland proxy.
@@ -320,6 +321,21 @@ func needSamePort(a, b types.PortBinding) bool {
 		a.HostPort == b.HostPort &&
 		a.HostPortEnd == b.HostPortEnd &&
 		a.IP.Equal(b.IP)
+}
+
+// mergeChildHostIPs take a slice of portBinding and returns a slice of
+// types.PortBinding, where the HostIP in each of the results has the
+// value of childHostIP from the input (if present).
+func mergeChildHostIPs(pbs []portBinding) []types.PortBinding {
+	res := make([]types.PortBinding, 0, len(pbs))
+	for _, b := range pbs {
+		pb := b.PortBinding
+		if b.childHostIP != nil {
+			pb.HostIP = b.childHostIP
+		}
+		res = append(res, pb)
+	}
+	return res
 }
 
 // configurePortBindingIPv4 returns a new port binding with the HostIP field
@@ -745,9 +761,11 @@ func (n *bridgeNetwork) releasePortBindings(pbs []portBinding) error {
 				errs = append(errs, fmt.Errorf("failed to stop userland proxy for port mapping %s: %w", pb, err))
 			}
 		}
-		if err := n.setPerPortIptables(context.TODO(), pb, false); err != nil {
-			errs = append(errs, fmt.Errorf("failed to remove iptables rules for port mapping %s: %w", pb, err))
-		}
+	}
+	if err := n.iptablesNetwork.DelPorts(context.TODO(), mergeChildHostIPs(pbs)); err != nil {
+		errs = append(errs, err)
+	}
+	for _, pb := range pbs {
 		if pb.HostPort > 0 {
 			portallocator.Get().ReleasePort(pb.childHostIP, pb.Proto.String(), int(pb.HostPort))
 		}
@@ -755,17 +773,39 @@ func (n *bridgeNetwork) releasePortBindings(pbs []portBinding) error {
 	return errors.Join(errs...)
 }
 
-func (n *bridgeNetwork) setPerPortIptables(ctx context.Context, b portBinding, enable bool) error {
+func (n *iptablesNetwork) AddPorts(ctx context.Context, pbs []types.PortBinding) error {
+	return n.modPorts(ctx, pbs, true)
+}
+
+func (n *iptablesNetwork) DelPorts(ctx context.Context, pbs []types.PortBinding) error {
+	return n.modPorts(ctx, pbs, false)
+}
+
+func (n *iptablesNetwork) modPorts(ctx context.Context, pbs []types.PortBinding, enable bool) error {
+	for _, pb := range pbs {
+		if err := n.setPerPortIptables(ctx, pb, enable); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (n *iptablesNetwork) setPerPortIptables(ctx context.Context, b types.PortBinding, enable bool) error {
 	v := iptables.IPv4
+	enabled := n.Enable4
+	config := n.Config4
 	if b.IP.To4() == nil {
 		v = iptables.IPv6
+		enabled = n.Enable6
+		config = n.Config6
 	}
-	if enabled, err := n.iptablesEnabled(v); err != nil || !enabled {
+
+	if !enabled {
 		// Nothing to do, iptables/ip6tables is not enabled.
 		return nil
 	}
 
-	if err := n.filterPortMappedOnLoopback(ctx, b, enable); err != nil {
+	if err := filterPortMappedOnLoopback(ctx, b, b.HostIP, enable); err != nil {
 		return err
 	}
 
@@ -780,21 +820,19 @@ func (n *bridgeNetwork) setPerPortIptables(ctx context.Context, b portBinding, e
 		return nil
 	}
 
-	bridgeName := n.getNetworkBridgeName()
-	proxyPath := n.userlandProxyPath()
-	if err := setPerPortNAT(b, v, proxyPath, bridgeName, enable); err != nil {
+	if err := n.setPerPortNAT(v, b, enable); err != nil {
 		return err
 	}
 
-	if !n.gwMode(v).unprotected() {
-		if err := setPerPortForwarding(b, v, bridgeName, enable); err != nil {
+	if !config.Unprotected {
+		if err := setPerPortForwarding(b, v, n.IfName, enable); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func setPerPortNAT(b portBinding, ipv iptables.IPVersion, proxyPath string, bridgeName string, enable bool) error {
+func (n *iptablesNetwork) setPerPortNAT(ipv iptables.IPVersion, b types.PortBinding, enable bool) error {
 	if b.HostPort == 0 {
 		// NAT is disabled.
 		return nil
@@ -803,8 +841,8 @@ func setPerPortNAT(b portBinding, ipv iptables.IPVersion, proxyPath string, brid
 	// want "0.0.0.0/0". "0/0" is correctly interpreted as "any
 	// value" by both iptables and ip6tables.
 	hostIP := "0/0"
-	if !b.childHostIP.IsUnspecified() {
-		hostIP = b.childHostIP.String()
+	if !b.HostIP.IsUnspecified() {
+		hostIP = b.HostIP.String()
 	}
 	args := []string{
 		"-p", b.Proto.String(),
@@ -813,9 +851,8 @@ func setPerPortNAT(b portBinding, ipv iptables.IPVersion, proxyPath string, brid
 		"-j", "DNAT",
 		"--to-destination", net.JoinHostPort(b.IP.String(), strconv.Itoa(int(b.Port))),
 	}
-	hairpinMode := proxyPath == ""
-	if !hairpinMode {
-		args = append(args, "!", "-i", bridgeName)
+	if !n.Hairpin {
+		args = append(args, "!", "-i", n.IfName)
 	}
 	if ipv == iptables.IPv6 {
 		args = append(args, "!", "-s", "fe80::/10")
@@ -832,14 +869,14 @@ func setPerPortNAT(b portBinding, ipv iptables.IPVersion, proxyPath string, brid
 		"--dport", strconv.Itoa(int(b.Port)),
 		"-j", "MASQUERADE",
 	}}
-	if err := appendOrDelChainRule(rule, "MASQUERADE", hairpinMode && enable); err != nil {
+	if err := appendOrDelChainRule(rule, "MASQUERADE", n.Hairpin && enable); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setPerPortForwarding(b portBinding, ipv iptables.IPVersion, bridgeName string, enable bool) error {
+func setPerPortForwarding(b types.PortBinding, ipv iptables.IPVersion, bridgeName string, enable bool) error {
 	// Insert rules for open ports at the top of the filter table's DOCKER
 	// chain (a per-network DROP rule, which must come after these per-port
 	// per-container ACCEPT rules, is appended to the chain when the network
@@ -881,15 +918,14 @@ func setPerPortForwarding(b portBinding, ipv iptables.IPVersion, bridgeName stri
 // filterPortMappedOnLoopback adds an iptables rule that drops remote
 // connections to ports mapped on loopback addresses.
 //
-// This is a no-ip if the portBinding is for IPv6 (IPv6 loopback address is
+// This is a no-op if the portBinding is for IPv6 (IPv6 loopback address is
 // non-routable), or over a network with gw_mode=routed (PBs in routed mode
 // don't map ports on the host).
-func (n *bridgeNetwork) filterPortMappedOnLoopback(ctx context.Context, b portBinding, enable bool) error {
+func filterPortMappedOnLoopback(ctx context.Context, b types.PortBinding, hostIP net.IP, enable bool) error {
 	if rawRulesDisabled(ctx) {
 		return nil
 	}
-	hostIP := b.childHostIP
-	if b.HostPort == 0 || !hostIP.IsLoopback() || b.childHostIP.To4() == nil {
+	if b.HostPort == 0 || !hostIP.IsLoopback() || hostIP.To4() == nil {
 		return nil
 	}
 
@@ -924,27 +960,28 @@ func (n *bridgeNetwork) filterPortMappedOnLoopback(ctx context.Context, b portBi
 // mode is "nat".
 //
 // This is a no-op if the gw_mode is "nat-unprotected" or "routed".
-func (n *bridgeNetwork) filterDirectAccess(ctx context.Context, b portBinding, enable bool) error {
+func (n *iptablesNetwork) filterDirectAccess(ctx context.Context, b types.PortBinding, enable bool) error {
 	if rawRulesDisabled(ctx) {
 		return nil
 	}
 	ipv := iptables.IPv4
+	config := n.Config4
 	if b.IP.To4() == nil {
 		ipv = iptables.IPv6
+		config = n.Config6
 	}
 
 	// gw_mode=nat-unprotected means there's minimal security for NATed ports,
 	// so don't filter direct access.
-	if n.gwMode(ipv).unprotected() || n.gwMode(ipv).routed() {
+	if config.Unprotected || config.Routed {
 		return nil
 	}
 
-	bridgeName := n.getNetworkBridgeName()
 	drop := iptables.Rule{IPVer: ipv, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
 		"-p", b.Proto.String(),
 		"-d", b.IP.String(), // Container IP address
 		"--dport", strconv.Itoa(int(b.Port)), // Container port
-		"!", "-i", bridgeName,
+		"!", "-i", n.IfName,
 		"-j", "DROP",
 	}}
 	if err := appendOrDelChainRule(drop, "DIRECT ACCESS FILTERING - DROP", enable); err != nil {
@@ -970,9 +1007,7 @@ func (n *bridgeNetwork) reapplyPerPortIptables() {
 	}
 	n.Unlock()
 
-	for _, b := range allPBs {
-		if err := n.setPerPortIptables(context.Background(), b, true); err != nil {
-			log.G(context.TODO()).Warnf("Failed to reconfigure iptables on firewalld reload %s: %s", b, err)
-		}
+	if err := n.iptablesNetwork.AddPorts(context.Background(), mergeChildHostIPs(allPBs)); err != nil {
+		log.G(context.TODO()).Warnf("Failed to reconfigure NAT: %s", err)
 	}
 }
