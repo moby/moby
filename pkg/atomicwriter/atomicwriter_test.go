@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -118,6 +119,23 @@ func TestNewInvalid(t *testing.T) {
 		}
 		if !errors.Is(err, os.ErrNotExist) {
 			t.Errorf("Should produce a 'not found' error, but got %[1]T (%[1]v)", err)
+		}
+	})
+	t.Run("target dir is not a directory", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		parentPath := filepath.Join(tmpDir, "not-a-dir")
+		err := os.WriteFile(parentPath, nil, testMode())
+		if err != nil {
+			t.Fatalf("Error writing file: %v", err)
+		}
+		fileName := filepath.Join(parentPath, "new-file.txt")
+		writer, err := New(fileName, testMode())
+		if writer != nil {
+			t.Errorf("Should not have created writer")
+		}
+		// This should match the behavior of os.WriteFile, which returns a [os.PathError] with [syscall.ENOTDIR].
+		if !errors.Is(err, syscall.ENOTDIR) {
+			t.Errorf("Should produce a 'not a directory' error, but got %[1]T (%[1]v)", err)
 		}
 	})
 	t.Run("empty filename", func(t *testing.T) {
