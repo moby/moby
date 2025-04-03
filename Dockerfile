@@ -658,6 +658,15 @@ COPY --link . .
 COPY --link --from=gopls         /build/ /usr/local/bin/
 
 # usage:
+# > docker buildx bake dind
+# > docker run -d --restart always --privileged --name devdind -p 12375:2375 docker-dind --debug --host=tcp://0.0.0.0:2375 --tlsverify=false
+FROM docker:dind AS dind
+COPY --link --from=dockercli /build/docker /usr/local/bin/
+COPY --link --from=buildx    /buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
+COPY --link --from=compose   /docker-compose /usr/local/libexec/docker/cli-plugins/docker-compose
+COPY --link --from=all       / /usr/local/bin/
+
+# usage:
 # > make shell
 # > SYSTEMD=true make shell
 FROM dev-base AS dev
