@@ -82,7 +82,8 @@ func (p *pusher) push(ctx context.Context) (err error) {
 	}
 
 	if err = p.pushRepository(ctx); err != nil {
-		if continueOnError(err, p.endpoint.Mirror) {
+		// [Service.LookupPushEndpoints] never returns mirror endpoint.
+		if continueOnError(err, false) {
 			return fallbackError{
 				err:         err,
 				transportOK: true,
@@ -155,7 +156,6 @@ func (p *pusher) pushTag(ctx context.Context, ref reference.NamedTagged, id dige
 		hmacKey:         hmacKey,
 		repoName:        p.repoName,
 		ref:             p.ref,
-		endpoint:        p.endpoint,
 		repo:            p.repo,
 		pushState:       &p.pushState,
 	}
@@ -276,7 +276,6 @@ type pushDescriptor struct {
 	hmacKey          []byte
 	repoName         reference.Named
 	ref              reference.Named
-	endpoint         registry.APIEndpoint
 	repo             distribution.Repository
 	pushState        *pushState
 	remoteDescriptor distribution.Descriptor
