@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"syscall"
 
 	"github.com/moby/sys/sequential"
 )
@@ -16,26 +17,27 @@ func validateDestination(fileName string) error {
 	if fileName == "" {
 		return errors.New("file name is empty")
 	}
+	if dir := filepath.Dir(fileName); dir != "" && dir != "." && dir != ".." {
+		di, err := os.Stat(dir)
+		if err != nil {
+			return fmt.Errorf("invalid output path: %w", err)
+		}
+		if !di.IsDir() {
+			return fmt.Errorf("invalid output path: %w", &os.PathError{Op: "stat", Path: dir, Err: syscall.ENOTDIR})
+		}
+	}
 
 	// Deliberately using Lstat here to match the behavior of [os.Rename],
 	// which is used when completing the write and does not resolve symlinks.
-	if fi, err := os.Lstat(fileName); err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("failed to stat output path: %w", err)
+	fi, err := os.Lstat(fileName)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
 		}
-	} else if err := validateFileMode(fi.Mode()); err != nil {
-		return err
+		return fmt.Errorf("failed to stat output path: %w", err)
 	}
-	if dir := filepath.Dir(fileName); dir != "" && dir != "." {
-		if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("invalid file path: %w", err)
-		}
-	}
-	return nil
-}
 
-func validateFileMode(mode os.FileMode) error {
-	switch {
+	switch mode := fi.Mode(); {
 	case mode.IsRegular():
 		return nil // Regular file
 	case mode&os.ModeDir != 0:
