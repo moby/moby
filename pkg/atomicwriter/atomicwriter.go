@@ -58,8 +58,7 @@ func validateFileMode(mode os.FileMode) error {
 	case mode&os.ModeSticky != 0:
 		return errors.New("cannot write to a sticky bit file")
 	default:
-		// Unknown file mode; let's assume it works
-		return nil
+		return fmt.Errorf("unknown file mode: %[1]s (%#[1]o)", mode)
 	}
 }
 
