@@ -100,6 +100,23 @@ type Controller struct {
 	diagnosticServer *diagnostic.Server
 	mu               sync.Mutex
 
+	// networks is an in-memory cache of Network. Do not use this map unless
+	// you're sure your code is thread-safe.
+	//
+	// The data persistence layer is instantiating new Network objects every
+	// time it loads an object from its store or in-memory cache. This leads to
+	// multiple instances representing the same network to concurrently live in
+	// memory. As such, the Network mutex might be ineffective and not
+	// correctly protect against data races.
+	//
+	// If you want to use this map for new or existing code, you need to make
+	// sure: 1. the Network object is correctly locked; 2. the lock order
+	// between Sandbox, Network and Endpoint is the same as the rest of the
+	// code (in order to avoid deadlocks).
+	networks map[string]*Network
+	// networksMu protects the networks map.
+	networksMu sync.Mutex
+
 	// endpoints is an in-memory cache of Endpoint. Do not use this map unless
 	// you're sure your code is thread-safe.
 	//
@@ -135,6 +152,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		cfg:              cfg,
 		store:            store,
 		sandboxes:        map[string]*Sandbox{},
+		networks:         map[string]*Network{},
 		endpoints:        map[string]*Endpoint{},
 		svcRecords:       make(map[string]*svcInfo),
 		serviceBindings:  make(map[serviceKey]*service),
@@ -692,12 +710,12 @@ addToStore:
 	}()
 
 	nw.epCnt = epCnt
-	if err := c.updateToStore(context.TODO(), nw); err != nil {
+	if err := c.storeNetwork(context.TODO(), nw); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if retErr != nil {
-			if err := c.deleteFromStore(nw); err != nil {
+			if err := c.deleteStoredNetwork(nw); err != nil {
 				log.G(context.TODO()).Warnf("could not rollback from store, network %v on failure (%v): %v", nw, retErr, err)
 			}
 		}

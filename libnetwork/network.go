@@ -1076,7 +1076,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 
 	// Mark the network for deletion
 	n.inDelete = true
-	if err = c.updateToStore(context.TODO(), n); err != nil {
+	if err = c.storeNetwork(context.TODO(), n); err != nil {
 		return fmt.Errorf("error marking network %s (%s) for deletion: %v", n.Name(), n.ID(), err)
 	}
 
@@ -1137,7 +1137,7 @@ removeFromStore:
 		log.G(context.TODO()).Debugf("Error deleting endpoint count from store for stale network %s (%s) for deletion: %v", n.Name(), n.ID(), err)
 	}
 
-	if err = c.deleteFromStore(n); err != nil {
+	if err = c.deleteStoredNetwork(n); err != nil {
 		return fmt.Errorf("error deleting network from store: %v", err)
 	}
 

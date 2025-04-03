@@ -232,6 +232,7 @@ func (c *Controller) sandboxRestore(activeSandboxes map[string]interface{}) erro
 					sandboxID: sbs.ID,
 				}
 				c.cacheEndpoint(ep)
+				c.cacheNetwork(ep.network)
 			} else {
 				ep, err = n.getEndpointFromStore(eps.Eid)
 				if err != nil {

@@ -31,6 +31,7 @@ func (c *Controller) getNetworks() ([]*Network, error) {
 	for _, kvo := range kvol {
 		n := kvo.(*Network)
 		n.ctrlr = c
+		c.cacheNetwork(n)
 
 		ec := &endpointCnt{n: n}
 		err = c.store.GetObject(ec)
