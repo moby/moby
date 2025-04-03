@@ -19,6 +19,8 @@ import (
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl/kernel"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/rootless"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
@@ -115,6 +117,15 @@ func NewSandbox(key string, osCreate, isRestore bool) (*Namespace, error) {
 
 	n := &Namespace{path: key, isDefault: !osCreate}
 
+	detachedNetNS, err := rootless.DetachedNetNS()
+	if err != nil {
+		logrus.Warn(err)
+	}
+	if detachedNetNS != "" && !osCreate {
+		// n refers to the host netns and we do not have a permission to do the netlink stuff
+		return n, nil
+	}
+
 	sboxNs, err := netns.GetFromPath(n.path)
 	if err != nil {
 		return nil, fmt.Errorf("failed get network namespace %q: %v", n.path, err)
@@ -191,8 +202,11 @@ func createNetworkNamespace(path string, osCreate bool) error {
 		return mountNetworkNamespace(fmt.Sprintf("/proc/self/task/%d/ns/net", unix.Gettid()), path)
 	}
 	if osCreate {
-		return unshare.Go(unix.CLONE_NEWNET, do, nil)
+		return rootless.WithDetachedNetNSIfAny(func() error {
+			return unshare.Go(unix.CLONE_NEWNET, do, nil)
+		})
 	}
+	// use host netns
 	return do()
 }
 
