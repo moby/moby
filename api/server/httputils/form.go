@@ -158,3 +158,16 @@ func DecodePlatform(platformJSON string) (*ocispec.Platform, error) {
 
 	return &p, nil
 }
+
+// DecodePlatforms decodes an array of OCI platform JSON strings into an array of Platform structs.
+func DecodePlatforms(platformJSONs []string) ([]ocispec.Platform, error) {
+	var platform_specs []ocispec.Platform
+	for _, plaplatformJSON := range platformJSONs {
+		platform_spec, err := DecodePlatform(plaplatformJSON)
+		if err != nil {
+			return nil, err
+		}
+		platform_specs = append(platform_specs, *platform_spec)
+	}
+	return platform_specs, nil
+}
