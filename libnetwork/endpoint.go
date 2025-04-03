@@ -582,7 +582,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		return errdefs.System(err)
 	}
 
-	if err := n.getController().updateToStore(ctx, ep); err != nil {
+	if err := n.getController().storeEndpoint(ctx, ep); err != nil {
 		return err
 	}
 
@@ -762,7 +762,7 @@ func (ep *Endpoint) rename(name string) error {
 	ep.mu.Unlock()
 
 	// Update the store with the updated name
-	if err := ep.getNetwork().getController().updateToStore(context.TODO(), ep); err != nil {
+	if err := ep.getNetwork().getController().storeEndpoint(context.TODO(), ep); err != nil {
 		return err
 	}
 
@@ -798,7 +798,7 @@ func (ep *Endpoint) UpdateDNSNames(dnsNames []string) error {
 	}
 
 	// Update the store with the updated name
-	if err := c.updateToStore(context.TODO(), ep); err != nil {
+	if err := c.storeEndpoint(context.TODO(), ep); err != nil {
 		return err
 	}
 
@@ -904,7 +904,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 	// spurious logs when cleaning up the sandbox when the daemon
 	// ungracefully exits and restarts before completing sandbox
 	// detach but after store has been updated.
-	if err := n.getController().updateToStore(ctx, ep); err != nil {
+	if err := n.getController().storeEndpoint(ctx, ep); err != nil {
 		return err
 	}
 
@@ -1024,14 +1024,14 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 		}
 	}
 
-	if err = n.getController().deleteFromStore(ep); err != nil {
+	if err = n.getController().deleteStoredEndpoint(ep); err != nil {
 		return err
 	}
 
 	defer func() {
 		if err != nil && !force {
 			ep.dbExists = false
-			if e := n.getController().updateToStore(context.WithoutCancel(ctx), ep); e != nil {
+			if e := n.getController().storeEndpoint(context.WithoutCancel(ctx), ep); e != nil {
 				log.G(ctx).Warnf("failed to recreate endpoint in store %s : %v", name, e)
 			}
 		}

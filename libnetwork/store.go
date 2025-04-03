@@ -92,6 +92,7 @@ func (n *Network) getEndpointFromStore(eid string) (*Endpoint, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not find endpoint %s: %w", eid, err)
 	}
+	n.ctrlr.cacheEndpoint(ep)
 	return ep, nil
 }
 
@@ -110,6 +111,7 @@ func (n *Network) getEndpointsFromStore() ([]*Endpoint, error) {
 	for _, kvo := range kvol {
 		ep := kvo.(*Endpoint)
 		epl = append(epl, ep)
+		n.ctrlr.cacheEndpoint(ep)
 	}
 
 	return epl, nil

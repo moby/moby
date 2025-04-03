@@ -100,6 +100,23 @@ type Controller struct {
 	diagnosticServer *diagnostic.Server
 	mu               sync.Mutex
 
+	// endpoints is an in-memory cache of Endpoint. Do not use this map unless
+	// you're sure your code is thread-safe.
+	//
+	// The data persistence layer is instantiating new Endpoint objects every
+	// time it loads an object from its store or in-memory cache. This leads to
+	// multiple instances representing the same endpoint to concurrently live
+	// in memory. As such, the Endpoint mutex might be ineffective and not
+	// correctly protect against data races.
+	//
+	// If you want to use this map for new or existing code, you need to make
+	// sure: 1. the Endpoint object is correctly locked; 2. the lock order
+	// between Sandbox, Network and Endpoint is the same as the rest of the
+	// code (in order to avoid deadlocks).
+	endpoints map[string]*Endpoint
+	// endpointsMu protects the endpoints map.
+	endpointsMu sync.Mutex
+
 	// FIXME(thaJeztah): defOsSbox is always nil on non-Linux: move these fields to Linux-only files.
 	defOsSboxOnce sync.Once
 	defOsSbox     *osl.Namespace
@@ -118,6 +135,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		cfg:              cfg,
 		store:            store,
 		sandboxes:        map[string]*Sandbox{},
+		endpoints:        map[string]*Endpoint{},
 		svcRecords:       make(map[string]*svcInfo),
 		serviceBindings:  make(map[serviceKey]*service),
 		agentInitDone:    make(chan struct{}),

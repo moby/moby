@@ -1271,14 +1271,14 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 		}
 	}()
 
-	// We should perform updateToStore call right after addEndpoint
+	// We should perform storeEndpoint call right after addEndpoint
 	// in order to have iface properly configured
-	if err = n.getController().updateToStore(ctx, ep); err != nil {
+	if err = n.getController().storeEndpoint(ctx, ep); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			if e := n.getController().deleteFromStore(ep); e != nil {
+			if e := n.getController().deleteStoredEndpoint(ep); e != nil {
 				log.G(ctx).Warnf("error rolling back endpoint %s from store: %v", name, e)
 			}
 		}
