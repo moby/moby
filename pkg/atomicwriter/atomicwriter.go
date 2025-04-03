@@ -19,8 +19,6 @@ func validateDestination(fileName string) error {
 
 	// Deliberately using Lstat here to match the behavior of [os.Rename],
 	// which is used when completing the write and does not resolve symlinks.
-	//
-	// TODO(thaJeztah): decide whether we want to disallow symlinks or to follow them.
 	if fi, err := os.Lstat(fileName); err != nil {
 		if !os.IsNotExist(err) {
 			return fmt.Errorf("failed to stat output path: %w", err)
@@ -42,9 +40,8 @@ func validateFileMode(mode os.FileMode) error {
 		return nil // Regular file
 	case mode&os.ModeDir != 0:
 		return errors.New("cannot write to a directory")
-	// TODO(thaJeztah): decide whether we want to disallow symlinks or to follow them.
-	// case mode&os.ModeSymlink != 0:
-	// 	return errors.New("cannot write to a symbolic link directly")
+	case mode&os.ModeSymlink != 0:
+		return errors.New("cannot write to a symbolic link directly")
 	case mode&os.ModeNamedPipe != 0:
 		return errors.New("cannot write to a named pipe (FIFO)")
 	case mode&os.ModeSocket != 0:
@@ -97,7 +94,12 @@ func New(filename string, perm os.FileMode) (io.WriteCloser, error) {
 	}, nil
 }
 
-// WriteFile atomically writes data to a file named by filename and with the specified permission bits.
+// WriteFile atomically writes data to a file named by filename and with the
+// specified permission bits. The given filename is created if it does not exist,
+// but the destination directory must exist. It can be used as a drop-in replacement
+// for [os.WriteFile], but currently does not allow the destination path to be
+// a symlink. WriteFile is implemented using [New] for its implementation.
+//
 // NOTE: umask is not considered for the file's permissions.
 func WriteFile(filename string, data []byte, perm os.FileMode) error {
 	f, err := New(filename, perm)

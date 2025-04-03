@@ -139,6 +139,24 @@ func TestNewInvalid(t *testing.T) {
 			t.Errorf("Should produce a 'cannot write to a directory' error, but got %[1]T (%[1]v)", err)
 		}
 	})
+	t.Run("symlinked file", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		linkTarget := filepath.Join(tmpDir, "symlink-target")
+		if err := os.WriteFile(linkTarget, []byte("orig content"), testMode()); err != nil {
+			t.Fatal(err)
+		}
+		fileName := filepath.Join(tmpDir, "symlinked-file")
+		if err := os.Symlink(linkTarget, fileName); err != nil {
+			t.Fatal(err)
+		}
+		writer, err := New(fileName, testMode())
+		if writer != nil {
+			t.Errorf("Should not have created writer")
+		}
+		if err == nil || err.Error() != "cannot write to a symbolic link directly" {
+			t.Errorf("Should produce a 'cannot write to a symbolic link directly' error, but got %[1]T (%[1]v)", err)
+		}
+	})
 }
 
 func TestWriteFile(t *testing.T) {
@@ -178,7 +196,9 @@ func TestWriteFile(t *testing.T) {
 	t.Run("symlinked file", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		linkTarget := filepath.Join(tmpDir, "symlink-target")
-		if err := os.WriteFile(linkTarget, []byte("orig content"), testMode()); err != nil {
+		originalContent := []byte("original content")
+		fileMode := testMode()
+		if err := os.WriteFile(linkTarget, originalContent, fileMode); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.Symlink(linkTarget, filepath.Join(tmpDir, "symlinked-file")); err != nil {
@@ -188,15 +208,12 @@ func TestWriteFile(t *testing.T) {
 		assertFileCount(t, tmpDir, origFileCount)
 
 		fileName := filepath.Join(tmpDir, "symlinked-file")
-		fileContent := []byte("new content")
-		fileMode := testMode()
-		if err := WriteFile(fileName, fileContent, fileMode); err != nil {
-			t.Fatalf("Error writing to file: %v", err)
+		err := WriteFile(fileName, []byte("new content"), testMode())
+		if err == nil || err.Error() != "cannot write to a symbolic link directly" {
+			t.Errorf("Should produce a 'cannot write to a symbolic link directly' error, but got %[1]T (%[1]v)", err)
 		}
-		assertFile(t, fileName, fileContent, fileMode)
+		assertFile(t, linkTarget, originalContent, fileMode)
 		assertFileCount(t, tmpDir, origFileCount)
-		// FIXME(thaJeztah): [os.Rename] does not resolve symlinks, so writing to a symlinked location replaces the link with a file.
-		// assertFile(t, linkTarget, fileContent, fileMode)
 	})
 	t.Run("symlinked directory", func(t *testing.T) {
 		tmpDir := t.TempDir()
