@@ -10537,6 +10537,7 @@ paths:
             If not provided, the full multi-platform image will be saved.
 
             Example: `{"os": "linux", "architecture": "arm", "variant": "v5"}`
+      tags: ["Image"]
   /images/get:
     get:
       summary: "Export several images"
@@ -10571,6 +10572,16 @@ paths:
           type: "array"
           items:
             type: "string"
+        - name: "platform"
+          type: "string"
+          in: "query"
+          description: |
+            JSON encoded OCI platform describing a platform which will be used
+            to select a platform-specific image to be saved if the image is
+            multi-platform.
+            If not provided, the full multi-platform image will be saved.
+
+            Example: `{"os": "linux", "architecture": "arm", "variant": "v5"}`
       tags: ["Image"]
   /images/load:
     post:
