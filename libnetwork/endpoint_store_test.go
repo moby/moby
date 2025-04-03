@@ -25,9 +25,20 @@ func TestEndpointStore(t *testing.T) {
 	err = c.storeEndpoint(context.Background(), ep2)
 	assert.NilError(t, err)
 
+	// Check that we can find both endpoints
+	found := c.findEndpoints(filterEndpointByNetworkId("testNetwork"))
+	assert.Equal(t, len(found), 2)
+	assert.Equal(t, found[0], ep1)
+	assert.Equal(t, found[1], ep2)
+
 	// Delete the first endpoint
 	err = c.deleteStoredEndpoint(ep1)
 	assert.NilError(t, err)
+
+	// Check that we can only find the second endpoint
+	found = c.findEndpoints(filterEndpointByNetworkId("testNetwork"))
+	assert.Equal(t, len(found), 1)
+	assert.Equal(t, found[0], ep2)
 
 	// Store the second endpoint again
 	err = c.storeEndpoint(context.Background(), ep2)

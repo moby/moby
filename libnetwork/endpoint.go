@@ -1047,10 +1047,6 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 
 	ep.releaseAddress()
 
-	if err := n.getEpCnt().DecEndpointCnt(); err != nil {
-		log.G(ctx).Warnf("failed to decrement endpoint count for ep %s: %v", ep.ID(), err)
-	}
-
 	return nil
 }
 
@@ -1397,20 +1393,6 @@ func (c *Controller) cleanupLocalEndpoints() error {
 			log.G(context.TODO()).Infof("Removing stale endpoint %s (%s)", ep.name, ep.id)
 			if err := ep.Delete(context.WithoutCancel(context.TODO()), true); err != nil {
 				log.G(context.TODO()).Warnf("Could not delete local endpoint %s during endpoint cleanup: %v", ep.name, err)
-			}
-		}
-
-		epl, err = n.getEndpointsFromStore()
-		if err != nil {
-			log.G(context.TODO()).Warnf("Could not get list of endpoints in network %s for count update: %v", n.name, err)
-			continue
-		}
-
-		epCnt := n.getEpCnt().EndpointCnt()
-		if epCnt != uint64(len(epl)) {
-			log.G(context.TODO()).Infof("Fixing inconsistent endpoint_cnt for network %s. Expected=%d, Actual=%d", n.name, len(epl), epCnt)
-			if err := n.getEpCnt().setCnt(uint64(len(epl))); err != nil {
-				log.G(context.TODO()).WithField("network", n.name).WithError(err).Warn("Error while fixing inconsistent endpoint_cnt for network")
 			}
 		}
 	}
