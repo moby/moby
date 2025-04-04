@@ -1,5 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
+import "github.com/docker/docker/pkg/idtools"
+
 // ContainerCreateWorkdir creates the working directory. This solves the
 // issue arising from https://github.com/docker/docker/issues/27545,
 // which was initially fixed by https://github.com/docker/docker/pull/27884. But that fix
@@ -16,5 +18,6 @@ func (daemon *Daemon) ContainerCreateWorkdir(cID string) error {
 		return err
 	}
 	defer daemon.Unmount(container)
-	return container.SetupWorkingDirectory(daemon.idMapping.RootPair())
+	uid, gid := daemon.idMapping.RootPair()
+	return container.SetupWorkingDirectory(idtools.Identity{UID: uid, GID: gid})
 }

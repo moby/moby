@@ -24,10 +24,10 @@ import (
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/scope"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
+	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc/mgr"
@@ -56,7 +56,7 @@ func (daemon *Daemon) parseSecurityOpt(daemonCfg *config.Config, securityOptions
 	return nil
 }
 
-func setupInitLayer(idMapping idtools.IdentityMapping) func(string) error {
+func setupInitLayer(idMapping user.IdentityMapping) func(string) error {
 	return nil
 }
 
@@ -462,11 +462,11 @@ func recursiveUnmount(_ string) error {
 	return nil
 }
 
-func setupRemappedRoot(config *config.Config) (idtools.IdentityMapping, error) {
-	return idtools.IdentityMapping{}, nil
+func setupRemappedRoot(config *config.Config) (user.IdentityMapping, error) {
+	return user.IdentityMapping{}, nil
 }
 
-func setupDaemonRoot(config *config.Config, rootDir string, rootIdentity idtools.Identity) error {
+func setupDaemonRoot(config *config.Config, rootDir string, uid, gid int) error {
 	config.Root = rootDir
 	// Create the root directory if it doesn't exists
 	if err := system.MkdirAllWithACL(config.Root, 0, system.SddlAdministratorsLocalSystem); err != nil {
