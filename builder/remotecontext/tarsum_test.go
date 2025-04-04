@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/go-archive"
 	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/skip"

@@ -17,14 +17,14 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/builder/remotecontext/urlutil"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	"github.com/moby/go-archive"
 	"github.com/moby/sys/symlink"
+	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -446,9 +446,15 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 	return lc, filename, err
 }
 
+type identity struct {
+	UID int
+	GID int
+	SID string
+}
+
 type copyFileOptions struct {
 	decompress bool
-	identity   *idtools.Identity
+	identity   *identity
 	archiver   *archive.Archiver
 }
 
@@ -498,7 +504,7 @@ func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions)
 	return copyFile(archiver, srcPath, destPath, options.identity)
 }
 
-func copyDirectory(archiver *archive.Archiver, source, dest string, identity *idtools.Identity) error {
+func copyDirectory(archiver *archive.Archiver, source, dest string, identity *identity) error {
 	destExists, err := isExistingDirectory(dest)
 	if err != nil {
 		return errors.Wrapf(err, "failed to query destination path")
@@ -513,13 +519,13 @@ func copyDirectory(archiver *archive.Archiver, source, dest string, identity *id
 	return nil
 }
 
-func copyFile(archiver *archive.Archiver, source, dest string, identity *idtools.Identity) error {
+func copyFile(archiver *archive.Archiver, source, dest string, identity *identity) error {
 	if identity == nil {
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return err
 		}
 	} else {
-		if err := idtools.MkdirAllAndChownNew(filepath.Dir(dest), 0o755, *identity); err != nil {
+		if err := user.MkdirAllAndChown(filepath.Dir(dest), 0o755, identity.UID, identity.GID, user.WithOnlyNew); err != nil {
 			return errors.Wrapf(err, "failed to create new directory")
 		}
 	}

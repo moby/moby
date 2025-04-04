@@ -10,8 +10,7 @@ import (
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/go-archive"
 	"github.com/moby/sys/user"
 )
 
@@ -27,7 +26,7 @@ func (daemon *Daemon) tarCopyOptions(ctr *container.Container, noOverwriteDirNon
 
 	return &archive.TarOptions{
 		NoOverwriteDirNonDir: noOverwriteDirNonDir,
-		ChownOpts:            &idtools.Identity{UID: uid, GID: gid},
+		ChownOpts:            &archive.ChownOpts{UID: uid, GID: gid},
 	}, nil
 }
 

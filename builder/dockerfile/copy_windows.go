@@ -8,7 +8,6 @@ import (
 
 	winio "github.com/Microsoft/go-winio"
 	"github.com/docker/docker/internal/usergroup"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
@@ -24,12 +23,12 @@ func init() {
 	reexec.Register("windows-fix-permissions", fixPermissionsReexec)
 }
 
-func fixPermissions(source, destination string, identity idtools.Identity, _ bool) error {
-	if identity.SID == "" {
+func fixPermissions(source, destination string, id identity, _ bool) error {
+	if id.SID == "" {
 		return nil
 	}
 
-	cmd := reexec.Command("windows-fix-permissions", source, destination, identity.SID)
+	cmd := reexec.Command("windows-fix-permissions", source, destination, id.SID)
 	output, err := cmd.CombinedOutput()
 
 	return errors.Wrapf(err, "failed to exec windows-fix-permissions: %s", output)

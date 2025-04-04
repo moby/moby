@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
 )
 
@@ -37,7 +37,7 @@ type ImageService struct {
 	eventsService       *daemonevents.Events
 	pruneRunning        atomic.Bool
 	refCountMounter     snapshotter.Mounter
-	idMapping           idtools.IdentityMapping
+	idMapping           user.IdentityMapping
 
 	// defaultPlatformOverride is used in tests to override the host platform.
 	defaultPlatformOverride platforms.MatchComparer
@@ -51,7 +51,7 @@ type ImageServiceConfig struct {
 	Registry        distribution.RegistryResolver
 	EventsService   *daemonevents.Events
 	RefCountMounter snapshotter.Mounter
-	IDMapping       idtools.IdentityMapping
+	IDMapping       user.IdentityMapping
 }
 
 // NewService creates a new ImageService.
