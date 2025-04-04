@@ -5,10 +5,11 @@ package zstd
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"log"
 	"math"
+
+	"github.com/klauspost/compress/internal/le"
 )
 
 // enable debug printing
@@ -110,11 +111,11 @@ func printf(format string, a ...interface{}) {
 }
 
 func load3232(b []byte, i int32) uint32 {
-	return binary.LittleEndian.Uint32(b[:len(b):len(b)][i:])
+	return le.Load32(b, i)
 }
 
 func load6432(b []byte, i int32) uint64 {
-	return binary.LittleEndian.Uint64(b[:len(b):len(b)][i:])
+	return le.Load64(b, i)
 }
 
 type byter interface {
