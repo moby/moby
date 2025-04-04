@@ -21,7 +21,7 @@ type Vertex interface {
 
 	// Sys returns an object used to resolve the executor for this vertex.
 	// In LLB solver, this value would be of type `llb.Op`.
-	Sys() interface{}
+	Sys() any
 
 	// Options return metadata associated with the vertex that doesn't change the
 	// definition or equality check of it.
@@ -62,7 +62,7 @@ type VertexOptions struct {
 type Result interface {
 	ID() string
 	Release(context.Context) error
-	Sys() interface{}
+	Sys() any
 	Clone() Result
 }
 
@@ -82,7 +82,7 @@ type ResultProxy interface {
 	Result(context.Context) (CachedResult, error)
 	Release(context.Context) error
 	Definition() *pb.Definition
-	Provenance() interface{}
+	Provenance() any
 }
 
 // CacheExportMode is the type for setting cache exporting modes

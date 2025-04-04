@@ -35,8 +35,7 @@ var (
 	// While altering this variable changes the package defaults,
 	// the preferred way of overriding the default directories is
 	// to use a WithSpecDirs options. Otherwise the change is only
-	// effective if it takes place before creating the Registry or
-	// other Cache instances.
+	// effective if it takes place before creating the cache instance.
 	DefaultSpecDirs = []string{DefaultStaticDir, DefaultDynamicDir}
 	// ErrStopScan can be returned from a ScanSpecFunc to stop the scan.
 	ErrStopScan = errors.New("stop Spec scan")

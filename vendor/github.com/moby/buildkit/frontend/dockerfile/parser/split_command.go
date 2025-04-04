@@ -7,7 +7,7 @@ import (
 
 // splitCommand takes a single line of text and parses out the cmd and args,
 // which are used for dispatching to more exact parsing functions.
-func splitCommand(line string) (string, []string, string, error) {
+func splitCommand(line string, d *directives) (string, []string, string, error) {
 	var args string
 	var flags []string
 
@@ -16,7 +16,7 @@ func splitCommand(line string) (string, []string, string, error) {
 
 	if len(cmdline) == 2 {
 		var err error
-		args, flags, err = extractBuilderFlags(cmdline[1])
+		args, flags, err = extractBuilderFlags(cmdline[1], d)
 		if err != nil {
 			return "", nil, "", err
 		}
@@ -25,7 +25,7 @@ func splitCommand(line string) (string, []string, string, error) {
 	return cmdline[0], flags, strings.TrimSpace(args), nil
 }
 
-func extractBuilderFlags(line string) (string, []string, error) {
+func extractBuilderFlags(line string, d *directives) (string, []string, error) {
 	// Parses the BuilderFlags and returns the remaining part of the line
 
 	const (
@@ -87,7 +87,7 @@ func extractBuilderFlags(line string) (string, []string, error) {
 				phase = inQuote
 				continue
 			}
-			if ch == '\\' {
+			if ch == d.escapeToken {
 				if pos+1 == len(line) {
 					continue // just skip \ at end
 				}
@@ -104,7 +104,7 @@ func extractBuilderFlags(line string) (string, []string, error) {
 				phase = inWord
 				continue
 			}
-			if ch == '\\' {
+			if ch == d.escapeToken {
 				if pos+1 == len(line) {
 					phase = inWord
 					continue // just skip \ at end

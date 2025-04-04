@@ -5,16 +5,14 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
 	"github.com/containerd/continuity/fs"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/llbsolver/ops/fileoptypes"
 	"github.com/moby/buildkit/solver/pb"
-	"github.com/moby/buildkit/util/system"
+	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
 	copy "github.com/tonistiigi/fsutil/copy"
 )
@@ -27,7 +25,7 @@ func timestampToTime(ts int64) *time.Time {
 	return &tm
 }
 
-func mkdir(d string, action *pb.FileActionMkDir, user *copy.User, idmap *idtools.IdentityMapping) (err error) {
+func mkdir(d string, action *pb.FileActionMkDir, user *copy.User, idmap *user.IdentityMapping) (err error) {
 	defer func() {
 		var osErr *os.PathError
 		if errors.As(err, &osErr) {
@@ -67,7 +65,7 @@ func mkdir(d string, action *pb.FileActionMkDir, user *copy.User, idmap *idtools
 	return nil
 }
 
-func symlink(d string, action *pb.FileActionSymlink, user *copy.User, idmap *idtools.IdentityMapping) (err error) {
+func symlink(d string, action *pb.FileActionSymlink, user *copy.User, idmap *user.IdentityMapping) (err error) {
 	defer func() {
 		var osErr *os.PathError
 		if errors.As(err, &osErr) {
@@ -101,7 +99,7 @@ func symlink(d string, action *pb.FileActionSymlink, user *copy.User, idmap *idt
 	return nil
 }
 
-func mkfile(d string, action *pb.FileActionMkFile, user *copy.User, idmap *idtools.IdentityMapping) (err error) {
+func mkfile(d string, action *pb.FileActionMkFile, user *copy.User, idmap *user.IdentityMapping) (err error) {
 	defer func() {
 		var osErr *os.PathError
 		if errors.As(err, &osErr) {
@@ -145,10 +143,7 @@ func rm(d string, action *pb.FileActionRm) (err error) {
 	}()
 
 	if action.AllowWildcard {
-		src, err := cleanPath(action.Path)
-		if err != nil {
-			return errors.Wrap(err, "cleaning path")
-		}
+		src := cleanPath(action.Path)
 		m, err := copy.ResolveWildcards(d, src, false)
 		if err != nil {
 			return errors.WithStack(err)
@@ -189,15 +184,10 @@ func rmPath(root, src string, allowNotFound bool) error {
 	return errors.WithStack(os.RemoveAll(p))
 }
 
-func docopy(ctx context.Context, src, dest string, action *pb.FileActionCopy, u *copy.User, idmap *idtools.IdentityMapping) (err error) {
-	srcPath, err := cleanPath(action.Src)
-	if err != nil {
-		return errors.Wrap(err, "cleaning source path")
-	}
-	destPath, err := cleanPath(action.Dest)
-	if err != nil {
-		return errors.Wrap(err, "cleaning destination path")
-	}
+func docopy(ctx context.Context, src, dest string, action *pb.FileActionCopy, u *copy.User, idmap *user.IdentityMapping) (err error) {
+	srcPath := cleanPath(action.Src)
+	destPath := cleanPath(action.Dest)
+
 	if !action.CreateDestPath {
 		p, err := fs.RootPath(dest, filepath.Join("/", action.Dest))
 		if err != nil {
@@ -434,11 +424,7 @@ func (fb *Backend) readUserWrapper(owner *pb.ChownOpt, user, group fileoptypes.M
 	return u, nil
 }
 
-func cleanPath(s string) (string, error) {
-	s, err := system.CheckSystemDriveAndRemoveDriveLetter(s, runtime.GOOS)
-	if err != nil {
-		return "", errors.Wrap(err, "removing drive letter")
-	}
+func cleanPath(s string) string {
 	s = filepath.FromSlash(s)
 	s2 := filepath.Join("/", s)
 	if strings.HasSuffix(s, string(filepath.Separator)+".") {
@@ -449,5 +435,5 @@ func cleanPath(s string) (string, error) {
 	} else if strings.HasSuffix(s, string(filepath.Separator)) && s2 != string(filepath.Separator) {
 		s2 += string(filepath.Separator)
 	}
-	return s2, nil
+	return s2
 }

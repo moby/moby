@@ -142,9 +142,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 		}
 
 		contentStores := map[string]content.Store{}
-		for key, store := range cacheOpt.contentStores {
-			contentStores[key] = store
-		}
+		maps.Copy(contentStores, cacheOpt.contentStores)
 		for key, store := range opt.OCIStores {
 			key2 := "oci:" + key
 			if _, ok := contentStores[key2]; ok {
@@ -361,7 +359,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 		}
 		for _, storePath := range storesToUpdate {
 			names := []ociindex.NameOrTag{ociindex.Tag("latest")}
-			if t, ok := res.ExporterResponse["image.name"]; ok {
+			if t, ok := res.ExporterResponse[exptypes.ExporterImageNameKey]; ok {
 				inp := strings.Split(t, ",")
 				names = make([]ociindex.NameOrTag, len(inp))
 				for i, n := range inp {
@@ -538,9 +536,7 @@ func parseCacheOptions(ctx context.Context, isGateway bool, opt SolveOpt) (*cach
 func prepareMounts(opt *SolveOpt) (map[string]fsutil.FS, error) {
 	// merge local mounts and fallback local directories together
 	mounts := make(map[string]fsutil.FS)
-	for k, mount := range opt.LocalMounts {
-		mounts[k] = mount
-	}
+	maps.Copy(mounts, opt.LocalMounts)
 	for k, dir := range opt.LocalDirs {
 		mount, err := fsutil.NewFS(dir)
 		if err != nil {

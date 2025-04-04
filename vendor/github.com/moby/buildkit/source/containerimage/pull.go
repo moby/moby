@@ -186,7 +186,7 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (cach
 		return "", "", nil, false, err
 	}
 
-	cacheOpts = solver.CacheOpts(make(map[interface{}]interface{}))
+	cacheOpts = solver.CacheOpts(make(map[any]any))
 	for dgst, descHandler := range p.descHandlers {
 		cacheOpts[cache.DescHandlerKey(dgst)] = descHandler
 	}

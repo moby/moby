@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -100,9 +101,7 @@ func newContainerd(client *ctd.Client, workerOpts WorkerOptions) (base.WorkerOpt
 	}
 	xlabels[wlabel.ContainerdNamespace] = workerOpts.Namespace
 	xlabels[wlabel.ContainerdUUID] = serverInfo.UUID
-	for k, v := range workerOpts.Labels {
-		xlabels[k] = v
-	}
+	maps.Copy(xlabels, workerOpts.Labels)
 
 	lm := leaseutil.WithNamespace(client.LeasesService(), workerOpts.Namespace)
 

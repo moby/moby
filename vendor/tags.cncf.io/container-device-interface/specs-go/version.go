@@ -14,20 +14,18 @@
    limitations under the License.
 */
 
-package cdi
+package specs
 
 import (
+	"fmt"
 	"strings"
 
 	"golang.org/x/mod/semver"
-
-	"tags.cncf.io/container-device-interface/pkg/parser"
-	cdi "tags.cncf.io/container-device-interface/specs-go"
 )
 
 const (
-	// CurrentVersion is the current version of the CDI Spec.
-	CurrentVersion = cdi.CurrentVersion
+	// CurrentVersion is the current version of the Spec.
+	CurrentVersion = "1.0.0"
 
 	// vCurrent is the current version as a semver-comparable type
 	vCurrent version = "v" + CurrentVersion
@@ -41,6 +39,7 @@ const (
 	v060 version = "v0.6.0"
 	v070 version = "v0.7.0"
 	v080 version = "v0.8.0"
+	v100 version = "v1.0.0"
 
 	// vEarliest is the earliest supported version of the CDI specification
 	vEarliest version = v030
@@ -58,10 +57,29 @@ var validSpecVersions = requiredVersionMap{
 	v060: requiresV060,
 	v070: requiresV070,
 	v080: requiresV080,
+	v100: requiresV100,
+}
+
+// ValidateVersion checks whether the specified spec version is valid.
+// In addition to checking whether the spec version is in the set of known versions,
+// the spec is inspected to determine whether the features used are available in specified
+// version.
+func ValidateVersion(spec *Spec) error {
+	if !validSpecVersions.isValidVersion(spec.Version) {
+		return fmt.Errorf("invalid version %q", spec.Version)
+	}
+	minVersion, err := MinimumRequiredVersion(spec)
+	if err != nil {
+		return fmt.Errorf("could not determine minimum required version: %w", err)
+	}
+	if newVersion(minVersion).isGreaterThan(newVersion(spec.Version)) {
+		return fmt.Errorf("the spec version must be at least v%v", minVersion)
+	}
+	return nil
 }
 
 // MinimumRequiredVersion determines the minimum spec version for the input spec.
-func MinimumRequiredVersion(spec *cdi.Spec) (string, error) {
+func MinimumRequiredVersion(spec *Spec) (string, error) {
 	minVersion := validSpecVersions.requiredVersion(spec)
 	return minVersion.String(), nil
 }
@@ -80,17 +98,17 @@ func (v version) String() string {
 	return strings.TrimPrefix(string(v), "v")
 }
 
-// IsGreaterThan checks with a version is greater than the specified version.
-func (v version) IsGreaterThan(o version) bool {
+// isGreaterThan checks with a version is greater than the specified version.
+func (v version) isGreaterThan(o version) bool {
 	return semver.Compare(string(v), string(o)) > 0
 }
 
-// IsLatest checks whether the version is the latest supported version
-func (v version) IsLatest() bool {
+// isLatest checks whether the version is the latest supported version
+func (v version) isLatest() bool {
 	return v == vCurrent
 }
 
-type requiredFunc func(*cdi.Spec) bool
+type requiredFunc func(*Spec) bool
 
 type requiredVersionMap map[version]requiredFunc
 
@@ -103,18 +121,18 @@ func (r requiredVersionMap) isValidVersion(specVersion string) bool {
 }
 
 // requiredVersion returns the minimum version required for the given spec
-func (r requiredVersionMap) requiredVersion(spec *cdi.Spec) version {
+func (r requiredVersionMap) requiredVersion(spec *Spec) version {
 	minVersion := vEarliest
 
 	for v, isRequired := range validSpecVersions {
 		if isRequired == nil {
 			continue
 		}
-		if isRequired(spec) && v.IsGreaterThan(minVersion) {
+		if isRequired(spec) && v.isGreaterThan(minVersion) {
 			minVersion = v
 		}
 		// If we have already detected the latest version then no later version could be detected
-		if minVersion.IsLatest() {
+		if minVersion.isLatest() {
 			break
 		}
 	}
@@ -122,15 +140,22 @@ func (r requiredVersionMap) requiredVersion(spec *cdi.Spec) version {
 	return minVersion
 }
 
+// requiresV100 returns true if the spec uses v1.0.0 features.
+// Since the v1.0.0 spec bump was due to moving the minimum version checks to
+// the spec package, there are no explicit spec changes.
+func requiresV100(_ *Spec) bool {
+	return false
+}
+
 // requiresV080 returns true if the spec uses v0.8.0 features.
 // Since the v0.8.0 spec bump was due to the removed .ToOCI functions on the
-// spec types, there are explicit spec changes.
-func requiresV080(_ *cdi.Spec) bool {
+// spec types, there are no explicit spec changes.
+func requiresV080(_ *Spec) bool {
 	return false
 }
 
 // requiresV070 returns true if the spec uses v0.7.0 features
-func requiresV070(spec *cdi.Spec) bool {
+func requiresV070(spec *Spec) bool {
 	if spec.ContainerEdits.IntelRdt != nil {
 		return true
 	}
@@ -153,7 +178,7 @@ func requiresV070(spec *cdi.Spec) bool {
 }
 
 // requiresV060 returns true if the spec uses v0.6.0 features
-func requiresV060(spec *cdi.Spec) bool {
+func requiresV060(spec *Spec) bool {
 	// The v0.6.0 spec allows annotations to be specified at a spec level
 	for range spec.Annotations {
 		return true
@@ -167,23 +192,20 @@ func requiresV060(spec *cdi.Spec) bool {
 	}
 
 	// The v0.6.0 spec allows dots "." in Kind name label (class)
-	vendor, class := parser.ParseQualifier(spec.Kind)
-	if vendor != "" {
-		if strings.ContainsRune(class, '.') {
-			return true
-		}
+	if !strings.Contains(spec.Kind, "/") {
+		return false
 	}
-
-	return false
+	class := strings.SplitN(spec.Kind, "/", 2)[1]
+	return strings.Contains(class, ".")
 }
 
 // requiresV050 returns true if the spec uses v0.5.0 features
-func requiresV050(spec *cdi.Spec) bool {
-	var edits []*cdi.ContainerEdits
+func requiresV050(spec *Spec) bool {
+	var edits []*ContainerEdits
 
 	for _, d := range spec.Devices {
-		// The v0.5.0 spec allowed device names to start with a digit instead of requiring a letter
-		if len(d.Name) > 0 && !parser.IsLetter(rune(d.Name[0])) {
+		// The v0.5.0 spec allowed device name to start with a digit
+		if len(d.Name) > 0 && '0' <= d.Name[0] && d.Name[0] <= '9' {
 			return true
 		}
 		edits = append(edits, &d.ContainerEdits)
@@ -202,8 +224,8 @@ func requiresV050(spec *cdi.Spec) bool {
 }
 
 // requiresV040 returns true if the spec uses v0.4.0 features
-func requiresV040(spec *cdi.Spec) bool {
-	var edits []*cdi.ContainerEdits
+func requiresV040(spec *Spec) bool {
+	var edits []*ContainerEdits
 
 	for _, d := range spec.Devices {
 		edits = append(edits, &d.ContainerEdits)

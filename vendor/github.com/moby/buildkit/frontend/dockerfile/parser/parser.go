@@ -220,7 +220,7 @@ func init() {
 // based on the command and command arguments. A Node is created from the
 // result of the dispatch.
 func newNodeFromLine(line string, d *directives, comments []string) (*Node, error) {
-	cmd, flags, args, err := splitCommand(line)
+	cmd, flags, args, err := splitCommand(line, d)
 	if err != nil {
 		return nil, err
 	}

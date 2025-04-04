@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"math/rand"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -211,7 +212,7 @@ func (c *call[T]) Err() error {
 	}
 }
 
-func (c *call[T]) Value(key interface{}) interface{} {
+func (c *call[T]) Value(key any) any {
 	if key == contextKey {
 		return c.progressState
 	}
@@ -353,7 +354,7 @@ func (ps *progressState) close(pw progress.Writer) {
 	for i, w := range ps.writers {
 		if w == rw {
 			w.Close()
-			ps.writers = append(ps.writers[:i], ps.writers[i+1:]...)
+			ps.writers = slices.Delete(ps.writers, i, i+1)
 			break
 		}
 	}

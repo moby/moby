@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/idtools"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/exporter"
@@ -22,6 +21,7 @@ import (
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/result"
 	"github.com/moby/buildkit/util/staticfs"
+	"github.com/moby/sys/user"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"
@@ -73,7 +73,7 @@ func CreateFS(ctx context.Context, sessionID string, k string, ref cache.Immutab
 	var cleanup func() error
 	var src string
 	var err error
-	var idmap *idtools.IdentityMapping
+	var idmap *user.IdentityMapping
 	if ref == nil {
 		src, err = os.MkdirTemp("", "buildkit")
 		if err != nil {
@@ -108,10 +108,7 @@ func CreateFS(ctx context.Context, sessionID string, k string, ref cache.Immutab
 	var idMapFunc func(p string, st *fstypes.Stat) fsutil.MapResult
 	if idmap != nil {
 		idMapFunc = func(p string, st *fstypes.Stat) fsutil.MapResult {
-			uid, gid, err := idmap.ToContainer(idtools.Identity{
-				UID: int(st.Uid),
-				GID: int(st.Gid),
-			})
+			uid, gid, err := idmap.ToContainer(int(st.Uid), int(st.Gid))
 			if err != nil {
 				return fsutil.MapResultExclude
 			}

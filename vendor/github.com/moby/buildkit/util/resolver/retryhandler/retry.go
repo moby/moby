@@ -33,7 +33,7 @@ func New(f images.HandlerFunc, logger func([]byte)) images.HandlerFunc {
 					}
 				}
 				if logger != nil {
-					logger([]byte(fmt.Sprintf("error: %v\n", err.Error())))
+					logger(fmt.Appendf(nil, "error: %v\n", err.Error()))
 				}
 			} else {
 				return descs, nil
@@ -43,7 +43,7 @@ func New(f images.HandlerFunc, logger func([]byte)) images.HandlerFunc {
 				return nil, err
 			}
 			if logger != nil {
-				logger([]byte(fmt.Sprintf("retrying in %v\n", backoff)))
+				logger(fmt.Appendf(nil, "retrying in %v\n", backoff))
 			}
 			time.Sleep(backoff)
 			backoff *= 2

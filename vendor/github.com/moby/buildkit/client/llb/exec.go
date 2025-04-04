@@ -614,7 +614,7 @@ func Shlex(str string) RunOption {
 	})
 }
 
-func Shlexf(str string, v ...interface{}) RunOption {
+func Shlexf(str string, v ...any) RunOption {
 	return runOptionFunc(func(ei *ExecInfo) {
 		ei.State = shlexf(str, true, v...)(ei.State)
 	})

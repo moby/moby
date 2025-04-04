@@ -6,6 +6,7 @@ import (
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+	"slices"
 )
 
 func (lm *localMounter) Mount() (string, error) {
@@ -22,13 +23,7 @@ func (lm *localMounter) Mount() (string, error) {
 	}
 
 	if len(lm.mounts) == 1 && lm.mounts[0].Type == "bind" {
-		ro := false
-		for _, opt := range lm.mounts[0].Options {
-			if opt == "ro" {
-				ro = true
-				break
-			}
-		}
+		ro := slices.Contains(lm.mounts[0].Options, "ro")
 		if !ro {
 			return lm.mounts[0].Source, nil
 		}

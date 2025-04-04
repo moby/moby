@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,7 +19,6 @@ import (
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/containerd/v2/defaults"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/pkg/idtools"
 	apitypes "github.com/moby/buildkit/api/types"
 	"github.com/moby/buildkit/cache"
 	cacheutil "github.com/moby/buildkit/cache/util"
@@ -48,6 +48,7 @@ import (
 	"github.com/moby/buildkit/worker"
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/sys/signal"
+	"github.com/moby/sys/user"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -113,11 +114,9 @@ func (gf *gatewayFrontend) checkSourceIsAllowed(source string) error {
 
 	taglessSource := reference.TrimNamed(sourceRef).Name()
 
-	for _, allowedRepository := range gf.allowedRepositories {
-		if taglessSource == allowedRepository {
-			// Allowed
-			return nil
-		}
+	if slices.Contains(gf.allowedRepositories, taglessSource) {
+		// Allowed
+		return nil
 	}
 	return errors.Errorf("'%s' is not an allowed gateway source", source)
 }
@@ -412,7 +411,7 @@ func (b *bindMount) Mount() ([]mount.Mount, func() error, error) {
 	}}, func() error { return nil }, nil
 }
 
-func (b *bindMount) IdentityMapping() *idtools.IdentityMapping {
+func (b *bindMount) IdentityMapping() *user.IdentityMapping {
 	return nil
 }
 

@@ -71,7 +71,7 @@ func ParseAnnotations(annotations map[string]string) ([]string, []string, error)
 			continue
 		}
 		for _, d := range strings.Split(value, ",") {
-			if !IsQualifiedName(d) {
+			if !parser.IsQualifiedName(d) {
 				return nil, nil, fmt.Errorf("invalid CDI device name %q", d)
 			}
 			devices = append(devices, d)
@@ -130,7 +130,7 @@ func AnnotationKey(pluginName, deviceID string) (string, error) {
 func AnnotationValue(devices []string) (string, error) {
 	value, sep := "", ""
 	for _, d := range devices {
-		if _, _, _, err := ParseQualifiedName(d); err != nil {
+		if _, _, _, err := parser.ParseQualifiedName(d); err != nil {
 			return "", err
 		}
 		value += sep + d

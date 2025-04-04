@@ -765,7 +765,7 @@ func (t *trace) update(s *client.SolveStatus, termWidth int) {
 				} else if sec < 100 {
 					prec = 2
 				}
-				v.logs = append(v.logs, []byte(fmt.Sprintf("%s %s", fmt.Sprintf("%.[2]*[1]f", sec, prec), dt)))
+				v.logs = append(v.logs, fmt.Appendf(nil, "%s %s", fmt.Sprintf("%.[2]*[1]f", sec, prec), dt))
 			}
 			i++
 		})
@@ -787,7 +787,7 @@ func (t *trace) printErrorLogs(f io.Writer) {
 			}
 			// printer keeps last logs buffer
 			if v.logsBuffer != nil {
-				for i := 0; i < v.logsBuffer.Len(); i++ {
+				for range v.logsBuffer.Len() {
 					if v.logsBuffer.Value != nil {
 						fmt.Fprintln(f, string(v.logsBuffer.Value.([]byte)))
 					}
@@ -1071,7 +1071,7 @@ func (disp *ttyDisplay) print(d displayInfo, width, height int, all bool) {
 	}
 	// override previous content
 	if diff := disp.lineCount - lineCount; diff > 0 {
-		for i := 0; i < diff; i++ {
+		for range diff {
 			fmt.Fprintln(disp.c, strings.Repeat(" ", width))
 		}
 		fmt.Fprint(disp.c, aec.EmptyBuilder.Up(uint(diff)).Column(0).ANSI)

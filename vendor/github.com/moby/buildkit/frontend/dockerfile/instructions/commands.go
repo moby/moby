@@ -551,16 +551,16 @@ func HasStage(s []Stage, name string) (int, bool) {
 }
 
 type withExternalData struct {
-	m map[interface{}]interface{}
+	m map[any]any
 }
 
-func (c *withExternalData) getExternalValue(k interface{}) interface{} {
+func (c *withExternalData) getExternalValue(k any) any {
 	return c.m[k]
 }
 
-func (c *withExternalData) setExternalValue(k, v interface{}) {
+func (c *withExternalData) setExternalValue(k, v any) {
 	if c.m == nil {
-		c.m = map[interface{}]interface{}{}
+		c.m = map[any]any{}
 	}
 	c.m[k] = v
 }

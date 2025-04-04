@@ -35,7 +35,7 @@ var (
 
 // AddEnvf is the same as [AddEnv] but allows for a format string.
 // This is the equivalent of `[State.AddEnvf]`
-func AddEnvf(key, value string, v ...interface{}) StateOption {
+func AddEnvf(key, value string, v ...any) StateOption {
 	return addEnvf(key, value, true, v...)
 }
 
@@ -46,12 +46,12 @@ func AddEnv(key, value string) StateOption {
 	return addEnvf(key, value, false)
 }
 
-func addEnvf(key, value string, replace bool, v ...interface{}) StateOption {
+func addEnvf(key, value string, replace bool, v ...any) StateOption {
 	if replace {
 		value = fmt.Sprintf(value, v...)
 	}
 	return func(s State) State {
-		return s.withValue(keyEnv, func(ctx context.Context, c *Constraints) (interface{}, error) {
+		return s.withValue(keyEnv, func(ctx context.Context, c *Constraints) (any, error) {
 			env, err := getEnv(s)(ctx, c)
 			if err != nil {
 				return nil, err
@@ -69,16 +69,16 @@ func Dir(str string) StateOption {
 }
 
 // Dirf is the same as [Dir] but allows for a format string.
-func Dirf(str string, v ...interface{}) StateOption {
+func Dirf(str string, v ...any) StateOption {
 	return dirf(str, true, v...)
 }
 
-func dirf(value string, replace bool, v ...interface{}) StateOption {
+func dirf(value string, replace bool, v ...any) StateOption {
 	if replace {
 		value = fmt.Sprintf(value, v...)
 	}
 	return func(s State) State {
-		return s.withValue(keyDir, func(ctx context.Context, c *Constraints) (interface{}, error) {
+		return s.withValue(keyDir, func(ctx context.Context, c *Constraints) (any, error) {
 			if !path.IsAbs(value) {
 				prev, err := getDir(s)(ctx, c)
 				if err != nil {
@@ -213,7 +213,7 @@ func args(args ...string) StateOption {
 	}
 }
 
-func shlexf(str string, replace bool, v ...interface{}) StateOption {
+func shlexf(str string, replace bool, v ...any) StateOption {
 	if replace {
 		str = fmt.Sprintf(str, v...)
 	}
@@ -248,7 +248,7 @@ func getPlatform(s State) func(context.Context, *Constraints) (*ocispecs.Platfor
 
 func extraHost(host string, ip net.IP) StateOption {
 	return func(s State) State {
-		return s.withValue(keyExtraHost, func(ctx context.Context, c *Constraints) (interface{}, error) {
+		return s.withValue(keyExtraHost, func(ctx context.Context, c *Constraints) (any, error) {
 			v, err := getExtraHosts(s)(ctx, c)
 			if err != nil {
 				return nil, err
@@ -278,7 +278,7 @@ type HostIP struct {
 
 func ulimit(name UlimitName, soft int64, hard int64) StateOption {
 	return func(s State) State {
-		return s.withValue(keyUlimit, func(ctx context.Context, c *Constraints) (interface{}, error) {
+		return s.withValue(keyUlimit, func(ctx context.Context, c *Constraints) (any, error) {
 			v, err := getUlimit(s)(ctx, c)
 			if err != nil {
 				return nil, err

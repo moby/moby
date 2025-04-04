@@ -9,8 +9,8 @@ import (
 )
 
 type Stream interface {
-	SendMsg(m interface{}) error
-	RecvMsg(m interface{}) error
+	SendMsg(m any) error
+	RecvMsg(m any) error
 }
 
 func Copy(ctx context.Context, conn io.ReadWriteCloser, stream Stream, closeStream func() error) error {

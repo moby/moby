@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
@@ -54,23 +55,16 @@ func (bc *Client) Build(ctx context.Context, fn BuildFunc) (*ResultBuilder, erro
 				}
 			}
 
-			p := platforms.DefaultSpec()
+			var p ocispecs.Platform
 			if tp != nil {
 				p = *tp
+			} else {
+				p = platforms.DefaultSpec()
 			}
 
-			// in certain conditions we allow input platform to be extended from base image
-			if p.OS == "windows" && img.OS == p.OS {
-				if p.OSVersion == "" && img.OSVersion != "" {
-					p.OSVersion = img.OSVersion
-				}
-				if p.OSFeatures == nil && len(img.OSFeatures) > 0 {
-					p.OSFeatures = append([]string{}, img.OSFeatures...)
-				}
-			}
-
-			p = platforms.Normalize(p)
 			k := platforms.FormatAll(p)
+			p = extendWindowsPlatform(p, img.Platform)
+			p = platforms.Normalize(p)
 
 			if bc.MultiPlatformRequested {
 				res.AddRef(k, ref)
@@ -125,4 +119,17 @@ func (rb *ResultBuilder) EachPlatform(ctx context.Context, fn func(ctx context.C
 		})
 	}
 	return eg.Wait()
+}
+
+func extendWindowsPlatform(p, imgP ocispecs.Platform) ocispecs.Platform {
+	// in certain conditions we allow input platform to be extended from base image
+	if p.OS == "windows" && imgP.OS == p.OS {
+		if p.OSVersion == "" && imgP.OSVersion != "" {
+			p.OSVersion = imgP.OSVersion
+		}
+		if p.OSFeatures == nil && len(imgP.OSFeatures) > 0 {
+			p.OSFeatures = slices.Clone(imgP.OSFeatures)
+		}
+	}
+	return p
 }

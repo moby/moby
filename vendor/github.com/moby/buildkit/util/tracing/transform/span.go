@@ -226,10 +226,7 @@ func spanEvents(es []*tracepb.Span_Event) []tracesdk.Event {
 		return nil
 	}
 
-	evCount := len(es)
-	if evCount > maxMessageEventsPerSpan {
-		evCount = maxMessageEventsPerSpan
-	}
+	evCount := min(len(es), maxMessageEventsPerSpan)
 	events := make([]tracesdk.Event, 0, evCount)
 	messageEvents := 0
 

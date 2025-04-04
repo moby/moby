@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptrace"
+	"slices"
 
+	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/stack"
+	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
@@ -14,11 +18,6 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
-
-	"github.com/pkg/errors"
-
-	"github.com/moby/buildkit/util/bklog"
-	"github.com/moby/buildkit/util/stack"
 )
 
 // StartSpan starts a new span as a child of the span in context.
@@ -43,10 +42,8 @@ func hasStacktrace(err error) bool {
 	case interface{ Unwrap() error }:
 		return hasStacktrace(e.Unwrap())
 	case interface{ Unwrap() []error }:
-		for _, ue := range e.Unwrap() {
-			if hasStacktrace(ue) {
-				return true
-			}
+		if slices.ContainsFunc(e.Unwrap(), hasStacktrace) {
+			return true
 		}
 	}
 	return false

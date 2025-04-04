@@ -13,9 +13,9 @@ import (
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/continuity/fs"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/sys/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
@@ -73,7 +73,7 @@ func generateProcessModeOpts(mode ProcessMode) ([]oci.SpecOpts, error) {
 	return nil, nil
 }
 
-func generateIDmapOpts(idmap *idtools.IdentityMapping) ([]oci.SpecOpts, error) {
+func generateIDmapOpts(idmap *user.IdentityMapping) ([]oci.SpecOpts, error) {
 	if idmap == nil {
 		return nil, nil
 	}
@@ -118,4 +118,10 @@ func generateCDIOpts(_ *cdidevices.Manager, devices []*pb.CDIDevice) ([]oci.Spec
 	}
 	// https://github.com/cncf-tags/container-device-interface/issues/28
 	return nil, errors.New("no support for CDI on Windows")
+}
+
+func normalizeMountType(_ string) string {
+	// HCS shim doesn't expect a named type
+	// for the mount.
+	return ""
 }

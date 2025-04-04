@@ -440,7 +440,7 @@ func (s *Store) WalkBacklinks(id string, fn func(id string, link solver.CacheInf
 					if err := json.Unmarshal(parts[0], &l); err != nil {
 						return err
 					}
-					l.Digest = digest.FromBytes([]byte(fmt.Sprintf("%s@%d", l.Digest, l.Output)))
+					l.Digest = digest.FromBytes(fmt.Appendf(nil, "%s@%d", l.Digest, l.Output))
 					l.Output = 0
 					outIDs = append(outIDs, string(bid))
 					outLinks = append(outLinks, l)

@@ -204,7 +204,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 	}
 
 	if len(names) != 0 {
-		resp["image.name"] = strings.Join(names, ",")
+		resp[exptypes.ExporterImageNameKey] = strings.Join(names, ",")
 	}
 
 	expOpts := []archiveexporter.ExportOpt{archiveexporter.WithManifest(*desc, names...)}
@@ -298,7 +298,7 @@ func normalizedNames(name string) ([]string, error) {
 		return nil, nil
 	}
 	names := strings.Split(name, ",")
-	var tagNames = make([]string, len(names))
+	tagNames := make([]string, len(names))
 	for i, name := range names {
 		parsed, err := reference.ParseNormalizedNamed(name)
 		if err != nil {

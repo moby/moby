@@ -112,6 +112,6 @@ func (s *statInfo) IsDir() bool {
 	return s.Mode().IsDir()
 }
 
-func (s *statInfo) Sys() interface{} {
+func (s *statInfo) Sys() any {
 	return s.Stat
 }
