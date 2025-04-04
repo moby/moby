@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/go-archive"
 	"github.com/pkg/errors"
 	"github.com/vbatts/tar-split/tar/storage"
 )

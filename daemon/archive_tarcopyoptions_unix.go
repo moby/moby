@@ -10,8 +10,8 @@ import (
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/go-archive"
 	"github.com/moby/sys/user"
 )
 

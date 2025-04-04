@@ -19,10 +19,10 @@ import (
 	"github.com/docker/docker/builder"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-connections/nat"
+	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/chrootarchive"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )

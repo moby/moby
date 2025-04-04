@@ -18,8 +18,8 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
-	dockerarchive "github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/streamformatter"
+	dockerarchive "github.com/moby/go-archive"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )

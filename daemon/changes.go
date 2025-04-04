@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/internal/metrics"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/go-archive"
 )
 
 // ContainerChanges returns a list of container fs changes

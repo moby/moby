@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/go-archive"
 	"github.com/pkg/errors"
 )
 

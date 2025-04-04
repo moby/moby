@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
+	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/chrootarchive"
 	"github.com/moby/sys/symlink"
 	"github.com/pkg/errors"
 )

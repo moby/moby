@@ -4,7 +4,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/go-archive"
 )
 
 type mountedLayer struct {
