@@ -138,15 +138,13 @@ func newTransport(tlsConfig *tls.Config) http.RoundTripper {
 		tlsConfig = tlsconfig.ServerDefault()
 	}
 
-	direct := &net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 30 * time.Second,
-	}
-
 	return otelhttp.NewTransport(
 		&http.Transport{
-			Proxy:               http.ProxyFromEnvironment,
-			DialContext:         direct.DialContext,
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
 			TLSHandshakeTimeout: 10 * time.Second,
 			TLSClientConfig:     tlsConfig,
 			// TODO(dmcgowan): Call close idle connections when complete and use keep alive
