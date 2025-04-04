@@ -82,9 +82,9 @@ func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, use
 
 	var lastErr error
 	for _, endpoint := range endpoints {
-		authToken, err := loginV2(authConfig, endpoint, userAgent)
+		authToken, err := loginV2(ctx, authConfig, endpoint, userAgent)
 		if err != nil {
-			if errdefs.IsUnauthorized(err) {
+			if errdefs.IsContext(err) || errdefs.IsUnauthorized(err) {
 				// Failed to authenticate; don't continue with (non-TLS) endpoints.
 				return "", "", err
 			}
