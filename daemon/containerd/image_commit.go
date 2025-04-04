@@ -18,8 +18,8 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/archive"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
+	"github.com/moby/go-archive"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -152,8 +152,8 @@ func (i *ImageService) createDiff(ctx context.Context, name string, sn snapshots
 	if !i.idMapping.Empty() {
 		// The rootfs of the container is remapped if an id mapping exists, we
 		// need to "unremap" it before committing the snapshot
-		rootPair := i.idMapping.RootPair()
-		usernsID := fmt.Sprintf("%s-%d-%d-%s", name, rootPair.UID, rootPair.GID, uniquePart())
+		uid, gid := i.idMapping.RootPair()
+		usernsID := fmt.Sprintf("%s-%d-%d-%s", name, uid, gid, uniquePart())
 		remappedID := usernsID + remapSuffix
 		baseName := name
 

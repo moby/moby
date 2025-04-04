@@ -20,12 +20,12 @@ import (
 	"github.com/docker/docker/daemon/internal/mountref"
 	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/docker/internal/directory"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/chrootarchive"
 	"github.com/moby/locker"
 	"github.com/moby/sys/mount"
+	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
@@ -59,7 +59,7 @@ const (
 // mounts that are created using this driver.
 type Driver struct {
 	home      string
-	idMap     idtools.IdentityMapping
+	idMap     user.IdentityMapping
 	ctr       *mountref.Counter
 	naiveDiff graphdriver.DiffDriver
 	locker    *locker.Locker
@@ -74,7 +74,7 @@ func init() {
 // Init returns the naive diff driver for fuse-overlayfs.
 // If fuse-overlayfs is not supported on the host, the error
 // graphdriver.ErrNotSupported is returned.
-func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdriver.Driver, error) {
+func Init(home string, options []string, idMap user.IdentityMapping) (graphdriver.Driver, error) {
 	if _, err := exec.LookPath(binary); err != nil {
 		logger.Error(err)
 		return nil, graphdriver.ErrNotSupported
@@ -83,16 +83,12 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		return nil, graphdriver.ErrNotSupported
 	}
 
-	currentID := idtools.CurrentIdentity()
-	dirID := idtools.Identity{
-		UID: currentID.UID,
-		GID: idMap.RootPair().GID,
-	}
-
-	if err := idtools.MkdirAllAndChown(home, 0o710, dirID); err != nil {
+	cuid := os.Getuid()
+	_, gid := idMap.RootPair()
+	if err := user.MkdirAllAndChown(home, 0o710, cuid, gid); err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAllAndChown(path.Join(home, linkDir), 0o700, currentID); err != nil {
+	if err := user.MkdirAllAndChown(path.Join(home, linkDir), 0o700, cuid, os.Getegid()); err != nil {
 		return nil, err
 	}
 
@@ -175,12 +171,12 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 
 func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr error) {
 	dir := d.dir(id)
-	root := d.idMap.RootPair()
+	uid, gid := d.idMap.RootPair()
 
-	if err := idtools.MkdirAllAndChown(path.Dir(dir), 0o710, root); err != nil {
+	if err := user.MkdirAllAndChown(path.Dir(dir), 0o710, uid, gid); err != nil {
 		return err
 	}
-	if err := idtools.MkdirAndChown(dir, 0o710, root); err != nil {
+	if err := user.MkdirAndChown(dir, 0o710, uid, gid); err != nil {
 		return err
 	}
 
@@ -195,7 +191,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return fmt.Errorf("--storage-opt is not supported")
 	}
 
-	if err := idtools.MkdirAndChown(path.Join(dir, diffDirName), 0o755, root); err != nil {
+	if err := user.MkdirAndChown(path.Join(dir, diffDirName), 0o755, uid, gid); err != nil {
 		return err
 	}
 
@@ -214,7 +210,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return nil
 	}
 
-	if err := idtools.MkdirAndChown(path.Join(dir, workDirName), 0o710, root); err != nil {
+	if err := user.MkdirAndChown(path.Join(dir, workDirName), 0o710, uid, gid); err != nil {
 		return err
 	}
 
@@ -367,7 +363,8 @@ func (d *Driver) Get(id, mountLabel string) (_ string, retErr error) {
 	mountData := label.FormatMountLabel(opts, mountLabel)
 	mountTarget := mergedDir
 
-	if err := idtools.MkdirAndChown(mergedDir, 0o700, d.idMap.RootPair()); err != nil {
+	uid, gid := d.idMap.RootPair()
+	if err := user.MkdirAndChown(mergedDir, 0o700, uid, gid); err != nil {
 		return "", err
 	}
 

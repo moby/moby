@@ -1,8 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/go-archive"
 )
 
 // defaultTarCopyOptions is the setting that is used when unpacking an archive
@@ -10,6 +9,6 @@ import (
 func (daemon *Daemon) defaultTarCopyOptions(noOverwriteDirNonDir bool) *archive.TarOptions {
 	return &archive.TarOptions{
 		NoOverwriteDirNonDir: noOverwriteDirNonDir,
-		IDMap:                idtools.FromUserIdentityMapping(daemon.idMapping),
+		IDMap:                daemon.idMapping,
 	}
 }

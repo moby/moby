@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/go-archive"
 )
 
 // New creates a fake build context

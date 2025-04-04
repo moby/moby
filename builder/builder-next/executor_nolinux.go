@@ -9,14 +9,14 @@ import (
 
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 	resourcetypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
+	"github.com/moby/sys/user"
 )
 
-func newExecutor(_, _ string, _ *libnetwork.Controller, _ *oci.DNSConfig, _ bool, _ idtools.IdentityMapping, _ string, _ *cdidevices.Manager) (executor.Executor, error) {
+func newExecutor(_, _ string, _ *libnetwork.Controller, _ *oci.DNSConfig, _ bool, _ user.IdentityMapping, _ string, _ *cdidevices.Manager) (executor.Executor, error) {
 	return &stubExecutor{}, nil
 }
 

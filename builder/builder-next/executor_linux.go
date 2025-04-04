@@ -22,12 +22,13 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 const networkName = "bridge"
 
-func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfig *oci.DNSConfig, rootless bool, idmap idtools.IdentityMapping, apparmorProfile string, cdiManager *cdidevices.Manager) (executor.Executor, error) {
+func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfig *oci.DNSConfig, rootless bool, idmap user.IdentityMapping, apparmorProfile string, cdiManager *cdidevices.Manager) (executor.Executor, error) {
 	netRoot := filepath.Join(root, "net")
 	networkProviders := map[pb.NetMode]network.Provider{
 		pb.NetMode_UNSET: &bridgeProvider{Controller: net, Root: netRoot},
@@ -48,7 +49,9 @@ func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfi
 
 	// Returning a non-nil but empty *IdentityMapping breaks BuildKit:
 	// https://github.com/moby/moby/pull/39444
-	pidmap := &idmap
+	// TODO: Remove conversion once buildkit updates
+	idtoolsMap := idtools.FromUserIdentityMapping(idmap)
+	pidmap := &idtoolsMap
 	if idmap.Empty() {
 		pidmap = nil
 	}

@@ -13,7 +13,6 @@ import (
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/continuity/sysx"
-	"github.com/docker/docker/pkg/idtools"
 )
 
 const (
@@ -54,12 +53,12 @@ func (i *ImageService) remapRootFS(ctx context.Context, mounts []mount.Mount) er
 				return fmt.Errorf("cannot get underlying data for %s", path)
 			}
 
-			ids, err := i.idMapping.ToHost(idtools.Identity{UID: int(stat.Uid), GID: int(stat.Gid)})
+			uid, gid, err := i.idMapping.ToHost(int(stat.Uid), int(stat.Gid))
 			if err != nil {
 				return err
 			}
 
-			return chownWithCaps(path, ids.UID, ids.GID)
+			return chownWithCaps(path, uid, gid)
 		})
 	})
 }
@@ -82,7 +81,7 @@ func (i *ImageService) copyAndUnremapRootFS(ctx context.Context, dst, src []moun
 					return fmt.Errorf("cannot get underlying data for %s", path)
 				}
 
-				uid, gid, err := i.idMapping.ToContainer(idtools.Identity{UID: int(stat.Uid), GID: int(stat.Gid)})
+				uid, gid, err := i.idMapping.ToContainer(int(stat.Uid), int(stat.Gid))
 				if err != nil {
 					return err
 				}
@@ -105,7 +104,7 @@ func (i *ImageService) unremapRootFS(ctx context.Context, mounts []mount.Mount) 
 				return fmt.Errorf("cannot get underlying data for %s", path)
 			}
 
-			uid, gid, err := i.idMapping.ToContainer(idtools.Identity{UID: int(stat.Uid), GID: int(stat.Gid)})
+			uid, gid, err := i.idMapping.ToContainer(int(stat.Uid), int(stat.Gid))
 			if err != nil {
 				return err
 			}

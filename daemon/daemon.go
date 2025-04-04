@@ -1072,15 +1072,15 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			RegistryHosts:   d.RegistryHosts,
 			Registry:        d.registryService,
 			EventsService:   d.EventsService,
-			IDMapping:       idtools.FromUserIdentityMapping(idMapping),
-			RefCountMounter: snapshotter.NewMounter(config.Root, driverName, idtools.FromUserIdentityMapping(idMapping)),
+			IDMapping:       idMapping,
+			RefCountMounter: snapshotter.NewMounter(config.Root, driverName, idMapping),
 		})
 	} else {
 		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
 			Root:               cfgStore.Root,
 			GraphDriver:        driverName,
 			GraphDriverOptions: cfgStore.GraphOptions,
-			IDMapping:          idtools.FromUserIdentityMapping(idMapping),
+			IDMapping:          idMapping,
 		})
 		if err != nil {
 			return nil, err
@@ -1599,8 +1599,8 @@ func (daemon *Daemon) GetAttachmentStore() *network.AttachmentStore {
 }
 
 // IdentityMapping returns uid/gid mapping or a SID (in the case of Windows) for the builder
-func (daemon *Daemon) IdentityMapping() idtools.IdentityMapping {
-	return idtools.FromUserIdentityMapping(daemon.idMapping)
+func (daemon *Daemon) IdentityMapping() user.IdentityMapping {
+	return daemon.idMapping
 }
 
 // ImageService returns the Daemon's ImageService

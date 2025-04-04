@@ -3,7 +3,7 @@ package testutils
 import (
 	"io"
 
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/go-archive"
 	"github.com/opencontainers/go-digest"
 )
 

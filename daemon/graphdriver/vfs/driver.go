@@ -8,9 +8,9 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/containerfs"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/quota"
 	"github.com/docker/go-units"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 )
@@ -29,7 +29,7 @@ func init() {
 
 // Init returns a new VFS driver.
 // This sets the home directory for the driver and returns NaiveDiffDriver.
-func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdriver.Driver, error) {
+func Init(home string, options []string, idMap user.IdentityMapping) (graphdriver.Driver, error) {
 	d := &Driver{
 		home:      home,
 		idMapping: idMap,
@@ -39,11 +39,8 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		return nil, err
 	}
 
-	dirID := idtools.Identity{
-		UID: idtools.CurrentIdentity().UID,
-		GID: d.idMapping.RootPair().GID,
-	}
-	if err := idtools.MkdirAllAndChown(home, 0o710, dirID); err != nil {
+	_, gid := d.idMapping.RootPair()
+	if err := user.MkdirAllAndChown(home, 0o710, os.Getuid(), gid); err != nil {
 		return nil, err
 	}
 
@@ -67,7 +64,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 type Driver struct {
 	driverQuota
 	home             string
-	idMapping        idtools.IdentityMapping
+	idMapping        user.IdentityMapping
 	bestEffortXattrs bool
 }
 
@@ -161,16 +158,12 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 
 func (d *Driver) create(id, parent string, size uint64) error {
 	dir := d.dir(id)
-	rootIDs := d.idMapping.RootPair()
+	uid, gid := d.idMapping.RootPair()
 
-	dirID := idtools.Identity{
-		UID: idtools.CurrentIdentity().UID,
-		GID: rootIDs.GID,
-	}
-	if err := idtools.MkdirAllAndChown(filepath.Dir(dir), 0o710, dirID); err != nil {
+	if err := user.MkdirAllAndChown(filepath.Dir(dir), 0o710, os.Getuid(), gid); err != nil {
 		return err
 	}
-	if err := idtools.MkdirAndChown(dir, 0o755, rootIDs); err != nil {
+	if err := user.MkdirAndChown(dir, 0o755, uid, gid); err != nil {
 		return err
 	}
 

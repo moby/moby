@@ -27,12 +27,12 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/internal/mountref"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/go-units"
+	"github.com/moby/go-archive"
 	"github.com/moby/sys/reexec"
+	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
 )
@@ -89,7 +89,7 @@ type Driver struct {
 }
 
 // InitFilter returns a new Windows storage filter driver.
-func InitFilter(home string, options []string, _ idtools.IdentityMapping) (graphdriver.Driver, error) {
+func InitFilter(home string, options []string, _ user.IdentityMapping) (graphdriver.Driver, error) {
 	log.G(context.TODO()).Debugf("WindowsGraphDriver InitFilter at %s", home)
 
 	fsType, err := winiofs.GetFileSystemType(home)

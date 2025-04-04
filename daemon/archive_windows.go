@@ -10,9 +10,9 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/chrootarchive"
 )
 
 // containerStatPath stats the filesystem resource at the specified path in this
