@@ -3,14 +3,12 @@ package archive
 import (
 	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -1431,39 +1429,6 @@ func readFileFromArchive(t *testing.T, archive io.ReadCloser, name string, expec
 	content, err := os.ReadFile(filepath.Join(destDir, name))
 	assert.Check(t, err)
 	return string(content)
-}
-
-func TestDisablePigz(t *testing.T) {
-	_, err := exec.LookPath("unpigz")
-	if err != nil {
-		t.Log("Test will not check full path when Pigz not installed")
-	}
-
-	t.Setenv("MOBY_DISABLE_PIGZ", "true")
-
-	r := testDecompressStream(t, "gz", "gzip -f")
-
-	// wrapped in closer to cancel contex and release buffer to pool
-	wrapper := r.(*readCloserWrapper)
-
-	assert.Equal(t, reflect.TypeOf(wrapper.Reader), reflect.TypeOf(&gzip.Reader{}))
-}
-
-func TestPigz(t *testing.T) {
-	r := testDecompressStream(t, "gz", "gzip -f")
-	// wrapper for buffered reader and context cancel
-	wrapper := r.(*readCloserWrapper)
-
-	_, err := exec.LookPath("unpigz")
-	if err == nil {
-		t.Log("Tested whether Pigz is used, as it installed")
-		// For the command wait wrapper
-		cmdWaitCloserWrapper := wrapper.Reader.(*readCloserWrapper)
-		assert.Equal(t, reflect.TypeOf(cmdWaitCloserWrapper.Reader), reflect.TypeOf(&io.PipeReader{}))
-	} else {
-		t.Log("Tested whether Pigz is not used, as it not installed")
-		assert.Equal(t, reflect.TypeOf(wrapper.Reader), reflect.TypeOf(&gzip.Reader{}))
-	}
 }
 
 func TestNosysFileInfo(t *testing.T) {

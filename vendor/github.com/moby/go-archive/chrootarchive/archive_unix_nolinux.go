@@ -10,9 +10,10 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/docker/docker/pkg/archive"
 	"github.com/moby/sys/reexec"
 	"golang.org/x/sys/unix"
+
+	"github.com/moby/go-archive"
 )
 
 const (

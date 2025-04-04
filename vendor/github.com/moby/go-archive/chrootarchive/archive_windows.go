@@ -4,7 +4,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/go-archive"
 )
 
 // longPathPrefix is the longpath prefix for Windows file paths.

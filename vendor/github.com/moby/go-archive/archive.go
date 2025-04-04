@@ -25,10 +25,10 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/klauspost/compress/zstd"
 	"github.com/moby/patternmatcher"
 	"github.com/moby/sys/sequential"
+	"github.com/moby/sys/user"
 )
 
 // ImpliedDirectoryMode represents the mode (Unix permissions) applied to directories that are implied by files in a
@@ -49,14 +49,19 @@ type (
 	// WhiteoutFormat is the format of whiteouts unpacked
 	WhiteoutFormat int
 
+	ChownOpts struct {
+		UID int
+		GID int
+	}
+
 	// TarOptions wraps the tar options.
 	TarOptions struct {
 		IncludeFiles     []string
 		ExcludePatterns  []string
 		Compression      Compression
 		NoLchown         bool
-		IDMap            idtools.IdentityMapping
-		ChownOpts        *idtools.Identity
+		IDMap            user.IdentityMapping
+		ChownOpts        *ChownOpts
 		IncludeSourceDir bool
 		// WhiteoutFormat is the expected on disk format for whiteout files.
 		// This format will be converted to the standard format on pack
@@ -83,7 +88,7 @@ type (
 // mappings for untar, an Archiver can be created with maps which will then be passed to Untar operations.
 type Archiver struct {
 	Untar     func(io.Reader, string, *TarOptions) error
-	IDMapping idtools.IdentityMapping
+	IDMapping user.IdentityMapping
 }
 
 // NewDefaultArchiver returns a new Archiver without any IdentityMapping
@@ -598,8 +603,8 @@ type tarAppender struct {
 
 	// for hardlink mapping
 	SeenFiles       map[uint64]string
-	IdentityMapping idtools.IdentityMapping
-	ChownOpts       *idtools.Identity
+	IdentityMapping user.IdentityMapping
+	ChownOpts       *ChownOpts
 
 	// For packing and unpacking whiteout files in the
 	// non standard format. The whiteout files defined
@@ -608,7 +613,7 @@ type tarAppender struct {
 	WhiteoutConverter tarWhiteoutConverter
 }
 
-func newTarAppender(idMapping idtools.IdentityMapping, writer io.Writer, chownOpts *idtools.Identity) *tarAppender {
+func newTarAppender(idMapping user.IdentityMapping, writer io.Writer, chownOpts *ChownOpts) *tarAppender {
 	return &tarAppender{
 		SeenFiles:       make(map[uint64]string),
 		TarWriter:       tar.NewWriter(writer),
@@ -679,11 +684,11 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	// writing tar headers/files. We skip whiteout files because they were written
 	// by the kernel and already have proper ownership relative to the host
 	if !isOverlayWhiteout && !strings.HasPrefix(filepath.Base(hdr.Name), WhiteoutPrefix) && !ta.IdentityMapping.Empty() {
-		fileIDPair, err := getFileUIDGID(fi.Sys())
+		uid, gid, err := getFileUIDGID(fi.Sys())
 		if err != nil {
 			return err
 		}
-		hdr.Uid, hdr.Gid, err = ta.IdentityMapping.ToContainer(fileIDPair)
+		hdr.Uid, hdr.Gid, err = ta.IdentityMapping.ToContainer(uid, gid)
 		if err != nil {
 			return err
 		}
@@ -743,7 +748,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 	var (
 		Lchown                     = true
 		inUserns, bestEffortXattrs bool
-		chownOpts                  *idtools.Identity
+		chownOpts                  *ChownOpts
 	)
 
 	// TODO(thaJeztah): make opts a required argument.
@@ -839,7 +844,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 	// Lchown is not supported on Windows.
 	if Lchown && runtime.GOOS != "windows" {
 		if chownOpts == nil {
-			chownOpts = &idtools.Identity{UID: hdr.Uid, GID: hdr.Gid}
+			chownOpts = &ChownOpts{UID: hdr.Uid, GID: hdr.Gid}
 		}
 		if err := os.Lchown(path, chownOpts.UID, chownOpts.GID); err != nil {
 			var msg string
@@ -1272,9 +1277,9 @@ func createImpliedDirectories(dest string, hdr *tar.Header, options *TarOptions)
 			// RootPair() is confined inside this loop as most cases will not require a call, so we can spend some
 			// unneeded function calls in the uncommon case to encapsulate logic -- implied directories are a niche
 			// usage that reduces the portability of an image.
-			rootIDs := options.IDMap.RootPair()
+			uid, gid := options.IDMap.RootPair()
 
-			err = idtools.MkdirAllAndChownNew(parentPath, ImpliedDirectoryMode, rootIDs)
+			err = user.MkdirAllAndChown(parentPath, ImpliedDirectoryMode, uid, gid, user.WithOnlyNew)
 			if err != nil {
 				return err
 			}
@@ -1370,9 +1375,9 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 	// if this Archiver is set up with ID mapping we need to create
 	// the new destination directory with the remapped root UID/GID pair
 	// as owner
-	rootIDs := archiver.IDMapping.RootPair()
+	uid, gid := archiver.IDMapping.RootPair()
 	// Create dst, copy src's content into it
-	if err := idtools.MkdirAllAndChownNew(dst, 0o755, rootIDs); err != nil {
+	if err := user.MkdirAllAndChown(dst, 0o755, uid, gid, user.WithOnlyNew); err != nil {
 		return err
 	}
 	return archiver.TarUntar(src, dst)
@@ -1456,13 +1461,13 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 }
 
 // IdentityMapping returns the IdentityMapping of the archiver.
-func (archiver *Archiver) IdentityMapping() idtools.IdentityMapping {
+func (archiver *Archiver) IdentityMapping() user.IdentityMapping {
 	return archiver.IDMapping
 }
 
-func remapIDs(idMapping idtools.IdentityMapping, hdr *tar.Header) error {
-	ids, err := idMapping.ToHost(idtools.Identity{UID: hdr.Uid, GID: hdr.Gid})
-	hdr.Uid, hdr.Gid = ids.UID, ids.GID
+func remapIDs(idMapping user.IdentityMapping, hdr *tar.Header) error {
+	uid, gid, err := idMapping.ToHost(hdr.Uid, hdr.Gid)
+	hdr.Uid, hdr.Gid = uid, gid
 	return err
 }
 

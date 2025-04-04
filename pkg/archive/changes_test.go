@@ -16,6 +16,13 @@ import (
 	"gotest.tools/v3/skip"
 )
 
+// for sort.Sort
+type changesByPath []Change
+
+func (c changesByPath) Less(i, j int) bool { return c[i].Path < c[j].Path }
+func (c changesByPath) Len() int           { return len(c) }
+func (c changesByPath) Swap(i, j int)      { c[j], c[i] = c[i], c[j] }
+
 func maxInt(x, y int) int {
 	if x >= y {
 		return x

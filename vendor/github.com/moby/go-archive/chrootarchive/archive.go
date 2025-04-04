@@ -6,12 +6,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/sys/user"
+
+	"github.com/moby/go-archive"
 )
 
 // NewArchiver returns a new Archiver which uses chrootarchive.Untar
-func NewArchiver(idMapping idtools.IdentityMapping) *archive.Archiver {
+func NewArchiver(idMapping user.IdentityMapping) *archive.Archiver {
 	return &archive.Archiver{
 		Untar:     Untar,
 		IDMapping: idMapping,
@@ -64,11 +65,11 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 	// If dest is inside a root then directory is created within chroot by extractor.
 	// This case is only currently used by cp.
 	if dest == root {
-		rootIDs := options.IDMap.RootPair()
+		uid, gid := options.IDMap.RootPair()
 
 		dest = filepath.Clean(dest)
 		if _, err := os.Stat(dest); os.IsNotExist(err) {
-			if err := idtools.MkdirAllAndChownNew(dest, 0o755, rootIDs); err != nil {
+			if err := user.MkdirAllAndChown(dest, 0o755, uid, gid, user.WithOnlyNew); err != nil {
 				return err
 			}
 		}
