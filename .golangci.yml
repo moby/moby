@@ -212,7 +212,12 @@ issues:
       linters:
         - staticcheck
 
-    - text: "SA1019: idtools\\.(CurrentIdentity|FromUserIdentityMapping|IDMap|MkdirAndChown|MkdirAllAndChown|MkdirAllAndChownNew) is deprecated"
+    - text: "SA1019: idtools\\.(CurrentIdentity|ToUserIdentityMapping|FromUserIdentityMapping|IDMap|MkdirAndChown|MkdirAllAndChown|MkdirAllAndChownNew) is deprecated"
+      linters:
+        - staticcheck
+
+    # FIXME(thaJeztah): ignoring until https://github.com/moby/moby/pull/49743 is merged.
+    - text: "SA1019: (archive|chrootarchive|dockerarchive)\\..* is deprecated: use \\[(archive|chrootarchive)\\."
       linters:
         - staticcheck
 

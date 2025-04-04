@@ -144,6 +144,31 @@ func fromUserIDMap(u []user.IDMap) []IDMap {
 	return m
 }
 
+// ToUserIdentityMapping converts an [idtools.IdentityMapping] to a [user.IdentityMapping].
+//
+// Deprecated: use [user.IdentityMapping] directly, this is transitioning to user package.
+func ToUserIdentityMapping(u IdentityMapping) user.IdentityMapping {
+	return user.IdentityMapping{
+		UIDMaps: toUserIDMap(u.UIDMaps),
+		GIDMaps: toUserIDMap(u.GIDMaps),
+	}
+}
+
+func toUserIDMap(u []IDMap) []user.IDMap {
+	if u == nil {
+		return nil
+	}
+	m := make([]user.IDMap, len(u))
+	for i := range u {
+		m[i] = user.IDMap{
+			ID:       int64(u[i].ContainerID),
+			ParentID: int64(u[i].HostID),
+			Count:    int64(u[i].Size),
+		}
+	}
+	return m
+}
+
 // RootPair returns a uid and gid pair for the root user. The error is ignored
 // because a root user always exists, and the defaults are correct when the uid
 // and gid maps are empty.

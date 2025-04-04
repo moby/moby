@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/sys/user"
 )
 
 // ChangeType represents the change type.
@@ -75,7 +75,7 @@ func sameFsTime(a, b time.Time) bool {
 // Changes walks the path rw and determines changes for the files in the path,
 // with respect to the parent layers
 func Changes(layers []string, rw string) ([]Change, error) {
-	return collectChanges(layers, rw, aufsDeletedFile, aufsMetadataSkip)
+	return changes(layers, rw, aufsDeletedFile, aufsMetadataSkip)
 }
 
 func aufsMetadataSkip(path string) (skip bool, err error) {
@@ -103,7 +103,7 @@ type (
 	deleteChange func(string, string, os.FileInfo) (string, error)
 )
 
-func collectChanges(layers []string, rw string, dc deleteChange, sc skipChange) ([]Change, error) {
+func changes(layers []string, rw string, dc deleteChange, sc skipChange) ([]Change, error) {
 	var (
 		changes     []Change
 		changedDirs = make(map[string]struct{})
@@ -383,7 +383,7 @@ func ChangesSize(newDir string, changes []Change) int64 {
 }
 
 // ExportChanges produces an Archive from the provided changes, relative to dir.
-func ExportChanges(dir string, changes []Change, idMap idtools.IdentityMapping) (io.ReadCloser, error) {
+func ExportChanges(dir string, changes []Change, idMap user.IdentityMapping) (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
 	go func() {
 		ta := newTarAppender(idMap, writer, nil)

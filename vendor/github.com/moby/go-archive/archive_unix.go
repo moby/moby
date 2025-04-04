@@ -11,7 +11,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/docker/docker/pkg/idtools"
 	"golang.org/x/sys/unix"
 )
 
@@ -82,13 +81,13 @@ func getInodeFromStat(stat interface{}) (uint64, error) {
 	return s.Ino, nil
 }
 
-func getFileUIDGID(stat interface{}) (idtools.Identity, error) {
+func getFileUIDGID(stat interface{}) (int, int, error) {
 	s, ok := stat.(*syscall.Stat_t)
 
 	if !ok {
-		return idtools.Identity{}, errors.New("cannot convert stat value to syscall.Stat_t")
+		return 0, 0, errors.New("cannot convert stat value to syscall.Stat_t")
 	}
-	return idtools.Identity{UID: int(s.Uid), GID: int(s.Gid)}, nil
+	return int(s.Uid), int(s.Gid), nil
 }
 
 // handleTarTypeBlockCharFifo is an OS-specific helper function used by
