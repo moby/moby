@@ -93,7 +93,8 @@ var skipValidateOptions = map[string]bool{
 	"builder":  true,
 
 	// Deprecated options that are safe to ignore if present.
-	"deprecated-key-path": true,
+	"deprecated-key-path":              true,
+	"allow-nondistributable-artifacts": true,
 }
 
 // skipDuplicates contains configuration keys that

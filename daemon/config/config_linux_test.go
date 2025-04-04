@@ -379,6 +379,10 @@ func TestDaemonLegacyOptions(t *testing.T) {
 			name:       "deprecated-key-path",
 			configJSON: `{"deprecated-key-path": "/etc/docker/key.json"}`,
 		},
+		{
+			name:       "allow-nondistributable-artifacts",
+			configJSON: `{"allow-nondistributable-artifacts": ["127.0.0.0/8", "10.10.1.11:5000", "10.10.1.22:5000", "registry.example.com", "registry.example.com"]}`,
+		},
 	}
 
 	for _, tc := range tests {
