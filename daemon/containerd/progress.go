@@ -337,3 +337,14 @@ func (combined combinedProgress) UpdateProgress(ctx context.Context, ongoing *jo
 	}
 	return nil
 }
+
+func showBlobProgress(desc ocispec.Descriptor) bool {
+	switch {
+	case c8dimages.IsIndexType(desc.MediaType),
+		c8dimages.IsManifestType(desc.MediaType),
+		c8dimages.IsConfigType(desc.MediaType):
+		return false
+	default:
+		return true
+	}
+}
