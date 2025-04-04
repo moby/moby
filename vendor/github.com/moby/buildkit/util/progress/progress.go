@@ -67,7 +67,7 @@ func WithProgress(ctx context.Context, pw Writer) context.Context {
 	return context.WithValue(ctx, contextKey, pw)
 }
 
-func WithMetadata(key string, val interface{}) WriterOption {
+func WithMetadata(key string, val any) WriterOption {
 	return func(w Writer) {
 		if pw, ok := w.(*progressWriter); ok {
 			pw.meta[key] = val
@@ -84,7 +84,7 @@ type Controller interface {
 }
 
 type Writer interface {
-	Write(id string, value interface{}) error
+	Write(id string, value any) error
 	Close() error
 }
 
@@ -95,8 +95,8 @@ type Reader interface {
 type Progress struct {
 	ID        string
 	Timestamp time.Time
-	Sys       interface{}
-	meta      map[string]interface{}
+	Sys       any
+	meta      map[string]any
 }
 
 type Status struct {
@@ -207,7 +207,7 @@ func pipe() (*progressReader, *progressWriter, func(error)) {
 }
 
 func newWriter(pw *progressWriter) *progressWriter {
-	meta := make(map[string]interface{})
+	meta := make(map[string]any)
 	maps.Copy(meta, pw.meta)
 	pw = &progressWriter{
 		reader: pw.reader,
@@ -220,10 +220,10 @@ func newWriter(pw *progressWriter) *progressWriter {
 type progressWriter struct {
 	done   bool
 	reader *progressReader
-	meta   map[string]interface{}
+	meta   map[string]any
 }
 
-func (pw *progressWriter) Write(id string, v interface{}) error {
+func (pw *progressWriter) Write(id string, v any) error {
 	if pw.done {
 		return errors.Errorf("writing %s to closed progress writer", id)
 	}
@@ -238,7 +238,7 @@ func (pw *progressWriter) Write(id string, v interface{}) error {
 func (pw *progressWriter) WriteRawProgress(p *Progress) error {
 	meta := p.meta
 	if len(pw.meta) > 0 {
-		meta = map[string]interface{}{}
+		meta = map[string]any{}
 		maps.Copy(meta, p.meta)
 		for k, v := range pw.meta {
 			if _, ok := meta[k]; !ok {
@@ -267,14 +267,14 @@ func (pw *progressWriter) Close() error {
 	return nil
 }
 
-func (p *Progress) Meta(key string) (interface{}, bool) {
+func (p *Progress) Meta(key string) (any, bool) {
 	v, ok := p.meta[key]
 	return v, ok
 }
 
 type noOpWriter struct{}
 
-func (pw *noOpWriter) Write(_ string, _ interface{}) error {
+func (pw *noOpWriter) Write(_ string, _ any) error {
 	return nil
 }
 

@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/containerd/platforms"
@@ -123,7 +123,7 @@ func (e *ExecOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 	}
 	op.Meta.ProxyEnv = nil
 
-	p := platforms.DefaultSpec()
+	var p ocispecs.Platform
 	if e.platform != nil {
 		p = ocispecs.Platform{
 			OS:           e.platform.OS,
@@ -132,6 +132,8 @@ func (e *ExecOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 			OSVersion:    e.platform.OSVersion,
 			OSFeatures:   e.platform.OSFeatures,
 		}
+	} else {
+		p = platforms.DefaultSpec()
 	}
 
 	// Special case for cache compatibility with buggy versions that wrongly
@@ -245,9 +247,7 @@ func dedupePaths(inp []string) []string {
 			paths = append(paths, p1)
 		}
 	}
-	sort.Slice(paths, func(i, j int) bool {
-		return paths[i] < paths[j]
-	})
+	slices.Sort(paths)
 	return paths
 }
 
@@ -559,14 +559,11 @@ func (e *ExecOp) loadSecretEnv(ctx context.Context, g session.Group) ([]string, 
 		err = e.sm.Any(ctx, g, func(ctx context.Context, _ string, caller session.Caller) error {
 			dt, err = secrets.GetSecret(ctx, caller, id)
 			if err != nil {
-				if errors.Is(err, secrets.ErrNotFound) && sopt.Optional {
-					return nil
-				}
 				return err
 			}
 			return nil
 		})
-		if err != nil {
+		if err != nil && !(errors.Is(err, secrets.ErrNotFound) && sopt.Optional) {
 			return nil, err
 		}
 		out = append(out, fmt.Sprintf("%s=%s", sopt.Name, string(dt)))

@@ -229,7 +229,7 @@ func (rp *resultProxy) Definition() *pb.Definition {
 	return rp.req.Definition
 }
 
-func (rp *resultProxy) Provenance() interface{} {
+func (rp *resultProxy) Provenance() any {
 	if rp.provenance == nil {
 		return nil
 	}

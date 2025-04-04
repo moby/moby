@@ -63,7 +63,7 @@ require (
 	github.com/miekg/dns v1.1.61
 	github.com/mistifyio/go-zfs/v3 v3.0.1
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.20.2
+	github.com/moby/buildkit v0.20.0-rc2.0.20250403205144-7e2b28d03286
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
@@ -76,7 +76,7 @@ require (
 	github.com/moby/sys/sequential v0.6.0
 	github.com/moby/sys/signal v0.7.1
 	github.com/moby/sys/symlink v0.3.0
-	github.com/moby/sys/user v0.3.0
+	github.com/moby/sys/user v0.3.1-0.20250227193707-71f0c5ead442
 	github.com/moby/sys/userns v0.1.0
 	github.com/moby/term v0.5.2
 	github.com/morikuni/aec v1.0.0
@@ -114,7 +114,7 @@ require (
 	google.golang.org/protobuf v1.35.2
 	gotest.tools/v3 v3.5.2
 	resenje.org/singleflight v0.4.3
-	tags.cncf.io/container-device-interface v0.8.1
+	tags.cncf.io/container-device-interface v1.0.1
 )
 
 require (
@@ -205,7 +205,7 @@ require (
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/tinylib/msgp v1.1.8 // indirect
 	github.com/tonistiigi/dchapes-mode v0.0.0-20241001053921-ca0759fec205 // indirect
-	github.com/tonistiigi/fsutil v0.0.0-20250113203817-b14e27f4135a // indirect
+	github.com/tonistiigi/fsutil v0.0.0-20250227023350-13604323a291 // indirect
 	github.com/tonistiigi/go-actions-cache v0.0.0-20250228231703-3e9a6642607f // indirect
 	github.com/tonistiigi/go-csvvalue v0.0.0-20240710180619-ddb21b71c0b4 // indirect
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea // indirect
@@ -238,7 +238,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
-	tags.cncf.io/container-device-interface/specs-go v0.8.0 // indirect
+	tags.cncf.io/container-device-interface/specs-go v1.0.0 // indirect
 )
 
 exclude (

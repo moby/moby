@@ -149,6 +149,16 @@ func (e *imageExporter) Resolve(ctx context.Context, id int, opt map[string]stri
 			i.storeAllowIncomplete = b
 		case exptypes.OptKeyDanglingPrefix:
 			i.danglingPrefix = v
+		case exptypes.OptKeyDanglingEmptyOnly:
+			if v == "" {
+				i.danglingEmptyOnly = true
+				continue
+			}
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return nil, errors.Wrapf(err, "non-bool value specified for %s", k)
+			}
+			i.danglingEmptyOnly = b
 		case exptypes.OptKeyNameCanonical:
 			if v == "" {
 				i.nameCanonical = true
@@ -183,6 +193,7 @@ type imageExporterInstance struct {
 	insecure             bool
 	nameCanonical        bool
 	danglingPrefix       string
+	danglingEmptyOnly    bool
 	meta                 map[string][]byte
 }
 
@@ -247,9 +258,14 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 	}
 
 	nameCanonical := e.nameCanonical
-	if e.opts.ImageName == "" && e.danglingPrefix != "" {
-		e.opts.ImageName = e.danglingPrefix + "@" + desc.Digest.String()
-		nameCanonical = false
+	if e.danglingPrefix != "" && (!e.danglingEmptyOnly || e.opts.ImageName == "") {
+		danglingImageName := e.danglingPrefix + "@" + desc.Digest.String()
+		if e.opts.ImageName != "" {
+			e.opts.ImageName += "," + danglingImageName
+		} else {
+			e.opts.ImageName = danglingImageName
+			nameCanonical = false
+		}
 	}
 
 	if e.opts.ImageName != "" {
@@ -274,7 +290,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 				}
 
 				sfx := []string{""}
-				if nameCanonical {
+				if nameCanonical && !strings.ContainsRune(targetName, '@') {
 					sfx = append(sfx, "@"+desc.Digest.String())
 				}
 				for _, sfx := range sfx {
@@ -344,7 +360,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 				}
 			}
 		}
-		resp["image.name"] = e.opts.ImageName
+		resp[exptypes.ExporterImageNameKey] = e.opts.ImageName
 	}
 
 	resp[exptypes.ExporterImageDigestKey] = desc.Digest.String()

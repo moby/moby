@@ -52,6 +52,7 @@ func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, id int, exporter
 	if _, has := exporterAttrs[string(exptypes.OptKeyDanglingPrefix)]; !has {
 		exporterAttrs[string(exptypes.OptKeyDanglingPrefix)] = "moby-dangling"
 	}
+	exporterAttrs[string(exptypes.OptKeyDanglingEmptyOnly)] = "true"
 
 	inst, err := e.exp.Resolve(ctx, id, exporterAttrs)
 	if err != nil {

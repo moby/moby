@@ -65,7 +65,7 @@ func GetUpperdir(lower, upper []mount.Mount) (string, error) {
 		if len(upperlayers) != len(lowerlayers)+1 {
 			return "", errors.Errorf("cannot determine diff of more than one upper directories")
 		}
-		for i := 0; i < len(lowerlayers); i++ {
+		for i := range lowerlayers {
 			if upperlayers[i] != lowerlayers[i] {
 				return "", errors.Errorf("layer %d must be common between upper and lower snapshots", i)
 			}
@@ -361,7 +361,7 @@ func sameDirent(f1, f2 os.FileInfo, f1fullPath, f2fullPath string) (bool, error)
 // Ported from continuity project
 // https://github.com/containerd/continuity/blob/v0.1.0/fs/diff_unix.go#L43-L54
 // Copyright The containerd Authors.
-func compareSysStat(s1, s2 interface{}) (bool, error) {
+func compareSysStat(s1, s2 any) (bool, error) {
 	ls1, ok := s1.(*syscall.Stat_t)
 	if !ok {
 		return false, nil
@@ -405,7 +405,7 @@ func compareSymlinkTarget(p1, p2 string) (bool, error) {
 }
 
 var bufPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		b := make([]byte, 32*1024)
 		return &b
 	},

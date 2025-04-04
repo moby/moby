@@ -16,7 +16,7 @@ type MultiWriter struct {
 	mu      sync.Mutex
 	items   []*Progress
 	writers map[rawProgressWriter]struct{}
-	meta    map[string]interface{}
+	meta    map[string]any
 }
 
 var _ rawProgressWriter = &MultiWriter{}
@@ -24,7 +24,7 @@ var _ rawProgressWriter = &MultiWriter{}
 func NewMultiWriter(opts ...WriterOption) *MultiWriter {
 	mw := &MultiWriter{
 		writers: map[rawProgressWriter]struct{}{},
-		meta:    map[string]interface{}{},
+		meta:    map[string]any{},
 	}
 	for _, o := range opts {
 		o(mw)
@@ -70,7 +70,7 @@ func (ps *MultiWriter) Delete(pw Writer) {
 	ps.mu.Unlock()
 }
 
-func (ps *MultiWriter) Write(id string, v interface{}) error {
+func (ps *MultiWriter) Write(id string, v any) error {
 	p := &Progress{
 		ID:        id,
 		Timestamp: time.Now(),
@@ -83,7 +83,7 @@ func (ps *MultiWriter) Write(id string, v interface{}) error {
 func (ps *MultiWriter) WriteRawProgress(p *Progress) error {
 	meta := p.meta
 	if len(ps.meta) > 0 {
-		meta = map[string]interface{}{}
+		meta = map[string]any{}
 		maps.Copy(meta, p.meta)
 		for k, v := range ps.meta {
 			if _, ok := meta[k]; !ok {

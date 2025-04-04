@@ -11,7 +11,6 @@ import (
 	"github.com/containerd/containerd/v2/core/mount"
 	containerdoci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/continuity/fs"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 	"github.com/moby/buildkit/snapshot"
@@ -19,6 +18,7 @@ import (
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/network"
 	rootlessspecconv "github.com/moby/buildkit/util/rootless/specconv"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
@@ -101,7 +101,7 @@ func (w *containerdExecutor) prepareExecutionEnv(ctx context.Context, rootMount 
 	return resolvConf, hostsFile, releaseAll, nil
 }
 
-func (w *containerdExecutor) ensureCWD(_ context.Context, details *containerState, meta executor.Meta) error {
+func (w *containerdExecutor) ensureCWD(details *containerState, meta executor.Meta) error {
 	newp, err := fs.RootPath(details.rootfsPath, meta.Cwd)
 	if err != nil {
 		return errors.Wrapf(err, "working dir %s points to invalid target", newp)
@@ -112,13 +112,8 @@ func (w *containerdExecutor) ensureCWD(_ context.Context, details *containerStat
 		return err
 	}
 
-	identity := idtools.Identity{
-		UID: int(uid),
-		GID: int(gid),
-	}
-
 	if _, err := os.Stat(newp); err != nil {
-		if err := idtools.MkdirAllAndChown(newp, 0755, identity); err != nil {
+		if err := user.MkdirAllAndChown(newp, 0755, int(uid), int(gid)); err != nil {
 			return errors.Wrapf(err, "failed to create working directory %s", newp)
 		}
 	}

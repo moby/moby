@@ -2,6 +2,8 @@ package snapshot
 
 import (
 	"os"
+	"strings"
+	"time"
 
 	"github.com/Microsoft/go-winio/pkg/bindfilter"
 	"github.com/containerd/containerd/v2/core/mount"
@@ -46,16 +48,41 @@ func (lm *localMounter) Mount() (string, error) {
 		// The Windows snapshotter does not have any notion of bind mounts. We emulate
 		// bind mounts here using the bind filter.
 		if err := bindfilter.ApplyFileBinding(dir, m.Source, m.ReadOnly()); err != nil {
-			return "", errors.Wrapf(err, "failed to mount %v: %+v", m, err)
+			return "", errors.Wrapf(err, "failed to mount %v", m)
 		}
 	} else {
-		if err := m.Mount(dir); err != nil {
-			return "", errors.Wrapf(err, "failed to mount %v: %+v", m, err)
+		// see https://github.com/moby/buildkit/issues/5807
+		// if it's a race condition issue, do max 2 retries with some backoff
+		// should adjust the retries if this persists but 1 retry
+		// seems to be enough.
+		if err := mountWithRetries(m, dir, 2); err != nil {
+			return "", errors.Wrapf(err, "failed to mount %v", m)
 		}
 	}
 
 	lm.target = dir
 	return lm.target, nil
+}
+
+func mountWithRetries(m mount.Mount, dir string, retries int) error {
+	errStr := "cannot access the file because it is being used by another process"
+	backoff := 30 * time.Millisecond
+	var err error
+
+	for i := range retries + 1 {
+		// i = 0 is first call and not a retry
+		err = m.Mount(dir)
+		if err == nil || i == retries {
+			return err
+		}
+		if strings.Contains(err.Error(), errStr) {
+			time.Sleep(time.Duration(i+1) * backoff)
+		} else {
+			return err
+		}
+	}
+
+	return err
 }
 
 func (lm *localMounter) Unmount() error {

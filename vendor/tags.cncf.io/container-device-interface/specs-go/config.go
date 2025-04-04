@@ -2,72 +2,71 @@ package specs
 
 import "os"
 
-// CurrentVersion is the current version of the Spec.
-const CurrentVersion = "0.8.0"
-
 // Spec is the base configuration for CDI
 type Spec struct {
-	Version string `json:"cdiVersion"`
-	Kind    string `json:"kind"`
+	Version string `json:"cdiVersion" yaml:"cdiVersion"`
+	Kind    string `json:"kind"       yaml:"kind"`
 	// Annotations add meta information per CDI spec. Note these are CDI-specific and do not affect container metadata.
-	Annotations    map[string]string `json:"annotations,omitempty"`
-	Devices        []Device          `json:"devices"`
-	ContainerEdits ContainerEdits    `json:"containerEdits,omitempty"`
+	// Added in v0.6.0.
+	Annotations    map[string]string `json:"annotations,omitempty"    yaml:"annotations,omitempty"`
+	Devices        []Device          `json:"devices"                  yaml:"devices"`
+	ContainerEdits ContainerEdits    `json:"containerEdits,omitempty" yaml:"containerEdits,omitempty"`
 }
 
 // Device is a "Device" a container runtime can add to a container
 type Device struct {
-	Name string `json:"name"`
+	Name string `json:"name" yaml:"name"`
 	// Annotations add meta information per device. Note these are CDI-specific and do not affect container metadata.
-	Annotations    map[string]string `json:"annotations,omitempty"`
-	ContainerEdits ContainerEdits    `json:"containerEdits"`
+	// Added in v0.6.0.
+	Annotations    map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty"`
+	ContainerEdits ContainerEdits    `json:"containerEdits"        yaml:"containerEdits"`
 }
 
 // ContainerEdits are edits a container runtime must make to the OCI spec to expose the device.
 type ContainerEdits struct {
-	Env            []string      `json:"env,omitempty"`
-	DeviceNodes    []*DeviceNode `json:"deviceNodes,omitempty"`
-	Hooks          []*Hook       `json:"hooks,omitempty"`
-	Mounts         []*Mount      `json:"mounts,omitempty"`
-	IntelRdt       *IntelRdt     `json:"intelRdt,omitempty"`
-	AdditionalGIDs []uint32      `json:"additionalGids,omitempty"`
+	Env            []string      `json:"env,omitempty"            yaml:"env,omitempty"`
+	DeviceNodes    []*DeviceNode `json:"deviceNodes,omitempty"    yaml:"deviceNodes,omitempty"`
+	Hooks          []*Hook       `json:"hooks,omitempty"          yaml:"hooks,omitempty"`
+	Mounts         []*Mount      `json:"mounts,omitempty"         yaml:"mounts,omitempty"`
+	IntelRdt       *IntelRdt     `json:"intelRdt,omitempty"       yaml:"intelRdt,omitempty"`       // Added in v0.7.0
+	AdditionalGIDs []uint32      `json:"additionalGids,omitempty" yaml:"additionalGids,omitempty"` // Added in v0.7.0
 }
 
 // DeviceNode represents a device node that needs to be added to the OCI spec.
 type DeviceNode struct {
-	Path        string       `json:"path"`
-	HostPath    string       `json:"hostPath,omitempty"`
-	Type        string       `json:"type,omitempty"`
-	Major       int64        `json:"major,omitempty"`
-	Minor       int64        `json:"minor,omitempty"`
-	FileMode    *os.FileMode `json:"fileMode,omitempty"`
-	Permissions string       `json:"permissions,omitempty"`
-	UID         *uint32      `json:"uid,omitempty"`
-	GID         *uint32      `json:"gid,omitempty"`
+	Path        string       `json:"path"                  yaml:"path"`
+	HostPath    string       `json:"hostPath,omitempty"    yaml:"hostPath,omitempty"` // Added in v0.5.0
+	Type        string       `json:"type,omitempty"        yaml:"type,omitempty"`
+	Major       int64        `json:"major,omitempty"       yaml:"major,omitempty"`
+	Minor       int64        `json:"minor,omitempty"       yaml:"minor,omitempty"`
+	FileMode    *os.FileMode `json:"fileMode,omitempty"    yaml:"fileMode,omitempty"`
+	Permissions string       `json:"permissions,omitempty" yaml:"permissions,omitempty"`
+	UID         *uint32      `json:"uid,omitempty"         yaml:"uid,omitempty"`
+	GID         *uint32      `json:"gid,omitempty"         yaml:"gid,omitempty"`
 }
 
 // Mount represents a mount that needs to be added to the OCI spec.
 type Mount struct {
-	HostPath      string   `json:"hostPath"`
-	ContainerPath string   `json:"containerPath"`
-	Options       []string `json:"options,omitempty"`
-	Type          string   `json:"type,omitempty"`
+	HostPath      string   `json:"hostPath"          yaml:"hostPath"`
+	ContainerPath string   `json:"containerPath"     yaml:"containerPath"`
+	Options       []string `json:"options,omitempty" yaml:"options,omitempty"`
+	Type          string   `json:"type,omitempty"    yaml:"type,omitempty"` // Added in v0.4.0
 }
 
 // Hook represents a hook that needs to be added to the OCI spec.
 type Hook struct {
-	HookName string   `json:"hookName"`
-	Path     string   `json:"path"`
-	Args     []string `json:"args,omitempty"`
-	Env      []string `json:"env,omitempty"`
-	Timeout  *int     `json:"timeout,omitempty"`
+	HookName string   `json:"hookName"          yaml:"hookName"`
+	Path     string   `json:"path"              yaml:"path"`
+	Args     []string `json:"args,omitempty"    yaml:"args,omitempty"`
+	Env      []string `json:"env,omitempty"     yaml:"env,omitempty"`
+	Timeout  *int     `json:"timeout,omitempty" yaml:"timeout,omitempty"`
 }
 
 // IntelRdt describes the Linux IntelRdt parameters to set in the OCI spec.
 type IntelRdt struct {
-	ClosID        string `json:"closID,omitempty"`
-	L3CacheSchema string `json:"l3CacheSchema,omitempty"`
-	MemBwSchema   string `json:"memBwSchema,omitempty"`
-	EnableCMT     bool   `json:"enableCMT,omitempty"`
-	EnableMBM     bool   `json:"enableMBM,omitempty"`
+	ClosID        string `json:"closID,omitempty"        yaml:"closID,omitempty"`
+	L3CacheSchema string `json:"l3CacheSchema,omitempty" yaml:"l3CacheSchema,omitempty"`
+	MemBwSchema   string `json:"memBwSchema,omitempty"   yaml:"memBwSchema,omitempty"`
+	EnableCMT     bool   `json:"enableCMT,omitempty"     yaml:"enableCMT,omitempty"`
+	EnableMBM     bool   `json:"enableMBM,omitempty"     yaml:"enableMBM,omitempty"`
 }

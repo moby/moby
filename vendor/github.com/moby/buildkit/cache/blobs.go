@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"slices"
 	"strconv"
 
 	"github.com/containerd/containerd/v2/core/diff"
@@ -418,10 +419,8 @@ func isTypeWindows(sr *immutableRef) bool {
 	}
 	switch sr.kind() {
 	case Merge:
-		for _, p := range sr.mergeParents {
-			if isTypeWindows(p) {
-				return true
-			}
+		if slices.ContainsFunc(sr.mergeParents, isTypeWindows) {
+			return true
 		}
 	case Layer:
 		return isTypeWindows(sr.layerParent)

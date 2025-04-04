@@ -3,6 +3,7 @@ package llbsolver
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/containerd/platforms"
@@ -18,7 +19,7 @@ import (
 )
 
 type vertex struct {
-	sys     interface{}
+	sys     any
 	options solver.VertexOptions
 	inputs  []solver.Edge
 	digest  digest.Digest
@@ -29,7 +30,7 @@ func (v *vertex) Digest() digest.Digest {
 	return v.digest
 }
 
-func (v *vertex) Sys() interface{} {
+func (v *vertex) Sys() any {
 	return v.sys
 }
 
@@ -103,7 +104,7 @@ func NormalizeRuntimePlatforms() LoadOpt {
 			OSVersion:    normalizedPlatform.OSVersion,
 		}
 		if normalizedPlatform.OSFeatures != nil {
-			op.Platform.OSFeatures = append([]string{}, normalizedPlatform.OSFeatures...)
+			op.Platform.OSFeatures = slices.Clone(normalizedPlatform.OSFeatures)
 		}
 
 		return nil
@@ -135,6 +136,11 @@ func ValidateEntitlements(ent entitlements.Set, cdiManager *cdidevices.Manager) 
 
 				var allowedDevices []*pb.CDIDevice
 				var nonAliasedDevices []*pb.CDIDevice
+				for _, d := range cdiManager.ListDevices() {
+					if d.OnDemand && d.AutoAllow {
+						allowedDevices = append(allowedDevices, &pb.CDIDevice{Name: d.Name})
+					}
+				}
 				if cfg != nil {
 					for _, d := range op.Exec.CdiDevices {
 						if newName, ok := cfg.Devices[d.Name]; ok && newName != "" {

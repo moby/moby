@@ -1,5 +1,5 @@
-//go:build !windows
-// +build !windows
+//go:build !windows && !darwin
+// +build !windows,!darwin
 
 /*
    Copyright © 2021 The CDI Authors

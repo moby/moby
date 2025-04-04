@@ -113,7 +113,7 @@ func sortConfig(cc *CacheConfig) {
 }
 
 func outputKey(dgst digest.Digest, idx int) digest.Digest {
-	return digest.FromBytes([]byte(fmt.Sprintf("%s@%d", dgst, idx)))
+	return digest.FromBytes(fmt.Appendf(nil, "%s@%d", dgst, idx))
 }
 
 type nlink struct {
@@ -232,7 +232,7 @@ func normalizeItem(it *item, state *normalizeState) (*item, error) {
 	} else {
 		// keep tmp IDs deterministic
 		state.next++
-		id = digest.FromBytes([]byte(fmt.Sprintf("%d", state.next)))
+		id = digest.FromBytes(fmt.Appendf(nil, "%d", state.next))
 		state.byKey[id] = it
 		it.links = make([]map[link]struct{}, len(it.links))
 		for i := range it.links {

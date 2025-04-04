@@ -148,9 +148,11 @@ func (bc *Client) BuildOpts() client.BuildOpts {
 func (bc *Client) init() error {
 	opts := bc.bopts.Opts
 
-	defaultBuildPlatform := platforms.Normalize(platforms.DefaultSpec())
+	var defaultBuildPlatform ocispecs.Platform
 	if workers := bc.bopts.Workers; len(workers) > 0 && len(workers[0].Platforms) > 0 {
 		defaultBuildPlatform = workers[0].Platforms[0]
+	} else {
+		defaultBuildPlatform = platforms.Normalize(platforms.DefaultSpec())
 	}
 	buildPlatforms := []ocispecs.Platform{defaultBuildPlatform}
 	targetPlatforms := []ocispecs.Platform{}
@@ -459,9 +461,11 @@ func (bc *Client) NamedContext(name string, opt ContextOpt) (*NamedContext, erro
 	}
 	name = strings.TrimSuffix(reference.FamiliarString(named), ":latest")
 
-	pp := platforms.DefaultSpec()
+	var pp ocispecs.Platform
 	if opt.Platform != nil {
 		pp = *opt.Platform
+	} else {
+		pp = platforms.DefaultSpec()
 	}
 	pname := name + "::" + platforms.FormatAll(platforms.Normalize(pp))
 	nc, err := bc.namedContext(name, pname, opt)

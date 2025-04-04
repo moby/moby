@@ -389,14 +389,11 @@ func (gwCtr *gatewayContainer) loadSecretEnv(ctx context.Context, secretEnv []*p
 		err = gwCtr.sm.Any(ctx, gwCtr.group, func(ctx context.Context, _ string, caller session.Caller) error {
 			dt, err = secrets.GetSecret(ctx, caller, id)
 			if err != nil {
-				if errors.Is(err, secrets.ErrNotFound) && sopt.Optional {
-					return nil
-				}
 				return err
 			}
 			return nil
 		})
-		if err != nil {
+		if err != nil && !(errors.Is(err, secrets.ErrNotFound) && sopt.Optional) {
 			return nil, err
 		}
 		out = append(out, fmt.Sprintf("%s=%s", sopt.Name, string(dt)))

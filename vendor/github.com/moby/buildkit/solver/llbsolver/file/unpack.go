@@ -9,10 +9,11 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/sys/user"
 	copy "github.com/tonistiigi/fsutil/copy"
 )
 
-func unpack(srcRoot string, src string, destRoot string, dest string, ch copy.Chowner, tm *time.Time, idmap *idtools.IdentityMapping) (bool, error) {
+func unpack(srcRoot string, src string, destRoot string, dest string, ch copy.Chowner, tm *time.Time, idmap *user.IdentityMapping) (bool, error) {
 	src, err := fs.RootPath(srcRoot, src)
 	if err != nil {
 		return false, err
@@ -39,7 +40,23 @@ func unpack(srcRoot string, src string, destRoot string, dest string, ch copy.Ch
 		BestEffortXattrs: true,
 	}
 	if idmap != nil {
-		opts.IDMap = *idmap
+		// TODO: chrootarchive should be moved into moby/sys like idtools
+		// was moved into moby/sys/user. This section can be removed
+		// when chrootarchive accepts moby/sys/user arguments.
+		for _, uid := range idmap.UIDMaps {
+			opts.IDMap.UIDMaps = append(opts.IDMap.UIDMaps, idtools.IDMap{
+				ContainerID: int(uid.ID),
+				HostID:      int(uid.ParentID),
+				Size:        int(uid.Count),
+			})
+		}
+		for _, gid := range idmap.GIDMaps {
+			opts.IDMap.GIDMaps = append(opts.IDMap.GIDMaps, idtools.IDMap{
+				ContainerID: int(gid.ID),
+				HostID:      int(gid.ParentID),
+				Size:        int(gid.Count),
+			})
+		}
 	}
 	return true, chrootarchive.Untar(file, dest, opts)
 }

@@ -148,14 +148,16 @@ func parseDirective(key string, dt []byte, anyFormat bool) (string, string, []Ra
 	}
 
 	// use json directive, and search for { "key": "..." }
-	jsonDirective := map[string]string{}
+	jsonDirective := map[string]any{}
 	if err := json.Unmarshal(dt, &jsonDirective); err == nil {
-		if v, ok := jsonDirective[key]; ok {
-			loc := []Range{{
-				Start: Position{Line: line},
-				End:   Position{Line: line},
-			}}
-			return v, v, loc, true
+		if vAny, ok := jsonDirective[key]; ok {
+			if v, ok := vAny.(string); ok {
+				loc := []Range{{
+					Start: Position{Line: line},
+					End:   Position{Line: line},
+				}}
+				return v, v, loc, true
+			}
 		}
 	}
 

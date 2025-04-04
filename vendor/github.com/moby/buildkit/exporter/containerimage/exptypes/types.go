@@ -9,6 +9,7 @@ import (
 
 const (
 	ExporterConfigDigestKey      = "config.digest"
+	ExporterImageNameKey         = "image.name"
 	ExporterImageDigestKey       = "containerimage.digest"
 	ExporterImageConfigKey       = "containerimage.config"
 	ExporterImageConfigDigestKey = "containerimage.config.digest"

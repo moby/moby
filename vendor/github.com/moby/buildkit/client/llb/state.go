@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"net"
+	"slices"
 	"strings"
 
 	"github.com/containerd/platforms"
@@ -59,8 +60,8 @@ func NewState(o Output) State {
 type State struct {
 	out   Output
 	prev  *State
-	key   interface{}
-	value func(context.Context, *Constraints) (interface{}, error)
+	key   any
+	value func(context.Context, *Constraints) (any, error)
 	opts  []ConstraintsOpt
 	async *asyncState
 }
@@ -76,13 +77,13 @@ func (s State) ensurePlatform() State {
 	return s
 }
 
-func (s State) WithValue(k, v interface{}) State {
-	return s.withValue(k, func(context.Context, *Constraints) (interface{}, error) {
+func (s State) WithValue(k, v any) State {
+	return s.withValue(k, func(context.Context, *Constraints) (any, error) {
 		return v, nil
 	})
 }
 
-func (s State) withValue(k interface{}, v func(context.Context, *Constraints) (interface{}, error)) State {
+func (s State) withValue(k any, v func(context.Context, *Constraints) (any, error)) State {
 	return State{
 		out:   s.Output(),
 		prev:  &s, // doesn't need to be original pointer
@@ -91,7 +92,7 @@ func (s State) withValue(k interface{}, v func(context.Context, *Constraints) (i
 	}
 }
 
-func (s State) Value(ctx context.Context, k interface{}, co ...ConstraintsOpt) (interface{}, error) {
+func (s State) Value(ctx context.Context, k any, co ...ConstraintsOpt) (any, error) {
 	c := &Constraints{}
 	for _, f := range co {
 		f.SetConstraintsOption(c)
@@ -99,12 +100,12 @@ func (s State) Value(ctx context.Context, k interface{}, co ...ConstraintsOpt) (
 	return s.getValue(k)(ctx, c)
 }
 
-func (s State) getValue(k interface{}) func(context.Context, *Constraints) (interface{}, error) {
+func (s State) getValue(k any) func(context.Context, *Constraints) (any, error) {
 	if s.key == k {
 		return s.value
 	}
 	if s.async != nil {
-		return func(ctx context.Context, c *Constraints) (interface{}, error) {
+		return func(ctx context.Context, c *Constraints) (any, error) {
 			target, err := s.async.Do(ctx, c)
 			if err != nil {
 				return nil, err
@@ -271,7 +272,7 @@ func (s State) WithImageConfig(c []byte) (State, error) {
 			OSVersion:    img.OSVersion,
 		}
 		if img.OSFeatures != nil {
-			plat.OSFeatures = append([]string{}, img.OSFeatures...)
+			plat.OSFeatures = slices.Clone(img.OSFeatures)
 		}
 		s = s.Platform(plat)
 	}
@@ -321,7 +322,7 @@ func (s State) AddEnv(key, value string) State {
 }
 
 // AddEnvf is the same as [State.AddEnv] but with a format string.
-func (s State) AddEnvf(key, value string, v ...interface{}) State {
+func (s State) AddEnvf(key, value string, v ...any) State {
 	return AddEnvf(key, value, v...)(s)
 }
 
@@ -332,7 +333,7 @@ func (s State) Dir(str string) State {
 }
 
 // Dirf is the same as [State.Dir] but with a format string.
-func (s State) Dirf(str string, v ...interface{}) State {
+func (s State) Dirf(str string, v ...any) State {
 	return Dirf(str, v...)(s)
 }
 
@@ -608,7 +609,7 @@ func WithCustomName(name string) ConstraintsOpt {
 	})
 }
 
-func WithCustomNamef(name string, a ...interface{}) ConstraintsOpt {
+func WithCustomNamef(name string, a ...any) ConstraintsOpt {
 	return WithCustomName(fmt.Sprintf(name, a...))
 }
 
@@ -746,6 +747,6 @@ func Require(filters ...string) ConstraintsOpt {
 	})
 }
 
-func nilValue(context.Context, *Constraints) (interface{}, error) {
+func nilValue(context.Context, *Constraints) (any, error) {
 	return nil, nil
 }
