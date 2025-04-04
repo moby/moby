@@ -24,6 +24,9 @@ type Service struct {
 // an engine.
 func NewService(options ServiceOptions) (*Service, error) {
 	config, err := newServiceConfig(options)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Service{config: config}, err
 }
