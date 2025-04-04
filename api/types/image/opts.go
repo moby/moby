@@ -106,6 +106,11 @@ type LoadOptions struct {
 type InspectOptions struct {
 	// Manifests returns the image manifests.
 	Manifests bool
+
+	// Platform selects the specific platform of a multi-platform image to inspect.
+	//
+	// This option is only available for API version 1.49 and up.
+	Platform *ocispec.Platform
 }
 
 // SaveOptions holds parameters to save images.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"github.com/docker/docker/api/types/image"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageInspectOption is a type representing functional options for the image inspect operation.
@@ -32,6 +33,17 @@ func ImageInspectWithRawResponse(raw *bytes.Buffer) ImageInspectOption {
 func ImageInspectWithManifests(manifests bool) ImageInspectOption {
 	return imageInspectOptionFunc(func(clientOpts *imageInspectOpts) error {
 		clientOpts.apiOptions.Manifests = manifests
+		return nil
+	})
+}
+
+// ImageInspectWithPlatform sets platform API option for the image inspect operation.
+// This option is only available for API version 1.49 and up.
+// With this option set, the image inspect operation will return information for the
+// specified platform variant of the multi-platform image.
+func ImageInspectWithPlatform(platform *ocispec.Platform) ImageInspectOption {
+	return imageInspectOptionFunc(func(clientOpts *imageInspectOpts) error {
+		clientOpts.apiOptions.Platform = platform
 		return nil
 	})
 }

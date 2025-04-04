@@ -341,8 +341,22 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 		manifests = httputils.BoolValue(r, "manifests")
 	}
 
+	var platform *ocispec.Platform
+	if r.Form.Get("platform") != "" && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.49") {
+		p, err := httputils.DecodePlatform(r.Form.Get("platform"))
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		platform = p
+	}
+
+	if manifests && platform != nil {
+		return errdefs.InvalidParameter(errors.New("conflicting options: manifests and platform options cannot both be set"))
+	}
+
 	imageInspect, err := ir.backend.ImageInspect(ctx, vars["name"], backend.ImageInspectOpts{
 		Manifests: manifests,
+		Platform:  platform,
 	})
 	if err != nil {
 		return err
