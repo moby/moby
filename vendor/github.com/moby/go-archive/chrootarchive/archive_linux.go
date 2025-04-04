@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/docker/docker/pkg/archive"
 	"golang.org/x/sys/unix"
+
+	"github.com/moby/go-archive"
 )
 
 func doUnpack(decompressedArchive io.Reader, relDest, root string, options *archive.TarOptions) error {
