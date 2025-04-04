@@ -3,13 +3,31 @@
 # TINI_VERSION specifies the version of tini (docker-init) to build, and install
 # from the https://github.com/krallin/tini repository. This binary is used
 # when starting containers with the `--init` option.
-: "${TINI_VERSION:=v0.19.0}"
+: "${TINI_VERSION:=v0.19.0@de40ad007797e0dcd8b7126f27bb87401d224240}"
+
+git_checkout_tag_with_hash() {
+	TAG="$(echo "$1" | cut -d@ -f1)"
+	HASH=""
+	case "$1" in
+		*@*)
+			HASH="$(echo "$1" | cut -d@ -f2)"
+			;;
+	esac
+	git checkout "$TAG"
+	HEAD="$(git rev-parse HEAD)"
+	if [ -z "$HASH" ]; then
+		echo >&2 "WARNING: ${TAG}: commit hash was not specified (got ${HEAD})"
+	elif [ "$HEAD" != "$HASH" ]; then
+		echo >&2 "ERROR: ${TAG}: expected ${HASH}, got ${HEAD}"
+		exit 1
+	fi
+}
 
 install_tini() {
 	echo "Install tini version $TINI_VERSION"
 	git clone https://github.com/krallin/tini.git "$GOPATH/tini"
 	cd "$GOPATH/tini"
-	git checkout -q "$TINI_VERSION"
+	git_checkout_tag_with_hash "$TINI_VERSION"
 	cmake .
 	make tini-static
 	mkdir -p "${PREFIX}"
