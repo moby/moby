@@ -67,7 +67,7 @@ func (d *Device) edits() *ContainerEdits {
 
 // Validate the device.
 func (d *Device) validate() error {
-	if err := ValidateDeviceName(d.Name); err != nil {
+	if err := parser.ValidateDeviceName(d.Name); err != nil {
 		return err
 	}
 	name := d.Name

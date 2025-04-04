@@ -1,5 +1,5 @@
-//go:build !windows && !darwin
-// +build !windows,!darwin
+//go:build darwin
+// +build darwin
 
 /*
    Copyright © 2021 The CDI Authors
@@ -22,5 +22,5 @@ package cdi
 import "syscall"
 
 func osSync() {
-	syscall.Sync()
+	_ = syscall.Sync()
 }
