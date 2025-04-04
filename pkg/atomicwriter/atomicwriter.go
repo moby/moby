@@ -1,3 +1,5 @@
+// Package atomicwriter provides utilities to perform atomic writes to a
+// file or set of files.
 package atomicwriter
 
 import (
@@ -6,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"syscall"
 
 	"github.com/moby/sys/sequential"
 )
@@ -14,35 +17,33 @@ func validateDestination(fileName string) error {
 	if fileName == "" {
 		return errors.New("file name is empty")
 	}
+	if dir := filepath.Dir(fileName); dir != "" && dir != "." && dir != ".." {
+		di, err := os.Stat(dir)
+		if err != nil {
+			return fmt.Errorf("invalid output path: %w", err)
+		}
+		if !di.IsDir() {
+			return fmt.Errorf("invalid output path: %w", &os.PathError{Op: "stat", Path: dir, Err: syscall.ENOTDIR})
+		}
+	}
 
 	// Deliberately using Lstat here to match the behavior of [os.Rename],
 	// which is used when completing the write and does not resolve symlinks.
-	//
-	// TODO(thaJeztah): decide whether we want to disallow symlinks or to follow them.
-	if fi, err := os.Lstat(fileName); err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("failed to stat output path: %w", err)
+	fi, err := os.Lstat(fileName)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
 		}
-	} else if err := validateFileMode(fi.Mode()); err != nil {
-		return err
+		return fmt.Errorf("failed to stat output path: %w", err)
 	}
-	if dir := filepath.Dir(fileName); dir != "" && dir != "." {
-		if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("invalid file path: %w", err)
-		}
-	}
-	return nil
-}
 
-func validateFileMode(mode os.FileMode) error {
-	switch {
+	switch mode := fi.Mode(); {
 	case mode.IsRegular():
 		return nil // Regular file
 	case mode&os.ModeDir != 0:
 		return errors.New("cannot write to a directory")
-	// TODO(thaJeztah): decide whether we want to disallow symlinks or to follow them.
-	// case mode&os.ModeSymlink != 0:
-	// 	return errors.New("cannot write to a symbolic link directly")
+	case mode&os.ModeSymlink != 0:
+		return errors.New("cannot write to a symbolic link directly")
 	case mode&os.ModeNamedPipe != 0:
 		return errors.New("cannot write to a named pipe (FIFO)")
 	case mode&os.ModeSocket != 0:
@@ -59,8 +60,7 @@ func validateFileMode(mode os.FileMode) error {
 	case mode&os.ModeSticky != 0:
 		return errors.New("cannot write to a sticky bit file")
 	default:
-		// Unknown file mode; let's assume it works
-		return nil
+		return fmt.Errorf("unknown file mode: %[1]s (%#[1]o)", mode)
 	}
 }
 
@@ -95,7 +95,12 @@ func New(filename string, perm os.FileMode) (io.WriteCloser, error) {
 	}, nil
 }
 
-// WriteFile atomically writes data to a file named by filename and with the specified permission bits.
+// WriteFile atomically writes data to a file named by filename and with the
+// specified permission bits. The given filename is created if it does not exist,
+// but the destination directory must exist. It can be used as a drop-in replacement
+// for [os.WriteFile], but currently does not allow the destination path to be
+// a symlink. WriteFile is implemented using [New] for its implementation.
+//
 // NOTE: umask is not considered for the file's permissions.
 func WriteFile(filename string, data []byte, perm os.FileMode) error {
 	f, err := New(filename, perm)
