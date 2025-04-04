@@ -248,8 +248,21 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 			if nameFromArchive == "" {
 				return false
 			}
-			_, err := reference.ParseNormalizedNamed(nameFromArchive)
-			return err == nil
+
+			ref, err := reference.ParseNormalizedNamed(nameFromArchive)
+			if err != nil {
+				return false
+			}
+
+			// Look up if there is an existing image with this name and ensure a dangling image exists.
+			if img, err := i.images.Get(ctx, ref.String()); err == nil {
+				if err := i.ensureDanglingImage(ctx, img); err != nil {
+					log.G(ctx).WithError(err).Warnf("failed to keep the previous image for %s as dangling", img.Name)
+				}
+			} else if !errdefs.IsNotFound(err) {
+				log.G(ctx).WithError(err).Warn("failed to retrieve image: %w", err)
+			}
+			return true
 		}),
 	}
 
