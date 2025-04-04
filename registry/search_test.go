@@ -17,7 +17,7 @@ import (
 
 func spawnTestRegistrySession(t *testing.T) *session {
 	authConfig := &registry.AuthConfig{}
-	endpoint, err := newV1Endpoint(makeIndex("/v1/"), nil)
+	endpoint, err := newV1Endpoint(context.Background(), makeIndex("/v1/"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

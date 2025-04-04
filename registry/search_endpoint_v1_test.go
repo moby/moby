@@ -1,6 +1,7 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,11 +14,11 @@ import (
 
 func TestV1EndpointPing(t *testing.T) {
 	testPing := func(index *registry.IndexInfo, expectedStandalone bool, assertMessage string) {
-		ep, err := newV1Endpoint(index, nil)
+		ep, err := newV1Endpoint(context.Background(), index, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
-		regInfo, err := ep.ping()
+		regInfo, err := ep.ping(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -33,7 +34,7 @@ func TestV1EndpointPing(t *testing.T) {
 func TestV1Endpoint(t *testing.T) {
 	// Simple wrapper to fail test if err != nil
 	expandEndpoint := func(index *registry.IndexInfo) *v1Endpoint {
-		endpoint, err := newV1Endpoint(index, nil)
+		endpoint, err := newV1Endpoint(context.Background(), index, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -42,14 +43,14 @@ func TestV1Endpoint(t *testing.T) {
 
 	assertInsecureIndex := func(index *registry.IndexInfo) {
 		index.Secure = true
-		_, err := newV1Endpoint(index, nil)
+		_, err := newV1Endpoint(context.Background(), index, nil)
 		assert.ErrorContains(t, err, "insecure-registry", index.Name+": Expected insecure-registry  error for insecure index")
 		index.Secure = false
 	}
 
 	assertSecureIndex := func(index *registry.IndexInfo) {
 		index.Secure = true
-		_, err := newV1Endpoint(index, nil)
+		_, err := newV1Endpoint(context.Background(), index, nil)
 		assert.ErrorContains(t, err, "certificate signed by unknown authority", index.Name+": Expected cert error for secure index")
 		index.Secure = false
 	}
@@ -96,7 +97,7 @@ func TestV1Endpoint(t *testing.T) {
 	}
 	for _, address := range badEndpoints {
 		index.Name = address
-		_, err := newV1Endpoint(index, nil)
+		_, err := newV1Endpoint(context.Background(), index, nil)
 		assert.Check(t, err != nil, "Expected error while expanding bad endpoint: %s", address)
 	}
 }
@@ -162,7 +163,7 @@ func TestV1EndpointValidate(t *testing.T) {
 	testServer := httptest.NewServer(requireBasicAuthHandler)
 	defer testServer.Close()
 
-	testEndpoint, err := newV1Endpoint(&registry.IndexInfo{Name: testServer.URL}, nil)
+	testEndpoint, err := newV1Endpoint(context.Background(), &registry.IndexInfo{Name: testServer.URL}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
