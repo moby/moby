@@ -74,9 +74,12 @@ func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, use
 	// Lookup endpoints for authentication but exclude mirrors to prevent
 	// sending credentials of the upstream registry to a mirror.
 	s.mu.RLock()
-	endpoints, err := s.lookupV2Endpoints(registryHostName, false)
+	endpoints, err := s.lookupV2Endpoints(ctx, registryHostName, false)
 	s.mu.RUnlock()
 	if err != nil {
+		if errdefs.IsContext(err) {
+			return "", "", err
+		}
 		return "", "", invalidParam(err)
 	}
 
@@ -149,7 +152,7 @@ func (s *Service) LookupPullEndpoints(hostname string) (endpoints []APIEndpoint,
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.lookupV2Endpoints(hostname, true)
+	return s.lookupV2Endpoints(context.TODO(), hostname, true)
 }
 
 // LookupPushEndpoints creates a list of v2 endpoints to try to push to, in order of preference.
@@ -158,7 +161,7 @@ func (s *Service) LookupPushEndpoints(hostname string) (endpoints []APIEndpoint,
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.lookupV2Endpoints(hostname, false)
+	return s.lookupV2Endpoints(context.TODO(), hostname, false)
 }
 
 // IsInsecureRegistry returns true if the registry at given host is configured as

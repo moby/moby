@@ -8,12 +8,14 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 )
 
-func (s *Service) lookupV2Endpoints(hostname string, includeMirrors bool) ([]APIEndpoint, error) {
-	ctx := context.TODO()
+func (s *Service) lookupV2Endpoints(ctx context.Context, hostname string, includeMirrors bool) ([]APIEndpoint, error) {
 	var endpoints []APIEndpoint
 	if hostname == DefaultNamespace || hostname == IndexHostname {
 		if includeMirrors {
 			for _, mirror := range s.config.Mirrors {
+				if ctx.Err() != nil {
+					return nil, ctx.Err()
+				}
 				if !strings.HasPrefix(mirror, "http://") && !strings.HasPrefix(mirror, "https://") {
 					mirror = "https://" + mirror
 				}
