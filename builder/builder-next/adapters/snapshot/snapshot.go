@@ -18,6 +18,7 @@ import (
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/locker"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
@@ -36,7 +37,7 @@ type Opt struct {
 	GraphDriver     graphdriver.Driver
 	LayerStore      layer.Store
 	Root            string
-	IdentityMapping idtools.IdentityMapping
+	IdentityMapping user.IdentityMapping
 }
 
 type graphIDRegistrar interface {
@@ -112,7 +113,9 @@ func (s *snapshotter) IdentityMapping() *idtools.IdentityMapping {
 	if s.opt.IdentityMapping.Empty() {
 		return nil
 	}
-	return &s.opt.IdentityMapping
+	// TODO: Update this once BuildKit switches from idtools
+	idMap := idtools.FromUserIdentityMapping(s.opt.IdentityMapping)
+	return &idMap
 }
 
 func (s *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) error {
@@ -494,7 +497,7 @@ type mountable struct {
 	acquire  func() ([]mount.Mount, func() error, error)
 	release  func() error
 	refCount int
-	idmap    idtools.IdentityMapping
+	idmap    user.IdentityMapping
 }
 
 func (m *mountable) Mount() ([]mount.Mount, func() error, error) {
@@ -544,5 +547,7 @@ func (m *mountable) IdentityMapping() *idtools.IdentityMapping {
 	if m.idmap.Empty() {
 		return nil
 	}
-	return &m.idmap
+	// TODO: Update this once BuildKit switches from idtools
+	idtoolsMap := idtools.FromUserIdentityMapping(m.idmap)
+	return &idtoolsMap
 }

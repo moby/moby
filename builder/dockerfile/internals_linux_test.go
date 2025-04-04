@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/sys/user"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -28,15 +28,15 @@ othergrp:x:6666:
 		`,
 	}
 	// test mappings for validating use of maps
-	idMaps := []idtools.IDMap{
+	idMaps := []user.IDMap{
 		{
-			ContainerID: 0,
-			HostID:      100000,
-			Size:        65536,
+			ID:       0,
+			ParentID: 100000,
+			Count:    65536,
 		},
 	}
-	remapped := idtools.IdentityMapping{UIDMaps: idMaps, GIDMaps: idMaps}
-	unmapped := idtools.IdentityMapping{}
+	remapped := user.IdentityMapping{UIDMaps: idMaps, GIDMaps: idMaps}
+	unmapped := user.IdentityMapping{}
 
 	contextDir, cleanup := createTestTempDir(t, "", "builder-chown-parse-test")
 	defer cleanup()
@@ -54,9 +54,9 @@ othergrp:x:6666:
 		builder   *Builder
 		name      string
 		chownStr  string
-		idMapping idtools.IdentityMapping
+		idMapping user.IdentityMapping
 		state     *dispatchState
-		expected  idtools.Identity
+		expected  identity
 	}{
 		{
 			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
@@ -64,7 +64,7 @@ othergrp:x:6666:
 			chownStr:  "1",
 			idMapping: unmapped,
 			state:     &dispatchState{},
-			expected:  idtools.Identity{UID: 1, GID: 1},
+			expected:  identity{UID: 1, GID: 1},
 		},
 		{
 			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
@@ -72,7 +72,7 @@ othergrp:x:6666:
 			chownStr:  "0:1",
 			idMapping: unmapped,
 			state:     &dispatchState{},
-			expected:  idtools.Identity{UID: 0, GID: 1},
+			expected:  identity{UID: 0, GID: 1},
 		},
 		{
 			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
@@ -80,7 +80,7 @@ othergrp:x:6666:
 			chownStr:  "0",
 			idMapping: remapped,
 			state:     &dispatchState{},
-			expected:  idtools.Identity{UID: 100000, GID: 100000},
+			expected:  identity{UID: 100000, GID: 100000},
 		},
 		{
 			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
@@ -88,7 +88,7 @@ othergrp:x:6666:
 			chownStr:  "1:33",
 			idMapping: remapped,
 			state:     &dispatchState{},
-			expected:  idtools.Identity{UID: 100001, GID: 100033},
+			expected:  identity{UID: 100001, GID: 100033},
 		},
 		{
 			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
@@ -96,7 +96,7 @@ othergrp:x:6666:
 			chownStr:  "bin:5555",
 			idMapping: unmapped,
 			state:     &dispatchState{},
-			expected:  idtools.Identity{UID: 1, GID: 5555},
+			expected:  identity{UID: 1, GID: 5555},
 		},
 		{
 			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
@@ -104,7 +104,7 @@ othergrp:x:6666:
 			chownStr:  "0:unicorn",
 			idMapping: remapped,
 			state:     &dispatchState{},
-			expected:  idtools.Identity{UID: 100000, GID: 101002},
+			expected:  identity{UID: 100000, GID: 101002},
 		},
 		{
 			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
@@ -112,7 +112,7 @@ othergrp:x:6666:
 			chownStr:  "unicorn",
 			idMapping: remapped,
 			state:     &dispatchState{},
-			expected:  idtools.Identity{UID: 101001, GID: 101002},
+			expected:  identity{UID: 101001, GID: 101002},
 		},
 	} {
 		t.Run(testcase.name, func(t *testing.T) {
@@ -127,7 +127,7 @@ othergrp:x:6666:
 		builder   *Builder
 		name      string
 		chownStr  string
-		idMapping idtools.IdentityMapping
+		idMapping user.IdentityMapping
 		state     *dispatchState
 		descr     string
 	}{

@@ -12,9 +12,9 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/locker"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/go-digest"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
@@ -46,7 +46,7 @@ type StoreOptions struct {
 	Root               string
 	GraphDriver        string
 	GraphDriverOptions []string
-	IDMapping          idtools.IdentityMapping
+	IDMapping          user.IdentityMapping
 }
 
 // NewStoreFromOptions creates a new Store instance

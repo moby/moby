@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/process"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/sys/mount"
@@ -578,5 +577,6 @@ func (daemon *Daemon) setupContainerMountsRoot(ctr *container.Container) error {
 	if err != nil {
 		return err
 	}
-	return idtools.MkdirAllAndChown(p, 0o710, idtools.Identity{UID: idtools.CurrentIdentity().UID, GID: daemon.IdentityMapping().RootPair().GID})
+	_, gid := daemon.IdentityMapping().RootPair()
+	return user.MkdirAllAndChown(p, 0o710, os.Getuid(), gid)
 }

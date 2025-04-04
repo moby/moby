@@ -1,7 +1,6 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/go-archive"
 )
 
@@ -10,6 +9,6 @@ import (
 func (daemon *Daemon) defaultTarCopyOptions(noOverwriteDirNonDir bool) *archive.TarOptions {
 	return &archive.TarOptions{
 		NoOverwriteDirNonDir: noOverwriteDirNonDir,
-		IDMap:                idtools.FromUserIdentityMapping(daemon.idMapping),
+		IDMap:                daemon.idMapping,
 	}
 }

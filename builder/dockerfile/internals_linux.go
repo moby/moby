@@ -6,17 +6,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/sys/symlink"
 	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
 )
 
-func parseChownFlag(ctx context.Context, builder *Builder, state *dispatchState, chown, ctrRootPath string, identityMapping idtools.IdentityMapping) (idtools.Identity, error) {
+func parseChownFlag(ctx context.Context, builder *Builder, state *dispatchState, chown, ctrRootPath string, identityMapping user.IdentityMapping) (identity, error) {
 	var userStr, grpStr string
 	parts := strings.Split(chown, ":")
 	if len(parts) > 2 {
-		return idtools.Identity{}, errors.New("invalid chown string format: " + chown)
+		return identity{}, errors.New("invalid chown string format: " + chown)
 	}
 	if len(parts) == 1 {
 		// if no group specified, use the user spec as group as well
@@ -27,27 +26,27 @@ func parseChownFlag(ctx context.Context, builder *Builder, state *dispatchState,
 
 	passwdPath, err := symlink.FollowSymlinkInScope(filepath.Join(ctrRootPath, "etc", "passwd"), ctrRootPath)
 	if err != nil {
-		return idtools.Identity{}, errors.Wrap(err, "can't resolve /etc/passwd path in container rootfs")
+		return identity{}, errors.Wrap(err, "can't resolve /etc/passwd path in container rootfs")
 	}
 	groupPath, err := symlink.FollowSymlinkInScope(filepath.Join(ctrRootPath, "etc", "group"), ctrRootPath)
 	if err != nil {
-		return idtools.Identity{}, errors.Wrap(err, "can't resolve /etc/group path in container rootfs")
+		return identity{}, errors.Wrap(err, "can't resolve /etc/group path in container rootfs")
 	}
 	uid, err := lookupUser(userStr, passwdPath)
 	if err != nil {
-		return idtools.Identity{}, errors.Wrap(err, "can't find uid for user "+userStr)
+		return identity{}, errors.Wrap(err, "can't find uid for user "+userStr)
 	}
 	gid, err := lookupGroup(grpStr, groupPath)
 	if err != nil {
-		return idtools.Identity{}, errors.Wrap(err, "can't find gid for group "+grpStr)
+		return identity{}, errors.Wrap(err, "can't find gid for group "+grpStr)
 	}
 
 	// convert as necessary because of user namespaces
-	chownPair, err := identityMapping.ToHost(idtools.Identity{UID: uid, GID: gid})
+	uid, gid, err = identityMapping.ToHost(uid, gid)
 	if err != nil {
-		return idtools.Identity{}, errors.Wrap(err, "unable to convert uid/gid to host mapping")
+		return identity{}, errors.Wrap(err, "unable to convert uid/gid to host mapping")
 	}
-	return chownPair, nil
+	return identity{UID: uid, GID: gid}, nil
 }
 
 func lookupUser(userStr, filepath string) (int, error) {
