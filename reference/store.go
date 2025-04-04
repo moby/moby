@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/pkg/atomicwriter"
+	"github.com/moby/sys/atomicwriter"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )

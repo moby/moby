@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/pkg/atomicwriter"
 	"github.com/google/uuid"
+	"github.com/moby/sys/atomicwriter"
 	"github.com/pkg/errors"
 )
 
