@@ -17,6 +17,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.49](https://docs.docker.com/reference/api/engine/version/v1.49/) documentation
 
+* Deprecated: The  `AllowNondistributableArtifactsCIDRs` and `AllowNondistributableArtifactsHostnames`
+  fields in the `RegistryConfig` struct in the `GET /info` response are omitted
+  in API v1.49.
+
 ## v1.48 API changes
 
 [Docker Engine API v1.48](https://docs.docker.com/reference/api/engine/version/v1.48/) documentation
