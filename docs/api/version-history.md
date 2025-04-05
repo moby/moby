@@ -17,6 +17,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.49](https://docs.docker.com/reference/api/engine/version/v1.49/) documentation
 
+* `GET /info` now returns a `FirewallBackend` containing information about
+  the daemon's firewalling configuration.
+
 ## v1.48 API changes
 
 [Docker Engine API v1.48](https://docs.docker.com/reference/api/engine/version/v1.48/) documentation

@@ -982,6 +982,29 @@ func (d *Daemon) Info(t testing.TB) system.Info {
 	return info
 }
 
+func (d *Daemon) FirewallBackendDriver(t testing.TB) string {
+	t.Helper()
+	info := d.Info(t)
+	assert.Assert(t, info.FirewallBackend != nil, "no firewall backend reported")
+	return info.FirewallBackend.Driver
+}
+
+// FirewallReloadedAt fetches the daemon's Info and, if it contains a firewall
+// reload time, returns that time.
+func (d *Daemon) FirewallReloadedAt(t testing.TB) string {
+	t.Helper()
+	info := d.Info(t)
+	if info.FirewallBackend == nil {
+		return ""
+	}
+	for _, kv := range info.FirewallBackend.Info {
+		if kv[0] == "ReloadedAt" {
+			return kv[1]
+		}
+	}
+	return ""
+}
+
 // TamperWithContainerConfig modifies the on-disk config of a container.
 func (d *Daemon) TamperWithContainerConfig(t testing.TB, containerID string, tamper func(*container.Container)) {
 	t.Helper()
