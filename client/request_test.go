@@ -132,12 +132,15 @@ func TestResponseErrors(t *testing.T) {
 			expected:    `Error response from daemon: Some error occurred`,
 		},
 		{
-			// API versions before 1.24 did not support JSON errors, and return response as-is.
+			// API versions before 1.24 did not support JSON errors. Technically,
+			// we no longer downgrade to older API versions, but we make an
+			// exception for errors so that older clients would print a more
+			// readable error.
 			doc:         "JSON error on old API",
 			apiVersion:  "1.23",
-			contentType: "application/json",
-			response:    `{"message":"Some error occurred"}`,
-			expected:    `Error response from daemon: {"message":"Some error occurred"}`,
+			contentType: "text/plain; charset=utf-8",
+			response:    `client version 1.10 is too old. Minimum supported API version is 1.24, please upgrade your client to a newer version`,
+			expected:    `Error response from daemon: client version 1.10 is too old. Minimum supported API version is 1.24, please upgrade your client to a newer version`,
 		},
 		{
 			doc:         "plain-text error",

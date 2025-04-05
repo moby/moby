@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
@@ -63,7 +65,11 @@ func (s *DockerAPISuite) TestAPIClientVersionOldNotSupported(c *testing.T) {
 	expected := fmt.Sprintf("client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", version, testEnv.DaemonVersion.MinAPIVersion)
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Equal(c, getErrorMessage(c, b), expected)
+	errMessage := string(bytes.TrimSpace(b))
+	if versions.GreaterThanOrEqualTo(version, "1.24") {
+		errMessage = getErrorMessage(c, b)
+	}
+	assert.Equal(c, errMessage, expected)
 }
 
 func (s *DockerAPISuite) TestAPIErrorJSON(c *testing.T) {
