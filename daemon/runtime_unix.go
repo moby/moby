@@ -21,7 +21,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/shimopts"
-	"github.com/docker/docker/pkg/atomicwriter"
+	"github.com/moby/sys/atomicwriter"
 	"github.com/opencontainers/runtime-spec/specs-go/features"
 	"github.com/pkg/errors"
 )

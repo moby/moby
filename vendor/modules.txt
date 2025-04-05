@@ -1007,6 +1007,9 @@ github.com/moby/swarmkit/v2/volumequeue
 github.com/moby/swarmkit/v2/watch
 github.com/moby/swarmkit/v2/watch/queue
 github.com/moby/swarmkit/v2/xnet
+# github.com/moby/sys/atomicwriter v0.0.0-20250404210502-6e2523cbf3a1
+## explicit; go 1.18
+github.com/moby/sys/atomicwriter
 # github.com/moby/sys/mount v0.3.4
 ## explicit; go 1.17
 github.com/moby/sys/mount

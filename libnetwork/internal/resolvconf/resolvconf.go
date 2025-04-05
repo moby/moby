@@ -31,7 +31,7 @@ import (
 	"text/template"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/atomicwriter"
+	"github.com/moby/sys/atomicwriter"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
