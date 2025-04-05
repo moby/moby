@@ -116,7 +116,7 @@ func (e *fastBase) matchlen(s, t int32, src []byte) int32 {
 			panic(err)
 		}
 		if t < 0 {
-			err := fmt.Sprintf("s (%d) < 0", s)
+			err := fmt.Sprintf("t (%d) < 0", t)
 			panic(err)
 		}
 		if s-t > e.maxMatchOff {

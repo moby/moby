@@ -7,9 +7,9 @@
 TEXT ·sequenceDecs_decode_amd64(SB), $8-32
 	MOVQ    br+8(FP), CX
 	MOVQ    24(CX), DX
-	MOVBQZX 32(CX), BX
+	MOVBQZX 40(CX), BX
 	MOVQ    (CX), AX
-	MOVQ    8(CX), SI
+	MOVQ    32(CX), SI
 	ADDQ    SI, AX
 	MOVQ    AX, (SP)
 	MOVQ    ctx+16(FP), AX
@@ -299,8 +299,8 @@ sequenceDecs_decode_amd64_match_len_ofs_ok:
 	MOVQ R13, 160(AX)
 	MOVQ br+8(FP), AX
 	MOVQ DX, 24(AX)
-	MOVB BL, 32(AX)
-	MOVQ SI, 8(AX)
+	MOVB BL, 40(AX)
+	MOVQ SI, 32(AX)
 
 	// Return success
 	MOVQ $0x00000000, ret+24(FP)
@@ -335,9 +335,9 @@ error_overread:
 TEXT ·sequenceDecs_decode_56_amd64(SB), $8-32
 	MOVQ    br+8(FP), CX
 	MOVQ    24(CX), DX
-	MOVBQZX 32(CX), BX
+	MOVBQZX 40(CX), BX
 	MOVQ    (CX), AX
-	MOVQ    8(CX), SI
+	MOVQ    32(CX), SI
 	ADDQ    SI, AX
 	MOVQ    AX, (SP)
 	MOVQ    ctx+16(FP), AX
@@ -598,8 +598,8 @@ sequenceDecs_decode_56_amd64_match_len_ofs_ok:
 	MOVQ R13, 160(AX)
 	MOVQ br+8(FP), AX
 	MOVQ DX, 24(AX)
-	MOVB BL, 32(AX)
-	MOVQ SI, 8(AX)
+	MOVB BL, 40(AX)
+	MOVQ SI, 32(AX)
 
 	// Return success
 	MOVQ $0x00000000, ret+24(FP)
@@ -634,9 +634,9 @@ error_overread:
 TEXT ·sequenceDecs_decode_bmi2(SB), $8-32
 	MOVQ    br+8(FP), BX
 	MOVQ    24(BX), AX
-	MOVBQZX 32(BX), DX
+	MOVBQZX 40(BX), DX
 	MOVQ    (BX), CX
-	MOVQ    8(BX), BX
+	MOVQ    32(BX), BX
 	ADDQ    BX, CX
 	MOVQ    CX, (SP)
 	MOVQ    ctx+16(FP), CX
@@ -884,8 +884,8 @@ sequenceDecs_decode_bmi2_match_len_ofs_ok:
 	MOVQ R12, 160(CX)
 	MOVQ br+8(FP), CX
 	MOVQ AX, 24(CX)
-	MOVB DL, 32(CX)
-	MOVQ BX, 8(CX)
+	MOVB DL, 40(CX)
+	MOVQ BX, 32(CX)
 
 	// Return success
 	MOVQ $0x00000000, ret+24(FP)
@@ -920,9 +920,9 @@ error_overread:
 TEXT ·sequenceDecs_decode_56_bmi2(SB), $8-32
 	MOVQ    br+8(FP), BX
 	MOVQ    24(BX), AX
-	MOVBQZX 32(BX), DX
+	MOVBQZX 40(BX), DX
 	MOVQ    (BX), CX
-	MOVQ    8(BX), BX
+	MOVQ    32(BX), BX
 	ADDQ    BX, CX
 	MOVQ    CX, (SP)
 	MOVQ    ctx+16(FP), CX
@@ -1141,8 +1141,8 @@ sequenceDecs_decode_56_bmi2_match_len_ofs_ok:
 	MOVQ R12, 160(CX)
 	MOVQ br+8(FP), CX
 	MOVQ AX, 24(CX)
-	MOVB DL, 32(CX)
-	MOVQ BX, 8(CX)
+	MOVB DL, 40(CX)
+	MOVQ BX, 32(CX)
 
 	// Return success
 	MOVQ $0x00000000, ret+24(FP)
@@ -1787,9 +1787,9 @@ empty_seqs:
 TEXT ·sequenceDecs_decodeSync_amd64(SB), $64-32
 	MOVQ    br+8(FP), CX
 	MOVQ    24(CX), DX
-	MOVBQZX 32(CX), BX
+	MOVBQZX 40(CX), BX
 	MOVQ    (CX), AX
-	MOVQ    8(CX), SI
+	MOVQ    32(CX), SI
 	ADDQ    SI, AX
 	MOVQ    AX, (SP)
 	MOVQ    ctx+16(FP), AX
@@ -2281,8 +2281,8 @@ handle_loop:
 loop_finished:
 	MOVQ br+8(FP), AX
 	MOVQ DX, 24(AX)
-	MOVB BL, 32(AX)
-	MOVQ SI, 8(AX)
+	MOVB BL, 40(AX)
+	MOVQ SI, 32(AX)
 
 	// Update the context
 	MOVQ ctx+16(FP), AX
@@ -2349,9 +2349,9 @@ error_not_enough_space:
 TEXT ·sequenceDecs_decodeSync_bmi2(SB), $64-32
 	MOVQ    br+8(FP), BX
 	MOVQ    24(BX), AX
-	MOVBQZX 32(BX), DX
+	MOVBQZX 40(BX), DX
 	MOVQ    (BX), CX
-	MOVQ    8(BX), BX
+	MOVQ    32(BX), BX
 	ADDQ    BX, CX
 	MOVQ    CX, (SP)
 	MOVQ    ctx+16(FP), CX
@@ -2801,8 +2801,8 @@ handle_loop:
 loop_finished:
 	MOVQ br+8(FP), CX
 	MOVQ AX, 24(CX)
-	MOVB DL, 32(CX)
-	MOVQ BX, 8(CX)
+	MOVB DL, 40(CX)
+	MOVQ BX, 32(CX)
 
 	// Update the context
 	MOVQ ctx+16(FP), AX
@@ -2869,9 +2869,9 @@ error_not_enough_space:
 TEXT ·sequenceDecs_decodeSync_safe_amd64(SB), $64-32
 	MOVQ    br+8(FP), CX
 	MOVQ    24(CX), DX
-	MOVBQZX 32(CX), BX
+	MOVBQZX 40(CX), BX
 	MOVQ    (CX), AX
-	MOVQ    8(CX), SI
+	MOVQ    32(CX), SI
 	ADDQ    SI, AX
 	MOVQ    AX, (SP)
 	MOVQ    ctx+16(FP), AX
@@ -3465,8 +3465,8 @@ handle_loop:
 loop_finished:
 	MOVQ br+8(FP), AX
 	MOVQ DX, 24(AX)
-	MOVB BL, 32(AX)
-	MOVQ SI, 8(AX)
+	MOVB BL, 40(AX)
+	MOVQ SI, 32(AX)
 
 	// Update the context
 	MOVQ ctx+16(FP), AX
@@ -3533,9 +3533,9 @@ error_not_enough_space:
 TEXT ·sequenceDecs_decodeSync_safe_bmi2(SB), $64-32
 	MOVQ    br+8(FP), BX
 	MOVQ    24(BX), AX
-	MOVBQZX 32(BX), DX
+	MOVBQZX 40(BX), DX
 	MOVQ    (BX), CX
-	MOVQ    8(BX), BX
+	MOVQ    32(BX), BX
 	ADDQ    BX, CX
 	MOVQ    CX, (SP)
 	MOVQ    ctx+16(FP), CX
@@ -4087,8 +4087,8 @@ handle_loop:
 loop_finished:
 	MOVQ br+8(FP), CX
 	MOVQ AX, 24(CX)
-	MOVB DL, 32(CX)
-	MOVQ BX, 8(CX)
+	MOVB DL, 40(CX)
+	MOVQ BX, 32(CX)
 
 	// Update the context
 	MOVQ ctx+16(FP), AX
