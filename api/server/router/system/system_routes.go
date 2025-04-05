@@ -1,3 +1,6 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.22
+
 package system // import "github.com/docker/docker/api/server/router/system"
 
 import (
@@ -103,8 +106,10 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 		if versions.LessThan(version, "1.47") {
 			// Field is omitted in API 1.48 and up, but should still be included
 			// in older versions, even if no values are set.
-			info.RegistryConfig.AllowNondistributableArtifactsCIDRs = []*registry.NetIPNet{}
-			info.RegistryConfig.AllowNondistributableArtifactsHostnames = []string{}
+			info.RegistryConfig.ExtraFields = map[string]any{
+				"AllowNondistributableArtifactsCIDRs":     json.RawMessage(nil),
+				"AllowNondistributableArtifactsHostnames": json.RawMessage(nil),
+			}
 		}
 		if versions.LessThan(version, "1.49") {
 			// FirewallBackend field introduced in API v1.49.

@@ -7017,32 +7017,6 @@ definitions:
     type: "object"
     x-nullable: true
     properties:
-      AllowNondistributableArtifactsCIDRs:
-        description: |
-          List of IP ranges to which nondistributable artifacts can be pushed,
-          using the CIDR syntax [RFC 4632](https://tools.ietf.org/html/4632).
-
-          <p><br /></p>
-
-          > **Deprecated**: Pushing nondistributable artifacts is now always enabled
-          > and this field is always `null`. This field will be removed in a API v1.49.
-        type: "array"
-        items:
-          type: "string"
-        example: []
-      AllowNondistributableArtifactsHostnames:
-        description: |
-          List of registry hostnames to which nondistributable artifacts can be
-          pushed, using the format `<hostname>[:<port>]` or `<IP address>[:<port>]`.
-
-          <p><br /></p>
-
-          > **Deprecated**: Pushing nondistributable artifacts is now always enabled
-          > and this field is always `null`. This field will be removed in a API v1.49.
-        type: "array"
-        items:
-          type: "string"
-        example: []
       InsecureRegistryCIDRs:
         description: |
           List of IP ranges of insecure registries, using the CIDR syntax
