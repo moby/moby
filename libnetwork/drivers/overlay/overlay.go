@@ -30,14 +30,15 @@ var _ discoverapi.Discover = (*driver)(nil)
 type driver struct {
 	bindAddress, advertiseAddress net.IP
 
-	config        map[string]interface{}
-	peerDb        peerNetworkMap
-	secMap        *encrMap
-	networks      networkTable
-	initOS        sync.Once
-	localJoinOnce sync.Once
-	keys          []*key
-	peerOpMu      sync.Mutex
+	config          map[string]interface{}
+	peerDb          peerNetworkMap
+	secMap          *encrMap
+	networks        networkTable
+	initOS          sync.Once
+	localJoinOnce   sync.Once
+	keys            []*key
+	peerOpMu        sync.Mutex
+	multicastRoutes *multicastRoutes
 	sync.Mutex
 }
 
@@ -48,8 +49,9 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 		peerDb: peerNetworkMap{
 			mp: map[string]*peerMap{},
 		},
-		secMap: &encrMap{nodes: map[string][]*spi{}},
-		config: config,
+		secMap:          &encrMap{nodes: map[string][]*spi{}},
+		config:          config,
+		multicastRoutes: newMulticastRoutes(),
 	}
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
 		DataScope:         scope.Global,
