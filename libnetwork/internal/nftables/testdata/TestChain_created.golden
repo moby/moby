@@ -1,0 +1,11 @@
+table ip this_is_a_table {
+	chain this_is_a_base_chain {
+		type filter hook forward priority filter + 10; policy accept;
+		counter packets 0 bytes 0
+		jump this_is_a_regular_chain
+	}
+
+	chain this_is_a_regular_chain {
+		counter packets 0 bytes 0 accept
+	}
+}
