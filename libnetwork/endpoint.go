@@ -582,7 +582,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		return errdefs.System(err)
 	}
 
-	if err := n.getController().updateToStore(ctx, ep); err != nil {
+	if err := n.getController().storeEndpoint(ctx, ep); err != nil {
 		return err
 	}
 
@@ -762,7 +762,7 @@ func (ep *Endpoint) rename(name string) error {
 	ep.mu.Unlock()
 
 	// Update the store with the updated name
-	if err := ep.getNetwork().getController().updateToStore(context.TODO(), ep); err != nil {
+	if err := ep.getNetwork().getController().storeEndpoint(context.TODO(), ep); err != nil {
 		return err
 	}
 
@@ -798,7 +798,7 @@ func (ep *Endpoint) UpdateDNSNames(dnsNames []string) error {
 	}
 
 	// Update the store with the updated name
-	if err := c.updateToStore(context.TODO(), ep); err != nil {
+	if err := c.storeEndpoint(context.TODO(), ep); err != nil {
 		return err
 	}
 
@@ -904,7 +904,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 	// spurious logs when cleaning up the sandbox when the daemon
 	// ungracefully exits and restarts before completing sandbox
 	// detach but after store has been updated.
-	if err := n.getController().updateToStore(ctx, ep); err != nil {
+	if err := n.getController().storeEndpoint(ctx, ep); err != nil {
 		return err
 	}
 
@@ -1024,14 +1024,14 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 		}
 	}
 
-	if err = n.getController().deleteFromStore(ep); err != nil {
+	if err = n.getController().deleteStoredEndpoint(ep); err != nil {
 		return err
 	}
 
 	defer func() {
 		if err != nil && !force {
 			ep.dbExists = false
-			if e := n.getController().updateToStore(context.WithoutCancel(ctx), ep); e != nil {
+			if e := n.getController().storeEndpoint(context.WithoutCancel(ctx), ep); e != nil {
 				log.G(ctx).Warnf("failed to recreate endpoint in store %s : %v", name, e)
 			}
 		}
@@ -1046,10 +1046,6 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 	}
 
 	ep.releaseAddress()
-
-	if err := n.getEpCnt().DecEndpointCnt(); err != nil {
-		log.G(ctx).Warnf("failed to decrement endpoint count for ep %s: %v", ep.ID(), err)
-	}
 
 	return nil
 }
@@ -1397,20 +1393,6 @@ func (c *Controller) cleanupLocalEndpoints() error {
 			log.G(context.TODO()).Infof("Removing stale endpoint %s (%s)", ep.name, ep.id)
 			if err := ep.Delete(context.WithoutCancel(context.TODO()), true); err != nil {
 				log.G(context.TODO()).Warnf("Could not delete local endpoint %s during endpoint cleanup: %v", ep.name, err)
-			}
-		}
-
-		epl, err = n.getEndpointsFromStore()
-		if err != nil {
-			log.G(context.TODO()).Warnf("Could not get list of endpoints in network %s for count update: %v", n.name, err)
-			continue
-		}
-
-		epCnt := n.getEpCnt().EndpointCnt()
-		if epCnt != uint64(len(epl)) {
-			log.G(context.TODO()).Infof("Fixing inconsistent endpoint_cnt for network %s. Expected=%d, Actual=%d", n.name, len(epl), epCnt)
-			if err := n.getEpCnt().setCnt(uint64(len(epl))); err != nil {
-				log.G(context.TODO()).WithField("network", n.name).WithError(err).Warn("Error while fixing inconsistent endpoint_cnt for network")
 			}
 		}
 	}
