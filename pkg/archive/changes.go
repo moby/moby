@@ -75,7 +75,7 @@ func sameFsTime(a, b time.Time) bool {
 // Changes walks the path rw and determines changes for the files in the path,
 // with respect to the parent layers
 func Changes(layers []string, rw string) ([]Change, error) {
-	return changes(layers, rw, aufsDeletedFile, aufsMetadataSkip)
+	return collectChanges(layers, rw, aufsDeletedFile, aufsMetadataSkip)
 }
 
 func aufsMetadataSkip(path string) (skip bool, err error) {
@@ -103,7 +103,7 @@ type (
 	deleteChange func(string, string, os.FileInfo) (string, error)
 )
 
-func changes(layers []string, rw string, dc deleteChange, sc skipChange) ([]Change, error) {
+func collectChanges(layers []string, rw string, dc deleteChange, sc skipChange) ([]Change, error) {
 	var (
 		changes     []Change
 		changedDirs = make(map[string]struct{})

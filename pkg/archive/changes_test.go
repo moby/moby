@@ -113,20 +113,17 @@ func provisionSampleDir(t *testing.T, root string, files []FileData) {
 }
 
 func TestChangeString(t *testing.T) {
-	modifyChange := Change{"change", ChangeModify}
-	toString := modifyChange.String()
-	if toString != "C change" {
-		t.Fatalf("String() of a change with ChangeModify Kind should have been %s but was %s", "C change", toString)
+	actual := (&Change{Path: "change", Kind: ChangeModify}).String()
+	if actual != "C change" {
+		t.Fatalf("String() of a change with ChangeModify Kind should have been %s but was %s", "C change", actual)
 	}
-	addChange := Change{"change", ChangeAdd}
-	toString = addChange.String()
-	if toString != "A change" {
-		t.Fatalf("String() of a change with ChangeAdd Kind should have been %s but was %s", "A change", toString)
+	actual = (&Change{Path: "change", Kind: ChangeAdd}).String()
+	if actual != "A change" {
+		t.Fatalf("String() of a change with ChangeAdd Kind should have been %s but was %s", "A change", actual)
 	}
-	deleteChange := Change{"change", ChangeDelete}
-	toString = deleteChange.String()
-	if toString != "D change" {
-		t.Fatalf("String() of a change with ChangeDelete Kind should have been %s but was %s", "D change", toString)
+	actual = (&Change{Path: "change", Kind: ChangeDelete}).String()
+	if actual != "D change" {
+		t.Fatalf("String() of a change with ChangeDelete Kind should have been %s but was %s", "D change", actual)
 	}
 }
 
@@ -175,11 +172,11 @@ func TestChangesWithChanges(t *testing.T) {
 	assert.NilError(t, err)
 
 	expectedChanges := []Change{
-		{filepath.FromSlash("/dir1"), ChangeModify},
-		{filepath.FromSlash("/dir1/file1-1"), ChangeModify},
-		{filepath.FromSlash("/dir1/file1-2"), ChangeDelete},
-		{filepath.FromSlash("/dir1/subfolder"), ChangeModify},
-		{filepath.FromSlash("/dir1/subfolder/newFile"), ChangeAdd},
+		{Path: filepath.FromSlash("/dir1"), Kind: ChangeModify},
+		{Path: filepath.FromSlash("/dir1/file1-1"), Kind: ChangeModify},
+		{Path: filepath.FromSlash("/dir1/file1-2"), Kind: ChangeDelete},
+		{Path: filepath.FromSlash("/dir1/subfolder"), Kind: ChangeModify},
+		{Path: filepath.FromSlash("/dir1/subfolder/newFile"), Kind: ChangeAdd},
 	}
 	checkChanges(expectedChanges, changes, t)
 }
@@ -217,8 +214,8 @@ func TestChangesWithChangesGH13590(t *testing.T) {
 	assert.NilError(t, err)
 
 	expectedChanges := []Change{
-		{"/dir1/dir2/dir3", ChangeModify},
-		{"/dir1/dir2/dir3/file1.txt", ChangeAdd},
+		{Path: "/dir1/dir2/dir3", Kind: ChangeModify},
+		{Path: "/dir1/dir2/dir3/file1.txt", Kind: ChangeAdd},
 	}
 	checkChanges(expectedChanges, changes, t)
 
@@ -238,7 +235,7 @@ func TestChangesWithChangesGH13590(t *testing.T) {
 	assert.NilError(t, err)
 
 	expectedChanges = []Change{
-		{"/dir1/dir2/dir3/file.txt", ChangeModify},
+		{Path: "/dir1/dir2/dir3/file.txt", Kind: ChangeModify},
 	}
 	checkChanges(expectedChanges, changes, t)
 }
@@ -352,8 +349,8 @@ func TestChangesDirsMutated(t *testing.T) {
 	sort.Sort(changesByPath(changes))
 
 	expectedChanges := []Change{
-		{filepath.FromSlash("/dir1"), ChangeDelete},
-		{filepath.FromSlash("/dir2"), ChangeModify},
+		{Path: filepath.FromSlash("/dir1"), Kind: ChangeDelete},
+		{Path: filepath.FromSlash("/dir2"), Kind: ChangeModify},
 	}
 
 	// Note there is slight difference between the Linux and Windows
@@ -367,20 +364,20 @@ func TestChangesDirsMutated(t *testing.T) {
 	// this is in the middle of the list of changes rather than at the start or
 	// end. Potentially can be addressed later.
 	if runtime.GOOS == "windows" {
-		expectedChanges = append(expectedChanges, Change{filepath.FromSlash("/dir3"), ChangeModify})
+		expectedChanges = append(expectedChanges, Change{Path: filepath.FromSlash("/dir3"), Kind: ChangeModify})
 	}
 
 	expectedChanges = append(expectedChanges, []Change{
-		{filepath.FromSlash("/dirnew"), ChangeAdd},
-		{filepath.FromSlash("/file1"), ChangeDelete},
-		{filepath.FromSlash("/file2"), ChangeModify},
-		{filepath.FromSlash("/file3"), ChangeModify},
-		{filepath.FromSlash("/file4"), ChangeModify},
-		{filepath.FromSlash("/file5"), ChangeModify},
-		{filepath.FromSlash("/filenew"), ChangeAdd},
-		{filepath.FromSlash("/symlink1"), ChangeDelete},
-		{filepath.FromSlash("/symlink2"), ChangeModify},
-		{filepath.FromSlash("/symlinknew"), ChangeAdd},
+		{Path: filepath.FromSlash("/dirnew"), Kind: ChangeAdd},
+		{Path: filepath.FromSlash("/file1"), Kind: ChangeDelete},
+		{Path: filepath.FromSlash("/file2"), Kind: ChangeModify},
+		{Path: filepath.FromSlash("/file3"), Kind: ChangeModify},
+		{Path: filepath.FromSlash("/file4"), Kind: ChangeModify},
+		{Path: filepath.FromSlash("/file5"), Kind: ChangeModify},
+		{Path: filepath.FromSlash("/filenew"), Kind: ChangeAdd},
+		{Path: filepath.FromSlash("/symlink1"), Kind: ChangeDelete},
+		{Path: filepath.FromSlash("/symlink2"), Kind: ChangeModify},
+		{Path: filepath.FromSlash("/symlinknew"), Kind: ChangeAdd},
 	}...)
 
 	for i := 0; i < maxInt(len(changes), len(expectedChanges)); i++ {
@@ -475,10 +472,9 @@ func TestChangesSizeWithNoChanges(t *testing.T) {
 }
 
 func TestChangesSizeWithOnlyDeleteChanges(t *testing.T) {
-	changes := []Change{
+	size := ChangesSize("/tmp", []Change{
 		{Path: "deletedPath", Kind: ChangeDelete},
-	}
-	size := ChangesSize("/tmp", changes)
+	})
 	if size != 0 {
 		t.Fatalf("ChangesSizes with only delete changes should be 0, was %d", size)
 	}
@@ -495,11 +491,10 @@ func TestChangesSize(t *testing.T) {
 	err = os.WriteFile(modification, []byte{0x01, 0x01, 0x01}, 0o744)
 	assert.NilError(t, err)
 
-	changes := []Change{
+	size := ChangesSize(parentPath, []Change{
 		{Path: "addition", Kind: ChangeAdd},
 		{Path: "modification", Kind: ChangeModify},
-	}
-	size := ChangesSize(parentPath, changes)
+	})
 	if size != 6 {
 		t.Fatalf("Expected 6 bytes of changes, got %d", size)
 	}
