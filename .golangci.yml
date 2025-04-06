@@ -216,11 +216,6 @@ issues:
       linters:
         - staticcheck
 
-    # FIXME(thaJeztah): ignoring until https://github.com/moby/moby/pull/49743 is merged.
-    - text: "SA1019: (archive|chrootarchive|dockerarchive)\\..* is deprecated: use \\[(archive|chrootarchive)\\."
-      linters:
-        - staticcheck
-
     # Ignore "nested context in function literal (fatcontext)" as we intentionally set up tracing on a base-context for tests.
     # FIXME(thaJeztah): see if there's a more iodiomatic way to do this.
     - text: 'nested context in function literal'
