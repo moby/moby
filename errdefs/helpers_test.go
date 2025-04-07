@@ -280,3 +280,23 @@ func TestSystem(t *testing.T) {
 		t.Fatalf("expected system error, got: %T", wrapped)
 	}
 }
+
+func TestIntentionallyShadowed(t *testing.T) {
+	var (
+		rootErr = errors.New("root error")
+
+		// Some code resulted in a "not found" error
+		notFoundErr = NotFound(rootErr)
+
+		// But a "not found" error should be considered a "invalid parameter",
+		// so it's intentionally wrapped.
+		actualErr = InvalidParameter(notFoundErr)
+	)
+
+	if !IsInvalidParameter(actualErr) {
+		t.Errorf("expected invalid parameter error, got %T", actualErr)
+	}
+	if IsNotFound(actualErr) {
+		t.Errorf("not found error should've been masked by an invalid parameter error, but got %T", actualErr)
+	}
+}
