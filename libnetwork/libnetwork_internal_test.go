@@ -416,7 +416,7 @@ func TestUpdateSvcRecord(t *testing.T) {
 				assert.NilError(t, err)
 				ipam6 = []*IpamConf{{PreferredPool: net6.String()}}
 			}
-			n, err := ctrlr.NewNetwork("bridge", "net1", "", nil,
+			n, err := ctrlr.NewNetwork(context.Background(), "bridge", "net1", "", nil,
 				NetworkOptionEnableIPv4(tc.addr4 != ""),
 				NetworkOptionEnableIPv6(tc.addr6 != ""),
 				NetworkOptionIpam(defaultipam.DriverName, "", ipam4, ipam6, nil),
@@ -484,7 +484,7 @@ func TestSRVServiceQuery(t *testing.T) {
 	}
 	defer c.Stop()
 
-	n, err := c.NewNetwork("bridge", "net1", "",
+	n, err := c.NewNetwork(context.Background(), "bridge", "net1", "",
 		NetworkOptionEnableIPv4(true),
 	)
 	if err != nil {
@@ -585,7 +585,7 @@ func TestServiceVIPReuse(t *testing.T) {
 	}
 	defer c.Stop()
 
-	n, err := c.NewNetwork("bridge", "net1", "", nil,
+	n, err := c.NewNetwork(context.Background(), "bridge", "net1", "", nil,
 		NetworkOptionEnableIPv4(true),
 	)
 	if err != nil {
@@ -712,10 +712,10 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	// Test whether ipam state release is invoked  on network create failure from net driver
 	// by checking whether subsequent network creation requesting same gateway IP succeeds
 	ipamOpt := NetworkOptionIpam(defaultipam.DriverName, "", []*IpamConf{{PreferredPool: "10.34.0.0/16", Gateway: "10.34.255.254"}}, nil, nil)
-	_, err = c.NewNetwork(badDriverName, "badnet1", "", ipamOpt)
+	_, err = c.NewNetwork(context.Background(), badDriverName, "badnet1", "", ipamOpt)
 	assert.Check(t, is.ErrorContains(err, "I will not create any network"))
 
-	gnw, err := c.NewNetwork("bridge", "goodnet1", "",
+	gnw, err := c.NewNetwork(context.Background(), "bridge", "goodnet1", "",
 		NetworkOptionEnableIPv4(true),
 		ipamOpt,
 	)
@@ -728,7 +728,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 
 	// Now check whether ipam release works on endpoint creation failure
 	bd.failNetworkCreation = false
-	bnw, err := c.NewNetwork(badDriverName, "badnet2", "",
+	bnw, err := c.NewNetwork(context.Background(), badDriverName, "badnet2", "",
 		NetworkOptionEnableIPv4(true),
 		ipamOpt,
 	)
@@ -747,7 +747,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 
 	// Now create good bridge network with different gateway
 	ipamOpt2 := NetworkOptionIpam(defaultipam.DriverName, "", []*IpamConf{{PreferredPool: "10.35.0.0/16", Gateway: "10.35.255.253"}}, nil, nil)
-	gnw, err = c.NewNetwork("bridge", "goodnet2", "",
+	gnw, err = c.NewNetwork(context.Background(), "bridge", "goodnet2", "",
 		NetworkOptionEnableIPv4(true),
 		ipamOpt2,
 	)
@@ -784,7 +784,7 @@ func badDriverRegister(reg driverapi.Registerer) error {
 	return reg.RegisterDriver(badDriverName, &bd, driverapi.Capability{DataScope: scope.Local})
 }
 
-func (b *badDriver) CreateNetwork(nid string, options map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (b *badDriver) CreateNetwork(ctx context.Context, nid string, options map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	if b.failNetworkCreation {
 		return fmt.Errorf("I will not create any network")
 	}

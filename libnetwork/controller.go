@@ -179,7 +179,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 
 	c.WalkNetworks(func(nw *Network) bool {
 		if n := nw; n.hasSpecialDriver() && !n.ConfigOnly() {
-			if err := n.getController().addNetwork(n); err != nil {
+			if err := n.getController().addNetwork(context.TODO(), n); err != nil {
 				log.G(context.TODO()).Warnf("Failed to populate network %q with driver %q", nw.Name(), nw.Type())
 			}
 		}
@@ -499,7 +499,7 @@ const overlayDSROptionString = "dsr"
 
 // NewNetwork creates a new network of the specified network type. The options
 // are network specific and modeled in a generic way.
-func (c *Controller) NewNetwork(networkType, name string, id string, options ...NetworkOption) (_ *Network, retErr error) {
+func (c *Controller) NewNetwork(ctx context.Context, networkType, name string, id string, options ...NetworkOption) (_ *Network, retErr error) {
 	if id != "" {
 		c.networkLocker.Lock(id)
 		defer c.networkLocker.Unlock(id) //nolint:errcheck
@@ -652,7 +652,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	// - and updated in 87b082f3659f9ec245ab15d781e6bfffced0af83 to don't use string-matching
 	//
 	// To cut a long story short: if this broke anything, you know who to blame :)
-	if err := c.addNetwork(nw); err != nil {
+	if err := c.addNetwork(ctx, nw); err != nil {
 		if _, ok := err.(types.MaskableError); !ok { //nolint:gosimple
 			return nil, err
 		}
@@ -660,7 +660,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	defer func() {
 		if retErr != nil {
 			if err := nw.deleteNetwork(); err != nil {
-				log.G(context.TODO()).Warnf("couldn't roll back driver network on network %s creation failure: %v", nw.name, retErr)
+				log.G(ctx).Warnf("couldn't roll back driver network on network %s creation failure: %v", nw.name, retErr)
 			}
 		}
 	}()
@@ -681,13 +681,13 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	}
 
 addToStore:
-	if err := c.storeNetwork(context.TODO(), nw); err != nil {
+	if err := c.storeNetwork(ctx, nw); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if retErr != nil {
 			if err := c.deleteStoredNetwork(nw); err != nil {
-				log.G(context.TODO()).Warnf("could not rollback from store, network %v on failure (%v): %v", nw, retErr, err)
+				log.G(ctx).Warnf("could not rollback from store, network %v on failure (%v): %v", nw, retErr, err)
 			}
 		}
 	}()
@@ -701,7 +701,7 @@ addToStore:
 		if retErr != nil {
 			nw.cancelDriverWatches()
 			if err := nw.leaveCluster(); err != nil {
-				log.G(context.TODO()).Warnf("Failed to leave agent cluster on network %s on failure (%v): %v", nw.name, retErr, err)
+				log.G(ctx).Warnf("Failed to leave agent cluster on network %s on failure (%v): %v", nw.name, retErr, err)
 			}
 		}
 	}()
@@ -801,14 +801,14 @@ func doReplayPoolReserve(n *Network) bool {
 	return caps.RequiresRequestReplay
 }
 
-func (c *Controller) addNetwork(n *Network) error {
+func (c *Controller) addNetwork(ctx context.Context, n *Network) error {
 	d, err := n.driver(true)
 	if err != nil {
 		return err
 	}
 
 	// Create the network
-	if err := d.CreateNetwork(n.id, n.generic, n, n.getIPData(4), n.getIPData(6)); err != nil {
+	if err := d.CreateNetwork(ctx, n.id, n.generic, n, n.getIPData(4), n.getIPData(6)); err != nil {
 		return err
 	}
 

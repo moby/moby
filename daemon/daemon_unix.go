@@ -868,14 +868,14 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 func configureNetworking(controller *libnetwork.Controller, conf *config.Config) error {
 	// Create predefined network "none"
 	if n, _ := controller.NetworkByName(network.NetworkNone); n == nil {
-		if _, err := controller.NewNetwork("null", network.NetworkNone, "", libnetwork.NetworkOptionPersist(true)); err != nil {
+		if _, err := controller.NewNetwork(context.TODO(), "null", network.NetworkNone, "", libnetwork.NetworkOptionPersist(true)); err != nil {
 			return errors.Wrapf(err, `error creating default %q network`, network.NetworkNone)
 		}
 	}
 
 	// Create predefined network "host"
 	if n, _ := controller.NetworkByName(network.NetworkHost); n == nil {
-		if _, err := controller.NewNetwork("host", network.NetworkHost, "", libnetwork.NetworkOptionPersist(true)); err != nil {
+		if _, err := controller.NewNetwork(context.TODO(), "host", network.NetworkHost, "", libnetwork.NetworkOptionPersist(true)); err != nil {
 			return errors.Wrapf(err, `error creating default %q network`, network.NetworkHost)
 		}
 	}
@@ -1009,7 +1009,7 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 	}
 
 	// Initialize default network on "bridge" with the same name
-	_, err = controller.NewNetwork("bridge", network.NetworkBridge, "",
+	_, err = controller.NewNetwork(context.TODO(), "bridge", network.NetworkBridge, "",
 		libnetwork.NetworkOptionEnableIPv4(true),
 		libnetwork.NetworkOptionEnableIPv6(cfg.EnableIPv6),
 		libnetwork.NetworkOptionDriverOpts(netOption),

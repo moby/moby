@@ -223,7 +223,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 	// validate the configuration. The network will not be created but, if the
 	// configuration is valid, ManagerRedirectError will be returned and handled
 	// below.
-	nw, err := n.backend.CreateNetwork(create)
+	nw, err := n.backend.CreateNetwork(ctx, create)
 	if err != nil {
 		if _, ok := err.(libnetwork.ManagerRedirectError); !ok {
 			return err

@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -14,7 +15,7 @@ func getPlatformOption() EndpointOption {
 }
 
 func (c *Controller) createGWNetwork() (*Network, error) {
-	n, err := c.NewNetwork("bridge", libnGWNetwork, "",
+	n, err := c.NewNetwork(context.TODO(), "bridge", libnGWNetwork, "",
 		NetworkOptionDriverOpts(map[string]string{
 			bridge.BridgeName:         libnGWNetwork,
 			bridge.EnableICC:          strconv.FormatBool(false),

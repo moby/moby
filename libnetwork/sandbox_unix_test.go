@@ -48,7 +48,7 @@ func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []*Network)
 			}),
 		}
 		newOptions = append(newOptions, opt...)
-		n, err := c.NewNetwork(netType, name, "", newOptions...)
+		n, err := c.NewNetwork(context.Background(), netType, name, "", newOptions...)
 		if err != nil {
 			t.Fatal(err)
 		}

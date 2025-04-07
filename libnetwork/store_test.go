@@ -23,7 +23,7 @@ func testLocalBackend(t *testing.T, path, bucket string) {
 		t.Fatalf("Error new controller: %v", err)
 	}
 	defer testController.Stop()
-	nw, err := testController.NewNetwork("host", "host", "")
+	nw, err := testController.NewNetwork(context.Background(), "host", "host", "")
 	if err != nil {
 		t.Fatalf(`Error creating default "host" network: %v`, err)
 	}

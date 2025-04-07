@@ -381,7 +381,7 @@ func TestOutgoingNATRules(t *testing.T) {
 				nc.AddressIPv6 = nil
 				ipv6Data = nil
 			}
-			if err := r.d.CreateNetwork("nattest", map[string]interface{}{netlabel.GenericData: nc}, nil, ipv4Data, ipv6Data); err != nil {
+			if err := r.d.CreateNetwork(context.Background(), "nattest", map[string]interface{}{netlabel.GenericData: nc}, nil, ipv4Data, ipv6Data); err != nil {
 				t.Fatal(err)
 			}
 			defer func() {

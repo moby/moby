@@ -51,7 +51,7 @@ func (d *driver) populateNetworks() error {
 
 	for _, kvo := range kvol {
 		ncfg := kvo.(*networkConfiguration)
-		if err = d.createNetwork(ncfg); err != nil {
+		if err = d.createNetwork(context.TODO(), ncfg); err != nil {
 			log.G(context.TODO()).Warnf("could not create bridge network for id %s bridge name %s while booting up from persistent state: %v", ncfg.ID, ncfg.BridgeName, err)
 		}
 		log.G(context.TODO()).Debugf("Network (%.7s) restored", ncfg.ID)

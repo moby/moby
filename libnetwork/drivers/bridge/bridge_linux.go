@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/modprobe"
 	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/rlkclient"
@@ -741,7 +742,7 @@ func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error)
 }
 
 // CreateNetwork creates a new network using the bridge driver.
-func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	// Sanity checks
 	d.Lock()
 	if _, ok := d.networks[id]; ok {
@@ -787,11 +788,11 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	}
 
 	// there is no conflict, now create the network
-	if err = d.createNetwork(config); err != nil {
+	if err = d.createNetwork(ctx, config); err != nil {
 		return err
 	}
 
-	return d.storeUpdate(context.TODO(), config)
+	return d.storeUpdate(ctx, config)
 }
 
 func (d *driver) checkConflict(config *networkConfiguration) error {
@@ -808,7 +809,18 @@ func (d *driver) checkConflict(config *networkConfiguration) error {
 	return nil
 }
 
-func (d *driver) createNetwork(config *networkConfiguration) (err error) {
+func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration) (err error) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.bridge.createNetwork", trace.WithAttributes(
+		attribute.Bool("bridge.enable_ipv4", config.EnableIPv4),
+		attribute.Bool("bridge.enable_ipv6", config.EnableIPv6),
+		attribute.Bool("bridge.icc", config.EnableICC),
+		attribute.Int("bridge.mtu", config.Mtu),
+		attribute.Bool("bridge.internal", config.Internal)))
+	defer func() {
+		otelutil.RecordStatus(span, err)
+		span.End()
+	}()
+
 	// Create or retrieve the bridge L3 interface
 	bridgeIface, err := newInterface(d.nlh, config)
 	if err != nil {

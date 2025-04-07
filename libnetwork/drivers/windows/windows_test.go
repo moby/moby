@@ -33,7 +33,7 @@ func testNetwork(networkType string, t *testing.T) {
 		},
 	}
 
-	err = d.CreateNetwork("dummy", netOption, nil, ipdList, nil)
+	err = d.CreateNetwork(context.Background(), "dummy", netOption, nil, ipdList, nil)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}

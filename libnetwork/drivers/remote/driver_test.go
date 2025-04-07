@@ -459,7 +459,7 @@ func TestRemoteDriver(t *testing.T) {
 	}
 
 	netID := "dummy-network"
-	err = d.CreateNetwork(netID, map[string]interface{}{}, nil, nil, nil)
+	err = d.CreateNetwork(context.Background(), netID, map[string]interface{}{}, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

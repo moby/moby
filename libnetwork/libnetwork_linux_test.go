@@ -60,7 +60,7 @@ func newController(t *testing.T) *libnetwork.Controller {
 }
 
 func createTestNetwork(c *libnetwork.Controller, networkType, networkName string, netOption options.Generic, ipamV4Configs, ipamV6Configs []*libnetwork.IpamConf) (*libnetwork.Network, error) {
-	return c.NewNetwork(networkType, networkName, "",
+	return c.NewNetwork(context.Background(), networkType, networkName, "",
 		libnetwork.NetworkOptionGeneric(netOption),
 		libnetwork.NetworkOptionIpam(defaultipam.DriverName, "", ipamV4Configs, ipamV6Configs, nil))
 }
@@ -130,7 +130,7 @@ func TestNilRemoteDriver(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
-	_, err := controller.NewNetwork("framerelay", "dummy", "",
+	_, err := controller.NewNetwork(context.Background(), "framerelay", "dummy", "",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 
 	// TODO(thaJeztah): should attempting to use a non-existing plugin/driver return an [errdefs.InvalidParameter] ?
@@ -239,7 +239,7 @@ func TestNetworkConfig(t *testing.T) {
 	controller := newController(t)
 
 	// Verify config network cannot inherit another config network
-	_, err := controller.NewNetwork("bridge", "config_network0", "",
+	_, err := controller.NewNetwork(context.Background(), "bridge", "config_network0", "",
 		libnetwork.NetworkOptionConfigOnly(),
 		libnetwork.NetworkOptionConfigFrom("anotherConfigNw"),
 	)
@@ -265,7 +265,7 @@ func TestNetworkConfig(t *testing.T) {
 		libnetwork.NetworkOptionIpam("default", "", ipamV4ConfList, ipamV6ConfList, nil),
 	}
 
-	configNetwork, err := controller.NewNetwork(bridgeNetType, "config_network0", "", netOptions...)
+	configNetwork, err := controller.NewNetwork(context.Background(), bridgeNetType, "config_network0", "", netOptions...)
 	assert.NilError(t, err)
 
 	// Verify a config-only network cannot be created with network operator configurations
@@ -275,7 +275,7 @@ func TestNetworkConfig(t *testing.T) {
 		libnetwork.NetworkOptionIngress(true),
 	} {
 		t.Run(fmt.Sprintf("config-only-%d", i), func(t *testing.T) {
-			_, err = controller.NewNetwork(bridgeNetType, "testBR", "",
+			_, err = controller.NewNetwork(context.Background(), bridgeNetType, "testBR", "",
 				libnetwork.NetworkOptionConfigOnly(), opt)
 
 			// TODO(thaJeztah): should this be [errdefs.ErrInvalidParameter]?
@@ -295,7 +295,7 @@ func TestNetworkConfig(t *testing.T) {
 		libnetwork.NetworkOptionDriverOpts(map[string]string{"com.docker.network.driver.mtu": "1600"}),
 	} {
 		t.Run(fmt.Sprintf("config-from-%d", i), func(t *testing.T) {
-			_, err = controller.NewNetwork(bridgeNetType, "testBR", "",
+			_, err = controller.NewNetwork(context.Background(), bridgeNetType, "testBR", "",
 				libnetwork.NetworkOptionConfigFrom("config_network0"), opt)
 
 			// TODO(thaJeztah): should this be [errdefs.ErrInvalidParameter]?
@@ -313,7 +313,7 @@ func TestNetworkConfig(t *testing.T) {
 	}
 
 	// Create a valid network
-	network, err := controller.NewNetwork(bridgeNetType, "testBR", "",
+	network, err := controller.NewNetwork(context.Background(), bridgeNetType, "testBR", "",
 		libnetwork.NetworkOptionConfigFrom("config_network0"))
 	assert.NilError(t, err)
 
@@ -892,7 +892,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 	assert.NilError(t, err)
 	defer ctrlr.Stop()
 
-	_, err = ctrlr.NewNetwork("invalid-network-driver", "dummy", "",
+	_, err = ctrlr.NewNetwork(context.Background(), "invalid-network-driver", "dummy", "",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	assert.Check(t, is.ErrorIs(err, plugins.ErrNotImplements))
 }
@@ -929,7 +929,7 @@ func TestValidRemoteDriver(t *testing.T) {
 	assert.NilError(t, err)
 
 	controller := newController(t)
-	n, err := controller.NewNetwork("valid-network-driver", "dummy", "",
+	n, err := controller.NewNetwork(context.Background(), "valid-network-driver", "dummy", "",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err != nil {
 		// Only fail if we could not find the plugin driver
@@ -1077,7 +1077,7 @@ func TestEndpointJoin(t *testing.T) {
 		},
 	}
 	ipamV6ConfList := []*libnetwork.IpamConf{{PreferredPool: "fe90::/64", Gateway: "fe90::22"}}
-	n1, err := controller.NewNetwork(bridgeNetType, "testnetwork1", "",
+	n1, err := controller.NewNetwork(context.Background(), bridgeNetType, "testnetwork1", "",
 		libnetwork.NetworkOptionGeneric(netOption),
 		libnetwork.NetworkOptionEnableIPv4(true),
 		libnetwork.NetworkOptionEnableIPv6(true),
@@ -1585,7 +1585,7 @@ func TestBridgeRequiresIPAM(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
-	_, err := controller.NewNetwork(bridgeNetType, "testnetwork", "",
+	_, err := controller.NewNetwork(context.Background(), bridgeNetType, "testnetwork", "",
 		libnetwork.NetworkOptionIpam(null.DriverName, "", nil, nil, nil),
 	)
 	assert.Check(t, is.ErrorContains(err, "IPv4 or IPv6 must be enabled"))
@@ -1605,13 +1605,13 @@ func TestNullIpam(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.networkType, func(t *testing.T) {
-			_, err := controller.NewNetwork(tc.networkType, "tnet1-"+tc.networkType, "",
+			_, err := controller.NewNetwork(context.Background(), tc.networkType, "tnet1-"+tc.networkType, "",
 				libnetwork.NetworkOptionEnableIPv4(true),
 				libnetwork.NetworkOptionIpam(null.DriverName, "", nil, nil, nil),
 			)
 			assert.Check(t, is.ErrorContains(err, "ipv4 pool is empty"))
 
-			_, err = controller.NewNetwork(tc.networkType, "tnet2-"+tc.networkType, "",
+			_, err = controller.NewNetwork(context.Background(), tc.networkType, "tnet2-"+tc.networkType, "",
 				libnetwork.NetworkOptionEnableIPv6(true),
 				libnetwork.NetworkOptionIpam(null.DriverName, "", nil, nil, nil),
 			)

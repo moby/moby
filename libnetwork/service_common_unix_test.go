@@ -3,6 +3,7 @@
 package libnetwork
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -24,11 +25,11 @@ func TestCleanupServiceDiscovery(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	n1, err := c.NewNetwork("bridge", "net1", "", NetworkOptionEnableIPv4(true))
+	n1, err := c.NewNetwork(context.Background(), "bridge", "net1", "", NetworkOptionEnableIPv4(true))
 	assert.NilError(t, err)
 	defer cleanup(n1)
 
-	n2, err := c.NewNetwork("bridge", "net2", "", NetworkOptionEnableIPv4(true))
+	n2, err := c.NewNetwork(context.Background(), "bridge", "net2", "", NetworkOptionEnableIPv4(true))
 	assert.NilError(t, err)
 	defer cleanup(n2)
 
