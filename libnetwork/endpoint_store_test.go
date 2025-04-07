@@ -2,6 +2,8 @@ package libnetwork
 
 import (
 	"context"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/config"
@@ -27,6 +29,7 @@ func TestEndpointStore(t *testing.T) {
 
 	// Check that we can find both endpoints
 	found := c.findEndpoints(filterEndpointByNetworkId("testNetwork"))
+	slices.SortFunc(found, func(a, b *Endpoint) int { return strings.Compare(a.id, b.id) })
 	assert.Equal(t, len(found), 2)
 	assert.Equal(t, found[0], ep1)
 	assert.Equal(t, found[1], ep2)
