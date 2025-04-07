@@ -23,8 +23,7 @@ import (
 )
 
 func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
-	// TODO: Pass in opts
-	var requestedPlatform *ocispec.Platform
+	requestedPlatform := opts.Platform
 
 	c8dImg, err := i.resolveImage(ctx, refOrID)
 	if err != nil {
@@ -60,7 +59,6 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 		return nil, err
 	}
 
-	//nolint:govet // TODO: requestedPlatform is always nil, but should be passed by the caller
 	if multi.Best == nil && requestedPlatform != nil {
 		return nil, &errPlatformNotFound{
 			imageRef: refOrID,
@@ -86,6 +84,10 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 	}
 
 	repoTags, repoDigests := collectRepoTagsAndDigests(ctx, tagged)
+
+	if requestedPlatform != nil {
+		target = multi.Best.Target()
+	}
 
 	resp := &imagetypes.InspectResponse{
 		ID:            target.Digest.String(),

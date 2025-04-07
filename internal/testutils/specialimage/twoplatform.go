@@ -18,12 +18,12 @@ func TwoPlatform(dir string) (*ocispec.Index, error) {
 		return nil, err
 	}
 
-	manifest1Desc, err := oneLayerPlatformManifest(dir, platforms.MustParse("linux/amd64"), FileInLayer{Path: "bash", Content: []byte("layer1")})
+	manifest1Desc, _, err := oneLayerPlatformManifest(dir, platforms.MustParse("linux/amd64"), FileInLayer{Path: "bash", Content: []byte("layer1")})
 	if err != nil {
 		return nil, err
 	}
 
-	manifest2Desc, err := oneLayerPlatformManifest(dir, platforms.MustParse("linux/arm64"), FileInLayer{Path: "bash", Content: []byte("layer2")})
+	manifest2Desc, _, err := oneLayerPlatformManifest(dir, platforms.MustParse("linux/arm64"), FileInLayer{Path: "bash", Content: []byte("layer2")})
 	if err != nil {
 		return nil, err
 	}
@@ -40,13 +40,13 @@ type FileInLayer struct {
 	Content []byte
 }
 
-func oneLayerPlatformManifest(dir string, platform ocispec.Platform, f FileInLayer) (ocispec.Descriptor, error) {
+func oneLayerPlatformManifest(dir string, platform ocispec.Platform, f FileInLayer) (ocispec.Descriptor, manifestItem, error) {
 	layerDesc, err := writeLayerWithOneFile(dir, f.Path, f.Content)
 	if err != nil {
-		return ocispec.Descriptor{}, err
+		return ocispec.Descriptor{}, manifestItem{}, err
 	}
 
-	configDesc, err := writeJsonBlob(dir, ocispec.MediaTypeImageConfig, ocispec.Image{
+	img := ocispec.Image{
 		Platform: platform,
 		Config: ocispec.ImageConfig{
 			Env: []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
@@ -55,9 +55,11 @@ func oneLayerPlatformManifest(dir string, platform ocispec.Platform, f FileInLay
 			Type:    "layers",
 			DiffIDs: []digest.Digest{layerDesc.Digest},
 		},
-	})
+	}
+
+	configDesc, err := writeJsonBlob(dir, ocispec.MediaTypeImageConfig, img)
 	if err != nil {
-		return ocispec.Descriptor{}, err
+		return ocispec.Descriptor{}, manifestItem{}, err
 	}
 
 	manifestDesc, err := writeJsonBlob(dir, ocispec.MediaTypeImageManifest, ocispec.Manifest{
@@ -66,11 +68,14 @@ func oneLayerPlatformManifest(dir string, platform ocispec.Platform, f FileInLay
 		Layers:    []ocispec.Descriptor{layerDesc},
 	})
 	if err != nil {
-		return ocispec.Descriptor{}, err
+		return ocispec.Descriptor{}, manifestItem{}, err
 	}
 	manifestDesc.Platform = &platform
 
-	return manifestDesc, nil
+	return manifestDesc, manifestItem{
+		Config: blobPath(configDesc),
+		Layers: []string{blobPath(layerDesc)},
+	}, nil
 }
 
 func multiPlatformImage(dir string, ref reference.Named, target ocispec.Index) (*ocispec.Index, error) {

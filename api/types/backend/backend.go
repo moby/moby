@@ -153,6 +153,7 @@ type GetImageOpts struct {
 // ImageInspectOpts holds parameters to inspect an image.
 type ImageInspectOpts struct {
 	Manifests bool
+	Platform  *ocispec.Platform
 }
 
 // CommitConfig is the configuration for creating an image as part of a build.
