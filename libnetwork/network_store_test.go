@@ -3,10 +3,12 @@ package libnetwork
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/config"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestNetworkStore(t *testing.T) {
@@ -25,16 +27,8 @@ func TestNetworkStore(t *testing.T) {
 	err = c.storeNetwork(context.Background(), nw2)
 	assert.NilError(t, err)
 
-	netSorter := func(a, b *Network) int {
-		if a.name < b.name {
-			return -1
-		}
-		if a.name > b.name {
-			return 1
-		}
-		return 0
-	}
-
+	// Check that we can find both networks, and that the returned values are
+	// not copies of the original ones.
 	for _, tc := range []struct {
 		name        string
 		filter      func(nw *Network) bool
@@ -54,9 +48,9 @@ func TestNetworkStore(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			found := c.findNetworks(tc.filter)
 			assert.Equal(t, len(found), len(tc.expNetworks))
-			slices.SortFunc(found, netSorter)
+			slices.SortFunc(found, func(a, b *Network) int { return strings.Compare(a.id, b.id) })
 			for i, nw := range tc.expNetworks {
-				assert.Check(t, found[i] == nw, "got: %s; expected: %s", found[i].name, nw.name)
+				assert.Check(t, is.Equal(found[i], nw), "got: %s; expected: %s", found[i].id, nw.id)
 			}
 		})
 	}
@@ -68,7 +62,7 @@ func TestNetworkStore(t *testing.T) {
 	// Check that we can only find the second network
 	found := c.findNetworks(func(nw *Network) bool { return true })
 	assert.Equal(t, len(found), 1)
-	assert.Check(t, found[0] == nw2)
+	assert.Check(t, is.Equal(found[0], nw2), "got: %s; expected: %s", found[0].id, nw2.id)
 
 	// Store the second network again
 	err = c.storeNetwork(context.Background(), nw2)
