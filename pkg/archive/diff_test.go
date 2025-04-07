@@ -223,11 +223,11 @@ func TestApplyLayerWhiteouts(t *testing.T) {
 
 	tcases := []tcase{
 		{
-			base,
-			base,
+			change:   base,
+			expected: base,
 		},
 		{
-			[]string{
+			change: []string{
 				".bay",
 				".wh.baz",
 				"foo/",
@@ -236,7 +236,7 @@ func TestApplyLayerWhiteouts(t *testing.T) {
 				"foo/cde/",
 				"foo/cde/efg",
 			},
-			[]string{
+			expected: []string{
 				".bay",
 				".baz",
 				"bar/",
@@ -250,7 +250,7 @@ func TestApplyLayerWhiteouts(t *testing.T) {
 			},
 		},
 		{
-			[]string{
+			change: []string{
 				".bay",
 				".wh..baz",
 				".wh.foobar",
@@ -259,7 +259,7 @@ func TestApplyLayerWhiteouts(t *testing.T) {
 				"foo/.wh.cde",
 				"bar/",
 			},
-			[]string{
+			expected: []string{
 				".bay",
 				"bar/",
 				"bar/bax",
@@ -270,12 +270,12 @@ func TestApplyLayerWhiteouts(t *testing.T) {
 			},
 		},
 		{
-			[]string{
+			change: []string{
 				".abc",
 				".wh..wh..opq",
 				"foobar",
 			},
-			[]string{
+			expected: []string{
 				".abc",
 				"foobar",
 			},
