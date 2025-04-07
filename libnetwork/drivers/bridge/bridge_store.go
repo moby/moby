@@ -90,7 +90,7 @@ func (d *driver) populateEndpoints() error {
 }
 
 func (d *driver) storeUpdate(ctx context.Context, kvObject datastore.KVObject) error {
-	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.bridge.storeUpdate", trace.WithAttributes(
+	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".storeUpdate", trace.WithAttributes(
 		attribute.String("kvObject", fmt.Sprintf("%+v", kvObject.Key()))))
 	defer span.End()
 
