@@ -337,3 +337,25 @@ func (combined combinedProgress) UpdateProgress(ctx context.Context, ongoing *jo
 	}
 	return nil
 }
+
+// showBlobProgress determines if the progress of pulling/pushing blob should be shown.
+// Only indexes, manifests, and configs are hidden to align with the pre-containerd behavior.
+// They are small enough JSON files so it's fine to not show them.
+// We mostly care about bigger content like layers or other blobs.
+func showBlobProgress(desc ocispec.Descriptor) bool {
+	switch {
+	case c8dimages.IsLayerType(desc.MediaType):
+		// Fast path: we always show progress for layers.
+		//
+		// Note: We can't just plainly check for c8dimages.IsLayerType alone
+		// because it wouldn't account for other potentially big blobs like
+		// artifacts or non-standard images.
+		return true
+	case c8dimages.IsIndexType(desc.MediaType),
+		c8dimages.IsManifestType(desc.MediaType),
+		c8dimages.IsConfigType(desc.MediaType):
+		return false
+	default:
+		return true
+	}
+}

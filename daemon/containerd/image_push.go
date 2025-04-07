@@ -149,19 +149,13 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 		return err
 	}
 
-	addLayerJobs := c8dimages.HandlerFunc(
-		func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-			switch {
-			case c8dimages.IsIndexType(desc.MediaType),
-				c8dimages.IsManifestType(desc.MediaType),
-				c8dimages.IsConfigType(desc.MediaType):
-			default:
-				jobsQueue.Add(desc)
-			}
+	addLayerJobs := c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		if showBlobProgress(desc) {
+			jobsQueue.Add(desc)
+		}
 
-			return nil, nil
-		},
-	)
+		return nil, nil
+	})
 
 	handlerWrapper := func(h c8dimages.Handler) c8dimages.Handler {
 		return c8dimages.Handlers(addLayerJobs, h)
