@@ -69,7 +69,6 @@ var llBitsTable = [maxLLCode + 1]byte{
 func llCode(litLength uint32) uint8 {
 	const llDeltaCode = 19
 	if litLength <= 63 {
-		// Compiler insists on bounds check (Go 1.12)
 		return llCodeTable[litLength&63]
 	}
 	return uint8(highBit(litLength)) + llDeltaCode
@@ -102,7 +101,6 @@ var mlBitsTable = [maxMLCode + 1]byte{
 func mlCode(mlBase uint32) uint8 {
 	const mlDeltaCode = 36
 	if mlBase <= 127 {
-		// Compiler insists on bounds check (Go 1.12)
 		return mlCodeTable[mlBase&127]
 	}
 	return uint8(highBit(mlBase)) + mlDeltaCode

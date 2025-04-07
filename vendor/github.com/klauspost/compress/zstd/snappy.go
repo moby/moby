@@ -197,7 +197,7 @@ func (r *SnappyConverter) Convert(in io.Reader, w io.Writer) (int64, error) {
 
 			n, r.err = w.Write(r.block.output)
 			if r.err != nil {
-				return written, err
+				return written, r.err
 			}
 			written += int64(n)
 			continue
@@ -239,7 +239,7 @@ func (r *SnappyConverter) Convert(in io.Reader, w io.Writer) (int64, error) {
 			}
 			n, r.err = w.Write(r.block.output)
 			if r.err != nil {
-				return written, err
+				return written, r.err
 			}
 			written += int64(n)
 			continue

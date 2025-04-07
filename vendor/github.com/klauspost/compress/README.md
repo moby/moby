@@ -14,7 +14,33 @@ This package provides various compression algorithms.
 [![Go](https://github.com/klauspost/compress/actions/workflows/go.yml/badge.svg)](https://github.com/klauspost/compress/actions/workflows/go.yml)
 [![Sourcegraph Badge](https://sourcegraph.com/github.com/klauspost/compress/-/badge.svg)](https://sourcegraph.com/github.com/klauspost/compress?badge)
 
+# package usage
+
+Use `go get github.com/klauspost/compress@latest` to add it to your project.
+
+This package will support the current Go version and 2 versions back.
+
+* Use the `nounsafe` tag to disable all use of the "unsafe" package.
+* Use the `noasm` tag to disable all assembly across packages.
+
+Use the links above for more information on each.
+
 # changelog
+
+* Feb 19th, 2025 - [1.18.0](https://github.com/klauspost/compress/releases/tag/v1.18.0)
+  * Add unsafe little endian loaders https://github.com/klauspost/compress/pull/1036
+  * fix: check `r.err != nil` but return a nil value error `err` by @alingse in https://github.com/klauspost/compress/pull/1028
+  * flate: Simplify L4-6 loading https://github.com/klauspost/compress/pull/1043
+  * flate: Simplify matchlen (remove asm) https://github.com/klauspost/compress/pull/1045
+  * s2: Improve small block compression speed w/o asm https://github.com/klauspost/compress/pull/1048
+  * flate: Fix matchlen L5+L6 https://github.com/klauspost/compress/pull/1049
+  * flate: Cleanup & reduce casts https://github.com/klauspost/compress/pull/1050
+
+* Oct 11th, 2024 - [1.17.11](https://github.com/klauspost/compress/releases/tag/v1.17.11)
+  * zstd: Fix extra CRC written with multiple Close calls https://github.com/klauspost/compress/pull/1017
+  * s2: Don't use stack for index tables https://github.com/klauspost/compress/pull/1014
+  * gzhttp: No content-type on no body response code by @juliens in https://github.com/klauspost/compress/pull/1011
+  * gzhttp: Do not set the content-type when response has no body by @kevinpollet in https://github.com/klauspost/compress/pull/1013
 
 * Sep 23rd, 2024 - [1.17.10](https://github.com/klauspost/compress/releases/tag/v1.17.10)
 	* gzhttp: Add TransportAlwaysDecompress option. https://github.com/klauspost/compress/pull/978
@@ -65,9 +91,9 @@ https://github.com/klauspost/compress/pull/919 https://github.com/klauspost/comp
 	* zstd: Fix rare *CORRUPTION* output in "best" mode. See https://github.com/klauspost/compress/pull/876
 
 * Oct 14th, 2023 - [v1.17.1](https://github.com/klauspost/compress/releases/tag/v1.17.1)
-	* s2: Fix S2 "best" dictionary wrong encoding by @klauspost in https://github.com/klauspost/compress/pull/871
+	* s2: Fix S2 "best" dictionary wrong encoding https://github.com/klauspost/compress/pull/871
 	* flate: Reduce allocations in decompressor and minor code improvements by @fakefloordiv in https://github.com/klauspost/compress/pull/869
-	* s2: Fix EstimateBlockSize on 6&7 length input by @klauspost in https://github.com/klauspost/compress/pull/867
+	* s2: Fix EstimateBlockSize on 6&7 length input https://github.com/klauspost/compress/pull/867
 
 * Sept 19th, 2023 - [v1.17.0](https://github.com/klauspost/compress/releases/tag/v1.17.0)
 	* Add experimental dictionary builder  https://github.com/klauspost/compress/pull/853
@@ -124,7 +150,7 @@ https://github.com/klauspost/compress/pull/919 https://github.com/klauspost/comp
 	<summary>See changes to v1.15.x</summary>
 	
 * Jan 21st, 2023 (v1.15.15)
-	* deflate: Improve level 7-9 by @klauspost in https://github.com/klauspost/compress/pull/739
+	* deflate: Improve level 7-9 https://github.com/klauspost/compress/pull/739
 	* zstd: Add delta encoding support by @greatroar in https://github.com/klauspost/compress/pull/728
 	* zstd: Various speed improvements by @greatroar https://github.com/klauspost/compress/pull/741 https://github.com/klauspost/compress/pull/734 https://github.com/klauspost/compress/pull/736 https://github.com/klauspost/compress/pull/744 https://github.com/klauspost/compress/pull/743 https://github.com/klauspost/compress/pull/745
 	* gzhttp: Add SuffixETag() and DropETag() options to prevent ETag collisions on compressed responses by @willbicks in https://github.com/klauspost/compress/pull/740
@@ -167,7 +193,7 @@ https://github.com/klauspost/compress/pull/919 https://github.com/klauspost/comp
 
 	* zstd: Fix decoder crash on amd64 (no BMI) on invalid input https://github.com/klauspost/compress/pull/645
 	* zstd: Disable decoder extended memory copies (amd64) due to possible crashes https://github.com/klauspost/compress/pull/644
-	* zstd: Allow single segments up to "max decoded size" by @klauspost in https://github.com/klauspost/compress/pull/643
+	* zstd: Allow single segments up to "max decoded size" https://github.com/klauspost/compress/pull/643
 
 * July 13, 2022 (v1.15.8)
 
@@ -209,7 +235,7 @@ https://github.com/klauspost/compress/pull/919 https://github.com/klauspost/comp
 	* zstd: Speed up when WithDecoderLowmem(false) https://github.com/klauspost/compress/pull/599
 	* zstd: faster next state update in BMI2 version of decode by @WojciechMula in https://github.com/klauspost/compress/pull/593
 	* huff0: Do not check max size when reading table. https://github.com/klauspost/compress/pull/586
-	* flate: Inplace hashing for level 7-9 by @klauspost in https://github.com/klauspost/compress/pull/590
+	* flate: Inplace hashing for level 7-9 https://github.com/klauspost/compress/pull/590
 
 
 * May 11, 2022 (v1.15.4)
@@ -236,12 +262,12 @@ https://github.com/klauspost/compress/pull/919 https://github.com/klauspost/comp
 	* zstd: Add stricter block size checks in [#523](https://github.com/klauspost/compress/pull/523)
 
 * Mar 3, 2022 (v1.15.0)
-	* zstd: Refactor decoder by @klauspost in [#498](https://github.com/klauspost/compress/pull/498)
-	* zstd: Add stream encoding without goroutines by @klauspost in [#505](https://github.com/klauspost/compress/pull/505)
+	* zstd: Refactor decoder [#498](https://github.com/klauspost/compress/pull/498)
+	* zstd: Add stream encoding without goroutines [#505](https://github.com/klauspost/compress/pull/505)
 	* huff0: Prevent single blocks exceeding 16 bits by @klauspost in[#507](https://github.com/klauspost/compress/pull/507)
-	* flate: Inline literal emission by @klauspost in [#509](https://github.com/klauspost/compress/pull/509)
-	* gzhttp: Add zstd to transport by @klauspost in [#400](https://github.com/klauspost/compress/pull/400)
-	* gzhttp: Make content-type optional by @klauspost in [#510](https://github.com/klauspost/compress/pull/510)
+	* flate: Inline literal emission [#509](https://github.com/klauspost/compress/pull/509)
+	* gzhttp: Add zstd to transport [#400](https://github.com/klauspost/compress/pull/400)
+	* gzhttp: Make content-type optional [#510](https://github.com/klauspost/compress/pull/510)
 
 Both compression and decompression now supports "synchronous" stream operations. This means that whenever "concurrency" is set to 1, they will operate without spawning goroutines.
 
@@ -258,7 +284,7 @@ While the release has been extensively tested, it is recommended to testing when
 	* flate: Fix rare huffman only (-2) corruption. [#503](https://github.com/klauspost/compress/pull/503)
 	* zip: Update deprecated CreateHeaderRaw to correctly call CreateRaw by @saracen in [#502](https://github.com/klauspost/compress/pull/502)
 	* zip: don't read data descriptor early by @saracen in [#501](https://github.com/klauspost/compress/pull/501)  #501
-	* huff0: Use static decompression buffer up to 30% faster by @klauspost in [#499](https://github.com/klauspost/compress/pull/499) [#500](https://github.com/klauspost/compress/pull/500)
+	* huff0: Use static decompression buffer up to 30% faster [#499](https://github.com/klauspost/compress/pull/499) [#500](https://github.com/klauspost/compress/pull/500)
 
 * Feb 17, 2022 (v1.14.3)
 	* flate: Improve fastest levels compression speed ~10% more throughput. [#482](https://github.com/klauspost/compress/pull/482) [#489](https://github.com/klauspost/compress/pull/489) [#490](https://github.com/klauspost/compress/pull/490) [#491](https://github.com/klauspost/compress/pull/491) [#494](https://github.com/klauspost/compress/pull/494)  [#478](https://github.com/klauspost/compress/pull/478)
@@ -565,12 +591,14 @@ While the release has been extensively tested, it is recommended to testing when
 
 The packages are drop-in replacements for standard libraries. Simply replace the import path to use them:
 
-| old import         | new import                              | Documentation
-|--------------------|-----------------------------------------|--------------------|
-| `compress/gzip`    | `github.com/klauspost/compress/gzip`    | [gzip](https://pkg.go.dev/github.com/klauspost/compress/gzip?tab=doc)
-| `compress/zlib`    | `github.com/klauspost/compress/zlib`    | [zlib](https://pkg.go.dev/github.com/klauspost/compress/zlib?tab=doc)
-| `archive/zip`      | `github.com/klauspost/compress/zip`     | [zip](https://pkg.go.dev/github.com/klauspost/compress/zip?tab=doc)
-| `compress/flate`   | `github.com/klauspost/compress/flate`   | [flate](https://pkg.go.dev/github.com/klauspost/compress/flate?tab=doc)
+Typical speed is about 2x of the standard library packages.
+
+| old import       | new import                            | Documentation                                                           |
+|------------------|---------------------------------------|-------------------------------------------------------------------------|
+| `compress/gzip`  | `github.com/klauspost/compress/gzip`  | [gzip](https://pkg.go.dev/github.com/klauspost/compress/gzip?tab=doc)   |
+| `compress/zlib`  | `github.com/klauspost/compress/zlib`  | [zlib](https://pkg.go.dev/github.com/klauspost/compress/zlib?tab=doc)   |
+| `archive/zip`    | `github.com/klauspost/compress/zip`   | [zip](https://pkg.go.dev/github.com/klauspost/compress/zip?tab=doc)     |
+| `compress/flate` | `github.com/klauspost/compress/flate` | [flate](https://pkg.go.dev/github.com/klauspost/compress/flate?tab=doc) |
 
 * Optimized [deflate](https://godoc.org/github.com/klauspost/compress/flate) packages which can be used as a dropin replacement for [gzip](https://godoc.org/github.com/klauspost/compress/gzip), [zip](https://godoc.org/github.com/klauspost/compress/zip) and [zlib](https://godoc.org/github.com/klauspost/compress/zlib).
 
@@ -625,84 +653,6 @@ This will only use up to 4KB in memory when the writer is idle.
 Compression is almost always worse than the fastest compression level 
 and each write will allocate (a little) memory. 
 
-# Performance Update 2018
-
-It has been a while since we have been looking at the speed of this package compared to the standard library, so I thought I would re-do my tests and give some overall recommendations based on the current state. All benchmarks have been performed with Go 1.10 on my Desktop Intel(R) Core(TM) i7-2600 CPU @3.40GHz. Since I last ran the tests, I have gotten more RAM, which means tests with big files are no longer limited by my SSD.
-
-The raw results are in my [updated spreadsheet](https://docs.google.com/spreadsheets/d/1nuNE2nPfuINCZJRMt6wFWhKpToF95I47XjSsc-1rbPQ/edit?usp=sharing). Due to cgo changes and upstream updates i could not get the cgo version of gzip to compile. Instead I included the [zstd](https://github.com/datadog/zstd) cgo implementation. If I get cgo gzip to work again, I might replace the results in the sheet.
-
-The columns to take note of are: *MB/s* - the throughput. *Reduction* - the data size reduction in percent of the original. *Rel Speed* relative speed compared to the standard library at the same level. *Smaller* - how many percent smaller is the compressed output compared to stdlib. Negative means the output was bigger. *Loss* means the loss (or gain) in compression as a percentage difference of the input.
-
-The `gzstd` (standard library gzip) and `gzkp` (this package gzip) only uses one CPU core. [`pgzip`](https://github.com/klauspost/pgzip), [`bgzf`](https://github.com/biogo/hts/tree/master/bgzf) uses all 4 cores. [`zstd`](https://github.com/DataDog/zstd) uses one core, and is a beast (but not Go, yet).
-
-
-## Overall differences.
-
-There appears to be a roughly 5-10% speed advantage over the standard library when comparing at similar compression levels.
-
-The biggest difference you will see is the result of [re-balancing](https://blog.klauspost.com/rebalancing-deflate-compression-levels/) the compression levels. I wanted by library to give a smoother transition between the compression levels than the standard library.
-
-This package attempts to provide a more smooth transition, where "1" is taking a lot of shortcuts, "5" is the reasonable trade-off and "9" is the "give me the best compression", and the values in between gives something reasonable in between. The standard library has big differences in levels 1-4, but levels 5-9 having no significant gains - often spending a lot more time than can be justified by the achieved compression.
-
-There are links to all the test data in the [spreadsheet](https://docs.google.com/spreadsheets/d/1nuNE2nPfuINCZJRMt6wFWhKpToF95I47XjSsc-1rbPQ/edit?usp=sharing) in the top left field on each tab.
-
-## Web Content
-
-This test set aims to emulate typical use in a web server. The test-set is 4GB data in 53k files, and is a mixture of (mostly) HTML, JS, CSS.
-
-Since level 1 and 9 are close to being the same code, they are quite close. But looking at the levels in-between the differences are quite big.
-
-Looking at level 6, this package is 88% faster, but will output about 6% more data. For a web server, this means you can serve 88% more data, but have to pay for 6% more bandwidth. You can draw your own conclusions on what would be the most expensive for your case.
-
-## Object files
-
-This test is for typical data files stored on a server. In this case it is a collection of Go precompiled objects. They are very compressible.
-
-The picture is similar to the web content, but with small differences since this is very compressible. Levels 2-3 offer good speed, but is sacrificing quite a bit of compression. 
-
-The standard library seems suboptimal on level 3 and 4 - offering both worse compression and speed than level 6 & 7 of this package respectively.
-
-## Highly Compressible File
-
-This is a JSON file with very high redundancy. The reduction starts at 95% on level 1, so in real life terms we are dealing with something like a highly redundant stream of data, etc.
-
-It is definitely visible that we are dealing with specialized content here, so the results are very scattered. This package does not do very well at levels 1-4, but picks up significantly at level 5 and levels 7 and 8 offering great speed for the achieved compression.
-
-So if you know you content is extremely compressible you might want to go slightly higher than the defaults. The standard library has a huge gap between levels 3 and 4 in terms of speed (2.75x slowdown), so it offers little "middle ground".
-
-## Medium-High Compressible
-
-This is a pretty common test corpus: [enwik9](http://mattmahoney.net/dc/textdata.html). It contains the first 10^9 bytes of the English Wikipedia dump on Mar. 3, 2006. This is a very good test of typical text based compression and more data heavy streams.
-
-We see a similar picture here as in "Web Content". On equal levels some compression is sacrificed for more speed. Level 5 seems to be the best trade-off between speed and size, beating stdlib level 3 in both.
-
-## Medium Compressible
-
-I will combine two test sets, one [10GB file set](http://mattmahoney.net/dc/10gb.html) and a VM disk image (~8GB). Both contain different data types and represent a typical backup scenario.
-
-The most notable thing is how quickly the standard library drops to very low compression speeds around level 5-6 without any big gains in compression. Since this type of data is fairly common, this does not seem like good behavior.
-
-
-## Un-compressible Content
-
-This is mainly a test of how good the algorithms are at detecting un-compressible input. The standard library only offers this feature with very conservative settings at level 1. Obviously there is no reason for the algorithms to try to compress input that cannot be compressed.  The only downside is that it might skip some compressible data on false detections.
-
-
-## Huffman only compression
-
-This compression library adds a special compression level, named `HuffmanOnly`, which allows near linear time compression. This is done by completely disabling matching of previous data, and only reduce the number of bits to represent each character. 
-
-This means that often used characters, like 'e' and ' ' (space) in text use the fewest bits to represent, and rare characters like '¤' takes more bits to represent. For more information see [wikipedia](https://en.wikipedia.org/wiki/Huffman_coding) or this nice [video](https://youtu.be/ZdooBTdW5bM).
-
-Since this type of compression has much less variance, the compression speed is mostly unaffected by the input data, and is usually more than *180MB/s* for a single core.
-
-The downside is that the compression ratio is usually considerably worse than even the fastest conventional compression. The compression ratio can never be better than 8:1 (12.5%). 
-
-The linear time compression can be used as a "better than nothing" mode, where you cannot risk the encoder to slow down on some content. For comparison, the size of the "Twain" text is *233460 bytes* (+29% vs. level 1) and encode speed is 144MB/s (4.5x level 1). So in this case you trade a 30% size increase for a 4 times speedup.
-
-For more information see my blog post on [Fast Linear Time Compression](http://blog.klauspost.com/constant-time-gzipzip-compression/).
-
-This is implemented on Go 1.7 as "Huffman Only" mode, though not exposed for gzip.
 
 # Other packages
 
