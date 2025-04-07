@@ -100,6 +100,40 @@ type Controller struct {
 	diagnosticServer *diagnostic.Server
 	mu               sync.Mutex
 
+	// networks is an in-memory cache of Network. Do not use this map unless
+	// you're sure your code is thread-safe.
+	//
+	// The data persistence layer is instantiating new Network objects every
+	// time it loads an object from its store or in-memory cache. This leads to
+	// multiple instances representing the same network to concurrently live in
+	// memory. As such, the Network mutex might be ineffective and not
+	// correctly protect against data races.
+	//
+	// If you want to use this map for new or existing code, you need to make
+	// sure: 1. the Network object is correctly locked; 2. the lock order
+	// between Sandbox, Network and Endpoint is the same as the rest of the
+	// code (in order to avoid deadlocks).
+	networks map[string]*Network
+	// networksMu protects the networks map.
+	networksMu sync.Mutex
+
+	// endpoints is an in-memory cache of Endpoint. Do not use this map unless
+	// you're sure your code is thread-safe.
+	//
+	// The data persistence layer is instantiating new Endpoint objects every
+	// time it loads an object from its store or in-memory cache. This leads to
+	// multiple instances representing the same endpoint to concurrently live
+	// in memory. As such, the Endpoint mutex might be ineffective and not
+	// correctly protect against data races.
+	//
+	// If you want to use this map for new or existing code, you need to make
+	// sure: 1. the Endpoint object is correctly locked; 2. the lock order
+	// between Sandbox, Network and Endpoint is the same as the rest of the
+	// code (in order to avoid deadlocks).
+	endpoints map[string]*Endpoint
+	// endpointsMu protects the endpoints map.
+	endpointsMu sync.Mutex
+
 	// FIXME(thaJeztah): defOsSbox is always nil on non-Linux: move these fields to Linux-only files.
 	defOsSboxOnce sync.Once
 	defOsSbox     *osl.Namespace
@@ -118,6 +152,8 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		cfg:              cfg,
 		store:            store,
 		sandboxes:        map[string]*Sandbox{},
+		networks:         map[string]*Network{},
+		endpoints:        map[string]*Endpoint{},
 		svcRecords:       make(map[string]*svcInfo),
 		serviceBindings:  make(map[serviceKey]*service),
 		agentInitDone:    make(chan struct{}),
@@ -518,8 +554,6 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	var (
 		caps driverapi.Capability
 		err  error
-
-		skipCfgEpCount bool
 	)
 
 	// Reset network types, force local scope and skip allocation and
@@ -554,13 +588,6 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 		if err := configNetwork.applyConfigurationTo(nw); err != nil {
 			return nil, types.InternalErrorf("Failed to apply configuration: %v", err)
 		}
-		defer func() {
-			if retErr == nil && !skipCfgEpCount {
-				if err := configNetwork.getEpCnt().IncEndpointCnt(); err != nil {
-					log.G(context.TODO()).Warnf("Failed to update reference count for configuration network %q on creation of network %q: %v", configNetwork.Name(), nw.name, err)
-				}
-			}
-		}()
 	}
 
 	// At this point the network scope is still unknown if not set by user
@@ -626,11 +653,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	//
 	// To cut a long story short: if this broke anything, you know who to blame :)
 	if err := c.addNetwork(nw); err != nil {
-		if _, ok := err.(types.MaskableError); ok { //nolint:gosimple
-			// This error can be ignored and set this boolean
-			// value to skip a refcount increment for configOnly networks
-			skipCfgEpCount = true
-		} else {
+		if _, ok := err.(types.MaskableError); !ok { //nolint:gosimple
 			return nil, err
 		}
 	}
@@ -658,28 +681,12 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	}
 
 addToStore:
-	// First store the endpoint count, then the network. To avoid to
-	// end up with a datastore containing a network and not an epCnt,
-	// in case of an ungraceful shutdown during this function call.
-	epCnt := &endpointCnt{n: nw}
-	if err := c.updateToStore(context.TODO(), epCnt); err != nil {
+	if err := c.storeNetwork(context.TODO(), nw); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if retErr != nil {
-			if err := c.deleteFromStore(epCnt); err != nil {
-				log.G(context.TODO()).Warnf("could not rollback from store, epCnt %v on failure (%v): %v", epCnt, retErr, err)
-			}
-		}
-	}()
-
-	nw.epCnt = epCnt
-	if err := c.updateToStore(context.TODO(), nw); err != nil {
-		return nil, err
-	}
-	defer func() {
-		if retErr != nil {
-			if err := c.deleteFromStore(nw); err != nil {
+			if err := c.deleteStoredNetwork(nw); err != nil {
 				log.G(context.TODO()).Warnf("could not rollback from store, network %v on failure (%v): %v", nw, retErr, err)
 			}
 		}
