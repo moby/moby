@@ -41,7 +41,7 @@ func MkdirAndChown(path string, mode os.FileMode, owner Identity) error {
 // ownership ONLY of newly created directories to the requested uid/gid. If the
 // directories along the path exist, no change of ownership or permissions will be performed
 //
-// Deprecated: use [user.MkdirAllAndChown] instead.
+// Deprecated: use [user.MkdirAllAndChown] with the [user.WithOnlyNew] option instead.
 func MkdirAllAndChownNew(path string, mode os.FileMode, owner Identity) error {
 	return user.MkdirAllAndChown(path, mode, owner.UID, owner.GID, user.WithOnlyNew)
 }
