@@ -44,18 +44,8 @@ func TestCopyFromContainerPathIsNotDir(t *testing.T) {
 	expected := "not a directory"
 	if testEnv.DaemonInfo.OSType == "windows" {
 		path = "c:/windows/system32/drivers/etc/hosts/"
-		expected = "The filename, directory name, or volume label syntax is incorrect."
 	}
-	rc, _, err := apiClient.CopyFromContainer(ctx, cid, path)
-	if err == nil {
-		if rc != nil {
-			defer rc.Close()
-			content, _ := io.ReadAll(rc)
-			t.Logf("Expected an error, but got nil. Received data: %s", string(content))
-		} else {
-			t.Logf("Expected an error, but got nil. Received no data.")
-		}
-	}
+	_, _, err := apiClient.CopyFromContainer(ctx, cid, path)
 	assert.ErrorContains(t, err, expected)
 }
 
