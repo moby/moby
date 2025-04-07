@@ -8,6 +8,6 @@ import (
 )
 
 // AuthenticateToRegistry checks the validity of credentials in authConfig
-func (daemon *Daemon) AuthenticateToRegistry(ctx context.Context, authConfig *registry.AuthConfig) (string, string, error) {
+func (daemon *Daemon) AuthenticateToRegistry(ctx context.Context, authConfig *registry.AuthConfig) (string, error) {
 	return daemon.registryService.Auth(ctx, authConfig, dockerversion.DockerUserAgent(ctx))
 }

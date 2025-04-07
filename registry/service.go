@@ -55,7 +55,7 @@ func (s *Service) ReplaceConfig(options ServiceOptions) (commit func(), err erro
 // Auth contacts the public registry with the provided credentials,
 // and returns OK if authentication was successful.
 // It can be used to verify the validity of a client's credentials.
-func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (statusMessage, token string, _ error) {
+func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (token string, _ error) {
 	// TODO Use ctx when searching for repositories
 	registryHostName := IndexHostname
 
@@ -66,7 +66,7 @@ func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, use
 		}
 		u, err := url.Parse(serverAddress)
 		if err != nil {
-			return "", "", invalidParamWrapf(err, "unable to parse server address")
+			return "", invalidParamWrapf(err, "unable to parse server address")
 		}
 		registryHostName = u.Host
 	}
@@ -77,7 +77,7 @@ func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, use
 	endpoints, err := s.lookupV2Endpoints(registryHostName, false)
 	s.mu.RUnlock()
 	if err != nil {
-		return "", "", invalidParam(err)
+		return "", invalidParam(err)
 	}
 
 	var lastErr error
@@ -86,7 +86,7 @@ func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, use
 		if err != nil {
 			if errdefs.IsUnauthorized(err) {
 				// Failed to authenticate; don't continue with (non-TLS) endpoints.
-				return "", "", err
+				return "", err
 			}
 			// Try next endpoint
 			log.G(ctx).WithFields(log.Fields{
@@ -97,11 +97,10 @@ func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, use
 			continue
 		}
 
-		// TODO(thaJeztah): move the statusMessage to the API endpoint; we don't need to produce that here?
-		return "Login Succeeded", authToken, nil
+		return authToken, nil
 	}
 
-	return "", "", lastErr
+	return "", lastErr
 }
 
 // ResolveRepository splits a repository name into its components
