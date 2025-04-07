@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/pkg/rootless"
 	dbus "github.com/godbus/dbus/v5"
 	"github.com/pkg/errors"
 )
@@ -40,7 +41,10 @@ var (
 // passthrough interface. The error return is non-nil if the status cannot be
 // determined because the initialisation function has not been called.
 func UsingFirewalld() (bool, error) {
-	if !firewalldInitCalled {
+	// If called before startup has completed, the firewall backend is unknown.
+	// But, if running rootless, the init function is not called because
+	// firewalld will be running in the host's netns, not in rootlesskit's.
+	if !firewalldInitCalled && !rootless.RunningWithRootlessKit() {
 		return false, fmt.Errorf("iptables.firewalld is not initialised")
 	}
 	return firewalldRunning, nil
