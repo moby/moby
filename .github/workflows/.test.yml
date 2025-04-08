@@ -222,7 +222,7 @@ jobs:
           retention-days: 1
 
   integration-flaky:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     steps:
@@ -267,14 +267,12 @@ jobs:
         with:
           script: |
             let includes = [
-              { os: 'ubuntu-20.04', mode: '' },
-              { os: 'ubuntu-20.04', mode: 'rootless' },
-              { os: 'ubuntu-20.04', mode: 'systemd' },
-              { os: 'ubuntu-24.04', mode: '' },
+              { os: 'ubuntu-22.04', mode: '' },
               { os: 'ubuntu-22.04', mode: 'rootless' },
+              { os: 'ubuntu-22.04', mode: 'systemd' },
+              { os: 'ubuntu-24.04', mode: '' },
               // { os: 'ubuntu-24.04', mode: 'rootless' },  // FIXME: https://github.com/moby/moby/pull/49579#issuecomment-2698622223
               { os: 'ubuntu-24.04', mode: 'systemd' },
-              // { os: 'ubuntu-20.04', mode: 'rootless-systemd' }, // FIXME: https://github.com/moby/moby/issues/44084
               // { os: 'ubuntu-24.04', mode: 'rootless-systemd' }, // FIXME: https://github.com/moby/moby/issues/44084
             ];
             if ("${{ inputs.storage }}" == "snapshotter") {
@@ -488,7 +486,7 @@ jobs:
           echo ${{ steps.set.outputs.matrix }}
 
   integration-cli:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     needs:
