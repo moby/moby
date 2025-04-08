@@ -3949,6 +3949,7 @@ func (s *DockerCLIBuildSuite) TestBuildEmptyStringVolume(c *testing.T) {
 
 func (s *DockerCLIBuildSuite) TestBuildContainerWithCgroupParent(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	cgroupParent := "test"
 	data, err := os.ReadFile("/proc/self/cgroup")

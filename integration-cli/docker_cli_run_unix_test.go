@@ -26,6 +26,7 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/skip"
 )
 
 // #6509
@@ -453,6 +454,7 @@ func (s *DockerCLIRunSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *te
 // "test" should be printed
 func (s *DockerCLIRunSuite) TestRunWithCPUQuota(c *testing.T) {
 	testRequires(c, cpuCfsQuota)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
 	out := cli.DockerCmd(c, "run", "--cpu-quota", "8000", "--name", "test", "busybox", "cat", file).Combined()
@@ -464,6 +466,7 @@ func (s *DockerCLIRunSuite) TestRunWithCPUQuota(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunWithCpuPeriod(c *testing.T) {
 	testRequires(c, cpuCfsPeriod)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
 	out := cli.DockerCmd(c, "run", "--cpu-period", "50000", "--name", "test", "busybox", "cat", file).Combined()
@@ -494,6 +497,7 @@ func (s *DockerCLIRunSuite) TestRunWithInvalidCpuPeriod(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunWithCPUShares(c *testing.T) {
 	testRequires(c, cpuShare)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/cpu/cpu.shares"
 	out := cli.DockerCmd(c, "run", "--cpu-shares", "1000", "--name", "test", "busybox", "cat", file).Combined()
@@ -514,6 +518,7 @@ func (s *DockerCLIRunSuite) TestRunEchoStdoutWithCPUSharesAndMemoryLimit(c *test
 
 func (s *DockerCLIRunSuite) TestRunWithCpusetCpus(c *testing.T) {
 	testRequires(c, cgroupCpuset)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/cpuset/cpuset.cpus"
 	out := cli.DockerCmd(c, "run", "--cpuset-cpus", "0", "--name", "test", "busybox", "cat", file).Combined()
@@ -525,6 +530,7 @@ func (s *DockerCLIRunSuite) TestRunWithCpusetCpus(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunWithCpusetMems(c *testing.T) {
 	testRequires(c, cgroupCpuset)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/cpuset/cpuset.mems"
 	out := cli.DockerCmd(c, "run", "--cpuset-mems", "0", "--name", "test", "busybox", "cat", file).Combined()
@@ -536,6 +542,7 @@ func (s *DockerCLIRunSuite) TestRunWithCpusetMems(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunWithBlkioWeight(c *testing.T) {
 	testRequires(c, blkioWeight)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/blkio/blkio.weight"
 	out := cli.DockerCmd(c, "run", "--blkio-weight", "300", "--name", "test", "busybox", "cat", file).Combined()
@@ -547,6 +554,7 @@ func (s *DockerCLIRunSuite) TestRunWithBlkioWeight(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunWithInvalidBlkioWeight(c *testing.T) {
 	testRequires(c, blkioWeight)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 	out, _, err := dockerCmdWithError("run", "--blkio-weight", "5", "busybox", "true")
 	assert.ErrorContains(c, err, "", out)
 	expected := "Range of blkio weight is from 10 to 1000"
@@ -605,6 +613,7 @@ func (s *DockerCLIRunSuite) TestRunOOMExitCode(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunWithMemoryLimit(c *testing.T) {
 	testRequires(c, memoryLimitSupport)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
 	cli.DockerCmd(c, "run", "-m", "32M", "--name", "test", "busybox", "cat", file).Assert(c, icmd.Expected{
@@ -649,6 +658,7 @@ func (s *DockerCLIRunSuite) TestRunWithSwappinessInvalid(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunWithMemoryReservation(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, memoryReservationSupport)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/memory/memory.soft_limit_in_bytes"
 	out := cli.DockerCmd(c, "run", "--memory-reservation", "200M", "--name", "test", "busybox", "cat", file).Combined()
@@ -1364,6 +1374,7 @@ func (s *DockerCLIRunSuite) TestRunDeviceSymlink(c *testing.T) {
 // TestRunPIDsLimit makes sure the pids cgroup is set with --pids-limit
 func (s *DockerCLIRunSuite) TestRunPIDsLimit(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, pidsLimit)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/pids/pids.max"
 	out := cli.DockerCmd(c, "run", "--name", "skittles", "--pids-limit", "4", "busybox", "cat", file).Combined()
@@ -1375,6 +1386,7 @@ func (s *DockerCLIRunSuite) TestRunPIDsLimit(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunPrivilegedAllowedDevices(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/devices/devices.list"
 	out := cli.DockerCmd(c, "run", "--privileged", "busybox", "cat", file).Combined()
@@ -1529,6 +1541,7 @@ func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *testing.T)
 
 func (s *DockerCLIRunSuite) TestRunWithNanoCPUs(c *testing.T) {
 	testRequires(c, cpuCfsQuota, cpuCfsPeriod)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file1 = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
 	const file2 = "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
