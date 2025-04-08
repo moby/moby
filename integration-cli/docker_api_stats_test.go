@@ -25,8 +25,8 @@ var expectedNetworkInterfaceStats = strings.Split("rx_bytes rx_dropped rx_errors
 
 func (s *DockerAPISuite) TestAPIStatsNoStreamGetCpu(c *testing.T) {
 	skip.If(c, RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;usleep 100; do echo 'Hello'; done")
-
 	id := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(id))
 	resp, body, err := request.Get(fmt.Sprintf("/containers/%s/stats?stream=false", id))

@@ -41,6 +41,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
 )
 
 const containerdSocket = "/var/run/docker/containerd/containerd.sock"
@@ -1802,6 +1803,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *testing.T)
 
 func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	cgroupParent := "test"
 	name := "cgroup-test"
