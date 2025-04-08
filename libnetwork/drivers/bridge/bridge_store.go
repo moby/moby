@@ -9,10 +9,12 @@ import (
 	"net"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -49,9 +51,12 @@ func (d *driver) populateNetworks() error {
 		return nil
 	}
 
+	ctx := baggage.ContextWithBaggage(context.TODO(), otelutil.MustNewBaggage(
+		otelutil.MustNewMemberRaw(otelutil.TriggerKey, spanPrefix+".initStore"),
+	))
 	for _, kvo := range kvol {
 		ncfg := kvo.(*networkConfiguration)
-		if err = d.createNetwork(context.TODO(), ncfg); err != nil {
+		if err = d.createNetwork(ctx, ncfg); err != nil {
 			log.G(context.TODO()).Warnf("could not create bridge network for id %s bridge name %s while booting up from persistent state: %v", ncfg.ID, ncfg.BridgeName, err)
 		}
 		log.G(context.TODO()).Debugf("Network (%.7s) restored", ncfg.ID)

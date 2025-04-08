@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/daemon/initlayer"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/internal/usergroup"
 	"github.com/docker/docker/libcontainerd/remote"
 	"github.com/docker/docker/libnetwork"
@@ -51,6 +52,7 @@ import (
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
+	"go.opentelemetry.io/otel/baggage"
 	"golang.org/x/sys/unix"
 )
 
@@ -849,7 +851,9 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 		return err
 	}
 
-	ctx := context.TODO()
+	ctx := baggage.ContextWithBaggage(context.TODO(), otelutil.MustNewBaggage(
+		otelutil.MustNewMemberRaw(otelutil.TriggerKey, "daemon.initNetworkController"),
+	))
 	daemon.netController, err = libnetwork.New(ctx, netOptions...)
 	if err != nil {
 		return fmt.Errorf("error obtaining controller instance: %v", err)
