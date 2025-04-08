@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/system"
@@ -20,7 +21,12 @@ func (c *Controller) FirewallBackend() *system.FirewallInfo {
 		return nil
 	}
 	if usingFirewalld {
-		return &system.FirewallInfo{Driver: "iptables+firewalld"}
+		info := &system.FirewallInfo{Driver: "iptables+firewalld"}
+		reloadedAt := iptables.FirewalldReloadedAt()
+		if !reloadedAt.IsZero() {
+			info.Info = append(info.Info, [2]string{"ReloadedAt", reloadedAt.Format(time.RFC3339)})
+		}
+		return info
 	}
 	return &system.FirewallInfo{Driver: "iptables"}
 }

@@ -544,6 +544,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 			})
 		}
 	}
+	iptables.OnReloaded(d.handleFirewalldReload)
 
 	var pdc portDriverClient
 	if config.Rootless {
@@ -898,13 +899,6 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 
 		// Setup Loopback Addresses Routing
 		{!d.config.EnableUserlandProxy, setupLoopbackAddressesRouting},
-
-		// We want to track firewalld configuration so that
-		// if it is started/reloaded, the rules can be applied correctly
-		{
-			(config.EnableIPv4 && d.config.EnableIPTables) || (config.EnableIPv6 && d.config.EnableIP6Tables),
-			network.setupFirewalld,
-		},
 
 		// Setup DefaultGatewayIPv4
 		{config.DefaultGatewayIPv4 != nil, setupGatewayIPv4},
@@ -1475,6 +1469,11 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 		attribute.String("eid", eid)))
 	defer span.End()
 
+	// Make sure the network isn't deleted, or in the middle of a firewalld reload, while
+	// updating its iptables rules.
+	d.configNetwork.Lock()
+	defer d.configNetwork.Unlock()
+
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err
@@ -1535,6 +1534,11 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 }
 
 func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
+	// Make sure this function isn't deleting iptables rules while handleFirewalldReloadNw
+	// is restoring those same rules.
+	d.configNetwork.Lock()
+	defer d.configNetwork.Unlock()
+
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err
@@ -1566,6 +1570,72 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 	}
 
 	return nil
+}
+
+func (d *driver) handleFirewalldReload() {
+	if !d.config.EnableIPTables && !d.config.EnableIP6Tables {
+		return
+	}
+
+	d.Lock()
+	nids := make([]string, 0, len(d.networks))
+	for _, nw := range d.networks {
+		nids = append(nids, nw.id)
+	}
+	d.Unlock()
+
+	for _, nid := range nids {
+		d.handleFirewalldReloadNw(nid)
+	}
+}
+
+func (d *driver) handleFirewalldReloadNw(nid string) {
+	d.Lock()
+	defer d.Unlock()
+
+	if !d.config.EnableIPTables && !d.config.EnableIP6Tables {
+		return
+	}
+
+	// Make sure the network isn't being deleted, and ProgramExternalConnectivity/RevokeExternalConnectivity
+	// aren't modifying iptables rules, while restoring the rules.
+	d.configNetwork.Lock()
+	defer d.configNetwork.Unlock()
+
+	nw, ok := d.networks[nid]
+	if !ok {
+		// Network deleted since the reload started, not an error.
+		return
+	}
+
+	if err := nw.iptablesNetwork.reapplyNetworkLevelRules(); err != nil {
+		log.G(context.Background()).WithFields(log.Fields{
+			"nid":   nw.id,
+			"error": err,
+		}).Error("Failed to re-create packet filter on firewalld reload")
+	}
+
+	// Re-add legacy links - only added during ProgramExternalConnectivity, but legacy
+	// links are default-bridge-only, and it's not possible to connect a container to
+	// the default bridge and a user-defined network. So, the default bridge is always
+	// the gateway and, if there are legacy links configured they need to be set up.
+	if !nw.config.EnableICC {
+		for _, ep := range nw.endpoints {
+			if err := d.link(nw, ep, true); err != nil {
+				log.G(context.Background()).WithFields(log.Fields{
+					"nid":   nw.id,
+					"eid":   ep.id,
+					"error": err,
+				}).Error("Failed to re-create link on firewalld reload")
+			}
+		}
+	}
+
+	// Set up per-port rules. These are also only set up during ProgramExternalConnectivity
+	// but the network's port bindings are only configured when it's acting as the
+	// gateway network. So, this is a no-op for networks that aren't providing endpoints
+	// with the gateway.
+	nw.reapplyPerPortIptables()
 }
 
 func LegacyContainerLinkOptions(parentEndpoints, childEndpoints []string) map[string]interface{} {
