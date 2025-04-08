@@ -125,7 +125,7 @@ func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, 
 		client = v2Client
 	} else {
 		client = endpoint.client
-		if err := authorizeClient(client, authConfig, endpoint); err != nil {
+		if err := authorizeClient(ctx, client, authConfig, endpoint); err != nil {
 			return nil, err
 		}
 	}

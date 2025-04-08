@@ -173,18 +173,18 @@ func (tr *authTransport) CancelRequest(req *http.Request) {
 	}
 }
 
-func authorizeClient(client *http.Client, authConfig *registry.AuthConfig, endpoint *v1Endpoint) error {
+func authorizeClient(ctx context.Context, client *http.Client, authConfig *registry.AuthConfig, endpoint *v1Endpoint) error {
 	var alwaysSetBasicAuth bool
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside all our requests.
 	if endpoint.String() != IndexServer && endpoint.URL.Scheme == "https" {
-		info, err := endpoint.ping(context.TODO())
+		info, err := endpoint.ping(ctx)
 		if err != nil {
 			return err
 		}
 		if info.Standalone && authConfig != nil {
-			log.G(context.TODO()).Debugf("Endpoint %s is eligible for private registry. Enabling decorator.", endpoint.String())
+			log.G(ctx).WithField("endpoint", endpoint.String()).Debug("Endpoint is eligible for private registry; enabling alwaysSetBasicAuth")
 			alwaysSetBasicAuth = true
 		}
 	}

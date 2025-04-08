@@ -26,7 +26,7 @@ func spawnTestRegistrySession(t *testing.T) *session {
 	tr = transport.NewTransport(newAuthTransport(tr, authConfig, false), Headers(userAgent, nil)...)
 	client := httpClient(tr)
 
-	if err := authorizeClient(client, authConfig, endpoint); err != nil {
+	if err := authorizeClient(context.Background(), client, authConfig, endpoint); err != nil {
 		t.Fatal(err)
 	}
 	r := newSession(client, endpoint)

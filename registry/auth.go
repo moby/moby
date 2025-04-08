@@ -66,11 +66,11 @@ func (scs staticCredentialStore) SetRefreshToken(*url.URL, string, string) {
 // loginV2 tries to login to the v2 registry server. The given registry
 // endpoint will be pinged to get authorization challenges. These challenges
 // will be used to authenticate against the registry to validate credentials.
-func loginV2(authConfig *registry.AuthConfig, endpoint APIEndpoint, userAgent string) (token string, _ error) {
+func loginV2(ctx context.Context, authConfig *registry.AuthConfig, endpoint APIEndpoint, userAgent string) (token string, _ error) {
 	endpointStr := strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
-	log.G(context.TODO()).Debugf("attempting v2 login to registry endpoint %s", endpointStr)
+	log.G(ctx).WithField("endpoint", endpointStr).Debug("attempting v2 login to registry endpoint")
 
-	req, err := http.NewRequest(http.MethodGet, endpointStr, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpointStr, nil)
 	if err != nil {
 		return "", err
 	}
