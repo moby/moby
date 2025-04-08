@@ -1,0 +1,12 @@
+table ip table4 {
+	set set4 {
+		type ipv4_addr
+		flags interval
+	}
+}
+table ip6 table6 {
+	set set6 {
+		type ipv6_addr
+		flags interval
+	}
+}
