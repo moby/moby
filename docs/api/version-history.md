@@ -23,6 +23,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   This option is mutually exclusive with the `manifests` option.
 * `GET /info` now returns a `FirewallBackend` containing information about
   the daemon's firewalling configuration.
+* Deprecated: The  `AllowNondistributableArtifactsCIDRs` and `AllowNondistributableArtifactsHostnames`
+  fields in the `RegistryConfig` struct in the `GET /info` response are omitted
+  in API v1.49.
 
 ## v1.48 API changes
 
