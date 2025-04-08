@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -60,6 +61,7 @@ func TestUserChain(t *testing.T) {
 			defer resetIptables(t)
 
 			c, err := New(
+				context.Background(),
 				config.OptionDataDir(t.TempDir()),
 				config.OptionDriverConfig("bridge", map[string]any{
 					netlabel.GenericData: options.Generic{

@@ -28,7 +28,7 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 	err := os.MkdirAll(rootfs, 0o755)
 	assert.NilError(t, err)
 
-	netController, err := libnetwork.New(nwconfig.OptionDataDir(t.TempDir()))
+	netController, err := libnetwork.New(context.Background(), nwconfig.OptionDataDir(t.TempDir()))
 	assert.NilError(t, err)
 
 	d := &Daemon{

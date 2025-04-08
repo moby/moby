@@ -15,7 +15,7 @@ import (
 
 func TestCleanupServiceDiscovery(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	c, err := New(config.OptionDataDir(t.TempDir()),
+	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	assert.NilError(t, err)
 	defer c.Stop()

@@ -54,6 +54,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/libnetwork/cluster"
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/datastore"
@@ -140,7 +141,13 @@ type Controller struct {
 }
 
 // New creates a new instance of network controller.
-func New(cfgOptions ...config.Option) (*Controller, error) {
+func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.New")
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	cfg := config.New(cfgOptions...)
 	store, err := datastore.New(cfg.DataDir, cfg.DatastoreBucket)
 	if err != nil {
@@ -179,8 +186,8 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 
 	c.WalkNetworks(func(nw *Network) bool {
 		if n := nw; n.hasSpecialDriver() && !n.ConfigOnly() {
-			if err := n.getController().addNetwork(context.TODO(), n); err != nil {
-				log.G(context.TODO()).Warnf("Failed to populate network %q with driver %q", nw.Name(), nw.Type())
+			if err := n.getController().addNetwork(ctx, n); err != nil {
+				log.G(ctx).Warnf("Failed to populate network %q with driver %q", nw.Name(), nw.Type())
 			}
 		}
 		return false
@@ -192,12 +199,12 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 	c.reservePools()
 
 	if err := c.sandboxRestore(c.cfg.ActiveSandboxes); err != nil {
-		log.G(context.TODO()).WithError(err).Error("error during sandbox cleanup")
+		log.G(ctx).WithError(err).Error("error during sandbox cleanup")
 	}
 
 	// Cleanup resources
 	if err := c.cleanupLocalEndpoints(); err != nil {
-		log.G(context.TODO()).WithError(err).Warnf("error during endpoint cleanup")
+		log.G(ctx).WithError(err).Warnf("error during endpoint cleanup")
 	}
 	c.networkCleanup()
 

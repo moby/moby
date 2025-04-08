@@ -13,7 +13,7 @@ import (
 
 func TestEndpointStore(t *testing.T) {
 	configOption := config.OptionDataDir(t.TempDir())
-	c, err := New(configOption)
+	c, err := New(context.Background(), configOption)
 	assert.NilError(t, err)
 	defer c.Stop()
 

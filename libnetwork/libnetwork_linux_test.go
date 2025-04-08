@@ -46,6 +46,7 @@ const (
 func newController(t *testing.T) *libnetwork.Controller {
 	t.Helper()
 	c, err := libnetwork.New(
+		context.Background(),
 		config.OptionDataDir(t.TempDir()),
 		config.OptionDriverConfig(bridgeNetType, map[string]interface{}{
 			netlabel.GenericData: options.Generic{
@@ -888,7 +889,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 	err = os.WriteFile(filepath.Join(specPath, "invalid-network-driver.spec"), []byte(server.URL), 0o644)
 	assert.NilError(t, err)
 
-	ctrlr, err := libnetwork.New(config.OptionDataDir(t.TempDir()))
+	ctrlr, err := libnetwork.New(context.Background(), config.OptionDataDir(t.TempDir()))
 	assert.NilError(t, err)
 	defer ctrlr.Stop()
 

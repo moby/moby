@@ -322,7 +322,7 @@ func compareNwLists(a, b []*net.IPNet) bool {
 func TestAuxAddresses(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New(config.OptionDataDir(t.TempDir()))
+	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -398,7 +398,7 @@ func TestUpdateSvcRecord(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
-			ctrlr, err := New(config.OptionDataDir(t.TempDir()))
+			ctrlr, err := New(context.Background(), config.OptionDataDir(t.TempDir()))
 			assert.NilError(t, err)
 			defer ctrlr.Stop()
 
@@ -477,7 +477,7 @@ func TestSRVServiceQuery(t *testing.T) {
 
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New(config.OptionDataDir(t.TempDir()),
+	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
 		t.Fatal(err)
@@ -578,7 +578,7 @@ func TestServiceVIPReuse(t *testing.T) {
 
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New(config.OptionDataDir(t.TempDir()),
+	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
 		t.Fatal(err)
@@ -699,7 +699,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New(config.OptionDataDir(t.TempDir()))
+	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()))
 	if err != nil {
 		t.Fatal(err)
 	}

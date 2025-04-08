@@ -849,14 +849,15 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 		return err
 	}
 
-	daemon.netController, err = libnetwork.New(netOptions...)
+	ctx := context.TODO()
+	daemon.netController, err = libnetwork.New(ctx, netOptions...)
 	if err != nil {
 		return fmt.Errorf("error obtaining controller instance: %v", err)
 	}
 
 	if len(activeSandboxes) > 0 {
-		log.G(context.TODO()).Info("there are running containers, updated network configuration will not take affect")
-	} else if err := configureNetworking(daemon.netController, cfg); err != nil {
+		log.G(ctx).Info("there are running containers, updated network configuration will not take affect")
+	} else if err := configureNetworking(ctx, daemon.netController, cfg); err != nil {
 		return err
 	}
 
@@ -865,17 +866,17 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 	return nil
 }
 
-func configureNetworking(controller *libnetwork.Controller, conf *config.Config) error {
+func configureNetworking(ctx context.Context, controller *libnetwork.Controller, conf *config.Config) error {
 	// Create predefined network "none"
 	if n, _ := controller.NetworkByName(network.NetworkNone); n == nil {
-		if _, err := controller.NewNetwork(context.TODO(), "null", network.NetworkNone, "", libnetwork.NetworkOptionPersist(true)); err != nil {
+		if _, err := controller.NewNetwork(ctx, "null", network.NetworkNone, "", libnetwork.NetworkOptionPersist(true)); err != nil {
 			return errors.Wrapf(err, `error creating default %q network`, network.NetworkNone)
 		}
 	}
 
 	// Create predefined network "host"
 	if n, _ := controller.NetworkByName(network.NetworkHost); n == nil {
-		if _, err := controller.NewNetwork(context.TODO(), "host", network.NetworkHost, "", libnetwork.NetworkOptionPersist(true)); err != nil {
+		if _, err := controller.NewNetwork(ctx, "host", network.NetworkHost, "", libnetwork.NetworkOptionPersist(true)); err != nil {
 			return errors.Wrapf(err, `error creating default %q network`, network.NetworkHost)
 		}
 	}
@@ -892,7 +893,7 @@ func configureNetworking(controller *libnetwork.Controller, conf *config.Config)
 
 	if !conf.DisableBridge {
 		// Initialize default driver "bridge"
-		if err := initBridgeDriver(controller, conf.BridgeConfig); err != nil {
+		if err := initBridgeDriver(ctx, controller, conf.BridgeConfig); err != nil {
 			return err
 		}
 	} else {
@@ -981,7 +982,7 @@ type defBrOpts interface {
 	defGw() (gw net.IP, optName, auxAddrLabel string)
 }
 
-func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig) error {
+func initBridgeDriver(ctx context.Context, controller *libnetwork.Controller, cfg config.BridgeConfig) error {
 	bridgeName, userManagedBridge := getDefaultBridgeName(cfg)
 	netOption := map[string]string{
 		bridge.BridgeName:         bridgeName,
@@ -1009,7 +1010,7 @@ func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig
 	}
 
 	// Initialize default network on "bridge" with the same name
-	_, err = controller.NewNetwork(context.TODO(), "bridge", network.NetworkBridge, "",
+	_, err = controller.NewNetwork(ctx, "bridge", network.NetworkBridge, "",
 		libnetwork.NetworkOptionEnableIPv4(true),
 		libnetwork.NetworkOptionEnableIPv6(cfg.EnableIPv6),
 		libnetwork.NetworkOptionDriverOpts(netOption),

@@ -17,7 +17,7 @@ func TestBoltdbBackend(t *testing.T) {
 
 func TestNoPersist(t *testing.T) {
 	configOption := config.OptionDataDir(t.TempDir())
-	testController, err := New(configOption)
+	testController, err := New(context.Background(), configOption)
 	if err != nil {
 		t.Fatalf("Error creating new controller: %v", err)
 	}
@@ -34,7 +34,7 @@ func TestNoPersist(t *testing.T) {
 
 	// Create a new controller using the same database-file. The network
 	// should not have persisted.
-	testController, err = New(configOption)
+	testController, err = New(context.Background(), configOption)
 	if err != nil {
 		t.Fatalf("Error creating new controller: %v", err)
 	}
