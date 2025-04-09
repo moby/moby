@@ -19,6 +19,7 @@ import (
 
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
@@ -69,10 +70,18 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {
 	expected, err := os.ReadFile("fixtures/https/ca.pem")
 	assert.NilError(c, err)
 
-	spec = getSpec()
-	assert.Equal(c, len(spec.CAConfig.ExternalCAs), 2)
-	assert.Equal(c, spec.CAConfig.ExternalCAs[0].CACert, "")
-	assert.Equal(c, spec.CAConfig.ExternalCAs[1].CACert, string(expected))
+	version := cli.Docker(cli.Args("version", "--format", "{{ .Client.Version }}"), cli.Daemon(d)).Stdout()
+	version = strings.TrimSpace(version)
+	// This was broken in v18.06
+	// See: https://github.com/docker/cli/pull/5995
+	if version != "" && versions.LessThan(version, "18.06") {
+		spec = getSpec()
+		sw := d.GetSwarm(c)
+		if assert.Check(c, is.Len(spec.CAConfig.ExternalCAs, 2)) {
+			assert.Check(c, is.Equal(spec.CAConfig.ExternalCAs[0].CACert, sw.TLSInfo.TrustRoot))
+			assert.Check(c, is.Equal(spec.CAConfig.ExternalCAs[1].CACert, string(expected)))
+		}
+	}
 
 	// passing an invalid external CA fails
 	tempFile := fs.NewFile(c, "testfile", fs.WithContent("fakecert"))
@@ -117,11 +126,22 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *testing.T) {
 	assert.NilError(c, err)
 
 	spec := getSpec()
-	assert.Equal(c, spec.CAConfig.NodeCertExpiry, 30*time.Hour)
-	assert.Equal(c, spec.Dispatcher.HeartbeatPeriod, 11*time.Second)
-	assert.Equal(c, len(spec.CAConfig.ExternalCAs), 2)
-	assert.Equal(c, spec.CAConfig.ExternalCAs[0].CACert, "")
-	assert.Equal(c, spec.CAConfig.ExternalCAs[1].CACert, string(expected))
+	assert.Check(c, is.Equal(spec.CAConfig.NodeCertExpiry, 30*time.Hour))
+	assert.Check(c, is.Equal(spec.Dispatcher.HeartbeatPeriod, 11*time.Second))
+
+	version := cli.Docker(cli.Args("version", "--format", "{{ .Client.Version }}"), cli.Daemon(d)).Stdout()
+	version = strings.TrimSpace(version)
+	// This was broken in v18.06
+	// See: https://github.com/docker/cli/pull/5995
+	if version != "" && versions.LessThan(version, "18.06") {
+		if assert.Check(c, is.Len(spec.CAConfig.ExternalCAs, 2)) {
+			// TODO: Should this actually be:
+			// assert.Check(c, is.Equal(spec.CAConfig.ExternalCAs[0].CACert, sw.TLSInfo.TrustRoot))
+			assert.Check(c, is.Equal(spec.CAConfig.ExternalCAs[0].CACert, ""))
+
+			assert.Check(c, is.Equal(spec.CAConfig.ExternalCAs[1].CACert, string(expected)))
+		}
+	}
 
 	assert.NilError(c, d.SwarmLeave(ctx, c, true))
 	cli.Docker(cli.Args("swarm", "init"), cli.Daemon(d)).Assert(c, icmd.Success)
