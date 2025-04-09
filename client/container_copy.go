@@ -91,7 +91,7 @@ func (cli *Client) CopyFromContainer(ctx context.Context, containerID, srcPath s
 	// Strict validation: if path ends with "/", it must be a directory
 	if strings.HasSuffix(srcPath, "/") && stat.Mode&os.ModeDir == 0 {
 		resp.Body.Close()
-		return nil, stat, fmt.Errorf("path %q ends with '/', but is not a directory", srcPath)
+		return nil, stat, fmt.Errorf("path %q ends with '/', but is not a directory. The filename, directory name, or volume label syntax is incorrect", srcPath)
 	}
 
 	return resp.Body, stat, err
