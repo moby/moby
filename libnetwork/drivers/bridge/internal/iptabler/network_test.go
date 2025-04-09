@@ -3,6 +3,7 @@
 package iptabler
 
 import (
+	"context"
 	"net/netip"
 	"testing"
 
@@ -63,7 +64,7 @@ func TestSetupIPChains(t *testing.T) {
 	// Create a test bridge with a basic bridge configuration (name + IPv4).
 	defer netnsutils.SetupTestOSContext(t)()
 
-	ipt, err := NewIptabler(firewaller.Config{IPv4: true})
+	ipt, err := NewIptabler(context.Background(), firewaller.Config{IPv4: true})
 	assert.NilError(t, err)
 
 	nc := firewaller.NetworkConfig{
@@ -89,7 +90,7 @@ func TestSetupIPChains(t *testing.T) {
 func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	ipt, err := NewIptabler(firewaller.Config{
+	ipt, err := NewIptabler(context.Background(), firewaller.Config{
 		IPv4: true,
 		IPv6: true,
 	})
@@ -112,9 +113,9 @@ func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 // Assert function which pushes chains based on bridge config parameters.
 func assertBridgeConfig(t *testing.T, ipt firewaller.Firewaller, nc firewaller.NetworkConfig) {
 	t.Helper()
-	n, err := ipt.NewNetwork(nc)
+	n, err := ipt.NewNetwork(context.Background(), nc)
 	assert.NilError(t, err)
-	err = n.DelNetworkLevelRules()
+	err = n.DelNetworkLevelRules(context.Background())
 	assert.NilError(t, err)
 }
 
@@ -258,7 +259,7 @@ func TestOutgoingNATRules(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
-			ipt, err := NewIptabler(firewaller.Config{
+			ipt, err := NewIptabler(context.Background(), firewaller.Config{
 				IPv4: tc.enableIPTables,
 				IPv6: tc.enableIP6Tables,
 			})
@@ -276,11 +277,11 @@ func TestOutgoingNATRules(t *testing.T) {
 					Prefix: maskedBrIPv6,
 				},
 			}
-			n, err := ipt.NewNetwork(nc)
+			n, err := ipt.NewNetwork(context.Background(), nc)
 			assert.NilError(t, err)
 
 			defer func() {
-				err = n.DelNetworkLevelRules()
+				err = n.DelNetworkLevelRules(context.Background())
 				assert.NilError(t, err)
 			}()
 
