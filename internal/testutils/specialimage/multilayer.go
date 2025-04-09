@@ -9,8 +9,8 @@ import (
 
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/google/uuid"
+	"github.com/moby/go-archive"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

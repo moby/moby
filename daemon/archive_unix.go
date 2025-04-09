@@ -12,9 +12,9 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	volumemounts "github.com/docker/docker/volume/mounts"
+	"github.com/moby/go-archive"
 	"github.com/pkg/errors"
 )
 

@@ -38,9 +38,9 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/internal/fstype"
 	"github.com/docker/docker/internal/containerfs"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/go-units"
 	"github.com/moby/sys/mount"
+	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
@@ -58,7 +58,7 @@ type btrfsOptions struct {
 
 // Init returns a new BTRFS driver.
 // An error is returned if BTRFS is not supported.
-func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdriver.Driver, error) {
+func Init(home string, options []string, idMap user.IdentityMapping) (graphdriver.Driver, error) {
 	// Perform feature detection on /var/lib/docker/btrfs if it's an existing directory.
 	// This covers situations where /var/lib/docker/btrfs is a mount, and on a different
 	// filesystem than /var/lib/docker.
@@ -77,13 +77,8 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		return nil, graphdriver.ErrPrerequisites
 	}
 
-	currentID := idtools.CurrentIdentity()
-	dirID := idtools.Identity{
-		UID: currentID.UID,
-		GID: idMap.RootPair().GID,
-	}
-
-	if err := idtools.MkdirAllAndChown(home, 0o710, dirID); err != nil {
+	_, gid := idMap.RootPair()
+	if err := user.MkdirAllAndChown(home, 0o710, os.Getuid(), gid); err != nil {
 		return nil, err
 	}
 
@@ -144,7 +139,7 @@ func parseOptions(opt []string) (btrfsOptions, bool, error) {
 type Driver struct {
 	// root of the file system
 	home         string
-	idMap        idtools.IdentityMapping
+	idMap        user.IdentityMapping
 	options      btrfsOptions
 	quotaEnabled bool
 	once         sync.Once
@@ -487,15 +482,9 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 	quotas := path.Join(d.home, "quotas")
 	subvolumes := path.Join(d.home, "subvolumes")
-	root := d.idMap.RootPair()
 
-	currentID := idtools.CurrentIdentity()
-	dirID := idtools.Identity{
-		UID: currentID.UID,
-		GID: root.GID,
-	}
-
-	if err := idtools.MkdirAllAndChown(subvolumes, 0o710, dirID); err != nil {
+	uid, gid := d.idMap.RootPair()
+	if err := user.MkdirAllAndChown(subvolumes, 0o710, os.Getuid(), gid); err != nil {
 		return err
 	}
 	if parent == "" {
@@ -530,7 +519,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 		if err := d.setStorageSize(path.Join(subvolumes, id), driver); err != nil {
 			return err
 		}
-		if err := idtools.MkdirAllAndChown(quotas, 0o700, idtools.CurrentIdentity()); err != nil {
+		if err := user.MkdirAllAndChown(quotas, 0o700, os.Getuid(), os.Getegid()); err != nil {
 			return err
 		}
 		if err := os.WriteFile(path.Join(quotas, id), []byte(fmt.Sprint(driver.options.size)), 0o644); err != nil {
@@ -540,8 +529,8 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 
 	// if we have a remapped root (user namespaces enabled), change the created snapshot
 	// dir ownership to match
-	if root.UID != 0 || root.GID != 0 {
-		if err := root.Chown(path.Join(subvolumes, id)); err != nil {
+	if uid != 0 || gid != 0 {
+		if err := os.Chown(path.Join(subvolumes, id), uid, gid); err != nil {
 			return err
 		}
 	}

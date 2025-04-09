@@ -9,9 +9,8 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/chrootarchive"
 )
 
 // ContainerExport writes the contents of the container to the given
@@ -66,7 +65,7 @@ func (daemon *Daemon) containerExport(ctx context.Context, ctr *container.Contai
 
 	archv, err := chrootarchive.Tar(basefs, &archive.TarOptions{
 		Compression: archive.Uncompressed,
-		IDMap:       idtools.FromUserIdentityMapping(daemon.idMapping),
+		IDMap:       daemon.idMapping,
 	}, basefs)
 	if err != nil {
 		return err

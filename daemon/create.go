@@ -3,6 +3,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -19,8 +20,8 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/internal/multierror"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/runconfig"
+	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/tonistiigi/go-archvariant"
@@ -192,11 +193,12 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	}
 	ctr.RWLayer = rwLayer
 
-	current := idtools.CurrentIdentity()
-	if err := idtools.MkdirAndChown(ctr.Root, 0o710, idtools.Identity{UID: current.UID, GID: daemon.IdentityMapping().RootPair().GID}); err != nil {
+	cuid := os.Getuid()
+	_, gid := daemon.IdentityMapping().RootPair()
+	if err := user.MkdirAndChown(ctr.Root, 0o710, cuid, gid); err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAndChown(ctr.CheckpointDir(), 0o700, current); err != nil {
+	if err := user.MkdirAndChown(ctr.CheckpointDir(), 0o700, cuid, os.Getegid()); err != nil {
 		return nil, err
 	}
 

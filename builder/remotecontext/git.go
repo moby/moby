@@ -7,7 +7,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext/git"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/go-archive"
 )
 
 // MakeGitContext returns a Context from gitURL that is cloned in a temporary directory.

@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/go-archive"
+	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -26,7 +26,7 @@ type CreateOpts struct {
 }
 
 // InitFunc initializes the storage driver.
-type InitFunc func(root string, options []string, idMap idtools.IdentityMapping) (Driver, error)
+type InitFunc func(root string, options []string, idMap user.IdentityMapping) (Driver, error)
 
 // ProtoDriver defines the basic capabilities of a driver.
 // This interface exists solely to be a minimum set of methods
@@ -151,7 +151,7 @@ func getDriver(name string, config Options) (Driver, error) {
 type Options struct {
 	Root                string
 	DriverOptions       []string
-	IDMap               idtools.IdentityMapping
+	IDMap               user.IdentityMapping
 	ExperimentalEnabled bool
 }
 

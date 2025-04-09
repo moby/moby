@@ -16,7 +16,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/distribution"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/go-archive"
 	"github.com/opencontainers/go-digest"
 )
 

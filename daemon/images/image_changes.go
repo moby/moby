@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/go-archive"
 )
 
 func (i *ImageService) Changes(ctx context.Context, container *container.Container) ([]archive.Change, error) {

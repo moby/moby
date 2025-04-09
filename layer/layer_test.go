@@ -13,9 +13,9 @@ import (
 	"github.com/containerd/continuity/driver"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/vfs"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/go-archive"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -28,16 +28,16 @@ func init() {
 func newVFSGraphDriver(td string) (graphdriver.Driver, error) {
 	return graphdriver.New("vfs", graphdriver.Options{
 		Root: td,
-		IDMap: idtools.IdentityMapping{
-			UIDMaps: []idtools.IDMap{{
-				ContainerID: 0,
-				HostID:      os.Getuid(),
-				Size:        1,
+		IDMap: user.IdentityMapping{
+			UIDMaps: []user.IDMap{{
+				ID:       0,
+				ParentID: int64(os.Getuid()),
+				Count:    1,
 			}},
-			GIDMaps: []idtools.IDMap{{
-				ContainerID: 0,
-				HostID:      os.Getgid(),
-				Size:        1,
+			GIDMaps: []user.IDMap{{
+				ID:       0,
+				ParentID: int64(os.Getgid()),
+				Count:    1,
 			}},
 		},
 	})
