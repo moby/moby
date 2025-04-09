@@ -365,3 +365,30 @@ func TestDaemonConfigurationHostGatewayIP(t *testing.T) {
 		})
 	}
 }
+
+// TestDaemonLegacyOptions verifies that loading config files containing
+// deprecated / legacy options does not prevent the daemon from loading
+// the config (some options may have an explicit error, and can be tested
+// separately).
+func TestDaemonLegacyOptions(t *testing.T) {
+	tests := []struct {
+		name       string
+		configJSON string
+	}{
+		{
+			name:       "deprecated-key-path",
+			configJSON: `{"deprecated-key-path": "/etc/docker/key.json"}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			configFile := makeConfigFile(t, tc.configJSON)
+			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			c, err := New()
+			assert.NilError(t, err)
+			_, err = MergeDaemonConfigurations(c, flags, configFile)
+			assert.NilError(t, err)
+		})
+	}
+}

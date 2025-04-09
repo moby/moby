@@ -91,7 +91,8 @@ var flatOptions = map[string]bool{
 var skipValidateOptions = map[string]bool{
 	"features": true,
 	"builder":  true,
-	// Corresponding flag has been removed because it was already unusable
+
+	// Deprecated options that are safe to ignore if present.
 	"deprecated-key-path": true,
 }
 
