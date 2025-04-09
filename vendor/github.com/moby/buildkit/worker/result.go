@@ -59,7 +59,7 @@ func (r *workerRefResult) Release(ctx context.Context) error {
 	return r.ImmutableRef.Release(ctx)
 }
 
-func (r *workerRefResult) Sys() interface{} {
+func (r *workerRefResult) Sys() any {
 	return r.WorkerRef
 }
 

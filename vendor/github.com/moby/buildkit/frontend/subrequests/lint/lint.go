@@ -134,7 +134,7 @@ func (results *LintResults) ToResult(scb SourceInfoMap) (*client.Result, error) 
 	if len(results.Warnings) > 0 || results.Error != nil {
 		status = 1
 	}
-	res.AddMeta("result.statuscode", []byte(fmt.Sprintf("%d", status)))
+	res.AddMeta("result.statuscode", fmt.Appendf(nil, "%d", status))
 
 	res.AddMeta("version", []byte(SubrequestLintDefinition.Version))
 	return res, nil

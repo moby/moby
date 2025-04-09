@@ -483,14 +483,14 @@ type edge struct {
 
 func newCacheExporter() *cacheExporter {
 	return &cacheExporter{
-		m:      map[interface{}]struct{}{},
+		m:      map[any]struct{}{},
 		layers: map[edge][][]ocispecs.Descriptor{},
 	}
 }
 
 type cacheExporter struct {
 	layers map[edge][][]ocispecs.Descriptor
-	m      map[interface{}]struct{}
+	m      map[any]struct{}
 }
 
 func (ce *cacheExporter) Add(dgst digest.Digest) solver.CacheExporterRecord {

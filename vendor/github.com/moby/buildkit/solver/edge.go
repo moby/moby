@@ -340,7 +340,7 @@ func (e *edge) unpark(incoming []pipeSender, updates, allPipes []pipeReceiver, f
 	// set up new outgoing requests if needed
 	if e.cacheMapReq == nil && (e.cacheMap == nil || len(e.cacheRecords) == 0) {
 		index := e.cacheMapIndex
-		e.cacheMapReq = f.NewFuncRequest(func(ctx context.Context) (interface{}, error) {
+		e.cacheMapReq = f.NewFuncRequest(func(ctx context.Context) (any, error) {
 			cm, err := e.op.CacheMap(ctx, index)
 			return cm, errors.Wrap(err, "failed to load cache key")
 		})
@@ -495,10 +495,7 @@ func (e *edge) recalcCurrentState() {
 			isSlowIncomplete := (e.slowCacheFunc(dep) != nil || e.preprocessFunc(dep) != nil) && (dep.state == edgeStatusCacheSlow || (dep.state == edgeStatusComplete && !dep.slowCacheComplete))
 
 			if dep.state > stLow && len(dep.keyMap) == 0 && !isSlowIncomplete {
-				stLow = dep.state
-				if stLow > edgeStatusCacheSlow {
-					stLow = edgeStatusCacheSlow
-				}
+				stLow = min(dep.state, edgeStatusCacheSlow)
 			}
 			effectiveState := dep.state
 			if dep.state == edgeStatusCacheSlow && isSlowCacheIncomplete {
@@ -898,7 +895,7 @@ func (e *edge) computeCacheKeyFromDep(dep *dep, f *pipeFactory) (addedNew bool) 
 
 	res := dep.result
 	index := dep.index
-	dep.slowCacheReq = f.NewFuncRequest(func(ctx context.Context) (interface{}, error) {
+	dep.slowCacheReq = f.NewFuncRequest(func(ctx context.Context) (any, error) {
 		v, err := e.op.CalcSlowCache(ctx, index, pfn, fn, res)
 		return v, errors.Wrap(err, "failed to compute cache key")
 	})
@@ -933,13 +930,13 @@ func (e *edge) execIfPossible(f *pipeFactory) bool {
 
 // postpone delays exec to next unpark invocation if we have unprocessed keys
 func (e *edge) postpone(f *pipeFactory) {
-	f.NewFuncRequest(func(context.Context) (interface{}, error) {
+	f.NewFuncRequest(func(context.Context) (any, error) {
 		return nil, nil
 	})
 }
 
 // loadCache creates a request to load edge result from cache
-func (e *edge) loadCache(ctx context.Context) (interface{}, error) {
+func (e *edge) loadCache(ctx context.Context) (any, error) {
 	recs := make([]*CacheRecord, 0, len(e.cacheRecords))
 	for _, r := range e.cacheRecords {
 		recs = append(recs, r)
@@ -959,7 +956,7 @@ func (e *edge) loadCache(ctx context.Context) (interface{}, error) {
 }
 
 // execOp creates a request to execute the vertex operation
-func (e *edge) execOp(ctx context.Context) (interface{}, error) {
+func (e *edge) execOp(ctx context.Context) (any, error) {
 	cacheKeys, inputs := e.commitOptions()
 	results, subExporters, err := e.op.Exec(ctx, toResultSlice(inputs))
 	if err != nil {

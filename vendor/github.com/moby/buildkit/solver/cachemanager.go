@@ -449,7 +449,7 @@ func (c *cacheManager) getIDFromDeps(k *CacheKey) string {
 
 func rootKey(dgst digest.Digest, output Index) digest.Digest {
 	if strings.HasPrefix(dgst.String(), "random:") {
-		return digest.Digest("random:" + digest.FromBytes([]byte(fmt.Sprintf("%s@%d", dgst, output))).Encoded())
+		return digest.Digest("random:" + digest.FromBytes(fmt.Appendf(nil, "%s@%d", dgst, output)).Encoded())
 	}
-	return digest.FromBytes([]byte(fmt.Sprintf("%s@%d", dgst, output)))
+	return digest.FromBytes(fmt.Appendf(nil, "%s@%d", dgst, output))
 }

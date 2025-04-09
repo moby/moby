@@ -8,13 +8,12 @@ import (
 	ctd "github.com/containerd/containerd/v2/client"
 	containerdoci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/continuity/fs"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
-	"github.com/moby/buildkit/util/windows"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
@@ -48,13 +47,7 @@ func (w *containerdExecutor) prepareExecutionEnv(ctx context.Context, rootMount 
 	return "", "", releaseAll, nil
 }
 
-func (w *containerdExecutor) ensureCWD(ctx context.Context, details *containerState, meta executor.Meta) (err error) {
-	// TODO(gabriel-samfira): Use a snapshot?
-	identity, err := windows.ResolveUsernameToSID(ctx, w, details.rootMounts, meta.User)
-	if err != nil {
-		return errors.Wrap(err, "getting user SID")
-	}
-
+func (w *containerdExecutor) ensureCWD(details *containerState, meta executor.Meta) (err error) {
 	lm := snapshot.LocalMounterWithMounts(details.rootMounts)
 	rootfsPath, err := lm.Mount()
 	if err != nil {
@@ -68,7 +61,8 @@ func (w *containerdExecutor) ensureCWD(ctx context.Context, details *containerSt
 	}
 
 	if _, err := os.Stat(newp); err != nil {
-		if err := idtools.MkdirAllAndChown(newp, 0755, identity); err != nil {
+		// uid and gid are not used on windows.
+		if err := user.MkdirAllAndChown(newp, 0755, 0, 0); err != nil {
 			return errors.Wrapf(err, "failed to create working directory %s", newp)
 		}
 	}

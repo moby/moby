@@ -8,20 +8,28 @@ import (
 	"syscall"
 
 	"github.com/containerd/containerd/v2/core/mount"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/snapshot"
+	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
 )
 
-func ResolveUsernameToSID(ctx context.Context, exec executor.Executor, rootMount []mount.Mount, userName string) (idtools.Identity, error) {
+// Constants for well-known SIDs in the Windows container.
+// These are currently undocumented.
+// See https://github.com/moby/buildkit/pull/5791#discussion_r1976652227 for more information.
+const (
+	ContainerAdministratorSidString = "S-1-5-93-2-1"
+	ContainerUserSidString          = "S-1-5-93-2-2"
+)
+
+func ResolveUsernameToSID(ctx context.Context, exec executor.Executor, rootMount []mount.Mount, userName string) (string, error) {
 	// This is a shortcut in case the user is one of the builtin users that should exist
 	// in any WCOW container. While these users do exist in containers, they don't exist on the
 	// host. We check them before trying to look them up using LookupSID().
 	if strings.EqualFold(userName, "ContainerAdministrator") || userName == "" {
-		return idtools.Identity{SID: idtools.ContainerAdministratorSidString}, nil
+		return ContainerAdministratorSidString, nil
 	} else if strings.EqualFold(userName, "ContainerUser") {
-		return idtools.Identity{SID: idtools.ContainerUserSidString}, nil
+		return ContainerUserSidString, nil
 	}
 
 	// We might have a SID set as username. There is no guarantee that this SID will exist
@@ -29,7 +37,7 @@ func ResolveUsernameToSID(ctx context.Context, exec executor.Executor, rootMount
 	// that the user has made sure it does map to an identity inside the container.
 	if strings.HasPrefix(strings.ToLower(userName), "s-") {
 		if _, err := syscall.StringToSid(userName); err == nil {
-			return idtools.Identity{SID: userName}, nil
+			return userName, nil
 		}
 	}
 
@@ -44,7 +52,7 @@ func ResolveUsernameToSID(ctx context.Context, exec executor.Executor, rootMount
 		if accountType == syscall.SidTypeAlias || accountType == syscall.SidTypeWellKnownGroup {
 			sidAsString, err := sid.String()
 			if err == nil {
-				return idtools.Identity{SID: sidAsString}, nil
+				return sidAsString, nil
 			}
 		}
 	}
@@ -66,16 +74,18 @@ func ResolveUsernameToSID(ctx context.Context, exec executor.Executor, rootMount
 	// TODO(gsamfira): Should we use a snapshot of the rootMount?
 	ident, err := GetUserIdentFromContainer(ctx, exec, rootMount, userName)
 	if err != nil {
-		return idtools.Identity{}, errors.Wrap(err, "getting account SID from container")
+		return "", errors.Wrap(err, "getting account SID from container")
 	}
 	return ident, nil
 }
 
-func GetUserIdentFromContainer(ctx context.Context, exec executor.Executor, rootMounts []mount.Mount, userName string) (idtools.Identity, error) {
-	var ident idtools.Identity
+func GetUserIdentFromContainer(ctx context.Context, exec executor.Executor, rootMounts []mount.Mount, userName string) (string, error) {
+	var ident struct {
+		SID string
+	}
 
 	if len(rootMounts) > 1 {
-		return ident, errors.Errorf("unexpected number of root mounts: %d", len(rootMounts))
+		return "", errors.Errorf("unexpected number of root mounts: %d", len(rootMounts))
 	}
 
 	stdout := &bytesReadWriteCloser{
@@ -100,15 +110,15 @@ func GetUserIdentFromContainer(ctx context.Context, exec executor.Executor, root
 	}
 
 	if _, err := exec.Run(ctx, "", newStubMountable(rootMounts), nil, procInfo, nil); err != nil {
-		return ident, errors.Wrap(err, "executing command")
+		return "", errors.Wrap(err, "executing command")
 	}
 
 	data := stdout.bw.Bytes()
 	if err := json.Unmarshal(data, &ident); err != nil {
-		return ident, errors.Wrap(err, "reading user info")
+		return "", errors.Wrap(err, "reading user info")
 	}
 
-	return ident, nil
+	return ident.SID, nil
 }
 
 type bytesReadWriteCloser struct {
@@ -138,7 +148,8 @@ func (m *snapshotMountable) Mount() ([]mount.Mount, func() error, error) {
 	cleanup := func() error { return nil }
 	return m.m, cleanup, nil
 }
-func (m *snapshotMountable) IdentityMapping() *idtools.IdentityMapping {
+
+func (m *snapshotMountable) IdentityMapping() *user.IdentityMapping {
 	return nil
 }
 

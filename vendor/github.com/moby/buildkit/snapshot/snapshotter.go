@@ -8,8 +8,8 @@ import (
 
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/containerd/v2/core/snapshots"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/executor"
+	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
 )
@@ -30,17 +30,17 @@ type Snapshotter interface {
 	Remove(ctx context.Context, key string) error
 	Walk(ctx context.Context, fn snapshots.WalkFunc, filters ...string) error
 	Close() error
-	IdentityMapping() *idtools.IdentityMapping
+	IdentityMapping() *user.IdentityMapping
 }
 
-func FromContainerdSnapshotter(name string, s snapshots.Snapshotter, idmap *idtools.IdentityMapping) Snapshotter {
+func FromContainerdSnapshotter(name string, s snapshots.Snapshotter, idmap *user.IdentityMapping) Snapshotter {
 	return &fromContainerd{name: name, Snapshotter: s, idmap: idmap}
 }
 
 type fromContainerd struct {
 	name string
 	snapshots.Snapshotter
-	idmap *idtools.IdentityMapping
+	idmap *user.IdentityMapping
 }
 
 func (s *fromContainerd) Name() string {
@@ -59,6 +59,7 @@ func (s *fromContainerd) Prepare(ctx context.Context, key, parent string, opts .
 	_, err := s.Snapshotter.Prepare(ctx, key, parent, opts...)
 	return err
 }
+
 func (s *fromContainerd) View(ctx context.Context, key, parent string, opts ...snapshots.Opt) (Mountable, error) {
 	mounts, err := s.Snapshotter.View(ctx, key, parent, opts...)
 	if err != nil {
@@ -66,7 +67,8 @@ func (s *fromContainerd) View(ctx context.Context, key, parent string, opts ...s
 	}
 	return &staticMountable{mounts: mounts, idmap: s.idmap, id: key}, nil
 }
-func (s *fromContainerd) IdentityMapping() *idtools.IdentityMapping {
+
+func (s *fromContainerd) IdentityMapping() *user.IdentityMapping {
 	return s.idmap
 }
 
@@ -132,6 +134,7 @@ func (cs *containerdSnapshotter) Prepare(ctx context.Context, key, parent string
 	}
 	return cs.Mounts(ctx, key)
 }
+
 func (cs *containerdSnapshotter) View(ctx context.Context, key, parent string, opts ...snapshots.Opt) ([]mount.Mount, error) {
 	mf, err := cs.Snapshotter.View(ctx, key, parent, opts...)
 	if err != nil {
@@ -140,8 +143,10 @@ func (cs *containerdSnapshotter) View(ctx context.Context, key, parent string, o
 	return cs.returnMounts(mf)
 }
 
-var redirectDirOption string
-var redirectDirOptionOnce sync.Once
+var (
+	redirectDirOption     string
+	redirectDirOptionOnce sync.Once
+)
 
 func getRedirectDirOption() string {
 	redirectDirOptionOnce.Do(func() {

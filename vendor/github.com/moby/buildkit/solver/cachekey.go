@@ -1,6 +1,8 @@
 package solver
 
 import (
+	"maps"
+	"slices"
 	"sync"
 
 	digest "github.com/opencontainers/go-digest"
@@ -79,7 +81,7 @@ func (ck *CacheKey) Deps() [][]CacheKeyWithSelector {
 	defer ck.mu.RUnlock()
 	deps := make([][]CacheKeyWithSelector, len(ck.deps))
 	for i := range ck.deps {
-		deps[i] = append([]CacheKeyWithSelector(nil), ck.deps[i]...)
+		deps[i] = slices.Clone(ck.deps[i])
 	}
 	return deps
 }
@@ -100,9 +102,7 @@ func (ck *CacheKey) clone() *CacheKey {
 		output: ck.output,
 		ids:    make(map[*cacheManager]string, len(ck.ids)),
 	}
-	for cm, id := range ck.ids {
-		nk.ids[cm] = id
-	}
+	maps.Copy(nk.ids, ck.ids)
 	ck.mu.RUnlock()
 	return nk
 }

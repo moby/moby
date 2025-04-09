@@ -3,7 +3,6 @@ package ops
 import (
 	"context"
 
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/windows"
@@ -35,14 +34,14 @@ func readUser(chopt *pb.ChownOpt, mu, _ snapshot.Mountable, worker worker.Worker
 				return nil, err
 			}
 			defer release()
-			ident, err := windows.ResolveUsernameToSID(context.Background(), worker.Executor(), rootMounts, u.ByName.Name)
+			sid, err := windows.ResolveUsernameToSID(context.Background(), worker.Executor(), rootMounts, u.ByName.Name)
 			if err != nil {
 				return nil, err
 			}
-			return &copy.User{SID: ident.SID}, nil
+			return &copy.User{SID: sid}, nil
 		default:
-			return &copy.User{SID: idtools.ContainerAdministratorSidString}, nil
+			return &copy.User{SID: windows.ContainerAdministratorSidString}, nil
 		}
 	}
-	return &copy.User{SID: idtools.ContainerAdministratorSidString}, nil
+	return &copy.User{SID: windows.ContainerAdministratorSidString}, nil
 }

@@ -802,12 +802,12 @@ const (
 )
 
 func isOpaqueXattr(s string) bool {
-	for _, k := range []string{trustedOpaqueXattr, userOpaqueXattr} {
-		if s == k {
-			return true
-		}
+	switch s {
+	case trustedOpaqueXattr, userOpaqueXattr:
+		return true
+	default:
+		return false
 	}
-	return false
 }
 
 func opaqueXattr(userxattr bool) string {

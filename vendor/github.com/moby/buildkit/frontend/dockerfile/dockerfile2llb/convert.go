@@ -400,7 +400,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		var ok bool
 		target, ok = allDispatchStates.findStateByName(opt.Target)
 		if !ok {
-			return nil, errors.Errorf("target stage %q could not be found", opt.Target)
+			return nil, suggest.WrapError(errors.Errorf("target stage %q could not be found", opt.Target), opt.Target, allDispatchStates.names(), true)
 		}
 	}
 
@@ -430,13 +430,6 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 
 	if len(allDispatchStates.states) == 1 {
 		allDispatchStates.states[0].stageName = ""
-	}
-
-	allStageNames := make([]string, 0, len(allDispatchStates.states))
-	for _, s := range allDispatchStates.states {
-		if s.stageName != "" {
-			allStageNames = append(allStageNames, s.stageName)
-		}
 	}
 
 	resolveReachableStages := func(ctx context.Context, all []*dispatchState, target *dispatchState) (map[*dispatchState]struct{}, error) {
@@ -503,7 +496,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 											OSVersion:    img.OSVersion,
 										}
 										if img.OSFeatures != nil {
-											d.platform.OSFeatures = append([]string{}, img.OSFeatures...)
+											d.platform.OSFeatures = slices.Clone(img.OSFeatures)
 										}
 									}
 								}
@@ -547,7 +540,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 								},
 							})
 							if err != nil {
-								return suggest.WrapError(errors.Wrap(err, origName), origName, append(allStageNames, commonImageNames()...), true)
+								return suggest.WrapError(errors.Wrap(err, origName), origName, append(allDispatchStates.names(), commonImageNames()...), true)
 							}
 
 							if ref.String() != mutRef {
@@ -812,7 +805,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			target.image.OSVersion = platformOpt.targetPlatform.OSVersion
 		}
 		if platformOpt.targetPlatform.OSFeatures != nil {
-			target.image.OSFeatures = append([]string{}, platformOpt.targetPlatform.OSFeatures...)
+			target.image.OSFeatures = slices.Clone(platformOpt.targetPlatform.OSFeatures)
 		}
 	}
 	target.image.Platform = platforms.Normalize(target.image.Platform)
@@ -1109,6 +1102,16 @@ type dispatchStates struct {
 
 func newDispatchStates() *dispatchStates {
 	return &dispatchStates{statesByName: map[string]*dispatchState{}}
+}
+
+func (dss *dispatchStates) names() []string {
+	names := make([]string, 0, len(dss.states))
+	for _, s := range dss.states {
+		if s.stageName != "" {
+			names = append(names, s.stageName)
+		}
+	}
+	return names
 }
 
 func (dss *dispatchStates) addState(ds *dispatchState) {
@@ -1600,7 +1603,7 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 		commitMessage.WriteString(" <<" + src.Path)
 
 		data := src.Data
-		f, err := system.CheckSystemDriveAndRemoveDriveLetter(src.Path, d.platform.OS)
+		f, err := system.CheckSystemDriveAndRemoveDriveLetter(src.Path, d.platform.OS, false)
 		if err != nil {
 			return errors.Wrap(err, "removing drive letter")
 		}
@@ -1644,7 +1647,7 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 		copyOpts = append(copyOpts, fileOpt...)
 		copyOpts = append(copyOpts, llb.ProgressGroup(pgID, pgName, true))
 
-		mergeOpts := append([]llb.ConstraintsOpt{}, fileOpt...)
+		mergeOpts := slices.Clone(fileOpt)
 		d.cmdIndex--
 		mergeOpts = append(mergeOpts, llb.ProgressGroup(pgID, pgName, false), llb.WithCustomName(prefixCommand(d, "LINK "+name, d.prefixPlatform, &platform, env)))
 
@@ -1868,7 +1871,7 @@ func pathRelativeToWorkingDir(s llb.State, p string, platform ocispecs.Platform)
 		return "", err
 	}
 
-	p, err = system.CheckSystemDriveAndRemoveDriveLetter(p, platform.OS)
+	p, err = system.CheckSystemDriveAndRemoveDriveLetter(p, platform.OS, true)
 	if err != nil {
 		return "", errors.Wrap(err, "removing drive letter")
 	}
@@ -1911,7 +1914,7 @@ func parseKeyValue(env string) (string, string) {
 	return parts[0], v
 }
 
-func dfCmd(cmd interface{}) llb.ConstraintsOpt {
+func dfCmd(cmd any) llb.ConstraintsOpt {
 	// TODO: add fmt.Stringer to instructions.Command to remove interface{}
 	var cmdStr string
 	if cmd, ok := cmd.(fmt.Stringer); ok {
@@ -2054,9 +2057,7 @@ func normalizeContextPaths(paths map[string]struct{}) []string {
 		pathSlice = append(pathSlice, path.Join(".", p))
 	}
 
-	sort.Slice(pathSlice, func(i, j int) bool {
-		return pathSlice[i] < pathSlice[j]
-	})
+	slices.Sort(pathSlice)
 	return pathSlice
 }
 
@@ -2107,7 +2108,7 @@ type mutableOutput struct {
 func withShell(img dockerspec.DockerOCIImage, args []string) []string {
 	var shell []string
 	if len(img.Config.Shell) > 0 {
-		shell = append([]string{}, img.Config.Shell...)
+		shell = slices.Clone(img.Config.Shell)
 	} else {
 		shell = defaultShell(img.OS)
 	}
@@ -2272,12 +2273,7 @@ func isEnabledForStage(stage string, value string) bool {
 	}
 
 	vv := strings.Split(value, ",")
-	for _, v := range vv {
-		if v == stage {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(vv, stage)
 }
 
 func isSelfConsistentCasing(s string) bool {
@@ -2610,8 +2606,20 @@ func buildMetaArgs(args *llb.EnvList, shlex *shell.Lex, argCommands []instructio
 					if err != nil {
 						return nil, nil, parser.WithLocation(err, cmd.Location())
 					}
+
 					kp.Value = &result.Result
 					info.deps = result.Matched
+					if _, ok := result.Matched[kp.Key]; ok {
+						delete(info.deps, kp.Key)
+						if old, ok := allArgs[kp.Key]; ok {
+							for k := range old.deps {
+								if info.deps == nil {
+									info.deps = make(map[string]struct{})
+								}
+								info.deps[k] = struct{}{}
+							}
+						}
+					}
 				}
 			} else {
 				kp.Value = &v

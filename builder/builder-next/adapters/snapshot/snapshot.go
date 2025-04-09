@@ -13,7 +13,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/util/leaseutil"
@@ -107,15 +106,13 @@ func (s *snapshotter) Name() string {
 	return "default"
 }
 
-func (s *snapshotter) IdentityMapping() *idtools.IdentityMapping {
+func (s *snapshotter) IdentityMapping() *user.IdentityMapping {
 	// Returning a non-nil but empty *IdentityMapping breaks BuildKit:
 	// https://github.com/moby/moby/pull/39444
 	if s.opt.IdentityMapping.Empty() {
 		return nil
 	}
-	// TODO: Update this once BuildKit switches from idtools
-	idMap := idtools.FromUserIdentityMapping(s.opt.IdentityMapping)
-	return &idMap
+	return &s.opt.IdentityMapping
 }
 
 func (s *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) error {
@@ -541,13 +538,11 @@ func (m *mountable) releaseMount() error {
 	return m.release()
 }
 
-func (m *mountable) IdentityMapping() *idtools.IdentityMapping {
+func (m *mountable) IdentityMapping() *user.IdentityMapping {
 	// Returning a non-nil but empty *IdentityMapping breaks BuildKit:
 	// https://github.com/moby/moby/pull/39444
 	if m.idmap.Empty() {
 		return nil
 	}
-	// TODO: Update this once BuildKit switches from idtools
-	idtoolsMap := idtools.FromUserIdentityMapping(m.idmap)
-	return &idtoolsMap
+	return &m.idmap
 }

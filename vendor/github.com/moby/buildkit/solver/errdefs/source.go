@@ -98,10 +98,7 @@ func (s *Source) Print(w io.Writer) error {
 
 func containsLine(rr []*pb.Range, l int) bool {
 	for _, r := range rr {
-		e := r.End.Line
-		if e < r.Start.Line {
-			e = r.Start.Line
-		}
+		e := max(r.End.Line, r.Start.Line)
 		if r.Start.Line <= int32(l) && e >= int32(l) {
 			return true
 		}
@@ -112,10 +109,7 @@ func containsLine(rr []*pb.Range, l int) bool {
 func getStartEndLine(rr []*pb.Range) (start int, end int, ok bool) {
 	first := true
 	for _, r := range rr {
-		e := r.End.Line
-		if e < r.Start.Line {
-			e = r.Start.Line
-		}
+		e := max(r.End.Line, r.Start.Line)
 		if first || int(r.Start.Line) < start {
 			start = int(r.Start.Line)
 		}

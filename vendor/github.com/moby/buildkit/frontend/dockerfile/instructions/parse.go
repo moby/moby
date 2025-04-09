@@ -7,6 +7,7 @@ package instructions
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -66,12 +67,12 @@ func newParseRequestFromNode(node *parser.Node) parseRequest {
 	}
 }
 
-func ParseInstruction(node *parser.Node) (v interface{}, err error) {
+func ParseInstruction(node *parser.Node) (v any, err error) {
 	return ParseInstructionWithLinter(node, nil)
 }
 
 // ParseInstruction converts an AST to a typed instruction (either a command or a build stage beginning when encountering a `FROM` statement)
-func ParseInstructionWithLinter(node *parser.Node, lint *linter.Linter) (v interface{}, err error) {
+func ParseInstructionWithLinter(node *parser.Node, lint *linter.Linter) (v any, err error) {
 	defer func() {
 		if err != nil {
 			err = parser.WithLocation(err, node.Location())
@@ -880,10 +881,8 @@ func validateDefinitionDescription(instruction string, argKeys []string, descCom
 		return
 	}
 	descCommentParts := strings.Split(descComments[len(descComments)-1], " ")
-	for _, key := range argKeys {
-		if key == descCommentParts[0] {
-			return
-		}
+	if slices.Contains(argKeys, descCommentParts[0]) {
+		return
 	}
 	exampleKey := argKeys[0]
 	if len(argKeys) > 1 {

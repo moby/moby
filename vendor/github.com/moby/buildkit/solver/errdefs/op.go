@@ -12,7 +12,7 @@ func (e *OpError) Unwrap() error {
 	return e.error
 }
 
-func WithOp(err error, anyOp interface{}, opDesc map[string]string) error {
+func WithOp(err error, anyOp any, opDesc map[string]string) error {
 	op, ok := anyOp.(*pb.Op)
 	if err == nil || !ok {
 		return err

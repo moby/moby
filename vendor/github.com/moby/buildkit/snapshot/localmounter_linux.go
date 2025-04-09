@@ -3,6 +3,7 @@ package snapshot
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"syscall"
 
 	"github.com/containerd/containerd/v2/core/mount"
@@ -35,13 +36,7 @@ func (lm *localMounter) Mount() (string, error) {
 	var isFile bool
 	if len(lm.mounts) == 1 && (lm.mounts[0].Type == "bind" || lm.mounts[0].Type == "rbind") {
 		if !lm.forceRemount {
-			ro := false
-			for _, opt := range lm.mounts[0].Options {
-				if opt == "ro" {
-					ro = true
-					break
-				}
-			}
+			ro := slices.Contains(lm.mounts[0].Options, "ro")
 			if !ro {
 				return lm.mounts[0].Source, nil
 			}

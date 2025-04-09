@@ -156,9 +156,11 @@ func Build(ctx context.Context, c client.Client) (_ *client.Result, err error) {
 			return nil, nil, nil, err
 		}
 
-		p := platforms.DefaultSpec()
+		var p ocispecs.Platform
 		if platform != nil {
 			p = *platform
+		} else {
+			p = platforms.DefaultSpec()
 		}
 		scanTargets.Store(platforms.FormatAll(platforms.Normalize(p)), scanTarget)
 

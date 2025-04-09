@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path"
 	"runtime"
+	"slices"
 	"sort"
 	"sync"
 
@@ -352,7 +353,7 @@ func (s *FileOpSolver) Solve(ctx context.Context, inputs []fileoptypes.Ref, acti
 		return nil, errors.Errorf("no outputs specified")
 	}
 
-	for i := 0; i < len(s.outs); i++ {
+	for i := range len(s.outs) {
 		if _, ok := s.outs[i]; !ok {
 			return nil, errors.Errorf("missing output index %d", i)
 		}
@@ -398,10 +399,8 @@ func (s *FileOpSolver) Solve(ctx context.Context, inputs []fileoptypes.Ref, acti
 }
 
 func (s *FileOpSolver) validate(idx int, inputs []fileoptypes.Ref, actions []*pb.FileAction, loaded []int) error {
-	for _, check := range loaded {
-		if idx == check {
-			return errors.Errorf("loop from index %d", idx)
-		}
+	if slices.Contains(loaded, idx) {
+		return errors.Errorf("loop from index %d", idx)
 	}
 	if idx < len(inputs) {
 		return nil

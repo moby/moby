@@ -9,11 +9,11 @@ import (
 
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/archutil"
 	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/sys/user"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	copy "github.com/tonistiigi/fsutil/copy"
@@ -33,7 +33,7 @@ var qemuArchMap = map[string]string{
 
 type emulator struct {
 	path  string
-	idmap *idtools.IdentityMapping
+	idmap *user.IdentityMapping
 }
 
 func (e *emulator) Mount(ctx context.Context, readonly bool) (snapshot.Mountable, error) {
@@ -42,7 +42,7 @@ func (e *emulator) Mount(ctx context.Context, readonly bool) (snapshot.Mountable
 
 type staticEmulatorMount struct {
 	path  string
-	idmap *idtools.IdentityMapping
+	idmap *user.IdentityMapping
 }
 
 func (m *staticEmulatorMount) Mount() ([]mount.Mount, func() error, error) {
@@ -59,9 +59,7 @@ func (m *staticEmulatorMount) Mount() ([]mount.Mount, func() error, error) {
 
 	var uid, gid int
 	if m.idmap != nil {
-		root := m.idmap.RootPair()
-		uid = root.UID
-		gid = root.GID
+		uid, gid = m.idmap.RootPair()
 	}
 	if err := copy.Copy(context.TODO(), filepath.Dir(m.path), filepath.Base(m.path), tmpdir, qemuMountName, func(ci *copy.CopyInfo) {
 		m := 0555
@@ -80,7 +78,7 @@ func (m *staticEmulatorMount) Mount() ([]mount.Mount, func() error, error) {
 		}, nil
 }
 
-func (m *staticEmulatorMount) IdentityMapping() *idtools.IdentityMapping {
+func (m *staticEmulatorMount) IdentityMapping() *user.IdentityMapping {
 	return m.idmap
 }
 

@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/containerd/continuity/fs"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/idtools"
+	archive "github.com/moby/go-archive"
+	"github.com/moby/go-archive/chrootarchive"
+	"github.com/moby/sys/user"
 	copy "github.com/tonistiigi/fsutil/copy"
 )
 
-func unpack(srcRoot string, src string, destRoot string, dest string, ch copy.Chowner, tm *time.Time, idmap *idtools.IdentityMapping) (bool, error) {
+func unpack(srcRoot string, src string, destRoot string, dest string, ch copy.Chowner, tm *time.Time, idmap *user.IdentityMapping) (bool, error) {
 	src, err := fs.RootPath(srcRoot, src)
 	if err != nil {
 		return false, err

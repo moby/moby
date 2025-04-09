@@ -69,7 +69,7 @@ func ResolveCacheExporterFunc(sm *session.Manager, hosts docker.RegistryHosts) r
 			}
 			ociMediatypes = b
 		}
-		imageManifest := false
+		imageManifest := true
 		if v, ok := attrs[attrImageManifest]; ok {
 			b, err := strconv.ParseBool(v)
 			if err != nil {
