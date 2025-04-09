@@ -11,7 +11,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
@@ -49,9 +48,7 @@ func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfi
 
 	// Returning a non-nil but empty *IdentityMapping breaks BuildKit:
 	// https://github.com/moby/moby/pull/39444
-	// TODO: Remove conversion once buildkit updates
-	idtoolsMap := idtools.FromUserIdentityMapping(idmap)
-	pidmap := &idtoolsMap
+	pidmap := &idmap
 	if idmap.Empty() {
 		pidmap = nil
 	}

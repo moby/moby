@@ -434,7 +434,7 @@ func (md *cacheMetadata) updateLastUsed() error {
 	})
 }
 
-func (md *cacheMetadata) queueValue(key string, value interface{}, index string) error {
+func (md *cacheMetadata) queueValue(key string, value any, index string) error {
 	v, err := metadata.NewValue(value)
 	if err != nil {
 		return errors.Wrap(err, "failed to create value")
@@ -450,7 +450,7 @@ func (md *cacheMetadata) SetString(key, value string, index string) error {
 	return md.setValue(key, value, index)
 }
 
-func (md *cacheMetadata) setValue(key string, value interface{}, index string) error {
+func (md *cacheMetadata) setValue(key string, value any, index string) error {
 	v, err := metadata.NewValue(value)
 	if err != nil {
 		return errors.Wrap(err, "failed to create value")

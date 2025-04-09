@@ -6,15 +6,17 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/libnetwork/resolvconf"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/flightcontrol"
+	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
 )
 
-var g flightcontrol.Group[struct{}]
-var notFirstRun bool
-var lastNotEmpty bool
+var (
+	g            flightcontrol.Group[struct{}]
+	notFirstRun  bool
+	lastNotEmpty bool
+)
 
 // overridden by tests
 var resolvconfPath = func(netMode pb.NetMode) string {
@@ -36,7 +38,7 @@ type DNSConfig struct {
 	SearchDomains []string
 }
 
-func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.IdentityMapping, dns *DNSConfig, netMode pb.NetMode) (string, error) {
+func GetResolvConf(ctx context.Context, stateDir string, idmap *user.IdentityMapping, dns *DNSConfig, netMode pb.NetMode) (string, error) {
 	p := filepath.Join(stateDir, "resolv.conf")
 	if netMode == pb.NetMode_HOST {
 		p = filepath.Join(stateDir, "resolv-host.conf")
@@ -116,8 +118,8 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.Identity
 		}
 
 		if idmap != nil {
-			root := idmap.RootPair()
-			if err := os.Chown(tmpPath, root.UID, root.GID); err != nil {
+			uid, gid := idmap.RootPair()
+			if err := os.Chown(tmpPath, uid, gid); err != nil {
 				return struct{}{}, errors.WithStack(err)
 			}
 		}

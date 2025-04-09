@@ -32,7 +32,7 @@ func ParsePlatforms(meta map[string][]byte) (Platforms, error) {
 		return ps, nil
 	}
 
-	p := platforms.DefaultSpec()
+	var p ocispecs.Platform
 	if imgConfig, ok := meta[ExporterImageConfigKey]; ok {
 		var img ocispecs.Image
 		err := json.Unmarshal(imgConfig, &img)
@@ -51,6 +51,8 @@ func ParsePlatforms(meta map[string][]byte) (Platforms, error) {
 		} else if img.OS != "" || img.Architecture != "" {
 			return Platforms{}, errors.Errorf("invalid image config: os and architecture must be specified together")
 		}
+	} else {
+		p = platforms.DefaultSpec()
 	}
 	p = platforms.Normalize(p)
 	pk := platforms.FormatAll(p)

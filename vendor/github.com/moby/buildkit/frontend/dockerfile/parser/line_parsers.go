@@ -281,7 +281,7 @@ func parseJSON(rest string) (*Node, map[string]bool, error) {
 		return nil, nil, errDockerfileNotJSONArray
 	}
 
-	var myJSON []interface{}
+	var myJSON []any
 	if err := json.Unmarshal([]byte(rest), &myJSON); err != nil {
 		return nil, nil, err
 	}

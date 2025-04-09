@@ -2,6 +2,7 @@ package cdidevices
 
 import (
 	"context"
+	"maps"
 	"strconv"
 	"strings"
 
@@ -268,13 +269,9 @@ func deviceAnnotations(dev *cdi.Device) map[string]string {
 	}
 	out := make(map[string]string)
 	// spec annotations
-	for k, v := range dev.GetSpec().Annotations {
-		out[k] = v
-	}
+	maps.Copy(out, dev.GetSpec().Annotations)
 	// device annotations
-	for k, v := range dev.Device.Annotations {
-		out[k] = v
-	}
+	maps.Copy(out, dev.Device.Annotations)
 	return out
 }
 

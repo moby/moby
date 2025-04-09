@@ -51,7 +51,7 @@ func ResolveCacheExporterFunc(sm *session.Manager) remotecache.ResolveCacheExpor
 			}
 			ociMediatypes = b
 		}
-		imageManifest := false
+		imageManifest := true
 		if v, ok := attrs[attrImageManifest]; ok {
 			b, err := strconv.ParseBool(v)
 			if err != nil {

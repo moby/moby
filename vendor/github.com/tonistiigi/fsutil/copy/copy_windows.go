@@ -13,7 +13,7 @@ const (
 	seTakeOwnershipPrivilege = "SeTakeOwnershipPrivilege"
 )
 
-func getUIDGID(fi os.FileInfo) (uid, gid int) {
+func getUIDGID(_ os.FileInfo) (uid, gid int) {
 	return 0, 0
 }
 
@@ -119,10 +119,10 @@ func copyFileContent(dst, src *os.File) error {
 	return err
 }
 
-func copyXAttrs(dst, src string, xeh XAttrErrorHandler) error {
+func copyXAttrs(_, _ string, _ XAttrErrorHandler) error {
 	return nil
 }
 
-func copyDevice(dst string, fi os.FileInfo) error {
+func copyDevice(_ string, _ os.FileInfo) error {
 	return errors.New("device copy not supported")
 }

@@ -14,13 +14,13 @@ import (
 	"github.com/containerd/containerd/v2/pkg/oci"
 	cdseccomp "github.com/containerd/containerd/v2/pkg/seccomp"
 	"github.com/containerd/continuity/fs"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/profiles/seccomp"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/entitlements/security"
+	"github.com/moby/sys/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	selinux "github.com/opencontainers/selinux/go-selinux"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -106,7 +106,7 @@ func generateProcessModeOpts(mode ProcessMode) ([]oci.SpecOpts, error) {
 	return nil, nil
 }
 
-func generateIDmapOpts(idmap *idtools.IdentityMapping) ([]oci.SpecOpts, error) {
+func generateIDmapOpts(idmap *user.IdentityMapping) ([]oci.SpecOpts, error) {
 	if idmap == nil {
 		return nil, nil
 	}
@@ -115,13 +115,13 @@ func generateIDmapOpts(idmap *idtools.IdentityMapping) ([]oci.SpecOpts, error) {
 	}, nil
 }
 
-func specMapping(s []idtools.IDMap) []specs.LinuxIDMapping {
+func specMapping(s []user.IDMap) []specs.LinuxIDMapping {
 	var ids []specs.LinuxIDMapping
 	for _, item := range s {
 		ids = append(ids, specs.LinuxIDMapping{
-			HostID:      uint32(item.HostID),
-			ContainerID: uint32(item.ContainerID),
-			Size:        uint32(item.Size),
+			HostID:      uint32(item.ParentID),
+			ContainerID: uint32(item.ID),
+			Size:        uint32(item.Count),
 		})
 	}
 	return ids
@@ -286,7 +286,7 @@ func cgroupV2NamespaceSupported() bool {
 }
 
 func sub(m mount.Mount, subPath string) (mount.Mount, func() error, error) {
-	var retries = 10
+	retries := 10
 	root := m.Source
 	for {
 		src, err := fs.RootPath(root, subPath)

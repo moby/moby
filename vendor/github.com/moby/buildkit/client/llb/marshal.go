@@ -2,6 +2,7 @@ package llb
 
 import (
 	"io"
+	"slices"
 	"sync"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -84,7 +85,7 @@ func ReadFrom(r io.Reader) (*Definition, error) {
 
 func MarshalConstraints(base, override *Constraints) (*pb.Op, *pb.OpMetadata) {
 	c := *base
-	c.WorkerConstraints = append([]string{}, c.WorkerConstraints...)
+	c.WorkerConstraints = slices.Clone(c.WorkerConstraints)
 
 	if p := override.Platform; p != nil {
 		c.Platform = p
@@ -105,7 +106,7 @@ func MarshalConstraints(base, override *Constraints) (*pb.Op, *pb.OpMetadata) {
 		OSVersion:    c.Platform.OSVersion,
 	}
 	if c.Platform.OSFeatures != nil {
-		opPlatform.OSFeatures = append([]string{}, c.Platform.OSFeatures...)
+		opPlatform.OSFeatures = slices.Clone(c.Platform.OSFeatures)
 	}
 
 	return &pb.Op{

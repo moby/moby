@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 	"sync"
@@ -15,7 +16,6 @@ import (
 	"github.com/containerd/containerd/v2/pkg/gc"
 	"github.com/containerd/containerd/v2/pkg/labels"
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/identity"
@@ -25,6 +25,7 @@ import (
 	"github.com/moby/buildkit/util/disk"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/progress"
+	"github.com/moby/sys/user"
 	digest "github.com/opencontainers/go-digest"
 	imagespecidentity "github.com/opencontainers/image-spec/identity"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -61,7 +62,7 @@ type Accessor interface {
 
 	New(ctx context.Context, parent ImmutableRef, s session.Group, opts ...RefOption) (MutableRef, error)
 	GetMutable(ctx context.Context, id string, opts ...RefOption) (MutableRef, error) // Rebase?
-	IdentityMapping() *idtools.IdentityMapping
+	IdentityMapping() *user.IdentityMapping
 	Merge(ctx context.Context, parents []ImmutableRef, pg progress.Controller, opts ...RefOption) (ImmutableRef, error)
 	Diff(ctx context.Context, lower, upper ImmutableRef, pg progress.Controller, opts ...RefOption) (ImmutableRef, error)
 }
@@ -337,7 +338,7 @@ func (cm *cacheManager) init(ctx context.Context) error {
 }
 
 // IdentityMapping returns the userns remapping used for refs
-func (cm *cacheManager) IdentityMapping() *idtools.IdentityMapping {
+func (cm *cacheManager) IdentityMapping() *user.IdentityMapping {
 	return cm.Snapshotter.IdentityMapping()
 }
 
@@ -742,9 +743,7 @@ func (cm *cacheManager) Merge(ctx context.Context, inputParents []ImmutableRef, 
 		default:
 			parents.mergeParents = append(parents.mergeParents, parent.clone())
 		}
-		for dgst, handler := range parent.descHandlers {
-			dhs[dgst] = handler
-		}
+		maps.Copy(dhs, parent.descHandlers)
 	}
 
 	// On success, createMergeRef takes ownership of parents
@@ -868,9 +867,7 @@ func (cm *cacheManager) Diff(ctx context.Context, lower, upper ImmutableRef, pg 
 		} else {
 			dps.upper = parent.clone()
 		}
-		for dgst, handler := range parent.descHandlers {
-			dhs[dgst] = handler
-		}
+		maps.Copy(dhs, parent.descHandlers)
 	}
 
 	// Check to see if lower is an ancestor of upper. If so, define the diff as a merge
@@ -1099,6 +1096,9 @@ func calculateKeepBytes(totalSize int64, dstat disk.DiskStat, opt client.PruneIn
 		} else {
 			keepBytes = min(keepBytes, totalSize-excess)
 		}
+	} else if opt.MinFreeSpace != 0 && keepBytes == 0 {
+		// if only minFreeSpace is set and it doesn't match then we don't delete anything
+		keepBytes = totalSize
 	}
 
 	// but make sure we don't take the total below the reserved space
@@ -1505,7 +1505,7 @@ func IsNotFound(err error) bool {
 	return errors.Is(err, errNotFound)
 }
 
-type RefOption interface{}
+type RefOption any
 
 type cachePolicy int
 

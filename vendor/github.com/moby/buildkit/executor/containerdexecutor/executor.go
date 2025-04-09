@@ -154,7 +154,7 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 		defer releasers()
 	}
 
-	if err := w.ensureCWD(ctx, details, meta); err != nil {
+	if err := w.ensureCWD(details, meta); err != nil {
 		return nil, err
 	}
 

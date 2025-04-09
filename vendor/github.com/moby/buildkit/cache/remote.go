@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/containerd/containerd/v2/core/content"
@@ -199,14 +200,7 @@ func (sr *immutableRef) getRemote(ctx context.Context, createIfNeeded bool, refC
 				if existings, ok := desc.Annotations[dslKey]; ok {
 					existingRepos = strings.Split(existings, ",")
 				}
-				addNewRepo := true
-				for _, existing := range existingRepos {
-					if existing == repo {
-						addNewRepo = false
-						break
-					}
-				}
-				if addNewRepo {
+				if !slices.Contains(existingRepos, repo) {
 					existingRepos = append(existingRepos, repo)
 				}
 				desc.Annotations[dslKey] = strings.Join(existingRepos, ",")

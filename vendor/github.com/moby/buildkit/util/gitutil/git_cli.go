@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -120,7 +121,7 @@ func NewGitCLI(opts ...Option) *GitCLI {
 // with the given options applied on top.
 func (cli *GitCLI) New(opts ...Option) *GitCLI {
 	clone := *cli
-	clone.args = append([]string{}, cli.args...)
+	clone.args = slices.Clone(cli.args)
 
 	for _, opt := range opts {
 		opt(&clone)

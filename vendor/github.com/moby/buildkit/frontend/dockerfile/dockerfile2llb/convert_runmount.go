@@ -9,6 +9,7 @@ import (
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/system"
 	"github.com/pkg/errors"
 )
 
@@ -118,7 +119,7 @@ func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*
 			mountOpts = append(mountOpts, llb.AsPersistentCacheDir(opt.cacheIDNamespace+"/"+mount.CacheID, sharing))
 		}
 		target := mount.Target
-		if !filepath.IsAbs(filepath.Clean(mount.Target)) {
+		if !system.IsAbsolutePath(filepath.Clean(mount.Target)) {
 			dir, err := d.state.GetDir(context.TODO())
 			if err != nil {
 				return nil, err

@@ -13,14 +13,15 @@ import (
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/pkg/oci"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/util/network"
 	rootlessmountopts "github.com/moby/buildkit/util/rootless/mountopts"
+	"github.com/moby/buildkit/util/system"
 	traceexec "github.com/moby/buildkit/util/tracing/exec"
+	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/selinux/go-selinux"
@@ -60,7 +61,7 @@ func (pm ProcessMode) String() string {
 
 // GenerateSpec generates spec using containerd functionality.
 // opts are ignored for s.Process, s.Hostname, and s.Mounts .
-func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, cgroupParent string, processMode ProcessMode, idmap *idtools.IdentityMapping, apparmorProfile string, selinuxB bool, tracingSocket string, cdiManager *cdidevices.Manager, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
+func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, cgroupParent string, processMode ProcessMode, idmap *user.IdentityMapping, apparmorProfile string, selinuxB bool, tracingSocket string, cdiManager *cdidevices.Manager, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
 	c := &containers.Container{
 		ID: id,
 	}
@@ -210,8 +211,8 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 				return nil, nil, err
 			}
 			s.Mounts = append(s.Mounts, specs.Mount{
-				Destination: m.Dest,
-				Type:        mount.Type,
+				Destination: system.GetAbsolutePath(m.Dest),
+				Type:        normalizeMountType(mount.Type),
 				Source:      mount.Source,
 				Options:     mount.Options,
 			})
@@ -251,7 +252,8 @@ type submounts struct {
 }
 
 func (s *submounts) subMount(m mount.Mount, subPath string) (mount.Mount, error) {
-	if path.Join("/", subPath) == "/" {
+	// for Windows, always go through the sub-mounting process
+	if path.Join("/", subPath) == "/" && runtime.GOOS != "windows" {
 		return m, nil
 	}
 	if s.m == nil {

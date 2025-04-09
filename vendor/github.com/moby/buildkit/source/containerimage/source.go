@@ -2,6 +2,7 @@ package containerimage
 
 import (
 	"context"
+	"slices"
 	"strconv"
 
 	"github.com/containerd/containerd/v2/core/content"
@@ -217,7 +218,7 @@ func (is *Source) registryIdentifier(ref string, attrs map[string]string, platfo
 			OSVersion:    platform.OSVersion,
 		}
 		if platform.OSFeatures != nil {
-			id.Platform.OSFeatures = append([]string{}, platform.OSFeatures...)
+			id.Platform.OSFeatures = slices.Clone(platform.OSFeatures)
 		}
 	}
 
@@ -264,7 +265,7 @@ func (is *Source) ociIdentifier(ref string, attrs map[string]string, platform *p
 			OSVersion:    platform.OSVersion,
 		}
 		if platform.OSFeatures != nil {
-			id.Platform.OSFeatures = append([]string{}, platform.OSFeatures...)
+			id.Platform.OSFeatures = slices.Clone(platform.OSFeatures)
 		}
 	}
 

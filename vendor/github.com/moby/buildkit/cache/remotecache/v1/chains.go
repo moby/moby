@@ -15,12 +15,12 @@ import (
 )
 
 func NewCacheChains() *CacheChains {
-	return &CacheChains{visited: map[interface{}]struct{}{}}
+	return &CacheChains{visited: map[any]struct{}{}}
 }
 
 type CacheChains struct {
 	items   []*item
-	visited map[interface{}]struct{}
+	visited map[any]struct{}
 }
 
 var _ solver.CacheExporterTarget = &CacheChains{}

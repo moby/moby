@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -110,6 +111,9 @@ func (cm *cacheManager) Checksum(ctx context.Context, ref cache.ImmutableRef, p 
 	if err != nil {
 		return "", nil
 	}
+	// only applies for Windows, it's a no-op on non-Windows.
+	enableProcessPrivileges()
+	defer disableProcessPrivileges()
 	return cc.Checksum(ctx, ref, p, opts, s)
 }
 
@@ -539,7 +543,7 @@ func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, o
 
 	if origPrefix != "" {
 		if keyOk {
-			iter.SeekLowerBound(append(append([]byte{}, k...), 0))
+			iter.SeekLowerBound(append(slices.Clone(k), 0))
 		}
 
 		resolvedPrefix = convertKeyToPath(k)
@@ -880,7 +884,7 @@ func (cc *cacheContext) checksum(ctx context.Context, root *iradix.Node[*CacheRe
 		h := sha256.New()
 		next := append(k, 0)
 		iter := root.Iterator()
-		iter.SeekLowerBound(append(append([]byte{}, next...), 0))
+		iter.SeekLowerBound(append(slices.Clone(next), 0))
 		subk := next
 		ok := true
 		for {
@@ -1243,7 +1247,7 @@ func ensureOriginMetadata(md cache.RefMetadata) cache.RefMetadata {
 }
 
 var pool32K = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		buf := make([]byte, 32*1024) // 32K
 		return &buf
 	},

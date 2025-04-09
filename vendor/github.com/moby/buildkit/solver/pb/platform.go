@@ -1,6 +1,8 @@
 package pb
 
 import (
+	"slices"
+
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -12,7 +14,7 @@ func (p *Platform) Spec() ocispecs.Platform {
 		OSVersion:    p.OSVersion,
 	}
 	if p.OSFeatures != nil {
-		result.OSFeatures = append([]string{}, p.OSFeatures...)
+		result.OSFeatures = slices.Clone(p.OSFeatures)
 	}
 	return result
 }
@@ -25,7 +27,7 @@ func PlatformFromSpec(p ocispecs.Platform) *Platform {
 		OSVersion:    p.OSVersion,
 	}
 	if p.OSFeatures != nil {
-		result.OSFeatures = append([]string{}, p.OSFeatures...)
+		result.OSFeatures = slices.Clone(p.OSFeatures)
 	}
 	return result
 }
