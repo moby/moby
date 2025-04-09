@@ -1068,7 +1068,10 @@ func (sc *serverConn) serve(conf http2Config) {
 
 func (sc *serverConn) handlePingTimer(lastFrameReadTime time.Time) {
 	if sc.pingSent {
-		sc.vlogf("timeout waiting for PING response")
+		sc.logf("timeout waiting for PING response")
+		if f := sc.countErrorFunc; f != nil {
+			f("conn_close_lost_ping")
+		}
 		sc.conn.Close()
 		return
 	}
