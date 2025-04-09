@@ -80,7 +80,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 
 					ctx := testutil.StartSpan(ctx, t)
 
-					d := daemon.New(t)
+					d := daemon.New(t, daemon.WithEnvVars("DOCKER_KEEP_DEFAULT_BRIDGE=y"))
 					apiClient := d.NewClientT(t)
 
 					args := []string{"--iptables=false", "--ip6tables=false"}

@@ -1005,12 +1005,8 @@ func (d *driver) deleteNetwork(nid string) error {
 
 	switch config.BridgeIfaceCreator {
 	case ifaceCreatedByLibnetwork, ifaceCreatorUnknown:
-		// We only delete the bridge if it was created by the bridge driver and
-		// it is not the default one (to keep the backward compatible behavior.)
-		if !config.DefaultBridge {
-			if err := d.nlh.LinkDel(n.bridge.Link); err != nil {
-				log.G(context.TODO()).Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
-			}
+		if err := d.nlh.LinkDel(n.bridge.Link); err != nil {
+			log.G(context.TODO()).Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
 		}
 	case ifaceCreatedByUser:
 		// Don't delete the bridge interface if it was not created by libnetwork.

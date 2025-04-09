@@ -856,7 +856,7 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 
 	if len(activeSandboxes) > 0 {
 		log.G(context.TODO()).Info("there are running containers, updated network configuration will not take affect")
-	} else if err := configureNetworking(daemon.netController, cfg); err != nil {
+	} else if err := createDefaultNetworks(daemon.netController, cfg); err != nil {
 		return err
 	}
 
@@ -865,7 +865,13 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 	return nil
 }
 
-func configureNetworking(controller *libnetwork.Controller, conf *config.Config) error {
+// createDefaultNetworks creates the default "none" and "host" networks if they
+// don't exist, and recreates the default bridge network.
+//
+// It's caller responsibility to make sure that it's safe to recreate the
+// default bridge network, ie. either live-restore is disabled or no containers
+// are currently running.
+func createDefaultNetworks(controller *libnetwork.Controller, conf *config.Config) error {
 	// Create predefined network "none"
 	if n, _ := controller.NetworkByName(network.NetworkNone); n == nil {
 		if _, err := controller.NewNetwork("null", network.NetworkNone, "", libnetwork.NetworkOptionPersist(true)); err != nil {
@@ -880,23 +886,32 @@ func configureNetworking(controller *libnetwork.Controller, conf *config.Config)
 		}
 	}
 
-	// Clear stale bridge network
-	if n, err := controller.NetworkByName(network.NetworkBridge); err == nil {
-		if err = n.Delete(); err != nil {
-			return errors.Wrapf(err, `could not delete the default %q network`, network.NetworkBridge)
+	// DOCKER_KEEP_DEFAULT_BRIDGE is used by integration tests to run multiple
+	// daemons in parallel. It's not meant to be used in production.
+	if _, ok := os.LookupEnv("DOCKER_KEEP_DEFAULT_BRIDGE"); ok {
+		// Consider that the default bridge network went stale. This gives the
+		// opportunity to recreate it with potentially-new settings.
+		if n, err := controller.NetworkByName(network.NetworkBridge); err == nil {
+			if err = n.Delete(); err != nil {
+				return errors.Wrapf(err, `could not delete the default %q network`, network.NetworkBridge)
+			}
 		}
-		if len(conf.NetworkConfig.DefaultAddressPools.Value()) > 0 && !conf.LiveRestoreEnabled {
+
+		_, userManaged := getDefaultBridgeName(conf.BridgeConfig)
+		if !userManaged {
+			// Forcefully delete the underlying default bridge interface (ie. docker0)
+			// if it exists. This is necessary to ensure that the bridge is correctly
+			// recreated in cases like libnetwork datastore being manually deleted but
+			// the default interface left untouched.
 			removeDefaultBridgeInterface()
 		}
 	}
 
 	if !conf.DisableBridge {
 		// Initialize default driver "bridge"
-		if err := initBridgeDriver(controller, conf.BridgeConfig); err != nil {
+		if err := createDefaultBridgeNetwork(controller, conf.BridgeConfig); err != nil {
 			return err
 		}
-	} else {
-		removeDefaultBridgeInterface()
 	}
 
 	return nil
@@ -981,7 +996,7 @@ type defBrOpts interface {
 	defGw() (gw net.IP, optName, auxAddrLabel string)
 }
 
-func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig) error {
+func createDefaultBridgeNetwork(controller *libnetwork.Controller, cfg config.BridgeConfig) error {
 	bridgeName, userManagedBridge := getDefaultBridgeName(cfg)
 	netOption := map[string]string{
 		bridge.BridgeName:         bridgeName,

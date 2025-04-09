@@ -1,13 +1,19 @@
 package bridge
 
 import (
+	"fmt"
+	"net/netip"
 	"testing"
 
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
+	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 // TestNetworkInitError checks that, if the default bridge network can't be restored on startup,
@@ -63,4 +69,49 @@ func TestNetworkInitErrorUserDefined(t *testing.T) {
 	network.CreateNoError(ctx, t, c, netName,
 		network.WithOption(bridge.BridgeName, brName),
 	)
+}
+
+// TestRecreateDefaultBridgeWhenUnsettingDefaultAddrPools checks that the
+// default bridge is recreated using a subnet coming from the default value of
+// the "default-address-pools" parameter when it's unset.
+//
+// Regression test for: https://github.com/moby/moby/issues/49353
+func TestRecreateDefaultBridgeWhenUnsettingDefaultAddrPools(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
+
+	// Run the test in a separate netns to avoid interference with leftovers
+	// from other tests or manual run of the daemon (eg. in a dev container).
+	defer netnsutils.SetupTestOSContext(t)()
+
+	ctx := setupTest(t)
+
+	var customPool = netip.MustParsePrefix("10.20.128.0/17")
+
+	d := daemon.New(t)
+	d.Start(t, fmt.Sprintf("--default-address-pool=base=%s,size=24", customPool.String()))
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	nw, err := c.NetworkInspect(ctx, "bridge", networktypes.InspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, customPool.Contains(netip.MustParsePrefix(nw.IPAM.Config[0].Subnet).Addr()), "%s not in %s", nw.IPAM.Config[0].Subnet, customPool)
+
+	d.Restart(t)
+
+	nw, err = c.NetworkInspect(ctx, "bridge", networktypes.InspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, inDefaultAddressPools(netip.MustParsePrefix(nw.IPAM.Config[0].Subnet)))
+}
+
+// inDefaultAddressPools checks whether the given prefix is in the default
+// "default-address-pools".
+func inDefaultAddressPools(p netip.Prefix) bool {
+	for _, addrPool := range ipamutils.GetLocalScopeDefaultNetworks() {
+		if addrPool.Overlaps(p) {
+			return true
+		}
+	}
+	return false
 }
