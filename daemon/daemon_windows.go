@@ -237,7 +237,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 	if err != nil {
 		return err
 	}
-	daemon.netController, err = libnetwork.New(netOptions...)
+	daemon.netController, err = libnetwork.New(context.TODO(), netOptions...)
 	if err != nil {
 		return errors.Wrap(err, "error obtaining controller instance")
 	}
@@ -279,7 +279,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 					log.G(context.TODO()).Errorf("Error occurred when removing network %v", err)
 				}
 
-				_, err := daemon.netController.NewNetwork("nat", name, id,
+				_, err := daemon.netController.NewNetwork(context.TODO(), "nat", name, id,
 					libnetwork.NetworkOptionGeneric(options.Generic{
 						netlabel.GenericData: netOption,
 					}),
@@ -301,7 +301,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 		}
 	}
 
-	_, err = daemon.netController.NewNetwork("null", "none", "", libnetwork.NetworkOptionPersist(false))
+	_, err = daemon.netController.NewNetwork(context.TODO(), "null", "none", "", libnetwork.NetworkOptionPersist(false))
 	if err != nil {
 		return err
 	}
@@ -384,7 +384,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 		}
 
 		v6Conf := []*libnetwork.IpamConf{}
-		_, err := daemon.netController.NewNetwork(strings.ToLower(v.Type), name, nid,
+		_, err := daemon.netController.NewNetwork(context.TODO(), strings.ToLower(v.Type), name, nid,
 			libnetwork.NetworkOptionGeneric(options.Generic{
 				netlabel.GenericData: netOption,
 				netlabel.EnableIPv4:  true,
@@ -430,7 +430,7 @@ func initBridgeDriver(controller *libnetwork.Controller, config config.BridgeCon
 		ipamOption = libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil)
 	}
 
-	_, err := controller.NewNetwork(network.DefaultNetwork, network.DefaultNetwork, "",
+	_, err := controller.NewNetwork(context.TODO(), network.DefaultNetwork, network.DefaultNetwork, "",
 		libnetwork.NetworkOptionGeneric(options.Generic{
 			netlabel.GenericData: netOption,
 			netlabel.EnableIPv4:  true,

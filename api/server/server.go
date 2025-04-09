@@ -11,8 +11,10 @@ import (
 	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/baggage"
 )
 
 // versionMatcher defines a variable matcher to be parsed by the router
@@ -42,7 +44,10 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc, operation string) ht
 
 		// use intermediate variable to prevent "should not use basic type
 		// string as key in context.WithValue" golint errors
-		ctx := context.WithValue(r.Context(), dockerversion.UAStringKey{}, r.Header.Get("User-Agent"))
+		ua := r.Header.Get("User-Agent")
+		ctx := baggage.ContextWithBaggage(context.WithValue(r.Context(), dockerversion.UAStringKey{}, ua), otelutil.MustNewBaggage(
+			otelutil.MustNewMemberRaw(otelutil.TriggerKey, "api"),
+		))
 
 		r = r.WithContext(ctx)
 		handlerFunc := s.handlerWithGlobalMiddlewares(handler)

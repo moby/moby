@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/modprobe"
 	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/rlkclient"
@@ -47,6 +48,8 @@ const (
 	// DefaultGatewayV6AuxKey represents the ipv6 default-gateway configured by the user
 	DefaultGatewayV6AuxKey = "DefaultGatewayIPv6"
 )
+
+const spanPrefix = "libnetwork.drivers.bridge"
 
 type (
 	iptableCleanFunc   func() error
@@ -741,7 +744,7 @@ func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error)
 }
 
 // CreateNetwork creates a new network using the bridge driver.
-func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	// Sanity checks
 	d.Lock()
 	if _, ok := d.networks[id]; ok {
@@ -787,11 +790,11 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	}
 
 	// there is no conflict, now create the network
-	if err = d.createNetwork(config); err != nil {
+	if err = d.createNetwork(ctx, config); err != nil {
 		return err
 	}
 
-	return d.storeUpdate(context.TODO(), config)
+	return d.storeUpdate(ctx, config)
 }
 
 func (d *driver) checkConflict(config *networkConfiguration) error {
@@ -808,7 +811,18 @@ func (d *driver) checkConflict(config *networkConfiguration) error {
 	return nil
 }
 
-func (d *driver) createNetwork(config *networkConfiguration) (err error) {
+func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration) (err error) {
+	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".createNetwork", trace.WithAttributes(
+		attribute.Bool("bridge.enable_ipv4", config.EnableIPv4),
+		attribute.Bool("bridge.enable_ipv6", config.EnableIPv6),
+		attribute.Bool("bridge.icc", config.EnableICC),
+		attribute.Int("bridge.mtu", config.Mtu),
+		attribute.Bool("bridge.internal", config.Internal)))
+	defer func() {
+		otelutil.RecordStatus(span, err)
+		span.End()
+	}()
+
 	// Create or retrieve the bridge L3 interface
 	bridgeIface, err := newInterface(d.nlh, config)
 	if err != nil {
@@ -844,13 +858,13 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 	// by creating a new device and assigning it an IPv4 address.
 	bridgeAlreadyExists := bridgeIface.exists()
 	if !bridgeAlreadyExists {
-		bridgeSetup.queueStep(setupDevice)
-		bridgeSetup.queueStep(setupDefaultSysctl)
+		bridgeSetup.queueStep("setupDevice", setupDevice)
+		bridgeSetup.queueStep("setupDefaultSysctl", setupDefaultSysctl)
 	}
 
 	// For the default bridge, set expected sysctls
 	if config.DefaultBridge {
-		bridgeSetup.queueStep(setupDefaultSysctl)
+		bridgeSetup.queueStep("setupDefaultSysctl", setupDefaultSysctl)
 	}
 
 	// Always set the bridge's MTU if specified. This is purely cosmetic; a bridge's
@@ -858,7 +872,7 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 	// 'veth'. But, for a non-default MTU, the bridge's MTU will look wrong until a
 	// container is attached.
 	if config.Mtu > 0 {
-		bridgeSetup.queueStep(setupMTU)
+		bridgeSetup.queueStep("setupMTU", setupMTU)
 	}
 
 	// Module br_netfilter needs to be loaded with net.bridge.bridge-nf-call-ip[6]tables
@@ -868,54 +882,57 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 	// Conditionally queue setup steps depending on configuration values.
 	for _, step := range []struct {
 		Condition bool
-		Fn        setupStep
+		StepName  string
+		StepFn    stepFn
 	}{
 		// Even if a bridge exists try to setup IPv4.
-		{config.EnableIPv4, setupBridgeIPv4},
+		{config.EnableIPv4, "setupBridgeIPv4", setupBridgeIPv4},
 
 		// Enable IPv6 on the bridge if required. We do this even for a
 		// previously  existing bridge, as it may be here from a previous
 		// installation where IPv6 wasn't supported yet and needs to be
 		// assigned an IPv6 link-local address.
-		{config.EnableIPv6, setupBridgeIPv6},
+		{config.EnableIPv6, "setupBridgeIPv6", setupBridgeIPv6},
 
 		// Ensure the bridge has the expected IPv4 addresses in the case of a previously
 		// existing device.
-		{config.EnableIPv4 && bridgeAlreadyExists && !config.InhibitIPv4, setupVerifyAndReconcileIPv4},
+		{config.EnableIPv4 && bridgeAlreadyExists && !config.InhibitIPv4, "setupVerifyAndReconcileIPv4", setupVerifyAndReconcileIPv4},
 
 		// Enable IP Forwarding
 		{
 			config.EnableIPv4 && d.config.EnableIPForwarding,
+			"setupIPv4Forwarding",
 			func(*networkConfiguration, *bridgeInterface) error {
 				return setupIPv4Forwarding(d.config.EnableIPTables && !d.config.DisableFilterForwardDrop)
 			},
 		},
 		{
 			config.EnableIPv6 && d.config.EnableIPForwarding,
+			"setupIPv6Forwarding",
 			func(*networkConfiguration, *bridgeInterface) error {
 				return setupIPv6Forwarding(d.config.EnableIP6Tables && !d.config.DisableFilterForwardDrop)
 			},
 		},
 
 		// Setup Loopback Addresses Routing
-		{!d.config.EnableUserlandProxy, setupLoopbackAddressesRouting},
+		{!d.config.EnableUserlandProxy, "setupLoopbackAddressesRouting", setupLoopbackAddressesRouting},
 
 		// Setup DefaultGatewayIPv4
-		{config.DefaultGatewayIPv4 != nil, setupGatewayIPv4},
+		{config.DefaultGatewayIPv4 != nil, "setupGatewayIPv4", setupGatewayIPv4},
 
 		// Setup DefaultGatewayIPv6
-		{config.DefaultGatewayIPv6 != nil, setupGatewayIPv6},
+		{config.DefaultGatewayIPv6 != nil, "setupGatewayIPv6", setupGatewayIPv6},
 
 		// Configure bridge networking filtering if needed and IP tables are enabled
-		{enableBrNfCallIptables && d.config.EnableIPTables, setupIPv4BridgeNetFiltering},
-		{enableBrNfCallIptables && d.config.EnableIP6Tables, setupIPv6BridgeNetFiltering},
+		{enableBrNfCallIptables && d.config.EnableIPTables, "setupIPv4BridgeNetFiltering", setupIPv4BridgeNetFiltering},
+		{enableBrNfCallIptables && d.config.EnableIP6Tables, "setupIPv6BridgeNetFiltering", setupIPv6BridgeNetFiltering},
 	} {
 		if step.Condition {
-			bridgeSetup.queueStep(step.Fn)
+			bridgeSetup.queueStep(step.StepName, step.StepFn)
 		}
 	}
 
-	bridgeSetup.queueStep(func(*networkConfiguration, *bridgeInterface) error {
+	bridgeSetup.queueStep("setIptablesNetwork", func(*networkConfiguration, *bridgeInterface) error {
 		n, err := network.newIptablesNetwork()
 		if err != nil {
 			return err
@@ -925,15 +942,15 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 	})
 
 	// Apply the prepared list of steps, and abort at the first error.
-	bridgeSetup.queueStep(setupDeviceUp)
+	bridgeSetup.queueStep("setupDeviceUp", setupDeviceUp)
 
 	if v := os.Getenv("DOCKER_TEST_BRIDGE_INIT_ERROR"); v == config.BridgeName {
-		bridgeSetup.queueStep(func(n *networkConfiguration, b *bridgeInterface) error {
+		bridgeSetup.queueStep("fakeError", func(n *networkConfiguration, b *bridgeInterface) error {
 			return fmt.Errorf("DOCKER_TEST_BRIDGE_INIT_ERROR is %q", v)
 		})
 	}
 
-	return bridgeSetup.apply()
+	return bridgeSetup.apply(ctx)
 }
 
 func (d *driver) DeleteNetwork(nid string) error {
@@ -1024,7 +1041,7 @@ func (d *driver) deleteNetwork(nid string) error {
 }
 
 func addToBridge(ctx context.Context, nlh nlwrap.Handle, ifaceName, bridgeName string) error {
-	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.bridge.addToBridge", trace.WithAttributes(
+	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".addToBridge", trace.WithAttributes(
 		attribute.String("ifaceName", ifaceName),
 		attribute.String("bridgeName", bridgeName)))
 	defer span.End()
@@ -1054,7 +1071,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		return errors.New("invalid interface info passed")
 	}
 
-	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.bridge.CreateEndpoint", trace.WithAttributes(
+	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".CreateEndpoint", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid)))
 	defer span.End()
@@ -1263,7 +1280,7 @@ func createVeth(ctx context.Context, hostIfName, containerIfName string, ifInfo 
 }
 
 func (d *driver) linkUp(ctx context.Context, host netlink.Link) error {
-	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.bridge.linkUp", trace.WithAttributes(
+	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".linkUp", trace.WithAttributes(
 		attribute.String("host", host.Attrs().Name)))
 	defer span.End()
 
@@ -1392,7 +1409,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
 func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, sbOpts map[string]interface{}) error {
-	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.bridge.Join", trace.WithAttributes(
+	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".Join", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid),
 		attribute.String("sboxKey", sboxKey)))
@@ -1464,7 +1481,7 @@ func (d *driver) Leave(nid, eid string) error {
 }
 
 func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid string, options map[string]interface{}) error {
-	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.bridge.ProgramExternalConnectivity", trace.WithAttributes(
+	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".ProgramExternalConnectivity", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid)))
 	defer span.End()

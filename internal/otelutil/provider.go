@@ -5,6 +5,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/moby/buildkit/util/tracing/detect"
+	"go.opentelemetry.io/contrib/processors/baggagecopy"
+	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
@@ -31,6 +33,7 @@ func NewTracerProvider(ctx context.Context, allowNoop bool) (trace.TracerProvide
 		sdktrace.WithResource(resource.Default()),
 		sdktrace.WithSyncer(detect.Recorder),
 		sdktrace.WithBatcher(exp),
+		sdktrace.WithSpanProcessor(baggagecopy.NewSpanProcessor(func(member baggage.Member) bool { return true })),
 	)
 	return tp, tp.Shutdown
 }

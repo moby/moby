@@ -18,12 +18,12 @@ func testLocalBackend(t *testing.T, path, bucket string) {
 		}),
 	}
 
-	testController, err := New(cfgOptions...)
+	testController, err := New(context.Background(), cfgOptions...)
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
 	}
 	defer testController.Stop()
-	nw, err := testController.NewNetwork("host", "host", "")
+	nw, err := testController.NewNetwork(context.Background(), "host", "host", "")
 	if err != nil {
 		t.Fatalf(`Error creating default "host" network: %v`, err)
 	}
@@ -52,7 +52,7 @@ func testLocalBackend(t *testing.T, path, bucket string) {
 	testController.Stop()
 
 	// test restore of local store
-	testController, err = New(cfgOptions...)
+	testController, err = New(context.Background(), cfgOptions...)
 	if err != nil {
 		t.Fatalf("Error creating controller: %v", err)
 	}

@@ -22,6 +22,7 @@ import (
 func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []*Network) {
 	const netType = "bridge"
 	c, err := New(
+		context.Background(),
 		config.OptionDataDir(t.TempDir()),
 		config.OptionDriverConfig(netType, map[string]any{
 			netlabel.GenericData: options.Generic{"EnableIPForwarding": true},
@@ -48,7 +49,7 @@ func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []*Network)
 			}),
 		}
 		newOptions = append(newOptions, opt...)
-		n, err := c.NewNetwork(netType, name, "", newOptions...)
+		n, err := c.NewNetwork(context.Background(), netType, name, "", newOptions...)
 		if err != nil {
 			t.Fatal(err)
 		}

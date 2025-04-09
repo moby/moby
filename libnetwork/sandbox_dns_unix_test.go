@@ -13,7 +13,7 @@ import (
 )
 
 func TestDNSOptions(t *testing.T) {
-	c, err := New(config.OptionDataDir(t.TempDir()))
+	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()))
 	assert.NilError(t, err)
 
 	sb, err := c.NewSandbox(context.Background(), "cnt1", nil)

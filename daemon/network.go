@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/libnetwork"
 	lncluster "github.com/docker/docker/libnetwork/cluster"
 	"github.com/docker/docker/libnetwork/driverapi"
@@ -32,6 +33,7 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-connections/nat"
+	"go.opentelemetry.io/otel/baggage"
 )
 
 // PredefinedNetworkError is returned when user tries to create predefined network that already exists.
@@ -203,11 +205,14 @@ func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.Netw
 		daemon.releaseIngress(staleID)
 	}
 
-	if _, err := daemon.createNetwork(cfg, create.CreateRequest, create.ID, true); err != nil {
+	ctx := baggage.ContextWithBaggage(context.TODO(), otelutil.MustNewBaggage(
+		otelutil.MustNewMemberRaw(otelutil.TriggerKey, "daemon.setupIngress"),
+	))
+	if _, err := daemon.createNetwork(ctx, cfg, create.CreateRequest, create.ID, true); err != nil {
 		// If it is any other error other than already
 		// exists error log error and return.
 		if _, ok := err.(libnetwork.NetworkNameError); !ok {
-			log.G(context.TODO()).Errorf("Failed creating ingress network: %v", err)
+			log.G(ctx).Errorf("Failed creating ingress network: %v", err)
 			return
 		}
 		// Otherwise continue down the call to create or recreate sandbox.
@@ -273,16 +278,16 @@ func (daemon *Daemon) WaitForDetachment(ctx context.Context, networkName, networ
 
 // CreateManagedNetwork creates an agent network.
 func (daemon *Daemon) CreateManagedNetwork(create clustertypes.NetworkCreateRequest) error {
-	_, err := daemon.createNetwork(&daemon.config().Config, create.CreateRequest, create.ID, true)
+	_, err := daemon.createNetwork(context.TODO(), &daemon.config().Config, create.CreateRequest, create.ID, true)
 	return err
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
-func (daemon *Daemon) CreateNetwork(create networktypes.CreateRequest) (*networktypes.CreateResponse, error) {
-	return daemon.createNetwork(&daemon.config().Config, create, "", false)
+func (daemon *Daemon) CreateNetwork(ctx context.Context, create networktypes.CreateRequest) (*networktypes.CreateResponse, error) {
+	return daemon.createNetwork(ctx, &daemon.config().Config, create, "", false)
 }
 
-func (daemon *Daemon) createNetwork(cfg *config.Config, create networktypes.CreateRequest, id string, agent bool) (*networktypes.CreateResponse, error) {
+func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, create networktypes.CreateRequest, id string, agent bool) (*networktypes.CreateResponse, error) {
 	if network.IsPredefined(create.Name) {
 		return nil, PredefinedNetworkError(create.Name)
 	}
@@ -304,7 +309,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create networktypes.Crea
 	if defaultOpts, ok := cfg.DefaultNetworkOpts[driver]; create.ConfigFrom == nil && ok {
 		for k, v := range defaultOpts {
 			if _, ok := networkOptions[k]; !ok {
-				log.G(context.TODO()).WithFields(log.Fields{"driver": driver, "network": id, k: v}).Debug("Applying network default option")
+				log.G(ctx).WithFields(log.Fields{"driver": driver, "network": id, k: v}).Debug("Applying network default option")
 				networkOptions[k] = v
 			}
 		}
@@ -359,7 +364,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create networktypes.Crea
 			// By dropping errors for agent networks, existing swarm-scoped networks also
 			// continue to behave as they did before upgrade - but new networks are still
 			// validated.
-			log.G(context.TODO()).WithFields(log.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"error":   err,
 				"network": create.Name,
 			}).Warn("Continuing with validation errors in agent IPAM")
@@ -398,7 +403,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create networktypes.Crea
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionLBEndpoint(nodeIP))
 	}
 
-	n, err := c.NewNetwork(driver, create.Name, id, nwOptions...)
+	n, err := c.NewNetwork(ctx, driver, create.Name, id, nwOptions...)
 	if err != nil {
 		return nil, err
 	}

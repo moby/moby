@@ -60,7 +60,7 @@ func (d *driver) NetworkFree(id string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	var (
 		networkName   string
 		interfaceName string
@@ -84,10 +84,10 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 
 	existingNetwork := d.network(id)
 	if existingNetwork != nil {
-		log.G(context.TODO()).Debugf("Network preexists. Deleting %s", id)
+		log.G(ctx).Debugf("Network preexists. Deleting %s", id)
 		err := d.DeleteNetwork(id)
 		if err != nil {
-			log.G(context.TODO()).Errorf("Error deleting stale network %s", err.Error())
+			log.G(ctx).Errorf("Error deleting stale network %s", err.Error())
 		}
 	}
 

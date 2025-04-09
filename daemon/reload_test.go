@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -310,7 +311,7 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	controller, err := libnetwork.New(netOptions...)
+	controller, err := libnetwork.New(context.Background(), netOptions...)
 	if err != nil {
 		t.Fatal(err)
 	}
