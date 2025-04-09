@@ -50,12 +50,12 @@ var wslinfoPath = "/usr/bin/wslinfo"
 // arriving from any other bridge network. Similarly, this function adds (or
 // removes) a rule to RETURN early for packets delivered via loopback0 with
 // destination 127.0.0.0/8.
-func mirroredWSL2Workaround(ipv iptables.IPVersion, hairpin bool) error {
+func mirroredWSL2Workaround(ctx context.Context, ipv iptables.IPVersion, hairpin bool) error {
 	// WSL2 does not (currently) support Windows<->Linux communication via ::1.
 	if ipv != iptables.IPv4 {
 		return nil
 	}
-	return programChainRule(mirroredWSL2Rule(), "WSL2 loopback", shouldInsertMirroredWSL2Rule(hairpin))
+	return programChainRule(mirroredWSL2Rule(), "WSL2 loopback", shouldInsertMirroredWSL2Rule(ctx, hairpin))
 }
 
 // shouldInsertMirroredWSL2Rule returns true if the NAT rule for mirrored WSL2 workaround
@@ -66,11 +66,11 @@ func mirroredWSL2Workaround(ipv iptables.IPVersion, hairpin bool) error {
 //     running - no workaround is needed, the normal DNAT/masquerading works.
 //   - and, the host Linux appears to be running under Windows WSL2 with mirrored
 //     mode networking.
-func shouldInsertMirroredWSL2Rule(hairpin bool) bool {
+func shouldInsertMirroredWSL2Rule(ctx context.Context, hairpin bool) bool {
 	if hairpin {
 		return false
 	}
-	return isRunningUnderWSL2MirroredMode()
+	return isRunningUnderWSL2MirroredMode(ctx)
 }
 
 // isRunningUnderWSL2MirroredMode returns true if the host Linux appears to be
@@ -80,10 +80,10 @@ func shouldInsertMirroredWSL2Rule(hairpin bool) bool {
 // "mirrored", but applying the workaround for WSL2's loopback device when it's
 // not needed is low risk, compared with executing wslinfo with dockerd's
 // elevated permissions.)
-func isRunningUnderWSL2MirroredMode() bool {
+func isRunningUnderWSL2MirroredMode(ctx context.Context) bool {
 	if _, err := nlwrap.LinkByName("loopback0"); err != nil {
 		if !errors.As(err, &netlink.LinkNotFoundError{}) {
-			log.G(context.TODO()).WithError(err).Warn("Failed to check for WSL interface")
+			log.G(ctx).WithError(err).Warn("Failed to check for WSL interface")
 		}
 		return false
 	}

@@ -60,7 +60,7 @@ func TestMirroredWSL2Workaround(t *testing.T) {
 			restoreWslinfoPath := simulateWSL2MirroredMode(t, tc.loopback0, tc.wslinfoPerm)
 			defer restoreWslinfoPath()
 
-			_, err := NewIptabler(firewaller.Config{
+			_, err := NewIptabler(context.Background(), firewaller.Config{
 				IPv4:    true,
 				Hairpin: !tc.userlandProxy,
 			})

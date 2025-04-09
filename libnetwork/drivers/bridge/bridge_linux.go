@@ -401,7 +401,7 @@ func parseErr(label, value, errString string) error {
 	return types.InvalidParameterErrorf("failed to parse %s value: %v (%s)", label, value, errString)
 }
 
-func (n *bridgeNetwork) newFirewallerNetwork() (firewaller.Network, error) {
+func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (firewaller.Network, error) {
 	config4, err := makeNetworkConfigFam(n.config.HostIPv4, n.bridge.bridgeIPv4, n.gwMode(iptables.IPv4))
 	if err != nil {
 		return nil, err
@@ -410,7 +410,7 @@ func (n *bridgeNetwork) newFirewallerNetwork() (firewaller.Network, error) {
 	if err != nil {
 		return nil, err
 	}
-	return n.driver.firewaller.NewNetwork(firewaller.NetworkConfig{
+	return n.driver.firewaller.NewNetwork(ctx, firewaller.NetworkConfig{
 		IfName:                n.config.BridgeName,
 		Internal:              n.config.Internal,
 		ICC:                   n.config.EnableICC,
@@ -509,7 +509,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 	}
 
 	var err error
-	d.firewaller, err = iptabler.NewIptabler(firewaller.Config{
+	d.firewaller, err = iptabler.NewIptabler(context.Background(), firewaller.Config{
 		IPv4:               config.EnableIPTables,
 		IPv6:               config.EnableIP6Tables,
 		Hairpin:            !config.EnableUserlandProxy || config.UserlandProxyPath == "",
@@ -904,7 +904,7 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 	}
 
 	bridgeSetup.queueStep("addfirewallerNetwork", func(*networkConfiguration, *bridgeInterface) error {
-		n, err := network.newFirewallerNetwork()
+		n, err := network.newFirewallerNetwork(ctx)
 		if err != nil {
 			return err
 		}
@@ -1004,7 +1004,7 @@ func (d *driver) deleteNetwork(nid string) error {
 		// Don't delete the bridge interface if it was not created by libnetwork.
 	}
 
-	if err := n.firewallerNetwork.DelNetworkLevelRules(); err != nil {
+	if err := n.firewallerNetwork.DelNetworkLevelRules(context.TODO()); err != nil {
 		log.G(context.TODO()).WithError(err).Warnf("Failed to clean iptables rules for bridge network")
 	}
 
@@ -1651,7 +1651,7 @@ func (d *driver) handleFirewalldReloadNw(nid string) {
 		return
 	}
 
-	if err := nw.firewallerNetwork.ReapplyNetworkLevelRules(); err != nil {
+	if err := nw.firewallerNetwork.ReapplyNetworkLevelRules(context.TODO()); err != nil {
 		log.G(context.Background()).WithFields(log.Fields{
 			"nid":   nw.id,
 			"error": err,

@@ -3,6 +3,7 @@
 package iptabler
 
 import (
+	"context"
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
@@ -36,7 +37,7 @@ func TestCleanupIptableRules(t *testing.T) {
 	ipVersions := []iptables.IPVersion{iptables.IPv4, iptables.IPv6}
 
 	for _, version := range ipVersions {
-		err := setupIPChains(version, true)
+		err := setupIPChains(context.Background(), version, true)
 		assert.NilError(t, err, "version:%s", version)
 
 		iptable := iptables.GetIptable(version)
@@ -53,7 +54,7 @@ func TestCleanupIptableRules(t *testing.T) {
 				version, chainInfo.name, chainInfo.table, out)
 		}
 
-		removeIPChains(version)
+		removeIPChains(context.Background(), version)
 
 		for _, chainInfo := range bridgeChains {
 			exists := iptable.Exists(chainInfo.table, chainInfo.name, "-A", chainInfo.name, "-j", "RETURN")

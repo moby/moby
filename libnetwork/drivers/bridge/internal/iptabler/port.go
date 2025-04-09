@@ -184,7 +184,7 @@ func filterPortMappedOnLoopback(ctx context.Context, b types.PortBinding, hostIP
 		"-i", "loopback0",
 		"-j", "ACCEPT",
 	}}
-	enableMirrored := enable && isRunningUnderWSL2MirroredMode()
+	enableMirrored := enable && isRunningUnderWSL2MirroredMode(ctx)
 	if err := appendOrDelChainRule(acceptMirrored, "LOOPBACK FILTERING - ACCEPT MIRRORED", enableMirrored); err != nil {
 		return err
 	}
