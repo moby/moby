@@ -12,7 +12,7 @@ import (
 	"github.com/containerd/containerd/v2/pkg/cio"
 	"github.com/containerd/log"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -59,7 +59,7 @@ func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOp
 		uid, gid := getSpecUser(ociSpec)
 		if uid == 0 && gid == 0 {
 			c.Labels[DockerContainerBundlePath] = bundleDir
-			return idtools.MkdirAllAndChownNew(bundleDir, 0o755, idtools.Identity{UID: 0, GID: 0})
+			return user.MkdirAllAndChown(bundleDir, 0o755, uid, gid, user.WithOnlyNew)
 		}
 
 		p := string(filepath.Separator)
@@ -72,7 +72,7 @@ func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOp
 			}
 			if os.IsNotExist(err) || fi.Mode()&1 == 0 {
 				p = fmt.Sprintf("%s.%d.%d", p, uid, gid)
-				if err := idtools.MkdirAndChown(p, 0o700, idtools.Identity{UID: uid, GID: gid}); err != nil && !os.IsExist(err) {
+				if err := user.MkdirAndChown(p, 0o700, uid, gid); err != nil && !os.IsExist(err) {
 					return err
 				}
 			}

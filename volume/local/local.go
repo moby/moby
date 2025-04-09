@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/quota"
 	"github.com/docker/docker/volume"
 	"github.com/moby/sys/atomicwriter"
+	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
 )
 
@@ -52,12 +53,13 @@ type activeMount struct {
 // volumes. The base path is created here if it does not exist.
 func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 	r := &Root{
-		path:         filepath.Join(scope, volumesPathName),
-		volumes:      make(map[string]*localVolume),
-		rootIdentity: rootIdentity,
+		path:    filepath.Join(scope, volumesPathName),
+		volumes: make(map[string]*localVolume),
+		rootUID: rootIdentity.UID,
+		rootGID: rootIdentity.GID,
 	}
 
-	if err := idtools.MkdirAllAndChown(r.path, 0o701, idtools.CurrentIdentity()); err != nil {
+	if err := user.MkdirAllAndChown(r.path, 0o701, os.Getuid(), os.Getegid()); err != nil {
 		return nil, err
 	}
 
@@ -106,11 +108,12 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 // manages the creation/removal of volumes. It uses only standard vfs
 // commands to create/remove dirs within its provided scope.
 type Root struct {
-	m            sync.Mutex
-	path         string
-	quotaCtl     *quota.Control
-	volumes      map[string]*localVolume
-	rootIdentity idtools.Identity
+	m        sync.Mutex
+	path     string
+	quotaCtl *quota.Control
+	volumes  map[string]*localVolume
+	rootUID  int
+	rootGID  int
 }
 
 // List lists all the volumes
@@ -157,12 +160,12 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 	}
 
 	// Root dir does not need to be accessed by the remapped root
-	if err := idtools.MkdirAllAndChown(v.rootPath, 0o701, idtools.CurrentIdentity()); err != nil {
+	if err := user.MkdirAllAndChown(v.rootPath, 0o701, os.Getuid(), os.Getegid()); err != nil {
 		return nil, errors.Wrapf(errdefs.System(err), "error while creating volume root path '%s'", v.rootPath)
 	}
 
 	// Remapped root does need access to the data path
-	if err := idtools.MkdirAllAndChown(v.path, 0o755, r.rootIdentity); err != nil {
+	if err := user.MkdirAllAndChown(v.path, 0o755, r.rootUID, r.rootGID); err != nil {
 		return nil, errors.Wrapf(errdefs.System(err), "error while creating volume data path '%s'", v.path)
 	}
 

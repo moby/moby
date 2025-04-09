@@ -39,6 +39,7 @@ import (
 	"github.com/moby/sys/atomicwriter"
 	"github.com/moby/sys/signal"
 	"github.com/moby/sys/symlink"
+	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
@@ -331,7 +332,7 @@ func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity)
 		return err
 	}
 
-	if err := idtools.MkdirAllAndChownNew(pth, 0o755, rootIdentity); err != nil {
+	if err := user.MkdirAllAndChown(pth, 0o755, rootIdentity.UID, rootIdentity.GID, user.WithOnlyNew); err != nil {
 		pthInfo, err2 := os.Stat(pth)
 		if err2 == nil && pthInfo != nil && !pthInfo.IsDir() {
 			return errors.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)

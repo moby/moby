@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/sys/user"
 	"golang.org/x/sys/unix"
 )
 
@@ -41,12 +42,12 @@ func Setup(initLayerFs string, rootIdentity idtools.Identity) error {
 
 		if _, err := os.Stat(filepath.Join(initLayer, pth)); err != nil {
 			if os.IsNotExist(err) {
-				if err := idtools.MkdirAllAndChownNew(filepath.Join(initLayer, filepath.Dir(pth)), 0o755, rootIdentity); err != nil {
+				if err := user.MkdirAllAndChown(filepath.Join(initLayer, filepath.Dir(pth)), 0o755, rootIdentity.UID, rootIdentity.GID, user.WithOnlyNew); err != nil {
 					return err
 				}
 				switch typ {
 				case "dir":
-					if err := idtools.MkdirAllAndChownNew(filepath.Join(initLayer, pth), 0o755, rootIdentity); err != nil {
+					if err := user.MkdirAllAndChown(filepath.Join(initLayer, pth), 0o755, rootIdentity.UID, rootIdentity.GID, user.WithOnlyNew); err != nil {
 						return err
 					}
 				case "file":

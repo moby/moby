@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 )
@@ -247,9 +248,9 @@ func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtoo
 			}
 		}
 
-		// idtools.MkdirAllNewAs() produces an error if m.Source exists and is a file (not a directory)
+		// user.MkdirAllAndChown produces an error if m.Source exists and is a file (not a directory)
 		// also, makes sure that if the directory is created, the correct remapped rootUID/rootGID will own it
-		if err := idtools.MkdirAllAndChownNew(m.Source, 0o755, rootIDs); err != nil {
+		if err := user.MkdirAllAndChown(m.Source, 0o755, rootIDs.UID, rootIDs.GID, user.WithOnlyNew); err != nil {
 			if perr, ok := err.(*os.PathError); ok {
 				if perr.Err != syscall.ENOTDIR {
 					return "", noCleanup, errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
