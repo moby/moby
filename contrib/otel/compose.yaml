@@ -1,0 +1,31 @@
+name: moby-otel
+
+services:
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    restart: always
+    ports:
+      - 16686:16686
+
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/nightly/aspire-dashboard
+    restart: always
+    ports:
+      - 0.0.0.0:18888:18888
+    environment:
+      DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: 'true'
+  
+  otelcol:
+    image: otel/opentelemetry-collector-contrib:latest
+    restart: always
+    depends_on:
+      - jaeger
+      - aspire-dashboard
+    ports:
+      - 4318:4318 # default otlp http port
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./otelcol.yaml
+          target: /etc/otelcol-contrib/config.yaml

@@ -1,0 +1,23 @@
+# Receive signals over gRPC and HTTP
+# moby currently uses http
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls::insecure: true
+  otlp/aspire:
+    endpoint: aspire-dashboard:18889
+    tls::insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [otlp/jaeger, otlp/aspire]
