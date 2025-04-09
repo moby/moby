@@ -899,6 +899,12 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 		log.G(ctx).WithError(err).Warn("Failed to clean up network resources on container disconnect")
 	}
 
+	// Even if the interface was initially created in the container's namespace, it's
+	// now been moved out. When a legacy link is deleted, the Endpoint is removed and
+	// then re-added to the Sandbox. So, to make sure the re-add works, note that the
+	// interface is now outside the container's netns.
+	ep.iface.createdInContainer = false
+
 	// Update the store about the sandbox detach only after we
 	// have completed sb.clearNetworkResources above to avoid
 	// spurious logs when cleaning up the sandbox when the daemon
