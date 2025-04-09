@@ -109,7 +109,7 @@ require (
 	golang.org/x/net v0.36.0
 	golang.org/x/sync v0.13.0
 	golang.org/x/sys v0.32.0
-	golang.org/x/text v0.22.0
+	golang.org/x/text v0.24.0
 	golang.org/x/time v0.11.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20241021214115-324edc3d5d38
 	google.golang.org/grpc v1.69.4
