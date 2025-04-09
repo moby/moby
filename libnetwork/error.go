@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"fmt"
+	"strings"
 )
 
 // ErrNoSuchNetwork is returned when a network query finds no result
@@ -27,12 +28,13 @@ func (nnr NetworkNameError) Conflict() {}
 // ActiveEndpointsError is returned when a network is deleted which has active
 // endpoints in it.
 type ActiveEndpointsError struct {
-	name string
-	id   string
+	name      string
+	id        string
+	endpoints []string
 }
 
 func (aee *ActiveEndpointsError) Error() string {
-	return fmt.Sprintf("network %s id %s has active endpoints", aee.name, aee.id)
+	return fmt.Sprintf("network %s has active endpoints (%s)", aee.name, strings.Join(aee.endpoints, ", "))
 }
 
 // Forbidden denotes the type of this error
