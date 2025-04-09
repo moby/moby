@@ -661,6 +661,9 @@ func waitForMcastRoute(ctx context.Context, ifIndex int, i *Interface, nlh nlwra
 //
 // Note that the kernel's arp_notify sysctl setting is not respected.
 func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interface, nlh nlwrap.Handle, mcastRouteOk bool) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.advertiseAddrs.initial")
+	defer span.End()
+
 	mac := i.MacAddress()
 	address4 := i.Address()
 	address6 := i.AddressIPv6()
@@ -750,7 +753,9 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 	// Send the rest in the background.
 	go func() {
 		defer cleanup()
-		ctx, span := otel.Tracer("").Start(context.WithoutCancel(ctx), "libnetwork.osl.advertiseAddrs")
+		ctx, span := otel.Tracer("").Start(trace.ContextWithSpanContext(context.WithoutCancel(ctx), trace.SpanContext{}),
+			"libnetwork.osl.advertiseAddrs.subsequent",
+			trace.WithLinks(trace.LinkFromContext(ctx)))
 		defer span.End()
 		ticker := time.NewTicker(i.advertiseAddrInterval)
 		defer ticker.Stop()
