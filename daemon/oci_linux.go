@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/internal/rootless/specconv"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/oci/caps"
-	"github.com/docker/docker/pkg/idtools"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
@@ -712,8 +711,7 @@ func withCommonOptions(daemon *Daemon, daemonCfg *dconfig.Config, c *container.C
 			Path:     c.BaseFS,
 			Readonly: c.HostConfig.ReadonlyRootfs,
 		}
-		uid, gid := daemon.idMapping.RootPair()
-		if err := c.SetupWorkingDirectory(idtools.Identity{UID: uid, GID: gid}); err != nil {
+		if err := c.SetupWorkingDirectory(daemon.idMapping.RootPair()); err != nil {
 			return err
 		}
 		cwd := c.Config.WorkingDir
