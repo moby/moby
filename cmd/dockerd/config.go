@@ -13,12 +13,9 @@ import (
 // installCommonConfigFlags adds flags to the pflag.FlagSet to configure the daemon
 func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	var (
-		allowNonDistributable = opts.NewNamedListOptsRef("allow-nondistributable-artifacts", &conf.AllowNondistributableArtifacts, registry.ValidateIndexName)
-		registryMirrors       = opts.NewNamedListOptsRef("registry-mirrors", &conf.Mirrors, registry.ValidateMirror)
-		insecureRegistries    = opts.NewNamedListOptsRef("insecure-registries", &conf.InsecureRegistries, registry.ValidateIndexName)
+		registryMirrors    = opts.NewNamedListOptsRef("registry-mirrors", &conf.Mirrors, registry.ValidateMirror)
+		insecureRegistries = opts.NewNamedListOptsRef("insecure-registries", &conf.InsecureRegistries, registry.ValidateIndexName)
 	)
-	flags.Var(allowNonDistributable, "allow-nondistributable-artifacts", "Allow push of nondistributable artifacts to registry")
-	_ = flags.MarkDeprecated("allow-nondistributable-artifacts", "Pushing nondistributable artifacts is now enabled by default. ")
 	flags.Var(registryMirrors, "registry-mirror", "Preferred Docker registry mirror")
 	flags.Var(insecureRegistries, "insecure-registry", "Enable insecure registry communication")
 
@@ -77,6 +74,9 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.Var(opts.NewNamedListOptsRef("cdi-spec-dirs", &conf.CDISpecDirs, nil), "cdi-spec-dir", "CDI specification directories to use")
 
 	// Deprecated flags / options
+	allowNonDistributable := opts.NewNamedListOptsRef("allow-nondistributable-artifacts", &([]string{}), registry.ValidateIndexName)
+	flags.Var(allowNonDistributable, "allow-nondistributable-artifacts", "Allow push of nondistributable artifacts to registry")
+	_ = flags.MarkDeprecated("allow-nondistributable-artifacts", "Pushing nondistributable artifacts is now enabled by default. ")
 
 	// TODO(thaJeztah): option is used to produce error when used; remove in next release
 	flags.StringVar(&conf.CorsHeaders, "api-cors-header", "", "Set CORS headers in the Engine API; deprecated: this feature was deprecated in 27.0, and now removed")

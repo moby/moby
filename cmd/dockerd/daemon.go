@@ -661,11 +661,6 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		return nil, err
 	}
 
-	if len(conf.AllowNondistributableArtifacts) > 0 {
-		// TODO(thaJeztah): move to config.Validate and change into an error for v29.0 and remove in v30.0.
-		log.G(context.TODO()).Warn(`DEPRECATED: The "allow-nondistributable-artifacts" config parameter is deprecated and always enabled; this option will be removed in the next release`)
-	}
-
 	return conf, nil
 }
 
