@@ -13,6 +13,7 @@ import (
 	mobyc8dstore "github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/metrics"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
@@ -73,10 +74,15 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, checkpoin
 // between containers. The container is left waiting for a signal to
 // begin running.
 func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore, container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (retErr error) {
-	ctx, span := otel.Tracer("").Start(ctx, "daemon.containerStart", trace.WithAttributes(
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.containerStart", trace.WithAttributes(append(
+		labelsAsOTelAttributes(container.Config.Labels),
 		attribute.String("container.ID", container.ID),
-		attribute.String("container.Name", container.Name)))
-	defer span.End()
+		attribute.String("container.Name", container.Name),
+	)...))
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
 
 	start := time.Now()
 	container.Lock()
