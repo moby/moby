@@ -67,6 +67,12 @@ type configuration struct {
 	Rootless                 bool
 }
 
+type firewaller struct {
+	IPv4    bool
+	IPv6    bool
+	Hairpin bool
+}
+
 // networkConfiguration for network specific configuration
 type networkConfiguration struct {
 	ID                   string
@@ -159,6 +165,7 @@ type driver struct {
 	nlh              nlwrap.Handle
 	portDriverClient portDriverClient
 	configNetwork    sync.Mutex
+	firewaller       firewaller
 	sync.Mutex
 }
 
@@ -403,16 +410,13 @@ func (n *bridgeNetwork) newIptablesNetwork() (*iptablesNetwork, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newIptablesNetwork(networkConfig{
+	return n.driver.firewaller.NewNetwork(networkConfig{
 		IfName:     n.config.BridgeName,
 		Internal:   n.config.Internal,
 		ICC:        n.config.EnableICC,
 		Masquerade: n.config.EnableIPMasquerade,
 		Config4:    config4,
 		Config6:    config6,
-		Hairpin:    !n.driver.config.EnableUserlandProxy || n.driver.config.UserlandProxyPath == "",
-		Enable4:    n.driver.config.EnableIPTables,
-		Enable6:    n.driver.config.EnableIP6Tables,
 	})
 }
 
@@ -503,50 +507,12 @@ func (d *driver) configure(option map[string]interface{}) error {
 		return errdefs.InvalidParameter(fmt.Errorf("invalid configuration type (%T) passed", opt))
 	}
 
-	if config.EnableIPTables {
-		removeIPChains(iptables.IPv4)
-
-		if err := setupIPChains(config, iptables.IPv4); err != nil {
-			return err
-		}
-
-		// Make sure on firewall reload, first thing being re-played is chains creation
-		iptables.OnReloaded(func() {
-			log.G(context.TODO()).Debugf("Recreating iptables chains on firewall reload")
-			if err := setupIPChains(config, iptables.IPv4); err != nil {
-				log.G(context.TODO()).WithError(err).Error("Error reloading iptables chains")
-			}
-		})
+	d.firewaller = firewaller{
+		IPv4:    config.EnableIPTables,
+		IPv6:    config.EnableIP6Tables,
+		Hairpin: !config.EnableUserlandProxy || config.UserlandProxyPath == "",
 	}
-
-	if config.EnableIP6Tables {
-		if err := modprobe.LoadModules(context.TODO(), func() error {
-			iptable := iptables.GetIptable(iptables.IPv6)
-			_, err := iptable.Raw("-t", "filter", "-n", "-L", "FORWARD")
-			return err
-		}, "ip6_tables"); err != nil {
-			log.G(context.TODO()).WithError(err).Debug("Loading ip6_tables")
-		}
-
-		removeIPChains(iptables.IPv6)
-
-		if err := setupIPChains(config, iptables.IPv6); err != nil {
-			// If the chains couldn't be set up, it's probably because the kernel has no IPv6
-			// support, or it doesn't have module ip6_tables loaded. It won't be possible to
-			// create IPv6 networks without enabling ip6_tables in the kernel, or disabling
-			// ip6tables in the daemon config. But, allow the daemon to start because IPv4
-			// will work. So, log the problem, and continue.
-			log.G(context.TODO()).WithError(err).Warn("ip6tables is enabled, but cannot set up ip6tables chains")
-		} else {
-			// Make sure on firewall reload, first thing being re-played is chains creation
-			iptables.OnReloaded(func() {
-				log.G(context.TODO()).Debugf("Recreating ip6tables chains on firewall reload")
-				if err := setupIPChains(config, iptables.IPv6); err != nil {
-					log.G(context.TODO()).WithError(err).Error("Error reloading ip6tables chains")
-				}
-			})
-		}
-	}
+	d.firewaller.init()
 	iptables.OnReloaded(d.handleFirewalldReload)
 
 	var pdc portDriverClient
@@ -564,6 +530,56 @@ func (d *driver) configure(option map[string]interface{}) error {
 	d.Unlock()
 
 	return d.initStore()
+}
+
+func (fw *firewaller) init() error {
+	if fw.IPv4 {
+		removeIPChains(iptables.IPv4)
+
+		if err := setupIPChains(iptables.IPv4, fw.Hairpin); err != nil {
+			return err
+		}
+
+		// Make sure on firewall reload, first thing being re-played is chains creation
+		iptables.OnReloaded(func() {
+			log.G(context.TODO()).Debugf("Recreating iptables chains on firewall reload")
+			if err := setupIPChains(iptables.IPv4, fw.Hairpin); err != nil {
+				log.G(context.TODO()).WithError(err).Error("Error reloading iptables chains")
+			}
+		})
+	}
+
+	if fw.IPv6 {
+		if err := modprobe.LoadModules(context.TODO(), func() error {
+			iptable := iptables.GetIptable(iptables.IPv6)
+			_, err := iptable.Raw("-t", "filter", "-n", "-L", "FORWARD")
+			return err
+		}, "ip6_tables"); err != nil {
+			log.G(context.TODO()).WithError(err).Debug("Loading ip6_tables")
+		}
+
+		removeIPChains(iptables.IPv6)
+
+		err := setupIPChains(iptables.IPv6, fw.Hairpin)
+		if err != nil {
+			// If the chains couldn't be set up, it's probably because the kernel has no IPv6
+			// support, or it doesn't have module ip6_tables loaded. It won't be possible to
+			// create IPv6 networks without enabling ip6_tables in the kernel, or disabling
+			// ip6tables in the daemon config. But, allow the daemon to start because IPv4
+			// will work. So, log the problem, and continue.
+			log.G(context.TODO()).WithError(err).Warn("ip6tables is enabled, but cannot set up ip6tables chains")
+		} else {
+			// Make sure on firewall reload, first thing being re-played is chains creation
+			iptables.OnReloaded(func() {
+				log.G(context.TODO()).Debugf("Recreating ip6tables chains on firewall reload")
+				if err := setupIPChains(iptables.IPv6, fw.Hairpin); err != nil {
+					log.G(context.TODO()).WithError(err).Error("Error reloading ip6tables chains")
+				}
+			})
+		}
+	}
+
+	return nil
 }
 
 func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {

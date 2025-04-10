@@ -157,11 +157,11 @@ func assertIPTableChainProgramming(rule iptables.Rule, descr string, t *testing.
 func assertChainConfig(d *driver, t *testing.T) {
 	var err error
 
-	err = setupIPChains(d.config, iptables.IPv4)
+	err = setupIPChains(iptables.IPv4, !d.config.EnableUserlandProxy)
 	assert.NilError(t, err)
 
 	if d.config.EnableIP6Tables {
-		err = setupIPChains(d.config, iptables.IPv6)
+		err = setupIPChains(iptables.IPv6, !d.config.EnableUserlandProxy)
 		assert.NilError(t, err)
 	}
 }
@@ -462,7 +462,7 @@ func TestMirroredWSL2Workaround(t *testing.T) {
 				config.UserlandProxyPath = "some-proxy"
 				config.EnableUserlandProxy = true
 			}
-			err := setupIPChains(config, iptables.IPv4)
+			err := setupIPChains(iptables.IPv4, !tc.userlandProxy)
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(mirroredWSL2Rule().Exists(), tc.expLoopback0Rule))
 		})

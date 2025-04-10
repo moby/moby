@@ -42,15 +42,7 @@ const (
 // Can be modified by tests.
 var wslinfoPath = "/usr/bin/wslinfo"
 
-func setupIPChains(config configuration, version iptables.IPVersion) (retErr error) {
-	// Sanity check.
-	if version == iptables.IPv4 && !config.EnableIPTables {
-		return errors.New("cannot create new chains, iptables is disabled")
-	}
-	if version == iptables.IPv6 && !config.EnableIP6Tables {
-		return errors.New("cannot create new chains, ip6tables is disabled")
-	}
-
+func setupIPChains(version iptables.IPVersion, hairpin bool) (retErr error) {
 	iptable := iptables.GetIptable(version)
 
 	_, err := iptable.NewChain(DockerChain, iptables.Nat)
@@ -137,12 +129,12 @@ func setupIPChains(config configuration, version iptables.IPVersion) (retErr err
 		}
 	}()
 
-	if err := addNATJumpRules(version, !config.EnableUserlandProxy, true); err != nil {
+	if err := addNATJumpRules(version, hairpin, true); err != nil {
 		return fmt.Errorf("failed to add jump rules to %s NAT table: %w", version, err)
 	}
 	defer func() {
 		if retErr != nil {
-			if err := addNATJumpRules(version, !config.EnableUserlandProxy, false); err != nil {
+			if err := addNATJumpRules(version, hairpin, false); err != nil {
 				log.G(context.TODO()).Warnf("failed on removing jump rules from %s NAT table: %v", version, err)
 			}
 		}
@@ -164,7 +156,7 @@ func setupIPChains(config configuration, version iptables.IPVersion) (retErr err
 		return err
 	}
 
-	if err := mirroredWSL2Workaround(config, version); err != nil {
+	if err := mirroredWSL2Workaround(version, hairpin); err != nil {
 		return err
 	}
 
@@ -206,23 +198,24 @@ type networkConfig struct {
 	Masquerade bool
 	Config4    networkConfigFam
 	Config6    networkConfigFam
-	Hairpin    bool
-	Enable4    bool
-	Enable6    bool
 }
 
 type iptablesNetwork struct {
 	networkConfig
+	fw         *firewaller
 	cleanFuncs iptablesCleanFuncs
 }
 
-func newIptablesNetwork(nc networkConfig) (_ *iptablesNetwork, retErr error) {
+func (fw *firewaller) NewNetwork(nc networkConfig) (_ *iptablesNetwork, retErr error) {
 	n := &iptablesNetwork{
+		fw:            fw,
 		networkConfig: nc,
 	}
 	defer func() {
 		if retErr != nil {
-			n.delNetworkLevelRules()
+			if err := n.delNetworkLevelRules(); err != nil {
+				log.G(context.TODO()).WithError(err).Warnf("Failed to delete network level rules following earlier error")
+			}
 		}
 	}()
 
@@ -233,12 +226,12 @@ func newIptablesNetwork(nc networkConfig) (_ *iptablesNetwork, retErr error) {
 }
 
 func (n *iptablesNetwork) reapplyNetworkLevelRules() error {
-	if n.Enable4 {
+	if n.fw.IPv4 {
 		if err := n.configure(iptables.IPv4, n.Config4); err != nil {
 			return err
 		}
 	}
-	if n.Enable6 {
+	if n.fw.IPv6 {
 		if err := n.configure(iptables.IPv6, n.Config6); err != nil {
 			return err
 		}
@@ -510,7 +503,7 @@ func (n *iptablesNetwork) setupNonInternalNetworkRules(ipVer iptables.IPVersion,
 		// enable access to ports published by containers in the same network. But, the INC rules
 		// will block access to that published port from containers in other networks. (However,
 		// users may add a rule to DOCKER-USER to work around the INC rules if needed.)
-		if !n.Hairpin {
+		if !n.fw.Hairpin {
 			skipDNAT := iptables.Rule{IPVer: ipVer, Table: iptables.Nat, Chain: DockerChain, Args: []string{
 				"-i", n.IfName,
 				"-j", "RETURN",
@@ -523,7 +516,7 @@ func (n *iptablesNetwork) setupNonInternalNetworkRules(ipVer iptables.IPVersion,
 
 	// In hairpin mode, masquerade traffic from localhost. If hairpin is disabled or if we're tearing down
 	// that bridge, make sure the iptables rule isn't lying around.
-	if err := programChainRule(hpNatRule, "MASQ LOCAL HOST", enable && n.Hairpin); err != nil {
+	if err := programChainRule(hpNatRule, "MASQ LOCAL HOST", enable && n.fw.Hairpin); err != nil {
 		return err
 	}
 
@@ -859,12 +852,12 @@ func clearConntrackEntries(nlh nlwrap.Handle, ep *bridgeEndpoint) {
 // arriving from any other bridge network. Similarly, this function adds (or
 // removes) a rule to RETURN early for packets delivered via loopback0 with
 // destination 127.0.0.0/8.
-func mirroredWSL2Workaround(config configuration, ipv iptables.IPVersion) error {
+func mirroredWSL2Workaround(ipv iptables.IPVersion, hairpin bool) error {
 	// WSL2 does not (currently) support Windows<->Linux communication via ::1.
 	if ipv != iptables.IPv4 {
 		return nil
 	}
-	return programChainRule(mirroredWSL2Rule(), "WSL2 loopback", insertMirroredWSL2Rule(config))
+	return programChainRule(mirroredWSL2Rule(), "WSL2 loopback", insertMirroredWSL2Rule(hairpin))
 }
 
 // insertMirroredWSL2Rule returns true if the NAT rule for mirrored WSL2 workaround
@@ -875,8 +868,8 @@ func mirroredWSL2Workaround(config configuration, ipv iptables.IPVersion) error 
 //     running - no workaround is needed, the normal DNAT/masquerading works.
 //   - and, the host Linux appears to be running under Windows WSL2 with mirrored
 //     mode networking.
-func insertMirroredWSL2Rule(config configuration) bool {
-	if !config.EnableUserlandProxy || config.UserlandProxyPath == "" {
+func insertMirroredWSL2Rule(hairpin bool) bool {
+	if hairpin {
 		return false
 	}
 	return isRunningUnderWSL2MirroredMode()
