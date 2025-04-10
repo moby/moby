@@ -237,7 +237,7 @@ func (cli *Client) checkResponseErr(serverResp *http.Response) (retErr error) {
 	}
 
 	var daemonErr error
-	if serverResp.Header.Get("Content-Type") == "application/json" && (cli.version == "" || versions.GreaterThan(cli.version, "1.23")) {
+	if serverResp.Header.Get("Content-Type") == "application/json" {
 		var errorResponse types.ErrorResponse
 		if err := json.Unmarshal(body, &errorResponse); err != nil {
 			return errors.Wrap(err, "Error reading JSON")
