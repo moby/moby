@@ -136,6 +136,11 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		log.G(ctx).Errorf("overlay: Failed adding table entry to joininfo: %v", err)
 	}
 
+	// Update our multicast routes when a new endpoint joins
+	if ip := ep.addr.IP; ip != nil && ip.IsMulticast() {
+		d.multicastRoutes.addOrUpdateEndpoint(ip.String(), ep.addr.IP.String())
+	}
+
 	return nil
 }
 
@@ -220,6 +225,11 @@ func (d *driver) Leave(nid, eid string) error {
 	}
 
 	d.peerDelete(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, d.advertiseAddress, true)
+
+	// Remove multicast route entries when an endpoint leaves
+	if ip := ep.addr.IP; ip != nil && ip.IsMulticast() {
+		d.multicastRoutes.removeEndpoint(ip.String(), ep.addr.IP.String())
+	}
 
 	n.leaveSandbox()
 
