@@ -26,6 +26,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 * Deprecated: The  `AllowNondistributableArtifactsCIDRs` and `AllowNondistributableArtifactsHostnames`
   fields in the `RegistryConfig` struct in the `GET /info` response are omitted
   in API v1.49.
+* Deprecated: The `ContainerdCommit.Expected`, `RuncCommit.Expected`, and
+  `InitCommit.Expected` fields in the `GET /info` endpoint were deprecated
+  in API v1.48, and are now omitted in API v1.49.
 
 ## v1.48 API changes
 
