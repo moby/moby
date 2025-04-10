@@ -26,7 +26,7 @@ ARG DOCKER_STATIC=1
 # https://hub.docker.com/r/distribution/distribution. This version of
 # the registry is used to test schema 2 manifests. Generally,  the version
 # specified here should match a current release.
-ARG REGISTRY_VERSION=3.0.0-rc.4
+ARG REGISTRY_VERSION=3.0.0
 
 # delve is currently only supported on linux/amd64 and linux/arm64;
 # https://github.com/go-delve/delve/blob/v1.24.1/pkg/proc/native/support_sentinel.go#L1
