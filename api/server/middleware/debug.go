@@ -17,7 +17,7 @@ import (
 
 // DebugRequestMiddleware dumps the request to logger
 func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) (retErr error) {
+	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		logger := log.G(ctx)
 
 		// Use a variable for fields to prevent overhead of repeatedly
@@ -28,25 +28,27 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 			"request-url": r.RequestURI,
 			"vars":        vars,
 		}
-		logger.WithFields(fields).Debugf("handling %s request", r.Method)
-		defer func() {
-			if retErr != nil {
+		handleWithLogs := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+			logger.WithFields(fields).Debugf("handling %s request", r.Method)
+			err := handler(ctx, w, r, vars)
+			if err != nil {
 				// TODO(thaJeztah): unify this with Server.makeHTTPHandler, which also logs internal server errors as error-log. See https://github.com/moby/moby/pull/48740#discussion_r1816675574
-				fields["error-response"] = retErr
-				fields["status"] = httpstatus.FromError(retErr)
+				fields["error-response"] = err
+				fields["status"] = httpstatus.FromError(err)
 				logger.WithFields(fields).Debugf("error response for %s request", r.Method)
 			}
-		}()
+			return err
+		}
 
 		if r.Method != http.MethodPost {
-			return handler(ctx, w, r, vars)
+			return handleWithLogs(ctx, w, r, vars)
 		}
 		if err := httputils.CheckForJSON(r); err != nil {
-			return handler(ctx, w, r, vars)
+			return handleWithLogs(ctx, w, r, vars)
 		}
 		maxBodySize := 4096 // 4KB
 		if r.ContentLength > int64(maxBodySize) {
-			return handler(ctx, w, r, vars)
+			return handleWithLogs(ctx, w, r, vars)
 		}
 
 		body := r.Body
@@ -56,7 +58,7 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 		b, err := bufReader.Peek(maxBodySize)
 		if err != io.EOF {
 			// either there was an error reading, or the buffer is full (in which case the request is too large)
-			return handler(ctx, w, r, vars)
+			return handleWithLogs(ctx, w, r, vars)
 		}
 
 		var postForm map[string]interface{}
@@ -74,7 +76,7 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 			}
 		}
 
-		return handler(ctx, w, r, vars)
+		return handleWithLogs(ctx, w, r, vars)
 	}
 }
 
