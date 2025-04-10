@@ -228,7 +228,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 				return errdefs.NotFound(fmt.Errorf("no matching manifest for %s in the manifest list entries: %w", platformStr, err))
 			}
 		}
-		return err
+		return translateRegistryError(ctx, err)
 	}
 
 	logger := log.G(ctx).WithFields(log.Fields{

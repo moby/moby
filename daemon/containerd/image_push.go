@@ -191,7 +191,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 
 		if err != nil {
 			if !cerrdefs.IsNotFound(err) {
-				return errdefs.System(err)
+				return translateRegistryError(ctx, err)
 			}
 			progress.Aux(out, auxprogress.ContentMissing{
 				ContentMissing: true,
