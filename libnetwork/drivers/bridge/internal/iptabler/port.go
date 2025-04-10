@@ -30,6 +30,8 @@ func (n *Network) modPorts(ctx context.Context, pbs []types.PortBinding, enable 
 	return nil
 }
 
+// setPerPortIptables configures rules required by port binding b. Rules are added if
+// enable is true, else removed.
 func (n *Network) setPerPortIptables(ctx context.Context, b types.PortBinding, enable bool) error {
 	v := iptables.IPv4
 	enabled := n.ipt.IPv4
@@ -72,6 +74,8 @@ func (n *Network) setPerPortIptables(ctx context.Context, b types.PortBinding, e
 	return nil
 }
 
+// setPerPortNAT configures DNAT and MASQUERADE rules for port binding b. Rules are added if
+// enable is true, else removed.
 func (n *Network) setPerPortNAT(ipv iptables.IPVersion, b types.PortBinding, enable bool) error {
 	if b.HostPort == 0 {
 		// NAT is disabled.
@@ -116,6 +120,9 @@ func (n *Network) setPerPortNAT(ipv iptables.IPVersion, b types.PortBinding, ena
 	return nil
 }
 
+// setPerPortForwarding opens access to a container's published port, as described by binding b.
+// It also does something weird, broken, and disabled-by-default related to SCTP. Rules are added
+// if enable is true, else removed.
 func setPerPortForwarding(b types.PortBinding, ipv iptables.IPVersion, bridgeName string, enable bool) error {
 	// Insert rules for open ports at the top of the filter table's DOCKER
 	// chain (a per-network DROP rule, which must come after these per-port
@@ -133,6 +140,7 @@ func setPerPortForwarding(b types.PortBinding, ipv iptables.IPVersion, bridgeNam
 		return err
 	}
 
+	// TODO(robmry) - remove, see https://github.com/moby/moby/pull/48149
 	if b.Proto == types.SCTP && os.Getenv("DOCKER_IPTABLES_SCTP_CHECKSUM") == "1" {
 		// Linux kernel v4.9 and below enables NETIF_F_SCTP_CRC for veth by
 		// the following commit.
