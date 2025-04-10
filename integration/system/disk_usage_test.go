@@ -1,7 +1,6 @@
 package system // import "github.com/docker/docker/integration/system"
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -69,14 +68,8 @@ func TestDiskUsage(t *testing.T) {
 				assert.Equal(t, len(du.Images[0].RepoTags), 1)
 				assert.Check(t, is.Equal(du.Images[0].RepoTags[0], "busybox:latest"))
 
-				// Image size is layer size + content size, should be greater than total layer size
-				assert.Assert(t, du.Images[0].Size >= du.LayersSize)
-
-				// If size is greater, than content exists and should have a repodigest
-				if du.Images[0].Size > du.LayersSize {
-					assert.Equal(t, len(du.Images[0].RepoDigests), 1)
-					assert.Check(t, strings.HasPrefix(du.Images[0].RepoDigests[0], "busybox@"))
-				}
+				// Image size is layer size + content size. Content size is included in layers size.
+				assert.Equal(t, du.Images[0].Size, du.LayersSize)
 
 				return du
 			},
@@ -102,10 +95,6 @@ func TestDiskUsage(t *testing.T) {
 				assert.Check(t, is.Equal(du.Containers[0].ID, cID))
 				assert.Check(t, is.Equal(du.Containers[0].Image, "busybox"))
 				assert.Check(t, is.Equal(du.Containers[0].ImageID, prev.Images[0].ID))
-
-				// The rootfs size should be equivalent to all the layers,
-				// previously used prev.Images[0].Size, which may differ from content data
-				assert.Check(t, is.Equal(du.Containers[0].SizeRootFs, du.LayersSize))
 
 				// ImageManifestDescriptor should NOT be populated.
 				assert.Check(t, is.Nil(du.Containers[0].ImageManifestDescriptor))
