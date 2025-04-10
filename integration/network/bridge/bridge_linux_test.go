@@ -558,3 +558,65 @@ func TestFirewalldReloadNoZombies(t *testing.T) {
 	assert.Check(t, !strings.Contains(resAfterReload.Combined(), bridgeName),
 		"After deletes: did not expect rules for %s in: %s", bridgeName, resAfterReload.Combined())
 }
+
+// TestRemoveLegacyLink checks that a legacy link can be deleted while the
+// linked containers are running.
+//
+// Replacement for DockerDaemonSuite/TestDaemonLinksIpTablesRulesWhenLinkAndUnlink
+func TestRemoveLegacyLink(t *testing.T) {
+	ctx := setupTest(t)
+
+	// Tidy up after the test by starting a new daemon, which will remove the icc=false
+	// rules this test will create for docker0.
+	defer func() {
+		d := daemon.New(t)
+		d.StartWithBusybox(ctx, t)
+		defer d.Stop(t)
+	}()
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--icc=false")
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+
+	// Run an http server.
+	const svrName = "svr"
+	svrId := ctr.Run(ctx, t, c,
+		ctr.WithExposedPorts("80/tcp"),
+		ctr.WithName(svrName),
+		ctr.WithCmd("httpd", "-f"),
+	)
+	defer ctr.Remove(ctx, t, c, svrId, containertypes.RemoveOptions{Force: true})
+
+	// Run a container linked to the http server.
+	const svrAlias = "thealias"
+	const clientName = "client"
+	clientId := ctr.Run(ctx, t, c,
+		ctr.WithName(clientName),
+		ctr.WithLinks(svrName+":"+svrAlias),
+	)
+	defer ctr.Remove(ctx, t, c, clientId, containertypes.RemoveOptions{Force: true})
+
+	// Check the link works.
+	res := ctr.ExecT(ctx, t, c, clientId, []string{"wget", "-T3", "http://" + svrName})
+	assert.Check(t, is.Contains(res.Stderr(), "404 Not Found"))
+
+	// Remove the link ("docker rm --link client/thealias").
+	err := c.ContainerRemove(ctx, clientName+"/"+svrAlias, containertypes.RemoveOptions{RemoveLinks: true})
+	assert.Check(t, err)
+
+	// Check both containers are still running.
+	inspSvr := ctr.Inspect(ctx, t, c, svrId)
+	assert.Check(t, is.Equal(inspSvr.State.Running, true))
+	inspClient := ctr.Inspect(ctx, t, c, clientId)
+	assert.Check(t, is.Equal(inspClient.State.Running, true))
+
+	// Check the link's alias doesn't work.
+	res = ctr.ExecT(ctx, t, c, clientId, []string{"wget", "-T3", "http://" + svrName})
+	assert.Check(t, is.Contains(res.Stderr(), "bad address"))
+
+	// Check the icc=false rules now block access by address.
+	svrAddr := inspSvr.NetworkSettings.Networks["bridge"].IPAddress
+	res = ctr.ExecT(ctx, t, c, clientId, []string{"wget", "-T3", "http://" + svrAddr})
+	assert.Check(t, is.Contains(res.Stderr(), "download timed out"))
+}

@@ -31,7 +31,6 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
-	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
@@ -793,44 +792,6 @@ func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *testing.T) {
 
 	out, err = d.Cmd("run", "--link", "icc1:icc1", "busybox", "nc", "icc1", "4567")
 	assert.NilError(c, err, out)
-}
-
-func (s *DockerDaemonSuite) TestDaemonLinksIpTablesRulesWhenLinkAndUnlink(c *testing.T) {
-	// make sure the default docker0 bridge doesn't interfere with the test,
-	// which may happen if it was created with the same IP range.
-	deleteInterface(c, "docker0")
-
-	bridgeName := "ext-bridge7"
-	bridgeIP := "192.169.1.1/24"
-
-	createInterface(c, "bridge", bridgeName, bridgeIP)
-	defer deleteInterface(c, bridgeName)
-
-	s.d.StartWithBusybox(testutil.GetContext(c), c, "--bridge", bridgeName, "--icc=false")
-	defer s.d.Restart(c)
-
-	out, err := s.d.Cmd("run", "-d", "--name", "child", "--publish", "8080:80", "busybox", "top")
-	assert.NilError(c, err, out)
-	out, err = s.d.Cmd("run", "-d", "--name", "parent", "--link", "child:http", "busybox", "top")
-	assert.NilError(c, err, out)
-
-	childIP := s.d.FindContainerIP(c, "child")
-	parentIP := s.d.FindContainerIP(c, "parent")
-
-	sourceRule := []string{"-i", bridgeName, "-o", bridgeName, "-p", "tcp", "-s", childIP, "--sport", "80", "-d", parentIP, "-j", "ACCEPT"}
-	destinationRule := []string{"-i", bridgeName, "-o", bridgeName, "-p", "tcp", "-s", parentIP, "--dport", "80", "-d", childIP, "-j", "ACCEPT"}
-	iptable := iptables.GetIptable(iptables.IPv4)
-	if !iptable.Exists("filter", "DOCKER", sourceRule...) || !iptable.Exists("filter", "DOCKER", destinationRule...) {
-		c.Fatal("Iptables rules not found")
-	}
-
-	s.d.Cmd("rm", "--link", "parent/http")
-	if iptable.Exists("filter", "DOCKER", sourceRule...) || iptable.Exists("filter", "DOCKER", destinationRule...) {
-		c.Fatal("Iptables rules should be removed when unlink")
-	}
-
-	s.d.Cmd("kill", "child")
-	s.d.Cmd("kill", "parent")
 }
 
 func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *testing.T) {
