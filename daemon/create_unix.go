@@ -28,8 +28,7 @@ func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, con
 	}
 	defer daemon.Unmount(container)
 
-	uid, gid := daemon.idMapping.RootPair()
-	if err := container.SetupWorkingDirectory(idtools.Identity{UID: uid, GID: gid}); err != nil {
+	if err := container.SetupWorkingDirectory(daemon.idMapping.RootPair()); err != nil {
 		return err
 	}
 
