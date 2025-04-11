@@ -1,11 +1,6 @@
-// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.22
-
 package system
 
 import (
-	"encoding/json"
-
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
@@ -34,6 +29,8 @@ type Info struct {
 	CPUSet             bool
 	PidsLimit          bool
 	IPv4Forwarding     bool
+	BridgeNfIptables   bool `json:"BridgeNfIptables"`  // Deprecated: netfilter module is now loaded on-demand and no longer during daemon startup, making this field obsolete. This field is always false and will be removed in the next release.
+	BridgeNfIP6tables  bool `json:"BridgeNfIp6tables"` // Deprecated: netfilter module is now loaded on-demand and no longer during daemon startup, making this field obsolete. This field is always false and will be removed in the next release.
 	Debug              bool
 	NFd                int
 	OomKillDisable     bool
@@ -86,26 +83,6 @@ type Info struct {
 	// messages for the user, and are not intended to be parsed / used for
 	// other purposes, as they do not have a fixed format.
 	Warnings []string
-
-	// ExtraFields is for internal use to include deprecated fields on older API versions.
-	ExtraFields map[string]any `json:"-"`
-}
-
-// MarshalJSON implements a custom marshaler to include legacy fields
-// in API responses.
-func (sc *Info) MarshalJSON() ([]byte, error) {
-	type tmp Info
-	base, err := json.Marshal((*tmp)(sc))
-	if err != nil {
-		return nil, err
-	}
-	var merged map[string]any
-	_ = json.Unmarshal(base, &merged)
-
-	for k, v := range sc.ExtraFields {
-		merged[k] = v
-	}
-	return json.Marshal(merged)
 }
 
 // ContainerdInfo holds information about the containerd instance used by the daemon.

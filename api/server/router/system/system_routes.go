@@ -122,13 +122,6 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 			info.ContainerdCommit.Expected = info.ContainerdCommit.ID //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
 			info.RuncCommit.Expected = info.RuncCommit.ID             //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
 			info.InitCommit.Expected = info.InitCommit.ID             //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
-
-			// These fields are omitted in > API 1.49, and always false
-			// older API versions.
-			info.ExtraFields = map[string]any{
-				"BridgeNfIptables":  json.RawMessage("false"),
-				"BridgeNfIp6tables": json.RawMessage("false"),
-			}
 		}
 		if versions.GreaterThanOrEqualTo(version, "1.42") {
 			info.KernelMemory = false
