@@ -3,6 +3,7 @@ package buildkit
 import (
 	"context"
 	"fmt"
+	"github.com/moby/buildkit/util/network/cniprovider"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -104,9 +105,19 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	}
 
 	// HACK! Windows doesn't have 'host' mode networking.
+	var cniOpt cniprovider.Opt
 	if runtime.GOOS == "windows" {
+		cniOpt = cniprovider.Opt{
+			Root: opt.Root,
+			// hard-coding this for now
+			// TODO: propose a schema update to add this in the daemon.json file
+			// and also be set in appdefaults (equivalent)
+			ConfigPath: "C:\\Program Files\\containerd\\cni\\conf\\0-containerd-nat.conf",
+			BinaryDir:  "C:\\Program Files\\containerd\\cni\\bin",
+		}
 		nc = netproviders.Opt{
 			Mode: "auto",
+			CNI:  cniOpt,
 		}
 	}
 
@@ -152,7 +163,19 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	wo.RegistryHosts = opt.RegistryHosts
 	wo.Labels = getLabels(opt, wo.Labels)
 
-	exec, err := newExecutor(opt.Root, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping, opt.ApparmorProfile, cdiManager)
+	exec, err := newExecutor(
+		opt.Root,
+		opt.DefaultCgroupParent,
+		opt.NetworkController,
+		dns,
+		opt.Rootless,
+		opt.IdentityMapping,
+		opt.ApparmorProfile,
+		cdiManager,
+		opt.ContainerdAddress,
+		opt.ContainerdNamespace,
+		cniOpt,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +355,21 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		return nil, err
 	}
 
-	exec, err := newExecutor(root, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping, opt.ApparmorProfile, cdiManager)
+	var cniOpt cniprovider.Opt
+
+	exec, err := newExecutor(
+		root,
+		opt.DefaultCgroupParent,
+		opt.NetworkController,
+		dns,
+		opt.Rootless,
+		opt.IdentityMapping,
+		opt.ApparmorProfile,
+		cdiManager,
+		opt.ContainerdAddress,
+		opt.ContainerdNamespace,
+		cniOpt,
+	)
 	if err != nil {
 		return nil, err
 	}
