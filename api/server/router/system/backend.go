@@ -29,7 +29,7 @@ type DiskUsageOptions struct {
 type Backend interface {
 	SystemInfo(context.Context) (*system.Info, error)
 	SystemVersion(context.Context) (types.Version, error)
-	SystemDiskUsage(ctx context.Context, opts DiskUsageOptions) (*types.DiskUsage, error)
+	SystemDiskUsage(ctx context.Context, opts DiskUsageOptions) (*system.DiskUsage, error)
 	SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan interface{})
 	UnsubscribeFromEvents(chan interface{})
 	AuthenticateToRegistry(ctx context.Context, authConfig *registry.AuthConfig) (string, string, error)
