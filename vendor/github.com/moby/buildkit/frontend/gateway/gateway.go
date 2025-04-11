@@ -891,10 +891,18 @@ func (lbf *llbBridgeForwarder) Solve(ctx context.Context, req *pb.SolveRequest) 
 func (lbf *llbBridgeForwarder) getImmutableRef(ctx context.Context, id string) (cache.ImmutableRef, error) {
 	lbf.mu.Lock()
 	ref, ok := lbf.refs[id]
-	lbf.mu.Unlock()
 	if !ok {
-		return nil, errors.Errorf("no such ref: %s", id)
+		if lbf.result != nil {
+			if r, ok := lbf.result.FindRef(id); ok {
+				ref = r
+			}
+		}
+		if ref == nil {
+			lbf.mu.Unlock()
+			return nil, errors.Errorf("no such ref: %s, all %+v", id, maps.Keys(lbf.refs))
+		}
 	}
+	lbf.mu.Unlock()
 	if ref == nil {
 		return nil, errors.Errorf("empty ref: %s", id)
 	}
