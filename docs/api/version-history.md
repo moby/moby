@@ -29,9 +29,6 @@ keywords: "API, Docker, rcli, REST, documentation"
 * Deprecated: The `ContainerdCommit.Expected`, `RuncCommit.Expected`, and
   `InitCommit.Expected` fields in the `GET /info` endpoint were deprecated
   in API v1.48, and are now omitted in API v1.49.
-* Deprecated: The `BridgeNfIptables` and `BridgeNfIp6tables` fields in the
-  `GET /info` response were deprecated in API v1.48, and are now omitted
-  in API v1.49.
 
 ## v1.48 API changes
 
