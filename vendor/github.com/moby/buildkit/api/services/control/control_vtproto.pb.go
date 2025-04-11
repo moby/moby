@@ -140,6 +140,7 @@ func (m *SolveRequest) CloneVT() *SolveRequest {
 	r.Cache = m.Cache.CloneVT()
 	r.Internal = m.Internal
 	r.SourcePolicy = m.SourcePolicy.CloneVT()
+	r.EnableSessionExporter = m.EnableSessionExporter
 	if rhs := m.ExporterAttrsDeprecated; rhs != nil {
 		tmpContainer := make(map[string]string, len(rhs))
 		for k, v := range rhs {
@@ -1030,6 +1031,9 @@ func (this *SolveRequest) EqualVT(that *SolveRequest) bool {
 				return false
 			}
 		}
+	}
+	if this.EnableSessionExporter != that.EnableSessionExporter {
+		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
 }
@@ -2231,6 +2235,16 @@ func (m *SolveRequest) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m.unknownFields != nil {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.EnableSessionExporter {
+		i--
+		if m.EnableSessionExporter {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x70
 	}
 	if len(m.Exporters) > 0 {
 		for iNdEx := len(m.Exporters) - 1; iNdEx >= 0; iNdEx-- {
@@ -4129,6 +4143,9 @@ func (m *SolveRequest) SizeVT() (n int) {
 			l = e.SizeVT()
 			n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 		}
+	}
+	if m.EnableSessionExporter {
+		n += 2
 	}
 	n += len(m.unknownFields)
 	return n
@@ -6211,6 +6228,26 @@ func (m *SolveRequest) UnmarshalVT(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 14:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EnableSessionExporter", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return protohelpers.ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.EnableSessionExporter = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := protohelpers.Skip(dAtA[iNdEx:])

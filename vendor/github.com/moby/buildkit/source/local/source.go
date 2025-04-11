@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	srctypes "github.com/moby/buildkit/source/types"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/progress"
+	"github.com/moby/patternmatcher"
 	"github.com/moby/sys/user"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -87,6 +89,18 @@ func (ls *localSource) Identifier(scheme, ref string, attrs map[string]string, p
 			case pb.AttrLocalDifferNone:
 				id.Differ = fsutil.DiffNone
 			}
+		case pb.AttrMetadataTransfer:
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid value for local.metadatatransfer %q", v)
+			}
+			id.MetadataOnly = b
+		case pb.AttrMetadataTransferExclude:
+			var exceptions []string
+			if err := json.Unmarshal([]byte(v), &exceptions); err != nil {
+				return nil, err
+			}
+			id.MetadataExceptions = exceptions
 		}
 	}
 
@@ -123,11 +137,20 @@ func (ls *localSourceHandler) CacheKey(ctx context.Context, g session.Group, ind
 		sessionID = id
 	}
 	dt, err := json.Marshal(struct {
-		SessionID       string
-		IncludePatterns []string
-		ExcludePatterns []string
-		FollowPaths     []string
-	}{SessionID: sessionID, IncludePatterns: ls.src.IncludePatterns, ExcludePatterns: ls.src.ExcludePatterns, FollowPaths: ls.src.FollowPaths})
+		SessionID          string
+		IncludePatterns    []string
+		ExcludePatterns    []string
+		FollowPaths        []string
+		MetadataTransfer   bool     `json:",omitempty"`
+		MetadataExceptions []string `json:",omitempty"`
+	}{
+		SessionID:          sessionID,
+		IncludePatterns:    ls.src.IncludePatterns,
+		ExcludePatterns:    ls.src.ExcludePatterns,
+		FollowPaths:        ls.src.FollowPaths,
+		MetadataTransfer:   ls.src.MetadataOnly,
+		MetadataExceptions: ls.src.MetadataExceptions,
+	})
 	if err != nil {
 		return "", "", nil, false, err
 	}
@@ -174,7 +197,11 @@ func (ls *localSourceHandler) snapshotWithAnySession(ctx context.Context, g sess
 }
 
 func (ls *localSourceHandler) snapshot(ctx context.Context, caller session.Caller) (out cache.ImmutableRef, retErr error) {
-	sharedKey := ls.src.Name + ":" + ls.src.SharedKeyHint + ":" + caller.SharedKey() // TODO: replace caller.SharedKey() with source based hint from client(absolute-path+nodeid)
+	metaSfx := ""
+	if ls.src.MetadataOnly {
+		metaSfx = ":metadata"
+	}
+	sharedKey := ls.src.Name + ":" + ls.src.SharedKeyHint + ":" + caller.SharedKey() + metaSfx // TODO: replace caller.SharedKey() with source based hint from client(absolute-path+nodeid)
 
 	var mutable cache.MutableRef
 	sis, err := searchSharedKey(ctx, ls.cm, sharedKey)
@@ -243,6 +270,18 @@ func (ls *localSourceHandler) snapshot(ctx context.Context, caller session.Calle
 		CacheUpdater:    &cacheUpdater{cc, mount.IdentityMapping()},
 		ProgressCb:      newProgressHandler(ctx, "transferring "+ls.src.Name+":"),
 		Differ:          ls.src.Differ,
+		MetadataOnly:    ls.src.MetadataOnly,
+	}
+
+	if opt.MetadataOnly && len(ls.src.MetadataExceptions) > 0 {
+		matcher, err := patternmatcher.New(ls.src.MetadataExceptions)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		opt.MetadataOnlyFilter = func(p string, _ *fstypes.Stat) bool {
+			v, err := matcher.MatchesOrParentMatches(p)
+			return err == nil && v
+		}
 	}
 
 	if idmap := mount.IdentityMapping(); idmap != nil {

@@ -29,6 +29,7 @@ import (
 	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
+	sessionexporter "github.com/moby/buildkit/session/exporter"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver/provenance"
 	"github.com/moby/buildkit/solver/result"
@@ -36,6 +37,7 @@ import (
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/entitlements"
+	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/tracing"
@@ -44,6 +46,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -53,8 +56,9 @@ const (
 )
 
 type ExporterRequest struct {
-	Exporters      []exporter.ExporterInstance
-	CacheExporters []RemoteCacheExporter
+	Exporters             []exporter.ExporterInstance
+	CacheExporters        []RemoteCacheExporter
+	EnableSessionExporter bool
 }
 
 type RemoteCacheExporter struct {
@@ -631,6 +635,14 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 
 	cacheExporters, inlineCacheExporter := splitCacheExporters(exp.CacheExporters)
 
+	if exp.EnableSessionExporter {
+		exporters, err := s.getSessionExporters(ctx, j.SessionID, len(exp.Exporters), inp)
+		if err != nil {
+			return nil, err
+		}
+		exp.Exporters = append(exp.Exporters, exporters...)
+	}
+
 	var exporterResponse map[string]string
 	exporterResponse, descrefs, err = s.runExporters(ctx, exp.Exporters, inlineCacheExporter, j, cached, inp)
 	if err != nil {
@@ -660,6 +672,59 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	return &client.SolveResponse{
 		ExporterResponse: exporterResponse,
 	}, nil
+}
+
+func (s *Solver) getSessionExporters(ctx context.Context, sessionID string, id int, inp *exporter.Source) ([]exporter.ExporterInstance, error) {
+	timeoutCtx, cancel := context.WithCancelCause(ctx)
+	timeoutCtx, _ = context.WithTimeoutCause(timeoutCtx, 5*time.Second, errors.WithStack(context.DeadlineExceeded))
+	defer func() { cancel(errors.WithStack(context.Canceled)) }()
+
+	caller, err := s.sm.Get(timeoutCtx, sessionID, false)
+	if err != nil {
+		return nil, err
+	}
+
+	client := sessionexporter.NewExporterClient(caller.Conn())
+
+	var ids []string
+	if err := inp.EachRef(func(ref cache.ImmutableRef) error {
+		ids = append(ids, ref.ID())
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	res, err := client.FindExporters(ctx, &sessionexporter.FindExportersRequest{
+		Metadata: inp.Metadata,
+		Refs:     ids,
+	})
+	if err != nil {
+		switch grpcerrors.Code(err) {
+		case codes.Unavailable, codes.Unimplemented:
+			return nil, nil
+		default:
+			return nil, err
+		}
+	}
+
+	w, err := defaultResolver(s.workerController)()
+	if err != nil {
+		return nil, err
+	}
+
+	var out []exporter.ExporterInstance
+	for i, req := range res.Exporters {
+		exp, err := w.Exporter(req.Type, s.sm)
+		if err != nil {
+			return nil, err
+		}
+		expi, err := exp.Resolve(ctx, id+i, req.Attrs)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, expi)
+	}
+	return out, nil
 }
 
 func validateSourcePolicy(pol *spb.Policy) error {
@@ -750,7 +815,7 @@ func runInlineCacheExporter(ctx context.Context, e exporter.ExporterInstance, in
 	return res, done(err)
 }
 
-func (s *Solver) runExporters(ctx context.Context, exporters []exporter.ExporterInstance, inlineCacheExporter inlineCacheExporter, job *solver.Job, cached *result.Result[solver.CachedResult], inp *result.Result[cache.ImmutableRef]) (exporterResponse map[string]string, descrefs []exporter.DescriptorReference, err error) {
+func (s *Solver) runExporters(ctx context.Context, exporters []exporter.ExporterInstance, inlineCacheExporter inlineCacheExporter, job *solver.Job, cached *result.Result[solver.CachedResult], inp *exporter.Source) (exporterResponse map[string]string, descrefs []exporter.DescriptorReference, err error) {
 	warnings, err := verifier.CheckInvalidPlatforms(ctx, inp)
 	if err != nil {
 		return nil, nil, err

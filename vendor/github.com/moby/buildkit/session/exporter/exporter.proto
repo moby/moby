@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package moby.exporter.v1;
+
+option go_package = "github.com/moby/buildkit/session/exporter";
+
+service Exporter {
+	rpc FindExporters(FindExportersRequest) returns (FindExportersResponse);
+}
+
+message FindExportersRequest{
+	map<string, bytes> metadata = 1;
+	repeated string refs = 2;
+}
+
+message FindExportersResponse {
+	repeated ExporterRequest exporters = 1;
+}
+
+message ExporterRequest {
+	string Type = 1;
+	map<string, string> Attrs = 2;
+}

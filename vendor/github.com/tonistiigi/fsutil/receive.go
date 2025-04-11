@@ -32,6 +32,7 @@ package fsutil
 
 import (
 	"context"
+	"encoding/binary"
 	"io"
 	"os"
 	"path/filepath"
@@ -51,6 +52,8 @@ const (
 	DiffContent
 )
 
+const metadataPath = ".fsutil-metadata"
+
 type ReceiveOpt struct {
 	NotifyHashed  ChangeFunc
 	ContentHasher ContentHasher
@@ -58,6 +61,7 @@ type ReceiveOpt struct {
 	Merge         bool
 	Filter        FilterFunc
 	Differ        DiffType
+	MetadataOnly  FilterFunc
 }
 
 func Receive(ctx context.Context, conn Stream, dest string, opt ReceiveOpt) error {
@@ -75,21 +79,23 @@ func Receive(ctx context.Context, conn Stream, dest string, opt ReceiveOpt) erro
 		merge:         opt.Merge,
 		filter:        opt.Filter,
 		differ:        opt.Differ,
+		metadataOnly:  opt.MetadataOnly,
 	}
 	return r.run(ctx)
 }
 
 type receiver struct {
-	dest       string
-	conn       Stream
-	files      map[string]uint32
-	pipes      map[uint32]io.WriteCloser
-	mu         sync.RWMutex
-	muPipes    sync.RWMutex
-	progressCb func(int, bool)
-	merge      bool
-	filter     FilterFunc
-	differ     DiffType
+	dest         string
+	conn         Stream
+	files        map[string]uint32
+	pipes        map[uint32]io.WriteCloser
+	mu           sync.RWMutex
+	muPipes      sync.RWMutex
+	progressCb   func(int, bool)
+	merge        bool
+	filter       FilterFunc
+	differ       DiffType
+	metadataOnly FilterFunc
 
 	notifyHashed   ChangeFunc
 	contentHasher  ContentHasher
@@ -164,6 +170,11 @@ func (r *receiver) run(ctx context.Context) error {
 	}
 
 	w := newDynamicWalker()
+	metadataTransfer := r.metadataOnly != nil
+	// buffer Stat metadata in framed proto
+	metadataBuffer := &buffer{}
+	// stack of parent paths that can be replayed if metadata filter matches
+	metadataParents := newStack[*currentPath]()
 
 	g.Go(func() (retErr error) {
 		defer func() {
@@ -223,10 +234,26 @@ func (r *receiver) run(ctx context.Context) error {
 					// e.g. a linux path foo/bar\baz cannot be represented on windows
 					return errors.WithStack(&os.PathError{Path: p.Stat.Path, Err: syscall.EINVAL, Op: "unrepresentable path"})
 				}
+				var metaOnly bool
+				if metadataTransfer {
+					if path == metadataPath {
+						continue
+					}
+					n := p.Stat.SizeVT()
+					dt := metadataBuffer.alloc(n + 4)
+					binary.LittleEndian.PutUint32(dt[0:4], uint32(n))
+					_, err := p.Stat.MarshalToSizedBufferVT(dt[4:])
+					if err != nil {
+						return err
+					}
+					if !r.metadataOnly(path, p.Stat) {
+						metaOnly = true
+					}
+				}
 				p.Stat.Path = path
 				p.Stat.Linkname = filepath.FromSlash(p.Stat.Linkname)
 
-				if fileCanRequestData(os.FileMode(p.Stat.Mode)) {
+				if !metaOnly && fileCanRequestData(os.FileMode(p.Stat.Mode)) {
 					r.mu.Lock()
 					r.files[p.Stat.Path] = i
 					r.mu.Unlock()
@@ -240,6 +267,31 @@ func (r *receiver) run(ctx context.Context) error {
 				if err := r.hlValidator.HandleChange(ChangeKindAdd, cp.path, &StatInfo{cp.stat}, nil); err != nil {
 					return err
 				}
+				if metadataTransfer {
+					parent := filepath.Dir(cp.path)
+					isDir := os.FileMode(p.Stat.Mode).IsDir()
+					for {
+						last, ok := metadataParents.peek()
+						if !ok || parent == last.path {
+							break
+						}
+						metadataParents.pop()
+					}
+					if isDir {
+						metadataParents.push(cp)
+					}
+					if metaOnly {
+						continue
+					} else {
+						for _, cp := range metadataParents.items {
+							if err := w.update(cp); err != nil {
+								return err
+							}
+						}
+						metadataParents.clear()
+					}
+				}
+
 				if err := w.update(cp); err != nil {
 					return err
 				}
@@ -272,7 +324,27 @@ func (r *receiver) run(ctx context.Context) error {
 			}
 		}
 	})
-	return g.Wait()
+
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	if !metadataTransfer {
+		return nil
+	}
+
+	// although we don't allow tranferring metadataPath, make sure there was no preexisting file/symlink
+	os.Remove(filepath.Join(r.dest, metadataPath))
+
+	f, err := os.OpenFile(filepath.Join(r.dest, metadataPath), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	if _, err := metadataBuffer.WriteTo(f); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 func (r *receiver) asyncDataFunc(ctx context.Context, p string, wc io.WriteCloser) error {
@@ -326,4 +398,40 @@ func (w *wrappedWriteCloser) Wait(ctx context.Context) error {
 	case <-w.done:
 		return w.err
 	}
+}
+
+type stack[T any] struct {
+	items []T
+}
+
+func newStack[T any]() *stack[T] {
+	return &stack[T]{
+		items: make([]T, 0, 8),
+	}
+}
+
+func (s *stack[T]) push(v T) {
+	s.items = append(s.items, v)
+}
+
+func (s *stack[T]) pop() (T, bool) {
+	if len(s.items) == 0 {
+		var zero T
+		return zero, false
+	}
+	v := s.items[len(s.items)-1]
+	s.items = s.items[:len(s.items)-1]
+	return v, true
+}
+
+func (s *stack[T]) peek() (T, bool) {
+	if len(s.items) == 0 {
+		var zero T
+		return zero, false
+	}
+	return s.items[len(s.items)-1], true
+}
+
+func (s *stack[T]) clear() {
+	s.items = s.items[:0]
 }

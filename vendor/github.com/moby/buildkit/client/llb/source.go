@@ -435,6 +435,13 @@ func Local(name string, opts ...LocalOption) State {
 			addCap(&gi.Constraints, pb.CapSourceLocalDiffer)
 		}
 	}
+	if gi.MetadataOnlyCollector {
+		attrs[pb.AttrMetadataTransfer] = "true"
+		if gi.MetadataOnlyExceptions != "" {
+			attrs[pb.AttrMetadataTransferExclude] = gi.MetadataOnlyExceptions
+		}
+		addCap(&gi.Constraints, pb.CapSourceMetadataTransfer)
+	}
 
 	addCap(&gi.Constraints, pb.CapSourceLocal)
 
@@ -502,6 +509,18 @@ func Differ(t DiffType, required bool) LocalOption {
 		li.Differ = DifferInfo{
 			Type:     t,
 			Required: required,
+		}
+	})
+}
+
+func MetadataOnlyTransfer(exceptions []string) LocalOption {
+	return localOptionFunc(func(li *LocalInfo) {
+		li.MetadataOnlyCollector = true
+		if len(exceptions) == 0 {
+			li.MetadataOnlyExceptions = ""
+		} else {
+			dt, _ := json.Marshal(exceptions) // empty on error
+			li.MetadataOnlyExceptions = string(dt)
 		}
 	})
 }
@@ -578,12 +597,14 @@ type DifferInfo struct {
 
 type LocalInfo struct {
 	constraintsWrapper
-	SessionID       string
-	IncludePatterns string
-	ExcludePatterns string
-	FollowPaths     string
-	SharedKeyHint   string
-	Differ          DifferInfo
+	SessionID              string
+	IncludePatterns        string
+	ExcludePatterns        string
+	FollowPaths            string
+	SharedKeyHint          string
+	Differ                 DifferInfo
+	MetadataOnlyCollector  bool
+	MetadataOnlyExceptions string
 }
 
 func HTTP(url string, opts ...HTTPOption) State {

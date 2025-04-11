@@ -74,6 +74,7 @@ message SolveRequest {
 	bool Internal = 11; // Internal builds are not recorded in build history
 	moby.buildkit.v1.sourcepolicy.Policy SourcePolicy = 12;
 	repeated Exporter Exporters = 13;
+	bool EnableSessionExporter = 14;
 }
 
 message CacheOptions {
