@@ -6256,7 +6256,7 @@ func (s *DockerCLIBuildSuite) TestBuildEmitsEvents(t *testing.T) {
 						"--since", before.Format(time.RFC3339),
 					),
 					cli.WithTimeout(time.Millisecond*300),
-					cli.WithEnvironmentVariables("DOCKER_API_VERSION=v1.46"), // FIXME(thaJeztah): integration-cli runs docker CLI 17.06; we're "upgrading" the API version to a version it doesn't support here ;)
+					cli.WithEnvironmentVariables("DOCKER_API_VERSION=v1.46"), // FIXME(thaJeztah): integration-cli runs docker CLI 18.06; we're "upgrading" the API version to a version it doesn't support here ;)
 				)
 
 				stdout := cmd.Stdout()
