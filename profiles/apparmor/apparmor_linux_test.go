@@ -4,6 +4,8 @@ import (
 	"errors"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -162,4 +164,34 @@ func TestIsLoaded(t *testing.T) {
 			t.Fatalf("expected error to be os.ErrNotExist, got %v", err)
 		}
 	})
+}
+
+func createTestProfiles(b *testing.B, lines int, targetProfile string) string {
+	b.Helper()
+
+	var sb strings.Builder
+	for i := 0; i < lines-1; i++ {
+		sb.WriteString("someprofile (enforcing)\n")
+	}
+	sb.WriteString(targetProfile + " (enforcing)\n")
+
+	fileName := filepath.Join(b.TempDir(), "apparmor_profiles")
+	if err := os.WriteFile(fileName, []byte(sb.String()), 0o644); err != nil {
+		b.Fatal(err)
+	}
+	return fileName
+}
+
+func BenchmarkIsLoaded(b *testing.B) {
+	const target = "myprofile"
+	profiles := createTestProfiles(b, 10000, target)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		found, err := isLoaded(target, profiles)
+		if err != nil || !found {
+			b.Fatalf("expected profile to be found, got found=%v, err=%v", found, err)
+		}
+	}
 }
