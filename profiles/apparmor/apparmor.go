@@ -130,9 +130,8 @@ func loadProfile(profilePath string) error {
 	c := exec.Command("apparmor_parser", "-Kr", profilePath)
 	c.Dir = ""
 
-	output, err := c.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("running `%s %s` failed with output: %s\nerror: %v", c.Path, strings.Join(c.Args, " "), output, err)
+	if output, err := c.CombinedOutput(); err != nil {
+		return fmt.Errorf("running '%s' failed with output: %s\nerror: %v", c, output, err)
 	}
 
 	return nil
