@@ -103,18 +103,15 @@ func isLoaded(name string, fileName string) (bool, error) {
 	}
 	defer file.Close()
 
-	r := bufio.NewReader(file)
-	for {
-		p, err := r.ReadString('\n')
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return false, err
-		}
-		if strings.HasPrefix(p, name+" ") {
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		if prefix, _, ok := strings.Cut(scanner.Text(), " "); ok && prefix == name {
 			return true, nil
 		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return false, err
 	}
 
 	return false, nil
