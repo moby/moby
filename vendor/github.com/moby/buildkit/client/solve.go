@@ -35,6 +35,7 @@ import (
 
 type SolveOpt struct {
 	Exports               []ExportEntry
+	EnableSessionExporter bool
 	LocalDirs             map[string]string // Deprecated: use LocalMounts
 	LocalMounts           map[string]fsutil.FS
 	OCIStores             map[string]content.Store
@@ -270,6 +271,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 			Exporters:               exports,
 			ExporterDeprecated:      exportDeprecated,
 			ExporterAttrsDeprecated: exportAttrDeprecated,
+			EnableSessionExporter:   opt.EnableSessionExporter,
 			Session:                 s.ID(),
 			Frontend:                opt.Frontend,
 			FrontendAttrs:           frontendAttrs,

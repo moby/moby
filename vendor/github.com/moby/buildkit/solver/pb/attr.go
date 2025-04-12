@@ -12,6 +12,8 @@ const AttrIncludePatterns = "local.includepattern"
 const AttrFollowPaths = "local.followpaths"
 const AttrExcludePatterns = "local.excludepatterns"
 const AttrSharedKeyHint = "local.sharedkeyhint"
+const AttrMetadataTransfer = "local.metadatatransfer"
+const AttrMetadataTransferExclude = "local.metadatatransferexclude"
 
 const AttrLLBDefinitionFilename = "llbbuild.filename"
 

@@ -514,8 +514,9 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 		FrontendInputs: req.FrontendInputs,
 		CacheImports:   cacheImports,
 	}, llbsolver.ExporterRequest{
-		Exporters:      expis,
-		CacheExporters: cacheExporters,
+		Exporters:             expis,
+		CacheExporters:        cacheExporters,
+		EnableSessionExporter: req.EnableSessionExporter,
 	}, entitlementsFromPB(req.Entitlements), procs, req.Internal, req.SourcePolicy)
 	if err != nil {
 		return nil, err
