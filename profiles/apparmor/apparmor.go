@@ -1,6 +1,6 @@
 //go:build linux
 
-package apparmor // import "github.com/docker/docker/profiles/apparmor"
+package apparmor
 
 import (
 	"bufio"
