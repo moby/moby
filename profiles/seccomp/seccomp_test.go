@@ -5,12 +5,19 @@ package seccomp // import "github.com/docker/docker/profiles/seccomp"
 import (
 	"encoding/json"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"gotest.tools/v3/assert"
 )
+
+func assertDeepEqual(t *testing.T, expected interface{}, actual interface{}) {
+	t.Helper()
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("\nexpected: %+#v\ngot     : %+#v", expected, actual)
+	}
+}
 
 func TestLoadProfile(t *testing.T) {
 	f, err := os.ReadFile("fixtures/example.json")
@@ -57,7 +64,7 @@ func TestLoadProfile(t *testing.T) {
 		},
 	}
 
-	assert.DeepEqual(t, expected, *p)
+	assertDeepEqual(t, expected, *p)
 }
 
 func TestLoadProfileWithDefaultErrnoRet(t *testing.T) {
@@ -77,7 +84,7 @@ func TestLoadProfileWithDefaultErrnoRet(t *testing.T) {
 		DefaultErrnoRet: &expectedErrnoRet,
 	}
 
-	assert.DeepEqual(t, expected, *p)
+	assertDeepEqual(t, expected, *p)
 }
 
 func TestLoadProfileWithListenerPath(t *testing.T) {
@@ -98,7 +105,7 @@ func TestLoadProfileWithListenerPath(t *testing.T) {
 		ListenerMetadata: "opaque-metadata",
 	}
 
-	assert.DeepEqual(t, expected, *p)
+	assertDeepEqual(t, expected, *p)
 }
 
 func TestLoadProfileWithFlag(t *testing.T) {
@@ -109,8 +116,10 @@ func TestLoadProfileWithFlag(t *testing.T) {
 	}
 	rs := createSpec()
 	p, err := LoadProfile(profile, &rs)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, expected, *p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertDeepEqual(t, expected, *p)
 }
 
 // TestLoadProfileValidation tests that invalid profiles produce the correct error.
@@ -123,19 +132,24 @@ func TestLoadProfileValidation(t *testing.T) {
 		{
 			doc:      "conflicting architectures and archMap",
 			profile:  `{"defaultAction": "SCMP_ACT_ERRNO", "architectures": ["A", "B", "C"], "archMap": [{"architecture": "A", "subArchitectures": ["B", "C"]}]}`,
-			expected: `use either 'architectures' or 'archMap'`,
+			expected: `both 'architectures' and 'archMap' are specified in the seccomp profile, use either 'architectures' or 'archMap'`,
 		},
 		{
 			doc:      "conflicting syscall.name and syscall.names",
 			profile:  `{"defaultAction": "SCMP_ACT_ERRNO", "syscalls": [{"name": "accept", "names": ["accept"], "action": "SCMP_ACT_ALLOW"}]}`,
-			expected: `use either 'name' or 'names'`,
+			expected: `both 'name' and 'names' are specified in the seccomp profile, use either 'name' or 'names'`,
 		},
 	}
 	for _, tc := range tests {
 		rs := createSpec()
 		t.Run(tc.doc, func(t *testing.T) {
 			_, err := LoadProfile(tc.profile, &rs)
-			assert.ErrorContains(t, err, tc.expected)
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if tc.expected != err.Error() {
+				t.Fatalf("expected: %q, got: %q", tc.expected, err)
+			}
 		})
 	}
 }
@@ -149,16 +163,24 @@ func TestLoadLegacyProfile(t *testing.T) {
 	}
 	rs := createSpec()
 	p, err := LoadProfile(string(f), &rs)
-	assert.NilError(t, err)
-	assert.Equal(t, p.DefaultAction, specs.ActErrno)
-	assert.DeepEqual(t, p.Architectures, []specs.Arch{"SCMP_ARCH_X86_64", "SCMP_ARCH_X86", "SCMP_ARCH_X32"})
-	assert.Equal(t, len(p.Syscalls), 311)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.DefaultAction != specs.ActErrno {
+		t.Fatalf("expected default action %s, got %s", specs.ActErrno, p.DefaultAction)
+	}
+	expectedArches := []specs.Arch{"SCMP_ARCH_X86_64", "SCMP_ARCH_X86", "SCMP_ARCH_X32"}
+	assertDeepEqual(t, expectedArches, p.Architectures)
+
+	if expected := 311; len(p.Syscalls) != expected {
+		t.Fatalf("expected %d syscalls, got %d", expected, len(p.Syscalls))
+	}
 	expected := specs.LinuxSyscall{
 		Names:  []string{"accept"},
 		Action: specs.ActAllow,
 		Args:   []specs.LinuxSeccompArg{},
 	}
-	assert.DeepEqual(t, p.Syscalls[0], expected)
+	assertDeepEqual(t, expected, p.Syscalls[0])
 }
 
 func TestLoadDefaultProfile(t *testing.T) {
@@ -187,10 +209,10 @@ func TestUnmarshalDefaultProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.DeepEqual(t, expected.Architectures, profile.Architectures)
-	assert.DeepEqual(t, expected.ArchMap, profile.ArchMap)
-	assert.DeepEqual(t, expected.DefaultAction, profile.DefaultAction)
-	assert.DeepEqual(t, expected.Syscalls, profile.Syscalls)
+	assertDeepEqual(t, expected.Architectures, profile.Architectures)
+	assertDeepEqual(t, expected.ArchMap, profile.ArchMap)
+	assertDeepEqual(t, expected.DefaultAction, profile.DefaultAction)
+	assertDeepEqual(t, expected.Syscalls, profile.Syscalls)
 }
 
 func TestMarshalUnmarshalFilter(t *testing.T) {
