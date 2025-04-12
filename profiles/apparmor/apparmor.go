@@ -93,7 +93,11 @@ func InstallDefault(name string) error {
 // IsLoaded checks if a profile with the given name has been loaded into the
 // kernel.
 func IsLoaded(name string) (bool, error) {
-	file, err := os.Open("/sys/kernel/security/apparmor/profiles")
+	return isLoaded(name, "/sys/kernel/security/apparmor/profiles")
+}
+
+func isLoaded(name string, fileName string) (bool, error) {
+	file, err := os.Open(fileName)
 	if err != nil {
 		return false, err
 	}
