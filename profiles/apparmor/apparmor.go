@@ -57,44 +57,37 @@ func macroExists(m string) bool {
 // InstallDefault generates a default profile in a temp directory determined by
 // os.TempDir(), then loads the profile into the kernel using 'apparmor_parser'.
 func InstallDefault(name string) error {
-	p := profileData{
-		Name: name,
-	}
-
 	// Figure out the daemon profile.
-	currentProfile, err := os.ReadFile("/proc/self/attr/current")
-	if err != nil {
-		// If we couldn't get the daemon profile, assume we are running
-		// unconfined which is generally the default.
-		currentProfile = nil
+	daemonProfile := "unconfined"
+	if currentProfile, err := os.ReadFile("/proc/self/attr/current"); err == nil {
+		// Normally profiles are suffixed by " (enforcing)" or similar. AppArmor
+		// profiles cannot contain spaces so this doesn't restrict daemon profile
+		// names.
+		if profile, _, _ := strings.Cut(string(currentProfile), " "); profile != "" {
+			daemonProfile = profile
+		}
 	}
-	daemonProfile := string(currentProfile)
-	// Normally profiles are suffixed by " (enforcing)" or similar. AppArmor
-	// profiles cannot contain spaces so this doesn't restrict daemon profile
-	// names.
-	if parts := strings.SplitN(daemonProfile, " ", 2); len(parts) >= 1 {
-		daemonProfile = parts[0]
-	}
-	if daemonProfile == "" {
-		daemonProfile = "unconfined"
-	}
-	p.DaemonProfile = daemonProfile
 
 	// Install to a temporary directory.
-	f, err := os.CreateTemp("", name)
+	tmpFile, err := os.CreateTemp("", name)
 	if err != nil {
 		return err
 	}
-	profilePath := f.Name()
 
-	defer f.Close()
-	defer os.Remove(profilePath)
+	defer func() {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpFile.Name())
+	}()
 
-	if err := p.generateDefault(f); err != nil {
+	p := profileData{
+		Name:          name,
+		DaemonProfile: daemonProfile,
+	}
+	if err := p.generateDefault(tmpFile); err != nil {
 		return err
 	}
 
-	return loadProfile(profilePath)
+	return loadProfile(tmpFile.Name())
 }
 
 // IsLoaded checks if a profile with the given name has been loaded into the
