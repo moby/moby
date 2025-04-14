@@ -35,9 +35,10 @@ const (
 )
 
 type FirewallConfig struct {
-	IPv4    bool
-	IPv6    bool
-	Hairpin bool
+	IPv4               bool
+	IPv6               bool
+	Hairpin            bool
+	AllowDirectRouting bool
 }
 
 type Iptabler struct {

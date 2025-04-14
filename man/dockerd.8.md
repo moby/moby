@@ -415,6 +415,10 @@ unix://[/path/to/socket] to use.
   Use TLS and verify the remote (daemon: verify client, client: verify daemon).
   Default is **false**.
 
+**--allow-direct-routing**=**true**|**false**
+  Allow remote access to published ports on container IP addresses.
+  Default is **false**.
+
 **--userland-proxy**=**true**|**false**
   Rely on a userland proxy implementation for inter-container and
   outside-to-container loopback communications. Default is **true**.
