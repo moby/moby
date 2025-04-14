@@ -66,6 +66,7 @@ type configuration struct {
 	EnableUserlandProxy      bool
 	UserlandProxyPath        string
 	Rootless                 bool
+	AllowDirectRouting       bool
 }
 
 // networkConfiguration for network specific configuration
@@ -508,9 +509,10 @@ func (d *driver) configure(option map[string]interface{}) error {
 
 	var err error
 	d.firewaller, err = iptabler.NewIptabler(iptabler.FirewallConfig{
-		IPv4:    config.EnableIPTables,
-		IPv6:    config.EnableIP6Tables,
-		Hairpin: !config.EnableUserlandProxy || config.UserlandProxyPath == "",
+		IPv4:               config.EnableIPTables,
+		IPv6:               config.EnableIP6Tables,
+		Hairpin:            !config.EnableUserlandProxy || config.UserlandProxyPath == "",
+		AllowDirectRouting: config.AllowDirectRouting,
 	})
 	if err != nil {
 		return err
