@@ -917,7 +917,30 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 	// skip.If(t, testEnv.IsRootless, "rootlesskit has its own netns")
 
 	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+	testDirectRemoteAccessOnExposedPort(t, ctx, d, false)
+}
 
+// TestAllowDirectRemoteAccessOnExposedPort checks that remote hosts can directly
+// reach a container on one of its exposed ports - if the daemon is running with
+// option --allow-direct-routing.
+func TestAllowDirectRemoteAccessOnExposedPort(t *testing.T) {
+	// This test checks iptables rules that live in dockerd's netns. In the case
+	// of rootlesskit, this is not the same netns as the host, so they don't
+	// have any effect.
+	// TODO(aker): we need to figure out what we want to do for rootlesskit.
+	// skip.If(t, testEnv.IsRootless, "rootlesskit has its own netns")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--allow-direct-routing")
+	defer d.Stop(t)
+	testDirectRemoteAccessOnExposedPort(t, ctx, d, true)
+}
+
+func testDirectRemoteAccessOnExposedPort(t *testing.T, ctx context.Context, d *daemon.Daemon, allowDirectRouting bool) {
 	const (
 		hostIPv4 = "192.168.120.2"
 		hostIPv6 = "fdbc:277b:d40b::2"
@@ -935,10 +958,6 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 	l3.AddHost(t, "attacker", "test-direct-remote-access-attacker", "eth0",
 		netip.MustParsePrefix("192.168.120.3/24"),
 		netip.MustParsePrefix("fdbc:277b:d40b::3/64"))
-
-	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t)
-	defer d.Stop(t)
 
 	c := d.NewClientT(t)
 	defer c.Close()
@@ -1006,7 +1025,7 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			expDirectAccess := tc.gwMode == "routed" || tc.gwMode == "nat-unprotected" || tc.trusted
+			expDirectAccess := tc.gwMode == "routed" || tc.gwMode == "nat-unprotected" || tc.trusted || allowDirectRouting
 			skip.If(t, expDirectAccess && testEnv.IsRootless(), "rootlesskit doesn't support routed mode as it's running in a separate netns")
 
 			testutil.StartSpan(ctx, t)

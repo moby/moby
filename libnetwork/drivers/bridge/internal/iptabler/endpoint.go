@@ -37,6 +37,7 @@ func (n *Network) modEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr, en
 // It is a no-op if:
 //   - the network is internal
 //   - gateway mode is "nat-unprotected" or "routed".
+//   - direct routing is enabled at the daemon level.
 //   - "raw" rules are disabled (possibly because the host doesn't have the necessary
 //     kernel support).
 //
@@ -54,7 +55,7 @@ func (n *Network) filterDirectAccess(ctx context.Context, ipv iptables.IPVersion
 	// direct routing has since been disabled, the rules need to be deleted when
 	// cleanup happens on restart. This also means a change in config over a
 	// live-restore restart will take effect.
-	if rawRulesDisabled(ctx) {
+	if n.ipt.AllowDirectRouting || rawRulesDisabled(ctx) {
 		enable = false
 	}
 	for _, ifName := range n.TrustedHostInterfaces {
