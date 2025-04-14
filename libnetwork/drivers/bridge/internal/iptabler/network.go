@@ -26,12 +26,13 @@ type NetworkConfigFam struct {
 }
 
 type NetworkConfig struct {
-	IfName     string
-	Internal   bool
-	ICC        bool
-	Masquerade bool
-	Config4    NetworkConfigFam
-	Config6    NetworkConfigFam
+	IfName                string
+	Internal              bool
+	ICC                   bool
+	Masquerade            bool
+	TrustedHostInterfaces []string
+	Config4               NetworkConfigFam
+	Config6               NetworkConfigFam
 }
 
 type Network struct {

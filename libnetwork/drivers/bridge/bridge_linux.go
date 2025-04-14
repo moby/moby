@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -69,21 +70,22 @@ type configuration struct {
 
 // networkConfiguration for network specific configuration
 type networkConfiguration struct {
-	ID                   string
-	BridgeName           string
-	EnableIPv4           bool
-	EnableIPv6           bool
-	EnableIPMasquerade   bool
-	GwModeIPv4           gwMode
-	GwModeIPv6           gwMode
-	EnableICC            bool
-	InhibitIPv4          bool
-	Mtu                  int
-	DefaultBindingIP     net.IP
-	DefaultBridge        bool
-	HostIPv4             net.IP
-	HostIPv6             net.IP
-	ContainerIfacePrefix string
+	ID                    string
+	BridgeName            string
+	EnableIPv4            bool
+	EnableIPv6            bool
+	EnableIPMasquerade    bool
+	GwModeIPv4            gwMode
+	GwModeIPv6            gwMode
+	EnableICC             bool
+	TrustedHostInterfaces []string // Interface names must not contain ':' characters
+	InhibitIPv4           bool
+	Mtu                   int
+	DefaultBindingIP      net.IP
+	DefaultBridge         bool
+	HostIPv4              net.IP
+	HostIPv6              net.IP
+	ContainerIfacePrefix  string
 	// Internal fields set after ipam data parsing
 	AddressIPv4        *net.IPNet
 	AddressIPv6        *net.IPNet
@@ -337,6 +339,8 @@ func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 			if c.EnableICC, err = strconv.ParseBool(value); err != nil {
 				return parseErr(label, value, err.Error())
 			}
+		case TrustedHostInterfaces:
+			c.TrustedHostInterfaces = strings.FieldsFunc(value, func(r rune) bool { return r == ':' })
 		case InhibitIPv4:
 			if c.InhibitIPv4, err = strconv.ParseBool(value); err != nil {
 				return parseErr(label, value, err.Error())
@@ -405,12 +409,13 @@ func (n *bridgeNetwork) newIptablesNetwork() (*iptabler.Network, error) {
 		return nil, err
 	}
 	return n.driver.firewaller.NewNetwork(iptabler.NetworkConfig{
-		IfName:     n.config.BridgeName,
-		Internal:   n.config.Internal,
-		ICC:        n.config.EnableICC,
-		Masquerade: n.config.EnableIPMasquerade,
-		Config4:    config4,
-		Config6:    config6,
+		IfName:                n.config.BridgeName,
+		Internal:              n.config.Internal,
+		ICC:                   n.config.EnableICC,
+		Masquerade:            n.config.EnableIPMasquerade,
+		TrustedHostInterfaces: n.config.TrustedHostInterfaces,
+		Config4:               config4,
+		Config6:               config6,
 	})
 }
 

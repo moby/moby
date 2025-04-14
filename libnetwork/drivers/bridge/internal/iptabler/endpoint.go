@@ -43,6 +43,8 @@ func (n *Network) modEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr, en
 // Packets originating on the bridge's own interface and addressed directly to the
 // container are allowed - the host always has direct access to its own containers
 // (it doesn't need to use the port mapped to its own addresses, although it can).
+//
+// "Trusted interfaces" are treated in the same way as the bridge itself.
 func (n *Network) filterDirectAccess(ctx context.Context, ipv iptables.IPVersion, config NetworkConfigFam, epIP netip.Addr, enable bool) error {
 	if n.Internal || config.Unprotected || config.Routed {
 		return nil
@@ -54,6 +56,16 @@ func (n *Network) filterDirectAccess(ctx context.Context, ipv iptables.IPVersion
 	// live-restore restart will take effect.
 	if rawRulesDisabled(ctx) {
 		enable = false
+	}
+	for _, ifName := range n.TrustedHostInterfaces {
+		accept := iptables.Rule{IPVer: ipv, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
+			"-d", epIP.String(),
+			"-i", ifName,
+			"-j", "ACCEPT",
+		}}
+		if err := appendOrDelChainRule(accept, "DIRECT ACCESS FILTERING - ACCEPT", enable); err != nil {
+			return err
+		}
 	}
 	accept := iptables.Rule{IPVer: ipv, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
 		"-d", epIP.String(),
