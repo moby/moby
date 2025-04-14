@@ -928,7 +928,8 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 		netip.MustParsePrefix("fdbc:277b:d40b::1/64"))
 	defer l3.Destroy(t)
 	// "docker" is the host where dockerd is running.
-	l3.AddHost(t, "docker", networking.CurrentNetns, "test-eth",
+	const hostIfName = "test-eth"
+	l3.AddHost(t, "docker", networking.CurrentNetns, hostIfName,
 		netip.MustParsePrefix(hostIPv4+"/24"),
 		netip.MustParsePrefix(hostIPv6+"/64"))
 	l3.AddHost(t, "attacker", "test-direct-remote-access-attacker", "eth0",
@@ -947,6 +948,7 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 		gwAddr       netip.Prefix
 		ipv4Disabled bool
 		ipv6Disabled bool
+		trusted      bool
 	}{
 		{
 			name:   "NAT/IPv4",
@@ -957,6 +959,18 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 			name:   "NAT/IPv6",
 			gwMode: "nat",
 			gwAddr: netip.MustParsePrefix("fda9:a651:db6d::1/64"),
+		},
+		{
+			name:    "NAT/IPv4/trusted",
+			gwMode:  "nat",
+			gwAddr:  netip.MustParsePrefix("172.24.10.1/24"),
+			trusted: true,
+		},
+		{
+			name:    "NAT/IPv6/trusted",
+			gwMode:  "nat",
+			gwAddr:  netip.MustParsePrefix("fda9:a651:db6d::1/64"),
+			trusted: true,
 		},
 		{
 			name:   "NAT unprotected/IPv4",
@@ -992,7 +1006,8 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			skip.If(t, tc.gwMode == "routed" && testEnv.IsRootless(), "rootlesskit doesn't support routed mode as it's running in a separate netns")
+			expDirectAccess := tc.gwMode == "routed" || tc.gwMode == "nat-unprotected" || tc.trusted
+			skip.If(t, expDirectAccess && testEnv.IsRootless(), "rootlesskit doesn't support routed mode as it's running in a separate netns")
 
 			testutil.StartSpan(ctx, t)
 
@@ -1010,6 +1025,9 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 			}
 			if tc.gwAddr.Addr().Is6() {
 				nwOpts = append(nwOpts, network.WithIPv6())
+			}
+			if tc.trusted {
+				nwOpts = append(nwOpts, network.WithOption(bridge.TrustedHostInterfaces, hostIfName))
 			}
 
 			const bridgeName = "brattacked"
@@ -1054,8 +1072,6 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 
 			// Now send a payload directly to the container. With gw_mode=routed,
 			// this should work. With gw_mode=nat, this should fail.
-			expDirectAccess := tc.gwMode == "routed" || (tc.gwMode == "nat-unprotected" && !testEnv.IsRootless())
-
 			l3.Hosts["attacker"].Run(t, "ip", "route", "add", tc.gwAddr.Masked().String(), "via", hostIP, "dev", "eth0")
 			defer l3.Hosts["attacker"].Run(t, "ip", "route", "delete", tc.gwAddr.Masked().String(), "via", hostIP, "dev", "eth0")
 
