@@ -95,7 +95,8 @@ func TestStopContainerWithTimeout(t *testing.T) {
 
 	for _, tc := range testData {
 		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
+			// TODO(vvoland): Investigate why it helps
+			// t.Parallel()
 			id := container.Run(ctx, t, apiClient, testCmd)
 
 			err := apiClient.ContainerStop(ctx, id, containertypes.StopOptions{Timeout: &tc.timeout})
