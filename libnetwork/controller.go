@@ -688,6 +688,28 @@ func (c *Controller) NewNetwork(ctx context.Context, networkType, name string, i
 	}
 
 addToStore:
+	// First store the endpoint count, then the network. To avoid to
+	// end up with a datastore containing a network and not an epCnt,
+	// in case of an ungraceful shutdown during this function call.
+	//
+	// TODO(robmry) - remove this once downgrade past 28.1.0 is no longer supported.
+	// The endpoint count is no longer used, it's created in the store to make
+	// downgrade work, versions older than 28.1.0 expect to read it and error if they
+	// can't. The stored count is not maintained, so the downgraded version will
+	// always find it's zero (which is usually correct because the daemon had
+	// stopped), but older daemons fix it on startup anyway.
+	epCnt := &endpointCnt{n: nw}
+	if err := c.updateToStore(ctx, epCnt); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if retErr != nil {
+			if err := c.deleteFromStore(epCnt); err != nil {
+				log.G(ctx).Warnf("could not rollback from store, epCnt %v on failure (%v): %v", epCnt, retErr, err)
+			}
+		}
+	}()
+
 	if err := c.storeNetwork(ctx, nw); err != nil {
 		return nil, err
 	}
