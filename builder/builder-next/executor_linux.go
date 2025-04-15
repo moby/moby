@@ -2,22 +2,17 @@ package buildkit
 
 import (
 	"context"
-	"net"
 	"os"
 	"path/filepath"
 	"strconv"
-	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 	"github.com/moby/buildkit/executor/resources"
-	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/executor/runcexecutor"
-	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
@@ -27,7 +22,7 @@ import (
 
 const networkName = "bridge"
 
-func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfig *oci.DNSConfig, rootless bool, idmap user.IdentityMapping, apparmorProfile string, cdiManager *cdidevices.Manager) (executor.Executor, error) {
+func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfig *oci.DNSConfig, rootless bool, idmap user.IdentityMapping, apparmorProfile string, cdiManager *cdidevices.Manager, _, _ string) (executor.Executor, error) {
 	netRoot := filepath.Join(root, "net")
 	networkProviders := map[pb.NetMode]network.Provider{
 		pb.NetMode_UNSET: &bridgeProvider{Controller: net, Root: netRoot},
@@ -79,67 +74,21 @@ func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfi
 	}, networkProviders)
 }
 
-type bridgeProvider struct {
-	*libnetwork.Controller
-	Root string
-}
-
-func (p *bridgeProvider) New(ctx context.Context, hostname string) (network.Namespace, error) {
-	n, err := p.NetworkByName(networkName)
-	if err != nil {
-		return nil, err
-	}
-
-	iface := &lnInterface{ready: make(chan struct{}), provider: p}
-	iface.Once.Do(func() {
-		go iface.init(p.Controller, n)
-	})
-
-	return iface, nil
-}
-
-func (p *bridgeProvider) Close() error {
-	return nil
-}
-
-type lnInterface struct {
-	ep  *libnetwork.Endpoint
-	sbx *libnetwork.Sandbox
-	sync.Once
-	err      error
-	ready    chan struct{}
-	provider *bridgeProvider
-}
-
-func (iface *lnInterface) init(c *libnetwork.Controller, n *libnetwork.Network) {
-	defer close(iface.ready)
-	id := identity.NewID()
-
-	ep, err := n.CreateEndpoint(context.TODO(), id, libnetwork.CreateOptionDisableResolution())
-	if err != nil {
-		iface.err = err
-		return
-	}
-
-	sbx, err := c.NewSandbox(context.TODO(), id, libnetwork.OptionUseExternalKey(), libnetwork.OptionHostsPath(filepath.Join(iface.provider.Root, id, "hosts")),
-		libnetwork.OptionResolvConfPath(filepath.Join(iface.provider.Root, id, "resolv.conf")))
-	if err != nil {
-		iface.err = err
-		return
-	}
-
-	if err := ep.Join(context.TODO(), sbx); err != nil {
-		iface.err = err
-		return
-	}
-
-	iface.sbx = sbx
-	iface.ep = ep
-}
-
-// TODO(neersighted): Unstub Sample(), and collect data from the libnetwork Endpoint.
-func (iface *lnInterface) Sample() (*resourcestypes.NetworkSample, error) {
-	return &resourcestypes.NetworkSample{}, nil
+// newExecutorGD calls newExecutor() on Linux.
+// Created for symmetry with the non-linux platforms, esp. Windows.
+func newExecutorGD(root, cgroupParent string, net *libnetwork.Controller, dnsConfig *oci.DNSConfig, rootless bool, idmap user.IdentityMapping, apparmorProfile string, cdiManager *cdidevices.Manager, _, _ string) (executor.Executor, error) {
+	return newExecutor(
+		root,
+		cgroupParent,
+		net,
+		dnsConfig,
+		rootless,
+		idmap,
+		apparmorProfile,
+		cdiManager,
+		"",
+		"",
+	)
 }
 
 func (iface *lnInterface) Set(s *specs.Spec) error {
@@ -157,38 +106,4 @@ func (iface *lnInterface) Set(s *specs.Spec) error {
 		}},
 	}
 	return nil
-}
-
-func (iface *lnInterface) Close() error {
-	<-iface.ready
-	if iface.sbx != nil {
-		go func() {
-			if err := iface.sbx.Delete(context.TODO()); err != nil {
-				log.G(context.TODO()).WithError(err).Errorf("failed to delete builder network sandbox")
-			}
-			if err := os.RemoveAll(filepath.Join(iface.provider.Root, iface.sbx.ContainerID())); err != nil {
-				log.G(context.TODO()).WithError(err).Errorf("failed to delete builder sandbox directory")
-			}
-		}()
-	}
-	return iface.err
-}
-
-func getDNSConfig(cfg config.DNSConfig) *oci.DNSConfig {
-	if cfg.DNS != nil || cfg.DNSSearch != nil || cfg.DNSOptions != nil {
-		return &oci.DNSConfig{
-			Nameservers:   ipAddresses(cfg.DNS),
-			SearchDomains: cfg.DNSSearch,
-			Options:       cfg.DNSOptions,
-		}
-	}
-	return nil
-}
-
-func ipAddresses(ips []net.IP) []string {
-	var addrs []string
-	for _, ip := range ips {
-		addrs = append(addrs, ip.String())
-	}
-	return addrs
 }
