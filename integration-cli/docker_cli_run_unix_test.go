@@ -741,7 +741,7 @@ func (s *DockerCLIRunSuite) TestRunInvalidCPUShares(c *testing.T) {
 	testRequires(c, cpuShare, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "--cpu-shares", "1", "busybox", "echo", "test")
 	assert.ErrorContains(c, err, "", out)
-	expected := "minimum allowed cpu-shares is 2"
+	expected := "cpu.weight: numerical result out of range"
 	assert.Assert(c, strings.Contains(out, expected))
 
 	out, _, err = dockerCmdWithError("run", "--cpu-shares", "-1", "busybox", "echo", "test")
@@ -751,7 +751,7 @@ func (s *DockerCLIRunSuite) TestRunInvalidCPUShares(c *testing.T) {
 
 	out, _, err = dockerCmdWithError("run", "--cpu-shares", "99999999", "busybox", "echo", "test")
 	assert.ErrorContains(c, err, "", out)
-	expected = "maximum allowed cpu-shares is"
+	expected = "cpu.weight: numerical result out of range"
 	assert.Assert(c, strings.Contains(out, expected))
 }
 
