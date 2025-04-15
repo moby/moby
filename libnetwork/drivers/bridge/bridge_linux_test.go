@@ -32,6 +32,13 @@ import (
 	"gotest.tools/v3/icmd"
 )
 
+const (
+	// FIXME(robmry) - remove these and make the tests work for non-iptables firewalls.
+	dockerChain     = "DOCKER"
+	isolationChain1 = "DOCKER-ISOLATION-STAGE-1"
+	isolationChain2 = "DOCKER-ISOLATION-STAGE-2"
+)
+
 func TestEndpointMarshalling(t *testing.T) {
 	ip1, _ := types.ParseCIDR("172.22.0.9/16")
 	ip2, _ := types.ParseCIDR("2001:db8::9")
@@ -301,6 +308,8 @@ func TestCreateFullOptions(t *testing.T) {
 func TestCreateNoConfig(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver(storeutils.NewTempStore(t))
+	err := d.configure(nil)
+	assert.NilError(t, err)
 
 	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName, EnableIPv4: true}
 	genericOption := make(map[string]interface{})
@@ -613,17 +622,17 @@ func TestCreateMultipleNetworks(t *testing.T) {
 // Verify the network isolation rules are installed for each network
 func verifyV4INCEntries(networks map[string]*bridgeNetwork, t *testing.T) {
 	iptable := iptables.GetIptable(iptables.IPv4)
-	out1, err := iptable.Raw("-S", IsolationChain1)
+	out1, err := iptable.Raw("-S", isolationChain1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	out2, err := iptable.Raw("-S", IsolationChain2)
+	out2, err := iptable.Raw("-S", isolationChain2)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for _, n := range networks {
-		re := regexp.MustCompile(fmt.Sprintf("-i %s ! -o %s -j %s", n.config.BridgeName, n.config.BridgeName, IsolationChain2))
+		re := regexp.MustCompile(fmt.Sprintf("-i %s ! -o %s -j %s", n.config.BridgeName, n.config.BridgeName, isolationChain2))
 		matches := re.FindAllString(string(out1[:]), -1)
 		if len(matches) != 1 {
 			t.Fatalf("Cannot find expected inter-network isolation rules in IP Tables for network %s:\n%s.", n.id, string(out1[:]))
@@ -964,7 +973,7 @@ func TestLinkContainers(t *testing.T) {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
 
-	out, _ := iptable.Raw("-L", DockerChain)
+	out, _ := iptable.Raw("-L", dockerChain)
 	for _, pm := range exposedPorts {
 		regex := fmt.Sprintf("%s dpt:%d", pm.Proto.String(), pm.Port)
 		re := regexp.MustCompile(regex)
@@ -990,7 +999,7 @@ func TestLinkContainers(t *testing.T) {
 		t.Fatal("Failed to unlink ep1 and ep2")
 	}
 
-	out, _ = iptable.Raw("-L", DockerChain)
+	out, _ = iptable.Raw("-L", dockerChain)
 	for _, pm := range exposedPorts {
 		regex := fmt.Sprintf("%s dpt:%d", pm.Proto.String(), pm.Port)
 		re := regexp.MustCompile(regex)
@@ -1018,7 +1027,7 @@ func TestLinkContainers(t *testing.T) {
 	}
 	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep2", sbOptions)
 	if err != nil {
-		out, _ = iptable.Raw("-L", DockerChain)
+		out, _ = iptable.Raw("-L", dockerChain)
 		for _, pm := range exposedPorts {
 			regex := fmt.Sprintf("%s dpt:%d", pm.Proto.String(), pm.Port)
 			re := regexp.MustCompile(regex)
@@ -1243,57 +1252,6 @@ func TestSetDefaultGw(t *testing.T) {
 	}
 }
 
-func TestCleanupIptableRules(t *testing.T) {
-	defer netnsutils.SetupTestOSContext(t)()
-	bridgeChains := []struct {
-		name       string
-		table      iptables.Table
-		expRemoved bool
-	}{
-		{name: DockerChain, table: iptables.Nat, expRemoved: true},
-		// The filter-FORWARD chain has references to DockerChain and IsolationChain1,
-		// so the chains won't be removed - but they should be flushed. (This has
-		// long/always been the case for the daemon, its filter-FORWARD rules aren't
-		// removed.)
-		{name: DockerChain, table: iptables.Filter},
-		{name: IsolationChain1, table: iptables.Filter},
-	}
-
-	ipVersions := []iptables.IPVersion{iptables.IPv4, iptables.IPv6}
-
-	for _, version := range ipVersions {
-		err := setupIPChains(version, true)
-		assert.NilError(t, err, "version:%s", version)
-
-		iptable := iptables.GetIptable(version)
-		for _, chainInfo := range bridgeChains {
-			exists := iptable.ExistChain(chainInfo.name, chainInfo.table)
-			assert.Check(t, exists, "version:%s chain:%s table:%v",
-				version, chainInfo.name, chainInfo.table)
-		}
-
-		// Insert RETURN rules so that there's something to flush.
-		for _, chainInfo := range bridgeChains {
-			out, err := iptable.Raw("-t", string(chainInfo.table), "-A", chainInfo.name, "-j", "RETURN")
-			assert.NilError(t, err, "version:%s chain:%s table:%v out:%s",
-				version, chainInfo.name, chainInfo.table, out)
-		}
-
-		removeIPChains(version)
-
-		for _, chainInfo := range bridgeChains {
-			exists := iptable.Exists(chainInfo.table, chainInfo.name, "-A", chainInfo.name, "-j", "RETURN")
-			assert.Check(t, !exists, "version:%s chain:%s table:%v",
-				version, chainInfo.name, chainInfo.table)
-			if chainInfo.expRemoved {
-				exists := iptable.ExistChain(chainInfo.name, chainInfo.table)
-				assert.Check(t, !exists, "version:%s chain:%s table:%v",
-					version, chainInfo.name, chainInfo.table)
-			}
-		}
-	}
-}
-
 func TestCreateWithExistingBridge(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver(storeutils.NewTempStore(t))
@@ -1406,4 +1364,52 @@ func TestCreateParallel(t *testing.T) {
 	if success != 1 {
 		t.Fatalf("Success should be 1 instead: %d", success)
 	}
+}
+
+// Regression test for https://github.com/moby/moby/issues/46445
+func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+	d := newDriver(storeutils.NewTempStore(t))
+	dc := &configuration{
+		EnableIPTables:  true,
+		EnableIP6Tables: true,
+	}
+	if err := d.configure(map[string]interface{}{netlabel.GenericData: dc}); err != nil {
+		t.Fatal(err)
+	}
+	nc := &networkConfiguration{
+		BridgeName:         DefaultBridgeName,
+		AddressIPv4:        &net.IPNet{IP: net.ParseIP("192.168.42.1"), Mask: net.CIDRMask(16, 32)},
+		EnableIPMasquerade: true,
+		EnableIPv4:         true,
+		EnableIPv6:         true,
+		AddressIPv6:        &net.IPNet{IP: net.ParseIP("2001:db8::1"), Mask: net.CIDRMask(64, 128)},
+		HostIPv4:           net.ParseIP("192.0.2.2"),
+	}
+
+	// Create test bridge.
+	nh, err := nlwrap.NewHandle()
+	if err != nil {
+		t.Fatal(err)
+	}
+	br := &bridgeInterface{nlh: nh}
+	if err := setupDevice(nc, br); err != nil {
+		t.Fatalf("Failed to create the testing Bridge: %s", err.Error())
+	}
+	if err := setupBridgeIPv4(nc, br); err != nil {
+		t.Fatalf("Failed to bring up the testing Bridge: %s", err.Error())
+	}
+	if err := setupBridgeIPv6(nc, br); err != nil {
+		t.Fatalf("Failed to bring up the testing Bridge: %s", err.Error())
+	}
+
+	// Check firewall configuration succeeds.
+	nw := bridgeNetwork{
+		config: nc,
+		driver: d,
+		bridge: br,
+	}
+	fwn, err := nw.newIptablesNetwork()
+	assert.NilError(t, err)
+	assert.Check(t, fwn != nil, "no firewaller network")
 }

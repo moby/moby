@@ -1,4 +1,6 @@
-package bridge
+//go:build linux
+
+package iptabler
 
 import (
 	"context"
@@ -22,6 +24,64 @@ const (
 	defaultBridgeName = "testbridge"
 )
 
+func TestCleanupIptableRules(t *testing.T) {
+	// Check for existence of a dummy rule to make sure iptables is initialised - then can
+	// check whether firewalld is running.
+	_ = iptables.GetIptable(iptables.IPv4).Exists(iptables.Filter, "FORWARD", "-j", "DROP")
+	if fw, _ := iptables.UsingFirewalld(); fw {
+		t.Skip("firewalld is running in the host netns, it can't modify rules in the test's netns")
+	}
+
+	defer netnsutils.SetupTestOSContext(t)()
+	bridgeChains := []struct {
+		name       string
+		table      iptables.Table
+		expRemoved bool
+	}{
+		{name: dockerChain, table: iptables.Nat, expRemoved: true},
+		// The filter-FORWARD chain has references to dockerChain and isolationChain1,
+		// so the chains won't be removed - but they should be flushed. (This has
+		// long/always been the case for the daemon, its filter-FORWARD rules aren't
+		// removed.)
+		{name: dockerChain, table: iptables.Filter},
+		{name: isolationChain1, table: iptables.Filter},
+	}
+
+	ipVersions := []iptables.IPVersion{iptables.IPv4, iptables.IPv6}
+
+	for _, version := range ipVersions {
+		err := setupIPChains(version, true)
+		assert.NilError(t, err, "version:%s", version)
+
+		iptable := iptables.GetIptable(version)
+		for _, chainInfo := range bridgeChains {
+			exists := iptable.ExistChain(chainInfo.name, chainInfo.table)
+			assert.Check(t, exists, "version:%s chain:%s table:%v",
+				version, chainInfo.name, chainInfo.table)
+		}
+
+		// Insert RETURN rules so that there's something to flush.
+		for _, chainInfo := range bridgeChains {
+			out, err := iptable.Raw("-t", string(chainInfo.table), "-A", chainInfo.name, "-j", "RETURN")
+			assert.NilError(t, err, "version:%s chain:%s table:%v out:%s",
+				version, chainInfo.name, chainInfo.table, out)
+		}
+
+		removeIPChains(version)
+
+		for _, chainInfo := range bridgeChains {
+			exists := iptable.Exists(chainInfo.table, chainInfo.name, "-A", chainInfo.name, "-j", "RETURN")
+			assert.Check(t, !exists, "version:%s chain:%s table:%v",
+				version, chainInfo.name, chainInfo.table)
+			if chainInfo.expRemoved {
+				exists := iptable.ExistChain(chainInfo.name, chainInfo.table)
+				assert.Check(t, !exists, "version:%s chain:%s table:%v",
+					version, chainInfo.name, chainInfo.table)
+			}
+		}
+	}
+}
+
 func TestProgramIPTable(t *testing.T) {
 	// Create a test bridge with a basic bridge configuration (name + IPv4).
 	defer netnsutils.SetupTestOSContext(t)()
@@ -36,11 +96,11 @@ func TestProgramIPTable(t *testing.T) {
 		descr string
 	}{
 		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{"-d", "127.1.2.3", "-i", "lo", "-o", "lo", "-j", "DROP"}}, "Test Loopback"},
-		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Nat, Chain: "POSTROUTING", Args: []string{"-s", iptablesTestBridgeIP, "!", "-o", DefaultBridgeName, "-j", "MASQUERADE"}}, "NAT Test"},
-		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{"-o", DefaultBridgeName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}}, "Test ACCEPT INCOMING"},
-		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{"-i", DefaultBridgeName, "!", "-o", DefaultBridgeName, "-j", "ACCEPT"}}, "Test ACCEPT NON_ICC OUTGOING"},
-		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{"-i", DefaultBridgeName, "-o", DefaultBridgeName, "-j", "ACCEPT"}}, "Test enable ICC"},
-		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{"-i", DefaultBridgeName, "-o", DefaultBridgeName, "-j", "DROP"}}, "Test disable ICC"},
+		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Nat, Chain: "POSTROUTING", Args: []string{"-s", iptablesTestBridgeIP, "!", "-o", defaultBridgeName, "-j", "MASQUERADE"}}, "NAT Test"},
+		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{"-o", defaultBridgeName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}}, "Test ACCEPT INCOMING"},
+		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{"-i", defaultBridgeName, "!", "-o", defaultBridgeName, "-j", "ACCEPT"}}, "Test ACCEPT NON_ICC OUTGOING"},
+		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{"-i", defaultBridgeName, "-o", defaultBridgeName, "-j", "ACCEPT"}}, "Test enable ICC"},
+		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{"-i", defaultBridgeName, "-o", defaultBridgeName, "-j", "DROP"}}, "Test disable ICC"},
 	}
 
 	// Assert the chain rules' insertion and removal.
@@ -68,13 +128,12 @@ func TestSetupIPChains(t *testing.T) {
 	// Create a test bridge with a basic bridge configuration (name + IPv4).
 	defer netnsutils.SetupTestOSContext(t)()
 
-	ipt := firewaller{IPv4: true}
-	err := ipt.init()
+	ipt, err := NewIptabler(FirewallConfig{IPv4: true})
 	assert.NilError(t, err)
 
-	nc := networkConfig{
+	nc := NetworkConfig{
 		IfName: defaultBridgeName,
-		Config4: networkConfigFam{
+		Config4: NetworkConfigFam{
 			Prefix: netip.MustParsePrefix("192.168.42.0/24"),
 		},
 	}
@@ -94,21 +153,21 @@ func TestSetupIPChains(t *testing.T) {
 // Regression test for https://github.com/moby/moby/issues/46445
 func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	ipt := firewaller{
+
+	ipt, err := NewIptabler(FirewallConfig{
 		IPv4: true,
 		IPv6: true,
-	}
-	err := ipt.init()
+	})
 	assert.NilError(t, err)
 
-	nc := networkConfig{
+	nc := NetworkConfig{
 		IfName:     defaultBridgeName,
 		Masquerade: true,
-		Config4: networkConfigFam{
+		Config4: NetworkConfigFam{
 			HostIP: netip.MustParseAddr("192.0.2.2"),
 			Prefix: netip.MustParsePrefix("192.168.42.0/24"),
 		},
-		Config6: networkConfigFam{
+		Config6: NetworkConfigFam{
 			Prefix: netip.MustParsePrefix("2001:db8::/64"),
 		},
 	}
@@ -116,16 +175,16 @@ func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 }
 
 // Assert function which pushes chains based on bridge config parameters.
-func assertBridgeConfig(t *testing.T, ipt firewaller, nc networkConfig) {
+func assertBridgeConfig(t *testing.T, ipt *Iptabler, nc NetworkConfig) {
 	t.Helper()
 	n, err := ipt.NewNetwork(nc)
 	assert.NilError(t, err)
-	err = n.delNetworkLevelRules()
+	err = n.DelNetworkLevelRules()
 	assert.NilError(t, err)
 }
 
 func TestOutgoingNATRules(t *testing.T) {
-	br := "br-nattest"
+	const br = "br-nattest"
 	maskedBrIPv4 := netip.MustParsePrefix("192.168.42.1/16").Masked()
 	maskedBrIPv6 := netip.MustParsePrefix("2001:db8::1/64").Masked()
 	hostIPv4 := netip.MustParseAddr("192.0.2.2")
@@ -158,13 +217,13 @@ func TestOutgoingNATRules(t *testing.T) {
 			enableIPv6: true,
 		},
 		{
-			desc:               "iptables/ip6tables disabled",
+			desc:               "iptables and ip6tables disabled",
 			enableIPv4:         true,
 			enableIPv6:         true,
 			enableIPMasquerade: true,
 		},
 		{
-			desc:               "host IP with iptables/ip6tables disabled",
+			desc:               "host IP with iptables and ip6tables disabled",
 			enableIPv4:         true,
 			enableIPv6:         true,
 			enableIPMasquerade: true,
@@ -264,22 +323,20 @@ func TestOutgoingNATRules(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
-
-			ipt := firewaller{
+			ipt, err := NewIptabler(FirewallConfig{
 				IPv4: tc.enableIPTables,
 				IPv6: tc.enableIP6Tables,
-			}
-			err := ipt.init()
+			})
 			assert.NilError(t, err)
 
-			nc := networkConfig{
+			nc := NetworkConfig{
 				IfName:     br,
 				Masquerade: tc.enableIPMasquerade,
-				Config4: networkConfigFam{
+				Config4: NetworkConfigFam{
 					HostIP: tc.hostIPv4,
 					Prefix: maskedBrIPv4,
 				},
-				Config6: networkConfigFam{
+				Config6: NetworkConfigFam{
 					HostIP: tc.hostIPv6,
 					Prefix: maskedBrIPv6,
 				},
@@ -288,7 +345,7 @@ func TestOutgoingNATRules(t *testing.T) {
 			assert.NilError(t, err)
 
 			defer func() {
-				err = n.delNetworkLevelRules()
+				err = n.DelNetworkLevelRules()
 				assert.NilError(t, err)
 			}()
 
@@ -303,7 +360,7 @@ func TestOutgoingNATRules(t *testing.T) {
 					t.Logf("%s: %s %s table rules:\n%s", tc.desc, ipv, table, string(out))
 				}
 			}
-			for _, rc := range []struct {
+			for i, rc := range []struct {
 				want bool
 				rule iptables.Rule
 			}{
@@ -314,7 +371,7 @@ func TestOutgoingNATRules(t *testing.T) {
 				{tc.wantIPv6Masq, iptables.Rule{IPVer: iptables.IPv6, Table: iptables.Nat, Chain: "POSTROUTING", Args: []string{"-s", maskedBrIPv6.String(), "!", "-o", br, "-j", "MASQUERADE"}}},
 				{tc.wantIPv6Snat, iptables.Rule{IPVer: iptables.IPv6, Table: iptables.Nat, Chain: "POSTROUTING", Args: []string{"-s", maskedBrIPv6.String(), "!", "-o", br, "-j", "SNAT", "--to-source", hostIPv6.String()}}},
 			} {
-				assert.Equal(t, rc.rule.Exists(), rc.want)
+				assert.Check(t, is.Equal(rc.rule.Exists(), rc.want), "rule:%d", i)
 			}
 		})
 	}
@@ -360,12 +417,10 @@ func TestMirroredWSL2Workaround(t *testing.T) {
 			restoreWslinfoPath := simulateWSL2MirroredMode(t, tc.loopback0, tc.wslinfoPerm)
 			defer restoreWslinfoPath()
 
-			config := configuration{EnableIPTables: true}
-			if tc.userlandProxy {
-				config.UserlandProxyPath = "some-proxy"
-				config.EnableUserlandProxy = true
-			}
-			err := setupIPChains(iptables.IPv4, !tc.userlandProxy)
+			_, err := NewIptabler(FirewallConfig{
+				IPv4:    true,
+				Hairpin: !tc.userlandProxy,
+			})
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(mirroredWSL2Rule().Exists(), tc.expLoopback0Rule))
 		})
@@ -435,20 +490,20 @@ func TestMirroredWSL2LoopbackFiltering(t *testing.T) {
 			defer restoreWslinfoPath()
 
 			hostIP := net.ParseIP("127.0.0.1")
-			err := filterPortMappedOnLoopback(context.TODO(), types.PortBinding{
+			err := filterPortMappedOnLoopback(context.Background(), types.PortBinding{
 				Proto:    types.TCP,
 				IP:       hostIP,
 				HostPort: 8000,
 			}, hostIP, true)
 			assert.NilError(t, err)
 
+			out, err := exec.Command("iptables-save", "-t", "raw").CombinedOutput()
+			assert.NilError(t, err)
+
 			// Checking this after trying to create rules, to make sure the init code in iptables/firewalld.go has run.
 			if fw, _ := iptables.UsingFirewalld(); fw {
 				t.Skip("firewalld is running in the host netns, it can't modify rules in the test's netns")
 			}
-
-			out, err := exec.Command("iptables-save", "-t", "raw").CombinedOutput()
-			assert.NilError(t, err)
 
 			if tc.expLoopback0Rule {
 				assert.Check(t, is.Equal(strings.Count(string(out), "-A PREROUTING"), 2))
