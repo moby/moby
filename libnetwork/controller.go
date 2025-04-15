@@ -561,6 +561,8 @@ func (c *Controller) NewNetwork(ctx context.Context, networkType, name string, i
 	var (
 		caps driverapi.Capability
 		err  error
+
+		skipCfgEpCount bool
 	)
 
 	// Reset network types, force local scope and skip allocation and
@@ -595,6 +597,13 @@ func (c *Controller) NewNetwork(ctx context.Context, networkType, name string, i
 		if err := configNetwork.applyConfigurationTo(nw); err != nil {
 			return nil, types.InternalErrorf("Failed to apply configuration: %v", err)
 		}
+		defer func() {
+			if retErr == nil && !skipCfgEpCount {
+				if err := configNetwork.getEpCnt().IncEndpointCnt(); err != nil {
+					log.G(context.TODO()).Warnf("Failed to update reference count for configuration network %q on creation of network %q: %v", configNetwork.Name(), nw.name, err)
+				}
+			}
+		}()
 	}
 
 	// At this point the network scope is still unknown if not set by user
@@ -660,7 +669,11 @@ func (c *Controller) NewNetwork(ctx context.Context, networkType, name string, i
 	//
 	// To cut a long story short: if this broke anything, you know who to blame :)
 	if err := c.addNetwork(ctx, nw); err != nil {
-		if _, ok := err.(types.MaskableError); !ok { //nolint:gosimple
+		if _, ok := err.(types.MaskableError); ok { //nolint:gosimple
+			// This error can be ignored and set this boolean
+			// value to skip a refcount increment for configOnly networks
+			skipCfgEpCount = true
+		} else {
 			return nil, err
 		}
 	}
@@ -688,6 +701,22 @@ func (c *Controller) NewNetwork(ctx context.Context, networkType, name string, i
 	}
 
 addToStore:
+	// First store the endpoint count, then the network. To avoid to
+	// end up with a datastore containing a network and not an epCnt,
+	// in case of an ungraceful shutdown during this function call.
+	epCnt := &endpointCnt{n: nw}
+	if err := c.updateToStore(context.TODO(), epCnt); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if retErr != nil {
+			if err := c.deleteFromStore(epCnt); err != nil {
+				log.G(context.TODO()).Warnf("could not rollback from store, epCnt %v on failure (%v): %v", epCnt, retErr, err)
+			}
+		}
+	}()
+
+	nw.epCnt = epCnt
 	if err := c.storeNetwork(ctx, nw); err != nil {
 		return nil, err
 	}

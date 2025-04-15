@@ -191,6 +191,7 @@ type Network struct {
 	ipamV6Info       []*IpamInfo
 	enableIPv4       bool
 	enableIPv6       bool
+	epCnt            *endpointCnt
 	generic          options.Generic
 	dbIndex          uint64
 	dbExists         bool
@@ -540,6 +541,13 @@ func (n *Network) CopyTo(o datastore.KVObject) error {
 	}
 
 	return nil
+}
+
+func (n *Network) getEpCnt() *endpointCnt {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	return n.epCnt
 }
 
 func (n *Network) validateAdvertiseAddrConfig() error {
@@ -1064,6 +1072,11 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 			// continue deletion when force is true even on error
 			log.G(context.TODO()).Warnf("Error deleting load balancer sandbox: %v", err)
 		}
+		// Reload the network from the store to update the epcnt.
+		n, err = c.getNetworkFromStore(id)
+		if err != nil {
+			return errdefs.NotFound(fmt.Errorf("unknown network %s id %s", name, id))
+		}
 	}
 
 	// Up to this point, errors that we returned were recoverable.
@@ -1075,6 +1088,17 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 	n.inDelete = true
 	if err = c.storeNetwork(context.TODO(), n); err != nil {
 		return fmt.Errorf("error marking network %s (%s) for deletion: %v", n.Name(), n.ID(), err)
+	}
+
+	if n.ConfigFrom() != "" {
+		if t, err := c.getConfigNetwork(n.ConfigFrom()); err == nil {
+			if err := t.getEpCnt().DecEndpointCnt(); err != nil {
+				log.G(context.TODO()).Warnf("Failed to update reference count for configuration network %q on removal of network %q: %v",
+					t.Name(), n.Name(), err)
+			}
+		} else {
+			log.G(context.TODO()).Warnf("Could not find configuration network %q during removal of network %q", n.configFrom, n.Name())
+		}
 	}
 
 	if n.configOnly {
@@ -1113,6 +1137,16 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 	}
 
 removeFromStore:
+	// deleteFromStore performs an atomic delete operation and the
+	// Network.epCnt will help prevent any possible
+	// race between endpoint join and network delete
+	if err = c.deleteFromStore(n.getEpCnt()); err != nil {
+		if !force {
+			return fmt.Errorf("error deleting network endpoint count from store: %v", err)
+		}
+		log.G(context.TODO()).Debugf("Error deleting endpoint count from store for stale network %s (%s) for deletion: %v", n.Name(), n.ID(), err)
+	}
+
 	if err = c.deleteStoredNetwork(n); err != nil {
 		return fmt.Errorf("error deleting network from store: %v", err)
 	}
@@ -1267,6 +1301,11 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 				n.updateSvcRecord(context.WithoutCancel(ctx), ep, false)
 			}
 		}()
+	}
+
+	// Increment endpoint count to indicate completion of endpoint addition
+	if err = n.getEpCnt().IncEndpointCnt(); err != nil {
+		return nil, err
 	}
 
 	return ep, nil

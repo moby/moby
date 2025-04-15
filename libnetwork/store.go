@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
@@ -31,6 +32,15 @@ func (c *Controller) getNetworks() ([]*Network, error) {
 		n := kvo.(*Network)
 		n.ctrlr = c
 		c.cacheNetwork(n)
+
+		ec := &endpointCnt{n: n}
+		err = c.store.GetObject(ec)
+		if err != nil && !n.inDelete {
+			log.G(context.TODO()).Warnf("Could not find endpoint count key %s for network %s while listing: %v", datastore.Key(ec.Key()...), n.Name(), err)
+			continue
+		}
+
+		n.epCnt = ec
 		if n.scope == "" {
 			n.scope = scope.Local
 		}
@@ -51,10 +61,22 @@ func (c *Controller) getNetworksFromStore(ctx context.Context) []*Network { // F
 		return nil
 	}
 
+	kvep, err := c.store.Map(datastore.Key(epCntKeyPrefix), &endpointCnt{})
+	if err != nil && err != datastore.ErrKeyNotFound {
+		log.G(ctx).Warnf("failed to get endpoint_count map from store: %v", err)
+	}
+
 	for _, kvo := range kvol {
 		n := kvo.(*Network)
 		n.mu.Lock()
 		n.ctrlr = c
+		ec := &endpointCnt{n: n}
+		// Trim the leading & trailing "/" to make it consistent across all stores
+		if val, ok := kvep[strings.Trim(datastore.Key(ec.Key()...), "/")]; ok {
+			ec = val.(*endpointCnt)
+			ec.n = n
+			n.epCnt = ec
+		}
 		if n.scope == "" {
 			n.scope = scope.Local
 		}
