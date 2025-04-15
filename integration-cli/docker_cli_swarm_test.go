@@ -408,8 +408,7 @@ func (s *DockerSwarmSuite) TestSwarmContainerAttachByNetworkId(c *testing.T) {
 	out, err = d.Cmd("run", "-d", "--net", networkID, "busybox", "top")
 	assert.NilError(c, err, out)
 	cID := strings.TrimSpace(out)
-	err = d.WaitRun(cID)
-	assert.NilError(c, err)
+	cli.WaitRun(c, cID)
 
 	out, err = d.Cmd("rm", "-f", cID)
 	assert.NilError(c, err, out)
