@@ -20,6 +20,100 @@ ERROR() {
 	/bin/echo >&2 -e "\e[101m\e[97m[ERROR]\e[49m\e[39m $@"
 }
 
+# Get minimum and maximum sub ID bounds from login.defs
+get_subid_bounds() {
+	type="$1" # "uid" or "gid"
+	min_var="sub_${type}_min"
+	max_var="sub_${type}_max"
+	min_val=""
+	max_val=""
+
+	if [ -f /etc/login.defs ]; then
+		min_val=$(grep -E "^SUB_$(echo $type | tr '[:lower:]' '[:upper:]')_MIN" /etc/login.defs | awk '{print $2}')
+		max_val=$(grep -E "^SUB_$(echo $type | tr '[:lower:]' '[:upper:]')_MAX" /etc/login.defs | awk '{print $2}')
+	fi
+
+	# Default values if not found in login.defs
+	: "${min_val:=100000}"
+	: "${max_val:=600100000}"
+
+	eval "$min_var=$min_val"
+	eval "$max_var=$max_val"
+}
+
+# Check if the subid range is within bounds
+check_subid_range() {
+	start="$1"
+	count="$2"
+	min_bound="$3"
+	max_bound="$4"
+
+	end=$((start + count))
+	if [ "$start" -ge "$min_bound" ] && [ "$end" -le "$max_bound" ]; then
+		echo "1"
+	else
+		echo "0"
+	fi
+}
+
+# Extract and validate subid from getsubids command
+validate_subid_getsubids() {
+	user="$1"
+	id_type="$2" # blank for uid, "-g" for gid
+	bounds_type="${3:-uid}" # "uid" or "gid"
+
+	exists=0
+	valid=0
+
+	get_subid_bounds "$bounds_type"
+	eval "min_bound=\$sub_${bounds_type}_min"
+	eval "max_bound=\$sub_${bounds_type}_max"
+
+	# Try to get subid entry
+	subid_entry=$(getsubids $id_type "$user" 2> /dev/null || getsubids $id_type "$(id -u)" 2> /dev/null)
+	if [ -n "$subid_entry" ]; then
+		exists=1
+
+		# Extract start and count values
+		start=$(echo "$subid_entry" | awk -F: '{print $2}')
+		count=$(echo "$subid_entry" | awk -F: '{print $3}')
+
+		# Validate range
+		valid=$(check_subid_range "$start" "$count" "$min_bound" "$max_bound")
+	fi
+
+	echo "$exists:$valid"
+}
+
+# Extract and validate subid from /etc/subuid or /etc/subgid file
+validate_subid_file() {
+	user="$1"
+	user_escaped="$2"
+	file="$3" # /etc/subuid or /etc/subgid
+	bounds_type="${4:-uid}" # "uid" or "gid"
+
+	exists=0
+	valid=0
+
+	# Get bounds
+	get_subid_bounds "$bounds_type"
+	eval "min_bound=\$sub_${bounds_type}_min"
+	eval "max_bound=\$sub_${bounds_type}_max"
+
+	if grep -q "^$user_escaped:\|^$(id -u):" "$file" 2> /dev/null; then
+		exists=1
+		subid_entry=$(grep -E "^$user_escaped:|^$(id -u):" "$file" 2> /dev/null | head -n1)
+		if [ -n "$subid_entry" ]; then
+			start=$(echo "$subid_entry" | awk -F: '{print $2}')
+			count=$(echo "$subid_entry" | awk -F: '{print $3}')
+
+			valid=$(check_subid_range "$start" "$count" "$min_bound" "$max_bound")
+		fi
+	fi
+
+	echo "$exists:$valid"
+}
+
 # constants
 DOCKERD_ROOTLESS_SH="dockerd-rootless.sh"
 SYSTEMD_UNIT="docker.service"
@@ -237,32 +331,66 @@ init() {
 	fi
 
 	# instructions: validate subuid for current user
+	subuid_exists=0
+	subuid_valid=0
 	if command -v "getsubids" > /dev/null 2>&1; then
-		getsubids "$USERNAME" > /dev/null 2>&1 || getsubids "$(id -u)" > /dev/null 2>&1
+		subuid_result=$(validate_subid_getsubids "$USERNAME" "" "uid")
+		subuid_exists=$(echo "$subuid_result" | cut -d: -f1)
+		subuid_valid=$(echo "$subuid_result" | cut -d: -f2)
 	else
-		grep -q "^$USERNAME_ESCAPED:\|^$(id -u):" /etc/subuid 2> /dev/null
+		subuid_result=$(validate_subid_file "$USERNAME" "$USERNAME_ESCAPED" "/etc/subuid" "uid")
+		subuid_exists=$(echo "$subuid_result" | cut -d: -f1)
+		subuid_valid=$(echo "$subuid_result" | cut -d: -f2)
 	fi
-	if [ $? -ne 0 ]; then
+
+	if [ "$subuid_exists" -eq 0 ]; then
 		instructions=$(
 			cat <<- EOI
 				${instructions}
 				# Add subuid entry for ${USERNAME}
 				echo "${USERNAME}:100000:65536" >> /etc/subuid
 			EOI
+			)
+	elif [ "$subuid_valid" -eq 0 ]; then
+		WARNING "Subuid range for ${USERNAME} is out of bounds."
+		instructions=$(
+			cat <<- EOI
+				${instructions}
+				# Update subuid entry for ${USERNAME} with valid range
+				sed -i '/^${USERNAME_ESCAPED}:/d' /etc/subuid
+				echo "${USERNAME}:100000:65536" >> /etc/subuid
+			EOI
 		)
 	fi
 
 	# instructions: validate subgid for current user
+	subgid_exists=0
+	subgid_valid=0
 	if command -v "getsubids" > /dev/null 2>&1; then
-		getsubids -g "$USERNAME" > /dev/null 2>&1 || getsubids -g "$(id -u)" > /dev/null 2>&1
+		subgid_result=$(validate_subid_getsubids "$USERNAME" "-g" "gid")
+		subgid_exists=$(echo "$subgid_result" | cut -d: -f1)
+		subgid_valid=$(echo "$subgid_result" | cut -d: -f2)
 	else
-		grep -q "^$USERNAME_ESCAPED:\|^$(id -u):" /etc/subgid 2> /dev/null
+		subgid_result=$(validate_subid_file "$USERNAME" "$USERNAME_ESCAPED" "/etc/subgid" "gid")
+		subgid_exists=$(echo "$subgid_result" | cut -d: -f1)
+		subgid_valid=$(echo "$subgid_result" | cut -d: -f2)
 	fi
-	if [ $? -ne 0 ]; then
+
+	if [ "$subgid_exists" -eq 0 ]; then
 		instructions=$(
 			cat <<- EOI
 				${instructions}
 				# Add subgid entry for ${USERNAME}
+				echo "${USERNAME}:100000:65536" >> /etc/subgid
+			EOI
+			)
+	elif [ "$subgid_valid" -eq 0 ]; then
+		WARNING "Subgid range for ${USERNAME} is out of bounds."
+		instructions=$(
+			cat <<- EOI
+				${instructions}
+				# Update subgid entry for ${USERNAME} with valid range
+				sed -i '/^${USERNAME_ESCAPED}:/d' /etc/subgid
 				echo "${USERNAME}:100000:65536" >> /etc/subgid
 			EOI
 		)
