@@ -228,7 +228,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	ctr.ImageManifest = imgManifest
 
 	// Set RWLayer for container after mount labels have been set
-	rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping))
+	rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping.RootPair()))
 	if err != nil {
 		return nil, errdefs.System(err)
 	}

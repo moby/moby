@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/initlayer"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
 	v2 "github.com/docker/docker/plugin/v2"
@@ -55,7 +54,7 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 	}
 
 	rootFS := filepath.Join(pm.config.Root, p.PluginObj.ID, rootFSFileName)
-	if err := initlayer.Setup(rootFS, idtools.Identity{UID: 0, GID: 0}); err != nil {
+	if err := initlayer.Setup(rootFS, 0, 0); err != nil {
 		return errors.WithStack(err)
 	}
 

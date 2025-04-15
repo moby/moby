@@ -41,7 +41,6 @@ import (
 	"github.com/docker/docker/libnetwork/options"
 	lntypes "github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
@@ -1256,10 +1255,9 @@ func removeDefaultBridgeInterface() {
 	}
 }
 
-func setupInitLayer(idMapping user.IdentityMapping) func(string) error {
+func setupInitLayer(uid int, gid int) func(string) error {
 	return func(initPath string) error {
-		uid, gid := idMapping.RootPair()
-		return initlayer.Setup(initPath, idtools.Identity{UID: uid, GID: gid})
+		return initlayer.Setup(initPath, uid, gid)
 	}
 }
 

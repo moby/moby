@@ -56,7 +56,7 @@ func (daemon *Daemon) parseSecurityOpt(daemonCfg *config.Config, securityOptions
 	return nil
 }
 
-func setupInitLayer(idMapping user.IdentityMapping) func(string) error {
+func setupInitLayer(uid int, gid int) func(string) error {
 	return nil
 }
 
