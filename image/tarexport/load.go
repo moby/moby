@@ -23,8 +23,8 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
+	"github.com/moby/go-archive/compression"
 	"github.com/moby/sys/sequential"
 	"github.com/moby/sys/symlink"
 	"github.com/opencontainers/go-digest"
@@ -231,7 +231,7 @@ func (l *tarexporter) loadLayer(ctx context.Context, filename string, rootFS ima
 		r = rawTar
 	}
 
-	inflatedLayerData, err := archive.DecompressStream(ioutils.NewCtxReader(ctx, r))
+	inflatedLayerData, err := compression.DecompressStream(ioutils.NewCtxReader(ctx, r))
 	if err != nil {
 		return nil, err
 	}

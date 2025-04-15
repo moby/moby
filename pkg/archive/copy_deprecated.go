@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/compression"
 )
 
 var (
@@ -51,7 +52,7 @@ func TarResourceRebase(sourcePath, rebaseName string) (content io.ReadCloser, _ 
 func TarResourceRebaseOpts(sourceBase string, rebaseName string) *TarOptions {
 	filter := []string{sourceBase}
 	return &TarOptions{
-		Compression:      archive.Uncompressed,
+		Compression:      compression.None,
 		IncludeFiles:     filter,
 		IncludeSourceDir: true,
 		RebaseNames: map[string]string{

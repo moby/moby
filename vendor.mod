@@ -64,7 +64,7 @@ require (
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/moby/buildkit v0.21.0
 	github.com/moby/docker-image-spec v1.3.1
-	github.com/moby/go-archive v0.0.0-20250404171912-21f3f3385ab7
+	github.com/moby/go-archive v0.1.0
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
 	github.com/moby/patternmatcher v0.6.0
