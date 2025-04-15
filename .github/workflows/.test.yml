@@ -198,13 +198,16 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-20.04
           - ubuntu-22.04
+          - ubuntu-24.04
         mode:
           - ""
           - rootless
           - systemd
           #- rootless-systemd FIXME: https://github.com/moby/moby/issues/44084
+        exclude:
+          - os: ubuntu-24.04 # FIXME: https://github.com/moby/moby/pull/49579#issuecomment-2698622223
+            mode: rootless
     steps:
       -
         name: Checkout
