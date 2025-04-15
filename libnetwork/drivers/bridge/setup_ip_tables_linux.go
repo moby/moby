@@ -822,10 +822,10 @@ func mirroredWSL2Workaround(ipv iptables.IPVersion, hairpin bool) error {
 	if ipv != iptables.IPv4 {
 		return nil
 	}
-	return programChainRule(mirroredWSL2Rule(), "WSL2 loopback", insertMirroredWSL2Rule(hairpin))
+	return programChainRule(mirroredWSL2Rule(), "WSL2 loopback", shouldInsertMirroredWSL2Rule(hairpin))
 }
 
-// insertMirroredWSL2Rule returns true if the NAT rule for mirrored WSL2 workaround
+// shouldInsertMirroredWSL2Rule returns true if the NAT rule for mirrored WSL2 workaround
 // is required. It is required if:
 //   - the userland proxy is running. If not, there's nothing on the host to catch
 //     the packet, so the loopback0 rule as wouldn't be useful. However, without
@@ -833,7 +833,7 @@ func mirroredWSL2Workaround(ipv iptables.IPVersion, hairpin bool) error {
 //     running - no workaround is needed, the normal DNAT/masquerading works.
 //   - and, the host Linux appears to be running under Windows WSL2 with mirrored
 //     mode networking.
-func insertMirroredWSL2Rule(hairpin bool) bool {
+func shouldInsertMirroredWSL2Rule(hairpin bool) bool {
 	if hairpin {
 		return false
 	}
