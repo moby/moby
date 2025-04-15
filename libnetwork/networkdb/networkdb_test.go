@@ -46,9 +46,11 @@ func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Co
 		localConfig.Hostname = fmt.Sprintf("%s%d", namePrefix, i+1)
 		localConfig.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
 		localConfig.BindPort = int(dbPort.Add(1))
+		localConfig.BindAddr = "127.0.0.1"
+		localConfig.AdvertiseAddr = localConfig.BindAddr
 		db := launchNode(t, localConfig)
 		if i != 0 {
-			assert.Check(t, db.Join([]string{fmt.Sprintf("localhost:%d", db.config.BindPort-1)}))
+			assert.Check(t, db.Join([]string{net.JoinHostPort(db.config.AdvertiseAddr, strconv.Itoa(db.config.BindPort-1))}))
 		}
 
 		dbs = append(dbs, db)
