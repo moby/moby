@@ -512,7 +512,9 @@ func (d *driver) configure(option map[string]interface{}) error {
 		IPv6:    config.EnableIP6Tables,
 		Hairpin: !config.EnableUserlandProxy || config.UserlandProxyPath == "",
 	}
-	d.firewaller.init()
+	if err := d.firewaller.init(); err != nil {
+		return err
+	}
 	iptables.OnReloaded(d.handleFirewalldReload)
 
 	var pdc portDriverClient
