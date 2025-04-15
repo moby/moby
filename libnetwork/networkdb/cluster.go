@@ -112,6 +112,7 @@ func (nDB *NetworkDB) clusterInit() error {
 
 	if nDB.config.BindPort != 0 {
 		config.BindPort = nDB.config.BindPort
+		config.AdvertisePort = nDB.config.BindPort
 	}
 
 	config.ProtocolVersion = memberlist.ProtocolVersion2Compatible
