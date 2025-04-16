@@ -36,7 +36,7 @@ func TestDaemonRestartWithLiveRestore(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
-	ctx := testutil.StartSpan(baseContext, t)
+	ctx := setupTest(t)
 
 	d := daemon.New(t)
 	defer d.Stop(t)
@@ -67,7 +67,7 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 	// Remove docker0 bridge and the start daemon defining the predefined address pools
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
-	ctx := testutil.StartSpan(baseContext, t)
+	ctx := setupTest(t)
 
 	defaultNetworkBridge := "docker0"
 	delInterface(ctx, t, defaultNetworkBridge)
@@ -112,7 +112,7 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
-	ctx := testutil.StartSpan(baseContext, t)
+	ctx := setupTest(t)
 
 	d := daemon.New(t)
 	d.Start(t)
@@ -148,7 +148,7 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
-	ctx := testutil.StartSpan(baseContext, t)
+	ctx := setupTest(t)
 
 	d := daemon.New(t)
 	d.Start(t)
@@ -203,7 +203,7 @@ func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
-	ctx := testutil.StartSpan(baseContext, t)
+	ctx := setupTest(t)
 
 	d := daemon.New(t)
 	defer d.Stop(t)
