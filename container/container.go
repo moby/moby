@@ -30,7 +30,6 @@ import (
 	"github.com/docker/docker/image"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/oci"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/restartmanager"
 	"github.com/docker/docker/volume"
 	volumemounts "github.com/docker/docker/volume/mounts"
@@ -321,7 +320,7 @@ func (container *Container) CommitInMemory(store *ViewDB) error {
 }
 
 // SetupWorkingDirectory sets up the container's working directory as set in container.Config.WorkingDir
-func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity) error {
+func (container *Container) SetupWorkingDirectory(uid int, gid int) error {
 	if container.Config.WorkingDir == "" {
 		return nil
 	}
@@ -332,7 +331,7 @@ func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity)
 		return err
 	}
 
-	if err := user.MkdirAllAndChown(pth, 0o755, rootIdentity.UID, rootIdentity.GID, user.WithOnlyNew); err != nil {
+	if err := user.MkdirAllAndChown(pth, 0o755, uid, gid, user.WithOnlyNew); err != nil {
 		pthInfo, err2 := os.Stat(pth)
 		if err2 == nil && pthInfo != nil && !pthInfo.IsDir() {
 			return errors.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
