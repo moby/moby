@@ -41,11 +41,6 @@ func chmodTarEntry(perm os.FileMode) os.FileMode {
 	return perm | 0o111
 }
 
-func setHeaderForSpecialDevice(hdr *tar.Header, name string, stat interface{}) (err error) {
-	// do nothing. no notion of Rdev, Nlink in stat on Windows
-	return
-}
-
 func getInodeFromStat(stat interface{}) (uint64, error) {
 	// do nothing. no notion of Inode in stat on Windows
 	return 0, nil

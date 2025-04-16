@@ -8,6 +8,8 @@ import (
 
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/compression"
+	"github.com/moby/go-archive/tarheader"
 )
 
 // ImpliedDirectoryMode represents the mode (Unix permissions) applied to directories that are implied by files in a
@@ -19,8 +21,8 @@ const ImpliedDirectoryMode = archive.ImpliedDirectoryMode
 type (
 	// Compression is the state represents if compressed or not.
 	//
-	// Deprecated: use [archive.Compression] instead.
-	Compression = archive.Compression
+	// Deprecated: use [compression.Compression] instead.
+	Compression = compression.Compression
 	// WhiteoutFormat is the format of whiteouts unpacked
 	//
 	// Deprecated: use [archive.WhiteoutFormat] instead.
@@ -32,7 +34,7 @@ type (
 	TarOptions struct {
 		IncludeFiles     []string
 		ExcludePatterns  []string
-		Compression      archive.Compression
+		Compression      compression.Compression
 		NoLchown         bool
 		IDMap            idtools.IdentityMapping
 		ChownOpts        *idtools.Identity
@@ -75,11 +77,11 @@ func NewDefaultArchiver() *Archiver {
 }
 
 const (
-	Uncompressed = archive.Uncompressed // Deprecated: use [archive.Uncompressed] instead.
-	Bzip2        = archive.Bzip2        // Deprecated: use [archive.Bzip2] instead.
-	Gzip         = archive.Gzip         // Deprecated: use [archive.Gzip] instead.
-	Xz           = archive.Xz           // Deprecated: use [archive.Xz] instead.
-	Zstd         = archive.Zstd         // Deprecated: use [archive.Zstd] instead.
+	Uncompressed = compression.None  // Deprecated: use [compression.None] instead.
+	Bzip2        = compression.Bzip2 // Deprecated: use [compression.Bzip2] instead.
+	Gzip         = compression.Gzip  // Deprecated: use [compression.Gzip] instead.
+	Xz           = compression.Xz    // Deprecated: use [compression.Xz] instead.
+	Zstd         = compression.Zstd  // Deprecated: use [compression.Zstd] instead.
 )
 
 const (
@@ -97,23 +99,23 @@ func IsArchivePath(path string) bool {
 
 // DetectCompression detects the compression algorithm of the source.
 //
-// Deprecated: use [archive.DetectCompression] instead.
+// Deprecated: use [compression.Detect] instead.
 func DetectCompression(source []byte) archive.Compression {
-	return archive.DetectCompression(source)
+	return compression.Detect(source)
 }
 
 // DecompressStream decompresses the archive and returns a ReaderCloser with the decompressed archive.
 //
-// Deprecated: use [archive.DecompressStream] instead.
+// Deprecated: use [compression.DecompressStream] instead.
 func DecompressStream(arch io.Reader) (io.ReadCloser, error) {
-	return archive.DecompressStream(arch)
+	return compression.DecompressStream(arch)
 }
 
 // CompressStream compresses the dest with specified compression algorithm.
 //
-// Deprecated: use [archive.CompressStream] instead.
-func CompressStream(dest io.Writer, compression archive.Compression) (io.WriteCloser, error) {
-	return archive.CompressStream(dest, compression)
+// Deprecated: use [compression.CompressStream] instead.
+func CompressStream(dest io.Writer, comp compression.Compression) (io.WriteCloser, error) {
+	return compression.CompressStream(dest, comp)
 }
 
 // TarModifierFunc is a function that can be passed to ReplaceFileTarWrapper.
@@ -130,9 +132,9 @@ func ReplaceFileTarWrapper(inputTarStream io.ReadCloser, mods map[string]archive
 
 // FileInfoHeaderNoLookups creates a partially-populated tar.Header from fi.
 //
-// Deprecated: use [archive.FileInfoHeaderNoLookups] instead.
+// Deprecated: use [tarheader.FileInfoHeaderNoLookups] instead.
 func FileInfoHeaderNoLookups(fi os.FileInfo, link string) (*tar.Header, error) {
-	return archive.FileInfoHeaderNoLookups(fi, link)
+	return tarheader.FileInfoHeaderNoLookups(fi, link)
 }
 
 // FileInfoHeader creates a populated Header from fi.

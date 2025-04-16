@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/streamformatter"
-	dockerarchive "github.com/moby/go-archive"
+	"github.com/moby/go-archive/compression"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -230,7 +230,7 @@ func (i *ImageService) leaseContent(ctx context.Context, store content.Store, de
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
 func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platform *ocispec.Platform, outStream io.Writer, quiet bool) error {
-	decompressed, err := dockerarchive.DecompressStream(inTar)
+	decompressed, err := compression.DecompressStream(inTar)
 	if err != nil {
 		return errors.Wrap(err, "failed to decompress input tar archive")
 	}

@@ -128,7 +128,6 @@ func TarResourceRebase(sourcePath, rebaseName string) (content io.ReadCloser, _ 
 func TarResourceRebaseOpts(sourceBase string, rebaseName string) *TarOptions {
 	filter := []string{sourceBase}
 	return &TarOptions{
-		Compression:      Uncompressed,
 		IncludeFiles:     filter,
 		IncludeSourceDir: true,
 		RebaseNames: map[string]string{
@@ -335,7 +334,7 @@ func RebaseArchiveEntries(srcContent io.Reader, oldBase, newBase string) io.Read
 
 		for {
 			hdr, err := srcTar.Next()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				// Signals end of archive.
 				rebasedTar.Close()
 				w.Close()

@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/pkg/pools"
 	"github.com/google/uuid"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
-	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/compression"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -168,17 +168,17 @@ func saveArchive(ctx context.Context, cs content.Store, layerReader io.Reader) (
 	bufRd := p.Get(layerReader)
 	defer p.Put(bufRd)
 
-	compression, err := detectCompression(bufRd)
+	comp, err := detectCompression(bufRd)
 	if err != nil {
 		return "", "", "", err
 	}
 
 	var uncompressedReader io.Reader = bufRd
-	switch compression {
-	case archive.Gzip, archive.Zstd:
+	switch comp {
+	case compression.Gzip, compression.Zstd:
 		// If the input is already a compressed layer, just save it as is.
 		mediaType := ocispec.MediaTypeImageLayerGzip
-		if compression == archive.Zstd {
+		if comp == compression.Zstd {
 			mediaType = ocispec.MediaTypeImageLayerZstd
 		}
 
@@ -188,19 +188,17 @@ func saveArchive(ctx context.Context, cs content.Store, layerReader io.Reader) (
 		}
 
 		return compressedDigest, uncompressedDigest, mediaType, nil
-	case archive.Bzip2, archive.Xz:
-		r, err := archive.DecompressStream(bufRd)
+	case compression.Bzip2, compression.Xz:
+		r, err := compression.DecompressStream(bufRd)
 		if err != nil {
 			return "", "", "", errdefs.InvalidParameter(err)
 		}
 		defer r.Close()
 		uncompressedReader = r
 		fallthrough
-	case archive.Uncompressed:
+	case compression.None:
 		mediaType := ocispec.MediaTypeImageLayerGzip
-		compression := archive.Gzip
-
-		compressedDigest, uncompressedDigest, err := compressAndWriteBlob(ctx, cs, compression, mediaType, uncompressedReader)
+		compressedDigest, uncompressedDigest, err := compressAndWriteBlob(ctx, cs, compression.Gzip, mediaType, uncompressedReader)
 		if err != nil {
 			return "", "", "", err
 		}
@@ -228,7 +226,7 @@ func writeCompressedBlob(ctx context.Context, cs content.Store, mediaType string
 	digester := digest.Canonical.Digester()
 
 	// Decompress the piped blob.
-	decompressedStream, err := archive.DecompressStream(pr)
+	decompressedStream, err := compression.DecompressStream(pr)
 	if err == nil {
 		// Feed the digester with decompressed data.
 		_, err = io.Copy(digester.Hash(), decompressedStream)
@@ -249,12 +247,12 @@ func writeCompressedBlob(ctx context.Context, cs content.Store, mediaType string
 }
 
 // compressAndWriteBlob compresses the uncompressedReader and stores it in the content store.
-func compressAndWriteBlob(ctx context.Context, cs content.Store, compression archive.Compression, mediaType string, uncompressedLayerReader io.Reader) (digest.Digest, digest.Digest, error) {
+func compressAndWriteBlob(ctx context.Context, cs content.Store, comp compression.Compression, mediaType string, uncompressedLayerReader io.Reader) (digest.Digest, digest.Digest, error) {
 	pr, pw := io.Pipe()
 	defer pr.Close()
 	defer pw.Close()
 
-	compressor, err := archive.CompressStream(pw, compression)
+	compressor, err := compression.CompressStream(pw, comp)
 	if err != nil {
 		return "", "", errdefs.InvalidParameter(err)
 	}
@@ -312,7 +310,7 @@ func (i *ImageService) unpackImage(ctx context.Context, snapshotter string, img 
 }
 
 // detectCompression detects the reader compression type.
-func detectCompression(bufRd *bufio.Reader) (archive.Compression, error) {
+func detectCompression(bufRd *bufio.Reader) (compression.Compression, error) {
 	bs, err := bufRd.Peek(10)
 	if err != nil && err != io.EOF {
 		// Note: we'll ignore any io.EOF error because there are some odd
@@ -321,10 +319,10 @@ func detectCompression(bufRd *bufio.Reader) (archive.Compression, error) {
 		// cases we'll just treat it as a non-compressed stream and
 		// that means just create an empty layer.
 		// See Issue 18170
-		return archive.Uncompressed, errdefs.Unknown(err)
+		return compression.None, errdefs.Unknown(err)
 	}
 
-	return archive.DetectCompression(bs), nil
+	return compression.Detect(bs), nil
 }
 
 // fillUncompressedLabel sets the uncompressed digest label on the compressed blob metadata

@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/internal/testutils"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil/fakecontext"
-	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/compression"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -360,7 +360,7 @@ RUN touch /opt/a/b/c && chown user:user /opt/a/b/c`
 
 func listTar(f io.Reader) ([]string, error) {
 	// If using the containerd snapshotter, the tar file may be compressed
-	dec, err := archive.DecompressStream(f)
+	dec, err := compression.DecompressStream(f)
 	if err != nil {
 		return nil, err
 	}

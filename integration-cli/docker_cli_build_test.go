@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/testutil/fakestorage"
 	"github.com/moby/buildkit/frontend/dockerfile/command"
 	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/compression"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -2008,7 +2009,7 @@ func (s *DockerCLIBuildSuite) TestBuildAddLocalAndRemoteFilesWithAndWithoutCache
 	}
 }
 
-func testContextTar(c *testing.T, compression archive.Compression) {
+func testContextTar(c *testing.T, comp compression.Compression) {
 	ctx := fakecontext.New(c, "",
 		fakecontext.WithDockerfile(`FROM busybox
 ADD foo /foo
@@ -2018,13 +2019,13 @@ CMD ["cat", "/foo"]`),
 		}),
 	)
 	defer ctx.Close()
-	context, err := archive.Tar(ctx.Dir, compression)
+	buildContext, err := archive.Tar(ctx.Dir, comp)
 	if err != nil {
 		c.Fatalf("failed to build context tar: %v", err)
 	}
 	const name = "contexttar"
 
-	cli.BuildCmd(c, name, build.WithStdinContext(context))
+	cli.BuildCmd(c, name, build.WithStdinContext(buildContext))
 }
 
 func (s *DockerCLIBuildSuite) TestBuildContextTarGzip(c *testing.T) {
