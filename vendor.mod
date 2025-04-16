@@ -7,6 +7,8 @@ module github.com/docker/docker
 
 go 1.23.0
 
+replace github.com/moby/go-archive => github.com/thaJeztah/go-archive v0.0.0-20250415193121-fe37de63456c
+
 require (
 	cloud.google.com/go/compute/metadata v0.5.2
 	cloud.google.com/go/logging v1.9.0

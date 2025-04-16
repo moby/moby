@@ -1,7 +1,7 @@
 package chrootarchive
 
 import (
-	"fmt"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -9,6 +9,7 @@ import (
 	"github.com/moby/sys/user"
 
 	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/compression"
 )
 
 // NewArchiver returns a new Archiver which uses chrootarchive.Untar
@@ -53,7 +54,7 @@ func UntarUncompressed(tarArchive io.Reader, dest string, options *archive.TarOp
 // Handler for teasing out the automatic decompression
 func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions, decompress bool, root string) error {
 	if tarArchive == nil {
-		return fmt.Errorf("Empty archive")
+		return errors.New("empty archive")
 	}
 	if options == nil {
 		options = &archive.TarOptions{}
@@ -77,7 +78,7 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 
 	r := io.NopCloser(tarArchive)
 	if decompress {
-		decompressedArchive, err := archive.DecompressStream(tarArchive)
+		decompressedArchive, err := compression.DecompressStream(tarArchive)
 		if err != nil {
 			return err
 		}

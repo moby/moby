@@ -3,6 +3,7 @@ package archive
 import (
 	"archive/tar"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+
+	"github.com/moby/go-archive/compression"
 )
 
 // UnpackLayer unpack `layer` to a `dest`. The stream `layer` can be
@@ -35,7 +38,7 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 	// Iterate through the files in the archive.
 	for {
 		hdr, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			// end of tar archive
 			break
 		}
@@ -149,7 +152,7 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 			// the layer is also a directory. Then we want to merge them (i.e.
 			// just apply the metadata from the layer).
 			if fi, err := os.Lstat(path); err == nil {
-				if !(fi.IsDir() && hdr.Typeflag == tar.TypeDir) {
+				if !fi.IsDir() || hdr.Typeflag != tar.TypeDir {
 					if err := os.RemoveAll(path); err != nil {
 						return 0, err
 					}
@@ -165,7 +168,7 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 				linkBasename := filepath.Base(hdr.Linkname)
 				srcHdr = aufsHardlinks[linkBasename]
 				if srcHdr == nil {
-					return 0, fmt.Errorf("Invalid aufs hardlink")
+					return 0, errors.New("invalid aufs hardlink")
 				}
 				tmpFile, err := os.Open(filepath.Join(aufsTempdir, linkBasename))
 				if err != nil {
@@ -221,18 +224,18 @@ func ApplyUncompressedLayer(dest string, layer io.Reader, options *TarOptions) (
 
 // IsEmpty checks if the tar archive is empty (doesn't contain any entries).
 func IsEmpty(rd io.Reader) (bool, error) {
-	decompRd, err := DecompressStream(rd)
+	decompRd, err := compression.DecompressStream(rd)
 	if err != nil {
-		return true, fmt.Errorf("failed to decompress archive: %v", err)
+		return true, fmt.Errorf("failed to decompress archive: %w", err)
 	}
 	defer decompRd.Close()
 
 	tarReader := tar.NewReader(decompRd)
 	if _, err := tarReader.Next(); err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return true, nil
 		}
-		return false, fmt.Errorf("failed to read next archive header: %v", err)
+		return false, fmt.Errorf("failed to read next archive header: %w", err)
 	}
 
 	return false, nil
@@ -247,7 +250,7 @@ func applyLayerHandler(dest string, layer io.Reader, options *TarOptions, decomp
 	defer restore()
 
 	if decompress {
-		decompLayer, err := DecompressStream(layer)
+		decompLayer, err := compression.DecompressStream(layer)
 		if err != nil {
 			return 0, err
 		}
