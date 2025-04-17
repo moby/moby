@@ -152,6 +152,7 @@ init() {
 		case $iptables_version in
 			*legacy*) iptables_module="ip_tables" ;;
 		esac
+	else
 		faced_iptables_error=1
 		if [ -z "$OPT_SKIP_IPTABLES" ]; then
 			if command -v apt-get > /dev/null 2>&1; then
