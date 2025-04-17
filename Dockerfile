@@ -5,7 +5,8 @@ ARG BASE_DEBIAN_DISTRO="bookworm"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 ARG XX_VERSION=1.6.1
 
-ARG VPNKIT_VERSION=0.5.0
+# TODO: Change to a tagged release
+ARG VPNKIT_VERSION=master
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
 ARG DOCKERCLI_VERSION=v28.0.1
@@ -418,8 +419,8 @@ FROM scratch AS vpnkit-linux-arm
 FROM scratch AS vpnkit-linux-ppc64le
 FROM scratch AS vpnkit-linux-riscv64
 FROM scratch AS vpnkit-linux-s390x
-FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit-linux-amd64
-FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit-linux-arm64
+FROM moby/vpnkit-bin:${VPNKIT_VERSION} AS vpnkit-linux-amd64
+FROM moby/vpnkit-bin:${VPNKIT_VERSION} AS vpnkit-linux-arm64
 FROM vpnkit-linux-${TARGETARCH} AS vpnkit-linux
 FROM vpnkit-${TARGETOS} AS vpnkit
 
