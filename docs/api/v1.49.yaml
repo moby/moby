@@ -6944,6 +6944,20 @@ definitions:
   FirewallInfo:
     description: |
       Information about the daemon's firewalling configuration.
+ 
+ **Upgrade/Downgrade:**
+  - Upgrading from a Docker Engine release using `iptables` to one using `nftables` may require:
+    - Flushing legacy iptables rules: `iptables -F`
+    - Loading nftables rules via your `nftables.conf`: `nft -f /etc/nftables.conf`
+  - Downgrading back to iptables requires:
+    - Flushing nftables rules: `nft flush ruleset`
+    - Re-applying iptables rules as needed.
+
+  **Enabling/Disabling:**
+  - Control the firewall backend with these daemon flags:
+    - `--iptables` (legacy iptables driver; default: `true`)
+    - `--nftables` (nftables driver; default: `false`, experimental)
+
 
       This field is currently only used on Linux, and omitted on other platforms.
     type: "object"
