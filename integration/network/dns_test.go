@@ -18,7 +18,7 @@ func TestDaemonDNSFallback(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsUserNamespace)
-	ctx := testutil.StartSpan(baseContext, t)
+	ctx := setupTest(t)
 
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t, "-b", "none", "--dns", "127.127.127.1", "--dns", "8.8.8.8")

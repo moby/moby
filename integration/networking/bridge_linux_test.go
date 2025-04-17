@@ -625,7 +625,7 @@ func TestDefaultBridgeIPv6(t *testing.T) {
 		},
 		{
 			name:          "IPv6 ULA",
-			fixed_cidr_v6: "fd00:1234::/64",
+			fixed_cidr_v6: "fd00:1235::/64",
 		},
 		{
 			name:          "IPv6 LLA only",
@@ -633,7 +633,7 @@ func TestDefaultBridgeIPv6(t *testing.T) {
 		},
 		{
 			name:          "IPv6 nonstandard LLA only",
-			fixed_cidr_v6: "fe80:1234::/64",
+			fixed_cidr_v6: "fe80:1236::/64",
 		},
 	}
 
@@ -731,16 +731,16 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 					// Modify that prefix, the default bridge's address must be deleted and re-added.
 					// The bridge must still have an address in the required (standard) LL subnet.
 					stepName:    "Nonstandard LL prefix - address change",
-					fixedCIDRV6: "fe80:1234::/32",
-					expAddrs:    []string{"fe80:1234::1/32", "fe80::"},
+					fixedCIDRV6: "fe80:1237::/32",
+					expAddrs:    []string{"fe80:1237::1/32", "fe80::"},
 				},
 				{
 					// Modify the prefix length, the addresses should not change.
 					stepName:    "Modify LL prefix - no address change",
-					fixedCIDRV6: "fe80:1234::/64",
+					fixedCIDRV6: "fe80:1238::/64",
 					// The prefix length displayed by 'ip a' is not updated - it's informational, and
 					// can't be changed without unnecessarily deleting and re-adding the address.
-					expAddrs: []string{"fe80:1234::1/", "fe80::"},
+					expAddrs: []string{"fe80:1238::1/", "fe80::"},
 				},
 			},
 		},
@@ -1500,7 +1500,7 @@ func TestAdvertiseAddresses(t *testing.T) {
 				network.WithIPAM("172.22.22.0/24", "172.22.22.1"),
 			}, tc.netOpts...)
 			if tc.ipv6LinkLocal {
-				netOpts = append(netOpts, network.WithIPAM("fe80:1234::/64", "fe80:1234::1"))
+				netOpts = append(netOpts, network.WithIPAM("fe80:1240::/64", "fe80:1240::1"))
 			} else {
 				netOpts = append(netOpts, network.WithIPAM("fd3c:e70a:962c::/64", "fd3c:e70a:962c::1"))
 			}
@@ -1523,7 +1523,7 @@ func TestAdvertiseAddresses(t *testing.T) {
 			const ctr2Addr4 = "172.22.22.22"
 			ctr2Addr6 := "fd3c:e70a:962c::2222"
 			if tc.ipv6LinkLocal {
-				ctr2Addr6 = "fe80:1234::2222"
+				ctr2Addr6 = "fe80:1240::2222"
 			}
 			ctr2Id := container.Run(ctx, t, c,
 				container.WithName(ctr2Name),

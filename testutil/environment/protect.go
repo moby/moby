@@ -25,11 +25,12 @@ var frozenImages = []string{
 }
 
 type protectedElements struct {
-	containers map[string]struct{}
-	images     map[string]struct{}
-	networks   map[string]struct{}
-	plugins    map[string]struct{}
-	volumes    map[string]struct{}
+	containers        map[string]struct{}
+	defaultBridgeInfo *defaultBridgeInfo
+	images            map[string]struct{}
+	networks          map[string]struct{}
+	plugins           map[string]struct{}
+	volumes           map[string]struct{}
 }
 
 func newProtectedElements() protectedElements {
@@ -57,6 +58,7 @@ func ProtectAll(ctx context.Context, t testing.TB, testEnv *Execution) {
 	ProtectNetworks(ctx, t, testEnv)
 	ProtectVolumes(ctx, t, testEnv)
 	if testEnv.DaemonInfo.OSType == "linux" {
+		ProtectDefaultBridge(ctx, t, testEnv)
 		ProtectPlugins(ctx, t, testEnv)
 	}
 }
