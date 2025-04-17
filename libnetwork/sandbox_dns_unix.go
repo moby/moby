@@ -219,6 +219,11 @@ func (sb *Sandbox) restoreHostsPath() {
 }
 
 func (sb *Sandbox) setExternalResolvers(entries []resolvconf.ExtDNSEntry) {
+	if len(entries) == 0 {
+		log.G(context.TODO()).WithField("cid", sb.ContainerID()).Warn("DNS resolver has no external nameservers")
+		sb.extDNS = nil
+		return
+	}
 	sb.extDNS = make([]extDNSEntry, 0, len(entries))
 	for _, entry := range entries {
 		sb.extDNS = append(sb.extDNS, extDNSEntry{

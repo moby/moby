@@ -85,10 +85,10 @@ type metadata struct {
 	SearchOverride  bool
 	OptionsOverride bool
 	NDotsFrom       string
-	UsedDefaultNS   bool
 	Transform       string
 	InvalidNSs      []string
 	ExtNameServers  []ExtDNSEntry
+	Warnings        []string
 }
 
 // Load opens a file at path and parses it as a resolv.conf file.
@@ -229,7 +229,7 @@ func (rc *ResolvConf) TransformForLegacyNw(ipv6 bool) {
 	if len(rc.nameServers) == 0 {
 		log.G(context.TODO()).Info("No non-localhost DNS nameservers are left in resolv.conf. Using default external servers")
 		rc.nameServers = defaultNSAddrs(ipv6)
-		rc.md.UsedDefaultNS = true
+		rc.md.Warnings = append(rc.md.Warnings, "Used default nameservers.")
 	}
 }
 
@@ -280,6 +280,9 @@ func (rc *ResolvConf) TransformForIntNS(
 	}
 
 	rc.md.Transform = "internal resolver"
+	if len(rc.md.ExtNameServers) == 0 {
+		rc.md.Warnings = append(rc.md.Warnings, "NO EXTERNAL NAMESERVERS DEFINED")
+	}
 	return append([]ExtDNSEntry(nil), rc.md.ExtNameServers...), nil
 }
 
@@ -325,8 +328,8 @@ options {{join . " "}}
 {{join . "\n"}}
 {{end}}{{if .Comments}}
 # Based on host file: '{{.Md.SourcePath}}'{{with .Md.Transform}} ({{.}}){{end}}
-{{if .Md.UsedDefaultNS -}}
-# Used default nameservers.
+{{range .Md.Warnings -}}
+# {{.}}
 {{end -}}
 {{with .Md.ExtNameServers -}}
 # ExtServers: {{.}}
