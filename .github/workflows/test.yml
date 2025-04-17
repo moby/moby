@@ -36,7 +36,7 @@ jobs:
     uses: ./.github/workflows/.dco.yml
 
   build-dev:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-dco
@@ -70,7 +70,7 @@ jobs:
             *.output=type=cacheonly
 
   validate-prepare:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-dco
@@ -92,7 +92,7 @@ jobs:
           echo ${{ steps.scripts.outputs.matrix }}
 
   validate:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-prepare
@@ -126,7 +126,7 @@ jobs:
           make -o build validate-${{ matrix.script }}
 
   unit:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     needs:
       - build-dev
@@ -177,7 +177,7 @@ jobs:
           retention-days: 1
 
   unit-report:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     if: always()
     needs:
@@ -204,7 +204,7 @@ jobs:
           teststat -markdown $(find /tmp/reports -type f -name '*.json' -print0 | xargs -0) >> $GITHUB_STEP_SUMMARY
 
   docker-py:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     needs:
       - build-dev
@@ -252,7 +252,7 @@ jobs:
           path: /tmp/reports/*
 
   integration-flaky:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     needs:
       - build-dev
@@ -289,13 +289,16 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-20.04
           - ubuntu-22.04
+          - ubuntu-24.04
         mode:
           - ""
           - rootless
           - systemd
           #- rootless-systemd FIXME: https://github.com/moby/moby/issues/44084
+        exclude:
+          - os: ubuntu-24.04
+            mode: rootless # FIXME: https://github.com/moby/moby/pull/49579#issuecomment-2698622223
     steps:
       -
         name: Checkout
@@ -368,7 +371,7 @@ jobs:
           path: /tmp/reports/*
 
   integration-report:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     if: always()
     needs:
@@ -396,7 +399,7 @@ jobs:
           teststat -markdown $(find /tmp/reports -type f -name '*.json' -print0 | xargs -0) >> $GITHUB_STEP_SUMMARY
 
   integration-cli-prepare:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs:
       - validate-dco
     outputs:
@@ -432,7 +435,7 @@ jobs:
           echo ${{ steps.tests.outputs.matrix }}
 
   integration-cli:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     needs:
       - build-dev
@@ -500,7 +503,7 @@ jobs:
           path: /tmp/reports/*
 
   integration-cli-report:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     if: always()
     needs:
@@ -528,7 +531,7 @@ jobs:
           teststat -markdown $(find /tmp/reports -type f -name '*.json' -print0 | xargs -0) >> $GITHUB_STEP_SUMMARY
 
   prepare-smoke:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-dco
@@ -550,7 +553,7 @@ jobs:
           echo ${{ steps.platforms.outputs.matrix }}
 
   smoke:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - prepare-smoke
