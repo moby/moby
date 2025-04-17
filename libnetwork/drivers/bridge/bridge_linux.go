@@ -1174,6 +1174,17 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		}
 	}
 
+	var netip4, netip6 netip.Addr
+	if endpoint.addr != nil {
+		netip4, _ = netip.AddrFromSlice(endpoint.addr.IP)
+	}
+	if endpoint.addrv6 != nil {
+		netip6, _ = netip.AddrFromSlice(endpoint.addrv6.IP)
+	}
+	if err := n.iptablesNetwork.AddEndpoint(ctx, netip4, netip6); err != nil {
+		return err
+	}
+
 	// Up the host interface after finishing all netlink configuration
 	if err = d.linkUp(ctx, host); err != nil {
 		return fmt.Errorf("could not set link up for host interface %s: %v", hostIfName, err)
@@ -1280,6 +1291,17 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	}
 	if ep == nil {
 		return endpointNotFoundError(eid)
+	}
+
+	var netip4, netip6 netip.Addr
+	if ep.addr != nil {
+		netip4, _ = netip.AddrFromSlice(ep.addr.IP)
+	}
+	if ep.addrv6 != nil {
+		netip6, _ = netip.AddrFromSlice(ep.addrv6.IP)
+	}
+	if err := n.iptablesNetwork.DelEndpoint(context.TODO(), netip4, netip6); err != nil {
+		return err
 	}
 
 	// Remove it
