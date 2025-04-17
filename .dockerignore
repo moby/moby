@@ -1,4 +1,6 @@
-.git
-bundles/
-cli/winresources/**/winres.json
-cli/winresources/**/*.syso
+/.git
+
+# build artifacts
+/bundles/
+/cli/winresources/dockerd/winres.json
+/cli/winresources/dockerd/*.syso
