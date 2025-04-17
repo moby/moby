@@ -234,6 +234,11 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 }
 
 func (s *State) conditionAlreadyMet(condition WaitCondition) bool {
+	// If the container is in the "created" state, it hasn't had any chance to
+	// run yet, so no state change was possible yet.
+	if s.StartedAt.IsZero() {
+		return false
+	}
 	switch condition {
 	case WaitConditionNotRunning:
 		return !s.Running
