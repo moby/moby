@@ -263,7 +263,7 @@ const (
 	fileTypeJSON = "json"
 )
 
-// Format contains information needed to retireve a subject token for URL or File sourced credentials.
+// Format contains information needed to retrieve a subject token for URL or File sourced credentials.
 type Format struct {
 	// Type should be either "text" or "json". This determines whether the file or URL sourced credentials
 	// expect a simple text subject token or if the subject token will be contained in a JSON object.
