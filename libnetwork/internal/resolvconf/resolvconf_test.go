@@ -410,6 +410,10 @@ func TestRCTransformForIntNS(t *testing.T) {
 			reqdOptions:   []string{"ndots:0", "attempts:3", "edns0", "trust-ad"},
 			expExtServers: []ExtDNSEntry{mke("127.0.0.53", true)},
 		},
+		{
+			name:  "No config",
+			input: "",
+		},
 	}
 
 	for _, tc := range testcases {
