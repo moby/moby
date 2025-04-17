@@ -595,13 +595,13 @@ func WithUser(userstr string) SpecOpts {
 		setProcess(s)
 		s.Process.User.AdditionalGids = nil
 		// While the Linux kernel allows the max UID to be MaxUint32 - 2,
-                // and the OCI Runtime Spec has no definition about the max UID,
-                // the runc implementation is known to require the UID to be <= MaxInt32.
-                //
-                // containerd follows runc's limitation here.
-                //
-                // In future we may relax this limitation to allow MaxUint32 - 2,
-                // or, amend the OCI Runtime Spec to codify the implementation limitation.
+		// and the OCI Runtime Spec has no definition about the max UID,
+		// the runc implementation is known to require the UID to be <= MaxInt32.
+		//
+		// containerd follows runc's limitation here.
+		//
+		// In future we may relax this limitation to allow MaxUint32 - 2,
+		// or, amend the OCI Runtime Spec to codify the implementation limitation.
 		const (
 			minUserID  = 0
 			maxUserID  = math.MaxInt32
