@@ -96,20 +96,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 			c &= ^conflictActiveReference
 		}
 		if named != nil && len(sameRef) > 0 && len(sameRef) != len(all) {
-			var records []imagetypes.DeleteResponse
-			for _, ref := range sameRef {
-				// TODO: Add with target
-				err := i.images.Delete(ctx, ref.Name)
-				if err != nil {
-					return nil, err
-				}
-				if nn, err := reference.ParseNormalizedNamed(ref.Name); err == nil {
-					familiarRef := reference.FamiliarString(nn)
-					i.logImageEvent(ref, familiarRef, events.ActionUnTag)
-					records = append(records, imagetypes.DeleteResponse{Untagged: familiarRef})
-				}
-			}
-			return records, nil
+			return i.untagReferences(ctx, sameRef)
 		}
 	} else {
 		imgID = image.ID(img.Target.Digest)
@@ -127,20 +114,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 			return nil, err
 		}
 		if len(sameRef) != len(all) {
-			var records []imagetypes.DeleteResponse
-			for _, ref := range sameRef {
-				// TODO: Add with target
-				err := i.images.Delete(ctx, ref.Name)
-				if err != nil {
-					return nil, err
-				}
-				if nn, err := reference.ParseNormalizedNamed(ref.Name); err == nil {
-					familiarRef := reference.FamiliarString(nn)
-					i.logImageEvent(ref, familiarRef, events.ActionUnTag)
-					records = append(records, imagetypes.DeleteResponse{Untagged: familiarRef})
-				}
-			}
-			return records, nil
+			return i.untagReferences(ctx, sameRef)
 		} else if len(all) > 1 && !force {
 			// Since only a single used reference, remove all active
 			// TODO: Consider keeping the conflict and changing active
@@ -411,6 +385,25 @@ func (*imageDeleteConflict) Conflict() {}
 // nil if there are none. It takes a bitmask representing a
 // filter for which conflict types the caller cares about,
 // and will only check for these conflict types.
+
+// untagReferences deletes the given image references and returns the appropriate response records
+func (i *ImageService) untagReferences(ctx context.Context, refs []c8dimages.Image) ([]imagetypes.DeleteResponse, error) {
+	var records []imagetypes.DeleteResponse
+	for _, ref := range refs {
+		// TODO: Add with target
+		err := i.images.Delete(ctx, ref.Name)
+		if err != nil {
+			return nil, err
+		}
+		if nn, err := reference.ParseNormalizedNamed(ref.Name); err == nil {
+			familiarRef := reference.FamiliarString(nn)
+			i.logImageEvent(ref, familiarRef, events.ActionUnTag)
+			records = append(records, imagetypes.DeleteResponse{Untagged: familiarRef})
+		}
+	}
+	return records, nil
+}
+
 func (i *ImageService) checkImageDeleteConflict(ctx context.Context, imgID image.ID, all []c8dimages.Image, mask conflictType) error {
 	if mask&conflictRunningContainer != 0 {
 		running := func(c *container.Container) bool {
