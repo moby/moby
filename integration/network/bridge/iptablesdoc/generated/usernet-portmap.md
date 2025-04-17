@@ -163,7 +163,7 @@ And the raw table:
 
     Chain PREROUTING (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DROP       6    --  !bridge1 *       0.0.0.0/0            192.0.2.2            tcp dpt:80
+    1        0     0 DROP       0    --  !bridge1 *       0.0.0.0/0            192.0.2.2           
     
     Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -174,7 +174,7 @@ And the raw table:
 
     -P PREROUTING ACCEPT
     -P OUTPUT ACCEPT
-    -A PREROUTING -d 192.0.2.2/32 ! -i bridge1 -p tcp -m tcp --dport 80 -j DROP
+    -A PREROUTING -d 192.0.2.2/32 ! -i bridge1 -j DROP
     
 
 </details>

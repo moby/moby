@@ -51,7 +51,7 @@ func (n *Network) setPerPortIptables(ctx context.Context, b types.PortBinding, e
 		return err
 	}
 
-	if err := n.filterDirectAccess(ctx, b, enable); err != nil {
+	if err := n.dropLegacyFilterDirectAccess(ctx, b); err != nil {
 		return err
 	}
 
@@ -203,12 +203,28 @@ func filterPortMappedOnLoopback(ctx context.Context, b types.PortBinding, hostIP
 	return nil
 }
 
-// filterDirectAccess adds an iptables rule that drops 'direct' remote
-// connections made to the container's IP address, when the network gateway
-// mode is "nat".
+// dropLegacyFilterDirectAccess deletes a rule that was introduced in 28.0.0 to
+// drop 'direct' remote connections made to the container's IP address - for
+// each published port on the container.
 //
-// This is a no-op if the gw_mode is "nat-unprotected" or "routed".
-func (n *Network) filterDirectAccess(ctx context.Context, b types.PortBinding, enable bool) error {
+// The normal filter-FORWARD rules would then drop packets sent directly to
+// unpublished ports. This rule was only created along with the rest of port
+// publishing (when a container's endpoint was selected as its gateway). Until
+// then, all packets addressed directly to the container's ports were dropped
+// by the filter-FORWARD rules.
+//
+// Since 28.0.2, direct routed packets sent to a container's address are all
+// dropped in a raw-PREROUTING rule - it doesn't need to be per-port (so, fewer
+// rules), and it can be created along with the endpoint (so directly-routed
+// packets are dropped at the same point whether or not the endpoint is currently
+// the gateway - so, very slightly earlier when it's not the gateway).
+//
+// This function was a no-op if the gw_mode was "nat-unprotected" or "routed".
+// It still is. but now always deletes the rule if it might have been created
+// by an older version of the daemon.
+//
+// TODO(robmry) - remove this once there's no upgrade path from 28.0.x or 28.1.x.
+func (n *Network) dropLegacyFilterDirectAccess(ctx context.Context, b types.PortBinding) error {
 	if rawRulesDisabled(ctx) {
 		return nil
 	}
@@ -232,7 +248,7 @@ func (n *Network) filterDirectAccess(ctx context.Context, b types.PortBinding, e
 		"!", "-i", n.IfName,
 		"-j", "DROP",
 	}}
-	if err := appendOrDelChainRule(drop, "DIRECT ACCESS FILTERING - DROP", enable); err != nil {
+	if err := appendOrDelChainRule(drop, "LEGACY DIRECT ACCESS FILTERING - DROP", false); err != nil {
 		return err
 	}
 
