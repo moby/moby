@@ -60,6 +60,4 @@ And the raw table:
 
 </details>
 
-[filterDirectAccess][3] adds a DROP rule to the raw-PREROUTING chain to block direct remote access to the mapped port.
-
-[3]: https://github.com/search?q=repo%3Amoby%2Fmoby%20filterDirectAccess&type=code
+`filterDirectAccess` adds a DROP rule to the raw-PREROUTING chain to block direct remote access to the container.
