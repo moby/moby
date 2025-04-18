@@ -3,7 +3,7 @@
 The Moby Project is widely packaged by many independent software distributors,
 generally under the name 'docker' or 'docker.io.'
 
-A non-exhuastive list of known software packagers and distributions includes:
+A non-exhaustive list of known software packagers and distributions includes:
 
 - [Docker Inc. - Docker CE](https://docs.docker.com/engine/)
 - [Mirantis - Mirantis Container Runtime](https://docs.mirantis.com/mcr/)
