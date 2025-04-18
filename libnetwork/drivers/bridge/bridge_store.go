@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/internal/otelutil"
@@ -130,6 +131,7 @@ func (ncfg *networkConfiguration) MarshalJSON() ([]byte, error) {
 	nMap["GwModeIPv4"] = ncfg.GwModeIPv4
 	nMap["GwModeIPv6"] = ncfg.GwModeIPv6
 	nMap["EnableICC"] = ncfg.EnableICC
+	nMap["TrustedHostInterfaces"] = strings.Join(ncfg.TrustedHostInterfaces, " ")
 	nMap["InhibitIPv4"] = ncfg.InhibitIPv4
 	nMap["Mtu"] = ncfg.Mtu
 	nMap["Internal"] = ncfg.Internal
@@ -208,6 +210,10 @@ func (ncfg *networkConfiguration) UnmarshalJSON(b []byte) error {
 		ncfg.GwModeIPv6, _ = newGwMode(v.(string))
 	}
 	ncfg.EnableICC = nMap["EnableICC"].(bool)
+	if v, ok := nMap["TrustedHostInterfaces"]; ok {
+		s, _ := v.(string)
+		ncfg.TrustedHostInterfaces = strings.Fields(s)
+	}
 	if v, ok := nMap["InhibitIPv4"]; ok {
 		ncfg.InhibitIPv4 = v.(bool)
 	}
