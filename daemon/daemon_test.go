@@ -143,11 +143,7 @@ func TestContainerInitDNS(t *testing.T) {
 		t.Skip("root required") // for chown
 	}
 
-	tmp, err := os.MkdirTemp("", "docker-container-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	containerID := "d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e"
 	containerPath := filepath.Join(tmp, containerID)

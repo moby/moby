@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/docker/docker/api/types/events"
@@ -235,15 +234,13 @@ func TestServicePrune(t *testing.T) {
 func newTestService(t *testing.T, ds *volumedrivers.Store) (*VolumesService, func()) {
 	t.Helper()
 
-	dir, err := os.MkdirTemp("", t.Name())
-	assert.NilError(t, err)
+	dir := t.TempDir()
 
 	store, err := NewStore(dir, ds)
 	assert.NilError(t, err)
 	s := &VolumesService{vs: store, eventLogger: dummyEventLogger{}}
 	return s, func() {
 		assert.Check(t, s.Shutdown())
-		assert.Check(t, os.RemoveAll(dir))
 	}
 }
 

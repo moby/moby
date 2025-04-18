@@ -14,19 +14,15 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func defaultFSStoreBackend(t *testing.T) (StoreBackend, func()) {
-	tmpdir, err := os.MkdirTemp("", "images-fs-store")
+func defaultFSStoreBackend(t *testing.T) StoreBackend {
+	t.Helper()
+	fsBackend, err := NewFSStoreBackend(t.TempDir())
 	assert.Check(t, err)
-
-	fsBackend, err := NewFSStoreBackend(tmpdir)
-	assert.Check(t, err)
-
-	return fsBackend, func() { os.RemoveAll(tmpdir) }
+	return fsBackend
 }
 
 func TestFSGetInvalidData(t *testing.T) {
-	store, cleanup := defaultFSStoreBackend(t)
-	defer cleanup()
+	store := defaultFSStoreBackend(t)
 
 	dgst, err := store.Set([]byte("foobar"))
 	assert.Check(t, err)
@@ -39,8 +35,7 @@ func TestFSGetInvalidData(t *testing.T) {
 }
 
 func TestFSInvalidSet(t *testing.T) {
-	store, cleanup := defaultFSStoreBackend(t)
-	defer cleanup()
+	store := defaultFSStoreBackend(t)
 
 	id := digest.FromBytes([]byte("foobar"))
 	err := os.Mkdir(filepath.Join(store.(*fs).root, contentDirName, string(id.Algorithm()), id.Encoded()), 0o700)
@@ -51,9 +46,7 @@ func TestFSInvalidSet(t *testing.T) {
 }
 
 func TestFSInvalidRoot(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "images-fs-store")
-	assert.Check(t, err)
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	tcases := []struct {
 		root, invalidFile string
@@ -81,8 +74,7 @@ func TestFSInvalidRoot(t *testing.T) {
 }
 
 func TestFSMetadataGetSet(t *testing.T) {
-	store, cleanup := defaultFSStoreBackend(t)
-	defer cleanup()
+	store := defaultFSStoreBackend(t)
 
 	id, err := store.Set([]byte("foo"))
 	assert.Check(t, err)
@@ -122,8 +114,7 @@ func TestFSMetadataGetSet(t *testing.T) {
 }
 
 func TestFSInvalidWalker(t *testing.T) {
-	store, cleanup := defaultFSStoreBackend(t)
-	defer cleanup()
+	store := defaultFSStoreBackend(t)
 
 	fooID, err := store.Set([]byte("foo"))
 	assert.Check(t, err)
@@ -142,8 +133,7 @@ func TestFSInvalidWalker(t *testing.T) {
 }
 
 func TestFSGetSet(t *testing.T) {
-	store, cleanup := defaultFSStoreBackend(t)
-	defer cleanup()
+	store := defaultFSStoreBackend(t)
 
 	type tcase struct {
 		input    []byte
@@ -181,8 +171,7 @@ func TestFSGetSet(t *testing.T) {
 }
 
 func TestFSGetUnsetKey(t *testing.T) {
-	store, cleanup := defaultFSStoreBackend(t)
-	defer cleanup()
+	store := defaultFSStoreBackend(t)
 
 	for _, key := range []digest.Digest{"foobar:abc", "sha256:abc", "sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2a"} {
 		_, err := store.Get(key)
@@ -191,8 +180,7 @@ func TestFSGetUnsetKey(t *testing.T) {
 }
 
 func TestFSGetEmptyData(t *testing.T) {
-	store, cleanup := defaultFSStoreBackend(t)
-	defer cleanup()
+	store := defaultFSStoreBackend(t)
 
 	for _, emptyData := range [][]byte{nil, {}} {
 		_, err := store.Set(emptyData)
@@ -201,8 +189,7 @@ func TestFSGetEmptyData(t *testing.T) {
 }
 
 func TestFSDelete(t *testing.T) {
-	store, cleanup := defaultFSStoreBackend(t)
-	defer cleanup()
+	store := defaultFSStoreBackend(t)
 
 	id, err := store.Set([]byte("foo"))
 	assert.Check(t, err)
@@ -227,8 +214,7 @@ func TestFSDelete(t *testing.T) {
 }
 
 func TestFSWalker(t *testing.T) {
-	store, cleanup := defaultFSStoreBackend(t)
-	defer cleanup()
+	store := defaultFSStoreBackend(t)
 
 	id, err := store.Set([]byte("foo"))
 	assert.Check(t, err)
@@ -251,8 +237,7 @@ func TestFSWalker(t *testing.T) {
 }
 
 func TestFSWalkerStopOnError(t *testing.T) {
-	store, cleanup := defaultFSStoreBackend(t)
-	defer cleanup()
+	store := defaultFSStoreBackend(t)
 
 	id, err := store.Set([]byte("foo"))
 	assert.Check(t, err)
