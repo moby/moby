@@ -82,6 +82,8 @@ type fakeImageService struct {
 	ImageService
 }
 
+func (i *fakeImageService) Cleanup() error { return nil }
+
 func (i *fakeImageService) StorageDriver() string {
 	return "overlay"
 }
