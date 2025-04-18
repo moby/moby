@@ -288,7 +288,7 @@ func (tf *tokenRefresher) Token() (*Token, error) {
 	if tf.refreshToken != tk.RefreshToken {
 		tf.refreshToken = tk.RefreshToken
 	}
-	return tk, err
+	return tk, nil
 }
 
 // reuseTokenSource is a TokenSource that holds a single token in memory
@@ -356,11 +356,15 @@ func NewClient(ctx context.Context, src TokenSource) *http.Client {
 	if src == nil {
 		return internal.ContextClient(ctx)
 	}
+	cc := internal.ContextClient(ctx)
 	return &http.Client{
 		Transport: &Transport{
-			Base:   internal.ContextClient(ctx).Transport,
+			Base:   cc.Transport,
 			Source: ReuseTokenSource(nil, src),
 		},
+		CheckRedirect: cc.CheckRedirect,
+		Jar:           cc.Jar,
+		Timeout:       cc.Timeout,
 	}
 }
 

@@ -477,13 +477,15 @@ func (pw *pushWriter) Digest() digest.Digest {
 
 func (pw *pushWriter) Commit(ctx context.Context, size int64, expected digest.Digest, opts ...content.Opt) error {
 	// Check whether read has already thrown an error
-	if _, err := pw.pipe.Write([]byte{}); err != nil && !errors.Is(err, io.ErrClosedPipe) {
-		return fmt.Errorf("pipe error before commit: %w", err)
+	if pw.pipe != nil {
+		if _, err := pw.pipe.Write([]byte{}); err != nil && !errors.Is(err, io.ErrClosedPipe) {
+			return fmt.Errorf("pipe error before commit: %w", err)
+		}
+		if err := pw.pipe.Close(); err != nil {
+			return err
+		}
 	}
 
-	if err := pw.pipe.Close(); err != nil {
-		return err
-	}
 	// TODO: timeout waiting for response
 	var resp *http.Response
 	select {
