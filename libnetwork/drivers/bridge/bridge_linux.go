@@ -12,11 +12,11 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/modprobe"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/drivers/bridge/internal/iptabler"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/rlkclient"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/iptables"
@@ -51,10 +51,10 @@ const (
 
 const spanPrefix = "libnetwork.drivers.bridge"
 
-type (
-	iptableCleanFunc   func() error
-	iptablesCleanFuncs []iptableCleanFunc
-)
+// DockerForwardChain is where libnetwork.programIngress puts Swarm's jump to DOCKER-INGRESS.
+//
+// FIXME(robmry) - it doesn't belong here.
+const DockerForwardChain = iptabler.DockerForwardChain
 
 // configuration info for the "bridge" driver.
 type configuration struct {
@@ -65,12 +65,6 @@ type configuration struct {
 	EnableUserlandProxy      bool
 	UserlandProxyPath        string
 	Rootless                 bool
-}
-
-type firewaller struct {
-	IPv4    bool
-	IPv6    bool
-	Hairpin bool
 }
 
 // networkConfiguration for network specific configuration
@@ -144,7 +138,7 @@ type bridgeNetwork struct {
 	config          *networkConfiguration
 	endpoints       map[string]*bridgeEndpoint // key: endpoint id
 	driver          *driver                    // The network's driver
-	iptablesNetwork *iptablesNetwork
+	iptablesNetwork *iptabler.Network
 	sync.Mutex
 }
 
@@ -165,7 +159,7 @@ type driver struct {
 	nlh              nlwrap.Handle
 	portDriverClient portDriverClient
 	configNetwork    sync.Mutex
-	firewaller       firewaller
+	firewaller       *iptabler.Iptabler
 	sync.Mutex
 }
 
@@ -401,7 +395,7 @@ func parseErr(label, value, errString string) error {
 	return types.InvalidParameterErrorf("failed to parse %s value: %v (%s)", label, value, errString)
 }
 
-func (n *bridgeNetwork) newIptablesNetwork() (*iptablesNetwork, error) {
+func (n *bridgeNetwork) newIptablesNetwork() (*iptabler.Network, error) {
 	config4, err := makeNetworkConfigFam(n.config.HostIPv4, n.bridge.bridgeIPv4, n.gwMode(iptables.IPv4))
 	if err != nil {
 		return nil, err
@@ -410,7 +404,7 @@ func (n *bridgeNetwork) newIptablesNetwork() (*iptablesNetwork, error) {
 	if err != nil {
 		return nil, err
 	}
-	return n.driver.firewaller.NewNetwork(networkConfig{
+	return n.driver.firewaller.NewNetwork(iptabler.NetworkConfig{
 		IfName:     n.config.BridgeName,
 		Internal:   n.config.Internal,
 		ICC:        n.config.EnableICC,
@@ -420,8 +414,8 @@ func (n *bridgeNetwork) newIptablesNetwork() (*iptablesNetwork, error) {
 	})
 }
 
-func makeNetworkConfigFam(hostIP net.IP, bridgePrefix *net.IPNet, gwm gwMode) (networkConfigFam, error) {
-	c := networkConfigFam{
+func makeNetworkConfigFam(hostIP net.IP, bridgePrefix *net.IPNet, gwm gwMode) (iptabler.NetworkConfigFam, error) {
+	c := iptabler.NetworkConfigFam{
 		Routed:      gwm.routed(),
 		Unprotected: gwm.unprotected(),
 	}
@@ -429,14 +423,14 @@ func makeNetworkConfigFam(hostIP net.IP, bridgePrefix *net.IPNet, gwm gwMode) (n
 		var ok bool
 		c.HostIP, ok = netip.AddrFromSlice(hostIP)
 		if !ok {
-			return networkConfigFam{}, fmt.Errorf("invalid host address %q", hostIP)
+			return iptabler.NetworkConfigFam{}, fmt.Errorf("invalid host address %q", hostIP)
 		}
 		c.HostIP = c.HostIP.Unmap()
 	}
 	if bridgePrefix != nil {
 		p, ok := netiputil.ToPrefix(bridgePrefix)
 		if !ok {
-			return networkConfigFam{}, fmt.Errorf("invalid bridge prefix %s", bridgePrefix)
+			return iptabler.NetworkConfigFam{}, fmt.Errorf("invalid bridge prefix %s", bridgePrefix)
 		}
 		c.Prefix = p.Masked()
 	}
@@ -507,12 +501,13 @@ func (d *driver) configure(option map[string]interface{}) error {
 		return errdefs.InvalidParameter(fmt.Errorf("invalid configuration type (%T) passed", opt))
 	}
 
-	d.firewaller = firewaller{
+	var err error
+	d.firewaller, err = iptabler.NewIptabler(iptabler.FirewallConfig{
 		IPv4:    config.EnableIPTables,
 		IPv6:    config.EnableIP6Tables,
 		Hairpin: !config.EnableUserlandProxy || config.UserlandProxyPath == "",
-	}
-	if err := d.firewaller.init(); err != nil {
+	})
+	if err != nil {
 		return err
 	}
 	iptables.OnReloaded(d.handleFirewalldReload)
@@ -532,56 +527,6 @@ func (d *driver) configure(option map[string]interface{}) error {
 	d.Unlock()
 
 	return d.initStore()
-}
-
-func (fw *firewaller) init() error {
-	if fw.IPv4 {
-		removeIPChains(iptables.IPv4)
-
-		if err := setupIPChains(iptables.IPv4, fw.Hairpin); err != nil {
-			return err
-		}
-
-		// Make sure on firewall reload, first thing being re-played is chains creation
-		iptables.OnReloaded(func() {
-			log.G(context.TODO()).Debugf("Recreating iptables chains on firewall reload")
-			if err := setupIPChains(iptables.IPv4, fw.Hairpin); err != nil {
-				log.G(context.TODO()).WithError(err).Error("Error reloading iptables chains")
-			}
-		})
-	}
-
-	if fw.IPv6 {
-		if err := modprobe.LoadModules(context.TODO(), func() error {
-			iptable := iptables.GetIptable(iptables.IPv6)
-			_, err := iptable.Raw("-t", "filter", "-n", "-L", "FORWARD")
-			return err
-		}, "ip6_tables"); err != nil {
-			log.G(context.TODO()).WithError(err).Debug("Loading ip6_tables")
-		}
-
-		removeIPChains(iptables.IPv6)
-
-		err := setupIPChains(iptables.IPv6, fw.Hairpin)
-		if err != nil {
-			// If the chains couldn't be set up, it's probably because the kernel has no IPv6
-			// support, or it doesn't have module ip6_tables loaded. It won't be possible to
-			// create IPv6 networks without enabling ip6_tables in the kernel, or disabling
-			// ip6tables in the daemon config. But, allow the daemon to start because IPv4
-			// will work. So, log the problem, and continue.
-			log.G(context.TODO()).WithError(err).Warn("ip6tables is enabled, but cannot set up ip6tables chains")
-		} else {
-			// Make sure on firewall reload, first thing being re-played is chains creation
-			iptables.OnReloaded(func() {
-				log.G(context.TODO()).Debugf("Recreating ip6tables chains on firewall reload")
-				if err := setupIPChains(iptables.IPv6, fw.Hairpin); err != nil {
-					log.G(context.TODO()).WithError(err).Error("Error reloading ip6tables chains")
-				}
-			})
-		}
-	}
-
-	return nil
 }
 
 func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {
@@ -1051,7 +996,7 @@ func (d *driver) deleteNetwork(nid string) error {
 		// Don't delete the bridge interface if it was not created by libnetwork.
 	}
 
-	if err := n.iptablesNetwork.delNetworkLevelRules(); err != nil {
+	if err := n.iptablesNetwork.DelNetworkLevelRules(); err != nil {
 		log.G(context.TODO()).WithError(err).Warnf("Failed to clean iptables rules for bridge network")
 	}
 
@@ -1607,6 +1552,39 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 	return nil
 }
 
+// clearConntrackEntries flushes conntrack entries matching endpoint IP address
+// or matching one of the exposed UDP port.
+// In the first case, this could happen if packets were received by the host
+// between userland proxy startup and iptables setup.
+// In the latter case, this could happen if packets were received whereas there
+// were nowhere to route them, as netfilter creates entries in such case.
+// This is required because iptables NAT rules are evaluated by netfilter only
+// when creating a new conntrack entry. When Docker latter adds NAT rules,
+// netfilter ignore them for any packet matching a pre-existing conntrack entry.
+// As such, we need to flush all those conntrack entries to make sure NAT rules
+// are correctly applied to all packets.
+// See: #8795, #44688 & #44742.
+func clearConntrackEntries(nlh nlwrap.Handle, ep *bridgeEndpoint) {
+	var ipv4List []net.IP
+	var ipv6List []net.IP
+	var udpPorts []uint16
+
+	if ep.addr != nil {
+		ipv4List = append(ipv4List, ep.addr.IP)
+	}
+	if ep.addrv6 != nil {
+		ipv6List = append(ipv6List, ep.addrv6.IP)
+	}
+	for _, pb := range ep.portMapping {
+		if pb.Proto == types.UDP {
+			udpPorts = append(udpPorts, pb.HostPort)
+		}
+	}
+
+	iptables.DeleteConntrackEntries(nlh, ipv4List, ipv6List)
+	iptables.DeleteConntrackEntriesByPort(nlh, types.UDP, udpPorts)
+}
+
 func (d *driver) handleFirewalldReload() {
 	if !d.config.EnableIPTables && !d.config.EnableIP6Tables {
 		return
@@ -1643,7 +1621,7 @@ func (d *driver) handleFirewalldReloadNw(nid string) {
 		return
 	}
 
-	if err := nw.iptablesNetwork.reapplyNetworkLevelRules(); err != nil {
+	if err := nw.iptablesNetwork.ReapplyNetworkLevelRules(); err != nil {
 		log.G(context.Background()).WithFields(log.Fields{
 			"nid":   nw.id,
 			"error": err,
