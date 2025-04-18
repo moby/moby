@@ -17,7 +17,9 @@ ARG DOCKERCLI_INTEGRATION_VERSION=v18.06.3-ce
 
 # BUILDX_VERSION is the version of buildx to install in the dev container.
 ARG BUILDX_VERSION=0.23.0
-ARG COMPOSE_VERSION=v2.33.1
+
+# COMPOSE_VERSION is the version of compose to install in the dev container.
+ARG COMPOSE_VERSION=v2.35.1
 
 ARG SYSTEMD="false"
 ARG FIREWALLD="false"
