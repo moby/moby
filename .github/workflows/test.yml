@@ -83,6 +83,13 @@ jobs:
     with:
       storage: ${{ matrix.storage }}
 
+  test-unit:
+    needs:
+      - build-dev
+      - validate-dco
+    uses: ./.github/workflows/.test-unit.yml
+    secrets: inherit
+
   validate-prepare:
     runs-on: ubuntu-24.04
     timeout-minutes: 10 # guardrails timeout for the whole job
