@@ -49,6 +49,13 @@ type Token struct {
 	// mechanisms for that TokenSource will not be used.
 	Expiry time.Time `json:"expiry,omitempty"`
 
+	// ExpiresIn is the OAuth2 wire format "expires_in" field,
+	// which specifies how many seconds later the token expires,
+	// relative to an unknown time base approximately around "now".
+	// It is the application's responsibility to populate
+	// `Expiry` from `ExpiresIn` when required.
+	ExpiresIn int64 `json:"expires_in,omitempty"`
+
 	// raw optionally contains extra metadata from the server
 	// when updating a token.
 	raw interface{}
@@ -162,7 +169,7 @@ func tokenFromInternal(t *internal.Token) *Token {
 
 // retrieveToken takes a *Config and uses that to retrieve an *internal.Token.
 // This token is then mapped from *internal.Token into an *oauth2.Token which is returned along
-// with an error..
+// with an error.
 func retrieveToken(ctx context.Context, c *Config, v url.Values) (*Token, error) {
 	tk, err := internal.RetrieveToken(ctx, c.ClientID, c.ClientSecret, c.Endpoint.TokenURL, v, internal.AuthStyle(c.Endpoint.AuthStyle), c.authStyleCache.Get())
 	if err != nil {

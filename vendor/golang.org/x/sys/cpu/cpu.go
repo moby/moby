@@ -72,6 +72,9 @@ var X86 struct {
 	HasSSSE3            bool // Supplemental streaming SIMD extension 3
 	HasSSE41            bool // Streaming SIMD extension 4 and 4.1
 	HasSSE42            bool // Streaming SIMD extension 4 and 4.2
+	HasAVXIFMA          bool // Advanced vector extension Integer Fused Multiply Add
+	HasAVXVNNI          bool // Advanced vector extension Vector Neural Network Instructions
+	HasAVXVNNIInt8      bool // Advanced vector extension Vector Neural Network Int8 instructions
 	_                   CacheLinePad
 }
 
@@ -144,6 +147,18 @@ var ARM struct {
 	HasSHA2     bool // SHA2 hardware implementation
 	HasCRC32    bool // CRC32 hardware implementation
 	_           CacheLinePad
+}
+
+// The booleans in Loong64 contain the correspondingly named cpu feature bit.
+// The struct is padded to avoid false sharing.
+var Loong64 struct {
+	_         CacheLinePad
+	HasLSX    bool // support 128-bit vector extension
+	HasLASX   bool // support 256-bit vector extension
+	HasCRC32  bool // support CRC instruction
+	HasLAM_BH bool // support AM{SWAP/ADD}[_DB].{B/H} instruction
+	HasLAMCAS bool // support AMCAS[_DB].{B/H/W/D} instruction
+	_         CacheLinePad
 }
 
 // MIPS64X contains the supported CPU features of the current mips64/mips64le

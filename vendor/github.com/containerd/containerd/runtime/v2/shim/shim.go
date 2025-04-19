@@ -399,7 +399,7 @@ func run(ctx context.Context, manager Manager, initFunc Init, name string, confi
 	plugins := plugin.Graph(func(*plugin.Registration) bool { return false })
 	for _, p := range plugins {
 		id := p.URI()
-		log.G(ctx).WithField("type", p.Type).Infof("loading plugin %q...", id)
+		log.G(ctx).WithField("type", p.Type).Debugf("loading plugin %q...", id)
 
 		initContext := plugin.NewContext(
 			ctx,

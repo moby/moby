@@ -378,7 +378,7 @@ func Children(ctx context.Context, provider content.Provider, desc ocispec.Descr
 
 		descs = append(descs, index.Manifests...)
 	default:
-		if IsLayerType(desc.MediaType) || IsKnownConfig(desc.MediaType) {
+		if IsLayerType(desc.MediaType) || IsKnownConfig(desc.MediaType) || IsAttestationType(desc.MediaType) {
 			// childless data types.
 			return nil, nil
 		}
