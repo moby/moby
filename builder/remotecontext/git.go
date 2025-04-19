@@ -23,13 +23,21 @@ func MakeGitContext(gitURL string) (builder.Source, error) {
 	}
 
 	defer func() {
-		err := c.Close()
-		if err != nil {
-			log.G(context.TODO()).WithField("action", "MakeGitContext").WithField("module", "builder").WithField("url", gitURL).WithError(err).Error("error while closing git context")
+		if err := c.Close(); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error":  err,
+				"action": "MakeGitContext",
+				"module": "builder",
+				"url":    gitURL,
+			}).Error("error while closing git context")
 		}
-		err = os.RemoveAll(root)
-		if err != nil {
-			log.G(context.TODO()).WithField("action", "MakeGitContext").WithField("module", "builder").WithField("url", gitURL).WithError(err).Error("error while removing path and children of root")
+		if err := os.RemoveAll(root); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error":  err,
+				"action": "MakeGitContext",
+				"module": "builder",
+				"url":    gitURL,
+			}).Error("error while removing path and children of root")
 		}
 	}()
 	return FromArchive(c)
