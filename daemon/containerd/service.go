@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/errdefs"
 	"github.com/moby/sys/user"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
@@ -127,13 +128,56 @@ func (i *ImageService) StorageDriver() string {
 	return i.snapshotter
 }
 
+// ImageDiskUsage returns the number of bytes used by content and layer stores
+// called from disk_usage.go
+func (i *ImageService) ImageDiskUsage(ctx context.Context) (int64, error) {
+	diskUsage, err := i.layerDiskUsage(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	// Include the size of content size from the images.
+	imgs, err := i.images.List(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	visitedImages := make(map[digest.Digest]struct{})
+	for _, img := range imgs {
+		if _, ok := visitedImages[img.Target.Digest]; ok {
+			continue
+		}
+
+		if err = i.walkReachableImageManifests(ctx, img, func(imageManifest *ImageManifest) error {
+			dgst := imageManifest.Target().Digest
+			if _, ok := visitedImages[dgst]; ok {
+				return nil
+			}
+			visitedImages[dgst] = struct{}{}
+
+			size, err := imageManifest.PresentContentSize(ctx)
+			if err != nil {
+				return err
+			}
+			diskUsage += size
+			return nil
+		}); err != nil {
+			return 0, err
+		}
+		visitedImages[img.Target.Digest] = struct{}{}
+	}
+	if err != nil {
+		return 0, err
+	}
+	return diskUsage, nil
+}
+
 // LayerDiskUsage returns the number of bytes used by layer stores
 // called from disk_usage.go
-func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
-	var allLayersSize int64
+func (i *ImageService) layerDiskUsage(ctx context.Context) (allLayersSize int64, err error) {
 	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
 	snapshotter := i.client.SnapshotService(i.snapshotter)
-	snapshotter.Walk(ctx, func(ctx context.Context, info snapshots.Info) error {
+	err = snapshotter.Walk(ctx, func(ctx context.Context, info snapshots.Info) error {
 		usage, err := snapshotter.Usage(ctx, info.Name)
 		if err != nil {
 			return err
@@ -141,7 +185,7 @@ func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 		allLayersSize += usage.Size
 		return nil
 	})
-	return allLayersSize, nil
+	return allLayersSize, err
 }
 
 // UpdateConfig values
