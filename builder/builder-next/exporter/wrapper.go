@@ -9,13 +9,15 @@ import (
 	"github.com/docker/docker/builder/builder-next/exporter/overrides"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
-
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+type ExportedCallback func(ctx context.Context, id string, desc ocispec.Descriptor)
+
 type BuildkitCallbacks struct {
-	// Exported is a Called when an image is exported by buildkit.
-	Exported func(ctx context.Context, id string, desc ocispec.Descriptor)
+	// Exported is called before an image is exported by buildkit.
+	// It returns a callback to be invoked after the image is exported by buildkit.
+	Exported func(ctx context.Context, src *exporter.Source, attrs map[string]string) ExportedCallback
 
 	// Named is a callback that is called when an image is created in the
 	// containerd image store by buildkit.
@@ -71,6 +73,11 @@ type imageExporterInstanceWrapper struct {
 }
 
 func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter.Source, inlineCache exptypes.InlineCache, sessionID string) (map[string]string, exporter.DescriptorReference, error) {
+	var exported ExportedCallback
+	if i.callbacks.Exported != nil {
+		exported = i.callbacks.Exported(ctx, src, i.Attrs())
+	}
+
 	out, ref, err := i.ExporterInstance.Export(ctx, src, inlineCache, sessionID)
 	if err != nil {
 		return out, ref, err
@@ -78,8 +85,8 @@ func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter
 
 	desc := ref.Descriptor()
 	imageID := out[exptypes.ExporterImageDigestKey]
-	if i.callbacks.Exported != nil {
-		i.callbacks.Exported(ctx, imageID, desc)
+	if exported != nil {
+		exported(ctx, imageID, desc)
 	}
 
 	if i.callbacks.Named != nil {
