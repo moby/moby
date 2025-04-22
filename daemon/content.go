@@ -13,14 +13,14 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"go.etcd.io/bbolt"
+	bolt "go.etcd.io/bbolt"
 )
 
 func (daemon *Daemon) configureLocalContentStore(ns string) (*namespacedContent, *namespacedLeases, error) {
 	if err := os.MkdirAll(filepath.Join(daemon.root, "content"), 0o700); err != nil {
 		return nil, nil, errors.Wrap(err, "error creating dir for content store")
 	}
-	db, err := bbolt.Open(filepath.Join(daemon.root, "content", "metadata.db"), 0o600, nil)
+	db, err := bolt.Open(filepath.Join(daemon.root, "content", "metadata.db"), 0o600, nil)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "error opening bolt db for content metadata store")
 	}

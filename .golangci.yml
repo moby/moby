@@ -133,6 +133,8 @@ linters-settings:
         alias: c8dimages
       - pkg: github.com/opencontainers/image-spec/specs-go/v1
         alias: ocispec
+      - pkg: go.etcd.io/bbolt
+        alias: bolt
       # Enforce that gotest.tools/v3/assert/cmp is always aliased as "is"
       - pkg: gotest.tools/v3/assert/cmp
         alias: is
