@@ -3,7 +3,6 @@ package metadata // import "github.com/docker/docker/distribution/metadata"
 import (
 	"encoding/hex"
 	"math/rand"
-	"os"
 	"reflect"
 	"testing"
 
@@ -12,17 +11,12 @@ import (
 )
 
 func TestV2MetadataService(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "blobsum-storage-service-test")
-	if err != nil {
-		t.Fatalf("could not create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
+	tmpDir := t.TempDir()
 	metadataStore, err := NewFSMetadataStore(tmpDir)
 	if err != nil {
 		t.Fatalf("could not create metadata store: %v", err)
 	}
-	V2MetadataService := NewV2MetadataService(metadataStore)
+	metadataService := NewV2MetadataService(metadataStore)
 
 	tooManyBlobSums := make([]V2Metadata, 100)
 	for i := range tooManyBlobSums {
@@ -56,7 +50,7 @@ func TestV2MetadataService(t *testing.T) {
 	// Set some associations
 	for _, vec := range testVectors {
 		for _, blobsum := range vec.metadata {
-			err := V2MetadataService.Add(vec.diffID, blobsum)
+			err := metadataService.Add(vec.diffID, blobsum)
 			if err != nil {
 				t.Fatalf("error calling Set: %v", err)
 			}
@@ -65,7 +59,7 @@ func TestV2MetadataService(t *testing.T) {
 
 	// Check the correct values are read back
 	for _, vec := range testVectors {
-		metadata, err := V2MetadataService.GetMetadata(vec.diffID)
+		metadata, err := metadataService.GetMetadata(vec.diffID)
 		if err != nil {
 			t.Fatalf("error calling Get: %v", err)
 		}
@@ -79,23 +73,23 @@ func TestV2MetadataService(t *testing.T) {
 	}
 
 	// Test GetMetadata on a nonexistent entry
-	_, err = V2MetadataService.GetMetadata(layer.DiffID("sha256:82379823067823853223359023576437723560923756b03560378f4497753917"))
+	_, err = metadataService.GetMetadata(layer.DiffID("sha256:82379823067823853223359023576437723560923756b03560378f4497753917"))
 	if err == nil {
 		t.Fatal("expected error looking up nonexistent entry")
 	}
 
 	// Test GetDiffID on a nonexistent entry
-	_, err = V2MetadataService.GetDiffID(digest.Digest("sha256:82379823067823853223359023576437723560923756b03560378f4497753917"))
+	_, err = metadataService.GetDiffID(digest.Digest("sha256:82379823067823853223359023576437723560923756b03560378f4497753917"))
 	if err == nil {
 		t.Fatal("expected error looking up nonexistent entry")
 	}
 
 	// Overwrite one of the entries and read it back
-	err = V2MetadataService.Add(testVectors[1].diffID, testVectors[0].metadata[0])
+	err = metadataService.Add(testVectors[1].diffID, testVectors[0].metadata[0])
 	if err != nil {
 		t.Fatalf("error calling Add: %v", err)
 	}
-	diffID, err := V2MetadataService.GetDiffID(testVectors[0].metadata[0].Digest)
+	diffID, err := metadataService.GetDiffID(testVectors[0].metadata[0].Digest)
 	if err != nil {
 		t.Fatalf("error calling GetDiffID: %v", err)
 	}
