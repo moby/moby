@@ -180,8 +180,8 @@ func (r *Resolver) Start() error {
 		return r.err
 	}
 
-	if err := r.setupIPTable(); err != nil {
-		return fmt.Errorf("setting up IP table rules failed: %v", err)
+	if err := r.setupNAT(context.TODO()); err != nil {
+		return fmt.Errorf("setting up DNAT/SNAT rules failed: %v", err)
 	}
 
 	s := &dns.Server{Handler: dns.HandlerFunc(r.serveDNS), PacketConn: r.conn}
