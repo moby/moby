@@ -8,12 +8,7 @@ import (
 
 // Size of an empty directory should be 0
 func TestSizeEmpty(t *testing.T) {
-	var dir string
-	var err error
-	if dir, err = os.MkdirTemp(os.TempDir(), "testSizeEmptyDirectory"); err != nil {
-		t.Fatalf("failed to create directory: %s", err)
-	}
-
+	dir := t.TempDir()
 	var size int64
 	if size, _ = Size(context.Background(), dir); size != 0 {
 		t.Fatalf("empty directory has size: %d", size)
@@ -22,14 +17,10 @@ func TestSizeEmpty(t *testing.T) {
 
 // Size of a directory with one empty file should be 0
 func TestSizeEmptyFile(t *testing.T) {
-	var dir string
-	var err error
-	if dir, err = os.MkdirTemp(os.TempDir(), "testSizeEmptyFile"); err != nil {
-		t.Fatalf("failed to create directory: %s", err)
-	}
+	dir := t.TempDir()
 
-	var file *os.File
-	if file, err = os.CreateTemp(dir, "file"); err != nil {
+	file, err := os.CreateTemp(dir, "file")
+	if err != nil {
 		t.Fatalf("failed to create file: %s", err)
 	}
 	defer file.Close()
@@ -42,14 +33,10 @@ func TestSizeEmptyFile(t *testing.T) {
 
 // Size of a directory with one 5-byte file should be 5
 func TestSizeNonemptyFile(t *testing.T) {
-	var dir string
-	var err error
-	if dir, err = os.MkdirTemp(os.TempDir(), "testSizeNonemptyFile"); err != nil {
-		t.Fatalf("failed to create directory: %s", err)
-	}
+	dir := t.TempDir()
 
-	var file *os.File
-	if file, err = os.CreateTemp(dir, "file"); err != nil {
+	file, err := os.CreateTemp(dir, "file")
+	if err != nil {
 		t.Fatalf("failed to create file: %s", err)
 	}
 	defer file.Close()
@@ -65,12 +52,9 @@ func TestSizeNonemptyFile(t *testing.T) {
 
 // Size of a directory with one empty directory should be 0
 func TestSizeNestedDirectoryEmpty(t *testing.T) {
-	var dir string
-	var err error
-	if dir, err = os.MkdirTemp(os.TempDir(), "testSizeNestedDirectoryEmpty"); err != nil {
-		t.Fatalf("failed to create directory: %s", err)
-	}
-	if dir, err = os.MkdirTemp(dir, "nested"); err != nil {
+	dir := t.TempDir()
+	_, err := os.MkdirTemp(dir, "nested")
+	if err != nil {
 		t.Fatalf("failed to create nested directory: %s", err)
 	}
 
@@ -82,12 +66,9 @@ func TestSizeNestedDirectoryEmpty(t *testing.T) {
 
 // Test directory with 1 file and 1 empty directory
 func TestSizeFileAndNestedDirectoryEmpty(t *testing.T) {
-	var dir string
-	var err error
-	if dir, err = os.MkdirTemp(os.TempDir(), "testSizeFileAndNestedDirectoryEmpty"); err != nil {
-		t.Fatalf("failed to create directory: %s", err)
-	}
-	if dir, err = os.MkdirTemp(dir, "nested"); err != nil {
+	dir := t.TempDir()
+	_, err := os.MkdirTemp(dir, "nested")
+	if err != nil {
 		t.Fatalf("failed to create nested directory: %s", err)
 	}
 
@@ -108,12 +89,9 @@ func TestSizeFileAndNestedDirectoryEmpty(t *testing.T) {
 
 // Test directory with 1 file and 1 non-empty directory
 func TestSizeFileAndNestedDirectoryNonempty(t *testing.T) {
-	var dir, dirNested string
-	var err error
-	if dir, err = os.MkdirTemp(os.TempDir(), "TestSizeFileAndNestedDirectoryNonempty"); err != nil {
-		t.Fatalf("failed to create directory: %s", err)
-	}
-	if dirNested, err = os.MkdirTemp(dir, "nested"); err != nil {
+	dir := t.TempDir()
+	dirNested, err := os.MkdirTemp(dir, "nested")
+	if err != nil {
 		t.Fatalf("failed to create nested directory: %s", err)
 	}
 
