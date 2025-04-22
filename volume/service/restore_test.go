@@ -2,7 +2,6 @@ package service // import "github.com/docker/docker/volume/service"
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/docker/docker/volume"
@@ -15,9 +14,7 @@ import (
 func TestRestore(t *testing.T) {
 	t.Parallel()
 
-	dir, err := os.MkdirTemp("", "test-restore")
-	assert.NilError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	drivers := volumedrivers.NewStore(nil)
 	driverName := "test-restore"
