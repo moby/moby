@@ -3,8 +3,6 @@ package distribution
 import (
 	"context"
 	"encoding/json"
-	"os"
-	"strings"
 	"sync"
 	"testing"
 
@@ -133,14 +131,9 @@ func TestManifestStore(t *testing.T) {
 	assert.NilError(t, err)
 	dgst := digest.Canonical.FromBytes(serialized)
 
-	setupTest := func(t *testing.T) (reference.Named, ocispec.Descriptor, *mockManifestGetter, *manifestStore, content.Store, func(*testing.T)) {
-		root, err := os.MkdirTemp("", strings.ReplaceAll(t.Name(), "/", "_"))
-		assert.NilError(t, err)
-		defer func() {
-			if t.Failed() {
-				os.RemoveAll(root)
-			}
-		}()
+	setupTest := func(t *testing.T) (reference.Named, ocispec.Descriptor, *mockManifestGetter, *manifestStore, content.Store) {
+		t.Helper()
+		root := t.TempDir()
 
 		cs, err := local.NewLabeledStore(root, &memoryLabelStore{})
 		assert.NilError(t, err)
@@ -152,9 +145,7 @@ func TestManifestStore(t *testing.T) {
 		ref, err := reference.Parse("foo/bar")
 		assert.NilError(t, err)
 
-		return ref.(reference.Named), desc, mg, store, cs, func(t *testing.T) {
-			assert.Check(t, os.RemoveAll(root))
-		}
+		return ref.(reference.Named), desc, mg, store, cs
 	}
 
 	ctx := context.Background()
@@ -192,8 +183,7 @@ func TestManifestStore(t *testing.T) {
 	}
 
 	t.Run("no remote or local", func(t *testing.T) {
-		ref, desc, _, store, cs, teardown := setupTest(t)
-		defer teardown(t)
+		ref, desc, _, store, cs := setupTest(t)
 
 		_, err = store.Get(ctx, desc, ref)
 		checkIngest(t, cs, desc)
@@ -202,8 +192,7 @@ func TestManifestStore(t *testing.T) {
 	})
 
 	t.Run("no local cache", func(t *testing.T) {
-		ref, desc, mg, store, cs, teardown := setupTest(t)
-		defer teardown(t)
+		ref, desc, mg, store, cs := setupTest(t)
 
 		mg.manifests[desc.Digest] = m
 
@@ -237,8 +226,7 @@ func TestManifestStore(t *testing.T) {
 	})
 
 	t.Run("with local cache", func(t *testing.T) {
-		ref, desc, mg, store, cs, teardown := setupTest(t)
-		defer teardown(t)
+		ref, desc, mg, store, cs := setupTest(t)
 
 		// first add the manifest to the content store
 		writeManifest(t, cs, desc)
@@ -258,8 +246,7 @@ func TestManifestStore(t *testing.T) {
 	// This is for the case of pull by digest where we don't know the media type of the manifest until it's actually pulled.
 	t.Run("unknown media type", func(t *testing.T) {
 		t.Run("no cache", func(t *testing.T) {
-			ref, desc, mg, store, cs, teardown := setupTest(t)
-			defer teardown(t)
+			ref, desc, mg, store, cs := setupTest(t)
 
 			mg.manifests[desc.Digest] = m
 			desc.MediaType = ""
@@ -273,8 +260,7 @@ func TestManifestStore(t *testing.T) {
 
 		t.Run("with cache", func(t *testing.T) {
 			t.Run("cached manifest has media type", func(t *testing.T) {
-				ref, desc, mg, store, cs, teardown := setupTest(t)
-				defer teardown(t)
+				ref, desc, mg, store, cs := setupTest(t)
 
 				writeManifest(t, cs, desc)
 				desc.MediaType = ""
@@ -287,8 +273,7 @@ func TestManifestStore(t *testing.T) {
 			})
 
 			t.Run("cached manifest has no media type", func(t *testing.T) {
-				ref, desc, mg, store, cs, teardown := setupTest(t)
-				defer teardown(t)
+				ref, desc, mg, store, cs := setupTest(t)
 
 				desc.MediaType = ""
 				writeManifest(t, cs, desc)
@@ -308,8 +293,7 @@ func TestManifestStore(t *testing.T) {
 	// Also makes sure the ingests are aborted.
 	t.Run("error persisting manifest", func(t *testing.T) {
 		t.Run("error on writer", func(t *testing.T) {
-			ref, desc, mg, store, cs, teardown := setupTest(t)
-			defer teardown(t)
+			ref, desc, mg, store, cs := setupTest(t)
 			mg.manifests[desc.Digest] = m
 
 			csW := &testingContentStoreWrapper{ContentStore: store.local, errorOnWriter: errors.New("random error")}
@@ -327,8 +311,7 @@ func TestManifestStore(t *testing.T) {
 		})
 
 		t.Run("error on commit", func(t *testing.T) {
-			ref, desc, mg, store, cs, teardown := setupTest(t)
-			defer teardown(t)
+			ref, desc, mg, store, cs := setupTest(t)
 			mg.manifests[desc.Digest] = m
 
 			csW := &testingContentStoreWrapper{ContentStore: store.local, errorOnCommit: errors.New("random error")}
