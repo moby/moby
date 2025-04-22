@@ -72,7 +72,7 @@ func WithLibnetwork(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			if ns.Type == "network" && ns.Path == "" && !c.Config.NetworkDisabled {
 				target := filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe")
 				shortNetCtlrID := stringid.TruncateID(daemon.netController.ID())
-				s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{
+				s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{ //nolint:staticcheck // ignore SA1019
 					Path: target,
 					Args: []string{
 						"libnetwork-setkey",
