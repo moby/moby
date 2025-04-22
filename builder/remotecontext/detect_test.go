@@ -60,8 +60,7 @@ func executeProcess(t *testing.T, contextDir string) {
 }
 
 func TestProcessShouldRemoveDockerfileDockerignore(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerignore-process-test")
-	defer cleanup()
+	contextDir := t.TempDir()
 
 	createTestTempFile(t, contextDir, shouldStayFilename, testfileContents, 0o777)
 	createTestTempFile(t, contextDir, dockerignoreFilename, "Dockerfile\n.dockerignore", 0o777)
@@ -73,8 +72,7 @@ func TestProcessShouldRemoveDockerfileDockerignore(t *testing.T) {
 }
 
 func TestProcessNoDockerignore(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerignore-process-test")
-	defer cleanup()
+	contextDir := t.TempDir()
 
 	createTestTempFile(t, contextDir, shouldStayFilename, testfileContents, 0o777)
 	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, dockerfileContents, 0o777)
@@ -85,8 +83,7 @@ func TestProcessNoDockerignore(t *testing.T) {
 }
 
 func TestProcessShouldLeaveAllFiles(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerignore-process-test")
-	defer cleanup()
+	contextDir := t.TempDir()
 
 	createTestTempFile(t, contextDir, shouldStayFilename, testfileContents, 0o777)
 	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, dockerfileContents, 0o777)
