@@ -33,7 +33,6 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
 	tempDir := fs.NewDir(t, "test-rm-container-with-removed-volume", fs.WithMode(0o755))
-	defer tempDir.Remove()
 
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithBind(tempDir.Path(), prefix+slash+"test"))
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"))

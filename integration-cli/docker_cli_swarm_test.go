@@ -85,7 +85,6 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {
 
 	// passing an invalid external CA fails
 	tempFile := fs.NewFile(c, "testfile", fs.WithContent("fakecert"))
-	defer tempFile.Remove()
 
 	result := cli.Docker(cli.Args("swarm", "update",
 		"--external-ca", fmt.Sprintf("protocol=cfssl,url=https://something.org,cacert=%s", tempFile.Path())),
@@ -107,7 +106,6 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *testing.T) {
 
 	// passing an invalid external CA fails
 	tempFile := fs.NewFile(c, "testfile", fs.WithContent("fakecert"))
-	defer tempFile.Remove()
 
 	result := cli.Docker(cli.Args("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s",
 		"--external-ca", fmt.Sprintf("protocol=cfssl,url=https://somethingelse.org,cacert=%s", tempFile.Path())),

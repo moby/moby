@@ -278,7 +278,6 @@ func testDaemonIpcFromConfig(t *testing.T, mode string, mustExist bool) {
 	config := `{"default-ipc-mode": "` + mode + `"}`
 	// WithMode is needed for rootless
 	file := fs.NewFile(t, "test-daemon-ipc-config", fs.WithContent(config), fs.WithMode(0o644))
-	defer file.Remove()
 
 	testDaemonIpcPrivateShareable(t, mustExist, "--config-file", file.Path())
 }
