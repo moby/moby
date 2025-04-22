@@ -5,6 +5,7 @@ package trap // import "github.com/docker/docker/cmd/dockerd/trap"
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"syscall"
 	"testing"
 
@@ -12,17 +13,15 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func buildTestBinary(t *testing.T, tmpdir string, prefix string) (string, string) {
+func buildTestBinary(t *testing.T, prefix string) string {
 	t.Helper()
-	tmpDir, err := os.MkdirTemp(tmpdir, prefix)
-	assert.NilError(t, err)
-	exePath := tmpDir + "/" + prefix
+	tmpDir := t.TempDir()
+	exePath := filepath.Join(tmpDir, prefix)
 	wd, _ := os.Getwd()
-	testHelperCode := wd + "/testfiles/main.go"
+	testHelperCode := filepath.Join(wd, "testfiles", "main.go")
 	cmd := exec.Command("go", "build", "-o", exePath, testHelperCode)
-	err = cmd.Run()
-	assert.NilError(t, err)
-	return exePath, tmpDir
+	assert.NilError(t, cmd.Run())
+	return exePath
 }
 
 func TestTrap(t *testing.T) {
@@ -36,8 +35,7 @@ func TestTrap(t *testing.T) {
 		{"TERM", syscall.SIGTERM, true},
 		{"INT", os.Interrupt, true},
 	}
-	exePath, tmpDir := buildTestBinary(t, "", "main")
-	defer os.RemoveAll(tmpDir)
+	exePath := buildTestBinary(t, "main")
 
 	for _, v := range sigmap {
 		t.Run(v.name, func(t *testing.T) {
