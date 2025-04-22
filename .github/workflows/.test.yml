@@ -190,21 +190,50 @@ jobs:
         env:
           TEST_SKIP_INTEGRATION_CLI: 1
 
+  integration-prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10 # guardrails timeout for the whole job
+    continue-on-error: ${{ github.event_name != 'pull_request' }}
+    outputs:
+      includes: ${{ steps.set.outputs.includes }}
+    steps:
+      -
+        name: Create matrix includes
+        id: set
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let includes = [
+              { os: 'ubuntu-22.04', mode: '' },
+              { os: 'ubuntu-22.04', mode: 'rootless' },
+              { os: 'ubuntu-22.04', mode: 'systemd' },
+              { os: 'ubuntu-24.04', mode: '' },
+              // { os: 'ubuntu-24.04', mode: 'rootless' },  // FIXME: https://github.com/moby/moby/pull/49579#issuecomment-2698622223
+              { os: 'ubuntu-24.04', mode: 'systemd' },
+              // { os: 'ubuntu-24.04', mode: 'rootless-systemd' }, // FIXME: https://github.com/moby/moby/issues/44084
+            ];
+            if ("${{ inputs.storage }}" == "snapshotter") {
+              includes.push({ os: 'ubuntu-24.04', mode: 'firewalld' });
+            }
+            await core.group(`Set matrix`, async () => {
+              core.info(`matrix: ${JSON.stringify(includes)}`);
+              core.setOutput('includes', JSON.stringify(includes));
+            });
+      -
+        name: Show matrix
+        run: |
+          echo ${{ steps.set.outputs.includes }}
+
   integration:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
+    needs:
+      - integration-prepare
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-22.04
-          - ubuntu-24.04
-        mode:
-          - ""
-          - rootless
-          - systemd
-          #- rootless-systemd FIXME: https://github.com/moby/moby/issues/44084
+        include: ${{ fromJson(needs.integration-prepare.outputs.includes) }}
     steps:
       -
         name: Checkout
