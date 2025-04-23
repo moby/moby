@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"go.etcd.io/bbolt"
+	bolt "go.etcd.io/bbolt"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -26,10 +26,10 @@ func setupTestStores(t *testing.T) (context.Context, content.Store, *imageStoreW
 
 	backend, err := image.NewFSStoreBackend(filepath.Join(dir, "images"))
 	assert.NilError(t, err)
-	is, err := image.NewImageStore(backend, nil)
+	imgStore, err := image.NewImageStore(backend, nil)
 	assert.NilError(t, err)
 
-	db, err := bbolt.Open(filepath.Join(dir, "metadata.db"), 0o600, nil)
+	db, err := bolt.Open(filepath.Join(dir, "metadata.db"), 0o600, nil)
 	assert.NilError(t, err)
 
 	cs, err := local.NewStore(filepath.Join(dir, "content"))
@@ -41,7 +41,7 @@ func setupTestStores(t *testing.T) (context.Context, content.Store, *imageStoreW
 		assert.Check(t, os.RemoveAll(dir))
 	}
 	ctx := namespaces.WithNamespace(context.Background(), t.Name())
-	images := &imageStoreWithLease{Store: is, ns: t.Name(), leases: metadata.NewLeaseManager(mdb)}
+	images := &imageStoreWithLease{Store: imgStore, ns: t.Name(), leases: metadata.NewLeaseManager(mdb)}
 
 	return ctx, cs, images, cleanup
 }
