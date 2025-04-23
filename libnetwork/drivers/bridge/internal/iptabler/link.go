@@ -1,6 +1,6 @@
 //go:build linux
 
-package bridge
+package iptabler
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 )
 
-func (n *iptablesNetwork) AddLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort) error {
+func (n *Network) AddLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort) error {
 	if !parentIP.IsValid() || parentIP.IsUnspecified() {
 		return fmt.Errorf("cannot link to a container with an empty parent IP address")
 	}
@@ -20,7 +20,7 @@ func (n *iptablesNetwork) AddLink(ctx context.Context, parentIP, childIP netip.A
 		return fmt.Errorf("cannot link to a container with an empty child IP address")
 	}
 
-	chain := iptables.ChainInfo{Name: DockerChain}
+	chain := iptables.ChainInfo{Name: dockerChain}
 	for _, port := range ports {
 		if err := chain.Link(iptables.Append, parentIP, childIP, int(port.Port), port.Proto.String(), n.IfName); err != nil {
 			return err
@@ -29,8 +29,8 @@ func (n *iptablesNetwork) AddLink(ctx context.Context, parentIP, childIP netip.A
 	return nil
 }
 
-func (n *iptablesNetwork) DelLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort) {
-	chain := iptables.ChainInfo{Name: DockerChain}
+func (n *Network) DelLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort) {
+	chain := iptables.ChainInfo{Name: dockerChain}
 	for _, port := range ports {
 		if err := chain.Link(iptables.Delete, parentIP, childIP, int(port.Port), port.Proto.String(), n.IfName); err != nil {
 			log.G(ctx).WithFields(log.Fields{
