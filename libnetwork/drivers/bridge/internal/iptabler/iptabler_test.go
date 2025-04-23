@@ -21,16 +21,8 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func usingFirewalld() bool {
-	// Check for existence of a dummy rule to make sure iptables is initialised - then can
-	// check whether firewalld is running.
-	_ = iptables.GetIptable(iptables.IPv4).Exists(iptables.Filter, "FORWARD", "-j", "DROP")
-	fw, _ := iptables.UsingFirewalld()
-	return fw
-}
-
 func TestCleanupIptableRules(t *testing.T) {
-	skip.If(t, usingFirewalld(), "firewalld is running in the host netns, it can't modify rules in the test's netns")
+	skip.If(t, iptables.UsingFirewalld(), "firewalld is running in the host netns, it can't modify rules in the test's netns")
 
 	defer netnsutils.SetupTestOSContext(t)()
 	bridgeChains := []struct {
@@ -86,7 +78,7 @@ func TestCleanupIptableRules(t *testing.T) {
 
 // TestIptabler tests combinations of firewaller options against golden results.
 func TestIptabler(t *testing.T) {
-	skip.If(t, usingFirewalld(), "firewalld is running in the host netns, it can't modify rules in the test's netns")
+	skip.If(t, iptables.UsingFirewalld(), "firewalld is running in the host netns, it can't modify rules in the test's netns")
 
 	const (
 		ipv4 int64 = iota
