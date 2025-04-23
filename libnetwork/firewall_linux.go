@@ -14,6 +14,10 @@ import (
 const userChain = "DOCKER-USER"
 
 func (c *Controller) selectFirewallBackend() {
+	// Don't try to enable nftables if firewalld is running.
+	if iptables.UsingFirewalld() {
+		return
+	}
 	// Only try to use nftables if explicitly enabled by env-var.
 	// TODO(robmry) - command line options?
 	if os.Getenv("DOCKER_FIREWALL_BACKEND") == "nftables" {
