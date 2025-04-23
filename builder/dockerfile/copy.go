@@ -251,7 +251,7 @@ func (o *copier) copyWithWildcards(origPath string) ([]copyInfo, error) {
 		if err != nil {
 			return err
 		}
-		rel, err := remotecontext.Rel(root, path)
+		rel, err := filepath.Rel(root, path)
 		if err != nil {
 			return err
 		}
@@ -309,7 +309,7 @@ func walkSource(source builder.Source, origPath string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		rel, err := remotecontext.Rel(source.Root(), path)
+		rel, err := filepath.Rel(source.Root(), path)
 		if err != nil {
 			return err
 		}
