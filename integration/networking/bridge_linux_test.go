@@ -350,6 +350,7 @@ func TestBridgeINC(t *testing.T) {
 // TestBridgeINCRouted makes sure a container on a gateway-mode=nat network can establish
 // a connection to a container on a gateway-mode=routed network, but not vice-versa.
 func TestBridgeINCRouted(t *testing.T) {
+	skip.If(t, testEnv.IsRootless(), "can't set filter-forward policy in rootless netns")
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
