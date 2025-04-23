@@ -22,6 +22,7 @@ import (
 	"github.com/containerd/containerd/v2/core/mount"
 	containerdoci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/continuity/fs"
+	"github.com/containerd/continuity/sysx"
 	runc "github.com/containerd/go-runc"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
@@ -37,6 +38,14 @@ import (
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+)
+
+const (
+	// Values based on linux/include/uapi/linux/capability.h
+	xattrCapsSz2    = 20
+	versionOffset   = 3
+	vfsCapRevision2 = 2
+	vfsCapRevision3 = 3
 )
 
 type Opt struct {
@@ -230,6 +239,10 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 	var rootUID, rootGID int
 	if w.idmap != nil {
 		rootUID, rootGID = w.idmap.RootPair()
+
+		if err := user.MkdirAllAndChown(bundle, 0o755, rootUID, rootGID); err != nil {
+			return nil, errors.Wrapf(err, "failed to chown directory %s", bundle)
+		}
 	}
 
 	rootFSPath := filepath.Join(bundle, "rootfs")
@@ -265,6 +278,11 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 		rootUID, rootGID, err = w.idmap.ToHost(rootUID, rootGID)
 		if err != nil {
 			return nil, err
+		}
+
+		// chown the container's rootfs to the user-ns mapping
+		if err := w.remapRootFS(ctx, rootFSPath); err != nil {
+			return nil, errors.WithStack(err)
 		}
 	}
 
@@ -336,6 +354,14 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 	}
 	doReleaseNetwork = false
 
+	if w.idmap != nil {
+		// revert the rootfs chown
+		err = w.unremapRootFS(ctx, rootFSPath)
+		if err != nil {
+			return nil, releaseContainer(context.TODO())
+		}
+	}
+
 	err = exitError(ctx, cgroupPath, err, process.Meta.ValidExitCodes)
 	if err != nil {
 		if rec != nil {
@@ -390,6 +416,87 @@ func exitError(ctx context.Context, cgroupPath string, err error, validExitCodes
 	default:
 		return stack.Enable(exitErr)
 	}
+}
+
+func (w *runcExecutor) remapRootFS(ctx context.Context, root string) error {
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		stat := info.Sys().(*syscall.Stat_t)
+		if stat == nil {
+			return errors.Errorf("cannot get underlying data for %s", path)
+		}
+
+		uid, gid, err := w.idmap.ToHost(int(stat.Uid), int(stat.Gid))
+		if err != nil {
+			return err
+		}
+
+		return chownWithCaps(path, uid, gid)
+	})
+}
+
+func (w *runcExecutor) unremapRootFS(ctx context.Context, root string) error {
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		stat := info.Sys().(*syscall.Stat_t)
+		if stat == nil {
+			return errors.Errorf("cannot get underlying data for %s", path)
+		}
+
+		uid, gid, err := w.idmap.ToContainer(int(stat.Uid), int(stat.Gid))
+		if err != nil {
+			return err
+		}
+
+		return chownWithCaps(path, uid, gid)
+	})
+}
+
+// chownWithCaps will chown path and preserve the extended attributes.
+// chowning a file will remove the capabilities, so we need to first get all of
+// them, chown the file, and then set the extended attributes
+func chownWithCaps(path string, uid int, gid int) error {
+	xattrKeys, err := sysx.LListxattr(path)
+	if err != nil {
+		return err
+	}
+
+	xattrs := make(map[string][]byte, len(xattrKeys))
+
+	for _, xattr := range xattrKeys {
+		data, err := sysx.LGetxattr(path, xattr)
+		if err != nil {
+			return err
+		}
+		xattrs[xattr] = data
+	}
+
+	if err := os.Lchown(path, uid, gid); err != nil {
+		return err
+	}
+
+	for xattrKey, xattrValue := range xattrs {
+		length := len(xattrValue)
+		// make sure the capabilities are version 2,
+		// capabilities version 3 also store the root uid of the namespace,
+		// we don't want this when we are in userns-remap mode
+		// see: https://github.com/moby/moby/pull/41724
+		if xattrKey == "security.capability" && xattrValue[versionOffset] == vfsCapRevision3 {
+			xattrValue[versionOffset] = vfsCapRevision2
+			length = xattrCapsSz2
+		}
+		if err := sysx.LSetxattr(path, xattrKey, xattrValue[:length], 0); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (w *runcExecutor) Exec(ctx context.Context, id string, process executor.ProcessInfo) (err error) {
