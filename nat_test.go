@@ -293,7 +293,6 @@ func TestParsePortSpecs(t *testing.T) {
 	)
 
 	portMap, bindingMap, err = ParsePortSpecs([]string{"1234/tcp", "2345/udp", "3456/sctp"})
-
 	if err != nil {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
@@ -325,7 +324,6 @@ func TestParsePortSpecs(t *testing.T) {
 	}
 
 	portMap, bindingMap, err = ParsePortSpecs([]string{"1234:1234/tcp", "2345:2345/udp", "3456:3456/sctp"})
-
 	if err != nil {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
@@ -359,7 +357,6 @@ func TestParsePortSpecs(t *testing.T) {
 	}
 
 	portMap, bindingMap, err = ParsePortSpecs([]string{"0.0.0.0:1234:1234/tcp", "0.0.0.0:2345:2345/udp", "0.0.0.0:3456:3456/sctp"})
-
 	if err != nil {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
@@ -407,7 +404,6 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 	)
 
 	portMap, bindingMap, err = ParsePortSpecs([]string{"1234-1236/tcp", "2345-2347/udp", "3456-3458/sctp"})
-
 	if err != nil {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
@@ -439,7 +435,6 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 	}
 
 	portMap, bindingMap, err = ParsePortSpecs([]string{"1234-1236:1234-1236/tcp", "2345-2347:2345-2347/udp", "3456-3458:3456-3458/sctp"})
-
 	if err != nil {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
@@ -472,7 +467,6 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 	}
 
 	portMap, bindingMap, err = ParsePortSpecs([]string{"0.0.0.0:1234-1236:1234-1236/tcp", "0.0.0.0:2345-2347:2345-2347/udp", "0.0.0.0:3456-3458:3456-3458/sctp"})
-
 	if err != nil {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
