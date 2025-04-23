@@ -39,6 +39,7 @@ func (e *Execution) Clean(ctx context.Context, t testing.TB) {
 	deleteAllNetworks(ctx, t, apiClient, platform, e.protectedElements.networks)
 	if platform == "linux" {
 		deleteAllPlugins(ctx, t, apiClient, e.protectedElements.plugins)
+		restoreDefaultBridge(t, e.protectedElements.defaultBridgeInfo)
 	}
 }
 
