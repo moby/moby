@@ -145,6 +145,7 @@ jobs:
             ];
             if ("${{ inputs.storage }}" == "snapshotter") {
               includes.push({ os: 'ubuntu-24.04', mode: 'firewalld' });
+              includes.push({ os: 'ubuntu-24.04', mode: 'nftables' });
             }
             await core.group(`Set matrix`, async () => {
               core.info(`matrix: ${JSON.stringify(includes)}`);
@@ -189,6 +190,9 @@ jobs:
           if [[ "${{ matrix.mode }}" == *"firewalld"* ]]; then
             echo "FIREWALLD=true" >> $GITHUB_ENV
             CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
+          fi
+          if [[ "${{ matrix.mode }}" == *"nftables"* ]]; then
+            echo "DOCKER_FIREWALL_BACKEND=nftables" >> $GITHUB_ENV
           fi
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
@@ -328,7 +332,7 @@ jobs:
             // 'include' with other matrix variables that aren't part of the
             // include items.
             // Moreover, since the goal is to run only relevant tests with
-            // firewalld enabled to minimize the number of CI jobs, we
+            // firewalld/nftables enabled to minimize the number of CI jobs, we
             // statically define the list of test suites that we want to run.
             if ("${{ inputs.storage }}" == "snapshotter") {
               matrix.include.push({
@@ -341,6 +345,18 @@ jobs:
               });
               matrix.include.push({
                 'mode': 'firewalld',
+                'test': 'DockerNetworkSuite'
+              });
+              matrix.include.push({
+                'mode': 'nftables',
+                'test': 'DockerCLINetworkSuite|DockerCLIPortSuite|DockerDaemonSuite'
+              });
+              matrix.include.push({
+                'mode': 'nftables',
+                'test': 'DockerSwarmSuite'
+              });
+              matrix.include.push({
+                'mode': 'nftables',
                 'test': 'DockerNetworkSuite'
               });
             }
@@ -379,6 +395,9 @@ jobs:
           if [[ "${{ matrix.mode }}" == *"firewalld"* ]]; then
             echo "FIREWALLD=true" >> $GITHUB_ENV
             CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
+          fi
+          if [[ "${{ matrix.mode }}" == *"nftables"* ]]; then
+            echo "DOCKER_FIREWALL_BACKEND=nftables" >> $GITHUB_ENV
           fi
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
@@ -437,7 +456,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports-integration-cli-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
+          name: test-reports-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
           retention-days: 1
 
@@ -460,7 +479,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: /tmp/reports
-          pattern: test-reports-integration-cli-${{ inputs.storage }}-*
+          pattern: test-reports-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-*
           merge-multiple: true
       -
         name: Install teststat

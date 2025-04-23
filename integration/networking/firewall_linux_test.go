@@ -1,6 +1,7 @@
 package networking
 
 import (
+	"os"
 	"testing"
 
 	"github.com/docker/docker/client"
@@ -10,12 +11,16 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
+const defaultFirewallBackend = "iptables"
+
 func TestInfoFirewallBackend(t *testing.T) {
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
 
-	expDriver := "iptables"
-	if !testEnv.IsRootless() && networking.FirewalldRunning() {
+	expDriver := defaultFirewallBackend
+	if val := os.Getenv("DOCKER_FIREWALL_BACKEND"); val != "" {
+		expDriver = val
+	} else if !testEnv.IsRootless() && networking.FirewalldRunning() {
 		expDriver = "iptables+firewalld"
 	}
 	info, err := c.Info(ctx)
