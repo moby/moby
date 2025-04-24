@@ -6,39 +6,78 @@ import (
 )
 
 func TestParsePort(t *testing.T) {
-	var (
-		p   int
-		err error
-	)
-
-	p, err = ParsePort("1234")
-
-	if err != nil || p != 1234 {
-		t.Fatal("Parsing '1234' did not succeed")
+	tests := []struct {
+		doc     string
+		input   string
+		expPort int
+		expErr  string
+	}{
+		{
+			doc:     "invalid value",
+			input:   "asdf",
+			expPort: 0,
+			expErr:  `strconv.ParseUint: parsing "asdf": invalid syntax`,
+		},
+		{
+			doc:     "invalid value with number",
+			input:   "1asdf",
+			expPort: 0,
+			expErr:  `strconv.ParseUint: parsing "1asdf": invalid syntax`,
+		},
+		{
+			doc:     "empty value",
+			input:   "",
+			expPort: 0,
+		},
+		{
+			doc:     "zero value",
+			input:   "0",
+			expPort: 0,
+		},
+		{
+			doc:     "negative value",
+			input:   "-1",
+			expPort: 0,
+			expErr:  `strconv.ParseUint: parsing "-1": invalid syntax`,
+		},
+		// FIXME currently this is a valid port. I don't think it should be.
+		// I'm leaving this test until we make a decision.
+		// - erikh
+		{
+			doc:     "octal value",
+			input:   "0123",
+			expPort: 123,
+		},
+		{
+			doc:     "max value",
+			input:   "65535",
+			expPort: 65535,
+		},
+		{
+			doc:     "value out of range",
+			input:   "65536",
+			expPort: 0,
+			expErr:  `strconv.ParseUint: parsing "65536": value out of range`,
+		},
 	}
 
-	// FIXME currently this is a valid port. I don't think it should be.
-	// I'm leaving this test commented out until we make a decision.
-	// - erikh
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			port, err := ParsePort(tc.input)
+			if tc.expErr != "" {
+				if err == nil || err.Error() != tc.expErr {
+					t.Errorf("expected error '%s', got '%v'", tc.expErr, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Error(err)
+				}
+			}
+			if port != tc.expPort {
+				t.Errorf("expected port %d, got %d", tc.expPort, port)
+			}
 
-	/*
-		p, err = ParsePort("0123")
-
-		if err != nil {
-		    t.Fatal("Successfully parsed port '0123' to '123'")
-		}
-	*/
-
-	p, err = ParsePort("asdf")
-
-	if err == nil || p != 0 {
-		t.Fatal("Parsing port 'asdf' succeeded")
-	}
-
-	p, err = ParsePort("1asdf")
-
-	if err == nil || p != 0 {
-		t.Fatal("Parsing port '1asdf' succeeded")
+		})
 	}
 }
 
