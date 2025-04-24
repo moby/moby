@@ -16,13 +16,13 @@ func TestParsePort(t *testing.T) {
 			doc:     "invalid value",
 			input:   "asdf",
 			expPort: 0,
-			expErr:  `strconv.ParseUint: parsing "asdf": invalid syntax`,
+			expErr:  `invalid port 'asdf': invalid syntax`,
 		},
 		{
 			doc:     "invalid value with number",
 			input:   "1asdf",
 			expPort: 0,
-			expErr:  `strconv.ParseUint: parsing "1asdf": invalid syntax`,
+			expErr:  `invalid port '1asdf': invalid syntax`,
 		},
 		{
 			doc:     "empty value",
@@ -38,7 +38,7 @@ func TestParsePort(t *testing.T) {
 			doc:     "negative value",
 			input:   "-1",
 			expPort: 0,
-			expErr:  `strconv.ParseUint: parsing "-1": invalid syntax`,
+			expErr:  `invalid port '-1': invalid syntax`,
 		},
 		// FIXME currently this is a valid port. I don't think it should be.
 		// I'm leaving this test until we make a decision.
@@ -57,7 +57,7 @@ func TestParsePort(t *testing.T) {
 			doc:     "value out of range",
 			input:   "65536",
 			expPort: 0,
-			expErr:  `strconv.ParseUint: parsing "65536": value out of range`,
+			expErr:  `invalid port '65536': value out of range`,
 		},
 	}
 

@@ -49,7 +49,7 @@ func ParsePort(rawPort string) (int, error) {
 	}
 	port, err := strconv.ParseUint(rawPort, 10, 16)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("invalid port '%s': %w", rawPort, errors.Unwrap(err))
 	}
 	return int(port), nil
 }
