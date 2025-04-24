@@ -92,20 +92,21 @@ func (p Port) Range() (int, int, error) {
 	return ParsePortRangeToInt(p.Port())
 }
 
-// SplitProtoPort splits a port in the format of proto/port
-func SplitProtoPort(rawPort string) (string, string) {
-	parts := strings.Split(rawPort, "/")
-	l := len(parts)
-	if len(rawPort) == 0 || l == 0 || len(parts[0]) == 0 {
+// SplitProtoPort splits a port(range) and protocol, formatted as "<portnum>/[<proto>]"
+// "<startport-endport>/[<proto>]". It returns an empty string for both if
+// no port(range) is provided. If a port(range) is provided, but no protocol,
+// the default ("tcp") protocol is returned.
+//
+// SplitProtoPort does not validate or normalize the returned values.
+func SplitProtoPort(rawPort string) (proto string, port string) {
+	port, proto, _ = strings.Cut(rawPort, "/")
+	if port == "" {
 		return "", ""
 	}
-	if l == 1 {
-		return "tcp", rawPort
+	if proto == "" {
+		proto = "tcp"
 	}
-	if len(parts[1]) == 0 {
-		return "tcp", parts[0]
-	}
-	return parts[1], parts[0]
+	return proto, port
 }
 
 func validateProto(proto string) error {
