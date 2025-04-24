@@ -150,7 +150,7 @@ func dmTaskGetDepsFct(task *cdmTask) *Deps {
 
 	// golang issue: https://github.com/golang/go/issues/11925
 	var devices []C.uint64_t
-	devicesHdr := (*reflect.SliceHeader)(unsafe.Pointer(&devices))
+	devicesHdr := (*reflect.SliceHeader)(unsafe.Pointer(&devices)) //nolint:staticcheck // ignore SA1019
 	devicesHdr.Data = uintptr(unsafe.Pointer(uintptr(unsafe.Pointer(Cdeps)) + unsafe.Sizeof(*Cdeps)))
 	devicesHdr.Len = int(Cdeps.count)
 	devicesHdr.Cap = int(Cdeps.count)

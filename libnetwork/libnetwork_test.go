@@ -11,7 +11,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/docker/docker/libnetwork"
@@ -31,10 +30,6 @@ import (
 var controller libnetwork.NetworkController
 
 func TestMain(m *testing.M) {
-	if runtime.GOOS == "windows" {
-		logrus.Info("Test suite does not currently support windows")
-		os.Exit(0)
-	}
 	if reexec.Init() {
 		return
 	}
