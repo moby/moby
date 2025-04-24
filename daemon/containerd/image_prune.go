@@ -218,16 +218,7 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8
 	span.SetAttributes(tracing.Attribute("count", len(imagesToPrune)))
 	defer span.End()
 
-	possiblyDeletedConfigs := map[digest.Digest]struct{}{}
 	var errs error
-
-	// Workaround for https://github.com/moby/buildkit/issues/3797
-	defer func() {
-		if err := i.unleaseSnapshotsFromDeletedConfigs(context.WithoutCancel(ctx), possiblyDeletedConfigs); err != nil {
-			errs = multierror.Append(errs, err)
-		}
-	}()
-
 	for _, img := range imagesToPrune {
 		log.G(ctx).WithField("image", img).Debug("pruning image")
 
@@ -235,9 +226,6 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8
 
 		err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, desc ocispec.Descriptor) error {
 			blobs = append(blobs, desc)
-			if c8dimages.IsConfigType(desc.MediaType) {
-				possiblyDeletedConfigs[desc.Digest] = struct{}{}
-			}
 			return nil
 		})
 		if err != nil {
@@ -278,61 +266,4 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8
 	}
 
 	return &report, errs
-}
-
-// unleaseSnapshotsFromDeletedConfigs removes gc.ref.snapshot content label from configs that are not
-// referenced by any of the existing images.
-// This is a temporary solution to the rootfs snapshot not being deleted when there's a buildkit history
-// item referencing an image config.
-func (i *ImageService) unleaseSnapshotsFromDeletedConfigs(ctx context.Context, possiblyDeletedConfigs map[digest.Digest]struct{}) error {
-	all, err := i.images.List(ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to list images during snapshot lease removal")
-	}
-
-	var errs error
-	for _, img := range all {
-		err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, desc ocispec.Descriptor) error {
-			if c8dimages.IsConfigType(desc.MediaType) {
-				delete(possiblyDeletedConfigs, desc.Digest)
-			}
-			return nil
-		})
-		if err != nil {
-			errs = multierror.Append(errs, err)
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				return errs
-			}
-			continue
-		}
-	}
-
-	// At this point, all configs that are used by any image has been removed from the slice
-	for cfgDigest := range possiblyDeletedConfigs {
-		info, err := i.content.Info(ctx, cfgDigest)
-		if err != nil {
-			if cerrdefs.IsNotFound(err) {
-				log.G(ctx).WithField("config", cfgDigest).Debug("config already gone")
-			} else {
-				errs = multierror.Append(errs, err)
-				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-					return errs
-				}
-			}
-			continue
-		}
-
-		label := "containerd.io/gc.ref.snapshot." + i.StorageDriver()
-
-		delete(info.Labels, label)
-		_, err = i.content.Update(ctx, info, "labels."+label)
-		if err != nil {
-			errs = multierror.Append(errs, errors.Wrapf(err, "failed to remove gc.ref.snapshot label from %s", cfgDigest))
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				return errs
-			}
-		}
-	}
-
-	return errs
 }
