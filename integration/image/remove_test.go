@@ -82,7 +82,7 @@ func TestRemoveByDigest(t *testing.T) {
 	assert.Assert(t, id != "")
 
 	_, err = client.ImageRemove(ctx, id, image.RemoveOptions{})
-	assert.NilError(t, err, "error reemoving %s", id)
+	assert.NilError(t, err, "error removing %s", id)
 
 	_, err = client.ImageInspect(ctx, "busybox")
 	assert.NilError(t, err, "busybox image got deleted")

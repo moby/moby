@@ -17,8 +17,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageDelete deletes the image referenced by the given imageRef from this
@@ -204,35 +202,6 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 // Parent images are removed quietly, and if there is any issue/conflict
 // it is logged but does not halt execution/an error is not returned.
 func (i *ImageService) deleteAll(ctx context.Context, imgID image.ID, all []c8dimages.Image, c conflictType, prune bool) (records []imagetypes.DeleteResponse, _ error) {
-	// Workaround for: https://github.com/moby/buildkit/issues/3797
-	possiblyDeletedConfigs := map[digest.Digest]struct{}{}
-	if len(all) > 0 && i.content != nil {
-		handled := map[digest.Digest]struct{}{}
-		for _, img := range all {
-			if _, ok := handled[img.Target.Digest]; ok {
-				continue
-			} else {
-				handled[img.Target.Digest] = struct{}{}
-			}
-			err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, d ocispec.Descriptor) error {
-				if c8dimages.IsConfigType(d.MediaType) {
-					possiblyDeletedConfigs[d.Digest] = struct{}{}
-				}
-				return nil
-			})
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-	defer func() {
-		if len(possiblyDeletedConfigs) > 0 {
-			if err := i.unleaseSnapshotsFromDeletedConfigs(context.WithoutCancel(ctx), possiblyDeletedConfigs); err != nil {
-				log.G(ctx).WithError(err).Warn("failed to unlease snapshots")
-			}
-		}
-	}()
-
 	var parents []c8dimages.Image
 	if prune {
 		// TODO(dmcgowan): Consider using GC labels to walk for deletion

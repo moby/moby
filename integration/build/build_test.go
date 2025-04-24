@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil"
@@ -789,6 +791,44 @@ func TestBuildEmitsImageCreateEvent(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildHistoryDoesNotPreventRemoval(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "buildkit is not supported on Windows")
+	skip.If(t, !testEnv.UsingSnapshotter(), "only relevant to c8d integration")
+
+	ctx := setupTest(t)
+
+	dockerfile := "FROM busybox\nRUN echo hello world > /hello"
+	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
+	defer source.Close()
+
+	apiClient := testEnv.APIClient()
+
+	buildImage := func(imgName string) error {
+		resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), types.ImageBuildOptions{
+			Remove:      true,
+			ForceRemove: true,
+			Tags:        []string{imgName},
+			Version:     types.BuilderBuildKit,
+		})
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		_, err = io.Copy(io.Discard, resp.Body)
+		return err
+	}
+
+	err := buildImage("history-a")
+	assert.NilError(t, err)
+
+	resp, err := apiClient.ImageRemove(ctx, "history-a", image.RemoveOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, slices.ContainsFunc(resp, func(r image.DeleteResponse) bool {
+		return r.Deleted != ""
+	}))
 }
 
 func readBuildImageIDs(t *testing.T, rd io.Reader) string {
