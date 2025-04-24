@@ -135,39 +135,100 @@ func TestPort(t *testing.T) {
 }
 
 func TestSplitProtoPort(t *testing.T) {
-	var (
-		proto string
-		port  string
-	)
+	tests := []struct {
+		doc      string
+		input    string
+		expPort  string
+		expProto string
+	}{
+		{
+			doc: "empty value",
+		},
+		{
+			doc:      "zero value",
+			input:    "0",
+			expPort:  "0",
+			expProto: "tcp",
+		},
+		{
+			doc:      "empty port",
+			input:    "/udp",
+			expPort:  "",
+			expProto: "",
+		},
+		{
+			doc:      "single port",
+			input:    "1234",
+			expPort:  "1234",
+			expProto: "tcp",
+		},
+		{
+			doc:      "single port with empty protocol",
+			input:    "1234/",
+			expPort:  "1234",
+			expProto: "tcp",
+		},
+		{
+			doc:      "single port with protocol",
+			input:    "1234/udp",
+			expPort:  "1234",
+			expProto: "udp",
+		},
+		{
+			doc:      "port range",
+			input:    "80-8080",
+			expPort:  "80-8080",
+			expProto: "tcp",
+		},
+		{
+			doc:      "port range with emptyprotocol",
+			input:    "80-8080/",
+			expPort:  "80-8080",
+			expProto: "tcp",
+		},
+		{
+			doc:      "port range with protocol",
+			input:    "80-8080/udp",
+			expPort:  "80-8080",
+			expProto: "udp",
+		},
 
-	proto, port = SplitProtoPort("1234/tcp")
-
-	if proto != "tcp" || port != "1234" {
-		t.Fatal("Could not split 1234/tcp properly")
+		// SplitProtoPort currently does not validate or normalize, so these are expected returns
+		{
+			doc:      "negative value",
+			input:    "-1",
+			expPort:  "-1",
+			expProto: "tcp",
+		},
+		{
+			doc:      "uppercase protocol",
+			input:    "1234/UDP",
+			expPort:  "1234",
+			expProto: "UDP",
+		},
+		{
+			doc:      "any value",
+			input:    "any port value",
+			expPort:  "any port value",
+			expProto: "tcp",
+		},
+		{
+			doc:      "any value with protocol",
+			input:    "any port value/any proto value",
+			expPort:  "any port value",
+			expProto: "any proto value",
+		},
 	}
-
-	proto, port = SplitProtoPort("")
-
-	if proto != "" || port != "" {
-		t.Fatal("parsing an empty string yielded surprising results", proto, port)
-	}
-
-	proto, port = SplitProtoPort("1234")
-
-	if proto != "tcp" || port != "1234" {
-		t.Fatal("tcp is not the default protocol for portspec '1234'", proto, port)
-	}
-
-	proto, port = SplitProtoPort("1234/")
-
-	if proto != "tcp" || port != "1234" {
-		t.Fatal("parsing '1234/' yielded:" + port + "/" + proto)
-	}
-
-	proto, port = SplitProtoPort("/tcp")
-
-	if proto != "" || port != "" {
-		t.Fatal("parsing '/tcp' yielded:" + port + "/" + proto)
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			proto, port := SplitProtoPort(tc.input)
+			if proto != tc.expProto {
+				t.Errorf("expected proto %s, got %s", tc.expProto, proto)
+			}
+			if port != tc.expPort {
+				t.Errorf("expected port %s, got %s", tc.expPort, port)
+			}
+		})
 	}
 }
 
