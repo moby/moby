@@ -1174,6 +1174,11 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		}
 	}
 
+	netip4, netip6 := endpoint.netipAddrs()
+	if err := n.iptablesNetwork.AddEndpoint(ctx, netip4, netip6); err != nil {
+		return err
+	}
+
 	// Up the host interface after finishing all netlink configuration
 	if err = d.linkUp(ctx, host); err != nil {
 		return fmt.Errorf("could not set link up for host interface %s: %v", hostIfName, err)
@@ -1188,6 +1193,18 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	}
 
 	return nil
+}
+
+// netipAddrs converts ep.addr and ep.addrv6 from net.IPNet to netip.Addr. If an address
+// is non-nil, it's assumed to be valid.
+func (ep *bridgeEndpoint) netipAddrs() (v4, v6 netip.Addr) {
+	if ep.addr != nil {
+		v4, _ = netip.AddrFromSlice(ep.addr.IP)
+	}
+	if ep.addrv6 != nil {
+		v6, _ = netip.AddrFromSlice(ep.addrv6.IP)
+	}
+	return v4, v6
 }
 
 // createVeth creates a veth device with one end in the container's network namespace,
@@ -1280,6 +1297,11 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	}
 	if ep == nil {
 		return endpointNotFoundError(eid)
+	}
+
+	netip4, netip6 := ep.netipAddrs()
+	if err := n.iptablesNetwork.DelEndpoint(context.TODO(), netip4, netip6); err != nil {
+		return err
 	}
 
 	// Remove it

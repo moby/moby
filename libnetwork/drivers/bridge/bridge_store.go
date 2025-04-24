@@ -87,6 +87,13 @@ func (d *driver) populateEndpoints() error {
 			continue
 		}
 		n.endpoints[ep.id] = ep
+		netip4, netip6 := ep.netipAddrs()
+		if err := n.iptablesNetwork.AddEndpoint(context.TODO(), netip4, netip6); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error": err,
+				"ep.id": ep.id,
+			}).Warn("Failed to restore per-endpoint firewall rules")
+		}
 		n.restorePortAllocations(ep)
 		log.G(context.TODO()).Debugf("Endpoint (%.7s) restored to network (%.7s)", ep.id, ep.nid)
 	}
