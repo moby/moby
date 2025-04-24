@@ -741,8 +741,6 @@ func TestBuildEmitsImageCreateEvent(t *testing.T) {
 	for _, builderVersion := range []types.BuilderVersion{types.BuilderV1, types.BuilderBuildKit} {
 		t.Run("v"+string(builderVersion), func(t *testing.T) {
 			if builderVersion == types.BuilderBuildKit {
-				skip.If(t, testEnv.UsingSnapshotter(),
-					"FIXME: Passing a context via a tarball is not supported with the containerd image store. See: https://github.com/moby/moby/issues/47717")
 				skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Buildkit is not supported on Windows")
 			}
 
