@@ -153,6 +153,10 @@ type PortMapping struct {
 	Binding PortBinding
 }
 
+func (p *PortMapping) String() string {
+	return net.JoinHostPort(p.Binding.HostIP, p.Binding.HostPort+":"+string(p.Port))
+}
+
 func splitParts(rawport string) (string, string, string) {
 	parts := strings.Split(rawport, ":")
 	n := len(parts)
