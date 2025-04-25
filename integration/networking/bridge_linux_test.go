@@ -510,23 +510,26 @@ func TestRoutedAccessToPublishedPort(t *testing.T) {
 	ctx := setupTest(t)
 
 	testcases := []struct {
-		name          string
-		userlandProxy bool
-		skipINC       bool
-		expResponse   bool
+		name                string
+		userlandProxy       bool
+		skipINC             bool
+		expResponseIptables bool
+		expResponseNftables bool
 	}{
 		{
-			name:          "proxy=true/skipICC=false",
-			userlandProxy: true,
-			expResponse:   true,
+			name:                "proxy=true/skipINC=false",
+			userlandProxy:       true,
+			expResponseIptables: true,
+			expResponseNftables: true,
 		},
 		{
-			name: "proxy=false/skipICC=false",
+			name:                "proxy=false/skipINC=false",
+			expResponseNftables: true,
 		},
 		{
-			name:        "proxy=false/skipICC=true",
-			skipINC:     true,
-			expResponse: true,
+			name:                "proxy=false/skipINC=true",
+			skipINC:             true,
+			expResponseIptables: true,
 		},
 	}
 
@@ -535,6 +538,10 @@ func TestRoutedAccessToPublishedPort(t *testing.T) {
 			d := daemon.New(t)
 			d.StartWithBusybox(ctx, t, "--ipv6", "--userland-proxy="+strconv.FormatBool(tc.userlandProxy))
 			defer d.Stop(t)
+			usingNftables := d.FirewallBackendDriver(t) == "nftables"
+			if usingNftables && tc.skipINC {
+				t.Skip("Skipping iptables skip-INC test, using nftables")
+			}
 
 			c := d.NewClientT(t)
 			defer c.Close()
@@ -603,7 +610,7 @@ func TestRoutedAccessToPublishedPort(t *testing.T) {
 						container.WithNetworkMode(routedNetName),
 						container.WithCmd("wget", "-O-", "-T3", url),
 					)
-					if tc.expResponse {
+					if (usingNftables && tc.expResponseNftables) || (!usingNftables && tc.expResponseIptables) {
 						// 404 Not Found means the server responded, but it's got nothing to serve.
 						assert.Check(t, is.Contains(res.Stderr.String(), "404 Not Found"), "url: %s", url)
 					} else {
@@ -1032,16 +1039,23 @@ func TestNoIP6Tables(t *testing.T) {
 			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
 			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 
-			res, err := exec.Command("/usr/sbin/ip6tables-save").CombinedOutput()
-			assert.NilError(t, err)
-			if tc.expIPTables {
-				assert.Check(t, is.Contains(string(res), subnet))
-				assert.Check(t, is.Contains(string(res), bridgeName))
+			var cmd *exec.Cmd
+			if d.FirewallBackendDriver(t) == "nftables" {
+				cmd = exec.Command("nft", "list", "table", "ip6", "docker-bridges")
 			} else {
-				assert.Check(t, !strings.Contains(string(res), subnet),
-					fmt.Sprintf("Didn't expect to find '%s' in '%s'", subnet, string(res)))
-				assert.Check(t, !strings.Contains(string(res), bridgeName),
-					fmt.Sprintf("Didn't expect to find '%s' in '%s'", bridgeName, string(res)))
+				cmd = exec.Command("/usr/sbin/ip6tables-save")
+			}
+			res, err := cmd.CombinedOutput()
+			assert.NilError(t, err)
+			dump := string(res)
+			if tc.expIPTables {
+				assert.Check(t, is.Contains(dump, subnet))
+				assert.Check(t, is.Contains(dump, bridgeName))
+			} else {
+				assert.Check(t, !strings.Contains(dump, subnet),
+					fmt.Sprintf("Didn't expect to find '%s' in '%s'", subnet, dump))
+				assert.Check(t, !strings.Contains(dump, bridgeName),
+					fmt.Sprintf("Didn't expect to find '%s' in '%s'", bridgeName, dump))
 			}
 		})
 	}
@@ -1690,6 +1704,8 @@ func TestNetworkInspectGateway(t *testing.T) {
 func TestDropInForwardChain(t *testing.T) {
 	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
 	skip.If(t, testEnv.IsRootless, "rootless has its own netns")
+	skip.If(t, !strings.Contains(testEnv.FirewallBackendDriver(), "iptables"),
+		"test is iptables specific, and iptables isn't in use")
 
 	// Run the test in its own netns, to avoid interfering with iptables on the test host.
 	const l3SegHost = "difc"
