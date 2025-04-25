@@ -622,7 +622,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	//
 	// To cut a long story short: if this broke anything, you know who to blame :)
 	if err := c.addNetwork(nw); err != nil {
-		if _, ok := err.(types.MaskableError); ok { //nolint:gosimple
+		if _, ok := err.(types.MaskableError); ok {
 			// This error can be ignored and set this boolean
 			// value to skip a refcount increment for configOnly networks
 			skipCfgEpCount = true
