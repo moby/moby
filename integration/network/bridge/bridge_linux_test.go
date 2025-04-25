@@ -559,6 +559,80 @@ func TestFirewalldReloadNoZombies(t *testing.T) {
 		"After deletes: did not expect rules for %s in: %s", bridgeName, resAfterReload.Combined())
 }
 
+// TestLegacyLink checks that a legacy link ("--link" in the default bridge network)
+// sets up a hostname and opens ports when the daemon is running with icc=false.
+func TestLegacyLink(t *testing.T) {
+	ctx := setupTest(t)
+
+	// Tidy up after the test by starting a new daemon, which will remove the icc=false
+	// rules this test will create for docker0.
+	defer func() {
+		d := daemon.New(t)
+		d.StartWithBusybox(ctx, t)
+		defer d.Stop(t)
+	}()
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--icc=false")
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+
+	// Run an http server.
+	const svrName = "svr"
+	cid := ctr.Run(ctx, t, c,
+		ctr.WithExposedPorts("80/tcp"),
+		ctr.WithName(svrName),
+		ctr.WithCmd("httpd", "-f"),
+	)
+
+	defer ctr.Remove(ctx, t, c, cid, containertypes.RemoveOptions{Force: true})
+	insp := ctr.Inspect(ctx, t, c, cid)
+	svrAddr := insp.NetworkSettings.Networks["bridge"].IPAddress
+
+	const svrAlias = "thealias"
+	testcases := []struct {
+		name   string
+		host   string
+		links  []string
+		expect string
+	}{
+		{
+			name:   "no link",
+			host:   svrAddr,
+			expect: "download timed out",
+		},
+		{
+			name:   "access by address",
+			links:  []string{svrName},
+			host:   svrAddr,
+			expect: "404 Not Found", // Got a response, but the server has nothing to serve.
+		},
+		{
+			name:   "access by name",
+			links:  []string{svrName},
+			host:   svrName,
+			expect: "404 Not Found", // Got a response, but the server has nothing to serve.
+		},
+		{
+			name:   "access by alias",
+			links:  []string{svrName + ":" + svrAlias},
+			host:   svrAlias,
+			expect: "404 Not Found", // Got a response, but the server has nothing to serve.
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+			res := ctr.RunAttach(ctx, t, c,
+				ctr.WithLinks(tc.links...),
+				ctr.WithCmd("wget", "-T3", "http://"+tc.host),
+			)
+			assert.Check(t, is.Contains(res.Stderr.String(), tc.expect))
+		})
+	}
+}
+
 // TestRemoveLegacyLink checks that a legacy link can be deleted while the
 // linked containers are running.
 //
