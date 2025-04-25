@@ -318,6 +318,9 @@ func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, cre
 	enableIPv4 := true
 	if create.EnableIPv4 != nil {
 		enableIPv4 = *create.EnableIPv4
+		// Make sure there's no conflicting DefaultNetworkOpts value (it'd be ignored but
+		// would look wrong in inspect output).
+		delete(networkOptions, netlabel.EnableIPv4)
 	} else if v, ok := networkOptions[netlabel.EnableIPv4]; ok {
 		var err error
 		if enableIPv4, err = strconv.ParseBool(v); err != nil {
@@ -328,6 +331,9 @@ func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, cre
 	var enableIPv6 bool
 	if create.EnableIPv6 != nil {
 		enableIPv6 = *create.EnableIPv6
+		// Make sure there's no conflicting DefaultNetworkOpts value (it'd be ignored but
+		// would look wrong in inspect output).
+		delete(networkOptions, netlabel.EnableIPv6)
 	} else if v, ok := networkOptions[netlabel.EnableIPv6]; ok {
 		var err error
 		if enableIPv6, err = strconv.ParseBool(v); err != nil {

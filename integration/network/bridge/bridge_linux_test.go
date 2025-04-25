@@ -104,6 +104,61 @@ func TestCreateWithIPv6WithoutEnableIPv6Flag(t *testing.T) {
 	t.Fatalf("Network %s has no ULA prefix, expected one.", nwName)
 }
 
+// TestDefaultIPvOptOverride checks that when default-network-opts set enable_ipv4 or
+// enable_ipv6, and those values are overridden for a network, the default option
+// values don't show up in network inspect output. (Because it's confusing if the
+// default shows up when it's been overridden with a different value.)
+func TestDefaultIPvOptOverride(t *testing.T) {
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	const opt4 = "false"
+	const opt6 = "true"
+	d.StartWithBusybox(ctx, t,
+		"--default-network-opt=bridge=com.docker.network.enable_ipv4="+opt4,
+		"--default-network-opt=bridge=com.docker.network.enable_ipv6="+opt6,
+	)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+
+	t.Run("TestDefaultIPvOptOverride", func(t *testing.T) {
+		for _, override4 := range []bool{false, true} {
+			for _, override6 := range []bool{false, true} {
+				t.Run(fmt.Sprintf("override4=%v,override6=%v", override4, override6), func(t *testing.T) {
+					t.Parallel()
+					netName := fmt.Sprintf("tdioo-%v-%v", override4, override6)
+					var nopts []func(*networktypes.CreateOptions)
+					if override4 {
+						nopts = append(nopts, network.WithIPv4(true))
+					}
+					if override6 {
+						nopts = append(nopts, network.WithIPv6())
+					}
+					network.CreateNoError(ctx, t, c, netName, nopts...)
+					defer network.RemoveNoError(ctx, t, c, netName)
+
+					insp, err := c.NetworkInspect(ctx, netName, networktypes.InspectOptions{})
+					assert.NilError(t, err)
+					t.Log("override4", override4, "override6", override6, "->", insp.Options)
+
+					gotOpt4, have4 := insp.Options[netlabel.EnableIPv4]
+					assert.Check(t, is.Equal(have4, !override4))
+					assert.Check(t, is.Equal(insp.EnableIPv4, override4))
+					if have4 {
+						assert.Check(t, is.Equal(gotOpt4, opt4))
+					}
+
+					gotOpt6, have6 := insp.Options[netlabel.EnableIPv6]
+					assert.Check(t, is.Equal(have6, !override6))
+					assert.Check(t, is.Equal(insp.EnableIPv6, true))
+					if have6 {
+						assert.Check(t, is.Equal(gotOpt6, opt6))
+					}
+				})
+			}
+		}
+	})
+}
+
 // Check that it's possible to create IPv6 networks with a 64-bit ip-range,
 // in 64-bit and bigger subnets, with and without a gateway.
 func Test64BitIPRange(t *testing.T) {
