@@ -39,8 +39,8 @@ type State struct {
 	Health            *Health
 	Removed           bool `json:"-"`
 
-	stopWaiters       []chan<- StateStatus
-	removeOnlyWaiters []chan<- StateStatus
+	stopWaiters       []chan<- container.StateStatus
+	removeOnlyWaiters []chan<- container.StateStatus
 
 	// The libcontainerd reference fields are unexported to force consumers
 	// to access them through the getter methods with multi-valued returns
@@ -55,21 +55,9 @@ type State struct {
 // Implements exec.ExitCode interface.
 // This type is needed as State include a sync.Mutex field which make
 // copying it unsafe.
-type StateStatus struct {
-	exitCode int
-	err      error
-}
-
-// ExitCode returns current exitcode for the state.
-func (s StateStatus) ExitCode() int {
-	return s.exitCode
-}
-
-// Err returns current error for the state. Returns nil if the container had
-// exited on its own.
-func (s StateStatus) Err() error {
-	return s.err
-}
+//
+// Deprecated: use [container.StateStatus] instead.
+type StateStatus = container.StateStatus
 
 // NewState creates a default state object.
 func NewState() *State {
@@ -162,7 +150,9 @@ func IsValidStateString(s string) bool {
 }
 
 // WaitCondition is an enum type for different states to wait for.
-type WaitCondition int
+//
+// Deprecated: use [container.WaitCondition] instead.
+type WaitCondition = container.WaitCondition
 
 // Possible WaitCondition Values.
 //
@@ -176,9 +166,12 @@ type WaitCondition int
 //
 // WaitConditionRemoved is used to wait for the container to be removed.
 const (
-	WaitConditionNotRunning WaitCondition = iota
-	WaitConditionNextExit
-	WaitConditionRemoved
+	// Deprecated: use [container.WaitConditionNotRunning] instead.
+	WaitConditionNotRunning = container.WaitConditionNotRunning
+	// Deprecated: use [container.WaitConditionNextExit] instead.
+	WaitConditionNextExit = container.WaitConditionNextExit
+	// Deprecated: use [container.WaitConditionRemoved] instead.
+	WaitConditionRemoved = container.WaitConditionRemoved
 )
 
 // Wait waits until the container is in a certain state indicated by the given
@@ -189,28 +182,25 @@ const (
 // be nil and its ExitCode() method will return the container's exit code,
 // otherwise, the results Err() method will return an error indicating why the
 // wait operation failed.
-func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateStatus {
+func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan container.StateStatus {
 	s.Lock()
 	defer s.Unlock()
 
 	// Buffer so we can put status and finish even nobody receives it.
-	resultC := make(chan StateStatus, 1)
+	resultC := make(chan container.StateStatus, 1)
 
 	if s.conditionAlreadyMet(condition) {
-		resultC <- StateStatus{
-			exitCode: s.ExitCode(),
-			err:      s.Err(),
-		}
+		resultC <- container.NewStateStatus(s.ExitCode(), s.Err())
 
 		return resultC
 	}
 
-	waitC := make(chan StateStatus, 1)
+	waitC := make(chan container.StateStatus, 1)
 
 	// Removal wakes up both removeOnlyWaiters and stopWaiters
 	// Container could be removed while still in "created" state
 	// in which case it is never actually stopped
-	if condition == WaitConditionRemoved {
+	if condition == container.WaitConditionRemoved {
 		s.removeOnlyWaiters = append(s.removeOnlyWaiters, waitC)
 	} else {
 		s.stopWaiters = append(s.stopWaiters, waitC)
@@ -220,10 +210,8 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 		select {
 		case <-ctx.Done():
 			// Context timeout or cancellation.
-			resultC <- StateStatus{
-				exitCode: -1,
-				err:      ctx.Err(),
-			}
+			resultC <- container.NewStateStatus(-1, ctx.Err())
+
 			return
 		case status := <-waitC:
 			resultC <- status
@@ -233,11 +221,11 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 	return resultC
 }
 
-func (s *State) conditionAlreadyMet(condition WaitCondition) bool {
+func (s *State) conditionAlreadyMet(condition container.WaitCondition) bool {
 	switch condition {
-	case WaitConditionNotRunning:
+	case container.WaitConditionNotRunning:
 		return !s.Running
-	case WaitConditionRemoved:
+	case container.WaitConditionRemoved:
 		return s.Removed
 	default:
 		// TODO(thaJeztah): how do we want to handle "WaitConditionNextExit"?
@@ -423,11 +411,8 @@ func (s *State) Err() error {
 	return nil
 }
 
-func (s *State) notifyAndClear(waiters *[]chan<- StateStatus) {
-	result := StateStatus{
-		exitCode: s.ExitCodeValue,
-		err:      s.Err(),
-	}
+func (s *State) notifyAndClear(waiters *[]chan<- container.StateStatus) {
+	result := container.NewStateStatus(s.ExitCodeValue, s.Err())
 
 	for _, c := range *waiters {
 		c <- result

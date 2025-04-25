@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
-	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
@@ -66,7 +65,7 @@ type ExecBackend interface {
 	// ContainerStart starts a new container
 	ContainerStart(ctx context.Context, containerID string, checkpoint string, checkpointDir string) error
 	// ContainerWait stops processing until the given container is stopped.
-	ContainerWait(ctx context.Context, name string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error)
+	ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan container.StateStatus, error)
 }
 
 // Result is the output produced by a Builder

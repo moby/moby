@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
-	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
@@ -85,7 +84,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 		return err
 	}
 
-	waitC, err := c.backend.ContainerWait(ctx, cID, containerpkg.WaitConditionNotRunning)
+	waitC, err := c.backend.ContainerWait(ctx, cID, container.WaitConditionNotRunning)
 	if err != nil {
 		close(finished)
 		logCancellationError(cancelErrCh, fmt.Sprintf("unable to begin ContainerWait: %s", err))

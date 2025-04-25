@@ -92,7 +92,7 @@ func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Containe
 	}
 	defer cancel()
 
-	if status := <-ctr.Wait(subCtx, container.WaitConditionNotRunning); status.Err() == nil {
+	if status := <-ctr.Wait(subCtx, containertypes.WaitConditionNotRunning); status.Err() == nil {
 		// container did exit, so ignore any previous errors and return
 		return nil
 	}
@@ -114,7 +114,7 @@ func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Containe
 		// got a kill error, but give container 2 more seconds to exit just in case
 		subCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
-		status := <-ctr.Wait(subCtx, container.WaitConditionNotRunning)
+		status := <-ctr.Wait(subCtx, containertypes.WaitConditionNotRunning)
 		if status.Err() != nil {
 			log.G(ctx).WithError(err).WithField("container", ctr.ID).Errorf("error killing container: %v", status.Err())
 			return err

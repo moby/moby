@@ -7,6 +7,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
@@ -191,7 +192,7 @@ func (daemon *Daemon) containerAttach(ctr *container.Container, cfg *stream.Atta
 
 	if ctr.Config.StdinOnce && !ctr.Config.Tty {
 		// Wait for the container to stop before returning.
-		waitChan := ctr.Wait(context.Background(), container.WaitConditionNotRunning)
+		waitChan := ctr.Wait(context.Background(), containertypes.WaitConditionNotRunning)
 		defer func() {
 			<-waitChan // Ignore returned exit code.
 		}()

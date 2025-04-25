@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
-	containerpkg "github.com/docker/docker/container"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -337,7 +336,7 @@ func (c *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 	legacyRemovalWaitPre134 := false
 
 	// The wait condition defaults to "not-running".
-	waitCondition := containerpkg.WaitConditionNotRunning
+	waitCondition := container.WaitConditionNotRunning
 	if !legacyBehaviorPre130 {
 		if err := httputils.ParseForm(r); err != nil {
 			return err
@@ -345,11 +344,11 @@ func (c *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 		if v := r.Form.Get("condition"); v != "" {
 			switch container.WaitCondition(v) {
 			case container.WaitConditionNotRunning:
-				waitCondition = containerpkg.WaitConditionNotRunning
+				waitCondition = container.WaitConditionNotRunning
 			case container.WaitConditionNextExit:
-				waitCondition = containerpkg.WaitConditionNextExit
+				waitCondition = container.WaitConditionNextExit
 			case container.WaitConditionRemoved:
-				waitCondition = containerpkg.WaitConditionRemoved
+				waitCondition = container.WaitConditionRemoved
 				legacyRemovalWaitPre134 = versions.LessThan(version, "1.34")
 			default:
 				return errdefs.InvalidParameter(errors.Errorf("invalid condition: %q", v))

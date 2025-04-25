@@ -3,7 +3,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 
-	"github.com/docker/docker/container"
+	containertypes "github.com/docker/docker/api/types/container"
 )
 
 // ContainerWait waits until the given container is in a certain state
@@ -13,7 +13,7 @@ import (
 // condition is met or if an error occurs waiting for the container (such as a
 // context timeout or cancellation). On a successful wait, the exit code of the
 // container is returned in the status with a non-nil Err() value.
-func (daemon *Daemon) ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan container.StateStatus, error) {
+func (daemon *Daemon) ContainerWait(ctx context.Context, name string, condition containertypes.WaitCondition) (<-chan containertypes.StateStatus, error) {
 	cntr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err

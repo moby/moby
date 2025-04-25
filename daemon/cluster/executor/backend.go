@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/api/types/volume"
-	containerpkg "github.com/docker/docker/container"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/image"
@@ -45,7 +44,7 @@ type Backend interface {
 	DeactivateContainerServiceBinding(containerName string) error
 	UpdateContainerServiceConfig(containerName string, serviceConfig *clustertypes.ServiceConfig) error
 	ContainerInspect(ctx context.Context, name string, options backend.ContainerInspectOptions) (*container.InspectResponse, error)
-	ContainerWait(ctx context.Context, name string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error)
+	ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan container.StateStatus, error)
 	ContainerRm(name string, config *backend.ContainerRmConfig) error
 	ContainerKill(name string, sig string) error
 	SetContainerDependencyStore(name string, store exec.DependencyGetter) error
