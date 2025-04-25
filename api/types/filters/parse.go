@@ -232,26 +232,21 @@ func (args Args) ExactMatch(key, source string) bool {
 }
 
 func matchWithOperator(fieldValues map[string]bool, source string, matcher func(string, string) (bool, error)) bool {
-	hasExclusion := false
+	hasInclude := false
 	for pattern, isEqual := range fieldValues {
-		match, err := matcher(pattern, source)
-		if err != nil {
-			continue
-		}
-		if isEqual {
-			if match {
-				return true
-			}
-		} else {
-			hasExclusion = true
-			if match {
+		if match, err := matcher(pattern, source); err == nil {
+			if !isEqual && match {
 				return false
+			}
+			if isEqual {
+				hasInclude = true
+				if match {
+					return true
+				}
 			}
 		}
 	}
-	return hasExclusion
-	// If exclusion filters(!=) exist and none match the source, include the container
-	// if only inclusion filters(=), and none match the source, exclude the container
+	return !hasInclude
 }
 
 // UniqueExactMatch returns true if there is only one value and the source
