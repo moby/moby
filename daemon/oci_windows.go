@@ -550,3 +550,8 @@ func setupWindowsDevices(devices []containertypes.DeviceMapping) (specDevices []
 
 	return specDevices, nil
 }
+
+// getUser is a no-op on Windows.
+func getUser(c *container.Container, username string) (specs.User, error) {
+	return specs.User{}, nil
+}
