@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/drivers/bridge"
-
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/config"
+	"github.com/docker/docker/libnetwork/drivers/bridge"
+	"github.com/docker/docker/libnetwork/internal/nftables"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
@@ -17,6 +17,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/skip"
 )
 
 const (
@@ -71,6 +72,7 @@ func TestUserChain(t *testing.T) {
 				}))
 			assert.NilError(t, err)
 			defer c.Stop()
+			skip.If(t, nftables.Enabled(), "nftables is enabled, skipping iptables test")
 
 			// init. condition
 			golden.Assert(t, getRules(t, iptable4, fwdChainName),
