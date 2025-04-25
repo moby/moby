@@ -356,6 +356,7 @@ func TestBridgeINCRouted(t *testing.T) {
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t)
 	t.Cleanup(func() { d.Stop(t) })
+	firewallBackend := d.FirewallBackendDriver(t)
 
 	c := d.NewClientT(t)
 	t.Cleanup(func() { c.Close() })
@@ -455,7 +456,7 @@ func TestBridgeINCRouted(t *testing.T) {
 	}
 
 	for _, fwdPolicy := range []string{"ACCEPT", "DROP"} {
-		networking.SetFilterForwardPolicies(t, fwdPolicy)
+		networking.SetFilterForwardPolicies(t, firewallBackend, fwdPolicy)
 		t.Run(fwdPolicy, func(t *testing.T) {
 			for _, tc := range testcases {
 				t.Run(tc.name+"/v4/ping", func(t *testing.T) {

@@ -649,6 +649,7 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t)
 	t.Cleanup(func() { d.Stop(t) })
+	firewallBackend := d.FirewallBackendDriver(t)
 
 	c := d.NewClientT(t)
 	t.Cleanup(func() { c.Close() })
@@ -771,7 +772,7 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 	// ping/http timeouts separately. (The iptables filter-FORWARD policy affects the
 	// whole host, so ACCEPT/DROP tests can't be parallelized).
 	for _, fwdPolicy := range []string{"ACCEPT", "DROP"} {
-		networking.SetFilterForwardPolicies(t, fwdPolicy)
+		networking.SetFilterForwardPolicies(t, firewallBackend, fwdPolicy)
 		t.Run(fwdPolicy, func(t *testing.T) {
 			for gwMode := range networks {
 				t.Run(gwMode+"/v4/ping", func(t *testing.T) {
