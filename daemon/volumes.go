@@ -11,6 +11,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
+	volumeopts "github.com/docker/docker/api/types/backend/volume"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	mounttypes "github.com/docker/docker/api/types/mount"
@@ -21,7 +22,6 @@ import (
 	"github.com/docker/docker/volume"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/docker/docker/volume/service"
-	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/pkg/errors"
 )
 

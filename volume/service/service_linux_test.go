@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	volumeopts "github.com/docker/docker/api/types/backend/volume"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
-	"github.com/docker/docker/volume/service/opts"
 	"github.com/docker/docker/volume/testutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -33,7 +33,7 @@ func TestLocalVolumeSize(t *testing.T) {
 	defer cleanup()
 
 	ctx := context.Background()
-	v1, err := service.Create(ctx, "test1", volume.DefaultDriverName, opts.WithCreateReference("foo"))
+	v1, err := service.Create(ctx, "test1", volume.DefaultDriverName, volumeopts.WithCreateReference("foo"))
 	assert.NilError(t, err)
 	v2, err := service.Create(ctx, "test2", volume.DefaultDriverName)
 	assert.NilError(t, err)

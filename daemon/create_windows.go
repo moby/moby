@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	volumeopts "github.com/docker/docker/api/types/backend/volume"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	volumemounts "github.com/docker/docker/volume/mounts"
-	volumeopts "github.com/docker/docker/volume/service/opts"
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality

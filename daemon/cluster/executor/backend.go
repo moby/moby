@@ -8,6 +8,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/api/types/backend"
+	volumeopts "github.com/docker/docker/api/types/backend/volume"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -24,7 +25,6 @@ import (
 	"github.com/docker/docker/libnetwork/cluster"
 	networktypes "github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/plugin"
-	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )

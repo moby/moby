@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
+	volumeopts "github.com/docker/docker/api/types/backend/volume"
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/service/opts"
 	volumetestutils "github.com/docker/docker/volume/testutils"
 	"gotest.tools/v3/assert"
 )
@@ -33,7 +33,7 @@ func TestRestore(t *testing.T) {
 
 	testLabels := map[string]string{"a": "1"}
 	testOpts := map[string]string{"foo": "bar"}
-	_, err = s.Create(ctx, "test2", driverName, opts.WithCreateOptions(testOpts), opts.WithCreateLabels(testLabels))
+	_, err = s.Create(ctx, "test2", driverName, volumeopts.WithCreateOptions(testOpts), volumeopts.WithCreateLabels(testLabels))
 	assert.NilError(t, err)
 
 	s.Shutdown()

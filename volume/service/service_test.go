@@ -5,12 +5,12 @@ import (
 	"os"
 	"testing"
 
+	volumeopts "github.com/docker/docker/api/types/backend/volume"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/service/opts"
 	"github.com/docker/docker/volume/testutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -86,7 +86,7 @@ func TestServiceList(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(ls, 0))
 
-	_, err = service.Get(ctx, "v1", opts.WithGetReference("foo"))
+	_, err = service.Get(ctx, "v1", volumeopts.WithGetReference("foo"))
 	assert.NilError(t, err)
 	ls, _, err = service.List(ctx, filters.NewArgs(filters.Arg("dangling", "true")))
 	assert.NilError(t, err)
@@ -117,7 +117,7 @@ func TestServiceRemove(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Assert(t, service.Remove(ctx, "test"))
-	assert.Assert(t, service.Remove(ctx, "test", opts.WithPurgeOnError(true)))
+	assert.Assert(t, service.Remove(ctx, "test", volumeopts.WithPurgeOnError(true)))
 }
 
 func TestServiceGet(t *testing.T) {
@@ -142,18 +142,18 @@ func TestServiceGet(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, is.DeepEqual(created, v))
 
-	v, err = service.Get(ctx, "test", opts.WithGetResolveStatus)
+	v, err = service.Get(ctx, "test", volumeopts.WithGetResolveStatus)
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(v.Status, 1), v.Status)
 
-	_, err = service.Get(ctx, "test", opts.WithGetDriver("notarealdriver"))
+	_, err = service.Get(ctx, "test", volumeopts.WithGetDriver("notarealdriver"))
 	assert.Assert(t, errdefs.IsConflict(err), err)
-	v, err = service.Get(ctx, "test", opts.WithGetDriver("d1"))
+	v, err = service.Get(ctx, "test", volumeopts.WithGetDriver("d1"))
 	assert.NilError(t, err)
 	assert.Assert(t, is.DeepEqual(created, v))
 
 	assert.Assert(t, ds.Register(testutils.NewFakeDriver("d2"), "d2"))
-	_, err = service.Get(ctx, "test", opts.WithGetDriver("d2"))
+	_, err = service.Get(ctx, "test", volumeopts.WithGetDriver("d2"))
 	assert.Assert(t, errdefs.IsConflict(err), err)
 }
 
@@ -200,13 +200,13 @@ func TestServicePrune(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, is.Equal(v.Driver, "other"))
 
-	_, err = service.Create(ctx, "test", volume.DefaultDriverName, opts.WithCreateLabels(map[string]string{"banana": ""}))
+	_, err = service.Create(ctx, "test", volume.DefaultDriverName, volumeopts.WithCreateLabels(map[string]string{"banana": ""}))
 	assert.NilError(t, err)
 	pr, err = service.Prune(ctx, filters.NewArgs(filters.Arg("label!", "banana")))
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(pr.VolumesDeleted, 0))
 
-	_, err = service.Create(ctx, "test3", volume.DefaultDriverName, opts.WithCreateLabels(map[string]string{"banana": "split"}))
+	_, err = service.Create(ctx, "test3", volume.DefaultDriverName, volumeopts.WithCreateLabels(map[string]string{"banana": "split"}))
 	assert.NilError(t, err)
 	pr, err = service.Prune(ctx, filters.NewArgs(filters.Arg("label!", "banana=split"), filters.Arg("all", "true")))
 	assert.NilError(t, err)
@@ -218,7 +218,7 @@ func TestServicePrune(t *testing.T) {
 	assert.Assert(t, is.Len(pr.VolumesDeleted, 1))
 	assert.Assert(t, is.Equal(pr.VolumesDeleted[0], "test3"))
 
-	v, err = service.Create(ctx, "test", volume.DefaultDriverName, opts.WithCreateReference(t.Name()))
+	v, err = service.Create(ctx, "test", volume.DefaultDriverName, volumeopts.WithCreateReference(t.Name()))
 	assert.NilError(t, err)
 
 	pr, err = service.Prune(ctx, filters.NewArgs())

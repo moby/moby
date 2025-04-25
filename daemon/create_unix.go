@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/log"
+	volumeopts "github.com/docker/docker/api/types/backend/volume"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
@@ -16,7 +17,6 @@ import (
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/idtools"
 	volumemounts "github.com/docker/docker/volume/mounts"
-	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 )
