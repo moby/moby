@@ -21,8 +21,6 @@ import (
 // NOTE: \\s does not detect unicode whitespaces.
 // So we use fieldsASCII instead of strings.Fields in parsePSOutput.
 // See https://github.com/docker/docker/pull/24358
-//
-//nolint:gosimple
 var psArgsRegexp = lazyregexp.New("\\s+([^\\s]*)=\\s*(PID[^\\s]*)")
 
 func validatePSArgs(psArgs string) error {

@@ -81,15 +81,18 @@ func getPriority(d map[string]string) (journal.Priority, bool) {
 // journal priority field back to the stream that we would have assigned that
 // value.
 func getSource(d map[string]string) string {
-	source := ""
-	if priority, ok := getPriority(d); ok {
-		if priority == journal.PriErr {
-			source = "stderr"
-		} else if priority == journal.PriInfo {
-			source = "stdout"
+	priority, ok := getPriority(d)
+	if ok {
+		switch priority {
+		case journal.PriErr:
+			return "stderr"
+		case journal.PriInfo:
+			return "stdout"
+		default:
+			return ""
 		}
 	}
-	return source
+	return ""
 }
 
 func getAttrs(d map[string]string) []backend.LogAttr {
