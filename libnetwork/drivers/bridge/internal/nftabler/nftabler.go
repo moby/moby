@@ -33,6 +33,11 @@ const (
 	initialRuleGroup nftables.RuleGroup = iota
 )
 
+const (
+	fwdInICCRuleGroup = iota + initialRuleGroup + 1
+	fwdInFinalRuleGroup
+)
+
 type nftabler struct {
 	config firewaller.Config
 	table4 nftables.TableRef
