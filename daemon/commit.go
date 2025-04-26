@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/metrics"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -173,10 +174,13 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 	if err != nil {
 		return "", err
 	}
+	img := ocispec.Descriptor{
+		Digest: id.Digest(),
+	}
 
 	imageRef := ""
 	if c.Tag != nil {
-		err = daemon.imageService.TagImage(ctx, id, c.Tag)
+		err = daemon.imageService.TagImage(ctx, img, c.Tag)
 		if err != nil {
 			return "", err
 		}

@@ -10,21 +10,27 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
 // TagImage creates an image named as newTag and targeting the given descriptor id.
-func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag reference.Named) error {
-	targetImage, err := i.resolveImage(ctx, imageID.String())
+func (i *ImageService) TagImage(ctx context.Context, img ocispec.Descriptor, newTag reference.Named) error {
+	// TODO: Only lookup if media type is empty
+	imgs, err := i.images.List(ctx, "target.digest=="+img.Digest.String())
 	if err != nil {
-		return errors.Wrapf(err, "failed to resolve image id %q to a descriptor", imageID.String())
+		return fmt.Errorf("failed to lookup digest: %w", err)
+	}
+	if len(imgs) == 0 {
+		return fmt.Errorf("no image found for digest %s: %w", img.Digest.String(), cerrdefs.ErrNotFound)
 	}
 
 	newImg := c8dimages.Image{
 		Name:   newTag.String(),
-		Target: targetImage.Target,
-		Labels: targetImage.Labels,
+		Target: imgs[0].Target,
+		// TODO: Consider using annotations from img, could pick up labels
+		// not intended for this tag such as GC labels.
+		Labels: imgs[0].Labels,
 	}
 
 	return i.createOrReplaceImage(ctx, newImg)
