@@ -2,16 +2,19 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/fs"
 )
 
 func TestIsExistingDirectory(t *testing.T) {
-	tmpfile := fs.NewFile(t, "file-exists-test", fs.WithContent("something"))
-	tmpdir := fs.NewDir(t, "dir-exists-test")
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "existing-file")
+	err := os.WriteFile(tmpFile, []byte("something"), 0o644)
+	assert.NilError(t, err)
 
 	testcases := []struct {
 		doc      string
@@ -20,7 +23,7 @@ func TestIsExistingDirectory(t *testing.T) {
 	}{
 		{
 			doc:      "directory exists",
-			path:     tmpdir.Path(),
+			path:     tmpDir,
 			expected: true,
 		},
 		{
@@ -30,7 +33,7 @@ func TestIsExistingDirectory(t *testing.T) {
 		},
 		{
 			doc:      "file exists",
-			path:     tmpfile.Path(),
+			path:     tmpFile,
 			expected: false,
 		},
 	}
