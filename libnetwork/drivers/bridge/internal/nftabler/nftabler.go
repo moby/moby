@@ -184,6 +184,12 @@ func (nft *nftabler) init(ctx context.Context, family nftables.Family) (nftables
 		return nftables.TableRef{}, err
 	}
 
+	if !nft.config.Hairpin && nft.config.WSL2Mirrored {
+		if err := mirroredWSL2Workaround(ctx, table); err != nil {
+			return nftables.TableRef{}, err
+		}
+	}
+
 	return table, nil
 }
 
