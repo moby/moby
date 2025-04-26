@@ -9,28 +9,6 @@ import (
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 )
 
-func TestIsValidHealthString(t *testing.T) {
-	tests := []struct {
-		health   container.HealthStatus
-		expected bool
-	}{
-		{health: container.Healthy, expected: true},
-		{health: container.Unhealthy, expected: true},
-		{health: container.Starting, expected: true},
-		{health: container.NoHealthcheck, expected: true},
-		{health: "fail", expected: false},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.health, func(t *testing.T) {
-			v := IsValidHealthString(tc.health)
-			if v != tc.expected {
-				t.Fatalf("Expected %t, but got %t", tc.expected, v)
-			}
-		})
-	}
-}
-
 type mockTask struct {
 	libcontainerdtypes.Task
 	pid uint32

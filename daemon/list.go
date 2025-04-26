@@ -297,10 +297,9 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 	}
 
 	err = psFilters.WalkValues("health", func(value string) error {
-		if !container.IsValidHealthString(value) {
-			return errdefs.InvalidParameter(fmt.Errorf("unrecognized filter value for health: %s", value))
+		if err := containertypes.ValidateHealthStatus(value); err != nil {
+			return errdefs.InvalidParameter(fmt.Errorf("invalid filter 'health=%s': %w", value, err))
 		}
-
 		return nil
 	})
 	if err != nil {
