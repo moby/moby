@@ -30,7 +30,7 @@ func (s *Health) String() string {
 // Status returns the current health status.
 //
 // Note that this takes a lock and the value may change after being read.
-func (s *Health) Status() string {
+func (s *Health) Status() container.HealthStatus {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -46,7 +46,7 @@ func (s *Health) Status() string {
 // obeying the locking semantics.
 //
 // Status may be set directly if another lock is used.
-func (s *Health) SetStatus(new string) {
+func (s *Health) SetStatus(new container.HealthStatus) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

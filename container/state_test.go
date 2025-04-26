@@ -10,22 +10,24 @@ import (
 )
 
 func TestIsValidHealthString(t *testing.T) {
-	contexts := []struct {
-		Health   string
-		Expected bool
+	tests := []struct {
+		health   container.HealthStatus
+		expected bool
 	}{
-		{container.Healthy, true},
-		{container.Unhealthy, true},
-		{container.Starting, true},
-		{container.NoHealthcheck, true},
-		{"fail", false},
+		{health: container.Healthy, expected: true},
+		{health: container.Unhealthy, expected: true},
+		{health: container.Starting, expected: true},
+		{health: container.NoHealthcheck, expected: true},
+		{health: "fail", expected: false},
 	}
 
-	for _, c := range contexts {
-		v := IsValidHealthString(c.Health)
-		if v != c.Expected {
-			t.Fatalf("Expected %t, but got %t", c.Expected, v)
-		}
+	for _, tc := range tests {
+		t.Run(tc.health, func(t *testing.T) {
+			v := IsValidHealthString(tc.health)
+			if v != tc.expected {
+				t.Fatalf("Expected %t, but got %t", tc.expected, v)
+			}
+		})
 	}
 }
 

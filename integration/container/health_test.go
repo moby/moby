@@ -188,7 +188,7 @@ func pollForHealthCheckLog(ctx context.Context, client client.APIClient, contain
 	}
 }
 
-func pollForHealthStatus(ctx context.Context, client client.APIClient, containerID string, healthStatus string) func(log poll.LogT) poll.Result {
+func pollForHealthStatus(ctx context.Context, client client.APIClient, containerID string, healthStatus containertypes.HealthStatus) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		inspect, err := client.ContainerInspect(ctx, containerID)
 

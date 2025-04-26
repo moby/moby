@@ -2,17 +2,22 @@ package container
 
 import "time"
 
+// HealthStatus is a string representation of the container's health.
+//
+// It currently is an alias for string, but may become a distinct type in future.
+type HealthStatus = string
+
 // Health states
 const (
-	NoHealthcheck = "none"      // Indicates there is no healthcheck
-	Starting      = "starting"  // Starting indicates that the container is not yet ready
-	Healthy       = "healthy"   // Healthy indicates that the container is running correctly
-	Unhealthy     = "unhealthy" // Unhealthy indicates that the container has a problem
+	NoHealthcheck HealthStatus = "none"      // Indicates there is no healthcheck
+	Starting      HealthStatus = "starting"  // Starting indicates that the container is not yet ready
+	Healthy       HealthStatus = "healthy"   // Healthy indicates that the container is running correctly
+	Unhealthy     HealthStatus = "unhealthy" // Unhealthy indicates that the container has a problem
 )
 
 // Health stores information about the container's healthcheck results
 type Health struct {
-	Status        string               // Status is one of [Starting], [Healthy] or [Unhealthy].
+	Status        HealthStatus         // Status is one of [Starting], [Healthy] or [Unhealthy].
 	FailingStreak int                  // FailingStreak is the number of consecutive failures
 	Log           []*HealthcheckResult // Log contains the last few results (oldest first)
 }
