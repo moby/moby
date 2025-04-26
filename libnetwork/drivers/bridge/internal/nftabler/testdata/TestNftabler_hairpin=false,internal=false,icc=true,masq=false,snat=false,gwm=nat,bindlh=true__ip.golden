@@ -46,6 +46,7 @@ table ip docker-bridges {
 
 	chain raw-PREROUTING {
 		type filter hook prerouting priority raw; policy accept;
+		ip daddr 192.168.0.2 iifname != "br-dummy" counter packets 0 bytes 0 drop comment "DROP DIRECT ACCESS"
 	}
 
 	chain filter-forward-in__br-dummy {
