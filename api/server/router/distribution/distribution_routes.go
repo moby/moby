@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (dr *distributionRouter) getDistributionInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -43,7 +43,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 	// For a search it is not an error if no auth was given. Ignore invalid
 	// AuthConfig to increase compatibility with the existing API.
 	authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
-	repos, err := s.backend.GetRepositories(ctx, namedRef, authConfig)
+	repos, err := dr.backend.GetRepositories(ctx, namedRef, authConfig)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 	// - https://github.com/moby/moby/blob/12c7411b6b7314bef130cd59f1c7384a7db06d0b/distribution/pull.go#L76-L152
 	var lastErr error
 	for _, repo := range repos {
-		distributionInspect, err := s.fetchManifest(ctx, repo, namedRef)
+		distributionInspect, err := dr.fetchManifest(ctx, repo, namedRef)
 		if err != nil {
 			lastErr = err
 			continue
@@ -74,7 +74,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 	return lastErr
 }
 
-func (s *distributionRouter) fetchManifest(ctx context.Context, distrepo distribution.Repository, namedRef reference.Named) (registry.DistributionInspect, error) {
+func (dr *distributionRouter) fetchManifest(ctx context.Context, distrepo distribution.Repository, namedRef reference.Named) (registry.DistributionInspect, error) {
 	var distributionInspect registry.DistributionInspect
 	if canonicalRef, ok := namedRef.(reference.Canonical); !ok {
 		namedRef = reference.TagNameOnly(namedRef)
