@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/pkg/errors"
@@ -39,7 +40,7 @@ func parseRemoteRef(remote string) (reference.Named, string, error) {
 	// Parse remote reference, supporting remotes with name and tag
 	remoteRef, err := reference.ParseNormalizedNamed(remote)
 	if err != nil {
-		return nil, "", err
+		return nil, "", errdefs.InvalidParameter(err)
 	}
 
 	type canonicalWithTag interface {
@@ -50,7 +51,7 @@ func parseRemoteRef(remote string) (reference.Named, string, error) {
 	if canonical, ok := remoteRef.(canonicalWithTag); ok {
 		remoteRef, err = reference.WithDigest(reference.TrimNamed(remoteRef), canonical.Digest())
 		if err != nil {
-			return nil, "", err
+			return nil, "", errdefs.InvalidParameter(err)
 		}
 		return remoteRef, canonical.Tag(), nil
 	}
@@ -206,7 +207,7 @@ func (pr *pluginRouter) enablePlugin(ctx context.Context, w http.ResponseWriter,
 	name := vars["name"]
 	timeout, err := strconv.Atoi(r.Form.Get("timeout"))
 	if err != nil {
-		return err
+		return errdefs.InvalidParameter(err)
 	}
 	config := &backend.PluginEnableConfig{Timeout: timeout}
 

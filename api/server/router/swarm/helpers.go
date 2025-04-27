@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/errdefs"
 )
 
 // swarmLogs takes an http response, request, and selector, and writes the logs
@@ -23,7 +24,7 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w http.ResponseWriter, r *
 	// with the appropriate status code.
 	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
 	if !(stdout || stderr) {
-		return fmt.Errorf("Bad parameters: you must choose at least one stream")
+		return errdefs.InvalidParameter(fmt.Errorf("Bad parameters: you must choose at least one stream"))
 	}
 
 	// there is probably a neater way to manufacture the LogsOptions
