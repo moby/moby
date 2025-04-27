@@ -139,7 +139,7 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	// any error after the stream starts (i.e. container not found, wrong parameters)
 	// with the appropriate status code.
 	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
-	if !(stdout || stderr) {
+	if !stdout && !stderr {
 		return errdefs.InvalidParameter(errors.New("Bad parameters: you must choose at least one stream"))
 	}
 
