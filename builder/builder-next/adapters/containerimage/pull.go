@@ -19,8 +19,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/platforms"
-	cdreference "github.com/containerd/containerd/reference"
-	ctdreference "github.com/containerd/containerd/reference"
+	c8dreference "github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/remotes/docker/schema1" //nolint:staticcheck // Ignore SA1019: "github.com/containerd/containerd/remotes/docker/schema1" is deprecated: use images formatted in Docker Image Manifest v2, Schema 2, or OCI Image Spec v1.
@@ -616,7 +615,7 @@ type layerDescriptor struct {
 	fetcher remotes.Fetcher
 	desc    ocispec.Descriptor
 	diffID  layer.DiffID
-	ref     ctdreference.Spec
+	ref     c8dreference.Spec
 }
 
 func (ld *layerDescriptor) Key() string {
@@ -862,7 +861,7 @@ func platformMatches(img *image.Image, p *ocispec.Platform) bool {
 }
 
 func applySourcePolicies(ctx context.Context, str string, spls []*spb.Policy) (string, error) {
-	ref, err := cdreference.Parse(str)
+	ref, err := c8dreference.Parse(str)
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
@@ -891,7 +890,7 @@ func applySourcePolicies(ctx context.Context, str string, spls []*spb.Policy) (s
 		if ok && t != srctypes.DockerImageScheme {
 			return "", &imageutil.ResolveToNonImageError{Ref: str, Updated: newRef}
 		}
-		ref, err = cdreference.Parse(newRef)
+		ref, err = c8dreference.Parse(newRef)
 		if err != nil {
 			return "", errors.WithStack(err)
 		}
