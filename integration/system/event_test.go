@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil/request"
-	req "github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -81,7 +80,7 @@ func TestEventsBackwardsCompatible(t *testing.T) {
 	// In case there is no events, the API should have responded immediately (not blocking),
 	// The test here makes sure the response time is less than 3 sec.
 	expectedTime := time.Now().Add(3 * time.Second)
-	emptyResp, emptyBody, err := req.Get(ctx, "/events")
+	emptyResp, emptyBody, err := request.Get(ctx, "/events")
 	assert.NilError(t, err)
 	defer emptyBody.Close()
 	assert.Check(t, is.DeepEqual(http.StatusOK, emptyResp.StatusCode))
@@ -90,7 +89,7 @@ func TestEventsBackwardsCompatible(t *testing.T) {
 	// We also test to make sure the `events.Message` is compatible with `JSONMessage`
 	q := url.Values{}
 	q.Set("since", ts)
-	_, body, err := req.Get(ctx, "/events?"+q.Encode())
+	_, body, err := request.Get(ctx, "/events?"+q.Encode())
 	assert.NilError(t, err)
 	defer body.Close()
 
