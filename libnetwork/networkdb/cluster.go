@@ -517,11 +517,7 @@ func (nDB *NetworkDB) bulkSyncTables() {
 	}
 	nDB.RUnlock()
 
-	for {
-		if len(networks) == 0 {
-			break
-		}
-
+	for len(networks) != 0 {
 		nid := networks[0]
 		networks = networks[1:]
 
