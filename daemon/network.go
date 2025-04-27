@@ -426,10 +426,13 @@ func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, cre
 func (daemon *Daemon) pluginRefCount(driver, capability string, mode int) {
 	var builtinDrivers []string
 
-	if capability == driverapi.NetworkPluginEndpointType {
+	switch capability {
+	case driverapi.NetworkPluginEndpointType:
 		builtinDrivers = daemon.netController.BuiltinDrivers()
-	} else if capability == ipamapi.PluginEndpointType {
+	case ipamapi.PluginEndpointType:
 		builtinDrivers = daemon.netController.BuiltinIPAMDrivers()
+	default:
+		// other capabilities can be ignored for now
 	}
 
 	for _, d := range builtinDrivers {
