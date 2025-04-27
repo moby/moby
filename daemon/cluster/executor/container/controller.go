@@ -379,7 +379,7 @@ func (r *controller) Shutdown(ctx context.Context) error {
 	}
 
 	if err := r.adapter.shutdown(ctx); err != nil {
-		if !(isUnknownContainer(err) || isStoppedContainer(err)) {
+		if !isUnknownContainer(err) || !isStoppedContainer(err) {
 			return err
 		}
 	}
