@@ -219,6 +219,8 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 			})
 
 			committedIdx = append(committedIdx, idx)
+		case snapshots.KindUnknown, snapshots.KindView:
+			// Ignore other snapshot kinds
 		}
 	}
 
