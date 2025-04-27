@@ -154,7 +154,7 @@ func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream i
 				return fmt.Errorf("invalid tag %q", repoTag)
 			}
 			l.setLoadedTag(ref, imgID.Digest(), outStream)
-			outStream.Write([]byte(fmt.Sprintf("Loaded image: %s\n", reference.FamiliarString(ref))))
+			fmt.Fprintf(outStream, "Loaded image: %s\n", reference.FamiliarString(ref))
 			imageRefCount++
 		}
 

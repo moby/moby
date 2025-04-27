@@ -303,7 +303,7 @@ func (d dirStringer) String() string {
 			return ""
 		}
 
-		btw.WriteString(fmt.Sprintf("%s\t%s\t%dB\t%s\n", fi.Name(), fi.Mode(), fi.Size(), fi.ModTime()))
+		fmt.Fprintf(btw, "%s\t%s\t%dB\t%s\n", fi.Name(), fi.Mode(), fi.Size(), fi.ModTime())
 	}
 	btw.Flush()
 	tw.Flush()
