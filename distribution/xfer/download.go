@@ -266,7 +266,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				downloadReader io.ReadCloser
 				size           int64
 				err            error
-				attempt        int = 1
+				attempt        = 1
 			)
 
 			defer descriptor.Close()
