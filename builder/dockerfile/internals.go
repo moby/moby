@@ -323,7 +323,7 @@ func copyStringSlice(orig []string) []string {
 // getShell is a helper function which gets the right shell for prefixing the
 // shell-form of RUN, ENTRYPOINT and CMD instructions
 func getShell(c *container.Config, os string) []string {
-	if 0 == len(c.Shell) {
+	if len(c.Shell) == 0 {
 		return append([]string{}, defaultShellForOS(os)[:]...)
 	}
 	return append([]string{}, c.Shell[:]...)
