@@ -183,11 +183,11 @@ func New(info logger.Info) (logger.Logger, error) {
 				if backoff < maxBackoff {
 					backoff *= 2
 				}
-				log.G(context.TODO()).
-					WithError(err).
-					WithField("container-id", info.ContainerID).
-					WithField("container-name", info.ContainerName).
-					Error("Error while trying to initialize awslogs. Retrying in: ", backoff, " seconds")
+				log.G(context.TODO()).WithFields(log.Fields{
+					"error":          err,
+					"container-id":   info.ContainerID,
+					"container-name": info.ContainerName,
+				}).Error("Error while trying to initialize awslogs. Retrying in: ", backoff, " seconds")
 			}
 			close(creationDone)
 		}()
