@@ -153,7 +153,7 @@ func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream i
 			if !ok {
 				return fmt.Errorf("invalid tag %q", repoTag)
 			}
-			l.setLoadedTag(ref, imgID.Digest(), outStream)
+			l.setLoadedTag(ref, imgID, outStream)
 			outStream.Write([]byte(fmt.Sprintf("Loaded image: %s\n", reference.FamiliarString(ref))))
 			imageRefCount++
 		}
@@ -256,12 +256,12 @@ func (l *tarexporter) legacyLoad(tmpDir string, outStream io.Writer, progressOut
 		return errors.New("Windows does not support legacy loading of images")
 	}
 
-	legacyLoadedMap := make(map[string]image.ID)
-
 	dirs, err := os.ReadDir(tmpDir)
 	if err != nil {
 		return err
 	}
+
+	legacyLoadedMap := make(map[string]image.ID)
 
 	// every dir represents an image
 	for _, d := range dirs {
@@ -302,7 +302,7 @@ func (l *tarexporter) legacyLoad(tmpDir string, outStream io.Writer, progressOut
 			if err != nil {
 				return err
 			}
-			l.setLoadedTag(ref, imgID.Digest(), outStream)
+			l.setLoadedTag(ref, imgID, outStream)
 		}
 	}
 

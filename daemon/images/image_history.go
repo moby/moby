@@ -66,7 +66,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string, platform *
 		h.ID = id.String()
 
 		var tags []string
-		for _, r := range i.referenceStore.References(id.Digest()) {
+		for _, r := range i.referenceStore.References(id) {
 			if _, ok := r.(reference.NamedTagged); ok {
 				tags = append(tags, reference.FamiliarString(r))
 			}

@@ -29,7 +29,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 	}
 
 	var repoTags, repoDigests []string
-	for _, ref := range i.referenceStore.References(img.ID().Digest()) {
+	for _, ref := range i.referenceStore.References(img.ID()) {
 		switch ref.(type) {
 		case reference.NamedTagged:
 			repoTags = append(repoTags, reference.FamiliarString(ref))

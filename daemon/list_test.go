@@ -11,7 +11,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/image"
 	"github.com/google/uuid"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
@@ -37,7 +36,7 @@ func setupContainerWithName(t *testing.T, name string, daemon *Daemon) *containe
 	t.Helper()
 	var (
 		id              = uuid.New().String()
-		computedImageID = image.ID(digest.FromString(id))
+		computedImageID = digest.FromString(id)
 		cRoot           = filepath.Join(root, id)
 	)
 	if err := os.MkdirAll(cRoot, 0o755); err != nil {

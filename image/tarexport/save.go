@@ -109,7 +109,7 @@ func (l *tarexporter) parseNames(ctx context.Context, names []string) (desc map[
 		if !ok {
 			// Check if digest ID reference
 			if digested, ok := ref.(reference.Digested); ok {
-				if err := addAssoc(image.ID(digested.Digest()), nil); err != nil {
+				if err := addAssoc(digested.Digest(), nil); err != nil {
 					return nil, err
 				}
 				continue
@@ -130,7 +130,7 @@ func (l *tarexporter) parseNames(ctx context.Context, names []string) (desc map[
 		if reference.IsNameOnly(namedRef) {
 			assocs := l.rs.ReferencesByName(namedRef)
 			for _, assoc := range assocs {
-				if err := addAssoc(image.ID(assoc.ID), assoc.Ref); err != nil {
+				if err := addAssoc(assoc.ID, assoc.Ref); err != nil {
 					return nil, err
 				}
 			}
@@ -149,7 +149,7 @@ func (l *tarexporter) parseNames(ctx context.Context, names []string) (desc map[
 		if err != nil {
 			return nil, err
 		}
-		if err := addAssoc(image.ID(id), namedRef); err != nil {
+		if err := addAssoc(id, namedRef); err != nil {
 			return nil, err
 		}
 	}
@@ -308,7 +308,7 @@ func (s *saveSession) save(ctx context.Context, outStream io.Writer) error {
 		}
 
 		manifest = append(manifest, manifestItem{
-			Config:       path.Join(ocispec.ImageBlobsDir, id.Digest().Algorithm().String(), id.Digest().Encoded()),
+			Config:       path.Join(ocispec.ImageBlobsDir, id.Algorithm().String(), id.Encoded()),
 			RepoTags:     repoTags,
 			Layers:       layers,
 			LayerSources: foreignSrcs,
