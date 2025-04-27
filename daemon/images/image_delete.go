@@ -412,5 +412,5 @@ func (i *ImageService) checkImageDeleteConflict(imgID image.ID, mask conflictTyp
 // that there are no repository references to the given image and it has no
 // child images.
 func (i *ImageService) imageIsDangling(imgID image.ID) bool {
-	return !(len(i.referenceStore.References(imgID.Digest())) > 0 || len(i.imageStore.Children(imgID)) > 0)
+	return len(i.referenceStore.References(imgID.Digest())) == 0 && len(i.imageStore.Children(imgID)) == 0
 }

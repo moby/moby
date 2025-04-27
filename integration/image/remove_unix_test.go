@@ -92,7 +92,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	assert.Equal(t, "errno 0", errno.Error())
 	assert.Assert(t, err != nil)
 	errStr := err.Error()
-	if !(strings.Contains(errStr, "permission denied") || strings.Contains(errStr, "operation not permitted")) {
+	if !strings.Contains(errStr, "permission denied") && !strings.Contains(errStr, "operation not permitted") {
 		t.Errorf("ImageRemove error not an permission error %s", errStr)
 	}
 

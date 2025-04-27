@@ -382,7 +382,7 @@ func (r *controller) Shutdown(ctx context.Context) error {
 	}
 
 	if err := r.adapter.shutdown(ctx); err != nil {
-		if !(errdefs.IsNotFound(err) || errdefs.IsNotModified(err)) {
+		if !errdefs.IsNotFound(err) && !errdefs.IsNotModified(err) {
 			return err
 		}
 	}

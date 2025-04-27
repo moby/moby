@@ -683,7 +683,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *configStore, hos
 	}
 
 	// ip-forwarding does not affect container with '--net=host' (or '--net=none')
-	if sysInfo.IPv4ForwardingDisabled && !(hostConfig.NetworkMode.IsHost() || hostConfig.NetworkMode.IsNone()) {
+	if sysInfo.IPv4ForwardingDisabled && (!hostConfig.NetworkMode.IsHost() && !hostConfig.NetworkMode.IsNone()) {
 		warnings = append(warnings, "IPv4 forwarding is disabled. Networking will not work.")
 	}
 	if hostConfig.NetworkMode.IsHost() && len(hostConfig.PortBindings) > 0 {
