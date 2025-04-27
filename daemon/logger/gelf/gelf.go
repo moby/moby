@@ -85,16 +85,19 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 
 	var gelfWriter gelf.Writer
-	if address.Scheme == "udp" {
+	switch address.Scheme {
+	case "udp":
 		gelfWriter, err = newGELFUDPWriter(address.Host, info)
 		if err != nil {
 			return nil, err
 		}
-	} else if address.Scheme == "tcp" {
+	case "tcp":
 		gelfWriter, err = newGELFTCPWriter(address.Host, info)
 		if err != nil {
 			return nil, err
 		}
+	default:
+		// TODO: consider returning an error for other schemes
 	}
 
 	return &gelfLogger{
