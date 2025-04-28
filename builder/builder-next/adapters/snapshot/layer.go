@@ -25,8 +25,7 @@ func (s *snapshotter) EnsureLayer(ctx context.Context, key string) ([]layer.Diff
 	s.layerCreateLocker.Lock(key)
 	defer s.layerCreateLocker.Unlock(key)
 
-	diffIDs, err := s.GetDiffIDs(ctx, key)
-	if err != nil {
+	if diffIDs, err := s.GetDiffIDs(ctx, key); err != nil {
 		return nil, err
 	} else if diffIDs != nil {
 		return diffIDs, nil
