@@ -135,7 +135,7 @@ func TestHealthStartInterval(t *testing.T) {
 		if err != nil {
 			return poll.Error(err)
 		}
-		if inspect.State.Health.Status != "healthy" {
+		if inspect.State.Health.Status != containertypes.Healthy {
 			if len(inspect.State.Health.Log) > 0 {
 				t.Log(inspect.State.Health.Log[len(inspect.State.Health.Log)-1])
 			}

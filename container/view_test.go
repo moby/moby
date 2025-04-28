@@ -148,13 +148,13 @@ func TestViewWithHealthCheck(t *testing.T) {
 
 	one.Health = &Health{
 		Health: container.Health{
-			Status: "starting",
+			Status: container.Starting,
 		},
 	}
 	assert.NilError(t, one.CheckpointTo(context.Background(), db))
 	s, err := db.Snapshot().Get(one.ID)
 	assert.NilError(t, err)
-	assert.Equal(t, s.Health, "starting")
+	assert.Equal(t, s.Health, container.Starting)
 }
 
 func TestTruncIndex(t *testing.T) {
