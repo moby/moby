@@ -20,7 +20,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ds interface {
+type driverLister interface {
 	GetDriverList() []string
 }
 
@@ -34,7 +34,7 @@ type VolumeEventLogger interface {
 // This is used as the main access point for volumes to higher level services and the API.
 type VolumesService struct {
 	vs           *VolumeStore
-	ds           ds
+	ds           driverLister
 	pruneRunning atomic.Bool
 	eventLogger  VolumeEventLogger
 }

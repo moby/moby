@@ -43,11 +43,7 @@ func (m mockFiProviderWithError) fileInfo(path string) (bool, bool, error) {
 }
 
 func TestParseMountSpec(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "test-mount-config")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(testDir)
+	testDir := t.TempDir()
 	parser := NewParser()
 	tests := []struct {
 		input    mount.Mount
