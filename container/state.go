@@ -100,12 +100,15 @@ func (s *State) String() string {
 	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCodeValue, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 }
 
-// IsValidHealthString checks if the provided string is a valid container health status or not.
-func IsValidHealthString(s string) bool {
-	return s == container.Starting ||
-		s == container.Healthy ||
-		s == container.Unhealthy ||
-		s == container.NoHealthcheck
+// IsValidHealthString checks if the provided string is a valid
+// [container.HealthStatus].
+func IsValidHealthString(s container.HealthStatus) bool {
+	switch s {
+	case container.NoHealthcheck, container.Starting, container.Healthy, container.Unhealthy:
+		return true
+	default:
+		return false
+	}
 }
 
 // StateString returns a single string to describe state
