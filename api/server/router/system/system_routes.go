@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/router/build"
 	"github.com/docker/docker/api/types"
+	buildtypes "github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
@@ -170,7 +171,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	var systemDiskUsage *types.DiskUsage
+	var systemDiskUsage *system.DiskUsage
 	if getContainers || getImages || getVolumes {
 		eg.Go(func() error {
 			var err error
@@ -183,7 +184,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		})
 	}
 
-	var buildCache []*types.BuildCache
+	var buildCache []*buildtypes.CacheRecord
 	if getBuildCache {
 		eg.Go(func() error {
 			var err error
@@ -194,7 +195,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 			if buildCache == nil {
 				// Ensure empty `BuildCache` field is represented as empty JSON array(`[]`)
 				// instead of `null` to be consistent with `Images`, `Containers` etc.
-				buildCache = []*types.BuildCache{}
+				buildCache = []*buildtypes.CacheRecord{}
 			}
 			return nil
 		})
@@ -219,23 +220,42 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 			b.Parent = "" //nolint:staticcheck // ignore SA1019 (Parent field is deprecated)
 		}
 	}
-	if versions.LessThan(version, "1.44") {
-		for _, b := range systemDiskUsage.Images {
+	if versions.LessThan(version, "1.44") && systemDiskUsage != nil && systemDiskUsage.Images != nil {
+		for _, b := range systemDiskUsage.Images.Items {
 			b.VirtualSize = b.Size //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.44.
 		}
 	}
 
-	du := types.DiskUsage{
-		BuildCache:  buildCache,
-		BuilderSize: builderSize,
+	du := system.DiskUsage{}
+	if getBuildCache {
+		du.BuildCache = &buildtypes.CacheDiskUsage{
+			TotalSize: builderSize,
+			Items:     buildCache,
+		}
 	}
 	if systemDiskUsage != nil {
-		du.LayersSize = systemDiskUsage.LayersSize
 		du.Images = systemDiskUsage.Images
 		du.Containers = systemDiskUsage.Containers
 		du.Volumes = systemDiskUsage.Volumes
 	}
-	return httputils.WriteJSON(w, http.StatusOK, du)
+
+	// Use the old struct for the API return value.
+	var v types.DiskUsage
+	if du.Images != nil {
+		v.LayersSize = du.Images.TotalSize
+		v.Images = du.Images.Items
+	}
+	if du.Containers != nil {
+		v.Containers = du.Containers.Items
+	}
+	if du.Volumes != nil {
+		v.Volumes = du.Volumes.Items
+	}
+	if du.BuildCache != nil {
+		v.BuildCache = du.BuildCache.Items
+	}
+	v.BuilderSize = builderSize
+	return httputils.WriteJSON(w, http.StatusOK, v)
 }
 
 type invalidRequestError struct {

@@ -36,7 +36,7 @@ import (
 	networktypes "github.com/docker/docker/api/types/network"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/volume"
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
@@ -131,9 +131,9 @@ type Daemon struct {
 	seccompProfile     []byte
 	seccompProfilePath string
 
-	usageContainers singleflight.Group[struct{}, []*containertypes.Summary]
+	usageContainers singleflight.Group[struct{}, *containertypes.DiskUsage]
 	usageImages     singleflight.Group[struct{}, []*imagetypes.Summary]
-	usageVolumes    singleflight.Group[struct{}, []*volume.Volume]
+	usageVolumes    singleflight.Group[struct{}, *volumetypes.DiskUsage]
 	usageLayer      singleflight.Group[struct{}, int64]
 
 	pruneRunning atomic.Bool
