@@ -35,7 +35,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func dispatch(ctx context.Context, d dispatchRequest, cmd instructions.Command) (err error) {
+func dispatch(ctx context.Context, d dispatchRequest, cmd instructions.Command) (retErr error) {
 	if c, ok := cmd.(instructions.PlatformSpecific); ok {
 		err := c.CheckPlatform(d.state.operatingSystem)
 		if err != nil {
@@ -60,7 +60,7 @@ func dispatch(ctx context.Context, d dispatchRequest, cmd instructions.Command) 
 			d.builder.containerManager.RemoveAll(d.builder.Stdout)
 			return
 		}
-		if d.builder.options.Remove && err == nil {
+		if d.builder.options.Remove && retErr == nil {
 			d.builder.containerManager.RemoveAll(d.builder.Stdout)
 			return
 		}

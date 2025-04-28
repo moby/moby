@@ -15,7 +15,7 @@ import (
 )
 
 // PluginInstall installs a plugin
-func (cli *Client) PluginInstall(ctx context.Context, name string, options types.PluginInstallOptions) (rc io.ReadCloser, err error) {
+func (cli *Client) PluginInstall(ctx context.Context, name string, options types.PluginInstallOptions) (_ io.ReadCloser, retErr error) {
 	query := url.Values{}
 	if _, err := reference.ParseNormalizedNamed(options.RemoteRef); err != nil {
 		return nil, errors.Wrap(err, "invalid remote reference")
@@ -45,7 +45,7 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 			return
 		}
 		defer func() {
-			if err != nil {
+			if retErr != nil {
 				delResp, _ := cli.delete(ctx, "/plugins/"+name, nil, nil)
 				ensureReaderClosed(delResp)
 			}

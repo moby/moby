@@ -535,11 +535,12 @@ type wrapRC struct {
 func (w *wrapRC) Read(b []byte) (int, error) {
 	n, err := w.ReadCloser.Read(b)
 	if err != nil {
-		e := err
-		if e == io.EOF {
-			e = nil
+		switch err {
+		case io.EOF:
+			w.close(nil)
+		default:
+			w.close(err)
 		}
-		w.close(e)
 	}
 	return n, err
 }

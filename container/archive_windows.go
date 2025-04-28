@@ -13,12 +13,12 @@ import (
 // host. Returns a resolved path (absolute path to the resource on the host),
 // the absolute path to the resource relative to the container's rootfs, and
 // an error if the path points to outside the container's rootfs.
-func (container *Container) ResolvePath(path string) (resolvedPath, absPath string, err error) {
+func (container *Container) ResolvePath(path string) (resolvedPath, absPath string, _ error) {
 	if container.BaseFS == "" {
 		return "", "", errors.New("ResolvePath: BaseFS of container " + container.ID + " is unexpectedly empty")
 	}
 	// Check if a drive letter supplied, it must be the system drive. No-op except on Windows
-	path, err = archive.CheckSystemDriveAndRemoveDriveLetter(path)
+	path, err := archive.CheckSystemDriveAndRemoveDriveLetter(path)
 	if err != nil {
 		return "", "", err
 	}
@@ -45,7 +45,7 @@ func (container *Container) ResolvePath(path string) (resolvedPath, absPath stri
 // be acquired before calling this method and the given path should be fully
 // resolved to a path on the host corresponding to the given absolute path
 // inside the container.
-func (container *Container) StatPath(resolvedPath, absPath string) (stat *containertypes.PathStat, err error) {
+func (container *Container) StatPath(resolvedPath, absPath string) (*containertypes.PathStat, error) {
 	if container.BaseFS == "" {
 		return nil, errors.New("StatPath: BaseFS of container " + container.ID + " is unexpectedly empty")
 	}
