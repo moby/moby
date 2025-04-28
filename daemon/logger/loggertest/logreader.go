@@ -545,8 +545,8 @@ func readMessage(t *testing.T, lw *logger.LogWatcher) *logger.Message {
 	case msg, open := <-lw.Msg:
 		if !open {
 			select {
-			case err, open := <-lw.Err:
-				t.Errorf("unexpected receive on lw.Err with closed lw.Msg: err=%v, open=%v", err, open)
+			case err, o := <-lw.Err:
+				t.Errorf("unexpected receive on lw.Err with closed lw.Msg: err=%v, open=%v", err, o)
 			default:
 			}
 			return nil
