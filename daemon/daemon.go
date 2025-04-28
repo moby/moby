@@ -1224,7 +1224,7 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 
 	// Wait without timeout for the container to exit.
 	// Ignore the result.
-	<-c.Wait(ctx, container.WaitConditionNotRunning)
+	<-c.Wait(ctx, containertypes.WaitConditionNotRunning)
 	return nil
 }
 
