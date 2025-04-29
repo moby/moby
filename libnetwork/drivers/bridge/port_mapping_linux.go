@@ -204,7 +204,7 @@ func (n *bridgeNetwork) addPortMappings(
 		}
 	}
 
-	if err := n.iptablesNetwork.AddPorts(ctx, mergeChildHostIPs(bindings)); err != nil {
+	if err := n.firewallerNetwork.AddPorts(ctx, mergeChildHostIPs(bindings)); err != nil {
 		return nil, err
 	}
 
@@ -761,7 +761,7 @@ func (n *bridgeNetwork) releasePortBindings(pbs []portBinding) error {
 			}
 		}
 	}
-	if err := n.iptablesNetwork.DelPorts(context.TODO(), mergeChildHostIPs(pbs)); err != nil {
+	if err := n.firewallerNetwork.DelPorts(context.TODO(), mergeChildHostIPs(pbs)); err != nil {
 		errs = append(errs, err)
 	}
 	for _, pb := range pbs {
@@ -780,7 +780,7 @@ func (n *bridgeNetwork) reapplyPerPortIptables() {
 	}
 	n.Unlock()
 
-	if err := n.iptablesNetwork.AddPorts(context.Background(), mergeChildHostIPs(allPBs)); err != nil {
+	if err := n.firewallerNetwork.AddPorts(context.Background(), mergeChildHostIPs(allPBs)); err != nil {
 		log.G(context.TODO()).Warnf("Failed to reconfigure NAT: %s", err)
 	}
 }
