@@ -23,4 +23,8 @@ const (
 
 	// DefaultBridge label
 	DefaultBridge = "com.docker.network.bridge.default_bridge"
+
+	// TrustedHostInterfaces can be used to supply a list of host interfaces that are
+	// allowed direct access to published ports on a container's address.
+	TrustedHostInterfaces = "com.docker.network.bridge.trusted_host_interfaces"
 )
