@@ -1,3 +1,20 @@
-Dockerfile* linguist-language=Dockerfile
+# Source: https://stackoverflow.com/a/10855862/14731
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Exceptional cases that do not use the standard extensions. Must be listed before the generic rules that follow.
+/hack/** text eol=lf
+/integration-cli/fixtures/auth/docker-credential-shell-test
+
+Dockerfile* linguist-language=Dockerfile eol=lf
 vendor.mod linguist-language=Go-Module
 vendor.sum linguist-language=Go-Checksums
+
+*.go -text diff=golang
+
+*.sh text eol=lf
+*.bash text eol=lf
+*.ps1 text eol=crlf
+
+# init scripts
+/contrib/init/** eol=lf
