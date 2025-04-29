@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/libnetwork/iptables"
 )
 
@@ -18,62 +19,46 @@ type (
 	iptablesCleanFuncs []iptableCleanFunc
 )
 
-type NetworkConfigFam struct {
-	HostIP      netip.Addr
-	Prefix      netip.Prefix
-	Routed      bool
-	Unprotected bool
-}
-
-type NetworkConfig struct {
-	IfName     string
-	Internal   bool
-	ICC        bool
-	Masquerade bool
-	Config4    NetworkConfigFam
-	Config6    NetworkConfigFam
-}
-
-type Network struct {
-	NetworkConfig
-	ipt        *Iptabler
+type network struct {
+	firewaller.NetworkConfig
+	ipt        *iptabler
 	cleanFuncs iptablesCleanFuncs
 }
 
-func (ipt *Iptabler) NewNetwork(nc NetworkConfig) (_ *Network, retErr error) {
-	n := &Network{
+func (ipt *iptabler) NewNetwork(ctx context.Context, nc firewaller.NetworkConfig) (_ firewaller.Network, retErr error) {
+	n := &network{
 		ipt:           ipt,
 		NetworkConfig: nc,
 	}
 	defer func() {
 		if retErr != nil {
-			if err := n.DelNetworkLevelRules(); err != nil {
-				log.G(context.TODO()).WithError(err).Warnf("Failed to delete network level rules following earlier error")
+			if err := n.DelNetworkLevelRules(ctx); err != nil {
+				log.G(ctx).WithError(err).Warnf("Failed to delete network level rules following earlier error")
 			}
 		}
 	}()
 
-	if err := n.ReapplyNetworkLevelRules(); err != nil {
+	if err := n.ReapplyNetworkLevelRules(ctx); err != nil {
 		return nil, err
 	}
 	return n, nil
 }
 
-func (n *Network) ReapplyNetworkLevelRules() error {
+func (n *network) ReapplyNetworkLevelRules(ctx context.Context) error {
 	if n.ipt.IPv4 {
-		if err := n.configure(iptables.IPv4, n.Config4); err != nil {
+		if err := n.configure(ctx, iptables.IPv4, n.Config4); err != nil {
 			return err
 		}
 	}
 	if n.ipt.IPv6 {
-		if err := n.configure(iptables.IPv6, n.Config6); err != nil {
+		if err := n.configure(ctx, iptables.IPv6, n.Config6); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (n *Network) DelNetworkLevelRules() error {
+func (n *network) DelNetworkLevelRules(_ context.Context) error {
 	var errs []error
 	for _, cleanFunc := range n.cleanFuncs {
 		if err := cleanFunc(); err != nil {
@@ -84,37 +69,37 @@ func (n *Network) DelNetworkLevelRules() error {
 	return errors.Join(errs...)
 }
 
-func (n *Network) configure(ipv iptables.IPVersion, conf NetworkConfigFam) error {
+func (n *network) configure(ctx context.Context, ipv iptables.IPVersion, conf firewaller.NetworkConfigFam) error {
 	if !conf.Prefix.IsValid() {
 		// Delete INC rules, in case they were created by a 28.0.0 daemon that didn't check
 		// whether the network had iptables/ip6tables enabled.
 		// This preserves https://github.com/moby/moby/commit/8cc4d1d4a2b6408232041f9ba4dff966eba80cc0
-		return setINC(ipv, n.IfName, conf.Routed, false)
+		return setINC(ctx, ipv, n.IfName, conf.Routed, false)
 	}
-	if err := n.setupIPTables(ipv, conf); err != nil {
+	if err := n.setupIPTables(ctx, ipv, conf); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (n *Network) registerCleanFunc(clean iptableCleanFunc) {
+func (n *network) registerCleanFunc(clean iptableCleanFunc) {
 	n.cleanFuncs = append(n.cleanFuncs, clean)
 }
 
-func (n *Network) setupIPTables(ipVersion iptables.IPVersion, config NetworkConfigFam) error {
+func (n *network) setupIPTables(ctx context.Context, ipVersion iptables.IPVersion, config firewaller.NetworkConfigFam) error {
 	if n.Internal {
-		if err := setupInternalNetworkRules(n.IfName, config.Prefix, n.ICC, true); err != nil {
+		if err := setupInternalNetworkRules(ctx, n.IfName, config.Prefix, n.ICC, true); err != nil {
 			return fmt.Errorf("Failed to Setup IP tables: %w", err)
 		}
 		n.registerCleanFunc(func() error {
-			return setupInternalNetworkRules(n.IfName, config.Prefix, n.ICC, false)
+			return setupInternalNetworkRules(ctx, n.IfName, config.Prefix, n.ICC, false)
 		})
 	} else {
-		if err := n.setupNonInternalNetworkRules(ipVersion, config, true); err != nil {
+		if err := n.setupNonInternalNetworkRules(ctx, ipVersion, config, true); err != nil {
 			return fmt.Errorf("Failed to Setup IP tables: %w", err)
 		}
 		n.registerCleanFunc(func() error {
-			return n.setupNonInternalNetworkRules(ipVersion, config, false)
+			return n.setupNonInternalNetworkRules(ctx, ipVersion, config, false)
 		})
 
 		if err := iptables.AddInterfaceFirewalld(n.IfName); err != nil {
@@ -164,9 +149,9 @@ func (n *Network) setupIPTables(ipVersion iptables.IPVersion, config NetworkConf
 		// Register the cleanup function first. Then, if setINC fails after creating
 		// some rules, they will be deleted.
 		n.registerCleanFunc(func() error {
-			return setINC(ipVersion, n.IfName, config.Routed, false)
+			return setINC(ctx, ipVersion, n.IfName, config.Routed, false)
 		})
-		if err := setINC(ipVersion, n.IfName, config.Routed, true); err != nil {
+		if err := setINC(ctx, ipVersion, n.IfName, config.Routed, true); err != nil {
 			return err
 		}
 	}
@@ -303,7 +288,7 @@ func setDefaultForwardRule(ipVersion iptables.IPVersion, ifName string, unprotec
 	return nil
 }
 
-func (n *Network) setupNonInternalNetworkRules(ipVer iptables.IPVersion, config NetworkConfigFam, enable bool) error {
+func (n *network) setupNonInternalNetworkRules(ctx context.Context, ipVer iptables.IPVersion, config firewaller.NetworkConfigFam, enable bool) error {
 	var natArgs, hpNatArgs []string
 	if config.HostIP.IsValid() {
 		// The user wants IPv4/IPv6 SNAT with the given address.
@@ -355,7 +340,7 @@ func (n *Network) setupNonInternalNetworkRules(ipVer iptables.IPVersion, config 
 	}
 
 	// Set Inter Container Communication.
-	if err := setIcc(ipVer, n.IfName, n.ICC, false, enable); err != nil {
+	if err := setIcc(ctx, ipVer, n.IfName, n.ICC, false, enable); err != nil {
 		return err
 	}
 
@@ -407,7 +392,7 @@ func (n *Network) setupNonInternalNetworkRules(ipVer iptables.IPVersion, config 
 	return nil
 }
 
-func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, internal, insert bool) error {
+func setIcc(ctx context.Context, version iptables.IPVersion, bridgeIface string, iccEnable, internal, insert bool) error {
 	args := []string{"-i", bridgeIface, "-o", bridgeIface, "-j"}
 	acceptRule := iptables.Rule{IPVer: version, Table: iptables.Filter, Chain: DockerForwardChain, Args: append(args, "ACCEPT")}
 	dropRule := iptables.Rule{IPVer: version, Table: iptables.Filter, Chain: DockerForwardChain, Args: append(args, "DROP")}
@@ -423,7 +408,7 @@ func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, internal,
 		}
 	} else {
 		if err := acceptRule.Delete(); err != nil {
-			log.G(context.TODO()).WithError(err).Warn("Failed to delete legacy ICC accept rule")
+			log.G(ctx).WithError(err).Warn("Failed to delete legacy ICC accept rule")
 		}
 	}
 
@@ -433,7 +418,7 @@ func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, internal,
 		}
 	} else {
 		if err := dropRule.Delete(); err != nil {
-			log.G(context.TODO()).WithError(err).Warn("Failed to delete ICC drop rule")
+			log.G(ctx).WithError(err).Warn("Failed to delete ICC drop rule")
 		}
 	}
 
@@ -453,7 +438,7 @@ func setIcc(version iptables.IPVersion, bridgeIface string, iccEnable, internal,
 // Install rules only if they aren't present, remove only if they are.
 // If this method returns an error, it doesn't roll back any rules it has added.
 // No error is returned if rules cannot be removed (errors are just logged).
-func setINC(version iptables.IPVersion, iface string, routed, enable bool) (retErr error) {
+func setINC(ctx context.Context, version iptables.IPVersion, iface string, routed, enable bool) (retErr error) {
 	iptable := iptables.GetIptable(version)
 	actionI, actionA := iptables.Insert, iptables.Append
 	actionMsg := "add"
@@ -470,7 +455,7 @@ func setINC(version iptables.IPVersion, iface string, routed, enable bool) (retE
 			"-o", iface,
 			"-j", "RETURN",
 		}); err != nil {
-			log.G(context.TODO()).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
+			log.G(ctx).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
 			if enable {
 				return fmt.Errorf("%s inter-network communication rule: %w", actionMsg, err)
 			}
@@ -482,7 +467,7 @@ func setINC(version iptables.IPVersion, iface string, routed, enable bool) (retE
 			"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED",
 			"-j", "ACCEPT",
 		}); err != nil {
-			log.G(context.TODO()).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
+			log.G(ctx).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
 			if enable {
 				return fmt.Errorf("%s inter-network communication rule: %w", actionMsg, err)
 			}
@@ -494,7 +479,7 @@ func setINC(version iptables.IPVersion, iface string, routed, enable bool) (retE
 		"!", "-o", iface,
 		"-j", isolationChain2,
 	}); err != nil {
-		log.G(context.TODO()).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
+		log.G(ctx).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
 		if enable {
 			return fmt.Errorf("%s inter-network communication rule: %w", actionMsg, err)
 		}
@@ -504,7 +489,7 @@ func setINC(version iptables.IPVersion, iface string, routed, enable bool) (retE
 		"-o", iface,
 		"-j", "DROP",
 	}); err != nil {
-		log.G(context.TODO()).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
+		log.G(ctx).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
 		if enable {
 			return fmt.Errorf("%s inter-network communication rule: %w", actionMsg, err)
 		}
@@ -516,7 +501,7 @@ func setINC(version iptables.IPVersion, iface string, routed, enable bool) (retE
 // Obsolete chain from previous docker versions
 const oldIsolationChain = "DOCKER-ISOLATION"
 
-func removeIPChains(version iptables.IPVersion) {
+func removeIPChains(ctx context.Context, version iptables.IPVersion) {
 	ipt := iptables.GetIptable(version)
 
 	// Remove obsolete rules from default chains
@@ -534,12 +519,12 @@ func removeIPChains(version iptables.IPVersion) {
 		{Name: oldIsolationChain, Table: iptables.Filter, IPVersion: version},
 	} {
 		if err := chainInfo.Remove(); err != nil {
-			log.G(context.TODO()).Warnf("Failed to remove existing iptables entries in table %s chain %s : %v", chainInfo.Table, chainInfo.Name, err)
+			log.G(ctx).Warnf("Failed to remove existing iptables entries in table %s chain %s : %v", chainInfo.Table, chainInfo.Name, err)
 		}
 	}
 }
 
-func setupInternalNetworkRules(bridgeIface string, prefix netip.Prefix, icc, insert bool) error {
+func setupInternalNetworkRules(ctx context.Context, bridgeIface string, prefix netip.Prefix, icc, insert bool) error {
 	var version iptables.IPVersion
 	var inDropRule, outDropRule iptables.Rule
 
@@ -592,5 +577,5 @@ func setupInternalNetworkRules(bridgeIface string, prefix netip.Prefix, icc, ins
 	}
 
 	// Set Inter Container Communication.
-	return setIcc(version, bridgeIface, icc, true, insert)
+	return setIcc(ctx, version, bridgeIface, icc, true, insert)
 }

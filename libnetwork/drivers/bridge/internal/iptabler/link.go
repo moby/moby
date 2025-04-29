@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 )
 
-func (n *Network) AddLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort) error {
+func (n *network) AddLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort) error {
 	if !parentIP.IsValid() || parentIP.IsUnspecified() {
 		return fmt.Errorf("cannot link to a container with an empty parent IP address")
 	}
@@ -29,7 +29,7 @@ func (n *Network) AddLink(ctx context.Context, parentIP, childIP netip.Addr, por
 	return nil
 }
 
-func (n *Network) DelLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort) {
+func (n *network) DelLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort) {
 	chain := iptables.ChainInfo{Name: dockerChain}
 	for _, port := range ports {
 		if err := chain.Link(iptables.Delete, parentIP, childIP, int(port.Port), port.Proto.String(), n.IfName); err != nil {
