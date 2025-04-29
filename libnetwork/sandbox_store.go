@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
@@ -228,36 +227,18 @@ func (c *Controller) sandboxRestore(activeSandboxes map[string]interface{}) erro
 				"nid": stringid.TruncateID(eps.Nid),
 				"eid": stringid.TruncateID(eps.Eid),
 			}))
+			// If the Network or Endpoint can't be loaded from the store, log and continue. Something
+			// might go wrong later, but it might just be a reference to a deleted network/endpoint
+			// (in which case, the best thing to do is to continue to run/delete the Sandbox with the
+			// available configuration).
 			n, err := c.getNetworkFromStore(eps.Nid)
-			var ep *Endpoint
 			if err != nil {
-				log.G(ctx).WithError(err).Error("getNetworkFromStore failed while trying to build sandbox")
-				ep = &Endpoint{
-					id: eps.Eid,
-					network: &Network{
-						id:      eps.Nid,
-						ctrlr:   c,
-						drvOnce: &sync.Once{},
-						persist: true,
-					},
-					sandboxID: sbs.ID,
-				}
-				c.cacheEndpoint(ep)
-				c.cacheNetwork(ep.network)
-			} else {
-				ep, err = n.getEndpointFromStore(eps.Eid)
-				if err != nil {
-					log.G(ctx).WithError(err).Error("getEndpointFromStore failed while trying to build sandbox")
-					ep = &Endpoint{
-						id:        eps.Eid,
-						network:   n,
-						sandboxID: sbs.ID,
-					}
-					c.cacheEndpoint(ep)
-				}
+				log.G(ctx).WithError(err).Warn("Failed to restore endpoint, getNetworkFromStore failed")
+				continue
 			}
-			if isRestore && err != nil {
-				log.G(ctx).WithError(err).Error("Failed to restore endpoint")
+			ep, err := n.getEndpointFromStore(eps.Eid)
+			if err != nil {
+				log.G(ctx).WithError(err).Warn("Failed to restore endpoint, getEndpointFromStore failed")
 				continue
 			}
 			sb.addEndpoint(ep)
@@ -266,7 +247,7 @@ func (c *Controller) sandboxRestore(activeSandboxes map[string]interface{}) erro
 		if !isRestore {
 			log.G(ctx).Info("Removing stale sandbox")
 			if err := sb.delete(context.WithoutCancel(ctx), true); err != nil {
-				log.G(ctx).WithError(err).Error("Failed to delete sandbox while trying to clean up")
+				log.G(ctx).WithError(err).Warn("Failed to delete sandbox while trying to clean up")
 			}
 			continue
 		}
