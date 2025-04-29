@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/scope"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 const (
@@ -193,11 +194,9 @@ func (c *Controller) sandboxRestore(activeSandboxes map[string]interface{}) erro
 			dbExists:           true,
 		}
 
-		msg := " for cleanup"
 		create := true
 		isRestore := false
 		if val, ok := activeSandboxes[sb.ID()]; ok {
-			msg = ""
 			sb.isStub = false
 			isRestore = true
 			opts := val.([]SandboxOption)
@@ -206,9 +205,17 @@ func (c *Controller) sandboxRestore(activeSandboxes map[string]interface{}) erro
 			sb.restoreResolvConfPath()
 			create = !sb.config.useDefaultSandBox
 		}
+
+		ctx := context.TODO()
+		ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
+			"sid":       stringid.TruncateID(sb.ID()),
+			"cid":       stringid.TruncateID(sb.ContainerID()),
+			"isRestore": isRestore,
+		}))
+
 		sb.osSbox, err = osl.NewSandbox(sb.Key(), create, isRestore)
 		if err != nil {
-			log.G(context.TODO()).Errorf("failed to create osl sandbox while trying to restore sandbox %.7s%s: %v", sb.ID(), msg, err)
+			log.G(ctx).WithError(err).Error("Failed to create osl sandbox while trying to restore sandbox")
 			continue
 		}
 
@@ -217,10 +224,14 @@ func (c *Controller) sandboxRestore(activeSandboxes map[string]interface{}) erro
 		c.mu.Unlock()
 
 		for _, eps := range sbs.Eps {
+			ctx := log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
+				"nid": stringid.TruncateID(eps.Nid),
+				"eid": stringid.TruncateID(eps.Eid),
+			}))
 			n, err := c.getNetworkFromStore(eps.Nid)
 			var ep *Endpoint
 			if err != nil {
-				log.G(context.TODO()).Errorf("getNetworkFromStore for nid %s failed while trying to build sandbox for cleanup: %v", eps.Nid, err)
+				log.G(ctx).WithError(err).Error("getNetworkFromStore failed while trying to build sandbox")
 				ep = &Endpoint{
 					id: eps.Eid,
 					network: &Network{
@@ -236,7 +247,7 @@ func (c *Controller) sandboxRestore(activeSandboxes map[string]interface{}) erro
 			} else {
 				ep, err = n.getEndpointFromStore(eps.Eid)
 				if err != nil {
-					log.G(context.TODO()).Errorf("getEndpointFromStore for eid %s failed while trying to build sandbox for cleanup: %v", eps.Eid, err)
+					log.G(ctx).WithError(err).Error("getEndpointFromStore failed while trying to build sandbox")
 					ep = &Endpoint{
 						id:        eps.Eid,
 						network:   n,
@@ -245,17 +256,17 @@ func (c *Controller) sandboxRestore(activeSandboxes map[string]interface{}) erro
 					c.cacheEndpoint(ep)
 				}
 			}
-			if _, ok := activeSandboxes[sb.ID()]; ok && err != nil {
-				log.G(context.TODO()).Errorf("failed to restore endpoint %s in %s for container %s due to %v", eps.Eid, eps.Nid, sb.ContainerID(), err)
+			if isRestore && err != nil {
+				log.G(ctx).WithError(err).Error("Failed to restore endpoint")
 				continue
 			}
 			sb.addEndpoint(ep)
 		}
 
-		if _, ok := activeSandboxes[sb.ID()]; !ok {
-			log.G(context.TODO()).Infof("Removing stale sandbox %s (%s)", sb.id, sb.containerID)
-			if err := sb.delete(context.WithoutCancel(context.TODO()), true); err != nil {
-				log.G(context.TODO()).Errorf("Failed to delete sandbox %s while trying to cleanup: %v", sb.id, err)
+		if !isRestore {
+			log.G(ctx).Info("Removing stale sandbox")
+			if err := sb.delete(context.WithoutCancel(ctx), true); err != nil {
+				log.G(ctx).WithError(err).Error("Failed to delete sandbox while trying to clean up")
 			}
 			continue
 		}
@@ -267,7 +278,7 @@ func (c *Controller) sandboxRestore(activeSandboxes map[string]interface{}) erro
 		// reconstruct osl sandbox field
 		if !sb.config.useDefaultSandBox {
 			if err := sb.restoreOslSandbox(); err != nil {
-				log.G(context.TODO()).Errorf("failed to populate fields for osl sandbox %s: %v", sb.ID(), err)
+				log.G(ctx).WithError(err).Error("Failed to populate fields for osl sandbox")
 				continue
 			}
 		} else {
@@ -281,7 +292,7 @@ func (c *Controller) sandboxRestore(activeSandboxes map[string]interface{}) erro
 			if !c.isAgent() {
 				n := ep.getNetwork()
 				if !c.isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
-					n.updateSvcRecord(context.WithoutCancel(context.TODO()), ep, true)
+					n.updateSvcRecord(context.WithoutCancel(ctx), ep, true)
 				}
 			}
 		}
