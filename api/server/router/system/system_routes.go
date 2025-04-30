@@ -63,7 +63,7 @@ func (s *systemRouter) swarmStatus() string {
 
 func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	version := httputils.VersionFromContext(ctx)
-	info, _, _ := s.collectSystemInfo.Do(ctx, version, func(ctx context.Context) (*system.Info, error) {
+	info, _, _ := s.collectSystemInfo.Do(ctx, version, func(ctx context.Context) (*infoResponse, error) {
 		info, err := s.backend.SystemInfo(ctx)
 		if err != nil {
 			return nil, err
@@ -117,6 +117,7 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 			info.FirewallBackend = nil
 		}
 
+		extraFields := map[string]any{}
 		if versions.LessThan(version, "1.49") {
 			// Expected commits are omitted in API 1.49, but should still be
 			// included in older versions.
@@ -129,9 +130,17 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 		}
 		if versions.LessThan(version, "1.50") {
 			info.DiscoveredDevices = nil
+
+			// These fields are omitted in > API 1.49, and always false
+			// older API versions.
+			extraFields = map[string]any{
+				"BridgeNfIptables":  json.RawMessage("false"),
+				"BridgeNfIp6tables": json.RawMessage("false"),
+			}
 		}
-		return info, nil
+		return &infoResponse{Info: info, extraFields: extraFields}, nil
 	})
+
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }
 
