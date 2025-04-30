@@ -62,7 +62,7 @@ func (s *systemRouter) swarmStatus() string {
 
 func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	version := httputils.VersionFromContext(ctx)
-	info, _, _ := s.collectSystemInfo.Do(ctx, version, func(ctx context.Context) (*system.Info, error) {
+	info, _, _ := s.collectSystemInfo.Do(ctx, version, func(ctx context.Context) (*infoResponse, error) {
 		info, err := s.backend.SystemInfo(ctx)
 		if err != nil {
 			return nil, err
@@ -116,18 +116,27 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 			info.FirewallBackend = nil
 		}
 
+		extraFields := map[string]any{}
 		if versions.LessThan(version, "1.49") {
 			// Expected commits are omitted in API 1.49, but should still be
 			// included in older versions.
 			info.ContainerdCommit.Expected = info.ContainerdCommit.ID //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
 			info.RuncCommit.Expected = info.RuncCommit.ID             //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
 			info.InitCommit.Expected = info.InitCommit.ID             //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
+
+			// These fields are omitted in > API 1.49, and always false
+			// older API versions.
+			extraFields = map[string]any{
+				"BridgeNfIptables":  json.RawMessage("false"),
+				"BridgeNfIp6tables": json.RawMessage("false"),
+			}
 		}
 		if versions.GreaterThanOrEqualTo(version, "1.42") {
 			info.KernelMemory = false
 		}
-		return info, nil
+		return &infoResponse{Info: info, extraFields: extraFields}, nil
 	})
+
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }
 

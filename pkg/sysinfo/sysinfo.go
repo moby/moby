@@ -24,16 +24,6 @@ type SysInfo struct {
 	// Whether IPv4 forwarding is supported or not, if this was disabled, networking will not work
 	IPv4ForwardingDisabled bool
 
-	// Whether bridge-nf-call-iptables is supported or not
-	//
-	// Deprecated: netfilter module is now loaded on-demand and no longer during daemon startup, making this field obsolete. This field is always false and will be removed in the next release.
-	BridgeNFCallIPTablesDisabled bool
-
-	// Whether bridge-nf-call-ip6tables is supported or not
-	//
-	// Deprecated: netfilter module is now loaded on-demand and no longer during daemon startup, making this field obsolete. This field is always false and will be removed in the next release.
-	BridgeNFCallIP6TablesDisabled bool
-
 	// Whether the cgroup has the mountpoint of "devices" or not
 	CgroupDevicesEnabled bool
 
