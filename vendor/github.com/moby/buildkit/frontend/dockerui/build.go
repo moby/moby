@@ -61,16 +61,12 @@ func (bc *Client) Build(ctx context.Context, fn BuildFunc) (*ResultBuilder, erro
 			} else {
 				p = platforms.DefaultSpec()
 			}
-
-			k := platforms.FormatAll(p)
-			p = extendWindowsPlatform(p, img.Platform)
-			p = platforms.Normalize(p)
-
+			expPlat := makeExportPlatform(p, img.Platform)
 			if bc.MultiPlatformRequested {
-				res.AddRef(k, ref)
-				res.AddMeta(fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, k), config)
+				res.AddRef(expPlat.ID, ref)
+				res.AddMeta(fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, expPlat.ID), config)
 				if len(baseConfig) > 0 {
-					res.AddMeta(fmt.Sprintf("%s/%s", exptypes.ExporterImageBaseConfigKey, k), baseConfig)
+					res.AddMeta(fmt.Sprintf("%s/%s", exptypes.ExporterImageBaseConfigKey, expPlat.ID), baseConfig)
 				}
 			} else {
 				res.SetRef(ref)
@@ -79,10 +75,7 @@ func (bc *Client) Build(ctx context.Context, fn BuildFunc) (*ResultBuilder, erro
 					res.AddMeta(exptypes.ExporterImageBaseConfigKey, baseConfig)
 				}
 			}
-			expPlatforms.Platforms[i] = exptypes.Platform{
-				ID:       k,
-				Platform: p,
-			}
+			expPlatforms.Platforms[i] = expPlat
 			return nil
 		})
 	}
@@ -132,4 +125,17 @@ func extendWindowsPlatform(p, imgP ocispecs.Platform) ocispecs.Platform {
 		}
 	}
 	return p
+}
+
+func makeExportPlatform(p, imgP ocispecs.Platform) exptypes.Platform {
+	p = platforms.Normalize(p)
+	exp := exptypes.Platform{
+		ID: platforms.FormatAll(p),
+	}
+	if p.OS == "windows" {
+		p = extendWindowsPlatform(p, imgP)
+		p = platforms.Normalize(p)
+	}
+	exp.Platform = p
+	return exp
 }
