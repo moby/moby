@@ -358,8 +358,7 @@ func getSystemCPUUsage() (cpuUsage uint64, cpuNum uint32, _ error) {
 				}
 				totalClockTicks += v
 			}
-			cpuUsage = (totalClockTicks * nanoSecondsPerSecond) /
-				clockTicksPerSecond
+			cpuUsage = (totalClockTicks * nanoSecondsPerSecond) / clockTicksPerSecond
 		}
 		if '0' <= line[3] && line[3] <= '9' {
 			cpuNum++

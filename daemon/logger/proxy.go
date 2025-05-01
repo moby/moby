@@ -73,10 +73,9 @@ type logPluginProxyCapabilitiesResponse struct {
 	Err string
 }
 
-func (pp *logPluginProxy) Capabilities() (cap Capability, err error) {
+func (pp *logPluginProxy) Capabilities() (Capability, error) {
 	var ret logPluginProxyCapabilitiesResponse
-
-	if err = pp.Call("LogDriver.Capabilities", nil, &ret); err != nil {
+	if err := pp.Call("LogDriver.Capabilities", nil, &ret); err != nil {
 		return Capability{}, err
 	}
 
@@ -92,7 +91,7 @@ type logPluginProxyReadLogsRequest struct {
 	Config ReadConfig
 }
 
-func (pp *logPluginProxy) ReadLogs(info Info, config ReadConfig) (stream io.ReadCloser, err error) {
+func (pp *logPluginProxy) ReadLogs(info Info, config ReadConfig) (stream io.ReadCloser, _ error) {
 	return pp.Stream("LogDriver.ReadLogs", logPluginProxyReadLogsRequest{
 		Info:   info,
 		Config: config,
