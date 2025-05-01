@@ -84,11 +84,15 @@ func (x *BuilderGCFilter) UnmarshalJSON(data []byte) error {
 
 // BuilderGCConfig contains GC config for a buildkit builder
 type BuilderGCConfig struct {
-	Enabled              bool            `json:",omitempty"`
+	Enabled              *bool           `json:",omitempty"`
 	Policy               []BuilderGCRule `json:",omitempty"`
 	DefaultReservedSpace string          `json:",omitempty"`
 	DefaultMaxUsedSpace  string          `json:",omitempty"`
 	DefaultMinFreeSpace  string          `json:",omitempty"`
+}
+
+func (x *BuilderGCConfig) IsEnabled() bool {
+	return x.Enabled == nil || *x.Enabled
 }
 
 func (x *BuilderGCConfig) UnmarshalJSON(data []byte) error {
@@ -103,11 +107,14 @@ func (x *BuilderGCConfig) UnmarshalJSON(data []byte) error {
 		DefaultKeepStorage string `json:",omitempty"`
 	}
 
+	// Set defaults.
+	xx.Enabled = true
+
 	if err := json.Unmarshal(data, &xx); err != nil {
 		return err
 	}
 
-	x.Enabled = xx.Enabled
+	x.Enabled = &xx.Enabled
 	x.Policy = xx.Policy
 	x.DefaultReservedSpace = xx.DefaultReservedSpace
 	x.DefaultMaxUsedSpace = xx.DefaultMaxUsedSpace

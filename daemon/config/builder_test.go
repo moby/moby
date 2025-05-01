@@ -28,7 +28,7 @@ func TestBuilderGC(t *testing.T) {
 
 	cfg, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
 	assert.NilError(t, err)
-	assert.Assert(t, cfg.Builder.GC.Enabled)
+	assert.Assert(t, cfg.Builder.GC.IsEnabled())
 	f1 := filters.NewArgs()
 	f1.Add("unused-for", "2200h")
 	f2 := filters.NewArgs()
@@ -61,7 +61,7 @@ func TestBuilderGC_DeprecatedKeepStorage(t *testing.T) {
 
 	cfg, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
 	assert.NilError(t, err)
-	assert.Assert(t, cfg.Builder.GC.Enabled)
+	assert.Assert(t, cfg.Builder.GC.IsEnabled())
 	f1 := filters.NewArgs()
 	f1.Add("unused-for", "2200h")
 	f2 := filters.NewArgs()
@@ -88,4 +88,29 @@ func TestBuilderGCFilterUnmarshal(t *testing.T) {
 		ReservedSpace: "10GB", Filter: BuilderGCFilter(filters.NewArgs(filters.Arg("unused-for2200h", ""))),
 	}}
 	assert.DeepEqual(t, cfg.Policy, expectedPolicy, cmp.AllowUnexported(BuilderGCFilter{}))
+}
+
+func TestBuilderGC_Enabled(t *testing.T) {
+	tests := []struct {
+		doc, config string
+		expected    bool
+	}{
+		{doc: "empty config", config: ``, expected: true},
+		{doc: "empty json", config: `{}`, expected: true},
+		{doc: "empty builder", config: `{"builder": {}}`, expected: true},
+		{doc: "empty gc", config: `{"builder": {"gc": {}}}`, expected: true},
+		{doc: "gc enabled", config: `{"builder": {"gc": {"enabled": true}}}`, expected: true},
+		{doc: "gc disabled", config: `{"builder": {"gc": {"enabled": false}}}`, expected: false},
+		{doc: "gc with policy", config: `{"builder": {"gc": {"policy": []}}}`, expected: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			tempFile := fs.NewFile(t, "config", fs.WithContent(tc.config))
+			configFile := tempFile.Path()
+
+			cfg, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
+			assert.NilError(t, err)
+			assert.Equal(t, cfg.Builder.GC.IsEnabled(), tc.expected)
+		})
+	}
 }

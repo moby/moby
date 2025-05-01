@@ -444,7 +444,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 
 func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, error) {
 	var gcPolicy []client.PruneInfo
-	if conf.GC.Enabled {
+	if conf.GC.IsEnabled() {
 		if conf.GC.Policy == nil {
 			reservedSpace, maxUsedSpace, minFreeSpace, err := parseGCPolicy(config.BuilderGCRule{
 				ReservedSpace: conf.GC.DefaultReservedSpace,
