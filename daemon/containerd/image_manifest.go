@@ -219,44 +219,44 @@ func readManifest(ctx context.Context, store content.Provider, desc ocispec.Desc
 
 // ImagePlatform returns the platform of the image manifest.
 // If the manifest list doesn't have a platform filled, it will be read from the config.
-func (m *ImageManifest) ImagePlatform(ctx context.Context) (ocispec.Platform, error) {
-	target := m.Target()
+func (im *ImageManifest) ImagePlatform(ctx context.Context) (ocispec.Platform, error) {
+	target := im.Target()
 	if target.Platform != nil {
 		return *target.Platform, nil
 	}
 
 	var out ocispec.Platform
-	err := m.ReadConfig(ctx, &out)
+	err := im.ReadConfig(ctx, &out)
 	return out, err
 }
 
 // ReadConfig gets the image config and unmarshals it into the provided struct.
 // The provided struct should be a pointer to the config struct or its subset.
-func (m *ImageManifest) ReadConfig(ctx context.Context, outConfig interface{}) error {
-	configDesc, err := m.Config(ctx)
+func (im *ImageManifest) ReadConfig(ctx context.Context, outConfig interface{}) error {
+	configDesc, err := im.Config(ctx)
 	if err != nil {
 		return err
 	}
 
-	return readJSON(ctx, m.ContentStore(), configDesc, outConfig)
+	return readJSON(ctx, im.ContentStore(), configDesc, outConfig)
 }
 
 // PresentContentSize returns the size of the image's content that is present in the content store.
-func (m *ImageManifest) PresentContentSize(ctx context.Context) (int64, error) {
-	cs := m.ContentStore()
+func (im *ImageManifest) PresentContentSize(ctx context.Context) (int64, error) {
+	cs := im.ContentStore()
 	var size int64
 	err := c8dimages.Walk(ctx, presentChildrenHandler(cs, func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		size += desc.Size
 		return nil, nil
-	}), m.Target())
+	}), im.Target())
 	return size, err
 }
 
 // SnapshotUsage returns the disk usage of the image's snapshots.
-func (m *ImageManifest) SnapshotUsage(ctx context.Context, snapshotter snapshots.Snapshotter) (snapshots.Usage, error) {
-	diffIDs, err := m.RootFS(ctx)
+func (im *ImageManifest) SnapshotUsage(ctx context.Context, snapshotter snapshots.Snapshotter) (snapshots.Usage, error) {
+	diffIDs, err := im.RootFS(ctx)
 	if err != nil {
-		return snapshots.Usage{}, errors.Wrapf(err, "failed to get rootfs of image %s", m.Name())
+		return snapshots.Usage{}, errors.Wrapf(err, "failed to get rootfs of image %s", im.Name())
 	}
 
 	imageSnapshotID := identity.ChainID(diffIDs).String()
@@ -266,12 +266,12 @@ func (m *ImageManifest) SnapshotUsage(ctx context.Context, snapshotter snapshots
 			return snapshots.Usage{Size: 0}, nil
 		}
 		log.G(ctx).WithError(err).WithFields(log.Fields{
-			"image":      m.Name(),
-			"target":     m.Target(),
+			"image":      im.Name(),
+			"target":     im.Target(),
 			"snapshotID": imageSnapshotID,
 		}).Warn("failed to calculate snapshot usage of image")
 
-		return snapshots.Usage{}, errors.Wrapf(err, "failed to calculate snapshot usage of image %s", m.Name())
+		return snapshots.Usage{}, errors.Wrapf(err, "failed to calculate snapshot usage of image %s", im.Name())
 	}
 	return unpackedUsage, nil
 }

@@ -240,39 +240,39 @@ func ValidateFixedCIDRV6(val string) error {
 
 // Validate performs a static validation on the network configuration parameters.
 // Whatever can be assessed a priori before attempting any programming.
-func (c *networkConfiguration) Validate() error {
-	if c.Mtu < 0 {
-		return errdefs.InvalidParameter(fmt.Errorf("invalid MTU number: %d", c.Mtu))
+func (ncfg *networkConfiguration) Validate() error {
+	if ncfg.Mtu < 0 {
+		return errdefs.InvalidParameter(fmt.Errorf("invalid MTU number: %d", ncfg.Mtu))
 	}
 
-	if c.EnableIPv4 {
+	if ncfg.EnableIPv4 {
 		// If IPv4 is enabled, AddressIPv4 must have been configured.
-		if c.AddressIPv4 == nil {
+		if ncfg.AddressIPv4 == nil {
 			return errdefs.System(errors.New("no IPv4 address was allocated for the bridge"))
 		}
 		// If default gw is specified, it must be part of bridge subnet
-		if c.DefaultGatewayIPv4 != nil {
-			if !c.AddressIPv4.Contains(c.DefaultGatewayIPv4) {
+		if ncfg.DefaultGatewayIPv4 != nil {
+			if !ncfg.AddressIPv4.Contains(ncfg.DefaultGatewayIPv4) {
 				return errInvalidGateway
 			}
 		}
 	}
 
-	if c.EnableIPv6 {
+	if ncfg.EnableIPv6 {
 		// If IPv6 is enabled, AddressIPv6 must have been configured.
-		if c.AddressIPv6 == nil {
+		if ncfg.AddressIPv6 == nil {
 			return errdefs.System(errors.New("no IPv6 address was allocated for the bridge"))
 		}
 		// AddressIPv6 must be IPv6, and not overlap with the LL subnet prefix.
-		addr, ok := netiputil.ToPrefix(c.AddressIPv6)
+		addr, ok := netiputil.ToPrefix(ncfg.AddressIPv6)
 		if !ok {
-			return errdefs.InvalidParameter(fmt.Errorf("invalid IPv6 address '%s'", c.AddressIPv6))
+			return errdefs.InvalidParameter(fmt.Errorf("invalid IPv6 address '%s'", ncfg.AddressIPv6))
 		}
 		if err := validateIPv6Subnet(addr); err != nil {
 			return errdefs.InvalidParameter(err)
 		}
 		// If a default gw is specified, it must belong to AddressIPv6's subnet
-		if c.DefaultGatewayIPv6 != nil && !c.AddressIPv6.Contains(c.DefaultGatewayIPv6) {
+		if ncfg.DefaultGatewayIPv6 != nil && !ncfg.AddressIPv6.Contains(ncfg.DefaultGatewayIPv6) {
 			return errInvalidGateway
 		}
 	}
@@ -281,87 +281,87 @@ func (c *networkConfiguration) Validate() error {
 }
 
 // Conflicts check if two NetworkConfiguration objects overlap
-func (c *networkConfiguration) Conflicts(o *networkConfiguration) error {
+func (ncfg *networkConfiguration) Conflicts(o *networkConfiguration) error {
 	if o == nil {
 		return errors.New("same configuration")
 	}
 
 	// Also empty, because only one network with empty name is allowed
-	if c.BridgeName == o.BridgeName {
+	if ncfg.BridgeName == o.BridgeName {
 		return errors.New("networks have same bridge name")
 	}
 
 	// They must be in different subnets
-	if (c.AddressIPv4 != nil && o.AddressIPv4 != nil) &&
-		(c.AddressIPv4.Contains(o.AddressIPv4.IP) || o.AddressIPv4.Contains(c.AddressIPv4.IP)) {
+	if (ncfg.AddressIPv4 != nil && o.AddressIPv4 != nil) &&
+		(ncfg.AddressIPv4.Contains(o.AddressIPv4.IP) || o.AddressIPv4.Contains(ncfg.AddressIPv4.IP)) {
 		return errors.New("networks have overlapping IPv4")
 	}
 
 	// They must be in different v6 subnets
-	if (c.AddressIPv6 != nil && o.AddressIPv6 != nil) &&
-		(c.AddressIPv6.Contains(o.AddressIPv6.IP) || o.AddressIPv6.Contains(c.AddressIPv6.IP)) {
+	if (ncfg.AddressIPv6 != nil && o.AddressIPv6 != nil) &&
+		(ncfg.AddressIPv6.Contains(o.AddressIPv6.IP) || o.AddressIPv6.Contains(ncfg.AddressIPv6.IP)) {
 		return errors.New("networks have overlapping IPv6")
 	}
 
 	return nil
 }
 
-func (c *networkConfiguration) fromLabels(labels map[string]string) error {
+func (ncfg *networkConfiguration) fromLabels(labels map[string]string) error {
 	var err error
 	for label, value := range labels {
 		switch label {
 		case BridgeName:
-			c.BridgeName = value
+			ncfg.BridgeName = value
 		case netlabel.DriverMTU:
-			if c.Mtu, err = strconv.Atoi(value); err != nil {
+			if ncfg.Mtu, err = strconv.Atoi(value); err != nil {
 				return parseErr(label, value, err.Error())
 			}
 		case netlabel.EnableIPv4:
-			if c.EnableIPv4, err = strconv.ParseBool(value); err != nil {
+			if ncfg.EnableIPv4, err = strconv.ParseBool(value); err != nil {
 				return parseErr(label, value, err.Error())
 			}
 		case netlabel.EnableIPv6:
-			if c.EnableIPv6, err = strconv.ParseBool(value); err != nil {
+			if ncfg.EnableIPv6, err = strconv.ParseBool(value); err != nil {
 				return parseErr(label, value, err.Error())
 			}
 		case EnableIPMasquerade:
-			if c.EnableIPMasquerade, err = strconv.ParseBool(value); err != nil {
+			if ncfg.EnableIPMasquerade, err = strconv.ParseBool(value); err != nil {
 				return parseErr(label, value, err.Error())
 			}
 		case IPv4GatewayMode:
-			if c.GwModeIPv4, err = newGwMode(value); err != nil {
+			if ncfg.GwModeIPv4, err = newGwMode(value); err != nil {
 				return parseErr(label, value, err.Error())
 			}
 		case IPv6GatewayMode:
-			if c.GwModeIPv6, err = newGwMode(value); err != nil {
+			if ncfg.GwModeIPv6, err = newGwMode(value); err != nil {
 				return parseErr(label, value, err.Error())
 			}
 		case EnableICC:
-			if c.EnableICC, err = strconv.ParseBool(value); err != nil {
+			if ncfg.EnableICC, err = strconv.ParseBool(value); err != nil {
 				return parseErr(label, value, err.Error())
 			}
 		case TrustedHostInterfaces:
-			c.TrustedHostInterfaces = strings.FieldsFunc(value, func(r rune) bool { return r == ':' })
+			ncfg.TrustedHostInterfaces = strings.FieldsFunc(value, func(r rune) bool { return r == ':' })
 		case InhibitIPv4:
-			if c.InhibitIPv4, err = strconv.ParseBool(value); err != nil {
+			if ncfg.InhibitIPv4, err = strconv.ParseBool(value); err != nil {
 				return parseErr(label, value, err.Error())
 			}
 		case DefaultBridge:
-			if c.DefaultBridge, err = strconv.ParseBool(value); err != nil {
+			if ncfg.DefaultBridge, err = strconv.ParseBool(value); err != nil {
 				return parseErr(label, value, err.Error())
 			}
 		case DefaultBindingIP:
-			if c.DefaultBindingIP = net.ParseIP(value); c.DefaultBindingIP == nil {
+			if ncfg.DefaultBindingIP = net.ParseIP(value); ncfg.DefaultBindingIP == nil {
 				return parseErr(label, value, "nil ip")
 			}
 		case netlabel.ContainerIfacePrefix:
-			c.ContainerIfacePrefix = value
+			ncfg.ContainerIfacePrefix = value
 		case netlabel.HostIPv4:
-			if c.HostIPv4 = net.ParseIP(value); c.HostIPv4 == nil {
+			if ncfg.HostIPv4 = net.ParseIP(value); ncfg.HostIPv4 == nil {
 				return parseErr(label, value, "nil ip")
 			}
 		case netlabel.HostIPv6:
-			if c.HostIPv6 = net.ParseIP(value); c.HostIPv6 == nil {
+			if ncfg.HostIPv6 = net.ParseIP(value); ncfg.HostIPv6 == nil {
 				return parseErr(label, value, "nil ip")
 			}
 		}
@@ -589,32 +589,32 @@ func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error)
 	return config, err
 }
 
-func (c *networkConfiguration) processIPAM(ipamV4Data, ipamV6Data []driverapi.IPAMData) error {
+func (ncfg *networkConfiguration) processIPAM(ipamV4Data, ipamV6Data []driverapi.IPAMData) error {
 	if len(ipamV4Data) > 1 || len(ipamV6Data) > 1 {
 		return types.ForbiddenErrorf("bridge driver doesn't support multiple subnets")
 	}
 
 	if len(ipamV4Data) > 0 {
-		c.AddressIPv4 = ipamV4Data[0].Pool
+		ncfg.AddressIPv4 = ipamV4Data[0].Pool
 
 		if ipamV4Data[0].Gateway != nil {
-			c.AddressIPv4 = types.GetIPNetCopy(ipamV4Data[0].Gateway)
+			ncfg.AddressIPv4 = types.GetIPNetCopy(ipamV4Data[0].Gateway)
 		}
 
 		if gw, ok := ipamV4Data[0].AuxAddresses[DefaultGatewayV4AuxKey]; ok {
-			c.DefaultGatewayIPv4 = gw.IP
+			ncfg.DefaultGatewayIPv4 = gw.IP
 		}
 	}
 
 	if len(ipamV6Data) > 0 {
-		c.AddressIPv6 = ipamV6Data[0].Pool
+		ncfg.AddressIPv6 = ipamV6Data[0].Pool
 
 		if ipamV6Data[0].Gateway != nil {
-			c.AddressIPv6 = types.GetIPNetCopy(ipamV6Data[0].Gateway)
+			ncfg.AddressIPv6 = types.GetIPNetCopy(ipamV6Data[0].Gateway)
 		}
 
 		if gw, ok := ipamV6Data[0].AuxAddresses[DefaultGatewayV6AuxKey]; ok {
-			c.DefaultGatewayIPv6 = gw.IP
+			ncfg.DefaultGatewayIPv6 = gw.IP
 		}
 	}
 

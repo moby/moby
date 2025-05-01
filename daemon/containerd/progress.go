@@ -188,7 +188,8 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 			return err
 		}
 
-		if sn.Kind == snapshots.KindActive {
+		switch sn.Kind {
+		case snapshots.KindActive:
 			if p.unpackStart == nil {
 				p.unpackStart = make(map[digest.Digest]time.Time)
 			}
@@ -209,7 +210,7 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 					Current: 1 + seconds,
 					Units:   "s",
 				})
-		} else if sn.Kind == snapshots.KindCommitted {
+		case snapshots.KindCommitted:
 			out.WriteProgress(progress.Progress{
 				ID:         stringid.TruncateID(desc.Digest.Encoded()),
 				Action:     "Pull complete",
@@ -218,6 +219,8 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 			})
 
 			committedIdx = append(committedIdx, idx)
+		case snapshots.KindUnknown, snapshots.KindView:
+			// Ignore other snapshot kinds
 		}
 	}
 

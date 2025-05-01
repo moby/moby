@@ -50,9 +50,9 @@ func NewHandleAt(ns netns.NsHandle, nlFamilies ...int) (Handle, error) {
 	return Handle{nlh}, nil
 }
 
-func (h Handle) Close() {
-	if h.Handle != nil {
-		h.Handle.Close()
+func (nlh Handle) Close() {
+	if nlh.Handle != nil {
+		nlh.Handle.Close()
 	}
 }
 

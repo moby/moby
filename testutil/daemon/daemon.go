@@ -502,7 +502,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	if d.init {
 		d.args = append(d.args, "--init")
 	}
-	if !(d.UseDefaultHost || d.UseDefaultTLSHost) {
+	if !d.UseDefaultHost && !d.UseDefaultTLSHost {
 		d.args = append(d.args, "--host", d.Sock())
 	}
 	if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {

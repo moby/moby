@@ -216,14 +216,15 @@ func TestCheckoutGit(t *testing.T) {
 	server := httptest.NewServer(&githttp)
 	defer server.Close()
 
-	autocrlf := gitGetConfig("core.autocrlf")
-	if !(autocrlf == "true" || autocrlf == "false" ||
-		autocrlf == "input" || autocrlf == "") {
-		t.Logf("unknown core.autocrlf value: \"%s\"", autocrlf)
-	}
 	eol := "\n"
-	if autocrlf == "true" {
+	autocrlf := gitGetConfig("core.autocrlf")
+	switch autocrlf {
+	case "true":
 		eol = "\r\n"
+	case "false", "input", "":
+		// accepted values
+	default:
+		t.Logf(`unknown core.autocrlf value: "%s"`, autocrlf)
 	}
 
 	must := func(out []byte, err error) {

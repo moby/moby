@@ -180,9 +180,10 @@ func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 	switch len(lss) {
 	case 0:
 		return nil, errdefs.NotFound(errors.New("rw layer lease not found for container " + cid))
+	case 1:
+		// found
 	default:
 		log.G(ctx).WithFields(log.Fields{"container": cid, "leases": lss}).Warn("multiple leases with the same id found, this should not happen")
-	case 1:
 	}
 
 	root, err := i.refCountMounter.Mounted(cid)
@@ -198,7 +199,6 @@ func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 		lease:           lss[0],
 		root:            root,
 	}, nil
-
 }
 
 func (l *rwLayer) Unmount() error {

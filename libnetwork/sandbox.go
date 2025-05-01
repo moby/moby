@@ -651,20 +651,20 @@ func (sb *Sandbox) joinLeaveEnd() {
 // Less defines an ordering over endpoints, with better candidates for the default
 // gateway sorted first.
 //
-// <=> Returns true if a < b, false if a > b and advances to next level if a == b
-// epi.prio <=> epj.prio           # 2 < 1
-// epi.gw <=> epj.gw               # non-gw < gw
-// epi.internal <=> epj.internal   # non-internal < internal
-// epi.hasGw <=> epj.hasGw         # (gw4 and gw6) < (gw4 or gw6) < (no gw)
-// epi.name <=> epj.name           # bar < foo
-func (epi *Endpoint) Less(epj *Endpoint) bool {
-	sbi, _ := epi.getSandbox()
+//	<=> Returns true if a < b, false if a > b and advances to next level if a == b
+//	ep.prio <=> epj.prio           # 2 < 1
+//	ep.gw <=> epj.gw               # non-gw < gw
+//	ep.internal <=> epj.internal   # non-internal < internal
+//	ep.hasGw <=> epj.hasGw         # (gw4 and gw6) < (gw4 or gw6) < (no gw)
+//	ep.name <=> epj.name           # bar < foo
+func (ep *Endpoint) Less(epj *Endpoint) bool {
+	sbi, _ := ep.getSandbox()
 	sbj, _ := epj.getSandbox()
 
 	// Prio defaults to 0
 	var prioi, prioj int
 	if sbi != nil {
-		prioi = sbi.epPriority[epi.ID()]
+		prioi = sbi.epPriority[ep.ID()]
 	}
 	if sbj != nil {
 		prioj = sbj.epPriority[epj.ID()]
@@ -673,13 +673,13 @@ func (epi *Endpoint) Less(epj *Endpoint) bool {
 		return prioi > prioj
 	}
 
-	gwNeti := epi.endpointInGWNetwork()
+	gwNeti := ep.endpointInGWNetwork()
 	gwNetj := epj.endpointInGWNetwork()
 	if gwNeti != gwNetj {
 		return gwNetj
 	}
 
-	inti := epi.getNetwork().Internal()
+	inti := ep.getNetwork().Internal()
 	intj := epj.getNetwork().Internal()
 	if inti != intj {
 		return intj
@@ -695,13 +695,13 @@ func (epi *Endpoint) Less(epj *Endpoint) bool {
 		}
 		return 0
 	}
-	gwCounti := gwCount(epi)
+	gwCounti := gwCount(ep)
 	gwCountj := gwCount(epj)
 	if gwCounti != gwCountj {
 		return gwCounti > gwCountj
 	}
 
-	return epi.network.Name() < epj.network.Name()
+	return ep.network.Name() < epj.network.Name()
 }
 
 func (sb *Sandbox) NdotsSet() bool {

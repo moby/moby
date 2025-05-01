@@ -60,9 +60,10 @@ func normalizeDest(workingDir, requested string) (string, error) {
 func containsWildcards(name string) bool {
 	for i := 0; i < len(name); i++ {
 		ch := name[i]
-		if ch == '\\' {
+		switch ch {
+		case '\\':
 			i++
-		} else if ch == '*' || ch == '?' || ch == '[' {
+		case '*', '?', '[':
 			return true
 		}
 	}

@@ -163,14 +163,9 @@ func ParseSearchIndexInfo(reposName string) (*registry.IndexInfo, error) {
 		}, nil
 	}
 
-	insecure := false
-	if isInsecure(indexName) {
-		insecure = true
-	}
-
 	return &registry.IndexInfo{
 		Name:    indexName,
 		Mirrors: []string{},
-		Secure:  !insecure,
+		Secure:  !isInsecure(indexName),
 	}, nil
 }
