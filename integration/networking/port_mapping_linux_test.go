@@ -917,7 +917,30 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 	// skip.If(t, testEnv.IsRootless, "rootlesskit has its own netns")
 
 	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+	testDirectRemoteAccessOnExposedPort(t, ctx, d, false)
+}
 
+// TestAllowDirectRemoteAccessOnExposedPort checks that remote hosts can directly
+// reach a container on one of its exposed ports - if the daemon is running with
+// option --allow-direct-routing.
+func TestAllowDirectRemoteAccessOnExposedPort(t *testing.T) {
+	// This test checks iptables rules that live in dockerd's netns. In the case
+	// of rootlesskit, this is not the same netns as the host, so they don't
+	// have any effect.
+	// TODO(aker): we need to figure out what we want to do for rootlesskit.
+	// skip.If(t, testEnv.IsRootless, "rootlesskit has its own netns")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--allow-direct-routing")
+	defer d.Stop(t)
+	testDirectRemoteAccessOnExposedPort(t, ctx, d, true)
+}
+
+func testDirectRemoteAccessOnExposedPort(t *testing.T, ctx context.Context, d *daemon.Daemon, allowDirectRouting bool) {
 	const (
 		hostIPv4 = "192.168.120.2"
 		hostIPv6 = "fdbc:277b:d40b::2"
@@ -928,16 +951,13 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 		netip.MustParsePrefix("fdbc:277b:d40b::1/64"))
 	defer l3.Destroy(t)
 	// "docker" is the host where dockerd is running.
-	l3.AddHost(t, "docker", networking.CurrentNetns, "test-eth",
+	const hostIfName = "test-eth"
+	l3.AddHost(t, "docker", networking.CurrentNetns, hostIfName,
 		netip.MustParsePrefix(hostIPv4+"/24"),
 		netip.MustParsePrefix(hostIPv6+"/64"))
 	l3.AddHost(t, "attacker", "test-direct-remote-access-attacker", "eth0",
 		netip.MustParsePrefix("192.168.120.3/24"),
 		netip.MustParsePrefix("fdbc:277b:d40b::3/64"))
-
-	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t)
-	defer d.Stop(t)
 
 	c := d.NewClientT(t)
 	defer c.Close()
@@ -947,6 +967,7 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 		gwAddr       netip.Prefix
 		ipv4Disabled bool
 		ipv6Disabled bool
+		trusted      bool
 	}{
 		{
 			name:   "NAT/IPv4",
@@ -957,6 +978,18 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 			name:   "NAT/IPv6",
 			gwMode: "nat",
 			gwAddr: netip.MustParsePrefix("fda9:a651:db6d::1/64"),
+		},
+		{
+			name:    "NAT/IPv4/trusted",
+			gwMode:  "nat",
+			gwAddr:  netip.MustParsePrefix("172.24.10.1/24"),
+			trusted: true,
+		},
+		{
+			name:    "NAT/IPv6/trusted",
+			gwMode:  "nat",
+			gwAddr:  netip.MustParsePrefix("fda9:a651:db6d::1/64"),
+			trusted: true,
 		},
 		{
 			name:   "NAT unprotected/IPv4",
@@ -992,7 +1025,8 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			skip.If(t, tc.gwMode == "routed" && testEnv.IsRootless(), "rootlesskit doesn't support routed mode as it's running in a separate netns")
+			expDirectAccess := tc.gwMode == "routed" || tc.gwMode == "nat-unprotected" || tc.trusted || allowDirectRouting
+			skip.If(t, expDirectAccess && testEnv.IsRootless(), "rootlesskit doesn't support routed mode as it's running in a separate netns")
 
 			testutil.StartSpan(ctx, t)
 
@@ -1010,6 +1044,9 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 			}
 			if tc.gwAddr.Addr().Is6() {
 				nwOpts = append(nwOpts, network.WithIPv6())
+			}
+			if tc.trusted {
+				nwOpts = append(nwOpts, network.WithOption(bridge.TrustedHostInterfaces, hostIfName))
 			}
 
 			const bridgeName = "brattacked"
@@ -1054,8 +1091,6 @@ func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
 
 			// Now send a payload directly to the container. With gw_mode=routed,
 			// this should work. With gw_mode=nat, this should fail.
-			expDirectAccess := tc.gwMode == "routed" || (tc.gwMode == "nat-unprotected" && !testEnv.IsRootless())
-
 			l3.Hosts["attacker"].Run(t, "ip", "route", "add", tc.gwAddr.Masked().String(), "via", hostIP, "dev", "eth0")
 			defer l3.Hosts["attacker"].Run(t, "ip", "route", "delete", tc.gwAddr.Masked().String(), "via", hostIP, "dev", "eth0")
 

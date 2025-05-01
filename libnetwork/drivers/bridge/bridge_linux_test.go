@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"gotest.tools/v3/assert"
@@ -223,6 +224,35 @@ func compareBindings(a, b []portBinding) bool {
 		}
 	}
 	return true
+}
+
+func TestNetworkConfigurationMarshalling(t *testing.T) {
+	nc := &networkConfiguration{
+		ID:                    "nid",
+		BridgeName:            "bridgename",
+		EnableIPv4:            true,
+		EnableIPv6:            true,
+		EnableIPMasquerade:    true,
+		GwModeIPv4:            gwModeRouted,
+		GwModeIPv6:            gwModeIsolated,
+		EnableICC:             true,
+		TrustedHostInterfaces: []string{"foo0", "bar1"},
+		InhibitIPv4:           true,
+		Mtu:                   1234,
+		DefaultBindingIP:      net.ParseIP("192.0.2.1"),
+		DefaultBridge:         true,
+		HostIPv4:              net.ParseIP("192.0.2.2"),
+		HostIPv6:              net.ParseIP("2001:db8::1"),
+		ContainerIfacePrefix:  "baz",
+	}
+
+	b, err := json.Marshal(nc)
+	assert.Assert(t, err)
+
+	nnc := &networkConfiguration{}
+	err = json.Unmarshal(b, nnc)
+	assert.Assert(t, err)
+	assert.Check(t, is.DeepEqual(nnc, nc, cmpopts.IgnoreUnexported(networkConfiguration{})))
 }
 
 func getIPv4Data(t *testing.T) []driverapi.IPAMData {
