@@ -261,7 +261,7 @@ func TestCmd(t *testing.T) {
 
 	var expectedCommand []string
 	if runtime.GOOS == "windows" {
-		expectedCommand = []string{"cmd", "/S", "/C", "./executable"}
+		expectedCommand = []string{"cmd /S /C ./executable"}
 	} else {
 		expectedCommand = []string{"/bin/sh", "-c", "./executable"}
 	}
@@ -316,7 +316,7 @@ func TestEntrypoint(t *testing.T) {
 
 	var expectedEntrypoint []string
 	if runtime.GOOS == "windows" {
-		expectedEntrypoint = []string{"cmd", "/S", "/C", "/usr/sbin/nginx"}
+		expectedEntrypoint = []string{"cmd /S /C /usr/sbin/nginx"}
 	} else {
 		expectedEntrypoint = []string{"/bin/sh", "-c", "/usr/sbin/nginx"}
 	}
@@ -441,9 +441,9 @@ func TestRunWithBuildArgs(t *testing.T) {
 
 	var cmdWithShell []string
 	if runtime.GOOS == "windows" {
-		cmdWithShell = []string{strings.Join(append(getShell(runConfig, runtime.GOOS), []string{"echo foo"}...), " ")}
+		cmdWithShell = []string{strings.Join(append(getShell(runConfig), []string{"echo foo"}...), " ")}
 	} else {
-		cmdWithShell = append(getShell(runConfig, runtime.GOOS), "echo foo")
+		cmdWithShell = append(getShell(runConfig), "echo foo")
 	}
 
 	envVars := []string{"|1", "one=two"}
