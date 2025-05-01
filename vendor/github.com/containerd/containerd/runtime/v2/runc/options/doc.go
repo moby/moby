@@ -15,3 +15,23 @@
 */
 
 package options
+
+import api "github.com/containerd/containerd/api/types/runc/options"
+
+// Options is a type alias of github.com/containerd/containerd/api/types/runc/options.Options
+//
+// Deprecated: use [api.Options] instead
+type Options = api.Options
+
+// CheckpointOptions is a type alias of github.com/containerd/containerd/api/types/runc/options.CheckpointOptions
+//
+// Deprecated: use [api.CheckpointOptions] instead
+type CheckpointOptions = api.CheckpointOptions
+
+// ProcessDetails is a type alias of github.com/containerd/containerd/api/types/runc/options.ProcessDetails
+//
+// Deprecated: use [api.ProcessDetails] instead
+type ProcessDetails = api.ProcessDetails
+
+//nolint:revive
+var File_github_com_containerd_containerd_runtime_v2_runc_options_oci_proto = api.File_github_com_containerd_containerd_api_types_runc_options_oci_proto

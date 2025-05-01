@@ -45,21 +45,21 @@ func ToGRPC(err error) error {
 
 	switch {
 	case IsInvalidArgument(err):
-		return status.Errorf(codes.InvalidArgument, err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	case IsNotFound(err):
-		return status.Errorf(codes.NotFound, err.Error())
+		return status.Error(codes.NotFound, err.Error())
 	case IsAlreadyExists(err):
-		return status.Errorf(codes.AlreadyExists, err.Error())
+		return status.Error(codes.AlreadyExists, err.Error())
 	case IsFailedPrecondition(err):
-		return status.Errorf(codes.FailedPrecondition, err.Error())
+		return status.Error(codes.FailedPrecondition, err.Error())
 	case IsUnavailable(err):
-		return status.Errorf(codes.Unavailable, err.Error())
+		return status.Error(codes.Unavailable, err.Error())
 	case IsNotImplemented(err):
-		return status.Errorf(codes.Unimplemented, err.Error())
+		return status.Error(codes.Unimplemented, err.Error())
 	case IsCanceled(err):
-		return status.Errorf(codes.Canceled, err.Error())
+		return status.Error(codes.Canceled, err.Error())
 	case IsDeadlineExceeded(err):
-		return status.Errorf(codes.DeadlineExceeded, err.Error())
+		return status.Error(codes.DeadlineExceeded, err.Error())
 	}
 
 	return err

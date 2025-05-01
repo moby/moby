@@ -21,14 +21,10 @@
 //
 // To detect an error class, use the IsXXX functions to tell whether an error
 // is of a certain type.
-//
-// The functions ToGRPC and FromGRPC can be used to map server-side and
-// client-side errors to the correct types.
 package errdefs
 
 import (
-	"context"
-	"errors"
+	"github.com/containerd/errdefs"
 )
 
 // Definitions of common error types used throughout containerd. All containerd
@@ -36,57 +32,41 @@ import (
 // Packages should return errors of these types when they want to instruct a
 // client to take a particular action.
 //
-// For the most part, we just try to provide local grpc errors. Most conditions
-// map very well to those defined by grpc.
+// These errors map closely to grpc errors.
 var (
-	ErrUnknown            = errors.New("unknown") // used internally to represent a missed mapping.
-	ErrInvalidArgument    = errors.New("invalid argument")
-	ErrNotFound           = errors.New("not found")
-	ErrAlreadyExists      = errors.New("already exists")
-	ErrFailedPrecondition = errors.New("failed precondition")
-	ErrUnavailable        = errors.New("unavailable")
-	ErrNotImplemented     = errors.New("not implemented") // represents not supported and unimplemented
+	ErrUnknown            = errdefs.ErrUnknown
+	ErrInvalidArgument    = errdefs.ErrInvalidArgument
+	ErrNotFound           = errdefs.ErrNotFound
+	ErrAlreadyExists      = errdefs.ErrAlreadyExists
+	ErrPermissionDenied   = errdefs.ErrPermissionDenied
+	ErrResourceExhausted  = errdefs.ErrResourceExhausted
+	ErrFailedPrecondition = errdefs.ErrFailedPrecondition
+	ErrConflict           = errdefs.ErrConflict
+	ErrNotModified        = errdefs.ErrNotModified
+	ErrAborted            = errdefs.ErrAborted
+	ErrOutOfRange         = errdefs.ErrOutOfRange
+	ErrNotImplemented     = errdefs.ErrNotImplemented
+	ErrInternal           = errdefs.ErrInternal
+	ErrUnavailable        = errdefs.ErrUnavailable
+	ErrDataLoss           = errdefs.ErrDataLoss
+	ErrUnauthenticated    = errdefs.ErrUnauthenticated
+
+	IsCanceled           = errdefs.IsCanceled
+	IsUnknown            = errdefs.IsUnknown
+	IsInvalidArgument    = errdefs.IsInvalidArgument
+	IsDeadlineExceeded   = errdefs.IsDeadlineExceeded
+	IsNotFound           = errdefs.IsNotFound
+	IsAlreadyExists      = errdefs.IsAlreadyExists
+	IsPermissionDenied   = errdefs.IsPermissionDenied
+	IsResourceExhausted  = errdefs.IsResourceExhausted
+	IsFailedPrecondition = errdefs.IsFailedPrecondition
+	IsConflict           = errdefs.IsConflict
+	IsNotModified        = errdefs.IsNotModified
+	IsAborted            = errdefs.IsAborted
+	IsOutOfRange         = errdefs.IsOutOfRange
+	IsNotImplemented     = errdefs.IsNotImplemented
+	IsInternal           = errdefs.IsInternal
+	IsUnavailable        = errdefs.IsUnavailable
+	IsDataLoss           = errdefs.IsDataLoss
+	IsUnauthorized       = errdefs.IsUnauthorized
 )
-
-// IsInvalidArgument returns true if the error is due to an invalid argument
-func IsInvalidArgument(err error) bool {
-	return errors.Is(err, ErrInvalidArgument)
-}
-
-// IsNotFound returns true if the error is due to a missing object
-func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
-}
-
-// IsAlreadyExists returns true if the error is due to an already existing
-// metadata item
-func IsAlreadyExists(err error) bool {
-	return errors.Is(err, ErrAlreadyExists)
-}
-
-// IsFailedPrecondition returns true if an operation could not proceed to the
-// lack of a particular condition
-func IsFailedPrecondition(err error) bool {
-	return errors.Is(err, ErrFailedPrecondition)
-}
-
-// IsUnavailable returns true if the error is due to a resource being unavailable
-func IsUnavailable(err error) bool {
-	return errors.Is(err, ErrUnavailable)
-}
-
-// IsNotImplemented returns true if the error is due to not being implemented
-func IsNotImplemented(err error) bool {
-	return errors.Is(err, ErrNotImplemented)
-}
-
-// IsCanceled returns true if the error is due to `context.Canceled`.
-func IsCanceled(err error) bool {
-	return errors.Is(err, context.Canceled)
-}
-
-// IsDeadlineExceeded returns true if the error is due to
-// `context.DeadlineExceeded`.
-func IsDeadlineExceeded(err error) bool {
-	return errors.Is(err, context.DeadlineExceeded)
-}
