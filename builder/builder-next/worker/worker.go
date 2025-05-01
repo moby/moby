@@ -567,15 +567,15 @@ func getLayers(ctx context.Context, descs []ocispec.Descriptor) ([]rootfs.Layer,
 
 func oneOffProgress(ctx context.Context, id string) func(err error) error {
 	pw, _, _ := progress.NewFromContext(ctx)
-	now := time.Now()
+	s := time.Now()
 	st := progress.Status{
-		Started: &now,
+		Started: &s,
 	}
 	_ = pw.Write(id, st)
 	return func(err error) error {
 		// TODO: set error on status
-		now := time.Now()
-		st.Completed = &now
+		c := time.Now()
+		st.Completed = &c
 		_ = pw.Write(id, st)
 		_ = pw.Close()
 		return err

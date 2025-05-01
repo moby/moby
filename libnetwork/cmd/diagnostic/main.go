@@ -171,11 +171,11 @@ func fetchTable(ip string, port int, network, tableName string, clusterPeers, ne
 		switch tableName {
 		case "endpoint_table":
 			var elem libnetwork.EndpointRecord
-			elem.Unmarshal(decoded)
+			_ = elem.Unmarshal(decoded)
 			log.G(context.TODO()).Debugf("key:%s value:%+v owner:%s", v.Key, elem, v.Owner)
 		case "overlay_peer_table":
 			var elem overlay.PeerRecord
-			elem.Unmarshal(decoded)
+			_ = elem.Unmarshal(decoded)
 			log.G(context.TODO()).Debugf("key:%s value:%+v owner:%s", v.Key, elem, v.Owner)
 		}
 
@@ -195,12 +195,12 @@ func fetchTable(ip string, port int, network, tableName string, clusterPeers, ne
 		text = strings.ReplaceAll(text, "\n", "")
 		if strings.Compare(text, "Yes") == 0 {
 			for _, k := range orphanKeys {
-				resp, err := http.Get(fmt.Sprintf(deleteEntry, ip, port, network, tableName, k))
+				r, err := http.Get(fmt.Sprintf(deleteEntry, ip, port, network, tableName, k))
 				if err != nil {
 					log.G(context.TODO()).WithError(err).Errorf("Failed deleting entry k:%s", k)
 					break
 				}
-				resp.Body.Close()
+				_ = r.Body.Close()
 			}
 		} else {
 			log.G(context.TODO()).Infof("Deletion skipped")

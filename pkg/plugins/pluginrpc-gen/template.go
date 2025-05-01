@@ -5,7 +5,7 @@ import (
 	"text/template"
 )
 
-func printArgs(args []arg) string {
+func printArgs(args []fnArg) string {
 	var argStr []string
 	for _, arg := range args {
 		argStr = append(argStr, arg.String())

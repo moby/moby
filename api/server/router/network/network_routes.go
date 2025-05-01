@@ -145,7 +145,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 			// ex: overlay/partial_ID or name/swarm_scope
 			if nwv, ok := listByPartialID[nwk.ID]; ok {
 				nwk = nwv
-			} else if nwv, ok := listByFullName[nwk.ID]; ok {
+			} else if nwv, ok = listByFullName[nwk.ID]; ok {
 				nwk = nwv
 			}
 			return httputils.WriteJSON(w, http.StatusOK, nwk)

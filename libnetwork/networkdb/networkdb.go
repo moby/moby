@@ -510,10 +510,6 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 	nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid),
 		func(path []byte, v *entry) bool {
 			oldEntry := v
-			params := strings.Split(string(path[1:]), "/")
-			nid := params[0]
-			tname := params[1]
-			key := params[2]
 
 			// If the entry is owned by a remote node and this node is not leaving the network
 			if oldEntry.node != node && !isNodeLocal {
@@ -538,6 +534,8 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 			// we arrived at this point in 2 cases:
 			// 1) this entry is owned by the node that is leaving the network
 			// 2) the local node is leaving the network
+			params := strings.Split(string(path[1:]), "/")
+			nwID, tName, key := params[0], params[1], params[2]
 			if oldEntry.node == node {
 				if isNodeLocal {
 					// TODO fcrisciani: this can be removed if there is no way to leave the network
@@ -546,16 +544,16 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 				}
 
 				if !oldEntry.deleting {
-					nDB.createOrUpdateEntry(nid, tname, key, newEntry)
+					nDB.createOrUpdateEntry(nwID, tName, key, newEntry)
 				}
 			} else {
 				// the local node is leaving the network, all the entries of remote nodes can be safely removed
-				nDB.deleteEntry(nid, tname, key)
+				nDB.deleteEntry(nwID, tName, key)
 			}
 
 			// Notify to the upper layer only entries not already marked for deletion
 			if !oldEntry.deleting {
-				nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, newEntry.value))
+				nDB.broadcaster.Write(makeEvent(opDelete, tName, nwID, key, newEntry.value))
 			}
 			return false
 		})

@@ -32,18 +32,18 @@ type ParsedPkg struct {
 
 type function struct {
 	Name    string
-	Args    []arg
-	Returns []arg
+	Args    []fnArg
+	Returns []fnArg
 	Doc     string
 }
 
-type arg struct {
+type fnArg struct {
 	Name            string
 	ArgType         string
 	PackageSelector string
 }
 
-func (a *arg) String() string {
+func (a *fnArg) String() string {
 	return a.Name + " " + a.ArgType
 }
 
@@ -125,8 +125,8 @@ func Parse(filePath string, objName string) (*ParsedPkg, error) {
 		}
 	}
 
-	for _, spec := range imports {
-		p.Imports = append(p.Imports, spec)
+	for _, is := range imports {
+		p.Imports = append(p.Imports, is)
 	}
 
 	return p, nil
@@ -150,11 +150,11 @@ func parseInterface(iface *ast.InterfaceType) ([]function, error) {
 			if !ok {
 				return nil, errUnexpectedType{"*ast.TypeSpec", f.Obj.Decl}
 			}
-			iface, ok := spec.Type.(*ast.InterfaceType)
+			itf, ok := spec.Type.(*ast.InterfaceType)
 			if !ok {
 				return nil, errUnexpectedType{"*ast.TypeSpec", spec.Type}
 			}
-			funcs, err := parseInterface(iface)
+			funcs, err := parseInterface(itf)
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -191,8 +191,8 @@ func parseFunc(field *ast.Field) (*function, error) {
 	return method, nil
 }
 
-func parseArgs(fields []*ast.Field) ([]arg, error) {
-	var args []arg
+func parseArgs(fields []*ast.Field) ([]fnArg, error) {
+	var args []fnArg
 	for _, f := range fields {
 		if len(f.Names) == 0 {
 			return nil, errBadReturn
@@ -202,7 +202,7 @@ func parseArgs(fields []*ast.Field) ([]arg, error) {
 			if err != nil {
 				return nil, err
 			}
-			args = append(args, arg{name.Name, p.value, p.pkg})
+			args = append(args, fnArg{name.Name, p.value, p.pkg})
 		}
 	}
 	return args, nil
