@@ -26,9 +26,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/log"
 	remoteserrors "github.com/containerd/containerd/remotes/errors"
 	"github.com/containerd/containerd/version"
+	"github.com/containerd/log"
 )
 
 var (

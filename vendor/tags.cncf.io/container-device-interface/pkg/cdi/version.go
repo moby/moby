@@ -39,6 +39,8 @@ const (
 	v040 version = "v0.4.0"
 	v050 version = "v0.5.0"
 	v060 version = "v0.6.0"
+	v070 version = "v0.7.0"
+	v080 version = "v0.8.0"
 
 	// vEarliest is the earliest supported version of the CDI specification
 	vEarliest version = v030
@@ -54,6 +56,8 @@ var validSpecVersions = requiredVersionMap{
 	v040: requiresV040,
 	v050: requiresV050,
 	v060: requiresV060,
+	v070: requiresV070,
+	v080: requiresV080,
 }
 
 // MinimumRequiredVersion determines the minimum spec version for the input spec.
@@ -116,6 +120,36 @@ func (r requiredVersionMap) requiredVersion(spec *cdi.Spec) version {
 	}
 
 	return minVersion
+}
+
+// requiresV080 returns true if the spec uses v0.8.0 features.
+// Since the v0.8.0 spec bump was due to the removed .ToOCI functions on the
+// spec types, there are explicit spec changes.
+func requiresV080(_ *cdi.Spec) bool {
+	return false
+}
+
+// requiresV070 returns true if the spec uses v0.7.0 features
+func requiresV070(spec *cdi.Spec) bool {
+	if spec.ContainerEdits.IntelRdt != nil {
+		return true
+	}
+	// The v0.7.0 spec allows additional GIDs to be specified at a spec level.
+	if len(spec.ContainerEdits.AdditionalGIDs) > 0 {
+		return true
+	}
+
+	for _, d := range spec.Devices {
+		if d.ContainerEdits.IntelRdt != nil {
+			return true
+		}
+		// The v0.7.0 spec allows additional GIDs to be specified at a device level.
+		if len(d.ContainerEdits.AdditionalGIDs) > 0 {
+			return true
+		}
+	}
+
+	return false
 }
 
 // requiresV060 returns true if the spec uses v0.6.0 features

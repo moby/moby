@@ -16,3 +16,8 @@
 
 // Package events defines the ttrpc event service.
 package events
+
+import types "github.com/containerd/containerd/api/types"
+
+// Deprecated: Use [types.Envelope].
+type Envelope = types.Envelope

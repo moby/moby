@@ -22,7 +22,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
 )
 
 // XAttrErrorHandler transform a non-nil xattr error.
@@ -103,11 +103,6 @@ func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) er
 		}
 	}
 
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", src, err)
-	}
-
 	if err := copyFileInfo(stat, src, dst); err != nil {
 		return fmt.Errorf("failed to copy file info for %s: %w", dst, err)
 	}
@@ -116,7 +111,15 @@ func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) er
 		return fmt.Errorf("failed to copy xattrs: %w", err)
 	}
 
-	for _, entry := range entries {
+	f, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	dr := &dirReader{f: f}
+
+	handleEntry := func(entry os.DirEntry) error {
 		source := filepath.Join(src, entry.Name())
 		target := filepath.Join(dst, entry.Name())
 
@@ -130,7 +133,7 @@ func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) er
 			if err := copyDirectory(target, source, inodes, o); err != nil {
 				return err
 			}
-			continue
+			return nil
 		case (fileInfo.Mode() & os.ModeType) == 0:
 			link, err := getLinkSource(target, fileInfo, inodes)
 			if err != nil {
@@ -158,8 +161,8 @@ func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) er
 				return fmt.Errorf("failed to create irregular file: %w", err)
 			}
 		default:
-			logrus.Warnf("unsupported mode: %s: %s", source, fileInfo.Mode())
-			continue
+			log.L.Warnf("unsupported mode: %s: %s", source, fileInfo.Mode())
+			return nil
 		}
 
 		if err := copyFileInfo(fileInfo, source, target); err != nil {
@@ -169,9 +172,20 @@ func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) er
 		if err := copyXAttrs(target, source, o.xex, o.xeh); err != nil {
 			return fmt.Errorf("failed to copy xattrs: %w", err)
 		}
+		return nil
 	}
 
-	return nil
+	for {
+		entry := dr.Next()
+		if entry == nil {
+			break
+		}
+
+		if err := handleEntry(entry); err != nil {
+			return err
+		}
+	}
+	return dr.Err()
 }
 
 // CopyFile copies the source file to the target.

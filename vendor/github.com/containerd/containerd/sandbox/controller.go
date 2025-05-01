@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/api/types"
-	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/typeurl/v2"
+	imagespec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type CreateOptions struct {
@@ -90,7 +90,7 @@ type Controller interface {
 	Start(ctx context.Context, sandboxID string) (ControllerInstance, error)
 	// Platform returns target sandbox OS that will be used by Controller.
 	// containerd will rely on this to generate proper OCI spec.
-	Platform(_ctx context.Context, _sandboxID string) (platforms.Platform, error)
+	Platform(_ctx context.Context, _sandboxID string) (imagespec.Platform, error)
 	// Stop will stop sandbox instance
 	Stop(ctx context.Context, sandboxID string, opts ...StopOpt) error
 	// Wait blocks until sandbox process exits.
