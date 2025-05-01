@@ -22,7 +22,7 @@ func (n *Network) AddLink(ctx context.Context, parentIP, childIP netip.Addr, por
 
 	chain := iptables.ChainInfo{Name: dockerChain}
 	for _, port := range ports {
-		if err := chain.Link(iptables.Append, parentIP, childIP, int(port.Port), port.Proto.String(), n.IfName); err != nil {
+		if err := chain.Link(iptables.Append, parentIP, childIP, int(port.Port), port.Proto.String(), n.cfg.IfName); err != nil {
 			return err
 		}
 	}
@@ -32,13 +32,13 @@ func (n *Network) AddLink(ctx context.Context, parentIP, childIP netip.Addr, por
 func (n *Network) DelLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort) {
 	chain := iptables.ChainInfo{Name: dockerChain}
 	for _, port := range ports {
-		if err := chain.Link(iptables.Delete, parentIP, childIP, int(port.Port), port.Proto.String(), n.IfName); err != nil {
+		if err := chain.Link(iptables.Delete, parentIP, childIP, int(port.Port), port.Proto.String(), n.cfg.IfName); err != nil {
 			log.G(ctx).WithFields(log.Fields{
 				"parentIP": parentIP,
 				"childIP":  childIP,
 				"port":     port.Port,
 				"protocol": port.Proto.String(),
-				"bridge":   n.IfName,
+				"bridge":   n.cfg.IfName,
 			}).Warn("Failed to remove link between containers")
 		}
 	}

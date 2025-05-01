@@ -19,12 +19,12 @@ func (n *Network) DelEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr) er
 
 func (n *Network) modEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr, enable bool) error {
 	if n.ipt.IPv4 && epIPv4.IsValid() {
-		if err := n.filterDirectAccess(ctx, iptables.IPv4, n.Config4, epIPv4, enable); err != nil {
+		if err := n.filterDirectAccess(ctx, iptables.IPv4, n.cfg.Config4, epIPv4, enable); err != nil {
 			return err
 		}
 	}
 	if n.ipt.IPv6 && epIPv6.IsValid() {
-		if err := n.filterDirectAccess(ctx, iptables.IPv6, n.Config6, epIPv6, enable); err != nil {
+		if err := n.filterDirectAccess(ctx, iptables.IPv6, n.cfg.Config6, epIPv6, enable); err != nil {
 			return err
 		}
 	}
@@ -47,7 +47,7 @@ func (n *Network) modEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr, en
 //
 // "Trusted interfaces" are treated in the same way as the bridge itself.
 func (n *Network) filterDirectAccess(ctx context.Context, ipv iptables.IPVersion, config NetworkConfigFam, epIP netip.Addr, enable bool) error {
-	if n.Internal || config.Unprotected || config.Routed {
+	if n.cfg.Internal || config.Unprotected || config.Routed {
 		return nil
 	}
 	// For config that may change between daemon restarts, make sure rules are
@@ -58,7 +58,7 @@ func (n *Network) filterDirectAccess(ctx context.Context, ipv iptables.IPVersion
 	if n.ipt.AllowDirectRouting || rawRulesDisabled(ctx) {
 		enable = false
 	}
-	for _, ifName := range n.TrustedHostInterfaces {
+	for _, ifName := range n.cfg.TrustedHostInterfaces {
 		accept := iptables.Rule{IPVer: ipv, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
 			"-d", epIP.String(),
 			"-i", ifName,
@@ -70,7 +70,7 @@ func (n *Network) filterDirectAccess(ctx context.Context, ipv iptables.IPVersion
 	}
 	accept := iptables.Rule{IPVer: ipv, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
 		"-d", epIP.String(),
-		"!", "-i", n.IfName,
+		"!", "-i", n.cfg.IfName,
 		"-j", "DROP",
 	}}
 	return appendOrDelChainRule(accept, "DIRECT ACCESS FILTERING - DROP", enable)
