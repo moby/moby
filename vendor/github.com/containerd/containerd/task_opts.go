@@ -24,12 +24,12 @@ import (
 	"syscall"
 
 	"github.com/containerd/containerd/api/types"
+	"github.com/containerd/containerd/api/types/runc/options"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/runtime/linux/runctypes"
-	"github.com/containerd/containerd/runtime/v2/runc/options"
 	imagespec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -158,6 +158,12 @@ type ProcessDeleteOpts func(context.Context, Process) error
 
 // WithProcessKill will forcefully kill and delete a process
 func WithProcessKill(ctx context.Context, p Process) error {
+	// Skip killing tasks with PID 0
+	// https://github.com/containerd/containerd/issues/10441
+	if p.Pid() == 0 {
+		return nil
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	// ignore errors to wait and kill as we are forcefully killing

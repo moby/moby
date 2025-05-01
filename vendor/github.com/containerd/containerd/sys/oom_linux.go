@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/containerd/containerd/pkg/userns"
+	"github.com/moby/sys/userns"
 	"golang.org/x/sys/unix"
 )
 
