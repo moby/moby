@@ -8,7 +8,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/docker/errdefs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -25,23 +24,23 @@ func FromError(err error) int {
 
 	// Note that the below functions are already checking the error causal chain for matches.
 	switch {
-	case errdefs.IsNotFound(err):
+	case cerrdefs.IsNotFound(err):
 		return http.StatusNotFound
-	case errdefs.IsInvalidParameter(err):
+	case cerrdefs.IsInvalidArgument(err):
 		return http.StatusBadRequest
-	case errdefs.IsConflict(err):
+	case cerrdefs.IsConflict(err):
 		return http.StatusConflict
-	case errdefs.IsUnauthorized(err):
+	case cerrdefs.IsUnauthorized(err):
 		return http.StatusUnauthorized
-	case errdefs.IsUnavailable(err):
+	case cerrdefs.IsUnavailable(err):
 		return http.StatusServiceUnavailable
-	case errdefs.IsForbidden(err):
+	case cerrdefs.IsPermissionDenied(err):
 		return http.StatusForbidden
-	case errdefs.IsNotModified(err):
+	case cerrdefs.IsNotModified(err):
 		return http.StatusNotModified
-	case errdefs.IsNotImplemented(err):
+	case cerrdefs.IsNotImplemented(err):
 		return http.StatusNotImplemented
-	case errdefs.IsSystem(err) || errdefs.IsUnknown(err) || errdefs.IsDataLoss(err) || errdefs.IsDeadline(err) || errdefs.IsCancelled(err):
+	case cerrdefs.IsInternal(err) || cerrdefs.IsUnknown(err) || cerrdefs.IsDataLoss(err) || cerrdefs.IsDeadlineExceeded(err) || cerrdefs.IsCanceled(err):
 		return http.StatusInternalServerError
 	default:
 		if statusCode := statusCodeFromGRPCError(err); statusCode != http.StatusInternalServerError {
