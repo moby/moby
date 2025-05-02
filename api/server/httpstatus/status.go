@@ -13,10 +13,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type causer interface {
-	Cause() error
-}
-
 // FromError retrieves status code from error message.
 func FromError(err error) int {
 	if err == nil {
@@ -57,8 +53,15 @@ func FromError(err error) int {
 		if statusCode := statusCodeFromDistributionError(err); statusCode != http.StatusInternalServerError {
 			return statusCode
 		}
-		if e, ok := err.(causer); ok {
-			return FromError(e.Cause())
+		switch e := err.(type) {
+		case interface{ Unwrap() error }:
+			return FromError(e.Unwrap())
+		case interface{ Unwrap() []error }:
+			for _, ue := range e.Unwrap() {
+				if statusCode := FromError(ue); statusCode != http.StatusInternalServerError {
+					return statusCode
+				}
+			}
 		}
 
 		log.G(context.TODO()).WithFields(log.Fields{

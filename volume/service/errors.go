@@ -85,22 +85,21 @@ func IsNameConflict(err error) bool {
 	return isErr(err, errNameConflict)
 }
 
-type causal interface {
-	Cause() error
-}
-
-type wrapErr interface {
-	Unwrap() error
-}
-
 func isErr(err error, expected error) bool {
 	switch pe := err.(type) {
 	case nil:
 		return false
-	case wrapErr:
-		return isErr(pe.Unwrap(), expected)
-	case causal:
+	case interface{ Cause() error }:
 		return isErr(pe.Cause(), expected)
+	case interface{ Unwrap() error }:
+		return isErr(pe.Unwrap(), expected)
+	case interface{ Unwrap() []error }:
+		for _, ue := range pe.Unwrap() {
+			if isErr(ue, expected) {
+				return true
+			}
+		}
+		return false
 	}
 	return err == expected
 }
