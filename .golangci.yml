@@ -246,6 +246,12 @@ issues:
       linters:
         - forbidigo
 
+
+    # FIXME(dmcgowan): ignoring while transitioning to containerd/errdefs
+    - text: "SA1019: errdefs\\.(.*) is deprecated"
+      linters:
+        - staticcheck
+
   # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
   max-issues-per-linter: 0
 
