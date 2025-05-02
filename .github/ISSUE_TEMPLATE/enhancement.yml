@@ -1,8 +1,10 @@
-name: Feature request
+name: Feature or enhancement request
 description: Missing functionality? Come tell us about it!
+type: "enhancement"
 labels:
-  - kind/feature
-  - status/0-triage
+  - needs/triage
+  - kind/enhancement
+
 body:
   - type: textarea
     id: description

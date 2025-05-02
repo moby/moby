@@ -6,3 +6,6 @@ contact_links:
   - name: Questions and Discussions
     url: https://github.com/moby/moby/discussions/new
     about: Use Github Discussions to ask questions and/or open discussion topics.
+  - name: Join the Docker Community on Slack
+    url: http://dockr.ly/comm-slack
+    about: Join the Docker Community on Slack and head to the moby channel.
