@@ -23,13 +23,19 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/runconfig"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/net/websocket"
+)
+
+const (
+	// endpointSysctls is a comma separated list interface-specific sysctls
+	// where the interface name is represented by the string "IFNAME".
+	// See libnetwork/netlabels for label definitions.
+	endpointSysctls = "com.docker.network.endpoint.sysctls"
 )
 
 func (c *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -785,7 +791,7 @@ func handleMACAddressBC(config *container.Config, hostConfig *container.HostConf
 // are applied during container task creation, but sysctls that name an interface
 // (for example 'net.ipv6.conf.eth0.forwarding') cannot be applied until the
 // interface has been created. So, these settings are removed from hostConfig.Sysctls
-// and added to DriverOpts[netlabel.EndpointSysctls].
+// and added to DriverOpts[endpointSysctls].
 //
 // Because interface names ('ethN') are allocated sequentially, and the order of
 // network connections is not deterministic on container restart, only 'eth0'
@@ -822,7 +828,7 @@ func handleSysctlBC(
 				// needed, but refuse to do it automatically for API 1.48 and newer.
 				if versions.GreaterThan(version, "1.47") {
 					return "", fmt.Errorf("interface specific sysctl setting %q must be supplied using driver option '%s'",
-						k, netlabel.EndpointSysctls)
+						k, endpointSysctls)
 				}
 				var err error
 				ep, err = epConfigForNetMode(version, hostConfig.NetworkMode, netConfig)
@@ -834,7 +840,7 @@ func handleSysctlBC(
 			// have behaved unpredictably.
 			if spl[3] != "eth0" {
 				return "", fmt.Errorf(`unable to determine network endpoint for sysctl %s, use driver option '%s' to set per-interface sysctls`,
-					k, netlabel.EndpointSysctls)
+					k, endpointSysctls)
 			}
 			// Prepare the migration.
 			toDelete = append(toDelete, k)
@@ -848,17 +854,17 @@ func handleSysctlBC(
 	newDriverOpt := strings.Join(netIfSysctls, ",")
 	warning := fmt.Sprintf(`Migrated sysctl %q to DriverOpts{%q:%q}.`,
 		strings.Join(toDelete, ","),
-		netlabel.EndpointSysctls, newDriverOpt)
+		endpointSysctls, newDriverOpt)
 
 	// Append existing per-endpoint sysctls to the migrated sysctls (give priority
 	// to per-endpoint settings).
 	if ep.DriverOpts == nil {
 		ep.DriverOpts = map[string]string{}
 	}
-	if oldDriverOpt, ok := ep.DriverOpts[netlabel.EndpointSysctls]; ok {
+	if oldDriverOpt, ok := ep.DriverOpts[endpointSysctls]; ok {
 		newDriverOpt += "," + oldDriverOpt
 	}
-	ep.DriverOpts[netlabel.EndpointSysctls] = newDriverOpt
+	ep.DriverOpts[endpointSysctls] = newDriverOpt
 
 	// Delete migrated settings from the top-level sysctls.
 	for _, k := range toDelete {

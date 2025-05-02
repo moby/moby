@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/libnetwork/netlabel"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -335,7 +334,7 @@ func TestHandleSysctlBC(t *testing.T) {
 				if ep == nil {
 					assert.Check(t, is.Nil(tc.expEpSysctls))
 				} else {
-					got, ok := ep.DriverOpts[netlabel.EndpointSysctls]
+					got, ok := ep.DriverOpts[endpointSysctls]
 					assert.Check(t, ok)
 					// Check for expected ep-sysctls.
 					for _, want := range tc.expEpSysctls {
