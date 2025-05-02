@@ -2,16 +2,17 @@ package network // import "github.com/docker/docker/api/server/router/network"
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/pkg/errors"
@@ -195,7 +196,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		return errors.Wrapf(ambiguousResultsError(term), "%d matches found based on ID prefix", len(listByPartialID))
 	}
 
-	return libnetwork.ErrNoSuchNetwork(term)
+	return fmt.Errorf("network %s %w", term, cerrdefs.ErrNotFound)
 }
 
 func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -209,7 +210,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 	}
 
 	if nws, err := n.cluster.GetNetworksByName(create.Name); err == nil && len(nws) > 0 {
-		return libnetwork.NetworkNameError(create.Name)
+		return fmt.Errorf("network with name %s %w", string(create.Name), cerrdefs.ErrAlreadyExists)
 	}
 
 	version := httputils.VersionFromContext(ctx)
@@ -369,7 +370,7 @@ func (n *networkRouter) findUniqueNetwork(term string) (network.Inspect, error) 
 		}
 	}
 	if len(listByFullName) > 1 {
-		return network.Inspect{}, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName)))
+		return network.Inspect{}, fmt.Errorf("network %s is ambiguous (%d matches found based on name): %w", term, len(listByFullName), cerrdefs.ErrInvalidArgument)
 	}
 
 	// Find based on partial ID, returns true only if no duplicates
@@ -379,8 +380,8 @@ func (n *networkRouter) findUniqueNetwork(term string) (network.Inspect, error) 
 		}
 	}
 	if len(listByPartialID) > 1 {
-		return network.Inspect{}, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
+		return network.Inspect{}, fmt.Errorf("network %s is ambiguous (%d matches found based on name): %w", term, len(listByPartialID), cerrdefs.ErrInvalidArgument)
 	}
 
-	return network.Inspect{}, errdefs.NotFound(libnetwork.ErrNoSuchNetwork(term))
+	return network.Inspect{}, fmt.Errorf("network %s %w", term, cerrdefs.ErrNotFound)
 }
