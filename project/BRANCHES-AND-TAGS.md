@@ -16,7 +16,8 @@ Currently (and previously) maintained release branches are documented in the tab
 | Branch Name                 | Sponsoring Maintainer(s)                       | Contribution Status   | Expected End of Maintenance | Known Distributors                        |
 |-----------------------------|------------------------------------------------|-----------------------|-----------------------------|-------------------------------------------|
 | master (development branch) | The Moby Project [MAINTAINERS](../MAINTAINERS) | N/A                   | -                           | N/A                                       |
-| 27.x                        | The Moby Project [MAINTAINERS](../MAINTAINERS) | Maintained            | After 28.x                  | [Docker, Inc.][docker], [Microsoft][msft] |
+| 28.x                        | The Moby Project [MAINTAINERS](../MAINTAINERS) | Maintained            | After 29.x                  | [Docker, Inc.][docker], [Microsoft][msft]      |
+| 27.x                        |                                                | Unmaintained          |                             |                                           |
 | 26.1                        |                                                | Unmaintained          |                             |                                           |
 | 26.0                        |                                                | Unmaintained          |                             |                                           |
 | 25.0                        | @corhere @austinvazquez                        | Maintained            | TBD                         | [Amazon][al2023], [Mirantis][mcr]         |
@@ -28,7 +29,7 @@ Currently (and previously) maintained release branches are documented in the tab
 [docker]: https://docker.com
 [mcr23-maint]: https://docs.mirantis.com/mcr/23.0/compat-matrix/maintenance-lifecycle.html
 [mcr]: https://www.mirantis.com/software/mirantis-container-runtime/
-[mstf]: https://microsoft.com
+[msft]: https://microsoft.com
 
 > Note: The Moby Project provides source code releases. Binary distributions are available from multiple contributing parties, and known distributions can be discovered in [PACKAGERS.md](PACKAGERS.md).
 
