@@ -173,8 +173,9 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 		"execID": ec.ID,
 	})
 
+	var started bool
 	defer func() {
-		if err != nil {
+		if err != nil && !started {
 			ec.Lock()
 			ec.Container.ExecCommands.Delete(ec.ID)
 			ec.Running = false
@@ -289,6 +290,8 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 		return setExitCodeFromError(ec.SetExitCode, err)
 	}
 	ec.Unlock()
+
+	started = true
 
 	select {
 	case <-ctx.Done():
