@@ -1,5 +1,7 @@
 package opts
 
+import "github.com/docker/docker/api/types/filters"
+
 // CreateOption is used to pass options in when creating a volume
 type CreateOption func(*CreateConfig)
 
@@ -95,5 +97,30 @@ type RemoveOption func(*RemoveConfig)
 func WithPurgeOnError(b bool) RemoveOption {
 	return func(o *RemoveConfig) {
 		o.PurgeOnError = b
+	}
+}
+
+// ListConfig is used by `ListOption` to store config options for listing volumes.
+type ListConfig struct {
+	Filters filters.Args
+
+	// Size enables calculating the size for each volume.
+	Size bool
+}
+
+// ListOption is passed to the service `List` add extra details on the get request
+type ListOption func(*ListConfig)
+
+// WithFilters applies the given filters to the ListConfig.
+func WithFilters(args filters.Args) ListOption {
+	return func(o *ListConfig) {
+		o.Filters = args
+	}
+}
+
+// WithSize enables size calculation for the list response.
+func WithSize(enabled bool) ListOption {
+	return func(o *ListConfig) {
+		o.Size = enabled
 	}
 }
