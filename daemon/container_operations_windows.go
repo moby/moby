@@ -37,7 +37,7 @@ func (daemon *Daemon) setupConfigDir(ctr *container.Container) (setupErr error) 
 	log.G(context.TODO()).Debugf("configs: setting up config dir: %s", localPath)
 
 	// create local config root
-	if err := system.MkdirAllWithACL(localPath, 0, system.SddlAdministratorsLocalSystem); err != nil {
+	if err := system.MkdirAllWithACL(localPath, system.SddlAdministratorsLocalSystem); err != nil {
 		return errors.Wrap(err, "error creating config dir")
 	}
 
@@ -112,7 +112,7 @@ func (daemon *Daemon) setupSecretDir(ctr *container.Container) (setupErr error) 
 	log.G(context.TODO()).Debugf("secrets: setting up secret dir: %s", localMountPath)
 
 	// create local secret root
-	if err := system.MkdirAllWithACL(localMountPath, 0, system.SddlAdministratorsLocalSystem); err != nil {
+	if err := system.MkdirAllWithACL(localMountPath, system.SddlAdministratorsLocalSystem); err != nil {
 		return errors.Wrap(err, "error creating secret local directory")
 	}
 
