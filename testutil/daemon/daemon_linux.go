@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/testutil/daemon"
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,13 +19,32 @@ func cleanupNetworkNamespace(t testing.TB, d *Daemon) {
 	// daemon instance and has no chance of getting
 	// cleaned up when a new daemon is instantiated with a
 	// new exec root.
-	filepath.WalkDir(filepath.Join(d.execRoot, "netns"), func(path string, _ os.DirEntry, _ error) error {
-		if err := unix.Unmount(path, unix.MNT_DETACH); err != nil && err != unix.EINVAL && err != unix.ENOENT {
-			t.Logf("[%s] unmount of %s failed: %v", d.id, path, err)
+	netnsPath := filepath.Join(d.execRoot, "netns")
+	files, err := os.ReadDir(netnsPath)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			t.Logf("[%s] unable to read netns path (%s): %s", d.id, netnsPath, err)
 		}
-		os.Remove(path)
-		return nil
-	})
+		return
+	}
+
+	for _, dir := range files {
+		if !dir.IsDir() {
+			continue
+		}
+
+		path := filepath.Join(netnsPath, dir.Name())
+
+		// Unmount the network namespace using MNT_DETACH (lazy unmount).
+		// Ignore EINVAL ("target is not a mount point"), and ENOENT (not found),
+		// which could occur if the network namespace was already gone.
+		if err := unix.Unmount(path, unix.MNT_DETACH); err != nil && err != unix.EINVAL && err != unix.ENOENT {
+			t.Logf("[%s] unmount of network namespace %s failed: %v", d.id, path, err)
+		}
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			t.Logf("[%s] unable to remove network namespace %s: %s", d.id, path, err)
+		}
+	}
 }
 
 // CgroupNamespace returns the cgroup namespace the daemon is running in
