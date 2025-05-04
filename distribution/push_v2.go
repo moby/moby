@@ -245,7 +245,7 @@ func (p *pusher) pushTag(ctx context.Context, ref reference.NamedTagged, id dige
 	}
 
 	manifestDigest := digest.FromBytes(canonicalManifest)
-	progress.Messagef(p.config.ProgressOutput, "", "%s: digest: %s size: %d", ref.Tag(), manifestDigest, len(canonicalManifest))
+	progress.Messagef(p.config.ProgressOutput, "", "Tag: %s, manifest digest: %s, manifest size: %d bytes", ref.Tag(), manifestDigest, len(canonicalManifest))
 
 	if err := addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id); err != nil {
 		return err
