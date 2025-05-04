@@ -713,7 +713,6 @@ func buildRouters(opts routerOptions) []router.Router {
 		image.NewRouter(
 			opts.daemon.ImageService(),
 			opts.daemon.RegistryService(),
-			opts.daemon.ReferenceStore,
 		),
 		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.builder.buildkit, opts.daemon.Features),
 		volume.NewRouter(opts.daemon.VolumesService(), opts.cluster),
