@@ -31,10 +31,15 @@ type ParsedPkg struct {
 }
 
 type function struct {
-	Name    string
-	Args    []fnArg
-	Returns []fnArg
-	Doc     string
+	Name        string
+	Args        []fnArg
+	Returns     []fnArg
+	Doc         string
+	Annotations annotations
+}
+
+type annotations struct {
+	RequestTimeout string
 }
 
 type fnArg struct {
@@ -64,7 +69,7 @@ func (s *importSpec) String() string {
 // Parse parses the given file for an interface definition with the given name.
 func Parse(filePath string, objName string) (*ParsedPkg, error) {
 	fs := token.NewFileSet()
-	pkg, err := parser.ParseFile(fs, filePath, nil, parser.AllErrors)
+	pkg, err := parser.ParseFile(fs, filePath, nil, parser.ParseComments)
 	if err != nil {
 		return nil, err
 	}
@@ -169,10 +174,14 @@ func parseInterface(iface *ast.InterfaceType) ([]function, error) {
 
 func parseFunc(field *ast.Field) (*function, error) {
 	f := field.Type.(*ast.FuncType)
-	method := &function{Name: field.Names[0].Name}
+	method := &function{Name: field.Names[0].Name, Annotations: annotations{RequestTimeout: "short"}}
 	if _, exists := skipFuncs[method.Name]; exists {
 		fmt.Println("skipping:", method.Name)
 		return nil, nil
+	}
+	if field.Doc != nil {
+		method.Doc = extractDocumentation(field.Doc.List)
+		method.Annotations = parseAnnotations(field.Doc.List)
 	}
 	if f.Params != nil {
 		args, err := parseArgs(f.Params.List)
@@ -260,4 +269,42 @@ func parseExpr(e ast.Expr) (parsedExpr, error) {
 		return parsed, errUnexpectedType{"*ast.Ident or *ast.StarExpr", i}
 	}
 	return parsed, nil
+}
+
+func extractDocumentation(comments []*ast.Comment) string {
+	var docLines []string
+
+	for _, comment := range comments {
+		text := strings.TrimSpace(comment.Text)
+		// Ignore lines that contains "pluginrpc-gen:"
+		if strings.Contains(text, "pluginrpc-gen:") {
+			continue
+		}
+		docLines = append(docLines, text)
+	}
+
+	return strings.Join(docLines, "\n")
+}
+
+func parseAnnotations(comments []*ast.Comment) annotations {
+	a := annotations{
+		RequestTimeout: "short",
+	}
+	var commentText string
+
+	// Concatenate all comment lines into a single string
+	for _, comment := range comments {
+		commentText += strings.TrimSpace(comment.Text) + " "
+	}
+
+	// Look for the timeout annotation
+	if strings.Contains(commentText, "pluginrpc-gen:request-timeout=") {
+		parts := strings.Split(commentText, "pluginrpc-gen:request-timeout=")
+		if len(parts) > 1 {
+			// Extract the timeout value
+			a.RequestTimeout = strings.Fields(parts[1])[0]
+		}
+	}
+
+	return a
 }
