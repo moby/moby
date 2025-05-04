@@ -9,6 +9,7 @@ import (
 	"path"
 	"reflect"
 	"strings"
+	"time"
 )
 
 var errBadReturn = errors.New("found return arg with no name: all args must be named")
@@ -25,16 +26,34 @@ func (e errUnexpectedType) Error() string {
 // ParsedPkg holds information about a package that has been parsed,
 // its name and the list of functions.
 type ParsedPkg struct {
-	Name      string
-	Functions []function
-	Imports   []importSpec
+	Name         string
+	Functions    []function
+	Imports      []importSpec
+	LongTimeout  time.Duration
+	ShortTimeout time.Duration
+}
+
+func newParsedPkg(name string) *ParsedPkg {
+	return &ParsedPkg{
+		LongTimeout:  2 * time.Minute,
+		Name:         name,
+		ShortTimeout: 1 * time.Minute,
+	}
 }
 
 type function struct {
-	Name    string
-	Args    []fnArg
-	Returns []fnArg
-	Doc     string
+	Name        string
+	Args        []fnArg
+	Returns     []fnArg
+	Doc         string
+	TimeoutType string
+}
+
+func newFunction(name string) *function {
+	return &function{
+		Name:        name,
+		TimeoutType: "short",
+	}
 }
 
 type fnArg struct {
@@ -64,12 +83,11 @@ func (s *importSpec) String() string {
 // Parse parses the given file for an interface definition with the given name.
 func Parse(filePath string, objName string) (*ParsedPkg, error) {
 	fs := token.NewFileSet()
-	pkg, err := parser.ParseFile(fs, filePath, nil, parser.AllErrors)
+	pkg, err := parser.ParseFile(fs, filePath, nil, parser.ParseComments)
 	if err != nil {
 		return nil, err
 	}
-	p := &ParsedPkg{}
-	p.Name = pkg.Name.Name
+	p := newParsedPkg(pkg.Name.Name)
 	obj, exists := pkg.Scope.Objects[objName]
 	if !exists {
 		return nil, fmt.Errorf("could not find object %s in %s", objName, filePath)
@@ -169,10 +187,14 @@ func parseInterface(iface *ast.InterfaceType) ([]function, error) {
 
 func parseFunc(field *ast.Field) (*function, error) {
 	f := field.Type.(*ast.FuncType)
-	method := &function{Name: field.Names[0].Name}
+	method := newFunction(field.Names[0].Name)
 	if _, exists := skipFuncs[method.Name]; exists {
 		fmt.Println("skipping:", method.Name)
 		return nil, nil
+	}
+	if field.Doc != nil {
+		method.Doc = extractDocumentation(field.Doc.List)
+		method.TimeoutType = parseTimeoutType(field.Doc.List)
 	}
 	if f.Params != nil {
 		args, err := parseArgs(f.Params.List)
@@ -260,4 +282,39 @@ func parseExpr(e ast.Expr) (parsedExpr, error) {
 		return parsed, errUnexpectedType{"*ast.Ident or *ast.StarExpr", i}
 	}
 	return parsed, nil
+}
+
+func extractDocumentation(comments []*ast.Comment) string {
+	var docLines []string
+
+	for _, comment := range comments {
+		text := strings.TrimSpace(comment.Text)
+		// Ignore lines that contains "pluginrpc-gen:"
+		if strings.Contains(text, "pluginrpc-gen:") {
+			continue
+		}
+		docLines = append(docLines, text)
+	}
+
+	return strings.Join(docLines, "\n")
+}
+
+func parseTimeoutType(comments []*ast.Comment) string {
+	var commentText string
+
+	// Concatenate all comment lines into a single string
+	for _, comment := range comments {
+		commentText += strings.TrimSpace(comment.Text) + " "
+	}
+
+	// Look for the timeout annotation
+	if strings.Contains(commentText, "pluginrpc-gen:timeout-type=") {
+		parts := strings.Split(commentText, "pluginrpc-gen:timeout-type=")
+		if len(parts) > 1 {
+			// Extract the timeout value
+			return strings.Fields(parts[1])[0]
+		}
+	}
+
+	return "short"
 }
