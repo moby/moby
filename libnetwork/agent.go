@@ -911,7 +911,7 @@ func (c *Controller) handleEpTableEvent(ev events.Event) {
 
 	err := proto.Unmarshal(value, &epRec)
 	if err != nil {
-		log.G(context.TODO()).Errorf("Failed to unmarshal service table value: %v", err)
+		log.G(context.TODO()).WithError(err).Error("Failed to unmarshal service table value")
 		return
 	}
 
@@ -924,53 +924,54 @@ func (c *Controller) handleEpTableEvent(ev events.Event) {
 	serviceAliases := epRec.Aliases
 	taskAliases := epRec.TaskAliases
 
+	logger := log.G(context.TODO()).WithFields(log.Fields{
+		"nid": nid,
+		"eid": eid,
+		"T":   fmt.Sprintf("%T", ev),
+		"R":   epRec,
+	})
+
 	if containerName == "" || ip == nil {
-		log.G(context.TODO()).Errorf("Invalid endpoint name/ip received while handling service table event %s", value)
+		logger.Errorf("Invalid endpoint name/ip received while handling service table event %s", value)
 		return
 	}
 
+	logger.Debug("handleEpTableEvent")
+
 	switch ev.(type) {
-	case networkdb.CreateEvent:
-		log.G(context.TODO()).Debugf("handleEpTableEvent ADD %s R:%v", eid, epRec)
+	case networkdb.CreateEvent, networkdb.UpdateEvent:
 		if svcID != "" {
 			// This is a remote task part of a service
-			if err := c.addServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				log.G(context.TODO()).Errorf("failed adding service binding for %s epRec:%v err:%v", eid, epRec, err)
-				return
+			if epRec.ServiceDisabled {
+				if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true, false); err != nil {
+					logger.WithError(err).Error("failed disabling service binding")
+					return
+				}
+			} else {
+				if err := c.addServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent"); err != nil {
+					logger.WithError(err).Error("failed adding service binding")
+					return
+				}
 			}
 		} else {
 			// This is a remote container simply attached to an attachable network
 			if err := c.addContainerNameResolution(nid, eid, containerName, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				log.G(context.TODO()).Errorf("failed adding container name resolution for %s epRec:%v err:%v", eid, epRec, err)
+				logger.WithError(err).Errorf("failed adding container name resolution")
 			}
 		}
 
 	case networkdb.DeleteEvent:
-		log.G(context.TODO()).Debugf("handleEpTableEvent DEL %s R:%v", eid, epRec)
 		if svcID != "" {
 			// This is a remote task part of a service
 			if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true, true); err != nil {
-				log.G(context.TODO()).Errorf("failed removing service binding for %s epRec:%v err:%v", eid, epRec, err)
+				logger.WithError(err).Error("failed removing service binding")
 				return
 			}
 		} else {
 			// This is a remote container simply attached to an attachable network
 			if err := c.delContainerNameResolution(nid, eid, containerName, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				log.G(context.TODO()).Errorf("failed removing container name resolution for %s epRec:%v err:%v", eid, epRec, err)
+				logger.WithError(err).Errorf("failed removing container name resolution")
 			}
-		}
-	case networkdb.UpdateEvent:
-		log.G(context.TODO()).Debugf("handleEpTableEvent UPD %s R:%v", eid, epRec)
-		// We currently should only get these to inform us that an endpoint
-		// is disabled.  Report if otherwise.
-		if svcID == "" || !epRec.ServiceDisabled {
-			log.G(context.TODO()).Errorf("Unexpected update table event for %s epRec:%v", eid, epRec)
-			return
-		}
-		// This is a remote task that is part of a service that is now disabled
-		if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true, false); err != nil {
-			log.G(context.TODO()).Errorf("failed disabling service binding for %s epRec:%v err:%v", eid, epRec, err)
-			return
 		}
 	}
 }
