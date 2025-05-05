@@ -408,7 +408,12 @@ func (d *delegate) NotifyMsg(buf []byte) {
 
 func (d *delegate) GetBroadcasts(overhead, limit int) [][]byte {
 	msgs := d.nDB.networkBroadcasts.GetBroadcasts(overhead, limit)
-	msgs = append(msgs, d.nDB.nodeBroadcasts.GetBroadcasts(overhead, limit)...)
+	for _, m := range msgs {
+		limit -= overhead + len(m)
+	}
+	if limit > 0 {
+		msgs = append(msgs, d.nDB.nodeBroadcasts.GetBroadcasts(overhead, limit)...)
+	}
 	return msgs
 }
 
