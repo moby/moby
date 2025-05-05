@@ -249,14 +249,27 @@ func DefaultConfig() *Config {
 // New creates a new instance of NetworkDB using the Config passed by
 // the caller.
 func New(c *Config) (*NetworkDB, error) {
+	nDB := new(c)
+	log.G(context.TODO()).Infof("New memberlist node - Node:%v will use memberlist nodeID:%v with config:%+v", c.Hostname, c.NodeID, c)
+	if err := nDB.clusterInit(); err != nil {
+		return nil, err
+	}
+
+	return nDB, nil
+}
+
+func new(c *Config) *NetworkDB {
 	// The garbage collection logic for entries leverage the presence of the network.
 	// For this reason the expiration time of the network is put slightly higher than the entry expiration so that
 	// there is at least 5 extra cycle to make sure that all the entries are properly deleted before deleting the network.
 	c.reapNetworkInterval = c.reapEntryInterval + 5*reapPeriod
 
-	nDB := &NetworkDB{
-		config:         c,
-		indexes:        make(map[int]*iradix.Tree),
+	return &NetworkDB{
+		config: c,
+		indexes: map[int]*iradix.Tree{
+			byTable:   iradix.New(),
+			byNetwork: iradix.New(),
+		},
 		networks:       make(map[string]map[string]*network),
 		nodes:          make(map[string]*node),
 		failedNodes:    make(map[string]*node),
@@ -265,16 +278,6 @@ func New(c *Config) (*NetworkDB, error) {
 		bulkSyncAckTbl: make(map[string]chan struct{}),
 		broadcaster:    events.NewBroadcaster(),
 	}
-
-	nDB.indexes[byTable] = iradix.New()
-	nDB.indexes[byNetwork] = iradix.New()
-
-	log.G(context.TODO()).Infof("New memberlist node - Node:%v will use memberlist nodeID:%v with config:%+v", c.Hostname, c.NodeID, c)
-	if err := nDB.clusterInit(); err != nil {
-		return nil, err
-	}
-
-	return nDB, nil
 }
 
 // Join joins this NetworkDB instance with a list of peer NetworkDB
