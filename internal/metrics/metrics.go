@@ -91,29 +91,33 @@ func (ctr *StateCounter) Get() (running int, paused int, stopped int) {
 	ctr.mu.RLock()
 	defer ctr.mu.RUnlock()
 
-	states := map[string]int{
-		"running": 0,
-		"paused":  0,
-		"stopped": 0,
-	}
 	for _, state := range ctr.states {
-		states[state]++
+		switch state {
+		case "running":
+			running++
+		case "paused":
+			paused++
+		case "stopped":
+			stopped++
+		}
 	}
-	return states["running"], states["paused"], states["stopped"]
+	return running, paused, stopped
 }
 
 // Set updates the state for a container
 func (ctr *StateCounter) Set(id, label string) {
 	ctr.mu.Lock()
+	defer ctr.mu.Unlock()
+
 	ctr.states[id] = label
-	ctr.mu.Unlock()
 }
 
 // Delete removes a container's state
 func (ctr *StateCounter) Delete(id string) {
 	ctr.mu.Lock()
+	defer ctr.mu.Unlock()
+
 	delete(ctr.states, id)
-	ctr.mu.Unlock()
 }
 
 // Describe implements prometheus.Collector
