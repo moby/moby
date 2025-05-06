@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"github.com/containerd/containerd"
-	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/image-spec/identity"

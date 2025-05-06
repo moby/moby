@@ -18,7 +18,7 @@ import (
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
-	cerrdefs "github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/queue"
