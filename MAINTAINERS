@@ -7,6 +7,7 @@
 "akerouanton","Albin Kerouanton","albinker@gmail.com"
 "AkihiroSuda","Akihiro Suda","akihiro.suda.cz@hco.ntt.co.jp"
 "austinvazquez","Austin Vazquez","macedonv@amazon.com"
+"corhere","Cory Snider","csnider@mirantis.com"
 "cpuguy83","Brian Goff","cpuguy83@gmail.com"
 "robmry","Rob Murray","rob.murray@docker.com"
 "thaJeztah","Sebastiaan van Stijn","github@gone.nl"
@@ -17,7 +18,6 @@
 # REVIEWERS
 # GitHub ID, Name, Email address, GPG fingerprint
 "coolljt0725","Lei Jitang","leijitang@huawei.com"
-"corhere","Cory Snider","csnider@mirantis.com"
 "crazy-max","Kevin Alvarez","contact@crazymax.dev"
 "dmcgowan","Derek McGowan","derek@mcgstyle.net"
 "estesp","Phil Estes","estesp@linux.vnet.ibm.com"
