@@ -60,6 +60,12 @@ func TestWatch_out_of_order(t *testing.T) {
 	appendTableEvent(13, TableEventTypeUpdate, "key4", []byte("b"))
 	appendTableEvent(14, TableEventTypeUpdate, "key4", []byte("c"))
 
+	// Delete, create
+	appendTableEvent(16, TableEventTypeDelete, "key5", []byte("a"))
+	appendTableEvent(15, TableEventTypeCreate, "key5", []byte("a"))
+	// (Hidden recreate), delete
+	appendTableEvent(18, TableEventTypeDelete, "key5", []byte("b"))
+
 	d.NotifyMsg(msgs.Compound())
 	msgs.Reset()
 
@@ -76,6 +82,8 @@ func TestWatch_out_of_order(t *testing.T) {
 		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "key3", Value: []byte("b")}),
 		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "key4", Value: []byte("b")}),
 		UpdateEvent(event{Table: "table1", NetworkID: "network1", Key: "key4", Value: []byte("c")}),
+
+		// key5 should not appear in the events.
 	}))
 }
 
