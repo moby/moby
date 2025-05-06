@@ -1,7 +1,7 @@
 package containerd
 
 import (
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
