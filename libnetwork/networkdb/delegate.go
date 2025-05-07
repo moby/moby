@@ -169,6 +169,10 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 	}
 
 	nDB.Lock()
+	// Hold the lock until after we broadcast the event to watchers so that
+	// the new watch receives either the synthesized event or the event we
+	// broadcast, never both.
+	defer nDB.Unlock()
 	var entryPresent bool
 	prev, err := nDB.getEntry(tEvent.TableName, tEvent.NetworkID, tEvent.Key)
 	if err == nil {
@@ -176,7 +180,6 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 		// We have the latest state. Ignore the event
 		// since it is stale.
 		if prev.ltime >= tEvent.LTime {
-			nDB.Unlock()
 			return false
 		}
 	}
@@ -198,7 +201,6 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 		e.reapTime = nDB.config.reapEntryInterval
 	}
 	nDB.createOrUpdateEntry(tEvent.NetworkID, tEvent.TableName, tEvent.Key, e)
-	nDB.Unlock()
 
 	if !entryPresent && tEvent.Type == TableEventTypeDelete {
 		// We will rebroadcast the message for an unknown entry if all the conditions are met:
