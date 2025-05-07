@@ -458,7 +458,12 @@ func TestIsolated(t *testing.T) {
 		defer apiClient.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
 		if ipv == "-6" && networking.FirewalldRunning() {
 			// FIXME(robmry) - this fails due to https://github.com/moby/moby/issues/49680
-			assert.Check(t, is.Equal(res.ExitCode, 1))
+			if res.ExitCode != 1 {
+				t.Log("Unexpected pass!")
+				t.Log(icmd.RunCommand("nft", "list ruleset").Stdout())
+				t.Log(icmd.RunCommand("ip", "a").Stdout())
+				t.Log(icmd.RunCommand("route", "-6").Stdout())
+			}
 			t.Skip("XFAIL - IPv6, firewalld, isolated - see https://github.com/moby/moby/issues/49680")
 		}
 		assert.Check(t, is.Equal(res.ExitCode, 0))
@@ -522,6 +527,7 @@ func TestPublishedPortAlreadyInUse(t *testing.T) {
 //
 // Regression test for https://github.com/moby/moby/issues/49654.
 func TestAllPortMappingsAreReturned(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "cannot disable userland proxy in rootless netns unless br-netfilter loaded by host")
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
@@ -617,6 +623,7 @@ func TestFirewalldReloadNoZombies(t *testing.T) {
 // TestLegacyLink checks that a legacy link ("--link" in the default bridge network)
 // sets up a hostname and opens ports when the daemon is running with icc=false.
 func TestLegacyLink(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "cannot set icc=false in rootless netns unless br-netfilter loaded by host")
 	ctx := setupTest(t)
 
 	// Tidy up after the test by starting a new daemon, which will remove the icc=false
@@ -693,6 +700,7 @@ func TestLegacyLink(t *testing.T) {
 //
 // Replacement for DockerDaemonSuite/TestDaemonLinksIpTablesRulesWhenLinkAndUnlink
 func TestRemoveLegacyLink(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "cannot set icc=false in rootless netns unless br-netfilter loaded by host")
 	ctx := setupTest(t)
 
 	// Tidy up after the test by starting a new daemon, which will remove the icc=false
