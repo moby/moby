@@ -268,24 +268,19 @@ func (n *Namespace) AddInterface(srcName, dstPrefix string, options ...IfaceOpti
 // RemoveInterface removes an interface from the namespace by renaming to
 // original name and moving it out of the sandbox.
 func (n *Namespace) RemoveInterface(i *Interface) error {
-	n.mu.Lock()
-	isDefault := n.isDefault
-	nlh := n.nlHandle
-	n.mu.Unlock()
-
 	// Find the network interface identified by the DstName attribute.
-	iface, err := nlh.LinkByName(i.DstName())
+	iface, err := n.nlHandle.LinkByName(i.DstName())
 	if err != nil {
 		return err
 	}
 
 	// Down the interface before configuring
-	if err := nlh.LinkSetDown(iface); err != nil {
+	if err := n.nlHandle.LinkSetDown(iface); err != nil {
 		return err
 	}
 
 	// TODO(aker): Why are we doing this? This would fail if the initial interface set up failed before the "dest interface" was moved into its own namespace; see https://github.com/moby/moby/pull/46315/commits/108595c2fe852a5264b78e96f9e63cda284990a6#r1331253578
-	err = nlh.LinkSetName(iface, i.SrcName())
+	err = n.nlHandle.LinkSetName(iface, i.SrcName())
 	if err != nil {
 		log.G(context.TODO()).Debugf("LinkSetName failed for interface %s: %v", i.SrcName(), err)
 		return err
@@ -293,13 +288,13 @@ func (n *Namespace) RemoveInterface(i *Interface) error {
 
 	// if it is a bridge just delete it.
 	if i.Bridge() {
-		if err := nlh.LinkDel(iface); err != nil {
+		if err := n.nlHandle.LinkDel(iface); err != nil {
 			return fmt.Errorf("failed deleting bridge %q: %v", i.SrcName(), err)
 		}
-	} else if !isDefault {
+	} else if !n.isDefault {
 		// Move the network interface to caller namespace.
 		// TODO(aker): What's this really doing? There are no calls to LinkDel in this package: is this code really used? (Interface.Remove() has 3 callers); see https://github.com/moby/moby/pull/46315/commits/108595c2fe852a5264b78e96f9e63cda284990a6#r1331265335
-		if err := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); err != nil {
+		if err := n.nlHandle.LinkSetNsFd(iface, ns.ParseHandlerInt()); err != nil {
 			log.G(context.TODO()).Debugf("LinkSetNsFd failed for interface %s: %v", i.SrcName(), err)
 			return err
 		}
