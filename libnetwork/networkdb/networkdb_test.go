@@ -246,7 +246,7 @@ func TestNetworkDBJoinLeaveNetworks(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestFlakyNetworkDBCRUDTableEntry(t *testing.T) {
+func TestNetworkDBCRUDTableEntry(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 3, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")
@@ -276,7 +276,7 @@ func TestFlakyNetworkDBCRUDTableEntry(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestFlakyNetworkDBCRUDTableEntries(t *testing.T) {
+func TestNetworkDBCRUDTableEntries(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")
@@ -346,7 +346,7 @@ func TestFlakyNetworkDBCRUDTableEntries(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestFlakyNetworkDBNodeLeave(t *testing.T) {
+func TestNetworkDBNodeLeave(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")
