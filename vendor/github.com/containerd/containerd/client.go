@@ -27,6 +27,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/containerd/platforms"
+	"github.com/containerd/typeurl/v2"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"golang.org/x/sync/semaphore"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health/grpc_health_v1"
+
 	containersapi "github.com/containerd/containerd/api/services/containers/v1"
 	contentapi "github.com/containerd/containerd/api/services/content/v1"
 	diffapi "github.com/containerd/containerd/api/services/diff/v1"
@@ -51,7 +61,6 @@ import (
 	leasesproxy "github.com/containerd/containerd/leases/proxy"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/dialer"
-	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/plugin"
 	ptypes "github.com/containerd/containerd/protobuf/types"
 	"github.com/containerd/containerd/remotes"
@@ -61,14 +70,6 @@ import (
 	"github.com/containerd/containerd/services/introspection"
 	"github.com/containerd/containerd/snapshots"
 	snproxy "github.com/containerd/containerd/snapshots/proxy"
-	"github.com/containerd/typeurl/v2"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"golang.org/x/sync/semaphore"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/backoff"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func init() {

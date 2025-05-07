@@ -26,6 +26,7 @@ import (
 
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/api/types"
+	"github.com/containerd/containerd/api/types/runc/options"
 	tasktypes "github.com/containerd/containerd/api/types/task"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/containers"
@@ -33,7 +34,6 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/protobuf"
-	"github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/containerd/fifo"
 	"github.com/containerd/typeurl/v2"
 	ver "github.com/opencontainers/image-spec/specs-go"

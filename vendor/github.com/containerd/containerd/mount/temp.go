@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 )
 
 var tempMountLocation = getTempDir()
@@ -29,6 +29,10 @@ var tempMountLocation = getTempDir()
 // WithTempMount mounts the provided mounts to a temp dir, and pass the temp dir to f.
 // The mounts are valid during the call to the f.
 // Finally we will unmount and remove the temp dir regardless of the result of f.
+//
+// NOTE: The volatile option of overlayfs doesn't allow to mount again using the
+// same upper / work dirs. Since it's a temp mount, avoid using that option here
+// if found.
 func WithTempMount(ctx context.Context, mounts []Mount, f func(root string) error) (err error) {
 	root, uerr := os.MkdirTemp(tempMountLocation, "containerd-mount")
 	if uerr != nil {
@@ -58,13 +62,53 @@ func WithTempMount(ctx context.Context, mounts []Mount, f func(root string) erro
 			}
 		}
 	}()
-	if uerr = All(mounts, root); uerr != nil {
+
+	if uerr = All(RemoveVolatileOption(mounts), root); uerr != nil {
 		return fmt.Errorf("failed to mount %s: %w", root, uerr)
 	}
 	if err := f(root); err != nil {
 		return fmt.Errorf("mount callback failed on %s: %w", root, err)
 	}
 	return nil
+}
+
+// RemoveVolatileOption copies and remove the volatile option for overlay
+// type, since overlayfs doesn't allow to mount again using the same upper/work
+// dirs.
+//
+// REF: https://docs.kernel.org/filesystems/overlayfs.html#volatile-mount
+//
+// TODO: Make this logic conditional once the kernel supports reusing
+// overlayfs volatile mounts.
+func RemoveVolatileOption(mounts []Mount) []Mount {
+	var out []Mount
+	for i, m := range mounts {
+		if m.Type != "overlay" {
+			continue
+		}
+		for j, opt := range m.Options {
+			if opt == "volatile" {
+				if out == nil {
+					out = copyMounts(mounts)
+				}
+				out[i].Options = append(out[i].Options[:j], out[i].Options[j+1:]...)
+				break
+			}
+		}
+	}
+
+	if out != nil {
+		return out
+	}
+
+	return mounts
+}
+
+// copyMounts creates a copy of the original slice to allow for modification and not altering the original
+func copyMounts(in []Mount) []Mount {
+	out := make([]Mount, len(in))
+	copy(out, in)
+	return out
 }
 
 // WithReadonlyTempMount mounts the provided mounts to a temp dir as readonly,
