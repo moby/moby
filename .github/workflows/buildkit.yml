@@ -31,7 +31,7 @@ jobs:
     uses: ./.github/workflows/.dco.yml
 
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-dco
@@ -54,7 +54,7 @@ jobs:
           retention-days: 1
 
   test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - build
@@ -100,7 +100,10 @@ jobs:
       -
         name: BuildKit ref
         run: |
-          echo "$(./hack/buildkit-ref)" >> $GITHUB_ENV
+          # FIXME(aepifanov) temporarily overriding version to use for tests; remove with the next release of buildkit
+          # echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
+          echo "BUILDKIT_REPO=moby/buildkit" >> $GITHUB_ENV
+          echo "BUILDKIT_REF=b10aeed77fd8a370f6aec7ae4b212ab291914e08" >> $GITHUB_ENV
         working-directory: moby
       -
         name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
