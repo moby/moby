@@ -46,9 +46,11 @@ func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Co
 		localConfig.Hostname = fmt.Sprintf("%s%d", namePrefix, i+1)
 		localConfig.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
 		localConfig.BindPort = int(dbPort.Add(1))
+		localConfig.BindAddr = "127.0.0.1"
+		localConfig.AdvertiseAddr = localConfig.BindAddr
 		db := launchNode(t, localConfig)
 		if i != 0 {
-			assert.Check(t, db.Join([]string{fmt.Sprintf("localhost:%d", db.config.BindPort-1)}))
+			assert.Check(t, db.Join([]string{net.JoinHostPort(db.config.AdvertiseAddr, strconv.Itoa(db.config.BindPort-1))}))
 		}
 
 		dbs = append(dbs, db)
@@ -244,7 +246,7 @@ func TestNetworkDBJoinLeaveNetworks(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestFlakyNetworkDBCRUDTableEntry(t *testing.T) {
+func TestNetworkDBCRUDTableEntry(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 3, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")
@@ -274,7 +276,7 @@ func TestFlakyNetworkDBCRUDTableEntry(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestFlakyNetworkDBCRUDTableEntries(t *testing.T) {
+func TestNetworkDBCRUDTableEntries(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")
@@ -344,7 +346,7 @@ func TestFlakyNetworkDBCRUDTableEntries(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestFlakyNetworkDBNodeLeave(t *testing.T) {
+func TestNetworkDBNodeLeave(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")
