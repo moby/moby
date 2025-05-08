@@ -73,7 +73,8 @@ type puller struct {
 	manifestStore   *manifestStore
 }
 
-func (p *puller) pull(ctx context.Context, ref reference.Named) (err error) {
+func (p *puller) pull(ctx context.Context, ref reference.Named) error {
+	var err error
 	// TODO(thaJeztah): do we need p.repoName at all, as it would probably be same as ref?
 	p.repo, err = newRepository(ctx, p.repoName, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
@@ -89,9 +90,10 @@ func (p *puller) pull(ctx context.Context, ref reference.Named) (err error) {
 	return p.pullRepository(ctx, ref)
 }
 
-func (p *puller) pullRepository(ctx context.Context, ref reference.Named) (err error) {
+func (p *puller) pullRepository(ctx context.Context, ref reference.Named) error {
 	var layersDownloaded bool
 	if !reference.IsNameOnly(ref) {
+		var err error
 		layersDownloaded, err = p.pullTag(ctx, ref, p.config.Platform)
 		if err != nil {
 			return err
@@ -185,7 +187,7 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput progress
 			log.G(ctx).Debugf("error seeking to end of download file: %v", err)
 			offset = 0
 
-			ld.tmpFile.Close()
+			_ = ld.tmpFile.Close()
 			if err := os.Remove(ld.tmpFile.Name()); err != nil {
 				log.G(ctx).Errorf("Failed to remove temp file: %s", ld.tmpFile.Name())
 			}
@@ -281,7 +283,7 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput progress
 
 	_, err = tmpFile.Seek(0, io.SeekStart)
 	if err != nil {
-		tmpFile.Close()
+		_ = tmpFile.Close()
 		if err := os.Remove(tmpFile.Name()); err != nil {
 			log.G(ctx).Errorf("Failed to remove temp file: %s", tmpFile.Name())
 		}
@@ -295,7 +297,7 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput progress
 	ld.tmpFile = nil
 
 	return ioutils.NewReadCloserWrapper(tmpFile, func() error {
-		tmpFile.Close()
+		_ = tmpFile.Close()
 		err := os.RemoveAll(tmpFile.Name())
 		if err != nil {
 			log.G(ctx).Errorf("Failed to remove temp file: %s", tmpFile.Name())
@@ -306,7 +308,7 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput progress
 
 func (ld *layerDescriptor) Close() {
 	if ld.tmpFile != nil {
-		ld.tmpFile.Close()
+		_ = ld.tmpFile.Close()
 		if err := os.RemoveAll(ld.tmpFile.Name()); err != nil {
 			log.G(context.TODO()).Errorf("Failed to remove temp file: %s", ld.tmpFile.Name())
 		}
@@ -335,7 +337,7 @@ func (ld *layerDescriptor) Registered(diffID layer.DiffID) {
 	_ = ld.metadataService.Add(diffID, metadata.V2Metadata{Digest: ld.digest, SourceRepository: ld.repoName.Name()})
 }
 
-func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform) (tagUpdated bool, err error) {
+func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform) (tagUpdated bool, _ error) {
 	var (
 		tagOrDigest string // Used for logging/progress only
 		dgst        digest.Digest
@@ -378,7 +380,7 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 		if isTagged && isNotFound(errors.Cause(err)) {
 			log.G(ctx).WithField("ref", ref).WithError(err).Debug("Falling back to pull manifest by tag")
 
-			msg := `%s Failed to pull manifest by the resolved digest. This registry does not
+			const msg = `%s Failed to pull manifest by the resolved digest. This registry does not
 	appear to conform to the distribution registry specification; falling back to
 	pull by tag.  This fallback is DEPRECATED, and will be removed in a future
 	release.  Please contact admins of %s. %s
@@ -397,7 +399,9 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 			}
 
 			manifest, err = ms.Get(ctx, "", distribution.WithTag(tagged.Tag()))
-			err = errors.Wrap(err, "error after falling back to get manifest by tag")
+			if err != nil {
+				err = errors.Wrap(err, "error after falling back to get manifest by tag")
+			}
 		}
 		if err != nil {
 			return false, err
@@ -467,14 +471,14 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 		}
 
 		if canonical, ok := ref.(reference.Canonical); ok {
-			if err = p.config.ReferenceStore.AddDigest(canonical, id, true); err != nil {
+			if err := p.config.ReferenceStore.AddDigest(canonical, id, true); err != nil {
 				return false, err
 			}
 		} else {
-			if err = addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id); err != nil {
+			if err := addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id); err != nil {
 				return false, err
 			}
-			if err = p.config.ReferenceStore.AddTag(ref, id, true); err != nil {
+			if err := p.config.ReferenceStore.AddTag(ref, id, true); err != nil {
 				return false, err
 			}
 		}
@@ -504,7 +508,7 @@ func (p *puller) validateMediaType(mediaType string) error {
 	return invalidManifestClassError{mediaType, configClass}
 }
 
-func (p *puller) pullSchema1(ctx context.Context, ref reference.Reference, unverifiedManifest *schema1.SignedManifest, platform *ocispec.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
+func (p *puller) pullSchema1(ctx context.Context, ref reference.Reference, unverifiedManifest *schema1.SignedManifest, platform *ocispec.Platform) (id digest.Digest, manifestDigest digest.Digest, _ error) {
 	if platform != nil {
 		// Early bath if the requested OS doesn't match that of the configuration.
 		// This avoids doing the download, only to potentially fail later.
@@ -514,7 +518,7 @@ func (p *puller) pullSchema1(ctx context.Context, ref reference.Reference, unver
 	}
 
 	var verifiedManifest *schema1.Manifest
-	verifiedManifest, err = verifySchema1Manifest(ctx, unverifiedManifest, ref)
+	verifiedManifest, err := verifySchema1Manifest(ctx, unverifiedManifest, ref)
 	if err != nil {
 		return "", "", err
 	}
@@ -599,7 +603,7 @@ func checkSupportedMediaType(mediaType string) error {
 	return unsupportedMediaTypeError{MediaType: mediaType}
 }
 
-func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Descriptor, layers []distribution.Descriptor, platform *ocispec.Platform) (id digest.Digest, err error) {
+func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Descriptor, layers []distribution.Descriptor, platform *ocispec.Platform) (id digest.Digest, _ error) {
 	if _, err := p.config.ImageStore.Get(ctx, target.Digest); err == nil {
 		// If the image already exists locally, no need to pull
 		// anything.
@@ -671,6 +675,7 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 	// check to block Windows images being pulled on Linux is implemented, it
 	// may be necessary to perform the same type of serialisation.
 	if runtime.GOOS == "windows" {
+		var err error
 		configJSON, configRootFS, configPlatform, err = receiveConfig(configChan, configErrChan)
 		if err != nil {
 			return "", err
@@ -734,6 +739,7 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 	}
 
 	if configJSON == nil {
+		var err error
 		configJSON, configRootFS, _, err = receiveConfig(configChan, configErrChan)
 		if err == nil && configRootFS == nil {
 			err = errRootFSInvalid
@@ -750,7 +756,7 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 
 	select {
 	case <-downloadsDone:
-	case err = <-layerErrChan:
+	case err := <-layerErrChan:
 		return "", err
 	}
 
@@ -781,8 +787,8 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 	return imageID, nil
 }
 
-func (p *puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *schema2.DeserializedManifest, platform *ocispec.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
-	manifestDigest, err = schema2ManifestDigest(ref, mfst)
+func (p *puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *schema2.DeserializedManifest, platform *ocispec.Platform) (id digest.Digest, manifestDigest digest.Digest, _ error) {
+	manifestDigest, err := schema2ManifestDigest(ref, mfst)
 	if err != nil {
 		return "", "", err
 	}
@@ -790,8 +796,8 @@ func (p *puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *sch
 	return id, manifestDigest, err
 }
 
-func (p *puller) pullOCI(ctx context.Context, ref reference.Named, mfst *ocischema.DeserializedManifest, platform *ocispec.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
-	manifestDigest, err = schema2ManifestDigest(ref, mfst)
+func (p *puller) pullOCI(ctx context.Context, ref reference.Named, mfst *ocischema.DeserializedManifest, platform *ocispec.Platform) (id digest.Digest, manifestDigest digest.Digest, _ error) {
+	manifestDigest, err := schema2ManifestDigest(ref, mfst)
 	if err != nil {
 		return "", "", err
 	}
@@ -820,8 +826,8 @@ func receiveConfig(configChan <-chan []byte, errChan <-chan error) ([]byte, *ima
 
 // pullManifestList handles "manifest lists" which point to various
 // platform-specific manifests.
-func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfstList *manifestlist.DeserializedManifestList, pp *ocispec.Platform) (id digest.Digest, manifestListDigest digest.Digest, err error) {
-	manifestListDigest, err = schema2ManifestDigest(ref, mfstList)
+func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfstList *manifestlist.DeserializedManifestList, pp *ocispec.Platform) (id digest.Digest, manifestListDigest digest.Digest, _ error) {
+	manifestListDigest, err := schema2ManifestDigest(ref, mfstList)
 	if err != nil {
 		return "", "", err
 	}
@@ -900,9 +906,9 @@ const (
 	defaultMaxSchemaPullAttempts = 5
 )
 
-func (p *puller) pullSchema2Config(ctx context.Context, dgst digest.Digest) (configJSON []byte, err error) {
+func (p *puller) pullSchema2Config(ctx context.Context, dgst digest.Digest) (configJSON []byte, _ error) {
 	blobs := p.repo.Blobs(ctx)
-	err = retry(ctx, defaultMaxSchemaPullAttempts, defaultSchemaPullBackoff, func(ctx context.Context) (err error) {
+	err := retry(ctx, defaultMaxSchemaPullAttempts, defaultSchemaPullBackoff, func(ctx context.Context) (err error) {
 		configJSON, err = blobs.Get(ctx, dgst)
 		return err
 	})
@@ -938,12 +944,13 @@ func (e noMatchesErr) Error() string {
 	return fmt.Sprintf("no matching manifest for %s in the manifest list entries", p)
 }
 
-func retry(ctx context.Context, maxAttempts int, sleep time.Duration, f func(ctx context.Context) error) (err error) {
+func retry(ctx context.Context, maxAttempts int, sleep time.Duration, f func(ctx context.Context) error) error {
 	attempt := 0
+	var err error
 	for ; attempt < maxAttempts; attempt++ {
 		err = retryOnError(f(ctx))
 		if err == nil {
-			return nil
+			break
 		}
 		if xfer.IsDoNotRetryError(err) {
 			break
@@ -961,7 +968,10 @@ func retry(ctx context.Context, maxAttempts int, sleep time.Duration, f func(ctx
 			}
 		}
 	}
-	return errors.Wrapf(err, "download failed after attempts=%d", attempt+1)
+	if err != nil {
+		return errors.Wrapf(err, "download failed after attempts=%d", attempt+1)
+	}
+	return nil
 }
 
 // schema2ManifestDigest computes the manifest digest, and, if pulling by

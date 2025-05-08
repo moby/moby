@@ -3,7 +3,6 @@ package mounts // import "github.com/docker/docker/volume/mounts"
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime/debug"
 	"syscall"
@@ -156,7 +155,7 @@ func (m *MountPoint) Cleanup(ctx context.Context) error {
 // still points to the same target (to avoid TOCTOU attack).
 //
 // Cleanup function doesn't need to be called when error is returned.
-func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtools.Identity, checkFun func(m *MountPoint) error) (path string, cleanup func(context.Context) error, retErr error) {
+func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtools.Identity, checkFun func(m *MountPoint) error) (mountPath string, cleanup func(context.Context) error, retErr error) {
 	if m.SkipMountpointCreation {
 		return m.Source, noCleanup, nil
 	}
@@ -166,9 +165,9 @@ func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtoo
 			return
 		}
 
-		sourcePath, err := filepath.EvalSymlinks(path)
+		sourcePath, err := filepath.EvalSymlinks(mountPath)
 		if err != nil {
-			path = ""
+			mountPath = ""
 			retErr = errors.Wrapf(err, "error evaluating symlinks from mount source %q", m.Source)
 			if cleanupErr := cleanup(ctx); cleanupErr != nil {
 				log.G(ctx).WithError(cleanupErr).Warn("failed to cleanup after error")
@@ -178,7 +177,7 @@ func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtoo
 		}
 		err = label.Relabel(sourcePath, mountLabel, label.IsShared(m.Mode))
 		if err != nil && !errors.Is(err, syscall.ENOTSUP) {
-			path = ""
+			mountPath = ""
 			retErr = errors.Wrapf(err, "error setting label on mount source '%s'", sourcePath)
 			if cleanupErr := cleanup(ctx); cleanupErr != nil {
 				log.G(ctx).WithError(cleanupErr).Warn("failed to cleanup after error")
@@ -248,13 +247,19 @@ func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtoo
 			}
 		}
 
-		// user.MkdirAllAndChown produces an error if m.Source exists and is a file (not a directory)
-		// also, makes sure that if the directory is created, the correct remapped rootUID/rootGID will own it
+		// Auto-create directories on the host if they're missing. Note that
+		// this is a best-effort; newly created directories are created with
+		// the correct (remapped) rootUID/rootGID ownership, but existing
+		// directories are not chown'ed.
+		//
+		// This also defaults to assuming the host-path was intended to be a
+		// directory; user.MkdirAllAndChown produces an error if the
+		// path exists but is a file (not a directory). We ignore this case,
+		// but an error may occur if the destination path inside the container
+		// is a directory (cannot bind-mount a file on a directory and vice-versa).
 		if err := user.MkdirAllAndChown(m.Source, 0o755, rootIDs.UID, rootIDs.GID, user.WithOnlyNew); err != nil {
-			if perr, ok := err.(*os.PathError); ok {
-				if perr.Err != syscall.ENOTDIR {
-					return "", noCleanup, errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
-				}
+			if !errors.Is(err, syscall.ENOTDIR) {
+				return "", noCleanup, errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
 			}
 		}
 	}

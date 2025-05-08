@@ -92,7 +92,7 @@ func (pm *Manager) Enable(refOrID string, config *backend.PluginEnableConfig) er
 }
 
 // Inspect examines a plugin config
-func (pm *Manager) Inspect(refOrID string) (tp *types.Plugin, err error) {
+func (pm *Manager) Inspect(refOrID string) (*types.Plugin, error) {
 	p, err := pm.config.Store.GetV2Plugin(refOrID)
 	if err != nil {
 		return nil, err
@@ -209,7 +209,7 @@ func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHead
 // Upgrade upgrades a plugin
 //
 // TODO: replace reference package usage with simpler url.Parse semantics
-func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) (err error) {
+func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) error {
 	p, err := pm.config.Store.GetV2Plugin(name)
 	if err != nil {
 		return err
@@ -257,7 +257,7 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 // Pull pulls a plugin, check if the correct privileges are provided and install the plugin.
 //
 // TODO: replace reference package usage with simpler url.Parse semantics
-func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer, opts ...CreateOpt) (err error) {
+func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer, opts ...CreateOpt) error {
 	pm.muGC.RLock()
 	defer pm.muGC.RUnlock()
 

@@ -524,7 +524,7 @@ func (pd *pushDescriptor) layerAlreadyExists(
 	checkOtherRepositories bool,
 	maxExistenceCheckAttempts int,
 	v2Metadata []metadata.V2Metadata,
-) (desc distribution.Descriptor, exists bool, err error) {
+) (_ distribution.Descriptor, exists bool, _ error) {
 	// filter the metadata
 	candidates := []metadata.V2Metadata{}
 	for _, meta := range v2Metadata {
@@ -556,10 +556,13 @@ func (pd *pushDescriptor) layerAlreadyExists(
 		layerDigests = append(layerDigests, meta.Digest)
 	}
 
+	var desc distribution.Descriptor
+
 attempts:
 	for _, dgst := range layerDigests {
 		meta := digestToMetadata[dgst]
 		log.G(ctx).Debugf("Checking for presence of layer %s (%s) in %s", diffID, dgst, pd.repoName.Name())
+		var err error
 		desc, err = pd.repo.Blobs(ctx).Stat(ctx, dgst)
 		pd.checkedDigests[meta.Digest] = struct{}{}
 		switch err {
@@ -579,7 +582,9 @@ attempts:
 		case distribution.ErrBlobUnknown:
 			if meta.SourceRepository == pd.repoName.Name() {
 				// remove the mapping to the target repository
-				pd.metadataService.Remove(*meta)
+				if err := pd.metadataService.Remove(*meta); err != nil {
+					log.G(ctx).WithError(err).Debug("Failed remove metadata")
+				}
 			}
 		default:
 			log.G(ctx).WithError(err).Debugf("Failed to check for presence of layer %s (%s) in %s", diffID, dgst, pd.repoName.Name())

@@ -59,7 +59,7 @@ func setupProgressOutput(outStream io.Writer, cancel func()) (progress.Output, f
 
 // fetch the content related to the passed in reference into the blob store and appends the provided c8dimages.Handlers
 // There is no need to use remotes.FetchHandler since it already gets set
-func (pm *Manager) fetch(ctx context.Context, ref reference.Named, auth *registry.AuthConfig, out progress.Output, metaHeader http.Header, handlers ...c8dimages.Handler) (err error) {
+func (pm *Manager) fetch(ctx context.Context, ref reference.Named, auth *registry.AuthConfig, out progress.Output, metaHeader http.Header, handlers ...c8dimages.Handler) error {
 	// We need to make sure we have a domain on the reference
 	withDomain, err := reference.ParseNormalizedNamed(ref.String())
 	if err != nil {
