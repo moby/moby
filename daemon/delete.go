@@ -54,8 +54,10 @@ func (daemon *Daemon) containerRm(cfg *config.Config, name string, opts *backend
 
 	err = daemon.cleanupContainer(ctr, *opts)
 	metrics.ContainerActions.WithValues("delete").UpdateSince(start)
-
-	return err
+	if err != nil {
+		return fmt.Errorf("cannot remove container %q: %w", name, err)
+	}
+	return nil
 }
 
 func (daemon *Daemon) rmLink(cfg *config.Config, ctr *container.Container, name string) error {
@@ -89,13 +91,13 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 	if ctr.IsRunning() {
 		if !config.ForceRemove {
 			if ctr.Paused {
-				return errdefs.Conflict(fmt.Errorf("cannot remove container %q: container is paused and must be unpaused first", ctr.Name))
+				return errdefs.Conflict(errors.New("container is paused and must be unpaused first"))
 			} else {
-				return errdefs.Conflict(fmt.Errorf("cannot remove container %q: container is %s: stop the container before removing or force remove", ctr.Name, ctr.StateString()))
+				return errdefs.Conflict(fmt.Errorf("container is %s: stop the container before removing or force remove", ctr.StateString()))
 			}
 		}
 		if err := daemon.Kill(ctr); err != nil && !isNotRunning(err) {
-			return fmt.Errorf("cannot remove container %q: could not kill: %w", ctr.Name, err)
+			return fmt.Errorf("could not kill container: %w", err)
 		}
 	}
 
@@ -143,8 +145,6 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 			ctr.Lock()
 			ctr.RWLayer = rwLayer
 			ctr.Unlock()
-
-			err = errors.Wrapf(err, "container %s", ctr.ID)
 			ctr.SetRemovalError(err)
 			return err
 		}
@@ -160,7 +160,7 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 	err := containerfs.EnsureRemoveAll(ctr.Root)
 	ctr.Unlock()
 	if err != nil {
-		err = errors.Wrapf(err, "unable to remove filesystem for %s", ctr.ID)
+		err = errors.Wrap(err, "unable to remove filesystem")
 		ctr.SetRemovalError(err)
 		return err
 	}
