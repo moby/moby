@@ -258,8 +258,11 @@ func New(c *Config) (*NetworkDB, error) {
 	c.reapNetworkInterval = c.reapEntryInterval + 5*reapPeriod
 
 	nDB := &NetworkDB{
-		config:         c,
-		indexes:        make(map[int]*iradix.Tree[*entry]),
+		config: c,
+		indexes: map[int]*iradix.Tree[*entry]{
+			byTable:   iradix.New[*entry](),
+			byNetwork: iradix.New[*entry](),
+		},
 		networks:       make(map[string]map[string]*network),
 		nodes:          make(map[string]*node),
 		failedNodes:    make(map[string]*node),
@@ -268,9 +271,6 @@ func New(c *Config) (*NetworkDB, error) {
 		bulkSyncAckTbl: make(map[string]chan struct{}),
 		broadcaster:    events.NewBroadcaster(),
 	}
-
-	nDB.indexes[byTable] = iradix.New[*entry]()
-	nDB.indexes[byNetwork] = iradix.New[*entry]()
 
 	log.G(context.TODO()).Infof("New memberlist node - Node:%v will use memberlist nodeID:%v with config:%+v", c.Hostname, c.NodeID, c)
 	if err := nDB.clusterInit(); err != nil {
