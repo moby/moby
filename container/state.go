@@ -185,7 +185,7 @@ const (
 // be nil and its ExitCode() method will return the container's exit code,
 // otherwise, the results Err() method will return an error indicating why the
 // wait operation failed.
-func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan container.StateStatus {
+func (s *State) Wait(ctx context.Context, condition container.WaitCondition) <-chan container.StateStatus {
 	s.Lock()
 	defer s.Unlock()
 
