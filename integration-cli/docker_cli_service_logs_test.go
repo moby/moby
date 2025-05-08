@@ -75,7 +75,7 @@ func (s *DockerSwarmSuite) TestServiceLogsCompleteness(c *testing.T) {
 	name := "TestServiceLogsCompleteness"
 
 	// make a service that prints 6 lines
-	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for line in $(seq 0 5); do echo log test $line; done; exec tail /dev/null")
+	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for line in $(seq 0 5); do echo log test $line; done; exec tail -f /dev/null")
 	assert.NilError(c, err)
 	assert.Assert(c, strings.TrimSpace(out) != "")
 
@@ -126,7 +126,7 @@ func (s *DockerSwarmSuite) TestServiceLogsSince(c *testing.T) {
 
 	name := "TestServiceLogsSince"
 
-	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for i in $(seq 1 3); do usleep 100000; echo log$i; done; exec tail /dev/null")
+	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for i in $(seq 1 3); do usleep 100000; echo log$i; done; exec tail -f /dev/null")
 	assert.NilError(c, err)
 	assert.Assert(c, strings.TrimSpace(out) != "")
 	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))

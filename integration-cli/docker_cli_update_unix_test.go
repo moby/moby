@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 func (s *DockerCLIUpdateSuite) TearDownTest(c *testing.T) {
@@ -30,6 +31,7 @@ func (s *DockerCLIUpdateSuite) OnTimeout(c *testing.T) {
 func (s *DockerCLIUpdateSuite) TestUpdateRunningContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	name := "test-update-container"
 	dockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "busybox", "top")
@@ -45,6 +47,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateRunningContainer(c *testing.T) {
 func (s *DockerCLIUpdateSuite) TestUpdateRunningContainerWithRestart(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	name := "test-update-container"
 	dockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "busybox", "top")
@@ -61,6 +64,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateRunningContainerWithRestart(c *testing.
 func (s *DockerCLIUpdateSuite) TestUpdateStoppedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	name := "test-update-container"
 	file := "/sys/fs/cgroup/memory/memory.limit_in_bytes"
@@ -76,6 +80,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateStoppedContainer(c *testing.T) {
 func (s *DockerCLIUpdateSuite) TestUpdatePausedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, cpuShare)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	name := "test-update-container"
 	dockerCmd(c, "run", "-d", "--name", name, "--cpu-shares", "1000", "busybox", "top")
@@ -94,6 +99,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateWithUntouchedFields(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, cpuShare)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	name := "test-update-container"
 	dockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "--cpu-shares", "800", "busybox", "top")
@@ -134,6 +140,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateSwapMemoryOnly(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, swapMemorySupport)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	name := "test-update-container"
 	dockerCmd(c, "run", "-d", "--name", name, "--memory", "300M", "--memory-swap", "500M", "busybox", "top")
@@ -150,6 +157,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateInvalidSwapMemory(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, swapMemorySupport)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	name := "test-update-container"
 	dockerCmd(c, "run", "-d", "--name", name, "--memory", "300M", "--memory-swap", "500M", "busybox", "top")
@@ -244,6 +252,7 @@ func (s *DockerCLIUpdateSuite) TestUpdateNotAffectMonitorRestartPolicy(c *testin
 
 func (s *DockerCLIUpdateSuite) TestUpdateWithNanoCPUs(c *testing.T) {
 	testRequires(c, cpuCfsQuota, cpuCfsPeriod)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	file1 := "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
 	file2 := "/sys/fs/cgroup/cpu/cpu.cfs_period_us"

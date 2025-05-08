@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.22.8
+ARG GO_VERSION=1.23.8
 ARG BASE_DEBIAN_DISTRO="bookworm"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 ARG XX_VERSION=1.6.1
@@ -188,7 +188,7 @@ RUN git init . && git remote add origin "https://github.com/containerd/container
 # When updating the binary version you may also need to update the vendor
 # version to pick up bug fixes or new APIs, however, usually the Go packages
 # are built from a commit from the master branch.
-ARG CONTAINERD_VERSION=v1.6.28
+ARG CONTAINERD_VERSION=v1.6.38
 RUN git fetch -q --depth 1 origin "${CONTAINERD_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS containerd-build
@@ -221,7 +221,7 @@ FROM binary-dummy AS containerd-windows
 FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
-ARG GOLANGCI_LINT_VERSION=v1.59.1
+ARG GOLANGCI_LINT_VERSION=v1.64.5
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         GOBIN=/build/ GO111MODULE=on go install "github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
@@ -630,7 +630,7 @@ COPY --from=build         /build  /
 # smoke tests
 # usage:
 # > docker buildx bake binary-smoketest
-FROM --platform=$TARGETPLATFORM base AS smoketest
+FROM base AS smoketest
 WORKDIR /usr/local/bin
 COPY --from=build /build .
 RUN <<EOT

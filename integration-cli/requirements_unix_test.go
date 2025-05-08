@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/containerd/cgroups"
 	"github.com/docker/docker/pkg/sysinfo"
 )
 
@@ -67,6 +68,11 @@ func seccompEnabled() bool {
 
 func bridgeNfIptables() bool {
 	return !SysInfo.BridgeNFCallIPTablesDisabled
+}
+
+func onlyCgroupsv2() bool {
+	// Only check for unified, cgroup v1 tests can run under other modes
+	return cgroups.Mode() == cgroups.Unified
 }
 
 func unprivilegedUsernsClone() bool {

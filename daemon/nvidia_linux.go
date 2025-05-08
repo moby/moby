@@ -83,7 +83,7 @@ func setNvidiaGPUs(s *specs.Spec, dev *deviceInstance) error {
 	if s.Hooks == nil {
 		s.Hooks = &specs.Hooks{}
 	}
-	s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{
+	s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{ //nolint:staticcheck // ignore SA1019
 		Path: path,
 		Args: []string{
 			nvidiaHook,
