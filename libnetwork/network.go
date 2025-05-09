@@ -1048,9 +1048,11 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 	eps := c.findEndpoints(filterEndpointByNetworkId(n.id))
 	if !force && len(eps) > emptyCount {
 		return &ActiveEndpointsError{
-			name:      n.name,
-			id:        n.id,
-			endpoints: sliceutil.Map(eps, func(ep *Endpoint) string { return ep.name }),
+			name: n.name,
+			id:   n.id,
+			endpoints: sliceutil.Map(eps, func(ep *Endpoint) string {
+				return fmt.Sprintf(`name:"%s" id:"%s"`, ep.name, stringid.TruncateID(ep.id))
+			}),
 		}
 	}
 
