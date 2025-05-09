@@ -63,3 +63,5 @@ func (mr ManagerRedirectError) Error() string {
 
 // Maskable denotes the type of this error
 func (mr ManagerRedirectError) Maskable() {}
+
+func (mr ManagerRedirectError) NotImplemented() {}
