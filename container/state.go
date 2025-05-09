@@ -102,13 +102,10 @@ func (s *State) String() string {
 
 // IsValidHealthString checks if the provided string is a valid
 // [container.HealthStatus].
-func IsValidHealthString(s container.HealthStatus) bool {
-	switch s {
-	case container.NoHealthcheck, container.Starting, container.Healthy, container.Unhealthy:
-		return true
-	default:
-		return false
-	}
+//
+// Deprecated: use [container.ValidateHealthStatus] and check for nil-errors.
+func IsValidHealthString(s string) bool {
+	return container.ValidateHealthStatus(s) == nil
 }
 
 // StateString returns a single string to describe state
