@@ -153,7 +153,6 @@ var (
 func (daemon *Daemon) startIngressWorker() {
 	ingressJobsChannel = make(chan *ingressJob, 100)
 	go func() {
-		//nolint: gosimple
 		for {
 			select {
 			case r := <-ingressJobsChannel:
