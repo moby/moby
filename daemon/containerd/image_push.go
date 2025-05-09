@@ -144,7 +144,13 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 	wrapped := wrapWithFakeMountableBlobs(store, mountableBlobs)
 	store = wrapped
 
-	pusher, err := resolver.Pusher(ctx, targetRef.String())
+	// Annotate ref with digest to push only push tag for single digest
+	ref := targetRef.String()
+	if !strings.Contains(ref, "@") {
+		ref = ref + "@" + target.Digest.String()
+	}
+	pusher, err := resolver.Pusher(ctx, ref)
+
 	if err != nil {
 		return err
 	}
