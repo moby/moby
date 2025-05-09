@@ -23,7 +23,7 @@ type volumeDriver interface {
 Run the generator:
 
 ```bash
-$ pluginrpc-gen --type volumeDriver --name VolumeDriver -i volumes/drivers/extpoint.go -o volumes/drivers/proxy.go
+$ pluginrpc-gen --type volumeDriver --name VolumeDriver -i volume/drivers/extpoint.go -o volume/drivers/proxy.go
 ```
 
 Where:
@@ -40,6 +40,39 @@ This flag can be specified multiple times.
 
 You can also add build tags that should be prepended to the generated code by
 supplying `--tag`. This flag can be specified multiple times.
+
+
+## Annotations
+
+`pluginrpc-gen` supports annotations to customize the behavior of the generated code. These annotations are added as comments directly above the interface methods.
+
+### Supported Annotations
+
+1. **`pluginrpc-gen:request-timeout=<value>`**
+   - Specifies the timeout to use for the method in the generated proxy code.
+   - The `<value>` can be:
+     - `short`: Uses the `shortTimeout` constant (default: 1 minute).
+     - `long`: Uses the `longTimeout` constant (default: 2 minutes).
+
+### Usage
+
+To use the `pluginrpc-gen:request-timeout` annotation, place it directly above the method definition in the interface. Ensure there are no blank lines between the annotation and the method.
+
+#### Example
+
+```go
+type volumeDriver interface {
+    // pluginrpc-gen:request-timeout=long
+    Create(name string, opts map[string]string) error
+
+    // pluginrpc-gen:request-timeout=short
+    Remove(name string) error
+}
+```
+
+### Default Behavior
+
+- If no `pluginrpc-gen:request-timeout` annotation is provided, the `shortTimeout` value is used by default.
 
 ## Known issues
 
