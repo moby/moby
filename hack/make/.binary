@@ -43,7 +43,7 @@ source "${MAKEDIR}/.go-autogen"
 			case "$(go env GOOS)/$(go env GOARCH)" in
 				linux/mips* | linux/ppc64)
 					# -buildmode=pie is not supported on Linux mips*, ppc64be
-					# https://github.com/golang/go/blob/go1.23.0/src/internal/platform/supported.go#L189-L197
+					# https://github.com/golang/go/blob/go1.24.3/src/internal/platform/supported.go#L188-L200
 					;;
 				*)
 					BUILDFLAGS+=("-buildmode=pie")
