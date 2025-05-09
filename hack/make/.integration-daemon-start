@@ -84,6 +84,9 @@ if [ -n "$DOCKER_ROOTLESS" ]; then
 	mkdir -p -m 700 "/tmp/docker-${uid}"
 	chown "$user" "/tmp/docker-${uid}"
 	chmod -R o+w "$DEST"
+	# The rootless daemon won't be able to load modules for tests that need them, so do it here.
+	# There's no modprobe in the dev container, so https://x.com/lucabruno/status/902934379835662336
+	ip link show br_netfilter || true
 	dockerd="sudo -u $user -E -E XDG_RUNTIME_DIR=/tmp/docker-${uid} -E HOME=/home/${user} -E PATH=$PATH -- dockerd-rootless.sh"
 fi
 
