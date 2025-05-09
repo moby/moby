@@ -11,10 +11,10 @@ import (
 	"gotest.tools/v3/assert"
 
 	"github.com/docker/docker/api/server/httputils"
+	volumeopts "github.com/docker/docker/api/types/backend/volume"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/volume/service/opts"
 )
 
 func callGetVolume(v *volumeRouter, name string) (*httptest.ResponseRecorder, error) {
@@ -593,14 +593,14 @@ func (b *fakeVolumeBackend) List(_ context.Context, _ filters.Args) ([]*volume.V
 	return volumes, nil, nil
 }
 
-func (b *fakeVolumeBackend) Get(_ context.Context, name string, _ ...opts.GetOption) (*volume.Volume, error) {
+func (b *fakeVolumeBackend) Get(_ context.Context, name string, _ ...volumeopts.GetOption) (*volume.Volume, error) {
 	if v, ok := b.volumes[name]; ok {
 		return v, nil
 	}
 	return nil, errdefs.NotFound(fmt.Errorf("volume %s not found", name))
 }
 
-func (b *fakeVolumeBackend) Create(_ context.Context, name, driverName string, _ ...opts.CreateOption) (*volume.Volume, error) {
+func (b *fakeVolumeBackend) Create(_ context.Context, name, driverName string, _ ...volumeopts.CreateOption) (*volume.Volume, error) {
 	if _, ok := b.volumes[name]; ok {
 		// TODO(dperny): return appropriate error type
 		return nil, fmt.Errorf("already exists")
@@ -621,8 +621,8 @@ func (b *fakeVolumeBackend) Create(_ context.Context, name, driverName string, _
 	return v, nil
 }
 
-func (b *fakeVolumeBackend) Remove(_ context.Context, name string, o ...opts.RemoveOption) error {
-	removeOpts := &opts.RemoveConfig{}
+func (b *fakeVolumeBackend) Remove(_ context.Context, name string, o ...volumeopts.RemoveOption) error {
+	removeOpts := &volumeopts.RemoveConfig{}
 	for _, opt := range o {
 		opt(removeOpts)
 	}

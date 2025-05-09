@@ -8,11 +8,11 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
+	volumeopts "github.com/docker/docker/api/types/backend/volume"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/volume/service/opts"
 	"github.com/pkg/errors"
 )
 
@@ -64,7 +64,7 @@ func (v *volumeRouter) getVolumeByName(ctx context.Context, w http.ResponseWrite
 	// we prefer to get volumes locally before attempting to get them from the
 	// cluster. Local volumes can only be looked up by name, but cluster
 	// volumes can also be looked up by ID.
-	vol, err := v.backend.Get(ctx, vars["name"], opts.WithGetResolveStatus)
+	vol, err := v.backend.Get(ctx, vars["name"], volumeopts.WithGetResolveStatus)
 
 	// if the volume is not found in the regular volume backend, and the client
 	// is using an API version greater than 1.42 (when cluster volumes were
@@ -120,7 +120,7 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 		vol, err = v.cluster.CreateVolume(req)
 	} else {
 		log.G(ctx).Debug("using regular volume")
-		vol, err = v.backend.Create(ctx, req.Name, req.Driver, opts.WithCreateOptions(req.DriverOpts), opts.WithCreateLabels(req.Labels))
+		vol, err = v.backend.Create(ctx, req.Name, req.Driver, volumeopts.WithCreateOptions(req.DriverOpts), volumeopts.WithCreateLabels(req.Labels))
 	}
 
 	if err != nil {
@@ -163,7 +163,7 @@ func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter,
 	// local volume, but could be a cluster volume, so we ignore "not found"
 	// errors at this stage. Note that no "not found" error is produced if
 	// "force" is enabled.
-	err := v.backend.Remove(ctx, vars["name"], opts.WithPurgeOnError(force))
+	err := v.backend.Remove(ctx, vars["name"], volumeopts.WithPurgeOnError(force))
 	if err != nil && !errdefs.IsNotFound(err) {
 		return err
 	}
