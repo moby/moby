@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
-	dockerimage "github.com/docker/docker/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -25,15 +24,15 @@ type imageBackend interface {
 	ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]image.DeleteResponse, error)
 	ImageHistory(ctx context.Context, imageName string, platform *ocispec.Platform) ([]*image.HistoryResponseItem, error)
 	Images(ctx context.Context, opts image.ListOptions) ([]*image.Summary, error)
-	GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*dockerimage.Image, error)
+	ResolveDescriptor(ctx context.Context, refOrID string, options backend.GetImageOpts) (ocispec.Descriptor, error)
 	ImageInspect(ctx context.Context, refOrID string, options backend.ImageInspectOpts) (*image.InspectResponse, error)
-	TagImage(ctx context.Context, id dockerimage.ID, newRef reference.Named) error
+	TagImage(ctx context.Context, desc ocispec.Descriptor, newRef reference.Named) error
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*image.PruneReport, error)
 }
 
 type importExportBackend interface {
 	LoadImage(ctx context.Context, inTar io.ReadCloser, platform *ocispec.Platform, outStream io.Writer, quiet bool) error
-	ImportImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (dockerimage.ID, error)
+	ImportImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (ocispec.Descriptor, error)
 	ExportImage(ctx context.Context, names []string, platform *ocispec.Platform, outStream io.Writer) error
 }
 

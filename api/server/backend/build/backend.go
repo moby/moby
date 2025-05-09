@@ -12,8 +12,9 @@ import (
 	"github.com/docker/docker/builder"
 	buildkit "github.com/docker/docker/builder/builder-next"
 	daemonevents "github.com/docker/docker/daemon/events"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
@@ -21,7 +22,7 @@ import (
 // ImageComponent provides an interface for working with images
 type ImageComponent interface {
 	SquashImage(from string, to string) (string, error)
-	TagImage(context.Context, image.ID, reference.Named) error
+	TagImage(context.Context, ocispec.Descriptor, reference.Named) error
 }
 
 // Builder defines interface for running a build
@@ -91,7 +92,11 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 	if imageID != "" && !useBuildKit {
 		stdout := config.ProgressWriter.StdoutFormatter
 		_, _ = fmt.Fprintf(stdout, "Successfully built %s\n", stringid.TruncateID(imageID))
-		err = tagImages(ctx, b.imageComponent, config.ProgressWriter.StdoutFormatter, image.ID(imageID), tags)
+		desc := ocispec.Descriptor{
+			Digest: digest.FromString(imageID),
+			//
+		}
+		err = tagImages(ctx, b.imageComponent, config.ProgressWriter.StdoutFormatter, desc, tags)
 	}
 	return imageID, err
 }

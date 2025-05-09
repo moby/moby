@@ -36,9 +36,12 @@ type ImageService interface {
 	LogImageEvent(ctx context.Context, imageID, refName string, action events.Action)
 	CountImages(ctx context.Context) int
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*imagetype.PruneReport, error)
-	ImportImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error)
-	TagImage(ctx context.Context, imageID image.ID, newTag reference.Named) error
+	ImportImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (ocispec.Descriptor, error)
+	TagImage(ctx context.Context, img ocispec.Descriptor, newTag reference.Named) error
+	// TODO: Change this to resolve an image?
+	// TODO: Separate interface for loading details?
 	GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*image.Image, error)
+	ResolveDescriptor(ctx context.Context, refOrID string, options backend.GetImageOpts) (ocispec.Descriptor, error)
 	ImageHistory(ctx context.Context, name string, platform *ocispec.Platform) ([]*imagetype.HistoryResponseItem, error)
 	CommitImage(ctx context.Context, c backend.CommitConfig) (image.ID, error)
 	SquashImage(id, parent string) (string, error)

@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -137,11 +136,11 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 			defer layerReader.Close()
 		}
 
-		var id image.ID
-		id, progressErr = ir.backend.ImportImage(ctx, tagRef, platform, comment, layerReader, r.Form["changes"])
+		var desc ocispec.Descriptor
+		desc, progressErr = ir.backend.ImportImage(ctx, tagRef, platform, comment, layerReader, r.Form["changes"])
 
 		if progressErr == nil {
-			_, _ = output.Write(streamformatter.FormatStatus("", "%v", id.String()))
+			_, _ = output.Write(streamformatter.FormatStatus("", "%v", desc.Digest.String()))
 		}
 	}
 	if progressErr != nil {
@@ -497,12 +496,12 @@ func (ir *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter,
 		return errdefs.InvalidParameter(errors.New("refusing to create an ambiguous tag using digest algorithm as name"))
 	}
 
-	img, err := ir.backend.GetImage(ctx, vars["name"], backend.GetImageOpts{})
+	img, err := ir.backend.ResolveDescriptor(ctx, vars["name"], backend.GetImageOpts{})
 	if err != nil {
 		return errdefs.NotFound(err)
 	}
 
-	if err := ir.backend.TagImage(ctx, img.ID(), ref); err != nil {
+	if err := ir.backend.TagImage(ctx, img, ref); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)
