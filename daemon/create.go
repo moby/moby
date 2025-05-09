@@ -215,7 +215,10 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 				RemoveVolume: true,
 			})
 			if err != nil {
-				log.G(ctx).WithError(err).Error("failed to cleanup container on create error")
+				log.G(ctx).WithFields(log.Fields{
+					"error":     err,
+					"container": ctr.ID,
+				}).Errorf("failed to cleanup container on create error")
 			}
 		}
 	}()
