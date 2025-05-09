@@ -157,17 +157,6 @@ func IsValidStateString(s string) bool {
 // Deprecated: use [container.WaitCondition] instead.
 type WaitCondition = container.WaitCondition
 
-// Possible WaitCondition Values.
-//
-// WaitConditionNotRunning (default) is used to wait for any of the non-running
-// states: "created", "exited", "dead", "removing", or "removed".
-//
-// WaitConditionNextExit is used to wait for the next time the state changes
-// to a non-running state. If the state is currently "created" or "exited",
-// this would cause Wait() to block until either the container runs and exits
-// or is removed.
-//
-// WaitConditionRemoved is used to wait for the container to be removed.
 const (
 	// Deprecated: use [container.WaitConditionNotRunning] instead.
 	WaitConditionNotRunning = container.WaitConditionNotRunning
@@ -185,7 +174,7 @@ const (
 // be nil and its ExitCode() method will return the container's exit code,
 // otherwise, the results Err() method will return an error indicating why the
 // wait operation failed.
-func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan container.StateStatus {
+func (s *State) Wait(ctx context.Context, condition container.WaitCondition) <-chan container.StateStatus {
 	s.Lock()
 	defer s.Unlock()
 
