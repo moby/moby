@@ -27,9 +27,9 @@ func TestCreateWithCDIDevices(t *testing.T) {
 
 	cwd, err := os.Getwd()
 	assert.NilError(t, err)
-	configPath := filepath.Join(cwd, "daemon.json")
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "daemon.json")
 	err = os.WriteFile(configPath, []byte(`{"features": {"cdi": true}}`), 0o644)
-	defer os.Remove(configPath)
 	assert.NilError(t, err)
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t, "--config-file", configPath, "--cdi-spec-dir="+filepath.Join(cwd, "testdata", "cdi"))
