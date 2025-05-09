@@ -527,7 +527,6 @@ func TestPublishedPortAlreadyInUse(t *testing.T) {
 //
 // Regression test for https://github.com/moby/moby/issues/49654.
 func TestAllPortMappingsAreReturned(t *testing.T) {
-	skip.If(t, testEnv.IsRootless, "cannot disable userland proxy in rootless netns unless br-netfilter loaded by host")
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
@@ -623,7 +622,6 @@ func TestFirewalldReloadNoZombies(t *testing.T) {
 // TestLegacyLink checks that a legacy link ("--link" in the default bridge network)
 // sets up a hostname and opens ports when the daemon is running with icc=false.
 func TestLegacyLink(t *testing.T) {
-	skip.If(t, testEnv.IsRootless, "cannot set icc=false in rootless netns unless br-netfilter loaded by host")
 	ctx := setupTest(t)
 
 	// Tidy up after the test by starting a new daemon, which will remove the icc=false
@@ -700,7 +698,6 @@ func TestLegacyLink(t *testing.T) {
 //
 // Replacement for DockerDaemonSuite/TestDaemonLinksIpTablesRulesWhenLinkAndUnlink
 func TestRemoveLegacyLink(t *testing.T) {
-	skip.If(t, testEnv.IsRootless, "cannot set icc=false in rootless netns unless br-netfilter loaded by host")
 	ctx := setupTest(t)
 
 	// Tidy up after the test by starting a new daemon, which will remove the icc=false
