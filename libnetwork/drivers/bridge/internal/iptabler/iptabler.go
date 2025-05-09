@@ -8,6 +8,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/internal/modprobe"
+	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/libnetwork/iptables"
 )
 
@@ -34,61 +35,54 @@ const (
 	isolationChain2 = "DOCKER-ISOLATION-STAGE-2"
 )
 
-type FirewallConfig struct {
-	IPv4               bool
-	IPv6               bool
-	Hairpin            bool
-	AllowDirectRouting bool
+type iptabler struct {
+	config firewaller.Config
 }
 
-type Iptabler struct {
-	FirewallConfig
-}
+func NewIptabler(ctx context.Context, config firewaller.Config) (firewaller.Firewaller, error) {
+	ipt := &iptabler{config: config}
 
-func NewIptabler(config FirewallConfig) (*Iptabler, error) {
-	ipt := &Iptabler{FirewallConfig: config}
+	if ipt.config.IPv4 {
+		removeIPChains(ctx, iptables.IPv4)
 
-	if ipt.IPv4 {
-		removeIPChains(iptables.IPv4)
-
-		if err := setupIPChains(iptables.IPv4, ipt.Hairpin); err != nil {
+		if err := setupIPChains(ctx, iptables.IPv4, ipt.config.Hairpin); err != nil {
 			return nil, err
 		}
 
 		// Make sure on firewall reload, first thing being re-played is chains creation
 		iptables.OnReloaded(func() {
-			log.G(context.TODO()).Debugf("Recreating iptables chains on firewall reload")
-			if err := setupIPChains(iptables.IPv4, ipt.Hairpin); err != nil {
-				log.G(context.TODO()).WithError(err).Error("Error reloading iptables chains")
+			log.G(ctx).Debugf("Recreating iptables chains on firewall reload")
+			if err := setupIPChains(ctx, iptables.IPv4, ipt.config.Hairpin); err != nil {
+				log.G(ctx).WithError(err).Error("Error reloading iptables chains")
 			}
 		})
 	}
 
-	if ipt.IPv6 {
-		if err := modprobe.LoadModules(context.TODO(), func() error {
+	if ipt.config.IPv6 {
+		if err := modprobe.LoadModules(ctx, func() error {
 			iptable := iptables.GetIptable(iptables.IPv6)
 			_, err := iptable.Raw("-t", "filter", "-n", "-L", "FORWARD")
 			return err
 		}, "ip6_tables"); err != nil {
-			log.G(context.TODO()).WithError(err).Debug("Loading ip6_tables")
+			log.G(ctx).WithError(err).Debug("Loading ip6_tables")
 		}
 
-		removeIPChains(iptables.IPv6)
+		removeIPChains(ctx, iptables.IPv6)
 
-		err := setupIPChains(iptables.IPv6, ipt.Hairpin)
+		err := setupIPChains(ctx, iptables.IPv6, ipt.config.Hairpin)
 		if err != nil {
 			// If the chains couldn't be set up, it's probably because the kernel has no IPv6
 			// support, or it doesn't have module ip6_tables loaded. It won't be possible to
 			// create IPv6 networks without enabling ip6_tables in the kernel, or disabling
 			// ip6tables in the daemon config. But, allow the daemon to start because IPv4
 			// will work. So, log the problem, and continue.
-			log.G(context.TODO()).WithError(err).Warn("ip6tables is enabled, but cannot set up ip6tables chains")
+			log.G(ctx).WithError(err).Warn("ip6tables is enabled, but cannot set up ip6tables chains")
 		} else {
 			// Make sure on firewall reload, first thing being re-played is chains creation
 			iptables.OnReloaded(func() {
-				log.G(context.TODO()).Debugf("Recreating ip6tables chains on firewall reload")
-				if err := setupIPChains(iptables.IPv6, ipt.Hairpin); err != nil {
-					log.G(context.TODO()).WithError(err).Error("Error reloading ip6tables chains")
+				log.G(ctx).Debugf("Recreating ip6tables chains on firewall reload")
+				if err := setupIPChains(ctx, iptables.IPv6, ipt.config.Hairpin); err != nil {
+					log.G(ctx).WithError(err).Error("Error reloading ip6tables chains")
 				}
 			})
 		}
@@ -97,7 +91,33 @@ func NewIptabler(config FirewallConfig) (*Iptabler, error) {
 	return ipt, nil
 }
 
-func setupIPChains(version iptables.IPVersion, hairpin bool) (retErr error) {
+func (ipt *iptabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVersion) error {
+	var iptv iptables.IPVersion
+	switch ipv {
+	case firewaller.IPv4:
+		iptv = iptables.IPv4
+	case firewaller.IPv6:
+		iptv = iptables.IPv6
+	default:
+		return fmt.Errorf("unknown IP version %v", ipv)
+	}
+	iptable := iptables.GetIptable(iptv)
+	if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+		return err
+	}
+	iptables.OnReloaded(func() {
+		log.G(ctx).WithFields(log.Fields{"ipv": ipv}).Debug("Setting the default DROP policy on firewall reload")
+		if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+			log.G(ctx).WithFields(log.Fields{
+				"error": err,
+				"ipv":   ipv,
+			}).Warn("Failed to set the default DROP policy on firewall reload")
+		}
+	})
+	return nil
+}
+
+func setupIPChains(ctx context.Context, version iptables.IPVersion, hairpin bool) (retErr error) {
 	iptable := iptables.GetIptable(version)
 
 	_, err := iptable.NewChain(dockerChain, iptables.Nat)
@@ -107,7 +127,7 @@ func setupIPChains(version iptables.IPVersion, hairpin bool) (retErr error) {
 	defer func() {
 		if retErr != nil {
 			if err := iptable.RemoveExistingChain(dockerChain, iptables.Nat); err != nil {
-				log.G(context.TODO()).Warnf("failed on removing iptables NAT chain %s on cleanup: %v", dockerChain, err)
+				log.G(ctx).Warnf("failed on removing iptables NAT chain %s on cleanup: %v", dockerChain, err)
 			}
 		}
 	}()
@@ -119,7 +139,7 @@ func setupIPChains(version iptables.IPVersion, hairpin bool) (retErr error) {
 	defer func() {
 		if retErr != nil {
 			if err := iptable.RemoveExistingChain(dockerChain, iptables.Filter); err != nil {
-				log.G(context.TODO()).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", dockerChain, err)
+				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", dockerChain, err)
 			}
 		}
 	}()
@@ -131,7 +151,7 @@ func setupIPChains(version iptables.IPVersion, hairpin bool) (retErr error) {
 	defer func() {
 		if retErr != nil {
 			if err := iptable.RemoveExistingChain(DockerForwardChain, iptables.Filter); err != nil {
-				log.G(context.TODO()).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", DockerForwardChain, err)
+				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", DockerForwardChain, err)
 			}
 		}
 	}()
@@ -143,7 +163,7 @@ func setupIPChains(version iptables.IPVersion, hairpin bool) (retErr error) {
 	defer func() {
 		if retErr != nil {
 			if err := iptable.RemoveExistingChain(dockerBridgeChain, iptables.Filter); err != nil {
-				log.G(context.TODO()).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", dockerBridgeChain, err)
+				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", dockerBridgeChain, err)
 			}
 		}
 	}()
@@ -155,7 +175,7 @@ func setupIPChains(version iptables.IPVersion, hairpin bool) (retErr error) {
 	defer func() {
 		if retErr != nil {
 			if err := iptable.RemoveExistingChain(dockerCTChain, iptables.Filter); err != nil {
-				log.G(context.TODO()).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", dockerCTChain, err)
+				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", dockerCTChain, err)
 			}
 		}
 	}()
@@ -167,7 +187,7 @@ func setupIPChains(version iptables.IPVersion, hairpin bool) (retErr error) {
 	defer func() {
 		if retErr != nil {
 			if err := iptable.RemoveExistingChain(isolationChain1, iptables.Filter); err != nil {
-				log.G(context.TODO()).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", isolationChain1, err)
+				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", isolationChain1, err)
 			}
 		}
 	}()
@@ -179,7 +199,7 @@ func setupIPChains(version iptables.IPVersion, hairpin bool) (retErr error) {
 	defer func() {
 		if retErr != nil {
 			if err := iptable.RemoveExistingChain(isolationChain2, iptables.Filter); err != nil {
-				log.G(context.TODO()).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", isolationChain2, err)
+				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", isolationChain2, err)
 			}
 		}
 	}()
@@ -190,7 +210,7 @@ func setupIPChains(version iptables.IPVersion, hairpin bool) (retErr error) {
 	defer func() {
 		if retErr != nil {
 			if err := addNATJumpRules(version, hairpin, false); err != nil {
-				log.G(context.TODO()).Warnf("failed on removing jump rules from %s NAT table: %v", version, err)
+				log.G(ctx).Warnf("failed on removing jump rules from %s NAT table: %v", version, err)
 			}
 		}
 	}()
@@ -211,7 +231,7 @@ func setupIPChains(version iptables.IPVersion, hairpin bool) (retErr error) {
 		return err
 	}
 
-	if err := mirroredWSL2Workaround(version, hairpin); err != nil {
+	if err := mirroredWSL2Workaround(ctx, version, hairpin); err != nil {
 		return err
 	}
 
@@ -222,7 +242,7 @@ func setupIPChains(version iptables.IPVersion, hairpin bool) (retErr error) {
 	}
 	if err := iptable.DeleteJumpRule("FORWARD", dockerChain,
 		"-m", "set", "--match-set", ipsetName, "dst"); err != nil {
-		log.G(context.TODO()).WithFields(log.Fields{"error": err, "set": ipsetName}).Debug(
+		log.G(ctx).WithFields(log.Fields{"error": err, "set": ipsetName}).Debug(
 			"deleting legacy ipset dest match rule")
 	}
 	if err := iptable.DeleteJumpRule("FORWARD", isolationChain1); err != nil {
@@ -232,7 +252,7 @@ func setupIPChains(version iptables.IPVersion, hairpin bool) (retErr error) {
 		"-m", "set", "--match-set", ipsetName, "dst",
 		"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED",
 	); err != nil {
-		log.G(context.TODO()).WithFields(log.Fields{"error": err, "set": ipsetName}).Debug(
+		log.G(ctx).WithFields(log.Fields{"error": err, "set": ipsetName}).Debug(
 			"deleting legacy ipset conntrack rule")
 	}
 

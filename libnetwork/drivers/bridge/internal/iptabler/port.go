@@ -13,15 +13,15 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 )
 
-func (n *Network) AddPorts(ctx context.Context, pbs []types.PortBinding) error {
+func (n *network) AddPorts(ctx context.Context, pbs []types.PortBinding) error {
 	return n.modPorts(ctx, pbs, true)
 }
 
-func (n *Network) DelPorts(ctx context.Context, pbs []types.PortBinding) error {
+func (n *network) DelPorts(ctx context.Context, pbs []types.PortBinding) error {
 	return n.modPorts(ctx, pbs, false)
 }
 
-func (n *Network) modPorts(ctx context.Context, pbs []types.PortBinding, enable bool) error {
+func (n *network) modPorts(ctx context.Context, pbs []types.PortBinding, enable bool) error {
 	for _, pb := range pbs {
 		if err := n.setPerPortIptables(ctx, pb, enable); err != nil {
 			return err
@@ -32,17 +32,17 @@ func (n *Network) modPorts(ctx context.Context, pbs []types.PortBinding, enable 
 
 // setPerPortIptables configures rules required by port binding b. Rules are added if
 // enable is true, else removed.
-func (n *Network) setPerPortIptables(ctx context.Context, b types.PortBinding, enable bool) error {
+func (n *network) setPerPortIptables(ctx context.Context, b types.PortBinding, enable bool) error {
 	v := iptables.IPv4
-	enabled := n.ipt.IPv4
-	config := n.Config4
+	enabled := n.ipt.config.IPv4
+	config := n.config.Config4
 	if b.IP.To4() == nil {
 		v = iptables.IPv6
-		enabled = n.ipt.IPv6
-		config = n.Config6
+		enabled = n.ipt.config.IPv6
+		config = n.config.Config6
 	}
 
-	if !enabled || n.Internal {
+	if !enabled || n.config.Internal {
 		// Nothing to do.
 		return nil
 	}
@@ -67,7 +67,7 @@ func (n *Network) setPerPortIptables(ctx context.Context, b types.PortBinding, e
 	}
 
 	if !config.Unprotected {
-		if err := setPerPortForwarding(b, v, n.IfName, enable); err != nil {
+		if err := setPerPortForwarding(b, v, n.config.IfName, enable); err != nil {
 			return err
 		}
 	}
@@ -76,7 +76,7 @@ func (n *Network) setPerPortIptables(ctx context.Context, b types.PortBinding, e
 
 // setPerPortNAT configures DNAT and MASQUERADE rules for port binding b. Rules are added if
 // enable is true, else removed.
-func (n *Network) setPerPortNAT(ipv iptables.IPVersion, b types.PortBinding, enable bool) error {
+func (n *network) setPerPortNAT(ipv iptables.IPVersion, b types.PortBinding, enable bool) error {
 	if b.HostPort == 0 {
 		// NAT is disabled.
 		return nil
@@ -95,8 +95,8 @@ func (n *Network) setPerPortNAT(ipv iptables.IPVersion, b types.PortBinding, ena
 		"-j", "DNAT",
 		"--to-destination", net.JoinHostPort(b.IP.String(), strconv.Itoa(int(b.Port))),
 	}
-	if !n.ipt.Hairpin {
-		args = append(args, "!", "-i", n.IfName)
+	if !n.ipt.config.Hairpin {
+		args = append(args, "!", "-i", n.config.IfName)
 	}
 	if ipv == iptables.IPv6 {
 		args = append(args, "!", "-s", "fe80::/10")
@@ -113,7 +113,7 @@ func (n *Network) setPerPortNAT(ipv iptables.IPVersion, b types.PortBinding, ena
 		"--dport", strconv.Itoa(int(b.Port)),
 		"-j", "MASQUERADE",
 	}}
-	if err := appendOrDelChainRule(rule, "MASQUERADE", n.ipt.Hairpin && enable); err != nil {
+	if err := appendOrDelChainRule(rule, "MASQUERADE", n.ipt.config.Hairpin && enable); err != nil {
 		return err
 	}
 
@@ -184,7 +184,7 @@ func filterPortMappedOnLoopback(ctx context.Context, b types.PortBinding, hostIP
 		"-i", "loopback0",
 		"-j", "ACCEPT",
 	}}
-	enableMirrored := enable && isRunningUnderWSL2MirroredMode()
+	enableMirrored := enable && isRunningUnderWSL2MirroredMode(ctx)
 	if err := appendOrDelChainRule(acceptMirrored, "LOOPBACK FILTERING - ACCEPT MIRRORED", enableMirrored); err != nil {
 		return err
 	}
@@ -224,15 +224,15 @@ func filterPortMappedOnLoopback(ctx context.Context, b types.PortBinding, hostIP
 // by an older version of the daemon.
 //
 // TODO(robmry) - remove this once there's no upgrade path from 28.0.x or 28.1.x.
-func (n *Network) dropLegacyFilterDirectAccess(ctx context.Context, b types.PortBinding) error {
+func (n *network) dropLegacyFilterDirectAccess(ctx context.Context, b types.PortBinding) error {
 	if rawRulesDisabled(ctx) {
 		return nil
 	}
 	ipv := iptables.IPv4
-	config := n.Config4
+	config := n.config.Config4
 	if b.IP.To4() == nil {
 		ipv = iptables.IPv6
-		config = n.Config6
+		config = n.config.Config6
 	}
 
 	// gw_mode=nat-unprotected means there's minimal security for NATed ports,
@@ -245,7 +245,7 @@ func (n *Network) dropLegacyFilterDirectAccess(ctx context.Context, b types.Port
 		"-p", b.Proto.String(),
 		"-d", b.IP.String(), // Container IP address
 		"--dport", strconv.Itoa(int(b.Port)), // Container port
-		"!", "-i", n.IfName,
+		"!", "-i", n.config.IfName,
 		"-j", "DROP",
 	}}
 	if err := appendOrDelChainRule(drop, "LEGACY DIRECT ACCESS FILTERING - DROP", false); err != nil {

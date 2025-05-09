@@ -1439,7 +1439,7 @@ func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 		driver: d,
 		bridge: br,
 	}
-	fwn, err := nw.newIptablesNetwork()
+	fwn, err := nw.newFirewallerNetwork(context.Background())
 	assert.NilError(t, err)
 	assert.Check(t, fwn != nil, "no firewaller network")
 }

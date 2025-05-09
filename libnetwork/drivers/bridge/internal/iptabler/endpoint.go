@@ -6,25 +6,26 @@ import (
 	"context"
 	"net/netip"
 
+	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/libnetwork/iptables"
 )
 
-func (n *Network) AddEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr) error {
+func (n *network) AddEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr) error {
 	return n.modEndpoint(ctx, epIPv4, epIPv6, true)
 }
 
-func (n *Network) DelEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr) error {
+func (n *network) DelEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr) error {
 	return n.modEndpoint(ctx, epIPv4, epIPv6, false)
 }
 
-func (n *Network) modEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr, enable bool) error {
-	if n.ipt.IPv4 && epIPv4.IsValid() {
-		if err := n.filterDirectAccess(ctx, iptables.IPv4, n.Config4, epIPv4, enable); err != nil {
+func (n *network) modEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr, enable bool) error {
+	if n.ipt.config.IPv4 && epIPv4.IsValid() {
+		if err := n.filterDirectAccess(ctx, iptables.IPv4, n.config.Config4, epIPv4, enable); err != nil {
 			return err
 		}
 	}
-	if n.ipt.IPv6 && epIPv6.IsValid() {
-		if err := n.filterDirectAccess(ctx, iptables.IPv6, n.Config6, epIPv6, enable); err != nil {
+	if n.ipt.config.IPv6 && epIPv6.IsValid() {
+		if err := n.filterDirectAccess(ctx, iptables.IPv6, n.config.Config6, epIPv6, enable); err != nil {
 			return err
 		}
 	}
@@ -46,8 +47,8 @@ func (n *Network) modEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr, en
 // (it doesn't need to use the port mapped to its own addresses, although it can).
 //
 // "Trusted interfaces" are treated in the same way as the bridge itself.
-func (n *Network) filterDirectAccess(ctx context.Context, ipv iptables.IPVersion, config NetworkConfigFam, epIP netip.Addr, enable bool) error {
-	if n.Internal || config.Unprotected || config.Routed {
+func (n *network) filterDirectAccess(ctx context.Context, ipv iptables.IPVersion, config firewaller.NetworkConfigFam, epIP netip.Addr, enable bool) error {
+	if n.config.Internal || config.Unprotected || config.Routed {
 		return nil
 	}
 	// For config that may change between daemon restarts, make sure rules are
@@ -55,10 +56,10 @@ func (n *Network) filterDirectAccess(ctx context.Context, ipv iptables.IPVersion
 	// direct routing has since been disabled, the rules need to be deleted when
 	// cleanup happens on restart. This also means a change in config over a
 	// live-restore restart will take effect.
-	if n.ipt.AllowDirectRouting || rawRulesDisabled(ctx) {
+	if n.ipt.config.AllowDirectRouting || rawRulesDisabled(ctx) {
 		enable = false
 	}
-	for _, ifName := range n.TrustedHostInterfaces {
+	for _, ifName := range n.config.TrustedHostInterfaces {
 		accept := iptables.Rule{IPVer: ipv, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
 			"-d", epIP.String(),
 			"-i", ifName,
@@ -70,7 +71,7 @@ func (n *Network) filterDirectAccess(ctx context.Context, ipv iptables.IPVersion
 	}
 	accept := iptables.Rule{IPVer: ipv, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
 		"-d", epIP.String(),
-		"!", "-i", n.IfName,
+		"!", "-i", n.config.IfName,
 		"-j", "DROP",
 	}}
 	return appendOrDelChainRule(accept, "DIRECT ACCESS FILTERING - DROP", enable)
