@@ -35,14 +35,14 @@ func (n *Network) modPorts(ctx context.Context, pbs []types.PortBinding, enable 
 func (n *Network) setPerPortIptables(ctx context.Context, b types.PortBinding, enable bool) error {
 	v := iptables.IPv4
 	enabled := n.ipt.IPv4
-	config := n.Config4
+	config := n.cfg.Config4
 	if b.IP.To4() == nil {
 		v = iptables.IPv6
 		enabled = n.ipt.IPv6
-		config = n.Config6
+		config = n.cfg.Config6
 	}
 
-	if !enabled || n.Internal {
+	if !enabled || n.cfg.Internal {
 		// Nothing to do.
 		return nil
 	}
@@ -67,7 +67,7 @@ func (n *Network) setPerPortIptables(ctx context.Context, b types.PortBinding, e
 	}
 
 	if !config.Unprotected {
-		if err := setPerPortForwarding(b, v, n.IfName, enable); err != nil {
+		if err := setPerPortForwarding(b, v, n.cfg.IfName, enable); err != nil {
 			return err
 		}
 	}
@@ -96,7 +96,7 @@ func (n *Network) setPerPortNAT(ipv iptables.IPVersion, b types.PortBinding, ena
 		"--to-destination", net.JoinHostPort(b.IP.String(), strconv.Itoa(int(b.Port))),
 	}
 	if !n.ipt.Hairpin {
-		args = append(args, "!", "-i", n.IfName)
+		args = append(args, "!", "-i", n.cfg.IfName)
 	}
 	if ipv == iptables.IPv6 {
 		args = append(args, "!", "-s", "fe80::/10")
@@ -229,10 +229,10 @@ func (n *Network) dropLegacyFilterDirectAccess(ctx context.Context, b types.Port
 		return nil
 	}
 	ipv := iptables.IPv4
-	config := n.Config4
+	config := n.cfg.Config4
 	if b.IP.To4() == nil {
 		ipv = iptables.IPv6
-		config = n.Config6
+		config = n.cfg.Config6
 	}
 
 	// gw_mode=nat-unprotected means there's minimal security for NATed ports,
@@ -245,7 +245,7 @@ func (n *Network) dropLegacyFilterDirectAccess(ctx context.Context, b types.Port
 		"-p", b.Proto.String(),
 		"-d", b.IP.String(), // Container IP address
 		"--dport", strconv.Itoa(int(b.Port)), // Container port
-		"!", "-i", n.IfName,
+		"!", "-i", n.cfg.IfName,
 		"-j", "DROP",
 	}}
 	if err := appendOrDelChainRule(drop, "LEGACY DIRECT ACCESS FILTERING - DROP", false); err != nil {
