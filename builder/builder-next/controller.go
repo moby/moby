@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
 	"github.com/docker/docker/builder/builder-next/adapters/localinlinecache"
 	"github.com/docker/docker/builder/builder-next/adapters/snapshot"
+	"github.com/docker/docker/builder/builder-next/exporter"
 	"github.com/docker/docker/builder/builder-next/exporter/mobyexporter"
 	"github.com/docker/docker/builder/builder-next/imagerefchecker"
 	mobyworker "github.com/docker/docker/builder/builder-next/worker"
@@ -157,7 +158,10 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	}
 	wo.Executor = exec
 
-	w, err := mobyworker.NewContainerdWorker(ctx, wo, opt.Callbacks, rt)
+	w, err := mobyworker.NewContainerdWorker(ctx, wo, exporter.Opt{
+		Callbacks:   opt.Callbacks,
+		ImageTagger: opt.ImageTagger,
+	}, rt)
 	if err != nil {
 		return nil, err
 	}
