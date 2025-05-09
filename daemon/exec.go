@@ -98,6 +98,22 @@ func (daemon *Daemon) ContainerExecCreate(name string, options *containertypes.E
 	if err != nil {
 		return "", err
 	}
+	if user := options.User; user != "" {
+		// Lookup the user inside the container before starting the exec to
+		// allow for an early exit.
+		//
+		// Note that "technically" this check may have some TOCTOU issues,
+		// because '/etc/passwd' and '/etc/groups' may be mutated by the
+		// container in between creating the exec and starting it.
+		//
+		// This is very likely a corner-case, but something we can consider
+		// changing in future (either allow creating an invalid exec, and
+		// checking before starting, or checking both before create and
+		// before start).
+		if _, err := getUser(cntr, user); err != nil {
+			return "", errdefs.InvalidParameter(err)
+		}
+	}
 
 	keys := []byte{}
 	if options.DetachKeys != "" {
