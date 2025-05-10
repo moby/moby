@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/testutil"
+	"github.com/docker/go-units"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -789,4 +790,53 @@ func TestContainerdContainerImageInfo(t *testing.T) {
 		// This field is not set when not using containerd backed storage.
 		assert.Equal(t, ctr.Image, "")
 	}
+}
+
+func TestContainerdSnapshotQuota(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "windows", "Only test windows")
+
+	ctx := setupTest(t)
+
+	apiClient := testEnv.APIClient()
+	defer apiClient.Close()
+
+	info, err := apiClient.Info(ctx)
+	assert.NilError(t, err)
+
+	skip.If(t, info.Containerd == nil, "requires containerd")
+	skip.If(t, info.Driver != "windows", "requires windows daemon")
+	foundSnapshotter := false
+	for _, pair := range info.DriverStatus {
+		if pair[0] == "driver-type" && pair[1] == "io.containerd.snapshotter.v1" {
+			foundSnapshotter = true
+		}
+	}
+	skip.If(t, !foundSnapshotter, "requires snapshotter driver")
+
+	const containerSize = "32G"
+	expectedSize, err := units.RAMInBytes(containerSize)
+	assert.NilError(t, err)
+	expectedSizeStr := strconv.FormatInt(expectedSize, 10)
+
+	id := testContainer.Create(ctx, t, apiClient, func(cfg *testContainer.TestContainerConfig) {
+		cfg.Config.Image = "mcr.microsoft.com/windows/servercore:ltsc2022"
+		cfg.Config.Cmd = []string{"powershell", "-Command", "Start-Sleep -Seconds 20"}
+		cfg.HostConfig.StorageOpt = make(map[string]string)
+		cfg.HostConfig.StorageOpt["size"] = containerSize
+	})
+	defer apiClient.ContainerRemove(ctx, id, container.RemoveOptions{Force: true})
+
+	err = apiClient.ContainerStart(ctx, id, container.StartOptions{})
+	assert.NilError(t, err)
+
+	c8dClient, err := containerd.New(info.Containerd.Address, containerd.WithDefaultNamespace(info.Containerd.Namespaces.Containers))
+	assert.NilError(t, err)
+	defer c8dClient.Close()
+
+	snapshotInfo, err := c8dClient.SnapshotService("windows").Stat(ctx, id)
+	assert.NilError(t, err)
+
+	rootfsLabel, ok := snapshotInfo.Labels["containerd.io/snapshot/windows/rootfs.sizebytes"]
+	assert.Assert(t, ok, "Snapshot does not cotain rootfs quota label")
+	assert.Equal(t, rootfsLabel, expectedSizeStr, "Container snapshot size does not match")
 }
