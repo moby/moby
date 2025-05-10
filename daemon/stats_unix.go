@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -311,30 +312,29 @@ const (
 	nanoSecondsPerSecond = 1e9
 )
 
-var procStatPath = "/proc/stat"
-
-// getSystemCPUUsage returns the host system's cpu usage in
-// nanoseconds and number of online CPUs. An error is returned
-// if the format of the underlying file does not match.
-//
-// Uses /proc/stat defined by POSIX. Looks for the cpu
-// statistics line and then sums up the first seven fields
-// provided. See `man 5 proc` for details on specific field
-// information.
+// getSystemCPUUsage reads the system's CPU usage from /proc/stat and returns
+// the total CPU usage in nanoseconds and the number of CPUs.
 func getSystemCPUUsage() (cpuUsage uint64, cpuNum uint32, _ error) {
-	f, err := os.Open(procStatPath)
+	f, err := os.Open("/proc/stat")
 	if err != nil {
 		return 0, 0, err
 	}
 	defer f.Close()
 
-	rdr := bufio.NewReaderSize(f, 1024)
+	return readSystemCPUUsage(f)
+}
+
+// readSystemCPUUsage parses CPU usage information from a reader providing
+// /proc/stat format data. It returns the total CPU usage in nanoseconds
+// and the number of CPUs.
+func readSystemCPUUsage(r io.Reader) (cpuUsage uint64, cpuNum uint32, _ error) {
+	rdr := bufio.NewReaderSize(r, 1024)
 
 	for {
 		data, isPartial, err := rdr.ReadLine()
 
 		if err != nil {
-			return 0, 0, fmt.Errorf("error scanning '%s' file: %w", procStatPath, err)
+			return 0, 0, fmt.Errorf("error scanning /proc/stat file: %w", err)
 		}
 		// Assume all cpu* records are at the start of the file, like glibc:
 		// https://github.com/bminor/glibc/blob/5d00c201b9a2da768a79ea8d5311f257871c0b43/sysdeps/unix/sysv/linux/getsysstats.c#L108-L135
