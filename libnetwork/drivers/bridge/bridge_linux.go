@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/iptabler"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/rlkclient"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
@@ -136,12 +137,12 @@ type bridgeEndpoint struct {
 }
 
 type bridgeNetwork struct {
-	id              string
-	bridge          *bridgeInterface // The bridge's L3 interface
-	config          *networkConfiguration
-	endpoints       map[string]*bridgeEndpoint // key: endpoint id
-	driver          *driver                    // The network's driver
-	iptablesNetwork *iptabler.Network
+	id                string
+	bridge            *bridgeInterface // The bridge's L3 interface
+	config            *networkConfiguration
+	endpoints         map[string]*bridgeEndpoint // key: endpoint id
+	driver            *driver                    // The network's driver
+	firewallerNetwork firewaller.Network
 	sync.Mutex
 }
 
@@ -162,7 +163,7 @@ type driver struct {
 	nlh              nlwrap.Handle
 	portDriverClient portDriverClient
 	configNetwork    sync.Mutex
-	firewaller       *iptabler.Iptabler
+	firewaller       firewaller.Firewaller
 	sync.Mutex
 }
 
@@ -400,16 +401,16 @@ func parseErr(label, value, errString string) error {
 	return types.InvalidParameterErrorf("failed to parse %s value: %v (%s)", label, value, errString)
 }
 
-func (n *bridgeNetwork) newIptablesNetwork() (*iptabler.Network, error) {
-	config4, err := makeNetworkConfigFam(n.config.HostIPv4, n.bridge.bridgeIPv4, n.gwMode(iptables.IPv4))
+func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (firewaller.Network, error) {
+	config4, err := makeNetworkConfigFam(n.config.HostIPv4, n.bridge.bridgeIPv4, n.gwMode(firewaller.IPv4))
 	if err != nil {
 		return nil, err
 	}
-	config6, err := makeNetworkConfigFam(n.config.HostIPv6, n.bridge.bridgeIPv6, n.gwMode(iptables.IPv6))
+	config6, err := makeNetworkConfigFam(n.config.HostIPv6, n.bridge.bridgeIPv6, n.gwMode(firewaller.IPv6))
 	if err != nil {
 		return nil, err
 	}
-	return n.driver.firewaller.NewNetwork(iptabler.NetworkConfig{
+	return n.driver.firewaller.NewNetwork(ctx, firewaller.NetworkConfig{
 		IfName:                n.config.BridgeName,
 		Internal:              n.config.Internal,
 		ICC:                   n.config.EnableICC,
@@ -420,8 +421,8 @@ func (n *bridgeNetwork) newIptablesNetwork() (*iptabler.Network, error) {
 	})
 }
 
-func makeNetworkConfigFam(hostIP net.IP, bridgePrefix *net.IPNet, gwm gwMode) (iptabler.NetworkConfigFam, error) {
-	c := iptabler.NetworkConfigFam{
+func makeNetworkConfigFam(hostIP net.IP, bridgePrefix *net.IPNet, gwm gwMode) (firewaller.NetworkConfigFam, error) {
+	c := firewaller.NetworkConfigFam{
 		Routed:      gwm.routed(),
 		Unprotected: gwm.unprotected(),
 	}
@@ -429,14 +430,14 @@ func makeNetworkConfigFam(hostIP net.IP, bridgePrefix *net.IPNet, gwm gwMode) (i
 		var ok bool
 		c.HostIP, ok = netip.AddrFromSlice(hostIP)
 		if !ok {
-			return iptabler.NetworkConfigFam{}, fmt.Errorf("invalid host address %q", hostIP)
+			return firewaller.NetworkConfigFam{}, fmt.Errorf("invalid host address for pktFilter %q", hostIP)
 		}
 		c.HostIP = c.HostIP.Unmap()
 	}
 	if bridgePrefix != nil {
 		p, ok := netiputil.ToPrefix(bridgePrefix)
 		if !ok {
-			return iptabler.NetworkConfigFam{}, fmt.Errorf("invalid bridge prefix %s", bridgePrefix)
+			return firewaller.NetworkConfigFam{}, fmt.Errorf("invalid bridge prefix for pktFilter %s", bridgePrefix)
 		}
 		c.Prefix = p.Masked()
 	}
@@ -449,10 +450,10 @@ func (n *bridgeNetwork) getNATDisabled() (ipv4, ipv6 bool) {
 	return n.config.GwModeIPv4.routed(), n.config.GwModeIPv6.routed()
 }
 
-func (n *bridgeNetwork) gwMode(v iptables.IPVersion) gwMode {
+func (n *bridgeNetwork) gwMode(v firewaller.IPVersion) gwMode {
 	n.Lock()
 	defer n.Unlock()
-	if v == iptables.IPv4 {
+	if v == firewaller.IPv4 {
 		return n.config.GwModeIPv4
 	}
 	return n.config.GwModeIPv6
@@ -508,7 +509,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 	}
 
 	var err error
-	d.firewaller, err = iptabler.NewIptabler(iptabler.FirewallConfig{
+	d.firewaller, err = iptabler.NewIptabler(context.Background(), firewaller.Config{
 		IPv4:               config.EnableIPTables,
 		IPv6:               config.EnableIP6Tables,
 		Hairpin:            !config.EnableUserlandProxy || config.UserlandProxyPath == "",
@@ -873,14 +874,14 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 			config.EnableIPv4 && d.config.EnableIPForwarding,
 			"setupIPv4Forwarding",
 			func(*networkConfiguration, *bridgeInterface) error {
-				return setupIPv4Forwarding(d.config.EnableIPTables && !d.config.DisableFilterForwardDrop)
+				return setupIPv4Forwarding(d.firewaller, d.config.EnableIPTables && !d.config.DisableFilterForwardDrop)
 			},
 		},
 		{
 			config.EnableIPv6 && d.config.EnableIPForwarding,
 			"setupIPv6Forwarding",
 			func(*networkConfiguration, *bridgeInterface) error {
-				return setupIPv6Forwarding(d.config.EnableIP6Tables && !d.config.DisableFilterForwardDrop)
+				return setupIPv6Forwarding(d.firewaller, d.config.EnableIP6Tables && !d.config.DisableFilterForwardDrop)
 			},
 		},
 
@@ -902,12 +903,12 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 		}
 	}
 
-	bridgeSetup.queueStep("setIptablesNetwork", func(*networkConfiguration, *bridgeInterface) error {
-		n, err := network.newIptablesNetwork()
+	bridgeSetup.queueStep("addfirewallerNetwork", func(*networkConfiguration, *bridgeInterface) error {
+		n, err := network.newFirewallerNetwork(ctx)
 		if err != nil {
 			return err
 		}
-		network.iptablesNetwork = n
+		network.firewallerNetwork = n
 		return nil
 	})
 
@@ -1003,7 +1004,7 @@ func (d *driver) deleteNetwork(nid string) error {
 		// Don't delete the bridge interface if it was not created by libnetwork.
 	}
 
-	if err := n.iptablesNetwork.DelNetworkLevelRules(); err != nil {
+	if err := n.firewallerNetwork.DelNetworkLevelRules(context.TODO()); err != nil {
 		log.G(context.TODO()).WithError(err).Warnf("Failed to clean iptables rules for bridge network")
 	}
 
@@ -1182,7 +1183,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	}
 
 	netip4, netip6 := endpoint.netipAddrs()
-	if err := n.iptablesNetwork.AddEndpoint(ctx, netip4, netip6); err != nil {
+	if err := n.firewallerNetwork.AddEndpoint(ctx, netip4, netip6); err != nil {
 		return err
 	}
 
@@ -1307,7 +1308,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	}
 
 	netip4, netip6 := ep.netipAddrs()
-	if err := n.iptablesNetwork.DelEndpoint(context.TODO(), netip4, netip6); err != nil {
+	if err := n.firewallerNetwork.DelEndpoint(context.TODO(), netip4, netip6); err != nil {
 		return err
 	}
 
@@ -1650,7 +1651,7 @@ func (d *driver) handleFirewalldReloadNw(nid string) {
 		return
 	}
 
-	if err := nw.iptablesNetwork.ReapplyNetworkLevelRules(); err != nil {
+	if err := nw.firewallerNetwork.ReapplyNetworkLevelRules(context.TODO()); err != nil {
 		log.G(context.Background()).WithFields(log.Fields{
 			"nid":   nw.id,
 			"error": err,
@@ -1726,11 +1727,11 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 			}
 
 			if enable {
-				if err := network.iptablesNetwork.AddLink(context.TODO(), parentAddr, childAddr, ec.ExposedPorts); err != nil {
+				if err := network.firewallerNetwork.AddLink(context.TODO(), parentAddr, childAddr, ec.ExposedPorts); err != nil {
 					return err
 				}
 			} else {
-				network.iptablesNetwork.DelLink(context.TODO(), parentAddr, childAddr, ec.ExposedPorts)
+				network.firewallerNetwork.DelLink(context.TODO(), parentAddr, childAddr, ec.ExposedPorts)
 			}
 		}
 	}
@@ -1756,11 +1757,11 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 		}
 
 		if enable {
-			if err := network.iptablesNetwork.AddLink(context.TODO(), parentAddr, childAddr, childEndpoint.extConnConfig.ExposedPorts); err != nil {
+			if err := network.firewallerNetwork.AddLink(context.TODO(), parentAddr, childAddr, childEndpoint.extConnConfig.ExposedPorts); err != nil {
 				return err
 			}
 		} else {
-			network.iptablesNetwork.DelLink(context.TODO(), parentAddr, childAddr, childEndpoint.extConnConfig.ExposedPorts)
+			network.firewallerNetwork.DelLink(context.TODO(), parentAddr, childAddr, childEndpoint.extConnConfig.ExposedPorts)
 		}
 	}
 

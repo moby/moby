@@ -3,10 +3,12 @@
 package iptabler
 
 import (
+	"context"
 	"net/netip"
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/libnetwork/iptables"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -62,12 +64,12 @@ func TestSetupIPChains(t *testing.T) {
 	// Create a test bridge with a basic bridge configuration (name + IPv4).
 	defer netnsutils.SetupTestOSContext(t)()
 
-	ipt, err := NewIptabler(FirewallConfig{IPv4: true})
+	ipt, err := NewIptabler(context.Background(), firewaller.Config{IPv4: true})
 	assert.NilError(t, err)
 
-	nc := NetworkConfig{
+	nc := firewaller.NetworkConfig{
 		IfName: defaultBridgeName,
-		Config4: NetworkConfigFam{
+		Config4: firewaller.NetworkConfigFam{
 			Prefix: netip.MustParsePrefix("192.168.42.0/24"),
 		},
 	}
@@ -88,20 +90,20 @@ func TestSetupIPChains(t *testing.T) {
 func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	ipt, err := NewIptabler(FirewallConfig{
+	ipt, err := NewIptabler(context.Background(), firewaller.Config{
 		IPv4: true,
 		IPv6: true,
 	})
 	assert.NilError(t, err)
 
-	nc := NetworkConfig{
+	nc := firewaller.NetworkConfig{
 		IfName:     defaultBridgeName,
 		Masquerade: true,
-		Config4: NetworkConfigFam{
+		Config4: firewaller.NetworkConfigFam{
 			HostIP: netip.MustParseAddr("192.0.2.2"),
 			Prefix: netip.MustParsePrefix("192.168.42.0/24"),
 		},
-		Config6: NetworkConfigFam{
+		Config6: firewaller.NetworkConfigFam{
 			Prefix: netip.MustParsePrefix("2001:db8::/64"),
 		},
 	}
@@ -109,11 +111,11 @@ func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 }
 
 // Assert function which pushes chains based on bridge config parameters.
-func assertBridgeConfig(t *testing.T, ipt *Iptabler, nc NetworkConfig) {
+func assertBridgeConfig(t *testing.T, ipt firewaller.Firewaller, nc firewaller.NetworkConfig) {
 	t.Helper()
-	n, err := ipt.NewNetwork(nc)
+	n, err := ipt.NewNetwork(context.Background(), nc)
 	assert.NilError(t, err)
-	err = n.DelNetworkLevelRules()
+	err = n.DelNetworkLevelRules(context.Background())
 	assert.NilError(t, err)
 }
 
@@ -257,29 +259,29 @@ func TestOutgoingNATRules(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
-			ipt, err := NewIptabler(FirewallConfig{
+			ipt, err := NewIptabler(context.Background(), firewaller.Config{
 				IPv4: tc.enableIPTables,
 				IPv6: tc.enableIP6Tables,
 			})
 			assert.NilError(t, err)
 
-			nc := NetworkConfig{
+			nc := firewaller.NetworkConfig{
 				IfName:     br,
 				Masquerade: tc.enableIPMasquerade,
-				Config4: NetworkConfigFam{
+				Config4: firewaller.NetworkConfigFam{
 					HostIP: tc.hostIPv4,
 					Prefix: maskedBrIPv4,
 				},
-				Config6: NetworkConfigFam{
+				Config6: firewaller.NetworkConfigFam{
 					HostIP: tc.hostIPv6,
 					Prefix: maskedBrIPv6,
 				},
 			}
-			n, err := ipt.NewNetwork(nc)
+			n, err := ipt.NewNetwork(context.Background(), nc)
 			assert.NilError(t, err)
 
 			defer func() {
-				err = n.DelNetworkLevelRules()
+				err = n.DelNetworkLevelRules(context.Background())
 				assert.NilError(t, err)
 			}()
 
