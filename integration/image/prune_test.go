@@ -28,19 +28,19 @@ func TestPruneDontDeleteUsedDangling(t *testing.T) {
 	d.Start(t)
 	defer d.Stop(t)
 
-	client := d.NewClientT(t)
-	defer client.Close()
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
 
-	danglingID := specialimage.Load(ctx, t, client, specialimage.Dangling)
+	danglingID := specialimage.Load(ctx, t, apiClient, specialimage.Dangling)
 
-	_, err := client.ImageInspect(ctx, danglingID)
+	_, err := apiClient.ImageInspect(ctx, danglingID)
 	assert.NilError(t, err, "Test dangling image doesn't exist")
 
-	container.Create(ctx, t, client,
+	container.Create(ctx, t, apiClient,
 		container.WithImage(danglingID),
 		container.WithCmd("sleep", "60"))
 
-	pruned, err := client.ImagesPrune(ctx, filters.NewArgs(filters.Arg("dangling", "true")))
+	pruned, err := apiClient.ImagesPrune(ctx, filters.NewArgs(filters.Arg("dangling", "true")))
 	assert.NilError(t, err)
 
 	for _, deleted := range pruned.ImagesDeleted {
@@ -49,7 +49,7 @@ func TestPruneDontDeleteUsedDangling(t *testing.T) {
 		}
 	}
 
-	_, err = client.ImageInspect(ctx, danglingID)
+	_, err = apiClient.ImageInspect(ctx, danglingID)
 	assert.NilError(t, err, "Test dangling image should still exist")
 }
 
