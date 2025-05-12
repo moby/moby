@@ -184,18 +184,18 @@ func TestCorrectStateWaitResultAfterRestart(t *testing.T) {
 
 func TestIsValidStateString(t *testing.T) {
 	states := []struct {
-		state    string
+		state    container.ContainerState
 		expected bool
 	}{
-		{"paused", true},
-		{"restarting", true},
-		{"running", true},
-		{"dead", true},
-		{"start", false},
-		{"created", true},
-		{"exited", true},
-		{"removing", true},
-		{"stop", false},
+		{state: container.StatePaused, expected: true},
+		{state: container.StateRestarting, expected: true},
+		{state: container.StateRunning, expected: true},
+		{state: container.StateDead, expected: true},
+		{state: "start"},
+		{state: container.StateCreated, expected: true},
+		{state: container.StateExited, expected: true},
+		{state: container.StateRemoving, expected: true},
+		{state: "stop"},
 	}
 
 	for _, s := range states {

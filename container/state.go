@@ -115,45 +115,47 @@ func IsValidHealthString(s string) bool {
 	return container.ValidateHealthStatus(s) == nil
 }
 
-// StateString returns a single string to describe state
-func (s *State) StateString() string {
+// StateString returns the container's current [ContainerState], based on the
+// [State.Running], [State.Paused], [State.Restarting], [State.RemovalInProgress],
+// [State.StartedAt] and [State.Dead] fields.
+func (s *State) StateString() container.ContainerState {
 	if s.Running {
 		if s.Paused {
-			return "paused"
+			return container.StatePaused
 		}
 		if s.Restarting {
-			return "restarting"
+			return container.StateRestarting
 		}
-		return "running"
+		return container.StateRunning
 	}
 
+	// TODO(thaJeztah): should [State.Removed] also have an corresponding string?
+	// TODO(thaJeztah): should [State.OOMKilled] be taken into account anywhere?
 	if s.RemovalInProgress {
-		return "removing"
+		return container.StateRemoving
 	}
 
 	if s.Dead {
-		return "dead"
+		return container.StateDead
 	}
 
 	if s.StartedAt.IsZero() {
-		return "created"
+		return container.StateCreated
 	}
 
-	return "exited"
+	return container.StateExited
 }
 
-// IsValidStateString checks if the provided string is a valid container state or not.
-func IsValidStateString(s string) bool {
-	if s != "paused" &&
-		s != "restarting" &&
-		s != "removing" &&
-		s != "running" &&
-		s != "dead" &&
-		s != "created" &&
-		s != "exited" {
+// IsValidStateString checks if the provided string is a valid container state.
+func IsValidStateString(s container.ContainerState) bool {
+	switch s {
+	case container.StateCreated, container.StateRunning, container.StatePaused,
+		container.StateRestarting, container.StateRemoving, container.StateExited,
+		container.StateDead:
+		return true
+	default:
 		return false
 	}
-	return true
 }
 
 // WaitCondition is an enum type for different states to wait for.

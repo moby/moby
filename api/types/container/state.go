@@ -1,5 +1,20 @@
 package container
 
+// ContainerState is a string representation of the container's current state.
+//
+// It currently is an alias for string, but may become a distinct type in the future.
+type ContainerState = string
+
+const (
+	StateCreated    ContainerState = "created"    // StateCreated indicates the container is created, but not (yet) started.
+	StateRunning    ContainerState = "running"    // StateRunning indicates that the container is running.
+	StatePaused     ContainerState = "paused"     // StatePaused indicates that the container's current state is paused.
+	StateRestarting ContainerState = "restarting" // StateRestarting indicates that the container is currently restarting.
+	StateRemoving   ContainerState = "removing"   // StateRemoving indicates that the container is being removed.
+	StateExited     ContainerState = "exited"     // StateExited indicates that the container exited.
+	StateDead       ContainerState = "dead"       // StateDead indicates that the container failed to be deleted. Containers in this state are attempted to be cleaned up when the daemon restarts.
+)
+
 // StateStatus is used to return container wait results.
 // Implements exec.ExitCode interface.
 // This type is needed as State include a sync.Mutex field which make
