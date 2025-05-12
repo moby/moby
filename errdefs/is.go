@@ -1,123 +1,73 @@
 package errdefs
 
-import (
-	"context"
-	"errors"
-)
-
-type causer interface {
-	Cause() error
-}
-
-type wrapErr interface {
-	Unwrap() error
-}
-
-func getImplementer(err error) error {
-	switch e := err.(type) {
-	case
-		ErrNotFound,
-		ErrInvalidParameter,
-		ErrConflict,
-		ErrUnauthorized,
-		ErrUnavailable,
-		ErrForbidden,
-		ErrSystem,
-		ErrNotModified,
-		ErrNotImplemented,
-		ErrCancelled,
-		ErrDeadline,
-		ErrDataLoss,
-		ErrUnknown:
-		return err
-	case causer:
-		return getImplementer(e.Cause())
-	case wrapErr:
-		return getImplementer(e.Unwrap())
-	default:
-		return err
-	}
-}
+import cerrdefs "github.com/containerd/errdefs"
 
 // IsNotFound returns if the passed in error is an [ErrNotFound],
 func IsNotFound(err error) bool {
-	_, ok := getImplementer(err).(ErrNotFound)
-	return ok
+	return cerrdefs.IsNotFound(err)
 }
 
 // IsInvalidParameter returns if the passed in error is an [ErrInvalidParameter].
 func IsInvalidParameter(err error) bool {
-	_, ok := getImplementer(err).(ErrInvalidParameter)
-	return ok
+	return cerrdefs.IsInvalidArgument(err)
 }
 
 // IsConflict returns if the passed in error is an [ErrConflict].
 func IsConflict(err error) bool {
-	_, ok := getImplementer(err).(ErrConflict)
-	return ok
+	return cerrdefs.IsConflict(err)
 }
 
 // IsUnauthorized returns if the passed in error is an [ErrUnauthorized].
 func IsUnauthorized(err error) bool {
-	_, ok := getImplementer(err).(ErrUnauthorized)
-	return ok
+	return cerrdefs.IsUnauthorized(err)
 }
 
 // IsUnavailable returns if the passed in error is an [ErrUnavailable].
 func IsUnavailable(err error) bool {
-	_, ok := getImplementer(err).(ErrUnavailable)
-	return ok
+	return cerrdefs.IsUnavailable(err)
 }
 
 // IsForbidden returns if the passed in error is an [ErrForbidden].
 func IsForbidden(err error) bool {
-	_, ok := getImplementer(err).(ErrForbidden)
-	return ok
+	return cerrdefs.IsPermissionDenied(err)
 }
 
 // IsSystem returns if the passed in error is an [ErrSystem].
 func IsSystem(err error) bool {
-	_, ok := getImplementer(err).(ErrSystem)
-	return ok
+	return cerrdefs.IsInternal(err)
 }
 
 // IsNotModified returns if the passed in error is an [ErrNotModified].
 func IsNotModified(err error) bool {
-	_, ok := getImplementer(err).(ErrNotModified)
-	return ok
+	return cerrdefs.IsNotModified(err)
 }
 
 // IsNotImplemented returns if the passed in error is an [ErrNotImplemented].
 func IsNotImplemented(err error) bool {
-	_, ok := getImplementer(err).(ErrNotImplemented)
-	return ok
+	return cerrdefs.IsNotImplemented(err)
 }
 
 // IsUnknown returns if the passed in error is an [ErrUnknown].
 func IsUnknown(err error) bool {
-	_, ok := getImplementer(err).(ErrUnknown)
-	return ok
+	return cerrdefs.IsUnknown(err)
 }
 
 // IsCancelled returns if the passed in error is an [ErrCancelled].
 func IsCancelled(err error) bool {
-	_, ok := getImplementer(err).(ErrCancelled)
-	return ok
+	return cerrdefs.IsCanceled(err)
 }
 
 // IsDeadline returns if the passed in error is an [ErrDeadline].
 func IsDeadline(err error) bool {
-	_, ok := getImplementer(err).(ErrDeadline)
-	return ok
+	return cerrdefs.IsDeadlineExceeded(err)
 }
 
 // IsDataLoss returns if the passed in error is an [ErrDataLoss].
 func IsDataLoss(err error) bool {
-	_, ok := getImplementer(err).(ErrDataLoss)
-	return ok
+	return cerrdefs.IsDataLoss(err)
 }
 
 // IsContext returns if the passed in error is due to context cancellation or deadline exceeded.
 func IsContext(err error) bool {
-	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+	return cerrdefs.IsCanceled(err) || cerrdefs.IsDeadlineExceeded(err)
 }
