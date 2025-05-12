@@ -147,15 +147,10 @@ func (s *State) StateString() container.ContainerState {
 }
 
 // IsValidStateString checks if the provided string is a valid container state.
+//
+// Deprecated: use [container.ValidateContainerState] instead.
 func IsValidStateString(s container.ContainerState) bool {
-	switch s {
-	case container.StateCreated, container.StateRunning, container.StatePaused,
-		container.StateRestarting, container.StateRemoving, container.StateExited,
-		container.StateDead:
-		return true
-	default:
-		return false
-	}
+	return container.ValidateContainerState(s) == nil
 }
 
 // WaitCondition is an enum type for different states to wait for.

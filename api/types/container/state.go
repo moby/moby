@@ -1,5 +1,10 @@
 package container
 
+import (
+	"fmt"
+	"strings"
+)
+
 // ContainerState is a string representation of the container's current state.
 //
 // It currently is an alias for string, but may become a distinct type in the future.
@@ -14,6 +19,21 @@ const (
 	StateExited     ContainerState = "exited"     // StateExited indicates that the container exited.
 	StateDead       ContainerState = "dead"       // StateDead indicates that the container failed to be deleted. Containers in this state are attempted to be cleaned up when the daemon restarts.
 )
+
+var validStates = []ContainerState{
+	StateCreated, StateRunning, StatePaused, StateRestarting, StateRemoving, StateExited, StateDead,
+}
+
+// ValidateContainerState checks if the provided string is a valid
+// container [ContainerState].
+func ValidateContainerState(s ContainerState) error {
+	switch s {
+	case StateCreated, StateRunning, StatePaused, StateRestarting, StateRemoving, StateExited, StateDead:
+		return nil
+	default:
+		return errInvalidParameter{error: fmt.Errorf("invalid value for state (%s): must be one of %s", s, strings.Join(validStates, ", "))}
+	}
+}
 
 // StateStatus is used to return container wait results.
 // Implements exec.ExitCode interface.
