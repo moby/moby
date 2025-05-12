@@ -53,8 +53,9 @@ func NewV2(t testing.TB, ops ...func(*Config)) *V2 {
 	for _, op := range ops {
 		op(c)
 	}
-	tmpDir := t.TempDir()
-	const template = `version: 0.1
+	tmp, err := os.MkdirTemp("", "registry-test-")
+	assert.NilError(t, err)
+	template := `version: 0.1
 loglevel: debug
 storage:
     filesystem:
@@ -70,7 +71,7 @@ http:
 	)
 	switch c.auth {
 	case "htpasswd":
-		htpasswdPath := filepath.Join(tmpDir, "htpasswd")
+		htpasswdPath := filepath.Join(tmp, "htpasswd")
 		// generated with: htpasswd -Bbn testuser testpassword
 		// #nosec G101
 		userpasswd := "testuser:$2y$05$sBsSqk0OpSD1uTZkHXc4FeJ0Z70wLQdAX/82UiHuQOKbNbBrzs63m"
@@ -94,26 +95,34 @@ http:
 `, c.tokenURL)
 	}
 
-	configFile := filepath.Join(tmpDir, "config.yaml")
-	cfg := fmt.Sprintf(template, tmpDir, c.registryURL, authTemplate)
-	err := os.WriteFile(configFile, []byte(cfg), os.FileMode(0o644))
+	confPath := filepath.Join(tmp, "config.yaml")
+	config, err := os.Create(confPath)
 	assert.NilError(t, err)
+	defer config.Close()
+
+	if _, err := fmt.Fprintf(config, template, tmp, c.registryURL, authTemplate); err != nil {
+		// FIXME(vdemeester) use a defer/clean func
+		os.RemoveAll(tmp)
+		t.Fatal(err)
+	}
 
 	binary := V2binary
-	args := []string{"serve", configFile}
+	args := []string{"serve", confPath}
 	if c.schema1 {
 		binary = V2binarySchema1
-		args = []string{configFile}
+		args = []string{confPath}
 	}
 	cmd := exec.Command(binary, args...)
 	cmd.Stdout = c.stdout
 	cmd.Stderr = c.stderr
 	if err := cmd.Start(); err != nil {
+		// FIXME(vdemeester) use a defer/clean func
+		os.RemoveAll(tmp)
 		t.Fatal(err)
 	}
 	return &V2{
 		cmd:         cmd,
-		dir:         tmpDir,
+		dir:         tmp,
 		auth:        c.auth,
 		username:    username,
 		password:    password,
