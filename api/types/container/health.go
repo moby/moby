@@ -1,6 +1,10 @@
 package container
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
 // HealthStatus is a string representation of the container's health.
 //
@@ -28,4 +32,19 @@ type HealthcheckResult struct {
 	End      time.Time // End is the time this check ended
 	ExitCode int       // ExitCode meanings: 0=healthy, 1=unhealthy, 2=reserved (considered unhealthy), else=error running probe
 	Output   string    // Output from last check
+}
+
+var validHealths = []string{
+	NoHealthcheck, Starting, Healthy, Unhealthy,
+}
+
+// ValidateHealthStatus checks if the provided string is a valid
+// container [HealthStatus].
+func ValidateHealthStatus(s HealthStatus) error {
+	switch s {
+	case NoHealthcheck, Starting, Healthy, Unhealthy:
+		return nil
+	default:
+		return errInvalidParameter{error: fmt.Errorf("invalid value for health (%s): must be one of %s", s, strings.Join(validHealths, ", "))}
+	}
 }
