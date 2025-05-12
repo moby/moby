@@ -13,10 +13,8 @@ func TestDump(t *testing.T) {
 }
 
 func TestDumpToFile(t *testing.T) {
-	directory, err := os.MkdirTemp("", "test-dump-tasks")
-	assert.Check(t, err)
-	defer os.RemoveAll(directory)
-	dumpPath, err := DumpToFile(directory)
+	tmpDir := t.TempDir()
+	dumpPath, err := DumpToFile(tmpDir)
 	assert.Check(t, err)
 	readFile, _ := os.ReadFile(dumpPath)
 	fileData := string(readFile)
