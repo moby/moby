@@ -251,7 +251,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	// In order to lift this restriction the following would have to be addressed:
 	// - Support needs to be added to the cdi package for injecting Windows devices: https://tags.cncf.io/container-device-interface/issues/28
 	// - The DeviceRequests API must be extended to non-linux platforms.
-	if runtime.GOOS == "linux" && cli.Config.Features["cdi"] {
+	if cdiEnabled(cli.Config) {
 		daemon.RegisterCDIDriver(cli.Config.CDISpecDirs...)
 	}
 
@@ -398,12 +398,13 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon) (_ builderOptions, clos
 		return builderOptions{}, closeFn, err
 	}
 
+	cfg := d.Config()
+
 	var cdiSpecDirs []string
-	if d.Features()["cdi"] {
-		cdiSpecDirs = d.Config().CDISpecDirs
+	if cdiEnabled(&cfg) {
+		cdiSpecDirs = cfg.CDISpecDirs
 	}
 
-	cfg := d.Config()
 	bk, err := buildkit.New(ctx, buildkit.Opt{
 		SessionManager:      sm,
 		Root:                filepath.Join(cfg.Root, "buildkit"),
@@ -652,8 +653,9 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		// If CDISpecDirs is set to an empty string, we clear it to ensure that CDI is disabled.
 		conf.CDISpecDirs = nil
 	}
-	if !conf.Features["cdi"] {
-		// If the CDI feature is not enabled, we clear the CDISpecDirs to ensure that CDI is disabled.
+	// Only clear CDISpecDirs if CDI is explicitly disabled
+	if val, exists := conf.Features["cdi"]; exists && !val {
+		// If the CDI feature is explicitly disabled, we clear the CDISpecDirs to ensure that CDI is disabled.
 		conf.CDISpecDirs = nil
 	}
 
@@ -1049,4 +1051,17 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 
 	// Try to wait for containerd to shutdown
 	return r.WaitTimeout, nil
+}
+
+// cdiEnabled returns true if CDI feature wasn't explicitly disabled via
+// features.
+func cdiEnabled(conf *config.Config) bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	val, ok := conf.Features["cdi"]
+	if !ok {
+		return true
+	}
+	return val
 }

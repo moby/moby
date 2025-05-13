@@ -27,12 +27,9 @@ func TestCreateWithCDIDevices(t *testing.T) {
 
 	cwd, err := os.Getwd()
 	assert.NilError(t, err)
-	configPath := filepath.Join(cwd, "daemon.json")
-	err = os.WriteFile(configPath, []byte(`{"features": {"cdi": true}}`), 0o644)
-	defer os.Remove(configPath)
-	assert.NilError(t, err)
+
 	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t, "--config-file", configPath, "--cdi-spec-dir="+filepath.Join(cwd, "testdata", "cdi"))
+	d.StartWithBusybox(ctx, t, "--cdi-spec-dir="+filepath.Join(cwd, "testdata", "cdi"))
 	defer d.Stop(t)
 
 	apiClient := d.NewClientT(t)
@@ -81,7 +78,13 @@ func TestCDISpecDirsAreInSystemInfo(t *testing.T) {
 		expectedInfoCDISpecDirs []string
 	}{
 		{
-			description:             "CDI enabled with no spec dirs specified returns default",
+			description:             "No config returns default CDI spec dirs",
+			config:                  `{}`,
+			specDirs:                nil,
+			expectedInfoCDISpecDirs: []string{"/etc/cdi", "/var/run/cdi"},
+		},
+		{
+			description:             "CDI explicitly enabled with no spec dirs specified returns default",
 			config:                  `{"features": {"cdi": true}}`,
 			specDirs:                nil,
 			expectedInfoCDISpecDirs: []string{"/etc/cdi", "/var/run/cdi"},
@@ -104,23 +107,21 @@ func TestCDISpecDirsAreInSystemInfo(t *testing.T) {
 			expectedInfoCDISpecDirs: []string{},
 		},
 		{
-			description:             "CDI disabled with no spec dirs specified returns empty slice",
+			description:             "CDI explicitly disabled with no spec dirs specified returns empty slice",
+			config:                  `{"features": {"cdi": false}}`,
 			specDirs:                nil,
 			expectedInfoCDISpecDirs: []string{},
 		},
 		{
-			description:             "CDI disabled with specified spec dirs returns empty slice",
+			description:             "CDI explicitly disabled with specified spec dirs returns empty slice",
+			config:                  `{"features": {"cdi": false}}`,
 			specDirs:                []string{"/foo/bar", "/baz/qux"},
 			expectedInfoCDISpecDirs: []string{},
 		},
 		{
-			description:             "CDI disabled with empty string as spec dir returns empty slice",
+			description:             "CDI explicitly disabled with empty string as spec dir returns empty slice",
+			config:                  `{"features": {"cdi": false}}`,
 			specDirs:                []string{""},
-			expectedInfoCDISpecDirs: []string{},
-		},
-		{
-			description:             "CDI disabled with empty config option returns empty slice",
-			config:                  `{"cdi-spec-dirs": []}`,
 			expectedInfoCDISpecDirs: []string{},
 		},
 	}
