@@ -162,3 +162,22 @@ func DecodePlatform(platformJSON string) (*ocispec.Platform, error) {
 
 	return &p, nil
 }
+
+// DecodePlatforms decodes the OCI platform JSON string into a Platform struct.
+//
+// Typically, the argument is a value of: r.Form["platform"]
+func DecodePlatforms(platformJSONs []string) ([]ocispec.Platform, error) {
+	if len(platformJSONs) == 0 {
+		return nil, nil
+	}
+
+	var output []ocispec.Platform
+	for _, platform := range platformJSONs {
+		p, err := DecodePlatform(platform)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, *p)
+	}
+	return output, nil
+}

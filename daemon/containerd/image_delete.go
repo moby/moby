@@ -1,3 +1,6 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23
+
 package containerd
 
 import (
@@ -9,6 +12,7 @@ import (
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -17,6 +21,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/pkg/stringid"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageDelete deletes the image referenced by the given imageRef from this
@@ -99,12 +104,18 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 			c &= ^conflictActiveReference
 		}
 		if named != nil && len(sameRef) > 0 && len(sameRef) != len(all) {
+			if len(options.Platforms) > 0 {
+				return i.deleteImagePlatforms(ctx, img, imgID, options.Platforms)
+			}
 			return i.untagReferences(ctx, sameRef)
 		}
 	} else {
 		imgID = image.ID(img.Target.Digest)
 		explicitDanglingRef := strings.HasPrefix(imageRef, imageNameDanglingPrefix) && isDanglingImage(*img)
 		if isImageIDPrefix(imgID.String(), imageRef) || explicitDanglingRef {
+			if len(options.Platforms) > 0 {
+				return i.deleteImagePlatforms(ctx, img, imgID, options.Platforms)
+			}
 			return i.deleteAll(ctx, imgID, all, c, prune)
 		}
 		parsedRef, err := reference.ParseNormalizedNamed(img.Name)
@@ -117,6 +128,9 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 			return nil, err
 		}
 		if len(sameRef) != len(all) {
+			if len(options.Platforms) > 0 {
+				return i.deleteImagePlatforms(ctx, img, imgID, options.Platforms)
+			}
 			return i.untagReferences(ctx, sameRef)
 		} else if len(all) > 1 && !force {
 			// Since only a single used reference, remove all active
@@ -128,6 +142,15 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 		using := func(c *container.Container) bool {
 			if c.ImageID == imgID {
 				return true
+			}
+
+			if len(options.Platforms) > 0 {
+				for _, p := range options.Platforms {
+					pm := platforms.OnlyStrict(p)
+					if pm.Match(c.ImagePlatform) {
+						return true
+					}
+				}
 			}
 
 			for _, mp := range c.MountPoints {
@@ -159,6 +182,10 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 				return nil, err
 			}
 
+			if len(options.Platforms) > 0 {
+				return i.deleteImagePlatforms(ctx, img, imgID, options.Platforms)
+			}
+
 			// Delete all images
 			err := i.softImageDelete(ctx, *img, all)
 			if err != nil {
@@ -171,7 +198,70 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 		}
 	}
 
+	if len(options.Platforms) > 0 {
+		return i.deleteImagePlatforms(ctx, img, imgID, options.Platforms)
+	}
 	return i.deleteAll(ctx, imgID, all, c, prune)
+}
+
+// deleteImagePlatforms iterates over a slice of platforms and deletes each one for the given image.
+func (i *ImageService) deleteImagePlatforms(ctx context.Context, img *c8dimages.Image, imgID image.ID, platformsToDel []ocispec.Platform) ([]imagetypes.DeleteResponse, error) {
+	var accumulatedResponses []imagetypes.DeleteResponse
+	for _, p := range platformsToDel {
+		platform := p // Create a local copy to take its address
+		responses, err := i.deleteImagePlatformByImageID(ctx, img, imgID, &platform)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete platform %s for image %s: %w", platforms.Format(platform), imgID.String(), err)
+		}
+		accumulatedResponses = append(accumulatedResponses, responses...)
+	}
+	return accumulatedResponses, nil
+}
+
+func (i *ImageService) deleteImagePlatformByImageID(ctx context.Context, img *c8dimages.Image, imgID image.ID, platform *ocispec.Platform) ([]imagetypes.DeleteResponse, error) {
+	pm := platforms.OnlyStrict(*platform)
+	var target ocispec.Descriptor
+	if img == nil {
+		// Find any image with the same target
+		// We're deleting by digest anyway so it doesn't matter - we just
+		// need a c8d image object to pass to getBestPresentImageManifest
+		i, err := i.resolveImage(ctx, imgID.String())
+		if err != nil {
+			return nil, err
+		}
+		img = &i
+	}
+	imgMfst, err := i.getBestPresentImageManifest(ctx, *img, pm)
+	if err != nil {
+		return nil, err
+	}
+	target = imgMfst.Target()
+
+	var toDelete []ocispec.Descriptor
+	err = i.walkPresentChildren(ctx, target, func(ctx context.Context, d ocispec.Descriptor) error {
+		toDelete = append(toDelete, d)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Check if these are not used by other images with different
+	// target root images.
+	// The same manifest can be referenced by different image indexes.
+	var response []imagetypes.DeleteResponse
+	for _, d := range toDelete {
+		if err := i.content.Delete(ctx, d.Digest); err != nil {
+			if cerrdefs.IsNotFound(err) {
+				continue
+			}
+			return nil, err
+		}
+		if c8dimages.IsIndexType(d.MediaType) || c8dimages.IsManifestType(d.MediaType) {
+			response = append(response, imagetypes.DeleteResponse{Deleted: d.Digest.String()})
+		}
+	}
+	return response, nil
 }
 
 // deleteAll deletes the image from the daemon, and if prune is true,

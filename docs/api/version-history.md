@@ -13,6 +13,12 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## TODO REBASE ON v1.50
+
+* `DELETE /images/{name}` now supports a `platforms` query parameter. It accepts
+  a JSON-encoded array of OCI Platform objects, allowing for selecting a specific
+  platforms to delete content for.
+
 ## v1.49 API changes
 
 [Docker Engine API v1.49](https://docs.docker.com/reference/api/engine/version/v1.49/) documentation

@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/pkg/stringid"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -66,7 +67,16 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 	start := time.Now()
 	records := []imagetypes.DeleteResponse{}
 
-	img, err := i.GetImage(ctx, imageRef, backend.GetImageOpts{})
+	var platform *ocispec.Platform
+	switch len(options.Platforms) {
+	case 0:
+	case 1:
+		platform = &options.Platforms[0]
+	default:
+		return nil, errdefs.InvalidParameter(errors.New("multiple platforms are not supported"))
+	}
+
+	img, err := i.GetImage(ctx, imageRef, backend.GetImageOpts{Platform: platform})
 	if err != nil {
 		return nil, err
 	}
