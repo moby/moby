@@ -244,17 +244,15 @@ func (s *State) conditionAlreadyMet(condition container.WaitCondition) bool {
 // Refer to [State.StateString] for order of precedence.
 func (s *State) IsRunning() bool {
 	s.Lock()
-	res := s.Running
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.Running
 }
 
 // GetPID holds the process id of a container.
 func (s *State) GetPID() int {
 	s.Lock()
-	res := s.Pid
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.Pid
 }
 
 // ExitCode returns current exitcode for the state. Take lock before if state
@@ -358,9 +356,8 @@ func (s *State) SetError(err error) {
 // Refer to [State.StateString] for order of precedence.
 func (s *State) IsPaused() bool {
 	s.Lock()
-	res := s.Paused
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.Paused
 }
 
 // IsRestarting returns whether the container is restarting.
@@ -378,9 +375,8 @@ func (s *State) IsPaused() bool {
 // Refer to [State.StateString] for order of precedence.
 func (s *State) IsRestarting() bool {
 	s.Lock()
-	res := s.Restarting
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.Restarting
 }
 
 // SetRemovalInProgress sets the container state as being removed.
@@ -406,17 +402,15 @@ func (s *State) ResetRemovalInProgress() {
 // Used by Container to check whether a container is being removed.
 func (s *State) IsRemovalInProgress() bool {
 	s.Lock()
-	res := s.RemovalInProgress
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.RemovalInProgress
 }
 
 // IsDead returns whether the Dead flag is set. Used by Container to check whether a container is dead.
 func (s *State) IsDead() bool {
 	s.Lock()
-	res := s.Dead
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.Dead
 }
 
 // SetRemoved assumes this container is already in the "dead" state and notifies all waiters.
