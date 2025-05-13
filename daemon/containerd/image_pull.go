@@ -223,7 +223,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 			if strings.Contains(err.Error(), "platform") {
 				platformStr := platforms.DefaultString()
 				if platform != nil {
-					platformStr = platforms.Format(*platform)
+					platformStr = platforms.FormatAll(*platform)
 				}
 				return errdefs.NotFound(fmt.Errorf("no matching manifest for %s in the manifest list entries: %w", platformStr, err))
 			}

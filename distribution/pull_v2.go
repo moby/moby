@@ -836,7 +836,7 @@ func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfst
 	if pp != nil {
 		platform = *pp
 	}
-	log.G(ctx).Debugf("%s resolved to a manifestList object with %d entries; looking for a %s match", ref, len(mfstList.Manifests), platforms.Format(platform))
+	log.G(ctx).Debugf("%s resolved to a manifestList object with %d entries; looking for a %s match", ref, len(mfstList.Manifests), platforms.FormatAll(platform))
 
 	manifestMatches := filterManifests(mfstList.Manifests, platform)
 
