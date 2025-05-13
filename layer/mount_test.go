@@ -17,8 +17,7 @@ func TestMountInit(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Failing on Windows")
 	}
-	ls, _, cleanup := newTestStore(t)
-	defer cleanup()
+	ls, _ := newTestStore(t)
 
 	basefile := newTestFile("testfile.txt", []byte("base data!"), 0o644)
 	initfile := newTestFile("testfile.txt", []byte("init data!"), 0o777)
@@ -76,8 +75,7 @@ func TestMountSize(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Failing on Windows")
 	}
-	ls, _, cleanup := newTestStore(t)
-	defer cleanup()
+	ls, _ := newTestStore(t)
 
 	content1 := []byte("Base contents")
 	content2 := []byte("Mutable contents")
@@ -125,8 +123,7 @@ func TestMountChanges(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Failing on Windows")
 	}
-	ls, _, cleanup := newTestStore(t)
-	defer cleanup()
+	ls, _ := newTestStore(t)
 
 	basefiles := []FileApplier{
 		newTestFile("testfile1.txt", []byte("base data!"), 0o644),
@@ -212,8 +209,7 @@ func TestMountApply(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Failing on Windows")
 	}
-	ls, _, cleanup := newTestStore(t)
-	defer cleanup()
+	ls, _ := newTestStore(t)
 
 	basefile := newTestFile("testfile.txt", []byte("base data!"), 0o644)
 	newfile := newTestFile("newfile.txt", []byte("new data!"), 0o755)
