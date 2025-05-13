@@ -108,7 +108,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 			}
 
 			if !images.OnlyPlatformWithFallback(p).Match(imgPlat) {
-				warnings = append(warnings, fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.Format(imgPlat), platforms.Format(p)))
+				warnings = append(warnings, fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.FormatAll(imgPlat), platforms.FormatAll(p)))
 			}
 		}
 	}
