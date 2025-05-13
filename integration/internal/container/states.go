@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
@@ -32,7 +33,7 @@ func IsStopped(ctx context.Context, apiClient client.APIClient, containerID stri
 }
 
 // IsInState verifies the container is in one of the specified state, e.g., "running", "exited", etc.
-func IsInState(ctx context.Context, apiClient client.APIClient, containerID string, state ...string) func(log poll.LogT) poll.Result {
+func IsInState(ctx context.Context, apiClient client.APIClient, containerID string, state ...container.ContainerState) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		inspect, err := apiClient.ContainerInspect(ctx, containerID)
 		if err != nil {
@@ -58,13 +59,13 @@ func IsSuccessful(ctx context.Context, apiClient client.APIClient, containerID s
 		if err != nil {
 			return poll.Error(err)
 		}
-		if inspect.State.Status == "exited" {
+		if inspect.State.Status == container.StateExited {
 			if inspect.State.ExitCode == 0 {
 				return poll.Success()
 			}
 			return poll.Error(errors.Errorf("expected exit code 0, got %d", inspect.State.ExitCode))
 		}
-		return poll.Continue("waiting for container to be \"exited\", currently %s", inspect.State.Status)
+		return poll.Continue("waiting for container to be %q, currently %s", container.StateExited, inspect.State.Status)
 	}
 }
 

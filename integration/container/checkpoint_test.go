@@ -104,7 +104,7 @@ func TestCheckpoint(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited))
 
 	inspect, err = apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)

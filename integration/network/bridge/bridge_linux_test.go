@@ -520,7 +520,7 @@ func TestPublishedPortAlreadyInUse(t *testing.T) {
 
 	inspect, err := apiClient.ContainerInspect(ctx, ctr2)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(inspect.State.Status, "created"))
+	assert.Check(t, is.Equal(inspect.State.Status, containertypes.StateCreated))
 }
 
 // TestAllPortMappingsAreReturned check that dual-stack ports mapped through

@@ -1981,8 +1981,10 @@ func containerExit(ctx context.Context, apiclient client.APIClient, name string)
 			return poll.Error(err)
 		}
 		switch ctr.State.Status {
-		case "created", "running":
+		case container.StateCreated, container.StateRunning:
 			return poll.Continue("container %s is %s, waiting for exit", name, ctr.State.Status)
+		case container.StatePaused, container.StateRestarting, container.StateRemoving, container.StateExited, container.StateDead:
+			// done
 		}
 		return poll.Success()
 	}
