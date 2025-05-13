@@ -36,7 +36,7 @@ type State struct {
 	Paused            bool
 	Restarting        bool
 	OOMKilled         bool
-	RemovalInProgress bool // Not need for this to be persistent on disk.
+	RemovalInProgress bool `json:"-"` // No need for this to be persistent on disk.
 	Dead              bool
 	Pid               int
 	ExitCodeValue     int    `json:"ExitCode"`

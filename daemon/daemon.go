@@ -495,6 +495,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			}
 
 			c.Lock()
+			// TODO(thaJeztah): we no longer persist RemovalInProgress on disk, so this code is likely redundant; see https://github.com/moby/moby/pull/49968
 			if c.RemovalInProgress {
 				// We probably crashed in the middle of a removal, reset
 				// the flag.
