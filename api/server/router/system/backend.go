@@ -41,6 +41,11 @@ type ClusterBackend interface {
 	Info(context.Context) swarm.Info
 }
 
+// BuildBackend provides build specific system information.
+type BuildBackend interface {
+	DiskUsage(context.Context) ([]*types.BuildCache, error)
+}
+
 // StatusProvider provides methods to get the swarm status of the current node.
 type StatusProvider interface {
 	Status() string
