@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/mount"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
@@ -198,6 +199,14 @@ func ServiceWithPidsLimit(limit int64) ServiceSpecOpt {
 	return func(spec *swarmtypes.ServiceSpec) {
 		ensureResources(spec)
 		spec.TaskTemplate.Resources.Limits.Pids = limit
+	}
+}
+
+// ServiceWithMounts sets the Mounts option of the service's ContainerSpec.
+func ServiceWithMounts(mounts []mount.Mount) ServiceSpecOpt {
+	return func(spec *swarmtypes.ServiceSpec) {
+		ensureContainerSpec(spec)
+		spec.TaskTemplate.ContainerSpec.Mounts = mounts
 	}
 }
 
