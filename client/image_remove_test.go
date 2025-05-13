@@ -12,6 +12,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/image"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -40,6 +41,7 @@ func TestImageRemove(t *testing.T) {
 	removeCases := []struct {
 		force               bool
 		pruneChildren       bool
+		platform            *ocispec.Platform
 		expectedQueryParams map[string]string
 	}{
 		{
@@ -49,12 +51,22 @@ func TestImageRemove(t *testing.T) {
 				"force":   "",
 				"noprune": "1",
 			},
-		}, {
+		},
+		{
 			force:         true,
 			pruneChildren: true,
 			expectedQueryParams: map[string]string{
 				"force":   "1",
 				"noprune": "",
+			},
+		},
+		{
+			platform: &ocispec.Platform{
+				Architecture: "amd64",
+				OS:           "linux",
+			},
+			expectedQueryParams: map[string]string{
+				"platforms": `{"architecture":"amd64","os":"linux"}`,
 			},
 		},
 	}
@@ -92,10 +104,16 @@ func TestImageRemove(t *testing.T) {
 				}, nil
 			}),
 		}
-		imageDeletes, err := client.ImageRemove(context.Background(), "image_id", image.RemoveOptions{
+
+		opts := image.RemoveOptions{
 			Force:         removeCase.force,
 			PruneChildren: removeCase.pruneChildren,
-		})
+		}
+		if removeCase.platform != nil {
+			opts.Platforms = []ocispec.Platform{*removeCase.platform}
+		}
+
+		imageDeletes, err := client.ImageRemove(context.Background(), "image_id", opts)
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(imageDeletes, 2))
 	}
