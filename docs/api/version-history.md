@@ -21,6 +21,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   `DeviceInfo` objects, each providing details about a device discovered by a
   device driver.
   Currently only the CDI device driver is supported.
+* `DELETE /images/{name}` now supports a `platforms` query parameter. It accepts
+  an array of JSON-encoded OCI Platform objects, allowing for selecting specific
+  platforms to delete content for.
 * Deprecated: The `BridgeNfIptables` and `BridgeNfIp6tables` fields in the
   `GET /info` response were deprecated in API v1.48, and are now omitted
   in API v1.50.
