@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/containerd/v2/plugins/content/local"
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/testutils/labelstore"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/moby/go-archive"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -27,7 +28,7 @@ func TestImageLoadMissing(t *testing.T) {
 
 	ctx := namespaces.WithNamespace(context.TODO(), "testing-"+t.Name())
 
-	store, err := local.NewLabeledStore(t.TempDir(), &memoryLabelStore{})
+	store, err := local.NewLabeledStore(t.TempDir(), &labelstore.InMemory{})
 	assert.NilError(t, err)
 
 	imgSvc := fakeImageService(t, ctx, store)
