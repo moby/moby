@@ -1,5 +1,6 @@
 linters:
   enable:
+    - depguard      # Checks for imports that shouldn't be used.
     - exportloopref # Checks for pointers to enclosing loop variables
     - gofmt
     - goimports
@@ -23,6 +24,16 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
 
+  exclude-dirs:
+    - api
+    - cluster
+    - design
+    - docs
+    - docs/man
+    - releases
+    - reports
+    - test # e2e scripts
+
   # Only using / doesn't work due to https://github.com/golangci/golangci-lint/issues/1398.
   exclude-rules:
     - path: 'cmd[\\/]containerd[\\/]builtins[\\/]'
@@ -32,6 +43,24 @@ issues:
     - path: 'archive[\\/]tarheader[\\/]'
       # conversion is necessary on Linux, unnecessary on macOS
       text: "unnecessary conversion"
+    - linters:
+        - revive
+      text: "if-return"
+    - linters:
+        - revive
+      text: "empty-block"
+    - linters:
+        - revive
+      text: "superfluous-else"
+    - linters:
+        - revive
+      text: "unused-parameter"
+    - linters:
+        - revive
+      text: "unreachable-code"
+    - linters:
+        - revive
+      text: "redefines-builtin-id"
 
     # FIXME temporarily suppress deprecation warnings for the logs package. See https://github.com/containerd/containerd/pull/9086
     - text: "SA1019: log\\.(G|L|Fields|Entry|RFC3339NanoFixed|Level|TraceLevel|DebugLevel|InfoLevel|WarnLevel|ErrorLevel|FatalLevel|PanicLevel|SetLevel|GetLevel|OutputFormat|TextFormat|JSONFormat|SetFormat|WithLogger|GetLogger)"
@@ -43,6 +72,14 @@ issues:
 
 
 linters-settings:
+  depguard:
+    rules:
+      main:
+        deny:
+          - pkg: "github.com/containerd/containerd/log"
+            desc: The containerd log package was migrated to a separate module. Use github.com/containerd/log instead.
+          - pkg: "github.com/containerd/containerd/platforms"
+            desc: The containerd platforms package was migrated to a separate module. Use github.com/containerd/platforms instead.
   gosec:
     # The following issues surfaced when `gosec` linter
     # was enabled. They are temporarily excluded to unblock
@@ -54,15 +91,7 @@ linters-settings:
       - G306
       - G402
       - G404
+      - G115
 
 run:
   timeout: 8m
-  skip-dirs:
-    - api
-    - cluster
-    - design
-    - docs
-    - docs/man
-    - releases
-    - reports
-    - test # e2e scripts

@@ -19,9 +19,10 @@ package introspection
 import (
 	context "context"
 
+	"github.com/containerd/log"
+
 	api "github.com/containerd/containerd/api/services/introspection/v1"
 	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/log"
 	ptypes "github.com/containerd/containerd/protobuf/types"
 )
 

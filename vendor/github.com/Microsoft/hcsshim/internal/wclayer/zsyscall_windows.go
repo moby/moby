@@ -33,9 +33,6 @@ func errnoErr(e syscall.Errno) error {
 	case errnoERROR_IO_PENDING:
 		return errERROR_IO_PENDING
 	}
-	// TODO: add more here, after collecting data on the common
-	// error values see on Windows. (perhaps when running
-	// all.bat?)
 	return e
 }
 
@@ -77,7 +74,7 @@ func getDiskFreeSpaceEx(directoryName string, freeBytesAvailableToCaller *int64,
 }
 
 func _getDiskFreeSpaceEx(directoryName *uint16, freeBytesAvailableToCaller *int64, totalNumberOfBytes *int64, totalNumberOfFreeBytes *int64) (err error) {
-	r1, _, e1 := syscall.Syscall6(procGetDiskFreeSpaceExW.Addr(), 4, uintptr(unsafe.Pointer(directoryName)), uintptr(unsafe.Pointer(freeBytesAvailableToCaller)), uintptr(unsafe.Pointer(totalNumberOfBytes)), uintptr(unsafe.Pointer(totalNumberOfFreeBytes)), 0, 0)
+	r1, _, e1 := syscall.SyscallN(procGetDiskFreeSpaceExW.Addr(), uintptr(unsafe.Pointer(directoryName)), uintptr(unsafe.Pointer(freeBytesAvailableToCaller)), uintptr(unsafe.Pointer(totalNumberOfBytes)), uintptr(unsafe.Pointer(totalNumberOfFreeBytes)))
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
@@ -85,7 +82,7 @@ func _getDiskFreeSpaceEx(directoryName *uint16, freeBytesAvailableToCaller *int6
 }
 
 func attachVirtualDisk(handle syscall.Handle, sd uintptr, flags uint32, providerFlags uint32, params uintptr, overlapped uintptr) (err error) {
-	r1, _, e1 := syscall.Syscall6(procAttachVirtualDisk.Addr(), 6, uintptr(handle), uintptr(sd), uintptr(flags), uintptr(providerFlags), uintptr(params), uintptr(overlapped))
+	r1, _, e1 := syscall.SyscallN(procAttachVirtualDisk.Addr(), uintptr(handle), uintptr(sd), uintptr(flags), uintptr(providerFlags), uintptr(params), uintptr(overlapped))
 	if r1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -102,7 +99,7 @@ func openVirtualDisk(virtualStorageType *virtualStorageType, path string, virtua
 }
 
 func _openVirtualDisk(virtualStorageType *virtualStorageType, path *uint16, virtualDiskAccessMask uint32, flags uint32, parameters *openVirtualDiskParameters, handle *syscall.Handle) (err error) {
-	r1, _, e1 := syscall.Syscall6(procOpenVirtualDisk.Addr(), 6, uintptr(unsafe.Pointer(virtualStorageType)), uintptr(unsafe.Pointer(path)), uintptr(virtualDiskAccessMask), uintptr(flags), uintptr(unsafe.Pointer(parameters)), uintptr(unsafe.Pointer(handle)))
+	r1, _, e1 := syscall.SyscallN(procOpenVirtualDisk.Addr(), uintptr(unsafe.Pointer(virtualStorageType)), uintptr(unsafe.Pointer(path)), uintptr(virtualDiskAccessMask), uintptr(flags), uintptr(unsafe.Pointer(parameters)), uintptr(unsafe.Pointer(handle)))
 	if r1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -123,7 +120,7 @@ func _activateLayer(info *driverInfo, id *uint16) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procActivateLayer.Addr(), 2, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), 0)
+	r0, _, _ := syscall.SyscallN(procActivateLayer.Addr(), uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -156,7 +153,7 @@ func _copyLayer(info *driverInfo, srcId *uint16, dstId *uint16, descriptors []WC
 	if len(descriptors) > 0 {
 		_p2 = &descriptors[0]
 	}
-	r0, _, _ := syscall.Syscall6(procCopyLayer.Addr(), 5, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(srcId)), uintptr(unsafe.Pointer(dstId)), uintptr(unsafe.Pointer(_p2)), uintptr(len(descriptors)), 0)
+	r0, _, _ := syscall.SyscallN(procCopyLayer.Addr(), uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(srcId)), uintptr(unsafe.Pointer(dstId)), uintptr(unsafe.Pointer(_p2)), uintptr(len(descriptors)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -185,7 +182,7 @@ func _createLayer(info *driverInfo, id *uint16, parent *uint16) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procCreateLayer.Addr(), 3, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(parent)))
+	r0, _, _ := syscall.SyscallN(procCreateLayer.Addr(), uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(parent)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -213,7 +210,7 @@ func _createSandboxLayer(info *driverInfo, id *uint16, parent uintptr, descripto
 	if len(descriptors) > 0 {
 		_p1 = &descriptors[0]
 	}
-	r0, _, _ := syscall.Syscall6(procCreateSandboxLayer.Addr(), 5, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(parent), uintptr(unsafe.Pointer(_p1)), uintptr(len(descriptors)), 0)
+	r0, _, _ := syscall.SyscallN(procCreateSandboxLayer.Addr(), uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(parent), uintptr(unsafe.Pointer(_p1)), uintptr(len(descriptors)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -237,7 +234,7 @@ func _deactivateLayer(info *driverInfo, id *uint16) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procDeactivateLayer.Addr(), 2, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), 0)
+	r0, _, _ := syscall.SyscallN(procDeactivateLayer.Addr(), uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -261,7 +258,7 @@ func _destroyLayer(info *driverInfo, id *uint16) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procDestroyLayer.Addr(), 2, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), 0)
+	r0, _, _ := syscall.SyscallN(procDestroyLayer.Addr(), uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -285,7 +282,7 @@ func _expandSandboxSize(info *driverInfo, id *uint16, size uint64) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procExpandSandboxSize.Addr(), 3, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(size))
+	r0, _, _ := syscall.SyscallN(procExpandSandboxSize.Addr(), uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(size))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -318,7 +315,7 @@ func _exportLayer(info *driverInfo, id *uint16, path *uint16, descriptors []WC_L
 	if len(descriptors) > 0 {
 		_p2 = &descriptors[0]
 	}
-	r0, _, _ := syscall.Syscall6(procExportLayer.Addr(), 5, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(_p2)), uintptr(len(descriptors)), 0)
+	r0, _, _ := syscall.SyscallN(procExportLayer.Addr(), uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(_p2)), uintptr(len(descriptors)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -333,7 +330,7 @@ func getBaseImages(buffer **uint16) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procGetBaseImages.Addr(), 1, uintptr(unsafe.Pointer(buffer)), 0, 0)
+	r0, _, _ := syscall.SyscallN(procGetBaseImages.Addr(), uintptr(unsafe.Pointer(buffer)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -357,7 +354,7 @@ func _getLayerMountPath(info *driverInfo, id *uint16, length *uintptr, buffer *u
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall6(procGetLayerMountPath.Addr(), 4, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(length)), uintptr(unsafe.Pointer(buffer)), 0, 0)
+	r0, _, _ := syscall.SyscallN(procGetLayerMountPath.Addr(), uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(length)), uintptr(unsafe.Pointer(buffer)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -386,7 +383,7 @@ func _grantVmAccess(vmid *uint16, filepath *uint16) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procGrantVmAccess.Addr(), 2, uintptr(unsafe.Pointer(vmid)), uintptr(unsafe.Pointer(filepath)), 0)
+	r0, _, _ := syscall.SyscallN(procGrantVmAccess.Addr(), uintptr(unsafe.Pointer(vmid)), uintptr(unsafe.Pointer(filepath)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -419,7 +416,7 @@ func _importLayer(info *driverInfo, id *uint16, path *uint16, descriptors []WC_L
 	if len(descriptors) > 0 {
 		_p2 = &descriptors[0]
 	}
-	r0, _, _ := syscall.Syscall6(procImportLayer.Addr(), 5, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(_p2)), uintptr(len(descriptors)), 0)
+	r0, _, _ := syscall.SyscallN(procImportLayer.Addr(), uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(_p2)), uintptr(len(descriptors)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -443,7 +440,7 @@ func _layerExists(info *driverInfo, id *uint16, exists *uint32) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procLayerExists.Addr(), 3, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(exists)))
+	r0, _, _ := syscall.SyscallN(procLayerExists.Addr(), uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(exists)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -467,7 +464,7 @@ func _nameToGuid(name *uint16, guid *_guid) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procNameToGuid.Addr(), 2, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(guid)), 0)
+	r0, _, _ := syscall.SyscallN(procNameToGuid.Addr(), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(guid)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -495,7 +492,7 @@ func _prepareLayer(info *driverInfo, id *uint16, descriptors []WC_LAYER_DESCRIPT
 	if len(descriptors) > 0 {
 		_p1 = &descriptors[0]
 	}
-	r0, _, _ := syscall.Syscall6(procPrepareLayer.Addr(), 4, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(_p1)), uintptr(len(descriptors)), 0, 0)
+	r0, _, _ := syscall.SyscallN(procPrepareLayer.Addr(), uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(_p1)), uintptr(len(descriptors)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -519,7 +516,7 @@ func _processBaseImage(path *uint16) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procProcessBaseImage.Addr(), 1, uintptr(unsafe.Pointer(path)), 0, 0)
+	r0, _, _ := syscall.SyscallN(procProcessBaseImage.Addr(), uintptr(unsafe.Pointer(path)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -543,7 +540,7 @@ func _processUtilityImage(path *uint16) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procProcessUtilityImage.Addr(), 1, uintptr(unsafe.Pointer(path)), 0, 0)
+	r0, _, _ := syscall.SyscallN(procProcessUtilityImage.Addr(), uintptr(unsafe.Pointer(path)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -567,7 +564,7 @@ func _unprepareLayer(info *driverInfo, id *uint16) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procUnprepareLayer.Addr(), 2, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), 0)
+	r0, _, _ := syscall.SyscallN(procUnprepareLayer.Addr(), uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
