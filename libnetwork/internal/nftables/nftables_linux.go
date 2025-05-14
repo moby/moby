@@ -52,7 +52,11 @@ import (
 	"text/template"
 
 	"github.com/containerd/log"
+	"go.opentelemetry.io/otel"
 )
+
+// Prefix for OTEL span names.
+const spanPrefix = "libnetwork.internal.nftables"
 
 var (
 	// nftPath is the path of the "nft" tool, set by [Enable] and left empty if the tool
@@ -696,6 +700,9 @@ func parseTemplate() error {
 
 // nftApply runs the "nft" command.
 func nftApply(ctx context.Context, nftCmd []byte) error {
+	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".nftApply")
+	defer span.End()
+
 	if !Enabled() {
 		return errors.New("nftables is not enabled")
 	}
