@@ -16,11 +16,11 @@ import (
 // ContainerdWorker is a local worker instance with dedicated snapshotter, cache, and so on.
 type ContainerdWorker struct {
 	*base.Worker
-	callbacks exporter.BuildkitCallbacks
+	opt exporter.Opt
 }
 
 // NewContainerdWorker instantiates a local worker.
-func NewContainerdWorker(ctx context.Context, wo base.WorkerOpt, callbacks exporter.BuildkitCallbacks, rt nethttp.RoundTripper) (*ContainerdWorker, error) {
+func NewContainerdWorker(ctx context.Context, wo base.WorkerOpt, opt exporter.Opt, rt nethttp.RoundTripper) (*ContainerdWorker, error) {
 	bw, err := base.NewWorker(ctx, wo)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func NewContainerdWorker(ctx context.Context, wo base.WorkerOpt, callbacks expor
 		log.G(ctx).Warnf("Could not register builder http source: %s", err)
 	}
 
-	return &ContainerdWorker{Worker: bw, callbacks: callbacks}, nil
+	return &ContainerdWorker{Worker: bw, opt: opt}, nil
 }
 
 // Exporter returns exporter by name
@@ -46,7 +46,7 @@ func (w *ContainerdWorker) Exporter(name string, sm *session.Manager) (bkexporte
 		if err != nil {
 			return nil, err
 		}
-		return exporter.NewWrapper(exp, w.callbacks)
+		return exporter.NewWrapper(exp, w.opt)
 	default:
 		return w.Worker.Exporter(name, sm)
 	}
