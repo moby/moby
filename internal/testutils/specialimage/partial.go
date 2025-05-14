@@ -26,7 +26,7 @@ func PartialMultiPlatform(dir string, imageRef string, opts PartialOpts) (*ocisp
 	var descs []ocispec.Descriptor
 
 	for _, platform := range opts.Stored {
-		ps := platforms.Format(platform)
+		ps := platforms.FormatAll(platform)
 		manifestDesc, _, err := oneLayerPlatformManifest(dir, platform, FileInLayer{Path: "bash", Content: []byte("layer-" + ps)})
 		if err != nil {
 			return nil, nil, err
