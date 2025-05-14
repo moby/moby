@@ -134,7 +134,7 @@ func WithIPAM(subnet, gateway string) func(*network.CreateOptions) {
 	return WithIPAMRange(subnet, "", gateway)
 }
 
-// WithIPAM adds an IPAM with the specified Subnet, IPRange and Gateway to the network
+// WithIPAMRange adds an IPAM with the specified Subnet, IPRange and Gateway to the network
 func WithIPAMRange(subnet, iprange, gateway string) func(*network.CreateOptions) {
 	return func(n *network.CreateOptions) {
 		if n.IPAM == nil {

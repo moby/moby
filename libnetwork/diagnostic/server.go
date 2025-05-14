@@ -58,7 +58,7 @@ func (s *Server) Handle(pattern string, handler http.Handler) {
 	s.handlers[pattern] = handler
 }
 
-// Handle registers the handler function for the given pattern,
+// HandleFunc registers the handler function for the given pattern,
 // replacing any existing handler.
 func (s *Server) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
 	s.Handle(pattern, http.HandlerFunc(handler))

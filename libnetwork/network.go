@@ -571,8 +571,8 @@ func (n *Network) advertiseAddrInterval() (time.Duration, bool) {
 	return *v, true
 }
 
-// TODO : Can be made much more generic with the help of reflection (but has some golang limitations)
 func (n *Network) MarshalJSON() ([]byte, error) {
+	// TODO: Can be made much more generic with the help of reflection (but has some golang limitations)
 	netMap := make(map[string]any)
 	netMap["name"] = n.name
 	netMap["id"] = n.id
@@ -630,8 +630,8 @@ func (n *Network) MarshalJSON() ([]byte, error) {
 	return json.Marshal(netMap)
 }
 
-// TODO : Can be made much more generic with the help of reflection (but has some golang limitations)
 func (n *Network) UnmarshalJSON(b []byte) (err error) {
+	// TODO: Can be made much more generic with the help of reflection (but has some golang limitations)
 	var netMap map[string]any
 	if err := json.Unmarshal(b, &netMap); err != nil {
 		return err
