@@ -478,6 +478,8 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	}
 
 	d.args = append(d.args,
+		// Make sure we don't use the environment-provided global config file.
+		"--config-file", "/dev/null",
 		"--data-root", d.Root,
 		"--exec-root", d.execRoot,
 		"--pidfile", d.pidFile,
