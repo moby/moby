@@ -259,9 +259,12 @@ table {{$family}} {{$tableName}} {
 // Apply makes incremental updates to nftables, corresponding to changes to the [TableRef]
 // since Apply was last called.
 func (t TableRef) Apply(ctx context.Context) error {
-	var buf bytes.Buffer
+	if !Enabled() {
+		return errors.New("nftables is not enabled")
+	}
 
 	// Update nftables.
+	var buf bytes.Buffer
 	if err := incrementalUpdateTempl.Execute(&buf, t.t); err != nil {
 		return fmt.Errorf("failed to execute template nft ruleset: %w", err)
 	}
