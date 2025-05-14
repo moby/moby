@@ -182,7 +182,7 @@ func (is *Source) resolveRemote(ctx context.Context, ref string, platform *ocisp
 		p = *platform
 	}
 	// key is used to synchronize resolutions that can happen in parallel when doing multi-stage.
-	key := "getconfig::" + ref + "::" + platforms.Format(p)
+	key := "getconfig::" + ref + "::" + platforms.FormatAll(p)
 	res, err := is.g.Do(ctx, key, func(ctx context.Context) (*resolveRemoteResult, error) {
 		res := resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, "pull", sm, g)
 		dgst, dt, err := imageutil.Config(ctx, ref, res, is.ContentStore, is.LeaseManager, platform)

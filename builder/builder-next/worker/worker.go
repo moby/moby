@@ -160,10 +160,10 @@ func (w *Worker) Platforms(noCache bool) []ocispec.Platform {
 	if noCache {
 		pm := make(map[string]struct{}, len(w.Opt.Platforms))
 		for _, p := range w.Opt.Platforms {
-			pm[platforms.Format(p)] = struct{}{}
+			pm[platforms.FormatAll(p)] = struct{}{}
 		}
 		for _, p := range archutil.SupportedPlatforms(noCache) {
-			if _, ok := pm[platforms.Format(p)]; !ok {
+			if _, ok := pm[platforms.FormatAll(p)]; !ok {
 				w.Opt.Platforms = append(w.Opt.Platforms, p)
 			}
 		}

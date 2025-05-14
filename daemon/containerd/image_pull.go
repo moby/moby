@@ -79,7 +79,7 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output) error {
 	var opts []containerd.RemoteOpt
 	if platform != nil {
-		opts = append(opts, containerd.WithPlatform(platforms.Format(*platform)))
+		opts = append(opts, containerd.WithPlatform(platforms.FormatAll(*platform)))
 	}
 
 	resolver, _ := i.newResolverFromAuthConfig(ctx, authConfig, ref)
