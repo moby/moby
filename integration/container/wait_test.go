@@ -42,7 +42,7 @@ func TestWaitNonBlocked(t *testing.T) {
 
 			ctx := testutil.StartSpan(ctx, t)
 			containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
-			poll.WaitOn(t, container.IsInState(ctx, cli, containerID, "exited"), poll.WithTimeout(30*time.Second))
+			poll.WaitOn(t, container.IsInState(ctx, cli, containerID, containertypes.StateExited), poll.WithTimeout(30*time.Second))
 
 			waitResC, errC := cli.ContainerWait(ctx, containerID, "")
 			select {
@@ -158,7 +158,7 @@ func TestWaitConditions(t *testing.T) {
 			}
 
 			info, _ := cli.ContainerInspect(ctx, containerID)
-			assert.Equal(t, "running", info.State.Status)
+			assert.Equal(t, info.State.Status, containertypes.StateRunning)
 
 			_, err = streams.Conn.Write([]byte("\n"))
 			assert.NilError(t, err)
@@ -169,8 +169,8 @@ func TestWaitConditions(t *testing.T) {
 			case waitRes := <-waitResC:
 				assert.Check(t, is.Equal(int64(99), waitRes.StatusCode))
 			case <-time.After(StopContainerWindowsPollTimeout):
-				info, _ := cli.ContainerInspect(ctx, containerID)
-				t.Fatalf("Timed out waiting for container exit code (status = %q)", info.State.Status)
+				ctr, _ := cli.ContainerInspect(ctx, containerID)
+				t.Fatalf("Timed out waiting for container exit code (status = %q)", ctr.State.Status)
 			}
 		})
 	}

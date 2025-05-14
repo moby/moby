@@ -79,7 +79,7 @@ func TestNoNewPrivileges(t *testing.T) {
 				container.WithSecurityOpt("no-new-privileges=true"),
 			)
 			cid := container.Run(ctx, t, client, opts...)
-			poll.WaitOn(t, container.IsInState(ctx, client, cid, "exited"))
+			poll.WaitOn(t, container.IsInState(ctx, client, cid, containertypes.StateExited))
 
 			// Assert on outputs
 			logReader, err := client.ContainerLogs(ctx, cid, containertypes.LogsOptions{

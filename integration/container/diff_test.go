@@ -38,7 +38,7 @@ func TestDiffStoppedContainer(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("sh", "-c", `mkdir /foo; echo xyzzy > /foo/bar`))
 
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"), poll.WithTimeout(60*time.Second))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited), poll.WithTimeout(60*time.Second))
 
 	expected := []containertypes.FilesystemChange{
 		{Kind: containertypes.ChangeAdd, Path: "/foo"},

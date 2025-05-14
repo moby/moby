@@ -181,27 +181,3 @@ func TestCorrectStateWaitResultAfterRestart(t *testing.T) {
 		t.Fatalf("expected exit code %v, got %v", want.ExitCode, got.ExitCode())
 	}
 }
-
-func TestIsValidStateString(t *testing.T) {
-	states := []struct {
-		state    string
-		expected bool
-	}{
-		{"paused", true},
-		{"restarting", true},
-		{"running", true},
-		{"dead", true},
-		{"start", false},
-		{"created", true},
-		{"exited", true},
-		{"removing", true},
-		{"stop", false},
-	}
-
-	for _, s := range states {
-		v := IsValidStateString(s.state)
-		if v != s.expected {
-			t.Fatalf("Expected %t, but got %t", s.expected, v)
-		}
-	}
-}
