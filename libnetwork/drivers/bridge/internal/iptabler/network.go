@@ -71,15 +71,9 @@ func (n *network) DelNetworkLevelRules(_ context.Context) error {
 
 func (n *network) configure(ctx context.Context, ipv iptables.IPVersion, conf firewaller.NetworkConfigFam) error {
 	if !conf.Prefix.IsValid() {
-		// Delete INC rules, in case they were created by a 28.0.0 daemon that didn't check
-		// whether the network had iptables/ip6tables enabled.
-		// This preserves https://github.com/moby/moby/commit/8cc4d1d4a2b6408232041f9ba4dff966eba80cc0
-		return setINC(ctx, ipv, n.config.IfName, conf.Routed, false)
+		return nil
 	}
-	if err := n.setupIPTables(ctx, ipv, conf); err != nil {
-		return err
-	}
-	return nil
+	return n.setupIPTables(ctx, ipv, conf)
 }
 
 func (n *network) registerCleanFunc(clean iptableCleanFunc) {
@@ -145,15 +139,6 @@ func (n *network) setupIPTables(ctx context.Context, ipVersion iptables.IPVersio
 		n.registerCleanFunc(func() error {
 			return appendOrDelChainRule(jumpToDockerRule, "jump to docker", false)
 		})
-
-		// Register the cleanup function first. Then, if setINC fails after creating
-		// some rules, they will be deleted.
-		n.registerCleanFunc(func() error {
-			return setINC(ctx, ipVersion, n.config.IfName, config.Routed, false)
-		})
-		if err := setINC(ctx, ipVersion, n.config.IfName, config.Routed, true); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -311,26 +296,6 @@ func (n *network) setupNonInternalNetworkRules(ctx context.Context, ipVer iptabl
 				return err
 			}
 		}
-		// If the userland proxy is running (!hairpin), skip DNAT for packets originating from
-		// this new network. Then, the proxy can pick up the packet from the host address the dest
-		// port is published to. Otherwise, if the packet is DNAT'd, it's forwarded straight to the
-		// target network, and will be dropped by network isolation rules if it didn't originate in
-		// the same bridge network. (So, with the proxy enabled, this skip allows a container in one
-		// network to reach a port published by a container in another bridge network.)
-		//
-		// If the userland proxy is disabled, don't skip, so packets will be DNAT'd. That will
-		// enable access to ports published by containers in the same network. But, the INC rules
-		// will block access to that published port from containers in other networks. (However,
-		// users may add a rule to DOCKER-USER to work around the INC rules if needed.)
-		if !n.ipt.config.Hairpin {
-			skipDNAT := iptables.Rule{IPVer: ipVer, Table: iptables.Nat, Chain: dockerChain, Args: []string{
-				"-i", n.config.IfName,
-				"-j", "RETURN",
-			}}
-			if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
-				return err
-			}
-		}
 	}
 
 	// In hairpin mode, masquerade traffic from localhost. If hairpin is disabled or if we're tearing down
@@ -434,70 +399,6 @@ func setIcc(ctx context.Context, version iptables.IPVersion, bridgeIface string,
 	return nil
 }
 
-// Control Inter-Network Communication.
-// Install rules only if they aren't present, remove only if they are.
-// If this method returns an error, it doesn't roll back any rules it has added.
-// No error is returned if rules cannot be removed (errors are just logged).
-func setINC(ctx context.Context, version iptables.IPVersion, iface string, routed, enable bool) (retErr error) {
-	iptable := iptables.GetIptable(version)
-	actionI, actionA := iptables.Insert, iptables.Append
-	actionMsg := "add"
-	if !enable {
-		actionI, actionA = iptables.Delete, iptables.Delete
-		actionMsg = "remove"
-	}
-
-	if routed {
-		// Anything is allowed into a routed network at this stage, so RETURN. Port
-		// filtering rules in the DOCKER chain will drop anything that's not destined
-		// for an open port.
-		if err := iptable.ProgramRule(iptables.Filter, isolationChain1, actionI, []string{
-			"-o", iface,
-			"-j", "RETURN",
-		}); err != nil {
-			log.G(ctx).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
-			if enable {
-				return fmt.Errorf("%s inter-network communication rule: %w", actionMsg, err)
-			}
-		}
-
-		// Allow responses from the routed network into whichever network made the request.
-		if err := iptable.ProgramRule(iptables.Filter, isolationChain1, actionI, []string{
-			"-i", iface,
-			"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED",
-			"-j", "ACCEPT",
-		}); err != nil {
-			log.G(ctx).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
-			if enable {
-				return fmt.Errorf("%s inter-network communication rule: %w", actionMsg, err)
-			}
-		}
-	}
-
-	if err := iptable.ProgramRule(iptables.Filter, isolationChain1, actionA, []string{
-		"-i", iface,
-		"!", "-o", iface,
-		"-j", isolationChain2,
-	}); err != nil {
-		log.G(ctx).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
-		if enable {
-			return fmt.Errorf("%s inter-network communication rule: %w", actionMsg, err)
-		}
-	}
-
-	if err := iptable.ProgramRule(iptables.Filter, isolationChain2, actionI, []string{
-		"-o", iface,
-		"-j", "DROP",
-	}); err != nil {
-		log.G(ctx).WithError(err).Warnf("Failed to %s inter-network communication rule", actionMsg)
-		if enable {
-			return fmt.Errorf("%s inter-network communication rule: %w", actionMsg, err)
-		}
-	}
-
-	return nil
-}
-
 // Obsolete chain from previous docker versions
 const oldIsolationChain = "DOCKER-ISOLATION"
 
@@ -514,6 +415,7 @@ func removeIPChains(ctx context.Context, version iptables.IPVersion) {
 		{Name: DockerForwardChain, Table: iptables.Filter, IPVersion: version},
 		{Name: dockerBridgeChain, Table: iptables.Filter, IPVersion: version},
 		{Name: dockerCTChain, Table: iptables.Filter, IPVersion: version},
+		{Name: dockerInternalChain, Table: iptables.Filter, IPVersion: version},
 		{Name: isolationChain1, Table: iptables.Filter, IPVersion: version},
 		{Name: isolationChain2, Table: iptables.Filter, IPVersion: version},
 		{Name: oldIsolationChain, Table: iptables.Filter, IPVersion: version},
@@ -544,13 +446,13 @@ func setupInternalNetworkRules(ctx context.Context, bridgeIface string, prefix n
 		inDropRule = iptables.Rule{
 			IPVer: version,
 			Table: iptables.Filter,
-			Chain: isolationChain1,
+			Chain: dockerInternalChain,
 			Args:  []string{"-i", bridgeIface, "!", "-d", prefix.String(), "-j", "DROP"},
 		}
 		outDropRule = iptables.Rule{
 			IPVer: version,
 			Table: iptables.Filter,
-			Chain: isolationChain1,
+			Chain: dockerInternalChain,
 			Args:  []string{"-o", bridgeIface, "!", "-s", prefix.String(), "-j", "DROP"},
 		}
 	} else {
@@ -558,13 +460,13 @@ func setupInternalNetworkRules(ctx context.Context, bridgeIface string, prefix n
 		inDropRule = iptables.Rule{
 			IPVer: version,
 			Table: iptables.Filter,
-			Chain: isolationChain1,
+			Chain: dockerInternalChain,
 			Args:  []string{"-i", bridgeIface, "!", "-o", bridgeIface, "!", "-d", prefix.String(), "-j", "DROP"},
 		}
 		outDropRule = iptables.Rule{
 			IPVer: version,
 			Table: iptables.Filter,
-			Chain: isolationChain1,
+			Chain: dockerInternalChain,
 			Args:  []string{"!", "-i", bridgeIface, "-o", bridgeIface, "!", "-s", prefix.String(), "-j", "DROP"},
 		}
 	}

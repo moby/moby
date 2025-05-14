@@ -46,23 +46,18 @@ The filter table is updated as follows:
     Chain DOCKER-FORWARD (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DOCKER-CT  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    2        0     0 DOCKER-INTERNAL  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     3        0     0 DOCKER-BRIDGE  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     4        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
     5        0     0 ACCEPT     0    --  bridgeICC bridgeICC  0.0.0.0/0            0.0.0.0/0           
     6        0     0 DROP       0    --  bridgeNoICC bridgeNoICC  0.0.0.0/0            0.0.0.0/0           
     
-    Chain DOCKER-ISOLATION-STAGE-1 (1 references)
+    Chain DOCKER-INTERNAL (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DROP       0    --  *      bridgeNoICC !198.51.100.0/24      0.0.0.0/0           
     2        0     0 DROP       0    --  bridgeNoICC *       0.0.0.0/0           !198.51.100.0/24     
     3        0     0 DROP       0    --  *      bridgeICC !192.0.2.0/24         0.0.0.0/0           
     4        0     0 DROP       0    --  bridgeICC *       0.0.0.0/0           !192.0.2.0/24        
-    5        0     0 DOCKER-ISOLATION-STAGE-2  0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
-    
-    Chain DOCKER-ISOLATION-STAGE-2 (1 references)
-    num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DROP       0    --  *      docker0  0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-USER (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -78,8 +73,7 @@ The filter table is updated as follows:
     -N DOCKER-BRIDGE
     -N DOCKER-CT
     -N DOCKER-FORWARD
-    -N DOCKER-ISOLATION-STAGE-1
-    -N DOCKER-ISOLATION-STAGE-2
+    -N DOCKER-INTERNAL
     -N DOCKER-USER
     -A FORWARD -j DOCKER-USER
     -A FORWARD -j DOCKER-FORWARD
@@ -87,17 +81,15 @@ The filter table is updated as follows:
     -A DOCKER-BRIDGE -o docker0 -j DOCKER
     -A DOCKER-CT -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     -A DOCKER-FORWARD -j DOCKER-CT
-    -A DOCKER-FORWARD -j DOCKER-ISOLATION-STAGE-1
+    -A DOCKER-FORWARD -j DOCKER-INTERNAL
     -A DOCKER-FORWARD -j DOCKER-BRIDGE
     -A DOCKER-FORWARD -i docker0 -j ACCEPT
     -A DOCKER-FORWARD -i bridgeICC -o bridgeICC -j ACCEPT
     -A DOCKER-FORWARD -i bridgeNoICC -o bridgeNoICC -j DROP
-    -A DOCKER-ISOLATION-STAGE-1 ! -s 198.51.100.0/24 -o bridgeNoICC -j DROP
-    -A DOCKER-ISOLATION-STAGE-1 ! -d 198.51.100.0/24 -i bridgeNoICC -j DROP
-    -A DOCKER-ISOLATION-STAGE-1 ! -s 192.0.2.0/24 -o bridgeICC -j DROP
-    -A DOCKER-ISOLATION-STAGE-1 ! -d 192.0.2.0/24 -i bridgeICC -j DROP
-    -A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
-    -A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
+    -A DOCKER-INTERNAL ! -s 198.51.100.0/24 -o bridgeNoICC -j DROP
+    -A DOCKER-INTERNAL ! -d 198.51.100.0/24 -i bridgeNoICC -j DROP
+    -A DOCKER-INTERNAL ! -s 192.0.2.0/24 -o bridgeICC -j DROP
+    -A DOCKER-INTERNAL ! -d 192.0.2.0/24 -i bridgeICC -j DROP
     
 
 </details>
@@ -106,11 +98,9 @@ By comparison with the [network with external access][1]:
 
 - In the DOCKER-FORWARD chain, there is no ACCEPT rule for outgoing packets (`-i bridgeINC`).
 - There are no rules for this network in the DOCKER chain.
-- In DOCKER-ISOLATION-STAGE-1:
+- In DOCKER-INTERNAL:
   - Rule 1 drops any packet routed to the network that does not have a source address in the network's subnet.
   - Rule 2 drops any packet routed out of the network that does not have a dest address in the network's subnet.
-  - There is no jump to DOCKER-ISOLATION-STAGE-2.
-- DOCKER-ISOLATION-STAGE-2 is unused.
 
 The only difference between `bridgeICC` and `bridgeNoICC` is the rule in the DOCKER-FORWARD
 chain. To enable ICC, the rule for packets looping through the bridge is ACCEPT. For
@@ -137,7 +127,6 @@ And the corresponding nat table:
     
     Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 RETURN     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
     
 
 <details>
@@ -151,7 +140,6 @@ And the corresponding nat table:
     -A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
     -A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER
     -A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
-    -A DOCKER -i docker0 -j RETURN
     
 
 </details>
