@@ -47,7 +47,7 @@ type Bitmap struct {
 	noCopy noCopy
 }
 
-// NewHandle returns a new Bitmap of ordinals in the interval [0, n).
+// New returns a new Bitmap of ordinals in the interval [0, n).
 func New(n uint64) *Bitmap {
 	return &Bitmap{
 		bits:       n,
