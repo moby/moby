@@ -23,8 +23,6 @@ Note that:
  - In the DOCKER-FORWARD chain, rule 5 for outgoing traffic from the new network has been
    appended to the end of the chain.
  - The DOCKER-CT and DOCKER-FORWARD chains each have a rule for the new network.
- - In the DOCKER-ISOLATION chains, rules equivalent to the docker0 rules have
-   also been inserted for the new bridge.
  - In the DOCKER chain, there is an ACCEPT rule for TCP port 80 packets routed
    to the container's address. This rule is added when the container is created
    (unlike all the other rules so-far, which were created during driver or
@@ -35,8 +33,8 @@ Note that:
      created before `bridge1`, the `bridge1` rules appear above and below the
      `docker0` DROP rule.
 
-[1]: https://github.com/moby/moby/blob/675c2ac2db93e38bb9c5a6615d4155a969535fd9/libnetwork/drivers/bridge/port_mapping_linux.go#L795
-[2]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L252
+[1]: https://github.com/search?q=repo%3Amoby%2Fmoby+setPerPortForwarding&type=code
+[2]: https://github.com/search?q=repo%3Amoby%2Fmoby%20setDefaultForwardRule&type=code
 
 The corresponding nat table:
 

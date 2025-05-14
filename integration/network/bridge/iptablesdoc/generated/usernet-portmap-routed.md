@@ -41,22 +41,13 @@ The filter table is:
     Chain DOCKER-FORWARD (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DOCKER-CT  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    2        0     0 DOCKER-INTERNAL  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     3        0     0 DOCKER-BRIDGE  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     4        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
     5        0     0 ACCEPT     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0           
     
-    Chain DOCKER-ISOLATION-STAGE-1 (1 references)
+    Chain DOCKER-INTERNAL (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 ACCEPT     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
-    2        0     0 RETURN     0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
-    3        0     0 DOCKER-ISOLATION-STAGE-2  0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
-    4        0     0 DOCKER-ISOLATION-STAGE-2  0    --  bridge1 !bridge1  0.0.0.0/0            0.0.0.0/0           
-    
-    Chain DOCKER-ISOLATION-STAGE-2 (2 references)
-    num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DROP       0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DROP       0    --  *      docker0  0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-USER (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -72,8 +63,7 @@ The filter table is:
     -N DOCKER-BRIDGE
     -N DOCKER-CT
     -N DOCKER-FORWARD
-    -N DOCKER-ISOLATION-STAGE-1
-    -N DOCKER-ISOLATION-STAGE-2
+    -N DOCKER-INTERNAL
     -N DOCKER-USER
     -A FORWARD -j DOCKER-USER
     -A FORWARD -j DOCKER-FORWARD
@@ -86,31 +76,16 @@ The filter table is:
     -A DOCKER-CT -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     -A DOCKER-CT -o bridge1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     -A DOCKER-FORWARD -j DOCKER-CT
-    -A DOCKER-FORWARD -j DOCKER-ISOLATION-STAGE-1
+    -A DOCKER-FORWARD -j DOCKER-INTERNAL
     -A DOCKER-FORWARD -j DOCKER-BRIDGE
     -A DOCKER-FORWARD -i docker0 -j ACCEPT
     -A DOCKER-FORWARD -i bridge1 -j ACCEPT
-    -A DOCKER-ISOLATION-STAGE-1 -i bridge1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    -A DOCKER-ISOLATION-STAGE-1 -o bridge1 -j RETURN
-    -A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
-    -A DOCKER-ISOLATION-STAGE-1 -i bridge1 ! -o bridge1 -j DOCKER-ISOLATION-STAGE-2
-    -A DOCKER-ISOLATION-STAGE-2 -o bridge1 -j DROP
-    -A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
     
 
 </details>
 
 Compared to the equivalent [nat mode network][1]:
 
-- In DOCKER-ISOLATION-STAGE-1:
-  - Rule 1 accepts outgoing packets related to established connections. This
-    is for responses to containers on NAT networks that would not normally
-    accept packets from another network, and may have port/protocol filtering
-    rules in place that would otherwise drop these responses.
-  - Rule 2 skips the jump to DOCKER-ISOLATION-STAGE-2 for any packet routed
-    to the routed-mode network. So, it will accept packets from other networks,
-    if they make it through the port/protocol filtering rules in the DOCKER
-    chain.
 - In the DOCKER chain:
   - A rule is added by [setICMP][5] to allow ICMP.
     *ALL* ICMP message types are allowed.
@@ -163,8 +138,6 @@ The nat table is:
     
     Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 RETURN     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0           
-    2        0     0 RETURN     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
     
 
 <details>
@@ -178,8 +151,6 @@ The nat table is:
     -A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
     -A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER
     -A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
-    -A DOCKER -i bridge1 -j RETURN
-    -A DOCKER -i docker0 -j RETURN
     
 
 </details>
