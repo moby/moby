@@ -385,7 +385,9 @@ func (ep *Endpoint) needResolver() bool {
 	return !ep.disableResolution
 }
 
-// endpoint Key structure : endpoint/network-id/endpoint-id
+// Key returns the endpoint's key.
+//
+// Key structure: endpoint/network-id/endpoint-id
 func (ep *Endpoint) Key() []string {
 	if ep.network == nil {
 		return nil
