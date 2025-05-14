@@ -148,8 +148,8 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 	// Update our local clock if the received messages has newer time.
 	nDB.tableClock.Witness(tEvent.LTime)
 
+	nDB.Lock()
 	// Ignore the table events for networks that are in the process of going away
-	nDB.RLock()
 	networks := nDB.networks[nDB.config.NodeID]
 	network, ok := networks[tEvent.NetworkID]
 	// Check if the owner of the event is still part of the network
@@ -161,14 +161,13 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 			break
 		}
 	}
-	nDB.RUnlock()
 
 	if !ok || network.leaving || !nodePresent {
 		// I'm out of the network OR the event owner is not anymore part of the network so do not propagate
+		nDB.Unlock()
 		return false
 	}
 
-	nDB.Lock()
 	e, err := nDB.getEntry(tEvent.TableName, tEvent.NetworkID, tEvent.Key)
 	if err == nil {
 		// We have the latest state. Ignore the event
