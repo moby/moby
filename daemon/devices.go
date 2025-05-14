@@ -1,16 +1,31 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
+
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/system"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/internal/capabilities"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 var deviceDrivers = map[string]*deviceDriver{}
 
+type deviceListing struct {
+	Devices  []system.DeviceInfo
+	Warnings []string
+}
+
 type deviceDriver struct {
 	capset     capabilities.Set
 	updateSpec func(*specs.Spec, *deviceInstance) error
+
+	// ListDevices returns a list of discoverable devices provided by this
+	// driver, any warnings encountered during the discovery, and an error if
+	// the overall listing operation failed.
+	// Can be nil if the driver does not provide a device listing.
+	ListDevices func(ctx context.Context, cfg *config.Config) (deviceListing, error)
 }
 
 type deviceInstance struct {

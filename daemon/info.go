@@ -94,6 +94,7 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 	daemon.fillLicense(v)
 	daemon.fillDefaultAddressPools(ctx, v, &cfg.Config)
 	daemon.fillFirewallInfo(v)
+	daemon.fillDiscoveredDevicesFromDrivers(ctx, v, &cfg.Config)
 
 	return v, nil
 }
@@ -387,4 +388,41 @@ func promoteNil[S ~[]E, E any](s S) S {
 		return S{}
 	}
 	return s
+}
+
+// fillDiscoveredDevicesFromDrivers iterates over registered device drivers
+// and calls their ListDevices method (if available) to populate system info.
+func (daemon *Daemon) fillDiscoveredDevicesFromDrivers(ctx context.Context, v *system.Info, cfg *config.Config) {
+	ctx, span := tracing.StartSpan(ctx, "daemon.fillDiscoveredDevicesFromDrivers")
+	defer span.End()
+
+	// Make sure v.DiscoveredDevices is initialized to an empty slice instead of nil.
+	// This ensures that the JSON output is always a valid array, even if no devices are discovered.
+	v.DiscoveredDevices = []system.DeviceInfo{}
+
+	for driverName, driver := range deviceDrivers {
+		if driver.ListDevices == nil {
+			log.G(ctx).WithField("driver", driverName).Trace("Device driver does not implement ListDevices method.")
+			continue
+		}
+
+		ls, err := driver.ListDevices(ctx, cfg)
+		if err != nil {
+			log.G(ctx).WithFields(log.Fields{
+				"driver": driverName,
+				"error":  err,
+			}).Warn("Failed to list devices for driver")
+			v.Warnings = append(v.Warnings, fmt.Sprintf("Failed to list devices from driver '%s': %v", driverName, err))
+			continue
+		}
+
+		if len(ls.Warnings) > 0 {
+			v.Warnings = append(v.Warnings, ls.Warnings...)
+		}
+
+		for _, device := range ls.Devices {
+			device.Source = driverName
+			v.DiscoveredDevices = append(v.DiscoveredDevices, device)
+		}
+	}
 }
