@@ -13,6 +13,15 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.50 API changes
+
+[Docker Engine API v1.50](https://docs.docker.com/reference/api/engine/version/v1.50/) documentation
+
+* `GET /info` now includes a `DiscoveredDevices` field. This is an array of
+  `DeviceInfo` objects, each providing details about a device discovered by a
+  device driver.
+  Currently only the CDI device driver is supported.
+
 ## v1.49 API changes
 
 [Docker Engine API v1.49](https://docs.docker.com/reference/api/engine/version/v1.49/) documentation

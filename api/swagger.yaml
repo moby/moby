@@ -2956,6 +2956,23 @@ definitions:
       progressDetail:
         $ref: "#/definitions/ProgressDetail"
 
+  DeviceInfo:
+    type: "object"
+    description: |
+      DeviceInfo represents a device that can be used by a container.
+    properties:
+      Source:
+        type: "string"
+        example: "cdi"
+        description: |
+          The origin device driver.
+      ID:
+        type: "string"
+        example: "vendor.com/gpu=0"
+        description: |
+          The unique identifier for the device within its source driver.
+          For CDI devices, this would be an FQDN like "vendor.com/gpu=0".
+
   ErrorDetail:
     type: "object"
     properties:
@@ -6858,6 +6875,15 @@ definitions:
               example: "24"
       FirewallBackend:
         $ref: "#/definitions/FirewallInfo"
+      DiscoveredDevices:
+        description: |
+          List of devices discovered by device drivers.
+
+          Each device includes information about its source driver, kind, name,
+          and additional driver-specific attributes.
+        type: "array"
+        items:
+          $ref: "#/definitions/DeviceInfo"
       Warnings:
         description: |
           List of warnings / informational messages about missing features, or
