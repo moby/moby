@@ -3,7 +3,6 @@ package nftables
 import (
 	"context"
 	"os"
-	"sync"
 	"testing"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
@@ -28,16 +27,8 @@ func testSetup(t *testing.T) func() {
 	cleanupContext := netnsutils.SetupTestOSContext(t)
 	return func() {
 		cleanupContext()
-		disable()
+		Disable()
 	}
-}
-
-// disable undoes Enable
-func disable() {
-	incrementalUpdateTempl = nil
-	nftPath = ""
-	reloadTempl = nil
-	enableOnce = sync.Once{}
 }
 
 func applyAndCheck(t *testing.T, tbl TableRef, goldenFilename string) {
