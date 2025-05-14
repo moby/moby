@@ -30,7 +30,7 @@ func RegisterCDIDriver(cdiSpecDirs ...string) {
 func newCDIDeviceDriver(cdiSpecDirs ...string) *deviceDriver {
 	cache, err := createCDICache(cdiSpecDirs...)
 	if err != nil {
-		log.G(context.TODO()).WithError(err)
+		log.G(context.TODO()).WithError(err).Error("Failed to create CDI cache")
 		// We create a spec updater that always returns an error.
 		// This error will be returned only when a CDI device is requested.
 		// This ensures that daemon startup is not blocked by a CDI registry initialization failure or being disabled
