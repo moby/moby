@@ -167,11 +167,12 @@ func windowsValidateAbsolute(p string) error {
 }
 
 func windowsDetectMountType(p string) mount.Type {
-	if strings.HasPrefix(p, `\\.\pipe\`) {
+	switch {
+	case strings.HasPrefix(p, `\\.\pipe\`):
 		return mount.TypeNamedPipe
-	} else if hostDirRegexp.MatchString(p) {
+	case hostDirRegexp.MatchString(p):
 		return mount.TypeBind
-	} else {
+	default:
 		return mount.TypeVolume
 	}
 }
