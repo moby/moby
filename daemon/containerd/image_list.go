@@ -358,14 +358,13 @@ func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.I
 		return nil
 	})
 	if err != nil {
-		if errors.Is(err, errNotManifestOrIndex) {
-			log.G(ctx).WithFields(log.Fields{
-				"error": err,
-				"image": img.Name,
-			}).Warn("unexpected image target (neither a manifest nor index)")
-		} else {
+		if !errors.Is(err, errNotManifestOrIndex) {
 			return nil, err
 		}
+		log.G(ctx).WithFields(log.Fields{
+			"error": err,
+			"image": img.Name,
+		}).Warn("unexpected image target (neither a manifest nor index)")
 	}
 
 	return &summary, nil

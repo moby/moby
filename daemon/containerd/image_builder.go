@@ -152,26 +152,25 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 
 	img, err := i.GetImage(ctx, name, backend.GetImageOpts{Platform: platform})
 	if err != nil {
-		if cerrdefs.IsNotFound(err) && img != nil && platform != nil {
-			imgPlat := ocispec.Platform{
-				OS:           img.OS,
-				Architecture: img.BaseImgArch(),
-				Variant:      img.BaseImgVariant(),
-			}
+		if !cerrdefs.IsNotFound(err) || img == nil || platform == nil {
+			return nil, err
+		}
+		imgPlat := ocispec.Platform{
+			OS:           img.OS,
+			Architecture: img.BaseImgArch(),
+			Variant:      img.BaseImgVariant(),
+		}
 
-			p := *platform
-			if !platforms.Only(p).Match(imgPlat) {
-				po := streamformatter.NewJSONProgressOutput(output, false)
-				progress.Messagef(po, "", `
+		p := *platform
+		if !platforms.Only(p).Match(imgPlat) {
+			po := streamformatter.NewJSONProgressOutput(output, false)
+			progress.Messagef(po, "", `
 WARNING: Pulled image with specified platform (%s), but the resulting image's configured platform (%s) does not match.
 This is most likely caused by a bug in the build system that created the fetched image (%s).
 Please notify the image author to correct the configuration.`,
-					platforms.FormatAll(p), platforms.FormatAll(imgPlat), name,
-				)
-				log.G(ctx).WithError(err).WithField("image", name).Warn("Ignoring error about platform mismatch where the manifest list points to an image whose configuration does not match the platform in the manifest.")
-			}
-		} else {
-			return nil, err
+				platforms.FormatAll(p), platforms.FormatAll(imgPlat), name,
+			)
+			log.G(ctx).WithError(err).WithField("image", name).Warn("Ignoring error about platform mismatch where the manifest list points to an image whose configuration does not match the platform in the manifest.")
 		}
 	}
 
