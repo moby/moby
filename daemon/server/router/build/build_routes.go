@@ -1,4 +1,4 @@
-package build // import "github.com/docker/docker/api/server/router/build"
+package build // import "github.com/docker/docker/daemon/server/router/build"
 
 import (
 	"bufio"
