@@ -107,7 +107,7 @@ func newVolumePlugin(t *testing.T, name string) *volumePlugin {
 	send := func(w http.ResponseWriter, data interface{}) {
 		switch d := data.(type) {
 		case error:
-			http.Error(w, d.Error(), 500)
+			http.Error(w, d.Error(), http.StatusInternalServerError)
 		case string:
 			w.Header().Set("Content-Type", plugins.VersionMimetype)
 			_, _ = fmt.Fprintln(w, d)

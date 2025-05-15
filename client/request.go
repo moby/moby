@@ -195,7 +195,7 @@ func (cli *Client) checkResponseErr(serverResp *http.Response) (retErr error) {
 	if serverResp == nil {
 		return nil
 	}
-	if serverResp.StatusCode >= 200 && serverResp.StatusCode < 400 {
+	if serverResp.StatusCode >= http.StatusOK && serverResp.StatusCode < http.StatusBadRequest {
 		return nil
 	}
 	defer func() {

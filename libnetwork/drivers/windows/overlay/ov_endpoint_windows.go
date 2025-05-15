@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/log"
@@ -77,7 +78,7 @@ func (n *network) removeEndpointWithAddress(addr *net.IPNet) {
 
 	if networkEndpoint != nil {
 		log.G(context.TODO()).Debugf("Removing stale endpoint from HNS")
-		_, err := hcsshim.HNSEndpointRequest("DELETE", networkEndpoint.profileID, "")
+		_, err := hcsshim.HNSEndpointRequest(http.MethodDelete, networkEndpoint.profileID, "")
 		if err != nil {
 			log.G(context.TODO()).Debugf("Failed to delete stale overlay endpoint (%.7s) from hns", networkEndpoint.id)
 		}
@@ -99,7 +100,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	if ep != nil {
 		log.G(ctx).Debugf("Deleting stale endpoint %s", eid)
 		n.deleteEndpoint(eid)
-		_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileID, "")
+		_, err := hcsshim.HNSEndpointRequest(http.MethodDelete, ep.profileID, "")
 		if err != nil {
 			return err
 		}
@@ -182,7 +183,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		return err
 	}
 
-	hnsresponse, err := hcsshim.HNSEndpointRequest("POST", "", string(configurationb))
+	hnsresponse, err := hcsshim.HNSEndpointRequest(http.MethodPost, "", string(configurationb))
 	if err != nil {
 		return err
 	}
@@ -202,7 +203,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 
 	ep.portMapping, err = windows.ParsePortBindingPolicies(hnsresponse.Policies)
 	if err != nil {
-		hcsshim.HNSEndpointRequest("DELETE", hnsresponse.Id, "")
+		hcsshim.HNSEndpointRequest(http.MethodDelete, hnsresponse.Id, "")
 		return err
 	}
 
@@ -230,7 +231,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 
 	n.deleteEndpoint(eid)
 
-	_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileID, "")
+	_, err := hcsshim.HNSEndpointRequest(http.MethodDelete, ep.profileID, "")
 	if err != nil {
 		return err
 	}

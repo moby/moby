@@ -297,9 +297,9 @@ func TestPullSchema2Config(t *testing.T) {
 				t.Logf("HTTP %s %s", r.Method, r.URL.Path)
 				defer r.Body.Close()
 				switch {
-				case r.Method == "GET" && r.URL.Path == "/v2":
+				case r.Method == http.MethodGet && r.URL.Path == "/v2":
 					w.WriteHeader(http.StatusOK)
-				case r.Method == "GET" && r.URL.Path == "/v2/library/testremotename/blobs/"+expectedDigest.String():
+				case r.Method == http.MethodGet && r.URL.Path == "/v2/library/testremotename/blobs/"+expectedDigest.String():
 					tc.handler(int(callCount.Add(1)), w)
 				default:
 					w.WriteHeader(http.StatusNotFound)

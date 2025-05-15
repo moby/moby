@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"net"
+	"net/http"
 	"sync"
 
 	"github.com/Microsoft/hcsshim"
@@ -40,7 +41,7 @@ func Register(r driverapi.Registerer) error {
 func (d *driver) restoreHNSNetworks() error {
 	log.G(context.TODO()).Infof("Restoring existing overlay networks from HNS into docker")
 
-	hnsresponse, err := hcsshim.HNSListNetworkRequest("GET", "", "")
+	hnsresponse, err := hcsshim.HNSListNetworkRequest(http.MethodGet, "", "")
 	if err != nil {
 		return err
 	}

@@ -55,7 +55,7 @@ func regexpCheckUA(c *testing.T, ua string) {
 // with the request.
 func registerUserAgentHandler(reg *registry.Mock, result *string) {
 	reg.RegisterHandler("/v2/", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(`{"errors":[{"code": "UNSUPPORTED","message": "this is a mock registry"}]}`))
 		var ua string
 		for k, v := range r.Header {

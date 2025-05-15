@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"net/netip"
 	"runtime"
 	"strings"
@@ -55,7 +56,7 @@ func (n *Network) startResolver() {
 			return
 		}
 
-		hnsresponse, err := hcsshim.HNSNetworkRequest("GET", hnsid, "")
+		hnsresponse, err := hcsshim.HNSNetworkRequest(http.MethodGet, hnsid, "")
 		if err != nil {
 			log.G(context.TODO()).Errorf("Resolver Setup/Start failed for container %s, %q", n.Name(), err)
 			return
