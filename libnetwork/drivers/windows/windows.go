@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -373,7 +374,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 		configuration := string(configurationb)
 		log.G(ctx).Debugf("HNSNetwork Request =%v Address Space=%v", configuration, subnets)
 
-		hnsresponse, err := hcsshim.HNSNetworkRequest("POST", "", configuration)
+		hnsresponse, err := hcsshim.HNSNetworkRequest(http.MethodPost, "", configuration)
 		if err != nil {
 			return err
 		}
@@ -417,7 +418,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 			for _, ep := range endpoints {
 				if ep.VirtualNetwork == config.HnsID {
 					log.G(ctx).Infof("Removing stale HNS endpoint %s", ep.Id)
-					_, err = hcsshim.HNSEndpointRequest("DELETE", ep.Id, "")
+					_, err = hcsshim.HNSEndpointRequest(http.MethodDelete, ep.Id, "")
 					if err != nil {
 						log.G(ctx).Warnf("Error removing HNS endpoint %s", ep.Id)
 					}
@@ -444,7 +445,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	n.Unlock()
 
 	if n.created {
-		_, err = hcsshim.HNSNetworkRequest("DELETE", config.HnsID, "")
+		_, err = hcsshim.HNSNetworkRequest(http.MethodDelete, config.HnsID, "")
 		if err != nil && !strings.EqualFold(err.Error(), errNotFound) {
 			return types.ForbiddenErrorf("%v", err)
 		}
@@ -723,7 +724,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		return err
 	}
 
-	hnsresponse, err := hcsshim.HNSEndpointRequest("POST", "", string(configurationb))
+	hnsresponse, err := hcsshim.HNSEndpointRequest(http.MethodPost, "", string(configurationb))
 	if err != nil {
 		return err
 	}
@@ -751,7 +752,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	endpoint.epOption = epOption
 	endpoint.portMapping, err = ParsePortBindingPolicies(hnsresponse.Policies)
 	if err != nil {
-		hcsshim.HNSEndpointRequest("DELETE", hnsresponse.Id, "")
+		hcsshim.HNSEndpointRequest(http.MethodDelete, hnsresponse.Id, "")
 		return err
 	}
 
@@ -793,7 +794,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	delete(n.endpoints, eid)
 	n.Unlock()
 
-	_, err = hcsshim.HNSEndpointRequest("DELETE", ep.profileID, "")
+	_, err = hcsshim.HNSEndpointRequest(http.MethodDelete, ep.profileID, "")
 	if err != nil && !strings.EqualFold(err.Error(), errNotFound) {
 		return err
 	}

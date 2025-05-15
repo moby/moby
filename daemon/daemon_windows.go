@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net/http"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -242,7 +243,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 		return errors.Wrap(err, "error obtaining controller instance")
 	}
 
-	hnsresponse, err := hcsshim.HNSListNetworkRequest("GET", "", "")
+	hnsresponse, err := hcsshim.HNSListNetworkRequest(http.MethodGet, "", "")
 	if err != nil {
 		return err
 	}

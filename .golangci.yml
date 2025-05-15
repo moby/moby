@@ -44,6 +44,7 @@ linters:
     - staticcheck
     - unconvert                 # Detects unnecessary type conversions.
     - unused
+    - usestdlibvars             # Detects the possibility to use variables/constants from the Go standard library.
     - wastedassign              # Detects wasted assignment statements.
 
   disable:
@@ -163,6 +164,12 @@ linters:
         - end             # check that `span.End()` is called
         - record-error    # check that `span.RecordError(err)` is called when an error is returned
         - set-status      # check that `span.SetStatus(codes.Error, msg)` is called when an error is returned
+
+    usestdlibvars:
+      # Suggest the use of http.MethodXX.
+      http-method: true
+      # Suggest the use of http.StatusXX.
+      http-status-code: true
 
   exclusions:
     paths:

@@ -54,7 +54,7 @@ func TestVolumeRequestError(t *testing.T) {
 
 	mux.HandleFunc("/VolumeDriver.Capabilities", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		http.Error(w, "error", 500)
+		http.Error(w, "error", http.StatusInternalServerError)
 	})
 
 	u, _ := url.Parse(server.URL)

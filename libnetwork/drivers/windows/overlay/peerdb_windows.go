@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/log"
@@ -63,7 +64,7 @@ func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask, 
 		}
 
 		n.removeEndpointWithAddress(addr)
-		hnsresponse, err := hcsshim.HNSEndpointRequest("POST", "", string(configurationb))
+		hnsresponse, err := hcsshim.HNSEndpointRequest(http.MethodPost, "", string(configurationb))
 		if err != nil {
 			return err
 		}
@@ -101,7 +102,7 @@ func (d *driver) peerDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMas
 	}
 
 	if updateDb {
-		_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileID, "")
+		_, err := hcsshim.HNSEndpointRequest(http.MethodDelete, ep.profileID, "")
 		if err != nil {
 			return err
 		}

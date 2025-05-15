@@ -30,7 +30,7 @@ func (s *DockerRegistrySuite) TestV2Only(c *testing.T) {
 	defer reg.Close()
 
 	reg.RegisterHandler("/v2/", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 	})
 
 	reg.RegisterHandler("/v1/.*", func(w http.ResponseWriter, r *http.Request) {

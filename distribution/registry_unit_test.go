@@ -30,7 +30,7 @@ func (h *tokenPassThruHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 	if h.shouldSend401 == nil || h.shouldSend401(r.RequestURI) {
 		w.Header().Set("WWW-Authenticate", `Bearer realm="foorealm"`)
-		w.WriteHeader(401)
+		w.WriteHeader(http.StatusUnauthorized)
 	}
 }
 
@@ -82,7 +82,7 @@ func TestTokenPassThruDifferentHost(t *testing.T) {
 	tsredirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.RequestURI == "/v2/" {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="foorealm"`)
-			w.WriteHeader(401)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		http.Redirect(w, r, ts.URL+r.URL.Path, http.StatusMovedPermanently)

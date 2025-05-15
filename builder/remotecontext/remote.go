@@ -53,7 +53,7 @@ func GetWithStatusError(address string) (*http.Response, error) {
 		}
 		return nil, errdefs.System(err)
 	}
-	if resp.StatusCode < 400 {
+	if resp.StatusCode < http.StatusBadRequest {
 		return resp, nil
 	}
 	msg := fmt.Sprintf("failed to GET %s with status %s", address, resp.Status)
