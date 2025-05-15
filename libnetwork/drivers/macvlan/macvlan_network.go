@@ -146,7 +146,7 @@ func (d *driver) parentHasSingleUser(n *network) bool {
 	networkList := d.getNetworks()
 	for _, testN := range networkList {
 		if n.config.Parent == testN.config.Parent {
-			users += 1
+			users++
 		}
 	}
 	return users == 1
