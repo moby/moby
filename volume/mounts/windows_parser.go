@@ -171,9 +171,8 @@ func windowsDetectMountType(p string) mount.Type {
 		return mount.TypeNamedPipe
 	} else if hostDirRegexp.MatchString(p) {
 		return mount.TypeBind
-	} else {
-		return mount.TypeVolume
 	}
+	return mount.TypeVolume
 }
 
 func (p *windowsParser) ReadWrite(mode string) bool {
