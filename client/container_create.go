@@ -156,13 +156,13 @@ func normalizeCapabilities(caps []string) []string {
 // normalizeCap normalizes a capability to its canonical format by upper-casing
 // and adding a "CAP_" prefix (if not yet present). It also accepts the "ALL"
 // magic-value.
-func normalizeCap(cap string) string {
-	cap = strings.ToUpper(cap)
-	if cap == allCapabilities {
-		return cap
+func normalizeCap(capability string) string {
+	capability = strings.ToUpper(capability)
+	if capability == allCapabilities {
+		return capability
 	}
-	if !strings.HasPrefix(cap, "CAP_") {
-		cap = "CAP_" + cap
+	if !strings.HasPrefix(capability, "CAP_") {
+		capability = "CAP_" + capability
 	}
-	return cap
+	return capability
 }
