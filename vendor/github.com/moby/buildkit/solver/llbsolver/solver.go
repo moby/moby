@@ -207,7 +207,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 		}
 
 		ctx, cancel := context.WithCancelCause(ctx)
-		ctx, _ = context.WithTimeoutCause(ctx, 300*time.Second, errors.WithStack(context.DeadlineExceeded))
+		ctx, _ = context.WithTimeoutCause(ctx, 300*time.Second, errors.WithStack(context.DeadlineExceeded)) //nolint:govet
 		defer func() { cancel(errors.WithStack(context.Canceled)) }()
 
 		var mu sync.Mutex
@@ -237,7 +237,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 			if err != nil {
 				return nil, nil, err
 			}
-			pr, err := prc.Predicate()
+			pr, err := prc.Predicate(ctx)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -676,7 +676,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 
 func (s *Solver) getSessionExporters(ctx context.Context, sessionID string, id int, inp *exporter.Source) ([]exporter.ExporterInstance, error) {
 	timeoutCtx, cancel := context.WithCancelCause(ctx)
-	timeoutCtx, _ = context.WithTimeoutCause(timeoutCtx, 5*time.Second, errors.WithStack(context.DeadlineExceeded))
+	timeoutCtx, _ = context.WithTimeoutCause(timeoutCtx, 5*time.Second, errors.WithStack(context.DeadlineExceeded)) //nolint:govet
 	defer func() { cancel(errors.WithStack(context.Canceled)) }()
 
 	caller, err := s.sm.Get(timeoutCtx, sessionID, false)
@@ -753,10 +753,10 @@ func runCacheExporters(ctx context.Context, exporters []RemoteCacheExporter, j *
 		i, exp := i, exp
 		eg.Go(func() (err error) {
 			id := fmt.Sprint(j.SessionID, "-cache-", i)
-			err = inBuilderContext(ctx, j, exp.Exporter.Name(), id, func(ctx context.Context, _ session.Group) error {
+			err = inBuilderContext(ctx, j, exp.Name(), id, func(ctx context.Context, _ session.Group) error {
 				prepareDone := progress.OneOff(ctx, "preparing build cache for export")
 				if err := result.EachRef(cached, inp, func(res solver.CachedResult, ref cache.ImmutableRef) error {
-					ctx = withDescHandlerCacheOpts(ctx, ref)
+					ctx := withDescHandlerCacheOpts(ctx, ref)
 
 					// Configure compression
 					compressionConfig := exp.Config().Compression

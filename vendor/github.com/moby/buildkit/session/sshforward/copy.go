@@ -21,7 +21,7 @@ func Copy(ctx context.Context, conn io.ReadWriteCloser, stream Stream, closeStre
 		p := &BytesMessage{}
 		for {
 			if err := stream.RecvMsg(p); err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					// indicates client performed CloseSend, but they may still be
 					// reading data
 					if closeWriter, ok := conn.(interface {
@@ -55,7 +55,7 @@ func Copy(ctx context.Context, conn io.ReadWriteCloser, stream Stream, closeStre
 			buf := make([]byte, 32*1024)
 			n, err := conn.Read(buf)
 			switch {
-			case err == io.EOF:
+			case errors.Is(err, io.EOF):
 				if closeStream != nil {
 					closeStream()
 				}

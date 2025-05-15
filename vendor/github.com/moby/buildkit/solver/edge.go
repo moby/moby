@@ -658,7 +658,7 @@ func (e *edge) processDepReq(dep *dep) (depChanged bool) {
 		newKeys := state.keys[len(dep.keys):]
 		if e.cacheMap != nil {
 			e.probeCache(dep, withSelector(newKeys, e.cacheMap.Deps[dep.index].Selector))
-			dep.edgeState.keys = state.keys
+			dep.keys = state.keys
 			if e.allDepsHaveKeys(false) {
 				e.keysDidChange = true
 			}

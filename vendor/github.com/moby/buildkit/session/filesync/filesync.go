@@ -336,8 +336,8 @@ func (sp *SyncTarget) DiffCopy(stream FileSend_DiffCopyServer) (err error) {
 	opts, _ := metadata.FromIncomingContext(stream.Context()) // if no metadata continue with empty object
 	md := map[string]string{}
 	for k, v := range opts {
-		if strings.HasPrefix(k, keyExporterMetaPrefix) {
-			md[strings.TrimPrefix(k, keyExporterMetaPrefix)] = strings.Join(v, ",")
+		if after, ok0 := strings.CutPrefix(k, keyExporterMetaPrefix); ok0 {
+			md[after] = strings.Join(v, ",")
 		}
 	}
 	wc, err := f(md)

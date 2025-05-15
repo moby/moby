@@ -166,10 +166,10 @@ func applierFor(dest Mountable, tryCrossSnapshotLink, userxattr bool) (_ *applie
 
 	if overlay.IsOverlayMountType(mnt) {
 		for _, opt := range mnt.Options {
-			if strings.HasPrefix(opt, "upperdir=") {
-				a.root = strings.TrimPrefix(opt, "upperdir=")
-			} else if strings.HasPrefix(opt, "lowerdir=") {
-				a.lowerdirs = strings.Split(strings.TrimPrefix(opt, "lowerdir="), ":")
+			if after, ok := strings.CutPrefix(opt, "upperdir="); ok {
+				a.root = after
+			} else if after, ok := strings.CutPrefix(opt, "lowerdir="); ok {
+				a.lowerdirs = strings.Split(after, ":")
 			}
 		}
 		if a.root == "" {

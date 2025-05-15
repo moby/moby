@@ -83,7 +83,7 @@ func NewExportableCache(oci bool, imageManifest bool) (*ExportableCache, error) 
 	if imageManifest {
 		mediaType = ocispecs.MediaTypeImageManifest
 		if !oci {
-			return nil, errors.Errorf("invalid configuration for remote cache")
+			return nil, errors.Errorf("invalid configuration for remote cache, OCI mediatypes are required for image-manifest cache format")
 		}
 	} else {
 		if oci {

@@ -8,6 +8,8 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/core/snapshots"
+	"github.com/containerd/containerd/v2/pkg/snapshotters"
+
 	"github.com/distribution/reference"
 	"github.com/moby/buildkit/cache/remotecache"
 	"github.com/moby/buildkit/session"
@@ -76,6 +78,8 @@ func ResolveCacheExporterFunc(sm *session.Manager, hosts docker.RegistryHosts) r
 				return nil, errors.Wrapf(err, "failed to parse %s", attrImageManifest)
 			}
 			imageManifest = b
+		} else if !ociMediatypes {
+			imageManifest = false
 		}
 		insecure := false
 		if v, ok := attrs[attrInsecure]; ok {
@@ -165,6 +169,7 @@ func (dsl *withDistributionSourceLabel) SnapshotLabels(descs []ocispecs.Descript
 		labels = make(map[string]string)
 	}
 	maps.Copy(labels, estargz.SnapshotLabels(dsl.ref, descs, index))
+	labels[snapshotters.TargetRefLabel] = dsl.ref
 	return labels
 }
 

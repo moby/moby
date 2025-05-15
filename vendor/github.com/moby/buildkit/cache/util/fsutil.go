@@ -62,7 +62,8 @@ func ReadFile(ctx context.Context, mount snapshot.Mountable, req ReadRequest) ([
 			// The filename here is internal to the mount, so we can restore
 			// the request base path for error reporting.
 			// See os.DirFS.Open for details.
-			if pe, ok := err.(*os.PathError); ok {
+			pe := &os.PathError{}
+			if errors.As(err, &pe) {
 				pe.Path = req.Filename
 			}
 			return errors.WithStack(err)

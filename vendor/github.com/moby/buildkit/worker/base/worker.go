@@ -495,7 +495,6 @@ func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (ref cac
 	if len(remote.Descriptors) > 0 {
 		var eg errgroup.Group
 		for _, desc := range remote.Descriptors {
-			desc := desc
 			eg.Go(func() error {
 				if _, err := remote.Provider.Info(ctx, desc.Digest); err != nil {
 					return err

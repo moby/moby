@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -336,8 +335,8 @@ func (h *HistoryQueue) gc() error {
 	}
 
 	// sort array by newest records first
-	sort.Slice(records, func(i, j int) bool {
-		return records[i].CompletedAt.AsTime().After(records[j].CompletedAt.AsTime())
+	slices.SortFunc(records, func(a, b *controlapi.BuildHistoryRecord) int {
+		return -a.CompletedAt.AsTime().Compare(b.CompletedAt.AsTime())
 	})
 
 	h.mu.Lock()
@@ -449,7 +448,7 @@ func (h *HistoryQueue) addResource(ctx context.Context, l leases.Lease, desc *co
 				return err
 			}
 			defer lr.Discard()
-			ok, err := h.migrateBlobV2(ctx, string(desc.Digest), detectSkipLayers)
+			ok, err := h.migrateBlobV2(ctx, desc.Digest, detectSkipLayers)
 			if err != nil {
 				return err
 			}
@@ -459,7 +458,7 @@ func (h *HistoryQueue) addResource(ctx context.Context, l leases.Lease, desc *co
 		}
 	}
 	return h.hLeaseManager.AddResource(ctx, l, leases.Resource{
-		ID:   string(desc.Digest),
+		ID:   desc.Digest,
 		Type: "content",
 	})
 }

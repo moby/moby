@@ -462,7 +462,10 @@ func (e *ExecOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 	if e.platform != nil {
 		currentOS = e.platform.OS
 	}
-	meta.Env = addDefaultEnvvar(meta.Env, "PATH", utilsystem.DefaultPathEnv(currentOS))
+	// don't set PATH for Windows. #5445
+	if currentOS != "windows" {
+		meta.Env = addDefaultEnvvar(meta.Env, "PATH", utilsystem.DefaultPathEnv(currentOS))
+	}
 
 	secretEnv, err := e.loadSecretEnv(ctx, g)
 	if err != nil {
@@ -563,7 +566,7 @@ func (e *ExecOp) loadSecretEnv(ctx context.Context, g session.Group) ([]string, 
 			}
 			return nil
 		})
-		if err != nil && !(errors.Is(err, secrets.ErrNotFound) && sopt.Optional) {
+		if err != nil && (!errors.Is(err, secrets.ErrNotFound) || !sopt.Optional) {
 			return nil, err
 		}
 		out = append(out, fmt.Sprintf("%s=%s", sopt.Name, string(dt)))

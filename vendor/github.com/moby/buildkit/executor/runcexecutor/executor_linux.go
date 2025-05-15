@@ -129,7 +129,7 @@ func (w *runcExecutor) callWithIO(ctx context.Context, process executor.ProcessI
 			if errors.As(err, &ptmClosedError) {
 				if ptmClosedError.Op == "read" &&
 					ptmClosedError.Path == "/dev/ptmx" &&
-					ptmClosedError.Err == syscall.EIO {
+					errors.Is(ptmClosedError.Err, syscall.EIO) {
 					return nil
 				}
 			}

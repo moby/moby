@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -688,7 +687,7 @@ func parseExpose(req parseRequest) (*ExposeCommand, error) {
 		return nil, err
 	}
 
-	sort.Strings(portsTab)
+	slices.Sort(portsTab)
 	return &ExposeCommand{
 		Ports:           portsTab,
 		withNameAndCode: newWithNameAndCode(req),
@@ -832,8 +831,8 @@ func getComment(comments []string, name string) string {
 		return ""
 	}
 	for _, line := range comments {
-		if strings.HasPrefix(line, name+" ") {
-			return strings.TrimPrefix(line, name+" ")
+		if after, ok := strings.CutPrefix(line, name+" "); ok {
+			return after
 		}
 	}
 	return ""

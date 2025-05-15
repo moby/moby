@@ -2,7 +2,7 @@ package progress
 
 import (
 	"maps"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 )
@@ -49,8 +49,8 @@ func (ps *MultiWriter) Add(pw Writer) {
 	ps.mu.Lock()
 	plist := make([]*Progress, 0, len(ps.items))
 	plist = append(plist, ps.items...)
-	sort.Slice(plist, func(i, j int) bool {
-		return plist[i].Timestamp.Before(plist[j].Timestamp)
+	slices.SortFunc(plist, func(a, b *Progress) int {
+		return a.Timestamp.Compare(b.Timestamp)
 	})
 	for _, p := range plist {
 		rw.WriteRawProgress(p)

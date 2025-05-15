@@ -43,12 +43,12 @@ func Validate(values map[string]map[string]string) (map[string]map[string]string
 func Parse(values map[string]string) (map[string]map[string]string, error) {
 	attests := make(map[string]string)
 	for k, v := range values {
-		if strings.HasPrefix(k, "attest:") {
-			attests[strings.ToLower(strings.TrimPrefix(k, "attest:"))] = v
+		if after, ok := strings.CutPrefix(k, "attest:"); ok {
+			attests[strings.ToLower(after)] = v
 			continue
 		}
-		if strings.HasPrefix(k, "build-arg:BUILDKIT_ATTEST_") {
-			attests[strings.ToLower(strings.TrimPrefix(k, "build-arg:BUILDKIT_ATTEST_"))] = v
+		if after, ok := strings.CutPrefix(k, "build-arg:BUILDKIT_ATTEST_"); ok {
+			attests[strings.ToLower(after)] = v
 			continue
 		}
 	}

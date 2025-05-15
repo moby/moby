@@ -131,7 +131,6 @@ func (cm *combinedCacheManager) Records(ctx context.Context, ck *CacheKey) ([]*C
 
 	eg, _ := errgroup.WithContext(context.TODO())
 	for _, c := range cms {
-		c := c
 		eg.Go(func() error {
 			recs, err := c.Records(ctx, ck)
 			if err != nil {

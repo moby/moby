@@ -1,6 +1,8 @@
 package result
 
 import (
+	"context"
+
 	pb "github.com/moby/buildkit/frontend/gateway/pb"
 	digest "github.com/opencontainers/go-digest"
 )
@@ -23,7 +25,7 @@ type Attestation[T any] struct {
 
 	Ref         T
 	Path        string
-	ContentFunc func() ([]byte, error)
+	ContentFunc func(context.Context) ([]byte, error)
 
 	InToto InTotoAttestation
 }

@@ -4,6 +4,7 @@ package git
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -59,7 +60,8 @@ func gitMain() {
 	err := cmd.Run()
 	close(done)
 	if err != nil {
-		if exiterr, ok := err.(*exec.ExitError); ok {
+		exiterr := &exec.ExitError{}
+		if errors.As(err, &exiterr) {
 			switch status := exiterr.Sys().(type) {
 			case unix.WaitStatus:
 				os.Exit(status.ExitStatus())

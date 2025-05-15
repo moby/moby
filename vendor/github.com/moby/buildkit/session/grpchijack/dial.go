@@ -2,6 +2,7 @@ package grpchijack
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"strings"
@@ -112,7 +113,7 @@ func (c *conn) Close() (err error) {
 			m.Data = c.buf
 			err = c.stream.RecvMsg(m)
 			if err != nil {
-				if err != io.EOF {
+				if !errors.Is(err, io.EOF) {
 					c.readMu.Unlock()
 					return
 				}

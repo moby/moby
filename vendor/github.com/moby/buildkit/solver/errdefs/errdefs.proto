@@ -15,6 +15,11 @@ message Source {
 	repeated pb.Range ranges = 2;
 }
 
+message Frontend {
+	string name = 1; // frontend name e.g. dockerfile.v0 or gateway.v0
+	string source = 2; // used by the gateway frontend to identify the source, which corresponds to the image name
+}
+
 message FrontendCap {
 	string name = 1;
 }

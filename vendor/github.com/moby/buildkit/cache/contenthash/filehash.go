@@ -93,7 +93,7 @@ type statInfo struct {
 }
 
 func (s *statInfo) Name() string {
-	return filepath.Base(s.Stat.Path)
+	return filepath.Base(s.Path)
 }
 
 func (s *statInfo) Size() int64 {

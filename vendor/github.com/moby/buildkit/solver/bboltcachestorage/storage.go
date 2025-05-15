@@ -307,8 +307,8 @@ func (s *Store) emptyBranchWithParents(tx *bolt.Tx, id []byte) error {
 	}
 
 	// intentionally ignoring errors
-	tx.Bucket([]byte(linksBucket)).DeleteBucket([]byte(id))
-	tx.Bucket([]byte(resultBucket)).DeleteBucket([]byte(id))
+	tx.Bucket([]byte(linksBucket)).DeleteBucket(id)
+	tx.Bucket([]byte(resultBucket)).DeleteBucket(id)
 
 	return nil
 }
@@ -360,7 +360,7 @@ func (s *Store) WalkLinks(id string, link solver.CacheInfoLink, fn func(id strin
 		}
 		index := bytes.Join([][]byte{dt, {}}, []byte("@"))
 		c := b.Cursor()
-		k, _ := c.Seek([]byte(index))
+		k, _ := c.Seek(index)
 		for {
 			if k != nil && bytes.HasPrefix(k, index) {
 				target := bytes.TrimPrefix(k, index)

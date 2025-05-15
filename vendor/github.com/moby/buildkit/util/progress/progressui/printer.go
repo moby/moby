@@ -147,7 +147,7 @@ func (p *textMux) printVtx(t *trace, dgst digest.Digest) {
 			l = l[v.logsOffset:]
 			fmt.Fprintf(p.w, "%s", l)
 		} else {
-			fmt.Fprintf(p.w, "#%d %s", v.index, []byte(l))
+			fmt.Fprintf(p.w, "#%d %s", v.index, l)
 		}
 
 		if i != len(v.logs)-1 || !v.logsPartial {

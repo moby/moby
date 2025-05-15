@@ -94,7 +94,7 @@ func setNetNS(s *specs.Spec, nsPath string) error {
 
 func unmountNetNS(nsPath string) error {
 	if err := unix.Unmount(nsPath, unix.MNT_DETACH); err != nil {
-		if err != syscall.EINVAL && err != syscall.ENOENT {
+		if !errors.Is(err, syscall.EINVAL) && !errors.Is(err, syscall.ENOENT) {
 			return errors.Wrap(err, "error unmounting network namespace")
 		}
 	}

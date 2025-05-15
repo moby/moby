@@ -22,7 +22,6 @@ func (bc *Client) Build(ctx context.Context, fn BuildFunc) (*ResultBuilder, erro
 
 	targets := make([]*ocispecs.Platform, 0, len(bc.TargetPlatforms))
 	for _, p := range bc.TargetPlatforms {
-		p := p
 		targets = append(targets, &p)
 	}
 	if len(targets) == 0 {
@@ -106,7 +105,6 @@ func (rb *ResultBuilder) Finalize() (*client.Result, error) {
 func (rb *ResultBuilder) EachPlatform(ctx context.Context, fn func(ctx context.Context, id string, p ocispecs.Platform) error) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	for _, p := range rb.expPlatforms.Platforms {
-		p := p
 		eg.Go(func() error {
 			return fn(ctx, p.ID, p.Platform)
 		})

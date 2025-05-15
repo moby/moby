@@ -173,7 +173,7 @@ func LoggerFromContext(ctx context.Context) func([]byte) {
 		defer pw.Close()
 		pw.Write(identity.NewID(), client.VertexLog{
 			Stream: stderr,
-			Data:   []byte(dt),
+			Data:   dt,
 		})
 	}
 }

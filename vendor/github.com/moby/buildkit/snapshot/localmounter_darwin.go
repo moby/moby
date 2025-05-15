@@ -2,11 +2,11 @@ package snapshot
 
 import (
 	"os"
+	"slices"
 
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
-	"slices"
 )
 
 func (lm *localMounter) Mount() (string, error) {

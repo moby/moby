@@ -86,10 +86,10 @@ func GetOverlayLayers(m mount.Mount) ([]string, error) {
 	var uFound bool
 	var l []string // l[0] = bottommost
 	for _, o := range m.Options {
-		if strings.HasPrefix(o, "upperdir=") {
-			u, uFound = strings.TrimPrefix(o, "upperdir="), true
-		} else if strings.HasPrefix(o, "lowerdir=") {
-			l = strings.Split(strings.TrimPrefix(o, "lowerdir="), ":")
+		if after, ok := strings.CutPrefix(o, "upperdir="); ok {
+			u, uFound = after, true
+		} else if after, ok := strings.CutPrefix(o, "lowerdir="); ok {
+			l = strings.Split(after, ":")
 			for i, j := 0, len(l)-1; i < j; i, j = i+1, j-1 {
 				l[i], l[j] = l[j], l[i] // make l[0] = bottommost
 			}
@@ -273,7 +273,7 @@ func checkOpaque(upperdir string, path string, base string, f os.FileInfo) (isOp
 	if f.IsDir() {
 		for _, oKey := range []string{"trusted.overlay.opaque", "user.overlay.opaque"} {
 			opaque, err := sysx.LGetxattr(filepath.Join(upperdir, path), oKey)
-			if err != nil && err != unix.ENODATA {
+			if err != nil && !errors.Is(err, unix.ENODATA) {
 				return false, errors.Wrapf(err, "failed to retrieve %s attr", oKey)
 			} else if len(opaque) == 1 && opaque[0] == 'y' {
 				// This is an opaque whiteout directory.
@@ -296,7 +296,7 @@ func checkRedirect(upperdir string, path string, f os.FileInfo) (bool, error) {
 	if f.IsDir() {
 		rKey := "trusted.overlay.redirect"
 		redirect, err := sysx.LGetxattr(filepath.Join(upperdir, path), rKey)
-		if err != nil && err != unix.ENODATA {
+		if err != nil && !errors.Is(err, unix.ENODATA) {
 			return false, errors.Wrapf(err, "failed to retrieve %s attr", rKey)
 		}
 		return len(redirect) > 0, nil
@@ -379,11 +379,11 @@ func compareSysStat(s1, s2 any) (bool, error) {
 // Copyright The containerd Authors.
 func compareCapabilities(p1, p2 string) (bool, error) {
 	c1, err := sysx.LGetxattr(p1, "security.capability")
-	if err != nil && err != sysx.ENODATA {
+	if err != nil && !errors.Is(err, sysx.ENODATA) {
 		return false, errors.Wrapf(err, "failed to get xattr for %s", p1)
 	}
 	c2, err := sysx.LGetxattr(p2, "security.capability")
-	if err != nil && err != sysx.ENODATA {
+	if err != nil && !errors.Is(err, sysx.ENODATA) {
 		return false, errors.Wrapf(err, "failed to get xattr for %s", p2)
 	}
 	return bytes.Equal(c1, c2), nil
@@ -443,7 +443,7 @@ func compareFileContent(p1, p2 string) (bool, error) {
 	defer bufPool.Put(b2)
 	for {
 		n1, err1 := io.ReadFull(f1, *b1)
-		if err1 == io.ErrUnexpectedEOF {
+		if errors.Is(err1, io.ErrUnexpectedEOF) {
 			// it's expected to get EOF when file size isn't a multiple of chunk size, consolidate these error types
 			err1 = io.EOF
 		}
@@ -451,7 +451,7 @@ func compareFileContent(p1, p2 string) (bool, error) {
 			return false, err1
 		}
 		n2, err2 := io.ReadFull(f2, *b2)
-		if err2 == io.ErrUnexpectedEOF {
+		if errors.Is(err2, io.ErrUnexpectedEOF) {
 			err2 = io.EOF
 		}
 		if err2 != nil && err2 != io.EOF {

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"path"
-	"sort"
+	"slices"
 
 	cdcompression "github.com/containerd/containerd/v2/pkg/archive/compression"
 	"github.com/moby/buildkit/session"
@@ -69,7 +69,7 @@ func (sr *immutableRef) FileList(ctx context.Context, s session.Group) ([]string
 			name := path.Clean(hdr.Name)
 			files = append(files, name)
 		}
-		sort.Strings(files)
+		slices.Sort(files)
 
 		dt, err = json.Marshal(files)
 		if err != nil {

@@ -97,7 +97,7 @@ func (ei *edgeIndex) LoadOrStore(k *CacheKey, e *edge) *edge {
 		}
 	}
 
-	if old != nil && !(!isIgnoreCache(old) && isIgnoreCache(e)) {
+	if old != nil && (isIgnoreCache(old) || !isIgnoreCache(e)) {
 		ei.enforceLinked(oldID, k)
 		return old
 	}
@@ -190,7 +190,7 @@ func (ei *edgeIndex) getAllMatches(k *CacheKey) []string {
 		if i == 0 {
 			for _, d := range dd {
 				ll := CacheInfoLink{Input: Index(i), Digest: k.Digest(), Output: k.Output(), Selector: d.Selector}
-				for _, ckID := range d.CacheKey.CacheKey.indexIDs {
+				for _, ckID := range d.CacheKey.indexIDs {
 					item, ok := ei.items[ckID]
 					if ok {
 						for l := range item.links[ll] {
@@ -210,7 +210,7 @@ func (ei *edgeIndex) getAllMatches(k *CacheKey) []string {
 			found := false
 			for _, d := range dd {
 				ll := CacheInfoLink{Input: Index(i), Digest: k.Digest(), Output: k.Output(), Selector: d.Selector}
-				for _, ckID := range d.CacheKey.CacheKey.indexIDs {
+				for _, ckID := range d.CacheKey.indexIDs {
 					if item, ok := ei.items[ckID]; ok {
 						if l, ok := item.links[ll]; ok {
 							if _, ok := l[m]; ok {

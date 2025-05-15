@@ -45,7 +45,7 @@ func (sr *immutableRef) tryComputeOverlayBlob(ctx context.Context, lower, upper 
 
 	defer func() {
 		if cw != nil {
-			ctx = context.WithoutCancel(ctx)
+			ctx := context.WithoutCancel(ctx)
 			// after commit success cw will be set to nil, if cw isn't nil, error
 			// happened before commit, we should abort this ingest, and because the
 			// error may incured by ctx cancel, use a new context here. And since

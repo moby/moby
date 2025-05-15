@@ -406,11 +406,11 @@ func (md *cacheMetadata) getLastUsed() (int, *time.Time) {
 	if v == nil {
 		return usageCount, nil
 	}
-	var lastUsedTs int64
-	if err := v.Unmarshal(&lastUsedTs); err != nil || lastUsedTs == 0 {
+	var lastUsedTS int64
+	if err := v.Unmarshal(&lastUsedTS); err != nil || lastUsedTS == 0 {
 		return usageCount, nil
 	}
-	tm := time.Unix(lastUsedTs/1e9, lastUsedTs%1e9)
+	tm := time.Unix(lastUsedTS/1e9, lastUsedTS%1e9)
 	return usageCount, &tm
 }
 
