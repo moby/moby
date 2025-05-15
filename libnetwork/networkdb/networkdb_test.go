@@ -42,9 +42,11 @@ func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Co
 		localConfig.Hostname = fmt.Sprintf("%s%d", namePrefix, i+1)
 		localConfig.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
 		localConfig.BindPort = int(atomic.AddInt32(&dbPort, 1))
+		localConfig.BindAddr = "127.0.0.1"
+		localConfig.AdvertiseAddr = localConfig.BindAddr
 		db := launchNode(t, localConfig)
 		if i != 0 {
-			assert.Check(t, db.Join([]string{fmt.Sprintf("localhost:%d", db.config.BindPort-1)}))
+			assert.Check(t, db.Join([]string{net.JoinHostPort(db.config.AdvertiseAddr, strconv.Itoa(db.config.BindPort-1))}))
 		}
 
 		dbs = append(dbs, db)
@@ -423,6 +425,22 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 	n := 5
 
 	dbs := createNetworkDBInstances(t, n, "node", DefaultConfig())
+
+	// Shake out any data races.
+	done := make(chan struct{})
+	defer close(done)
+	for _, db := range dbs {
+		go func(db *NetworkDB) {
+			for {
+				select {
+				case <-done:
+					return
+				default:
+				}
+				_ = db.GetTableByNetwork("test_table", "network1")
+			}
+		}(db)
+	}
 
 	for i := 0; i < n; i++ {
 		for j := 0; j < n; j++ {

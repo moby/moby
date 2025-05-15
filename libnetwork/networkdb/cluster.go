@@ -71,8 +71,8 @@ func (nDB *NetworkDB) SetKey(key []byte) {
 // been added apriori through SetKey
 func (nDB *NetworkDB) SetPrimaryKey(key []byte) {
 	log.G(context.TODO()).Debugf("Primary Key %.5s", hex.EncodeToString(key))
-	nDB.RLock()
-	defer nDB.RUnlock()
+	nDB.Lock()
+	defer nDB.Unlock()
 	for _, dbKey := range nDB.config.Keys {
 		if bytes.Equal(key, dbKey) {
 			if nDB.keyring != nil {
@@ -112,6 +112,7 @@ func (nDB *NetworkDB) clusterInit() error {
 
 	if nDB.config.BindPort != 0 {
 		config.BindPort = nDB.config.BindPort
+		config.AdvertisePort = nDB.config.BindPort
 	}
 
 	config.ProtocolVersion = memberlist.ProtocolVersion2Compatible
