@@ -63,8 +63,7 @@ import (
 )
 
 const (
-	keySource = "source"
-	keyDevel  = "gateway-devel"
+	keyDevel = "gateway-devel"
 )
 
 func NewGatewayFrontend(workers worker.Infos, allowedRepositories []string) (frontend.Frontend, error) {
@@ -92,8 +91,8 @@ type gatewayFrontend struct {
 func filterPrefix(opts map[string]string, pfx string) map[string]string {
 	m := map[string]string{}
 	for k, v := range opts {
-		if strings.HasPrefix(k, pfx) {
-			m[strings.TrimPrefix(k, pfx)] = v
+		if after, ok := strings.CutPrefix(k, pfx); ok {
+			m[after] = v
 		}
 	}
 	return m
@@ -122,7 +121,7 @@ func (gf *gatewayFrontend) checkSourceIsAllowed(source string) error {
 }
 
 func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.FrontendLLBBridge, exec executor.Executor, opts map[string]string, inputs map[string]*opspb.Definition, sid string, sm *session.Manager) (*frontend.Result, error) {
-	source, ok := opts[keySource]
+	source, ok := opts[frontend.KeySource]
 	if !ok {
 		return nil, errors.Errorf("no source specified for gateway")
 	}
@@ -1573,7 +1572,7 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 						}()
 						dest := &outputWriter{
 							stream:    srv,
-							fd:        uint32(fd),
+							fd:        fd,
 							processID: pid,
 						}
 						_, err := io.Copy(dest, file)
@@ -1587,7 +1586,7 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 							ProcessID: pid,
 							Input: &pb.ExecMessage_File{
 								File: &pb.FdMessage{
-									Fd:  uint32(fd),
+									Fd:  fd,
 									EOF: true,
 								},
 							},

@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 	"maps"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 
@@ -165,9 +165,8 @@ func (pr *progressReader) Read(ctx context.Context) ([]*Progress, error) {
 		for _, p := range dmap {
 			out = append(out, p)
 		}
-
-		sort.Slice(out, func(i, j int) bool {
-			return out[i].Timestamp.Before(out[j].Timestamp)
+		slices.SortFunc(out, func(a, b *Progress) int {
+			return a.Timestamp.Compare(b.Timestamp)
 		})
 
 		return out, nil

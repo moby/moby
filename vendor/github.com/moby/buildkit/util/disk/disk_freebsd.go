@@ -17,6 +17,6 @@ func GetDiskStat(root string) (DiskStat, error) {
 	return DiskStat{
 		Total:     int64(st.Bsize) * int64(st.Blocks),
 		Free:      int64(st.Bsize) * int64(st.Bfree),
-		Available: int64(st.Bsize) * int64(st.Bavail),
+		Available: int64(st.Bsize) * st.Bavail,
 	}, nil
 }

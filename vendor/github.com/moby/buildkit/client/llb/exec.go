@@ -5,7 +5,7 @@ import (
 	_ "crypto/sha256" // for opencontainers/go-digest
 	"fmt"
 	"net"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/moby/buildkit/solver/pb"
@@ -143,8 +143,8 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 		return "", nil, nil, nil, err
 	}
 	// make sure mounts are sorted
-	sort.Slice(e.mounts, func(i, j int) bool {
-		return e.mounts[i].target < e.mounts[j].target
+	slices.SortFunc(e.mounts, func(a, b *mount) int {
+		return strings.Compare(a.target, b.target)
 	})
 
 	env, err := getEnv(e.base)(ctx, c)
@@ -170,7 +170,10 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 			} else if e.constraints.Platform != nil {
 				os = e.constraints.Platform.OS
 			}
-			env = env.SetDefault("PATH", system.DefaultPathEnv(os))
+			// don't set PATH on Windows. #5445
+			if os != "windows" {
+				env = env.SetDefault("PATH", system.DefaultPathEnv(os))
+			}
 		} else {
 			addCap(&e.constraints, pb.CapExecMetaSetsDefaultPath)
 		}
@@ -477,10 +480,9 @@ func (e *ExecOp) Inputs() (inputs []Output) {
 	// make sure mounts are sorted
 	// the same sort occurs in (*ExecOp).Marshal, and this
 	// sort must be the same
-	sort.Slice(e.mounts, func(i int, j int) bool {
-		return e.mounts[i].target < e.mounts[j].target
+	slices.SortFunc(e.mounts, func(a, b *mount) int {
+		return strings.Compare(a.target, b.target)
 	})
-
 	seen := map[Output]struct{}{}
 	for _, m := range e.mounts {
 		if m.source != nil {
@@ -497,8 +499,8 @@ func (e *ExecOp) Inputs() (inputs []Output) {
 func (e *ExecOp) getMountIndexFn(m *mount) func() (pb.OutputIndex, error) {
 	return func() (pb.OutputIndex, error) {
 		// make sure mounts are sorted
-		sort.Slice(e.mounts, func(i, j int) bool {
-			return e.mounts[i].target < e.mounts[j].target
+		slices.SortFunc(e.mounts, func(a, b *mount) int {
+			return strings.Compare(a.target, b.target)
 		})
 
 		i := 0

@@ -2,13 +2,13 @@ package ops
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"path"
 	"runtime"
 	"slices"
-	"sort"
 	"sync"
 
 	"github.com/moby/buildkit/cache"
@@ -151,9 +151,8 @@ func (f *fileOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 		for _, k := range m {
 			dgsts = append(dgsts, []byte(k.Path))
 		}
-		sort.Slice(dgsts, func(i, j int) bool {
-			return bytes.Compare(dgsts[i], dgsts[j]) > 0
-		})
+		slices.SortFunc(dgsts, bytes.Compare)
+		slices.Reverse(dgsts) // historical reasons
 		cm.Deps[idx].Selector = digest.FromBytes(bytes.Join(dgsts, []byte{0}))
 
 		cm.Deps[idx].ComputeDigestFunc = opsutils.NewContentHashFunc(dedupeSelectors(m))
@@ -261,10 +260,9 @@ func dedupeSelectors(m []opsutils.Selector) []opsutils.Selector {
 		}
 	}
 
-	sort.Slice(selectors, func(i, j int) bool {
-		return selectors[i].Path < selectors[j].Path
+	slices.SortFunc(selectors, func(i, j opsutils.Selector) int {
+		return cmp.Compare(i.Path, j.Path)
 	})
-
 	return selectors
 }
 

@@ -14,34 +14,34 @@ func WithSource(err error, src *Source) error {
 	if err == nil {
 		return nil
 	}
-	return &ErrorSource{Source: src, error: err}
+	return &SourceError{Source: src, error: err}
 }
 
-type ErrorSource struct {
+type SourceError struct {
 	*Source
 	error
 }
 
-func (e *ErrorSource) Unwrap() error {
+func (e *SourceError) Unwrap() error {
 	return e.error
 }
 
-func (e *ErrorSource) ToProto() grpcerrors.TypedErrorProto {
+func (e *SourceError) ToProto() grpcerrors.TypedErrorProto {
 	return e.Source
 }
 
 func Sources(err error) []*Source {
 	var out []*Source
-	var es *ErrorSource
+	var es *SourceError
 	if errors.As(err, &es) {
 		out = Sources(es.Unwrap())
-		out = append(out, es.Source.CloneVT())
+		out = append(out, es.CloneVT())
 	}
 	return out
 }
 
 func (s *Source) WrapError(err error) error {
-	return &ErrorSource{error: err, Source: s}
+	return &SourceError{error: err, Source: s}
 }
 
 func (s *Source) Print(w io.Writer) error {
@@ -69,10 +69,7 @@ func (s *Source) Print(w io.Writer) error {
 	var p int
 
 	prepadStart := start
-	for {
-		if p >= pad {
-			break
-		}
+	for p < pad {
 		if start > 1 {
 			start--
 			p++

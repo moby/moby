@@ -118,7 +118,7 @@ func supplementSBOM(ctx context.Context, s session.Group, target cache.Immutable
 	return exporter.Attestation{
 		Kind:        att.Kind,
 		Path:        att.Path,
-		ContentFunc: func() ([]byte, error) { return content, nil },
+		ContentFunc: func(context.Context) ([]byte, error) { return content, nil },
 		InToto:      att.InToto,
 	}, nil
 }

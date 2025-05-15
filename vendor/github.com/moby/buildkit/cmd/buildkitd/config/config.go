@@ -104,7 +104,7 @@ type NetworkConfig struct {
 type OCIConfig struct {
 	Enabled          *bool             `toml:"enabled"`
 	Labels           map[string]string `toml:"labels"`
-	Platforms        []string          `toml:"platforms"`
+	Platforms        []string          `toml:"platforms,omitempty"`
 	Snapshotter      string            `toml:"snapshotter"`
 	Rootless         bool              `toml:"rootless"`
 	NoProcessSandbox bool              `toml:"noProcessSandbox"`
@@ -138,7 +138,7 @@ type ContainerdConfig struct {
 	Address   string            `toml:"address"`
 	Enabled   *bool             `toml:"enabled"`
 	Labels    map[string]string `toml:"labels"`
-	Platforms []string          `toml:"platforms"`
+	Platforms []string          `toml:"platforms,omitempty"`
 	Namespace string            `toml:"namespace"`
 	Runtime   ContainerdRuntime `toml:"runtime"`
 	GCConfig

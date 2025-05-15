@@ -55,7 +55,7 @@ func (lc *Linter) Run(rule LinterRuleI, location []parser.Range, txt ...string) 
 	rulename := rule.RuleName()
 	if rule.IsExperimental() {
 		_, experimentalOk := lc.ExperimentalRules[rulename]
-		if !(lc.ExperimentalAll || experimentalOk) {
+		if !lc.ExperimentalAll && !experimentalOk {
 			return
 		}
 	} else {

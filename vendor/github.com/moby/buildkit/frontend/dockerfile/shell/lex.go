@@ -177,6 +177,7 @@ func (sw *shellWord) processStopOn(stopChar rune, rawEscapes bool) (string, []st
 	// no need to initialize all the time
 	var charFuncMapping = map[rune]func() (string, error){
 		'$': sw.processDollar,
+		'<': sw.processPossibleHeredoc,
 	}
 	if !sw.SkipProcessQuotes {
 		charFuncMapping['\''] = sw.processSingleQuote
@@ -512,6 +513,25 @@ func (sw *shellWord) processName() string {
 	return name.String()
 }
 
+func (sw *shellWord) processPossibleHeredoc() (string, error) {
+	sw.scanner.Next()
+	if sw.scanner.Peek() != '<' {
+		return "<", nil // not a heredoc
+	}
+	sw.scanner.Next()
+
+	// heredoc might have whitespace between << and word terminator
+	var space bytes.Buffer
+	nextCh := sw.scanner.Peek()
+	for isWhitespace(nextCh) {
+		space.WriteRune(nextCh)
+		sw.scanner.Next()
+		nextCh = sw.scanner.Peek()
+	}
+	result := "<<" + space.String()
+	return result, nil
+}
+
 // isSpecialParam checks if the provided character is a special parameters,
 // as defined in http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_05_02
 func isSpecialParam(char rune) bool {
@@ -676,4 +696,12 @@ func trimSuffix(pattern, word string, greedy bool) (string, error) {
 		return "", err
 	}
 	return reverseString(str), nil
+}
+
+func isWhitespace(r rune) bool {
+	switch r {
+	case '\t', '\r', ' ':
+		return true
+	}
+	return false
 }

@@ -37,6 +37,9 @@ func emptyImage(platform ocispecs.Platform) dockerspec.DockerOCIImage {
 	img.Variant = platform.Variant
 	img.RootFS.Type = "layers"
 	img.Config.WorkingDir = "/"
-	img.Config.Env = []string{"PATH=" + system.DefaultPathEnv(platform.OS)}
+	// don't set path for Windows, leave it to the OS. #5445
+	if platform.OS != "windows" {
+		img.Config.Env = []string{"PATH=" + system.DefaultPathEnv(platform.OS)}
+	}
 	return img
 }

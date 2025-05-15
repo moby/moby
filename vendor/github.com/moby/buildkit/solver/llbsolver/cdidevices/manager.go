@@ -157,49 +157,41 @@ func (m *Manager) parseDevice(dev *pb.CDIDevice, all []string) ([]string, error)
 
 	kind, name, _ := strings.Cut(dev.Name, "=")
 
-	// validate kind
-	if vendor, class := parser.ParseQualifier(kind); vendor == "" {
-		return nil, errors.Errorf("invalid device %q", dev.Name)
-	} else if err := parser.ValidateVendorName(vendor); err != nil {
-		return nil, errors.Wrapf(err, "invalid device %q", dev.Name)
-	} else if err := parser.ValidateClassName(class); err != nil {
-		return nil, errors.Wrapf(err, "invalid device %q", dev.Name)
+	vendor, _ := parser.ParseQualifier(kind)
+	if vendor != "" {
+		switch name {
+		case "":
+			// first device of kind if no name is specified
+			for _, d := range all {
+				if strings.HasPrefix(d, kind+"=") {
+					out = append(out, d)
+					break
+				}
+			}
+		case "*":
+			// all devices of kind if the name is a wildcard
+			for _, d := range all {
+				if strings.HasPrefix(d, kind+"=") {
+					out = append(out, d)
+				}
+			}
+		default:
+			// the specified device
+			for _, d := range all {
+				if d == dev.Name {
+					out = append(out, d)
+					break
+				}
+			}
+		}
 	}
 
-	switch name {
-	case "":
-		// first device of kind if no name is specified
+	// check class annotation if device qualifier invalid or no device found
+	if vendor == "" || len(out) == 0 {
 		for _, d := range all {
-			if strings.HasPrefix(d, kind+"=") {
-				out = append(out, d)
-				break
-			}
-		}
-	case "*":
-		// all devices of kind if the name is a wildcard
-		for _, d := range all {
-			if strings.HasPrefix(d, kind+"=") {
-				out = append(out, d)
-			}
-		}
-	default:
-		// the specified device
-		for _, d := range all {
-			if d == dev.Name {
-				out = append(out, d)
-				break
-			}
-		}
-		if len(out) == 0 {
-			// check class annotation if name unknown
-			for _, d := range all {
-				if !strings.HasPrefix(d, kind+"=") {
-					continue
-				}
-				if a := deviceAnnotations(m.cache.GetDevice(d)); a != nil {
-					if class, ok := a[deviceAnnotationClass]; ok && class == name {
-						out = append(out, d)
-					}
+			if a := deviceAnnotations(m.cache.GetDevice(d)); a != nil {
+				if class, ok := a[deviceAnnotationClass]; ok && class == dev.Name {
+					out = append(out, d)
 				}
 			}
 		}
@@ -271,7 +263,7 @@ func deviceAnnotations(dev *cdi.Device) map[string]string {
 	// spec annotations
 	maps.Copy(out, dev.GetSpec().Annotations)
 	// device annotations
-	maps.Copy(out, dev.Device.Annotations)
+	maps.Copy(out, dev.Annotations)
 	return out
 }
 

@@ -191,7 +191,7 @@ func (c estargzType) Is(ctx context.Context, cs content.Store, dgst digest.Diges
 		if h.Name != estargz.TOCTarName {
 			return false
 		}
-		if _, err = tr.Next(); err != io.EOF { // must be EOF
+		if _, err = tr.Next(); !errors.Is(err, io.EOF) { // must be EOF
 			return false
 		}
 

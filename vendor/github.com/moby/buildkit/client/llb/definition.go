@@ -240,7 +240,7 @@ func (d *DefinitionOp) Inputs() []Output {
 		d.mu.Unlock()
 
 		inputs = append(inputs, &output{vertex: vtx, platform: platform, getIndex: func() (pb.OutputIndex, error) {
-			return pb.OutputIndex(vtx.index), nil
+			return vtx.index, nil
 		}})
 	}
 

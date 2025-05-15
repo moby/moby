@@ -57,7 +57,8 @@ func check(arch, bin string) (string, error) {
 	if err == nil {
 		return "", errors.Errorf("invalid zero exit code")
 	}
-	if exitError, ok := err.(*exec.ExitError); ok {
+	exitError := &exec.ExitError{}
+	if errors.As(err, &exitError) {
 		switch exitError.ExitCode() {
 		case 65:
 			return "v1", nil

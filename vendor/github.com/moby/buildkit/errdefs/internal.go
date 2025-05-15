@@ -5,13 +5,13 @@ import (
 	"syscall"
 )
 
-type internalErr struct {
+type internalError struct {
 	error
 }
 
-func (internalErr) System() {}
+func (internalError) System() {}
 
-func (err internalErr) Unwrap() error {
+func (err internalError) Unwrap() error {
 	return err.error
 }
 
@@ -19,13 +19,13 @@ type system interface {
 	System()
 }
 
-var _ system = internalErr{}
+var _ system = internalError{}
 
 func Internal(err error) error {
 	if err == nil {
 		return nil
 	}
-	return internalErr{err}
+	return internalError{err}
 }
 
 func IsInternal(err error) bool {

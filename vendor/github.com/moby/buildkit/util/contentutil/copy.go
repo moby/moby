@@ -27,7 +27,7 @@ type localFetcher struct {
 }
 
 func (f *localFetcher) Fetch(ctx context.Context, desc ocispecs.Descriptor) (io.ReadCloser, error) {
-	r, err := f.Provider.ReaderAt(ctx, desc)
+	r, err := f.ReaderAt(ctx, desc)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ type rc struct {
 func (r *rc) Read(b []byte) (int, error) {
 	n, err := r.ReadAt(b, r.offset)
 	r.offset += int64(n)
-	if n > 0 && err == io.EOF {
+	if n > 0 && errors.Is(err, io.EOF) {
 		err = nil
 	}
 	return n, err

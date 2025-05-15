@@ -17,7 +17,7 @@ type UnsupportedSubrequestError struct {
 }
 
 func (e *UnsupportedSubrequestError) Error() string {
-	msg := fmt.Sprintf("unsupported request %s", e.Subrequest.Name)
+	msg := fmt.Sprintf("unsupported request %s", e.Name)
 	if e.error != nil {
 		msg += ": " + e.error.Error()
 	}

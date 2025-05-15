@@ -500,7 +500,7 @@ func (r *cacheRefShare) release(ctx context.Context) error {
 	if r.main != nil {
 		delete(r.main.shares, r.key)
 	}
-	return r.MutableRef.Release(ctx)
+	return r.Release(ctx)
 }
 
 var (

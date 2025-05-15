@@ -17,7 +17,7 @@ type UnsupportedFrontendCapError struct {
 }
 
 func (e *UnsupportedFrontendCapError) Error() string {
-	msg := fmt.Sprintf("unsupported frontend capability %s", e.FrontendCap.Name)
+	msg := fmt.Sprintf("unsupported frontend capability %s", e.Name)
 	if e.error != nil {
 		msg += ": " + e.error.Error()
 	}

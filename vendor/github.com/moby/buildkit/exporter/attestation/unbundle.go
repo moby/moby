@@ -166,7 +166,7 @@ func unbundle(root string, bundle exporter.Attestation) ([]exporter.Attestation,
 			Kind:        gatewaypb.AttestationKind_InToto,
 			Metadata:    bundle.Metadata,
 			Path:        path.Join(bundle.Path, entry.Name()),
-			ContentFunc: func() ([]byte, error) { return predicate, nil },
+			ContentFunc: func(context.Context) ([]byte, error) { return predicate, nil },
 			InToto: result.InTotoAttestation{
 				PredicateType: stmt.PredicateType,
 				Subjects:      subjects,

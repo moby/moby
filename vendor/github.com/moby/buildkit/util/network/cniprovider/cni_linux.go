@@ -86,7 +86,7 @@ func withDetachedNetNSIfAny(ctx context.Context, fn func(context.Context) error)
 		detachedNetNS := filepath.Join(stateDir, "netns")
 		if _, err := os.Lstat(detachedNetNS); !errors.Is(err, os.ErrNotExist) {
 			return ns.WithNetNSPath(detachedNetNS, func(_ ns.NetNS) error {
-				ctx = context.WithValue(ctx, contextKeyDetachedNetNS, detachedNetNS)
+				ctx := context.WithValue(ctx, contextKeyDetachedNetNS, detachedNetNS)
 				bklog.G(ctx).Debugf("Entering RootlessKit's detached netns %q", detachedNetNS)
 				err2 := fn(ctx)
 				bklog.G(ctx).WithError(err2).Debugf("Leaving RootlessKit's detached netns %q", detachedNetNS)

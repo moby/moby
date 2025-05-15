@@ -32,8 +32,8 @@ func CaptureFrontendOpts[T comparable](m map[string]string, res *result.Result[T
 
 	req.Labels = map[string]string{}
 	for k, v := range m {
-		if strings.HasPrefix(k, labelsPrefix) {
-			req.Labels[strings.TrimPrefix(k, labelsPrefix)] = v
+		if after, ok := strings.CutPrefix(k, labelsPrefix); ok {
+			req.Labels[after] = v
 		}
 	}
 	req.Request = m[keyRequestID]

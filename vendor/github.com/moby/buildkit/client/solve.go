@@ -322,7 +322,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 		for {
 			resp, err := stream.Recv()
 			if err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					return nil
 				}
 				return errors.Wrap(err, "failed to receive status")
@@ -356,7 +356,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 			return nil, err
 		}
 		var manifestDesc ocispecs.Descriptor
-		if err = json.Unmarshal([]byte(manifestDescDt), &manifestDesc); err != nil {
+		if err = json.Unmarshal(manifestDescDt, &manifestDesc); err != nil {
 			return nil, err
 		}
 		for _, storePath := range storesToUpdate {
@@ -402,8 +402,7 @@ func prepareSyncedFiles(def *llb.Definition, localMounts map[string]fsutil.FS) (
 				return nil, errors.Wrap(err, "failed to parse llb proto op")
 			}
 			if src := op.GetSource(); src != nil {
-				if strings.HasPrefix(src.Identifier, "local://") {
-					name := strings.TrimPrefix(src.Identifier, "local://")
+				if name, ok := strings.CutPrefix(src.Identifier, "local://"); ok {
 					mount, ok := localMounts[name]
 					if !ok {
 						return nil, errors.Errorf("local directory %s not enabled", name)

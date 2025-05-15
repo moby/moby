@@ -66,8 +66,8 @@ func ProvenanceProcessor(attrs map[string]string) llbsolver.Processor {
 					PredicateType: slsa02.PredicateSLSAProvenance,
 				},
 				Path: filename,
-				ContentFunc: func() ([]byte, error) {
-					pr, err := pc.Predicate()
+				ContentFunc: func(ctx context.Context) ([]byte, error) {
+					pr, err := pc.Predicate(ctx)
 					if err != nil {
 						return nil, err
 					}

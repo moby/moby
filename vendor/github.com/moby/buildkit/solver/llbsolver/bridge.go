@@ -265,7 +265,7 @@ func (rp *resultProxy) wrapError(err error) error {
 	var ve *errdefs.VertexError
 	if errors.As(err, &ve) {
 		if rp.req.Definition.Source != nil {
-			locs, ok := rp.req.Definition.Source.Locations[string(ve.Digest)]
+			locs, ok := rp.req.Definition.Source.Locations[ve.Digest]
 			if ok {
 				for _, loc := range locs.Locations {
 					err = errdefs.WithSource(err, &errdefs.Source{

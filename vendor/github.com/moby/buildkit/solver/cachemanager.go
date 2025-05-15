@@ -388,7 +388,7 @@ func (c *cacheManager) ensurePersistentKey(k *CacheKey) error {
 		for _, ck := range deps {
 			l := CacheInfoLink{
 				Input:    Index(i),
-				Output:   Index(k.Output()),
+				Output:   k.Output(),
 				Digest:   k.Digest(),
 				Selector: ck.Selector,
 			}
@@ -415,7 +415,7 @@ func (c *cacheManager) getIDFromDeps(k *CacheKey) string {
 				m2 := make(map[string]struct{})
 				if err := c.backend.WalkLinks(c.getID(ck.CacheKey.CacheKey), CacheInfoLink{
 					Input:    Index(i),
-					Output:   Index(k.Output()),
+					Output:   k.Output(),
 					Digest:   k.Digest(),
 					Selector: ck.Selector,
 				}, func(id string) error {

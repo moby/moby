@@ -76,8 +76,8 @@ func (s *winApplier) Apply(ctx context.Context, desc ocispecs.Descriptor, mounts
 		}
 
 		rc2, discard := filter(rc, func(hdr *tar.Header) bool {
-			if strings.HasPrefix(hdr.Name, "Files/") {
-				hdr.Name = strings.TrimPrefix(hdr.Name, "Files/")
+			if after, ok := strings.CutPrefix(hdr.Name, "Files/"); ok {
+				hdr.Name = after
 				hdr.Linkname = strings.TrimPrefix(hdr.Linkname, "Files/")
 				// TODO: could convert the windows PAX headers to xattr here to reuse
 				// the original ones in diff for parent directories and file modifications

@@ -398,7 +398,7 @@ func (hs *httpSourceHandler) save(ctx context.Context, resp *http.Response, s se
 	uid := hs.src.UID
 	gid := hs.src.GID
 	if idmap := mount.IdentityMapping(); idmap != nil {
-		uid, gid, err = idmap.ToHost(int(uid), int(gid))
+		uid, gid, err = idmap.ToHost(uid, gid)
 		if err != nil {
 			return nil, "", err
 		}
@@ -496,7 +496,7 @@ func (hs *httpSourceHandler) Snapshot(ctx context.Context, g session.Group) (cac
 }
 
 func (hs *httpSourceHandler) newHTTPRequest(ctx context.Context, g session.Group) (*http.Request, error) {
-	req, err := http.NewRequest("GET", hs.src.URL, nil)
+	req, err := http.NewRequest(http.MethodGet, hs.src.URL, nil)
 	if err != nil {
 		return nil, err
 	}

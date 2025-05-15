@@ -25,7 +25,7 @@ loop0:
 			}
 			// full match, potentially skip all
 			if idx == len(st.Frames)-1 {
-				if st.Pid == prev.Pid && st.Version == prev.Version && slices.Compare(st.Cmdline, st.Cmdline) == 0 {
+				if st.Pid == prev.Pid && st.Version == prev.Version && slices.Equal(st.Cmdline, prev.Cmdline) {
 					continue loop0
 				}
 			}

@@ -3,7 +3,7 @@ package verifier
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/containerd/platforms"
@@ -115,10 +115,10 @@ func CheckInvalidPlatforms[T comparable](ctx context.Context, res *result.Result
 }
 
 func platformsString(ps []exptypes.Platform) string {
-	var ss []string
-	for _, p := range ps {
-		ss = append(ss, platforms.FormatAll(platforms.Normalize(p.Platform)))
+	ss := make([]string, len(ps))
+	for i, p := range ps {
+		ss[i] = platforms.FormatAll(platforms.Normalize(p.Platform))
 	}
-	sort.Strings(ss)
+	slices.Sort(ss)
 	return strings.Join(ss, ",")
 }

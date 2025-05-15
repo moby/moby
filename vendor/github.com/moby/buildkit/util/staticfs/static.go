@@ -6,7 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/tonistiigi/fsutil"
@@ -52,7 +52,7 @@ func (fs *FS) Walk(ctx context.Context, target string, fn fs.WalkDirFunc) error 
 		}
 		keys = append(keys, convertPathToKey(k))
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, k := range keys {
 		p := convertKeyToPath(k)
 		st := fs.files[p].Stat

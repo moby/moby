@@ -136,7 +136,7 @@ func Image(ref string, opts ...ImageOption) State {
 	} else if info.metaResolver != nil {
 		if _, ok := r.(reference.Digested); ok || !info.resolveDigest {
 			return NewState(src.Output()).Async(func(ctx context.Context, st State, c *Constraints) (State, error) {
-				p := info.Constraints.Platform
+				p := info.Platform
 				if p == nil {
 					p = c.Platform
 				}
@@ -153,7 +153,7 @@ func Image(ref string, opts ...ImageOption) State {
 			})
 		}
 		return Scratch().Async(func(ctx context.Context, _ State, c *Constraints) (State, error) {
-			p := info.Constraints.Platform
+			p := info.Platform
 			if p == nil {
 				p = c.Platform
 			}

@@ -223,7 +223,7 @@ func MigrateV2(ctx context.Context, from, to string, cs content.Store, s snapsho
 
 			if blob := md.getBlob(); blob != "" {
 				if _, err := cs.Update(ctx, content.Info{
-					Digest: digest.Digest(blob),
+					Digest: blob,
 				}, "labels.containerd.io/gc.root"); err != nil {
 					return err
 				}

@@ -3,7 +3,7 @@ package contenthash
 import (
 	"archive/tar"
 	"io"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -49,14 +49,13 @@ func v1TarHeaderSelect(h *tar.Header) (orderedHeaders [][2]string) {
 	// Get extended attributes.
 	xAttrKeys := make([]string, 0, len(h.PAXRecords))
 	for k := range pax {
-		if strings.HasPrefix(k, "SCHILY.xattr.") {
-			k = strings.TrimPrefix(k, "SCHILY.xattr.")
+		if k, ok := strings.CutPrefix(k, "SCHILY.xattr."); ok {
 			if k == "security.capability" || !strings.HasPrefix(k, "security.") && !strings.HasPrefix(k, "system.") {
 				xAttrKeys = append(xAttrKeys, k)
 			}
 		}
 	}
-	sort.Strings(xAttrKeys)
+	slices.Sort(xAttrKeys)
 
 	// Make the slice with enough capacity to hold the 11 basic headers
 	// we want from the v0 selector plus however many xattrs we have.

@@ -121,7 +121,6 @@ func getAvailableBlobs(ctx context.Context, cs content.Store, chain *solver.Remo
 	}
 	var res []*solver.Remote
 	for _, desc := range descs {
-		desc := desc
 		if len(parents) == 0 { // bottommost ref
 			res = append(res, &solver.Remote{
 				Descriptors: []ocispecs.Descriptor{desc},
@@ -277,7 +276,6 @@ func (mp *lazyMultiProvider) Info(ctx context.Context, dgst digest.Digest) (cont
 func (mp *lazyMultiProvider) Unlazy(ctx context.Context) error {
 	eg, egctx := errgroup.WithContext(ctx)
 	for _, p := range mp.plist {
-		p := p
 		eg.Go(func() error {
 			return p.Unlazy(egctx)
 		})

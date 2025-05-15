@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptrace"
-	"slices"
 
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/stack"
@@ -34,19 +33,9 @@ func StartSpan(ctx context.Context, operationName string, opts ...trace.SpanStar
 }
 
 func hasStacktrace(err error) bool {
-	switch e := err.(type) {
-	case interface{ StackTrace() *stack.Stack }:
-		return true
-	case interface{ StackTrace() errors.StackTrace }:
-		return true
-	case interface{ Unwrap() error }:
-		return hasStacktrace(e.Unwrap())
-	case interface{ Unwrap() []error }:
-		if slices.ContainsFunc(e.Unwrap(), hasStacktrace) {
-			return true
-		}
-	}
-	return false
+	var stack interface{ StackTrace() *stack.Stack }
+	var pkgStack interface{ StackTrace() errors.StackTrace }
+	return errors.As(err, &stack) || errors.As(err, &pkgStack)
 }
 
 // FinishWithError finalizes the span and sets the error if one is passed

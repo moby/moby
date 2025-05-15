@@ -282,10 +282,10 @@ func (c *cniProvider) newNS(ctx context.Context, hostname string) (*cniNS, error
 
 	var cniRes *cni.Result
 	if ctx.Value(contextKeyDetachedNetNS) == nil {
-		cniRes, err = c.CNI.Setup(context.TODO(), id, nativeID, nsOpts...)
+		cniRes, err = c.Setup(context.TODO(), id, nativeID, nsOpts...)
 	} else {
 		// Parallel Setup cannot be used, apparently due to the goroutine issue with setns
-		cniRes, err = c.CNI.SetupSerially(context.TODO(), id, nativeID, nsOpts...)
+		cniRes, err = c.SetupSerially(context.TODO(), id, nativeID, nsOpts...)
 	}
 	if err != nil {
 		deleteNetNS(nativeID)

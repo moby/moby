@@ -122,7 +122,7 @@ func (s *Sampler[T]) run() {
 					ss.err = nil
 				}
 				dur := ss.last.Sub(ss.first)
-				if time.Duration(ss.interval)*time.Duration(s.maxSamples) <= dur {
+				if ss.interval*time.Duration(s.maxSamples) <= dur {
 					ss.interval *= 2
 				}
 			}
