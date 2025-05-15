@@ -229,14 +229,13 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt source
 	case resolver.ResolveModePreferLocal:
 		img, err := is.resolveLocal(ref)
 		if err == nil {
-			if opt.Platform != nil && !platformMatches(img, opt.Platform) {
-				log.G(ctx).WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, checking remote",
-					path.Join(opt.Platform.OS, opt.Platform.Architecture, opt.Platform.Variant),
-					path.Join(img.OS, img.Architecture, img.Variant),
-				)
-			} else {
+			if opt.Platform == nil || platformMatches(img, opt.Platform) {
 				return "", img.RawJSON(), err
 			}
+			log.G(ctx).WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, checking remote",
+				path.Join(opt.Platform.OS, opt.Platform.Architecture, opt.Platform.Variant),
+				path.Join(img.OS, img.Architecture, img.Variant),
+			)
 		}
 		// fallback to remote
 		return is.resolveRemote(ctx, ref, opt.Platform, sm, g)
