@@ -1,4 +1,4 @@
-package httpstatus // import "github.com/docker/docker/api/server/httpstatus"
+package httpstatus // import "github.com/docker/docker/daemon/server/httpstatus"
 
 import (
 	"context"
