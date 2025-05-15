@@ -22,7 +22,7 @@ const extName = "LogDriver"
 type logPlugin interface {
 	StartLogging(streamPath string, info Info) (err error)
 	StopLogging(streamPath string) (err error)
-	Capabilities() (cap Capability, err error)
+	Capabilities() (capability Capability, err error)
 	ReadLogs(info Info, config ReadConfig) (stream io.ReadCloser, err error)
 }
 

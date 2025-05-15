@@ -268,7 +268,7 @@ func DefaultConfig() *Config {
 // New creates a new instance of NetworkDB using the Config passed by
 // the caller.
 func New(c *Config) (*NetworkDB, error) {
-	nDB := new(c)
+	nDB := newNetworkDB(c)
 	log.G(context.TODO()).Infof("New memberlist node - Node:%v will use memberlist nodeID:%v with config:%+v", c.Hostname, c.NodeID, c)
 	if err := nDB.clusterInit(); err != nil {
 		return nil, err
@@ -277,7 +277,7 @@ func New(c *Config) (*NetworkDB, error) {
 	return nDB, nil
 }
 
-func new(c *Config) *NetworkDB {
+func newNetworkDB(c *Config) *NetworkDB {
 	// The garbage collection logic for entries leverage the presence of the network.
 	// For this reason the expiration time of the network is put slightly higher than the entry expiration so that
 	// there is at least 5 extra cycle to make sure that all the entries are properly deleted before deleting the network.
