@@ -114,9 +114,8 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader(b)),
 				}, nil
-			} else {
-				return nil, fmt.Errorf("unexpected URL '%s'", req.URL.Path)
 			}
+			return nil, fmt.Errorf("unexpected URL '%s'", req.URL.Path)
 		}),
 	}
 

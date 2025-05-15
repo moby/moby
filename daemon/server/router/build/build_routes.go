@@ -216,18 +216,18 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 			opts.MaxUsedSpace = bs
 		}
 
-		if bs, err := parseBytesFromFormValue("min-free-space"); err != nil {
+		bs, err := parseBytesFromFormValue("min-free-space")
+		if err != nil {
 			return err
-		} else {
-			opts.MinFreeSpace = bs
 		}
+		opts.MinFreeSpace = bs
 	} else {
 		// Only keep-storage was valid in pre-1.48 versions.
-		if bs, err := parseBytesFromFormValue("keep-storage"); err != nil {
+		bs, err := parseBytesFromFormValue("keep-storage")
+		if err != nil {
 			return err
-		} else {
-			opts.ReservedSpace = bs
 		}
+		opts.ReservedSpace = bs
 	}
 
 	report, err := br.backend.PruneCache(ctx, opts)

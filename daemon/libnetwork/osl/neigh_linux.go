@@ -100,9 +100,8 @@ func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, options .
 				"neigh": fmt.Sprintf("%+v", nlnh),
 			}).Warn("Neighbor entry already present")
 			return NeighborSearchError{dstIP, dstMac, linkName, true}
-		} else {
-			return fmt.Errorf("could not add neighbor entry %+v: %w", nlnh, err)
 		}
+		return fmt.Errorf("could not add neighbor entry %+v: %w", nlnh, err)
 	}
 
 	log.G(context.TODO()).WithFields(log.Fields{

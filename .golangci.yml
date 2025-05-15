@@ -213,6 +213,9 @@ linters:
         - name: early-return
           arguments:
             - preserve-scope
+        - name: indent-error-flow
+          arguments:
+            - preserve-scope
           # FIXME make sure all packages have a description. Currently, there's many packages without.
         - name: package-comments
           disabled: true
