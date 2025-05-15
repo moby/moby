@@ -1,6 +1,6 @@
 //go:build !windows
 
-package main
+package command
 
 import (
 	"github.com/spf13/pflag"
