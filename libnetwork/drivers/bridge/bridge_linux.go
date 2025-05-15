@@ -1877,19 +1877,19 @@ func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityCon
 	cc := &connectivityConfiguration{}
 
 	if opt, ok := cOptions[netlabel.PortMap]; ok {
-		if pb, ok := opt.([]types.PortBinding); ok {
-			cc.PortBindings = pb
-		} else {
+		pb, ok := opt.([]types.PortBinding)
+		if !ok {
 			return nil, types.InvalidParameterErrorf("invalid port mapping data in connectivity configuration: %v", opt)
 		}
+		cc.PortBindings = pb
 	}
 
 	if opt, ok := cOptions[netlabel.ExposedPorts]; ok {
-		if ports, ok := opt.([]types.TransportPort); ok {
-			cc.ExposedPorts = ports
-		} else {
+		ports, ok := opt.([]types.TransportPort)
+		if !ok {
 			return nil, types.InvalidParameterErrorf("invalid exposed ports data in connectivity configuration: %v", opt)
 		}
+		cc.ExposedPorts = ports
 	}
 
 	return cc, nil
