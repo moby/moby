@@ -231,11 +231,10 @@ func (a *allocator) RequestAddress(poolID string, address net.IP, options map[st
 	if err := a.call("RequestAddress", req, res); err != nil {
 		return nil, nil, err
 	}
-	if res.Address != "" {
-		retAddress, err = types.ParseCIDR(res.Address)
-	} else {
+	if res.Address == "" {
 		return nil, nil, ipamapi.ErrNoIPReturned
 	}
+	retAddress, err = types.ParseCIDR(res.Address)
 	return retAddress, res.Data, err
 }
 

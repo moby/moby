@@ -225,18 +225,17 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt source
 		fallthrough
 	case resolver.ResolveModePreferLocal:
 		img, err := is.resolveLocal(ref)
-		if err == nil {
-			if opt.Platform != nil && !platformMatches(img, opt.Platform) {
-				log.G(ctx).WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, checking remote",
-					path.Join(opt.Platform.OS, opt.Platform.Architecture, opt.Platform.Variant),
-					path.Join(img.OS, img.Architecture, img.Variant),
-				)
-			} else {
-				return "", img.RawJSON(), err
-			}
+		if err != nil {
+			// fallback to remote
+			return is.resolveRemote(ctx, ref, opt.Platform, sm, g)
 		}
-		// fallback to remote
-		return is.resolveRemote(ctx, ref, opt.Platform, sm, g)
+		if opt.Platform == nil || platformMatches(img, opt.Platform) {
+			return "", img.RawJSON(), nil
+		}
+		log.G(ctx).WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, checking remote",
+			path.Join(opt.Platform.OS, opt.Platform.Architecture, opt.Platform.Variant),
+			path.Join(img.OS, img.Architecture, img.Variant),
+		)
 	}
 	// should never happen
 	return "", nil, fmt.Errorf("builder cannot resolve image %s: invalid mode %q", ref, opt.ImageOpt.ResolveMode)
