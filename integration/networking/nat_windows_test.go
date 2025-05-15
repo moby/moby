@@ -75,7 +75,9 @@ func TestNatNetworkICC(t *testing.T) {
 
 // Check that a container on one network can reach a service in a container on
 // another network, via a mapped port on the host.
-func TestPortMappedHairpinWindows(t *testing.T) {
+//
+// FIXME: flaky test; see https://github.com/moby/moby/issues/48881
+func TestFlakyPortMappedHairpinWindows(t *testing.T) {
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
 
