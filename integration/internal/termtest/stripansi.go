@@ -92,10 +92,10 @@ func (h *stringHandler) CUP(x, y int) error {
 	return nil
 }
 
-func (h stringHandler) DECTCEM(bool) error      { return nil } // Text Cursor Enable
-func (h stringHandler) SGR(v []int) error       { return nil } // Set Graphics Rendition
-func (h stringHandler) DA(attrs []string) error { return nil }
-func (h stringHandler) Flush() error            { return nil }
+func (h stringHandler) DECTCEM(bool) error  { return nil } // Text Cursor Enable
+func (h stringHandler) SGR(_ []int) error   { return nil } // Set Graphics Rendition
+func (h stringHandler) DA(_ []string) error { return nil }
+func (h stringHandler) Flush() error        { return nil }
 
 func (h *stringHandler) String() string {
 	return string(h.b)

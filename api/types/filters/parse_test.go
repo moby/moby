@@ -361,7 +361,7 @@ func TestWalkValues(t *testing.T) {
 	assert.Check(t, err)
 
 	loops1 := 0
-	err = f.WalkValues("status", func(value string) error {
+	err = f.WalkValues("status", func(_ string) error {
 		loops1++
 		return nil
 	})
@@ -369,7 +369,7 @@ func TestWalkValues(t *testing.T) {
 	assert.Check(t, is.Equal(loops1, 2), "Expected to not iterate when the field doesn't exist")
 
 	loops2 := 0
-	err = f.WalkValues("unknown-key", func(value string) error {
+	err = f.WalkValues("unknown-key", func(_ string) error {
 		loops2++
 		return nil
 	})

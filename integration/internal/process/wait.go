@@ -7,7 +7,7 @@ import (
 
 // NotAlive verifies the process doesn't exist (finished or never started).
 func NotAlive(pid int) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		if !procpkg.Alive(pid) {
 			return poll.Success()
 		}

@@ -189,7 +189,7 @@ func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 		agent.networkDB.RemoveKey(deleted)
 	}
 
-	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, _ driverapi.Capability) bool {
 		dr, ok := driver.(discoverapi.Discover)
 		if !ok {
 			return false
@@ -246,7 +246,7 @@ func (c *Controller) agentSetup(clusterProvider cluster.Provider) error {
 			log.G(context.TODO()).WithError(err).Errorf("Error in agentInit")
 			return err
 		}
-		c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+		c.drvRegistry.WalkDrivers(func(_ string, driver driverapi.Driver, capability driverapi.Capability) bool {
 			if capability.ConnectivityScope == scope.Global {
 				if d, ok := driver.(discoverapi.Discover); ok {
 					c.agentDriverNotify(d)
@@ -356,7 +356,7 @@ func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	go c.handleTableEvents(nodeCh, c.handleNodeTableEvent)
 
 	keys, tags := c.getKeys(subsysIPSec)
-	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, _ driverapi.Capability) bool {
 		if dr, ok := driver.(discoverapi.Discover); ok {
 			if err := dr.DiscoverNew(discoverapi.EncryptionKeysConfig, discoverapi.DriverEncryptionConfig{
 				Keys: keys,

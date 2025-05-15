@@ -60,7 +60,7 @@ func TestNetworks(t *testing.T) {
 		assert.NilError(t, err)
 
 		var driverName string
-		reg.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+		reg.WalkDrivers(func(name string, _ driverapi.Driver, _ driverapi.Capability) bool {
 			driverName = name
 			return false
 		})

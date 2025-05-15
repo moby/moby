@@ -33,7 +33,7 @@ func newDaemonCommand() (*cobra.Command, error) {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			opts.flags = cmd.Flags()
 
 			cli, err := newDaemonCLI(opts)

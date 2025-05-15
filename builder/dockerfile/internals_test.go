@@ -59,7 +59,7 @@ func TestNonExistingDockerfile(t *testing.T) {
 	readAndCheckDockerfile(t, "NonExistingDockerfile", contextDir, "Dockerfile", expectedError)
 }
 
-func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, expectedError string) {
+func readAndCheckDockerfile(t *testing.T, _, contextDir, dockerfilePath, expectedError string) {
 	if runtime.GOOS != "windows" {
 		skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	}

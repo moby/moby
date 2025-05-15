@@ -473,7 +473,7 @@ func createBridge(t *testing.T, ifName string, addrs []string) net.IP {
 	err = nlh.LinkSetUp(brLink)
 	assert.NilError(t, err)
 	var llAddr net.IP
-	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+	poll.WaitOn(t, func(_ poll.LogT) poll.Result {
 		addrs, err := nlh.AddrList(brLink, netlink.FAMILY_V6)
 		if err != nil {
 			return poll.Error(err)

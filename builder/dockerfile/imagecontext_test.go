@@ -17,7 +17,7 @@ func getMockImageSource(getImageImage builder.Image, getImageLayer builder.ROLay
 	return &imageSources{
 		byImageID: make(map[string]*imageMount),
 		mounts:    []*imageMount{},
-		getImage: func(_ context.Context, name string, localOnly bool, platform *ocispec.Platform) (builder.Image, builder.ROLayer, error) {
+		getImage: func(_ context.Context, _ string, _ bool, _ *ocispec.Platform) (builder.Image, builder.ROLayer, error) {
 			return getImageImage, getImageLayer, getImageError
 		},
 	}

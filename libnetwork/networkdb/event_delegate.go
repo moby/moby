@@ -69,5 +69,5 @@ func (e *eventDelegate) NotifyLeave(mn *memberlist.Node) {
 	}
 }
 
-func (e *eventDelegate) NotifyUpdate(n *memberlist.Node) {
+func (e *eventDelegate) NotifyUpdate(_ *memberlist.Node) {
 }

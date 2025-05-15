@@ -154,7 +154,7 @@ func TestV1EndpointParse(t *testing.T) {
 // Ensure that a registry endpoint that responds with a 401 only is determined
 // to be a valid v1 registry endpoint
 func TestV1EndpointValidate(t *testing.T) {
-	requireBasicAuthHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	requireBasicAuthHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Add("WWW-Authenticate", `Basic realm="localhost"`)
 		w.WriteHeader(http.StatusUnauthorized)
 	})

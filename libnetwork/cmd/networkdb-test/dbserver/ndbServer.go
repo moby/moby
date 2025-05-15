@@ -21,7 +21,7 @@ var (
 	ipAddr string
 )
 
-func ipaddress(w http.ResponseWriter, r *http.Request) {
+func ipaddress(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "%s\n", ipAddr)
 }
 

@@ -212,7 +212,7 @@ func TestGetWithStatusError(t *testing.T) {
 	}
 	for _, testcase := range testcases {
 		ts := httptest.NewServer(
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				buffer := bytes.NewBufferString(testcase.expectedBody)
 				w.WriteHeader(testcase.statusCode)
 				w.Write(buffer.Bytes())

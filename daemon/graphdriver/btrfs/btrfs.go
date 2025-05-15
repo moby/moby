@@ -158,7 +158,7 @@ func (d *Driver) Status() [][2]string {
 }
 
 // GetMetadata returns empty metadata for this driver.
-func (d *Driver) GetMetadata(id string) (map[string]string, error) {
+func (d *Driver) GetMetadata(_ string) (map[string]string, error) {
 	return nil, nil
 }
 
@@ -616,7 +616,7 @@ func (d *Driver) Remove(id string) error {
 }
 
 // Get the requested filesystem id.
-func (d *Driver) Get(id, mountLabel string) (string, error) {
+func (d *Driver) Get(id, _ string) (string, error) {
 	dir := d.subvolumesDirID(id)
 	st, err := os.Stat(dir)
 	if err != nil {
@@ -642,7 +642,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 }
 
 // Put is not implemented for BTRFS as there is no cleanup required for the id.
-func (d *Driver) Put(id string) error {
+func (d *Driver) Put(_ string) error {
 	// Get() creates no runtime resources (like e.g. mounts)
 	// so this doesn't need to do anything.
 	return nil

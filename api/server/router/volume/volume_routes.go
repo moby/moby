@@ -22,7 +22,7 @@ const (
 	clusterVolumesVersion = "1.42"
 )
 
-func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func (v *volumeRouter) getVolumeByName(ctx context.Context, w http.ResponseWrite
 	return httputils.WriteJSON(w, http.StatusOK, vol)
 }
 
-func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 	return httputils.WriteJSON(w, http.StatusCreated, vol)
 }
 
-func (v *volumeRouter) putVolumesUpdate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (v *volumeRouter) putVolumesUpdate(_ context.Context, _ http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if !v.cluster.IsManager() {
 		return errdefs.Unavailable(errors.New("volume update only valid for cluster volumes, but swarm is unavailable"))
 	}
@@ -186,7 +186,7 @@ func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter,
 	return nil
 }
 
-func (v *volumeRouter) postVolumesPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (v *volumeRouter) postVolumesPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}

@@ -48,7 +48,7 @@ func TestSecretInspectSecretNotFound(t *testing.T) {
 
 func TestSecretInspectWithEmptyID(t *testing.T) {
 	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(_ *http.Request) (*http.Response, error) {
 			return nil, errors.New("should not make request")
 		}),
 	}

@@ -13,7 +13,7 @@ type delegate struct {
 	nDB *NetworkDB
 }
 
-func (d *delegate) NodeMeta(limit int) []byte {
+func (d *delegate) NodeMeta(_ int) []byte {
 	return []byte{}
 }
 
@@ -471,7 +471,7 @@ func (d *delegate) LocalState(join bool) []byte {
 	return buf
 }
 
-func (d *delegate) MergeRemoteState(buf []byte, isJoin bool) {
+func (d *delegate) MergeRemoteState(buf []byte, _ bool) {
 	if len(buf) == 0 {
 		log.G(context.TODO()).Error("zero byte remote network state received")
 		return

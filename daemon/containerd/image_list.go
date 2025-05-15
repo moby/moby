@@ -258,7 +258,7 @@ func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.I
 		}()
 
 		var contentSize int64
-		if err := i.walkPresentChildren(ctx, target, func(ctx context.Context, desc ocispec.Descriptor) error {
+		if err := i.walkPresentChildren(ctx, target, func(_ context.Context, desc ocispec.Descriptor) error {
 			contentSize += desc.Size
 			return nil
 		}); err == nil {

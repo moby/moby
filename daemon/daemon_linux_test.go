@@ -166,7 +166,7 @@ func TestNotCleanupMounts(t *testing.T) {
 		repository: "",
 	}
 	var unmounted bool
-	unmount := func(target string) error {
+	unmount := func(_ string) error {
 		unmounted = true
 		return nil
 	}

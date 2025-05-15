@@ -58,7 +58,7 @@ type checker struct {
 	cache  map[string]bool
 }
 
-func (c *checker) Exists(key string, chain []digest.Digest) bool {
+func (c *checker) Exists(key string, _ []digest.Digest) bool {
 	if c.opt.ImageStore == nil {
 		return false
 	}

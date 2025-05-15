@@ -187,11 +187,11 @@ func TestInactiveJobs(t *testing.T) {
 	}
 }
 
-func TestWatchRelease(t *testing.T) {
+func TestWatchRelease(_ *testing.T) {
 	ready := make(chan struct{})
 
 	makeXferFunc := func(id string) doFunc {
-		return func(progressChan chan<- progress.Progress, start <-chan struct{}, _ chan<- struct{}) transfer {
+		return func(progressChan chan<- progress.Progress, _ <-chan struct{}, _ chan<- struct{}) transfer {
 			xfer := newTransfer()
 			go func() {
 				defer func() {
@@ -278,8 +278,8 @@ func TestWatchRelease(t *testing.T) {
 	}
 }
 
-func TestWatchFinishedTransfer(t *testing.T) {
-	makeXferFunc := func(id string) doFunc {
+func TestWatchFinishedTransfer(_ *testing.T) {
+	makeXferFunc := func(_ string) doFunc {
 		return func(progressChan chan<- progress.Progress, _ <-chan struct{}, _ chan<- struct{}) transfer {
 			xfer := newTransfer()
 			go func() {

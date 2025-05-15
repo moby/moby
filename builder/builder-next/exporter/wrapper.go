@@ -100,7 +100,7 @@ func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter
 	return out, ref, err
 }
 
-func (i *imageExporterInstanceWrapper) processNamed(ctx context.Context, imageID image.ID, out map[string]string, desc ocispec.Descriptor) error {
+func (i *imageExporterInstanceWrapper) processNamed(ctx context.Context, imageID image.ID, out map[string]string, _ ocispec.Descriptor) error {
 	if len(i.reposAndTags) == 0 {
 		return nil
 	}

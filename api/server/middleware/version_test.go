@@ -69,7 +69,7 @@ func TestNewVersionMiddlewareValidation(t *testing.T) {
 
 func TestVersionMiddlewareVersion(t *testing.T) {
 	expectedVersion := "<not set>"
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	handler := func(ctx context.Context, _ http.ResponseWriter, _ *http.Request, _ map[string]string) error {
 		v := httputils.VersionFromContext(ctx)
 		assert.Check(t, is.Equal(expectedVersion, v))
 		return nil
@@ -119,7 +119,7 @@ func TestVersionMiddlewareVersion(t *testing.T) {
 }
 
 func TestVersionMiddlewareWithErrorsReturnsHeaders(t *testing.T) {
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	handler := func(ctx context.Context, _ http.ResponseWriter, _ *http.Request, _ map[string]string) error {
 		v := httputils.VersionFromContext(ctx)
 		assert.Check(t, len(v) != 0)
 		return nil

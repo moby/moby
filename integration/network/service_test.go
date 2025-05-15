@@ -310,7 +310,7 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 
 //nolint:unused // for some reason, the "unused" linter marks this function as "unused"
 func swarmIngressReady(ctx context.Context, client client.NetworkAPIClient) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		netInfo, err := client.NetworkInspect(ctx, ingressNet, networktypes.InspectOptions{
 			Verbose: true,
 			Scope:   "swarm",
@@ -332,7 +332,7 @@ func swarmIngressReady(ctx context.Context, client client.NetworkAPIClient) func
 }
 
 func noServices(ctx context.Context, client client.ServiceAPIClient) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		services, err := client.ServiceList(ctx, swarmtypes.ServiceListOptions{})
 		switch {
 		case err != nil:

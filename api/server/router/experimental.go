@@ -40,7 +40,7 @@ func (notImplementedError) Error() string {
 
 func (notImplementedError) NotImplemented() {}
 
-func experimentalHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func experimentalHandler(_ context.Context, _ http.ResponseWriter, _ *http.Request, _ map[string]string) error {
 	return notImplementedError{}
 }
 

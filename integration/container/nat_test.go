@@ -33,7 +33,7 @@ func TestNetworkNat(t *testing.T) {
 
 	var conn net.Conn
 	addr := net.JoinHostPort(endpoint.String(), strconv.Itoa(port))
-	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+	poll.WaitOn(t, func(_ poll.LogT) poll.Result {
 		var err error
 		conn, err = net.Dial("tcp", addr)
 		if err != nil {
@@ -61,7 +61,7 @@ func TestNetworkLocalhostTCPNat(t *testing.T) {
 
 	var conn net.Conn
 	addr := net.JoinHostPort("localhost", strconv.Itoa(port))
-	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+	poll.WaitOn(t, func(_ poll.LogT) poll.Result {
 		var err error
 		conn, err = net.Dial("tcp", addr)
 		if err != nil {

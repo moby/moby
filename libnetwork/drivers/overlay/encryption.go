@@ -130,7 +130,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, isLocal, add bool) erro
 
 	switch {
 	case isLocal:
-		if err := d.peerDbNetworkWalk(nid, func(pKey *peerKey, pEntry *peerEntry) bool {
+		if err := d.peerDbNetworkWalk(nid, func(_ *peerKey, pEntry *peerEntry) bool {
 			if !aIP.Equal(pEntry.vtep) {
 				nodes[pEntry.vtep.String()] = pEntry.vtep
 			}
@@ -382,7 +382,7 @@ func getMinimalIP(ip net.IP) net.IP {
 	return ip
 }
 
-func programSP(fSA *netlink.XfrmState, rSA *netlink.XfrmState, add bool) error {
+func programSP(fSA *netlink.XfrmState, _ *netlink.XfrmState, add bool) error {
 	action := "Removing"
 	xfrmProgram := ns.NlHandle().XfrmPolicyDel
 	if add {

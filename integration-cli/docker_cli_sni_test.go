@@ -33,7 +33,7 @@ func (s *DockerCLISNISuite) TestClientSetsTLSServerName(c *testing.T) {
 	var serverNameReceived []string
 	var serverName string
 
-	virtualHostServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	virtualHostServer := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		serverNameReceived = append(serverNameReceived, r.TLS.ServerName)
 	}))
 	defer virtualHostServer.Close()
