@@ -46,9 +46,8 @@ func IsInState(ctx context.Context, apiClient client.APIClient, containerID stri
 		}
 		if len(state) == 1 {
 			return poll.Continue("waiting for container State.Status to be '%s', currently '%s'", state[0], inspect.State.Status)
-		} else {
-			return poll.Continue("waiting for container State.Status to be one of (%s), currently '%s'", strings.Join(state, ", "), inspect.State.Status)
 		}
+		return poll.Continue("waiting for container State.Status to be one of (%s), currently '%s'", strings.Join(state, ", "), inspect.State.Status)
 	}
 }
 
