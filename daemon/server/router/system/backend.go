@@ -1,4 +1,4 @@
-package system // import "github.com/docker/docker/api/server/router/system"
+package system // import "github.com/docker/docker/daemon/server/router/system"
 
 import (
 	"context"
