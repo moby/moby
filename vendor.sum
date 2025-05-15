@@ -119,8 +119,8 @@ github.com/codahale/rfc6979 v0.0.0-20141003034818-6a90f24967eb h1:EDmT6Q9Zs+SbUo
 github.com/codahale/rfc6979 v0.0.0-20141003034818-6a90f24967eb/go.mod h1:ZjrT6AXHbDs86ZSdt/osfBi5qfexBrKUdONk989Wnk4=
 github.com/container-storage-interface/spec v1.5.0 h1:lvKxe3uLgqQeVQcrnL2CPQKISoKjTJxojEs9cBk+HXo=
 github.com/container-storage-interface/spec v1.5.0/go.mod h1:8K96oQNkJ7pFcC2R9Z1ynGGBB1I93kcS6PGg3SsOk8s=
-github.com/containerd/accelerated-container-image v1.2.3 h1:tAIoP7Z7b2xGhb7QCM5Fa+2xqWfPqRmyi5lodbsGGRA=
-github.com/containerd/accelerated-container-image v1.2.3/go.mod h1:EvKVWor6ZQNUyYp0MZm5hw4k21ropuz7EegM+m/Jb/Q=
+github.com/containerd/accelerated-container-image v1.3.0 h1:sFbTgSuMboeKHa9f7MY11hWF1XxVWjFoiTsXYtOtvdU=
+github.com/containerd/accelerated-container-image v1.3.0/go.mod h1:EvKVWor6ZQNUyYp0MZm5hw4k21ropuz7EegM+m/Jb/Q=
 github.com/containerd/cgroups/v3 v3.0.5 h1:44na7Ud+VwyE7LIoJ8JTNQOa549a8543BmzaJHo6Bzo=
 github.com/containerd/cgroups/v3 v3.0.5/go.mod h1:SA5DLYnXO8pTGYiAHXz94qvLQTKfVM5GEVisn4jpins=
 github.com/containerd/console v1.0.4 h1:F2g4+oChYvBTsASRTz8NP6iIAi97J3TtSAsLbIFn4ro=
