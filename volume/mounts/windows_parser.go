@@ -248,7 +248,7 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 			return &errMountConfig{mnt, errBindSourceDoesNotExist(mnt.Source)}
 		}
 		if !isdir {
-			return &errMountConfig{mnt, fmt.Errorf("source path must be a directory")}
+			return &errMountConfig{mnt, errors.New("source path must be a directory")}
 		}
 
 	case mount.TypeVolume:
@@ -269,7 +269,7 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 		}
 
 		if anonymousVolume && mnt.ReadOnly {
-			return &errMountConfig{mnt, fmt.Errorf("must not set ReadOnly mode when using anonymous volumes")}
+			return &errMountConfig{mnt, errors.New("must not set ReadOnly mode when using anonymous volumes")}
 		}
 
 		if len(mnt.Source) != 0 {
@@ -423,7 +423,7 @@ func (p *windowsParser) parseMountSpec(cfg mount.Mount, convertTargetToBackslash
 
 func (p *windowsParser) ParseVolumesFrom(spec string) (string, string, error) {
 	if len(spec) == 0 {
-		return "", "", fmt.Errorf("volumes-from specification cannot be an empty string")
+		return "", "", errors.New("volumes-from specification cannot be an empty string")
 	}
 
 	id, mode, _ := strings.Cut(spec, ":")
