@@ -66,7 +66,7 @@ func (daemon *Daemon) rmLink(cfg *config.Config, ctr *container.Container, name 
 	}
 	parent, n := path.Split(name)
 	if parent == "/" {
-		return fmt.Errorf("Conflict, cannot remove the default link name of the container")
+		return errors.New("Conflict, cannot remove the default link name of the container")
 	}
 
 	parent = strings.TrimSuffix(parent, "/")

@@ -4,6 +4,7 @@ package overlay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 
@@ -67,7 +68,7 @@ func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo drive
 		mac:  ifInfo.MacAddress(),
 	}
 	if ep.addr == nil {
-		return fmt.Errorf("create endpoint was not passed interface IP address")
+		return errors.New("create endpoint was not passed interface IP address")
 	}
 
 	if s := n.getSubnetforIP(ep.addr); s == nil {

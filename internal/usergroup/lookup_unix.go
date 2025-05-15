@@ -4,6 +4,7 @@ package usergroup
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os/exec"
@@ -112,11 +113,11 @@ func callGetent(database, key string) (io.Reader, error) {
 		}
 		switch exitCode {
 		case 1:
-			return nil, fmt.Errorf("getent reported invalid parameters/database unknown")
+			return nil, errors.New("getent reported invalid parameters/database unknown")
 		case 2:
 			return nil, fmt.Errorf("getent unable to find entry %q in %s database", key, database)
 		case 3:
-			return nil, fmt.Errorf("getent database doesn't support enumeration")
+			return nil, errors.New("getent database doesn't support enumeration")
 		default:
 			return nil, err
 		}
@@ -133,7 +134,7 @@ func getExitCode(err error) (int, error) {
 			return procExit.ExitStatus(), nil
 		}
 	}
-	return exitCode, fmt.Errorf("failed to get exit code")
+	return exitCode, errors.New("failed to get exit code")
 }
 
 // LoadIdentityMapping takes a requested username and

@@ -2,7 +2,6 @@ package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"runtime/debug"
 	"syscall"
@@ -234,7 +233,7 @@ func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtoo
 	}
 
 	if len(m.Source) == 0 {
-		return "", noCleanup, fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
+		return "", noCleanup, errors.New("Unable to setup mount point, neither source nor volume defined")
 	}
 
 	if m.Type == mounttypes.TypeBind {
