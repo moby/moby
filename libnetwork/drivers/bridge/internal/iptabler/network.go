@@ -411,9 +411,9 @@ func removeIPChains(ctx context.Context, version iptables.IPVersion) {
 	// Remove chains
 	for _, chainInfo := range []iptables.ChainInfo{
 		{Name: dockerChain, Table: iptables.Nat, IPVersion: version},
-		{Name: dockerChain, Table: iptables.Filter, IPVersion: version},
 		{Name: DockerForwardChain, Table: iptables.Filter, IPVersion: version},
 		{Name: dockerBridgeChain, Table: iptables.Filter, IPVersion: version},
+		{Name: dockerChain, Table: iptables.Filter, IPVersion: version},
 		{Name: dockerCTChain, Table: iptables.Filter, IPVersion: version},
 		{Name: dockerInternalChain, Table: iptables.Filter, IPVersion: version},
 		{Name: isolationChain1, Table: iptables.Filter, IPVersion: version},

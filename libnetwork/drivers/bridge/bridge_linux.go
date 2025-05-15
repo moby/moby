@@ -548,8 +548,21 @@ func (d *driver) configure(option map[string]interface{}) error {
 
 var newFirewaller = func(ctx context.Context, config firewaller.Config) (firewaller.Firewaller, error) {
 	if nftables.Enabled() {
-		return nftabler.NewNftabler(ctx, config)
+		fw, err := nftabler.NewNftabler(ctx, config)
+		if err != nil {
+			return nil, err
+		}
+		// Without seeing config (interface names, addresses, and so on), the iptabler's
+		// cleaner can't clean up network or port-specific rules that may have been added
+		// to iptables built-in chains. So, if cleanup is needed, give the cleaner to
+		// the nftabler. Then, it'll use it to delete old rules as networks are restored.
+		fw.(firewaller.FirewallCleanerSetter).SetFirewallCleaner(iptabler.NewCleaner(ctx, config))
+		return fw, nil
 	}
+
+	// The nftabler can clean all of its rules in one go. So, even if there's cleanup
+	// to do, there's no need to pass a cleaner to the iptabler.
+	nftabler.Cleanup(ctx, config)
 	return iptabler.NewIptabler(ctx, config)
 }
 
