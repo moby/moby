@@ -124,7 +124,7 @@ func (conf *Config) GetResolvConf() string {
 // IsSwarmCompatible defines if swarm mode can be enabled in this config
 func (conf *Config) IsSwarmCompatible() error {
 	if conf.LiveRestoreEnabled {
-		return fmt.Errorf("--live-restore daemon configuration is incompatible with swarm mode")
+		return errors.New("--live-restore daemon configuration is incompatible with swarm mode")
 	}
 	return nil
 }

@@ -447,7 +447,7 @@ func (e *containerByIDIndexer) FromObject(obj any) (bool, []byte, error) {
 // FromArgs implements the memdb.Indexer interface
 func (e *containerByIDIndexer) FromArgs(args ...any) ([]byte, error) {
 	if len(args) != 1 {
-		return nil, fmt.Errorf("must provide only a single argument")
+		return nil, errors.New("must provide only a single argument")
 	}
 	arg, ok := args[0].(string)
 	if !ok {
@@ -482,7 +482,7 @@ func (e *namesByNameIndexer) FromObject(obj any) (bool, []byte, error) {
 
 func (e *namesByNameIndexer) FromArgs(args ...any) ([]byte, error) {
 	if len(args) != 1 {
-		return nil, fmt.Errorf("must provide only a single argument")
+		return nil, errors.New("must provide only a single argument")
 	}
 	arg, ok := args[0].(string)
 	if !ok {
@@ -507,7 +507,7 @@ func (e *namesByContainerIDIndexer) FromObject(obj any) (bool, []byte, error) {
 
 func (e *namesByContainerIDIndexer) FromArgs(args ...any) ([]byte, error) {
 	if len(args) != 1 {
-		return nil, fmt.Errorf("must provide only a single argument")
+		return nil, errors.New("must provide only a single argument")
 	}
 	arg, ok := args[0].(string)
 	if !ok {

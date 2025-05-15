@@ -54,7 +54,7 @@ func New(info logger.Info) (logger.Logger, error) {
 			return nil, err
 		}
 		if capval <= 0 {
-			return nil, fmt.Errorf("max-size must be a positive number")
+			return nil, errors.New("max-size must be a positive number")
 		}
 	}
 	maxFiles := 1
@@ -65,7 +65,7 @@ func New(info logger.Info) (logger.Logger, error) {
 			return nil, err
 		}
 		if maxFiles < 1 {
-			return nil, fmt.Errorf("max-file cannot be less than 1")
+			return nil, errors.New("max-file cannot be less than 1")
 		}
 	}
 
@@ -77,7 +77,7 @@ func New(info logger.Info) (logger.Logger, error) {
 			return nil, err
 		}
 		if compress && (maxFiles == 1 || capval == -1) {
-			return nil, fmt.Errorf("compress cannot be true when max-file is less than 2 or max-size is not set")
+			return nil, errors.New("compress cannot be true when max-file is less than 2 or max-size is not set")
 		}
 	}
 

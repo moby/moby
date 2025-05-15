@@ -2,6 +2,7 @@ package gcplogs // import "github.com/docker/docker/daemon/logger/gcplogs"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -115,7 +116,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		project = projectID
 	}
 	if project == "" {
-		return nil, fmt.Errorf("No project was specified and couldn't read project from the metadata server. Please specify a project")
+		return nil, errors.New("No project was specified and couldn't read project from the metadata server. Please specify a project")
 	}
 
 	c, err := logging.NewClient(context.Background(), project)
