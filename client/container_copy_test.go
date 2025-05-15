@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -69,7 +70,7 @@ func TestContainerStatPath(t *testing.T) {
 			query := req.URL.Query()
 			path := query.Get("path")
 			if path != expectedPath {
-				return nil, fmt.Errorf("path not set in URL query properly")
+				return nil, errors.New("path not set in URL query properly")
 			}
 			content, err := json.Marshal(container.PathStat{
 				Name: "name",

@@ -2,7 +2,7 @@ package dockerfile
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"runtime"
 	"testing"
 
@@ -31,7 +31,7 @@ func getMockImageMount() *imageMount {
 }
 
 func TestAddScratchImageAddsToMounts(t *testing.T) {
-	is := getMockImageSource(nil, nil, fmt.Errorf("getImage is not implemented"))
+	is := getMockImageSource(nil, nil, errors.New("getImage is not implemented"))
 	im := getMockImageMount()
 
 	// We are testing whether the imageMount is added to is.mounts
@@ -41,7 +41,7 @@ func TestAddScratchImageAddsToMounts(t *testing.T) {
 }
 
 func TestAddFromScratchPopulatesPlatform(t *testing.T) {
-	is := getMockImageSource(nil, nil, fmt.Errorf("getImage is not implemented"))
+	is := getMockImageSource(nil, nil, errors.New("getImage is not implemented"))
 
 	platforms := []*ocispec.Platform{
 		{
@@ -68,7 +68,7 @@ func TestAddFromScratchPopulatesPlatform(t *testing.T) {
 }
 
 func TestAddFromScratchDoesNotModifyArgPlatform(t *testing.T) {
-	is := getMockImageSource(nil, nil, fmt.Errorf("getImage is not implemented"))
+	is := getMockImageSource(nil, nil, errors.New("getImage is not implemented"))
 	im := getMockImageMount()
 
 	platform := &ocispec.Platform{
@@ -84,7 +84,7 @@ func TestAddFromScratchDoesNotModifyArgPlatform(t *testing.T) {
 }
 
 func TestAddFromScratchPopulatesPlatformIfNil(t *testing.T) {
-	is := getMockImageSource(nil, nil, fmt.Errorf("getImage is not implemented"))
+	is := getMockImageSource(nil, nil, errors.New("getImage is not implemented"))
 	im := getMockImageMount()
 	is.Add(im, nil)
 	image, ok := im.image.(*image.Image)
