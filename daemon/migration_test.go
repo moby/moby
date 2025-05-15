@@ -52,7 +52,7 @@ func TestContainerMigrateOS(t *testing.T) {
 	var mock mockPlatformReader
 
 	// ImageManifest is nil for containers created with graphdrivers image store
-	var graphdrivers *ocispec.Descriptor = nil
+	var graphdrivers *ocispec.Descriptor
 
 	for _, tc := range []struct {
 		name     string

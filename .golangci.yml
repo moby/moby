@@ -204,10 +204,13 @@ linters:
       max-func-lines: 0
 
     revive:
+      # Only listed rules are applied
+      # https://github.com/mgechev/revive/blob/HEAD/RULES_DESCRIPTIONS.md
       rules:
           # FIXME make sure all packages have a description. Currently, there's many packages without.
         - name: package-comments
           disabled: true
+        - name: var-declaration
 
     staticcheck:
       checks:
