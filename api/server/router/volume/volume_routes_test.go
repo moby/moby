@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -605,7 +606,7 @@ func (b *fakeVolumeBackend) Get(_ context.Context, name string, _ ...opts.GetOpt
 func (b *fakeVolumeBackend) Create(_ context.Context, name, driverName string, _ ...opts.CreateOption) (*volume.Volume, error) {
 	if _, ok := b.volumes[name]; ok {
 		// TODO(dperny): return appropriate error type
-		return nil, fmt.Errorf("already exists")
+		return nil, errors.New("already exists")
 	}
 
 	v := &volume.Volume{
@@ -634,7 +635,7 @@ func (b *fakeVolumeBackend) Remove(_ context.Context, name string, o ...opts.Rem
 			return errdefs.NotFound(fmt.Errorf("volume %s not found", name))
 		}
 	} else if v.Name == "inuse" {
-		return errdefs.Conflict(fmt.Errorf("volume in use"))
+		return errdefs.Conflict(errors.New("volume in use"))
 	}
 
 	delete(b.volumes, name)
@@ -655,9 +656,9 @@ type fakeClusterBackend struct {
 
 func (c *fakeClusterBackend) checkSwarm() error {
 	if !c.swarm {
-		return errdefs.Unavailable(fmt.Errorf("this node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again"))
+		return errdefs.Unavailable(errors.New("this node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again"))
 	} else if !c.manager {
-		return errdefs.Unavailable(fmt.Errorf("this node is not a swarm manager. Worker nodes can't be used to view or modify cluster state. Please run this command on a manager node or promote the current node to a manager"))
+		return errdefs.Unavailable(errors.New("this node is not a swarm manager. Worker nodes can't be used to view or modify cluster state. Please run this command on a manager node or promote the current node to a manager"))
 	}
 
 	return nil
@@ -697,7 +698,7 @@ func (c *fakeClusterBackend) CreateVolume(volumeCreate volume.CreateOptions) (*v
 
 	if _, ok := c.volumes[volumeCreate.Name]; ok {
 		// TODO(dperny): return appropriate already exists error
-		return nil, fmt.Errorf("already exists")
+		return nil, errors.New("already exists")
 	}
 
 	v := &volume.Volume{
@@ -751,7 +752,7 @@ func (c *fakeClusterBackend) UpdateVolume(nameOrID string, version uint64, _ vol
 
 	if v, ok := c.volumes[nameOrID]; ok {
 		if v.ClusterVolume.Meta.Version.Index != version {
-			return fmt.Errorf("wrong version")
+			return errors.New("wrong version")
 		}
 		v.ClusterVolume.Meta.Version.Index = v.ClusterVolume.Meta.Version.Index + 1
 		// for testing, we don't actually need to change anything about the

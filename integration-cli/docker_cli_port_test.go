@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -225,10 +226,10 @@ func assertPortRange(ctx context.Context, id string, expectedTCP, expectedUDP []
 		}
 	}
 	if !validTCP {
-		return fmt.Errorf("tcp port not found")
+		return errors.New("tcp port not found")
 	}
 	if !validUDP {
-		return fmt.Errorf("udp port not found")
+		return errors.New("udp port not found")
 	}
 	return nil
 }

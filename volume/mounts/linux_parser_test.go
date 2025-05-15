@@ -1,7 +1,7 @@
 package mounts
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 	"testing"
 
@@ -284,7 +284,7 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 // This is confusing to users.
 func TestLinuxParseMountSpecBindWithFileinfoError(t *testing.T) {
 	parser := NewLinuxParser()
-	testErr := fmt.Errorf("some crazy error")
+	testErr := errors.New("some crazy error")
 	if pr, ok := parser.(*linuxParser); ok {
 		pr.fi = &mockFiProviderWithError{err: testErr}
 	}

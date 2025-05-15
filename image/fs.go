@@ -114,7 +114,7 @@ func (s *fs) Set(data []byte) (digest.Digest, error) {
 	defer s.Unlock()
 
 	if len(data) == 0 {
-		return "", fmt.Errorf("invalid empty data")
+		return "", errors.New("invalid empty data")
 	}
 
 	dgst := digest.FromBytes(data)

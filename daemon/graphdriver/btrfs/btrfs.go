@@ -181,7 +181,7 @@ func openDir(path string) (*C.DIR, error) {
 
 	dir := C.opendir(Cpath)
 	if dir == nil {
-		return nil, fmt.Errorf("Can't open dir")
+		return nil, errors.New("Can't open dir")
 	}
 	return dir, nil
 }
