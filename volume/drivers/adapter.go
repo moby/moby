@@ -81,15 +81,15 @@ func (a *volumeDriverAdapter) Get(name string) (volume.Volume, error) {
 }
 
 func (a *volumeDriverAdapter) Scope() string {
-	cap := a.getCapabilities()
-	return cap.Scope
+	capabilities := a.getCapabilities()
+	return capabilities.Scope
 }
 
 func (a *volumeDriverAdapter) getCapabilities() volume.Capability {
 	if a.capabilities != nil {
 		return *a.capabilities
 	}
-	cap, err := a.proxy.Capabilities()
+	capabilities, err := a.proxy.Capabilities()
 	if err != nil {
 		// `GetCapabilities` is a not a required endpoint.
 		// On error assume it's a local-only driver
@@ -98,18 +98,18 @@ func (a *volumeDriverAdapter) getCapabilities() volume.Capability {
 	}
 
 	// don't spam the warn log below just because the plugin didn't provide a scope
-	if len(cap.Scope) == 0 {
-		cap.Scope = volume.LocalScope
+	if len(capabilities.Scope) == 0 {
+		capabilities.Scope = volume.LocalScope
 	}
 
-	cap.Scope = strings.ToLower(cap.Scope)
-	if cap.Scope != volume.LocalScope && cap.Scope != volume.GlobalScope {
+	capabilities.Scope = strings.ToLower(capabilities.Scope)
+	if capabilities.Scope != volume.LocalScope && capabilities.Scope != volume.GlobalScope {
 		log.G(context.TODO()).WithField("driver", a.Name()).WithField("scope", a.Scope).Warn("Volume driver returned an invalid scope")
-		cap.Scope = volume.LocalScope
+		capabilities.Scope = volume.LocalScope
 	}
 
-	a.capabilities = &cap
-	return cap
+	a.capabilities = &capabilities
+	return capabilities
 }
 
 type volumeAdapter struct {
