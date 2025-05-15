@@ -278,38 +278,38 @@ func withoutHealthcheck() runConfigModifier {
 }
 
 func copyRunConfig(runConfig *container.Config, modifiers ...runConfigModifier) *container.Config {
-	copy := *runConfig
-	copy.Cmd = copyStringSlice(runConfig.Cmd)
-	copy.Env = copyStringSlice(runConfig.Env)
-	copy.Entrypoint = copyStringSlice(runConfig.Entrypoint)
-	copy.OnBuild = copyStringSlice(runConfig.OnBuild)
-	copy.Shell = copyStringSlice(runConfig.Shell)
+	c := *runConfig
+	c.Cmd = copyStringSlice(runConfig.Cmd)
+	c.Env = copyStringSlice(runConfig.Env)
+	c.Entrypoint = copyStringSlice(runConfig.Entrypoint)
+	c.OnBuild = copyStringSlice(runConfig.OnBuild)
+	c.Shell = copyStringSlice(runConfig.Shell)
 
-	if copy.Volumes != nil {
-		copy.Volumes = make(map[string]struct{}, len(runConfig.Volumes))
+	if c.Volumes != nil {
+		c.Volumes = make(map[string]struct{}, len(runConfig.Volumes))
 		for k, v := range runConfig.Volumes {
-			copy.Volumes[k] = v
+			c.Volumes[k] = v
 		}
 	}
 
-	if copy.ExposedPorts != nil {
-		copy.ExposedPorts = make(nat.PortSet, len(runConfig.ExposedPorts))
+	if c.ExposedPorts != nil {
+		c.ExposedPorts = make(nat.PortSet, len(runConfig.ExposedPorts))
 		for k, v := range runConfig.ExposedPorts {
-			copy.ExposedPorts[k] = v
+			c.ExposedPorts[k] = v
 		}
 	}
 
-	if copy.Labels != nil {
-		copy.Labels = make(map[string]string, len(runConfig.Labels))
+	if c.Labels != nil {
+		c.Labels = make(map[string]string, len(runConfig.Labels))
 		for k, v := range runConfig.Labels {
-			copy.Labels[k] = v
+			c.Labels[k] = v
 		}
 	}
 
 	for _, modifier := range modifiers {
-		modifier(&copy)
+		modifier(&c)
 	}
-	return &copy
+	return &c
 }
 
 func copyStringSlice(orig []string) []string {

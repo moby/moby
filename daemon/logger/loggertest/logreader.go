@@ -510,12 +510,12 @@ func logMessages(t *testing.T, l logger.Logger, messages []*logger.Message) []*l
 // existing behavior of the json-file log driver.
 func transformToExpected(m *logger.Message) *logger.Message {
 	// Copy the log message again so as not to mutate the input.
-	copy := copyLogMessage(m)
+	logMessageCopy := copyLogMessage(m)
 	if m.PLogMetaData == nil || m.PLogMetaData.Last {
-		copy.Line = append(copy.Line, '\n')
+		logMessageCopy.Line = append(logMessageCopy.Line, '\n')
 	}
 
-	return copy
+	return logMessageCopy
 }
 
 func copyLogMessage(src *logger.Message) *logger.Message {

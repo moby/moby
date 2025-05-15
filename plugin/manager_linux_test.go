@@ -72,7 +72,7 @@ func TestManagerWithPluginMounts(t *testing.T) {
 	}
 }
 
-func newTestPlugin(t *testing.T, name, cap, root string) *v2.Plugin {
+func newTestPlugin(t *testing.T, name, capability, root string) *v2.Plugin {
 	id := stringid.GenerateRandomID()
 	rootfs := filepath.Join(root, id)
 	if err := os.MkdirAll(rootfs, 0o755); err != nil {
@@ -81,7 +81,7 @@ func newTestPlugin(t *testing.T, name, cap, root string) *v2.Plugin {
 
 	p := v2.Plugin{PluginObj: types.Plugin{ID: id, Name: name}}
 	p.Rootfs = rootfs
-	iType := types.PluginInterfaceType{Capability: cap, Prefix: "docker", Version: "1.0"}
+	iType := types.PluginInterfaceType{Capability: capability, Prefix: "docker", Version: "1.0"}
 	i := types.PluginConfigInterface{Socket: "plugin.sock", Types: []types.PluginInterfaceType{iType}}
 	p.PluginObj.Config.Interface = i
 	p.PluginObj.ID = id

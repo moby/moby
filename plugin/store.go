@@ -205,8 +205,8 @@ func (ps *Store) GetAllByCap(capability string) ([]plugingetter.CompatPlugin, er
 	return result, nil
 }
 
-func pluginType(cap string) string {
-	return fmt.Sprintf("docker.%s/%s", strings.ToLower(cap), defaultAPIVersion)
+func pluginType(capability string) string {
+	return fmt.Sprintf("docker.%s/%s", strings.ToLower(capability), defaultAPIVersion)
 }
 
 // Handle sets a callback for a given capability. It is only used by network
@@ -233,10 +233,10 @@ func (ps *Store) Handle(capability string, callback func(string, *plugins.Client
 
 // RegisterRuntimeOpt stores a list of SpecOpts for the provided capability.
 // These options are applied to the runtime spec before a plugin is started for the specified capability.
-func (ps *Store) RegisterRuntimeOpt(cap string, opts ...SpecOpt) {
+func (ps *Store) RegisterRuntimeOpt(capability string, opts ...SpecOpt) {
 	ps.Lock()
 	defer ps.Unlock()
-	typ := pluginType(cap)
+	typ := pluginType(capability)
 	ps.specOpts[typ] = append(ps.specOpts[typ], opts...)
 }
 

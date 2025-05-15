@@ -38,13 +38,13 @@ func CheckRouteOverlaps(toCheck *net.IPNet) error {
 // GenerateIfaceName returns an interface name using the passed in
 // prefix and the length of random bytes. The api ensures that the
 // there are is no interface which exists with that name.
-func GenerateIfaceName(nlh *netlink.Handle, prefix string, len int) (string, error) {
+func GenerateIfaceName(nlh *netlink.Handle, prefix string, length int) (string, error) {
 	linkByName := netlink.LinkByName
 	if nlh != nil {
 		linkByName = nlh.LinkByName
 	}
 	for i := 0; i < 3; i++ {
-		name, err := GenerateRandomName(prefix, len)
+		name, err := GenerateRandomName(prefix, length)
 		if err != nil {
 			return "", err
 		}
