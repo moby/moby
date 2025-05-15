@@ -26,12 +26,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func optionsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func optionsHandler(_ context.Context, w http.ResponseWriter, _ *http.Request, _ map[string]string) error {
 	w.WriteHeader(http.StatusOK)
 	return nil
 }
 
-func (s *systemRouter) pingHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *systemRouter) pingHandler(_ context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Add("Pragma", "no-cache")
 
@@ -60,7 +60,7 @@ func (s *systemRouter) swarmStatus() string {
 	return string(swarm.LocalNodeStateInactive)
 }
 
-func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, _ *http.Request, _ map[string]string) error {
 	version := httputils.VersionFromContext(ctx)
 	info, _, _ := s.collectSystemInfo.Do(ctx, version, func(ctx context.Context) (*system.Info, error) {
 		info, err := s.backend.SystemInfo(ctx)
@@ -131,7 +131,7 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }
 
-func (s *systemRouter) getVersion(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *systemRouter) getVersion(ctx context.Context, w http.ResponseWriter, _ *http.Request, _ map[string]string) error {
 	info, err := s.backend.SystemVersion(ctx)
 	if err != nil {
 		return err
@@ -140,7 +140,7 @@ func (s *systemRouter) getVersion(ctx context.Context, w http.ResponseWriter, r 
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }
 
-func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func (e invalidRequestError) Error() string {
 
 func (e invalidRequestError) InvalidParameter() {}
 
-func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -299,7 +299,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 	buffered, l := s.backend.SubscribeToEvents(since, until, ef)
 	defer s.backend.UnsubscribeFromEvents(l)
 
-	shouldSkip := func(ev events.Message) bool { return false }
+	shouldSkip := func(_ events.Message) bool { return false }
 	if versions.LessThan(httputils.VersionFromContext(ctx), "1.46") {
 		// Image create events were added in API 1.46
 		shouldSkip = func(ev events.Message) bool {
@@ -343,7 +343,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 	}
 }
 
-func (s *systemRouter) postAuth(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *systemRouter) postAuth(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	var config *registry.AuthConfig
 	err := json.NewDecoder(r.Body).Decode(&config)
 	r.Body.Close()

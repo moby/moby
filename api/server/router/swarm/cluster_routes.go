@@ -18,7 +18,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (sr *swarmRouter) initCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) initCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	var req types.InitRequest
 	if err := httputils.ReadJSON(r, &req); err != nil {
 		return err
@@ -42,7 +42,7 @@ func (sr *swarmRouter) initCluster(ctx context.Context, w http.ResponseWriter, r
 	return httputils.WriteJSON(w, http.StatusOK, nodeID)
 }
 
-func (sr *swarmRouter) joinCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) joinCluster(_ context.Context, _ http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	var req types.JoinRequest
 	if err := httputils.ReadJSON(r, &req); err != nil {
 		return err
@@ -50,7 +50,7 @@ func (sr *swarmRouter) joinCluster(ctx context.Context, w http.ResponseWriter, r
 	return sr.backend.Join(req)
 }
 
-func (sr *swarmRouter) leaveCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) leaveCluster(ctx context.Context, _ http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func (sr *swarmRouter) leaveCluster(ctx context.Context, w http.ResponseWriter, 
 	return sr.backend.Leave(ctx, force)
 }
 
-func (sr *swarmRouter) inspectCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) inspectCluster(ctx context.Context, w http.ResponseWriter, _ *http.Request, _ map[string]string) error {
 	swarm, err := sr.backend.Inspect()
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting swarm")
@@ -69,7 +69,7 @@ func (sr *swarmRouter) inspectCluster(ctx context.Context, w http.ResponseWriter
 	return httputils.WriteJSON(w, http.StatusOK, swarm)
 }
 
-func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) updateCluster(ctx context.Context, _ http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	var swarm types.Spec
 	if err := httputils.ReadJSON(r, &swarm); err != nil {
 		return err
@@ -120,7 +120,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 	return nil
 }
 
-func (sr *swarmRouter) unlockCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) unlockCluster(ctx context.Context, _ http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	var req types.UnlockRequest
 	if err := httputils.ReadJSON(r, &req); err != nil {
 		return err
@@ -133,7 +133,7 @@ func (sr *swarmRouter) unlockCluster(ctx context.Context, w http.ResponseWriter,
 	return nil
 }
 
-func (sr *swarmRouter) getUnlockKey(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) getUnlockKey(ctx context.Context, w http.ResponseWriter, _ *http.Request, _ map[string]string) error {
 	unlockKey, err := sr.backend.GetUnlockKey()
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error retrieving swarm unlock key")
@@ -145,7 +145,7 @@ func (sr *swarmRouter) getUnlockKey(ctx context.Context, w http.ResponseWriter, 
 	})
 }
 
-func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -204,7 +204,7 @@ func (sr *swarmRouter) getService(ctx context.Context, w http.ResponseWriter, r 
 	return httputils.WriteJSON(w, http.StatusOK, service)
 }
 
-func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	var service types.ServiceSpec
 	if err := httputils.ReadJSON(r, &service); err != nil {
 		return err
@@ -270,7 +270,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	return httputils.WriteJSON(w, http.StatusOK, resp)
 }
 
-func (sr *swarmRouter) removeService(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) removeService(ctx context.Context, _ http.ResponseWriter, _ *http.Request, vars map[string]string) error {
 	if err := sr.backend.RemoveService(vars["id"]); err != nil {
 		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
 			"error":      err,
@@ -305,7 +305,7 @@ func (sr *swarmRouter) getServiceLogs(ctx context.Context, w http.ResponseWriter
 	return sr.swarmLogs(ctx, w, r, selector)
 }
 
-func (sr *swarmRouter) getNodes(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) getNodes(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -323,7 +323,7 @@ func (sr *swarmRouter) getNodes(ctx context.Context, w http.ResponseWriter, r *h
 	return httputils.WriteJSON(w, http.StatusOK, nodes)
 }
 
-func (sr *swarmRouter) getNode(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) getNode(ctx context.Context, w http.ResponseWriter, _ *http.Request, vars map[string]string) error {
 	node, err := sr.backend.GetNode(vars["id"])
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
@@ -336,7 +336,7 @@ func (sr *swarmRouter) getNode(ctx context.Context, w http.ResponseWriter, r *ht
 	return httputils.WriteJSON(w, http.StatusOK, node)
 }
 
-func (sr *swarmRouter) updateNode(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) updateNode(ctx context.Context, _ http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var node types.NodeSpec
 	if err := httputils.ReadJSON(r, &node); err != nil {
 		return err
@@ -359,7 +359,7 @@ func (sr *swarmRouter) updateNode(ctx context.Context, w http.ResponseWriter, r 
 	return nil
 }
 
-func (sr *swarmRouter) removeNode(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) removeNode(ctx context.Context, _ http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -376,7 +376,7 @@ func (sr *swarmRouter) removeNode(ctx context.Context, w http.ResponseWriter, r 
 	return nil
 }
 
-func (sr *swarmRouter) getTasks(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) getTasks(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -394,7 +394,7 @@ func (sr *swarmRouter) getTasks(ctx context.Context, w http.ResponseWriter, r *h
 	return httputils.WriteJSON(w, http.StatusOK, tasks)
 }
 
-func (sr *swarmRouter) getTask(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) getTask(ctx context.Context, w http.ResponseWriter, _ *http.Request, vars map[string]string) error {
 	task, err := sr.backend.GetTask(vars["id"])
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
@@ -407,7 +407,7 @@ func (sr *swarmRouter) getTask(ctx context.Context, w http.ResponseWriter, r *ht
 	return httputils.WriteJSON(w, http.StatusOK, task)
 }
 
-func (sr *swarmRouter) getSecrets(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) getSecrets(_ context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -424,7 +424,7 @@ func (sr *swarmRouter) getSecrets(ctx context.Context, w http.ResponseWriter, r 
 	return httputils.WriteJSON(w, http.StatusOK, secrets)
 }
 
-func (sr *swarmRouter) createSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) createSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	var secret types.SecretSpec
 	if err := httputils.ReadJSON(r, &secret); err != nil {
 		return err
@@ -444,7 +444,7 @@ func (sr *swarmRouter) createSecret(ctx context.Context, w http.ResponseWriter, 
 	})
 }
 
-func (sr *swarmRouter) removeSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) removeSecret(_ context.Context, w http.ResponseWriter, _ *http.Request, vars map[string]string) error {
 	if err := sr.backend.RemoveSecret(vars["id"]); err != nil {
 		return err
 	}
@@ -453,7 +453,7 @@ func (sr *swarmRouter) removeSecret(ctx context.Context, w http.ResponseWriter, 
 	return nil
 }
 
-func (sr *swarmRouter) getSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) getSecret(_ context.Context, w http.ResponseWriter, _ *http.Request, vars map[string]string) error {
 	secret, err := sr.backend.GetSecret(vars["id"])
 	if err != nil {
 		return err
@@ -462,7 +462,7 @@ func (sr *swarmRouter) getSecret(ctx context.Context, w http.ResponseWriter, r *
 	return httputils.WriteJSON(w, http.StatusOK, secret)
 }
 
-func (sr *swarmRouter) updateSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) updateSecret(_ context.Context, _ http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var secret types.SecretSpec
 	if err := httputils.ReadJSON(r, &secret); err != nil {
 		return err
@@ -478,7 +478,7 @@ func (sr *swarmRouter) updateSecret(ctx context.Context, w http.ResponseWriter, 
 	return sr.backend.UpdateSecret(id, version, secret)
 }
 
-func (sr *swarmRouter) getConfigs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) getConfigs(_ context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -495,7 +495,7 @@ func (sr *swarmRouter) getConfigs(ctx context.Context, w http.ResponseWriter, r 
 	return httputils.WriteJSON(w, http.StatusOK, configs)
 }
 
-func (sr *swarmRouter) createConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) createConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	var config types.ConfigSpec
 	if err := httputils.ReadJSON(r, &config); err != nil {
 		return err
@@ -516,7 +516,7 @@ func (sr *swarmRouter) createConfig(ctx context.Context, w http.ResponseWriter, 
 	})
 }
 
-func (sr *swarmRouter) removeConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) removeConfig(_ context.Context, w http.ResponseWriter, _ *http.Request, vars map[string]string) error {
 	if err := sr.backend.RemoveConfig(vars["id"]); err != nil {
 		return err
 	}
@@ -525,7 +525,7 @@ func (sr *swarmRouter) removeConfig(ctx context.Context, w http.ResponseWriter, 
 	return nil
 }
 
-func (sr *swarmRouter) getConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) getConfig(_ context.Context, w http.ResponseWriter, _ *http.Request, vars map[string]string) error {
 	config, err := sr.backend.GetConfig(vars["id"])
 	if err != nil {
 		return err
@@ -534,7 +534,7 @@ func (sr *swarmRouter) getConfig(ctx context.Context, w http.ResponseWriter, r *
 	return httputils.WriteJSON(w, http.StatusOK, config)
 }
 
-func (sr *swarmRouter) updateConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (sr *swarmRouter) updateConfig(_ context.Context, _ http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var config types.ConfigSpec
 	if err := httputils.ReadJSON(r, &config); err != nil {
 		return err

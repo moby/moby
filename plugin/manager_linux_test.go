@@ -91,7 +91,7 @@ type simpleExecutor struct {
 	Executor
 }
 
-func (e *simpleExecutor) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error {
+func (e *simpleExecutor) Create(_ string, _ specs.Spec, _, _ io.WriteCloser) error {
 	return errors.New("Create failed")
 }
 
@@ -137,7 +137,7 @@ type executorWithRunning struct {
 	exitChans map[string]chan struct{}
 }
 
-func (e *executorWithRunning) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error {
+func (e *executorWithRunning) Create(id string, _ specs.Spec, _, _ io.WriteCloser) error {
 	sockAddr := filepath.Join(e.root, id, "plugin.sock")
 	ch := make(chan struct{})
 	if e.exitChans == nil {
@@ -148,15 +148,15 @@ func (e *executorWithRunning) Create(id string, spec specs.Spec, stdout, stderr 
 	return nil
 }
 
-func (e *executorWithRunning) IsRunning(id string) (bool, error) {
+func (e *executorWithRunning) IsRunning(_ string) (bool, error) {
 	return true, nil
 }
 
-func (e *executorWithRunning) Restore(id string, stdout, stderr io.WriteCloser) (bool, error) {
+func (e *executorWithRunning) Restore(_ string, _, _ io.WriteCloser) (bool, error) {
 	return true, nil
 }
 
-func (e *executorWithRunning) Signal(id string, signal syscall.Signal) error {
+func (e *executorWithRunning) Signal(id string, _ syscall.Signal) error {
 	ch := e.exitChans[id]
 	ch <- struct{}{}
 	<-ch

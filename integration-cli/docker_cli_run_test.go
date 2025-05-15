@@ -2749,7 +2749,7 @@ func (s *DockerCLIRunSuite) TestRunContainerWithRmFlagCannotStartContainer(c *te
 }
 
 func containerRemoved(name string) poll.Check {
-	return func(l poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		err := cli.Docker(cli.Args("container", "inspect", "--format='{{.ID}}'", name)).Compare(icmd.Expected{
 			ExitCode: 1,
 			Out:      "",

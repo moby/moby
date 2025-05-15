@@ -72,7 +72,7 @@ func (li *localImporter) Resolve(ctx context.Context, _ ocispec.Descriptor, id s
 	return solver.NewCacheManager(ctx, id, keysStorage, resultStorage), nil
 }
 
-func (li *localImporter) importInlineCache(ctx context.Context, dt []byte, cc solver.CacheExporterTarget) error {
+func (li *localImporter) importInlineCache(_ context.Context, dt []byte, cc solver.CacheExporterTarget) error {
 	var img image
 
 	if err := json.Unmarshal(dt, &img); err != nil {
@@ -156,6 +156,6 @@ func parseCreatedLayerInfo(img image) ([]string, []string, error) {
 
 type emptyProvider struct{}
 
-func (p *emptyProvider) ReaderAt(ctx context.Context, dec ocispec.Descriptor) (content.ReaderAt, error) {
+func (p *emptyProvider) ReaderAt(_ context.Context, _ ocispec.Descriptor) (content.ReaderAt, error) {
 	return nil, errors.Errorf("ReaderAt not implemented for empty provider")
 }

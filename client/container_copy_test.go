@@ -44,7 +44,7 @@ func TestContainerStatPathNotFoundError(t *testing.T) {
 
 func TestContainerStatPathNoHeaderError(t *testing.T) {
 	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(_ *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
@@ -212,7 +212,7 @@ func TestCopyFromContainerNotFoundError(t *testing.T) {
 // "204 No Content" is returned by the API.
 func TestCopyFromContainerEmptyResponse(t *testing.T) {
 	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(_ *http.Request) (*http.Response, error) {
 			content, err := json.Marshal(container.PathStat{
 				Name: "path/to/file",
 				Mode: 0o700,
@@ -237,7 +237,7 @@ func TestCopyFromContainerEmptyResponse(t *testing.T) {
 
 func TestCopyFromContainerNoHeaderError(t *testing.T) {
 	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(_ *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(""))),

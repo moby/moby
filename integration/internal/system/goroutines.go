@@ -27,7 +27,7 @@ func StableGoroutineCount(ctx context.Context, apiClient client.SystemAPIClient,
 		nRoutines int
 	)
 
-	return func(t poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		n, err := getGoroutineNumber(ctx, apiClient)
 		if err != nil {
 			return poll.Error(err)

@@ -248,7 +248,7 @@ func validatePlatformConfig(conf *Config) error {
 
 // validatePlatformExecOpt validates if the given exec-opt and value are valid
 // for the current platform.
-func validatePlatformExecOpt(opt, value string) error {
+func validatePlatformExecOpt(opt, _ string) error {
 	switch opt {
 	case "isolation":
 		return fmt.Errorf("option '%s' is only supported on windows", opt)

@@ -57,7 +57,7 @@ func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Co
 	}
 
 	// Wait till the cluster creation is successful
-	check := func(t poll.LogT) poll.Result {
+	check := func(_ poll.LogT) poll.Result {
 		// Check that the cluster is properly created
 		for i := 0; i < num; i++ {
 			if num != len(dbs[i].ClusterPeers()) {
@@ -503,7 +503,7 @@ func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	dbChangeWitness := func(nDB *NetworkDB) func(network string, expectNodeCount int) {
 		staleNetworkTime := nDB.networkClock.Time()
 		return func(network string, expectNodeCount int) {
-			check := func(t poll.LogT) poll.Result {
+			check := func(_ poll.LogT) poll.Result {
 				networkTime := nDB.networkClock.Time()
 				if networkTime <= staleNetworkTime {
 					return poll.Continue("network time is stale, no change registered yet.")
@@ -927,7 +927,7 @@ func TestFlakyNetworkDBIslands(t *testing.T) {
 	}
 
 	// Give some time for the reconnect routine to run, it runs every 6s.
-	check = func(t poll.LogT) poll.Result {
+	check = func(_ poll.LogT) poll.Result {
 		// Verify that the cluster is again all connected. Note that the 3 previous node did not do any join
 		for i := 0; i < 5; i++ {
 			db := dbs[i]

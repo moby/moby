@@ -349,7 +349,7 @@ func getService(ctx context.Context, t *testing.T, cli client.ServiceAPIClient, 
 }
 
 func serviceIsUpdated(ctx context.Context, client client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		service, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
 		switch {
 		case err != nil:
@@ -366,7 +366,7 @@ func serviceIsUpdated(ctx context.Context, client client.ServiceAPIClient, servi
 }
 
 func serviceSpecIsUpdated(ctx context.Context, client client.ServiceAPIClient, serviceID string, serviceOldVersion uint64) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		service, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
 		switch {
 		case err != nil:

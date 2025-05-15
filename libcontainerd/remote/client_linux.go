@@ -16,7 +16,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
+func summaryFromInterface(_ interface{}) (*libcontainerdtypes.Summary, error) {
 	return &libcontainerdtypes.Summary{}, nil
 }
 
@@ -52,7 +52,7 @@ func getSpecUser(ociSpec *specs.Spec) (int, int) {
 
 // WithBundle creates the bundle for the container
 func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOpts {
-	return func(ctx context.Context, client *containerd.Client, c *containers.Container) error {
+	return func(_ context.Context, _ *containerd.Client, c *containers.Container) error {
 		if c.Labels == nil {
 			c.Labels = make(map[string]string)
 		}

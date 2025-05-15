@@ -1976,7 +1976,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 }
 
 func containerExit(ctx context.Context, apiclient client.APIClient, name string) func(poll.LogT) poll.Result {
-	return func(logT poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		ctr, err := apiclient.ContainerInspect(ctx, name)
 		if err != nil {
 			return poll.Error(err)

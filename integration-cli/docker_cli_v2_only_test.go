@@ -29,11 +29,11 @@ func (s *DockerRegistrySuite) TestV2Only(c *testing.T) {
 	assert.NilError(c, err)
 	defer reg.Close()
 
-	reg.RegisterHandler("/v2/", func(w http.ResponseWriter, r *http.Request) {
+	reg.RegisterHandler("/v2/", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	reg.RegisterHandler("/v1/.*", func(w http.ResponseWriter, r *http.Request) {
+	reg.RegisterHandler("/v1/.*", func(_ http.ResponseWriter, _ *http.Request) {
 		c.Fatal("V1 registry contacted")
 	})
 

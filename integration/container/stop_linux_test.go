@@ -70,7 +70,7 @@ func TestStopContainerWithTimeoutCancel(t *testing.T) {
 
 // logsContains verifies the container contains the given text in the log's stdout.
 func logsContains(ctx context.Context, client client.APIClient, containerID string, logString string) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		logs, err := client.ContainerLogs(ctx, containerID, containertypes.LogsOptions{
 			ShowStdout: true,
 		})

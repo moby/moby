@@ -125,7 +125,7 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 			// Container uses the busybox:latest image and there's also a second
 			// busybox:other tag pointing to the same image.
 			name: "two tags",
-			prepare: func(t *testing.T, d *daemon.Daemon, apiClient *client.Client) error {
+			prepare: func(_ *testing.T, _ *daemon.Daemon, apiClient *client.Client) error {
 				return apiClient.ImageTag(ctx, "busybox:latest", "busybox:a")
 			},
 			check: func(t *testing.T, apiClient *client.Client, pruned image.PruneReport) {
@@ -148,19 +148,19 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 		}{
 			{
 				name: "full id",
-				imageID: func(t *testing.T, inspect image.InspectResponse) string {
+				imageID: func(_ *testing.T, inspect image.InspectResponse) string {
 					return inspect.ID
 				},
 			},
 			{
 				name: "full id without sha256 prefix",
-				imageID: func(t *testing.T, inspect image.InspectResponse) string {
+				imageID: func(_ *testing.T, inspect image.InspectResponse) string {
 					return strings.TrimPrefix(inspect.ID, "sha256:")
 				},
 			},
 			{
 				name: "truncated id (without sha256 prefix)",
-				imageID: func(t *testing.T, inspect image.InspectResponse) string {
+				imageID: func(_ *testing.T, inspect image.InspectResponse) string {
 					return strings.TrimPrefix(inspect.ID, "sha256:")[:8]
 				},
 			},

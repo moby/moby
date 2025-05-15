@@ -65,7 +65,7 @@ func handle(mux *http.ServeMux) {
 		respond(nil, w)
 	})
 
-	mux.HandleFunc("/LogDriver.Capabilities", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/LogDriver.Capabilities", func(w http.ResponseWriter, _ *http.Request) {
 		json.NewEncoder(w).Encode(&capabilitiesResponse{
 			Cap: struct{ ReadLogs bool }{ReadLogs: false},
 		})

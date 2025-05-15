@@ -12,7 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func (s *snapshotter) GetDiffIDs(ctx context.Context, key string) ([]layer.DiffID, error) {
+func (s *snapshotter) GetDiffIDs(_ context.Context, key string) ([]layer.DiffID, error) {
 	if l, err := s.getLayer(key, true); err != nil {
 		return nil, err
 	} else if l != nil {

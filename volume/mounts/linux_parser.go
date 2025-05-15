@@ -479,7 +479,7 @@ func (p *linuxParser) DefaultCopyMode() bool {
 	return true
 }
 
-func (p *linuxParser) ValidateVolumeName(name string) error {
+func (p *linuxParser) ValidateVolumeName(_ string) error {
 	return nil
 }
 

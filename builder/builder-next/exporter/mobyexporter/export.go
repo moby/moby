@@ -50,7 +50,7 @@ func New(opt Opt) (exporter.Exporter, error) {
 	return im, nil
 }
 
-func (e *imageExporter) Resolve(ctx context.Context, id int, attrs map[string]string) (exporter.ExporterInstance, error) {
+func (e *imageExporter) Resolve(_ context.Context, id int, attrs map[string]string) (exporter.ExporterInstance, error) {
 	i := &imageExporterInstance{
 		imageExporter: e,
 		id:            id,
@@ -104,7 +104,7 @@ func (e *imageExporterInstance) Attrs() map[string]string {
 	return e.attrs
 }
 
-func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source, inlineCache exptypes.InlineCache, sessionID string) (map[string]string, exporter.DescriptorReference, error) {
+func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source, inlineCache exptypes.InlineCache, _ string) (map[string]string, exporter.DescriptorReference, error) {
 	if len(inp.Refs) > 1 {
 		return nil, nil, errors.New("exporting multiple references to image store is currently unsupported")
 	}

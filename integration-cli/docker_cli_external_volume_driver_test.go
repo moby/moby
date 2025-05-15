@@ -48,7 +48,7 @@ type DockerExternalVolumeSuite struct {
 	*volumePlugin
 }
 
-func (s *DockerExternalVolumeSuite) SetUpTest(ctx context.Context, c *testing.T) {
+func (s *DockerExternalVolumeSuite) SetUpTest(_ context.Context, c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 	s.ec = &eventCounter{}
@@ -61,7 +61,7 @@ func (s *DockerExternalVolumeSuite) TearDownTest(ctx context.Context, c *testing
 	}
 }
 
-func (s *DockerExternalVolumeSuite) SetUpSuite(ctx context.Context, c *testing.T) {
+func (s *DockerExternalVolumeSuite) SetUpSuite(_ context.Context, c *testing.T) {
 	s.volumePlugin = newVolumePlugin(c, volumePluginName)
 }
 
@@ -121,7 +121,7 @@ func newVolumePlugin(t *testing.T, name string) *volumePlugin {
 		}
 	}
 
-	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, _ *http.Request) {
 		s.ec.activations++
 		send(w, `{"Implements": ["VolumeDriver"]}`)
 	})
@@ -139,7 +139,7 @@ func newVolumePlugin(t *testing.T, name string) *volumePlugin {
 		send(w, nil)
 	})
 
-	mux.HandleFunc("/VolumeDriver.List", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/VolumeDriver.List", func(w http.ResponseWriter, _ *http.Request) {
 		s.ec.lists++
 		vols := make([]vol, 0, len(s.vols))
 		for _, v := range s.vols {
@@ -275,7 +275,7 @@ func newVolumePlugin(t *testing.T, name string) *volumePlugin {
 	return s
 }
 
-func (s *DockerExternalVolumeSuite) TearDownSuite(ctx context.Context, c *testing.T) {
+func (s *DockerExternalVolumeSuite) TearDownSuite(_ context.Context, c *testing.T) {
 	s.volumePlugin.Close()
 
 	err := os.RemoveAll("/etc/docker/plugins")

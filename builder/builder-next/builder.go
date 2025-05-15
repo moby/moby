@@ -139,7 +139,7 @@ func (b *Builder) RegisterGRPC(s *grpc.Server) {
 }
 
 // Cancel cancels a build using ID
-func (b *Builder) Cancel(ctx context.Context, id string) error {
+func (b *Builder) Cancel(_ context.Context, id string) error {
 	b.mu.Lock()
 	if j, ok := b.jobs[id]; ok && j.cancel != nil {
 		j.cancel()
@@ -489,7 +489,7 @@ func (sp *streamProxy) Context() context.Context {
 	return sp.ctx
 }
 
-func (sp *streamProxy) RecvMsg(m interface{}) error {
+func (sp *streamProxy) RecvMsg(_ interface{}) error {
 	return io.EOF
 }
 

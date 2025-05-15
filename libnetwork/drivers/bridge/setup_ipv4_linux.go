@@ -75,7 +75,7 @@ func setupGatewayIPv4(config *networkConfiguration, i *bridgeInterface) error {
 	return nil
 }
 
-func setupLoopbackAddressesRouting(config *networkConfiguration, i *bridgeInterface) error {
+func setupLoopbackAddressesRouting(config *networkConfiguration, _ *bridgeInterface) error {
 	sysPath := filepath.Join("/proc/sys/net/ipv4/conf", config.BridgeName, "route_localnet")
 	ipv4LoRoutingData, err := os.ReadFile(sysPath)
 	if err != nil {

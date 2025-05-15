@@ -36,7 +36,7 @@ func TestNetworkStore(t *testing.T) {
 	}{
 		{
 			name:        "no filter",
-			filter:      func(nw *Network) bool { return true },
+			filter:      func(_ *Network) bool { return true },
 			expNetworks: []*Network{nw1, nw2},
 		},
 		{
@@ -60,7 +60,7 @@ func TestNetworkStore(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Check that we can only find the second network
-	found := c.findNetworks(func(nw *Network) bool { return true })
+	found := c.findNetworks(func(_ *Network) bool { return true })
 	assert.Equal(t, len(found), 1)
 	assert.Check(t, is.Equal(found[0], nw2), "got: %s; expected: %s", found[0].id, nw2.id)
 

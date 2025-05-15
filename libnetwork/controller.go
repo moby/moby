@@ -403,7 +403,7 @@ func (c *Controller) ID() string {
 // BuiltinDrivers returns the list of builtin network drivers.
 func (c *Controller) BuiltinDrivers() []string {
 	drivers := []string{}
-	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, _ driverapi.Capability) bool {
 		if driver.IsBuiltIn() {
 			drivers = append(drivers, name)
 		}
@@ -425,7 +425,7 @@ func (c *Controller) BuiltinIPAMDrivers() []string {
 }
 
 func (c *Controller) processNodeDiscovery(nodes []net.IP, add bool) {
-	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+	c.drvRegistry.WalkDrivers(func(_ string, driver driverapi.Driver, capability driverapi.Capability) bool {
 		if d, ok := driver.(discoverapi.Discover); ok {
 			c.pushNodeDiscovery(d, capability, nodes, add)
 		}
@@ -494,7 +494,7 @@ func (c *Controller) GetPluginGetter() plugingetter.PluginGetter {
 	return c.cfg.PluginGetter
 }
 
-func (c *Controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
+func (c *Controller) RegisterDriver(_ string, driver driverapi.Driver, _ driverapi.Capability) error {
 	if d, ok := driver.(discoverapi.Discover); ok {
 		c.agentDriverNotify(d)
 	}

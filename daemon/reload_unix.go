@@ -11,7 +11,7 @@ import (
 
 // reloadPlatform updates configuration with platform specific options
 // and updates the passed attributes
-func (daemon *Daemon) reloadPlatform(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
+func (daemon *Daemon) reloadPlatform(_ *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	if conf.DefaultRuntime != "" {
 		newCfg.DefaultRuntime = conf.DefaultRuntime
 	}

@@ -58,7 +58,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 		t.Fatal(err)
 	}
 
-	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, _ = fmt.Fprintf(w, `{"Implements": ["%s"]}`, ipamapi.PluginEndpointType)
 	})
@@ -77,7 +77,7 @@ func TestGetCapabilities(t *testing.T) {
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
 
-	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "GetCapabilities", func(_ map[string]interface{}) interface{} {
 		return map[string]interface{}{
 			"RequiresMACAddress": true,
 		}
@@ -133,7 +133,7 @@ func TestGetDefaultAddressSpaces(t *testing.T) {
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
 
-	handle(t, mux, "GetDefaultAddressSpaces", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "GetDefaultAddressSpaces", func(_ map[string]interface{}) interface{} {
 		return map[string]interface{}{
 			"LocalDefaultAddressSpace":  "white",
 			"GlobalDefaultAddressSpace": "blue",
@@ -167,7 +167,7 @@ func TestRemoteDriver(t *testing.T) {
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
 
-	handle(t, mux, "GetDefaultAddressSpaces", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "GetDefaultAddressSpaces", func(_ map[string]interface{}) interface{} {
 		return map[string]interface{}{
 			"LocalDefaultAddressSpace":  "white",
 			"GlobalDefaultAddressSpace": "blue",

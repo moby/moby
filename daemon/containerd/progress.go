@@ -249,7 +249,7 @@ func findMatchingSnapshot(ctx context.Context, sn snapshots.Snapshotter, layerDe
 	walkFilter := "labels.\"" + snapshotters.TargetImageLayersLabel + "\"==\"" + chainID + "\""
 
 	var matchingSnapshot *snapshots.Info
-	err := sn.Walk(ctx, func(ctx context.Context, sn snapshots.Info) error {
+	err := sn.Walk(ctx, func(_ context.Context, sn snapshots.Info) error {
 		matchingSnapshot = &sn
 		return nil
 	}, walkFilter)
@@ -263,7 +263,7 @@ func findMatchingSnapshot(ctx context.Context, sn snapshots.Snapshotter, layerDe
 	return *matchingSnapshot, nil
 }
 
-func (p *pullProgress) finished(ctx context.Context, out progress.Output, desc ocispec.Descriptor) {
+func (p *pullProgress) finished(_ context.Context, _ progress.Output, desc ocispec.Descriptor) {
 	if c8dimages.IsLayerType(desc.MediaType) {
 		p.layers = append(p.layers, desc)
 	}
@@ -279,7 +279,7 @@ func (p *pushProgress) TurnNotStartedIntoUnavailable() {
 	p.notStartedWaitingAreUnavailable.Store(true)
 }
 
-func (p *pushProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out progress.Output, start time.Time) error {
+func (p *pushProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out progress.Output, _ time.Time) error {
 	for _, j := range ongoing.Jobs() {
 		key := remotes.MakeRefKey(ctx, j)
 		id := stringid.TruncateID(j.Digest.Encoded())

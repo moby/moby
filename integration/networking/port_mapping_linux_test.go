@@ -262,7 +262,7 @@ func TestProxy4To6(t *testing.T) {
 
 	var resp *http.Response
 	addr := "http://[::1]:" + hostPort
-	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+	poll.WaitOn(t, func(_ poll.LogT) poll.Result {
 		var err error
 		resp, err = http.Get(addr) // #nosec G107 -- Ignore "Potential HTTP request made with variable url"
 		if err != nil {

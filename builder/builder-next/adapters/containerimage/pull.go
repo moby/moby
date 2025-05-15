@@ -89,7 +89,7 @@ func (is *Source) Schemes() []string {
 
 // Identifier constructs an Identifier from the given scheme, ref, and attrs,
 // all of which come from a SourceOp.
-func (is *Source) Identifier(scheme, ref string, attrs map[string]string, platform *pb.Platform) (source.Identifier, error) {
+func (is *Source) Identifier(_, ref string, attrs map[string]string, platform *pb.Platform) (source.Identifier, error) {
 	return is.registryIdentifier(ref, attrs, platform)
 }
 
@@ -246,7 +246,7 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt source
 }
 
 // Resolve returns access to pulling for an identifier
-func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager, vtx solver.Vertex) (source.SourceInstance, error) {
+func (is *Source) Resolve(_ context.Context, id source.Identifier, sm *session.Manager, _ solver.Vertex) (source.SourceInstance, error) {
 	imageIdentifier, ok := id.(*containerimage.ImageIdentifier)
 	if !ok {
 		return nil, errors.Errorf("invalid image identifier %v", id)
@@ -535,7 +535,7 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 		// TODO: need a wrapper snapshot interface that combines content
 		// and snapshots as 1) buildkit shouldn't have a dependency on contentstore
 		// or 2) cachemanager should manage the contentstore
-		handlers = append(handlers, c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		handlers = append(handlers, c8dimages.HandlerFunc(func(_ context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 			switch desc.MediaType {
 			case c8dimages.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest,
 				c8dimages.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex,
@@ -710,7 +710,7 @@ func (ld *layerDescriptor) DiffID() (layer.DiffID, error) {
 	return ld.diffID, nil
 }
 
-func (ld *layerDescriptor) Download(ctx context.Context, progressOutput pkgprogress.Output) (io.ReadCloser, int64, error) {
+func (ld *layerDescriptor) Download(ctx context.Context, _ pkgprogress.Output) (io.ReadCloser, int64, error) {
 	rc, err := ld.fetcher.Fetch(ctx, ld.desc)
 	if err != nil {
 		return nil, 0, err

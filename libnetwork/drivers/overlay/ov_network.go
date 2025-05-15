@@ -71,15 +71,15 @@ func init() {
 	runtime.LockOSThread()
 }
 
-func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
+func (d *driver) NetworkAllocate(_ string, _ map[string]string, _, _ []driverapi.IPAMData) (map[string]string, error) {
 	return nil, types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) NetworkFree(id string) error {
+func (d *driver) NetworkFree(_ string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(_ context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, _ []driverapi.IPAMData) error {
 	if id == "" {
 		return errors.New("invalid network id")
 	}
@@ -236,11 +236,11 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return nil
 }
 
-func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
+func (d *driver) ProgramExternalConnectivity(_ context.Context, _, _ string, _ map[string]interface{}) error {
 	return nil
 }
 
-func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
+func (d *driver) RevokeExternalConnectivity(_, _ string) error {
 	return nil
 }
 

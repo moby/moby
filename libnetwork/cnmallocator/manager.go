@@ -20,46 +20,46 @@ func RegisterManager(r driverapi.Registerer, networkType string) error {
 	})
 }
 
-func (d *manager) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
+func (d *manager) NetworkAllocate(_ string, _ map[string]string, _, _ []driverapi.IPAMData) (map[string]string, error) {
 	return nil, types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) NetworkFree(id string) error {
+func (d *manager) NetworkFree(_ string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *manager) CreateNetwork(_ context.Context, _ string, _ map[string]interface{}, _ driverapi.NetworkInfo, _, _ []driverapi.IPAMData) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
+func (d *manager) EventNotify(_ driverapi.EventType, _, _, _ string, _ []byte) {
 }
 
-func (d *manager) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+func (d *manager) DecodeTableEntry(_ string, _ string, _ []byte) (string, map[string]string) {
 	return "", nil
 }
 
-func (d *manager) DeleteNetwork(nid string) error {
+func (d *manager) DeleteNetwork(_ string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *manager) CreateEndpoint(_ context.Context, _, _ string, _ driverapi.InterfaceInfo, _ map[string]interface{}) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) DeleteEndpoint(nid, eid string) error {
+func (d *manager) DeleteEndpoint(_, _ string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
+func (d *manager) EndpointOperInfo(_, _ string) (map[string]interface{}, error) {
 	return nil, types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]interface{}) error {
+func (d *manager) Join(_ context.Context, _, _ string, _ string, _ driverapi.JoinInfo, _, _ map[string]interface{}) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) Leave(nid, eid string) error {
+func (d *manager) Leave(_, _ string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
@@ -71,10 +71,10 @@ func (d *manager) IsBuiltIn() bool {
 	return true
 }
 
-func (d *manager) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
+func (d *manager) ProgramExternalConnectivity(_ context.Context, _, _ string, _ map[string]interface{}) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) RevokeExternalConnectivity(nid, eid string) error {
+func (d *manager) RevokeExternalConnectivity(_, _ string) error {
 	return types.NotImplementedErrorf("not implemented")
 }

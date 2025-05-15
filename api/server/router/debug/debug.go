@@ -39,14 +39,14 @@ func (r *debugRouter) Routes() []router.Route {
 }
 
 func frameworkAdaptHandler(handler http.Handler) httputils.APIFunc {
-	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	return func(_ context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 		handler.ServeHTTP(w, r)
 		return nil
 	}
 }
 
 func frameworkAdaptHandlerFunc(handler http.HandlerFunc) httputils.APIFunc {
-	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	return func(_ context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 		handler(w, r)
 		return nil
 	}

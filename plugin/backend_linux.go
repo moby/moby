@@ -738,7 +738,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	return nil
 }
 
-func (pm *Manager) validateConfig(config types.PluginConfig) error {
+func (pm *Manager) validateConfig(_ types.PluginConfig) error {
 	return nil // TODO:
 }
 

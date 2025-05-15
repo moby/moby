@@ -76,7 +76,7 @@ func (pKey peerKey) String() string {
 	return fmt.Sprintf("%s %s", pKey.peerIP, pKey.peerMac)
 }
 
-func (pKey *peerKey) Scan(state fmt.ScanState, verb rune) error {
+func (pKey *peerKey) Scan(state fmt.ScanState, _ rune) error {
 	ipB, err := state.Token(true, nil)
 	if err != nil {
 		return err
@@ -426,7 +426,7 @@ func (d *driver) peerFlushOp(nid string) error {
 }
 
 func (d *driver) peerDBUpdateSelf() {
-	d.peerDbWalk(func(nid string, pkey *peerKey, pEntry *peerEntry) bool {
+	d.peerDbWalk(func(_ string, _ *peerKey, pEntry *peerEntry) bool {
 		if pEntry.isLocal {
 			pEntry.vtep = d.advertiseAddress
 		}

@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types/checkpoint"
 )
 
-func (cr *checkpointRouter) postContainerCheckpoint(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (cr *checkpointRouter) postContainerCheckpoint(_ context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -27,7 +27,7 @@ func (cr *checkpointRouter) postContainerCheckpoint(ctx context.Context, w http.
 	return nil
 }
 
-func (cr *checkpointRouter) getContainerCheckpoints(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (cr *checkpointRouter) getContainerCheckpoints(_ context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func (cr *checkpointRouter) getContainerCheckpoints(ctx context.Context, w http.
 	return httputils.WriteJSON(w, http.StatusOK, checkpoints)
 }
 
-func (cr *checkpointRouter) deleteContainerCheckpoint(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (cr *checkpointRouter) deleteContainerCheckpoint(_ context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}

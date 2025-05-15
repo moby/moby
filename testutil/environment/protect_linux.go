@@ -61,7 +61,7 @@ func getAddrs(t testing.TB, br netlink.Link) map[string]*netlink.Addr {
 }
 
 // ProtectDefaultBridge stores default bridge info, to be restored on clean.
-func (e *Execution) ProtectDefaultBridge(t testing.TB, info *defaultBridgeInfo) {
+func (e *Execution) ProtectDefaultBridge(_ testing.TB, info *defaultBridgeInfo) {
 	e.protectedElements.defaultBridgeInfo = info
 }
 

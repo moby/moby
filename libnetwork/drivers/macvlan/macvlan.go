@@ -71,15 +71,15 @@ func Register(r driverapi.Registerer, store *datastore.Store, _ map[string]inter
 	})
 }
 
-func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
+func (d *driver) NetworkAllocate(_ string, _ map[string]string, _, _ []driverapi.IPAMData) (map[string]string, error) {
 	return nil, types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) NetworkFree(id string) error {
+func (d *driver) NetworkFree(_ string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
+func (d *driver) EndpointOperInfo(_, _ string) (map[string]interface{}, error) {
 	return make(map[string]interface{}), nil
 }
 
@@ -91,17 +91,17 @@ func (d *driver) IsBuiltIn() bool {
 	return true
 }
 
-func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
+func (d *driver) ProgramExternalConnectivity(_ context.Context, _, _ string, _ map[string]interface{}) error {
 	return nil
 }
 
-func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
+func (d *driver) RevokeExternalConnectivity(_, _ string) error {
 	return nil
 }
 
-func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
+func (d *driver) EventNotify(_ driverapi.EventType, _, _, _ string, _ []byte) {
 }
 
-func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+func (d *driver) DecodeTableEntry(_ string, _ string, _ []byte) (string, map[string]string) {
 	return "", nil
 }

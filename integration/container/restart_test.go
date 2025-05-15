@@ -144,7 +144,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 }
 
 func pollForNewHealthCheck(ctx context.Context, client *client.Client, startTime time.Time, containerID string) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		inspect, err := client.ContainerInspect(ctx, containerID)
 		if err != nil {
 			return poll.Error(err)
