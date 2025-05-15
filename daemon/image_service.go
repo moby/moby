@@ -43,6 +43,7 @@ type ImageService interface {
 	CommitImage(ctx context.Context, c backend.CommitConfig) (image.ID, error)
 	SquashImage(id, parent string) (string, error)
 	ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetype.InspectResponse, error)
+	ImageDiskUsage(ctx context.Context) (int64, error)
 
 	// Layers
 
@@ -53,7 +54,6 @@ type ImageService interface {
 	LayerStoreStatus() [][2]string
 	GetLayerMountID(cid string) (string, error)
 	ReleaseLayer(rwlayer container.RWLayer) error
-	LayerDiskUsage(ctx context.Context) (int64, error)
 	GetContainerLayerSize(ctx context.Context, containerID string) (int64, int64, error)
 	Changes(ctx context.Context, container *container.Container) ([]archive.Change, error)
 
