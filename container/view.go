@@ -45,7 +45,7 @@ type Snapshot struct {
 	Managed      bool
 	ExposedPorts nat.PortSet
 	PortBindings nat.PortSet
-	Health       string
+	Health       container.HealthStatus
 	HostConfig   struct {
 		Isolation string
 	}
