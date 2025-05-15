@@ -1,6 +1,6 @@
-//go:build linux || freebsd
+//go:build unix
 
-package main
+package command
 
 import (
 	"net"

@@ -1,6 +1,6 @@
-//go:build !windows
+//go:build unix
 
-package main
+package command
 
 import (
 	"context"
