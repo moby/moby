@@ -11,8 +11,8 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func cleanupNetworkNamespace(t testing.TB, d *Daemon) {
-	t.Helper()
+func cleanupNetworkNamespace(tb testing.TB, d *Daemon) {
+	tb.Helper()
 	// Cleanup network namespaces in the exec root of this
 	// daemon because this exec root is specific to this
 	// daemon instance and has no chance of getting
@@ -20,7 +20,7 @@ func cleanupNetworkNamespace(t testing.TB, d *Daemon) {
 	// new exec root.
 	filepath.WalkDir(filepath.Join(d.execRoot, "netns"), func(path string, _ os.DirEntry, _ error) error {
 		if err := unix.Unmount(path, unix.MNT_DETACH); err != nil && err != unix.EINVAL && err != unix.ENOENT {
-			t.Logf("[%s] unmount of %s failed: %v", d.id, path, err)
+			tb.Logf("[%s] unmount of %s failed: %v", d.id, path, err)
 		}
 		os.Remove(path)
 		return nil
@@ -28,9 +28,9 @@ func cleanupNetworkNamespace(t testing.TB, d *Daemon) {
 }
 
 // CgroupNamespace returns the cgroup namespace the daemon is running in
-func (d *Daemon) CgroupNamespace(t testing.TB) string {
+func (d *Daemon) CgroupNamespace(tb testing.TB) string {
 	link, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/cgroup", d.Pid()))
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	return strings.TrimSpace(link)
 }

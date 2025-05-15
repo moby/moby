@@ -29,38 +29,38 @@ type Driver struct {
 	refCount int
 }
 
-func newDriver(t testing.TB, name string, options []string) *Driver {
+func newDriver(tb testing.TB, name string, options []string) *Driver {
 	if name == "" {
 		// Prevent graphdriver.New() from auto-detecting / picking a storage driver.
-		t.Fatal("newDriver requires a name for the storage driver to use")
+		tb.Fatal("newDriver requires a name for the storage driver to use")
 	}
 
 	root, err := os.MkdirTemp("", "docker-graphtest-")
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
-	assert.NilError(t, os.MkdirAll(root, 0o755))
+	assert.NilError(tb, os.MkdirAll(root, 0o755))
 	d, err := graphdriver.New(name, graphdriver.Options{DriverOptions: options, Root: root})
 	if err != nil {
-		t.Logf("graphdriver: %v\n", err)
+		tb.Logf("graphdriver: %v\n", err)
 		if graphdriver.IsDriverNotSupported(err) {
-			t.Skipf("Driver %s not supported", name)
+			tb.Skipf("Driver %s not supported", name)
 		}
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	return &Driver{d, root, 1}
 }
 
-func cleanup(t testing.TB, d *Driver) {
+func cleanup(tb testing.TB, d *Driver) {
 	if err := drv.Cleanup(); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	os.RemoveAll(d.root)
 }
 
 // GetDriver create a new driver with given name or return an existing driver with the name updating the reference count.
-func GetDriver(t testing.TB, name string, options ...string) graphdriver.Driver {
+func GetDriver(tb testing.TB, name string, options ...string) graphdriver.Driver {
 	if drv == nil {
-		drv = newDriver(t, name, options)
+		drv = newDriver(tb, name, options)
 	} else {
 		drv.refCount++
 	}
@@ -68,111 +68,111 @@ func GetDriver(t testing.TB, name string, options ...string) graphdriver.Driver 
 }
 
 // PutDriver removes the driver if it is no longer used and updates the reference count.
-func PutDriver(t testing.TB) {
+func PutDriver(tb testing.TB) {
 	if drv == nil {
-		t.Skip("No driver to put!")
+		tb.Skip("No driver to put!")
 	}
 	drv.refCount--
 	if drv.refCount == 0 {
-		cleanup(t, drv)
+		cleanup(tb, drv)
 		drv = nil
 	}
 }
 
 // DriverTestCreateEmpty creates a new image and verifies it is empty and the right metadata
-func DriverTestCreateEmpty(t testing.TB, drivername string, driverOptions ...string) {
-	driver := GetDriver(t, drivername, driverOptions...)
-	defer PutDriver(t)
+func DriverTestCreateEmpty(tb testing.TB, drivername string, driverOptions ...string) {
+	driver := GetDriver(tb, drivername, driverOptions...)
+	defer PutDriver(tb)
 
 	err := driver.Create("empty", "", nil)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	defer func() {
-		assert.NilError(t, driver.Remove("empty"))
+		assert.NilError(tb, driver.Remove("empty"))
 	}()
 
 	if !driver.Exists("empty") {
-		t.Fatal("Newly created image doesn't exist")
+		tb.Fatal("Newly created image doesn't exist")
 	}
 
 	dir, err := driver.Get("empty", "")
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
-	verifyFile(t, dir, 0o755|os.ModeDir, 0, 0)
+	verifyFile(tb, dir, 0o755|os.ModeDir, 0, 0)
 
 	// Verify that the directory is empty
 	fis, err := readDir(dir)
-	assert.NilError(t, err)
-	assert.Check(t, is.Len(fis, 0))
+	assert.NilError(tb, err)
+	assert.Check(tb, is.Len(fis, 0))
 
 	driver.Put("empty")
 }
 
 // DriverTestCreateBase create a base driver and verify.
-func DriverTestCreateBase(t testing.TB, drivername string, driverOptions ...string) {
-	driver := GetDriver(t, drivername, driverOptions...)
-	defer PutDriver(t)
+func DriverTestCreateBase(tb testing.TB, drivername string, driverOptions ...string) {
+	driver := GetDriver(tb, drivername, driverOptions...)
+	defer PutDriver(tb)
 
-	createBase(t, driver, "Base")
+	createBase(tb, driver, "Base")
 	defer func() {
-		assert.NilError(t, driver.Remove("Base"))
+		assert.NilError(tb, driver.Remove("Base"))
 	}()
-	verifyBase(t, driver, "Base")
+	verifyBase(tb, driver, "Base")
 }
 
 // DriverTestCreateSnap Create a driver and snap and verify.
-func DriverTestCreateSnap(t testing.TB, drivername string, driverOptions ...string) {
-	driver := GetDriver(t, drivername, driverOptions...)
-	defer PutDriver(t)
+func DriverTestCreateSnap(tb testing.TB, drivername string, driverOptions ...string) {
+	driver := GetDriver(tb, drivername, driverOptions...)
+	defer PutDriver(tb)
 
-	createBase(t, driver, "Base")
+	createBase(tb, driver, "Base")
 	defer func() {
-		assert.NilError(t, driver.Remove("Base"))
+		assert.NilError(tb, driver.Remove("Base"))
 	}()
 
 	err := driver.Create("Snap", "Base", nil)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	defer func() {
-		assert.NilError(t, driver.Remove("Snap"))
+		assert.NilError(tb, driver.Remove("Snap"))
 	}()
 
-	verifyBase(t, driver, "Snap")
+	verifyBase(tb, driver, "Snap")
 }
 
 // DriverTestDeepLayerRead reads a file from a lower layer under a given number of layers
-func DriverTestDeepLayerRead(t testing.TB, layerCount int, drivername string, driverOptions ...string) {
-	driver := GetDriver(t, drivername, driverOptions...)
-	defer PutDriver(t)
+func DriverTestDeepLayerRead(tb testing.TB, layerCount int, drivername string, driverOptions ...string) {
+	driver := GetDriver(tb, drivername, driverOptions...)
+	defer PutDriver(tb)
 
 	base := stringid.GenerateRandomID()
 	if err := driver.Create(base, "", nil); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	content := []byte("test content")
 	if err := addFile(driver, base, "testfile.txt", content); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	topLayer, err := addManyLayers(driver, base, layerCount)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	err = checkManyLayers(driver, topLayer, layerCount)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	if err := checkFile(driver, topLayer, "testfile.txt", content); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 }
 
 // DriverTestDiffApply tests diffing and applying produces the same layer
-func DriverTestDiffApply(t testing.TB, fileCount int, drivername string, driverOptions ...string) {
-	driver := GetDriver(t, drivername, driverOptions...)
-	defer PutDriver(t)
+func DriverTestDiffApply(tb testing.TB, fileCount int, drivername string, driverOptions ...string) {
+	driver := GetDriver(tb, drivername, driverOptions...)
+	defer PutDriver(tb)
 	base := stringid.GenerateRandomID()
 	upper := stringid.GenerateRandomID()
 	deleteFile := "file-remove.txt"
@@ -180,116 +180,116 @@ func DriverTestDiffApply(t testing.TB, fileCount int, drivername string, driverO
 	deleteDir := "var/lib"
 
 	if err := driver.Create(base, "", nil); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	if err := addManyFiles(driver, base, fileCount, 3); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	if err := addFile(driver, base, deleteFile, deleteFileContent); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	if err := addDirectory(driver, base, deleteDir); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	if err := driver.Create(upper, base, nil); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	if err := addManyFiles(driver, upper, fileCount, 6); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	if err := removeAll(driver, upper, deleteFile, deleteDir); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	diffSize, err := driver.DiffSize(upper, "")
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	diff := stringid.GenerateRandomID()
 	if err := driver.Create(diff, base, nil); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	if err := checkManyFiles(driver, diff, fileCount, 3); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	if err := checkFile(driver, diff, deleteFile, deleteFileContent); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	arch, err := driver.Diff(upper, base)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	buf := bytes.NewBuffer(nil)
 	if _, err := buf.ReadFrom(arch); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	if err := arch.Close(); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	applyDiffSize, err := driver.ApplyDiff(diff, base, bytes.NewReader(buf.Bytes()))
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	if applyDiffSize != diffSize {
-		t.Fatalf("Apply diff size different, got %d, expected %d", applyDiffSize, diffSize)
+		tb.Fatalf("Apply diff size different, got %d, expected %d", applyDiffSize, diffSize)
 	}
 
 	if err := checkManyFiles(driver, diff, fileCount, 6); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	if err := checkFileRemoved(driver, diff, deleteFile); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	if err := checkFileRemoved(driver, diff, deleteDir); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 }
 
 // DriverTestChanges tests computed changes on a layer matches changes made
-func DriverTestChanges(t testing.TB, drivername string, driverOptions ...string) {
-	driver := GetDriver(t, drivername, driverOptions...)
-	defer PutDriver(t)
+func DriverTestChanges(tb testing.TB, drivername string, driverOptions ...string) {
+	driver := GetDriver(tb, drivername, driverOptions...)
+	defer PutDriver(tb)
 	base := stringid.GenerateRandomID()
 	upper := stringid.GenerateRandomID()
 	if err := driver.Create(base, "", nil); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	if err := addManyFiles(driver, base, 20, 3); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	if err := driver.Create(upper, base, nil); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	expectedChanges, err := changeManyFiles(driver, upper, 20, 6)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	changes, err := driver.Changes(upper, base)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	if err = checkChanges(expectedChanges, changes); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 }
 

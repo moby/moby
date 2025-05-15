@@ -45,64 +45,64 @@ func (g *FakeGit) Close() {
 }
 
 // New create a fake git server that can be used for git related tests
-func New(c testing.TB, name string, files map[string]string, enforceLocalServer bool) *FakeGit {
-	c.Helper()
-	ctx := fakecontext.New(c, "", fakecontext.WithFiles(files))
+func New(tb testing.TB, name string, files map[string]string, enforceLocalServer bool) *FakeGit {
+	tb.Helper()
+	ctx := fakecontext.New(tb, "", fakecontext.WithFiles(files))
 	defer ctx.Close()
 	curdir, err := os.Getwd()
 	if err != nil {
-		c.Fatal(err)
+		tb.Fatal(err)
 	}
 	defer os.Chdir(curdir)
 
 	if output, err := exec.Command("git", "init", ctx.Dir).CombinedOutput(); err != nil {
-		c.Fatalf("error trying to init repo: %s (%s)", err, output)
+		tb.Fatalf("error trying to init repo: %s (%s)", err, output)
 	}
 	err = os.Chdir(ctx.Dir)
 	if err != nil {
-		c.Fatal(err)
+		tb.Fatal(err)
 	}
 	if output, err := exec.Command("git", "config", "user.name", "Fake User").CombinedOutput(); err != nil {
-		c.Fatalf("error trying to set 'user.name': %s (%s)", err, output)
+		tb.Fatalf("error trying to set 'user.name': %s (%s)", err, output)
 	}
 	if output, err := exec.Command("git", "config", "user.email", "fake.user@example.com").CombinedOutput(); err != nil {
-		c.Fatalf("error trying to set 'user.email': %s (%s)", err, output)
+		tb.Fatalf("error trying to set 'user.email': %s (%s)", err, output)
 	}
 	if output, err := exec.Command("git", "add", "*").CombinedOutput(); err != nil {
-		c.Fatalf("error trying to add files to repo: %s (%s)", err, output)
+		tb.Fatalf("error trying to add files to repo: %s (%s)", err, output)
 	}
 	if output, err := exec.Command("git", "commit", "-a", "-m", "Initial commit").CombinedOutput(); err != nil {
-		c.Fatalf("error trying to commit to repo: %s (%s)", err, output)
+		tb.Fatalf("error trying to commit to repo: %s (%s)", err, output)
 	}
 
 	root, err := os.MkdirTemp("", "docker-test-git-repo")
 	if err != nil {
-		c.Fatal(err)
+		tb.Fatal(err)
 	}
 	repoPath := filepath.Join(root, name+".git")
 	if output, err := exec.Command("git", "clone", "--bare", ctx.Dir, repoPath).CombinedOutput(); err != nil {
 		os.RemoveAll(root)
-		c.Fatalf("error trying to clone --bare: %s (%s)", err, output)
+		tb.Fatalf("error trying to clone --bare: %s (%s)", err, output)
 	}
 	err = os.Chdir(repoPath)
 	if err != nil {
 		os.RemoveAll(root)
-		c.Fatal(err)
+		tb.Fatal(err)
 	}
 	if output, err := exec.Command("git", "update-server-info").CombinedOutput(); err != nil {
 		os.RemoveAll(root)
-		c.Fatalf("error trying to git update-server-info: %s (%s)", err, output)
+		tb.Fatalf("error trying to git update-server-info: %s (%s)", err, output)
 	}
 	err = os.Chdir(curdir)
 	if err != nil {
 		os.RemoveAll(root)
-		c.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	var server gitServer
 	if !enforceLocalServer {
 		// use fakeStorage server, which might be local or remote (at test daemon)
-		server = fakestorage.New(c, root)
+		server = fakestorage.New(tb, root)
 	} else {
 		// always start a local http server on CLI test machine
 		httpServer := httptest.NewServer(http.FileServer(http.Dir(root)))

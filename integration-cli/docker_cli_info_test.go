@@ -16,12 +16,12 @@ type DockerCLIInfoSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIInfoSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIInfoSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIInfoSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIInfoSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 // ensure docker info succeeds
@@ -114,11 +114,11 @@ func (s *DockerCLIInfoSuite) TestInfoDisplaysStoppedContainers(c *testing.T) {
 	assert.Assert(c, is.Contains(out, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"]+1)))
 }
 
-func existingContainerStates(c *testing.T) map[string]int {
-	out := cli.DockerCmd(c, "info", "--format", "{{json .}}").Stdout()
+func existingContainerStates(t *testing.T) map[string]int {
+	out := cli.DockerCmd(t, "info", "--format", "{{json .}}").Stdout()
 	var m map[string]interface{}
 	err := json.Unmarshal([]byte(out), &m)
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 	res := map[string]int{}
 	res["Containers"] = int(m["Containers"].(float64))
 	res["ContainersRunning"] = int(m["ContainersRunning"].(float64))

@@ -39,22 +39,22 @@ func TestImagePullPlatformInvalid(t *testing.T) {
 	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
 }
 
-func createTestImage(ctx context.Context, t testing.TB, store content.Store) ocispec.Descriptor {
+func createTestImage(ctx context.Context, tb testing.TB, store content.Store) ocispec.Descriptor {
 	w, err := store.Writer(ctx, content.WithRef("layer"))
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	defer w.Close()
 
 	// Empty layer with just a root dir
 	const layer = `./0000775000000000000000000000000014201045023007702 5ustar  rootroot`
 
 	_, err = w.Write([]byte(layer))
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	err = w.Commit(ctx, int64(len(layer)), digest.FromBytes([]byte(layer)))
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	layerDigest := w.Digest()
-	assert.Check(t, w.Close())
+	assert.Check(tb, w.Close())
 
 	img := ocispec.Image{
 		Platform: platforms.DefaultSpec(),
@@ -62,20 +62,20 @@ func createTestImage(ctx context.Context, t testing.TB, store content.Store) oci
 		Config:   ocispec.ImageConfig{WorkingDir: "/"},
 	}
 	imgJSON, err := json.Marshal(img)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	w, err = store.Writer(ctx, content.WithRef("config"))
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	defer w.Close()
 	_, err = w.Write(imgJSON)
-	assert.NilError(t, err)
-	assert.NilError(t, w.Commit(ctx, int64(len(imgJSON)), digest.FromBytes(imgJSON)))
+	assert.NilError(tb, err)
+	assert.NilError(tb, w.Commit(ctx, int64(len(imgJSON)), digest.FromBytes(imgJSON)))
 
 	configDigest := w.Digest()
-	assert.Check(t, w.Close())
+	assert.Check(tb, w.Close())
 
 	info, err := store.Info(ctx, layerDigest)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	manifest := ocispec.Manifest{
 		Versioned: specs.Versioned{
@@ -95,17 +95,17 @@ func createTestImage(ctx context.Context, t testing.TB, store content.Store) oci
 	}
 
 	manifestJSON, err := json.Marshal(manifest)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	w, err = store.Writer(ctx, content.WithRef("manifest"))
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	defer w.Close()
 	_, err = w.Write(manifestJSON)
-	assert.NilError(t, err)
-	assert.NilError(t, w.Commit(ctx, int64(len(manifestJSON)), digest.FromBytes(manifestJSON)))
+	assert.NilError(tb, err)
+	assert.NilError(tb, w.Commit(ctx, int64(len(manifestJSON)), digest.FromBytes(manifestJSON)))
 
 	manifestDigest := w.Digest()
-	assert.Check(t, w.Close())
+	assert.Check(tb, w.Close())
 
 	return ocispec.Descriptor{
 		MediaType: c8dimages.MediaTypeDockerSchema2Manifest,

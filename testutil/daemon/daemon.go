@@ -211,23 +211,23 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 // This will create a directory such as d123456789 in the folder specified by
 // $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
 // The daemon will not automatically start.
-func New(t testing.TB, ops ...Option) *Daemon {
-	t.Helper()
+func New(tb testing.TB, ops ...Option) *Daemon {
+	tb.Helper()
 	dest := os.Getenv("DOCKER_INTEGRATION_DAEMON_DEST")
 	if dest == "" {
 		dest = os.Getenv("DEST")
 	}
-	dest = filepath.Join(dest, t.Name())
+	dest = filepath.Join(dest, tb.Name())
 
-	assert.Check(t, dest != "", "Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
+	assert.Check(tb, dest != "", "Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
 
 	if os.Getenv("DOCKER_ROOTLESS") != "" {
 		if os.Getenv("DOCKER_REMAP_ROOT") != "" {
-			t.Skip("DOCKER_ROOTLESS doesn't support DOCKER_REMAP_ROOT currently")
+			tb.Skip("DOCKER_ROOTLESS doesn't support DOCKER_REMAP_ROOT currently")
 		}
 		if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
 			if val, err := strconv.ParseBool(env); err == nil && !val {
-				t.Skip("DOCKER_ROOTLESS doesn't support DOCKER_USERLANDPROXY=false")
+				tb.Skip("DOCKER_ROOTLESS doesn't support DOCKER_USERLANDPROXY=false")
 			}
 		}
 		ops = append(ops, WithRootlessUser("unprivilegeduser"))
@@ -235,9 +235,9 @@ func New(t testing.TB, ops ...Option) *Daemon {
 	ops = append(ops, WithOOMScoreAdjust(-500))
 
 	d, err := NewDaemon(dest, ops...)
-	assert.NilError(t, err, "could not create daemon at %q", dest)
+	assert.NilError(tb, err, "could not create daemon at %q", dest)
 	if d.rootlessUser != nil && d.dockerdBinary != defaultDockerdBinary {
-		t.Skipf("DOCKER_ROOTLESS doesn't support specifying non-default dockerd binary path %q", d.dockerdBinary)
+		tb.Skipf("DOCKER_ROOTLESS doesn't support specifying non-default dockerd binary path %q", d.dockerdBinary)
 	}
 
 	return d
@@ -293,12 +293,12 @@ func (d *Daemon) ReadLogFile() ([]byte, error) {
 }
 
 // NewClientT creates new client based on daemon's socket path
-func (d *Daemon) NewClientT(t testing.TB, extraOpts ...client.Opt) *client.Client {
-	t.Helper()
+func (d *Daemon) NewClientT(tb testing.TB, extraOpts ...client.Opt) *client.Client {
+	tb.Helper()
 
 	c, err := d.NewClient(extraOpts...)
-	assert.NilError(t, err, "[%s] could not create daemon client", d.id)
-	t.Cleanup(func() { c.Close() })
+	assert.NilError(tb, err, "[%s] could not create daemon client", d.id)
+	tb.Cleanup(func() { c.Close() })
 	return c
 }
 
@@ -314,12 +314,12 @@ func (d *Daemon) NewClient(extraOpts ...client.Opt) (*client.Client, error) {
 }
 
 // Cleanup cleans the daemon files : exec root (network namespaces, ...), swarmkit files
-func (d *Daemon) Cleanup(t testing.TB) {
-	t.Helper()
-	cleanupMount(t, d)
-	cleanupRaftDir(t, d)
-	cleanupDaemonStorage(t, d)
-	cleanupNetworkNamespace(t, d)
+func (d *Daemon) Cleanup(tb testing.TB) {
+	tb.Helper()
+	cleanupMount(tb, d)
+	cleanupRaftDir(tb, d)
+	cleanupDaemonStorage(tb, d)
+	cleanupNetworkNamespace(tb, d)
 }
 
 // TailLogsT attempts to tail N lines from the daemon logs.
@@ -382,10 +382,10 @@ func ScanLogsMatchAll(contains ...string) func(string) bool {
 
 // ScanLogsT uses `ScanLogs` to match the daemon logs using the passed in match function.
 // If there is an error or the match fails, the test will fail.
-func (d *Daemon) ScanLogsT(ctx context.Context, t testing.TB, match func(s string) bool) (bool, string) {
-	t.Helper()
+func (d *Daemon) ScanLogsT(ctx context.Context, tb testing.TB, match func(s string) bool) (bool, string) {
+	tb.Helper()
 	ok, line, err := d.ScanLogs(ctx, match)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	return ok, line
 }
 
@@ -428,12 +428,12 @@ func (d *Daemon) TailLogs(n int) ([][]byte, error) {
 }
 
 // Start starts the daemon and return once it is ready to receive requests.
-func (d *Daemon) Start(t testing.TB, args ...string) {
-	t.Helper()
+func (d *Daemon) Start(tb testing.TB, args ...string) {
+	tb.Helper()
 	if err := d.StartWithError(args...); err != nil {
-		d.TailLogsT(t, 20)
+		d.TailLogsT(tb, 20)
 		d.DumpStackAndQuit() // in case the daemon is stuck
-		t.Fatalf("[%s] failed to start daemon with arguments %v : %v", d.id, d.args, err)
+		tb.Fatalf("[%s] failed to start daemon with arguments %v : %v", d.id, d.args, err)
 	}
 }
 
@@ -620,10 +620,10 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 // StartWithBusybox will first start the daemon with Daemon.Start()
 // then save the busybox image from the main daemon and load it into this Daemon instance.
-func (d *Daemon) StartWithBusybox(ctx context.Context, t testing.TB, arg ...string) {
-	t.Helper()
-	d.Start(t, arg...)
-	d.LoadBusybox(ctx, t)
+func (d *Daemon) StartWithBusybox(ctx context.Context, tb testing.TB, arg ...string) {
+	tb.Helper()
+	d.Start(tb, arg...)
+	d.LoadBusybox(ctx, tb)
 }
 
 // Kill will send a SIGKILL to the daemon
@@ -685,14 +685,14 @@ func (d *Daemon) DumpStackAndQuit() {
 // Stop will not delete the daemon directory. If a purged daemon is needed,
 // instantiate a new one with NewDaemon.
 // If an error occurs while starting the daemon, the test will fail.
-func (d *Daemon) Stop(t testing.TB) {
-	t.Helper()
+func (d *Daemon) Stop(tb testing.TB) {
+	tb.Helper()
 	err := d.StopWithError()
 	if err != nil {
 		if err != errDaemonNotStarted {
-			t.Fatalf("[%s] error while stopping the daemon: %v", d.id, err)
+			tb.Fatalf("[%s] error while stopping the daemon: %v", d.id, err)
 		} else {
-			t.Logf("[%s] daemon is not started", d.id)
+			tb.Logf("[%s] daemon is not started", d.id)
 		}
 	}
 }
@@ -774,10 +774,10 @@ out2:
 
 // Restart will restart the daemon by first stopping it and the starting it.
 // If an error occurs while starting the daemon, the test will fail.
-func (d *Daemon) Restart(t testing.TB, args ...string) {
-	t.Helper()
-	d.Stop(t)
-	d.Start(t, args...)
+func (d *Daemon) Restart(tb testing.TB, args ...string) {
+	tb.Helper()
+	d.Stop(tb)
+	d.Start(tb, args...)
 }
 
 // RestartWithError will restart the daemon by first stopping it and then starting it.
@@ -860,25 +860,25 @@ func (d *Daemon) SetEnvVar(name, val string) {
 }
 
 // LoadBusybox image into the daemon
-func (d *Daemon) LoadBusybox(ctx context.Context, t testing.TB) {
-	d.LoadImage(ctx, t, "busybox:latest")
+func (d *Daemon) LoadBusybox(ctx context.Context, tb testing.TB) {
+	d.LoadImage(ctx, tb, "busybox:latest")
 }
 
-func (d *Daemon) LoadImage(ctx context.Context, t testing.TB, img string) {
-	t.Helper()
+func (d *Daemon) LoadImage(ctx context.Context, tb testing.TB, img string) {
+	tb.Helper()
 	clientHost, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(t, err, "[%s] failed to create client", d.id)
+	assert.NilError(tb, err, "[%s] failed to create client", d.id)
 	defer clientHost.Close()
 
 	reader, err := clientHost.ImageSave(ctx, []string{img})
-	assert.NilError(t, err, "[%s] failed to download %s", d.id, img)
+	assert.NilError(tb, err, "[%s] failed to download %s", d.id, img)
 	defer reader.Close()
 
-	c := d.NewClientT(t)
+	c := d.NewClientT(tb)
 	defer c.Close()
 
 	resp, err := c.ImageLoad(ctx, reader, client.ImageLoadWithQuiet(true))
-	assert.NilError(t, err, "[%s] failed to load %s", d.id, img)
+	assert.NilError(tb, err, "[%s] failed to load %s", d.id, img)
 	defer resp.Body.Close()
 }
 
@@ -975,27 +975,27 @@ func (d *Daemon) queryRootDir() (string, error) {
 }
 
 // Info returns the info struct for this daemon
-func (d *Daemon) Info(t testing.TB) system.Info {
-	t.Helper()
-	c := d.NewClientT(t)
+func (d *Daemon) Info(tb testing.TB) system.Info {
+	tb.Helper()
+	c := d.NewClientT(tb)
 	info, err := c.Info(context.Background())
-	assert.NilError(t, err)
-	assert.NilError(t, c.Close())
+	assert.NilError(tb, err)
+	assert.NilError(tb, c.Close())
 	return info
 }
 
-func (d *Daemon) FirewallBackendDriver(t testing.TB) string {
-	t.Helper()
-	info := d.Info(t)
-	assert.Assert(t, info.FirewallBackend != nil, "no firewall backend reported")
+func (d *Daemon) FirewallBackendDriver(tb testing.TB) string {
+	tb.Helper()
+	info := d.Info(tb)
+	assert.Assert(tb, info.FirewallBackend != nil, "no firewall backend reported")
 	return info.FirewallBackend.Driver
 }
 
 // FirewallReloadedAt fetches the daemon's Info and, if it contains a firewall
 // reload time, returns that time.
-func (d *Daemon) FirewallReloadedAt(t testing.TB) string {
-	t.Helper()
-	info := d.Info(t)
+func (d *Daemon) FirewallReloadedAt(tb testing.TB) string {
+	tb.Helper()
+	info := d.Info(tb)
 	if info.FirewallBackend == nil {
 		return ""
 	}
@@ -1008,29 +1008,29 @@ func (d *Daemon) FirewallReloadedAt(t testing.TB) string {
 }
 
 // TamperWithContainerConfig modifies the on-disk config of a container.
-func (d *Daemon) TamperWithContainerConfig(t testing.TB, containerID string, tamper func(*container.Container)) {
-	t.Helper()
+func (d *Daemon) TamperWithContainerConfig(tb testing.TB, containerID string, tamper func(*container.Container)) {
+	tb.Helper()
 
 	configPath := filepath.Join(d.Root, "containers", containerID, "config.v2.json")
 	configBytes, err := os.ReadFile(configPath)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	var c container.Container
-	assert.NilError(t, json.Unmarshal(configBytes, &c))
+	assert.NilError(tb, json.Unmarshal(configBytes, &c))
 	c.State = container.NewState()
 	tamper(&c)
 	configBytes, err = json.Marshal(&c)
-	assert.NilError(t, err)
-	assert.NilError(t, os.WriteFile(configPath, configBytes, 0o600))
+	assert.NilError(tb, err)
+	assert.NilError(tb, os.WriteFile(configPath, configBytes, 0o600))
 }
 
 // cleanupRaftDir removes swarmkit wal files if present
-func cleanupRaftDir(t testing.TB, d *Daemon) {
-	t.Helper()
+func cleanupRaftDir(tb testing.TB, d *Daemon) {
+	tb.Helper()
 	for _, p := range []string{"wal", "wal-v3-encrypted", "snap-v3-encrypted"} {
 		dir := filepath.Join(d.Root, "swarm/raft", p)
 		if err := os.RemoveAll(dir); err != nil {
-			t.Logf("[%s] error removing %v: %v", d.id, dir, err)
+			tb.Logf("[%s] error removing %v: %v", d.id, dir, err)
 		}
 	}
 }
@@ -1043,8 +1043,8 @@ func cleanupRaftDir(t testing.TB, d *Daemon) {
 //
 // We currently do not include container logs in the bundles, so this also
 // removes the "containers" sub-directory.
-func cleanupDaemonStorage(t testing.TB, d *Daemon) {
-	t.Helper()
+func cleanupDaemonStorage(tb testing.TB, d *Daemon) {
+	tb.Helper()
 	dirs := []string{
 		"builder",
 		"buildkit",
@@ -1063,7 +1063,7 @@ func cleanupDaemonStorage(t testing.TB, d *Daemon) {
 	for _, p := range dirs {
 		dir := filepath.Join(d.Root, p)
 		if err := os.RemoveAll(dir); err != nil {
-			t.Logf("[%s] error removing %v: %v", d.id, dir, err)
+			tb.Logf("[%s] error removing %v: %v", d.id, dir, err)
 		}
 	}
 }

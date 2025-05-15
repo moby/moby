@@ -27,8 +27,8 @@ func (tr *Mock) RegisterHandler(path string, h handlerFunc) {
 }
 
 // NewMock creates a registry mock
-func NewMock(t testing.TB) (*Mock, error) {
-	t.Helper()
+func NewMock(tb testing.TB) (*Mock, error) {
+	tb.Helper()
 	testReg := &Mock{handlers: make(map[string]handlerFunc)}
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +39,7 @@ func NewMock(t testing.TB) (*Mock, error) {
 		for re, function := range testReg.handlers {
 			matched, err = regexp.MatchString(re, url)
 			if err != nil {
-				t.Fatal("Error with handler regexp")
+				tb.Fatal("Error with handler regexp")
 			}
 			if matched {
 				function(w, r)
@@ -48,7 +48,7 @@ func NewMock(t testing.TB) (*Mock, error) {
 		}
 
 		if !matched {
-			t.Fatalf("Unable to match %s with regexp", url)
+			tb.Fatalf("Unable to match %s with regexp", url)
 		}
 	}))
 

@@ -47,21 +47,21 @@ type DockerExternalVolumeSuite struct {
 	*volumePlugin
 }
 
-func (s *DockerExternalVolumeSuite) SetUpTest(ctx context.Context, c *testing.T) {
-	testRequires(c, testEnv.IsLocalDaemon)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+func (s *DockerExternalVolumeSuite) SetUpTest(ctx context.Context, t *testing.T) {
+	testRequires(t, testEnv.IsLocalDaemon)
+	s.d = daemon.New(t, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 	s.ec = &eventCounter{}
 }
 
-func (s *DockerExternalVolumeSuite) TearDownTest(ctx context.Context, c *testing.T) {
+func (s *DockerExternalVolumeSuite) TearDownTest(ctx context.Context, t *testing.T) {
 	if s.d != nil {
-		s.d.Stop(c)
-		s.ds.TearDownTest(ctx, c)
+		s.d.Stop(t)
+		s.ds.TearDownTest(ctx, t)
 	}
 }
 
-func (s *DockerExternalVolumeSuite) SetUpSuite(ctx context.Context, c *testing.T) {
-	s.volumePlugin = newVolumePlugin(c, volumePluginName)
+func (s *DockerExternalVolumeSuite) SetUpSuite(ctx context.Context, t *testing.T) {
+	s.volumePlugin = newVolumePlugin(t, volumePluginName)
 }
 
 type volumePlugin struct {
@@ -274,11 +274,11 @@ func newVolumePlugin(t *testing.T, name string) *volumePlugin {
 	return s
 }
 
-func (s *DockerExternalVolumeSuite) TearDownSuite(ctx context.Context, c *testing.T) {
+func (s *DockerExternalVolumeSuite) TearDownSuite(ctx context.Context, t *testing.T) {
 	s.volumePlugin.Close()
 
 	err := os.RemoveAll("/etc/docker/plugins")
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 }
 
 func (s *DockerExternalVolumeSuite) TestVolumeCLICreateOptionConflict(c *testing.T) {

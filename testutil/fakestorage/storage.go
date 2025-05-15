@@ -40,19 +40,19 @@ func SetTestEnvironment(env *environment.Execution) {
 }
 
 // New returns a static file server that is used as build context.
-func New(t testing.TB, dir string, modifiers ...func(*fakecontext.Fake) error) Fake {
-	t.Helper()
+func New(tb testing.TB, dir string, modifiers ...func(*fakecontext.Fake) error) Fake {
+	tb.Helper()
 	if testEnv == nil {
-		t.Fatal("fakstorage package requires SetTestEnvironment() to be called before use.")
+		tb.Fatal("fakstorage package requires SetTestEnvironment() to be called before use.")
 	}
-	ctx := fakecontext.New(t, dir, modifiers...)
+	ctx := fakecontext.New(tb, dir, modifiers...)
 	switch {
 	case testEnv.IsRemoteDaemon() && strings.HasPrefix(request.DaemonHost(), "unix:///"):
-		t.Skip("e2e run : daemon is remote but docker host points to a unix socket")
+		tb.Skip("e2e run : daemon is remote but docker host points to a unix socket")
 	case testEnv.IsLocalDaemon():
 		return newLocalFakeStorage(ctx)
 	default:
-		return newRemoteFileServer(t, ctx, testEnv.APIClient())
+		return newRemoteFileServer(tb, ctx, testEnv.APIClient())
 	}
 	return nil
 }
@@ -132,43 +132,43 @@ func (f *remoteFileServer) Close() error {
 	})
 }
 
-func newRemoteFileServer(t testing.TB, ctx *fakecontext.Fake, c client.APIClient) *remoteFileServer {
+func newRemoteFileServer(tb testing.TB, ctx *fakecontext.Fake, c client.APIClient) *remoteFileServer {
 	var (
 		imgName   = fmt.Sprintf("fileserver-img-%s", strings.ToLower(testutil.GenerateRandomAlphaOnlyString(10)))
 		container = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(testutil.GenerateRandomAlphaOnlyString(10)))
 	)
 
-	ensureHTTPServerImage(t)
+	ensureHTTPServerImage(tb)
 
 	// Build the image
 	if err := ctx.Add("Dockerfile", `FROM httpserver
 COPY . /static`); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
-	resp, err := c.ImageBuild(context.Background(), ctx.AsTarReader(t), types.ImageBuildOptions{
+	resp, err := c.ImageBuild(context.Background(), ctx.AsTarReader(tb), types.ImageBuildOptions{
 		NoCache: true,
 		Tags:    []string{imgName},
 	})
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	_, err = io.Copy(io.Discard, resp.Body)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	// Start the container
 	b, err := c.ContainerCreate(context.Background(), &containertypes.Config{
 		Image: imgName,
 	}, &containertypes.HostConfig{}, nil, nil, container)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	err = c.ContainerStart(context.Background(), b.ID, containertypes.StartOptions{})
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	// Find out the system assigned port
 	i, err := c.ContainerInspect(context.Background(), b.ID)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	newP, err := nat.NewPort("tcp", "80")
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	ports, exists := i.NetworkSettings.Ports[newP]
 	if !exists || len(ports) != 1 {
-		t.Fatalf("unable to find port 80/tcp for %s", container)
+		tb.Fatalf("unable to find port 80/tcp for %s", container)
 	}
 	host := ports[0].HostIP
 	port := ports[0].HostPort

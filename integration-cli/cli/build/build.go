@@ -70,13 +70,13 @@ func WithExternalBuildContext(ctx *fakecontext.Fake) func(*icmd.Cmd) func() {
 }
 
 // WithBuildContext sets up the build context
-func WithBuildContext(t testing.TB, contextOperators ...func(*fakecontext.Fake) error) func(*icmd.Cmd) func() {
+func WithBuildContext(tb testing.TB, contextOperators ...func(*fakecontext.Fake) error) func(*icmd.Cmd) func() {
 	// FIXME(vdemeester) de-duplicate that
-	ctx := fakecontext.New(t, "", contextOperators...)
+	ctx := fakecontext.New(tb, "", contextOperators...)
 	return func(cmd *icmd.Cmd) func() {
 		cmd.Dir = ctx.Dir
 		cmd.Command = append(cmd.Command, ".")
-		return closeBuildContext(t, ctx)
+		return closeBuildContext(tb, ctx)
 	}
 }
 
@@ -85,10 +85,10 @@ func WithFile(name, content string) func(*fakecontext.Fake) error {
 	return fakecontext.WithFile(name, content)
 }
 
-func closeBuildContext(t testing.TB, ctx *fakecontext.Fake) func() {
+func closeBuildContext(tb testing.TB, ctx *fakecontext.Fake) func() {
 	return func() {
 		if err := ctx.Close(); err != nil {
-			t.Fatal(err)
+			tb.Fatal(err)
 		}
 	}
 }

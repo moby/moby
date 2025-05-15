@@ -11,8 +11,8 @@ import (
 )
 
 // PluginIsRunning provides a poller to check if the specified plugin is running
-func (d *Daemon) PluginIsRunning(t testing.TB, name string) func(poll.LogT) poll.Result {
-	return withClient(t, d, withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
+func (d *Daemon) PluginIsRunning(tb testing.TB, name string) func(poll.LogT) poll.Result {
+	return withClient(tb, d, withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
 		if plugin.Enabled {
 			return poll.Success()
 		}
@@ -21,8 +21,8 @@ func (d *Daemon) PluginIsRunning(t testing.TB, name string) func(poll.LogT) poll
 }
 
 // PluginIsNotRunning provides a poller to check if the specified plugin is not running
-func (d *Daemon) PluginIsNotRunning(t testing.TB, name string) func(poll.LogT) poll.Result {
-	return withClient(t, d, withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
+func (d *Daemon) PluginIsNotRunning(tb testing.TB, name string) func(poll.LogT) poll.Result {
+	return withClient(tb, d, withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
 		if !plugin.Enabled {
 			return poll.Success()
 		}
@@ -31,8 +31,8 @@ func (d *Daemon) PluginIsNotRunning(t testing.TB, name string) func(poll.LogT) p
 }
 
 // PluginIsNotPresent provides a poller to check if the specified plugin is not present
-func (d *Daemon) PluginIsNotPresent(t testing.TB, name string) func(poll.LogT) poll.Result {
-	return withClient(t, d, func(c client.APIClient, t poll.LogT) poll.Result {
+func (d *Daemon) PluginIsNotPresent(tb testing.TB, name string) func(poll.LogT) poll.Result {
+	return withClient(tb, d, func(c client.APIClient, t poll.LogT) poll.Result {
 		_, _, err := c.PluginInspectWithRaw(context.Background(), name)
 		if errdefs.IsNotFound(err) {
 			return poll.Success()
@@ -45,8 +45,8 @@ func (d *Daemon) PluginIsNotPresent(t testing.TB, name string) func(poll.LogT) p
 }
 
 // PluginReferenceIs provides a poller to check if the specified plugin has the specified reference
-func (d *Daemon) PluginReferenceIs(t testing.TB, name, expectedRef string) func(poll.LogT) poll.Result {
-	return withClient(t, d, withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
+func (d *Daemon) PluginReferenceIs(tb testing.TB, name, expectedRef string) func(poll.LogT) poll.Result {
+	return withClient(tb, d, withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
 		if plugin.PluginReference == expectedRef {
 			return poll.Success()
 		}
@@ -67,9 +67,9 @@ func withPluginInspect(name string, f func(*types.Plugin, poll.LogT) poll.Result
 	}
 }
 
-func withClient(t testing.TB, d *Daemon, f func(client.APIClient, poll.LogT) poll.Result) func(poll.LogT) poll.Result {
+func withClient(tb testing.TB, d *Daemon, f func(client.APIClient, poll.LogT) poll.Result) func(poll.LogT) poll.Result {
 	return func(pt poll.LogT) poll.Result {
-		c := d.NewClientT(t)
+		c := d.NewClientT(tb)
 		return f(c, pt)
 	}
 }

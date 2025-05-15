@@ -45,8 +45,8 @@ type Config struct {
 }
 
 // NewV2 creates a v2 registry server
-func NewV2(t testing.TB, ops ...func(*Config)) *V2 {
-	t.Helper()
+func NewV2(tb testing.TB, ops ...func(*Config)) *V2 {
+	tb.Helper()
 	c := &Config{
 		registryURL: DefaultURL,
 	}
@@ -54,7 +54,7 @@ func NewV2(t testing.TB, ops ...func(*Config)) *V2 {
 		op(c)
 	}
 	tmp, err := os.MkdirTemp("", "registry-test-")
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	template := `version: 0.1
 loglevel: debug
 storage:
@@ -79,7 +79,7 @@ http:
 		password = "testpassword"
 		email = "test@test.org"
 		err := os.WriteFile(htpasswdPath, []byte(userpasswd), os.FileMode(0o644))
-		assert.NilError(t, err)
+		assert.NilError(tb, err)
 		authTemplate = fmt.Sprintf(`auth:
     htpasswd:
         realm: basic-realm
@@ -97,13 +97,13 @@ http:
 
 	confPath := filepath.Join(tmp, "config.yaml")
 	config, err := os.Create(confPath)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	defer config.Close()
 
 	if _, err := fmt.Fprintf(config, template, tmp, c.registryURL, authTemplate); err != nil {
 		// FIXME(vdemeester) use a defer/clean func
 		os.RemoveAll(tmp)
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	binary := V2binary
@@ -118,7 +118,7 @@ http:
 	if err := cmd.Start(); err != nil {
 		// FIXME(vdemeester) use a defer/clean func
 		os.RemoveAll(tmp)
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	return &V2{
 		cmd:         cmd,
@@ -132,8 +132,8 @@ http:
 }
 
 // WaitReady waits for the registry to be ready to serve requests (or fail after a while)
-func (r *V2) WaitReady(t testing.TB) {
-	t.Helper()
+func (r *V2) WaitReady(tb testing.TB) {
+	tb.Helper()
 	var err error
 	for i := 0; i != 50; i++ {
 		if err = r.Ping(); err == nil {
@@ -141,7 +141,7 @@ func (r *V2) WaitReady(t testing.TB) {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	t.Fatalf("timeout waiting for test registry to become available: %v", err)
+	tb.Fatalf("timeout waiting for test registry to become available: %v", err)
 }
 
 // Ping sends an http request to the current registry, and fail if it doesn't respond correctly
@@ -181,27 +181,27 @@ func (r *V2) getBlobFilename(blobDigest digest.Digest) string {
 }
 
 // ReadBlobContents read the file corresponding to the specified digest
-func (r *V2) ReadBlobContents(t testing.TB, blobDigest digest.Digest) []byte {
-	t.Helper()
+func (r *V2) ReadBlobContents(tb testing.TB, blobDigest digest.Digest) []byte {
+	tb.Helper()
 	// Load the target manifest blob.
 	manifestBlob, err := os.ReadFile(r.getBlobFilename(blobDigest))
-	assert.NilError(t, err, "unable to read blob")
+	assert.NilError(tb, err, "unable to read blob")
 	return manifestBlob
 }
 
 // WriteBlobContents write the file corresponding to the specified digest with the given content
-func (r *V2) WriteBlobContents(t testing.TB, blobDigest digest.Digest, data []byte) {
-	t.Helper()
+func (r *V2) WriteBlobContents(tb testing.TB, blobDigest digest.Digest, data []byte) {
+	tb.Helper()
 	err := os.WriteFile(r.getBlobFilename(blobDigest), data, os.FileMode(0o644))
-	assert.NilError(t, err, "unable to write malicious data blob")
+	assert.NilError(tb, err, "unable to write malicious data blob")
 }
 
 // TempMoveBlobData moves the existing data file aside, so that we can replace it with a
 // malicious blob of data for example.
-func (r *V2) TempMoveBlobData(t testing.TB, blobDigest digest.Digest) (undo func()) {
-	t.Helper()
+func (r *V2) TempMoveBlobData(tb testing.TB, blobDigest digest.Digest) (undo func()) {
+	tb.Helper()
 	tempFile, err := os.CreateTemp("", "registry-temp-blob-")
-	assert.NilError(t, err, "unable to get temporary blob file")
+	assert.NilError(tb, err, "unable to get temporary blob file")
 	tempFile.Close()
 
 	blobFilename := r.getBlobFilename(blobDigest)
@@ -211,7 +211,7 @@ func (r *V2) TempMoveBlobData(t testing.TB, blobDigest digest.Digest) (undo func
 	if err := os.Rename(blobFilename, tempFile.Name()); err != nil {
 		// FIXME(vdemeester) use a defer/clean func
 		os.Remove(tempFile.Name())
-		t.Fatalf("unable to move data blob: %s", err)
+		tb.Fatalf("unable to move data blob: %s", err)
 	}
 
 	return func() {
