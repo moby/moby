@@ -7,10 +7,10 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/pkg/stringid"
 )

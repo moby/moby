@@ -7,13 +7,13 @@ import (
 	"strconv"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/server/httputils"
 	basictypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
