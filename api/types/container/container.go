@@ -132,7 +132,7 @@ type Summary struct {
 	SizeRw                  int64 `json:",omitempty"`
 	SizeRootFs              int64 `json:",omitempty"`
 	Labels                  map[string]string
-	State                   string
+	State                   ContainerState
 	Status                  string
 	HostConfig              struct {
 		NetworkMode string            `json:",omitempty"`
