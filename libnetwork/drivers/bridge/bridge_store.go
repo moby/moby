@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/libnetwork/datastore"
+	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/libnetwork/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -37,6 +38,12 @@ func (d *driver) initStore() error {
 	err = d.populateEndpoints()
 	if err != nil {
 		return err
+	}
+
+	// If there's a firewall cleaner, it's done its job by cleaning up rules
+	// belonging to the restored networks. So, drop it.
+	if fcs, ok := d.firewaller.(firewaller.FirewallCleanerSetter); ok {
+		fcs.SetFirewallCleaner(nil)
 	}
 
 	return nil

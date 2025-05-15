@@ -825,3 +825,114 @@ func TestNoSuchExternalBridge(t *testing.T) {
 	err := d.StartWithError("--bridge", "nosuchbridge")
 	assert.Check(t, err != nil, "Expected daemon startup to fail")
 }
+
+// TestFirewallBackendSwitch checks that when started with an nftables or iptables
+// backend after running with the other backend, old rules are removed.
+func TestFirewallBackendSwitch(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "rootless has its own netns")
+	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
+	ctx := setupTest(t)
+
+	// Run in a clean netns.
+	addr4 := netip.MustParseAddr("192.168.125.1")
+	addr6 := netip.MustParseAddr("fd76:c828:41f9::1")
+	l3 := networking.NewL3Segment(t, "test-fwbeswitch",
+		netip.PrefixFrom(addr4, 24),
+		netip.PrefixFrom(addr6, 64),
+	)
+	defer l3.Destroy(t)
+
+	addr4, addr6 = addr4.Next(), addr6.Next()
+	const hostname = "fwbeswitch"
+	l3.AddHost(t, hostname, hostname+"-netns", "eth0",
+		netip.PrefixFrom(addr4, 24),
+		netip.PrefixFrom(addr6, 64),
+	)
+	host := l3.Hosts[hostname]
+
+	// Run without OTel because there's no routing from this netns for it - which
+	// means the daemon doesn't shut down cleanly, causing the test to fail.
+	d := daemon.New(t, daemon.WithEnvVars("OTEL_EXPORTER_OTLP_ENDPOINT="))
+
+	networkCreated := false
+	runDaemon := func(backend string) {
+		d.SetEnvVar("DOCKER_FIREWALL_BACKEND", backend)
+		host.Do(t, func() {
+			d.StartWithBusybox(ctx, t)
+			defer d.Stop(t)
+
+			// Create a network (and its firewall rules) first time through.
+			// On restarts, the daemon should find it and clean up the rules if the
+			// firewall backend changed.
+			// No need to clean up, the netns will be deleted.
+			// (Ideally, would start a container - but would need to kill the daemon
+			// to leave its firewall rules in place for the next daemon to clean up,
+			// and that risks leaving a container process running on the test host
+			// when things go wrong.)
+			if !networkCreated {
+				c := d.NewClientT(t)
+				defer c.Close()
+				_ = network.CreateNoError(ctx, t, c, "testnet",
+					network.WithIPv6(),
+					network.WithIPAM("192.0.2.0/24", "192.0.2.1"),
+					network.WithIPAM("2001:db8::/64", "2001:db8::1"),
+				)
+				networkCreated = true
+			}
+		})
+	}
+
+	summariseIptables := func() (dockerChains []string, numRules int, dump string) {
+		host.Do(t, func() {
+			dump = icmd.RunCommand("iptables-save").Combined()
+			dump += icmd.RunCommand("ip6tables-save").Combined()
+		})
+		for line := range strings.Lines(dump) {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			// Ignore DOCKER-USER and jumps to it, it's not cleaned.
+			if strings.HasPrefix(line, ":DOCKER") && !strings.HasPrefix(line, ":DOCKER-USER") {
+				dockerChains = append(dockerChains, line[1:])
+			} else if strings.HasPrefix(line, "-A") && !strings.Contains(line, "FORWARD -j DOCKER-USER") {
+				numRules++
+			}
+		}
+		return dockerChains, numRules, dump
+	}
+
+	nftablesTablesExist := func() bool {
+		var exist bool
+		host.Do(t, func() {
+			res4 := icmd.RunCommand("nft", "list table ip docker-bridges")
+			res6 := icmd.RunCommand("nft", "list table ip6 docker-bridges")
+			exist = res4.ExitCode == 0 || res6.ExitCode == 0
+		})
+		return exist
+	}
+
+	// Create iptables rules.
+	runDaemon("iptables")
+	dockerChains, numRules, dump := summariseIptables()
+	t.Logf("iptables created, %d rules, %d docker chains, dump:\n%s", numRules, len(dockerChains), dump)
+	assert.Check(t, numRules > 0, "Expected iptables to have at least one rule")
+	assert.Check(t, len(dockerChains) > 0, "Expected iptables to have at least one docker chain")
+	assert.Check(t, !nftablesTablesExist(), "nftables tables exist after running with iptables")
+
+	// Use nftables, expect the iptables rules to be deleted.
+	runDaemon("nftables")
+	dockerChains, numRules, dump = summariseIptables()
+	t.Logf("iptables cleaned, %d rules, %d docker chains, dump:\n%s", numRules, len(dockerChains), dump)
+	assert.Check(t, numRules == 0, "Unexpected iptables rules after starting with nftables")
+	assert.Check(t, len(dockerChains) == 0, "Unexpected iptables chains after starting with nftables")
+	assert.Check(t, nftablesTablesExist(), "nftables tables do not exist after running with nftables")
+
+	// Use iptables, expect the nftables rules to be deleted.
+	runDaemon("iptables")
+	dockerChains, numRules, dump = summariseIptables()
+	t.Logf("iptables created, %d rules, %d docker chains, dump:\n%s", numRules, len(dockerChains), dump)
+	assert.Check(t, numRules > 0, "Expected iptables to have at least one rule")
+	assert.Check(t, len(dockerChains) > 0, "Expected iptables to have at least one docker chain")
+	assert.Check(t, !nftablesTablesExist(), "nftables tables exist after running with iptables")
+}
