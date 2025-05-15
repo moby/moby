@@ -220,7 +220,12 @@ func TestCDISpecDirs(t *testing.T) {
 		expectedCDISpecDirs []string
 	}{
 		{
-			description:         "CDI enabled and no spec dirs specified returns default",
+			description:         "CDI enabled by default",
+			specDirs:            nil,
+			expectedCDISpecDirs: []string{"/etc/cdi", "/var/run/cdi"},
+		},
+		{
+			description:         "CDI explicitly enabled and no spec dirs specified returns default",
 			specDirs:            nil,
 			configContent:       `{"features": {"cdi": true}}`,
 			expectedCDISpecDirs: []string{"/etc/cdi", "/var/run/cdi"},
@@ -245,11 +250,13 @@ func TestCDISpecDirs(t *testing.T) {
 		{
 			description:         "CDI disabled and no spec dirs specified returns no cdi spec dirs",
 			specDirs:            nil,
+			configContent:       `{"features": {"cdi": false}}`,
 			expectedCDISpecDirs: nil,
 		},
 		{
 			description:         "CDI disabled and specified spec dirs returns no cdi spec dirs",
 			specDirs:            []string{"/foo/bar", "/baz/qux"},
+			configContent:       `{"features": {"cdi": false}}`,
 			expectedCDISpecDirs: nil,
 		},
 	}
