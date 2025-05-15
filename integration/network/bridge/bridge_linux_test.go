@@ -318,18 +318,17 @@ func TestFilterForwardPolicy(t *testing.T) {
 					}
 					t.Fatalf("Failed to determine nftables filter-FORWARD policy: %s", out)
 					return ""
-				} else {
-					cmd := fam + "tables"
-					out := host.MustRun(t, cmd, "-S", "FORWARD")
-					if strings.HasPrefix(out, "-P FORWARD ACCEPT") {
-						return "ACCEPT"
-					}
-					if strings.HasPrefix(out, "-P FORWARD DROP") {
-						return "DROP"
-					}
-					t.Fatalf("Failed to determine %s FORWARD policy: %s", cmd, out)
-					return ""
 				}
+				cmd := fam + "tables"
+				out := host.MustRun(t, cmd, "-S", "FORWARD")
+				if strings.HasPrefix(out, "-P FORWARD ACCEPT") {
+					return "ACCEPT"
+				}
+				if strings.HasPrefix(out, "-P FORWARD DROP") {
+					return "DROP"
+				}
+				t.Fatalf("Failed to determine %s FORWARD policy: %s", cmd, out)
+				return ""
 			}
 
 			type sysctls struct{ v4, v6def, v6all string }
