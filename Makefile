@@ -83,11 +83,11 @@ DOCKER_ENVS := \
 # to allow `make BIND_DIR=. shell` or `make BIND_DIR= test`
 # (default to no bind mount if DOCKER_HOST is set)
 # note: BINDDIR is supported for backwards-compatibility here
-BIND_DIR := $(if $(BINDDIR),$(BINDDIR),$(if $(DOCKER_HOST),,bundles))
+BIND_DIR := $(if $(BINDDIR),$(BINDDIR),$(if $(DOCKER_HOST),,.))
 
 # DOCKER_MOUNT can be overridden, but use at your own risk!
 ifndef DOCKER_MOUNT
-DOCKER_MOUNT := $(if $(BIND_DIR),-v "$(CURDIR)/$(BIND_DIR):/go/src/github.com/docker/docker/$(BIND_DIR)")
+DOCKER_MOUNT := $(if $(BIND_DIR),-v "$(BIND_DIR):/go/src/github.com/docker/docker/$(BIND_DIR)")
 DOCKER_MOUNT := $(if $(DOCKER_BINDDIR_MOUNT_OPTS),$(DOCKER_MOUNT):$(DOCKER_BINDDIR_MOUNT_OPTS),$(DOCKER_MOUNT))
 
 # This allows the test suite to be able to run without worrying about the underlying fs used by the container running the daemon (e.g. aufs-on-aufs), so long as the host running the container is running a supported fs.
