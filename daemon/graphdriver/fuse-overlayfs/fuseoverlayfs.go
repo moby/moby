@@ -73,7 +73,7 @@ func init() {
 // Init returns the naive diff driver for fuse-overlayfs.
 // If fuse-overlayfs is not supported on the host, the error
 // graphdriver.ErrNotSupported is returned.
-func Init(home string, options []string, idMap user.IdentityMapping) (graphdriver.Driver, error) {
+func Init(home string, _ []string, idMap user.IdentityMapping) (graphdriver.Driver, error) {
 	if _, err := exec.LookPath(binary); err != nil {
 		logger.Error(err)
 		return nil, graphdriver.ErrNotSupported

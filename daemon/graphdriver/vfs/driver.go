@@ -85,7 +85,7 @@ func (d *Driver) Status() [][2]string {
 }
 
 // GetMetadata is used for implementing the graphdriver.ProtoDriver interface. VFS does not currently have any meta data.
-func (d *Driver) GetMetadata(id string) (map[string]string, error) {
+func (d *Driver) GetMetadata(_ string) (map[string]string, error) {
 	return nil, nil
 }
 
@@ -197,7 +197,7 @@ func (d *Driver) Remove(id string) error {
 }
 
 // Get returns the directory for the given id.
-func (d *Driver) Get(id, mountLabel string) (string, error) {
+func (d *Driver) Get(id, _ string) (string, error) {
 	dir := d.dir(id)
 	if st, err := os.Stat(dir); err != nil {
 		return "", err
@@ -208,7 +208,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 }
 
 // Put is a noop for vfs that return nil for the error, since this driver has no runtime resources to clean up.
-func (d *Driver) Put(id string) error {
+func (d *Driver) Put(_ string) error {
 	// The vfs driver has no runtime resources (e.g. mounts)
 	// to clean up, so we don't need anything here
 	return nil

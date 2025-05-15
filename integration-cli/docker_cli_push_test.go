@@ -238,7 +238,7 @@ func (s *DockerCLIPushSuite) TestPushToCentralRegistryUnauthorized(c *testing.T)
 
 func getTestTokenService(status int, body string, retries int) *httptest.Server {
 	var mu sync.Mutex
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		mu.Lock()
 		if retries > 0 {
 			w.Header().Set("Content-Type", "application/json")

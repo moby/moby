@@ -35,7 +35,7 @@ const inContainerInitPath = "/sbin/" + dconfig.DefaultInitBinary
 
 // withRlimits sets the container's rlimits along with merging the daemon's rlimits
 func withRlimits(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Container) coci.SpecOpts {
-	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		var rlimits []specs.POSIXRlimit
 
 		// We want to leave the original HostConfig alone so make a copy here
@@ -59,7 +59,7 @@ func withRlimits(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Contain
 }
 
 // withRootless sets the spec to the rootless configuration
-func withRootless(daemon *Daemon, daemonCfg *dconfig.Config) coci.SpecOpts {
+func withRootless(_ *Daemon, daemonCfg *dconfig.Config) coci.SpecOpts {
 	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		var v2Controllers []string
 		if cgroupDriver(daemonCfg) == cgroupSystemdDriver {
@@ -87,7 +87,7 @@ func withRootless(daemon *Daemon, daemonCfg *dconfig.Config) coci.SpecOpts {
 
 // withRootfulInRootless is used for "rootful-in-rootless" dind;
 // the daemon is running in UserNS but has no access to RootlessKit API socket, host filesystem, etc.
-func withRootfulInRootless(daemon *Daemon, daemonCfg *dconfig.Config) coci.SpecOpts {
+func withRootfulInRootless(_ *Daemon, _ *dconfig.Config) coci.SpecOpts {
 	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		specconv.ToRootfulInRootless(s)
 		return nil
@@ -96,7 +96,7 @@ func withRootfulInRootless(daemon *Daemon, daemonCfg *dconfig.Config) coci.SpecO
 
 // WithOOMScore sets the oom score
 func WithOOMScore(score *int) coci.SpecOpts {
-	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		if s.Process == nil {
 			s.Process = &specs.Process{}
 		}
@@ -107,7 +107,7 @@ func WithOOMScore(score *int) coci.SpecOpts {
 
 // WithSelinux sets the selinux labels
 func WithSelinux(c *container.Container) coci.SpecOpts {
-	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		if s.Process == nil {
 			s.Process = &specs.Process{}
 		}
@@ -122,7 +122,7 @@ func WithSelinux(c *container.Container) coci.SpecOpts {
 
 // WithApparmor sets the apparmor profile
 func WithApparmor(c *container.Container) coci.SpecOpts {
-	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		if apparmor.HostSupports() {
 			var appArmorProfile string
 			if c.AppArmorProfile != "" {
@@ -155,7 +155,7 @@ func WithApparmor(c *container.Container) coci.SpecOpts {
 
 // WithCapabilities sets the container's capabilities
 func WithCapabilities(c *container.Container) coci.SpecOpts {
-	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		capabilities, err := caps.TweakCapabilities(
 			caps.DefaultCapabilities(),
 			c.HostConfig.CapAdd,
@@ -224,7 +224,7 @@ func setNamespace(s *specs.Spec, ns specs.LinuxNamespace) {
 
 // WithNamespaces sets the container's namespaces
 func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
-	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		userNS := false
 		// user
 		if c.HostConfig.UsernsMode.IsPrivate() {
@@ -699,7 +699,7 @@ func sysctlExists(s string) bool {
 
 // withCommonOptions sets common docker options
 func withCommonOptions(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Container) coci.SpecOpts {
-	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		if c.BaseFS == "" {
 			return errors.New("populateCommonSpec: BaseFS of container " + c.ID + " is unexpectedly empty")
 		}
@@ -916,7 +916,7 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 
 // WithResources applies the container resources
 func WithResources(c *container.Container) coci.SpecOpts {
-	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		r := c.HostConfig.Resources
 		weightDevices, err := getBlkioWeightDevices(r)
 		if err != nil {
@@ -972,7 +972,7 @@ func WithResources(c *container.Container) coci.SpecOpts {
 
 // WithSysctls sets the container's sysctls
 func WithSysctls(c *container.Container) coci.SpecOpts {
-	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		if len(c.HostConfig.Sysctls) == 0 {
 			return nil
 		}
@@ -993,7 +993,7 @@ func WithSysctls(c *container.Container) coci.SpecOpts {
 
 // WithUser sets the container's user
 func WithUser(c *container.Container) coci.SpecOpts {
-	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		if s.Process == nil {
 			s.Process = &specs.Process{}
 		}

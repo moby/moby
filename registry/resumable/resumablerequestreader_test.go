@@ -15,7 +15,7 @@ import (
 )
 
 func TestResumableRequestHeaderSimpleErrors(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintln(w, "Hello, world !")
 	}))
 	defer ts.Close()
@@ -86,7 +86,7 @@ type errorReaderCloser struct{}
 
 func (errorReaderCloser) Close() error { return nil }
 
-func (errorReaderCloser) Read(p []byte) (int, error) {
+func (errorReaderCloser) Read(_ []byte) (int, error) {
 	return 0, errors.New("an error occurred")
 }
 
@@ -152,7 +152,7 @@ func TestResumableRequestReaderWithEOFWith416Response(t *testing.T) {
 }
 
 func TestResumableRequestReaderWithServerDoesntSupportByteRanges(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Range") == "" {
 			t.Fatalf("Expected a Range HTTP header, got nothing")
 		}
@@ -180,7 +180,7 @@ func TestResumableRequestReaderWithServerDoesntSupportByteRanges(t *testing.T) {
 func TestResumableRequestReaderWithZeroTotalSize(t *testing.T) {
 	srvtxt := "some response text data"
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintln(w, srvtxt)
 	}))
 	defer ts.Close()
@@ -205,7 +205,7 @@ func TestResumableRequestReaderWithZeroTotalSize(t *testing.T) {
 func TestResumableRequestReader(t *testing.T) {
 	srvtxt := "some response text data"
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintln(w, srvtxt)
 	}))
 	defer ts.Close()
@@ -231,7 +231,7 @@ func TestResumableRequestReader(t *testing.T) {
 func TestResumableRequestReaderWithInitialResponse(t *testing.T) {
 	srvtxt := "some response text data"
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintln(w, srvtxt)
 	}))
 	defer ts.Close()

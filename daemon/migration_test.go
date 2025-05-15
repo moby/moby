@@ -14,7 +14,7 @@ import (
 
 type mockPlatformReader struct{}
 
-func (m mockPlatformReader) ReadPlatformFromImage(ctx context.Context, id image.ID) (ocispec.Platform, error) {
+func (m mockPlatformReader) ReadPlatformFromImage(_ context.Context, id image.ID) (ocispec.Platform, error) {
 	switch id {
 	case "multiplatform":
 		// This image has multiple platforms, but GetImage will prefer the first one

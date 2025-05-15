@@ -122,7 +122,7 @@ func (d *driver) getCapabilities() (*driverapi.Capability, error) {
 // Config is not implemented for remote drivers, since it is assumed
 // to be supplied to the remote process out-of-band (e.g., as command
 // line arguments).
-func (d *driver) Config(option map[string]interface{}) error {
+func (d *driver) Config(_ map[string]interface{}) error {
 	return &driverapi.ErrNotImplemented{}
 }
 
@@ -155,14 +155,14 @@ func (d *driver) NetworkFree(id string) error {
 	return d.call("FreeNetwork", fr, &api.FreeNetworkResponse{})
 }
 
-func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
+func (d *driver) EventNotify(_ driverapi.EventType, _, _, _ string, _ []byte) {
 }
 
-func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+func (d *driver) DecodeTableEntry(_ string, _ string, _ []byte) (string, map[string]string) {
 	return "", nil
 }
 
-func (d *driver) CreateNetwork(ctx context.Context, id string, options map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(_ context.Context, id string, options map[string]interface{}, _ driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	create := &api.CreateNetworkRequest{
 		NetworkID: id,
 		Options:   options,

@@ -89,7 +89,7 @@ func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter
 	return out, ref, nil
 }
 
-func (i *imageExporterInstanceWrapper) processNamedCallback(ctx context.Context, out map[string]string, desc ocispec.Descriptor) {
+func (i *imageExporterInstanceWrapper) processNamedCallback(ctx context.Context, out map[string]string, _ ocispec.Descriptor) {
 	// TODO(vvoland): Change to exptypes.ExporterImageNameKey when BuildKit v0.21 is vendored.
 	imageName := out["image.name"]
 	if imageName == "" {

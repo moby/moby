@@ -36,7 +36,7 @@ func (u *mockUploadDescriptor) DiffID() layer.DiffID {
 }
 
 // SetRemoteDescriptor is not used in the mock.
-func (u *mockUploadDescriptor) SetRemoteDescriptor(remoteDescriptor distribution.Descriptor) {
+func (u *mockUploadDescriptor) SetRemoteDescriptor(_ distribution.Descriptor) {
 }
 
 // Upload is called to perform the upload.

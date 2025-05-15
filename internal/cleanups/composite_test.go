@@ -19,16 +19,16 @@ func TestCall(t *testing.T) {
 	errZ := errors.New("errorZ")
 	errYZ := errors.Join(errY, errZ)
 
-	c.Add(func(ctx context.Context) error {
+	c.Add(func(_ context.Context) error {
 		return err1
 	})
-	c.Add(func(ctx context.Context) error {
+	c.Add(func(_ context.Context) error {
 		return nil
 	})
-	c.Add(func(ctx context.Context) error {
+	c.Add(func(_ context.Context) error {
 		return fmt.Errorf("something happened: %w", err2)
 	})
-	c.Add(func(ctx context.Context) error {
+	c.Add(func(_ context.Context) error {
 		return errors.Join(errX, fmt.Errorf("joined: %w", errYZ))
 	})
 

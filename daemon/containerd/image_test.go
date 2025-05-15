@@ -300,10 +300,10 @@ type testSnapshotterService struct {
 	snapshots.Snapshotter
 }
 
-func (s *testSnapshotterService) Stat(ctx context.Context, key string) (snapshots.Info, error) {
+func (s *testSnapshotterService) Stat(_ context.Context, _ string) (snapshots.Info, error) {
 	return snapshots.Info{}, nil
 }
 
-func (s *testSnapshotterService) Usage(ctx context.Context, key string) (snapshots.Usage, error) {
+func (s *testSnapshotterService) Usage(_ context.Context, _ string) (snapshots.Usage, error) {
 	return snapshots.Usage{}, nil
 }

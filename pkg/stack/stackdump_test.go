@@ -8,7 +8,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestDump(t *testing.T) {
+func TestDump(_ *testing.T) {
 	Dump()
 }
 

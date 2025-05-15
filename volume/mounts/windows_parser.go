@@ -446,7 +446,7 @@ func (p *windowsParser) DefaultPropagationMode() mount.Propagation {
 	return ""
 }
 
-func (p *windowsParser) ConvertTmpfsOptions(opt *mount.TmpfsOptions, readOnly bool) (string, error) {
+func (p *windowsParser) ConvertTmpfsOptions(_ *mount.TmpfsOptions, _ bool) (string, error) {
 	return "", errors.New("windows does not support tmpfs")
 }
 
@@ -454,14 +454,14 @@ func (p *windowsParser) DefaultCopyMode() bool {
 	return false
 }
 
-func (p *windowsParser) IsBackwardCompatible(m *MountPoint) bool {
+func (p *windowsParser) IsBackwardCompatible(_ *MountPoint) bool {
 	return false
 }
 
-func (p *windowsParser) ValidateTmpfsMountDestination(dest string) error {
+func (p *windowsParser) ValidateTmpfsMountDestination(_ string) error {
 	return errors.New("windows does not support tmpfs")
 }
 
-func (p *windowsParser) HasResource(m *MountPoint, absolutePath string) bool {
+func (p *windowsParser) HasResource(_ *MountPoint, _ string) bool {
 	return false
 }

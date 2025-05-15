@@ -365,7 +365,7 @@ func (container *Container) DetachAndUnmount(volumeEventLog func(name string, ac
 // ignoreUnsupportedXAttrs ignores errors when extended attributes
 // are not supported
 func ignoreUnsupportedXAttrs() fs.CopyDirOpt {
-	return fs.WithXAttrErrorHandler(func(dst, src, xattrKey string, err error) error {
+	return fs.WithXAttrErrorHandler(func(_, _, _ string, err error) error {
 		if !errors.Is(err, syscall.ENOTSUP) {
 			return err
 		}

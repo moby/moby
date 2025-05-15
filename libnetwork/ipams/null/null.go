@@ -54,18 +54,18 @@ func (a *allocator) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool,
 	}, nil
 }
 
-func (a *allocator) ReleasePool(poolID string) error {
+func (a *allocator) ReleasePool(_ string) error {
 	return nil
 }
 
-func (a *allocator) RequestAddress(poolID string, ip net.IP, opts map[string]string) (*net.IPNet, map[string]string, error) {
+func (a *allocator) RequestAddress(poolID string, _ net.IP, _ map[string]string) (*net.IPNet, map[string]string, error) {
 	if poolID != defaultPoolID4 && poolID != defaultPoolID6 {
 		return nil, nil, types.InvalidParameterErrorf("unknown pool id: %s", poolID)
 	}
 	return nil, nil, nil
 }
 
-func (a *allocator) ReleaseAddress(poolID string, ip net.IP) error {
+func (a *allocator) ReleaseAddress(poolID string, _ net.IP) error {
 	if poolID != defaultPoolID4 && poolID != defaultPoolID6 {
 		return types.InvalidParameterErrorf("unknown pool id: %s", poolID)
 	}

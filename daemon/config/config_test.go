@@ -684,7 +684,7 @@ func TestReloadSetConfigFileNotExist(t *testing.T) {
 	flags.String("config-file", "", "")
 	assert.Check(t, flags.Set("config-file", configFile))
 
-	err := Reload(configFile, flags, func(c *Config) {})
+	err := Reload(configFile, flags, func(_ *Config) {})
 	assert.Check(t, is.ErrorContains(err, "unable to configure the Docker daemon with file"))
 }
 
@@ -696,7 +696,7 @@ func TestReloadDefaultConfigNotExist(t *testing.T) {
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("config-file", defaultConfigFile, "")
 	reloaded := false
-	err := Reload(defaultConfigFile, flags, func(c *Config) {
+	err := Reload(defaultConfigFile, flags, func(_ *Config) {
 		reloaded = true
 	})
 	assert.Check(t, err)
@@ -711,7 +711,7 @@ func TestReloadBadDefaultConfig(t *testing.T) {
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("config-file", configFile, "")
 	reloaded := false
-	err := Reload(configFile, flags, func(c *Config) {
+	err := Reload(configFile, flags, func(_ *Config) {
 		reloaded = true
 	})
 	assert.Check(t, is.ErrorContains(err, "unable to configure the Docker daemon with file"))
@@ -726,7 +726,7 @@ func TestReloadWithConflictingLabels(t *testing.T) {
 	flags.String("config-file", configFile, "")
 	flags.StringSlice("labels", lbls, "")
 	reloaded := false
-	err := Reload(configFile, flags, func(c *Config) {
+	err := Reload(configFile, flags, func(_ *Config) {
 		reloaded = true
 	})
 	assert.Check(t, is.ErrorContains(err, "conflict labels for foo=baz and foo=bar"))

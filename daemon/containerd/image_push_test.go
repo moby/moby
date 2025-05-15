@@ -241,7 +241,7 @@ func deletePlatform(ctx context.Context, imgSvc *ImageService, img c8dimages.Ima
 			return nil
 		}
 
-		return imgSvc.walkPresentChildren(ctx, im.Target(), func(ctx context.Context, d ocispec.Descriptor) error {
+		return imgSvc.walkPresentChildren(ctx, im.Target(), func(_ context.Context, d ocispec.Descriptor) error {
 			blobs = append(blobs, d)
 			return nil
 		})
@@ -269,7 +269,7 @@ func wholeIndexSelected(t *testing.T, img c8dimages.Image, pushDescriptor ocispe
 // singleManifestSelected asserts that the push descriptor candidate is for a single platform-specific manifest.
 func singleManifestSelected(platform ocispec.Platform) func(t *testing.T, img c8dimages.Image, pushDescriptor ocispec.Descriptor, err error) {
 	pm := platforms.OnlyStrict(platform)
-	return func(t *testing.T, img c8dimages.Image, pushDescriptor ocispec.Descriptor, err error) {
+	return func(t *testing.T, _ c8dimages.Image, pushDescriptor ocispec.Descriptor, err error) {
 		assert.NilError(t, err)
 		assert.Assert(t, is.Equal(pushDescriptor.MediaType, ocispec.MediaTypeImageManifest), "the push descriptor isn't for a manifest")
 		assert.Assert(t, pushDescriptor.Platform != nil, "the push descriptor doesn't have a platform")

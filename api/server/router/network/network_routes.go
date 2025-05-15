@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (e ambiguousResultsError) Error() string {
 
 func (ambiguousResultsError) InvalidParameter() {}
 
-func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (n *networkRouter) getNetwork(_ context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -198,7 +198,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 	return libnetwork.ErrNoSuchNetwork(term)
 }
 
-func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -240,7 +240,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 	return httputils.WriteJSON(w, http.StatusCreated, nw)
 }
 
-func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (n *networkRouter) postNetworkConnect(ctx context.Context, _ http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -257,7 +257,7 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 	return n.backend.ConnectContainerToNetwork(ctx, connect.Container, vars["id"], connect.EndpointConfig)
 }
 
-func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (n *networkRouter) postNetworkDisconnect(_ context.Context, _ http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 	return n.backend.DisconnectContainerFromNetwork(disconnect.Container, vars["id"], disconnect.Force)
 }
 
-func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (n *networkRouter) deleteNetwork(_ context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -292,7 +292,7 @@ func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter
 	return nil
 }
 
-func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}

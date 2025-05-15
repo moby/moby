@@ -123,7 +123,7 @@ func (ls *mockLayerStore) Get(chainID layer.ChainID) (layer.Layer, error) {
 	return l, nil
 }
 
-func (ls *mockLayerStore) Release(l layer.Layer) ([]layer.Metadata, error) {
+func (ls *mockLayerStore) Release(_ layer.Layer) ([]layer.Metadata, error) {
 	return []layer.Metadata{}, nil
 }
 

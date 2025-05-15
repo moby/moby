@@ -17,7 +17,7 @@ var (
 )
 
 // getCheckpointDir verifies checkpoint directory for create,remove, list options and checks if checkpoint already exists
-func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir string, create bool) (string, error) {
+func getCheckpointDir(checkDir, checkpointID, ctrName, _, ctrCheckpointDir string, create bool) (string, error) {
 	var checkpointDir string
 	var err2 error
 	if checkDir != "" {

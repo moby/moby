@@ -99,7 +99,7 @@ type stubRemote struct {
 	root string
 }
 
-func (r *stubRemote) Hash(path string) (string, error) {
+func (r *stubRemote) Hash(_ string) (string, error) {
 	return "", errors.New("not implemented")
 }
 

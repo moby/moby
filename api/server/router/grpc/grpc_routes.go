@@ -8,7 +8,7 @@ import (
 	"golang.org/x/net/http2"
 )
 
-func (gr *grpcRouter) serveGRPC(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (gr *grpcRouter) serveGRPC(_ context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	h, ok := w.(http.Hijacker)
 	if !ok {
 		return errors.New("handler does not support hijack")

@@ -22,7 +22,7 @@ func TestMiddlewareWrapHandler(t *testing.T) {
 
 	var pluginGetter plugingetter.PluginGetter
 	middleWare := NewMiddleware(pluginNames, pluginGetter)
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	handler := func(_ context.Context, _ http.ResponseWriter, _ *http.Request, _ map[string]string) error {
 		return nil
 	}
 

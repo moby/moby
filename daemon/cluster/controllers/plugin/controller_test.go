@@ -344,25 +344,25 @@ type mockBackend struct {
 	pub *pubsub.Publisher
 }
 
-func (m *mockBackend) Disable(name string, config *backend.PluginDisableConfig) error {
+func (m *mockBackend) Disable(_ string, _ *backend.PluginDisableConfig) error {
 	m.p.PluginObj.Enabled = false
 	m.pub.Publish(plugin.EventDisable{})
 	return nil
 }
 
-func (m *mockBackend) Enable(name string, config *backend.PluginEnableConfig) error {
+func (m *mockBackend) Enable(_ string, _ *backend.PluginEnableConfig) error {
 	m.p.PluginObj.Enabled = true
 	m.pub.Publish(plugin.EventEnable{})
 	return nil
 }
 
-func (m *mockBackend) Remove(name string, config *backend.PluginRmConfig) error {
+func (m *mockBackend) Remove(_ string, _ *backend.PluginRmConfig) error {
 	m.p = nil
 	m.pub.Publish(plugin.EventRemove{})
 	return nil
 }
 
-func (m *mockBackend) Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer, opts ...plugin.CreateOpt) error {
+func (m *mockBackend) Pull(_ context.Context, ref reference.Named, name string, _ http.Header, _ *registry.AuthConfig, _ types.PluginPrivileges, _ io.Writer, _ ...plugin.CreateOpt) error {
 	m.p = &v2.Plugin{
 		PluginObj: types.Plugin{
 			ID:              "1234",
@@ -373,19 +373,19 @@ func (m *mockBackend) Pull(ctx context.Context, ref reference.Named, name string
 	return nil
 }
 
-func (m *mockBackend) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) error {
+func (m *mockBackend) Upgrade(_ context.Context, _ reference.Named, _ string, _ http.Header, _ *registry.AuthConfig, _ types.PluginPrivileges, _ io.Writer) error {
 	m.p.PluginObj.PluginReference = pluginTestRemoteUpgrade
 	return nil
 }
 
-func (m *mockBackend) Get(name string) (*v2.Plugin, error) {
+func (m *mockBackend) Get(_ string) (*v2.Plugin, error) {
 	if m.p == nil {
 		return nil, errors.New("not found")
 	}
 	return m.p, nil
 }
 
-func (m *mockBackend) SubscribeEvents(buffer int, events ...plugin.Event) (eventCh <-chan interface{}, cancel func()) {
+func (m *mockBackend) SubscribeEvents(buffer int, _ ...plugin.Event) (eventCh <-chan interface{}, cancel func()) {
 	ch := m.pub.SubscribeTopicWithBuffer(nil, buffer)
 	cancel = func() { m.pub.Evict(ch) }
 	return ch, cancel

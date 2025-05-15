@@ -103,7 +103,7 @@ func CreateInRegistry(ctx context.Context, repo string, auth *registry.AuthConfi
 	}
 	defer tar.Close()
 
-	dummyExec := func(m *plugin.Manager) (plugin.Executor, error) {
+	dummyExec := func(_ *plugin.Manager) (plugin.Executor, error) {
 		return nil, nil
 	}
 
@@ -118,7 +118,7 @@ func CreateInRegistry(ctx context.Context, repo string, auth *registry.AuthConfi
 		Root:            filepath.Join(tmpDir, "root"),
 		ExecRoot:        "/run/docker", // manager init fails if not set
 		CreateExecutor:  dummyExec,
-		LogPluginEvent:  func(id, name string, action events.Action) {}, // panics when not set
+		LogPluginEvent:  func(_, _ string, _ events.Action) {}, // panics when not set
 	}
 	manager, err := plugin.NewManager(managerConfig)
 	if err != nil {

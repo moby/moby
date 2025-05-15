@@ -8,7 +8,7 @@ import (
 )
 
 func FuzzAppendDevicePermissionsFromCgroupRules(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		ff := fuzz.NewConsumer(data)
 		sp := make([]specs.LinuxDeviceCgroup, 0)
 		noOfRecords, err := ff.GetInt()

@@ -500,7 +500,7 @@ func (i *ImageService) untagReferences(ctx context.Context, refs []c8dimages.Ima
 // nil if there are none. It takes a bitmask representing a
 // filter for which conflict types the caller cares about,
 // and will only check for these conflict types.
-func (i *ImageService) checkImageDeleteConflict(ctx context.Context, imgID image.ID, all []c8dimages.Image, mask conflictType) error {
+func (i *ImageService) checkImageDeleteConflict(_ context.Context, imgID image.ID, all []c8dimages.Image, mask conflictType) error {
 	if mask&conflictRunningContainer != 0 {
 		running := func(c *container.Container) bool {
 			return c.ImageID == imgID && c.IsRunning()

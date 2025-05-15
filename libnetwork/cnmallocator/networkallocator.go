@@ -349,7 +349,7 @@ func (na *cnmNetworkAllocator) IsTaskAllocated(t *api.Task) bool {
 }
 
 // IsServiceAllocated returns false if the passed service needs to have network resources allocated/updated.
-func (na *cnmNetworkAllocator) IsServiceAllocated(s *api.Service, flags ...func(*networkallocator.ServiceAllocationOpts)) bool {
+func (na *cnmNetworkAllocator) IsServiceAllocated(s *api.Service, _ ...func(*networkallocator.ServiceAllocationOpts)) bool {
 	specNetworks := serviceNetworks(s)
 
 	// If endpoint mode is VIP and allocator does not have the

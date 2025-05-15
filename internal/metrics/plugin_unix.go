@@ -58,7 +58,7 @@ func RegisterPlugin(store *plugin.Store, path string) error {
 		})
 		f(s)
 	})
-	store.Handle(pluginType, func(name string, client *plugins.Client) {
+	store.Handle(pluginType, func(name string, _ *plugins.Client) {
 		// Use lookup since nothing in the system can really reference it, no need
 		// to protect against removal
 		p, err := store.Get(name, pluginType, plugingetter.Lookup)

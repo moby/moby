@@ -193,7 +193,7 @@ func (daemon *Daemon) ReleaseIngress() (<-chan struct{}, error) {
 	return done, nil
 }
 
-func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.NetworkCreateRequest, ip net.IP, staleID string) {
+func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.NetworkCreateRequest, _ net.IP, staleID string) {
 	controller := daemon.netController
 	controller.AgentInitWait()
 

@@ -71,7 +71,7 @@ func (c *imageProber) Probe(parentID string, runConfig *container.Config, platfo
 
 type nopProber struct{}
 
-func (c *nopProber) Reset(ctx context.Context) error {
+func (c *nopProber) Reset(_ context.Context) error {
 	return nil
 }
 

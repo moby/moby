@@ -164,6 +164,6 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 }
 
 // DiscoverDelete is a notification for a discovery delete event, such as a node leaving a cluster
-func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
+func (d *driver) DiscoverDelete(_ discoverapi.DiscoveryType, _ interface{}) error {
 	return nil
 }

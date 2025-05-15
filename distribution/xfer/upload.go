@@ -103,7 +103,7 @@ func (lum *LayerUploadManager) Upload(ctx context.Context, layers []UploadDescri
 }
 
 func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) doFunc {
-	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) transfer {
+	return func(progressChan chan<- progress.Progress, start <-chan struct{}, _ chan<- struct{}) transfer {
 		u := &uploadTransfer{
 			transfer: newTransfer(),
 		}

@@ -306,7 +306,7 @@ func (v *localVolume) CachedPath() string {
 
 // Mount implements the localVolume interface, returning the data location.
 // If there are any provided mount options, the resources will be mounted at this point
-func (v *localVolume) Mount(id string) (string, error) {
+func (v *localVolume) Mount(_ string) (string, error) {
 	v.m.Lock()
 	defer v.m.Unlock()
 	logger := log.G(context.TODO()).WithField("volume", v.name)
@@ -329,7 +329,7 @@ func (v *localVolume) Mount(id string) (string, error) {
 
 // Unmount dereferences the id, and if it is the last reference will unmount any resources
 // that were previously mounted.
-func (v *localVolume) Unmount(id string) error {
+func (v *localVolume) Unmount(_ string) error {
 	v.m.Lock()
 	defer v.m.Unlock()
 	logger := log.G(context.TODO()).WithField("volume", v.name)

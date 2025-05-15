@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func parseChownFlag(ctx context.Context, builder *Builder, state *dispatchState, chown, ctrRootPath string, identityMapping user.IdentityMapping) (identity, error) {
+func parseChownFlag(_ context.Context, _ *Builder, _ *dispatchState, chown, ctrRootPath string, identityMapping user.IdentityMapping) (identity, error) {
 	var userStr, grpStr string
 	parts := strings.Split(chown, ":")
 	if len(parts) > 2 {

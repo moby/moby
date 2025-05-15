@@ -170,7 +170,7 @@ func parseVersion(s string) (build.BuilderVersion, error) {
 	}
 }
 
-func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -237,7 +237,7 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 	return httputils.WriteJSON(w, http.StatusOK, report)
 }
 
-func (br *buildRouter) postCancel(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (br *buildRouter) postCancel(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	w.Header().Set("Content-Type", "application/json")
 
 	id := r.FormValue("id")
@@ -248,7 +248,7 @@ func (br *buildRouter) postCancel(ctx context.Context, w http.ResponseWriter, r 
 	return br.backend.Cancel(ctx, id)
 }
 
-func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	var (
 		notVerboseBuffer = bytes.NewBuffer(nil)
 		version          = httputils.VersionFromContext(ctx)

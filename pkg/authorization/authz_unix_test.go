@@ -418,7 +418,7 @@ func (t *authZPluginTestServer) auth(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
-func (t *authZPluginTestServer) activate(w http.ResponseWriter, r *http.Request) {
+func (t *authZPluginTestServer) activate(w http.ResponseWriter, _ *http.Request) {
 	b, err := json.Marshal(plugins.Manifest{Implements: []string{AuthZApiImplements}})
 	if err != nil {
 		t.t.Fatal(err)

@@ -45,7 +45,7 @@ func (i *ImageService) CreateLayerFromImage(img *image.Image, layerName string, 
 	return i.createLayer(descriptor, layerName, rwLayerOpts, nil)
 }
 
-func (i *ImageService) createLayer(descriptor *ocispec.Descriptor, layerName string, rwLayerOpts *layer.CreateRWLayerOpts, initFunc layer.MountInit) (container.RWLayer, error) {
+func (i *ImageService) createLayer(descriptor *ocispec.Descriptor, layerName string, _ *layer.CreateRWLayerOpts, initFunc layer.MountInit) (container.RWLayer, error) {
 	ctx := context.TODO()
 	var parentSnapshot string
 	if descriptor != nil {

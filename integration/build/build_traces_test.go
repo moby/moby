@@ -86,7 +86,7 @@ func TestBuildkitHistoryTracePropagation(t *testing.T) {
 	defer span.End()
 
 	t.Log("Waiting for trace to be available")
-	poll.WaitOn(t, func(logger poll.LogT) poll.Result {
+	poll.WaitOn(t, func(_ poll.LogT) poll.Result {
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 

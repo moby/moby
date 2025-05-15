@@ -26,7 +26,7 @@ func TestInfoServerError(t *testing.T) {
 
 func TestInfoInvalidResponseJSONError(t *testing.T) {
 	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(_ *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte("invalid json"))),

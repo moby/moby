@@ -5,7 +5,7 @@ import (
 )
 
 func FuzzParseLinux(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		parser := NewLinuxParser()
 		if p, ok := parser.(*linuxParser); ok {
 			p.fi = mockFiProvider{}
