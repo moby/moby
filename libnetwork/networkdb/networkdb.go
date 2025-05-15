@@ -430,7 +430,7 @@ type TableElem struct {
 // returns a map of keys and values
 func (nDB *NetworkDB) GetTableByNetwork(tname, nid string) map[string]*TableElem {
 	nDB.RLock()
-	root := nDB.indexes[byNetwork].Root()
+	root := nDB.indexes[byTable].Root()
 	nDB.RUnlock()
 	entries := make(map[string]*TableElem)
 	root.WalkPrefix([]byte(fmt.Sprintf("/%s/%s", tname, nid)), func(k []byte, v *entry) bool {
