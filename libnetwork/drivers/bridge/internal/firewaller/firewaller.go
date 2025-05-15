@@ -105,3 +105,31 @@ type Network interface {
 	// DelLink deletes the configuration needed for a legacy link.
 	DelLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort)
 }
+
+// FirewallCleanerSetter is an optional interface for a Firewaller.
+type FirewallCleanerSetter interface {
+	// SetFirewallCleaner replaces the FirewallCleaner (possibly with 'nil').
+	SetFirewallCleaner(FirewallCleaner)
+}
+
+// FirewallCleaner is used to delete rules created by previous incarnations of
+// the daemon. On startup, once a Firewaller implementation has been selected, if
+// rules may have been left behind by a different Firewaller implementation, get
+// a FirewallCleaner from the old Firewaller and pass it to the new/current
+// Firewaller's SetFirewallCleaner.
+type FirewallCleaner interface {
+	// DelNetwork removes all firewall rules related to the specified network configuration.
+	// It should be called by the new Firewaller when adding a new network.
+	DelNetwork(ctx context.Context, nc NetworkConfig)
+	// DelEndpoint removes firewall rules related to a specific endpoint.
+	// It should be called by the new Firewaller when adding a new endpoint.
+	DelEndpoint(ctx context.Context, nc NetworkConfig, epIPv4, epIPv6 netip.Addr)
+	// DelPorts removes firewall rules associated with the specified port bindings.
+	// It should be called by the new Firewaller when adding new port mappings.
+	DelPorts(ctx context.Context, nc NetworkConfig, pbs []types.PortBinding)
+	// DelLink removes firewall rules associated with a legacy link.
+	// It should be called by the new Firewaller when adding a new legacy link.
+	// (Excluded from the interface at present, it's not required by any current
+	// Firewaller.)
+	// DelLink(ctx context.Context, nc NetworkConfig, parentIP, childIP netip.Addr, ports []types.TransportPort)
+}

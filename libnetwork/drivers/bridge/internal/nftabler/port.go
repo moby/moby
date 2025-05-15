@@ -37,6 +37,10 @@ func (n *network) modPorts(ctx context.Context, pbs []types.PortBinding, enable 
 
 	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{"bridge": n.config.IfName}))
 
+	if enable && n.fw.cleaner != nil {
+		n.fw.cleaner.DelPorts(ctx, n.config, pbs)
+	}
+
 	pbs4, pbs6 := splitByContainerFam(pbs)
 	if n.fw.config.IPv4 && n.config.Config4.Prefix.IsValid() {
 		pbc := pbContext{table: n.fw.table4, conf: n.config.Config4, ipv: firewaller.IPv4}
