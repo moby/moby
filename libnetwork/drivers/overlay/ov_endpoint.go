@@ -4,6 +4,7 @@ package overlay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -70,7 +71,7 @@ func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo drive
 	var ok bool
 	ep.addr, ok = netiputil.ToPrefix(ifInfo.Address())
 	if !ok {
-		return fmt.Errorf("create endpoint was not passed interface IP address")
+		return errors.New("create endpoint was not passed interface IP address")
 	}
 
 	if s := n.getSubnetforIP(ep.addr); s == nil {

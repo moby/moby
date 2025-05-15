@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -218,7 +219,7 @@ func newVolumePlugin(t *testing.T, name string) *volumePlugin {
 		if v, exists := s.vols[pr.Name]; exists {
 			// Use this to simulate a mount failure
 			if _, exists := v.Options["invalidOption"]; exists {
-				send(w, fmt.Errorf("invalid argument"))
+				send(w, errors.New("invalid argument"))
 				return
 			}
 		}

@@ -166,7 +166,7 @@ func GetIptable(version IPVersion) *IPTable {
 // NewChain adds a new chain to ip table.
 func (iptable IPTable) NewChain(name string, table Table) (*ChainInfo, error) {
 	if name == "" {
-		return nil, fmt.Errorf("could not create chain: chain name is empty")
+		return nil, errors.New("could not create chain: chain name is empty")
 	}
 	if table == "" {
 		return nil, fmt.Errorf("could not create chain %s: invalid table name: table name is empty", name)
@@ -189,7 +189,7 @@ func (iptable IPTable) NewChain(name string, table Table) (*ChainInfo, error) {
 // RemoveExistingChain removes existing chain from the table.
 func (iptable IPTable) RemoveExistingChain(name string, table Table) error {
 	if name == "" {
-		return fmt.Errorf("could not remove chain: chain name is empty")
+		return errors.New("could not remove chain: chain name is empty")
 	}
 	if table == "" {
 		return fmt.Errorf("could not remove chain %s: invalid table name: table name is empty", name)
@@ -354,7 +354,7 @@ func (iptable IPTable) raw(args ...string) ([]byte, error) {
 	commandName := "iptables"
 	if iptable.ipVersion == IPv6 {
 		if ip6tablesPath == "" {
-			return nil, fmt.Errorf("ip6tables is missing")
+			return nil, errors.New("ip6tables is missing")
 		}
 		path = ip6tablesPath
 		commandName = "ip6tables"

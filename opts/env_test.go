@@ -1,6 +1,7 @@
 package opts
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -54,7 +55,7 @@ func TestValidateEnv(t *testing.T) {
 		},
 		{
 			value: "=a",
-			err:   fmt.Errorf("invalid environment variable: =a"),
+			err:   errors.New("invalid environment variable: =a"),
 		},
 		{
 			value:    "PATH=",
@@ -90,7 +91,7 @@ func TestValidateEnv(t *testing.T) {
 		},
 		{
 			value: "=",
-			err:   fmt.Errorf("invalid environment variable: ="),
+			err:   errors.New("invalid environment variable: ="),
 		},
 	}
 

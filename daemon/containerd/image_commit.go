@@ -239,7 +239,7 @@ func (i *ImageService) createDiff(ctx context.Context, name string, sn snapshots
 
 	diffIDStr, ok := cinfo.Labels["containerd.io/uncompressed"]
 	if !ok {
-		return nil, "", fmt.Errorf("invalid differ response with no diffID")
+		return nil, "", errors.New("invalid differ response with no diffID")
 	}
 
 	diffID, err := digest.Parse(diffIDStr)

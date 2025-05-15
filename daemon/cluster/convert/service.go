@@ -318,7 +318,7 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 	}
 
 	if numModes > 1 {
-		return swarmapi.ServiceSpec{}, fmt.Errorf("must specify only one service mode")
+		return swarmapi.ServiceSpec{}, errors.New("must specify only one service mode")
 	}
 
 	if s.Mode.Global != nil {

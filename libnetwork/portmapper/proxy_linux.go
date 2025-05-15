@@ -22,7 +22,7 @@ func StartProxy(pb types.PortBinding,
 	listenSock *os.File,
 ) (stop func() error, retErr error) {
 	if proxyPath == "" {
-		return nil, fmt.Errorf("no path provided for userland-proxy binary")
+		return nil, errors.New("no path provided for userland-proxy binary")
 	}
 	r, w, err := os.Pipe()
 	if err != nil {
@@ -113,7 +113,7 @@ func StartProxy(pb types.PortBinding,
 			return nil, err
 		}
 	case <-time.After(16 * time.Second):
-		return nil, fmt.Errorf("timed out starting the userland proxy")
+		return nil, errors.New("timed out starting the userland proxy")
 	}
 
 	stopFn := func() error {

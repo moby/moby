@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -786,7 +787,7 @@ func badDriverRegister(reg driverapi.Registerer) error {
 
 func (b *badDriver) CreateNetwork(ctx context.Context, nid string, options map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	if b.failNetworkCreation {
-		return fmt.Errorf("I will not create any network")
+		return errors.New("I will not create any network")
 	}
 	return nil
 }
@@ -796,7 +797,7 @@ func (b *badDriver) DeleteNetwork(nid string) error {
 }
 
 func (b *badDriver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, options map[string]interface{}) error {
-	return fmt.Errorf("I will not create any endpoint")
+	return errors.New("I will not create any endpoint")
 }
 
 func (b *badDriver) DeleteEndpoint(nid, eid string) error {
@@ -808,7 +809,7 @@ func (b *badDriver) EndpointOperInfo(nid, eid string) (map[string]interface{}, e
 }
 
 func (b *badDriver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]interface{}) error {
-	return fmt.Errorf("I will not allow any join")
+	return errors.New("I will not allow any join")
 }
 
 func (b *badDriver) Leave(nid, eid string) error {

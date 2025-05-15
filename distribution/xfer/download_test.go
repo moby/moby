@@ -33,7 +33,7 @@ func (ml *mockLayer) TarStream() (io.ReadCloser, error) {
 }
 
 func (ml *mockLayer) TarStreamFrom(layer.ChainID) (io.ReadCloser, error) {
-	return nil, fmt.Errorf("not implemented")
+	return nil, errors.New("not implemented")
 }
 
 func (ml *mockLayer) ChainID() layer.ChainID {

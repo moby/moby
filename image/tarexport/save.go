@@ -419,7 +419,7 @@ func (s *saveSession) saveImage(ctx context.Context, id image.ID) (_ map[layer.D
 
 	img := s.images[id].image
 	if len(img.RootFS.DiffIDs) == 0 {
-		return nil, fmt.Errorf("empty export - not implemented")
+		return nil, errors.New("empty export - not implemented")
 	}
 
 	ts := time.Unix(0, 0)

@@ -91,7 +91,7 @@ func RepoTagReference(repo, tag string) (reference.NamedTagged, error) {
 	}
 
 	if _, isDigested := ref.(reference.Digested); isDigested {
-		return nil, fmt.Errorf("cannot import digest reference")
+		return nil, errors.New("cannot import digest reference")
 	}
 
 	if tag != "" {

@@ -213,6 +213,7 @@ linters:
         - name: superfluous-else
           arguments:
             - preserve-scope
+        - name: use-errors-new
         - name: var-declaration
 
     staticcheck:

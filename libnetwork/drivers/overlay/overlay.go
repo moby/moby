@@ -6,6 +6,7 @@ package overlay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"sync"
@@ -78,7 +79,7 @@ func (d *driver) isIPv6Transport() (bool, error) {
 	// reasonable inference to make as Linux VXLAN links do not support
 	// mixed-address-family remote peers.
 	if !d.advertiseAddress.IsValid() {
-		return false, fmt.Errorf("overlay: cannot determine address family of transport: the local data-plane address is not currently known")
+		return false, errors.New("overlay: cannot determine address family of transport: the local data-plane address is not currently known")
 	}
 	return d.advertiseAddress.Is6(), nil
 }
@@ -88,7 +89,7 @@ func (d *driver) nodeJoin(data discoverapi.NodeDiscoveryData) error {
 		advAddr, _ := netip.ParseAddr(data.Address)
 		bindAddr, _ := netip.ParseAddr(data.BindAddress)
 		if !advAddr.IsValid() {
-			return fmt.Errorf("invalid discovery data")
+			return errors.New("invalid discovery data")
 		}
 		d.Lock()
 		d.advertiseAddress = advAddr
@@ -110,7 +111,7 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 	case discoverapi.EncryptionKeysConfig:
 		encrData, ok := data.(discoverapi.DriverEncryptionConfig)
 		if !ok {
-			return fmt.Errorf("invalid encryption key notification data")
+			return errors.New("invalid encryption key notification data")
 		}
 		keys := make([]*key, 0, len(encrData.Keys))
 		for i := 0; i < len(encrData.Keys); i++ {
@@ -127,7 +128,7 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 		var newKey, delKey, priKey *key
 		encrData, ok := data.(discoverapi.DriverEncryptionUpdate)
 		if !ok {
-			return fmt.Errorf("invalid encryption key notification data")
+			return errors.New("invalid encryption key notification data")
 		}
 		if encrData.Key != nil {
 			newKey = &key{
