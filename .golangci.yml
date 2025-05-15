@@ -144,10 +144,55 @@ linters:
       max-func-lines: 0
 
     revive:
+      # Only listed rules are applied
+      # https://github.com/mgechev/revive/blob/HEAD/RULES_DESCRIPTIONS.md
       rules:
+        - name: blank-imports
+          disabled: true
+        - name: context-as-argument
+          arguments:
+            - allow-types-before: "*testing.T,testing.TB,TestingT"
+        - name: context-keys-type
+        - name: dot-imports
+        - name: early-return
+          arguments:
+            - preserve-scope
+        - name: empty-block
+          disabled: true
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+          disabled: true
+        - name: errorf
+        - name: increment-decrement
+        - name: indent-error-flow
+          arguments:
+            - preserve-scope
           # FIXME make sure all packages have a description. Currently, there's many packages without.
         - name: package-comments
           disabled: true
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+          arguments:
+            - preserve-scope
+        - name: time-naming
+          disabled: true
+        - name: unexported-return
+          disabled: true
+        - name: unreachable-code
+        - name: unused-parameter
+        - name: use-any
+          disabled: true
+        - name: use-errors-new
+        - name: var-declaration
+        - name: var-naming
+          disabled: true
+          arguments:
+            - ["ID"] # AllowList
+            - ["VM"] # DenyList
+            - - upper-case-const: true # Extra parameter (upper-case-const|skip-package-name-checks)
 
     staticcheck:
       checks:
