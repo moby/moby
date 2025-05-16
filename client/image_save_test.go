@@ -81,7 +81,7 @@ func TestImageSave(t *testing.T) {
 
 			body, err := io.ReadAll(resp)
 			assert.NilError(t, err)
-			assert.Equal(t, string(body), expectedOutput)
+			assert.Check(t, is.Equal(string(body), expectedOutput))
 		})
 	}
 }

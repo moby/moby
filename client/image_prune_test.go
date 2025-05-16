@@ -106,7 +106,7 @@ func TestImagesPrune(t *testing.T) {
 		}
 
 		report, err := client.ImagesPrune(context.Background(), listCase.filters)
-		assert.Check(t, err)
+		assert.NilError(t, err)
 		assert.Check(t, is.Len(report.ImagesDeleted, 2))
 		assert.Check(t, is.Equal(uint64(9999), report.SpaceReclaimed))
 	}

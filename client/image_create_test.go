@@ -64,17 +64,10 @@ func TestImageCreate(t *testing.T) {
 	createResponse, err := client.ImageCreate(context.Background(), specifiedReference, image.CreateOptions{
 		RegistryAuth: expectedRegistryAuth,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 	response, err := io.ReadAll(createResponse)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = createResponse.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if string(response) != "body" {
-		t.Fatalf("expected Body to contain 'body' string, got %s", response)
-	}
+	assert.NilError(t, err)
+	err = createResponse.Close()
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(string(response), "body"))
 }
