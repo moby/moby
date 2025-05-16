@@ -238,10 +238,8 @@ func (i *ImageService) ReleaseLayer(rwlayer container.RWLayer) error {
 	}
 
 	ls := i.client.LeasesService()
-	if err := ls.Delete(context.Background(), c8dLayer.lease, leases.SynchronousDelete); err != nil {
-		if !cerrdefs.IsNotFound(err) {
-			return err
-		}
+	if err := ls.Delete(context.Background(), c8dLayer.lease, leases.SynchronousDelete); err != nil && !cerrdefs.IsNotFound(err) {
+		return err
 	}
 	return nil
 }
