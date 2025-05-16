@@ -84,11 +84,7 @@ func TestServiceList(t *testing.T) {
 		}
 
 		services, err := client.ServiceList(context.Background(), listCase.options)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(services) != 2 {
-			t.Fatalf("expected 2 services, got %v", services)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(services, 2))
 	}
 }

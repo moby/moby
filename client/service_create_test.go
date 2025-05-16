@@ -64,12 +64,8 @@ func TestServiceCreate(t *testing.T) {
 	}
 
 	r, err := client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, types.ServiceCreateOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r.ID != "service_id" {
-		t.Fatalf("expected `service_id`, got %s", r.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(r.ID, "service_id"))
 }
 
 func TestServiceCreateCompatiblePlatforms(t *testing.T) {
@@ -127,7 +123,7 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 	spec := swarm.ServiceSpec{TaskTemplate: swarm.TaskSpec{ContainerSpec: &swarm.ContainerSpec{Image: "foobar:1.0"}}}
 
 	r, err := client.ServiceCreate(context.Background(), spec, types.ServiceCreateOptions{QueryRegistry: true})
-	assert.Check(t, err)
+	assert.NilError(t, err)
 	assert.Check(t, is.Equal("service_linux_amd64", r.ID))
 }
 
@@ -206,16 +202,10 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 				},
 			},
 		}, types.ServiceCreateOptions{QueryRegistry: true})
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NilError(t, err)
 
-		if r.ID != "service_id" {
-			t.Fatalf("expected `service_id`, got %s", r.ID)
-		}
+		assert.Check(t, is.Equal(r.ID, "service_id"))
 
-		if p.expected != serviceCreateImage {
-			t.Fatalf("expected image %s, got %s", p.expected, serviceCreateImage)
-		}
+		assert.Check(t, is.Equal(p.expected, serviceCreateImage))
 	}
 }

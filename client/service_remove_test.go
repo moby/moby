@@ -60,7 +60,5 @@ func TestServiceRemove(t *testing.T) {
 	}
 
 	err := client.ServiceRemove(context.Background(), "service_id")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
