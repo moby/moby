@@ -49,7 +49,5 @@ func TestContainerKill(t *testing.T) {
 	}
 
 	err := client.ContainerKill(context.Background(), "container_id", "SIGKILL")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

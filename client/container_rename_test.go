@@ -49,7 +49,5 @@ func TestContainerRename(t *testing.T) {
 	}
 
 	err := client.ContainerRename(context.Background(), "container_id", "newName")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
