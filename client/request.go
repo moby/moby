@@ -116,10 +116,8 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 
 	resp, err := cli.doRequest(req)
 	switch {
-	case errors.Is(err, context.Canceled):
-		return nil, errdefs.Cancelled(err)
-	case errors.Is(err, context.DeadlineExceeded):
-		return nil, errdefs.Deadline(err)
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		return nil, err
 	case err == nil:
 		return resp, cli.checkResponseErr(resp)
 	default:
