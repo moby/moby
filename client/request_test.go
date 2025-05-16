@@ -53,7 +53,7 @@ func TestSetHostHeader(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.host, func(t *testing.T) {
 			hostURL, err := ParseHostURL(tc.host)
-			assert.Check(t, err)
+			assert.NilError(t, err)
 
 			client := &Client{
 				client: newMockClient(func(req *http.Request) (*http.Response, error) {
@@ -78,7 +78,7 @@ func TestSetHostHeader(t *testing.T) {
 			}
 
 			_, err = client.sendRequest(context.Background(), http.MethodGet, testEndpoint, nil, nil, nil)
-			assert.Check(t, err)
+			assert.NilError(t, err)
 		})
 	}
 }
