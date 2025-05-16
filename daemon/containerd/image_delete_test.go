@@ -8,6 +8,7 @@ import (
 	"github.com/containerd/containerd/v2/core/metadata"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log/logtest"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	dimages "github.com/docker/docker/daemon/images"
@@ -234,7 +235,7 @@ func TestImageDelete(t *testing.T) {
 				}
 			}
 
-			_, err := service.ImageDelete(ctx, tc.ref, false, false)
+			_, err := service.ImageDelete(ctx, tc.ref, image.RemoveOptions{})
 			if tc.err == nil {
 				assert.NilError(t, err)
 			} else {

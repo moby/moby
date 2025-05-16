@@ -83,6 +83,7 @@ type ListOptions struct {
 
 // RemoveOptions holds parameters to remove images.
 type RemoveOptions struct {
+	Platforms     []ocispec.Platform
 	Force         bool
 	PruneChildren bool
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/pkg/stringid"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -62,11 +63,20 @@ const (
 // If prune is true, ancestor images will each attempt to be deleted quietly,
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
-func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]imagetypes.DeleteResponse, error) {
+func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options imagetypes.RemoveOptions) ([]imagetypes.DeleteResponse, error) {
 	start := time.Now()
 	records := []imagetypes.DeleteResponse{}
 
-	img, err := i.GetImage(ctx, imageRef, backend.GetImageOpts{})
+	var platform *ocispec.Platform
+	switch len(options.Platforms) {
+	case 0:
+	case 1:
+		platform = &options.Platforms[0]
+	default:
+		return nil, errdefs.InvalidParameter(errors.New("multiple platforms are not supported"))
+	}
+
+	img, err := i.GetImage(ctx, imageRef, backend.GetImageOpts{Platform: platform})
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +100,8 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		return false
 	}
 
+	force := options.Force
+	prune := options.PruneChildren
 	var removedRepositoryRef bool
 	if !isImageIDPrefix(imgID.String(), imageRef) {
 		// A repository reference was given and should be removed

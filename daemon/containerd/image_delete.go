@@ -1,3 +1,6 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23
+
 package containerd
 
 import (
@@ -9,6 +12,7 @@ import (
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -17,6 +21,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/pkg/stringid"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageDelete deletes the image referenced by the given imageRef from this
@@ -52,13 +57,16 @@ import (
 // conflict will not be reported.
 //
 // TODO(thaJeztah): image delete should send prometheus counters; see https://github.com/moby/moby/issues/45268
-func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, prune bool) (response []imagetypes.DeleteResponse, retErr error) {
+func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options imagetypes.RemoveOptions) (response []imagetypes.DeleteResponse, retErr error) {
 	start := time.Now()
 	defer func() {
 		if retErr == nil {
 			metrics.ImageActions.WithValues("delete").UpdateSince(start)
 		}
 	}()
+
+	force := options.Force
+	prune := options.PruneChildren
 
 	var c conflictType
 	if !force {
@@ -96,25 +104,18 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 			c &= ^conflictActiveReference
 		}
 		if named != nil && len(sameRef) > 0 && len(sameRef) != len(all) {
-			var records []imagetypes.DeleteResponse
-			for _, ref := range sameRef {
-				// TODO: Add with target
-				err := i.images.Delete(ctx, ref.Name)
-				if err != nil {
-					return nil, err
-				}
-				if nn, err := reference.ParseNormalizedNamed(ref.Name); err == nil {
-					familiarRef := reference.FamiliarString(nn)
-					i.logImageEvent(ref, familiarRef, events.ActionUnTag)
-					records = append(records, imagetypes.DeleteResponse{Untagged: familiarRef})
-				}
+			if len(options.Platforms) > 0 {
+				return i.deleteImagePlatforms(ctx, img, imgID, options.Platforms)
 			}
-			return records, nil
+			return i.untagReferences(ctx, sameRef)
 		}
 	} else {
 		imgID = image.ID(img.Target.Digest)
 		explicitDanglingRef := strings.HasPrefix(imageRef, imageNameDanglingPrefix) && isDanglingImage(*img)
 		if isImageIDPrefix(imgID.String(), imageRef) || explicitDanglingRef {
+			if len(options.Platforms) > 0 {
+				return i.deleteImagePlatforms(ctx, img, imgID, options.Platforms)
+			}
 			return i.deleteAll(ctx, imgID, all, c, prune)
 		}
 		parsedRef, err := reference.ParseNormalizedNamed(img.Name)
@@ -127,20 +128,10 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 			return nil, err
 		}
 		if len(sameRef) != len(all) {
-			var records []imagetypes.DeleteResponse
-			for _, ref := range sameRef {
-				// TODO: Add with target
-				err := i.images.Delete(ctx, ref.Name)
-				if err != nil {
-					return nil, err
-				}
-				if nn, err := reference.ParseNormalizedNamed(ref.Name); err == nil {
-					familiarRef := reference.FamiliarString(nn)
-					i.logImageEvent(ref, familiarRef, events.ActionUnTag)
-					records = append(records, imagetypes.DeleteResponse{Untagged: familiarRef})
-				}
+			if len(options.Platforms) > 0 {
+				return i.deleteImagePlatforms(ctx, img, imgID, options.Platforms)
 			}
-			return records, nil
+			return i.untagReferences(ctx, sameRef)
 		} else if len(all) > 1 && !force {
 			// Since only a single used reference, remove all active
 			// TODO: Consider keeping the conflict and changing active
@@ -151,6 +142,15 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		using := func(c *container.Container) bool {
 			if c.ImageID == imgID {
 				return true
+			}
+
+			if len(options.Platforms) > 0 {
+				for _, p := range options.Platforms {
+					pm := platforms.OnlyStrict(p)
+					if pm.Match(c.ImagePlatform) {
+						return true
+					}
+				}
 			}
 
 			for _, mp := range c.MountPoints {
@@ -182,6 +182,10 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 				return nil, err
 			}
 
+			if len(options.Platforms) > 0 {
+				return i.deleteImagePlatforms(ctx, img, imgID, options.Platforms)
+			}
+
 			// Delete all images
 			err := i.softImageDelete(ctx, *img, all)
 			if err != nil {
@@ -194,7 +198,70 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		}
 	}
 
+	if len(options.Platforms) > 0 {
+		return i.deleteImagePlatforms(ctx, img, imgID, options.Platforms)
+	}
 	return i.deleteAll(ctx, imgID, all, c, prune)
+}
+
+// deleteImagePlatforms iterates over a slice of platforms and deletes each one for the given image.
+func (i *ImageService) deleteImagePlatforms(ctx context.Context, img *c8dimages.Image, imgID image.ID, platformsToDel []ocispec.Platform) ([]imagetypes.DeleteResponse, error) {
+	var accumulatedResponses []imagetypes.DeleteResponse
+	for _, p := range platformsToDel {
+		platform := p // Create a local copy to take its address
+		responses, err := i.deleteImagePlatformByImageID(ctx, img, imgID, &platform)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete platform %s for image %s: %w", platforms.Format(platform), imgID.String(), err)
+		}
+		accumulatedResponses = append(accumulatedResponses, responses...)
+	}
+	return accumulatedResponses, nil
+}
+
+func (i *ImageService) deleteImagePlatformByImageID(ctx context.Context, img *c8dimages.Image, imgID image.ID, platform *ocispec.Platform) ([]imagetypes.DeleteResponse, error) {
+	pm := platforms.OnlyStrict(*platform)
+	var target ocispec.Descriptor
+	if img == nil {
+		// Find any image with the same target
+		// We're deleting by digest anyway so it doesn't matter - we just
+		// need a c8d image object to pass to getBestPresentImageManifest
+		i, err := i.resolveImage(ctx, imgID.String())
+		if err != nil {
+			return nil, err
+		}
+		img = &i
+	}
+	imgMfst, err := i.getBestPresentImageManifest(ctx, *img, pm)
+	if err != nil {
+		return nil, err
+	}
+	target = imgMfst.Target()
+
+	var toDelete []ocispec.Descriptor
+	err = i.walkPresentChildren(ctx, target, func(ctx context.Context, d ocispec.Descriptor) error {
+		toDelete = append(toDelete, d)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Check if these are not used by other images with different
+	// target root images.
+	// The same manifest can be referenced by different image indexes.
+	var response []imagetypes.DeleteResponse
+	for _, d := range toDelete {
+		if err := i.content.Delete(ctx, d.Digest); err != nil {
+			if cerrdefs.IsNotFound(err) {
+				continue
+			}
+			return nil, err
+		}
+		if c8dimages.IsIndexType(d.MediaType) || c8dimages.IsManifestType(d.MediaType) {
+			response = append(response, imagetypes.DeleteResponse{Deleted: d.Digest.String()})
+		}
+	}
+	return response, nil
 }
 
 // deleteAll deletes the image from the daemon, and if prune is true,
@@ -411,6 +478,25 @@ func (*imageDeleteConflict) Conflict() {}
 // nil if there are none. It takes a bitmask representing a
 // filter for which conflict types the caller cares about,
 // and will only check for these conflict types.
+
+// untagReferences deletes the given image references and returns the appropriate response records
+func (i *ImageService) untagReferences(ctx context.Context, refs []c8dimages.Image) ([]imagetypes.DeleteResponse, error) {
+	var records []imagetypes.DeleteResponse
+	for _, ref := range refs {
+		// TODO: Add with target
+		err := i.images.Delete(ctx, ref.Name)
+		if err != nil {
+			return nil, err
+		}
+		if nn, err := reference.ParseNormalizedNamed(ref.Name); err == nil {
+			familiarRef := reference.FamiliarString(nn)
+			i.logImageEvent(ref, familiarRef, events.ActionUnTag)
+			records = append(records, imagetypes.DeleteResponse{Untagged: familiarRef})
+		}
+	}
+	return records, nil
+}
+
 func (i *ImageService) checkImageDeleteConflict(ctx context.Context, imgID image.ID, all []c8dimages.Image, mask conflictType) error {
 	if mask&conflictRunningContainer != 0 {
 		running := func(c *container.Container) bool {
