@@ -70,8 +70,6 @@ func TestNodeRemove(t *testing.T) {
 		}
 
 		err := client.NodeRemove(context.Background(), "node_id", types.NodeRemoveOptions{Force: removeCase.force})
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NilError(t, err)
 	}
 }

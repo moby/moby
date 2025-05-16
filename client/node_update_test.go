@@ -51,7 +51,5 @@ func TestNodeUpdate(t *testing.T) {
 	}
 
 	err := client.NodeUpdate(context.Background(), "node_id", swarm.Version{}, swarm.NodeSpec{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
