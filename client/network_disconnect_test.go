@@ -68,7 +68,5 @@ func TestNetworkDisconnect(t *testing.T) {
 	}
 
 	err := client.NetworkDisconnect(context.Background(), "network_id", "container_id", true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

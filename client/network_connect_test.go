@@ -68,9 +68,7 @@ func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {
 	}
 
 	err := client.NetworkConnect(context.Background(), "network_id", "container_id", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
 
 func TestNetworkConnect(t *testing.T) {
@@ -113,7 +111,5 @@ func TestNetworkConnect(t *testing.T) {
 	err := client.NetworkConnect(context.Background(), "network_id", "container_id", &network.EndpointSettings{
 		NetworkID: "NetworkID",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
