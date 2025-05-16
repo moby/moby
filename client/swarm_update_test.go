@@ -43,7 +43,5 @@ func TestSwarmUpdate(t *testing.T) {
 	}
 
 	err := client.SwarmUpdate(context.Background(), swarm.Version{}, swarm.Spec{}, swarm.UpdateFlags{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
