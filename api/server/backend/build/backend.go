@@ -8,6 +8,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/builder"
 	buildkit "github.com/docker/docker/builder/builder-next"
@@ -97,7 +98,7 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 }
 
 // PruneCache removes all cached build sources
-func (b *Backend) PruneCache(ctx context.Context, opts types.BuildCachePruneOptions) (*types.BuildCachePruneReport, error) {
+func (b *Backend) PruneCache(ctx context.Context, opts build.CachePruneOptions) (*build.CachePruneReport, error) {
 	buildCacheSize, cacheIDs, err := b.buildkit.Prune(ctx, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prune build cache")
@@ -107,7 +108,7 @@ func (b *Backend) PruneCache(ctx context.Context, opts types.BuildCachePruneOpti
 			"reclaimed": strconv.FormatInt(buildCacheSize, 10),
 		},
 	})
-	return &types.BuildCachePruneReport{SpaceReclaimed: uint64(buildCacheSize), CachesDeleted: cacheIDs}, nil
+	return &build.CachePruneReport{SpaceReclaimed: uint64(buildCacheSize), CachesDeleted: cacheIDs}, nil
 }
 
 // Cancel cancels the build by ID
