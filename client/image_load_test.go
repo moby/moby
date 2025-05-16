@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -20,7 +20,7 @@ func TestImageLoadError(t *testing.T) {
 	}
 
 	_, err := client.ImageLoad(context.Background(), nil, ImageLoadWithQuiet(true))
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageLoad(t *testing.T) {
