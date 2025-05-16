@@ -121,7 +121,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 
 	d.peerAdd(nid, eid, ep.addr, ep.mac, netip.Addr{})
 
-	if err = d.checkEncryption(nid, netip.Addr{}, true, true); err != nil {
+	if err = d.checkEncryption(nid, netip.Addr{}, true); err != nil {
 		log.G(ctx).Warn(err)
 	}
 
