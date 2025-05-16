@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -21,14 +21,14 @@ func TestContainerCommitError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerCommit(context.Background(), "nothing", container.CommitOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, err = client.ContainerCommit(context.Background(), "", container.CommitOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	_, err = client.ContainerCommit(context.Background(), "    ", container.CommitOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -98,10 +98,6 @@ func TestContainerCommit(t *testing.T) {
 		Changes:   expectedChanges,
 		Pause:     false,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r.ID != "new_container_id" {
-		t.Fatalf("expected `new_container_id`, got %s", r.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(r.ID, "new_container_id"))
 }

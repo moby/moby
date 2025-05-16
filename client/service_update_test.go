@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,14 +22,14 @@ func TestServiceUpdateError(t *testing.T) {
 	}
 
 	_, err := client.ServiceUpdate(context.Background(), "service_id", swarm.Version{}, swarm.ServiceSpec{}, types.ServiceUpdateOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, err = client.ServiceUpdate(context.Background(), "", swarm.Version{}, swarm.ServiceSpec{}, types.ServiceUpdateOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	_, err = client.ServiceUpdate(context.Background(), "    ", swarm.Version{}, swarm.ServiceSpec{}, types.ServiceUpdateOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -90,8 +90,6 @@ func TestServiceUpdate(t *testing.T) {
 		}
 
 		_, err := client.ServiceUpdate(context.Background(), "service_id", updateCase.swarmVersion, swarm.ServiceSpec{}, types.ServiceUpdateOptions{})
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NilError(t, err)
 	}
 }

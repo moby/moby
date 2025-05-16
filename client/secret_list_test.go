@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -34,7 +34,7 @@ func TestSecretListError(t *testing.T) {
 	}
 
 	_, err := client.SecretList(context.Background(), types.SecretListOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestSecretList(t *testing.T) {
@@ -95,11 +95,7 @@ func TestSecretList(t *testing.T) {
 		}
 
 		secrets, err := client.SecretList(context.Background(), listCase.options)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(secrets) != 2 {
-			t.Fatalf("expected 2 secrets, got %v", secrets)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(secrets, 2))
 	}
 }

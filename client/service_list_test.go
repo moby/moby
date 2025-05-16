@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -24,7 +24,7 @@ func TestServiceListError(t *testing.T) {
 	}
 
 	_, err := client.ServiceList(context.Background(), types.ServiceListOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestServiceList(t *testing.T) {
@@ -84,11 +84,7 @@ func TestServiceList(t *testing.T) {
 		}
 
 		services, err := client.ServiceList(context.Background(), listCase.options)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(services) != 2 {
-			t.Fatalf("expected 2 services, got %v", services)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(services, 2))
 	}
 }

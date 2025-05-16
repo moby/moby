@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -23,14 +23,14 @@ func TestContainerInspectError(t *testing.T) {
 	}
 
 	_, err := client.ContainerInspect(context.Background(), "nothing")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, err = client.ContainerInspect(context.Background(), "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	_, err = client.ContainerInspect(context.Background(), "    ")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -40,7 +40,7 @@ func TestContainerInspectContainerNotFound(t *testing.T) {
 	}
 
 	_, err := client.ContainerInspect(context.Background(), "unknown")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestContainerInspectWithEmptyID(t *testing.T) {
@@ -50,11 +50,11 @@ func TestContainerInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.ContainerInspectWithRaw(context.Background(), "", true)
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	_, _, err = client.ContainerInspectWithRaw(context.Background(), "    ", true)
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -83,16 +83,8 @@ func TestContainerInspect(t *testing.T) {
 	}
 
 	r, err := client.ContainerInspect(context.Background(), "container_id")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r.ID != "container_id" {
-		t.Fatalf("expected `container_id`, got %s", r.ID)
-	}
-	if r.Image != "image" {
-		t.Fatalf("expected `image`, got %s", r.Image)
-	}
-	if r.Name != "name" {
-		t.Fatalf("expected `name`, got %s", r.Name)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(r.ID, "container_id"))
+	assert.Check(t, is.Equal(r.Image, "image"))
+	assert.Check(t, is.Equal(r.Name, "name"))
 }

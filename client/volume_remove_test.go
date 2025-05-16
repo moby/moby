@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -20,14 +20,14 @@ func TestVolumeRemoveError(t *testing.T) {
 	}
 
 	err := client.VolumeRemove(context.Background(), "volume_id", false)
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.VolumeRemove(context.Background(), "", false)
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	err = client.VolumeRemove(context.Background(), "    ", false)
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -62,7 +62,5 @@ func TestVolumeRemove(t *testing.T) {
 	}
 
 	err := client.VolumeRemove(context.Background(), "volume_id", false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

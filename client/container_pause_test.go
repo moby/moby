@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -19,7 +19,7 @@ func TestContainerPauseError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerPause(context.Background(), "nothing")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestContainerPause(t *testing.T) {
@@ -36,7 +36,5 @@ func TestContainerPause(t *testing.T) {
 		}),
 	}
 	err := client.ContainerPause(context.Background(), "container_id")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

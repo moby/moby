@@ -7,12 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,14 +21,14 @@ func TestContainerTopError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerTop(context.Background(), "nothing", []string{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, err = client.ContainerTop(context.Background(), "", []string{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	_, err = client.ContainerTop(context.Background(), "    ", []string{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -71,13 +70,7 @@ func TestContainerTop(t *testing.T) {
 	}
 
 	processList, err := client.ContainerTop(context.Background(), "container_id", []string{"arg1", "arg2"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(expectedProcesses, processList.Processes) {
-		t.Fatalf("Processes: expected %v, got %v", expectedProcesses, processList.Processes)
-	}
-	if !reflect.DeepEqual(expectedTitles, processList.Titles) {
-		t.Fatalf("Titles: expected %v, got %v", expectedTitles, processList.Titles)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(expectedProcesses, processList.Processes))
+	assert.Check(t, is.DeepEqual(expectedTitles, processList.Titles))
 }

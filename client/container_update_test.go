@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -21,14 +21,14 @@ func TestContainerUpdateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerUpdate(context.Background(), "nothing", container.UpdateConfig{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, err = client.ContainerUpdate(context.Background(), "", container.UpdateConfig{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	_, err = client.ContainerUpdate(context.Background(), "    ", container.UpdateConfig{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -61,7 +61,5 @@ func TestContainerUpdate(t *testing.T) {
 			Name: "always",
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

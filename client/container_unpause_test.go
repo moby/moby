@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -19,14 +19,14 @@ func TestContainerUnpauseError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerUnpause(context.Background(), "nothing")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.ContainerUnpause(context.Background(), "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	err = client.ContainerUnpause(context.Background(), "    ")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -44,7 +44,5 @@ func TestContainerUnpause(t *testing.T) {
 		}),
 	}
 	err := client.ContainerUnpause(context.Background(), "container_id")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

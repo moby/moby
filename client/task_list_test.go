@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -24,7 +24,7 @@ func TestTaskListError(t *testing.T) {
 	}
 
 	_, err := client.TaskList(context.Background(), types.TaskListOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestTaskList(t *testing.T) {
@@ -84,11 +84,7 @@ func TestTaskList(t *testing.T) {
 		}
 
 		tasks, err := client.TaskList(context.Background(), listCase.options)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(tasks) != 2 {
-			t.Fatalf("expected 2 tasks, got %v", tasks)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(tasks, 2))
 	}
 }

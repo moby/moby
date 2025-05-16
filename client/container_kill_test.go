@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -19,14 +19,14 @@ func TestContainerKillError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerKill(context.Background(), "nothing", "SIGKILL")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.ContainerKill(context.Background(), "", "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	err = client.ContainerKill(context.Background(), "    ", "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -49,7 +49,5 @@ func TestContainerKill(t *testing.T) {
 	}
 
 	err := client.ContainerKill(context.Background(), "container_id", "SIGKILL")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

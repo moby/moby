@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -20,14 +20,14 @@ func TestServiceRemoveError(t *testing.T) {
 	}
 
 	err := client.ServiceRemove(context.Background(), "service_id")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.ServiceRemove(context.Background(), "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	err = client.ServiceRemove(context.Background(), "    ")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -38,7 +38,7 @@ func TestServiceRemoveNotFoundError(t *testing.T) {
 
 	err := client.ServiceRemove(context.Background(), "service_id")
 	assert.Check(t, is.ErrorContains(err, "no such service: service_id"))
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestServiceRemove(t *testing.T) {
@@ -60,7 +60,5 @@ func TestServiceRemove(t *testing.T) {
 	}
 
 	err := client.ServiceRemove(context.Background(), "service_id")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

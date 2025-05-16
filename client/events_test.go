@@ -12,7 +12,7 @@ import (
 
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -41,9 +41,7 @@ func TestEventsErrorInOptions(t *testing.T) {
 		}
 		_, errs := client.Events(context.Background(), e.options)
 		err := <-errs
-		if err == nil || !strings.Contains(err.Error(), e.expectedError) {
-			t.Fatalf("expected an error %q, got %v", e.expectedError, err)
-		}
+		assert.Check(t, is.ErrorContains(err, e.expectedError))
 	}
 }
 
@@ -53,7 +51,7 @@ func TestEventsErrorFromServer(t *testing.T) {
 	}
 	_, errs := client.Events(context.Background(), events.ListOptions{})
 	err := <-errs
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestEvents(t *testing.T) {
@@ -152,9 +150,7 @@ func TestEvents(t *testing.T) {
 				break loop
 			case e := <-messages:
 				_, ok := eventsCase.expectedEvents[e.Actor.ID]
-				if !ok {
-					t.Fatalf("event received not expected with action %s & id %s", e.Action, e.Actor.ID)
-				}
+				assert.Check(t, ok, "event received not expected with action %s & id %s", e.Action, e.Actor.ID)
 			}
 		}
 	}

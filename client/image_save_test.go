@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -20,7 +20,7 @@ func TestImageSaveError(t *testing.T) {
 	}
 	armv64 := ocispec.Platform{Architecture: "arm64", OS: "linux", Variant: "v8"}
 	_, err := client.ImageSave(context.Background(), []string{"nothing"}, ImageSaveWithPlatforms(armv64))
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageSave(t *testing.T) {
@@ -81,7 +81,7 @@ func TestImageSave(t *testing.T) {
 
 			body, err := io.ReadAll(resp)
 			assert.NilError(t, err)
-			assert.Equal(t, string(body), expectedOutput)
+			assert.Check(t, is.Equal(string(body), expectedOutput))
 		})
 	}
 }

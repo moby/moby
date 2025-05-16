@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -53,7 +53,7 @@ func TestSetHostHeader(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.host, func(t *testing.T) {
 			hostURL, err := ParseHostURL(tc.host)
-			assert.Check(t, err)
+			assert.NilError(t, err)
 
 			client := &Client{
 				client: newMockClient(func(req *http.Request) (*http.Response, error) {
@@ -78,7 +78,7 @@ func TestSetHostHeader(t *testing.T) {
 			}
 
 			_, err = client.sendRequest(context.Background(), http.MethodGet, testEndpoint, nil, nil, nil)
-			assert.Check(t, err)
+			assert.NilError(t, err)
 		})
 	}
 }
@@ -91,7 +91,7 @@ func TestPlainTextError(t *testing.T) {
 		client: newMockClient(plainTextErrorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerList(context.Background(), container.ListOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 // TestResponseErrors tests handling of error responses returned by the API.
@@ -221,7 +221,7 @@ func TestResponseErrors(t *testing.T) {
 			}
 			_, err := client.Ping(context.Background())
 			assert.Check(t, is.Error(err, tc.expected))
-			assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+			assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 		})
 	}
 }
@@ -240,7 +240,7 @@ func TestInfiniteError(t *testing.T) {
 	}
 
 	_, err := client.Ping(context.Background())
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 	assert.Check(t, is.ErrorContains(err, "request returned Internal Server Error"))
 }
 
@@ -258,7 +258,6 @@ func TestCanceledContext(t *testing.T) {
 	cancel()
 
 	_, err := client.sendRequest(ctx, http.MethodGet, testEndpoint, nil, nil, nil)
-	assert.Check(t, is.ErrorType(err, errdefs.IsCancelled))
 	assert.Check(t, is.ErrorIs(err, context.Canceled))
 }
 
@@ -278,6 +277,5 @@ func TestDeadlineExceededContext(t *testing.T) {
 	<-ctx.Done()
 
 	_, err := client.sendRequest(ctx, http.MethodGet, testEndpoint, nil, nil, nil)
-	assert.Check(t, is.ErrorType(err, errdefs.IsDeadline))
 	assert.Check(t, is.ErrorIs(err, context.DeadlineExceeded))
 }

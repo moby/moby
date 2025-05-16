@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -21,7 +21,7 @@ func TestImageTagError(t *testing.T) {
 	}
 
 	err := client.ImageTag(context.Background(), "image_id", "repo:tag")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 // Note: this is not testing all the InvalidReference as it's the responsibility
@@ -32,9 +32,7 @@ func TestImageTagInvalidReference(t *testing.T) {
 	}
 
 	err := client.ImageTag(context.Background(), "image_id", "aa/asdf$$^/aa")
-	if err == nil || err.Error() != `Error parsing reference: "aa/asdf$$^/aa" is not a valid repository/tag: invalid reference format` {
-		t.Fatalf("expected ErrReferenceInvalidFormat, got %v", err)
-	}
+	assert.Check(t, is.Error(err, `Error parsing reference: "aa/asdf$$^/aa" is not a valid repository/tag: invalid reference format`))
 }
 
 // Ensure we don't allow the use of invalid repository names or tags; these tag operations should fail.
@@ -89,9 +87,7 @@ func TestImageTagHexSource(t *testing.T) {
 	}
 
 	err := client.ImageTag(context.Background(), "0d409d33b27e47423b049f7f863faa08655a8c901749c2b25b93ca67d01a470d", "repo:tag")
-	if err != nil {
-		t.Fatalf("got error: %v", err)
-	}
+	assert.NilError(t, err)
 }
 
 func TestImageTag(t *testing.T) {
@@ -173,8 +169,6 @@ func TestImageTag(t *testing.T) {
 			}),
 		}
 		err := client.ImageTag(context.Background(), "image_id", tagCase.reference)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NilError(t, err)
 	}
 }

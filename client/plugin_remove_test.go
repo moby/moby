@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -21,14 +21,14 @@ func TestPluginRemoveError(t *testing.T) {
 	}
 
 	err := client.PluginRemove(context.Background(), "plugin_name", types.PluginRemoveOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.PluginRemove(context.Background(), "", types.PluginRemoveOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	err = client.PluginRemove(context.Background(), "   ", types.PluginRemoveOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -51,7 +51,5 @@ func TestPluginRemove(t *testing.T) {
 	}
 
 	err := client.PluginRemove(context.Background(), "plugin_name", types.PluginRemoveOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

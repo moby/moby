@@ -13,7 +13,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -24,7 +24,7 @@ func TestServiceInspectError(t *testing.T) {
 	}
 
 	_, _, err := client.ServiceInspectWithRaw(context.Background(), "nothing", types.ServiceInspectOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestServiceInspectServiceNotFound(t *testing.T) {
@@ -33,7 +33,7 @@ func TestServiceInspectServiceNotFound(t *testing.T) {
 	}
 
 	_, _, err := client.ServiceInspectWithRaw(context.Background(), "unknown", types.ServiceInspectOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestServiceInspectWithEmptyID(t *testing.T) {
@@ -43,11 +43,11 @@ func TestServiceInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.ServiceInspectWithRaw(context.Background(), "", types.ServiceInspectOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	_, _, err = client.ServiceInspectWithRaw(context.Background(), "    ", types.ServiceInspectOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -72,10 +72,6 @@ func TestServiceInspect(t *testing.T) {
 	}
 
 	serviceInspect, _, err := client.ServiceInspectWithRaw(context.Background(), "service_id", types.ServiceInspectOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if serviceInspect.ID != "service_id" {
-		t.Fatalf("expected `service_id`, got %s", serviceInspect.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(serviceInspect.ID, "service_id"))
 }

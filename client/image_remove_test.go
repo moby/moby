@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,7 +22,7 @@ func TestImageRemoveError(t *testing.T) {
 	}
 
 	_, err := client.ImageRemove(context.Background(), "image_id", image.RemoveOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageRemoveImageNotFound(t *testing.T) {
@@ -32,7 +32,7 @@ func TestImageRemoveImageNotFound(t *testing.T) {
 
 	_, err := client.ImageRemove(context.Background(), "unknown", image.RemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "no such image: unknown"))
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestImageRemove(t *testing.T) {
@@ -96,11 +96,7 @@ func TestImageRemove(t *testing.T) {
 			Force:         removeCase.force,
 			PruneChildren: removeCase.pruneChildren,
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(imageDeletes) != 2 {
-			t.Fatalf("expected 2 deleted images, got %v", imageDeletes)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(imageDeletes, 2))
 	}
 }

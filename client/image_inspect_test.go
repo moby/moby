@@ -8,12 +8,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -25,7 +24,7 @@ func TestImageInspectError(t *testing.T) {
 	}
 
 	_, err := client.ImageInspect(context.Background(), "nothing")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageInspectImageNotFound(t *testing.T) {
@@ -34,7 +33,7 @@ func TestImageInspectImageNotFound(t *testing.T) {
 	}
 
 	_, err := client.ImageInspect(context.Background(), "unknown")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestImageInspectWithEmptyID(t *testing.T) {
@@ -44,7 +43,7 @@ func TestImageInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, err := client.ImageInspect(context.Background(), "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestImageInspect(t *testing.T) {
@@ -70,15 +69,9 @@ func TestImageInspect(t *testing.T) {
 	}
 
 	imageInspect, err := client.ImageInspect(context.Background(), "image_id")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if imageInspect.ID != "image_id" {
-		t.Fatalf("expected `image_id`, got %s", imageInspect.ID)
-	}
-	if !reflect.DeepEqual(imageInspect.RepoTags, expectedTags) {
-		t.Fatalf("expected `%v`, got %v", expectedTags, imageInspect.RepoTags)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(imageInspect.ID, "image_id"))
+	assert.Check(t, is.DeepEqual(imageInspect.RepoTags, expectedTags))
 }
 
 func TestImageInspectWithPlatform(t *testing.T) {
@@ -120,7 +113,7 @@ func TestImageInspectWithPlatform(t *testing.T) {
 
 	imageInspect, err := client.ImageInspect(context.Background(), "image_id", ImageInspectWithPlatform(requestedPlatform))
 	assert.NilError(t, err)
-	assert.Equal(t, imageInspect.ID, "image_id")
-	assert.Equal(t, imageInspect.Architecture, "arm64")
-	assert.Equal(t, imageInspect.Os, "linux")
+	assert.Check(t, is.Equal(imageInspect.ID, "image_id"))
+	assert.Check(t, is.Equal(imageInspect.Architecture, "arm64"))
+	assert.Check(t, is.Equal(imageInspect.Os, "linux"))
 }

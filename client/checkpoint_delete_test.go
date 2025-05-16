@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/checkpoint"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -24,14 +24,14 @@ func TestCheckpointDeleteError(t *testing.T) {
 		CheckpointID: "checkpoint_id",
 	})
 
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.CheckpointDelete(context.Background(), "", checkpoint.DeleteOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	err = client.CheckpointDelete(context.Background(), "    ", checkpoint.DeleteOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -56,7 +56,5 @@ func TestCheckpointDelete(t *testing.T) {
 	err := client.CheckpointDelete(context.Background(), "container_id", checkpoint.DeleteOptions{
 		CheckpointID: "checkpoint_id",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

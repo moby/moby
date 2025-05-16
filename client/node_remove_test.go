@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -21,14 +21,14 @@ func TestNodeRemoveError(t *testing.T) {
 	}
 
 	err := client.NodeRemove(context.Background(), "node_id", types.NodeRemoveOptions{Force: false})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.NodeRemove(context.Background(), "", types.NodeRemoveOptions{Force: false})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	err = client.NodeRemove(context.Background(), "    ", types.NodeRemoveOptions{Force: false})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -70,8 +70,6 @@ func TestNodeRemove(t *testing.T) {
 		}
 
 		err := client.NodeRemove(context.Background(), "node_id", types.NodeRemoveOptions{Force: removeCase.force})
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NilError(t, err)
 	}
 }

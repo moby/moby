@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -21,7 +21,7 @@ func TestSwarmUnlockError(t *testing.T) {
 	}
 
 	err := client.SwarmUnlock(context.Background(), swarm.UnlockRequest{UnlockKey: "SWMKEY-1-y6guTZNTwpQeTL5RhUfOsdBdXoQjiB2GADHSRJvbXeU"})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestSwarmUnlock(t *testing.T) {
@@ -43,7 +43,5 @@ func TestSwarmUnlock(t *testing.T) {
 	}
 
 	err := client.SwarmUnlock(context.Background(), swarm.UnlockRequest{UnlockKey: "SWMKEY-1-y6guTZNTwpQeTL5RhUfOsdBdXoQjiB2GADHSRJvbXeU"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
