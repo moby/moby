@@ -166,7 +166,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 WARNING: Pulled image with specified platform (%s), but the resulting image's configured platform (%s) does not match.
 This is most likely caused by a bug in the build system that created the fetched image (%s).
 Please notify the image author to correct the configuration.`,
-					platforms.Format(p), platforms.Format(imgPlat), name,
+					platforms.FormatAll(p), platforms.FormatAll(imgPlat), name,
 				)
 				log.G(ctx).WithError(err).WithField("image", name).Warn("Ignoring error about platform mismatch where the manifest list points to an image whose configuration does not match the platform in the manifest.")
 			}
