@@ -235,7 +235,7 @@ type invalidArgumentErr struct{ error }
 func (invalidArgumentErr) InvalidParameter() {}
 
 func DeprecatedSchema1ImageError(ref reference.Named) error {
-	msg := "[DEPRECATION NOTICE] Docker Image Format v1 and Docker Image manifest version 2, schema 1 support is disabled by default and will be removed in an upcoming release."
+	msg := "Docker Image Format v1 and Docker Image manifest version 2, schema 1 support has been removed."
 	if ref != nil {
 		msg += " Suggest the author of " + ref.String() + " to upgrade the image to the OCI Format or Docker Image manifest v2, schema 2."
 	}

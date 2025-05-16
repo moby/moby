@@ -43,10 +43,6 @@ func IsAmd64() bool {
 	return testEnv.DaemonVersion.Arch == "amd64"
 }
 
-func NotArm64() bool {
-	return testEnv.DaemonVersion.Arch != "arm64"
-}
-
 func NotPpc64le() bool {
 	return testEnv.DaemonVersion.Arch != "ppc64le"
 }

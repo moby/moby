@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -13,7 +11,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
@@ -25,7 +22,6 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/registry"
-	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -188,60 +184,24 @@ func (p *pusher) pushTag(ctx context.Context, ref reference.NamedTagged, id dige
 
 	putOptions := []distribution.ManifestServiceOption{distribution.WithTag(ref.Tag())}
 	if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
-		if runtime.GOOS == "windows" {
-			log.G(ctx).Warnf("failed to upload schema2 manifest: %v", err)
-			return err
+		if err.Error() == "tag invalid" {
+			msg := "[DEPRECATED] support for pushing manifest v2 schema1 images has been removed. More information at https://docs.docker.com/registry/spec/deprecated-schema-v1/"
+			log.G(ctx).WithError(err).Error(msg)
+			err = errors.Wrap(err, msg)
 		}
-
-		// This is a temporary environment variables used in CI to allow pushing
-		// manifest v2 schema 1 images to test-registries used for testing *pulling*
-		// these images.
-		if os.Getenv("DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE") == "" {
-			if err.Error() == "tag invalid" {
-				msg := "[DEPRECATED] support for pushing manifest v2 schema1 images has been removed. More information at https://docs.docker.com/registry/spec/deprecated-schema-v1/"
-				log.G(ctx).WithError(err).Error(msg)
-				return errors.Wrap(err, msg)
-			}
-			return err
-		}
-
-		log.G(ctx).Warnf("failed to upload schema2 manifest: %v - falling back to schema1", err)
-
-		// Note: this fallback is deprecated, see log messages below
-		manifestRef, err := reference.WithTag(p.repo.Named(), ref.Tag())
-		if err != nil {
-			return err
-		}
-		pk, err := libtrust.GenerateECP256PrivateKey()
-		if err != nil {
-			return errors.Wrap(err, "unexpected error generating private key")
-		}
-		builder = schema1.NewConfigManifestBuilder(p.repo.Blobs(ctx), pk, manifestRef, imgConfig)
-		manifest, err = manifestFromBuilder(ctx, builder, descriptors)
-		if err != nil {
-			return err
-		}
-
-		if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
-			return err
-		}
-
-		// schema2 failed but schema1 succeeded
-		msg := fmt.Sprintf("[DEPRECATION NOTICE] support for pushing manifest v2 schema1 images will be removed in an upcoming release. Please contact admins of the %s registry NOW to avoid future disruption. More information at https://docs.docker.com/registry/spec/deprecated-schema-v1/", reference.Domain(ref))
-		log.G(ctx).Warn(msg)
-		progress.Message(p.config.ProgressOutput, "", msg)
+		return err
 	}
 
 	var canonicalManifest []byte
 
 	switch v := manifest.(type) {
-	case *schema1.SignedManifest:
-		canonicalManifest = v.Canonical
 	case *schema2.DeserializedManifest:
 		_, canonicalManifest, err = v.Payload()
 		if err != nil {
 			return err
 		}
+	default:
+		return fmt.Errorf("unknown manifest type %T", v)
 	}
 
 	manifestDigest := digest.FromBytes(canonicalManifest)

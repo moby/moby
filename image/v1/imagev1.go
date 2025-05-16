@@ -119,6 +119,8 @@ func rawJSON(value interface{}) *json.RawMessage {
 }
 
 // ValidateID checks whether an ID string is a valid image ID.
+//
+// Deprecated: ValidateID is no longer used and will be removed in the next release.
 func ValidateID(id string) error {
 	if len(id) != fullLen {
 		return errors.New("image ID '" + id + "' is invalid")
