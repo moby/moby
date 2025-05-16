@@ -93,7 +93,7 @@ func (d *driver) peerDbSearch(nid string, peerIP netip.Addr) (netip.Addr, net.Ha
 	return peerIPMatched, peerMacMatched, pEntryMatched, nil
 }
 
-func (d *driver) peerDbAdd(nid, eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr, isLocal bool) (bool, int) {
+func (d *driver) peerDbAdd(nid, eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr) (bool, int) {
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
 	if !ok {
@@ -109,9 +109,6 @@ func (d *driver) peerDbAdd(nid, eid string, peerIP netip.Prefix, peerMac net.Har
 		vtep:       vtep,
 		prefixBits: peerIP.Bits(),
 	}
-	if isLocal {
-		pEntry.vtep = netip.Addr{}
-	}
 
 	pMap.Lock()
 	defer pMap.Unlock()
@@ -124,7 +121,7 @@ func (d *driver) peerDbAdd(nid, eid string, peerIP netip.Prefix, peerMac net.Har
 	return b, i
 }
 
-func (d *driver) peerDbDelete(nid, eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr, isLocal bool) (bool, int) {
+func (d *driver) peerDbDelete(nid, eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr) (bool, int) {
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
 	if !ok {
@@ -139,9 +136,6 @@ func (d *driver) peerDbDelete(nid, eid string, peerIP netip.Prefix, peerMac net.
 		eid:        eid,
 		vtep:       vtep,
 		prefixBits: peerIP.Bits(),
-	}
-	if isLocal {
-		pEntry.vtep = netip.Addr{}
 	}
 
 	pMap.Lock()
@@ -181,22 +175,25 @@ func (d *driver) peerInitOp(nid string) error {
 			return false
 		}
 
-		d.peerAddOp(nid, pEntry.eid, netip.PrefixFrom(peerIP, pEntry.prefixBits), peerMac, pEntry.vtep, false, pEntry.isLocal())
+		d.peerAddOp(nid, pEntry.eid, netip.PrefixFrom(peerIP, pEntry.prefixBits), peerMac, pEntry.vtep, false)
 		// return false to loop on all entries
 		return false
 	})
 }
 
-func (d *driver) peerAdd(nid, eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr, localPeer bool) {
+// peerAdd adds a new entry to the peer database.
+//
+// Local peers are signified by an invalid vtep (i.e. netip.Addr{}).
+func (d *driver) peerAdd(nid, eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr) {
 	d.peerOpMu.Lock()
 	defer d.peerOpMu.Unlock()
-	err := d.peerAddOp(nid, eid, peerIP, peerMac, vtep, true, localPeer)
+	err := d.peerAddOp(nid, eid, peerIP, peerMac, vtep, true)
 	if err != nil {
 		log.G(context.TODO()).WithError(err).Warn("Peer add operation failed")
 	}
 }
 
-func (d *driver) peerAddOp(nid, eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr, updateDB, localPeer bool) error {
+func (d *driver) peerAddOp(nid, eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr, updateDB bool) error {
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
@@ -204,15 +201,15 @@ func (d *driver) peerAddOp(nid, eid string, peerIP netip.Prefix, peerMac net.Har
 	var dbEntries int
 	var inserted bool
 	if updateDB {
-		inserted, dbEntries = d.peerDbAdd(nid, eid, peerIP, peerMac, vtep, localPeer)
+		inserted, dbEntries = d.peerDbAdd(nid, eid, peerIP, peerMac, vtep)
 		if !inserted {
-			log.G(context.TODO()).Warnf("Entry already present in db: nid:%s eid:%s peerIP:%v peerMac:%v isLocal:%t vtep:%v",
-				nid, eid, peerIP, peerMac, localPeer, vtep)
+			log.G(context.TODO()).Warnf("Entry already present in db: nid:%s eid:%s peerIP:%v peerMac:%v vtep:%v",
+				nid, eid, peerIP, peerMac, vtep)
 		}
 	}
 
 	// Local peers do not need any further configuration
-	if localPeer {
+	if !vtep.IsValid() {
 		return nil
 	}
 
@@ -261,24 +258,27 @@ func (d *driver) peerAddOp(nid, eid string, peerIP netip.Prefix, peerMac net.Har
 	return nil
 }
 
-func (d *driver) peerDelete(nid, eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr, localPeer bool) {
+// peerDelete removes an entry from the peer database.
+//
+// Local peers are signified by an invalid vtep (i.e. netip.Addr{}).
+func (d *driver) peerDelete(nid, eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr) {
 	d.peerOpMu.Lock()
 	defer d.peerOpMu.Unlock()
-	err := d.peerDeleteOp(nid, eid, peerIP, peerMac, vtep, localPeer)
+	err := d.peerDeleteOp(nid, eid, peerIP, peerMac, vtep)
 	if err != nil {
 		log.G(context.TODO()).WithError(err).Warn("Peer delete operation failed")
 	}
 }
 
-func (d *driver) peerDeleteOp(nid, eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr, localPeer bool) error {
+func (d *driver) peerDeleteOp(nid, eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr) error {
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
 
-	deleted, dbEntries := d.peerDbDelete(nid, eid, peerIP, peerMac, vtep, localPeer)
+	deleted, dbEntries := d.peerDbDelete(nid, eid, peerIP, peerMac, vtep)
 	if !deleted {
-		log.G(context.TODO()).Warnf("Entry was not in db: nid:%s eid:%s peerIP:%v peerMac:%v isLocal:%t vtep:%v",
-			nid, eid, peerIP, peerMac, localPeer, vtep)
+		log.G(context.TODO()).Warnf("Entry was not in db: nid:%s eid:%s peerIP:%v peerMac:%v vtep:%v",
+			nid, eid, peerIP, peerMac, vtep)
 	}
 
 	n := d.network(nid)
@@ -291,12 +291,12 @@ func (d *driver) peerDeleteOp(nid, eid string, peerIP netip.Prefix, peerMac net.
 		return nil
 	}
 
-	if err := d.checkEncryption(nid, vtep, localPeer, false); err != nil {
+	if err := d.checkEncryption(nid, vtep, !vtep.IsValid(), false); err != nil {
 		log.G(context.TODO()).Warn(err)
 	}
 
 	// Local peers do not have any local configuration to delete
-	if !localPeer {
+	if vtep.IsValid() {
 		s := n.getSubnetforIP(peerIP)
 		if s == nil {
 			return fmt.Errorf("could not find the subnet %q in network %q", peerIP.String(), n.id)
@@ -329,7 +329,7 @@ func (d *driver) peerDeleteOp(nid, eid string, peerIP netip.Prefix, peerMac net.
 		log.G(context.TODO()).Errorf("peerDeleteOp unable to restore a configuration for nid:%s ip:%v mac:%v err:%s", nid, peerIP, peerMac, err)
 		return err
 	}
-	return d.peerAddOp(nid, peerEntry.eid, netip.PrefixFrom(peerIPAddr, peerEntry.prefixBits), peerMac, peerEntry.vtep, false, peerEntry.isLocal())
+	return d.peerAddOp(nid, peerEntry.eid, netip.PrefixFrom(peerIPAddr, peerEntry.prefixBits), peerMac, peerEntry.vtep, false)
 }
 
 func (d *driver) peerFlush(nid string) {
