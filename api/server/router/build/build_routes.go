@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
@@ -179,7 +180,7 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	opts := types.BuildCachePruneOptions{
+	opts := build.CachePruneOptions{
 		All:     httputils.BoolValue(r, "all"),
 		Filters: fltrs,
 	}

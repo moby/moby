@@ -16,7 +16,7 @@ import (
 	"github.com/containerd/containerd/v2/plugins/content/local"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
 	"github.com/docker/docker/builder/builder-next/adapters/localinlinecache"
@@ -467,7 +467,7 @@ func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, er
 					return nil, err
 				}
 
-				gcPolicy[i], err = toBuildkitPruneInfo(types.BuildCachePruneOptions{
+				gcPolicy[i], err = toBuildkitPruneInfo(build.CachePruneOptions{
 					All:           p.All,
 					ReservedSpace: reservedSpace,
 					MaxUsedSpace:  maxUsedSpace,

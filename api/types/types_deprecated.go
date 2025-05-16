@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/common"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -113,3 +114,19 @@ type ImageInspect = image.InspectResponse
 //
 // Deprecated: moved to [github.com/docker/docker/api/types/registry.RequestAuthConfig].
 type RequestPrivilegeFunc func(context.Context) (string, error)
+
+// BuildCache contains information about a build cache record.
+//
+// Deprecated: deprecated in API 1.49. Use [build.CacheRecord] instead.
+type BuildCache = build.CacheRecord
+
+// BuildCachePruneOptions hold parameters to prune the build cache
+//
+// Deprecated: use [build.CachePruneOptions].
+type BuildCachePruneOptions = build.CachePruneOptions
+
+// BuildCachePruneReport contains the response for Engine API:
+// POST "/build/prune"
+//
+// Deprecated: use [build.CachePruneReport].
+type BuildCachePruneReport = build.CachePruneReport

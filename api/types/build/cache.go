@@ -1,6 +1,10 @@
 package build
 
-import "time"
+import (
+	"time"
+
+	"github.com/docker/docker/api/types/filters"
+)
 
 // CacheRecord contains information about a build cache record.
 type CacheRecord struct {
@@ -27,4 +31,22 @@ type CacheRecord struct {
 	// LastUsedAt is the date and time at which the build cache was last used.
 	LastUsedAt *time.Time
 	UsageCount int
+}
+
+// CachePruneOptions hold parameters to prune the build cache.
+type CachePruneOptions struct {
+	All           bool
+	ReservedSpace int64
+	MaxUsedSpace  int64
+	MinFreeSpace  int64
+	Filters       filters.Args
+
+	KeepStorage int64 // Deprecated: deprecated in API 1.48.
+}
+
+// CachePruneReport contains the response for Engine API:
+// POST "/build/prune"
+type CachePruneReport struct {
+	CachesDeleted  []string
+	SpaceReclaimed uint64
 }
