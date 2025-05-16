@@ -61,7 +61,5 @@ func TestSecretRemove(t *testing.T) {
 	}
 
 	err := client.SecretRemove(context.Background(), "secret_id")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
