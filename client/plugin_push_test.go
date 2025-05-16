@@ -55,7 +55,5 @@ func TestPluginPush(t *testing.T) {
 	}
 
 	_, err := client.PluginPush(context.Background(), "plugin_name", "authtoken")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
