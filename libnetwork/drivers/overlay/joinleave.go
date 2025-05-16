@@ -109,7 +109,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		}
 	}
 
-	d.peerAdd(nid, eid, ep.addr, ep.mac, d.advertiseAddress, true)
+	d.peerAdd(nid, eid, ep.addr, ep.mac, netip.Addr{})
 
 	if err = d.checkEncryption(nid, netip.Addr{}, true, true); err != nil {
 		log.G(context.TODO()).Warn(err)
@@ -187,11 +187,11 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 	}
 
 	if etype == driverapi.Delete {
-		d.peerDelete(nid, eid, addr, mac, vtep, false)
+		d.peerDelete(nid, eid, addr, mac, vtep)
 		return
 	}
 
-	d.peerAdd(nid, eid, addr, mac, vtep, false)
+	d.peerAdd(nid, eid, addr, mac, vtep)
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
@@ -211,7 +211,7 @@ func (d *driver) Leave(nid, eid string) error {
 		return types.InternalMaskableErrorf("could not find endpoint with id %s", eid)
 	}
 
-	d.peerDelete(nid, eid, ep.addr, ep.mac, d.advertiseAddress, true)
+	d.peerDelete(nid, eid, ep.addr, ep.mac, netip.Addr{})
 
 	n.leaveSandbox()
 
