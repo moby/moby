@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -32,7 +33,7 @@ func Do(ctx context.Context, t *testing.T, client client.APIClient, buildCtx *fa
 func GetImageIDFromBody(t *testing.T, body io.Reader) string {
 	var (
 		jm  jsonmessage.JSONMessage
-		br  types.BuildResult
+		br  build.Result
 		dec = json.NewDecoder(body)
 	)
 	for {
