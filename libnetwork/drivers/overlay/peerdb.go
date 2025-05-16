@@ -235,7 +235,7 @@ func (d *driver) peerAddOp(nid, eid string, peerIP netip.Prefix, peerMac net.Har
 		return fmt.Errorf("subnet sandbox join failed for %q: %v", s.subnetIP.String(), err)
 	}
 
-	if err := d.checkEncryption(nid, vtep, false, true); err != nil {
+	if err := d.checkEncryption(nid, vtep, true); err != nil {
 		log.G(context.TODO()).Warn(err)
 	}
 
@@ -291,7 +291,7 @@ func (d *driver) peerDeleteOp(nid, eid string, peerIP netip.Prefix, peerMac net.
 		return nil
 	}
 
-	if err := d.checkEncryption(nid, vtep, !vtep.IsValid(), false); err != nil {
+	if err := d.checkEncryption(nid, vtep, false); err != nil {
 		log.G(context.TODO()).Warn(err)
 	}
 

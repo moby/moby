@@ -113,8 +113,12 @@ func (e *encrMap) String() string {
 	return b.String()
 }
 
-func (d *driver) checkEncryption(nid string, rIP netip.Addr, isLocal, add bool) error {
-	log.G(context.TODO()).Debugf("checkEncryption(%.7s, %v, %t)", nid, rIP, isLocal)
+// checkEncryption sets up or removes IPsec encryption parameters for peers on a network.
+//
+// When given an rIP, encryption paremeters will be set up for the VXLAN tunnel to that peer.
+// When !rIP.IsValid(), encryption parameters will be set up for all network peers.
+func (d *driver) checkEncryption(nid string, rIP netip.Addr, add bool) error {
+	log.G(context.TODO()).Debugf("checkEncryption(%.7s, %v)", nid, rIP)
 
 	n := d.network(nid)
 	if n == nil || !n.secure {
@@ -130,7 +134,7 @@ func (d *driver) checkEncryption(nid string, rIP netip.Addr, isLocal, add bool) 
 	nodes := map[netip.Addr]struct{}{}
 
 	switch {
-	case isLocal:
+	case !rIP.IsValid():
 		if err := d.peerDbNetworkWalk(nid, func(_ netip.Addr, _ net.HardwareAddr, pEntry *peerEntry) bool {
 			if !pEntry.isLocal() {
 				nodes[pEntry.vtep] = struct{}{}
@@ -154,7 +158,7 @@ func (d *driver) checkEncryption(nid string, rIP netip.Addr, isLocal, add bool) 
 			}
 		}
 	} else {
-		if len(nodes) == 0 {
+		if rIP.IsValid() && len(nodes) == 0 {
 			if err := removeEncryption(lIP, rIP, d.secMap); err != nil {
 				log.G(context.TODO()).Warnf("Failed to remove network encryption between %s and %s: %v", lIP, rIP, err)
 			}
