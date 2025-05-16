@@ -81,11 +81,7 @@ func TestVolumeList(t *testing.T) {
 		}
 
 		volumeResponse, err := client.VolumeList(context.Background(), volume.ListOptions{Filters: listCase.filters})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(volumeResponse.Volumes) != 1 {
-			t.Fatalf("expected 1 volume, got %v", volumeResponse.Volumes)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(volumeResponse.Volumes, 1))
 	}
 }

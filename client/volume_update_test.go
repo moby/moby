@@ -56,7 +56,5 @@ func TestVolumeUpdate(t *testing.T) {
 	}
 
 	err := client.VolumeUpdate(context.Background(), "test1", swarm.Version{Index: uint64(10)}, volumetypes.UpdateOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
