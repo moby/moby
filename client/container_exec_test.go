@@ -82,12 +82,8 @@ func TestContainerExecCreate(t *testing.T) {
 	r, err := client.ContainerExecCreate(context.Background(), "container_id", container.ExecOptions{
 		User: "user",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r.ID != "exec_id" {
-		t.Fatalf("expected `exec_id`, got %s", r.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(r.ID, "exec_id"))
 }
 
 func TestContainerExecStartError(t *testing.T) {
@@ -127,9 +123,7 @@ func TestContainerExecStart(t *testing.T) {
 		Detach: true,
 		Tty:    false,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
 
 func TestContainerExecInspectError(t *testing.T) {
@@ -162,13 +156,7 @@ func TestContainerExecInspect(t *testing.T) {
 	}
 
 	inspect, err := client.ContainerExecInspect(context.Background(), "exec_id")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if inspect.ExecID != "exec_id" {
-		t.Fatalf("expected ExecID to be `exec_id`, got %s", inspect.ExecID)
-	}
-	if inspect.ContainerID != "container_id" {
-		t.Fatalf("expected ContainerID `container_id`, got %s", inspect.ContainerID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(inspect.ExecID, "exec_id"))
+	assert.Check(t, is.Equal(inspect.ContainerID, "container_id"))
 }

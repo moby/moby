@@ -98,10 +98,6 @@ func TestContainerCommit(t *testing.T) {
 		Changes:   expectedChanges,
 		Pause:     false,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r.ID != "new_container_id" {
-		t.Fatalf("expected `new_container_id`, got %s", r.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(r.ID, "new_container_id"))
 }

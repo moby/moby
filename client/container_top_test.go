@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -71,13 +70,7 @@ func TestContainerTop(t *testing.T) {
 	}
 
 	processList, err := client.ContainerTop(context.Background(), "container_id", []string{"arg1", "arg2"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(expectedProcesses, processList.Processes) {
-		t.Fatalf("Processes: expected %v, got %v", expectedProcesses, processList.Processes)
-	}
-	if !reflect.DeepEqual(expectedTitles, processList.Titles) {
-		t.Fatalf("Titles: expected %v, got %v", expectedTitles, processList.Titles)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(expectedProcesses, processList.Processes))
+	assert.Check(t, is.DeepEqual(expectedTitles, processList.Titles))
 }

@@ -88,10 +88,6 @@ func TestContainerList(t *testing.T) {
 			filters.Arg("before", "container"),
 		),
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(containers) != 2 {
-		t.Fatalf("expected 2 containers, got %v", containers)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(containers, 2))
 }

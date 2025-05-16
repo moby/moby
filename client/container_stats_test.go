@@ -64,16 +64,10 @@ func TestContainerStats(t *testing.T) {
 			}),
 		}
 		resp, err := client.ContainerStats(context.Background(), "container_id", c.stream)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NilError(t, err)
 		defer resp.Body.Close()
 		content, err := io.ReadAll(resp.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(content) != "response" {
-			t.Fatalf("expected response to contain 'response', got %s", string(content))
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(string(content), "response"))
 	}
 }
