@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/containerd/log"
 	distref "github.com/distribution/reference"
@@ -27,7 +28,7 @@ type Differ interface {
 }
 
 type ImageTagger interface {
-	TagImage(ctx context.Context, imageID image.ID, newTag distref.Named) error
+	TagImage(ctx context.Context, img ocispec.Descriptor, newTag distref.Named) error
 }
 
 // Opt defines a struct for creating new exporter
@@ -201,13 +202,18 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 		return nil, nil, configDone(err)
 	}
 	_ = configDone(nil)
+	img := ocispec.Descriptor{
+		MediaType: images.MediaTypeDockerSchema2Config,
+		Digest:    id.Digest(),
+		Size:      int64(len(config)),
+	}
 
 	var names []string
 	for _, targetName := range e.targetNames {
 		names = append(names, targetName.String())
 		if e.opt.ImageTagger != nil {
 			tagDone := oneOffProgress(ctx, "naming to "+targetName.String())
-			if err := e.opt.ImageTagger.TagImage(ctx, image.ID(digest.Digest(id)), targetName); err != nil {
+			if err := e.opt.ImageTagger.TagImage(ctx, img, targetName); err != nil {
 				return nil, nil, tagDone(err)
 			}
 			_ = tagDone(nil)
