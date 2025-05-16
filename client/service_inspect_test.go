@@ -72,10 +72,6 @@ func TestServiceInspect(t *testing.T) {
 	}
 
 	serviceInspect, _, err := client.ServiceInspectWithRaw(context.Background(), "service_id", types.ServiceInspectOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if serviceInspect.ID != "service_id" {
-		t.Fatalf("expected `service_id`, got %s", serviceInspect.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(serviceInspect.ID, "service_id"))
 }
