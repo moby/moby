@@ -43,7 +43,5 @@ func TestSwarmUnlock(t *testing.T) {
 	}
 
 	err := client.SwarmUnlock(context.Background(), swarm.UnlockRequest{UnlockKey: "SWMKEY-1-y6guTZNTwpQeTL5RhUfOsdBdXoQjiB2GADHSRJvbXeU"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

@@ -45,7 +45,5 @@ func TestSwarmJoin(t *testing.T) {
 	err := client.SwarmJoin(context.Background(), swarm.JoinRequest{
 		ListenAddr: "0.0.0.0:2377",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
