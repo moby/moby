@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestTLSCloseWriter(t *testing.T) {
@@ -71,7 +72,7 @@ func TestTLSCloseWriter(t *testing.T) {
 
 	defer func() {
 		if chErr != nil {
-			assert.Assert(t, <-chErr)
+			assert.NilError(t, <-chErr)
 		}
 	}()
 
@@ -88,19 +89,18 @@ func TestTLSCloseWriter(t *testing.T) {
 	assert.NilError(t, err)
 	defer resp.Close()
 
-	if _, ok := resp.Conn.(types.CloseWriter); !ok {
-		t.Fatal("tls conn did not implement the CloseWrite interface")
-	}
+	_, ok := resp.Conn.(types.CloseWriter)
+	assert.Check(t, ok, "tls conn did not implement the CloseWrite interface")
 
 	_, err = resp.Conn.Write([]byte("hello"))
 	assert.NilError(t, err)
 
 	b, err := io.ReadAll(resp.Reader)
 	assert.NilError(t, err)
-	assert.Assert(t, string(b) == "hello")
-	assert.Assert(t, resp.CloseWrite())
+	assert.Check(t, is.Equal(string(b), "hello"))
+	assert.NilError(t, resp.CloseWrite())
 
 	// This should error since writes are closed
 	_, err = resp.Conn.Write([]byte("no"))
-	assert.Assert(t, err != nil)
+	assert.Check(t, err != nil)
 }
