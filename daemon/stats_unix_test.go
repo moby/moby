@@ -3,28 +3,20 @@
 package daemon
 
 import (
-	"os"
-	"path/filepath"
+	_ "embed"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
+//go:embed testdata/stat
+var statData string
+
 func TestGetSystemCPUUsageParsing(t *testing.T) {
-	dummyFilePath := filepath.Join("testdata", "stat")
-	expectedCpuUsage := uint64(65647090000000)
-	expectedCpuNum := uint32(128)
-
-	origStatPath := procStatPath
-	procStatPath = dummyFilePath
-	defer func() { procStatPath = origStatPath }()
-
-	_, err := os.Stat(dummyFilePath)
-	assert.NilError(t, err)
-
-	cpuUsage, cpuNum, err := getSystemCPUUsage()
-
-	assert.Equal(t, cpuUsage, expectedCpuUsage)
-	assert.Equal(t, cpuNum, expectedCpuNum)
-	assert.NilError(t, err)
+	input := strings.NewReader(statData)
+	cpuUsage, cpuNum, _ := readSystemCPUUsage(input)
+	assert.Check(t, is.Equal(cpuUsage, uint64(65647090000000)))
+	assert.Check(t, is.Equal(cpuNum, uint32(128)))
 }
