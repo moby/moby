@@ -111,7 +111,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 	d.peerAdd(nid, eid, ep.addr, ep.mac, netip.Addr{})
 
-	if err = d.checkEncryption(nid, netip.Addr{}, true, true); err != nil {
+	if err = d.checkEncryption(nid, netip.Addr{}, true); err != nil {
 		log.G(context.TODO()).Warn(err)
 	}
 
