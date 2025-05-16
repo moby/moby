@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	volumeopts "github.com/docker/docker/api/types/backend/volume"
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/service/opts"
 	volumetestutils "github.com/docker/docker/volume/testutils"
 	"github.com/google/go-cmp/cmp"
 	"gotest.tools/v3/assert"
@@ -39,7 +39,7 @@ func TestCreate(t *testing.T) {
 		t.Fatalf("Expected unknown driver error, got nil")
 	}
 
-	_, err = s.Create(ctx, "fakeerror", "fake", opts.WithCreateOptions(map[string]string{"error": "create error"}))
+	_, err = s.Create(ctx, "fakeerror", "fake", volumeopts.WithCreateOptions(map[string]string{"error": "create error"}))
 	expected := &OpErr{Op: "create", Name: "fakeerror", Err: errors.New("create error")}
 	if err != nil && err.Error() != expected.Error() {
 		t.Fatalf("Expected create fakeError: create error, got %v", err)
@@ -64,7 +64,7 @@ func TestRemove(t *testing.T) {
 		t.Fatalf("Expected error %q, got %v", expected, err)
 	}
 
-	v, err := s.Create(ctx, "fake1", "fake", opts.WithCreateReference("fake"))
+	v, err := s.Create(ctx, "fake1", "fake", volumeopts.WithCreateReference("fake"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestFindByReferenced(t *testing.T) {
 	s.drivers.Register(volumetestutils.NewFakeDriver("noop"), "noop")
 
 	ctx := context.Background()
-	if _, err := s.Create(ctx, "fake1", "fake", opts.WithCreateReference("volReference")); err != nil {
+	if _, err := s.Create(ctx, "fake1", "fake", volumeopts.WithCreateReference("volReference")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Create(ctx, "fake2", "fake"); err != nil {
@@ -191,12 +191,12 @@ func TestDerefMultipleOfSameRef(t *testing.T) {
 	s.drivers.Register(volumetestutils.NewFakeDriver("fake"), "fake")
 
 	ctx := context.Background()
-	v, err := s.Create(ctx, "fake1", "fake", opts.WithCreateReference("volReference"))
+	v, err := s.Create(ctx, "fake1", "fake", volumeopts.WithCreateReference("volReference"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := s.Get(ctx, "fake1", opts.WithGetDriver("fake"), opts.WithGetReference("volReference")); err != nil {
+	if _, err := s.Get(ctx, "fake1", volumeopts.WithGetDriver("fake"), volumeopts.WithGetReference("volReference")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -220,7 +220,7 @@ func TestCreateKeepOptsLabelsWhenExistsRemotely(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	v, err := s.Create(ctx, "foo", "fake", opts.WithCreateLabels(map[string]string{"hello": "world"}))
+	v, err := s.Create(ctx, "foo", "fake", volumeopts.WithCreateLabels(map[string]string{"hello": "world"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +271,7 @@ func TestDefererencePluginOnCreateError(t *testing.T) {
 	}
 
 	// Now create another one expecting an error
-	_, err = s.Create(ctx, "fake2", d.Name(), opts.WithCreateOptions(map[string]string{"error": "some error"}))
+	_, err = s.Create(ctx, "fake2", d.Name(), volumeopts.WithCreateOptions(map[string]string{"error": "some error"}))
 	if err == nil || !strings.Contains(err.Error(), "some error") {
 		t.Fatalf("expected an error on create: %v", err)
 	}
@@ -291,7 +291,7 @@ func TestRefDerefRemove(t *testing.T) {
 	s.drivers.Register(volumetestutils.NewFakeDriver(driverName), driverName)
 
 	ctx := context.Background()
-	v, err := s.Create(ctx, "test", driverName, opts.WithCreateReference("test-ref"))
+	v, err := s.Create(ctx, "test", driverName, volumeopts.WithCreateReference("test-ref"))
 	assert.NilError(t, err)
 
 	err = s.Remove(ctx, v)
@@ -316,7 +316,7 @@ func TestGet(t *testing.T) {
 	assert.ErrorContains(t, err, "")
 	assert.Equal(t, errNoSuchVolume, err.(*OpErr).Err)
 
-	v1, err := s.Create(ctx, "test", driverName, opts.WithCreateLabels(map[string]string{"a": "1"}))
+	v1, err := s.Create(ctx, "test", driverName, volumeopts.WithCreateLabels(map[string]string{"a": "1"}))
 	assert.NilError(t, err)
 
 	v2, err := s.Get(ctx, "test")
@@ -339,13 +339,13 @@ func TestGetWithReference(t *testing.T) {
 	s.drivers.Register(volumetestutils.NewFakeDriver(driverName), driverName)
 
 	ctx := context.Background()
-	_, err := s.Get(ctx, "not-exist", opts.WithGetDriver(driverName), opts.WithGetReference("test-ref"))
+	_, err := s.Get(ctx, "not-exist", volumeopts.WithGetDriver(driverName), volumeopts.WithGetReference("test-ref"))
 	assert.ErrorContains(t, err, "")
 
-	v1, err := s.Create(ctx, "test", driverName, opts.WithCreateLabels(map[string]string{"a": "1"}))
+	v1, err := s.Create(ctx, "test", driverName, volumeopts.WithCreateLabels(map[string]string{"a": "1"}))
 	assert.NilError(t, err)
 
-	v2, err := s.Get(ctx, "test", opts.WithGetDriver(driverName), opts.WithGetReference("test-ref"))
+	v2, err := s.Get(ctx, "test", volumeopts.WithGetDriver(driverName), volumeopts.WithGetReference("test-ref"))
 	assert.NilError(t, err)
 	assert.DeepEqual(t, v1, v2, cmpVolume)
 

@@ -1,4 +1,4 @@
-package opts
+package volume
 
 // CreateOption is used to pass options in when creating a volume
 type CreateOption func(*CreateConfig)
