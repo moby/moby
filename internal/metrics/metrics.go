@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"io"
 	"sync"
 
 	gometrics "github.com/docker/go-metrics"
@@ -17,6 +18,15 @@ var (
 	// HostInfoFunctions tracks the time taken to gather host information
 	HostInfoFunctions = metricsNS.NewLabeledTimer("host_info_functions", "The number of seconds it takes to call functions gathering info about the host", "function")
 	ImageActions      = metricsNS.NewLabeledTimer("image_actions", "The number of seconds it takes to process each image action", "action")
+	// ImagePullsStarted increments when a pull starts.
+	ImagePullsStarted = metricsNS.NewCounter("image_pulls_started", "The number of total image pulls started")
+	// ImagePulls increments when a pull finishes. By subtracting this from
+	// ImagePullsStarted, the user can determine how many pulls are in progress.
+	ImagePulls = metricsNS.NewLabeledCounter("image_pulls", "The number of total image pulls", "status")
+	// ImagePullBytes is a running tally of the bytes downloaded and extracted
+	// by image pull operations. By taking the derrivative of this metric over
+	// time, image pull throughput can be measured.
+	ImagePullBytes = metricsNS.NewCounter("image_pull_bytes", "The number of bytes processed as part of image pulls")
 
 	// EngineInfo provides information about the engine and its environment
 	EngineInfo = metricsNS.NewLabeledGauge("engine", "The information related to the engine and the OS it is running on", gometrics.Unit("info"),
@@ -131,4 +141,20 @@ func (ctr *StateCounter) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(ctr.desc, prometheus.GaugeValue, float64(running), "running")
 	ch <- prometheus.MustNewConstMetric(ctr.desc, prometheus.GaugeValue, float64(paused), "paused")
 	ch <- prometheus.MustNewConstMetric(ctr.desc, prometheus.GaugeValue, float64(stopped), "stopped")
+}
+
+// MetricsReader is a reader which keeps track of the number of bytes read in
+// the provided Counter.
+type MetricsReader struct {
+	io.ReadCloser
+	Counter gometrics.Counter
+}
+
+// Read increments the Counter by the number of bytes read
+func (m *MetricsReader) Read(p []byte) (int, error) {
+	read, err := m.ReadCloser.Read(p)
+	// we are counting bytes here. This is OK; the number of bytes may be very
+	// large, but the counter is uint64, which is enough for exabytes of data.
+	m.Counter.Inc(float64(read))
+	return read, err
 }
