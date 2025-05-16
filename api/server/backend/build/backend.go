@@ -60,30 +60,30 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 		return "", err
 	}
 
-	var build *builder.Result
+	var buildResult *builder.Result
 	if useBuildKit {
-		build, err = b.buildkit.Build(ctx, config)
+		buildResult, err = b.buildkit.Build(ctx, config)
 		if err != nil {
 			return "", err
 		}
 	} else {
-		build, err = b.builder.Build(ctx, config)
+		buildResult, err = b.builder.Build(ctx, config)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	if build == nil {
+	if buildResult == nil {
 		return "", nil
 	}
 
-	imageID := build.ImageID
+	imageID := buildResult.ImageID
 	if options.Squash {
-		if imageID, err = squashBuild(build, b.imageComponent); err != nil {
+		if imageID, err = squashBuild(buildResult, b.imageComponent); err != nil {
 			return "", err
 		}
 		if config.ProgressWriter.AuxFormatter != nil {
-			if err = config.ProgressWriter.AuxFormatter.Emit("moby.image.id", types.BuildResult{ID: imageID}); err != nil {
+			if err = config.ProgressWriter.AuxFormatter.Emit("moby.image.id", build.Result{ID: imageID}); err != nil {
 				return "", err
 			}
 		}

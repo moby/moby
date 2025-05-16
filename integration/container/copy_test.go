@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
@@ -200,7 +201,7 @@ func makeTestImage(ctx context.Context, t *testing.T) (imageID string) {
 	defer resp.Body.Close()
 
 	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, io.Discard, 0, false, func(msg jsonmessage.JSONMessage) {
-		var r types.BuildResult
+		var r build.Result
 		assert.NilError(t, json.Unmarshal(*msg.Aux, &r))
 		imageID = r.ID
 	})
@@ -275,7 +276,7 @@ func TestCopyFromContainer(t *testing.T) {
 
 	var imageID string
 	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, io.Discard, 0, false, func(msg jsonmessage.JSONMessage) {
-		var r types.BuildResult
+		var r build.Result
 		assert.NilError(t, json.Unmarshal(*msg.Aux, &r))
 		imageID = r.ID
 	})

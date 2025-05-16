@@ -101,8 +101,3 @@ type PushResult struct {
 	Digest string
 	Size   int
 }
-
-// BuildResult contains the image id of a successful build
-type BuildResult struct {
-	ID string
-}

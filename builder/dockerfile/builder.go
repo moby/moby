@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
@@ -222,7 +223,7 @@ func emitImageID(aux *streamformatter.AuxFormatter, state *dispatchState) error 
 	if aux == nil || state.imageID == "" {
 		return nil
 	}
-	return aux.Emit("", types.BuildResult{ID: state.imageID})
+	return aux.Emit("", build.Result{ID: state.imageID})
 }
 
 func processMetaArg(meta instructions.ArgCommand, shlex *shell.Lex, args *BuildArgs) error {
