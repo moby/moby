@@ -14,6 +14,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	timetypes "github.com/docker/docker/api/types/time"
@@ -149,15 +150,15 @@ func (b *Builder) Cancel(ctx context.Context, id string) error {
 }
 
 // DiskUsage returns a report about space used by build cache
-func (b *Builder) DiskUsage(ctx context.Context) ([]*types.BuildCache, error) {
+func (b *Builder) DiskUsage(ctx context.Context) ([]*build.CacheRecord, error) {
 	duResp, err := b.controller.DiskUsage(ctx, &controlapi.DiskUsageRequest{})
 	if err != nil {
 		return nil, err
 	}
 
-	var items []*types.BuildCache
+	var items []*build.CacheRecord
 	for _, r := range duResp.Record {
-		items = append(items, &types.BuildCache{
+		items = append(items, &build.CacheRecord{
 			ID:          r.ID,
 			Parent:      r.Parent, //nolint:staticcheck // ignore SA1019 (Parent field is deprecated)
 			Parents:     r.Parents,
