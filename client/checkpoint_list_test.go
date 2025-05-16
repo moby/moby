@@ -49,12 +49,8 @@ func TestCheckpointList(t *testing.T) {
 	}
 
 	checkpoints, err := client.CheckpointList(context.Background(), "container_id", checkpoint.ListOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(checkpoints) != 1 {
-		t.Fatalf("expected 1 checkpoint, got %v", checkpoints)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(checkpoints, 1))
 }
 
 func TestCheckpointListContainerNotFound(t *testing.T) {
