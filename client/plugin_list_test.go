@@ -94,11 +94,7 @@ func TestPluginList(t *testing.T) {
 		}
 
 		plugins, err := client.PluginList(context.Background(), listCase.filters)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(plugins) != 2 {
-			t.Fatalf("expected 2 plugins, got %v", plugins)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(plugins, 2))
 	}
 }
