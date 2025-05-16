@@ -113,12 +113,9 @@ func (e *encrMap) String() string {
 	return b.String()
 }
 
-// checkEncryption sets up or removes IPsec encryption parameters for peers on a network.
-//
-// When given an rIP, encryption paremeters will be set up for the VXLAN tunnel to that peer.
-// When !rIP.IsValid(), encryption parameters will be set up for all network peers.
-func (d *driver) checkEncryption(nid string, rIP netip.Addr, add bool) error {
-	log.G(context.TODO()).Debugf("checkEncryption(%.7s, %v)", nid, rIP)
+// initEncryption sets up IPsec encryption parameters for all known peers on a network.
+func (d *driver) initEncryption(nid string) error {
+	log.G(context.TODO()).Debugf("initEncryption(%.7s)", nid)
 
 	n := d.network(nid)
 	if n == nil || !n.secure {
@@ -131,35 +128,20 @@ func (d *driver) checkEncryption(nid string, rIP netip.Addr, add bool) error {
 
 	nodes := map[netip.Addr]struct{}{}
 
-	switch {
-	case !rIP.IsValid():
-		if err := d.peerDbNetworkWalk(nid, func(_ netip.Addr, _ net.HardwareAddr, pEntry *peerEntry) bool {
-			if !pEntry.isLocal() {
-				nodes[pEntry.vtep] = struct{}{}
-			}
-			return false
-		}); err != nil {
-			log.G(context.TODO()).Warnf("Failed to retrieve list of participating nodes in overlay network %.5s: %v", nid, err)
+	if err := d.peerDbNetworkWalk(nid, func(_ netip.Addr, _ net.HardwareAddr, pEntry *peerEntry) bool {
+		if !pEntry.isLocal() {
+			nodes[pEntry.vtep] = struct{}{}
 		}
-	default:
-		if len(d.network(nid).endpoints) > 0 {
-			nodes[rIP] = struct{}{}
-		}
+		return false
+	}); err != nil {
+		log.G(context.TODO()).Warnf("Failed to retrieve list of participating nodes in overlay network %.5s: %v", nid, err)
 	}
 
 	log.G(context.TODO()).Debugf("List of nodes: %s", nodes)
 
-	if add {
-		for rIP := range nodes {
-			if err := d.setupEncryption(rIP); err != nil {
-				log.G(context.TODO()).Warnf("Failed to program network encryption to remote peer %s: %v", rIP, err)
-			}
-		}
-	} else {
-		if rIP.IsValid() && len(nodes) == 0 {
-			if err := d.removeEncryption(rIP); err != nil {
-				log.G(context.TODO()).Warnf("Failed to remove network encryption to remote peer %s: %v", rIP, err)
-			}
+	for rIP := range nodes {
+		if err := d.setupEncryption(rIP); err != nil {
+			log.G(context.TODO()).Warnf("Failed to program network encryption to remote peer %s: %v", rIP, err)
 		}
 	}
 
@@ -169,8 +151,13 @@ func (d *driver) checkEncryption(nid string, rIP netip.Addr, add bool) error {
 // setupEncryption programs the encryption parameters for secure communication
 // between the local node and a remote node.
 func (d *driver) setupEncryption(remoteIP netip.Addr) error {
+	log.G(context.TODO()).Debugf("setupEncryption(%s)", remoteIP)
+
 	localIP, advIP := d.bindAddress, d.advertiseAddress
 	keys := d.keys // FIXME: data race
+	if len(keys) == 0 {
+		return types.ForbiddenErrorf("encryption key is not present")
+	}
 	log.G(context.TODO()).Debugf("Programming encryption between %s and %s", localIP, remoteIP)
 
 	indices := make([]*spi, 0, len(keys))
@@ -203,6 +190,8 @@ func (d *driver) setupEncryption(remoteIP netip.Addr) error {
 }
 
 func (d *driver) removeEncryption(remoteIP netip.Addr) error {
+	log.G(context.TODO()).Debugf("removeEncryption(%s)", remoteIP)
+
 	d.secMap.Lock()
 	indices, ok := d.secMap.nodes[remoteIP]
 	d.secMap.Unlock()
