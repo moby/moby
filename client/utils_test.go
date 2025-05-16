@@ -5,6 +5,7 @@ import (
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestEncodePlatforms(t *testing.T) {
@@ -50,7 +51,7 @@ func TestEncodePlatforms(t *testing.T) {
 		t.Run(tc.doc, func(t *testing.T) {
 			out, err := encodePlatforms(tc.platforms...)
 			assert.NilError(t, err)
-			assert.DeepEqual(t, out, tc.expected)
+			assert.Check(t, is.DeepEqual(out, tc.expected))
 		})
 	}
 }
