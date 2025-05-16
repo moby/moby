@@ -43,23 +43,23 @@ func TestOptionWithTimeout(t *testing.T) {
 	c, err := NewClientWithOpts(WithTimeout(timeout))
 	assert.NilError(t, err)
 	assert.Check(t, c.client != nil)
-	assert.Equal(t, c.client.Timeout, timeout)
+	assert.Check(t, is.Equal(c.client.Timeout, timeout))
 }
 
 func TestOptionWithVersionFromEnv(t *testing.T) {
 	c, err := NewClientWithOpts(WithVersionFromEnv())
 	assert.NilError(t, err)
 	assert.Check(t, c.client != nil)
-	assert.Equal(t, c.version, api.DefaultVersion)
-	assert.Equal(t, c.manualOverride, false)
+	assert.Check(t, is.Equal(c.version, api.DefaultVersion))
+	assert.Check(t, is.Equal(c.manualOverride, false))
 
 	t.Setenv("DOCKER_API_VERSION", "2.9999")
 
 	c, err = NewClientWithOpts(WithVersionFromEnv())
 	assert.NilError(t, err)
 	assert.Check(t, c.client != nil)
-	assert.Equal(t, c.version, "2.9999")
-	assert.Equal(t, c.manualOverride, true)
+	assert.Check(t, is.Equal(c.version, "2.9999"))
+	assert.Check(t, is.Equal(c.manualOverride, true))
 }
 
 func TestWithUserAgent(t *testing.T) {
@@ -72,10 +72,10 @@ func TestWithUserAgent(t *testing.T) {
 				return &http.Response{StatusCode: http.StatusOK}, nil
 			})),
 		)
-		assert.Check(t, err)
+		assert.NilError(t, err)
 		_, err = c.Ping(context.Background())
-		assert.Check(t, err)
-		assert.Check(t, c.Close())
+		assert.NilError(t, err)
+		assert.NilError(t, c.Close())
 	})
 	t.Run("user-agent and custom headers", func(t *testing.T) {
 		c, err := NewClientWithOpts(
@@ -87,10 +87,10 @@ func TestWithUserAgent(t *testing.T) {
 				return &http.Response{StatusCode: http.StatusOK}, nil
 			})),
 		)
-		assert.Check(t, err)
+		assert.NilError(t, err)
 		_, err = c.Ping(context.Background())
-		assert.Check(t, err)
-		assert.Check(t, c.Close())
+		assert.NilError(t, err)
+		assert.NilError(t, c.Close())
 	})
 	t.Run("custom headers", func(t *testing.T) {
 		c, err := NewClientWithOpts(
@@ -101,10 +101,10 @@ func TestWithUserAgent(t *testing.T) {
 				return &http.Response{StatusCode: http.StatusOK}, nil
 			})),
 		)
-		assert.Check(t, err)
+		assert.NilError(t, err)
 		_, err = c.Ping(context.Background())
-		assert.Check(t, err)
-		assert.Check(t, c.Close())
+		assert.NilError(t, err)
+		assert.NilError(t, c.Close())
 	})
 	t.Run("no user-agent set", func(t *testing.T) {
 		c, err := NewClientWithOpts(
@@ -115,10 +115,10 @@ func TestWithUserAgent(t *testing.T) {
 				return &http.Response{StatusCode: http.StatusOK}, nil
 			})),
 		)
-		assert.Check(t, err)
+		assert.NilError(t, err)
 		_, err = c.Ping(context.Background())
-		assert.Check(t, err)
-		assert.Check(t, c.Close())
+		assert.NilError(t, err)
+		assert.NilError(t, c.Close())
 	})
 	t.Run("reset custom user-agent", func(t *testing.T) {
 		c, err := NewClientWithOpts(
@@ -130,9 +130,9 @@ func TestWithUserAgent(t *testing.T) {
 				return &http.Response{StatusCode: http.StatusOK}, nil
 			})),
 		)
-		assert.Check(t, err)
+		assert.NilError(t, err)
 		_, err = c.Ping(context.Background())
-		assert.Check(t, err)
-		assert.Check(t, c.Close())
+		assert.NilError(t, err)
+		assert.NilError(t, c.Close())
 	})
 }
