@@ -90,15 +90,8 @@ type DiskUsage struct {
 	Images      []*image.Summary
 	Containers  []*container.Summary
 	Volumes     []*volume.Volume
-	BuildCache  []*BuildCache
+	BuildCache  []*build.CacheRecord
 	BuilderSize int64 `json:",omitempty"` // Deprecated: deprecated in API 1.38, and no longer used since API 1.40.
-}
-
-// BuildCachePruneReport contains the response for Engine API:
-// POST "/build/prune"
-type BuildCachePruneReport struct {
-	CachesDeleted  []string
-	SpaceReclaimed uint64
 }
 
 // SecretCreateResponse contains the information returned to a client
@@ -137,20 +130,4 @@ type PushResult struct {
 // BuildResult contains the image id of a successful build
 type BuildResult struct {
 	ID string
-}
-
-// BuildCache contains information about a build cache record.
-//
-// Deprecated: deprecated in API 1.49. Use [build.CacheRecord] instead.
-type BuildCache = build.CacheRecord
-
-// BuildCachePruneOptions hold parameters to prune the build cache
-type BuildCachePruneOptions struct {
-	All           bool
-	ReservedSpace int64
-	MaxUsedSpace  int64
-	MinFreeSpace  int64
-	Filters       filters.Args
-
-	KeepStorage int64 // Deprecated: deprecated in API 1.48.
 }
