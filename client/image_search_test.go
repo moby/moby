@@ -43,9 +43,7 @@ func TestImageSearchWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 	_, err := client.ImageSearch(context.Background(), "some-image", registry.SearchOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
-	if err == nil || err.Error() != "Error requesting privilege" {
-		t.Fatalf("expected an error requesting privilege, got %v", err)
-	}
+	assert.Check(t, is.Error(err, "Error requesting privilege"))
 }
 
 func TestImageSearchWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T) {
@@ -104,12 +102,8 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 		RegistryAuth:  "NotValid",
 		PrivilegeFunc: privilegeFunc,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(results) != 1 {
-		t.Fatalf("expected 1 result, got %v", results)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(results, 1))
 }
 
 func TestImageSearchWithoutErrors(t *testing.T) {
@@ -150,10 +144,6 @@ func TestImageSearchWithoutErrors(t *testing.T) {
 			filters.Arg("stars", "3"),
 		),
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(results) != 1 {
-		t.Fatalf("expected a result, got %v", results)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(results, 1))
 }

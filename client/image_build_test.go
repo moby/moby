@@ -200,20 +200,12 @@ func TestImageBuild(t *testing.T) {
 			}),
 		}
 		buildResponse, err := client.ImageBuild(context.Background(), nil, buildCase.buildOptions)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if buildResponse.OSType != "MyOS" {
-			t.Fatalf("expected OSType to be 'MyOS', got %s", buildResponse.OSType)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(buildResponse.OSType, "MyOS"))
 		response, err := io.ReadAll(buildResponse.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NilError(t, err)
 		buildResponse.Body.Close()
-		if string(response) != "body" {
-			t.Fatalf("expected Body to contain 'body' string, got %s", response)
-		}
+		assert.Check(t, is.Equal(string(response), "body"))
 	}
 }
 
@@ -225,8 +217,6 @@ func TestGetDockerOS(t *testing.T) {
 	}
 	for header, os := range cases {
 		g := getDockerOS(header)
-		if g != os {
-			t.Fatalf("Expected %s, got %s", os, g)
-		}
+		assert.Check(t, is.Equal(g, os))
 	}
 }
