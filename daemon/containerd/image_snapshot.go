@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/leases"
@@ -102,6 +103,15 @@ func (i *ImageService) getImageSnapshot(ctx context.Context, descriptor *ocispec
 	platformImg, err := i.NewImageManifest(ctx, c8dImg, c8dImg.Target)
 	if err != nil {
 		return "", err
+	}
+
+	cfgDesc, err := platformImg.Config(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	if strings.HasPrefix(strings.ToLower(cfgDesc.MediaType), "application/vnd.docker.ai.") {
+		return "", errors.New("Running AI models directly by the Engine is not supported yet, please use 'docker model run' instead")
 	}
 
 	unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
