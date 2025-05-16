@@ -60,10 +60,6 @@ func TestSecretCreate(t *testing.T) {
 	}
 
 	r, err := client.SecretCreate(context.Background(), swarm.SecretSpec{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r.ID != "test_secret" {
-		t.Fatalf("expected `test_secret`, got %s", r.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(r.ID, "test_secret"))
 }
