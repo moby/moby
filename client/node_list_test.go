@@ -84,11 +84,7 @@ func TestNodeList(t *testing.T) {
 		}
 
 		nodes, err := client.NodeList(context.Background(), listCase.options)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(nodes) != 2 {
-			t.Fatalf("expected 2 nodes, got %v", nodes)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(nodes, 2))
 	}
 }
