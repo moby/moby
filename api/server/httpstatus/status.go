@@ -8,14 +8,9 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/docker/errdefs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-type causer interface {
-	Cause() error
-}
 
 // FromError retrieves status code from error message.
 func FromError(err error) int {
@@ -24,48 +19,55 @@ func FromError(err error) int {
 		return http.StatusInternalServerError
 	}
 
-	// Stop right there
-	// Are you sure you should be adding a new error class here? Do one of the existing ones work?
+	// Resolve the error to ensure status is chosen from the first outermost error
+	rerr := cerrdefs.Resolve(err)
 
 	// Note that the below functions are already checking the error causal chain for matches.
+	// Only check errors from the errdefs package, no new error type checking may be added
 	switch {
-	case errdefs.IsNotFound(err):
+	case cerrdefs.IsNotFound(rerr):
 		return http.StatusNotFound
-	case errdefs.IsInvalidParameter(err):
+	case cerrdefs.IsInvalidArgument(rerr):
 		return http.StatusBadRequest
-	case errdefs.IsConflict(err):
+	case cerrdefs.IsConflict(rerr):
 		return http.StatusConflict
-	case errdefs.IsUnauthorized(err):
+	case cerrdefs.IsUnauthorized(rerr):
 		return http.StatusUnauthorized
-	case errdefs.IsUnavailable(err):
+	case cerrdefs.IsUnavailable(rerr):
 		return http.StatusServiceUnavailable
-	case errdefs.IsForbidden(err):
+	case cerrdefs.IsPermissionDenied(rerr):
 		return http.StatusForbidden
-	case errdefs.IsNotModified(err):
+	case cerrdefs.IsNotModified(rerr):
 		return http.StatusNotModified
-	case errdefs.IsNotImplemented(err):
+	case cerrdefs.IsNotImplemented(rerr):
 		return http.StatusNotImplemented
-	case errdefs.IsSystem(err) || errdefs.IsUnknown(err) || errdefs.IsDataLoss(err) || errdefs.IsDeadline(err) || errdefs.IsCancelled(err):
+	case cerrdefs.IsInternal(rerr) || cerrdefs.IsDataLoss(rerr) || cerrdefs.IsDeadlineExceeded(rerr) || cerrdefs.IsCanceled(rerr):
 		return http.StatusInternalServerError
 	default:
 		if statusCode := statusCodeFromGRPCError(err); statusCode != http.StatusInternalServerError {
 			return statusCode
 		}
-		if statusCode := statusCodeFromContainerdError(err); statusCode != http.StatusInternalServerError {
-			return statusCode
-		}
 		if statusCode := statusCodeFromDistributionError(err); statusCode != http.StatusInternalServerError {
 			return statusCode
 		}
-		if e, ok := err.(causer); ok {
-			return FromError(e.Cause())
+		switch e := err.(type) {
+		case interface{ Unwrap() error }:
+			return FromError(e.Unwrap())
+		case interface{ Unwrap() []error }:
+			for _, ue := range e.Unwrap() {
+				if statusCode := FromError(ue); statusCode != http.StatusInternalServerError {
+					return statusCode
+				}
+			}
 		}
 
-		log.G(context.TODO()).WithFields(log.Fields{
-			"module":     "api",
-			"error":      err,
-			"error_type": fmt.Sprintf("%T", err),
-		}).Debug("FIXME: Got an API for which error does not match any expected type!!!")
+		if !cerrdefs.IsUnknown(err) {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"module":     "api",
+				"error":      err,
+				"error_type": fmt.Sprintf("%T", err),
+			}).Debug("FIXME: Got an API for which error does not match any expected type!!!")
+		}
 
 		return http.StatusInternalServerError
 	}
@@ -119,25 +121,4 @@ func statusCodeFromDistributionError(err error) int {
 		return errs.ErrorCode().Descriptor().HTTPStatusCode
 	}
 	return http.StatusInternalServerError
-}
-
-// statusCodeFromContainerdError returns status code for containerd errors when
-// consumed directly (not through gRPC)
-func statusCodeFromContainerdError(err error) int {
-	switch {
-	case cerrdefs.IsInvalidArgument(err):
-		return http.StatusBadRequest
-	case cerrdefs.IsNotFound(err):
-		return http.StatusNotFound
-	case cerrdefs.IsAlreadyExists(err):
-		return http.StatusConflict
-	case cerrdefs.IsFailedPrecondition(err):
-		return http.StatusPreconditionFailed
-	case cerrdefs.IsUnavailable(err):
-		return http.StatusServiceUnavailable
-	case cerrdefs.IsNotImplemented(err):
-		return http.StatusNotImplemented
-	default:
-		return http.StatusInternalServerError
-	}
 }
