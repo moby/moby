@@ -30,14 +30,13 @@ var _ discoverapi.Discover = (*driver)(nil)
 type driver struct {
 	bindAddress, advertiseAddress netip.Addr
 
-	config        map[string]interface{}
-	peerDb        peerNetworkMap
-	secMap        *encrMap
-	networks      networkTable
-	initOS        sync.Once
-	localJoinOnce sync.Once
-	keys          []*key
-	peerOpMu      sync.Mutex
+	config   map[string]interface{}
+	peerDb   peerNetworkMap
+	secMap   *encrMap
+	networks networkTable
+	initOS   sync.Once
+	keys     []*key
+	peerOpMu sync.Mutex
 	sync.Mutex
 }
 
@@ -95,12 +94,6 @@ func (d *driver) nodeJoin(data discoverapi.NodeDiscoveryData) error {
 		d.advertiseAddress = advAddr
 		d.bindAddress = bindAddr
 		d.Unlock()
-
-		// If containers are already running on this network update the
-		// advertise address in the peerDB
-		d.localJoinOnce.Do(func() {
-			d.peerDBUpdateSelf()
-		})
 	}
 	return nil
 }
