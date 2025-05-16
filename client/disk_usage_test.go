@@ -50,7 +50,6 @@ func TestDiskUsage(t *testing.T) {
 			}, nil
 		}),
 	}
-	if _, err := client.DiskUsage(context.Background(), types.DiskUsageOptions{}); err != nil {
-		t.Fatal(err)
-	}
+	_, err := client.DiskUsage(context.Background(), types.DiskUsageOptions{})
+	assert.NilError(t, err)
 }
