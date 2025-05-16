@@ -62,7 +62,5 @@ func TestConfigUpdate(t *testing.T) {
 	}
 
 	err := client.ConfigUpdate(context.Background(), "config_id", swarm.Version{}, swarm.ConfigSpec{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
