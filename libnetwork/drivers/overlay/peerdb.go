@@ -37,22 +37,6 @@ type peerNetworkMap struct {
 	sync.Mutex
 }
 
-func (d *driver) peerDbWalk(f func(string, netip.Addr, net.HardwareAddr, *peerEntry) bool) error {
-	d.peerDb.Lock()
-	nids := []string{}
-	for nid := range d.peerDb.mp {
-		nids = append(nids, nid)
-	}
-	d.peerDb.Unlock()
-
-	for _, nid := range nids {
-		d.peerDbNetworkWalk(nid, func(peerIP netip.Addr, peerMac net.HardwareAddr, pEntry *peerEntry) bool {
-			return f(nid, peerIP, peerMac, pEntry)
-		})
-	}
-	return nil
-}
-
 func (d *driver) peerDbNetworkWalk(nid string, f func(netip.Addr, net.HardwareAddr, *peerEntry) bool) error {
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
@@ -358,13 +342,4 @@ func (d *driver) peerFlushOp(nid string) error {
 	}
 	delete(d.peerDb.mp, nid)
 	return nil
-}
-
-func (d *driver) peerDBUpdateSelf() {
-	d.peerDbWalk(func(nid string, _ netip.Addr, _ net.HardwareAddr, pEntry *peerEntry) bool {
-		if pEntry.isLocal {
-			pEntry.vtep = d.advertiseAddress
-		}
-		return false
-	})
 }
