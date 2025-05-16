@@ -74,11 +74,9 @@ func TestContainerWait(t *testing.T) {
 	resultC, errC := client.ContainerWait(context.Background(), "container_id", "")
 	select {
 	case err := <-errC:
-		t.Fatal(err)
+		assert.NilError(t, err)
 	case result := <-resultC:
-		if result.StatusCode != 15 {
-			t.Fatalf("expected a status code equal to '15', got %d", result.StatusCode)
-		}
+		assert.Check(t, is.Equal(result.StatusCode, int64(15)))
 	}
 }
 
@@ -101,9 +99,7 @@ func TestContainerWaitProxyInterrupt(t *testing.T) {
 	resultC, errC := client.ContainerWait(context.Background(), "container_id", "")
 	select {
 	case err := <-errC:
-		if !strings.Contains(err.Error(), msg) {
-			t.Fatalf("Expected: %s, Actual: %s", msg, err.Error())
-		}
+		assert.Check(t, is.ErrorContains(err, msg))
 	case result := <-resultC:
 		t.Fatalf("Unexpected result: %v", result)
 	}
@@ -129,9 +125,7 @@ func TestContainerWaitProxyInterruptLong(t *testing.T) {
 	select {
 	case err := <-errC:
 		// LimitReader limiting isn't exact, because of how the Readers do chunking.
-		if len(err.Error()) > containerWaitErrorMsgLimit*2 {
-			t.Fatalf("Expected error to be limited around %d, actual length: %d", containerWaitErrorMsgLimit, len(err.Error()))
-		}
+		assert.Check(t, len(err.Error()) <= containerWaitErrorMsgLimit*2, "Expected error to be limited around %d, actual length: %d", containerWaitErrorMsgLimit, len(err.Error()))
 	case result := <-resultC:
 		t.Fatalf("Unexpected result: %v", result)
 	}
@@ -164,9 +158,7 @@ func TestContainerWaitErrorHandling(t *testing.T) {
 			resultC, errC := client.ContainerWait(ctx, "container_id", "")
 			select {
 			case err := <-errC:
-				if err.Error() != test.exp.Error() {
-					t.Fatalf("ContainerWait() errC = %v; want %v", err, test.exp)
-				}
+				assert.Check(t, is.Equal(err.Error(), test.exp.Error()))
 				return
 			case result := <-resultC:
 				t.Fatalf("expected to not get a wait result, got %d", result.StatusCode)

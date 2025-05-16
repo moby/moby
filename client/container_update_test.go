@@ -61,7 +61,5 @@ func TestContainerUpdate(t *testing.T) {
 			Name: "always",
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
