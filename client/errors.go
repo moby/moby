@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/errdefs"
 )
 
 // errConnectionFailed implements an error returned when connection failed.
@@ -48,9 +48,11 @@ func connectionFailed(host string) error {
 }
 
 // IsErrNotFound returns true if the error is a NotFound error, which is returned
-// by the API when some object is not found. It is an alias for [errdefs.IsNotFound].
+// by the API when some object is not found. It is an alias for [cerrdefs.IsNotFound].
+//
+// Deprecated: use [cerrdefs.IsNotFound] instead.
 func IsErrNotFound(err error) bool {
-	return errdefs.IsNotFound(err)
+	return cerrdefs.IsNotFound(err)
 }
 
 type objectNotFoundError struct {
