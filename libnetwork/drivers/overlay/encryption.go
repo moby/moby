@@ -132,7 +132,7 @@ func (d *driver) checkEncryption(nid string, rIP netip.Addr, isLocal, add bool) 
 	switch {
 	case isLocal:
 		if err := d.peerDbNetworkWalk(nid, func(_ netip.Addr, _ net.HardwareAddr, pEntry *peerEntry) bool {
-			if !pEntry.isLocal {
+			if !pEntry.isLocal() {
 				nodes[pEntry.vtep] = struct{}{}
 			}
 			return false
