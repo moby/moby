@@ -153,18 +153,15 @@ var (
 func (daemon *Daemon) startIngressWorker() {
 	ingressJobsChannel = make(chan *ingressJob, 100)
 	go func() {
-		for {
-			select {
-			case r := <-ingressJobsChannel:
-				if r.create != nil {
-					daemon.setupIngress(&daemon.config().Config, r.create, r.ip, ingressID)
-					ingressID = r.create.ID
-				} else {
-					daemon.releaseIngress(ingressID)
-					ingressID = ""
-				}
-				close(r.jobDone)
+		for r := range ingressJobsChannel {
+			if r.create != nil {
+				daemon.setupIngress(&daemon.config().Config, r.create, r.ip, ingressID)
+				ingressID = r.create.ID
+			} else {
+				daemon.releaseIngress(ingressID)
+				ingressID = ""
 			}
+			close(r.jobDone)
 		}
 	}()
 }
