@@ -235,8 +235,10 @@ func (d *driver) peerAddOp(nid, eid string, peerIP netip.Prefix, peerMac net.Har
 		return fmt.Errorf("subnet sandbox join failed for %q: %v", s.subnetIP.String(), err)
 	}
 
-	if err := d.checkEncryption(nid, vtep, true); err != nil {
-		log.G(context.TODO()).Warn(err)
+	if n.secure && len(n.endpoints) > 0 {
+		if err := d.setupEncryption(vtep); err != nil {
+			log.G(context.TODO()).Warn(err)
+		}
 	}
 
 	// Add neighbor entry for the peer IP
@@ -291,8 +293,10 @@ func (d *driver) peerDeleteOp(nid, eid string, peerIP netip.Prefix, peerMac net.
 		return nil
 	}
 
-	if err := d.checkEncryption(nid, vtep, false); err != nil {
-		log.G(context.TODO()).Warn(err)
+	if n.secure && len(n.endpoints) == 0 {
+		if err := d.removeEncryption(vtep); err != nil {
+			log.G(context.TODO()).Warn(err)
+		}
 	}
 
 	// Local peers do not have any local configuration to delete
