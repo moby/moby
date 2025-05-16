@@ -50,7 +50,5 @@ func TestNetworkRemove(t *testing.T) {
 	}
 
 	err := client.NetworkRemove(context.Background(), "network_id")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

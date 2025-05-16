@@ -73,13 +73,7 @@ func TestNetworkCreate(t *testing.T) {
 			"opt-key": "opt-value",
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if networkResponse.ID != "network_id" {
-		t.Fatalf("expected networkResponse.ID to be 'network_id', got %s", networkResponse.ID)
-	}
-	if networkResponse.Warning != "warning" {
-		t.Fatalf("expected networkResponse.Warning to be 'warning', got %s", networkResponse.Warning)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(networkResponse.ID, "network_id"))
+	assert.Check(t, is.Equal(networkResponse.Warning, "warning"))
 }
