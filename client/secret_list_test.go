@@ -95,11 +95,7 @@ func TestSecretList(t *testing.T) {
 		}
 
 		secrets, err := client.SecretList(context.Background(), listCase.options)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(secrets) != 2 {
-			t.Fatalf("expected 2 secrets, got %v", secrets)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(secrets, 2))
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -70,15 +69,9 @@ func TestImageInspect(t *testing.T) {
 	}
 
 	imageInspect, err := client.ImageInspect(context.Background(), "image_id")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if imageInspect.ID != "image_id" {
-		t.Fatalf("expected `image_id`, got %s", imageInspect.ID)
-	}
-	if !reflect.DeepEqual(imageInspect.RepoTags, expectedTags) {
-		t.Fatalf("expected `%v`, got %v", expectedTags, imageInspect.RepoTags)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(imageInspect.ID, "image_id"))
+	assert.Check(t, is.DeepEqual(imageInspect.RepoTags, expectedTags))
 }
 
 func TestImageInspectWithPlatform(t *testing.T) {
@@ -120,7 +113,7 @@ func TestImageInspectWithPlatform(t *testing.T) {
 
 	imageInspect, err := client.ImageInspect(context.Background(), "image_id", ImageInspectWithPlatform(requestedPlatform))
 	assert.NilError(t, err)
-	assert.Equal(t, imageInspect.ID, "image_id")
-	assert.Equal(t, imageInspect.Architecture, "arm64")
-	assert.Equal(t, imageInspect.Os, "linux")
+	assert.Check(t, is.Equal(imageInspect.ID, "image_id"))
+	assert.Check(t, is.Equal(imageInspect.Architecture, "arm64"))
+	assert.Check(t, is.Equal(imageInspect.Os, "linux"))
 }

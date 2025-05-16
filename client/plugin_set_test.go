@@ -50,7 +50,5 @@ func TestPluginSet(t *testing.T) {
 	}
 
 	err := client.PluginSet(context.Background(), "plugin_name", []string{"arg1"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

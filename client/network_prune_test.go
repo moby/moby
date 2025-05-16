@@ -97,7 +97,7 @@ func TestNetworksPrune(t *testing.T) {
 		}
 
 		report, err := client.NetworksPrune(context.Background(), listCase.filters)
-		assert.Check(t, err)
+		assert.NilError(t, err)
 		assert.Check(t, is.Len(report.NetworksDeleted, 2))
 	}
 }

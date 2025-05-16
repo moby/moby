@@ -45,15 +45,9 @@ func TestContainerExport(t *testing.T) {
 		}),
 	}
 	body, err := client.ContainerExport(context.Background(), "container_id")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 	defer body.Close()
 	content, err := io.ReadAll(body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(content) != "response" {
-		t.Fatalf("expected response to contain 'response', got %s", string(content))
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(string(content), "response"))
 }

@@ -84,11 +84,7 @@ func TestTaskList(t *testing.T) {
 		}
 
 		tasks, err := client.TaskList(context.Background(), listCase.options)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(tasks) != 2 {
-			t.Fatalf("expected 2 tasks, got %v", tasks)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(tasks, 2))
 	}
 }

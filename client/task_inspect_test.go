@@ -62,10 +62,6 @@ func TestTaskInspect(t *testing.T) {
 	}
 
 	taskInspect, _, err := client.TaskInspectWithRaw(context.Background(), "task_id")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if taskInspect.ID != "task_id" {
-		t.Fatalf("expected `task_id`, got %s", taskInspect.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(taskInspect.ID, "task_id"))
 }

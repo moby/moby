@@ -62,7 +62,5 @@ func TestSecretUpdate(t *testing.T) {
 	}
 
 	err := client.SecretUpdate(context.Background(), "secret_id", swarm.Version{}, swarm.SecretSpec{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

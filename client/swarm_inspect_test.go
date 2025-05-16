@@ -48,10 +48,6 @@ func TestSwarmInspect(t *testing.T) {
 	}
 
 	swarmInspect, err := client.SwarmInspect(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if swarmInspect.ID != "swarm_id" {
-		t.Fatalf("expected `swarm_id`, got %s", swarmInspect.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(swarmInspect.ID, "swarm_id"))
 }

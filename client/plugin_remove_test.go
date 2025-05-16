@@ -51,7 +51,5 @@ func TestPluginRemove(t *testing.T) {
 	}
 
 	err := client.PluginRemove(context.Background(), "plugin_name", types.PluginRemoveOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

@@ -91,11 +91,7 @@ func TestNetworkList(t *testing.T) {
 		}
 
 		networkResources, err := client.NetworkList(context.Background(), listCase.options)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(networkResources) != 1 {
-			t.Fatalf("expected 1 network resource, got %v", networkResources)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(networkResources, 1))
 	}
 }

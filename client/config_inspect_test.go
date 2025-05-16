@@ -92,10 +92,6 @@ func TestConfigInspect(t *testing.T) {
 	}
 
 	configInspect, _, err := client.ConfigInspectWithRaw(context.Background(), "config_id")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if configInspect.ID != "config_id" {
-		t.Fatalf("expected `config_id`, got %s", configInspect.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(configInspect.ID, "config_id"))
 }

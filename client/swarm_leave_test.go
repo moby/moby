@@ -60,8 +60,6 @@ func TestSwarmLeave(t *testing.T) {
 		}
 
 		err := client.SwarmLeave(context.Background(), leaveCase.force)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NilError(t, err)
 	}
 }

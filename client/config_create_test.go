@@ -60,10 +60,6 @@ func TestConfigCreate(t *testing.T) {
 	}
 
 	r, err := client.ConfigCreate(context.Background(), swarm.ConfigSpec{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r.ID != "test_config" {
-		t.Fatalf("expected `test_config`, got %s", r.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(r.ID, "test_config"))
 }

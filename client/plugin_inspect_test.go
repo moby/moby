@@ -62,10 +62,6 @@ func TestPluginInspect(t *testing.T) {
 	}
 
 	pluginInspect, _, err := client.PluginInspectWithRaw(context.Background(), "plugin_name")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pluginInspect.ID != "plugin_id" {
-		t.Fatalf("expected `plugin_id`, got %s", pluginInspect.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(pluginInspect.ID, "plugin_id"))
 }

@@ -95,11 +95,7 @@ func TestConfigList(t *testing.T) {
 		}
 
 		configs, err := client.ConfigList(context.Background(), listCase.options)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(configs) != 2 {
-			t.Fatalf("expected 2 configs, got %v", configs)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(configs, 2))
 	}
 }

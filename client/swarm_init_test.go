@@ -45,10 +45,6 @@ func TestSwarmInit(t *testing.T) {
 	resp, err := client.SwarmInit(context.Background(), swarm.InitRequest{
 		ListenAddr: "0.0.0.0:2377",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp != "body" {
-		t.Fatalf("Expected 'body', got %s", resp)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(resp, "body"))
 }
