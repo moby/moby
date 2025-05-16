@@ -29,7 +29,7 @@ type mockManifestGetter struct {
 	gets      int
 }
 
-func (m *mockManifestGetter) Get(ctx context.Context, dgst digest.Digest, options ...distribution.ManifestServiceOption) (distribution.Manifest, error) {
+func (m *mockManifestGetter) Get(_ context.Context, dgst digest.Digest, _ ...distribution.ManifestServiceOption) (distribution.Manifest, error) {
 	m.gets++
 	manifest, ok := m.manifests[dgst]
 	if !ok {
@@ -38,7 +38,7 @@ func (m *mockManifestGetter) Get(ctx context.Context, dgst digest.Digest, option
 	return manifest, nil
 }
 
-func (m *mockManifestGetter) Exists(ctx context.Context, dgst digest.Digest) (bool, error) {
+func (m *mockManifestGetter) Exists(_ context.Context, dgst digest.Digest) (bool, error) {
 	_, ok := m.manifests[dgst]
 	return ok, nil
 }

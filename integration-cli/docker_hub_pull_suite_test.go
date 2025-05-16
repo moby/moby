@@ -31,21 +31,21 @@ func newDockerHubPullSuite() *DockerHubPullSuite {
 }
 
 // SetUpSuite starts the suite daemon.
-func (s *DockerHubPullSuite) SetUpSuite(ctx context.Context, c *testing.T) {
+func (s *DockerHubPullSuite) SetUpSuite(_ context.Context, c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 	s.d.Start(c)
 }
 
 // TearDownSuite stops the suite daemon.
-func (s *DockerHubPullSuite) TearDownSuite(ctx context.Context, c *testing.T) {
+func (s *DockerHubPullSuite) TearDownSuite(_ context.Context, c *testing.T) {
 	if s.d != nil {
 		s.d.Stop(c)
 	}
 }
 
 // SetUpTest declares that all tests of this suite require network.
-func (s *DockerHubPullSuite) SetUpTest(ctx context.Context, c *testing.T) {
+func (s *DockerHubPullSuite) SetUpTest(_ context.Context, c *testing.T) {
 	testRequires(c, Network)
 }
 

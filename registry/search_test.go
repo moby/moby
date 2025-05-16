@@ -132,7 +132,7 @@ func TestSearchErrors(t *testing.T) {
 	}
 	for _, tc := range errorCases {
 		t.Run(tc.expectedError, func(t *testing.T) {
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				if !tc.shouldReturnError {
 					t.Errorf("unexpected HTTP request")
 				}
@@ -394,7 +394,7 @@ func TestSearch(t *testing.T) {
 	}
 	for _, tc := range successCases {
 		t.Run(tc.name, func(t *testing.T) {
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.Header().Set("Content-type", "application/json")
 				json.NewEncoder(w).Encode(registry.SearchResults{
 					Query:      term,

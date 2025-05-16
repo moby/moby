@@ -4,6 +4,7 @@ package overlay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 
@@ -42,7 +43,7 @@ func (n *network) deleteEndpoint(eid string) {
 	n.Unlock()
 }
 
-func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, _ map[string]interface{}) error {
 	var err error
 	if err = validateID(nid, eid); err != nil {
 		return err
@@ -67,7 +68,7 @@ func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo drive
 		mac:  ifInfo.MacAddress(),
 	}
 	if ep.addr == nil {
-		return fmt.Errorf("create endpoint was not passed interface IP address")
+		return errors.New("create endpoint was not passed interface IP address")
 	}
 
 	if s := n.getSubnetforIP(ep.addr); s == nil {
@@ -121,6 +122,6 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
+func (d *driver) EndpointOperInfo(_, _ string) (map[string]interface{}, error) {
 	return make(map[string]interface{}), nil
 }

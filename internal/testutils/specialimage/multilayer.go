@@ -109,7 +109,7 @@ func singlePlatformImage(dir string, ref reference.Named, manifest ocispec.Manif
 	return ociImage(dir, ref, manifestDesc)
 }
 
-func ociImage(dir string, ref reference.Named, target ocispec.Descriptor) (*ocispec.Index, error) {
+func ociImage(dir string, _ reference.Named, target ocispec.Descriptor) (*ocispec.Index, error) {
 	idx := ocispec.Index{
 		Versioned: specs.Versioned{SchemaVersion: 2},
 		MediaType: ocispec.MediaTypeImageIndex,
@@ -127,7 +127,7 @@ func ociImage(dir string, ref reference.Named, target ocispec.Descriptor) (*ocis
 	return &idx, nil
 }
 
-func fileArchive(dir string, name string, content []byte) (io.ReadCloser, error) {
+func fileArchive(_ string, name string, content []byte) (io.ReadCloser, error) {
 	tmp, err := os.MkdirTemp("", "")
 	if err != nil {
 		return nil, err

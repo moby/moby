@@ -70,6 +70,6 @@ func containsWildcards(name string) bool {
 	return false
 }
 
-func validateCopySourcePath(imageSource *imageMount, origPath string) error {
+func validateCopySourcePath(_ *imageMount, _ string) error {
 	return nil
 }

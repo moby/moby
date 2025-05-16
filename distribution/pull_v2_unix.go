@@ -48,7 +48,7 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor, p ocispec.Plat
 }
 
 // checkImageCompatibility is a Windows-specific function. No-op on Linux
-func checkImageCompatibility(imageOS, imageOSVersion string) error {
+func checkImageCompatibility(_, _ string) error {
 	return nil
 }
 

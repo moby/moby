@@ -44,7 +44,7 @@ func TestFailOnce(t *testing.T) {
 	mux, addr := setupRemotePluginServer(t)
 
 	failed := false
-	mux.HandleFunc("/Test.FailOnce", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/Test.FailOnce", func(_ http.ResponseWriter, _ *http.Request) {
 		if !failed {
 			failed = true
 			panic("Plugin not ready (intentional panic for test)")

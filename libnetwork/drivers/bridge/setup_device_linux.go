@@ -47,7 +47,7 @@ func setupMTU(config *networkConfiguration, i *bridgeInterface) error {
 	return nil
 }
 
-func setupDefaultSysctl(config *networkConfiguration, i *bridgeInterface) error {
+func setupDefaultSysctl(config *networkConfiguration, _ *bridgeInterface) error {
 	// Disable IPv6 router advertisements originating on the bridge
 	sysPath := filepath.Join("/proc/sys/net/ipv6/conf/", config.BridgeName, "accept_ra")
 	if _, err := os.Stat(sysPath); err != nil {

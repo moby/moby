@@ -115,7 +115,7 @@ func (s *snapshotter) IdentityMapping() *user.IdentityMapping {
 	return &s.opt.IdentityMapping
 }
 
-func (s *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) error {
+func (s *snapshotter) Prepare(_ context.Context, key, parent string, _ ...snapshots.Opt) error {
 	origParent := parent
 	if parent != "" {
 		if l, err := s.getLayer(parent, false); err != nil {
@@ -224,7 +224,7 @@ func (s *snapshotter) getGraphDriverID(key string) (string, bool) {
 	return gdID, true
 }
 
-func (s *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, error) {
+func (s *snapshotter) Stat(_ context.Context, key string) (snapshots.Info, error) {
 	inf := snapshots.Info{
 		Kind: snapshots.KindActive,
 	}
@@ -278,7 +278,7 @@ func (s *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, err
 	return inf, nil
 }
 
-func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountable, error) {
+func (s *snapshotter) Mounts(_ context.Context, key string) (snapshot.Mountable, error) {
 	l, err := s.getLayer(key, true)
 	if err != nil {
 		return nil, err
@@ -329,11 +329,11 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 	}, nil
 }
 
-func (s *snapshotter) Remove(ctx context.Context, key string) error {
+func (s *snapshotter) Remove(_ context.Context, _ string) error {
 	return errors.Errorf("calling snapshot.remove is forbidden")
 }
 
-func (s *snapshotter) remove(ctx context.Context, key string) error {
+func (s *snapshotter) remove(_ context.Context, key string) error {
 	l, err := s.getLayer(key, true)
 	if err != nil {
 		return err
@@ -383,7 +383,7 @@ func (s *snapshotter) remove(ctx context.Context, key string) error {
 	return s.opt.GraphDriver.Remove(id)
 }
 
-func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snapshots.Opt) error {
+func (s *snapshotter) Commit(_ context.Context, name, key string, _ ...snapshots.Opt) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(name))
 		if err != nil {
@@ -400,7 +400,7 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 	})
 }
 
-func (s *snapshotter) View(ctx context.Context, key, parent string, opts ...snapshots.Opt) (snapshot.Mountable, error) {
+func (s *snapshotter) View(ctx context.Context, _, parent string, _ ...snapshots.Opt) (snapshot.Mountable, error) {
 	return s.Mounts(ctx, parent)
 }
 
@@ -408,7 +408,7 @@ func (s *snapshotter) Walk(context.Context, snapshots.WalkFunc, ...string) error
 	return nil
 }
 
-func (s *snapshotter) Update(ctx context.Context, info snapshots.Info, fieldpaths ...string) (snapshots.Info, error) {
+func (s *snapshotter) Update(ctx context.Context, info snapshots.Info, _ ...string) (snapshots.Info, error) {
 	// not implemented
 	return s.Stat(ctx, info.Name)
 }

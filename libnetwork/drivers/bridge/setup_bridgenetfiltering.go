@@ -34,7 +34,7 @@ func setupIPv6BridgeNetFiltering(config *networkConfiguration, _ *bridgeInterfac
 		return nil
 	}
 	if config.BridgeName == "" {
-		return fmt.Errorf("unable to check IPv6 forwarding, no bridge name specified")
+		return errors.New("unable to check IPv6 forwarding, no bridge name specified")
 	}
 	if enabled, err := getKernelBoolParam("/proc/sys/net/ipv6/conf/" + config.BridgeName + "/forwarding"); err != nil {
 		log.G(context.TODO()).Warnf("failed to check IPv6 forwarding: %v", err)

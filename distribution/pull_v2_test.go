@@ -231,7 +231,7 @@ func TestPullSchema2Config(t *testing.T) {
 	}{
 		{
 			name: "success first time",
-			handler: func(callCount int, w http.ResponseWriter) {
+			handler: func(_ int, w http.ResponseWriter) {
 				w.WriteHeader(http.StatusOK)
 				_, _ = w.Write([]byte(imageJSON))
 			},
@@ -262,7 +262,7 @@ func TestPullSchema2Config(t *testing.T) {
 		},
 		{
 			name: "unauthorized",
-			handler: func(callCount int, w http.ResponseWriter) {
+			handler: func(_ int, w http.ResponseWriter) {
 				w.WriteHeader(http.StatusUnauthorized)
 				_, _ = w.Write([]byte("you need to be authenticated"))
 			},
@@ -271,7 +271,7 @@ func TestPullSchema2Config(t *testing.T) {
 		},
 		{
 			name: "unauthorized JSON",
-			handler: func(callCount int, w http.ResponseWriter) {
+			handler: func(_ int, w http.ResponseWriter) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusUnauthorized)
 				_, _ = w.Write([]byte(`					{ "errors":	[{"code": "UNAUTHORIZED", "message": "you need to be authenticated", "detail": "more detail"}]}`))
@@ -281,7 +281,7 @@ func TestPullSchema2Config(t *testing.T) {
 		},
 		{
 			name: "unauthorized JSON no body",
-			handler: func(callCount int, w http.ResponseWriter) {
+			handler: func(_ int, w http.ResponseWriter) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusUnauthorized)
 			},

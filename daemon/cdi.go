@@ -38,7 +38,7 @@ func newCDIDeviceDriver(cdiSpecDirs ...string) *deviceDriver {
 		// This error will be returned only when a CDI device is requested.
 		// This ensures that daemon startup is not blocked by a CDI registry initialization failure or being disabled
 		// by configuration.
-		errorOnUpdateSpec := func(s *specs.Spec, dev *deviceInstance) error {
+		errorOnUpdateSpec := func(_ *specs.Spec, _ *deviceInstance) error {
 			return fmt.Errorf("CDI device injection failed: %w", err)
 		}
 		return &deviceDriver{
@@ -66,7 +66,7 @@ func newCDIDeviceDriver(cdiSpecDirs ...string) *deviceDriver {
 // If the list of CDI specification directories is empty or the creation of the CDI cache fails, an error is returned.
 func createCDICache(cdiSpecDirs ...string) (*cdi.Cache, error) {
 	if len(cdiSpecDirs) == 0 {
-		return nil, fmt.Errorf("No CDI specification directories specified")
+		return nil, errors.New("No CDI specification directories specified")
 	}
 
 	cache, err := cdi.NewCache(cdi.WithSpecDirs(cdiSpecDirs...))

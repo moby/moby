@@ -105,7 +105,7 @@ type ImageManifest struct {
 	manifest *ocispec.Manifest
 }
 
-func (i *ImageService) NewImageManifest(ctx context.Context, img c8dimages.Image, manifestDesc ocispec.Descriptor) (*ImageManifest, error) {
+func (i *ImageService) NewImageManifest(_ context.Context, img c8dimages.Image, manifestDesc ocispec.Descriptor) (*ImageManifest, error) {
 	if !c8dimages.IsManifestType(manifestDesc.MediaType) {
 		return nil, errNotManifest
 	}
@@ -245,7 +245,7 @@ func (im *ImageManifest) ReadConfig(ctx context.Context, outConfig interface{}) 
 func (im *ImageManifest) PresentContentSize(ctx context.Context) (int64, error) {
 	cs := im.ContentStore()
 	var size int64
-	err := c8dimages.Walk(ctx, presentChildrenHandler(cs, func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+	err := c8dimages.Walk(ctx, presentChildrenHandler(cs, func(_ context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		size += desc.Size
 		return nil, nil
 	}), im.Target())

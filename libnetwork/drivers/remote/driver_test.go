@@ -64,7 +64,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 		t.Fatal(err)
 	}
 
-	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintf(w, `{"Implements": ["%s"]}`, driverapi.NetworkPluginEndpointType)
 	})
@@ -208,7 +208,7 @@ func (test *testEndpoint) DisableGatewayService() {
 	test.disableGatewayService = true
 }
 
-func (test *testEndpoint) AddTableEntry(tableName string, key string, value []byte) error {
+func (test *testEndpoint) AddTableEntry(_ string, _ string, _ []byte) error {
 	return nil
 }
 
@@ -218,7 +218,7 @@ func TestGetEmptyCapabilities(t *testing.T) {
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
 
-	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "GetCapabilities", func(_ map[string]interface{}) interface{} {
 		return map[string]interface{}{}
 	})
 
@@ -248,7 +248,7 @@ func TestGetExtraCapabilities(t *testing.T) {
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
 
-	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "GetCapabilities", func(_ map[string]interface{}) interface{} {
 		return map[string]interface{}{
 			"Scope":             "local",
 			"foo":               "bar",
@@ -286,7 +286,7 @@ func TestGetInvalidCapabilities(t *testing.T) {
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
 
-	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "GetCapabilities", func(_ map[string]interface{}) interface{} {
 		return map[string]interface{}{
 			"Scope": "fake",
 		}
@@ -336,7 +336,7 @@ func TestRemoteDriver(t *testing.T) {
 
 	var networkID string
 
-	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "GetCapabilities", func(_ map[string]interface{}) interface{} {
 		return map[string]interface{}{
 			"Scope":          "global",
 			"GwAllocChecker": true,
@@ -363,7 +363,7 @@ func TestRemoteDriver(t *testing.T) {
 		}
 		return map[string]interface{}{}
 	})
-	handle(t, mux, "CreateEndpoint", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "CreateEndpoint", func(_ map[string]interface{}) interface{} {
 		iface := map[string]interface{}{
 			"MacAddress":  ep.macAddress,
 			"Address":     ep.address,
@@ -398,13 +398,13 @@ func TestRemoteDriver(t *testing.T) {
 			},
 		}
 	})
-	handle(t, mux, "Leave", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "Leave", func(_ map[string]interface{}) interface{} {
 		return map[string]string{}
 	})
-	handle(t, mux, "DeleteEndpoint", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "DeleteEndpoint", func(_ map[string]interface{}) interface{} {
 		return map[string]interface{}{}
 	})
-	handle(t, mux, "EndpointOperInfo", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "EndpointOperInfo", func(_ map[string]interface{}) interface{} {
 		return map[string]interface{}{
 			"Value": map[string]string{
 				"Arbitrary": "key",
@@ -412,10 +412,10 @@ func TestRemoteDriver(t *testing.T) {
 			},
 		}
 	})
-	handle(t, mux, "DiscoverNew", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "DiscoverNew", func(_ map[string]interface{}) interface{} {
 		return map[string]string{}
 	})
-	handle(t, mux, "DiscoverDelete", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "DiscoverDelete", func(_ map[string]interface{}) interface{} {
 		return map[string]interface{}{}
 	})
 
@@ -508,7 +508,7 @@ func TestDriverError(t *testing.T) {
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
 
-	handle(t, mux, "CreateEndpoint", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "CreateEndpoint", func(_ map[string]interface{}) interface{} {
 		return map[string]interface{}{
 			"Err": "this should get raised as an error",
 		}
@@ -540,7 +540,7 @@ func TestMissingValues(t *testing.T) {
 		t: t,
 	}
 
-	handle(t, mux, "CreateEndpoint", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "CreateEndpoint", func(_ map[string]interface{}) interface{} {
 		iface := map[string]interface{}{
 			"Address":     ep.address,
 			"AddressIPv6": ep.addressIPv6,
@@ -585,11 +585,11 @@ func (r *rollbackEndpoint) AddressIPv6() *net.IPNet {
 	return nil
 }
 
-func (r *rollbackEndpoint) SetMacAddress(mac net.HardwareAddr) error {
+func (r *rollbackEndpoint) SetMacAddress(_ net.HardwareAddr) error {
 	return errors.New("invalid mac")
 }
 
-func (r *rollbackEndpoint) SetIPAddress(ip *net.IPNet) error {
+func (r *rollbackEndpoint) SetIPAddress(_ *net.IPNet) error {
 	return errors.New("invalid ip")
 }
 
@@ -605,7 +605,7 @@ func TestRollback(t *testing.T) {
 
 	rolledback := false
 
-	handle(t, mux, "CreateEndpoint", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "CreateEndpoint", func(_ map[string]interface{}) interface{} {
 		iface := map[string]interface{}{
 			"Address":     "192.168.4.5/16",
 			"AddressIPv6": "",
@@ -615,7 +615,7 @@ func TestRollback(t *testing.T) {
 			"Interface": interface{}(iface),
 		}
 	})
-	handle(t, mux, "DeleteEndpoint", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "DeleteEndpoint", func(_ map[string]interface{}) interface{} {
 		rolledback = true
 		return map[string]interface{}{}
 	})

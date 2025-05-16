@@ -367,7 +367,7 @@ func TestNegotiateAPIVersionConnectionFailure(t *testing.T) {
 
 func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 	var pingVersion string
-	httpClient := newMockClient(func(req *http.Request) (*http.Response, error) {
+	httpClient := newMockClient(func(_ *http.Request) (*http.Response, error) {
 		resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}}
 		resp.Header.Set("Api-Version", pingVersion)
 		resp.Body = io.NopCloser(strings.NewReader("OK"))

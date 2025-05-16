@@ -5,6 +5,7 @@ package libnetwork
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"sort"
@@ -81,7 +82,7 @@ func getBindAddr(ifaceName string) (net.IP, error) {
 		return addrIP, nil
 	}
 
-	return nil, fmt.Errorf("failed to get bind address")
+	return nil, errors.New("failed to get bind address")
 }
 
 // resolveAddr resolves the given address, which can be one of, and
@@ -188,7 +189,7 @@ func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 		agent.networkDB.RemoveKey(deleted)
 	}
 
-	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, _ driverapi.Capability) bool {
 		dr, ok := driver.(discoverapi.Discover)
 		if !ok {
 			return false
@@ -245,7 +246,7 @@ func (c *Controller) agentSetup(clusterProvider cluster.Provider) error {
 			log.G(context.TODO()).WithError(err).Errorf("Error in agentInit")
 			return err
 		}
-		c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+		c.drvRegistry.WalkDrivers(func(_ string, driver driverapi.Driver, capability driverapi.Capability) bool {
 			if capability.ConnectivityScope == scope.Global {
 				if d, ok := driver.(discoverapi.Discover); ok {
 					c.agentDriverNotify(d)
@@ -355,7 +356,7 @@ func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	go c.handleTableEvents(nodeCh, c.handleNodeTableEvent)
 
 	keys, tags := c.getKeys(subsysIPSec)
-	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, _ driverapi.Capability) bool {
 		if dr, ok := driver.(discoverapi.Discover); ok {
 			if err := dr.DiscoverNew(discoverapi.EncryptionKeysConfig, discoverapi.DriverEncryptionConfig{
 				Keys: keys,

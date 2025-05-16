@@ -66,7 +66,7 @@ func (daemon *Daemon) rmLink(cfg *config.Config, ctr *container.Container, name 
 	}
 	parent, n := path.Split(name)
 	if parent == "/" {
-		return fmt.Errorf("Conflict, cannot remove the default link name of the container")
+		return errors.New("Conflict, cannot remove the default link name of the container")
 	}
 
 	parent = strings.TrimSuffix(parent, "/")
@@ -92,9 +92,8 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 		if !config.ForceRemove {
 			if ctr.Paused {
 				return errdefs.Conflict(errors.New("container is paused and must be unpaused first"))
-			} else {
-				return errdefs.Conflict(fmt.Errorf("container is %s: stop the container before removing or force remove", ctr.StateString()))
 			}
+			return errdefs.Conflict(fmt.Errorf("container is %s: stop the container before removing or force remove", ctr.StateString()))
 		}
 		if err := daemon.Kill(ctr); err != nil && !isNotRunning(err) {
 			return fmt.Errorf("could not kill container: %w", err)

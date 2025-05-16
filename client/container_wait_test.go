@@ -154,7 +154,7 @@ func TestContainerWaitErrorHandling(t *testing.T) {
 
 			client := &Client{
 				version: "1.30",
-				client: newMockClient(func(req *http.Request) (*http.Response, error) {
+				client: newMockClient(func(_ *http.Request) (*http.Response, error) {
 					return &http.Response{
 						StatusCode: http.StatusOK,
 						Body:       io.NopCloser(test.rdr),

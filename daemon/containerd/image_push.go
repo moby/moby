@@ -87,7 +87,7 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 	return i.pushRef(ctx, sourceRef, platform, metaHeaders, authConfig, out)
 }
 
-func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, out progress.Output) (retErr error) {
+func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, platform *ocispec.Platform, _ map[string][]string, authConfig *registry.AuthConfig, out progress.Output) (retErr error) {
 	leasedCtx, release, err := i.client.WithLease(ctx)
 	if err != nil {
 		return err
@@ -131,7 +131,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 		}
 	}()
 
-	var limiter *semaphore.Weighted = nil // TODO: Respect max concurrent downloads/uploads
+	var limiter *semaphore.Weighted // TODO: Respect max concurrent downloads/uploads
 
 	mountableBlobs, err := findMissingMountable(ctx, store, jobsQueue, target, targetRef, limiter)
 	if err != nil {
@@ -149,7 +149,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 		return err
 	}
 
-	addLayerJobs := c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+	addLayerJobs := c8dimages.HandlerFunc(func(_ context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		if showBlobProgress(desc) {
 			jobsQueue.Add(desc)
 		}

@@ -2,6 +2,7 @@ package daemon // import "github.com/docker/docker/integration-cli/daemon"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -188,7 +189,7 @@ func (d *Daemon) CheckLeader(ctx context.Context) func(t *testing.T) (interface{
 				return nil, ""
 			}
 		}
-		return fmt.Errorf("no leader"), "could not find leader"
+		return errors.New("no leader"), "could not find leader"
 	}
 }
 

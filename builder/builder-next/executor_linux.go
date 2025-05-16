@@ -84,7 +84,7 @@ type bridgeProvider struct {
 	Root string
 }
 
-func (p *bridgeProvider) New(ctx context.Context, hostname string) (network.Namespace, error) {
+func (p *bridgeProvider) New(_ context.Context, _ string) (network.Namespace, error) {
 	n, err := p.NetworkByName(networkName)
 	if err != nil {
 		return nil, err

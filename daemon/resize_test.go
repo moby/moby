@@ -38,7 +38,7 @@ type execResizeMockProcess struct {
 	Width, Height int
 }
 
-func (p *execResizeMockProcess) Resize(ctx context.Context, width, height uint32) error {
+func (p *execResizeMockProcess) Resize(_ context.Context, width, height uint32) error {
 	p.Width = int(width)
 	p.Height = int(height)
 	return nil

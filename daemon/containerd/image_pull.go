@@ -76,7 +76,7 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 	return nil
 }
 
-func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output) error {
+func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform, _ map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output) error {
 	var opts []containerd.RemoteOpt
 	if platform != nil {
 		opts = append(opts, containerd.WithPlatform(platforms.Format(*platform)))
@@ -117,7 +117,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	}
 
 	jobs := newJobs()
-	opts = append(opts, containerd.WithImageHandler(c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+	opts = append(opts, containerd.WithImageHandler(c8dimages.HandlerFunc(func(_ context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		if showBlobProgress(desc) {
 			jobs.Add(desc)
 		}

@@ -36,7 +36,7 @@ func newMockClient(doer func(*http.Request) (*http.Response, error)) *http.Clien
 }
 
 func errorMock(statusCode int, message string) func(req *http.Request) (*http.Response, error) {
-	return func(req *http.Request) (*http.Response, error) {
+	return func(_ *http.Request) (*http.Response, error) {
 		header := http.Header{}
 		header.Set("Content-Type", "application/json")
 
@@ -56,7 +56,7 @@ func errorMock(statusCode int, message string) func(req *http.Request) (*http.Re
 }
 
 func plainTextErrorMock(statusCode int, message string) func(req *http.Request) (*http.Response, error) {
-	return func(req *http.Request) (*http.Response, error) {
+	return func(_ *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: statusCode,
 			Body:       io.NopCloser(bytes.NewReader([]byte(message))),

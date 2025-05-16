@@ -401,7 +401,7 @@ func filter(vols *[]volume.Volume, fn filterFunc) {
 
 // list goes through each volume driver and asks for its list of volumes.
 // TODO(@cpuguy83): plumb context through
-func (s *VolumeStore) list(ctx context.Context, driverNames ...string) ([]volume.Volume, []string, error) {
+func (s *VolumeStore) list(_ context.Context, driverNames ...string) ([]volume.Volume, []string, error) {
 	var (
 		ls       = []volume.Volume{} // do not return a nil value as this affects filtering
 		warnings []string

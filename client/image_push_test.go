@@ -3,6 +3,7 @@ package client // import "github.com/docker/docker/client"
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,7 +19,7 @@ import (
 
 func TestImagePushReferenceError(t *testing.T) {
 	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(_ *http.Request) (*http.Response, error) {
 			return nil, nil
 		}),
 	}
@@ -55,7 +56,7 @@ func TestImagePushWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	privilegeFunc := func(_ context.Context) (string, error) {
-		return "", fmt.Errorf("Error requesting privilege")
+		return "", errors.New("Error requesting privilege")
 	}
 	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{
 		PrivilegeFunc: privilegeFunc,

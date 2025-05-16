@@ -738,15 +738,15 @@ func (a *mockIpam) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool, 
 	}, nil
 }
 
-func (a *mockIpam) ReleasePool(poolID string) error {
+func (a *mockIpam) ReleasePool(_ string) error {
 	return nil
 }
 
-func (a *mockIpam) RequestAddress(poolID string, ip net.IP, opts map[string]string) (*net.IPNet, map[string]string, error) {
+func (a *mockIpam) RequestAddress(_ string, _ net.IP, _ map[string]string) (*net.IPNet, map[string]string, error) {
 	return nil, nil, nil
 }
 
-func (a *mockIpam) ReleaseAddress(poolID string, ip net.IP) error {
+func (a *mockIpam) ReleaseAddress(_ string, _ net.IP) error {
 	return nil
 }
 

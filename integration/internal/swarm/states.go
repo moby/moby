@@ -13,7 +13,7 @@ import (
 
 // NoTasksForService verifies that there are no more tasks for the given service
 func NoTasksForService(ctx context.Context, client client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		tasks, err := client.TaskList(ctx, types.TaskListOptions{
 			Filters: filters.NewArgs(
 				filters.Arg("service", serviceID),
@@ -35,7 +35,7 @@ func NoTasksForService(ctx context.Context, client client.ServiceAPIClient, serv
 
 // NoTasks verifies that all tasks are gone
 func NoTasks(ctx context.Context, client client.ServiceAPIClient) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		tasks, err := client.TaskList(ctx, types.TaskListOptions{})
 		switch {
 		case err != nil:
@@ -50,7 +50,7 @@ func NoTasks(ctx context.Context, client client.ServiceAPIClient) func(log poll.
 
 // RunningTasksCount verifies there are `instances` tasks running for `serviceID`
 func RunningTasksCount(ctx context.Context, client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		filter := filters.NewArgs()
 		filter.Add("service", serviceID)
 		tasks, err := client.TaskList(ctx, types.TaskListOptions{
@@ -101,7 +101,7 @@ func JobComplete(ctx context.Context, client client.ServiceAPIClient, service sw
 	totalCompletions := int(*service.Spec.Mode.ReplicatedJob.TotalCompletions)
 	previousResult := ""
 
-	return func(log poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		tasks, err := client.TaskList(ctx, types.TaskListOptions{
 			Filters: filter,
 		})

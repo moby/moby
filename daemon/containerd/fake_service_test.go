@@ -98,7 +98,7 @@ func (f *fileReaderAt) Size() int64 {
 	return fi.Size()
 }
 
-func (s *blobsDirContentStore) ReaderAt(ctx context.Context, desc ocispec.Descriptor) (content.ReaderAt, error) {
+func (s *blobsDirContentStore) ReaderAt(_ context.Context, desc ocispec.Descriptor) (content.ReaderAt, error) {
 	p := filepath.Join(s.blobs, desc.Digest.Encoded())
 	r, err := os.Open(p)
 	if err != nil {
@@ -110,28 +110,28 @@ func (s *blobsDirContentStore) ReaderAt(ctx context.Context, desc ocispec.Descri
 	return &fileReaderAt{r}, nil
 }
 
-func (s *blobsDirContentStore) Writer(ctx context.Context, opts ...content.WriterOpt) (content.Writer, error) {
-	return nil, fmt.Errorf("read-only")
+func (s *blobsDirContentStore) Writer(_ context.Context, _ ...content.WriterOpt) (content.Writer, error) {
+	return nil, errors.New("read-only")
 }
 
-func (s *blobsDirContentStore) Status(ctx context.Context, _ string) (content.Status, error) {
-	return content.Status{}, fmt.Errorf("not implemented")
+func (s *blobsDirContentStore) Status(_ context.Context, _ string) (content.Status, error) {
+	return content.Status{}, errors.New("not implemented")
 }
 
-func (s *blobsDirContentStore) Delete(ctx context.Context, dgst digest.Digest) error {
+func (s *blobsDirContentStore) Delete(_ context.Context, dgst digest.Digest) error {
 	p := filepath.Join(s.blobs, dgst.Encoded())
 	return os.Remove(p)
 }
 
-func (s *blobsDirContentStore) ListStatuses(ctx context.Context, filters ...string) ([]content.Status, error) {
+func (s *blobsDirContentStore) ListStatuses(_ context.Context, _ ...string) ([]content.Status, error) {
 	return nil, nil
 }
 
-func (s *blobsDirContentStore) Abort(ctx context.Context, ref string) error {
-	return fmt.Errorf("not implemented")
+func (s *blobsDirContentStore) Abort(_ context.Context, _ string) error {
+	return errors.New("not implemented")
 }
 
-func (s *blobsDirContentStore) Walk(ctx context.Context, fn content.WalkFunc, filters ...string) error {
+func (s *blobsDirContentStore) Walk(_ context.Context, fn content.WalkFunc, _ ...string) error {
 	entries, err := os.ReadDir(s.blobs)
 	if err != nil {
 		return err
@@ -160,7 +160,7 @@ func (s *blobsDirContentStore) Walk(ctx context.Context, fn content.WalkFunc, fi
 	return nil
 }
 
-func (s *blobsDirContentStore) Info(ctx context.Context, dgst digest.Digest) (content.Info, error) {
+func (s *blobsDirContentStore) Info(_ context.Context, dgst digest.Digest) (content.Info, error) {
 	f, err := os.Open(filepath.Join(s.blobs, dgst.Encoded()))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -181,8 +181,8 @@ func (s *blobsDirContentStore) Info(ctx context.Context, dgst digest.Digest) (co
 	}, nil
 }
 
-func (s *blobsDirContentStore) Update(ctx context.Context, info content.Info, fieldpaths ...string) (content.Info, error) {
-	return content.Info{}, fmt.Errorf("read-only")
+func (s *blobsDirContentStore) Update(_ context.Context, _ content.Info, _ ...string) (content.Info, error) {
+	return content.Info{}, errors.New("read-only")
 }
 
 // delayedStore is a content store wrapper that adds a constant delay to all

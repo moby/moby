@@ -326,7 +326,7 @@ func (w *Worker) Exporter(name string, sm *session.Manager) (exporter.Exporter, 
 }
 
 // GetRemotes returns the remote snapshot references given a local reference
-func (w *Worker) GetRemotes(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool, _ cacheconfig.RefConfig, all bool, s session.Group) ([]*solver.Remote, error) {
+func (w *Worker) GetRemotes(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool, _ cacheconfig.RefConfig, _ bool, s session.Group) ([]*solver.Remote, error) {
 	if ref == nil {
 		return nil, nil
 	}
@@ -514,7 +514,7 @@ func (ld *layerDescriptor) DiffID() (layer.DiffID, error) {
 	return ld.diffID, nil
 }
 
-func (ld *layerDescriptor) Download(ctx context.Context, progressOutput pkgprogress.Output) (io.ReadCloser, int64, error) {
+func (ld *layerDescriptor) Download(ctx context.Context, _ pkgprogress.Output) (io.ReadCloser, int64, error) {
 	done := oneOffProgress(ld.pctx, fmt.Sprintf("pulling %s", ld.desc.Digest))
 
 	// TODO should this write output to progressOutput? Or use something similar to loggerFromContext()? see https://github.com/moby/buildkit/commit/aa29e7729464f3c2a773e27795e584023c751cb8
@@ -541,7 +541,7 @@ func (ld *layerDescriptor) Registered(diffID layer.DiffID) {
 	ld.w.V2MetadataService.Add(diffID, distmetadata.V2Metadata{Digest: ld.desc.Digest})
 }
 
-func getLayers(ctx context.Context, descs []ocispec.Descriptor) ([]rootfs.Layer, error) {
+func getLayers(_ context.Context, descs []ocispec.Descriptor) ([]rootfs.Layer, error) {
 	layers := make([]rootfs.Layer, len(descs))
 	for i, desc := range descs {
 		diffIDStr := desc.Annotations["containerd.io/uncompressed"]
@@ -584,10 +584,10 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 
 type emptyProvider struct{}
 
-func (p *emptyProvider) ReaderAt(ctx context.Context, dec ocispec.Descriptor) (content.ReaderAt, error) {
+func (p *emptyProvider) ReaderAt(_ context.Context, _ ocispec.Descriptor) (content.ReaderAt, error) {
 	return nil, errors.Errorf("ReaderAt not implemented for empty provider")
 }
 
-func (p *emptyProvider) Info(ctx context.Context, d digest.Digest) (content.Info, error) {
+func (p *emptyProvider) Info(_ context.Context, _ digest.Digest) (content.Info, error) {
 	return content.Info{}, errors.Wrapf(cerrdefs.ErrNotImplemented, "Info not implemented for empty provider")
 }

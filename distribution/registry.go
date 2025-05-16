@@ -156,7 +156,7 @@ func (th *passThruTokenHandler) Scheme() string {
 	return "bearer"
 }
 
-func (th *passThruTokenHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
+func (th *passThruTokenHandler) AuthorizeRequest(req *http.Request, _ map[string]string) error {
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", th.token))
 	return nil
 }

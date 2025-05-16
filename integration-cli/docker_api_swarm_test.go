@@ -144,7 +144,7 @@ func (s *DockerSwarmSuite) TestAPISwarmJoinToken(c *testing.T) {
 	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateInactive)
 
 	// change spec, don't change tokens
-	d1.UpdateSwarm(c, func(s *swarm.Spec) {})
+	d1.UpdateSwarm(c, func(_ *swarm.Spec) {})
 
 	err = c2.SwarmJoin(testutil.GetContext(c), swarm.JoinRequest{
 		ListenAddr:  d2.SwarmListenAddr(),
@@ -229,7 +229,7 @@ func (s *DockerSwarmSuite) TestAPISwarmPromoteDemote(c *testing.T) {
 	// back to manager quickly might cause the node to pause for awhile
 	// while waiting for the role to change to worker, and the test can
 	// time out during this interval.
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(_ *testing.T) (interface{}, string) {
 		certBytes, err := os.ReadFile(filepath.Join(d2.Folder, "root", "swarm", "certificates", "swarm-node.crt"))
 		if err != nil {
 			return "", fmt.Sprintf("error: %v", err)

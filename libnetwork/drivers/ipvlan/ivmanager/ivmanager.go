@@ -20,46 +20,46 @@ func Register(r driverapi.Registerer) error {
 	})
 }
 
-func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
+func (d *driver) NetworkAllocate(_ string, _ map[string]string, _, _ []driverapi.IPAMData) (map[string]string, error) {
 	return nil, types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) NetworkFree(id string) error {
+func (d *driver) NetworkFree(_ string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(_ context.Context, _ string, _ map[string]interface{}, _ driverapi.NetworkInfo, _, _ []driverapi.IPAMData) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
+func (d *driver) EventNotify(_ driverapi.EventType, _, _, _ string, _ []byte) {
 }
 
-func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+func (d *driver) DecodeTableEntry(_ string, _ string, _ []byte) (string, map[string]string) {
 	return "", nil
 }
 
-func (d *driver) DeleteNetwork(nid string) error {
+func (d *driver) DeleteNetwork(_ string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(_ context.Context, _, _ string, _ driverapi.InterfaceInfo, _ map[string]interface{}) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) DeleteEndpoint(nid, eid string) error {
+func (d *driver) DeleteEndpoint(_, _ string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
+func (d *driver) EndpointOperInfo(_, _ string) (map[string]interface{}, error) {
 	return nil, types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]interface{}) error {
+func (d *driver) Join(_ context.Context, _, _ string, _ string, _ driverapi.JoinInfo, _, _ map[string]interface{}) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) Leave(nid, eid string) error {
+func (d *driver) Leave(_, _ string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
@@ -71,10 +71,10 @@ func (d *driver) IsBuiltIn() bool {
 	return true
 }
 
-func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
+func (d *driver) ProgramExternalConnectivity(_ context.Context, _, _ string, _ map[string]interface{}) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
+func (d *driver) RevokeExternalConnectivity(_, _ string) error {
 	return types.NotImplementedErrorf("not implemented")
 }

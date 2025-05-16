@@ -145,7 +145,7 @@ func TestCloneArgsDumbHttp(t *testing.T) {
 
 	serverURL.Path = "/repo.git"
 
-	mux.HandleFunc("/repo.git/info/refs", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/repo.git/info/refs", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 	})
 
