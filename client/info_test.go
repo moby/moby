@@ -34,9 +34,7 @@ func TestInfoInvalidResponseJSONError(t *testing.T) {
 		}),
 	}
 	_, err := client.Info(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "invalid character") {
-		t.Fatalf("expected a 'invalid character' error, got %v", err)
-	}
+	assert.Check(t, is.ErrorContains(err, "invalid character"))
 }
 
 func TestInfo(t *testing.T) {
@@ -63,17 +61,10 @@ func TestInfo(t *testing.T) {
 	}
 
 	info, err := client.Info(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
-	if info.ID != "daemonID" {
-		t.Fatalf("expected daemonID, got %s", info.ID)
-	}
-
-	if info.Containers != 3 {
-		t.Fatalf("expected 3 containers, got %d", info.Containers)
-	}
+	assert.Check(t, is.Equal(info.ID, "daemonID"))
+	assert.Check(t, is.Equal(info.Containers, 3))
 }
 
 func TestInfoWithDiscoveredDevices(t *testing.T) {
