@@ -20,9 +20,12 @@ const ovPeerTable = "overlay_peer_table"
 
 type peerEntry struct {
 	eid        string
-	vtep       netip.Addr
-	prefixBits int // number of 1-bits in network mask of peerIP
-	isLocal    bool
+	vtep       netip.Addr // Virtual Tunnel End Point for non-local peers
+	prefixBits int        // number of 1-bits in network mask of peerIP
+}
+
+func (p *peerEntry) isLocal() bool {
+	return !p.vtep.IsValid()
 }
 
 type peerMap struct {
@@ -105,7 +108,9 @@ func (d *driver) peerDbAdd(nid, eid string, peerIP netip.Prefix, peerMac net.Har
 		eid:        eid,
 		vtep:       vtep,
 		prefixBits: peerIP.Bits(),
-		isLocal:    isLocal,
+	}
+	if isLocal {
+		pEntry.vtep = netip.Addr{}
 	}
 
 	pMap.Lock()
@@ -134,7 +139,9 @@ func (d *driver) peerDbDelete(nid, eid string, peerIP netip.Prefix, peerMac net.
 		eid:        eid,
 		vtep:       vtep,
 		prefixBits: peerIP.Bits(),
-		isLocal:    isLocal,
+	}
+	if isLocal {
+		pEntry.vtep = netip.Addr{}
 	}
 
 	pMap.Lock()
@@ -170,11 +177,11 @@ func (d *driver) initSandboxPeerDB(nid string) {
 func (d *driver) peerInitOp(nid string) error {
 	return d.peerDbNetworkWalk(nid, func(peerIP netip.Addr, peerMac net.HardwareAddr, pEntry *peerEntry) bool {
 		// Local entries do not need to be added
-		if pEntry.isLocal {
+		if pEntry.isLocal() {
 			return false
 		}
 
-		d.peerAddOp(nid, pEntry.eid, netip.PrefixFrom(peerIP, pEntry.prefixBits), peerMac, pEntry.vtep, false, pEntry.isLocal)
+		d.peerAddOp(nid, pEntry.eid, netip.PrefixFrom(peerIP, pEntry.prefixBits), peerMac, pEntry.vtep, false, pEntry.isLocal())
 		// return false to loop on all entries
 		return false
 	})
@@ -322,7 +329,7 @@ func (d *driver) peerDeleteOp(nid, eid string, peerIP netip.Prefix, peerMac net.
 		log.G(context.TODO()).Errorf("peerDeleteOp unable to restore a configuration for nid:%s ip:%v mac:%v err:%s", nid, peerIP, peerMac, err)
 		return err
 	}
-	return d.peerAddOp(nid, peerEntry.eid, netip.PrefixFrom(peerIPAddr, peerEntry.prefixBits), peerMac, peerEntry.vtep, false, peerEntry.isLocal)
+	return d.peerAddOp(nid, peerEntry.eid, netip.PrefixFrom(peerIPAddr, peerEntry.prefixBits), peerMac, peerEntry.vtep, false, peerEntry.isLocal())
 }
 
 func (d *driver) peerFlush(nid string) {
