@@ -51,7 +51,5 @@ func TestPluginDisable(t *testing.T) {
 	}
 
 	err := client.PluginDisable(context.Background(), "plugin_name", types.PluginDisableOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
