@@ -19,10 +19,10 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.49"
+basePath: "/v1.50"
 info:
   title: "Docker Engine API"
-  version: "1.49"
+  version: "1.50"
   x-logo:
     url: "https://docs.docker.com/assets/images/logo-docker-main.png"
   description: |
@@ -55,8 +55,8 @@ info:
     the URL is not supported by the daemon, a HTTP `400 Bad Request` error message
     is returned.
 
-    If you omit the version-prefix, the current version of the API (v1.49) is used.
-    For example, calling `/info` is the same as calling `/v1.49/info`. Using the
+    If you omit the version-prefix, the current version of the API (v1.50) is used.
+    For example, calling `/info` is the same as calling `/v1.50/info`. Using the
     API without a version-prefix is deprecated and will be removed in a future release.
 
     Engine releases in the near future should support this version of the API,
@@ -2955,6 +2955,23 @@ definitions:
           > **Deprecated**: This field is deprecated since API v1.8, and will be omitted in a future API version. Use the information in progressDetail instead.
       progressDetail:
         $ref: "#/definitions/ProgressDetail"
+
+  DeviceInfo:
+    type: "object"
+    description: |
+      DeviceInfo represents a device that can be used by a container.
+    properties:
+      Source:
+        type: "string"
+        example: "cdi"
+        description: |
+          The origin device driver.
+      ID:
+        type: "string"
+        example: "vendor.com/gpu=0"
+        description: |
+          The unique identifier for the device within its source driver.
+          For CDI devices, this would be an FQDN like "vendor.com/gpu=0".
 
   ErrorDetail:
     type: "object"
@@ -6858,6 +6875,15 @@ definitions:
               example: "24"
       FirewallBackend:
         $ref: "#/definitions/FirewallInfo"
+      DiscoveredDevices:
+        description: |
+          List of devices discovered by device drivers.
+
+          Each device includes information about its source driver, kind, name,
+          and additional driver-specific attributes.
+        type: "array"
+        items:
+          $ref: "#/definitions/DeviceInfo"
       Warnings:
         description: |
           List of warnings / informational messages about missing features, or

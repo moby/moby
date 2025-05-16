@@ -75,6 +75,7 @@ type Info struct {
 	DefaultAddressPools []NetworkAddressPool `json:",omitempty"`
 	FirewallBackend     *FirewallInfo        `json:"FirewallBackend,omitempty"`
 	CDISpecDirs         []string
+	DiscoveredDevices   []DeviceInfo `json:",omitempty"`
 
 	Containerd *ContainerdInfo `json:",omitempty"`
 
@@ -159,4 +160,13 @@ type FirewallInfo struct {
 	Driver string `json:"Driver"`
 	// Info is a list of label/value pairs, containing information related to the firewall.
 	Info [][2]string `json:"Info,omitempty"`
+}
+
+// DeviceInfo represents a discoverable device from a device driver.
+type DeviceInfo struct {
+	// Source indicates the origin device driver.
+	Source string `json:"Source"`
+	// ID is the unique identifier for the device.
+	// Example: CDI FQDN like "vendor.com/gpu=0", or other driver-specific device ID
+	ID string `json:"ID"`
 }

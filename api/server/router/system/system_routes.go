@@ -127,6 +127,9 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 		if versions.GreaterThanOrEqualTo(version, "1.42") {
 			info.KernelMemory = false
 		}
+		if versions.LessThan(version, "1.50") {
+			info.DiscoveredDevices = nil
+		}
 		return info, nil
 	})
 	return httputils.WriteJSON(w, http.StatusOK, info)

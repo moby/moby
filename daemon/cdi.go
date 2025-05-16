@@ -3,8 +3,11 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/api/types/system"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/hashicorp/go-multierror"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -30,7 +33,7 @@ func RegisterCDIDriver(cdiSpecDirs ...string) {
 func newCDIDeviceDriver(cdiSpecDirs ...string) *deviceDriver {
 	cache, err := createCDICache(cdiSpecDirs...)
 	if err != nil {
-		log.G(context.TODO()).WithError(err)
+		log.G(context.TODO()).WithError(err).Error("Failed to create CDI cache")
 		// We create a spec updater that always returns an error.
 		// This error will be returned only when a CDI device is requested.
 		// This ensures that daemon startup is not blocked by a CDI registry initialization failure or being disabled
@@ -40,6 +43,11 @@ func newCDIDeviceDriver(cdiSpecDirs ...string) *deviceDriver {
 		}
 		return &deviceDriver{
 			updateSpec: errorOnUpdateSpec,
+			ListDevices: func(ctx context.Context, cfg *config.Config) (deviceListing, error) {
+				return deviceListing{
+					Warnings: []string{fmt.Sprintf("CDI cache initialization failed: %v", err)},
+				}, nil
+			},
 		}
 	}
 
@@ -49,7 +57,8 @@ func newCDIDeviceDriver(cdiSpecDirs ...string) *deviceDriver {
 	}
 
 	return &deviceDriver{
-		updateSpec: c.injectCDIDevices,
+		updateSpec:  c.injectCDIDevices,
+		ListDevices: c.listDevices,
 	}
 }
 
@@ -104,4 +113,40 @@ func (c *cdiHandler) getErrors() error {
 		err = multierror.Append(err, errs...)
 	}
 	return err.ErrorOrNil()
+}
+
+// listDevices uses the CDI cache to list all discovered CDI devices.
+// It conforms to the deviceDriver.ListDevices function signature.
+func (c *cdiHandler) listDevices(ctx context.Context, cfg *config.Config) (deviceListing, error) {
+	var out deviceListing
+
+	// Collect global errors from the CDI cache (e.g., issues with spec files themselves).
+	for specPath, specErrs := range c.registry.GetErrors() {
+		for _, err := range specErrs {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			out.Warnings = append(out.Warnings, fmt.Sprintf("CDI: Error associated with spec file %s: %v", specPath, err))
+		}
+	}
+
+	qualifiedDeviceNames := c.registry.ListDevices()
+	if len(qualifiedDeviceNames) == 0 {
+		return out, nil
+	}
+
+	for _, qdn := range qualifiedDeviceNames {
+		device := c.registry.GetDevice(qdn)
+		if device == nil {
+			log.G(ctx).WithField("device", qdn).Warn("CDI: Cache.GetDevice() returned nil for a listed device, skipping.")
+			out.Warnings = append(out.Warnings, fmt.Sprintf("CDI: Device %s listed but not found by GetDevice()", qdn))
+			continue
+		}
+
+		out.Devices = append(out.Devices, system.DeviceInfo{
+			ID: qdn,
+		})
+	}
+
+	return out, nil
 }

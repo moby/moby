@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
@@ -151,4 +152,52 @@ func TestCDISpecDirsAreInSystemInfo(t *testing.T) {
 			assert.Check(t, is.DeepEqual(tc.expectedInfoCDISpecDirs, info.CDISpecDirs))
 		})
 	}
+}
+
+func TestCDIInfoDiscoveredDevices(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "CDI not supported on Windows")
+
+	ctx := testutil.StartSpan(baseContext, t)
+
+	// Create a sample CDI spec file
+	specContent := `{
+		"cdiVersion": "0.5.0",
+		"kind": "test.com/device",
+		"devices": [
+			{
+				"name": "mygpu0",
+				"containerEdits": {
+					"deviceNodes": [
+						{"path": "/dev/null"}
+					]
+				}
+			}
+		]
+	}`
+
+	cdiDir := testutil.TempDir(t)
+	specFilePath := filepath.Join(cdiDir, "test-device.json")
+
+	err := os.WriteFile(specFilePath, []byte(specContent), 0644)
+	assert.NilError(t, err, "Failed to write sample CDI spec file")
+
+	d := daemon.New(t)
+	d.Start(t, "--feature", "cdi", "--cdi-spec-dir="+cdiDir)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	info, err := c.Info(ctx)
+	assert.NilError(t, err)
+
+	assert.Check(t, is.Len(info.CDISpecDirs, 1))
+	assert.Check(t, is.Equal(info.CDISpecDirs[0], cdiDir))
+
+	expectedDevice := system.DeviceInfo{
+		Source: "cdi",
+		ID:     "test.com/device=mygpu0",
+	}
+
+	assert.Check(t, is.Equal(len(info.DiscoveredDevices), 1), "Expected one discovered device")
+	assert.Check(t, is.DeepEqual(info.DiscoveredDevices, []system.DeviceInfo{expectedDevice}))
 }
