@@ -41,9 +41,7 @@ func TestEventsErrorInOptions(t *testing.T) {
 		}
 		_, errs := client.Events(context.Background(), e.options)
 		err := <-errs
-		if err == nil || !strings.Contains(err.Error(), e.expectedError) {
-			t.Fatalf("expected an error %q, got %v", e.expectedError, err)
-		}
+		assert.Check(t, is.ErrorContains(err, e.expectedError))
 	}
 }
 
@@ -152,9 +150,7 @@ func TestEvents(t *testing.T) {
 				break loop
 			case e := <-messages:
 				_, ok := eventsCase.expectedEvents[e.Actor.ID]
-				if !ok {
-					t.Fatalf("event received not expected with action %s & id %s", e.Action, e.Actor.ID)
-				}
+				assert.Check(t, ok, "event received not expected with action %s & id %s", e.Action, e.Actor.ID)
 			}
 		}
 	}
