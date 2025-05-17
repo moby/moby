@@ -36,6 +36,7 @@ func testSetup(t *testing.T) func() {
 func disable() {
 	incrementalUpdateTempl = nil
 	nftPath = ""
+	reloadTempl = nil
 	enableOnce = sync.Once{}
 }
 
@@ -44,7 +45,7 @@ func applyAndCheck(t *testing.T, tbl TableRef, goldenFilename string) {
 	err := tbl.Apply(context.Background())
 	assert.Check(t, err)
 	res := icmd.RunCommand("nft", "list", "ruleset")
-	assert.Check(t, is.Equal(res.ExitCode, 0))
+	res.Assert(t, icmd.Success)
 	golden.Assert(t, res.Combined(), goldenFilename)
 }
 
@@ -249,4 +250,50 @@ func TestSet(t *testing.T) {
 	// Update nftables and check what happened.
 	applyAndCheck(t, tbl4, t.Name()+"_deleted4.golden")
 	applyAndCheck(t, tbl6, t.Name()+"_deleted46.golden")
+}
+
+func TestReload(t *testing.T) {
+	defer testSetup(t)()
+
+	// Create a table with some stuff in it.
+	const tableName = "this_is_a_table"
+	tbl, err := NewTable(IPv4, tableName)
+	assert.NilError(t, err)
+	bc, err := tbl.BaseChain("a_base_chain", BaseChainTypeFilter, BaseChainHookForward, BaseChainPriorityFilter)
+	assert.NilError(t, err)
+	err = bc.AppendRule(0, "counter")
+	assert.NilError(t, err)
+	m := tbl.InterfaceVMap("this_is_a_vmap")
+	err = m.AddElement("eth0", "return")
+	assert.Check(t, err)
+	err = m.AddElement("eth1", "return")
+	assert.Check(t, err)
+	err = tbl.PrefixSet("set4").AddElement("192.0.2.0/24")
+	assert.Check(t, err)
+	applyAndCheck(t, tbl, t.Name()+"_created.golden")
+
+	// Delete the underlying nftables table.
+	deleteTable := func() {
+		t.Helper()
+		res := icmd.RunCommand("nft", "delete", "table", string(IPv4), tableName)
+		res.Assert(t, icmd.Success)
+		res = icmd.RunCommand("nft", "list", "ruleset")
+		res.Assert(t, icmd.Success)
+		assert.Check(t, is.Equal(res.Combined(), ""))
+	}
+	deleteTable()
+
+	// Reconstruct the nftables table.
+	err = tbl.Reload(context.Background())
+	assert.Check(t, err)
+	applyAndCheck(t, tbl, t.Name()+"_reloaded.golden")
+
+	// Delete again.
+	deleteTable()
+
+	// Check implicit/recovery reload - only deleting something that's gone missing
+	// from a vmap/set will trigger this.
+	err = m.DeleteElement("eth1")
+	assert.Check(t, err)
+	applyAndCheck(t, tbl, t.Name()+"_recovered.golden")
 }

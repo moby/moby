@@ -52,7 +52,11 @@ import (
 	"text/template"
 
 	"github.com/containerd/log"
+	"go.opentelemetry.io/otel"
 )
+
+// Prefix for OTEL span names.
+const spanPrefix = "libnetwork.internal.nftables"
 
 var (
 	// nftPath is the path of the "nft" tool, set by [Enable] and left empty if the tool
@@ -60,6 +64,8 @@ var (
 	nftPath string
 	// incrementalUpdateTempl is a parsed text/template, used to apply incremental updates.
 	incrementalUpdateTempl *template.Template
+	// reloadTempl is a parsed text/template, used to apply a whole table.
+	reloadTempl *template.Template
 	// enableOnce is used by [Enable] to avoid checking the path for "nft" more than once.
 	enableOnce sync.Once
 )
@@ -252,15 +258,55 @@ table {{$family}} {{$tableName}} {
 {{end}}{{end}}
 `
 
+// reloadTemplText is used with text/template to generate an nftables command file
+// (which will be applied atomically), to fully re-create a table.
+//
+// It first declares the table so if it doesn't already exist, it can be deleted.
+// Then it deletes the table and re-creates it.
+const reloadTemplText = `{{$family := .Family}}{{$tableName := .Name}}
+table {{$family}} {{$tableName}} {}
+delete table {{$family}} {{$tableName}}
+table {{$family}} {{$tableName}} {
+	{{range .VMaps}}map {{.Name}} {
+		type {{.ElementType}} : verdict
+		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
+        {{if .Elements}}elements = {
+			{{range $k,$v := .Elements}}{{$k}} : {{$v}},
+            {{end -}}
+		}{{end}}
+	}
+	{{end}}
+	{{range .Sets}}set {{.Name}} {
+		type {{.ElementType}}
+		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
+        {{if .Elements}}elements = {
+			{{range $k,$v := .Elements}}{{$k}},
+            {{end -}}
+		}{{end}}
+	}
+	{{end}}
+	{{range .Chains}}chain {{.Name}} {
+		{{if .ChainType}}type {{.ChainType}} hook {{.Hook}} priority {{.Priority}}; policy {{.Policy}}{{end}}
+		{{range .Rules}}{{.}}
+		{{end}}
+	}
+	{{end}}
+}
+`
+
 // Apply makes incremental updates to nftables, corresponding to changes to the [TableRef]
 // since Apply was last called.
 func (t TableRef) Apply(ctx context.Context) error {
-	var buf bytes.Buffer
+	if !Enabled() {
+		return errors.New("nftables is not enabled")
+	}
 
 	// Update nftables.
+	var buf bytes.Buffer
 	if err := incrementalUpdateTempl.Execute(&buf, t.t); err != nil {
 		return fmt.Errorf("failed to execute template nft ruleset: %w", err)
 	}
+
 	if err := nftApply(ctx, buf.Bytes()); err != nil {
 		// On error, log a line-numbered version of the generated "nft" input (because
 		// nft error messages refer to line numbers).
@@ -271,25 +317,51 @@ func (t TableRef) Apply(ctx context.Context) error {
 			sb.Write(line)
 		}
 		log.G(ctx).Error("nftables: failed to update nftables:\n", sb.String(), "\n", err)
+
+		// It's possible something destructive has happened to nftables. For example, in
+		// integration-cli tests, tests start daemons in the same netns as the integration
+		// test's own daemon. They don't always use their own daemon, but they tend to leave
+		// behind networks for the test infrastructure to clean up between tests. Starting
+		// a daemon flushes the "docker-bridges" table, so the cleanup fails to delete a
+		// rule that's been flushed. So, try reloading the whole table to get back in-sync.
+		return t.Reload(ctx)
+	}
+
+	// Note that updates have been applied.
+	t.t.updatesApplied()
+	return nil
+}
+
+// Reload deletes the table, then re-creates it, atomically.
+func (t TableRef) Reload(ctx context.Context) error {
+	if !Enabled() {
+		return errors.New("nftables is not enabled")
+	}
+
+	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{"table": t.t.Name, "family": t.t.Family}))
+	log.G(ctx).Warn("nftables: reloading table")
+
+	// Build the update.
+	var buf bytes.Buffer
+	if err := reloadTempl.Execute(&buf, t.t); err != nil {
+		return fmt.Errorf("failed to execute reload template: %w", err)
+	}
+
+	if err := nftApply(ctx, buf.Bytes()); err != nil {
+		// On error, log a line-numbered version of the generated "nft" input (because
+		// nft error messages refer to line numbers).
+		var sb strings.Builder
+		for i, line := range bytes.SplitAfter(buf.Bytes(), []byte("\n")) {
+			sb.WriteString(strconv.Itoa(i + 1))
+			sb.WriteString(":\t")
+			sb.Write(line)
+		}
+		log.G(ctx).Error("nftables: failed to reload nftable:\n", sb.String(), "\n", err)
 		return err
 	}
 
 	// Note that updates have been applied.
-	t.t.DeleteChainCommands = t.t.DeleteChainCommands[:0]
-	for _, c := range t.t.Chains {
-		c.Dirty = false
-	}
-	for _, m := range t.t.VMaps {
-		m.Dirty = false
-		m.AddedElements = map[string]string{}
-		m.DeletedElements = map[string]struct{}{}
-	}
-	for _, s := range t.t.Sets {
-		s.Dirty = false
-		s.AddedElements = map[string]struct{}{}
-		s.DeletedElements = map[string]struct{}{}
-	}
-	t.t.Dirty = false
+	t.t.updatesApplied()
 	return nil
 }
 
@@ -650,6 +722,24 @@ func (s SetRef) DeleteElement(element string) error {
 // ////////////////////////////
 // Internal
 
+func (t *table) updatesApplied() {
+	t.DeleteChainCommands = t.DeleteChainCommands[:0]
+	for _, c := range t.Chains {
+		c.Dirty = false
+	}
+	for _, m := range t.VMaps {
+		m.Dirty = false
+		m.AddedElements = map[string]string{}
+		m.DeletedElements = map[string]struct{}{}
+	}
+	for _, s := range t.Sets {
+		s.Dirty = false
+		s.AddedElements = map[string]struct{}{}
+		s.DeletedElements = map[string]struct{}{}
+	}
+	t.Dirty = false
+}
+
 /* Can't make text/template range over this, not sure why ...
 func (c *chain) Rules() iter.Seq[string] {
 	groups := make([]int, 0, len(c.ruleGroups))
@@ -691,11 +781,18 @@ func parseTemplate() error {
 	if err != nil {
 		return fmt.Errorf("parsing 'incrementalUpdateTemplText': %w", err)
 	}
+	reloadTempl, err = template.New("ruleset").Parse(reloadTemplText)
+	if err != nil {
+		return fmt.Errorf("parsing 'reloadTemplText': %w", err)
+	}
 	return nil
 }
 
 // nftApply runs the "nft" command.
 func nftApply(ctx context.Context, nftCmd []byte) error {
+	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".nftApply")
+	defer span.End()
+
 	if !Enabled() {
 		return errors.New("nftables is not enabled")
 	}
