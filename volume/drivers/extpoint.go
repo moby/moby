@@ -26,20 +26,28 @@ const extName = "VolumeDriver"
 //nolint:unused
 type volumeDriver interface {
 	// Create a volume with the given name
+	// pluginrpc-gen:request-timeout=long
 	Create(name string, opts map[string]string) (err error)
 	// Remove the volume with the given name
+	// pluginrpc-gen:request-timeout=short
 	Remove(name string) (err error)
 	// Path returns the mountpoint of the given volume.
+	// pluginrpc-gen:request-timeout=short
 	Path(name string) (mountpoint string, err error)
 	// Mount the given volume and return the mountpoint
+	// pluginrpc-gen:request-timeout=long
 	Mount(name, id string) (mountpoint string, err error)
 	// Unmount the given volume
+	// pluginrpc-gen:request-timeout=short
 	Unmount(name, id string) (err error)
 	// List lists all the volumes known to the driver
+	// pluginrpc-gen:request-timeout=short
 	List() (volumes []*proxyVolume, err error)
 	// Get retrieves the volume with the requested name
+	// pluginrpc-gen:request-timeout=short
 	Get(name string) (volume *proxyVolume, err error)
 	// Capabilities gets the list of capabilities of the driver
+	// pluginrpc-gen:request-timeout=short
 	Capabilities() (capabilities volume.Capability, err error)
 }
 

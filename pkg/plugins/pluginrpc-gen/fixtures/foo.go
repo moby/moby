@@ -81,3 +81,14 @@ type Fooer11 interface {
 type Fooer12 interface {
 	Foo(a aliasedio.Reader)
 }
+
+type FooerWithTimeout interface {
+	// pluginrpc-gen:request-timeout=long
+	WithTimeout() (err error)
+}
+
+type FooerWithMultilineAnnotation interface {
+	// Foo is a method that does something
+	// pluginrpc-gen:request-timeout=long
+	WithMultilineAnnotation() (err error)
+}
