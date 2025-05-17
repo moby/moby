@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/mount"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil/daemon"
@@ -193,6 +194,14 @@ func ServiceWithPidsLimit(limit int64) ServiceSpecOpt {
 	return func(spec *swarmtypes.ServiceSpec) {
 		ensureResources(spec)
 		spec.TaskTemplate.Resources.Limits.Pids = limit
+	}
+}
+
+// ServiceWithMounts sets the Mounts option of the service's ContainerSpec.
+func ServiceWithMounts(mounts []mount.Mount) ServiceSpecOpt {
+	return func(spec *swarmtypes.ServiceSpec) {
+		ensureContainerSpec(spec)
+		spec.TaskTemplate.ContainerSpec.Mounts = mounts
 	}
 }
 
