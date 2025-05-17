@@ -17,7 +17,7 @@ import (
 // the provided multi-platform image. This is only has effect if the input image
 // is a multi-platform image.
 func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...ImageLoadOption) (image.LoadResponse, error) {
-	var opts imageLoadOpts
+	var opts ImageLoadOpts
 	for _, opt := range loadOpts {
 		if err := opt.Apply(&opts); err != nil {
 			return image.LoadResponse{}, err

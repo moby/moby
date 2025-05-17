@@ -9,21 +9,21 @@ import (
 
 // ImageLoadOption is a type representing functional options for the image load operation.
 type ImageLoadOption interface {
-	Apply(*imageLoadOpts) error
+	Apply(*ImageLoadOpts) error
 }
-type imageLoadOptionFunc func(opt *imageLoadOpts) error
+type imageLoadOptionFunc func(opt *ImageLoadOpts) error
 
-func (f imageLoadOptionFunc) Apply(o *imageLoadOpts) error {
+func (f imageLoadOptionFunc) Apply(o *ImageLoadOpts) error {
 	return f(o)
 }
 
-type imageLoadOpts struct {
+type ImageLoadOpts struct {
 	apiOptions image.LoadOptions
 }
 
 // ImageLoadWithQuiet sets the quiet option for the image load operation.
 func ImageLoadWithQuiet(quiet bool) ImageLoadOption {
-	return imageLoadOptionFunc(func(opt *imageLoadOpts) error {
+	return imageLoadOptionFunc(func(opt *ImageLoadOpts) error {
 		opt.apiOptions.Quiet = quiet
 		return nil
 	})
@@ -31,7 +31,7 @@ func ImageLoadWithQuiet(quiet bool) ImageLoadOption {
 
 // ImageLoadWithPlatforms sets the platforms to be loaded from the image.
 func ImageLoadWithPlatforms(platforms ...ocispec.Platform) ImageLoadOption {
-	return imageLoadOptionFunc(func(opt *imageLoadOpts) error {
+	return imageLoadOptionFunc(func(opt *ImageLoadOpts) error {
 		if opt.apiOptions.Platforms != nil {
 			return fmt.Errorf("platforms already set to %v", opt.apiOptions.Platforms)
 		}
