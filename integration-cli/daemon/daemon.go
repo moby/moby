@@ -22,10 +22,10 @@ type Daemon struct {
 // New returns a Daemon instance to be used for testing.
 // This will create a directory such as d123456789 in the folder specified by $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
 // The daemon will not automatically start.
-func New(t testing.TB, dockerBinary string, dockerdBinary string, ops ...daemon.Option) *Daemon {
-	t.Helper()
+func New(tb testing.TB, dockerBinary string, dockerdBinary string, ops ...daemon.Option) *Daemon {
+	tb.Helper()
 	ops = append(ops, daemon.WithDockerdBinary(dockerdBinary))
-	d := daemon.New(t, ops...)
+	d := daemon.New(tb, ops...)
 	return &Daemon{
 		Daemon:       d,
 		dockerBinary: dockerBinary,

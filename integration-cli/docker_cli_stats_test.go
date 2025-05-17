@@ -18,12 +18,12 @@ type DockerCLIStatsSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIStatsSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIStatsSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIStatsSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIStatsSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 func (s *DockerCLIStatsSuite) TestStatsNoStream(c *testing.T) {

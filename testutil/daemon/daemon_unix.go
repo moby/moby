@@ -13,8 +13,8 @@ import (
 
 // cleanupMount unmounts the daemon root directory, or logs a message if
 // unmounting failed.
-func cleanupMount(t testing.TB, d *Daemon) {
-	t.Helper()
+func cleanupMount(tb testing.TB, d *Daemon) {
+	tb.Helper()
 	if err := mount.Unmount(d.Root); err != nil {
 		d.log.Logf("[%s] unable to unmount daemon root (%s): %v", d.id, d.Root, err)
 	}

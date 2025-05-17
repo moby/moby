@@ -37,13 +37,13 @@ type eventObserver struct {
 
 // newEventObserver creates the observer and initializes the command
 // without running it. Users must call `eventObserver.Start` to start the command.
-func newEventObserver(c *testing.T, args ...string) (*eventObserver, error) {
-	since := daemonTime(c).Unix()
-	return newEventObserverWithBacklog(c, since, args...)
+func newEventObserver(t *testing.T, args ...string) (*eventObserver, error) {
+	since := daemonTime(t).Unix()
+	return newEventObserverWithBacklog(t, since, args...)
 }
 
 // newEventObserverWithBacklog creates a new observer changing the start time of the backlog to return.
-func newEventObserverWithBacklog(c *testing.T, since int64, args ...string) (*eventObserver, error) {
+func newEventObserverWithBacklog(t *testing.T, since int64, args ...string) (*eventObserver, error) {
 	startTime := strconv.FormatInt(since, 10)
 	cmdArgs := []string{"events", "--since", startTime}
 	if len(args) > 0 {
@@ -95,13 +95,13 @@ func (e *eventObserver) Match(match eventMatcher, process eventMatchProcessor) {
 	e.disconnectionError = err
 }
 
-func (e *eventObserver) CheckEventError(c *testing.T, id, event string, match eventMatcher) {
+func (e *eventObserver) CheckEventError(t *testing.T, id, event string, match eventMatcher) {
 	var foundEvent bool
 	scannerOut := e.buffer.String()
 
 	if e.disconnectionError != nil {
-		until := daemonUnixTime(c)
-		out := cli.DockerCmd(c, "events", "--since", e.startTime, "--until", until).Stdout()
+		until := daemonUnixTime(t)
+		out := cli.DockerCmd(t, "events", "--since", e.startTime, "--until", until).Stdout()
 		events := strings.Split(strings.TrimSpace(out), "\n")
 		for _, e := range events {
 			if _, ok := match(e); ok {
@@ -112,7 +112,7 @@ func (e *eventObserver) CheckEventError(c *testing.T, id, event string, match ev
 		scannerOut = out
 	}
 	if !foundEvent {
-		c.Fatalf("failed to observe event `%s` for %s. Disconnection error: %v\nout:\n%v", event, id, e.disconnectionError, scannerOut)
+		t.Fatalf("failed to observe event `%s` for %s. Disconnection error: %v\nout:\n%v", event, id, e.disconnectionError, scannerOut)
 	}
 }
 
@@ -146,18 +146,18 @@ func processEventMatch(actions map[string]chan bool) eventMatchProcessor {
 
 // parseEventAction parses an event text and returns the action.
 // It fails if the text is not in the event format.
-func parseEventAction(c *testing.T, text string) string {
+func parseEventAction(t *testing.T, text string) string {
 	matches := eventstestutils.ScanMap(text)
 	return matches["action"]
 }
 
 // eventActionsByIDAndType returns the actions for a given id and type.
 // It fails if the text is not in the event format.
-func eventActionsByIDAndType(c *testing.T, events []string, id, eventType string) []string {
+func eventActionsByIDAndType(t *testing.T, events []string, id, eventType string) []string {
 	var filtered []string
 	for _, event := range events {
 		matches := eventstestutils.ScanMap(event)
-		assert.Assert(c, matches != nil)
+		assert.Assert(t, matches != nil)
 		if matchIDAndEventType(matches, id, eventType) {
 			filtered = append(filtered, matches["action"])
 		}
@@ -185,12 +185,12 @@ func matchEventID(matches map[string]string, id string) bool {
 	return matchID
 }
 
-func parseEvents(c *testing.T, out, match string) {
+func parseEvents(t *testing.T, out, match string) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	for _, event := range events {
 		matches := eventstestutils.ScanMap(event)
 		matched, err := regexp.MatchString(match, matches["action"])
-		assert.NilError(c, err)
-		assert.Assert(c, matched, "Matcher: %s did not match %s", match, matches["action"])
+		assert.NilError(t, err)
+		assert.Assert(t, matched, "Matcher: %s did not match %s", match, matches["action"])
 	}
 }

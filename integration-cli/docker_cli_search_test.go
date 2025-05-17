@@ -15,12 +15,12 @@ type DockerCLISearchSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLISearchSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLISearchSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLISearchSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLISearchSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 // search for repos named  "registry" on the central registry

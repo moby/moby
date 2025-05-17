@@ -24,10 +24,10 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func fakeImageService(t testing.TB, ctx context.Context, cs content.Store) *ImageService {
+func fakeImageService(tb testing.TB, ctx context.Context, cs content.Store) *ImageService {
 	snapshotter := &testSnapshotterService{}
 
-	mdb := newTestDB(ctx, t)
+	mdb := newTestDB(ctx, tb)
 
 	snapshotters := map[string]snapshots.Snapshotter{
 		defaults.DefaultSnapshotter: snapshotter,
@@ -50,7 +50,7 @@ func fakeImageService(t testing.TB, ctx context.Context, cs content.Store) *Imag
 		containerd.WithSnapshotters(snapshotters),
 		containerd.WithLeasesService(noopLeasesManager{}),
 	))
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	service.client = c8dCli
 	return service

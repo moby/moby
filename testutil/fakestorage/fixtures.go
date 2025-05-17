@@ -16,8 +16,8 @@ import (
 
 var ensureHTTPServerOnce sync.Once
 
-func ensureHTTPServerImage(t testing.TB) {
-	t.Helper()
+func ensureHTTPServerImage(tb testing.TB) {
+	tb.Helper()
 	var doIt bool
 	ensureHTTPServerOnce.Do(func() {
 		doIt = true
@@ -27,9 +27,9 @@ func ensureHTTPServerImage(t testing.TB) {
 		return
 	}
 
-	defer testEnv.ProtectImage(t, "httpserver:latest")
+	defer testEnv.ProtectImage(tb, "httpserver:latest")
 
-	tmp := t.TempDir()
+	tmp := tb.TempDir()
 
 	goos := testEnv.DaemonInfo.OSType
 	if goos == "" {
@@ -42,13 +42,13 @@ func ensureHTTPServerImage(t testing.TB) {
 
 	cpCmd, lookErr := exec.LookPath("cp")
 	if lookErr != nil {
-		t.Fatalf("could not build http server: %v", lookErr)
+		tb.Fatalf("could not build http server: %v", lookErr)
 	}
 
 	if _, err := os.Stat("../contrib/httpserver/httpserver"); os.IsNotExist(err) {
 		goCmd, lookErr := exec.LookPath("go")
 		if lookErr != nil {
-			t.Fatalf("could not build http server: %v", lookErr)
+			tb.Fatalf("could not build http server: %v", lookErr)
 		}
 
 		cmd := exec.Command(goCmd, "build", "-o", filepath.Join(tmp, "httpserver"), "github.com/docker/docker/contrib/httpserver")
@@ -59,27 +59,27 @@ func ensureHTTPServerImage(t testing.TB) {
 		}...)
 		var out []byte
 		if out, err = cmd.CombinedOutput(); err != nil {
-			t.Fatalf("could not build http server: %s", string(out))
+			tb.Fatalf("could not build http server: %s", string(out))
 		}
 	} else {
 		if out, err := exec.Command(cpCmd, "../contrib/httpserver/httpserver", filepath.Join(tmp, "httpserver")).CombinedOutput(); err != nil {
-			t.Fatalf("could not copy http server: %v", string(out))
+			tb.Fatalf("could not copy http server: %v", string(out))
 		}
 	}
 
 	if out, err := exec.Command(cpCmd, "../contrib/httpserver/Dockerfile", filepath.Join(tmp, "Dockerfile")).CombinedOutput(); err != nil {
-		t.Fatalf("could not build http server: %v", string(out))
+		tb.Fatalf("could not build http server: %v", string(out))
 	}
 
 	c := testEnv.APIClient()
 	reader, err := archive.TarWithOptions(tmp, &archive.TarOptions{})
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	resp, err := c.ImageBuild(context.Background(), reader, types.ImageBuildOptions{
 		Remove:      true,
 		ForceRemove: true,
 		Tags:        []string{"httpserver"},
 	})
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	_, err = io.Copy(io.Discard, resp.Body)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 }

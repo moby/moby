@@ -33,13 +33,13 @@ func (res ExecResult) Combined() string {
 
 // AssertSuccess fails the test and stops execution if the command exited with a
 // nonzero status code.
-func (res ExecResult) AssertSuccess(t testing.TB) {
-	t.Helper()
+func (res ExecResult) AssertSuccess(tb testing.TB) {
+	tb.Helper()
 	if res.ExitCode != 0 {
-		t.Logf("expected exit code 0, got %d", res.ExitCode)
-		t.Logf("stdout: %s", res.Stdout())
-		t.Logf("stderr: %s", res.Stderr())
-		t.FailNow()
+		tb.Logf("expected exit code 0, got %d", res.ExitCode)
+		tb.Logf("stdout: %s", res.Stdout())
+		tb.Logf("stderr: %s", res.Stderr())
+		tb.FailNow()
 	}
 }
 
@@ -87,11 +87,11 @@ func Exec(ctx context.Context, apiClient client.APIClient, id string, cmd []stri
 }
 
 // ExecT calls Exec() and aborts the test if an error occurs.
-func ExecT(ctx context.Context, t testing.TB, apiClient client.APIClient, id string, cmd []string, ops ...func(*container.ExecOptions)) ExecResult {
-	t.Helper()
+func ExecT(ctx context.Context, tb testing.TB, apiClient client.APIClient, id string, cmd []string, ops ...func(*container.ExecOptions)) ExecResult {
+	tb.Helper()
 	res, err := Exec(ctx, apiClient, id, cmd, ops...)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	return res
 }

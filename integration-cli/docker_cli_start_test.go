@@ -17,12 +17,12 @@ type DockerCLIStartSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIStartSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIStartSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIStartSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIStartSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 // Regression test for https://github.com/docker/docker/issues/7843

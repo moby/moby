@@ -24,34 +24,34 @@ import (
 )
 
 // NewAPIClient returns a docker API client configured from environment variables
-func NewAPIClient(t testing.TB, ops ...client.Opt) client.APIClient {
-	t.Helper()
+func NewAPIClient(tb testing.TB, ops ...client.Opt) client.APIClient {
+	tb.Helper()
 	ops = append([]client.Opt{client.FromEnv}, ops...)
 	clt, err := client.NewClientWithOpts(ops...)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	return clt
 }
 
 // DaemonTime provides the current time on the daemon host
-func DaemonTime(ctx context.Context, t testing.TB, client client.APIClient, testEnv *environment.Execution) time.Time {
-	t.Helper()
+func DaemonTime(ctx context.Context, tb testing.TB, client client.APIClient, testEnv *environment.Execution) time.Time {
+	tb.Helper()
 	if testEnv.IsLocalDaemon() {
 		return time.Now()
 	}
 
 	info, err := client.Info(ctx)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
-	assert.NilError(t, err, "invalid time format in GET /info response")
+	assert.NilError(tb, err, "invalid time format in GET /info response")
 	return dt
 }
 
 // DaemonUnixTime returns the current time on the daemon host with nanoseconds precision.
 // It return the time formatted how the client sends timestamps to the server.
-func DaemonUnixTime(ctx context.Context, t testing.TB, client client.APIClient, testEnv *environment.Execution) string {
-	t.Helper()
-	dt := DaemonTime(ctx, t, client, testEnv)
+func DaemonUnixTime(ctx context.Context, tb testing.TB, client client.APIClient, testEnv *environment.Execution) string {
+	tb.Helper()
+	dt := DaemonTime(ctx, tb, client, testEnv)
 	return fmt.Sprintf("%d.%09d", dt.Unix(), int64(dt.Nanosecond()))
 }
 

@@ -166,14 +166,14 @@ func CleanupContext(t *testing.T) {
 // https://github.com/golang/go/blob/8e658eee9c7a67a8a79a8308695920ac9917566c/src/testing/testing.go#L1449
 //
 // Since this is not a public API, it might change at any time.
-func CheckNotParallel(t testing.TB) {
-	t.Helper()
-	field := reflect.ValueOf(t).Elem().FieldByName("isParallel")
+func CheckNotParallel(tb testing.TB) {
+	tb.Helper()
+	field := reflect.ValueOf(tb).Elem().FieldByName("isParallel")
 	if field.IsValid() {
 		if field.Bool() {
-			t.Fatal("t.Parallel() was called before")
+			tb.Fatal("t.Parallel() was called before")
 		}
 	} else {
-		t.Logf("FIXME: CheckParallel could not determine if test %s is parallel - did the t.Parallel() implementation change?", t.Name())
+		tb.Logf("FIXME: CheckParallel could not determine if test %s is parallel - did the t.Parallel() implementation change?", tb.Name())
 	}
 }

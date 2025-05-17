@@ -26,38 +26,38 @@ func SetTestEnvironment(env *environment.Execution) {
 type CmdOperator func(*icmd.Cmd) func()
 
 // DockerCmd executes the specified docker command and expect a success
-func DockerCmd(t testing.TB, args ...string) *icmd.Result {
-	t.Helper()
-	return Docker(Args(args...)).Assert(t, icmd.Success)
+func DockerCmd(tb testing.TB, args ...string) *icmd.Result {
+	tb.Helper()
+	return Docker(Args(args...)).Assert(tb, icmd.Success)
 }
 
 // BuildCmd executes the specified docker build command and expect a success
-func BuildCmd(t testing.TB, name string, cmdOperators ...CmdOperator) *icmd.Result {
-	t.Helper()
-	return Docker(Args("build", "-t", name), cmdOperators...).Assert(t, icmd.Success)
+func BuildCmd(tb testing.TB, name string, cmdOperators ...CmdOperator) *icmd.Result {
+	tb.Helper()
+	return Docker(Args("build", "-t", name), cmdOperators...).Assert(tb, icmd.Success)
 }
 
 // InspectCmd executes the specified docker inspect command and expect a success
-func InspectCmd(t testing.TB, name string, cmdOperators ...CmdOperator) *icmd.Result {
-	t.Helper()
-	return Docker(Args("inspect", name), cmdOperators...).Assert(t, icmd.Success)
+func InspectCmd(tb testing.TB, name string, cmdOperators ...CmdOperator) *icmd.Result {
+	tb.Helper()
+	return Docker(Args("inspect", name), cmdOperators...).Assert(tb, icmd.Success)
 }
 
 // WaitRun will wait for the specified container to be running, maximum 5 seconds.
-func WaitRun(t testing.TB, name string, cmdOperators ...CmdOperator) {
-	t.Helper()
-	waitForInspectResult(t, name, "{{.State.Running}}", "true", 5*time.Second, cmdOperators...)
+func WaitRun(tb testing.TB, name string, cmdOperators ...CmdOperator) {
+	tb.Helper()
+	waitForInspectResult(tb, name, "{{.State.Running}}", "true", 5*time.Second, cmdOperators...)
 }
 
 // WaitExited will wait for the specified container to state exit, subject
 // to a maximum time limit in seconds supplied by the caller
-func WaitExited(t testing.TB, name string, timeout time.Duration, cmdOperators ...CmdOperator) {
-	t.Helper()
-	waitForInspectResult(t, name, "{{.State.Status}}", "exited", timeout, cmdOperators...)
+func WaitExited(tb testing.TB, name string, timeout time.Duration, cmdOperators ...CmdOperator) {
+	tb.Helper()
+	waitForInspectResult(tb, name, "{{.State.Status}}", "exited", timeout, cmdOperators...)
 }
 
 // waitForInspectResult waits for the specified expression to be equals to the specified expected string in the given time.
-func waitForInspectResult(t testing.TB, name, expr, expected string, timeout time.Duration, cmdOperators ...CmdOperator) {
+func waitForInspectResult(tb testing.TB, name, expr, expected string, timeout time.Duration, cmdOperators ...CmdOperator) {
 	after := time.After(timeout)
 
 	args := []string{"inspect", "-f", expr, name}
@@ -65,12 +65,12 @@ func waitForInspectResult(t testing.TB, name, expr, expected string, timeout tim
 		result := Docker(Args(args...), cmdOperators...)
 		if result.Error != nil {
 			if !strings.Contains(strings.ToLower(result.Stderr()), "no such") {
-				t.Fatalf("error executing docker inspect: %v\n%s",
+				tb.Fatalf("error executing docker inspect: %v\n%s",
 					result.Stderr(), result.Stdout())
 			}
 			select {
 			case <-after:
-				t.Fatal(result.Error)
+				tb.Fatal(result.Error)
 			default:
 				time.Sleep(10 * time.Millisecond)
 				continue
@@ -84,7 +84,7 @@ func waitForInspectResult(t testing.TB, name, expr, expected string, timeout tim
 
 		select {
 		case <-after:
-			t.Fatalf("condition \"%q == %q\" not true in time (%v)", out, expected, timeout)
+			tb.Fatalf("condition \"%q == %q\" not true in time (%v)", out, expected, timeout)
 		default:
 		}
 

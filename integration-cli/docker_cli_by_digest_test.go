@@ -31,53 +31,53 @@ var (
 	digestRegex     = lazyregexp.New(`Digest: ([\S]+)`)
 )
 
-func setupImage(c *testing.T) (digest.Digest, error) {
-	return setupImageWithTag(c, "latest")
+func setupImage(t *testing.T) (digest.Digest, error) {
+	return setupImageWithTag(t, "latest")
 }
 
-func setupImageWithTag(c *testing.T, tag string) (digest.Digest, error) {
+func setupImageWithTag(t *testing.T, tag string) (digest.Digest, error) {
 	const containerName = "busyboxbydigest"
 
 	// new file is committed because this layer is used for detecting malicious
 	// changes. if this was committed as empty layer it would be skipped on pull
 	// and malicious changes would never be detected.
-	cli.DockerCmd(c, "run", "-e", "digest=1", "--name", containerName, "busybox", "touch", "anewfile")
+	cli.DockerCmd(t, "run", "-e", "digest=1", "--name", containerName, "busybox", "touch", "anewfile")
 
 	// tag the image to upload it to the private registry
 	repoAndTag := repoName + ":" + tag
-	cli.DockerCmd(c, "commit", containerName, repoAndTag)
+	cli.DockerCmd(t, "commit", containerName, repoAndTag)
 
 	// delete the container as we don't need it any more
-	cli.DockerCmd(c, "rm", "-fv", containerName)
+	cli.DockerCmd(t, "rm", "-fv", containerName)
 
 	// push the image
-	out := cli.DockerCmd(c, "push", repoAndTag).Combined()
+	out := cli.DockerCmd(t, "push", repoAndTag).Combined()
 
 	// delete our local repo that we previously tagged
-	cli.DockerCmd(c, "rmi", repoAndTag)
+	cli.DockerCmd(t, "rmi", repoAndTag)
 
 	matches := pushDigestRegex.FindStringSubmatch(out)
-	assert.Equal(c, len(matches), 2, "unable to parse digest from push output: %s", out)
+	assert.Equal(t, len(matches), 2, "unable to parse digest from push output: %s", out)
 	pushDigest := matches[1]
 
 	return digest.Digest(pushDigest), nil
 }
 
-func testPullByTagDisplaysDigest(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	pushDigest, err := setupImage(c)
-	assert.NilError(c, err, "error setting up image")
+func testPullByTagDisplaysDigest(t *testing.T) {
+	testRequires(t, DaemonIsLinux)
+	pushDigest, err := setupImage(t)
+	assert.NilError(t, err, "error setting up image")
 
 	// pull from the registry using the tag
-	out := cli.DockerCmd(c, "pull", repoName).Combined()
+	out := cli.DockerCmd(t, "pull", repoName).Combined()
 
 	// the pull output includes "Digest: <digest>", so find that
 	matches := digestRegex.FindStringSubmatch(out)
-	assert.Equal(c, len(matches), 2, "unable to parse digest from push output: %s", out)
+	assert.Equal(t, len(matches), 2, "unable to parse digest from push output: %s", out)
 	pullDigest := matches[1]
 
 	// make sure the pushed and pull digests match
-	assert.Equal(c, pushDigest.String(), pullDigest)
+	assert.Equal(t, pushDigest.String(), pullDigest)
 }
 
 func (s *DockerRegistrySuite) TestPullByTagDisplaysDigest(c *testing.T) {
@@ -88,22 +88,22 @@ func (s *DockerSchema1RegistrySuite) TestPullByTagDisplaysDigest(c *testing.T) {
 	testPullByTagDisplaysDigest(c)
 }
 
-func testPullByDigest(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	pushDigest, err := setupImage(c)
-	assert.NilError(c, err, "error setting up image")
+func testPullByDigest(t *testing.T) {
+	testRequires(t, DaemonIsLinux)
+	pushDigest, err := setupImage(t)
+	assert.NilError(t, err, "error setting up image")
 
 	// pull from the registry using the <name>@<digest> reference
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
-	out := cli.DockerCmd(c, "pull", imageReference).Combined()
+	out := cli.DockerCmd(t, "pull", imageReference).Combined()
 
 	// the pull output includes "Digest: <digest>", so find that
 	matches := digestRegex.FindStringSubmatch(out)
-	assert.Equal(c, len(matches), 2, "unable to parse digest from push output: %s", out)
+	assert.Equal(t, len(matches), 2, "unable to parse digest from push output: %s", out)
 	pullDigest := matches[1]
 
 	// make sure the pushed and pull digests match
-	assert.Equal(c, pushDigest.String(), pullDigest)
+	assert.Equal(t, pushDigest.String(), pullDigest)
 }
 
 func (s *DockerRegistrySuite) TestPullByDigest(c *testing.T) {
@@ -114,19 +114,19 @@ func (s *DockerSchema1RegistrySuite) TestPullByDigest(c *testing.T) {
 	testPullByDigest(c)
 }
 
-func testPullByDigestNoFallback(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
+func testPullByDigestNoFallback(t *testing.T) {
+	testRequires(t, DaemonIsLinux)
 	// pull from the registry using the <name>@<digest> reference
 	imageReference := fmt.Sprintf("%s@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", repoName)
 	out, _, err := dockerCmdWithError("pull", imageReference)
-	assert.Assert(c, err != nil, "expected non-zero exit status and correct error message when pulling non-existing image")
+	assert.Assert(t, err != nil, "expected non-zero exit status and correct error message when pulling non-existing image")
 
 	expectedMsg := fmt.Sprintf("manifest for %s not found", imageReference)
 	if testEnv.UsingSnapshotter() {
 		expectedMsg = fmt.Sprintf("%s: not found", imageReference)
 	}
 
-	assert.Check(c, is.Contains(out, expectedMsg), "expected non-zero exit status and correct error message when pulling non-existing image")
+	assert.Check(t, is.Contains(out, expectedMsg), "expected non-zero exit status and correct error message when pulling non-existing image")
 }
 
 func (s *DockerRegistrySuite) TestPullByDigestNoFallback(c *testing.T) {

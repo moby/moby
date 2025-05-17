@@ -19,12 +19,12 @@ type DockerCLIPortSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIPortSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIPortSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIPortSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIPortSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
@@ -163,10 +163,10 @@ func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 	cli.DockerCmd(c, "rm", "-f", id)
 }
 
-func assertPortList(c *testing.T, out string, expected []string) {
-	c.Helper()
+func assertPortList(t *testing.T, out string, expected []string) {
+	t.Helper()
 	lines := strings.Split(strings.Trim(out, "\n "), "\n")
-	assert.Assert(c, is.Len(lines, len(expected)), "expected: %s", strings.Join(expected, ", "))
+	assert.Assert(t, is.Len(lines, len(expected)), "expected: %s", strings.Join(expected, ", "))
 
 	sort.Strings(lines)
 	sort.Strings(expected)
@@ -184,7 +184,7 @@ func assertPortList(c *testing.T, out string, expected []string) {
 		if lines[i] == expected[i] {
 			continue
 		}
-		assert.Equal(c, lines[i], oldFormat(expected[i]))
+		assert.Equal(t, lines[i], oldFormat(expected[i]))
 	}
 }
 
@@ -233,8 +233,8 @@ func assertPortRange(ctx context.Context, id string, expectedTCP, expectedUDP []
 	return nil
 }
 
-func stopRemoveContainer(id string, c *testing.T) {
-	cli.DockerCmd(c, "rm", "-f", id)
+func stopRemoveContainer(id string, t *testing.T) {
+	cli.DockerCmd(t, "rm", "-f", id)
 }
 
 func (s *DockerCLIPortSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {

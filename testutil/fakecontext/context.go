@@ -11,18 +11,18 @@ import (
 )
 
 // New creates a fake build context
-func New(t testing.TB, dir string, modifiers ...func(*Fake) error) *Fake {
-	t.Helper()
+func New(tb testing.TB, dir string, modifiers ...func(*Fake) error) *Fake {
+	tb.Helper()
 	fakeContext := &Fake{Dir: dir}
 	if dir == "" {
 		if err := newDir(fakeContext); err != nil {
-			t.Fatal(err)
+			tb.Fatal(err)
 		}
 	}
 
 	for _, modifier := range modifiers {
 		if err := modifier(fakeContext); err != nil {
-			t.Fatal(err)
+			tb.Fatal(err)
 		}
 	}
 
@@ -110,11 +110,11 @@ func (f *Fake) Close() error {
 }
 
 // AsTarReader returns a ReadCloser with the contents of Dir as a tar archive.
-func (f *Fake) AsTarReader(t testing.TB) io.ReadCloser {
-	t.Helper()
+func (f *Fake) AsTarReader(tb testing.TB) io.ReadCloser {
+	tb.Helper()
 	reader, err := archive.TarWithOptions(f.Dir, &archive.TarOptions{})
 	if err != nil {
-		t.Fatalf("Failed to create tar from %s: %s", f.Dir, err)
+		tb.Fatalf("Failed to create tar from %s: %s", f.Dir, err)
 	}
 	return reader
 }

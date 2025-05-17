@@ -15,9 +15,9 @@ import (
 type NodeConstructor func(*swarm.Node)
 
 // GetNode returns a swarm node identified by the specified id
-func (d *Daemon) GetNode(ctx context.Context, t testing.TB, id string, errCheck ...func(error) bool) *swarm.Node {
-	t.Helper()
-	cli := d.NewClientT(t)
+func (d *Daemon) GetNode(ctx context.Context, tb testing.TB, id string, errCheck ...func(error) bool) *swarm.Node {
+	tb.Helper()
+	cli := d.NewClientT(tb)
 	defer cli.Close()
 
 	node, _, err := cli.NodeInspectWithRaw(ctx, id)
@@ -28,32 +28,32 @@ func (d *Daemon) GetNode(ctx context.Context, t testing.TB, id string, errCheck 
 			}
 		}
 	}
-	assert.NilError(t, err, "[%s] (*Daemon).GetNode: NodeInspectWithRaw(%q) failed", d.id, id)
-	assert.Check(t, node.ID == id)
+	assert.NilError(tb, err, "[%s] (*Daemon).GetNode: NodeInspectWithRaw(%q) failed", d.id, id)
+	assert.Check(tb, node.ID == id)
 	return &node
 }
 
 // RemoveNode removes the specified node
-func (d *Daemon) RemoveNode(ctx context.Context, t testing.TB, id string, force bool) {
-	t.Helper()
-	cli := d.NewClientT(t)
+func (d *Daemon) RemoveNode(ctx context.Context, tb testing.TB, id string, force bool) {
+	tb.Helper()
+	cli := d.NewClientT(tb)
 	defer cli.Close()
 
 	options := types.NodeRemoveOptions{
 		Force: force,
 	}
 	err := cli.NodeRemove(ctx, id, options)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 }
 
 // UpdateNode updates a swarm node with the specified node constructor
-func (d *Daemon) UpdateNode(ctx context.Context, t testing.TB, id string, f ...NodeConstructor) {
-	t.Helper()
-	cli := d.NewClientT(t)
+func (d *Daemon) UpdateNode(ctx context.Context, tb testing.TB, id string, f ...NodeConstructor) {
+	tb.Helper()
+	cli := d.NewClientT(tb)
 	defer cli.Close()
 
 	for i := 0; ; i++ {
-		node := d.GetNode(ctx, t, id)
+		node := d.GetNode(ctx, tb, id)
 		for _, fn := range f {
 			fn(node)
 		}
@@ -63,19 +63,19 @@ func (d *Daemon) UpdateNode(ctx context.Context, t testing.TB, id string, f ...N
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
-		assert.NilError(t, err)
+		assert.NilError(tb, err)
 		return
 	}
 }
 
 // ListNodes returns the list of the current swarm nodes
-func (d *Daemon) ListNodes(ctx context.Context, t testing.TB) []swarm.Node {
-	t.Helper()
-	cli := d.NewClientT(t)
+func (d *Daemon) ListNodes(ctx context.Context, tb testing.TB) []swarm.Node {
+	tb.Helper()
+	cli := d.NewClientT(tb)
 	defer cli.Close()
 
 	nodes, err := cli.NodeList(ctx, types.NodeListOptions{})
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	return nodes
 }

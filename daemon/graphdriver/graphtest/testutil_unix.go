@@ -15,56 +15,56 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func verifyFile(t testing.TB, path string, mode os.FileMode, uid, gid uint32) {
+func verifyFile(tb testing.TB, path string, mode os.FileMode, uid, gid uint32) {
 	fi, err := os.Stat(path)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	actual := fi.Mode()
-	assert.Check(t, is.Equal(mode&os.ModeType, actual&os.ModeType), path)
-	assert.Check(t, is.Equal(mode&os.ModePerm, actual&os.ModePerm), path)
-	assert.Check(t, is.Equal(mode&os.ModeSticky, actual&os.ModeSticky), path)
-	assert.Check(t, is.Equal(mode&os.ModeSetuid, actual&os.ModeSetuid), path)
-	assert.Check(t, is.Equal(mode&os.ModeSetgid, actual&os.ModeSetgid), path)
+	assert.Check(tb, is.Equal(mode&os.ModeType, actual&os.ModeType), path)
+	assert.Check(tb, is.Equal(mode&os.ModePerm, actual&os.ModePerm), path)
+	assert.Check(tb, is.Equal(mode&os.ModeSticky, actual&os.ModeSticky), path)
+	assert.Check(tb, is.Equal(mode&os.ModeSetuid, actual&os.ModeSetuid), path)
+	assert.Check(tb, is.Equal(mode&os.ModeSetgid, actual&os.ModeSetgid), path)
 
 	if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
-		assert.Check(t, is.Equal(uid, stat.Uid), path)
-		assert.Check(t, is.Equal(gid, stat.Gid), path)
+		assert.Check(tb, is.Equal(uid, stat.Uid), path)
+		assert.Check(tb, is.Equal(gid, stat.Gid), path)
 	}
 }
 
-func createBase(t testing.TB, driver graphdriver.Driver, name string) {
+func createBase(tb testing.TB, driver graphdriver.Driver, name string) {
 	// We need to be able to set any perms
 	oldmask := unix.Umask(0)
 	defer unix.Umask(oldmask)
 
 	err := driver.CreateReadWrite(name, "", nil)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	dirFS, err := driver.Get(name, "")
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	defer driver.Put(name)
 
 	subdir := filepath.Join(dirFS, "a subdir")
-	assert.NilError(t, os.Mkdir(subdir, 0o705|os.ModeSticky))
-	assert.NilError(t, contdriver.LocalDriver.Lchown(subdir, 1, 2))
+	assert.NilError(tb, os.Mkdir(subdir, 0o705|os.ModeSticky))
+	assert.NilError(tb, contdriver.LocalDriver.Lchown(subdir, 1, 2))
 
 	file := filepath.Join(dirFS, "a file")
 	err = os.WriteFile(file, []byte("Some data"), 0o222|os.ModeSetuid)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 }
 
-func verifyBase(t testing.TB, driver graphdriver.Driver, name string) {
+func verifyBase(tb testing.TB, driver graphdriver.Driver, name string) {
 	dirFS, err := driver.Get(name, "")
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	defer driver.Put(name)
 
 	subdir := filepath.Join(dirFS, "a subdir")
-	verifyFile(t, subdir, 0o705|os.ModeDir|os.ModeSticky, 1, 2)
+	verifyFile(tb, subdir, 0o705|os.ModeDir|os.ModeSticky, 1, 2)
 
 	file := filepath.Join(dirFS, "a file")
-	verifyFile(t, file, 0o222|os.ModeSetuid, 0, 0)
+	verifyFile(tb, file, 0o222|os.ModeSetuid, 0, 0)
 
 	files, err := readDir(dirFS)
-	assert.NilError(t, err)
-	assert.Check(t, is.Len(files, 2))
+	assert.NilError(tb, err)
+	assert.Check(tb, is.Len(files, 2))
 }

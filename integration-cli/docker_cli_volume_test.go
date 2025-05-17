@@ -25,12 +25,12 @@ type DockerCLIVolumeSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIVolumeSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIVolumeSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIVolumeSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIVolumeSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 func (s *DockerCLIVolumeSuite) TestVolumeCLICreate(c *testing.T) {
@@ -119,7 +119,7 @@ func (s *DockerCLIVolumeSuite) TestVolumeLsFormatDefaultFormat(c *testing.T) {
 	assertVolumesInList(c, out, []string{"aaa default", "soo default", "test default"})
 }
 
-func assertVolumesInList(c *testing.T, out string, expected []string) {
+func assertVolumesInList(t *testing.T, out string, expected []string) {
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	for _, expect := range expected {
 		found := false
@@ -129,7 +129,7 @@ func assertVolumesInList(c *testing.T, out string, expected []string) {
 				break
 			}
 		}
-		assert.Assert(c, found, "Expected volume not found: %v, got: %v", expect, lines)
+		assert.Assert(t, found, "Expected volume not found: %v, got: %v", expect, lines)
 	}
 }
 

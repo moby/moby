@@ -46,27 +46,27 @@ func newProtectedElements() protectedElements {
 // ProtectAll protects the existing environment (containers, images, networks,
 // volumes, and, on Linux, plugins) from being cleaned up at the end of test
 // runs
-func ProtectAll(ctx context.Context, t testing.TB, testEnv *Execution) {
-	testutil.CheckNotParallel(t)
+func ProtectAll(ctx context.Context, tb testing.TB, testEnv *Execution) {
+	testutil.CheckNotParallel(tb)
 
-	t.Helper()
+	tb.Helper()
 	ctx, span := otel.Tracer("").Start(ctx, "ProtectAll")
 	defer span.End()
 
-	ProtectContainers(ctx, t, testEnv)
-	ProtectImages(ctx, t, testEnv)
-	ProtectNetworks(ctx, t, testEnv)
-	ProtectVolumes(ctx, t, testEnv)
+	ProtectContainers(ctx, tb, testEnv)
+	ProtectImages(ctx, tb, testEnv)
+	ProtectNetworks(ctx, tb, testEnv)
+	ProtectVolumes(ctx, tb, testEnv)
 	if testEnv.DaemonInfo.OSType == "linux" {
-		ProtectDefaultBridge(ctx, t, testEnv)
-		ProtectPlugins(ctx, t, testEnv)
+		ProtectDefaultBridge(ctx, tb, testEnv)
+		ProtectPlugins(ctx, tb, testEnv)
 	}
 }
 
 // ProtectContainer adds the specified container(s) to be protected in case of
 // clean
-func (e *Execution) ProtectContainer(t testing.TB, containers ...string) {
-	t.Helper()
+func (e *Execution) ProtectContainer(tb testing.TB, containers ...string) {
+	tb.Helper()
 	for _, container := range containers {
 		e.protectedElements.containers[container] = struct{}{}
 	}
@@ -74,19 +74,19 @@ func (e *Execution) ProtectContainer(t testing.TB, containers ...string) {
 
 // ProtectContainers protects existing containers from being cleaned up at the
 // end of test runs
-func ProtectContainers(ctx context.Context, t testing.TB, testEnv *Execution) {
-	t.Helper()
-	containers := getExistingContainers(ctx, t, testEnv)
-	testEnv.ProtectContainer(t, containers...)
+func ProtectContainers(ctx context.Context, tb testing.TB, testEnv *Execution) {
+	tb.Helper()
+	containers := getExistingContainers(ctx, tb, testEnv)
+	testEnv.ProtectContainer(tb, containers...)
 }
 
-func getExistingContainers(ctx context.Context, t testing.TB, testEnv *Execution) []string {
-	t.Helper()
+func getExistingContainers(ctx context.Context, tb testing.TB, testEnv *Execution) []string {
+	tb.Helper()
 	client := testEnv.APIClient()
 	containerList, err := client.ContainerList(ctx, container.ListOptions{
 		All: true,
 	})
-	assert.NilError(t, err, "failed to list containers")
+	assert.NilError(tb, err, "failed to list containers")
 
 	var containers []string
 	for _, container := range containerList {
@@ -96,8 +96,8 @@ func getExistingContainers(ctx context.Context, t testing.TB, testEnv *Execution
 }
 
 // ProtectImage adds the specified image(s) to be protected in case of clean
-func (e *Execution) ProtectImage(t testing.TB, images ...string) {
-	t.Helper()
+func (e *Execution) ProtectImage(tb testing.TB, images ...string) {
+	tb.Helper()
 	for _, img := range images {
 		e.protectedElements.images[img] = struct{}{}
 	}
@@ -105,24 +105,24 @@ func (e *Execution) ProtectImage(t testing.TB, images ...string) {
 
 // ProtectImages protects existing images and on linux frozen images from being
 // cleaned up at the end of test runs
-func ProtectImages(ctx context.Context, t testing.TB, testEnv *Execution) {
-	t.Helper()
-	images := getExistingImages(ctx, t, testEnv)
+func ProtectImages(ctx context.Context, tb testing.TB, testEnv *Execution) {
+	tb.Helper()
+	images := getExistingImages(ctx, tb, testEnv)
 
 	if testEnv.DaemonInfo.OSType == "linux" {
 		images = append(images, frozenImages...)
 	}
-	testEnv.ProtectImage(t, images...)
+	testEnv.ProtectImage(tb, images...)
 }
 
-func getExistingImages(ctx context.Context, t testing.TB, testEnv *Execution) []string {
-	t.Helper()
+func getExistingImages(ctx context.Context, tb testing.TB, testEnv *Execution) []string {
+	tb.Helper()
 	client := testEnv.APIClient()
 	imageList, err := client.ImageList(ctx, image.ListOptions{
 		All:     true,
 		Filters: filters.NewArgs(filters.Arg("dangling", "false")),
 	})
-	assert.NilError(t, err, "failed to list images")
+	assert.NilError(tb, err, "failed to list images")
 
 	var images []string
 	for _, img := range imageList {
@@ -151,8 +151,8 @@ func tagsFromImageSummary(image image.Summary) []string {
 
 // ProtectNetwork adds the specified network(s) to be protected in case of
 // clean
-func (e *Execution) ProtectNetwork(t testing.TB, networks ...string) {
-	t.Helper()
+func (e *Execution) ProtectNetwork(tb testing.TB, networks ...string) {
+	tb.Helper()
 	for _, network := range networks {
 		e.protectedElements.networks[network] = struct{}{}
 	}
@@ -160,17 +160,17 @@ func (e *Execution) ProtectNetwork(t testing.TB, networks ...string) {
 
 // ProtectNetworks protects existing networks from being cleaned up at the end
 // of test runs
-func ProtectNetworks(ctx context.Context, t testing.TB, testEnv *Execution) {
-	t.Helper()
-	networks := getExistingNetworks(ctx, t, testEnv)
-	testEnv.ProtectNetwork(t, networks...)
+func ProtectNetworks(ctx context.Context, tb testing.TB, testEnv *Execution) {
+	tb.Helper()
+	networks := getExistingNetworks(ctx, tb, testEnv)
+	testEnv.ProtectNetwork(tb, networks...)
 }
 
-func getExistingNetworks(ctx context.Context, t testing.TB, testEnv *Execution) []string {
-	t.Helper()
+func getExistingNetworks(ctx context.Context, tb testing.TB, testEnv *Execution) []string {
+	tb.Helper()
 	client := testEnv.APIClient()
 	networkList, err := client.NetworkList(ctx, network.ListOptions{})
-	assert.NilError(t, err, "failed to list networks")
+	assert.NilError(tb, err, "failed to list networks")
 
 	var networks []string
 	for _, network := range networkList {
@@ -180,8 +180,8 @@ func getExistingNetworks(ctx context.Context, t testing.TB, testEnv *Execution) 
 }
 
 // ProtectPlugin adds the specified plugin(s) to be protected in case of clean
-func (e *Execution) ProtectPlugin(t testing.TB, plugins ...string) {
-	t.Helper()
+func (e *Execution) ProtectPlugin(tb testing.TB, plugins ...string) {
+	tb.Helper()
 	for _, plugin := range plugins {
 		e.protectedElements.plugins[plugin] = struct{}{}
 	}
@@ -189,21 +189,21 @@ func (e *Execution) ProtectPlugin(t testing.TB, plugins ...string) {
 
 // ProtectPlugins protects existing plugins from being cleaned up at the end of
 // test runs
-func ProtectPlugins(ctx context.Context, t testing.TB, testEnv *Execution) {
-	t.Helper()
-	plugins := getExistingPlugins(ctx, t, testEnv)
-	testEnv.ProtectPlugin(t, plugins...)
+func ProtectPlugins(ctx context.Context, tb testing.TB, testEnv *Execution) {
+	tb.Helper()
+	plugins := getExistingPlugins(ctx, tb, testEnv)
+	testEnv.ProtectPlugin(tb, plugins...)
 }
 
-func getExistingPlugins(ctx context.Context, t testing.TB, testEnv *Execution) []string {
-	t.Helper()
+func getExistingPlugins(ctx context.Context, tb testing.TB, testEnv *Execution) []string {
+	tb.Helper()
 	client := testEnv.APIClient()
 	pluginList, err := client.PluginList(ctx, filters.Args{})
 	// Docker EE does not allow cluster-wide plugin management.
 	if errdefs.IsNotImplemented(err) {
 		return []string{}
 	}
-	assert.NilError(t, err, "failed to list plugins")
+	assert.NilError(tb, err, "failed to list plugins")
 
 	var plugins []string
 	for _, plugin := range pluginList {
@@ -213,8 +213,8 @@ func getExistingPlugins(ctx context.Context, t testing.TB, testEnv *Execution) [
 }
 
 // ProtectVolume adds the specified volume(s) to be protected in case of clean
-func (e *Execution) ProtectVolume(t testing.TB, volumes ...string) {
-	t.Helper()
+func (e *Execution) ProtectVolume(tb testing.TB, volumes ...string) {
+	tb.Helper()
 	for _, vol := range volumes {
 		e.protectedElements.volumes[vol] = struct{}{}
 	}
@@ -222,17 +222,17 @@ func (e *Execution) ProtectVolume(t testing.TB, volumes ...string) {
 
 // ProtectVolumes protects existing volumes from being cleaned up at the end of
 // test runs
-func ProtectVolumes(ctx context.Context, t testing.TB, testEnv *Execution) {
-	t.Helper()
-	volumes := getExistingVolumes(ctx, t, testEnv)
-	testEnv.ProtectVolume(t, volumes...)
+func ProtectVolumes(ctx context.Context, tb testing.TB, testEnv *Execution) {
+	tb.Helper()
+	volumes := getExistingVolumes(ctx, tb, testEnv)
+	testEnv.ProtectVolume(tb, volumes...)
 }
 
-func getExistingVolumes(ctx context.Context, t testing.TB, testEnv *Execution) []string {
-	t.Helper()
+func getExistingVolumes(ctx context.Context, tb testing.TB, testEnv *Execution) []string {
+	tb.Helper()
 	client := testEnv.APIClient()
 	volumeList, err := client.VolumeList(ctx, volume.ListOptions{})
-	assert.NilError(t, err, "failed to list volumes")
+	assert.NilError(tb, err, "failed to list volumes")
 
 	var volumes []string
 	for _, vol := range volumeList.Volumes {

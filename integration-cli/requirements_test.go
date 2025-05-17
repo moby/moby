@@ -158,11 +158,11 @@ func TODOBuildkit() bool {
 	return os.Getenv("DOCKER_BUILDKIT") == ""
 }
 
-func DockerCLIVersion(t testing.TB) string {
-	out := cli.DockerCmd(t, "--version").Stdout()
+func DockerCLIVersion(tb testing.TB) string {
+	out := cli.DockerCmd(tb, "--version").Stdout()
 	version := strings.Fields(out)
 	if len(version) < 3 {
-		t.Fatal("unknown version output", version)
+		tb.Fatal("unknown version output", version)
 	}
 	return version[2]
 }

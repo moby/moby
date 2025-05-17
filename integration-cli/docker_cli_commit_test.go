@@ -15,12 +15,12 @@ type DockerCLICommitSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLICommitSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLICommitSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLICommitSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLICommitSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 func (s *DockerCLICommitSuite) TestCommitAfterContainerIsDone(c *testing.T) {

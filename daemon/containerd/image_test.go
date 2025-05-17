@@ -278,19 +278,19 @@ func digestFor(i int64) digest.Digest {
 	return dgstr.Digest()
 }
 
-func newTestDB(ctx context.Context, t testing.TB) *metadata.DB {
-	t.Helper()
+func newTestDB(ctx context.Context, tb testing.TB) *metadata.DB {
+	tb.Helper()
 
-	p := filepath.Join(t.TempDir(), "metadata")
+	p := filepath.Join(tb.TempDir(), "metadata")
 	bdb, err := bolt.Open(p, 0o600, &bolt.Options{})
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
-	t.Cleanup(func() { bdb.Close() })
+	tb.Cleanup(func() { bdb.Close() })
 
 	mdb := metadata.NewDB(bdb, nil, nil)
 	if err := mdb.Init(ctx); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	return mdb
