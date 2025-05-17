@@ -3,20 +3,8 @@
 package iptabler
 
 import (
-	"context"
-	"errors"
-	"os"
-
-	"github.com/containerd/log"
-	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/iptables"
-	"github.com/vishvananda/netlink"
 )
-
-// Path to the executable installed in Linux under WSL2 that reports on
-// WSL config. https://github.com/microsoft/WSL/releases/tag/2.0.4
-// Can be modified by tests.
-var wslinfoPath = "/usr/bin/wslinfo"
 
 // mirroredWSL2Workaround adds or removes an IPv4 NAT rule, depending on whether
 // docker's host Linux appears to be a guest running under WSL2 in with mirrored
@@ -50,55 +38,15 @@ var wslinfoPath = "/usr/bin/wslinfo"
 // arriving from any other bridge network. Similarly, this function adds (or
 // removes) a rule to RETURN early for packets delivered via loopback0 with
 // destination 127.0.0.0/8.
-func mirroredWSL2Workaround(ctx context.Context, ipv iptables.IPVersion, hairpin bool) error {
+func mirroredWSL2Workaround(ipv iptables.IPVersion, enable bool) error {
 	// WSL2 does not (currently) support Windows<->Linux communication via ::1.
 	if ipv != iptables.IPv4 {
 		return nil
 	}
-	return programChainRule(mirroredWSL2Rule(), "WSL2 loopback", shouldInsertMirroredWSL2Rule(ctx, hairpin))
-}
-
-// shouldInsertMirroredWSL2Rule returns true if the NAT rule for mirrored WSL2 workaround
-// is required. It is required if:
-//   - the userland proxy is running. If not, there's nothing on the host to catch
-//     the packet, so the loopback0 rule as wouldn't be useful. However, without
-//     the workaround, with improvements in WSL2 v2.3.11, and without userland proxy
-//     running - no workaround is needed, the normal DNAT/masquerading works.
-//   - and, the host Linux appears to be running under Windows WSL2 with mirrored
-//     mode networking.
-func shouldInsertMirroredWSL2Rule(ctx context.Context, hairpin bool) bool {
-	if hairpin {
-		return false
-	}
-	return isRunningUnderWSL2MirroredMode(ctx)
-}
-
-// isRunningUnderWSL2MirroredMode returns true if the host Linux appears to be
-// running under Windows WSL2 with mirrored mode networking. If a loopback0
-// device exists, and there's an executable at /usr/bin/wslinfo, infer that
-// this is WSL2 with mirrored networking. ("wslinfo --networking-mode" reports
-// "mirrored", but applying the workaround for WSL2's loopback device when it's
-// not needed is low risk, compared with executing wslinfo with dockerd's
-// elevated permissions.)
-func isRunningUnderWSL2MirroredMode(ctx context.Context) bool {
-	if _, err := nlwrap.LinkByName("loopback0"); err != nil {
-		if !errors.As(err, &netlink.LinkNotFoundError{}) {
-			log.G(ctx).WithError(err).Warn("Failed to check for WSL interface")
-		}
-		return false
-	}
-	stat, err := os.Stat(wslinfoPath)
-	if err != nil {
-		return false
-	}
-	return stat.Mode().IsRegular() && (stat.Mode().Perm()&0o111) != 0
-}
-
-func mirroredWSL2Rule() iptables.Rule {
-	return iptables.Rule{
+	return programChainRule(iptables.Rule{
 		IPVer: iptables.IPv4,
 		Table: iptables.Nat,
 		Chain: dockerChain,
 		Args:  []string{"-i", "loopback0", "-d", "127.0.0.0/8", "-j", "RETURN"},
-	}
+	}, "WSL2 loopback", enable)
 }

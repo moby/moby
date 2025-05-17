@@ -45,14 +45,14 @@ func NewIptabler(ctx context.Context, config firewaller.Config) (firewaller.Fire
 	if ipt.config.IPv4 {
 		removeIPChains(ctx, iptables.IPv4)
 
-		if err := setupIPChains(ctx, iptables.IPv4, ipt.config.Hairpin); err != nil {
+		if err := setupIPChains(ctx, iptables.IPv4, ipt.config); err != nil {
 			return nil, err
 		}
 
 		// Make sure on firewall reload, first thing being re-played is chains creation
 		iptables.OnReloaded(func() {
 			log.G(ctx).Debugf("Recreating iptables chains on firewall reload")
-			if err := setupIPChains(ctx, iptables.IPv4, ipt.config.Hairpin); err != nil {
+			if err := setupIPChains(ctx, iptables.IPv4, ipt.config); err != nil {
 				log.G(ctx).WithError(err).Error("Error reloading iptables chains")
 			}
 		})
@@ -69,7 +69,7 @@ func NewIptabler(ctx context.Context, config firewaller.Config) (firewaller.Fire
 
 		removeIPChains(ctx, iptables.IPv6)
 
-		err := setupIPChains(ctx, iptables.IPv6, ipt.config.Hairpin)
+		err := setupIPChains(ctx, iptables.IPv6, ipt.config)
 		if err != nil {
 			// If the chains couldn't be set up, it's probably because the kernel has no IPv6
 			// support, or it doesn't have module ip6_tables loaded. It won't be possible to
@@ -81,7 +81,7 @@ func NewIptabler(ctx context.Context, config firewaller.Config) (firewaller.Fire
 			// Make sure on firewall reload, first thing being re-played is chains creation
 			iptables.OnReloaded(func() {
 				log.G(ctx).Debugf("Recreating ip6tables chains on firewall reload")
-				if err := setupIPChains(ctx, iptables.IPv6, ipt.config.Hairpin); err != nil {
+				if err := setupIPChains(ctx, iptables.IPv6, ipt.config); err != nil {
 					log.G(ctx).WithError(err).Error("Error reloading ip6tables chains")
 				}
 			})
@@ -117,7 +117,7 @@ func (ipt *iptabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVer
 	return nil
 }
 
-func setupIPChains(ctx context.Context, version iptables.IPVersion, hairpin bool) (retErr error) {
+func setupIPChains(ctx context.Context, version iptables.IPVersion, iptCfg firewaller.Config) (retErr error) {
 	iptable := iptables.GetIptable(version)
 
 	_, err := iptable.NewChain(dockerChain, iptables.Nat)
@@ -204,12 +204,12 @@ func setupIPChains(ctx context.Context, version iptables.IPVersion, hairpin bool
 		}
 	}()
 
-	if err := addNATJumpRules(version, hairpin, true); err != nil {
+	if err := addNATJumpRules(version, iptCfg.Hairpin, true); err != nil {
 		return fmt.Errorf("failed to add jump rules to %s NAT table: %w", version, err)
 	}
 	defer func() {
 		if retErr != nil {
-			if err := addNATJumpRules(version, hairpin, false); err != nil {
+			if err := addNATJumpRules(version, iptCfg.Hairpin, false); err != nil {
 				log.G(ctx).Warnf("failed on removing jump rules from %s NAT table: %v", version, err)
 			}
 		}
@@ -231,7 +231,7 @@ func setupIPChains(ctx context.Context, version iptables.IPVersion, hairpin bool
 		return err
 	}
 
-	if err := mirroredWSL2Workaround(ctx, version, hairpin); err != nil {
+	if err := mirroredWSL2Workaround(version, !iptCfg.Hairpin && iptCfg.WSL2Mirrored); err != nil {
 		return err
 	}
 

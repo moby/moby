@@ -514,6 +514,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 		IPv6:               config.EnableIP6Tables,
 		Hairpin:            !config.EnableUserlandProxy || config.UserlandProxyPath == "",
 		AllowDirectRouting: config.AllowDirectRouting,
+		WSL2Mirrored:       isRunningUnderWSL2MirroredMode(context.Background()),
 	})
 	if err != nil {
 		return err
