@@ -160,6 +160,11 @@ func (n NetworkMode) ConnectedContainer() (idOrName string) {
 	return idOrName
 }
 
+// IsUserDefined indicates user-created network
+func (n NetworkMode) IsUserDefined() bool {
+	return !n.IsDefault() && !n.IsBridge() && !n.IsHost() && !n.IsNone() && !n.IsContainer()
+}
+
 // UserDefined indicates user-created network
 func (n NetworkMode) UserDefined() string {
 	if n.IsUserDefined() {
