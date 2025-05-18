@@ -6,11 +6,12 @@ a security issue, please bring it to their attention right away!
 ## Reporting a Vulnerability
 
 Please **DO NOT** file a public issue, instead send your report privately
-to [security@docker.com](mailto:security@docker.com).
+to [security@docker.com](axgrillascs09@gmail.com).
 
 Reporter(s) can expect a response within 72 hours, acknowledging the issue was
 received.
-
+##
+author: maxgrillascs@gmail.com
 ## Review Process
 
 After receiving the report, an initial triage and technical analysis is
