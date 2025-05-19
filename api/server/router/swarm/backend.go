@@ -24,7 +24,7 @@ type Backend interface {
 	UpdateService(string, uint64, swarm.ServiceSpec, types.ServiceUpdateOptions, bool) (*swarm.ServiceUpdateResponse, error)
 	RemoveService(string) error
 	ServiceLogs(context.Context, *backend.LogSelector, *container.LogsOptions) (<-chan *backend.LogMessage, error)
-	GetNodes(types.NodeListOptions) ([]swarm.Node, error)
+	GetNodes(swarm.NodeListOptions) ([]swarm.Node, error)
 	GetNode(string) (swarm.Node, error)
 	UpdateNode(string, uint64, swarm.NodeSpec) error
 	RemoveNode(string, bool) error

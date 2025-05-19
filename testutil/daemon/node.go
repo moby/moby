@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"gotest.tools/v3/assert"
 )
@@ -39,7 +38,7 @@ func (d *Daemon) RemoveNode(ctx context.Context, t testing.TB, id string, force 
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	options := types.NodeRemoveOptions{
+	options := swarm.NodeRemoveOptions{
 		Force: force,
 	}
 	err := cli.NodeRemove(ctx, id, options)
@@ -74,7 +73,7 @@ func (d *Daemon) ListNodes(ctx context.Context, t testing.TB) []swarm.Node {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	nodes, err := cli.NodeList(ctx, types.NodeListOptions{})
+	nodes, err := cli.NodeList(ctx, swarm.NodeListOptions{})
 	assert.NilError(t, err)
 
 	return nodes

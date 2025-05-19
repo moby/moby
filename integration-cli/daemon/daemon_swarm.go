@@ -178,7 +178,7 @@ func (d *Daemon) CheckLeader(ctx context.Context) func(t *testing.T) (interface{
 
 		errList := "could not get node list"
 
-		ls, err := cli.NodeList(ctx, types.NodeListOptions{})
+		ls, err := cli.NodeList(ctx, swarm.NodeListOptions{})
 		if err != nil {
 			return err, errList
 		}

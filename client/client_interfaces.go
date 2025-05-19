@@ -155,8 +155,8 @@ type NetworkAPIClient interface {
 // NodeAPIClient defines API client methods for the nodes
 type NodeAPIClient interface {
 	NodeInspectWithRaw(ctx context.Context, nodeID string) (swarm.Node, []byte, error)
-	NodeList(ctx context.Context, options types.NodeListOptions) ([]swarm.Node, error)
-	NodeRemove(ctx context.Context, nodeID string, options types.NodeRemoveOptions) error
+	NodeList(ctx context.Context, options swarm.NodeListOptions) ([]swarm.Node, error)
+	NodeRemove(ctx context.Context, nodeID string, options swarm.NodeRemoveOptions) error
 	NodeUpdate(ctx context.Context, nodeID string, version swarm.Version, node swarm.NodeSpec) error
 }
 

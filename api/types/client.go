@@ -48,16 +48,6 @@ func (h *HijackedResponse) CloseWrite() error {
 	return nil
 }
 
-// NodeListOptions holds parameters to list nodes with.
-type NodeListOptions struct {
-	Filters filters.Args
-}
-
-// NodeRemoveOptions holds parameters to remove nodes with.
-type NodeRemoveOptions struct {
-	Force bool
-}
-
 // ServiceCreateOptions contains the options to use when creating a service.
 type ServiceCreateOptions struct {
 	// EncodedRegistryAuth is the encoded registry authorization credentials to
