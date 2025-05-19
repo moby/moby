@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/swarm"
 )
 
@@ -67,7 +68,7 @@ func parsePingResponse(cli *Client, resp *http.Response) (types.Ping, error) {
 		ping.Experimental = true
 	}
 	if bv := resp.Header.Get("Builder-Version"); bv != "" {
-		ping.BuilderVersion = types.BuilderVersion(bv)
+		ping.BuilderVersion = build.BuilderVersion(bv)
 	}
 	if si := resp.Header.Get("Swarm"); si != "" {
 		state, role, _ := strings.Cut(si, "/")

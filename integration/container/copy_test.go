@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/build"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
@@ -196,7 +195,7 @@ func makeTestImage(ctx context.Context, t *testing.T) (imageID string) {
 	`))
 	defer buildCtx.Close()
 
-	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), types.ImageBuildOptions{})
+	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), build.ImageBuildOptions{})
 	assert.NilError(t, err)
 	defer resp.Body.Close()
 
@@ -270,7 +269,7 @@ func TestCopyFromContainer(t *testing.T) {
 	`))
 	defer buildCtx.Close()
 
-	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), types.ImageBuildOptions{})
+	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), build.ImageBuildOptions{})
 	assert.NilError(t, err)
 	defer resp.Body.Close()
 
