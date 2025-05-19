@@ -414,7 +414,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *testing.T) {
 
 	// d1 will eventually step down from leader because there is no longer an active quorum, wait for that to happen
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		_, err := cli.ServiceCreate(testutil.GetContext(c), service.Spec, types.ServiceCreateOptions{})
+		_, err := cli.ServiceCreate(testutil.GetContext(c), service.Spec, swarm.ServiceCreateOptions{})
 		return err.Error(), ""
 	}, checker.Contains("Make sure more than half of the managers are online.")), poll.WithTimeout(defaultReconciliationTimeout*2))
 

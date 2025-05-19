@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration/internal/swarm"
@@ -44,7 +43,7 @@ func TestServiceListWithStatuses(t *testing.T) {
 		// tasks to fail and exit. instead, we'll just pass no args, which
 		// works.
 		spec.TaskTemplate.ContainerSpec.Args = []string{}
-		resp, err := client.ServiceCreate(ctx, spec, types.ServiceCreateOptions{
+		resp, err := client.ServiceCreate(ctx, spec, swarmtypes.ServiceCreateOptions{
 			QueryRegistry: false,
 		})
 		assert.NilError(t, err)

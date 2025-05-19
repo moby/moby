@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
@@ -165,7 +164,7 @@ func TestCreateServiceConflict(t *testing.T) {
 	swarm.CreateService(ctx, t, d, serviceSpec...)
 
 	spec := swarm.CreateServiceSpec(t, serviceSpec...)
-	_, err := c.ServiceCreate(ctx, spec, types.ServiceCreateOptions{})
+	_, err := c.ServiceCreate(ctx, spec, swarmtypes.ServiceCreateOptions{})
 	assert.Check(t, errdefs.IsConflict(err))
 	assert.ErrorContains(t, err, "service "+serviceName+" already exists")
 }
