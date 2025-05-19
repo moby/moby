@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -23,7 +23,7 @@ func TestVolumeInspectError(t *testing.T) {
 	}
 
 	_, err := client.VolumeInspect(context.Background(), "nothing")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestVolumeInspectNotFound(t *testing.T) {
@@ -32,7 +32,7 @@ func TestVolumeInspectNotFound(t *testing.T) {
 	}
 
 	_, err := client.VolumeInspect(context.Background(), "unknown")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestVolumeInspectWithEmptyID(t *testing.T) {
@@ -42,11 +42,11 @@ func TestVolumeInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.VolumeInspectWithRaw(context.Background(), "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	_, _, err = client.VolumeInspectWithRaw(context.Background(), "    ")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
