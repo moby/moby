@@ -5,6 +5,8 @@ import (
 )
 
 // FromStatusCode creates an errdef error, based on the provided HTTP status-code
+//
+// Deprecated: Use [cerrdefs.ToNative] instead
 func FromStatusCode(err error, statusCode int) error {
 	if err == nil {
 		return nil
