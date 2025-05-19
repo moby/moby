@@ -416,7 +416,7 @@ func (sr *swarmRouter) getSecrets(ctx context.Context, w http.ResponseWriter, r 
 		return err
 	}
 
-	secrets, err := sr.backend.GetSecrets(basictypes.SecretListOptions{Filters: filters})
+	secrets, err := sr.backend.GetSecrets(types.SecretListOptions{Filters: filters})
 	if err != nil {
 		return err
 	}
@@ -439,7 +439,7 @@ func (sr *swarmRouter) createSecret(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusCreated, &basictypes.SecretCreateResponse{
+	return httputils.WriteJSON(w, http.StatusCreated, &types.SecretCreateResponse{
 		ID: id,
 	})
 }

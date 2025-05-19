@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/storage"
+	"github.com/docker/docker/api/types/swarm"
 )
 
 // IDResponse Response to an API call that returns just an Id.
@@ -114,6 +115,17 @@ type ImageInspect = image.InspectResponse
 //
 // Deprecated: moved to [github.com/docker/docker/api/types/registry.RequestAuthConfig].
 type RequestPrivilegeFunc func(context.Context) (string, error)
+
+// SecretCreateResponse contains the information returned to a client
+// on the creation of a new secret.
+//
+// Deprecated: use [swarm.SecretCreateResponse].
+type SecretCreateResponse = swarm.SecretCreateResponse
+
+// SecretListOptions holds parameters to list secrets
+//
+// Deprecated: use [swarm.SecretListOptions].
+type SecretListOptions = swarm.SecretListOptions
 
 // BuildCache contains information about a build cache record.
 //
