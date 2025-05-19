@@ -35,7 +35,7 @@ kernelMinor="${kernelVersion#$kernelMajor.}"
 kernelMinor="${kernelMinor%%.*}"
 
 check_cgroup() {
-    local sys_fs_cgroup="$(grep -E '\s+/sys/fs/cgroup\s+' /proc/mounts | head -n 1 | cut -d ' ' -f1)"
+    sys_fs_cgroup="$(grep -E '\s+/sys/fs/cgroup\s+' /proc/mounts | head -n 1 | awk '{ print $1 }')"
 
     if [ "$sys_fs_cgroup" != "cgroup2" ]; then
         echo 1
@@ -213,7 +213,7 @@ fi
 
 check_flags \
 	NAMESPACES NET_NS PID_NS IPC_NS UTS_NS \
-	CGROUPS CGROUP_SCHED \
+	CGROUPS CGROUP_SCHED CPUSETS MEMCG \
 	KEYS \
 	VETH BRIDGE BRIDGE_NETFILTER \
 	IP_NF_FILTER IP_NF_MANGLE IP_NF_TARGET_MASQUERADE \
@@ -228,7 +228,7 @@ check_flags \
 # (POSIX_MQUEUE is required for bind-mounting /dev/mqueue into containers)
 
 if [ "$cgroupVersion" -eq 1 ]; then
-	check_flags CGROUP_FREEZER CGROUP_DEVICE CPUSETS CGROUP_CPUACCT MEMCG
+	check_flags CGROUP_FREEZER CGROUP_DEVICE CGROUP_CPUACCT
 fi
 
 if [ "$kernelMajor" -lt 4 ] || ([ "$kernelMajor" -eq 4 ] && [ "$kernelMinor" -lt 8 ]); then
@@ -258,9 +258,7 @@ echo 'Optional Features:'
 	check_flags SECCOMP_FILTER
 }
 {
-	if [ "$cgroupVersion" -eq 1 ]; then
-		check_flags CGROUP_PIDS CGROUP_HUGETLB
-	fi
+	check_flags CGROUP_PIDS
 }
 {
 	check_flags MEMCG_SWAP
@@ -323,6 +321,7 @@ fi
 check_flags \
 	BLK_CGROUP BLK_DEV_THROTTLING \
 	CGROUP_PERF \
+	CGROUP_HUGETLB \
 	NET_CLS_CGROUP $netprio \
 	CFS_BANDWIDTH FAIR_GROUP_SCHED \
 	IP_NF_TARGET_REDIRECT \
