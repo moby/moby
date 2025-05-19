@@ -3,7 +3,6 @@ package cluster // import "github.com/docker/docker/daemon/cluster"
 import (
 	"context"
 
-	apitypes "github.com/docker/docker/api/types"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
 	swarmapi "github.com/moby/swarmkit/v2/api"
@@ -28,7 +27,7 @@ func (c *Cluster) GetConfig(input string) (types.Config, error) {
 }
 
 // GetConfigs returns all configs of a managed swarm cluster.
-func (c *Cluster) GetConfigs(options apitypes.ConfigListOptions) ([]types.Config, error) {
+func (c *Cluster) GetConfigs(options types.ConfigListOptions) ([]types.Config, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

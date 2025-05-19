@@ -229,8 +229,8 @@ type SecretAPIClient interface {
 
 // ConfigAPIClient defines API client methods for configs
 type ConfigAPIClient interface {
-	ConfigList(ctx context.Context, options types.ConfigListOptions) ([]swarm.Config, error)
-	ConfigCreate(ctx context.Context, config swarm.ConfigSpec) (types.ConfigCreateResponse, error)
+	ConfigList(ctx context.Context, options swarm.ConfigListOptions) ([]swarm.Config, error)
+	ConfigCreate(ctx context.Context, config swarm.ConfigSpec) (swarm.ConfigCreateResponse, error)
 	ConfigRemove(ctx context.Context, id string) error
 	ConfigInspectWithRaw(ctx context.Context, name string) (swarm.Config, []byte, error)
 	ConfigUpdate(ctx context.Context, id string, version swarm.Version, config swarm.ConfigSpec) error

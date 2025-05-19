@@ -487,7 +487,7 @@ func (sr *swarmRouter) getConfigs(ctx context.Context, w http.ResponseWriter, r 
 		return err
 	}
 
-	configs, err := sr.backend.GetConfigs(basictypes.ConfigListOptions{Filters: filters})
+	configs, err := sr.backend.GetConfigs(types.ConfigListOptions{Filters: filters})
 	if err != nil {
 		return err
 	}
@@ -511,7 +511,7 @@ func (sr *swarmRouter) createConfig(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusCreated, &basictypes.ConfigCreateResponse{
+	return httputils.WriteJSON(w, http.StatusCreated, &types.ConfigCreateResponse{
 		ID: id,
 	})
 }

@@ -35,7 +35,7 @@ type Backend interface {
 	RemoveSecret(idOrName string) error
 	GetSecret(id string) (swarm.Secret, error)
 	UpdateSecret(idOrName string, version uint64, spec swarm.SecretSpec) error
-	GetConfigs(opts types.ConfigListOptions) ([]swarm.Config, error)
+	GetConfigs(opts swarm.ConfigListOptions) ([]swarm.Config, error)
 	CreateConfig(s swarm.ConfigSpec) (string, error)
 	RemoveConfig(id string) error
 	GetConfig(id string) (swarm.Config, error)
