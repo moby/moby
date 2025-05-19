@@ -13,6 +13,7 @@ import (
 
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	bolt "go.etcd.io/bbolt"
+	berrors "go.etcd.io/bbolt/errors"
 )
 
 const filePerm = 0o644
@@ -47,7 +48,7 @@ func New(path, bucket string) (store.Store, error) {
 		Timeout: time.Nanosecond,
 	})
 	if err != nil {
-		if errors.Is(err, bolt.ErrTimeout) {
+		if errors.Is(err, berrors.ErrTimeout) {
 			return nil, fmt.Errorf("boltdb file %s is already open", path)
 		}
 		return nil, err
