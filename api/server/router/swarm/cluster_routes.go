@@ -8,7 +8,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
-	basictypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
@@ -245,7 +244,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 		return errdefs.InvalidParameter(err)
 	}
 
-	var flags basictypes.ServiceUpdateOptions
+	var flags types.ServiceUpdateOptions
 
 	// Get returns "" if the header does not exist
 	flags.EncodedRegistryAuth = r.Header.Get(registry.AuthHeader)

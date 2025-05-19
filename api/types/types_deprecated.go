@@ -158,6 +158,16 @@ type TaskListOptions = swarm.TaskListOptions
 // Deprecated: use [swarm.ServiceCreateOptions].
 type ServiceCreateOptions = swarm.ServiceCreateOptions
 
+// ServiceUpdateOptions contains the options to be used for updating services.
+//
+// Deprecated: use [swarm.ServiceCreateOptions].
+type ServiceUpdateOptions = swarm.ServiceUpdateOptions
+
+const (
+	RegistryAuthFromSpec         = swarm.RegistryAuthFromSpec         // Deprecated: use [swarm.RegistryAuthFromSpec].
+	RegistryAuthFromPreviousSpec = swarm.RegistryAuthFromPreviousSpec // Deprecated: use [swarm.RegistryAuthFromPreviousSpec].
+)
+
 // ServiceListOptions holds parameters to list services with.
 //
 // Deprecated: use [swarm.ServiceListOptions].

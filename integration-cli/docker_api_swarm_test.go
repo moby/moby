@@ -18,7 +18,6 @@ import (
 	"github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/initca"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
@@ -890,7 +889,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateWithName(c *testing.T) {
 	setInstances(instances)(service)
 	cli := d.NewClientT(c)
 	defer cli.Close()
-	_, err := cli.ServiceUpdate(ctx, service.Spec.Name, service.Version, service.Spec, types.ServiceUpdateOptions{})
+	_, err := cli.ServiceUpdate(ctx, service.Spec.Name, service.Version, service.Spec, swarm.ServiceUpdateOptions{})
 	assert.NilError(c, err)
 	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount(ctx), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 }

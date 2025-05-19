@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"gotest.tools/v3/assert"
@@ -82,7 +81,7 @@ func (d *Daemon) UpdateService(ctx context.Context, t testing.TB, service *swarm
 		fn(service)
 	}
 
-	_, err := cli.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, types.ServiceUpdateOptions{})
+	_, err := cli.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, swarm.ServiceUpdateOptions{})
 	assert.NilError(t, err)
 }
 
