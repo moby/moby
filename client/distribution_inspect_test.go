@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -27,5 +27,5 @@ func TestDistributionInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, err := client.DistributionInspect(context.Background(), "", "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
