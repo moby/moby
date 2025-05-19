@@ -6,6 +6,8 @@ const AttrAuthHeaderSecret = "git.authheadersecret"
 const AttrAuthTokenSecret = "git.authtokensecret"
 const AttrKnownSSHHosts = "git.knownsshhosts"
 const AttrMountSSHSock = "git.mountsshsock"
+const AttrGitChecksum = "git.checksum"
+
 const AttrLocalSessionID = "local.session"
 const AttrLocalUniqueID = "local.unique"
 const AttrIncludePatterns = "local.includepattern"

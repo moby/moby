@@ -937,27 +937,21 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 	case *instructions.WorkdirCommand:
 		err = dispatchWorkdir(d, c, true, &opt)
 	case *instructions.AddCommand:
-		var checksum digest.Digest
-		if c.Checksum != "" {
-			checksum, err = digest.Parse(c.Checksum)
-		}
-		if err == nil {
-			err = dispatchCopy(d, copyConfig{
-				params:          c.SourcesAndDest,
-				excludePatterns: c.ExcludePatterns,
-				source:          opt.buildContext,
-				isAddCommand:    true,
-				cmdToPrint:      c,
-				chown:           c.Chown,
-				chmod:           c.Chmod,
-				link:            c.Link,
-				keepGitDir:      c.KeepGitDir,
-				checksum:        checksum,
-				location:        c.Location(),
-				ignoreMatcher:   opt.dockerIgnoreMatcher,
-				opt:             opt,
-			})
-		}
+		err = dispatchCopy(d, copyConfig{
+			params:          c.SourcesAndDest,
+			excludePatterns: c.ExcludePatterns,
+			source:          opt.buildContext,
+			isAddCommand:    true,
+			cmdToPrint:      c,
+			chown:           c.Chown,
+			chmod:           c.Chmod,
+			link:            c.Link,
+			keepGitDir:      c.KeepGitDir,
+			checksum:        c.Checksum,
+			location:        c.Location(),
+			ignoreMatcher:   opt.dockerIgnoreMatcher,
+			opt:             opt,
+		})
 		if err == nil {
 			for _, src := range c.SourcePaths {
 				if !strings.HasPrefix(src, "http://") && !strings.HasPrefix(src, "https://") {
@@ -1470,8 +1464,8 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 		if len(cfg.params.SourcePaths) != 1 {
 			return errors.New("checksum can't be specified for multiple sources")
 		}
-		if !isHTTPSource(cfg.params.SourcePaths[0]) {
-			return errors.New("checksum can't be specified for non-HTTP(S) sources")
+		if !isHTTPSource(cfg.params.SourcePaths[0]) && !isGitSource(cfg.params.SourcePaths[0]) {
+			return errors.New("checksum requires HTTP(S) or Git sources")
 		}
 	}
 
@@ -1519,6 +1513,9 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 			if cfg.keepGitDir {
 				gitOptions = append(gitOptions, llb.KeepGitDir())
 			}
+			if cfg.checksum != "" {
+				gitOptions = append(gitOptions, llb.GitChecksum(cfg.checksum))
+			}
 			st := llb.Git(gitRef.Remote, commit, gitOptions...)
 			opts := append([]llb.CopyOption{&llb.CopyInfo{
 				Mode:           chopt,
@@ -1547,7 +1544,15 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 				}
 			}
 
-			st := llb.HTTP(src, llb.Filename(f), llb.WithCustomName(pgName), llb.Checksum(cfg.checksum), dfCmd(cfg.params))
+			var checksum digest.Digest
+			if cfg.checksum != "" {
+				checksum, err = digest.Parse(cfg.checksum)
+				if err != nil {
+					return err
+				}
+			}
+
+			st := llb.HTTP(src, llb.Filename(f), llb.WithCustomName(pgName), llb.Checksum(checksum), dfCmd(cfg.params))
 
 			opts := append([]llb.CopyOption{&llb.CopyInfo{
 				Mode:           chopt,
@@ -1674,7 +1679,7 @@ type copyConfig struct {
 	chmod           string
 	link            bool
 	keepGitDir      bool
-	checksum        digest.Digest
+	checksum        string
 	parents         bool
 	location        []parser.Range
 	ignoreMatcher   *patternmatcher.PatternMatcher
@@ -2265,11 +2270,15 @@ func isHTTPSource(src string) bool {
 	if !strings.HasPrefix(src, "http://") && !strings.HasPrefix(src, "https://") {
 		return false
 	}
+	return !isGitSource(src)
+}
+
+func isGitSource(src string) bool {
 	// https://github.com/ORG/REPO.git is a git source, not an http source
 	if gitRef, gitErr := gitutil.ParseGitRef(src); gitRef != nil && gitErr == nil {
-		return false
+		return true
 	}
-	return true
+	return false
 }
 
 func isEnabledForStage(stage string, value string) bool {

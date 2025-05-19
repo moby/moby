@@ -167,7 +167,8 @@ func (c *Controller) DiskUsage(ctx context.Context, r *controlapi.DiskUsageReque
 	}
 	for _, w := range workers {
 		du, err := w.DiskUsage(ctx, client.DiskUsageInfo{
-			Filter: r.Filter,
+			Filter:   r.Filter,
+			AgeLimit: time.Duration(r.AgeLimit),
 		})
 		if err != nil {
 			return nil, err

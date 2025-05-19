@@ -36,6 +36,7 @@ message PruneRequest {
 
 message DiskUsageRequest {
 	repeated string filter = 1; 
+	int64 ageLimit = 2;
 }
 
 message DiskUsageResponse {
