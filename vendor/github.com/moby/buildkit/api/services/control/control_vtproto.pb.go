@@ -56,6 +56,7 @@ func (m *DiskUsageRequest) CloneVT() *DiskUsageRequest {
 		return (*DiskUsageRequest)(nil)
 	}
 	r := new(DiskUsageRequest)
+	r.AgeLimit = m.AgeLimit
 	if rhs := m.Filter; rhs != nil {
 		tmpContainer := make([]string, len(rhs))
 		copy(tmpContainer, rhs)
@@ -830,6 +831,9 @@ func (this *DiskUsageRequest) EqualVT(that *DiskUsageRequest) bool {
 		if vx != vy {
 			return false
 		}
+	}
+	if this.AgeLimit != that.AgeLimit {
+		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
 }
@@ -2018,6 +2022,11 @@ func (m *DiskUsageRequest) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m.unknownFields != nil {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.AgeLimit != 0 {
+		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.AgeLimit))
+		i--
+		dAtA[i] = 0x10
 	}
 	if len(m.Filter) > 0 {
 		for iNdEx := len(m.Filter) - 1; iNdEx >= 0; iNdEx-- {
@@ -3991,6 +4000,9 @@ func (m *DiskUsageRequest) SizeVT() (n int) {
 			n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 		}
 	}
+	if m.AgeLimit != 0 {
+		n += 1 + protohelpers.SizeOfVarint(uint64(m.AgeLimit))
+	}
 	n += len(m.unknownFields)
 	return n
 }
@@ -5006,6 +5018,25 @@ func (m *DiskUsageRequest) UnmarshalVT(dAtA []byte) error {
 			}
 			m.Filter = append(m.Filter, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AgeLimit", wireType)
+			}
+			m.AgeLimit = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return protohelpers.ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.AgeLimit |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := protohelpers.Skip(dAtA[iNdEx:])

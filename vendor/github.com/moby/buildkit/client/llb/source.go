@@ -322,6 +322,12 @@ func Git(url, ref string, opts ...GitOption) State {
 		addCap(&gi.Constraints, pb.CapSourceGitMountSSHSock)
 	}
 
+	checksum := gi.Checksum
+	if checksum != "" {
+		attrs[pb.AttrGitChecksum] = checksum
+		addCap(&gi.Constraints, pb.CapSourceGitChecksum)
+	}
+
 	addCap(&gi.Constraints, pb.CapSourceGit)
 
 	source := NewSource("git://"+id, attrs, gi.Constraints)
@@ -345,6 +351,7 @@ type GitInfo struct {
 	addAuthCap       bool
 	KnownSSHHosts    string
 	MountSSHSock     string
+	Checksum         string
 }
 
 func KeepGitDir() GitOption {
@@ -370,6 +377,12 @@ func KnownSSHHosts(key string) GitOption {
 func MountSSHSock(sshID string) GitOption {
 	return gitOptionFunc(func(gi *GitInfo) {
 		gi.MountSSHSock = sshID
+	})
+}
+
+func GitChecksum(v string) GitOption {
+	return gitOptionFunc(func(gi *GitInfo) {
+		gi.Checksum = v
 	})
 }
 

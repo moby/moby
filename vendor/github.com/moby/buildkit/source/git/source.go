@@ -92,6 +92,8 @@ func (gs *gitSource) Identifier(scheme, ref string, attrs map[string]string, pla
 			id.KnownSSHHosts = v
 		case pb.AttrMountSSHSock:
 			id.MountSSHSock = v
+		case pb.AttrGitChecksum:
+			id.Checksum = v
 		}
 	}
 
@@ -349,10 +351,26 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 	gs.locker.Lock(remote)
 	defer gs.locker.Unlock(remote)
 
-	if ref := gs.src.Ref; ref != "" && gitutil.IsCommitSHA(ref) {
-		cacheKey := gs.shaToCacheKey(ref, "")
+	if gs.src.Checksum != "" {
+		matched, err := regexp.MatchString("^[a-fA-F0-9]+$", gs.src.Checksum)
+		if err != nil || !matched {
+			return "", "", nil, false, errors.Errorf("invalid checksum %s for Git URL, expected hex commit hash", gs.src.Checksum)
+		}
+	}
+
+	var refCommitFullHash, ref2 string
+	if gitutil.IsCommitSHA(gs.src.Checksum) && !gs.src.KeepGitDir {
+		refCommitFullHash = gs.src.Checksum
+		ref2 = gs.src.Ref
+	}
+	if refCommitFullHash == "" && gitutil.IsCommitSHA(gs.src.Ref) {
+		refCommitFullHash = gs.src.Ref
+	}
+	if refCommitFullHash != "" {
+		cacheKey := gs.shaToCacheKey(refCommitFullHash, ref2)
 		gs.cacheKey = cacheKey
-		return cacheKey, ref, nil, true, nil
+		// gs.src.Checksum is verified when checking out the commit
+		return cacheKey, refCommitFullHash, nil, true, nil
 	}
 
 	gs.getAuthToken(ctx, g)
@@ -415,7 +433,9 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 	if !gitutil.IsCommitSHA(sha) {
 		return "", "", nil, false, errors.Errorf("invalid commit sha %q", sha)
 	}
-
+	if gs.src.Checksum != "" && !strings.HasPrefix(sha, gs.src.Checksum) {
+		return "", "", nil, false, errors.Errorf("expected checksum to match %s, got %s", gs.src.Checksum, sha)
+	}
 	cacheKey := gs.shaToCacheKey(sha, usedRef)
 	gs.cacheKey = cacheKey
 	return cacheKey, sha, nil, true, nil
@@ -534,6 +554,17 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 	subdir := path.Clean(gs.src.Subdir)
 	if subdir == "/" {
 		subdir = "."
+	}
+
+	if gs.src.Checksum != "" {
+		actualHashBuf, err := git.Run(ctx, "rev-parse", ref)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to rev-parse %s for %s", ref, urlutil.RedactCredentials(gs.src.Remote))
+		}
+		actualHash := strings.TrimSpace(string(actualHashBuf))
+		if !strings.HasPrefix(actualHash, gs.src.Checksum) {
+			return nil, errors.Errorf("expected checksum to match %s, got %s", gs.src.Checksum, actualHash)
+		}
 	}
 
 	if gs.src.KeepGitDir && subdir == "." {
