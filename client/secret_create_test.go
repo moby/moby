@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
@@ -46,7 +45,7 @@ func TestSecretCreate(t *testing.T) {
 			if req.Method != http.MethodPost {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
-			b, err := json.Marshal(types.SecretCreateResponse{
+			b, err := json.Marshal(swarm.SecretCreateResponse{
 				ID: "test_secret",
 			})
 			if err != nil {

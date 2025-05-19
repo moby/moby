@@ -1,6 +1,10 @@
 package swarm // import "github.com/docker/docker/api/types/swarm"
 
-import "os"
+import (
+	"os"
+
+	"github.com/docker/docker/api/types/filters"
+)
 
 // Secret represents a secret.
 type Secret struct {
@@ -47,4 +51,16 @@ type SecretReference struct {
 	File       *SecretReferenceFileTarget
 	SecretID   string
 	SecretName string
+}
+
+// SecretCreateResponse contains the information returned to a client
+// on the creation of a new secret.
+type SecretCreateResponse struct {
+	// ID is the id of the created secret.
+	ID string
+}
+
+// SecretListOptions holds parameters to list secrets
+type SecretListOptions struct {
+	Filters filters.Args
 }

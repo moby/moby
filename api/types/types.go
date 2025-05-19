@@ -94,18 +94,6 @@ type DiskUsage struct {
 	BuilderSize int64 `json:",omitempty"` // Deprecated: deprecated in API 1.38, and no longer used since API 1.40.
 }
 
-// SecretCreateResponse contains the information returned to a client
-// on the creation of a new secret.
-type SecretCreateResponse struct {
-	// ID is the id of the created secret.
-	ID string
-}
-
-// SecretListOptions holds parameters to list secrets
-type SecretListOptions struct {
-	Filters filters.Args
-}
-
 // ConfigCreateResponse contains the information returned to a client
 // on the creation of a new config.
 type ConfigCreateResponse struct {
