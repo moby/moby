@@ -83,10 +83,6 @@ func TestSecretInspect(t *testing.T) {
 	}
 
 	secretInspect, _, err := client.SecretInspectWithRaw(context.Background(), "secret_id")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if secretInspect.ID != "secret_id" {
-		t.Fatalf("expected `secret_id`, got %s", secretInspect.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(secretInspect.ID, "secret_id"))
 }

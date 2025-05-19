@@ -111,12 +111,8 @@ func TestImageList(t *testing.T) {
 		}
 
 		images, err := client.ImageList(context.Background(), listCase.options)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(images) != 2 {
-			t.Fatalf("expected 2 images, got %v", images)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(images, 2))
 	}
 }
 
@@ -157,12 +153,8 @@ func TestImageListApiBefore125(t *testing.T) {
 	}
 
 	images, err := client.ImageList(context.Background(), options)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(images) != 2 {
-		t.Fatalf("expected 2 images, got %v", images)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(images, 2))
 }
 
 // Checks if shared-size query parameter is set/not being set correctly
@@ -194,7 +186,7 @@ func TestImageListWithSharedSize(t *testing.T) {
 				version: tc.version,
 			}
 			_, err := client.ImageList(context.Background(), tc.options)
-			assert.Check(t, err)
+			assert.NilError(t, err)
 			expectedSet := tc.sharedSize != ""
 			assert.Check(t, is.Equal(query.Has(sharedSize), expectedSet))
 			assert.Check(t, is.Equal(query.Get(sharedSize), tc.sharedSize))

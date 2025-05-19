@@ -77,7 +77,7 @@ func TestContainerResize(t *testing.T) {
 				client: newMockClient(resizeTransport(t, expectedURL, tc.expectedHeight, tc.expectedWidth)),
 			}
 			err := client.ContainerResize(context.Background(), "container_id", tc.opts)
-			assert.Check(t, err)
+			assert.NilError(t, err)
 		})
 	}
 }
@@ -120,7 +120,7 @@ func TestContainerExecResize(t *testing.T) {
 				client: newMockClient(resizeTransport(t, expectedURL, tc.expectedHeight, tc.expectedWidth)),
 			}
 			err := client.ContainerExecResize(context.Background(), "exec_id", tc.opts)
-			assert.Check(t, err)
+			assert.NilError(t, err)
 		})
 	}
 }

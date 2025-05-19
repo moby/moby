@@ -83,16 +83,8 @@ func TestContainerInspect(t *testing.T) {
 	}
 
 	r, err := client.ContainerInspect(context.Background(), "container_id")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r.ID != "container_id" {
-		t.Fatalf("expected `container_id`, got %s", r.ID)
-	}
-	if r.Image != "image" {
-		t.Fatalf("expected `image`, got %s", r.Image)
-	}
-	if r.Name != "name" {
-		t.Fatalf("expected `name`, got %s", r.Name)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(r.ID, "container_id"))
+	assert.Check(t, is.Equal(r.Image, "image"))
+	assert.Check(t, is.Equal(r.Name, "name"))
 }

@@ -71,10 +71,6 @@ func TestNodeInspect(t *testing.T) {
 	}
 
 	nodeInspect, _, err := client.NodeInspectWithRaw(context.Background(), "node_id")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if nodeInspect.ID != "node_id" {
-		t.Fatalf("expected `node_id`, got %s", nodeInspect.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(nodeInspect.ID, "node_id"))
 }

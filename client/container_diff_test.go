@@ -67,6 +67,6 @@ func TestContainerDiff(t *testing.T) {
 	}
 
 	changes, err := client.ContainerDiff(context.Background(), "container_id")
-	assert.Check(t, err)
+	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(changes, expected))
 }

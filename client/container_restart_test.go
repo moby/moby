@@ -70,7 +70,5 @@ func TestContainerRestart(t *testing.T) {
 		Signal:  "SIGKILL",
 		Timeout: &timeout,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

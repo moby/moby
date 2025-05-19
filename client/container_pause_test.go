@@ -36,7 +36,5 @@ func TestContainerPause(t *testing.T) {
 		}),
 	}
 	err := client.ContainerPause(context.Background(), "container_id")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

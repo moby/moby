@@ -64,12 +64,8 @@ func TestContainerCreateWithName(t *testing.T) {
 	}
 
 	r, err := client.ContainerCreate(context.Background(), nil, nil, nil, nil, "container_name")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r.ID != "container_id" {
-		t.Fatalf("expected `container_id`, got %s", r.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(r.ID, "container_id"))
 }
 
 // TestContainerCreateAutoRemove validates that a client using API 1.24 always disables AutoRemove. When using API 1.25
@@ -97,20 +93,22 @@ func TestContainerCreateAutoRemove(t *testing.T) {
 			}, nil
 		}
 	}
-
-	client := &Client{
-		client:  newMockClient(autoRemoveValidator(false)),
-		version: "1.24",
+	testCases := []struct {
+		version            string
+		expectedAutoRemove bool
+	}{
+		{version: "1.24", expectedAutoRemove: false},
+		{version: "1.25", expectedAutoRemove: true},
 	}
-	if _, err := client.ContainerCreate(context.Background(), nil, &container.HostConfig{AutoRemove: true}, nil, nil, ""); err != nil {
-		t.Fatal(err)
-	}
-	client = &Client{
-		client:  newMockClient(autoRemoveValidator(true)),
-		version: "1.25",
-	}
-	if _, err := client.ContainerCreate(context.Background(), nil, &container.HostConfig{AutoRemove: true}, nil, nil, ""); err != nil {
-		t.Fatal(err)
+	for _, tc := range testCases {
+		t.Run(tc.version, func(t *testing.T) {
+			client := &Client{
+				client:  newMockClient(autoRemoveValidator(tc.expectedAutoRemove)),
+				version: tc.version,
+			}
+			_, err := client.ContainerCreate(context.Background(), nil, &container.HostConfig{AutoRemove: true}, nil, nil, "")
+			assert.NilError(t, err)
+		})
 	}
 }
 

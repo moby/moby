@@ -61,7 +61,5 @@ func TestConfigRemove(t *testing.T) {
 	}
 
 	err := client.ConfigRemove(context.Background(), "config_id")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

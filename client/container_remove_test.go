@@ -71,5 +71,5 @@ func TestContainerRemove(t *testing.T) {
 		RemoveVolumes: true,
 		Force:         true,
 	})
-	assert.Check(t, err)
+	assert.NilError(t, err)
 }

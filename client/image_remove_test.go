@@ -96,11 +96,7 @@ func TestImageRemove(t *testing.T) {
 			Force:         removeCase.force,
 			PruneChildren: removeCase.pruneChildren,
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(imageDeletes) != 2 {
-			t.Fatalf("expected 2 deleted images, got %v", imageDeletes)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(imageDeletes, 2))
 	}
 }

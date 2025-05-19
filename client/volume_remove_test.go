@@ -62,7 +62,5 @@ func TestVolumeRemove(t *testing.T) {
 	}
 
 	err := client.VolumeRemove(context.Background(), "volume_id", false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

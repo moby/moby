@@ -35,15 +35,13 @@ func TestEventsErrorInOptions(t *testing.T) {
 			expectedError: `parsing time "2006-01-02TZ"`,
 		},
 	}
-	for _, e := range errorCases {
+	for _, tc := range errorCases {
 		client := &Client{
 			client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 		}
-		_, errs := client.Events(context.Background(), e.options)
+		_, errs := client.Events(context.Background(), tc.options)
 		err := <-errs
-		if err == nil || !strings.Contains(err.Error(), e.expectedError) {
-			t.Fatalf("expected an error %q, got %v", e.expectedError, err)
-		}
+		assert.Check(t, is.ErrorContains(err, tc.expectedError))
 	}
 }
 
@@ -152,9 +150,7 @@ func TestEvents(t *testing.T) {
 				break loop
 			case e := <-messages:
 				_, ok := eventsCase.expectedEvents[e.Actor.ID]
-				if !ok {
-					t.Fatalf("event received not expected with action %s & id %s", e.Action, e.Actor.ID)
-				}
+				assert.Check(t, ok, "event received not expected with action %s & id %s", e.Action, e.Actor.ID)
 			}
 		}
 	}

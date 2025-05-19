@@ -60,7 +60,5 @@ func TestContainerStart(t *testing.T) {
 	}
 
 	err := client.ContainerStart(context.Background(), "container_id", container.StartOptions{CheckpointID: "checkpoint_id"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
