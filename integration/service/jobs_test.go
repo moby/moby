@@ -3,7 +3,6 @@ package service
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration/internal/swarm"
 	"gotest.tools/v3/assert"
@@ -75,7 +74,7 @@ func TestReplicatedJob(t *testing.T) {
 	)
 
 	service, _, err := client.ServiceInspectWithRaw(
-		ctx, id, types.ServiceInspectOptions{},
+		ctx, id, swarmtypes.ServiceInspectOptions{},
 	)
 	assert.NilError(t, err)
 
@@ -108,7 +107,7 @@ func TestUpdateReplicatedJob(t *testing.T) {
 	)
 
 	service, _, err := client.ServiceInspectWithRaw(
-		ctx, id, types.ServiceInspectOptions{},
+		ctx, id, swarmtypes.ServiceInspectOptions{},
 	)
 	assert.NilError(t, err)
 
@@ -120,12 +119,12 @@ func TestUpdateReplicatedJob(t *testing.T) {
 	spec.TaskTemplate.ForceUpdate++
 
 	_, err = client.ServiceUpdate(
-		ctx, id, service.Version, spec, types.ServiceUpdateOptions{},
+		ctx, id, service.Version, spec, swarmtypes.ServiceUpdateOptions{},
 	)
 	assert.NilError(t, err)
 
 	service2, _, err := client.ServiceInspectWithRaw(
-		ctx, id, types.ServiceInspectOptions{},
+		ctx, id, swarmtypes.ServiceInspectOptions{},
 	)
 	assert.NilError(t, err)
 

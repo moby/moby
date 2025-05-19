@@ -8,7 +8,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
-	basictypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
@@ -140,7 +139,7 @@ func (sr *swarmRouter) getUnlockKey(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusOK, &basictypes.SwarmUnlockKeyResponse{
+	return httputils.WriteJSON(w, http.StatusOK, &types.UnlockKeyResponse{
 		UnlockKey: unlockKey,
 	})
 }
@@ -166,7 +165,7 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 		}
 	}
 
-	services, err := sr.backend.GetServices(basictypes.ServiceListOptions{Filters: filter, Status: status})
+	services, err := sr.backend.GetServices(types.ServiceListOptions{Filters: filter, Status: status})
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting services")
 		return err
@@ -245,7 +244,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 		return errdefs.InvalidParameter(err)
 	}
 
-	var flags basictypes.ServiceUpdateOptions
+	var flags types.ServiceUpdateOptions
 
 	// Get returns "" if the header does not exist
 	flags.EncodedRegistryAuth = r.Header.Get(registry.AuthHeader)
@@ -314,7 +313,7 @@ func (sr *swarmRouter) getNodes(ctx context.Context, w http.ResponseWriter, r *h
 		return err
 	}
 
-	nodes, err := sr.backend.GetNodes(basictypes.NodeListOptions{Filters: filter})
+	nodes, err := sr.backend.GetNodes(types.NodeListOptions{Filters: filter})
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting nodes")
 		return err
@@ -385,7 +384,7 @@ func (sr *swarmRouter) getTasks(ctx context.Context, w http.ResponseWriter, r *h
 		return err
 	}
 
-	tasks, err := sr.backend.GetTasks(basictypes.TaskListOptions{Filters: filter})
+	tasks, err := sr.backend.GetTasks(types.TaskListOptions{Filters: filter})
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting tasks")
 		return err

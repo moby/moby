@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
@@ -23,7 +22,7 @@ func TestNodeListError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.NodeList(context.Background(), types.NodeListOptions{})
+	_, err := client.NodeList(context.Background(), swarm.NodeListOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -31,17 +30,17 @@ func TestNodeList(t *testing.T) {
 	const expectedURL = "/nodes"
 
 	listCases := []struct {
-		options             types.NodeListOptions
+		options             swarm.NodeListOptions
 		expectedQueryParams map[string]string
 	}{
 		{
-			options: types.NodeListOptions{},
+			options: swarm.NodeListOptions{},
 			expectedQueryParams: map[string]string{
 				"filters": "",
 			},
 		},
 		{
-			options: types.NodeListOptions{
+			options: swarm.NodeListOptions{
 				Filters: filters.NewArgs(
 					filters.Arg("label", "label1"),
 					filters.Arg("label", "label2"),

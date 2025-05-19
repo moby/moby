@@ -138,6 +138,53 @@ type ConfigCreateResponse = swarm.ConfigCreateResponse
 // Deprecated: use [swarm.ConfigListOptions].
 type ConfigListOptions = swarm.ConfigListOptions
 
+// NodeListOptions holds parameters to list nodes with.
+//
+// Deprecated: use [swarm.NodeListOptions].
+type NodeListOptions = swarm.NodeListOptions
+
+// NodeRemoveOptions holds parameters to remove nodes with.
+//
+// Deprecated: use [swarm.NodeRemoveOptions].
+type NodeRemoveOptions = swarm.NodeRemoveOptions
+
+// TaskListOptions holds parameters to list tasks with.
+//
+// Deprecated: use [swarm.TaskListOptions].
+type TaskListOptions = swarm.TaskListOptions
+
+// ServiceCreateOptions contains the options to use when creating a service.
+//
+// Deprecated: use [swarm.ServiceCreateOptions].
+type ServiceCreateOptions = swarm.ServiceCreateOptions
+
+// ServiceUpdateOptions contains the options to be used for updating services.
+//
+// Deprecated: use [swarm.ServiceCreateOptions].
+type ServiceUpdateOptions = swarm.ServiceUpdateOptions
+
+const (
+	RegistryAuthFromSpec         = swarm.RegistryAuthFromSpec         // Deprecated: use [swarm.RegistryAuthFromSpec].
+	RegistryAuthFromPreviousSpec = swarm.RegistryAuthFromPreviousSpec // Deprecated: use [swarm.RegistryAuthFromPreviousSpec].
+)
+
+// ServiceListOptions holds parameters to list services with.
+//
+// Deprecated: use [swarm.ServiceListOptions].
+type ServiceListOptions = swarm.ServiceListOptions
+
+// ServiceInspectOptions holds parameters related to the "service inspect"
+// operation.
+//
+// Deprecated: use [swarm.ServiceInspectOptions].
+type ServiceInspectOptions = swarm.ServiceInspectOptions
+
+// SwarmUnlockKeyResponse contains the response for Engine API:
+// GET /swarm/unlockkey
+//
+// Deprecated: use [swarm.UnlockKeyResponse].
+type SwarmUnlockKeyResponse = swarm.UnlockKeyResponse
+
 // BuildCache contains information about a build cache record.
 //
 // Deprecated: deprecated in API 1.49. Use [build.CacheRecord] instead.

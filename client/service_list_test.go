@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
@@ -23,7 +22,7 @@ func TestServiceListError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.ServiceList(context.Background(), types.ServiceListOptions{})
+	_, err := client.ServiceList(context.Background(), swarm.ServiceListOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -31,17 +30,17 @@ func TestServiceList(t *testing.T) {
 	const expectedURL = "/services"
 
 	listCases := []struct {
-		options             types.ServiceListOptions
+		options             swarm.ServiceListOptions
 		expectedQueryParams map[string]string
 	}{
 		{
-			options: types.ServiceListOptions{},
+			options: swarm.ServiceListOptions{},
 			expectedQueryParams: map[string]string{
 				"filters": "",
 			},
 		},
 		{
-			options: types.ServiceListOptions{
+			options: swarm.ServiceListOptions{
 				Filters: filters.NewArgs(
 					filters.Arg("label", "label1"),
 					filters.Arg("label", "label2"),

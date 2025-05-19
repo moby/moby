@@ -13,7 +13,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/registry"
@@ -29,7 +28,7 @@ import (
 )
 
 // GetServices returns all services of a managed swarm cluster.
-func (c *Cluster) GetServices(options types.ServiceListOptions) ([]swarm.Service, error) {
+func (c *Cluster) GetServices(options swarm.ServiceListOptions) ([]swarm.Service, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -283,7 +282,7 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 }
 
 // UpdateService updates existing service to match new properties.
-func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swarm.ServiceSpec, flags types.ServiceUpdateOptions, queryRegistry bool) (*swarm.ServiceUpdateResponse, error) {
+func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swarm.ServiceSpec, flags swarm.ServiceUpdateOptions, queryRegistry bool) (*swarm.ServiceUpdateResponse, error) {
 	var resp *swarm.ServiceUpdateResponse
 
 	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
@@ -328,9 +327,9 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 				// shouldn't lose it, and continue to use the one that was already present
 				var ctnr *swarmapi.ContainerSpec
 				switch flags.RegistryAuthFrom {
-				case types.RegistryAuthFromSpec, "":
+				case swarm.RegistryAuthFromSpec, "":
 					ctnr = currentService.Spec.Task.GetContainer()
-				case types.RegistryAuthFromPreviousSpec:
+				case swarm.RegistryAuthFromPreviousSpec:
 					if currentService.PreviousSpec == nil {
 						return errors.New("service does not have a previous spec")
 					}

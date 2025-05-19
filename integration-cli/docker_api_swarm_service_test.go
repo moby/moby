@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
@@ -75,7 +74,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesCreate(c *testing.T) {
 	client := d.NewClientT(c)
 	defer client.Close()
 
-	options := types.ServiceInspectOptions{InsertDefaults: true}
+	options := swarm.ServiceInspectOptions{InsertDefaults: true}
 
 	// insertDefaults inserts UpdateConfig when service is fetched by ID
 	resp, _, err := client.ServiceInspectWithRaw(ctx, id, options)

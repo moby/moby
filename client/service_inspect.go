@@ -8,12 +8,11 @@ import (
 	"io"
 	"net/url"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 )
 
 // ServiceInspectWithRaw returns the service information and the raw data.
-func (cli *Client) ServiceInspectWithRaw(ctx context.Context, serviceID string, opts types.ServiceInspectOptions) (swarm.Service, []byte, error) {
+func (cli *Client) ServiceInspectWithRaw(ctx context.Context, serviceID string, opts swarm.ServiceInspectOptions) (swarm.Service, []byte, error) {
 	serviceID, err := trimID("service", serviceID)
 	if err != nil {
 		return swarm.Service{}, nil, err
