@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -51,7 +51,7 @@ func TestEventsErrorFromServer(t *testing.T) {
 	}
 	_, errs := client.Events(context.Background(), events.ListOptions{})
 	err := <-errs
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestEvents(t *testing.T) {
