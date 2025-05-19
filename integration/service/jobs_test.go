@@ -75,7 +75,7 @@ func TestReplicatedJob(t *testing.T) {
 	)
 
 	service, _, err := client.ServiceInspectWithRaw(
-		ctx, id, types.ServiceInspectOptions{},
+		ctx, id, swarmtypes.ServiceInspectOptions{},
 	)
 	assert.NilError(t, err)
 
@@ -108,7 +108,7 @@ func TestUpdateReplicatedJob(t *testing.T) {
 	)
 
 	service, _, err := client.ServiceInspectWithRaw(
-		ctx, id, types.ServiceInspectOptions{},
+		ctx, id, swarmtypes.ServiceInspectOptions{},
 	)
 	assert.NilError(t, err)
 
@@ -125,7 +125,7 @@ func TestUpdateReplicatedJob(t *testing.T) {
 	assert.NilError(t, err)
 
 	service2, _, err := client.ServiceInspectWithRaw(
-		ctx, id, types.ServiceInspectOptions{},
+		ctx, id, swarmtypes.ServiceInspectOptions{},
 	)
 	assert.NilError(t, err)
 

@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
@@ -23,7 +22,7 @@ func TestServiceInspectError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, _, err := client.ServiceInspectWithRaw(context.Background(), "nothing", types.ServiceInspectOptions{})
+	_, _, err := client.ServiceInspectWithRaw(context.Background(), "nothing", swarm.ServiceInspectOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -32,7 +31,7 @@ func TestServiceInspectServiceNotFound(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 
-	_, _, err := client.ServiceInspectWithRaw(context.Background(), "unknown", types.ServiceInspectOptions{})
+	_, _, err := client.ServiceInspectWithRaw(context.Background(), "unknown", swarm.ServiceInspectOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
@@ -42,11 +41,11 @@ func TestServiceInspectWithEmptyID(t *testing.T) {
 			return nil, errors.New("should not make request")
 		}),
 	}
-	_, _, err := client.ServiceInspectWithRaw(context.Background(), "", types.ServiceInspectOptions{})
+	_, _, err := client.ServiceInspectWithRaw(context.Background(), "", swarm.ServiceInspectOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, _, err = client.ServiceInspectWithRaw(context.Background(), "    ", types.ServiceInspectOptions{})
+	_, _, err = client.ServiceInspectWithRaw(context.Background(), "    ", swarm.ServiceInspectOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -71,7 +70,7 @@ func TestServiceInspect(t *testing.T) {
 		}),
 	}
 
-	serviceInspect, _, err := client.ServiceInspectWithRaw(context.Background(), "service_id", types.ServiceInspectOptions{})
+	serviceInspect, _, err := client.ServiceInspectWithRaw(context.Background(), "service_id", swarm.ServiceInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(serviceInspect.ID, "service_id"))
 }

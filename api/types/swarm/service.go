@@ -1,6 +1,10 @@
 package swarm // import "github.com/docker/docker/api/types/swarm"
 
-import "time"
+import (
+	"time"
+
+	"github.com/docker/docker/api/types/filters"
+)
 
 // Service represents a service.
 type Service struct {
@@ -199,4 +203,19 @@ type JobStatus struct {
 	// LastExecution is the time that the job was last executed, as observed by
 	// Swarm manager.
 	LastExecution time.Time `json:",omitempty"`
+}
+
+// ServiceListOptions holds parameters to list services with.
+type ServiceListOptions struct {
+	Filters filters.Args
+
+	// Status indicates whether the server should include the service task
+	// count of running and desired tasks.
+	Status bool
+}
+
+// ServiceInspectOptions holds parameters related to the "service inspect"
+// operation.
+type ServiceInspectOptions struct {
+	InsertDefaults bool
 }

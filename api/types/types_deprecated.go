@@ -138,6 +138,17 @@ type ConfigCreateResponse = swarm.ConfigCreateResponse
 // Deprecated: use [swarm.ConfigListOptions].
 type ConfigListOptions = swarm.ConfigListOptions
 
+// ServiceListOptions holds parameters to list services with.
+//
+// Deprecated: use [swarm.ServiceListOptions].
+type ServiceListOptions = swarm.ServiceListOptions
+
+// ServiceInspectOptions holds parameters related to the "service inspect"
+// operation.
+//
+// Deprecated: use [swarm.ServiceInspectOptions].
+type ServiceInspectOptions = swarm.ServiceInspectOptions
+
 // BuildCache contains information about a build cache record.
 //
 // Deprecated: deprecated in API 1.49. Use [build.CacheRecord] instead.

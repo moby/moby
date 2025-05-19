@@ -109,21 +109,6 @@ type ServiceUpdateOptions struct {
 	QueryRegistry bool
 }
 
-// ServiceListOptions holds parameters to list services with.
-type ServiceListOptions struct {
-	Filters filters.Args
-
-	// Status indicates whether the server should include the service task
-	// count of running and desired tasks.
-	Status bool
-}
-
-// ServiceInspectOptions holds parameters related to the "service inspect"
-// operation.
-type ServiceInspectOptions struct {
-	InsertDefaults bool
-}
-
 // TaskListOptions holds parameters to list tasks with.
 type TaskListOptions struct {
 	Filters filters.Args
