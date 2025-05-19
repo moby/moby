@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -38,7 +38,7 @@ func TestSwarmGetUnlockKey(t *testing.T) {
 				return nil, fmt.Errorf("expected GET method, got %s", req.Method)
 			}
 
-			key := types.SwarmUnlockKeyResponse{
+			key := swarm.UnlockKeyResponse{
 				UnlockKey: unlockKey,
 			}
 

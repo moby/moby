@@ -140,7 +140,7 @@ func (sr *swarmRouter) getUnlockKey(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusOK, &basictypes.SwarmUnlockKeyResponse{
+	return httputils.WriteJSON(w, http.StatusOK, &types.UnlockKeyResponse{
 		UnlockKey: unlockKey,
 	})
 }

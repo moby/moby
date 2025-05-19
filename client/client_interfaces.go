@@ -191,7 +191,7 @@ type ServiceAPIClient interface {
 type SwarmAPIClient interface {
 	SwarmInit(ctx context.Context, req swarm.InitRequest) (string, error)
 	SwarmJoin(ctx context.Context, req swarm.JoinRequest) error
-	SwarmGetUnlockKey(ctx context.Context) (types.SwarmUnlockKeyResponse, error)
+	SwarmGetUnlockKey(ctx context.Context) (swarm.UnlockKeyResponse, error)
 	SwarmUnlock(ctx context.Context, req swarm.UnlockRequest) error
 	SwarmLeave(ctx context.Context, force bool) error
 	SwarmInspect(ctx context.Context) (swarm.Swarm, error)

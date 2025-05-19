@@ -159,6 +159,12 @@ type ServiceListOptions = swarm.ServiceListOptions
 // Deprecated: use [swarm.ServiceInspectOptions].
 type ServiceInspectOptions = swarm.ServiceInspectOptions
 
+// SwarmUnlockKeyResponse contains the response for Engine API:
+// GET /swarm/unlockkey
+//
+// Deprecated: use [swarm.UnlockKeyResponse].
+type SwarmUnlockKeyResponse = swarm.UnlockKeyResponse
+
 // BuildCache contains information about a build cache record.
 //
 // Deprecated: deprecated in API 1.49. Use [build.CacheRecord] instead.
