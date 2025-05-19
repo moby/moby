@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -21,14 +21,14 @@ func TestPluginEnableError(t *testing.T) {
 	}
 
 	err := client.PluginEnable(context.Background(), "plugin_name", types.PluginEnableOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.PluginEnable(context.Background(), "", types.PluginEnableOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	err = client.PluginEnable(context.Background(), "    ", types.PluginEnableOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 

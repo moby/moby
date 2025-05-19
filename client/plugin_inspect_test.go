@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -23,7 +23,7 @@ func TestPluginInspectError(t *testing.T) {
 	}
 
 	_, _, err := client.PluginInspectWithRaw(context.Background(), "nothing")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestPluginInspectWithEmptyID(t *testing.T) {
@@ -33,11 +33,11 @@ func TestPluginInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.PluginInspectWithRaw(context.Background(), "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	_, _, err = client.PluginInspectWithRaw(context.Background(), "    ")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
