@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -23,7 +23,7 @@ func TestServiceInspectError(t *testing.T) {
 	}
 
 	_, _, err := client.ServiceInspectWithRaw(context.Background(), "nothing", swarm.ServiceInspectOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestServiceInspectServiceNotFound(t *testing.T) {
@@ -32,7 +32,7 @@ func TestServiceInspectServiceNotFound(t *testing.T) {
 	}
 
 	_, _, err := client.ServiceInspectWithRaw(context.Background(), "unknown", swarm.ServiceInspectOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestServiceInspectWithEmptyID(t *testing.T) {
@@ -42,11 +42,11 @@ func TestServiceInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.ServiceInspectWithRaw(context.Background(), "", swarm.ServiceInspectOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	_, _, err = client.ServiceInspectWithRaw(context.Background(), "    ", swarm.ServiceInspectOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
