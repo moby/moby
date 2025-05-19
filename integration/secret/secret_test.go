@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
@@ -54,7 +53,7 @@ func TestSecretList(t *testing.T) {
 	c := d.NewClientT(t)
 	defer c.Close()
 
-	configs, err := c.SecretList(ctx, types.SecretListOptions{})
+	configs, err := c.SecretList(ctx, swarmtypes.SecretListOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(configs), 0))
 
@@ -70,7 +69,7 @@ func TestSecretList(t *testing.T) {
 	secret1ID := createSecret(ctx, t, c, testName1, []byte("TESTINGDATA1"), map[string]string{"type": "production"})
 
 	// test by `secret ls`
-	entries, err := c.SecretList(ctx, types.SecretListOptions{})
+	entries, err := c.SecretList(ctx, swarmtypes.SecretListOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(secretNamesFromList(entries), testNames))
 
@@ -103,7 +102,7 @@ func TestSecretList(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		entries, err = c.SecretList(ctx, types.SecretListOptions{
+		entries, err = c.SecretList(ctx, swarmtypes.SecretListOptions{
 			Filters: tc.filters,
 		})
 		assert.NilError(t, err)
@@ -357,7 +356,7 @@ func TestSecretCreateResolve(t *testing.T) {
 	fakeName := secretID
 	fakeID := createSecret(ctx, t, c, fakeName, []byte("fake foo"), nil)
 
-	entries, err := c.SecretList(ctx, types.SecretListOptions{})
+	entries, err := c.SecretList(ctx, swarmtypes.SecretListOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(secretNamesFromList(entries), testName))
 	assert.Check(t, is.Contains(secretNamesFromList(entries), fakeName))
@@ -366,7 +365,7 @@ func TestSecretCreateResolve(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Fake one will remain
-	entries, err = c.SecretList(ctx, types.SecretListOptions{})
+	entries, err = c.SecretList(ctx, swarmtypes.SecretListOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, is.DeepEqual(secretNamesFromList(entries), []string{fakeName}))
 
@@ -377,14 +376,14 @@ func TestSecretCreateResolve(t *testing.T) {
 	// - Partial ID (prefix)
 	err = c.SecretRemove(ctx, fakeName[:5])
 	assert.Assert(t, nil != err)
-	entries, err = c.SecretList(ctx, types.SecretListOptions{})
+	entries, err = c.SecretList(ctx, swarmtypes.SecretListOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, is.DeepEqual(secretNamesFromList(entries), []string{fakeName}))
 
 	// Remove based on ID prefix of the fake one should succeed
 	err = c.SecretRemove(ctx, fakeID[:5])
 	assert.NilError(t, err)
-	entries, err = c.SecretList(ctx, types.SecretListOptions{})
+	entries, err = c.SecretList(ctx, swarmtypes.SecretListOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, is.Equal(0, len(entries)))
 }

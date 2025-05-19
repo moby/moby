@@ -3,7 +3,6 @@ package cluster // import "github.com/docker/docker/daemon/cluster"
 import (
 	"context"
 
-	apitypes "github.com/docker/docker/api/types"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
 	swarmapi "github.com/moby/swarmkit/v2/api"
@@ -28,7 +27,7 @@ func (c *Cluster) GetSecret(input string) (types.Secret, error) {
 }
 
 // GetSecrets returns all secrets of a managed swarm cluster.
-func (c *Cluster) GetSecrets(options apitypes.SecretListOptions) ([]types.Secret, error) {
+func (c *Cluster) GetSecrets(options types.SecretListOptions) ([]types.Secret, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

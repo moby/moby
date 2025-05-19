@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"gotest.tools/v3/assert"
 )
@@ -29,7 +28,7 @@ func (d *Daemon) ListConfigs(t testing.TB) []swarm.Config {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	configs, err := cli.ConfigList(context.Background(), types.ConfigListOptions{})
+	configs, err := cli.ConfigList(context.Background(), swarm.ConfigListOptions{})
 	assert.NilError(t, err)
 	return configs
 }
