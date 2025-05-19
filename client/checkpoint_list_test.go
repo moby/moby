@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/checkpoint"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,7 +22,7 @@ func TestCheckpointListError(t *testing.T) {
 	}
 
 	_, err := client.CheckpointList(context.Background(), "container_id", checkpoint.ListOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestCheckpointList(t *testing.T) {
@@ -59,5 +59,5 @@ func TestCheckpointListContainerNotFound(t *testing.T) {
 	}
 
 	_, err := client.CheckpointList(context.Background(), "unknown", checkpoint.ListOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
