@@ -7,9 +7,9 @@ import (
 	"net/url"
 	"strconv"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/errdefs"
 )
 
 // ImageSearch makes the docker host search by a term in a remote registry.
@@ -32,7 +32,7 @@ func (cli *Client) ImageSearch(ctx context.Context, term string, options registr
 
 	resp, err := cli.tryImageSearch(ctx, query, options.RegistryAuth)
 	defer ensureReaderClosed(resp)
-	if errdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
+	if cerrdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
 		newAuthHeader, privilegeErr := options.PrivilegeFunc(ctx)
 		if privilegeErr != nil {
 			return results, privilegeErr

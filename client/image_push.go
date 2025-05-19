@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"net/url"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/errdefs"
 )
 
 // ImagePush requests the docker host to push an image to a remote registry.
@@ -52,7 +52,7 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options image.Pu
 	}
 
 	resp, err := cli.tryImagePush(ctx, ref.Name(), query, options.RegistryAuth)
-	if errdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
+	if cerrdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
 		newAuthHeader, privilegeErr := options.PrivilegeFunc(ctx)
 		if privilegeErr != nil {
 			return nil, privilegeErr
