@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,7 +22,7 @@ func TestNetworkCreateError(t *testing.T) {
 	}
 
 	_, err := client.NetworkCreate(context.Background(), "mynetwork", network.CreateOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 // TestNetworkCreateConnectionError verifies that connection errors occurring
