@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -21,14 +21,14 @@ func TestContainerCreateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerCreate(context.Background(), nil, nil, nil, nil, "nothing")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	// 404 doesn't automatically means an unknown image
 	client = &Client{
 		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 	_, err = client.ContainerCreate(context.Background(), nil, nil, nil, nil, "nothing")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestContainerCreateImageNotFound(t *testing.T) {
@@ -36,7 +36,7 @@ func TestContainerCreateImageNotFound(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "No such image")),
 	}
 	_, err := client.ContainerCreate(context.Background(), &container.Config{Image: "unknown_image"}, nil, nil, nil, "unknown")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestContainerCreateWithName(t *testing.T) {

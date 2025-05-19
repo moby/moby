@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -35,7 +35,7 @@ func TestImagePushAnyError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImagePushStatusUnauthorizedError(t *testing.T) {
@@ -43,7 +43,7 @@ func TestImagePushStatusUnauthorizedError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsUnauthorized))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnauthorized))
 }
 
 func TestImagePushWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
@@ -69,7 +69,7 @@ func TestImagePushWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T)
 	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
-	assert.Check(t, is.ErrorType(err, errdefs.IsUnauthorized))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnauthorized))
 }
 
 func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {

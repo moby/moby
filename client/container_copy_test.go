@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -23,14 +23,14 @@ func TestContainerStatPathError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerStatPath(context.Background(), "container_id", "path")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, err = client.ContainerStatPath(context.Background(), "", "path")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	_, err = client.ContainerStatPath(context.Background(), "    ", "path")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -39,7 +39,7 @@ func TestContainerStatPathNotFoundError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
 	}
 	_, err := client.ContainerStatPath(context.Background(), "container_id", "path")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestContainerStatPathNoHeaderError(t *testing.T) {
@@ -99,14 +99,14 @@ func TestCopyToContainerError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.CopyToContainer(context.Background(), "", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	err = client.CopyToContainer(context.Background(), "    ", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -115,7 +115,7 @@ func TestCopyToContainerNotFoundError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
 	}
 	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 // TestCopyToContainerEmptyResponse verifies that no error is returned when a
@@ -177,14 +177,14 @@ func TestCopyFromContainerError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, _, err = client.CopyFromContainer(context.Background(), "", "path/to/file")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	_, _, err = client.CopyFromContainer(context.Background(), "    ", "path/to/file")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
@@ -193,7 +193,7 @@ func TestCopyFromContainerNotFoundError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 // TestCopyFromContainerEmptyResponse verifies that no error is returned when a

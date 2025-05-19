@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,7 +22,7 @@ func TestImageRemoveError(t *testing.T) {
 	}
 
 	_, err := client.ImageRemove(context.Background(), "image_id", image.RemoveOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageRemoveImageNotFound(t *testing.T) {
@@ -32,7 +32,7 @@ func TestImageRemoveImageNotFound(t *testing.T) {
 
 	_, err := client.ImageRemove(context.Background(), "unknown", image.RemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "no such image: unknown"))
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestImageRemove(t *testing.T) {

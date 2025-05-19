@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -24,7 +24,7 @@ func TestImageInspectError(t *testing.T) {
 	}
 
 	_, err := client.ImageInspect(context.Background(), "nothing")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageInspectImageNotFound(t *testing.T) {
@@ -33,7 +33,7 @@ func TestImageInspectImageNotFound(t *testing.T) {
 	}
 
 	_, err := client.ImageInspect(context.Background(), "unknown")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestImageInspectWithEmptyID(t *testing.T) {
@@ -43,7 +43,7 @@ func TestImageInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, err := client.ImageInspect(context.Background(), "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestImageInspect(t *testing.T) {

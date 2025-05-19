@@ -6,9 +6,9 @@ import (
 	"net/url"
 	"strings"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
 )
 
 // ImagePull requests the docker host to pull an image from a remote registry.
@@ -35,7 +35,7 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options image.P
 	}
 
 	resp, err := cli.tryImageCreate(ctx, query, options.RegistryAuth)
-	if errdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
+	if cerrdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
 		newAuthHeader, privilegeErr := options.PrivilegeFunc(ctx)
 		if privilegeErr != nil {
 			return nil, privilegeErr

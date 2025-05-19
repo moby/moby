@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -69,11 +69,11 @@ func TestNetworkInspect(t *testing.T) {
 	t.Run("empty ID", func(t *testing.T) {
 		// verify that the client does not create a request if the network-ID/name is empty.
 		_, err := client.NetworkInspect(context.Background(), "", network.InspectOptions{})
-		assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 		assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 		_, err = client.NetworkInspect(context.Background(), "    ", network.InspectOptions{})
-		assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 		assert.Check(t, is.ErrorContains(err, "value is empty"))
 	})
 	t.Run("no options", func(t *testing.T) {
@@ -91,16 +91,16 @@ func TestNetworkInspect(t *testing.T) {
 	t.Run("global scope", func(t *testing.T) {
 		_, err := client.NetworkInspect(context.Background(), "network_id", network.InspectOptions{Scope: "global"})
 		assert.Check(t, is.ErrorContains(err, "Error: No such network: network_id"))
-		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 	t.Run("unknown network", func(t *testing.T) {
 		_, err := client.NetworkInspect(context.Background(), "unknown", network.InspectOptions{})
 		assert.Check(t, is.ErrorContains(err, "Error: No such network: unknown"))
-		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 	t.Run("server error", func(t *testing.T) {
 		// Just testing that an internal server error is converted correctly by the client
 		_, err := client.NetworkInspect(context.Background(), "test-500-response", network.InspectOptions{})
-		assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 	})
 }
