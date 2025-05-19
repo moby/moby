@@ -3,7 +3,7 @@ package backend // import "github.com/docker/docker/api/types/backend"
 import (
 	"io"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/streamformatter"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -34,7 +34,7 @@ type ProgressWriter struct {
 type BuildConfig struct {
 	Source         io.ReadCloser
 	ProgressWriter ProgressWriter
-	Options        *types.ImageBuildOptions
+	Options        *build.ImageBuildOptions
 }
 
 // GetImageAndLayerOptions are the options supported by GetImageAndReleasableLayer

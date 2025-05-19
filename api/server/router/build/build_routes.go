@@ -17,7 +17,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
@@ -36,9 +35,9 @@ type invalidParam struct {
 
 func (e invalidParam) InvalidParameter() {}
 
-func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBuildOptions, error) {
-	options := &types.ImageBuildOptions{
-		Version:        types.BuilderV1, // Builder V1 is the default, but can be overridden
+func newImageBuildOptions(ctx context.Context, r *http.Request) (*build.ImageBuildOptions, error) {
+	options := &build.ImageBuildOptions{
+		Version:        build.BuilderV1, // Builder V1 is the default, but can be overridden
 		Dockerfile:     r.FormValue("dockerfile"),
 		SuppressOutput: httputils.BoolValue(r, "q"),
 		NoCache:        httputils.BoolValue(r, "nocache"),
@@ -82,7 +81,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	if versions.GreaterThanOrEqualTo(version, "1.40") {
 		outputsJSON := r.FormValue("outputs")
 		if outputsJSON != "" {
-			var outputs []types.ImageBuildOutput
+			var outputs []build.ImageBuildOutput
 			if err := json.Unmarshal([]byte(outputsJSON), &outputs); err != nil {
 				return nil, invalidParam{errors.Wrap(err, "invalid outputs specified")}
 			}
@@ -160,12 +159,12 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	return options, nil
 }
 
-func parseVersion(s string) (types.BuilderVersion, error) {
-	switch types.BuilderVersion(s) {
-	case types.BuilderV1:
-		return types.BuilderV1, nil
-	case types.BuilderBuildKit:
-		return types.BuilderBuildKit, nil
+func parseVersion(s string) (build.BuilderVersion, error) {
+	switch build.BuilderVersion(s) {
+	case build.BuilderV1:
+		return build.BuilderV1, nil
+	case build.BuilderBuildKit:
+		return build.BuilderBuildKit, nil
 	default:
 		return "", invalidParam{errors.Errorf("invalid version %q", s)}
 	}

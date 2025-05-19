@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
@@ -330,7 +330,7 @@ func setupTestImage(t *testing.T, ctx context.Context, apiClient client.APIClien
 
 	resp, err := apiClient.ImageBuild(ctx,
 		source.AsTarReader(t),
-		types.ImageBuildOptions{
+		build.ImageBuildOptions{
 			Remove:      false,
 			ForceRemove: false,
 			Tags:        []string{imgName},

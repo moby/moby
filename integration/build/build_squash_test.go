@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	containertypes "github.com/docker/docker/api/types/container"
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
@@ -54,7 +54,7 @@ func TestBuildSquashParent(t *testing.T) {
 	name := strings.ToLower(t.Name())
 	resp, err := client.ImageBuild(ctx,
 		source.AsTarReader(t),
-		types.ImageBuildOptions{
+		build.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
 			Tags:        []string{name},
@@ -71,7 +71,7 @@ func TestBuildSquashParent(t *testing.T) {
 	// build with squash
 	resp, err = client.ImageBuild(ctx,
 		source.AsTarReader(t),
-		types.ImageBuildOptions{
+		build.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
 			Squash:      true,

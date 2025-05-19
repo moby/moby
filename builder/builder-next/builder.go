@@ -12,7 +12,6 @@ import (
 
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
@@ -438,7 +437,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 			return errors.Errorf("missing image id")
 		}
 		out.ImageID = imgID
-		return aux.Emit("moby.image.id", types.BuildResult{ID: imgID})
+		return aux.Emit("moby.image.id", build.Result{ID: imgID})
 	})
 
 	ch := make(chan *controlapi.StatusResponse)

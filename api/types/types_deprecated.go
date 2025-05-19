@@ -153,3 +153,42 @@ type BuildCachePruneOptions = build.CachePruneOptions
 //
 // Deprecated: use [build.CachePruneReport].
 type BuildCachePruneReport = build.CachePruneReport
+
+// BuildResult contains the image id of a successful build/
+//
+// Deprecated: use [build.Result].
+type BuildResult = build.Result
+
+// ImageBuildOptions holds the information
+// necessary to build images.
+//
+// Deprecated: use [build.ImageBuildOptions].
+type ImageBuildOptions = build.ImageBuildOptions
+
+// ImageBuildOutput defines configuration for exporting a build result
+//
+// Deprecated: use [build.ImageBuildOutput].
+type ImageBuildOutput = build.ImageBuildOutput
+
+// ImageBuildResponse holds information
+// returned by a server after building
+// an image.
+//
+// Deprecated: use [build.ImageBuildResponse].
+type ImageBuildResponse = build.ImageBuildResponse
+
+// BuilderVersion sets the version of underlying builder to use
+//
+// Deprecated: use [build.BuilderVersion].
+type BuilderVersion = build.BuilderVersion
+
+const (
+	// BuilderV1 is the first generation builder in docker daemon
+	//
+	// Deprecated: use [build.BuilderV1].
+	BuilderV1 = build.BuilderV1
+	// BuilderBuildKit is builder based on moby/buildkit project
+	//
+	// Deprecated: use [build.BuilderBuildKit].
+	BuilderBuildKit = build.BuilderBuildKit
+)

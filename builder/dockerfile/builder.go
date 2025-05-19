@@ -10,8 +10,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
@@ -99,7 +99,7 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 
 // builderOptions are the dependencies required by the builder
 type builderOptions struct {
-	Options        *types.ImageBuildOptions
+	Options        *build.ImageBuildOptions
 	Backend        builder.Backend
 	ProgressWriter backend.ProgressWriter
 	PathCache      pathCache
@@ -109,7 +109,7 @@ type builderOptions struct {
 // Builder is a Dockerfile builder
 // It implements the builder.Backend interface.
 type Builder struct {
-	options *types.ImageBuildOptions
+	options *build.ImageBuildOptions
 
 	Stdout io.Writer
 	Stderr io.Writer
@@ -131,7 +131,7 @@ type Builder struct {
 func newBuilder(ctx context.Context, options builderOptions) (*Builder, error) {
 	config := options.Options
 	if config == nil {
-		config = new(types.ImageBuildOptions)
+		config = new(build.ImageBuildOptions)
 	}
 
 	imgProber, err := newImageProber(ctx, options.Backend, config.CacheFrom, config.NoCache)
@@ -222,7 +222,7 @@ func emitImageID(aux *streamformatter.AuxFormatter, state *dispatchState) error 
 	if aux == nil || state.imageID == "" {
 		return nil
 	}
-	return aux.Emit("", types.BuildResult{ID: state.imageID})
+	return aux.Emit("", build.Result{ID: state.imageID})
 }
 
 func processMetaArg(meta instructions.ArgCommand, shlex *shell.Lex, args *BuildArgs) error {
@@ -331,7 +331,7 @@ func BuildFromConfig(ctx context.Context, config *container.Config, changes []st
 	}
 
 	b, err := newBuilder(ctx, builderOptions{
-		Options: &types.ImageBuildOptions{NoCache: true},
+		Options: &build.ImageBuildOptions{NoCache: true},
 	})
 	if err != nil {
 		return nil, err

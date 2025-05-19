@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	"github.com/moby/go-archive"
 	"gotest.tools/v3/assert"
 )
@@ -74,7 +74,7 @@ func ensureHTTPServerImage(t testing.TB) {
 	c := testEnv.APIClient()
 	reader, err := archive.TarWithOptions(tmp, &archive.TarOptions{})
 	assert.NilError(t, err)
-	resp, err := c.ImageBuild(context.Background(), reader, types.ImageBuildOptions{
+	resp, err := c.ImageBuild(context.Background(), reader, build.ImageBuildOptions{
 		Remove:      true,
 		ForceRemove: true,
 		Tags:        []string{"httpserver"},

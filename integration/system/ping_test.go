@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
@@ -110,9 +110,9 @@ func TestPingBuilderHeader(t *testing.T) {
 		d.Start(t)
 		defer d.Stop(t)
 
-		expected := types.BuilderBuildKit
+		expected := build.BuilderBuildKit
 		if runtime.GOOS == "windows" {
-			expected = types.BuilderV1
+			expected = build.BuilderV1
 		}
 
 		p, err := apiClient.Ping(ctx)
@@ -128,7 +128,7 @@ func TestPingBuilderHeader(t *testing.T) {
 		d.Start(t, "--config-file", cfg)
 		defer d.Stop(t)
 
-		expected := types.BuilderV1
+		expected := build.BuilderV1
 		p, err := apiClient.Ping(ctx)
 		assert.NilError(t, err)
 		assert.Equal(t, p.BuilderVersion, expected)
