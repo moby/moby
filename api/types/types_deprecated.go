@@ -127,6 +127,17 @@ type SecretCreateResponse = swarm.SecretCreateResponse
 // Deprecated: use [swarm.SecretListOptions].
 type SecretListOptions = swarm.SecretListOptions
 
+// ConfigCreateResponse contains the information returned to a client
+// on the creation of a new config.
+//
+// Deprecated: use [swarm.ConfigCreateResponse].
+type ConfigCreateResponse = swarm.ConfigCreateResponse
+
+// ConfigListOptions holds parameters to list configs
+//
+// Deprecated: use [swarm.ConfigListOptions].
+type ConfigListOptions = swarm.ConfigListOptions
+
 // BuildCache contains information about a build cache record.
 //
 // Deprecated: deprecated in API 1.49. Use [build.CacheRecord] instead.

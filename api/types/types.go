@@ -3,7 +3,6 @@ package types // import "github.com/docker/docker/api/types"
 import (
 	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
@@ -92,18 +91,6 @@ type DiskUsage struct {
 	Volumes     []*volume.Volume
 	BuildCache  []*build.CacheRecord
 	BuilderSize int64 `json:",omitempty"` // Deprecated: deprecated in API 1.38, and no longer used since API 1.40.
-}
-
-// ConfigCreateResponse contains the information returned to a client
-// on the creation of a new config.
-type ConfigCreateResponse struct {
-	// ID is the id of the created config.
-	ID string
-}
-
-// ConfigListOptions holds parameters to list configs
-type ConfigListOptions struct {
-	Filters filters.Args
 }
 
 // PushResult contains the tag, manifest digest, and manifest size from the
