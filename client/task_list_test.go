@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
@@ -23,7 +22,7 @@ func TestTaskListError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.TaskList(context.Background(), types.TaskListOptions{})
+	_, err := client.TaskList(context.Background(), swarm.TaskListOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -31,17 +30,17 @@ func TestTaskList(t *testing.T) {
 	const expectedURL = "/tasks"
 
 	listCases := []struct {
-		options             types.TaskListOptions
+		options             swarm.TaskListOptions
 		expectedQueryParams map[string]string
 	}{
 		{
-			options: types.TaskListOptions{},
+			options: swarm.TaskListOptions{},
 			expectedQueryParams: map[string]string{
 				"filters": "",
 			},
 		},
 		{
-			options: types.TaskListOptions{
+			options: swarm.TaskListOptions{
 				Filters: filters.NewArgs(
 					filters.Arg("label", "label1"),
 					filters.Arg("label", "label2"),

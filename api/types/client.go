@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"context"
 	"net"
-
-	"github.com/docker/docker/api/types/filters"
 )
 
 // NewHijackedResponse initializes a [HijackedResponse] type.
@@ -97,11 +95,6 @@ type ServiceUpdateOptions struct {
 	// the image digest and manifest, which in turn can be used to update
 	// platform or other information about the service.
 	QueryRegistry bool
-}
-
-// TaskListOptions holds parameters to list tasks with.
-type TaskListOptions struct {
-	Filters filters.Args
 }
 
 // PluginRemoveOptions holds parameters to remove plugins.

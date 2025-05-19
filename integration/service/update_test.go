@@ -326,7 +326,7 @@ func TestServiceUpdatePidsLimit(t *testing.T) {
 
 func getServiceTaskContainer(ctx context.Context, t *testing.T, cli client.APIClient, serviceID string) container.InspectResponse {
 	t.Helper()
-	tasks, err := cli.TaskList(ctx, types.TaskListOptions{
+	tasks, err := cli.TaskList(ctx, swarmtypes.TaskListOptions{
 		Filters: filters.NewArgs(
 			filters.Arg("service", serviceID),
 			filters.Arg("desired-state", "running"),

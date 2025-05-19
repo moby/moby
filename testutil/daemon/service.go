@@ -63,7 +63,7 @@ func (d *Daemon) GetServiceTasks(ctx context.Context, t testing.TB, service stri
 		filterArgs.Add(filter.Key, filter.Value)
 	}
 
-	options := types.TaskListOptions{
+	options := swarm.TaskListOptions{
 		Filters: filterArgs,
 	}
 
