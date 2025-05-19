@@ -12,8 +12,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/builder"
@@ -364,7 +364,7 @@ func (b *Builder) create(ctx context.Context, runConfig *container.Config) (stri
 	return ctr.ID, nil
 }
 
-func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConfig {
+func hostConfigFromOptions(options *build.ImageBuildOptions) *container.HostConfig {
 	resources := container.Resources{
 		CgroupParent: options.CgroupParent,
 		CPUShares:    options.CPUShares,

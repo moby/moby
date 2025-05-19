@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 )
@@ -18,15 +18,15 @@ import (
 // ImageBuild sends a request to the daemon to build images.
 // The Body in the response implements an io.ReadCloser and it's up to the caller to
 // close it.
-func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, options types.ImageBuildOptions) (types.ImageBuildResponse, error) {
+func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (build.ImageBuildResponse, error) {
 	query, err := cli.imageBuildOptionsToQuery(ctx, options)
 	if err != nil {
-		return types.ImageBuildResponse{}, err
+		return build.ImageBuildResponse{}, err
 	}
 
 	buf, err := json.Marshal(options.AuthConfigs)
 	if err != nil {
-		return types.ImageBuildResponse{}, err
+		return build.ImageBuildResponse{}, err
 	}
 
 	headers := http.Header{}
@@ -35,16 +35,16 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 
 	resp, err := cli.postRaw(ctx, "/build", query, buildContext, headers)
 	if err != nil {
-		return types.ImageBuildResponse{}, err
+		return build.ImageBuildResponse{}, err
 	}
 
-	return types.ImageBuildResponse{
+	return build.ImageBuildResponse{
 		Body:   resp.Body,
 		OSType: getDockerOS(resp.Header.Get("Server")),
 	}, nil
 }
 
-func (cli *Client) imageBuildOptionsToQuery(ctx context.Context, options types.ImageBuildOptions) (url.Values, error) {
+func (cli *Client) imageBuildOptionsToQuery(ctx context.Context, options build.ImageBuildOptions) (url.Values, error) {
 	query := url.Values{}
 	if len(options.Tags) > 0 {
 		query["t"] = options.Tags

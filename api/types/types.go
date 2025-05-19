@@ -22,7 +22,7 @@ type Ping struct {
 	APIVersion     string
 	OSType         string
 	Experimental   bool
-	BuilderVersion BuilderVersion
+	BuilderVersion build.BuilderVersion
 
 	// SwarmStatus provides information about the current swarm status of the
 	// engine, obtained from the "Swarm" header in the API response.

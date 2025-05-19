@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image"
@@ -25,7 +25,7 @@ import (
 func newBuilderWithMockBackend(t *testing.T) *Builder {
 	t.Helper()
 	mockBackend := &MockBackend{}
-	opts := &types.ImageBuildOptions{}
+	opts := &build.ImageBuildOptions{}
 	ctx := context.Background()
 
 	imageProber, err := newImageProber(ctx, mockBackend, nil, false)

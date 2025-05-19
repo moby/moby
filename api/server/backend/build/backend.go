@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/events"
@@ -53,7 +52,7 @@ func (b *Backend) RegisterGRPC(s *grpc.Server) {
 // Build builds an image from a Source
 func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string, error) {
 	options := config.Options
-	useBuildKit := options.Version == types.BuilderBuildKit
+	useBuildKit := options.Version == build.BuilderBuildKit
 
 	tags, err := sanitizeRepoAndTags(options.Tags)
 	if err != nil {

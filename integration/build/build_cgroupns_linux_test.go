@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/integration/internal/requirement"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil"
@@ -54,7 +54,7 @@ func testBuildWithCgroupNs(ctx context.Context, t *testing.T, daemonNsMode strin
 	client := d.NewClientT(t)
 	resp, err := client.ImageBuild(ctx,
 		source.AsTarReader(t),
-		types.ImageBuildOptions{
+		build.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
 			Tags:        []string{"buildcgroupns"},
