@@ -19,7 +19,6 @@ import (
 	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
-	"github.com/containerd/containerd/v2/core/remotes/docker/schema1" //nolint:staticcheck // Ignore SA1019: "github.com/containerd/containerd/remotes/docker/schema1" is deprecated: use images formatted in Docker Image Manifest v2, Schema 2, or OCI Image Spec v1.
 	"github.com/containerd/containerd/v2/pkg/gc"
 	c8dreference "github.com/containerd/containerd/v2/pkg/reference"
 	cerrdefs "github.com/containerd/errdefs"
@@ -518,18 +517,13 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 
 	var nonLayers []digest.Digest
 
-	var (
-		schema1Converter *schema1.Converter
-		handlers         []c8dimages.Handler
-	)
+	var handlers []c8dimages.Handler
 	if p.desc.MediaType == c8dimages.MediaTypeDockerSchema1Manifest {
-		schema1Converter, err = schema1.NewConverter(p.is.ContentStore, fetcher)
-		if err != nil {
-			stopProgress()
-			return nil, err
-		}
-		handlers = append(handlers, schema1Converter)
-
+		stopProgress()
+		// similar to [github.com/docker/docker/distribution/DeprecatedSchema1ImageError]
+		errMsg := "support for Docker Image Format v1 and Docker Image manifest version 2, schema 1 has been removed in Docker Engine v28.2. " +
+			"More information at https://docs.docker.com/go/deprecated-image-specs/"
+		return nil, cerrdefs.ErrInvalidArgument.WithMessage(errMsg)
 		// TODO: Optimize to do dispatch and integrate pulling with download manager,
 		// leverage existing blob mapping and layer storage
 	} else {
@@ -567,13 +561,6 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 		return nil, err
 	}
 	defer stopProgress()
-
-	if schema1Converter != nil {
-		p.desc, err = schema1Converter.Convert(ctx)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	mfst, err := c8dimages.Manifest(ctx, p.is.ContentStore, p.desc, platform)
 	if err != nil {
