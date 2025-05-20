@@ -39,9 +39,7 @@ RUN --mount=from=src,source=/out,target=.,rw \
     github.com/gogo/protobuf/protoc-gen-gogo \
     github.com/gogo/protobuf/protoc-gen-gogofaster \
     github.com/gogo/protobuf/protoc-gen-gogoslick \
-    github.com/golang/protobuf/protoc-gen-go
-  ./hack/with-go-mod.sh go build -v -mod=vendor -modfile=vendor.mod \
-    -o /usr/bin/pluginrpc-gen \
+    github.com/golang/protobuf/protoc-gen-go \
     ./pkg/plugins/pluginrpc-gen
 EOT
 
@@ -51,7 +49,7 @@ RUN --mount=from=src,source=/out,target=.,rw <<EOT
   set -ex
   go generate -v ./...
   mkdir /out
-  git ls-files -m --others -- ':!vendor' 'profiles/seccomp/default.json' '**/*.pb.go' | tar -cf - --files-from - | tar -C /out -xf -
+  git ls-files -m --others -- ':!vendor' 'profiles/seccomp/default.json' '**/*.pb.go' 'volume/drivers/proxy.go' | tar -cf - --files-from - | tar -C /out -xf -
 EOT
 
 FROM scratch AS update
