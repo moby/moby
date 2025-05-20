@@ -52,9 +52,9 @@ type svcMapEntry struct {
 }
 
 type svcInfo struct {
-	svcMap     setmatrix.SetMatrix[svcMapEntry]
-	svcIPv6Map setmatrix.SetMatrix[svcMapEntry]
-	ipMap      setmatrix.SetMatrix[ipInfo]
+	svcMap     setmatrix.SetMatrix[string, svcMapEntry]
+	svcIPv6Map setmatrix.SetMatrix[string, svcMapEntry]
+	ipMap      setmatrix.SetMatrix[string, ipInfo]
 	service    map[string][]servicePorts
 }
 
@@ -1322,7 +1322,7 @@ func (n *Network) updateSvcRecord(ep *Endpoint, isAdd bool) {
 	}
 }
 
-func addIPToName(ipMap *setmatrix.SetMatrix[ipInfo], name, serviceID string, ip net.IP) {
+func addIPToName(ipMap *setmatrix.SetMatrix[string, ipInfo], name, serviceID string, ip net.IP) {
 	reverseIP := netutils.ReverseIP(ip.String())
 	ipMap.Insert(reverseIP, ipInfo{
 		name:      name,
@@ -1330,7 +1330,7 @@ func addIPToName(ipMap *setmatrix.SetMatrix[ipInfo], name, serviceID string, ip 
 	})
 }
 
-func delIPToName(ipMap *setmatrix.SetMatrix[ipInfo], name, serviceID string, ip net.IP) {
+func delIPToName(ipMap *setmatrix.SetMatrix[string, ipInfo], name, serviceID string, ip net.IP) {
 	reverseIP := netutils.ReverseIP(ip.String())
 	ipMap.Remove(reverseIP, ipInfo{
 		name:      name,
@@ -1338,7 +1338,7 @@ func delIPToName(ipMap *setmatrix.SetMatrix[ipInfo], name, serviceID string, ip 
 	})
 }
 
-func addNameToIP(svcMap *setmatrix.SetMatrix[svcMapEntry], name, serviceID string, epIP net.IP) {
+func addNameToIP(svcMap *setmatrix.SetMatrix[string, svcMapEntry], name, serviceID string, epIP net.IP) {
 	// Since DNS name resolution is case-insensitive, Use the lower-case form
 	// of the name as the key into svcMap
 	lowerCaseName := strings.ToLower(name)
@@ -1348,7 +1348,7 @@ func addNameToIP(svcMap *setmatrix.SetMatrix[svcMapEntry], name, serviceID strin
 	})
 }
 
-func delNameToIP(svcMap *setmatrix.SetMatrix[svcMapEntry], name, serviceID string, epIP net.IP) {
+func delNameToIP(svcMap *setmatrix.SetMatrix[string, svcMapEntry], name, serviceID string, epIP net.IP) {
 	lowerCaseName := strings.ToLower(name)
 	svcMap.Remove(lowerCaseName, svcMapEntry{
 		ip:        epIP.String(),
