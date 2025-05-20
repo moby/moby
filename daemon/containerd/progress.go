@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/core/snapshots"
+	"github.com/containerd/containerd/v2/core/transfer"
 	"github.com/containerd/containerd/v2/pkg/snapshotters"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
@@ -111,12 +113,10 @@ func (j *jobs) Jobs() []ocispec.Descriptor {
 }
 
 type pullProgress struct {
-	store       content.Store
-	showExists  bool
-	hideLayers  bool
-	snapshotter snapshots.Snapshotter
-	layers      []ocispec.Descriptor
-	unpackStart map[digest.Digest]time.Time
+	store      content.Store
+	showExists bool
+	hideLayers bool
+	extract    *extractProgress
 }
 
 func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out progress.Output, start time.Time) error {
@@ -177,6 +177,39 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 			ongoing.Remove(j)
 		}
 	}
+
+	if p.extract != nil {
+		if err := p.extract.UpdateProgress(ctx, out); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *pullProgress) finished(ctx context.Context, out progress.Output, desc ocispec.Descriptor) {
+	if c8dimages.IsLayerType(desc.MediaType) {
+		p.extract.AddLayer(desc)
+	}
+}
+
+type extractProgress struct {
+	snapshotter snapshots.Snapshotter
+	mut         sync.Mutex
+	layers      []ocispec.Descriptor
+	unpackStart map[digest.Digest]time.Time
+}
+
+func (p *extractProgress) AddLayer(desc ocispec.Descriptor) {
+	p.mut.Lock()
+	defer p.mut.Unlock()
+
+	p.layers = append(p.layers, desc)
+}
+
+func (p *extractProgress) UpdateProgress(ctx context.Context, out progress.Output) error {
+	p.mut.Lock()
+	defer p.mut.Unlock()
 
 	var committedIdx []int
 	for idx, desc := range p.layers {
@@ -261,12 +294,6 @@ func findMatchingSnapshot(ctx context.Context, sn snapshots.Snapshotter, layerDe
 	}
 
 	return *matchingSnapshot, nil
-}
-
-func (p *pullProgress) finished(ctx context.Context, out progress.Output, desc ocispec.Descriptor) {
-	if c8dimages.IsLayerType(desc.MediaType) {
-		p.layers = append(p.layers, desc)
-	}
 }
 
 type pushProgress struct {
@@ -360,5 +387,124 @@ func showBlobProgress(desc ocispec.Descriptor) bool {
 		return false
 	default:
 		return true
+	}
+}
+
+type transferProgress struct {
+	mut     sync.Mutex
+	tracked map[digest.Digest]struct{}
+	extract *extractProgress
+}
+
+func (p *transferProgress) TransferProgress(ctx context.Context, out progress.Output, pr transfer.Progress) {
+	log.G(ctx).WithFields(log.Fields{
+		"event": pr.Event,
+		"name":  pr.Name,
+	}).Debug("transfer progress")
+
+	if strings.HasPrefix(pr.Event, "fetching image content") {
+		log.G(ctx).WithFields(log.Fields{
+			"event":    pr.Event,
+			"name":     pr.Name,
+			"parents":  pr.Parents,
+			"progress": pr.Progress,
+			"total":    pr.Total,
+			"desc":     pr.Desc,
+		}).Debug("pulling from")
+
+		ref, err := reference.ParseNormalizedNamed(pr.Name)
+		if err != nil {
+			progress.Message(out, pr.Name, "Pulling from "+pr.Name)
+			return
+		}
+
+		var tagOrDigest string
+		if digested, ok := ref.(reference.Digested); ok {
+			tagOrDigest = digested.Digest().String()
+		} else if tagged, ok := ref.(reference.Tagged); ok {
+			tagOrDigest = tagged.Tag()
+		} else {
+			tagOrDigest = ref.String()
+		}
+
+		progress.Message(out, tagOrDigest, "Pulling from "+reference.Path(ref))
+		return
+	}
+
+	if pr.Desc == nil {
+		return
+	}
+
+	id := stringid.TruncateID(pr.Desc.Digest.Encoded())
+
+	switch pr.Event {
+	case "waiting":
+		desc := *pr.Desc
+
+		if !showBlobProgress(desc) {
+			return
+		}
+		p.mut.Lock()
+		if p.tracked == nil {
+			p.tracked = make(map[digest.Digest]struct{})
+		}
+		p.tracked[desc.Digest] = struct{}{}
+		p.mut.Unlock()
+
+		out.WriteProgress(progress.Progress{
+			ID:     id,
+			Action: "Waiting",
+		})
+		return
+	}
+
+	p.mut.Lock()
+	_, isTracked := p.tracked[pr.Desc.Digest]
+	p.mut.Unlock()
+
+	if !isTracked {
+		return
+	}
+
+	switch pr.Event {
+	case "saved":
+		p.mut.Lock()
+		delete(p.tracked, pr.Desc.Digest)
+		p.mut.Unlock()
+		return
+	case "downloading":
+		if pr.Desc == nil {
+			return
+		}
+		desc := *pr.Desc
+
+		action := "Downloading"
+		if c8dimages.IsLayerType(desc.MediaType) {
+			action = "Pulling layer fs"
+		}
+		out.WriteProgress(progress.Progress{
+			ID:      id,
+			Action:  action,
+			Current: pr.Progress,
+			Total:   pr.Total,
+		})
+	case "complete":
+		out.WriteProgress(progress.Progress{
+			ID:         id,
+			Action:     "Download complete",
+			HideCounts: true,
+		})
+
+		if p.extract != nil {
+			if c8dimages.IsLayerType(pr.Desc.MediaType) {
+				p.extract.AddLayer(*pr.Desc)
+			}
+		}
+	case "already exists":
+		out.WriteProgress(progress.Progress{
+			ID:         id,
+			Action:     "Already exists",
+			HideCounts: true,
+		})
 	}
 }

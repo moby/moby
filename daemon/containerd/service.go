@@ -10,6 +10,9 @@ import (
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/core/snapshots"
+	"github.com/containerd/containerd/v2/core/transfer"
+	"github.com/containerd/containerd/v2/core/transfer/local"
+	"github.com/containerd/containerd/v2/core/unpack"
 	"github.com/containerd/containerd/v2/plugins"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
@@ -40,28 +43,56 @@ type ImageService struct {
 	pruneRunning        atomic.Bool
 	refCountMounter     snapshotter.Mounter
 	idMapping           user.IdentityMapping
+	transfer            transfer.Transferrer
 
 	// defaultPlatformOverride is used in tests to override the host platform.
 	defaultPlatformOverride platforms.MatchComparer
 }
 
 type ImageServiceConfig struct {
-	Client          *containerd.Client
-	Containers      container.Store
-	Snapshotter     string
-	RegistryHosts   docker.RegistryHosts
-	Registry        distribution.RegistryResolver
-	EventsService   *daemonevents.Events
-	RefCountMounter snapshotter.Mounter
-	IDMapping       user.IdentityMapping
+	Client                 *containerd.Client
+	Containers             container.Store
+	Snapshotter            string
+	RegistryHosts          docker.RegistryHosts
+	Registry               distribution.RegistryResolver
+	EventsService          *daemonevents.Events
+	RefCountMounter        snapshotter.Mounter
+	IDMapping              user.IdentityMapping
+	MaxConcurrentDownloads int
+	MaxConcurrentUploads   int
 }
 
 // NewService creates a new ImageService.
 func NewService(config ImageServiceConfig) *ImageService {
+	client := config.Client
+	content := client.ContentStore()
+	images := client.ImageService()
+
+	ts := local.NewTransferService(content, images, local.TransferConfig{
+		MaxConcurrentDownloads:      config.MaxConcurrentDownloads,
+		MaxConcurrentUploadedLayers: config.MaxConcurrentUploads,
+		UnpackPlatforms: []unpack.Platform{
+			{
+				Platform:       platforms.Default(),
+				SnapshotterKey: config.Snapshotter,
+				Snapshotter:    config.Client.SnapshotService(config.Snapshotter),
+				Applier:        config.Client.DiffService(),
+				// TODO(vvoland): Pass extra snapshots annotations
+				// Needs: https://github.com/containerd/containerd/pull/11195
+				// SnapshotterExports: map[string]string{
+				// 	"enable_remote_snapshot_annotations": "true",
+				// },
+
+			},
+		},
+		RegistryConfigPath: "/etc/docker",
+	})
+
 	return &ImageService{
-		client:  config.Client,
-		images:  config.Client.ImageService(),
-		content: config.Client.ContentStore(),
+		client:   client,
+		images:   images,
+		content:  content,
+		transfer: ts,
 		snapshotterServices: map[string]snapshots.Snapshotter{
 			config.Snapshotter: config.Client.SnapshotService(config.Snapshotter),
 		},
