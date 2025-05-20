@@ -62,7 +62,7 @@ func (p *peerEntryDB) UnMarshalDB() peerEntry {
 
 type peerMap struct {
 	// set of peerEntry, note the values have to be objects and not pointers to maintain the proper equality checks
-	mp setmatrix.SetMatrix[peerEntryDB]
+	mp setmatrix.SetMatrix[string, peerEntryDB]
 	sync.Mutex
 }
 
