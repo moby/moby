@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/containerd/log"
+	volumeopts "github.com/docker/docker/api/types/backend/volume"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	volumetypes "github.com/docker/docker/api/types/volume"
@@ -16,7 +17,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/service/opts"
 	"github.com/pkg/errors"
 )
 
@@ -69,13 +69,13 @@ const AnonymousLabel = "com.docker.volume.anonymous"
 //
 // A good example for a reference ID is a container's ID.
 // When whatever is going to reference this volume is removed the caller should dereference the volume by calling `Release`.
-func (s *VolumesService) Create(ctx context.Context, name, driverName string, options ...opts.CreateOption) (*volumetypes.Volume, error) {
+func (s *VolumesService) Create(ctx context.Context, name, driverName string, options ...volumeopts.CreateOption) (*volumetypes.Volume, error) {
 	if name == "" {
 		name = stringid.GenerateRandomID()
 		if driverName == "" {
 			driverName = volume.DefaultDriverName
 		}
-		options = append(options, opts.WithCreateLabel(AnonymousLabel, ""))
+		options = append(options, volumeopts.WithCreateLabel(AnonymousLabel, ""))
 		log.G(ctx).WithFields(log.Fields{"volume-name": name, "driver": driverName}).Debug("Creating anonymous volume")
 	} else {
 		log.G(ctx).WithField("volume-name", name).Debug("Creating named volume")
@@ -90,14 +90,14 @@ func (s *VolumesService) Create(ctx context.Context, name, driverName string, op
 }
 
 // Get returns details about a volume
-func (s *VolumesService) Get(ctx context.Context, name string, getOpts ...opts.GetOption) (*volumetypes.Volume, error) {
+func (s *VolumesService) Get(ctx context.Context, name string, getOpts ...volumeopts.GetOption) (*volumetypes.Volume, error) {
 	v, err := s.vs.Get(ctx, name, getOpts...)
 	if err != nil {
 		return nil, err
 	}
 	vol := volumeToAPIType(v)
 
-	var cfg opts.GetConfig
+	var cfg volumeopts.GetConfig
 	for _, o := range getOpts {
 		o(&cfg)
 	}
@@ -118,7 +118,7 @@ func (s *VolumesService) Get(ctx context.Context, name string, getOpts ...opts.G
 // s.Unmount(ctx, vol, mountID)
 // ```
 func (s *VolumesService) Mount(ctx context.Context, vol *volumetypes.Volume, ref string) (string, error) {
-	v, err := s.vs.Get(ctx, vol.Name, opts.WithGetDriver(vol.Driver))
+	v, err := s.vs.Get(ctx, vol.Name, volumeopts.WithGetDriver(vol.Driver))
 	if err != nil {
 		if IsNotExist(err) {
 			err = errdefs.NotFound(err)
@@ -135,7 +135,7 @@ func (s *VolumesService) Mount(ctx context.Context, vol *volumetypes.Volume, ref
 // unique for each mount/unmount pair.
 // See `Mount` documentation for an example.
 func (s *VolumesService) Unmount(ctx context.Context, vol *volumetypes.Volume, ref string) error {
-	v, err := s.vs.Get(ctx, vol.Name, opts.WithGetDriver(vol.Driver))
+	v, err := s.vs.Get(ctx, vol.Name, volumeopts.WithGetDriver(vol.Driver))
 	if err != nil {
 		if IsNotExist(err) {
 			err = errdefs.NotFound(err)
@@ -152,8 +152,8 @@ func (s *VolumesService) Release(ctx context.Context, name string, ref string) e
 
 // Remove removes a volume
 // An error is returned if the volume is still referenced.
-func (s *VolumesService) Remove(ctx context.Context, name string, rmOpts ...opts.RemoveOption) error {
-	var cfg opts.RemoveConfig
+func (s *VolumesService) Remove(ctx context.Context, name string, rmOpts ...volumeopts.RemoveOption) error {
+	var cfg volumeopts.RemoveConfig
 	for _, o := range rmOpts {
 		o(&cfg)
 	}
@@ -284,7 +284,7 @@ func (s *VolumesService) Shutdown() error {
 // LiveRestoreVolume passes through the LiveRestoreVolume call to the volume if it is implemented
 // otherwise it is a no-op.
 func (s *VolumesService) LiveRestoreVolume(ctx context.Context, vol *volumetypes.Volume, ref string) error {
-	v, err := s.vs.Get(ctx, vol.Name, opts.WithGetDriver(vol.Driver))
+	v, err := s.vs.Get(ctx, vol.Name, volumeopts.WithGetDriver(vol.Driver))
 	if err != nil {
 		return err
 	}

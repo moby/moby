@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	volumeopts "github.com/docker/docker/api/types/backend/volume"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	volumemounts "github.com/docker/docker/volume/mounts"
-	"github.com/docker/docker/volume/service/opts"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
@@ -477,8 +477,8 @@ func (s *VolumeStore) list(ctx context.Context, driverNames ...string) ([]volume
 // Create creates a volume with the given name and driver
 // If the volume needs to be created with a reference to prevent race conditions
 // with volume cleanup, make sure to use the `CreateWithReference` option.
-func (s *VolumeStore) Create(ctx context.Context, name, driverName string, createOpts ...opts.CreateOption) (volume.Volume, error) {
-	var cfg opts.CreateConfig
+func (s *VolumeStore) Create(ctx context.Context, name, driverName string, createOpts ...volumeopts.CreateOption) (volume.Volume, error) {
+	var cfg volumeopts.CreateConfig
 	for _, o := range createOpts {
 		o(&cfg)
 	}
@@ -654,8 +654,8 @@ func (s *VolumeStore) create(ctx context.Context, name, driverName string, opts,
 }
 
 // Get looks if a volume with the given name exists and returns it if so
-func (s *VolumeStore) Get(ctx context.Context, name string, getOptions ...opts.GetOption) (volume.Volume, error) {
-	var cfg opts.GetConfig
+func (s *VolumeStore) Get(ctx context.Context, name string, getOptions ...volumeopts.GetOption) (volume.Volume, error) {
+	var cfg volumeopts.GetConfig
 	for _, o := range getOptions {
 		o(&cfg)
 	}
@@ -790,8 +790,8 @@ func lookupVolume(ctx context.Context, store *drivers.Store, driverName, volumeN
 }
 
 // Remove removes the requested volume. A volume is not removed if it has any refs
-func (s *VolumeStore) Remove(ctx context.Context, v volume.Volume, rmOpts ...opts.RemoveOption) error {
-	var cfg opts.RemoveConfig
+func (s *VolumeStore) Remove(ctx context.Context, v volume.Volume, rmOpts ...volumeopts.RemoveOption) error {
+	var cfg volumeopts.RemoveConfig
 	for _, o := range rmOpts {
 		o(&cfg)
 	}
