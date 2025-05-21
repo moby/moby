@@ -1282,3 +1282,25 @@ func TestSkipRawRules(t *testing.T) {
 		})
 	}
 }
+
+// Regression test for https://github.com/docker/compose/issues/12846
+func TestMixAnyWithSpecificHostAddrs(t *testing.T) {
+	ctx := setupTest(t)
+	// Start a new daemon, so the port allocator will start with new/empty ephemeral port ranges,
+	// making a clash more likely.
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	ctrId := container.Run(ctx, t, c,
+		container.WithExposedPorts("80/tcp", "81/tcp", "82/tcp"),
+		container.WithPortMap(nat.PortMap{
+			"81/tcp": {{}},
+			"82/tcp": {{}},
+			"80/tcp": {{HostIP: "127.0.0.1"}},
+		}),
+	)
+	defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+}
