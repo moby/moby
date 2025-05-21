@@ -20,9 +20,9 @@ import (
 const ovPeerTable = "overlay_peer_table"
 
 type peerEntry struct {
-	eid        string
-	vtep       netip.Addr // Virtual Tunnel End Point for non-local peers
-	prefixBits int        // number of 1-bits in network mask of peerIP
+	eid  string
+	mac  macAddr
+	vtep netip.Addr
 }
 
 func (p *peerEntry) isLocal() bool {
@@ -30,8 +30,7 @@ func (p *peerEntry) isLocal() bool {
 }
 
 type peerMap struct {
-	// set of peerEntry, note the values have to be objects and not pointers to maintain the proper equality checks
-	mp setmatrix.SetMatrix[ipmac, peerEntry]
+	mp setmatrix.SetMatrix[netip.Prefix, peerEntry]
 	sync.Mutex
 }
 
@@ -41,16 +40,16 @@ type peerNetworkMap struct {
 	sync.Mutex
 }
 
-func (d *driver) peerDbNetworkWalk(nid string, f func(netip.Addr, net.HardwareAddr, *peerEntry) bool) error {
+func (d *driver) peerDbNetworkWalk(nid string, f func(netip.Prefix, peerEntry) bool) {
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
 	d.peerDb.Unlock()
 
 	if !ok {
-		return nil
+		return
 	}
 
-	mp := map[ipmac]peerEntry{}
+	mp := map[netip.Prefix]peerEntry{}
 	pMap.Lock()
 	for _, pKey := range pMap.mp.Keys() {
 		entryDBList, ok := pMap.mp.Get(pKey)
@@ -60,38 +59,28 @@ func (d *driver) peerDbNetworkWalk(nid string, f func(netip.Addr, net.HardwareAd
 	}
 	pMap.Unlock()
 
-	for pKey, pEntry := range mp {
-		if f(pKey.ip, pKey.mac.HardwareAddr(), &pEntry) {
-			return nil
+	for k, v := range mp {
+		if f(k, v) {
+			return
 		}
 	}
-
-	return nil
 }
 
-func (d *driver) peerDbSearch(nid string, peerIP netip.Addr) (netip.Addr, net.HardwareAddr, *peerEntry, error) {
-	var peerIPMatched netip.Addr
-	var peerMacMatched net.HardwareAddr
-	var pEntryMatched *peerEntry
-	err := d.peerDbNetworkWalk(nid, func(ip netip.Addr, mac net.HardwareAddr, pEntry *peerEntry) bool {
-		if ip == peerIP {
-			peerIPMatched = ip
-			peerMacMatched = mac
-			pEntryMatched = pEntry
-			return true
-		}
-
-		return false
-	})
-	if err != nil {
-		return netip.Addr{}, nil, nil, fmt.Errorf("peerdb search for peer ip %q failed: %v", peerIP, err)
+func (d *driver) peerDbGet(nid string, peerIP netip.Prefix) (peerEntry, bool) {
+	d.peerDb.Lock()
+	pMap, ok := d.peerDb.mp[nid]
+	d.peerDb.Unlock()
+	if !ok {
+		return peerEntry{}, false
 	}
 
-	if !peerIPMatched.IsValid() || pEntryMatched == nil {
-		return netip.Addr{}, nil, nil, fmt.Errorf("peer ip %q not found in peerdb", peerIP)
+	pMap.Lock()
+	defer pMap.Unlock()
+	c, _ := pMap.mp.Get(peerIP)
+	if len(c) == 0 {
+		return peerEntry{}, false
 	}
-
-	return peerIPMatched, peerMacMatched, pEntryMatched, nil
+	return c[0], true
 }
 
 func (d *driver) peerDbAdd(nid, eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr) (bool, int) {
@@ -103,22 +92,21 @@ func (d *driver) peerDbAdd(nid, eid string, peerIP netip.Prefix, peerMac net.Har
 	}
 	d.peerDb.Unlock()
 
-	pKey := ipmacOf(peerIP.Addr(), peerMac)
-
 	pEntry := peerEntry{
-		eid:        eid,
-		vtep:       vtep,
-		prefixBits: peerIP.Bits(),
+		eid:  eid,
+		mac:  macAddrOf(peerMac),
+		vtep: vtep,
 	}
 
 	pMap.Lock()
 	defer pMap.Unlock()
-	b, i := pMap.mp.Insert(pKey, pEntry)
+	b, i := pMap.mp.Insert(peerIP, pEntry)
 	if i != 1 {
-		// Transient case, there is more than one endpoint that is using the same IP,MAC pair
-		s, _ := pMap.mp.String(pKey)
-		log.G(context.TODO()).Warnf("peerDbAdd transient condition - Key:%s cardinality:%d db state:%s", pKey.String(), i, s)
+		// Transient case, there is more than one endpoint that is using the same IP
+		s, _ := pMap.mp.String(peerIP)
+		log.G(context.TODO()).Warnf("peerDbAdd transient condition - Key:%s cardinality:%d db state:%s", peerIP, i, s)
 	}
+
 	return b, i
 }
 
@@ -131,21 +119,19 @@ func (d *driver) peerDbDelete(nid, eid string, peerIP netip.Prefix, peerMac net.
 	}
 	d.peerDb.Unlock()
 
-	pKey := ipmacOf(peerIP.Addr(), peerMac)
-
 	pEntry := peerEntry{
-		eid:        eid,
-		vtep:       vtep,
-		prefixBits: peerIP.Bits(),
+		eid:  eid,
+		mac:  macAddrOf(peerMac),
+		vtep: vtep,
 	}
 
 	pMap.Lock()
 	defer pMap.Unlock()
-	b, i := pMap.mp.Remove(pKey, pEntry)
+	b, i := pMap.mp.Remove(peerIP, pEntry)
 	if i != 0 {
-		// Transient case, there is more than one endpoint that is using the same IP,MAC pair
-		s, _ := pMap.mp.String(pKey)
-		log.G(context.TODO()).Warnf("peerDbDelete transient condition - Key:%s cardinality:%d db state:%s", pKey, i, s)
+		// Transient case, there is more than one endpoint that is using the same IP
+		s, _ := pMap.mp.String(peerIP)
+		log.G(context.TODO()).Warnf("peerDbDelete transient condition - Key:%s cardinality:%d db state:%s", peerIP, i, s)
 	}
 	return b, i
 }
@@ -164,16 +150,12 @@ func (d *driver) peerDbDelete(nid, eid string, peerIP netip.Prefix, peerMac net.
 func (d *driver) initSandboxPeerDB(nid string) {
 	d.peerOpMu.Lock()
 	defer d.peerOpMu.Unlock()
-	err := d.peerDbNetworkWalk(nid, func(peerIP netip.Addr, peerMac net.HardwareAddr, pEntry *peerEntry) bool {
+	d.peerDbNetworkWalk(nid, func(peerIP netip.Prefix, pEntry peerEntry) bool {
 		if !pEntry.isLocal() {
-			d.addNeighbor(nid, netip.PrefixFrom(peerIP, pEntry.prefixBits), peerMac, pEntry.vtep)
+			d.addNeighbor(nid, peerIP, pEntry.mac.HardwareAddr(), pEntry.vtep)
 		}
 		return false // walk all entries
 	})
-
-	if err != nil {
-		log.G(context.TODO()).WithError(err).Warn("Peer init operation failed")
-	}
 }
 
 // peerAdd adds a new entry to the peer database.
@@ -242,8 +224,10 @@ func (d *driver) addNeighbor(nid string, peerIP netip.Prefix, peerMac net.Hardwa
 	}
 
 	// Add fdb entry to the bridge for the peer mac
-	if err := sbox.AddNeighbor(vtep.AsSlice(), peerMac, osl.WithLinkName(s.vxlanName), osl.WithFamily(syscall.AF_BRIDGE)); err != nil {
-		return fmt.Errorf("could not add fdb entry into the sandbox: %w", err)
+	if n.fdbCnt.Add(ipmacOf(vtep, peerMac), 1) == 1 {
+		if err := sbox.AddNeighbor(vtep.AsSlice(), peerMac, osl.WithLinkName(s.vxlanName), osl.WithFamily(syscall.AF_BRIDGE)); err != nil {
+			return fmt.Errorf("could not add fdb entry into the sandbox: %w", err)
+		}
 	}
 
 	return nil
@@ -287,23 +271,22 @@ func (d *driver) peerDelete(nid, eid string, peerIP netip.Prefix, peerMac net.Ha
 		if dbEntries > 0 {
 			// If there is still an entry into the database and the deletion went through without errors means that there is now no
 			// configuration active in the kernel.
-			// Restore one configuration for the <ip,mac> directly from the database, note that is guaranteed that there is one
-			peerIPAddr, peerMac, peerEntry, err := d.peerDbSearch(nid, peerIP.Addr())
-			if err != nil {
+			// Restore one configuration for the ip directly from the database, note that is guaranteed that there is one
+			peerEntry, ok := d.peerDbGet(nid, peerIP)
+			if !ok {
 				log.G(context.TODO()).WithFields(log.Fields{
 					"nid": nid,
 					"ip":  peerIP,
-				}).WithError(err).Error("peerDelete unable to restore a configuration")
+				}).Error("peerDelete unable to restore a configuration: no entry found in the database")
 				return
 			}
-			peerIP = netip.PrefixFrom(peerIPAddr, peerEntry.prefixBits)
-			err = d.addNeighbor(nid, peerIP, peerMac, peerEntry.vtep)
+			err = d.addNeighbor(nid, peerIP, peerEntry.mac.HardwareAddr(), peerEntry.vtep)
 			if err != nil {
 				log.G(context.TODO()).WithFields(log.Fields{
 					"nid":  nid,
 					"eid":  eid,
 					"ip":   peerIP,
-					"mac":  peerMac,
+					"mac":  peerEntry.mac,
 					"vtep": peerEntry.vtep,
 				}).WithError(err).Error("Peer delete operation failed")
 			}
@@ -335,8 +318,10 @@ func (d *driver) deleteNeighbor(nid string, peerIP netip.Prefix, peerMac net.Har
 		return fmt.Errorf("could not find the subnet %q in network %q", peerIP.String(), n.id)
 	}
 	// Remove fdb entry to the bridge for the peer mac
-	if err := sbox.DeleteNeighbor(vtep.AsSlice(), peerMac, osl.WithLinkName(s.vxlanName), osl.WithFamily(syscall.AF_BRIDGE)); err != nil {
-		return fmt.Errorf("could not delete fdb entry in the sandbox: %w", err)
+	if n.fdbCnt.Add(ipmacOf(vtep, peerMac), -1) == 0 {
+		if err := sbox.DeleteNeighbor(vtep.AsSlice(), peerMac, osl.WithLinkName(s.vxlanName), osl.WithFamily(syscall.AF_BRIDGE)); err != nil {
+			return fmt.Errorf("could not delete fdb entry in the sandbox: %w", err)
+		}
 	}
 
 	// Delete neighbor entry for the peer IP
