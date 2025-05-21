@@ -143,6 +143,7 @@ func TestRemoveWithPlatform(t *testing.T) {
 	} {
 		resp, err := apiClient.ImageRemove(ctx, imgName, image.RemoveOptions{
 			Platforms: []ocispec.Platform{*tc.platform},
+			Force:     true,
 		})
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(resp, 1))
