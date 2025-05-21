@@ -17,7 +17,10 @@ import (
 
 var errConflictCountDeviceIDs = errors.New("cannot set both Count and DeviceIDs on device request")
 
-const nvidiaHook = "nvidia-container-runtime-hook"
+const (
+	nvidiaHook = "nvidia-container-runtime-hook"
+	amdHook    = "amd-container-runtime"
+)
 
 // These are NVIDIA-specific capabilities stolen from github.com/containerd/containerd/contrib/nvidia.allCaps
 var allNvidiaCaps = map[nvidia.Capability]struct{}{
@@ -30,19 +33,28 @@ var allNvidiaCaps = map[nvidia.Capability]struct{}{
 }
 
 func init() {
-	if _, err := exec.LookPath(nvidiaHook); err != nil {
-		// do not register Nvidia driver if helper binary is not present.
-		return
+	// Register Nvidia driver if Nvidia helper binary is present.
+	// Else, register AMD driver if AMD helper binary is present.
+	if _, err := exec.LookPath(nvidiaHook); err == nil {
+		capset := capabilities.Set{"gpu": struct{}{}, "nvidia": struct{}{}}
+		nvidiaDriver := &deviceDriver{
+			capset:     capset,
+			updateSpec: setNvidiaGPUs,
+		}
+		for c := range allNvidiaCaps {
+			nvidiaDriver.capset[string(c)] = struct{}{}
+		}
+		registerDeviceDriver("nvidia", nvidiaDriver)
+	} else if _, err := exec.LookPath(amdHook); err == nil {
+		capset := capabilities.Set{"gpu": struct{}{}, "amd": struct{}{}}
+		amdDriver := &deviceDriver{
+			capset:     capset,
+			updateSpec: setAMDGPUs,
+		}
+		registerDeviceDriver("amd", amdDriver)
+	} else {
+		// no "gpu" capability
 	}
-	capset := capabilities.Set{"gpu": struct{}{}, "nvidia": struct{}{}}
-	nvidiaDriver := &deviceDriver{
-		capset:     capset,
-		updateSpec: setNvidiaGPUs,
-	}
-	for c := range allNvidiaCaps {
-		nvidiaDriver.capset[string(c)] = struct{}{}
-	}
-	registerDeviceDriver("nvidia", nvidiaDriver)
 }
 
 func setNvidiaGPUs(s *specs.Spec, dev *deviceInstance) error {
