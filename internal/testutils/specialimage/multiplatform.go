@@ -16,7 +16,7 @@ func MultiPlatform(dir string, imageRef string, imagePlatforms []ocispec.Platfor
 	var descs []ocispec.Descriptor
 
 	for _, platform := range imagePlatforms {
-		ps := platforms.Format(platform)
+		ps := platforms.FormatAll(platform)
 		manifestDesc, _, err := oneLayerPlatformManifest(dir, platform, FileInLayer{Path: "bash", Content: []byte("layer-" + ps)})
 		if err != nil {
 			return nil, nil, err

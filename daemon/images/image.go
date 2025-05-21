@@ -54,7 +54,7 @@ func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.I
 		log.G(ctx).WithFields(log.Fields{
 			"error":           err,
 			"image":           img.ID,
-			"desiredPlatform": platforms.Format(platform),
+			"desiredPlatform": platforms.FormatAll(platform),
 		}).Error("Error looking up image leases")
 		return false, err
 	}
@@ -75,7 +75,7 @@ func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.I
 	for _, r := range ls {
 		logger := log.G(ctx).WithFields(log.Fields{
 			"image":           img.ID,
-			"desiredPlatform": platforms.Format(platform),
+			"desiredPlatform": platforms.FormatAll(platform),
 			"resourceID":      r.ID,
 			"resourceType":    r.Type,
 		})
@@ -121,7 +121,7 @@ func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.I
 				Variant:      md.Platform.Variant,
 			}
 			if !comparer.Match(p) {
-				logger.WithField("otherPlatform", platforms.Format(p)).Debug("Manifest is not a match")
+				logger.WithField("otherPlatform", platforms.FormatAll(p)).Debug("Manifest is not a match")
 				continue
 			}
 
@@ -195,7 +195,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 		if ref, err := reference.ParseNamed(refOrID); err == nil {
 			imgName = reference.FamiliarString(ref)
 		}
-		retErr = errdefs.NotFound(errors.Errorf("image with reference %s was found but its platform (%s) does not match the specified platform (%s)", imgName, platforms.Format(imgPlat), platforms.Format(p)))
+		retErr = errdefs.NotFound(errors.Errorf("image with reference %s was found but its platform (%s) does not match the specified platform (%s)", imgName, platforms.FormatAll(imgPlat), platforms.FormatAll(p)))
 	}()
 	ref, err := reference.ParseAnyReference(refOrID)
 	if err != nil {
