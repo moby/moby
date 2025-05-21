@@ -212,7 +212,7 @@ func (d *driver) addNeighbor(nid string, peerIP netip.Prefix, peerMac net.Hardwa
 		return fmt.Errorf("subnet sandbox join failed for %q: %v", s.subnetIP.String(), err)
 	}
 
-	if n.secure && len(n.endpoints) > 0 {
+	if n.secure {
 		if err := d.setupEncryption(vtep); err != nil {
 			log.G(context.TODO()).Warn(err)
 		}
@@ -307,7 +307,7 @@ func (d *driver) deleteNeighbor(nid string, peerIP netip.Prefix, peerMac net.Har
 		return nil
 	}
 
-	if n.secure && len(n.endpoints) == 0 {
+	if n.secure {
 		if err := d.removeEncryption(vtep); err != nil {
 			log.G(context.TODO()).Warn(err)
 		}
