@@ -15,7 +15,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -197,7 +196,7 @@ func (cli *Client) checkResponseErr(serverResp *http.Response) (retErr error) {
 		return nil
 	}
 	defer func() {
-		retErr = errdefs.FromStatusCode(retErr, serverResp.StatusCode)
+		retErr = httpErrorFromStatusCode(retErr, serverResp.StatusCode)
 	}()
 
 	var body []byte
