@@ -95,7 +95,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 	}
 
 	if opts.params.Platform == nil && opts.params.Config.Image != "" {
-		img, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, backend.GetImageOpts{Platform: opts.params.Platform})
+		img, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, backend.GetImageOpts{})
 		if err != nil {
 			return containertypes.CreateResponse{}, err
 		}
