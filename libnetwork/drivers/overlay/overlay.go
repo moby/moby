@@ -47,7 +47,7 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 		peerDb: peerNetworkMap{
 			mp: map[string]*peerMap{},
 		},
-		secMap: &encrMap{nodes: map[netip.Addr][]*spi{}},
+		secMap: &encrMap{nodes: map[netip.Addr]encrNode{}},
 		config: config,
 	}
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
