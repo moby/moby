@@ -65,6 +65,10 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 		}
 	}()
 
+	if len(options.Platforms) > 0 && !options.Force {
+		return nil, cerrdefs.ErrInvalidArgument.WithMessage("Deleting specific platforms is currently considered potentially unsafe because platform-specific content might be shared across images/containers. Use --force to override.")
+	}
+
 	force := options.Force
 	prune := options.PruneChildren
 
