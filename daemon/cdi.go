@@ -43,7 +43,7 @@ func newCDIDeviceDriver(cdiSpecDirs ...string) *deviceDriver {
 		}
 		return &deviceDriver{
 			updateSpec: errorOnUpdateSpec,
-			ListDevices: func(ctx context.Context, cfg *config.Config) (deviceListing, error) {
+			ListDevices: func(_ context.Context, _ *config.Config) (deviceListing, error) {
 				return deviceListing{
 					Warnings: []string{fmt.Sprintf("CDI cache initialization failed: %v", err)},
 				}, nil
@@ -117,7 +117,7 @@ func (c *cdiHandler) getErrors() error {
 
 // listDevices uses the CDI cache to list all discovered CDI devices.
 // It conforms to the deviceDriver.ListDevices function signature.
-func (c *cdiHandler) listDevices(ctx context.Context, cfg *config.Config) (deviceListing, error) {
+func (c *cdiHandler) listDevices(ctx context.Context, _ *config.Config) (deviceListing, error) {
 	var out deviceListing
 
 	// Collect global errors from the CDI cache (e.g., issues with spec files themselves).
