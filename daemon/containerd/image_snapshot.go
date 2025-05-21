@@ -3,6 +3,8 @@ package containerd
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/leases"
@@ -15,6 +17,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/go-units"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -42,6 +45,39 @@ func (i *ImageService) CreateLayerFromImage(img *image.Image, layerName string, 
 	}
 
 	return i.createLayer(descriptor, layerName, rwLayerOpts, nil)
+}
+
+func (i *ImageService) generatePrepareOpts(ctx context.Context, rwLayerOpts *layer.CreateRWLayerOpts) ([]snapshots.Opt, error) {
+	var opts []snapshots.Opt
+
+	if rwLayerOpts != nil && len(rwLayerOpts.StorageOpt) > 0 {
+		for key, val := range rwLayerOpts.StorageOpt {
+			key = strings.ToLower(key)
+			switch key {
+			case "size":
+				size, err := units.RAMInBytes(val)
+				if err != nil {
+					return nil, err
+				}
+
+				if storageDriver := i.StorageDriver(); storageDriver == "windows" {
+					sizeLabel := map[string]string{
+						"containerd.io/snapshot/windows/rootfs.sizebytes": strconv.FormatInt(size, 10),
+					}
+					opts = append(opts, snapshots.WithLabels(sizeLabel))
+				} else {
+					/// TODO: containerd doesn't handle quotas for most snapshotters
+					/// See: https://github.com/containerd/containerd/issues/759 and related
+					log.G(ctx).Warnf("--storage-opt is not supported for the %s driver", storageDriver)
+				}
+
+			default:
+				return nil, fmt.Errorf("Unknown option %s", key)
+			}
+		}
+	}
+
+	return opts, nil
 }
 
 func (i *ImageService) createLayer(descriptor *ocispec.Descriptor, layerName string, rwLayerOpts *layer.CreateRWLayerOpts, initFunc layer.MountInit) (container.RWLayer, error) {
@@ -78,7 +114,13 @@ func (i *ImageService) createLayer(descriptor *ocispec.Descriptor, layerName str
 	if !i.idMapping.Empty() {
 		err = i.remapSnapshot(ctx, sn, layerName, parentSnapshot)
 	} else {
-		_, err = sn.Prepare(ctx, layerName, parentSnapshot)
+		var sopts []snapshots.Opt
+		sopts, err = i.generatePrepareOpts(ctx, rwLayerOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = sn.Prepare(ctx, layerName, parentSnapshot, sopts...)
 	}
 
 	if err != nil {
