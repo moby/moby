@@ -14,7 +14,6 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/ocischema"
-	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opencontainers/go-digest"
@@ -338,14 +337,12 @@ func TestDetectManifestBlobMediaType(t *testing.T) {
 	cases := map[string]testCase{
 		"mediaType is set":   {[]byte(`{"mediaType": "bananas"}`), "bananas"},
 		"oci manifest":       {[]byte(`{"config": {}}`), ocispec.MediaTypeImageManifest},
-		"schema1":            {[]byte(`{"fsLayers": []}`), schema1.MediaTypeManifest},
 		"oci index fallback": {[]byte(`{}`), ocispec.MediaTypeImageIndex},
 		// Make sure we prefer mediaType
 		"mediaType and config set":   {[]byte(`{"mediaType": "bananas", "config": {}}`), "bananas"},
 		"mediaType and fsLayers set": {[]byte(`{"mediaType": "bananas", "fsLayers": []}`), "bananas"},
 	}
 
-	t.Setenv("DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE", "1")
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			mt, err := detectManifestBlobMediaType(tc.json)
@@ -361,14 +358,6 @@ func TestDetectManifestBlobMediaTypeInvalid(t *testing.T) {
 		expected string
 	}
 	cases := map[string]testCase{
-		"schema 1 mediaType with manifests": {
-			[]byte(`{"mediaType": "` + schema1.MediaTypeManifest + `","manifests":[]}`),
-			`media-type: "application/vnd.docker.distribution.manifest.v1+json" should not have "manifests" or "layers"`,
-		},
-		"schema 1 mediaType with layers": {
-			[]byte(`{"mediaType": "` + schema1.MediaTypeManifest + `","layers":[]}`),
-			`media-type: "application/vnd.docker.distribution.manifest.v1+json" should not have "manifests" or "layers"`,
-		},
 		"schema 2 mediaType with manifests": {
 			[]byte(`{"mediaType": "` + schema2.MediaTypeManifest + `","manifests":[]}`),
 			`media-type: "application/vnd.docker.distribution.manifest.v2+json" should not have "manifests" or "fsLayers"`,
@@ -415,7 +404,6 @@ func TestDetectManifestBlobMediaTypeInvalid(t *testing.T) {
 		},
 	}
 
-	t.Setenv("DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE", "1")
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			mt, err := detectManifestBlobMediaType(tc.json)
