@@ -145,7 +145,7 @@ func (i *ImageService) ImageDiskUsage(ctx context.Context) (int64, error) {
 
 	visitedImages := make(map[digest.Digest]struct{})
 	for _, img := range imgs {
-		if err := i.walkPresentChildren(ctx, img.Target, func(ctx context.Context, desc ocispec.Descriptor) error {
+		if err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, desc ocispec.Descriptor) error {
 			if _, ok := visitedImages[desc.Digest]; ok {
 				return nil
 			}
