@@ -23,9 +23,18 @@ import (
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
-func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error {
+func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) (rerr error) {
 	start := time.Now()
 
+	defer func() {
+		if rerr != nil {
+			metrics.ImagePulls.WithValues("failure").Inc()
+		} else {
+			metrics.ImagePulls.WithValues("success").Inc()
+		}
+	}()
+
+	metrics.ImagePullsStarted.Inc()
 	err := i.pullImageWithReference(ctx, ref, platform, metaHeaders, authConfig, outStream)
 	metrics.ImageActions.WithValues("pull").UpdateSince(start)
 	if err != nil {
