@@ -50,7 +50,7 @@ func TestCleanupIptableRules(t *testing.T) {
 	ipVersions := []iptables.IPVersion{iptables.IPv4, iptables.IPv6}
 
 	for _, version := range ipVersions {
-		err := setupIPChains(context.Background(), version, true)
+		err := setupIPChains(context.Background(), version, firewaller.Config{Hairpin: true})
 		assert.NilError(t, err, "version:%s", version)
 
 		iptable := iptables.GetIptable(version)
@@ -95,15 +95,17 @@ func TestIptabler(t *testing.T) {
 		masq
 		snat
 		bindLocalhost
+		wsl2Mirrored
 		numBoolParams
 	)
 	for i := range 1 << numBoolParams {
 		p := func(n int64) bool { return (i & (1 << n)) != 0 }
 		for _, gwmode := range []string{"nat", "nat-unprotected", "routed"} {
 			config := firewaller.Config{
-				IPv4:    p(ipv4),
-				IPv6:    p(ipv6),
-				Hairpin: p(hairpin),
+				IPv4:         p(ipv4),
+				IPv6:         p(ipv6),
+				Hairpin:      p(hairpin),
+				WSL2Mirrored: p(wsl2Mirrored),
 			}
 			netConfig := firewaller.NetworkConfig{
 				IfName:     "br-dummy",
@@ -128,8 +130,8 @@ func TestIptabler(t *testing.T) {
 				netConfig.Config6.HostIP = netip.MustParseAddr("fd34:d0d4:672f::123")
 			}
 			tn := t.Name()
-			t.Run(fmt.Sprintf("ipv4=%v/ipv6=%v/hairpin=%v/internal=%v/icc=%v/masq=%v/snat=%v/gwm=%v/bindlh=%v",
-				p(ipv4), p(ipv6), p(hairpin), p(internal), p(icc), p(masq), p(snat), gwmode, p(bindLocalhost)), func(t *testing.T) {
+			t.Run(fmt.Sprintf("ipv4=%v/ipv6=%v/hairpin=%v/internal=%v/icc=%v/masq=%v/snat=%v/gwm=%v/bindlh=%v/wsl2mirrored=%v",
+				p(ipv4), p(ipv6), p(hairpin), p(internal), p(icc), p(masq), p(snat), gwmode, p(bindLocalhost), p(wsl2Mirrored)), func(t *testing.T) {
 				// Run in parallel, unless updating results (because tests share golden results files, so
 				// they trample each other's output).
 				if !golden.FlagUpdate() {
@@ -190,11 +192,20 @@ func testIptabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 		}
 	}
 
+	// WSL2Mirrored should only affect IPv4 results, and only if there's a port binding
+	// to a loopback address or docker-proxy is disabled. Share other results files.
+	rnWSL2Mirrored := func(resName string) string {
+		if config.IPv4 && config.WSL2Mirrored && (bindLocalhost || !config.Hairpin) {
+			return resName + ",wsl2mirrored=true"
+		}
+		return resName
+	}
+
 	// Initialise iptables, check the iptables config looks like it should look at the
 	// end of the test (after deleting per-network and per-port rules).
 	fw, err := NewIptabler(context.Background(), config)
 	assert.NilError(t, err)
-	checkResults("iptables", fmt.Sprintf("%s_cleaned,hairpin=%v", tn, config.Hairpin), config.IPv4)
+	checkResults("iptables", rnWSL2Mirrored(fmt.Sprintf("%s_cleaned,hairpin=%v", tn, config.Hairpin)), config.IPv4)
 	checkResults("ip6tables", fmt.Sprintf("%s_cleaned,hairpin=%v", tn, config.Hairpin), config.IPv6)
 
 	// Add the network.
@@ -220,7 +231,7 @@ func testIptabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 	assert.NilError(t, err)
 
 	// Check the resulting iptables config.
-	checkResults("iptables", resName, config.IPv4)
+	checkResults("iptables", rnWSL2Mirrored(resName), config.IPv4)
 	checkResults("ip6tables", resName, config.IPv6)
 
 	// Remove the port mappings and the network, and check the result.
@@ -230,6 +241,6 @@ func testIptabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 	assert.NilError(t, err)
 	err = nw.DelNetworkLevelRules(context.Background())
 	assert.NilError(t, err)
-	checkResults("iptables", fmt.Sprintf("%s_cleaned,hairpin=%v", tn, config.Hairpin), config.IPv4)
+	checkResults("iptables", rnWSL2Mirrored(fmt.Sprintf("%s_cleaned,hairpin=%v", tn, config.Hairpin)), config.IPv4)
 	checkResults("ip6tables", fmt.Sprintf("%s_cleaned,hairpin=%v", tn, config.Hairpin), config.IPv6)
 }

@@ -29,6 +29,8 @@ type Config struct {
 	// AllowDirectRouting means packets addressed directly to a container's IP address will be
 	// accepted, regardless of which network interface they are from.
 	AllowDirectRouting bool
+	// WSL2Mirrored is true if running under WSL2 with mirrored networking enabled.
+	WSL2Mirrored bool
 }
 
 // NetworkConfig contains settings for a single bridge network.

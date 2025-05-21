@@ -47,7 +47,7 @@ func (n *network) setPerPortIptables(ctx context.Context, b types.PortBinding, e
 		return nil
 	}
 
-	if err := filterPortMappedOnLoopback(ctx, b, b.HostIP, enable); err != nil {
+	if err := filterPortMappedOnLoopback(ctx, b, b.HostIP, n.ipt.config.WSL2Mirrored, enable); err != nil {
 		return err
 	}
 
@@ -169,7 +169,7 @@ func setPerPortForwarding(b types.PortBinding, ipv iptables.IPVersion, bridgeNam
 // This is a no-op if the portBinding is for IPv6 (IPv6 loopback address is
 // non-routable), or over a network with gw_mode=routed (PBs in routed mode
 // don't map ports on the host).
-func filterPortMappedOnLoopback(ctx context.Context, b types.PortBinding, hostIP net.IP, enable bool) error {
+func filterPortMappedOnLoopback(ctx context.Context, b types.PortBinding, hostIP net.IP, wsl2Mirrored, enable bool) error {
 	if rawRulesDisabled(ctx) {
 		return nil
 	}
@@ -184,7 +184,7 @@ func filterPortMappedOnLoopback(ctx context.Context, b types.PortBinding, hostIP
 		"-i", "loopback0",
 		"-j", "ACCEPT",
 	}}
-	enableMirrored := enable && isRunningUnderWSL2MirroredMode(ctx)
+	enableMirrored := enable && wsl2Mirrored
 	if err := appendOrDelChainRule(acceptMirrored, "LOOPBACK FILTERING - ACCEPT MIRRORED", enableMirrored); err != nil {
 		return err
 	}
