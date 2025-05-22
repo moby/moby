@@ -23,12 +23,12 @@ type DockerCLIAttachSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIAttachSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIAttachSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIAttachSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIAttachSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 func (s *DockerCLIAttachSuite) TestAttachMultipleAndRestart(c *testing.T) {

@@ -555,14 +555,14 @@ type buildLine struct {
 	}
 }
 
-func getImageIDsFromBuild(c *testing.T, output []byte) []string {
+func getImageIDsFromBuild(t *testing.T, output []byte) []string {
 	var ids []string
 	for _, line := range bytes.Split(output, []byte("\n")) {
 		if len(line) == 0 {
 			continue
 		}
 		entry := buildLine{}
-		assert.NilError(c, json.Unmarshal(line, &entry))
+		assert.NilError(t, json.Unmarshal(line, &entry))
 		if entry.Aux.ID != "" {
 			ids = append(ids, entry.Aux.ID)
 		}

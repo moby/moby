@@ -42,6 +42,7 @@ linters:
     - revive                    # Metalinter; drop-in replacement for golint.
     - spancheck                 # Detects mistakes with OpenTelemetry/Census spans.
     - staticcheck
+    - thelper
     - unconvert                 # Detects unnecessary type conversions.
     - unused
     - usestdlibvars             # Detects the possibility to use variables/constants from the Go standard library.
@@ -163,6 +164,30 @@ linters:
         - end             # check that `span.End()` is called
         - record-error    # check that `span.RecordError(err)` is called when an error is returned
         - set-status      # check that `span.SetStatus(codes.Error, msg)` is called when an error is returned
+
+    thelper:
+      test:
+        # Check *testing.T is first param (or after context.Context) of helper function.
+        first: false
+        # Check t.Helper() begins helper function.
+        begin: false
+      benchmark:
+        # Check *testing.B is first param (or after context.Context) of helper function.
+        first: false
+        # Check b.Helper() begins helper function.
+        begin: false
+      tb:
+        # Check *testing.TB is first param (or after context.Context) of helper function.
+        first: false
+        # Check *testing.TB param has name tb.
+        name: false
+        # Check tb.Helper() begins helper function.
+        begin: false
+      fuzz:
+        # Check *testing.F is first param (or after context.Context) of helper function.
+        first: false
+        # Check f.Helper() begins helper function.
+        begin: false
 
     usestdlibvars:
       # Suggest the use of http.MethodXX.

@@ -22,12 +22,12 @@ type DockerCLIPsSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIPsSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIPsSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIPsSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIPsSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 func (s *DockerCLIPsSuite) TestPsListContainersBase(c *testing.T) {
@@ -391,7 +391,7 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterAncestorImage(c *testing.T)
 	checkPsAncestorFilterOutput(c, RemoveOutputForExistingElements(out, existingContainers), imageName2+","+imageName1Tagged, []string{fourthID, fifthID})
 }
 
-func checkPsAncestorFilterOutput(c *testing.T, out string, filterName string, expectedIDs []string) {
+func checkPsAncestorFilterOutput(t *testing.T, out string, filterName string, expectedIDs []string) {
 	var actualIDs []string
 	if out != "" {
 		actualIDs = strings.Split(out[:len(out)-1], "\n")
@@ -399,17 +399,17 @@ func checkPsAncestorFilterOutput(c *testing.T, out string, filterName string, ex
 	sort.Strings(actualIDs)
 	sort.Strings(expectedIDs)
 
-	assert.Equal(c, len(actualIDs), len(expectedIDs), fmt.Sprintf("Expected filtered container(s) for %s ancestor filter to be %v:%v, got %v:%v", filterName, len(expectedIDs), expectedIDs, len(actualIDs), actualIDs))
+	assert.Equal(t, len(actualIDs), len(expectedIDs), fmt.Sprintf("Expected filtered container(s) for %s ancestor filter to be %v:%v, got %v:%v", filterName, len(expectedIDs), expectedIDs, len(actualIDs), actualIDs))
 	if len(expectedIDs) > 0 {
 		same := true
 		for i := range expectedIDs {
 			if actualIDs[i] != expectedIDs[i] {
-				c.Logf("%s, %s", actualIDs[i], expectedIDs[i])
+				t.Logf("%s, %s", actualIDs[i], expectedIDs[i])
 				same = false
 				break
 			}
 		}
-		assert.Equal(c, same, true, fmt.Sprintf("Expected filtered container(s) for %s ancestor filter to be %v, got %v", filterName, expectedIDs, actualIDs))
+		assert.Equal(t, same, true, fmt.Sprintf("Expected filtered container(s) for %s ancestor filter to be %v, got %v", filterName, expectedIDs, actualIDs))
 	}
 }
 

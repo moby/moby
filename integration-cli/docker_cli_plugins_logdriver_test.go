@@ -16,12 +16,12 @@ type DockerCLIPluginLogDriverSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIPluginLogDriverSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIPluginLogDriverSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIPluginLogDriverSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIPluginLogDriverSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 func (s *DockerCLIPluginLogDriverSuite) TestPluginLogDriver(c *testing.T) {

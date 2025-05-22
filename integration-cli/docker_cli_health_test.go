@@ -18,23 +18,23 @@ type DockerCLIHealthSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIHealthSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIHealthSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIHealthSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIHealthSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
-func waitForHealthStatus(c *testing.T, name string, prev string, expected string) {
+func waitForHealthStatus(t *testing.T, name string, prev string, expected string) {
 	prev = prev + "\n"
 	expected = expected + "\n"
 	for {
-		out := cli.DockerCmd(c, "inspect", "--format={{.State.Health.Status}}", name).Stdout()
+		out := cli.DockerCmd(t, "inspect", "--format={{.State.Health.Status}}", name).Stdout()
 		if out == expected {
 			return
 		}
-		assert.Equal(c, out, prev)
+		assert.Equal(t, out, prev)
 		if out != prev {
 			return
 		}
@@ -42,11 +42,11 @@ func waitForHealthStatus(c *testing.T, name string, prev string, expected string
 	}
 }
 
-func getHealth(c *testing.T, name string) *container.Health {
-	out := cli.DockerCmd(c, "inspect", "--format={{json .State.Health}}", name).Stdout()
+func getHealth(t *testing.T, name string) *container.Health {
+	out := cli.DockerCmd(t, "inspect", "--format={{json .State.Health}}", name).Stdout()
 	var health container.Health
 	err := json.Unmarshal([]byte(out), &health)
-	assert.Equal(c, err, nil)
+	assert.Equal(t, err, nil)
 	return &health
 }
 

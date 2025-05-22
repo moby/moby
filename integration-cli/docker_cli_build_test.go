@@ -38,12 +38,12 @@ type DockerCLIBuildSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIBuildSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIBuildSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIBuildSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIBuildSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 func (s *DockerCLIBuildSuite) TestBuildJSONEmptyRun(c *testing.T) {
@@ -2009,8 +2009,8 @@ func (s *DockerCLIBuildSuite) TestBuildAddLocalAndRemoteFilesWithAndWithoutCache
 	}
 }
 
-func testContextTar(c *testing.T, comp compression.Compression) {
-	ctx := fakecontext.New(c, "",
+func testContextTar(t *testing.T, comp compression.Compression) {
+	ctx := fakecontext.New(t, "",
 		fakecontext.WithDockerfile(`FROM busybox
 ADD foo /foo
 CMD ["cat", "/foo"]`),
@@ -2021,11 +2021,11 @@ CMD ["cat", "/foo"]`),
 	defer ctx.Close()
 	buildContext, err := archive.Tar(ctx.Dir, comp)
 	if err != nil {
-		c.Fatalf("failed to build context tar: %v", err)
+		t.Fatalf("failed to build context tar: %v", err)
 	}
 	const name = "contexttar"
 
-	cli.BuildCmd(c, name, build.WithStdinContext(buildContext))
+	cli.BuildCmd(t, name, build.WithStdinContext(buildContext))
 }
 
 func (s *DockerCLIBuildSuite) TestBuildContextTarGzip(c *testing.T) {
@@ -2093,15 +2093,15 @@ func (s *DockerCLIBuildSuite) TestBuildDockerfileStdinDockerignoreIgnored(c *tes
 	s.testBuildDockerfileStdinNoExtraFiles(c, true, true)
 }
 
-func (s *DockerCLIBuildSuite) testBuildDockerfileStdinNoExtraFiles(c *testing.T, hasDockerignore, ignoreDockerignore bool) {
+func (s *DockerCLIBuildSuite) testBuildDockerfileStdinNoExtraFiles(t *testing.T, hasDockerignore, ignoreDockerignore bool) {
 	const name = "stdindockerfilenoextra"
 	tmpDir, err := os.MkdirTemp("", "fake-context")
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 	defer os.RemoveAll(tmpDir)
 
 	writeFile := func(filename, content string) {
 		err = os.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0o600)
-		assert.NilError(c, err)
+		assert.NilError(t, err)
 	}
 
 	writeFile("foo", "bar")
@@ -2123,13 +2123,13 @@ func (s *DockerCLIBuildSuite) testBuildDockerfileStdinNoExtraFiles(c *testing.T,
 			`FROM busybox
 COPY . /baz`),
 	})
-	result.Assert(c, icmd.Success)
+	result.Assert(t, icmd.Success)
 
-	result = cli.DockerCmd(c, "run", "--rm", name, "ls", "-A", "/baz")
+	result = cli.DockerCmd(t, "run", "--rm", name, "ls", "-A", "/baz")
 	if hasDockerignore && !ignoreDockerignore {
-		assert.Equal(c, result.Stdout(), ".dockerignore\nfoo\n")
+		assert.Equal(t, result.Stdout(), ".dockerignore\nfoo\n")
 	} else {
-		assert.Equal(c, result.Stdout(), "foo\n")
+		assert.Equal(t, result.Stdout(), "foo\n")
 	}
 }
 

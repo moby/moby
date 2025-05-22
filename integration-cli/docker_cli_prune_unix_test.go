@@ -22,30 +22,30 @@ import (
 	"gotest.tools/v3/poll"
 )
 
-func (s *DockerCLIPruneSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIPruneSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIPruneSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIPruneSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
-func pruneNetworkAndVerify(c *testing.T, d *daemon.Daemon, kept, pruned []string) {
+func pruneNetworkAndVerify(t *testing.T, d *daemon.Daemon, kept, pruned []string) {
 	_, err := d.Cmd("network", "prune", "--force")
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 
 	for _, s := range kept {
-		poll.WaitOn(c, pollCheck(c, func(*testing.T) (interface{}, string) {
+		poll.WaitOn(t, pollCheck(t, func(*testing.T) (interface{}, string) {
 			out, err := d.Cmd("network", "ls", "--format", "{{.Name}}")
-			assert.NilError(c, err)
+			assert.NilError(t, err)
 			return out, ""
 		}, checker.Contains(s)), poll.WithTimeout(defaultReconciliationTimeout))
 	}
 
 	for _, s := range pruned {
-		poll.WaitOn(c, pollCheck(c, func(*testing.T) (interface{}, string) {
+		poll.WaitOn(t, pollCheck(t, func(*testing.T) (interface{}, string) {
 			out, err := d.Cmd("network", "ls", "--format", "{{.Name}}")
-			assert.NilError(c, err)
+			assert.NilError(t, err)
 			return out, ""
 		}, checker.Not(checker.Contains(s))), poll.WithTimeout(defaultReconciliationTimeout))
 	}

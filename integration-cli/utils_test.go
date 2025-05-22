@@ -115,7 +115,7 @@ type elementListOptions struct {
 	element, format string
 }
 
-func existingElements(c *testing.T, opts elementListOptions) []string {
+func existingElements(t *testing.T, opts elementListOptions) []string {
 	var args []string
 	switch opts.element {
 	case "container":
@@ -132,7 +132,7 @@ func existingElements(c *testing.T, opts elementListOptions) []string {
 	if opts.format != "" {
 		args = append(args, "--format", opts.format)
 	}
-	out := cli.DockerCmd(c, args...).Combined()
+	out := cli.DockerCmd(t, args...).Combined()
 	var lines []string
 	for _, l := range strings.Split(out, "\n") {
 		if l != "" {
@@ -143,13 +143,13 @@ func existingElements(c *testing.T, opts elementListOptions) []string {
 }
 
 // ExistingContainerIDs returns a list of currently existing container IDs.
-func ExistingContainerIDs(c *testing.T) []string {
-	return existingElements(c, elementListOptions{element: "container", format: "{{.ID}}"})
+func ExistingContainerIDs(t *testing.T) []string {
+	return existingElements(t, elementListOptions{element: "container", format: "{{.ID}}"})
 }
 
 // ExistingContainerNames returns a list of existing container names.
-func ExistingContainerNames(c *testing.T) []string {
-	return existingElements(c, elementListOptions{element: "container", format: "{{.Names}}"})
+func ExistingContainerNames(t *testing.T) []string {
+	return existingElements(t, elementListOptions{element: "container", format: "{{.Names}}"})
 }
 
 // RemoveLinesForExistingElements removes existing elements from the output of a

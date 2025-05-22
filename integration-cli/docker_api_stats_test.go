@@ -174,14 +174,14 @@ func (s *DockerAPISuite) TestAPIStatsNetworkStatsVersioning(c *testing.T) {
 	assert.Assert(c, jsonBlobHasGTE121NetworkStats(statsJSONBlob), "Stats JSON blob from API does not look like a >=v1.21 API stats structure", statsJSONBlob)
 }
 
-func getNetworkStats(c *testing.T, id string) map[string]container.NetworkStats {
+func getNetworkStats(t *testing.T, id string) map[string]container.NetworkStats {
 	var st *container.StatsResponse
 
-	_, body, err := request.Get(testutil.GetContext(c), "/containers/"+id+"/stats?stream=false")
-	assert.NilError(c, err)
+	_, body, err := request.Get(testutil.GetContext(t), "/containers/"+id+"/stats?stream=false")
+	assert.NilError(t, err)
 
 	err = json.NewDecoder(body).Decode(&st)
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 	body.Close()
 
 	return st.Networks
@@ -191,16 +191,16 @@ func getNetworkStats(c *testing.T, id string) map[string]container.NetworkStats 
 // container with id using an API call with version apiVersion. Since the
 // stats result type differs between API versions, we simply return
 // map[string]interface{}.
-func getStats(c *testing.T, id string) map[string]interface{} {
-	c.Helper()
+func getStats(t *testing.T, id string) map[string]interface{} {
+	t.Helper()
 	stats := make(map[string]interface{})
 
-	_, body, err := request.Get(testutil.GetContext(c), "/containers/"+id+"/stats?stream=false")
-	assert.NilError(c, err)
+	_, body, err := request.Get(testutil.GetContext(t), "/containers/"+id+"/stats?stream=false")
+	assert.NilError(t, err)
 	defer body.Close()
 
 	err = json.NewDecoder(body).Decode(&stats)
-	assert.NilError(c, err, "failed to decode stat: %s", err)
+	assert.NilError(t, err, "failed to decode stat: %s", err)
 
 	return stats
 }

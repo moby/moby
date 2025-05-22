@@ -18,12 +18,12 @@ type DockerCLIHistorySuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIHistorySuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIHistorySuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIHistorySuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIHistorySuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 // This is a heisen-test.  Because the created timestamp of images and the behavior of

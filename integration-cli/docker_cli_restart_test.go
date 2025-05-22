@@ -20,12 +20,12 @@ type DockerCLIRestartSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIRestartSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIRestartSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIRestartSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIRestartSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 func (s *DockerCLIRestartSuite) TestRestartStoppedContainer(c *testing.T) {
@@ -50,8 +50,8 @@ func (s *DockerCLIRestartSuite) TestRestartRunningContainer(c *testing.T) {
 	cID = strings.TrimSpace(cID)
 	cli.WaitRun(c, cID)
 
-	getLogs := func(c *testing.T) (interface{}, string) {
-		out := cli.DockerCmd(c, "logs", cID).Combined()
+	getLogs := func(t *testing.T) (interface{}, string) {
+		out := cli.DockerCmd(t, "logs", cID).Combined()
 		return out, ""
 	}
 

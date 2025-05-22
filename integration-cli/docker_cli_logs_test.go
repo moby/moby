@@ -24,12 +24,12 @@ type DockerCLILogsSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLILogsSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLILogsSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLILogsSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLILogsSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 // This used to work, it test a log of PageSize-1 (gh#4851)
@@ -47,12 +47,12 @@ func (s *DockerCLILogsSuite) TestLogsContainerMuchBiggerThanPage(c *testing.T) {
 	testLogsContainerPagination(c, 33000)
 }
 
-func testLogsContainerPagination(c *testing.T, testLen int) {
-	id := cli.DockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n = >> a.a; done; echo >> a.a; cat a.a", testLen)).Stdout()
+func testLogsContainerPagination(t *testing.T, testLen int) {
+	id := cli.DockerCmd(t, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n = >> a.a; done; echo >> a.a; cat a.a", testLen)).Stdout()
 	id = strings.TrimSpace(id)
-	cli.DockerCmd(c, "wait", id)
-	out := cli.DockerCmd(c, "logs", id).Combined()
-	assert.Equal(c, len(out), testLen+1)
+	cli.DockerCmd(t, "wait", id)
+	out := cli.DockerCmd(t, "logs", id).Combined()
+	assert.Equal(t, len(out), testLen+1)
 }
 
 func (s *DockerCLILogsSuite) TestLogsTimestamps(c *testing.T) {

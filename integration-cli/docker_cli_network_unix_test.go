@@ -43,22 +43,22 @@ const (
 
 var remoteDriverNetworkRequest remoteapi.CreateNetworkRequest
 
-func (s *DockerNetworkSuite) SetUpTest(ctx context.Context, c *testing.T) {
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+func (s *DockerNetworkSuite) SetUpTest(ctx context.Context, t *testing.T) {
+	s.d = daemon.New(t, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
-func (s *DockerNetworkSuite) TearDownTest(ctx context.Context, c *testing.T) {
+func (s *DockerNetworkSuite) TearDownTest(ctx context.Context, t *testing.T) {
 	if s.d != nil {
-		s.d.Stop(c)
-		s.ds.TearDownTest(ctx, c)
+		s.d.Stop(t)
+		s.ds.TearDownTest(ctx, t)
 	}
 }
 
-func (s *DockerNetworkSuite) SetUpSuite(ctx context.Context, c *testing.T) {
+func (s *DockerNetworkSuite) SetUpSuite(ctx context.Context, t *testing.T) {
 	mux := http.NewServeMux()
 	s.server = httptest.NewServer(mux)
-	assert.Assert(c, s.server != nil, "Failed to start an HTTP Server")
-	setupRemoteNetworkDrivers(c, mux, s.server.URL, dummyNetworkDriver, dummyIPAMDriver)
+	assert.Assert(t, s.server != nil, "Failed to start an HTTP Server")
+	setupRemoteNetworkDrivers(t, mux, s.server.URL, dummyNetworkDriver, dummyIPAMDriver)
 }
 
 func setupRemoteNetworkDrivers(t *testing.T, mux *http.ServeMux, url, netDrv, ipamDrv string) {
@@ -238,7 +238,7 @@ func setupRemoteNetworkDrivers(t *testing.T, mux *http.ServeMux, url, netDrv, ip
 	assert.NilError(t, err)
 }
 
-func (s *DockerNetworkSuite) TearDownSuite(ctx context.Context, c *testing.T) {
+func (s *DockerNetworkSuite) TearDownSuite(ctx context.Context, t *testing.T) {
 	if s.server == nil {
 		return
 	}
@@ -246,23 +246,23 @@ func (s *DockerNetworkSuite) TearDownSuite(ctx context.Context, c *testing.T) {
 	s.server.Close()
 
 	err := os.RemoveAll("/etc/docker/plugins")
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 }
 
-func assertNwIsAvailable(c *testing.T, name string) {
-	if !isNwPresent(c, name) {
-		c.Fatalf("Network %s not found in network ls o/p", name)
+func assertNwIsAvailable(t *testing.T, name string) {
+	if !isNwPresent(t, name) {
+		t.Fatalf("Network %s not found in network ls o/p", name)
 	}
 }
 
-func assertNwNotAvailable(c *testing.T, name string) {
-	if isNwPresent(c, name) {
-		c.Fatalf("Found network %s in network ls o/p", name)
+func assertNwNotAvailable(t *testing.T, name string) {
+	if isNwPresent(t, name) {
+		t.Fatalf("Found network %s in network ls o/p", name)
 	}
 }
 
-func isNwPresent(c *testing.T, name string) bool {
-	out := cli.DockerCmd(c, "network", "ls").Stdout()
+func isNwPresent(t *testing.T, name string) bool {
+	out := cli.DockerCmd(t, "network", "ls").Stdout()
 	lines := strings.Split(out, "\n")
 	for i := 1; i < len(lines)-1; i++ {
 		netFields := strings.Fields(lines[i])
@@ -276,7 +276,7 @@ func isNwPresent(c *testing.T, name string) bool {
 // assertNwList checks network list retrieved with ls command
 // equals to expected network list
 // note: out should be `network ls [option]` result
-func assertNwList(c *testing.T, out string, expectNws []string) {
+func assertNwList(t *testing.T, out string, expectNws []string) {
 	lines := strings.Split(out, "\n")
 	var nwList []string
 	for _, line := range lines[1 : len(lines)-1] {
@@ -286,14 +286,14 @@ func assertNwList(c *testing.T, out string, expectNws []string) {
 	}
 
 	// network ls should contains all expected networks
-	assert.DeepEqual(c, nwList, expectNws)
+	assert.DeepEqual(t, nwList, expectNws)
 }
 
-func getNwResource(c *testing.T, name string) *network.Inspect {
-	out := cli.DockerCmd(c, "network", "inspect", name).Stdout()
+func getNwResource(t *testing.T, name string) *network.Inspect {
+	out := cli.DockerCmd(t, "network", "inspect", name).Stdout()
 	var nr []network.Inspect
 	err := json.Unmarshal([]byte(out), &nr)
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 	return &nr[0]
 }
 
@@ -1051,26 +1051,26 @@ func (s *DockerCLINetworkSuite) TestInspectAPIMultipleNetworks(c *testing.T) {
 	assert.Equal(c, bridge.IPAddress, inspectCurrent.NetworkSettings.IPAddress)
 }
 
-func connectContainerToNetworks(c *testing.T, d *daemon.Daemon, cName string, nws []string) {
+func connectContainerToNetworks(t *testing.T, d *daemon.Daemon, cName string, nws []string) {
 	// Run a container on the default network
 	out, err := d.Cmd("run", "-d", "--name", cName, "busybox", "top")
-	assert.NilError(c, err, out)
+	assert.NilError(t, err, out)
 
 	// Attach the container to other networks
 	for _, nw := range nws {
 		out, err = d.Cmd("network", "create", nw)
-		assert.NilError(c, err, out)
+		assert.NilError(t, err, out)
 		out, err = d.Cmd("network", "connect", nw, cName)
-		assert.NilError(c, err, out)
+		assert.NilError(t, err, out)
 	}
 }
 
-func verifyContainerIsConnectedToNetworks(c *testing.T, d *daemon.Daemon, cName string, nws []string) {
+func verifyContainerIsConnectedToNetworks(t *testing.T, d *daemon.Daemon, cName string, nws []string) {
 	// Verify container is connected to all the networks
 	for _, nw := range nws {
 		out, err := d.Cmd("inspect", "-f", fmt.Sprintf("{{.NetworkSettings.Networks.%s}}", nw), cName)
-		assert.NilError(c, err, out)
-		assert.Assert(c, out != "<no value>\n")
+		assert.NilError(t, err, out)
+		assert.Assert(t, out != "<no value>\n")
 	}
 }
 
@@ -1173,12 +1173,12 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectWithPortMapping(c *testing.
 	cli.DockerCmd(c, "network", "connect", "test1", "c1")
 }
 
-func verifyPortMap(c *testing.T, container, port, originalMapping string, mustBeEqual bool) {
-	currentMapping := cli.DockerCmd(c, "port", container, port).Stdout()
+func verifyPortMap(t *testing.T, container, port, originalMapping string, mustBeEqual bool) {
+	currentMapping := cli.DockerCmd(t, "port", container, port).Stdout()
 	if mustBeEqual {
-		assert.Equal(c, currentMapping, originalMapping)
+		assert.Equal(t, currentMapping, originalMapping)
 	} else {
-		assert.Assert(c, currentMapping != originalMapping)
+		assert.Assert(t, currentMapping != originalMapping)
 	}
 }
 
@@ -1370,30 +1370,30 @@ func (s *DockerNetworkSuite) TestDockerNetworkUnsupportedRequiredIP(c *testing.T
 	assertNwNotAvailable(c, "n0")
 }
 
-func checkUnsupportedNetworkAndIP(c *testing.T, nwMode string) {
+func checkUnsupportedNetworkAndIP(t *testing.T, nwMode string) {
 	out, _, err := dockerCmdWithError("run", "-d", "--net", nwMode, "--ip", "172.28.99.88", "--ip6", "2001:db8:1234::9988", "busybox", "top")
-	assert.Assert(c, err != nil, "out: %s", out)
-	assert.Assert(c, is.Contains(out, runconfig.ErrUnsupportedNetworkAndIP.Error()))
+	assert.Assert(t, err != nil, "out: %s", out)
+	assert.Assert(t, is.Contains(out, runconfig.ErrUnsupportedNetworkAndIP.Error()))
 }
 
-func verifyIPAddressConfig(c *testing.T, cName, nwname, ipv4, ipv6 string) {
+func verifyIPAddressConfig(t *testing.T, cName, nwname, ipv4, ipv6 string) {
 	if ipv4 != "" {
-		out := inspectField(c, cName, fmt.Sprintf("NetworkSettings.Networks.%s.IPAMConfig.IPv4Address", nwname))
-		assert.Equal(c, strings.TrimSpace(out), ipv4)
+		out := inspectField(t, cName, fmt.Sprintf("NetworkSettings.Networks.%s.IPAMConfig.IPv4Address", nwname))
+		assert.Equal(t, strings.TrimSpace(out), ipv4)
 	}
 
 	if ipv6 != "" {
-		out := inspectField(c, cName, fmt.Sprintf("NetworkSettings.Networks.%s.IPAMConfig.IPv6Address", nwname))
-		assert.Equal(c, strings.TrimSpace(out), ipv6)
+		out := inspectField(t, cName, fmt.Sprintf("NetworkSettings.Networks.%s.IPAMConfig.IPv6Address", nwname))
+		assert.Equal(t, strings.TrimSpace(out), ipv6)
 	}
 }
 
-func verifyIPAddresses(c *testing.T, cName, nwname, ipv4, ipv6 string) {
-	out := inspectField(c, cName, fmt.Sprintf("NetworkSettings.Networks.%s.IPAddress", nwname))
-	assert.Equal(c, strings.TrimSpace(out), ipv4)
+func verifyIPAddresses(t *testing.T, cName, nwname, ipv4, ipv6 string) {
+	out := inspectField(t, cName, fmt.Sprintf("NetworkSettings.Networks.%s.IPAddress", nwname))
+	assert.Equal(t, strings.TrimSpace(out), ipv4)
 
-	out = inspectField(c, cName, fmt.Sprintf("NetworkSettings.Networks.%s.GlobalIPv6Address", nwname))
-	assert.Equal(c, strings.TrimSpace(out), ipv6)
+	out = inspectField(t, cName, fmt.Sprintf("NetworkSettings.Networks.%s.GlobalIPv6Address", nwname))
+	assert.Equal(t, strings.TrimSpace(out), ipv6)
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkConnectLinkLocalIP(c *testing.T) {
