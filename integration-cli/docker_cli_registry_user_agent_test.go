@@ -28,25 +28,25 @@ func unescapeBackslashSemicolonParens(s string) string {
 	return string(ret)
 }
 
-func regexpCheckUA(c *testing.T, ua string) {
+func regexpCheckUA(t *testing.T, ua string) {
 	re := regexp.MustCompile("(?P<dockerUA>.+) UpstreamClient(?P<upstreamUA>.+)")
 	substrArr := re.FindStringSubmatch(ua)
 
-	assert.Equal(c, len(substrArr), 3, "Expected 'UpstreamClient()' with upstream client UA")
+	assert.Equal(t, len(substrArr), 3, "Expected 'UpstreamClient()' with upstream client UA")
 	dockerUA := substrArr[1]
 	upstreamUAEscaped := substrArr[2]
 
 	// check dockerUA looks correct
 	reDockerUA := regexp.MustCompile("^docker/[0-9A-Za-z+]")
 	bMatchDockerUA := reDockerUA.MatchString(dockerUA)
-	assert.Assert(c, bMatchDockerUA, "Docker Engine User-Agent malformed")
+	assert.Assert(t, bMatchDockerUA, "Docker Engine User-Agent malformed")
 
 	// check upstreamUA looks correct
 	// Expecting something like:  Docker-Client/1.11.0-dev (linux)
 	upstreamUA := unescapeBackslashSemicolonParens(upstreamUAEscaped)
 	reUpstreamUA := regexp.MustCompile(`^\(Docker-Client/[0-9A-Za-z+]`)
 	bMatchUpstreamUA := reUpstreamUA.MatchString(upstreamUA)
-	assert.Assert(c, bMatchUpstreamUA, "(Upstream) Docker Client User-Agent malformed")
+	assert.Assert(t, bMatchUpstreamUA, "(Upstream) Docker Client User-Agent malformed")
 }
 
 // registerUserAgentHandler registers a handler for the `/v2/*` endpoint.
