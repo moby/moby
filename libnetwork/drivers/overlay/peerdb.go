@@ -31,33 +31,33 @@ func (p *peerEntry) isLocal() bool {
 
 type peerMap struct {
 	mp setmatrix.SetMatrix[netip.Prefix, peerEntry]
-	sync.Mutex
+	mu sync.Mutex
 }
 
 type peerNetworkMap struct {
 	// map with key peerKey
 	mp map[string]*peerMap
-	sync.Mutex
+	mu sync.Mutex
 }
 
 func (d *driver) peerDbNetworkWalk(nid string, f func(netip.Prefix, peerEntry) bool) {
-	d.peerDb.Lock()
+	d.peerDb.mu.Lock()
 	pMap, ok := d.peerDb.mp[nid]
-	d.peerDb.Unlock()
+	d.peerDb.mu.Unlock()
 
 	if !ok {
 		return
 	}
 
 	mp := map[netip.Prefix]peerEntry{}
-	pMap.Lock()
+	pMap.mu.Lock()
 	for _, pKey := range pMap.mp.Keys() {
 		entryDBList, ok := pMap.mp.Get(pKey)
 		if ok {
 			mp[pKey] = entryDBList[0]
 		}
 	}
-	pMap.Unlock()
+	pMap.mu.Unlock()
 
 	for k, v := range mp {
 		if f(k, v) {
@@ -67,15 +67,15 @@ func (d *driver) peerDbNetworkWalk(nid string, f func(netip.Prefix, peerEntry) b
 }
 
 func (d *driver) peerDbGet(nid string, peerIP netip.Prefix) (peerEntry, bool) {
-	d.peerDb.Lock()
+	d.peerDb.mu.Lock()
 	pMap, ok := d.peerDb.mp[nid]
-	d.peerDb.Unlock()
+	d.peerDb.mu.Unlock()
 	if !ok {
 		return peerEntry{}, false
 	}
 
-	pMap.Lock()
-	defer pMap.Unlock()
+	pMap.mu.Lock()
+	defer pMap.mu.Unlock()
 	c, _ := pMap.mp.Get(peerIP)
 	if len(c) == 0 {
 		return peerEntry{}, false
@@ -84,13 +84,13 @@ func (d *driver) peerDbGet(nid string, peerIP netip.Prefix) (peerEntry, bool) {
 }
 
 func (d *driver) peerDbAdd(nid, eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr) (bool, int) {
-	d.peerDb.Lock()
+	d.peerDb.mu.Lock()
 	pMap, ok := d.peerDb.mp[nid]
 	if !ok {
 		pMap = &peerMap{}
 		d.peerDb.mp[nid] = pMap
 	}
-	d.peerDb.Unlock()
+	d.peerDb.mu.Unlock()
 
 	pEntry := peerEntry{
 		eid:  eid,
@@ -98,8 +98,8 @@ func (d *driver) peerDbAdd(nid, eid string, peerIP netip.Prefix, peerMac net.Har
 		vtep: vtep,
 	}
 
-	pMap.Lock()
-	defer pMap.Unlock()
+	pMap.mu.Lock()
+	defer pMap.mu.Unlock()
 	b, i := pMap.mp.Insert(peerIP, pEntry)
 	if i != 1 {
 		// Transient case, there is more than one endpoint that is using the same IP
@@ -111,13 +111,13 @@ func (d *driver) peerDbAdd(nid, eid string, peerIP netip.Prefix, peerMac net.Har
 }
 
 func (d *driver) peerDbDelete(nid, eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr) (bool, int) {
-	d.peerDb.Lock()
+	d.peerDb.mu.Lock()
 	pMap, ok := d.peerDb.mp[nid]
 	if !ok {
-		d.peerDb.Unlock()
+		d.peerDb.mu.Unlock()
 		return false, 0
 	}
-	d.peerDb.Unlock()
+	d.peerDb.mu.Unlock()
 
 	pEntry := peerEntry{
 		eid:  eid,
@@ -125,8 +125,8 @@ func (d *driver) peerDbDelete(nid, eid string, peerIP netip.Prefix, peerMac net.
 		vtep: vtep,
 	}
 
-	pMap.Lock()
-	defer pMap.Unlock()
+	pMap.mu.Lock()
+	defer pMap.mu.Unlock()
 	b, i := pMap.mp.Remove(peerIP, pEntry)
 	if i != 0 {
 		// Transient case, there is more than one endpoint that is using the same IP
@@ -335,8 +335,8 @@ func (d *driver) deleteNeighbor(nid string, peerIP netip.Prefix, peerMac net.Har
 func (d *driver) peerFlush(nid string) {
 	d.peerOpMu.Lock()
 	defer d.peerOpMu.Unlock()
-	d.peerDb.Lock()
-	defer d.peerDb.Unlock()
+	d.peerDb.mu.Lock()
+	defer d.peerDb.mu.Unlock()
 	_, ok := d.peerDb.mp[nid]
 	if !ok {
 		log.G(context.TODO()).Warnf("Peer flush operation failed: unable to find the peerDB for nid:%s", nid)

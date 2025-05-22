@@ -26,22 +26,22 @@ type endpoint struct {
 }
 
 func (n *network) endpoint(eid string) *endpoint {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.endpoints[eid]
 }
 
 func (n *network) addEndpoint(ep *endpoint) {
-	n.Lock()
+	n.mu.Lock()
 	n.endpoints[ep.id] = ep
-	n.Unlock()
+	n.mu.Unlock()
 }
 
 func (n *network) deleteEndpoint(eid string) {
-	n.Lock()
+	n.mu.Lock()
 	delete(n.endpoints, eid)
-	n.Unlock()
+	n.mu.Unlock()
 }
 
 func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
