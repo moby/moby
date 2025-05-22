@@ -37,7 +37,7 @@ type driver struct {
 	initOS   sync.Once
 	keys     []*key
 	peerOpMu sync.Mutex
-	sync.Mutex
+	mu       sync.Mutex
 }
 
 // Register registers a new instance of the overlay driver.
@@ -90,10 +90,10 @@ func (d *driver) nodeJoin(data discoverapi.NodeDiscoveryData) error {
 		if !advAddr.IsValid() {
 			return fmt.Errorf("invalid discovery data")
 		}
-		d.Lock()
+		d.mu.Lock()
 		d.advertiseAddress = advAddr
 		d.bindAddress = bindAddr
-		d.Unlock()
+		d.mu.Unlock()
 	}
 	return nil
 }
