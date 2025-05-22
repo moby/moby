@@ -20,12 +20,12 @@ type DockerCLIRmiSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIRmiSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIRmiSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIRmiSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIRmiSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 func (s *DockerCLIRmiSuite) TestRmiWithContainerFails(c *testing.T) {

@@ -224,8 +224,8 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *testing.T) {
 
 	checkStartingTasks := func(expected int) []swarm.Task {
 		var startingTasks []swarm.Task
-		poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-			tasks := d.GetServiceTasks(ctx, c, id)
+		poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
+			tasks := d.GetServiceTasks(ctx, t, id)
 			startingTasks = nil
 			for _, t := range tasks {
 				if t.Status.State == swarm.TaskStateStarting {

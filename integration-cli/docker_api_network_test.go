@@ -203,23 +203,23 @@ func (s *DockerAPISuite) TestAPICreateDeletePredefinedNetworks(c *testing.T) {
 	createDeletePredefinedNetwork(c, "host")
 }
 
-func createDeletePredefinedNetwork(c *testing.T, name string) {
+func createDeletePredefinedNetwork(t *testing.T, name string) {
 	// Create pre-defined network
 	config := network.CreateRequest{Name: name}
 	expectedStatus := http.StatusForbidden
-	createNetwork(c, config, expectedStatus)
-	deleteNetwork(c, name, false)
+	createNetwork(t, config, expectedStatus)
+	deleteNetwork(t, name, false)
 }
 
-func isNetworkAvailable(c *testing.T, name string) bool {
-	resp, body, err := request.Get(testutil.GetContext(c), "/networks")
-	assert.NilError(c, err)
+func isNetworkAvailable(t *testing.T, name string) bool {
+	resp, body, err := request.Get(testutil.GetContext(t), "/networks")
+	assert.NilError(t, err)
 	defer resp.Body.Close()
-	assert.Equal(c, resp.StatusCode, http.StatusOK)
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
 
 	var nJSON []network.Inspect
 	err = json.NewDecoder(body).Decode(&nJSON)
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 
 	for _, n := range nJSON {
 		if n.Name == name {
@@ -229,19 +229,19 @@ func isNetworkAvailable(c *testing.T, name string) bool {
 	return false
 }
 
-func getNetworkIDByName(c *testing.T, name string) string {
+func getNetworkIDByName(t *testing.T, name string) string {
 	filterJSON, err := filters.ToJSON(filters.NewArgs(filters.Arg("name", name)))
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 	v := url.Values{}
 	v.Set("filters", filterJSON)
 
-	resp, body, err := request.Get(testutil.GetContext(c), "/networks?"+v.Encode())
-	assert.Equal(c, resp.StatusCode, http.StatusOK)
-	assert.NilError(c, err)
+	resp, body, err := request.Get(testutil.GetContext(t), "/networks?"+v.Encode())
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	assert.NilError(t, err)
 
 	var nJSON []network.Inspect
 	err = json.NewDecoder(body).Decode(&nJSON)
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 	var res string
 	for _, n := range nJSON {
 		// Find exact match
@@ -249,70 +249,70 @@ func getNetworkIDByName(c *testing.T, name string) string {
 			res = n.ID
 		}
 	}
-	assert.Assert(c, res != "")
+	assert.Assert(t, res != "")
 
 	return res
 }
 
-func getNetworkResource(c *testing.T, id string) *network.Inspect {
-	_, obj, err := request.Get(testutil.GetContext(c), "/networks/"+id)
-	assert.NilError(c, err)
+func getNetworkResource(t *testing.T, id string) *network.Inspect {
+	_, obj, err := request.Get(testutil.GetContext(t), "/networks/"+id)
+	assert.NilError(t, err)
 
 	nr := network.Inspect{}
 	err = json.NewDecoder(obj).Decode(&nr)
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 
 	return &nr
 }
 
-func createNetwork(c *testing.T, config network.CreateRequest, expectedStatusCode int) string {
-	c.Helper()
+func createNetwork(t *testing.T, config network.CreateRequest, expectedStatusCode int) string {
+	t.Helper()
 
-	resp, body, err := request.Post(testutil.GetContext(c), "/networks/create", request.JSONBody(config))
-	assert.NilError(c, err)
+	resp, body, err := request.Post(testutil.GetContext(t), "/networks/create", request.JSONBody(config))
+	assert.NilError(t, err)
 	defer resp.Body.Close()
 
 	if expectedStatusCode >= 0 {
-		assert.Equal(c, resp.StatusCode, expectedStatusCode)
+		assert.Equal(t, resp.StatusCode, expectedStatusCode)
 	} else {
-		assert.Assert(c, resp.StatusCode != -expectedStatusCode)
+		assert.Assert(t, resp.StatusCode != -expectedStatusCode)
 	}
 
 	if expectedStatusCode == http.StatusCreated || expectedStatusCode < 0 {
 		var nr network.CreateResponse
 		err = json.NewDecoder(body).Decode(&nr)
-		assert.NilError(c, err)
+		assert.NilError(t, err)
 
 		return nr.ID
 	}
 	return ""
 }
 
-func connectNetwork(c *testing.T, nid, cid string) {
-	resp, _, err := request.Post(testutil.GetContext(c), "/networks/"+nid+"/connect", request.JSONBody(network.ConnectOptions{
+func connectNetwork(t *testing.T, nid, cid string) {
+	resp, _, err := request.Post(testutil.GetContext(t), "/networks/"+nid+"/connect", request.JSONBody(network.ConnectOptions{
 		Container: cid,
 	}))
-	assert.NilError(c, err)
-	assert.Equal(c, resp.StatusCode, http.StatusOK)
+	assert.NilError(t, err)
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }
 
-func disconnectNetwork(c *testing.T, nid, cid string) {
+func disconnectNetwork(t *testing.T, nid, cid string) {
 	config := network.ConnectOptions{
 		Container: cid,
 	}
 
-	resp, _, err := request.Post(testutil.GetContext(c), "/networks/"+nid+"/disconnect", request.JSONBody(config))
-	assert.NilError(c, err)
-	assert.Equal(c, resp.StatusCode, http.StatusOK)
+	resp, _, err := request.Post(testutil.GetContext(t), "/networks/"+nid+"/disconnect", request.JSONBody(config))
+	assert.NilError(t, err)
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }
 
-func deleteNetwork(c *testing.T, id string, shouldSucceed bool) {
-	resp, _, err := request.Delete(testutil.GetContext(c), "/networks/"+id)
-	assert.NilError(c, err)
+func deleteNetwork(t *testing.T, id string, shouldSucceed bool) {
+	resp, _, err := request.Delete(testutil.GetContext(t), "/networks/"+id)
+	assert.NilError(t, err)
 	defer resp.Body.Close()
 	if !shouldSucceed {
-		assert.Assert(c, resp.StatusCode != http.StatusOK)
+		assert.Assert(t, resp.StatusCode != http.StatusOK)
 		return
 	}
-	assert.Equal(c, resp.StatusCode, http.StatusNoContent)
+	assert.Equal(t, resp.StatusCode, http.StatusNoContent)
 }
