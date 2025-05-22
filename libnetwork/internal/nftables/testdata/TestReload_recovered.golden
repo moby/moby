@@ -1,0 +1,17 @@
+table ip this_is_a_table {
+	map this_is_a_vmap {
+		type ifname : verdict
+		elements = { "eth0" : return }
+	}
+
+	set set4 {
+		type ipv4_addr
+		flags interval
+		elements = { 192.0.2.0/24 }
+	}
+
+	chain a_base_chain {
+		type filter hook forward priority filter; policy accept;
+		counter packets 0 bytes 0
+	}
+}
