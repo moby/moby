@@ -62,7 +62,7 @@ type network struct {
 	subnets   []*subnet
 	secure    bool
 	mtu       int
-	sync.Mutex
+	mu        sync.Mutex
 }
 
 func init() {
@@ -150,8 +150,8 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		n.subnets = append(n.subnets, s)
 	}
 
-	d.Lock()
-	defer d.Unlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	if d.networks[n.id] != nil {
 		return fmt.Errorf("attempt to create overlay network %v that already exists", n.id)
 	}
@@ -185,12 +185,12 @@ func (d *driver) DeleteNetwork(nid string) error {
 		return err
 	}
 
-	d.Lock()
+	d.mu.Lock()
 	// Only perform a peer flush operation (if required) AFTER unlocking
 	// the driver lock to avoid deadlocking w/ the peerDB.
 	var doPeerFlush bool
 	defer func() {
-		d.Unlock()
+		d.mu.Unlock()
 		if doPeerFlush {
 			d.peerFlush(nid)
 		}
@@ -251,14 +251,14 @@ func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
 	// the other will wait.
 	networkOnce.Do(populateVNITbl)
 
-	n.Lock()
+	n.mu.Lock()
 	// If initialization was successful then tell the peerDB to initialize the
 	// sandbox with all the peers previously received from networkdb. But only
 	// do this after unlocking the network. Otherwise we could deadlock with
 	// on the peerDB channel while peerDB is waiting for the network lock.
 	var doInitPeerDB bool
 	defer func() {
-		n.Unlock()
+		n.mu.Unlock()
 		if doInitPeerDB {
 			go n.driver.initSandboxPeerDB(n.id)
 		}
@@ -296,8 +296,8 @@ func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
 }
 
 func (n *network) leaveSandbox() {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.joinCnt--
 	if n.joinCnt != 0 {
 		return
@@ -603,16 +603,16 @@ func (n *network) initSandbox() error {
 }
 
 func (d *driver) network(nid string) *network {
-	d.Lock()
+	d.mu.Lock()
 	n := d.networks[nid]
-	d.Unlock()
+	d.mu.Unlock()
 
 	return n
 }
 
 func (n *network) sandbox() *osl.Namespace {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.sbox
 }
 
