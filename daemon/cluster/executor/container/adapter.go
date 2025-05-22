@@ -166,7 +166,7 @@ func (c *containerAdapter) waitNodeAttachments(ctx context.Context) error {
 	// we'll wait and try again.
 	attachmentStore := c.backend.GetAttachmentStore()
 	if attachmentStore == nil {
-		return fmt.Errorf("error getting attachment store")
+		return errors.New("error getting attachment store")
 	}
 
 	// essentially, we're long-polling here. this is really sub-optimal, but a
@@ -199,13 +199,13 @@ func (c *containerAdapter) waitNodeAttachments(ctx context.Context) error {
 		// otherwise, try polling again, or wait for context canceled.
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("node is missing network attachments, ip addresses may be exhausted")
+			return errors.New("node is missing network attachments, ip addresses may be exhausted")
 		case <-poll.C:
 		}
 	}
 }
 
-func (c *containerAdapter) createNetworks(ctx context.Context) error {
+func (c *containerAdapter) createNetworks(_ context.Context) error {
 	for name, nw := range c.container.networks {
 		ncr := networkCreateRequest(name, nw)
 		if err := c.backend.CreateManagedNetwork(ncr); err != nil { // todo name missing
@@ -247,7 +247,7 @@ func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 	return nil
 }
 
-func (c *containerAdapter) networkAttach(ctx context.Context) error {
+func (c *containerAdapter) networkAttach(_ context.Context) error {
 	config := c.container.createNetworkingConfig(c.backend)
 
 	var (
@@ -429,11 +429,11 @@ func (c *containerAdapter) shutdown(ctx context.Context) error {
 	return c.backend.ContainerStop(ctx, c.container.name(), options)
 }
 
-func (c *containerAdapter) terminate(ctx context.Context) error {
+func (c *containerAdapter) terminate(_ context.Context) error {
 	return c.backend.ContainerKill(c.container.name(), syscall.SIGKILL.String())
 }
 
-func (c *containerAdapter) remove(ctx context.Context) error {
+func (c *containerAdapter) remove(_ context.Context) error {
 	return c.backend.ContainerRm(c.container.name(), &backend.ContainerRmConfig{
 		RemoveVolume: true,
 		ForceRemove:  true,

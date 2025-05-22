@@ -160,7 +160,7 @@ func allocate(t *testing.T, tctx *testContext, parallel int64) {
 	// routine loop
 	for {
 		wg.Add(1)
-		go func(id int) {
+		go func(_ int) {
 			parallelExec.Acquire(context.Background(), 1)
 			ip, _, _ := tctx.a.RequestAddress(tctx.pid, nil, tctx.opts)
 			ch <- ip

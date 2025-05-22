@@ -4,6 +4,7 @@ package ipvlan
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/containerd/log"
@@ -17,7 +18,7 @@ import (
 )
 
 // CreateNetwork the network for the specified driver type
-func (d *driver) CreateNetwork(ctx context.Context, nid string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(_ context.Context, nid string, option map[string]interface{}, _ driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	kv, err := kernel.GetKernelVersion()
 	if err != nil {
 		return fmt.Errorf("failed to check kernel version for ipvlan driver support: %v", err)
@@ -30,13 +31,13 @@ func (d *driver) CreateNetwork(ctx context.Context, nid string, option map[strin
 	// reject a null v4 network if ipv4 is required
 	if v, ok := option[netlabel.EnableIPv4]; ok && v.(bool) {
 		if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
-			return errdefs.InvalidParameter(fmt.Errorf("ipv4 pool is empty"))
+			return errdefs.InvalidParameter(errors.New("ipv4 pool is empty"))
 		}
 	}
 	// reject a null v6 network if ipv6 is required
 	if v, ok := option[netlabel.EnableIPv6]; ok && v.(bool) {
 		if len(ipV6Data) == 0 || ipV6Data[0].Pool.String() == "::/0" {
-			return errdefs.InvalidParameter(fmt.Errorf("ipv6 pool is empty"))
+			return errdefs.InvalidParameter(errors.New("ipv6 pool is empty"))
 		}
 	}
 	// parse and validate the config and bind to networkConfiguration
@@ -226,7 +227,7 @@ func parseNetworkOptions(id string, option options.Generic) (*configuration, err
 
 	// loopback is not a valid parent link
 	if config.Parent == "lo" {
-		return nil, fmt.Errorf("loopback interface is not a valid ipvlan parent link")
+		return nil, errors.New("loopback interface is not a valid ipvlan parent link")
 	}
 
 	// With no parent interface, the network is "internal".

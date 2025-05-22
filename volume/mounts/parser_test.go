@@ -38,7 +38,7 @@ func (mockFiProvider) fileInfo(path string) (exists, isDir bool, _ error) {
 // this is used to test error handling
 type mockFiProviderWithError struct{ err error }
 
-func (m mockFiProviderWithError) fileInfo(path string) (bool, bool, error) {
+func (m mockFiProviderWithError) fileInfo(_ string) (bool, bool, error) {
 	return false, false, m.err
 }
 

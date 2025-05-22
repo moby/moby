@@ -159,7 +159,7 @@ func parseVlan(linkName string) (string, int, error) {
 }
 
 // createDummyLink creates a dummy0 parent link
-func createDummyLink(dummyName, truncNetID string) error {
+func createDummyLink(dummyName, _ string) error {
 	// create a parent interface since one was not specified
 	parent := &netlink.Dummy{
 		LinkAttrs: netlink.LinkAttrs{

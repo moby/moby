@@ -170,11 +170,10 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (c8dima
 	img, err := i.images.Get(ctx, ref)
 	if err == nil {
 		return img, nil
-	} else {
-		// TODO(containerd): error translation can use common function
-		if !cerrdefs.IsNotFound(err) {
-			return c8dimages.Image{}, err
-		}
+	}
+	// TODO(containerd): error translation can use common function
+	if !cerrdefs.IsNotFound(err) {
+		return c8dimages.Image{}, err
 	}
 
 	// If the identifier could be a short ID, attempt to match.

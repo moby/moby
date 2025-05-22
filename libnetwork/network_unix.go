@@ -22,20 +22,20 @@ func (n *Network) startResolver() {
 }
 
 func addEpToResolver(
-	ctx context.Context,
-	netName, epName string,
-	config *containerConfig,
-	epIface *EndpointInterface,
-	resolvers []*Resolver,
+	_ context.Context,
+	_, _ string,
+	_ *containerConfig,
+	_ *EndpointInterface,
+	_ []*Resolver,
 ) error {
 	return nil
 }
 
-func deleteEpFromResolver(epName string, epIface *EndpointInterface, resolvers []*Resolver) error {
+func deleteEpFromResolver(_ string, _ *EndpointInterface, _ []*Resolver) error {
 	return nil
 }
 
-func defaultIpamForNetworkType(networkType string) string {
+func defaultIpamForNetworkType(_ string) string {
 	return defaultipam.DriverName
 }
 

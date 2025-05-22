@@ -211,7 +211,7 @@ func TestResponseErrors(t *testing.T) {
 		t.Run(tc.doc, func(t *testing.T) {
 			client := &Client{
 				version: tc.apiVersion,
-				client: newMockClient(func(req *http.Request) (*http.Response, error) {
+				client: newMockClient(func(_ *http.Request) (*http.Response, error) {
 					return &http.Response{
 						StatusCode: http.StatusBadRequest,
 						Header:     http.Header{"Content-Type": []string{tc.contentType}},
@@ -229,7 +229,7 @@ func TestResponseErrors(t *testing.T) {
 func TestInfiniteError(t *testing.T) {
 	infinitR := rand.New(rand.NewSource(42))
 	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(_ *http.Request) (*http.Response, error) {
 			resp := &http.Response{
 				StatusCode: http.StatusInternalServerError,
 				Header:     http.Header{},

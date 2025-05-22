@@ -113,7 +113,7 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 			}
 		}
 		if mnt.ReadOnly && anonymousVolume {
-			return &errMountConfig{mnt, fmt.Errorf("must not set ReadOnly mode when using anonymous volumes")}
+			return &errMountConfig{mnt, errors.New("must not set ReadOnly mode when using anonymous volumes")}
 		}
 	case mount.TypeTmpfs:
 		if mnt.BindOptions != nil {
@@ -394,7 +394,7 @@ func (p *linuxParser) parseMountSpec(cfg mount.Mount, validateBindSourceExists b
 
 func (p *linuxParser) ParseVolumesFrom(spec string) (string, string, error) {
 	if len(spec) == 0 {
-		return "", "", fmt.Errorf("volumes-from specification cannot be an empty string")
+		return "", "", errors.New("volumes-from specification cannot be an empty string")
 	}
 
 	id, mode, _ := strings.Cut(spec, ":")
@@ -479,7 +479,7 @@ func (p *linuxParser) DefaultCopyMode() bool {
 	return true
 }
 
-func (p *linuxParser) ValidateVolumeName(name string) error {
+func (p *linuxParser) ValidateVolumeName(_ string) error {
 	return nil
 }
 

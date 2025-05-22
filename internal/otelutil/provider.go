@@ -14,7 +14,7 @@ import (
 )
 
 func NewTracerProvider(ctx context.Context, allowNoop bool) (trace.TracerProvider, func(context.Context) error) {
-	noopShutdown := func(ctx context.Context) error { return nil }
+	noopShutdown := func(_ context.Context) error { return nil }
 
 	exp, err := detect.NewSpanExporter(ctx)
 	if err != nil {
@@ -33,7 +33,7 @@ func NewTracerProvider(ctx context.Context, allowNoop bool) (trace.TracerProvide
 		sdktrace.WithResource(resource.Default()),
 		sdktrace.WithSyncer(detect.Recorder),
 		sdktrace.WithBatcher(exp),
-		sdktrace.WithSpanProcessor(baggagecopy.NewSpanProcessor(func(member baggage.Member) bool { return true })),
+		sdktrace.WithSpanProcessor(baggagecopy.NewSpanProcessor(func(_ baggage.Member) bool { return true })),
 	)
 	return tp, tp.Shutdown
 }

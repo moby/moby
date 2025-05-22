@@ -9,7 +9,7 @@ import (
 
 type blockingReader struct{}
 
-func (r blockingReader) Read(p []byte) (int, error) {
+func (r blockingReader) Read(_ []byte) (int, error) {
 	time.Sleep(time.Second)
 	return 0, nil
 }

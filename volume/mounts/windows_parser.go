@@ -171,9 +171,8 @@ func windowsDetectMountType(p string) mount.Type {
 		return mount.TypeNamedPipe
 	} else if hostDirRegexp.MatchString(p) {
 		return mount.TypeBind
-	} else {
-		return mount.TypeVolume
 	}
+	return mount.TypeVolume
 }
 
 func (p *windowsParser) ReadWrite(mode string) bool {
@@ -249,7 +248,7 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 			return &errMountConfig{mnt, errBindSourceDoesNotExist(mnt.Source)}
 		}
 		if !isdir {
-			return &errMountConfig{mnt, fmt.Errorf("source path must be a directory")}
+			return &errMountConfig{mnt, errors.New("source path must be a directory")}
 		}
 
 	case mount.TypeVolume:
@@ -270,7 +269,7 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 		}
 
 		if anonymousVolume && mnt.ReadOnly {
-			return &errMountConfig{mnt, fmt.Errorf("must not set ReadOnly mode when using anonymous volumes")}
+			return &errMountConfig{mnt, errors.New("must not set ReadOnly mode when using anonymous volumes")}
 		}
 
 		if len(mnt.Source) != 0 {
@@ -424,7 +423,7 @@ func (p *windowsParser) parseMountSpec(cfg mount.Mount, convertTargetToBackslash
 
 func (p *windowsParser) ParseVolumesFrom(spec string) (string, string, error) {
 	if len(spec) == 0 {
-		return "", "", fmt.Errorf("volumes-from specification cannot be an empty string")
+		return "", "", errors.New("volumes-from specification cannot be an empty string")
 	}
 
 	id, mode, _ := strings.Cut(spec, ":")
@@ -447,7 +446,7 @@ func (p *windowsParser) DefaultPropagationMode() mount.Propagation {
 	return ""
 }
 
-func (p *windowsParser) ConvertTmpfsOptions(opt *mount.TmpfsOptions, readOnly bool) (string, error) {
+func (p *windowsParser) ConvertTmpfsOptions(_ *mount.TmpfsOptions, _ bool) (string, error) {
 	return "", errors.New("windows does not support tmpfs")
 }
 
@@ -455,14 +454,14 @@ func (p *windowsParser) DefaultCopyMode() bool {
 	return false
 }
 
-func (p *windowsParser) IsBackwardCompatible(m *MountPoint) bool {
+func (p *windowsParser) IsBackwardCompatible(_ *MountPoint) bool {
 	return false
 }
 
-func (p *windowsParser) ValidateTmpfsMountDestination(dest string) error {
+func (p *windowsParser) ValidateTmpfsMountDestination(_ string) error {
 	return errors.New("windows does not support tmpfs")
 }
 
-func (p *windowsParser) HasResource(m *MountPoint, absolutePath string) bool {
+func (p *windowsParser) HasResource(_ *MountPoint, _ string) bool {
 	return false
 }

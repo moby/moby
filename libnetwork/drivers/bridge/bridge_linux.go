@@ -664,7 +664,7 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 	}
 
 	if (config.GwModeIPv4.isolated() || config.GwModeIPv6.isolated()) && !config.Internal {
-		return nil, fmt.Errorf("gateway mode 'isolated' can only be used for an internal network")
+		return nil, errors.New("gateway mode 'isolated' can only be used for an internal network")
 	}
 
 	if !exists {
@@ -689,18 +689,18 @@ func (d *driver) getNetworks() []*bridgeNetwork {
 	return ls
 }
 
-func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
+func (d *driver) NetworkAllocate(_ string, _ map[string]string, _, _ []driverapi.IPAMData) (map[string]string, error) {
 	return nil, types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) NetworkFree(id string) error {
+func (d *driver) NetworkFree(_ string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
+func (d *driver) EventNotify(_ driverapi.EventType, _, _, _ string, _ []byte) {
 }
 
-func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+func (d *driver) DecodeTableEntry(_ string, _ string, _ []byte) (string, map[string]string) {
 	return "", nil
 }
 
@@ -720,7 +720,7 @@ func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error)
 }
 
 // CreateNetwork creates a new network using the bridge driver.
-func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, _ driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	// Sanity checks
 	d.Lock()
 	if _, ok := d.networks[id]; ok {
@@ -921,7 +921,7 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 	bridgeSetup.queueStep("setupDeviceUp", setupDeviceUp)
 
 	if v := os.Getenv("DOCKER_TEST_BRIDGE_INIT_ERROR"); v == config.BridgeName {
-		bridgeSetup.queueStep("fakeError", func(n *networkConfiguration, b *bridgeInterface) error {
+		bridgeSetup.queueStep("fakeError", func(_ *networkConfiguration, _ *bridgeInterface) error {
 			return fmt.Errorf("DOCKER_TEST_BRIDGE_INIT_ERROR is %q", v)
 		})
 	}
@@ -1811,27 +1811,27 @@ func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityCon
 	cc := &connectivityConfiguration{}
 
 	if opt, ok := cOptions[netlabel.PortMap]; ok {
-		if pb, ok := opt.([]types.PortBinding); ok {
-			cc.PortBindings = pb
-		} else {
+		pb, ok := opt.([]types.PortBinding)
+		if !ok {
 			return nil, types.InvalidParameterErrorf("invalid port mapping data in connectivity configuration: %v", opt)
 		}
+		cc.PortBindings = pb
 	}
 
 	if opt, ok := cOptions[netlabel.ExposedPorts]; ok {
-		if ports, ok := opt.([]types.TransportPort); ok {
-			cc.ExposedPorts = ports
-		} else {
+		ports, ok := opt.([]types.TransportPort)
+		if !ok {
 			return nil, types.InvalidParameterErrorf("invalid exposed ports data in connectivity configuration: %v", opt)
 		}
+		cc.ExposedPorts = ports
 	}
 
 	if opt, ok := cOptions[netlabel.NoProxy6To4]; ok {
-		if noProxy6To4, ok := opt.(bool); ok {
-			cc.NoProxy6To4 = noProxy6To4
-		} else {
+		noProxy6To4, ok := opt.(bool)
+		if !ok {
 			return nil, types.InvalidParameterErrorf("invalid "+netlabel.NoProxy6To4+" in connectivity configuration: %v", opt)
 		}
+		cc.NoProxy6To4 = noProxy6To4
 	}
 
 	return cc, nil

@@ -20,7 +20,7 @@ import (
 func TestPingFail(t *testing.T) {
 	var withHeader bool
 	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(_ *http.Request) (*http.Response, error) {
 			resp := &http.Response{StatusCode: http.StatusInternalServerError}
 			if withHeader {
 				resp.Header = http.Header{}
@@ -52,7 +52,7 @@ func TestPingFail(t *testing.T) {
 // This test is mostly just testing that there are no panics in this code path.
 func TestPingWithError(t *testing.T) {
 	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(_ *http.Request) (*http.Response, error) {
 			return nil, errors.New("some connection error")
 		}),
 	}
@@ -69,7 +69,7 @@ func TestPingWithError(t *testing.T) {
 // details on success.
 func TestPingSuccess(t *testing.T) {
 	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(_ *http.Request) (*http.Response, error) {
 			resp := &http.Response{StatusCode: http.StatusOK}
 			resp.Header = http.Header{}
 			resp.Header.Set("Api-Version", "awesome")

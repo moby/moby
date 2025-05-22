@@ -91,7 +91,7 @@ func setupSuite() {
 	mux := http.NewServeMux()
 	server = httptest.NewServer(otelhttp.NewHandler(mux, ""))
 
-	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, _ *http.Request) {
 		b, err := json.Marshal(plugins.Manifest{Implements: []string{authorization.AuthZApiImplements}})
 		if err != nil {
 			panic("could not marshal json for /Plugin.Activate: " + err.Error())

@@ -670,7 +670,7 @@ func (w *LogFile) openRotatedFiles(ctx context.Context, config logger.ReadConfig
 	return out, nil
 }
 
-func (w *LogFile) openRotatedFile(ctx context.Context, i int, config logger.ReadConfig) (fileOpener, error) {
+func (w *LogFile) openRotatedFile(_ context.Context, i int, config logger.ReadConfig) (fileOpener, error) {
 	f, err := open(fmt.Sprintf("%s.%d", w.f.Name(), i))
 	if err == nil {
 		return &simpleFileOpener{

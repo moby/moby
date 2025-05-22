@@ -32,7 +32,7 @@ import (
 )
 
 // Creates an image from Pull or from Import
-func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func (ir *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, 
 	return nil
 }
 
-func (ir *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (ir *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -391,7 +391,7 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 	return httputils.WriteJSON(w, http.StatusOK, imageInspect)
 }
 
-func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -509,7 +509,7 @@ func (ir *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter,
 	return nil
 }
 
-func (ir *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (ir *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -546,7 +546,7 @@ func (ir *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWrite
 	return httputils.WriteJSON(w, http.StatusOK, res)
 }
 
-func (ir *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (ir *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}

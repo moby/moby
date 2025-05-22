@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -662,14 +663,14 @@ const (
 )
 
 func setupRemoteGlobalNetworkPlugin(t *testing.T, mux *http.ServeMux, url, netDrv, ipamDrv string) {
-	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, err := fmt.Fprintf(w, `{"Implements": ["%s", "%s"]}`, driverapi.NetworkPluginEndpointType, ipamapi.PluginEndpointType)
 		assert.NilError(t, err)
 	})
 
 	// Network driver implementation
-	mux.HandleFunc(fmt.Sprintf("/%s.GetCapabilities", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.GetCapabilities", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, err := fmt.Fprint(w, `{"Scope":"global"}`)
 		assert.NilError(t, err)
@@ -686,7 +687,7 @@ func setupRemoteGlobalNetworkPlugin(t *testing.T, mux *http.ServeMux, url, netDr
 		assert.NilError(t, err)
 	})
 
-	mux.HandleFunc(fmt.Sprintf("/%s.FreeNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.FreeNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, err := fmt.Fprint(w, "null")
 		assert.NilError(t, err)
@@ -703,19 +704,19 @@ func setupRemoteGlobalNetworkPlugin(t *testing.T, mux *http.ServeMux, url, netDr
 		assert.NilError(t, err)
 	})
 
-	mux.HandleFunc(fmt.Sprintf("/%s.DeleteNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.DeleteNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, err := fmt.Fprint(w, "null")
 		assert.NilError(t, err)
 	})
 
-	mux.HandleFunc(fmt.Sprintf("/%s.CreateEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.CreateEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, err := fmt.Fprint(w, `{"Interface":{"MacAddress":"a0:b1:c2:d3:e4:f5"}}`)
 		assert.NilError(t, err)
 	})
 
-	mux.HandleFunc(fmt.Sprintf("/%s.Join", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.Join", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 
 		veth := &netlink.Veth{
@@ -730,13 +731,13 @@ func setupRemoteGlobalNetworkPlugin(t *testing.T, mux *http.ServeMux, url, netDr
 		}
 	})
 
-	mux.HandleFunc(fmt.Sprintf("/%s.Leave", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.Leave", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, err := fmt.Fprint(w, "null")
 		assert.NilError(t, err)
 	})
 
-	mux.HandleFunc(fmt.Sprintf("/%s.DeleteEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.DeleteEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		if link, err := nlwrap.LinkByName("cnt0"); err == nil {
 			err := netlink.LinkDel(link)
@@ -761,7 +762,7 @@ func setupRemoteGlobalNetworkPlugin(t *testing.T, mux *http.ServeMux, url, netDr
 		gw     = "172.28.255.254/16"
 	)
 
-	mux.HandleFunc(fmt.Sprintf("/%s.GetDefaultAddressSpaces", ipamapi.PluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.GetDefaultAddressSpaces", ipamapi.PluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, err := fmt.Fprint(w, `{"LocalDefaultAddressSpace":"`+lAS+`", "GlobalDefaultAddressSpace": "`+gAS+`"}`)
 		assert.NilError(t, err)
@@ -1058,7 +1059,7 @@ func getNodeStatus(c *testing.T, d *daemon.Daemon) swarm.LocalNodeState {
 }
 
 func checkKeyIsEncrypted(d *daemon.Daemon) func(*testing.T) (interface{}, string) {
-	return func(c *testing.T) (interface{}, string) {
+	return func(_ *testing.T) (interface{}, string) {
 		keyBytes, err := os.ReadFile(filepath.Join(d.Folder, "root", "swarm", "certificates", "swarm-node.key"))
 		if err != nil {
 			return fmt.Errorf("error reading key: %v", err), ""
@@ -1066,7 +1067,7 @@ func checkKeyIsEncrypted(d *daemon.Daemon) func(*testing.T) (interface{}, string
 
 		keyBlock, _ := pem.Decode(keyBytes)
 		if keyBlock == nil {
-			return fmt.Errorf("invalid PEM-encoded private key"), ""
+			return errors.New("invalid PEM-encoded private key"), ""
 		}
 
 		return keyutils.IsEncryptedPEMBlock(keyBlock), ""
@@ -1293,7 +1294,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 	// (because we never want a manager TLS key to be on disk unencrypted if the cluster
 	// is set to autolock)
 	poll.WaitOn(c, pollCheck(c, d3.CheckControlAvailable(ctx), checker.False()), poll.WithTimeout(defaultReconciliationTimeout))
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(_ *testing.T) (interface{}, string) {
 		certBytes, err := os.ReadFile(filepath.Join(d3.Folder, "root", "swarm", "certificates", "swarm-node.crt"))
 		if err != nil {
 			return "", fmt.Sprintf("error: %v", err)
@@ -1373,7 +1374,7 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *testing.T) {
 
 		assert.Equal(c, getNodeStatus(c, d), swarm.LocalNodeStateActive)
 
-		checkNodeLs := func(t poll.LogT) poll.Result {
+		checkNodeLs := func(_ poll.LogT) poll.Result {
 			// an issue sometimes prevents leader to be available right away
 			out, err := d.Cmd("node", "ls")
 			if err != nil {
@@ -1466,7 +1467,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *testing.T) {
 			unlock(d, newUnlockKey).Assert(c, icmd.Success)
 			assert.Equal(c, getNodeStatus(c, d), swarm.LocalNodeStateActive)
 
-			checkNodeLs := func(t poll.LogT) poll.Result {
+			checkNodeLs := func(_ poll.LogT) poll.Result {
 				// an issue sometimes prevents leader to be available right away
 				out, err := d.Cmd("node", "ls")
 				if err != nil {

@@ -30,7 +30,7 @@ func (lcs loginCredentialStore) RefreshToken(*url.URL, string) string {
 	return lcs.authConfig.IdentityToken
 }
 
-func (lcs loginCredentialStore) SetRefreshToken(u *url.URL, service, token string) {
+func (lcs loginCredentialStore) SetRefreshToken(_ *url.URL, _, token string) {
 	lcs.authConfig.IdentityToken = token
 }
 

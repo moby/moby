@@ -6,6 +6,7 @@ package overlay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -79,7 +80,7 @@ func (d *driver) isIPv6Transport() (bool, error) {
 	// reasonable inference to make as Linux VXLAN links do not support
 	// mixed-address-family remote peers.
 	if d.advertiseAddress == nil {
-		return false, fmt.Errorf("overlay: cannot determine address family of transport: the local data-plane address is not currently known")
+		return false, errors.New("overlay: cannot determine address family of transport: the local data-plane address is not currently known")
 	}
 	return d.advertiseAddress.To4() == nil, nil
 }
@@ -88,7 +89,7 @@ func (d *driver) nodeJoin(data discoverapi.NodeDiscoveryData) error {
 	if data.Self {
 		advAddr, bindAddr := net.ParseIP(data.Address), net.ParseIP(data.BindAddress)
 		if advAddr == nil {
-			return fmt.Errorf("invalid discovery data")
+			return errors.New("invalid discovery data")
 		}
 		d.Lock()
 		d.advertiseAddress = advAddr
@@ -116,7 +117,7 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 	case discoverapi.EncryptionKeysConfig:
 		encrData, ok := data.(discoverapi.DriverEncryptionConfig)
 		if !ok {
-			return fmt.Errorf("invalid encryption key notification data")
+			return errors.New("invalid encryption key notification data")
 		}
 		keys := make([]*key, 0, len(encrData.Keys))
 		for i := 0; i < len(encrData.Keys); i++ {
@@ -133,7 +134,7 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 		var newKey, delKey, priKey *key
 		encrData, ok := data.(discoverapi.DriverEncryptionUpdate)
 		if !ok {
-			return fmt.Errorf("invalid encryption key notification data")
+			return errors.New("invalid encryption key notification data")
 		}
 		if encrData.Key != nil {
 			newKey = &key{
@@ -162,6 +163,6 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 }
 
 // DiscoverDelete is a notification for a discovery delete event, such as a node leaving a cluster
-func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
+func (d *driver) DiscoverDelete(_ discoverapi.DiscoveryType, _ interface{}) error {
 	return nil
 }

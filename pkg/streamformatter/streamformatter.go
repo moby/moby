@@ -74,11 +74,11 @@ func (sf *jsonProgressFormatter) formatProgress(id, action string, progress *jso
 
 type rawProgressFormatter struct{}
 
-func (sf *rawProgressFormatter) formatStatus(id, format string, a ...interface{}) []byte {
+func (sf *rawProgressFormatter) formatStatus(_, format string, a ...interface{}) []byte {
 	return []byte(fmt.Sprintf(format, a...) + streamNewline)
 }
 
-func (sf *rawProgressFormatter) formatProgress(id, action string, progress *jsonmessage.JSONProgress, aux interface{}) []byte {
+func (sf *rawProgressFormatter) formatProgress(_, action string, progress *jsonmessage.JSONProgress, _ interface{}) []byte {
 	if progress == nil {
 		progress = &jsonmessage.JSONProgress{}
 	}

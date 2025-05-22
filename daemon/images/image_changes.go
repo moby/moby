@@ -10,7 +10,7 @@ import (
 	"github.com/moby/go-archive"
 )
 
-func (i *ImageService) Changes(ctx context.Context, container *container.Container) ([]archive.Change, error) {
+func (i *ImageService) Changes(_ context.Context, container *container.Container) ([]archive.Change, error) {
 	container.Lock()
 	defer container.Unlock()
 

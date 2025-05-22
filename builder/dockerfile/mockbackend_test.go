@@ -23,45 +23,45 @@ type MockBackend struct {
 	makeImageCacheFunc  func(cacheFrom []string) builder.ImageCache
 }
 
-func (m *MockBackend) ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error {
+func (m *MockBackend) ContainerAttachRaw(_ string, _ io.ReadCloser, _, _ io.Writer, _ bool, _ chan struct{}) error {
 	return nil
 }
 
-func (m *MockBackend) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, config backend.ContainerCreateConfig) (container.CreateResponse, error) {
+func (m *MockBackend) ContainerCreateIgnoreImagesArgsEscaped(_ context.Context, config backend.ContainerCreateConfig) (container.CreateResponse, error) {
 	if m.containerCreateFunc != nil {
 		return m.containerCreateFunc(config)
 	}
 	return container.CreateResponse{}, nil
 }
 
-func (m *MockBackend) ContainerRm(name string, config *backend.ContainerRmConfig) error {
+func (m *MockBackend) ContainerRm(_ string, _ *backend.ContainerRmConfig) error {
 	return nil
 }
 
-func (m *MockBackend) CommitBuildStep(ctx context.Context, c backend.CommitConfig) (image.ID, error) {
+func (m *MockBackend) CommitBuildStep(_ context.Context, c backend.CommitConfig) (image.ID, error) {
 	if m.commitFunc != nil {
 		return m.commitFunc(c)
 	}
 	return "", nil
 }
 
-func (m *MockBackend) ContainerStart(ctx context.Context, containerID string, checkpoint string, checkpointDir string) error {
+func (m *MockBackend) ContainerStart(_ context.Context, _ string, _ string, _ string) error {
 	return nil
 }
 
-func (m *MockBackend) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.StateStatus, error) {
+func (m *MockBackend) ContainerWait(_ context.Context, _ string, _ container.WaitCondition) (<-chan container.StateStatus, error) {
 	return nil, nil
 }
 
-func (m *MockBackend) ContainerCreateWorkdir(containerID string) error {
+func (m *MockBackend) ContainerCreateWorkdir(_ string) error {
 	return nil
 }
 
-func (m *MockBackend) CopyOnBuild(containerID string, destPath string, srcRoot string, srcPath string, decompress bool) error {
+func (m *MockBackend) CopyOnBuild(_ string, _ string, _ string, _ string, _ bool) error {
 	return nil
 }
 
-func (m *MockBackend) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
+func (m *MockBackend) GetImageAndReleasableLayer(_ context.Context, refOrID string, _ backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
 	if m.getImageFunc != nil {
 		return m.getImageFunc(refOrID)
 	}
@@ -69,14 +69,14 @@ func (m *MockBackend) GetImageAndReleasableLayer(ctx context.Context, refOrID st
 	return &mockImage{id: "theid"}, &mockLayer{}, nil
 }
 
-func (m *MockBackend) MakeImageCache(ctx context.Context, cacheFrom []string) (builder.ImageCache, error) {
+func (m *MockBackend) MakeImageCache(_ context.Context, cacheFrom []string) (builder.ImageCache, error) {
 	if m.makeImageCacheFunc != nil {
 		return m.makeImageCacheFunc(cacheFrom), nil
 	}
 	return nil, nil
 }
 
-func (m *MockBackend) CreateImage(ctx context.Context, config []byte, parent string, layerDigest digest.Digest) (builder.Image, error) {
+func (m *MockBackend) CreateImage(_ context.Context, _ []byte, _ string, _ digest.Digest) (builder.Image, error) {
 	return &mockImage{id: "test"}, nil
 }
 

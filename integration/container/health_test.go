@@ -127,7 +127,7 @@ func TestHealthStartInterval(t *testing.T) {
 
 	dl, _ := ctxPoll.Deadline()
 
-	poll.WaitOn(t, func(log poll.LogT) poll.Result {
+	poll.WaitOn(t, func(_ poll.LogT) poll.Result {
 		if ctxPoll.Err() != nil {
 			return poll.Error(ctxPoll.Err())
 		}
@@ -149,7 +149,7 @@ func TestHealthStartInterval(t *testing.T) {
 	defer cancel()
 	dl, _ = ctxPoll.Deadline()
 
-	poll.WaitOn(t, func(log poll.LogT) poll.Result {
+	poll.WaitOn(t, func(_ poll.LogT) poll.Result {
 		inspect, err := apiClient.ContainerInspect(ctxPoll, id)
 		if err != nil {
 			return poll.Error(err)
@@ -171,7 +171,7 @@ func TestHealthStartInterval(t *testing.T) {
 }
 
 func pollForHealthCheckLog(ctx context.Context, client client.APIClient, containerID string, expected string) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		inspect, err := client.ContainerInspect(ctx, containerID)
 		if err != nil {
 			return poll.Error(err)
@@ -189,7 +189,7 @@ func pollForHealthCheckLog(ctx context.Context, client client.APIClient, contain
 }
 
 func pollForHealthStatus(ctx context.Context, client client.APIClient, containerID string, healthStatus containertypes.HealthStatus) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		inspect, err := client.ContainerInspect(ctx, containerID)
 
 		switch {

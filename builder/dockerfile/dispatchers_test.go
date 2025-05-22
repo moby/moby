@@ -450,7 +450,7 @@ func TestRunWithBuildArgs(t *testing.T) {
 	cachedCmd := append(envVars, cmdWithShell...)
 
 	imageCache := &mockImageCache{
-		getCacheFunc: func(parentID string, cfg *container.Config) (string, error) {
+		getCacheFunc: func(_ string, cfg *container.Config) (string, error) {
 			// Check the runConfig.Cmd sent to probeCache()
 			assert.Check(t, is.DeepEqual([]string(cfg.Cmd), cachedCmd))
 			assert.Check(t, is.Nil(cfg.Entrypoint))
@@ -523,7 +523,7 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 	origCmd := []string{"cmd", "in", "from", "image"}
 
 	imageCache := &mockImageCache{
-		getCacheFunc: func(parentID string, cfg *container.Config) (string, error) {
+		getCacheFunc: func(_ string, _ *container.Config) (string, error) {
 			return "", nil
 		},
 	}
@@ -542,10 +542,10 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 			config: &container.Config{Cmd: origCmd},
 		}, nil, nil
 	}
-	mockBackend.containerCreateFunc = func(config backend.ContainerCreateConfig) (container.CreateResponse, error) {
+	mockBackend.containerCreateFunc = func(_ backend.ContainerCreateConfig) (container.CreateResponse, error) {
 		return container.CreateResponse{ID: "12345"}, nil
 	}
-	mockBackend.commitFunc = func(cfg backend.CommitConfig) (image.ID, error) {
+	mockBackend.commitFunc = func(_ backend.CommitConfig) (image.ID, error) {
 		return "", nil
 	}
 	from := &instructions.Stage{BaseName: "abcdef"}

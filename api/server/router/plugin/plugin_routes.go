@@ -60,7 +60,7 @@ func parseRemoteRef(remote string) (reference.Named, string, error) {
 	return remoteRef, "", nil
 }
 
-func (pr *pluginRouter) getPrivileges(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (pr *pluginRouter) getPrivileges(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func (pr *pluginRouter) upgradePlugin(ctx context.Context, w http.ResponseWriter
 	return nil
 }
 
-func (pr *pluginRouter) pullPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (pr *pluginRouter) pullPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return errors.Wrap(err, "failed to parse form")
 	}
@@ -181,7 +181,7 @@ func getName(ref reference.Named, tag, name string) (string, error) {
 	return name, nil
 }
 
-func (pr *pluginRouter) createPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (pr *pluginRouter) createPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -198,7 +198,7 @@ func (pr *pluginRouter) createPlugin(ctx context.Context, w http.ResponseWriter,
 	return nil
 }
 
-func (pr *pluginRouter) enablePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (pr *pluginRouter) enablePlugin(_ context.Context, _ http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -213,7 +213,7 @@ func (pr *pluginRouter) enablePlugin(ctx context.Context, w http.ResponseWriter,
 	return pr.backend.Enable(name, config)
 }
 
-func (pr *pluginRouter) disablePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (pr *pluginRouter) disablePlugin(_ context.Context, _ http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -226,7 +226,7 @@ func (pr *pluginRouter) disablePlugin(ctx context.Context, w http.ResponseWriter
 	return pr.backend.Disable(name, config)
 }
 
-func (pr *pluginRouter) removePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (pr *pluginRouter) removePlugin(_ context.Context, _ http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -257,7 +257,7 @@ func (pr *pluginRouter) pushPlugin(ctx context.Context, w http.ResponseWriter, r
 	return nil
 }
 
-func (pr *pluginRouter) setPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (pr *pluginRouter) setPlugin(_ context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var args []string
 	if err := httputils.ReadJSON(r, &args); err != nil {
 		return err
@@ -269,7 +269,7 @@ func (pr *pluginRouter) setPlugin(ctx context.Context, w http.ResponseWriter, r 
 	return nil
 }
 
-func (pr *pluginRouter) listPlugins(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (pr *pluginRouter) listPlugins(_ context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -285,7 +285,7 @@ func (pr *pluginRouter) listPlugins(ctx context.Context, w http.ResponseWriter, 
 	return httputils.WriteJSON(w, http.StatusOK, l)
 }
 
-func (pr *pluginRouter) inspectPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (pr *pluginRouter) inspectPlugin(_ context.Context, w http.ResponseWriter, _ *http.Request, vars map[string]string) error {
 	result, err := pr.backend.Inspect(vars["name"])
 	if err != nil {
 		return err

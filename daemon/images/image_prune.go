@@ -2,7 +2,6 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -187,7 +186,7 @@ func getUntilFromPruneFilters(pruneFilters filters.Args) (time.Time, error) {
 	}
 	untilFilters := pruneFilters.Get("until")
 	if len(untilFilters) > 1 {
-		return until, fmt.Errorf("more than one until filter specified")
+		return until, errors.New("more than one until filter specified")
 	}
 	ts, err := timetypes.GetTimestamp(untilFilters[0], time.Now())
 	if err != nil {

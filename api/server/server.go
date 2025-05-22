@@ -98,7 +98,7 @@ func (s *Server) CreateMux(ctx context.Context, routers ...router.Router) *mux.R
 	}
 
 	// Setup handlers for undefined paths and methods
-	notFoundHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	notFoundHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = httputils.WriteJSON(w, http.StatusNotFound, &types.ErrorResponse{
 			Message: "page not found",
 		})

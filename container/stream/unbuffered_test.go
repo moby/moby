@@ -113,7 +113,7 @@ func (d devNullCloser) Write(buf []byte) (int, error) {
 }
 
 // This test checks for races. It is only useful when run with the race detector.
-func TestRaceUnbuffered(t *testing.T) {
+func TestRaceUnbuffered(_ *testing.T) {
 	writer := new(unbuffered)
 	c := make(chan bool)
 	go func() {

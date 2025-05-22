@@ -17,42 +17,42 @@ func TestVolumeRequestError(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	mux.HandleFunc("/VolumeDriver.Create", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/VolumeDriver.Create", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintln(w, `{"Err": "Cannot create volume"}`)
 	})
 
-	mux.HandleFunc("/VolumeDriver.Remove", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/VolumeDriver.Remove", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintln(w, `{"Err": "Cannot remove volume"}`)
 	})
 
-	mux.HandleFunc("/VolumeDriver.Mount", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/VolumeDriver.Mount", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintln(w, `{"Err": "Cannot mount volume"}`)
 	})
 
-	mux.HandleFunc("/VolumeDriver.Unmount", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/VolumeDriver.Unmount", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintln(w, `{"Err": "Cannot unmount volume"}`)
 	})
 
-	mux.HandleFunc("/VolumeDriver.Path", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/VolumeDriver.Path", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintln(w, `{"Err": "Unknown volume"}`)
 	})
 
-	mux.HandleFunc("/VolumeDriver.List", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/VolumeDriver.List", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintln(w, `{"Err": "Cannot list volumes"}`)
 	})
 
-	mux.HandleFunc("/VolumeDriver.Get", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/VolumeDriver.Get", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		fmt.Fprintln(w, `{"Err": "Cannot get volume"}`)
 	})
 
-	mux.HandleFunc("/VolumeDriver.Capabilities", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/VolumeDriver.Capabilities", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		http.Error(w, "error", http.StatusInternalServerError)
 	})

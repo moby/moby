@@ -38,12 +38,12 @@ func newCDIDeviceDriver(cdiSpecDirs ...string) *deviceDriver {
 		// This error will be returned only when a CDI device is requested.
 		// This ensures that daemon startup is not blocked by a CDI registry initialization failure or being disabled
 		// by configuration.
-		errorOnUpdateSpec := func(s *specs.Spec, dev *deviceInstance) error {
+		errorOnUpdateSpec := func(_ *specs.Spec, _ *deviceInstance) error {
 			return fmt.Errorf("CDI device injection failed: %w", err)
 		}
 		return &deviceDriver{
 			updateSpec: errorOnUpdateSpec,
-			ListDevices: func(ctx context.Context, cfg *config.Config) (deviceListing, error) {
+			ListDevices: func(_ context.Context, _ *config.Config) (deviceListing, error) {
 				return deviceListing{
 					Warnings: []string{fmt.Sprintf("CDI cache initialization failed: %v", err)},
 				}, nil
@@ -66,7 +66,7 @@ func newCDIDeviceDriver(cdiSpecDirs ...string) *deviceDriver {
 // If the list of CDI specification directories is empty or the creation of the CDI cache fails, an error is returned.
 func createCDICache(cdiSpecDirs ...string) (*cdi.Cache, error) {
 	if len(cdiSpecDirs) == 0 {
-		return nil, fmt.Errorf("No CDI specification directories specified")
+		return nil, errors.New("No CDI specification directories specified")
 	}
 
 	cache, err := cdi.NewCache(cdi.WithSpecDirs(cdiSpecDirs...))
@@ -117,7 +117,7 @@ func (c *cdiHandler) getErrors() error {
 
 // listDevices uses the CDI cache to list all discovered CDI devices.
 // It conforms to the deviceDriver.ListDevices function signature.
-func (c *cdiHandler) listDevices(ctx context.Context, cfg *config.Config) (deviceListing, error) {
+func (c *cdiHandler) listDevices(ctx context.Context, _ *config.Config) (deviceListing, error) {
 	var out deviceListing
 
 	// Collect global errors from the CDI cache (e.g., issues with spec files themselves).

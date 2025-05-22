@@ -167,7 +167,7 @@ type fetchMeta struct {
 }
 
 func storeFetchMetadata(m *fetchMeta) c8dimages.HandlerFunc {
-	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+	return func(_ context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		switch desc.MediaType {
 		case
 			c8dimages.MediaTypeDockerSchema2LayerForeignGzip,

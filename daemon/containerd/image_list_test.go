@@ -176,7 +176,7 @@ func TestImageListCheckTotalSize(t *testing.T) {
 
 	t.Run("without layers", func(t *testing.T) {
 		var layers []ocispec.Descriptor
-		err = service.walkPresentChildren(ctx, img.Target, func(ctx context.Context, desc ocispec.Descriptor) error {
+		err = service.walkPresentChildren(ctx, img.Target, func(_ context.Context, desc ocispec.Descriptor) error {
 			if c8dimages.IsLayerType(desc.MediaType) {
 				layers = append(layers, desc)
 			}
@@ -328,7 +328,7 @@ func TestImageList(t *testing.T) {
 			check: func(t *testing.T, all []*imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 2))
 
-				sort.Slice(all, func(i, j int) bool {
+				sort.Slice(all, func(i, _ int) bool {
 					return slices.Contains(all[i].RepoTags, "multilayer:latest")
 				})
 

@@ -81,7 +81,7 @@ func readSpec(t *api.Task) (runtime.PluginSpec, error) {
 }
 
 // Update is the update phase from swarmkit
-func (p *Controller) Update(ctx context.Context, t *api.Task) error {
+func (p *Controller) Update(_ context.Context, _ *api.Task) error {
 	p.logger.Debug("Update")
 	return nil
 }
@@ -136,7 +136,7 @@ func (p *Controller) Prepare(ctx context.Context) (retErr error) {
 }
 
 // Start is the start phase from swarmkit
-func (p *Controller) Start(ctx context.Context) error {
+func (p *Controller) Start(_ context.Context) error {
 	p.logger.Debug("Start")
 
 	pl, err := p.backend.Get(p.pluginID)
@@ -204,19 +204,19 @@ func isNotFound(err error) bool {
 }
 
 // Shutdown is the shutdown phase from swarmkit
-func (p *Controller) Shutdown(ctx context.Context) error {
+func (p *Controller) Shutdown(_ context.Context) error {
 	p.logger.Debug("Shutdown")
 	return nil
 }
 
 // Terminate is the terminate phase from swarmkit
-func (p *Controller) Terminate(ctx context.Context) error {
+func (p *Controller) Terminate(_ context.Context) error {
 	p.logger.Debug("Terminate")
 	return nil
 }
 
 // Remove is the remove phase from swarmkit
-func (p *Controller) Remove(ctx context.Context) error {
+func (p *Controller) Remove(_ context.Context) error {
 	p.logger.Debug("Remove")
 
 	pl, err := p.backend.Get(p.pluginID)

@@ -195,7 +195,7 @@ func TestNewAWSLogsClientAWSLogsEndpoint(t *testing.T) {
 	called := atomic.Value{} // for go1.19 and later, can use atomic.Bool
 	called.Store(false)
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called.Store(true)
 		fmt.Fprintln(w, "{}")
 	}))
@@ -249,7 +249,7 @@ func TestCreateSuccess(t *testing.T) {
 		logCreateStream: true,
 	}
 	var input *cloudwatchlogs.CreateLogStreamInput
-	mockClient.createLogStreamFunc = func(ctx context.Context, i *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+	mockClient.createLogStreamFunc = func(_ context.Context, i *cloudwatchlogs.CreateLogStreamInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
 		input = i
 		return &cloudwatchlogs.CreateLogStreamOutput{}, nil
 	}
@@ -269,7 +269,7 @@ func TestCreateStreamSkipped(t *testing.T) {
 		logStreamName:   streamName,
 		logCreateStream: false,
 	}
-	mockClient.createLogStreamFunc = func(ctx context.Context, i *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+	mockClient.createLogStreamFunc = func(_ context.Context, _ *cloudwatchlogs.CreateLogStreamInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
 		t.Error("CreateLogStream should not be called")
 		return nil, errors.New("should not be called")
 	}
@@ -289,13 +289,13 @@ func TestCreateLogGroupSuccess(t *testing.T) {
 		logCreateStream: true,
 	}
 	var logGroupInput *cloudwatchlogs.CreateLogGroupInput
-	mockClient.createLogGroupFunc = func(ctx context.Context, input *cloudwatchlogs.CreateLogGroupInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogGroupOutput, error) {
+	mockClient.createLogGroupFunc = func(_ context.Context, input *cloudwatchlogs.CreateLogGroupInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogGroupOutput, error) {
 		logGroupInput = input
 		return &cloudwatchlogs.CreateLogGroupOutput{}, nil
 	}
 	var logStreamInput *cloudwatchlogs.CreateLogStreamInput
 	createLogStreamCalls := 0
-	mockClient.createLogStreamFunc = func(ctx context.Context, input *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+	mockClient.createLogStreamFunc = func(_ context.Context, input *cloudwatchlogs.CreateLogStreamInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
 		createLogStreamCalls++
 		if logGroupInput == nil {
 			// log group not created yet
@@ -324,7 +324,7 @@ func TestCreateError(t *testing.T) {
 		client:          mockClient,
 		logCreateStream: true,
 	}
-	mockClient.createLogStreamFunc = func(ctx context.Context, i *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+	mockClient.createLogStreamFunc = func(_ context.Context, _ *cloudwatchlogs.CreateLogStreamInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
 		return nil, errors.New("error")
 	}
 
@@ -342,7 +342,7 @@ func TestCreateAlreadyExists(t *testing.T) {
 		logCreateStream: true,
 	}
 	calls := 0
-	mockClient.createLogStreamFunc = func(ctx context.Context, input *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+	mockClient.createLogStreamFunc = func(_ context.Context, _ *cloudwatchlogs.CreateLogStreamInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
 		calls++
 		return nil, &types.ResourceAlreadyExistsException{}
 	}
@@ -421,7 +421,7 @@ func TestPublishBatchSuccess(t *testing.T) {
 		sequenceToken: aws.String(sequenceToken),
 	}
 	var input *cloudwatchlogs.PutLogEventsInput
-	mockClient.putLogEventsFunc = func(ctx context.Context, i *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, i *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		input = i
 		return &cloudwatchlogs.PutLogEventsOutput{
 			NextSequenceToken: aws.String(nextSequenceToken),
@@ -451,7 +451,7 @@ func TestPublishBatchError(t *testing.T) {
 		logStreamName: streamName,
 		sequenceToken: aws.String(sequenceToken),
 	}
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, _ *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		return nil, errors.New("error")
 	}
 
@@ -476,7 +476,7 @@ func TestPublishBatchInvalidSeqSuccess(t *testing.T) {
 		sequenceToken: aws.String(sequenceToken),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, input *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		calls = append(calls, input)
 		if aws.ToString(input.SequenceToken) != "token" {
 			return nil, &types.InvalidSequenceTokenException{
@@ -521,7 +521,7 @@ func TestPublishBatchAlreadyAccepted(t *testing.T) {
 		sequenceToken: aws.String(sequenceToken),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, input *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		calls = append(calls, input)
 		return nil, &types.DataAlreadyAcceptedException{
 			ExpectedSequenceToken: aws.String("token"),
@@ -557,7 +557,7 @@ func TestCollectBatchSimple(t *testing.T) {
 		messages:      loggerutils.NewMessageQueue(0),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, input *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		calls = append(calls, input)
 		return &cloudwatchlogs.PutLogEventsOutput{
 			NextSequenceToken: aws.String(nextSequenceToken),
@@ -605,7 +605,7 @@ func TestCollectBatchTicker(t *testing.T) {
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, input *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		calls = append(calls, input)
 		called <- struct{}{}
 		return &cloudwatchlogs.PutLogEventsOutput{
@@ -673,7 +673,7 @@ func TestCollectBatchMultilinePattern(t *testing.T) {
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, input *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		calls = append(calls, input)
 		called <- struct{}{}
 		return &cloudwatchlogs.PutLogEventsOutput{
@@ -737,7 +737,7 @@ func BenchmarkCollectBatch(b *testing.B) {
 			sequenceToken: aws.String(sequenceToken),
 			messages:      loggerutils.NewMessageQueue(0),
 		}
-		mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		mockClient.putLogEventsFunc = func(_ context.Context, _ *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 			return &cloudwatchlogs.PutLogEventsOutput{
 				NextSequenceToken: aws.String(nextSequenceToken),
 			}, nil
@@ -770,7 +770,7 @@ func BenchmarkCollectBatchMultilinePattern(b *testing.B) {
 			sequenceToken:    aws.String(sequenceToken),
 			messages:         loggerutils.NewMessageQueue(0),
 		}
-		mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		mockClient.putLogEventsFunc = func(_ context.Context, _ *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 			return &cloudwatchlogs.PutLogEventsOutput{
 				NextSequenceToken: aws.String(nextSequenceToken),
 			}, nil
@@ -803,7 +803,7 @@ func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, input *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		calls = append(calls, input)
 		called <- struct{}{}
 		return &cloudwatchlogs.PutLogEventsOutput{
@@ -877,7 +877,7 @@ func TestCollectBatchMultilinePatternNegativeEventAge(t *testing.T) {
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, input *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		calls = append(calls, input)
 		called <- struct{}{}
 		return &cloudwatchlogs.PutLogEventsOutput{
@@ -934,7 +934,7 @@ func TestCollectBatchMultilinePatternMaxEventSize(t *testing.T) {
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, input *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		calls = append(calls, input)
 		called <- struct{}{}
 		return &cloudwatchlogs.PutLogEventsOutput{
@@ -994,7 +994,7 @@ func TestCollectBatchClose(t *testing.T) {
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, input *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		calls = append(calls, input)
 		called <- struct{}{}
 		return &cloudwatchlogs.PutLogEventsOutput{
@@ -1096,7 +1096,7 @@ func TestCollectBatchLineSplit(t *testing.T) {
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, input *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		calls = append(calls, input)
 		called <- struct{}{}
 		return &cloudwatchlogs.PutLogEventsOutput{
@@ -1144,7 +1144,7 @@ func TestCollectBatchLineSplitWithBinary(t *testing.T) {
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, input *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		calls = append(calls, input)
 		called <- struct{}{}
 		return &cloudwatchlogs.PutLogEventsOutput{
@@ -1192,7 +1192,7 @@ func TestCollectBatchMaxEvents(t *testing.T) {
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, input *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		calls = append(calls, input)
 		called <- struct{}{}
 		return &cloudwatchlogs.PutLogEventsOutput{
@@ -1246,7 +1246,7 @@ func TestCollectBatchMaxTotalBytes(t *testing.T) {
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, input *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		calls = append(calls, input)
 		called <- struct{}{}
 		return &cloudwatchlogs.PutLogEventsOutput{
@@ -1327,7 +1327,7 @@ func TestCollectBatchMaxTotalBytesWithBinary(t *testing.T) {
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, input *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		calls = append(calls, input)
 		called <- struct{}{}
 		return &cloudwatchlogs.PutLogEventsOutput{
@@ -1401,7 +1401,7 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
-	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+	mockClient.putLogEventsFunc = func(_ context.Context, input *cloudwatchlogs.PutLogEventsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 		calls = append(calls, input)
 		called <- struct{}{}
 		return &cloudwatchlogs.PutLogEventsOutput{
@@ -1618,7 +1618,7 @@ func TestCreateTagSuccess(t *testing.T) {
 		logCreateStream: true,
 	}
 	calls := make([]*cloudwatchlogs.CreateLogStreamInput, 0)
-	mockClient.createLogStreamFunc = func(ctx context.Context, input *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+	mockClient.createLogStreamFunc = func(_ context.Context, input *cloudwatchlogs.CreateLogStreamInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
 		calls = append(calls, input)
 		return &cloudwatchlogs.CreateLogStreamOutput{}, nil
 	}

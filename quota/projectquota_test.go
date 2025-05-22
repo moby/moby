@@ -34,26 +34,26 @@ func TestBlockDev(t *testing.T) {
 	t.Run("testRetrieveQuota", WrapMountTest(imageFileName, true, WrapQuotaTest(testRetrieveQuota)))
 }
 
-func testBlockDevQuotaDisabled(t *testing.T, mountPoint, backingFsDev, testDir string) {
+func testBlockDevQuotaDisabled(t *testing.T, _, backingFsDev, _ string) {
 	hasSupport, err := hasQuotaSupport(backingFsDev)
 	assert.NilError(t, err)
 	assert.Check(t, !hasSupport)
 }
 
-func testBlockDevQuotaEnabled(t *testing.T, mountPoint, backingFsDev, testDir string) {
+func testBlockDevQuotaEnabled(t *testing.T, _, backingFsDev, _ string) {
 	hasSupport, err := hasQuotaSupport(backingFsDev)
 	assert.NilError(t, err)
 	assert.Check(t, hasSupport)
 }
 
-func testSmallerThanQuota(t *testing.T, ctrl *Control, homeDir, testDir, testSubDir string) {
+func testSmallerThanQuota(t *testing.T, ctrl *Control, _, _, testSubDir string) {
 	assert.NilError(t, ctrl.SetQuota(testSubDir, Quota{testQuotaSize}))
 	smallerThanQuotaFile := filepath.Join(testSubDir, "smaller-than-quota")
 	assert.NilError(t, os.WriteFile(smallerThanQuotaFile, make([]byte, testQuotaSize/2), 0o644))
 	assert.NilError(t, os.Remove(smallerThanQuotaFile))
 }
 
-func testBiggerThanQuota(t *testing.T, ctrl *Control, homeDir, testDir, testSubDir string) {
+func testBiggerThanQuota(t *testing.T, ctrl *Control, _, _, testSubDir string) {
 	// Make sure the quota is being enforced
 	// TODO: When we implement this under EXT4, we need to shed CAP_SYS_RESOURCE, otherwise
 	// we're able to violate quota without issue
@@ -67,7 +67,7 @@ func testBiggerThanQuota(t *testing.T, ctrl *Control, homeDir, testDir, testSubD
 	}
 }
 
-func testRetrieveQuota(t *testing.T, ctrl *Control, homeDir, testDir, testSubDir string) {
+func testRetrieveQuota(t *testing.T, ctrl *Control, _, _, testSubDir string) {
 	// Validate that we can retrieve quota
 	assert.NilError(t, ctrl.SetQuota(testSubDir, Quota{testQuotaSize}))
 

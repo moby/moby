@@ -183,15 +183,14 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 			}
 		}
 		if summary.RepoDigests == nil && summary.RepoTags == nil {
-			if opts.All || len(i.imageStore.Children(id)) == 0 {
-				if opts.Filters.Contains("dangling") && !danglingOnly {
-					// dangling=false case, so dangling image is not needed
-					continue
-				}
-				if opts.Filters.Contains("reference") { // skip images with no references if filtering by reference
-					continue
-				}
-			} else {
+			if !opts.All && len(i.imageStore.Children(id)) != 0 {
+				continue
+			}
+			if opts.Filters.Contains("dangling") && !danglingOnly {
+				// dangling=false case, so dangling image is not needed
+				continue
+			}
+			if opts.Filters.Contains("reference") { // skip images with no references if filtering by reference
 				continue
 			}
 		} else if danglingOnly && len(summary.RepoTags) > 0 {
