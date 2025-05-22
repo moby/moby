@@ -95,6 +95,10 @@ type Opt struct {
 type Worker struct {
 	Opt
 	SourceManager *source.Manager
+
+	// platformsFn looks up supported platforms on the host,
+	// and is overridden in unit-tests.
+	platformsFn func(noCache bool) []ocispec.Platform
 }
 
 var _ interface {
@@ -142,6 +146,7 @@ func NewWorker(opt Opt) (*Worker, error) {
 	return &Worker{
 		Opt:           opt,
 		SourceManager: sm,
+		platformsFn:   archutil.SupportedPlatforms,
 	}, nil
 }
 
@@ -158,12 +163,19 @@ func (w *Worker) Labels() map[string]string {
 // Platforms returns one or more platforms supported by the image.
 func (w *Worker) Platforms(noCache bool) []ocispec.Platform {
 	if noCache {
-		pm := make(map[string]struct{}, len(w.Opt.Platforms))
-		for _, p := range w.Opt.Platforms {
-			pm[platforms.Format(p)] = struct{}{}
+		matchers := make([]platforms.MatchComparer, len(w.Opt.Platforms))
+		for i, p := range w.Opt.Platforms {
+			matchers[i] = platforms.Only(p)
 		}
-		for _, p := range archutil.SupportedPlatforms(noCache) {
-			if _, ok := pm[platforms.Format(p)]; !ok {
+		for _, p := range w.platformsFn(noCache) {
+			exists := false
+			for _, m := range matchers {
+				if m.Match(p) {
+					exists = true
+					break
+				}
+			}
+			if !exists {
 				w.Opt.Platforms = append(w.Opt.Platforms, p)
 			}
 		}
