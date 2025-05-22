@@ -4,7 +4,7 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/api/server/router"
-	build2 "github.com/docker/docker/api/types/build"
+	"github.com/docker/docker/api/types/build"
 )
 
 // buildRouter is a router to talk with the build controller
@@ -46,15 +46,22 @@ func (br *buildRouter) initRoutes() {
 //
 // This value is only a recommendation as advertised by the daemon, and it is
 // up to the client to choose which builder to use.
-func BuilderVersion(features map[string]bool) build2.BuilderVersion {
+func BuilderVersion(features map[string]bool) build.BuilderVersion {
 	// TODO(thaJeztah) move the default to daemon/config
+	bv := build.BuilderBuildKit
 	if runtime.GOOS == "windows" {
-		return build2.BuilderV1
+		// BuildKit is not yet the default on Windows.
+		bv = build.BuilderV1
 	}
 
-	bv := build2.BuilderBuildKit
-	if v, ok := features["buildkit"]; ok && !v {
-		bv = build2.BuilderV1
+	// Allow the features field in the daemon config to override the
+	// default builder to advertise.
+	if enable, ok := features["buildkit"]; ok {
+		if enable {
+			bv = build.BuilderBuildKit
+		} else {
+			bv = build.BuilderV1
+		}
 	}
 	return bv
 }

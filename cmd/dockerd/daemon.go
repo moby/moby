@@ -294,6 +294,12 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		return fmt.Errorf("error initializing buildkit: %w", err)
 	}
 
+	if runtime.GOOS == "windows" {
+		if enabled, ok := d.Features()["buildkit"]; ok && enabled {
+			log.G(ctx).Warn("Buildkit feature is enabled in the daemon.json configuration file. Support for BuildKit on Windows is experimental, and enabling this feature may not work. Use at your own risk!")
+		}
+	}
+
 	routers := buildRouters(routerOptions{
 		features: d.Features,
 		daemon:   d,
