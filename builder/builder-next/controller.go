@@ -152,7 +152,18 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	wo.RegistryHosts = opt.RegistryHosts
 	wo.Labels = getLabels(opt, wo.Labels)
 
-	exec, err := newExecutor(opt.Root, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping, opt.ApparmorProfile, cdiManager)
+	exec, err := newExecutor(
+		opt.Root,
+		opt.DefaultCgroupParent,
+		opt.NetworkController,
+		dns,
+		opt.Rootless,
+		opt.IdentityMapping,
+		opt.ApparmorProfile,
+		cdiManager,
+		opt.ContainerdAddress,
+		opt.ContainerdNamespace,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +346,18 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		return nil, err
 	}
 
-	exec, err := newExecutor(root, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping, opt.ApparmorProfile, cdiManager)
+	exec, err := newExecutorGD(
+		root,
+		opt.DefaultCgroupParent,
+		opt.NetworkController,
+		dns,
+		opt.Rootless,
+		opt.IdentityMapping,
+		opt.ApparmorProfile,
+		cdiManager,
+		opt.ContainerdAddress,
+		opt.ContainerdNamespace,
+	)
 	if err != nil {
 		return nil, err
 	}

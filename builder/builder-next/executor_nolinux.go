@@ -7,7 +7,6 @@ import (
 	"errors"
 	"runtime"
 
-	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libnetwork"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
@@ -15,10 +14,6 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/sys/user"
 )
-
-func newExecutor(_, _ string, _ *libnetwork.Controller, _ *oci.DNSConfig, _ bool, _ user.IdentityMapping, _ string, _ *cdidevices.Manager) (executor.Executor, error) {
-	return &stubExecutor{}, nil
-}
 
 type stubExecutor struct{}
 
@@ -30,6 +25,7 @@ func (w *stubExecutor) Exec(ctx context.Context, id string, process executor.Pro
 	return errors.New("buildkit executor not implemented for " + runtime.GOOS)
 }
 
-func getDNSConfig(config.DNSConfig) *oci.DNSConfig {
-	return nil
+// function stub created for GraphDriver
+func newExecutorGD(_, _ string, _ *libnetwork.Controller, _ *oci.DNSConfig, _ bool, _ user.IdentityMapping, _ string, _ *cdidevices.Manager, _, _ string) (executor.Executor, error) {
+	return &stubExecutor{}, nil
 }
