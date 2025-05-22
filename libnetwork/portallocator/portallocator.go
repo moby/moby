@@ -8,13 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"slices"
 	"sync"
 
 	"github.com/containerd/log"
 )
 
-type ipMapping map[string]protoMap
+type ipMapping map[netip.Addr]protoMap
 
 var (
 	// errAllPortsAllocated is returned when no more ports are available
@@ -130,17 +131,22 @@ func (p *PortAllocator) RequestPortsInRange(ips []net.IP, proto string, portStar
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
+	// Make sure there are maps for each ip address.
 	pMaps := make([]*portMap, len(ips))
 	for i, ip := range ips {
-		ipstr := ip.String()
-		if _, ok := p.ipMap[ipstr]; !ok {
-			p.ipMap[ipstr] = protoMap{
+		addr, ok := netip.AddrFromSlice(ip)
+		if !ok {
+			return 0, fmt.Errorf("invalid IP address: %s", ip)
+		}
+		addr = addr.Unmap()
+		if _, ok := p.ipMap[addr]; !ok {
+			p.ipMap[addr] = protoMap{
 				"tcp":  newPortMap(p.begin, p.end),
 				"udp":  newPortMap(p.begin, p.end),
 				"sctp": newPortMap(p.begin, p.end),
 			}
 		}
-		pMaps[i] = p.ipMap[ipstr][proto]
+		pMaps[i] = p.ipMap[addr][proto]
 	}
 
 	// Handle a request for a specific port.
@@ -195,7 +201,11 @@ func (p *PortAllocator) ReleasePort(ip net.IP, proto string, port int) {
 	if ip == nil {
 		ip = p.defaultIP // FIXME(thaJeztah): consider making this a required argument and producing an error instead, or set default when constructing.
 	}
-	protomap, ok := p.ipMap[ip.String()]
+	addr, ok := netip.AddrFromSlice(ip)
+	if !ok {
+		return
+	}
+	protomap, ok := p.ipMap[addr.Unmap()]
 	if !ok {
 		return
 	}
