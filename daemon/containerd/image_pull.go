@@ -155,6 +155,9 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 		if desc.MediaType == c8dimages.MediaTypeDockerSchema1Manifest {
 			return nil, distribution.DeprecatedSchema1ImageError(ref)
 		}
+		if strings.HasPrefix(strings.ToLower(desc.MediaType), "application/vnd.docker.ai.") {
+			return nil, distribution.AIModelNotSupportedError{}
+		}
 		if c8dimages.IsLayerType(desc.MediaType) {
 			id := stringid.TruncateID(desc.Digest.String())
 			progress.Update(out, id, "Pulling fs layer")
