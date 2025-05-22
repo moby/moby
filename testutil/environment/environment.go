@@ -232,3 +232,12 @@ func (e *Execution) GitHubActions() bool {
 func (e *Execution) NotAmd64() bool {
 	return e.DaemonVersion.Arch != "amd64"
 }
+
+// FirewallBackendDriver returns the value of FirewallBackend.Driver from
+// system Info if set, else the empty string.
+func (e *Execution) FirewallBackendDriver() string {
+	if e.DaemonInfo.FirewallBackend == nil {
+		return ""
+	}
+	return e.DaemonInfo.FirewallBackend.Driver
+}

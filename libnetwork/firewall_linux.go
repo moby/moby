@@ -4,16 +4,31 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/libnetwork/internal/nftables"
 	"github.com/docker/docker/libnetwork/iptables"
 )
 
 const userChain = "DOCKER-USER"
 
+func (c *Controller) selectFirewallBackend() {
+	// Only try to use nftables if explicitly enabled by env-var.
+	// TODO(robmry) - command line options?
+	if os.Getenv("DOCKER_FIREWALL_BACKEND") == "nftables" {
+		_ = nftables.Enable()
+	}
+}
+
 // Sets up the DOCKER-USER chain for each iptables version (IPv4, IPv6) that's
 // enabled in the controller's configuration.
 func (c *Controller) setupUserChains() {
+	// There's no equivalent to DOCKER-USER in the nftables implementation.
+	if nftables.Enabled() {
+		return
+	}
+
 	setup := func() error {
 		var errs []error
 		for _, ipVersion := range c.enabledIptablesVersions() {

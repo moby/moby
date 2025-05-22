@@ -2,6 +2,6 @@
 
 package libnetwork
 
-func (r *Resolver) setupIPTable() error {
+func (r *Resolver) setupNAT() error {
 	return nil
 }
