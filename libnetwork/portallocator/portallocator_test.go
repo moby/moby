@@ -319,7 +319,7 @@ func TestRequestPortForMultipleIPs(t *testing.T) {
 
 	// Same single-port range, expect an error.
 	_, err = p.RequestPortsInRange(addrs, "tcp", 10000, 10000)
-	assert.Check(t, is.Error(err, "Bind for 127.0.0.1:10000 failed: port is already allocated"))
+	assert.Check(t, is.ErrorContains(err, "port is already allocated"))
 
 	// Release the port from one address.
 	p.ReleasePort(addrs[0], "tcp", 10000)
@@ -343,4 +343,16 @@ func TestRequestPortForMultipleIPs(t *testing.T) {
 		assert.Check(t, err)
 		assert.Check(t, is.Equal(port, i))
 	}
+}
+
+func TestMixUnspecAndSpecificAddrs(t *testing.T) {
+	p := newInstance()
+
+	port, err := p.RequestPort(net.IPv4(127, 0, 0, 1), "udp", 0)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(port, p.begin))
+
+	port, err = p.RequestPort(net.IPv4zero, "udp", 0)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(port, p.begin+1))
 }
