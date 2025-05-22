@@ -519,7 +519,6 @@ func (d *driver) configure(option map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
-	iptables.OnReloaded(d.handleFirewalldReload)
 
 	var pdc portDriverClient
 	if config.Rootless {
@@ -534,6 +533,12 @@ func (d *driver) configure(option map[string]interface{}) error {
 	d.portDriverClient = pdc
 	d.config = config
 	d.Unlock()
+
+	// Register for an event when firewalld is reloaded, but take the config lock so
+	// that events won't be processed until the initial load from Store is complete.
+	d.configNetwork.Lock()
+	defer d.configNetwork.Unlock()
+	iptables.OnReloaded(d.handleFirewalldReload)
 
 	return d.initStore()
 }
