@@ -484,8 +484,8 @@ func (ep *Endpoint) Join(ctx context.Context, sb *Sandbox, options ...EndpointOp
 		return types.InvalidParameterErrorf("invalid Sandbox passed to endpoint join: %v", sb)
 	}
 
-	sb.joinLeaveStart()
-	defer sb.joinLeaveEnd()
+	sb.joinLeaveMu.Lock()
+	defer sb.joinLeaveMu.Unlock()
 
 	return ep.sbJoin(ctx, sb, options...)
 }
@@ -820,8 +820,8 @@ func (ep *Endpoint) Leave(ctx context.Context, sb *Sandbox) error {
 		return types.InvalidParameterErrorf("invalid Sandbox passed to endpoint leave: %v", sb)
 	}
 
-	sb.joinLeaveStart()
-	defer sb.joinLeaveEnd()
+	sb.joinLeaveMu.Lock()
+	defer sb.joinLeaveMu.Unlock()
 
 	return ep.sbLeave(ctx, sb, false)
 }
