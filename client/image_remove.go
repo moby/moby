@@ -19,6 +19,14 @@ func (cli *Client) ImageRemove(ctx context.Context, imageID string, options imag
 		query.Set("noprune", "1")
 	}
 
+	if len(options.Platforms) > 0 {
+		p, err := encodePlatforms(options.Platforms...)
+		if err != nil {
+			return nil, err
+		}
+		query["platforms"] = p
+	}
+
 	resp, err := cli.delete(ctx, "/images/"+imageID, query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {

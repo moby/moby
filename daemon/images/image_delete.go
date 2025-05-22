@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/pkg/stringid"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -39,7 +40,7 @@ const (
 // reference will be removed. However, if there exists any containers which
 // were created using the same image reference then the repository reference
 // cannot be removed unless either there are other repository references to the
-// same image or force is true. Following removal of the repository reference,
+// same image or options.Force is true. Following removal of the repository reference,
 // the referenced image itself will attempt to be deleted as described below
 // but quietly, meaning any image delete conflicts will cause the image to not
 // be deleted and the conflict will not be reported.
@@ -57,16 +58,25 @@ const (
 //   - any repository tag or digest references to the image.
 //
 // The image cannot be removed if there are any hard conflicts and can be
-// removed if there are soft conflicts only if force is true.
+// removed if there are soft conflicts only if options.Force is true.
 //
-// If prune is true, ancestor images will each attempt to be deleted quietly,
+// If options.PruneChildren is true, ancestor images are attempted to be deleted quietly,
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
-func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]imagetypes.DeleteResponse, error) {
+func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options imagetypes.RemoveOptions) ([]imagetypes.DeleteResponse, error) {
 	start := time.Now()
 	records := []imagetypes.DeleteResponse{}
 
-	img, err := i.GetImage(ctx, imageRef, backend.GetImageOpts{})
+	var platform *ocispec.Platform
+	switch len(options.Platforms) {
+	case 0:
+	case 1:
+		platform = &options.Platforms[0]
+	default:
+		return nil, errdefs.InvalidParameter(errors.New("multiple platforms are not supported"))
+	}
+
+	img, err := i.GetImage(ctx, imageRef, backend.GetImageOpts{Platform: platform})
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +100,8 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		return false
 	}
 
+	force := options.Force
+	prune := options.PruneChildren
 	var removedRepositoryRef bool
 	if !isImageIDPrefix(imgID.String(), imageRef) {
 		// A repository reference was given and should be removed
