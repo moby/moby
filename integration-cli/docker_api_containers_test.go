@@ -361,8 +361,8 @@ func (s *DockerAPISuite) TestContainerAPIPause(c *testing.T) {
 	// Problematic on Windows as Windows does not support pause
 	testRequires(c, DaemonIsLinux)
 
-	getPaused := func(c *testing.T) []string {
-		return strings.Fields(cli.DockerCmd(c, "ps", "-f", "status=paused", "-q", "-a").Combined())
+	getPaused := func(t *testing.T) []string {
+		return strings.Fields(cli.DockerCmd(t, "ps", "-f", "status=paused", "-q", "-a").Combined())
 	}
 
 	out := cli.DockerCmd(c, "run", "-d", "busybox", "sleep", "30").Combined()
@@ -564,7 +564,7 @@ func (s *DockerAPISuite) TestContainerAPICreateOtherNetworkModes(c *testing.T) {
 	UtilCreateNetworkMode(c, "container:web1")
 }
 
-func UtilCreateNetworkMode(c *testing.T, networkMode container.NetworkMode) {
+func UtilCreateNetworkMode(t *testing.T, networkMode container.NetworkMode) {
 	config := container.Config{
 		Image: "busybox",
 	}
@@ -574,16 +574,16 @@ func UtilCreateNetworkMode(c *testing.T, networkMode container.NetworkMode) {
 	}
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
+	assert.NilError(t, err)
 	defer apiClient.Close()
 
-	ctr, err := apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
-	assert.NilError(c, err)
+	ctr, err := apiClient.ContainerCreate(testutil.GetContext(t), &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
+	assert.NilError(t, err)
 
-	containerJSON, err := apiClient.ContainerInspect(testutil.GetContext(c), ctr.ID)
-	assert.NilError(c, err)
+	containerJSON, err := apiClient.ContainerInspect(testutil.GetContext(t), ctr.ID)
+	assert.NilError(t, err)
 
-	assert.Equal(c, containerJSON.HostConfig.NetworkMode, networkMode, "Mismatched NetworkMode")
+	assert.Equal(t, containerJSON.HostConfig.NetworkMode, networkMode, "Mismatched NetworkMode")
 }
 
 func (s *DockerAPISuite) TestContainerAPICreateWithCpuSharesCpuset(c *testing.T) {

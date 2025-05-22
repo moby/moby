@@ -35,12 +35,12 @@ type DockerCLIPluginsSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIPluginsSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIPluginsSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIPluginsSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIPluginsSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 func (ps *DockerPluginSuite) TestPluginBasicOps(c *testing.T) {
