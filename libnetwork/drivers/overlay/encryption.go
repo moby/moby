@@ -98,12 +98,12 @@ type encrNode struct {
 
 type encrMap struct {
 	nodes map[netip.Addr]encrNode
-	sync.Mutex
+	mu    sync.Mutex
 }
 
 func (e *encrMap) String() string {
-	e.Lock()
-	defer e.Unlock()
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	b := new(bytes.Buffer)
 	for k, v := range e.nodes {
 		b.WriteString("\n")
@@ -153,12 +153,12 @@ func (d *driver) setupEncryption(remoteIP netip.Addr) error {
 		}
 	}
 
-	d.secMap.Lock()
+	d.secMap.mu.Lock()
 	node := d.secMap.nodes[remoteIP]
 	node.spi = indices
 	node.count++
 	d.secMap.nodes[remoteIP] = node
-	d.secMap.Unlock()
+	d.secMap.mu.Unlock()
 
 	return nil
 }
@@ -167,8 +167,8 @@ func (d *driver) removeEncryption(remoteIP netip.Addr) error {
 	log.G(context.TODO()).Debugf("removeEncryption(%s)", remoteIP)
 
 	spi := func() []spi {
-		d.secMap.Lock()
-		defer d.secMap.Unlock()
+		d.secMap.mu.Lock()
+		defer d.secMap.mu.Unlock()
 		node := d.secMap.nodes[remoteIP]
 		if node.count == 1 {
 			delete(d.secMap.nodes, remoteIP)
@@ -452,7 +452,7 @@ func buildAeadAlgo(k *key, s int) *netlink.XfrmStateAlgo {
 }
 
 func (d *driver) secMapWalk(f func(netip.Addr, []spi) ([]spi, bool)) error {
-	d.secMap.Lock()
+	d.secMap.mu.Lock()
 	for rIP, node := range d.secMap.nodes {
 		idxs, stop := f(rIP, node.spi)
 		if idxs != nil {
@@ -462,7 +462,7 @@ func (d *driver) secMapWalk(f func(netip.Addr, []spi) ([]spi, bool)) error {
 			break
 		}
 	}
-	d.secMap.Unlock()
+	d.secMap.mu.Unlock()
 	return nil
 }
 
@@ -470,10 +470,10 @@ func (d *driver) setKeys(keys []*key) error {
 	// Remove any stale policy, state
 	clearEncryptionStates()
 	// Accept the encryption keys and clear any stale encryption map
-	d.Lock()
+	d.mu.Lock()
 	d.keys = keys
 	d.secMap = &encrMap{nodes: map[netip.Addr]encrNode{}}
-	d.Unlock()
+	d.mu.Unlock()
 	log.G(context.TODO()).Debugf("Initial encryption keys: %v", keys)
 	return nil
 }
@@ -493,8 +493,8 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		aIP    = d.advertiseAddress
 	)
 
-	d.Lock()
-	defer d.Unlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	// add new
 	if newKey != nil {
