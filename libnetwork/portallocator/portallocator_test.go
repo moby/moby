@@ -344,3 +344,15 @@ func TestRequestPortForMultipleIPs(t *testing.T) {
 		assert.Check(t, is.Equal(port, i))
 	}
 }
+
+func TestMixUnspecAndSpecificAddrs(t *testing.T) {
+	p := newInstance()
+
+	port, err := p.RequestPort(net.IPv4(127, 0, 0, 1), "udp", 0)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(port, p.begin))
+
+	port, err = p.RequestPort(net.IPv4zero, "udp", 0)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(port, p.begin+1))
+}
