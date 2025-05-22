@@ -34,8 +34,6 @@ Differences from [running with the proxy][0] are:
 
   - The jump from the OUTPUT chain to DOCKER happens even for loopback addresses.
     [ProgramChain][1].
-  - The "SKIP DNAT" RETURN rule for packets routed to the bridge is omitted from
-    the DOCKER chain [setupIPTablesInternal][2].
   - A MASQUERADE rule is added for packets sent from the container to one of its
     own published ports on the host.
   - A MASQUERADE rule for packets from a LOCAL source address is included in
@@ -44,6 +42,5 @@ Differences from [running with the proxy][0] are:
 
 [0]: usernet-portmap.md
 [1]: https://github.com/moby/moby/blob/333cfa640239153477bf635a8131734d0e9d099d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L302
-[2]: https://github.com/moby/moby/blob/333cfa640239153477bf635a8131734d0e9d099d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L293
 [3]: https://github.com/moby/moby/blob/333cfa640239153477bf635a8131734d0e9d099d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L302
 [4]: https://github.com/moby/moby/blob/675c2ac2db93e38bb9c5a6615d4155a969535fd9/libnetwork/drivers/bridge/port_mapping_linux.go#L772
