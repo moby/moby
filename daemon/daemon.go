@@ -335,10 +335,11 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 				// deprecated in v20.10 in favor of 'fluentd-async', and
 				// removed in v28.0.
 				// TODO(aker): remove this migration once the next LTS version of MCR is released.
-				if _, ok := c.HostConfig.LogConfig.Config["fluentd-async-connect"]; ok {
+				if v, ok := c.HostConfig.LogConfig.Config["fluentd-async-connect"]; ok {
 					if _, ok := c.HostConfig.LogConfig.Config["fluentd-async"]; !ok {
-						c.HostConfig.LogConfig.Config["fluentd-async"] = c.HostConfig.LogConfig.Config["fluentd-async-connect"]
+						c.HostConfig.LogConfig.Config["fluentd-async"] = v
 					}
+					delete(c.HostConfig.LogConfig.Config, "fluentd-async-connect")
 				}
 			}
 
