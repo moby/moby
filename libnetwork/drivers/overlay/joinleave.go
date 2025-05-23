@@ -34,18 +34,24 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		return err
 	}
 
-	n := d.network(nid)
+	n := d.lockNetwork(nid)
 	if n == nil {
 		return fmt.Errorf("could not find network with id %s", nid)
 	}
+	defer n.mu.Unlock()
 
-	ep := n.endpoint(eid)
+	ep := n.endpoints[eid]
 	if ep == nil {
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
 
-	if n.secure && len(d.keys) == 0 {
-		return fmt.Errorf("cannot join secure network: encryption keys not present")
+	if n.secure {
+		d.secMap.mu.Lock()
+		nkeys := len(d.secMap.keys)
+		d.secMap.mu.Unlock()
+		if nkeys == 0 {
+			return fmt.Errorf("cannot join secure network: encryption keys not present")
+		}
 	}
 
 	nlh := ns.NlHandle()
@@ -62,8 +68,6 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	if err := n.joinSandbox(s, true); err != nil {
 		return fmt.Errorf("network sandbox join failed: %v", err)
 	}
-
-	sbox := n.sandbox()
 
 	overlayIfName, containerIfName, err := createVethPair()
 	if err != nil {
@@ -86,7 +90,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		return err
 	}
 
-	if err = sbox.AddInterface(ctx, overlayIfName, "veth", "", osl.WithMaster(s.brName)); err != nil {
+	if err = n.sbox.AddInterface(ctx, overlayIfName, "veth", "", osl.WithMaster(s.brName)); err != nil {
 		return fmt.Errorf("could not add veth pair inside the network sandbox: %v", err)
 	}
 
@@ -119,7 +123,9 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		}
 	}
 
-	d.peerAdd(nid, eid, ep.addr, ep.mac, netip.Addr{})
+	if err := n.peerAdd(eid, ep.addr, ep.mac, netip.Addr{}); err != nil {
+		return fmt.Errorf("overlay: failed to add local endpoint to network peer db: %w", err)
+	}
 
 	buf, err := proto.Marshal(&PeerRecord{
 		EndpointIP:       ep.addr.String(),
@@ -192,12 +198,28 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 		return
 	}
 
-	if etype == driverapi.Delete {
-		d.peerDelete(nid, eid, addr, mac, vtep)
+	n := d.lockNetwork(nid)
+	if n == nil {
 		return
 	}
+	defer n.mu.Unlock()
 
-	d.peerAdd(nid, eid, addr, mac, vtep)
+	var opname string
+	if etype == driverapi.Delete {
+		opname = "delete"
+		err = n.peerDelete(eid, addr, mac, vtep)
+	} else {
+		opname = "add"
+		err = n.peerAdd(eid, addr, mac, vtep)
+	}
+	if err != nil {
+		log.G(context.TODO()).WithFields(log.Fields{
+			"error": err,
+			"nid":   n.id,
+			"peer":  peer,
+			"op":    opname,
+		}).Warn("Peer operation failed")
+	}
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
@@ -206,18 +228,21 @@ func (d *driver) Leave(nid, eid string) error {
 		return err
 	}
 
-	n := d.network(nid)
+	n := d.lockNetwork(nid)
 	if n == nil {
 		return fmt.Errorf("could not find network with id %s", nid)
 	}
+	defer n.mu.Unlock()
 
-	ep := n.endpoint(eid)
+	ep := n.endpoints[eid]
 
 	if ep == nil {
 		return types.InternalMaskableErrorf("could not find endpoint with id %s", eid)
 	}
 
-	d.peerDelete(nid, eid, ep.addr, ep.mac, netip.Addr{})
+	if err := n.peerDelete(eid, ep.addr, ep.mac, netip.Addr{}); err != nil {
+		return fmt.Errorf("overlay: failed to delete local endpoint eid:%s from network peer db: %w", eid, err)
+	}
 
 	n.leaveSandbox()
 
