@@ -128,7 +128,7 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 		return nil, errors.Wrapf(err, "failed to create daemon root %q", daemonRoot)
 	}
 
-	userlandProxy := true
+	var userlandProxy bool
 	if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
 		if val, err := strconv.ParseBool(env); err != nil {
 			userlandProxy = val
