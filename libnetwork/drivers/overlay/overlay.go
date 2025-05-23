@@ -28,32 +28,38 @@ const (
 var _ discoverapi.Discover = (*driver)(nil)
 
 type driver struct {
-	bindAddress, advertiseAddress netip.Addr
+	// Immutable; mu does not need to be held when accessing these fields.
+
+	config map[string]interface{}
+	initOS sync.Once
 
 	// encrMu guards secMap and keys,
 	// and synchronizes the application of encryption parameters
 	// to the kernel.
+	//
+	// This mutex is above mu in the lock hierarchy.
+	// Do not lock any locks aside from mu while holding encrMu.
 	encrMu sync.Mutex
 	secMap encrMap
 	keys   []*key
 
-	config   map[string]interface{}
-	peerDb   peerNetworkMap
-	networks networkTable
-	initOS   sync.Once
-	peerOpMu sync.Mutex
-	mu       sync.Mutex
+	// mu must be held when accessing the fields which follow it
+	// in the struct definition.
+	//
+	// This mutex is at the bottom of the lock hierarchy:
+	// do not lock any other locks while holding it.
+	mu               sync.Mutex
+	bindAddress      netip.Addr
+	advertiseAddress netip.Addr
+	networks         networkTable
 }
 
 // Register registers a new instance of the overlay driver.
 func Register(r driverapi.Registerer, config map[string]interface{}) error {
 	d := &driver{
 		networks: networkTable{},
-		peerDb: peerNetworkMap{
-			mp: map[string]*peerMap{},
-		},
-		secMap: encrMap{},
-		config: config,
+		secMap:   encrMap{},
+		config:   config,
 	}
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
 		DataScope:         scope.Global,
