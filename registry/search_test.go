@@ -8,10 +8,10 @@ import (
 	"net/http/httputil"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 )
 
@@ -148,10 +148,10 @@ func TestSearchErrors(t *testing.T) {
 			_, err = reg.Search(context.Background(), tc.filtersArgs, term, 0, nil, map[string][]string{})
 			assert.ErrorContains(t, err, tc.expectedError)
 			if tc.shouldReturnError {
-				assert.Check(t, errdefs.IsUnknown(err), "got: %T: %v", err, err)
+				assert.Check(t, cerrdefs.IsUnknown(err), "got: %T: %v", err, err)
 				return
 			}
-			assert.Check(t, errdefs.IsInvalidParameter(err), "got: %T: %v", err, err)
+			assert.Check(t, cerrdefs.IsInvalidArgument(err), "got: %T: %v", err, err)
 		})
 	}
 }

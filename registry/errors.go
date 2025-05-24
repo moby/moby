@@ -4,7 +4,6 @@ import (
 	"net/url"
 
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -15,7 +14,7 @@ func translateV2AuthError(err error) error {
 		case errcode.Error:
 			switch e2.Code {
 			case errcode.ErrorCodeUnauthorized:
-				return errdefs.Unauthorized(err)
+				return unauthorizedErr{err}
 			}
 		}
 	}
@@ -24,13 +23,49 @@ func translateV2AuthError(err error) error {
 }
 
 func invalidParam(err error) error {
-	return errdefs.InvalidParameter(err)
+	return invalidParameterErr{err}
 }
 
 func invalidParamf(format string, args ...interface{}) error {
-	return errdefs.InvalidParameter(errors.Errorf(format, args...))
+	return invalidParameterErr{errors.Errorf(format, args...)}
 }
 
 func invalidParamWrapf(err error, format string, args ...interface{}) error {
-	return errdefs.InvalidParameter(errors.Wrapf(err, format, args...))
+	return invalidParameterErr{errors.Wrapf(err, format, args...)}
+}
+
+type unauthorizedErr struct{ error }
+
+func (unauthorizedErr) Unauthorized() {}
+
+func (e unauthorizedErr) Cause() error {
+	return e.error
+}
+
+func (e unauthorizedErr) Unwrap() error {
+	return e.error
+}
+
+type invalidParameterErr struct{ error }
+
+func (invalidParameterErr) InvalidParameter() {}
+
+func (e invalidParameterErr) Unwrap() error {
+	return e.error
+}
+
+type systemErr struct{ error }
+
+func (systemErr) System() {}
+
+func (e systemErr) Unwrap() error {
+	return e.error
+}
+
+type errUnknown struct{ error }
+
+func (errUnknown) Unknown() {}
+
+func (e errUnknown) Unwrap() error {
+	return e.error
 }
