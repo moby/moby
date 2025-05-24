@@ -10,7 +10,6 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -48,7 +47,7 @@ func (s *Service) Search(ctx context.Context, searchFilters filters.Args, term s
 		for _, hasStar := range hasStars {
 			iHasStar, err := strconv.Atoi(hasStar)
 			if err != nil {
-				return nil, errdefs.InvalidParameter(errors.Wrapf(err, "invalid filter 'stars=%s'", hasStar))
+				return nil, invalidParameterErr{errors.Wrapf(err, "invalid filter 'stars=%s'", hasStar)}
 			}
 			if iHasStar > hasStarFilter {
 				hasStarFilter = iHasStar
