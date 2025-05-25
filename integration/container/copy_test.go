@@ -35,7 +35,6 @@ func TestCopyFromContainerPathDoesNotExist(t *testing.T) {
 }
 
 func TestCopyFromContainerPathIsNotDir(t *testing.T) {
-	skip.If(t, testEnv.UsingSnapshotter(), "FIXME: https://github.com/moby/moby/issues/47107")
 	ctx := setupTest(t)
 
 	apiClient := testEnv.APIClient()
@@ -47,7 +46,18 @@ func TestCopyFromContainerPathIsNotDir(t *testing.T) {
 		path = "c:/windows/system32/drivers/etc/hosts/"
 		expected = "The filename, directory name, or volume label syntax is incorrect."
 	}
-	_, _, err := apiClient.CopyFromContainer(ctx, cid, path)
+
+	rc, _, err := apiClient.CopyFromContainer(ctx, cid, path)
+	if err == nil {
+		if rc != nil {
+			defer rc.Close()
+			content, _ := io.ReadAll(rc)
+			t.Logf("Expected an error, but got nil. Received data: %s", string(content))
+		} else {
+			t.Logf("Expected an error, but got nil. Received no data.")
+		}
+	}
+
 	assert.ErrorContains(t, err, expected)
 }
 
