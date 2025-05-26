@@ -108,8 +108,9 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 	}
 
 	if multi.Best != nil {
+		imgConfig := img.Config
 		resp.Author = img.Author
-		resp.Config = dockerOCIImageConfigToContainerConfig(img.Config)
+		resp.Config = &imgConfig
 		resp.Architecture = img.Architecture
 		resp.Variant = img.Variant
 		resp.Os = img.OS
