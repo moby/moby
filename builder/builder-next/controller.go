@@ -60,7 +60,6 @@ import (
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"go.opentelemetry.io/otel/sdk/trace"
-	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
 func newController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
@@ -112,7 +111,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 
 	dns := getDNSConfig(opt.DNSConfig)
 
-	cdiManager, err := getCDIManager(opt.CDISpecDirs)
+	cdiManager, err := getCDIManager(opt)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +340,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 
 	dns := getDNSConfig(opt.DNSConfig)
 
-	cdiManager, err := getCDIManager(opt.CDISpecDirs)
+	cdiManager, err := getCDIManager(opt)
 	if err != nil {
 		return nil, err
 	}
@@ -570,13 +569,10 @@ func getLabels(opt Opt, labels map[string]string) map[string]string {
 	return labels
 }
 
-func getCDIManager(specDirs []string) (*cdidevices.Manager, error) {
-	if len(specDirs) == 0 {
+func getCDIManager(opt Opt) (*cdidevices.Manager, error) {
+	if opt.CDICache == nil {
 		return nil, nil
 	}
-	// Use the default CDI cache that was configured during daemon startup
-	cdiCache := cdi.GetDefaultCache()
-
 	// TODO: add support for auto-allowed devices from config
-	return cdidevices.NewManager(cdiCache, nil), nil
+	return cdidevices.NewManager(opt.CDICache, nil), nil
 }
