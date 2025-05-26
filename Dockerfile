@@ -18,7 +18,7 @@ ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
 ARG DOCKERCLI_INTEGRATION_VERSION=v18.06.3-ce
 
 # BUILDX_VERSION is the version of buildx to install in the dev container.
-ARG BUILDX_VERSION=0.23.0
+ARG BUILDX_VERSION=0.24.0
 
 # COMPOSE_VERSION is the version of compose to install in the dev container.
 ARG COMPOSE_VERSION=v2.36.0
