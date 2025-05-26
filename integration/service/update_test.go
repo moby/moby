@@ -121,7 +121,7 @@ func TestServiceUpdateSecrets(t *testing.T) {
 
 	secret := *secrets[0]
 	assert.Check(t, is.Equal(secretName, secret.SecretName))
-	assert.Check(t, nil != secret.File)
+	assert.Check(t, secret.File != nil)
 	assert.Check(t, is.Equal(secretTarget, secret.File.Name))
 
 	// remove
@@ -183,7 +183,7 @@ func TestServiceUpdateConfigs(t *testing.T) {
 
 	config := *configs[0]
 	assert.Check(t, is.Equal(configName, config.ConfigName))
-	assert.Check(t, nil != config.File)
+	assert.Check(t, config.File != nil)
 	assert.Check(t, is.Equal(configTarget, config.File.Name))
 
 	// remove

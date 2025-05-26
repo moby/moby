@@ -162,8 +162,8 @@ linters:
         - unslice
         - valSwap
         - whyNoLint
-        - yodaStyleExpr
       enable-all: true
+
     gosec:
       excludes:
         - G104 # G104: Errors unhandled; (TODO: reduce unhandled errors, or explicitly ignore)
