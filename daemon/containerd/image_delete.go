@@ -242,7 +242,7 @@ func (i *ImageService) deleteImagePlatformByImageID(ctx context.Context, img *c8
 	target = imgMfst.Target()
 
 	var toDelete []ocispec.Descriptor
-	err = i.walkPresentChildren(ctx, target, func(ctx context.Context, d ocispec.Descriptor) error {
+	err = i.walkPresentChildren(ctx, target, func(_ context.Context, d ocispec.Descriptor) error {
 		toDelete = append(toDelete, d)
 		return nil
 	})
