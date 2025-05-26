@@ -191,12 +191,16 @@ func DefaultProfile() *Seccomp {
 					"link",
 					"linkat",
 					"listen",
+					"listmount", // kernel v6.8, libseccomp v2.6.0
 					"listxattr",
 					"llistxattr",
 					"_llseek",
 					"lremovexattr",
 					"lseek",
 					"lsetxattr",
+					"lsm_get_self_attr",  // kernel v6.8, libseccomp v2.6.0
+					"lsm_list_modules",   // kernel v6.8, libseccomp v2.6.0
+					"lsm_set_self_attrs", // kernel v6.8, libseccomp v2.6.0
 					"lstat",
 					"lstat64",
 					"madvise",
@@ -224,6 +228,7 @@ func DefaultProfile() *Seccomp {
 					"mq_timedsend_time64",
 					"mq_unlink",
 					"mremap",
+					"mseal", // kernel v6.9, libseccomp v2.6.0
 					"msgctl",
 					"msgget",
 					"msgrcv",
@@ -273,10 +278,12 @@ func DefaultProfile() *Seccomp {
 					"recvmsg",
 					"remap_file_pages",
 					"removexattr",
+					"removexattrat", // kernel v6.13, libseccomp v2.6.0
 					"rename",
 					"renameat",
 					"renameat2",
 					"restart_syscall",
+					"riscv_hwprobe", // kernel v6.12, libseccomp v2.6.0
 					"rmdir",
 					"rseq",
 					"rt_sigaction",
@@ -359,6 +366,7 @@ func DefaultProfile() *Seccomp {
 					"stat64",
 					"statfs",
 					"statfs64",
+					"statmount", // kernel v6.8, libseccomp v2.6.0
 					"statx",
 					"symlink",
 					"symlinkat",
@@ -390,6 +398,7 @@ func DefaultProfile() *Seccomp {
 					"uname",
 					"unlink",
 					"unlinkat",
+					"uretprobe", // kernel v6.11, libseccomp v2.6.0
 					"utime",
 					"utimensat",
 					"utimensat_time64",
