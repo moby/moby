@@ -603,7 +603,7 @@ func parseURL(info logger.Info) (*url.URL, error) {
 }
 
 func verifySplunkConnection(l *splunkLogger) error {
-	req, err := http.NewRequest(http.MethodOptions, l.url, nil)
+	req, err := http.NewRequest(http.MethodOptions, l.url, http.NoBody)
 	if err != nil {
 		return err
 	}

@@ -79,7 +79,7 @@ func TestVersionMiddlewareVersion(t *testing.T) {
 	assert.NilError(t, err)
 	h := m.WrapHandler(handler)
 
-	req, _ := http.NewRequest(http.MethodGet, "/containers/json", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/containers/json", http.NoBody)
 	resp := httptest.NewRecorder()
 	ctx := context.Background()
 
@@ -129,7 +129,7 @@ func TestVersionMiddlewareWithErrorsReturnsHeaders(t *testing.T) {
 	assert.NilError(t, err)
 	h := m.WrapHandler(handler)
 
-	req, _ := http.NewRequest(http.MethodGet, "/containers/json", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/containers/json", http.NoBody)
 	resp := httptest.NewRecorder()
 	ctx := context.Background()
 

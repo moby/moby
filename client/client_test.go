@@ -525,7 +525,7 @@ func TestClientRedirect(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.httpMethod, func(t *testing.T) {
-			req, err := http.NewRequest(tc.httpMethod, "/redirectme", nil)
+			req, err := http.NewRequest(tc.httpMethod, "/redirectme", http.NoBody)
 			assert.NilError(t, err)
 			resp, err := client.Do(req)
 			assert.Check(t, is.Equal(resp.StatusCode, tc.statusCode))

@@ -222,7 +222,7 @@ func (r *session) searchRepositories(ctx context.Context, term string, limit int
 	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(fmt.Sprintf("%d", limit))
 	log.G(ctx).WithField("url", u).Debug("searchRepositories")
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, http.NoBody)
 	if err != nil {
 		return nil, invalidParamWrapf(err, "error building request")
 	}

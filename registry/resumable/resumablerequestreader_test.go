@@ -22,7 +22,7 @@ func TestResumableRequestHeaderSimpleErrors(t *testing.T) {
 	client := &http.Client{}
 
 	var req *http.Request
-	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
+	req, err := http.NewRequest(http.MethodGet, ts.URL, http.NoBody)
 	assert.NilError(t, err)
 
 	resreq := &requestReader{}
@@ -43,7 +43,7 @@ func TestResumableRequestHeaderNotTooMuchFailures(t *testing.T) {
 	client := &http.Client{}
 
 	var badReq *http.Request
-	badReq, err := http.NewRequest(http.MethodGet, "I'm not an url", nil)
+	badReq, err := http.NewRequest(http.MethodGet, "I'm not an url", http.NoBody)
 	assert.NilError(t, err)
 
 	resreq := &requestReader{
@@ -63,7 +63,7 @@ func TestResumableRequestHeaderTooMuchFailures(t *testing.T) {
 	client := &http.Client{}
 
 	var badReq *http.Request
-	badReq, err := http.NewRequest(http.MethodGet, "I'm not an url", nil)
+	badReq, err := http.NewRequest(http.MethodGet, "I'm not an url", http.NoBody)
 	assert.NilError(t, err)
 
 	resreq := &requestReader{
@@ -92,7 +92,7 @@ func (errorReaderCloser) Read(p []byte) (int, error) {
 // If an unknown error is encountered, return 0, nil and log it
 func TestResumableRequestReaderWithReadError(t *testing.T) {
 	var req *http.Request
-	req, err := http.NewRequest(http.MethodGet, "", nil)
+	req, err := http.NewRequest(http.MethodGet, "", http.NoBody)
 	assert.NilError(t, err)
 
 	client := &http.Client{}
@@ -123,7 +123,7 @@ func TestResumableRequestReaderWithReadError(t *testing.T) {
 
 func TestResumableRequestReaderWithEOFWith416Response(t *testing.T) {
 	var req *http.Request
-	req, err := http.NewRequest(http.MethodGet, "", nil)
+	req, err := http.NewRequest(http.MethodGet, "", http.NoBody)
 	assert.NilError(t, err)
 
 	client := &http.Client{}
@@ -159,7 +159,7 @@ func TestResumableRequestReaderWithServerDoesntSupportByteRanges(t *testing.T) {
 	defer ts.Close()
 
 	var req *http.Request
-	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
+	req, err := http.NewRequest(http.MethodGet, ts.URL, http.NoBody)
 	assert.NilError(t, err)
 
 	client := &http.Client{}
@@ -185,7 +185,7 @@ func TestResumableRequestReaderWithZeroTotalSize(t *testing.T) {
 	defer ts.Close()
 
 	var req *http.Request
-	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
+	req, err := http.NewRequest(http.MethodGet, ts.URL, http.NoBody)
 	assert.NilError(t, err)
 
 	client := &http.Client{}
@@ -210,7 +210,7 @@ func TestResumableRequestReader(t *testing.T) {
 	defer ts.Close()
 
 	var req *http.Request
-	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
+	req, err := http.NewRequest(http.MethodGet, ts.URL, http.NoBody)
 	assert.NilError(t, err)
 
 	client := &http.Client{}
@@ -236,7 +236,7 @@ func TestResumableRequestReaderWithInitialResponse(t *testing.T) {
 	defer ts.Close()
 
 	var req *http.Request
-	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
+	req, err := http.NewRequest(http.MethodGet, ts.URL, http.NoBody)
 	assert.NilError(t, err)
 
 	client := &http.Client{}

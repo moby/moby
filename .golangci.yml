@@ -126,7 +126,6 @@ linters:
         - exposedSyncMutex
         - filepathJoin
         - hexLiteral
-        - httpNoBody
         - hugeParam
         - ifElseChain
         - importShadow
