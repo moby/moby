@@ -99,7 +99,7 @@ type IpamConf struct {
 
 // Validate checks whether the configuration is valid
 func (c *IpamConf) Validate() error {
-	if c.Gateway != "" && nil == net.ParseIP(c.Gateway) {
+	if c.Gateway != "" && net.ParseIP(c.Gateway) == nil {
 		return types.InvalidParameterErrorf("invalid gateway address %s in Ipam configuration", c.Gateway)
 	}
 	return nil

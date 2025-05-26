@@ -375,7 +375,7 @@ func TestSecretCreateResolve(t *testing.T) {
 	// - Full Name
 	// - Partial ID (prefix)
 	err = c.SecretRemove(ctx, fakeName[:5])
-	assert.Assert(t, nil != err)
+	assert.Assert(t, err != nil)
 	entries, err = c.SecretList(ctx, swarmtypes.SecretListOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, is.DeepEqual(secretNamesFromList(entries), []string{fakeName}))

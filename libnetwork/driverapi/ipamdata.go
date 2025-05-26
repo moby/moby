@@ -95,7 +95,7 @@ func (i *IPAMData) Validate() error {
 
 // IsV6 returns whether this is an IPv6 IPAMData structure
 func (i *IPAMData) IsV6() bool {
-	return nil == i.Pool.IP.To4()
+	return i.Pool.IP.To4() == nil
 }
 
 func (i *IPAMData) String() string {
