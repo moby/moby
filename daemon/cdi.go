@@ -24,7 +24,6 @@ type cdiHandler struct {
 // If the list of CDI spec directories is empty, the driver is not registered.
 func RegisterCDIDriver(cdiSpecDirs ...string) {
 	driver := newCDIDeviceDriver(cdiSpecDirs...)
-
 	registerDeviceDriver("cdi", driver)
 }
 
@@ -69,9 +68,19 @@ func createCDICache(cdiSpecDirs ...string) (*cdi.Cache, error) {
 		return nil, fmt.Errorf("no CDI specification directories specified")
 	}
 
-	cache, err := cdi.NewCache(cdi.WithSpecDirs(cdiSpecDirs...))
+	err := cdi.Configure(cdi.WithSpecDirs(cdiSpecDirs...))
 	if err != nil {
 		return nil, fmt.Errorf("CDI registry initialization failure: %w", err)
+	}
+
+	cache := cdi.GetDefaultCache()
+
+	if errs := cache.GetErrors(); len(errs) > 0 {
+		for dir, errs := range errs {
+			for _, err := range errs {
+				log.L.Warnf("CDI setup error %v: %+v", dir, err)
+			}
+		}
 	}
 
 	return cache, nil

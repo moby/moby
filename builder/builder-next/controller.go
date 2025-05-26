@@ -574,26 +574,9 @@ func getCDIManager(specDirs []string) (*cdidevices.Manager, error) {
 	if len(specDirs) == 0 {
 		return nil, nil
 	}
-	cdiCache, err := func() (*cdi.Cache, error) {
-		cdiCache, err := cdi.NewCache(cdi.WithSpecDirs(specDirs...))
-		if err != nil {
-			return nil, err
-		}
-		if err := cdiCache.Refresh(); err != nil {
-			return nil, err
-		}
-		if errs := cdiCache.GetErrors(); len(errs) > 0 {
-			for dir, errs := range errs {
-				for _, err := range errs {
-					log.L.Warnf("CDI setup error %v: %+v", dir, err)
-				}
-			}
-		}
-		return cdiCache, nil
-	}()
-	if err != nil {
-		return nil, errors.Wrapf(err, "CDI registry initialization failure")
-	}
+	// Use the default CDI cache that was configured during daemon startup
+	cdiCache := cdi.GetDefaultCache()
+
 	// TODO: add support for auto-allowed devices from config
 	return cdidevices.NewManager(cdiCache, nil), nil
 }
