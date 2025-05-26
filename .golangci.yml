@@ -27,6 +27,7 @@ linters:
     - fatcontext                # Detects nested contexts in loops and function literals.
     - forbidigo
     - gocheckcompilerdirectives # Detects invalid go compiler directive comments (//go:).
+    - gocritic                  # Detects for bugs, performance and style issues.
     - gosec                     # Detects security problems.
     - govet
     - iface                     # Detects incorrect use of interfaces. Currently only used for "identical" interfaces in the same package.
@@ -103,6 +104,66 @@ linters:
           msg: Add a wrapper to nlwrap.Handle for EINTR handling and update the list in .golangci.yml.
       analyze-types: true
 
+    gocritic:
+      disabled-checks:
+        - appendAssign
+        - appendCombine
+        - assignOp
+        - badCall
+        - badLock
+        - boolExprSimplify
+        - builtinShadow
+        - builtinShadowDecl
+        - captLocal
+        - commentedOutCode
+        - deferInLoop
+        - deprecatedComment
+        - dupImport
+        - elseif
+        - emptyFallthrough
+        - emptyStringTest
+        - equalFold
+        - evalOrder
+        - exitAfterDefer
+        - exposedSyncMutex
+        - filepathJoin
+        - hexLiteral
+        - httpNoBody
+        - hugeParam
+        - ifElseChain
+        - importShadow
+        - indexAlloc
+        - initClause
+        - mapKey
+        - methodExprCall
+        - nestingReduce
+        - nilValReturn
+        - octalLiteral
+        - paramTypeCombine
+        - preferStringWriter
+        - ptrToRefParam
+        - rangeValCopy
+        - redundantSprint
+        - regexpMust
+        - regexpSimplify
+        - singleCaseSwitch
+        - sloppyReassign
+        - sprintfQuotedString
+        - stringsCompare
+        - stringConcatSimplify
+        - stringXbytes
+        - typeAssertChain
+        - typeDefFirst
+        - typeUnparen
+        - uncheckedInlineErr
+        - unlambda
+        - unnamedResult
+        - unnecessaryDefer
+        - unslice
+        - valSwap
+        - whyNoLint
+        - yodaStyleExpr
+      enable-all: true
     gosec:
       excludes:
         - G104 # G104: Errors unhandled; (TODO: reduce unhandled errors, or explicitly ignore)
