@@ -150,9 +150,9 @@ func dbusConnectionChanged(args []interface{}) {
 		return
 	}
 
-	if len(newOwner) > 0 {
+	if newOwner != "" {
 		connectionEstablished()
-	} else if len(oldOwner) > 0 {
+	} else if oldOwner != "" {
 		connectionLost()
 	}
 }

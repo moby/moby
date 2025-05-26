@@ -15,10 +15,10 @@ func (cli *Client) ContainerStart(ctx context.Context, containerID string, optio
 	}
 
 	query := url.Values{}
-	if len(options.CheckpointID) != 0 {
+	if options.CheckpointID != "" {
 		query.Set("checkpoint", options.CheckpointID)
 	}
-	if len(options.CheckpointDir) != 0 {
+	if options.CheckpointDir != "" {
 		query.Set("checkpoint-dir", options.CheckpointDir)
 	}
 

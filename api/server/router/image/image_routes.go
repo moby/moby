@@ -113,7 +113,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 			return errdefs.InvalidParameter(err)
 		}
 
-		if len(comment) == 0 {
+		if comment == "" {
 			comment = "Imported from " + src
 		}
 

@@ -153,7 +153,7 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 		op(d)
 	}
 
-	if len(d.resolvConfContent) > 0 {
+	if d.resolvConfContent != "" {
 		path := filepath.Join(d.Folder, "resolv.conf")
 		if err := os.WriteFile(path, []byte(d.resolvConfContent), 0644); err != nil {
 			return nil, fmt.Errorf("failed to write docker resolv.conf to %q: %v", path, err)

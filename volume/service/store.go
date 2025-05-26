@@ -147,7 +147,7 @@ func (s *VolumeStore) setNamed(v volume.Volume, ref string) {
 
 	s.globalLock.Lock()
 	s.names[name] = v
-	if len(ref) > 0 {
+	if ref != "" {
 		if s.refs[name] == nil {
 			s.refs[name] = make(map[string]struct{})
 		}

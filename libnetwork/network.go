@@ -421,7 +421,7 @@ func (n *Network) applyConfigurationTo(to *Network) error {
 			}
 		}
 	}
-	if len(n.ipamType) != 0 {
+	if n.ipamType != "" {
 		to.ipamType = n.ipamType
 	}
 	if len(n.ipamOptions) > 0 {

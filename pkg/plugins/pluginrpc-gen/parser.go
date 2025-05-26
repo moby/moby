@@ -54,7 +54,7 @@ type importSpec struct {
 
 func (s *importSpec) String() string {
 	var ss string
-	if len(s.Name) != 0 {
+	if s.Name != "" {
 		ss += s.Name
 	}
 	ss += s.Path
@@ -96,7 +96,7 @@ func Parse(filePath string, objName string) (*ParsedPkg, error) {
 	for _, f := range p.Functions {
 		args := append(f.Args, f.Returns...)
 		for _, arg := range args {
-			if len(arg.PackageSelector) == 0 {
+			if arg.PackageSelector == "" {
 				continue
 			}
 
