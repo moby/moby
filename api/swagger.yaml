@@ -9818,6 +9818,18 @@ paths:
           description: "Do not delete untagged parent images"
           type: "boolean"
           default: false
+        - name: "platforms"
+          in: "query"
+          description: |
+            Select platform-specific content to delete.
+            Multiple values are accepted.
+            Each platform is a OCI platform encoded as a JSON string.
+          type: "array"
+          items:
+            # This should be OCIPlatform
+            # but $ref is not supported for array in query in Swagger 2.0
+            # $ref: "#/definitions/OCIPlatform"
+            type: "string"
       tags: ["Image"]
   /images/search:
     get:

@@ -326,7 +326,20 @@ func (ir *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, 
 	force := httputils.BoolValue(r, "force")
 	prune := !httputils.BoolValue(r, "noprune")
 
-	list, err := ir.backend.ImageDelete(ctx, name, force, prune)
+	var platforms []ocispec.Platform
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.50") {
+		p, err := httputils.DecodePlatforms(r.Form["platforms"])
+		if err != nil {
+			return err
+		}
+		platforms = p
+	}
+
+	list, err := ir.backend.ImageDelete(ctx, name, imagetypes.RemoveOptions{
+		Force:         force,
+		PruneChildren: prune,
+		Platforms:     platforms,
+	})
 	if err != nil {
 		return err
 	}
