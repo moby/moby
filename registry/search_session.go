@@ -131,7 +131,7 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 
 	// Don't override
 	if req.Header.Get("Authorization") == "" {
-		if req.Header.Get("X-Docker-Token") == "true" && tr.authConfig != nil && len(tr.authConfig.Username) > 0 {
+		if req.Header.Get("X-Docker-Token") == "true" && tr.authConfig != nil && tr.authConfig.Username != "" {
 			req.SetBasicAuth(tr.authConfig.Username, tr.authConfig.Password)
 		} else if len(tr.token) > 0 {
 			req.Header.Set("Authorization", "Token "+strings.Join(tr.token, ","))

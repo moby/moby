@@ -121,7 +121,7 @@ func TestVersionMiddlewareVersion(t *testing.T) {
 func TestVersionMiddlewareWithErrorsReturnsHeaders(t *testing.T) {
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		v := httputils.VersionFromContext(ctx)
-		assert.Check(t, len(v) != 0)
+		assert.Check(t, v != "")
 		return nil
 	}
 

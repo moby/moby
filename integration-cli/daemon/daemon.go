@@ -85,7 +85,7 @@ func (d *Daemon) CheckActiveContainerCount(ctx context.Context) func(t *testing.
 		t.Helper()
 		out, err := d.Cmd("ps", "-q")
 		assert.NilError(t, err)
-		if len(strings.TrimSpace(out)) == 0 {
+		if strings.TrimSpace(out) == "" {
 			return 0, ""
 		}
 		return len(strings.Split(strings.TrimSpace(out), "\n")), fmt.Sprintf("output: %q", out)

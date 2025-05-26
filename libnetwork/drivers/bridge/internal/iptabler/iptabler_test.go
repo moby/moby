@@ -159,7 +159,7 @@ func testIptabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 
 	stripComments := func(text string) string {
 		lines := strings.Split(text, "\n")
-		lines = slices.DeleteFunc(lines, func(l string) bool { return len(l) > 0 && l[0] == '#' })
+		lines = slices.DeleteFunc(lines, func(l string) bool { return l != "" && l[0] == '#' })
 		return strings.Join(lines, "\n")
 	}
 

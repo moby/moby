@@ -124,7 +124,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 
 	args := append(p.PluginObj.Config.Entrypoint, p.PluginObj.Settings.Args...)
 	cwd := p.PluginObj.Config.WorkDir
-	if len(cwd) == 0 {
+	if cwd == "" {
 		cwd = "/"
 	}
 	s.Process.Terminal = false

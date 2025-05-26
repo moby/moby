@@ -49,7 +49,7 @@ func TestHashFile(t *testing.T) {
 		t.Fatalf("Error when executing Stat: %s", err)
 	}
 
-	if len(sum) == 0 {
+	if sum == "" {
 		t.Fatalf("Hash returned empty sum")
 	}
 
@@ -83,7 +83,7 @@ func TestHashSubdir(t *testing.T) {
 		t.Fatalf("Error when executing Stat: %s", err)
 	}
 
-	if len(sum) == 0 {
+	if sum == "" {
 		t.Fatalf("Hash returned empty sum")
 	}
 

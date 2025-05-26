@@ -118,9 +118,9 @@ linters:
         - deferInLoop
         - deprecatedComment
         - dupImport
+        - dupSubExpr
         - elseif
         - emptyFallthrough
-        - emptyStringTest
         - equalFold
         - evalOrder
         - exitAfterDefer

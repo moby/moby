@@ -1820,7 +1820,7 @@ func testRunWriteSpecialFilesAndNotCommit(t *testing.T, name, path string) {
 	}
 
 	out = cli.DockerCmd(t, "diff", name).Combined()
-	if len(strings.Trim(out, "\r\n")) != 0 && !eqToBaseDiff(out, t) {
+	if strings.Trim(out, "\r\n") != "" && !eqToBaseDiff(out, t) {
 		t.Fatal("diff should be empty")
 	}
 }
@@ -2258,7 +2258,7 @@ func (s *DockerCLIRunSuite) TestRunAllowPortRangeThroughExpose(c *testing.T) {
 		if portnum < 3000 || portnum > 3003 {
 			c.Fatalf("Port %d is out of range ", portnum)
 		}
-		if len(binding) == 0 || len(binding[0].HostPort) == 0 {
+		if len(binding) == 0 || binding[0].HostPort == "" {
 			c.Fatalf("Port is not mapped for the port %s", port)
 		}
 	}
@@ -2591,7 +2591,7 @@ func (s *DockerCLIRunSuite) TestRunAllowPortRangeThroughPublish(c *testing.T) {
 		if portnum < 3000 || portnum > 3003 {
 			c.Fatalf("Port %d is out of range ", portnum)
 		}
-		if len(binding) == 0 || len(binding[0].HostPort) == 0 {
+		if len(binding) == 0 || binding[0].HostPort == "" {
 			c.Fatal("Port is not mapped for the port "+port, id)
 		}
 	}

@@ -60,7 +60,7 @@ func (c *imageProber) Probe(parentID string, runConfig *container.Config, platfo
 	if err != nil {
 		return "", err
 	}
-	if len(cacheID) == 0 {
+	if cacheID == "" {
 		log.G(context.TODO()).Debugf("[BUILDER] Cache miss: %s", runConfig.Cmd)
 		c.cacheBusted = true
 		return "", nil

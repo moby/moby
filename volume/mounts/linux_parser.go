@@ -46,7 +46,7 @@ func (p *linuxParser) ValidateMountConfig(mnt *mount.Mount) error {
 }
 
 func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSourceExists bool) error {
-	if len(mnt.Target) == 0 {
+	if mnt.Target == "" {
 		return &errMountConfig{mnt, errMissingField("Target")}
 	}
 
@@ -60,7 +60,7 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 
 	switch mnt.Type {
 	case mount.TypeBind:
-		if len(mnt.Source) == 0 {
+		if mnt.Source == "" {
 			return &errMountConfig{mnt, errMissingField("Source")}
 		}
 		// Don't error out just because the propagation mode is not supported on the platform
@@ -101,7 +101,7 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 		if mnt.ImageOptions != nil {
 			return &errMountConfig{mnt, errExtraField("ImageOptions")}
 		}
-		anonymousVolume := len(mnt.Source) == 0
+		anonymousVolume := mnt.Source == ""
 
 		if mnt.VolumeOptions != nil && mnt.VolumeOptions.Subpath != "" {
 			if anonymousVolume {
@@ -122,7 +122,7 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 		if mnt.ImageOptions != nil {
 			return &errMountConfig{mnt, errExtraField("ImageOptions")}
 		}
-		if len(mnt.Source) != 0 {
+		if mnt.Source != "" {
 			return &errMountConfig{mnt, errExtraField("Source")}
 		}
 		if _, err := p.ConvertTmpfsOptions(mnt.TmpfsOptions, mnt.ReadOnly); err != nil {
@@ -135,7 +135,7 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 		if mnt.VolumeOptions != nil {
 			return &errMountConfig{mnt, errExtraField("VolumeOptions")}
 		}
-		if len(mnt.Source) == 0 {
+		if mnt.Source == "" {
 			return &errMountConfig{mnt, errMissingField("Source")}
 		}
 		if mnt.ImageOptions != nil && mnt.ImageOptions.Subpath != "" {
@@ -393,7 +393,7 @@ func (p *linuxParser) parseMountSpec(cfg mount.Mount, validateBindSourceExists b
 }
 
 func (p *linuxParser) ParseVolumesFrom(spec string) (string, string, error) {
-	if len(spec) == 0 {
+	if spec == "" {
 		return "", "", fmt.Errorf("volumes-from specification cannot be an empty string")
 	}
 
@@ -484,7 +484,7 @@ func (p *linuxParser) ValidateVolumeName(name string) error {
 }
 
 func (p *linuxParser) IsBackwardCompatible(m *MountPoint) bool {
-	return len(m.Source) > 0 || m.Driver == volume.DefaultDriverName
+	return m.Source != "" || m.Driver == volume.DefaultDriverName
 }
 
 func (p *linuxParser) ValidateTmpfsMountDestination(dest string) error {

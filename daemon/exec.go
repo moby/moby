@@ -141,10 +141,10 @@ func (daemon *Daemon) ContainerExecCreate(name string, options *containertypes.E
 		return "", err
 	}
 	execConfig.Env = container.ReplaceOrAppendEnvValues(cntr.CreateDaemonEnvironment(options.Tty, linkedEnv), options.Env)
-	if len(execConfig.User) == 0 {
+	if execConfig.User == "" {
 		execConfig.User = cntr.Config.User
 	}
-	if len(execConfig.WorkingDir) == 0 {
+	if execConfig.WorkingDir == "" {
 		execConfig.WorkingDir = cntr.Config.WorkingDir
 	}
 

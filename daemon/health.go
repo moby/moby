@@ -137,7 +137,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 		<-execErr
 
 		var msg string
-		if out := output.String(); len(out) > 0 {
+		if out := output.String(); out != "" {
 			msg = fmt.Sprintf("Health check exceeded timeout (%v): %s", probeTimeout, out)
 		} else {
 			msg = fmt.Sprintf("Health check exceeded timeout (%v)", probeTimeout)
