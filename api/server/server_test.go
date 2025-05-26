@@ -21,7 +21,7 @@ func TestMiddlewares(t *testing.T) {
 	}
 	srv.UseMiddleware(*m)
 
-	req, _ := http.NewRequest(http.MethodGet, "/containers/json", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/containers/json", http.NoBody)
 	resp := httptest.NewRecorder()
 	ctx := context.Background()
 

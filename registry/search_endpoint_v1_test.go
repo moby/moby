@@ -175,12 +175,12 @@ func TestV1EndpointValidate(t *testing.T) {
 
 func TestTrustedLocation(t *testing.T) {
 	for _, u := range []string{"http://example.com", "https://example.com:7777", "http://docker.io", "http://test.docker.com", "https://fakedocker.com"} {
-		req, _ := http.NewRequest(http.MethodGet, u, nil)
+		req, _ := http.NewRequest(http.MethodGet, u, http.NoBody)
 		assert.Check(t, !trustedLocation(req))
 	}
 
 	for _, u := range []string{"https://docker.io", "https://test.docker.com:80"} {
-		req, _ := http.NewRequest(http.MethodGet, u, nil)
+		req, _ := http.NewRequest(http.MethodGet, u, http.NoBody)
 		assert.Check(t, trustedLocation(req))
 	}
 }
@@ -191,10 +191,10 @@ func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
 		{"https://foo.docker.io:7777", "http://bar.docker.com"},
 		{"https://foo.docker.io", "https://example.com"},
 	} {
-		reqFrom, _ := http.NewRequest(http.MethodGet, urls[0], nil)
+		reqFrom, _ := http.NewRequest(http.MethodGet, urls[0], http.NoBody)
 		reqFrom.Header.Add("Content-Type", "application/json")
 		reqFrom.Header.Add("Authorization", "super_secret")
-		reqTo, _ := http.NewRequest(http.MethodGet, urls[1], nil)
+		reqTo, _ := http.NewRequest(http.MethodGet, urls[1], http.NoBody)
 
 		_ = addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
 
@@ -215,10 +215,10 @@ func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
 		{"https://docker.io", "https://docker.com"},
 		{"https://foo.docker.io:7777", "https://bar.docker.com"},
 	} {
-		reqFrom, _ := http.NewRequest(http.MethodGet, urls[0], nil)
+		reqFrom, _ := http.NewRequest(http.MethodGet, urls[0], http.NoBody)
 		reqFrom.Header.Add("Content-Type", "application/json")
 		reqFrom.Header.Add("Authorization", "super_secret")
-		reqTo, _ := http.NewRequest(http.MethodGet, urls[1], nil)
+		reqTo, _ := http.NewRequest(http.MethodGet, urls[1], http.NoBody)
 
 		_ = addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
 

@@ -117,7 +117,7 @@ func newRequest(endpoint string, opts *Options) (*http.Request, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed parsing url %q", opts.host)
 	}
-	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	req, err := http.NewRequest(http.MethodGet, endpoint, http.NoBody)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create request")
 	}
