@@ -512,6 +512,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             libnl-3-200 \
             libprotobuf-c1 \
             libyajl2 \
+            nano \
             net-tools \
             netcat-openbsd \
             patch \
