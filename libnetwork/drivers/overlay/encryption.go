@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net"
+	"net/netip"
 	"strconv"
 	"sync"
 	"syscall"
@@ -90,7 +91,7 @@ func (s *spi) String() string {
 }
 
 type encrMap struct {
-	nodes map[string][]*spi
+	nodes map[netip.Addr][]*spi
 	sync.Mutex
 }
 
@@ -100,7 +101,7 @@ func (e *encrMap) String() string {
 	b := new(bytes.Buffer)
 	for k, v := range e.nodes {
 		b.WriteString("\n")
-		b.WriteString(k)
+		b.WriteString(k.String())
 		b.WriteString(":")
 		b.WriteString("[")
 		for _, s := range v {
@@ -112,7 +113,7 @@ func (e *encrMap) String() string {
 	return b.String()
 }
 
-func (d *driver) checkEncryption(nid string, rIP net.IP, isLocal, add bool) error {
+func (d *driver) checkEncryption(nid string, rIP netip.Addr, isLocal, add bool) error {
 	log.G(context.TODO()).Debugf("checkEncryption(%.7s, %v, %t)", nid, rIP, isLocal)
 
 	n := d.network(nid)
@@ -126,13 +127,13 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, isLocal, add bool) erro
 
 	lIP := d.bindAddress
 	aIP := d.advertiseAddress
-	nodes := map[string]net.IP{}
+	nodes := map[netip.Addr]struct{}{}
 
 	switch {
 	case isLocal:
-		if err := d.peerDbNetworkWalk(nid, func(pKey *peerKey, pEntry *peerEntry) bool {
-			if !aIP.Equal(pEntry.vtep) {
-				nodes[pEntry.vtep.String()] = pEntry.vtep
+		if err := d.peerDbNetworkWalk(nid, func(_ netip.Addr, _ net.HardwareAddr, pEntry *peerEntry) bool {
+			if aIP != pEntry.vtep {
+				nodes[pEntry.vtep] = struct{}{}
 			}
 			return false
 		}); err != nil {
@@ -140,14 +141,14 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, isLocal, add bool) erro
 		}
 	default:
 		if len(d.network(nid).endpoints) > 0 {
-			nodes[rIP.String()] = rIP
+			nodes[rIP] = struct{}{}
 		}
 	}
 
 	log.G(context.TODO()).Debugf("List of nodes: %s", nodes)
 
 	if add {
-		for _, rIP := range nodes {
+		for rIP := range nodes {
 			if err := setupEncryption(lIP, aIP, rIP, d.secMap, d.keys); err != nil {
 				log.G(context.TODO()).Warnf("Failed to program network encryption between %s and %s: %v", lIP, rIP, err)
 			}
@@ -165,19 +166,18 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, isLocal, add bool) erro
 
 // setupEncryption programs the encryption parameters for secure communication
 // between the local node and a remote node.
-func setupEncryption(localIP, advIP, remoteIP net.IP, em *encrMap, keys []*key) error {
+func setupEncryption(localIP, advIP, remoteIP netip.Addr, em *encrMap, keys []*key) error {
 	log.G(context.TODO()).Debugf("Programming encryption between %s and %s", localIP, remoteIP)
-	rIPs := remoteIP.String()
 
 	indices := make([]*spi, 0, len(keys))
 
 	for i, k := range keys {
-		spis := &spi{buildSPI(advIP, remoteIP, k.tag), buildSPI(remoteIP, advIP, k.tag)}
+		spis := &spi{buildSPI(advIP.AsSlice(), remoteIP.AsSlice(), k.tag), buildSPI(remoteIP.AsSlice(), advIP.AsSlice(), k.tag)}
 		dir := reverse
 		if i == 0 {
 			dir = bidir
 		}
-		fSA, rSA, err := programSA(localIP, remoteIP, spis, k, dir, true)
+		fSA, rSA, err := programSA(localIP.AsSlice(), remoteIP.AsSlice(), spis, k, dir, true)
 		if err != nil {
 			log.G(context.TODO()).Warn(err)
 		}
@@ -192,15 +192,15 @@ func setupEncryption(localIP, advIP, remoteIP net.IP, em *encrMap, keys []*key) 
 	}
 
 	em.Lock()
-	em.nodes[rIPs] = indices
+	em.nodes[remoteIP] = indices
 	em.Unlock()
 
 	return nil
 }
 
-func removeEncryption(localIP, remoteIP net.IP, em *encrMap) error {
+func removeEncryption(localIP, remoteIP netip.Addr, em *encrMap) error {
 	em.Lock()
-	indices, ok := em.nodes[remoteIP.String()]
+	indices, ok := em.nodes[remoteIP]
 	em.Unlock()
 	if !ok {
 		return nil
@@ -210,7 +210,7 @@ func removeEncryption(localIP, remoteIP net.IP, em *encrMap) error {
 		if i == 0 {
 			dir = bidir
 		}
-		fSA, rSA, err := programSA(localIP, remoteIP, idxs, nil, dir, false)
+		fSA, rSA, err := programSA(localIP.AsSlice(), remoteIP.AsSlice(), idxs, nil, dir, false)
 		if err != nil {
 			log.G(context.TODO()).Warn(err)
 		}
@@ -475,7 +475,7 @@ func buildAeadAlgo(k *key, s int) *netlink.XfrmStateAlgo {
 	}
 }
 
-func (d *driver) secMapWalk(f func(string, []*spi) ([]*spi, bool)) error {
+func (d *driver) secMapWalk(f func(netip.Addr, []*spi) ([]*spi, bool)) error {
 	d.secMap.Lock()
 	for node, indices := range d.secMap.nodes {
 		idxs, stop := f(node, indices)
@@ -496,7 +496,7 @@ func (d *driver) setKeys(keys []*key) error {
 	// Accept the encryption keys and clear any stale encryption map
 	d.Lock()
 	d.keys = keys
-	d.secMap = &encrMap{nodes: map[string][]*spi{}}
+	d.secMap = &encrMap{nodes: map[netip.Addr][]*spi{}}
 	d.Unlock()
 	log.G(context.TODO()).Debugf("Initial encryption keys: %v", keys)
 	return nil
@@ -545,9 +545,8 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		return types.InvalidParameterErrorf("attempting to both make a key (index %d) primary and delete it", priIdx)
 	}
 
-	d.secMapWalk(func(rIPs string, spis []*spi) ([]*spi, bool) {
-		rIP := net.ParseIP(rIPs)
-		return updateNodeKey(lIP, aIP, rIP, spis, d.keys, newIdx, priIdx, delIdx), false
+	d.secMapWalk(func(rIP netip.Addr, spis []*spi) ([]*spi, bool) {
+		return updateNodeKey(lIP.AsSlice(), aIP.AsSlice(), rIP.AsSlice(), spis, d.keys, newIdx, priIdx, delIdx), false
 	})
 
 	// swap primary
