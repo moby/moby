@@ -10,7 +10,7 @@ go 1.23.0
 require (
 	cloud.google.com/go/compute/metadata v0.5.2
 	cloud.google.com/go/logging v1.9.0
-	code.cloudfoundry.org/clock v1.1.0
+	code.cloudfoundry.org/clock v1.37.0
 	dario.cat/mergo v1.0.1
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c
@@ -235,7 +235,7 @@ require (
 	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/crypto v0.37.0 // indirect
 	golang.org/x/oauth2 v0.29.0 // indirect
-	golang.org/x/tools v0.27.0 // indirect
+	golang.org/x/tools v0.32.0 // indirect
 	google.golang.org/api v0.155.0 // indirect
 	google.golang.org/genproto v0.0.0-20240123012728-ef4313101c80 // indirect; TODO(thaJeztah): should we keep this one aligned with the other google.golang.org/genproto/xxx modules?
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241021214115-324edc3d5d38 // indirect
