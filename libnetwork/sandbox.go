@@ -49,7 +49,7 @@ type Sandbox struct {
 	endpoints          []*Endpoint
 	epPriority         map[string]int
 	populatedEndpoints map[string]struct{}
-	joinLeaveDone      chan struct{}
+	joinLeaveMu        sync.Mutex
 	dbIndex            uint64
 	dbExists           bool
 	isStub             bool
@@ -616,36 +616,6 @@ func (sb *Sandbox) clearNetworkResources(origEp *Endpoint) error {
 	}
 
 	return nil
-}
-
-// joinLeaveStart waits to ensure there are no joins or leaves in progress and
-// marks this join/leave in progress without race
-func (sb *Sandbox) joinLeaveStart() {
-	sb.mu.Lock()
-	defer sb.mu.Unlock()
-
-	for sb.joinLeaveDone != nil {
-		joinLeaveDone := sb.joinLeaveDone
-		sb.mu.Unlock()
-
-		<-joinLeaveDone
-
-		sb.mu.Lock()
-	}
-
-	sb.joinLeaveDone = make(chan struct{})
-}
-
-// joinLeaveEnd marks the end of this join/leave operation and
-// signals the same without race to other join and leave waiters
-func (sb *Sandbox) joinLeaveEnd() {
-	sb.mu.Lock()
-	defer sb.mu.Unlock()
-
-	if sb.joinLeaveDone != nil {
-		close(sb.joinLeaveDone)
-		sb.joinLeaveDone = nil
-	}
 }
 
 // Less defines an ordering over endpoints, with better candidates for the default
