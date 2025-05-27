@@ -1051,7 +1051,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 			name: n.name,
 			id:   n.id,
 			endpoints: sliceutil.Map(eps, func(ep *Endpoint) string {
-				return fmt.Sprintf(`name:"%s" id:"%s"`, ep.name, stringid.TruncateID(ep.id))
+				return fmt.Sprintf(`name:%q id:%q`, ep.name, stringid.TruncateID(ep.id))
 			}),
 		}
 	}
