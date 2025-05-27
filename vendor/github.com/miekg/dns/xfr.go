@@ -251,10 +251,13 @@ func (t *Transfer) ReadMsg() (*Msg, error) {
 	if err := m.Unpack(p); err != nil {
 		return nil, err
 	}
-	if ts, tp := m.IsTsig(), t.tsigProvider(); ts != nil && tp != nil {
+
+	if tp := t.tsigProvider(); tp != nil {
 		// Need to work on the original message p, as that was used to calculate the tsig.
 		err = TsigVerifyWithProvider(p, tp, t.tsigRequestMAC, t.tsigTimersOnly)
-		t.tsigRequestMAC = ts.MAC
+		if ts := m.IsTsig(); ts != nil {
+			t.tsigRequestMAC = ts.MAC
+		}
 	}
 	return m, err
 }

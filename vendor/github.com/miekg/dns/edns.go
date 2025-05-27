@@ -27,6 +27,7 @@ const (
 	EDNS0LOCALSTART   = 0xFDE9  // Beginning of range reserved for local/experimental use (See RFC 6891)
 	EDNS0LOCALEND     = 0xFFFE  // End of range reserved for local/experimental use (See RFC 6891)
 	_DO               = 1 << 15 // DNSSEC OK
+	_CO               = 1 << 14 // Compact Answers OK
 )
 
 // makeDataOpt is used to unpack the EDNS0 option(s) from a message.
@@ -58,7 +59,7 @@ func makeDataOpt(code uint16) EDNS0 {
 	case EDNS0EDE:
 		return new(EDNS0_EDE)
 	case EDNS0ESU:
-		return &EDNS0_ESU{Code: EDNS0ESU}
+		return new(EDNS0_ESU)
 	default:
 		e := new(EDNS0_LOCAL)
 		e.Code = code
@@ -66,8 +67,7 @@ func makeDataOpt(code uint16) EDNS0 {
 	}
 }
 
-// OPT is the EDNS0 RR appended to messages to convey extra (meta) information.
-// See RFC 6891.
+// OPT is the EDNS0 RR appended to messages to convey extra (meta) information. See RFC 6891.
 type OPT struct {
 	Hdr    RR_Header
 	Option []EDNS0 `dns:"opt"`
@@ -76,7 +76,11 @@ type OPT struct {
 func (rr *OPT) String() string {
 	s := "\n;; OPT PSEUDOSECTION:\n; EDNS: version " + strconv.Itoa(int(rr.Version())) + "; "
 	if rr.Do() {
-		s += "flags: do; "
+		if rr.Co() {
+			s += "flags: do, co; "
+		} else {
+			s += "flags: do; "
+		}
 	} else {
 		s += "flags:; "
 	}
@@ -144,8 +148,6 @@ func (*OPT) parse(c *zlexer, origin string) *ParseError {
 
 func (rr *OPT) isDuplicate(r2 RR) bool { return false }
 
-// return the old value -> delete SetVersion?
-
 // Version returns the EDNS version used. Only zero is defined.
 func (rr *OPT) Version() uint8 {
 	return uint8(rr.Hdr.Ttl & 0x00FF0000 >> 16)
@@ -198,14 +200,34 @@ func (rr *OPT) SetDo(do ...bool) {
 	}
 }
 
-// Z returns the Z part of the OPT RR as a uint16 with only the 15 least significant bits used.
-func (rr *OPT) Z() uint16 {
-	return uint16(rr.Hdr.Ttl & 0x7FFF)
+// Co returns the value of the CO (Compact Answers OK) bit.
+func (rr *OPT) Co() bool {
+	return rr.Hdr.Ttl&_CO == _CO
 }
 
-// SetZ sets the Z part of the OPT RR, note only the 15 least significant bits of z are used.
+// SetCo sets the CO (Compact Answers OK) bit.
+// If we pass an argument, set the CO bit to that value.
+// It is possible to pass 2 or more arguments, but they will be ignored.
+func (rr *OPT) SetCo(co ...bool) {
+	if len(co) == 1 {
+		if co[0] {
+			rr.Hdr.Ttl |= _CO
+		} else {
+			rr.Hdr.Ttl &^= _CO
+		}
+	} else {
+		rr.Hdr.Ttl |= _CO
+	}
+}
+
+// Z returns the Z part of the OPT RR as a uint16 with only the 14 least significant bits used.
+func (rr *OPT) Z() uint16 {
+	return uint16(rr.Hdr.Ttl & 0x3FFF)
+}
+
+// SetZ sets the Z part of the OPT RR, note only the 14 least significant bits of z are used.
 func (rr *OPT) SetZ(z uint16) {
-	rr.Hdr.Ttl = rr.Hdr.Ttl&^0x7FFF | uint32(z&0x7FFF)
+	rr.Hdr.Ttl = rr.Hdr.Ttl&^0x3FFF | uint32(z&0x3FFF)
 }
 
 // EDNS0 defines an EDNS0 Option. An OPT RR can have multiple options appended to it.
@@ -236,8 +258,8 @@ type EDNS0 interface {
 //	e.Nsid = "AA"
 //	o.Option = append(o.Option, e)
 type EDNS0_NSID struct {
-	Code uint16 // Always EDNS0NSID
-	Nsid string // This string needs to be hex encoded
+	Code uint16 // always EDNS0NSID
+	Nsid string // string needs to be hex encoded
 }
 
 func (e *EDNS0_NSID) pack() ([]byte, error) {
@@ -275,7 +297,7 @@ func (e *EDNS0_NSID) copy() EDNS0           { return &EDNS0_NSID{e.Code, e.Nsid}
 // When packing it will apply SourceNetmask. If you need more advanced logic,
 // patches welcome and good luck.
 type EDNS0_SUBNET struct {
-	Code          uint16 // Always EDNS0SUBNET
+	Code          uint16 // always EDNS0SUBNET
 	Family        uint16 // 1 for IP, 2 for IP6
 	SourceNetmask uint8
 	SourceScope   uint8
@@ -399,8 +421,8 @@ func (e *EDNS0_SUBNET) copy() EDNS0 {
 //
 // There is no guarantee that the Cookie string has a specific length.
 type EDNS0_COOKIE struct {
-	Code   uint16 // Always EDNS0COOKIE
-	Cookie string // Hex-encoded cookie data
+	Code   uint16 // always EDNS0COOKIE
+	Cookie string // hex encoded cookie data
 }
 
 func (e *EDNS0_COOKIE) pack() ([]byte, error) {
@@ -430,7 +452,7 @@ func (e *EDNS0_COOKIE) copy() EDNS0           { return &EDNS0_COOKIE{e.Code, e.C
 //	e.Lease = 120 // in seconds
 //	o.Option = append(o.Option, e)
 type EDNS0_UL struct {
-	Code     uint16 // Always EDNS0UL
+	Code     uint16 // always EDNS0UL
 	Lease    uint32
 	KeyLease uint32
 }
@@ -469,7 +491,7 @@ func (e *EDNS0_UL) unpack(b []byte) error {
 // EDNS0_LLQ stands for Long Lived Queries: http://tools.ietf.org/html/draft-sekar-dns-llq-01
 // Implemented for completeness, as the EDNS0 type code is assigned.
 type EDNS0_LLQ struct {
-	Code      uint16 // Always EDNS0LLQ
+	Code      uint16 // always EDNS0LLQ
 	Version   uint16
 	Opcode    uint16
 	Error     uint16
@@ -515,7 +537,7 @@ func (e *EDNS0_LLQ) copy() EDNS0 {
 
 // EDNS0_DAU implements the EDNS0 "DNSSEC Algorithm Understood" option. See RFC 6975.
 type EDNS0_DAU struct {
-	Code    uint16 // Always EDNS0DAU
+	Code    uint16 // always EDNS0DAU
 	AlgCode []uint8
 }
 
@@ -539,7 +561,7 @@ func (e *EDNS0_DAU) copy() EDNS0 { return &EDNS0_DAU{e.Code, e.AlgCode} }
 
 // EDNS0_DHU implements the EDNS0 "DS Hash Understood" option. See RFC 6975.
 type EDNS0_DHU struct {
-	Code    uint16 // Always EDNS0DHU
+	Code    uint16 // always EDNS0DHU
 	AlgCode []uint8
 }
 
@@ -563,7 +585,7 @@ func (e *EDNS0_DHU) copy() EDNS0 { return &EDNS0_DHU{e.Code, e.AlgCode} }
 
 // EDNS0_N3U implements the EDNS0 "NSEC3 Hash Understood" option. See RFC 6975.
 type EDNS0_N3U struct {
-	Code    uint16 // Always EDNS0N3U
+	Code    uint16 // always EDNS0N3U
 	AlgCode []uint8
 }
 
@@ -588,7 +610,7 @@ func (e *EDNS0_N3U) copy() EDNS0 { return &EDNS0_N3U{e.Code, e.AlgCode} }
 
 // EDNS0_EXPIRE implements the EDNS0 option as described in RFC 7314.
 type EDNS0_EXPIRE struct {
-	Code   uint16 // Always EDNS0EXPIRE
+	Code   uint16 // always EDNS0EXPIRE
 	Expire uint32
 	Empty  bool // Empty is used to signal an empty Expire option in a backwards compatible way, it's not used on the wire.
 }
@@ -668,7 +690,7 @@ func (e *EDNS0_LOCAL) unpack(b []byte) error {
 // EDNS0_TCP_KEEPALIVE is an EDNS0 option that instructs the server to keep
 // the TCP connection alive. See RFC 7828.
 type EDNS0_TCP_KEEPALIVE struct {
-	Code uint16 // Always EDNSTCPKEEPALIVE
+	Code uint16 // always EDNSTCPKEEPALIVE
 
 	// Timeout is an idle timeout value for the TCP connection, specified in
 	// units of 100 milliseconds, encoded in network byte order. If set to 0,
@@ -756,36 +778,48 @@ const (
 	ExtendedErrorCodeNoReachableAuthority
 	ExtendedErrorCodeNetworkError
 	ExtendedErrorCodeInvalidData
+	ExtendedErrorCodeSignatureExpiredBeforeValid
+	ExtendedErrorCodeTooEarly
+	ExtendedErrorCodeUnsupportedNSEC3IterValue
+	ExtendedErrorCodeUnableToConformToPolicy
+	ExtendedErrorCodeSynthesized
+	ExtendedErrorCodeInvalidQueryType
 )
 
 // ExtendedErrorCodeToString maps extended error info codes to a human readable
 // description.
 var ExtendedErrorCodeToString = map[uint16]string{
-	ExtendedErrorCodeOther:                      "Other",
-	ExtendedErrorCodeUnsupportedDNSKEYAlgorithm: "Unsupported DNSKEY Algorithm",
-	ExtendedErrorCodeUnsupportedDSDigestType:    "Unsupported DS Digest Type",
-	ExtendedErrorCodeStaleAnswer:                "Stale Answer",
-	ExtendedErrorCodeForgedAnswer:               "Forged Answer",
-	ExtendedErrorCodeDNSSECIndeterminate:        "DNSSEC Indeterminate",
-	ExtendedErrorCodeDNSBogus:                   "DNSSEC Bogus",
-	ExtendedErrorCodeSignatureExpired:           "Signature Expired",
-	ExtendedErrorCodeSignatureNotYetValid:       "Signature Not Yet Valid",
-	ExtendedErrorCodeDNSKEYMissing:              "DNSKEY Missing",
-	ExtendedErrorCodeRRSIGsMissing:              "RRSIGs Missing",
-	ExtendedErrorCodeNoZoneKeyBitSet:            "No Zone Key Bit Set",
-	ExtendedErrorCodeNSECMissing:                "NSEC Missing",
-	ExtendedErrorCodeCachedError:                "Cached Error",
-	ExtendedErrorCodeNotReady:                   "Not Ready",
-	ExtendedErrorCodeBlocked:                    "Blocked",
-	ExtendedErrorCodeCensored:                   "Censored",
-	ExtendedErrorCodeFiltered:                   "Filtered",
-	ExtendedErrorCodeProhibited:                 "Prohibited",
-	ExtendedErrorCodeStaleNXDOMAINAnswer:        "Stale NXDOMAIN Answer",
-	ExtendedErrorCodeNotAuthoritative:           "Not Authoritative",
-	ExtendedErrorCodeNotSupported:               "Not Supported",
-	ExtendedErrorCodeNoReachableAuthority:       "No Reachable Authority",
-	ExtendedErrorCodeNetworkError:               "Network Error",
-	ExtendedErrorCodeInvalidData:                "Invalid Data",
+	ExtendedErrorCodeOther:                       "Other",
+	ExtendedErrorCodeUnsupportedDNSKEYAlgorithm:  "Unsupported DNSKEY Algorithm",
+	ExtendedErrorCodeUnsupportedDSDigestType:     "Unsupported DS Digest Type",
+	ExtendedErrorCodeStaleAnswer:                 "Stale Answer",
+	ExtendedErrorCodeForgedAnswer:                "Forged Answer",
+	ExtendedErrorCodeDNSSECIndeterminate:         "DNSSEC Indeterminate",
+	ExtendedErrorCodeDNSBogus:                    "DNSSEC Bogus",
+	ExtendedErrorCodeSignatureExpired:            "Signature Expired",
+	ExtendedErrorCodeSignatureNotYetValid:        "Signature Not Yet Valid",
+	ExtendedErrorCodeDNSKEYMissing:               "DNSKEY Missing",
+	ExtendedErrorCodeRRSIGsMissing:               "RRSIGs Missing",
+	ExtendedErrorCodeNoZoneKeyBitSet:             "No Zone Key Bit Set",
+	ExtendedErrorCodeNSECMissing:                 "NSEC Missing",
+	ExtendedErrorCodeCachedError:                 "Cached Error",
+	ExtendedErrorCodeNotReady:                    "Not Ready",
+	ExtendedErrorCodeBlocked:                     "Blocked",
+	ExtendedErrorCodeCensored:                    "Censored",
+	ExtendedErrorCodeFiltered:                    "Filtered",
+	ExtendedErrorCodeProhibited:                  "Prohibited",
+	ExtendedErrorCodeStaleNXDOMAINAnswer:         "Stale NXDOMAIN Answer",
+	ExtendedErrorCodeNotAuthoritative:            "Not Authoritative",
+	ExtendedErrorCodeNotSupported:                "Not Supported",
+	ExtendedErrorCodeNoReachableAuthority:        "No Reachable Authority",
+	ExtendedErrorCodeNetworkError:                "Network Error",
+	ExtendedErrorCodeInvalidData:                 "Invalid Data",
+	ExtendedErrorCodeSignatureExpiredBeforeValid: "Signature Expired Before Valid",
+	ExtendedErrorCodeTooEarly:                    "Too Early",
+	ExtendedErrorCodeUnsupportedNSEC3IterValue:   "Unsupported NSEC3 Iterations Value",
+	ExtendedErrorCodeUnableToConformToPolicy:     "Unable To Conform To Policy",
+	ExtendedErrorCodeSynthesized:                 "Synthesized",
+	ExtendedErrorCodeInvalidQueryType:            "Invalid Query Type",
 }
 
 // StringToExtendedErrorCode is a map from human readable descriptions to
@@ -827,13 +861,12 @@ func (e *EDNS0_EDE) unpack(b []byte) error {
 	return nil
 }
 
-// The EDNS0_ESU option for ENUM Source-URI Extension
+// The EDNS0_ESU option for ENUM Source-URI Extension.
 type EDNS0_ESU struct {
-	Code uint16
+	Code uint16 // always EDNS0ESU
 	Uri  string
 }
 
-// Option implements the EDNS0 interface.
 func (e *EDNS0_ESU) Option() uint16        { return EDNS0ESU }
 func (e *EDNS0_ESU) String() string        { return e.Uri }
 func (e *EDNS0_ESU) copy() EDNS0           { return &EDNS0_ESU{e.Code, e.Uri} }

@@ -1620,6 +1620,16 @@ func (rr *NINFO) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
+// Uses the same format as TXT
+func (rr *RESINFO) parse(c *zlexer, o string) *ParseError {
+	s, e := endingToTxtSlice(c, "bad RESINFO Resinfo")
+	if e != nil {
+		return e
+	}
+	rr.Txt = s
+	return nil
+}
+
 func (rr *URI) parse(c *zlexer, o string) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)

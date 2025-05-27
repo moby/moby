@@ -96,10 +96,12 @@ const (
 	TypeLP         uint16 = 107
 	TypeEUI48      uint16 = 108
 	TypeEUI64      uint16 = 109
+	TypeNXNAME     uint16 = 128
 	TypeURI        uint16 = 256
 	TypeCAA        uint16 = 257
 	TypeAVC        uint16 = 258
 	TypeAMTRELAY   uint16 = 260
+	TypeRESINFO    uint16 = 261
 
 	TypeTKEY uint16 = 249
 	TypeTSIG uint16 = 250
@@ -124,33 +126,35 @@ const (
 	ClassANY    = 255
 
 	// Message Response Codes, see https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml
-	RcodeSuccess        = 0  // NoError   - No Error                          [DNS]
-	RcodeFormatError    = 1  // FormErr   - Format Error                      [DNS]
-	RcodeServerFailure  = 2  // ServFail  - Server Failure                    [DNS]
-	RcodeNameError      = 3  // NXDomain  - Non-Existent Domain               [DNS]
-	RcodeNotImplemented = 4  // NotImp    - Not Implemented                   [DNS]
-	RcodeRefused        = 5  // Refused   - Query Refused                     [DNS]
-	RcodeYXDomain       = 6  // YXDomain  - Name Exists when it should not    [DNS Update]
-	RcodeYXRrset        = 7  // YXRRSet   - RR Set Exists when it should not  [DNS Update]
-	RcodeNXRrset        = 8  // NXRRSet   - RR Set that should exist does not [DNS Update]
-	RcodeNotAuth        = 9  // NotAuth   - Server Not Authoritative for zone [DNS Update]
-	RcodeNotZone        = 10 // NotZone   - Name not contained in zone        [DNS Update/TSIG]
-	RcodeBadSig         = 16 // BADSIG    - TSIG Signature Failure            [TSIG]  https://www.rfc-editor.org/rfc/rfc6895.html#section-2.3
-	RcodeBadVers        = 16 // BADVERS   - Bad OPT Version                   [EDNS0] https://www.rfc-editor.org/rfc/rfc6895.html#section-2.3
-	RcodeBadKey         = 17 // BADKEY    - Key not recognized                [TSIG]
-	RcodeBadTime        = 18 // BADTIME   - Signature out of time window      [TSIG]
-	RcodeBadMode        = 19 // BADMODE   - Bad TKEY Mode                     [TKEY]
-	RcodeBadName        = 20 // BADNAME   - Duplicate key name                [TKEY]
-	RcodeBadAlg         = 21 // BADALG    - Algorithm not supported           [TKEY]
-	RcodeBadTrunc       = 22 // BADTRUNC  - Bad Truncation                    [TSIG]
-	RcodeBadCookie      = 23 // BADCOOKIE - Bad/missing Server Cookie         [DNS Cookies]
+	RcodeSuccess                    = 0  // NoError   - No Error                          [DNS]
+	RcodeFormatError                = 1  // FormErr   - Format Error                      [DNS]
+	RcodeServerFailure              = 2  // ServFail  - Server Failure                    [DNS]
+	RcodeNameError                  = 3  // NXDomain  - Non-Existent Domain               [DNS]
+	RcodeNotImplemented             = 4  // NotImp    - Not Implemented                   [DNS]
+	RcodeRefused                    = 5  // Refused   - Query Refused                     [DNS]
+	RcodeYXDomain                   = 6  // YXDomain  - Name Exists when it should not    [DNS Update]
+	RcodeYXRrset                    = 7  // YXRRSet   - RR Set Exists when it should not  [DNS Update]
+	RcodeNXRrset                    = 8  // NXRRSet   - RR Set that should exist does not [DNS Update]
+	RcodeNotAuth                    = 9  // NotAuth   - Server Not Authoritative for zone [DNS Update]
+	RcodeNotZone                    = 10 // NotZone   - Name not contained in zone        [DNS Update/TSIG]
+	RcodeStatefulTypeNotImplemented = 11 // DSOTypeNI - DSO-TYPE not implemented          [DNS Stateful Operations] https://www.rfc-editor.org/rfc/rfc8490.html#section-10.2
+	RcodeBadSig                     = 16 // BADSIG    - TSIG Signature Failure            [TSIG]  https://www.rfc-editor.org/rfc/rfc6895.html#section-2.3
+	RcodeBadVers                    = 16 // BADVERS   - Bad OPT Version                   [EDNS0] https://www.rfc-editor.org/rfc/rfc6895.html#section-2.3
+	RcodeBadKey                     = 17 // BADKEY    - Key not recognized                [TSIG]
+	RcodeBadTime                    = 18 // BADTIME   - Signature out of time window      [TSIG]
+	RcodeBadMode                    = 19 // BADMODE   - Bad TKEY Mode                     [TKEY]
+	RcodeBadName                    = 20 // BADNAME   - Duplicate key name                [TKEY]
+	RcodeBadAlg                     = 21 // BADALG    - Algorithm not supported           [TKEY]
+	RcodeBadTrunc                   = 22 // BADTRUNC  - Bad Truncation                    [TSIG]
+	RcodeBadCookie                  = 23 // BADCOOKIE - Bad/missing Server Cookie         [DNS Cookies]
 
 	// Message Opcodes. There is no 3.
-	OpcodeQuery  = 0
-	OpcodeIQuery = 1
-	OpcodeStatus = 2
-	OpcodeNotify = 4
-	OpcodeUpdate = 5
+	OpcodeQuery    = 0
+	OpcodeIQuery   = 1
+	OpcodeStatus   = 2
+	OpcodeNotify   = 4
+	OpcodeUpdate   = 5
+	OpcodeStateful = 6
 )
 
 // Used in ZONEMD https://tools.ietf.org/html/rfc8976
@@ -176,6 +180,19 @@ const (
 	AMTRELAYIPv6 = IPSECGatewayIPv6
 	AMTRELAYHost = IPSECGatewayHost
 )
+
+// Stateful types as defined in RFC 8490.
+const (
+	StatefulTypeKeepAlive uint16 = iota + 1
+	StatefulTypeRetryDelay
+	StatefulTypeEncryptionPadding
+)
+
+var StatefulTypeToString = map[uint16]string{
+	StatefulTypeKeepAlive:         "KeepAlive",
+	StatefulTypeRetryDelay:        "RetryDelay",
+	StatefulTypeEncryptionPadding: "EncryptionPadding",
+}
 
 // Header is the wire format for the DNS packet header.
 type Header struct {
@@ -266,11 +283,20 @@ func (q *Question) String() (s string) {
 	return s
 }
 
-// ANY is a wild card record. See RFC 1035, Section 3.2.3. ANY
-// is named "*" there.
+// ANY is a wild card record. See RFC 1035, Section 3.2.3. ANY is named "*" there.
+// The ANY records can be (ab)used to create resource records without any rdata, that
+// can be used in dynamic update requests. Basic use pattern:
+//
+//	a := &ANY{RR_Header{
+//		Name:   "example.org.",
+//		Rrtype: TypeA,
+//		Class:  ClassINET,
+//	}}
+//
+// Results in an A record without rdata.
 type ANY struct {
 	Hdr RR_Header
-	// Does not have any rdata
+	// Does not have any rdata.
 }
 
 func (rr *ANY) String() string { return rr.Hdr.String() }
@@ -292,6 +318,19 @@ func (rr *NULL) String() string {
 
 func (*NULL) parse(c *zlexer, origin string) *ParseError {
 	return &ParseError{err: "NULL records do not have a presentation format"}
+}
+
+// NXNAME is a meta record. See https://www.iana.org/go/draft-ietf-dnsop-compact-denial-of-existence-04
+// Reference: https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml
+type NXNAME struct {
+	Hdr RR_Header
+	// Does not have any rdata
+}
+
+func (rr *NXNAME) String() string { return rr.Hdr.String() }
+
+func (*NXNAME) parse(c *zlexer, origin string) *ParseError {
+	return &ParseError{err: "NXNAME records do not have a presentation format"}
 }
 
 // CNAME RR. See RFC 1034.
@@ -862,7 +901,7 @@ func (rr *LOC) String() string {
 	lon = lon % LOC_HOURS
 	s += fmt.Sprintf("%02d %02d %0.3f %s ", h, m, float64(lon)/1000, ew)
 
-	var alt = float64(rr.Altitude) / 100
+	alt := float64(rr.Altitude) / 100
 	alt -= LOC_ALTITUDEBASE
 	if rr.Altitude%100 != 0 {
 		s += fmt.Sprintf("%.2fm ", alt)
@@ -1493,6 +1532,15 @@ func (rr *ZONEMD) String() string {
 		" " + strconv.Itoa(int(rr.Hash)) +
 		" " + rr.Digest
 }
+
+// RESINFO RR. See RFC 9606.
+
+type RESINFO struct {
+	Hdr RR_Header
+	Txt []string `dns:"txt"`
+}
+
+func (rr *RESINFO) String() string { return rr.Hdr.String() + sprintTxt(rr.Txt) }
 
 // APL RR. See RFC 3123.
 type APL struct {

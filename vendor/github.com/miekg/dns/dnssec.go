@@ -250,14 +250,6 @@ func (d *DS) ToCDS() *CDS {
 // zero, it is used as-is, otherwise the TTL of the RRset is used as the
 // OrigTTL.
 func (rr *RRSIG) Sign(k crypto.Signer, rrset []RR) error {
-	if k == nil {
-		return ErrPrivKey
-	}
-	// s.Inception and s.Expiration may be 0 (rollover etc.), the rest must be set
-	if rr.KeyTag == 0 || len(rr.SignerName) == 0 || rr.Algorithm == 0 {
-		return ErrKey
-	}
-
 	h0 := rrset[0].Header()
 	rr.Hdr.Rrtype = TypeRRSIG
 	rr.Hdr.Name = h0.Name
@@ -270,6 +262,18 @@ func (rr *RRSIG) Sign(k crypto.Signer, rrset []RR) error {
 
 	if strings.HasPrefix(h0.Name, "*") {
 		rr.Labels-- // wildcard, remove from label count
+	}
+
+	return rr.signAsIs(k, rrset)
+}
+
+func (rr *RRSIG) signAsIs(k crypto.Signer, rrset []RR) error {
+	if k == nil {
+		return ErrPrivKey
+	}
+	// s.Inception and s.Expiration may be 0 (rollover etc.), the rest must be set
+	if rr.KeyTag == 0 || len(rr.SignerName) == 0 || rr.Algorithm == 0 {
+		return ErrKey
 	}
 
 	sigwire := new(rrsigWireFmt)
@@ -370,9 +374,12 @@ func (rr *RRSIG) Verify(k *DNSKEY, rrset []RR) error {
 	if rr.Algorithm != k.Algorithm {
 		return ErrKey
 	}
-	if !strings.EqualFold(rr.SignerName, k.Hdr.Name) {
+
+	signerName := CanonicalName(rr.SignerName)
+	if !equal(signerName, k.Hdr.Name) {
 		return ErrKey
 	}
+
 	if k.Protocol != 3 {
 		return ErrKey
 	}
@@ -384,9 +391,18 @@ func (rr *RRSIG) Verify(k *DNSKEY, rrset []RR) error {
 	}
 
 	// IsRRset checked that we have at least one RR and that the RRs in
-	// the set have consistent type, class, and name. Also check that type and
-	// class matches the RRSIG record.
-	if h0 := rrset[0].Header(); h0.Class != rr.Hdr.Class || h0.Rrtype != rr.TypeCovered {
+	// the set have consistent type, class, and name. Also check that type,
+	// class and name matches the RRSIG record.
+	// Also checks RFC 4035 5.3.1 the number of labels in the RRset owner
+	// name MUST be greater than or equal to the value in the RRSIG RR's Labels field.
+	// RFC 4035 5.3.1 Signer's Name MUST be the name of the zone that [contains the RRset].
+	// Since we don't have SOA info, checking suffix may be the best we can do...?
+	if h0 := rrset[0].Header(); h0.Class != rr.Hdr.Class ||
+		h0.Rrtype != rr.TypeCovered ||
+		uint8(CountLabel(h0.Name)) < rr.Labels ||
+		!equal(h0.Name, rr.Hdr.Name) ||
+		!strings.HasSuffix(CanonicalName(h0.Name), signerName) {
+
 		return ErrRRset
 	}
 
@@ -400,7 +416,7 @@ func (rr *RRSIG) Verify(k *DNSKEY, rrset []RR) error {
 	sigwire.Expiration = rr.Expiration
 	sigwire.Inception = rr.Inception
 	sigwire.KeyTag = rr.KeyTag
-	sigwire.SignerName = CanonicalName(rr.SignerName)
+	sigwire.SignerName = signerName
 	// Create the desired binary blob
 	signeddata := make([]byte, DefaultMsgSize)
 	n, err := packSigWire(sigwire, signeddata)
