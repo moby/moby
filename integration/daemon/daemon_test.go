@@ -734,6 +734,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 
 func testLiveRestoreUserChainsSetup(t *testing.T) {
 	skip.If(t, testEnv.IsRootless(), "rootless daemon uses it's own network namespace")
+	skip.If(t, testEnv.FirewallBackendDriver() == "nftables", "nftables enabled, skipping iptables test")
 
 	t.Parallel()
 	ctx := testutil.StartSpan(baseContext, t)
