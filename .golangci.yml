@@ -145,7 +145,6 @@ linters:
         - regexpSimplify
         - singleCaseSwitch
         - sloppyReassign
-        - sprintfQuotedString
         - stringsCompare
         - stringConcatSimplify
         - stringXbytes
