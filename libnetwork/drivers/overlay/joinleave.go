@@ -6,10 +6,12 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"syscall"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
@@ -95,7 +97,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		if sub == s {
 			continue
 		}
-		if err = jinfo.AddStaticRoute(sub.subnetIP, types.NEXTHOP, s.gwIP.IP); err != nil {
+		if err = jinfo.AddStaticRoute(netiputil.ToIPNet(sub.subnetIP), types.NEXTHOP, s.gwIP.Addr().AsSlice()); err != nil {
 			log.G(context.TODO()).Errorf("Adding subnet %s static route in network %q failed\n", s.subnetIP, n.id)
 		}
 	}
@@ -107,9 +109,9 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		}
 	}
 
-	d.peerAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, d.advertiseAddress, true)
+	d.peerAdd(nid, eid, ep.addr, ep.mac, d.advertiseAddress, true)
 
-	if err = d.checkEncryption(nid, nil, true, true); err != nil {
+	if err = d.checkEncryption(nid, netip.Addr{}, true, true); err != nil {
 		log.G(context.TODO()).Warn(err)
 	}
 
@@ -162,34 +164,34 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 
 	// Ignore local peers. We already know about them and they
 	// should not be added to vxlan fdb.
-	if net.ParseIP(peer.TunnelEndpointIP).Equal(d.advertiseAddress) {
+	if addr, _ := netip.ParseAddr(peer.TunnelEndpointIP); addr == d.advertiseAddress {
 		return
 	}
 
-	addr, err := types.ParseCIDR(peer.EndpointIP)
+	addr, err := netip.ParsePrefix(peer.EndpointIP)
 	if err != nil {
-		log.G(context.TODO()).Errorf("Invalid peer IP %s received in event notify", peer.EndpointIP)
+		log.G(context.TODO()).WithError(err).Errorf("Invalid peer IP %s received in event notify", peer.EndpointIP)
 		return
 	}
 
 	mac, err := net.ParseMAC(peer.EndpointMAC)
 	if err != nil {
-		log.G(context.TODO()).Errorf("Invalid mac %s received in event notify", peer.EndpointMAC)
+		log.G(context.TODO()).WithError(err).Errorf("Invalid mac %s received in event notify", peer.EndpointMAC)
 		return
 	}
 
-	vtep := net.ParseIP(peer.TunnelEndpointIP)
-	if vtep == nil {
-		log.G(context.TODO()).Errorf("Invalid VTEP %s received in event notify", peer.TunnelEndpointIP)
+	vtep, err := netip.ParseAddr(peer.TunnelEndpointIP)
+	if err != nil {
+		log.G(context.TODO()).WithError(err).Errorf("Invalid VTEP %s received in event notify", peer.TunnelEndpointIP)
 		return
 	}
 
 	if etype == driverapi.Delete {
-		d.peerDelete(nid, eid, addr.IP, addr.Mask, mac, vtep, false)
+		d.peerDelete(nid, eid, addr, mac, vtep, false)
 		return
 	}
 
-	d.peerAdd(nid, eid, addr.IP, addr.Mask, mac, vtep, false)
+	d.peerAdd(nid, eid, addr, mac, vtep, false)
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
@@ -209,7 +211,7 @@ func (d *driver) Leave(nid, eid string) error {
 		return types.InternalMaskableErrorf("could not find endpoint with id %s", eid)
 	}
 
-	d.peerDelete(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, d.advertiseAddress, true)
+	d.peerDelete(nid, eid, ep.addr, ep.mac, d.advertiseAddress, true)
 
 	n.leaveSandbox()
 
