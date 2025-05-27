@@ -341,19 +341,16 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 		dgst        digest.Digest
 		mt          string
 		size        int64
-		tagged      reference.NamedTagged
-		isTagged    bool
 	)
 	if digested, isDigested := ref.(reference.Canonical); isDigested {
 		dgst = digested.Digest()
 		tagOrDigest = digested.String()
-	} else if tagged, isTagged = ref.(reference.NamedTagged); isTagged {
+	} else if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
 		tagService := p.repo.Tags(ctx)
 		desc, err := tagService.Get(ctx, tagged.Tag())
 		if err != nil {
 			return false, err
 		}
-
 		dgst = desc.Digest
 		tagOrDigest = tagged.Tag()
 		mt = desc.MediaType
@@ -367,43 +364,13 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 		"remote": ref,
 	}))
 
-	desc := ocispec.Descriptor{
+	manifest, err := p.manifestStore.Get(ctx, ocispec.Descriptor{
 		MediaType: mt,
 		Digest:    dgst,
 		Size:      size,
-	}
-
-	manifest, err := p.manifestStore.Get(ctx, desc, ref)
+	}, ref)
 	if err != nil {
-		if isTagged && isNotFound(errors.Cause(err)) {
-			log.G(ctx).WithField("ref", ref).WithError(err).Debug("Falling back to pull manifest by tag")
-
-			const msg = `%s Failed to pull manifest by the resolved digest. This registry does not
-	appear to conform to the distribution registry specification; falling back to
-	pull by tag.  This fallback is DEPRECATED, and will be removed in a future
-	release.  Please contact admins of %s. %s
-`
-
-			warnEmoji := "\U000026A0\U0000FE0F"
-			progress.Messagef(p.config.ProgressOutput, "WARNING", msg, warnEmoji, p.endpoint.URL, warnEmoji)
-
-			// Fetch by tag worked, but fetch by digest didn't.
-			// This is a broken registry implementation.
-			// We'll fallback to the old behavior and get the manifest by tag.
-			var ms distribution.ManifestService
-			ms, err = p.repo.Manifests(ctx)
-			if err != nil {
-				return false, err
-			}
-
-			manifest, err = ms.Get(ctx, "", distribution.WithTag(tagged.Tag()))
-			if err != nil {
-				err = errors.Wrap(err, "error after falling back to get manifest by tag")
-			}
-		}
-		if err != nil {
-			return false, err
-		}
+		return false, err
 	}
 
 	if manifest == nil {
@@ -754,12 +721,11 @@ func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfst
 			return "", "", err
 		}
 
-		desc := ocispec.Descriptor{
+		manifest, err := p.manifestStore.Get(ctx, ocispec.Descriptor{
 			Digest:    match.Digest,
 			Size:      match.Size,
 			MediaType: match.MediaType,
-		}
-		manifest, err := p.manifestStore.Get(ctx, desc, ref)
+		}, ref)
 		if err != nil {
 			return "", "", err
 		}
