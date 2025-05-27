@@ -7,7 +7,7 @@ package overlay
 import (
 	"context"
 	"fmt"
-	"net"
+	"net/netip"
 	"sync"
 
 	"github.com/containerd/log"
@@ -28,7 +28,7 @@ const (
 var _ discoverapi.Discover = (*driver)(nil)
 
 type driver struct {
-	bindAddress, advertiseAddress net.IP
+	bindAddress, advertiseAddress netip.Addr
 
 	config        map[string]interface{}
 	peerDb        peerNetworkMap
@@ -48,7 +48,7 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 		peerDb: peerNetworkMap{
 			mp: map[string]*peerMap{},
 		},
-		secMap: &encrMap{nodes: map[string][]*spi{}},
+		secMap: &encrMap{nodes: map[netip.Addr][]*spi{}},
 		config: config,
 	}
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
@@ -78,16 +78,17 @@ func (d *driver) isIPv6Transport() (bool, error) {
 	// from the address family of our own advertise address. This is a
 	// reasonable inference to make as Linux VXLAN links do not support
 	// mixed-address-family remote peers.
-	if d.advertiseAddress == nil {
+	if !d.advertiseAddress.IsValid() {
 		return false, fmt.Errorf("overlay: cannot determine address family of transport: the local data-plane address is not currently known")
 	}
-	return d.advertiseAddress.To4() == nil, nil
+	return d.advertiseAddress.Is6(), nil
 }
 
 func (d *driver) nodeJoin(data discoverapi.NodeDiscoveryData) error {
 	if data.Self {
-		advAddr, bindAddr := net.ParseIP(data.Address), net.ParseIP(data.BindAddress)
-		if advAddr == nil {
+		advAddr, _ := netip.ParseAddr(data.Address)
+		bindAddr, _ := netip.ParseAddr(data.BindAddress)
+		if !advAddr.IsValid() {
 			return fmt.Errorf("invalid discovery data")
 		}
 		d.Lock()
