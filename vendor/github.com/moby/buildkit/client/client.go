@@ -10,7 +10,7 @@ import (
 	"time"
 
 	contentapi "github.com/containerd/containerd/api/services/content/v1"
-	"github.com/containerd/containerd/defaults"
+	"github.com/containerd/containerd/v2/defaults"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client/connhelper"
 	"github.com/moby/buildkit/session"
@@ -151,7 +151,8 @@ func New(ctx context.Context, address string, opts ...ClientOpt) (*Client, error
 	gopts = append(gopts, grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor))
 	gopts = append(gopts, customDialOptions...)
 
-	//nolint:staticcheck // ignore SA1019 NewClient has different behavior and needs to be tested
+	// ignore SA1019 NewClient has different behavior and needs to be tested
+	//nolint:staticcheck
 	conn, err := grpc.DialContext(ctx, address, gopts...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to dial %q . make sure buildkitd is running", address)

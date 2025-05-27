@@ -7,8 +7,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/cio"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/pkg/cio"
 	"github.com/containerd/log"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
@@ -172,8 +172,9 @@ func (e *Executor) ProcessEvent(id string, et libcontainerdtypes.EventType, ei l
 			p.deleteTaskAndContainer(context.Background())
 		}
 		return e.exitHandler.HandleExitEvent(ei.ContainerID)
+	default:
+		return nil
 	}
-	return nil
 }
 
 type rio struct {

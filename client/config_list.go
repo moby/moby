@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 )
 
 // ConfigList returns the list of configs.
-func (cli *Client) ConfigList(ctx context.Context, options types.ConfigListOptions) ([]swarm.Config, error) {
+func (cli *Client) ConfigList(ctx context.Context, options swarm.ConfigListOptions) ([]swarm.Config, error) {
 	if err := cli.NewVersionError(ctx, "1.30", "config list"); err != nil {
 		return nil, err
 	}
@@ -33,6 +32,6 @@ func (cli *Client) ConfigList(ctx context.Context, options types.ConfigListOptio
 	}
 
 	var configs []swarm.Config
-	err = json.NewDecoder(resp.body).Decode(&configs)
+	err = json.NewDecoder(resp.Body).Decode(&configs)
 	return configs, err
 }

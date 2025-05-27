@@ -5,7 +5,7 @@
 
 # This represents the bare minimum required to build and test Docker.
 
-ARG GO_VERSION=1.23.4
+ARG GO_VERSION=1.24.3
 
 ARG BASE_DEBIAN_DISTRO="bookworm"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
@@ -35,10 +35,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		vim-common \
 	&& rm -rf /var/lib/apt/lists/*
 
-# Install runc, containerd, tini and docker-proxy
+# Install runc, containerd, and tini
 # Please edit hack/dockerfile/install/<name>.installer to update them.
 COPY hack/dockerfile/install hack/dockerfile/install
-RUN for i in runc containerd tini proxy dockercli; \
+RUN set -e; for i in runc containerd tini dockercli; \
 		do hack/dockerfile/install/install.sh $i; \
 	done
 ENV PATH=/usr/local/cli:$PATH

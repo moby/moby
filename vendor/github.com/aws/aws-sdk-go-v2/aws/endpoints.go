@@ -70,6 +70,10 @@ func GetUseFIPSEndpoint(options ...interface{}) (value FIPSEndpointState, found 
 // The SDK will automatically resolve these endpoints per API client using an
 // internal endpoint resolvers. If you'd like to provide custom endpoint
 // resolving behavior you can implement the EndpointResolver interface.
+//
+// Deprecated: This structure was used with the global [EndpointResolver]
+// interface, which has been deprecated in favor of service-specific endpoint
+// resolution. See the deprecation docs on that interface for more information.
 type Endpoint struct {
 	// The base URL endpoint the SDK API clients will use to make API calls to.
 	// The SDK will suffix URI path and query elements to this endpoint.
@@ -124,6 +128,8 @@ type Endpoint struct {
 }
 
 // EndpointSource is the endpoint source type.
+//
+// Deprecated: The global [Endpoint] structure is deprecated.
 type EndpointSource int
 
 const (
@@ -161,19 +167,25 @@ func (e *EndpointNotFoundError) Unwrap() error {
 // API clients will fallback to attempting to resolve the endpoint using its
 // internal default endpoint resolver.
 //
-// Deprecated: See EndpointResolverWithOptions
+// Deprecated: The global endpoint resolution interface is deprecated. The API
+// for endpoint resolution is now unique to each service and is set via the
+// EndpointResolverV2 field on service client options. Setting a value for
+// EndpointResolver on aws.Config or service client options will prevent you
+// from using any endpoint-related service features released after the
+// introduction of EndpointResolverV2. You may also encounter broken or
+// unexpected behavior when using the old global interface with services that
+// use many endpoint-related customizations such as S3.
 type EndpointResolver interface {
 	ResolveEndpoint(service, region string) (Endpoint, error)
 }
 
 // EndpointResolverFunc wraps a function to satisfy the EndpointResolver interface.
 //
-// Deprecated: See EndpointResolverWithOptionsFunc
+// Deprecated: The global endpoint resolution interface is deprecated. See
+// deprecation docs on [EndpointResolver].
 type EndpointResolverFunc func(service, region string) (Endpoint, error)
 
 // ResolveEndpoint calls the wrapped function and returns the results.
-//
-// Deprecated: See EndpointResolverWithOptions.ResolveEndpoint
 func (e EndpointResolverFunc) ResolveEndpoint(service, region string) (Endpoint, error) {
 	return e(service, region)
 }
@@ -184,11 +196,17 @@ func (e EndpointResolverFunc) ResolveEndpoint(service, region string) (Endpoint,
 // available. If the EndpointResolverWithOptions returns an EndpointNotFoundError error,
 // API clients will fallback to attempting to resolve the endpoint using its
 // internal default endpoint resolver.
+//
+// Deprecated: The global endpoint resolution interface is deprecated. See
+// deprecation docs on [EndpointResolver].
 type EndpointResolverWithOptions interface {
 	ResolveEndpoint(service, region string, options ...interface{}) (Endpoint, error)
 }
 
 // EndpointResolverWithOptionsFunc wraps a function to satisfy the EndpointResolverWithOptions interface.
+//
+// Deprecated: The global endpoint resolution interface is deprecated. See
+// deprecation docs on [EndpointResolver].
 type EndpointResolverWithOptionsFunc func(service, region string, options ...interface{}) (Endpoint, error)
 
 // ResolveEndpoint calls the wrapped function and returns the results.

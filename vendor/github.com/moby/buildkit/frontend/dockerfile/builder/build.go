@@ -103,7 +103,7 @@ func Build(ctx context.Context, c client.Client) (_ *client.Result, err error) {
 	}
 
 	defer func() {
-		var el *parser.ErrorLocation
+		var el *parser.LocationError
 		if errors.As(err, &el) {
 			for _, l := range el.Locations {
 				err = wrapSource(err, src.SourceMap, l)
@@ -156,11 +156,13 @@ func Build(ctx context.Context, c client.Client) (_ *client.Result, err error) {
 			return nil, nil, nil, err
 		}
 
-		p := platforms.DefaultSpec()
+		var p ocispecs.Platform
 		if platform != nil {
 			p = *platform
+		} else {
+			p = platforms.DefaultSpec()
 		}
-		scanTargets.Store(platforms.Format(platforms.Normalize(p)), scanTarget)
+		scanTargets.Store(platforms.FormatAll(platforms.Normalize(p)), scanTarget)
 
 		return ref, img, baseImg, nil
 	})

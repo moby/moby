@@ -17,8 +17,8 @@ import (
 
 type Stream interface {
 	Context() context.Context
-	SendMsg(m interface{}) error
-	RecvMsg(m interface{}) error
+	SendMsg(m any) error
+	RecvMsg(m any) error
 }
 
 func newStreamWriter(stream grpc.ClientStream) io.WriteCloser {
@@ -32,7 +32,7 @@ type bufferedWriteCloser struct {
 }
 
 func (bwc *bufferedWriteCloser) Close() error {
-	if err := bwc.Writer.Flush(); err != nil {
+	if err := bwc.Flush(); err != nil {
 		return errors.WithStack(err)
 	}
 	return bwc.Closer.Close()
@@ -59,10 +59,10 @@ func (wc *streamWriterCloser) Write(dt []byte) (int, error) {
 		return n1 + n2, nil
 	}
 
-	if err := wc.ClientStream.SendMsg(&BytesMessage{Data: dt}); err != nil {
+	if err := wc.SendMsg(&BytesMessage{Data: dt}); err != nil {
 		// SendMsg return EOF on remote errors
 		if errors.Is(err, io.EOF) {
-			if err := errors.WithStack(wc.ClientStream.RecvMsg(struct{}{})); err != nil {
+			if err := errors.WithStack(wc.RecvMsg(struct{}{})); err != nil {
 				return 0, err
 			}
 		}
@@ -72,18 +72,18 @@ func (wc *streamWriterCloser) Write(dt []byte) (int, error) {
 }
 
 func (wc *streamWriterCloser) Close() error {
-	if err := wc.ClientStream.CloseSend(); err != nil {
+	if err := wc.CloseSend(); err != nil {
 		return errors.WithStack(err)
 	}
 	// block until receiver is done
 	var bm BytesMessage
-	if err := wc.ClientStream.RecvMsg(&bm); err != io.EOF {
+	if err := wc.RecvMsg(&bm); !errors.Is(err, io.EOF) {
 		return errors.WithStack(err)
 	}
 	return nil
 }
 
-func recvDiffCopy(ds grpc.ClientStream, dest string, cu CacheUpdater, progress progressCb, differ fsutil.DiffType, filter func(string, *fstypes.Stat) bool) (err error) {
+func recvDiffCopy(ds grpc.ClientStream, dest string, cu CacheUpdater, progress progressCb, differ fsutil.DiffType, filter, metadataOnlyFilter func(string, *fstypes.Stat) bool) (err error) {
 	st := time.Now()
 	defer func() {
 		bklog.G(ds.Context()).Debugf("diffcopy took: %v", time.Since(st))
@@ -107,6 +107,7 @@ func recvDiffCopy(ds grpc.ClientStream, dest string, cu CacheUpdater, progress p
 		ProgressCb:    progress,
 		Filter:        fsutil.FilterFunc(filter),
 		Differ:        differ,
+		MetadataOnly:  metadataOnlyFilter,
 	}))
 }
 

@@ -86,7 +86,7 @@ func NewBridge(opt Opt) (network.Provider, error) {
 		firewallBackend = "iptables"
 	}
 
-	cniOptions = append(cniOptions, cni.WithConfListBytes([]byte(fmt.Sprintf(`{
+	cniOptions = append(cniOptions, cni.WithConfListBytes(fmt.Appendf(nil, `{
 		"cniVersion": "1.0.0",
 		"name": "buildkit",
 		"plugins": [
@@ -113,7 +113,7 @@ func NewBridge(opt Opt) (network.Provider, error) {
 				"ingressPolicy": "same-bridge"
 			}
 		]
-		}`, loopbackBinName, bridgeBinName, opt.BridgeName, hostLocalBinName, opt.BridgeSubnet, firewallBinName, firewallBackend))))
+		}`, loopbackBinName, bridgeBinName, opt.BridgeName, hostLocalBinName, opt.BridgeSubnet, firewallBinName, firewallBackend)))
 
 	unlock, err := initLock()
 	if err != nil {

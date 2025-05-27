@@ -9,9 +9,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/remotes"
-	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/remotes"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
 	distreference "github.com/distribution/reference"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver/pb"
@@ -125,14 +125,16 @@ func newResolver(hosts docker.RegistryHosts, handler *authHandlerNS, sm *session
 			docker.WithPlainHTTP(docker.MatchLocalhost),
 		)
 	}
+	headers := http.Header{}
+	headers.Set("User-Agent", version.UserAgent())
 	r := &Resolver{
 		hosts:   hosts,
 		sm:      sm,
 		g:       g,
 		handler: handler,
+		headers: headers,
 	}
-	headers := http.Header{}
-	headers.Set("User-Agent", version.UserAgent())
+
 	r.Resolver = docker.NewResolver(docker.ResolverOptions{
 		Hosts:   r.HostsFunc,
 		Headers: headers,
@@ -144,6 +146,7 @@ func newResolver(hosts docker.RegistryHosts, handler *authHandlerNS, sm *session
 type Resolver struct {
 	remotes.Resolver
 	hosts   docker.RegistryHosts
+	headers http.Header
 	sm      *session.Manager
 	g       session.Group
 	handler *authHandlerNS
@@ -196,7 +199,8 @@ func (r *Resolver) WithSession(s session.Group) *Resolver {
 	r2.auth = nil
 	r2.g = s
 	r2.Resolver = docker.NewResolver(docker.ResolverOptions{
-		Hosts: r2.HostsFunc, // this refers to the newly-configured session so we need to recreate the resolver.
+		Hosts:   r2.HostsFunc, // this refers to the newly-configured session so we need to recreate the resolver.
+		Headers: r2.headers.Clone(),
 	})
 	return &r2
 }

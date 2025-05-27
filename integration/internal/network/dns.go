@@ -2,7 +2,6 @@ package network
 
 import (
 	"net"
-	"os"
 	"testing"
 
 	"github.com/miekg/dns"
@@ -11,22 +10,10 @@ import (
 
 const DNSRespAddr = "10.11.12.13"
 
-// WriteTempResolvConf writes a resolv.conf that only contains a single
-// nameserver line, with address addr.
-// It returns the name of the temp file. The temp file will be deleted
-// automatically by a t.Cleanup().
-func WriteTempResolvConf(t *testing.T, addr string) string {
-	t.Helper()
-	// Not using t.TempDir() here because in rootless mode, while the temporary
-	// directory gets mode 0777, it's a subdir of an 0700 directory owned by root.
-	// So, it's not accessible by the daemon.
-	f, err := os.CreateTemp("", "resolv.conf")
-	assert.NilError(t, err)
-	t.Cleanup(func() { os.Remove(f.Name()) })
-	err = f.Chmod(0o644)
-	assert.NilError(t, err)
-	f.Write([]byte("nameserver " + addr + "\n"))
-	return f.Name()
+// GenResolvConf generates a resolv.conf that only contains a single
+// nameserver line, with address addr, and returns the file content.
+func GenResolvConf(addr string) string {
+	return "nameserver " + addr + "\n"
 }
 
 // StartDaftDNS starts and returns a really, really daft DNS server that only

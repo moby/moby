@@ -432,7 +432,7 @@ type Value struct {
 	Index string          `json:"index,omitempty"`
 }
 
-func NewValue(v interface{}) (*Value, error) {
+func NewValue(v any) (*Value, error) {
 	dt, err := json.Marshal(v)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -440,7 +440,7 @@ func NewValue(v interface{}) (*Value, error) {
 	return &Value{Value: json.RawMessage(dt)}, nil
 }
 
-func (v *Value) Unmarshal(target interface{}) error {
+func (v *Value) Unmarshal(target any) error {
 	return errors.WithStack(json.Unmarshal(v.Value, target))
 }
 

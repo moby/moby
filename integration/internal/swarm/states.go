@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
@@ -14,7 +13,7 @@ import (
 // NoTasksForService verifies that there are no more tasks for the given service
 func NoTasksForService(ctx context.Context, client client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		tasks, err := client.TaskList(ctx, types.TaskListOptions{
+		tasks, err := client.TaskList(ctx, swarmtypes.TaskListOptions{
 			Filters: filters.NewArgs(
 				filters.Arg("service", serviceID),
 			),
@@ -36,7 +35,7 @@ func NoTasksForService(ctx context.Context, client client.ServiceAPIClient, serv
 // NoTasks verifies that all tasks are gone
 func NoTasks(ctx context.Context, client client.ServiceAPIClient) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		tasks, err := client.TaskList(ctx, types.TaskListOptions{})
+		tasks, err := client.TaskList(ctx, swarmtypes.TaskListOptions{})
 		switch {
 		case err != nil:
 			return poll.Error(err)
@@ -53,7 +52,7 @@ func RunningTasksCount(ctx context.Context, client client.ServiceAPIClient, serv
 	return func(log poll.LogT) poll.Result {
 		filter := filters.NewArgs()
 		filter.Add("service", serviceID)
-		tasks, err := client.TaskList(ctx, types.TaskListOptions{
+		tasks, err := client.TaskList(ctx, swarmtypes.TaskListOptions{
 			Filters: filter,
 		})
 		var running int
@@ -66,6 +65,8 @@ func RunningTasksCount(ctx context.Context, client client.ServiceAPIClient, serv
 				if task.Status.Err != "" {
 					taskError = task.Status.Err
 				}
+			default:
+				// not interested in other states.
 			}
 		}
 
@@ -87,7 +88,7 @@ func RunningTasksCount(ctx context.Context, client client.ServiceAPIClient, serv
 // JobComplete is a poll function for determining that a ReplicatedJob is
 // completed additionally, while polling, it verifies that the job never
 // exceeds MaxConcurrent running tasks
-func JobComplete(ctx context.Context, client client.CommonAPIClient, service swarmtypes.Service) func(log poll.LogT) poll.Result {
+func JobComplete(ctx context.Context, client client.ServiceAPIClient, service swarmtypes.Service) func(log poll.LogT) poll.Result {
 	filter := filters.NewArgs(filters.Arg("service", service.ID))
 
 	var jobIteration swarmtypes.Version
@@ -100,7 +101,7 @@ func JobComplete(ctx context.Context, client client.CommonAPIClient, service swa
 	previousResult := ""
 
 	return func(log poll.LogT) poll.Result {
-		tasks, err := client.TaskList(ctx, types.TaskListOptions{
+		tasks, err := client.TaskList(ctx, swarmtypes.TaskListOptions{
 			Filters: filter,
 		})
 		if err != nil {
@@ -125,6 +126,8 @@ func JobComplete(ctx context.Context, client client.CommonAPIClient, service swa
 				runningID = append(runningID, task.ID)
 			case swarmtypes.TaskStateComplete:
 				completed++
+			default:
+				// not interested in other states.
 			}
 		}
 

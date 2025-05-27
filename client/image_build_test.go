@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	cerrdefs "github.com/containerd/errdefs"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,8 +22,8 @@ func TestImageBuildError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImageBuild(context.Background(), nil, types.ImageBuildOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	_, err := client.ImageBuild(context.Background(), nil, build.ImageBuildOptions{})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageBuild(t *testing.T) {
@@ -31,13 +31,13 @@ func TestImageBuild(t *testing.T) {
 	v2 := "value2"
 	emptyRegistryConfig := "bnVsbA=="
 	buildCases := []struct {
-		buildOptions           types.ImageBuildOptions
+		buildOptions           build.ImageBuildOptions
 		expectedQueryParams    map[string]string
 		expectedTags           []string
 		expectedRegistryConfig string
 	}{
 		{
-			buildOptions: types.ImageBuildOptions{
+			buildOptions: build.ImageBuildOptions{
 				SuppressOutput: true,
 				NoCache:        true,
 				Remove:         true,
@@ -54,7 +54,7 @@ func TestImageBuild(t *testing.T) {
 			expectedRegistryConfig: emptyRegistryConfig,
 		},
 		{
-			buildOptions: types.ImageBuildOptions{
+			buildOptions: build.ImageBuildOptions{
 				SuppressOutput: false,
 				NoCache:        false,
 				Remove:         false,
@@ -72,7 +72,7 @@ func TestImageBuild(t *testing.T) {
 			expectedRegistryConfig: emptyRegistryConfig,
 		},
 		{
-			buildOptions: types.ImageBuildOptions{
+			buildOptions: build.ImageBuildOptions{
 				RemoteContext: "remoteContext",
 				Isolation:     container.Isolation("isolation"),
 				CPUSetCPUs:    "2",
@@ -105,7 +105,7 @@ func TestImageBuild(t *testing.T) {
 			expectedRegistryConfig: emptyRegistryConfig,
 		},
 		{
-			buildOptions: types.ImageBuildOptions{
+			buildOptions: build.ImageBuildOptions{
 				BuildArgs: map[string]*string{
 					"ARG1": &v1,
 					"ARG2": &v2,
@@ -120,7 +120,7 @@ func TestImageBuild(t *testing.T) {
 			expectedRegistryConfig: emptyRegistryConfig,
 		},
 		{
-			buildOptions: types.ImageBuildOptions{
+			buildOptions: build.ImageBuildOptions{
 				Ulimits: []*container.Ulimit{
 					{
 						Name: "nproc",
@@ -142,7 +142,7 @@ func TestImageBuild(t *testing.T) {
 			expectedRegistryConfig: emptyRegistryConfig,
 		},
 		{
-			buildOptions: types.ImageBuildOptions{
+			buildOptions: build.ImageBuildOptions{
 				AuthConfigs: map[string]registry.AuthConfig{
 					"https://index.docker.io/v1/": {
 						Auth: "dG90bwo=",
@@ -200,20 +200,12 @@ func TestImageBuild(t *testing.T) {
 			}),
 		}
 		buildResponse, err := client.ImageBuild(context.Background(), nil, buildCase.buildOptions)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if buildResponse.OSType != "MyOS" {
-			t.Fatalf("expected OSType to be 'MyOS', got %s", buildResponse.OSType)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(buildResponse.OSType, "MyOS"))
 		response, err := io.ReadAll(buildResponse.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NilError(t, err)
 		buildResponse.Body.Close()
-		if string(response) != "body" {
-			t.Fatalf("expected Body to contain 'body' string, got %s", response)
-		}
+		assert.Check(t, is.Equal(string(response), "body"))
 	}
 }
 
@@ -225,8 +217,6 @@ func TestGetDockerOS(t *testing.T) {
 	}
 	for header, os := range cases {
 		g := getDockerOS(header)
-		if g != os {
-			t.Fatalf("Expected %s, got %s", os, g)
-		}
+		assert.Check(t, is.Equal(g, os))
 	}
 }

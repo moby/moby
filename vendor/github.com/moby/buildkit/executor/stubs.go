@@ -33,7 +33,7 @@ func MountStubsCleaner(ctx context.Context, dir string, mounts []Mount, recursiv
 
 		for {
 			_, err = os.Lstat(realPath)
-			if !(errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOTDIR)) {
+			if !errors.Is(err, os.ErrNotExist) && !errors.Is(err, syscall.ENOTDIR) {
 				break
 			}
 			paths = append(paths, realPath)

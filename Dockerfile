@@ -1,19 +1,27 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.23.4
+ARG GO_VERSION=1.24.3
 ARG BASE_DEBIAN_DISTRO="bookworm"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 ARG XX_VERSION=1.6.1
 
-ARG VPNKIT_VERSION=0.5.0
+# VPNKIT_VERSION is the version of the vpnkit binary which is used as a fallback
+# network driver for rootless.
+ARG VPNKIT_VERSION=0.6.0
 
+# DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
+ARG DOCKERCLI_VERSION=v28.1.1
 ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
-ARG DOCKERCLI_VERSION=v27.3.1
+
 # cli version used for integration-cli tests
 ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
-ARG DOCKERCLI_INTEGRATION_VERSION=v17.06.2-ce
-ARG BUILDX_VERSION=0.18.0
-ARG COMPOSE_VERSION=v2.30.3
+ARG DOCKERCLI_INTEGRATION_VERSION=v18.06.3-ce
+
+# BUILDX_VERSION is the version of buildx to install in the dev container.
+ARG BUILDX_VERSION=0.23.0
+
+# COMPOSE_VERSION is the version of compose to install in the dev container.
+ARG COMPOSE_VERSION=v2.36.0
 
 ARG SYSTEMD="false"
 ARG FIREWALLD="false"
@@ -23,11 +31,16 @@ ARG DOCKER_STATIC=1
 # https://hub.docker.com/r/distribution/distribution. This version of
 # the registry is used to test schema 2 manifests. Generally,  the version
 # specified here should match a current release.
-ARG REGISTRY_VERSION=3.0.0-rc.1
+ARG REGISTRY_VERSION=3.0.0
 
 # delve is currently only supported on linux/amd64 and linux/arm64;
-# https://github.com/go-delve/delve/blob/v1.8.1/pkg/proc/native/support_sentinel.go#L1-L6
-ARG DELVE_SUPPORTED=${TARGETPLATFORM#linux/amd64} DELVE_SUPPORTED=${DELVE_SUPPORTED#linux/arm64}
+# https://github.com/go-delve/delve/blob/v1.24.1/pkg/proc/native/support_sentinel.go#L1
+# https://github.com/go-delve/delve/blob/v1.24.1/pkg/proc/native/support_sentinel_linux.go#L1
+#
+# ppc64le support was added in v1.21.1, but is still experimental, and requires
+# the "-tags exp.linuxppc64le" build-tag to be set:
+# https://github.com/go-delve/delve/commit/71f12207175a1cc09668f856340d8a543c87dcca
+ARG DELVE_SUPPORTED=${TARGETPLATFORM#linux/amd64} DELVE_SUPPORTED=${DELVE_SUPPORTED#linux/arm64} DELVE_SUPPORTED=${DELVE_SUPPORTED#linux/ppc64le}
 ARG DELVE_SUPPORTED=${DELVE_SUPPORTED:+"unsupported"}
 ARG DELVE_SUPPORTED=${DELVE_SUPPORTED:-"supported"}
 
@@ -44,6 +57,11 @@ COPY --from=build-dummy /build /build
 # base
 FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS base
 COPY --from=xx / /
+# Disable collecting local telemetry, as collected by Go and Delve;
+#
+# - https://github.com/go-delve/delve/blob/v1.24.1/CHANGELOG.md#1231-2024-09-23
+# - https://go.dev/doc/telemetry#background
+RUN go telemetry off && [ "$(go telemetry)" = "off" ] || { echo "Failed to disable Go telemetry"; exit 1; }
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 RUN apt-get update && apt-get install --no-install-recommends -y file
 ENV GO111MODULE=off
@@ -60,41 +78,8 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
         && /build/criu --version
 
 # registry
-FROM base AS registry-src
-WORKDIR /usr/src/registry
-RUN git init . && git remote add origin "https://github.com/distribution/distribution.git"
-
-FROM base AS registry
-WORKDIR /go/src/github.com/docker/distribution
-
-# REGISTRY_VERSION_SCHEMA1 specifies the version of the registry to build and
-# install from the https://github.com/docker/distribution repository. This is
-# an older (pre v2.3.0) version of the registry that only supports schema1
-# manifests. This version of the registry is not working on arm64, so installation
-# is skipped on that architecture.
-ARG REGISTRY_VERSION_SCHEMA1=v2.1.0
-ARG TARGETPLATFORM
-RUN --mount=from=registry-src,src=/usr/src/registry,rw \
-    --mount=type=cache,target=/root/.cache/go-build,id=registry-build-$TARGETPLATFORM \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=tmpfs,target=/go/src <<EOT
-  set -ex
-  export GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"
-  # Make the /build directory no matter what so that it doesn't fail on arm64 or
-  # any other platform where we don't build this registry
-  mkdir /build
-  case $TARGETPLATFORM in
-    linux/amd64|linux/arm/v7|linux/ppc64le|linux/s390x)
-      git fetch -q --depth 1 origin "${REGISTRY_VERSION_SCHEMA1}" +refs/tags/*:refs/tags/*
-      git checkout -q FETCH_HEAD
-      CGO_ENABLED=0 xx-go build -o /build/registry-v2-schema1 -v ./cmd/registry
-      xx-verify /build/registry-v2-schema1
-      ;;
-  esac
-EOT
-
-FROM distribution/distribution:$REGISTRY_VERSION AS registry-v2
-RUN mkdir /build && mv /bin/registry /build/registry-v2
+FROM distribution/distribution:$REGISTRY_VERSION AS registry
+RUN mkdir /build && mv /bin/registry /build/registry
 
 # go-swagger
 FROM base AS swagger-src
@@ -150,7 +135,7 @@ RUN git init . && git remote add origin "https://github.com/go-delve/delve.git"
 # from the https://github.com/go-delve/delve repository.
 # It can be used to run Docker with a possibility of
 # attaching debugger to it.
-ARG DELVE_VERSION=v1.23.0
+ARG DELVE_VERSION=v1.24.1
 RUN git fetch -q --depth 1 origin "${DELVE_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS delve-supported
@@ -166,19 +151,6 @@ EOT
 
 FROM binary-dummy AS delve-unsupported
 FROM delve-${DELVE_SUPPORTED} AS delve
-
-FROM base AS tomll
-# GOTOML_VERSION specifies the version of the tomll binary to build and install
-# from the https://github.com/pelletier/go-toml repository. This binary is used
-# in CI in the hack/validate/toml script.
-#
-# When updating this version, consider updating the github.com/pelletier/go-toml
-# dependency in vendor.mod accordingly.
-ARG GOTOML_VERSION=v1.8.1
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ GO111MODULE=on go install "github.com/pelletier/go-toml/cmd/tomll@${GOTOML_VERSION}" \
-     && /build/tomll --help
 
 FROM base AS gowinres
 # GOWINRES_VERSION defines go-winres tool version
@@ -199,7 +171,7 @@ RUN git init . && git remote add origin "https://github.com/containerd/container
 # When updating the binary version you may also need to update the vendor
 # version to pick up bug fixes or new APIs, however, usually the Go packages
 # are built from a commit from the master branch.
-ARG CONTAINERD_VERSION=v1.7.24
+ARG CONTAINERD_VERSION=v1.7.27
 RUN git fetch -q --depth 1 origin "${CONTAINERD_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS containerd-build
@@ -230,14 +202,14 @@ FROM binary-dummy AS containerd-windows
 FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
-ARG GOLANGCI_LINT_VERSION=v1.62.0
+ARG GOLANGCI_LINT_VERSION=v2.1.5
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ GO111MODULE=on go install "github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
+        GOBIN=/build/ GO111MODULE=on go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
      && /build/golangci-lint --version
 
 FROM base AS gotestsum
-ARG GOTESTSUM_VERSION=v1.8.2
+ARG GOTESTSUM_VERSION=v1.12.0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         GOBIN=/build/ GO111MODULE=on go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}" \
@@ -266,7 +238,8 @@ RUN --mount=source=hack/dockerfile/cli.sh,target=/download-or-build-cli.sh \
     --mount=type=cache,target=/root/.cache/go-build,id=dockercli-build-$TARGETPLATFORM \
         rm -f ./.git/*.lock \
      && /download-or-build-cli.sh ${DOCKERCLI_VERSION} ${DOCKERCLI_REPOSITORY} /build \
-     && /build/docker --version
+     && /build/docker --version \
+     && /build/docker completion bash >/completion.bash
 
 FROM base AS dockercli-integration
 WORKDIR /go/src/github.com/docker/cli
@@ -288,7 +261,7 @@ RUN git init . && git remote add origin "https://github.com/opencontainers/runc.
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged. When updating RUNC_VERSION,
 # consider updating runc in vendor.mod accordingly.
-ARG RUNC_VERSION=v1.2.3
+ARG RUNC_VERSION=v1.2.6
 RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS runc-build
@@ -356,7 +329,7 @@ FROM base AS rootlesskit-src
 WORKDIR /usr/src/rootlesskit
 RUN git init . && git remote add origin "https://github.com/rootless-containers/rootlesskit.git"
 # When updating, also update vendor.mod and hack/dockerfile/install/rootlesskit.installer accordingly.
-ARG ROOTLESSKIT_VERSION=v2.3.1
+ARG ROOTLESSKIT_VERSION=v2.3.4
 RUN git fetch -q --depth 1 origin "${ROOTLESSKIT_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS rootlesskit-build
@@ -386,7 +359,8 @@ FROM binary-dummy AS rootlesskit-windows
 FROM rootlesskit-${TARGETOS} AS rootlesskit
 
 FROM base AS crun
-ARG CRUN_VERSION=1.12
+# CRUN_VERSION is the version of crun to install in the dev-container.
+ARG CRUN_VERSION=1.21
 RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-crun-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
@@ -417,8 +391,8 @@ FROM scratch AS vpnkit-linux-arm
 FROM scratch AS vpnkit-linux-ppc64le
 FROM scratch AS vpnkit-linux-riscv64
 FROM scratch AS vpnkit-linux-s390x
-FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit-linux-amd64
-FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit-linux-arm64
+FROM moby/vpnkit-bin:${VPNKIT_VERSION} AS vpnkit-linux-amd64
+FROM moby/vpnkit-bin:${VPNKIT_VERSION} AS vpnkit-linux-arm64
 FROM vpnkit-linux-${TARGETARCH} AS vpnkit-linux
 FROM vpnkit-${TARGETOS} AS vpnkit
 
@@ -450,18 +424,16 @@ FROM binary-dummy AS containerutil-linux
 FROM containerutil-build AS containerutil-windows-amd64
 FROM containerutil-windows-${TARGETARCH} AS containerutil-windows
 FROM containerutil-${TARGETOS} AS containerutil
-FROM docker/buildx-bin:${BUILDX_VERSION} as buildx
-FROM docker/compose-bin:${COMPOSE_VERSION} as compose
+FROM docker/buildx-bin:${BUILDX_VERSION} AS buildx
+FROM docker/compose-bin:${COMPOSE_VERSION} AS compose
 
 FROM base AS dev-systemd-false
 COPY --link --from=frozen-images /build/ /docker-frozen-images
 COPY --link --from=swagger       /build/ /usr/local/bin/
 COPY --link --from=delve         /build/ /usr/local/bin/
-COPY --link --from=tomll         /build/ /usr/local/bin/
 COPY --link --from=gowinres      /build/ /usr/local/bin/
 COPY --link --from=tini          /build/ /usr/local/bin/
 COPY --link --from=registry      /build/ /usr/local/bin/
-COPY --link --from=registry-v2   /build/ /usr/local/bin/
 
 # Skip the CRIU stage for now, as the opensuse package repository is sometimes
 # unstable, and we're currently not using it in CI.
@@ -508,7 +480,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-dev-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
             firewalld
-RUN sed -i 's/FirewallBackend=nftables/FirewallBackend=iptables/' /etc/firewalld/firewalld.conf
 
 FROM dev-firewalld-${FIREWALLD} AS dev-base
 RUN groupadd -r docker
@@ -517,9 +488,8 @@ RUN useradd --create-home --gid docker unprivilegeduser \
  && chown -R unprivilegeduser /home/unprivilegeduser
 # Let us use a .bashrc file
 RUN ln -sfv /go/src/github.com/docker/docker/.bashrc ~/.bashrc
-# Activate bash completion and include Docker's completion if mounted with DOCKER_BASH_COMPLETION_PATH
+# Activate bash completion
 RUN echo "source /usr/share/bash-completion/bash_completion" >> /etc/bash.bashrc
-RUN ln -s /usr/local/completion/bash/docker /etc/bash_completion.d/docker
 RUN ldconfig
 # Set dev environment as safe git directory to prevent "dubious ownership" errors
 # when bind-mounting the source into the dev-container. See https://github.com/moby/moby/pull/44930
@@ -535,6 +505,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             inetutils-ping \
             iproute2 \
             iptables \
+            nftables \
             jq \
             libcap2-bin \
             libnet1 \
@@ -542,6 +513,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             libprotobuf-c1 \
             libyajl2 \
             net-tools \
+            netcat-openbsd \
             patch \
             pigz \
             sudo \
@@ -554,11 +526,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             xz-utils \
             zip \
             zstd
-# Switch to use iptables instead of nftables (to match the CI hosts)
-# TODO use some kind of runtime auto-detection instead if/when nftables is supported (https://github.com/moby/moby/issues/26824)
-RUN update-alternatives --set iptables  /usr/sbin/iptables-legacy  || true \
- && update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy || true \
- && update-alternatives --set arptables /usr/sbin/arptables-legacy || true
 RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-dev-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install --no-install-recommends -y \
@@ -568,6 +535,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             libsystemd-dev \
             yamllint
 COPY --link --from=dockercli             /build/ /usr/local/cli
+COPY --link --from=dockercli             /completion.bash /etc/bash_completion.d/docker
 COPY --link --from=dockercli-integration /build/ /usr/local/cli-integration
 
 FROM base AS build
@@ -645,7 +613,7 @@ COPY --link --from=build         /build  /
 # smoke tests
 # usage:
 # > docker buildx bake binary-smoketest
-FROM --platform=$TARGETPLATFORM base AS smoketest
+FROM base AS smoketest
 WORKDIR /usr/local/bin
 COPY --from=build /build .
 RUN <<EOT
@@ -660,6 +628,15 @@ EOT
 FROM dev-base AS devcontainer
 COPY --link . .
 COPY --link --from=gopls         /build/ /usr/local/bin/
+
+# usage:
+# > docker buildx bake dind
+# > docker run -d --restart always --privileged --name devdind -p 12375:2375 docker-dind --debug --host=tcp://0.0.0.0:2375 --tlsverify=false
+FROM docker:dind AS dind
+COPY --link --from=dockercli /build/docker /usr/local/bin/
+COPY --link --from=buildx    /buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
+COPY --link --from=compose   /docker-compose /usr/local/libexec/docker/cli-plugins/docker-compose
+COPY --link --from=all       / /usr/local/bin/
 
 # usage:
 # > make shell

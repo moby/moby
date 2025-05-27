@@ -6,9 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -55,7 +54,7 @@ func TestBuildSquashParent(t *testing.T) {
 	name := strings.ToLower(t.Name())
 	resp, err := client.ImageBuild(ctx,
 		source.AsTarReader(t),
-		types.ImageBuildOptions{
+		build.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
 			Tags:        []string{name},
@@ -65,14 +64,14 @@ func TestBuildSquashParent(t *testing.T) {
 	resp.Body.Close()
 	assert.NilError(t, err)
 
-	inspect, _, err := client.ImageInspectWithRaw(ctx, name)
+	inspect, err := client.ImageInspect(ctx, name)
 	assert.NilError(t, err)
 	origID := inspect.ID
 
 	// build with squash
 	resp, err = client.ImageBuild(ctx,
 		source.AsTarReader(t),
-		types.ImageBuildOptions{
+		build.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
 			Squash:      true,
@@ -109,12 +108,12 @@ func TestBuildSquashParent(t *testing.T) {
 		container.WithCmd("/bin/sh", "-c", `[ "$(echo $HELLO)" = "world" ]`),
 	)
 
-	origHistory, err := client.ImageHistory(ctx, origID, image.HistoryOptions{})
+	origHistory, err := client.ImageHistory(ctx, origID)
 	assert.NilError(t, err)
-	testHistory, err := client.ImageHistory(ctx, name, image.HistoryOptions{})
+	testHistory, err := client.ImageHistory(ctx, name)
 	assert.NilError(t, err)
 
-	inspect, _, err = client.ImageInspectWithRaw(ctx, name)
+	inspect, err = client.ImageInspect(ctx, name)
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(testHistory, len(origHistory)+1))
 	assert.Check(t, is.Len(inspect.RootFS.Layers, 2))

@@ -32,6 +32,10 @@ func TestValidateMount(t *testing.T) {
 			input: mount.Mount{Type: mount.TypeVolume, Target: testDestinationPath, Source: "hello", VolumeOptions: &mount.VolumeOptions{Subpath: "world"}},
 		},
 		{
+			input:    mount.Mount{Type: mount.TypeVolume, Target: testDestinationPath, Source: "hello", BindOptions: &mount.BindOptions{}},
+			expected: errExtraField("BindOptions"),
+		},
+		{
 			input:    mount.Mount{Type: mount.TypeBind},
 			expected: errMissingField("Target"),
 		},
@@ -55,6 +59,47 @@ func TestValidateMount(t *testing.T) {
 			expected: errBindSourceDoesNotExist(testSourcePath),
 		},
 	}
+
+	if runtime.GOOS != "windows" {
+		imageTests := []struct {
+			input    mount.Mount
+			expected error
+		}{
+			{
+				input:    mount.Mount{Type: mount.TypeImage},
+				expected: errMissingField("Target"),
+			},
+			{
+				input:    mount.Mount{Type: mount.TypeImage, Target: testDestinationPath},
+				expected: errMissingField("Source"),
+			},
+			{
+				input: mount.Mount{Type: mount.TypeImage, Target: testDestinationPath, Source: "hello"},
+			},
+			{
+				input: mount.Mount{Type: mount.TypeImage, Target: testDestinationPath, Source: "hello", ImageOptions: &mount.ImageOptions{Subpath: "world"}},
+			},
+			{
+				input:    mount.Mount{Type: mount.TypeImage, Target: testDestinationPath, Source: "hello", BindOptions: &mount.BindOptions{}},
+				expected: errExtraField("BindOptions"),
+			},
+			{
+				input:    mount.Mount{Type: mount.TypeImage, Target: testDestinationPath, Source: "hello", VolumeOptions: &mount.VolumeOptions{}},
+				expected: errExtraField("VolumeOptions"),
+			},
+
+			{
+				input:    mount.Mount{Type: mount.TypeVolume, Target: testDestinationPath, Source: "hello", ImageOptions: &mount.ImageOptions{}},
+				expected: errExtraField("ImageOptions"),
+			},
+			{
+				input:    mount.Mount{Type: mount.TypeBind, Target: testDestinationPath, Source: testSourcePath, ImageOptions: &mount.ImageOptions{}},
+				expected: errExtraField("ImageOptions"),
+			},
+		}
+		tests = append(tests, imageTests...)
+	}
+
 	for _, tc := range tests {
 		t.Run("", func(t *testing.T) {
 			err := parser.ValidateMountConfig(&tc.input)

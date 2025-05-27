@@ -3,119 +3,74 @@ package errdefs
 import (
 	"context"
 	"errors"
+
+	cerrdefs "github.com/containerd/errdefs"
 )
 
-type causer interface {
-	Cause() error
-}
+// IsNotFound returns if the passed in error is an [ErrNotFound],
+//
+// Deprecated: use containerd [cerrdefs.IsNotFound]
+var IsNotFound = cerrdefs.IsNotFound
 
-type wrapErr interface {
-	Unwrap() error
-}
+// IsInvalidParameter returns if the passed in error is an [ErrInvalidParameter].
+//
+// Deprecated: use containerd [cerrdefs.IsInvalidArgument]
+var IsInvalidParameter = cerrdefs.IsInvalidArgument
 
-func getImplementer(err error) error {
-	switch e := err.(type) {
-	case
-		ErrNotFound,
-		ErrInvalidParameter,
-		ErrConflict,
-		ErrUnauthorized,
-		ErrUnavailable,
-		ErrForbidden,
-		ErrSystem,
-		ErrNotModified,
-		ErrNotImplemented,
-		ErrCancelled,
-		ErrDeadline,
-		ErrDataLoss,
-		ErrUnknown:
-		return err
-	case causer:
-		return getImplementer(e.Cause())
-	case wrapErr:
-		return getImplementer(e.Unwrap())
-	default:
-		return err
-	}
-}
+// IsConflict returns if the passed in error is an [ErrConflict].
+//
+// Deprecated: use containerd [cerrdefs.IsConflict]
+var IsConflict = cerrdefs.IsConflict
 
-// IsNotFound returns if the passed in error is an ErrNotFound
-func IsNotFound(err error) bool {
-	_, ok := getImplementer(err).(ErrNotFound)
-	return ok
-}
+// IsUnauthorized returns if the passed in error is an [ErrUnauthorized].
+//
+// Deprecated: use containerd [cerrdefs.IsUnauthorized]
+var IsUnauthorized = cerrdefs.IsUnauthorized
 
-// IsInvalidParameter returns if the passed in error is an ErrInvalidParameter
-func IsInvalidParameter(err error) bool {
-	_, ok := getImplementer(err).(ErrInvalidParameter)
-	return ok
-}
+// IsUnavailable returns if the passed in error is an [ErrUnavailable].
+//
+// Deprecated: use containerd [cerrdefs.IsUnavailable]
+var IsUnavailable = cerrdefs.IsUnavailable
 
-// IsConflict returns if the passed in error is an ErrConflict
-func IsConflict(err error) bool {
-	_, ok := getImplementer(err).(ErrConflict)
-	return ok
-}
+// IsForbidden returns if the passed in error is an [ErrForbidden].
+//
+// Deprecated: use containerd [cerrdefs.IsPermissionDenied]
+var IsForbidden = cerrdefs.IsPermissionDenied
 
-// IsUnauthorized returns if the passed in error is an ErrUnauthorized
-func IsUnauthorized(err error) bool {
-	_, ok := getImplementer(err).(ErrUnauthorized)
-	return ok
-}
+// IsSystem returns if the passed in error is an [ErrSystem].
+//
+// Deprecated: use containerd [cerrdefs.IsInternal]
+var IsSystem = cerrdefs.IsInternal
 
-// IsUnavailable returns if the passed in error is an ErrUnavailable
-func IsUnavailable(err error) bool {
-	_, ok := getImplementer(err).(ErrUnavailable)
-	return ok
-}
+// IsNotModified returns if the passed in error is an [ErrNotModified].
+//
+// Deprecated: use containerd [cerrdefs.IsNotModified]
+var IsNotModified = cerrdefs.IsNotModified
 
-// IsForbidden returns if the passed in error is an ErrForbidden
-func IsForbidden(err error) bool {
-	_, ok := getImplementer(err).(ErrForbidden)
-	return ok
-}
+// IsNotImplemented returns if the passed in error is an [ErrNotImplemented].
+//
+// Deprecated: use containerd [cerrdefs.IsNotImplemented]
+var IsNotImplemented = cerrdefs.IsNotImplemented
 
-// IsSystem returns if the passed in error is an ErrSystem
-func IsSystem(err error) bool {
-	_, ok := getImplementer(err).(ErrSystem)
-	return ok
-}
+// IsUnknown returns if the passed in error is an [ErrUnknown].
+//
+// Deprecated: use containerd [cerrdefs.IsUnknown]
+var IsUnknown = cerrdefs.IsUnknown
 
-// IsNotModified returns if the passed in error is a NotModified error
-func IsNotModified(err error) bool {
-	_, ok := getImplementer(err).(ErrNotModified)
-	return ok
-}
+// IsCancelled returns if the passed in error is an [ErrCancelled].
+//
+// Deprecated: use containerd [cerrdefs.IsCanceled]
+var IsCancelled = cerrdefs.IsCanceled
 
-// IsNotImplemented returns if the passed in error is an ErrNotImplemented
-func IsNotImplemented(err error) bool {
-	_, ok := getImplementer(err).(ErrNotImplemented)
-	return ok
-}
+// IsDeadline returns if the passed in error is an [ErrDeadline].
+//
+// Deprecated: use containerd [cerrdefs.IsDeadlineExceeded]
+var IsDeadline = cerrdefs.IsDeadlineExceeded
 
-// IsUnknown returns if the passed in error is an ErrUnknown
-func IsUnknown(err error) bool {
-	_, ok := getImplementer(err).(ErrUnknown)
-	return ok
-}
-
-// IsCancelled returns if the passed in error is an ErrCancelled
-func IsCancelled(err error) bool {
-	_, ok := getImplementer(err).(ErrCancelled)
-	return ok
-}
-
-// IsDeadline returns if the passed in error is an ErrDeadline
-func IsDeadline(err error) bool {
-	_, ok := getImplementer(err).(ErrDeadline)
-	return ok
-}
-
-// IsDataLoss returns if the passed in error is an ErrDataLoss
-func IsDataLoss(err error) bool {
-	_, ok := getImplementer(err).(ErrDataLoss)
-	return ok
-}
+// IsDataLoss returns if the passed in error is an [ErrDataLoss].
+//
+// Deprecated: use containerd [cerrdefs.IsDataLoss]
+var IsDataLoss = cerrdefs.IsDataLoss
 
 // IsContext returns if the passed in error is due to context cancellation or deadline exceeded.
 func IsContext(err error) bool {

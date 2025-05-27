@@ -16,8 +16,12 @@ import (
 
 // BoolValue transforms a form value in different formats into a boolean type.
 func BoolValue(r *http.Request, k string) bool {
-	s := strings.ToLower(strings.TrimSpace(r.FormValue(k)))
-	return !(s == "" || s == "0" || s == "no" || s == "false" || s == "none")
+	switch strings.ToLower(strings.TrimSpace(r.FormValue(k))) {
+	case "", "0", "no", "false", "none":
+		return false
+	default:
+		return true
+	}
 }
 
 // BoolValueOrDefault returns the default bool passed if the query param is
@@ -157,4 +161,23 @@ func DecodePlatform(platformJSON string) (*ocispec.Platform, error) {
 	}
 
 	return &p, nil
+}
+
+// DecodePlatforms decodes the OCI platform JSON string into a Platform struct.
+//
+// Typically, the argument is a value of: r.Form["platform"]
+func DecodePlatforms(platformJSONs []string) ([]ocispec.Platform, error) {
+	if len(platformJSONs) == 0 {
+		return nil, nil
+	}
+
+	var output []ocispec.Platform
+	for _, platform := range platformJSONs {
+		p, err := DecodePlatform(platform)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, *p)
+	}
+	return output, nil
 }

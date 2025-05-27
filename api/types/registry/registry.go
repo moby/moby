@@ -1,3 +1,6 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23
+
 package registry // import "github.com/docker/docker/api/types/registry"
 
 import (
@@ -15,23 +18,26 @@ type ServiceConfig struct {
 	InsecureRegistryCIDRs []*NetIPNet           `json:"InsecureRegistryCIDRs"`
 	IndexConfigs          map[string]*IndexInfo `json:"IndexConfigs"`
 	Mirrors               []string
+
+	// ExtraFields is for internal use to include deprecated fields on older API versions.
+	ExtraFields map[string]any `json:"-"`
 }
 
 // MarshalJSON implements a custom marshaler to include legacy fields
 // in API responses.
-func (sc ServiceConfig) MarshalJSON() ([]byte, error) {
-	tmp := map[string]interface{}{
-		"InsecureRegistryCIDRs": sc.InsecureRegistryCIDRs,
-		"IndexConfigs":          sc.IndexConfigs,
-		"Mirrors":               sc.Mirrors,
+func (sc *ServiceConfig) MarshalJSON() ([]byte, error) {
+	type tmp ServiceConfig
+	base, err := json.Marshal((*tmp)(sc))
+	if err != nil {
+		return nil, err
 	}
-	if sc.AllowNondistributableArtifactsCIDRs != nil {
-		tmp["AllowNondistributableArtifactsCIDRs"] = nil
+	var merged map[string]any
+	_ = json.Unmarshal(base, &merged)
+
+	for k, v := range sc.ExtraFields {
+		merged[k] = v
 	}
-	if sc.AllowNondistributableArtifactsHostnames != nil {
-		tmp["AllowNondistributableArtifactsHostnames"] = nil
-	}
-	return json.Marshal(tmp)
+	return json.Marshal(merged)
 }
 
 // NetIPNet is the net.IPNet type, which can be marshalled and
@@ -49,15 +55,17 @@ func (ipnet *NetIPNet) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON sets the IPNet from a byte array of JSON
-func (ipnet *NetIPNet) UnmarshalJSON(b []byte) (err error) {
+func (ipnet *NetIPNet) UnmarshalJSON(b []byte) error {
 	var ipnetStr string
-	if err = json.Unmarshal(b, &ipnetStr); err == nil {
-		var cidr *net.IPNet
-		if _, cidr, err = net.ParseCIDR(ipnetStr); err == nil {
-			*ipnet = NetIPNet(*cidr)
-		}
+	if err := json.Unmarshal(b, &ipnetStr); err != nil {
+		return err
 	}
-	return
+	_, cidr, err := net.ParseCIDR(ipnetStr)
+	if err != nil {
+		return err
+	}
+	*ipnet = NetIPNet(*cidr)
+	return nil
 }
 
 // IndexInfo contains information about a registry

@@ -4,14 +4,32 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"regexp"
+	"strings"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/lazyregexp"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-var headerRegexp = regexp.MustCompile(`\ADocker/.+\s\((.+)\)\z`)
+var headerRegexp = lazyregexp.New(`\ADocker/.+\s\((.+)\)\z`)
+
+type emptyIDError string
+
+func (e emptyIDError) InvalidParameter() {}
+
+func (e emptyIDError) Error() string {
+	return "invalid " + string(e) + " name or ID: value is empty"
+}
+
+// trimID trims the given object-ID / name, returning an error if it's empty.
+func trimID(objType, id string) (string, error) {
+	id = strings.TrimSpace(id)
+	if len(id) == 0 {
+		return "", emptyIDError(objType)
+	}
+	return id, nil
+}
 
 // getDockerOS returns the operating system based on the server header from the daemon.
 func getDockerOS(serverHeader string) string {
@@ -72,7 +90,7 @@ func encodePlatforms(platform ...ocispec.Platform) ([]string, error) {
 func encodePlatform(platform *ocispec.Platform) (string, error) {
 	p, err := json.Marshal(platform)
 	if err != nil {
-		return "", errdefs.InvalidParameter(fmt.Errorf("invalid platform: %v", err))
+		return "", fmt.Errorf("%w: invalid platform: %v", cerrdefs.ErrInvalidArgument, err)
 	}
 	return string(p), nil
 }

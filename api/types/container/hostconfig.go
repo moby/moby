@@ -145,7 +145,7 @@ func (n NetworkMode) IsDefault() bool {
 
 // IsPrivate indicates whether container uses its private network stack.
 func (n NetworkMode) IsPrivate() bool {
-	return !(n.IsHost() || n.IsContainer())
+	return !n.IsHost() && !n.IsContainer()
 }
 
 // IsContainer indicates whether container uses a container network stack.
@@ -230,7 +230,7 @@ type PidMode string
 
 // IsPrivate indicates whether the container uses its own new pid namespace.
 func (n PidMode) IsPrivate() bool {
-	return !(n.IsHost() || n.IsContainer())
+	return !n.IsHost() && !n.IsContainer()
 }
 
 // IsHost indicates whether the container uses the host's pid namespace.

@@ -112,10 +112,15 @@ func (d *DirectiveParser) ParseAll(data []byte) ([]*Directive, error) {
 // This allows for a flexible range of input formats, and appropriate syntax
 // selection.
 func DetectSyntax(dt []byte) (string, string, []Range, bool) {
-	return ParseDirective(keySyntax, dt)
+	return parseDirective(keySyntax, dt, true)
 }
 
 func ParseDirective(key string, dt []byte) (string, string, []Range, bool) {
+	return parseDirective(key, dt, false)
+}
+
+func parseDirective(key string, dt []byte, anyFormat bool) (string, string, []Range, bool) {
+	dt = discardBOM(dt)
 	dt, hadShebang, err := discardShebang(dt)
 	if err != nil {
 		return "", "", nil, false
@@ -131,6 +136,10 @@ func ParseDirective(key string, dt []byte) (string, string, []Range, bool) {
 		return syntax, cmdline, loc, true
 	}
 
+	if !anyFormat {
+		return "", "", nil, false
+	}
+
 	// use directive with different comment prefix, and search for //key=
 	directiveParser = DirectiveParser{line: line}
 	directiveParser.setComment("//")
@@ -139,14 +148,16 @@ func ParseDirective(key string, dt []byte) (string, string, []Range, bool) {
 	}
 
 	// use json directive, and search for { "key": "..." }
-	jsonDirective := map[string]string{}
+	jsonDirective := map[string]any{}
 	if err := json.Unmarshal(dt, &jsonDirective); err == nil {
-		if v, ok := jsonDirective[key]; ok {
-			loc := []Range{{
-				Start: Position{Line: line},
-				End:   Position{Line: line},
-			}}
-			return v, v, loc, true
+		if vAny, ok := jsonDirective[key]; ok {
+			if v, ok := vAny.(string); ok {
+				loc := []Range{{
+					Start: Position{Line: line},
+					End:   Position{Line: line},
+				}}
+				return v, v, loc, true
+			}
 		}
 	}
 
@@ -170,4 +181,8 @@ func discardShebang(dt []byte) ([]byte, bool, error) {
 		return rest, true, nil
 	}
 	return dt, false, nil
+}
+
+func discardBOM(dt []byte) []byte {
+	return bytes.TrimPrefix(dt, []byte{0xEF, 0xBB, 0xBF})
 }

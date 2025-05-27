@@ -1,7 +1,6 @@
 package service // import "github.com/docker/docker/volume/service"
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -13,11 +12,8 @@ import (
 func TestSetGetMeta(t *testing.T) {
 	t.Parallel()
 
-	dir, err := os.MkdirTemp("", "test-set-get")
-	assert.NilError(t, err)
-	defer os.RemoveAll(dir)
-
-	db, err := bolt.Open(filepath.Join(dir, "db"), 0o600, &bolt.Options{Timeout: 1 * time.Second})
+	tmpDir := t.TempDir()
+	db, err := bolt.Open(filepath.Join(tmpDir, "db"), 0o600, &bolt.Options{Timeout: 1 * time.Second})
 	assert.NilError(t, err)
 
 	store := &VolumeStore{db: db}

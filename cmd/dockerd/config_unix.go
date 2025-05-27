@@ -4,13 +4,9 @@ package main
 
 import (
 	"net"
-	"path/filepath"
 
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/pkg/rootless"
-	"github.com/docker/docker/registry"
 	"github.com/spf13/pflag"
 )
 
@@ -29,19 +25,20 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.BoolVar(&conf.BridgeConfig.EnableIP6Tables, "ip6tables", true, "Enable addition of ip6tables rules")
 	flags.BoolVar(&conf.BridgeConfig.EnableIPForward, "ip-forward", true, "Enable IP forwarding in system configuration")
 	flags.BoolVar(&conf.BridgeConfig.DisableFilterForwardDrop, "ip-forward-no-drop", false, "Do not set the filter-FORWARD policy to DROP when enabling IP forwarding")
-	flags.BoolVar(&conf.BridgeConfig.EnableIPMasq, "ip-masq", true, "Enable IP masquerading")
-	flags.BoolVar(&conf.BridgeConfig.EnableIPv6, "ipv6", false, "Enable IPv6 networking")
-	flags.StringVar(&conf.BridgeConfig.IP, "bip", "", "Specify default-bridge IPv4 network")
-	flags.StringVar(&conf.BridgeConfig.IP6, "bip6", "", "Specify default-bridge IPv6 network")
+	flags.BoolVar(&conf.BridgeConfig.EnableIPMasq, "ip-masq", true, "Enable IP masquerading for the default bridge network")
+	flags.BoolVar(&conf.BridgeConfig.EnableIPv6, "ipv6", false, "Enable IPv6 networking for the default bridge network")
+	flags.StringVar(&conf.BridgeConfig.IP, "bip", "", "IPv4 address for the default bridge")
+	flags.StringVar(&conf.BridgeConfig.IP6, "bip6", "", "IPv6 address for the default bridge")
 	flags.StringVarP(&conf.BridgeConfig.Iface, "bridge", "b", "", "Attach containers to a network bridge")
-	flags.StringVar(&conf.BridgeConfig.FixedCIDR, "fixed-cidr", "", "IPv4 subnet for fixed IPs")
-	flags.StringVar(&conf.BridgeConfig.FixedCIDRv6, "fixed-cidr-v6", "", "IPv6 subnet for fixed IPs")
-	flags.IPVar(&conf.BridgeConfig.DefaultGatewayIPv4, "default-gateway", nil, "Container default gateway IPv4 address")
-	flags.IPVar(&conf.BridgeConfig.DefaultGatewayIPv6, "default-gateway-v6", nil, "Container default gateway IPv6 address")
-	flags.BoolVar(&conf.BridgeConfig.InterContainerCommunication, "icc", true, "Enable inter-container communication")
-	flags.IPVar(&conf.BridgeConfig.DefaultIP, "ip", net.IPv4zero, "Default IP when binding container ports")
+	flags.StringVar(&conf.BridgeConfig.FixedCIDR, "fixed-cidr", "", "IPv4 subnet for the default bridge network")
+	flags.StringVar(&conf.BridgeConfig.FixedCIDRv6, "fixed-cidr-v6", "", "IPv6 subnet for the default bridge network")
+	flags.IPVar(&conf.BridgeConfig.DefaultGatewayIPv4, "default-gateway", nil, "Default gateway IPv4 address for the default bridge network")
+	flags.IPVar(&conf.BridgeConfig.DefaultGatewayIPv6, "default-gateway-v6", nil, "Default gateway IPv6 address for the default bridge network")
+	flags.BoolVar(&conf.BridgeConfig.InterContainerCommunication, "icc", true, "Enable inter-container communication for the default bridge network")
+	flags.IPVar(&conf.BridgeConfig.DefaultIP, "ip", net.IPv4zero, "Host IP for port publishing from the default bridge network")
 	flags.BoolVar(&conf.BridgeConfig.EnableUserlandProxy, "userland-proxy", true, "Use userland proxy for loopback traffic")
 	flags.StringVar(&conf.BridgeConfig.UserlandProxyPath, "userland-proxy-path", conf.BridgeConfig.UserlandProxyPath, "Path to the userland proxy binary")
+	flags.BoolVar(&conf.BridgeConfig.AllowDirectRouting, "allow-direct-routing", false, "Allow remote access to published ports on container IP addresses")
 	flags.StringVar(&conf.CgroupParent, "cgroup-parent", "", "Set parent cgroup for all containers")
 	flags.StringVar(&conf.RemappedRoot, "userns-remap", "", "User/Group setting for user namespaces")
 	flags.BoolVar(&conf.LiveRestoreEnabled, "live-restore", false, "Enable live restore of docker when containers are still running")
@@ -58,15 +55,4 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	// Note that conf.BridgeConfig.UserlandProxyPath and honorXDG are configured according to the value of rootless.RunningWithRootlessKit, not the value of --rootless.
 	flags.BoolVar(&conf.Rootless, "rootless", conf.Rootless, "Enable rootless mode; typically used with RootlessKit")
 	flags.StringVar(&conf.CgroupNamespaceMode, "default-cgroupns-mode", conf.CgroupNamespaceMode, `Default mode for containers cgroup namespace ("host" | "private")`)
-}
-
-// configureCertsDir configures registry.CertsDir() depending on if the daemon
-// is running in rootless mode or not.
-func configureCertsDir() {
-	if rootless.RunningWithRootlessKit() {
-		configHome, err := homedir.GetConfigHome()
-		if err == nil {
-			registry.SetCertsDir(filepath.Join(configHome, "docker/certs.d"))
-		}
-	}
 }

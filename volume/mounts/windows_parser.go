@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/internal/lazyregexp"
 )
 
 // NewWindowsParser creates a parser with Windows semantics.
@@ -78,16 +78,16 @@ const (
 )
 
 var (
-	volumeNameRegexp          = regexp.MustCompile(`^` + rxName + `$`)
-	reservedNameRegexp        = regexp.MustCompile(`^` + rxReservedNames + `$`)
-	hostDirRegexp             = regexp.MustCompile(`^` + rxHostDir + `$`)
-	mountDestinationRegexp    = regexp.MustCompile(`^` + rxDestination + `$`)
-	windowsSplitRawSpecRegexp = regexp.MustCompile(`^` + rxSource + rxDestination + rxMode + `$`)
+	volumeNameRegexp          = lazyregexp.New(`^` + rxName + `$`)
+	reservedNameRegexp        = lazyregexp.New(`^` + rxReservedNames + `$`)
+	hostDirRegexp             = lazyregexp.New(`^` + rxHostDir + `$`)
+	mountDestinationRegexp    = lazyregexp.New(`^` + rxDestination + `$`)
+	windowsSplitRawSpecRegexp = lazyregexp.New(`^` + rxSource + rxDestination + rxMode + `$`)
 )
 
 type mountValidator func(mnt *mount.Mount) error
 
-func (p *windowsParser) splitRawSpec(raw string, splitRegexp *regexp.Regexp) ([]string, error) {
+func (p *windowsParser) splitRawSpec(raw string, splitRegexp *lazyregexp.Regexp) ([]string, error) {
 	match := splitRegexp.FindStringSubmatch(strings.ToLower(raw))
 	if len(match) == 0 {
 		return nil, errInvalidSpec(raw)
@@ -201,7 +201,7 @@ type fileInfoProvider interface {
 
 type defaultFileInfoProvider struct{}
 
-func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err error) {
+func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, _ error) {
 	fi, err := os.Stat(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -409,6 +409,8 @@ func (p *windowsParser) parseMountSpec(cfg mount.Mount, convertTargetToBackslash
 		mp.Source = strings.ReplaceAll(cfg.Source, `/`, `\`)
 	case mount.TypeNamedPipe:
 		mp.Source = strings.ReplaceAll(cfg.Source, `/`, `\`)
+	default:
+		// TODO(thaJeztah): make switch exhaustive: anything to do for mount.TypeTmpfs, mount.TypeCluster, mount.TypeImage ?
 	}
 	// cleanup trailing `\` except for paths like `c:\`
 	if len(mp.Source) > 3 && mp.Source[len(mp.Source)-1] == '\\' {

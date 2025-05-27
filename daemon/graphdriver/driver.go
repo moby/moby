@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/go-archive"
+	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -26,7 +26,7 @@ type CreateOpts struct {
 }
 
 // InitFunc initializes the storage driver.
-type InitFunc func(root string, options []string, idMap idtools.IdentityMapping) (Driver, error)
+type InitFunc func(root string, options []string, idMap user.IdentityMapping) (Driver, error)
 
 // ProtoDriver defines the basic capabilities of a driver.
 // This interface exists solely to be a minimum set of methods
@@ -140,7 +140,7 @@ func getDriver(name string, config Options) (Driver, error) {
 	log.G(context.TODO()).WithFields(log.Fields{"driver": name, "home-dir": config.Root}).Error("Failed to GetDriver graph")
 
 	// TODO(thaJeztah): remove in next release.
-	if config.ExperimentalEnabled && os.Getenv("DOCKERD_DEPRECATED_GRAPHDRIVER_PLUGINS") != "" {
+	if os.Getenv("DOCKERD_DEPRECATED_GRAPHDRIVER_PLUGINS") != "" {
 		return nil, fmt.Errorf("DEPRECATED: Support for experimental graphdriver plugins has been removed. See https://docs.docker.com/go/deprecated/")
 	}
 
@@ -151,7 +151,7 @@ func getDriver(name string, config Options) (Driver, error) {
 type Options struct {
 	Root                string
 	DriverOptions       []string
-	IDMap               idtools.IdentityMapping
+	IDMap               user.IdentityMapping
 	ExperimentalEnabled bool
 }
 
@@ -166,14 +166,14 @@ type Options struct {
 // if scanning prior drivers is ambiguous (i.e., if state is found for
 // multiple drivers), or if no compatible driver is available for the
 // platform and underlying filesystem.
-func New(name string, config Options) (Driver, error) {
+func New(driverName string, config Options) (Driver, error) {
 	ctx := context.TODO()
-	if name != "" {
-		log.G(ctx).Infof("[graphdriver] trying configured driver: %s", name)
-		if err := checkRemoved(name); err != nil {
+	if driverName != "" {
+		log.G(ctx).Infof("[graphdriver] trying configured driver: %s", driverName)
+		if err := checkRemoved(driverName); err != nil {
 			return nil, err
 		}
-		return getDriver(name, config)
+		return getDriver(driverName, config)
 	}
 
 	// Guess for prior driver
@@ -200,8 +200,8 @@ func New(name string, config Options) (Driver, error) {
 			// to ensure the user explicitly selects the driver to load
 			if len(driversMap) > 1 {
 				var driversSlice []string
-				for name := range driversMap {
-					driversSlice = append(driversSlice, name)
+				for d := range driversMap {
+					driversSlice = append(driversSlice, d)
 				}
 
 				err = errors.Errorf("%s contains several valid graphdrivers: %s; cleanup or explicitly choose storage driver (-s <DRIVER>)", config.Root, strings.Join(driversSlice, ", "))

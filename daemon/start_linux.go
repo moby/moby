@@ -34,5 +34,8 @@ func (daemon *Daemon) initializeCreatedTask(
 			return errdefs.System(err)
 		}
 	}
-	return daemon.allocateNetwork(ctx, cfg, ctr)
+	if err := daemon.allocateNetwork(ctx, cfg, ctr); err != nil {
+		return fmt.Errorf("%s: %w", errSetupNetworking, err)
+	}
+	return nil
 }

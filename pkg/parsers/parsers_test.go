@@ -5,33 +5,6 @@ import (
 	"testing"
 )
 
-func TestParseKeyValueOpt(t *testing.T) {
-	invalids := map[string]string{
-		"":    "unable to parse key/value option: ",
-		"key": "unable to parse key/value option: key",
-	}
-	for invalid, expectedError := range invalids {
-		if _, _, err := ParseKeyValueOpt(invalid); err == nil || err.Error() != expectedError {
-			t.Fatalf("Expected error %v for %v, got %v", expectedError, invalid, err)
-		}
-	}
-	valids := map[string][]string{
-		"key=value":               {"key", "value"},
-		" key = value ":           {"key", "value"},
-		"key=value1=value2":       {"key", "value1=value2"},
-		" key = value1 = value2 ": {"key", "value1 = value2"},
-	}
-	for valid, expectedKeyValue := range valids {
-		key, value, err := ParseKeyValueOpt(valid)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if key != expectedKeyValue[0] || value != expectedKeyValue[1] {
-			t.Fatalf("Expected {%v: %v} got {%v: %v}", expectedKeyValue[0], expectedKeyValue[1], key, value)
-		}
-	}
-}
-
 func TestParseUintList(t *testing.T) {
 	valids := map[string]map[int]bool{
 		"":             {},
@@ -45,7 +18,7 @@ func TestParseUintList(t *testing.T) {
 		"0-2,3,1":      {0: true, 1: true, 2: true, 3: true},
 	}
 	for k, v := range valids {
-		out, err := ParseUintList(k)
+		out, err := parseUintList(k, 0)
 		if err != nil {
 			t.Fatalf("Expected not to fail, got %v", err)
 		}
@@ -63,7 +36,7 @@ func TestParseUintList(t *testing.T) {
 		"-1,0",
 	}
 	for _, v := range invalids {
-		if out, err := ParseUintList(v); err == nil {
+		if out, err := parseUintList(v, 0); err == nil {
 			t.Fatalf("Expected failure with %s but got %v", v, out)
 		}
 	}
@@ -71,13 +44,13 @@ func TestParseUintList(t *testing.T) {
 
 func TestParseUintListMaximumLimits(t *testing.T) {
 	v := "10,1000"
-	if _, err := ParseUintListMaximum(v, 0); err != nil {
+	if _, err := parseUintList(v, 0); err != nil {
 		t.Fatalf("Expected not to fail, got %v", err)
 	}
-	if _, err := ParseUintListMaximum(v, 1000); err != nil {
+	if _, err := parseUintList(v, 1000); err != nil {
 		t.Fatalf("Expected not to fail, got %v", err)
 	}
-	if out, err := ParseUintListMaximum(v, 100); err == nil {
+	if out, err := parseUintList(v, 100); err == nil {
 		t.Fatalf("Expected failure with %s but got %v", v, out)
 	}
 }

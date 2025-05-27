@@ -1,5 +1,5 @@
 // FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.22
+//go:build go1.23
 
 package containerd
 
@@ -10,8 +10,8 @@ import (
 	"slices"
 	"testing"
 
-	c8dimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/namespaces"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/testutils/specialimage"

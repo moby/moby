@@ -131,7 +131,7 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 			VXLANUDPPort:    conf.DataPathPort,
 		},
 		JoinAddr:  joinAddr,
-		StateDir:  n.cluster.root,
+		StateDir:  n.cluster.stateDir,
 		JoinToken: conf.joinToken,
 		Executor: container.NewExecutor(
 			n.cluster.config.Backend,
@@ -171,7 +171,7 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		conf.JoinInProgress = true
 	}
 	n.config = conf
-	savePersistentState(n.cluster.root, conf)
+	savePersistentState(n.cluster.stateDir, conf)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -262,7 +262,7 @@ func (n *nodeRunner) handleReadyEvent(ctx context.Context, node *swarmnode.Node,
 		n.err = nil
 		if n.config.JoinInProgress {
 			n.config.JoinInProgress = false
-			savePersistentState(n.cluster.root, n.config)
+			savePersistentState(n.cluster.stateDir, n.config)
 		}
 		n.mu.Unlock()
 		close(ready)

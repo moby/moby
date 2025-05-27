@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
-	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
@@ -44,7 +43,7 @@ func (c *containerManager) Create(ctx context.Context, runConfig *container.Conf
 var errCancelled = errors.New("build cancelled")
 
 // Run a container by ID
-func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr io.Writer) (err error) {
+func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr io.Writer) error {
 	attached := make(chan struct{})
 	errCh := make(chan error, 1)
 	go func() {
@@ -62,7 +61,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 		select {
 		case <-ctx.Done():
 			log.G(ctx).Debugln("Build cancelled, removing container:", cID)
-			err = c.backend.ContainerRm(cID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
+			err := c.backend.ContainerRm(cID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
 			if err != nil {
 				_, _ = fmt.Fprintf(stdout, "Removing container %s: %v\n", stringid.TruncateID(cID), err)
 			}
@@ -85,7 +84,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 		return err
 	}
 
-	waitC, err := c.backend.ContainerWait(ctx, cID, containerpkg.WaitConditionNotRunning)
+	waitC, err := c.backend.ContainerWait(ctx, cID, container.WaitConditionNotRunning)
 	if err != nil {
 		close(finished)
 		logCancellationError(cancelErrCh, fmt.Sprintf("unable to begin ContainerWait: %s", err))
@@ -94,8 +93,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 
 	if status := <-waitC; status.ExitCode() != 0 {
 		close(finished)
-		logCancellationError(cancelErrCh,
-			fmt.Sprintf("a non-zero code from ContainerWait: %d", status.ExitCode()))
+		logCancellationError(cancelErrCh, fmt.Sprintf("a non-zero code from ContainerWait: %d", status.ExitCode()))
 		return &statusCodeError{code: status.ExitCode(), err: status.Err()}
 	}
 

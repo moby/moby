@@ -7,13 +7,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/diff"
-	"github.com/containerd/containerd/gc"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/diff"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	"github.com/containerd/containerd/v2/pkg/gc"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/hashicorp/go-multierror"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
@@ -33,6 +32,7 @@ import (
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
 	"github.com/moby/buildkit/snapshot/imagerefchecker"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
 	"github.com/moby/buildkit/solver/llbsolver/ops"
 	"github.com/moby/buildkit/solver/pb"
@@ -47,6 +47,7 @@ import (
 	"github.com/moby/buildkit/util/network"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/progress/controller"
+	"github.com/moby/sys/user"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -75,13 +76,14 @@ type WorkerOpt struct {
 	Differ           diff.Comparer
 	ImageStore       images.Store // optional
 	RegistryHosts    docker.RegistryHosts
-	IdentityMapping  *idtools.IdentityMapping
+	IdentityMapping  *user.IdentityMapping
 	LeaseManager     *leaseutil.Manager
 	GarbageCollect   func(context.Context) (gc.Stats, error)
 	ParallelismSem   *semaphore.Weighted
 	MetadataStore    *metadata.Store
 	MountPoolRoot    string
 	ResourceMonitor  *resources.Monitor
+	CDIManager       *cdidevices.Manager
 }
 
 // Worker is a local worker instance with dedicated snapshotter, cache, and so on.
@@ -245,6 +247,10 @@ func (w *Worker) LeaseManager() *leaseutil.Manager {
 	return w.WorkerOpt.LeaseManager
 }
 
+func (w *Worker) CDIManager() *cdidevices.Manager {
+	return w.WorkerOpt.CDIManager
+}
+
 func (w *Worker) ID() string {
 	return w.WorkerOpt.ID
 }
@@ -299,7 +305,7 @@ func (w *Worker) LoadRef(ctx context.Context, id string, hidden bool) (cache.Imm
 	var needsRemoteProviders cache.NeedsRemoteProviderError
 	if errors.As(err, &needsRemoteProviders) {
 		if optGetter := solver.CacheOptGetterOf(ctx); optGetter != nil {
-			var keys []interface{}
+			var keys []any
 			for _, dgst := range needsRemoteProviders {
 				keys = append(keys, cache.DescHandlerKey(dgst))
 			}
@@ -489,7 +495,6 @@ func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (ref cac
 	if len(remote.Descriptors) > 0 {
 		var eg errgroup.Group
 		for _, desc := range remote.Descriptors {
-			desc := desc
 			eg.Go(func() error {
 				if _, err := remote.Provider.Info(ctx, desc.Digest); err != nil {
 					return err

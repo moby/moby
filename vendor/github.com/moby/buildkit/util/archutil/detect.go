@@ -1,7 +1,7 @@
 package archutil
 
 import (
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -192,7 +192,7 @@ func amd64vector(v string) (out []string) {
 	case "v2":
 		out = append(out, "v2")
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return
 }
 

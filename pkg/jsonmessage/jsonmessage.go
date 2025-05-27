@@ -53,10 +53,9 @@ type JSONProgress struct {
 
 func (p *JSONProgress) String() string {
 	var (
-		width       = p.width()
-		pbBox       string
-		numbersBox  string
-		timeLeftBox string
+		width      = p.width()
+		pbBox      string
+		numbersBox string
 	)
 	if p.Current <= 0 && p.Total <= 0 {
 		return ""
@@ -104,14 +103,14 @@ func (p *JSONProgress) String() string {
 		}
 	}
 
-	if p.Current > 0 && p.Start > 0 && percentage < 50 {
-		fromStart := p.now().Sub(time.Unix(p.Start, 0))
-		perEntry := fromStart / time.Duration(p.Current)
-		left := time.Duration(p.Total-p.Current) * perEntry
-		left = (left / time.Second) * time.Second
-
-		if width > 50 {
-			timeLeftBox = " " + left.String()
+	// Show approximation of remaining time if there's enough width.
+	var timeLeftBox string
+	if width > 50 {
+		if p.Current > 0 && p.Start > 0 && percentage < 50 {
+			fromStart := p.now().Sub(time.Unix(p.Start, 0))
+			perEntry := fromStart / time.Duration(p.Current)
+			left := time.Duration(p.Total-p.Current) * perEntry
+			timeLeftBox = " " + left.Round(time.Second).String()
 		}
 	}
 	return pbBox + numbersBox + timeLeftBox
@@ -143,16 +142,24 @@ func (p *JSONProgress) width() int {
 // the created time, where it from, status, ID of the
 // message. It's used for docker events.
 type JSONMessage struct {
-	Stream          string        `json:"stream,omitempty"`
-	Status          string        `json:"status,omitempty"`
-	Progress        *JSONProgress `json:"progressDetail,omitempty"`
-	ProgressMessage string        `json:"progress,omitempty"` // deprecated
-	ID              string        `json:"id,omitempty"`
-	From            string        `json:"from,omitempty"`
-	Time            int64         `json:"time,omitempty"`
-	TimeNano        int64         `json:"timeNano,omitempty"`
-	Error           *JSONError    `json:"errorDetail,omitempty"`
-	ErrorMessage    string        `json:"error,omitempty"` // deprecated
+	Stream   string        `json:"stream,omitempty"`
+	Status   string        `json:"status,omitempty"`
+	Progress *JSONProgress `json:"progressDetail,omitempty"`
+
+	// ProgressMessage is a pre-formatted presentation of [Progress].
+	//
+	// Deprecated: this field is deprecated since docker v0.7.1 / API v1.8. Use the information in [Progress] instead. This field will be omitted in a future release.
+	ProgressMessage string     `json:"progress,omitempty"`
+	ID              string     `json:"id,omitempty"`
+	From            string     `json:"from,omitempty"`
+	Time            int64      `json:"time,omitempty"`
+	TimeNano        int64      `json:"timeNano,omitempty"`
+	Error           *JSONError `json:"errorDetail,omitempty"`
+
+	// ErrorMessage contains errors encountered during the operation.
+	//
+	// Deprecated: this field is deprecated since docker v0.6.0 / API v1.4. Use [Error.Message] instead. This field will be omitted in a future release.
+	ErrorMessage string `json:"error,omitempty"` // deprecated
 	// Aux contains out-of-band data, such as digests for push signing and image id after building.
 	Aux *json.RawMessage `json:"aux,omitempty"`
 }

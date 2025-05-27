@@ -25,12 +25,17 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 	if err != nil {
 		return types.HijackedResponse{}, err
 	}
-	conn, mediaType, err := cli.setupHijackConn(req, "tcp")
+	conn, mediaType, err := setupHijackConn(cli.dialer(), req, "tcp")
 	if err != nil {
 		return types.HijackedResponse{}, err
 	}
 
-	return types.NewHijackedResponse(conn, mediaType), err
+	if versions.LessThan(cli.ClientVersion(), "1.42") {
+		// Prior to 1.42, Content-Type is always set to raw-stream and not relevant
+		mediaType = ""
+	}
+
+	return types.NewHijackedResponse(conn, mediaType), nil
 }
 
 // DialHijack returns a hijacked connection with negotiated protocol proto.
@@ -41,16 +46,15 @@ func (cli *Client) DialHijack(ctx context.Context, url, proto string, meta map[s
 	}
 	req = cli.addHeaders(req, meta)
 
-	conn, _, err := cli.setupHijackConn(req, proto)
+	conn, _, err := setupHijackConn(cli.Dialer(), req, proto)
 	return conn, err
 }
 
-func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn, _ string, retErr error) {
+func setupHijackConn(dialer func(context.Context) (net.Conn, error), req *http.Request, proto string) (_ net.Conn, _ string, retErr error) {
 	ctx := req.Context()
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", proto)
 
-	dialer := cli.Dialer()
 	conn, err := dialer(ctx)
 	if err != nil {
 		return nil, "", errors.Wrap(err, "cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
@@ -96,13 +100,7 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 		hc.r.Reset(nil)
 	}
 
-	var mediaType string
-	if versions.GreaterThanOrEqualTo(cli.ClientVersion(), "1.42") {
-		// Prior to 1.42, Content-Type is always set to raw-stream and not relevant
-		mediaType = resp.Header.Get("Content-Type")
-	}
-
-	return conn, mediaType, nil
+	return conn, resp.Header.Get("Content-Type"), nil
 }
 
 // hijackedConn wraps a net.Conn and is returned by setupHijackConn in the case

@@ -30,5 +30,7 @@ type CNIResult = Result //revive:disable // type name will be used as cni.CNIRes
 // results fails, or if a network could not be found.
 // Deprecated: do not use
 func (c *libcni) GetCNIResultFromResults(results []*types100.Result) (*Result, error) {
+	c.RLock()
+	defer c.RUnlock()
 	return c.createResult(results)
 }

@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
-	containerpkg "github.com/docker/docker/container"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -71,7 +70,7 @@ func (c *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusCreated, &types.IDResponse{ID: imgID})
+	return httputils.WriteJSON(w, http.StatusCreated, &container.CommitResponse{ID: imgID})
 }
 
 func (c *containerRouter) getContainersJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -110,6 +109,13 @@ func (c *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 		for _, c := range containers {
 			// Ignore HostConfig.Annotations because it was added in API v1.46.
 			c.HostConfig.Annotations = nil
+		}
+	}
+
+	if versions.LessThan(version, "1.48") {
+		// ImageManifestDescriptor information was added in API 1.48
+		for _, c := range containers {
+			c.ImageManifestDescriptor = nil
 		}
 	}
 
@@ -157,7 +163,7 @@ func (c *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	// any error after the stream starts (i.e. container not found, wrong parameters)
 	// with the appropriate status code.
 	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
-	if !(stdout || stderr) {
+	if !stdout && !stderr {
 		return errdefs.InvalidParameter(errors.New("Bad parameters: you must choose at least one stream"))
 	}
 
@@ -330,7 +336,7 @@ func (c *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 	legacyRemovalWaitPre134 := false
 
 	// The wait condition defaults to "not-running".
-	waitCondition := containerpkg.WaitConditionNotRunning
+	waitCondition := container.WaitConditionNotRunning
 	if !legacyBehaviorPre130 {
 		if err := httputils.ParseForm(r); err != nil {
 			return err
@@ -338,11 +344,11 @@ func (c *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 		if v := r.Form.Get("condition"); v != "" {
 			switch container.WaitCondition(v) {
 			case container.WaitConditionNotRunning:
-				waitCondition = containerpkg.WaitConditionNotRunning
+				waitCondition = container.WaitConditionNotRunning
 			case container.WaitConditionNextExit:
-				waitCondition = containerpkg.WaitConditionNextExit
+				waitCondition = container.WaitConditionNextExit
 			case container.WaitConditionRemoved:
-				waitCondition = containerpkg.WaitConditionRemoved
+				waitCondition = container.WaitConditionRemoved
 				legacyRemovalWaitPre134 = versions.LessThan(version, "1.34")
 			default:
 				return errdefs.InvalidParameter(errors.Errorf("invalid condition: %q", v))
@@ -649,6 +655,11 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 			// reinitialize this field.
 			epConfig.GwPriority = 0
 		}
+		for _, m := range hostConfig.Mounts {
+			if m.Type == mount.TypeImage {
+				return errdefs.InvalidParameter(errors.New(`Mount type "Image" needs API v1.48 or newer`))
+			}
+		}
 	}
 
 	var warnings []string
@@ -683,6 +694,12 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		Platform:                    platform,
 		DefaultReadOnlyNonRecursive: defaultReadOnlyNonRecursive,
 	})
+
+	// Log warnings for debugging, regardless if the request was successful or not.
+	if len(ccr.Warnings) > 0 {
+		log.G(ctx).WithField("warnings", ccr.Warnings).Debug("warnings encountered during container create request")
+	}
+
 	if err != nil {
 		return err
 	}
@@ -942,21 +959,17 @@ func (c *containerRouter) postContainersResize(ctx context.Context, w http.Respo
 }
 
 func (c *containerRouter) postContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	err := httputils.ParseForm(r)
-	if err != nil {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 	containerName := vars["name"]
-
-	_, upgrade := r.Header["Upgrade"]
-	detachKeys := r.FormValue("detachKeys")
-
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
 		return errdefs.InvalidParameter(errors.Errorf("error attaching to container %s, hijack connection missing", containerName))
 	}
 
 	contentType := types.MediaTypeRawStream
+	_, upgrade := r.Header["Upgrade"]
 	setupStreams := func(multiplexed bool, cancel func()) (io.ReadCloser, io.Writer, io.Writer, error) {
 		conn, _, err := hijacker.Hijack()
 		if err != nil {
@@ -986,18 +999,16 @@ func (c *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		return ioutils.NewReadCloserWrapper(conn, closer), conn, conn, nil
 	}
 
-	attachConfig := &backend.ContainerAttachConfig{
+	if err := c.backend.ContainerAttach(containerName, &backend.ContainerAttachConfig{
 		GetStreams: setupStreams,
 		UseStdin:   httputils.BoolValue(r, "stdin"),
 		UseStdout:  httputils.BoolValue(r, "stdout"),
 		UseStderr:  httputils.BoolValue(r, "stderr"),
 		Logs:       httputils.BoolValue(r, "logs"),
 		Stream:     httputils.BoolValue(r, "stream"),
-		DetachKeys: detachKeys,
+		DetachKeys: r.FormValue("detachKeys"),
 		MuxStreams: true,
-	}
-
-	if err = c.backend.ContainerAttach(containerName, attachConfig); err != nil {
+	}); err != nil {
 		log.G(ctx).WithError(err).Errorf("Handler for %s %s returned error", r.Method, r.URL.Path)
 		// Remember to close stream if error happens
 		conn, _, errHijack := hijacker.Hijack()
@@ -1018,9 +1029,6 @@ func (c *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		return err
 	}
 	containerName := vars["name"]
-
-	var err error
-	detachKeys := r.FormValue("detachKeys")
 
 	done := make(chan struct{})
 	started := make(chan struct{})
@@ -1058,18 +1066,16 @@ func (c *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		useStderr = httputils.BoolValue(r, "stderr")
 	}
 
-	attachConfig := &backend.ContainerAttachConfig{
+	err := c.backend.ContainerAttach(containerName, &backend.ContainerAttachConfig{
 		GetStreams: setupStreams,
 		UseStdin:   useStdin,
 		UseStdout:  useStdout,
 		UseStderr:  useStderr,
 		Logs:       httputils.BoolValue(r, "logs"),
 		Stream:     httputils.BoolValue(r, "stream"),
-		DetachKeys: detachKeys,
+		DetachKeys: r.FormValue("detachKeys"),
 		MuxStreams: false, // never multiplex, as we rely on websocket to manage distinct streams
-	}
-
-	err = c.backend.ContainerAttach(containerName, attachConfig)
+	})
 	close(done)
 	select {
 	case <-started:

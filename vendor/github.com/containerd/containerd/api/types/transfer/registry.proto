@@ -27,6 +27,16 @@ message OCIRegistry {
 	RegistryResolver resolver = 2;
 }
 
+enum HTTPDebug {
+	DISABLED = 0;
+	// Enable HTTP debugging
+	DEBUG = 1;
+	// Enable HTTP requests tracing
+	TRACE = 2;
+	// Enable both HTTP debugging and requests tracing
+	BOTH = 3;
+}
+
 message RegistryResolver {
 	// auth_stream is used to refer to a stream which auth callbacks may be
 	// made on.
@@ -35,10 +45,18 @@ message RegistryResolver {
 	// Headers
 	map<string, string> headers = 2;
 
-	// Allow custom hosts dir?
+	string host_dir = 3;
+
+	string default_scheme = 4;
 	// Force skip verify
-	// Force HTTP
 	// CA callback? Client TLS callback?
+
+	// Whether to debug/trace HTTP requests to OCI registry.
+	HTTPDebug http_debug = 5;
+
+	// Stream ID to use for HTTP logs (when logs are streamed to client).
+	// When empty, logs are written to containerd logs.
+	string logs_stream = 6;
 }
 
 // AuthRequest is sent as a callback on a stream

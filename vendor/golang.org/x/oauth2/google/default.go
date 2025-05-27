@@ -251,6 +251,12 @@ func FindDefaultCredentials(ctx context.Context, scopes ...string) (*Credentials
 // a Google Developers service account key file, a gcloud user credentials file (a.k.a. refresh
 // token JSON), or the JSON configuration file for workload identity federation in non-Google cloud
 // platforms (see https://cloud.google.com/iam/docs/how-to#using-workload-identity-federation).
+//
+// Important: If you accept a credential configuration (credential JSON/File/Stream) from an
+// external source for authentication to Google Cloud Platform, you must validate it before
+// providing it to any Google API or library. Providing an unvalidated credential configuration to
+// Google APIs can compromise the security of your systems and data. For more information, refer to
+// [Validate credential configurations from external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
 func CredentialsFromJSONWithParams(ctx context.Context, jsonData []byte, params CredentialsParams) (*Credentials, error) {
 	// Make defensive copy of the slices in params.
 	params = params.deepCopy()
@@ -294,6 +300,12 @@ func CredentialsFromJSONWithParams(ctx context.Context, jsonData []byte, params 
 }
 
 // CredentialsFromJSON invokes CredentialsFromJSONWithParams with the specified scopes.
+//
+// Important: If you accept a credential configuration (credential JSON/File/Stream) from an
+// external source for authentication to Google Cloud Platform, you must validate it before
+// providing it to any Google API or library. Providing an unvalidated credential configuration to
+// Google APIs can compromise the security of your systems and data. For more information, refer to
+// [Validate credential configurations from external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
 func CredentialsFromJSON(ctx context.Context, jsonData []byte, scopes ...string) (*Credentials, error) {
 	var params CredentialsParams
 	params.Scopes = scopes

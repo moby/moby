@@ -4,15 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -23,7 +23,7 @@ func TestConfigInspectNotFound(t *testing.T) {
 	}
 
 	_, _, err := client.ConfigInspectWithRaw(context.Background(), "unknown")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestConfigInspectWithEmptyID(t *testing.T) {
@@ -33,7 +33,12 @@ func TestConfigInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.ConfigInspectWithRaw(context.Background(), "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, _, err = client.ConfigInspectWithRaw(context.Background(), "    ")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestConfigInspectUnsupported(t *testing.T) {
@@ -52,7 +57,7 @@ func TestConfigInspectError(t *testing.T) {
 	}
 
 	_, _, err := client.ConfigInspectWithRaw(context.Background(), "nothing")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestConfigInspectConfigNotFound(t *testing.T) {
@@ -62,7 +67,7 @@ func TestConfigInspectConfigNotFound(t *testing.T) {
 	}
 
 	_, _, err := client.ConfigInspectWithRaw(context.Background(), "unknown")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestConfigInspect(t *testing.T) {
@@ -87,10 +92,6 @@ func TestConfigInspect(t *testing.T) {
 	}
 
 	configInspect, _, err := client.ConfigInspectWithRaw(context.Background(), "config_id")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if configInspect.ID != "config_id" {
-		t.Fatalf("expected `config_id`, got %s", configInspect.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(configInspect.ID, "config_id"))
 }

@@ -15,9 +15,6 @@ import (
 	"github.com/moby/sys/reexec"
 	"github.com/moby/term"
 	"github.com/spf13/cobra"
-
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/metric/noop"
 )
 
 var honorXDG bool
@@ -53,13 +50,35 @@ func newDaemonCommand() (*cobra.Command, error) {
 		},
 		DisableFlagsInUseLine: true,
 		Version:               fmt.Sprintf("%s, build %s", dockerversion.Version, dockerversion.GitCommit),
+		CompletionOptions: cobra.CompletionOptions{
+			DisableDefaultCmd:   false,
+			HiddenDefaultCmd:    true,
+			DisableDescriptions: false,
+		},
 	}
+
+	// Cobra's [Command.InitDefaultCompletionCmd] has a special-case for
+	// binaries/commands that don't have subcommands, and does not set up
+	// the default completion command in that case.
+	//
+	// Unfortunately, the definition of the default completion commands
+	// is not exported, and we don't want to replicate them. As a workaround,
+	// we're adding a hidden dummy-command to trick Cobra into applying
+	// the default.
+	//
+	// TODO(thaJeztah): consider contributing to Cobra to either allow explicitly enabling, or to export the default completion commands
+	//
+	// [Command.InitDefaultCompletionCmd]: https://github.com/spf13/cobra/blob/v1.8.1/completions.go#L685-L698
+	cmd.AddCommand(&cobra.Command{
+		Use:    "__dummy_command",
+		Hidden: true,
+	})
+
 	SetupRootCommand(cmd)
 
 	flags := cmd.Flags()
 	flags.BoolP("version", "v", false, "Print version information and quit")
 	flags.StringVar(&opts.configFile, "config-file", opts.configFile, "Daemon configuration file")
-	configureCertsDir()
 	opts.installFlags(flags)
 	installConfigFlags(opts.daemonConfig, flags)
 	installServiceFlags(flags)
@@ -91,12 +110,6 @@ func main() {
 	// the docker daemon is not restarted and also running under systemd.
 	// Fixes https://github.com/docker/docker/issues/19728
 	signal.Ignore(syscall.SIGPIPE)
-
-	// Workaround OTEL memory leak
-	// See: https://github.com/open-telemetry/opentelemetry-go-contrib/issues/5190
-	// The need for this workaround is checked by the TestOtelMeterLeak test
-	// TODO: Remove this workaround after upgrading to v1.30.0
-	otel.SetMeterProvider(noop.MeterProvider{})
 
 	// Set terminal emulation based on platform as required.
 	_, stdout, stderr := term.StdStreams()

@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	c8dimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/v2/core/content"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log/logtest"
 	"github.com/containerd/platforms"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -104,7 +104,7 @@ func BenchmarkImageList(b *testing.B) {
 
 		b.Run(strconv.Itoa(count)+"-images", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, err := imgSvc.Images(ctx, imagetypes.ListOptions{All: true})
+				_, err := imgSvc.Images(ctx, imagetypes.ListOptions{All: true, SharedSize: true})
 				assert.NilError(b, err)
 			}
 		})
@@ -126,10 +126,10 @@ func TestImageListCheckTotalSize(t *testing.T) {
 	ctx = logtest.WithT(ctx, t)
 	service := fakeImageService(t, ctx, cs)
 
-	_, err = service.images.Create(ctx, imagesFromIndex(twoplatform)[0])
+	img, err := service.images.Create(ctx, imagesFromIndex(twoplatform)[0])
 	assert.NilError(t, err)
 
-	all, err := service.Images(ctx, imagetypes.ListOptions{Manifests: true})
+	all, err := service.Images(ctx, imagetypes.ListOptions{Manifests: true, SharedSize: true})
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Len(all, 1))
@@ -173,6 +173,32 @@ func TestImageListCheckTotalSize(t *testing.T) {
 	// TODO: This should also include the Size.Unpacked, but the test snapshotter doesn't do anything yet
 	assert.Check(t, is.Equal(all[0].Manifests[0].Size.Total, amd64ManifestSize+amd64ConfigSize+amd64LayerSize))
 	assert.Check(t, is.Equal(all[0].Manifests[1].Size.Total, amd64ManifestSize+amd64ConfigSize+amd64LayerSize))
+
+	t.Run("without layers", func(t *testing.T) {
+		var layers []ocispec.Descriptor
+		err = service.walkPresentChildren(ctx, img.Target, func(ctx context.Context, desc ocispec.Descriptor) error {
+			if c8dimages.IsLayerType(desc.MediaType) {
+				layers = append(layers, desc)
+			}
+			return nil
+		})
+		assert.NilError(t, err)
+
+		for _, layer := range layers {
+			err := cs.Delete(ctx, layer.Digest)
+			assert.NilError(t, err, "failed to delete layer %s", layer.Digest)
+		}
+
+		all, err := service.Images(ctx, imagetypes.ListOptions{Manifests: true, SharedSize: true})
+		assert.NilError(t, err)
+
+		assert.Assert(t, is.Len(all, 1))
+		assert.Check(t, is.Equal(all[0].Size, allTotalSize-indexSize-arm64LayerSize-amd64LayerSize))
+
+		assert.Assert(t, is.Len(all[0].Manifests, 2))
+		assert.Check(t, is.Equal(all[0].Manifests[0].Size.Content, arm64ManifestSize+arm64ConfigSize))
+		assert.Check(t, is.Equal(all[0].Manifests[1].Size.Content, amd64ManifestSize+amd64ConfigSize))
+	})
 }
 
 func blobSize(t *testing.T, ctx context.Context, cs content.Store, dgst digest.Digest) int64 {
@@ -198,13 +224,22 @@ func TestImageList(t *testing.T) {
 	emptyIndex := toContainerdImage(t, specialimage.EmptyIndex)
 	configTarget := toContainerdImage(t, specialimage.ConfigTarget)
 	textplain := toContainerdImage(t, specialimage.TextPlain)
+	missingMultiPlatform := toContainerdImage(t, func(dir string) (*ocispec.Index, error) {
+		idx, _, err := specialimage.PartialMultiPlatform(dir, "missingmp:latest", specialimage.PartialOpts{
+			Stored: nil,
+			Missing: []ocispec.Platform{
+				{OS: "linux", Architecture: "arm64"},
+				{OS: "linux", Architecture: "amd64"},
+			},
+		})
+		return idx, err
+	})
 
 	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
 
 	for _, tc := range []struct {
 		name   string
 		images []c8dimages.Image
-		opts   imagetypes.ListOptions
 
 		check func(*testing.T, []*imagetypes.Summary)
 	}{
@@ -321,7 +356,15 @@ func TestImageList(t *testing.T) {
 				}
 				assert.Check(t, is.Equal(all[0].ID, textplain.Target.Digest.String()))
 
-				assert.Assert(t, is.Len(all[0].Manifests, 0))
+				assert.Assert(t, is.Len(all[0].Manifests, 1))
+			},
+		},
+		{
+			name:   "multi-platform with no platforms available locally",
+			images: []c8dimages.Image{missingMultiPlatform},
+			check: func(t *testing.T, all []*imagetypes.Summary) {
+				assert.Assert(t, is.Len(all, 1))
+				assert.Check(t, is.Len(all[0].Manifests, 2))
 			},
 		},
 	} {
@@ -334,8 +377,10 @@ func TestImageList(t *testing.T) {
 				assert.NilError(t, err)
 			}
 
-			opts := tc.opts
-			opts.Manifests = true
+			opts := imagetypes.ListOptions{
+				Manifests:  true,
+				SharedSize: true,
+			}
 			all, err := service.Images(ctx, opts)
 			assert.NilError(t, err)
 

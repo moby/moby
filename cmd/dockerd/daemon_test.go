@@ -53,7 +53,6 @@ func TestLoadDaemonCliConfigWithTLS(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"labels": ["l3=foo"]}`))
-	defer tempFile.Remove()
 	configFile := tempFile.Path()
 
 	opts := defaultOptions(t, configFile)
@@ -69,7 +68,6 @@ func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 
 func TestLoadDaemonCliWithConflictingNodeGenericResources(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"node-generic-resources": ["foo=bar", "bar=baz"]}`))
-	defer tempFile.Remove()
 	configFile := tempFile.Path()
 
 	opts := defaultOptions(t, configFile)
@@ -107,7 +105,6 @@ func TestLoadDaemonCliWithDuplicateLabels(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"tlsverify": true}`))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	opts.TLSOptions.CAFile = "/tmp/ca.pem"
@@ -120,7 +117,6 @@ func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"tlsverify": false}`))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	opts.TLSOptions.CAFile = "/tmp/ca.pem"
@@ -133,7 +129,6 @@ func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{}`))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	opts.TLSOptions.CAFile = "/tmp/ca.pem"
@@ -146,7 +141,6 @@ func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"log-level": "warn"}`))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
@@ -178,7 +172,6 @@ func TestLoadDaemonCliConfigWithInvalidLogFormat(t *testing.T) {
 func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 	content := `{"tlscacert": "/etc/certs/ca.pem", "log-driver": "syslog"}`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
@@ -194,7 +187,6 @@ func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 		"insecure-registries": ["https://insecure-registry.example.com"]
 	}`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
@@ -228,7 +220,12 @@ func TestCDISpecDirs(t *testing.T) {
 		expectedCDISpecDirs []string
 	}{
 		{
-			description:         "CDI enabled and no spec dirs specified returns default",
+			description:         "CDI enabled by default",
+			specDirs:            nil,
+			expectedCDISpecDirs: []string{"/etc/cdi", "/var/run/cdi"},
+		},
+		{
+			description:         "CDI explicitly enabled and no spec dirs specified returns default",
 			specDirs:            nil,
 			configContent:       `{"features": {"cdi": true}}`,
 			expectedCDISpecDirs: []string{"/etc/cdi", "/var/run/cdi"},
@@ -253,11 +250,13 @@ func TestCDISpecDirs(t *testing.T) {
 		{
 			description:         "CDI disabled and no spec dirs specified returns no cdi spec dirs",
 			specDirs:            nil,
+			configContent:       `{"features": {"cdi": false}}`,
 			expectedCDISpecDirs: nil,
 		},
 		{
 			description:         "CDI disabled and specified spec dirs returns no cdi spec dirs",
 			specDirs:            []string{"/foo/bar", "/baz/qux"},
+			configContent:       `{"features": {"cdi": false}}`,
 			expectedCDISpecDirs: nil,
 		},
 	}
@@ -282,9 +281,13 @@ func TestCDISpecDirs(t *testing.T) {
 	}
 }
 
-// TestOtelMeterLeak tests for a memory leak in the OTEL meter implementation.
-// Once the fixed OTEL is vendored, this test will fail - the workaround
-// and this test should be removed then.
+// TestOtelMeterLeak is a regression test for a memory leak in the OTEL meter
+// implementation that was fixed in OTEL v1.30.0.
+//
+// See:
+// - https://github.com/open-telemetry/opentelemetry-go-contrib/issues/5190
+// - https://github.com/moby/moby/pull/48690
+// - https://github.com/moby/moby/issues/48144
 func TestOtelMeterLeak(t *testing.T) {
 	meter := otel.Meter("foo")
 
@@ -302,8 +305,9 @@ func TestOtelMeterLeak(t *testing.T) {
 	allocs := after.Mallocs - before.Mallocs
 	t.Log("Allocations:", allocs)
 
-	if allocs < 10 {
-		// TODO: Remove Workaround OTEL memory leak in cmd/dockerd/daemon.go
-		t.Fatal("Allocations count decreased. OTEL leak workaround is no longer needed!")
+	// currently, with OTel v1.31.0, allocations is 3; add some margin to
+	// check for unexpectedly more than that.
+	if allocs > 10 {
+		t.Fatalf("Possible OTel leak; got more than 10 allocations (allocs: %d).", allocs)
 	}
 }

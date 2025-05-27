@@ -11,11 +11,12 @@ import (
 
 // SecretInspectWithRaw returns the secret information with raw data
 func (cli *Client) SecretInspectWithRaw(ctx context.Context, id string) (swarm.Secret, []byte, error) {
-	if err := cli.NewVersionError(ctx, "1.25", "secret inspect"); err != nil {
+	id, err := trimID("secret", id)
+	if err != nil {
 		return swarm.Secret{}, nil, err
 	}
-	if id == "" {
-		return swarm.Secret{}, nil, objectNotFoundError{object: "secret", id: id}
+	if err := cli.NewVersionError(ctx, "1.25", "secret inspect"); err != nil {
+		return swarm.Secret{}, nil, err
 	}
 	resp, err := cli.get(ctx, "/secrets/"+id, nil, nil)
 	defer ensureReaderClosed(resp)
@@ -23,7 +24,7 @@ func (cli *Client) SecretInspectWithRaw(ctx context.Context, id string) (swarm.S
 		return swarm.Secret{}, nil, err
 	}
 
-	body, err := io.ReadAll(resp.body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return swarm.Secret{}, nil, err
 	}

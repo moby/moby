@@ -114,7 +114,7 @@ type Heredoc struct {
 var (
 	dispatch      map[string]func(string, *directives) (*Node, map[string]bool, error)
 	reWhitespace  = regexp.MustCompile(`[\t\v\f\r ]+`)
-	reHeredoc     = regexp.MustCompile(`^(\d*)<<(-?)([^<]*)$`)
+	reHeredoc     = regexp.MustCompile(`^(\d*)<<(-?)\s*([^<]*)$`)
 	reLeadingTabs = regexp.MustCompile(`(?m)^\t+`)
 )
 
@@ -220,7 +220,7 @@ func init() {
 // based on the command and command arguments. A Node is created from the
 // result of the dispatch.
 func newNodeFromLine(line string, d *directives, comments []string) (*Node, error) {
-	cmd, flags, args, err := splitCommand(line)
+	cmd, flags, args, err := splitCommand(line, d)
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +291,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 		bytesRead := scanner.Bytes()
 		if currentLine == 0 {
 			// First line, strip the byte-order-marker if present
-			bytesRead = bytes.TrimPrefix(bytesRead, utf8bom)
+			bytesRead = discardBOM(bytesRead)
 		}
 		if isComment(bytesRead) {
 			comment := strings.TrimSpace(string(bytesRead[1:]))
@@ -522,8 +522,6 @@ func isEmptyContinuationLine(line []byte) bool {
 	return len(trimLeadingWhitespace(trimNewline(line))) == 0
 }
 
-var utf8bom = []byte{0xEF, 0xBB, 0xBF}
-
 func trimContinuationCharacter(line []byte, d *directives) ([]byte, bool) {
 	if d.lineContinuationRegex.Match(line) {
 		line = d.lineContinuationRegex.ReplaceAll(line, []byte("$1"))
@@ -558,8 +556,8 @@ func scanLines(data []byte, atEOF bool) (advance int, token []byte, err error) {
 }
 
 func handleScannerError(err error) error {
-	switch err {
-	case bufio.ErrTooLong:
+	switch {
+	case errors.Is(err, bufio.ErrTooLong):
 		return errors.Errorf("dockerfile line greater than max allowed size of %d", bufio.MaxScanTokenSize-1)
 	default:
 		return err

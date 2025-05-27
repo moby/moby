@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -116,13 +117,13 @@ func (sw *streamWriter) Write(dt []byte) (int, error) {
 		sw.buf.Write(dt)
 	}
 
-	dt = append([]byte{}, dt[:limit]...)
+	dt = slices.Clone(dt[:limit])
 
 	if sw.clipping && oldSize == len(dt) {
 		sw.clipping = false
 	}
 	if !sw.clipping && oldSize != len(dt) {
-		dt = append(dt, []byte(fmt.Sprintf("\n[output clipped, log limit %s reached]\n", sw.clipLimitMessage()))...)
+		dt = append(dt, fmt.Appendf(nil, "\n[output clipped, log limit %s reached]\n", sw.clipLimitMessage())...)
 		sw.clipping = true
 	}
 
@@ -172,7 +173,7 @@ func LoggerFromContext(ctx context.Context) func([]byte) {
 		defer pw.Close()
 		pw.Write(identity.NewID(), client.VertexLog{
 			Stream: stderr,
-			Data:   []byte(dt),
+			Data:   dt,
 		})
 	}
 }

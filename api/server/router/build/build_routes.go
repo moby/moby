@@ -13,11 +13,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
@@ -34,9 +35,9 @@ type invalidParam struct {
 
 func (e invalidParam) InvalidParameter() {}
 
-func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBuildOptions, error) {
-	options := &types.ImageBuildOptions{
-		Version:        types.BuilderV1, // Builder V1 is the default, but can be overridden
+func newImageBuildOptions(ctx context.Context, r *http.Request) (*build.ImageBuildOptions, error) {
+	options := &build.ImageBuildOptions{
+		Version:        build.BuilderV1, // Builder V1 is the default, but can be overridden
 		Dockerfile:     r.FormValue("dockerfile"),
 		SuppressOutput: httputils.BoolValue(r, "q"),
 		NoCache:        httputils.BoolValue(r, "nocache"),
@@ -80,7 +81,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	if versions.GreaterThanOrEqualTo(version, "1.40") {
 		outputsJSON := r.FormValue("outputs")
 		if outputsJSON != "" {
-			var outputs []types.ImageBuildOutput
+			var outputs []build.ImageBuildOutput
 			if err := json.Unmarshal([]byte(outputsJSON), &outputs); err != nil {
 				return nil, invalidParam{errors.Wrap(err, "invalid outputs specified")}
 			}
@@ -158,12 +159,12 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	return options, nil
 }
 
-func parseVersion(s string) (types.BuilderVersion, error) {
-	switch types.BuilderVersion(s) {
-	case types.BuilderV1:
-		return types.BuilderV1, nil
-	case types.BuilderBuildKit:
-		return types.BuilderBuildKit, nil
+func parseVersion(s string) (build.BuilderVersion, error) {
+	switch build.BuilderVersion(s) {
+	case build.BuilderV1:
+		return build.BuilderV1, nil
+	case build.BuilderBuildKit:
+		return build.BuilderBuildKit, nil
 	default:
 		return "", invalidParam{errors.Errorf("invalid version %q", s)}
 	}
@@ -177,19 +178,56 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 	if err != nil {
 		return err
 	}
-	ksfv := r.FormValue("keep-storage")
-	if ksfv == "" {
-		ksfv = "0"
-	}
-	ks, err := strconv.Atoi(ksfv)
-	if err != nil {
-		return invalidParam{errors.Wrapf(err, "keep-storage is in bytes and expects an integer, got %v", ksfv)}
+
+	opts := build.CachePruneOptions{
+		All:     httputils.BoolValue(r, "all"),
+		Filters: fltrs,
 	}
 
-	opts := types.BuildCachePruneOptions{
-		All:         httputils.BoolValue(r, "all"),
-		Filters:     fltrs,
-		KeepStorage: int64(ks),
+	parseBytesFromFormValue := func(name string) (int64, error) {
+		if fv := r.FormValue(name); fv != "" {
+			bs, err := strconv.Atoi(fv)
+			if err != nil {
+				return 0, invalidParam{errors.Wrapf(err, "%s is in bytes and expects an integer, got %v", name, fv)}
+			}
+			return int64(bs), nil
+		}
+		return 0, nil
+	}
+
+	version := httputils.VersionFromContext(ctx)
+	if versions.GreaterThanOrEqualTo(version, "1.48") {
+		if bs, err := parseBytesFromFormValue("reserved-space"); err != nil {
+			return err
+		} else {
+			if bs == 0 {
+				// Deprecated parameter. Only checked if reserved-space is not used.
+				bs, err = parseBytesFromFormValue("keep-storage")
+				if err != nil {
+					return err
+				}
+			}
+			opts.ReservedSpace = bs
+		}
+
+		if bs, err := parseBytesFromFormValue("max-used-space"); err != nil {
+			return err
+		} else {
+			opts.MaxUsedSpace = bs
+		}
+
+		if bs, err := parseBytesFromFormValue("min-free-space"); err != nil {
+			return err
+		} else {
+			opts.MinFreeSpace = bs
+		}
+	} else {
+		// Only keep-storage was valid in pre-1.48 versions.
+		if bs, err := parseBytesFromFormValue("keep-storage"); err != nil {
+			return err
+		} else {
+			opts.ReservedSpace = bs
+		}
 	}
 
 	report, err := br.backend.PruneCache(ctx, opts)
@@ -244,8 +282,9 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 			return err
 		}
 		_, err = output.Write(streamformatter.FormatError(err))
-		if err != nil {
-			log.G(ctx).Warnf("could not write error response: %v", err)
+		// don't log broken pipe errors as this is the normal case when a client aborts.
+		if err != nil && !errors.Is(err, syscall.EPIPE) {
+			log.G(ctx).WithError(err).Warn("could not write error response")
 		}
 		return nil
 	}
@@ -280,6 +319,9 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		ProgressWriter: buildProgressWriter(out, wantAux, createProgressReader),
 	})
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			log.G(ctx).Debug("build canceled")
+		}
 		return errf(err)
 	}
 
@@ -311,14 +353,14 @@ type syncWriter struct {
 	mu sync.Mutex
 }
 
-func (s *syncWriter) Write(b []byte) (count int, err error) {
+func (s *syncWriter) Write(b []byte) (int, error) {
 	s.mu.Lock()
-	count, err = s.w.Write(b)
-	s.mu.Unlock()
-	return
+	defer s.mu.Unlock()
+	return s.w.Write(b)
 }
 
 func buildProgressWriter(out io.Writer, wantAux bool, createProgressReader func(io.ReadCloser) io.ReadCloser) backend.ProgressWriter {
+	// see https://github.com/moby/moby/pull/21406
 	out = &syncWriter{w: out}
 
 	var aux *streamformatter.AuxFormatter
@@ -339,8 +381,12 @@ type flusher interface {
 	Flush()
 }
 
+type nopFlusher struct{}
+
+func (f *nopFlusher) Flush() {}
+
 func wrapOutputBufferedUntilRequestRead(rc io.ReadCloser, out io.Writer) (io.ReadCloser, io.Writer) {
-	var fl flusher = &ioutils.NopFlusher{}
+	var fl flusher = &nopFlusher{}
 	if f, ok := out.(flusher); ok {
 		fl = f
 	}

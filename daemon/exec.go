@@ -9,12 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd"
+	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/errdefs"
@@ -99,9 +98,22 @@ func (daemon *Daemon) ContainerExecCreate(name string, options *containertypes.E
 	if err != nil {
 		return "", err
 	}
-
-	cmd := strslice.StrSlice(options.Cmd)
-	entrypoint, args := daemon.getEntrypointAndArgs(strslice.StrSlice{}, cmd)
+	if user := options.User; user != "" {
+		// Lookup the user inside the container before starting the exec to
+		// allow for an early exit.
+		//
+		// Note that "technically" this check may have some TOCTOU issues,
+		// because '/etc/passwd' and '/etc/groups' may be mutated by the
+		// container in between creating the exec and starting it.
+		//
+		// This is very likely a corner-case, but something we can consider
+		// changing in future (either allow creating an invalid exec, and
+		// checking before starting, or checking both before create and
+		// before start).
+		if _, err := getUser(cntr, user); err != nil {
+			return "", errdefs.InvalidParameter(err)
+		}
+	}
 
 	keys := []byte{}
 	if options.DetachKeys != "" {
@@ -117,8 +129,7 @@ func (daemon *Daemon) ContainerExecCreate(name string, options *containertypes.E
 	execConfig.OpenStdout = options.AttachStdout
 	execConfig.OpenStderr = options.AttachStderr
 	execConfig.DetachKeys = keys
-	execConfig.Entrypoint = entrypoint
-	execConfig.Args = args
+	execConfig.Entrypoint, execConfig.Args = options.Cmd[0], options.Cmd[1:]
 	execConfig.Tty = options.Tty
 	execConfig.ConsoleSize = options.ConsoleSize
 	execConfig.Privileged = options.Privileged
@@ -148,7 +159,7 @@ func (daemon *Daemon) ContainerExecCreate(name string, options *containertypes.E
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
 // If ctx is cancelled, the process is terminated.
-func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, options backend.ExecStartConfig) (err error) {
+func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, options backend.ExecStartConfig) (retErr error) {
 	var (
 		cStdin           io.ReadCloser
 		cStdout, cStderr io.Writer
@@ -162,13 +173,12 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	ec.Lock()
 	if ec.ExitCode != nil {
 		ec.Unlock()
-		err := fmt.Errorf("Error: Exec command %s has already run", ec.ID)
-		return errdefs.Conflict(err)
+		return errdefs.Conflict(fmt.Errorf("exec command %s has already run", ec.ID))
 	}
 
 	if ec.Running {
 		ec.Unlock()
-		return errdefs.Conflict(fmt.Errorf("Error: Exec command %s is already running", ec.ID))
+		return errdefs.Conflict(fmt.Errorf("exec command %s is already running", ec.ID))
 	}
 	ec.Running = true
 	ec.Unlock()
@@ -179,7 +189,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	})
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			ec.Lock()
 			ec.Container.ExecCommands.Delete(ec.ID)
 			ec.Running = false
@@ -199,9 +209,11 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	if ec.OpenStdin && options.Stdin != nil {
 		r, w := io.Pipe()
 		go func() {
-			defer w.Close()
-			defer log.G(ctx).Debug("Closing buffered stdin pipe")
-			pools.Copy(w, options.Stdin)
+			defer func() {
+				log.G(ctx).Debug("Closing buffered stdin pipe")
+				_ = w.Close()
+			}()
+			_, _ = pools.Copy(w, options.Stdin)
 		}()
 		cStdin = r
 	}
@@ -220,6 +232,9 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 
 	p := &specs.Process{}
 	if runtime.GOOS != "windows" {
+		// TODO(thaJeztah): also enable on Windows;
+		//  This was added in https://github.com/moby/moby/commit/7603c22c7365d7d7150597fe396e0707d6e561da,
+		//  which mentions that it failed on Windows "Probably needs to wait for container to be in running state"
 		ctr, err := daemon.containerdClient.LoadContainer(ctx, ec.Container.ID)
 		if err != nil {
 			return err
@@ -228,11 +243,16 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 		if err != nil {
 			return err
 		}
-		spec := specs.Spec{Process: p}
+
+		// Technically, this should be a [specs.Spec], but we're only
+		// interested in the Process field.
+		spec := struct{ Process *specs.Process }{p}
 		if err := json.Unmarshal(md.Spec.GetValue(), &spec); err != nil {
 			return err
 		}
 	}
+
+	// merge/override properties of the container's process with the exec-config.
 	p.Args = append([]string{ec.Entrypoint}, ec.Args...)
 	p.Env = ec.Env
 	p.Cwd = ec.WorkingDir
@@ -297,15 +317,15 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 
 	select {
 	case <-ctx.Done():
-		log := log.G(ctx).
-			WithField("container", ec.Container.ID).
-			WithField("exec", ec.ID)
-		log.Debug("Sending KILL signal to container process")
+		logger := log.G(ctx).WithFields(log.Fields{
+			"container": ec.Container.ID,
+			"exeec":     ec.ID,
+		})
+		logger.Debug("Sending KILL signal to container process")
 		sigCtx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancelFunc()
-		err := ec.Process.Kill(sigCtx, signal.SignalMap["KILL"])
-		if err != nil {
-			log.WithError(err).Error("Could not send KILL signal to container process")
+		if err := ec.Process.Kill(sigCtx, signal.SignalMap["KILL"]); err != nil {
+			logger.WithError(err).Error("Could not send KILL signal to container process")
 		}
 		return ctx.Err()
 	case err := <-attachErr:

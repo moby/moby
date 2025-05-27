@@ -68,10 +68,10 @@ func makePluginClient(p plugingetter.CompatPlugin) (logPlugin, error) {
 }
 
 func makePluginCreator(name string, l logPlugin, scopePath func(s string) string) Creator {
-	return func(logCtx Info) (logger Logger, err error) {
+	return func(logCtx Info) (logger Logger, retErr error) {
 		defer func() {
-			if err != nil {
-				pluginGetter.Get(name, extName, plugingetter.Release)
+			if retErr != nil {
+				_, _ = pluginGetter.Get(name, extName, plugingetter.Release)
 			}
 		}()
 
@@ -90,9 +90,9 @@ func makePluginCreator(name string, l logPlugin, scopePath func(s string) string
 			logInfo:    logCtx,
 		}
 
-		cap, err := a.plugin.Capabilities()
+		caps, err := a.plugin.Capabilities()
 		if err == nil {
-			a.capabilities = cap
+			a.capabilities = caps
 		}
 
 		stream, err := openPluginStream(a)
@@ -107,7 +107,7 @@ func makePluginCreator(name string, l logPlugin, scopePath func(s string) string
 			return nil, errors.Wrapf(err, "error creating logger")
 		}
 
-		if cap.ReadLogs {
+		if caps.ReadLogs {
 			return &pluginAdapterWithRead{a}, nil
 		}
 

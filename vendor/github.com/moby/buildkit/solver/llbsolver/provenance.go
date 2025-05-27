@@ -17,6 +17,7 @@ import (
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/solver/errdefs"
 	"github.com/moby/buildkit/solver/llbsolver/ops"
 	"github.com/moby/buildkit/solver/llbsolver/provenance"
 	provenancetypes "github.com/moby/buildkit/solver/llbsolver/provenance/types"
@@ -167,14 +168,18 @@ func (b *provenanceBridge) Solve(ctx context.Context, req frontend.SolveRequest,
 		b.builds = append(b.builds, resultWithBridge{res: res, bridge: b})
 		b.mu.Unlock()
 	} else if req.Frontend != "" {
-		f, ok := b.llbBridge.frontends[req.Frontend]
+		f, ok := b.frontends[req.Frontend]
 		if !ok {
 			return nil, errors.Errorf("invalid frontend: %s", req.Frontend)
 		}
 		wb := &provenanceBridge{llbBridge: b.llbBridge, req: &req}
-		res, err = f.Solve(ctx, wb, b.llbBridge, req.FrontendOpt, req.FrontendInputs, sid, b.llbBridge.sm)
+		res, err = f.Solve(ctx, wb, b.llbBridge, req.FrontendOpt, req.FrontendInputs, sid, b.sm)
 		if err != nil {
-			return nil, err
+			fe := errdefs.Frontend{
+				Name:   req.Frontend,
+				Source: req.FrontendOpt[frontend.KeySource],
+			}
+			return nil, fe.WrapError(err)
 		}
 		wb.builds = append(wb.builds, resultWithBridge{res: res, bridge: wb})
 		b.mu.Lock()
@@ -328,7 +333,7 @@ type ProvenanceCreator struct {
 	pr        *provenancetypes.ProvenancePredicate
 	j         *solver.Job
 	sampler   *resources.SysSampler
-	addLayers func() error
+	addLayers func(context.Context) error
 }
 
 func NewProvenanceCreator(ctx context.Context, cp *provenance.Capture, res solver.ResultProxy, attrs map[string]string, j *solver.Job, usage *resources.SysSampler) (*ProvenanceCreator, error) {
@@ -372,7 +377,7 @@ func NewProvenanceCreator(ctx context.Context, cp *provenance.Capture, res solve
 
 	pr.Builder.ID = attrs["builder-id"]
 
-	var addLayers func() error
+	var addLayers func(context.Context) error
 
 	switch mode {
 	case "min":
@@ -403,7 +408,7 @@ func NewProvenanceCreator(ctx context.Context, cp *provenance.Capture, res solve
 			return nil, errors.Errorf("invalid worker ref %T", r.Sys())
 		}
 
-		addLayers = func() error {
+		addLayers = func(ctx context.Context) error {
 			e := newCacheExporter()
 
 			if wref.ImmutableRef != nil {
@@ -455,12 +460,12 @@ func NewProvenanceCreator(ctx context.Context, cp *provenance.Capture, res solve
 	return pc, nil
 }
 
-func (p *ProvenanceCreator) Predicate() (*provenancetypes.ProvenancePredicate, error) {
+func (p *ProvenanceCreator) Predicate(ctx context.Context) (*provenancetypes.ProvenancePredicate, error) {
 	end := p.j.RegisterCompleteTime()
 	p.pr.Metadata.BuildFinishedOn = &end
 
 	if p.addLayers != nil {
-		if err := p.addLayers(); err != nil {
+		if err := p.addLayers(ctx); err != nil {
 			return nil, err
 		}
 	}
@@ -483,14 +488,14 @@ type edge struct {
 
 func newCacheExporter() *cacheExporter {
 	return &cacheExporter{
-		m:      map[interface{}]struct{}{},
+		m:      map[any]struct{}{},
 		layers: map[edge][][]ocispecs.Descriptor{},
 	}
 }
 
 type cacheExporter struct {
 	layers map[edge][][]ocispecs.Descriptor
-	m      map[interface{}]struct{}
+	m      map[any]struct{}
 }
 
 func (ce *cacheExporter) Add(dgst digest.Digest) solver.CacheExporterRecord {

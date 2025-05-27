@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -26,8 +26,8 @@ const (
 )
 
 var (
-	pushDigestRegex = regexp.MustCompile(`[\S]+: digest: ([\S]+) size: [0-9]+`)
-	digestRegex     = regexp.MustCompile(`Digest: ([\S]+)`)
+	pushDigestRegex = lazyregexp.New(`[\S]+: digest: ([\S]+) size: [0-9]+`)
+	digestRegex     = lazyregexp.New(`Digest: ([\S]+)`)
 )
 
 func setupImage(c *testing.T) (digest.Digest, error) {
@@ -62,7 +62,7 @@ func setupImageWithTag(c *testing.T, tag string) (digest.Digest, error) {
 	return digest.Digest(pushDigest), nil
 }
 
-func testPullByTagDisplaysDigest(c *testing.T) {
+func (s *DockerRegistrySuite) TestPullByTagDisplaysDigest(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	pushDigest, err := setupImage(c)
 	assert.NilError(c, err, "error setting up image")
@@ -79,15 +79,7 @@ func testPullByTagDisplaysDigest(c *testing.T) {
 	assert.Equal(c, pushDigest.String(), pullDigest)
 }
 
-func (s *DockerRegistrySuite) TestPullByTagDisplaysDigest(c *testing.T) {
-	testPullByTagDisplaysDigest(c)
-}
-
-func (s *DockerSchema1RegistrySuite) TestPullByTagDisplaysDigest(c *testing.T) {
-	testPullByTagDisplaysDigest(c)
-}
-
-func testPullByDigest(c *testing.T) {
+func (s *DockerRegistrySuite) TestPullByDigest(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	pushDigest, err := setupImage(c)
 	assert.NilError(c, err, "error setting up image")
@@ -105,15 +97,7 @@ func testPullByDigest(c *testing.T) {
 	assert.Equal(c, pushDigest.String(), pullDigest)
 }
 
-func (s *DockerRegistrySuite) TestPullByDigest(c *testing.T) {
-	testPullByDigest(c)
-}
-
-func (s *DockerSchema1RegistrySuite) TestPullByDigest(c *testing.T) {
-	testPullByDigest(c)
-}
-
-func testPullByDigestNoFallback(c *testing.T) {
+func (s *DockerRegistrySuite) TestPullByDigestNoFallback(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// pull from the registry using the <name>@<digest> reference
 	imageReference := fmt.Sprintf("%s@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", repoName)
@@ -126,14 +110,6 @@ func testPullByDigestNoFallback(c *testing.T) {
 	}
 
 	assert.Check(c, is.Contains(out, expectedMsg), "expected non-zero exit status and correct error message when pulling non-existing image")
-}
-
-func (s *DockerRegistrySuite) TestPullByDigestNoFallback(c *testing.T) {
-	testPullByDigestNoFallback(c)
-}
-
-func (s *DockerSchema1RegistrySuite) TestPullByDigestNoFallback(c *testing.T) {
-	testPullByDigestNoFallback(c)
 }
 
 func (s *DockerRegistrySuite) TestCreateByDigest(c *testing.T) {
@@ -190,7 +166,6 @@ func (s *DockerRegistrySuite) TestRemoveImageByDigest(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestBuildByDigest(c *testing.T) {
-	skip.If(c, testEnv.UsingSnapshotter(), "Config.Image is not created with containerd, buildkit doesn't set it either")
 	imgDigest, err := setupImage(c)
 	assert.NilError(c, err, "error setting up image")
 
@@ -199,9 +174,6 @@ func (s *DockerRegistrySuite) TestBuildByDigest(c *testing.T) {
 	// pull from the registry using the <name>@<digest> reference
 	cli.DockerCmd(c, "pull", imageReference)
 
-	// get the image id
-	imageID := inspectField(c, imageReference, "Id")
-
 	// do the build
 	const name = "buildbydigest"
 	buildImageSuccessfully(c, name, build.WithDockerfile(fmt.Sprintf(
@@ -209,10 +181,9 @@ func (s *DockerRegistrySuite) TestBuildByDigest(c *testing.T) {
      CMD ["/bin/echo", "Hello World"]`, imageReference)))
 	assert.NilError(c, err)
 
-	// get the build's image id
-	res := inspectField(c, name, "Config.Image")
-	// make sure they match
-	assert.Equal(c, res, imageID)
+	// verify the build was ok
+	res := inspectField(c, name, "Config.Cmd")
+	assert.Equal(c, res, `[/bin/echo Hello World]`)
 }
 
 func (s *DockerRegistrySuite) TestTagByDigest(c *testing.T) {
@@ -580,48 +551,6 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredManifest(c *testing.T) {
 	}
 }
 
-// TestPullFailsWithAlteredManifest tests that a `docker pull` fails when
-// we have modified a manifest blob and its digest cannot be verified.
-// This is the schema1 version of the test.
-func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredManifest(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	manifestDigest, err := setupImage(c)
-	assert.Assert(c, err == nil, "error setting up image")
-
-	// Load the target manifest blob.
-	manifestBlob := s.reg.ReadBlobContents(c, manifestDigest)
-
-	var imgManifest schema1.Manifest
-	err = json.Unmarshal(manifestBlob, &imgManifest)
-	assert.Assert(c, err == nil, "unable to decode image manifest from blob")
-
-	// Change a layer in the manifest.
-	imgManifest.FSLayers[0] = schema1.FSLayer{
-		BlobSum: digest.Digest("sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"),
-	}
-
-	// Move the existing data file aside, so that we can replace it with a
-	// malicious blob of data. NOTE: we defer the returned undo func.
-	undo := s.reg.TempMoveBlobData(c, manifestDigest)
-	defer undo()
-
-	alteredManifestBlob, err := json.MarshalIndent(imgManifest, "", "   ")
-	assert.Assert(c, err == nil, "unable to encode altered image manifest to JSON")
-
-	s.reg.WriteBlobContents(c, manifestDigest, alteredManifestBlob)
-
-	// Now try pulling that image by digest. We should get an error about
-	// digest verification for the manifest digest.
-
-	// Pull from the registry using the <name>@<digest> reference.
-	imageReference := fmt.Sprintf("%s@%s", repoName, manifestDigest)
-	out, exitStatus, _ := dockerCmdWithError("pull", imageReference)
-	assert.Assert(c, exitStatus != 0)
-
-	expectedErrorMsg := fmt.Sprintf("image verification failed for digest %s", manifestDigest)
-	assert.Assert(c, is.Contains(out, expectedErrorMsg))
-}
-
 // TestPullFailsWithAlteredLayer tests that a `docker pull` fails when
 // we have modified a layer blob and its digest cannot be verified.
 // This is the schema2 version of the test.
@@ -641,49 +570,6 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *testing.T) {
 
 	// Next, get the digest of one of the layers from the manifest.
 	targetLayerDigest := imgManifest.Layers[0].Digest
-
-	// Move the existing data file aside, so that we can replace it with a
-	// malicious blob of data. NOTE: we defer the returned undo func.
-	undo := s.reg.TempMoveBlobData(c, targetLayerDigest)
-	defer undo()
-
-	// Now make a fake data blob in this directory.
-	s.reg.WriteBlobContents(c, targetLayerDigest, []byte("This is not the data you are looking for."))
-
-	// Now try pulling that image by digest. We should get an error about
-	// digest verification for the target layer digest.
-
-	// Remove distribution cache to force a re-pull of the blobs
-	if err := os.RemoveAll(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "image", s.d.StorageDriver(), "distribution")); err != nil {
-		c.Fatalf("error clearing distribution cache: %v", err)
-	}
-
-	// Pull from the registry using the <name>@<digest> reference.
-	imageReference := fmt.Sprintf("%s@%s", repoName, manifestDigest)
-	out, exitStatus, _ := dockerCmdWithError("pull", imageReference)
-	assert.Assert(c, exitStatus != 0, "expected a non-zero exit status")
-
-	expectedErrorMsg := fmt.Sprintf("filesystem layer verification failed for digest %s", targetLayerDigest)
-	assert.Assert(c, strings.Contains(out, expectedErrorMsg), "expected error message in output: %s", out)
-}
-
-// TestPullFailsWithAlteredLayer tests that a `docker pull` fails when
-// we have modified a layer blob and its digest cannot be verified.
-// This is the schema1 version of the test.
-func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredLayer(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	manifestDigest, err := setupImage(c)
-	assert.NilError(c, err)
-
-	// Load the target manifest blob.
-	manifestBlob := s.reg.ReadBlobContents(c, manifestDigest)
-
-	var imgManifest schema1.Manifest
-	err = json.Unmarshal(manifestBlob, &imgManifest)
-	assert.NilError(c, err)
-
-	// Next, get the digest of one of the layers from the manifest.
-	targetLayerDigest := imgManifest.FSLayers[0].BlobSum
 
 	// Move the existing data file aside, so that we can replace it with a
 	// malicious blob of data. NOTE: we defer the returned undo func.

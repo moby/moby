@@ -18,14 +18,10 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func decodeToMap(r *http.Request) (res map[string]interface{}, err error) {
-	err = json.NewDecoder(r.Body).Decode(&res)
-	return
-}
-
 func handle(t *testing.T, mux *http.ServeMux, method string, h func(map[string]interface{}) interface{}) {
 	mux.HandleFunc(fmt.Sprintf("/%s.%s", ipamapi.PluginEndpointType, method), func(w http.ResponseWriter, r *http.Request) {
-		ask, err := decodeToMap(r)
+		var ask map[string]interface{}
+		err := json.NewDecoder(r.Body).Decode(&ask)
 		if err != nil && err != io.EOF {
 			t.Fatal(err)
 		}
@@ -49,7 +45,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 
 	defer func() {
 		if t.Failed() {
-			os.RemoveAll(specPath)
+			_ = os.RemoveAll(specPath)
 		}
 	}()
 
@@ -64,7 +60,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
-		fmt.Fprintf(w, `{"Implements": ["%s"]}`, ipamapi.PluginEndpointType)
+		_, _ = fmt.Fprintf(w, `{"Implements": ["%s"]}`, ipamapi.PluginEndpointType)
 	})
 
 	return func() {

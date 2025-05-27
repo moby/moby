@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/images"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
@@ -83,7 +83,7 @@ func NewExportableCache(oci bool, imageManifest bool) (*ExportableCache, error) 
 	if imageManifest {
 		mediaType = ocispecs.MediaTypeImageManifest
 		if !oci {
-			return nil, errors.Errorf("invalid configuration for remote cache")
+			return nil, errors.Errorf("invalid configuration for remote cache, OCI mediatypes are required for image-manifest cache format")
 		}
 	} else {
 		if oci {

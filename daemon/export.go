@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/chrootarchive"
 )
 
 // ContainerExport writes the contents of the container to the given
@@ -42,23 +43,48 @@ func (daemon *Daemon) ContainerExport(ctx context.Context, name string, out io.W
 	return nil
 }
 
-func (daemon *Daemon) containerExport(ctx context.Context, container *container.Container, out io.Writer) error {
-	err := daemon.imageService.PerformWithBaseFS(ctx, container, func(basefs string) error {
-		archv, err := chrootarchive.Tar(basefs, &archive.TarOptions{
-			Compression: archive.Uncompressed,
-			IDMap:       daemon.idMapping,
-		}, basefs)
-		if err != nil {
-			return err
-		}
+func (daemon *Daemon) containerExport(ctx context.Context, ctr *container.Container, out io.Writer) error {
+	rwl := ctr.RWLayer
+	if rwl == nil {
+		return fmt.Errorf("container %s has no rootfs", ctr.ID)
+	}
 
-		// Stream the entire contents of the container (basically a volatile snapshot)
-		_, err = io.Copy(out, archv)
+	if err := ctx.Err(); err != nil {
 		return err
-	})
+	}
+
+	basefs, err := rwl.Mount(ctr.GetMountLabel())
 	if err != nil {
 		return err
 	}
-	daemon.LogContainerEvent(container, events.ActionExport)
+	defer func() {
+		if err := rwl.Unmount(); err != nil {
+			log.G(ctx).WithFields(log.Fields{"error": err, "container": ctr.ID}).Warn("Failed to unmount container RWLayer after export")
+		}
+	}()
+
+	archv, err := chrootarchive.Tar(basefs, &archive.TarOptions{
+		Compression: archive.Uncompressed,
+		IDMap:       daemon.idMapping,
+	}, basefs)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	context.AfterFunc(ctx, func() {
+		_ = archv.Close()
+	})
+
+	// Stream the entire contents of the container (basically a volatile snapshot)
+	if _, err := io.Copy(out, archv); err != nil {
+		if err := ctx.Err(); err != nil {
+			return errdefs.Cancelled(err)
+		}
+		return err
+	}
+
+	daemon.LogContainerEvent(ctr, events.ActionExport)
 	return nil
 }

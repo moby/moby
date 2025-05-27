@@ -20,7 +20,7 @@ import (
 func ReadAll(ctx context.Context, s session.Group, att exporter.Attestation) ([]byte, error) {
 	var content []byte
 	if att.ContentFunc != nil {
-		data, err := att.ContentFunc()
+		data, err := att.ContentFunc(ctx)
 		if err != nil {
 			return nil, err
 		}

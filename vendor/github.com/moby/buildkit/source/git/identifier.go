@@ -13,6 +13,7 @@ import (
 type GitIdentifier struct {
 	Remote           string
 	Ref              string
+	Checksum         string
 	Subdir           string
 	KeepGitDir       bool
 	AuthTokenSecret  string

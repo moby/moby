@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
-	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
@@ -50,7 +49,7 @@ func (m *MockBackend) ContainerStart(ctx context.Context, containerID string, ch
 	return nil
 }
 
-func (m *MockBackend) ContainerWait(ctx context.Context, containerID string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error) {
+func (m *MockBackend) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.StateStatus, error) {
 	return nil, nil
 }
 

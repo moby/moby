@@ -1,5 +1,5 @@
 // FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.22
+//go:build go1.23
 
 // Package resolvconf is used to generate a container's /etc/resolv.conf file.
 //
@@ -31,7 +31,7 @@ import (
 	"text/template"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/sys/atomicwriter"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -85,10 +85,10 @@ type metadata struct {
 	SearchOverride  bool
 	OptionsOverride bool
 	NDotsFrom       string
-	UsedDefaultNS   bool
 	Transform       string
 	InvalidNSs      []string
 	ExtNameServers  []ExtDNSEntry
+	Warnings        []string
 }
 
 // Load opens a file at path and parses it as a resolv.conf file.
@@ -229,7 +229,7 @@ func (rc *ResolvConf) TransformForLegacyNw(ipv6 bool) {
 	if len(rc.nameServers) == 0 {
 		log.G(context.TODO()).Info("No non-localhost DNS nameservers are left in resolv.conf. Using default external servers")
 		rc.nameServers = defaultNSAddrs(ipv6)
-		rc.md.UsedDefaultNS = true
+		rc.md.Warnings = append(rc.md.Warnings, "Used default nameservers.")
 	}
 }
 
@@ -280,6 +280,9 @@ func (rc *ResolvConf) TransformForIntNS(
 	}
 
 	rc.md.Transform = "internal resolver"
+	if len(rc.md.ExtNameServers) == 0 {
+		rc.md.Warnings = append(rc.md.Warnings, "NO EXTERNAL NAMESERVERS DEFINED")
+	}
 	return append([]ExtDNSEntry(nil), rc.md.ExtNameServers...), nil
 }
 
@@ -325,8 +328,8 @@ options {{join . " "}}
 {{join . "\n"}}
 {{end}}{{if .Comments}}
 # Based on host file: '{{.Md.SourcePath}}'{{with .Md.Transform}} ({{.}}){{end}}
-{{if .Md.UsedDefaultNS -}}
-# Used default nameservers.
+{{range .Md.Warnings -}}
+# {{.}}
 {{end -}}
 {{with .Md.ExtNameServers -}}
 # ExtServers: {{.}}
@@ -370,7 +373,7 @@ func (rc *ResolvConf) WriteFile(path, hashPath string, perm os.FileMode) error {
 
 	// Write the hash file.
 	if hashPath != "" {
-		hashFile, err := ioutils.NewAtomicFileWriter(hashPath, perm)
+		hashFile, err := atomicwriter.New(hashPath, perm)
 		if err != nil {
 			return errSystem{err}
 		}

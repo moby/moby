@@ -1,5 +1,5 @@
 // FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.22
+//go:build go1.23
 
 package bridge
 
@@ -13,10 +13,9 @@ import (
 	"slices"
 	"strconv"
 	"syscall"
-	"unsafe"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/iptables"
+	"github.com/docker/docker/libnetwork/drivers/bridge/internal/rlkclient"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/libnetwork/portmapper"
@@ -46,6 +45,9 @@ type portBinding struct {
 	// stopProxy is a function to stop the userland proxy for this binding,
 	// if a proxy has been started - else nil.
 	stopProxy func() error
+	// rootlesskitUnsupported is set to true when the port binding is not
+	// supported by the port driver of RootlessKit.
+	rootlesskitUnsupported bool
 }
 
 // childPortBinding is pb.PortBinding, with the host address the daemon
@@ -176,9 +178,9 @@ func (n *bridgeNetwork) addPortMappings(
 	}
 
 	for i := range bindings {
-		if pdc != nil && bindings[i].HostPort != 0 {
+		b := bindings[i]
+		if pdc != nil && b.HostPort != 0 {
 			var err error
-			b := &bindings[i]
 			hip, ok := netip.AddrFromSlice(b.HostIP)
 			if !ok {
 				return nil, fmt.Errorf("invalid host IP address in %s", b)
@@ -187,14 +189,23 @@ func (n *bridgeNetwork) addPortMappings(
 			if !ok {
 				return nil, fmt.Errorf("invalid child host IP address %s in %s", b.childHostIP, b)
 			}
-			b.portDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip, chip, int(b.HostPort))
+			bindings[i].portDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip, chip, int(b.HostPort))
 			if err != nil {
+				var pErr *rlkclient.ProtocolUnsupportedError
+				if errors.As(err, &pErr) {
+					log.G(ctx).WithFields(log.Fields{
+						"error": pErr,
+					}).Warnf("discarding request for %q", net.JoinHostPort(hip.String(), strconv.Itoa(int(b.HostPort))))
+					bindings[i].rootlesskitUnsupported = true
+					continue
+				}
 				return nil, err
 			}
 		}
-		if err := n.setPerPortIptables(bindings[i], true); err != nil {
-			return nil, err
-		}
+	}
+
+	if err := n.firewallerNetwork.AddPorts(ctx, mergeChildHostIPs(bindings)); err != nil {
+		return nil, err
 	}
 
 	// Now the iptables rules are set up, it's safe to start the userland proxy.
@@ -208,7 +219,7 @@ func (n *bridgeNetwork) addPortMappings(
 		somaxconn = -1 // silently capped to "/proc/sys/net/core/somaxconn"
 	}
 	for i := range bindings {
-		if bindings[i].boundSocket == nil {
+		if bindings[i].boundSocket == nil || bindings[i].rootlesskitUnsupported {
 			continue
 		}
 		if bindings[i].Proto == types.TCP {
@@ -309,6 +320,21 @@ func needSamePort(a, b types.PortBinding) bool {
 		a.HostPort == b.HostPort &&
 		a.HostPortEnd == b.HostPortEnd &&
 		a.IP.Equal(b.IP)
+}
+
+// mergeChildHostIPs take a slice of portBinding and returns a slice of
+// types.PortBinding, where the HostIP in each of the results has the
+// value of childHostIP from the input (if present).
+func mergeChildHostIPs(pbs []portBinding) []types.PortBinding {
+	res := make([]types.PortBinding, 0, len(pbs))
+	for _, b := range pbs {
+		pb := b.PortBinding
+		if b.childHostIP != nil {
+			pb.HostIP = b.childHostIP
+		}
+		res = append(res, pb)
+	}
+	return res
 }
 
 // configurePortBindingIPv4 returns a new port binding with the HostIP field
@@ -675,14 +701,7 @@ func bindSCTP(cfg portBindingReq, port int) (_ portBinding, retErr error) {
 		syscall.SetsockoptInt(sd, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 1)
 	}
 
-	options := sctp.InitMsg{NumOstreams: sctp.SCTP_MAX_STREAM}
-	if _, _, errno := syscall.Syscall6(syscall.SYS_SETSOCKOPT,
-		uintptr(sd),
-		sctp.SOL_SCTP,
-		sctp.SCTP_INITMSG,
-		uintptr(unsafe.Pointer(&options)), // #nosec G103 -- Ignore "G103: Use of unsafe calls should be audited"
-		unsafe.Sizeof(options),
-		0); errno != 0 {
+	if errno := setSCTPInitMsg(sd, sctp.InitMsg{NumOstreams: sctp.SCTP_MAX_STREAM}); errno != 0 {
 		return portBinding{}, errno
 	}
 
@@ -726,158 +745,34 @@ func (n *bridgeNetwork) releasePorts(ep *bridgeEndpoint) error {
 func (n *bridgeNetwork) releasePortBindings(pbs []portBinding) error {
 	var errs []error
 	for _, pb := range pbs {
-		var errS, errPD, errP error
 		if pb.boundSocket != nil {
-			errS = pb.boundSocket.Close()
-			if errS != nil {
-				errS = fmt.Errorf("failed to close socket for port mapping %s: %w", pb, errS)
+			if err := pb.boundSocket.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("failed to close socket for port mapping %s: %w", pb, err))
 			}
 		}
 		if pb.portDriverRemove != nil {
-			errPD = pb.portDriverRemove()
-		}
-		if pb.stopProxy != nil {
-			errP = pb.stopProxy()
-			if errP != nil {
-				errP = fmt.Errorf("failed to stop userland proxy for port mapping %s: %w", pb, errP)
+			if err := pb.portDriverRemove(); err != nil {
+				errs = append(errs, err)
 			}
 		}
-		errN := n.setPerPortIptables(pb, false)
-		if errN != nil {
-			errN = fmt.Errorf("failed to remove iptables rules for port mapping %s: %w", pb, errN)
+		if pb.stopProxy != nil {
+			if err := pb.stopProxy(); err != nil {
+				errs = append(errs, fmt.Errorf("failed to stop userland proxy for port mapping %s: %w", pb, err))
+			}
 		}
+	}
+	if err := n.firewallerNetwork.DelPorts(context.TODO(), mergeChildHostIPs(pbs)); err != nil {
+		errs = append(errs, err)
+	}
+	for _, pb := range pbs {
 		if pb.HostPort > 0 {
 			portallocator.Get().ReleasePort(pb.childHostIP, pb.Proto.String(), int(pb.HostPort))
 		}
-		errs = append(errs, errS, errPD, errP, errN)
 	}
 	return errors.Join(errs...)
 }
 
-func (n *bridgeNetwork) setPerPortIptables(b portBinding, enable bool) error {
-	if (b.IP.To4() != nil) != (b.HostIP.To4() != nil) {
-		// The binding is between containerV4 and hostV6 (not vice-versa as that
-		// will have been rejected earlier). It's handled by docker-proxy, so no
-		// additional iptables rules are required.
-		return nil
-	}
-	v := iptables.IPv4
-	if b.IP.To4() == nil {
-		v = iptables.IPv6
-	}
-
-	if enabled, err := n.iptablesEnabled(v); err != nil || !enabled {
-		// Nothing to do, iptables/ip6tables is not enabled.
-		return nil
-	}
-
-	bridgeName := n.getNetworkBridgeName()
-	proxyPath := n.userlandProxyPath()
-	if err := setPerPortNAT(b, v, proxyPath, bridgeName, enable); err != nil {
-		return err
-	}
-
-	if !n.gwMode(v).unprotected() {
-		if err := setPerPortForwarding(b, v, bridgeName, enable); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func setPerPortNAT(b portBinding, ipv iptables.IPVersion, proxyPath string, bridgeName string, enable bool) error {
-	if b.HostPort == 0 {
-		// NAT is disabled.
-		return nil
-	}
-	// iptables interprets "0.0.0.0" as "0.0.0.0/32", whereas we
-	// want "0.0.0.0/0". "0/0" is correctly interpreted as "any
-	// value" by both iptables and ip6tables.
-	hostIP := "0/0"
-	if !b.childHostIP.IsUnspecified() {
-		hostIP = b.childHostIP.String()
-	}
-	args := []string{
-		"-p", b.Proto.String(),
-		"-d", hostIP,
-		"--dport", strconv.Itoa(int(b.HostPort)),
-		"-j", "DNAT",
-		"--to-destination", net.JoinHostPort(b.IP.String(), strconv.Itoa(int(b.Port))),
-	}
-	hairpinMode := proxyPath == ""
-	if !hairpinMode {
-		args = append(args, "!", "-i", bridgeName)
-	}
-	if ipv == iptables.IPv6 {
-		args = append(args, "!", "-s", "fe80::/10")
-	}
-	rule := iptables.Rule{IPVer: ipv, Table: iptables.Nat, Chain: DockerChain, Args: args}
-	if err := appendOrDelChainRule(rule, "DNAT", enable); err != nil {
-		return err
-	}
-
-	rule = iptables.Rule{IPVer: ipv, Table: iptables.Nat, Chain: "POSTROUTING", Args: []string{
-		"-p", b.Proto.String(),
-		"-s", b.IP.String(),
-		"-d", b.IP.String(),
-		"--dport", strconv.Itoa(int(b.Port)),
-		"-j", "MASQUERADE",
-	}}
-	if err := appendOrDelChainRule(rule, "MASQUERADE", hairpinMode && enable); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func setPerPortForwarding(b portBinding, ipv iptables.IPVersion, bridgeName string, enable bool) error {
-	// Insert rules for open ports at the top of the filter table's DOCKER
-	// chain (a per-network DROP rule, which must come after these per-port
-	// per-container ACCEPT rules, is appended to the chain when the network
-	// is created).
-	rule := iptables.Rule{IPVer: ipv, Table: iptables.Filter, Chain: DockerChain, Args: []string{
-		"!", "-i", bridgeName,
-		"-o", bridgeName,
-		"-p", b.Proto.String(),
-		"-d", b.IP.String(),
-		"--dport", strconv.Itoa(int(b.Port)),
-		"-j", "ACCEPT",
-	}}
-	if err := programChainRule(rule, "OPEN PORT", enable); err != nil {
-		return err
-	}
-
-	if b.Proto == types.SCTP && os.Getenv("DOCKER_IPTABLES_SCTP_CHECKSUM") == "1" {
-		// Linux kernel v4.9 and below enables NETIF_F_SCTP_CRC for veth by
-		// the following commit.
-		// This introduces a problem when combined with a physical NIC without
-		// NETIF_F_SCTP_CRC. As for a workaround, here we add an iptables entry
-		// to fill the checksum.
-		//
-		// https://github.com/torvalds/linux/commit/c80fafbbb59ef9924962f83aac85531039395b18
-		rule := iptables.Rule{IPVer: ipv, Table: iptables.Mangle, Chain: "POSTROUTING", Args: []string{
-			"-p", b.Proto.String(),
-			"--sport", strconv.Itoa(int(b.Port)),
-			"-j", "CHECKSUM",
-			"--checksum-fill",
-		}}
-		if err := appendOrDelChainRule(rule, "SCTP CHECKSUM", enable); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (n *bridgeNetwork) reapplyPerPortIptables4() {
-	n.reapplyPerPortIptables(func(b portBinding) bool { return b.IP.To4() != nil })
-}
-
-func (n *bridgeNetwork) reapplyPerPortIptables6() {
-	n.reapplyPerPortIptables(func(b portBinding) bool { return b.IP.To4() == nil })
-}
-
-func (n *bridgeNetwork) reapplyPerPortIptables(needsReconfig func(portBinding) bool) {
+func (n *bridgeNetwork) reapplyPerPortIptables() {
 	n.Lock()
 	var allPBs []portBinding
 	for _, ep := range n.endpoints {
@@ -885,11 +780,7 @@ func (n *bridgeNetwork) reapplyPerPortIptables(needsReconfig func(portBinding) b
 	}
 	n.Unlock()
 
-	for _, b := range allPBs {
-		if needsReconfig(b) {
-			if err := n.setPerPortIptables(b, true); err != nil {
-				log.G(context.TODO()).Warnf("Failed to reconfigure NAT %s: %s", b, err)
-			}
-		}
+	if err := n.firewallerNetwork.AddPorts(context.Background(), mergeChildHostIPs(allPBs)); err != nil {
+		log.G(context.TODO()).Warnf("Failed to reconfigure NAT: %s", err)
 	}
 }

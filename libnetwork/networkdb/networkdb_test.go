@@ -46,9 +46,11 @@ func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Co
 		localConfig.Hostname = fmt.Sprintf("%s%d", namePrefix, i+1)
 		localConfig.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
 		localConfig.BindPort = int(dbPort.Add(1))
+		localConfig.BindAddr = "127.0.0.1"
+		localConfig.AdvertiseAddr = localConfig.BindAddr
 		db := launchNode(t, localConfig)
 		if i != 0 {
-			assert.Check(t, db.Join([]string{fmt.Sprintf("localhost:%d", db.config.BindPort-1)}))
+			assert.Check(t, db.Join([]string{net.JoinHostPort(db.config.AdvertiseAddr, strconv.Itoa(db.config.BindPort-1))}))
 		}
 
 		dbs = append(dbs, db)
@@ -77,12 +79,12 @@ func closeNetworkDBInstances(t *testing.T, dbs []*NetworkDB) {
 	}
 }
 
-func (db *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool) {
+func (nDB *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool) {
 	t.Helper()
 	for i := 0; i < 80; i++ {
-		db.RLock()
-		_, ok := db.nodes[node]
-		db.RUnlock()
+		nDB.RLock()
+		_, ok := nDB.nodes[node]
+		nDB.RUnlock()
 		if present && ok {
 			return
 		}
@@ -94,10 +96,10 @@ func (db *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	t.Errorf("%v(%v): Node existence verification for node %s failed", db.config.Hostname, db.config.NodeID, node)
+	t.Errorf("%v(%v): Node existence verification for node %s failed", nDB.config.Hostname, nDB.config.NodeID, node)
 }
 
-func (db *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string, present bool) {
+func (nDB *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string, present bool) {
 	t.Helper()
 
 	const sleepInterval = 50 * time.Millisecond
@@ -108,15 +110,15 @@ func (db *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string
 		maxRetries = 80
 	}
 	for i := int64(0); i < maxRetries; i++ {
-		db.RLock()
-		nn, nnok := db.networks[node]
+		nDB.RLock()
+		nn, nnok := nDB.networks[node]
 		if nnok {
 			n, ok := nn[id]
 			var leaving bool
 			if ok {
 				leaving = n.leaving
 			}
-			db.RUnlock()
+			nDB.RUnlock()
 			if present && ok {
 				return
 			}
@@ -127,7 +129,7 @@ func (db *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string
 				return
 			}
 		} else {
-			db.RUnlock()
+			nDB.RUnlock()
 		}
 
 		time.Sleep(sleepInterval)
@@ -136,11 +138,11 @@ func (db *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string
 	t.Error("Network existence verification failed")
 }
 
-func (db *NetworkDB) verifyEntryExistence(t *testing.T, tname, nid, key, value string, present bool) {
+func (nDB *NetworkDB) verifyEntryExistence(t *testing.T, tname, nid, key, value string, present bool) {
 	t.Helper()
 	n := 80
 	for i := 0; i < n; i++ {
-		v, err := db.GetEntry(tname, nid, key)
+		v, err := nDB.GetEntry(tname, nid, key)
 		if present && err == nil && string(v) == value {
 			return
 		}
@@ -151,7 +153,7 @@ func (db *NetworkDB) verifyEntryExistence(t *testing.T, tname, nid, key, value s
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	t.Errorf("Entry existence verification test failed for %v(%v)", db.config.Hostname, db.config.NodeID)
+	t.Errorf("Entry existence verification test failed for %v(%v)", nDB.config.Hostname, nDB.config.NodeID)
 }
 
 func testWatch(t *testing.T, ch chan events.Event, ev interface{}, tname, nid, key, value string) {
@@ -244,7 +246,7 @@ func TestNetworkDBJoinLeaveNetworks(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestFlakyNetworkDBCRUDTableEntry(t *testing.T) {
+func TestNetworkDBCRUDTableEntry(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 3, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")
@@ -274,7 +276,7 @@ func TestFlakyNetworkDBCRUDTableEntry(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestFlakyNetworkDBCRUDTableEntries(t *testing.T) {
+func TestNetworkDBCRUDTableEntries(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")
@@ -344,7 +346,7 @@ func TestFlakyNetworkDBCRUDTableEntries(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestFlakyNetworkDBNodeLeave(t *testing.T) {
+func TestNetworkDBNodeLeave(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")
@@ -428,6 +430,22 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 
 	dbs := createNetworkDBInstances(t, n, "node", DefaultConfig())
 
+	// Shake out any data races.
+	done := make(chan struct{})
+	defer close(done)
+	for _, db := range dbs {
+		go func(db *NetworkDB) {
+			for {
+				select {
+				case <-done:
+					return
+				default:
+				}
+				_ = db.GetTableByNetwork("test_table", "network1")
+			}
+		}(db)
+	}
+
 	for i := 0; i < n; i++ {
 		for j := 0; j < n; j++ {
 			if i == j {
@@ -482,20 +500,20 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
-	dbChangeWitness := func(db *NetworkDB) func(network string, expectNodeCount int) {
-		staleNetworkTime := db.networkClock.Time()
+	dbChangeWitness := func(nDB *NetworkDB) func(network string, expectNodeCount int) {
+		staleNetworkTime := nDB.networkClock.Time()
 		return func(network string, expectNodeCount int) {
 			check := func(t poll.LogT) poll.Result {
-				networkTime := db.networkClock.Time()
+				networkTime := nDB.networkClock.Time()
 				if networkTime <= staleNetworkTime {
 					return poll.Continue("network time is stale, no change registered yet.")
 				}
 				count := -1
-				db.Lock()
-				if nodes, ok := db.networkNodes[network]; ok {
+				nDB.Lock()
+				if nodes, ok := nDB.networkNodes[network]; ok {
 					count = len(nodes)
 				}
-				db.Unlock()
+				nDB.Unlock()
 				if count != expectNodeCount {
 					return poll.Continue("current number of nodes is %d, expect %d.", count, expectNodeCount)
 				}

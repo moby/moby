@@ -28,7 +28,7 @@ func (d *manager) NetworkFree(id string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *manager) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
@@ -55,7 +55,7 @@ func (d *manager) EndpointOperInfo(nid, eid string) (map[string]interface{}, err
 	return nil, types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+func (d *manager) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]interface{}) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 

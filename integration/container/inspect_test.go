@@ -122,7 +122,7 @@ func TestInspectImageManifestPlatform(t *testing.T) {
 			ctr := container.Create(ctx, t, apiClient, container.WithImage(tc.image))
 			defer apiClient.ContainerRemove(ctx, ctr, containertypes.RemoveOptions{Force: true})
 
-			img, _, err := apiClient.ImageInspectWithRaw(ctx, tc.image)
+			img, err := apiClient.ImageInspect(ctx, tc.image)
 			assert.NilError(t, err)
 
 			hostPlatform := platforms.Platform{

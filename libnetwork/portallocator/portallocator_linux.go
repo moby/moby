@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-func getDynamicPortRange() (start int, end int, err error) {
+func getDynamicPortRange() (start int, end int, _ error) {
 	const portRangeKernelParam = "/proc/sys/net/ipv4/ip_local_port_range"
 	file, err := os.Open(portRangeKernelParam)
 	if err != nil {

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -20,7 +20,7 @@ func TestImageImportError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImageImport(context.Background(), image.ImportSource{}, "image:tag", image.ImportOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageImport(t *testing.T) {
@@ -89,7 +89,7 @@ func TestImageImport(t *testing.T) {
 
 			body, err := io.ReadAll(resp)
 			assert.NilError(t, err)
-			assert.Equal(t, string(body), expectedOutput)
+			assert.Check(t, is.Equal(string(body), expectedOutput))
 		})
 	}
 }

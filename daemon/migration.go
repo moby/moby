@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/api/types/backend"
@@ -104,6 +104,9 @@ func (r daemonPlatformReader) ReadPlatformFromConfigByImageManifest(
 	ctx context.Context,
 	desc ocispec.Descriptor,
 ) (ocispec.Platform, error) {
+	if r.content == nil {
+		return ocispec.Platform{}, errors.New("not an containerd image store")
+	}
 	b, err := content.ReadBlob(ctx, r.content, desc)
 	if err != nil {
 		return ocispec.Platform{}, err

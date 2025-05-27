@@ -7,23 +7,23 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"syscall"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/content/local"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/plugins/content/local"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/internal/containerfs"
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/pkg/ioutils"
 	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/registry"
 	"github.com/moby/pubsub"
+	"github.com/moby/sys/atomicwriter"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -35,7 +35,7 @@ const (
 	rootFSFileName = "rootfs"
 )
 
-var validFullID = regexp.MustCompile(`^([a-f0-9]{64})$`)
+var validFullID = lazyregexp.New(`^([a-f0-9]{64})$`)
 
 // Executor is the interface that the plugin manager uses to interact with for starting/stopping plugins
 type Executor interface {
@@ -281,7 +281,7 @@ func (pm *Manager) save(p *v2.Plugin) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal plugin json")
 	}
-	if err := ioutils.AtomicWriteFile(filepath.Join(pm.config.Root, p.GetID(), configFileName), pluginJSON, 0o600); err != nil {
+	if err := atomicwriter.WriteFile(filepath.Join(pm.config.Root, p.GetID(), configFileName), pluginJSON, 0o600); err != nil {
 		return errors.Wrap(err, "failed to write atomically plugin json")
 	}
 	return nil

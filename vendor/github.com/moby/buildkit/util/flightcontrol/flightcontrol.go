@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 	"math/rand"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 
@@ -211,7 +211,7 @@ func (c *call[T]) Err() error {
 	}
 }
 
-func (c *call[T]) Value(key interface{}) interface{} {
+func (c *call[T]) Value(key any) any {
 	if key == contextKey {
 		return c.progressState
 	}
@@ -299,7 +299,7 @@ func (ps *progressState) run(pr progress.Reader) {
 	for {
 		p, err := pr.Read(context.TODO())
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				ps.mu.Lock()
 				ps.done = true
 				ps.mu.Unlock()
@@ -330,8 +330,8 @@ func (ps *progressState) add(pw progress.Writer) {
 	for _, p := range ps.items {
 		plist = append(plist, p)
 	}
-	sort.Slice(plist, func(i, j int) bool {
-		return plist[i].Timestamp.Before(plist[j].Timestamp)
+	slices.SortFunc(plist, func(a, b *progress.Progress) int {
+		return a.Timestamp.Compare(b.Timestamp)
 	})
 	for _, p := range plist {
 		rw.WriteRawProgress(p)
@@ -353,7 +353,7 @@ func (ps *progressState) close(pw progress.Writer) {
 	for i, w := range ps.writers {
 		if w == rw {
 			w.Close()
-			ps.writers = append(ps.writers[:i], ps.writers[i+1:]...)
+			ps.writers = slices.Delete(ps.writers, i, i+1)
 			break
 		}
 	}

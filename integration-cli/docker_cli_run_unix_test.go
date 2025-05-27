@@ -20,13 +20,13 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/testutil"
 	"github.com/moby/sys/mount"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/skip"
 )
 
 // #6509
@@ -108,7 +108,7 @@ func (s *DockerCLIRunSuite) TestRunAttachDetach(c *testing.T) {
 	assert.NilError(c, cmd.Start())
 	cli.WaitRun(c, name)
 
-	_, err = cpty.Write([]byte("hello\n"))
+	_, err = cpty.WriteString("hello\n")
 	assert.NilError(c, err)
 
 	out, err := bufio.NewReader(stdout).ReadString('\n')
@@ -167,7 +167,7 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachFromFlag(c *testing.T) {
 	}
 	cli.WaitRun(c, name)
 
-	if _, err := cpty.Write([]byte("hello\n")); err != nil {
+	if _, err := cpty.WriteString("hello\n"); err != nil {
 		c.Fatal(err)
 	}
 
@@ -281,7 +281,7 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachFromConfig(c *testing.T) {
 	}
 	cli.WaitRun(c, name)
 
-	if _, err := cpty.Write([]byte("hello\n")); err != nil {
+	if _, err := cpty.WriteString("hello\n"); err != nil {
 		c.Fatal(err)
 	}
 
@@ -362,7 +362,7 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) 
 	}
 	cli.WaitRun(c, name)
 
-	if _, err := cpty.Write([]byte("hello\n")); err != nil {
+	if _, err := cpty.WriteString("hello\n"); err != nil {
 		c.Fatal(err)
 	}
 
@@ -401,8 +401,8 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) 
 
 func (s *DockerCLIRunSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *testing.T) {
 	const name = "attach-detach"
-	keyA := []byte{97}
-	keyB := []byte{98}
+	const keyA = "a"
+	const keyB = "b"
 
 	cli.DockerCmd(c, "run", "--name", name, "-itd", "busybox", "cat")
 
@@ -424,19 +424,19 @@ func (s *DockerCLIRunSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *te
 	cli.WaitRun(c, name)
 
 	// Invalid escape sequence aba, should print aba in output
-	if _, err := cpty.Write(keyA); err != nil {
+	if _, err := cpty.WriteString(keyA); err != nil {
 		c.Fatal(err)
 	}
 	time.Sleep(100 * time.Millisecond)
-	if _, err := cpty.Write(keyB); err != nil {
+	if _, err := cpty.WriteString(keyB); err != nil {
 		c.Fatal(err)
 	}
 	time.Sleep(100 * time.Millisecond)
-	if _, err := cpty.Write(keyA); err != nil {
+	if _, err := cpty.WriteString(keyA); err != nil {
 		c.Fatal(err)
 	}
 	time.Sleep(100 * time.Millisecond)
-	if _, err := cpty.Write([]byte("\n")); err != nil {
+	if _, err := cpty.WriteString("\n"); err != nil {
 		c.Fatal(err)
 	}
 
@@ -444,14 +444,17 @@ func (s *DockerCLIRunSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *te
 	if err != nil {
 		c.Fatal(err)
 	}
-	if strings.TrimSpace(out) != "aba" {
-		c.Fatalf("expected 'aba', got %q", out)
+
+	expected := keyA + keyB + keyA
+	if strings.TrimSpace(out) != expected {
+		c.Fatalf("expected '%s', got %q", expected, out)
 	}
 }
 
 // "test" should be printed
 func (s *DockerCLIRunSuite) TestRunWithCPUQuota(c *testing.T) {
 	testRequires(c, cpuCfsQuota)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
 	out := cli.DockerCmd(c, "run", "--cpu-quota", "8000", "--name", "test", "busybox", "cat", file).Combined()
@@ -463,6 +466,7 @@ func (s *DockerCLIRunSuite) TestRunWithCPUQuota(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunWithCpuPeriod(c *testing.T) {
 	testRequires(c, cpuCfsPeriod)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
 	out := cli.DockerCmd(c, "run", "--cpu-period", "50000", "--name", "test", "busybox", "cat", file).Combined()
@@ -493,6 +497,7 @@ func (s *DockerCLIRunSuite) TestRunWithInvalidCpuPeriod(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunWithCPUShares(c *testing.T) {
 	testRequires(c, cpuShare)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/cpu/cpu.shares"
 	out := cli.DockerCmd(c, "run", "--cpu-shares", "1000", "--name", "test", "busybox", "cat", file).Combined()
@@ -513,6 +518,7 @@ func (s *DockerCLIRunSuite) TestRunEchoStdoutWithCPUSharesAndMemoryLimit(c *test
 
 func (s *DockerCLIRunSuite) TestRunWithCpusetCpus(c *testing.T) {
 	testRequires(c, cgroupCpuset)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/cpuset/cpuset.cpus"
 	out := cli.DockerCmd(c, "run", "--cpuset-cpus", "0", "--name", "test", "busybox", "cat", file).Combined()
@@ -524,6 +530,7 @@ func (s *DockerCLIRunSuite) TestRunWithCpusetCpus(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunWithCpusetMems(c *testing.T) {
 	testRequires(c, cgroupCpuset)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/cpuset/cpuset.mems"
 	out := cli.DockerCmd(c, "run", "--cpuset-mems", "0", "--name", "test", "busybox", "cat", file).Combined()
@@ -535,6 +542,7 @@ func (s *DockerCLIRunSuite) TestRunWithCpusetMems(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunWithBlkioWeight(c *testing.T) {
 	testRequires(c, blkioWeight)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/blkio/blkio.weight"
 	out := cli.DockerCmd(c, "run", "--blkio-weight", "300", "--name", "test", "busybox", "cat", file).Combined()
@@ -546,6 +554,7 @@ func (s *DockerCLIRunSuite) TestRunWithBlkioWeight(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunWithInvalidBlkioWeight(c *testing.T) {
 	testRequires(c, blkioWeight)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 	out, _, err := dockerCmdWithError("run", "--blkio-weight", "5", "busybox", "true")
 	assert.ErrorContains(c, err, "", out)
 	expected := "Range of blkio weight is from 10 to 1000"
@@ -604,6 +613,7 @@ func (s *DockerCLIRunSuite) TestRunOOMExitCode(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunWithMemoryLimit(c *testing.T) {
 	testRequires(c, memoryLimitSupport)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
 	cli.DockerCmd(c, "run", "-m", "32M", "--name", "test", "busybox", "cat", file).Assert(c, icmd.Expected{
@@ -648,6 +658,7 @@ func (s *DockerCLIRunSuite) TestRunWithSwappinessInvalid(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunWithMemoryReservation(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, memoryReservationSupport)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/memory/memory.soft_limit_in_bytes"
 	out := cli.DockerCmd(c, "run", "--memory-reservation", "200M", "--name", "test", "busybox", "cat", file).Combined()
@@ -694,17 +705,15 @@ func (s *DockerCLIRunSuite) TestRunSwapLessThanMemoryLimit(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunInvalidCpusetCpusFlagValue(c *testing.T) {
 	testRequires(c, cgroupCpuset, testEnv.IsLocalDaemon)
 
-	sysInfo := sysinfo.New()
-	cpus, err := parsers.ParseUintList(sysInfo.Cpus)
-	assert.NilError(c, err)
+	cpus := sysinfo.New().CPUSets
 	var invalid int
 	for i := 0; i <= len(cpus)+1; i++ {
-		if !cpus[i] {
+		if _, ok := cpus[i]; !ok {
 			invalid = i
 			break
 		}
 	}
-	out, _, err := dockerCmdWithError("run", "--cpuset-cpus", strconv.Itoa(invalid), "busybox", "true")
+	out, _, err := dockerCmdWithError("create", "--cpuset-cpus", strconv.Itoa(invalid), "busybox", "true")
 	assert.ErrorContains(c, err, "")
 	expected := fmt.Sprintf("Error response from daemon: Requested CPUs are not available - requested %s, available: %s", strconv.Itoa(invalid), sysInfo.Cpus)
 	assert.Assert(c, is.Contains(out, expected))
@@ -713,37 +722,17 @@ func (s *DockerCLIRunSuite) TestRunInvalidCpusetCpusFlagValue(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunInvalidCpusetMemsFlagValue(c *testing.T) {
 	testRequires(c, cgroupCpuset)
 
-	sysInfo := sysinfo.New()
-	mems, err := parsers.ParseUintList(sysInfo.Mems)
-	assert.NilError(c, err)
+	mems := sysinfo.New().MemSets
 	var invalid int
 	for i := 0; i <= len(mems)+1; i++ {
-		if !mems[i] {
+		if _, ok := mems[i]; !ok {
 			invalid = i
 			break
 		}
 	}
-	out, _, err := dockerCmdWithError("run", "--cpuset-mems", strconv.Itoa(invalid), "busybox", "true")
+	out, _, err := dockerCmdWithError("create", "--cpuset-mems", strconv.Itoa(invalid), "busybox", "true")
 	assert.ErrorContains(c, err, "")
 	expected := fmt.Sprintf("Error response from daemon: Requested memory nodes are not available - requested %s, available: %s", strconv.Itoa(invalid), sysInfo.Mems)
-	assert.Assert(c, is.Contains(out, expected))
-}
-
-func (s *DockerCLIRunSuite) TestRunInvalidCPUShares(c *testing.T) {
-	testRequires(c, cpuShare, DaemonIsLinux)
-	out, _, err := dockerCmdWithError("run", "--cpu-shares", "1", "busybox", "echo", "test")
-	assert.ErrorContains(c, err, "", out)
-	expected := "minimum allowed cpu-shares is 2"
-	assert.Assert(c, is.Contains(out, expected))
-
-	out, _, err = dockerCmdWithError("run", "--cpu-shares", "-1", "busybox", "echo", "test")
-	assert.ErrorContains(c, err, "", out)
-	expected = "shares: invalid argument"
-	assert.Assert(c, is.Contains(out, expected))
-
-	out, _, err = dockerCmdWithError("run", "--cpu-shares", "99999999", "busybox", "echo", "test")
-	assert.ErrorContains(c, err, "", out)
-	expected = "maximum allowed cpu-shares is"
 	assert.Assert(c, is.Contains(out, expected))
 }
 
@@ -900,7 +889,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshare(c *testing.T) {
 	}
 	defer tmpFile.Close()
 
-	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
+	if _, err := tmpFile.WriteString(jsonData); err != nil {
 		c.Fatal(err)
 	}
 	icmd.RunCommand(dockerBinary, "run", "--security-opt", "apparmor=unconfined",
@@ -935,7 +924,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyChmod(c *testing.T) {
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 
-	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
+	if _, err := tmpFile.WriteString(jsonData); err != nil {
 		c.Fatal(err)
 	}
 	icmd.RunCommand(dockerBinary, "run", "--security-opt", "seccomp="+tmpFile.Name(),
@@ -972,7 +961,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshareUserns(c *testing.T)
 	}
 	defer tmpFile.Close()
 
-	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
+	if _, err := tmpFile.WriteString(jsonData); err != nil {
 		c.Fatal(err)
 	}
 	icmd.RunCommand(dockerBinary, "run",
@@ -1314,13 +1303,13 @@ func (s *DockerCLIRunSuite) TestRunApparmorProcDirectory(c *testing.T) {
 	// running w seccomp unconfined tests the apparmor profile
 	result := icmd.RunCommand(dockerBinary, "run", "--security-opt", "seccomp=unconfined", "busybox", "chmod", "777", "/proc/1/cgroup")
 	result.Assert(c, icmd.Expected{ExitCode: 1})
-	if !(strings.Contains(result.Combined(), "Permission denied") || strings.Contains(result.Combined(), "Operation not permitted")) {
+	if !strings.Contains(result.Combined(), "Permission denied") && !strings.Contains(result.Combined(), "Operation not permitted") {
 		c.Fatalf("expected chmod 777 /proc/1/cgroup to fail, got %s: %v", result.Combined(), result.Error)
 	}
 
 	result = icmd.RunCommand(dockerBinary, "run", "--security-opt", "seccomp=unconfined", "busybox", "chmod", "777", "/proc/1/attr/current")
 	result.Assert(c, icmd.Expected{ExitCode: 1})
-	if !(strings.Contains(result.Combined(), "Permission denied") || strings.Contains(result.Combined(), "Operation not permitted")) {
+	if !strings.Contains(result.Combined(), "Permission denied") && !strings.Contains(result.Combined(), "Operation not permitted") {
 		c.Fatalf("expected chmod 777 /proc/1/attr/current to fail, got %s: %v", result.Combined(), result.Error)
 	}
 }
@@ -1385,6 +1374,7 @@ func (s *DockerCLIRunSuite) TestRunDeviceSymlink(c *testing.T) {
 // TestRunPIDsLimit makes sure the pids cgroup is set with --pids-limit
 func (s *DockerCLIRunSuite) TestRunPIDsLimit(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, pidsLimit)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/pids/pids.max"
 	out := cli.DockerCmd(c, "run", "--name", "skittles", "--pids-limit", "4", "busybox", "cat", file).Combined()
@@ -1396,6 +1386,7 @@ func (s *DockerCLIRunSuite) TestRunPIDsLimit(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunPrivilegedAllowedDevices(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file = "/sys/fs/cgroup/devices/devices.list"
 	out := cli.DockerCmd(c, "run", "--privileged", "busybox", "cat", file).Combined()
@@ -1438,7 +1429,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *testing.T) {
 	tmpFile, err := os.CreateTemp("", "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
-	_, err = tmpFile.Write([]byte(jsonData))
+	_, err = tmpFile.WriteString(jsonData)
 	assert.NilError(c, err)
 
 	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
@@ -1465,7 +1456,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *testing.T) {
 	tmpFile, err := os.CreateTemp("", "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
-	_, err = tmpFile.Write([]byte(jsonData))
+	_, err = tmpFile.WriteString(jsonData)
 	assert.NilError(c, err)
 
 	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
@@ -1503,7 +1494,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *testing.T) {
 	tmpFile, err := os.CreateTemp("", "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
-	_, err = tmpFile.Write([]byte(jsonData))
+	_, err = tmpFile.WriteString(jsonData)
 	assert.NilError(c, err)
 
 	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
@@ -1537,7 +1528,7 @@ func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *testing.T)
 	tmpFile, err := os.CreateTemp("", "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
-	_, err = tmpFile.Write([]byte(jsonData))
+	_, err = tmpFile.WriteString(jsonData)
 	assert.NilError(c, err)
 
 	// 2) restart the daemon and add a custom seccomp profile in which we deny chmod
@@ -1550,6 +1541,7 @@ func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *testing.T)
 
 func (s *DockerCLIRunSuite) TestRunWithNanoCPUs(c *testing.T) {
 	testRequires(c, cpuCfsQuota, cpuCfsPeriod)
+	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
 
 	const file1 = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
 	const file2 = "/sys/fs/cgroup/cpu/cpu.cfs_period_us"

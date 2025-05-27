@@ -4,12 +4,12 @@ import (
 	"context"
 	"time"
 
-	c8dimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	imagetype "github.com/docker/docker/api/types/image"
-	dimages "github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/internal/metrics"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -125,7 +125,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string, platform *
 		}
 	}
 
-	dimages.ImageActions.WithValues("history").UpdateSince(start)
+	metrics.ImageActions.WithValues("history").UpdateSince(start)
 	return history, nil
 }
 

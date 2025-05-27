@@ -4,7 +4,7 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 )
 
 // buildRouter is a router to talk with the build controller
@@ -25,15 +25,15 @@ func NewRouter(b Backend, d experimentalProvider) router.Router {
 }
 
 // Routes returns the available routers to the build controller
-func (r *buildRouter) Routes() []router.Route {
-	return r.routes
+func (br *buildRouter) Routes() []router.Route {
+	return br.routes
 }
 
-func (r *buildRouter) initRoutes() {
-	r.routes = []router.Route{
-		router.NewPostRoute("/build", r.postBuild),
-		router.NewPostRoute("/build/prune", r.postPrune),
-		router.NewPostRoute("/build/cancel", r.postCancel),
+func (br *buildRouter) initRoutes() {
+	br.routes = []router.Route{
+		router.NewPostRoute("/build", br.postBuild),
+		router.NewPostRoute("/build/prune", br.postPrune),
+		router.NewPostRoute("/build/cancel", br.postCancel),
 	}
 }
 
@@ -46,15 +46,22 @@ func (r *buildRouter) initRoutes() {
 //
 // This value is only a recommendation as advertised by the daemon, and it is
 // up to the client to choose which builder to use.
-func BuilderVersion(features map[string]bool) types.BuilderVersion {
+func BuilderVersion(features map[string]bool) build.BuilderVersion {
 	// TODO(thaJeztah) move the default to daemon/config
+	bv := build.BuilderBuildKit
 	if runtime.GOOS == "windows" {
-		return types.BuilderV1
+		// BuildKit is not yet the default on Windows.
+		bv = build.BuilderV1
 	}
 
-	bv := types.BuilderBuildKit
-	if v, ok := features["buildkit"]; ok && !v {
-		bv = types.BuilderV1
+	// Allow the features field in the daemon config to override the
+	// default builder to advertise.
+	if enable, ok := features["buildkit"]; ok {
+		if enable {
+			bv = build.BuilderBuildKit
+		} else {
+			bv = build.BuilderV1
+		}
 	}
 	return bv
 }

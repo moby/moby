@@ -5,9 +5,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/reference"
-	"github.com/containerd/containerd/remotes"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/remotes"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/session"
 	sessioncontent "github.com/moby/buildkit/session/content"
@@ -125,7 +125,7 @@ func (r *ociLayoutResolver) info(ctx context.Context, ref reference.Spec) (conte
 func (r *ociLayoutResolver) withCaller(ctx context.Context, f func(context.Context, session.Caller) error) error {
 	if r.store.SessionID != "" {
 		timeoutCtx, cancel := context.WithCancelCause(ctx)
-		timeoutCtx, _ = context.WithTimeoutCause(timeoutCtx, 5*time.Second, errors.WithStack(context.DeadlineExceeded))
+		timeoutCtx, _ = context.WithTimeoutCause(timeoutCtx, 5*time.Second, errors.WithStack(context.DeadlineExceeded)) //nolint:govet
 		defer func() { cancel(errors.WithStack(context.Canceled)) }()
 
 		caller, err := r.sm.Get(timeoutCtx, r.store.SessionID, false)

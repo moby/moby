@@ -1,6 +1,7 @@
 package distribution // import "github.com/docker/docker/distribution"
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"syscall"
@@ -25,10 +26,6 @@ var continueFromMirrorEndpoint = []error{
 	errcode.Error{},
 	// nested
 	errcode.Errors{errcode.Error{}},
-}
-
-var neverContinue = []error{
-	errors.New(strings.ToLower(syscall.ESRCH.Error())), // No such process
 }
 
 func TestContinueOnError_NonMirrorEndpoint(t *testing.T) {
@@ -57,6 +54,12 @@ func TestContinueOnError_MirrorEndpoint(t *testing.T) {
 }
 
 func TestContinueOnError_NeverContinue(t *testing.T) {
+	neverContinue := []error{
+		errors.New(strings.ToLower(syscall.ESRCH.Error())), // No such process
+		context.Canceled,
+		context.DeadlineExceeded,
+	}
+
 	for _, isMirrorEndpoint := range []bool{true, false} {
 		for _, err := range neverContinue {
 			if continueOnError(err, isMirrorEndpoint) {

@@ -11,7 +11,6 @@ SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${SCRIPTDIR}"/yamllint
 . "${SCRIPTDIR}"/swagger
 . "${SCRIPTDIR}"/swagger-gen
-. "${SCRIPTDIR}"/toml
 . "${SCRIPTDIR}"/deprecate-integration-cli
 . "${SCRIPTDIR}"/golangci-lint
 . "${SCRIPTDIR}"/shfmt

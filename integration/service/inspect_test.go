@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration/internal/swarm"
@@ -28,7 +27,7 @@ func TestInspect(t *testing.T) {
 	var instances uint64 = 2
 	serviceSpec := fullSwarmServiceSpec("test-service-inspect"+t.Name(), instances)
 
-	resp, err := client.ServiceCreate(ctx, serviceSpec, types.ServiceCreateOptions{
+	resp, err := client.ServiceCreate(ctx, serviceSpec, swarmtypes.ServiceCreateOptions{
 		QueryRegistry: false,
 	})
 	assert.NilError(t, err)
@@ -36,7 +35,7 @@ func TestInspect(t *testing.T) {
 	id := resp.ID
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, client, id, instances))
 
-	service, _, err := client.ServiceInspectWithRaw(ctx, id, types.ServiceInspectOptions{})
+	service, _, err := client.ServiceInspectWithRaw(ctx, id, swarmtypes.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
 	expected := swarmtypes.Service{

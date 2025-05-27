@@ -197,7 +197,7 @@ type lbBalancer struct {
 
 	// manualResolver is used in the remote LB ClientConn inside grpclb. When
 	// resolved address updates are received by grpclb, filtered updates will be
-	// send to remote LB ClientConn through this resolver.
+	// sent to remote LB ClientConn through this resolver.
 	manualResolver *manual.Resolver
 	// The ClientConn to talk to the remote balancer.
 	ccRemoteLB *remoteBalancerCCWrapper

@@ -1385,7 +1385,7 @@ definitions:
           <p><br /></p>
 
           > **Deprecated**: this field is not part of the image specification and is
-          > always empty. It must not be used, and will be removed in API v1.48.
+          > always empty. It must not be used, and will be removed in API v1.50.
         type: "string"
         example: ""
       Domainname:
@@ -1395,7 +1395,7 @@ definitions:
           <p><br /></p>
 
           > **Deprecated**: this field is not part of the image specification and is
-          > always empty. It must not be used, and will be removed in API v1.48.
+          > always empty. It must not be used, and will be removed in API v1.50.
         type: "string"
         example: ""
       User:
@@ -1409,7 +1409,7 @@ definitions:
           <p><br /></p>
 
           > **Deprecated**: this field is not part of the image specification and is
-          > always false. It must not be used, and will be removed in API v1.48.
+          > always false. It must not be used, and will be removed in API v1.50.
         type: "boolean"
         default: false
         example: false
@@ -1420,7 +1420,7 @@ definitions:
           <p><br /></p>
 
           > **Deprecated**: this field is not part of the image specification and is
-          > always false. It must not be used, and will be removed in API v1.48.
+          > always false. It must not be used, and will be removed in API v1.50.
         type: "boolean"
         default: false
         example: false
@@ -1431,7 +1431,7 @@ definitions:
           <p><br /></p>
 
           > **Deprecated**: this field is not part of the image specification and is
-          > always false. It must not be used, and will be removed in API v1.48.
+          > always false. It must not be used, and will be removed in API v1.50.
         type: "boolean"
         default: false
         example: false
@@ -1458,7 +1458,7 @@ definitions:
           <p><br /></p>
 
           > **Deprecated**: this field is not part of the image specification and is
-          > always false. It must not be used, and will be removed in API v1.48.
+          > always false. It must not be used, and will be removed in API v1.50.
         type: "boolean"
         default: false
         example: false
@@ -1469,7 +1469,7 @@ definitions:
           <p><br /></p>
 
           > **Deprecated**: this field is not part of the image specification and is
-          > always false. It must not be used, and will be removed in API v1.48.
+          > always false. It must not be used, and will be removed in API v1.50.
         type: "boolean"
         default: false
         example: false
@@ -1480,7 +1480,7 @@ definitions:
           <p><br /></p>
 
           > **Deprecated**: this field is not part of the image specification and is
-          > always false. It must not be used, and will be removed in API v1.48.
+          > always false. It must not be used, and will be removed in API v1.50.
         type: "boolean"
         default: false
         example: false
@@ -1517,7 +1517,7 @@ definitions:
           <p><br /></p>
 
           > **Deprecated**: this field is not part of the image specification and is
-          > always empty. It must not be used, and will be removed in API v1.48.
+          > always empty. It must not be used, and will be removed in API v1.50.
         type: "string"
         default: ""
         example: ""
@@ -1556,7 +1556,7 @@ definitions:
           <p><br /></p>
 
           > **Deprecated**: this field is not part of the image specification and is
-          > always omitted. It must not be used, and will be removed in API v1.48.
+          > always omitted. It must not be used, and will be removed in API v1.50.
         type: "boolean"
         default: false
         example: false
@@ -1568,7 +1568,7 @@ definitions:
           <p><br /></p>
 
           > **Deprecated**: this field is not part of the image specification and is
-          > always omitted. It must not be used, and will be removed in API v1.48.
+          > always omitted. It must not be used, and will be removed in API v1.50.
         type: "string"
         default: ""
         example: ""
@@ -1602,7 +1602,7 @@ definitions:
           <p><br /></p>
 
           > **Deprecated**: this field is not part of the image specification and is
-          > always omitted. It must not be used, and will be removed in API v1.48.
+          > always omitted. It must not be used, and will be removed in API v1.50.
         type: "integer"
         default: 10
         x-nullable: true
@@ -5082,8 +5082,11 @@ definitions:
           com.example.some-other-label: "some-other-value"
       Data:
         description: |
-          Base64-url-safe-encoded ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-5))
-          data to store as secret.
+          Data is the data to store as a secret, formatted as a Base64-url-safe-encoded
+          ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-5)) string.
+          It must be empty if the Driver field is set, in which case the data is
+          loaded from an external secret store. The maximum allowed size is 500KB,
+          as defined in [MaxSecretSize](https://pkg.go.dev/github.com/moby/swarmkit/v2@v2.0.0-20250103191802-8c1959736554/api/validation#MaxSecretSize).
 
           This field is only used to _create_ a secret, and is not returned by
           other endpoints.
@@ -5134,8 +5137,9 @@ definitions:
           type: "string"
       Data:
         description: |
-          Base64-url-safe-encoded ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-5))
-          config data.
+          Data is the data to store as a config, formatted as a Base64-url-safe-encoded
+          ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-5)) string.
+          The maximum allowed size is 1000KB, as defined in [MaxConfigSize](https://pkg.go.dev/github.com/moby/swarmkit/v2@v2.0.0-20250103191802-8c1959736554/manager/controlapi#MaxConfigSize).
         type: "string"
       Templating:
         description: |
@@ -9757,13 +9761,9 @@ paths:
 
         ### Image tarball format
 
-        An image tarball contains one directory per image layer (named using its long ID), each containing these files:
+        An image tarball contains [Content as defined in the OCI Image Layout Specification](https://github.com/opencontainers/image-spec/blob/v1.1.1/image-layout.md#content).
 
-        - `VERSION`: currently `1.0` - the file format version
-        - `json`: detailed layer information, similar to `docker inspect layer_id`
-        - `layer.tar`: A tarfile containing the filesystem changes in this layer
-
-        The `layer.tar` file contains `aufs` style `.wh..wh.aufs` files and directories for storing attribute changes and deletions.
+        Additionally, includes the manifest.json file associated with a backwards compatible docker save format.
 
         If the tarball defines a repository, the tarball should also include a `repositories` file at the root that contains a list of repository and tag names mapped to layer IDs.
 

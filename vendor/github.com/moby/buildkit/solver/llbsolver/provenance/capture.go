@@ -1,7 +1,8 @@
 package provenance
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 
 	distreference "github.com/distribution/reference"
 	resourcestypes "github.com/moby/buildkit/executor/resources/types"
@@ -56,23 +57,23 @@ func (c *Capture) Merge(c2 *Capture) error {
 }
 
 func (c *Capture) Sort() {
-	sort.Slice(c.Sources.Images, func(i, j int) bool {
-		return c.Sources.Images[i].Ref < c.Sources.Images[j].Ref
+	slices.SortFunc(c.Sources.Images, func(a, b provenancetypes.ImageSource) int {
+		return cmp.Compare(a.Ref, b.Ref)
 	})
-	sort.Slice(c.Sources.Local, func(i, j int) bool {
-		return c.Sources.Local[i].Name < c.Sources.Local[j].Name
+	slices.SortFunc(c.Sources.Local, func(a, b provenancetypes.LocalSource) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
-	sort.Slice(c.Sources.Git, func(i, j int) bool {
-		return c.Sources.Git[i].URL < c.Sources.Git[j].URL
+	slices.SortFunc(c.Sources.Git, func(a, b provenancetypes.GitSource) int {
+		return cmp.Compare(a.URL, b.URL)
 	})
-	sort.Slice(c.Sources.HTTP, func(i, j int) bool {
-		return c.Sources.HTTP[i].URL < c.Sources.HTTP[j].URL
+	slices.SortFunc(c.Sources.HTTP, func(a, b provenancetypes.HTTPSource) int {
+		return cmp.Compare(a.URL, b.URL)
 	})
-	sort.Slice(c.Secrets, func(i, j int) bool {
-		return c.Secrets[i].ID < c.Secrets[j].ID
+	slices.SortFunc(c.Secrets, func(a, b provenancetypes.Secret) int {
+		return cmp.Compare(a.ID, b.ID)
 	})
-	sort.Slice(c.SSH, func(i, j int) bool {
-		return c.SSH[i].ID < c.SSH[j].ID
+	slices.SortFunc(c.SSH, func(a, b provenancetypes.SSH) int {
+		return cmp.Compare(a.ID, b.ID)
 	})
 }
 

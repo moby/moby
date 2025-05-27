@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/containerd/containerd/content"
-	c8dimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/v2/core/content"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/leases"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
@@ -45,11 +45,6 @@ type manifest struct {
 	Config ocispec.Descriptor `json:"config"`
 }
 
-func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentImage string, platform *ocispec.Platform, setupInit func(string) error) error {
-	// Only makes sense when containerd image store is used
-	panic("not implemented")
-}
-
 func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.Image, platform ocispec.Platform) (bool, error) {
 	ls, err := i.leases.ListResources(ctx, leases.Lease{ID: imageKey(img.ID().String())})
 	if err != nil {
@@ -59,7 +54,7 @@ func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.I
 		log.G(ctx).WithFields(log.Fields{
 			"error":           err,
 			"image":           img.ID,
-			"desiredPlatform": platforms.Format(platform),
+			"desiredPlatform": platforms.FormatAll(platform),
 		}).Error("Error looking up image leases")
 		return false, err
 	}
@@ -80,7 +75,7 @@ func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.I
 	for _, r := range ls {
 		logger := log.G(ctx).WithFields(log.Fields{
 			"image":           img.ID,
-			"desiredPlatform": platforms.Format(platform),
+			"desiredPlatform": platforms.FormatAll(platform),
 			"resourceID":      r.ID,
 			"resourceType":    r.Type,
 		})
@@ -126,7 +121,7 @@ func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.I
 				Variant:      md.Platform.Variant,
 			}
 			if !comparer.Match(p) {
-				logger.WithField("otherPlatform", platforms.Format(p)).Debug("Manifest is not a match")
+				logger.WithField("otherPlatform", platforms.FormatAll(p)).Debug("Manifest is not a match")
 				continue
 			}
 
@@ -200,7 +195,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 		if ref, err := reference.ParseNamed(refOrID); err == nil {
 			imgName = reference.FamiliarString(ref)
 		}
-		retErr = errdefs.NotFound(errors.Errorf("image with reference %s was found but its platform (%s) does not match the specified platform (%s)", imgName, platforms.Format(imgPlat), platforms.Format(p)))
+		retErr = errdefs.NotFound(errors.Errorf("image with reference %s was found but its platform (%s) does not match the specified platform (%s)", imgName, platforms.FormatAll(imgPlat), platforms.FormatAll(p)))
 	}()
 	ref, err := reference.ParseAnyReference(refOrID)
 	if err != nil {

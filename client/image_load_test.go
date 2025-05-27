@@ -8,8 +8,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -20,8 +19,8 @@ func TestImageLoadError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.ImageLoad(context.Background(), nil, image.LoadOptions{Quiet: true})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	_, err := client.ImageLoad(context.Background(), nil, ImageLoadWithQuiet(true))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageLoad(t *testing.T) {
@@ -97,10 +96,10 @@ func TestImageLoad(t *testing.T) {
 			}
 
 			input := bytes.NewReader([]byte(expectedInput))
-			imageLoadResponse, err := client.ImageLoad(context.Background(), input, image.LoadOptions{
-				Quiet:     tc.quiet,
-				Platforms: tc.platforms,
-			})
+			imageLoadResponse, err := client.ImageLoad(context.Background(), input,
+				ImageLoadWithQuiet(tc.quiet),
+				ImageLoadWithPlatforms(tc.platforms...),
+			)
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(imageLoadResponse.JSON, tc.expectedResponseJSON))
 

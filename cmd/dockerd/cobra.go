@@ -48,8 +48,9 @@ func wrappedFlagUsages(cmd *cobra.Command) string {
 
 const usageTemplate = `Usage:	{{.UseLine}}
 
-{{ .Short | trim }}
+{{with (or .Long .Short)}}{{. | trimTrailingWhitespaces}}
 
+{{- end}}
 {{- if gt .Aliases 0}}
 
 Aliases:
@@ -61,6 +62,14 @@ Aliases:
 Examples:
 {{ .Example }}
 
+{{- end}}
+{{- if .HasAvailableSubCommands}}
+
+Commands:
+
+{{- range .Commands }}
+  {{rpad .Name .NamePadding }} {{.Short}}
+{{- end}}
 {{- end}}
 {{- if .HasAvailableFlags}}
 

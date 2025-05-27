@@ -58,7 +58,7 @@ func (s *Server) Handle(pattern string, handler http.Handler) {
 	s.handlers[pattern] = handler
 }
 
-// Handle registers the handler function for the given pattern,
+// HandleFunc registers the handler function for the given pattern,
 // replacing any existing handler.
 func (s *Server) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
 	s.Handle(pattern, http.HandlerFunc(handler))
@@ -70,21 +70,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
 }
 
-// EnableDiagnostic opens a TCP socket to debug the passed network DB
-func (s *Server) EnableDiagnostic(ip string, port int) {
+// Enable opens a TCP socket to debug the passed network DB
+func (s *Server) Enable(ip string, port int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.port = port
+	log.G(context.TODO()).WithFields(log.Fields{"port": s.port, "ip": ip}).Warn("Starting network diagnostic server")
 
+	// FIXME(thaJeztah): this check won't allow re-configuring the port on reload.
 	if s.enable {
-		log.G(context.TODO()).Info("The server is already up and running")
+		log.G(context.TODO()).WithFields(log.Fields{"port": s.port, "ip": ip}).Info("Network diagnostic server is already up and running")
 		return
 	}
 
-	log.G(context.TODO()).Infof("Starting the diagnostic server listening on %d for commands", port)
+	addr := net.JoinHostPort(ip, strconv.Itoa(s.port))
+	log.G(context.TODO()).WithFields(log.Fields{"port": s.port, "ip": ip}).Infof("Starting network diagnostic server listening on %s for commands", addr)
 	srv := &http.Server{
-		Addr:              net.JoinHostPort(ip, strconv.Itoa(port)),
+		Addr:              addr,
 		Handler:           s,
 		ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
 	}
@@ -101,19 +104,25 @@ func (s *Server) EnableDiagnostic(ip string, port int) {
 	}(s)
 }
 
-// DisableDiagnostic stop the debug and closes the tcp socket
-func (s *Server) DisableDiagnostic() {
+// Shutdown stop the debug and closes the tcp socket
+func (s *Server) Shutdown() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	s.srv.Shutdown(context.Background()) //nolint:errcheck
-	s.srv = nil
+	if !s.enable {
+		return
+	}
+	if s.srv != nil {
+		if err := s.srv.Shutdown(context.Background()); err != nil {
+			log.G(context.TODO()).WithError(err).Warn("Error during network diagnostic server shutdown")
+		}
+		s.srv = nil
+	}
 	s.enable = false
-	log.G(context.TODO()).Info("Disabling the diagnostic server")
+	log.G(context.TODO()).Info("Network diagnostic server shutdown complete")
 }
 
-// IsDiagnosticEnabled returns true when the debug is enabled
-func (s *Server) IsDiagnosticEnabled() bool {
+// Enabled returns true when the debug is enabled
+func (s *Server) Enabled() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.enable
@@ -176,15 +185,16 @@ func stackTrace(w http.ResponseWriter, r *http.Request) {
 
 	// audit logs
 	logger := log.G(context.TODO()).WithFields(log.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
-	logger.Info("stack trace")
+	logger.Info("collecting stack trace")
 
+	// FIXME(thaJeztah): make path configurable, or use same location as used by daemon.setupDumpStackTrap
 	path, err := stack.DumpToFile("/tmp/")
 	if err != nil {
-		logger.WithError(err).Error("failed to write goroutines dump")
+		logger.WithError(err).Error("failed to write stack trace to file")
 		_, _ = HTTPReply(w, FailCommand(err), jsonOutput)
 	} else {
-		logger.Info("stack trace done")
-		_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: "goroutine stacks written to " + path}), jsonOutput)
+		logger.WithField("file", path).Info("wrote stack trace to file")
+		_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: "goroutine stacks written to " + path + "\n"}), jsonOutput)
 	}
 }
 
@@ -221,12 +231,12 @@ func HTTPReply(w http.ResponseWriter, r *HTTPResult, j *JSONOutput) (int, error)
 		if j.prettyPrint {
 			response, err = json.MarshalIndent(r, "", "  ")
 			if err != nil {
-				response, _ = json.MarshalIndent(FailCommand(err), "", "  ")
+				response, _ = json.MarshalIndent(FailCommand(err), "", "  ") //nolint:errchkjson // ignore "Error return value of `encoding/json.MarshalIndent` is not checked: unsafe type `StringInterface`"
 			}
 		} else {
 			response, err = json.Marshal(r)
 			if err != nil {
-				response, _ = json.Marshal(FailCommand(err))
+				response, _ = json.Marshal(FailCommand(err)) //nolint:errchkjson // ignore "Error return value of `encoding/json.MarshalIndent` is not checked: unsafe type `StringInterface`"
 			}
 		}
 	} else {

@@ -122,7 +122,6 @@ RUN echo 'right'
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusOK)
 
-	defer body.Close()
 	content, err := request.ReadBody(body)
 	assert.NilError(c, err)
 
@@ -320,7 +319,7 @@ func (s *DockerAPISuite) TestBuildOnBuildCache(c *testing.T) {
 	// check parentID is correct
 	// Parent is graphdriver-only
 	if !testEnv.UsingSnapshotter() {
-		image, _, err := client.ImageInspectWithRaw(ctx, childID)
+		image, err := client.ImageInspect(ctx, childID)
 		assert.NilError(c, err)
 
 		assert.Check(c, is.Equal(parentID, image.Parent))

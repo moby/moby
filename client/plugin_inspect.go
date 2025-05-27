@@ -11,8 +11,9 @@ import (
 
 // PluginInspectWithRaw inspects an existing plugin
 func (cli *Client) PluginInspectWithRaw(ctx context.Context, name string) (*types.Plugin, []byte, error) {
-	if name == "" {
-		return nil, nil, objectNotFoundError{object: "plugin", id: name}
+	name, err := trimID("plugin", name)
+	if err != nil {
+		return nil, nil, err
 	}
 	resp, err := cli.get(ctx, "/plugins/"+name+"/json", nil, nil)
 	defer ensureReaderClosed(resp)
@@ -20,7 +21,7 @@ func (cli *Client) PluginInspectWithRaw(ctx context.Context, name string) (*type
 		return nil, nil, err
 	}
 
-	body, err := io.ReadAll(resp.body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, nil, err
 	}

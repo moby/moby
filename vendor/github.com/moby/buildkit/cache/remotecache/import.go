@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/labels"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/pkg/labels"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
@@ -137,7 +137,7 @@ func readBlob(ctx context.Context, provider content.Provider, desc ocispecs.Desc
 	if err != nil {
 		// NOTE: even if err == EOF, we might have got expected dt here.
 		// For instance, http.Response.Body is known to return non-zero bytes with EOF.
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			if dtDigest := desc.Digest.Algorithm().FromBytes(dt); dtDigest != desc.Digest {
 				err = errors.Wrapf(err, "got EOF, expected %s (%d bytes), got %s (%d bytes)",
 					desc.Digest, desc.Size, dtDigest, len(dt))

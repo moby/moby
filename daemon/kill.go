@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
@@ -122,7 +123,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 				// But this prevents race conditions in processing the container.
 				ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(container.StopTimeout())*time.Second)
 				defer cancel()
-				s := <-container.Wait(ctx, containerpkg.WaitConditionNotRunning)
+				s := <-container.Wait(ctx, containertypes.WaitConditionNotRunning)
 				if s.Err() != nil {
 					if err := daemon.handleContainerExit(container, nil); err != nil {
 						log.G(context.TODO()).WithFields(log.Fields{
@@ -177,7 +178,7 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 	ctx, cancel := context.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 
-	status := <-container.Wait(ctx, containerpkg.WaitConditionNotRunning)
+	status := <-container.Wait(ctx, containertypes.WaitConditionNotRunning)
 	if status.Err() == nil {
 		return nil
 	}
@@ -195,7 +196,7 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel2()
 
-	if status := <-container.Wait(ctx2, containerpkg.WaitConditionNotRunning); status.Err() != nil {
+	if status := <-container.Wait(ctx2, containertypes.WaitConditionNotRunning); status.Err() != nil {
 		return errors.New("tried to kill container, but did not receive an exit event")
 	}
 	return nil

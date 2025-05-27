@@ -3,10 +3,18 @@ package types
 import (
 	"context"
 
+	"github.com/docker/docker/api/types/build"
+	"github.com/docker/docker/api/types/common"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/storage"
+	"github.com/docker/docker/api/types/swarm"
 )
+
+// IDResponse Response to an API call that returns just an Id.
+//
+// Deprecated: use either [container.CommitResponse] or [container.ExecCreateResponse]. It will be removed in the next release.
+type IDResponse = common.IDResponse
 
 // ContainerJSONBase contains response of Engine API GET "/containers/{name:.*}/json"
 // for API version 1.18 and older.
@@ -107,3 +115,127 @@ type ImageInspect = image.InspectResponse
 //
 // Deprecated: moved to [github.com/docker/docker/api/types/registry.RequestAuthConfig].
 type RequestPrivilegeFunc func(context.Context) (string, error)
+
+// SecretCreateResponse contains the information returned to a client
+// on the creation of a new secret.
+//
+// Deprecated: use [swarm.SecretCreateResponse].
+type SecretCreateResponse = swarm.SecretCreateResponse
+
+// SecretListOptions holds parameters to list secrets
+//
+// Deprecated: use [swarm.SecretListOptions].
+type SecretListOptions = swarm.SecretListOptions
+
+// ConfigCreateResponse contains the information returned to a client
+// on the creation of a new config.
+//
+// Deprecated: use [swarm.ConfigCreateResponse].
+type ConfigCreateResponse = swarm.ConfigCreateResponse
+
+// ConfigListOptions holds parameters to list configs
+//
+// Deprecated: use [swarm.ConfigListOptions].
+type ConfigListOptions = swarm.ConfigListOptions
+
+// NodeListOptions holds parameters to list nodes with.
+//
+// Deprecated: use [swarm.NodeListOptions].
+type NodeListOptions = swarm.NodeListOptions
+
+// NodeRemoveOptions holds parameters to remove nodes with.
+//
+// Deprecated: use [swarm.NodeRemoveOptions].
+type NodeRemoveOptions = swarm.NodeRemoveOptions
+
+// TaskListOptions holds parameters to list tasks with.
+//
+// Deprecated: use [swarm.TaskListOptions].
+type TaskListOptions = swarm.TaskListOptions
+
+// ServiceCreateOptions contains the options to use when creating a service.
+//
+// Deprecated: use [swarm.ServiceCreateOptions].
+type ServiceCreateOptions = swarm.ServiceCreateOptions
+
+// ServiceUpdateOptions contains the options to be used for updating services.
+//
+// Deprecated: use [swarm.ServiceCreateOptions].
+type ServiceUpdateOptions = swarm.ServiceUpdateOptions
+
+const (
+	RegistryAuthFromSpec         = swarm.RegistryAuthFromSpec         // Deprecated: use [swarm.RegistryAuthFromSpec].
+	RegistryAuthFromPreviousSpec = swarm.RegistryAuthFromPreviousSpec // Deprecated: use [swarm.RegistryAuthFromPreviousSpec].
+)
+
+// ServiceListOptions holds parameters to list services with.
+//
+// Deprecated: use [swarm.ServiceListOptions].
+type ServiceListOptions = swarm.ServiceListOptions
+
+// ServiceInspectOptions holds parameters related to the "service inspect"
+// operation.
+//
+// Deprecated: use [swarm.ServiceInspectOptions].
+type ServiceInspectOptions = swarm.ServiceInspectOptions
+
+// SwarmUnlockKeyResponse contains the response for Engine API:
+// GET /swarm/unlockkey
+//
+// Deprecated: use [swarm.UnlockKeyResponse].
+type SwarmUnlockKeyResponse = swarm.UnlockKeyResponse
+
+// BuildCache contains information about a build cache record.
+//
+// Deprecated: deprecated in API 1.49. Use [build.CacheRecord] instead.
+type BuildCache = build.CacheRecord
+
+// BuildCachePruneOptions hold parameters to prune the build cache
+//
+// Deprecated: use [build.CachePruneOptions].
+type BuildCachePruneOptions = build.CachePruneOptions
+
+// BuildCachePruneReport contains the response for Engine API:
+// POST "/build/prune"
+//
+// Deprecated: use [build.CachePruneReport].
+type BuildCachePruneReport = build.CachePruneReport
+
+// BuildResult contains the image id of a successful build/
+//
+// Deprecated: use [build.Result].
+type BuildResult = build.Result
+
+// ImageBuildOptions holds the information
+// necessary to build images.
+//
+// Deprecated: use [build.ImageBuildOptions].
+type ImageBuildOptions = build.ImageBuildOptions
+
+// ImageBuildOutput defines configuration for exporting a build result
+//
+// Deprecated: use [build.ImageBuildOutput].
+type ImageBuildOutput = build.ImageBuildOutput
+
+// ImageBuildResponse holds information
+// returned by a server after building
+// an image.
+//
+// Deprecated: use [build.ImageBuildResponse].
+type ImageBuildResponse = build.ImageBuildResponse
+
+// BuilderVersion sets the version of underlying builder to use
+//
+// Deprecated: use [build.BuilderVersion].
+type BuilderVersion = build.BuilderVersion
+
+const (
+	// BuilderV1 is the first generation builder in docker daemon
+	//
+	// Deprecated: use [build.BuilderV1].
+	BuilderV1 = build.BuilderV1
+	// BuilderBuildKit is builder based on moby/buildkit project
+	//
+	// Deprecated: use [build.BuilderBuildKit].
+	BuilderBuildKit = build.BuilderBuildKit
+)

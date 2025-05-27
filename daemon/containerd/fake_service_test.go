@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/metadata"
-	"github.com/containerd/containerd/snapshots"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/containerd/v2/core/metadata"
+	"github.com/containerd/containerd/v2/core/snapshots"
+	"github.com/containerd/containerd/v2/defaults"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
@@ -29,7 +29,7 @@ func fakeImageService(t testing.TB, ctx context.Context, cs content.Store) *Imag
 	mdb := newTestDB(ctx, t)
 
 	snapshotters := map[string]snapshots.Snapshotter{
-		containerd.DefaultSnapshotter: snapshotter,
+		defaults.DefaultSnapshotter: snapshotter,
 	}
 
 	service := &ImageService{
@@ -38,7 +38,7 @@ func fakeImageService(t testing.TB, ctx context.Context, cs content.Store) *Imag
 		content:             cs,
 		eventsService:       daemonevents.New(),
 		snapshotterServices: snapshotters,
-		snapshotter:         containerd.DefaultSnapshotter,
+		snapshotter:         defaults.DefaultSnapshotter,
 	}
 
 	// containerd.Image gets the services directly from containerd.Client
@@ -242,49 +242,4 @@ func (s *delayedStore) Info(ctx context.Context, dgst digest.Digest) (content.In
 func (s *delayedStore) Update(ctx context.Context, info content.Info, fieldpaths ...string) (content.Info, error) {
 	s.delay()
 	return s.store.Update(ctx, info, fieldpaths...)
-}
-
-type memoryLabelStore struct {
-	mu     sync.Mutex
-	labels map[digest.Digest]map[string]string
-}
-
-// Get returns all the labels for the given digest
-func (s *memoryLabelStore) Get(dgst digest.Digest) (map[string]string, error) {
-	s.mu.Lock()
-	labels := s.labels[dgst]
-	s.mu.Unlock()
-	return labels, nil
-}
-
-// Set sets all the labels for a given digest
-func (s *memoryLabelStore) Set(dgst digest.Digest, labels map[string]string) error {
-	s.mu.Lock()
-	if s.labels == nil {
-		s.labels = make(map[digest.Digest]map[string]string)
-	}
-	s.labels[dgst] = labels
-	s.mu.Unlock()
-	return nil
-}
-
-// Update replaces the given labels for a digest,
-// a key with an empty value removes a label.
-func (s *memoryLabelStore) Update(dgst digest.Digest, update map[string]string) (map[string]string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	labels, ok := s.labels[dgst]
-	if !ok {
-		labels = map[string]string{}
-	}
-	for k, v := range update {
-		labels[k] = v
-	}
-	if s.labels == nil {
-		s.labels = map[digest.Digest]map[string]string{}
-	}
-	s.labels[dgst] = labels
-
-	return labels, nil
 }

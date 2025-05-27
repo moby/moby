@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
@@ -20,7 +21,7 @@ import (
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, _ map[string]interface{}) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.overlay.Join", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid),
@@ -83,7 +84,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		return err
 	}
 
-	if err = sbox.AddInterface(ctx, overlayIfName, "veth", osl.WithMaster(s.brName)); err != nil {
+	if err = sbox.AddInterface(ctx, overlayIfName, "veth", "", osl.WithMaster(s.brName)); err != nil {
 		return fmt.Errorf("could not add veth pair inside the network sandbox: %v", err)
 	}
 
@@ -110,7 +111,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	}
 
 	if iNames := jinfo.InterfaceName(); iNames != nil {
-		err = iNames.SetNames(containerIfName, "eth")
+		err = iNames.SetNames(containerIfName, "eth", netlabel.GetIfname(epOpts))
 		if err != nil {
 			return err
 		}

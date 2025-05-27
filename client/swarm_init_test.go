@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -21,7 +21,7 @@ func TestSwarmInitError(t *testing.T) {
 	}
 
 	_, err := client.SwarmInit(context.Background(), swarm.InitRequest{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestSwarmInit(t *testing.T) {
@@ -45,10 +45,6 @@ func TestSwarmInit(t *testing.T) {
 	resp, err := client.SwarmInit(context.Background(), swarm.InitRequest{
 		ListenAddr: "0.0.0.0:2377",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp != "body" {
-		t.Fatalf("Expected 'body', got %s", resp)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(resp, "body"))
 }

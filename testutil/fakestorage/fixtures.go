@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/api/types/build"
+	"github.com/moby/go-archive"
 	"gotest.tools/v3/assert"
 )
 
@@ -29,11 +29,7 @@ func ensureHTTPServerImage(t testing.TB) {
 
 	defer testEnv.ProtectImage(t, "httpserver:latest")
 
-	tmp, err := os.MkdirTemp("", "docker-http-server-test")
-	if err != nil {
-		t.Fatalf("could not build http server: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	goos := testEnv.DaemonInfo.OSType
 	if goos == "" {
@@ -49,7 +45,7 @@ func ensureHTTPServerImage(t testing.TB) {
 		t.Fatalf("could not build http server: %v", lookErr)
 	}
 
-	if _, err = os.Stat("../contrib/httpserver/httpserver"); os.IsNotExist(err) {
+	if _, err := os.Stat("../contrib/httpserver/httpserver"); os.IsNotExist(err) {
 		goCmd, lookErr := exec.LookPath("go")
 		if lookErr != nil {
 			t.Fatalf("could not build http server: %v", lookErr)
@@ -78,7 +74,7 @@ func ensureHTTPServerImage(t testing.TB) {
 	c := testEnv.APIClient()
 	reader, err := archive.TarWithOptions(tmp, &archive.TarOptions{})
 	assert.NilError(t, err)
-	resp, err := c.ImageBuild(context.Background(), reader, types.ImageBuildOptions{
+	resp, err := c.ImageBuild(context.Background(), reader, build.ImageBuildOptions{
 		Remove:      true,
 		ForceRemove: true,
 		Tags:        []string{"httpserver"},

@@ -1,63 +1,62 @@
-package idtools // import "github.com/docker/docker/pkg/idtools"
+package idtools
 
 import (
-	"bufio"
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
+
+	"github.com/moby/sys/user"
 )
 
 // IDMap contains a single entry for user namespace range remapping. An array
 // of IDMap entries represents the structure that will be provided to the Linux
 // kernel for creating a user namespace.
+//
+// Deprecated: use [user.IDMap] instead.
 type IDMap struct {
 	ContainerID int `json:"container_id"`
 	HostID      int `json:"host_id"`
 	Size        int `json:"size"`
 }
 
-type subIDRange struct {
-	Start  int
-	Length int
-}
-
-type subIDRanges []subIDRange
-
-func (e subIDRanges) Len() int           { return len(e) }
-func (e subIDRanges) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
-func (e subIDRanges) Less(i, j int) bool { return e[i].Start < e[j].Start }
-
-const (
-	subuidFileName = "/etc/subuid"
-	subgidFileName = "/etc/subgid"
-)
-
 // MkdirAllAndChown creates a directory (include any along the path) and then modifies
 // ownership to the requested uid/gid.  If the directory already exists, this
 // function will still change ownership and permissions.
+//
+// Deprecated: use [user.MkdirAllAndChown] instead.
 func MkdirAllAndChown(path string, mode os.FileMode, owner Identity) error {
-	return mkdirAs(path, mode, owner, true, true)
+	return user.MkdirAllAndChown(path, mode, owner.UID, owner.GID)
 }
 
 // MkdirAndChown creates a directory and then modifies ownership to the requested uid/gid.
 // If the directory already exists, this function still changes ownership and permissions.
 // Note that unlike os.Mkdir(), this function does not return IsExist error
 // in case path already exists.
+//
+// Deprecated: use [user.MkdirAndChown] instead.
 func MkdirAndChown(path string, mode os.FileMode, owner Identity) error {
-	return mkdirAs(path, mode, owner, false, true)
+	return user.MkdirAndChown(path, mode, owner.UID, owner.GID)
 }
 
 // MkdirAllAndChownNew creates a directory (include any along the path) and then modifies
 // ownership ONLY of newly created directories to the requested uid/gid. If the
 // directories along the path exist, no change of ownership or permissions will be performed
+//
+// Deprecated: use [user.MkdirAllAndChown] with the [user.WithOnlyNew] option instead.
 func MkdirAllAndChownNew(path string, mode os.FileMode, owner Identity) error {
-	return mkdirAs(path, mode, owner, true, false)
+	return user.MkdirAllAndChown(path, mode, owner.UID, owner.GID, user.WithOnlyNew)
 }
 
 // GetRootUIDGID retrieves the remapped root uid/gid pair from the set of maps.
 // If the maps are empty, then the root uid/gid will default to "real" 0/0
+//
+// Deprecated: use [(user.IdentityMapping).RootPair] instead.
 func GetRootUIDGID(uidMap, gidMap []IDMap) (int, int, error) {
+	return getRootUIDGID(uidMap, gidMap)
+}
+
+// getRootUIDGID retrieves the remapped root uid/gid pair from the set of maps.
+// If the maps are empty, then the root uid/gid will default to "real" 0/0
+func getRootUIDGID(uidMap, gidMap []IDMap) (int, int, error) {
 	uid, err := toHost(0, uidMap)
 	if err != nil {
 		return -1, -1, err
@@ -120,11 +119,61 @@ type IdentityMapping struct {
 	GIDMaps []IDMap `json:"GIDMaps"`
 }
 
+// FromUserIdentityMapping converts a [user.IdentityMapping] to an [idtools.IdentityMapping].
+//
+// Deprecated: use [user.IdentityMapping] directly, this is transitioning to user package.
+func FromUserIdentityMapping(u user.IdentityMapping) IdentityMapping {
+	return IdentityMapping{
+		UIDMaps: fromUserIDMap(u.UIDMaps),
+		GIDMaps: fromUserIDMap(u.GIDMaps),
+	}
+}
+
+func fromUserIDMap(u []user.IDMap) []IDMap {
+	if u == nil {
+		return nil
+	}
+	m := make([]IDMap, len(u))
+	for i := range u {
+		m[i] = IDMap{
+			ContainerID: int(u[i].ID),
+			HostID:      int(u[i].ParentID),
+			Size:        int(u[i].Count),
+		}
+	}
+	return m
+}
+
+// ToUserIdentityMapping converts an [idtools.IdentityMapping] to a [user.IdentityMapping].
+//
+// Deprecated: use [user.IdentityMapping] directly, this is transitioning to user package.
+func ToUserIdentityMapping(u IdentityMapping) user.IdentityMapping {
+	return user.IdentityMapping{
+		UIDMaps: toUserIDMap(u.UIDMaps),
+		GIDMaps: toUserIDMap(u.GIDMaps),
+	}
+}
+
+func toUserIDMap(u []IDMap) []user.IDMap {
+	if u == nil {
+		return nil
+	}
+	m := make([]user.IDMap, len(u))
+	for i := range u {
+		m[i] = user.IDMap{
+			ID:       int64(u[i].ContainerID),
+			ParentID: int64(u[i].HostID),
+			Count:    int64(u[i].Size),
+		}
+	}
+	return m
+}
+
 // RootPair returns a uid and gid pair for the root user. The error is ignored
 // because a root user always exists, and the defaults are correct when the uid
 // and gid maps are empty.
 func (i IdentityMapping) RootPair() Identity {
-	uid, gid, _ := GetRootUIDGID(i.UIDMaps, i.GIDMaps)
+	uid, gid, _ := getRootUIDGID(i.UIDMaps, i.GIDMaps)
 	return Identity{UID: uid, GID: gid}
 }
 
@@ -162,68 +211,9 @@ func (i IdentityMapping) Empty() bool {
 	return len(i.UIDMaps) == 0 && len(i.GIDMaps) == 0
 }
 
-func createIDMap(subidRanges subIDRanges) []IDMap {
-	idMap := []IDMap{}
-
-	containerID := 0
-	for _, idrange := range subidRanges {
-		idMap = append(idMap, IDMap{
-			ContainerID: containerID,
-			HostID:      idrange.Start,
-			Size:        idrange.Length,
-		})
-		containerID = containerID + idrange.Length
-	}
-	return idMap
-}
-
-func parseSubuid(username string) (subIDRanges, error) {
-	return parseSubidFile(subuidFileName, username)
-}
-
-func parseSubgid(username string) (subIDRanges, error) {
-	return parseSubidFile(subgidFileName, username)
-}
-
-// parseSubidFile will read the appropriate file (/etc/subuid or /etc/subgid)
-// and return all found subIDRanges for a specified username. If the special value
-// "ALL" is supplied for username, then all subIDRanges in the file will be returned
-func parseSubidFile(path, username string) (subIDRanges, error) {
-	var rangeList subIDRanges
-
-	subidFile, err := os.Open(path)
-	if err != nil {
-		return rangeList, err
-	}
-	defer subidFile.Close()
-
-	s := bufio.NewScanner(subidFile)
-	for s.Scan() {
-		text := strings.TrimSpace(s.Text())
-		if text == "" || strings.HasPrefix(text, "#") {
-			continue
-		}
-		parts := strings.Split(text, ":")
-		if len(parts) != 3 {
-			return rangeList, fmt.Errorf("Cannot parse subuid/gid information: Format not correct for %s file", path)
-		}
-		if parts[0] == username || username == "ALL" {
-			startid, err := strconv.Atoi(parts[1])
-			if err != nil {
-				return rangeList, fmt.Errorf("String to int conversion failed during subuid/gid parsing of %s: %v", path, err)
-			}
-			length, err := strconv.Atoi(parts[2])
-			if err != nil {
-				return rangeList, fmt.Errorf("String to int conversion failed during subuid/gid parsing of %s: %v", path, err)
-			}
-			rangeList = append(rangeList, subIDRange{startid, length})
-		}
-	}
-
-	return rangeList, s.Err()
-}
-
 // CurrentIdentity returns the identity of the current process
+//
+// Deprecated: use [os.Getuid] and [os.Getegid] instead.
 func CurrentIdentity() Identity {
 	return Identity{UID: os.Getuid(), GID: os.Getegid()}
 }

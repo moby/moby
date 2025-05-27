@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -30,7 +30,15 @@ func TestConfigRemoveError(t *testing.T) {
 	}
 
 	err := client.ConfigRemove(context.Background(), "config_id")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
+
+	err = client.ConfigRemove(context.Background(), "")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.ConfigRemove(context.Background(), "    ")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestConfigRemove(t *testing.T) {
@@ -53,7 +61,5 @@ func TestConfigRemove(t *testing.T) {
 	}
 
 	err := client.ConfigRemove(context.Background(), "config_id")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

@@ -2,7 +2,6 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
-	"regexp"
 	"strconv"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/docker/docker/libnetwork"
 	"github.com/pkg/errors"
 )
@@ -136,6 +136,8 @@ func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filte
 	return rep
 }
 
+var networkIsInUse = lazyregexp.New(`network ([[:alnum:]]+) is in use`)
+
 // clusterNetworksPrune removes unused cluster networks
 func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters filters.Args) (*network.PruneReport, error) {
 	rep := &network.PruneReport{}
@@ -152,7 +154,7 @@ func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters fil
 	if err != nil {
 		return rep, err
 	}
-	networkIsInUse := regexp.MustCompile(`network ([[:alnum:]]+) is in use`)
+
 	for _, nw := range networks {
 		select {
 		case <-ctx.Done():

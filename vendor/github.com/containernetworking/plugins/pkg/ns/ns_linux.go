@@ -31,6 +31,10 @@ func GetCurrentNS() (NetNS, error) {
 	// return an unexpected network namespace.
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
+	return getCurrentNSNoLock()
+}
+
+func getCurrentNSNoLock() (NetNS, error) {
 	return GetNS(getCurrentThreadNetNSPath())
 }
 
@@ -152,6 +156,54 @@ func GetNS(nspath string) (NetNS, error) {
 	return &netNS{file: fd}, nil
 }
 
+// Returns a new empty NetNS.
+// Calling Close() let the kernel garbage collect the network namespace.
+func TempNetNS() (NetNS, error) {
+	var tempNS NetNS
+	var err error
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// Create the new namespace in a new goroutine so that if we later fail
+	// to switch the namespace back to the original one, we can safely
+	// leave the thread locked to die without a risk of the current thread
+	// left lingering with incorrect namespace.
+	go func() {
+		defer wg.Done()
+		runtime.LockOSThread()
+
+		var threadNS NetNS
+		// save a handle to current network namespace
+		threadNS, err = getCurrentNSNoLock()
+		if err != nil {
+			err = fmt.Errorf("failed to open current namespace: %v", err)
+			return
+		}
+		defer threadNS.Close()
+
+		// create the temporary network namespace
+		err = unix.Unshare(unix.CLONE_NEWNET)
+		if err != nil {
+			return
+		}
+
+		// get a handle to the temporary network namespace
+		tempNS, err = getCurrentNSNoLock()
+
+		err2 := threadNS.Set()
+		if err2 == nil {
+			// Unlock the current thread only when we successfully switched back
+			// to the original namespace; otherwise leave the thread locked which
+			// will force the runtime to scrap the current thread, that is maybe
+			// not as optimal but at least always safe to do.
+			runtime.UnlockOSThread()
+		}
+	}()
+
+	wg.Wait()
+	return tempNS, err
+}
+
 func (ns *netNS) Path() string {
 	return ns.file.Name()
 }
@@ -173,7 +225,7 @@ func (ns *netNS) Do(toRun func(NetNS) error) error {
 	}
 
 	containedCall := func(hostNS NetNS) error {
-		threadNS, err := GetCurrentNS()
+		threadNS, err := getCurrentNSNoLock()
 		if err != nil {
 			return fmt.Errorf("failed to open current netns: %v", err)
 		}

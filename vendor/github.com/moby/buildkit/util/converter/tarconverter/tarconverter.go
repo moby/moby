@@ -2,6 +2,7 @@ package tarconverter
 
 import (
 	"archive/tar"
+	"errors"
 	"io"
 )
 
@@ -19,7 +20,7 @@ func NewReader(srcContent io.Reader, headerConverter HeaderConverter) io.ReadClo
 
 		for {
 			hdr, err := srcTar.Next()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				// Signals end of archive.
 				rebasedTar.Close()
 				// drain the reader into io.Discard, until hitting EOF

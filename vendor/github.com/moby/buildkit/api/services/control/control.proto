@@ -36,6 +36,7 @@ message PruneRequest {
 
 message DiskUsageRequest {
 	repeated string filter = 1; 
+	int64 ageLimit = 2;
 }
 
 message DiskUsageResponse {
@@ -74,6 +75,7 @@ message SolveRequest {
 	bool Internal = 11; // Internal builds are not recorded in build history
 	moby.buildkit.v1.sourcepolicy.Policy SourcePolicy = 12;
 	repeated Exporter Exporters = 13;
+	bool EnableSessionExporter = 14;
 }
 
 message CacheOptions {
@@ -180,6 +182,8 @@ message BuildHistoryRequest {
 	bool ActiveOnly = 1;
 	string Ref = 2;
 	bool EarlyExit = 3;
+	repeated string Filter = 4;
+	int32 Limit = 5;
 }
 
 enum BuildHistoryEventType {

@@ -135,7 +135,7 @@ func TestHealthStartInterval(t *testing.T) {
 		if err != nil {
 			return poll.Error(err)
 		}
-		if inspect.State.Health.Status != "healthy" {
+		if inspect.State.Health.Status != containertypes.Healthy {
 			if len(inspect.State.Health.Log) > 0 {
 				t.Log(inspect.State.Health.Log[len(inspect.State.Health.Log)-1])
 			}
@@ -188,7 +188,7 @@ func pollForHealthCheckLog(ctx context.Context, client client.APIClient, contain
 	}
 }
 
-func pollForHealthStatus(ctx context.Context, client client.APIClient, containerID string, healthStatus string) func(log poll.LogT) poll.Result {
+func pollForHealthStatus(ctx context.Context, client client.APIClient, containerID string, healthStatus containertypes.HealthStatus) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		inspect, err := client.ContainerInspect(ctx, containerID)
 

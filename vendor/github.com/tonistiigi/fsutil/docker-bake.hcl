@@ -27,11 +27,18 @@ target "_platforms" {
   ]
 }
 
+target "_common" {
+  args = {
+    BUILDKIT_CONTEXT_KEEP_GIT_DIR = 1
+  }
+}
+
 group "default" {
   targets = ["build"]
 }
 
 target "build" {
+  inherits = ["_common"]
   args = {
     GO_VERSION = "${GO_VERSION}"
   }
@@ -53,7 +60,16 @@ target "test-noroot" {
   output = ["${DESTDIR}/coverage"]
 }
 
-target "lint" {
+group "lint" {
+  targets = ["lint-golangci", "lint-gopls"]
+}
+
+group "lint-cross" {
+  targets = ["lint-golangci-cross", "lint-gopls-cross"]
+}
+
+target "lint-golangci" {
+  inherits = ["_common"]
   dockerfile = "./hack/dockerfiles/lint.Dockerfile"
   output = ["type=cacheonly"]
   args = {
@@ -61,11 +77,21 @@ target "lint" {
   }
 }
 
-target "lint-cross" {
-  inherits = ["lint", "_platforms"]
+target "lint-gopls" {
+  inherits = ["lint-golangci"]
+  target = "gopls-analyze"
+}
+
+target "lint-golangci-cross" {
+  inherits = ["lint-golangci", "_platforms"]
+}
+
+target "lint-gopls-cross" {
+  inherits = ["lint-gopls", "_platforms"]
 }
 
 target "validate-generated-files" {
+  inherits = ["_common"]
   dockerfile = "./hack/dockerfiles/generated-files.Dockerfile"
   output = ["type=cacheonly"]
   target = "validate"
@@ -81,6 +107,7 @@ target "generated-files" {
 }
 
 target "validate-gomod" {
+  inherits = ["_common"]
   dockerfile = "./hack/dockerfiles/gomod.Dockerfile"
   output = ["type=cacheonly"]
   target = "validate"
@@ -99,6 +126,7 @@ target "gomod" {
 }
 
 target "validate-shfmt" {
+  inherits = ["_common"]
   dockerfile = "./hack/dockerfiles/shfmt.Dockerfile"
   output = ["type=cacheonly"]
   target = "validate"

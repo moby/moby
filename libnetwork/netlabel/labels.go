@@ -30,6 +30,9 @@ const (
 	// where the interface name is represented by the string "IFNAME".
 	EndpointSysctls = Prefix + ".endpoint.sysctls"
 
+	// Ifname can be used to set the interface name used inside the container. It takes precedence over ContainerIfacePrefix.
+	Ifname = Prefix + ".endpoint.ifname"
+
 	// EnableIPv4 constant represents enabling IPV4 at network level
 	EnableIPv4 = Prefix + ".enable_ipv4"
 
@@ -38,6 +41,14 @@ const (
 
 	// DriverMTU constant represents the MTU size for the network driver
 	DriverMTU = DriverPrefix + ".mtu"
+
+	// AdvertiseAddrNMsgs is the number of unsolicited ARP/NA messages that will be sent to
+	// advertise an interface's IP and MAC addresses.
+	AdvertiseAddrNMsgs = Prefix + ".advertise_addr_nmsgs"
+
+	// AdvertiseAddrIntervalMs is the minimum interval between ARP/NA advertisements for
+	// an interface's IP and MAC addresses (in milliseconds).
+	AdvertiseAddrIntervalMs = Prefix + ".advertise_addr_ms"
 
 	// OverlayVxlanIDList constant represents a list of VXLAN Ids as csv
 	OverlayVxlanIDList = DriverPrefix + ".overlay.vxlanid_list"
@@ -57,11 +68,16 @@ const (
 	// HostIPv6 is the Source-IPv6 Address used to SNAT IPv6 container traffic
 	HostIPv6 = Prefix + ".host_ipv6"
 
-	// LocalKVClient constants represents the local kv store client
-	LocalKVClient = DriverPrivatePrefix + "localkv_client"
-
 	// NoProxy6To4 disables proxying from an IPv6 host port to an IPv4-only
 	// container, when the default binding address is 0.0.0.0. This label
 	// is intended for internal use, it may be removed in a future release.
 	NoProxy6To4 = DriverPrivatePrefix + ".no_proxy_6to4"
 )
+
+// GetIfname returns the value associated to the Ifname netlabel from the
+// provided options. If there's no Ifname netlabel, or if the value isn't a
+// string, it returns an empty string.
+func GetIfname(opts map[string]interface{}) string {
+	ifname, _ := opts[Ifname].(string)
+	return ifname
+}

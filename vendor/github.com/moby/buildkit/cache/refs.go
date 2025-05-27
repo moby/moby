@@ -6,18 +6,19 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/labels"
-	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/snapshots"
+	obdlabel "github.com/containerd/accelerated-container-image/pkg/label"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/containerd/v2/core/mount"
+	"github.com/containerd/containerd/v2/core/snapshots"
+	"github.com/containerd/containerd/v2/pkg/labels"
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/hashicorp/go-multierror"
 	"github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/identity"
@@ -31,24 +32,28 @@ import (
 	"github.com/moby/buildkit/util/overlay"
 	"github.com/moby/buildkit/util/progress"
 	rootlessmountopts "github.com/moby/buildkit/util/rootless/mountopts"
+	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/buildkit/util/winlayers"
 	"github.com/moby/sys/mountinfo"
+	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 )
 
-var additionalAnnotations = append(compression.EStargzAnnotations, labels.LabelUncompressed)
+var additionalAnnotations = append(append(compression.EStargzAnnotations, obdlabel.OverlayBDAnnotations...), labels.LabelUncompressed)
 
 // Ref is a reference to cacheable objects.
 type Ref interface {
 	Mountable
 	RefMetadata
 	Release(context.Context) error
-	IdentityMapping() *idtools.IdentityMapping
+	IdentityMapping() *user.IdentityMapping
 	DescHandler(digest.Digest) *DescHandler
 }
 
@@ -184,7 +189,7 @@ func (p parentRefs) release(ctx context.Context) (rerr error) {
 	return rerr
 }
 
-func (p parentRefs) clone() parentRefs {
+func (p parentRefs) cloneParentRefs() parentRefs {
 	switch {
 	case p.layerParent != nil:
 		p.layerParent = p.layerParent.clone()
@@ -309,7 +314,7 @@ func (cr *cacheRecord) isLazy(ctx context.Context) (bool, error) {
 	return false, nil
 }
 
-func (cr *cacheRecord) IdentityMapping() *idtools.IdentityMapping {
+func (cr *cacheRecord) IdentityMapping() *user.IdentityMapping {
 	return cr.cm.IdentityMapping()
 }
 
@@ -357,12 +362,12 @@ func (cr *cacheRecord) size(ctx context.Context) (int64, error) {
 		}
 		if dgst := cr.getBlob(); dgst != "" {
 			added := make(map[digest.Digest]struct{})
-			info, err := cr.cm.ContentStore.Info(ctx, digest.Digest(dgst))
+			info, err := cr.cm.ContentStore.Info(ctx, dgst)
 			if err == nil {
 				usage.Size += info.Size
-				added[digest.Digest(dgst)] = struct{}{}
+				added[dgst] = struct{}{}
 			}
-			walkBlobVariantsOnly(ctx, cr.cm.ContentStore, digest.Digest(dgst), func(desc ocispecs.Descriptor) bool {
+			walkBlobVariantsOnly(ctx, cr.cm.ContentStore, dgst, func(desc ocispecs.Descriptor) bool {
 				if _, ok := added[desc.Digest]; !ok {
 					if info, err := cr.cm.ContentStore.Info(ctx, desc.Digest); err == nil {
 						usage.Size += info.Size
@@ -419,7 +424,11 @@ func (cr *cacheRecord) mount(ctx context.Context) (_ snapshot.Mountable, rerr er
 		// Return the mount direct from View rather than setting it using the Mounts call below.
 		// The two are equivalent for containerd snapshotters but the moby snapshotter requires
 		// the use of the mountable returned by View in this case.
-		mnts, err := cr.cm.Snapshotter.View(ctx, mountSnapshotID, cr.getSnapshotID())
+		labels := make(map[string]string)
+		if cr.cm.Snapshotter.Name() == "overlaybd" {
+			labels["containerd.io/snapshot/overlaybd.writable"] = "dev"
+		}
+		mnts, err := cr.cm.Snapshotter.View(ctx, mountSnapshotID, cr.getSnapshotID(), snapshots.WithLabels(labels))
 		if err != nil && !cerrdefs.IsAlreadyExists(err) {
 			return nil, err
 		}
@@ -468,7 +477,7 @@ func (cr *cacheRecord) remove(ctx context.Context, removeSnapshot bool) (rerr er
 	if err := cr.cm.MetadataStore.Clear(cr.ID()); err != nil {
 		return errors.Wrapf(err, "failed to delete metadata of %s", cr.ID())
 	}
-	if err := cr.parentRefs.release(ctx); err != nil {
+	if err := cr.release(ctx); err != nil {
 		return errors.Wrapf(err, "failed to release parents of %s", cr.ID())
 	}
 	return nil
@@ -655,7 +664,7 @@ func (sr *immutableRef) Clone() ImmutableRef {
 	return sr.clone()
 }
 
-// layertoDistributable changes the passed in media type to the "distributable" version of the media type.
+// layerToDistributable changes the passed in media type to the "distributable" version of the media type.
 func layerToDistributable(mt string) string {
 	if !images.IsNonDistributable(mt) {
 		// Layer is already a distributable media type (or this is not even a layer).
@@ -1014,6 +1023,10 @@ func (sr *immutableRef) Extract(ctx context.Context, s session.Group) (rerr erro
 			return err
 		}
 		return rerr
+	} else if sr.cm.Snapshotter.Name() == "overlaybd" {
+		if rerr = sr.prepareRemoteSnapshotsOverlaybdMode(ctx); rerr == nil {
+			return sr.unlazy(ctx, sr.descHandlers, sr.progress, s, true, false)
+		}
 	}
 
 	return sr.unlazy(ctx, sr.descHandlers, sr.progress, s, true, false)
@@ -1022,7 +1035,6 @@ func (sr *immutableRef) Extract(ctx context.Context, s session.Group) (rerr erro
 func (sr *immutableRef) withRemoteSnapshotLabelsStargzMode(ctx context.Context, s session.Group, f func()) error {
 	dhs := sr.descHandlers
 	for _, r := range sr.layerChain() {
-		r := r
 		info, err := r.cm.Snapshotter.Stat(ctx, r.getSnapshotID())
 		if err != nil && !cerrdefs.IsNotFound(err) {
 			return err
@@ -1031,7 +1043,7 @@ func (sr *immutableRef) withRemoteSnapshotLabelsStargzMode(ctx context.Context, 
 		} else if _, ok := info.Labels["containerd.io/snapshot/remote"]; !ok {
 			continue // This isn't a remote snapshot; skip
 		}
-		dh := dhs[digest.Digest(r.getBlob())]
+		dh := dhs[r.getBlob()]
 		if dh == nil {
 			continue // no info passed; skip
 		}
@@ -1065,13 +1077,12 @@ func (sr *immutableRef) prepareRemoteSnapshotsStargzMode(ctx context.Context, s 
 	_, err := g.Do(ctx, sr.ID()+"-prepare-remote-snapshot", func(ctx context.Context) (_ *leaseutil.LeaseRef, rerr error) {
 		dhs := sr.descHandlers
 		for _, r := range sr.layerChain() {
-			r := r
 			snapshotID := r.getSnapshotID()
 			if _, err := r.cm.Snapshotter.Stat(ctx, snapshotID); err == nil {
 				continue
 			}
 
-			dh := dhs[digest.Digest(r.getBlob())]
+			dh := dhs[r.getBlob()]
 			if dh == nil {
 				// We cannot prepare remote snapshots without descHandler.
 				return nil, nil
@@ -1136,6 +1147,54 @@ func (sr *immutableRef) prepareRemoteSnapshotsStargzMode(ctx context.Context, s 
 			break
 		}
 
+		return nil, nil
+	})
+	return err
+}
+
+func (sr *immutableRef) prepareRemoteSnapshotsOverlaybdMode(ctx context.Context) error {
+	_, err := g.Do(ctx, sr.ID()+"-prepare-remote-snapshot", func(ctx context.Context) (_ *leaseutil.LeaseRef, rerr error) {
+		dhs := sr.descHandlers
+		for _, r := range sr.layerChain() {
+			snapshotID := r.getSnapshotID()
+			if _, err := r.cm.Snapshotter.Stat(ctx, snapshotID); err == nil {
+				continue
+			}
+			dh := dhs[digest.Digest(r.getBlob())]
+			if dh == nil {
+				// We cannot prepare remote snapshots without descHandler.
+				return nil, nil
+			}
+			defaultLabels := snapshots.FilterInheritedLabels(dh.SnapshotLabels)
+			if defaultLabels == nil {
+				defaultLabels = make(map[string]string)
+			}
+			defaultLabels["containerd.io/snapshot.ref"] = snapshotID
+			// Prepare remote snapshots
+			var (
+				key  = fmt.Sprintf("tmp-%s %s", identity.NewID(), r.getChainID())
+				opts = []snapshots.Opt{
+					snapshots.WithLabels(defaultLabels),
+				}
+			)
+			parentID := ""
+			if r.layerParent != nil {
+				parentID = r.layerParent.getSnapshotID()
+			}
+			if err := r.cm.Snapshotter.Prepare(ctx, key, parentID, opts...); err != nil {
+				if cerrdefs.IsAlreadyExists(err) {
+					// Check if the targeting snapshot ID has been prepared as
+					// a remote snapshot in the snapshotter.
+					_, err := r.cm.Snapshotter.Stat(ctx, snapshotID)
+					if err == nil { // usable as remote snapshot without unlazying.
+						// Try the next layer as well.
+						continue
+					}
+				}
+			}
+			// This layer and all upper layers cannot be prepared without unlazying.
+			break
+		}
 		return nil, nil
 	})
 	return err
@@ -1307,10 +1366,20 @@ func (sr *immutableRef) unlazyLayer(ctx context.Context, dhs DescHandlers, pg pr
 		statusDone := pg.Status("extracting "+desc.Digest.String(), "extracting")
 		defer statusDone()
 	}
+	sp, ctx := tracing.StartSpan(ctx, "extract", trace.WithAttributes(
+		attribute.String("digest", desc.Digest.String()),
+		attribute.Int("size", int(desc.Size)),
+	))
+	defer sp.End()
 
 	key := fmt.Sprintf("extract-%s %s", identity.NewID(), sr.getChainID())
 
-	err = sr.cm.Snapshotter.Prepare(ctx, key, parentID)
+	if sr.cm.Snapshotter.Name() == "overlaybd" {
+		err = sr.cm.Snapshotter.Prepare(ctx, key, parentID,
+			snapshots.WithLabels(map[string]string{"containerd.io/snapshot.ref": string(sr.getChainID())}))
+	} else {
+		err = sr.cm.Snapshotter.Prepare(ctx, key, parentID)
+	}
 	if err != nil {
 		return err
 	}
@@ -1470,7 +1539,7 @@ func (sr *mutableRef) commit() (_ *immutableRef, rerr error) {
 	rec := &cacheRecord{
 		mu:            sr.mu,
 		cm:            sr.cm,
-		parentRefs:    sr.parentRefs.clone(),
+		parentRefs:    sr.cloneParentRefs(),
 		equalMutable:  sr,
 		refs:          make(map[ref]struct{}),
 		cacheMetadata: md,
@@ -1626,16 +1695,16 @@ func readonlyOverlay(opt []string) []string {
 	out := make([]string, 0, len(opt))
 	upper := ""
 	for _, o := range opt {
-		if strings.HasPrefix(o, "upperdir=") {
-			upper = strings.TrimPrefix(o, "upperdir=")
+		if after, ok := strings.CutPrefix(o, "upperdir="); ok {
+			upper = after
 		} else if !strings.HasPrefix(o, "workdir=") {
 			out = append(out, o)
 		}
 	}
 	if upper != "" {
 		for i, o := range out {
-			if strings.HasPrefix(o, "lowerdir=") {
-				out[i] = "lowerdir=" + upper + ":" + strings.TrimPrefix(o, "lowerdir=")
+			if after, ok := strings.CutPrefix(o, "lowerdir="); ok {
+				out[i] = "lowerdir=" + upper + ":" + after
 			}
 		}
 	}
@@ -1714,14 +1783,8 @@ func (sm *sharableMountable) Mount() (_ []mount.Mount, _ func() error, retErr er
 				release()
 			}
 		}()
-		var isOverlay bool
-		for _, m := range mounts {
-			if overlay.IsOverlayMountType(m) {
-				isOverlay = true
-				break
-			}
-		}
-		if !isOverlay {
+
+		if !slices.ContainsFunc(mounts, overlay.IsOverlayMountType) {
 			// Don't need temporary mount wrapper for non-overlayfs mounts
 			return mounts, release, nil
 		}

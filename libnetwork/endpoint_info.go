@@ -37,15 +37,18 @@ type EndpointInfo interface {
 
 // EndpointInterface holds interface addresses bound to the endpoint.
 type EndpointInterface struct {
-	mac       net.HardwareAddr
-	addr      *net.IPNet
-	addrv6    *net.IPNet
-	llAddrs   []*net.IPNet
-	srcName   string
-	dstPrefix string
-	routes    []*net.IPNet
-	v4PoolID  string
-	v6PoolID  string
+	mac                net.HardwareAddr
+	addr               *net.IPNet
+	addrv6             *net.IPNet
+	llAddrs            []*net.IPNet
+	srcName            string
+	dstPrefix          string
+	dstName            string // dstName is the name of the interface in the container namespace. It takes precedence over dstPrefix.
+	routes             []*net.IPNet
+	v4PoolID           string
+	v6PoolID           string
+	netnsPath          string
+	createdInContainer bool
 }
 
 func (epi *EndpointInterface) MarshalJSON() ([]byte, error) {
@@ -68,6 +71,7 @@ func (epi *EndpointInterface) MarshalJSON() ([]byte, error) {
 	}
 	epMap["srcName"] = epi.srcName
 	epMap["dstPrefix"] = epi.dstPrefix
+	epMap["dstName"] = epi.dstName
 	var routes []string
 	for _, route := range epi.routes {
 		routes = append(routes, route.String())
@@ -75,6 +79,7 @@ func (epi *EndpointInterface) MarshalJSON() ([]byte, error) {
 	epMap["routes"] = routes
 	epMap["v4PoolID"] = epi.v4PoolID
 	epMap["v6PoolID"] = epi.v6PoolID
+	epMap["createdInContainer"] = epi.createdInContainer
 	return json.Marshal(epMap)
 }
 
@@ -115,11 +120,10 @@ func (epi *EndpointInterface) UnmarshalJSON(b []byte) error {
 	epi.srcName = epMap["srcName"].(string)
 	epi.dstPrefix = epMap["dstPrefix"].(string)
 
-	rb, _ := json.Marshal(epMap["routes"])
-	var routes []string
-
 	// TODO(cpuguy83): linter noticed we don't check the error here... no idea why but it seems like it could introduce problems if we start checking
-	json.Unmarshal(rb, &routes) //nolint:errcheck
+	rb, _ := json.Marshal(epMap["routes"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
+	var routes []string
+	_ = json.Unmarshal(rb, &routes) //nolint:errcheck
 
 	epi.routes = make([]*net.IPNet, 0)
 	for _, route := range routes {
@@ -132,6 +136,9 @@ func (epi *EndpointInterface) UnmarshalJSON(b []byte) error {
 	epi.v4PoolID = epMap["v4PoolID"].(string)
 	epi.v6PoolID = epMap["v6PoolID"].(string)
 
+	if v, ok := epMap["createdInContainer"]; ok {
+		epi.createdInContainer = v.(bool)
+	}
 	return nil
 }
 
@@ -141,8 +148,10 @@ func (epi *EndpointInterface) CopyTo(dstEpi *EndpointInterface) error {
 	dstEpi.addrv6 = types.GetIPNetCopy(epi.addrv6)
 	dstEpi.srcName = epi.srcName
 	dstEpi.dstPrefix = epi.dstPrefix
+	dstEpi.dstName = epi.dstName
 	dstEpi.v4PoolID = epi.v4PoolID
 	dstEpi.v6PoolID = epi.v6PoolID
+	dstEpi.createdInContainer = epi.createdInContainer
 	if len(epi.llAddrs) != 0 {
 		dstEpi.llAddrs = make([]*net.IPNet, 0, len(epi.llAddrs))
 		dstEpi.llAddrs = append(dstEpi.llAddrs, epi.llAddrs...)
@@ -262,11 +271,25 @@ func (epi *EndpointInterface) SrcName() string {
 	return epi.srcName
 }
 
-// SetNames method assigns the srcName and dstPrefix for the interface.
-func (epi *EndpointInterface) SetNames(srcName string, dstPrefix string) error {
+// SetNames method assigns the srcName, dstName, and dstPrefix for the
+// interface. If both dstName and dstPrefix are set, dstName takes precedence.
+func (epi *EndpointInterface) SetNames(srcName, dstPrefix, dstName string) error {
 	epi.srcName = srcName
 	epi.dstPrefix = dstPrefix
+	epi.dstName = dstName
 	return nil
+}
+
+// NetnsPath returns the path of the network namespace, if there is one. Else "".
+func (epi *EndpointInterface) NetnsPath() string {
+	return epi.netnsPath
+}
+
+// SetCreatedInContainer can be called by the driver to indicate that it's
+// created the network interface in the container's network namespace (so,
+// it doesn't need to be moved there).
+func (epi *EndpointInterface) SetCreatedInContainer(cic bool) {
+	epi.createdInContainer = cic
 }
 
 func (ep *Endpoint) InterfaceName() driverapi.InterfaceNameInfo {
@@ -383,28 +406,37 @@ func (ep *Endpoint) SetGatewayIPv6(gw6 net.IP) error {
 }
 
 // hasGatewayOrDefaultRoute returns true if ep has a gateway, or a route to '0.0.0.0'/'::'.
-func (ep *Endpoint) hasGatewayOrDefaultRoute() bool {
+func (ep *Endpoint) hasGatewayOrDefaultRoute() (v4, v6 bool) {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
 	if ep.joinInfo != nil {
-		if len(ep.joinInfo.gw) > 0 || len(ep.joinInfo.gw6) > 0 {
-			return true
-		}
-		for _, route := range ep.joinInfo.StaticRoutes {
-			if route.Destination.IP.IsUnspecified() && net.IP(route.Destination.Mask).IsUnspecified() {
-				return true
+		v4 = len(ep.joinInfo.gw) > 0
+		v6 = len(ep.joinInfo.gw6) > 0
+		if !v4 || !v6 {
+			for _, route := range ep.joinInfo.StaticRoutes {
+				if route.Destination.IP.IsUnspecified() && net.IP(route.Destination.Mask).IsUnspecified() {
+					if route.Destination.IP.To4() == nil {
+						v6 = true
+					} else {
+						v4 = true
+					}
+				}
 			}
 		}
 	}
-	if ep.iface != nil {
+	if ep.iface != nil && (!v4 || !v6) {
 		for _, route := range ep.iface.routes {
 			if route.IP.IsUnspecified() && net.IP(route.Mask).IsUnspecified() {
-				return true
+				if route.IP.To4() == nil {
+					v6 = true
+				} else {
+					v4 = true
+				}
 			}
 		}
 	}
-	return false
+	return v4, v6
 }
 
 func (ep *Endpoint) retrieveFromStore() (*Endpoint, error) {
@@ -454,13 +486,13 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 
 	var tStaticRoute []types.StaticRoute
 	if v, ok := epMap["StaticRoutes"]; ok {
-		tb, _ := json.Marshal(v)
 		// TODO(cpuguy83): Linter caught that we aren't checking errors here
 		// I don't know why we aren't other than potentially the data is not always expected to be right?
 		// This is why I'm not adding the error check.
 		//
 		// In any case for posterity please if you figure this out document it or check the error
-		json.Unmarshal(tb, &tStaticRoute) //nolint:errcheck
+		tb, _ := json.Marshal(v)              //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
+		_ = json.Unmarshal(tb, &tStaticRoute) //nolint:errcheck
 	}
 	var StaticRoutes []*types.StaticRoute
 	for _, r := range tStaticRoute {

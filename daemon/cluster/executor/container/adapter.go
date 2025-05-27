@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
@@ -180,13 +179,13 @@ func (c *containerAdapter) waitNodeAttachments(ctx context.Context) error {
 		// set a flag ready to true. if we try to get a network IP that doesn't
 		// exist yet, we will set this flag to "false"
 		ready := true
-		for _, attachment := range c.container.networksAttachments {
+		for _, nw := range c.container.networks {
 			// we only need node attachments (IP address) for overlay networks
 			// TODO(dperny): unsure if this will work with other network
 			// drivers, but i also don't think other network drivers use the
 			// node attachment IP address.
-			if attachment.Network.DriverState.Name == "overlay" {
-				if _, exists := attachmentStore.GetIPForNetwork(attachment.Network.ID); !exists {
+			if nw.DriverState.Name == "overlay" {
+				if _, exists := attachmentStore.GetIPForNetwork(nw.ID); !exists {
 					ready = false
 				}
 			}
@@ -207,12 +206,8 @@ func (c *containerAdapter) waitNodeAttachments(ctx context.Context) error {
 }
 
 func (c *containerAdapter) createNetworks(ctx context.Context) error {
-	for name := range c.container.networksAttachments {
-		ncr, err := c.container.networkCreateRequest(name)
-		if err != nil {
-			return err
-		}
-
+	for name, nw := range c.container.networks {
+		ncr := networkCreateRequest(name, nw)
 		if err := c.backend.CreateManagedNetwork(ncr); err != nil { // todo name missing
 			if _, ok := err.(libnetwork.NetworkNameError); ok {
 				continue
@@ -235,8 +230,8 @@ func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 		errNoSuchNetwork     libnetwork.ErrNoSuchNetwork
 	)
 
-	for name, v := range c.container.networksAttachments {
-		if err := c.backend.DeleteManagedNetwork(v.Network.ID); err != nil {
+	for name, nw := range c.container.networks {
+		if err := c.backend.DeleteManagedNetwork(nw.ID); err != nil {
 			switch {
 			case errors.As(err, &activeEndpointsError):
 				continue
@@ -357,6 +352,8 @@ func (c *containerAdapter) checkMounts() error {
 			if _, err := os.Stat(mount.Source); os.IsNotExist(err) {
 				return fmt.Errorf("invalid bind mount source, source path not found: %s", mount.Source)
 			}
+		default:
+			// TODO(thaJeztah): make switch exhaustive; add api.MountTypeVolume, api.MountTypeTmpfs, api.MountTypeNamedPipe, api.MountTypeCluster
 		}
 	}
 
@@ -418,8 +415,8 @@ func (c *containerAdapter) events(ctx context.Context) <-chan events.Message {
 	return eventsq
 }
 
-func (c *containerAdapter) wait(ctx context.Context) (<-chan container.StateStatus, error) {
-	return c.backend.ContainerWait(ctx, c.container.nameOrID(), container.WaitConditionNotRunning)
+func (c *containerAdapter) wait(ctx context.Context) (<-chan containertypes.StateStatus, error) {
+	return c.backend.ContainerWait(ctx, c.container.nameOrID(), containertypes.WaitConditionNotRunning)
 }
 
 func (c *containerAdapter) shutdown(ctx context.Context) error {
@@ -546,6 +543,8 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 				apiOptions.ShowStdout = true
 			case api.LogStreamStderr:
 				apiOptions.ShowStderr = true
+			default:
+				// TODO(thaJeztah): make switch exhaustive; add api.LogStreamUnknown
 			}
 		}
 	}

@@ -5,6 +5,7 @@ package macvlan
 import (
 	"testing"
 
+	"github.com/docker/docker/internal/testutils/storeutils"
 	"github.com/docker/docker/libnetwork/driverapi"
 )
 
@@ -31,25 +32,25 @@ func (dt *driverTester) RegisterDriver(name string, drv driverapi.Driver, cap dr
 }
 
 func TestMacvlanRegister(t *testing.T) {
-	if err := Register(&driverTester{t: t}, nil); err != nil {
+	if err := Register(&driverTester{t: t}, storeutils.NewTempStore(t), nil); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestMacvlanNilConfig(t *testing.T) {
 	dt := &driverTester{t: t}
-	if err := Register(dt, nil); err != nil {
+	if err := Register(dt, storeutils.NewTempStore(t), nil); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := dt.d.initStore(nil); err != nil {
+	if err := dt.d.initStore(); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestMacvlanType(t *testing.T) {
 	dt := &driverTester{t: t}
-	if err := Register(dt, nil); err != nil {
+	if err := Register(dt, storeutils.NewTempStore(t), nil); err != nil {
 		t.Fatal(err)
 	}
 

@@ -5,6 +5,8 @@ import (
 )
 
 // FromStatusCode creates an errdef error, based on the provided HTTP status-code
+//
+// Deprecated: Use [cerrdefs.ToNative] instead
 func FromStatusCode(err error, statusCode int) error {
 	if err == nil {
 		return nil
@@ -33,12 +35,12 @@ func FromStatusCode(err error, statusCode int) error {
 		return System(err)
 	default:
 		switch {
-		case statusCode >= 200 && statusCode < 400:
+		case statusCode >= http.StatusOK && statusCode < http.StatusBadRequest:
 			// it's a client error
 			return err
-		case statusCode >= 400 && statusCode < 500:
+		case statusCode >= http.StatusBadRequest && statusCode < http.StatusInternalServerError:
 			return InvalidParameter(err)
-		case statusCode >= 500 && statusCode < 600:
+		case statusCode >= http.StatusInternalServerError && statusCode < 600:
 			return System(err)
 		default:
 			return Unknown(err)

@@ -71,8 +71,8 @@ func (nDB *NetworkDB) SetKey(key []byte) {
 // been added apriori through SetKey
 func (nDB *NetworkDB) SetPrimaryKey(key []byte) {
 	log.G(context.TODO()).Debugf("Primary Key %.5s", hex.EncodeToString(key))
-	nDB.RLock()
-	defer nDB.RUnlock()
+	nDB.Lock()
+	defer nDB.Unlock()
 	for _, dbKey := range nDB.config.Keys {
 		if bytes.Equal(key, dbKey) {
 			if nDB.keyring != nil {
@@ -112,6 +112,7 @@ func (nDB *NetworkDB) clusterInit() error {
 
 	if nDB.config.BindPort != 0 {
 		config.BindPort = nDB.config.BindPort
+		config.AdvertisePort = nDB.config.BindPort
 	}
 
 	config.ProtocolVersion = memberlist.ProtocolVersion2Compatible
@@ -411,16 +412,13 @@ func (nDB *NetworkDB) reapTableEntries() {
 			}
 
 			params := strings.Split(string(path[1:]), "/")
-			nid := params[0]
-			tname := params[1]
-			key := params[2]
-
-			okTable, okNetwork := nDB.deleteEntry(nid, tname, key)
+			nwID, tName, key := params[0], params[1], params[2]
+			okTable, okNetwork := nDB.deleteEntry(nwID, tName, key)
 			if !okTable {
-				log.G(context.TODO()).Errorf("Table tree delete failed, entry with key:%s does not exist in the table:%s network:%s", key, tname, nid)
+				log.G(context.TODO()).Errorf("Table tree delete failed, entry with key:%s does not exist in the table:%s network:%s", key, tName, nwID)
 			}
 			if !okNetwork {
-				log.G(context.TODO()).Errorf("Network tree delete failed, entry with key:%s does not exist in the network:%s table:%s", key, nid, tname)
+				log.G(context.TODO()).Errorf("Network tree delete failed, entry with key:%s does not exist in the network:%s table:%s", key, nwID, tName)
 			}
 
 			return false
@@ -520,11 +518,7 @@ func (nDB *NetworkDB) bulkSyncTables() {
 	}
 	nDB.RUnlock()
 
-	for {
-		if len(networks) == 0 {
-			break
-		}
-
+	for len(networks) != 0 {
 		nid := networks[0]
 		networks = networks[1:]
 

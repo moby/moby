@@ -1,14 +1,17 @@
 package libnetwork
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"sync"
 
 	"github.com/docker/docker/libnetwork/datastore"
 )
 
+// endpointCnt was used to refcount network-endpoint relationships. It's
+// unused since v28.1, and kept around only to ensure that users can properly
+// downgrade.
+//
+// TODO(aker): remove this struct in v30.
 type endpointCnt struct {
 	n        *Network
 	Count    uint64
@@ -96,78 +99,4 @@ func (ec *endpointCnt) CopyTo(o datastore.KVObject) error {
 	dstEc.dbIndex = ec.dbIndex
 
 	return nil
-}
-
-func (ec *endpointCnt) EndpointCnt() uint64 {
-	ec.Lock()
-	defer ec.Unlock()
-
-	return ec.Count
-}
-
-func (ec *endpointCnt) updateStore() error {
-	c := ec.n.getController()
-	// make a copy of count and n to avoid being overwritten by store.GetObject
-	count := ec.EndpointCnt()
-	n := ec.n
-	for {
-		if err := c.updateToStore(context.TODO(), ec); err == nil || err != datastore.ErrKeyModified {
-			return err
-		}
-		if err := c.store.GetObject(ec); err != nil {
-			return fmt.Errorf("could not update the kvobject to latest on endpoint count update: %v", err)
-		}
-		ec.Lock()
-		ec.Count = count
-		ec.n = n
-		ec.Unlock()
-	}
-}
-
-func (ec *endpointCnt) setCnt(cnt uint64) error {
-	ec.Lock()
-	ec.Count = cnt
-	ec.Unlock()
-	return ec.updateStore()
-}
-
-func (ec *endpointCnt) atomicIncDecEpCnt(inc bool) error {
-	store := ec.n.getController().store
-
-	tmp := &endpointCnt{n: ec.n}
-	if err := store.GetObject(tmp); err != nil {
-		return err
-	}
-retry:
-	ec.Lock()
-	if inc {
-		ec.Count++
-	} else {
-		if ec.Count > 0 {
-			ec.Count--
-		}
-	}
-	ec.Unlock()
-
-	if err := ec.n.getController().updateToStore(context.TODO(), ec); err != nil {
-		if err == datastore.ErrKeyModified {
-			if err := store.GetObject(ec); err != nil {
-				return fmt.Errorf("could not update the kvobject to latest when trying to atomic add endpoint count: %v", err)
-			}
-
-			goto retry
-		}
-
-		return err
-	}
-
-	return nil
-}
-
-func (ec *endpointCnt) IncEndpointCnt() error {
-	return ec.atomicIncDecEpCnt(true)
-}
-
-func (ec *endpointCnt) DecEndpointCnt() error {
-	return ec.atomicIncDecEpCnt(false)
 }

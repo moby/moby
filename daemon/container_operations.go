@@ -1,5 +1,5 @@
 // FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.22
+//go:build go1.23
 
 package daemon // import "github.com/docker/docker/daemon"
 
@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/internal/multierror"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork"
@@ -35,6 +36,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
+
+const errSetupNetworking = "failed to set up container networking"
 
 func ipAddresses(ips []net.IP) []string {
 	var addrs []string
@@ -170,7 +173,7 @@ func (daemon *Daemon) updateNetworkSettings(ctr *container.Container, n *libnetw
 	}
 
 	if !ctr.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
-		return runconfig.ErrConflictHostNetwork
+		return runconfig.ErrConflictConnectToHostNetwork
 	}
 
 	for s, v := range ctr.NetworkSettings.Networks {
@@ -260,7 +263,7 @@ func (daemon *Daemon) updateNetwork(cfg *config.Config, ctr *container.Container
 		return fmt.Errorf("Update network failed: Failure in refresh sandbox %s: %v", sid, err)
 	}
 
-	networkActions.WithValues("update").UpdateSince(start)
+	metrics.NetworkActions.WithValues("update").UpdateSince(start)
 
 	return nil
 }
@@ -441,7 +444,7 @@ func (daemon *Daemon) allocateNetwork(ctx context.Context, cfg *config.Config, c
 	if _, err := ctr.WriteHostConfig(); err != nil {
 		return err
 	}
-	networkActions.WithValues("allocate").UpdateSince(start)
+	metrics.NetworkActions.WithValues("allocate").UpdateSince(start)
 	return nil
 }
 
@@ -758,18 +761,18 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 	if !ctr.Managed {
 		// add container name/alias to DNS
 		if err := daemon.ActivateContainerServiceBinding(ctr.Name); err != nil {
-			return fmt.Errorf("Activate container service binding for %s failed: %v", ctr.Name, err)
+			return fmt.Errorf("activate container service binding for %s failed: %v", ctr.Name, err)
 		}
 	}
 
 	if err := updateJoinInfo(ctr.NetworkSettings, n, ep); err != nil {
-		return fmt.Errorf("Updating join info failed: %v", err)
+		return fmt.Errorf("updating join info failed: %v", err)
 	}
 
 	ctr.NetworkSettings.Ports = getPortMapInfo(sb)
 
 	daemon.LogNetworkEventWithAttributes(n, events.ActionConnect, map[string]string{"container": ctr.ID})
-	networkActions.WithValues("connect").UpdateSince(start)
+	metrics.NetworkActions.WithValues("connect").UpdateSince(start)
 	return nil
 }
 
@@ -780,14 +783,6 @@ func updateJoinInfo(networkSettings *network.Settings, n *libnetwork.Network, ep
 
 	if networkSettings == nil {
 		return errors.New("invalid network settings while building port map info")
-	}
-
-	if len(networkSettings.Ports) == 0 {
-		pm, err := getEndpointPortMapInfo(ep)
-		if err != nil {
-			return err
-		}
-		networkSettings.Ports = pm
 	}
 
 	epInfo := ep.Info()
@@ -900,19 +895,37 @@ func (daemon *Daemon) normalizeNetMode(ctr *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID string) (*container.Container, error) {
-	nc, err := daemon.GetContainer(connectedContainerID)
+func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerPrefixOrName string) (*container.Container, error) {
+	nc, err := daemon.GetContainer(connectedContainerPrefixOrName)
 	if err != nil {
+		err = fmt.Errorf("joining network namespace of container: %w", err)
+		if errdefs.IsNotFound(err) {
+			// Deliberately masking "not found" errors, because failing to find
+			// the network container is a system error. We return a system error,
+			// not an "invalid parameter" because getNetworkedContainer is called
+			// during container start, not container "create"; we assume the container
+			// did resolve successfully when creating the container.
+			//
+			// FIXME (thaJeztah): turns out we don't validate "--network container:<missing container>" during container create!
+			// ^^ this may have been by design to allow the container to be created before the "donor" container is
+			//    created, so this must be looked into.
+			return nil, errdefs.System(err)
+		}
 		return nil, err
 	}
 	if containerID == nc.ID {
-		return nil, fmt.Errorf("cannot join own network")
+		// We return a system error, not an "invalid parameter" because getNetworkedContainer is called
+		// during container start, not container "create"; we assume the networked container did resolve
+		// successfully when creating the container, and was validated during container create.
+		//
+		// FIXME (thaJeztah): turns out we don't validate "--network container:<self>" during container create!
+		return nil, errdefs.System(errdefs.InvalidParameter(errors.New("cannot join own network namespace")))
 	}
 	if !nc.IsRunning() {
-		return nil, errdefs.Conflict(fmt.Errorf("cannot join network of a non running container: %s", connectedContainerID))
+		return nil, errdefs.Conflict(fmt.Errorf("cannot join network namespace of a non running container: container %s is %s", strings.TrimPrefix(nc.Name, "/"), nc.StateString()))
 	}
 	if nc.IsRestarting() {
-		return nil, errContainerIsRestarting(connectedContainerID)
+		return nil, fmt.Errorf("cannot join network namespace of container: %w", errContainerIsRestarting(connectedContainerPrefixOrName))
 	}
 	return nc, nil
 }
@@ -969,7 +982,7 @@ func (daemon *Daemon) releaseNetwork(ctx context.Context, ctr *container.Contain
 	for _, nw := range networks {
 		daemon.tryDetachContainerFromClusterNetwork(nw, ctr)
 	}
-	networkActions.WithValues("release").UpdateSince(start)
+	metrics.NetworkActions.WithValues("release").UpdateSince(start)
 }
 
 func errRemovalContainer(containerID string) error {
@@ -1032,7 +1045,7 @@ func (daemon *Daemon) DisconnectFromNetwork(ctx context.Context, ctr *container.
 		delete(ctr.NetworkSettings.Networks, networkName)
 	} else if err == nil {
 		if ctr.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
-			return runconfig.ErrConflictHostNetwork
+			return runconfig.ErrConflictDisconnectFromHostNetwork
 		}
 
 		if err := daemon.disconnectFromNetwork(ctx, ctr, n, false); err != nil {
@@ -1044,12 +1057,6 @@ func (daemon *Daemon) DisconnectFromNetwork(ctx context.Context, ctr *container.
 
 	if err := ctr.CheckpointTo(ctx, daemon.containersReplica); err != nil {
 		return err
-	}
-
-	if n != nil {
-		daemon.LogNetworkEventWithAttributes(n, events.ActionDisconnect, map[string]string{
-			"container": ctr.ID,
-		})
 	}
 
 	return nil

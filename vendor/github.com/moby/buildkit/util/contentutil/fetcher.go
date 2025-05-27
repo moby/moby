@@ -4,8 +4,8 @@ import (
 	"context"
 	"io"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/remotes"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/remotes"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -54,8 +54,8 @@ func (r *readerAt) ReadAt(b []byte, off int64) (int, error) {
 
 	var totalN int
 	for len(b) > 0 {
-		n, err := r.Reader.Read(b)
-		if err == io.EOF && n == len(b) {
+		n, err := r.Read(b)
+		if errors.Is(err, io.EOF) && n == len(b) {
 			err = nil
 		}
 		r.offset += int64(n)

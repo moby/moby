@@ -47,7 +47,7 @@ type Bitmap struct {
 	noCopy noCopy
 }
 
-// NewHandle returns a new Bitmap of ordinals in the interval [0, n).
+// New returns a new Bitmap of ordinals in the interval [0, n).
 func New(n uint64) *Bitmap {
 	return &Bitmap{
 		bits:       n,
@@ -263,11 +263,14 @@ func (h *Bitmap) set(ordinal, start, end uint64, any bool, release bool, serial 
 		return ret, err
 	}
 
-	h.head = pushReservation(bytePos, bitPos, h.head, release)
-	if release {
-		h.unselected++
-	} else {
-		h.unselected--
+	var changed bool
+	h.head, changed = pushReservation(bytePos, bitPos, h.head, release)
+	if changed {
+		if release {
+			h.unselected++
+		} else {
+			h.unselected--
+		}
 	}
 
 	return ret, nil
@@ -283,15 +286,16 @@ func (h *Bitmap) validateOrdinal(ordinal uint64) error {
 
 // MarshalBinary encodes h into a binary representation.
 func (h *Bitmap) MarshalBinary() ([]byte, error) {
-	ba := make([]byte, 16)
-	binary.BigEndian.PutUint64(ba[0:], h.bits)
-	binary.BigEndian.PutUint64(ba[8:], h.unselected)
 	bm, err := h.head.toByteArray()
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize head: %v", err)
 	}
-	ba = append(ba, bm...)
 
+	// Pre-allocate capacity for "bits" and "unselected" (16 bytes) and head.
+	ba := make([]byte, 0, 16+len(bm))
+	ba = binary.BigEndian.AppendUint64(ba, h.bits)
+	ba = binary.BigEndian.AppendUint64(ba, h.unselected)
+	ba = append(ba, bm...)
 	return ba, nil
 }
 
@@ -481,14 +485,16 @@ func findSequence(head *sequence, bytePos uint64) (*sequence, *sequence, uint64,
 // A) block is first in current:         [prev seq] [new] [modified current seq] [next seq]
 // B) block is last in current:          [prev seq] [modified current seq] [new] [next seq]
 // C) block is in the middle of current: [prev seq] [curr pre] [new] [curr post] [next seq]
-func pushReservation(bytePos, bitPos uint64, head *sequence, release bool) *sequence {
+//
+// Return value changed is true if the bit value was changed.
+func pushReservation(bytePos, bitPos uint64, head *sequence, release bool) (_ *sequence, changed bool) {
 	// Store list's head
 	newHead := head
 
 	// Find the sequence containing this byte
 	current, previous, precBlocks, inBlockBytePos := findSequence(head, bytePos)
 	if current == nil {
-		return newHead
+		return newHead, false
 	}
 
 	// Construct updated block
@@ -502,7 +508,7 @@ func pushReservation(bytePos, bitPos uint64, head *sequence, release bool) *sequ
 
 	// Quit if it was a redundant request
 	if current.block == newBlock {
-		return newHead
+		return newHead, false
 	}
 
 	// Current sequence inevitably looses one block, update count
@@ -512,7 +518,8 @@ func pushReservation(bytePos, bitPos uint64, head *sequence, release bool) *sequ
 	newSequence := &sequence{block: newBlock, count: 1}
 
 	// Insert the new sequence in the list based on block position
-	if precBlocks == 0 { // First in sequence (A)
+	switch precBlocks {
+	case 0: // First in sequence (A)
 		newSequence.next = current
 		if current == head {
 			newHead = newSequence
@@ -522,11 +529,11 @@ func pushReservation(bytePos, bitPos uint64, head *sequence, release bool) *sequ
 		}
 		removeCurrentIfEmpty(&newHead, newSequence, current)
 		mergeSequences(previous)
-	} else if precBlocks == current.count { // Last in sequence (B)
+	case current.count: // Last in sequence (B)
 		newSequence.next = current.next
 		current.next = newSequence
 		mergeSequences(current)
-	} else { // In between the sequence (C)
+	default: // In between the sequence (C)
 		currPre := &sequence{block: current.block, count: precBlocks, next: newSequence}
 		currPost := current
 		currPost.count -= precBlocks
@@ -539,7 +546,7 @@ func pushReservation(bytePos, bitPos uint64, head *sequence, release bool) *sequ
 		// No merging or empty current possible here
 	}
 
-	return newHead
+	return newHead, true
 }
 
 // Removes the current sequence from the list if empty, adjusting the head pointer if needed

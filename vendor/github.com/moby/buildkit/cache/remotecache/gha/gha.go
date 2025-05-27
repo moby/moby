@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/labels"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/pkg/labels"
 	"github.com/moby/buildkit/cache/remotecache"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
 	"github.com/moby/buildkit/session"
@@ -20,6 +22,7 @@ import (
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/tracing"
+	bkversion "github.com/moby/buildkit/version"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -37,8 +40,10 @@ const (
 	attrTimeout    = "timeout"
 	attrToken      = "token"
 	attrURL        = "url"
+	attrURLV2      = "url_v2"
 	attrRepository = "repository"
 	attrGHToken    = "ghtoken"
+	attrAPIVersion = "version"
 	version        = "1"
 
 	defaultTimeout = 10 * time.Minute
@@ -50,6 +55,7 @@ type Config struct {
 	Token      string // token for the Github Cache runtime API
 	GHToken    string // token for the Github REST API
 	Repository string
+	Version    int
 	Timeout    time.Duration
 }
 
@@ -58,13 +64,39 @@ func getConfig(attrs map[string]string) (*Config, error) {
 	if !ok {
 		scope = "buildkit"
 	}
-	url, ok := attrs[attrURL]
-	if !ok {
-		return nil, errors.Errorf("url not set for github actions cache")
-	}
 	token, ok := attrs[attrToken]
 	if !ok {
 		return nil, errors.Errorf("token not set for github actions cache")
+	}
+	var apiVersionInt int
+	apiVersion, ok := attrs[attrAPIVersion]
+	if ok {
+		i, err := strconv.ParseInt(apiVersion, 10, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse api version %q, expected positive integer", apiVersion)
+		}
+		apiVersionInt = int(i)
+	}
+	var url string
+	if apiVersionInt != 1 {
+		if v, ok := attrs[attrURLV2]; ok {
+			url = v
+			apiVersionInt = 2
+		}
+	}
+	if v, ok := attrs[attrURL]; ok && url == "" {
+		url = v
+	}
+	if url == "" {
+		return nil, errors.Errorf("url not set for github actions cache")
+	}
+	// best effort on old clients
+	if apiVersionInt == 0 {
+		if strings.Contains(url, "results-receiver.actions.githubusercontent.com") {
+			apiVersionInt = 2
+		} else {
+			apiVersionInt = 1
+		}
 	}
 
 	timeout := defaultTimeout
@@ -82,6 +114,7 @@ func getConfig(attrs map[string]string) (*Config, error) {
 		Timeout:    timeout,
 		GHToken:    attrs[attrGHToken],
 		Repository: attrs[attrRepository],
+		Version:    apiVersionInt,
 	}, nil
 }
 
@@ -107,9 +140,10 @@ type exporter struct {
 
 func NewExporter(c *Config) (remotecache.Exporter, error) {
 	cc := v1.NewCacheChains()
-	cache, err := actionscache.New(c.Token, c.URL, actionscache.Opt{
-		Client:  tracing.DefaultClient,
-		Timeout: c.Timeout,
+	cache, err := actionscache.New(c.Token, c.URL, c.Version > 1, actionscache.Opt{
+		Client:    tracing.DefaultClient,
+		Timeout:   c.Timeout,
+		UserAgent: bkversion.UserAgent(),
 	})
 	if err != nil {
 		return nil, err
@@ -282,9 +316,10 @@ type importer struct {
 }
 
 func NewImporter(c *Config) (remotecache.Importer, error) {
-	cache, err := actionscache.New(c.Token, c.URL, actionscache.Opt{
-		Client:  tracing.DefaultClient,
-		Timeout: c.Timeout,
+	cache, err := actionscache.New(c.Token, c.URL, c.Version > 1, actionscache.Opt{
+		Client:    tracing.DefaultClient,
+		Timeout:   c.Timeout,
+		UserAgent: bkversion.UserAgent(),
 	})
 	if err != nil {
 		return nil, err

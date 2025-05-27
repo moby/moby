@@ -10,11 +10,11 @@ implementation of [JSON Web
 Tokens](https://datatracker.ietf.org/doc/html/rfc7519).
 
 Starting with [v4.0.0](https://github.com/golang-jwt/jwt/releases/tag/v4.0.0)
-this project adds Go module support, but maintains backwards compatibility with
+this project adds Go module support, but maintains backward compatibility with
 older `v3.x.y` tags and upstream `github.com/dgrijalva/jwt-go`. See the
 [`MIGRATION_GUIDE.md`](./MIGRATION_GUIDE.md) for more information. Version
 v5.0.0 introduces major improvements to the validation of tokens, but is not
-entirely backwards compatible. 
+entirely backward compatible. 
 
 > After the original author of the library suggested migrating the maintenance
 > of `jwt-go`, a dedicated team of open source maintainers decided to clone the
@@ -24,7 +24,7 @@ entirely backwards compatible.
 
 
 **SECURITY NOTICE:** Some older versions of Go have a security issue in the
-crypto/elliptic. Recommendation is to upgrade to at least 1.15 See issue
+crypto/elliptic. The recommendation is to upgrade to at least 1.15 See issue
 [dgrijalva/jwt-go#216](https://github.com/dgrijalva/jwt-go/issues/216) for more
 detail.
 
@@ -32,7 +32,7 @@ detail.
 what you
 expect](https://auth0.com/blog/critical-vulnerabilities-in-json-web-token-libraries/).
 This library attempts to make it easy to do the right thing by requiring key
-types match the expected alg, but you should take the extra step to verify it in
+types to match the expected alg, but you should take the extra step to verify it in
 your usage.  See the examples provided.
 
 ### Supported Go versions
@@ -41,7 +41,7 @@ Our support of Go versions is aligned with Go's [version release
 policy](https://golang.org/doc/devel/release#policy). So we will support a major
 version of Go until there are two newer major releases. We no longer support
 building jwt-go with unsupported Go versions, as these contain security
-vulnerabilities which will not be fixed.
+vulnerabilities that will not be fixed.
 
 ## What the heck is a JWT?
 
@@ -117,7 +117,7 @@ notable differences:
 
 This library is considered production ready.  Feedback and feature requests are
 appreciated.  The API should be considered stable.  There should be very few
-backwards-incompatible changes outside of major version updates (and only with
+backward-incompatible changes outside of major version updates (and only with
 good reason).
 
 This project uses [Semantic Versioning 2.0.0](http://semver.org).  Accepted pull
@@ -125,8 +125,8 @@ requests will land on `main`.  Periodically, versions will be tagged from
 `main`.  You can find all the releases on [the project releases
 page](https://github.com/golang-jwt/jwt/releases).
 
-**BREAKING CHANGES:*** A full list of breaking changes is available in
-`VERSION_HISTORY.md`.  See `MIGRATION_GUIDE.md` for more information on updating
+**BREAKING CHANGES:** A full list of breaking changes is available in
+`VERSION_HISTORY.md`.  See [`MIGRATION_GUIDE.md`](./MIGRATION_GUIDE.md) for more information on updating
 your code.
 
 ## Extensions

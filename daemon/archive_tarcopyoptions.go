@@ -1,7 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/go-archive"
 )
 
 // defaultTarCopyOptions is the setting that is used when unpacking an archive

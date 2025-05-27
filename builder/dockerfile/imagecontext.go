@@ -68,7 +68,7 @@ func (m *imageSources) Unmount() (retErr error) {
 			retErr = err
 		}
 	}
-	return
+	return retErr
 }
 
 func (m *imageSources) Add(im *imageMount, platform *ocispec.Platform) {

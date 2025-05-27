@@ -7,7 +7,7 @@ package instructions
 import (
 	"fmt"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -66,12 +66,12 @@ func newParseRequestFromNode(node *parser.Node) parseRequest {
 	}
 }
 
-func ParseInstruction(node *parser.Node) (v interface{}, err error) {
+func ParseInstruction(node *parser.Node) (v any, err error) {
 	return ParseInstructionWithLinter(node, nil)
 }
 
 // ParseInstruction converts an AST to a typed instruction (either a command or a build stage beginning when encountering a `FROM` statement)
-func ParseInstructionWithLinter(node *parser.Node, lint *linter.Linter) (v interface{}, err error) {
+func ParseInstructionWithLinter(node *parser.Node, lint *linter.Linter) (v any, err error) {
 	defer func() {
 		if err != nil {
 			err = parser.WithLocation(err, node.Location())
@@ -687,7 +687,7 @@ func parseExpose(req parseRequest) (*ExposeCommand, error) {
 		return nil, err
 	}
 
-	sort.Strings(portsTab)
+	slices.Sort(portsTab)
 	return &ExposeCommand{
 		Ports:           portsTab,
 		withNameAndCode: newWithNameAndCode(req),
@@ -831,8 +831,8 @@ func getComment(comments []string, name string) string {
 		return ""
 	}
 	for _, line := range comments {
-		if strings.HasPrefix(line, name+" ") {
-			return strings.TrimPrefix(line, name+" ")
+		if after, ok := strings.CutPrefix(line, name+" "); ok {
+			return after
 		}
 	}
 	return ""
@@ -880,10 +880,8 @@ func validateDefinitionDescription(instruction string, argKeys []string, descCom
 		return
 	}
 	descCommentParts := strings.Split(descComments[len(descComments)-1], " ")
-	for _, key := range argKeys {
-		if key == descCommentParts[0] {
-			return
-		}
+	if slices.Contains(argKeys, descCommentParts[0]) {
+		return
 	}
 	exampleKey := argKeys[0]
 	if len(argKeys) > 1 {

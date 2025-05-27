@@ -12,8 +12,8 @@ import (
 	"github.com/docker/docker/layer"
 )
 
-func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
-	img, err := i.GetImage(ctx, refOrID, backend.GetImageOpts{})
+func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
+	img, err := i.GetImage(ctx, refOrID, backend.GetImageOpts{Platform: opts.Platform})
 	if err != nil {
 		return nil, err
 	}
@@ -53,6 +53,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 		layers = append(layers, l.String())
 	}
 
+	imgConfig := containerConfigToDockerOCIImageConfig(img.Config)
 	return &imagetypes.InspectResponse{
 		ID:              img.ID().String(),
 		RepoTags:        repoTags,
@@ -64,7 +65,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 		ContainerConfig: &img.ContainerConfig, //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.45.
 		DockerVersion:   img.DockerVersion,
 		Author:          img.Author,
-		Config:          img.Config,
+		Config:          &imgConfig,
 		Architecture:    img.Architecture,
 		Variant:         img.Variant,
 		Os:              img.OperatingSystem(),

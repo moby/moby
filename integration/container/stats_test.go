@@ -28,7 +28,7 @@ func TestStats(t *testing.T) {
 	assert.NilError(t, err)
 	defer resp.Body.Close()
 
-	var v containertypes.Stats
+	var v containertypes.StatsResponse
 	err = json.NewDecoder(resp.Body).Decode(&v)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(int64(v.MemoryStats.Limit), info.MemTotal))
@@ -40,7 +40,7 @@ func TestStats(t *testing.T) {
 	assert.NilError(t, err)
 	defer resp.Body.Close()
 
-	v = containertypes.Stats{}
+	v = containertypes.StatsResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&v)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(int64(v.MemoryStats.Limit), info.MemTotal))

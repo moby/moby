@@ -262,8 +262,10 @@ func ParseWithUmask(s string, umask uint) (Set, error) {
 			case 'w':
 				perm |= iWUser | iWGroup | iWOther
 			case 'X':
-				if op == '+' {
+				if op != '-' {
 					permX = iXUser | iXGroup | iXOther
+				} else {
+					perm |= iXUser | iXGroup | iXOther
 				}
 			case 'x':
 				perm |= iXUser | iXGroup | iXOther

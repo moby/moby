@@ -1,9 +1,14 @@
+// TODO(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23
+
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containerd/log"
@@ -17,12 +22,17 @@ import (
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/internal/multierror"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/runconfig"
+	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/tonistiigi/go-archvariant"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type createOpts struct {
@@ -55,7 +65,15 @@ func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context
 	})
 }
 
-func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStore, opts createOpts) (containertypes.CreateResponse, error) {
+func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStore, opts createOpts) (_ containertypes.CreateResponse, retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.containerCreate", trace.WithAttributes(
+		labelsAsOTelAttributes(opts.params.Config.Labels)...,
+	))
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	start := time.Now()
 	if opts.params.Config == nil {
 		return containertypes.CreateResponse{}, errdefs.InvalidParameter(runconfig.ErrEmptyConfig)
@@ -77,7 +95,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 	}
 
 	if opts.params.Platform == nil && opts.params.Config.Image != "" {
-		img, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, backend.GetImageOpts{Platform: opts.params.Platform})
+		img, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, backend.GetImageOpts{})
 		if err != nil {
 			return containertypes.CreateResponse{}, err
 		}
@@ -90,7 +108,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 			}
 
 			if !images.OnlyPlatformWithFallback(p).Match(imgPlat) {
-				warnings = append(warnings, fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.Format(imgPlat), platforms.Format(p)))
+				warnings = append(warnings, fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.FormatAll(imgPlat), platforms.FormatAll(p)))
 			}
 		}
 	}
@@ -112,13 +130,38 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, err
 	}
-	containerActions.WithValues("create").UpdateSince(start)
+	metrics.ContainerActions.WithValues("create").UpdateSince(start)
 
 	if warnings == nil {
 		warnings = make([]string, 0) // Create an empty slice to avoid https://github.com/moby/moby/issues/38222
 	}
 
 	return containertypes.CreateResponse{ID: ctr.ID, Warnings: warnings}, nil
+}
+
+var (
+	containerLabelsFilter     []string
+	containerLabelsFilterOnce sync.Once
+)
+
+func labelsAsOTelAttributes(labels map[string]string) []attribute.KeyValue {
+	containerLabelsFilterOnce.Do(func() {
+		containerLabelsFilter = strings.Split(os.Getenv("DOCKER_CONTAINER_LABELS_FILTER"), ",")
+	})
+
+	// This env var is a comma-separated list of labels to be included in the
+	// OTel span attributes. The labels are prefixed with "label." to avoid
+	// collision with other attributes.
+	//
+	// Note that, this is an experimental env var that might be removed
+	// unceremoniously at any point in time.
+	attrs := make([]attribute.KeyValue, 0, len(containerLabelsFilter))
+	for _, k := range containerLabelsFilter {
+		if v, ok := labels[k]; ok {
+			attrs = append(attrs, attribute.String("label."+k, v))
+		}
+	}
+	return attrs
 }
 
 // Create creates a new container from the given configuration with a given name.
@@ -172,7 +215,10 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 				RemoveVolume: true,
 			})
 			if err != nil {
-				log.G(ctx).WithError(err).Error("failed to cleanup container on create error")
+				log.G(ctx).WithFields(log.Fields{
+					"error":     err,
+					"container": ctr.ID,
+				}).Errorf("failed to cleanup container on create error")
 			}
 		}
 	}()
@@ -184,24 +230,19 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	ctr.HostConfig.StorageOpt = opts.params.HostConfig.StorageOpt
 	ctr.ImageManifest = imgManifest
 
-	if daemon.UsesSnapshotter() {
-		if err := daemon.imageService.PrepareSnapshot(ctx, ctr.ID, opts.params.Config.Image, opts.params.Platform, setupInitLayer(daemon.idMapping)); err != nil {
-			return nil, err
-		}
-	} else {
-		// Set RWLayer for container after mount labels have been set
-		rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping))
-		if err != nil {
-			return nil, errdefs.System(err)
-		}
-		ctr.RWLayer = rwLayer
+	// Set RWLayer for container after mount labels have been set
+	rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping.RootPair()))
+	if err != nil {
+		return nil, errdefs.System(err)
 	}
+	ctr.RWLayer = rwLayer
 
-	current := idtools.CurrentIdentity()
-	if err := idtools.MkdirAndChown(ctr.Root, 0o710, idtools.Identity{UID: current.UID, GID: daemon.IdentityMapping().RootPair().GID}); err != nil {
+	cuid := os.Getuid()
+	_, gid := daemon.IdentityMapping().RootPair()
+	if err := user.MkdirAndChown(ctr.Root, 0o710, cuid, gid); err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAndChown(ctr.CheckpointDir(), 0o700, current); err != nil {
+	if err := user.MkdirAndChown(ctr.CheckpointDir(), 0o700, cuid, os.Getegid()); err != nil {
 		return nil, err
 	}
 
@@ -227,7 +268,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	if err := daemon.register(ctx, ctr); err != nil {
 		return nil, err
 	}
-	stateCtr.set(ctr.ID, "stopped")
+	metrics.StateCtr.Set(ctr.ID, "stopped")
 	daemon.LogContainerEvent(ctr, events.ActionCreate)
 	return ctr, nil
 }

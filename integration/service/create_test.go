@@ -7,10 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/strslice"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
@@ -103,7 +101,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	serviceID := swarm.CreateService(ctx, t, d, serviceSpec...)
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, client, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
+	_, _, err := client.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
 	err = client.ServiceRemove(ctx, serviceID)
@@ -166,7 +164,7 @@ func TestCreateServiceConflict(t *testing.T) {
 	swarm.CreateService(ctx, t, d, serviceSpec...)
 
 	spec := swarm.CreateServiceSpec(t, serviceSpec...)
-	_, err := c.ServiceCreate(ctx, spec, types.ServiceCreateOptions{})
+	_, err := c.ServiceCreate(ctx, spec, swarmtypes.ServiceCreateOptions{})
 	assert.Check(t, errdefs.IsConflict(err))
 	assert.ErrorContains(t, err, "service "+serviceName+" already exists")
 }
@@ -188,7 +186,7 @@ func TestCreateServiceMaxReplicas(t *testing.T) {
 	serviceID := swarm.CreateService(ctx, t, d, serviceSpec...)
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, client, serviceID, maxReplicas), swarm.ServicePoll)
 
-	_, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
+	_, _, err := client.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
 	assert.NilError(t, err)
 }
 
@@ -369,7 +367,7 @@ func TestCreateServiceSysctls(t *testing.T) {
 		// more complex)
 
 		// get all tasks of the service, so we can get the container
-		tasks, err := client.TaskList(ctx, types.TaskListOptions{
+		tasks, err := client.TaskList(ctx, swarmtypes.TaskListOptions{
 			Filters: filters.NewArgs(filters.Arg("service", serviceID)),
 		})
 		assert.NilError(t, err)
@@ -384,7 +382,7 @@ func TestCreateServiceSysctls(t *testing.T) {
 		assert.DeepEqual(t, tasks[0].Spec.ContainerSpec.Sysctls, expectedSysctls)
 
 		// verify that the service also has the sysctl set in the spec.
-		service, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
+		service, _, err := client.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
 		assert.NilError(t, err)
 		assert.DeepEqual(t,
 			service.Spec.TaskTemplate.ContainerSpec.Sysctls, expectedSysctls,
@@ -439,7 +437,7 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	// level has been tested elsewhere.
 
 	// get all tasks of the service, so we can get the container
-	tasks, err := client.TaskList(ctx, types.TaskListOptions{
+	tasks, err := client.TaskList(ctx, swarmtypes.TaskListOptions{
 		Filters: filters.NewArgs(filters.Arg("service", serviceID)),
 	})
 	assert.NilError(t, err)
@@ -448,15 +446,15 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	// verify that the container has the capabilities option set
 	ctnr, err := client.ContainerInspect(ctx, tasks[0].Status.ContainerStatus.ContainerID)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, ctnr.HostConfig.CapAdd, strslice.StrSlice(capAdd))
-	assert.DeepEqual(t, ctnr.HostConfig.CapDrop, strslice.StrSlice(capDrop))
+	assert.DeepEqual(t, []string(ctnr.HostConfig.CapAdd), capAdd)
+	assert.DeepEqual(t, []string(ctnr.HostConfig.CapDrop), capDrop)
 
 	// verify that the task has the capabilities option set in the task object
 	assert.DeepEqual(t, tasks[0].Spec.ContainerSpec.CapabilityAdd, capAdd)
 	assert.DeepEqual(t, tasks[0].Spec.ContainerSpec.CapabilityDrop, capDrop)
 
 	// verify that the service also has the capabilities set in the spec.
-	service, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
+	service, _, err := client.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
 	assert.NilError(t, err)
 	assert.DeepEqual(t, service.Spec.TaskTemplate.ContainerSpec.CapabilityAdd, capAdd)
 	assert.DeepEqual(t, service.Spec.TaskTemplate.ContainerSpec.CapabilityDrop, capDrop)

@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/go-archive/compression"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -40,7 +40,7 @@ func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, 
 		return "", errdefs.InvalidParameter(err)
 	}
 
-	inflatedLayerData, err := archive.DecompressStream(layerReader)
+	inflatedLayerData, err := compression.DecompressStream(layerReader)
 	if err != nil {
 		return "", err
 	}
@@ -85,6 +85,6 @@ func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, 
 		}
 	}
 
-	i.LogImageEvent(id.String(), id.String(), events.ActionImport)
+	i.LogImageEvent(ctx, id.String(), id.String(), events.ActionImport)
 	return id, nil
 }

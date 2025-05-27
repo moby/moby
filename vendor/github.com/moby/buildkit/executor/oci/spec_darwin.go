@@ -1,11 +1,12 @@
 package oci
 
 import (
-	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/oci"
+	"github.com/containerd/containerd/v2/core/mount"
+	"github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/continuity/fs"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
@@ -26,7 +27,7 @@ func generateProcessModeOpts(mode ProcessMode) ([]oci.SpecOpts, error) {
 	return nil, nil
 }
 
-func generateIDmapOpts(idmap *idtools.IdentityMapping) ([]oci.SpecOpts, error) {
+func generateIDmapOpts(idmap *user.IdentityMapping) ([]oci.SpecOpts, error) {
 	if idmap == nil {
 		return nil, nil
 	}
@@ -61,4 +62,11 @@ func sub(m mount.Mount, subPath string) (mount.Mount, func() error, error) {
 	}
 	m.Source = src
 	return m, func() error { return nil }, nil
+}
+
+func generateCDIOpts(_ *cdidevices.Manager, devices []*pb.CDIDevice) ([]oci.SpecOpts, error) {
+	if len(devices) == 0 {
+		return nil, nil
+	}
+	return nil, errors.New("no support for CDI on Darwin")
 }

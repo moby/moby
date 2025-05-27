@@ -152,6 +152,7 @@ func (p *Provider) Retrieve(ctx context.Context) (aws.Credentials, error) {
 		SecretAccessKey: resp.SecretAccessKey,
 		SessionToken:    resp.Token,
 		Source:          ProviderName,
+		AccountID:       resp.AccountID,
 	}
 
 	if resp.Expiration != nil {

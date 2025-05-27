@@ -1,6 +1,7 @@
 package networking
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -16,15 +17,18 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/go-connections/nat"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
@@ -394,6 +398,12 @@ func TestAccessPublishedPortFromHost(t *testing.T) {
 							// the userland-proxy is required for these addresses.
 							continue
 						}
+						if networking.FirewalldRunning() {
+							// FIXME(robmry) - With firewalld running, this test is flaky.
+							// - it always seems to fail in CI, but not in a local dev container.
+							// - tracked by https://github.com/moby/moby/issues/49695
+							continue
+						}
 						addr += "%25" + iface
 					}
 
@@ -725,6 +735,11 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 		"nat-unprotected": pingSuccess,
 		"routed":          pingSuccess,
 	}
+	expMappedPortHTTP := map[string]string{
+		"nat":             httpFail,
+		"nat-unprotected": httpSuccess,
+		"routed":          httpSuccess,
+	}
 	expUnmappedPortHTTP := map[string]string{
 		"nat":             httpFail,
 		"nat-unprotected": httpSuccess,
@@ -766,18 +781,501 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 					testPing(t, "ping6", networks[gwMode].ipv6, expPingExit[gwMode])
 				})
 				t.Run(gwMode+"/v4/http/80", func(t *testing.T) {
-					testHttp(t, networks[gwMode].ipv4, "80", httpSuccess)
+					testHttp(t, networks[gwMode].ipv4, "80", expMappedPortHTTP[gwMode])
 				})
 				t.Run(gwMode+"/v4/http/81", func(t *testing.T) {
 					testHttp(t, networks[gwMode].ipv4, "81", expUnmappedPortHTTP[gwMode])
 				})
 				t.Run(gwMode+"/v6/http/80", func(t *testing.T) {
-					testHttp(t, networks[gwMode].ipv6, "80", httpSuccess)
+					testHttp(t, networks[gwMode].ipv6, "80", expMappedPortHTTP[gwMode])
 				})
 				t.Run(gwMode+"/v6/http/81", func(t *testing.T) {
 					testHttp(t, networks[gwMode].ipv6, "81", expUnmappedPortHTTP[gwMode])
 				})
 			}
+		})
+	}
+}
+
+// TestAccessPublishedPortFromAnotherNetwork checks that a container can access
+// ports published on the host by a container attached to a different network
+// using both its gateway IP address, and the host IP address.
+//
+// Regression test for https://github.com/moby/moby/pull/49310.
+func TestAccessPublishedPortFromAnotherNetwork(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "rootlesskit maps ports on loopback in its own netns")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const servnet = "servnet"
+	network.CreateNoError(ctx, t, c, servnet,
+		network.WithDriver("bridge"),
+		network.WithOption(bridge.BridgeName, servnet),
+		network.WithIPv6(),
+	)
+	defer network.RemoveNoError(ctx, t, c, servnet)
+
+	const clientnet = "clientnet"
+	network.CreateNoError(ctx, t, c, clientnet,
+		network.WithDriver("bridge"),
+		network.WithOption(bridge.BridgeName, clientnet),
+		network.WithIPv6(),
+		network.WithIPAM("192.168.123.0/24", "192.168.123.1"),
+		network.WithIPAM("fde5:4427:8b32::/64", "fde5:4427:8b32::1"),
+	)
+	defer network.RemoveNoError(ctx, t, c, clientnet)
+
+	const (
+		hostIPv4 = "10.0.128.2"
+		hostIPv6 = "fd3f:69a1:3233::2"
+	)
+
+	defer enableIPv6OnAll(t)()
+	// Add well-known addresses to the host.
+	assert.NilError(t, exec.Command("ip", "addr", "add", hostIPv4+"/24", "dev", "eth0").Run())
+	defer exec.Command("ip", "addr", "del", hostIPv4+"/24", "dev", "eth0").Run()
+	assert.NilError(t, exec.Command("ip", "addr", "add", hostIPv6+"/64", "dev", "eth0").Run())
+	defer exec.Command("ip", "addr", "del", hostIPv6+"/64", "dev", "eth0").Run()
+
+	for _, tc := range []struct {
+		name  string
+		daddr string
+	}{
+		{
+			name:  "IPv4/Gateway",
+			daddr: "192.168.123.1",
+		},
+		{
+			name:  "IPv6/Gateway",
+			daddr: "fde5:4427:8b32::1",
+		},
+		{
+			name:  "IPv4/Host",
+			daddr: hostIPv4,
+		},
+		{
+			name:  "IPv6/Host",
+			daddr: hostIPv6,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// TODO: Figure out why is it flaky and fix the actual issue.
+			// https://github.com/moby/moby/issues/49358
+			retryFlaky(t, 5, func(t *testing.T) is.Comparison {
+				serverID := container.Run(ctx, t, c,
+					container.WithName("server"),
+					container.WithCmd("nc", "-lp", "5000"),
+					container.WithExposedPorts("5000/tcp"),
+					container.WithPortMap(nat.PortMap{"5000/tcp": {{HostPort: "5000"}}}),
+					container.WithNetworkMode(servnet))
+				defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
+
+				clientID := container.Run(ctx, t, c,
+					container.WithName("client"),
+					container.WithCmd("/bin/sh", "-c", fmt.Sprintf("echo foobar | nc -w1 %s 5000", tc.daddr)),
+					container.WithNetworkMode(clientnet))
+				defer c.ContainerRemove(ctx, clientID, containertypes.RemoveOptions{Force: true})
+
+				logs := getContainerStdout(t, ctx, c, serverID)
+				return is.Contains(logs, "foobar")
+			})
+		})
+	}
+}
+
+func retryFlaky(t *testing.T, retries int, f func(t *testing.T) is.Comparison) {
+	for i := 0; i < retries-1; i++ {
+		comp := f(t)
+		if comp().Success() {
+			return
+		}
+		t.Log("Retrying...")
+		time.Sleep(time.Second)
+	}
+
+	assert.Assert(t, f(t))
+}
+
+// TestDirectRemoteAccessOnExposedPort checks that remote hosts can't directly
+// reach a container on one of its exposed port. That is, if container has the
+// IP address 172.17.24.2, and its port 443 is exposed on the host, no remote
+// host should be able to reach 172.17.24.2:443 directly.
+//
+// Regression test for https://github.com/moby/moby/issues/45610.
+func TestDirectRemoteAccessOnExposedPort(t *testing.T) {
+	// This test checks iptables rules that live in dockerd's netns. In the case
+	// of rootlesskit, this is not the same netns as the host, so they don't
+	// have any effect.
+	// TODO(aker): we need to figure out what we want to do for rootlesskit.
+	// skip.If(t, testEnv.IsRootless, "rootlesskit has its own netns")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+	testDirectRemoteAccessOnExposedPort(t, ctx, d, false)
+}
+
+// TestAllowDirectRemoteAccessOnExposedPort checks that remote hosts can directly
+// reach a container on one of its exposed ports - if the daemon is running with
+// option --allow-direct-routing.
+func TestAllowDirectRemoteAccessOnExposedPort(t *testing.T) {
+	// This test checks iptables rules that live in dockerd's netns. In the case
+	// of rootlesskit, this is not the same netns as the host, so they don't
+	// have any effect.
+	// TODO(aker): we need to figure out what we want to do for rootlesskit.
+	// skip.If(t, testEnv.IsRootless, "rootlesskit has its own netns")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--allow-direct-routing")
+	defer d.Stop(t)
+	testDirectRemoteAccessOnExposedPort(t, ctx, d, true)
+}
+
+func testDirectRemoteAccessOnExposedPort(t *testing.T, ctx context.Context, d *daemon.Daemon, allowDirectRouting bool) {
+	const (
+		hostIPv4 = "192.168.120.2"
+		hostIPv6 = "fdbc:277b:d40b::2"
+	)
+
+	l3 := networking.NewL3Segment(t, "test-direct-remote-access",
+		netip.MustParsePrefix("192.168.120.1/24"),
+		netip.MustParsePrefix("fdbc:277b:d40b::1/64"))
+	defer l3.Destroy(t)
+	// "docker" is the host where dockerd is running.
+	const hostIfName = "test-eth"
+	l3.AddHost(t, "docker", networking.CurrentNetns, hostIfName,
+		netip.MustParsePrefix(hostIPv4+"/24"),
+		netip.MustParsePrefix(hostIPv6+"/64"))
+	l3.AddHost(t, "attacker", "test-direct-remote-access-attacker", "eth0",
+		netip.MustParsePrefix("192.168.120.3/24"),
+		netip.MustParsePrefix("fdbc:277b:d40b::3/64"))
+
+	c := d.NewClientT(t)
+	defer c.Close()
+	for _, tc := range []struct {
+		name         string
+		gwMode       string
+		gwAddr       netip.Prefix
+		ipv4Disabled bool
+		ipv6Disabled bool
+		trusted      bool
+	}{
+		{
+			name:   "NAT/IPv4",
+			gwMode: "nat",
+			gwAddr: netip.MustParsePrefix("172.24.10.1/24"),
+		},
+		{
+			name:   "NAT/IPv6",
+			gwMode: "nat",
+			gwAddr: netip.MustParsePrefix("fda9:a651:db6d::1/64"),
+		},
+		{
+			name:    "NAT/IPv4/trusted",
+			gwMode:  "nat",
+			gwAddr:  netip.MustParsePrefix("172.24.10.1/24"),
+			trusted: true,
+		},
+		{
+			name:    "NAT/IPv6/trusted",
+			gwMode:  "nat",
+			gwAddr:  netip.MustParsePrefix("fda9:a651:db6d::1/64"),
+			trusted: true,
+		},
+		{
+			name:   "NAT unprotected/IPv4",
+			gwMode: "nat-unprotected",
+			gwAddr: netip.MustParsePrefix("172.24.10.1/24"),
+		},
+		{
+			name:   "NAT unprotected/IPv6",
+			gwMode: "nat-unprotected",
+			gwAddr: netip.MustParsePrefix("fda9:a651:db6d::1/64"),
+		},
+		{
+			name:         "Proxy/IPv4",
+			gwMode:       "nat",
+			gwAddr:       netip.MustParsePrefix("fd05:b021:403f::1/64"),
+			ipv4Disabled: true,
+		},
+		{
+			name:         "Proxy/IPv6",
+			gwMode:       "nat",
+			gwAddr:       netip.MustParsePrefix("172.24.11.1/24"),
+			ipv6Disabled: true,
+		},
+		{
+			name:   "Routed/IPv4",
+			gwMode: "routed",
+			gwAddr: netip.MustParsePrefix("172.24.12.1/24"),
+		},
+		{
+			name:   "Routed/IPv6",
+			gwMode: "routed",
+			gwAddr: netip.MustParsePrefix("fd82:5787:b217::1/64"),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			expDirectAccess := tc.gwMode == "routed" || tc.gwMode == "nat-unprotected" || tc.trusted || allowDirectRouting
+			skip.If(t, expDirectAccess && testEnv.IsRootless(), "rootlesskit doesn't support routed mode as it's running in a separate netns")
+
+			testutil.StartSpan(ctx, t)
+
+			nwOpts := []func(*networktypes.CreateOptions){
+				network.WithIPAM(tc.gwAddr.Masked().String(), tc.gwAddr.Addr().String()),
+				network.WithOption(bridge.IPv4GatewayMode, tc.gwMode),
+				network.WithOption(bridge.IPv6GatewayMode, tc.gwMode),
+			}
+
+			if tc.ipv4Disabled {
+				nwOpts = append(nwOpts, network.WithIPv4Disabled())
+			}
+			if tc.ipv6Disabled {
+				nwOpts = append(nwOpts, network.WithIPv6Disabled())
+			}
+			if tc.gwAddr.Addr().Is6() {
+				nwOpts = append(nwOpts, network.WithIPv6())
+			}
+			if tc.trusted {
+				nwOpts = append(nwOpts, network.WithOption(bridge.TrustedHostInterfaces, hostIfName))
+			}
+
+			const bridgeName = "brattacked"
+			network.CreateNoError(ctx, t, c, bridgeName, append(nwOpts,
+				network.WithDriver("bridge"),
+				network.WithOption(bridge.BridgeName, bridgeName),
+			)...)
+			defer network.RemoveNoError(ctx, t, c, bridgeName)
+
+			const hostPort = "5000"
+			hostIP := hostIPv4
+			if tc.gwAddr.Addr().Is6() {
+				hostIP = hostIPv6
+			}
+
+			ctrIP := tc.gwAddr.Addr().Next()
+
+			test := func(t *testing.T, host networking.Host, daddr, payload string) bool {
+				serverID := container.Run(ctx, t, c,
+					container.WithName(sanitizeCtrName(t.Name()+"-server")),
+					container.WithCmd("nc", "-lup", "5000"),
+					container.WithExposedPorts("5000/udp"),
+					container.WithPortMap(nat.PortMap{"5000/udp": {{HostPort: hostPort}}}),
+					container.WithNetworkMode(bridgeName),
+					container.WithEndpointSettings(bridgeName, &networktypes.EndpointSettings{
+						IPAddress:   ctrIP.String(),
+						IPPrefixLen: ctrIP.BitLen(),
+					}))
+				defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
+
+				return sendPayloadFromHost(t, host, daddr, hostPort, payload, func() bool {
+					logs := getContainerStdout(t, ctx, c, serverID)
+					return strings.Contains(logs, payload)
+				})
+			}
+
+			if tc.gwMode != "routed" {
+				// Send a payload to the port mapped on the host -- this should work
+				res := test(t, l3.Hosts["attacker"], hostIP, "foobar")
+				assert.Assert(t, res, "Remote host should have access to port published on the host, but no payload was received by the container")
+			}
+
+			// Now send a payload directly to the container. With gw_mode=routed,
+			// this should work. With gw_mode=nat, this should fail.
+			l3.Hosts["attacker"].Run(t, "ip", "route", "add", tc.gwAddr.Masked().String(), "via", hostIP, "dev", "eth0")
+			defer l3.Hosts["attacker"].Run(t, "ip", "route", "delete", tc.gwAddr.Masked().String(), "via", hostIP, "dev", "eth0")
+
+			res := test(t, l3.Hosts["attacker"], ctrIP.String(), "bar baz")
+			if expDirectAccess {
+				assert.Assert(t, res, "Remote host should have direct access to the published port, but no payload was received by the container")
+			} else {
+				assert.Assert(t, !res, "Remote host should not have direct access to the published port, but payload was received by the container")
+			}
+		})
+	}
+}
+
+// TestAccessPortPublishedOnLoopbackAddress checks that ports published on
+// loopback addresses can't be accessed by remote hosts.
+//
+// Regression test for https://github.com/moby/moby/issues/45610.
+func TestAccessPortPublishedOnLoopbackAddress(t *testing.T) {
+	// rootlesskit uses a proxy to forward ports from the host netns to its own
+	// netns, so it's not affected by the original issue.
+	skip.If(t, testEnv.IsRootless, "rootlesskit has its own netns")
+
+	ctx := setupTest(t)
+
+	l3 := networking.NewL3Segment(t, "test-access-loopback",
+		netip.MustParsePrefix("192.168.121.1/24"))
+	defer l3.Destroy(t)
+	// "docker" is the host where dockerd is running.
+	l3.AddHost(t, "docker", networking.CurrentNetns, "eth-test",
+		netip.MustParsePrefix("192.168.121.2/24"))
+	l3.AddHost(t, "attacker", "test-access-loopback-attacker", "eth0",
+		netip.MustParsePrefix("192.168.121.3/24"))
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const bridgeName = "brtest"
+	network.CreateNoError(ctx, t, c, bridgeName,
+		network.WithDriver("bridge"),
+		network.WithOption(bridge.BridgeName, bridgeName),
+	)
+	defer network.RemoveNoError(ctx, t, c, bridgeName)
+
+	const (
+		loIP     = "127.0.0.2"
+		hostPort = "5000"
+	)
+
+	// The busybox version of netcat doesn't handle properly the `-k` flag,
+	// which should allow it to print the payload of multiple sequential
+	// connections. To overcome that limitation, start a new container every
+	// time we want to test if a payload is received.
+	test := func(t *testing.T, host networking.Host, payload string) bool {
+		t.Helper()
+
+		serverID := container.Run(ctx, t, c,
+			container.WithName("server"),
+			container.WithCmd("nc", "-lup", "5000"),
+			container.WithExposedPorts("5000/udp"),
+			// This port is mapped on 127.0.0.2, so it should not be remotely accessible.
+			container.WithPortMap(nat.PortMap{"5000/udp": {{HostIP: loIP, HostPort: hostPort}}}),
+			container.WithNetworkMode(bridgeName))
+		defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
+
+		return sendPayloadFromHost(t, host, loIP, hostPort, payload, func() bool {
+			logs := getContainerStdout(t, ctx, c, serverID)
+			return strings.Contains(logs, payload)
+		})
+	}
+
+	// Check if the local host has access to the published port.
+	res := test(t, l3.Hosts["docker"], "foobar")
+	assert.Assert(t, res, "Local host should have access to the published port, but no payload was received by the container")
+
+	// Add a route to the loopback address on the attacker host in order to
+	// conduct the attack scenario.
+	l3.Hosts["attacker"].Run(t, "ip", "route", "add", loIP+"/32", "via", "192.168.121.2", "dev", "eth0")
+	defer l3.Hosts["attacker"].Run(t, "ip", "route", "delete", loIP+"/32", "via", "192.168.121.2", "dev", "eth0")
+
+	// Check that remote access to the loopback address is correctly blocked.
+	res = test(t, l3.Hosts["attacker"], "bar baz")
+	assert.Assert(t, !res, "Remote host should not have access to the published port, but the payload was received by the container")
+}
+
+// Send a payload to daddr:dport a few times from the 'host' netns. Stop
+// sending payloads when 'check' returns true. Return the result of 'check'.
+//
+// UDP is preferred here as it's a one-way, connectionless protocol. With TCP
+// the three-way handshake has to be completed before sending a payload, but
+// since some test cases try to spoof the loopback address, the 'attacker host'
+// will drop the SYN-ACK by default (because the source addr will be considered
+// invalid / non-routable). This would require further tuning to make it work.
+// With UDP, this problem doesn't exist - the payload can be sent straight away.
+// But UDP is inherently unreliable, so we need to send the payload multiple
+// times.
+func sendPayloadFromHost(t *testing.T, host networking.Host, daddr, dport, payload string, check func() bool) bool {
+	var res bool
+	host.Do(t, func() {
+		for i := 0; i < 10; i++ {
+			t.Logf("Sending probe #%d to %s:%s from host %s", i, daddr, dport, host.Name)
+			icmd.RunCommand("/bin/sh", "-c", fmt.Sprintf("echo '%s' | nc -w1 -u %s %s", payload, daddr, dport)).Assert(t, icmd.Success)
+
+			res = check()
+			if res {
+				return
+			}
+
+			time.Sleep(50 * time.Millisecond)
+		}
+	})
+	return res
+}
+
+func getContainerStdout(t *testing.T, ctx context.Context, c *client.Client, ctrID string) string {
+	logReader, err := c.ContainerLogs(ctx, ctrID, containertypes.LogsOptions{
+		ShowStdout: true,
+	})
+	assert.NilError(t, err)
+	defer logReader.Close()
+
+	var logs bytes.Buffer
+	_, err = stdcopy.StdCopy(&logs, nil, logReader)
+	assert.NilError(t, err)
+
+	return logs.String()
+}
+
+// TestSkipRawRules checks that when env var DOCKER_INSECURE_NO_IPTABLES_RAW=1, no rules are added to
+// the iptables "raw" table - as a workaround for kernels that don't have CONFIG_IP_NF_RAW.
+// See https://github.com/moby/moby/issues/49557
+func TestSkipRawRules(t *testing.T) {
+	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
+	skip.If(t, testEnv.IsRootless, "can't use L3Segment, or check iptables rules")
+
+	testcases := []struct {
+		name          string
+		noIptablesRaw string
+	}{
+		{
+			name:          "skip=false",
+			noIptablesRaw: "0",
+		},
+		{
+			name:          "skip=true",
+			noIptablesRaw: "1",
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Run in a new netns, to make sure there are no raw rules left behind by other tests
+			const l3SegHost = "skip-raw"
+			l3 := networking.NewL3Segment(t, "test-"+l3SegHost)
+			defer l3.Destroy(t)
+			hostAddrs := []netip.Prefix{
+				netip.MustParsePrefix("192.168.234.0/24"),
+				netip.MustParsePrefix("fd3f:c09d:715b::/64"),
+			}
+			l3.AddHost(t, l3SegHost, "ns-"+l3SegHost, "eth0", hostAddrs...)
+			l3.Hosts[l3SegHost].Do(t, func() {
+				ctx := setupTest(t)
+				d := daemon.New(t, daemon.WithEnvVars("DOCKER_INSECURE_NO_IPTABLES_RAW="+tc.noIptablesRaw))
+				d.StartWithBusybox(ctx, t, "--ipv6", "--bip=192.168.0.1/24", "--bip6=fd30:1159:a755::1/64")
+				defer d.Stop(t)
+				c := d.NewClientT(t)
+				defer c.Close()
+
+				ctrId := container.Run(ctx, t, c,
+					container.WithExposedPorts("80/tcp"),
+					container.WithPortMap(nat.PortMap{"80/tcp": {
+						{HostIP: "127.0.0.1", HostPort: "8080"},
+						{HostPort: "8081"},
+					}}),
+				)
+				defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+
+				res4 := icmd.RunCommand("iptables", "-S", "-t", "raw")
+				golden.Assert(t, res4.Stdout(), t.Name()+"_ipv4.golden")
+				res6 := icmd.RunCommand("ip6tables", "-S", "-t", "raw")
+				golden.Assert(t, res6.Stdout(), t.Name()+"_ipv6.golden")
+			})
 		})
 	}
 }

@@ -7,24 +7,24 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/lazyregexp"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/pkg/errors"
 )
 
+// NOTE: \\s does not detect unicode whitespaces.
+// So we use fieldsASCII instead of strings.Fields in parsePSOutput.
+// See https://github.com/docker/docker/pull/24358
+var psArgsRegexp = lazyregexp.New("\\s+([^\\s]*)=\\s*(PID[^\\s]*)")
+
 func validatePSArgs(psArgs string) error {
-	// NOTE: \\s does not detect unicode whitespaces.
-	// So we use fieldsASCII instead of strings.Fields in parsePSOutput.
-	// See https://github.com/docker/docker/pull/24358
-	//nolint: gosimple
-	re := regexp.MustCompile("\\s+([^\\s]*)=\\s*(PID[^\\s]*)")
-	for _, group := range re.FindAllStringSubmatch(psArgs, -1) {
+	for _, group := range psArgsRegexp.FindAllStringSubmatch(psArgs, -1) {
 		if len(group) >= 3 {
 			k := group[1]
 			v := group[2]
@@ -48,7 +48,7 @@ func fieldsASCII(s string) []string {
 	return strings.FieldsFunc(s, fn)
 }
 
-func appendProcess2ProcList(procList *container.ContainerTopOKBody, fields []string) {
+func appendProcess2ProcList(procList *container.TopResponse, fields []string) {
 	// Make sure number of fields equals number of header titles
 	// merging "overhanging" fields
 	process := fields[:len(procList.Titles)-1]
@@ -65,8 +65,8 @@ func hasPid(procs []uint32, pid int) bool {
 	return false
 }
 
-func parsePSOutput(output []byte, procs []uint32) (*container.ContainerTopOKBody, error) {
-	procList := &container.ContainerTopOKBody{}
+func parsePSOutput(output []byte, procs []uint32) (*container.TopResponse, error) {
+	procList := &container.TopResponse{}
 
 	lines := strings.Split(string(output), "\n")
 	procList.Titles = fieldsASCII(lines[0])
@@ -137,7 +137,7 @@ func psPidsArg(pids []uint32) string {
 // "-ef" if no args are given.  An error is returned if the container
 // is not found, or is not running, or if there are any problems
 // running ps, or parsing the output.
-func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.ContainerTopOKBody, error) {
+func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.TopResponse, error) {
 	if psArgs == "" {
 		psArgs = "-ef"
 	}

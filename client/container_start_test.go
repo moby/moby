@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -21,7 +21,15 @@ func TestContainerStartError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerStart(context.Background(), "nothing", container.StartOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
+
+	err = client.ContainerStart(context.Background(), "", container.StartOptions{})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.ContainerStart(context.Background(), "    ", container.StartOptions{})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestContainerStart(t *testing.T) {
@@ -52,7 +60,5 @@ func TestContainerStart(t *testing.T) {
 	}
 
 	err := client.ContainerStart(context.Background(), "container_id", container.StartOptions{CheckpointID: "checkpoint_id"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }

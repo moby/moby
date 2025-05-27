@@ -4,15 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -23,7 +23,7 @@ func TestPluginInspectError(t *testing.T) {
 	}
 
 	_, _, err := client.PluginInspectWithRaw(context.Background(), "nothing")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestPluginInspectWithEmptyID(t *testing.T) {
@@ -33,7 +33,12 @@ func TestPluginInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.PluginInspectWithRaw(context.Background(), "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, _, err = client.PluginInspectWithRaw(context.Background(), "    ")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestPluginInspect(t *testing.T) {
@@ -57,10 +62,6 @@ func TestPluginInspect(t *testing.T) {
 	}
 
 	pluginInspect, _, err := client.PluginInspectWithRaw(context.Background(), "plugin_name")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pluginInspect.ID != "plugin_id" {
-		t.Fatalf("expected `plugin_id`, got %s", pluginInspect.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(pluginInspect.ID, "plugin_id"))
 }

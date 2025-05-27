@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/ishidawataru/sctp"
@@ -122,8 +123,8 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 
 		if sb.ingress {
 			var gwIP net.IP
-			if ep, _ := sb.getGatewayEndpoint(); ep != nil {
-				gwIP = ep.Iface().Address().IP
+			if gwEP, _ := sb.getGatewayEndpoint(); gwEP != nil {
+				gwIP = gwEP.Iface().Address().IP
 			}
 			if err := programIngress(gwIP, lb.service.ingressPorts, false); err != nil {
 				log.G(context.TODO()).Errorf("Failed to add ingress: %v", err)
@@ -143,19 +144,21 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 		}
 	}
 
-	d := &ipvs.Destination{
-		AddressFamily: nl.FAMILY_V4,
-		Address:       ip,
-		Weight:        1,
-	}
-	if n.loadBalancerMode == loadBalancerModeDSR {
-		d.ConnectionFlags = ipvs.ConnFwdDirectRoute
-	}
-
 	// Remove the sched name before using the service to add
 	// destination.
 	s.SchedName = ""
-	if err := i.NewDestination(s, d); err != nil && err != syscall.EEXIST {
+
+	var flags uint32
+	if n.loadBalancerMode == loadBalancerModeDSR {
+		flags = ipvs.ConnFwdDirectRoute
+	}
+	err = i.NewDestination(s, &ipvs.Destination{
+		AddressFamily:   nl.FAMILY_V4,
+		Address:         ip,
+		Weight:          1,
+		ConnectionFlags: flags,
+	})
+	if err != nil && err != syscall.EEXIST {
 		log.G(context.TODO()).Errorf("Failed to create real server %s for vip %s fwmark %d in sbox %.7s (%.7s): %v", ip, lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
 	}
 
@@ -359,13 +362,21 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 			}
 		}
 
-		if !iptable.Exists(iptables.Filter, "FORWARD", "-j", ingressChain) {
-			if err := iptable.RawCombinedOutput("-I", "FORWARD", "-j", ingressChain); err != nil {
-				return fmt.Errorf("failed to add jump rule to %s in filter table forward chain: %v", ingressChain, err)
+		// The DOCKER-FORWARD chain is created by the bridge driver on startup. It's a stable place to
+		// put the jump to DOCKER-INGRESS (nothing else will ever be inserted before it, and the jump
+		// will precede the bridge driver's other rules).
+		if !iptable.Exists(iptables.Filter, bridge.DockerForwardChain, "-j", ingressChain) {
+			if err := iptable.RawCombinedOutput("-I", bridge.DockerForwardChain, "-j", ingressChain); err != nil {
+				return fmt.Errorf("failed to add jump rule to %s in filter table %s chain: %v",
+					ingressChain, bridge.DockerForwardChain, err)
 			}
-			// The jump to DOCKER-USER needs to be before the jump to DOCKER-INGRESS.
-			if err := setupUserChain(iptables.IPv4); err != nil {
-				log.G(context.TODO()).Warnf("Failed to restore "+userChain+" after creating "+ingressChain+": %v", err)
+		}
+		// Remove the jump from FORWARD to DOCKER-INGRESS, if it was created there by a version of
+		// the daemon older than 28.0.1.
+		// FIXME(robmry) - should only do this once, on startup.
+		if iptable.Exists(iptables.Filter, "FORWARD", "-j", ingressChain) {
+			if err := iptable.RawCombinedOutput("-D", "FORWARD", "-j", ingressChain); err != nil {
+				log.G(context.TODO()).WithError(err).Debug("Failed to delete jump from FORWARD to " + ingressChain)
 			}
 		}
 

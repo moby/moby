@@ -2,14 +2,14 @@ package container // import "github.com/docker/docker/container"
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/errdefs"
 )
 
 const (
@@ -17,9 +17,6 @@ const (
 	containerSecretMountPath         = `C:\ProgramData\Docker\secrets`
 	containerInternalSecretMountPath = `C:\ProgramData\Docker\internal\secrets`
 	containerInternalConfigsDirPath  = `C:\ProgramData\Docker\internal\configs`
-
-	// defaultStopSignal is the default syscall signal used to stop a container.
-	defaultStopSignal = "SIGTERM"
 
 	// defaultStopTimeout is the timeout (in seconds) for the shutdown call on a container
 	defaultStopTimeout = 30
@@ -46,7 +43,7 @@ func (container *Container) CreateSecretSymlinks() error {
 		if err != nil {
 			return err
 		}
-		if err := system.MkdirAll(filepath.Dir(resolvedPath), 0); err != nil {
+		if err := os.MkdirAll(filepath.Dir(resolvedPath), 0); err != nil {
 			return err
 		}
 		if err := os.Symlink(filepath.Join(containerInternalSecretMountPath, r.SecretID), resolvedPath); err != nil {
@@ -96,7 +93,7 @@ func (container *Container) CreateConfigSymlinks() error {
 		if err != nil {
 			return err
 		}
-		if err := system.MkdirAll(filepath.Dir(resolvedPath), 0); err != nil {
+		if err := os.MkdirAll(filepath.Dir(resolvedPath), 0); err != nil {
 			return err
 		}
 		if err := os.Symlink(filepath.Join(containerInternalConfigsDirPath, configRef.ConfigID), resolvedPath); err != nil {
@@ -169,12 +166,12 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 		resources.CPUPercent != 0 ||
 		resources.IOMaximumIOps != 0 ||
 		resources.IOMaximumBandwidth != 0 {
-		return fmt.Errorf("resource updating isn't supported on Windows")
+		return errdefs.InvalidParameter(errors.New("resource updating isn't supported on Windows"))
 	}
 	// update HostConfig of container
 	if hostConfig.RestartPolicy.Name != "" {
 		if container.HostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
-			return fmt.Errorf("Restart policy cannot be updated because AutoRemove is enabled for the container")
+			return conflictingUpdateOptions("Restart policy cannot be updated because AutoRemove is enabled for the container")
 		}
 		container.HostConfig.RestartPolicy = hostConfig.RestartPolicy
 	}

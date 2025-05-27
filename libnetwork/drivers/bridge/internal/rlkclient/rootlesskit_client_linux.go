@@ -11,11 +11,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/rootless-containers/rootlesskit/v2/pkg/api/client"
@@ -94,8 +92,21 @@ func (c *PortDriverClient) ChildHostIP(hostIP netip.Addr) netip.Addr {
 	return netip.MustParseAddr("127.0.0.1")
 }
 
+// ProtocolUnsupportedError is returned when apiProto is not supported by portDriverName.
+type ProtocolUnsupportedError struct {
+	apiProto       string
+	portDriverName string
+}
+
+func (e *ProtocolUnsupportedError) Error() string {
+	return fmt.Sprintf("protocol %q is not supported by the RootlessKit port driver %q",
+		e.apiProto, e.portDriverName)
+}
+
 // AddPort makes a request to RootlessKit asking it to set up a port
 // mapping between a host IP address and a child host IP address.
+//
+// AddPort may return [ProtocolUnsupportedError].
 func (c *PortDriverClient) AddPort(
 	ctx context.Context,
 	proto string,
@@ -128,10 +139,11 @@ func (c *PortDriverClient) AddPort(
 		// even when network driver is set to "slirp4netns".
 		//
 		// Most users are using "builtin" port driver and will not see this warning.
-		return nil, fmt.Errorf("protocol %q is not supported by the RootlessKit port driver %q, discarding request for %q",
-			proto,
-			c.portDriverName,
-			net.JoinHostPort(hostIP.String(), strconv.Itoa(hostPort)))
+		err := &ProtocolUnsupportedError{
+			apiProto:       apiProto,
+			portDriverName: c.portDriverName,
+		}
+		return nil, err
 	}
 
 	pm := c.client.PortManager()

@@ -10,13 +10,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/labels"
-	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/pkg/epoch"
-	"github.com/containerd/containerd/remotes/docker"
-	"github.com/containerd/containerd/rootfs"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	remoteserrors "github.com/containerd/containerd/v2/core/remotes/errors"
+	"github.com/containerd/containerd/v2/pkg/epoch"
+	"github.com/containerd/containerd/v2/pkg/labels"
+	"github.com/containerd/containerd/v2/pkg/rootfs"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/cache"
@@ -149,6 +150,16 @@ func (e *imageExporter) Resolve(ctx context.Context, id int, opt map[string]stri
 			i.storeAllowIncomplete = b
 		case exptypes.OptKeyDanglingPrefix:
 			i.danglingPrefix = v
+		case exptypes.OptKeyDanglingEmptyOnly:
+			if v == "" {
+				i.danglingEmptyOnly = true
+				continue
+			}
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return nil, errors.Wrapf(err, "non-bool value specified for %s", k)
+			}
+			i.danglingEmptyOnly = b
 		case exptypes.OptKeyNameCanonical:
 			if v == "" {
 				i.nameCanonical = true
@@ -183,6 +194,7 @@ type imageExporterInstance struct {
 	insecure             bool
 	nameCanonical        bool
 	danglingPrefix       string
+	danglingEmptyOnly    bool
 	meta                 map[string][]byte
 }
 
@@ -247,9 +259,14 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 	}
 
 	nameCanonical := e.nameCanonical
-	if e.opts.ImageName == "" && e.danglingPrefix != "" {
-		e.opts.ImageName = e.danglingPrefix + "@" + desc.Digest.String()
-		nameCanonical = false
+	if e.danglingPrefix != "" && (!e.danglingEmptyOnly || e.opts.ImageName == "") {
+		danglingImageName := e.danglingPrefix + "@" + desc.Digest.String()
+		if e.opts.ImageName != "" {
+			e.opts.ImageName += "," + danglingImageName
+		} else {
+			e.opts.ImageName = danglingImageName
+			nameCanonical = false
+		}
 	}
 
 	if e.opts.ImageName != "" {
@@ -274,7 +291,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 				}
 
 				sfx := []string{""}
-				if nameCanonical {
+				if nameCanonical && !strings.ContainsRune(targetName, '@') {
 					sfx = append(sfx, "@"+desc.Digest.String())
 				}
 				for _, sfx := range sfx {
@@ -317,7 +334,6 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 					}
 					eg, ctx := errgroup.WithContext(ctx)
 					for _, ref := range refs {
-						ref := ref
 						eg.Go(func() error {
 							remotes, err := ref.GetRemotes(ctx, false, e.opts.RefCfg, false, session.NewGroup(sessionID))
 							if err != nil {
@@ -340,11 +356,18 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 			if e.push {
 				err = e.pushImage(ctx, src, sessionID, targetName, desc.Digest)
 				if err != nil {
+					var statusErr remoteserrors.ErrUnexpectedStatus
+					if errors.As(err, &statusErr) {
+						var dErr docker.Errors
+						if err1 := json.Unmarshal(statusErr.Body, &dErr); err1 == nil && len(dErr) > 0 {
+							err = &formattedDockerError{dErr: dErr}
+						}
+					}
 					return nil, nil, errors.Wrapf(err, "failed to push %v", targetName)
 				}
 			}
 		}
-		resp["image.name"] = e.opts.ImageName
+		resp[exptypes.ExporterImageNameKey] = e.opts.ImageName
 	}
 
 	resp[exptypes.ExporterImageDigestKey] = desc.Digest.String()
@@ -526,4 +549,37 @@ func (d *descriptorReference) Descriptor() ocispecs.Descriptor {
 
 func (d *descriptorReference) Release() error {
 	return d.release(context.TODO())
+}
+
+type formattedDockerError struct {
+	dErr docker.Errors
+}
+
+func (e *formattedDockerError) Error() string {
+	format := func(err error) string {
+		out := err.Error()
+		var dErr docker.Error
+		if errors.As(err, &dErr) {
+			if v, ok := dErr.Detail.(string); ok && v != "" {
+				out += " - " + v
+			}
+		}
+		return out
+	}
+	switch len(e.dErr) {
+	case 0:
+		return "<nil>"
+	case 1:
+		return format(e.dErr[0])
+	default:
+		msg := "errors:\n"
+		for _, err := range e.dErr {
+			msg += format(err) + "\n"
+		}
+		return msg
+	}
+}
+
+func (e *formattedDockerError) Unwrap() error {
+	return e.dErr
 }

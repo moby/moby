@@ -3,7 +3,7 @@ import (
 	"context"
 	"sync"
 
-	ccaps "github.com/containerd/containerd/pkg/cap"
+	ccaps "github.com/containerd/containerd/v2/pkg/cap"
 	"github.com/containerd/log"
 )
 

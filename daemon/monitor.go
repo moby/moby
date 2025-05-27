@@ -3,6 +3,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/containerd/log"
@@ -11,6 +12,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/metrics"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/restartmanager"
 	"github.com/pkg/errors"
@@ -19,17 +21,31 @@ import (
 func (daemon *Daemon) setStateCounter(c *container.Container) {
 	switch c.StateString() {
 	case "paused":
-		stateCtr.set(c.ID, "paused")
+		metrics.StateCtr.Set(c.ID, "paused")
 	case "running":
-		stateCtr.set(c.ID, "running")
+		metrics.StateCtr.Set(c.ID, "running")
 	default:
-		stateCtr.set(c.ID, "stopped")
+		metrics.StateCtr.Set(c.ID, "stopped")
 	}
 }
 
 func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontainerdtypes.EventInfo) error {
 	var ctrExitStatus container.ExitStatus
 	c.Lock()
+
+	// If the latest container error is related to networking setup, don't try
+	// to restart the container, and don't change the container state to
+	// 'exited'. This happens when, for example, [daemon.allocateNetwork] fails
+	// due to published ports being already in use. In that case, we want to
+	// keep the container in the 'created' state.
+	//
+	// c.ErrorMsg is set by [daemon.containerStart], and doesn't preserve the
+	// error type (because this field is persisted on disk). So, use string
+	// matching instead of usual error comparison methods.
+	if strings.Contains(c.ErrorMsg, errSetupNetworking) {
+		c.Unlock()
+		return nil
+	}
 
 	cfg := daemon.config()
 
@@ -170,6 +186,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		}
 
 		daemon.LogContainerEvent(c, events.ActionOOM)
+		return nil
 	case libcontainerdtypes.EventExit:
 		if ei.ProcessID == ei.ContainerID {
 			return daemon.handleContainerExit(c, &ei)
@@ -224,6 +241,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			"execID":   ei.ProcessID,
 			"exitCode": strconv.Itoa(exitCode),
 		})
+		return nil
 	case libcontainerdtypes.EventStart:
 		c.Lock()
 		defer c.Unlock()
@@ -267,6 +285,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			daemon.LogContainerEvent(c, events.ActionStart)
 		}
 
+		return nil
 	case libcontainerdtypes.EventPaused:
 		c.Lock()
 		defer c.Unlock()
@@ -280,6 +299,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			}
 			daemon.LogContainerEvent(c, events.ActionPause)
 		}
+		return nil
 	case libcontainerdtypes.EventResumed:
 		c.Lock()
 		defer c.Unlock()
@@ -294,8 +314,11 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			}
 			daemon.LogContainerEvent(c, events.ActionUnPause)
 		}
+		return nil
+	default:
+		// TODO(thaJeztah): make switch exhaustive; add types.EventUnknown, types.EventCreate, types.EventExecAdded, types.EventExecStarted
+		return nil
 	}
-	return nil
 }
 
 func (daemon *Daemon) autoRemove(cfg *config.Config, c *container.Container) {

@@ -1,3 +1,4 @@
+// Package kconfig implements a parser for the format of Linux's .config file.
 package kconfig
 
 import (
@@ -7,37 +8,12 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"os"
 	"strconv"
 	"strings"
 
 	"github.com/cilium/ebpf/btf"
 	"github.com/cilium/ebpf/internal"
 )
-
-// Find find a kconfig file on the host.
-// It first reads from /boot/config- of the current running kernel and tries
-// /proc/config.gz if nothing was found in /boot.
-// If none of the file provide a kconfig, it returns an error.
-func Find() (*os.File, error) {
-	kernelRelease, err := internal.KernelRelease()
-	if err != nil {
-		return nil, fmt.Errorf("cannot get kernel release: %w", err)
-	}
-
-	path := "/boot/config-" + kernelRelease
-	f, err := os.Open(path)
-	if err == nil {
-		return f, nil
-	}
-
-	f, err = os.Open("/proc/config.gz")
-	if err == nil {
-		return f, nil
-	}
-
-	return nil, fmt.Errorf("neither %s nor /proc/config.gz provide a kconfig", path)
-}
 
 // Parse parses the kconfig file for which a reader is given.
 // All the CONFIG_* which are in filter and which are set set will be
@@ -127,12 +103,13 @@ func PutValue(data []byte, typ btf.Type, value string) error {
 	switch value {
 	case "y", "n", "m":
 		return putValueTri(data, typ, value)
-	default:
-		if strings.HasPrefix(value, `"`) {
-			return putValueString(data, typ, value)
-		}
-		return putValueNumber(data, typ, value)
 	}
+
+	if strings.HasPrefix(value, `"`) {
+		return putValueString(data, typ, value)
+	}
+
+	return putValueNumber(data, typ, value)
 }
 
 // Golang translation of libbpf_tristate enum:
@@ -169,6 +146,10 @@ func putValueTri(data []byte, typ btf.Type, value string) error {
 			return fmt.Errorf("cannot use enum %q, only libbpf_tristate is supported", v.Name)
 		}
 
+		if len(data) != 4 {
+			return fmt.Errorf("expected enum value to occupy 4 bytes in datasec, got: %d", len(data))
+		}
+
 		var tri triState
 		switch value {
 		case "y":
@@ -178,10 +159,10 @@ func putValueTri(data []byte, typ btf.Type, value string) error {
 		case "n":
 			tri = TriNo
 		default:
-			return fmt.Errorf("value %q is not support for libbpf_tristate", value)
+			return fmt.Errorf("value %q is not supported for libbpf_tristate", value)
 		}
 
-		internal.NativeEndian.PutUint64(data, uint64(tri))
+		internal.NativeEndian.PutUint32(data, uint32(tri))
 	default:
 		return fmt.Errorf("cannot add number value, expected btf.Int or btf.Enum, got: %T", v)
 	}

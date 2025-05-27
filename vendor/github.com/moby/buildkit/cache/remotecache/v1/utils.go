@@ -1,8 +1,10 @@
 package cacheimport
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -28,13 +30,8 @@ func sortConfig(cc *CacheConfig) {
 		unsortedLayers[i] = il
 		sortedLayers[i] = il
 	}
-	sort.Slice(sortedLayers, func(i, j int) bool {
-		li := sortedLayers[i].l
-		lj := sortedLayers[j].l
-		if li.Blob == lj.Blob {
-			return li.ParentIndex < lj.ParentIndex
-		}
-		return li.Blob < lj.Blob
+	slices.SortFunc(sortedLayers, func(a, b *indexedLayer) int {
+		return cmp.Or(cmp.Compare(a.l.Blob, b.l.Blob), cmp.Compare(a.l.ParentIndex, b.l.ParentIndex))
 	})
 	for i, l := range sortedLayers {
 		l.newIndex = i
@@ -101,8 +98,8 @@ func sortConfig(cc *CacheConfig) {
 			for k := range inputs {
 				r.r.Inputs[j][k].LinkIndex = unsortedRecords[r.r.Inputs[j][k].LinkIndex].newIndex
 			}
-			sort.Slice(inputs, func(i, j int) bool {
-				return inputs[i].LinkIndex < inputs[j].LinkIndex
+			slices.SortFunc(inputs, func(a, b CacheInput) int {
+				return cmp.Compare(a.LinkIndex, b.LinkIndex)
 			})
 		}
 		records[i] = r.r
@@ -113,7 +110,7 @@ func sortConfig(cc *CacheConfig) {
 }
 
 func outputKey(dgst digest.Digest, idx int) digest.Digest {
-	return digest.FromBytes([]byte(fmt.Sprintf("%s@%d", dgst, idx)))
+	return digest.FromBytes(fmt.Appendf(nil, "%s@%d", dgst, idx))
 }
 
 type nlink struct {
@@ -232,7 +229,7 @@ func normalizeItem(it *item, state *normalizeState) (*item, error) {
 	} else {
 		// keep tmp IDs deterministic
 		state.next++
-		id = digest.FromBytes([]byte(fmt.Sprintf("%d", state.next)))
+		id = digest.FromBytes(fmt.Appendf(nil, "%d", state.next))
 		state.byKey[id] = it
 		it.links = make([]map[link]struct{}, len(it.links))
 		for i := range it.links {

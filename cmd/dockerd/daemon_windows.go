@@ -24,13 +24,13 @@ func getDefaultDaemonConfigFile() string {
 }
 
 // setPlatformOptions applies platform-specific CLI configuration options.
-func setPlatformOptions(conf *config.Config) error {
-	if conf.Pidfile == "" {
+func setPlatformOptions(cfg *config.Config) error {
+	if cfg.Pidfile == "" {
 		// On Windows, the pid-file location is relative to the daemon's data-root,
 		// which is configurable, so we cannot use a fixed default location.
 		// Instead, we set the location here, after we parsed command-line flags
 		// and loaded the configuration file (if any).
-		conf.Pidfile = filepath.Join(conf.Root, "docker.pid")
+		cfg.Pidfile = filepath.Join(cfg.Root, "docker.pid")
 	}
 	return nil
 }
@@ -88,7 +88,7 @@ func (cli *daemonCLI) setupConfigReloadTrap() {
 
 // getSwarmRunRoot gets the root directory for swarm to store runtime state
 // For example, the control socket
-func (cli *daemonCLI) getSwarmRunRoot() string {
+func getSwarmRunRoot(*config.Config) string {
 	return ""
 }
 
@@ -96,18 +96,18 @@ func allocateDaemonPort(addr string) error {
 	return nil
 }
 
-func newCgroupParent(config *config.Config) string {
+func newCgroupParent(*config.Config) string {
 	return ""
 }
 
 func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
-	defer func() { system.EnableContainerdRuntime(cli.ContainerdAddr) }()
+	defer func() { system.EnableContainerdRuntime(cli.Config.ContainerdAddr) }()
 
-	if cli.ContainerdAddr != "" {
+	if cli.Config.ContainerdAddr != "" {
 		return nil, nil
 	}
 
-	if cli.DefaultRuntime != config.WindowsV2RuntimeName {
+	if cli.Config.DefaultRuntime != config.WindowsV2RuntimeName {
 		return nil, nil
 	}
 

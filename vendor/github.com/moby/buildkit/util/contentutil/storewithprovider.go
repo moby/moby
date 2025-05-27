@@ -3,7 +3,7 @@ package contentutil
 import (
 	"context"
 
-	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/v2/core/content"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

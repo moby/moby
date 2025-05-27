@@ -18,8 +18,9 @@ func (cli *Client) NetworkInspect(ctx context.Context, networkID string, options
 
 // NetworkInspectWithRaw returns the information for a specific network configured in the docker host and its raw representation.
 func (cli *Client) NetworkInspectWithRaw(ctx context.Context, networkID string, options network.InspectOptions) (network.Inspect, []byte, error) {
-	if networkID == "" {
-		return network.Inspect{}, nil, objectNotFoundError{object: "network", id: networkID}
+	networkID, err := trimID("network", networkID)
+	if err != nil {
+		return network.Inspect{}, nil, err
 	}
 	query := url.Values{}
 	if options.Verbose {
@@ -35,7 +36,7 @@ func (cli *Client) NetworkInspectWithRaw(ctx context.Context, networkID string, 
 		return network.Inspect{}, nil, err
 	}
 
-	raw, err := io.ReadAll(resp.body)
+	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return network.Inspect{}, nil, err
 	}

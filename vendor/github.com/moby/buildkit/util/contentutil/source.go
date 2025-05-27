@@ -2,10 +2,11 @@ package contentutil
 
 import (
 	"net/url"
+	"slices"
 	"strings"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/reference"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/pkg/reference"
 )
 
 func HasSource(info content.Info, refspec reference.Spec) (bool, error) {
@@ -24,11 +25,8 @@ func HasSource(info content.Info, refspec reference.Spec) (bool, error) {
 		return false, nil
 	}
 
-	for _, repo := range strings.Split(repoLabel, ",") {
-		// the target repo is not a candidate
-		if repo == target {
-			return true, nil
-		}
+	if slices.Contains(strings.Split(repoLabel, ","), target) {
+		return true, nil
 	}
 	return false, nil
 }

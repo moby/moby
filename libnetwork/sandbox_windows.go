@@ -28,6 +28,11 @@ func (sb *Sandbox) restoreOslSandbox() error {
 	return nil
 }
 
+// NetnsPath is not implemented on Windows (Sandbox.osSbox is always nil)
+func (sb *Sandbox) NetnsPath() (path string, ok bool) {
+	return "", false
+}
+
 func (sb *Sandbox) populateNetworkResources(context.Context, *Endpoint) error {
 	// not implemented on Windows (Sandbox.osSbox is always nil)
 	return nil

@@ -2,6 +2,7 @@ package grpchijack
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"strings"
@@ -32,8 +33,8 @@ func Dialer(api controlapi.ControlClient) session.Dialer {
 
 type stream interface {
 	Context() context.Context
-	SendMsg(m interface{}) error
-	RecvMsg(m interface{}) error
+	SendMsg(m any) error
+	RecvMsg(m any) error
 }
 
 func streamToConn(stream stream) (net.Conn, <-chan struct{}) {
@@ -112,7 +113,7 @@ func (c *conn) Close() (err error) {
 			m.Data = c.buf
 			err = c.stream.RecvMsg(m)
 			if err != nil {
-				if err != io.EOF {
+				if !errors.Is(err, io.EOF) {
 					c.readMu.Unlock()
 					return
 				}

@@ -38,7 +38,7 @@ type Config struct {
 	// and endpoint lookup.
 	RegistryService RegistryResolver
 	// ImageEventLogger notifies events for a given image
-	ImageEventLogger func(id, name string, action events.Action)
+	ImageEventLogger func(ctx context.Context, id, name string, action events.Action)
 	// MetadataStore is the storage backend for distribution-specific
 	// metadata.
 	MetadataStore metadata.Store
@@ -78,9 +78,9 @@ type ImagePushConfig struct {
 
 // RegistryResolver is used for TLS configuration and endpoint lookup.
 type RegistryResolver interface {
+	ResolveAuthConfig(map[string]registry.AuthConfig, reference.Named) registry.AuthConfig
 	LookupPushEndpoints(hostname string) (endpoints []registrypkg.APIEndpoint, err error)
 	LookupPullEndpoints(hostname string) (endpoints []registrypkg.APIEndpoint, err error)
-	ResolveRepository(name reference.Named) (*registrypkg.RepositoryInfo, error)
 }
 
 // ImageConfigStore handles storing and getting image configurations

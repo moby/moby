@@ -21,16 +21,14 @@ type flusher interface {
 	Flush()
 }
 
-var errWriteFlusherClosed = io.EOF
-
-func (wf *WriteFlusher) Write(b []byte) (n int, err error) {
+func (wf *WriteFlusher) Write(b []byte) (int, error) {
 	select {
 	case <-wf.closed:
-		return 0, errWriteFlusherClosed
+		return 0, io.EOF
 	default:
 	}
 
-	n, err = wf.w.Write(b)
+	n, err := wf.w.Write(b)
 	wf.Flush() // every write is a flush.
 	return n, err
 }
@@ -73,12 +71,18 @@ func (wf *WriteFlusher) Close() error {
 
 	select {
 	case <-wf.closed:
-		return errWriteFlusherClosed
+		return io.EOF
 	default:
 		close(wf.closed)
 	}
 	return nil
 }
+
+// nopFlusher represents a type which flush operation is nop.
+type nopFlusher struct{}
+
+// Flush is a nop operation.
+func (f *nopFlusher) Flush() {}
 
 // NewWriteFlusher returns a new WriteFlusher.
 func NewWriteFlusher(w io.Writer) *WriteFlusher {
@@ -86,7 +90,7 @@ func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	if f, ok := w.(flusher); ok {
 		fl = f
 	} else {
-		fl = &NopFlusher{}
+		fl = &nopFlusher{}
 	}
 	return &WriteFlusher{w: w, flusher: fl, closed: make(chan struct{}), flushed: make(chan struct{})}
 }

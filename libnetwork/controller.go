@@ -54,6 +54,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/libnetwork/cluster"
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/datastore"
@@ -97,8 +98,42 @@ type Controller struct {
 	agentInitDone    chan struct{}
 	agentStopDone    chan struct{}
 	keys             []*types.EncryptionKey
-	DiagnosticServer *diagnostic.Server
+	diagnosticServer *diagnostic.Server
 	mu               sync.Mutex
+
+	// networks is an in-memory cache of Network. Do not use this map unless
+	// you're sure your code is thread-safe.
+	//
+	// The data persistence layer is instantiating new Network objects every
+	// time it loads an object from its store or in-memory cache. This leads to
+	// multiple instances representing the same network to concurrently live in
+	// memory. As such, the Network mutex might be ineffective and not
+	// correctly protect against data races.
+	//
+	// If you want to use this map for new or existing code, you need to make
+	// sure: 1. the Network object is correctly locked; 2. the lock order
+	// between Sandbox, Network and Endpoint is the same as the rest of the
+	// code (in order to avoid deadlocks).
+	networks map[string]*Network
+	// networksMu protects the networks map.
+	networksMu sync.Mutex
+
+	// endpoints is an in-memory cache of Endpoint. Do not use this map unless
+	// you're sure your code is thread-safe.
+	//
+	// The data persistence layer is instantiating new Endpoint objects every
+	// time it loads an object from its store or in-memory cache. This leads to
+	// multiple instances representing the same endpoint to concurrently live
+	// in memory. As such, the Endpoint mutex might be ineffective and not
+	// correctly protect against data races.
+	//
+	// If you want to use this map for new or existing code, you need to make
+	// sure: 1. the Endpoint object is correctly locked; 2. the lock order
+	// between Sandbox, Network and Endpoint is the same as the rest of the
+	// code (in order to avoid deadlocks).
+	endpoints map[string]*Endpoint
+	// endpointsMu protects the endpoints map.
+	endpointsMu sync.Mutex
 
 	// FIXME(thaJeztah): defOsSbox is always nil on non-Linux: move these fields to Linux-only files.
 	defOsSboxOnce sync.Once
@@ -106,7 +141,13 @@ type Controller struct {
 }
 
 // New creates a new instance of network controller.
-func New(cfgOptions ...config.Option) (*Controller, error) {
+func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.New")
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	cfg := config.New(cfgOptions...)
 	store, err := datastore.New(cfg.DataDir, cfg.DatastoreBucket)
 	if err != nil {
@@ -118,11 +159,13 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		cfg:              cfg,
 		store:            store,
 		sandboxes:        map[string]*Sandbox{},
+		networks:         map[string]*Network{},
+		endpoints:        map[string]*Endpoint{},
 		svcRecords:       make(map[string]*svcInfo),
 		serviceBindings:  make(map[serviceKey]*service),
 		agentInitDone:    make(chan struct{}),
 		networkLocker:    locker.New(),
-		DiagnosticServer: diagnostic.New(),
+		diagnosticServer: diagnostic.New(),
 	}
 
 	c.drvRegistry.Notify = c
@@ -133,7 +176,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		return nil, err
 	}
 
-	if err := registerNetworkDrivers(&c.drvRegistry, c.makeDriverConfig); err != nil {
+	if err := registerNetworkDrivers(&c.drvRegistry, c.store, c.makeDriverConfig); err != nil {
 		return nil, err
 	}
 
@@ -143,8 +186,8 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 
 	c.WalkNetworks(func(nw *Network) bool {
 		if n := nw; n.hasSpecialDriver() && !n.ConfigOnly() {
-			if err := n.getController().addNetwork(n); err != nil {
-				log.G(context.TODO()).Warnf("Failed to populate network %q with driver %q", nw.Name(), nw.Type())
+			if err := n.getController().addNetwork(ctx, n); err != nil {
+				log.G(ctx).Warnf("Failed to populate network %q with driver %q", nw.Name(), nw.Type())
 			}
 		}
 		return false
@@ -155,12 +198,13 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 	// generate many unnecessary warnings
 	c.reservePools()
 
-	// Cleanup resources
-	if err := c.sandboxCleanup(c.cfg.ActiveSandboxes); err != nil {
-		log.G(context.TODO()).WithError(err).Error("error during sandbox cleanup")
+	if err := c.sandboxRestore(c.cfg.ActiveSandboxes); err != nil {
+		log.G(ctx).WithError(err).Error("error during sandbox cleanup")
 	}
+
+	// Cleanup resources
 	if err := c.cleanupLocalEndpoints(); err != nil {
-		log.G(context.TODO()).WithError(err).Warnf("error during endpoint cleanup")
+		log.G(ctx).WithError(err).Warnf("error during endpoint cleanup")
 	}
 	c.networkCleanup()
 
@@ -333,9 +377,7 @@ func (c *Controller) makeDriverConfig(ntype string) map[string]interface{} {
 		return nil
 	}
 
-	cfg := map[string]interface{}{
-		netlabel.LocalKVClient: c.store,
-	}
+	cfg := map[string]interface{}{}
 	for _, label := range c.cfg.Labels {
 		key, val, _ := strings.Cut(label, "=")
 		if !strings.HasPrefix(key, netlabel.DriverPrefix+"."+ntype) {
@@ -464,7 +506,7 @@ const overlayDSROptionString = "dsr"
 
 // NewNetwork creates a new network of the specified network type. The options
 // are network specific and modeled in a generic way.
-func (c *Controller) NewNetwork(networkType, name string, id string, options ...NetworkOption) (_ *Network, retErr error) {
+func (c *Controller) NewNetwork(ctx context.Context, networkType, name string, id string, options ...NetworkOption) (_ *Network, retErr error) {
 	if id != "" {
 		c.networkLocker.Lock(id)
 		defer c.networkLocker.Unlock(id) //nolint:errcheck
@@ -475,7 +517,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	}
 
 	if strings.TrimSpace(name) == "" {
-		return nil, ErrInvalidName(name)
+		return nil, types.InvalidParameterErrorf("invalid name: name is empty")
 	}
 
 	// Make sure two concurrent calls to this method won't create conflicting
@@ -500,6 +542,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 		networkType:      networkType,
 		generic:          map[string]interface{}{netlabel.GenericData: make(map[string]string)},
 		ipamType:         defaultIpam,
+		enableIPv4:       true,
 		id:               id,
 		created:          time.Now(),
 		ctrlr:            c,
@@ -518,8 +561,6 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	var (
 		caps driverapi.Capability
 		err  error
-
-		skipCfgEpCount bool
 	)
 
 	// Reset network types, force local scope and skip allocation and
@@ -544,6 +585,18 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 		return nil, types.ForbiddenErrorf("Ingress network can only be global scope network")
 	}
 
+	// From this point on, we need the network specific configuration,
+	// which may come from a configuration-only network
+	if nw.configFrom != "" {
+		configNetwork, err := c.getConfigNetwork(nw.configFrom)
+		if err != nil {
+			return nil, types.NotFoundErrorf("configuration network %q does not exist", nw.configFrom)
+		}
+		if err := configNetwork.applyConfigurationTo(nw); err != nil {
+			return nil, types.InternalErrorf("Failed to apply configuration: %v", err)
+		}
+	}
+
 	// At this point the network scope is still unknown if not set by user
 	if (caps.DataScope == scope.Global || nw.scope == scope.Swarm) &&
 		c.isSwarmNode() && !nw.dynamic {
@@ -563,28 +616,14 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 
 	// Make sure we have a driver available for this network type
 	// before we allocate anything.
-	if _, err := nw.driver(true); err != nil {
+	if d, err := nw.driver(true); err != nil {
 		return nil, err
-	}
-
-	// From this point on, we need the network specific configuration,
-	// which may come from a configuration-only network
-	if nw.configFrom != "" {
-		configNetwork, err := c.getConfigNetwork(nw.configFrom)
+	} else if gac, ok := d.(driverapi.GwAllocChecker); ok {
+		// Give the driver a chance to say it doesn't need a gateway IP address.
+		nw.skipGwAllocIPv4, nw.skipGwAllocIPv6, err = gac.GetSkipGwAlloc(nw.generic)
 		if err != nil {
-			return nil, types.NotFoundErrorf("configuration network %q does not exist", nw.configFrom)
+			return nil, err
 		}
-		if err := configNetwork.applyConfigurationTo(nw); err != nil {
-			return nil, types.InternalErrorf("Failed to apply configuration: %v", err)
-		}
-		nw.generic[netlabel.Internal] = nw.internal
-		defer func() {
-			if retErr == nil && !skipCfgEpCount {
-				if err := configNetwork.getEpCnt().IncEndpointCnt(); err != nil {
-					log.G(context.TODO()).Warnf("Failed to update reference count for configuration network %q on creation of network %q: %v", configNetwork.Name(), nw.name, err)
-				}
-			}
-		}()
 	}
 
 	if err := nw.ipamAllocate(); err != nil {
@@ -620,19 +659,15 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	// - and updated in 87b082f3659f9ec245ab15d781e6bfffced0af83 to don't use string-matching
 	//
 	// To cut a long story short: if this broke anything, you know who to blame :)
-	if err := c.addNetwork(nw); err != nil {
-		if _, ok := err.(types.MaskableError); ok { //nolint:gosimple
-			// This error can be ignored and set this boolean
-			// value to skip a refcount increment for configOnly networks
-			skipCfgEpCount = true
-		} else {
+	if err := c.addNetwork(ctx, nw); err != nil {
+		if _, ok := err.(types.MaskableError); !ok {
 			return nil, err
 		}
 	}
 	defer func() {
 		if retErr != nil {
 			if err := nw.deleteNetwork(); err != nil {
-				log.G(context.TODO()).Warnf("couldn't roll back driver network on network %s creation failure: %v", nw.name, retErr)
+				log.G(ctx).Warnf("couldn't roll back driver network on network %s creation failure: %v", nw.name, retErr)
 			}
 		}
 	}()
@@ -656,26 +691,32 @@ addToStore:
 	// First store the endpoint count, then the network. To avoid to
 	// end up with a datastore containing a network and not an epCnt,
 	// in case of an ungraceful shutdown during this function call.
+	//
+	// TODO(robmry) - remove this once downgrade past 28.1.0 is no longer supported.
+	// The endpoint count is no longer used, it's created in the store to make
+	// downgrade work, versions older than 28.1.0 expect to read it and error if they
+	// can't. The stored count is not maintained, so the downgraded version will
+	// always find it's zero (which is usually correct because the daemon had
+	// stopped), but older daemons fix it on startup anyway.
 	epCnt := &endpointCnt{n: nw}
-	if err := c.updateToStore(context.TODO(), epCnt); err != nil {
+	if err := c.updateToStore(ctx, epCnt); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if retErr != nil {
 			if err := c.deleteFromStore(epCnt); err != nil {
-				log.G(context.TODO()).Warnf("could not rollback from store, epCnt %v on failure (%v): %v", epCnt, retErr, err)
+				log.G(ctx).Warnf("could not rollback from store, epCnt %v on failure (%v): %v", epCnt, retErr, err)
 			}
 		}
 	}()
 
-	nw.epCnt = epCnt
-	if err := c.updateToStore(context.TODO(), nw); err != nil {
+	if err := c.storeNetwork(ctx, nw); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if retErr != nil {
-			if err := c.deleteFromStore(nw); err != nil {
-				log.G(context.TODO()).Warnf("could not rollback from store, network %v on failure (%v): %v", nw, retErr, err)
+			if err := c.deleteStoredNetwork(nw); err != nil {
+				log.G(ctx).Warnf("could not rollback from store, network %v on failure (%v): %v", nw, retErr, err)
 			}
 		}
 	}()
@@ -689,7 +730,7 @@ addToStore:
 		if retErr != nil {
 			nw.cancelDriverWatches()
 			if err := nw.leaveCluster(); err != nil {
-				log.G(context.TODO()).Warnf("Failed to leave agent cluster on network %s on failure (%v): %v", nw.name, retErr, err)
+				log.G(ctx).Warnf("Failed to leave agent cluster on network %s on failure (%v): %v", nw.name, retErr, err)
 			}
 		}
 	}()
@@ -789,14 +830,14 @@ func doReplayPoolReserve(n *Network) bool {
 	return caps.RequiresRequestReplay
 }
 
-func (c *Controller) addNetwork(n *Network) error {
+func (c *Controller) addNetwork(ctx context.Context, n *Network) error {
 	d, err := n.driver(true)
 	if err != nil {
 		return err
 	}
 
 	// Create the network
-	if err := d.CreateNetwork(n.id, n.generic, n, n.getIPData(4), n.getIPData(6)); err != nil {
+	if err := d.CreateNetwork(ctx, n.id, n.generic, n, n.getIPData(4), n.getIPData(6)); err != nil {
 		return err
 	}
 
@@ -832,7 +873,7 @@ func (c *Controller) WalkNetworks(walker NetworkWalker) {
 // If not found, the error [ErrNoSuchNetwork] is returned.
 func (c *Controller) NetworkByName(name string) (*Network, error) {
 	if name == "" {
-		return nil, ErrInvalidName(name)
+		return nil, types.InvalidParameterErrorf("invalid name: name is empty")
 	}
 	var n *Network
 
@@ -855,7 +896,7 @@ func (c *Controller) NetworkByName(name string) (*Network, error) {
 // If not found, the error [ErrNoSuchNetwork] is returned.
 func (c *Controller) NetworkByID(id string) (*Network, error) {
 	if id == "" {
-		return nil, ErrInvalidID(id)
+		return nil, types.InvalidParameterErrorf("invalid id: id is empty")
 	}
 	return c.getNetworkFromStore(id)
 }
@@ -969,7 +1010,7 @@ func (c *Controller) NewSandbox(ctx context.Context, containerID string, options
 // [types.NotFoundError] if no Sandbox was found for the container.
 func (c *Controller) GetSandbox(containerID string) (*Sandbox, error) {
 	if containerID == "" {
-		return nil, ErrInvalidID("id is empty")
+		return nil, types.InvalidParameterErrorf("invalid id: id is empty")
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -993,7 +1034,7 @@ func (c *Controller) GetSandbox(containerID string) (*Sandbox, error) {
 // If not found, a [types.NotFoundError] is returned.
 func (c *Controller) SandboxByID(id string) (*Sandbox, error) {
 	if id == "" {
-		return nil, ErrInvalidID(id)
+		return nil, types.InvalidParameterErrorf("invalid id: id is empty")
 	}
 	c.mu.Lock()
 	s, ok := c.sandboxes[id]
@@ -1088,25 +1129,15 @@ func (c *Controller) Stop() {
 
 // StartDiagnostic starts the network diagnostic server listening on port.
 func (c *Controller) StartDiagnostic(port int) {
-	c.mu.Lock()
-	if !c.DiagnosticServer.IsDiagnosticEnabled() {
-		c.DiagnosticServer.EnableDiagnostic("127.0.0.1", port)
-	}
-	c.mu.Unlock()
+	c.diagnosticServer.Enable("127.0.0.1", port)
 }
 
 // StopDiagnostic stops the network diagnostic server.
 func (c *Controller) StopDiagnostic() {
-	c.mu.Lock()
-	if c.DiagnosticServer.IsDiagnosticEnabled() {
-		c.DiagnosticServer.DisableDiagnostic()
-	}
-	c.mu.Unlock()
+	c.diagnosticServer.Shutdown()
 }
 
 // IsDiagnosticEnabled returns true if the diagnostic server is running.
 func (c *Controller) IsDiagnosticEnabled() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.DiagnosticServer.IsDiagnosticEnabled()
+	return c.diagnosticServer.Enabled()
 }

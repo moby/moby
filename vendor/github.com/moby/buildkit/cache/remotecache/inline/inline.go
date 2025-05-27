@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"slices"
 
-	"github.com/containerd/containerd/labels"
+	"github.com/containerd/containerd/v2/pkg/labels"
 	"github.com/moby/buildkit/cache/remotecache"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
 	"github.com/moby/buildkit/session"
@@ -106,13 +106,7 @@ func (ce *exporter) ExportForLayers(ctx context.Context, layers []digest.Digest)
 			if len(resultBlobs) <= len(layers) {
 				match = true
 				for k, resultBlob := range resultBlobs {
-					matchesBlob := false
-					for _, layerBlob := range layerBlobDigests[k] {
-						if layerBlob == resultBlob {
-							matchesBlob = true
-							break
-						}
-					}
+					matchesBlob := slices.Contains(layerBlobDigests[k], resultBlob)
 					if !matchesBlob {
 						match = false
 						break

@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	cdcgroups "github.com/containerd/cgroups/v3"
-	"github.com/containerd/containerd/containers"
-	coci "github.com/containerd/containerd/oci"
-	"github.com/containerd/containerd/pkg/apparmor"
+	"github.com/containerd/containerd/v2/core/containers"
+	"github.com/containerd/containerd/v2/pkg/apparmor"
+	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
@@ -21,13 +21,12 @@ import (
 	"github.com/docker/docker/internal/rootless/specconv"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/oci/caps"
-	"github.com/docker/docker/pkg/idtools"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/opencontainers/cgroups"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
@@ -360,13 +359,13 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	}
 }
 
-func specMapping(s []idtools.IDMap) []specs.LinuxIDMapping {
+func specMapping(s []user.IDMap) []specs.LinuxIDMapping {
 	var ids []specs.LinuxIDMapping
 	for _, item := range s {
 		ids = append(ids, specs.LinuxIDMapping{
-			HostID:      uint32(item.HostID),
-			ContainerID: uint32(item.ContainerID),
-			Size:        uint32(item.Size),
+			HostID:      uint32(item.ParentID),
+			ContainerID: uint32(item.ID),
+			Size:        uint32(item.Count),
 		})
 	}
 	return ids
@@ -477,7 +476,7 @@ func inSlice(slice []string, s string) bool {
 
 // withMounts sets the container's mounts
 func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container, mounts []container.Mount) coci.SpecOpts {
-	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) (err error) {
+	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		sortMounts(mounts)
 
 		userMounts := make(map[string]struct{})
@@ -664,9 +663,21 @@ func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container, 
 			}
 		}
 
+		// if the user didn't specify otherwise, default to the value of privileged
+		writableCgroups := c.HostConfig.Privileged
+		if c.WritableCgroups != nil {
+			if daemonCfg.Rootless || daemon.idMapping.UIDMaps != nil {
+				// error if the user requested a configuration we can't explicitly support
+				return errors.New("option WritableCgroups conflicts with user namespaces and rootless mode")
+			}
+			writableCgroups = *c.WritableCgroups
+		}
 		// TODO: until a kernel/mount solution exists for handling remount in a user namespace,
 		// we must clear the readonly flag for the cgroups mount (@mrunalp concurs)
-		if uidMap := daemon.idMapping.UIDMaps; uidMap != nil || c.HostConfig.Privileged {
+		if daemon.idMapping.UIDMaps != nil {
+			writableCgroups = true
+		}
+		if writableCgroups {
 			for i, m := range s.Mounts {
 				if m.Type == "cgroup" {
 					clearReadOnly(&s.Mounts[i])
@@ -992,7 +1003,7 @@ func WithUser(c *container.Container) coci.SpecOpts {
 	}
 }
 
-func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c *container.Container, mounts []container.Mount) (retSpec *specs.Spec, err error) {
+func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c *container.Container, mounts []container.Mount) (retSpec *specs.Spec, _ error) {
 	var (
 		opts []coci.SpecOpts
 		s    = oci.DefaultSpec()

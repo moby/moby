@@ -1,7 +1,7 @@
 package mountopts
 
 import (
-	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/moby/buildkit/util/strutil"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"

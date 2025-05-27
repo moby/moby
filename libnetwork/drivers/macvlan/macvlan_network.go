@@ -16,7 +16,7 @@ import (
 )
 
 // CreateNetwork the network for the specified driver type
-func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(ctx context.Context, nid string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	// reject a null v4 network if ipv4 is required
 	if v, ok := option[netlabel.EnableIPv4]; ok && v.(bool) {
 		if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
@@ -40,7 +40,6 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	// if parent interface not specified, create a dummy type link to use named dummy+net_id
 	if config.Parent == "" {
 		config.Parent = getDummyName(config.ID)
-		config.Internal = true
 	}
 	foundExisting, err := d.createNetwork(config)
 	if err != nil {
@@ -60,6 +59,15 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	}
 
 	return nil
+}
+
+func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error) {
+	cfg, err := parseNetworkOptions("dummy", opts)
+	if err != nil {
+		return false, false, err
+	}
+	// "--internal" networks don't need a gateway address.
+	return cfg.Internal, cfg.Internal, nil
 }
 
 // createNetwork is used by new network callbacks and persistent network cache
@@ -113,8 +121,7 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 		}
 	} else {
 		// Check and mark this network if the interface was created for another network
-		networkList := d.getNetworks()
-		for _, testN := range networkList {
+		for _, testN := range d.getNetworks() {
 			if config.Parent == testN.config.Parent && testN.config.CreatedSlaveLink {
 				config.CreatedSlaveLink = true
 				break
@@ -122,14 +129,12 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 		}
 	}
 	if !foundExisting {
-		n := &network{
+		d.addNetwork(&network{
 			id:        config.ID,
 			driver:    d,
 			endpoints: endpointTable{},
 			config:    config,
-		}
-		// add the network
-		d.addNetwork(n)
+		})
 	}
 
 	return foundExisting, nil
@@ -223,6 +228,11 @@ func parseNetworkOptions(id string, option options.Generic) (*configuration, err
 	// loopback is not a valid parent link
 	if config.Parent == "lo" {
 		return nil, fmt.Errorf("loopback interface is not a valid macvlan parent link")
+	}
+
+	// With no parent interface, the network is "internal".
+	if config.Parent == "" {
+		config.Internal = true
 	}
 
 	config.ID = id

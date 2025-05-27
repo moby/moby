@@ -4,6 +4,20 @@ package events
 
 // Field returns the value for the given fieldpath as a string, if defined.
 // If the value is not defined, the second value will be false.
+func (m *ContentCreate) Field(fieldpath []string) (string, bool) {
+	if len(fieldpath) == 0 {
+		return "", false
+	}
+	switch fieldpath[0] {
+	// unhandled: size
+	case "digest":
+		return string(m.Digest), len(m.Digest) > 0
+	}
+	return "", false
+}
+
+// Field returns the value for the given fieldpath as a string, if defined.
+// If the value is not defined, the second value will be false.
 func (m *ContentDelete) Field(fieldpath []string) (string, bool) {
 	if len(fieldpath) == 0 {
 		return "", false

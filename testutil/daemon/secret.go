@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"gotest.tools/v3/assert"
 )
@@ -30,7 +29,7 @@ func (d *Daemon) ListSecrets(t testing.TB) []swarm.Secret {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	secrets, err := cli.SecretList(context.Background(), types.SecretListOptions{})
+	secrets, err := cli.SecretList(context.Background(), swarm.SecretListOptions{})
 	assert.NilError(t, err)
 	return secrets
 }

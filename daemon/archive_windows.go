@@ -5,20 +5,19 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/chrootarchive"
 )
 
 // containerStatPath stats the filesystem resource at the specified path in this
 // container. Returns stat info about the resource.
-func (daemon *Daemon) containerStatPath(container *container.Container, path string) (stat *containertypes.PathStat, err error) {
+func (daemon *Daemon) containerStatPath(container *container.Container, path string) (*containertypes.PathStat, error) {
 	container.Lock()
 	defer container.Unlock()
 
@@ -27,12 +26,12 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 		return nil, err
 	}
 
-	if err = daemon.Mount(container); err != nil {
+	if err := daemon.Mount(container); err != nil {
 		return nil, err
 	}
 	defer daemon.Unmount(container)
 
-	err = daemon.mountVolumes(container)
+	err := daemon.mountVolumes(container)
 	defer container.DetachAndUnmount(daemon.LogVolumeEvent)
 	if err != nil {
 		return nil, err
@@ -52,11 +51,11 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 // containerArchivePath creates an archive of the filesystem resource at the specified
 // path in this container. Returns a tar archive of the resource and stat info
 // about the resource.
-func (daemon *Daemon) containerArchivePath(container *container.Container, path string) (content io.ReadCloser, stat *containertypes.PathStat, err error) {
+func (daemon *Daemon) containerArchivePath(container *container.Container, path string) (content io.ReadCloser, stat *containertypes.PathStat, retErr error) {
 	container.Lock()
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			// Wait to unlock the container until the archive is fully read
 			// (see the ReadCloseWrapper func below) or if there is an error
 			// before that occurs.
@@ -69,12 +68,12 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 		return nil, nil, err
 	}
 
-	if err = daemon.Mount(container); err != nil {
+	if err := daemon.Mount(container); err != nil {
 		return nil, nil, err
 	}
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			// unmount any volumes
 			container.DetachAndUnmount(daemon.LogVolumeEvent)
 			// unmount the container's rootfs
@@ -82,7 +81,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 		}
 	}()
 
-	if err = daemon.mountVolumes(container); err != nil {
+	if err := daemon.mountVolumes(container); err != nil {
 		return nil, nil, err
 	}
 
@@ -147,7 +146,9 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 // noOverwriteDirNonDir is true then it will be an error if unpacking the
 // given content would cause an existing directory to be replaced with a non-
 // directory and vice versa.
-func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) (err error) {
+//
+// FIXME(thaJeztah): copyUIDGID is not supported on Windows, but currently ignored silently
+func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -156,12 +157,12 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		return err
 	}
 
-	if err = daemon.Mount(container); err != nil {
+	if err := daemon.Mount(container); err != nil {
 		return err
 	}
 	defer daemon.Unmount(container)
 
-	err = daemon.mountVolumes(container)
+	err := daemon.mountVolumes(container)
 	defer container.DetachAndUnmount(daemon.LogVolumeEvent)
 	if err != nil {
 		return err
@@ -200,56 +201,19 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		return errdefs.InvalidParameter(errors.New("extraction point is not a directory"))
 	}
 
-	// Need to check if the path is in a volume. If it is, it cannot be in a
-	// read-only volume. If it is not in a volume, the container cannot be
-	// configured with a read-only rootfs.
-
-	// Use the resolved path relative to the container rootfs as the new
-	// absPath. This way we fully follow any symlinks in a volume that may
-	// lead back outside the volume.
+	// TODO(thaJeztah): add check for writable path once windows supports read-only rootFS and (read-only) volumes during copy
 	//
-	// The Windows implementation of filepath.Rel in golang 1.4 does not
-	// support volume style file path semantics. On Windows when using the
-	// filter driver, we are guaranteed that the path will always be
-	// a volume file path.
-	var baseRel string
-	if strings.HasPrefix(resolvedPath, `\\?\Volume{`) {
-		if strings.HasPrefix(resolvedPath, container.BaseFS) {
-			baseRel = resolvedPath[len(container.BaseFS):]
-			if baseRel[:1] == `\` {
-				baseRel = baseRel[1:]
-			}
-		}
-	} else {
-		baseRel, err = filepath.Rel(container.BaseFS, resolvedPath)
-	}
-	if err != nil {
-		return err
-	}
-	// Make it an absolute path.
-	absPath = filepath.Join(string(filepath.Separator), baseRel)
-
-	toVolume, err := checkIfPathIsInAVolume(container, absPath)
-	if err != nil {
-		return err
-	}
-
-	if !toVolume && container.HostConfig.ReadonlyRootfs {
-		return errdefs.InvalidParameter(errors.New("container rootfs is marked read-only"))
-	}
+	// - e5261d6e4a1e96d4c0fa4b4480042046b695eda1 added "FIXME Post-TP4 / TP5"; check whether this would be possible to implement on Windows.
+	// - e5261d6e4a1e96d4c0fa4b4480042046b695eda1 added "or extracting to a mount point inside a volume"; check whether this is is still true, and adjust this check accordingly
+	//
+	// This comment is left in-place as a reminder :)
+	//
+	// absPath = filepath.Join(string(filepath.Separator), baseRel)
+	// if err := checkWritablePath(container, absPath); err != nil {
+	// 	return err
+	// }
 
 	options := daemon.defaultTarCopyOptions(noOverwriteDirNonDir)
-
-	if copyUIDGID {
-		var err error
-		// tarCopyOptions will appropriately pull in the right uid/gid for the
-		// user/group and will set the options.
-		options, err = daemon.tarCopyOptions(container, noOverwriteDirNonDir)
-		if err != nil {
-			return err
-		}
-	}
-
 	if err := chrootarchive.UntarWithRoot(content, resolvedPath, options, container.BaseFS); err != nil {
 		return err
 	}
@@ -259,14 +223,14 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	return nil
 }
 
-func (daemon *Daemon) containerCopy(container *container.Container, resource string) (rc io.ReadCloser, err error) {
+func (daemon *Daemon) containerCopy(container *container.Container, resource string) (_ io.ReadCloser, retErr error) {
 	if resource[0] == '/' || resource[0] == '\\' {
 		resource = resource[1:]
 	}
 	container.Lock()
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			// Wait to unlock the container until the archive is fully read
 			// (see the ReadCloseWrapper func below) or if there is an error
 			// before that occurs.
@@ -284,7 +248,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 	}
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			// unmount any volumes
 			container.DetachAndUnmount(daemon.LogVolumeEvent)
 			// unmount the container's rootfs
@@ -332,32 +296,18 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 	return reader, nil
 }
 
-// checkIfPathIsInAVolume checks if the path is in a volume. If it is, it
-// cannot be in a read-only volume. If it  is not in a volume, the container
-// cannot be configured with a read-only rootfs.
-//
-// This is a no-op on Windows which does not support read-only volumes, or
-// extracting to a mount point inside a volume. TODO Windows: FIXME Post-TP5
-func checkIfPathIsInAVolume(container *container.Container, absPath string) (bool, error) {
-	return false, nil
-}
-
 // isOnlineFSOperationPermitted returns an error if an online filesystem operation
 // is not permitted (such as stat or for copying). Running Hyper-V containers
 // cannot have their file-system interrogated from the host as the filter is
 // loaded inside the utility VM, not the host.
 // IMPORTANT: The container lock MUST be held when calling this function.
-func (daemon *Daemon) isOnlineFSOperationPermitted(container *container.Container) error {
-	if !container.Running {
+func (daemon *Daemon) isOnlineFSOperationPermitted(ctr *container.Container) error {
+	if !ctr.Running {
 		return nil
 	}
 
 	// Determine isolation. If not specified in the hostconfig, use daemon default.
-	actualIsolation := container.HostConfig.Isolation
-	if containertypes.Isolation.IsDefault(containertypes.Isolation(actualIsolation)) {
-		actualIsolation = daemon.defaultIsolation
-	}
-	if containertypes.Isolation.IsHyperV(actualIsolation) {
+	if ctr.HostConfig.Isolation.IsHyperV() || ctr.HostConfig.Isolation.IsDefault() && daemon.defaultIsolation.IsHyperV() {
 		return errors.New("filesystem operations against a running Hyper-V container are not supported")
 	}
 	return nil

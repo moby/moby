@@ -10,6 +10,10 @@ import (
 
 // PluginEnable enables a plugin
 func (cli *Client) PluginEnable(ctx context.Context, name string, options types.PluginEnableOptions) error {
+	name, err := trimID("plugin", name)
+	if err != nil {
+		return err
+	}
 	query := url.Values{}
 	query.Set("timeout", strconv.Itoa(options.Timeout))
 

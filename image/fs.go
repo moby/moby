@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/sys/atomicwriter"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -118,7 +118,7 @@ func (s *fs) Set(data []byte) (digest.Digest, error) {
 	}
 
 	dgst := digest.FromBytes(data)
-	if err := ioutils.AtomicWriteFile(s.contentFile(dgst), data, 0o600); err != nil {
+	if err := atomicwriter.WriteFile(s.contentFile(dgst), data, 0o600); err != nil {
 		return "", errors.Wrap(err, "failed to write digest data")
 	}
 
@@ -148,7 +148,7 @@ func (s *fs) SetMetadata(dgst digest.Digest, key string, data []byte) error {
 	if err := os.MkdirAll(baseDir, 0o700); err != nil {
 		return err
 	}
-	return ioutils.AtomicWriteFile(filepath.Join(s.metadataDir(dgst), key), data, 0o600)
+	return atomicwriter.WriteFile(filepath.Join(s.metadataDir(dgst), key), data, 0o600)
 }
 
 // GetMetadata returns metadata for a given digest.

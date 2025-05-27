@@ -91,10 +91,11 @@ func initGCP() {
 			// down or the client is compiled with an API version that
 			// has been removed. Since these are not vital, let's ignore
 			// them and make their fields in the dockerLogEntry ,omitempty
-			projectID, _ = metadata.ProjectID()
-			zone, _ = metadata.Zone()
-			instanceName, _ = metadata.InstanceName()
-			instanceID, _ = metadata.InstanceID()
+			ctx := context.Background()
+			projectID, _ = metadata.ProjectIDWithContext(ctx)
+			zone, _ = metadata.ZoneWithContext(ctx)
+			instanceName, _ = metadata.InstanceNameWithContext(ctx)
+			instanceID, _ = metadata.InstanceIDWithContext(ctx)
 		}
 	})
 }
@@ -155,7 +156,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, fmt.Errorf("unable to connect or authenticate with Google Cloud Logging: %v", err)
 	}
 
-	extraAttributes, err := info.ExtraAttributes(nil)
+	extraAttrs, err := info.ExtraAttributes(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +170,7 @@ func New(info logger.Info) (logger.Logger, error) {
 			ImageName: info.ContainerImageName,
 			ImageID:   info.ContainerImageID,
 			Created:   info.ContainerCreated,
-			Metadata:  extraAttributes,
+			Metadata:  extraAttrs,
 		},
 	}
 

@@ -2,12 +2,13 @@ package ops
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"path"
 	"runtime"
-	"sort"
+	"slices"
 	"sync"
 
 	"github.com/moby/buildkit/cache"
@@ -84,6 +85,13 @@ func (f *fileOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 			if err != nil {
 				return nil, false, err
 			}
+		case *pb.FileAction_Symlink:
+			p := a.Symlink.CloneVT()
+			markInvalid(action.Input)
+			dt, err = json.Marshal(p)
+			if err != nil {
+				return nil, false, err
+			}
 		case *pb.FileAction_Rm:
 			p := a.Rm.CloneVT()
 			markInvalid(action.Input)
@@ -143,9 +151,8 @@ func (f *fileOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 		for _, k := range m {
 			dgsts = append(dgsts, []byte(k.Path))
 		}
-		sort.Slice(dgsts, func(i, j int) bool {
-			return bytes.Compare(dgsts[i], dgsts[j]) > 0
-		})
+		slices.SortFunc(dgsts, bytes.Compare)
+		slices.Reverse(dgsts) // historical reasons
 		cm.Deps[idx].Selector = digest.FromBytes(bytes.Join(dgsts, []byte{0}))
 
 		cm.Deps[idx].ComputeDigestFunc = opsutils.NewContentHashFunc(dedupeSelectors(m))
@@ -253,10 +260,9 @@ func dedupeSelectors(m []opsutils.Selector) []opsutils.Selector {
 		}
 	}
 
-	sort.Slice(selectors, func(i, j int) bool {
-		return selectors[i].Path < selectors[j].Path
+	slices.SortFunc(selectors, func(i, j opsutils.Selector) int {
+		return cmp.Compare(i.Path, j.Path)
 	})
-
 	return selectors
 }
 
@@ -345,7 +351,7 @@ func (s *FileOpSolver) Solve(ctx context.Context, inputs []fileoptypes.Ref, acti
 		return nil, errors.Errorf("no outputs specified")
 	}
 
-	for i := 0; i < len(s.outs); i++ {
+	for i := range len(s.outs) {
 		if _, ok := s.outs[i]; !ok {
 			return nil, errors.Errorf("missing output index %d", i)
 		}
@@ -391,10 +397,8 @@ func (s *FileOpSolver) Solve(ctx context.Context, inputs []fileoptypes.Ref, acti
 }
 
 func (s *FileOpSolver) validate(idx int, inputs []fileoptypes.Ref, actions []*pb.FileAction, loaded []int) error {
-	for _, check := range loaded {
-		if idx == check {
-			return errors.Errorf("loop from index %d", idx)
-		}
+	if slices.Contains(loaded, idx) {
+		return errors.Errorf("loop from index %d", idx)
 	}
 	if idx < len(inputs) {
 		return nil
@@ -584,6 +588,14 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 				return input{}, err
 			}
 			if err := s.b.Mkdir(ctx, inpMount, user, group, a.Mkdir); err != nil {
+				return input{}, err
+			}
+		case *pb.FileAction_Symlink:
+			user, group, err := loadOwner(ctx, a.Symlink.Owner)
+			if err != nil {
+				return input{}, err
+			}
+			if err := s.b.Symlink(ctx, inpMount, user, group, a.Symlink); err != nil {
 				return input{}, err
 			}
 		case *pb.FileAction_Mkfile:

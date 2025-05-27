@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,7 +22,7 @@ func TestVolumeCreateError(t *testing.T) {
 	}
 
 	_, err := client.VolumeCreate(context.Background(), volume.CreateOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestVolumeCreate(t *testing.T) {
@@ -60,16 +60,8 @@ func TestVolumeCreate(t *testing.T) {
 			"opt-key": "opt-value",
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if vol.Name != "volume" {
-		t.Fatalf("expected volume.Name to be 'volume', got %s", vol.Name)
-	}
-	if vol.Driver != "local" {
-		t.Fatalf("expected volume.Driver to be 'local', got %s", vol.Driver)
-	}
-	if vol.Mountpoint != "mountpoint" {
-		t.Fatalf("expected volume.Mountpoint to be 'mountpoint', got %s", vol.Mountpoint)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(vol.Name, "volume"))
+	assert.Check(t, is.Equal(vol.Driver, "local"))
+	assert.Check(t, is.Equal(vol.Mountpoint, "mountpoint"))
 }

@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"runtime"
 
-	"github.com/containerd/containerd/tracing"
+	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
@@ -20,11 +20,11 @@ import (
 	v1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/internal/ioutils"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/go-archive/chrootarchive"
+	"github.com/moby/go-archive/compression"
 	"github.com/moby/sys/sequential"
 	"github.com/moby/sys/symlink"
 	"github.com/opencontainers/go-digest"
@@ -154,12 +154,12 @@ func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream i
 				return fmt.Errorf("invalid tag %q", repoTag)
 			}
 			l.setLoadedTag(ref, imgID.Digest(), outStream)
-			outStream.Write([]byte(fmt.Sprintf("Loaded image: %s\n", reference.FamiliarString(ref))))
+			fmt.Fprintf(outStream, "Loaded image: %s\n", reference.FamiliarString(ref))
 			imageRefCount++
 		}
 
 		parentLinks = append(parentLinks, parentLink{imgID, m.Parent})
-		l.loggerImgEvent.LogImageEvent(imgID.String(), imgID.String(), events.ActionLoad)
+		l.loggerImgEvent.LogImageEvent(ctx, imgID.String(), imgID.String(), events.ActionLoad)
 	}
 
 	for _, p := range validatedParentLinks(parentLinks) {
@@ -231,7 +231,7 @@ func (l *tarexporter) loadLayer(ctx context.Context, filename string, rootFS ima
 		r = rawTar
 	}
 
-	inflatedLayerData, err := archive.DecompressStream(ioutils.NewCtxReader(ctx, r))
+	inflatedLayerData, err := compression.DecompressStream(ioutils.NewCtxReader(ctx, r))
 	if err != nil {
 		return nil, err
 	}
@@ -426,7 +426,7 @@ mainloop:
 		}
 		ret[i].parentID = ""
 	}
-	return
+	return ret
 }
 
 func checkValidParent(img, parent *image.Image) bool {

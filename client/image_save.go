@@ -4,22 +4,29 @@ import (
 	"context"
 	"io"
 	"net/url"
-
-	"github.com/docker/docker/api/types/image"
 )
 
 // ImageSave retrieves one or more images from the docker host as an io.ReadCloser.
-// It's up to the caller to store the images and close the stream.
-func (cli *Client) ImageSave(ctx context.Context, imageIDs []string, opts image.SaveOptions) (io.ReadCloser, error) {
+//
+// Platforms is an optional parameter that specifies the platforms to save from the image.
+// This is only has effect if the input image is a multi-platform image.
+func (cli *Client) ImageSave(ctx context.Context, imageIDs []string, saveOpts ...ImageSaveOption) (io.ReadCloser, error) {
+	var opts imageSaveOpts
+	for _, opt := range saveOpts {
+		if err := opt.Apply(&opts); err != nil {
+			return nil, err
+		}
+	}
+
 	query := url.Values{
 		"names": imageIDs,
 	}
 
-	if len(opts.Platforms) > 0 {
+	if len(opts.apiOptions.Platforms) > 0 {
 		if err := cli.NewVersionError(ctx, "1.48", "platform"); err != nil {
 			return nil, err
 		}
-		p, err := encodePlatforms(opts.Platforms...)
+		p, err := encodePlatforms(opts.apiOptions.Platforms...)
 		if err != nil {
 			return nil, err
 		}
@@ -30,5 +37,5 @@ func (cli *Client) ImageSave(ctx context.Context, imageIDs []string, opts image.
 	if err != nil {
 		return nil, err
 	}
-	return resp.body, nil
+	return resp.Body, nil
 }

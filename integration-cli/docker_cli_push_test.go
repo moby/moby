@@ -255,7 +255,7 @@ func getTestTokenService(status int, body string, retries int) *httptest.Server 
 }
 
 func (s *DockerRegistryAuthTokenSuite) TestPushTokenServiceUnauthResponse(c *testing.T) {
-	ts := getTestTokenService(http.StatusUnauthorized, `{"errors": [{"Code":"UNAUTHORIZED", "message": "a message", "detail": null}]}`, 0)
+	ts := getTestTokenService(http.StatusUnauthorized, `{"errors": [{"Code":"UNAUTHORIZED", "message": "a message about not being authorized", "detail": null}]}`, 0)
 	defer ts.Close()
 	s.setupRegistryWithTokenService(c, ts.URL)
 
@@ -268,10 +268,9 @@ func (s *DockerRegistryAuthTokenSuite) TestPushTokenServiceUnauthResponse(c *tes
 
 	// Auth service errors are not part of the spec and containerd doesn't parse them.
 	if testEnv.UsingSnapshotter() {
-		assert.Check(c, is.Contains(out, "failed to authorize: failed to fetch anonymous token"))
-		assert.Check(c, is.Contains(out, "401 Unauthorized"))
+		assert.Check(c, is.Contains(out, "a message about not being authorized"))
 	} else {
-		assert.Check(c, is.Contains(out, "unauthorized: a message"))
+		assert.Check(c, is.Contains(out, "unauthorized: a message about not being authorized"))
 	}
 }
 
@@ -297,7 +296,7 @@ func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse
 }
 
 func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponseError(c *testing.T) {
-	ts := getTestTokenService(http.StatusTooManyRequests, `{"errors": [{"code":"TOOMANYREQUESTS","message":"out of tokens"}]}`, 3)
+	ts := getTestTokenService(http.StatusTooManyRequests, `{"errors": [{"code":"TOOMANYREQUESTS","message":"out of tokens"}]}`, 0)
 	defer ts.Close()
 	s.setupRegistryWithTokenService(c, ts.URL)
 
@@ -311,8 +310,7 @@ func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse
 
 	// Auth service errors are not part of the spec and containerd doesn't parse them.
 	if testEnv.UsingSnapshotter() {
-		assert.Check(c, is.Contains(out, "failed to authorize: failed to fetch anonymous token"))
-		assert.Check(c, is.Contains(out, "503 Service Unavailable"))
+		assert.Check(c, is.Contains(out, "out of tokens"))
 	} else {
 		split := strings.Split(out, "\n")
 		assert.Check(c, is.Equal(split[len(split)-2], "toomanyrequests: out of tokens"))

@@ -11,9 +11,9 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
+	"github.com/moby/go-archive/compression"
 )
 
 const maxDownloadAttempts = 5
@@ -266,7 +266,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				downloadReader io.ReadCloser
 				size           int64
 				err            error
-				attempt        int = 1
+				attempt        = 1
 			)
 
 			defer descriptor.Close()
@@ -338,7 +338,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(d.transfer.context(), downloadReader), progressOutput, size, descriptor.ID(), "Extracting")
 			defer reader.Close()
 
-			inflatedLayerData, err := archive.DecompressStream(reader)
+			inflatedLayerData, err := compression.DecompressStream(reader)
 			if err != nil {
 				d.err = fmt.Errorf("could not get decompression stream: %v", err)
 				return

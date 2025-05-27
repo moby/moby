@@ -1,8 +1,9 @@
 package client
 
 import (
+	"cmp"
 	"context"
-	"sort"
+	"slices"
 	"time"
 
 	controlapi "github.com/moby/buildkit/api/services/control"
@@ -30,7 +31,7 @@ func (c *Client) DiskUsage(ctx context.Context, opts ...DiskUsageOption) ([]*Usa
 		o.SetDiskUsageOption(info)
 	}
 
-	req := &controlapi.DiskUsageRequest{Filter: info.Filter}
+	req := &controlapi.DiskUsageRequest{Filter: info.Filter, AgeLimit: int64(info.AgeLimit)}
 	resp, err := c.ControlClient().DiskUsage(ctx, req)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to call diskusage")
@@ -60,13 +61,9 @@ func (c *Client) DiskUsage(ctx context.Context, opts ...DiskUsageOption) ([]*Usa
 		})
 	}
 
-	sort.Slice(du, func(i, j int) bool {
-		if du[i].Size == du[j].Size {
-			return du[i].ID > du[j].ID
-		}
-		return du[i].Size > du[j].Size
+	slices.SortFunc(du, func(a, b *UsageInfo) int {
+		return cmp.Or(cmp.Compare(a.Size, b.Size), cmp.Compare(a.ID, b.ID))
 	})
-
 	return du, nil
 }
 
@@ -75,7 +72,8 @@ type DiskUsageOption interface {
 }
 
 type DiskUsageInfo struct {
-	Filter []string
+	Filter   []string
+	AgeLimit time.Duration
 }
 
 type UsageRecordType string
@@ -88,3 +86,15 @@ const (
 	UsageRecordTypeCacheMount  UsageRecordType = "exec.cachemount"
 	UsageRecordTypeRegular     UsageRecordType = "regular"
 )
+
+type diskUsageOptionFunc func(*DiskUsageInfo)
+
+func (f diskUsageOptionFunc) SetDiskUsageOption(info *DiskUsageInfo) {
+	f(info)
+}
+
+func WithAgeLimit(age time.Duration) DiskUsageOption {
+	return diskUsageOptionFunc(func(info *DiskUsageInfo) {
+		info.AgeLimit = age
+	})
+}

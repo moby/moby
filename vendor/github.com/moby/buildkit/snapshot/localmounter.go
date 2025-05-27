@@ -3,7 +3,7 @@ package snapshot
 import (
 	"sync"
 
-	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/v2/core/mount"
 )
 
 type Mounter interface {

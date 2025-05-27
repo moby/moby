@@ -4,8 +4,6 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strings"
 
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/pools"
@@ -41,7 +39,7 @@ func (c *lazySource) Hash(path string) (string, error) {
 		return "", err
 	}
 
-	relPath, err := Rel(c.root, fullPath)
+	relPath, err := filepath.Rel(c.root, fullPath)
 	if err != nil {
 		return "", errors.WithStack(convertPathError(err, cleanPath))
 	}
@@ -85,19 +83,9 @@ func (c *lazySource) prepareHash(relPath string, fi os.FileInfo) (string, error)
 	return sum, nil
 }
 
-// Rel makes a path relative to base path. Same as `filepath.Rel` but can also
-// handle UUID paths in windows.
+// Rel is an alias for [filepath.Rel].
+//
+// Deprecated: use [filepath.Rel] instead; this function is no longer used and will be removed in the next release.
 func Rel(basepath string, targpath string) (string, error) {
-	// filepath.Rel can't handle UUID paths in windows
-	if runtime.GOOS == "windows" {
-		pfx := basepath + `\`
-		if strings.HasPrefix(targpath, pfx) {
-			p := strings.TrimPrefix(targpath, pfx)
-			if p == "" {
-				p = "."
-			}
-			return p, nil
-		}
-	}
 	return filepath.Rel(basepath, targpath)
 }

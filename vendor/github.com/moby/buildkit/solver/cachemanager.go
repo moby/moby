@@ -388,7 +388,7 @@ func (c *cacheManager) ensurePersistentKey(k *CacheKey) error {
 		for _, ck := range deps {
 			l := CacheInfoLink{
 				Input:    Index(i),
-				Output:   Index(k.Output()),
+				Output:   k.Output(),
 				Digest:   k.Digest(),
 				Selector: ck.Selector,
 			}
@@ -415,7 +415,7 @@ func (c *cacheManager) getIDFromDeps(k *CacheKey) string {
 				m2 := make(map[string]struct{})
 				if err := c.backend.WalkLinks(c.getID(ck.CacheKey.CacheKey), CacheInfoLink{
 					Input:    Index(i),
-					Output:   Index(k.Output()),
+					Output:   k.Output(),
 					Digest:   k.Digest(),
 					Selector: ck.Selector,
 				}, func(id string) error {
@@ -449,7 +449,7 @@ func (c *cacheManager) getIDFromDeps(k *CacheKey) string {
 
 func rootKey(dgst digest.Digest, output Index) digest.Digest {
 	if strings.HasPrefix(dgst.String(), "random:") {
-		return digest.Digest("random:" + digest.FromBytes([]byte(fmt.Sprintf("%s@%d", dgst, output))).Encoded())
+		return digest.Digest("random:" + digest.FromBytes(fmt.Appendf(nil, "%s@%d", dgst, output)).Encoded())
 	}
-	return digest.FromBytes([]byte(fmt.Sprintf("%s@%d", dgst, output)))
+	return digest.FromBytes(fmt.Appendf(nil, "%s@%d", dgst, output))
 }

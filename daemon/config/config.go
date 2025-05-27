@@ -2,7 +2,6 @@ package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
@@ -92,8 +91,10 @@ var flatOptions = map[string]bool{
 var skipValidateOptions = map[string]bool{
 	"features": true,
 	"builder":  true,
-	// Corresponding flag has been removed because it was already unusable
-	"deprecated-key-path": true,
+
+	// Deprecated options that are safe to ignore if present.
+	"deprecated-key-path":              true,
+	"allow-nondistributable-artifacts": true,
 }
 
 // skipDuplicates contains configuration keys that
@@ -343,6 +344,17 @@ func New() (*Config, error) {
 	return cfg, nil
 }
 
+// GetExecOpt looks up a user-configured exec-opt. It returns a boolean
+// if found, and an error if the configuration has invalid options set.
+func (conf *Config) GetExecOpt(name string) (val string, found bool, _ error) {
+	o, err := parseExecOptions(conf.ExecOptions)
+	if err != nil {
+		return "", false, err
+	}
+	val, found = o[name]
+	return val, found, nil
+}
+
 // GetConflictFreeLabels validates Labels for conflict
 // In swarm the duplicates for labels are removed
 // so we only take same values here, no conflict values
@@ -369,7 +381,6 @@ func GetConflictFreeLabels(labels []string) ([]string, error) {
 
 // Reload reads the configuration in the host and reloads the daemon and server.
 func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error {
-	log.G(context.TODO()).Infof("Got signal to reload configuration, reloading from: %s", configFile)
 	newConfig, err := getConflictFreeConfiguration(configFile, flags)
 	if err != nil {
 		if flags.Changed("config-file") || !os.IsNotExist(err) {
@@ -723,6 +734,9 @@ func Validate(config *Config) error {
 	if config.MaxDownloadAttempts < 0 {
 		return errors.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
 	}
+	if config.NetworkDiagnosticPort < 0 || config.NetworkDiagnosticPort > 65535 {
+		return errors.Errorf("invalid network-diagnostic-port (%d): value must be between 0 and 65535", config.NetworkDiagnosticPort)
+	}
 
 	if _, err := ParseGenericResources(config.NodeGenericResources); err != nil {
 		return err
@@ -739,8 +753,34 @@ func Validate(config *Config) error {
 		return errors.New(`DEPRECATED: The "api-cors-header" config parameter and the dockerd "--api-cors-header" option have been removed; use a reverse proxy if you need CORS headers`)
 	}
 
+	if _, err := parseExecOptions(config.ExecOptions); err != nil {
+		return err
+	}
+
 	// validate platform-specific settings
 	return validatePlatformConfig(config)
+}
+
+// parseExecOptions parses the given exec-options into a map. It returns an
+// error if the exec-options are formatted incorrectly, or when options are
+// used that are not supported on this platform.
+//
+// TODO(thaJeztah): consider making this more strict: make options case-sensitive and disallow whitespace around "=".
+func parseExecOptions(execOptions []string) (map[string]string, error) {
+	o := make(map[string]string)
+	for _, keyValue := range execOptions {
+		k, v, ok := strings.Cut(keyValue, "=")
+		k = strings.ToLower(strings.TrimSpace(k))
+		v = strings.TrimSpace(v)
+		if !ok || k == "" || v == "" {
+			return nil, fmt.Errorf("invalid exec-opt (%s): must be formatted 'opt=value'", keyValue)
+		}
+		if err := validatePlatformExecOpt(k, v); err != nil {
+			return nil, fmt.Errorf("invalid exec-opt (%s): %w", keyValue, err)
+		}
+		o[k] = v
+	}
+	return o, nil
 }
 
 // MaskCredentials masks credentials that are in an URL.
@@ -760,4 +800,15 @@ func migrateHostGatewayIP(config *Config) {
 		config.HostGatewayIPs = []netip.Addr{addr}
 		config.HostGatewayIP = nil //nolint:staticcheck // ignore SA1019: clearing old value.
 	}
+}
+
+// Sanitize sanitizes the config for printing. It is currently limited to
+// masking usernames and passwords from Proxy URLs.
+func Sanitize(cfg Config) Config {
+	cfg.CommonConfig.Proxies = Proxies{
+		HTTPProxy:  MaskCredentials(cfg.HTTPProxy),
+		HTTPSProxy: MaskCredentials(cfg.HTTPSProxy),
+		NoProxy:    MaskCredentials(cfg.NoProxy),
+	}
+	return cfg
 }

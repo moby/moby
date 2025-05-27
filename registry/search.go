@@ -10,7 +10,6 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -48,7 +47,7 @@ func (s *Service) Search(ctx context.Context, searchFilters filters.Args, term s
 		for _, hasStar := range hasStars {
 			iHasStar, err := strconv.Atoi(hasStar)
 			if err != nil {
-				return nil, errdefs.InvalidParameter(errors.Wrapf(err, "invalid filter 'stars=%s'", hasStar))
+				return nil, invalidParameterErr{errors.Wrapf(err, "invalid filter 'stars=%s'", hasStar)}
 			}
 			if iHasStar > hasStarFilter {
 				hasStarFilter = iHasStar
@@ -84,7 +83,6 @@ func (s *Service) Search(ctx context.Context, searchFilters filters.Args, term s
 }
 
 func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, headers http.Header) (*registry.SearchResults, error) {
-	// TODO Use ctx when searching for repositories
 	if hasScheme(term) {
 		return nil, invalidParamf("invalid repository name: repository name (%s) should not have a scheme", term)
 	}
@@ -93,18 +91,14 @@ func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, 
 
 	// Search is a long-running operation, just lock s.config to avoid block others.
 	s.mu.RLock()
-	index, err := newIndexInfo(s.config, indexName)
+	index := newIndexInfo(s.config, indexName)
 	s.mu.RUnlock()
-
-	if err != nil {
-		return nil, err
-	}
 	if index.Official {
 		// If pull "library/foo", it's stored locally under "foo"
 		remoteName = strings.TrimPrefix(remoteName, "library/")
 	}
 
-	endpoint, err := newV1Endpoint(index, headers)
+	endpoint, err := newV1Endpoint(ctx, index, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -130,12 +124,12 @@ func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, 
 		client = v2Client
 	} else {
 		client = endpoint.client
-		if err := authorizeClient(client, authConfig, endpoint); err != nil {
+		if err := authorizeClient(ctx, client, authConfig, endpoint); err != nil {
 			return nil, err
 		}
 	}
 
-	return newSession(client, endpoint).searchRepositories(remoteName, limit)
+	return newSession(client, endpoint).searchRepositories(ctx, remoteName, limit)
 }
 
 // splitReposSearchTerm breaks a search term into an index name and remote name
@@ -158,5 +152,19 @@ func splitReposSearchTerm(reposName string) (string, string) {
 // for that.
 func ParseSearchIndexInfo(reposName string) (*registry.IndexInfo, error) {
 	indexName, _ := splitReposSearchTerm(reposName)
-	return newIndexInfo(emptyServiceConfig, indexName)
+	indexName = normalizeIndexName(indexName)
+	if indexName == IndexName {
+		return &registry.IndexInfo{
+			Name:     IndexName,
+			Mirrors:  []string{},
+			Secure:   true,
+			Official: true,
+		}, nil
+	}
+
+	return &registry.IndexInfo{
+		Name:    indexName,
+		Mirrors: []string{},
+		Secure:  !isInsecure(indexName),
+	}, nil
 }

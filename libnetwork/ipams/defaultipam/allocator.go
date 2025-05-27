@@ -2,17 +2,16 @@ package defaultipam
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"math"
 	"net"
 	"net/netip"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/bitmap"
+	"github.com/docker/docker/libnetwork/internal/addrset"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipamutils"
-	"github.com/docker/docker/libnetwork/ipbits"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -211,28 +210,21 @@ func (a *Allocator) getAddrSpace(as string, v6 bool) (*addrSpace, error) {
 }
 
 func newPoolData(pool netip.Prefix) *PoolData {
-	ones, bits := pool.Bits(), pool.Addr().BitLen()
-	numAddresses := uint64(1 << uint(bits-ones))
+	h := addrset.New(pool)
 
-	// Allow /64 subnet
-	if pool.Addr().Is6() && numAddresses == 0 {
-		// FIXME(robmry) - see the comment in getAddress
-		numAddresses--
+	// Reserve the first address in the range for the:
+	// - IPv4 network address
+	//   - Except in a /31 point-to-point link, https://datatracker.ietf.org/doc/html/rfc3021
+	// - IPv6 Subnet-Router anycast address, https://datatracker.ietf.org/doc/html/rfc4291#section-2.6.1
+	bits := pool.Addr().BitLen() - pool.Bits()
+	if !pool.Addr().Is4() || bits > 1 {
+		h.Add(pool.Addr())
 	}
 
-	// Generate the new address masks.
-	h := bitmap.New(numAddresses)
-
-	// Pre-reserve the network address on IPv4 networks large
-	// enough to have one (i.e., anything bigger than a /31).
-	if !(pool.Addr().Is4() && numAddresses <= 2) {
-		h.Set(0)
-	}
-
-	// Pre-reserve the broadcast address on IPv4 networks large
-	// enough to have one (i.e., anything bigger than a /31).
-	if pool.Addr().Is4() && numAddresses > 2 {
-		h.Set(numAddresses - 1)
+	// For IPv4, reserve the broadcast address.
+	// - Except in a /31 point-to-point link, https://datatracker.ietf.org/doc/html/rfc3021
+	if pool.Addr().Is4() && bits > 1 {
+		h.Add(netiputil.LastAddr(pool))
 	}
 
 	return &PoolData{addrs: h, children: map[netip.Prefix]struct{}{}}
@@ -289,50 +281,35 @@ func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 	return aSpace.releaseAddress(k.Subnet, k.ChildSubnet, addr.Unmap())
 }
 
-func getAddress(base netip.Prefix, bitmask *bitmap.Bitmap, prefAddress netip.Addr, ipr netip.Prefix, serial bool) (netip.Addr, error) {
+func getAddress(base netip.Prefix, addrSet *addrset.AddrSet, prefAddress netip.Addr, ipr netip.Prefix, serial bool) (netip.Addr, error) {
 	var (
-		ordinal uint64
-		err     error
+		addr netip.Addr
+		err  error
 	)
 
-	log.G(context.TODO()).Debugf("Request address PoolID:%v %s Serial:%v PrefAddress:%v ", base, bitmask, serial, prefAddress)
+	log.G(context.TODO()).Debugf("Request address PoolID:%v %s Serial:%v PrefAddress:%v ", base, addrSet, serial, prefAddress)
 
-	if bitmask.Unselected() == 0 {
-		return netip.Addr{}, ipamapi.ErrNoAvailableIPs
-	}
-	if (ipr == (netip.Prefix{}) || ipr == base) && prefAddress == (netip.Addr{}) {
-		ordinal, err = bitmask.SetAny(serial)
-	} else if prefAddress != (netip.Addr{}) {
-		ordinal = netiputil.HostID(prefAddress, uint(base.Bits()))
-		err = bitmask.Set(ordinal)
-	} else {
-		start, end := netiputil.SubnetRange(base, ipr)
-		if end == math.MaxUint64 {
-			// FIXME(robmry) ...
-			//  When newPoolData is asked for a range of 64-bits or more, it ends up with an
-			//  overflowed u64 - so, it just subtracts one to get a nearly-big-enough range
-			//  (for a 64-bit subnet). But, here, the range is exclusive of end. So, when
-			//  checking the range, SetAnyInRange fails if it's asked for any bit in the whole
-			//  of a 64-bit range. For now, just subtract one here. To see the problem,
-			//  remove this workaround, then try:
-			//    docker network create --ipv6 --subnet fddd::/56 --ip-range fddd::/64 b46
-			//  See Test64BitIPRange and TestIPRangeAt64BitLimit.
-			end -= 1
+	if prefAddress.IsValid() {
+		err = addrSet.Add(prefAddress)
+		if err == nil {
+			addr = prefAddress
 		}
-		ordinal, err = bitmask.SetAnyInRange(start, end, serial)
+	} else if ipr.IsValid() && ipr != base {
+		addr, err = addrSet.AddAnyInRange(ipr, serial)
+	} else {
+		addr, err = addrSet.AddAny(serial)
 	}
 
-	switch err {
-	case nil:
-		// Convert IP ordinal for this subnet into IP address
-		return ipbits.Add(base.Addr(), ordinal, 0), nil
-	case bitmap.ErrBitAllocated:
-		return netip.Addr{}, ipamapi.ErrIPAlreadyAllocated
-	case bitmap.ErrNoBitAvailable:
-		return netip.Addr{}, ipamapi.ErrNoAvailableIPs
-	default:
+	if err != nil {
+		if errors.Is(err, addrset.ErrAllocated) {
+			return netip.Addr{}, ipamapi.ErrIPAlreadyAllocated
+		}
+		if errors.Is(err, addrset.ErrNotAvailable) {
+			return netip.Addr{}, ipamapi.ErrNoAvailableIPs
+		}
 		return netip.Addr{}, err
 	}
+	return addr, nil
 }
 
 // IsBuiltIn returns true for builtin drivers

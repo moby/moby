@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
+	"github.com/docker/docker/api/types/swarm"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,7 +22,7 @@ func TestSwarmGetUnlockKeyError(t *testing.T) {
 	}
 
 	_, err := client.SwarmGetUnlockKey(context.Background())
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestSwarmGetUnlockKey(t *testing.T) {
@@ -38,7 +38,7 @@ func TestSwarmGetUnlockKey(t *testing.T) {
 				return nil, fmt.Errorf("expected GET method, got %s", req.Method)
 			}
 
-			key := types.SwarmUnlockKeyResponse{
+			key := swarm.UnlockKeyResponse{
 				UnlockKey: unlockKey,
 			}
 

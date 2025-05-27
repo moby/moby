@@ -28,7 +28,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 const (
@@ -58,22 +57,22 @@ func TestMain(m *testing.M) {
 	os.Exit(testRun(m))
 }
 
-func testRun(m *testing.M) (ret int) {
-	// Global set up
-
-	var err error
+func testRun(m *testing.M) (exitCode int) {
+	var retErr error
 
 	shutdown := testutil.ConfigureTracing()
 	ctx, span := otel.Tracer("").Start(context.Background(), "integration-cli/TestMain")
 	defer func() {
-		if err != nil {
-			span.SetStatus(codes.Error, err.Error())
-			ret = 255
-		} else {
-			if ret != 0 {
-				span.SetAttributes(attribute.Int("exitCode", ret))
-				span.SetStatus(codes.Error, "m.Run() exited with non-zero code")
+		if retErr != nil {
+			span.SetStatus(codes.Error, retErr.Error())
+			if exitCode == 0 {
+				// Should never happen, but in case we forgot to set a code :)
+				exitCode = 255
 			}
+		}
+		if exitCode != 0 {
+			span.SetAttributes(attribute.Int("exitCode", exitCode))
+			span.SetStatus(codes.Error, "m.Run() exited with non-zero code")
 		}
 		span.End()
 		shutdown(ctx)
@@ -81,9 +80,9 @@ func testRun(m *testing.M) (ret int) {
 
 	baseContext = ctx
 
-	testEnv, err = environment.New(ctx)
-	if err != nil {
-		return
+	testEnv, retErr = environment.New(ctx)
+	if retErr != nil {
+		return 255
 	}
 
 	if testEnv.IsLocalDaemon() {
@@ -92,9 +91,9 @@ func testRun(m *testing.M) (ret int) {
 
 	dockerBinary = testEnv.DockerBinary()
 
-	err = ienv.EnsureFrozenImagesLinux(ctx, &testEnv.Execution)
-	if err != nil {
-		return
+	retErr = ienv.EnsureFrozenImagesLinux(ctx, &testEnv.Execution)
+	if retErr != nil {
+		return 255
 	}
 
 	testEnv.Print()
@@ -364,13 +363,6 @@ func TestDockerRegistrySuite(t *testing.T) {
 	suite.Run(ctx, t, &DockerRegistrySuite{ds: &DockerSuite{}})
 }
 
-func TestDockerSchema1RegistrySuite(t *testing.T) {
-	skip.If(t, testEnv.UsingSnapshotter())
-	ctx := testutil.StartSpan(baseContext, t)
-	ensureTestEnvSetup(ctx, t)
-	suite.Run(ctx, t, &DockerSchema1RegistrySuite{ds: &DockerSuite{}})
-}
-
 func TestDockerRegistryAuthHtpasswdSuite(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 	ensureTestEnvSetup(ctx, t)
@@ -469,33 +461,6 @@ func (s *DockerRegistrySuite) SetUpTest(ctx context.Context, c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TearDownTest(ctx context.Context, c *testing.T) {
-	if s.reg != nil {
-		s.reg.Close()
-	}
-	if s.d != nil {
-		s.d.Stop(c)
-	}
-	s.ds.TearDownTest(ctx, c)
-}
-
-type DockerSchema1RegistrySuite struct {
-	ds  *DockerSuite
-	reg *registry.V2
-	d   *daemon.Daemon
-}
-
-func (s *DockerSchema1RegistrySuite) OnTimeout(c *testing.T) {
-	s.d.DumpStackAndQuit()
-}
-
-func (s *DockerSchema1RegistrySuite) SetUpTest(ctx context.Context, c *testing.T) {
-	testRequires(c, DaemonIsLinux, RegistryHosting, NotArm64, testEnv.IsLocalDaemon)
-	s.reg = registry.NewV2(c, registry.Schema1)
-	s.reg.WaitReady(c)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
-}
-
-func (s *DockerSchema1RegistrySuite) TearDownTest(ctx context.Context, c *testing.T) {
 	if s.reg != nil {
 		s.reg.Close()
 	}

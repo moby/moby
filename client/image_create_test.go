@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -21,15 +21,18 @@ func TestImageCreateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImageCreate(context.Background(), "reference", image.CreateOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageCreate(t *testing.T) {
-	expectedURL := "/images/create"
-	expectedImage := "test:5000/my_image"
-	expectedTag := "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-	expectedReference := fmt.Sprintf("%s@%s", expectedImage, expectedTag)
-	expectedRegistryAuth := "eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsiYXV0aCI6ImRHOTBid289IiwiZW1haWwiOiJqb2huQGRvZS5jb20ifX0="
+	const (
+		expectedURL          = "/images/create"
+		expectedImage        = "docker.io/test/my_image"
+		expectedTag          = "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+		specifiedReference   = "test/my_image:latest@" + expectedTag
+		expectedRegistryAuth = "eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsiYXV0aCI6ImRHOTBid289IiwiZW1haWwiOiJqb2huQGRvZS5jb20ifX0="
+	)
+
 	client := &Client{
 		client: newMockClient(func(r *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(r.URL.Path, expectedURL) {
@@ -58,20 +61,13 @@ func TestImageCreate(t *testing.T) {
 		}),
 	}
 
-	createResponse, err := client.ImageCreate(context.Background(), expectedReference, image.CreateOptions{
+	createResponse, err := client.ImageCreate(context.Background(), specifiedReference, image.CreateOptions{
 		RegistryAuth: expectedRegistryAuth,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 	response, err := io.ReadAll(createResponse)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = createResponse.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if string(response) != "body" {
-		t.Fatalf("expected Body to contain 'body' string, got %s", response)
-	}
+	assert.NilError(t, err)
+	err = createResponse.Close()
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(string(response), "body"))
 }

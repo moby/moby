@@ -7,8 +7,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	containerpkg "github.com/docker/docker/container"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/go-archive"
 )
 
 // execBackend includes functions to implement to provide exec functionality.
@@ -40,8 +39,8 @@ type stateBackend interface {
 	ContainerStart(ctx context.Context, name string, checkpoint string, checkpointDir string) error
 	ContainerStop(ctx context.Context, name string, options container.StopOptions) error
 	ContainerUnpause(name string) error
-	ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error)
-	ContainerWait(ctx context.Context, name string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error)
+	ContainerUpdate(name string, hostConfig *container.HostConfig) (container.UpdateResponse, error)
+	ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan container.StateStatus, error)
 }
 
 // monitorBackend includes functions to implement to provide containers monitoring functionality.
@@ -50,7 +49,7 @@ type monitorBackend interface {
 	ContainerInspect(ctx context.Context, name string, options backend.ContainerInspectOptions) (*container.InspectResponse, error)
 	ContainerLogs(ctx context.Context, name string, config *container.LogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
 	ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error
-	ContainerTop(name string, psArgs string) (*container.ContainerTopOKBody, error)
+	ContainerTop(name string, psArgs string) (*container.TopResponse, error)
 	Containers(ctx context.Context, config *container.ListOptions) ([]*container.Summary, error)
 }
 

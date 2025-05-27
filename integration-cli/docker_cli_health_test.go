@@ -76,19 +76,19 @@ func (s *DockerCLIHealthSuite) TestHealth(c *testing.T) {
 
 	// Start
 	cli.DockerCmd(c, "start", name)
-	waitForHealthStatus(c, name, "starting", "healthy")
+	waitForHealthStatus(c, name, container.Starting, container.Healthy)
 
 	// Make it fail
 	cli.DockerCmd(c, "exec", name, "rm", "/status")
-	waitForHealthStatus(c, name, "healthy", "unhealthy")
+	waitForHealthStatus(c, name, container.Healthy, container.Unhealthy)
 
 	// Inspect the status
 	out = cli.DockerCmd(c, "inspect", "--format={{.State.Health.Status}}", name).Stdout()
-	assert.Equal(c, out, "unhealthy\n")
+	assert.Equal(c, strings.TrimSpace(out), container.Unhealthy)
 
 	// Make it healthy again
 	cli.DockerCmd(c, "exec", name, "touch", "/status")
-	waitForHealthStatus(c, name, "unhealthy", "healthy")
+	waitForHealthStatus(c, name, container.Unhealthy, container.Healthy)
 
 	// Remove container
 	cli.DockerCmd(c, "rm", "-f", name)
@@ -113,9 +113,9 @@ func (s *DockerCLIHealthSuite) TestHealth(c *testing.T) {
 		"--health-cmd=cat /status",
 		"no_healthcheck",
 	)
-	waitForHealthStatus(c, "fatal_healthcheck", "starting", "healthy")
+	waitForHealthStatus(c, "fatal_healthcheck", container.Starting, container.Healthy)
 	health := getHealth(c, "fatal_healthcheck")
-	assert.Equal(c, health.Status, "healthy")
+	assert.Equal(c, health.Status, container.Healthy)
 	assert.Equal(c, health.FailingStreak, 0)
 	last := health.Log[len(health.Log)-1]
 	assert.Equal(c, last.ExitCode, 0)
@@ -123,7 +123,7 @@ func (s *DockerCLIHealthSuite) TestHealth(c *testing.T) {
 
 	// Fail the check
 	cli.DockerCmd(c, "exec", "fatal_healthcheck", "rm", "/status")
-	waitForHealthStatus(c, "fatal_healthcheck", "healthy", "unhealthy")
+	waitForHealthStatus(c, "fatal_healthcheck", container.Healthy, container.Unhealthy)
 
 	failsStr := cli.DockerCmd(c, "inspect", "--format={{.State.Health.FailingStreak}}", "fatal_healthcheck").Combined()
 	fails, err := strconv.Atoi(strings.TrimSpace(failsStr))
@@ -135,10 +135,10 @@ func (s *DockerCLIHealthSuite) TestHealth(c *testing.T) {
 	// Note: if the interval is too small, it seems that Docker spends all its time running health
 	// checks and never gets around to killing it.
 	cli.DockerCmd(c, "run", "-d", "--name=test", "--health-interval=1s", "--health-cmd=sleep 5m", "--health-timeout=1s", imageName)
-	waitForHealthStatus(c, "test", "starting", "unhealthy")
+	waitForHealthStatus(c, "test", container.Starting, container.Unhealthy)
 	health = getHealth(c, "test")
 	last = health.Log[len(health.Log)-1]
-	assert.Equal(c, health.Status, "unhealthy")
+	assert.Equal(c, health.Status, container.Unhealthy)
 	assert.Equal(c, last.ExitCode, -1)
 	assert.Equal(c, last.Output, "Health check exceeded timeout (1s)")
 	cli.DockerCmd(c, "rm", "-f", "test")
@@ -173,5 +173,5 @@ ENTRYPOINT /bin/sh -c "sleep 600"`))
 
 	// Start
 	cli.DockerCmd(c, "start", name)
-	waitForHealthStatus(c, name, "starting", "healthy")
+	waitForHealthStatus(c, name, container.Starting, container.Healthy)
 }

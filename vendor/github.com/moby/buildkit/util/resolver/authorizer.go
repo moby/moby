@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/remotes/docker"
-	"github.com/containerd/containerd/remotes/docker/auth"
-	remoteserrors "github.com/containerd/containerd/remotes/errors"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	"github.com/containerd/containerd/v2/core/remotes/docker/auth"
+	remoteserrors "github.com/containerd/containerd/v2/core/remotes/errors"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/session"
 	sessionauth "github.com/moby/buildkit/session/auth"
@@ -70,17 +70,17 @@ func (a *authHandlerNS) get(ctx context.Context, host string, sm *session.Manage
 		}
 		if parts[0] == host {
 			if h.authority != nil {
-				session, ok, err := sessionauth.VerifyTokenAuthority(ctx, host, h.authority, sm, g)
+				sessionID, ok, err := sessionauth.VerifyTokenAuthority(ctx, host, h.authority, sm, g)
 				if err == nil && ok {
-					a.handlers[host+"/"+session] = h
+					a.handlers[host+"/"+sessionID] = h
 					h.lastUsed = time.Now()
 					return h
 				}
 			} else {
-				session, username, password, err := sessionauth.CredentialsFunc(sm, g)(host)
+				sessionID, username, password, err := sessionauth.CredentialsFunc(sm, g)(host)
 				if err == nil {
 					if username == h.common.Username && password == h.common.Secret {
-						a.handlers[host+"/"+session] = h
+						a.handlers[host+"/"+sessionID] = h
 						h.lastUsed = time.Now()
 						return h
 					}
@@ -130,12 +130,12 @@ func (a *dockerAuthorizer) Authorize(ctx context.Context, req *http.Request) err
 		return nil
 	}
 
-	auth, err := ah.authorize(ctx, a.sm, a.session)
+	authHeader, err := ah.authorize(ctx, a.sm, a.session)
 	if err != nil {
 		return err
 	}
 
-	req.Header.Set("Authorization", auth)
+	req.Header.Set("Authorization", authHeader)
 	return nil
 }
 
@@ -153,7 +153,8 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 	handler := a.handlers.get(ctx, host, a.sm, a.session)
 
 	for _, c := range auth.ParseAuthHeader(last.Header) {
-		if c.Scheme == auth.BearerAuth {
+		switch c.Scheme {
+		case auth.BearerAuth:
 			var oldScopes []string
 			if err := invalidAuthorization(c, responses); err != nil {
 				a.handlers.delete(handler)
@@ -163,7 +164,7 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 				}
 				handler = nil
 
-				// this hacky way seems to be best method to detect that error is fatal and should not be retried with a new token
+				// this hacky way seems to be the best method to detect that error is fatal and should not be retried with a new token
 				if c.Parameters["error"] == "insufficient_scope" && parseScopes(oldScopes).contains(parseScopes(strings.Split(c.Parameters["scope"], " "))) {
 					return err
 				}
@@ -180,12 +181,12 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 			}
 
 			var username, secret string
-			session, pubKey, err := sessionauth.GetTokenAuthority(ctx, host, a.sm, a.session)
+			sessionID, pubKey, err := sessionauth.GetTokenAuthority(ctx, host, a.sm, a.session)
 			if err != nil {
 				return err
 			}
 			if pubKey == nil {
-				session, username, secret, err = a.getCredentials(host)
+				sessionID, username, secret, err = a.getCredentials(host)
 				if err != nil {
 					return err
 				}
@@ -197,23 +198,20 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 			}
 			common.Scopes = parseScopes(append(common.Scopes, oldScopes...)).normalize()
 
-			a.handlers.set(host, session, newAuthHandler(host, a.client, c.Scheme, pubKey, common))
+			a.handlers.set(host, sessionID, newAuthHandler(host, a.client, c.Scheme, pubKey, common))
 
 			return nil
-		} else if c.Scheme == auth.BasicAuth {
-			session, username, secret, err := a.getCredentials(host)
+		case auth.BasicAuth:
+			sessionID, username, secret, err := a.getCredentials(host)
 			if err != nil {
 				return err
 			}
 
 			if username != "" && secret != "" {
-				common := auth.TokenOptions{
+				a.handlers.set(host, sessionID, newAuthHandler(host, a.client, c.Scheme, nil, auth.TokenOptions{
 					Username: username,
 					Secret:   secret,
-				}
-
-				a.handlers.set(host, session, newAuthHandler(host, a.client, c.Scheme, nil, common))
-
+				}))
 				return nil
 			}
 		}
@@ -281,8 +279,8 @@ func (ah *authHandler) doBasicAuth() (string, error) {
 		return "", errors.New("failed to handle basic auth because missing username or secret")
 	}
 
-	auth := base64.StdEncoding.EncodeToString([]byte(username + ":" + secret))
-	return fmt.Sprintf("Basic %s", auth), nil
+	authHeader := base64.StdEncoding.EncodeToString([]byte(username + ":" + secret))
+	return fmt.Sprintf("Basic %s", authHeader), nil
 }
 
 func (ah *authHandler) doBearerAuth(ctx context.Context, sm *session.Manager, g session.Group) (token string, err error) {
@@ -291,7 +289,7 @@ func (ah *authHandler) doBearerAuth(ctx context.Context, sm *session.Manager, g 
 
 	to.Scopes = parseScopes(docker.GetTokenScopes(ctx, to.Scopes)).normalize()
 
-	// Docs: https://docs.docker.com/registry/spec/auth/scope
+	// Docs: https://distribution.github.io/distribution/spec/auth/scope
 	scoped := strings.Join(to.Scopes, " ")
 
 	res, err := ah.g.Do(ctx, scoped, func(ctx context.Context) (*authResult, error) {
@@ -380,15 +378,15 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 				// retry with POST request
 				// As of September 2017, GCR is known to return 404.
 				// As of February 2018, JFrog Artifactory is known to return 401.
-				if (errStatus.StatusCode == 405 && to.Username != "") || errStatus.StatusCode == 404 || errStatus.StatusCode == 401 {
+				if (errStatus.StatusCode == http.StatusMethodNotAllowed && to.Username != "") || errStatus.StatusCode == http.StatusNotFound || errStatus.StatusCode == http.StatusUnauthorized {
 					resp, err := auth.FetchTokenWithOAuth(ctx, ah.client, hdr, "buildkit-client", to)
 					if err != nil {
 						return nil, err
 					}
-					if resp.ExpiresIn == 0 {
-						resp.ExpiresIn = defaultExpiration
+					if resp.ExpiresInSeconds == 0 {
+						resp.ExpiresInSeconds = defaultExpiration
 					}
-					issuedAt, expires = resp.IssuedAt, resp.ExpiresIn
+					issuedAt, expires = resp.IssuedAt, resp.ExpiresInSeconds
 					token = resp.AccessToken
 					return nil, nil
 				}
@@ -399,10 +397,10 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 			}
 			return nil, err
 		}
-		if resp.ExpiresIn == 0 {
-			resp.ExpiresIn = defaultExpiration
+		if resp.ExpiresInSeconds == 0 {
+			resp.ExpiresInSeconds = defaultExpiration
 		}
-		issuedAt, expires = resp.IssuedAt, resp.ExpiresIn
+		issuedAt, expires = resp.IssuedAt, resp.ExpiresInSeconds
 		token = resp.Token
 		return nil, nil
 	}
@@ -411,10 +409,10 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch anonymous token")
 	}
-	if resp.ExpiresIn == 0 {
-		resp.ExpiresIn = defaultExpiration
+	if resp.ExpiresInSeconds == 0 {
+		resp.ExpiresInSeconds = defaultExpiration
 	}
-	issuedAt, expires = resp.IssuedAt, resp.ExpiresIn
+	issuedAt, expires = resp.IssuedAt, resp.ExpiresInSeconds
 
 	token = resp.Token
 	return nil, nil
@@ -447,7 +445,7 @@ func sameRequest(r1, r2 *http.Request) bool {
 type scopes map[string]map[string]struct{}
 
 func parseScopes(s []string) scopes {
-	// https://docs.docker.com/registry/spec/auth/scope/
+	// https://distribution.github.io/distribution/spec/auth/scope/
 	m := map[string]map[string]struct{}{}
 	for _, scopeStr := range s {
 		if scopeStr == "" {
@@ -484,7 +482,7 @@ func (s scopes) normalize() []string {
 	for n := range s {
 		names = append(names, n)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	out := make([]string, 0, len(s))
 
@@ -493,7 +491,7 @@ func (s scopes) normalize() []string {
 		for a := range s[n] {
 			actions = append(actions, a)
 		}
-		sort.Strings(actions)
+		slices.Sort(actions)
 
 		out = append(out, n+":"+strings.Join(actions, ","))
 	}

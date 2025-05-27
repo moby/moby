@@ -15,7 +15,7 @@ func getUIDGID(fi os.FileInfo) (uid, gid int) {
 	return int(st.Uid), int(st.Gid)
 }
 
-func (c *copier) copyFileInfo(fi os.FileInfo, src, name string) error {
+func (c *copier) copyFileInfo(fi os.FileInfo, _, name string) error {
 	chown := c.chown
 	uid, gid := getUIDGID(fi)
 	old := &User{UID: uid, GID: gid}

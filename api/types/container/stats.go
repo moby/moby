@@ -148,7 +148,15 @@ type PidsStats struct {
 }
 
 // Stats is Ultimate struct aggregating all types of stats of one container
-type Stats struct {
+//
+// Deprecated: use [StatsResponse] instead. This type will be removed in the next release.
+type Stats = StatsResponse
+
+// StatsResponse aggregates all types of stats of one container.
+type StatsResponse struct {
+	Name string `json:"name,omitempty"`
+	ID   string `json:"id,omitempty"`
+
 	// Common stats
 	Read    time.Time `json:"read"`
 	PreRead time.Time `json:"preread"`
@@ -162,20 +170,8 @@ type Stats struct {
 	StorageStats StorageStats `json:"storage_stats,omitempty"`
 
 	// Shared stats
-	CPUStats    CPUStats    `json:"cpu_stats,omitempty"`
-	PreCPUStats CPUStats    `json:"precpu_stats,omitempty"` // "Pre"="Previous"
-	MemoryStats MemoryStats `json:"memory_stats,omitempty"`
-}
-
-// StatsResponse is newly used Networks.
-//
-// TODO(thaJeztah): unify with [Stats]. This wrapper was to account for pre-api v1.21 changes, see https://github.com/moby/moby/commit/d3379946ec96fb6163cb8c4517d7d5a067045801
-type StatsResponse struct {
-	Stats
-
-	Name string `json:"name,omitempty"`
-	ID   string `json:"id,omitempty"`
-
-	// Networks request version >=1.21
-	Networks map[string]NetworkStats `json:"networks,omitempty"`
+	CPUStats    CPUStats                `json:"cpu_stats,omitempty"`
+	PreCPUStats CPUStats                `json:"precpu_stats,omitempty"` // "Pre"="Previous"
+	MemoryStats MemoryStats             `json:"memory_stats,omitempty"`
+	Networks    map[string]NetworkStats `json:"networks,omitempty"`
 }

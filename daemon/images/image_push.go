@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"
+	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/pkg/progress"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -57,6 +58,6 @@ func (i *ImageService) PushImage(ctx context.Context, ref reference.Named, platf
 	err := distribution.Push(ctx, ref, imagePushConfig)
 	close(progressChan)
 	<-writesDone
-	ImageActions.WithValues("push").UpdateSince(start)
+	metrics.ImageActions.WithValues("push").UpdateSince(start)
 	return err
 }

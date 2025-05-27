@@ -74,6 +74,13 @@ func WithSwarmListenAddr(listenAddr string) Option {
 	}
 }
 
+// WithSwarmIptables enabled/disables iptables for swarm nodes
+func WithSwarmIptables(useIptables bool) Option {
+	return func(d *Daemon) {
+		d.swarmWithIptables = useIptables
+	}
+}
+
 // WithSwarmDefaultAddrPool sets the swarm default address pool to use for swarm mode
 func WithSwarmDefaultAddrPool(defaultAddrPool []string) Option {
 	return func(d *Daemon) {
@@ -133,5 +140,13 @@ func WithOOMScoreAdjust(score int) Option {
 func WithEnvVars(vars ...string) Option {
 	return func(d *Daemon) {
 		d.extraEnv = append(d.extraEnv, vars...)
+	}
+}
+
+// WithResolvConf allows a test to provide content for a resolv.conf file to be used
+// as the basis for resolv.conf in the container, instead of the host's /etc/resolv.conf.
+func WithResolvConf(content string) Option {
+	return func(d *Daemon) {
+		d.resolvConfContent = content
 	}
 }

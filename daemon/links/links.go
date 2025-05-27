@@ -22,16 +22,17 @@ type Link struct {
 	Ports []nat.Port
 }
 
+// EnvVars generates environment variables for the linked container
+// for the Link with the given options.
+func EnvVars(parentIP, childIP, name string, env []string, exposedPorts map[nat.Port]struct{}) []string {
+	return NewLink(parentIP, childIP, name, env, exposedPorts).ToEnv()
+}
+
 // NewLink initializes a new Link struct with the provided options.
 func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.Port]struct{}) *Link {
-	var (
-		i     int
-		ports = make([]nat.Port, len(exposedPorts))
-	)
-
+	ports := make([]nat.Port, 0, len(exposedPorts))
 	for p := range exposedPorts {
-		ports[i] = p
-		i++
+		ports = append(ports, p)
 	}
 
 	return &Link{
@@ -47,46 +48,47 @@ func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.
 // the form of environment variables which will be later exported on container
 // startup.
 func (l *Link) ToEnv() []string {
-	env := []string{}
-
 	_, n := path.Split(l.Name)
 	alias := strings.ReplaceAll(strings.ToUpper(n), "-", "_")
 
-	if p := l.getDefaultPort(); p != nil {
-		env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
-	}
-
 	// sort the ports so that we can bulk the continuous ports together
-	nat.Sort(l.Ports, func(ip, jp nat.Port) bool {
-		// If the two ports have the same number, tcp takes priority
-		// Sort in desc order
-		return ip.Int() < jp.Int() || (ip.Int() == jp.Int() && strings.ToLower(ip.Proto()) == "tcp")
-	})
+	nat.Sort(l.Ports, withTCPPriority)
 
-	for i := 0; i < len(l.Ports); {
-		p := l.Ports[i]
-		j := nextContiguous(l.Ports, p.Int(), i)
-		if j > i+1 {
-			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_START=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
-			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_ADDR=%s", alias, p.Port(), strings.ToUpper(p.Proto()), l.ChildIP))
-			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PROTO=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto()))
-			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT_START=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Port()))
-
-			q := l.Ports[j]
-			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_END=%s://%s:%s", alias, p.Port(), strings.ToUpper(q.Proto()), q.Proto(), l.ChildIP, q.Port()))
-			env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT_END=%s", alias, p.Port(), strings.ToUpper(q.Proto()), q.Port()))
-
-			i = j + 1
-			continue
-		} else {
-			i++
+	var pStart, pEnd nat.Port
+	env := make([]string, 0, 1+len(l.Ports)*4)
+	for i, p := range l.Ports {
+		if i == 0 {
+			pStart, pEnd = p, p
+			env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
 		}
-	}
-	for _, p := range l.Ports {
-		env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
-		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_ADDR=%s", alias, p.Port(), strings.ToUpper(p.Proto()), l.ChildIP))
-		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Port()))
-		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PROTO=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto()))
+
+		// These env-vars are produced for every port, regardless if they're
+		// part of a port-range.
+		prefix := fmt.Sprintf("%s_PORT_%s_%s", alias, p.Port(), strings.ToUpper(p.Proto()))
+		env = append(env, fmt.Sprintf("%s=%s://%s:%s", prefix, p.Proto(), l.ChildIP, p.Port()))
+		env = append(env, fmt.Sprintf("%s_ADDR=%s", prefix, l.ChildIP))
+		env = append(env, fmt.Sprintf("%s_PORT=%s", prefix, p.Port()))
+		env = append(env, fmt.Sprintf("%s_PROTO=%s", prefix, p.Proto()))
+
+		// Detect whether this port is part of a range (consecutive port number
+		// and same protocol).
+		if p.Int() == pEnd.Int()+1 && strings.EqualFold(p.Proto(), pStart.Proto()) {
+			pEnd = p
+			if i < len(l.Ports)-1 {
+				continue
+			}
+		}
+
+		if pEnd != pStart {
+			prefix = fmt.Sprintf("%s_PORT_%s_%s", alias, pStart.Port(), strings.ToUpper(pStart.Proto()))
+			env = append(env, fmt.Sprintf("%s_START=%s://%s:%s", prefix, pStart.Proto(), l.ChildIP, pStart.Port()))
+			env = append(env, fmt.Sprintf("%s_PORT_START=%s", prefix, pStart.Port()))
+			env = append(env, fmt.Sprintf("%s_END=%s://%s:%s", prefix, pEnd.Proto(), l.ChildIP, pEnd.Port()))
+			env = append(env, fmt.Sprintf("%s_PORT_END=%s", prefix, pEnd.Port()))
+		}
+
+		// Reset for next range (if any)
+		pStart, pEnd = p, p
 	}
 
 	// Load the linked container's name into the environment
@@ -108,34 +110,19 @@ func (l *Link) ToEnv() []string {
 	return env
 }
 
-func nextContiguous(ports []nat.Port, value int, index int) int {
-	if index+1 == len(ports) {
-		return index
+// withTCPPriority prioritizes ports using TCP over other protocols before
+// comparing port-number and protocol.
+func withTCPPriority(ip, jp nat.Port) bool {
+	if strings.EqualFold(ip.Proto(), jp.Proto()) {
+		return ip.Int() < jp.Int()
 	}
-	for i := index + 1; i < len(ports); i++ {
-		if ports[i].Int() > value+1 {
-			return i - 1
-		}
 
-		value++
+	if strings.EqualFold(ip.Proto(), "tcp") {
+		return true
 	}
-	return len(ports) - 1
-}
-
-// Default port rules
-func (l *Link) getDefaultPort() *nat.Port {
-	var p nat.Port
-	i := len(l.Ports)
-
-	if i == 0 {
-		return nil
-	} else if i > 1 {
-		nat.Sort(l.Ports, func(ip, jp nat.Port) bool {
-			// If the two ports have the same number, tcp takes priority
-			// Sort in desc order
-			return ip.Int() < jp.Int() || (ip.Int() == jp.Int() && strings.ToLower(ip.Proto()) == "tcp")
-		})
+	if strings.EqualFold(jp.Proto(), "tcp") {
+		return false
 	}
-	p = l.Ports[0]
-	return &p
+
+	return strings.ToLower(ip.Proto()) < strings.ToLower(jp.Proto())
 }

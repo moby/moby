@@ -27,6 +27,22 @@ func WithIPv6() func(*network.CreateOptions) {
 	}
 }
 
+// WithIPv4Disabled makes sure IPv4 is disabled on the network.
+func WithIPv4Disabled() func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
+		enable := false
+		n.EnableIPv4 = &enable
+	}
+}
+
+// WithIPv6Disabled makes sure IPv6 is disabled on the network.
+func WithIPv6Disabled() func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
+		enable := false
+		n.EnableIPv6 = &enable
+	}
+}
+
 // WithInternal enables Internal flag on the create network request
 func WithInternal() func(*network.CreateOptions) {
 	return func(n *network.CreateOptions) {
@@ -34,10 +50,31 @@ func WithInternal() func(*network.CreateOptions) {
 	}
 }
 
+// WithConfigOnly sets the ConfigOnly flag in the create network request
+func WithConfigOnly(co bool) func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
+		n.ConfigOnly = co
+	}
+}
+
+// WithConfigFrom sets the ConfigOnly flag in the create network request
+func WithConfigFrom(name string) func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
+		n.ConfigFrom = &network.ConfigReference{Network: name}
+	}
+}
+
 // WithAttachable sets Attachable flag on the create network request
 func WithAttachable() func(*network.CreateOptions) {
 	return func(n *network.CreateOptions) {
 		n.Attachable = true
+	}
+}
+
+// WithScope sets the network scope.
+func WithScope(s string) func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
+		n.Scope = s
 	}
 }
 
@@ -97,7 +134,7 @@ func WithIPAM(subnet, gateway string) func(*network.CreateOptions) {
 	return WithIPAMRange(subnet, "", gateway)
 }
 
-// WithIPAM adds an IPAM with the specified Subnet, IPRange and Gateway to the network
+// WithIPAMRange adds an IPAM with the specified Subnet, IPRange and Gateway to the network
 func WithIPAMRange(subnet, iprange, gateway string) func(*network.CreateOptions) {
 	return func(n *network.CreateOptions) {
 		if n.IPAM == nil {

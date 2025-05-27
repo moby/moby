@@ -154,19 +154,20 @@ func debugSchedulerPreUnparkSlow(e *edge, inc []pipeSender, updates, allPipes []
 	}
 
 	for i, up := range updates {
-		if up == e.cacheMapReq {
+		switch up {
+		case e.cacheMapReq:
 			log.
 				WithField("update_index", i).
 				WithField("update_pointer", up).
 				WithField("update_complete", up.Status().Completed).
 				Debug("> update cacheMapReq")
-		} else if up == e.execReq {
+		case e.execReq:
 			log.
 				WithField("update_index", i).
 				WithField("update_pointer", up).
 				WithField("update_complete", up.Status().Completed).
 				Debug("> update execReq")
-		} else {
+		default:
 			st, ok := up.Status().Value.(*edgeState)
 			if ok {
 				index := -1

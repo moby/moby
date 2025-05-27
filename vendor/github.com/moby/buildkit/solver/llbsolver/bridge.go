@@ -138,7 +138,7 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 	}
 	dpc := &detectPrunedCacheID{}
 
-	edge, err := Load(ctx, def, polEngine, dpc.Load, ValidateEntitlements(ent), WithCacheSources(cms), NormalizeRuntimePlatforms(), WithValidateCaps())
+	edge, err := Load(ctx, def, polEngine, dpc.Load, ValidateEntitlements(ent, w.CDIManager()), WithCacheSources(cms), NormalizeRuntimePlatforms(), WithValidateCaps())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load LLB")
 	}
@@ -229,7 +229,7 @@ func (rp *resultProxy) Definition() *pb.Definition {
 	return rp.req.Definition
 }
 
-func (rp *resultProxy) Provenance() interface{} {
+func (rp *resultProxy) Provenance() any {
 	if rp.provenance == nil {
 		return nil
 	}
@@ -265,7 +265,7 @@ func (rp *resultProxy) wrapError(err error) error {
 	var ve *errdefs.VertexError
 	if errors.As(err, &ve) {
 		if rp.req.Definition.Source != nil {
-			locs, ok := rp.req.Definition.Source.Locations[string(ve.Digest)]
+			locs, ok := rp.req.Definition.Source.Locations[ve.Digest]
 			if ok {
 				for _, loc := range locs.Locations {
 					err = errdefs.WithSource(err, &errdefs.Source{
@@ -354,9 +354,9 @@ func (b *llbBridge) ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, 
 	}
 	id := op.Identifier
 	if opt.Platform != nil {
-		id += platforms.Format(*opt.Platform)
+		id += platforms.FormatAll(*opt.Platform)
 	} else {
-		id += platforms.Format(platforms.DefaultSpec())
+		id += platforms.FormatAll(platforms.DefaultSpec())
 	}
 	pol, err := loadSourcePolicy(b.builder)
 	if err != nil {

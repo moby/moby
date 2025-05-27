@@ -12,15 +12,15 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	volumemounts "github.com/docker/docker/volume/mounts"
+	"github.com/moby/go-archive"
 	"github.com/pkg/errors"
 )
 
 // containerStatPath stats the filesystem resource at the specified path in this
 // container. Returns stat info about the resource.
-func (daemon *Daemon) containerStatPath(container *container.Container, path string) (stat *containertypes.PathStat, err error) {
+func (daemon *Daemon) containerStatPath(container *container.Container, path string) (*containertypes.PathStat, error) {
 	container.Lock()
 	defer container.Unlock()
 
@@ -36,11 +36,11 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 // containerArchivePath creates an archive of the filesystem resource at the specified
 // path in this container. Returns a tar archive of the resource and stat info
 // about the resource.
-func (daemon *Daemon) containerArchivePath(container *container.Container, path string) (content io.ReadCloser, stat *containertypes.PathStat, err error) {
+func (daemon *Daemon) containerArchivePath(container *container.Container, path string) (content io.ReadCloser, stat *containertypes.PathStat, retErr error) {
 	container.Lock()
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			// Wait to unlock the container until the archive is fully read
 			// (see the ReadCloseWrapper func below) or if there is an error
 			// before that occurs.
@@ -54,8 +54,8 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 	}
 
 	defer func() {
-		if err != nil {
-			cfs.Close()
+		if retErr != nil {
+			_ = cfs.Close()
 		}
 	}()
 
@@ -97,7 +97,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 // noOverwriteDirNonDir is true then it will be an error if unpacking the
 // given content would cause an existing directory to be replaced with a non-
 // directory and vice versa.
-func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) (err error) {
+func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -126,16 +126,9 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 			return errdefs.InvalidParameter(errors.New("extraction point is not a directory"))
 		}
 
-		// Need to check if the path is in a volume. If it is, it cannot be in a
-		// read-only volume. If it is not in a volume, the container cannot be
-		// configured with a read-only rootfs.
-		toVolume, err := checkIfPathIsInAVolume(container, absPath)
-		if err != nil {
+		// Check that the destination is not a read-only filesystem.
+		if err := checkWritablePath(container, absPath); err != nil {
 			return err
-		}
-
-		if !toVolume && container.HostConfig.ReadonlyRootfs {
-			return errdefs.InvalidParameter(errors.New("container rootfs is marked read-only"))
 		}
 
 		options := daemon.defaultTarCopyOptions(noOverwriteDirNonDir)
@@ -161,19 +154,22 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	return nil
 }
 
-// checkIfPathIsInAVolume checks if the path is in a volume. If it is, it
-// cannot be in a read-only volume. If it  is not in a volume, the container
-// cannot be configured with a read-only rootfs.
-func checkIfPathIsInAVolume(container *container.Container, absPath string) (bool, error) {
-	var toVolume bool
+// checkWritablePath checks if the path is in a writable location inside the
+// container. If the path is within a location mounted from a volume, it checks
+// if the volume is mounted read-only. If it is not in a volume, it checks whether
+// the container's rootfs is mounted read-only.
+func checkWritablePath(ctr *container.Container, absPath string) error {
 	parser := volumemounts.NewParser()
-	for _, mnt := range container.MountPoints {
-		if toVolume = parser.HasResource(mnt, absPath); toVolume {
+	for _, mnt := range ctr.MountPoints {
+		if isVolumePath := parser.HasResource(mnt, absPath); isVolumePath {
 			if mnt.RW {
-				break
+				return nil
 			}
-			return false, errdefs.InvalidParameter(errors.New("mounted volume is marked read-only"))
+			return errdefs.InvalidParameter(errors.New("mounted volume is marked read-only"))
 		}
 	}
-	return toVolume, nil
+	if ctr.HostConfig.ReadonlyRootfs {
+		return errdefs.InvalidParameter(errors.New("container rootfs is marked read-only"))
+	}
+	return nil
 }

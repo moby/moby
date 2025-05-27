@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"dario.cat/mergo"
-	runtimeoptions_v1 "github.com/containerd/containerd/pkg/runtimeoptions/v1"
-	"github.com/containerd/containerd/plugin"
-	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
+	runcoptions "github.com/containerd/containerd/api/types/runc/options"
+	runtimeoptions "github.com/containerd/containerd/api/types/runtimeoptions/v1"
+	"github.com/containerd/containerd/v2/plugins"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
@@ -202,7 +202,7 @@ func TestGetRuntime(t *testing.T) {
 
 	const shimWithOptsName = "shimwithopts"
 	shimWithOpts := system.Runtime{
-		Type:    plugin.RuntimeRuncV2,
+		Type:    plugins.RuntimeRuncV2,
 		Options: map[string]interface{}{"IoUid": 42},
 	}
 
@@ -243,7 +243,7 @@ func TestGetRuntime(t *testing.T) {
 	assert.Assert(t, ok, "stock runtime could not be found (test needs to be updated)")
 	stockRuntime.Features = nil
 
-	configdOpts := proto.Clone(stockRuntime.Opts.(*v2runcoptions.Options)).(*v2runcoptions.Options)
+	configdOpts := proto.Clone(stockRuntime.Opts.(*runcoptions.Options)).(*runcoptions.Options)
 	configdOpts.BinaryName = configuredRuntime.Path
 	wantConfigdRuntime := &shimConfig{
 		Shim: stockRuntime.Shim,
@@ -304,7 +304,7 @@ func TestGetRuntime(t *testing.T) {
 			runtime: shimWithOptsName,
 			want: &shimConfig{
 				Shim: shimWithOpts.Type,
-				Opts: &v2runcoptions.Options{IoUid: 42},
+				Opts: &runcoptions.Options{IoUid: 42},
 			},
 		},
 		{
@@ -322,7 +322,7 @@ func TestGetRuntime(t *testing.T) {
 			runtime: gvisorName,
 			want: &shimConfig{
 				Shim: gvisorRuntime.Type,
-				Opts: &runtimeoptions_v1.Options{
+				Opts: &runtimeoptions.Options{
 					TypeUrl:    gvisorRuntime.Options["TypeUrl"].(string),
 					ConfigPath: gvisorRuntime.Options["ConfigPath"].(string),
 				},
@@ -335,8 +335,8 @@ func TestGetRuntime(t *testing.T) {
 				assert.Check(t, err)
 				got := &shimConfig{Shim: shim, Opts: opts}
 				assert.Check(t, is.DeepEqual(got, tc.want,
-					cmpopts.IgnoreUnexported(runtimeoptions_v1.Options{}),
-					cmpopts.IgnoreUnexported(v2runcoptions.Options{}),
+					cmpopts.IgnoreUnexported(runtimeoptions.Options{}),
+					cmpopts.IgnoreUnexported(runcoptions.Options{}),
 				))
 			} else {
 				assert.Check(t, is.Equal(shim, ""))
@@ -349,8 +349,8 @@ func TestGetRuntime(t *testing.T) {
 		shim, opts, err := runtimes.Get(rtWithArgsName)
 		assert.Check(t, err)
 		assert.Check(t, is.Equal(shim, stockRuntime.Shim))
-		runcopts, ok := opts.(*v2runcoptions.Options)
-		if assert.Check(t, ok, "runtimes.Get() opts = type %T, want *v2runcoptions.Options", opts) {
+		runcopts, ok := opts.(*runcoptions.Options)
+		if assert.Check(t, ok, "runtimes.Get() opts = type %T, want *runcoptions.Options", opts) {
 			wrapper, err := os.ReadFile(runcopts.BinaryName)
 			if assert.Check(t, err) {
 				assert.Check(t, is.Contains(string(wrapper),
@@ -426,7 +426,7 @@ func TestRuntimeWrapping(t *testing.T) {
 	for name := range cfg.Runtimes {
 		_, opts, err := rt.Get(name)
 		if assert.Check(t, err, "rt.Get(%q)", name) {
-			binary := opts.(*v2runcoptions.Options).BinaryName
+			binary := opts.(*runcoptions.Options).BinaryName
 			content, err := os.ReadFile(binary)
 			assert.Check(t, err, "could not read wrapper script contents for runtime %q", binary)
 			wrappers[name] = WrapperInfo{BinaryName: binary, Content: string(content)}

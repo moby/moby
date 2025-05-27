@@ -23,22 +23,11 @@ import (
 	"testing"
 )
 
-func makeTmpDir(prefix string) (string, error) {
-	tmpDir, err := os.MkdirTemp("", prefix)
-	if err != nil {
-		return "", err
-	}
-	return tmpDir, nil
-}
-
 func makeFakeCNIConfig(t *testing.T) (string, string) {
-	cniDir, err := makeTmpDir("fakecni")
-	if err != nil {
-		t.Fatalf("Failed to create plugin config dir: %v", err)
-	}
+	cniDir := t.TempDir()
 
 	cniConfDir := path.Join(cniDir, "net.d")
-	err = os.MkdirAll(cniConfDir, 0777)
+	err := os.MkdirAll(cniConfDir, 0777)
 	if err != nil {
 		t.Fatalf("Failed to create network config dir: %v", err)
 	}
@@ -69,9 +58,60 @@ func makeFakeCNIConfig(t *testing.T) (string, string) {
 	return cniDir, cniConfDir
 }
 
-func tearDownCNIConfig(t *testing.T, confDir string) {
-	err := os.RemoveAll(confDir)
+func buildFakeConfig(t *testing.T) (string, string) {
+	conf := `
+	{
+	"cniVersion": "1.1.0",
+	"name": "containerd-net",
+	"plugins": [
+		{
+		"type": "bridge",
+		"bridge": "cni0",
+		"isGateway": true,
+		"ipMasq": true,
+		"promiscMode": true,
+		"ipam": {
+			"type": "host-ipam",
+			"ranges": [
+			[{
+				"subnet": "10.88.0.0/16"
+			}],
+			[{
+				"subnet": "2001:4860:4860::/64"
+			}]
+			],
+			"routes": [
+			{ "dst": "0.0.0.0/0" },
+			{ "dst": "::/0" }
+			]
+		}
+		},
+		{
+		"type": "portmap",
+		"capabilities": {"portMappings": true}
+		}
+	]
+	}`
+
+	cniDir := t.TempDir()
+
+	cniConfDir := path.Join(cniDir, "net.d")
+	err := os.MkdirAll(cniConfDir, 0777)
 	if err != nil {
-		t.Fatalf("Failed to cleanup CNI configs: %v", err)
+		t.Fatalf("Failed to create network config dir: %v", err)
 	}
+
+	networkConfig1 := path.Join(cniConfDir, "mocknetwork1.conflist")
+	f1, err := os.Create(networkConfig1)
+	if err != nil {
+		t.Fatalf("Failed to create network config %v: %v", f1, err)
+	}
+
+	_, err = f1.WriteString(conf)
+	if err != nil {
+		t.Fatalf("Failed to write network config file %v: %v", f1, err)
+	}
+	f1.Close()
+
+	return cniDir, cniConfDir
 }

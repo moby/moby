@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+func UnaryServerInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 	resp, err = handler(ctx, req)
 	oldErr := err
 	if err != nil {
@@ -29,7 +29,7 @@ func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.Una
 	return resp, err
 }
 
-func StreamServerInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+func StreamServerInterceptor(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	err := ToGRPC(ss.Context(), handler(srv, ss))
 	if err != nil {
 		stack.Helper()
@@ -37,7 +37,7 @@ func StreamServerInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.S
 	return err
 }
 
-func UnaryClientInterceptor(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+func UnaryClientInterceptor(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 	err := FromGRPC(invoker(ctx, method, req, reply, cc, opts...))
 	if err != nil {
 		stack.Helper()

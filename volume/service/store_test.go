@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"strings"
 	"testing"
 
@@ -85,15 +84,12 @@ func TestRemove(t *testing.T) {
 func TestList(t *testing.T) {
 	t.Parallel()
 
-	dir, err := os.MkdirTemp("", "test-list")
-	assert.NilError(t, err)
-	defer os.RemoveAll(dir)
-
 	drivers := volumedrivers.NewStore(nil)
 	drivers.Register(volumetestutils.NewFakeDriver("fake"), "fake")
 	drivers.Register(volumetestutils.NewFakeDriver("fake2"), "fake2")
 
-	s, err := NewStore(dir, drivers)
+	tmpDir := t.TempDir()
+	s, err := NewStore(tmpDir, drivers)
 	assert.NilError(t, err)
 
 	ctx := context.Background()
@@ -116,7 +112,7 @@ func TestList(t *testing.T) {
 	}
 
 	// and again with a new store
-	s, err = NewStore(dir, drivers)
+	s, err = NewStore(tmpDir, drivers)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,21 +363,12 @@ var cmpVolume = cmp.AllowUnexported(volumetestutils.FakeVolume{}, volumeWrapper{
 func setupTest(t *testing.T) (*VolumeStore, func()) {
 	t.Helper()
 
-	dirName := strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_")
-	dir, err := os.MkdirTemp("", dirName)
-	assert.NilError(t, err)
-
-	cleanup := func() {
-		t.Helper()
-		err := os.RemoveAll(dir)
-		assert.Check(t, err)
-	}
+	dir := t.TempDir()
 
 	s, err := NewStore(dir, volumedrivers.NewStore(nil))
 	assert.NilError(t, err)
 	return s, func() {
-		s.Shutdown()
-		cleanup()
+		assert.Check(t, s.Shutdown())
 	}
 }
 

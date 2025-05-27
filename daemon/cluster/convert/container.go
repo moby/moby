@@ -579,7 +579,7 @@ func tmpfsOptionsToGRPC(options [][]string) string {
 
 	// Marshalling json can create an error, but only in specific cases which
 	// are not relevant. We can ignore the possibility.
-	jsonBytes, _ := json.Marshal(options)
+	jsonBytes, _ := json.Marshal(options) //nolint:errchkjson // ignoring errors, as described above
 	return string(jsonBytes)
 }
 

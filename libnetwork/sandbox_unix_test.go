@@ -22,6 +22,7 @@ import (
 func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []*Network) {
 	const netType = "bridge"
 	c, err := New(
+		context.Background(),
 		config.OptionDataDir(t.TempDir()),
 		config.OptionDriverConfig(netType, map[string]any{
 			netlabel.GenericData: options.Generic{"EnableIPForwarding": true},
@@ -48,7 +49,7 @@ func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []*Network)
 			}),
 		}
 		newOptions = append(newOptions, opt...)
-		n, err := c.NewNetwork(netType, name, "", newOptions...)
+		n, err := c.NewNetwork(context.Background(), netType, name, "", newOptions...)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -64,14 +65,15 @@ func TestControllerGetSandbox(t *testing.T) {
 	t.Run("invalid id", func(t *testing.T) {
 		const cID = ""
 		sb, err := ctrlr.GetSandbox(cID)
-		_, ok := err.(ErrInvalidID)
-		assert.Check(t, ok, "expected ErrInvalidID, got %[1]v (%[1]T)", err)
+		assert.Check(t, errdefs.IsInvalidParameter(err), "expected a ErrInvalidParameter, got %[1]v (%[1]T)", err)
+		assert.Check(t, is.Error(err, "invalid id: id is empty"))
 		assert.Check(t, is.Nil(sb))
 	})
 	t.Run("not found", func(t *testing.T) {
 		const cID = "container-id-with-no-sandbox"
 		sb, err := ctrlr.GetSandbox(cID)
-		assert.Check(t, errdefs.IsNotFound(err), "expected  a ErrNotFound, got %[1]v (%[1]T)", err)
+		assert.Check(t, errdefs.IsNotFound(err), "expected a ErrNotFound, got %[1]v (%[1]T)", err)
+		assert.Check(t, is.Error(err, "network sandbox for container container-id-with-no-sandbox not found"))
 		assert.Check(t, is.Nil(sb))
 	})
 	t.Run("existing sandbox", func(t *testing.T) {
@@ -90,7 +92,8 @@ func TestControllerGetSandbox(t *testing.T) {
 		assert.Check(t, err)
 
 		sb, err = ctrlr.GetSandbox(cID)
-		assert.Check(t, errdefs.IsNotFound(err), "expected  a ErrNotFound, got %[1]v (%[1]T)", err)
+		assert.Check(t, errdefs.IsNotFound(err), "expected a ErrNotFound, got %[1]v (%[1]T)", err)
+		assert.Check(t, is.Error(err, "network sandbox for container test-container-id not found"))
 		assert.Check(t, is.Nil(sb))
 	})
 }

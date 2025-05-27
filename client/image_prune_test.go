@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
 
 	"github.com/docker/docker/api/types/filters"
 	"gotest.tools/v3/assert"
@@ -25,7 +25,7 @@ func TestImagesPruneError(t *testing.T) {
 	}
 
 	_, err := client.ImagesPrune(context.Background(), filters.NewArgs())
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImagesPrune(t *testing.T) {
@@ -106,7 +106,7 @@ func TestImagesPrune(t *testing.T) {
 		}
 
 		report, err := client.ImagesPrune(context.Background(), listCase.filters)
-		assert.Check(t, err)
+		assert.NilError(t, err)
 		assert.Check(t, is.Len(report.ImagesDeleted, 2))
 		assert.Check(t, is.Equal(uint64(9999), report.SpaceReclaimed))
 	}

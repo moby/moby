@@ -3,7 +3,6 @@ package cluster // import "github.com/docker/docker/daemon/cluster"
 import (
 	"context"
 
-	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
@@ -12,7 +11,7 @@ import (
 )
 
 // GetTasks returns a list of tasks matching the filter options.
-func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, error) {
+func (c *Cluster) GetTasks(options types.TaskListOptions) ([]types.Task, error) {
 	var r *swarmapi.ListTasksResponse
 
 	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,7 +22,7 @@ func TestNetworkCreateError(t *testing.T) {
 	}
 
 	_, err := client.NetworkCreate(context.Background(), "mynetwork", network.CreateOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 // TestNetworkCreateConnectionError verifies that connection errors occurring
@@ -73,13 +73,7 @@ func TestNetworkCreate(t *testing.T) {
 			"opt-key": "opt-value",
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if networkResponse.ID != "network_id" {
-		t.Fatalf("expected networkResponse.ID to be 'network_id', got %s", networkResponse.ID)
-	}
-	if networkResponse.Warning != "warning" {
-		t.Fatalf("expected networkResponse.Warning to be 'warning', got %s", networkResponse.Warning)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(networkResponse.ID, "network_id"))
+	assert.Check(t, is.Equal(networkResponse.Warning, "warning"))
 }

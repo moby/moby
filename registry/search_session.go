@@ -6,6 +6,7 @@ import (
 	_ "crypto/sha512"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -14,8 +15,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/pkg/errors"
 )
 
@@ -26,8 +25,8 @@ type session struct {
 }
 
 type authTransport struct {
-	http.RoundTripper
-	*registry.AuthConfig
+	base       http.RoundTripper
+	authConfig *registry.AuthConfig
 
 	alwaysSetBasicAuth bool
 	token              []string
@@ -54,8 +53,8 @@ func newAuthTransport(base http.RoundTripper, authConfig *registry.AuthConfig, a
 		base = http.DefaultTransport
 	}
 	return &authTransport{
-		RoundTripper:       base,
-		AuthConfig:         authConfig,
+		base:               base,
+		authConfig:         authConfig,
 		alwaysSetBasicAuth: alwaysSetBasicAuth,
 		modReq:             make(map[*http.Request]*http.Request),
 	}
@@ -76,6 +75,35 @@ func cloneRequest(r *http.Request) *http.Request {
 	return r2
 }
 
+// onEOFReader wraps an io.ReadCloser and a function
+// the function will run at the end of file or close the file.
+type onEOFReader struct {
+	Rc io.ReadCloser
+	Fn func()
+}
+
+func (r *onEOFReader) Read(p []byte) (int, error) {
+	n, err := r.Rc.Read(p)
+	if err == io.EOF {
+		r.runFunc()
+	}
+	return n, err
+}
+
+// Close closes the file and run the function.
+func (r *onEOFReader) Close() error {
+	err := r.Rc.Close()
+	r.runFunc()
+	return err
+}
+
+func (r *onEOFReader) runFunc() {
+	if fn := r.Fn; fn != nil {
+		fn()
+		r.Fn = nil
+	}
+}
+
 // RoundTrip changes an HTTP request's headers to add the necessary
 // authentication-related headers
 func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
@@ -85,7 +113,7 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	// a 302 redirect is detected by looking at the Referrer header as go http package adds said header.
 	// This is safe as Docker doesn't set Referrer in other scenarios.
 	if orig.Header.Get("Referer") != "" && !trustedLocation(orig) {
-		return tr.RoundTripper.RoundTrip(orig)
+		return tr.base.RoundTrip(orig)
 	}
 
 	req := cloneRequest(orig)
@@ -94,22 +122,22 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	tr.mu.Unlock()
 
 	if tr.alwaysSetBasicAuth {
-		if tr.AuthConfig == nil {
+		if tr.authConfig == nil {
 			return nil, errors.New("unexpected error: empty auth config")
 		}
-		req.SetBasicAuth(tr.Username, tr.Password)
-		return tr.RoundTripper.RoundTrip(req)
+		req.SetBasicAuth(tr.authConfig.Username, tr.authConfig.Password)
+		return tr.base.RoundTrip(req)
 	}
 
 	// Don't override
 	if req.Header.Get("Authorization") == "" {
-		if req.Header.Get("X-Docker-Token") == "true" && tr.AuthConfig != nil && len(tr.Username) > 0 {
-			req.SetBasicAuth(tr.Username, tr.Password)
+		if req.Header.Get("X-Docker-Token") == "true" && tr.authConfig != nil && len(tr.authConfig.Username) > 0 {
+			req.SetBasicAuth(tr.authConfig.Username, tr.authConfig.Password)
 		} else if len(tr.token) > 0 {
 			req.Header.Set("Authorization", "Token "+strings.Join(tr.token, ","))
 		}
 	}
-	resp, err := tr.RoundTripper.RoundTrip(req)
+	resp, err := tr.base.RoundTrip(req)
 	if err != nil {
 		tr.mu.Lock()
 		delete(tr.modReq, orig)
@@ -119,7 +147,7 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	if len(resp.Header["X-Docker-Token"]) > 0 {
 		tr.token = resp.Header["X-Docker-Token"]
 	}
-	resp.Body = &ioutils.OnEOFReader{
+	resp.Body = &onEOFReader{
 		Rc: resp.Body,
 		Fn: func() {
 			tr.mu.Lock()
@@ -135,7 +163,7 @@ func (tr *authTransport) CancelRequest(req *http.Request) {
 	type canceler interface {
 		CancelRequest(*http.Request)
 	}
-	if cr, ok := tr.RoundTripper.(canceler); ok {
+	if cr, ok := tr.base.(canceler); ok {
 		tr.mu.Lock()
 		modReq := tr.modReq[req]
 		delete(tr.modReq, req)
@@ -144,18 +172,18 @@ func (tr *authTransport) CancelRequest(req *http.Request) {
 	}
 }
 
-func authorizeClient(client *http.Client, authConfig *registry.AuthConfig, endpoint *v1Endpoint) error {
+func authorizeClient(ctx context.Context, client *http.Client, authConfig *registry.AuthConfig, endpoint *v1Endpoint) error {
 	var alwaysSetBasicAuth bool
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside all our requests.
 	if endpoint.String() != IndexServer && endpoint.URL.Scheme == "https" {
-		info, err := endpoint.ping()
+		info, err := endpoint.ping(ctx)
 		if err != nil {
 			return err
 		}
 		if info.Standalone && authConfig != nil {
-			log.G(context.TODO()).Debugf("Endpoint %s is eligible for private registry. Enabling decorator.", endpoint.String())
+			log.G(ctx).WithField("endpoint", endpoint.String()).Debug("Endpoint is eligible for private registry; enabling alwaysSetBasicAuth")
 			alwaysSetBasicAuth = true
 		}
 	}
@@ -166,7 +194,7 @@ func authorizeClient(client *http.Client, authConfig *registry.AuthConfig, endpo
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
-		return errdefs.System(errors.New("cookiejar.New is not supposed to return an error"))
+		return systemErr{errors.New("cookiejar.New is not supposed to return an error")}
 	}
 	client.Jar = jar
 
@@ -184,7 +212,7 @@ func newSession(client *http.Client, endpoint *v1Endpoint) *session {
 const defaultSearchLimit = 25
 
 // searchRepositories performs a search against the remote repository
-func (r *session) searchRepositories(term string, limit int) (*registry.SearchResults, error) {
+func (r *session) searchRepositories(ctx context.Context, term string, limit int) (*registry.SearchResults, error) {
 	if limit == 0 {
 		limit = defaultSearchLimit
 	}
@@ -192,9 +220,9 @@ func (r *session) searchRepositories(term string, limit int) (*registry.SearchRe
 		return nil, invalidParamf("limit %d is outside the range of [1, 100]", limit)
 	}
 	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(fmt.Sprintf("%d", limit))
-	log.G(context.TODO()).WithField("url", u).Debug("searchRepositories")
+	log.G(ctx).WithField("url", u).Debug("searchRepositories")
 
-	req, err := http.NewRequest(http.MethodGet, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, invalidParamWrapf(err, "error building request")
 	}
@@ -202,17 +230,18 @@ func (r *session) searchRepositories(term string, limit int) (*registry.SearchRe
 	req.Header.Set("X-Docker-Token", "true")
 	res, err := r.client.Do(req)
 	if err != nil {
-		return nil, errdefs.System(err)
+		return nil, systemErr{err}
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		// TODO(thaJeztah): return upstream response body for errors (see https://github.com/moby/moby/issues/27286).
-		return nil, errdefs.Unknown(fmt.Errorf("Unexpected status code %d", res.StatusCode))
+		// TODO(thaJeztah): handle other status-codes to return correct error-type
+		return nil, errUnknown{fmt.Errorf("Unexpected status code %d", res.StatusCode)}
 	}
 	result := &registry.SearchResults{}
 	err = json.NewDecoder(res.Body).Decode(result)
 	if err != nil {
-		return nil, errdefs.System(errors.Wrap(err, "error decoding registry search results"))
+		return nil, systemErr{errors.Wrap(err, "error decoding registry search results")}
 	}
 	return result, nil
 }

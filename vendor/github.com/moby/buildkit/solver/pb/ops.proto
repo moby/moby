@@ -47,6 +47,7 @@ message ExecOp {
 	NetMode network = 3;
 	SecurityMode security = 4;
 	repeated SecretEnv secretenv = 5;
+	repeated CDIDevice cdiDevices = 6;
 }
 
 // Meta is a set of arguments for ExecOp.
@@ -93,6 +94,15 @@ message SecretEnv {
 	string ID = 1;
 	string name = 2;
 	bool optional = 3;
+}
+
+// CDIDevice specifies a CDI device information.
+message CDIDevice {
+	// Fully qualified CDI device name (e.g., vendor.com/gpu=gpudevice1)
+	// https://github.com/cncf-tags/container-device-interface/blob/main/SPEC.md
+	string name = 1;
+	// Optional defines if CDI device is required.
+	bool optional = 2;
 }
 
 // Mount specifies how to mount an input Op as a filesystem.
@@ -309,6 +319,8 @@ message FileAction {
 		FileActionMkDir mkdir = 6;
 		// FileActionRm removes a file
 		FileActionRm rm = 7;
+		// FileActionSymlink creates a symlink
+		FileActionSymlink symlink = 8;
 	}
 }
 
@@ -356,6 +368,17 @@ message FileActionMkFile {
 	ChownOpt owner = 4;
 	// optional created time override
 	int64 timestamp = 5;
+}
+
+message FileActionSymlink {
+	// destination path for the new file representing the link
+	string oldpath = 1;
+	// source path for the link
+	string newpath = 2;
+	// optional owner for the new file
+	ChownOpt owner = 3;
+	// optional created time override
+	int64 timestamp = 4;
 }
 
 message FileActionMkDir {

@@ -3,7 +3,7 @@
 package iptables
 
 import (
-	"net"
+	"net/netip"
 	"strconv"
 	"testing"
 
@@ -49,8 +49,8 @@ func TestReloaded(t *testing.T) {
 	defer iptable.Raw("-D", "FORWARD", "-j", "FWD")
 
 	// copy-pasted from iptables_test:TestLink
-	ip1 := net.ParseIP("192.168.1.1")
-	ip2 := net.ParseIP("192.168.1.2")
+	ip1 := netip.MustParseAddr("192.168.1.1")
+	ip2 := netip.MustParseAddr("192.168.1.2")
 	const port = 1234
 	const proto = "tcp"
 
@@ -90,17 +90,30 @@ func TestReloaded(t *testing.T) {
 func TestPassthrough(t *testing.T) {
 	skipIfNoFirewalld(t)
 	rule1 := []string{
+		"-A", "INPUT",
 		"-i", "lo",
 		"-p", "udp",
 		"--dport", "123",
 		"-j", "ACCEPT",
 	}
 
-	_, err := passthrough(IPv4, append([]string{"-A"}, rule1...)...)
+	err := firewalldInit()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !GetIptable(IPv4).Exists(Filter, "INPUT", rule1...) {
+	_, err = passthrough(IPv4, rule1...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !GetIptable(IPv4).Exists(Filter, rule1[1], rule1[2:]...) {
 		t.Fatal("rule1 does not exist")
+	}
+	rule1[0] = "-D"
+	_, err = passthrough(IPv4, rule1...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if GetIptable(IPv4).Exists(Filter, rule1[1], rule1[2:]...) {
+		t.Fatal("rule1 still exists")
 	}
 }

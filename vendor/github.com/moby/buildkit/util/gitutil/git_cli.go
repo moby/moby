@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -120,7 +121,7 @@ func NewGitCLI(opts ...Option) *GitCLI {
 // with the given options applied on top.
 func (cli *GitCLI) New(opts ...Option) *GitCLI {
 	clone := *cli
-	clone.args = append([]string{}, cli.args...)
+	clone.args = slices.Clone(cli.args)
 
 	for _, opt := range opts {
 		opt(&clone)
@@ -133,6 +134,10 @@ func (cli *GitCLI) Run(ctx context.Context, args ...string) (_ []byte, err error
 	gitBinary := "git"
 	if cli.git != "" {
 		gitBinary = cli.git
+	}
+	proxyEnvVars := [...]string{
+		"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "ALL_PROXY",
+		"http_proxy", "https_proxy", "no_proxy", "all_proxy",
 	}
 
 	for {
@@ -189,6 +194,11 @@ func (cli *GitCLI) Run(ctx context.Context, args ...string) (_ []byte, err error
 			"GIT_CONFIG_NOSYSTEM=1", // Disable reading from system gitconfig.
 			"HOME=/dev/null",        // Disable reading from user gitconfig.
 			"LC_ALL=C",              // Ensure consistent output.
+		}
+		for _, ev := range proxyEnvVars {
+			if v, ok := os.LookupEnv(ev); ok {
+				cmd.Env = append(cmd.Env, ev+"="+v)
+			}
 		}
 		if cli.sshAuthSock != "" {
 			cmd.Env = append(cmd.Env, "SSH_AUTH_SOCK="+cli.sshAuthSock)

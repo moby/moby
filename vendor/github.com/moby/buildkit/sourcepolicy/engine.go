@@ -74,6 +74,7 @@ func (e *Engine) Evaluate(ctx context.Context, op *pb.SourceOp) (bool, error) {
 			return mutated, errors.Wrapf(ErrTooManyOps, "too many mutations on a single source")
 		}
 
+		ctx := ctx
 		if i == 0 {
 			ctx = bklog.WithLogger(ctx, bklog.G(ctx).WithField("orig", op))
 		} else {

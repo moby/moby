@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"compress/gzip"
 	"context"
 	"os"
@@ -66,7 +65,7 @@ func (s *DockerCLIImportSuite) TestImportFile(c *testing.T) {
 
 	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "export", "test-import"},
-		Stdout:  bufio.NewWriter(temporaryFile),
+		Stdout:  temporaryFile,
 	}).Assert(c, icmd.Success)
 
 	out := cli.DockerCmd(c, "import", temporaryFile.Name()).Combined()
@@ -110,7 +109,7 @@ func (s *DockerCLIImportSuite) TestImportFileWithMessage(c *testing.T) {
 
 	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "export", "test-import"},
-		Stdout:  bufio.NewWriter(temporaryFile),
+		Stdout:  temporaryFile,
 	}).Assert(c, icmd.Success)
 
 	message := "Testing commit message"
@@ -144,7 +143,7 @@ func (s *DockerCLIImportSuite) TestImportWithQuotedChanges(c *testing.T) {
 	assert.Assert(c, err == nil, "failed to create temporary file")
 	defer os.Remove(temporaryFile.Name())
 
-	cli.Docker(cli.Args("export", "test-import"), cli.WithStdout(bufio.NewWriter(temporaryFile))).Assert(c, icmd.Success)
+	cli.Docker(cli.Args("export", "test-import"), cli.WithStdout(temporaryFile)).Assert(c, icmd.Success)
 
 	result := cli.DockerCmd(c, "import", "-c", `ENTRYPOINT ["/bin/sh", "-c"]`, temporaryFile.Name())
 	imgRef := strings.TrimSpace(result.Stdout())

@@ -144,7 +144,7 @@ func (s *DockerCLIStartSuite) TestStartMultipleContainers(c *testing.T) {
 	// err shouldn't be nil because start will fail
 	assert.Assert(c, err != nil, "out: %s", out)
 	// output does not correspond to what was expected
-	if !(strings.Contains(out, expOut) || strings.Contains(err.Error(), expErr)) {
+	if !strings.Contains(out, expOut) && !strings.Contains(err.Error(), expErr) {
 		c.Fatalf("Expected out: %v with err: %v  but got out: %v with err: %v", expOut, expErr, out, err)
 	}
 

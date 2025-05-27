@@ -9,14 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/pkg/dialer"
-	"github.com/containerd/containerd/services/server/config"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/cmd/containerd/server/config"
+	"github.com/containerd/containerd/v2/defaults"
+	"github.com/containerd/containerd/v2/pkg/dialer"
 	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/process"
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/pelletier/go-toml"
 	"github.com/pkg/errors"
@@ -93,7 +92,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 		}
 	}
 
-	if err := system.MkdirAll(stateDir, 0o700); err != nil {
+	if err := os.MkdirAll(stateDir, 0o700); err != nil {
 		return nil, err
 	}
 
@@ -281,19 +280,20 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				continue
 			}
 
-			gopts := []grpc.DialOption{
-				grpc.WithTransportCredentials(insecure.NewCredentials()),
-				grpc.WithContextDialer(dialer.ContextDialer),
-				grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
-				grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
-				grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
-				grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),
-			}
-
+			const connTimeout = 60 * time.Second
 			client, err = containerd.New(
 				r.GRPC.Address,
-				containerd.WithTimeout(60*time.Second),
-				containerd.WithDialOpts(gopts),
+				containerd.WithTimeout(connTimeout),
+				containerd.WithDialOpts([]grpc.DialOption{
+					grpc.WithTransportCredentials(insecure.NewCredentials()),
+					grpc.WithContextDialer(dialer.ContextDialer),
+					grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
+					grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),
+					grpc.WithConnectParams(grpc.ConnectParams{
+						// TODO: Remove after https://github.com/containerd/containerd/pull/11508
+						MinConnectTimeout: connTimeout,
+					}),
+				}),
 			)
 			if err != nil {
 				r.logger.WithError(err).Error("failed connecting to containerd")

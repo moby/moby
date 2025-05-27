@@ -6,10 +6,12 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/netutils"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestSetupNewBridge(t *testing.T) {
@@ -42,22 +44,15 @@ func TestSetupNewNonDefaultBridge(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := nlwrap.NewHandle()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 	defer nh.Close()
 
 	config := &networkConfiguration{BridgeName: "test0", DefaultBridge: true}
 	br := &bridgeInterface{nlh: nh}
 
 	err = setupDevice(config, br)
-	if err == nil {
-		t.Fatal(`Expected bridge creation failure with "non default name", succeeded`)
-	}
-
-	if _, ok := err.(NonDefaultBridgeExistError); !ok {
-		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
-	}
+	assert.Check(t, is.Error(err, "bridge device with non default name test0 must be created manually"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
 }
 
 func TestSetupDeviceUp(t *testing.T) {

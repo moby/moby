@@ -10,9 +10,12 @@ import (
 	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/internal/otelutil"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/baggage"
 )
 
 // versionMatcher defines a variable matcher to be parsed by the router
@@ -42,7 +45,10 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc, operation string) ht
 
 		// use intermediate variable to prevent "should not use basic type
 		// string as key in context.WithValue" golint errors
-		ctx := context.WithValue(r.Context(), dockerversion.UAStringKey{}, r.Header.Get("User-Agent"))
+		ua := r.Header.Get("User-Agent")
+		ctx := baggage.ContextWithBaggage(context.WithValue(r.Context(), dockerversion.UAStringKey{}, ua), otelutil.MustNewBaggage(
+			otelutil.MustNewMemberRaw(otelutil.TriggerKey, "api"),
+		))
 
 		r = r.WithContext(ctx)
 		handlerFunc := s.handlerWithGlobalMiddlewares(handler)
@@ -54,12 +60,23 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc, operation string) ht
 
 		if err := handlerFunc(ctx, w, r, vars); err != nil {
 			statusCode := httpstatus.FromError(err)
-			if statusCode >= 500 {
+			if statusCode >= http.StatusInternalServerError {
 				log.G(ctx).Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
 			}
-			_ = httputils.WriteJSON(w, statusCode, &types.ErrorResponse{
-				Message: err.Error(),
-			})
+			// While we no longer support API versions older 1.24 [api.MinSupportedAPIVersion],
+			// a client may try to connect using an older version and expect a plain-text error
+			// instead of a JSON error. This would result in an "API version too old" error
+			// formatted in JSON being printed as-is.
+			//
+			// Let's be nice, and return errors in plain-text to provide a more readable error
+			// to help the user understand the API version they're using is no longer supported.
+			if v := vars["version"]; v != "" && versions.LessThan(v, "1.24") {
+				http.Error(w, err.Error(), statusCode)
+			} else {
+				_ = httputils.WriteJSON(w, statusCode, &types.ErrorResponse{
+					Message: err.Error(),
+				})
+			}
 		}
 	}), operation).ServeHTTP
 }

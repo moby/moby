@@ -9,16 +9,16 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/v2/core/mount"
+	"github.com/containerd/containerd/v2/defaults"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/pkg/idtools"
 	apitypes "github.com/moby/buildkit/api/types"
 	"github.com/moby/buildkit/cache"
 	cacheutil "github.com/moby/buildkit/cache/util"
@@ -48,6 +48,7 @@ import (
 	"github.com/moby/buildkit/worker"
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/sys/signal"
+	"github.com/moby/sys/user"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -62,8 +63,7 @@ import (
 )
 
 const (
-	keySource = "source"
-	keyDevel  = "gateway-devel"
+	keyDevel = "gateway-devel"
 )
 
 func NewGatewayFrontend(workers worker.Infos, allowedRepositories []string) (frontend.Frontend, error) {
@@ -91,8 +91,8 @@ type gatewayFrontend struct {
 func filterPrefix(opts map[string]string, pfx string) map[string]string {
 	m := map[string]string{}
 	for k, v := range opts {
-		if strings.HasPrefix(k, pfx) {
-			m[strings.TrimPrefix(k, pfx)] = v
+		if after, ok := strings.CutPrefix(k, pfx); ok {
+			m[after] = v
 		}
 	}
 	return m
@@ -113,17 +113,15 @@ func (gf *gatewayFrontend) checkSourceIsAllowed(source string) error {
 
 	taglessSource := reference.TrimNamed(sourceRef).Name()
 
-	for _, allowedRepository := range gf.allowedRepositories {
-		if taglessSource == allowedRepository {
-			// Allowed
-			return nil
-		}
+	if slices.Contains(gf.allowedRepositories, taglessSource) {
+		// Allowed
+		return nil
 	}
 	return errors.Errorf("'%s' is not an allowed gateway source", source)
 }
 
 func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.FrontendLLBBridge, exec executor.Executor, opts map[string]string, inputs map[string]*opspb.Definition, sid string, sm *session.Manager) (*frontend.Result, error) {
-	source, ok := opts[keySource]
+	source, ok := opts[frontend.KeySource]
 	if !ok {
 		return nil, errors.Errorf("no source specified for gateway")
 	}
@@ -191,14 +189,22 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 		if err != nil {
 			return nil, err
 		}
-		st, dockerImage, err := dc.NamedContext(ctx, source, dockerui.ContextOpt{
+		nc, err := dc.NamedContext(source, dockerui.ContextOpt{
 			CaptureDigest: &mfstDigest,
 		})
 		if err != nil {
 			return nil, err
 		}
-		if dockerImage != nil {
-			img = *dockerImage
+		var st *llb.State
+		if nc != nil {
+			var dockerImage *dockerspec.DockerOCIImage
+			st, dockerImage, err = nc.Load(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if dockerImage != nil {
+				img = *dockerImage
+			}
 		}
 		if st == nil {
 			sourceRef, err := reference.ParseNormalizedNamed(source)
@@ -404,7 +410,7 @@ func (b *bindMount) Mount() ([]mount.Mount, func() error, error) {
 	}}, func() error { return nil }, nil
 }
 
-func (b *bindMount) IdentityMapping() *idtools.IdentityMapping {
+func (b *bindMount) IdentityMapping() *user.IdentityMapping {
 	return nil
 }
 
@@ -884,10 +890,18 @@ func (lbf *llbBridgeForwarder) Solve(ctx context.Context, req *pb.SolveRequest) 
 func (lbf *llbBridgeForwarder) getImmutableRef(ctx context.Context, id string) (cache.ImmutableRef, error) {
 	lbf.mu.Lock()
 	ref, ok := lbf.refs[id]
-	lbf.mu.Unlock()
 	if !ok {
-		return nil, errors.Errorf("no such ref: %s", id)
+		if lbf.result != nil {
+			if r, ok := lbf.result.FindRef(id); ok {
+				ref = r
+			}
+		}
+		if ref == nil {
+			lbf.mu.Unlock()
+			return nil, errors.Errorf("no such ref: %s, all %+v", id, maps.Keys(lbf.refs))
+		}
 	}
+	lbf.mu.Unlock()
 	if ref == nil {
 		return nil, errors.Errorf("empty ref: %s", id)
 	}
@@ -1558,7 +1572,7 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 						}()
 						dest := &outputWriter{
 							stream:    srv,
-							fd:        uint32(fd),
+							fd:        fd,
 							processID: pid,
 						}
 						_, err := io.Copy(dest, file)
@@ -1572,7 +1586,7 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 							ProcessID: pid,
 							Input: &pb.ExecMessage_File{
 								File: &pb.FdMessage{
-									Fd:  uint32(fd),
+									Fd:  fd,
 									EOF: true,
 								},
 							},

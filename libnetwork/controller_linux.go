@@ -4,13 +4,32 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
 )
+
+// FirewallBackend returns the name of the firewall backend for "docker info".
+func (c *Controller) FirewallBackend() *system.FirewallInfo {
+	usingFirewalld, err := iptables.UsingFirewalld()
+	if err != nil {
+		return nil
+	}
+	if usingFirewalld {
+		info := &system.FirewallInfo{Driver: "iptables+firewalld"}
+		reloadedAt := iptables.FirewalldReloadedAt()
+		if !reloadedAt.IsZero() {
+			info.Info = append(info.Info, [2]string{"ReloadedAt", reloadedAt.Format(time.RFC3339)})
+		}
+		return info
+	}
+	return &system.FirewallInfo{Driver: "iptables"}
+}
 
 // enabledIptablesVersions returns the iptables versions that are enabled
 // for the controller.

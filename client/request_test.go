@@ -3,6 +3,7 @@ package client // import "github.com/docker/docker/client"
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
@@ -11,8 +12,9 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -51,7 +53,7 @@ func TestSetHostHeader(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.host, func(t *testing.T) {
 			hostURL, err := ParseHostURL(tc.host)
-			assert.Check(t, err)
+			assert.NilError(t, err)
 
 			client := &Client{
 				client: newMockClient(func(req *http.Request) (*http.Response, error) {
@@ -76,7 +78,7 @@ func TestSetHostHeader(t *testing.T) {
 			}
 
 			_, err = client.sendRequest(context.Background(), http.MethodGet, testEndpoint, nil, nil, nil)
-			assert.Check(t, err)
+			assert.NilError(t, err)
 		})
 	}
 }
@@ -89,7 +91,139 @@ func TestPlainTextError(t *testing.T) {
 		client: newMockClient(plainTextErrorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerList(context.Background(), container.ListOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
+}
+
+// TestResponseErrors tests handling of error responses returned by the API.
+// It includes test-cases for malformed and invalid error-responses, as well
+// as plain text errors for backwards compatibility with API versions <1.24.
+func TestResponseErrors(t *testing.T) {
+	errorResponse, err := json.Marshal(&types.ErrorResponse{
+		Message: "Some error occurred",
+	})
+	assert.NilError(t, err)
+
+	tests := []struct {
+		doc         string
+		apiVersion  string
+		contentType string
+		response    string
+		expected    string
+	}{
+		{
+			// Valid (types.ErrorResponse) error, but not using a fixture, to validate current implementation..
+			doc:         "JSON error (non-fixture)",
+			contentType: "application/json",
+			response:    string(errorResponse),
+			expected:    `Error response from daemon: Some error occurred`,
+		},
+		{
+			// Valid (types.ErrorResponse) error.
+			doc:         "JSON error",
+			contentType: "application/json",
+			response:    `{"message":"Some error occurred"}`,
+			expected:    `Error response from daemon: Some error occurred`,
+		},
+		{
+			// Valid (types.ErrorResponse) error with additional fields.
+			doc:         "JSON error with extra fields",
+			contentType: "application/json",
+			response:    `{"message":"Some error occurred", "other_field": "some other field that's not part of types.ErrorResponse"}`,
+			expected:    `Error response from daemon: Some error occurred`,
+		},
+		{
+			// API versions before 1.24 did not support JSON errors. Technically,
+			// we no longer downgrade to older API versions, but we make an
+			// exception for errors so that older clients would print a more
+			// readable error.
+			doc:         "JSON error on old API",
+			apiVersion:  "1.23",
+			contentType: "text/plain; charset=utf-8",
+			response:    `client version 1.10 is too old. Minimum supported API version is 1.24, please upgrade your client to a newer version`,
+			expected:    `Error response from daemon: client version 1.10 is too old. Minimum supported API version is 1.24, please upgrade your client to a newer version`,
+		},
+		{
+			doc:         "plain-text error",
+			contentType: "text/plain",
+			response:    `Some error occurred`,
+			expected:    `Error response from daemon: Some error occurred`,
+		},
+		{
+			// TODO(thaJeztah): consider returning (partial) raw response for these
+			doc:         "malformed JSON",
+			contentType: "application/json",
+			response:    `{"message":"Some error occurred`,
+			expected:    `Error reading JSON: unexpected end of JSON input`,
+		},
+		{
+			// Server response that's valid JSON, but not the expected (types.ErrorResponse) scheme
+			doc:         "incorrect JSON scheme",
+			contentType: "application/json",
+			response:    `{"error":"Some error occurred"}`,
+			expected:    `Error response from daemon: API returned a 400 (Bad Request) but provided no error-message`,
+		},
+		{
+			// TODO(thaJeztah): improve handling of such errors; we can return the generic "502 Bad Gateway" instead
+			doc:         "html error",
+			contentType: "text/html",
+			response: `<!doctype html>
+<html lang="en">
+<head>
+  <title>502 Bad Gateway</title>
+</head>
+<body>
+  <h1>Bad Gateway</h1>
+  <p>The server was unable to complete your request. Please try again later.</p>
+  <p>If this problem persists, please <a href="https://example.com/support">contact support</a>.</p>
+</body>
+</html>`,
+			expected: `Error response from daemon: <!doctype html>
+<html lang="en">
+<head>
+  <title>502 Bad Gateway</title>
+</head>
+<body>
+  <h1>Bad Gateway</h1>
+  <p>The server was unable to complete your request. Please try again later.</p>
+  <p>If this problem persists, please <a href="https://example.com/support">contact support</a>.</p>
+</body>
+</html>`,
+		},
+		{
+			// TODO(thaJeztah): improve handling of these errors (JSON: invalid character '<' looking for beginning of value)
+			doc:         "html error masquerading as JSON",
+			contentType: "application/json",
+			response: `<!doctype html>
+<html lang="en">
+<head>
+  <title>502 Bad Gateway</title>
+</head>
+<body>
+  <h1>Bad Gateway</h1>
+  <p>The server was unable to complete your request. Please try again later.</p>
+  <p>If this problem persists, please <a href="https://example.com/support">contact support</a>.</p>
+</body>
+</html>`,
+			expected: `Error reading JSON: invalid character '<' looking for beginning of value`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			client := &Client{
+				version: tc.apiVersion,
+				client: newMockClient(func(req *http.Request) (*http.Response, error) {
+					return &http.Response{
+						StatusCode: http.StatusBadRequest,
+						Header:     http.Header{"Content-Type": []string{tc.contentType}},
+						Body:       io.NopCloser(bytes.NewReader([]byte(tc.response))),
+					}, nil
+				}),
+			}
+			_, err := client.Ping(context.Background())
+			assert.Check(t, is.Error(err, tc.expected))
+			assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+		})
+	}
 }
 
 func TestInfiniteError(t *testing.T) {
@@ -106,6 +240,7 @@ func TestInfiniteError(t *testing.T) {
 	}
 
 	_, err := client.Ping(context.Background())
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 	assert.Check(t, is.ErrorContains(err, "request returned Internal Server Error"))
 }
 
@@ -123,7 +258,6 @@ func TestCanceledContext(t *testing.T) {
 	cancel()
 
 	_, err := client.sendRequest(ctx, http.MethodGet, testEndpoint, nil, nil, nil)
-	assert.Check(t, is.ErrorType(err, errdefs.IsCancelled))
 	assert.Check(t, is.ErrorIs(err, context.Canceled))
 }
 
@@ -143,6 +277,5 @@ func TestDeadlineExceededContext(t *testing.T) {
 	<-ctx.Done()
 
 	_, err := client.sendRequest(ctx, http.MethodGet, testEndpoint, nil, nil, nil)
-	assert.Check(t, is.ErrorType(err, errdefs.IsDeadline))
 	assert.Check(t, is.ErrorIs(err, context.DeadlineExceeded))
 }

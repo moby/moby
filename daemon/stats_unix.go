@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -44,8 +45,9 @@ func (daemon *Daemon) stats(c *container.Container) (*containertypes.StatsRespon
 		}
 		return nil, err
 	}
-	s := &containertypes.StatsResponse{}
-	s.Read = cs.Read
+	s := &containertypes.StatsResponse{
+		Read: cs.Read,
+	}
 	stats := cs.Metrics
 	switch t := stats.(type) {
 	case *statsV1.Metrics:
@@ -310,26 +312,38 @@ const (
 	nanoSecondsPerSecond = 1e9
 )
 
-// getSystemCPUUsage returns the host system's cpu usage in
-// nanoseconds and number of online CPUs. An error is returned
-// if the format of the underlying file does not match.
-//
-// Uses /proc/stat defined by POSIX. Looks for the cpu
-// statistics line and then sums up the first seven fields
-// provided. See `man 5 proc` for details on specific field
-// information.
-func getSystemCPUUsage() (cpuUsage uint64, cpuNum uint32, err error) {
+// getSystemCPUUsage reads the system's CPU usage from /proc/stat and returns
+// the total CPU usage in nanoseconds and the number of CPUs.
+func getSystemCPUUsage() (cpuUsage uint64, cpuNum uint32, _ error) {
 	f, err := os.Open("/proc/stat")
 	if err != nil {
 		return 0, 0, err
 	}
 	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if len(line) < 4 || line[:3] != "cpu" {
-			break // Assume all cpu* records are at the front, like glibc https://github.com/bminor/glibc/blob/5d00c201b9a2da768a79ea8d5311f257871c0b43/sysdeps/unix/sysv/linux/getsysstats.c#L108-L135
+	return readSystemCPUUsage(f)
+}
+
+// readSystemCPUUsage parses CPU usage information from a reader providing
+// /proc/stat format data. It returns the total CPU usage in nanoseconds
+// and the number of CPUs.
+func readSystemCPUUsage(r io.Reader) (cpuUsage uint64, cpuNum uint32, _ error) {
+	rdr := bufio.NewReaderSize(r, 1024)
+
+	for {
+		data, isPartial, err := rdr.ReadLine()
+
+		if err != nil {
+			return 0, 0, fmt.Errorf("error scanning /proc/stat file: %w", err)
+		}
+		// Assume all cpu* records are at the start of the file, like glibc:
+		// https://github.com/bminor/glibc/blob/5d00c201b9a2da768a79ea8d5311f257871c0b43/sysdeps/unix/sysv/linux/getsysstats.c#L108-L135
+		if isPartial || len(data) < 4 {
+			break
+		}
+		line := string(data)
+		if line[:3] != "cpu" {
+			break
 		}
 		if line[3] == ' ' {
 			parts := strings.Fields(line)
@@ -340,20 +354,15 @@ func getSystemCPUUsage() (cpuUsage uint64, cpuNum uint32, err error) {
 			for _, i := range parts[1:8] {
 				v, err := strconv.ParseUint(i, 10, 64)
 				if err != nil {
-					return 0, 0, fmt.Errorf("Unable to convert value %s to int: %w", i, err)
+					return 0, 0, fmt.Errorf("unable to convert value %s to int: %w", i, err)
 				}
 				totalClockTicks += v
 			}
-			cpuUsage = (totalClockTicks * nanoSecondsPerSecond) /
-				clockTicksPerSecond
+			cpuUsage = (totalClockTicks * nanoSecondsPerSecond) / clockTicksPerSecond
 		}
 		if '0' <= line[3] && line[3] <= '9' {
 			cpuNum++
 		}
 	}
-
-	if err := scanner.Err(); err != nil {
-		return 0, 0, fmt.Errorf("error scanning '/proc/stat' file: %w", err)
-	}
-	return
+	return cpuUsage, cpuNum, nil
 }

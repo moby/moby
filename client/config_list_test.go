@@ -10,10 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -23,7 +22,7 @@ func TestConfigListUnsupported(t *testing.T) {
 		version: "1.29",
 		client:  &http.Client{},
 	}
-	_, err := client.ConfigList(context.Background(), types.ConfigListOptions{})
+	_, err := client.ConfigList(context.Background(), swarm.ConfigListOptions{})
 	assert.Check(t, is.Error(err, `"config list" requires API version 1.30, but the Docker daemon API version is 1.29`))
 }
 
@@ -33,25 +32,25 @@ func TestConfigListError(t *testing.T) {
 		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.ConfigList(context.Background(), types.ConfigListOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	_, err := client.ConfigList(context.Background(), swarm.ConfigListOptions{})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestConfigList(t *testing.T) {
 	expectedURL := "/v1.30/configs"
 
 	listCases := []struct {
-		options             types.ConfigListOptions
+		options             swarm.ConfigListOptions
 		expectedQueryParams map[string]string
 	}{
 		{
-			options: types.ConfigListOptions{},
+			options: swarm.ConfigListOptions{},
 			expectedQueryParams: map[string]string{
 				"filters": "",
 			},
 		},
 		{
-			options: types.ConfigListOptions{
+			options: swarm.ConfigListOptions{
 				Filters: filters.NewArgs(
 					filters.Arg("label", "label1"),
 					filters.Arg("label", "label2"),
@@ -95,11 +94,7 @@ func TestConfigList(t *testing.T) {
 		}
 
 		configs, err := client.ConfigList(context.Background(), listCase.options)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(configs) != 2 {
-			t.Fatalf("expected 2 configs, got %v", configs)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(configs, 2))
 	}
 }

@@ -1,5 +1,5 @@
-//go:build !linux && !darwin && !freebsd && !dragonfly && !netbsd && !openbsd && !solaris
-// +build !linux,!darwin,!freebsd,!dragonfly,!netbsd,!openbsd,!solaris
+//go:build !linux && !darwin && !freebsd && !dragonfly && !netbsd && !openbsd && !solaris && !zos
+// +build !linux,!darwin,!freebsd,!dragonfly,!netbsd,!openbsd,!solaris,!zos
 
 package pty
 

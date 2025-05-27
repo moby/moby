@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -24,14 +24,10 @@ func TestImagePushReferenceError(t *testing.T) {
 	}
 	// An empty reference is an invalid reference
 	_, err := client.ImagePush(context.Background(), "", image.PushOptions{})
-	if err == nil || !strings.Contains(err.Error(), "invalid reference format") {
-		t.Fatalf("expected an error, got %v", err)
-	}
+	assert.Check(t, is.ErrorContains(err, "invalid reference format"))
 	// An canonical reference cannot be pushed
 	_, err = client.ImagePush(context.Background(), "repo@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", image.PushOptions{})
-	if err == nil || err.Error() != "cannot push a digest reference" {
-		t.Fatalf("expected an error, got %v", err)
-	}
+	assert.Check(t, is.Error(err, "cannot push a digest reference"))
 }
 
 func TestImagePushAnyError(t *testing.T) {
@@ -39,7 +35,7 @@ func TestImagePushAnyError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImagePushStatusUnauthorizedError(t *testing.T) {
@@ -47,7 +43,7 @@ func TestImagePushStatusUnauthorizedError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsUnauthorized))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnauthorized))
 }
 
 func TestImagePushWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
@@ -60,9 +56,7 @@ func TestImagePushWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
-	if err == nil || err.Error() != "Error requesting privilege" {
-		t.Fatalf("expected an error requesting privilege, got %v", err)
-	}
+	assert.Check(t, is.Error(err, "Error requesting privilege"))
 }
 
 func TestImagePushWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T) {
@@ -75,11 +69,11 @@ func TestImagePushWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T)
 	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
-	assert.Check(t, is.ErrorType(err, errdefs.IsUnauthorized))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnauthorized))
 }
 
 func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
-	expectedURL := "/images/myimage/push"
+	const expectedURL = "/images/docker.io/myname/myimage/push"
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
@@ -109,25 +103,21 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 	privilegeFunc := func(_ context.Context) (string, error) {
 		return "IAmValid", nil
 	}
-	resp, err := client.ImagePush(context.Background(), "myimage:tag", image.PushOptions{
+	resp, err := client.ImagePush(context.Background(), "myname/myimage:tag", image.PushOptions{
 		RegistryAuth:  "NotValid",
 		PrivilegeFunc: privilegeFunc,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 	body, err := io.ReadAll(resp)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(body) != "hello world" {
-		t.Fatalf("expected 'hello world', got %s", string(body))
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(string(body), "hello world"))
 }
 
 func TestImagePushWithoutErrors(t *testing.T) {
-	expectedOutput := "hello world"
-	expectedURLFormat := "/images/%s/push"
+	const (
+		expectedURLFormat = "/images/%s/push"
+		expectedOutput    = "hello world"
+	)
 	testCases := []struct {
 		all           bool
 		reference     string
@@ -137,26 +127,51 @@ func TestImagePushWithoutErrors(t *testing.T) {
 		{
 			all:           false,
 			reference:     "myimage",
-			expectedImage: "myimage",
+			expectedImage: "docker.io/library/myimage",
 			expectedTag:   "latest",
 		},
 		{
 			all:           false,
 			reference:     "myimage:tag",
-			expectedImage: "myimage",
+			expectedImage: "docker.io/library/myimage",
 			expectedTag:   "tag",
 		},
 		{
 			all:           true,
 			reference:     "myimage",
-			expectedImage: "myimage",
+			expectedImage: "docker.io/library/myimage",
 			expectedTag:   "",
 		},
 		{
 			all:           true,
 			reference:     "myimage:anything",
-			expectedImage: "myimage",
+			expectedImage: "docker.io/library/myimage",
 			expectedTag:   "",
+		},
+		{
+			reference:     "myname/myimage",
+			expectedImage: "docker.io/myname/myimage",
+			expectedTag:   "latest",
+		},
+		{
+			reference:     "docker.io/myname/myimage",
+			expectedImage: "docker.io/myname/myimage",
+			expectedTag:   "latest",
+		},
+		{
+			reference:     "index.docker.io/myname/myimage:tag",
+			expectedImage: "docker.io/myname/myimage",
+			expectedTag:   "tag",
+		},
+		{
+			reference:     "localhost/myname/myimage",
+			expectedImage: "localhost/myname/myimage",
+			expectedTag:   "latest",
+		},
+		{
+			reference:     "registry.example.com:5000/myimage:tag",
+			expectedImage: "registry.example.com:5000/myimage",
+			expectedTag:   "tag",
 		},
 	}
 	for _, tc := range testCases {
@@ -181,16 +196,10 @@ func TestImagePushWithoutErrors(t *testing.T) {
 			resp, err := client.ImagePush(context.Background(), tc.reference, image.PushOptions{
 				All: tc.all,
 			})
-			if err != nil {
-				t.Fatal(err)
-			}
+			assert.NilError(t, err)
 			body, err := io.ReadAll(resp)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if string(body) != expectedOutput {
-				t.Fatalf("expected '%s', got %s", expectedOutput, string(body))
-			}
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(string(body), expectedOutput))
 		})
 	}
 }

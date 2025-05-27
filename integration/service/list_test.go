@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration/internal/swarm"
@@ -44,7 +43,7 @@ func TestServiceListWithStatuses(t *testing.T) {
 		// tasks to fail and exit. instead, we'll just pass no args, which
 		// works.
 		spec.TaskTemplate.ContainerSpec.Args = []string{}
-		resp, err := client.ServiceCreate(ctx, spec, types.ServiceCreateOptions{
+		resp, err := client.ServiceCreate(ctx, spec, swarmtypes.ServiceCreateOptions{
 			QueryRegistry: false,
 		})
 		assert.NilError(t, err)
@@ -53,7 +52,7 @@ func TestServiceListWithStatuses(t *testing.T) {
 		// serviceContainerCount function does not do. instead, we'll use a
 		// bespoke closure right here.
 		poll.WaitOn(t, func(log poll.LogT) poll.Result {
-			tasks, err := client.TaskList(ctx, types.TaskListOptions{
+			tasks, err := client.TaskList(ctx, swarmtypes.TaskListOptions{
 				Filters: filters.NewArgs(filters.Arg("service", id)),
 			})
 
@@ -79,7 +78,7 @@ func TestServiceListWithStatuses(t *testing.T) {
 	}
 
 	// now, let's do the list operation with no status arg set.
-	resp, err := client.ServiceList(ctx, types.ServiceListOptions{})
+	resp, err := client.ServiceList(ctx, swarmtypes.ServiceListOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(resp, serviceCount))
 	for _, service := range resp {
@@ -87,7 +86,7 @@ func TestServiceListWithStatuses(t *testing.T) {
 	}
 
 	// now try again, but with Status: true. This time, we should have statuses
-	resp, err = client.ServiceList(ctx, types.ServiceListOptions{Status: true})
+	resp, err = client.ServiceList(ctx, swarmtypes.ServiceListOptions{Status: true})
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(resp, serviceCount))
 	for _, service := range resp {

@@ -90,6 +90,9 @@ type Credentials struct {
 	// The time the credentials will expire at. Should be ignored if CanExpire
 	// is false.
 	Expires time.Time
+
+	// The ID of the account for the credentials.
+	AccountID string
 }
 
 // Expired returns if the credentials have expired.

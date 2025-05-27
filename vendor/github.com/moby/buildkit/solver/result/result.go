@@ -110,6 +110,20 @@ func (r *Result[T]) EachRef(fn func(T) error) (err error) {
 	return err
 }
 
+// IsEmpty returns true if this result does not refer to
+// any references.
+func (r *Result[T]) IsEmpty() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if len(r.Refs) > 0 {
+		return false
+	}
+
+	var zero T
+	return r.Ref == zero
+}
+
 // EachRef iterates over references in both a and b.
 // a and b are assumed to be of the same size and map their references
 // to the same set of keys

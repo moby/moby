@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
@@ -29,7 +30,7 @@ type DiskUsageOptions struct {
 type Backend interface {
 	SystemInfo(context.Context) (*system.Info, error)
 	SystemVersion(context.Context) (types.Version, error)
-	SystemDiskUsage(ctx context.Context, opts DiskUsageOptions) (*types.DiskUsage, error)
+	SystemDiskUsage(ctx context.Context, opts DiskUsageOptions) (*system.DiskUsage, error)
 	SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan interface{})
 	UnsubscribeFromEvents(chan interface{})
 	AuthenticateToRegistry(ctx context.Context, authConfig *registry.AuthConfig) (string, string, error)
@@ -39,6 +40,11 @@ type Backend interface {
 // to provide cluster system specific functionality.
 type ClusterBackend interface {
 	Info(context.Context) swarm.Info
+}
+
+// BuildBackend provides build specific system information.
+type BuildBackend interface {
+	DiskUsage(context.Context) ([]*build.CacheRecord, error)
 }
 
 // StatusProvider provides methods to get the swarm status of the current node.

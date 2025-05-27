@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -13,8 +12,8 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/internal/metrics"
 )
 
 const (
@@ -68,18 +67,16 @@ type cmdProbe struct {
 // Returns the exit code and probe output (if any)
 func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container) (*containertypes.HealthcheckResult, error) {
 	startTime := time.Now()
-	cmdSlice := strslice.StrSlice(cntr.Config.Healthcheck.Test)[1:]
+	cmd := cntr.Config.Healthcheck.Test[1:]
 	if p.shell {
-		cmdSlice = append(getShell(cntr), cmdSlice...)
+		cmd = append(getShell(cntr), cmd...)
 	}
-	entrypoint, args := d.getEntrypointAndArgs(strslice.StrSlice{}, cmdSlice)
 	execConfig := container.NewExecConfig(cntr)
 	execConfig.OpenStdin = false
 	execConfig.OpenStdout = true
 	execConfig.OpenStderr = true
 	execConfig.DetachKeys = []byte{}
-	execConfig.Entrypoint = entrypoint
-	execConfig.Args = args
+	execConfig.Entrypoint, execConfig.Args = cmd[0], cmd[1:]
 	execConfig.Tty = false
 	execConfig.Privileged = false
 	execConfig.User = cntr.Config.User
@@ -123,7 +120,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 			return nil, err
 		}
 	case <-execConfig.Started:
-		healthCheckStartDuration.UpdateSince(startTime)
+		metrics.HealthCheckStartDuration.UpdateSince(startTime)
 	}
 
 	if !tm.Stop() {
@@ -290,10 +287,10 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 			ctx, cancelProbe := context.WithCancel(context.Background())
 			results := make(chan *containertypes.HealthcheckResult, 1)
 			go func() {
-				healthChecksCounter.Inc()
+				metrics.HealthChecksCounter.Inc()
 				result, err := probe.run(ctx, d, c)
 				if err != nil {
-					healthChecksFailedCounter.Inc()
+					metrics.HealthChecksFailedCounter.Inc()
 					log.G(ctx).Warnf("Health check for container %s error: %v", c.ID, err)
 					results <- &containertypes.HealthcheckResult{
 						ExitCode: -1,
@@ -454,11 +451,8 @@ func getShell(cntr *container.Container) []string {
 	if len(cntr.Config.Shell) != 0 {
 		return cntr.Config.Shell
 	}
-	if runtime.GOOS != "windows" {
-		return []string{"/bin/sh", "-c"}
+	if cntr.ImagePlatform.OS == "windows" {
+		return []string{"cmd", "/S", "/C"}
 	}
-	if cntr.ImagePlatform.OS != runtime.GOOS {
-		return []string{"/bin/sh", "-c"}
-	}
-	return []string{"cmd", "/S", "/C"}
+	return []string{"/bin/sh", "-c"}
 }

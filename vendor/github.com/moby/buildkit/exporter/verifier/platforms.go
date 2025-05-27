@@ -3,7 +3,7 @@ package verifier
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/containerd/platforms"
@@ -19,12 +19,13 @@ func CheckInvalidPlatforms[T comparable](ctx context.Context, res *result.Result
 		return nil, err
 	}
 
-	if req.Request != "" {
-		return nil, nil
-	}
-
-	if _, ok := res.Metadata[exptypes.ExporterPlatformsKey]; len(res.Refs) > 0 && !ok {
-		return nil, errors.Errorf("build result contains multiple refs without platforms mapping")
+	if _, ok := res.Metadata[exptypes.ExporterPlatformsKey]; !ok {
+		if len(res.Refs) > 0 {
+			return nil, errors.Errorf("build result contains multiple refs without platforms mapping")
+		} else if res.IsEmpty() {
+			// No results and no exporter key. Don't run this check.
+			return nil, nil
+		}
 	}
 
 	isMap := len(res.Refs) > 0
@@ -42,17 +43,18 @@ func CheckInvalidPlatforms[T comparable](ctx context.Context, res *result.Result
 		p, err := platforms.Parse(v)
 		if err != nil {
 			warnings = append(warnings, client.VertexWarning{
-				Short: []byte(fmt.Sprintf("Invalid platform result requested %q: %s", v, err.Error())),
+				Short: fmt.Appendf(nil, "Invalid platform result requested %q: %s", v, err.Error()),
 			})
 		}
 		p = platforms.Normalize(p)
-		_, ok := reqMap[platforms.Format(p)]
+		formatted := platforms.FormatAll(p)
+		_, ok := reqMap[formatted]
 		if ok {
 			warnings = append(warnings, client.VertexWarning{
-				Short: []byte(fmt.Sprintf("Duplicate platform result requested %q", v)),
+				Short: fmt.Appendf(nil, "Duplicate platform result requested %q", v),
 			})
 		}
-		reqMap[platforms.Format(p)] = struct{}{}
+		reqMap[formatted] = struct{}{}
 		reqList = append(reqList, exptypes.Platform{Platform: p})
 	}
 
@@ -62,10 +64,25 @@ func CheckInvalidPlatforms[T comparable](ctx context.Context, res *result.Result
 
 	if len(reqMap) == 1 && len(ps.Platforms) == 1 {
 		pp := platforms.Normalize(ps.Platforms[0].Platform)
-		if _, ok := reqMap[platforms.Format(pp)]; !ok {
-			return []client.VertexWarning{{
-				Short: []byte(fmt.Sprintf("Requested platform %q does not match result platform %q", req.Platforms[0], platforms.Format(pp))),
-			}}, nil
+		if _, ok := reqMap[platforms.FormatAll(pp)]; !ok {
+			// The requested platform will often not have an OSVersion on it, but the
+			// resulting platform may have one.
+			// This should not be considered a mismatch, so check again after clearing
+			// the OSVersion from the returned platform.
+			reqP, err := platforms.Parse(req.Platforms[0])
+			if err != nil {
+				return nil, err
+			}
+			reqP = platforms.Normalize(reqP)
+			if reqP.OSVersion == "" && reqP.OSVersion != pp.OSVersion {
+				pp.OSVersion = ""
+			}
+
+			if _, ok := reqMap[platforms.FormatAll(pp)]; !ok {
+				return []client.VertexWarning{{
+					Short: fmt.Appendf(nil, "Requested platform %q does not match result platform %q", req.Platforms[0], platforms.FormatAll(pp)),
+				}}, nil
+			}
 		}
 		return nil, nil
 	}
@@ -81,7 +98,7 @@ func CheckInvalidPlatforms[T comparable](ctx context.Context, res *result.Result
 	if !mismatch {
 		for _, p := range ps.Platforms {
 			pp := platforms.Normalize(p.Platform)
-			if _, ok := reqMap[platforms.Format(pp)]; !ok {
+			if _, ok := reqMap[platforms.FormatAll(pp)]; !ok {
 				mismatch = true
 				break
 			}
@@ -90,7 +107,7 @@ func CheckInvalidPlatforms[T comparable](ctx context.Context, res *result.Result
 
 	if mismatch {
 		return []client.VertexWarning{{
-			Short: []byte(fmt.Sprintf("Requested platforms %s do not match result platforms %s", platformsString(reqList), platformsString(ps.Platforms))),
+			Short: fmt.Appendf(nil, "Requested platforms %s do not match result platforms %s", platformsString(reqList), platformsString(ps.Platforms)),
 		}}, nil
 	}
 
@@ -98,10 +115,10 @@ func CheckInvalidPlatforms[T comparable](ctx context.Context, res *result.Result
 }
 
 func platformsString(ps []exptypes.Platform) string {
-	var ss []string
-	for _, p := range ps {
-		ss = append(ss, platforms.Format(platforms.Normalize(p.Platform)))
+	ss := make([]string, len(ps))
+	for i, p := range ps {
+		ss[i] = platforms.FormatAll(platforms.Normalize(p.Platform))
 	}
-	sort.Strings(ss)
+	slices.Sort(ss)
 	return strings.Join(ss, ",")
 }

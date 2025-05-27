@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,7 +22,7 @@ func TestSwarmInspectError(t *testing.T) {
 	}
 
 	_, err := client.SwarmInspect(context.Background())
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestSwarmInspect(t *testing.T) {
@@ -48,10 +48,6 @@ func TestSwarmInspect(t *testing.T) {
 	}
 
 	swarmInspect, err := client.SwarmInspect(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if swarmInspect.ID != "swarm_id" {
-		t.Fatalf("expected `swarm_id`, got %s", swarmInspect.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(swarmInspect.ID, "swarm_id"))
 }

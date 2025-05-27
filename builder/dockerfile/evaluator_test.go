@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/builder/remotecontext"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	"github.com/moby/go-archive"
 	"github.com/moby/sys/reexec"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -100,8 +100,7 @@ func TestDispatch(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
-			defer cleanup()
+			contextDir := t.TempDir()
 
 			for filename, content := range tc.files {
 				createTestTempFile(t, contextDir, filename, content, 0o777)

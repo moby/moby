@@ -2,20 +2,25 @@ package containerd
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/pkg/errors"
 )
 
 // GetLayerFolders returns the layer folders from an image RootFS.
-func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer, containerID string) ([]string, error) {
-	if rwLayer != nil {
-		return nil, errors.New("RWLayer is unexpectedly not nil")
+func (i *ImageService) GetLayerFolders(img *image.Image, layer container.RWLayer, containerID string) ([]string, error) {
+	if layer == nil {
+		return nil, errors.New("RWLayer is unexpectedly nil")
 	}
 
-	snapshotter := i.client.SnapshotService(i.StorageDriver())
-	mounts, err := snapshotter.Mounts(context.TODO(), containerID)
+	c8dLayer, ok := layer.(*rwLayer)
+	if !ok {
+		return nil, fmt.Errorf("unexpected layer type: %T", layer)
+	}
+
+	mounts, err := c8dLayer.mounts(context.TODO())
 	if err != nil {
 		return nil, errors.Wrapf(err, "snapshotter.Mounts failed: container %s", containerID)
 	}

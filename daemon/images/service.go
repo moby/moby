@@ -2,11 +2,12 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync/atomic"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution"
@@ -117,14 +118,14 @@ func (i *ImageService) Children(_ context.Context, id image.ID) ([]image.ID, err
 // CreateLayer creates a filesystem layer for a container.
 // called from create.go
 // TODO: accept an opt struct instead of container?
-func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
-	var layerID layer.ChainID
+func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (container.RWLayer, error) {
+	var img *image.Image
 	if container.ImageID != "" {
-		img, err := i.imageStore.Get(container.ImageID)
+		containerImg, err := i.imageStore.Get(container.ImageID)
 		if err != nil {
 			return nil, err
 		}
-		layerID = img.RootFS.ChainID()
+		img = containerImg
 	}
 
 	rwLayerOpts := &layer.CreateRWLayerOpts{
@@ -133,12 +134,23 @@ func (i *ImageService) CreateLayer(container *container.Container, initFunc laye
 		StorageOpt: container.HostConfig.StorageOpt,
 	}
 
-	return i.layerStore.CreateRWLayer(container.ID, layerID, rwLayerOpts)
+	return i.CreateLayerFromImage(img, container.ID, rwLayerOpts)
+}
+
+// CreateLayerFromImage creates a file system from an arbitrary image
+// Used to mount an image inside another
+func (i *ImageService) CreateLayerFromImage(img *image.Image, layerName string, rwLayerOpts *layer.CreateRWLayerOpts) (container.RWLayer, error) {
+	var layerID layer.ChainID
+	if img != nil {
+		layerID = img.RootFS.ChainID()
+	}
+
+	return i.layerStore.CreateRWLayer(layerName, layerID, rwLayerOpts)
 }
 
 // GetLayerByID returns a layer by ID
 // called from daemon.go Daemon.restore().
-func (i *ImageService) GetLayerByID(cid string) (layer.RWLayer, error) {
+func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 	return i.layerStore.GetRWLayer(cid)
 }
 
@@ -171,8 +183,13 @@ func (i *ImageService) StorageDriver() string {
 
 // ReleaseLayer releases a layer allowing it to be removed
 // called from delete.go Daemon.cleanupContainer().
-func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
-	metaData, err := i.layerStore.ReleaseRWLayer(rwlayer)
+func (i *ImageService) ReleaseLayer(rwlayer container.RWLayer) error {
+	l, ok := rwlayer.(layer.RWLayer)
+	if !ok {
+		return fmt.Errorf("unexpected RWLayer type: %T", rwlayer)
+	}
+
+	metaData, err := i.layerStore.ReleaseRWLayer(l)
 	layer.LogReleaseMetadata(metaData)
 	if err != nil && !errors.Is(err, layer.ErrMountDoesNotExist) && !errors.Is(err, os.ErrNotExist) {
 		return errors.Wrapf(err, "driver %q failed to remove root filesystem",
@@ -181,9 +198,9 @@ func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
 	return nil
 }
 
-// LayerDiskUsage returns the number of bytes used by layer stores
+// ImageDiskUsage returns the number of bytes used by content and layer stores
 // called from disk_usage.go
-func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
+func (i *ImageService) ImageDiskUsage(ctx context.Context) (int64, error) {
 	var allLayersSize int64
 	layerRefs := i.getLayerRefs()
 	allLayers := i.layerStore.Map()

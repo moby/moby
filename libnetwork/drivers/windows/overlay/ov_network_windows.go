@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -60,7 +61,7 @@ func (d *driver) NetworkFree(id string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	var (
 		networkName   string
 		interfaceName string
@@ -84,10 +85,10 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 
 	existingNetwork := d.network(id)
 	if existingNetwork != nil {
-		log.G(context.TODO()).Debugf("Network preexists. Deleting %s", id)
+		log.G(ctx).Debugf("Network preexists. Deleting %s", id)
 		err := d.DeleteNetwork(id)
 		if err != nil {
-			log.G(context.TODO()).Errorf("Error deleting stale network %s", err.Error())
+			log.G(ctx).Errorf("Error deleting stale network %s", err.Error())
 		}
 	}
 
@@ -201,9 +202,9 @@ func (d *driver) DeleteNetwork(nid string) error {
 		return types.ForbiddenErrorf("could not find network with id %s", nid)
 	}
 
-	_, err := hcsshim.HNSNetworkRequest("DELETE", n.hnsID, "")
+	_, err := hcsshim.HNSNetworkRequest(http.MethodDelete, n.hnsID, "")
 	if err != nil {
-		return types.ForbiddenErrorf(err.Error())
+		return types.ForbiddenErrorf("%v", err)
 	}
 
 	d.deleteNetwork(nid)
@@ -240,7 +241,7 @@ func (d *driver) network(nid string) *network {
 // func (n *network) restoreNetworkEndpoints() error {
 // 	log.G(ctx).Infof("Restoring endpoints for overlay network: %s", n.id)
 
-// 	hnsresponse, err := hcsshim.HNSListEndpointRequest("GET", "", "")
+// 	hnsresponse, err := hcsshim.HNSListEndpointRequest(http.MethodGet, "", "")
 // 	if err != nil {
 // 		return err
 // 	}
@@ -323,7 +324,7 @@ func (d *driver) createHnsNetwork(n *network) error {
 	configuration := string(configurationb)
 	log.G(context.TODO()).Infof("HNSNetwork Request =%v", configuration)
 
-	hnsresponse, err := hcsshim.HNSNetworkRequest("POST", "", configuration)
+	hnsresponse, err := hcsshim.HNSNetworkRequest(http.MethodPost, "", configuration)
 	if err != nil {
 		return err
 	}

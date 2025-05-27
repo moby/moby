@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -16,7 +16,7 @@ import (
 
 // Do builds an image from the given context and returns the image ID.
 func Do(ctx context.Context, t *testing.T, client client.APIClient, buildCtx *fakecontext.Fake) string {
-	resp, err := client.ImageBuild(ctx, buildCtx.AsTarReader(t), types.ImageBuildOptions{})
+	resp, err := client.ImageBuild(ctx, buildCtx.AsTarReader(t), build.ImageBuildOptions{})
 	if resp.Body != nil {
 		defer resp.Body.Close()
 	}
@@ -32,7 +32,7 @@ func Do(ctx context.Context, t *testing.T, client client.APIClient, buildCtx *fa
 func GetImageIDFromBody(t *testing.T, body io.Reader) string {
 	var (
 		jm  jsonmessage.JSONMessage
-		br  types.BuildResult
+		br  build.Result
 		dec = json.NewDecoder(body)
 	)
 	for {

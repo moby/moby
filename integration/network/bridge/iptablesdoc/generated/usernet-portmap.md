@@ -15,20 +15,34 @@ The filter table is updated as follows:
     Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DOCKER-USER  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    2        0     0 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst ctstate RELATED,ESTABLISHED
-    3        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    4        0     0 DOCKER     0    --  *      *       0.0.0.0/0            0.0.0.0/0            match-set docker-ext-bridges-v4 dst
-    5        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
-    6        0     0 ACCEPT     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0           
+    2        0     0 DOCKER-FORWARD  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     
     Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
     
-    Chain DOCKER (1 references)
+    Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
     2        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
     3        0     0 DROP       0    --  !bridge1 bridge1  0.0.0.0/0            0.0.0.0/0           
+    
+    Chain DOCKER-BRIDGE (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DOCKER     0    --  *      docker0  0.0.0.0/0            0.0.0.0/0           
+    2        0     0 DOCKER     0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
+    
+    Chain DOCKER-CT (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 ACCEPT     0    --  *      docker0  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+    2        0     0 ACCEPT     0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+    
+    Chain DOCKER-FORWARD (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DOCKER-CT  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    2        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    3        0     0 DOCKER-BRIDGE  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    4        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
+    5        0     0 ACCEPT     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-ISOLATION-STAGE-1 (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -52,18 +66,26 @@ The filter table is updated as follows:
     -P FORWARD ACCEPT
     -P OUTPUT ACCEPT
     -N DOCKER
+    -N DOCKER-BRIDGE
+    -N DOCKER-CT
+    -N DOCKER-FORWARD
     -N DOCKER-ISOLATION-STAGE-1
     -N DOCKER-ISOLATION-STAGE-2
     -N DOCKER-USER
     -A FORWARD -j DOCKER-USER
-    -A FORWARD -m set --match-set docker-ext-bridges-v4 dst -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    -A FORWARD -j DOCKER-ISOLATION-STAGE-1
-    -A FORWARD -m set --match-set docker-ext-bridges-v4 dst -j DOCKER
-    -A FORWARD -i docker0 -j ACCEPT
-    -A FORWARD -i bridge1 -j ACCEPT
+    -A FORWARD -j DOCKER-FORWARD
     -A DOCKER -d 192.0.2.2/32 ! -i bridge1 -o bridge1 -p tcp -m tcp --dport 80 -j ACCEPT
     -A DOCKER ! -i docker0 -o docker0 -j DROP
     -A DOCKER ! -i bridge1 -o bridge1 -j DROP
+    -A DOCKER-BRIDGE -o docker0 -j DOCKER
+    -A DOCKER-BRIDGE -o bridge1 -j DOCKER
+    -A DOCKER-CT -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-CT -o bridge1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-FORWARD -j DOCKER-CT
+    -A DOCKER-FORWARD -j DOCKER-ISOLATION-STAGE-1
+    -A DOCKER-FORWARD -j DOCKER-BRIDGE
+    -A DOCKER-FORWARD -i docker0 -j ACCEPT
+    -A DOCKER-FORWARD -i bridge1 -j ACCEPT
     -A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
     -A DOCKER-ISOLATION-STAGE-1 -i bridge1 ! -o bridge1 -j DOCKER-ISOLATION-STAGE-2
     -A DOCKER-ISOLATION-STAGE-2 -o bridge1 -j DROP
@@ -75,8 +97,9 @@ The filter table is updated as follows:
 
 Note that:
 
- - In the FORWARD chain, rule 6 for outgoing traffic from the new network has been
+ - In the DOCKER-FORWARD chain, rule 5 for outgoing traffic from the new network has been
    appended to the end of the chain.
+ - The DOCKER-CT and DOCKER-FORWARD chains each have a rule for the new network.
  - In the DOCKER-ISOLATION chains, rules equivalent to the docker0 rules have
    also been inserted for the new bridge.
  - In the DOCKER chain, there is an ACCEPT rule for TCP port 80 packets routed
@@ -92,7 +115,7 @@ Note that:
 [1]: https://github.com/moby/moby/blob/675c2ac2db93e38bb9c5a6615d4155a969535fd9/libnetwork/drivers/bridge/port_mapping_linux.go#L795
 [2]: https://github.com/robmry/moby/blob/52c89d467fc5326149e4bbb8903d23589b66ff0d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L252
 
-And the corresponding nat table:
+The corresponding nat table:
 
     Chain PREROUTING (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -135,3 +158,27 @@ And the corresponding nat table:
     
 
 </details>
+
+And the raw table:
+
+    Chain PREROUTING (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DROP       0    --  !bridge1 *       0.0.0.0/0            192.0.2.2           
+    
+    Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    
+
+<details>
+<summary>iptables commands</summary>
+
+    -P PREROUTING ACCEPT
+    -P OUTPUT ACCEPT
+    -A PREROUTING -d 192.0.2.2/32 ! -i bridge1 -j DROP
+    
+
+</details>
+
+[filterDirectAccess][3] adds a DROP rule to the raw-PREROUTING chain to block direct remote access to the mapped port.
+
+[3]: https://github.com/search?q=repo%3Amoby%2Fmoby%20filterDirectAccess&type=code

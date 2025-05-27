@@ -4,7 +4,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/go-archive"
 )
 
 type mountedLayer struct {
@@ -55,7 +55,20 @@ func (ml *mountedLayer) Changes() ([]archive.Change, error) {
 }
 
 func (ml *mountedLayer) Metadata() (map[string]string, error) {
-	return ml.layerStore.driver.GetMetadata(ml.mountID)
+	m, err := ml.layerStore.driver.GetMetadata(ml.mountID)
+	if err != nil {
+		return nil, err
+	}
+
+	if m == nil {
+		m = make(map[string]string)
+	}
+
+	if m["ID"] == "" {
+		m["ID"] = ml.name
+	}
+
+	return m, nil
 }
 
 func (ml *mountedLayer) getReference() RWLayer {

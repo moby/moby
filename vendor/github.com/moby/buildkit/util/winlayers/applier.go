@@ -8,12 +8,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/containerd/archive"
-	"github.com/containerd/containerd/archive/compression"
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/diff"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/diff"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/mount"
+	"github.com/containerd/containerd/v2/pkg/archive"
+	"github.com/containerd/containerd/v2/pkg/archive/compression"
 	cerrdefs "github.com/containerd/errdefs"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -76,8 +76,8 @@ func (s *winApplier) Apply(ctx context.Context, desc ocispecs.Descriptor, mounts
 		}
 
 		rc2, discard := filter(rc, func(hdr *tar.Header) bool {
-			if strings.HasPrefix(hdr.Name, "Files/") {
-				hdr.Name = strings.TrimPrefix(hdr.Name, "Files/")
+			if after, ok := strings.CutPrefix(hdr.Name, "Files/"); ok {
+				hdr.Name = after
 				hdr.Linkname = strings.TrimPrefix(hdr.Linkname, "Files/")
 				// TODO: could convert the windows PAX headers to xattr here to reuse
 				// the original ones in diff for parent directories and file modifications

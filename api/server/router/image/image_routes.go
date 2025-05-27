@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
@@ -26,6 +27,8 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/go-connections/nat"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -323,7 +326,20 @@ func (ir *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, 
 	force := httputils.BoolValue(r, "force")
 	prune := !httputils.BoolValue(r, "noprune")
 
-	list, err := ir.backend.ImageDelete(ctx, name, force, prune)
+	var platforms []ocispec.Platform
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.50") {
+		p, err := httputils.DecodePlatforms(r.Form["platforms"])
+		if err != nil {
+			return err
+		}
+		platforms = p
+	}
+
+	list, err := ir.backend.ImageDelete(ctx, name, imagetypes.RemoveOptions{
+		Force:         force,
+		PruneChildren: prune,
+		Platforms:     platforms,
+	})
 	if err != nil {
 		return err
 	}
@@ -332,7 +348,32 @@ func (ir *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, 
 }
 
 func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	imageInspect, err := ir.backend.ImageInspect(ctx, vars["name"], backend.ImageInspectOpts{})
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	var manifests bool
+	if r.Form.Get("manifests") != "" && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.48") {
+		manifests = httputils.BoolValue(r, "manifests")
+	}
+
+	var platform *ocispec.Platform
+	if r.Form.Get("platform") != "" && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.49") {
+		p, err := httputils.DecodePlatform(r.Form.Get("platform"))
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		platform = p
+	}
+
+	if manifests && platform != nil {
+		return errdefs.InvalidParameter(errors.New("conflicting options: manifests and platform options cannot both be set"))
+	}
+
+	imageInspect, err := ir.backend.ImageInspect(ctx, vars["name"], backend.ImageInspectOpts{
+		Manifests: manifests,
+		Platform:  platform,
+	})
 	if err != nil {
 		return err
 	}
@@ -363,6 +404,17 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 	if versions.LessThan(version, "1.48") {
 		imageInspect.Descriptor = nil
 	}
+	if versions.LessThan(version, "1.50") {
+		type imageInspectLegacy struct {
+			imagetypes.InspectResponse
+			LegacyConfig *container.Config `json:"Config"`
+		}
+		return httputils.WriteJSON(w, http.StatusOK, imageInspectLegacy{
+			InspectResponse: *imageInspect,
+			LegacyConfig:    dockerOCIImageConfigToContainerConfig(*imageInspect.Config),
+		})
+	}
+
 	return httputils.WriteJSON(w, http.StatusOK, imageInspect)
 }
 
@@ -545,4 +597,28 @@ func validateRepoName(name reference.Named) error {
 		return fmt.Errorf("'%s' is a reserved name", familiarName)
 	}
 	return nil
+}
+
+// FIXME(thaJeztah): this is a copy of dockerOCIImageConfigToContainerConfig in daemon/containerd: https://github.com/moby/moby/blob/6b617699c500522aa6526cfcae4558333911b11f/daemon/containerd/imagespec.go#L107-L128
+func dockerOCIImageConfigToContainerConfig(cfg dockerspec.DockerOCIImageConfig) *container.Config {
+	exposedPorts := make(nat.PortSet, len(cfg.ExposedPorts))
+	for k, v := range cfg.ExposedPorts {
+		exposedPorts[nat.Port(k)] = v
+	}
+
+	return &container.Config{
+		Entrypoint:   cfg.Entrypoint,
+		Env:          cfg.Env,
+		Cmd:          cfg.Cmd,
+		User:         cfg.User,
+		WorkingDir:   cfg.WorkingDir,
+		ExposedPorts: exposedPorts,
+		Volumes:      cfg.Volumes,
+		Labels:       cfg.Labels,
+		ArgsEscaped:  cfg.ArgsEscaped, //nolint:staticcheck // Ignore SA1019. Need to keep it in image.
+		StopSignal:   cfg.StopSignal,
+		Healthcheck:  cfg.Healthcheck,
+		OnBuild:      cfg.OnBuild,
+		Shell:        cfg.Shell,
+	}
 }

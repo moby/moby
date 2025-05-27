@@ -28,19 +28,19 @@ func TestPruneDontDeleteUsedDangling(t *testing.T) {
 	d.Start(t)
 	defer d.Stop(t)
 
-	client := d.NewClientT(t)
-	defer client.Close()
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
 
-	danglingID := specialimage.Load(ctx, t, client, specialimage.Dangling)
+	danglingID := specialimage.Load(ctx, t, apiClient, specialimage.Dangling)
 
-	_, _, err := client.ImageInspectWithRaw(ctx, danglingID)
+	_, err := apiClient.ImageInspect(ctx, danglingID)
 	assert.NilError(t, err, "Test dangling image doesn't exist")
 
-	container.Create(ctx, t, client,
+	container.Create(ctx, t, apiClient,
 		container.WithImage(danglingID),
 		container.WithCmd("sleep", "60"))
 
-	pruned, err := client.ImagesPrune(ctx, filters.NewArgs(filters.Arg("dangling", "true")))
+	pruned, err := apiClient.ImagesPrune(ctx, filters.NewArgs(filters.Arg("dangling", "true")))
 	assert.NilError(t, err)
 
 	for _, deleted := range pruned.ImagesDeleted {
@@ -49,7 +49,7 @@ func TestPruneDontDeleteUsedDangling(t *testing.T) {
 		}
 	}
 
-	_, _, err = client.ImageInspectWithRaw(ctx, danglingID)
+	_, err = apiClient.ImageInspect(ctx, danglingID)
 	assert.NilError(t, err, "Test dangling image should still exist")
 }
 
@@ -68,7 +68,7 @@ func TestPruneLexographicalOrder(t *testing.T) {
 
 	d.LoadBusybox(ctx, t)
 
-	inspect, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox:latest")
+	inspect, err := apiClient.ImageInspect(ctx, "busybox:latest")
 	assert.NilError(t, err)
 
 	id := inspect.ID
@@ -117,7 +117,7 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 			check: func(t *testing.T, apiClient *client.Client, pruned image.PruneReport) {
 				assert.Check(t, is.Len(pruned.ImagesDeleted, 0))
 
-				_, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox:latest")
+				_, err := apiClient.ImageInspect(ctx, "busybox:latest")
 				assert.NilError(t, err, "Busybox image should still exist")
 			},
 		},
@@ -134,10 +134,10 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 					assert.Check(t, is.Equal(pruned.ImagesDeleted[0].Untagged, "busybox:a"))
 				}
 
-				_, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox:a")
+				_, err := apiClient.ImageInspect(ctx, "busybox:a")
 				assert.Check(t, err != nil, "Busybox:a image should be deleted")
 
-				_, _, err = apiClient.ImageInspectWithRaw(ctx, "busybox:latest")
+				_, err = apiClient.ImageInspect(ctx, "busybox:latest")
 				assert.Check(t, err == nil, "Busybox:latest image should still exist")
 			},
 		},
@@ -206,7 +206,7 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 					assert.NilError(t, err, "prepare failed")
 				}
 
-				inspect, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox:latest")
+				inspect, err := apiClient.ImageInspect(ctx, "busybox:latest")
 				assert.NilError(t, err)
 
 				image := tc.imageID(t, inspect)

@@ -1,5 +1,5 @@
 // FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.22
+//go:build go1.23
 
 package containerd
 
@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	c8dimages "github.com/containerd/containerd/images"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
@@ -17,43 +17,129 @@ import (
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/storage"
 	"github.com/docker/docker/internal/sliceutil"
+	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/semaphore"
 )
 
-func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
-	img, err := i.GetImage(ctx, refOrID, backend.GetImageOpts{})
+func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
+	requestedPlatform := opts.Platform
+
+	c8dImg, err := i.resolveImage(ctx, refOrID)
 	if err != nil {
 		return nil, err
 	}
 
-	lastUpdated := time.Unix(0, 0)
-
-	tagged, err := i.images.List(ctx, "target.digest=="+img.ImageID())
+	target := c8dImg.Target
+	tagged, err := i.images.List(ctx, "target.digest=="+target.Digest.String())
 	if err != nil {
 		return nil, err
 	}
 
-	// This could happen only if the image was deleted after the GetImage call above.
+	// This could happen only if the image was deleted after the resolveImage call above.
 	if len(tagged) == 0 {
 		return nil, errInconsistentData
 	}
 
-	platform := matchAllWithPreference(platforms.Default())
-
-	size, err := i.size(ctx, tagged[0].Target, platform)
-	if err != nil {
-		return nil, err
-	}
-	target := tagged[0].Target
-
-	repoTags := make([]string, 0, len(tagged))
-	repoDigests := make([]string, 0, len(tagged))
+	lastUpdated := time.Unix(0, 0)
 	for _, i := range tagged {
 		if i.UpdatedAt.After(lastUpdated) {
 			lastUpdated = i.UpdatedAt
 		}
-		if isDanglingImage(i) {
+	}
+
+	platform := i.matchRequestedOrDefault(platforms.OnlyStrict, requestedPlatform)
+	size, err := i.size(ctx, target, platform)
+	if err != nil {
+		return nil, err
+	}
+
+	multi, err := i.multiPlatformSummary(ctx, c8dImg, platform)
+	if err != nil {
+		return nil, err
+	}
+
+	if multi.Best == nil && requestedPlatform != nil {
+		return nil, &errPlatformNotFound{
+			imageRef: refOrID,
+			wanted:   *requestedPlatform,
+		}
+	}
+
+	var img imagespec.DockerOCIImage
+	if multi.Best != nil {
+		if err := multi.Best.ReadConfig(ctx, &img); err != nil {
+			return nil, err
+		}
+	}
+
+	parent, err := i.getImageLabelByDigest(ctx, target.Digest, imageLabelClassicBuilderParent)
+	if err != nil {
+		log.G(ctx).WithError(err).Warn("failed to determine Parent property")
+	}
+
+	var manifests []imagetypes.ManifestSummary
+	if opts.Manifests {
+		manifests = multi.Manifests
+	}
+
+	repoTags, repoDigests := collectRepoTagsAndDigests(ctx, tagged)
+
+	if requestedPlatform != nil {
+		target = multi.Best.Target()
+	}
+
+	resp := &imagetypes.InspectResponse{
+		ID:            target.Digest.String(),
+		RepoTags:      repoTags,
+		Descriptor:    &target,
+		RepoDigests:   repoDigests,
+		Parent:        parent,
+		DockerVersion: "",
+		Size:          size,
+		Manifests:     manifests,
+		GraphDriver: storage.DriverData{
+			Name: i.snapshotter,
+			Data: nil,
+		},
+		Metadata: imagetypes.Metadata{
+			LastTagTime: lastUpdated,
+		},
+	}
+
+	if multi.Best != nil {
+		imgConfig := img.Config
+		resp.Author = img.Author
+		resp.Config = &imgConfig
+		resp.Architecture = img.Architecture
+		resp.Variant = img.Variant
+		resp.Os = img.OS
+		resp.OsVersion = img.OSVersion
+
+		if len(img.History) > 0 {
+			resp.Comment = img.History[len(img.History)-1].Comment
+		}
+
+		if img.Created != nil {
+			resp.Created = img.Created.Format(time.RFC3339Nano)
+		}
+
+		resp.RootFS = imagetypes.RootFS{
+			Type: img.RootFS.Type,
+		}
+		for _, layer := range img.RootFS.DiffIDs {
+			resp.RootFS.Layers = append(resp.RootFS.Layers, layer.String())
+		}
+	}
+
+	return resp, nil
+}
+
+func collectRepoTagsAndDigests(ctx context.Context, tagged []c8dimages.Image) (repoTags []string, repoDigests []string) {
+	repoTags = make([]string, 0, len(tagged))
+	repoDigests = make([]string, 0, len(tagged))
+	for _, img := range tagged {
+		if isDanglingImage(img) {
 			if len(tagged) > 1 {
 				// This is unexpected - dangling image should be deleted
 				// as soon as another image with the same target is created.
@@ -63,11 +149,11 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 			continue
 		}
 
-		name, err := reference.ParseNamed(i.Name)
+		name, err := reference.ParseNamed(img.Name)
 		if err != nil {
 			log.G(ctx).WithField("name", name).WithError(err).Error("failed to parse image name as reference")
 			// Include the malformed name in RepoTags to be consistent with `docker image ls`.
-			repoTags = append(repoTags, i.Name)
+			repoTags = append(repoTags, img.Name)
 			continue
 		}
 
@@ -78,7 +164,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 			continue
 		}
 
-		digested, err := reference.WithDigest(reference.TrimNamed(name), target.Digest)
+		digested, err := reference.WithDigest(reference.TrimNamed(name), img.Target.Digest)
 		if err != nil {
 			// This could only happen if digest is invalid, but considering that
 			// we get it from the Descriptor it's highly unlikely.
@@ -88,50 +174,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, _ backe
 		}
 		repoDigests = append(repoDigests, reference.FamiliarString(digested))
 	}
-
-	var comment string
-	if len(comment) == 0 && len(img.History) > 0 {
-		comment = img.History[len(img.History)-1].Comment
-	}
-
-	var created string
-	if img.Created != nil {
-		created = img.Created.Format(time.RFC3339Nano)
-	}
-
-	var layers []string
-	for _, layer := range img.RootFS.DiffIDs {
-		layers = append(layers, layer.String())
-	}
-
-	return &imagetypes.InspectResponse{
-		ID:            img.ImageID(),
-		RepoTags:      repoTags,
-		Descriptor:    &target,
-		RepoDigests:   sliceutil.Dedup(repoDigests),
-		Parent:        img.Parent.String(),
-		Comment:       comment,
-		Created:       created,
-		DockerVersion: "",
-		Author:        img.Author,
-		Config:        img.Config,
-		Architecture:  img.Architecture,
-		Variant:       img.Variant,
-		Os:            img.OS,
-		OsVersion:     img.OSVersion,
-		Size:          size,
-		GraphDriver: storage.DriverData{
-			Name: i.snapshotter,
-			Data: nil,
-		},
-		RootFS: imagetypes.RootFS{
-			Type:   img.RootFS.Type,
-			Layers: layers,
-		},
-		Metadata: imagetypes.Metadata{
-			LastTagTime: lastUpdated,
-		},
-	}, nil
+	return sliceutil.Dedup(repoTags), sliceutil.Dedup(repoDigests)
 }
 
 // size returns the total size of the image's packed resources.

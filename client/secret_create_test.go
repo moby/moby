@@ -10,9 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -32,7 +31,7 @@ func TestSecretCreateError(t *testing.T) {
 		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.SecretCreate(context.Background(), swarm.SecretSpec{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestSecretCreate(t *testing.T) {
@@ -46,7 +45,7 @@ func TestSecretCreate(t *testing.T) {
 			if req.Method != http.MethodPost {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
-			b, err := json.Marshal(types.SecretCreateResponse{
+			b, err := json.Marshal(swarm.SecretCreateResponse{
 				ID: "test_secret",
 			})
 			if err != nil {
@@ -60,10 +59,6 @@ func TestSecretCreate(t *testing.T) {
 	}
 
 	r, err := client.SecretCreate(context.Background(), swarm.SecretSpec{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r.ID != "test_secret" {
-		t.Fatalf("expected `test_secret`, got %s", r.ID)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(r.ID, "test_secret"))
 }

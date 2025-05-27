@@ -11,16 +11,17 @@ import (
 
 // NodeInspectWithRaw returns the node information.
 func (cli *Client) NodeInspectWithRaw(ctx context.Context, nodeID string) (swarm.Node, []byte, error) {
-	if nodeID == "" {
-		return swarm.Node{}, nil, objectNotFoundError{object: "node", id: nodeID}
+	nodeID, err := trimID("node", nodeID)
+	if err != nil {
+		return swarm.Node{}, nil, err
 	}
-	serverResp, err := cli.get(ctx, "/nodes/"+nodeID, nil, nil)
-	defer ensureReaderClosed(serverResp)
+	resp, err := cli.get(ctx, "/nodes/"+nodeID, nil, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return swarm.Node{}, nil, err
 	}
 
-	body, err := io.ReadAll(serverResp.body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return swarm.Node{}, nil, err
 	}

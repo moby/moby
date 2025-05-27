@@ -1,8 +1,12 @@
 package libnetwork
 
 import (
+	"context"
 	"fmt"
+	"strings"
 	"testing"
+
+	"github.com/docker/docker/libnetwork/drivers/bridge"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/config"
@@ -12,6 +16,7 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
+	"gotest.tools/v3/icmd"
 )
 
 const (
@@ -23,14 +28,19 @@ func TestUserChain(t *testing.T) {
 	iptable4 := iptables.GetIptable(iptables.IPv4)
 	iptable6 := iptables.GetIptable(iptables.IPv6)
 
+	res := icmd.RunCommand("iptables", "--version")
+	assert.NilError(t, res.Error)
+	noChainErr := "No chain/target/match by that name"
+	if strings.Contains(res.Combined(), "nf_tables") {
+		// For a non-existent chain, iptables-nft "-S <chain>" reports:
+		//  ip6tables v1.8.9 (nf_tables): chain `<chain>' in table `filter' is incompatible, use 'nft' tool.
+		noChainErr = "incompatible, use 'nft' tool"
+	}
+
 	tests := []struct {
 		iptables bool
 		append   bool // append other rules to FORWARD
 	}{
-		{
-			iptables: false,
-			append:   false,
-		},
 		{
 			iptables: true,
 			append:   false,
@@ -38,6 +48,10 @@ func TestUserChain(t *testing.T) {
 		{
 			iptables: true,
 			append:   true,
+		},
+		{
+			iptables: false,
+			append:   false,
 		},
 	}
 
@@ -47,6 +61,7 @@ func TestUserChain(t *testing.T) {
 			defer resetIptables(t)
 
 			c, err := New(
+				context.Background(),
 				config.OptionDataDir(t.TempDir()),
 				config.OptionDriverConfig("bridge", map[string]any{
 					netlabel.GenericData: options.Generic{
@@ -62,6 +77,15 @@ func TestUserChain(t *testing.T) {
 				fmt.Sprintf("TestUserChain_iptables-%v_append-%v_fwdinit4", tc.iptables, tc.append))
 			golden.Assert(t, getRules(t, iptable6, fwdChainName),
 				fmt.Sprintf("TestUserChain_iptables-%v_append-%v_fwdinit6", tc.iptables, tc.append))
+			if tc.iptables {
+				golden.Assert(t, getRules(t, iptable4, bridge.DockerForwardChain),
+					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_dockerfwdinit4", tc.iptables, tc.append))
+				golden.Assert(t, getRules(t, iptable6, bridge.DockerForwardChain),
+					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_dockerfwdinit6", tc.iptables, tc.append))
+			} else {
+				assert.Check(t, !iptables.GetIptable(iptables.IPv4).ExistChain(bridge.DockerForwardChain, fwdChainName),
+					"Chain %s should not exist", bridge.DockerForwardChain)
+			}
 
 			if tc.append {
 				_, err := iptable4.Raw("-A", fwdChainName, "-j", "DROP")
@@ -75,6 +99,15 @@ func TestUserChain(t *testing.T) {
 				fmt.Sprintf("TestUserChain_iptables-%v_append-%v_fwdafter4", tc.iptables, tc.append))
 			golden.Assert(t, getRules(t, iptable6, fwdChainName),
 				fmt.Sprintf("TestUserChain_iptables-%v_append-%v_fwdafter6", tc.iptables, tc.append))
+			if tc.iptables {
+				golden.Assert(t, getRules(t, iptable4, bridge.DockerForwardChain),
+					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_dockerfwdafter4", tc.iptables, tc.append))
+				golden.Assert(t, getRules(t, iptable6, bridge.DockerForwardChain),
+					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_dockerfwdafter6", tc.iptables, tc.append))
+			} else {
+				assert.Check(t, !iptables.GetIptable(iptables.IPv4).ExistChain(bridge.DockerForwardChain, fwdChainName),
+					"Chain %s should not exist", bridge.DockerForwardChain)
+			}
 
 			if tc.iptables {
 				golden.Assert(t, getRules(t, iptable4, usrChainName),
@@ -83,9 +116,9 @@ func TestUserChain(t *testing.T) {
 					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_usrafter6", tc.iptables, tc.append))
 			} else {
 				_, err := iptable4.Raw("-S", usrChainName)
-				assert.Check(t, is.ErrorContains(err, "No chain/target/match by that name"), "ipv4 chain %v: created unexpectedly", usrChainName)
+				assert.Check(t, is.ErrorContains(err, noChainErr), "ipv4 chain %v: created unexpectedly", usrChainName)
 				_, err = iptable6.Raw("-S", usrChainName)
-				assert.Check(t, is.ErrorContains(err, "No chain/target/match by that name"), "ipv6 chain %v: created unexpectedly", usrChainName)
+				assert.Check(t, is.ErrorContains(err, noChainErr), "ipv6 chain %v: created unexpectedly", usrChainName)
 			}
 		})
 	}

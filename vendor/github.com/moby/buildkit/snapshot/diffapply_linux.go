@@ -8,10 +8,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/snapshots"
-	"github.com/containerd/containerd/snapshots/overlay/overlayutils"
+	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/containerd/v2/core/mount"
+	"github.com/containerd/containerd/v2/core/snapshots"
+	"github.com/containerd/containerd/v2/plugins/snapshots/overlay/overlayutils"
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/continuity/sysx"
 	"github.com/hashicorp/go-multierror"
@@ -166,10 +166,10 @@ func applierFor(dest Mountable, tryCrossSnapshotLink, userxattr bool) (_ *applie
 
 	if overlay.IsOverlayMountType(mnt) {
 		for _, opt := range mnt.Options {
-			if strings.HasPrefix(opt, "upperdir=") {
-				a.root = strings.TrimPrefix(opt, "upperdir=")
-			} else if strings.HasPrefix(opt, "lowerdir=") {
-				a.lowerdirs = strings.Split(strings.TrimPrefix(opt, "lowerdir="), ":")
+			if after, ok := strings.CutPrefix(opt, "upperdir="); ok {
+				a.root = after
+			} else if after, ok := strings.CutPrefix(opt, "lowerdir="); ok {
+				a.lowerdirs = strings.Split(after, ":")
 			}
 		}
 		if a.root == "" {
@@ -802,12 +802,12 @@ const (
 )
 
 func isOpaqueXattr(s string) bool {
-	for _, k := range []string{trustedOpaqueXattr, userOpaqueXattr} {
-		if s == k {
-			return true
-		}
+	switch s {
+	case trustedOpaqueXattr, userOpaqueXattr:
+		return true
+	default:
+		return false
 	}
-	return false
 }
 
 func opaqueXattr(userxattr bool) string {

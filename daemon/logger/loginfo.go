@@ -29,8 +29,8 @@ type Info struct {
 // that support metadata to add more context to a log.
 func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string, error) {
 	extra := make(map[string]string)
-	labels, ok := info.Config["labels"]
-	if ok && len(labels) > 0 {
+
+	if labels, ok := info.Config["labels"]; ok && len(labels) > 0 {
 		for _, l := range strings.Split(labels, ",") {
 			if v, ok := info.ContainerLabels[l]; ok {
 				if keyMod != nil {
@@ -41,8 +41,7 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string
 		}
 	}
 
-	labelsRegex, ok := info.Config["labels-regex"]
-	if ok && len(labelsRegex) > 0 {
+	if labelsRegex, ok := info.Config["labels-regex"]; ok && len(labelsRegex) > 0 {
 		re, err := regexp.Compile(labelsRegex)
 		if err != nil {
 			return nil, err
@@ -64,8 +63,12 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string
 		}
 	}
 
-	env, ok := info.Config["env"]
-	if ok && len(env) > 0 {
+	// Code below is only to handle adding attributes based on env-vars.
+	if len(envMapping) == 0 {
+		return extra, nil
+	}
+
+	if env, ok := info.Config["env"]; ok && len(env) > 0 {
 		for _, l := range strings.Split(env, ",") {
 			if v, ok := envMapping[l]; ok {
 				if keyMod != nil {
@@ -76,8 +79,7 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string
 		}
 	}
 
-	envRegex, ok := info.Config["env-regex"]
-	if ok && len(envRegex) > 0 {
+	if envRegex, ok := info.Config["env-regex"]; ok && len(envRegex) > 0 {
 		re, err := regexp.Compile(envRegex)
 		if err != nil {
 			return nil, err

@@ -177,7 +177,7 @@ func (s *DockerAPISuite) TestGetContainerStats(c *testing.T) {
 	case sr := <-bc:
 		dec := json.NewDecoder(sr.stats.Body)
 		defer sr.stats.Body.Close()
-		var s *container.Stats
+		var s *container.StatsResponse
 		// decode only one object from the stream
 		assert.NilError(c, dec.Decode(&s))
 	}
@@ -1391,7 +1391,8 @@ func (s *DockerAPISuite) TestContainerAPIDeleteWithEmptyName(c *testing.T) {
 	defer apiClient.Close()
 
 	err = apiClient.ContainerRemove(testutil.GetContext(c), "", container.RemoveOptions{})
-	assert.Check(c, errdefs.IsNotFound(err))
+	assert.Check(c, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(c, is.ErrorContains(err, "value is empty"))
 }
 
 func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) {
@@ -1980,8 +1981,10 @@ func containerExit(ctx context.Context, apiclient client.APIClient, name string)
 			return poll.Error(err)
 		}
 		switch ctr.State.Status {
-		case "created", "running":
+		case container.StateCreated, container.StateRunning:
 			return poll.Continue("container %s is %s, waiting for exit", name, ctr.State.Status)
+		case container.StatePaused, container.StateRestarting, container.StateRemoving, container.StateExited, container.StateDead:
+			// done
 		}
 		return poll.Success()
 	}

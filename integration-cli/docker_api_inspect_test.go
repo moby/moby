@@ -76,7 +76,7 @@ func (s *DockerAPISuite) TestInspectAPIImageResponse(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	imageJSON, _, err := apiClient.ImageInspectWithRaw(testutil.GetContext(c), "busybox")
+	imageJSON, err := apiClient.ImageInspect(testutil.GetContext(c), "busybox")
 	assert.NilError(c, err)
 
 	assert.Check(c, len(imageJSON.RepoTags) == 2)

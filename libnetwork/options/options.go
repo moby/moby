@@ -1,5 +1,5 @@
 // FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.22
+//go:build go1.23
 
 // Package options provides a way to pass unstructured sets of options to a
 // component expecting a strongly-typed configuration structure.
@@ -53,7 +53,7 @@ type Generic map[string]any
 //
 // The return value is of the same type than the model (including a potential
 // pointer qualifier).
-func GenerateFromModel(options Generic, model interface{}) (interface{}, error) {
+func GenerateFromModel(options Generic, model any) (any, error) {
 	modType := reflect.TypeOf(model)
 
 	// If the model is of pointer type, we need to dereference for New.

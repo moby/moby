@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -24,7 +24,7 @@ func TestContainersPruneError(t *testing.T) {
 	}
 
 	_, err := client.ContainersPrune(context.Background(), filters.Args{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestContainersPrune(t *testing.T) {
@@ -109,7 +109,7 @@ func TestContainersPrune(t *testing.T) {
 		}
 
 		report, err := client.ContainersPrune(context.Background(), listCase.filters)
-		assert.Check(t, err)
+		assert.NilError(t, err)
 		assert.Check(t, is.Len(report.ContainersDeleted, 2))
 		assert.Check(t, is.Equal(uint64(9999), report.SpaceReclaimed))
 	}

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/vishvananda/netlink"
 )
@@ -14,7 +15,8 @@ import (
 // SetupDevice create a new bridge interface/
 func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 	if config.BridgeName != DefaultBridgeName && config.DefaultBridge {
-		return NonDefaultBridgeExistError(config.BridgeName)
+		// TODO(thaJeztah): should this be an [errdefs.ErrInvalidParameter], not an [errdefs.ErrForbidden]?
+		return errdefs.Forbidden(fmt.Errorf("bridge device with non default name %s must be created manually", config.BridgeName))
 	}
 
 	// Set the bridgeInterface netlink.Bridge.

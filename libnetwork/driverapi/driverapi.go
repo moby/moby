@@ -3,6 +3,8 @@ package driverapi
 import (
 	"context"
 	"net"
+
+	"github.com/docker/docker/libnetwork/options"
 )
 
 // NetworkPluginEndpointType represents the Endpoint Type used by Plugin system
@@ -28,7 +30,7 @@ type Driver interface {
 	// notification when a CRUD operation is performed on any
 	// entry in that table. This will be ignored for local scope
 	// drivers.
-	CreateNetwork(nid string, options map[string]interface{}, nInfo NetworkInfo, ipV4Data, ipV6Data []IPAMData) error
+	CreateNetwork(ctx context.Context, nid string, options map[string]interface{}, nInfo NetworkInfo, ipV4Data, ipV6Data []IPAMData) error
 
 	// DeleteNetwork invokes the driver method to delete network passing
 	// the network id.
@@ -49,7 +51,7 @@ type Driver interface {
 	EndpointOperInfo(nid, eid string) (map[string]interface{}, error)
 
 	// Join method is invoked when a Sandbox is attached to an endpoint.
-	Join(ctx context.Context, nid, eid string, sboxKey string, jinfo JoinInfo, options map[string]interface{}) error
+	Join(ctx context.Context, nid, eid string, sboxKey string, jinfo JoinInfo, epOpts, sbOpts map[string]interface{}) error
 
 	// Leave method is invoked when a Sandbox detaches from an endpoint.
 	Leave(nid, eid string) error
@@ -85,6 +87,13 @@ type Driver interface {
 	IsBuiltIn() bool
 }
 
+// GwAllocChecker is an optional interface for a network driver.
+type GwAllocChecker interface {
+	// GetSkipGwAlloc returns true if the opts describe a network
+	// that does not need a gateway IPv4/IPv6 address, else false.
+	GetSkipGwAlloc(opts options.Generic) (skipIPv4, skipIPv6 bool, err error)
+}
+
 // NetworkInfo provides a go interface for drivers to provide network
 // specific information to libnetwork.
 type NetworkInfo interface {
@@ -92,7 +101,7 @@ type NetworkInfo interface {
 	// table name.
 	TableEventRegister(tableName string, objType ObjectType) error
 
-	// UpdateIPamConfig updates the networks IPAM configuration
+	// UpdateIpamConfig updates the networks IPAM configuration
 	// based on information from the driver.  In windows, the OS (HNS) chooses
 	// the IP address space if the user does not specify an address space.
 	UpdateIpamConfig(ipV4Data []IPAMData)
@@ -118,13 +127,23 @@ type InterfaceInfo interface {
 
 	// AddressIPv6 returns the IPv6 address.
 	AddressIPv6() *net.IPNet
+
+	// NetnsPath returns the path of the network namespace, if there is one. Else "".
+	NetnsPath() string
+
+	// SetCreatedInContainer can be called by the driver to indicate that it's
+	// created the network interface in the container's network namespace (so,
+	// it doesn't need to be moved there).
+	SetCreatedInContainer(bool)
 }
 
 // InterfaceNameInfo provides a go interface for the drivers to assign names
 // to interfaces.
 type InterfaceNameInfo interface {
-	// SetNames method assigns the srcName and dstPrefix for the interface.
-	SetNames(srcName, dstPrefix string) error
+	// SetNames method assigns the srcName, dstPrefix, and dstName for the
+	// interface. If both dstName and dstPrefix are set, dstName takes
+	// precedence.
+	SetNames(srcName, dstPrefix, dstName string) error
 }
 
 // JoinInfo represents a set of resources that the driver has the ability to provide during

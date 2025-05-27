@@ -12,9 +12,9 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/locker"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/go-digest"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
@@ -43,21 +43,18 @@ type layerStore struct {
 
 // StoreOptions are the options used to create a new Store instance
 type StoreOptions struct {
-	Root                      string
-	MetadataStorePathTemplate string
-	GraphDriver               string
-	GraphDriverOptions        []string
-	IDMapping                 idtools.IdentityMapping
-	ExperimentalEnabled       bool
+	Root               string
+	GraphDriver        string
+	GraphDriverOptions []string
+	IDMapping          user.IdentityMapping
 }
 
 // NewStoreFromOptions creates a new Store instance
 func NewStoreFromOptions(options StoreOptions) (Store, error) {
 	driver, err := graphdriver.New(options.GraphDriver, graphdriver.Options{
-		Root:                options.Root,
-		DriverOptions:       options.GraphDriverOptions,
-		IDMap:               options.IDMapping,
-		ExperimentalEnabled: options.ExperimentalEnabled,
+		Root:          options.Root,
+		DriverOptions: options.GraphDriverOptions,
+		IDMap:         options.IDMapping,
 	})
 	if err != nil {
 		if options.GraphDriver != "" {
@@ -67,9 +64,9 @@ func NewStoreFromOptions(options StoreOptions) (Store, error) {
 	}
 	log.G(context.TODO()).Debugf("Initialized graph driver %s", driver)
 
-	root := fmt.Sprintf(options.MetadataStorePathTemplate, driver)
-
-	return newStoreFromGraphDriver(root, driver)
+	driverName := driver.String()
+	layerDBRoot := filepath.Join(options.Root, "image", driverName, "layerdb")
+	return newStoreFromGraphDriver(layerDBRoot, driver)
 }
 
 // newStoreFromGraphDriver creates a new Store instance using the provided
@@ -307,12 +304,12 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 
 	defer func() {
 		if cErr != nil {
-			log.G(context.TODO()).Debugf("Cleaning up layer %s: %v", layer.cacheID, cErr)
+			log.G(context.TODO()).WithFields(log.Fields{"cache-id": layer.cacheID, "error": cErr}).Debug("Cleaning up cache layer after error")
 			if err := ls.driver.Remove(layer.cacheID); err != nil {
-				log.G(context.TODO()).Errorf("Error cleaning up cache layer %s: %v", layer.cacheID, err)
+				log.G(context.TODO()).WithFields(log.Fields{"cache-id": layer.cacheID, "error": err}).Error("Error cleaning up cache layer after error")
 			}
 			if err := tx.Cancel(); err != nil {
-				log.G(context.TODO()).Errorf("Error canceling metadata transaction %q: %s", tx.String(), err)
+				log.G(context.TODO()).WithFields(log.Fields{"cache-id": layer.cacheID, "error": err, "tx": tx.String()}).Error("Error canceling metadata transaction")
 			}
 		}
 	}()
@@ -466,7 +463,7 @@ func (ls *layerStore) Release(l Layer) ([]Metadata, error) {
 	return ls.releaseLayer(layer)
 }
 
-func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWLayerOpts) (_ RWLayer, err error) {
+func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWLayerOpts) (_ RWLayer, retErr error) {
 	var (
 		storageOpt map[string]string
 		initFunc   MountInit
@@ -489,7 +486,7 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 		return nil, ErrMountNameConflict
 	}
 
-	var pid string
+	var parentID string
 	var p *roLayer
 	if string(parent) != "" {
 		ls.layerL.Lock()
@@ -498,13 +495,13 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 		if p == nil {
 			return nil, ErrLayerDoesNotExist
 		}
-		pid = p.cacheID
+		parentID = p.cacheID
 
 		// Release parent chain if error
 		defer func() {
-			if err != nil {
+			if retErr != nil {
 				ls.layerL.Lock()
-				ls.releaseLayer(p)
+				_, _ = ls.releaseLayer(p)
 				ls.layerL.Unlock()
 			}
 		}()
@@ -519,22 +516,23 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 	}
 
 	if initFunc != nil {
-		pid, err = ls.initMount(m.mountID, pid, mountLabel, initFunc, storageOpt)
+		var err error
+		parentID, err = ls.initMount(m.mountID, parentID, mountLabel, initFunc, storageOpt)
 		if err != nil {
-			return
+			return nil, err
 		}
-		m.initID = pid
+		m.initID = parentID
 	}
 
 	createOpts := &graphdriver.CreateOpts{
 		StorageOpt: storageOpt,
 	}
 
-	if err = ls.driver.CreateReadWrite(m.mountID, pid, createOpts); err != nil {
-		return
+	if err := ls.driver.CreateReadWrite(m.mountID, parentID, createOpts); err != nil {
+		return nil, err
 	}
-	if err = ls.saveMount(m); err != nil {
-		return
+	if err := ls.saveMount(m); err != nil {
+		return nil, err
 	}
 
 	return m.getReference(), nil
@@ -686,9 +684,9 @@ func (ls *layerStore) getTarStream(rl *roLayer) (io.ReadCloser, error) {
 	go func() {
 		err := ls.assembleTarTo(rl.cacheID, r, nil, pw)
 		if err != nil {
-			pw.CloseWithError(err)
+			_ = pw.CloseWithError(err)
 		} else {
-			pw.Close()
+			_ = pw.Close()
 		}
 	}()
 

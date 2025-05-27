@@ -6,10 +6,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/snapshots"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/containerd/v2/core/snapshots"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/snapshot"
@@ -223,7 +223,7 @@ func MigrateV2(ctx context.Context, from, to string, cs content.Store, s snapsho
 
 			if blob := md.getBlob(); blob != "" {
 				if _, err := cs.Update(ctx, content.Info{
-					Digest: digest.Digest(blob),
+					Digest: blob,
 				}, "labels.containerd.io/gc.root"); err != nil {
 					return err
 				}

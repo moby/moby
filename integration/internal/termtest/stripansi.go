@@ -2,12 +2,9 @@ package termtest // import "github.com/docker/docker/integration/internal/termte
 
 import (
 	"errors"
-	"regexp"
 
 	"github.com/Azure/go-ansiterm"
 )
-
-var stripOSC = regexp.MustCompile(`\x1b\][^\x1b\a]*(\x1b\\|\a)`)
 
 // StripANSICommands attempts to strip ANSI console escape and control sequences
 // from s, returning a string containing only the final printed characters which
@@ -26,9 +23,6 @@ var stripOSC = regexp.MustCompile(`\x1b\][^\x1b\a]*(\x1b\\|\a)`)
 // Handlers for several ANSI control sequences are also unimplemented; attempts
 // to parse a string containing one will panic.
 func StripANSICommands(s string, opts ...ansiterm.Option) (string, error) {
-	// Work around https://github.com/Azure/go-ansiterm/issues/34
-	s = stripOSC.ReplaceAllLiteralString(s, "")
-
 	var h stringHandler
 	p := ansiterm.CreateParser("Ground", &h, opts...)
 	_, err := p.Parse([]byte(s))

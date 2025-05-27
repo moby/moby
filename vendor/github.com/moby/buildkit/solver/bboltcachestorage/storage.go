@@ -267,17 +267,26 @@ func (s *Store) emptyBranchWithParents(tx *bolt.Tx, id []byte) error {
 	if backlinks := tx.Bucket([]byte(backlinksBucket)).Bucket(id); backlinks != nil {
 		if err := backlinks.ForEach(func(k, v []byte) error {
 			if subLinks := tx.Bucket([]byte(linksBucket)).Bucket(k); subLinks != nil {
+				// Perform deletion outside of the iteration.
+				// https://github.com/etcd-io/bbolt/pull/611
+				var toDelete []string
 				if err := subLinks.ForEach(func(k, v []byte) error {
 					parts := bytes.Split(k, []byte("@"))
 					if len(parts) != 2 {
 						return errors.Errorf("invalid key %s", k)
 					}
 					if bytes.Equal(id, parts[1]) {
-						return subLinks.Delete(k)
+						toDelete = append(toDelete, string(k))
 					}
 					return nil
 				}); err != nil {
 					return err
+				}
+
+				for _, k := range toDelete {
+					if err := subLinks.Delete([]byte(k)); err != nil {
+						return err
+					}
 				}
 
 				if isEmptyBucket(subLinks) {
@@ -298,8 +307,8 @@ func (s *Store) emptyBranchWithParents(tx *bolt.Tx, id []byte) error {
 	}
 
 	// intentionally ignoring errors
-	tx.Bucket([]byte(linksBucket)).DeleteBucket([]byte(id))
-	tx.Bucket([]byte(resultBucket)).DeleteBucket([]byte(id))
+	tx.Bucket([]byte(linksBucket)).DeleteBucket(id)
+	tx.Bucket([]byte(resultBucket)).DeleteBucket(id)
 
 	return nil
 }
@@ -351,7 +360,7 @@ func (s *Store) WalkLinks(id string, link solver.CacheInfoLink, fn func(id strin
 		}
 		index := bytes.Join([][]byte{dt, {}}, []byte("@"))
 		c := b.Cursor()
-		k, _ := c.Seek([]byte(index))
+		k, _ := c.Seek(index)
 		for {
 			if k != nil && bytes.HasPrefix(k, index) {
 				target := bytes.TrimPrefix(k, index)
@@ -431,7 +440,7 @@ func (s *Store) WalkBacklinks(id string, fn func(id string, link solver.CacheInf
 					if err := json.Unmarshal(parts[0], &l); err != nil {
 						return err
 					}
-					l.Digest = digest.FromBytes([]byte(fmt.Sprintf("%s@%d", l.Digest, l.Output)))
+					l.Digest = digest.FromBytes(fmt.Appendf(nil, "%s@%d", l.Digest, l.Output))
 					l.Output = 0
 					outIDs = append(outIDs, string(bid))
 					outLinks = append(outLinks, l)

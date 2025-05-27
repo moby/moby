@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
@@ -145,7 +145,7 @@ func newRemoteFileServer(t testing.TB, ctx *fakecontext.Fake, c client.APIClient
 COPY . /static`); err != nil {
 		t.Fatal(err)
 	}
-	resp, err := c.ImageBuild(context.Background(), ctx.AsTarReader(t), types.ImageBuildOptions{
+	resp, err := c.ImageBuild(context.Background(), ctx.AsTarReader(t), build.ImageBuildOptions{
 		NoCache: true,
 		Tags:    []string{imgName},
 	})

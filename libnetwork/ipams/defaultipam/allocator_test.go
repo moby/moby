@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/libnetwork/bitmap"
+	"github.com/docker/docker/libnetwork/internal/addrset"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipamutils"
@@ -922,13 +922,9 @@ func TestRelease(t *testing.T) {
 	}
 
 	// One by one, release the address and request again. We should get the same IP
-	for i, inp := range toRelease {
+	for _, inp := range toRelease {
 		ip0 := net.ParseIP(inp.address)
 		a.ReleaseAddress(alloc.PoolID, ip0)
-		bm := a.local4.subnets[netip.MustParsePrefix(subnet)].addrs
-		if bm.Unselected() != 1 {
-			t.Fatalf("Failed to update free address count after release. Expected %d, Found: %d", i+1, bm.Unselected())
-		}
 
 		nw, _, err := a.RequestAddress(alloc.PoolID, nil, nil)
 		if err != nil {
@@ -948,11 +944,7 @@ func assertGetAddress(t *testing.T, subnet string) {
 	)
 
 	sub := netip.MustParsePrefix(subnet)
-	ones, bits := sub.Bits(), sub.Addr().BitLen()
-	zeroes := bits - ones
-	numAddresses := 1 << uint(zeroes)
-
-	bm := bitmap.New(uint64(numAddresses))
+	bm := addrset.New(sub)
 
 	start := time.Now()
 	run := 0
@@ -961,10 +953,7 @@ func assertGetAddress(t *testing.T, subnet string) {
 		run++
 	}
 	if printTime {
-		fmt.Printf("\nTaken %v, to allocate all addresses on %s. (nemAddresses: %d. Runs: %d)", time.Since(start), subnet, numAddresses, run)
-	}
-	if bm.Unselected() != 0 {
-		t.Fatalf("Unexpected free count after reserving all addresses: %d", bm.Unselected())
+		fmt.Printf("\nTaken %v, to allocate all addresses on %s. (Runs: %d)", time.Since(start), subnet, run)
 	}
 	/*
 		if bm.Head.Block != expectedMax || bm.Head.Count != numBlocks {

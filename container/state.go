@@ -21,15 +21,22 @@ type State struct {
 	// This Mutex is exported by design and is used as a global lock
 	// for both the State and the Container it's embedded in.
 	sync.Mutex
-	// Note that `Running` and `Paused` are not mutually exclusive:
+	// Note that [State.Running], [State.Restarting], and [State.Paused] are
+	// not mutually exclusive.
+	//
 	// When pausing a container (on Linux), the freezer cgroup is used to suspend
 	// all processes in the container. Freezing the process requires the process to
-	// be running. As a result, paused containers are both `Running` _and_ `Paused`.
+	// be running. As a result, paused containers can have both [State.Running]
+	// and [State.Paused] set to true.
+	//
+	// In a similar fashion, [State.Running] and [State.Restarting] can both
+	// be true in a situation where a container is in process of being restarted.
+	// Refer to [State.StateString] for order of precedence.
 	Running           bool
 	Paused            bool
 	Restarting        bool
 	OOMKilled         bool
-	RemovalInProgress bool // Not need for this to be persistent on disk.
+	RemovalInProgress bool `json:"-"` // No need for this to be persistent on disk.
 	Dead              bool
 	Pid               int
 	ExitCodeValue     int    `json:"ExitCode"`
@@ -39,8 +46,8 @@ type State struct {
 	Health            *Health
 	Removed           bool `json:"-"`
 
-	stopWaiters       []chan<- StateStatus
-	removeOnlyWaiters []chan<- StateStatus
+	stopWaiters       []chan<- container.StateStatus
+	removeOnlyWaiters []chan<- container.StateStatus
 
 	// The libcontainerd reference fields are unexported to force consumers
 	// to access them through the getter methods with multi-valued returns
@@ -55,21 +62,9 @@ type State struct {
 // Implements exec.ExitCode interface.
 // This type is needed as State include a sync.Mutex field which make
 // copying it unsafe.
-type StateStatus struct {
-	exitCode int
-	err      error
-}
-
-// ExitCode returns current exitcode for the state.
-func (s StateStatus) ExitCode() int {
-	return s.exitCode
-}
-
-// Err returns current error for the state. Returns nil if the container had
-// exited on its own.
-func (s StateStatus) Err() error {
-	return s.err
-}
+//
+// Deprecated: use [container.StateStatus] instead.
+type StateStatus = container.StateStatus
 
 // NewState creates a default state object.
 func NewState() *State {
@@ -112,73 +107,64 @@ func (s *State) String() string {
 	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCodeValue, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 }
 
-// IsValidHealthString checks if the provided string is a valid container health status or not.
+// IsValidHealthString checks if the provided string is a valid
+// [container.HealthStatus].
+//
+// Deprecated: use [container.ValidateHealthStatus] and check for nil-errors.
 func IsValidHealthString(s string) bool {
-	return s == container.Starting ||
-		s == container.Healthy ||
-		s == container.Unhealthy ||
-		s == container.NoHealthcheck
+	return container.ValidateHealthStatus(s) == nil
 }
 
-// StateString returns a single string to describe state
-func (s *State) StateString() string {
+// StateString returns the container's current [ContainerState], based on the
+// [State.Running], [State.Paused], [State.Restarting], [State.RemovalInProgress],
+// [State.StartedAt] and [State.Dead] fields.
+func (s *State) StateString() container.ContainerState {
 	if s.Running {
 		if s.Paused {
-			return "paused"
+			return container.StatePaused
 		}
 		if s.Restarting {
-			return "restarting"
+			return container.StateRestarting
 		}
-		return "running"
+		return container.StateRunning
 	}
 
+	// TODO(thaJeztah): should [State.Removed] also have an corresponding string?
+	// TODO(thaJeztah): should [State.OOMKilled] be taken into account anywhere?
 	if s.RemovalInProgress {
-		return "removing"
+		return container.StateRemoving
 	}
 
 	if s.Dead {
-		return "dead"
+		return container.StateDead
 	}
 
 	if s.StartedAt.IsZero() {
-		return "created"
+		return container.StateCreated
 	}
 
-	return "exited"
+	return container.StateExited
 }
 
-// IsValidStateString checks if the provided string is a valid container state or not.
-func IsValidStateString(s string) bool {
-	if s != "paused" &&
-		s != "restarting" &&
-		s != "removing" &&
-		s != "running" &&
-		s != "dead" &&
-		s != "created" &&
-		s != "exited" {
-		return false
-	}
-	return true
+// IsValidStateString checks if the provided string is a valid container state.
+//
+// Deprecated: use [container.ValidateContainerState] instead.
+func IsValidStateString(s container.ContainerState) bool {
+	return container.ValidateContainerState(s) == nil
 }
 
 // WaitCondition is an enum type for different states to wait for.
-type WaitCondition int
+//
+// Deprecated: use [container.WaitCondition] instead.
+type WaitCondition = container.WaitCondition
 
-// Possible WaitCondition Values.
-//
-// WaitConditionNotRunning (default) is used to wait for any of the non-running
-// states: "created", "exited", "dead", "removing", or "removed".
-//
-// WaitConditionNextExit is used to wait for the next time the state changes
-// to a non-running state. If the state is currently "created" or "exited",
-// this would cause Wait() to block until either the container runs and exits
-// or is removed.
-//
-// WaitConditionRemoved is used to wait for the container to be removed.
 const (
-	WaitConditionNotRunning WaitCondition = iota
-	WaitConditionNextExit
-	WaitConditionRemoved
+	// Deprecated: use [container.WaitConditionNotRunning] instead.
+	WaitConditionNotRunning = container.WaitConditionNotRunning
+	// Deprecated: use [container.WaitConditionNextExit] instead.
+	WaitConditionNextExit = container.WaitConditionNextExit
+	// Deprecated: use [container.WaitConditionRemoved] instead.
+	WaitConditionRemoved = container.WaitConditionRemoved
 )
 
 // Wait waits until the container is in a certain state indicated by the given
@@ -189,28 +175,25 @@ const (
 // be nil and its ExitCode() method will return the container's exit code,
 // otherwise, the results Err() method will return an error indicating why the
 // wait operation failed.
-func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateStatus {
+func (s *State) Wait(ctx context.Context, condition container.WaitCondition) <-chan container.StateStatus {
 	s.Lock()
 	defer s.Unlock()
 
 	// Buffer so we can put status and finish even nobody receives it.
-	resultC := make(chan StateStatus, 1)
+	resultC := make(chan container.StateStatus, 1)
 
 	if s.conditionAlreadyMet(condition) {
-		resultC <- StateStatus{
-			exitCode: s.ExitCode(),
-			err:      s.Err(),
-		}
+		resultC <- container.NewStateStatus(s.ExitCode(), s.Err())
 
 		return resultC
 	}
 
-	waitC := make(chan StateStatus, 1)
+	waitC := make(chan container.StateStatus, 1)
 
 	// Removal wakes up both removeOnlyWaiters and stopWaiters
 	// Container could be removed while still in "created" state
 	// in which case it is never actually stopped
-	if condition == WaitConditionRemoved {
+	if condition == container.WaitConditionRemoved {
 		s.removeOnlyWaiters = append(s.removeOnlyWaiters, waitC)
 	} else {
 		s.stopWaiters = append(s.stopWaiters, waitC)
@@ -220,10 +203,8 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 		select {
 		case <-ctx.Done():
 			// Context timeout or cancellation.
-			resultC <- StateStatus{
-				exitCode: -1,
-				err:      ctx.Err(),
-			}
+			resultC <- container.NewStateStatus(-1, ctx.Err())
+
 			return
 		case status := <-waitC:
 			resultC <- status
@@ -233,31 +214,42 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 	return resultC
 }
 
-func (s *State) conditionAlreadyMet(condition WaitCondition) bool {
+func (s *State) conditionAlreadyMet(condition container.WaitCondition) bool {
 	switch condition {
-	case WaitConditionNotRunning:
+	case container.WaitConditionNotRunning:
 		return !s.Running
-	case WaitConditionRemoved:
+	case container.WaitConditionRemoved:
 		return s.Removed
+	default:
+		// TODO(thaJeztah): how do we want to handle "WaitConditionNextExit"?
+		return false
 	}
-
-	return false
 }
 
-// IsRunning returns whether the running flag is set. Used by Container to check whether a container is running.
+// IsRunning returns whether the [State.Running] flag is set.
+//
+// Note that [State.Running], [State.Restarting], and [State.Paused] are
+// not mutually exclusive.
+//
+// When pausing a container (on Linux), the freezer cgroup is used to suspend
+// all processes in the container. Freezing the process requires the process to
+// be running. As a result, paused containers can have both [State.Running]
+// and [State.Paused] set to true.
+//
+// In a similar fashion, [State.Running] and [State.Restarting] can both
+// be true in a situation where a container is in process of being restarted.
+// Refer to [State.StateString] for order of precedence.
 func (s *State) IsRunning() bool {
 	s.Lock()
-	res := s.Running
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.Running
 }
 
 // GetPID holds the process id of a container.
 func (s *State) GetPID() int {
 	s.Lock()
-	res := s.Pid
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.Pid
 }
 
 // ExitCode returns current exitcode for the state. Take lock before if state
@@ -346,20 +338,42 @@ func (s *State) SetError(err error) {
 	}
 }
 
-// IsPaused returns whether the container is paused or not.
+// IsPaused returns whether the container is paused.
+//
+// Note that [State.Running], [State.Restarting], and [State.Paused] are
+// not mutually exclusive.
+//
+// When pausing a container (on Linux), the freezer cgroup is used to suspend
+// all processes in the container. Freezing the process requires the process to
+// be running. As a result, paused containers can have both [State.Running]
+// and [State.Paused] set to true.
+//
+// In a similar fashion, [State.Running] and [State.Restarting] can both
+// be true in a situation where a container is in process of being restarted.
+// Refer to [State.StateString] for order of precedence.
 func (s *State) IsPaused() bool {
 	s.Lock()
-	res := s.Paused
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.Paused
 }
 
-// IsRestarting returns whether the container is restarting or not.
+// IsRestarting returns whether the container is restarting.
+//
+// Note that [State.Running], [State.Restarting], and [State.Paused] are
+// not mutually exclusive.
+//
+// When pausing a container (on Linux), the freezer cgroup is used to suspend
+// all processes in the container. Freezing the process requires the process to
+// be running. As a result, paused containers can have both [State.Running]
+// and [State.Paused] set to true.
+//
+// In a similar fashion, [State.Running] and [State.Restarting] can both
+// be true in a situation where a container is in process of being restarted.
+// Refer to [State.StateString] for order of precedence.
 func (s *State) IsRestarting() bool {
 	s.Lock()
-	res := s.Restarting
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.Restarting
 }
 
 // SetRemovalInProgress sets the container state as being removed.
@@ -385,17 +399,15 @@ func (s *State) ResetRemovalInProgress() {
 // Used by Container to check whether a container is being removed.
 func (s *State) IsRemovalInProgress() bool {
 	s.Lock()
-	res := s.RemovalInProgress
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.RemovalInProgress
 }
 
 // IsDead returns whether the Dead flag is set. Used by Container to check whether a container is dead.
 func (s *State) IsDead() bool {
 	s.Lock()
-	res := s.Dead
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.Dead
 }
 
 // SetRemoved assumes this container is already in the "dead" state and notifies all waiters.
@@ -422,11 +434,8 @@ func (s *State) Err() error {
 	return nil
 }
 
-func (s *State) notifyAndClear(waiters *[]chan<- StateStatus) {
-	result := StateStatus{
-		exitCode: s.ExitCodeValue,
-		err:      s.Err(),
-	}
+func (s *State) notifyAndClear(waiters *[]chan<- container.StateStatus) {
+	result := container.NewStateStatus(s.ExitCodeValue, s.Err())
 
 	for _, c := range *waiters {
 		c <- result

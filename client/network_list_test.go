@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -23,7 +23,7 @@ func TestNetworkListError(t *testing.T) {
 	}
 
 	_, err := client.NetworkList(context.Background(), network.ListOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestNetworkList(t *testing.T) {
@@ -91,11 +91,7 @@ func TestNetworkList(t *testing.T) {
 		}
 
 		networkResources, err := client.NetworkList(context.Background(), listCase.options)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(networkResources) != 1 {
-			t.Fatalf("expected 1 network resource, got %v", networkResources)
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(networkResources, 1))
 	}
 }

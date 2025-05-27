@@ -6,59 +6,82 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/sysinfo"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestValidateResources(t *testing.T) {
 	type resourceTest struct {
-		ConfigCPURealtimePeriod  int64
-		ConfigCPURealtimeRuntime int64
-		SysInfoCPURealtime       bool
-		ErrorExpected            bool
-		FailureMsg               string
+		doc                string
+		resources          container.Resources
+		sysInfoCPURealtime bool
+		sysInfoCPUShares   bool
+		expectedError      string
 	}
 
 	tests := []resourceTest{
 		{
-			ConfigCPURealtimePeriod:  1000,
-			ConfigCPURealtimeRuntime: 1000,
-			SysInfoCPURealtime:       true,
-			ErrorExpected:            false,
-			FailureMsg:               "Expected valid configuration",
+			doc: "empty configuration",
 		},
 		{
-			ConfigCPURealtimePeriod:  5000,
-			ConfigCPURealtimeRuntime: 5000,
-			SysInfoCPURealtime:       false,
-			ErrorExpected:            true,
-			FailureMsg:               "Expected failure when cpu-rt-period is set but kernel doesn't support it",
+			doc: "valid configuration",
+			resources: container.Resources{
+				CPURealtimePeriod:  1000,
+				CPURealtimeRuntime: 1000,
+			},
+			sysInfoCPURealtime: true,
 		},
 		{
-			ConfigCPURealtimePeriod:  5000,
-			ConfigCPURealtimeRuntime: 5000,
-			SysInfoCPURealtime:       false,
-			ErrorExpected:            true,
-			FailureMsg:               "Expected failure when cpu-rt-runtime is set but kernel doesn't support it",
+			doc: "cpu-rt-period not supported",
+			resources: container.Resources{
+				CPURealtimePeriod: 5000,
+			},
+			expectedError: "kernel does not support CPU real-time scheduler",
 		},
 		{
-			ConfigCPURealtimePeriod:  5000,
-			ConfigCPURealtimeRuntime: 10000,
-			SysInfoCPURealtime:       true,
-			ErrorExpected:            true,
-			FailureMsg:               "Expected failure when cpu-rt-runtime is greater than cpu-rt-period",
+			doc: "cpu-rt-runtime not supported",
+			resources: container.Resources{
+				CPURealtimeRuntime: 5000,
+			},
+			expectedError: "kernel does not support CPU real-time scheduler",
+		},
+		{
+			doc: "cpu-rt-runtime greater than cpu-rt-period",
+			resources: container.Resources{
+				CPURealtimePeriod:  5000,
+				CPURealtimeRuntime: 10000,
+			},
+			sysInfoCPURealtime: true,
+			expectedError:      "cpu real-time runtime cannot be higher than cpu real-time period",
+		},
+		{
+			doc: "negative CPU shares",
+			resources: container.Resources{
+				CPUShares: -1,
+			},
+			sysInfoCPUShares: true,
+			expectedError:    "invalid CPU shares (-1): value must be a positive integer",
 		},
 	}
 
-	for _, rt := range tests {
-		var hc container.HostConfig
-		hc.Resources.CPURealtimePeriod = rt.ConfigCPURealtimePeriod
-		hc.Resources.CPURealtimeRuntime = rt.ConfigCPURealtimeRuntime
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			var hc container.HostConfig
+			hc.Resources = tc.resources
 
-		var si sysinfo.SysInfo
-		si.CPURealtime = rt.SysInfoCPURealtime
+			var si sysinfo.SysInfo
+			si.CPURealtime = tc.sysInfoCPURealtime
+			si.CPUShares = tc.sysInfoCPUShares
 
-		if err := validateResources(&hc, &si); (err != nil) != rt.ErrorExpected {
-			t.Fatal(rt.FailureMsg, err)
-		}
+			err := validateResources(&hc, &si)
+			if tc.expectedError != "" {
+				assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+				assert.Check(t, is.Error(err, tc.expectedError))
+			} else {
+				assert.NilError(t, err)
+			}
+		})
 	}
 }

@@ -16,18 +16,25 @@ import (
 // Platform is an optional parameter that specifies the platform to load from
 // the provided multi-platform image. This is only has effect if the input image
 // is a multi-platform image.
-func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, opts image.LoadOptions) (image.LoadResponse, error) {
+func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...ImageLoadOption) (image.LoadResponse, error) {
+	var opts imageLoadOpts
+	for _, opt := range loadOpts {
+		if err := opt.Apply(&opts); err != nil {
+			return image.LoadResponse{}, err
+		}
+	}
+
 	query := url.Values{}
 	query.Set("quiet", "0")
-	if opts.Quiet {
+	if opts.apiOptions.Quiet {
 		query.Set("quiet", "1")
 	}
-	if len(opts.Platforms) > 0 {
+	if len(opts.apiOptions.Platforms) > 0 {
 		if err := cli.NewVersionError(ctx, "1.48", "platform"); err != nil {
 			return image.LoadResponse{}, err
 		}
 
-		p, err := encodePlatforms(opts.Platforms...)
+		p, err := encodePlatforms(opts.apiOptions.Platforms...)
 		if err != nil {
 			return image.LoadResponse{}, err
 		}
@@ -41,7 +48,7 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, opts image.Lo
 		return image.LoadResponse{}, err
 	}
 	return image.LoadResponse{
-		Body: resp.body,
-		JSON: resp.header.Get("Content-Type") == "application/json",
+		Body: resp.Body,
+		JSON: resp.Header.Get("Content-Type") == "application/json",
 	}, nil
 }

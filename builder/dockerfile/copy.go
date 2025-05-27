@@ -1,6 +1,7 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"mime"
@@ -12,17 +13,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/builder/remotecontext/urlutil"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	"github.com/moby/go-archive"
 	"github.com/moby/sys/symlink"
+	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -249,7 +251,7 @@ func (o *copier) copyWithWildcards(origPath string) ([]copyInfo, error) {
 		if err != nil {
 			return err
 		}
-		rel, err := remotecontext.Rel(root, path)
+		rel, err := filepath.Rel(root, path)
 		if err != nil {
 			return err
 		}
@@ -307,7 +309,7 @@ func walkSource(source builder.Source, origPath string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		rel, err := remotecontext.Rel(source.Root(), path)
+		rel, err := filepath.Rel(source.Root(), path)
 		if err != nil {
 			return err
 		}
@@ -363,15 +365,15 @@ func getFilenameForDownload(path string, resp *http.Response) string {
 	return ""
 }
 
-func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote builder.Source, p string, err error) {
+func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote builder.Source, p string, retErr error) {
 	u, err := url.Parse(srcURL)
 	if err != nil {
-		return
+		return nil, "", err
 	}
 
 	resp, err := remotecontext.GetWithStatusError(srcURL)
 	if err != nil {
-		return
+		return nil, "", err
 	}
 
 	filename := getFilenameForDownload(u.Path, resp)
@@ -379,11 +381,13 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 	// Prepare file in a tmp dir
 	tmpDir, err := longpath.MkdirTemp("", "docker-remote")
 	if err != nil {
-		return
+		return nil, "", err
 	}
 	defer func() {
-		if err != nil {
-			os.RemoveAll(tmpDir)
+		if retErr != nil {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				log.G(context.TODO()).WithError(err).Debug("error cleaning up temp-directory after failing to download source")
+			}
 		}
 	}()
 	// If filename is empty, the returned filename will be "" but
@@ -395,19 +399,26 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 	tmpFileName = filepath.Join(tmpDir, tmpFileName)
 	tmpFile, err := os.OpenFile(tmpFileName, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
-		return
+		return nil, "", err
 	}
+	defer func() {
+		if retErr != nil {
+			// Ignore os.ErrClosed errors, as the file may already be closed in this function.
+			if err := tmpFile.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+				log.G(context.TODO()).WithError(err).Debug("error closing temp-file after failing to download source")
+			}
+		}
+	}()
 
 	progressOutput := streamformatter.NewJSONProgressOutput(output, true)
 	progressReader := progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Downloading")
 	// Download and dump result to tmp file
 	// TODO: add filehash directly
 	if _, err = io.Copy(tmpFile, progressReader); err != nil {
-		tmpFile.Close()
-		return
+		return nil, "", err
 	}
 	// TODO: how important is this random blank line to the output?
-	fmt.Fprintln(stdout)
+	_, _ = fmt.Fprintln(stdout)
 
 	// Set the mtime to the Last-Modified header value if present
 	// Otherwise just remove atime and mtime
@@ -422,19 +433,28 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 		}
 	}
 
-	tmpFile.Close()
+	// TODO(thaJeztah): was there a reason for this file to be closed _before_ system.Chtimes, or could we unconditionally close this in a defer?
+	if err := tmpFile.Close(); err != nil {
+		log.G(context.TODO()).WithError(err).Debug("error closing temp-file before chtimes")
+	}
 
 	if err = system.Chtimes(tmpFileName, mTime, mTime); err != nil {
-		return
+		return nil, "", err
 	}
 
 	lc, err := remotecontext.NewLazySource(tmpDir)
 	return lc, filename, err
 }
 
+type identity struct {
+	UID int
+	GID int
+	SID string
+}
+
 type copyFileOptions struct {
 	decompress bool
-	identity   *idtools.Identity
+	identity   *identity
 	archiver   *archive.Archiver
 }
 
@@ -464,11 +484,10 @@ func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions)
 			return err
 		}
 		defer f.Close()
-		options := &archive.TarOptions{
+		return archiver.Untar(f, destPath, &archive.TarOptions{
 			IDMap:            archiver.IDMapping,
 			BestEffortXattrs: true,
-		}
-		return archiver.Untar(f, destPath, options)
+		})
 	}
 
 	destExistsAsDir, err := isExistingDirectory(destPath)
@@ -485,7 +504,7 @@ func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions)
 	return copyFile(archiver, srcPath, destPath, options.identity)
 }
 
-func copyDirectory(archiver *archive.Archiver, source, dest string, identity *idtools.Identity) error {
+func copyDirectory(archiver *archive.Archiver, source, dest string, identity *identity) error {
 	destExists, err := isExistingDirectory(dest)
 	if err != nil {
 		return errors.Wrapf(err, "failed to query destination path")
@@ -500,17 +519,13 @@ func copyDirectory(archiver *archive.Archiver, source, dest string, identity *id
 	return nil
 }
 
-func copyFile(archiver *archive.Archiver, source, dest string, identity *idtools.Identity) error {
+func copyFile(archiver *archive.Archiver, source, dest string, identity *identity) error {
 	if identity == nil {
-		// Use system.MkdirAll here, which is a custom version of os.MkdirAll
-		// modified for use on Windows to handle volume GUID paths. These paths
-		// are of the form \\?\Volume{<GUID>}\<path>. An example would be:
-		// \\?\Volume{dae8d3ac-b9a1-11e9-88eb-e8554b2ba1db}\bin\busybox.exe
-		if err := system.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return err
 		}
 	} else {
-		if err := idtools.MkdirAllAndChownNew(filepath.Dir(dest), 0o755, *identity); err != nil {
+		if err := user.MkdirAllAndChown(filepath.Dir(dest), 0o755, identity.UID, identity.GID, user.WithOnlyNew); err != nil {
 			return errors.Wrapf(err, "failed to create new directory")
 		}
 	}

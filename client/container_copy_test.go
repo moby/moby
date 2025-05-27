@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,7 +23,15 @@ func TestContainerStatPathError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerStatPath(context.Background(), "container_id", "path")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
+
+	_, err = client.ContainerStatPath(context.Background(), "", "path")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, err = client.ContainerStatPath(context.Background(), "    ", "path")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestContainerStatPathNotFoundError(t *testing.T) {
@@ -30,7 +39,7 @@ func TestContainerStatPathNotFoundError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
 	}
 	_, err := client.ContainerStatPath(context.Background(), "container_id", "path")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestContainerStatPathNoHeaderError(t *testing.T) {
@@ -43,9 +52,7 @@ func TestContainerStatPathNoHeaderError(t *testing.T) {
 		}),
 	}
 	_, err := client.ContainerStatPath(context.Background(), "container_id", "path/to/file")
-	if err == nil {
-		t.Fatalf("expected an error, got nothing")
-	}
+	assert.Check(t, err != nil, "expected an error, got nothing")
 }
 
 func TestContainerStatPath(t *testing.T) {
@@ -82,15 +89,9 @@ func TestContainerStatPath(t *testing.T) {
 		}),
 	}
 	stat, err := client.ContainerStatPath(context.Background(), "container_id", expectedPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if stat.Name != "name" {
-		t.Fatalf("expected container path stat name to be 'name', got '%s'", stat.Name)
-	}
-	if stat.Mode != 0o700 {
-		t.Fatalf("expected container path stat mode to be 0700, got '%v'", stat.Mode)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(stat.Name, "name"))
+	assert.Check(t, is.Equal(stat.Mode, os.FileMode(0o700)))
 }
 
 func TestCopyToContainerError(t *testing.T) {
@@ -98,7 +99,15 @@ func TestCopyToContainerError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
+
+	err = client.CopyToContainer(context.Background(), "", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.CopyToContainer(context.Background(), "    ", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestCopyToContainerNotFoundError(t *testing.T) {
@@ -106,7 +115,7 @@ func TestCopyToContainerNotFoundError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
 	}
 	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 // TestCopyToContainerEmptyResponse verifies that no error is returned when a
@@ -116,9 +125,7 @@ func TestCopyToContainerEmptyResponse(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNoContent, "No content")),
 	}
 	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	assert.NilError(t, err)
 }
 
 func TestCopyToContainer(t *testing.T) {
@@ -162,9 +169,7 @@ func TestCopyToContainer(t *testing.T) {
 	err := client.CopyToContainer(context.Background(), "container_id", expectedPath, bytes.NewReader([]byte("content")), container.CopyToContainerOptions{
 		AllowOverwriteDirWithFile: false,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
 
 func TestCopyFromContainerError(t *testing.T) {
@@ -172,7 +177,15 @@ func TestCopyFromContainerError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
+
+	_, _, err = client.CopyFromContainer(context.Background(), "", "path/to/file")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, _, err = client.CopyFromContainer(context.Background(), "    ", "path/to/file")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestCopyFromContainerNotFoundError(t *testing.T) {
@@ -180,7 +193,7 @@ func TestCopyFromContainerNotFoundError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 // TestCopyFromContainerEmptyResponse verifies that no error is returned when a
@@ -205,9 +218,7 @@ func TestCopyFromContainerEmptyResponse(t *testing.T) {
 		}),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	assert.NilError(t, err)
 }
 
 func TestCopyFromContainerNoHeaderError(t *testing.T) {
@@ -220,9 +231,7 @@ func TestCopyFromContainerNoHeaderError(t *testing.T) {
 		}),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
-	if err == nil {
-		t.Fatalf("expected an error, got nothing")
-	}
+	assert.Check(t, err != nil, "expected an error, got nothing")
 }
 
 func TestCopyFromContainer(t *testing.T) {
@@ -261,23 +270,12 @@ func TestCopyFromContainer(t *testing.T) {
 		}),
 	}
 	r, stat, err := client.CopyFromContainer(context.Background(), "container_id", expectedPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if stat.Name != "name" {
-		t.Fatalf("expected container path stat name to be 'name', got '%s'", stat.Name)
-	}
-	if stat.Mode != 0o700 {
-		t.Fatalf("expected container path stat mode to be 0700, got '%v'", stat.Mode)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(stat.Name, "name"))
+	assert.Check(t, is.Equal(stat.Mode, os.FileMode(0o700)))
+
 	content, err := io.ReadAll(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := r.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if string(content) != "content" {
-		t.Fatalf("expected content to be 'content', got %s", string(content))
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(string(content), "content"))
+	assert.NilError(t, r.Close())
 }

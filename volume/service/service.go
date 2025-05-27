@@ -20,7 +20,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ds interface {
+type driverLister interface {
 	GetDriverList() []string
 }
 
@@ -34,7 +34,7 @@ type VolumeEventLogger interface {
 // This is used as the main access point for volumes to higher level services and the API.
 type VolumesService struct {
 	vs           *VolumeStore
-	ds           ds
+	ds           driverLister
 	pruneRunning atomic.Bool
 	eventLogger  VolumeEventLogger
 }
@@ -262,18 +262,18 @@ func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*volum
 
 // List gets the list of volumes which match the past in filters
 // If filters is nil or empty all volumes are returned.
-func (s *VolumesService) List(ctx context.Context, filter filters.Args) (volumesOut []*volumetypes.Volume, warnings []string, err error) {
+func (s *VolumesService) List(ctx context.Context, filter filters.Args) (volumes []*volumetypes.Volume, warnings []string, _ error) {
 	by, err := filtersToBy(filter, acceptedListFilters)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	volumes, warnings, err := s.vs.Find(ctx, by)
+	vols, warns, err := s.vs.Find(ctx, by)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return s.volumesToAPI(ctx, volumes, useCachedPath(true)), warnings, nil
+	return s.volumesToAPI(ctx, vols, useCachedPath(true)), warns, nil
 }
 
 // Shutdown shuts down the image service and dependencies

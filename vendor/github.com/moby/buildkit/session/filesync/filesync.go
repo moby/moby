@@ -3,7 +3,7 @@ package filesync
 import (
 	"context"
 	"fmt"
-	io "io"
+	"io"
 	"net/url"
 	"os"
 	"strconv"
@@ -145,7 +145,7 @@ type progressCb func(int, bool)
 type protocol struct {
 	name   string
 	sendFn func(stream Stream, fs fsutil.FS, progress progressCb) error
-	recvFn func(stream grpc.ClientStream, destDir string, cu CacheUpdater, progress progressCb, differ fsutil.DiffType, mapFunc func(string, *fstypes.Stat) bool) error
+	recvFn func(stream grpc.ClientStream, destDir string, cu CacheUpdater, progress progressCb, differ fsutil.DiffType, mapFunc, metadataOnlyFilter func(string, *fstypes.Stat) bool) error
 }
 
 var supportedProtocols = []protocol{
@@ -158,15 +158,17 @@ var supportedProtocols = []protocol{
 
 // FSSendRequestOpt defines options for FSSend request
 type FSSendRequestOpt struct {
-	Name            string
-	IncludePatterns []string
-	ExcludePatterns []string
-	FollowPaths     []string
-	DestDir         string
-	CacheUpdater    CacheUpdater
-	ProgressCb      func(int, bool)
-	Filter          func(string, *fstypes.Stat) bool
-	Differ          fsutil.DiffType
+	Name               string
+	IncludePatterns    []string
+	ExcludePatterns    []string
+	FollowPaths        []string
+	DestDir            string
+	CacheUpdater       CacheUpdater
+	ProgressCb         func(int, bool)
+	Filter             func(string, *fstypes.Stat) bool
+	Differ             fsutil.DiffType
+	MetadataOnly       bool
+	MetadataOnlyFilter func(string, *fstypes.Stat) bool
 }
 
 // CacheUpdater is an object capable of sending notifications for the cache hash changes
@@ -233,7 +235,16 @@ func FSSync(ctx context.Context, c session.Caller, opt FSSendRequestOpt) error {
 		panic(fmt.Sprintf("invalid protocol: %q", pr.name))
 	}
 
-	return pr.recvFn(stream, opt.DestDir, opt.CacheUpdater, opt.ProgressCb, opt.Differ, opt.Filter)
+	var metadataOnlyFilter func(string, *fstypes.Stat) bool
+	if opt.MetadataOnly {
+		if opt.MetadataOnlyFilter != nil {
+			metadataOnlyFilter = opt.MetadataOnlyFilter
+		} else {
+			metadataOnlyFilter = func(string, *fstypes.Stat) bool { return false }
+		}
+	}
+
+	return pr.recvFn(stream, opt.DestDir, opt.CacheUpdater, opt.ProgressCb, opt.Differ, opt.Filter, metadataOnlyFilter)
 }
 
 type FSSyncTarget interface {
@@ -264,34 +275,39 @@ func WithFSSyncDir(id int, outdir string) FSSyncTarget {
 	}
 }
 
-func NewFSSyncTarget(targets ...FSSyncTarget) session.Attachable {
-	fs := make(map[int]FileOutputFunc)
-	outdirs := make(map[int]string)
-	for _, t := range targets {
-		t := t.target()
-		if t.f != nil {
-			fs[t.id] = t.f
-		}
-		if t.outdir != "" {
-			outdirs[t.id] = t.outdir
-		}
+func NewFSSyncTarget(targets ...FSSyncTarget) *SyncTarget {
+	st := &SyncTarget{
+		fs:      make(map[int]FileOutputFunc),
+		outdirs: make(map[int]string),
 	}
-	return &fsSyncAttachable{
-		fs:      fs,
-		outdirs: outdirs,
-	}
+	st.Add(targets...)
+	return st
 }
 
-type fsSyncAttachable struct {
+type SyncTarget struct {
 	fs      map[int]FileOutputFunc
 	outdirs map[int]string
 }
 
-func (sp *fsSyncAttachable) Register(server *grpc.Server) {
+var _ session.Attachable = &SyncTarget{}
+
+func (sp *SyncTarget) Add(targets ...FSSyncTarget) {
+	for _, t := range targets {
+		t := t.target()
+		if t.f != nil {
+			sp.fs[t.id] = t.f
+		}
+		if t.outdir != "" {
+			sp.outdirs[t.id] = t.outdir
+		}
+	}
+}
+
+func (sp *SyncTarget) Register(server *grpc.Server) {
 	RegisterFileSendServer(server, sp)
 }
 
-func (sp *fsSyncAttachable) chooser(ctx context.Context) int {
+func (sp *SyncTarget) chooser(ctx context.Context) int {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return 0
@@ -307,7 +323,7 @@ func (sp *fsSyncAttachable) chooser(ctx context.Context) int {
 	return int(id)
 }
 
-func (sp *fsSyncAttachable) DiffCopy(stream FileSend_DiffCopyServer) (err error) {
+func (sp *SyncTarget) DiffCopy(stream FileSend_DiffCopyServer) (err error) {
 	id := sp.chooser(stream.Context())
 	if outdir, ok := sp.outdirs[id]; ok {
 		return syncTargetDiffCopy(stream, outdir)
@@ -320,8 +336,8 @@ func (sp *fsSyncAttachable) DiffCopy(stream FileSend_DiffCopyServer) (err error)
 	opts, _ := metadata.FromIncomingContext(stream.Context()) // if no metadata continue with empty object
 	md := map[string]string{}
 	for k, v := range opts {
-		if strings.HasPrefix(k, keyExporterMetaPrefix) {
-			md[strings.TrimPrefix(k, keyExporterMetaPrefix)] = strings.Join(v, ",")
+		if after, ok0 := strings.CutPrefix(k, keyExporterMetaPrefix); ok0 {
+			md[after] = strings.Join(v, ",")
 		}
 	}
 	wc, err := f(md)

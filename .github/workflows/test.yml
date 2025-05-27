@@ -19,10 +19,11 @@ on:
     branches:
       - 'master'
       - '[0-9]+.[0-9]+'
+      - '[0-9]+.x'
   pull_request:
 
 env:
-  GO_VERSION: "1.23.4"
+  GO_VERSION: "1.24.3"
   GIT_PAGER: "cat"
   PAGER: "cat"
   SETUP_BUILDX_VERSION: edge
@@ -33,7 +34,7 @@ jobs:
     uses: ./.github/workflows/.dco.yml
 
   build-dev:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-dco
@@ -51,9 +52,6 @@ jobs:
             echo "SYSTEMD=true" >> $GITHUB_ENV
           fi
       -
-        name: Checkout
-        uses: actions/checkout@v4
-      -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
@@ -62,7 +60,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v6
         with:
           targets: dev
           set: |
@@ -85,8 +83,15 @@ jobs:
     with:
       storage: ${{ matrix.storage }}
 
+  test-unit:
+    needs:
+      - build-dev
+      - validate-dco
+    uses: ./.github/workflows/.test-unit.yml
+    secrets: inherit
+
   validate-prepare:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10 # guardrails timeout for the whole job
     needs:
       - validate-dco
@@ -108,7 +113,7 @@ jobs:
           echo ${{ steps.scripts.outputs.matrix }}
 
   validate:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 30 # guardrails timeout for the whole job
     needs:
       - validate-prepare
@@ -135,7 +140,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v6
         with:
           targets: dev
           set: |
@@ -146,7 +151,7 @@ jobs:
           make -o build validate-${{ matrix.script }}
 
   smoke-prepare:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10 # guardrails timeout for the whole job
     needs:
       - validate-dco
@@ -168,7 +173,7 @@ jobs:
           echo ${{ steps.platforms.outputs.matrix }}
 
   smoke:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 20 # guardrails timeout for the whole job
     needs:
       - smoke-prepare
@@ -177,9 +182,6 @@ jobs:
       matrix:
         platform: ${{ fromJson(needs.smoke-prepare.outputs.matrix) }}
     steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v4
       -
         name: Prepare
         run: |
@@ -197,7 +199,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Test
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v6
         with:
           targets: binary-smoketest
           set: |

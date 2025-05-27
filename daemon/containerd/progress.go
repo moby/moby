@@ -8,15 +8,16 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	c8dimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/pkg/snapshotters"
-	"github.com/containerd/containerd/remotes"
-	"github.com/containerd/containerd/remotes/docker"
-	"github.com/containerd/containerd/snapshots"
+	"github.com/containerd/containerd/v2/core/content"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/remotes"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	"github.com/containerd/containerd/v2/core/snapshots"
+	"github.com/containerd/containerd/v2/pkg/snapshotters"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
@@ -179,49 +180,47 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 
 	var committedIdx []int
 	for idx, desc := range p.layers {
-		// Find the snapshot corresponding to this layer
-		walkFilter := "labels.\"" + snapshotters.TargetLayerDigestLabel + "\"==" + p.layers[idx].Digest.String()
-
-		err := p.snapshotter.Walk(ctx, func(ctx context.Context, sn snapshots.Info) error {
-			if sn.Kind == snapshots.KindActive {
-				if p.unpackStart == nil {
-					p.unpackStart = make(map[digest.Digest]time.Time)
-				}
-				var seconds int64
-				if began, ok := p.unpackStart[desc.Digest]; !ok {
-					p.unpackStart[desc.Digest] = time.Now()
-				} else {
-					seconds = int64(time.Since(began).Seconds())
-				}
-
-				// We _could_ get the current size of snapshot by calling Usage, but this is too expensive
-				// and could impact performance. So we just show the "Extracting" message with the elapsed time as progress.
-				out.WriteProgress(
-					progress.Progress{
-						ID:     stringid.TruncateID(desc.Digest.Encoded()),
-						Action: "Extracting",
-						// Start from 1s, because without Total, 0 won't be shown at all.
-						Current: 1 + seconds,
-						Units:   "s",
-					})
-				return nil
-			}
-
-			if sn.Kind == snapshots.KindCommitted {
-				out.WriteProgress(progress.Progress{
-					ID:         stringid.TruncateID(desc.Digest.Encoded()),
-					Action:     "Pull complete",
-					HideCounts: true,
-					LastUpdate: true,
-				})
-
-				committedIdx = append(committedIdx, idx)
-				return nil
-			}
-			return nil
-		}, walkFilter)
+		sn, err := findMatchingSnapshot(ctx, p.snapshotter, desc)
 		if err != nil {
+			if errdefs.IsNotFound(err) {
+				continue
+			}
 			return err
+		}
+
+		switch sn.Kind {
+		case snapshots.KindActive:
+			if p.unpackStart == nil {
+				p.unpackStart = make(map[digest.Digest]time.Time)
+			}
+			var seconds int64
+			if began, ok := p.unpackStart[desc.Digest]; !ok {
+				p.unpackStart[desc.Digest] = time.Now()
+			} else {
+				seconds = int64(time.Since(began).Seconds())
+			}
+
+			// We _could_ get the current size of snapshot by calling Usage, but this is too expensive
+			// and could impact performance. So we just show the "Extracting" message with the elapsed time as progress.
+			out.WriteProgress(
+				progress.Progress{
+					ID:     stringid.TruncateID(desc.Digest.Encoded()),
+					Action: "Extracting",
+					// Start from 1s, because without Total, 0 won't be shown at all.
+					Current: 1 + seconds,
+					Units:   "s",
+				})
+		case snapshots.KindCommitted:
+			out.WriteProgress(progress.Progress{
+				ID:         stringid.TruncateID(desc.Digest.Encoded()),
+				Action:     "Pull complete",
+				HideCounts: true,
+				LastUpdate: true,
+			})
+
+			committedIdx = append(committedIdx, idx)
+		case snapshots.KindUnknown, snapshots.KindView:
+			// Ignore other snapshot kinds
 		}
 	}
 
@@ -234,6 +233,34 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 	}
 
 	return nil
+}
+
+// findMatchingSnapshot finds the snapshot corresponding to the layer chain of the given layer descriptor.
+// It returns an error if no matching snapshot is found.
+// layerDesc MUST point to a layer descriptor and have a non-empty TargetImageLayersLabel annotation.
+// For pull, these are added by snapshotters.AppendInfoHandlerWrapper
+func findMatchingSnapshot(ctx context.Context, sn snapshots.Snapshotter, layerDesc ocispec.Descriptor) (snapshots.Info, error) {
+	chainID, ok := layerDesc.Annotations[snapshotters.TargetImageLayersLabel]
+	if !ok {
+		return snapshots.Info{}, errdefs.NotFound(errors.New("missing " + snapshotters.TargetImageLayersLabel + " annotation"))
+	}
+
+	// Find the snapshot corresponding to this layer chain
+	walkFilter := "labels.\"" + snapshotters.TargetImageLayersLabel + "\"==\"" + chainID + "\""
+
+	var matchingSnapshot *snapshots.Info
+	err := sn.Walk(ctx, func(ctx context.Context, sn snapshots.Info) error {
+		matchingSnapshot = &sn
+		return nil
+	}, walkFilter)
+	if err != nil {
+		return snapshots.Info{}, err
+	}
+	if matchingSnapshot == nil {
+		return snapshots.Info{}, errdefs.NotFound(errors.New("no matching snapshot found"))
+	}
+
+	return *matchingSnapshot, nil
 }
 
 func (p *pullProgress) finished(ctx context.Context, out progress.Output, desc ocispec.Descriptor) {
@@ -312,4 +339,26 @@ func (combined combinedProgress) UpdateProgress(ctx context.Context, ongoing *jo
 		}
 	}
 	return nil
+}
+
+// showBlobProgress determines if the progress of pulling/pushing blob should be shown.
+// Only indexes, manifests, and configs are hidden to align with the pre-containerd behavior.
+// They are small enough JSON files so it's fine to not show them.
+// We mostly care about bigger content like layers or other blobs.
+func showBlobProgress(desc ocispec.Descriptor) bool {
+	switch {
+	case c8dimages.IsLayerType(desc.MediaType):
+		// Fast path: we always show progress for layers.
+		//
+		// Note: We can't just plainly check for c8dimages.IsLayerType alone
+		// because it wouldn't account for other potentially big blobs like
+		// artifacts or non-standard images.
+		return true
+	case c8dimages.IsIndexType(desc.MediaType),
+		c8dimages.IsManifestType(desc.MediaType),
+		c8dimages.IsConfigType(desc.MediaType):
+		return false
+	default:
+		return true
+	}
 }

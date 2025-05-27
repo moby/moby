@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -518,8 +519,8 @@ func mergeIntervals(intervals []interval) []interval {
 	}
 
 	// sort intervals by start time
-	sort.Slice(intervals, func(i, j int) bool {
-		return intervals[i].start.Before(*intervals[j].start)
+	slices.SortFunc(intervals, func(a, b interval) int {
+		return a.start.Compare(*b.start)
 	})
 
 	var merged []interval
@@ -587,10 +588,8 @@ func (t *trace) triggerVertexEvent(v *client.Vertex) {
 		old = *v
 	}
 
-	changed := false
-	if v.Digest != old.Digest {
-		changed = true
-	}
+	changed := v.Digest != old.Digest
+
 	if v.Name != old.Name {
 		changed = true
 	}
@@ -641,7 +640,11 @@ func (t *trace) update(s *client.SolveStatus, termWidth int) {
 					subVtxs: make(map[digest.Digest]client.Vertex),
 				}
 				if t.modeConsole {
-					group.term = vt100.NewVT100(termHeight, termWidth-termPad)
+					w := termWidth - termPad
+					if w <= 0 {
+						w = 1
+					}
+					group.term = vt100.NewVT100(termHeight, w)
 				}
 				t.groups[v.ProgressGroup.Id] = group
 				t.byDigest[group.Digest] = group.vertex
@@ -662,7 +665,11 @@ func (t *trace) update(s *client.SolveStatus, termWidth int) {
 				intervals:     make(map[int64]interval),
 			}
 			if t.modeConsole {
-				t.byDigest[v.Digest].term = vt100.NewVT100(termHeight, termWidth-termPad)
+				w := termWidth - termPad
+				if w <= 0 {
+					w = 1
+				}
+				t.byDigest[v.Digest].term = vt100.NewVT100(termHeight, w)
 			}
 		}
 		t.triggerVertexEvent(v)
@@ -673,7 +680,7 @@ func (t *trace) update(s *client.SolveStatus, termWidth int) {
 			t.vertexes = append(t.vertexes, t.byDigest[v.Digest])
 		}
 		// allow a duplicate initial vertex that shouldn't reset state
-		if !(prev != nil && prev.isStarted() && v.Started == nil) {
+		if prev == nil || !prev.isStarted() || v.Started != nil {
 			t.byDigest[v.Digest].Vertex = v
 		}
 		if v.Started != nil {
@@ -765,7 +772,7 @@ func (t *trace) update(s *client.SolveStatus, termWidth int) {
 				} else if sec < 100 {
 					prec = 2
 				}
-				v.logs = append(v.logs, []byte(fmt.Sprintf("%s %s", fmt.Sprintf("%.[2]*[1]f", sec, prec), dt)))
+				v.logs = append(v.logs, fmt.Appendf(nil, "%s %s", fmt.Sprintf("%.[2]*[1]f", sec, prec), dt))
 			}
 			i++
 		})
@@ -787,7 +794,7 @@ func (t *trace) printErrorLogs(f io.Writer) {
 			}
 			// printer keeps last logs buffer
 			if v.logsBuffer != nil {
-				for i := 0; i < v.logsBuffer.Len(); i++ {
+				for range v.logsBuffer.Len() {
 					if v.logsBuffer.Value != nil {
 						fmt.Fprintln(f, string(v.logsBuffer.Value.([]byte)))
 					}
@@ -1000,6 +1007,9 @@ func (disp *ttyDisplay) print(d displayInfo, width, height int, all bool) {
 	} else {
 		out = align(out, "", width)
 	}
+	if len(out) > width {
+		out = out[:width]
+	}
 	fmt.Fprintln(disp.c, out)
 	lineCount := 0
 	for _, j := range d.jobs {
@@ -1071,7 +1081,7 @@ func (disp *ttyDisplay) print(d displayInfo, width, height int, all bool) {
 	}
 	// override previous content
 	if diff := disp.lineCount - lineCount; diff > 0 {
-		for i := 0; i < diff; i++ {
+		for range diff {
 			fmt.Fprintln(disp.c, strings.Repeat(" ", width))
 		}
 		fmt.Fprint(disp.c, aec.EmptyBuilder.Up(uint(diff)).Column(0).ANSI)

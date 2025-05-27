@@ -16,11 +16,11 @@ on:
   workflow_call:
 
 env:
-  ALPINE_VERSION: "3.20"
+  ALPINE_VERSION: "3.21"
 
 jobs:
   run:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10 # guardrails timeout for the whole job
     steps:
       -

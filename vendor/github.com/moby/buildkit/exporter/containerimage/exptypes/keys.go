@@ -26,10 +26,16 @@ var (
 	// Value: bool <true|false>
 	OptKeyUnpack ImageExporterOptKey = "unpack"
 
-	// Fallback image name prefix if image name isn't provided.
-	// If used, image will be named as <value>@<digest>
+	// Image name prefix to be used for tagging a dangling image.
+	// If used, image will be named as <value>@<digest> in addition
+	// to any other specified names.
 	// Value: string
 	OptKeyDanglingPrefix ImageExporterOptKey = "dangling-name-prefix"
+
+	// Only use the dangling image name as a fallback if image name isn't provided.
+	// Ignored if dangling-name-prefix is not set.
+	// Value: bool <true|false>
+	OptKeyDanglingEmptyOnly ImageExporterOptKey = "danging-name-empty-only"
 
 	// Creates additional image name with format <name>@<digest>
 	// Value: bool <true|false>
@@ -43,6 +49,9 @@ var (
 	// Use OCI mediatypes instead of Docker in JSON configs.
 	// Value: bool <true|false>
 	OptKeyOCITypes ImageExporterOptKey = "oci-mediatypes"
+
+	// Use OCI artifact format for the attestation manifest.
+	OptKeyOCIArtifact ImageExporterOptKey = "oci-artifact"
 
 	// Force attestation to be attached.
 	// Value: bool <true|false>

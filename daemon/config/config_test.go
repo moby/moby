@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -221,6 +222,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 		name        string
 		field       string
 		config      *Config
+		platform    string
 		expectedErr string
 	}{
 		{
@@ -317,6 +319,24 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			},
 		*/
 		{
+			name: "negative network-diagnostic-port",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					NetworkDiagnosticPort: -1,
+				},
+			},
+			expectedErr: "invalid network-diagnostic-port (-1): value must be between 0 and 65535",
+		},
+		{
+			name: "network-diagnostic-port out of range",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					NetworkDiagnosticPort: 65536,
+				},
+			},
+			expectedErr: "invalid network-diagnostic-port (65536): value must be between 0 and 65535",
+		},
+		{
 			name: "generic resource without =",
 			config: &Config{
 				CommonConfig: CommonConfig{
@@ -352,6 +372,62 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			},
 			expectedErr: "invalid logging level: foobar",
 		},
+		{
+			name: "exec-opt without value",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					ExecOptions: []string{"no-value"},
+				},
+			},
+			expectedErr: "invalid exec-opt (no-value): must be formatted 'opt=value'",
+		},
+		{
+			name: "exec-opt with empty value",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					ExecOptions: []string{"empty-value="},
+				},
+			},
+			expectedErr: "invalid exec-opt (empty-value=): must be formatted 'opt=value'",
+		},
+		{
+			name: "exec-opt without key",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					ExecOptions: []string{"=empty-key"},
+				},
+			},
+			expectedErr: "invalid exec-opt (=empty-key): must be formatted 'opt=value'",
+		},
+		{
+			name: "exec-opt unknown option",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					ExecOptions: []string{"unknown-option=any-value"},
+				},
+			},
+			expectedErr: "invalid exec-opt (unknown-option=any-value): unknown option: 'unknown-option'",
+		},
+		{
+			name: "exec-opt invalid on linux",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					ExecOptions: []string{"isolation=default"},
+				},
+			},
+			platform:    "linux",
+			expectedErr: "invalid exec-opt (isolation=default): option 'isolation' is only supported on windows",
+		},
+		{
+			name: "exec-opt invalid on windows",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					ExecOptions: []string{"native.cgroupdriver=systemd"},
+				},
+			},
+			platform:    "windows",
+			expectedErr: "invalid exec-opt (native.cgroupdriver=systemd): option 'native.cgroupdriver' is only supported on linux",
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -363,7 +439,11 @@ func TestValidateConfigurationErrors(t *testing.T) {
 				assert.Check(t, mergo.Merge(cfg, tc.config, mergo.WithOverride))
 			}
 			err = Validate(cfg)
-			assert.Error(t, err, tc.expectedErr)
+			if tc.platform != "" && tc.platform != runtime.GOOS {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tc.expectedErr)
+			}
 		})
 	}
 }
@@ -713,4 +793,27 @@ func TestMaskURLCredentials(t *testing.T) {
 		maskedURL := MaskCredentials(test.rawURL)
 		assert.Equal(t, maskedURL, test.maskedURL)
 	}
+}
+
+func TestSanitize(t *testing.T) {
+	const (
+		userPass    = "myuser:mypassword@"
+		proxyRawURL = "https://" + userPass + "example.org"
+		proxyURL    = "https://xxxxx:xxxxx@example.org"
+	)
+	sanitizedCfg := Sanitize(Config{
+		CommonConfig: CommonConfig{
+			Proxies: Proxies{
+				HTTPProxy:  proxyRawURL,
+				HTTPSProxy: proxyRawURL,
+				NoProxy:    proxyRawURL,
+			},
+		},
+	})
+	expectedProxies := Proxies{
+		HTTPProxy:  proxyURL,
+		HTTPSProxy: proxyURL,
+		NoProxy:    proxyURL,
+	}
+	assert.Check(t, is.DeepEqual(sanitizedCfg.Proxies, expectedProxies))
 }

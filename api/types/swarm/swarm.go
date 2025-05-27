@@ -235,3 +235,10 @@ type UpdateFlags struct {
 	RotateManagerToken     bool
 	RotateManagerUnlockKey bool
 }
+
+// UnlockKeyResponse contains the response for Engine API:
+// GET /swarm/unlockkey
+type UnlockKeyResponse struct {
+	// UnlockKey is the unlock key in ASCII-armored format.
+	UnlockKey string
+}

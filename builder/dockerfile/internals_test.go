@@ -7,15 +7,15 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/go-connections/nat"
+	"github.com/moby/go-archive"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -23,17 +23,13 @@ import (
 )
 
 func TestEmptyDockerfile(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
-	defer cleanup()
-
+	contextDir := t.TempDir()
 	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, "", 0o777)
-
 	readAndCheckDockerfile(t, "emptyDockerfile", contextDir, "", "the Dockerfile (Dockerfile) cannot be empty")
 }
 
 func TestSymlinkDockerfile(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
-	defer cleanup()
+	contextDir := t.TempDir()
 
 	createTestSymlink(t, contextDir, builder.DefaultDockerfileName, "/etc/passwd")
 
@@ -47,8 +43,7 @@ func TestSymlinkDockerfile(t *testing.T) {
 }
 
 func TestDockerfileOutsideTheBuildContext(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
-	defer cleanup()
+	contextDir := t.TempDir()
 
 	expectedError := "path outside the build context: ../../Dockerfile ()"
 	if runtime.GOOS == "windows" {
@@ -59,11 +54,8 @@ func TestDockerfileOutsideTheBuildContext(t *testing.T) {
 }
 
 func TestNonExistingDockerfile(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
-	defer cleanup()
-
-	expectedError := "Cannot locate specified Dockerfile: Dockerfile"
-
+	contextDir := t.TempDir()
+	const expectedError = "Cannot locate specified Dockerfile: Dockerfile"
 	readAndCheckDockerfile(t, "NonExistingDockerfile", contextDir, "Dockerfile", expectedError)
 }
 
@@ -85,7 +77,7 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 	}
 
 	config := backend.BuildConfig{
-		Options: &types.ImageBuildOptions{Dockerfile: dockerfilePath},
+		Options: &build.ImageBuildOptions{Dockerfile: dockerfilePath},
 		Source:  tarStream,
 	}
 	_, _, err = remotecontext.Detect(config)
@@ -166,17 +158,17 @@ func fullMutableRunConfig() *container.Config {
 
 func TestDeepCopyRunConfig(t *testing.T) {
 	runConfig := fullMutableRunConfig()
-	copy := copyRunConfig(runConfig)
-	assert.Check(t, is.DeepEqual(fullMutableRunConfig(), copy))
+	ctrCfg := copyRunConfig(runConfig)
+	assert.Check(t, is.DeepEqual(fullMutableRunConfig(), ctrCfg))
 
-	copy.Cmd[1] = "arg2"
-	copy.Env[1] = "env2=new"
-	copy.ExposedPorts["10002"] = struct{}{}
-	copy.Volumes["three"] = struct{}{}
-	copy.Entrypoint[1] = "arg2"
-	copy.OnBuild[0] = "start"
-	copy.Labels["label3"] = "value3"
-	copy.Shell[0] = "sh"
+	ctrCfg.Cmd[1] = "arg2"
+	ctrCfg.Env[1] = "env2=new"
+	ctrCfg.ExposedPorts["10002"] = struct{}{}
+	ctrCfg.Volumes["three"] = struct{}{}
+	ctrCfg.Entrypoint[1] = "arg2"
+	ctrCfg.OnBuild[0] = "start"
+	ctrCfg.Labels["label3"] = "value3"
+	ctrCfg.Shell[0] = "sh"
 	assert.Check(t, is.DeepEqual(fullMutableRunConfig(), runConfig))
 }
 
@@ -205,7 +197,6 @@ func getMockBuildBackend() builder.Backend {
 
 func TestExportImage(t *testing.T) {
 	ds := newDispatchState(NewBuildArgs(map[string]*string{}))
-	layer := &MockRWLayer{}
 	parentImage := &image.Image{
 		V1Image: image.V1Image{
 			OS:           "linux",
@@ -213,12 +204,10 @@ func TestExportImage(t *testing.T) {
 			Variant:      "v8",
 		},
 	}
-	runConfig := &container.Config{}
-
 	b := &Builder{
 		imageSources: getMockImageSource(nil, nil, nil),
 		docker:       getMockBuildBackend(),
 	}
-	err := b.exportImage(context.TODO(), ds, layer, parentImage, runConfig)
+	err := b.exportImage(context.TODO(), ds, &MockRWLayer{}, parentImage, &container.Config{})
 	assert.NilError(t, err)
 }

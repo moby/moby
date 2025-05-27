@@ -1,5 +1,5 @@
 // FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.22
+//go:build go1.23
 
 package libnetwork
 
@@ -84,7 +84,7 @@ type Endpoint struct {
 	dnsNames          []string
 	disableResolution bool
 	disableIPv6       bool
-	generic           map[string]interface{}
+	generic           map[string]any
 	prefAddress       net.IP
 	prefAddressV6     net.IP
 	ipamOptions       map[string]string
@@ -105,7 +105,7 @@ func (ep *Endpoint) MarshalJSON() ([]byte, error) {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
-	epMap := make(map[string]interface{})
+	epMap := make(map[string]any)
 	epMap["name"] = ep.name
 	epMap["id"] = ep.id
 	epMap["ep_iface"] = ep.iface
@@ -132,7 +132,7 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
-	var epMap map[string]interface{}
+	var epMap map[string]any
 	if err := json.Unmarshal(b, &epMap); err != nil {
 		return err
 	}
@@ -145,29 +145,29 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	//
 	// If anyone ever comes here and figures out one way or another if we can/should be checking these errors and it turns out we can't... then please document *why*
 
-	ib, _ := json.Marshal(epMap["ep_iface"])
-	json.Unmarshal(ib, &ep.iface) //nolint:errcheck
+	ib, _ := json.Marshal(epMap["ep_iface"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
+	_ = json.Unmarshal(ib, &ep.iface)        //nolint:errcheck
 
-	jb, _ := json.Marshal(epMap["joinInfo"])
-	json.Unmarshal(jb, &ep.joinInfo) //nolint:errcheck
+	jb, _ := json.Marshal(epMap["joinInfo"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
+	_ = json.Unmarshal(jb, &ep.joinInfo)     //nolint:errcheck
 
-	tb, _ := json.Marshal(epMap["exposed_ports"])
+	tb, _ := json.Marshal(epMap["exposed_ports"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
 	var tPorts []types.TransportPort
-	json.Unmarshal(tb, &tPorts) //nolint:errcheck
+	_ = json.Unmarshal(tb, &tPorts) //nolint:errcheck
 	ep.exposedPorts = tPorts
 
-	cb, _ := json.Marshal(epMap["sandbox"])
-	json.Unmarshal(cb, &ep.sandboxID) //nolint:errcheck
+	cb, _ := json.Marshal(epMap["sandbox"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
+	_ = json.Unmarshal(cb, &ep.sandboxID)   //nolint:errcheck
 
 	if v, ok := epMap["generic"]; ok {
-		ep.generic = v.(map[string]interface{})
+		ep.generic = v.(map[string]any)
 
 		if opt, ok := ep.generic[netlabel.PortMap]; ok {
 			pblist := []types.PortBinding{}
 
-			for i := 0; i < len(opt.([]interface{})); i++ {
+			for i := 0; i < len(opt.([]any)); i++ {
 				pb := types.PortBinding{}
-				tmp := opt.([]interface{})[i].(map[string]interface{})
+				tmp := opt.([]any)[i].(map[string]any)
 
 				bytes, err := json.Marshal(tmp)
 				if err != nil {
@@ -187,9 +187,9 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 		if opt, ok := ep.generic[netlabel.ExposedPorts]; ok {
 			tplist := []types.TransportPort{}
 
-			for i := 0; i < len(opt.([]interface{})); i++ {
+			for i := 0; i < len(opt.([]any)); i++ {
 				tp := types.TransportPort{}
-				tmp := opt.([]interface{})[i].(map[string]interface{})
+				tmp := opt.([]any)[i].(map[string]any)
 
 				bytes, err := json.Marshal(tmp)
 				if err != nil {
@@ -234,24 +234,24 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 		ep.loadBalancer = v.(bool)
 	}
 
-	sal, _ := json.Marshal(epMap["svcAliases"])
+	sal, _ := json.Marshal(epMap["svcAliases"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
 	var svcAliases []string
-	json.Unmarshal(sal, &svcAliases) //nolint:errcheck
+	_ = json.Unmarshal(sal, &svcAliases) //nolint:errcheck
 	ep.svcAliases = svcAliases
 
-	pc, _ := json.Marshal(epMap["ingressPorts"])
+	pc, _ := json.Marshal(epMap["ingressPorts"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
 	var ingressPorts []*PortConfig
-	json.Unmarshal(pc, &ingressPorts) //nolint:errcheck
+	_ = json.Unmarshal(pc, &ingressPorts) //nolint:errcheck
 	ep.ingressPorts = ingressPorts
 
-	ma, _ := json.Marshal(epMap["myAliases"])
+	ma, _ := json.Marshal(epMap["myAliases"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
 	var myAliases []string
-	json.Unmarshal(ma, &myAliases) //nolint:errcheck
+	_ = json.Unmarshal(ma, &myAliases) //nolint:errcheck
 
 	_, hasDNSNames := epMap["dnsNames"]
-	dn, _ := json.Marshal(epMap["dnsNames"])
+	dn, _ := json.Marshal(epMap["dnsNames"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
 	var dnsNames []string
-	json.Unmarshal(dn, &dnsNames)
+	_ = json.Unmarshal(dn, &dnsNames) //nolint:errcheck
 	ep.dnsNames = dnsNames
 
 	// TODO(aker): remove this migration code in v27
@@ -385,7 +385,9 @@ func (ep *Endpoint) needResolver() bool {
 	return !ep.disableResolution
 }
 
-// endpoint Key structure : endpoint/network-id/endpoint-id
+// Key returns the endpoint's key.
+//
+// Key structure: endpoint/network-id/endpoint-id
 func (ep *Endpoint) Key() []string {
 	if ep.network == nil {
 		return nil
@@ -536,7 +538,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		return fmt.Errorf("failed to get driver during join: %v", err)
 	}
 
-	if err := d.Join(ctx, nid, epid, sb.Key(), ep, sb.Labels()); err != nil {
+	if err := d.Join(ctx, nid, epid, sb.Key(), ep, ep.generic, sb.Labels()); err != nil {
 		return err
 	}
 	defer func() {
@@ -582,7 +584,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		return errdefs.System(err)
 	}
 
-	if err := n.getController().updateToStore(ctx, ep); err != nil {
+	if err := n.getController().storeEndpoint(ctx, ep); err != nil {
 		return err
 	}
 
@@ -720,7 +722,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	return nil
 }
 
-func (ep *Endpoint) programExternalConnectivity(ctx context.Context, labels map[string]interface{}) error {
+func (ep *Endpoint) programExternalConnectivity(ctx context.Context, labels map[string]any) error {
 	log.G(ctx).Debugf("Programming external connectivity on endpoint %s (%s)", ep.Name(), ep.ID())
 	extN, err := ep.getNetworkFromStore()
 	if err != nil {
@@ -737,7 +739,7 @@ func (ep *Endpoint) programExternalConnectivity(ctx context.Context, labels map[
 	return nil
 }
 
-func (ep *Endpoint) revokeExternalConnectivity() (func(context.Context, map[string]interface{}) error, error) {
+func (ep *Endpoint) revokeExternalConnectivity() (func(context.Context, map[string]any) error, error) {
 	extN, err := ep.getNetworkFromStore()
 	if err != nil {
 		return nil, types.InternalErrorf("failed to get network from store for revoking external connectivity: %v", err)
@@ -751,7 +753,7 @@ func (ep *Endpoint) revokeExternalConnectivity() (func(context.Context, map[stri
 			"driver failed revoking external connectivity on endpoint %s (%s): %v",
 			ep.Name(), ep.ID(), err)
 	}
-	return func(ctx context.Context, labels map[string]interface{}) error {
+	return func(ctx context.Context, labels map[string]any) error {
 		return extD.ProgramExternalConnectivity(context.WithoutCancel(ctx), ep.network.ID(), ep.ID(), labels)
 	}, nil
 }
@@ -762,7 +764,7 @@ func (ep *Endpoint) rename(name string) error {
 	ep.mu.Unlock()
 
 	// Update the store with the updated name
-	if err := ep.getNetwork().getController().updateToStore(context.TODO(), ep); err != nil {
+	if err := ep.getNetwork().getController().storeEndpoint(context.TODO(), ep); err != nil {
 		return err
 	}
 
@@ -798,7 +800,7 @@ func (ep *Endpoint) UpdateDNSNames(dnsNames []string) error {
 	}
 
 	// Update the store with the updated name
-	if err := c.updateToStore(context.TODO(), ep); err != nil {
+	if err := c.storeEndpoint(context.TODO(), ep); err != nil {
 		return err
 	}
 
@@ -899,12 +901,18 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 		log.G(ctx).WithError(err).Warn("Failed to clean up network resources on container disconnect")
 	}
 
+	// Even if the interface was initially created in the container's namespace, it's
+	// now been moved out. When a legacy link is deleted, the Endpoint is removed and
+	// then re-added to the Sandbox. So, to make sure the re-add works, note that the
+	// interface is now outside the container's netns.
+	ep.iface.createdInContainer = false
+
 	// Update the store about the sandbox detach only after we
 	// have completed sb.clearNetworkResources above to avoid
 	// spurious logs when cleaning up the sandbox when the daemon
 	// ungracefully exits and restarts before completing sandbox
 	// detach but after store has been updated.
-	if err := n.getController().updateToStore(ctx, ep); err != nil {
+	if err := n.getController().storeEndpoint(ctx, ep); err != nil {
 		return err
 	}
 
@@ -1024,14 +1032,14 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 		}
 	}
 
-	if err = n.getController().deleteFromStore(ep); err != nil {
+	if err = n.getController().deleteStoredEndpoint(ep); err != nil {
 		return err
 	}
 
 	defer func() {
 		if err != nil && !force {
 			ep.dbExists = false
-			if e := n.getController().updateToStore(context.WithoutCancel(ctx), ep); e != nil {
+			if e := n.getController().storeEndpoint(context.WithoutCancel(ctx), ep); e != nil {
 				log.G(ctx).Warnf("failed to recreate endpoint in store %s : %v", name, e)
 			}
 		}
@@ -1046,10 +1054,6 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 	}
 
 	ep.releaseAddress()
-
-	if err := n.getEpCnt().DecEndpointCnt(); err != nil {
-		log.G(ctx).Warnf("failed to decrement endpoint count for ep %s: %v", ep.ID(), err)
-	}
 
 	return nil
 }
@@ -1122,7 +1126,7 @@ func (ep *Endpoint) getEtcHostsAddrs() []netip.Addr {
 
 // EndpointOptionGeneric function returns an option setter for a Generic option defined
 // in a Dictionary of Key-Value pair
-func EndpointOptionGeneric(generic map[string]interface{}) EndpointOption {
+func EndpointOptionGeneric(generic map[string]any) EndpointOption {
 	return func(ep *Endpoint) {
 		for k, v := range generic {
 			ep.generic[k] = v
@@ -1254,6 +1258,12 @@ func JoinOptionPriority(prio int) EndpointOption {
 	}
 }
 
+func WithNetnsPath(path string) EndpointOption {
+	return func(ep *Endpoint) {
+		ep.iface.netnsPath = path
+	}
+}
+
 func (ep *Endpoint) assignAddress(ipam ipamapi.Ipam, assignIPv4, assignIPv6 bool) error {
 	n := ep.getNetwork()
 	if n.hasSpecialDriver() {
@@ -1363,7 +1373,7 @@ func (ep *Endpoint) releaseAddress() {
 
 func (c *Controller) cleanupLocalEndpoints() error {
 	// Get used endpoints
-	eps := make(map[string]interface{})
+	eps := make(map[string]any)
 	for _, sb := range c.sandboxes {
 		for _, ep := range sb.endpoints {
 			eps[ep.id] = true
@@ -1391,20 +1401,6 @@ func (c *Controller) cleanupLocalEndpoints() error {
 			log.G(context.TODO()).Infof("Removing stale endpoint %s (%s)", ep.name, ep.id)
 			if err := ep.Delete(context.WithoutCancel(context.TODO()), true); err != nil {
 				log.G(context.TODO()).Warnf("Could not delete local endpoint %s during endpoint cleanup: %v", ep.name, err)
-			}
-		}
-
-		epl, err = n.getEndpointsFromStore()
-		if err != nil {
-			log.G(context.TODO()).Warnf("Could not get list of endpoints in network %s for count update: %v", n.name, err)
-			continue
-		}
-
-		epCnt := n.getEpCnt().EndpointCnt()
-		if epCnt != uint64(len(epl)) {
-			log.G(context.TODO()).Infof("Fixing inconsistent endpoint_cnt for network %s. Expected=%d, Actual=%d", n.name, len(epl), epCnt)
-			if err := n.getEpCnt().setCnt(uint64(len(epl))); err != nil {
-				log.G(context.TODO()).WithField("network", n.name).WithError(err).Warn("Error while fixing inconsistent endpoint_cnt for network")
 			}
 		}
 	}

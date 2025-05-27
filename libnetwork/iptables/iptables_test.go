@@ -4,6 +4,7 @@ package iptables
 
 import (
 	"net"
+	"net/netip"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -42,8 +43,8 @@ func TestNewChain(t *testing.T) {
 
 func TestLink(t *testing.T) {
 	iptable, _, filterChain := createNewChain(t)
-	ip1 := net.ParseIP("192.168.1.1")
-	ip2 := net.ParseIP("192.168.1.2")
+	ip1 := netip.MustParseAddr("192.168.1.1")
+	ip2 := netip.MustParseAddr("192.168.1.2")
 	port := 1234
 	proto := "tcp"
 
@@ -257,6 +258,10 @@ func TestExistsRaw(t *testing.T) {
 }
 
 func TestRule(t *testing.T) {
+	_ = firewalldInit()
+	if res, _ := UsingFirewalld(); res {
+		t.Skip("firewalld in host netns cannot create rules in the test's netns")
+	}
 	defer netnsutils.SetupTestOSContext(t)()
 
 	assert.NilError(t, exec.Command("iptables", "-N", "TESTCHAIN").Run())

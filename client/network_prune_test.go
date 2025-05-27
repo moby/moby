@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -24,7 +24,7 @@ func TestNetworksPruneError(t *testing.T) {
 	}
 
 	_, err := client.NetworksPrune(context.Background(), filters.NewArgs())
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestNetworksPrune(t *testing.T) {
@@ -97,7 +97,7 @@ func TestNetworksPrune(t *testing.T) {
 		}
 
 		report, err := client.NetworksPrune(context.Background(), listCase.filters)
-		assert.Check(t, err)
+		assert.NilError(t, err)
 		assert.Check(t, is.Len(report.NetworksDeleted, 2))
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -13,10 +14,12 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
 	n "github.com/docker/docker/integration/network"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/skip"
 )
 
@@ -89,9 +92,6 @@ func TestDockerNetworkMacvlan(t *testing.T) {
 		}, {
 			name: "Addressing",
 			test: testMacvlanAddressing,
-		}, {
-			name: "MacvlanExperimentalV4Only",
-			test: testMacvlanExperimentalV4Only,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -439,18 +439,6 @@ func testMacvlanAddressing(t *testing.T, ctx context.Context, client client.APIC
 	assert.Check(t, is.Contains(result.Combined(), "default via 2001:db8:abca::254 dev eth0"))
 }
 
-// Check that '--ipv4=false' is only allowed with '--experimental'.
-// (Remember to remove `--experimental' from TestMacvlanIPAM when it's
-// no longer needed, and maybe use a single daemon for all of its tests.)
-func testMacvlanExperimentalV4Only(t *testing.T, ctx context.Context, client client.APIClient) {
-	_, err := net.Create(ctx, client, "testnet",
-		net.WithMacvlan(""),
-		net.WithIPv4(false),
-	)
-	defer client.NetworkRemove(ctx, "testnet")
-	assert.ErrorContains(t, err, "IPv4 can only be disabled if experimental features are enabled")
-}
-
 // Check that a macvlan interface with '--ipv6=false' doesn't get kernel-assigned
 // IPv6 addresses, but the loopback interface does still have an IPv6 address ('::1').
 // Also check that with '--ipv4=false', there's no IPAM-assigned IPv4 address.
@@ -459,6 +447,9 @@ func TestMacvlanIPAM(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
 	ctx := testutil.StartSpan(baseContext, t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
 
 	testcases := []struct {
 		name       string
@@ -494,14 +485,6 @@ func TestMacvlanIPAM(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
-
-			var daemonOpts []daemon.Option
-			if !tc.enableIPv4 {
-				daemonOpts = append(daemonOpts, daemon.WithExperimental())
-			}
-			d := daemon.New(t, daemonOpts...)
-			d.StartWithBusybox(ctx, t)
-			t.Cleanup(func() { d.Stop(t) })
 			c := d.NewClientT(t, client.WithVersion(tc.apiVersion))
 
 			netOpts := []func(*network.CreateOptions){
@@ -566,8 +549,7 @@ func TestMACVlanDNS(t *testing.T) {
 
 	net.StartDaftDNS(t, "127.0.0.1")
 
-	tmpFileName := net.WriteTempResolvConf(t, "127.0.0.1")
-	d := daemon.New(t, daemon.WithEnvVars("DOCKER_TEST_RESOLV_CONF_PATH="+tmpFileName))
+	d := daemon.New(t, daemon.WithResolvConf(net.GenResolvConf("127.0.0.1")))
 	d.StartWithBusybox(ctx, t)
 	t.Cleanup(func() { d.Stop(t) })
 	c := d.NewClientT(t)
@@ -627,4 +609,90 @@ func TestMACVlanDNS(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestPointToPoint checks that no gateway is reserved for a macvlan network
+// with no parent interface (an "internal" network).
+func TestPointToPoint(t *testing.T) {
+	ctx := testutil.StartSpan(baseContext, t)
+	apiClient := testEnv.APIClient()
+
+	const netName = "p2pmacvlan"
+	net.CreateNoError(ctx, t, apiClient, netName,
+		net.WithMacvlan(""),
+		net.WithIPAM("192.168.135.0/31", ""),
+	)
+	defer net.RemoveNoError(ctx, t, apiClient, netName)
+
+	const ctrName = "ctr1"
+	id := container.Run(ctx, t, apiClient,
+		container.WithNetworkMode(netName),
+		container.WithName(ctrName),
+	)
+	defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+	attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	res := container.RunAttach(attachCtx, t, apiClient,
+		container.WithCmd([]string{"ping", "-c1", "-W3", ctrName}...),
+		container.WithNetworkMode(netName),
+	)
+	defer apiClient.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+	assert.Check(t, is.Equal(res.ExitCode, 0))
+	assert.Check(t, is.Equal(res.Stderr.Len(), 0))
+	assert.Check(t, is.Contains(res.Stdout.String(), "1 packets transmitted, 1 packets received"))
+}
+
+func TestEndpointWithCustomIfname(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	const master = "dm-dummy0"
+	n.CreateMasterDummy(ctx, t, master)
+	defer n.DeleteInterface(ctx, t, master)
+
+	// create a network specifying the desired sub-interface name
+	const netName = "macvlan-custom-ifname"
+	net.CreateNoError(ctx, t, apiClient, netName, net.WithMacvlan("dm-dummy0.60"))
+
+	ctrID := container.Run(ctx, t, apiClient,
+		container.WithCmd("ip", "-o", "link", "show", "foobar"),
+		container.WithEndpointSettings(netName, &network.EndpointSettings{
+			DriverOpts: map[string]string{
+				netlabel.Ifname: "foobar",
+			},
+		}))
+	defer container.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
+
+	out, err := container.Output(ctx, apiClient, ctrID)
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(out.Stdout, ": foobar@if"), "expected ': foobar@if' in 'ip link show':\n%s", out.Stdout)
+}
+
+// TestParentDown checks that when a macvlan's parent is down, a container can still
+// be attached.
+// Regression test for https://github.com/moby/moby/issues/49593
+func TestParentDown(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	const tap = "dummytap0"
+	res := icmd.RunCommand("ip", "tuntap", "add", "mode", "tap", tap)
+	res.Assert(t, icmd.Success)
+	defer icmd.RunCommand("ip", "link", "del", tap)
+
+	const netName = "testnet-macvlan"
+	net.CreateNoError(ctx, t, apiClient, netName,
+		net.WithMacvlan(tap),
+		net.WithIPv6(),
+	)
+
+	ctrID := container.Run(ctx, t, apiClient, container.WithNetworkMode(netName))
+	defer container.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
 }

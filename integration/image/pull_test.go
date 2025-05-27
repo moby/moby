@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/content/local"
-	c8dimages "github.com/containerd/containerd/images"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/core/content"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/plugins/content/local"
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
@@ -209,7 +209,7 @@ func TestImagePullKeepOldAsDangling(t *testing.T) {
 
 	apiClient := d.NewClientT(t)
 
-	inspect1, _, err := apiClient.ImageInspectWithRaw(ctx, "busybox:latest")
+	inspect1, err := apiClient.ImageInspect(ctx, "busybox:latest")
 	assert.NilError(t, err)
 
 	prevID := inspect1.ID
@@ -231,6 +231,6 @@ func TestImagePullKeepOldAsDangling(t *testing.T) {
 
 	t.Log(b.String())
 
-	_, _, err = apiClient.ImageInspectWithRaw(ctx, prevID)
+	_, err = apiClient.ImageInspect(ctx, prevID)
 	assert.NilError(t, err)
 }

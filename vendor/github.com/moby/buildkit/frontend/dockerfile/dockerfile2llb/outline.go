@@ -52,17 +52,21 @@ func (o outlineCapture) clone() outlineCapture {
 	}
 }
 
-func (o outlineCapture) markAllUsed(in map[string]struct{}) {
+func (o outlineCapture) markAllUsed(in map[string]struct{}, visited map[string]struct{}) {
 	for k := range in {
+		if _, ok := visited[k]; ok {
+			continue
+		}
+		visited[k] = struct{}{}
 		if a, ok := o.allArgs[k]; ok {
-			o.markAllUsed(a.deps)
+			o.markAllUsed(a.deps, visited)
 		}
 		o.usedArgs[k] = struct{}{}
 	}
 }
 
 func (ds *dispatchState) args(visited map[string]struct{}) []outline.Arg {
-	ds.outline.markAllUsed(ds.outline.usedArgs)
+	ds.outline.markAllUsed(ds.outline.usedArgs, map[string]struct{}{})
 
 	args := make([]outline.Arg, 0, len(ds.outline.usedArgs))
 	for k := range ds.outline.usedArgs {

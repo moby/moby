@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containerd/containerd/plugin"
+	"github.com/containerd/containerd/v2/plugins"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
@@ -41,10 +41,6 @@ func OnlyDefaultNetworks(ctx context.Context) bool {
 
 func IsAmd64() bool {
 	return testEnv.DaemonVersion.Arch == "amd64"
-}
-
-func NotArm64() bool {
-	return testEnv.DaemonVersion.Arch != "arm64"
 }
 
 func NotPpc64le() bool {
@@ -88,7 +84,7 @@ func Apparmor() bool {
 func containerdSnapshotterEnabled() bool {
 	for _, v := range testEnv.DaemonInfo.DriverStatus {
 		if v[0] == "driver-type" {
-			return v[1] == string(plugin.SnapshotPlugin)
+			return v[1] == string(plugins.SnapshotPlugin)
 		}
 	}
 	return false

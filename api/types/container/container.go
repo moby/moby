@@ -10,6 +10,16 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+// ContainerUpdateOKBody OK response to ContainerUpdate operation
+//
+// Deprecated: use [UpdateResponse]. This alias will be removed in the next release.
+type ContainerUpdateOKBody = UpdateResponse
+
+// ContainerTopOKBody OK response to ContainerTop operation
+//
+// Deprecated: use [TopResponse]. This alias will be removed in the next release.
+type ContainerTopOKBody = TopResponse
+
 // PruneReport contains the response for Engine API:
 // POST "/containers/prune"
 type PruneReport struct {
@@ -94,7 +104,7 @@ type MountPoint struct {
 // State stores container's running state
 // it's part of ContainerJSONBase and returned by "inspect" command
 type State struct {
-	Status     string // String representation of the container state. Can be one of "created", "running", "paused", "restarting", "removing", "exited", or "dead"
+	Status     ContainerState // String representation of the container state. Can be one of "created", "running", "paused", "restarting", "removing", "exited", or "dead"
 	Running    bool
 	Paused     bool
 	Restarting bool
@@ -111,19 +121,20 @@ type State struct {
 // Summary contains response of Engine API:
 // GET "/containers/json"
 type Summary struct {
-	ID         string `json:"Id"`
-	Names      []string
-	Image      string
-	ImageID    string
-	Command    string
-	Created    int64
-	Ports      []Port
-	SizeRw     int64 `json:",omitempty"`
-	SizeRootFs int64 `json:",omitempty"`
-	Labels     map[string]string
-	State      string
-	Status     string
-	HostConfig struct {
+	ID                      string `json:"Id"`
+	Names                   []string
+	Image                   string
+	ImageID                 string
+	ImageManifestDescriptor *ocispec.Descriptor `json:"ImageManifestDescriptor,omitempty"`
+	Command                 string
+	Created                 int64
+	Ports                   []Port
+	SizeRw                  int64 `json:",omitempty"`
+	SizeRootFs              int64 `json:",omitempty"`
+	Labels                  map[string]string
+	State                   ContainerState
+	Status                  string
+	HostConfig              struct {
 		NetworkMode string            `json:",omitempty"`
 		Annotations map[string]string `json:",omitempty"`
 	}
@@ -173,5 +184,5 @@ type InspectResponse struct {
 	Config          *Config
 	NetworkSettings *NetworkSettings
 	// ImageManifestDescriptor is the descriptor of a platform-specific manifest of the image used to create the container.
-	ImageManifestDescriptor *ocispec.Descriptor `json:",omitempty"`
+	ImageManifestDescriptor *ocispec.Descriptor `json:"ImageManifestDescriptor,omitempty"`
 }

@@ -57,7 +57,7 @@ func TestDaemonDefaultBridgeIPAM_Docker0(t *testing.T) {
 			},
 			expIPAMConfig: []network.IPAMConfig{
 				{Subnet: "192.168.176.0/24", Gateway: "192.168.176.1"},
-				{Subnet: "fdd1:8161:2d2c::/64", Gateway: "fdd1:8161:2d2c::1/64"},
+				{Subnet: "fdd1:8161:2d2c::/64", Gateway: "fdd1:8161:2d2c::1"},
 			},
 		},
 		{

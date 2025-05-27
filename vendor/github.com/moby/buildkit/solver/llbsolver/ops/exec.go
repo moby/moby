@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/containerd/platforms"
@@ -123,7 +123,7 @@ func (e *ExecOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 	}
 	op.Meta.ProxyEnv = nil
 
-	p := platforms.DefaultSpec()
+	var p ocispecs.Platform
 	if e.platform != nil {
 		p = ocispecs.Platform{
 			OS:           e.platform.OS,
@@ -132,6 +132,8 @@ func (e *ExecOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 			OSVersion:    e.platform.OSVersion,
 			OSFeatures:   e.platform.OSFeatures,
 		}
+	} else {
+		p = platforms.DefaultSpec()
 	}
 
 	// Special case for cache compatibility with buggy versions that wrongly
@@ -199,6 +201,22 @@ func (e *ExecOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 		cm.Deps[i].PreprocessFunc = unlazyResultFunc
 	}
 
+	if e.w != nil && e.w.CDIManager() != nil {
+		for _, d := range e.op.CdiDevices {
+			setup, ok := e.w.CDIManager().OnDemandInstaller(d.Name)
+			if ok {
+				prev := cm.Deps[0].PreprocessFunc
+				cm.Deps[0].PreprocessFunc = func(ctx context.Context, r solver.Result, g session.Group) error {
+					if err := prev(ctx, r, g); err != nil {
+						return err
+					}
+					// we could pass glibc/musl type in here based on rootfs to get correct dynamic libs
+					return setup(ctx)
+				}
+			}
+		}
+	}
+
 	return cm, true, nil
 }
 
@@ -229,9 +247,7 @@ func dedupePaths(inp []string) []string {
 			paths = append(paths, p1)
 		}
 	}
-	sort.Slice(paths, func(i, j int) bool {
-		return paths[i] < paths[j]
-	})
+	slices.Sort(paths)
 	return paths
 }
 
@@ -432,6 +448,7 @@ func (e *ExecOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 		ReadonlyRootFS:            p.ReadonlyRootFS,
 		ExtraHosts:                extraHosts,
 		Ulimit:                    e.op.Meta.Ulimit,
+		CDIDevices:                e.op.CdiDevices,
 		CgroupParent:              e.op.Meta.CgroupParent,
 		NetMode:                   e.op.Network,
 		SecurityMode:              e.op.Security,
@@ -445,7 +462,10 @@ func (e *ExecOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 	if e.platform != nil {
 		currentOS = e.platform.OS
 	}
-	meta.Env = addDefaultEnvvar(meta.Env, "PATH", utilsystem.DefaultPathEnv(currentOS))
+	// don't set PATH for Windows. #5445
+	if currentOS != "windows" {
+		meta.Env = addDefaultEnvvar(meta.Env, "PATH", utilsystem.DefaultPathEnv(currentOS))
+	}
 
 	secretEnv, err := e.loadSecretEnv(ctx, g)
 	if err != nil {
@@ -542,14 +562,11 @@ func (e *ExecOp) loadSecretEnv(ctx context.Context, g session.Group) ([]string, 
 		err = e.sm.Any(ctx, g, func(ctx context.Context, _ string, caller session.Caller) error {
 			dt, err = secrets.GetSecret(ctx, caller, id)
 			if err != nil {
-				if errors.Is(err, secrets.ErrNotFound) && sopt.Optional {
-					return nil
-				}
 				return err
 			}
 			return nil
 		})
-		if err != nil {
+		if err != nil && (!errors.Is(err, secrets.ErrNotFound) || !sopt.Optional) {
 			return nil, err
 		}
 		out = append(out, fmt.Sprintf("%s=%s", sopt.Name, string(dt)))

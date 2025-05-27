@@ -7,17 +7,17 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/snapshots"
+	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/containerd/v2/core/mount"
+	"github.com/containerd/containerd/v2/core/snapshots"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/locker"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
@@ -36,7 +36,7 @@ type Opt struct {
 	GraphDriver     graphdriver.Driver
 	LayerStore      layer.Store
 	Root            string
-	IdentityMapping idtools.IdentityMapping
+	IdentityMapping user.IdentityMapping
 }
 
 type graphIDRegistrar interface {
@@ -106,7 +106,7 @@ func (s *snapshotter) Name() string {
 	return "default"
 }
 
-func (s *snapshotter) IdentityMapping() *idtools.IdentityMapping {
+func (s *snapshotter) IdentityMapping() *user.IdentityMapping {
 	// Returning a non-nil but empty *IdentityMapping breaks BuildKit:
 	// https://github.com/moby/moby/pull/39444
 	if s.opt.IdentityMapping.Empty() {
@@ -494,7 +494,7 @@ type mountable struct {
 	acquire  func() ([]mount.Mount, func() error, error)
 	release  func() error
 	refCount int
-	idmap    idtools.IdentityMapping
+	idmap    user.IdentityMapping
 }
 
 func (m *mountable) Mount() ([]mount.Mount, func() error, error) {
@@ -538,7 +538,7 @@ func (m *mountable) releaseMount() error {
 	return m.release()
 }
 
-func (m *mountable) IdentityMapping() *idtools.IdentityMapping {
+func (m *mountable) IdentityMapping() *user.IdentityMapping {
 	// Returning a non-nil but empty *IdentityMapping breaks BuildKit:
 	// https://github.com/moby/moby/pull/39444
 	if m.idmap.Empty() {

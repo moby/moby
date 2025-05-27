@@ -10,10 +10,15 @@ import (
 // and returns them as an io.ReadCloser. It's up to the caller
 // to close the stream.
 func (cli *Client) ContainerExport(ctx context.Context, containerID string) (io.ReadCloser, error) {
-	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/export", url.Values{}, nil)
+	containerID, err := trimID("container", containerID)
 	if err != nil {
 		return nil, err
 	}
 
-	return serverResp.body, nil
+	resp, err := cli.get(ctx, "/containers/"+containerID+"/export", url.Values{}, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Body, nil
 }

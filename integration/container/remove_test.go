@@ -33,10 +33,9 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
 	tempDir := fs.NewDir(t, "test-rm-container-with-removed-volume", fs.WithMode(0o755))
-	defer tempDir.Remove()
 
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithBind(tempDir.Path(), prefix+slash+"test"))
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited))
 
 	err := os.RemoveAll(tempDir.Path())
 	assert.NilError(t, err)
@@ -59,7 +58,7 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithVolume(prefix+slash+"srv"))
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "exited"))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited))
 
 	insp, _, err := apiClient.ContainerInspectWithRaw(ctx, cID, true)
 	assert.NilError(t, err)

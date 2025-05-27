@@ -6,19 +6,19 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	c8dimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/remotes"
-	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/v2/core/content"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/remotes"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 	progressutils "github.com/docker/docker/distribution/utils"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/go-archive/chrootarchive"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -59,7 +59,7 @@ func setupProgressOutput(outStream io.Writer, cancel func()) (progress.Output, f
 
 // fetch the content related to the passed in reference into the blob store and appends the provided c8dimages.Handlers
 // There is no need to use remotes.FetchHandler since it already gets set
-func (pm *Manager) fetch(ctx context.Context, ref reference.Named, auth *registry.AuthConfig, out progress.Output, metaHeader http.Header, handlers ...c8dimages.Handler) (err error) {
+func (pm *Manager) fetch(ctx context.Context, ref reference.Named, auth *registry.AuthConfig, out progress.Output, metaHeader http.Header, handlers ...c8dimages.Handler) error {
 	// We need to make sure we have a domain on the reference
 	withDomain, err := reference.ParseNormalizedNamed(ref.String())
 	if err != nil {
@@ -237,7 +237,13 @@ func withFetchProgress(cs content.Store, out progress.Output, ref reference.Name
 			defer timer.Stop()
 
 			var pulling bool
-			var ctxErr error
+			var (
+				// make sure we can still fetch from the content store
+				// if the main context is cancelled
+				// TODO: Might need to add some sort of timeout; see https://github.com/moby/moby/issues/49413
+				ctxErr      error
+				noCancelCTX = context.WithoutCancel(ctx)
+			)
 
 			for {
 				timer.Reset(100 * time.Millisecond)
@@ -245,21 +251,18 @@ func withFetchProgress(cs content.Store, out progress.Output, ref reference.Name
 				select {
 				case <-ctx.Done():
 					ctxErr = ctx.Err()
-					// make sure we can still fetch from the content store
-					// TODO: Might need to add some sort of timeout
-					ctx = context.Background()
 				case <-timer.C:
 				}
 
-				s, err := cs.Status(ctx, key)
+				s, err := cs.Status(noCancelCTX, key)
 				if err != nil {
 					if !cerrdefs.IsNotFound(err) {
-						log.G(ctx).WithError(err).WithField("layerDigest", desc.Digest.String()).Error("Error looking up status of plugin layer pull")
+						log.G(noCancelCTX).WithError(err).WithField("layerDigest", desc.Digest.String()).Error("Error looking up status of plugin layer pull")
 						progress.Update(out, id, err.Error())
 						return
 					}
 
-					if _, err := cs.Info(ctx, desc.Digest); err == nil {
+					if _, err := cs.Info(noCancelCTX, desc.Digest); err == nil {
 						progress.Update(out, id, "Download complete")
 						return
 					}

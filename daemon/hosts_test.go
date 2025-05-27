@@ -3,7 +3,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"testing"
 
-	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

@@ -121,7 +121,7 @@ import (
 )
 
 var (
-	specifierRe    = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+	specifierRe    = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 	osAndVersionRe = regexp.MustCompile(`^([A-Za-z0-9_-]+)(?:\(([A-Za-z0-9_.-]*)\))?$`)
 )
 
@@ -144,18 +144,51 @@ type Matcher interface {
 //
 // Applications should opt to use `Match` over directly parsing specifiers.
 func NewMatcher(platform specs.Platform) Matcher {
-	return newDefaultMatcher(platform)
+	m := &matcher{
+		Platform: Normalize(platform),
+	}
+
+	if platform.OS == "windows" {
+		m.osvM = &windowsVersionMatcher{
+			windowsOSVersion: getWindowsOSVersion(platform.OSVersion),
+		}
+		// In prior versions, on windows, the returned matcher implements a
+		// MatchComprarer interface.
+		// This preserves that behavior for backwards compatibility.
+		//
+		// TODO: This isn't actually used in this package, except for a test case,
+		// which may have been an unintended side of some refactor.
+		// It was likely intended to be used in `Ordered` but it is not since
+		// `Less` that is implemented here ends up getting masked due to wrapping.
+		if runtime.GOOS == "windows" {
+			return &windowsMatchComparer{m}
+		}
+	}
+	return m
+}
+
+type osVerMatcher interface {
+	Match(string) bool
 }
 
 type matcher struct {
 	specs.Platform
+	osvM osVerMatcher
 }
 
 func (m *matcher) Match(platform specs.Platform) bool {
 	normalized := Normalize(platform)
 	return m.OS == normalized.OS &&
 		m.Architecture == normalized.Architecture &&
-		m.Variant == normalized.Variant
+		m.Variant == normalized.Variant &&
+		m.matchOSVersion(platform)
+}
+
+func (m *matcher) matchOSVersion(platform specs.Platform) bool {
+	if m.osvM != nil {
+		return m.osvM.Match(platform.OSVersion)
+	}
+	return true
 }
 
 func (m *matcher) String() string {

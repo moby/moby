@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"path"
-	"regexp"
 	"strings"
 
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/internal/lazyregexp"
 )
 
 // NewLCOWParser creates a parser with Linux Containers on Windows semantics.
@@ -28,8 +28,8 @@ func NewLCOWParser() Parser {
 const rxLCOWDestination = `(?P<destination>/(?:[^\\/:*?"<>\r\n]+[/]?)*)`
 
 var (
-	lcowMountDestinationRegex = regexp.MustCompile(`^` + rxLCOWDestination + `$`)
-	lcowSplitRawSpec          = regexp.MustCompile(`^` + rxSource + rxLCOWDestination + rxMode + `$`)
+	lcowMountDestinationRegex = lazyregexp.New(`^` + rxLCOWDestination + `$`)
+	lcowSplitRawSpec          = lazyregexp.New(`^` + rxSource + rxLCOWDestination + rxMode + `$`)
 )
 
 var lcowValidators mountValidator = func(m *mount.Mount) error {

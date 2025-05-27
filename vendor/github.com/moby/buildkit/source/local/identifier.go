@@ -9,13 +9,15 @@ import (
 )
 
 type LocalIdentifier struct {
-	Name            string
-	SessionID       string
-	IncludePatterns []string
-	ExcludePatterns []string
-	FollowPaths     []string
-	SharedKeyHint   string
-	Differ          fsutil.DiffType
+	Name               string
+	SessionID          string
+	IncludePatterns    []string
+	ExcludePatterns    []string
+	FollowPaths        []string
+	SharedKeyHint      string
+	Differ             fsutil.DiffType
+	MetadataOnly       bool
+	MetadataExceptions []string
 }
 
 func NewLocalIdentifier(str string) (*LocalIdentifier, error) {

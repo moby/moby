@@ -18,13 +18,20 @@ func NewHTTPIdentifier(str string, tls bool) (*HTTPIdentifier, error) {
 }
 
 type HTTPIdentifier struct {
-	TLS      bool
-	URL      string
-	Checksum digest.Digest
-	Filename string
-	Perm     int
-	UID      int
-	GID      int
+	TLS              bool
+	URL              string
+	Checksum         digest.Digest
+	Filename         string
+	Perm             int
+	UID              int
+	GID              int
+	AuthHeaderSecret string
+	Header           []HeaderField
+}
+
+type HeaderField struct {
+	Name  string
+	Value string
 }
 
 var _ source.Identifier = (*HTTPIdentifier)(nil)

@@ -58,6 +58,18 @@ func TestConfigDaemonID(t *testing.T) {
 	info = d.Info(t)
 	assert.Equal(t, info.ID, engineID)
 	d.Stop(t)
+
+	// Verify that engine-id file is created if it doesn't exist
+	err = os.Remove(idFile)
+	assert.NilError(t, err)
+
+	d.Start(t, "--iptables=false")
+	id, err := os.ReadFile(idFile)
+	assert.NilError(t, err)
+
+	info = d.Info(t)
+	assert.Equal(t, string(id), info.ID)
+	d.Stop(t)
 }
 
 func TestDaemonConfigValidation(t *testing.T) {
@@ -440,7 +452,7 @@ func TestDaemonProxy(t *testing.T) {
 		err := d.Signal(syscall.SIGHUP)
 		assert.NilError(t, err)
 
-		poll.WaitOn(t, d.PollCheckLogs(ctx, daemon.ScanLogsMatchAll("Reloaded configuration:", proxyURL)))
+		poll.WaitOn(t, d.PollCheckLogs(ctx, daemon.ScanLogsMatchAll("Reloaded configuration", proxyURL)))
 
 		ok, logs := d.ScanLogsT(ctx, t, daemon.ScanLogsMatchString(userPass))
 		assert.Assert(t, !ok, "logs should not contain the non-sanitized proxy URL: %s", logs)
@@ -649,6 +661,54 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 
 		// Now we should be able to remove the volume
 		err = c.VolumeRemove(ctx, v.Name, false)
+		assert.NilError(t, err)
+	})
+
+	t.Run("image mount", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+
+		mountedImage := "hello-world:frozen"
+		d.LoadImage(ctx, t, mountedImage)
+
+		m := mount.Mount{
+			Type:   mount.TypeImage,
+			Source: mountedImage,
+			Target: "/image",
+		}
+
+		cID := container.Run(ctx, t, c, container.WithMount(m))
+		defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
+
+		waitFn := func(t poll.LogT) poll.Result {
+			_, err := c.ContainerStatPath(ctx, cID, "/image/hello")
+			if err != nil {
+				if errdefs.IsNotFound(err) {
+					return poll.Continue("file doesn't yet exist")
+				}
+				return poll.Error(err)
+			}
+
+			return poll.Success()
+		}
+
+		poll.WaitOn(t, waitFn)
+
+		d.Restart(t, "--live-restore", "--iptables=false", "--ip6tables=false")
+
+		t.Run("image still mounted", func(t *testing.T) {
+			skip.If(t, testEnv.IsRootless(), "restarted rootless daemon has a new mount namespace and it won't have the previous mounts")
+			poll.WaitOn(t, waitFn)
+		})
+
+		_, err := c.ImageRemove(ctx, mountedImage, image.RemoveOptions{})
+		assert.ErrorContains(t, err, fmt.Sprintf("container %s is using its referenced image", cID[:12]))
+
+		// Remove that container which should free the references in the volume
+		err = c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
+		assert.NilError(t, err)
+
+		// Now we should be able to remove the volume
+		_, err = c.ImageRemove(ctx, mountedImage, image.RemoveOptions{})
 		assert.NilError(t, err)
 	})
 

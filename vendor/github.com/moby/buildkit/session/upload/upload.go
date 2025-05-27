@@ -42,7 +42,7 @@ func (u *Upload) WriteTo(w io.Writer) (int64, error) {
 	for {
 		var bm BytesMessage
 		if err := u.cc.RecvMsg(&bm); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return n, nil
 			}
 			return n, errors.WithStack(err)

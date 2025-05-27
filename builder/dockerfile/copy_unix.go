@@ -7,11 +7,9 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-
-	"github.com/docker/docker/pkg/idtools"
 )
 
-func fixPermissions(source, destination string, identity idtools.Identity, overrideSkip bool) error {
+func fixPermissions(source, destination string, id identity, overrideSkip bool) error {
 	var (
 		skipChownRoot bool
 		err           error
@@ -39,7 +37,7 @@ func fixPermissions(source, destination string, identity idtools.Identity, overr
 		}
 
 		fullpath = filepath.Join(destination, cleaned)
-		return os.Lchown(fullpath, identity.UID, identity.GID)
+		return os.Lchown(fullpath, id.UID, id.GID)
 	})
 }
 
@@ -62,9 +60,10 @@ func normalizeDest(workingDir, requested string) (string, error) {
 func containsWildcards(name string) bool {
 	for i := 0; i < len(name); i++ {
 		ch := name[i]
-		if ch == '\\' {
+		switch ch {
+		case '\\':
 			i++
-		} else if ch == '*' || ch == '?' || ch == '[' {
+		case '*', '?', '[':
 			return true
 		}
 	}

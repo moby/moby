@@ -8,16 +8,16 @@ import (
 	"net/http/httputil"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 )
 
 func spawnTestRegistrySession(t *testing.T) *session {
 	authConfig := &registry.AuthConfig{}
-	endpoint, err := newV1Endpoint(makeIndex("/v1/"), nil)
+	endpoint, err := newV1Endpoint(context.Background(), makeIndex("/v1/"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +26,7 @@ func spawnTestRegistrySession(t *testing.T) *session {
 	tr = transport.NewTransport(newAuthTransport(tr, authConfig, false), Headers(userAgent, nil)...)
 	client := httpClient(tr)
 
-	if err := authorizeClient(client, authConfig, endpoint); err != nil {
+	if err := authorizeClient(context.Background(), client, authConfig, endpoint); err != nil {
 		t.Fatal(err)
 	}
 	r := newSession(client, endpoint)
@@ -70,7 +70,7 @@ func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func TestSearchRepositories(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	results, err := r.searchRepositories("fakequery", 25)
+	results, err := r.searchRepositories(context.Background(), "fakequery", 25)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,10 +148,10 @@ func TestSearchErrors(t *testing.T) {
 			_, err = reg.Search(context.Background(), tc.filtersArgs, term, 0, nil, map[string][]string{})
 			assert.ErrorContains(t, err, tc.expectedError)
 			if tc.shouldReturnError {
-				assert.Check(t, errdefs.IsUnknown(err), "got: %T: %v", err, err)
+				assert.Check(t, cerrdefs.IsUnknown(err), "got: %T: %v", err, err)
 				return
 			}
-			assert.Check(t, errdefs.IsInvalidParameter(err), "got: %T: %v", err, err)
+			assert.Check(t, cerrdefs.IsInvalidArgument(err), "got: %T: %v", err, err)
 		})
 	}
 }

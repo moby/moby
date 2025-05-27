@@ -84,7 +84,7 @@ Fetch:
 
 	err := r.Data.Parse(text)
 	if err != nil {
-		return &ParseError{"", err.Error(), l}
+		return &ParseError{wrappedErr: err, lex: l}
 	}
 
 	return nil

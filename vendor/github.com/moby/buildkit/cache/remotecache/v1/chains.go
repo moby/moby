@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/v2/core/content"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	digest "github.com/opencontainers/go-digest"
@@ -15,12 +15,12 @@ import (
 )
 
 func NewCacheChains() *CacheChains {
-	return &CacheChains{visited: map[interface{}]struct{}{}}
+	return &CacheChains{visited: map[any]struct{}{}}
 }
 
 type CacheChains struct {
 	items   []*item
-	visited map[interface{}]struct{}
+	visited map[any]struct{}
 }
 
 var _ solver.CacheExporterTarget = &CacheChains{}
@@ -226,10 +226,7 @@ func (c *item) LinkFrom(rec solver.CacheExporterRecord, index int, selector stri
 		return
 	}
 
-	for {
-		if index < len(c.links) {
-			break
-		}
+	for index >= len(c.links) {
 		c.links = append(c.links, map[link]struct{}{})
 	}
 

@@ -50,9 +50,9 @@ func NewHandleAt(ns netns.NsHandle, nlFamilies ...int) (Handle, error) {
 	return Handle{nlh}, nil
 }
 
-func (h Handle) Close() {
-	if h.Handle != nil {
-		h.Handle.Close()
+func (nlh Handle) Close() {
+	if nlh.Handle != nil {
+		nlh.Handle.Close()
 	}
 }
 
@@ -158,6 +158,17 @@ func LinkList() (links []netlink.Link, err error) {
 		return err
 	})
 	return links, discardErrDumpInterrupted(err)
+}
+
+// LinkSubscribeWithOptions calls netlink.LinkSubscribeWithOptions, retrying if necessary.
+// Close the done channel when done (rather than just sending on it), so that goroutines
+// started by the netlink package are all stopped.
+func LinkSubscribeWithOptions(ch chan<- netlink.LinkUpdate, done <-chan struct{}, options netlink.LinkSubscribeOptions) (err error) {
+	retryOnIntr(func() error {
+		err = netlink.LinkSubscribeWithOptions(ch, done, options) //nolint:forbidigo
+		return err
+	})
+	return err
 }
 
 // RouteList calls nlh.Handle.RouteList, retrying if necessary.

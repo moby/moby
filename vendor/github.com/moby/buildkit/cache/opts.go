@@ -3,7 +3,7 @@ package cache
 import (
 	"fmt"
 
-	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/v2/core/content"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/progress"
 	digest "github.com/opencontainers/go-digest"
@@ -30,7 +30,7 @@ func descHandlersOf(opts ...RefOption) DescHandlers {
 
 type DescHandlerKey digest.Digest
 
-type NeedsRemoteProviderError []digest.Digest //nolint:errname
+type NeedsRemoteProviderError []digest.Digest
 
 func (m NeedsRemoteProviderError) Error() string {
 	return fmt.Sprintf("missing descriptor handlers for lazy blobs %+v", []digest.Digest(m))

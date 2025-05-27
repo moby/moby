@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -19,7 +19,15 @@ func TestContainerResizeError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerResize(context.Background(), "container_id", container.ResizeOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
+
+	err = client.ContainerResize(context.Background(), "", container.ResizeOptions{})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	err = client.ContainerResize(context.Background(), "    ", container.ResizeOptions{})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestContainerExecResizeError(t *testing.T) {
@@ -27,7 +35,7 @@ func TestContainerExecResizeError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerExecResize(context.Background(), "exec_id", container.ResizeOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestContainerResize(t *testing.T) {
@@ -69,7 +77,7 @@ func TestContainerResize(t *testing.T) {
 				client: newMockClient(resizeTransport(t, expectedURL, tc.expectedHeight, tc.expectedWidth)),
 			}
 			err := client.ContainerResize(context.Background(), "container_id", tc.opts)
-			assert.Check(t, err)
+			assert.NilError(t, err)
 		})
 	}
 }
@@ -112,7 +120,7 @@ func TestContainerExecResize(t *testing.T) {
 				client: newMockClient(resizeTransport(t, expectedURL, tc.expectedHeight, tc.expectedWidth)),
 			}
 			err := client.ContainerExecResize(context.Background(), "exec_id", tc.opts)
-			assert.Check(t, err)
+			assert.NilError(t, err)
 		})
 	}
 }

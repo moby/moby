@@ -79,7 +79,7 @@ func (d *driver) NetworkFree(id string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	if id == "" {
 		return fmt.Errorf("invalid network id")
 	}
@@ -427,7 +427,7 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 	// create a bridge and vxlan device for this subnet and move it to the sandbox
 	sbox := n.sbox
 
-	if err := sbox.AddInterface(context.TODO(), brName, "br", osl.WithIPv4Address(s.gwIP), osl.WithIsBridge(true)); err != nil {
+	if err := sbox.AddInterface(context.TODO(), brName, "br", "", osl.WithIPv4Address(s.gwIP), osl.WithIsBridge(true)); err != nil {
 		return fmt.Errorf("bridge creation in sandbox failed for subnet %q: %v", s.subnetIP.String(), err)
 	}
 
@@ -439,7 +439,7 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 		return err
 	}
 
-	if err := sbox.AddInterface(context.TODO(), vxlanName, "vxlan", osl.WithMaster(brName)); err != nil {
+	if err := sbox.AddInterface(context.TODO(), vxlanName, "vxlan", "", osl.WithMaster(brName)); err != nil {
 		// If adding vxlan device to the overlay namespace fails, remove the bridge interface we
 		// already added to the namespace. This allows the caller to try the setup again.
 		for _, iface := range sbox.Interfaces() {

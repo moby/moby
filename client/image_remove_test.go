@@ -10,8 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,7 +23,7 @@ func TestImageRemoveError(t *testing.T) {
 	}
 
 	_, err := client.ImageRemove(context.Background(), "image_id", image.RemoveOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageRemoveImageNotFound(t *testing.T) {
@@ -32,7 +33,7 @@ func TestImageRemoveImageNotFound(t *testing.T) {
 
 	_, err := client.ImageRemove(context.Background(), "unknown", image.RemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "no such image: unknown"))
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestImageRemove(t *testing.T) {
@@ -40,6 +41,7 @@ func TestImageRemove(t *testing.T) {
 	removeCases := []struct {
 		force               bool
 		pruneChildren       bool
+		platform            *ocispec.Platform
 		expectedQueryParams map[string]string
 	}{
 		{
@@ -49,12 +51,22 @@ func TestImageRemove(t *testing.T) {
 				"force":   "",
 				"noprune": "1",
 			},
-		}, {
+		},
+		{
 			force:         true,
 			pruneChildren: true,
 			expectedQueryParams: map[string]string{
 				"force":   "1",
 				"noprune": "",
+			},
+		},
+		{
+			platform: &ocispec.Platform{
+				Architecture: "amd64",
+				OS:           "linux",
+			},
+			expectedQueryParams: map[string]string{
+				"platforms": `{"architecture":"amd64","os":"linux"}`,
 			},
 		},
 	}
@@ -92,15 +104,17 @@ func TestImageRemove(t *testing.T) {
 				}, nil
 			}),
 		}
-		imageDeletes, err := client.ImageRemove(context.Background(), "image_id", image.RemoveOptions{
+
+		opts := image.RemoveOptions{
 			Force:         removeCase.force,
 			PruneChildren: removeCase.pruneChildren,
-		})
-		if err != nil {
-			t.Fatal(err)
 		}
-		if len(imageDeletes) != 2 {
-			t.Fatalf("expected 2 deleted images, got %v", imageDeletes)
+		if removeCase.platform != nil {
+			opts.Platforms = []ocispec.Platform{*removeCase.platform}
 		}
+
+		imageDeletes, err := client.ImageRemove(context.Background(), "image_id", opts)
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(imageDeletes, 2))
 	}
 }

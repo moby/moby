@@ -6,10 +6,11 @@
 package huff0
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/klauspost/compress/internal/le"
 )
 
 // bitReader reads a bitstream in reverse.
@@ -46,7 +47,7 @@ func (b *bitReaderBytes) init(in []byte) error {
 	return nil
 }
 
-// peekBitsFast requires that at least one bit is requested every time.
+// peekByteFast requires that at least one byte is requested every time.
 // There are no checks if the buffer is filled.
 func (b *bitReaderBytes) peekByteFast() uint8 {
 	got := uint8(b.value >> 56)
@@ -66,8 +67,7 @@ func (b *bitReaderBytes) fillFast() {
 	}
 
 	// 2 bounds checks.
-	v := b.in[b.off-4 : b.off]
-	low := (uint32(v[0])) | (uint32(v[1]) << 8) | (uint32(v[2]) << 16) | (uint32(v[3]) << 24)
+	low := le.Load32(b.in, b.off-4)
 	b.value |= uint64(low) << (b.bitsRead - 32)
 	b.bitsRead -= 32
 	b.off -= 4
@@ -76,7 +76,7 @@ func (b *bitReaderBytes) fillFast() {
 // fillFastStart() assumes the bitReaderBytes is empty and there is at least 8 bytes to read.
 func (b *bitReaderBytes) fillFastStart() {
 	// Do single re-slice to avoid bounds checks.
-	b.value = binary.LittleEndian.Uint64(b.in[b.off-8:])
+	b.value = le.Load64(b.in, b.off-8)
 	b.bitsRead = 0
 	b.off -= 8
 }
@@ -86,9 +86,8 @@ func (b *bitReaderBytes) fill() {
 	if b.bitsRead < 32 {
 		return
 	}
-	if b.off > 4 {
-		v := b.in[b.off-4 : b.off]
-		low := (uint32(v[0])) | (uint32(v[1]) << 8) | (uint32(v[2]) << 16) | (uint32(v[3]) << 24)
+	if b.off >= 4 {
+		low := le.Load32(b.in, b.off-4)
 		b.value |= uint64(low) << (b.bitsRead - 32)
 		b.bitsRead -= 32
 		b.off -= 4
@@ -175,9 +174,7 @@ func (b *bitReaderShifted) fillFast() {
 		return
 	}
 
-	// 2 bounds checks.
-	v := b.in[b.off-4 : b.off]
-	low := (uint32(v[0])) | (uint32(v[1]) << 8) | (uint32(v[2]) << 16) | (uint32(v[3]) << 24)
+	low := le.Load32(b.in, b.off-4)
 	b.value |= uint64(low) << ((b.bitsRead - 32) & 63)
 	b.bitsRead -= 32
 	b.off -= 4
@@ -185,8 +182,7 @@ func (b *bitReaderShifted) fillFast() {
 
 // fillFastStart() assumes the bitReaderShifted is empty and there is at least 8 bytes to read.
 func (b *bitReaderShifted) fillFastStart() {
-	// Do single re-slice to avoid bounds checks.
-	b.value = binary.LittleEndian.Uint64(b.in[b.off-8:])
+	b.value = le.Load64(b.in, b.off-8)
 	b.bitsRead = 0
 	b.off -= 8
 }
@@ -197,8 +193,7 @@ func (b *bitReaderShifted) fill() {
 		return
 	}
 	if b.off > 4 {
-		v := b.in[b.off-4 : b.off]
-		low := (uint32(v[0])) | (uint32(v[1]) << 8) | (uint32(v[2]) << 16) | (uint32(v[3]) << 24)
+		low := le.Load32(b.in, b.off-4)
 		b.value |= uint64(low) << ((b.bitsRead - 32) & 63)
 		b.bitsRead -= 32
 		b.off -= 4

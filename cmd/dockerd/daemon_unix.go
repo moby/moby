@@ -66,8 +66,8 @@ func (cli *daemonCLI) setupConfigReloadTrap() {
 
 // getSwarmRunRoot gets the root directory for swarm to store runtime state
 // For example, the control socket
-func (cli *daemonCLI) getSwarmRunRoot() string {
-	return filepath.Join(cli.Config.ExecRoot, "swarm")
+func getSwarmRunRoot(cfg *config.Config) string {
+	return filepath.Join(cfg.ExecRoot, "swarm")
 }
 
 // allocateDaemonPort ensures that there are no containers
@@ -99,14 +99,14 @@ func allocateDaemonPort(addr string) error {
 	return nil
 }
 
-func newCgroupParent(config *config.Config) string {
+func newCgroupParent(cfg *config.Config) string {
 	cgroupParent := "docker"
-	useSystemd := daemon.UsingSystemd(config)
+	useSystemd := daemon.UsingSystemd(cfg)
 	if useSystemd {
 		cgroupParent = "system.slice"
 	}
-	if config.CgroupParent != "" {
-		cgroupParent = config.CgroupParent
+	if cfg.CgroupParent != "" {
+		cgroupParent = cfg.CgroupParent
 	}
 	if useSystemd {
 		cgroupParent = cgroupParent + ":" + "docker" + ":"
@@ -115,7 +115,7 @@ func newCgroupParent(config *config.Config) string {
 }
 
 func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
-	if cli.ContainerdAddr != "" {
+	if cli.Config.ContainerdAddr != "" {
 		// use system containerd at the given address.
 		return nil, nil
 	}

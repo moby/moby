@@ -13,7 +13,12 @@ import (
 )
 
 // PluginUpgrade upgrades a plugin
-func (cli *Client) PluginUpgrade(ctx context.Context, name string, options types.PluginInstallOptions) (rc io.ReadCloser, err error) {
+func (cli *Client) PluginUpgrade(ctx context.Context, name string, options types.PluginInstallOptions) (io.ReadCloser, error) {
+	name, err := trimID("plugin", name)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := cli.NewVersionError(ctx, "1.26", "plugin upgrade"); err != nil {
 		return nil, err
 	}
@@ -32,10 +37,10 @@ func (cli *Client) PluginUpgrade(ctx context.Context, name string, options types
 	if err != nil {
 		return nil, err
 	}
-	return resp.body, nil
+	return resp.Body, nil
 }
 
-func (cli *Client) tryPluginUpgrade(ctx context.Context, query url.Values, privileges types.PluginPrivileges, name, registryAuth string) (serverResponse, error) {
+func (cli *Client) tryPluginUpgrade(ctx context.Context, query url.Values, privileges types.PluginPrivileges, name, registryAuth string) (*http.Response, error) {
 	return cli.post(ctx, "/plugins/"+name+"/upgrade", query, privileges, http.Header{
 		registry.AuthHeader: {registryAuth},
 	})

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -18,8 +18,8 @@ func TestImageHistoryError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImageHistory(context.Background(), "nothing", image.HistoryOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	_, err := client.ImageHistory(context.Background(), "nothing")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageHistory(t *testing.T) {
@@ -49,13 +49,11 @@ func TestImageHistory(t *testing.T) {
 		},
 	}
 
-	imageHistories, err := client.ImageHistory(context.Background(), "image_id", image.HistoryOptions{
-		Platform: &ocispec.Platform{
-			Architecture: "arm64",
-			OS:           "linux",
-			Variant:      "v8",
-		},
-	})
+	imageHistories, err := client.ImageHistory(context.Background(), "image_id", ImageHistoryWithPlatform(ocispec.Platform{
+		Architecture: "arm64",
+		OS:           "linux",
+		Variant:      "v8",
+	}))
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(imageHistories, expected))
 }

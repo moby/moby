@@ -1,5 +1,5 @@
 // FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.22
+//go:build go1.23
 
 package testutil // import "github.com/docker/docker/testutil"
 
@@ -20,7 +20,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace/noop"
 	"gotest.tools/v3/icmd"
 )
@@ -30,7 +30,7 @@ var DevZero io.Reader = devZero{}
 
 type devZero struct{}
 
-func (d devZero) Read(p []byte) (n int, err error) {
+func (d devZero) Read(p []byte) (int, error) {
 	for i := range p {
 		p[i] = 0
 	}

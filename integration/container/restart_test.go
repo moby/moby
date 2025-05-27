@@ -202,9 +202,9 @@ func TestContainerWithAutoRemoveCanBeRestarted(t *testing.T) {
 
 			inspect, err := apiClient.ContainerInspect(ctx, cID)
 			assert.NilError(t, err)
-			assert.Assert(t, inspect.State.Status != "removing", "Container should not be removing yet")
+			assert.Assert(t, inspect.State.Status != container.StateRemoving, "Container should not be removing yet")
 
-			poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, cID, "running"))
+			poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, cID, container.StateRunning))
 
 			err = tc.doSth(ctx, cID)
 			assert.NilError(t, err)
@@ -281,5 +281,5 @@ func TestContainerRestartWithCancelledRequest(t *testing.T) {
 	// Container should be restarted (running).
 	inspect, err := apiClient.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(inspect.State.Status, "running"))
+	assert.Check(t, is.Equal(inspect.State.Status, container.StateRunning))
 }

@@ -14,7 +14,7 @@ func validateNetMode(c *container.Config, hc *container.HostConfig) error {
 		return err
 	}
 	if hc.NetworkMode.IsContainer() && hc.Isolation.IsHyperV() {
-		return fmt.Errorf("Using the network stack of another container is not supported while using Hyper-V Containers")
+		return validationError("invalid network-mode: using the network stack of another container is not supported while using Hyper-V Containers")
 	}
 	return nil
 }
@@ -24,7 +24,7 @@ func validateNetMode(c *container.Config, hc *container.HostConfig) error {
 // blank), 'process', or 'hyperv'.
 func validateIsolation(hc *container.HostConfig) error {
 	if !hc.Isolation.IsValid() {
-		return fmt.Errorf("Invalid isolation: %q. Windows supports 'default', 'process', or 'hyperv'", hc.Isolation)
+		return validationError(fmt.Sprintf("invalid isolation (%s): Windows supports 'default', 'process', or 'hyperv'", hc.Isolation))
 	}
 	return nil
 }
@@ -37,10 +37,10 @@ func validateQoS(_ *container.HostConfig) error {
 // validateResources performs platform specific validation of the resource settings
 func validateResources(hc *container.HostConfig, _ *sysinfo.SysInfo) error {
 	if hc.Resources.CPURealtimePeriod != 0 {
-		return fmt.Errorf("Windows does not support CPU real-time period")
+		return validationError("invalid option: CPU real-time period is not supported for Windows containers")
 	}
 	if hc.Resources.CPURealtimeRuntime != 0 {
-		return fmt.Errorf("Windows does not support CPU real-time runtime")
+		return validationError("invalid option: CPU real-time runtime is not supported for Windows containers")
 	}
 	return nil
 }
@@ -48,7 +48,7 @@ func validateResources(hc *container.HostConfig, _ *sysinfo.SysInfo) error {
 // validatePrivileged performs platform specific validation of the Privileged setting
 func validatePrivileged(hc *container.HostConfig) error {
 	if hc.Privileged {
-		return fmt.Errorf("Windows does not support privileged mode")
+		return validationError("invalid option: privileged mode is not supported for Windows containers")
 	}
 	return nil
 }
@@ -56,7 +56,7 @@ func validatePrivileged(hc *container.HostConfig) error {
 // validateReadonlyRootfs performs platform specific validation of the ReadonlyRootfs setting
 func validateReadonlyRootfs(hc *container.HostConfig) error {
 	if hc.ReadonlyRootfs {
-		return fmt.Errorf("Windows does not support root filesystem in read-only mode")
+		return validationError("invalid option: read-only mode is not supported for Windows containers")
 	}
 	return nil
 }

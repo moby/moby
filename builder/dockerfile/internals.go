@@ -12,17 +12,17 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/builder"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-connections/nat"
+	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/chrootarchive"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -152,12 +152,13 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 		return err
 	}
 
-	identity := b.idMapping.RootPair()
+	uid, gid := b.idMapping.RootPair()
+	id := identity{UID: uid, GID: gid}
 	// if a chown was requested, perform the steps to get the uid, gid
 	// translated (if necessary because of user namespaces), and replace
 	// the root pair with the chown pair for copy operations
 	if inst.chownStr != "" {
-		identity, err = parseChownFlag(ctx, b, state, inst.chownStr, destInfo.root, b.idMapping)
+		id, err = parseChownFlag(ctx, b, state, inst.chownStr, destInfo.root, b.idMapping)
 		if err != nil {
 			if b.options.Platform != "windows" {
 				return errors.Wrapf(err, "unable to convert uid/gid chown string to host mapping")
@@ -173,7 +174,7 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 			archiver:   b.getArchiver(),
 		}
 		if !inst.preserveOwnership {
-			opts.identity = &identity
+			opts.identity = &id
 		}
 		if err := performCopyForInfo(destInfo, info, opts); err != nil {
 			return errors.Wrapf(err, "failed to copy files")
@@ -322,7 +323,7 @@ func copyStringSlice(orig []string) []string {
 // getShell is a helper function which gets the right shell for prefixing the
 // shell-form of RUN, ENTRYPOINT and CMD instructions
 func getShell(c *container.Config, os string) []string {
-	if 0 == len(c.Shell) {
+	if len(c.Shell) == 0 {
 		return append([]string{}, defaultShellForOS(os)[:]...)
 	}
 	return append([]string{}, c.Shell[:]...)
@@ -363,7 +364,7 @@ func (b *Builder) create(ctx context.Context, runConfig *container.Config) (stri
 	return ctr.ID, nil
 }
 
-func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConfig {
+func hostConfigFromOptions(options *build.ImageBuildOptions) *container.HostConfig {
 	resources := container.Resources{
 		CgroupParent: options.CgroupParent,
 		CPUShares:    options.CPUShares,

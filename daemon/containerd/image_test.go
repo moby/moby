@@ -7,17 +7,17 @@ import (
 	"path/filepath"
 	"testing"
 
-	c8dimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/metadata"
-	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/containerd/snapshots"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/metadata"
+	"github.com/containerd/containerd/v2/core/snapshots"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log/logtest"
 	"github.com/distribution/reference"
 	dockerimages "github.com/docker/docker/daemon/images"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
-	"go.etcd.io/bbolt"
+	bolt "go.etcd.io/bbolt"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -282,7 +282,7 @@ func newTestDB(ctx context.Context, t testing.TB) *metadata.DB {
 	t.Helper()
 
 	p := filepath.Join(t.TempDir(), "metadata")
-	bdb, err := bbolt.Open(p, 0o600, &bbolt.Options{})
+	bdb, err := bolt.Open(p, 0o600, &bolt.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

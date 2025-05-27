@@ -7,10 +7,10 @@ import (
 	nethttp "net/http"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/gc"
-	c8dimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/rootfs"
+	"github.com/containerd/containerd/v2/core/content"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/pkg/gc"
+	"github.com/containerd/containerd/v2/pkg/rootfs"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
@@ -35,6 +35,7 @@ import (
 	"github.com/moby/buildkit/snapshot"
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
 	"github.com/moby/buildkit/solver/llbsolver/ops"
 	"github.com/moby/buildkit/solver/pb"
@@ -86,6 +87,7 @@ type Opt struct {
 	Exporter          exporter.Exporter
 	Layers            LayerAccess
 	Platforms         []ocispec.Platform
+	CDIManager        *cdidevices.Manager
 }
 
 // Worker is a local worker instance with dedicated snapshotter, cache, and so on.
@@ -480,6 +482,10 @@ func (w *Worker) CacheManager() cache.Manager {
 	return w.Opt.CacheManager
 }
 
+func (w *Worker) CDIManager() *cdidevices.Manager {
+	return w.Opt.CDIManager
+}
+
 type discardProgress struct{}
 
 func (*discardProgress) WriteProgress(_ pkgprogress.Progress) error {
@@ -561,15 +567,15 @@ func getLayers(ctx context.Context, descs []ocispec.Descriptor) ([]rootfs.Layer,
 
 func oneOffProgress(ctx context.Context, id string) func(err error) error {
 	pw, _, _ := progress.NewFromContext(ctx)
-	now := time.Now()
+	s := time.Now()
 	st := progress.Status{
-		Started: &now,
+		Started: &s,
 	}
 	_ = pw.Write(id, st)
 	return func(err error) error {
 		// TODO: set error on status
-		now := time.Now()
-		st.Completed = &now
+		c := time.Now()
+		st.Completed = &c
 		_ = pw.Write(id, st)
 		_ = pw.Close()
 		return err

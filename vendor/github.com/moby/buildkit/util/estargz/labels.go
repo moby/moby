@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	ctdlabels "github.com/containerd/containerd/labels"
+	ctdlabels "github.com/containerd/containerd/v2/pkg/labels"
 	"github.com/containerd/stargz-snapshotter/estargz"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )

@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/containerd/containerd/oci"
+	"github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/moby/buildkit/util/bklog"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -94,7 +94,7 @@ func setNetNS(s *specs.Spec, nsPath string) error {
 
 func unmountNetNS(nsPath string) error {
 	if err := unix.Unmount(nsPath, unix.MNT_DETACH); err != nil {
-		if err != syscall.EINVAL && err != syscall.ENOENT {
+		if !errors.Is(err, syscall.EINVAL) && !errors.Is(err, syscall.ENOENT) {
 			return errors.Wrap(err, "error unmounting network namespace")
 		}
 	}

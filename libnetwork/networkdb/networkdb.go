@@ -1,5 +1,5 @@
 // FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.22
+//go:build go1.23
 
 package networkdb
 
@@ -252,14 +252,27 @@ func DefaultConfig() *Config {
 // New creates a new instance of NetworkDB using the Config passed by
 // the caller.
 func New(c *Config) (*NetworkDB, error) {
+	nDB := new(c)
+	log.G(context.TODO()).Infof("New memberlist node - Node:%v will use memberlist nodeID:%v with config:%+v", c.Hostname, c.NodeID, c)
+	if err := nDB.clusterInit(); err != nil {
+		return nil, err
+	}
+
+	return nDB, nil
+}
+
+func new(c *Config) *NetworkDB {
 	// The garbage collection logic for entries leverage the presence of the network.
 	// For this reason the expiration time of the network is put slightly higher than the entry expiration so that
 	// there is at least 5 extra cycle to make sure that all the entries are properly deleted before deleting the network.
 	c.reapNetworkInterval = c.reapEntryInterval + 5*reapPeriod
 
-	nDB := &NetworkDB{
-		config:         c,
-		indexes:        make(map[int]*iradix.Tree[*entry]),
+	return &NetworkDB{
+		config: c,
+		indexes: map[int]*iradix.Tree[*entry]{
+			byTable:   iradix.New[*entry](),
+			byNetwork: iradix.New[*entry](),
+		},
 		networks:       make(map[string]map[string]*network),
 		nodes:          make(map[string]*node),
 		failedNodes:    make(map[string]*node),
@@ -268,16 +281,6 @@ func New(c *Config) (*NetworkDB, error) {
 		bulkSyncAckTbl: make(map[string]chan struct{}),
 		broadcaster:    events.NewBroadcaster(),
 	}
-
-	nDB.indexes[byTable] = iradix.New[*entry]()
-	nDB.indexes[byNetwork] = iradix.New[*entry]()
-
-	log.G(context.TODO()).Infof("New memberlist node - Node:%v will use memberlist nodeID:%v with config:%+v", c.Hostname, c.NodeID, c)
-	if err := nDB.clusterInit(); err != nil {
-		return nil, err
-	}
-
-	return nDB, nil
 }
 
 // Join joins this NetworkDB instance with a list of peer NetworkDB
@@ -429,8 +432,11 @@ type TableElem struct {
 // GetTableByNetwork walks the networkdb by the give table and network id and
 // returns a map of keys and values
 func (nDB *NetworkDB) GetTableByNetwork(tname, nid string) map[string]*TableElem {
+	nDB.RLock()
+	root := nDB.indexes[byTable].Root()
+	nDB.RUnlock()
 	entries := make(map[string]*TableElem)
-	nDB.indexes[byTable].Root().WalkPrefix([]byte(fmt.Sprintf("/%s/%s", tname, nid)), func(k []byte, v *entry) bool {
+	root.WalkPrefix([]byte(fmt.Sprintf("/%s/%s", tname, nid)), func(k []byte, v *entry) bool {
 		if v.deleting {
 			return false
 		}
@@ -510,10 +516,6 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 	nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid),
 		func(path []byte, v *entry) bool {
 			oldEntry := v
-			params := strings.Split(string(path[1:]), "/")
-			nid := params[0]
-			tname := params[1]
-			key := params[2]
 
 			// If the entry is owned by a remote node and this node is not leaving the network
 			if oldEntry.node != node && !isNodeLocal {
@@ -538,6 +540,8 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 			// we arrived at this point in 2 cases:
 			// 1) this entry is owned by the node that is leaving the network
 			// 2) the local node is leaving the network
+			params := strings.Split(string(path[1:]), "/")
+			nwID, tName, key := params[0], params[1], params[2]
 			if oldEntry.node == node {
 				if isNodeLocal {
 					// TODO fcrisciani: this can be removed if there is no way to leave the network
@@ -546,16 +550,16 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 				}
 
 				if !oldEntry.deleting {
-					nDB.createOrUpdateEntry(nid, tname, key, newEntry)
+					nDB.createOrUpdateEntry(nwID, tName, key, newEntry)
 				}
 			} else {
 				// the local node is leaving the network, all the entries of remote nodes can be safely removed
-				nDB.deleteEntry(nid, tname, key)
+				nDB.deleteEntry(nwID, tName, key)
 			}
 
 			// Notify to the upper layer only entries not already marked for deletion
 			if !oldEntry.deleting {
-				nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, newEntry.value))
+				nDB.broadcaster.Write(makeEvent(opDelete, tName, nwID, key, newEntry.value))
 			}
 			return false
 		})
@@ -587,21 +591,14 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 // value. The walk stops if the passed function returns a true.
 func (nDB *NetworkDB) WalkTable(tname string, fn func(string, string, []byte, bool) bool) error {
 	nDB.RLock()
-	values := make(map[string]*entry)
-	nDB.indexes[byTable].Root().WalkPrefix([]byte("/"+tname), func(path []byte, v *entry) bool {
-		values[string(path)] = v
-		return false
-	})
+	root := nDB.indexes[byTable].Root()
 	nDB.RUnlock()
-
-	for k, v := range values {
-		params := strings.Split(k[1:], "/")
+	root.WalkPrefix([]byte("/"+tname), func(path []byte, v *entry) bool {
+		params := strings.Split(string(path[1:]), "/")
 		nid := params[1]
 		key := params[2]
-		if fn(nid, key, v.value, v.deleting) {
-			return nil
-		}
-	}
+		return fn(nid, key, v.value, v.deleting)
+	})
 
 	return nil
 }

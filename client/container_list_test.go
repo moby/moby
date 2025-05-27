@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,7 +22,7 @@ func TestContainerListError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerList(context.Background(), container.ListOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestContainerList(t *testing.T) {
@@ -88,10 +88,6 @@ func TestContainerList(t *testing.T) {
 			filters.Arg("before", "container"),
 		),
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(containers) != 2 {
-		t.Fatalf("expected 2 containers, got %v", containers)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(containers, 2))
 }

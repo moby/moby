@@ -5,22 +5,22 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/content/local"
-	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/metadata"
-	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/containerd/v2/core/metadata"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
+	"github.com/containerd/containerd/v2/plugins/content/local"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"go.etcd.io/bbolt"
+	bolt "go.etcd.io/bbolt"
 )
 
 func (daemon *Daemon) configureLocalContentStore(ns string) (*namespacedContent, *namespacedLeases, error) {
 	if err := os.MkdirAll(filepath.Join(daemon.root, "content"), 0o700); err != nil {
 		return nil, nil, errors.Wrap(err, "error creating dir for content store")
 	}
-	db, err := bbolt.Open(filepath.Join(daemon.root, "content", "metadata.db"), 0o600, nil)
+	db, err := bolt.Open(filepath.Join(daemon.root, "content", "metadata.db"), 0o600, nil)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "error opening bolt db for content metadata store")
 	}

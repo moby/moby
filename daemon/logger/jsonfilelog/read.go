@@ -62,7 +62,7 @@ func (d *decoder) Close() {
 	d.jl = nil
 }
 
-func (d *decoder) Decode() (msg *logger.Message, err error) {
+func (d *decoder) Decode() (*logger.Message, error) {
 	if d.dec == nil {
 		d.dec = json.NewDecoder(d.rdr)
 	}

@@ -43,9 +43,9 @@ type stdWriter struct {
 // It inserts the prefix header before the buffer,
 // so stdcopy.StdCopy knows where to multiplex the output.
 // It makes stdWriter to implement io.Writer.
-func (w *stdWriter) Write(p []byte) (n int, err error) {
+func (w *stdWriter) Write(p []byte) (int, error) {
 	if w == nil || w.Writer == nil {
-		return 0, errors.New("Writer not instantiated")
+		return 0, errors.New("writer not instantiated")
 	}
 	if p == nil {
 		return 0, nil
@@ -57,7 +57,7 @@ func (w *stdWriter) Write(p []byte) (n int, err error) {
 	buf.Write(header[:])
 	buf.Write(p)
 
-	n, err = w.Writer.Write(buf.Bytes())
+	n, err := w.Writer.Write(buf.Bytes())
 	n -= stdWriterPrefixLen
 	if n < 0 {
 		n = 0
@@ -65,7 +65,7 @@ func (w *stdWriter) Write(p []byte) (n int, err error) {
 
 	buf.Reset()
 	bufPool.Put(buf)
-	return
+	return n, err
 }
 
 // NewStdWriter instantiates a new Writer.
@@ -91,12 +91,12 @@ func NewStdWriter(w io.Writer, t StdType) io.Writer {
 // In other words: if `err` is non nil, it indicates a real underlying error.
 //
 // `written` will hold the total number of bytes written to `dstout` and `dsterr`.
-func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error) {
+func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, _ error) {
 	var (
 		buf       = make([]byte, startingBufLen)
 		bufLen    = len(buf)
 		nr, nw    int
-		er, ew    error
+		err       error
 		out       io.Writer
 		frameSize int
 	)
@@ -105,16 +105,16 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 		// Make sure we have at least a full header
 		for nr < stdWriterPrefixLen {
 			var nr2 int
-			nr2, er = src.Read(buf[nr:])
+			nr2, err = src.Read(buf[nr:])
 			nr += nr2
-			if er == io.EOF {
+			if err == io.EOF {
 				if nr < stdWriterPrefixLen {
 					return written, nil
 				}
 				break
 			}
-			if er != nil {
-				return 0, er
+			if err != nil {
+				return 0, err
 			}
 		}
 
@@ -151,16 +151,16 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 		// While the amount of bytes read is less than the size of the frame + header, we keep reading
 		for nr < frameSize+stdWriterPrefixLen {
 			var nr2 int
-			nr2, er = src.Read(buf[nr:])
+			nr2, err = src.Read(buf[nr:])
 			nr += nr2
-			if er == io.EOF {
+			if err == io.EOF {
 				if nr < frameSize+stdWriterPrefixLen {
 					return written, nil
 				}
 				break
 			}
-			if er != nil {
-				return 0, er
+			if err != nil {
+				return 0, err
 			}
 		}
 
@@ -171,9 +171,9 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 		}
 
 		// Write the retrieved frame (without header)
-		nw, ew = out.Write(buf[stdWriterPrefixLen : frameSize+stdWriterPrefixLen])
-		if ew != nil {
-			return 0, ew
+		nw, err = out.Write(buf[stdWriterPrefixLen : frameSize+stdWriterPrefixLen])
+		if err != nil {
+			return 0, err
 		}
 
 		// If the frame has not been fully written: error

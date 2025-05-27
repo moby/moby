@@ -5,7 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/internal/metrics"
+	"github.com/moby/go-archive"
 )
 
 // ContainerChanges returns a list of container fs changes
@@ -25,6 +26,6 @@ func (daemon *Daemon) ContainerChanges(ctx context.Context, name string) ([]arch
 	if err != nil {
 		return nil, err
 	}
-	containerActions.WithValues("changes").UpdateSince(start)
+	metrics.ContainerActions.WithValues("changes").UpdateSince(start)
 	return c, nil
 }

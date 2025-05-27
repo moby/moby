@@ -12,12 +12,11 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/image"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
@@ -47,12 +46,8 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	client := d.NewClientT(t)
 
 	layerStore, _ := layer.NewStoreFromOptions(layer.StoreOptions{
-		Root:                      d.Root,
-		MetadataStorePathTemplate: filepath.Join(d.RootDir(), "image", "%s", "layerdb"),
-		GraphDriver:               d.StorageDriver(),
-		GraphDriverOptions:        nil,
-		IDMapping:                 idtools.IdentityMapping{},
-		ExperimentalEnabled:       false,
+		Root:        d.Root,
+		GraphDriver: d.StorageDriver(),
 	})
 	i := images.NewImageService(images.ImageServiceConfig{
 		LayerStore: layerStore,
@@ -67,7 +62,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	defer source.Close()
 	resp, err := client.ImageBuild(ctx,
 		source.AsTarReader(t),
-		types.ImageBuildOptions{
+		build.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
 			Tags:        []string{imgName},
@@ -76,7 +71,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	_, err = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	assert.NilError(t, err)
-	img, _, err := client.ImageInspectWithRaw(ctx, imgName)
+	img, err := client.ImageInspect(ctx, imgName)
 	assert.NilError(t, err)
 
 	// Mark latest image layer to immutable
@@ -97,7 +92,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	assert.Equal(t, "errno 0", errno.Error())
 	assert.Assert(t, err != nil)
 	errStr := err.Error()
-	if !(strings.Contains(errStr, "permission denied") || strings.Contains(errStr, "operation not permitted")) {
+	if !strings.Contains(errStr, "permission denied") && !strings.Contains(errStr, "operation not permitted") {
 		t.Errorf("ImageRemove error not an permission error %s", errStr)
 	}
 

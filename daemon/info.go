@@ -1,5 +1,5 @@
 // FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.22
+//go:build go1.23
 
 package daemon // import "github.com/docker/docker/daemon"
 
@@ -8,26 +8,27 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/tracing"
+	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/cmd/dockerd/debug"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/internal/filedescriptors"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/internal/platform"
-	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/meminfo"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/registry"
-	"github.com/docker/go-metrics"
 	"github.com/opencontainers/selinux/go-selinux"
 )
 
@@ -44,7 +45,7 @@ func doWithTrace[T any](ctx context.Context, name string, f func() T) T {
 // multiple things and is often used for debugging.
 // The only case valid early return is when the caller doesn't want the result anymore (ie context cancelled).
 func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
-	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_info"))()
+	defer metrics.StartTimer(metrics.HostInfoFunctions.WithValues("system_info"))()
 
 	sysInfo := daemon.RawSysInfo()
 	cfg := daemon.config()
@@ -63,7 +64,7 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 		OSType:             runtime.GOOS,
 		Architecture:       platform.Architecture(),
 		RegistryConfig:     doWithTrace(ctx, "registry.ServiceConfig", daemon.registryService.ServiceConfig),
-		NCPU:               doWithTrace(ctx, "sysinfo.NumCPU", sysinfo.NumCPU),
+		NCPU:               doWithTrace(ctx, "runtime.NumCPU", runtime.NumCPU),
 		MemTotal:           memInfo(ctx).MemTotal,
 		GenericResources:   daemon.genericResources,
 		DockerRootDir:      cfg.Root,
@@ -92,6 +93,8 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 	daemon.fillSecurityOptions(v, sysInfo, &cfg.Config)
 	daemon.fillLicense(v)
 	daemon.fillDefaultAddressPools(ctx, v, &cfg.Config)
+	daemon.fillFirewallInfo(v)
+	daemon.fillDiscoveredDevicesFromDrivers(ctx, v, &cfg.Config)
 
 	return v, nil
 }
@@ -103,9 +106,9 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 // multiple things and is often used for debugging.
 // The only case valid early return is when the caller doesn't want the result anymore (ie context cancelled).
 func (daemon *Daemon) SystemVersion(ctx context.Context) (types.Version, error) {
-	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_version"))()
+	defer metrics.StartTimer(metrics.HostInfoFunctions.WithValues("system_version"))()
 
-	kernelVersion := kernelVersion(ctx)
+	kernelVer := kernelVersion(ctx)
 	cfg := daemon.config()
 
 	v := types.Version{
@@ -121,8 +124,8 @@ func (daemon *Daemon) SystemVersion(ctx context.Context) (types.Version, error) 
 					"Os":            runtime.GOOS,
 					"Arch":          runtime.GOARCH,
 					"BuildTime":     dockerversion.BuildTime,
-					"KernelVersion": kernelVersion,
-					"Experimental":  fmt.Sprintf("%t", cfg.Experimental),
+					"KernelVersion": kernelVer,
+					"Experimental":  strconv.FormatBool(cfg.Experimental),
 				},
 			},
 		},
@@ -136,7 +139,7 @@ func (daemon *Daemon) SystemVersion(ctx context.Context) (types.Version, error) 
 		Os:            runtime.GOOS,
 		Arch:          runtime.GOARCH,
 		BuildTime:     dockerversion.BuildTime,
-		KernelVersion: kernelVersion,
+		KernelVersion: kernelVer,
 		Experimental:  cfg.Experimental,
 	}
 
@@ -190,7 +193,7 @@ func (daemon *Daemon) fillSecurityOptions(v *system.Info, sysInfo *sysinfo.SysIn
 	if selinux.GetEnabled() {
 		securityOptions = append(securityOptions, "name=selinux")
 	}
-	if rootIDs := daemon.idMapping.RootPair(); rootIDs.UID != 0 || rootIDs.GID != 0 {
+	if uid, gid := daemon.idMapping.RootPair(); uid != 0 || gid != 0 {
 		securityOptions = append(securityOptions, "name=userns")
 	}
 	if Rootless(cfg) {
@@ -207,7 +210,7 @@ func (daemon *Daemon) fillSecurityOptions(v *system.Info, sysInfo *sysinfo.SysIn
 }
 
 func (daemon *Daemon) fillContainerStates(v *system.Info) {
-	cRunning, cPaused, cStopped := stateCtr.get()
+	cRunning, cPaused, cStopped := metrics.StateCtr.Get()
 	v.Containers = cRunning + cPaused + cStopped
 	v.ContainersPaused = cPaused
 	v.ContainersRunning = cRunning
@@ -224,7 +227,7 @@ func (daemon *Daemon) fillContainerStates(v *system.Info) {
 // https://github.com/docker/cli/blob/v20.10.12/cli/command/system/info.go#L239-L244
 func (daemon *Daemon) fillDebugInfo(ctx context.Context, v *system.Info) {
 	v.Debug = debug.IsEnabled()
-	v.NFd = fileutils.GetTotalUsedFds(ctx)
+	v.NFd = filedescriptors.GetTotalUsedFds(ctx)
 	v.NGoroutines = runtime.NumGoroutine()
 	v.NEventsListener = daemon.EventsService.SubscribersCount()
 }
@@ -283,56 +286,62 @@ func (daemon *Daemon) fillDefaultAddressPools(ctx context.Context, v *system.Inf
 	}
 }
 
+func (daemon *Daemon) fillFirewallInfo(v *system.Info) {
+	if daemon.netController == nil {
+		return
+	}
+	v.FirewallBackend = daemon.netController.FirewallBackend()
+}
+
 func hostName(ctx context.Context) string {
 	ctx, span := tracing.StartSpan(ctx, "hostName")
 	defer span.End()
-	hostname := ""
-	if hn, err := os.Hostname(); err != nil {
-		log.G(ctx).Warnf("Could not get hostname: %v", err)
-	} else {
-		hostname = hn
+	hn, err := os.Hostname()
+	if err != nil {
+		log.G(ctx).WithError(err).Warn("Could not get hostname")
+		return ""
 	}
-	return hostname
+	return hn
 }
 
 func kernelVersion(ctx context.Context) string {
 	ctx, span := tracing.StartSpan(ctx, "kernelVersion")
 	defer span.End()
 
-	var kernelVersion string
+	var ver string
 	if kv, err := kernel.GetKernelVersion(); err != nil {
-		log.G(ctx).Warnf("Could not get kernel version: %v", err)
+		log.G(ctx).WithError(err).Warn("Could not get kernel version")
 	} else {
-		kernelVersion = kv.String()
+		ver = kv.String()
 	}
-	return kernelVersion
+	return ver
 }
 
 func memInfo(ctx context.Context) *meminfo.Memory {
 	ctx, span := tracing.StartSpan(ctx, "memInfo")
 	defer span.End()
 
-	memInfo, err := meminfo.Read()
+	mi, err := meminfo.Read()
 	if err != nil {
-		log.G(ctx).Errorf("Could not read system memory info: %v", err)
-		memInfo = &meminfo.Memory{}
+		log.G(ctx).WithError(err).Error("Could not read system memory info")
+		return &meminfo.Memory{}
 	}
-	return memInfo
+	return mi
 }
 
 func operatingSystem(ctx context.Context) (operatingSystem string) {
 	ctx, span := tracing.StartSpan(ctx, "operatingSystem")
 	defer span.End()
 
-	defer metrics.StartTimer(hostInfoFunctions.WithValues("operating_system"))()
+	defer metrics.StartTimer(metrics.HostInfoFunctions.WithValues("operating_system"))()
 
 	if s, err := operatingsystem.GetOperatingSystem(); err != nil {
-		log.G(ctx).Warnf("Could not get operating system name: %v", err)
+		log.G(ctx).WithError(err).Warn("Could not get operating system name")
 	} else {
 		operatingSystem = s
 	}
 	if inContainer, err := operatingsystem.IsContainerized(); err != nil {
-		log.G(ctx).Errorf("Could not determine if daemon is containerized: %v", err)
+		log.G(ctx).WithError(err).Error("Could not determine if daemon is containerized")
 		operatingSystem += " (error determining if containerized)"
 	} else if inContainer {
 		operatingSystem += " (containerized)"
@@ -345,11 +354,12 @@ func osVersion(ctx context.Context) (version string) {
 	ctx, span := tracing.StartSpan(ctx, "osVersion")
 	defer span.End()
 
-	defer metrics.StartTimer(hostInfoFunctions.WithValues("os_version"))()
+	defer metrics.StartTimer(metrics.HostInfoFunctions.WithValues("os_version"))()
 
 	version, err := operatingsystem.GetOperatingSystemVersion()
 	if err != nil {
-		log.G(ctx).Warnf("Could not get operating system version: %v", err)
+		log.G(ctx).WithError(err).Warn("Could not get operating system version")
+		return ""
 	}
 
 	return version
@@ -371,14 +381,48 @@ func getConfigOrEnv(config string, env ...string) string {
 	return getEnvAny(env...)
 }
 
-// promoteNil converts a nil slice to an empty slice.
+// promoteNil converts a nil slice to an empty slice of that type.
 // A non-nil slice is returned as is.
-//
-// TODO: make generic again once we are a go module,
-// go.dev/issue/64759 is fixed, or we drop support for Go 1.21.
-func promoteNil(s []string) []string {
+func promoteNil[S ~[]E, E any](s S) S {
 	if s == nil {
-		return []string{}
+		return S{}
 	}
 	return s
+}
+
+// fillDiscoveredDevicesFromDrivers iterates over registered device drivers
+// and calls their ListDevices method (if available) to populate system info.
+func (daemon *Daemon) fillDiscoveredDevicesFromDrivers(ctx context.Context, v *system.Info, cfg *config.Config) {
+	ctx, span := tracing.StartSpan(ctx, "daemon.fillDiscoveredDevicesFromDrivers")
+	defer span.End()
+
+	// Make sure v.DiscoveredDevices is initialized to an empty slice instead of nil.
+	// This ensures that the JSON output is always a valid array, even if no devices are discovered.
+	v.DiscoveredDevices = []system.DeviceInfo{}
+
+	for driverName, driver := range deviceDrivers {
+		if driver.ListDevices == nil {
+			log.G(ctx).WithField("driver", driverName).Trace("Device driver does not implement ListDevices method.")
+			continue
+		}
+
+		ls, err := driver.ListDevices(ctx, cfg)
+		if err != nil {
+			log.G(ctx).WithFields(log.Fields{
+				"driver": driverName,
+				"error":  err,
+			}).Warn("Failed to list devices for driver")
+			v.Warnings = append(v.Warnings, fmt.Sprintf("Failed to list devices from driver '%s': %v", driverName, err))
+			continue
+		}
+
+		if len(ls.Warnings) > 0 {
+			v.Warnings = append(v.Warnings, ls.Warnings...)
+		}
+
+		for _, device := range ls.Devices {
+			device.Source = driverName
+			v.DiscoveredDevices = append(v.DiscoveredDevices, device)
+		}
+	}
 }

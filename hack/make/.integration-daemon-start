@@ -40,14 +40,8 @@ fi
 # intentionally open a couple bogus file descriptors to help test that they get scrubbed in containers
 exec 41>&1 42>&2
 
-# Allow pushing manifest v2 schema 1 images, as they're used to push
-# images to our test-registries for testing _pulling_ schema 2v1 images.
-export DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE=1
 export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
 export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
-
-# Allow testing push/pull of legacy image formats
-export DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE=1
 
 # example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
 storage_params=""
@@ -72,12 +66,6 @@ if [ "$DOCKER_EXPERIMENTAL" ]; then
 fi
 
 dockerd="dockerd"
-if [ -f "/sys/fs/cgroup/cgroup.controllers" ]; then
-	if [ -z "$TEST_IGNORE_CGROUP_CHECK" ] && [ -z "$TEST_SKIP_INTEGRATION_CLI" ]; then
-		echo >&2 '# cgroup v2 requires TEST_SKIP_INTEGRATION_CLI to be set'
-		exit 1
-	fi
-fi
 
 if [ -n "$DOCKER_ROOTLESS" ]; then
 	if [ -z "$TEST_SKIP_INTEGRATION_CLI" ]; then
@@ -90,6 +78,9 @@ if [ -n "$DOCKER_ROOTLESS" ]; then
 	mkdir -p -m 700 "/tmp/docker-${uid}"
 	chown "$user" "/tmp/docker-${uid}"
 	chmod -R o+w "$DEST"
+	# The rootless daemon won't be able to load modules for tests that need them, so do it here.
+	# There's no modprobe in the dev container, so https://x.com/lucabruno/status/902934379835662336
+	ip link show br_netfilter || true
 	dockerd="sudo -u $user -E -E XDG_RUNTIME_DIR=/tmp/docker-${uid} -E HOME=/home/${user} -E PATH=$PATH -- dockerd-rootless.sh"
 fi
 

@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/pkg/errors"
 )
 
@@ -76,10 +77,11 @@ type logStream struct {
 	forceFlushInterval time.Duration
 	multilinePattern   *regexp.Regexp
 	client             api
-	messages           chan *logger.Message
-	lock               sync.RWMutex
-	closed             bool
-	sequenceToken      *string
+
+	messages *loggerutils.MessageQueue
+	closed   atomic.Bool
+
+	sequenceToken *string
 }
 
 type logStreamConfig struct {
@@ -158,24 +160,17 @@ func New(info logger.Info) (logger.Logger, error) {
 		forceFlushInterval: containerStreamConfig.forceFlushInterval,
 		multilinePattern:   containerStreamConfig.multilinePattern,
 		client:             client,
-		messages:           make(chan *logger.Message, containerStreamConfig.maxBufferedEvents),
+		messages:           loggerutils.NewMessageQueue(containerStreamConfig.maxBufferedEvents),
 	}
 
 	creationDone := make(chan bool)
 	if logNonBlocking {
+		const maxBackoff = 32
 		go func() {
 			backoff := 1
-			maxBackoff := 32
-			for {
-				// If logger is closed we are done
-				containerStream.lock.RLock()
-				if containerStream.closed {
-					containerStream.lock.RUnlock()
-					break
-				}
-				containerStream.lock.RUnlock()
-				err := containerStream.create()
-				if err == nil {
+			// We're done when the logger is closed
+			for !containerStream.closed.Load() {
+				if err := containerStream.create(); err == nil {
 					break
 				}
 
@@ -183,11 +178,11 @@ func New(info logger.Info) (logger.Logger, error) {
 				if backoff < maxBackoff {
 					backoff *= 2
 				}
-				log.G(context.TODO()).
-					WithError(err).
-					WithField("container-id", info.ContainerID).
-					WithField("container-name", info.ContainerName).
-					Error("Error while trying to initialize awslogs. Retrying in: ", backoff, " seconds")
+				log.G(context.TODO()).WithFields(log.Fields{
+					"error":          err,
+					"container-id":   info.ContainerID,
+					"container-name": info.ContainerName,
+				}).Error("Error while trying to initialize awslogs. Retrying in: ", backoff, " seconds")
 			}
 			close(creationDone)
 		}()
@@ -264,29 +259,31 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 	return containerStreamConfig, nil
 }
 
+// formatSequences matches each strftime format sequence.
+var formatSequences = lazyregexp.New("%.")
+
 // Parses awslogs-multiline-pattern and awslogs-datetime-format options
 // If awslogs-datetime-format is present, convert the format from strftime
 // to regexp and return.
 // If awslogs-multiline-pattern is present, compile regexp and return
 func parseMultilineOptions(info logger.Info) (*regexp.Regexp, error) {
 	dateTimeFormat := info.Config[datetimeFormatKey]
-	multilinePatternKey := info.Config[multilinePatternKey]
+	multilinePattern := info.Config[multilinePatternKey]
 	// strftime input is parsed into a regular expression
 	if dateTimeFormat != "" {
-		// %. matches each strftime format sequence and ReplaceAllStringFunc
+		// match each strftime format sequence and ReplaceAllStringFunc
 		// looks up each format sequence in the conversion table strftimeToRegex
 		// to replace with a defined regular expression
-		r := regexp.MustCompile("%.")
-		multilinePatternKey = r.ReplaceAllStringFunc(dateTimeFormat, func(s string) string {
+		multilinePattern = formatSequences.ReplaceAllStringFunc(dateTimeFormat, func(s string) string {
 			return strftimeToRegex[s]
 		})
 	}
-	if multilinePatternKey != "" {
-		multilinePattern, err := regexp.Compile(multilinePatternKey)
+	if multilinePattern != "" {
+		multilinePatternRe, err := regexp.Compile(multilinePattern)
 		if err != nil {
-			return nil, errors.Wrapf(err, "awslogs could not parse multiline pattern key %q", multilinePatternKey)
+			return nil, errors.Wrapf(err, "awslogs could not parse multiline pattern key %q", multilinePatternRe)
 		}
-		return multilinePattern, nil
+		return multilinePatternRe, nil
 	}
 	return nil, nil
 }
@@ -426,25 +423,26 @@ func (l *logStream) BufSize() int {
 	return maximumBytesPerEvent
 }
 
+var errClosed = errors.New("awslogs is closed")
+
 // Log submits messages for logging by an instance of the awslogs logging driver
 func (l *logStream) Log(msg *logger.Message) error {
-	l.lock.RLock()
-	defer l.lock.RUnlock()
-	if l.closed {
-		return errors.New("awslogs is closed")
+	// No need to check if we are closed here since the queue will be closed
+	// (i.e. returns false) in this case.
+	ctx := context.TODO()
+	if err := l.messages.Enqueue(ctx, msg); err != nil {
+		if err == loggerutils.ErrQueueClosed {
+			return errClosed
+		}
+		return err
 	}
-	l.messages <- msg
 	return nil
 }
 
 // Close closes the instance of the awslogs logging driver
 func (l *logStream) Close() error {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-	if !l.closed {
-		close(l.messages)
-	}
-	l.closed = true
+	l.closed.Store(true)
+	l.messages.Close()
 	return nil
 }
 
@@ -561,6 +559,8 @@ func (l *logStream) collectBatch(created chan bool) {
 	var eventBuffer []byte
 	var eventBufferTimestamp int64
 	batch := newEventBatch()
+
+	chLogs := l.messages.Receiver()
 	for {
 		select {
 		case t := <-ticker.C:
@@ -576,7 +576,7 @@ func (l *logStream) collectBatch(created chan bool) {
 			}
 			l.publishBatch(batch)
 			batch.reset()
-		case msg, more := <-l.messages:
+		case msg, more := <-chLogs:
 			if !more {
 				// Flush event buffer and release resources
 				l.processEvent(batch, eventBuffer, eventBufferTimestamp)
@@ -668,15 +668,13 @@ func effectiveLen(line string) int {
 // UTF-8 encoded bytes with the Unicode replacement character (a 3-byte UTF-8
 // sequence, represented in Go as utf8.RuneError)
 func findValidSplit(line string, maxBytes int) (splitOffset, effectiveBytes int) {
-	for offset, rune := range line {
-		splitOffset = offset
-		if effectiveBytes+utf8.RuneLen(rune) > maxBytes {
-			return splitOffset, effectiveBytes
+	for offset, char := range line {
+		if effectiveBytes+utf8.RuneLen(char) > maxBytes {
+			return offset, effectiveBytes
 		}
-		effectiveBytes += utf8.RuneLen(rune)
+		effectiveBytes += utf8.RuneLen(char)
 	}
-	splitOffset = len(line)
-	return
+	return len(line), effectiveBytes
 }
 
 // publishBatch calls PutLogEvents for a given set of InputLogEvents,

@@ -92,6 +92,8 @@ func (gs *gitSource) Identifier(scheme, ref string, attrs map[string]string, pla
 			id.KnownSSHHosts = v
 		case pb.AttrMountSSHSock:
 			id.MountSSHSock = v
+		case pb.AttrGitChecksum:
+			id.Checksum = v
 		}
 	}
 
@@ -256,9 +258,11 @@ func (gs *gitSourceHandler) getAuthToken(ctx context.Context, g session.Group) e
 	if err != nil {
 		return err
 	}
-	return gs.sm.Any(ctx, g, func(ctx context.Context, _ string, caller session.Caller) error {
+	err = gs.sm.Any(ctx, g, func(ctx context.Context, _ string, caller session.Caller) error {
+		var err error
 		for _, s := range sec {
-			dt, err := secrets.GetSecret(ctx, caller, s.name)
+			var dt []byte
+			dt, err = secrets.GetSecret(ctx, caller, s.name)
 			if err != nil {
 				if errors.Is(err, secrets.ErrNotFound) {
 					continue
@@ -266,13 +270,17 @@ func (gs *gitSourceHandler) getAuthToken(ctx context.Context, g session.Group) e
 				return err
 			}
 			if s.token {
-				dt = []byte("basic " + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("x-access-token:%s", dt))))
+				dt = []byte("basic " + base64.StdEncoding.EncodeToString(fmt.Appendf(nil, "x-access-token:%s", dt)))
 			}
 			gs.authArgs = []string{"-c", "http." + tokenScope(gs.src.Remote) + ".extraheader=Authorization: " + string(dt)}
 			break
 		}
-		return nil
+		return err
 	})
+	if errors.Is(err, secrets.ErrNotFound) {
+		err = nil
+	}
+	return err
 }
 
 func (gs *gitSourceHandler) mountSSHAuthSock(ctx context.Context, sshID string, g session.Group) (string, func() error, error) {
@@ -343,10 +351,26 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 	gs.locker.Lock(remote)
 	defer gs.locker.Unlock(remote)
 
-	if ref := gs.src.Ref; ref != "" && gitutil.IsCommitSHA(ref) {
-		cacheKey := gs.shaToCacheKey(ref, "")
+	if gs.src.Checksum != "" {
+		matched, err := regexp.MatchString("^[a-fA-F0-9]+$", gs.src.Checksum)
+		if err != nil || !matched {
+			return "", "", nil, false, errors.Errorf("invalid checksum %s for Git URL, expected hex commit hash", gs.src.Checksum)
+		}
+	}
+
+	var refCommitFullHash, ref2 string
+	if gitutil.IsCommitSHA(gs.src.Checksum) && !gs.src.KeepGitDir {
+		refCommitFullHash = gs.src.Checksum
+		ref2 = gs.src.Ref
+	}
+	if refCommitFullHash == "" && gitutil.IsCommitSHA(gs.src.Ref) {
+		refCommitFullHash = gs.src.Ref
+	}
+	if refCommitFullHash != "" {
+		cacheKey := gs.shaToCacheKey(refCommitFullHash, ref2)
 		gs.cacheKey = cacheKey
-		return cacheKey, ref, nil, true, nil
+		// gs.src.Checksum is verified when checking out the commit
+		return cacheKey, refCommitFullHash, nil, true, nil
 	}
 
 	gs.getAuthToken(ctx, g)
@@ -409,7 +433,9 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 	if !gitutil.IsCommitSHA(sha) {
 		return "", "", nil, false, errors.Errorf("invalid commit sha %q", sha)
 	}
-
+	if gs.src.Checksum != "" && !strings.HasPrefix(sha, gs.src.Checksum) {
+		return "", "", nil, false, errors.Errorf("expected checksum to match %s, got %s", gs.src.Checksum, sha)
+	}
 	cacheKey := gs.shaToCacheKey(sha, usedRef)
 	gs.cacheKey = cacheKey
 	return cacheKey, sha, nil, true, nil
@@ -530,6 +556,17 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		subdir = "."
 	}
 
+	if gs.src.Checksum != "" {
+		actualHashBuf, err := git.Run(ctx, "rev-parse", ref)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to rev-parse %s for %s", ref, urlutil.RedactCredentials(gs.src.Remote))
+		}
+		actualHash := strings.TrimSpace(string(actualHashBuf))
+		if !strings.HasPrefix(actualHash, gs.src.Checksum) {
+			return nil, errors.Errorf("expected checksum to match %s, got %s", gs.src.Checksum, actualHash)
+		}
+	}
+
 	if gs.src.KeepGitDir && subdir == "." {
 		checkoutDirGit := filepath.Join(checkoutDir, ".git")
 		if err := os.MkdirAll(checkoutDir, 0711); err != nil {
@@ -635,9 +672,9 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 	}
 
 	if idmap := mount.IdentityMapping(); idmap != nil {
-		u := idmap.RootPair()
+		uid, gid := idmap.RootPair()
 		err := filepath.WalkDir(gitDir, func(p string, _ os.DirEntry, _ error) error {
-			return os.Lchown(p, u.UID, u.GID)
+			return os.Lchown(p, uid, gid)
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to remap git checkout")
@@ -743,10 +780,12 @@ func getDefaultBranch(ctx context.Context, git *gitutil.GitCLI, remoteURL string
 	return ss[0][1], nil
 }
 
-const keyGitRemote = "git-remote"
-const gitRemoteIndex = keyGitRemote + "::"
-const keyGitSnapshot = "git-snapshot"
-const gitSnapshotIndex = keyGitSnapshot + "::"
+const (
+	keyGitRemote     = "git-remote"
+	gitRemoteIndex   = keyGitRemote + "::"
+	keyGitSnapshot   = "git-snapshot"
+	gitSnapshotIndex = keyGitSnapshot + "::"
+)
 
 func search(ctx context.Context, store cache.MetadataStore, key string, idx string) ([]cacheRefMetadata, error) {
 	var results []cacheRefMetadata

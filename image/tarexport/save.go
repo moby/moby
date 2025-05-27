@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"time"
 
-	c8dimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/tracing"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
@@ -21,8 +21,8 @@ import (
 	v1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/internal/ioutils"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/system"
+	"github.com/moby/go-archive"
 	"github.com/moby/sys/sequential"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
@@ -261,7 +261,7 @@ func (s *saveSession) save(ctx context.Context, outStream io.Writer) error {
 		dgst := digest.FromBytes(data)
 
 		mFile := filepath.Join(s.outDir, ocispec.ImageBlobsDir, dgst.Algorithm().String(), dgst.Encoded())
-		if err := os.MkdirAll(filepath.Dir(mFile), 0o755); err != nil {
+		if err := mkdirAllWithChtimes(filepath.Dir(mFile), 0o755, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
 			return errors.Wrap(err, "error creating blob directory")
 		}
 		if err := system.Chtimes(filepath.Dir(mFile), time.Unix(0, 0), time.Unix(0, 0)); err != nil {
@@ -316,7 +316,7 @@ func (s *saveSession) save(ctx context.Context, outStream io.Writer) error {
 
 		parentID, _ := s.is.GetParent(id)
 		parentLinks = append(parentLinks, parentLink{id, parentID})
-		s.tarexporter.loggerImgEvent.LogImageEvent(id.String(), id.String(), events.ActionSave)
+		s.tarexporter.loggerImgEvent.LogImageEvent(ctx, id.String(), id.String(), events.ActionSave)
 	}
 
 	for i, p := range validatedParentLinks(parentLinks) {
@@ -385,6 +385,9 @@ func (s *saveSession) save(ctx context.Context, outStream io.Writer) error {
 	if err := os.WriteFile(idxFile, data, 0o644); err != nil {
 		return errors.Wrap(err, "error writing oci index file")
 	}
+	if err := system.Chtimes(idxFile, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
+		return errors.Wrap(err, "error setting oci index file timestamps")
+	}
 
 	return s.writeTar(ctx, tempDir, outStream)
 }
@@ -419,6 +422,11 @@ func (s *saveSession) saveImage(ctx context.Context, id image.ID) (_ map[layer.D
 		return nil, fmt.Errorf("empty export - not implemented")
 	}
 
+	ts := time.Unix(0, 0)
+	if img.Created != nil {
+		ts = *img.Created
+	}
+
 	var parent digest.Digest
 	var layers []layer.DiffID
 	var foreignSrcs map[layer.DiffID]distribution.Descriptor
@@ -450,7 +458,7 @@ func (s *saveSession) saveImage(ctx context.Context, id image.ID) (_ map[layer.D
 		}
 
 		v1Img.OS = img.OS
-		src, err := s.saveConfigAndLayer(ctx, rootFS.ChainID(), v1Img, img.Created)
+		src, err := s.saveConfigAndLayer(ctx, rootFS.ChainID(), v1Img, &ts)
 		if err != nil {
 			return nil, err
 		}
@@ -469,26 +477,22 @@ func (s *saveSession) saveImage(ctx context.Context, id image.ID) (_ map[layer.D
 	dgst := digest.FromBytes(data)
 
 	blobDir := filepath.Join(s.outDir, ocispec.ImageBlobsDir, dgst.Algorithm().String())
-	if err := os.MkdirAll(blobDir, 0o755); err != nil {
+	if err := mkdirAllWithChtimes(blobDir, 0o755, ts, ts); err != nil {
 		return nil, err
 	}
-	if img.Created != nil {
-		if err := system.Chtimes(blobDir, *img.Created, *img.Created); err != nil {
-			return nil, err
-		}
-		if err := system.Chtimes(filepath.Dir(blobDir), *img.Created, *img.Created); err != nil {
-			return nil, err
-		}
+	if err := system.Chtimes(blobDir, ts, ts); err != nil {
+		return nil, err
+	}
+	if err := system.Chtimes(filepath.Dir(blobDir), ts, ts); err != nil {
+		return nil, err
 	}
 
 	configFile := filepath.Join(blobDir, dgst.Encoded())
 	if err := os.WriteFile(configFile, img.RawJSON(), 0o644); err != nil {
 		return nil, err
 	}
-	if img.Created != nil {
-		if err := system.Chtimes(configFile, *img.Created, *img.Created); err != nil {
-			return nil, err
-		}
+	if err := system.Chtimes(configFile, ts, ts); err != nil {
+		return nil, err
 	}
 
 	s.images[id].layers = layers
@@ -505,6 +509,11 @@ func (s *saveSession) saveConfigAndLayer(ctx context.Context, id layer.ChainID, 
 	defer func() {
 		span.SetStatus(outErr)
 	}()
+
+	ts := time.Unix(0, 0)
+	if createdTime != nil {
+		ts = *createdTime
+	}
 
 	outDir := filepath.Join(s.outDir, ocispec.ImageBlobsDir)
 
@@ -542,7 +551,7 @@ func (s *saveSession) saveConfigAndLayer(ctx context.Context, id layer.ChainID, 
 
 	// We use sequential file access to avoid depleting the standby list on
 	// Windows. On Linux, this equates to a regular os.Create.
-	if err := os.MkdirAll(filepath.Dir(layerPath), 0o755); err != nil {
+	if err := mkdirAllWithChtimes(filepath.Dir(layerPath), 0o755, ts, ts); err != nil {
 		return distribution.Descriptor{}, errors.Wrap(err, "could not create layer dir parent")
 	}
 	tarFile, err := sequential.Create(layerPath)
@@ -576,12 +585,10 @@ func (s *saveSession) saveConfigAndLayer(ctx context.Context, id layer.ChainID, 
 		layerPath = filepath.Join(outDir, lDgst.Algorithm().String(), lDgst.Encoded())
 	}
 
-	if createdTime != nil {
-		for _, fname := range []string{outDir, layerPath} {
-			// todo: maybe save layer created timestamp?
-			if err := system.Chtimes(fname, *createdTime, *createdTime); err != nil {
-				return distribution.Descriptor{}, errors.Wrap(err, "could not set layer timestamp")
-			}
+	for _, fname := range []string{outDir, layerPath} {
+		// todo: maybe save layer created timestamp?
+		if err := system.Chtimes(fname, ts, ts); err != nil {
+			return distribution.Descriptor{}, errors.Wrap(err, "could not set layer timestamp")
 		}
 	}
 
@@ -608,9 +615,14 @@ func (s *saveSession) saveConfig(legacyImg image.V1Image, outDir string, created
 		return err
 	}
 
+	ts := time.Unix(0, 0)
+	if createdTime != nil {
+		ts = *createdTime
+	}
+
 	cfgDgst := digest.FromBytes(imageConfig)
 	configPath := filepath.Join(outDir, cfgDgst.Algorithm().String(), cfgDgst.Encoded())
-	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+	if err := mkdirAllWithChtimes(filepath.Dir(configPath), 0o755, ts, ts); err != nil {
 		return errors.Wrap(err, "could not create layer dir parent")
 	}
 
@@ -618,10 +630,8 @@ func (s *saveSession) saveConfig(legacyImg image.V1Image, outDir string, created
 		return err
 	}
 
-	if createdTime != nil {
-		if err := system.Chtimes(configPath, *createdTime, *createdTime); err != nil {
-			return errors.Wrap(err, "could not set config timestamp")
-		}
+	if err := system.Chtimes(configPath, ts, ts); err != nil {
+		return errors.Wrap(err, "could not set config timestamp")
 	}
 
 	s.savedConfigs[legacyImg.ID] = struct{}{}

@@ -19,7 +19,7 @@ func Version(name string) (modVersion string) {
 
 func moduleVersion(name string, bi *debug.BuildInfo) (modVersion string) {
 	if bi == nil {
-		return
+		return ""
 	}
 	// iterate over all dependencies and find buildkit
 	for _, dep := range bi.Deps {
@@ -33,7 +33,7 @@ func moduleVersion(name string, bi *debug.BuildInfo) (modVersion string) {
 			modVersion = dep.Replace.Version
 		}
 		if !module.IsPseudoVersion(modVersion) {
-			return
+			return modVersion
 		}
 		// if the version is a pseudo version, get the base version
 		// e.g. v0.10.7-0.20230306143919-70f2ad56d3e5 => v0.10.6
@@ -54,7 +54,7 @@ func moduleVersion(name string, bi *debug.BuildInfo) (modVersion string) {
 		}
 		break
 	}
-	return
+	return modVersion
 }
 
 func readBuildInfo() *debug.BuildInfo {

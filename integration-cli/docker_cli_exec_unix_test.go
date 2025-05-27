@@ -54,7 +54,7 @@ func (s *DockerCLIExecSuite) TestExecTTY(c *testing.T) {
 	assert.NilError(c, err)
 	defer p.Close()
 
-	_, err = p.Write([]byte("cat /foo && exit\n"))
+	_, err = p.WriteString("cat /foo && exit\n")
 	assert.NilError(c, err)
 
 	chErr := make(chan error, 1)

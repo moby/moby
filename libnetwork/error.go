@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"fmt"
+	"strings"
 )
 
 // ErrNoSuchNetwork is returned when a network query finds no result
@@ -14,38 +15,6 @@ func (nsn ErrNoSuchNetwork) Error() string {
 // NotFound denotes the type of this error
 func (nsn ErrNoSuchNetwork) NotFound() {}
 
-// ErrNoSuchEndpoint is returned when an endpoint query finds no result
-type ErrNoSuchEndpoint string
-
-func (nse ErrNoSuchEndpoint) Error() string {
-	return fmt.Sprintf("endpoint %s not found", string(nse))
-}
-
-// NotFound denotes the type of this error
-func (nse ErrNoSuchEndpoint) NotFound() {}
-
-// ErrInvalidID is returned when a query-by-id method is being invoked
-// with an empty id parameter
-type ErrInvalidID string
-
-func (ii ErrInvalidID) Error() string {
-	return fmt.Sprintf("invalid id: %s", string(ii))
-}
-
-// InvalidParameter denotes the type of this error
-func (ii ErrInvalidID) InvalidParameter() {}
-
-// ErrInvalidName is returned when a query-by-name or resource create method is
-// invoked with an empty name parameter
-type ErrInvalidName string
-
-func (in ErrInvalidName) Error() string {
-	return fmt.Sprintf("invalid name: %s", string(in))
-}
-
-// InvalidParameter denotes the type of this error
-func (in ErrInvalidName) InvalidParameter() {}
-
 // NetworkNameError is returned when a network with the same name already exists.
 type NetworkNameError string
 
@@ -56,29 +25,16 @@ func (nnr NetworkNameError) Error() string {
 // Conflict denotes the type of this error
 func (nnr NetworkNameError) Conflict() {}
 
-// UnknownNetworkError is returned when libnetwork could not find in its database
-// a network with the same name and id.
-type UnknownNetworkError struct {
-	name string
-	id   string
-}
-
-func (une *UnknownNetworkError) Error() string {
-	return fmt.Sprintf("unknown network %s id %s", une.name, une.id)
-}
-
-// NotFound denotes the type of this error
-func (une *UnknownNetworkError) NotFound() {}
-
 // ActiveEndpointsError is returned when a network is deleted which has active
 // endpoints in it.
 type ActiveEndpointsError struct {
-	name string
-	id   string
+	name      string
+	id        string
+	endpoints []string
 }
 
 func (aee *ActiveEndpointsError) Error() string {
-	return fmt.Sprintf("network %s id %s has active endpoints", aee.name, aee.id)
+	return fmt.Sprintf("network %s has active endpoints (%s)", aee.name, strings.Join(aee.endpoints, ", "))
 }
 
 // Forbidden denotes the type of this error

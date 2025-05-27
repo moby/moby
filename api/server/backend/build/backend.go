@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/builder"
 	buildkit "github.com/docker/docker/builder/builder-next"
@@ -52,37 +52,37 @@ func (b *Backend) RegisterGRPC(s *grpc.Server) {
 // Build builds an image from a Source
 func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string, error) {
 	options := config.Options
-	useBuildKit := options.Version == types.BuilderBuildKit
+	useBuildKit := options.Version == build.BuilderBuildKit
 
 	tags, err := sanitizeRepoAndTags(options.Tags)
 	if err != nil {
 		return "", err
 	}
 
-	var build *builder.Result
+	var buildResult *builder.Result
 	if useBuildKit {
-		build, err = b.buildkit.Build(ctx, config)
+		buildResult, err = b.buildkit.Build(ctx, config)
 		if err != nil {
 			return "", err
 		}
 	} else {
-		build, err = b.builder.Build(ctx, config)
+		buildResult, err = b.builder.Build(ctx, config)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	if build == nil {
+	if buildResult == nil {
 		return "", nil
 	}
 
-	imageID := build.ImageID
+	imageID := buildResult.ImageID
 	if options.Squash {
-		if imageID, err = squashBuild(build, b.imageComponent); err != nil {
+		if imageID, err = squashBuild(buildResult, b.imageComponent); err != nil {
 			return "", err
 		}
 		if config.ProgressWriter.AuxFormatter != nil {
-			if err = config.ProgressWriter.AuxFormatter.Emit("moby.image.id", types.BuildResult{ID: imageID}); err != nil {
+			if err = config.ProgressWriter.AuxFormatter.Emit("moby.image.id", build.Result{ID: imageID}); err != nil {
 				return "", err
 			}
 		}
@@ -97,7 +97,7 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 }
 
 // PruneCache removes all cached build sources
-func (b *Backend) PruneCache(ctx context.Context, opts types.BuildCachePruneOptions) (*types.BuildCachePruneReport, error) {
+func (b *Backend) PruneCache(ctx context.Context, opts build.CachePruneOptions) (*build.CachePruneReport, error) {
 	buildCacheSize, cacheIDs, err := b.buildkit.Prune(ctx, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prune build cache")
@@ -107,7 +107,7 @@ func (b *Backend) PruneCache(ctx context.Context, opts types.BuildCachePruneOpti
 			"reclaimed": strconv.FormatInt(buildCacheSize, 10),
 		},
 	})
-	return &types.BuildCachePruneReport{SpaceReclaimed: uint64(buildCacheSize), CachesDeleted: cacheIDs}, nil
+	return &build.CachePruneReport{SpaceReclaimed: uint64(buildCacheSize), CachesDeleted: cacheIDs}, nil
 }
 
 // Cancel cancels the build by ID

@@ -76,8 +76,11 @@ message DiffRequest {
 	// on content store commit.
 	map<string, string> labels = 5;
 
-	// SourceDateEpoch specifies the timestamp used for whiteouts to provide control for reproducibility.
+	// SourceDateEpoch specifies the timestamp used to provide control for reproducibility.
 	// See also https://reproducible-builds.org/docs/source-date-epoch/ .
+	//
+	// Since containerd v2.0, the whiteout timestamps are set to zero (1970-01-01),
+	// not to the source date epoch.
 	google.protobuf.Timestamp source_date_epoch = 6;
 }
 

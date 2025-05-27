@@ -11,7 +11,9 @@ import (
 
 // ParseKeyValueOpt parses and validates the specified string as a key/value
 // pair (key=value).
-func ParseKeyValueOpt(opt string) (key string, value string, err error) {
+//
+// Deprecated: use [strings.Cut] instead. This utility was only used internally, and will be removed in the next release.
+func ParseKeyValueOpt(opt string) (key string, value string, _ error) {
 	k, v, ok := strings.Cut(opt, "=")
 	if !ok {
 		return "", "", fmt.Errorf("unable to parse key/value option: %s", opt)
@@ -34,6 +36,8 @@ func ParseKeyValueOpt(opt string) (key string, value string, err error) {
 //	03,1-3      <- this is gonna get parsed as [1,2,3]
 //	3,2,1
 //	0-2,3,1
+//
+// Deprecated: ParseUintListMaximum was only used internally and will be removed in the next release.
 func ParseUintListMaximum(val string, maximum int) (map[int]bool, error) {
 	return parseUintList(val, maximum)
 }
@@ -52,6 +56,8 @@ func ParseUintListMaximum(val string, maximum int) (map[int]bool, error) {
 //	03,1-3      <- this is gonna get parsed as [1,2,3]
 //	3,2,1
 //	0-2,3,1
+//
+// Deprecated: ParseUintList was only used internally and will be removed in the next release.
 func ParseUintList(val string) (map[int]bool, error) {
 	return parseUintList(val, 0)
 }
@@ -77,21 +83,21 @@ func parseUintList(val string, maximum int) (map[int]bool, error) {
 			availableInts[v] = true
 		} else {
 			minS, maxS, _ := strings.Cut(r, "-")
-			min, err := strconv.Atoi(minS)
+			minAvailable, err := strconv.Atoi(minS)
 			if err != nil {
 				return nil, errInvalidFormat
 			}
-			max, err := strconv.Atoi(maxS)
+			maxAvailable, err := strconv.Atoi(maxS)
 			if err != nil {
 				return nil, errInvalidFormat
 			}
-			if max < min {
+			if maxAvailable < minAvailable {
 				return nil, errInvalidFormat
 			}
-			if maximum != 0 && max > maximum {
+			if maximum != 0 && maxAvailable > maximum {
 				return nil, fmt.Errorf("value of out range, maximum is %d", maximum)
 			}
-			for i := min; i <= max; i++ {
+			for i := minAvailable; i <= maxAvailable; i++ {
 				availableInts[i] = true
 			}
 		}

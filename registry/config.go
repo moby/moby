@@ -4,19 +4,21 @@ import (
 	"context"
 	"net"
 	"net/url"
-	"regexp"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/internal/lazyregexp"
+	"github.com/docker/docker/pkg/homedir"
 )
 
 // ServiceOptions holds command line options.
 type ServiceOptions struct {
-	AllowNondistributableArtifacts []string `json:"allow-nondistributable-artifacts,omitempty"` // Deprecated: non-distributable artifacts are deprecated and enabled by default. This field will be removed in the next release.
-
 	Mirrors            []string `json:"registry-mirrors,omitempty"`
 	InsecureRegistries []string `json:"insecure-registries,omitempty"`
 }
@@ -56,26 +58,52 @@ var (
 		Host:   DefaultRegistryHost,
 	}
 
-	emptyServiceConfig, _ = newServiceConfig(ServiceOptions{})
-	validHostPortRegex    = regexp.MustCompile(`^` + reference.DomainRegexp.String() + `$`)
+	validHostPortRegex = lazyregexp.New(`^` + reference.DomainRegexp.String() + `$`)
 
-	// certsDir is used to override defaultCertsDir.
-	certsDir string
+	// certsDir is used to override defaultCertsDir when running with rootlessKit.
+	//
+	// TODO(thaJeztah): change to a sync.OnceValue once we remove [SetCertsDir]
+	// TODO(thaJeztah): certsDir should not be a package variable, but stored in our config, and passed when needed.
+	setCertsDirOnce sync.Once
+	certsDir        string
 )
+
+func setCertsDir(dir string) string {
+	setCertsDirOnce.Do(func() {
+		if dir != "" {
+			certsDir = dir
+			return
+		}
+		if os.Getenv("ROOTLESSKIT_STATE_DIR") != "" {
+			// Configure registry.CertsDir() when running in rootless-mode
+			// This is the equivalent of [rootless.RunningWithRootlessKit],
+			// but inlining it to prevent adding that as a dependency
+			// for docker/cli.
+			//
+			// [rootless.RunningWithRootlessKit]: https://github.com/moby/moby/blob/b4bdf12daec84caaf809a639f923f7370d4926ad/pkg/rootless/rootless.go#L5-L8
+			if configHome, _ := homedir.GetConfigHome(); configHome != "" {
+				certsDir = filepath.Join(configHome, "docker/certs.d")
+				return
+			}
+		}
+		certsDir = defaultCertsDir
+	})
+	return certsDir
+}
 
 // SetCertsDir allows the default certs directory to be changed. This function
 // is used at daemon startup to set the correct location when running in
 // rootless mode.
+//
+// Deprecated: the cert-directory is now automatically selected when running with rootlessKit, and should no longer be set manually.
 func SetCertsDir(path string) {
-	certsDir = path
+	setCertsDir(path)
 }
 
 // CertsDir is the directory where certificates are stored.
 func CertsDir() string {
-	if certsDir != "" {
-		return certsDir
-	}
-	return defaultCertsDir
+	// call setCertsDir with an empty path to synchronise with [SetCertsDir]
+	return setCertsDir("")
 }
 
 // newServiceConfig returns a new instance of ServiceConfig
@@ -181,7 +209,7 @@ skip:
 			// Assume `host:port` if not CIDR.
 			indexConfigs[r] = &registry.IndexInfo{
 				Name:     r,
-				Mirrors:  make([]string, 0),
+				Mirrors:  []string{},
 				Secure:   false,
 				Official: false,
 			}
@@ -264,12 +292,15 @@ func isCIDRMatch(cidrs []*registry.NetIPNet, URLHost string) bool {
 	return false
 }
 
-// ValidateMirror validates an HTTP(S) registry mirror. It is used by the daemon
-// to validate the daemon configuration.
-func ValidateMirror(val string) (string, error) {
-	uri, err := url.Parse(val)
+// ValidateMirror validates and normalizes an HTTP(S) registry mirror. It
+// returns an error if the given mirrorURL is invalid, or the normalized
+// format for the URL otherwise.
+//
+// It is used by the daemon to validate the daemon configuration.
+func ValidateMirror(mirrorURL string) (string, error) {
+	uri, err := url.Parse(mirrorURL)
 	if err != nil {
-		return "", invalidParamWrapf(err, "invalid mirror: %q is not a valid URI", val)
+		return "", invalidParamWrapf(err, "invalid mirror: %q is not a valid URI", mirrorURL)
 	}
 	if uri.Scheme != "http" && uri.Scheme != "https" {
 		return "", invalidParamf("invalid mirror: unsupported scheme %q in %q", uri.Scheme, uri)
@@ -282,20 +313,26 @@ func ValidateMirror(val string) (string, error) {
 		uri.User = url.UserPassword(uri.User.Username(), "xxxxx")
 		return "", invalidParamf("invalid mirror: username/password not allowed in URI %q", uri)
 	}
-	return strings.TrimSuffix(val, "/") + "/", nil
+	return strings.TrimSuffix(mirrorURL, "/") + "/", nil
 }
 
 // ValidateIndexName validates an index name. It is used by the daemon to
 // validate the daemon configuration.
 func ValidateIndexName(val string) (string, error) {
-	// TODO: upstream this to check to reference package
-	if val == "index.docker.io" {
-		val = "docker.io"
-	}
+	val = normalizeIndexName(val)
 	if strings.HasPrefix(val, "-") || strings.HasSuffix(val, "-") {
 		return "", invalidParamf("invalid index name (%s). Cannot begin or end with a hyphen", val)
 	}
 	return val, nil
+}
+
+func normalizeIndexName(val string) string {
+	// TODO(thaJeztah): consider normalizing other known options, such as "(https://)registry-1.docker.io", "https://index.docker.io/v1/".
+	// TODO: upstream this to check to reference package
+	if val == "index.docker.io" {
+		return "docker.io"
+	}
+	return val
 }
 
 func hasScheme(reposName string) bool {
@@ -327,25 +364,20 @@ func validateHostPort(s string) error {
 }
 
 // newIndexInfo returns IndexInfo configuration from indexName
-func newIndexInfo(config *serviceConfig, indexName string) (*registry.IndexInfo, error) {
-	var err error
-	indexName, err = ValidateIndexName(indexName)
-	if err != nil {
-		return nil, err
-	}
+func newIndexInfo(config *serviceConfig, indexName string) *registry.IndexInfo {
+	indexName = normalizeIndexName(indexName)
 
 	// Return any configured index info, first.
 	if index, ok := config.IndexConfigs[indexName]; ok {
-		return index, nil
+		return index
 	}
 
 	// Construct a non-configured index info.
 	return &registry.IndexInfo{
-		Name:     indexName,
-		Mirrors:  make([]string, 0),
-		Secure:   config.isSecureIndex(indexName),
-		Official: false,
-	}, nil
+		Name:    indexName,
+		Mirrors: []string{},
+		Secure:  config.isSecureIndex(indexName),
+	}
 }
 
 // GetAuthConfigKey special-cases using the full index address of the official
@@ -358,18 +390,22 @@ func GetAuthConfigKey(index *registry.IndexInfo) string {
 }
 
 // newRepositoryInfo validates and breaks down a repository name into a RepositoryInfo
-func newRepositoryInfo(config *serviceConfig, name reference.Named) (*RepositoryInfo, error) {
-	index, err := newIndexInfo(config, reference.Domain(name))
-	if err != nil {
-		return nil, err
+func newRepositoryInfo(config *serviceConfig, name reference.Named) *RepositoryInfo {
+	index := newIndexInfo(config, reference.Domain(name))
+	var officialRepo bool
+	if index.Official {
+		// RepositoryInfo.Official indicates whether the image repository
+		// is an official (docker library official images) repository.
+		//
+		// We only need to check this if the image-repository is on Docker Hub.
+		officialRepo = !strings.ContainsRune(reference.FamiliarName(name), '/')
 	}
-	official := !strings.ContainsRune(reference.FamiliarName(name), '/')
 
 	return &RepositoryInfo{
 		Name:     reference.TrimNamed(name),
 		Index:    index,
-		Official: official,
-	}, nil
+		Official: officialRepo,
+	}
 }
 
 // ParseRepositoryInfo performs the breakdown of a repository name into a
@@ -377,5 +413,64 @@ func newRepositoryInfo(config *serviceConfig, name reference.Named) (*Repository
 //
 // It is used by the Docker cli to interact with registry-related endpoints.
 func ParseRepositoryInfo(reposName reference.Named) (*RepositoryInfo, error) {
-	return newRepositoryInfo(emptyServiceConfig, reposName)
+	indexName := normalizeIndexName(reference.Domain(reposName))
+	if indexName == IndexName {
+		return &RepositoryInfo{
+			Name: reference.TrimNamed(reposName),
+			Index: &registry.IndexInfo{
+				Name:     IndexName,
+				Mirrors:  []string{},
+				Secure:   true,
+				Official: true,
+			},
+			Official: !strings.ContainsRune(reference.FamiliarName(reposName), '/'),
+		}, nil
+	}
+
+	return &RepositoryInfo{
+		Name: reference.TrimNamed(reposName),
+		Index: &registry.IndexInfo{
+			Name:    indexName,
+			Mirrors: []string{},
+			Secure:  !isInsecure(indexName),
+		},
+	}, nil
+}
+
+// isInsecure is used to detect whether a registry domain or IP-address is allowed
+// to use an insecure (non-TLS, or self-signed cert) connection according to the
+// defaults, which allows for insecure connections with registries running on a
+// loopback address ("localhost", "::1/128", "127.0.0.0/8").
+//
+// It is used in situations where we don't have access to the daemon's configuration,
+// for example, when used from the client / CLI.
+func isInsecure(hostNameOrIP string) bool {
+	// Attempt to strip port if present; this also strips brackets for
+	// IPv6 addresses with a port (e.g. "[::1]:5000").
+	//
+	// This is best-effort; we'll continue using the address as-is if it fails.
+	if host, _, err := net.SplitHostPort(hostNameOrIP); err == nil {
+		hostNameOrIP = host
+	}
+	if hostNameOrIP == "127.0.0.1" || hostNameOrIP == "::1" || strings.EqualFold(hostNameOrIP, "localhost") {
+		// Fast path; no need to resolve these, assuming nobody overrides
+		// "localhost" for anything else than a loopback address (sorry, not sorry).
+		return true
+	}
+
+	var addresses []net.IP
+	if ip := net.ParseIP(hostNameOrIP); ip != nil {
+		addresses = append(addresses, ip)
+	} else {
+		// Try to resolve the host's IP-addresses.
+		addrs, _ := lookupIP(hostNameOrIP)
+		addresses = append(addresses, addrs...)
+	}
+
+	for _, addr := range addresses {
+		if addr.IsLoopback() {
+			return true
+		}
+	}
+	return false
 }

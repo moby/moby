@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"maps"
 	"net/url"
+	"slices"
 	"strings"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/reference"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/session"
@@ -120,7 +121,6 @@ func getAvailableBlobs(ctx context.Context, cs content.Store, chain *solver.Remo
 	}
 	var res []*solver.Remote
 	for _, desc := range descs {
-		desc := desc
 		if len(parents) == 0 { // bottommost ref
 			res = append(res, &solver.Remote{
 				Descriptors: []ocispecs.Descriptor{desc},
@@ -199,14 +199,7 @@ func (sr *immutableRef) getRemote(ctx context.Context, createIfNeeded bool, refC
 				if existings, ok := desc.Annotations[dslKey]; ok {
 					existingRepos = strings.Split(existings, ",")
 				}
-				addNewRepo := true
-				for _, existing := range existingRepos {
-					if existing == repo {
-						addNewRepo = false
-						break
-					}
-				}
-				if addNewRepo {
+				if !slices.Contains(existingRepos, repo) {
 					existingRepos = append(existingRepos, repo)
 				}
 				desc.Annotations[dslKey] = strings.Join(existingRepos, ",")
@@ -283,7 +276,6 @@ func (mp *lazyMultiProvider) Info(ctx context.Context, dgst digest.Digest) (cont
 func (mp *lazyMultiProvider) Unlazy(ctx context.Context) error {
 	eg, egctx := errgroup.WithContext(ctx)
 	for _, p := range mp.plist {
-		p := p
 		eg.Go(func() error {
 			return p.Unlazy(egctx)
 		})
