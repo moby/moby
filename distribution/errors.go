@@ -203,6 +203,14 @@ func retryOnError(err error) error {
 	return err
 }
 
+type AIModelNotSupportedError struct{}
+
+func (e AIModelNotSupportedError) Error() string {
+	return `AI models are not yet supported by the Engine, please use "docker model pull/run" instead`
+}
+
+func (e AIModelNotSupportedError) InvalidParameter() {}
+
 type invalidManifestClassError struct {
 	mediaType string
 	class     string

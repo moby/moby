@@ -498,6 +498,9 @@ func (p *puller) validateMediaType(mediaType string) error {
 
 func checkSupportedMediaType(mediaType string) error {
 	lowerMt := strings.ToLower(mediaType)
+	if strings.HasPrefix(lowerMt, "application/vnd.docker.ai.") {
+		return AIModelNotSupportedError{}
+	}
 	for _, mt := range supportedMediaTypes {
 		// The should either be an exact match, or have a valid prefix
 		// we append a "." when matching prefixes to exclude "false positives";
