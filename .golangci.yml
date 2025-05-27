@@ -146,8 +146,6 @@ linters:
         - regexpSimplify
         - singleCaseSwitch
         - sloppyReassign
-        - stringsCompare
-        - stringConcatSimplify
         - stringXbytes
         - typeAssertChain
         - typeDefFirst
