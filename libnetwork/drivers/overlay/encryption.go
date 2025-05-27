@@ -113,41 +113,6 @@ func (e *encrMap) String() string {
 	return b.String()
 }
 
-// initEncryption sets up IPsec encryption parameters for all known peers on a network.
-func (d *driver) initEncryption(nid string) error {
-	log.G(context.TODO()).Debugf("initEncryption(%.7s)", nid)
-
-	n := d.network(nid)
-	if n == nil || !n.secure {
-		return nil
-	}
-
-	if len(d.keys) == 0 {
-		return types.ForbiddenErrorf("encryption key is not present")
-	}
-
-	nodes := map[netip.Addr]struct{}{}
-
-	if err := d.peerDbNetworkWalk(nid, func(_ netip.Addr, _ net.HardwareAddr, pEntry *peerEntry) bool {
-		if !pEntry.isLocal() {
-			nodes[pEntry.vtep] = struct{}{}
-		}
-		return false
-	}); err != nil {
-		log.G(context.TODO()).Warnf("Failed to retrieve list of participating nodes in overlay network %.5s: %v", nid, err)
-	}
-
-	log.G(context.TODO()).Debugf("List of nodes: %s", nodes)
-
-	for rIP := range nodes {
-		if err := d.setupEncryption(rIP); err != nil {
-			log.G(context.TODO()).Warnf("Failed to program network encryption to remote peer %s: %v", rIP, err)
-		}
-	}
-
-	return nil
-}
-
 // setupEncryption programs the encryption parameters for secure communication
 // between the local node and a remote node.
 func (d *driver) setupEncryption(remoteIP netip.Addr) error {

@@ -121,10 +121,6 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 
 	d.peerAdd(nid, eid, ep.addr, ep.mac, netip.Addr{})
 
-	if err = d.initEncryption(nid); err != nil {
-		log.G(ctx).Warn(err)
-	}
-
 	buf, err := proto.Marshal(&PeerRecord{
 		EndpointIP:       ep.addr.String(),
 		EndpointMAC:      ep.mac.String(),
