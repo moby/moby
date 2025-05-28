@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"io"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 )
@@ -126,7 +126,7 @@ func (e *statusCodeError) StatusCode() int {
 // RemoveAll containers managed by this container manager
 func (c *containerManager) RemoveAll(stdout io.Writer) {
 	for containerID := range c.tmpContainers {
-		if err := c.backend.ContainerRm(containerID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil && !errdefs.IsNotFound(err) {
+		if err := c.backend.ContainerRm(containerID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil && !cerrdefs.IsNotFound(err) {
 			_, _ = fmt.Fprintf(stdout, "Removing intermediate container %s: %v\n", stringid.TruncateID(containerID), err)
 			continue
 		}
