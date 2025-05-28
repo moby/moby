@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/service/opts"
@@ -27,7 +27,7 @@ func TestServiceCreate(t *testing.T) {
 	defer cleanup()
 
 	_, err := service.Create(ctx, "v1", "notexist")
-	assert.Assert(t, errdefs.IsNotFound(err), err)
+	assert.Assert(t, cerrdefs.IsNotFound(err), err)
 
 	v, err := service.Create(ctx, "v1", "d1")
 	assert.NilError(t, err)
@@ -38,7 +38,7 @@ func TestServiceCreate(t *testing.T) {
 
 	_, err = service.Create(ctx, "v1", "d2")
 	assert.Check(t, IsNameConflict(err), err)
-	assert.Check(t, errdefs.IsConflict(err), err)
+	assert.Check(t, cerrdefs.IsConflict(err), err)
 
 	assert.Assert(t, service.Remove(ctx, "v1"))
 	_, err = service.Create(ctx, "v1", "d2")
@@ -146,14 +146,14 @@ func TestServiceGet(t *testing.T) {
 	assert.Assert(t, is.Len(v.Status, 1), v.Status)
 
 	_, err = service.Get(ctx, "test", opts.WithGetDriver("notarealdriver"))
-	assert.Assert(t, errdefs.IsConflict(err), err)
+	assert.Assert(t, cerrdefs.IsConflict(err), err)
 	v, err = service.Get(ctx, "test", opts.WithGetDriver("d1"))
 	assert.NilError(t, err)
 	assert.Assert(t, is.DeepEqual(created, v))
 
 	assert.Assert(t, ds.Register(testutils.NewFakeDriver("d2"), "d2"))
 	_, err = service.Get(ctx, "test", opts.WithGetDriver("d2"))
-	assert.Assert(t, errdefs.IsConflict(err), err)
+	assert.Assert(t, cerrdefs.IsConflict(err), err)
 }
 
 func TestServicePrune(t *testing.T) {
