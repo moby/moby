@@ -10,7 +10,7 @@ ARG XX_VERSION=1.6.1
 ARG VPNKIT_VERSION=0.6.0
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
-ARG DOCKERCLI_VERSION=v28.1.1
+ARG DOCKERCLI_VERSION=v28.2.0-rc.2
 ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
 
 # cli version used for integration-cli tests
