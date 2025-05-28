@@ -16,12 +16,12 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	dconfig "github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
@@ -1391,7 +1391,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteWithEmptyName(c *testing.T) {
 	defer apiClient.Close()
 
 	err = apiClient.ContainerRemove(testutil.GetContext(c), "", container.RemoveOptions{})
-	assert.Check(c, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(c, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(c, is.ErrorContains(err, "value is empty"))
 }
 
@@ -1968,7 +1968,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 			// anonymous volumes are removed
 			default:
 				_, err := apiclient.VolumeInspect(ctx, mountPoint.Name)
-				assert.Check(c, is.ErrorType(err, errdefs.IsNotFound))
+				assert.Check(c, is.ErrorType(err, cerrdefs.IsNotFound))
 			}
 		})
 	}

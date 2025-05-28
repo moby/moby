@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 )
 
@@ -67,7 +67,7 @@ func (d *Daemon) CheckPluginRunning(ctx context.Context, plugin string) func(c *
 	return func(c *testing.T) (interface{}, string) {
 		apiclient := d.NewClientT(c)
 		resp, _, err := apiclient.PluginInspectWithRaw(ctx, plugin)
-		if errdefs.IsNotFound(err) {
+		if cerrdefs.IsNotFound(err) {
 			return false, fmt.Sprintf("%v", err)
 		}
 		assert.NilError(c, err)
@@ -80,7 +80,7 @@ func (d *Daemon) CheckPluginImage(ctx context.Context, plugin string) func(c *te
 	return func(c *testing.T) (interface{}, string) {
 		apiclient := d.NewClientT(c)
 		resp, _, err := apiclient.PluginInspectWithRaw(ctx, plugin)
-		if errdefs.IsNotFound(err) {
+		if cerrdefs.IsNotFound(err) {
 			return false, fmt.Sprintf("%v", err)
 		}
 		assert.NilError(c, err)
