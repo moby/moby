@@ -200,9 +200,9 @@ func DefaultProfile() *Seccomp {
 					"lremovexattr",
 					"lseek",
 					"lsetxattr",
-					"lsm_get_self_attr",  // kernel v6.8, libseccomp v2.6.0
-					"lsm_list_modules",   // kernel v6.8, libseccomp v2.6.0
-					"lsm_set_self_attrs", // kernel v6.8, libseccomp v2.6.0
+					"lsm_get_self_attr", // kernel v6.8, libseccomp v2.6.0
+					"lsm_list_modules",  // kernel v6.8, libseccomp v2.6.0
+					"lsm_set_self_attr", // kernel v6.8, libseccomp v2.6.0
 					"lstat",
 					"lstat64",
 					"madvise",
