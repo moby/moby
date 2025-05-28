@@ -8,7 +8,6 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/errdefs"
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
@@ -134,7 +133,7 @@ func pullEndpoints(ctx context.Context, registryService RegistryResolver, ref re
 				continue
 			}
 			// FIXME(thaJeztah): cleanup error and context handling in this package, as it's really messy.
-			if errdefs.IsContext(err) {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				log.G(ctx).WithError(err).Info("Not continuing with pull after error")
 			} else {
 				log.G(ctx).WithError(err).Error("Not continuing with pull after error")
