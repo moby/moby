@@ -4,10 +4,10 @@ import (
 	"os"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -46,7 +46,7 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	assert.NilError(t, err)
 
 	_, _, err = apiClient.ContainerInspectWithRaw(ctx, cID, true)
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	assert.Check(t, is.ErrorContains(err, "No such container"))
 }
 
@@ -84,7 +84,7 @@ func TestRemoveContainerRunning(t *testing.T) {
 	cID := container.Run(ctx, t, apiClient)
 
 	err := apiClient.ContainerRemove(ctx, cID, containertypes.RemoveOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict))
 	assert.Check(t, is.ErrorContains(err, "container is running"))
 }
 
@@ -105,6 +105,6 @@ func TestRemoveInvalidContainer(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	err := apiClient.ContainerRemove(ctx, "unknown", containertypes.RemoveOptions{})
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	assert.Check(t, is.ErrorContains(err, "No such container"))
 }

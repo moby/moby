@@ -15,8 +15,8 @@ import (
 	"sync"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork"
@@ -112,7 +112,7 @@ func TestNull(t *testing.T) {
 	err = network.Delete()
 
 	// TODO(thaJeztah): should this be an [errdefs.ErrInvalidParameter] ?
-	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 	assert.Check(t, is.Error(err, `network of type "null" cannot be deleted`))
 }
 
@@ -123,7 +123,7 @@ func TestUnknownDriver(t *testing.T) {
 	_, err := createTestNetwork(controller, "unknowndriver", "testnetwork", options.Generic{}, nil, nil)
 
 	// TODO(thaJeztah): should attempting to use a non-existing plugin/driver return an [errdefs.ErrInvalidParameter] ?
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	assert.Check(t, is.Error(err, "could not find plugin unknowndriver in v1 plugin registry: plugin not found"))
 }
 
@@ -135,7 +135,7 @@ func TestNilRemoteDriver(t *testing.T) {
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 
 	// TODO(thaJeztah): should attempting to use a non-existing plugin/driver return an [errdefs.InvalidParameter] ?
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	assert.Check(t, is.Error(err, "could not find plugin framerelay in v1 plugin registry: plugin not found"))
 }
 
@@ -151,7 +151,7 @@ func TestNetworkName(t *testing.T) {
 	}
 
 	_, err := createTestNetwork(controller, bridgeNetType, "", netOption, nil, nil)
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter), "Expected to fail with ErrInvalidName error")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument), "Expected to fail with ErrInvalidName error")
 
 	const networkName = "testnetwork"
 	n, err := createTestNetwork(controller, bridgeNetType, networkName, netOption, nil, nil)
@@ -225,7 +225,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 	assert.Check(t, errors.As(err, &activeEndpointsError))
 	assert.Check(t, is.ErrorContains(err, "has active endpoints"))
 	// TODO(thaJeztah): should this be [errdefs.ErrConflict] or [errdefs.ErrInvalidParameter]?
-	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 
 	// Done testing. Now cleanup.
 	err = ep.Delete(context.Background(), false)
@@ -246,7 +246,7 @@ func TestNetworkConfig(t *testing.T) {
 	)
 
 	// TODO(thaJeztah): should this be [errdefs.ErrInvalidParameter]?
-	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 	assert.Check(t, is.Error(err, "a configuration network cannot depend on another configuration network"))
 
 	// Create supported config network
@@ -280,7 +280,7 @@ func TestNetworkConfig(t *testing.T) {
 				libnetwork.NetworkOptionConfigOnly(), opt)
 
 			// TODO(thaJeztah): should this be [errdefs.ErrInvalidParameter]?
-			assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+			assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 			assert.Check(t, is.Error(err, "configuration network can only contain network specific fields. Network operator fields like [ ingress | internal | attachable | scope ] are not supported."))
 		})
 	}
@@ -300,7 +300,7 @@ func TestNetworkConfig(t *testing.T) {
 				libnetwork.NetworkOptionConfigFrom("config_network0"), opt)
 
 			// TODO(thaJeztah): should this be [errdefs.ErrInvalidParameter]?
-			assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+			assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 
 			//nolint:dupword // ignore "Duplicate words (network) found (dupword)"
 			// Doing a partial match here omn the error-string here, as this produces either;
@@ -321,7 +321,7 @@ func TestNetworkConfig(t *testing.T) {
 	// Verify the config network cannot be removed
 	err = configNetwork.Delete()
 	// TODO(thaJeztah): should this be [errdefs.ErrConflict] or [errdefs.ErrInvalidParameter]?
-	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 	assert.Check(t, is.Error(err, `configuration network "config_network0" is in use`))
 
 	// Delete network
@@ -351,7 +351,7 @@ func TestUnknownNetwork(t *testing.T) {
 	assert.NilError(t, err)
 
 	err = network.Delete()
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	assert.Check(t, is.ErrorContains(err, "unknown network testnetwork id"))
 }
 
@@ -371,7 +371,7 @@ func TestUnknownEndpoint(t *testing.T) {
 	assert.NilError(t, err)
 
 	_, err = network.CreateEndpoint(context.Background(), "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter), "Expected to fail with ErrInvalidName error")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument), "Expected to fail with ErrInvalidName error")
 	assert.Check(t, is.ErrorContains(err, "invalid name:"))
 
 	ep, err := network.CreateEndpoint(context.Background(), "testep")
@@ -513,7 +513,7 @@ func TestDuplicateEndpoint(t *testing.T) {
 	}()
 
 	// TODO(thaJeztah): should this be [errdefs.ErrConflict] or [errdefs.ErrInvalidParameter]?
-	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 	assert.Check(t, is.Error(err, "endpoint with name ep1 already exists in network testnetwork"))
 }
 
@@ -548,15 +548,15 @@ func TestControllerQuery(t *testing.T) {
 	}()
 
 	_, err = controller.NetworkByName("")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "invalid name:"))
 
 	_, err = controller.NetworkByID("")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.Error(err, "invalid id: id is empty"))
 
 	g, err := controller.NetworkByID("network1")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	assert.Check(t, is.Error(err, "network network1 not found"))
 	assert.Check(t, is.Nil(g), "search network using name as ID should not yield a result")
 
@@ -613,11 +613,11 @@ func TestNetworkQuery(t *testing.T) {
 	assert.Check(t, is.Equal(e, ep11), "EndpointByName() returned the wrong endpoint")
 
 	_, err = net1.EndpointByName("")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "invalid name:"))
 
 	e, err = net1.EndpointByName("IamNotAnEndpoint")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	assert.Check(t, is.Error(err, "endpoint IamNotAnEndpoint not found"))
 	assert.Check(t, is.Nil(e), "EndpointByName() returned endpoint on error")
 }
@@ -677,7 +677,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	assert.Check(t, errors.As(err, &activeContainerError))
 	assert.Check(t, is.ErrorContains(err, "has active containers"))
 	// TODO(thaJeztah): should this be [errdefs.ErrConflict] or [errdefs.ErrInvalidParameter]?
-	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 }
 
 func TestEndpointMultipleJoins(t *testing.T) {
@@ -725,7 +725,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 
 	err = ep.Join(context.Background(), sbx2)
 	// TODO(thaJeztah): should this be [errdefs.ErrConflict] or [errdefs.ErrInvalidParameter]?
-	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 	assert.Check(t, is.Error(err, "another container is attached to the same network endpoint"))
 }
 
@@ -806,17 +806,17 @@ func TestContainerInvalidLeave(t *testing.T) {
 	}()
 
 	err = ep.Leave(context.Background(), cnt)
-	assert.Assert(t, is.ErrorType(err, errdefs.IsForbidden), "Expected to fail leave from an endpoint which has no active join")
+	assert.Assert(t, is.ErrorType(err, cerrdefs.IsPermissionDenied), "Expected to fail leave from an endpoint which has no active join")
 	assert.Check(t, is.Error(err, "cannot leave endpoint with no attached sandbox"))
 
 	err = ep.Leave(context.Background(), nil)
-	assert.Assert(t, is.ErrorType(err, errdefs.IsInvalidParameter), "Expected to fail leave with a nil Sandbox")
+	assert.Assert(t, is.ErrorType(err, cerrdefs.IsInvalidArgument), "Expected to fail leave with a nil Sandbox")
 	// FIXME(thaJeztah): this error includes the raw data of the sandbox (as `<nil>`), which is not very informative
 	assert.Check(t, is.Error(err, "invalid Sandbox passed to endpoint leave: <nil>"))
 
 	fsbx := &libnetwork.Sandbox{}
 	err = ep.Leave(context.Background(), fsbx)
-	assert.Assert(t, is.ErrorType(err, errdefs.IsInvalidParameter), "Expected to fail leave with invalid Sandbox")
+	assert.Assert(t, is.ErrorType(err, cerrdefs.IsInvalidArgument), "Expected to fail leave with invalid Sandbox")
 	//nolint:dupword // Ignore "Duplicate words (map[]) found (dupword)"
 	// FIXME(thaJeztah): this error includes the raw data of the sandbox, which is not very human-readable or informative;
 	//	invalid Sandbox passed to endpoint leave: &{  {{    []} {   [] [] []} map[] false false []} [] <nil> <nil> <nil> {{{} 0} {0 0}} [] map[] map[] <nil> 0 false false false false false []  {0 0} {0 0}}
@@ -934,7 +934,7 @@ func TestValidRemoteDriver(t *testing.T) {
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err != nil {
 		// Only fail if we could not find the plugin driver
-		if errdefs.IsNotFound(err) {
+		if cerrdefs.IsNotFound(err) {
 			t.Fatal(err)
 		}
 		return
@@ -1112,13 +1112,13 @@ func TestEndpointJoin(t *testing.T) {
 
 	// test invalid joins
 	err = ep1.Join(context.Background(), nil)
-	assert.Assert(t, is.ErrorType(err, errdefs.IsInvalidParameter), "Expected to fail join with nil Sandbox")
+	assert.Assert(t, is.ErrorType(err, cerrdefs.IsInvalidArgument), "Expected to fail join with nil Sandbox")
 	// FIXME(thaJeztah): this error includes the raw data of the sandbox (as `<nil>`), which is not very informative
 	assert.Check(t, is.Error(err, "invalid Sandbox passed to endpoint join: <nil>"))
 
 	fsbx := &libnetwork.Sandbox{}
 	err = ep1.Join(context.Background(), fsbx)
-	assert.Assert(t, is.ErrorType(err, errdefs.IsInvalidParameter), "Expected to fail join with invalid Sandbox")
+	assert.Assert(t, is.ErrorType(err, cerrdefs.IsInvalidArgument), "Expected to fail join with invalid Sandbox")
 
 	//nolint:dupword // ignore "Duplicate words (map[]) found (dupword)"
 	// FIXME(thaJeztah): this error includes the raw data of the sandbox, which is not very human-readable or informative;
@@ -1434,12 +1434,12 @@ func (pt parallelTester) Do(t *testing.T, thrNumber int) error {
 
 	for i := 0; i < pt.iterCnt; i++ {
 		if err := ep.Join(context.Background(), sb); err != nil {
-			if !errdefs.IsForbidden(err) {
+			if !cerrdefs.IsPermissionDenied(err) {
 				return errors.Wrapf(err, "thread %d", thrNumber)
 			}
 		}
 		if err := ep.Leave(context.Background(), sb); err != nil {
-			if !errdefs.IsForbidden(err) {
+			if !cerrdefs.IsPermissionDenied(err) {
 				return errors.Wrapf(err, "thread %d", thrNumber)
 			}
 		}

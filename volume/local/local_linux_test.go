@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/quota"
 	"gotest.tools/v3/assert"
@@ -240,7 +240,7 @@ func TestVolCreateValidation(t *testing.T) {
 			if tc.expectedErr == "" {
 				assert.NilError(t, err)
 			} else {
-				assert.Check(t, errdefs.IsInvalidParameter(err), "got: %T", err)
+				assert.Check(t, cerrdefs.IsInvalidArgument(err), "got: %T", err)
 				assert.ErrorContains(t, err, tc.expectedErr)
 			}
 		})

@@ -12,8 +12,8 @@ import (
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -279,10 +279,10 @@ func singleManifestSelected(platform ocispec.Platform) func(t *testing.T, img c8
 
 // candidateNotFound asserts that the no matching candidate was found.
 func candidateNotFound(t *testing.T, _ c8dimages.Image, desc ocispec.Descriptor, err error) {
-	assert.Check(t, errdefs.IsNotFound(err), "expected NotFound error, got %v, candidate: %v", err, desc.Platform)
+	assert.Check(t, cerrdefs.IsNotFound(err), "expected NotFound error, got %v, candidate: %v", err, desc.Platform)
 }
 
 // multipleCandidates asserts that multiple matching candidates were found and no decision could be made.
 func multipleCandidates(t *testing.T, _ c8dimages.Image, desc ocispec.Descriptor, err error) {
-	assert.Check(t, errdefs.IsConflict(err), "expected Conflict error, got %v, candidate: %v", err, desc.Platform)
+	assert.Check(t, cerrdefs.IsConflict(err), "expected Conflict error, got %v, candidate: %v", err, desc.Platform)
 }

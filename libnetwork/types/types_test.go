@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -16,31 +16,31 @@ func TestErrorConstructors(t *testing.T) {
 
 	err = InvalidParameterErrorf("Io ho %d uccello", 1)
 	assert.Check(t, is.Error(err, "Io ho 1 uccello"))
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	_, ok = err.(MaskableError)
 	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = NotFoundErrorf("Can't find the %s", "keys")
 	assert.Check(t, is.Error(err, "Can't find the keys"))
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	_, ok = err.(MaskableError)
 	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = ForbiddenErrorf("Can't open door %d", 2)
 	assert.Check(t, is.Error(err, "Can't open door 2"))
-	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 	_, ok = err.(MaskableError)
 	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = NotImplementedErrorf("Functionality %s is not implemented", "x")
 	assert.Check(t, is.Error(err, "Functionality x is not implemented"))
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotImplemented))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotImplemented))
 	_, ok = err.(MaskableError)
 	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 
 	err = UnavailableErrorf("Driver %s is not available", "mh")
 	assert.Check(t, is.Error(err, "Driver mh is not available"))
-	assert.Check(t, is.ErrorType(err, errdefs.IsUnavailable))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnavailable))
 	_, ok = err.(MaskableError)
 	assert.Check(t, !ok, "error should not be maskable: %[1]v (%[1]T)", err)
 

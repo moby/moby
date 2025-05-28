@@ -87,7 +87,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 			return nil, nil, err
 		}
 		imgDesc, err := i.resolveDescriptor(ctx, refOrID)
-		if err != nil && !errdefs.IsNotFound(err) {
+		if err != nil && !cerrdefs.IsNotFound(err) {
 			return nil, nil, err
 		}
 		if img != nil {
@@ -152,7 +152,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 
 	img, err := i.GetImage(ctx, name, backend.GetImageOpts{Platform: platform})
 	if err != nil {
-		if errdefs.IsNotFound(err) && img != nil && platform != nil {
+		if cerrdefs.IsNotFound(err) && img != nil && platform != nil {
 			imgPlat := ocispec.Platform{
 				OS:           img.OS,
 				Architecture: img.BaseImgArch(),

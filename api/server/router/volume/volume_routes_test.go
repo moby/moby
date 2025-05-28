@@ -11,6 +11,7 @@ import (
 
 	"gotest.tools/v3/assert"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
@@ -47,7 +48,7 @@ func TestGetVolumeByNameNotFoundNoSwarm(t *testing.T) {
 	_, err := callGetVolume(v, "notReal")
 
 	assert.Assert(t, err != nil)
-	assert.Assert(t, errdefs.IsNotFound(err))
+	assert.Assert(t, cerrdefs.IsNotFound(err))
 }
 
 func TestGetVolumeByNameNotFoundNotManager(t *testing.T) {
@@ -59,7 +60,7 @@ func TestGetVolumeByNameNotFoundNotManager(t *testing.T) {
 	_, err := callGetVolume(v, "notReal")
 
 	assert.Assert(t, err != nil)
-	assert.Assert(t, errdefs.IsNotFound(err))
+	assert.Assert(t, cerrdefs.IsNotFound(err))
 }
 
 func TestGetVolumeByNameNotFound(t *testing.T) {
@@ -71,7 +72,7 @@ func TestGetVolumeByNameNotFound(t *testing.T) {
 	_, err := callGetVolume(v, "notReal")
 
 	assert.Assert(t, err != nil)
-	assert.Assert(t, errdefs.IsNotFound(err))
+	assert.Assert(t, cerrdefs.IsNotFound(err))
 }
 
 func TestGetVolumeByNameFoundRegular(t *testing.T) {
@@ -238,7 +239,7 @@ func TestCreateSwarmVolumeNoSwarm(t *testing.T) {
 	resp := httptest.NewRecorder()
 	err = v.postVolumesCreate(ctx, resp, req, nil)
 	assert.Assert(t, err != nil)
-	assert.Assert(t, errdefs.IsUnavailable(err))
+	assert.Assert(t, cerrdefs.IsUnavailable(err))
 }
 
 func TestCreateSwarmVolumeNotManager(t *testing.T) {
@@ -267,7 +268,7 @@ func TestCreateSwarmVolumeNotManager(t *testing.T) {
 	resp := httptest.NewRecorder()
 	err = v.postVolumesCreate(ctx, resp, req, nil)
 	assert.Assert(t, err != nil)
-	assert.Assert(t, errdefs.IsUnavailable(err))
+	assert.Assert(t, cerrdefs.IsUnavailable(err))
 }
 
 func TestCreateVolumeCluster(t *testing.T) {
@@ -376,7 +377,7 @@ func TestUpdateVolumeNoSwarm(t *testing.T) {
 
 	err = v.putVolumesUpdate(ctx, resp, req, map[string]string{"name": "vol1"})
 	assert.Assert(t, err != nil)
-	assert.Assert(t, errdefs.IsUnavailable(err))
+	assert.Assert(t, cerrdefs.IsUnavailable(err))
 }
 
 func TestUpdateVolumeNotFound(t *testing.T) {
@@ -408,7 +409,7 @@ func TestUpdateVolumeNotFound(t *testing.T) {
 
 	err = v.putVolumesUpdate(ctx, resp, req, map[string]string{"name": "vol1"})
 	assert.Assert(t, err != nil)
-	assert.Assert(t, errdefs.IsNotFound(err))
+	assert.Assert(t, cerrdefs.IsNotFound(err))
 }
 
 func TestVolumeRemove(t *testing.T) {
@@ -476,7 +477,7 @@ func TestVolumeRemoveNotFoundNoSwarm(t *testing.T) {
 
 	err := v.deleteVolumes(ctx, resp, req, map[string]string{"name": "vol1"})
 	assert.Assert(t, err != nil)
-	assert.Assert(t, errdefs.IsNotFound(err), err.Error())
+	assert.Assert(t, cerrdefs.IsNotFound(err), err.Error())
 }
 
 func TestVolumeRemoveNotFoundNoManager(t *testing.T) {
@@ -493,7 +494,7 @@ func TestVolumeRemoveNotFoundNoManager(t *testing.T) {
 
 	err := v.deleteVolumes(ctx, resp, req, map[string]string{"name": "vol1"})
 	assert.Assert(t, err != nil)
-	assert.Assert(t, errdefs.IsNotFound(err))
+	assert.Assert(t, cerrdefs.IsNotFound(err))
 }
 
 func TestVolumeRemoveFoundNoSwarm(t *testing.T) {
@@ -540,7 +541,7 @@ func TestVolumeRemoveNoSwarmInUse(t *testing.T) {
 
 	err := v.deleteVolumes(ctx, resp, req, map[string]string{"name": "inuse"})
 	assert.Assert(t, err != nil)
-	assert.Assert(t, errdefs.IsConflict(err))
+	assert.Assert(t, cerrdefs.IsConflict(err))
 }
 
 func TestVolumeRemoveSwarmForce(t *testing.T) {
@@ -569,7 +570,7 @@ func TestVolumeRemoveSwarmForce(t *testing.T) {
 	err := v.deleteVolumes(ctx, resp, req, map[string]string{"name": "vol1"})
 
 	assert.Assert(t, err != nil)
-	assert.Assert(t, errdefs.IsConflict(err))
+	assert.Assert(t, cerrdefs.IsConflict(err))
 
 	ctx = context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
 	req = httptest.NewRequest(http.MethodDelete, "/volumes/vol1?force=1", nil)

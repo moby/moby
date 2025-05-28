@@ -182,7 +182,7 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 	for idx, desc := range p.layers {
 		sn, err := findMatchingSnapshot(ctx, p.snapshotter, desc)
 		if err != nil {
-			if errdefs.IsNotFound(err) {
+			if cerrdefs.IsNotFound(err) {
 				continue
 			}
 			return err

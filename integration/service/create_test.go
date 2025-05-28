@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/testutil"
@@ -165,7 +165,7 @@ func TestCreateServiceConflict(t *testing.T) {
 
 	spec := swarm.CreateServiceSpec(t, serviceSpec...)
 	_, err := c.ServiceCreate(ctx, spec, swarmtypes.ServiceCreateOptions{})
-	assert.Check(t, errdefs.IsConflict(err))
+	assert.Check(t, cerrdefs.IsConflict(err))
 	assert.ErrorContains(t, err, "service "+serviceName+" already exists")
 }
 

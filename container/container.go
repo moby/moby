@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/v2/pkg/cio"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -814,7 +815,7 @@ func (container *Container) RestoreTask(ctx context.Context, client libcontainer
 		return err
 	}
 	container.task, err = container.ctr.AttachTask(ctx, container.InitializeStdio)
-	if err != nil && !errdefs.IsNotFound(err) {
+	if err != nil && !cerrdefs.IsNotFound(err) {
 		return err
 	}
 	return nil

@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 )
@@ -22,7 +23,7 @@ func (daemon *Daemon) ContainerStatPath(name string, path string) (*container.Pa
 			return nil, containerFileNotFound{path, name}
 		}
 		// TODO(thaJeztah): check if daemon.containerStatPath returns any errors that are not typed; if not, then return as-is
-		if errdefs.IsInvalidParameter(err) {
+		if cerrdefs.IsInvalidArgument(err) {
 			return nil, err
 		}
 		return nil, errdefs.System(err)
@@ -45,7 +46,7 @@ func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io
 			return nil, nil, containerFileNotFound{path, name}
 		}
 		// TODO(thaJeztah): check if daemon.containerArchivePath returns any errors that are not typed; if not, then return as-is
-		if errdefs.IsInvalidParameter(err) {
+		if cerrdefs.IsInvalidArgument(err) {
 			return nil, nil, err
 		}
 		return nil, nil, errdefs.System(err)
@@ -71,7 +72,7 @@ func (daemon *Daemon) ContainerExtractToDir(name, path string, copyUIDGID, noOve
 			return containerFileNotFound{path, name}
 		}
 		// TODO(thaJeztah): check if daemon.containerExtractToDir returns any errors that are not typed; if not, then return as-is
-		if errdefs.IsInvalidParameter(err) {
+		if cerrdefs.IsInvalidArgument(err) {
 			return err
 		}
 		return errdefs.System(err)

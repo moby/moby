@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"net/netip"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/libnetwork/iptables"
 )
@@ -106,7 +106,7 @@ func (n *network) setupIPTables(ctx context.Context, ipVersion iptables.IPVersio
 			return err
 		}
 		n.registerCleanFunc(func() error {
-			if err := iptables.DelInterfaceFirewalld(n.config.IfName); err != nil && !errdefs.IsNotFound(err) {
+			if err := iptables.DelInterfaceFirewalld(n.config.IfName); err != nil && !cerrdefs.IsNotFound(err) {
 				return err
 			}
 			return nil
@@ -534,7 +534,7 @@ func setupInternalNetworkRules(ctx context.Context, bridgeIface string, prefix n
 			return err
 		}
 	} else {
-		if err := iptables.DelInterfaceFirewalld(bridgeIface); err != nil && !errdefs.IsNotFound(err) {
+		if err := iptables.DelInterfaceFirewalld(bridgeIface); err != nil && !cerrdefs.IsNotFound(err) {
 			return err
 		}
 	}

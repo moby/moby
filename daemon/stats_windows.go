@@ -3,9 +3,9 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 
+	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/platform"
 )
 
@@ -20,7 +20,7 @@ func (daemon *Daemon) stats(c *container.Container) (*containertypes.StatsRespon
 	// Obtain the stats from HCS via libcontainerd
 	stats, err := task.Stats(context.Background())
 	if err != nil {
-		if errdefs.IsNotFound(err) {
+		if cerrdefs.IsNotFound(err) {
 			return nil, containerNotFound(c.ID)
 		}
 		return nil, err

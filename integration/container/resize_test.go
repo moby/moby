@@ -6,9 +6,9 @@ import (
 	"net/url"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	req "github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -133,7 +133,7 @@ func TestResize(t *testing.T) {
 			Height: 40,
 			Width:  40,
 		})
-		assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict))
 		assert.Check(t, is.ErrorContains(err, "is not running"))
 	})
 }

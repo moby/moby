@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -12,7 +13,6 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/lazyregexp"
 	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
@@ -82,7 +82,7 @@ func deleteAllContainers(ctx context.Context, t testing.TB, apiclient client.Con
 			Force:         true,
 			RemoveVolumes: true,
 		})
-		if err == nil || errdefs.IsNotFound(err) || alreadyExists.MatchString(err.Error()) {
+		if err == nil || cerrdefs.IsNotFound(err) || alreadyExists.MatchString(err.Error()) {
 			continue
 		}
 		assert.Check(t, err, "failed to remove %s", ctr.ID)
@@ -125,7 +125,7 @@ func removeImage(ctx context.Context, t testing.TB, apiclient client.ImageAPICli
 	_, err := apiclient.ImageRemove(ctx, ref, image.RemoveOptions{
 		Force: true,
 	})
-	if errdefs.IsNotFound(err) {
+	if cerrdefs.IsNotFound(err) {
 		return
 	}
 	assert.Check(t, err, "failed to remove image %s", ref)
@@ -170,7 +170,7 @@ func deleteAllPlugins(ctx context.Context, t testing.TB, c client.PluginAPIClien
 	t.Helper()
 	plugins, err := c.PluginList(ctx, filters.Args{})
 	// Docker EE does not allow cluster-wide plugin management.
-	if errdefs.IsNotImplemented(err) {
+	if cerrdefs.IsNotImplemented(err) {
 		return
 	}
 	assert.Check(t, err, "failed to list plugins")

@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
@@ -142,18 +142,18 @@ func TestSecretsCreateAndDelete(t *testing.T) {
 		},
 		Data: []byte("TESTINGDATA"),
 	})
-	assert.Check(t, errdefs.IsConflict(err))
+	assert.Check(t, cerrdefs.IsConflict(err))
 	assert.Check(t, is.ErrorContains(err, testName))
 
 	err = c.SecretRemove(ctx, secretID)
 	assert.NilError(t, err)
 
 	_, _, err = c.SecretInspectWithRaw(ctx, secretID)
-	assert.Check(t, errdefs.IsNotFound(err))
+	assert.Check(t, cerrdefs.IsNotFound(err))
 	assert.Check(t, is.ErrorContains(err, secretID))
 
 	err = c.SecretRemove(ctx, "non-existing")
-	assert.Check(t, errdefs.IsNotFound(err))
+	assert.Check(t, cerrdefs.IsNotFound(err))
 	assert.Check(t, is.ErrorContains(err, "non-existing"))
 
 	testName = "test_secret_with_labels_" + t.Name()
@@ -217,7 +217,7 @@ func TestSecretsUpdate(t *testing.T) {
 	// this test will produce an error in func UpdateSecret
 	insp.Spec.Data = []byte("TESTINGDATA2")
 	err = c.SecretUpdate(ctx, secretID, insp.Version, insp.Spec)
-	assert.Check(t, errdefs.IsInvalidParameter(err))
+	assert.Check(t, cerrdefs.IsInvalidArgument(err))
 	assert.Check(t, is.ErrorContains(err, "only updates to Labels are allowed"))
 }
 

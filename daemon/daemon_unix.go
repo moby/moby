@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/containerd/cgroups/v3"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/blkiodev"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -1535,7 +1536,7 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 		}
 		child, err := daemon.GetContainer(name)
 		if err != nil {
-			if errdefs.IsNotFound(err) {
+			if cerrdefs.IsNotFound(err) {
 				// Trying to link to a non-existing container is not valid, and
 				// should return an "invalid parameter" error. Returning a "not
 				// found" error here would make the client report the container's
@@ -1548,7 +1549,7 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 			cid := child.HostConfig.NetworkMode.ConnectedContainer()
 			child, err = daemon.GetContainer(cid)
 			if err != nil {
-				if errdefs.IsNotFound(err) {
+				if cerrdefs.IsNotFound(err) {
 					// Trying to link to a non-existing container is not valid, and
 					// should return an "invalid parameter" error. Returning a "not
 					// found" error here would make the client report the container's

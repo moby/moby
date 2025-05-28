@@ -27,6 +27,7 @@ import (
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/defaults"
 	"github.com/containerd/containerd/v2/pkg/dialer"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	dist "github.com/docker/distribution"
@@ -52,7 +53,6 @@ import (
 	"github.com/docker/docker/distribution"
 	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/layer"
@@ -361,7 +361,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 
 			var es *containerd.ExitStatus
 
-			if err := c.RestoreTask(context.Background(), daemon.containerd); err != nil && !errdefs.IsNotFound(err) {
+			if err := c.RestoreTask(context.Background(), daemon.containerd); err != nil && !cerrdefs.IsNotFound(err) {
 				logger(c).WithError(err).Error("failed to restore container with containerd")
 				return
 			}
@@ -378,13 +378,13 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 					if !alive {
 						logger(c).Debug("cleaning up dead container process")
 						es, err = tsk.Delete(context.Background())
-						if err != nil && !errdefs.IsNotFound(err) {
+						if err != nil && !cerrdefs.IsNotFound(err) {
 							logger(c).WithError(err).Error("failed to delete task from containerd")
 							return
 						}
 					} else if !cfg.LiveRestoreEnabled {
 						logger(c).Debug("shutting down container considered alive by containerd")
-						if err := daemon.shutdownContainer(c); err != nil && !errdefs.IsNotFound(err) {
+						if err := daemon.shutdownContainer(c); err != nil && !cerrdefs.IsNotFound(err) {
 							baseLogger.WithError(err).Error("error shutting down container")
 							return
 						}
@@ -699,7 +699,7 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 func (daemon *Daemon) registerLink(parent, child *container.Container, alias string) error {
 	fullName := path.Join(parent.Name, alias)
 	if err := daemon.containersReplica.ReserveName(fullName, child.ID); err != nil {
-		if errdefs.IsConflict(err) {
+		if cerrdefs.IsConflict(err) {
 			log.G(context.TODO()).Warnf("error registering link for %s, to %s, as alias %s, ignoring: %v", parent.ID, child.ID, alias, err)
 			return nil
 		}

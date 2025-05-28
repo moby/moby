@@ -7,9 +7,9 @@ import (
 	"runtime"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
 	volumesservice "github.com/docker/docker/volume/service"
@@ -310,7 +310,7 @@ func TestFindNetworkErrorType(t *testing.T) {
 	_, err := d.FindNetwork("fakeNet")
 	var nsn libnetwork.ErrNoSuchNetwork
 	ok := errors.As(err, &nsn)
-	if !errdefs.IsNotFound(err) || !ok {
+	if !cerrdefs.IsNotFound(err) || !ok {
 		t.Error("The FindNetwork method MUST always return an error that implements the NotFound interface and is ErrNoSuchNetwork")
 	}
 }

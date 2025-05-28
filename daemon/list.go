@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -244,7 +245,7 @@ func (daemon *Daemon) filterByNameIDMatches(view *container.View, filter *listCo
 	for id := range matches {
 		c, err := view.Get(id)
 		if err != nil {
-			if errdefs.IsNotFound(err) {
+			if cerrdefs.IsNotFound(err) {
 				// ignore error
 				continue
 			}
@@ -375,7 +376,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 
 func idOrNameFilter(view *container.View, value string) (*container.Snapshot, error) {
 	filter, err := view.Get(value)
-	if err != nil && errdefs.IsNotFound(err) {
+	if err != nil && cerrdefs.IsNotFound(err) {
 		// Try name search instead
 		found := ""
 		searchName := strings.TrimPrefix(value, "/")
@@ -634,7 +635,7 @@ func (daemon *Daemon) refreshImage(ctx context.Context, s *container.Snapshot) *
 	// reason. Update the Image to the specific ID of the original image it
 	// resolved to when the container was created.
 	if err != nil {
-		if !errdefs.IsNotFound(err) {
+		if !cerrdefs.IsNotFound(err) {
 			log.G(ctx).WithFields(log.Fields{
 				"error":       err,
 				"containerID": c.ID,

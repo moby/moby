@@ -4,9 +4,9 @@ import (
 	"context"
 	"strings"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/poll"
 )
@@ -74,7 +74,7 @@ func IsRemoved(ctx context.Context, apiClient client.APIClient, containerID stri
 	return func(log poll.LogT) poll.Result {
 		inspect, err := apiClient.ContainerInspect(ctx, containerID)
 		if err != nil {
-			if errdefs.IsNotFound(err) {
+			if cerrdefs.IsNotFound(err) {
 				return poll.Success()
 			}
 			return poll.Error(err)

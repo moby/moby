@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 	clientpkg "github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
@@ -79,7 +79,7 @@ func TestVolumesRemove(t *testing.T) {
 
 	t.Run("volume in use", func(t *testing.T) {
 		err = client.VolumeRemove(ctx, vname, false)
-		assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict))
 		assert.Check(t, is.ErrorContains(err, "volume is in use"))
 	})
 
@@ -95,7 +95,7 @@ func TestVolumesRemove(t *testing.T) {
 
 	t.Run("non-existing volume", func(t *testing.T) {
 		err = client.VolumeRemove(ctx, "no_such_volume", false)
-		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 
 	t.Run("non-existing volume force", func(t *testing.T) {
@@ -131,7 +131,7 @@ func TestVolumesRemoveSwarmEnabled(t *testing.T) {
 
 	t.Run("volume in use", func(t *testing.T) {
 		err = client.VolumeRemove(ctx, vname, false)
-		assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict))
 		assert.Check(t, is.ErrorContains(err, "volume is in use"))
 	})
 
@@ -147,7 +147,7 @@ func TestVolumesRemoveSwarmEnabled(t *testing.T) {
 
 	t.Run("non-existing volume", func(t *testing.T) {
 		err = client.VolumeRemove(ctx, "no_such_volume", false)
-		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 
 	t.Run("non-existing volume force", func(t *testing.T) {

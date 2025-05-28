@@ -91,7 +91,7 @@ func (e unsupportedMediaTypeError) Error() string {
 // log at info level.
 func translatePullError(err error, ref reference.Named) error {
 	// FIXME(thaJeztah): cleanup error and context handling in this package, as it's really messy.
-	if errdefs.IsContext(err) {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
 	switch v := err.(type) {
@@ -118,7 +118,7 @@ func translatePullError(err error, ref reference.Named) error {
 // as a result of this error.
 func continueOnError(err error, mirrorEndpoint bool) bool {
 	// FIXME(thaJeztah): cleanup error and context handling in this package, as it's really messy.
-	if errdefs.IsContext(err) {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return false
 	}
 	switch v := err.(type) {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/names"
@@ -68,7 +69,7 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 	}
 
 	if err := daemon.containersReplica.ReserveName(name, id); err != nil {
-		if errdefs.IsConflict(err) {
+		if cerrdefs.IsConflict(err) {
 			id, err := daemon.containersReplica.Snapshot().GetID(name)
 			if err != nil {
 				log.G(context.TODO()).Errorf("got unexpected error while looking up reserved name: %v", err)
@@ -94,7 +95,7 @@ func (daemon *Daemon) generateAndReserveName(id string) (string, error) {
 		}
 
 		if err := daemon.containersReplica.ReserveName(name, id); err != nil {
-			if errdefs.IsConflict(err) {
+			if cerrdefs.IsConflict(err) {
 				continue
 			}
 			return "", err

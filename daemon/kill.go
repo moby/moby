@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -108,7 +109,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 	}
 
 	if err := task.Kill(context.Background(), stopSignal); err != nil {
-		if errdefs.IsNotFound(err) {
+		if cerrdefs.IsNotFound(err) {
 			unpause = false
 			log.G(context.TODO()).WithFields(log.Fields{
 				"error":     err,
@@ -205,7 +206,7 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 // killPossiblyDeadProcess is a wrapper around killSig() suppressing "no such process" error.
 func (daemon *Daemon) killPossiblyDeadProcess(container *containerpkg.Container, sig syscall.Signal) error {
 	err := daemon.killWithSignal(container, sig)
-	if errdefs.IsNotFound(err) {
+	if cerrdefs.IsNotFound(err) {
 		err = errNoSuchProcess{container.GetPID(), sig}
 		log.G(context.TODO()).Debug(err)
 		return err

@@ -13,11 +13,11 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/cpuguy83/tar2go"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/testutils"
@@ -227,7 +227,7 @@ func TestSavePlatform(t *testing.T) {
 		ocispec.Platform{Architecture: "amd64", OS: "linux"},
 		ocispec.Platform{Architecture: "arm64", OS: "linux", Variant: "v8"},
 	))
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.Error(err, "Error response from daemon: multiple platform parameters not supported"))
 }
 

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -225,7 +225,7 @@ func TestDecodePlatform(t *testing.T) {
 			p, err := DecodePlatform(tc.platformJSON)
 			assert.Check(t, is.DeepEqual(p, tc.expected))
 			if tc.expectedErr != "" {
-				assert.Check(t, errdefs.IsInvalidParameter(err))
+				assert.Check(t, cerrdefs.IsInvalidArgument(err))
 				assert.Check(t, is.Error(err, tc.expectedErr))
 			} else {
 				assert.Check(t, err)
