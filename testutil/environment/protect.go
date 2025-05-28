@@ -4,12 +4,12 @@ import (
 	"context"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/testutil"
 	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
@@ -200,7 +200,7 @@ func getExistingPlugins(ctx context.Context, t testing.TB, testEnv *Execution) [
 	client := testEnv.APIClient()
 	pluginList, err := client.PluginList(ctx, filters.Args{})
 	// Docker EE does not allow cluster-wide plugin management.
-	if errdefs.IsNotImplemented(err) {
+	if cerrdefs.IsNotImplemented(err) {
 		return []string{}
 	}
 	assert.NilError(t, err, "failed to list plugins")
