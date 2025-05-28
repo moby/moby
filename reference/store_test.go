@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -162,13 +162,13 @@ func TestAddDeleteGet(t *testing.T) {
 		t.Fatalf("error redundantly adding to store: %v", err)
 	}
 	err = store.AddDigest(ref5.(reference.Canonical), testImageID3, false)
-	assert.Check(t, is.ErrorType(err, errdefs.IsConflict), "overwriting a digest with a different digest should fail")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict), "overwriting a digest with a different digest should fail")
 	err = store.AddDigest(ref5.(reference.Canonical), testImageID3, true)
-	assert.Check(t, is.ErrorType(err, errdefs.IsConflict), "overwriting a digest cannot be forced")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict), "overwriting a digest cannot be forced")
 
 	// Attempt to overwrite with force == false
 	err = store.AddTag(ref4, testImageID3, false)
-	assert.Check(t, is.ErrorType(err, errdefs.IsConflict), "did not get expected error on overwrite attempt")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict), "did not get expected error on overwrite attempt")
 	// Repeat to overwrite with force == true
 	if err = store.AddTag(ref4, testImageID3, true); err != nil {
 		t.Fatalf("failed to force tag overwrite: %v", err)
@@ -328,12 +328,12 @@ func TestInvalidTags(t *testing.T) {
 	ref, err := reference.ParseNormalizedNamed("sha256:abc")
 	assert.NilError(t, err)
 	err = store.AddTag(ref, id, true)
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 
 	// setting digest as a tag
 	ref, err = reference.ParseNormalizedNamed("registry@sha256:367eb40fd0330a7e464777121e39d2f5b3e8e23a1e159342e53ab05c9e4d94e6")
 	assert.NilError(t, err)
 
 	err = store.AddTag(ref, id, true)
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 }
