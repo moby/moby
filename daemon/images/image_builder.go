@@ -6,13 +6,13 @@ import (
 	"io"
 	"runtime"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
@@ -166,7 +166,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 	}
 
 	img, err := i.GetImage(ctx, name, backend.GetImageOpts{Platform: platform})
-	if errdefs.IsNotFound(err) && img != nil && platform != nil {
+	if cerrdefs.IsNotFound(err) && img != nil && platform != nil {
 		imgPlat := ocispec.Platform{
 			OS:           img.OS,
 			Architecture: img.BaseImgArch(),
@@ -211,7 +211,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 		if err != nil && opts.PullOption == backend.PullOptionNoPull {
 			return nil, nil, err
 		}
-		if err != nil && !errdefs.IsNotFound(err) {
+		if err != nil && !cerrdefs.IsNotFound(err) {
 			return nil, nil, err
 		}
 		if img != nil {

@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/containerd/containerd/v2/pkg/namespaces"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -54,7 +54,7 @@ func TestImageMultiplatformSaveShallowWithNative(t *testing.T) {
 	})
 	t.Run("export missing", func(t *testing.T) {
 		err = imgSvc.ExportImage(ctx, []string{img.Name}, &arm64, io.Discard)
-		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 }
 
@@ -94,7 +94,7 @@ func TestImageMultiplatformSaveShallowWithoutNative(t *testing.T) {
 	})
 	t.Run("export native", func(t *testing.T) {
 		err = imgSvc.ExportImage(ctx, []string{img.Name}, &native, io.Discard)
-		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 	t.Run("export arm64", func(t *testing.T) {
 		err = imgSvc.ExportImage(ctx, []string{img.Name}, &arm64, io.Discard)

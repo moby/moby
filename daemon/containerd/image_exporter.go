@@ -259,7 +259,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 				if err := i.ensureDanglingImage(ctx, img); err != nil {
 					log.G(ctx).WithError(err).Warnf("failed to keep the previous image for %s as dangling", img.Name)
 				}
-			} else if !errdefs.IsNotFound(err) {
+			} else if !cerrdefs.IsNotFound(err) {
 				log.G(ctx).WithError(err).Warn("failed to retrieve image: %w", err)
 			}
 			return true

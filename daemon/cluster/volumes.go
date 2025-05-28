@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	cerrdefs "github.com/containerd/errdefs"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/errdefs"
@@ -90,7 +91,7 @@ func (c *Cluster) RemoveVolume(nameOrID string, force bool) error {
 	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		volume, err := getVolume(ctx, state.controlClient, nameOrID)
 		if err != nil {
-			if force && errdefs.IsNotFound(err) {
+			if force && cerrdefs.IsNotFound(err) {
 				return nil
 			}
 			return err

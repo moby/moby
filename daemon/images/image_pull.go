@@ -7,13 +7,13 @@ import (
 
 	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/metrics"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -43,7 +43,7 @@ func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platf
 
 		// Note that this is a special case where GetImage returns both an image
 		// and an error: https://github.com/docker/docker/blob/v20.10.7/daemon/images/image.go#L175-L183
-		if errdefs.IsNotFound(err) && img != nil {
+		if cerrdefs.IsNotFound(err) && img != nil {
 			po := streamformatter.NewJSONProgressOutput(outStream, false)
 			progress.Messagef(po, "", `WARNING: %s`, err.Error())
 			log.G(ctx).WithError(err).WithField("image", reference.FamiliarName(ref)).Warn("ignoring platform mismatch on single-arch image")

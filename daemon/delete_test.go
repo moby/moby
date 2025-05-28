@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -75,7 +75,7 @@ func TestContainerDelete(t *testing.T) {
 			d.containers.Add(c.ID, c)
 
 			err := d.ContainerRm(c.ID, &backend.ContainerRmConfig{ForceRemove: false})
-			assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
+			assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict))
 			assert.Check(t, is.ErrorContains(err, tc.errMsg))
 		})
 	}

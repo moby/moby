@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
@@ -86,7 +87,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	isRestarting := ctr.Restarting
 	tsk, err := ctr.GetRunningTask()
 	ctr.Unlock()
-	if errdefs.IsConflict(err) || isRestarting {
+	if cerrdefs.IsConflict(err) || isRestarting {
 		return nil
 	}
 	if err != nil {

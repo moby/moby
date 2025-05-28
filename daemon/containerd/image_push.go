@@ -331,7 +331,7 @@ func findMissingMountable(ctx context.Context, store content.Store, queue *jobs,
 
 	sources, err := getDigestSources(ctx, store, target.Digest)
 	if err != nil {
-		if !errdefs.IsNotFound(err) {
+		if !cerrdefs.IsNotFound(err) {
 			return nil, err
 		}
 		log.G(ctx).WithField("target", target).Debug("distribution source label not found")

@@ -11,8 +11,8 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/plugins/content/local"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/testutils/labelstore"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/moby/go-archive"
@@ -62,7 +62,7 @@ func TestImageLoadMissing(t *testing.T) {
 
 		err = tryLoad(ctx, t, imgDataDir, linuxAmd64)
 		assert.Check(t, is.Error(err, "image emptyindex:latest was loaded, but doesn't provide the requested platform (linux/amd64)"))
-		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 	clearStore(ctx, t)
 
@@ -74,7 +74,7 @@ func TestImageLoadMissing(t *testing.T) {
 
 		err = tryLoad(ctx, t, imgDataDir, linuxArm64)
 		assert.Check(t, is.ErrorContains(err, "doesn't provide the requested platform (linux/arm64)"))
-		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 
 	clearStore(ctx, t)
@@ -87,7 +87,7 @@ func TestImageLoadMissing(t *testing.T) {
 		t.Run("platform not included in index", func(t *testing.T) {
 			err = tryLoad(ctx, t, imgDataDir, linuxArmv5)
 			assert.Check(t, is.Error(err, "image multiplatform:latest was loaded, but doesn't provide the requested platform (linux/arm/v5)"))
-			assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+			assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 		})
 
 		clearStore(ctx, t)
@@ -106,7 +106,7 @@ func TestImageLoadMissing(t *testing.T) {
 
 			err = tryLoad(ctx, t, imgDataDir, linuxArm64)
 			assert.Check(t, is.ErrorContains(err, "requested platform (linux/arm64) found, but some content is missing"))
-			assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+			assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 		})
 	})
 }

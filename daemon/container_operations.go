@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -899,7 +900,7 @@ func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerPrefi
 	nc, err := daemon.GetContainer(connectedContainerPrefixOrName)
 	if err != nil {
 		err = fmt.Errorf("joining network namespace of container: %w", err)
-		if errdefs.IsNotFound(err) {
+		if cerrdefs.IsNotFound(err) {
 			// Deliberately masking "not found" errors, because failing to find
 			// the network container is a system error. We return a system error,
 			// not an "invalid parameter" because getNetworkedContainer is called

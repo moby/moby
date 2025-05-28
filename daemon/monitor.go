@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/metrics"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/restartmanager"
@@ -250,7 +250,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		if !c.Running {
 			ctr, err := daemon.containerd.LoadContainer(context.Background(), c.ID)
 			if err != nil {
-				if errdefs.IsNotFound(err) {
+				if cerrdefs.IsNotFound(err) {
 					// The container was started by not-docker and so could have been deleted by
 					// not-docker before we got around to loading it from containerd.
 					log.G(context.TODO()).WithFields(log.Fields{
@@ -263,7 +263,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			}
 			tsk, err := ctr.Task(context.Background())
 			if err != nil {
-				if errdefs.IsNotFound(err) {
+				if cerrdefs.IsNotFound(err) {
 					log.G(context.TODO()).WithFields(log.Fields{
 						"error":     err,
 						"container": c.ID,
