@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
@@ -65,14 +65,14 @@ func TestControllerGetSandbox(t *testing.T) {
 	t.Run("invalid id", func(t *testing.T) {
 		const cID = ""
 		sb, err := ctrlr.GetSandbox(cID)
-		assert.Check(t, errdefs.IsInvalidParameter(err), "expected a ErrInvalidParameter, got %[1]v (%[1]T)", err)
+		assert.Check(t, cerrdefs.IsInvalidArgument(err), "expected a ErrInvalidParameter, got %[1]v (%[1]T)", err)
 		assert.Check(t, is.Error(err, "invalid id: id is empty"))
 		assert.Check(t, is.Nil(sb))
 	})
 	t.Run("not found", func(t *testing.T) {
 		const cID = "container-id-with-no-sandbox"
 		sb, err := ctrlr.GetSandbox(cID)
-		assert.Check(t, errdefs.IsNotFound(err), "expected a ErrNotFound, got %[1]v (%[1]T)", err)
+		assert.Check(t, cerrdefs.IsNotFound(err), "expected a ErrNotFound, got %[1]v (%[1]T)", err)
 		assert.Check(t, is.Error(err, "network sandbox for container container-id-with-no-sandbox not found"))
 		assert.Check(t, is.Nil(sb))
 	})
@@ -92,7 +92,7 @@ func TestControllerGetSandbox(t *testing.T) {
 		assert.Check(t, err)
 
 		sb, err = ctrlr.GetSandbox(cID)
-		assert.Check(t, errdefs.IsNotFound(err), "expected a ErrNotFound, got %[1]v (%[1]T)", err)
+		assert.Check(t, cerrdefs.IsNotFound(err), "expected a ErrNotFound, got %[1]v (%[1]T)", err)
 		assert.Check(t, is.Error(err, "network sandbox for container test-container-id not found"))
 		assert.Check(t, is.Nil(sb))
 	})

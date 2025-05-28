@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
 )
@@ -170,7 +170,7 @@ func (c *Controller) defaultGwNetwork() (*Network, error) {
 	defer func() { <-procGwNetwork }()
 
 	n, err := c.NetworkByName(libnGWNetwork)
-	if errdefs.IsNotFound(err) {
+	if cerrdefs.IsNotFound(err) {
 		n, err = c.createGWNetwork()
 	}
 	return n, err

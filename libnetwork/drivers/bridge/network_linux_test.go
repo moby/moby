@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/internal/testutils/storeutils"
@@ -36,7 +36,7 @@ func TestLinkCreate(t *testing.T) {
 
 	te := newTestEndpoint46(ipdList[0].Pool, ipd6List[0].Pool, 10)
 	err = d.CreateEndpoint(context.Background(), "dummy", "", te.Interface(), nil)
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.Error(err, "invalid endpoint id: "))
 
 	// Good endpoint creation
@@ -57,7 +57,7 @@ func TestLinkCreate(t *testing.T) {
 
 	te1 := newTestEndpoint(ipdList[0].Pool, 11)
 	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te1.Interface(), nil)
-	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 	assert.Assert(t, is.Error(err, "Endpoint (ep) already exists (Only one endpoint allowed)"), "Failed to detect duplicate endpoint id on same network")
 
 	_, err = nlwrap.LinkByName(te.iface.srcName)
@@ -100,7 +100,7 @@ func TestLinkCreateTwo(t *testing.T) {
 
 	te2 := newTestEndpoint(ipdList[0].Pool, 12)
 	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te2.Interface(), nil)
-	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 	assert.Assert(t, is.Error(err, "Endpoint (ep) already exists (Only one endpoint allowed)"), "Failed to detect duplicate endpoint id on same network")
 }
 
@@ -152,7 +152,7 @@ func TestLinkDelete(t *testing.T) {
 	assert.NilError(t, err)
 
 	err = d.DeleteEndpoint("dummy", "")
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Assert(t, is.Error(err, "invalid endpoint id: "))
 
 	err = d.DeleteEndpoint("dummy", "ep1")

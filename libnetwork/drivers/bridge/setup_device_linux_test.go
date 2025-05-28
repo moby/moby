@@ -6,7 +6,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/netutils"
@@ -52,7 +52,7 @@ func TestSetupNewNonDefaultBridge(t *testing.T) {
 
 	err = setupDevice(config, br)
 	assert.Check(t, is.Error(err, "bridge device with non default name test0 must be created manually"))
-	assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 }
 
 func TestSetupDeviceUp(t *testing.T) {

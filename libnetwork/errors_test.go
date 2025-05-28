@@ -3,7 +3,7 @@ package libnetwork
 import (
 	"testing"
 
-	"github.com/docker/docker/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/libnetwork/types"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -21,11 +21,11 @@ func TestErrorInterfaces(t *testing.T) {
 
 	notFoundErrorList := []error{ErrNoSuchNetwork("")}
 	for _, err := range notFoundErrorList {
-		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	}
 
 	forbiddenErrorList := []error{&ActiveContainerError{}}
 	for _, err := range forbiddenErrorList {
-		assert.Check(t, is.ErrorType(err, errdefs.IsForbidden))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 	}
 }
