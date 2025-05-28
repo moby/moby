@@ -251,11 +251,6 @@ linters:
         linters:
           - forbidigo
 
-        # FIXME(dmcgowan): ignoring while transitioning to containerd/errdefs
-      - text: "SA1019: errdefs\\.(.*) is deprecated"
-        linters:
-          - staticcheck
-
     # Log a warning if an exclusion rule is unused.
     # Default: false
     warn-unused: true
