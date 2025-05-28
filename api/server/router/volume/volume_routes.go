@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/filters"
@@ -69,7 +70,7 @@ func (v *volumeRouter) getVolumeByName(ctx context.Context, w http.ResponseWrite
 	// if the volume is not found in the regular volume backend, and the client
 	// is using an API version greater than 1.42 (when cluster volumes were
 	// introduced), then check if Swarm has the volume.
-	if errdefs.IsNotFound(err) && versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
+	if cerrdefs.IsNotFound(err) && versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
 		swarmVol, err := v.cluster.GetVolume(vars["name"])
 		// if swarm returns an error and that error indicates that swarm is not
 		// initialized, return original NotFound error. Otherwise, we'd return
@@ -164,7 +165,7 @@ func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter,
 	// errors at this stage. Note that no "not found" error is produced if
 	// "force" is enabled.
 	err := v.backend.Remove(ctx, vars["name"], opts.WithPurgeOnError(force))
-	if err != nil && !errdefs.IsNotFound(err) {
+	if err != nil && !cerrdefs.IsNotFound(err) {
 		return err
 	}
 
@@ -172,7 +173,7 @@ func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter,
 	// is enabled, the volume backend won't return an error for non-existing
 	// volumes, so we don't know if removal succeeded (or not volume existed).
 	// In that case we always try to delete cluster volumes as well.
-	if errdefs.IsNotFound(err) || force {
+	if cerrdefs.IsNotFound(err) || force {
 		version := httputils.VersionFromContext(ctx)
 		if versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
 			err = v.cluster.RemoveVolume(vars["name"], force)

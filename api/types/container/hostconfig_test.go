@@ -102,7 +102,7 @@ func TestValidateRestartPolicy(t *testing.T) {
 	}
 }
 
-// isInvalidParameter is a minimal implementation of [github.com/docker/docker/errdefs.IsInvalidParameter],
+// isInvalidParameter is a minimal implementation of [github.com/containerd/errdefs.IsInvalidArgument],
 // because this was the only import of that package in api/types, which is the
 // package imported by external users.
 func isInvalidParameter(err error) bool {
