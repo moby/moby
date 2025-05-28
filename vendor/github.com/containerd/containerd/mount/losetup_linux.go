@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	kernel "github.com/containerd/containerd/contrib/seccomp/kernelversion"
 	"github.com/containerd/containerd/pkg/randutil"
 	"golang.org/x/sys/unix"
 )
@@ -83,6 +84,32 @@ func setupLoopDev(backingFile, loopDev string, param LoopParams) (_ *os.File, re
 			loop.Close()
 		}
 	}()
+
+	fiveDotEight := kernel.KernelVersion{Kernel: 5, Major: 8}
+	if ok, err := kernel.GreaterEqualThan(fiveDotEight); err == nil && ok {
+		config := unix.LoopConfig{
+			Fd: uint32(back.Fd()),
+		}
+
+		copy(config.Info.File_name[:], backingFile)
+		if param.Readonly {
+			config.Info.Flags |= unix.LO_FLAGS_READ_ONLY
+		}
+
+		if param.Autoclear {
+			config.Info.Flags |= unix.LO_FLAGS_AUTOCLEAR
+		}
+
+		if param.Direct {
+			config.Info.Flags |= unix.LO_FLAGS_DIRECT_IO
+		}
+
+		if err := unix.IoctlLoopConfigure(int(loop.Fd()), &config); err != nil {
+			return nil, fmt.Errorf("failed to configure loop device: %s: %w", loopDev, err)
+		}
+
+		return loop, nil
+	}
 
 	// 2. Set FD
 	if err := unix.IoctlSetInt(int(loop.Fd()), unix.LOOP_SET_FD, int(back.Fd())); err != nil {

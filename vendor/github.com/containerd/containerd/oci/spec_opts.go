@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -33,8 +34,8 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/continuity/fs"
+	"github.com/containerd/platforms"
 	"github.com/moby/sys/user"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -138,7 +139,7 @@ func ensureAdditionalGids(s *Spec) {
 // Use as the first option to clear the spec, then apply options afterwards.
 func WithDefaultSpec() SpecOpts {
 	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
-		return generateDefaultSpecWithPlatform(ctx, platforms.DefaultString(), c.ID, s)
+		return generateDefaultSpecWithPlatform(ctx, platforms.Format(platforms.DefaultSpec()), c.ID, s) // For 1.7 continue using the old format without os-version included.
 	}
 }
 
@@ -457,6 +458,7 @@ func WithImageConfigArgs(image Image, args []string) SpecOpts {
 				return errors.New("no arguments specified")
 			}
 
+			//nolint:staticcheck // ArgsEscaped is deprecated
 			if config.ArgsEscaped && (len(config.Entrypoint) > 0 || cmdFromImage) {
 				s.Process.Args = nil
 				s.Process.CommandLine = cmd[0]
@@ -593,6 +595,20 @@ func WithUser(userstr string) SpecOpts {
 		defer ensureAdditionalGids(s)
 		setProcess(s)
 		s.Process.User.AdditionalGids = nil
+		// While the Linux kernel allows the max UID to be MaxUint32 - 2,
+                // and the OCI Runtime Spec has no definition about the max UID,
+                // the runc implementation is known to require the UID to be <= MaxInt32.
+                //
+                // containerd follows runc's limitation here.
+                //
+                // In future we may relax this limitation to allow MaxUint32 - 2,
+                // or, amend the OCI Runtime Spec to codify the implementation limitation.
+		const (
+			minUserID  = 0
+			maxUserID  = math.MaxInt32
+			minGroupID = 0
+			maxGroupID = math.MaxInt32
+		)
 
 		// For LCOW it's a bit harder to confirm that the user actually exists on the host as a rootfs isn't
 		// mounted on the host and shared into the guest, but rather the rootfs is constructed entirely in the
@@ -611,8 +627,8 @@ func WithUser(userstr string) SpecOpts {
 		switch len(parts) {
 		case 1:
 			v, err := strconv.Atoi(parts[0])
-			if err != nil {
-				// if we cannot parse as a uint they try to see if it is a username
+			if err != nil || v < minUserID || v > maxUserID {
+				// if we cannot parse as an int32 then try to see if it is a username
 				return WithUsername(userstr)(ctx, client, c, s)
 			}
 			return WithUserID(uint32(v))(ctx, client, c, s)
@@ -623,12 +639,13 @@ func WithUser(userstr string) SpecOpts {
 			)
 			var uid, gid uint32
 			v, err := strconv.Atoi(parts[0])
-			if err != nil {
+			if err != nil || v < minUserID || v > maxUserID {
 				username = parts[0]
 			} else {
 				uid = uint32(v)
 			}
-			if v, err = strconv.Atoi(parts[1]); err != nil {
+			v, err = strconv.Atoi(parts[1])
+			if err != nil || v < minGroupID || v > maxGroupID {
 				groupname = parts[1]
 			} else {
 				gid = uint32(v)
@@ -954,6 +971,11 @@ func WithCapabilities(caps []string) SpecOpts {
 		s.Process.Capabilities.Bounding = caps
 		s.Process.Capabilities.Effective = caps
 		s.Process.Capabilities.Permitted = caps
+		if len(caps) == 0 {
+			s.Process.Capabilities.Inheritable = nil
+		} else if len(s.Process.Capabilities.Inheritable) > 0 {
+			filterCaps(&s.Process.Capabilities.Inheritable, caps)
+		}
 
 		return nil
 	}
@@ -975,6 +997,16 @@ func removeCap(caps *[]string, s string) {
 			continue
 		}
 		newcaps = append(newcaps, c)
+	}
+	*caps = newcaps
+}
+
+func filterCaps(caps *[]string, filters []string) {
+	var newcaps []string
+	for _, c := range *caps {
+		if capsContain(filters, c) {
+			newcaps = append(newcaps, c)
+		}
 	}
 	*caps = newcaps
 }
@@ -1007,6 +1039,7 @@ func WithDroppedCapabilities(caps []string) SpecOpts {
 				&s.Process.Capabilities.Bounding,
 				&s.Process.Capabilities.Effective,
 				&s.Process.Capabilities.Permitted,
+				&s.Process.Capabilities.Inheritable,
 			} {
 				removeCap(cl, c)
 			}

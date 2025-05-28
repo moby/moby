@@ -7,11 +7,11 @@ import (
 	"io"
 
 	"github.com/containerd/containerd/content"
-	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
-	"github.com/containerd/containerd/platforms"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"

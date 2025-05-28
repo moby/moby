@@ -18,10 +18,9 @@ syntax = "proto3";
 
 package containerd.services.events.v1;
 
-import "github.com/containerd/containerd/protobuf/plugin/fieldpath.proto";
+import "github.com/containerd/containerd/api/types/event.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/empty.proto";
-import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/containerd/containerd/api/services/events/v1;events";
 
@@ -46,7 +45,7 @@ service Events {
 	// from all namespaces unless otherwise specified. If this is not desired,
 	// a filter can be provided in the format 'namespace==<namespace>' to
 	// restrict the received events.
-	rpc Subscribe(SubscribeRequest) returns (stream Envelope);
+	rpc Subscribe(SubscribeRequest) returns (stream containerd.types.Envelope);
 }
 
 message PublishRequest {
@@ -55,17 +54,9 @@ message PublishRequest {
 }
 
 message ForwardRequest {
-	Envelope envelope = 1;
+	containerd.types.Envelope envelope = 1;
 }
 
 message SubscribeRequest {
 	repeated string filters = 1;
-}
-
-message Envelope {
-	option (containerd.plugin.fieldpath) = true;
-	google.protobuf.Timestamp timestamp = 1;
-	string namespace = 2;
-	string topic = 3;
-	google.protobuf.Any event = 4;
 }

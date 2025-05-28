@@ -25,10 +25,10 @@ import (
 
 	transferapi "github.com/containerd/containerd/api/services/transfer/v1"
 	transfertypes "github.com/containerd/containerd/api/types/transfer"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/streaming"
 	"github.com/containerd/containerd/pkg/transfer"
 	tstreaming "github.com/containerd/containerd/pkg/transfer/streaming"
+	"github.com/containerd/log"
 	"github.com/containerd/typeurl/v2"
 )
 

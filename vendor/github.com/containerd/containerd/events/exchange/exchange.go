@@ -22,14 +22,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/log"
+	"github.com/containerd/typeurl/v2"
+	goevents "github.com/docker/go-events"
+
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/filters"
 	"github.com/containerd/containerd/identifiers"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/typeurl/v2"
-	goevents "github.com/docker/go-events"
 )
 
 // Exchange broadcasts events
@@ -67,7 +68,7 @@ func (e *Exchange) Forward(ctx context.Context, envelope *events.Envelope) (err 
 		if err != nil {
 			logger.WithError(err).Error("error forwarding event")
 		} else {
-			logger.Debug("event forwarded")
+			logger.Trace("event forwarded")
 		}
 	}()
 
@@ -111,7 +112,7 @@ func (e *Exchange) Publish(ctx context.Context, topic string, event events.Event
 		if err != nil {
 			logger.WithError(err).Error("error publishing event")
 		} else {
-			logger.Debug("event published")
+			logger.Trace("event published")
 		}
 	}()
 
