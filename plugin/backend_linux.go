@@ -77,6 +77,9 @@ func (pm *Manager) Disable(refOrID string, config *backend.PluginDisableConfig) 
 
 // Enable activates a plugin, which implies that they are ready to be used by containers.
 func (pm *Manager) Enable(refOrID string, config *backend.PluginEnableConfig) error {
+	if config.Timeout < 0 {
+		return errdefs.InvalidParameter(errors.New("invalid timeout: value must be positive"))
+	}
 	p, err := pm.config.Store.GetV2Plugin(refOrID)
 	if err != nil {
 		return err

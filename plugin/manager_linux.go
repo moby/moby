@@ -72,7 +72,12 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 
 func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 	sockAddr := filepath.Join(pm.config.ExecRoot, p.GetID(), p.GetSocket())
-	p.SetTimeout(time.Duration(c.timeoutInSecs) * time.Second)
+
+	to := defaultTimeoutInSecs
+	if c.timeoutInSecs > 0 {
+		to = c.timeoutInSecs
+	}
+	p.SetTimeout(time.Duration(to) * time.Second)
 	addr := &net.UnixAddr{Net: "unix", Name: sockAddr}
 	p.SetAddr(addr)
 

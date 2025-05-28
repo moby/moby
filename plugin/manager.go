@@ -92,6 +92,13 @@ type controller struct {
 	timeoutInSecs int
 }
 
+// defaultTimeoutInSecs is the default timeout to use if no value is
+// set for [controller.timeoutInSecs].
+//
+// This default matches the default that the CLI defined:
+// https://github.com/docker/cli/blob/dff0dc8afa0c7e6f99c6f0d24f749af76366a5f0/cli/command/plugin/enable.go#L33
+const defaultTimeoutInSecs = 30
+
 // NewManager returns a new plugin manager.
 func NewManager(config ManagerConfig) (*Manager, error) {
 	manager := &Manager{
