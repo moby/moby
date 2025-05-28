@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	cerrdefs "github.com/containerd/errdefs"
 	"github.com/cpuguy83/tar2go"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
@@ -23,6 +22,7 @@ import (
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/moby/go-archive/compression"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
 	"github.com/opencontainers/go-digest"
@@ -213,23 +213,167 @@ func TestSaveOCI(t *testing.T) {
 	}
 }
 
-// TODO(thaJeztah): this test currently only checks invalid cases; update this test to use a table-test and test both valid and invalid platform options.
-func TestSavePlatform(t *testing.T) {
-	ctx := setupTest(t)
+func TestSaveAndLoadPlatform(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "The test image is a Linux image")
 
-	t.Parallel()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	const repoName = "busybox:latest"
-	_, err := apiClient.ImageInspect(ctx, repoName)
-	assert.NilError(t, err)
+	const repoName = "alpine:latest"
 
-	_, err = apiClient.ImageSave(ctx, []string{repoName}, client.ImageSaveWithPlatforms(
-		ocispec.Platform{Architecture: "amd64", OS: "linux"},
-		ocispec.Platform{Architecture: "arm64", OS: "linux", Variant: "v8"},
-	))
-	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
-	assert.Check(t, is.Error(err, "Error response from daemon: multiple platform parameters not supported"))
+	type testCase struct {
+		testName                string
+		containerdStoreOnly     bool
+		pullPlatforms           []string
+		savePlatforms           []ocispec.Platform
+		loadPlatforms           []ocispec.Platform
+		expectedSavedPlatforms  []ocispec.Platform
+		expectedLoadedPlatforms []ocispec.Platform // expected platforms to be saved, if empty, all pulled platforms are expected to be saved
+	}
+
+	testCases := []testCase{
+		{
+			testName:            "With no platforms specified",
+			containerdStoreOnly: true,
+			pullPlatforms:       []string{"linux/amd64", "linux/riscv64", "linux/arm64/v8"},
+			savePlatforms:       nil,
+			loadPlatforms:       nil,
+			expectedSavedPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "amd64"},
+				{OS: "linux", Architecture: "riscv64"},
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+			},
+			expectedLoadedPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "amd64"},
+				{OS: "linux", Architecture: "riscv64"},
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+			},
+		},
+		{
+			testName:                "With single pulled platform",
+			pullPlatforms:           []string{"linux/amd64"},
+			savePlatforms:           []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+			loadPlatforms:           []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+			expectedSavedPlatforms:  []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+			expectedLoadedPlatforms: []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+		},
+		{
+			testName:                "With single platform save and load",
+			containerdStoreOnly:     true,
+			pullPlatforms:           []string{"linux/amd64", "linux/riscv64", "linux/arm64/v8"},
+			savePlatforms:           []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+			loadPlatforms:           []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+			expectedSavedPlatforms:  []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+			expectedLoadedPlatforms: []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+		},
+		{
+			testName:            "With multiple platforms save and load",
+			containerdStoreOnly: true,
+			pullPlatforms:       []string{"linux/amd64", "linux/riscv64", "linux/arm64/v8"},
+			savePlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+				{OS: "linux", Architecture: "riscv64"},
+			},
+			loadPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+				{OS: "linux", Architecture: "riscv64"},
+			},
+			expectedSavedPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+				{OS: "linux", Architecture: "riscv64"},
+			},
+			expectedLoadedPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+				{OS: "linux", Architecture: "riscv64"},
+			},
+		},
+		{
+			testName:            "With mixed platform save and load",
+			containerdStoreOnly: true,
+			pullPlatforms:       []string{"linux/amd64", "linux/riscv64", "linux/arm64/v8"},
+			savePlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+				{OS: "linux", Architecture: "riscv64"},
+			},
+			loadPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "riscv64"},
+			},
+			expectedSavedPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+				{OS: "linux", Architecture: "riscv64"},
+			},
+			expectedLoadedPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "riscv64"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		if tc.containerdStoreOnly && !testEnv.UsingSnapshotter() {
+			continue
+		}
+		t.Run(tc.testName, func(t *testing.T) {
+			// pull the image
+			for _, p := range tc.pullPlatforms {
+				resp, err := apiClient.ImagePull(ctx, repoName, image.PullOptions{Platform: p})
+				assert.NilError(t, err)
+				_, err = io.ReadAll(resp)
+				assert.NilError(t, err)
+				resp.Close()
+			}
+
+			// export the image
+			rdr, err := apiClient.ImageSave(ctx, []string{repoName}, client.ImageSaveWithPlatforms(tc.savePlatforms...))
+			assert.NilError(t, err)
+
+			// remove the pulled image
+			_, err = apiClient.ImageRemove(ctx, repoName, image.RemoveOptions{})
+			assert.NilError(t, err)
+
+			// load the full exported image (all platforms in it)
+			_, err = apiClient.ImageLoad(ctx, rdr)
+			assert.NilError(t, err)
+			rdr.Close()
+
+			// verify the loaded image has all the expected saved platforms
+			for _, p := range tc.expectedSavedPlatforms {
+				inspectResponse, err := apiClient.ImageInspect(ctx, repoName, client.ImageInspectWithPlatform(&p))
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal(inspectResponse.Os, p.OS))
+				assert.Check(t, is.Equal(inspectResponse.Architecture, p.Architecture))
+			}
+
+			// pull the image again (start fresh)
+			for _, p := range tc.pullPlatforms {
+				resp, err := apiClient.ImagePull(ctx, repoName, image.PullOptions{Platform: p})
+				assert.NilError(t, err)
+				_, err = io.ReadAll(resp)
+				assert.NilError(t, err)
+				resp.Close()
+			}
+
+			// export the image
+			rdr, err = apiClient.ImageSave(ctx, []string{repoName}, client.ImageSaveWithPlatforms(tc.savePlatforms...))
+			assert.NilError(t, err)
+
+			// remove the pulled image
+			_, err = apiClient.ImageRemove(ctx, repoName, image.RemoveOptions{})
+			assert.NilError(t, err)
+
+			// load the exported image on the specified platforms only
+			_, err = apiClient.ImageLoad(ctx, rdr, client.ImageLoadWithPlatforms(tc.loadPlatforms...))
+			assert.NilError(t, err)
+			rdr.Close()
+
+			// verify the image was loaded for the specified platforms
+			for _, p := range tc.expectedLoadedPlatforms {
+				inspectResponse, err := apiClient.ImageInspect(ctx, repoName, client.ImageInspectWithPlatform(&p))
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal(inspectResponse.Os, p.OS))
+				assert.Check(t, is.Equal(inspectResponse.Architecture, p.Architecture))
+			}
+		})
+	}
 }
 
 func TestSaveRepoWithMultipleImages(t *testing.T) {

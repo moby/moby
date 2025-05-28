@@ -10443,7 +10443,10 @@ paths:
           type: "string"
           required: true
         - name: "platform"
-          type: "string"
+          type: "array"
+          items:
+            type: "string"
+          collectionFormat: "multi"
           in: "query"
           description: |
             JSON encoded OCI platform describing a platform which will be used
@@ -10488,13 +10491,16 @@ paths:
           items:
             type: "string"
         - name: "platform"
-          type: "string"
+          type: "array"
+          items:
+            type: "string"
+          collectionFormat: "multi"
           in: "query"
           description: |
-            JSON encoded OCI platform describing a platform which will be used
-            to select a platform-specific image to be saved if the image is
-            multi-platform.
-            If not provided, the full multi-platform image will be saved.
+            JSON encoded OCI platform(s) which will be used to select the
+            platform-specific image(s) to be saved if the image is
+            multi-platform. If not provided, the full multi-platform image
+            will be saved.
 
             Example: `{"os": "linux", "architecture": "arm", "variant": "v5"}`
       tags: ["Image"]
@@ -10530,13 +10536,16 @@ paths:
           type: "boolean"
           default: false
         - name: "platform"
-          type: "string"
+          type: "array"
+          items:
+            type: "string"
+          collectionFormat: "multi"
           in: "query"
           description: |
-            JSON encoded OCI platform describing a platform which will be used
-            to select a platform-specific image to be load if the image is
-            multi-platform.
-            If not provided, the full multi-platform image will be loaded.
+            JSON encoded OCI platform(s) which will be used to select the
+            platform-specific image(s) to load if the image is
+            multi-platform. If not provided, the full multi-platform image
+            will be loaded.
 
             Example: `{"os": "linux", "architecture": "arm", "variant": "v5"}`
       tags: ["Image"]
