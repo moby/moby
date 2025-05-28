@@ -1,6 +1,10 @@
 package errdefs
 
-import "context"
+import (
+	"context"
+
+	cerrdefs "github.com/containerd/errdefs"
+)
 
 type errNotFound struct{ error }
 
@@ -18,7 +22,7 @@ func (e errNotFound) Unwrap() error {
 // It returns the error as-is if it is either nil (no error) or already implements
 // [ErrNotFound],
 func NotFound(err error) error {
-	if err == nil || IsNotFound(err) {
+	if err == nil || cerrdefs.IsNotFound(err) {
 		return err
 	}
 	return errNotFound{err}
@@ -40,7 +44,7 @@ func (e errInvalidParameter) Unwrap() error {
 // It returns the error as-is if it is either nil (no error) or already implements
 // [ErrInvalidParameter],
 func InvalidParameter(err error) error {
-	if err == nil || IsInvalidParameter(err) {
+	if err == nil || cerrdefs.IsInvalidArgument(err) {
 		return err
 	}
 	return errInvalidParameter{err}
@@ -62,7 +66,7 @@ func (e errConflict) Unwrap() error {
 // It returns the error as-is if it is either nil (no error) or already implements
 // [ErrConflict],
 func Conflict(err error) error {
-	if err == nil || IsConflict(err) {
+	if err == nil || cerrdefs.IsConflict(err) {
 		return err
 	}
 	return errConflict{err}
@@ -84,7 +88,7 @@ func (e errUnauthorized) Unwrap() error {
 // It returns the error as-is if it is either nil (no error) or already implements
 // [ErrUnauthorized],
 func Unauthorized(err error) error {
-	if err == nil || IsUnauthorized(err) {
+	if err == nil || cerrdefs.IsUnauthorized(err) {
 		return err
 	}
 	return errUnauthorized{err}
@@ -106,7 +110,7 @@ func (e errUnavailable) Unwrap() error {
 // It returns the error as-is if it is either nil (no error) or already implements
 // [ErrUnavailable],
 func Unavailable(err error) error {
-	if err == nil || IsUnavailable(err) {
+	if err == nil || cerrdefs.IsUnavailable(err) {
 		return err
 	}
 	return errUnavailable{err}
@@ -128,7 +132,7 @@ func (e errForbidden) Unwrap() error {
 // It returns the error as-is if it is either nil (no error) or already implements
 // [ErrForbidden],
 func Forbidden(err error) error {
-	if err == nil || IsForbidden(err) {
+	if err == nil || cerrdefs.IsPermissionDenied(err) {
 		return err
 	}
 	return errForbidden{err}
@@ -150,7 +154,7 @@ func (e errSystem) Unwrap() error {
 // It returns the error as-is if it is either nil (no error) or already implements
 // [ErrSystem],
 func System(err error) error {
-	if err == nil || IsSystem(err) {
+	if err == nil || cerrdefs.IsInternal(err) {
 		return err
 	}
 	return errSystem{err}
@@ -172,7 +176,7 @@ func (e errNotModified) Unwrap() error {
 // It returns the error as-is if it is either nil (no error) or already implements
 // [NotModified],
 func NotModified(err error) error {
-	if err == nil || IsNotModified(err) {
+	if err == nil || cerrdefs.IsNotModified(err) {
 		return err
 	}
 	return errNotModified{err}
@@ -194,7 +198,7 @@ func (e errNotImplemented) Unwrap() error {
 // It returns the error as-is if it is either nil (no error) or already implements
 // [ErrNotImplemented],
 func NotImplemented(err error) error {
-	if err == nil || IsNotImplemented(err) {
+	if err == nil || cerrdefs.IsNotImplemented(err) {
 		return err
 	}
 	return errNotImplemented{err}
@@ -216,7 +220,7 @@ func (e errUnknown) Unwrap() error {
 // It returns the error as-is if it is either nil (no error) or already implements
 // [ErrUnknown],
 func Unknown(err error) error {
-	if err == nil || IsUnknown(err) {
+	if err == nil || cerrdefs.IsUnknown(err) {
 		return err
 	}
 	return errUnknown{err}
@@ -238,7 +242,7 @@ func (e errCancelled) Unwrap() error {
 // It returns the error as-is if it is either nil (no error) or already implements
 // [ErrCancelled],
 func Cancelled(err error) error {
-	if err == nil || IsCancelled(err) {
+	if err == nil || cerrdefs.IsCanceled(err) {
 		return err
 	}
 	return errCancelled{err}
@@ -260,7 +264,7 @@ func (e errDeadline) Unwrap() error {
 // It returns the error as-is if it is either nil (no error) or already implements
 // [ErrDeadline],
 func Deadline(err error) error {
-	if err == nil || IsDeadline(err) {
+	if err == nil || cerrdefs.IsDeadlineExceeded(err) {
 		return err
 	}
 	return errDeadline{err}
@@ -282,7 +286,7 @@ func (e errDataLoss) Unwrap() error {
 // It returns the error as-is if it is either nil (no error) or already implements
 // [ErrDataLoss],
 func DataLoss(err error) error {
-	if err == nil || IsDataLoss(err) {
+	if err == nil || cerrdefs.IsDataLoss(err) {
 		return err
 	}
 	return errDataLoss{err}

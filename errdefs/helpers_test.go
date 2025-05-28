@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+
+	cerrdefs "github.com/containerd/errdefs"
 )
 
 var errTest = errors.New("this is a test")
@@ -13,11 +15,11 @@ type wrapped interface {
 }
 
 func TestNotFound(t *testing.T) {
-	if IsNotFound(errTest) {
+	if cerrdefs.IsNotFound(errTest) {
 		t.Fatalf("did not expect not found error, got %T", errTest)
 	}
 	e := NotFound(errTest)
-	if !IsNotFound(e) {
+	if !cerrdefs.IsNotFound(e) {
 		t.Fatalf("expected not found error, got: %T", e)
 	}
 	if cause := e.(wrapped).Unwrap(); cause != errTest {
@@ -28,17 +30,17 @@ func TestNotFound(t *testing.T) {
 	}
 
 	wrapped := fmt.Errorf("foo: %w", e)
-	if !IsNotFound(wrapped) {
+	if !cerrdefs.IsNotFound(wrapped) {
 		t.Fatalf("expected not found error, got: %T", wrapped)
 	}
 }
 
 func TestConflict(t *testing.T) {
-	if IsConflict(errTest) {
+	if cerrdefs.IsConflict(errTest) {
 		t.Fatalf("did not expect conflict error, got %T", errTest)
 	}
 	e := Conflict(errTest)
-	if !IsConflict(e) {
+	if !cerrdefs.IsConflict(e) {
 		t.Fatalf("expected conflict error, got: %T", e)
 	}
 	if cause := e.(wrapped).Unwrap(); cause != errTest {
@@ -49,17 +51,17 @@ func TestConflict(t *testing.T) {
 	}
 
 	wrapped := fmt.Errorf("foo: %w", e)
-	if !IsConflict(wrapped) {
+	if !cerrdefs.IsConflict(wrapped) {
 		t.Fatalf("expected conflict error, got: %T", wrapped)
 	}
 }
 
 func TestForbidden(t *testing.T) {
-	if IsForbidden(errTest) {
+	if cerrdefs.IsPermissionDenied(errTest) {
 		t.Fatalf("did not expect forbidden error, got %T", errTest)
 	}
 	e := Forbidden(errTest)
-	if !IsForbidden(e) {
+	if !cerrdefs.IsPermissionDenied(e) {
 		t.Fatalf("expected forbidden error, got: %T", e)
 	}
 	if cause := e.(wrapped).Unwrap(); cause != errTest {
@@ -70,17 +72,17 @@ func TestForbidden(t *testing.T) {
 	}
 
 	wrapped := fmt.Errorf("foo: %w", e)
-	if !IsForbidden(wrapped) {
+	if !cerrdefs.IsPermissionDenied(wrapped) {
 		t.Fatalf("expected forbidden error, got: %T", wrapped)
 	}
 }
 
 func TestInvalidParameter(t *testing.T) {
-	if IsInvalidParameter(errTest) {
+	if cerrdefs.IsInvalidArgument(errTest) {
 		t.Fatalf("did not expect invalid argument error, got %T", errTest)
 	}
 	e := InvalidParameter(errTest)
-	if !IsInvalidParameter(e) {
+	if !cerrdefs.IsInvalidArgument(e) {
 		t.Fatalf("expected invalid argument error, got %T", e)
 	}
 	if cause := e.(wrapped).Unwrap(); cause != errTest {
@@ -91,17 +93,17 @@ func TestInvalidParameter(t *testing.T) {
 	}
 
 	wrapped := fmt.Errorf("foo: %w", e)
-	if !IsInvalidParameter(wrapped) {
+	if !cerrdefs.IsInvalidArgument(wrapped) {
 		t.Fatalf("expected invalid argument error, got: %T", wrapped)
 	}
 }
 
 func TestNotImplemented(t *testing.T) {
-	if IsNotImplemented(errTest) {
+	if cerrdefs.IsNotImplemented(errTest) {
 		t.Fatalf("did not expect not implemented error, got %T", errTest)
 	}
 	e := NotImplemented(errTest)
-	if !IsNotImplemented(e) {
+	if !cerrdefs.IsNotImplemented(e) {
 		t.Fatalf("expected not implemented error, got %T", e)
 	}
 	if cause := e.(wrapped).Unwrap(); cause != errTest {
@@ -112,17 +114,17 @@ func TestNotImplemented(t *testing.T) {
 	}
 
 	wrapped := fmt.Errorf("foo: %w", e)
-	if !IsNotImplemented(wrapped) {
+	if !cerrdefs.IsNotImplemented(wrapped) {
 		t.Fatalf("expected not implemented error, got: %T", wrapped)
 	}
 }
 
 func TestNotModified(t *testing.T) {
-	if IsNotModified(errTest) {
+	if cerrdefs.IsNotModified(errTest) {
 		t.Fatalf("did not expect not modified error, got %T", errTest)
 	}
 	e := NotModified(errTest)
-	if !IsNotModified(e) {
+	if !cerrdefs.IsNotModified(e) {
 		t.Fatalf("expected not modified error, got %T", e)
 	}
 	if cause := e.(wrapped).Unwrap(); cause != errTest {
@@ -133,17 +135,17 @@ func TestNotModified(t *testing.T) {
 	}
 
 	wrapped := fmt.Errorf("foo: %w", e)
-	if !IsNotModified(wrapped) {
+	if !cerrdefs.IsNotModified(wrapped) {
 		t.Fatalf("expected not modified error, got: %T", wrapped)
 	}
 }
 
 func TestUnauthorized(t *testing.T) {
-	if IsUnauthorized(errTest) {
+	if cerrdefs.IsUnauthorized(errTest) {
 		t.Fatalf("did not expect unauthorized error, got %T", errTest)
 	}
 	e := Unauthorized(errTest)
-	if !IsUnauthorized(e) {
+	if !cerrdefs.IsUnauthorized(e) {
 		t.Fatalf("expected unauthorized error, got %T", e)
 	}
 	if cause := e.(wrapped).Unwrap(); cause != errTest {
@@ -154,17 +156,17 @@ func TestUnauthorized(t *testing.T) {
 	}
 
 	wrapped := fmt.Errorf("foo: %w", e)
-	if !IsUnauthorized(wrapped) {
+	if !cerrdefs.IsUnauthorized(wrapped) {
 		t.Fatalf("expected unauthorized error, got: %T", wrapped)
 	}
 }
 
 func TestUnknown(t *testing.T) {
-	if IsUnknown(errTest) {
+	if cerrdefs.IsUnknown(errTest) {
 		t.Fatalf("did not expect unknown error, got %T", errTest)
 	}
 	e := Unknown(errTest)
-	if !IsUnknown(e) {
+	if !cerrdefs.IsUnknown(e) {
 		t.Fatalf("expected unknown error, got %T", e)
 	}
 	if cause := e.(wrapped).Unwrap(); cause != errTest {
@@ -175,17 +177,17 @@ func TestUnknown(t *testing.T) {
 	}
 
 	wrapped := fmt.Errorf("foo: %w", e)
-	if !IsUnknown(wrapped) {
+	if !cerrdefs.IsUnknown(wrapped) {
 		t.Fatalf("expected unknown error, got: %T", wrapped)
 	}
 }
 
 func TestCancelled(t *testing.T) {
-	if IsCancelled(errTest) {
+	if cerrdefs.IsCanceled(errTest) {
 		t.Fatalf("did not expect cancelled error, got %T", errTest)
 	}
 	e := Cancelled(errTest)
-	if !IsCancelled(e) {
+	if !cerrdefs.IsCanceled(e) {
 		t.Fatalf("expected cancelled error, got %T", e)
 	}
 	if cause := e.(wrapped).Unwrap(); cause != errTest {
@@ -196,17 +198,17 @@ func TestCancelled(t *testing.T) {
 	}
 
 	wrapped := fmt.Errorf("foo: %w", e)
-	if !IsCancelled(wrapped) {
+	if !cerrdefs.IsCanceled(wrapped) {
 		t.Fatalf("expected cancelled error, got: %T", wrapped)
 	}
 }
 
 func TestDeadline(t *testing.T) {
-	if IsDeadline(errTest) {
+	if cerrdefs.IsDeadlineExceeded(errTest) {
 		t.Fatalf("did not expect deadline error, got %T", errTest)
 	}
 	e := Deadline(errTest)
-	if !IsDeadline(e) {
+	if !cerrdefs.IsDeadlineExceeded(e) {
 		t.Fatalf("expected deadline error, got %T", e)
 	}
 	if cause := e.(wrapped).Unwrap(); cause != errTest {
@@ -217,17 +219,17 @@ func TestDeadline(t *testing.T) {
 	}
 
 	wrapped := fmt.Errorf("foo: %w", e)
-	if !IsDeadline(wrapped) {
+	if !cerrdefs.IsDeadlineExceeded(wrapped) {
 		t.Fatalf("expected deadline error, got: %T", wrapped)
 	}
 }
 
 func TestDataLoss(t *testing.T) {
-	if IsDataLoss(errTest) {
+	if cerrdefs.IsDataLoss(errTest) {
 		t.Fatalf("did not expect data loss error, got %T", errTest)
 	}
 	e := DataLoss(errTest)
-	if !IsDataLoss(e) {
+	if !cerrdefs.IsDataLoss(e) {
 		t.Fatalf("expected data loss error, got %T", e)
 	}
 	if cause := e.(wrapped).Unwrap(); cause != errTest {
@@ -238,17 +240,17 @@ func TestDataLoss(t *testing.T) {
 	}
 
 	wrapped := fmt.Errorf("foo: %w", e)
-	if !IsDataLoss(wrapped) {
+	if !cerrdefs.IsDataLoss(wrapped) {
 		t.Fatalf("expected data loss error, got: %T", wrapped)
 	}
 }
 
 func TestUnavailable(t *testing.T) {
-	if IsUnavailable(errTest) {
+	if cerrdefs.IsUnavailable(errTest) {
 		t.Fatalf("did not expect unavaillable error, got %T", errTest)
 	}
 	e := Unavailable(errTest)
-	if !IsUnavailable(e) {
+	if !cerrdefs.IsUnavailable(e) {
 		t.Fatalf("expected unavaillable error, got %T", e)
 	}
 	if cause := e.(wrapped).Unwrap(); cause != errTest {
@@ -259,17 +261,17 @@ func TestUnavailable(t *testing.T) {
 	}
 
 	wrapped := fmt.Errorf("foo: %w", e)
-	if !IsUnavailable(wrapped) {
+	if !cerrdefs.IsUnavailable(wrapped) {
 		t.Fatalf("expected unavaillable error, got: %T", wrapped)
 	}
 }
 
 func TestSystem(t *testing.T) {
-	if IsSystem(errTest) {
+	if cerrdefs.IsInternal(errTest) {
 		t.Fatalf("did not expect system error, got %T", errTest)
 	}
 	e := System(errTest)
-	if !IsSystem(e) {
+	if !cerrdefs.IsInternal(e) {
 		t.Fatalf("expected system error, got %T", e)
 	}
 	if cause := e.(wrapped).Unwrap(); cause != errTest {
@@ -280,7 +282,7 @@ func TestSystem(t *testing.T) {
 	}
 
 	wrapped := fmt.Errorf("foo: %w", e)
-	if !IsSystem(wrapped) {
+	if !cerrdefs.IsInternal(wrapped) {
 		t.Fatalf("expected system error, got: %T", wrapped)
 	}
 }
