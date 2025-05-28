@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/sysinfo"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -99,7 +99,7 @@ func TestDecodeContainerConfigIsolation(t *testing.T) {
 			cfg, hostConfig, nwConfig, err := decodeContainerConfig(bytes.NewReader(b), sysinfo.New())
 			if tc.invalid {
 				assert.Check(t, is.ErrorContains(err, tc.expectedErr))
-				assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+				assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 				assert.Check(t, is.Nil(cfg))
 				assert.Check(t, is.Nil(hostConfig))
 				assert.Check(t, is.Nil(nwConfig))
@@ -118,7 +118,7 @@ func TestDecodeContainerConfigPrivileged(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		const expected = "invalid option: privileged mode is not supported for Windows containers"
 		assert.Check(t, is.Error(err, expected))
-		assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 		assert.Check(t, is.Nil(cfg))
 		assert.Check(t, is.Nil(hostConfig))
 		assert.Check(t, is.Nil(nwConfig))
