@@ -16,7 +16,7 @@ func WithLogLevel(lvl string) DaemonOpt {
 			// so don't pass the default.
 			lvl = ""
 		}
-		r.Config.Debug.Level = lvl
+		r.config.Debug.Level = lvl
 		return nil
 	}
 }
@@ -25,7 +25,7 @@ func WithLogLevel(lvl string) DaemonOpt {
 // This only makes sense if WithStartDaemon() was set to true.
 func WithLogFormat(format log.OutputFormat) DaemonOpt {
 	return func(r *remote) error {
-		r.Debug.Format = string(format)
+		r.config.Debug.Format = string(format)
 		return nil
 	}
 }
@@ -33,7 +33,7 @@ func WithLogFormat(format log.OutputFormat) DaemonOpt {
 // WithCRIDisabled disables the CRI plugin.
 func WithCRIDisabled() DaemonOpt {
 	return func(r *remote) error {
-		r.DisabledPlugins = append(r.DisabledPlugins, "io.containerd.grpc.v1.cri")
+		r.config.DisabledPlugins = append(r.config.DisabledPlugins, "io.containerd.grpc.v1.cri")
 		return nil
 	}
 }
