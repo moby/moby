@@ -15,9 +15,9 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/plugins/content/local"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/registry"
 	"github.com/opencontainers/go-digest"
@@ -36,7 +36,7 @@ func TestImagePullPlatformInvalid(t *testing.T) {
 	_, err := client.ImagePull(ctx, "docker.io/library/hello-world:latest", image.PullOptions{Platform: "foobar"})
 	assert.Assert(t, err != nil)
 	assert.Check(t, is.ErrorContains(err, "unknown operating system or architecture"))
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 }
 
 func createTestImage(ctx context.Context, t testing.TB, store content.Store) ocispec.Descriptor {
@@ -157,8 +157,8 @@ func TestImagePullStoredDigestForOtherRepo(t *testing.T) {
 		assert.Check(t, rdr.Close())
 	}
 	assert.Assert(t, err != nil, "Expected error, got none: %v", err)
-	assert.Assert(t, errdefs.IsNotFound(err), err)
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Assert(t, cerrdefs.IsNotFound(err), err)
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 // TestImagePullNonExisting pulls non-existing images from the central registry, with different
@@ -188,7 +188,7 @@ func TestImagePullNonExisting(t *testing.T) {
 
 			expectedMsg := fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", "asdfasdf")
 			assert.Check(t, is.ErrorContains(err, expectedMsg))
-			assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+			assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 			if all {
 				// pull -a on a nonexistent registry should fall back as well
 				assert.Check(t, !strings.Contains(err.Error(), "unauthorized"), `message should not contain "unauthorized"`)

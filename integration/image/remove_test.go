@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -92,7 +92,7 @@ func TestRemoveByDigest(t *testing.T) {
 	assert.NilError(t, err, "busybox image got deleted")
 
 	inspect, err = client.ImageInspect(ctx, "test-remove-by-digest")
-	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	assert.Check(t, is.DeepEqual(inspect, image.InspectResponse{}))
 }
 

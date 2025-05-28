@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
@@ -147,11 +147,11 @@ func TestConfigsCreateAndDelete(t *testing.T) {
 	assert.NilError(t, err)
 
 	_, _, err = c.ConfigInspectWithRaw(ctx, configID)
-	assert.Check(t, errdefs.IsNotFound(err))
+	assert.Check(t, cerrdefs.IsNotFound(err))
 	assert.Check(t, is.ErrorContains(err, configID))
 
 	err = c.ConfigRemove(ctx, "non-existing")
-	assert.Check(t, errdefs.IsNotFound(err))
+	assert.Check(t, cerrdefs.IsNotFound(err))
 	assert.Check(t, is.ErrorContains(err, "non-existing"))
 
 	testName = "test_secret_with_labels_" + t.Name()
@@ -216,7 +216,7 @@ func TestConfigsUpdate(t *testing.T) {
 	// this test will produce an error in func UpdateConfig
 	insp.Spec.Data = []byte("TESTINGDATA2")
 	err = c.ConfigUpdate(ctx, configID, insp.Version, insp.Spec)
-	assert.Check(t, errdefs.IsInvalidParameter(err))
+	assert.Check(t, cerrdefs.IsInvalidArgument(err))
 	assert.Check(t, is.ErrorContains(err, "only updates to Labels are allowed"))
 }
 

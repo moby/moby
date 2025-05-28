@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/fakecontext"
@@ -244,7 +244,7 @@ func TestExecResize(t *testing.T) {
 			Height: 40,
 			Width:  40,
 		})
-		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 		assert.Check(t, is.ErrorContains(err, "No such exec instance: no-such-exec-id"))
 	})
 
@@ -272,7 +272,7 @@ func TestExecResize(t *testing.T) {
 			Height: 40,
 			Width:  40,
 		})
-		assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict))
 		assert.Check(t, is.ErrorContains(err, "is not running"))
 	})
 }
@@ -394,7 +394,7 @@ func TestExecUser(t *testing.T) {
 			result, err := container.Exec(ctx, apiClient, cID, []string{"id"}, withUser(tc.user))
 			if tc.expectedErr != "" {
 				assert.Check(t, is.Error(err, tc.expectedErr))
-				assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+				assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 				assert.Check(t, is.Equal(result.Stdout(), "<nil>"))
 				assert.Check(t, is.Equal(result.Stderr(), "<nil>"))
 			} else {

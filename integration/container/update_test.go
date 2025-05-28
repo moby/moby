@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -56,5 +56,5 @@ func TestUpdateRestartWithAutoRemove(t *testing.T) {
 		},
 	})
 	assert.Check(t, is.ErrorContains(err, "Restart policy cannot be updated because AutoRemove is enabled for the container"))
-	assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict))
 }

@@ -14,12 +14,12 @@ import (
 	"syscall"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/process"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -609,7 +609,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		poll.WaitOn(t, func(t poll.LogT) poll.Result {
 			stat, err := c.ContainerStatPath(ctx, cID, "/foo/test.txt")
 			if err != nil {
-				if errdefs.IsNotFound(err) {
+				if cerrdefs.IsNotFound(err) {
 					return poll.Continue("file doesn't yet exist")
 				}
 				return poll.Error(err)
@@ -682,7 +682,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		waitFn := func(t poll.LogT) poll.Result {
 			_, err := c.ContainerStatPath(ctx, cID, "/image/hello")
 			if err != nil {
-				if errdefs.IsNotFound(err) {
+				if cerrdefs.IsNotFound(err) {
 					return poll.Continue("file doesn't yet exist")
 				}
 				return poll.Error(err)
