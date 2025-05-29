@@ -198,7 +198,7 @@ func ParsePortSpec(rawPort string) ([]PortMapping, error) {
 		return nil, errors.New("invalid containerPort: " + containerPort)
 	}
 
-	var startHostPort, endHostPort uint64 = 0, 0
+	var startHostPort, endHostPort uint64
 	if hostPort != "" {
 		startHostPort, endHostPort, err = ParsePortRange(hostPort)
 		if err != nil {
@@ -215,9 +215,11 @@ func ParsePortSpec(rawPort string) ([]PortMapping, error) {
 		}
 	}
 
-	ports := []PortMapping{}
-	for i := uint64(0); i <= (endPort - startPort); i++ {
-		cPort := strconv.FormatUint(startPort+i, 10)
+	count := endPort - startPort + 1
+	ports := make([]PortMapping, 0, count)
+
+	for i := uint64(0); i < count; i++ {
+		cPort := Port(strconv.FormatUint(startPort+i, 10) + "/" + proto)
 		hPort := ""
 		if hostPort != "" {
 			hPort = strconv.FormatUint(startHostPort+i, 10)
@@ -227,13 +229,8 @@ func ParsePortSpec(rawPort string) ([]PortMapping, error) {
 		if startPort == endPort && startHostPort != endHostPort {
 			hPort += "-" + strconv.FormatUint(endHostPort, 10)
 		}
-		port, err := NewPort(proto, cPort)
-		if err != nil {
-			return nil, err
-		}
-
 		ports = append(ports, PortMapping{
-			Port:    port,
+			Port:    cPort,
 			Binding: PortBinding{HostIP: ip, HostPort: hPort},
 		})
 	}
