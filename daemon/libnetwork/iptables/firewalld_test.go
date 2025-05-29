@@ -42,7 +42,7 @@ func TestReloaded(t *testing.T) {
 
 	// This jump from the FORWARD chain prevents FWD from being deleted by
 	// "iptables -X", called from fwdChain.Remove().
-	err = iptable.EnsureJumpRule("FORWARD", "FWD")
+	err = iptable.EnsureJumpRule("filter", "FORWARD", "FWD")
 	if err != nil {
 		t.Fatal(err)
 	}

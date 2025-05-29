@@ -206,16 +206,16 @@ func setupIPChains(ctx context.Context, version iptables.IPVersion, iptCfg firew
 	// Make sure the filter-FORWARD chain has rules to accept related packets and
 	// jump to the isolation and docker chains. (Re-)insert at the top of the table,
 	// in reverse order.
-	if err := iptable.EnsureJumpRule("FORWARD", DockerForwardChain); err != nil {
+	if err := iptable.EnsureJumpRule(iptables.Filter, "FORWARD", DockerForwardChain); err != nil {
 		return err
 	}
-	if err := iptable.EnsureJumpRule(DockerForwardChain, dockerBridgeChain); err != nil {
+	if err := iptable.EnsureJumpRule(iptables.Filter, DockerForwardChain, dockerBridgeChain); err != nil {
 		return err
 	}
-	if err := iptable.EnsureJumpRule(DockerForwardChain, dockerInternalChain); err != nil {
+	if err := iptable.EnsureJumpRule(iptables.Filter, DockerForwardChain, dockerInternalChain); err != nil {
 		return err
 	}
-	if err := iptable.EnsureJumpRule(DockerForwardChain, dockerCTChain); err != nil {
+	if err := iptable.EnsureJumpRule(iptables.Filter, DockerForwardChain, dockerCTChain); err != nil {
 		return err
 	}
 
@@ -232,15 +232,15 @@ func deleteLegacyTopLevelRules(ctx context.Context, iptable *iptables.IPTable, v
 	if version == iptables.IPv6 {
 		ipsetName = "docker-ext-bridges-v6"
 	}
-	if err := iptable.DeleteJumpRule("FORWARD", dockerChain,
+	if err := iptable.DeleteJumpRule(iptables.Filter, "FORWARD", dockerChain,
 		"-m", "set", "--match-set", ipsetName, "dst"); err != nil {
 		log.G(ctx).WithFields(log.Fields{"error": err, "set": ipsetName}).Debug(
 			"deleting legacy ipset dest match rule")
 	}
-	if err := iptable.DeleteJumpRule("FORWARD", isolationChain1); err != nil {
+	if err := iptable.DeleteJumpRule(iptables.Filter, "FORWARD", isolationChain1); err != nil {
 		return err
 	}
-	if err := iptable.DeleteJumpRule("FORWARD", "ACCEPT",
+	if err := iptable.DeleteJumpRule(iptables.Filter, "FORWARD", "ACCEPT",
 		"-m", "set", "--match-set", ipsetName, "dst",
 		"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED",
 	); err != nil {
