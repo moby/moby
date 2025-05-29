@@ -841,3 +841,28 @@ func TestStringer(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkParsePortSpecs(b *testing.B) {
+	specs := [][]string{
+		{"1234/tcp", "2345/udp", "3456/sctp"},
+		{"1234:1234/tcp", "2345:2345/udp", "3456:3456/sctp"},
+		{"0.0.0.0:1234:1234/tcp", "0.0.0.0:2345:2345/udp", "0.0.0.0:3456:3456/sctp"},
+		{"1234-1236/tcp", "2345-2347/udp", "3456-3458/sctp"},
+		{"1234-1236:1234-1236/tcp", "2345-2347:2345-2347/udp", "3456-3458:3456-3458/sctp"},
+		{"0.0.0.0:1234-1236:1234-1236/tcp", "0.0.0.0:2345-2347:2345-2347/udp", "0.0.0.0:3456-3458:3456-3458/sctp"},
+		{"[2001:4860:0:2001::68]::333"},
+		{"[::1]:80:80"},
+		{"::1:80:80"},
+		{"::::80"},
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, group := range specs {
+			if _, _, err := ParsePortSpecs(group); err != nil {
+				b.Fatalf("unexpected error: %v", err)
+			}
+		}
+	}
+}
