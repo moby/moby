@@ -56,7 +56,6 @@ The filter table is:
     
     Chain DOCKER-USER (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 RETURN     0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     
 
 <details>
@@ -89,7 +88,6 @@ The filter table is:
     -A DOCKER-ISOLATION-STAGE-1 -i bridge1 ! -o bridge1 -j DOCKER-ISOLATION-STAGE-2
     -A DOCKER-ISOLATION-STAGE-2 -o bridge1 -j DROP
     -A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
-    -A DOCKER-USER -j RETURN
     
 
 </details>

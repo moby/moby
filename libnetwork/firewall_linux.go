@@ -55,9 +55,6 @@ func setupUserChain(ipVersion iptables.IPVersion) error {
 	if _, err := ipt.NewChain(userChain, iptables.Filter); err != nil {
 		return fmt.Errorf("failed to create %s %v chain: %v", userChain, ipVersion, err)
 	}
-	if err := ipt.AddReturnRule(userChain); err != nil {
-		return fmt.Errorf("failed to add the RETURN rule for %s %v: %w", userChain, ipVersion, err)
-	}
 	if err := ipt.EnsureJumpRule("FORWARD", userChain); err != nil {
 		return fmt.Errorf("failed to ensure the jump rule for %s %v: %w", userChain, ipVersion, err)
 	}
