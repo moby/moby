@@ -204,14 +204,13 @@ func ParsePortSpec(rawPort string) ([]PortMapping, error) {
 		if err != nil {
 			return nil, errors.New("invalid hostPort: " + hostPort)
 		}
-	}
-
-	if hostPort != "" && (endPort-startPort) != (endHostPort-startHostPort) {
-		// Allow host port range iff containerPort is not a range.
-		// In this case, use the host port range as the dynamic
-		// host port range to allocate into.
-		if endPort != startPort {
-			return nil, fmt.Errorf("invalid ranges specified for container and host Ports: %s and %s", containerPort, hostPort)
+		if (endPort - startPort) != (endHostPort - startHostPort) {
+			// Allow host port range iff containerPort is not a range.
+			// In this case, use the host port range as the dynamic
+			// host port range to allocate into.
+			if endPort != startPort {
+				return nil, fmt.Errorf("invalid ranges specified for container and host Ports: %s and %s", containerPort, hostPort)
+			}
 		}
 	}
 
@@ -223,11 +222,11 @@ func ParsePortSpec(rawPort string) ([]PortMapping, error) {
 		hPort := ""
 		if hostPort != "" {
 			hPort = strconv.FormatUint(startHostPort+i, 10)
-		}
-		// Set hostPort to a range only if there is a single container port
-		// and a dynamic host port.
-		if startPort == endPort && startHostPort != endHostPort {
-			hPort += "-" + strconv.FormatUint(endHostPort, 10)
+			// Set hostPort to a range only if there is a single container port
+			// and a dynamic host port.
+			if count == 1 && startHostPort != endHostPort {
+				hPort += "-" + strconv.FormatUint(endHostPort, 10)
+			}
 		}
 		ports = append(ports, PortMapping{
 			Port:    cPort,
