@@ -642,22 +642,25 @@ func (r Rule) exec(op Action) error {
 	return GetIptable(r.IPVer).RawCombinedOutput(r.cmdArgs(op)...)
 }
 
-// Append appends the rule to the end of the chain. If the rule already exists anywhere in the
+// ensure appends/insert the rule to the end of the chain. If the rule already exists anywhere in the
 // chain, this is a no-op.
-func (r Rule) Append() error {
+func (r Rule) ensure(op Action) error {
 	if r.Exists() {
 		return nil
 	}
-	return r.exec(Append)
+	return r.exec(op)
+}
+
+// Append appends the rule to the end of the chain. If the rule already exists anywhere in the
+// chain, this is a no-op.
+func (r Rule) Append() error {
+	return r.ensure(Append)
 }
 
 // Insert inserts the rule at the head of the chain. If the rule already exists anywhere in the
 // chain, this is a no-op.
 func (r Rule) Insert() error {
-	if r.Exists() {
-		return nil
-	}
-	return r.exec(Insert)
+	return r.ensure(Insert)
 }
 
 // Delete deletes the rule from the kernel. If the rule does not exist, this is a no-op.
