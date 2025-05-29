@@ -126,22 +126,18 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 		exposedPorts = make(map[Port]struct{}, len(ports))
 		bindings     = make(map[Port][]PortBinding)
 	)
-	for _, rawPort := range ports {
-		portMappings, err := ParsePortSpec(rawPort)
+	for _, p := range ports {
+		portMappings, err := ParsePortSpec(p)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		for _, portMapping := range portMappings {
-			port := portMapping.Port
-			if _, exists := exposedPorts[port]; !exists {
+		for _, pm := range portMappings {
+			port := pm.Port
+			if _, ok := exposedPorts[port]; !ok {
 				exposedPorts[port] = struct{}{}
 			}
-			bslice, exists := bindings[port]
-			if !exists {
-				bslice = []PortBinding{}
-			}
-			bindings[port] = append(bslice, portMapping.Binding)
+			bindings[port] = append(bindings[port], pm.Binding)
 		}
 	}
 	return exposedPorts, bindings, nil
