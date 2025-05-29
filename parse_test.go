@@ -1,54 +1,122 @@
 package nat
 
-import (
-	"strings"
-	"testing"
-)
+import "testing"
 
 func TestParsePortRange(t *testing.T) {
-	if start, end, err := ParsePortRange("8000-8080"); err != nil || start != 8000 || end != 8080 {
-		t.Fatalf("Error: %s or Expecting {start,end} values {8000,8080} but found {%d,%d}.", err, start, end)
+	tests := []struct {
+		doc      string
+		input    string
+		expBegin uint64
+		expEnd   uint64
+		expErr   string
+	}{
+		{
+			doc:    "empty value",
+			expErr: `empty string specified for ports`,
+		},
+		{
+			doc:      "single port",
+			input:    "1234",
+			expBegin: 1234,
+			expEnd:   1234,
+		},
+		{
+			doc:      "single port range",
+			input:    "1234-1234",
+			expBegin: 1234,
+			expEnd:   1234,
+		},
+		{
+			doc:      "two port range",
+			input:    "1234-1235",
+			expBegin: 1234,
+			expEnd:   1235,
+		},
+		{
+			doc:      "large range",
+			input:    "8000-9000",
+			expBegin: 8000,
+			expEnd:   9000,
+		},
+		{
+			doc:   "zero port",
+			input: "0",
+		},
+		{
+			doc:   "zero range",
+			input: "0-0",
+		},
+		// invalid cases
+		{
+			doc:    "non-numeric port",
+			input:  "asdf",
+			expErr: `strconv.ParseUint: parsing "asdf": invalid syntax`,
+		},
+		{
+			doc:    "reversed range",
+			input:  "9000-8000",
+			expErr: `invalid range specified for port: 9000-8000`,
+		},
+		{
+			doc:    "range missing end",
+			input:  "8000-",
+			expErr: `strconv.ParseUint: parsing "": invalid syntax`,
+		},
+		{
+			doc:    "range missing start",
+			input:  "-9000",
+			expErr: `strconv.ParseUint: parsing "": invalid syntax`,
+		},
+		{
+			doc:    "invalid range end",
+			input:  "8000-a",
+			expErr: `strconv.ParseUint: parsing "a": invalid syntax`,
+		},
+		{
+			doc:    "invalid range end port",
+			input:  "8000-9000a",
+			expErr: `strconv.ParseUint: parsing "9000a": invalid syntax`,
+		},
+		{
+			doc:    "range range start",
+			input:  "a-9000",
+			expErr: `strconv.ParseUint: parsing "a": invalid syntax`,
+		},
+		{
+			doc:    "range range start port",
+			input:  "8000a-9000",
+			expErr: `strconv.ParseUint: parsing "8000a": invalid syntax`,
+		},
+		{
+			doc:    "range with trailing hyphen",
+			input:  "-8000-",
+			expErr: `strconv.ParseUint: parsing "": invalid syntax`,
+		},
+		{
+			doc:    "range without ports",
+			input:  "-",
+			expErr: `strconv.ParseUint: parsing "": invalid syntax`,
+		},
 	}
-}
 
-func TestParsePortRangeEmpty(t *testing.T) {
-	if _, _, err := ParsePortRange(""); err == nil || err.Error() != "empty string specified for ports" {
-		t.Fatalf("Expected error 'empty string specified for ports', got %v", err)
-	}
-}
-
-func TestParsePortRangeWithNoRange(t *testing.T) {
-	start, end, err := ParsePortRange("8080")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if start != 8080 || end != 8080 {
-		t.Fatalf("Expected start and end to be the same and equal to 8080, but were %v and %v", start, end)
-	}
-}
-
-func TestParsePortRangeIncorrectRange(t *testing.T) {
-	if _, _, err := ParsePortRange("9000-8080"); err == nil || !strings.Contains(err.Error(), "invalid range specified for port") {
-		t.Fatalf("Expecting error 'invalid range specified for port' but received %s.", err)
-	}
-}
-
-func TestParsePortRangeIncorrectEndRange(t *testing.T) {
-	if _, _, err := ParsePortRange("8000-a"); err == nil || !strings.Contains(err.Error(), "invalid syntax") {
-		t.Fatalf("Expecting error 'invalid syntax' but received %s.", err)
-	}
-
-	if _, _, err := ParsePortRange("8000-30a"); err == nil || !strings.Contains(err.Error(), "invalid syntax") {
-		t.Fatalf("Expecting error 'invalid syntax' but received %s.", err)
-	}
-}
-
-func TestParsePortRangeIncorrectStartRange(t *testing.T) {
-	if _, _, err := ParsePortRange("a-8000"); err == nil || !strings.Contains(err.Error(), "invalid syntax") {
-		t.Fatalf("Expecting error 'invalid syntax' but received %s.", err)
-	}
-
-	if _, _, err := ParsePortRange("30a-8000"); err == nil || !strings.Contains(err.Error(), "invalid syntax") {
-		t.Fatalf("Expecting error 'invalid syntax' but received %s.", err)
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			begin, end, err := ParsePortRange(tc.input)
+			if tc.expErr == "" {
+				if err != nil {
+					t.Error(err)
+				}
+			} else {
+				if err == nil || err.Error() != tc.expErr {
+					t.Errorf("expected error '%s', got '%v'", tc.expErr, err)
+				}
+			}
+			if begin != tc.expBegin {
+				t.Errorf("expected begin %d, got %d", tc.expBegin, begin)
+			}
+			if end != tc.expEnd {
+				t.Errorf("expected end %d, got %d", tc.expEnd, end)
+			}
+		})
 	}
 }
