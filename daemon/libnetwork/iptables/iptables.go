@@ -405,23 +405,23 @@ func (iptable IPTable) SetDefaultPolicy(table Table, chain string, policy Policy
 }
 
 // AddReturnRule adds a return rule for the chain in the filter table
-func (iptable IPTable) AddReturnRule(chain string) error {
-	if iptable.Exists(Filter, chain, "-j", "RETURN") {
+func (iptable IPTable) AddReturnRule(table Table, chain string) error {
+	if iptable.Exists(table, chain, "-j", "RETURN") {
 		return nil
 	}
-	if err := iptable.RawCombinedOutput("-A", chain, "-j", "RETURN"); err != nil {
+	if err := iptable.RawCombinedOutput("-t", string(table), "-A", chain, "-j", "RETURN"); err != nil {
 		return fmt.Errorf("unable to add return rule in %s chain: %v", chain, err)
 	}
 	return nil
 }
 
 // EnsureJumpRule ensures the jump rule is on top
-func (iptable IPTable) EnsureJumpRule(fromChain, toChain string, rule ...string) error {
-	if err := iptable.DeleteJumpRule(fromChain, toChain, rule...); err != nil {
+func (iptable IPTable) EnsureJumpRule(table Table, fromChain, toChain string, rule ...string) error {
+	if err := iptable.DeleteJumpRule(table, fromChain, toChain, rule...); err != nil {
 		return err
 	}
 	rule = append(rule, "-j", toChain)
-	if err := iptable.RawCombinedOutput(append([]string{"-I", fromChain}, rule...)...); err != nil {
+	if err := iptable.RawCombinedOutput(append([]string{"-t", string(table), "-I", fromChain}, rule...)...); err != nil {
 		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %v", toChain, fromChain, err)
 	}
 	return nil
@@ -429,10 +429,10 @@ func (iptable IPTable) EnsureJumpRule(fromChain, toChain string, rule ...string)
 
 // DeleteJumpRule deletes a rule added by EnsureJumpRule. It's a no-op if the rule
 // doesn't exist.
-func (iptable IPTable) DeleteJumpRule(fromChain, toChain string, rule ...string) error {
+func (iptable IPTable) DeleteJumpRule(table Table, fromChain, toChain string, rule ...string) error {
 	rule = append(rule, "-j", toChain)
-	if iptable.Exists(Filter, fromChain, rule...) {
-		if err := iptable.RawCombinedOutput(append([]string{"-D", fromChain}, rule...)...); err != nil {
+	if iptable.Exists(table, fromChain, rule...) {
+		if err := iptable.RawCombinedOutput(append([]string{"-t", string(table), "-D", fromChain}, rule...)...); err != nil {
 			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %v", toChain, fromChain, err)
 		}
 	}
