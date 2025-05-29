@@ -367,15 +367,15 @@ func TestParsePortSpecs(t *testing.T) {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[Port("1234/tcp")]; !ok {
+	if _, ok := portMap["1234/tcp"]; !ok {
 		t.Fatal("1234/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("2345/udp")]; !ok {
+	if _, ok := portMap["2345/udp"]; !ok {
 		t.Fatal("2345/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("3456/sctp")]; !ok {
+	if _, ok := portMap["3456/sctp"]; !ok {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
@@ -398,15 +398,15 @@ func TestParsePortSpecs(t *testing.T) {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[Port("1234/tcp")]; !ok {
+	if _, ok := portMap["1234/tcp"]; !ok {
 		t.Fatal("1234/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("2345/udp")]; !ok {
+	if _, ok := portMap["2345/udp"]; !ok {
 		t.Fatal("2345/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("3456/sctp")]; !ok {
+	if _, ok := portMap["3456/sctp"]; !ok {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
@@ -431,15 +431,15 @@ func TestParsePortSpecs(t *testing.T) {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[Port("1234/tcp")]; !ok {
+	if _, ok := portMap["1234/tcp"]; !ok {
 		t.Fatal("1234/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("2345/udp")]; !ok {
+	if _, ok := portMap["2345/udp"]; !ok {
 		t.Fatal("2345/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("3456/sctp")]; !ok {
+	if _, ok := portMap["3456/sctp"]; !ok {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
@@ -478,15 +478,15 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[Port("1235/tcp")]; !ok {
+	if _, ok := portMap["1235/tcp"]; !ok {
 		t.Fatal("1234/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("2346/udp")]; !ok {
+	if _, ok := portMap["2346/udp"]; !ok {
 		t.Fatal("2345/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("3456/sctp")]; !ok {
+	if _, ok := portMap["3456/sctp"]; !ok {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
@@ -509,15 +509,15 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[Port("1235/tcp")]; !ok {
+	if _, ok := portMap["1235/tcp"]; !ok {
 		t.Fatal("1234/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("2346/udp")]; !ok {
+	if _, ok := portMap["2346/udp"]; !ok {
 		t.Fatal("2345/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("3456/sctp")]; !ok {
+	if _, ok := portMap["3456/sctp"]; !ok {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
@@ -541,15 +541,15 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[Port("1235/tcp")]; !ok {
+	if _, ok := portMap["1235/tcp"]; !ok {
 		t.Fatal("1234/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("2346/udp")]; !ok {
+	if _, ok := portMap["2346/udp"]; !ok {
 		t.Fatal("2345/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("3456/sctp")]; !ok {
+	if _, ok := portMap["3456/sctp"]; !ok {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
