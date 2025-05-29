@@ -2,49 +2,39 @@ package exporter
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
-	distref "github.com/distribution/reference"
+	"github.com/containerd/log"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/builder/builder-next/exporter/overrides"
-	"github.com/docker/docker/image"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
-	"github.com/moby/buildkit/util/progress"
+
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
-
-// Opt are options for the exporter wrapper.
-type Opt struct {
-	// Callbacks contains callbacks used by the image exporter.
-	Callbacks BuildkitCallbacks
-
-	// ImageTagger is used to tag the image after it is exported.
-	ImageTagger ImageTagger
-}
 
 type BuildkitCallbacks struct {
 	// Exported is a Called when an image is exported by buildkit.
 	Exported func(ctx context.Context, id string, desc ocispec.Descriptor)
-}
 
-type ImageTagger interface {
-	TagImage(ctx context.Context, imageID image.ID, newTag distref.Named) error
+	// Named is a callback that is called when an image is created in the
+	// containerd image store by buildkit.
+	Named func(ctx context.Context, ref reference.NamedTagged, desc ocispec.Descriptor)
 }
 
 // Wraps the containerimage exporter's Resolve method to apply moby-specific
 // overrides to the exporter attributes.
 type imageExporterMobyWrapper struct {
-	exp exporter.Exporter
-	opt Opt
+	exp       exporter.Exporter
+	callbacks BuildkitCallbacks
 }
 
 // NewWrapper returns an exporter wrapper that applies moby specific attributes
 // and hooks the export process.
-func NewWrapper(exp exporter.Exporter, opt Opt) (exporter.Exporter, error) {
+func NewWrapper(exp exporter.Exporter, callbacks BuildkitCallbacks) (exporter.Exporter, error) {
 	return &imageExporterMobyWrapper{
-		exp: exp,
-		opt: opt,
+		exp:       exp,
+		callbacks: callbacks,
 	}, nil
 }
 
@@ -57,9 +47,7 @@ func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, id int, exporter
 	if err != nil {
 		return nil, err
 	}
-
-	// Force the exporter to not use a name so it always creates a dangling image.
-	exporterAttrs[string(exptypes.OptKeyName)] = ""
+	exporterAttrs[string(exptypes.OptKeyName)] = strings.Join(reposAndTags, ",")
 	exporterAttrs[string(exptypes.OptKeyUnpack)] = "true"
 	if _, has := exporterAttrs[string(exptypes.OptKeyDanglingPrefix)]; !has {
 		exporterAttrs[string(exptypes.OptKeyDanglingPrefix)] = "moby-dangling"
@@ -73,15 +61,13 @@ func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, id int, exporter
 
 	return &imageExporterInstanceWrapper{
 		ExporterInstance: inst,
-		reposAndTags:     reposAndTags,
-		opt:              e.opt,
+		callbacks:        e.callbacks,
 	}, nil
 }
 
 type imageExporterInstanceWrapper struct {
 	exporter.ExporterInstance
-	reposAndTags []string
-	opt          Opt
+	callbacks BuildkitCallbacks
 }
 
 func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter.Source, inlineCache exptypes.InlineCache, sessionID string) (map[string]string, exporter.DescriptorReference, error) {
@@ -92,31 +78,38 @@ func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter
 
 	desc := ref.Descriptor()
 	imageID := out[exptypes.ExporterImageDigestKey]
-	if i.opt.Callbacks.Exported != nil {
-		i.opt.Callbacks.Exported(ctx, imageID, desc)
+	if i.callbacks.Exported != nil {
+		i.callbacks.Exported(ctx, imageID, desc)
 	}
 
-	err = i.processNamed(ctx, image.ID(imageID), out, desc)
-	return out, ref, err
+	if i.callbacks.Named != nil {
+		i.processNamedCallback(ctx, out, desc)
+	}
+
+	return out, ref, nil
 }
 
-func (i *imageExporterInstanceWrapper) processNamed(ctx context.Context, imageID image.ID, out map[string]string, desc ocispec.Descriptor) error {
-	if len(i.reposAndTags) == 0 {
-		return nil
+func (i *imageExporterInstanceWrapper) processNamedCallback(ctx context.Context, out map[string]string, desc ocispec.Descriptor) {
+	// TODO(vvoland): Change to exptypes.ExporterImageNameKey when BuildKit v0.21 is vendored.
+	imageName := out["image.name"]
+	if imageName == "" {
+		log.G(ctx).Warn("image named with empty image.name produced by buildkit")
+		return
 	}
 
-	for _, repoAndTag := range i.reposAndTags {
-		newTag, err := distref.ParseNamed(repoAndTag)
+	for _, name := range strings.Split(imageName, ",") {
+		ref, err := reference.ParseNormalizedNamed(name)
 		if err != nil {
-			return err
+			// Shouldn't happen, but log if it does and continue.
+			log.G(ctx).WithFields(log.Fields{
+				"name":  name,
+				"error": err,
+			}).Warn("image named with invalid reference produced by buildkit")
+			continue
 		}
 
-		done := progress.OneOff(ctx, fmt.Sprintf("naming to %s", newTag))
-		if err := i.opt.ImageTagger.TagImage(ctx, imageID, newTag); err != nil {
-			return done(err)
+		if namedTagged, ok := reference.TagNameOnly(ref).(reference.NamedTagged); ok {
+			i.callbacks.Named(ctx, namedTagged, desc)
 		}
-		done(nil)
 	}
-	out[exptypes.ExporterImageNameKey] = strings.Join(i.reposAndTags, ",")
-	return nil
 }

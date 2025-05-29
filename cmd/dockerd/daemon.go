@@ -431,6 +431,7 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon) (_ builderOptions, clos
 		ContainerdNamespace: cfg.ContainerdNamespace,
 		Callbacks: exporter.BuildkitCallbacks{
 			Exported: d.ImageExportedByBuildkit,
+			Named:    d.ImageNamedByBuildkit,
 		},
 		CDISpecDirs: cdiSpecDirs,
 	})
