@@ -90,11 +90,11 @@ func setupIPChains(config configuration, version iptables.IPVersion) (natChain *
 		}
 	}()
 
-	if err := iptable.AddReturnRule(IsolationChain1); err != nil {
+	if err := iptable.AddReturnRule(iptables.Filter, IsolationChain1); err != nil {
 		return nil, nil, nil, nil, err
 	}
 
-	if err := iptable.AddReturnRule(IsolationChain2); err != nil {
+	if err := iptable.AddReturnRule(iptables.Filter, IsolationChain2); err != nil {
 		return nil, nil, nil, nil, err
 	}
 
@@ -195,7 +195,7 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 	}
 
 	d.Lock()
-	err = iptable.EnsureJumpRule("FORWARD", IsolationChain1)
+	err = iptable.EnsureJumpRule(iptables.Filter, "FORWARD", IsolationChain1)
 	d.Unlock()
 	return err
 }

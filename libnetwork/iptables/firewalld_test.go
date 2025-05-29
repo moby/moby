@@ -45,6 +45,14 @@ func TestReloaded(t *testing.T) {
 	}
 	defer fwdChain.Remove()
 
+	// This jump from the FORWARD chain prevents FWD from being deleted by
+	// "iptables -X", called from fwdChain.Remove().
+	err = iptable.EnsureJumpRule("filter", "FORWARD", "FWD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer iptable.Raw("-D", "FORWARD", "-j", "FWD")
+
 	// copy-pasted from iptables_test:TestLink
 	ip1 := net.ParseIP("192.168.1.1")
 	ip2 := net.ParseIP("192.168.1.2")
