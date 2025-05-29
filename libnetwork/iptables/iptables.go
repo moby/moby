@@ -31,6 +31,17 @@ const (
 	Insert Action = "-I"
 )
 
+const (
+	// ForwardChain is the FORWARD name of the chain used for forwarding packets.
+	ForwardChain = "FORWARD"
+	// PreroutingChain is the PREROUTING name of the chain used for packets before routing.
+	PreroutingChain = "PREROUTING"
+	// PostroutingChain is the POSTROUTING name of the chain used for packets after routing.
+	PostroutingChain = "POSTROUTING"
+	// OutputChain is the OUTPUT name of the chain used for packets after routing.
+	OutputChain = "OUTPUT"
+)
+
 // Policy is the default iptable policies
 type Policy string
 
@@ -617,15 +628,25 @@ func (iptable IPTable) AddReturnRule(table Table, chain string) error {
 }
 
 // EnsureJumpRule ensures the jump rule is on top
-func (iptable IPTable) EnsureJumpRule(table Table, fromChain, toChain string) error {
-	if iptable.Exists(table, fromChain, "-t", string(table), "-j", toChain) {
-		if err := iptable.RawCombinedOutput("-t", string(table), "-D", fromChain, "-j", toChain); err != nil {
+func (iptable IPTable) EnsureJumpRule(table Table, fromChain, toChain string, rule ...string) error {
+	if err := iptable.DeleteJumpRule(table, fromChain, toChain, rule...); err != nil {
+		return err
+	}
+	rule = append(rule, "-j", toChain)
+	if err := iptable.RawCombinedOutput(append([]string{"-t", string(table), "-I", fromChain}, rule...)...); err != nil {
+		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %v", toChain, fromChain, err)
+	}
+	return nil
+}
+
+// DeleteJumpRule deletes a rule added by EnsureJumpRule. It's a no-op if the rule
+// doesn't exist.
+func (iptable IPTable) DeleteJumpRule(table Table, fromChain, toChain string, rule ...string) error {
+	rule = append(rule, "-j", toChain)
+	if iptable.Exists(table, fromChain, rule...) {
+		if err := iptable.RawCombinedOutput(append([]string{"-t", string(table), "-D", fromChain}, rule...)...); err != nil {
 			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %v", toChain, fromChain, err)
 		}
-	}
-	if err := iptable.RawCombinedOutput("-t", string(table), "-I", fromChain, "-j", toChain); err != nil {
-		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %v", toChain, fromChain, err)
-
 	}
 	return nil
 }

@@ -296,77 +296,53 @@ func filterPortConfigs(ingressPorts []*PortConfig, isDelete bool) []*PortConfig 
 }
 
 func initIngressConfiguration(gwIP net.IP, iptable *iptables.IPTable) error {
-	chainExists := iptable.ExistChain(ingressChain, iptables.Nat)
-	filterChainExists := iptable.ExistChain(ingressChain, iptables.Filter)
-
 	ingressOnce.Do(func() {
 		// Flush nat table and filter table ingress chain rules during init if it
 		// exists. It might contain stale rules from previous life.
-		if chainExists {
-			if err := iptable.RawCombinedOutput("-t", "nat", "-F", ingressChain); err != nil {
-				log.G(context.TODO()).Errorf("Could not flush nat table ingress chain rules during init: %v", err)
-			}
+		if err := iptable.FlushChain(iptables.Nat, ingressChain); err != nil {
+			log.G(context.TODO()).Errorf("Could not flush nat table ingress chain rules during init: %v", err)
 		}
-		if filterChainExists {
-			if err := iptable.RawCombinedOutput("-F", ingressChain); err != nil {
-				log.G(context.TODO()).Errorf("Could not flush filter table ingress chain rules during init: %v", err)
-			}
+		if err := iptable.FlushChain(iptables.Filter, ingressChain); err != nil {
+			log.G(context.TODO()).Errorf("Could not flush filter table ingress chain rules during init: %v", err)
 		}
 	})
 
-	if !chainExists {
-		if err := iptable.RawCombinedOutput("-t", "nat", "-N", ingressChain); err != nil {
-			return fmt.Errorf("failed to create ingress chain: %v", err)
+	for _, table := range []iptables.Table{iptables.Nat, iptables.Filter} {
+		// Create the DOCKER-INGRESS chain in the NAT and FILTER tables if it does not exist.
+		if _, err := iptable.NewChain(ingressChain, table, false); err != nil {
+			return fmt.Errorf("failed to create ingress chain: %v in table %s: %v", ingressChain, table, err)
 		}
-	}
-	if !filterChainExists {
-		if err := iptable.RawCombinedOutput("-N", ingressChain); err != nil {
-			return fmt.Errorf("failed to create filter table ingress chain: %v", err)
-		}
-	}
-
-	if !iptable.Exists(iptables.Nat, ingressChain, "-j", "RETURN") {
-		if err := iptable.RawCombinedOutput("-t", "nat", "-A", ingressChain, "-j", "RETURN"); err != nil {
-			return fmt.Errorf("failed to add return rule in nat table ingress chain: %v", err)
+		// Add a RETURN rule to the end of the DOCKER-INGRESS chain in the NAT and FILTER tables.
+		if err := iptable.AddReturnRule(table, ingressChain); err != nil {
+			return fmt.Errorf("failed to add return rule in %s table %s chain: %v", table, ingressChain, err)
 		}
 	}
 
-	if !iptable.Exists(iptables.Filter, ingressChain, "-j", "RETURN") {
-		if err := iptable.RawCombinedOutput("-A", ingressChain, "-j", "RETURN"); err != nil {
-			return fmt.Errorf("failed to add return rule to filter table ingress chain: %v", err)
+	// Add a jump rule in the OUTPUT and PREROUTING chains of the NAT table to the DOCKER-INGRESS chain.
+	for _, chain := range []string{iptables.OutputChain, iptables.PreroutingChain} {
+		if err := iptable.EnsureJumpRule(iptables.Nat, chain, ingressChain, "-m", "addrtype", "--dst-type", "LOCAL"); err != nil {
+			return fmt.Errorf("failed to add jump rule in %s to %s chain: %v", chain, ingressChain, err)
 		}
 	}
 
-	for _, chain := range []string{"OUTPUT", "PREROUTING"} {
-		if !iptable.Exists(iptables.Nat, chain, "-m", "addrtype", "--dst-type", "LOCAL", "-j", ingressChain) {
-			if err := iptable.RawCombinedOutput("-t", "nat", "-I", chain, "-m", "addrtype", "--dst-type", "LOCAL", "-j", ingressChain); err != nil {
-				return fmt.Errorf("failed to add jump rule in %s to ingress chain: %v", chain, err)
-			}
-		}
+	if err := iptable.EnsureJumpRule(iptables.Filter, iptables.ForwardChain, ingressChain); err != nil {
+		return fmt.Errorf("failed to add jump rule in %s to %s chain: %v", iptables.ForwardChain, ingressChain, err)
 	}
 
-	if !iptable.Exists(iptables.Filter, "FORWARD", "-j", ingressChain) {
-		if err := iptable.RawCombinedOutput("-I", "FORWARD", "-j", ingressChain); err != nil {
-			return fmt.Errorf("failed to add jump rule to %s in filter table forward chain: %v", ingressChain, err)
-		}
-		arrangeUserFilterRule()
-	}
-
+	// Find the bridge interface name for the gateway IP.
 	oifName, err := findOIFName(gwIP)
 	if err != nil {
 		return fmt.Errorf("failed to find gateway bridge interface name for %s: %v", gwIP, err)
 	}
-
+	// Enable local routing for the gateway bridge interface by writing to /proc/sys/net/ipv4/conf/<oifName>/route_localnet.
 	path := filepath.Join("/proc/sys/net/ipv4/conf", oifName, "route_localnet")
 	if err := os.WriteFile(path, []byte{'1', '\n'}, 0o644); err != nil { //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
 		return fmt.Errorf("could not write to %s: %v", path, err)
 	}
-
-	ruleArgs := []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", oifName, "-j", "MASQUERADE"}
-	if !iptable.Exists(iptables.Nat, "POSTROUTING", ruleArgs...) {
-		if err := iptable.RawCombinedOutput(append([]string{"-t", "nat", "-I", "POSTROUTING"}, ruleArgs...)...); err != nil {
-			return fmt.Errorf("failed to add ingress localhost POSTROUTING rule for %s: %v", oifName, err)
-		}
+	// Add a POSTROUTING rule to the NAT table to masquerade traffic
+	rule := iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Nat, Chain: iptables.PostroutingChain, Args: []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", oifName, "-j", "MASQUERADE"}}
+	if err := rule.Insert(); err != nil {
+		return fmt.Errorf("failed to insert ingress localhost POSTROUTING rule for %s: %v", oifName, err)
 	}
 	return nil
 }
