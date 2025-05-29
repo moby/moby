@@ -3,6 +3,7 @@
 package iptables
 
 import (
+	"fmt"
 	"net"
 	"net/netip"
 	"os/exec"
@@ -307,4 +308,39 @@ func mustDumpChain(t *testing.T, table Table, chain string) string {
 	out, err := exec.Command("iptables", "-t", string(table), "-S", chain).CombinedOutput()
 	assert.NilError(t, err, "output:\n%s", out)
 	return string(out)
+}
+
+func TestFlushChain(t *testing.T) {
+	_ = firewalldInit()
+	if UsingFirewalld() {
+		t.Skip("firewalld in host netns cannot create rules in the test's netns")
+	}
+	defer netnsutils.SetupTestOSContext(t)()
+
+	iptable := GetIptable(IPv4)
+	chain := "TESTFLUSHCHAIN"
+	table := Filter
+
+	// Ensure the chain exists
+	assert.NilError(t, iptable.RemoveExistingChain(chain, table))
+	_, err := iptable.NewChain(chain, table)
+	assert.NilError(t, err)
+
+	// Add a rule to the chain
+	rule := Rule{IPVer: IPv4, Table: table, Chain: chain,
+		Args: []string{"-j", "ACCEPT"}}
+	assert.NilError(t, rule.Insert())
+
+	// Flush the chain
+	assert.NilError(t, iptable.FlushChain(table, chain))
+
+	// Check that the chain exists and is empty (only the chain definition remains)
+	out, err := exec.Command("iptables", "-t", string(table), "-S", chain).CombinedOutput()
+	assert.NilError(t, err)
+
+	rulesCount := strings.Count(string(out), fmt.Sprintf("-A %s ", chain))
+	assert.Check(t, rulesCount == 0)
+
+	// Cleanup
+	_ = iptable.RemoveExistingChain(chain, table)
 }
