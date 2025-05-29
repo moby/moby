@@ -81,53 +81,23 @@ func TestParsePort(t *testing.T) {
 	}
 }
 
+// TestParsePortRangeToInt tests behavior that's specific to [ParsePortRangeToInt],
+// which is a shallow wrapper around [ParsePortRange], except for returning int's,
+// and accepting empty values. Other cases are covered by [TestParsePortRange].
 func TestParsePortRangeToInt(t *testing.T) {
-	var (
-		begin int
-		end   int
-		err   error
-	)
-
-	type TestRange struct {
-		Range string
-		Begin int
-		End   int
+	_, _, err := ParsePortRangeToInt("")
+	if err != nil {
+		t.Error(err)
 	}
-	validRanges := []TestRange{
-		{"1234", 1234, 1234},
-		{"1234-1234", 1234, 1234},
-		{"1234-1235", 1234, 1235},
-		{"8000-9000", 8000, 9000},
-		{"0", 0, 0},
-		{"0-0", 0, 0},
+	begin, end, err := ParsePortRangeToInt("8000-9000")
+	if err != nil {
+		t.Error(err)
 	}
-
-	for _, r := range validRanges {
-		begin, end, err = ParsePortRangeToInt(r.Range)
-
-		if err != nil || begin != r.Begin {
-			t.Fatalf("Parsing port range '%s' did not succeed. Expected begin %d, got %d", r.Range, r.Begin, begin)
-		}
-		if err != nil || end != r.End {
-			t.Fatalf("Parsing port range '%s' did not succeed. Expected end %d, got %d", r.Range, r.End, end)
-		}
+	if expBegin := 8000; begin != 8000 {
+		t.Errorf("expected begin %d, got %d", expBegin, begin)
 	}
-
-	invalidRanges := []string{
-		"asdf",
-		"1asdf",
-		"9000-8000",
-		"9000-",
-		"-8000",
-		"-8000-",
-	}
-
-	for _, r := range invalidRanges {
-		begin, end, err = ParsePortRangeToInt(r)
-
-		if err == nil || begin != 0 || end != 0 {
-			t.Fatalf("Parsing port range '%s' succeeded", r)
-		}
+	if expEnd := 9000; end != expEnd {
+		t.Errorf("expected end %d, got %d", expEnd, end)
 	}
 }
 
@@ -220,7 +190,7 @@ func TestSplitProtoPort(t *testing.T) {
 			expProto: "tcp",
 		},
 		{
-			doc:      "port range with emptyprotocol",
+			doc:      "port range with empty protocol",
 			input:    "80-8080/",
 			expPort:  "80-8080",
 			expProto: "tcp",
@@ -397,29 +367,29 @@ func TestParsePortSpecs(t *testing.T) {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[Port("1234/tcp")]; !ok {
+	if _, ok := portMap["1234/tcp"]; !ok {
 		t.Fatal("1234/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("2345/udp")]; !ok {
+	if _, ok := portMap["2345/udp"]; !ok {
 		t.Fatal("2345/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("3456/sctp")]; !ok {
+	if _, ok := portMap["3456/sctp"]; !ok {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
-	for portspec, bindings := range bindingMap {
+	for portSpec, bindings := range bindingMap {
 		if len(bindings) != 1 {
-			t.Fatalf("%s should have exactly one binding", portspec)
+			t.Fatalf("%s should have exactly one binding", portSpec)
 		}
 
 		if bindings[0].HostIP != "" {
-			t.Fatalf("HostIP should not be set for %s", portspec)
+			t.Fatalf("HostIP should not be set for %s", portSpec)
 		}
 
 		if bindings[0].HostPort != "" {
-			t.Fatalf("HostPort should not be set for %s", portspec)
+			t.Fatalf("HostPort should not be set for %s", portSpec)
 		}
 	}
 
@@ -428,31 +398,31 @@ func TestParsePortSpecs(t *testing.T) {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[Port("1234/tcp")]; !ok {
+	if _, ok := portMap["1234/tcp"]; !ok {
 		t.Fatal("1234/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("2345/udp")]; !ok {
+	if _, ok := portMap["2345/udp"]; !ok {
 		t.Fatal("2345/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("3456/sctp")]; !ok {
+	if _, ok := portMap["3456/sctp"]; !ok {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
-	for portspec, bindings := range bindingMap {
-		_, port := SplitProtoPort(string(portspec))
+	for portSpec, bindings := range bindingMap {
+		_, port := SplitProtoPort(string(portSpec))
 
 		if len(bindings) != 1 {
-			t.Fatalf("%s should have exactly one binding", portspec)
+			t.Fatalf("%s should have exactly one binding", portSpec)
 		}
 
 		if bindings[0].HostIP != "" {
-			t.Fatalf("HostIP should not be set for %s", portspec)
+			t.Fatalf("HostIP should not be set for %s", portSpec)
 		}
 
 		if bindings[0].HostPort != port {
-			t.Fatalf("HostPort should be %s for %s", port, portspec)
+			t.Fatalf("HostPort should be %s for %s", port, portSpec)
 		}
 	}
 
@@ -461,31 +431,31 @@ func TestParsePortSpecs(t *testing.T) {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[Port("1234/tcp")]; !ok {
+	if _, ok := portMap["1234/tcp"]; !ok {
 		t.Fatal("1234/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("2345/udp")]; !ok {
+	if _, ok := portMap["2345/udp"]; !ok {
 		t.Fatal("2345/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("3456/sctp")]; !ok {
+	if _, ok := portMap["3456/sctp"]; !ok {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
-	for portspec, bindings := range bindingMap {
-		_, port := SplitProtoPort(string(portspec))
+	for portSpec, bindings := range bindingMap {
+		_, port := SplitProtoPort(string(portSpec))
 
 		if len(bindings) != 1 {
-			t.Fatalf("%s should have exactly one binding", portspec)
+			t.Fatalf("%s should have exactly one binding", portSpec)
 		}
 
 		if bindings[0].HostIP != "0.0.0.0" {
-			t.Fatalf("HostIP is not 0.0.0.0 for %s", portspec)
+			t.Fatalf("HostIP is not 0.0.0.0 for %s", portSpec)
 		}
 
 		if bindings[0].HostPort != port {
-			t.Fatalf("HostPort should be %s for %s", port, portspec)
+			t.Fatalf("HostPort should be %s for %s", port, portSpec)
 		}
 	}
 
@@ -508,29 +478,29 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[Port("1235/tcp")]; !ok {
+	if _, ok := portMap["1235/tcp"]; !ok {
 		t.Fatal("1234/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("2346/udp")]; !ok {
+	if _, ok := portMap["2346/udp"]; !ok {
 		t.Fatal("2345/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("3456/sctp")]; !ok {
+	if _, ok := portMap["3456/sctp"]; !ok {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
-	for portspec, bindings := range bindingMap {
+	for portSpec, bindings := range bindingMap {
 		if len(bindings) != 1 {
-			t.Fatalf("%s should have exactly one binding", portspec)
+			t.Fatalf("%s should have exactly one binding", portSpec)
 		}
 
 		if bindings[0].HostIP != "" {
-			t.Fatalf("HostIP should not be set for %s", portspec)
+			t.Fatalf("HostIP should not be set for %s", portSpec)
 		}
 
 		if bindings[0].HostPort != "" {
-			t.Fatalf("HostPort should not be set for %s", portspec)
+			t.Fatalf("HostPort should not be set for %s", portSpec)
 		}
 	}
 
@@ -539,30 +509,30 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[Port("1235/tcp")]; !ok {
+	if _, ok := portMap["1235/tcp"]; !ok {
 		t.Fatal("1234/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("2346/udp")]; !ok {
+	if _, ok := portMap["2346/udp"]; !ok {
 		t.Fatal("2345/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("3456/sctp")]; !ok {
+	if _, ok := portMap["3456/sctp"]; !ok {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
-	for portspec, bindings := range bindingMap {
-		_, port := SplitProtoPort(string(portspec))
+	for portSpec, bindings := range bindingMap {
+		_, port := SplitProtoPort(string(portSpec))
 		if len(bindings) != 1 {
-			t.Fatalf("%s should have exactly one binding", portspec)
+			t.Fatalf("%s should have exactly one binding", portSpec)
 		}
 
 		if bindings[0].HostIP != "" {
-			t.Fatalf("HostIP should not be set for %s", portspec)
+			t.Fatalf("HostIP should not be set for %s", portSpec)
 		}
 
 		if bindings[0].HostPort != port {
-			t.Fatalf("HostPort should be %s for %s", port, portspec)
+			t.Fatalf("HostPort should be %s for %s", port, portSpec)
 		}
 	}
 
@@ -571,20 +541,20 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[Port("1235/tcp")]; !ok {
+	if _, ok := portMap["1235/tcp"]; !ok {
 		t.Fatal("1234/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("2346/udp")]; !ok {
+	if _, ok := portMap["2346/udp"]; !ok {
 		t.Fatal("2345/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[Port("3456/sctp")]; !ok {
+	if _, ok := portMap["3456/sctp"]; !ok {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
-	for portspec, bindings := range bindingMap {
-		_, port := SplitProtoPort(string(portspec))
+	for portSpec, bindings := range bindingMap {
+		_, port := SplitProtoPort(string(portSpec))
 		if len(bindings) != 1 || bindings[0].HostIP != "0.0.0.0" || bindings[0].HostPort != port {
 			t.Fatalf("Expect single binding to port %s but found %s", port, bindings)
 		}
