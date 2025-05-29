@@ -232,6 +232,18 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 	return nil, ErrImageDoesNotExist{Ref: ref}
 }
 
+func (i *ImageService) ResolveDescriptor(ctx context.Context, refOrID string, options backend.GetImageOpts) (ocispec.Descriptor, error) {
+	img, err := i.GetImage(ctx, refOrID, options)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+	return ocispec.Descriptor{
+		MediaType: c8dimages.MediaTypeDockerSchema2Config,
+		Digest:    img.ID().Digest(),
+		Size:      int64(len(img.RawJSON())),
+	}, nil
+}
+
 // OnlyPlatformWithFallback uses `platforms.Only` with a fallback to handle the case where the platform
 // being matched does not have a CPU variant.
 //

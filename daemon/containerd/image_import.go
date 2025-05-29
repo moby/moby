@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/google/uuid"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
@@ -37,7 +36,7 @@ import (
 // If the platform is nil, the default host platform is used.
 // The message is used as the history comment.
 // Image configuration is derived from the dockerfile instructions in changes.
-func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error) {
+func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (ocispec.Descriptor, error) {
 	refString := ""
 	if ref != nil {
 		refString = ref.String()
@@ -46,7 +45,7 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 
 	ctx, release, err := i.client.WithLease(ctx)
 	if err != nil {
-		return "", errdefs.System(err)
+		return ocispec.Descriptor{}, errdefs.System(err)
 	}
 	defer func() {
 		if err := release(context.WithoutCancel(ctx)); err != nil {
@@ -62,7 +61,7 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 	imageConfig, err := dockerfile.BuildFromConfig(ctx, &container.Config{}, changes, platform.OS)
 	if err != nil {
 		logger.WithError(err).Debug("failed to process changes")
-		return "", errdefs.InvalidParameter(err)
+		return ocispec.Descriptor{}, errdefs.InvalidParameter(err)
 	}
 
 	cs := i.content
@@ -70,7 +69,7 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 	compressedDigest, uncompressedDigest, mt, err := saveArchive(ctx, cs, layerReader)
 	if err != nil {
 		logger.WithError(err).Debug("failed to write layer blob")
-		return "", err
+		return ocispec.Descriptor{}, err
 	}
 	logger = logger.WithFields(log.Fields{
 		"compressedDigest":   compressedDigest,
@@ -80,7 +79,7 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 	size, err := fillUncompressedLabel(ctx, cs, compressedDigest, uncompressedDigest)
 	if err != nil {
 		logger.WithError(err).Debug("failed to set uncompressed label on the compressed blob")
-		return "", err
+		return ocispec.Descriptor{}, err
 	}
 
 	compressedRootfsDesc := ocispec.Descriptor{
@@ -114,7 +113,7 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 	}
 	configDesc, err := storeJson(ctx, cs, ocispec.MediaTypeImageConfig, config, nil)
 	if err != nil {
-		return "", err
+		return ocispec.Descriptor{}, err
 	}
 
 	manifest := ocispec.Manifest{
@@ -132,10 +131,9 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 		"containerd.io/gc.ref.content.l.0":    compressedDigest.String(),
 	})
 	if err != nil {
-		return "", err
+		return ocispec.Descriptor{}, err
 	}
 
-	id := image.ID(manifestDesc.Digest.String())
 	img := c8dimages.Image{
 		Name:      refString,
 		Target:    manifestDesc,
@@ -147,17 +145,17 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 
 	if err = i.createOrReplaceImage(ctx, img); err != nil {
 		logger.WithError(err).Debug("failed to save image")
-		return "", err
+		return ocispec.Descriptor{}, err
 	}
 
 	err = i.unpackImage(ctx, i.StorageDriver(), img, manifestDesc)
 	if err != nil {
 		logger.WithError(err).Debug("failed to unpack image")
 	} else {
-		i.LogImageEvent(ctx, id.String(), id.String(), events.ActionImport)
+		i.LogImageEvent(ctx, manifestDesc.Digest.String(), manifestDesc.Digest.String(), events.ActionImport)
 	}
 
-	return id, err
+	return manifestDesc, err
 }
 
 // saveArchive saves the archive from bufRd to the content store, compressing it if necessary.

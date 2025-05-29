@@ -6,14 +6,14 @@ import (
 	"io"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/image"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
 // tagImages creates image tags for the imageID.
-func tagImages(ctx context.Context, ic ImageComponent, stdout io.Writer, imageID image.ID, repoAndTags []reference.Named) error {
+func tagImages(ctx context.Context, ic ImageComponent, stdout io.Writer, img ocispec.Descriptor, repoAndTags []reference.Named) error {
 	for _, rt := range repoAndTags {
-		if err := ic.TagImage(ctx, imageID, rt); err != nil {
+		if err := ic.TagImage(ctx, img, rt); err != nil {
 			return err
 		}
 		_, _ = fmt.Fprintln(stdout, "Successfully tagged", reference.FamiliarString(rt))
