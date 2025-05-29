@@ -44,7 +44,7 @@ func NewPort(proto, port string) (Port, error) {
 
 // ParsePort parses the port number string and returns an int
 func ParsePort(rawPort string) (int, error) {
-	if len(rawPort) == 0 {
+	if rawPort == "" {
 		return 0, nil
 	}
 	port, err := strconv.ParseUint(rawPort, 10, 16)
@@ -56,7 +56,7 @@ func ParsePort(rawPort string) (int, error) {
 
 // ParsePortRangeToInt parses the port range string and returns start/end ints
 func ParsePortRangeToInt(rawPort string) (int, int, error) {
-	if len(rawPort) == 0 {
+	if rawPort == "" {
 		return 0, 0, nil
 	}
 	start, end, err := ParsePortRange(rawPort)
@@ -153,20 +153,19 @@ func (p *PortMapping) String() string {
 	return net.JoinHostPort(p.Binding.HostIP, p.Binding.HostPort+":"+string(p.Port))
 }
 
-func splitParts(rawport string) (string, string, string) {
+func splitParts(rawport string) (hostIP, hostPort, containerPort string) {
 	parts := strings.Split(rawport, ":")
-	n := len(parts)
-	containerPort := parts[n-1]
 
-	switch n {
+	switch len(parts) {
 	case 1:
-		return "", "", containerPort
+		return "", "", parts[0]
 	case 2:
-		return "", parts[0], containerPort
+		return "", parts[0], parts[1]
 	case 3:
-		return parts[0], parts[1], containerPort
+		return parts[0], parts[1], parts[2]
 	default:
-		return strings.Join(parts[:n-2], ":"), parts[n-2], containerPort
+		n := len(parts)
+		return strings.Join(parts[:n-2], ":"), parts[n-2], parts[n-1]
 	}
 }
 
@@ -200,7 +199,7 @@ func ParsePortSpec(rawPort string) ([]PortMapping, error) {
 	}
 
 	var startHostPort, endHostPort uint64 = 0, 0
-	if len(hostPort) > 0 {
+	if hostPort != "" {
 		startHostPort, endHostPort, err = ParsePortRange(hostPort)
 		if err != nil {
 			return nil, errors.New("invalid hostPort: " + hostPort)
@@ -219,7 +218,7 @@ func ParsePortSpec(rawPort string) ([]PortMapping, error) {
 	ports := []PortMapping{}
 	for i := uint64(0); i <= (endPort - startPort); i++ {
 		containerPort = strconv.FormatUint(startPort+i, 10)
-		if len(hostPort) > 0 {
+		if hostPort != "" {
 			hostPort = strconv.FormatUint(startHostPort+i, 10)
 		}
 		// Set hostPort to a range only if there is a single container port
