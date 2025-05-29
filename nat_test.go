@@ -190,7 +190,7 @@ func TestSplitProtoPort(t *testing.T) {
 			expProto: "tcp",
 		},
 		{
-			doc:      "port range with emptyprotocol",
+			doc:      "port range with empty protocol",
 			input:    "80-8080/",
 			expPort:  "80-8080",
 			expProto: "tcp",
@@ -379,17 +379,17 @@ func TestParsePortSpecs(t *testing.T) {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
-	for portspec, bindings := range bindingMap {
+	for portSpec, bindings := range bindingMap {
 		if len(bindings) != 1 {
-			t.Fatalf("%s should have exactly one binding", portspec)
+			t.Fatalf("%s should have exactly one binding", portSpec)
 		}
 
 		if bindings[0].HostIP != "" {
-			t.Fatalf("HostIP should not be set for %s", portspec)
+			t.Fatalf("HostIP should not be set for %s", portSpec)
 		}
 
 		if bindings[0].HostPort != "" {
-			t.Fatalf("HostPort should not be set for %s", portspec)
+			t.Fatalf("HostPort should not be set for %s", portSpec)
 		}
 	}
 
@@ -410,19 +410,19 @@ func TestParsePortSpecs(t *testing.T) {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
-	for portspec, bindings := range bindingMap {
-		_, port := SplitProtoPort(string(portspec))
+	for portSpec, bindings := range bindingMap {
+		_, port := SplitProtoPort(string(portSpec))
 
 		if len(bindings) != 1 {
-			t.Fatalf("%s should have exactly one binding", portspec)
+			t.Fatalf("%s should have exactly one binding", portSpec)
 		}
 
 		if bindings[0].HostIP != "" {
-			t.Fatalf("HostIP should not be set for %s", portspec)
+			t.Fatalf("HostIP should not be set for %s", portSpec)
 		}
 
 		if bindings[0].HostPort != port {
-			t.Fatalf("HostPort should be %s for %s", port, portspec)
+			t.Fatalf("HostPort should be %s for %s", port, portSpec)
 		}
 	}
 
@@ -443,19 +443,19 @@ func TestParsePortSpecs(t *testing.T) {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
-	for portspec, bindings := range bindingMap {
-		_, port := SplitProtoPort(string(portspec))
+	for portSpec, bindings := range bindingMap {
+		_, port := SplitProtoPort(string(portSpec))
 
 		if len(bindings) != 1 {
-			t.Fatalf("%s should have exactly one binding", portspec)
+			t.Fatalf("%s should have exactly one binding", portSpec)
 		}
 
 		if bindings[0].HostIP != "0.0.0.0" {
-			t.Fatalf("HostIP is not 0.0.0.0 for %s", portspec)
+			t.Fatalf("HostIP is not 0.0.0.0 for %s", portSpec)
 		}
 
 		if bindings[0].HostPort != port {
-			t.Fatalf("HostPort should be %s for %s", port, portspec)
+			t.Fatalf("HostPort should be %s for %s", port, portSpec)
 		}
 	}
 
@@ -490,17 +490,17 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
-	for portspec, bindings := range bindingMap {
+	for portSpec, bindings := range bindingMap {
 		if len(bindings) != 1 {
-			t.Fatalf("%s should have exactly one binding", portspec)
+			t.Fatalf("%s should have exactly one binding", portSpec)
 		}
 
 		if bindings[0].HostIP != "" {
-			t.Fatalf("HostIP should not be set for %s", portspec)
+			t.Fatalf("HostIP should not be set for %s", portSpec)
 		}
 
 		if bindings[0].HostPort != "" {
-			t.Fatalf("HostPort should not be set for %s", portspec)
+			t.Fatalf("HostPort should not be set for %s", portSpec)
 		}
 	}
 
@@ -521,18 +521,18 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
-	for portspec, bindings := range bindingMap {
-		_, port := SplitProtoPort(string(portspec))
+	for portSpec, bindings := range bindingMap {
+		_, port := SplitProtoPort(string(portSpec))
 		if len(bindings) != 1 {
-			t.Fatalf("%s should have exactly one binding", portspec)
+			t.Fatalf("%s should have exactly one binding", portSpec)
 		}
 
 		if bindings[0].HostIP != "" {
-			t.Fatalf("HostIP should not be set for %s", portspec)
+			t.Fatalf("HostIP should not be set for %s", portSpec)
 		}
 
 		if bindings[0].HostPort != port {
-			t.Fatalf("HostPort should be %s for %s", port, portspec)
+			t.Fatalf("HostPort should be %s for %s", port, portSpec)
 		}
 	}
 
@@ -553,8 +553,8 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
-	for portspec, bindings := range bindingMap {
-		_, port := SplitProtoPort(string(portspec))
+	for portSpec, bindings := range bindingMap {
+		_, port := SplitProtoPort(string(portSpec))
 		if len(bindings) != 1 || bindings[0].HostIP != "0.0.0.0" || bindings[0].HostPort != port {
 			t.Fatalf("Expect single binding to port %s but found %s", port, bindings)
 		}
