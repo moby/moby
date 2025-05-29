@@ -300,88 +300,62 @@ func filterPortConfigs(ingressPorts []*PortConfig, isDelete bool) []*PortConfig 
 }
 
 func initIngressConfiguration(gwIP net.IP, iptable *iptables.IPTable) error {
-	chainExists := iptable.ExistChain(ingressChain, iptables.Nat)
-	filterChainExists := iptable.ExistChain(ingressChain, iptables.Filter)
-
 	ingressOnce.Do(func() {
 		// Flush nat table and filter table ingress chain rules during init if it
 		// exists. It might contain stale rules from previous life.
-		if chainExists {
-			if err := iptable.RawCombinedOutput("-t", "nat", "-F", ingressChain); err != nil {
-				log.G(context.TODO()).Errorf("Could not flush nat table ingress chain rules during init: %v", err)
-			}
+		if err := iptable.FlushChain(iptables.Nat, ingressChain); err != nil {
+			log.G(context.TODO()).Errorf("Could not flush nat table ingress chain rules during init: %v", err)
 		}
-		if filterChainExists {
-			if err := iptable.RawCombinedOutput("-F", ingressChain); err != nil {
-				log.G(context.TODO()).Errorf("Could not flush filter table ingress chain rules during init: %v", err)
-			}
+		if err := iptable.FlushChain(iptables.Filter, ingressChain); err != nil {
+			log.G(context.TODO()).Errorf("Could not flush filter table ingress chain rules during init: %v", err)
+		}
+		// Remove the jump from FORWARD to DOCKER-INGRESS, if it was created there by a version of
+		// the daemon older than 28.0.1.
+		if err := iptable.DeleteJumpRule(iptables.Filter, "FORWARD", ingressChain); err != nil {
+			log.G(context.TODO()).WithError(err).Debug("Failed to delete jump from FORWARD to " + ingressChain)
 		}
 	})
 
-	if !chainExists {
-		if err := iptable.RawCombinedOutput("-t", "nat", "-N", ingressChain); err != nil {
-			return fmt.Errorf("failed to create ingress chain: %v", err)
+	for _, table := range []iptables.Table{iptables.Nat, iptables.Filter} {
+		// Create the DOCKER-INGRESS chain in the NAT and FILTER tables if it does not exist.
+		if _, err := iptable.NewChain(ingressChain, table); err != nil {
+			return fmt.Errorf("failed to create ingress chain: %v in table %s: %v", ingressChain, table, err)
 		}
-	}
-	if !filterChainExists {
-		if err := iptable.RawCombinedOutput("-N", ingressChain); err != nil {
-			return fmt.Errorf("failed to create filter table ingress chain: %v", err)
-		}
-	}
-
-	if !iptable.Exists(iptables.Nat, ingressChain, "-j", "RETURN") {
-		if err := iptable.RawCombinedOutput("-t", "nat", "-A", ingressChain, "-j", "RETURN"); err != nil {
-			return fmt.Errorf("failed to add return rule in nat table ingress chain: %v", err)
+		// Add a RETURN rule to the end of the DOCKER-INGRESS chain in the NAT and FILTER tables.
+		if err := iptable.AddReturnRule(table, ingressChain); err != nil {
+			return fmt.Errorf("failed to add return rule in %s table %s chain: %v", table, ingressChain, err)
 		}
 	}
 
-	if !iptable.Exists(iptables.Filter, ingressChain, "-j", "RETURN") {
-		if err := iptable.RawCombinedOutput("-A", ingressChain, "-j", "RETURN"); err != nil {
-			return fmt.Errorf("failed to add return rule to filter table ingress chain: %v", err)
-		}
-	}
-
+	// Add a jump rule in the OUTPUT and PREROUTING chains of the NAT table to the DOCKER-INGRESS chain.
 	for _, chain := range []string{"OUTPUT", "PREROUTING"} {
-		if !iptable.Exists(iptables.Nat, chain, "-m", "addrtype", "--dst-type", "LOCAL", "-j", ingressChain) {
-			if err := iptable.RawCombinedOutput("-t", "nat", "-I", chain, "-m", "addrtype", "--dst-type", "LOCAL", "-j", ingressChain); err != nil {
-				return fmt.Errorf("failed to add jump rule in %s to ingress chain: %v", chain, err)
-			}
+		if err := iptable.EnsureJumpRule(iptables.Nat, chain, ingressChain, "-m", "addrtype", "--dst-type", "LOCAL"); err != nil {
+			return fmt.Errorf("failed to add jump rule in %s to %s chain: %v", chain, ingressChain, err)
 		}
 	}
 
 	// The DOCKER-FORWARD chain is created by the bridge driver on startup. It's a stable place to
 	// put the jump to DOCKER-INGRESS (nothing else will ever be inserted before it, and the jump
 	// will precede the bridge driver's other rules).
-	if !iptable.Exists(iptables.Filter, bridge.DockerForwardChain, "-j", ingressChain) {
-		if err := iptable.RawCombinedOutput("-I", bridge.DockerForwardChain, "-j", ingressChain); err != nil {
-			return fmt.Errorf("failed to add jump rule to %s in filter table %s chain: %v",
-				ingressChain, bridge.DockerForwardChain, err)
-		}
-	}
-	// Remove the jump from FORWARD to DOCKER-INGRESS, if it was created there by a version of
-	// the daemon older than 28.0.1.
-	// FIXME(robmry) - should only do this once, on startup.
-	if iptable.Exists(iptables.Filter, "FORWARD", "-j", ingressChain) {
-		if err := iptable.RawCombinedOutput("-D", "FORWARD", "-j", ingressChain); err != nil {
-			log.G(context.TODO()).WithError(err).Debug("Failed to delete jump from FORWARD to " + ingressChain)
-		}
+	// Add a jump rule in the DOCKER-FORWARD chain of the FILTER table to the DOCKER-INGRESS chain.
+	if err := iptable.EnsureJumpRule(iptables.Filter, bridge.DockerForwardChain, ingressChain); err != nil {
+		return fmt.Errorf("failed to add jump rule in %s to %s chain: %v", bridge.DockerForwardChain, ingressChain, err)
 	}
 
+	// Find the bridge interface name for the gateway IP.
 	oifName, err := findOIFName(gwIP)
 	if err != nil {
 		return fmt.Errorf("failed to find gateway bridge interface name for %s: %v", gwIP, err)
 	}
-
+	// Enable local routing for the gateway bridge interface by writing to /proc/sys/net/ipv4/conf/<oifName>/route_localnet.
 	path := filepath.Join("/proc/sys/net/ipv4/conf", oifName, "route_localnet")
 	if err := os.WriteFile(path, []byte{'1', '\n'}, 0o644); err != nil { //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
 		return fmt.Errorf("could not write to %s: %v", path, err)
 	}
-
-	ruleArgs := []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", oifName, "-j", "MASQUERADE"}
-	if !iptable.Exists(iptables.Nat, "POSTROUTING", ruleArgs...) {
-		if err := iptable.RawCombinedOutput(append([]string{"-t", "nat", "-I", "POSTROUTING"}, ruleArgs...)...); err != nil {
-			return fmt.Errorf("failed to add ingress localhost POSTROUTING rule for %s: %v", oifName, err)
-		}
+	// Add a POSTROUTING rule to the NAT table to masquerade traffic
+	rule := iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Nat, Chain: "POSTROUTING", Args: []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", oifName, "-j", "MASQUERADE"}}
+	if err := rule.Insert(); err != nil {
+		return fmt.Errorf("failed to insert ingress localhost POSTROUTING rule for %s: %v", oifName, err)
 	}
 	return nil
 }
