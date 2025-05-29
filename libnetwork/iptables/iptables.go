@@ -589,6 +589,14 @@ func (iptable IPTable) ExistChain(chain string, table Table) bool {
 	return err == nil
 }
 
+// FlushChain flush chain if it exists
+func (iptable IPTable) FlushChain(table Table, chain string) error {
+	if !iptable.ExistChain(chain, table) {
+		return nil
+	}
+	return iptable.RawCombinedOutput("-t", string(table), "-F", chain)
+}
+
 // SetDefaultPolicy sets the passed default policy for the table/chain
 func (iptable IPTable) SetDefaultPolicy(table Table, chain string, policy Policy) error {
 	if err := iptable.RawCombinedOutput("-t", string(table), "-P", chain, string(policy)); err != nil {
