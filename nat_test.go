@@ -81,53 +81,23 @@ func TestParsePort(t *testing.T) {
 	}
 }
 
+// TestParsePortRangeToInt tests behavior that's specific to [ParsePortRangeToInt],
+// which is a shallow wrapper around [ParsePortRange], except for returning int's,
+// and accepting empty values. Other cases are covered by [TestParsePortRange].
 func TestParsePortRangeToInt(t *testing.T) {
-	var (
-		begin int
-		end   int
-		err   error
-	)
-
-	type TestRange struct {
-		Range string
-		Begin int
-		End   int
+	_, _, err := ParsePortRangeToInt("")
+	if err != nil {
+		t.Error(err)
 	}
-	validRanges := []TestRange{
-		{"1234", 1234, 1234},
-		{"1234-1234", 1234, 1234},
-		{"1234-1235", 1234, 1235},
-		{"8000-9000", 8000, 9000},
-		{"0", 0, 0},
-		{"0-0", 0, 0},
+	begin, end, err := ParsePortRangeToInt("8000-9000")
+	if err != nil {
+		t.Error(err)
 	}
-
-	for _, r := range validRanges {
-		begin, end, err = ParsePortRangeToInt(r.Range)
-
-		if err != nil || begin != r.Begin {
-			t.Fatalf("Parsing port range '%s' did not succeed. Expected begin %d, got %d", r.Range, r.Begin, begin)
-		}
-		if err != nil || end != r.End {
-			t.Fatalf("Parsing port range '%s' did not succeed. Expected end %d, got %d", r.Range, r.End, end)
-		}
+	if expBegin := 8000; begin != 8000 {
+		t.Errorf("expected begin %d, got %d", expBegin, begin)
 	}
-
-	invalidRanges := []string{
-		"asdf",
-		"1asdf",
-		"9000-8000",
-		"9000-",
-		"-8000",
-		"-8000-",
-	}
-
-	for _, r := range invalidRanges {
-		begin, end, err = ParsePortRangeToInt(r)
-
-		if err == nil || begin != 0 || end != 0 {
-			t.Fatalf("Parsing port range '%s' succeeded", r)
-		}
+	if expEnd := 9000; end != expEnd {
+		t.Errorf("expected end %d, got %d", expEnd, end)
 	}
 }
 
