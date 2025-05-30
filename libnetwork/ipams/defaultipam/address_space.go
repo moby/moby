@@ -151,14 +151,27 @@ func (aSpace *addrSpace) allocatePredefinedPool(reserved []netip.Prefix, preferr
 		return subnet
 	}
 
+	predefined := aSpace.predefined
+	if preferredSize > 0 {
+		// A preferred network size was specified, so prefer networks that can
+		// accommodate that size. We sort the predefined networks by size, so
+		// that we can find the first one that is large enough. If we're
+		// unable to find a network that is large enough, we'll end up returning
+		// the largest possible network that is smaller than the preferred size.
+		predefined = slices.Clone(aSpace.predefined)
+		slices.SortFunc(predefined, func(a, b *ipamutils.NetworkToSplit) int {
+			return a.CompareWithPreferredSize(b, preferredSize)
+		})
+	}
+
 	getPdf := func(pdfID int, preferredSize int) *ipamutils.NetworkToSplit {
 		// The pdfID is out of bounds, meaning we ran out of predefined
 		// networks. We return nil to signal that we've exhausted the list.
-		if pdfID >= len(aSpace.predefined) {
+		if pdfID >= len(predefined) {
 			return nil
 		}
 
-		pdf := aSpace.predefined[pdfID]
+		pdf := predefined[pdfID]
 		if preferredSize > pdf.Size && netip.PrefixFrom(pdf.Base.Addr(), preferredSize).IsValid() {
 			// If a preferred network size is given that would result in a
 			// smaller (valid) subnet than the configured 'pdf' size, we override
@@ -265,7 +278,7 @@ func (aSpace *addrSpace) allocatePredefinedPool(reserved []netip.Prefix, preferr
 		prevAlloc = allocated
 	}
 
-	if pdfID >= len(aSpace.predefined) {
+	if pdfID >= len(predefined) {
 		return netip.Prefix{}, ipamapi.ErrNoMoreSubnets
 	}
 
