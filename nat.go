@@ -217,23 +217,24 @@ func ParsePortSpec(rawPort string) ([]PortMapping, error) {
 
 	ports := []PortMapping{}
 	for i := uint64(0); i <= (endPort - startPort); i++ {
-		containerPort = strconv.FormatUint(startPort+i, 10)
+		cPort := strconv.FormatUint(startPort+i, 10)
+		hPort := ""
 		if hostPort != "" {
-			hostPort = strconv.FormatUint(startHostPort+i, 10)
+			hPort = strconv.FormatUint(startHostPort+i, 10)
 		}
 		// Set hostPort to a range only if there is a single container port
 		// and a dynamic host port.
 		if startPort == endPort && startHostPort != endHostPort {
-			hostPort = hostPort + "-" + strconv.FormatUint(endHostPort, 10)
+			hPort += "-" + strconv.FormatUint(endHostPort, 10)
 		}
-		port, err := NewPort(proto, containerPort)
+		port, err := NewPort(proto, cPort)
 		if err != nil {
 			return nil, err
 		}
 
 		ports = append(ports, PortMapping{
 			Port:    port,
-			Binding: PortBinding{HostIP: ip, HostPort: hostPort},
+			Binding: PortBinding{HostIP: ip, HostPort: hPort},
 		})
 	}
 	return ports, nil
