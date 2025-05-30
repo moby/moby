@@ -1,4 +1,4 @@
-package server // import "github.com/docker/docker/api/server"
+package server
 
 import (
 	"github.com/containerd/log"

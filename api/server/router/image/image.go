@@ -1,4 +1,4 @@
-package image // import "github.com/docker/docker/api/server/router/image"
+package image
 
 import (
 	"github.com/docker/docker/api/server/router"

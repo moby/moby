@@ -1,4 +1,5 @@
-package registry // import "github.com/docker/docker/api/types/registry"
+package registry
+
 import (
 	"context"
 	"encoding/base64"

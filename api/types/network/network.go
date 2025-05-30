@@ -1,4 +1,4 @@
-package network // import "github.com/docker/docker/api/types/network"
+package network
 
 import (
 	"time"

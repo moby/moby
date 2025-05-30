@@ -1,4 +1,4 @@
-package container // import "github.com/docker/docker/api/types/container"
+package container
 
 import (
 	"time"

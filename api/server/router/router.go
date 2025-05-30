@@ -1,4 +1,4 @@
-package router // import "github.com/docker/docker/api/server/router"
+package router
 
 import "github.com/docker/docker/api/server/httputils"
 
