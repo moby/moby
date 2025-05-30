@@ -1,4 +1,4 @@
-package stream // import "github.com/docker/docker/container/stream"
+package stream
 
 import (
 	"context"

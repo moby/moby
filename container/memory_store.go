@@ -1,4 +1,4 @@
-package container // import "github.com/docker/docker/container"
+package container
 
 import (
 	"sync"

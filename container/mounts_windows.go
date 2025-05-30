@@ -1,4 +1,4 @@
-package container // import "github.com/docker/docker/container"
+package container
 
 // Mount contains information for a mount operation.
 type Mount struct {
