@@ -1,4 +1,4 @@
-package foo // import "github.com/docker/docker/pkg/plugins/pluginrpc-gen/fixtures"
+package foo
 
 import (
 	aliasedio "io"

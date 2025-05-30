@@ -1,4 +1,4 @@
-package transport // import "github.com/docker/docker/pkg/plugins/transport"
+package transport
 
 // VersionMimetype is the Content-Type the engine sends to plugins.
 //
