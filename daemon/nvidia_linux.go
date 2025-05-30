@@ -34,27 +34,28 @@ var allNvidiaCaps = map[nvidia.Capability]struct{}{
 
 func init() {
 	// Register Nvidia driver if Nvidia helper binary is present.
-	// Else, register AMD driver if AMD helper binary is present.
 	if _, err := exec.LookPath(nvidiaHook); err == nil {
 		capset := capabilities.Set{"gpu": struct{}{}, "nvidia": struct{}{}}
-		nvidiaDriver := &deviceDriver{
+		for c := range allNvidiaCaps {
+			capset[string(c)] = struct{}{}
+		}
+		registerDeviceDriver("nvidia", &deviceDriver{
 			capset:     capset,
 			updateSpec: setNvidiaGPUs,
-		}
-		for c := range allNvidiaCaps {
-			nvidiaDriver.capset[string(c)] = struct{}{}
-		}
-		registerDeviceDriver("nvidia", nvidiaDriver)
-	} else if _, err := exec.LookPath(amdContainerRuntimeExecutableName); err == nil {
-		capset := capabilities.Set{"gpu": struct{}{}, "amd": struct{}{}}
-		amdDriver := &deviceDriver{
-			capset:     capset,
-			updateSpec: setAMDGPUs,
-		}
-		registerDeviceDriver("amd", amdDriver)
-	} else {
-		// no "gpu" capability
+		})
+		return
 	}
+
+	// Register AMD driver if AMD helper binary is present.
+	if _, err := exec.LookPath(amdContainerRuntimeExecutableName); err == nil {
+		registerDeviceDriver("amd", &deviceDriver{
+			capset:     capabilities.Set{"gpu": struct{}{}, "amd": struct{}{}},
+			updateSpec: setAMDGPUs,
+		})
+		return
+	}
+
+	// No "gpu" capability
 }
 
 func setNvidiaGPUs(s *specs.Spec, dev *deviceInstance) error {
