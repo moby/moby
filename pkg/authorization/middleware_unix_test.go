@@ -1,6 +1,6 @@
 //go:build !windows
 
-package authorization // import "github.com/docker/docker/pkg/authorization"
+package authorization
 
 import (
 	"context"
