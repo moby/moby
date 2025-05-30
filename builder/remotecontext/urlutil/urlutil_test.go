@@ -1,4 +1,4 @@
-package urlutil // import "github.com/docker/docker/builder/remotecontext/urlutil"
+package urlutil
 
 import "testing"
 
