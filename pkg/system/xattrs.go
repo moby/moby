@@ -1,4 +1,4 @@
-package system // import "github.com/docker/docker/pkg/system"
+package system
 
 type XattrError struct {
 	Op   string
