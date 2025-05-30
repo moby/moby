@@ -2,7 +2,7 @@
 // for different platforms.
 //
 // Deprecated: this package is only used internally, and will be removed in the next release.
-package platform // import "github.com/docker/docker/pkg/platform"
+package platform
 
 import (
 	"github.com/docker/docker/internal/platform"
