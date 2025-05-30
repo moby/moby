@@ -51,7 +51,7 @@ func AppendVNIList(vnis []uint32, csv string) ([]uint32, error) {
 			found  bool
 		)
 		vniStr, csv, found = strings.Cut(csv, ",")
-		vni, err := strconv.Atoi(vniStr)
+		vni, err := strconv.ParseUint(vniStr, 10, 32)
 		if err != nil {
 			return vnis, fmt.Errorf("invalid vxlan id value %q passed", vniStr)
 		}
