@@ -1,4 +1,4 @@
-package provider // import "github.com/docker/docker/daemon/cluster/provider"
+package provider
 
 import "github.com/docker/docker/api/types/network"
 

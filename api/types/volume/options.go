@@ -1,4 +1,4 @@
-package volume // import "github.com/docker/docker/api/types/volume"
+package volume
 
 import "github.com/docker/docker/api/types/filters"
 

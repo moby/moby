@@ -1,4 +1,4 @@
-package gcplogs // import "github.com/docker/docker/daemon/logger/gcplogs"
+package gcplogs
 
 import (
 	"context"

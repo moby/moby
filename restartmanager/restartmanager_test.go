@@ -1,4 +1,4 @@
-package restartmanager // import "github.com/docker/docker/restartmanager"
+package restartmanager
 
 import (
 	"testing"

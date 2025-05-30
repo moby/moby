@@ -1,4 +1,4 @@
-package build // import "github.com/docker/docker/api/server/backend/build"
+package build
 
 import (
 	"context"

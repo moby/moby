@@ -1,4 +1,4 @@
-package reference // import "github.com/docker/docker/reference"
+package reference
 
 type notFoundError string
 

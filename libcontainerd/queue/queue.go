@@ -1,4 +1,4 @@
-package queue // import "github.com/docker/docker/libcontainerd/queue"
+package queue
 
 import "sync"
 

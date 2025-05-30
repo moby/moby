@@ -1,5 +1,5 @@
 // Package streamformatter provides helper functions to format a stream.
-package streamformatter // import "github.com/docker/docker/pkg/streamformatter"
+package streamformatter
 
 import (
 	"encoding/json"

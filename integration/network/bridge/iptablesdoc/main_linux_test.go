@@ -1,4 +1,4 @@
-package iptablesdoc // import "github.com/docker/docker/integration/network/bridge/iptablesdoc"
+package iptablesdoc
 
 import (
 	"context"

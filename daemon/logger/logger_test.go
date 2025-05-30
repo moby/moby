@@ -1,4 +1,4 @@
-package logger // import "github.com/docker/docker/daemon/logger"
+package logger
 
 import (
 	"github.com/docker/docker/api/types/backend"

@@ -17,7 +17,7 @@
 // before and after each step, such as creating an image ID and removing temporary
 // containers and images. Note that ONBUILD creates a kinda-sorta "sub run" which
 // includes its own set of steps (usually only one of them).
-package dockerfile // import "github.com/docker/docker/builder/dockerfile"
+package dockerfile
 
 import (
 	"context"

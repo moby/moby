@@ -1,4 +1,4 @@
-package testutils // import "github.com/docker/docker/daemon/events/testutils"
+package testutils
 
 import (
 	"fmt"

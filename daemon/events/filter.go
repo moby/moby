@@ -1,4 +1,4 @@
-package events // import "github.com/docker/docker/daemon/events"
+package events
 
 import (
 	"github.com/distribution/reference"

@@ -1,4 +1,4 @@
-package plugin // import "github.com/docker/docker/testutil/fixtures/plugin"
+package plugin
 
 import (
 	"context"

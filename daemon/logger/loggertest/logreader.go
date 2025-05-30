@@ -1,4 +1,4 @@
-package loggertest // import "github.com/docker/docker/daemon/logger/loggertest"
+package loggertest
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package utils // import "github.com/docker/docker/distribution/utils"
+package utils
 
 import (
 	"context"

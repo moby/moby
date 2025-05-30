@@ -1,4 +1,4 @@
-package config // import "github.com/docker/docker/integration/config"
+package config
 
 import (
 	"context"

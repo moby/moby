@@ -1,5 +1,5 @@
 // Package backend includes types to send information to server backends.
-package backend // import "github.com/docker/docker/api/types/backend"
+package backend
 
 import (
 	"io"

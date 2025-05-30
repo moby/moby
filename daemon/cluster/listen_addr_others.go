@@ -1,6 +1,6 @@
 //go:build !linux
 
-package cluster // import "github.com/docker/docker/daemon/cluster"
+package cluster
 
 import "net"
 

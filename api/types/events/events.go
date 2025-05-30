@@ -1,4 +1,5 @@
-package events // import "github.com/docker/docker/api/types/events"
+package events
+
 import "github.com/docker/docker/api/types/filters"
 
 // Type is used for event-types.

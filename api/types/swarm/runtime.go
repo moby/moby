@@ -1,4 +1,4 @@
-package swarm // import "github.com/docker/docker/api/types/swarm"
+package swarm
 
 // RuntimeType is the type of runtime used for the TaskSpec
 type RuntimeType string

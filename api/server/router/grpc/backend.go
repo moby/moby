@@ -1,4 +1,4 @@
-package grpc // import "github.com/docker/docker/api/server/router/grpc"
+package grpc
 
 import "google.golang.org/grpc"
 

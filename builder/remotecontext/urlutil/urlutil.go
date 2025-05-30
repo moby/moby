@@ -3,7 +3,7 @@
 //
 // This package is specifically written for use with docker build contexts, and
 // should not be used as a general-purpose utility.
-package urlutil // import "github.com/docker/docker/builder/remotecontext/urlutil"
+package urlutil
 
 import (
 	"strings"

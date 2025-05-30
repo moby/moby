@@ -1,6 +1,6 @@
 //go:build (linux && exclude_disk_quota) || (linux && !cgo) || !linux
 
-package quota // import "github.com/docker/docker/quota"
+package quota
 
 func NewControl(basePath string) (*Control, error) {
 	return nil, ErrQuotaNotSupported

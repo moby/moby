@@ -1,4 +1,4 @@
-package cache // import "github.com/docker/docker/daemon/logger/loggerutils/cache"
+package cache
 
 import (
 	"context"

@@ -1,6 +1,6 @@
 //go:build !windows
 
-package container // import "github.com/docker/docker/container"
+package container
 
 import (
 	"context"

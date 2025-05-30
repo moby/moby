@@ -1,4 +1,4 @@
-package opts // import "github.com/docker/docker/opts"
+package opts
 
 import (
 	"net"

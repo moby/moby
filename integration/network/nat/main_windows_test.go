@@ -1,4 +1,4 @@
-package nat // import "github.com/docker/docker/integration/network/nat"
+package nat
 
 import (
 	"context"

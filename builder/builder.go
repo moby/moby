@@ -2,7 +2,7 @@
 //
 // Historically, only server-side Dockerfile interpreters existed.
 // This package allows for other implementations of Docker builders.
-package builder // import "github.com/docker/docker/builder"
+package builder
 
 import (
 	"context"

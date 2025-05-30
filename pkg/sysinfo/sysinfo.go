@@ -1,5 +1,5 @@
 // Package sysinfo stores information about which features a kernel supports.
-package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
+package sysinfo
 
 // Opt for New().
 type Opt func(info *SysInfo)

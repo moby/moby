@@ -1,4 +1,4 @@
-package convert // import "github.com/docker/docker/daemon/cluster/convert"
+package convert
 
 import (
 	volumetypes "github.com/docker/docker/api/types/volume"

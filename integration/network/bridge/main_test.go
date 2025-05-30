@@ -1,4 +1,4 @@
-package bridge // import "github.com/docker/docker/integration/network/bridge"
+package bridge
 
 import (
 	"context"

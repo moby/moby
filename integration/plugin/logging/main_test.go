@@ -1,4 +1,4 @@
-package logging // import "github.com/docker/docker/integration/plugin/logging"
+package logging
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package service // import "github.com/docker/docker/integration/service"
+package service
 
 import (
 	stdnet "net"

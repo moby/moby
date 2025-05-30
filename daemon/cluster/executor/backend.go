@@ -1,4 +1,4 @@
-package executor // import "github.com/docker/docker/daemon/cluster/executor"
+package executor
 
 import (
 	"context"

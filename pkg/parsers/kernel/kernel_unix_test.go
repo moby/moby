@@ -1,6 +1,6 @@
 //go:build !windows
 
-package kernel // import "github.com/docker/docker/pkg/parsers/kernel"
+package kernel
 
 import (
 	"fmt"

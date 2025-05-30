@@ -1,4 +1,4 @@
-package session // import "github.com/docker/docker/integration/session"
+package session
 
 import (
 	"net/http"

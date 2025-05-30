@@ -1,4 +1,4 @@
-package fakecontext // import "github.com/docker/docker/testutil/fakecontext"
+package fakecontext
 
 import (
 	"bytes"

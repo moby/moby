@@ -1,6 +1,6 @@
 //go:build linux || freebsd || openbsd
 
-package kernel // import "github.com/docker/docker/pkg/parsers/kernel"
+package kernel
 
 import (
 	"context"

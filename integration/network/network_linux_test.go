@@ -1,4 +1,4 @@
-package network // import "github.com/docker/docker/integration/network"
+package network
 
 import (
 	"bytes"

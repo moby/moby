@@ -1,6 +1,6 @@
 //go:build linux || freebsd
 
-package initlayer // import "github.com/docker/docker/daemon/initlayer"
+package initlayer
 
 import (
 	"os"

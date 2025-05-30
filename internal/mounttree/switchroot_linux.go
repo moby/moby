@@ -1,4 +1,4 @@
-package mounttree // import "github.com/docker/docker/internal/mounttree"
+package mounttree
 
 import (
 	"fmt"

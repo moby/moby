@@ -1,4 +1,4 @@
-package types // import "github.com/docker/docker/libcontainerd/types"
+package types
 
 import (
 	"time"

@@ -1,4 +1,4 @@
-package volume // import "github.com/docker/docker/integration/volume"
+package volume
 
 import (
 	"context"

@@ -1,6 +1,6 @@
 //go:build linux
 
-package trap // import "github.com/docker/docker/cmd/dockerd/trap"
+package trap
 
 import (
 	"os"

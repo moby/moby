@@ -1,6 +1,6 @@
 //go:build !windows
 
-package system // import "github.com/docker/docker/integration/system"
+package system
 
 import (
 	"encoding/json"

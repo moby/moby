@@ -1,4 +1,4 @@
-package load // import "github.com/docker/docker/testutil/fixtures/load"
+package load
 
 import (
 	"bufio"

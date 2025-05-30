@@ -1,6 +1,6 @@
 //go:build !exclude_graphdriver_fuseoverlayfs && linux
 
-package register // import "github.com/docker/docker/daemon/graphdriver/register"
+package register
 
 import (
 	// register the fuse-overlayfs graphdriver

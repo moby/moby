@@ -1,6 +1,6 @@
 //go:build linux
 
-package local // import "github.com/docker/docker/volume/local"
+package local
 
 import (
 	"net"

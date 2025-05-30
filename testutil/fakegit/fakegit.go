@@ -1,4 +1,4 @@
-package fakegit // import "github.com/docker/docker/testutil/fakegit"
+package fakegit
 
 import (
 	"fmt"

@@ -1,6 +1,6 @@
 //go:build linux || freebsd
 
-package zfs // import "github.com/docker/docker/daemon/graphdriver/zfs"
+package zfs
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package local // import "github.com/docker/docker/libcontainerd/local"
+package local
 
 // This package contains the legacy in-proc calls in HCS using the v1 schema
 // for Windows runtime purposes.

@@ -1,4 +1,4 @@
-package names // import "github.com/docker/docker/daemon/names"
+package names
 
 import "github.com/docker/docker/internal/lazyregexp"
 

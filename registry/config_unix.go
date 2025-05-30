@@ -1,6 +1,6 @@
 //go:build !windows
 
-package registry // import "github.com/docker/docker/registry"
+package registry
 
 // defaultCertsDir is the platform-specific default directory where certificates
 // are stored. On Linux, it may be overridden through certsDir, for example, when
