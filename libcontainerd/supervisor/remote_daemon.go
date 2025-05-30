@@ -1,4 +1,4 @@
-package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
+package supervisor
 
 import (
 	"context"
