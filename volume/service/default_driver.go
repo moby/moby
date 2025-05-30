@@ -1,6 +1,7 @@
 //go:build linux || windows
 
-package service // import "github.com/docker/docker/volume/service"
+package service
+
 import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/volume"

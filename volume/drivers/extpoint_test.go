@@ -1,4 +1,4 @@
-package drivers // import "github.com/docker/docker/volume/drivers"
+package drivers
 
 import (
 	"testing"

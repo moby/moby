@@ -1,6 +1,6 @@
 // generated code - DO NOT EDIT
 
-package drivers // import "github.com/docker/docker/volume/drivers"
+package drivers
 
 import (
 	"errors"
