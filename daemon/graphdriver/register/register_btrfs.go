@@ -1,6 +1,6 @@
 //go:build !exclude_graphdriver_btrfs && linux
 
-package register // import "github.com/docker/docker/daemon/graphdriver/register"
+package register
 
 import (
 	// register the btrfs graphdriver

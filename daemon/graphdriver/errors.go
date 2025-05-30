@@ -1,4 +1,4 @@
-package graphdriver // import "github.com/docker/docker/daemon/graphdriver"
+package graphdriver
 
 const (
 	// ErrNotSupported returned when driver is not supported.

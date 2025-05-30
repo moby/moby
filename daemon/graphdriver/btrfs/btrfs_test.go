@@ -1,6 +1,6 @@
 //go:build linux
 
-package btrfs // import "github.com/docker/docker/daemon/graphdriver/btrfs"
+package btrfs
 
 import (
 	"os"

@@ -1,6 +1,6 @@
 //go:build !linux
 
-package vfs // import "github.com/docker/docker/daemon/graphdriver/vfs"
+package vfs
 
 import (
 	"github.com/moby/go-archive/chrootarchive"
