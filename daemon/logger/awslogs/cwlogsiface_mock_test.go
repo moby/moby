@@ -1,4 +1,4 @@
-package awslogs // import "github.com/docker/docker/daemon/logger/awslogs"
+package awslogs
 
 import (
 	"context"

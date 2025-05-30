@@ -6,4 +6,4 @@
 // backwards (such as is the case when tailing a file)
 //
 // Example log message format: [22][This is a log message.][22][28][This is another log message.][28]
-package local // import "github.com/docker/docker/daemon/logger/local"
+package local

@@ -1,4 +1,4 @@
-package local // import "github.com/docker/docker/daemon/logger/local"
+package local
 
 import (
 	"encoding/binary"

@@ -1,6 +1,6 @@
 //go:build race
 
-package loggerutils // import "github.com/docker/docker/daemon/logger/loggerutils"
+package loggerutils
 
 import (
 	"context"

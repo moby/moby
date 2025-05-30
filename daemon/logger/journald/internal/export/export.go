@@ -1,6 +1,6 @@
 // Package export implements a serializer for the systemd Journal Export Format
 // as documented at https://systemd.io/JOURNAL_EXPORT_FORMATS/
-package export // import "github.com/docker/docker/daemon/logger/journald/internal/export"
+package export
 
 import (
 	"encoding/binary"

@@ -1,4 +1,5 @@
-package fluentd // import "github.com/docker/docker/daemon/logger/fluentd"
+package fluentd
+
 import (
 	"context"
 	"net"

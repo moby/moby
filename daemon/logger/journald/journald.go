@@ -1,6 +1,6 @@
 //go:build linux
 
-package journald // import "github.com/docker/docker/daemon/logger/journald"
+package journald
 
 import (
 	"fmt"
