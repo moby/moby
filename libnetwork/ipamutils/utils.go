@@ -44,9 +44,9 @@ func (n NetworkToSplit) Overlaps(p netip.Prefix) bool {
 	return n.Base.Overlaps(p)
 }
 
-// Used to order default networks if a preferred size is requested. The goal is to ensure that
-// we attempt to allocate a network that is closest to the preferred size while not exceeding the
-// default size of a given network.
+// CompareWithPreferredSize is used to order default networks if a preferred size is requested.
+// The goal is to ensure that we attempt to allocate a network that is closest to the preferred
+// size while not exceeding the default size of a given network.
 func (n *NetworkToSplit) CompareWithPreferredSize(other *NetworkToSplit, preferredSize int) int {
 	// If there's no preferred size, both networks are equivalent.
 	if preferredSize <= 0 {
