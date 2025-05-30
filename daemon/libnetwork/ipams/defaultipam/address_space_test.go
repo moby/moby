@@ -401,6 +401,35 @@ func TestDynamicPoolAllocation(t *testing.T) {
 			},
 			expPrefix: netip.MustParsePrefix("172.18.0.0/16"),
 		},
+		{
+			name: "Multiple predefined pools last one satisfies preferred size",
+			predefined: []*ipamutils.NetworkToSplit{
+				{Base: netip.MustParsePrefix("172.17.0.0/12"), Size: 24},
+				{Base: netip.MustParsePrefix("10.0.0.0/12"), Size: 20},
+			},
+			preferredSize: 20,
+			expPrefix:     netip.MustParsePrefix("10.0.0.0/20"),
+		},
+		{
+			name: "Multiple predefined pools none matching preferred size",
+			predefined: []*ipamutils.NetworkToSplit{
+				{Base: netip.MustParsePrefix("172.17.0.0/24"), Size: 24},
+				{Base: netip.MustParsePrefix("172.18.0.0/20"), Size: 20},
+				{Base: netip.MustParsePrefix("172.19.0.0/24"), Size: 24},
+			},
+			preferredSize: 16,
+			expPrefix:     netip.MustParsePrefix("172.18.0.0/20"),
+		},
+		{
+			name: "Multiple predefined pools none valid for preferred size",
+			predefined: []*ipamutils.NetworkToSplit{
+				{Base: netip.MustParsePrefix("172.17.0.0/24"), Size: 24},
+				{Base: netip.MustParsePrefix("172.18.0.0/20"), Size: 20},
+				{Base: netip.MustParsePrefix("172.19.0.0/24"), Size: 23},
+			},
+			preferredSize: 33,
+			expPrefix:     netip.MustParsePrefix("172.17.0.0/24"),
+		},
 	}
 
 	for _, tc := range testcases {
