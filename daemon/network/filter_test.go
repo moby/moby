@@ -1,6 +1,6 @@
 //go:build !windows
 
-package network // import "github.com/docker/docker/daemon/network"
+package network
 
 import (
 	"strings"

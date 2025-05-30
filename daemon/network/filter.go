@@ -1,4 +1,4 @@
-package network // import "github.com/docker/docker/daemon/network"
+package network
 
 import (
 	"github.com/docker/docker/api/types/filters"
