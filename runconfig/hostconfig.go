@@ -1,4 +1,4 @@
-package runconfig // import "github.com/docker/docker/runconfig"
+package runconfig
 
 import (
 	"github.com/docker/docker/api/types/container"
