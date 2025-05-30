@@ -1,6 +1,6 @@
 //go:build !linux
 
-package plugin // import "github.com/docker/docker/plugin"
+package plugin
 
 import (
 	"context"
