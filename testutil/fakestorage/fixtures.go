@@ -1,4 +1,4 @@
-package fakestorage // import "github.com/docker/docker/testutil/fakestorage"
+package fakestorage
 
 import (
 	"context"

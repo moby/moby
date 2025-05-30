@@ -1,4 +1,4 @@
-package request // import "github.com/docker/docker/testutil/request"
+package request
 
 import (
 	"context"
