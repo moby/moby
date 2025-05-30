@@ -5,4 +5,4 @@
 // To check if a particular error implements one of these interfaces, there are helper
 // functions provided (e.g. `Is<SomeError>`) which can be used rather than asserting the interfaces directly.
 // If you must assert on these interfaces, be sure to check the causal chain (`err.Unwrap()`).
-package errdefs // import "github.com/docker/docker/errdefs"
+package errdefs
