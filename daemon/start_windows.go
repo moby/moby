@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package daemon
 
 import (
 	"github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options"
