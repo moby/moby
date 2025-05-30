@@ -1,4 +1,4 @@
-package oci // import "github.com/docker/docker/oci"
+package oci
 
 import "github.com/opencontainers/runtime-spec/specs-go"
 
