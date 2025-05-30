@@ -1282,3 +1282,46 @@ func TestSkipRawRules(t *testing.T) {
 		})
 	}
 }
+
+// Regression test for https://github.com/docker/compose/issues/12846
+func TestMixAnyWithSpecificHostAddrs(t *testing.T) {
+	ctx := setupTest(t)
+
+	for _, proto := range []string{"tcp", "udp"} {
+		t.Run(proto, func(t *testing.T) {
+			// Start a new daemon, so the port allocator will start with new/empty ephemeral port ranges,
+			// making a clash more likely.
+			d := daemon.New(t)
+			d.StartWithBusybox(ctx, t)
+			defer d.Stop(t)
+			c := d.NewClientT(t)
+			defer c.Close()
+
+			ctrId := container.Run(ctx, t, c,
+				container.WithExposedPorts("80/"+proto, "81/"+proto, "82/"+proto),
+				container.WithPortMap(nat.PortMap{
+					nat.Port("81/" + proto): {{}},
+					nat.Port("82/" + proto): {{}},
+					nat.Port("80/" + proto): {{HostIP: "127.0.0.1"}},
+				}),
+			)
+			defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+
+			insp := container.Inspect(ctx, t, c, ctrId)
+			hostPorts := map[string]struct{}{}
+			for cp, hps := range insp.NetworkSettings.Ports {
+				// Check each of the container ports is mapped to a different host port.
+				p := hps[0].HostPort
+				if _, ok := hostPorts[p]; ok {
+					t.Errorf("host port %s is mapped to different container ports: %v", p, insp.NetworkSettings.Ports)
+				}
+				hostPorts[p] = struct{}{}
+
+				// For this container port, check the same host port is mapped for each host address (0.0.0.0 and ::).
+				for _, hp := range hps {
+					assert.Check(t, p == hp.HostPort, "container port %d is mapped to different host ports: %v", cp, hps)
+				}
+			}
+		})
+	}
+}
