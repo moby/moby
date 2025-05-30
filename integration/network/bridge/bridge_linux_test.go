@@ -1287,3 +1287,95 @@ func TestJoinError(t *testing.T) {
 	res = ctr.ExecT(ctx, t, c, cid, []string{"ip", "link", "show", "eth1"})
 	assert.Check(t, is.Equal(res.ExitCode, 0), "container should have an eth1")
 }
+
+func TestPreferredSubnetRestore(t *testing.T) {
+	skip.If(t, testEnv.IsRootless(), "fails before and after restart")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+
+	const v4netName = "testnetv4restore"
+	network.CreateNoError(ctx, t, c, v4netName,
+		network.WithIPv4(true),
+		network.WithIPAMConfig(networktypes.IPAMConfig{
+			Subnet: netip.MustParsePrefix("0.0.0.0/24"),
+		}),
+	)
+
+	defer func() { network.RemoveNoError(ctx, t, c, v4netName) }()
+
+	const v6netName = "testnetv6restore"
+	network.CreateNoError(ctx, t, c, v6netName,
+		network.WithIPv4(false),
+		network.WithIPv6(),
+		network.WithIPAMConfig(networktypes.IPAMConfig{
+			Subnet: netip.MustParsePrefix("::/120"),
+		}),
+	)
+
+	defer func() { network.RemoveNoError(ctx, t, c, v6netName) }()
+
+	const dualStackNetName = "testnetdualrestore"
+	network.CreateNoError(ctx, t, c, dualStackNetName,
+		network.WithIPv4(true),
+		network.WithIPv6(),
+		network.WithIPAMConfig(networktypes.IPAMConfig{
+			Subnet: netip.MustParsePrefix("0.0.0.0/24"),
+		}, networktypes.IPAMConfig{
+			Subnet: netip.MustParsePrefix("::/120"),
+		}),
+	)
+
+	defer func() { network.RemoveNoError(ctx, t, c, dualStackNetName) }()
+
+	inspOpts := client.NetworkInspectOptions{}
+
+	v4Insp := network.InspectNoError(ctx, t, c, v4netName, inspOpts)
+	assert.Check(t, is.Len(v4Insp.Network.IPAM.Config, 1))
+	v4allocCidr := v4Insp.Network.IPAM.Config[0].Subnet
+	assert.Check(t, is.Equal(v4allocCidr.Addr().IsUnspecified(), false), "expected specific subnet")
+
+	v6Insp := network.InspectNoError(ctx, t, c, v6netName, inspOpts)
+	assert.Check(t, is.Len(v6Insp.Network.IPAM.Config, 1))
+	v6allocCidr := v6Insp.Network.IPAM.Config[0].Subnet
+	assert.Check(t, is.Equal(v6allocCidr.Addr().IsUnspecified(), false), "expected specific subnet")
+
+	dualStackInsp := network.InspectNoError(ctx, t, c, dualStackNetName, inspOpts)
+	assert.Check(t, is.Len(dualStackInsp.Network.IPAM.Config, 2))
+	var dualv4, dualv6 netip.Prefix
+	if dualStackInsp.Network.IPAM.Config[0].Subnet.Addr().Is4() {
+		dualv4 = dualStackInsp.Network.IPAM.Config[0].Subnet
+		dualv6 = dualStackInsp.Network.IPAM.Config[1].Subnet
+	} else {
+		dualv4 = dualStackInsp.Network.IPAM.Config[1].Subnet
+		dualv6 = dualStackInsp.Network.IPAM.Config[0].Subnet
+	}
+	assert.Check(t, is.Equal(dualv4.Addr().IsUnspecified(), false), "expected specific v4 subnet")
+	assert.Check(t, is.Equal(dualv6.Addr().IsUnspecified(), false), "expected specific v6 subnet")
+
+	d.Restart(t)
+
+	v4Insp = network.InspectNoError(ctx, t, c, v4netName, inspOpts)
+	assert.Check(t, is.Len(v4Insp.Network.IPAM.Config, 1))
+	assert.Check(t, is.Equal(v4Insp.Network.IPAM.Config[0].Subnet, v4allocCidr))
+
+	v6Insp = network.InspectNoError(ctx, t, c, v6netName, inspOpts)
+	assert.Check(t, is.Len(v6Insp.Network.IPAM.Config, 1))
+	assert.Check(t, is.Equal(v6Insp.Network.IPAM.Config[0].Subnet, v6allocCidr))
+
+	dualStackInsp = network.InspectNoError(ctx, t, c, dualStackNetName, inspOpts)
+	assert.Check(t, is.Len(dualStackInsp.Network.IPAM.Config, 2))
+	var dualv4after, dualv6after netip.Prefix
+	if dualStackInsp.Network.IPAM.Config[0].Subnet.Addr().Is4() {
+		dualv4after = dualStackInsp.Network.IPAM.Config[0].Subnet
+		dualv6after = dualStackInsp.Network.IPAM.Config[1].Subnet
+	} else {
+		dualv4after = dualStackInsp.Network.IPAM.Config[1].Subnet
+		dualv6after = dualStackInsp.Network.IPAM.Config[0].Subnet
+	}
+	assert.Check(t, is.Equal(dualv4after, dualv4), "expected same v4 subnet after restart")
+	assert.Check(t, is.Equal(dualv6after, dualv6), "expected same v6 subnet after restart")
+}

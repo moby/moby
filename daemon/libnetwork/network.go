@@ -1533,10 +1533,21 @@ func (n *Network) ipamAllocateVersion(ipam ipamapi.Ipam, v6 bool, ipamConf []*Ip
 			reserved = netutils.InferReservedNetworks(v6)
 		}
 
+		// Determine if the preferred pool is unspecified (blank, or a 0.0.0.0 or :: address)
+		prefPool := cfg.PreferredPool
+		isDefaultPool := prefPool == ""
+		if !isDefaultPool {
+			if prefix, err := netip.ParsePrefix(prefPool); err != nil {
+				// This should never happen
+				return nil, types.InvalidParameterErrorf("invalid preferred address %q: %v", prefPool, err)
+			} else if prefix.Addr().IsUnspecified() {
+				isDefaultPool = true
+			}
+		}
+
 		// During network restore, if no subnet was specified in the original network-create
 		// request, use the previously allocated subnet.
-		prefPool := cfg.PreferredPool
-		if prefPool == "" && len(ipamInfo) > i {
+		if isDefaultPool && len(ipamInfo) > i {
 			prefPool = ipamInfo[i].Pool.String()
 		}
 

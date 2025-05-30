@@ -949,7 +949,10 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[netip.Prefix]s
 			}
 		}
 
-		if ic.Subnet == "" {
+		// The IPAM config contain an unspecified subnet if a network with a specific prefix size
+		// was requested from the default pools. Therefore it's important to update the value in the
+		// config with the actual allocated subnet if available.
+		if alloc.Pool.String() != "" {
 			ic.Subnet = alloc.Pool.String()
 		}
 
