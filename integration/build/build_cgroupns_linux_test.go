@@ -1,4 +1,4 @@
-package build // import "github.com/docker/docker/integration/build"
+package build
 
 import (
 	"context"

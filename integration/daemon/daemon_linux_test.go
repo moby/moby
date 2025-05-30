@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/integration/daemon"
+package daemon
 
 import (
 	"context"

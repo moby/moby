@@ -1,4 +1,4 @@
-package secret // import "github.com/docker/docker/integration/secret"
+package secret
 
 import (
 	"context"

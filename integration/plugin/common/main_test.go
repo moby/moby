@@ -1,4 +1,4 @@
-package common // import "github.com/docker/docker/integration/plugin/common"
+package common
 
 import (
 	"context"

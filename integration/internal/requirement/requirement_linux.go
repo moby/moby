@@ -1,4 +1,4 @@
-package requirement // import "github.com/docker/docker/integration/internal/requirement"
+package requirement
 
 import (
 	"os"
