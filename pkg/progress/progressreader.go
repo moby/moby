@@ -1,4 +1,4 @@
-package progress // import "github.com/docker/docker/pkg/progress"
+package progress
 
 import (
 	"io"
