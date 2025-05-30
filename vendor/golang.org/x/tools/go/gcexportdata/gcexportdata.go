@@ -106,24 +106,18 @@ func Find(importPath, srcDir string) (filename, path string) {
 // additional trailing data beyond the end of the export data.
 func NewReader(r io.Reader) (io.Reader, error) {
 	buf := bufio.NewReader(r)
-	_, size, err := gcimporter.FindExportData(buf)
+	size, err := gcimporter.FindExportData(buf)
 	if err != nil {
 		return nil, err
 	}
 
-	if size >= 0 {
-		// We were given an archive and found the __.PKGDEF in it.
-		// This tells us the size of the export data, and we don't
-		// need to return the entire file.
-		return &io.LimitedReader{
-			R: buf,
-			N: size,
-		}, nil
-	} else {
-		// We were given an object file. As such, we don't know how large
-		// the export data is and must return the entire file.
-		return buf, nil
-	}
+	// We were given an archive and found the __.PKGDEF in it.
+	// This tells us the size of the export data, and we don't
+	// need to return the entire file.
+	return &io.LimitedReader{
+		R: buf,
+		N: size,
+	}, nil
 }
 
 // readAll works the same way as io.ReadAll, but avoids allocations and copies
@@ -199,10 +193,7 @@ func Read(in io.Reader, fset *token.FileSet, imports map[string]*types.Package, 
 			return pkg, err
 
 		default:
-			l := len(data)
-			if l > 10 {
-				l = 10
-			}
+			l := min(len(data), 10)
 			return nil, fmt.Errorf("unexpected export data with prefix %q for path %s", string(data[:l]), path)
 		}
 	}

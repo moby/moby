@@ -108,6 +108,8 @@ type ttlState struct {
 // origin for resolving relative domain names defaults to the DNS root (.).
 // Full zone file syntax is supported, including directives like $TTL and $ORIGIN.
 // All fields of the returned RR are set from the read data, except RR.Header().Rdlength which is set to 0.
+// Is you need a partial resource record with no rdata - for instance - for dynamic updates, see the [ANY]
+// documentation.
 func NewRR(s string) (RR, error) {
 	if len(s) > 0 && s[len(s)-1] != '\n' { // We need a closing newline
 		return ReadRR(strings.NewReader(s+"\n"), "")
@@ -1314,6 +1316,13 @@ func toAbsoluteName(name, origin string) (absolute string, ok bool) {
 			return "", false
 		}
 		return origin, true
+	}
+
+	// this can happen when we have a comment after a RR that has a domain, '...   MX 20 ; this is wrong'.
+	// technically a newline can be in a domain name, but this is clearly an error and the newline only shows
+	// because of the scanning and the comment.
+	if name == "\n" {
+		return "", false
 	}
 
 	// require a valid domain name

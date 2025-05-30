@@ -1,8 +1,10 @@
-//go:build windows
-// +build windows
+//go:build windows || darwin
+// +build windows darwin
 
 // TODO(tmthrgd): Remove this Windows-specific code if go.dev/issue/7175 and
 //   go.dev/issue/7174 are ever fixed.
+
+// NOTICE(stek29): darwin supports PKTINFO in sendmsg, but it unbinds sockets, see https://github.com/miekg/dns/issues/724
 
 package dns
 
