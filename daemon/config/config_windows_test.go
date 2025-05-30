@@ -1,4 +1,4 @@
-package config // import "github.com/docker/docker/daemon/config"
+package config
 
 import (
 	"testing"
