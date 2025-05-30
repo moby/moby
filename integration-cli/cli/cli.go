@@ -1,4 +1,4 @@
-package cli // import "github.com/docker/docker/integration-cli/cli"
+package cli
 
 import (
 	"fmt"

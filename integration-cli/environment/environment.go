@@ -1,4 +1,4 @@
-package environment // import "github.com/docker/docker/integration-cli/environment"
+package environment
 
 import (
 	"context"

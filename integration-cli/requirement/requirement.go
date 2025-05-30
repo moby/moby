@@ -1,4 +1,4 @@
-package requirement // import "github.com/docker/docker/integration-cli/requirement"
+package requirement
 
 import (
 	"path"
