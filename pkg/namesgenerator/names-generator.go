@@ -9,7 +9,7 @@
 // controversy, but for now it will remain as-is.
 //
 // See also https://github.com/moby/moby/pull/43210#issuecomment-1029934277
-package namesgenerator // import "github.com/docker/docker/pkg/namesgenerator"
+package namesgenerator
 
 import (
 	"math/rand"
