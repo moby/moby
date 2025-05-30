@@ -1,4 +1,4 @@
-package dockerversion // import "github.com/docker/docker/dockerversion"
+package dockerversion
 
 // Default build-time variable for library-import.
 // These variables are overridden on build with build-time information.

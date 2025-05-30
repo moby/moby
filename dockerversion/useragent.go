@@ -1,4 +1,4 @@
-package dockerversion // import "github.com/docker/docker/dockerversion"
+package dockerversion
 
 import (
 	"context"
