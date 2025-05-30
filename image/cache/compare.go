@@ -1,4 +1,4 @@
-package cache // import "github.com/docker/docker/image/cache"
+package cache
 
 import (
 	"strings"
