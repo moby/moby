@@ -251,8 +251,9 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	// In order to lift this restriction the following would have to be addressed:
 	// - Support needs to be added to the cdi package for injecting Windows devices: https://tags.cncf.io/container-device-interface/issues/28
 	// - The DeviceRequests API must be extended to non-linux platforms.
+	var cdiCache *cdi.Cache
 	if cdiEnabled(cli.Config) {
-		daemon.RegisterCDIDriver(cli.Config.CDISpecDirs...)
+		cdiCache = daemon.RegisterCDIDriver(cli.Config.CDISpecDirs...)
 	}
 
 	var apiServer apiserver.Server
@@ -289,7 +290,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	// initialized the cluster.
 	d.RestartSwarmContainers()
 
-	b, shutdownBuildKit, err := initBuildkit(ctx, d)
+	b, shutdownBuildKit, err := initBuildkit(ctx, d, cdiCache)
 	if err != nil {
 		return fmt.Errorf("error initializing buildkit: %w", err)
 	}
@@ -390,7 +391,7 @@ func setOTLPProtoDefault() {
 	}
 }
 
-func initBuildkit(ctx context.Context, d *daemon.Daemon) (_ builderOptions, closeFn func(), _ error) {
+func initBuildkit(ctx context.Context, d *daemon.Daemon, cdiCache *cdi.Cache) (_ builderOptions, closeFn func(), _ error) {
 	log.G(ctx).Info("Initializing buildkit")
 	closeFn = func() {}
 
@@ -405,11 +406,6 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon) (_ builderOptions, clos
 	}
 
 	cfg := d.Config()
-
-	var cdiSpecDirs []string
-	if cdiEnabled(&cfg) {
-		cdiSpecDirs = cfg.CDISpecDirs
-	}
 
 	bk, err := buildkit.New(ctx, buildkit.Opt{
 		SessionManager:      sm,
@@ -433,7 +429,7 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon) (_ builderOptions, clos
 			Exported: d.ImageExportedByBuildkit,
 			Named:    d.ImageNamedByBuildkit,
 		},
-		CDISpecDirs: cdiSpecDirs,
+		CDICache: cdiCache,
 	})
 	if err != nil {
 		return builderOptions{}, closeFn, errors.Wrap(err, "error creating buildkit instance")
