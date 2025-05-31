@@ -171,14 +171,14 @@ func (s *DockerAPISuite) TestLogsAPIUntil(c *testing.T) {
 		c.Fatal(err)
 	}
 
-	extractBody := func(c *testing.T, cfg container.LogsOptions) []string {
-		reader, err := apiClient.ContainerLogs(testutil.GetContext(c), name, cfg)
-		assert.NilError(c, err)
+	extractBody := func(t *testing.T, cfg container.LogsOptions) []string {
+		reader, err := apiClient.ContainerLogs(testutil.GetContext(t), name, cfg)
+		assert.NilError(t, err)
 
 		actualStdout := new(bytes.Buffer)
 		actualStderr := io.Discard
 		_, err = stdcopy.StdCopy(actualStdout, actualStderr, reader)
-		assert.NilError(c, err)
+		assert.NilError(t, err)
 
 		return strings.Split(actualStdout.String(), "\n")
 	}
@@ -208,14 +208,14 @@ func (s *DockerAPISuite) TestLogsAPIUntilDefaultValue(c *testing.T) {
 		c.Fatal(err)
 	}
 
-	extractBody := func(c *testing.T, cfg container.LogsOptions) []string {
-		reader, err := apiClient.ContainerLogs(testutil.GetContext(c), name, cfg)
-		assert.NilError(c, err)
+	extractBody := func(t *testing.T, cfg container.LogsOptions) []string {
+		reader, err := apiClient.ContainerLogs(testutil.GetContext(t), name, cfg)
+		assert.NilError(t, err)
 
 		actualStdout := new(bytes.Buffer)
 		actualStderr := io.Discard
 		_, err = stdcopy.StdCopy(actualStdout, actualStderr, reader)
-		assert.NilError(c, err)
+		assert.NilError(t, err)
 
 		return strings.Split(actualStdout.String(), "\n")
 	}
