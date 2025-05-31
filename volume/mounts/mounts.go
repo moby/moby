@@ -233,7 +233,7 @@ func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtoo
 		}
 	}
 
-	if len(m.Source) == 0 {
+	if m.Source == "" {
 		return "", noCleanup, fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
 	}
 

@@ -28,7 +28,7 @@ func (mj *JSONLogs) MarshalJSONBuf(buf *bytes.Buffer) error {
 		buf.WriteString(`"log":`)
 		ffjsonWriteJSONBytesAsString(buf, mj.Log)
 	}
-	if len(mj.Stream) != 0 {
+	if mj.Stream != "" {
 		if first {
 			first = false
 		} else {

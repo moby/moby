@@ -376,7 +376,7 @@ func TestConfigCreateResolve(t *testing.T) {
 	// - Full Name
 	// - Partial ID (prefix)
 	err = c.ConfigRemove(ctx, configID[:5])
-	assert.Assert(t, nil != err)
+	assert.Assert(t, err != nil)
 	entries, err = c.ConfigList(ctx, swarmtypes.ConfigListOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, is.DeepEqual(configNamesFromList(entries), []string{fakeName}))

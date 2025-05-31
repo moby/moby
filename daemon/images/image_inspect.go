@@ -39,7 +39,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 	}
 
 	comment := img.Comment
-	if len(comment) == 0 && len(img.History) > 0 {
+	if comment == "" && len(img.History) > 0 {
 		comment = img.History[len(img.History)-1].Comment
 	}
 

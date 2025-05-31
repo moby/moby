@@ -193,7 +193,7 @@ func fetchTable(ip string, port int, network, tableName string, clusterPeers, ne
 		reader := bufio.NewReader(os.Stdin)
 		text, _ := reader.ReadString('\n')
 		text = strings.ReplaceAll(text, "\n", "")
-		if strings.Compare(text, "Yes") == 0 {
+		if text == "Yes" {
 			for _, k := range orphanKeys {
 				r, err := http.Get(fmt.Sprintf(deleteEntry, ip, port, network, tableName, k))
 				if err != nil {

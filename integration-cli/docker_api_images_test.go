@@ -105,7 +105,7 @@ func (s *DockerAPISuite) TestAPIImagesImportBadSrc(c *testing.T) {
 
 	ctx := testutil.GetContext(c)
 	for _, te := range tt {
-		res, _, err := request.Post(ctx, strings.Join([]string{"/images/create?fromSrc=", te.fromSrc}, ""), request.JSON)
+		res, _, err := request.Post(ctx, "/images/create?fromSrc="+te.fromSrc, request.JSON)
 		assert.NilError(c, err)
 		assert.Equal(c, res.StatusCode, te.statusExp)
 		assert.Equal(c, res.Header.Get("Content-Type"), "application/json")

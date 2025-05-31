@@ -367,7 +367,7 @@ func (sb *Sandbox) ResolveIP(ctx context.Context, ip string) string {
 	for _, ep := range sb.Endpoints() {
 		n := ep.getNetwork()
 		svc = n.ResolveIP(ctx, ip)
-		if len(svc) != 0 {
+		if svc != "" {
 			return svc
 		}
 	}
