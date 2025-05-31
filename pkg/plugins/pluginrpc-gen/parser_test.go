@@ -53,11 +53,13 @@ func TestParseWithMultipleFuncs(t *testing.T) {
 	assertName(t, "Foo", f.Name)
 	assertNum(t, 0, len(f.Args))
 	assertNum(t, 0, len(f.Returns))
+	assertName(t, "short", f.TimeoutType)
 
 	f = pkg.Functions[1]
 	assertName(t, "Bar", f.Name)
 	assertNum(t, 1, len(f.Args))
 	assertNum(t, 0, len(f.Returns))
+	assertName(t, "short", f.TimeoutType)
 	arg := f.Args[0]
 	assertName(t, "a", arg.Name)
 	assertName(t, "string", arg.ArgType)
@@ -66,6 +68,7 @@ func TestParseWithMultipleFuncs(t *testing.T) {
 	assertName(t, "Baz", f.Name)
 	assertNum(t, 1, len(f.Args))
 	assertNum(t, 1, len(f.Returns))
+	assertName(t, "short", f.TimeoutType)
 	arg = f.Args[0]
 	assertName(t, "a", arg.Name)
 	assertName(t, "string", arg.ArgType)
@@ -77,6 +80,7 @@ func TestParseWithMultipleFuncs(t *testing.T) {
 	assertName(t, "Qux", f.Name)
 	assertNum(t, 2, len(f.Args))
 	assertNum(t, 2, len(f.Returns))
+	assertName(t, "short", f.TimeoutType)
 	arg = f.Args[0]
 	assertName(t, "a", arg.Name)
 	assertName(t, "string", arg.ArgType)
@@ -94,6 +98,7 @@ func TestParseWithMultipleFuncs(t *testing.T) {
 	assertName(t, "Wobble", f.Name)
 	assertNum(t, 0, len(f.Args))
 	assertNum(t, 1, len(f.Returns))
+	assertName(t, "short", f.TimeoutType)
 	arg = f.Returns[0]
 	assertName(t, "w", arg.Name)
 	assertName(t, "*wobble", arg.ArgType)
@@ -102,6 +107,7 @@ func TestParseWithMultipleFuncs(t *testing.T) {
 	assertName(t, "Wiggle", f.Name)
 	assertNum(t, 0, len(f.Args))
 	assertNum(t, 1, len(f.Returns))
+	assertName(t, "short", f.TimeoutType)
 	arg = f.Returns[0]
 	assertName(t, "w", arg.Name)
 	assertName(t, "wobble", arg.ArgType)
@@ -110,6 +116,7 @@ func TestParseWithMultipleFuncs(t *testing.T) {
 	assertName(t, "WiggleWobble", f.Name)
 	assertNum(t, 6, len(f.Args))
 	assertNum(t, 6, len(f.Returns))
+	assertName(t, "short", f.TimeoutType)
 	expectedArgs := [][]string{
 		{"a", "[]*wobble"},
 		{"b", "[]wobble"},
@@ -156,11 +163,13 @@ func TestEmbeddedInterface(t *testing.T) {
 	assertName(t, "Foo", f.Name)
 	assertNum(t, 0, len(f.Args))
 	assertNum(t, 0, len(f.Returns))
+	assertName(t, "short", f.TimeoutType)
 
 	f = pkg.Functions[1]
 	assertName(t, "Boo", f.Name)
 	assertNum(t, 2, len(f.Args))
 	assertNum(t, 2, len(f.Returns))
+	assertName(t, "short", f.TimeoutType)
 
 	arg := f.Args[0]
 	assertName(t, "a", arg.Name)
@@ -202,6 +211,39 @@ func TestAliasedImports(t *testing.T) {
 
 	assertNum(t, 1, len(pkg.Imports))
 	assertName(t, "aliasedio", pkg.Imports[0].Name)
+}
+
+func TestParseWithMethodTimeoutAnnotation(t *testing.T) {
+	pkg, err := Parse(testFixture, "FooerWithTimeout")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertName(t, "foo", pkg.Name)
+	assertNum(t, 1, len(pkg.Functions))
+
+	f := pkg.Functions[0]
+	assertName(t, "WithTimeout", f.Name)
+	assertNum(t, 0, len(f.Args))
+	assertNum(t, 1, len(f.Returns))
+	assertName(t, "long", f.TimeoutType)
+}
+
+func TestParseWithMultilineAnnotation(t *testing.T) {
+	pkg, err := Parse(testFixture, "FooerWithMultilineAnnotation")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertName(t, "foo", pkg.Name)
+	assertNum(t, 1, len(pkg.Functions))
+
+	f := pkg.Functions[0]
+	assertName(t, "WithMultilineAnnotation", f.Name)
+	assertNum(t, 0, len(f.Args))
+	assertNum(t, 1, len(f.Returns))
+	assertName(t, "long", f.TimeoutType)
+	assertName(t, "// Foo is a method that does something", f.Doc)
 }
 
 func assertName(t *testing.T, expected, actual string) {
