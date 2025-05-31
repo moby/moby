@@ -613,11 +613,9 @@ func (s *VolumeStore) create(ctx context.Context, name, driverName string, opts,
 		if v != nil {
 			return v, false, nil
 		}
-	}
-
-	if driverName == "" {
 		driverName = volume.DefaultDriverName
 	}
+
 	vd, err := s.drivers.CreateDriver(driverName)
 	if err != nil {
 		return nil, false, &OpErr{Op: "create", Name: name, Err: err}
