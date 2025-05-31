@@ -29,7 +29,7 @@ func setContainerPathStatHeader(stat *container.PathStat, header http.Header) er
 	return nil
 }
 
-func (c *containerRouter) headContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) headContainersArchive(_ context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v, err := httputils.ArchiveFormValues(r, vars)
 	if err != nil {
 		return err
@@ -66,7 +66,7 @@ func writeCompressedResponse(w http.ResponseWriter, r *http.Request, body io.Rea
 	return err
 }
 
-func (c *containerRouter) getContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) getContainersArchive(_ context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v, err := httputils.ArchiveFormValues(r, vars)
 	if err != nil {
 		return err
@@ -86,7 +86,7 @@ func (c *containerRouter) getContainersArchive(ctx context.Context, w http.Respo
 	return writeCompressedResponse(w, r, tarArchive)
 }
 
-func (c *containerRouter) putContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) putContainersArchive(_ context.Context, _ http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v, err := httputils.ArchiveFormValues(r, vars)
 	if err != nil {
 		return err

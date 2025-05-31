@@ -69,7 +69,7 @@ func isChunked(r *http.Request) bool {
 }
 
 // AuthZRequest authorized the request to the docker daemon using authZ plugins
-func (ctx *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
+func (ctx *Ctx) AuthZRequest(_ http.ResponseWriter, r *http.Request) error {
 	var body []byte
 	if sendBody(ctx.requestURI, r.Header) && (r.ContentLength > 0 || isChunked(r)) && r.ContentLength < maxBodySize {
 		var err error
@@ -117,7 +117,7 @@ func (ctx *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 }
 
 // AuthZResponse authorized and manipulates the response from docker daemon using authZ plugins
-func (ctx *Ctx) AuthZResponse(rm ResponseModifier, r *http.Request) error {
+func (ctx *Ctx) AuthZResponse(rm ResponseModifier, _ *http.Request) error {
 	ctx.authReq.ResponseStatusCode = rm.StatusCode()
 	ctx.authReq.ResponseHeaders = headers(rm.Header())
 

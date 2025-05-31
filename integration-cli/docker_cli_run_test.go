@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -2492,7 +2493,7 @@ func (s *DockerCLIRunSuite) TestRunTTYWithPipe(c *testing.T) {
 			expected += ".  If you are using mintty, try prefixing the command with 'winpty'"
 		}
 		if out, _, err := runCommandWithOutput(cmd); err == nil {
-			errChan <- fmt.Errorf("run should have failed")
+			errChan <- errors.New("run should have failed")
 			return
 		} else if !strings.Contains(out, expected) {
 			errChan <- fmt.Errorf("run failed with error %q: expected %q", out, expected)
@@ -2748,7 +2749,7 @@ func (s *DockerCLIRunSuite) TestRunContainerWithRmFlagCannotStartContainer(c *te
 }
 
 func containerRemoved(name string) poll.Check {
-	return func(l poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		err := cli.Docker(cli.Args("container", "inspect", "--format='{{.ID}}'", name)).Compare(icmd.Expected{
 			ExitCode: 1,
 			Out:      "",

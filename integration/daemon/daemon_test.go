@@ -606,7 +606,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 
 		// Wait until container creates a file in the volume.
-		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		poll.WaitOn(t, func(_ poll.LogT) poll.Result {
 			stat, err := c.ContainerStatPath(ctx, cID, "/foo/test.txt")
 			if err != nil {
 				if cerrdefs.IsNotFound(err) {
@@ -679,7 +679,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		cID := container.Run(ctx, t, c, container.WithMount(m))
 		defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
 
-		waitFn := func(t poll.LogT) poll.Result {
+		waitFn := func(_ poll.LogT) poll.Result {
 			_, err := c.ContainerStatPath(ctx, cID, "/image/hello")
 			if err != nil {
 				if cerrdefs.IsNotFound(err) {

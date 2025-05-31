@@ -469,7 +469,7 @@ type mockReferenceStore struct {
 	refstore.Store
 }
 
-func (s *mockReferenceStore) ReferencesByName(ref reference.Named) []refstore.Association {
+func (s *mockReferenceStore) ReferencesByName(_ reference.Named) []refstore.Association {
 	return []refstore.Association{}
 }
 
@@ -529,7 +529,7 @@ type mockBlobStoreWithCreate struct {
 	repo *mockRepoWithBlob
 }
 
-func (blob *mockBlobStoreWithCreate) Create(ctx context.Context, options ...distribution.BlobCreateOption) (distribution.BlobWriter, error) {
+func (blob *mockBlobStoreWithCreate) Create(_ context.Context, _ ...distribution.BlobCreateOption) (distribution.BlobWriter, error) {
 	return nil, errcode.Errors([]error{errcode.ErrorCodeUnauthorized.WithMessage("unauthorized")})
 }
 
@@ -537,7 +537,7 @@ type mockRepoWithBlob struct {
 	mockRepo
 }
 
-func (m *mockRepoWithBlob) Blobs(ctx context.Context) distribution.BlobStore {
+func (m *mockRepoWithBlob) Blobs(_ context.Context) distribution.BlobStore {
 	blob := &mockBlobStoreWithCreate{}
 	blob.mockBlobStore.repo = &m.mockRepo
 	blob.repo = m
@@ -548,7 +548,7 @@ type mockMetadataService struct {
 	mockV2MetadataService
 }
 
-func (m *mockMetadataService) GetMetadata(diffID layer.DiffID) ([]metadata.V2Metadata, error) {
+func (m *mockMetadataService) GetMetadata(_ layer.DiffID) ([]metadata.V2Metadata, error) {
 	return []metadata.V2Metadata{
 		taggedMetadata("abcd", "sha256:ff3a5c916c92643ff77519ffa742d3ec61b7f591b6b7504599d95a4a41134e28", "docker.io/user/app1"),
 		taggedMetadata("abcd", "sha256:ff3a5c916c92643ff77519ffa742d3ec61b7f591b6b7504599d95a4a41134e22", "docker.io/user/app/base"),
@@ -561,7 +561,7 @@ func (m *mockMetadataService) GetMetadata(diffID layer.DiffID) ([]metadata.V2Met
 
 var removeMetadata bool
 
-func (m *mockMetadataService) Remove(metadata metadata.V2Metadata) error {
+func (m *mockMetadataService) Remove(_ metadata.V2Metadata) error {
 	removeMetadata = true
 	return nil
 }
@@ -619,7 +619,7 @@ type mockRepo struct {
 
 var _ distribution.Repository = &mockRepo{}
 
-func (m *mockRepo) Blobs(ctx context.Context) distribution.BlobStore {
+func (m *mockRepo) Blobs(_ context.Context) distribution.BlobStore {
 	return &mockBlobStore{
 		repo: m,
 	}
@@ -632,7 +632,7 @@ type mockBlobStore struct {
 
 var _ distribution.BlobStore = &mockBlobStore{}
 
-func (m *mockBlobStore) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
+func (m *mockBlobStore) Stat(_ context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
 	m.repo.requests = append(m.repo.requests, dgst.String())
 	if err, exists := m.repo.errors[dgst]; exists {
 		return distribution.Descriptor{}, err
@@ -651,7 +651,7 @@ type mockV2MetadataService struct {
 
 var _ metadata.V2MetadataService = &mockV2MetadataService{}
 
-func (m *mockV2MetadataService) Add(diffID layer.DiffID, metadata metadata.V2Metadata) error {
+func (m *mockV2MetadataService) Add(_ layer.DiffID, metadata metadata.V2Metadata) error {
 	m.added = append(m.added, metadata)
 	return nil
 }

@@ -1646,7 +1646,7 @@ func TestAdvertiseAddresses(t *testing.T) {
 					if pa != matchIP || slices.Compare(ha, ctr2NewHwAddr) != 0 {
 						continue
 					}
-					count += 1
+					count++
 					var interval time.Duration
 					if !lastTimestamp.IsZero() {
 						interval = p.ReceivedAt.Sub(lastTimestamp)

@@ -4,6 +4,7 @@ package overlay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"syscall"
@@ -21,11 +22,11 @@ var soTimeout = ns.NetlinkSocketsTimeout
 
 func validateID(nid, eid string) error {
 	if nid == "" {
-		return fmt.Errorf("invalid network id")
+		return errors.New("invalid network id")
 	}
 
 	if eid == "" {
-		return fmt.Errorf("invalid endpoint id")
+		return errors.New("invalid endpoint id")
 	}
 
 	return nil

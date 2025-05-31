@@ -282,7 +282,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 		}
 	}()
 
-	p, err = t.Task.Exec(ctx, processID, spec, func(id string) (cio.IO, error) {
+	p, err = t.Task.Exec(ctx, processID, spec, func(_ string) (cio.IO, error) {
 		rio, err = t.ctr.createIO(fifos, stdinCloseSync, attachStdio)
 		return rio, err
 	})

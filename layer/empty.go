@@ -3,7 +3,7 @@ package layer
 import (
 	"archive/tar"
 	"bytes"
-	"fmt"
+	"errors"
 	"io"
 )
 
@@ -27,7 +27,7 @@ func (el *emptyLayer) TarStreamFrom(p ChainID) (io.ReadCloser, error) {
 	if p == "" {
 		return el.TarStream()
 	}
-	return nil, fmt.Errorf("can't get parent tar stream of an empty layer")
+	return nil, errors.New("can't get parent tar stream of an empty layer")
 }
 
 func (el *emptyLayer) ChainID() ChainID {

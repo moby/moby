@@ -46,7 +46,7 @@ func (w *tstwriter) WriteMsg(m *dns.Msg) (err error) {
 	return nil
 }
 
-func (w *tstwriter) Write(m []byte) (int, error) { return 0, nil }
+func (w *tstwriter) Write(_ []byte) (int, error) { return 0, nil }
 
 func (w *tstwriter) LocalAddr() net.Addr {
 	return &tstaddr{network: w.network}
@@ -58,7 +58,7 @@ func (w *tstwriter) RemoteAddr() net.Addr {
 
 func (w *tstwriter) TsigStatus() error { return nil }
 
-func (w *tstwriter) TsigTimersOnly(b bool) {}
+func (w *tstwriter) TsigTimersOnly(_ bool) {}
 
 func (w *tstwriter) Hijack() {}
 
@@ -246,7 +246,7 @@ func (w tlogWriter) Write(p []byte) (int, error) {
 
 type noopDNSBackend struct{ DNSBackend }
 
-func (noopDNSBackend) ResolveName(_ context.Context, name string, ipType int) ([]net.IP, bool) {
+func (noopDNSBackend) ResolveName(_ context.Context, _ string, _ int) ([]net.IP, bool) {
 	return nil, false
 }
 
@@ -254,7 +254,7 @@ func (noopDNSBackend) ExecFunc(f func()) error { f(); return nil }
 
 func (noopDNSBackend) NdotsSet() bool { return false }
 
-func (noopDNSBackend) HandleQueryResp(name string, ip net.IP) {}
+func (noopDNSBackend) HandleQueryResp(_ string, _ net.IP) {}
 
 func TestReplySERVFAIL(t *testing.T) {
 	cases := []struct {

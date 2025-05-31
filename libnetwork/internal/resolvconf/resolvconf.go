@@ -181,7 +181,7 @@ func (rc *ResolvConf) Options() []string {
 //	Option("ndots") -> ("1", true)
 //	Option("edns0") -> ("", true)
 func (rc *ResolvConf) Option(search string) (string, bool) {
-	for i := len(rc.options) - 1; i >= 0; i -= 1 {
+	for i := len(rc.options) - 1; i >= 0; i-- {
 		k, v, _ := strings.Cut(rc.options[i], ":")
 		if k == search {
 			return v, true

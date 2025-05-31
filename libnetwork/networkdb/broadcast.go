@@ -54,7 +54,7 @@ type nodeEventMessage struct {
 	notify chan<- struct{}
 }
 
-func (m *nodeEventMessage) Invalidates(other memberlist.Broadcast) bool {
+func (m *nodeEventMessage) Invalidates(_ memberlist.Broadcast) bool {
 	return false
 }
 

@@ -43,7 +43,7 @@ const (
 
 var remoteDriverNetworkRequest remoteapi.CreateNetworkRequest
 
-func (s *DockerNetworkSuite) SetUpTest(ctx context.Context, c *testing.T) {
+func (s *DockerNetworkSuite) SetUpTest(_ context.Context, c *testing.T) {
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
@@ -54,7 +54,7 @@ func (s *DockerNetworkSuite) TearDownTest(ctx context.Context, c *testing.T) {
 	}
 }
 
-func (s *DockerNetworkSuite) SetUpSuite(ctx context.Context, c *testing.T) {
+func (s *DockerNetworkSuite) SetUpSuite(_ context.Context, c *testing.T) {
 	mux := http.NewServeMux()
 	s.server = httptest.NewServer(mux)
 	assert.Assert(c, s.server != nil, "Failed to start an HTTP Server")
@@ -62,14 +62,14 @@ func (s *DockerNetworkSuite) SetUpSuite(ctx context.Context, c *testing.T) {
 }
 
 func setupRemoteNetworkDrivers(t *testing.T, mux *http.ServeMux, url, netDrv, ipamDrv string) {
-	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, err := fmt.Fprintf(w, `{"Implements": ["%s", "%s"]}`, driverapi.NetworkPluginEndpointType, ipamapi.PluginEndpointType)
 		assert.NilError(t, err)
 	})
 
 	// Network driver implementation
-	mux.HandleFunc(fmt.Sprintf("/%s.GetCapabilities", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.GetCapabilities", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, err := fmt.Fprint(w, `{"Scope":"local"}`)
 		assert.NilError(t, err)
@@ -86,19 +86,19 @@ func setupRemoteNetworkDrivers(t *testing.T, mux *http.ServeMux, url, netDrv, ip
 		assert.NilError(t, err)
 	})
 
-	mux.HandleFunc(fmt.Sprintf("/%s.DeleteNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.DeleteNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, err := fmt.Fprint(w, "null")
 		assert.NilError(t, err)
 	})
 
-	mux.HandleFunc(fmt.Sprintf("/%s.CreateEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.CreateEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, err := fmt.Fprint(w, `{"Interface":{"MacAddress":"a0:b1:c2:d3:e4:f5"}}`)
 		assert.NilError(t, err)
 	})
 
-	mux.HandleFunc(fmt.Sprintf("/%s.Join", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.Join", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 
 		veth := &netlink.Veth{
@@ -113,13 +113,13 @@ func setupRemoteNetworkDrivers(t *testing.T, mux *http.ServeMux, url, netDrv, ip
 		}
 	})
 
-	mux.HandleFunc(fmt.Sprintf("/%s.Leave", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.Leave", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, err := fmt.Fprint(w, "null")
 		assert.NilError(t, err)
 	})
 
-	mux.HandleFunc(fmt.Sprintf("/%s.DeleteEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.DeleteEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		if link, err := nlwrap.LinkByName("cnt0"); err == nil {
 			err = netlink.LinkDel(link)
@@ -144,7 +144,7 @@ func setupRemoteNetworkDrivers(t *testing.T, mux *http.ServeMux, url, netDrv, ip
 		gw     = "172.28.255.254/16"
 	)
 
-	mux.HandleFunc(fmt.Sprintf("/%s.GetDefaultAddressSpaces", ipamapi.PluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.GetDefaultAddressSpaces", ipamapi.PluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, err := fmt.Fprint(w, `{"LocalDefaultAddressSpace":"`+lAS+`", "GlobalDefaultAddressSpace": "`+gAS+`"}`)
 		assert.NilError(t, err)
@@ -238,7 +238,7 @@ func setupRemoteNetworkDrivers(t *testing.T, mux *http.ServeMux, url, netDrv, ip
 	assert.NilError(t, err)
 }
 
-func (s *DockerNetworkSuite) TearDownSuite(ctx context.Context, c *testing.T) {
+func (s *DockerNetworkSuite) TearDownSuite(_ context.Context, c *testing.T) {
 	if s.server == nil {
 		return
 	}

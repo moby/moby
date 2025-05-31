@@ -193,7 +193,7 @@ func (daemon *Daemon) ReleaseIngress() (<-chan struct{}, error) {
 	return done, nil
 }
 
-func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.NetworkCreateRequest, ip net.IP, staleID string) {
+func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.NetworkCreateRequest, _ net.IP, staleID string) {
 	controller := daemon.netController
 	controller.AgentInitWait()
 
@@ -252,7 +252,7 @@ func (daemon *Daemon) SetNetworkBootstrapKeys(keys []*lntypes.EncryptionKey) err
 // UpdateAttachment notifies the attacher about the attachment config.
 func (daemon *Daemon) UpdateAttachment(networkName, networkID, containerID string, config *networktypes.NetworkingConfig) error {
 	if daemon.clusterProvider == nil {
-		return fmt.Errorf("cluster provider is not initialized")
+		return errors.New("cluster provider is not initialized")
 	}
 
 	if err := daemon.clusterProvider.UpdateAttachment(networkName, containerID, config); err != nil {
@@ -266,7 +266,7 @@ func (daemon *Daemon) UpdateAttachment(networkName, networkID, containerID strin
 // the container from the network.
 func (daemon *Daemon) WaitForDetachment(ctx context.Context, networkName, networkID, taskID, containerID string) error {
 	if daemon.clusterProvider == nil {
-		return fmt.Errorf("cluster provider is not initialized")
+		return errors.New("cluster provider is not initialized")
 	}
 
 	return daemon.clusterProvider.WaitForDetachment(ctx, networkName, networkID, taskID, containerID)
@@ -352,27 +352,26 @@ func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, cre
 	}
 
 	if err := networktypes.ValidateIPAM(create.IPAM, enableIPv6); err != nil {
-		if agent {
-			// This function is called with agent=false for all networks. For swarm-scoped
-			// networks, the configuration is validated but ManagerRedirectError is returned
-			// and the network is not created. Then, each time a swarm-scoped network is
-			// needed, this function is called again with agent=true.
-			//
-			// Non-swarm networks created before ValidateIPAM was introduced continue to work
-			// as they did before-upgrade, even if they would fail the new checks on creation
-			// (for example, by having host-bits set in their subnet). Those networks are not
-			// seen again here.
-			//
-			// By dropping errors for agent networks, existing swarm-scoped networks also
-			// continue to behave as they did before upgrade - but new networks are still
-			// validated.
-			log.G(ctx).WithFields(log.Fields{
-				"error":   err,
-				"network": create.Name,
-			}).Warn("Continuing with validation errors in agent IPAM")
-		} else {
+		if !agent {
 			return nil, errdefs.InvalidParameter(err)
 		}
+		// This function is called with agent=false for all networks. For swarm-scoped
+		// networks, the configuration is validated but ManagerRedirectError is returned
+		// and the network is not created. Then, each time a swarm-scoped network is
+		// needed, this function is called again with agent=true.
+		//
+		// Non-swarm networks created before ValidateIPAM was introduced continue to work
+		// as they did before-upgrade, even if they would fail the new checks on creation
+		// (for example, by having host-bits set in their subnet). Those networks are not
+		// seen again here.
+		//
+		// By dropping errors for agent networks, existing swarm-scoped networks also
+		// continue to behave as they did before upgrade - but new networks are still
+		// validated.
+		log.G(ctx).WithFields(log.Fields{
+			"error":   err,
+			"network": create.Name,
+		}).Warn("Continuing with validation errors in agent IPAM")
 	}
 
 	if create.IPAM != nil {

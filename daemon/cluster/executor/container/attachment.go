@@ -35,7 +35,7 @@ func newNetworkAttacherController(b executorpkg.Backend, i executorpkg.ImageBack
 	}, nil
 }
 
-func (nc *networkAttacherController) Update(ctx context.Context, t *api.Task) error {
+func (nc *networkAttacherController) Update(_ context.Context, _ *api.Task) error {
 	return nil
 }
 
@@ -55,11 +55,11 @@ func (nc *networkAttacherController) Wait(pctx context.Context) error {
 	return nc.adapter.waitForDetach(ctx)
 }
 
-func (nc *networkAttacherController) Shutdown(ctx context.Context) error {
+func (nc *networkAttacherController) Shutdown(_ context.Context) error {
 	return nil
 }
 
-func (nc *networkAttacherController) Terminate(ctx context.Context) error {
+func (nc *networkAttacherController) Terminate(_ context.Context) error {
 	return nil
 }
 

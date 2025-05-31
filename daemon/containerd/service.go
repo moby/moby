@@ -113,7 +113,7 @@ func (i *ImageService) LayerStoreStatus() [][2]string {
 // GetLayerMountID returns the mount ID for a layer
 // called from daemon.go Daemon.Shutdown(), and Daemon.Cleanup() (cleanup is actually containerCleanup)
 // TODO: needs to be refactored to Unmount (see callers), or removed and replaced with GetLayerByID
-func (i *ImageService) GetLayerMountID(cid string) (string, error) {
+func (i *ImageService) GetLayerMountID(_ string) (string, error) {
 	return "", errdefs.NotImplemented(errors.New("not implemented"))
 }
 
@@ -145,7 +145,7 @@ func (i *ImageService) ImageDiskUsage(ctx context.Context) (int64, error) {
 
 	visitedImages := make(map[digest.Digest]struct{})
 	for _, img := range imgs {
-		if err := i.walkPresentChildren(ctx, img.Target, func(ctx context.Context, desc ocispec.Descriptor) error {
+		if err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, desc ocispec.Descriptor) error {
 			if _, ok := visitedImages[desc.Digest]; ok {
 				return nil
 			}
@@ -179,7 +179,7 @@ func (i *ImageService) layerDiskUsage(ctx context.Context) (allLayersSize int64,
 // UpdateConfig values
 //
 // called from reload.go
-func (i *ImageService) UpdateConfig(maxDownloads, maxUploads int) {
+func (i *ImageService) UpdateConfig(_, _ int) {
 	log.G(context.TODO()).Warn("max downloads and uploads is not yet implemented with the containerd store")
 }
 

@@ -6,7 +6,7 @@ import (
 )
 
 func FuzzLoggerDecode(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		dec := decodeFunc(bytes.NewBuffer(data))
 		defer dec.Close()
 

@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -784,34 +785,34 @@ func badDriverRegister(reg driverapi.Registerer) error {
 	return reg.RegisterDriver(badDriverName, &bd, driverapi.Capability{DataScope: scope.Local})
 }
 
-func (b *badDriver) CreateNetwork(ctx context.Context, nid string, options map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (b *badDriver) CreateNetwork(_ context.Context, _ string, _ map[string]interface{}, _ driverapi.NetworkInfo, _, _ []driverapi.IPAMData) error {
 	if b.failNetworkCreation {
-		return fmt.Errorf("I will not create any network")
+		return errors.New("I will not create any network")
 	}
 	return nil
 }
 
-func (b *badDriver) DeleteNetwork(nid string) error {
+func (b *badDriver) DeleteNetwork(_ string) error {
 	return nil
 }
 
-func (b *badDriver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, options map[string]interface{}) error {
-	return fmt.Errorf("I will not create any endpoint")
+func (b *badDriver) CreateEndpoint(_ context.Context, _, _ string, _ driverapi.InterfaceInfo, _ map[string]interface{}) error {
+	return errors.New("I will not create any endpoint")
 }
 
-func (b *badDriver) DeleteEndpoint(nid, eid string) error {
+func (b *badDriver) DeleteEndpoint(_, _ string) error {
 	return nil
 }
 
-func (b *badDriver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
+func (b *badDriver) EndpointOperInfo(_, _ string) (map[string]interface{}, error) {
 	return nil, nil
 }
 
-func (b *badDriver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]interface{}) error {
-	return fmt.Errorf("I will not allow any join")
+func (b *badDriver) Join(_ context.Context, _, _ string, _ string, _ driverapi.JoinInfo, _, _ map[string]interface{}) error {
+	return errors.New("I will not allow any join")
 }
 
-func (b *badDriver) Leave(nid, eid string) error {
+func (b *badDriver) Leave(_, _ string) error {
 	return nil
 }
 
@@ -823,25 +824,25 @@ func (b *badDriver) IsBuiltIn() bool {
 	return false
 }
 
-func (b *badDriver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
+func (b *badDriver) ProgramExternalConnectivity(_ context.Context, _, _ string, _ map[string]interface{}) error {
 	return nil
 }
 
-func (b *badDriver) RevokeExternalConnectivity(nid, eid string) error {
+func (b *badDriver) RevokeExternalConnectivity(_, _ string) error {
 	return nil
 }
 
-func (b *badDriver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
+func (b *badDriver) NetworkAllocate(_ string, _ map[string]string, _, _ []driverapi.IPAMData) (map[string]string, error) {
 	return nil, types.NotImplementedErrorf("not implemented")
 }
 
-func (b *badDriver) NetworkFree(id string) error {
+func (b *badDriver) NetworkFree(_ string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (b *badDriver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
+func (b *badDriver) EventNotify(_ driverapi.EventType, _, _, _ string, _ []byte) {
 }
 
-func (b *badDriver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+func (b *badDriver) DecodeTableEntry(_ string, _ string, _ []byte) (string, map[string]string) {
 	return "", nil
 }

@@ -37,7 +37,7 @@ func TestQuota(t *testing.T) {
 	t.Run("testVolQuotaUnsupported", quota.WrapMountTest(imageFileName, false, testVolQuotaUnsupported))
 }
 
-func testVolWithQuota(t *testing.T, mountPoint, backingFsDev, testDir string) {
+func testVolWithQuota(t *testing.T, _, _, testDir string) {
 	r, err := New(testDir, idtools.Identity{UID: os.Geteuid(), GID: os.Getegid()})
 	if err != nil {
 		t.Fatal(err)
@@ -73,7 +73,7 @@ func testVolWithQuota(t *testing.T, mountPoint, backingFsDev, testDir string) {
 	}
 }
 
-func testVolQuotaUnsupported(t *testing.T, mountPoint, backingFsDev, testDir string) {
+func testVolQuotaUnsupported(t *testing.T, _, _, testDir string) {
 	r, err := New(testDir, idtools.Identity{UID: os.Geteuid(), GID: os.Getegid()})
 	if err != nil {
 		t.Fatal(err)
@@ -302,7 +302,7 @@ func TestVolMountOpts(t *testing.T) {
 	}
 
 	ip1234 := net.ParseIP("1.2.3.4")
-	resolveIP := func(network, addr string) (*net.IPAddr, error) {
+	resolveIP := func(_, addr string) (*net.IPAddr, error) {
 		switch addr {
 		case "example.com":
 			return &net.IPAddr{IP: ip1234}, nil

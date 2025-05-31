@@ -207,7 +207,7 @@ func UntarUncompressed(tarArchive io.Reader, dest string, options *TarOptions) e
 // If either Tar or Untar fails, TarUntar aborts and returns the error.
 func (archiver *Archiver) TarUntar(src, dst string) error {
 	return (&archive.Archiver{
-		Untar: func(reader io.Reader, s string, options *archive.TarOptions) error {
+		Untar: func(reader io.Reader, s string, _ *archive.TarOptions) error {
 			return archiver.Untar(reader, s, &TarOptions{
 				IDMap: archiver.IDMapping,
 			})
@@ -219,7 +219,7 @@ func (archiver *Archiver) TarUntar(src, dst string) error {
 // UntarPath untar a file from path to a destination, src is the source tar file path.
 func (archiver *Archiver) UntarPath(src, dst string) error {
 	return (&archive.Archiver{
-		Untar: func(reader io.Reader, s string, options *archive.TarOptions) error {
+		Untar: func(reader io.Reader, s string, _ *archive.TarOptions) error {
 			return archiver.Untar(reader, s, &TarOptions{
 				IDMap: archiver.IDMapping,
 			})
@@ -234,7 +234,7 @@ func (archiver *Archiver) UntarPath(src, dst string) error {
 // intermediary disk IO.
 func (archiver *Archiver) CopyWithTar(src, dst string) error {
 	return (&archive.Archiver{
-		Untar: func(reader io.Reader, s string, options *archive.TarOptions) error {
+		Untar: func(reader io.Reader, s string, _ *archive.TarOptions) error {
 			return archiver.Untar(reader, s, nil)
 		},
 		IDMapping: idtools.ToUserIdentityMapping(archiver.IDMapping),
@@ -246,7 +246,7 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 // path `dst`, and preserves all its metadata.
 func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 	return (&archive.Archiver{
-		Untar: func(reader io.Reader, s string, options *archive.TarOptions) error {
+		Untar: func(reader io.Reader, s string, _ *archive.TarOptions) error {
 			return archiver.Untar(reader, s, nil)
 		},
 		IDMapping: idtools.ToUserIdentityMapping(archiver.IDMapping),

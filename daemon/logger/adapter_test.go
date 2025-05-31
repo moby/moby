@@ -34,7 +34,7 @@ func newMockLoggingPlugin() *mockLoggingPlugin {
 	}
 }
 
-func (l *mockLoggingPlugin) StartLogging(file string, info Info) error {
+func (l *mockLoggingPlugin) StartLogging(_ string, _ Info) error {
 	go func() {
 		dec := protoio.NewUint32DelimitedReader(l.inStream, binary.BigEndian, 1e6)
 		for {
@@ -59,7 +59,7 @@ func (l *mockLoggingPlugin) StartLogging(file string, info Info) error {
 	return nil
 }
 
-func (l *mockLoggingPlugin) StopLogging(file string) error {
+func (l *mockLoggingPlugin) StopLogging(_ string) error {
 	l.c.L.Lock()
 	if l.err == nil {
 		l.err = io.EOF
@@ -73,7 +73,7 @@ func (l *mockLoggingPlugin) Capabilities() (Capability, error) {
 	return Capability{ReadLogs: true}, nil
 }
 
-func (l *mockLoggingPlugin) ReadLogs(info Info, config ReadConfig) (io.ReadCloser, error) {
+func (l *mockLoggingPlugin) ReadLogs(_ Info, config ReadConfig) (io.ReadCloser, error) {
 	r, w := io.Pipe()
 
 	go func() {

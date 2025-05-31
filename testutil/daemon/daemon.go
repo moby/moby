@@ -341,7 +341,7 @@ func (d *Daemon) TailLogsT(t LogT, n int) {
 
 // PollCheckLogs is a poll.Check that checks the daemon logs using the passed in match function.
 func (d *Daemon) PollCheckLogs(ctx context.Context, match func(s string) bool) poll.Check {
-	return func(t poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
 		ok, _, err := d.ScanLogs(ctx, match)
 		if err != nil {
 			return poll.Error(err)

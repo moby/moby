@@ -258,7 +258,7 @@ func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.I
 		}()
 
 		var contentSize int64
-		if err := i.walkPresentChildren(ctx, target, func(ctx context.Context, desc ocispec.Descriptor) error {
+		if err := i.walkPresentChildren(ctx, target, func(_ context.Context, desc ocispec.Descriptor) error {
 			contentSize += desc.Size
 			return nil
 		}); err == nil {
@@ -358,14 +358,13 @@ func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.I
 		return nil
 	})
 	if err != nil {
-		if errors.Is(err, errNotManifestOrIndex) {
-			log.G(ctx).WithFields(log.Fields{
-				"error": err,
-				"image": img.Name,
-			}).Warn("unexpected image target (neither a manifest nor index)")
-		} else {
+		if !errors.Is(err, errNotManifestOrIndex) {
 			return nil, err
 		}
+		log.G(ctx).WithFields(log.Fields{
+			"error": err,
+			"image": img.Name,
+		}).Warn("unexpected image target (neither a manifest nor index)")
 	}
 
 	return &summary, nil

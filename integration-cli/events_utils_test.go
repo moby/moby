@@ -43,7 +43,7 @@ func newEventObserver(c *testing.T, args ...string) (*eventObserver, error) {
 }
 
 // newEventObserverWithBacklog creates a new observer changing the start time of the backlog to return.
-func newEventObserverWithBacklog(c *testing.T, since int64, args ...string) (*eventObserver, error) {
+func newEventObserverWithBacklog(_ *testing.T, since int64, args ...string) (*eventObserver, error) {
 	startTime := strconv.FormatInt(since, 10)
 	cmdArgs := []string{"events", "--since", startTime}
 	if len(args) > 0 {
@@ -146,7 +146,7 @@ func processEventMatch(actions map[string]chan bool) eventMatchProcessor {
 
 // parseEventAction parses an event text and returns the action.
 // It fails if the text is not in the event format.
-func parseEventAction(c *testing.T, text string) string {
+func parseEventAction(_ *testing.T, text string) string {
 	matches := eventstestutils.ScanMap(text)
 	return matches["action"]
 }

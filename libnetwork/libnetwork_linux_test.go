@@ -875,7 +875,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, _ = fmt.Fprintln(w, `{"Implements": ["InvalidDriver"]}`)
 	})
@@ -903,19 +903,19 @@ func TestValidRemoteDriver(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, _ = fmt.Fprintf(w, `{"Implements": ["%s"]}`, driverapi.NetworkPluginEndpointType)
 	})
-	mux.HandleFunc(fmt.Sprintf("/%s.GetCapabilities", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.GetCapabilities", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, _ = fmt.Fprintf(w, `{"Scope":"local"}`)
 	})
-	mux.HandleFunc(fmt.Sprintf("/%s.CreateNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.CreateNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, _ = fmt.Fprintf(w, "null")
 	})
-	mux.HandleFunc(fmt.Sprintf("/%s.DeleteNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s.DeleteNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		_, _ = fmt.Fprintf(w, "null")
 	})

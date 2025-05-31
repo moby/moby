@@ -250,7 +250,7 @@ func TestFSWalkerStopOnError(t *testing.T) {
 
 	tcases := make(map[digest.Digest]struct{})
 	tcases[id] = struct{}{}
-	err = fsStore.Walk(func(id digest.Digest) error {
+	err = fsStore.Walk(func(_ digest.Digest) error {
 		return errors.New("what")
 	})
 	assert.Check(t, is.ErrorContains(err, "what"))

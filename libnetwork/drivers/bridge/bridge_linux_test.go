@@ -266,7 +266,7 @@ func getIPv4Data(t *testing.T) []driverapi.IPAMData {
 	return []driverapi.IPAMData{{AddressSpace: "LocalDefault", Pool: netiputil.ToIPNet(alloc.Pool), Gateway: gw}}
 }
 
-func getIPv6Data(t *testing.T) []driverapi.IPAMData {
+func getIPv6Data(_ *testing.T) []driverapi.IPAMData {
 	ipd := driverapi.IPAMData{AddressSpace: "full"}
 	// There's no default IPv6 address pool, so use an arbitrary unique-local prefix.
 	addr, nw, _ := net.ParseCIDR("fdcd:d1b1:99d2:abcd::1/64")
@@ -774,7 +774,7 @@ func (te *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType int, ne
 	return nil
 }
 
-func (te *testEndpoint) AddTableEntry(tableName string, key string, value []byte) error {
+func (te *testEndpoint) AddTableEntry(_ string, _ string, _ []byte) error {
 	return nil
 }
 

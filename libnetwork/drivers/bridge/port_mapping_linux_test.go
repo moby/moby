@@ -774,7 +774,7 @@ func TestAddPortMappings(t *testing.T) {
 			proxies := map[proxyCall]bool{} // proxy -> is not stopped
 			startProxy = func(pb types.PortBinding,
 				proxyPath string,
-				listenSock *os.File,
+				_ *os.File,
 			) (stop func() error, retErr error) {
 				if tc.busyPortIPv4 > 0 && tc.busyPortIPv4 == int(pb.HostPort) && pb.HostIP.To4() != nil {
 					return nil, errors.New("busy port")

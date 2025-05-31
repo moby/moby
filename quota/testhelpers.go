@@ -117,7 +117,7 @@ func WrapMountTest(imageFileName string, enableQuota bool, testFunc func(t *test
 // WrapQuotaTest - wraps a test function such that is has easy and guaranteed access to a quota Control
 // instance with a quota test dir under its control.
 func WrapQuotaTest(testFunc func(t *testing.T, ctrl *Control, mountPoint, testDir, testSubDir string)) func(t *testing.T, mountPoint, backingFsDev, testDir string) {
-	return func(t *testing.T, mountPoint, backingFsDev, testDir string) {
+	return func(t *testing.T, mountPoint, _, testDir string) {
 		ctrl, err := NewControl(testDir)
 		if err != nil {
 			t.Fatalf("assertion failed: error is not nil: %v", err)

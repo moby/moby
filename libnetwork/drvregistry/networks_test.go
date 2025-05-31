@@ -49,9 +49,9 @@ func TestNetworks(t *testing.T) {
 		err := reg.RegisterDriver(mockDriverName, &md, mockDriverCaps)
 		assert.NilError(t, err)
 
-		d, cap := reg.Driver(mockDriverName)
-		assert.Check(t, d != nil)
-		assert.Check(t, is.DeepEqual(cap, mockDriverCaps))
+		driver, capability := reg.Driver(mockDriverName)
+		assert.Check(t, driver != nil)
+		assert.Check(t, is.DeepEqual(capability, mockDriverCaps))
 	})
 
 	t.Run("WalkDrivers", func(t *testing.T) {
@@ -60,7 +60,7 @@ func TestNetworks(t *testing.T) {
 		assert.NilError(t, err)
 
 		var driverName string
-		reg.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+		reg.WalkDrivers(func(name string, _ driverapi.Driver, _ driverapi.Capability) bool {
 			driverName = name
 			return false
 		})

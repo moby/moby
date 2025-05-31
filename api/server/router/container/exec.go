@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (c *containerRouter) getExecByID(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) getExecByID(_ context.Context, w http.ResponseWriter, _ *http.Request, vars map[string]string) error {
 	eConfig, err := c.backend.ContainerExecInspect(vars["id"])
 	if err != nil {
 		return err
@@ -154,7 +154,7 @@ func (c *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 	return nil
 }
 
-func (c *containerRouter) postContainerExecResize(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (c *containerRouter) postContainerExecResize(ctx context.Context, _ http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}

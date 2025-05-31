@@ -194,7 +194,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return err
 	}
 
-	ctr, err := libcontainerd.ReplaceContainer(ctx, daemon.containerd, container.ID, spec, shim, createOptions, func(ctx context.Context, client *containerd.Client, c *containers.Container) error {
+	ctr, err := libcontainerd.ReplaceContainer(ctx, daemon.containerd, container.ID, spec, shim, createOptions, func(ctx context.Context, _ *containerd.Client, c *containers.Container) error {
 		// Only set the image if we are using containerd for image storage.
 		// This is for metadata purposes only.
 		// Other lower-level components may make use of this information.

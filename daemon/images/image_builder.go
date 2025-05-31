@@ -2,7 +2,6 @@ package images
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"runtime"
 
@@ -195,7 +194,7 @@ Please notify the image author to correct the configuration.`,
 func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
 	if refOrID == "" { // FROM scratch
 		if runtime.GOOS == "windows" {
-			return nil, nil, fmt.Errorf(`"FROM scratch" is not supported on Windows`)
+			return nil, nil, errors.New(`"FROM scratch" is not supported on Windows`)
 		}
 		if opts.Platform != nil {
 			if err := image.CheckOS(opts.Platform.OS); err != nil {
@@ -237,7 +236,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 // CreateImage creates a new image by adding a config and ID to the image store.
 // This is similar to LoadImage() except that it receives JSON encoded bytes of
 // an image instead of a tar archive.
-func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent string, _ digest.Digest) (builder.Image, error) {
+func (i *ImageService) CreateImage(_ context.Context, config []byte, parent string, _ digest.Digest) (builder.Image, error) {
 	id, err := i.imageStore.Create(config)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create image")

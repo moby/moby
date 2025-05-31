@@ -25,7 +25,7 @@ func TestMiddlewares(t *testing.T) {
 	resp := httptest.NewRecorder()
 	ctx := context.Background()
 
-	localHandler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	localHandler := func(ctx context.Context, w http.ResponseWriter, _ *http.Request, _ map[string]string) error {
 		if httputils.VersionFromContext(ctx) == "" {
 			t.Fatal("Expected version, got empty string")
 		}

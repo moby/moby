@@ -229,7 +229,7 @@ func (i *ImageService) leaseContent(ctx context.Context, store content.Store, de
 // LoadImage uploads a set of images into the repository. This is the
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
-func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platform *ocispec.Platform, outStream io.Writer, quiet bool) error {
+func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platform *ocispec.Platform, outStream io.Writer, _ bool) error {
 	decompressed, err := compression.DecompressStream(inTar)
 	if err != nil {
 		return errors.Wrap(err, "failed to decompress input tar archive")

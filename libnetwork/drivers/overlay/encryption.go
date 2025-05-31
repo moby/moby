@@ -382,7 +382,7 @@ func getMinimalIP(ip net.IP) net.IP {
 	return ip
 }
 
-func programSP(fSA *netlink.XfrmState, rSA *netlink.XfrmState, add bool) error {
+func programSP(fSA *netlink.XfrmState, _ *netlink.XfrmState, add bool) error {
 	action := "Removing"
 	xfrmProgram := ns.NlHandle().XfrmPolicyDel
 	if add {

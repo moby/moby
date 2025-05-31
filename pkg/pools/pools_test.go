@@ -157,7 +157,7 @@ func TestNewWriteCloserWrapperWithAWriteCloser(t *testing.T) {
 	}
 }
 
-func TestBufferPoolPutAndGet(t *testing.T) {
+func TestBufferPoolPutAndGet(_ *testing.T) {
 	buf := buffer32KPool.Get()
 	buffer32KPool.Put(buf)
 }

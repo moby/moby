@@ -120,7 +120,7 @@ func (v *localVolume) needsMount() bool {
 
 func getMountOptions(opts *optsConfig, resolveIP func(string, string) (*net.IPAddr, error)) (mountDevice string, mountOpts string, _ error) {
 	if opts.MountDevice == "" {
-		return "", "", fmt.Errorf("missing device in volume options")
+		return "", "", errors.New("missing device in volume options")
 	}
 
 	mountOpts = opts.MountOpts
@@ -184,9 +184,8 @@ func (v *localVolume) postMount() error {
 	if v.opts.Quota.Size > 0 {
 		if v.quotaCtl != nil {
 			return v.quotaCtl.SetQuota(v.path, v.opts.Quota)
-		} else {
-			return errors.New("size quota requested for volume but no quota support")
 		}
+		return errors.New("size quota requested for volume but no quota support")
 	}
 	return nil
 }
