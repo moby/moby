@@ -224,11 +224,11 @@ func (nDB *NetworkDB) clusterLeave() error {
 	mlist := nDB.memberlist
 
 	if err := nDB.sendNodeEvent(NodeEventTypeLeave); err != nil {
-		log.G(context.TODO()).Errorf("failed to send node leave: %v", err)
+		log.G(context.TODO()).WithError(err).Error("failed to send node leave event")
 	}
 
 	if err := mlist.Leave(time.Second); err != nil {
-		return err
+		log.G(context.TODO()).WithError(err).Error("failed to broadcast memberlist leave message")
 	}
 
 	// cancel the context
