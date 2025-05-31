@@ -284,6 +284,55 @@ func TestPredefinedPool(t *testing.T) {
 	}
 }
 
+func TestPredefinedPoolWithPreferredSubnetSize(t *testing.T) {
+	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	assert.NilError(t, err)
+
+	alloc1, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Options: map[string]string{DefaultAddressPoolSize: "24"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	alloc2, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if alloc1.Pool == alloc2.Pool {
+		t.Fatalf("Unexpected default network returned: %s = %s", alloc2.Pool, alloc1.Pool)
+	}
+
+	if alloc1.Pool.Bits() != 24 {
+		t.Fatalf("Unexpected default network size: %s != 24", alloc1.Pool)
+	}
+
+	if alloc2.Pool.Bits() == 24 {
+		t.Fatalf("Unexpected default network size: %s == 24", alloc2.Pool)
+	}
+
+	// Release the second pool first
+	if err := a.ReleasePool(alloc2.PoolID); err != nil {
+		t.Fatal(err)
+	}
+
+	alloc3, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Options: map[string]string{DefaultAddressPoolSize: "AB"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if alloc3.Pool != alloc2.Pool {
+		t.Fatalf("Unexpected default network returned: %s != %s", alloc3.Pool, alloc2.Pool)
+	}
+
+	if err := a.ReleasePool(alloc1.PoolID); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := a.ReleasePool(alloc3.PoolID); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRemoveSubnet(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)

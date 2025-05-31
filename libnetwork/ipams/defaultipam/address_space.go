@@ -134,7 +134,7 @@ func (aSpace *addrSpace) allocatePool(nw netip.Prefix) error {
 // with existing allocations and 'reserved' prefixes.
 //
 // This method is safe for concurrent use.
-func (aSpace *addrSpace) allocatePredefinedPool(reserved []netip.Prefix) (netip.Prefix, error) {
+func (aSpace *addrSpace) allocatePredefinedPool(reserved []netip.Prefix, preferredSize int) (netip.Prefix, error) {
 	aSpace.mu.Lock()
 	defer aSpace.mu.Unlock()
 
@@ -151,6 +151,43 @@ func (aSpace *addrSpace) allocatePredefinedPool(reserved []netip.Prefix) (netip.
 		return subnet
 	}
 
+	predefined := aSpace.predefined
+	if preferredSize > 0 {
+		// A preferred network size was specified, so prefer networks that can
+		// accommodate that size. We sort the predefined networks by size, so
+		// that we can find the first one that is large enough. If we're
+		// unable to find a network that is large enough, we'll end up returning
+		// the largest possible network that is smaller than the preferred size.
+		predefined = slices.Clone(aSpace.predefined)
+		slices.SortFunc(predefined, func(a, b *ipamutils.NetworkToSplit) int {
+			return a.CompareWithPreferredSize(b, preferredSize)
+		})
+	}
+
+	getPdf := func(pdfID int, preferredSize int) *ipamutils.NetworkToSplit {
+		// The pdfID is out of bounds, meaning we ran out of predefined
+		// networks. We return nil to signal that we've exhausted the list.
+		if pdfID >= len(predefined) {
+			return nil
+		}
+
+		pdf := predefined[pdfID]
+		if preferredSize > pdf.Size && netip.PrefixFrom(pdf.Base.Addr(), preferredSize).IsValid() {
+			// If a preferred network size is given that would result in a
+			// smaller (valid) subnet than the configured 'pdf' size, we override
+			// the configured default size. If the preferred size is invalid or larger
+			// than the configured size, we honor the original network size.
+			// This means that an allocated network subnet may be smaller than
+			// the configured defaults, but never larger.
+			pdf = &ipamutils.NetworkToSplit{
+				Base: pdf.Base,
+				Size: preferredSize,
+			}
+		}
+
+		return pdf
+	}
+
 	for {
 		allocated := it.Get()
 		if allocated == (netip.Prefix{}) {
@@ -158,10 +195,10 @@ func (aSpace *addrSpace) allocatePredefinedPool(reserved []netip.Prefix) (netip.
 			break
 		}
 
-		if pdfID >= len(aSpace.predefined) {
+		pdf := getPdf(pdfID, preferredSize)
+		if pdf == nil {
 			return netip.Prefix{}, ipamapi.ErrNoMoreSubnets
 		}
-		pdf := aSpace.predefined[pdfID]
 
 		if allocated.Overlaps(pdf.Base) {
 			if allocated.Bits() <= pdf.Base.Bits() {
@@ -241,7 +278,7 @@ func (aSpace *addrSpace) allocatePredefinedPool(reserved []netip.Prefix) (netip.
 		prevAlloc = allocated
 	}
 
-	if pdfID >= len(aSpace.predefined) {
+	if pdfID >= len(predefined) {
 		return netip.Prefix{}, ipamapi.ErrNoMoreSubnets
 	}
 
@@ -249,7 +286,11 @@ func (aSpace *addrSpace) allocatePredefinedPool(reserved []netip.Prefix) (netip.
 	// networks. Let's try two more times (once on the current 'pdf', and once
 	// on the next network if any).
 	if partialOverlap {
-		pdf := aSpace.predefined[pdfID]
+		pdf := getPdf(pdfID, preferredSize)
+		if pdf == nil {
+			// Should never happen, but just in case
+			return netip.Prefix{}, ipamapi.ErrNoMoreSubnets
+		}
 
 		if next := netiputil.PrefixAfter(prevAlloc, pdf.Size); pdf.Overlaps(next) {
 			return makeAlloc(next), nil
@@ -269,14 +310,14 @@ func (aSpace *addrSpace) allocatePredefinedPool(reserved []netip.Prefix) (netip.
 	//   overlapped at all.
 	//
 	// Hence, we're sure 'pdfID' has never been subnetted yet.
-	if pdfID < len(aSpace.predefined) {
-		pdf := aSpace.predefined[pdfID]
-
-		next := pdf.FirstPrefix()
-		return makeAlloc(next), nil
+	pdf := getPdf(pdfID, preferredSize)
+	if pdf == nil {
+		// We ran out of predefined networks.
+		return netip.Prefix{}, ipamapi.ErrNoMoreSubnets
 	}
 
-	return netip.Prefix{}, ipamapi.ErrNoMoreSubnets
+	next := pdf.FirstPrefix()
+	return makeAlloc(next), nil
 }
 
 // releaseSubnet deallocates prefixes nw and sub. It returns an error if no
