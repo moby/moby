@@ -375,13 +375,6 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 
-	addDelOpt := "-I"
-	rollbackAddDelOpt := "-D"
-	if isDelete {
-		addDelOpt = "-D"
-		rollbackAddDelOpt = "-I"
-	}
-
 	ingressMu.Lock()
 	defer ingressMu.Unlock()
 
@@ -393,6 +386,19 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 
 	// Filter the ingress ports until port rules start to be added/deleted
 	filteredPorts := filterPortConfigs(ingressPorts, isDelete)
+
+	return programIngressPorts(gwIP, filteredPorts, iptable, isDelete)
+}
+
+func programIngressPorts(gwIP net.IP, filteredPorts []*PortConfig, iptable *iptables.IPTable, isDelete bool) error {
+
+	addDelOpt := "-I"
+	rollbackAddDelOpt := "-D"
+	if isDelete {
+		addDelOpt = "-D"
+		rollbackAddDelOpt = "-I"
+	}
+
 	rollbackRules := make([][]string, 0, len(filteredPorts)*3)
 	var portErr error
 	defer func() {
