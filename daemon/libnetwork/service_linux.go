@@ -402,7 +402,13 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 	// Filter the ingress ports until port rules start to be added/deleted
 	filteredPorts := filterPortConfigs(ingressPorts, isDelete)
 
-	return programIngressPorts(gwIP, filteredPorts, iptable, isDelete)
+	if err := programIngressPorts(gwIP, filteredPorts, iptable, isDelete); err != nil {
+		return fmt.Errorf("failed to program ingress ports: %v", err)
+	}
+
+	plumbIngressPortsProxy(filteredPorts, isDelete)
+
+	return nil
 }
 
 func programIngressPorts(gwIP net.IP, filteredPorts []*PortConfig, iptable *iptables.IPTable, isDelete bool) error {
@@ -472,12 +478,18 @@ func programIngressPorts(gwIP net.IP, filteredPorts []*PortConfig, iptable *ipta
 		rollbackRule = []string{rollbackAddDelOpt, ingressChain, "-p", protocol, "--dport", publishedPort, "-j", "ACCEPT"}
 		rollbackRules = append(rollbackRules, rollbackRule)
 
+	}
+
+	return nil
+}
+
+func plumbIngressPortsProxy(ingressPorts []*PortConfig, isDelete bool) {
+	for _, iPort := range ingressPorts {
+		publishedPort := strconv.FormatUint(uint64(iPort.PublishedPort), 10)
 		if err := plumbProxy(iPort, isDelete); err != nil {
 			log.G(context.TODO()).Warnf("failed to create proxy for port %s: %v", publishedPort, err)
 		}
 	}
-
-	return nil
 }
 
 func findOIFName(ip net.IP) (string, error) {
@@ -509,13 +521,17 @@ func plumbProxy(iPort *PortConfig, isDelete bool) error {
 	)
 
 	portSpec := fmt.Sprintf("%d/%s", iPort.PublishedPort, strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]))
+	listener := ingressProxyTbl[portSpec]
 	if isDelete {
-		if listener, ok := ingressProxyTbl[portSpec]; ok {
-			if listener != nil {
-				listener.Close()
-			}
+		if listener != nil {
+			listener.Close()
 		}
+		delete(ingressProxyTbl, portSpec)
 
+		return nil
+	}
+
+	if listener != nil {
 		return nil
 	}
 
