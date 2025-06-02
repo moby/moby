@@ -131,7 +131,6 @@ linters:
         - importShadow
         - indexAlloc
         - initClause
-        - mapKey
         - methodExprCall
         - nestingReduce
         - nilValReturn
