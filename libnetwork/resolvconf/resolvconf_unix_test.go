@@ -349,7 +349,7 @@ search search1
 		{
 			doc:         "invalid nameserver",
 			nameServers: []string{"resolver.example.com"},
-			expErr:      `ParseAddr("resolver.example.com"): unexpected character (at "resolver.example.com")`,
+			expErr:      `bad nameserver address: ParseAddr("resolver.example.com"): unexpected character (at "resolver.example.com")`,
 		},
 	}
 
