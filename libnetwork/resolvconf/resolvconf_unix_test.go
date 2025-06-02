@@ -300,93 +300,79 @@ const (
 )
 
 func TestBuild(t *testing.T) {
-	tmpDir := t.TempDir()
-	file, err := os.CreateTemp(tmpDir, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	f, err := Build(file.Name(), []string{testNS1, testNS2, testNS3}, []string{"search1"}, []string{"opt1"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	const expected = `nameserver 192.0.2.1
+	tests := []struct {
+		doc         string
+		nameServers []string
+		dnsSearch   []string
+		dnsOptions  []string
+		expOut      string
+		expErr      string
+	}{
+		{
+			doc:    "no options",
+			expOut: ``,
+		},
+		{
+			doc:         "all options",
+			nameServers: []string{testNS1, testNS2, testNS3},
+			dnsSearch:   []string{"search1"},
+			dnsOptions:  []string{"opt1"},
+			expOut: `nameserver 192.0.2.1
 nameserver 2001:db8::1
 nameserver 203.0.113.3
 search search1
 options opt1
-`
-
-	if !bytes.Equal(f.Content, []byte(expected)) {
-		t.Errorf("Expected to find '%s' got '%s'", expected, f.Content)
-	}
-	content, err := os.ReadFile(file.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(content, []byte(expected)) {
-		t.Errorf("Expected to find '%s' got '%s'", expected, content)
-	}
-}
-
-func TestBuildWithZeroLengthDomainSearch(t *testing.T) {
-	tmpDir := t.TempDir()
-	file, err := os.CreateTemp(tmpDir, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	f, err := Build(file.Name(), []string{testNS1, testNS2, testNS3}, []string{"."}, []string{"opt1"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	const expected = `nameserver 192.0.2.1
+`,
+		},
+		{
+			doc:         "zero-length dns search",
+			nameServers: []string{testNS1, testNS2, testNS3},
+			dnsSearch:   []string{"."},
+			dnsOptions:  []string{"opt1"},
+			expOut: `nameserver 192.0.2.1
 nameserver 2001:db8::1
 nameserver 203.0.113.3
 options opt1
-`
-
-	if !bytes.Equal(f.Content, []byte(expected)) {
-		t.Errorf("Expected to find '%s' got '%s'", expected, f.Content)
-	}
-	content, err := os.ReadFile(file.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(content, []byte(expected)) {
-		t.Errorf("Expected to find '%s' got '%s'", expected, content)
-	}
-}
-
-func TestBuildWithNoOptions(t *testing.T) {
-	tmpDir := t.TempDir()
-	file, err := os.CreateTemp(tmpDir, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	f, err := Build(file.Name(), []string{testNS1, testNS2, testNS3}, []string{"search1"}, []string{})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	const expected = `nameserver 192.0.2.1
+`,
+		},
+		{
+			doc:         "no dns options",
+			nameServers: []string{testNS1, testNS2, testNS3},
+			dnsSearch:   []string{"search1"},
+			dnsOptions:  []string{},
+			expOut: `nameserver 192.0.2.1
 nameserver 2001:db8::1
 nameserver 203.0.113.3
 search search1
-`
+`,
+		},
+		{
+			doc:         "invalid nameserver",
+			nameServers: []string{"resolver.example.com"},
+			expErr:      `bad nameserver address: ParseAddr("resolver.example.com"): unexpected character (at "resolver.example.com")`,
+		},
+	}
 
-	if !bytes.Equal(f.Content, []byte(expected)) {
-		t.Errorf("Expected to find '%s' got '%s'", expected, f.Content)
-	}
-	content, err := os.ReadFile(file.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(content, []byte(expected)) {
-		t.Errorf("Expected to find '%s' got '%s'", expected, content)
+	tmpDir := t.TempDir()
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			file, err := os.CreateTemp(tmpDir, "")
+			assert.NilError(t, err)
+
+			f, err := Build(file.Name(), tc.nameServers, tc.dnsSearch, tc.dnsOptions)
+			if tc.expErr != "" {
+				assert.Error(t, err, tc.expErr)
+			} else if err != nil {
+				assert.NilError(t, err)
+				assert.Equal(t, string(f.Content), tc.expOut)
+			}
+
+			// Verify the content matches the expected; for error-cases,
+			// this verifies the file is empty.
+			content, err := os.ReadFile(file.Name())
+			assert.NilError(t, err)
+			assert.Equal(t, string(content), tc.expOut)
+		})
 	}
 }
 
