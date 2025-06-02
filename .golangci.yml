@@ -130,7 +130,6 @@ linters:
         - ifElseChain
         - importShadow
         - indexAlloc
-        - initClause
         - methodExprCall
         - nestingReduce
         - nilValReturn
