@@ -34,51 +34,37 @@ type Options struct {
 	// the system pool will be used.
 	ExclusiveRootPools bool
 	MinVersion         uint16
-	// If Passphrase is set, it will be used to decrypt a TLS private key
-	// if the key is encrypted.
-	//
-	// Deprecated: Use of encrypted TLS private keys has been deprecated, and
-	// will be removed in a future release. Golang has deprecated support for
-	// legacy PEM encryption (as specified in RFC 1423), as it is insecure by
-	// design (see https://go-review.googlesource.com/c/go/+/264159).
-	Passphrase string
-}
-
-// Extra (server-side) accepted CBC cipher suites - will phase out in the future
-var acceptedCBCCiphers = []uint16{
-	tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
-	tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
-	tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-	tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
 }
 
 // DefaultServerAcceptedCiphers should be uses by code which already has a crypto/tls
 // options struct but wants to use a commonly accepted set of TLS cipher suites, with
 // known weak algorithms removed.
-var DefaultServerAcceptedCiphers = append(clientCipherSuites, acceptedCBCCiphers...)
+var DefaultServerAcceptedCiphers = defaultCipherSuites
+
+// defaultCipherSuites is shared by both client and server as the default set.
+var defaultCipherSuites = []uint16{
+	tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+	tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+	tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+	tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+}
 
 // ServerDefault returns a secure-enough TLS configuration for the server TLS configuration.
 func ServerDefault(ops ...func(*tls.Config)) *tls.Config {
-	tlsConfig := &tls.Config{
-		// Avoid fallback by default to SSL protocols < TLS1.2
-		MinVersion:               tls.VersionTLS12,
-		PreferServerCipherSuites: true,
-		CipherSuites:             DefaultServerAcceptedCiphers,
-	}
-
-	for _, op := range ops {
-		op(tlsConfig)
-	}
-
-	return tlsConfig
+	return defaultConfig(ops...)
 }
 
 // ClientDefault returns a secure-enough TLS configuration for the client TLS configuration.
 func ClientDefault(ops ...func(*tls.Config)) *tls.Config {
+	return defaultConfig(ops...)
+}
+
+// defaultConfig is the default config used by both client and server TLS configuration.
+func defaultConfig(ops ...func(*tls.Config)) *tls.Config {
 	tlsConfig := &tls.Config{
-		// Prefer TLS1.2 as the client minimum
+		// Avoid fallback by default to SSL protocols < TLS1.2
 		MinVersion:   tls.VersionTLS12,
-		CipherSuites: clientCipherSuites,
+		CipherSuites: defaultCipherSuites,
 	}
 
 	for _, op := range ops {
@@ -92,13 +78,13 @@ func ClientDefault(ops ...func(*tls.Config)) *tls.Config {
 func certPool(caFile string, exclusivePool bool) (*x509.CertPool, error) {
 	// If we should verify the server, we need to load a trusted ca
 	var (
-		certPool *x509.CertPool
-		err      error
+		pool *x509.CertPool
+		err  error
 	)
 	if exclusivePool {
-		certPool = x509.NewCertPool()
+		pool = x509.NewCertPool()
 	} else {
-		certPool, err = SystemCertPool()
+		pool, err = SystemCertPool()
 		if err != nil {
 			return nil, fmt.Errorf("failed to read system certificates: %v", err)
 		}
@@ -107,10 +93,10 @@ func certPool(caFile string, exclusivePool bool) (*x509.CertPool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not read CA certificate %q: %v", caFile, err)
 	}
-	if !certPool.AppendCertsFromPEM(pemData) {
+	if !pool.AppendCertsFromPEM(pemData) {
 		return nil, fmt.Errorf("failed to append certificates from PEM file: %q", caFile)
 	}
-	return certPool, nil
+	return pool, nil
 }
 
 // allTLSVersions lists all the TLS versions and is used by the code that validates
@@ -144,34 +130,32 @@ func adjustMinVersion(options Options, config *tls.Config) error {
 	return nil
 }
 
-// IsErrEncryptedKey returns true if the 'err' is an error of incorrect
-// password when trying to decrypt a TLS private key.
+// errEncryptedKeyDeprecated is produced when we encounter an encrypted
+// (password-protected) key. From https://go-review.googlesource.com/c/go/+/264159;
 //
-// Deprecated: Use of encrypted TLS private keys has been deprecated, and
-// will be removed in a future release. Golang has deprecated support for
-// legacy PEM encryption (as specified in RFC 1423), as it is insecure by
-// design (see https://go-review.googlesource.com/c/go/+/264159).
-func IsErrEncryptedKey(err error) bool {
-	return errors.Is(err, x509.IncorrectPasswordError)
-}
+// > Legacy PEM encryption as specified in RFC 1423 is insecure by design. Since
+// > it does not authenticate the ciphertext, it is vulnerable to padding oracle
+// > attacks that can let an attacker recover the plaintext
+// >
+// > It's unfortunate that we don't implement PKCS#8 encryption so we can't
+// > recommend an alternative but PEM encryption is so broken that it's worth
+// > deprecating outright.
+//
+// Also see https://docs.docker.com/go/deprecated/
+var errEncryptedKeyDeprecated = errors.New("private key is encrypted; encrypted private keys are obsolete, and not supported")
 
 // getPrivateKey returns the private key in 'keyBytes', in PEM-encoded format.
-// If the private key is encrypted, 'passphrase' is used to decrypted the
-// private key.
-func getPrivateKey(keyBytes []byte, passphrase string) ([]byte, error) {
+// It returns an error if the file could not be decoded or was protected by
+// a passphrase.
+func getPrivateKey(keyBytes []byte) ([]byte, error) {
 	// this section makes some small changes to code from notary/tuf/utils/x509.go
 	pemBlock, _ := pem.Decode(keyBytes)
 	if pemBlock == nil {
 		return nil, fmt.Errorf("no valid private key found")
 	}
 
-	var err error
 	if x509.IsEncryptedPEMBlock(pemBlock) { //nolint:staticcheck // Ignore SA1019 (IsEncryptedPEMBlock is deprecated)
-		keyBytes, err = x509.DecryptPEMBlock(pemBlock, []byte(passphrase)) //nolint:staticcheck // Ignore SA1019 (DecryptPEMBlock is deprecated)
-		if err != nil {
-			return nil, fmt.Errorf("private key is encrypted, but could not decrypt it: %w", err)
-		}
-		keyBytes = pem.EncodeToMemory(&pem.Block{Type: pemBlock.Type, Bytes: keyBytes})
+		return nil, errEncryptedKeyDeprecated
 	}
 
 	return keyBytes, nil
@@ -195,7 +179,7 @@ func getCert(options Options) ([]tls.Certificate, error) {
 		return nil, err
 	}
 
-	prKeyBytes, err = getPrivateKey(prKeyBytes, options.Passphrase)
+	prKeyBytes, err = getPrivateKey(prKeyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +194,7 @@ func getCert(options Options) ([]tls.Certificate, error) {
 
 // Client returns a TLS configuration meant to be used by a client.
 func Client(options Options) (*tls.Config, error) {
-	tlsConfig := ClientDefault()
+	tlsConfig := defaultConfig()
 	tlsConfig.InsecureSkipVerify = options.InsecureSkipVerify
 	if !options.InsecureSkipVerify && options.CAFile != "" {
 		CAs, err := certPool(options.CAFile, options.ExclusiveRootPools)
@@ -235,7 +219,7 @@ func Client(options Options) (*tls.Config, error) {
 
 // Server returns a TLS configuration meant to be used by a server.
 func Server(options Options) (*tls.Config, error) {
-	tlsConfig := ServerDefault()
+	tlsConfig := defaultConfig()
 	tlsConfig.ClientAuth = options.ClientAuth
 	tlsCert, err := tls.LoadX509KeyPair(options.CertFile, options.KeyFile)
 	if err != nil {
