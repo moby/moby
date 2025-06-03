@@ -70,11 +70,3 @@ func (d *manager) Type() string {
 func (d *manager) IsBuiltIn() bool {
 	return true
 }
-
-func (d *manager) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
-func (d *manager) RevokeExternalConnectivity(nid, eid string) error {
-	return types.NotImplementedErrorf("not implemented")
-}
