@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/server/httpstatus"
 	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/daemon/server/httpstatus"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/sirupsen/logrus"
 )
