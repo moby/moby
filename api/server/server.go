@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/daemon/server/httpstatus"
+	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/daemon/server/middleware"
 	"github.com/docker/docker/daemon/server/router"
 	"github.com/docker/docker/dockerversion"

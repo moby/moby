@@ -3,7 +3,7 @@ package router
 import (
 	"net/http"
 
-	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/daemon/server/httputils"
 )
 
 // RouteWrapper wraps a route with extra functionality.

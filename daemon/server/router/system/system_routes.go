@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	buildtypes "github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/events"
@@ -21,6 +20,7 @@ import (
 	"github.com/docker/docker/api/types/system"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/daemon/server/router/build"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/pkg/errors"

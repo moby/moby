@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/daemon/server/httputils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
