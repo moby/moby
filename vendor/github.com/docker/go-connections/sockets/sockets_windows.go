@@ -9,10 +9,6 @@ import (
 	"github.com/Microsoft/go-winio"
 )
 
-func configureUnixTransport(tr *http.Transport, proto, addr string) error {
-	return ErrProtocolNotAvailable
-}
-
 func configureNpipeTransport(tr *http.Transport, proto, addr string) error {
 	// No need for compression in local communications.
 	tr.DisableCompression = true
