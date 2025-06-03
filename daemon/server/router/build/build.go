@@ -3,8 +3,8 @@ package build
 import (
 	"runtime"
 
-	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/types/build"
+	"github.com/docker/docker/daemon/server/router"
 )
 
 // buildRouter is a router to talk with the build controller
