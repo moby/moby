@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork/datastore"
+	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
@@ -699,13 +700,15 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 			}()
 		}
 		if !n.internal {
-			log.G(ctx).Debugf("Programming external connectivity on endpoint")
-			labels := sb.Labels()
-			labels[netlabel.NoProxy6To4] = noProxy6To4After
-			if err := d.ProgramExternalConnectivity(ctx, n.ID(), ep.ID(), labels); err != nil {
-				return errdefs.System(fmt.Errorf(
-					"driver failed programming external connectivity on endpoint %s (%s): %v",
-					ep.Name(), ep.ID(), err))
+			if ecd, ok := d.(driverapi.ExtConner); ok {
+				log.G(ctx).Debugf("Programming external connectivity on endpoint")
+				labels := sb.Labels()
+				labels[netlabel.NoProxy6To4] = noProxy6To4After
+				if err := ecd.ProgramExternalConnectivity(ctx, n.ID(), ep.ID(), labels); err != nil {
+					return errdefs.System(fmt.Errorf(
+						"driver failed programming external connectivity on endpoint %s (%s): %v",
+						ep.Name(), ep.ID(), err))
+				}
 			}
 		}
 	}
@@ -733,9 +736,11 @@ func (ep *Endpoint) programExternalConnectivity(ctx context.Context, labels map[
 	if err != nil {
 		return types.InternalErrorf("failed to get driver for programming external connectivity: %v", err)
 	}
-	if err := extD.ProgramExternalConnectivity(context.WithoutCancel(ctx), ep.network.ID(), ep.ID(), labels); err != nil {
-		return types.InternalErrorf("driver failed programming external connectivity on endpoint %s (%s): %v",
-			ep.Name(), ep.ID(), err)
+	if ecd, ok := extD.(driverapi.ExtConner); ok {
+		if err := ecd.ProgramExternalConnectivity(context.WithoutCancel(ctx), ep.network.ID(), ep.ID(), labels); err != nil {
+			return types.InternalErrorf("driver failed programming external connectivity on endpoint %s (%s): %v",
+				ep.Name(), ep.ID(), err)
+		}
 	}
 	return nil
 }
@@ -749,13 +754,17 @@ func (ep *Endpoint) revokeExternalConnectivity() (func(context.Context, map[stri
 	if err != nil {
 		return nil, types.InternalErrorf("failed to get driver for revoking external connectivity: %v", err)
 	}
-	if err = extD.RevokeExternalConnectivity(ep.network.ID(), ep.ID()); err != nil {
+	ecd, ok := extD.(driverapi.ExtConner)
+	if !ok {
+		return nil, nil
+	}
+	if err = ecd.RevokeExternalConnectivity(ep.network.ID(), ep.ID()); err != nil {
 		return nil, types.InternalErrorf(
 			"driver failed revoking external connectivity on endpoint %s (%s): %v",
 			ep.Name(), ep.ID(), err)
 	}
 	return func(ctx context.Context, labels map[string]any) error {
-		return extD.ProgramExternalConnectivity(context.WithoutCancel(ctx), ep.network.ID(), ep.ID(), labels)
+		return ecd.ProgramExternalConnectivity(context.WithoutCancel(ctx), ep.network.ID(), ep.ID(), labels)
 	}, nil
 }
 
@@ -873,9 +882,11 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 
 	if d != nil {
 		if moveExtConn4 || moveExtConn6 {
-			log.G(ctx).Debug("Revoking external connectivity on endpoint")
-			if err := d.RevokeExternalConnectivity(n.id, ep.id); err != nil {
-				log.G(ctx).WithError(err).Warn("driver failed revoking external connectivity on endpoint")
+			if ecd, ok := d.(driverapi.ExtConner); ok {
+				log.G(ctx).Debug("Revoking external connectivity on endpoint")
+				if err := ecd.RevokeExternalConnectivity(n.id, ep.id); err != nil {
+					log.G(ctx).WithError(err).Warn("driver failed revoking external connectivity on endpoint")
+				}
 			}
 		}
 

@@ -206,11 +206,3 @@ func (d *driver) Type() string {
 func (d *driver) IsBuiltIn() bool {
 	return true
 }
-
-func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
-func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
-	return types.NotImplementedErrorf("not implemented")
-}
