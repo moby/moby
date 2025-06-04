@@ -1492,6 +1492,15 @@ func (d *driver) Leave(nid, eid string) error {
 		return endpointNotFoundError(eid)
 	}
 
+	if endpoint.portMapping != nil {
+		if err := network.releasePorts(endpoint); err != nil {
+			return err
+		}
+		if err = d.storeUpdate(context.TODO(), endpoint); err != nil {
+			return fmt.Errorf("during leave, failed to store bridge endpoint %.7s: %v", endpoint.id, err)
+		}
+	}
+
 	if !network.config.EnableICC {
 		if err = d.link(network, endpoint, false); err != nil {
 			return err
@@ -1510,6 +1519,7 @@ func (pbm portBindingMode) test(bits portBindingMode) bool {
 const (
 	pbmIPv4 portBindingMode = 1 << iota
 	pbmIPv6
+	pbmRouted
 )
 
 func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid string, gw4Id, gw6Id string) (retErr error) {
@@ -1534,12 +1544,12 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 	if err != nil {
 		return err
 	}
-
 	if endpoint == nil {
 		return endpointNotFoundError(eid)
 	}
 
-	var pbmReq portBindingMode
+	// Always include rules for routed-mode port mappings - they'll be removed on Leave.
+	pbmReq := pbmRouted
 	// Act as the IPv4 gateway if explicitly selected.
 	if gw4Id == eid {
 		pbmReq |= pbmIPv4

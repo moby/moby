@@ -117,8 +117,8 @@ func (n *bridgeNetwork) addPortMappings(
 	pdc := n.getPortDriverClient()
 	disableNAT4, disableNAT6 := n.getNATDisabled()
 
-	add4 := !ep.portBindingState.test(pbmIPv4) && pbmReq.test(pbmIPv4)
-	add6 := !ep.portBindingState.test(pbmIPv6) && pbmReq.test(pbmIPv6)
+	add4 := !ep.portBindingState.test(pbmIPv4) && pbmReq.test(pbmIPv4) || (disableNAT4 && !ep.portBindingState.test(pbmRouted) && pbmReq.test(pbmRouted))
+	add6 := !ep.portBindingState.test(pbmIPv6) && pbmReq.test(pbmIPv6) || (disableNAT6 && !ep.portBindingState.test(pbmRouted) && pbmReq.test(pbmRouted))
 
 	// toBind accumulates port bindings that should be allocated the same host port
 	// (if required by NAT config). If the host address is unspecified, and defHostIP

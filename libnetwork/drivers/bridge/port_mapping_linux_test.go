@@ -882,7 +882,7 @@ func TestAddPortMappings(t *testing.T) {
 				addr:   tc.epAddrV4,
 				addrv6: tc.epAddrV6,
 			}
-			var pbm portBindingMode
+			pbm := pbmRouted
 			if ep.addr != nil {
 				pbm |= pbmIPv4
 			}
