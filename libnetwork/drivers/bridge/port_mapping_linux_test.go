@@ -263,7 +263,7 @@ func TestBindHostPortsError(t *testing.T) {
 			},
 		},
 	}
-	pbs, err := bindHostPorts(context.Background(), cfg, "")
+	pbs, err := bindHostPorts(context.Background(), cfg, "", nil, nil)
 	assert.Check(t, is.Error(err, "port binding mismatch 80/tcp:8080-8080, 80/tcp:8080-8081"))
 	assert.Check(t, is.Nil(pbs))
 }
