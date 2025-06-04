@@ -471,7 +471,7 @@ func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 	// there are no IPv6 bindings, it doesn't matter whether that was because this
 	// endpoint is not an IPv6 gateway and "pbmIPv6" was not set in the port
 	// binding state, or there were just no IPv6 port bindings configured.)
-	var pbm portBindingMode
+	pbm := portBindingMode{routed: true}
 	for _, b := range ep.portMapping {
 		if b.HostIP.To4() == nil {
 			pbm.ipv6 = true

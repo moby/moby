@@ -129,8 +129,8 @@ func (n *bridgeNetwork) sortAndNormPBs(
 	hairpin := n.hairpin()
 	disableNAT4, disableNAT6 := n.getNATDisabled()
 
-	add4 := !ep.portBindingState.ipv4 && pbmReq.ipv4
-	add6 := !ep.portBindingState.ipv6 && pbmReq.ipv6
+	add4 := !ep.portBindingState.ipv4 && pbmReq.ipv4 || (disableNAT4 && !ep.portBindingState.routed && pbmReq.routed)
+	add6 := !ep.portBindingState.ipv6 && pbmReq.ipv6 || (disableNAT6 && !ep.portBindingState.routed && pbmReq.routed)
 
 	reqs := make([]portmapperapi.PortBindingReq, 0, len(cfg))
 	for _, c := range cfg {
