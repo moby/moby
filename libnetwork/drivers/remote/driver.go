@@ -376,7 +376,7 @@ func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string,
 		return nil
 	}
 	if !isGw4 && !isGw6 {
-		return nil
+		return d.revokeExternalConnectivity(nid, eid)
 	}
 	ep.isGateway4, ep.isGateway6 = isGw4, isGw6
 	if !isGw6 && gw6Id != "" {
@@ -402,8 +402,8 @@ func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string,
 	return err
 }
 
-// RevokeExternalConnectivity method is invoked to remove any external connectivity programming related to the endpoint.
-func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
+// revokeExternalConnectivity method is invoked to remove any external connectivity programming related to the endpoint.
+func (d *driver) revokeExternalConnectivity(nid, eid string) error {
 	ep, ok := d.nwEndpoints[eid]
 	if !ok {
 		return fmt.Errorf("remote network driver: endpoint %s not found", eid)
