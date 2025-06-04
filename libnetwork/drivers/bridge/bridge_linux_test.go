@@ -874,7 +874,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 		}
 	}
 
-	err = d.RevokeExternalConnectivity("net1", "ep1")
+	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep1", nil, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -997,7 +997,7 @@ func TestLinkContainers(t *testing.T) {
 	}
 	checkLink(true)
 
-	err = d.RevokeExternalConnectivity("net1", "ep2")
+	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep2", nil, "", "")
 	if err != nil {
 		t.Fatalf("Failed to revoke external connectivity: %v", err)
 	}

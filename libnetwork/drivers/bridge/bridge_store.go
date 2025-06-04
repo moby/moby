@@ -477,4 +477,5 @@ func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 	if err != nil {
 		log.G(context.TODO()).Warnf("Failed to reserve existing port mapping for endpoint %.7s:%v", ep.id, err)
 	}
+	ep.portBindingState = pbm
 }
