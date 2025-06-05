@@ -1447,6 +1447,10 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	if err != nil {
 		return err
 	}
+	endpoint.extConnConfig, err = parseConnectivityOptions(sbOpts)
+	if err != nil {
+		return err
+	}
 
 	iNames := jinfo.InterfaceName()
 	containerVethPrefix := defaultContainerVethPrefix
@@ -1499,7 +1503,7 @@ type portBindingMode struct {
 	ipv6 bool
 }
 
-func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid string, options map[string]interface{}, gw4Id, gw6Id string) (retErr error) {
+func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid string, gw4Id, gw6Id string) (retErr error) {
 	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".ProgramExternalConnectivity", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid),
@@ -1524,15 +1528,6 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 
 	if endpoint == nil {
 		return endpointNotFoundError(eid)
-	}
-
-	// Only parse options if given (options may be nil when revoking gateway-ness, but that
-	// doesn't mean the endpoint's config has changed).
-	if options != nil {
-		endpoint.extConnConfig, err = parseConnectivityOptions(options)
-		if err != nil {
-			return err
-		}
 	}
 
 	var pbmReq portBindingMode
