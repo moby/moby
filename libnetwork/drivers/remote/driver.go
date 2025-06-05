@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/remote/api"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
@@ -349,7 +350,18 @@ func (d *driver) Leave(nid, eid string) error {
 }
 
 // ProgramExternalConnectivity is invoked to program the rules to allow external connectivity for the endpoint.
-func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
+func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}, gw4Id, gw6Id string) error {
+	// If there is an IPv6 gateway, but it's not eid, set NoProxy6To4. This label was
+	// used to tell the bridge driver not to try to use the userland proxy for dual
+	// stack port mappings between host IPv6 and container IPv4 (because a different
+	// endpoint may be dealing with IPv6 host addresses). It was undocumented for the
+	// remote driver, marked as being for internal use and subject to later removal.
+	// But, preserve it here for now as there's no other way for a remote driver to
+	// know it shouldn't try to deal with IPv6 in this case.
+	if gw6Id != "" && gw6Id != eid {
+		options[netlabel.NoProxy6To4] = true
+	}
+
 	data := &api.ProgramExternalConnectivityRequest{
 		NetworkID:  nid,
 		EndpointID: eid,

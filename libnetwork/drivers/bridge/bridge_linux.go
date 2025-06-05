@@ -1488,7 +1488,7 @@ func (d *driver) Leave(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid string, options map[string]interface{}) error {
+func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid string, options map[string]interface{}, gw4Id, gw6Id string) error {
 	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".ProgramExternalConnectivity", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid)))
@@ -1520,13 +1520,16 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 
 	// Program any required port mapping and store them in the endpoint
 	if endpoint.extConnConfig != nil && endpoint.extConnConfig.PortBindings != nil {
+		// noProxy6To4 if another endpoint is the IPv6 gateway
+		noProxy6To4 := gw6Id != "" && gw6Id != eid
+
 		endpoint.portMapping, err = network.addPortMappings(
 			ctx,
 			endpoint.addr,
 			endpoint.addrv6,
 			endpoint.extConnConfig.PortBindings,
 			network.config.DefaultBindingIP,
-			endpoint.extConnConfig.NoProxy6To4,
+			noProxy6To4,
 		)
 		if err != nil {
 			return err
@@ -1833,14 +1836,6 @@ func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityCon
 			cc.ExposedPorts = ports
 		} else {
 			return nil, types.InvalidParameterErrorf("invalid exposed ports data in connectivity configuration: %v", opt)
-		}
-	}
-
-	if opt, ok := cOptions[netlabel.NoProxy6To4]; ok {
-		if noProxy6To4, ok := opt.(bool); ok {
-			cc.NoProxy6To4 = noProxy6To4
-		} else {
-			return nil, types.InvalidParameterErrorf("invalid "+netlabel.NoProxy6To4+" in connectivity configuration: %v", opt)
 		}
 	}
 

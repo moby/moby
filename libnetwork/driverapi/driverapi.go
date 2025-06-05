@@ -83,7 +83,7 @@ type Driver interface {
 type ExtConner interface {
 	// ProgramExternalConnectivity invokes the driver method which does the necessary
 	// programming to allow the external connectivity dictated by the passed options
-	ProgramExternalConnectivity(ctx context.Context, nid, eid string, options map[string]interface{}) error
+	ProgramExternalConnectivity(ctx context.Context, nid, eid string, options map[string]interface{}, gw4Id, gw6Id string) error
 
 	// RevokeExternalConnectivity asks the driver to remove any external connectivity
 	// programming that was done so far

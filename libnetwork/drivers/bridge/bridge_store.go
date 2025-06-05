@@ -458,8 +458,18 @@ func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 		cfg[i] = b.PortBinding
 	}
 
+	// If there were no IPv6 host ports in the bindings, set noProxy6To4 to make
+	// sure none will be set up this time.
+	var noProxy6To4 bool
+	for _, b := range ep.portMapping {
+		if b.HostIP.To4() != nil {
+			noProxy6To4 = true
+			break
+		}
+	}
+
 	var err error
-	ep.portMapping, err = n.addPortMappings(context.TODO(), ep.addr, ep.addrv6, cfg, n.config.DefaultBindingIP, ep.extConnConfig.NoProxy6To4)
+	ep.portMapping, err = n.addPortMappings(context.TODO(), ep.addr, ep.addrv6, cfg, n.config.DefaultBindingIP, noProxy6To4)
 	if err != nil {
 		log.G(context.TODO()).Warnf("Failed to reserve existing port mapping for endpoint %.7s:%v", ep.id, err)
 	}
