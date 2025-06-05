@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 )
 
@@ -89,7 +90,7 @@ func findExternalDriver(cfg *Config) driver {
 	const toolPrefix = "GOPACKAGESDRIVER="
 	tool := ""
 	for _, env := range cfg.Env {
-		if val := strings.TrimPrefix(env, toolPrefix); val != env {
+		if val, ok := strings.CutPrefix(env, toolPrefix); ok {
 			tool = val
 		}
 	}
@@ -131,7 +132,7 @@ func findExternalDriver(cfg *Config) driver {
 		// command.
 		//
 		// (See similar trick in Invocation.run in ../../internal/gocommand/invoke.go)
-		cmd.Env = append(slicesClip(cfg.Env), "PWD="+cfg.Dir)
+		cmd.Env = append(slices.Clip(cfg.Env), "PWD="+cfg.Dir)
 		cmd.Stdin = bytes.NewReader(req)
 		cmd.Stdout = buf
 		cmd.Stderr = stderr
@@ -150,7 +151,3 @@ func findExternalDriver(cfg *Config) driver {
 		return &response, nil
 	}
 }
-
-// slicesClip removes unused capacity from the slice, returning s[:len(s):len(s)].
-// TODO(adonovan): use go1.21 slices.Clip.
-func slicesClip[S ~[]E, E any](s S) S { return s[:len(s):len(s)] }

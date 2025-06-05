@@ -85,7 +85,8 @@ A not-so-up-to-date-list-that-may-be-actually-current:
 * https://github.com/wintbiit/NineDNS
 * https://linuxcontainers.org/incus/
 * https://ifconfig.es
-
+* https://github.com/zmap/zdns
+* https://framagit.org/bortzmeyer/check-soa
 
 Send pull request if you want to be listed here.
 
@@ -148,6 +149,7 @@ Example programs can be found in the `github.com/miekg/exdns` repository.
 * 3225 - DO bit (DNSSEC OK)
 * 340{1,2,3} - NAPTR record
 * 3445 - Limiting the scope of (DNS)KEY
+* 3596 - AAAA record
 * 3597 - Unknown RRs
 * 4025 - A Method for Storing IPsec Keying Material in DNS
 * 403{3,4,5} - DNSSEC + validation functions
@@ -183,6 +185,7 @@ Example programs can be found in the `github.com/miekg/exdns` repository.
 * 7871 - EDNS0 Client Subnet
 * 7873 - Domain Name System (DNS) Cookies
 * 8080 - EdDSA for DNSSEC
+* 8490 - DNS Stateful Operations
 * 8499 - DNS Terminology
 * 8659 - DNS Certification Authority Authorization (CAA) Resource Record
 * 8777 - DNS Reverse IP Automatic Multicast Tunneling (AMT) Discovery
@@ -191,6 +194,9 @@ Example programs can be found in the `github.com/miekg/exdns` repository.
 * 9460 - Service Binding and Parameter Specification via the DNS
 * 9461 - Service Binding Mapping for DNS Servers
 * 9462 - Discovery of Designated Resolvers
+* 9460 - SVCB and HTTPS Records
+* 9606 - DNS Resolver Information
+* Draft - Compact Denial of Existence in DNSSEC
 
 ## Loosely Based Upon
 

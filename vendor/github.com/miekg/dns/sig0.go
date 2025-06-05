@@ -7,7 +7,6 @@ import (
 	"crypto/rsa"
 	"encoding/binary"
 	"math/big"
-	"strings"
 	"time"
 )
 
@@ -151,7 +150,7 @@ func (rr *SIG) Verify(k *KEY, buf []byte) error {
 	}
 	// If key has come from the DNS name compression might
 	// have mangled the case of the name
-	if !strings.EqualFold(signername, k.Header().Name) {
+	if !equal(signername, k.Header().Name) {
 		return &Error{err: "signer name doesn't match key name"}
 	}
 	sigend := offset

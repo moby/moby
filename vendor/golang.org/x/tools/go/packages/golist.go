@@ -322,6 +322,7 @@ type jsonPackage struct {
 	ImportPath        string
 	Dir               string
 	Name              string
+	Target            string
 	Export            string
 	GoFiles           []string
 	CompiledGoFiles   []string
@@ -505,13 +506,15 @@ func (state *golistState) createDriverResponse(words ...string) (*DriverResponse
 		pkg := &Package{
 			Name:            p.Name,
 			ID:              p.ImportPath,
+			Dir:             p.Dir,
+			Target:          p.Target,
 			GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles),
 			CompiledGoFiles: absJoin(p.Dir, p.CompiledGoFiles),
 			OtherFiles:      absJoin(p.Dir, otherFiles(p)...),
 			EmbedFiles:      absJoin(p.Dir, p.EmbedFiles),
 			EmbedPatterns:   absJoin(p.Dir, p.EmbedPatterns),
 			IgnoredFiles:    absJoin(p.Dir, p.IgnoredGoFiles, p.IgnoredOtherFiles),
-			forTest:         p.ForTest,
+			ForTest:         p.ForTest,
 			depsErrors:      p.DepsErrors,
 			Module:          p.Module,
 		}
@@ -795,7 +798,7 @@ func jsonFlag(cfg *Config, goVersion int) string {
 		// Request Dir in the unlikely case Export is not absolute.
 		addFields("Dir", "Export")
 	}
-	if cfg.Mode&needInternalForTest != 0 {
+	if cfg.Mode&NeedForTest != 0 {
 		addFields("ForTest")
 	}
 	if cfg.Mode&needInternalDepsErrors != 0 {
@@ -809,6 +812,9 @@ func jsonFlag(cfg *Config, goVersion int) string {
 	}
 	if cfg.Mode&NeedEmbedPatterns != 0 {
 		addFields("EmbedPatterns")
+	}
+	if cfg.Mode&NeedTarget != 0 {
+		addFields("Target")
 	}
 	return "-json=" + strings.Join(fields, ",")
 }
