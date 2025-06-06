@@ -360,6 +360,19 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 			winlibnetwork.HNSID:       v.Id,
 		}
 
+		// If this network wasn't in the store, it's being adopted by docker - which
+		// makes it possible to run containers in networks that were defined on the host.
+		// Add a label to say that's what happened.
+		//
+		// Networks not created by docker should not be deleted by "docker network
+		// prune". (They can still be deleted by "docker network rm", but that's more
+		// likely to be intentional - preventing it may be a breaking change, it would
+		// become impossible to use docker commands to delete a network that was created
+		// by docker but got forgotten because the store somehow got deleted.)
+		if n == nil {
+			netOption[winlibnetwork.HNSOwned] = "true"
+		}
+
 		// add persisted driver options
 		for k, v := range drvOptions {
 			if k != winlibnetwork.NetworkName && k != winlibnetwork.HNSID {
