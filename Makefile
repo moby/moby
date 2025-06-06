@@ -203,7 +203,7 @@ build: shell_target := --target=dev-base
 else
 build: shell_target := --target=dev
 endif
-build: bundles
+build: validate-bind-dir bundles
 	$(BUILD_CMD) $(BUILD_OPTS) $(shell_target) --load -t "$(DOCKER_IMAGE)" .
 
 .PHONY: shell
@@ -284,3 +284,10 @@ generate-files:
 		--file "./hack/dockerfiles/generate-files.Dockerfile" .
 	cp -R "$($@_TMP_OUT)"/. .
 	rm -rf "$($@_TMP_OUT)"/*
+
+.PHONY: validate-bind-dir
+validate-bind-dir:
+	@case "$(BIND_DIR)" in \
+		".."*|"/"*) echo "Make needs to be run from the project-root directory, with BIND_DIR set to \".\" or a subdir"; \
+		exit 1 ;; \
+	esac
