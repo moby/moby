@@ -15,8 +15,8 @@ import (
 // CheckServiceTasksInState returns the number of tasks with a matching state,
 // and optional message substring.
 func (d *Daemon) CheckServiceTasksInState(ctx context.Context, service string, state swarm.TaskState, message string) func(*testing.T) (interface{}, string) {
-	return func(c *testing.T) (interface{}, string) {
-		tasks := d.GetServiceTasks(ctx, c, service)
+	return func(t *testing.T) (interface{}, string) {
+		tasks := d.GetServiceTasks(ctx, t, service)
 		var count int
 		for _, task := range tasks {
 			if task.Status.State == state {
@@ -32,8 +32,8 @@ func (d *Daemon) CheckServiceTasksInState(ctx context.Context, service string, s
 // CheckServiceTasksInStateWithError returns the number of tasks with a matching state,
 // and optional message substring.
 func (d *Daemon) CheckServiceTasksInStateWithError(ctx context.Context, service string, state swarm.TaskState, errorMessage string) func(*testing.T) (interface{}, string) {
-	return func(c *testing.T) (interface{}, string) {
-		tasks := d.GetServiceTasks(ctx, c, service)
+	return func(t *testing.T) (interface{}, string) {
+		tasks := d.GetServiceTasks(ctx, t, service)
 		var count int
 		for _, task := range tasks {
 			if task.Status.State == state {
@@ -53,8 +53,8 @@ func (d *Daemon) CheckServiceRunningTasks(ctx context.Context, service string) f
 
 // CheckServiceUpdateState returns the current update state for the specified service
 func (d *Daemon) CheckServiceUpdateState(ctx context.Context, service string) func(*testing.T) (interface{}, string) {
-	return func(c *testing.T) (interface{}, string) {
-		service := d.GetService(ctx, c, service)
+	return func(t *testing.T) (interface{}, string) {
+		service := d.GetService(ctx, t, service)
 		if service.UpdateStatus == nil {
 			return "", ""
 		}
@@ -64,34 +64,34 @@ func (d *Daemon) CheckServiceUpdateState(ctx context.Context, service string) fu
 
 // CheckPluginRunning returns the runtime state of the plugin
 func (d *Daemon) CheckPluginRunning(ctx context.Context, plugin string) func(c *testing.T) (interface{}, string) {
-	return func(c *testing.T) (interface{}, string) {
-		apiclient := d.NewClientT(c)
+	return func(t *testing.T) (interface{}, string) {
+		apiclient := d.NewClientT(t)
 		resp, _, err := apiclient.PluginInspectWithRaw(ctx, plugin)
 		if cerrdefs.IsNotFound(err) {
 			return false, fmt.Sprintf("%v", err)
 		}
-		assert.NilError(c, err)
+		assert.NilError(t, err)
 		return resp.Enabled, fmt.Sprintf("%+v", resp)
 	}
 }
 
 // CheckPluginImage returns the runtime state of the plugin
 func (d *Daemon) CheckPluginImage(ctx context.Context, plugin string) func(c *testing.T) (interface{}, string) {
-	return func(c *testing.T) (interface{}, string) {
-		apiclient := d.NewClientT(c)
+	return func(t *testing.T) (interface{}, string) {
+		apiclient := d.NewClientT(t)
 		resp, _, err := apiclient.PluginInspectWithRaw(ctx, plugin)
 		if cerrdefs.IsNotFound(err) {
 			return false, fmt.Sprintf("%v", err)
 		}
-		assert.NilError(c, err)
+		assert.NilError(t, err)
 		return resp.PluginReference, fmt.Sprintf("%+v", resp)
 	}
 }
 
 // CheckServiceTasks returns the number of tasks for the specified service
 func (d *Daemon) CheckServiceTasks(ctx context.Context, service string) func(*testing.T) (interface{}, string) {
-	return func(c *testing.T) (interface{}, string) {
-		tasks := d.GetServiceTasks(ctx, c, service)
+	return func(t *testing.T) (interface{}, string) {
+		tasks := d.GetServiceTasks(ctx, t, service)
 		return len(tasks), ""
 	}
 }

@@ -17,12 +17,12 @@ type DockerCLIPullSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIPullSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIPullSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIPullSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIPullSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 // TestPullFromCentralRegistry pulls an image from the central registry and verifies that the client

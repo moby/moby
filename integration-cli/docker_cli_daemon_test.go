@@ -379,15 +379,15 @@ func (s *DockerDaemonSuite) TestDaemonBridgeNone(c *testing.T) {
 	assert.Assert(c, is.Contains(out, "No such network"))
 }
 
-func createInterface(c *testing.T, ifType string, ifName string, ipNet string) {
-	icmd.RunCommand("ip", "link", "add", "name", ifName, "type", ifType).Assert(c, icmd.Success)
-	icmd.RunCommand("ifconfig", ifName, ipNet, "up").Assert(c, icmd.Success)
+func createInterface(t *testing.T, ifType string, ifName string, ipNet string) {
+	icmd.RunCommand("ip", "link", "add", "name", ifName, "type", ifType).Assert(t, icmd.Success)
+	icmd.RunCommand("ifconfig", ifName, ipNet, "up").Assert(t, icmd.Success)
 }
 
-func deleteInterface(c *testing.T, ifName string) {
-	icmd.RunCommand("ip", "link", "delete", ifName).Assert(c, icmd.Success)
-	icmd.RunCommand("iptables", "-t", "nat", "--flush").Assert(c, icmd.Success)
-	icmd.RunCommand("iptables", "--flush").Assert(c, icmd.Success)
+func deleteInterface(t *testing.T, ifName string) {
+	icmd.RunCommand("ip", "link", "delete", ifName).Assert(t, icmd.Success)
+	icmd.RunCommand("iptables", "-t", "nat", "--flush").Assert(t, icmd.Success)
+	icmd.RunCommand("iptables", "--flush").Assert(t, icmd.Success)
 }
 
 func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *testing.T) {
@@ -2129,35 +2129,35 @@ func (s *DockerDaemonSuite) TestShmSizeReload(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), fmt.Sprintf("%v", size))
 }
 
-func testDaemonStartIpcMode(c *testing.T, from, mode string, valid bool) {
-	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
-	c.Logf("Checking IpcMode %s set from %s\n", mode, from)
+func testDaemonStartIpcMode(t *testing.T, from, mode string, valid bool) {
+	d := daemon.New(t, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	t.Logf("Checking IpcMode %s set from %s\n", mode, from)
 	var serr error
 	switch from {
 	case "config":
 		f, err := os.CreateTemp("", "test-daemon-ipc-config")
-		assert.NilError(c, err)
+		assert.NilError(t, err)
 		defer os.Remove(f.Name())
 		config := `{"default-ipc-mode": "` + mode + `"}`
 		_, err = f.WriteString(config)
-		assert.NilError(c, f.Close())
-		assert.NilError(c, err)
+		assert.NilError(t, f.Close())
+		assert.NilError(t, err)
 
 		serr = d.StartWithError("--config-file", f.Name())
 	case "cli":
 		serr = d.StartWithError("--default-ipc-mode", mode)
 	default:
-		c.Fatalf("testDaemonStartIpcMode: invalid 'from' argument")
+		t.Fatalf("testDaemonStartIpcMode: invalid 'from' argument")
 	}
 	if serr == nil {
-		d.Stop(c)
+		d.Stop(t)
 	}
 
 	if valid {
-		assert.NilError(c, serr)
+		assert.NilError(t, serr)
 	} else {
-		assert.ErrorContains(c, serr, "")
-		icmd.RunCommand("grep", "-E", "IPC .* is (invalid|not supported)", d.LogFileName()).Assert(c, icmd.Success)
+		assert.ErrorContains(t, serr, "")
+		icmd.RunCommand("grep", "-E", "IPC .* is (invalid|not supported)", d.LogFileName()).Assert(t, icmd.Success)
 	}
 }
 

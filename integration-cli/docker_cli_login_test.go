@@ -15,12 +15,12 @@ type DockerCLILoginSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLILoginSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLILoginSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLILoginSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLILoginSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 func (s *DockerCLILoginSuite) TestLoginWithoutTTY(c *testing.T) {

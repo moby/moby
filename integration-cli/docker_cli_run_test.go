@@ -46,12 +46,12 @@ type DockerCLIRunSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIRunSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIRunSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIRunSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIRunSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 // "test123" should be printed by docker run
@@ -1812,24 +1812,24 @@ func (s *DockerCLIRunSuite) TestRunWriteSpecialFilesAndNotCommit(c *testing.T) {
 	testRunWriteSpecialFilesAndNotCommit(c, "writeresolv", "/etc/resolv.conf")
 }
 
-func testRunWriteSpecialFilesAndNotCommit(c *testing.T, name, path string) {
+func testRunWriteSpecialFilesAndNotCommit(t *testing.T, name, path string) {
 	command := fmt.Sprintf("echo test2267 >> %s && cat %s", path, path)
-	out := cli.DockerCmd(c, "run", "--name", name, "busybox", "sh", "-c", command).Combined()
+	out := cli.DockerCmd(t, "run", "--name", name, "busybox", "sh", "-c", command).Combined()
 	if !strings.Contains(out, "test2267") {
-		c.Fatalf("%s should contain 'test2267'", path)
+		t.Fatalf("%s should contain 'test2267'", path)
 	}
 
-	out = cli.DockerCmd(c, "diff", name).Combined()
-	if len(strings.Trim(out, "\r\n")) != 0 && !eqToBaseDiff(out, c) {
-		c.Fatal("diff should be empty")
+	out = cli.DockerCmd(t, "diff", name).Combined()
+	if len(strings.Trim(out, "\r\n")) != 0 && !eqToBaseDiff(out, t) {
+		t.Fatal("diff should be empty")
 	}
 }
 
-func eqToBaseDiff(out string, c *testing.T) bool {
+func eqToBaseDiff(out string, t *testing.T) bool {
 	name := "eqToBaseDiff" + testutil.GenerateRandomAlphaOnlyString(32)
-	cli.DockerCmd(c, "run", "--name", name, "busybox", "echo", "hello")
-	cID := getIDByName(c, name)
-	baseDiff := cli.DockerCmd(c, "diff", cID).Combined()
+	cli.DockerCmd(t, "run", "--name", name, "busybox", "echo", "hello")
+	cID := getIDByName(t, name)
+	baseDiff := cli.DockerCmd(t, "diff", cID).Combined()
 	baseArr := strings.Split(baseDiff, "\n")
 	sort.Strings(baseArr)
 	outArr := strings.Split(out, "\n")
@@ -2661,14 +2661,14 @@ func (s *DockerCLIRunSuite) TestPermissionsPtsReadonlyRootfs(c *testing.T) {
 	}
 }
 
-func testReadOnlyFile(c *testing.T, testPriv bool, filenames ...string) {
+func testReadOnlyFile(t *testing.T, testPriv bool, filenames ...string) {
 	touch := "touch " + strings.Join(filenames, " ")
 	out, _, err := dockerCmdWithError("run", "--read-only", "--rm", "busybox", "sh", "-c", touch)
-	assert.ErrorContains(c, err, "")
+	assert.ErrorContains(t, err, "")
 
 	for _, f := range filenames {
 		expected := "touch: " + f + ": Read-only file system"
-		assert.Assert(c, is.Contains(out, expected))
+		assert.Assert(t, is.Contains(out, expected))
 	}
 
 	if !testPriv {
@@ -2676,11 +2676,11 @@ func testReadOnlyFile(c *testing.T, testPriv bool, filenames ...string) {
 	}
 
 	out, _, err = dockerCmdWithError("run", "--read-only", "--privileged", "--rm", "busybox", "sh", "-c", touch)
-	assert.ErrorContains(c, err, "")
+	assert.ErrorContains(t, err, "")
 
 	for _, f := range filenames {
 		expected := "touch: " + f + ": Read-only file system"
-		assert.Assert(c, is.Contains(out, expected))
+		assert.Assert(t, is.Contains(out, expected))
 	}
 }
 
@@ -3197,16 +3197,16 @@ func (s *DockerCLIRunSuite) TestRunContainerWithCgroupParent(c *testing.T) {
 	testRunContainerWithCgroupParent(c, "/cgroup-parent/test", "cgroup-test-absolute")
 }
 
-func testRunContainerWithCgroupParent(c *testing.T, cgroupParent, name string) {
+func testRunContainerWithCgroupParent(t *testing.T, cgroupParent, name string) {
 	out, _, err := dockerCmdWithError("run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	if err != nil {
-		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", out, err)
+		t.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", out, err)
 	}
 	cgroupPaths := ParseCgroupPaths(out)
 	if len(cgroupPaths) == 0 {
-		c.Fatalf("unexpected output - %q", out)
+		t.Fatalf("unexpected output - %q", out)
 	}
-	id := getIDByName(c, name)
+	id := getIDByName(t, name)
 	expectedCgroup := path.Join(cgroupParent, id)
 	found := false
 	for _, p := range cgroupPaths {
@@ -3216,7 +3216,7 @@ func testRunContainerWithCgroupParent(c *testing.T, cgroupParent, name string) {
 		}
 	}
 	if !found {
-		c.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have suffix %q. Cgroup Paths: %v", expectedCgroup, cgroupPaths)
+		t.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have suffix %q. Cgroup Paths: %v", expectedCgroup, cgroupPaths)
 	}
 }
 
@@ -3231,23 +3231,23 @@ func (s *DockerCLIRunSuite) TestRunInvalidCgroupParent(c *testing.T) {
 	testRunInvalidCgroupParent(c, "/../../../../../../../../SHOULD_NOT_EXIST", "/SHOULD_NOT_EXIST", "cgroup-absolute-invalid-test")
 }
 
-func testRunInvalidCgroupParent(c *testing.T, cgroupParent, cleanCgroupParent, name string) {
+func testRunInvalidCgroupParent(t *testing.T, cgroupParent, cleanCgroupParent, name string) {
 	out, _, err := dockerCmdWithError("run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	if err != nil {
 		// XXX: This may include a daemon crash.
-		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", out, err)
+		t.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", out, err)
 	}
 
 	// We expect "/SHOULD_NOT_EXIST" to not exist. If not, we have a security issue.
 	if _, err := os.Stat("/SHOULD_NOT_EXIST"); err == nil || !os.IsNotExist(err) {
-		c.Fatalf("SECURITY: --cgroup-parent with ../../ relative paths cause files to be created in the host (this is bad) !!")
+		t.Fatalf("SECURITY: --cgroup-parent with ../../ relative paths cause files to be created in the host (this is bad) !!")
 	}
 
 	cgroupPaths := ParseCgroupPaths(out)
 	if len(cgroupPaths) == 0 {
-		c.Fatalf("unexpected output - %q", out)
+		t.Fatalf("unexpected output - %q", out)
 	}
-	id := getIDByName(c, name)
+	id := getIDByName(t, name)
 	expectedCgroup := path.Join(cleanCgroupParent, id)
 	found := false
 	for _, p := range cgroupPaths {
@@ -3257,7 +3257,7 @@ func testRunInvalidCgroupParent(c *testing.T, cgroupParent, cleanCgroupParent, n
 		}
 	}
 	if !found {
-		c.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have suffix %q. Cgroup Paths: %v", expectedCgroup, cgroupPaths)
+		t.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have suffix %q. Cgroup Paths: %v", expectedCgroup, cgroupPaths)
 	}
 }
 

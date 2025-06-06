@@ -19,12 +19,12 @@ type DockerCLILinksSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLILinksSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLILinksSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLILinksSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLILinksSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 func (s *DockerCLILinksSuite) TestLinksPingUnlinkedContainers(c *testing.T) {
@@ -53,7 +53,7 @@ func (s *DockerCLILinksSuite) TestLinksPingLinkedContainers(c *testing.T) {
 	testLinkPingOnNetwork(c, "bridge")
 }
 
-func testLinkPingOnNetwork(c *testing.T, network string) {
+func testLinkPingOnNetwork(t *testing.T, network string) {
 	var postArgs []string
 	if network != "" {
 		postArgs = append(postArgs, []string{"--net", network}...)
@@ -63,8 +63,8 @@ func testLinkPingOnNetwork(c *testing.T, network string) {
 	runArgs2 := append([]string{"run", "-d", "--name", "container2", "--hostname", "wilma"}, postArgs...)
 
 	// Run the two named containers
-	cli.DockerCmd(c, runArgs1...)
-	cli.DockerCmd(c, runArgs2...)
+	cli.DockerCmd(t, runArgs1...)
+	cli.DockerCmd(t, runArgs2...)
 
 	postArgs = []string{}
 	if network != "" {
@@ -78,15 +78,15 @@ func testLinkPingOnNetwork(c *testing.T, network string) {
 
 	// test ping by alias, ping by name, and ping by hostname
 	// 1. Ping by alias
-	cli.DockerCmd(c, append(runArgs, fmt.Sprintf(pingCmd, "alias1", "alias2"))...)
+	cli.DockerCmd(t, append(runArgs, fmt.Sprintf(pingCmd, "alias1", "alias2"))...)
 	// 2. Ping by container name
-	cli.DockerCmd(c, append(runArgs, fmt.Sprintf(pingCmd, "container1", "container2"))...)
+	cli.DockerCmd(t, append(runArgs, fmt.Sprintf(pingCmd, "container1", "container2"))...)
 	// 3. Ping by hostname
-	cli.DockerCmd(c, append(runArgs, fmt.Sprintf(pingCmd, "fred", "wilma"))...)
+	cli.DockerCmd(t, append(runArgs, fmt.Sprintf(pingCmd, "fred", "wilma"))...)
 
 	// Clean for next round
-	cli.DockerCmd(c, "rm", "-f", "container1")
-	cli.DockerCmd(c, "rm", "-f", "container2")
+	cli.DockerCmd(t, "rm", "-f", "container1")
+	cli.DockerCmd(t, "rm", "-f", "container2")
 }
 
 func (s *DockerCLILinksSuite) TestLinksPingLinkedContainersAfterRename(c *testing.T) {

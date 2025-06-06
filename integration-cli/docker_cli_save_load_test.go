@@ -24,12 +24,12 @@ type DockerCLISaveLoadSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLISaveLoadSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLISaveLoadSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLISaveLoadSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLISaveLoadSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 // save a repo using gz compression and try to load it using stdout

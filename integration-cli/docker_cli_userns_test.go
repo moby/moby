@@ -95,13 +95,13 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 }
 
 // findUser finds the uid or name of the user of the first process that runs in a container
-func (s *DockerDaemonSuite) findUser(c *testing.T, container string) string {
+func (s *DockerDaemonSuite) findUser(t *testing.T, container string) string {
 	out, err := s.d.Cmd("top", container)
-	assert.Assert(c, err == nil, "Output: %s", out)
+	assert.Assert(t, err == nil, "Output: %s", out)
 	rows := strings.Split(out, "\n")
 	if len(rows) < 2 {
 		// No process rows founds
-		c.FailNow()
+		t.FailNow()
 	}
 	return strings.Fields(rows[1])[0]
 }

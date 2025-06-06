@@ -57,9 +57,9 @@ func (s *DockerSwarmSuite) TestServiceLogs(c *testing.T) {
 // verify that a minimum number of expected container log messages have been
 // output.
 func countLogLines(d *daemon.Daemon, name string) func(*testing.T) (interface{}, string) {
-	return func(c *testing.T) (interface{}, string) {
+	return func(t *testing.T) (interface{}, string) {
 		result := icmd.RunCmd(d.Command("service", "logs", "-t", "--raw", name))
-		result.Assert(c, icmd.Expected{})
+		result.Assert(t, icmd.Expected{})
 		// if this returns an emptystring, trying to split it later will return
 		// an array containing emptystring. a valid log line will NEVER be
 		// emptystring because we ask for the timestamp.
