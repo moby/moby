@@ -86,6 +86,7 @@ import (
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
 	"resenje.org/singleflight"
+	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
 type configStore struct {
@@ -149,6 +150,8 @@ type Daemon struct {
 	mdDB *bolt.DB
 
 	usesSnapshotter bool
+
+	CDICache *cdi.Cache
 }
 
 // ID returns the daemon id

@@ -59,7 +59,6 @@ import (
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"go.opentelemetry.io/otel/sdk/trace"
-	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
 func newController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
@@ -111,7 +110,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 
 	dns := getDNSConfig(opt.DNSConfig)
 
-	cdiManager, err := getCDIManager(opt.CDISpecDirs)
+	cdiManager, err := getCDIManager(opt)
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +336,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 
 	dns := getDNSConfig(opt.DNSConfig)
 
-	cdiManager, err := getCDIManager(opt.CDISpecDirs)
+	cdiManager, err := getCDIManager(opt)
 	if err != nil {
 		return nil, err
 	}
@@ -566,30 +565,10 @@ func getLabels(opt Opt, labels map[string]string) map[string]string {
 	return labels
 }
 
-func getCDIManager(specDirs []string) (*cdidevices.Manager, error) {
-	if len(specDirs) == 0 {
+func getCDIManager(opt Opt) (*cdidevices.Manager, error) {
+	if opt.CDICache == nil {
 		return nil, nil
 	}
-	cdiCache, err := func() (*cdi.Cache, error) {
-		cdiCache, err := cdi.NewCache(cdi.WithSpecDirs(specDirs...))
-		if err != nil {
-			return nil, err
-		}
-		if err := cdiCache.Refresh(); err != nil {
-			return nil, err
-		}
-		if errs := cdiCache.GetErrors(); len(errs) > 0 {
-			for dir, errs := range errs {
-				for _, err := range errs {
-					log.L.Warnf("CDI setup error %v: %+v", dir, err)
-				}
-			}
-		}
-		return cdiCache, nil
-	}()
-	if err != nil {
-		return nil, errors.Wrapf(err, "CDI registry initialization failure")
-	}
 	// TODO: add support for auto-allowed devices from config
-	return cdidevices.NewManager(cdiCache, nil), nil
+	return cdidevices.NewManager(opt.CDICache, nil), nil
 }

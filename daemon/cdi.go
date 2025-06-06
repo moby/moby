@@ -22,15 +22,15 @@ type cdiHandler struct {
 // RegisterCDIDriver registers the CDI device driver.
 // The driver injects CDI devices into an incoming OCI spec and is called for DeviceRequests associated with CDI devices.
 // If the list of CDI spec directories is empty, the driver is not registered.
-func RegisterCDIDriver(cdiSpecDirs ...string) {
-	driver := newCDIDeviceDriver(cdiSpecDirs...)
-
+func RegisterCDIDriver(cdiSpecDirs ...string) *cdi.Cache {
+	driver, cache := newCDIDeviceDriver(cdiSpecDirs...)
 	registerDeviceDriver("cdi", driver)
+	return cache
 }
 
 // newCDIDeviceDriver creates a new CDI device driver.
 // If the creation of the CDI cache fails, a driver is returned that will return an error on an injection request.
-func newCDIDeviceDriver(cdiSpecDirs ...string) *deviceDriver {
+func newCDIDeviceDriver(cdiSpecDirs ...string) (*deviceDriver, *cdi.Cache) {
 	cache, err := createCDICache(cdiSpecDirs...)
 	if err != nil {
 		log.G(context.TODO()).WithError(err).Error("Failed to create CDI cache")
@@ -48,7 +48,7 @@ func newCDIDeviceDriver(cdiSpecDirs ...string) *deviceDriver {
 					Warnings: []string{fmt.Sprintf("CDI cache initialization failed: %v", err)},
 				}, nil
 			},
-		}
+		}, nil
 	}
 
 	// We construct a spec updates that injects CDI devices into the OCI spec using the initialized registry.
@@ -59,7 +59,7 @@ func newCDIDeviceDriver(cdiSpecDirs ...string) *deviceDriver {
 	return &deviceDriver{
 		updateSpec:  c.injectCDIDevices,
 		ListDevices: c.listDevices,
-	}
+	}, cache
 }
 
 // createCDICache creates a CDI cache for the specified CDI specification directories.
@@ -72,6 +72,16 @@ func createCDICache(cdiSpecDirs ...string) (*cdi.Cache, error) {
 	cache, err := cdi.NewCache(cdi.WithSpecDirs(cdiSpecDirs...))
 	if err != nil {
 		return nil, fmt.Errorf("CDI registry initialization failure: %w", err)
+	}
+
+	for dir, errs := range cache.GetErrors() {
+		for _, err := range errs {
+			if errors.Is(err, os.ErrNotExist) {
+				log.L.WithField("dir", dir).Infof("CDI directory does not exist, skipping: %v", err)
+				continue
+			}
+			log.L.WithField("dir", dir).Warnf("CDI setup error: %+v", err)
+		}
 	}
 
 	return cache, nil
