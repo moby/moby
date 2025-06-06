@@ -15,8 +15,8 @@ cloud.google.com/go/logging/internal
 cloud.google.com/go/longrunning
 cloud.google.com/go/longrunning/autogen
 cloud.google.com/go/longrunning/autogen/longrunningpb
-# code.cloudfoundry.org/clock v1.1.0
-## explicit; go 1.20
+# code.cloudfoundry.org/clock v1.37.0
+## explicit; go 1.23.0
 code.cloudfoundry.org/clock
 code.cloudfoundry.org/clock/fakeclock
 # dario.cat/mergo v1.0.1
