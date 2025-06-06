@@ -1,6 +1,7 @@
 package resumable
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -86,7 +87,7 @@ type errorReaderCloser struct{}
 func (errorReaderCloser) Close() error { return nil }
 
 func (errorReaderCloser) Read(p []byte) (int, error) {
-	return 0, fmt.Errorf("an error occurred")
+	return 0, errors.New("an error occurred")
 }
 
 // If an unknown error is encountered, return 0, nil and log it

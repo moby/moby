@@ -143,7 +143,7 @@ func (p *PortAllocator) RequestPortsInRange(ips []net.IP, proto string, portStar
 		}
 	}
 	if len(ips) == 0 {
-		return 0, fmt.Errorf("no IP addresses specified")
+		return 0, errors.New("no IP addresses specified")
 	}
 
 	p.mutex.Lock()

@@ -5,6 +5,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -330,7 +331,7 @@ func (daemon *Daemon) generateSecurityOpt(hostConfig *containertypes.HostConfig)
 	if pidLabel != nil && ipcLabel != nil {
 		for i := 0; i < len(pidLabel); i++ {
 			if pidLabel[i] != ipcLabel[i] {
-				return nil, fmt.Errorf("--ipc and --pid containers SELinux labels aren't the same")
+				return nil, errors.New("--ipc and --pid containers SELinux labels aren't the same")
 			}
 		}
 		return toHostConfigSelinuxLabels(pidLabel), nil
@@ -349,7 +350,7 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 		config.Entrypoint = nil
 	}
 	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
-		return fmt.Errorf("no command specified")
+		return errors.New("no command specified")
 	}
 	return nil
 }

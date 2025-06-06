@@ -60,7 +60,7 @@ func (ir *IPAMs) RegisterIpamDriver(name string, driver ipamapi.Ipam) error {
 }
 
 // IPAMWalkFunc defines the IPAM driver table walker function signature.
-type IPAMWalkFunc func(name string, driver ipamapi.Ipam, cap *ipamapi.Capability) bool
+type IPAMWalkFunc func(name string, driver ipamapi.Ipam, capability *ipamapi.Capability) bool
 
 // WalkIPAMs walks the IPAM drivers registered in the registry and invokes the passed walk function and each one of them.
 func (ir *IPAMs) WalkIPAMs(ifn IPAMWalkFunc) {

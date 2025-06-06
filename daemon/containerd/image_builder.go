@@ -67,7 +67,7 @@ const (
 func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
 	if refOrID == "" { // FROM scratch
 		if runtime.GOOS == "windows" {
-			return nil, nil, fmt.Errorf(`"FROM scratch" is not supported on Windows`)
+			return nil, nil, errors.New(`"FROM scratch" is not supported on Windows`)
 		}
 		if opts.Platform != nil {
 			if err := image.CheckOS(opts.Platform.OS); err != nil {
@@ -152,26 +152,25 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 
 	img, err := i.GetImage(ctx, name, backend.GetImageOpts{Platform: platform})
 	if err != nil {
-		if cerrdefs.IsNotFound(err) && img != nil && platform != nil {
-			imgPlat := ocispec.Platform{
-				OS:           img.OS,
-				Architecture: img.BaseImgArch(),
-				Variant:      img.BaseImgVariant(),
-			}
+		if !cerrdefs.IsNotFound(err) || img == nil || platform == nil {
+			return nil, err
+		}
+		imgPlat := ocispec.Platform{
+			OS:           img.OS,
+			Architecture: img.BaseImgArch(),
+			Variant:      img.BaseImgVariant(),
+		}
 
-			p := *platform
-			if !platforms.Only(p).Match(imgPlat) {
-				po := streamformatter.NewJSONProgressOutput(output, false)
-				progress.Messagef(po, "", `
+		p := *platform
+		if !platforms.Only(p).Match(imgPlat) {
+			po := streamformatter.NewJSONProgressOutput(output, false)
+			progress.Messagef(po, "", `
 WARNING: Pulled image with specified platform (%s), but the resulting image's configured platform (%s) does not match.
 This is most likely caused by a bug in the build system that created the fetched image (%s).
 Please notify the image author to correct the configuration.`,
-					platforms.FormatAll(p), platforms.FormatAll(imgPlat), name,
-				)
-				log.G(ctx).WithError(err).WithField("image", name).Warn("Ignoring error about platform mismatch where the manifest list points to an image whose configuration does not match the platform in the manifest.")
-			}
-		} else {
-			return nil, err
+				platforms.FormatAll(p), platforms.FormatAll(imgPlat), name,
+			)
+			log.G(ctx).WithError(err).WithField("image", name).Warn("Ignoring error about platform mismatch where the manifest list points to an image whose configuration does not match the platform in the manifest.")
 		}
 	}
 
@@ -189,7 +188,7 @@ Please notify the image author to correct the configuration.`,
 
 func newROLayerForImage(ctx context.Context, imgDesc *ocispec.Descriptor, i *ImageService, platform *ocispec.Platform) (builder.ROLayer, error) {
 	if imgDesc == nil {
-		return nil, fmt.Errorf("can't make an RO layer for a nil image :'(")
+		return nil, errors.New("can't make an RO layer for a nil image :'(")
 	}
 
 	platMatcher := platforms.Default()
@@ -376,7 +375,7 @@ func (rw *rwlayer) Commit() (_ builder.ROLayer, outErr error) {
 	}
 	diffIDStr, ok := info.Labels["containerd.io/uncompressed"]
 	if !ok {
-		return nil, fmt.Errorf("invalid differ response with no diffID")
+		return nil, errors.New("invalid differ response with no diffID")
 	}
 	diffID, err := digest.Parse(diffIDStr)
 	if err != nil {

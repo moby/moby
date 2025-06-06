@@ -1,6 +1,7 @@
 package opts
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"path"
@@ -365,7 +366,7 @@ func ValidateSingleGenericResource(val string) (string, error) {
 // ParseLink parses and validates the specified string as a link format (name:alias)
 func ParseLink(val string) (string, string, error) {
 	if val == "" {
-		return "", "", fmt.Errorf("empty string specified for links")
+		return "", "", errors.New("empty string specified for links")
 	}
 	arr := strings.Split(val, ":")
 	if len(arr) > 2 {

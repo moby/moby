@@ -338,7 +338,7 @@ func TestRequestPortForMultipleIPs(t *testing.T) {
 	assert.Check(t, is.Equal(port, 10000))
 
 	// Multi-port range.
-	for i := 20000; i < 20004; i += 1 {
+	for i := 20000; i < 20004; i++ {
 		port, err = p.RequestPortsInRange(addrs, "tcp", 20000, 20004)
 		assert.Check(t, err)
 		assert.Check(t, is.Equal(port, i))

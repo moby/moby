@@ -4,6 +4,7 @@
 package osl
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"slices"
@@ -243,12 +244,12 @@ func (n *Namespace) SetDefaultRouteIPv6(srcName string) error {
 func (n *Namespace) setDefaultRoute(srcName string, routeMatcher func(*net.IPNet) bool) error {
 	iface := n.ifaceBySrcName(srcName)
 	if iface == nil {
-		return fmt.Errorf("no interface")
+		return errors.New("no interface")
 	}
 
 	ridx := slices.IndexFunc(iface.routes, routeMatcher)
 	if ridx == -1 {
-		return fmt.Errorf("no default route")
+		return errors.New("no default route")
 	}
 
 	link, err := n.nlHandle.LinkByName(iface.dstName)
@@ -316,12 +317,12 @@ func (n *Namespace) unsetDefaultRoute(srcName string, routeMatcher func(*net.IPN
 
 	ridx := slices.IndexFunc(iface.routes, routeMatcher)
 	if ridx == -1 {
-		return fmt.Errorf("no default route")
+		return errors.New("no default route")
 	}
 
 	link, err := n.nlHandle.LinkByName(iface.dstName)
 	if err != nil {
-		return fmt.Errorf("no link")
+		return errors.New("no link")
 	}
 
 	return n.nlHandle.RouteDel(&netlink.Route{
