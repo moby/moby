@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/config"
@@ -33,8 +34,19 @@ type deviceInstance struct {
 	selectedCaps []string
 }
 
-func registerDeviceDriver(name string, d *deviceDriver) {
-	deviceDrivers[name] = d
+var deviceRegistry = map[string]deviceRecord{}
+
+type deviceRecord interface {
+	available(cfg *config.Config) bool
+	driver(cfg *config.Config) *deviceDriver
+}
+
+func registerDeviceDrivers(cfg *config.Config) {
+	ctx := context.TODO()
+	for name, rec := range deviceRegistry {
+		log.G(ctx).Debugf("Registering device driver %q", name)
+		deviceDrivers[name] = rec.driver(cfg)
+	}
 }
 
 func (daemon *Daemon) handleDevice(req container.DeviceRequest, spec *specs.Spec) error {

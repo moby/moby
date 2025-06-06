@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/system"
@@ -15,17 +16,40 @@ import (
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
+func init() {
+	deviceRegistry["cdi"] = cdiDeviceRecord{}
+}
+
 type cdiHandler struct {
 	registry *cdi.Cache
 }
 
-// RegisterCDIDriver registers the CDI device driver.
+type cdiDeviceRecord struct{}
+
+// available returns true if CDI feature wasn't explicitly disabled via
+// features.
+func (cdiDeviceRecord) available(cfg *config.Config) bool {
+	// Note that CDI is not inherently linux-specific, there are some linux-specific assumptions / implementations in the code that
+	// queries the properties of device on the host as well as performs the injection of device nodes and their access permissions into the OCI spec.
+	//
+	// In order to lift this restriction the following would have to be addressed:
+	// - Support needs to be added to the cdi package for injecting Windows devices: https://tags.cncf.io/container-device-interface/issues/28
+	// - The DeviceRequests API must be extended to non-linux platforms.
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	val, ok := cfg.Features["cdi"]
+	if !ok {
+		return true
+	}
+	return val
+}
+
+// driver returns a CDI device driver.
 // The driver injects CDI devices into an incoming OCI spec and is called for DeviceRequests associated with CDI devices.
 // If the list of CDI spec directories is empty, the driver is not registered.
-func RegisterCDIDriver(cdiSpecDirs ...string) {
-	driver := newCDIDeviceDriver(cdiSpecDirs...)
-
-	registerDeviceDriver("cdi", driver)
+func (cdiDeviceRecord) driver(cfg *config.Config) *deviceDriver {
+	return newCDIDeviceDriver(cfg.CDISpecDirs...)
 }
 
 // newCDIDeviceDriver creates a new CDI device driver.
