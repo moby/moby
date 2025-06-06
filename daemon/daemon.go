@@ -793,6 +793,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// Setup the resolv.conf
 	setupResolvConf(config)
 
+	// register all available device drivers before the daemon starts
+	cdiCache := registerDeviceDrivers(config)
+
 	idMapping, err := setupRemappedRoot(config)
 	if err != nil {
 		return nil, err
@@ -829,6 +832,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d := &Daemon{
 		PluginStore: pluginStore,
 		startupDone: make(chan struct{}),
+		CDICache:    cdiCache,
 	}
 	cfgStore := &configStore{
 		Config:   *config,

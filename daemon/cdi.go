@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/system"
@@ -19,11 +20,15 @@ type cdiHandler struct {
 	registry *cdi.Cache
 }
 
-// RegisterCDIDriver registers the CDI device driver.
+// registerCDIDriver registers the CDI device driver.
 // The driver injects CDI devices into an incoming OCI spec and is called for DeviceRequests associated with CDI devices.
 // If the list of CDI spec directories is empty, the driver is not registered.
-func RegisterCDIDriver(cdiSpecDirs ...string) *cdi.Cache {
+func registerCDIDriver(cdiSpecDirs ...string) *cdi.Cache {
+	if runtime.GOOS != "linux" || len(cdiSpecDirs) == 0 {
+		return nil
+	}
 	driver, cache := newCDIDeviceDriver(cdiSpecDirs...)
+
 	registerDeviceDriver("cdi", driver)
 	return cache
 }
