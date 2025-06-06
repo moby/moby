@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/v2/contrib/nvidia"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/internal/capabilities"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -30,10 +31,18 @@ var allNvidiaCaps = map[nvidia.Capability]struct{}{
 }
 
 func init() {
-	if _, err := exec.LookPath(nvidiaHook); err != nil {
-		// do not register Nvidia driver if helper binary is not present.
-		return
-	}
+	deviceRegistry["nvidia"] = nvidiaDeviceRecord{}
+}
+
+type nvidiaDeviceRecord struct{}
+
+func (nvidiaDeviceRecord) available(cfg *config.Config) bool {
+	// do not register Nvidia driver if helper binary is not present.
+	_, err := exec.LookPath(nvidiaHook)
+	return err != nil
+}
+
+func (nvidiaDeviceRecord) driver(cfg *config.Config) *deviceDriver {
 	capset := capabilities.Set{"gpu": struct{}{}, "nvidia": struct{}{}}
 	nvidiaDriver := &deviceDriver{
 		capset:     capset,
@@ -42,7 +51,7 @@ func init() {
 	for c := range allNvidiaCaps {
 		nvidiaDriver.capset[string(c)] = struct{}{}
 	}
-	registerDeviceDriver("nvidia", nvidiaDriver)
+	return nvidiaDriver
 }
 
 func setNvidiaGPUs(s *specs.Spec, dev *deviceInstance) error {

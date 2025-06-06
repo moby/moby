@@ -790,6 +790,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// Setup the resolv.conf
 	setupResolvConf(config)
 
+	// Register all available device drivers before the daemon starts.  In
+	// particular the CDI driver, as it might try to restore containers that
+	// depend on the CDI driver.
+	registerDeviceDrivers(config)
+
 	idMapping, err := setupRemappedRoot(config)
 	if err != nil {
 		return nil, err
