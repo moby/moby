@@ -7,6 +7,9 @@ const (
 	// HNSID of the discovered network
 	HNSID = "com.docker.network.windowsshim.hnsid"
 
+	// HNSOwned indicates that the network was learned from the host, not created by docker.
+	HNSOwned = "com.docker.network.windowsshim.hnsowned"
+
 	// RoutingDomain of the network
 	RoutingDomain = "com.docker.network.windowsshim.routingdomain"
 

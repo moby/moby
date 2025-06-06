@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	timetypes "github.com/docker/docker/api/types/time"
-	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/docker/docker/libnetwork"
@@ -119,18 +118,17 @@ func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filte
 		if !matchLabels(pruneFilters, nw.Labels()) {
 			return false
 		}
-		nwName := nw.Name()
-		if networkSettings.IsPredefined(nwName) {
+		if !nw.IsPruneable() {
 			return false
 		}
 		if len(nw.Endpoints()) > 0 {
 			return false
 		}
 		if err := daemon.DeleteNetwork(nw.ID()); err != nil {
-			log.G(ctx).Warnf("could not remove local network %s: %v", nwName, err)
+			log.G(ctx).Warnf("could not remove local network %s: %v", nw.Name(), err)
 			return false
 		}
-		rep.NetworksDeleted = append(rep.NetworksDeleted, nwName)
+		rep.NetworksDeleted = append(rep.NetworksDeleted, nw.Name())
 		return false
 	})
 	return rep

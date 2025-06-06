@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/osl"
-
-	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 )
 
 type platformNetwork struct{} //nolint:nolintlint,unused // only populated on windows
@@ -70,4 +70,11 @@ func (n *Network) validatedAdvertiseAddrInterval() (*time.Duration, error) {
 			osl.AdvertiseAddrIntervalMin/time.Millisecond, osl.AdvertiseAddrIntervalMax/time.Millisecond)
 	}
 	return &interval, nil
+}
+
+// IsPruneable returns true if n can be considered for removal as part of a
+// "docker network prune" (or system prune). The caller must still check that the
+// network should be removed. For example, it may have active endpoints.
+func (n *Network) IsPruneable() bool {
+	return !network.IsPredefined(n.Name())
 }
