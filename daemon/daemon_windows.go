@@ -322,9 +322,11 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 	// discover and add HNS networks to windows
 	// network that exist are removed and added again
 	for _, v := range hnsresponse {
-		networkTypeNorm := strings.ToLower(v.Type)
-		if networkTypeNorm == "private" || networkTypeNorm == "internal" {
-			continue // workaround for HNS reporting unsupported networks
+		// Ignore HNS network types that are not supported by the Docker driver. This
+		// avoids trying to load a plugin named after the network type, which adds a 15s
+		// startup delay per network of this type on the host.
+		if !winlibnetwork.IsAdoptableNetworkType(v.Type) {
+			continue
 		}
 		var n *libnetwork.Network
 		daemon.netController.WalkNetworks(func(current *libnetwork.Network) bool {
