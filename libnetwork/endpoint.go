@@ -16,11 +16,13 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork/datastore"
+	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/stringid"
 	"go.opentelemetry.io/otel"
 )
 
@@ -490,6 +492,13 @@ func (ep *Endpoint) Join(ctx context.Context, sb *Sandbox, options ...EndpointOp
 	return ep.sbJoin(ctx, sb, options...)
 }
 
+func epId(ep *Endpoint) string {
+	if ep == nil {
+		return ""
+	}
+	return ep.id
+}
+
 func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...EndpointOption) (retErr error) {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.sbJoin")
 	defer span.End()
@@ -616,97 +625,44 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	}
 
 	gwepAfter4, gwepAfter6 := sb.getGatewayEndpoint()
-	if ep == gwepAfter4 || ep == gwepAfter6 {
-		// When the driver programs external connectivity for a Sandbox to use an
-		// IPv4-only Endpoint, it may choose to map ports from host IPv6 addresses (as
-		// well as host IPv4) to the Endpoint's IPv4 address. But, it must not do that if
-		// there is an IPv6-only Endpoint acting as the IPv6 gateway.
-		//
-		// So, for an IPv4-only Endpoint acting as a gateway, "noProxy6To4=true" must be
-		// set if the Sandbox has a different Endpoint acting as IPv6 gateway. And, if ep
-		// becoming the gateway changes noProxy6To4, the IPv4 gateway must be reset.
-		//
-		// This happens naturally in most cases. For example, if ep is dual-stack, sb had
-		// an IPv4-only gateway and no IPv6 gateway - connectivity will be revoked from
-		// the original IPv4-only gateway Endpoint and given to ep. So the old gateway
-		// won't be mapping from the host-IPv6 address.
-		//
-		// But, if ep is IPv6 only, an existing IPv4 only gateway may be proxying 6To4.
-		// So, its connectivity needs to be revoked and re-added with noProxy6To4 set.
-		// Similarly, when an IPv6-only gateway is disconnected from the Sandbox,
-		// gwepAfter6 will become nil and noProxy6To4 needs to be cleared in the
-		// configuration of an IPv4-only gateway.
-		//
-		// Note that revoking/restoring external connectivity will result in the bridge
-		// driver assigning new host ports for port mappings where the host port is not
-		// specified.
-		noProxy6To4Before := gwepBefore4 != nil && gwepBefore6 != nil && gwepBefore4 != gwepBefore6
-		noProxy6To4After := gwepAfter4 != nil && gwepAfter6 != nil && gwepAfter4 != gwepAfter6
-		restartGw4 := ep != gwepAfter4 && noProxy6To4Before != noProxy6To4After
 
-		// If ep is the new IPv4 gateway, remove the old IPv4 gateway.
-		if gwepBefore4 != nil && (ep == gwepAfter4 || restartGw4) {
-			role := "IPv4"
-			if gwepAfter6 == gwepAfter4 {
-				role = "dual-stack"
-			}
-			log.G(ctx).WithFields(log.Fields{
-				"noProxy6To4": noProxy6To4Before,
-			}).Debug("Revoking external connectivity on endpoint")
-			undoFunc, err := gwepBefore4.revokeExternalConnectivity()
-			if err != nil {
-				return err
-			}
-			if restartGw4 {
-				// The IPv4 gateway hasn't changed, but its noProxy6To4 setting has. So,
-				// restore it as the gateway with that new setting.
-				log.G(ctx).WithFields(log.Fields{
-					"noProxy6To4": noProxy6To4After,
-					"role":        role,
-				}).Debug("Programming IPv4 gateway endpoint")
-				labelsAfter := sb.Labels()
-				labelsAfter[netlabel.NoProxy6To4] = noProxy6To4After
-				if err := undoFunc(ctx, labelsAfter); err != nil {
-					log.G(ctx).WithError(err).Warn("Failed to restore IPv4 connectivity")
-				}
-			} else {
-				defer func() {
-					if retErr != nil {
-						labelsBefore := sb.Labels()
-						labelsBefore[netlabel.NoProxy6To4] = noProxy6To4Before
-						if err := undoFunc(ctx, labelsBefore); err != nil {
-							log.G(ctx).WithError(err).Warn("Failed to restore connectivity during rollback")
-						}
-					}
-				}()
-			}
-		}
-		// If ep is the new IPv6 gateway, there's an old IPv6 gateway to remove, and it
-		// wasn't also the IPv4 gateway (removed already) - remove the old gateway.
-		if ep == gwepAfter6 && gwepBefore6 != nil && gwepBefore6 != gwepBefore4 {
-			log.G(ctx).Debug("Programming IPv6 gateway endpoint")
-			undoFunc, err := gwepBefore6.revokeExternalConnectivity()
-			if err != nil {
-				return err
+	// If ep has taken over as a gateway and there were gateways before, update them.
+	if ep == gwepAfter4 || ep == gwepAfter6 {
+		if gwepBefore4 != nil {
+			if err := gwepBefore4.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
+				return fmt.Errorf("updating external connectivity for IPv4 endpoint %s: %v", stringid.TruncateID(gwepBefore4.id), err)
 			}
 			defer func() {
 				if retErr != nil {
-					if err := undoFunc(ctx, sb.Labels()); err != nil {
-						log.G(ctx).WithError(err).Warn("Failed to restore IPv6 connectivity during rollback")
+					if err := gwepBefore4.programExternalConnectivity(ctx, gwepBefore4, gwepBefore6); err != nil {
+						log.G(ctx).WithFields(log.Fields{
+							"error": err,
+							"ep":    stringid.TruncateID(gwepBefore4.id),
+						}).Errorf("Failed to restore external IPv4 connectivity")
 					}
 				}
 			}()
 		}
-		if !n.internal {
-			log.G(ctx).Debugf("Programming external connectivity on endpoint")
-			labels := sb.Labels()
-			labels[netlabel.NoProxy6To4] = noProxy6To4After
-			if err := d.ProgramExternalConnectivity(ctx, n.ID(), ep.ID(), labels); err != nil {
-				return errdefs.System(fmt.Errorf(
-					"driver failed programming external connectivity on endpoint %s (%s): %v",
-					ep.Name(), ep.ID(), err))
+		if gwepBefore6 != nil {
+			if err := gwepBefore6.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
+				return fmt.Errorf("updating external connectivity for IPv6 endpoint %s: %v", stringid.TruncateID(gwepBefore6.id), err)
 			}
+			defer func() {
+				if retErr != nil {
+					if err := gwepBefore6.programExternalConnectivity(ctx, gwepBefore4, gwepBefore6); err != nil {
+						log.G(ctx).WithFields(log.Fields{
+							"error": err,
+							"ep":    stringid.TruncateID(gwepBefore6.id),
+						}).Errorf("Failed to restore external IPv6 connectivity")
+					}
+				}
+			}()
 		}
+	}
+
+	// Tell the new endpoint its port mappings, and whether it's a gateway.
+	if err := ep.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
+		return err
 	}
 
 	if !sb.needDefaultGW() {
@@ -722,40 +678,28 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	return nil
 }
 
-func (ep *Endpoint) programExternalConnectivity(ctx context.Context, labels map[string]any) error {
-	log.G(ctx).Debugf("Programming external connectivity on endpoint %s (%s)", ep.Name(), ep.ID())
-	extN, err := ep.getNetworkFromStore()
+func (ep *Endpoint) programExternalConnectivity(ctx context.Context, gwep4, gwep6 *Endpoint) error {
+	n, err := ep.getNetworkFromStore()
 	if err != nil {
 		return types.InternalErrorf("failed to get network from store for programming external connectivity: %v", err)
 	}
-	extD, err := extN.driver(true)
+	d, err := n.driver(true)
 	if err != nil {
 		return types.InternalErrorf("failed to get driver for programming external connectivity: %v", err)
 	}
-	if err := extD.ProgramExternalConnectivity(context.WithoutCancel(ctx), ep.network.ID(), ep.ID(), labels); err != nil {
-		return types.InternalErrorf("driver failed programming external connectivity on endpoint %s (%s): %v",
-			ep.Name(), ep.ID(), err)
+	if ecd, ok := d.(driverapi.ExtConner); ok {
+		log.G(ctx).WithFields(log.Fields{
+			"ep":   ep.Name(),
+			"epid": stringid.TruncateID(ep.ID()),
+			"gw4":  epId(gwep4),
+			"gw6":  epId(gwep6),
+		}).Debug("Programming external connectivity on endpoint")
+		if err := ecd.ProgramExternalConnectivity(context.WithoutCancel(ctx), n.ID(), ep.ID(), epId(gwep4), epId(gwep6)); err != nil {
+			return types.InternalErrorf("driver failed programming external connectivity on endpoint %s (%s): %v",
+				ep.Name(), ep.ID(), err)
+		}
 	}
 	return nil
-}
-
-func (ep *Endpoint) revokeExternalConnectivity() (func(context.Context, map[string]any) error, error) {
-	extN, err := ep.getNetworkFromStore()
-	if err != nil {
-		return nil, types.InternalErrorf("failed to get network from store for revoking external connectivity: %v", err)
-	}
-	extD, err := extN.driver(true)
-	if err != nil {
-		return nil, types.InternalErrorf("failed to get driver for revoking external connectivity: %v", err)
-	}
-	if err = extD.RevokeExternalConnectivity(ep.network.ID(), ep.ID()); err != nil {
-		return nil, types.InternalErrorf(
-			"driver failed revoking external connectivity on endpoint %s (%s): %v",
-			ep.Name(), ep.ID(), err)
-	}
-	return func(ctx context.Context, labels map[string]any) error {
-		return extD.ProgramExternalConnectivity(context.WithoutCancel(ctx), ep.network.ID(), ep.ID(), labels)
-	}, nil
 }
 
 func (ep *Endpoint) rename(name string) error {
@@ -865,15 +809,9 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 	ep.network = n
 	ep.mu.Unlock()
 
-	// Current endpoint(s) providing external connectivity to the sandbox
-	gwepBefore4, gwepBefore6 := sb.getGatewayEndpoint()
-	moveExtConn4 := gwepBefore4 != nil && gwepBefore4.ID() == ep.ID()
-	moveExtConn6 := gwepBefore6 != nil && gwepBefore6.ID() == ep.ID()
-
 	if d != nil {
-		if moveExtConn4 || moveExtConn6 {
-			log.G(ctx).Debug("Revoking external connectivity on endpoint")
-			if err := d.RevokeExternalConnectivity(n.id, ep.id); err != nil {
+		if ecd, ok := d.(driverapi.ExtConner); ok {
+			if err := ecd.ProgramExternalConnectivity(context.WithoutCancel(ctx), n.ID(), ep.ID(), "", ""); err != nil {
 				log.G(ctx).WithError(err).Warn("driver failed revoking external connectivity on endpoint")
 			}
 		}
@@ -945,47 +883,16 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 		sb.resolver.SetForwardingPolicy(sb.hasExternalAccess())
 	}
 
-	// New endpoint(s) providing external connectivity for the sandbox
-	if moveExtConn4 || moveExtConn6 {
-		gwepAfter4, gwepAfter6 := sb.getGatewayEndpoint()
-		if gwepAfter4 != nil {
-			// If the IPv4 gateway hasn't changed, and there was no IPv6 gateway before but
-			// there is now, the driver for the IPv4 gateway must not proxy host-IPv6 to
-			// container-IPv4 (6To4). Conversely, if there was an IPv6 gateway before but
-			// there isn't one now, the driver must now be told it can proxy 6To4.
-			//
-			// Note that revoking/restoring external connectivity will result in the bridge
-			// driver assigning new host ports for port mappings where the host port is not
-			// specified.
-			restartGw4 := gwepBefore4 == gwepAfter4 && ((gwepBefore6 == nil) != (gwepAfter6 == nil))
-			noProxy6To4 := gwepAfter6 != nil && gwepAfter6 != gwepAfter4
-			labels := sb.Labels()
-			labels[netlabel.NoProxy6To4] = noProxy6To4
-			if restartGw4 {
-				log.G(ctx).WithFields(log.Fields{"noProxy6To4": noProxy6To4}).Debug("Resetting IPv4 endpoint")
-				if undoFunc, err := gwepBefore4.revokeExternalConnectivity(); err != nil {
-					log.G(ctx).WithError(err).Error("Failed to restart IPv4 gateway")
-				} else if err := undoFunc(ctx, labels); err != nil {
-					log.G(ctx).WithError(err).Error("Failed to restore IPv4 gateway")
-				}
-			} else if moveExtConn4 {
-				log.G(ctx).Debugf("Programming IPv6 gateway endpoint %s (%s)", ep.Name(), ep.ID())
-				if err := gwepAfter4.programExternalConnectivity(ctx, labels); err != nil {
-					role := "IPv4"
-					if gwepAfter6 == gwepAfter4 {
-						role = "dual-stack"
-					}
-					log.G(ctx).WithFields(log.Fields{
-						"role":  role,
-						"error": err,
-					}).Error("Failed to set gateway")
-				}
-			}
+	// Find new endpoint(s) to provide external connectivity for the sandbox.
+	gwepAfter4, gwepAfter6 := sb.getGatewayEndpoint()
+	if gwepAfter4 != nil {
+		if err := gwepAfter4.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
+			log.G(ctx).WithError(err).Error("Failed to set IPv4 gateway")
 		}
-		if gwepAfter6 != nil && moveExtConn6 && gwepAfter6 != gwepAfter4 {
-			if err := gwepAfter6.programExternalConnectivity(ctx, sb.Labels()); err != nil {
-				log.G(ctx).WithError(err).Error("Failed to set IPv6 gateway")
-			}
+	}
+	if gwepAfter6 != nil && gwepAfter6 != gwepAfter4 {
+		if err := gwepAfter6.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
+			log.G(ctx).WithError(err).Error("Failed to set IPv6 gateway")
 		}
 	}
 
