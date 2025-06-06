@@ -18,19 +18,19 @@ const (
 	// DockerForwardChain contains Docker's filter-FORWARD rules.
 	//
 	// FIXME(robmry) - only exported because it's used to set up the jump to swarm's DOCKER-INGRESS chain.
-	DockerForwardChain = "DOCKER-FORWARD"
-	dockerBridgeChain  = "DOCKER-BRIDGE"
-	dockerCTChain      = "DOCKER-CT"
+	DockerForwardChain  = "DOCKER-FORWARD"
+	dockerBridgeChain   = "DOCKER-BRIDGE"
+	dockerCTChain       = "DOCKER-CT"
+	dockerInternalChain = "DOCKER-INTERNAL"
 
-	// Isolation between bridge networks is achieved in two stages by means
-	// of the following two chains in the filter table. The first chain matches
-	// on the source interface being a bridge network's bridge and the
-	// destination being a different interface. A positive match leads to the
-	// second isolation chain. No match returns to the parent chain. The second
-	// isolation chain matches on destination interface being a bridge network's
-	// bridge. A positive match identifies a packet originated from one bridge
-	// network's bridge destined to another bridge network's bridge and will
-	// result in the packet being dropped. No match returns to the parent chain.
+	// These INC (inter-network communication) chains are no longer needed, packets
+	// sent to unpublished ports in other networks are now dropped by rules in the DOCKER
+	// chain. Packets sent directly to published ports in a different network don't need
+	// to be dropped:
+	// - containers in other networks have access via the host's address, and
+	// - it was surprising that a container in a gwmode=nat network couldn't talk to a
+	//   published port in a gwmode=routed network, but anything outside a bridge
+	//   network could.
 	isolationChain1 = "DOCKER-ISOLATION-STAGE-1"
 	isolationChain2 = "DOCKER-ISOLATION-STAGE-2"
 )
@@ -180,26 +180,14 @@ func setupIPChains(ctx context.Context, version iptables.IPVersion, iptCfg firew
 		}
 	}()
 
-	_, err = iptable.NewChain(isolationChain1, iptables.Filter)
+	_, err = iptable.NewChain(dockerInternalChain, iptables.Filter)
 	if err != nil {
-		return fmt.Errorf("failed to create FILTER isolation chain: %v", err)
+		return fmt.Errorf("failed to create FILTER internal chain: %v", err)
 	}
 	defer func() {
 		if retErr != nil {
-			if err := iptable.RemoveExistingChain(isolationChain1, iptables.Filter); err != nil {
-				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", isolationChain1, err)
-			}
-		}
-	}()
-
-	_, err = iptable.NewChain(isolationChain2, iptables.Filter)
-	if err != nil {
-		return fmt.Errorf("failed to create FILTER isolation chain: %v", err)
-	}
-	defer func() {
-		if retErr != nil {
-			if err := iptable.RemoveExistingChain(isolationChain2, iptables.Filter); err != nil {
-				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", isolationChain2, err)
+			if err := iptable.RemoveExistingChain(dockerInternalChain, iptables.Filter); err != nil {
+				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", dockerInternalChain, err)
 			}
 		}
 	}()
@@ -224,7 +212,7 @@ func setupIPChains(ctx context.Context, version iptables.IPVersion, iptCfg firew
 	if err := iptable.EnsureJumpRule(DockerForwardChain, dockerBridgeChain); err != nil {
 		return err
 	}
-	if err := iptable.EnsureJumpRule(DockerForwardChain, isolationChain1); err != nil {
+	if err := iptable.EnsureJumpRule(DockerForwardChain, dockerInternalChain); err != nil {
 		return err
 	}
 	if err := iptable.EnsureJumpRule(DockerForwardChain, dockerCTChain); err != nil {
