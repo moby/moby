@@ -151,7 +151,7 @@ func readPluginInfo(name, path string) (*Plugin, error) {
 		return nil, err
 	}
 
-	if len(u.Scheme) == 0 {
+	if u.Scheme == "" {
 		return nil, fmt.Errorf("Unknown protocol")
 	}
 
@@ -170,7 +170,7 @@ func readPluginJSONInfo(name, path string) (*Plugin, error) {
 		return nil, err
 	}
 	p.name = name
-	if p.TLSConfig != nil && len(p.TLSConfig.CAFile) == 0 {
+	if p.TLSConfig != nil && p.TLSConfig.CAFile == "" {
 		p.TLSConfig.InsecureSkipVerify = true
 	}
 	p.activateWait = sync.NewCond(&sync.Mutex{})

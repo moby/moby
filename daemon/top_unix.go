@@ -87,7 +87,7 @@ func parsePSOutput(output []byte, procs []uint32) (*container.TopResponse, error
 	// in "docker top" client command
 	preContainedPidFlag := false
 	for _, line := range lines[1:] {
-		if len(line) == 0 {
+		if line == "" {
 			continue
 		}
 		fields := fieldsASCII(line)

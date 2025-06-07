@@ -851,7 +851,8 @@ func readBuildImageIDs(t *testing.T, rd io.Reader) string {
 			ID string `json:"ID"`
 		}
 
-		if json.Unmarshal(*jm.Aux, &auxId); auxId.ID != "" {
+		json.Unmarshal(*jm.Aux, &auxId)
+		if auxId.ID != "" {
 			return auxId.ID
 		}
 	}

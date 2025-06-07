@@ -1748,7 +1748,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 	for i, tc := range tests {
 		c.Run(fmt.Sprintf("case %d", i), func(c *testing.T) {
 			_, err = apiClient.ContainerCreate(testutil.GetContext(c), &tc.config, &tc.hostConfig, &network.NetworkingConfig{}, nil, "")
-			if len(tc.msg) > 0 {
+			if tc.msg != "" {
 				assert.ErrorContains(c, err, tc.msg, "%v", tests[i].config)
 			} else {
 				assert.NilError(c, err)
@@ -1958,7 +1958,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 
 			switch {
 			// Named volumes still exist after the container is removed
-			case tc.spec.Type == "volume" && len(tc.spec.Source) > 0:
+			case tc.spec.Type == "volume" && tc.spec.Source != "":
 				_, err := apiclient.VolumeInspect(ctx, mountPoint.Name)
 				assert.NilError(c, err)
 

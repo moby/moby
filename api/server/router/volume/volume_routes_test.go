@@ -22,7 +22,7 @@ import (
 func callGetVolume(v *volumeRouter, name string) (*httptest.ResponseRecorder, error) {
 	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
 	vars := map[string]string{"name": name}
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/volumes/%s", name), nil)
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/volumes/%s", name), http.NoBody)
 	resp := httptest.NewRecorder()
 
 	err := v.getVolumeByName(ctx, resp, req, vars)
@@ -32,7 +32,7 @@ func callGetVolume(v *volumeRouter, name string) (*httptest.ResponseRecorder, er
 func callListVolumes(v *volumeRouter) (*httptest.ResponseRecorder, error) {
 	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
 	vars := map[string]string{}
-	req := httptest.NewRequest(http.MethodGet, "/volumes", nil)
+	req := httptest.NewRequest(http.MethodGet, "/volumes", http.NoBody)
 	resp := httptest.NewRecorder()
 
 	err := v.getVolumesList(ctx, resp, req, vars)
@@ -428,7 +428,7 @@ func TestVolumeRemove(t *testing.T) {
 	}
 
 	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
-	req := httptest.NewRequest(http.MethodDelete, "/volumes/vol1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/volumes/vol1", http.NoBody)
 	resp := httptest.NewRecorder()
 
 	err := v.deleteVolumes(ctx, resp, req, map[string]string{"name": "vol1"})
@@ -455,7 +455,7 @@ func TestVolumeRemoveSwarm(t *testing.T) {
 	}
 
 	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
-	req := httptest.NewRequest(http.MethodDelete, "/volumes/vol1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/volumes/vol1", http.NoBody)
 	resp := httptest.NewRecorder()
 
 	err := v.deleteVolumes(ctx, resp, req, map[string]string{"name": "vol1"})
@@ -472,7 +472,7 @@ func TestVolumeRemoveNotFoundNoSwarm(t *testing.T) {
 	}
 
 	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
-	req := httptest.NewRequest(http.MethodDelete, "/volumes/vol1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/volumes/vol1", http.NoBody)
 	resp := httptest.NewRecorder()
 
 	err := v.deleteVolumes(ctx, resp, req, map[string]string{"name": "vol1"})
@@ -489,7 +489,7 @@ func TestVolumeRemoveNotFoundNoManager(t *testing.T) {
 	}
 
 	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
-	req := httptest.NewRequest(http.MethodDelete, "/volumes/vol1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/volumes/vol1", http.NoBody)
 	resp := httptest.NewRecorder()
 
 	err := v.deleteVolumes(ctx, resp, req, map[string]string{"name": "vol1"})
@@ -513,7 +513,7 @@ func TestVolumeRemoveFoundNoSwarm(t *testing.T) {
 	}
 
 	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
-	req := httptest.NewRequest(http.MethodDelete, "/volumes/vol1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/volumes/vol1", http.NoBody)
 	resp := httptest.NewRecorder()
 
 	err := v.deleteVolumes(ctx, resp, req, map[string]string{"name": "vol1"})
@@ -536,7 +536,7 @@ func TestVolumeRemoveNoSwarmInUse(t *testing.T) {
 	}
 
 	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
-	req := httptest.NewRequest(http.MethodDelete, "/volumes/inuse", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/volumes/inuse", http.NoBody)
 	resp := httptest.NewRecorder()
 
 	err := v.deleteVolumes(ctx, resp, req, map[string]string{"name": "inuse"})
@@ -564,7 +564,7 @@ func TestVolumeRemoveSwarmForce(t *testing.T) {
 	}
 
 	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
-	req := httptest.NewRequest(http.MethodDelete, "/volumes/vol1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/volumes/vol1", http.NoBody)
 	resp := httptest.NewRecorder()
 
 	err := v.deleteVolumes(ctx, resp, req, map[string]string{"name": "vol1"})
@@ -573,7 +573,7 @@ func TestVolumeRemoveSwarmForce(t *testing.T) {
 	assert.Assert(t, cerrdefs.IsConflict(err))
 
 	ctx = context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
-	req = httptest.NewRequest(http.MethodDelete, "/volumes/vol1?force=1", nil)
+	req = httptest.NewRequest(http.MethodDelete, "/volumes/vol1?force=1", http.NoBody)
 	resp = httptest.NewRecorder()
 
 	err = v.deleteVolumes(ctx, resp, req, map[string]string{"name": "vol1"})

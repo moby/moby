@@ -368,7 +368,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 	ulimits, err := toBuildkitUlimits(opt.Options.Ulimits)
 	if err != nil {
 		return nil, err
-	} else if len(ulimits) > 0 {
+	} else if ulimits != "" {
 		frontendAttrs["ulimit"] = ulimits
 	}
 

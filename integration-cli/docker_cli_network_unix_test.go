@@ -1679,7 +1679,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartRestoreBridgeNetwork(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Compare(strings.TrimSpace(oldContainerIP), strings.TrimSpace(newContainerIP)) == 0 {
+	if strings.TrimSpace(oldContainerIP) == strings.TrimSpace(newContainerIP) {
 		t.Fatalf("new container ip should not equal to old running container  ip")
 	}
 

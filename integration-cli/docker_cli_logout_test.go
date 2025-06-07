@@ -77,7 +77,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithWrongHostnamesStored(c *
 	c.Setenv("PATH", testPath)
 
 	cmd := exec.Command("docker-credential-shell-test", "store")
-	stdin := bytes.NewReader([]byte(fmt.Sprintf(`{"ServerURL": "https://%s", "Username": "%s", "Secret": "%s"}`, privateRegistryURL, s.reg.Username(), s.reg.Password())))
+	stdin := bytes.NewReader([]byte(fmt.Sprintf(`{"ServerURL": "https://%s", "Username": %q, "Secret": %q}`, privateRegistryURL, s.reg.Username(), s.reg.Password())))
 	cmd.Stdin = stdin
 	assert.NilError(c, cmd.Run())
 
@@ -95,12 +95,12 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithWrongHostnamesStored(c *
 	b, err := os.ReadFile(configPath)
 	assert.NilError(c, err)
 	assert.Assert(c, is.Contains(string(b), fmt.Sprintf(`"https://%s": {}`, privateRegistryURL)))
-	assert.Assert(c, is.Contains(string(b), fmt.Sprintf(`"%s": {}`, privateRegistryURL)))
+	assert.Assert(c, is.Contains(string(b), fmt.Sprintf(`%q: {}`, privateRegistryURL)))
 
 	cli.DockerCmd(c, "--config", tmp, "logout", privateRegistryURL)
 
 	b, err = os.ReadFile(configPath)
 	assert.NilError(c, err)
 	assert.Assert(c, !strings.Contains(string(b), fmt.Sprintf(`"https://%s": {}`, privateRegistryURL)))
-	assert.Assert(c, !strings.Contains(string(b), fmt.Sprintf(`"%s": {}`, privateRegistryURL)))
+	assert.Assert(c, !strings.Contains(string(b), fmt.Sprintf(`%q: {}`, privateRegistryURL)))
 }
