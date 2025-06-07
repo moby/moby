@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"strconv"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/internal/addrset"
@@ -21,6 +22,8 @@ const (
 
 	localAddressSpace  = "LocalDefault"
 	globalAddressSpace = "GlobalDefault"
+
+	DefaultAddressPoolSize = "preferred_default_address_pool_size"
 )
 
 // Register registers the default ipam driver with libnetwork. It takes
@@ -137,7 +140,14 @@ func (a *Allocator) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool,
 
 	k := PoolID{AddressSpace: req.AddressSpace}
 	if req.Pool == "" {
-		if k.Subnet, err = aSpace.allocatePredefinedPool(req.Exclude); err != nil {
+		var preferredSize int
+		if sizeValue, found := req.Options[DefaultAddressPoolSize]; found {
+			if parsedSize, parseErr := strconv.ParseInt(sizeValue, 10, 8); parseErr == nil {
+				preferredSize = int(parsedSize)
+			}
+		}
+
+		if k.Subnet, err = aSpace.allocatePredefinedPool(req.Exclude, preferredSize); err != nil {
 			return ipamapi.AllocatedPool{}, err
 		}
 		return ipamapi.AllocatedPool{PoolID: k.String(), Pool: k.Subnet}, nil
