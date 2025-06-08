@@ -699,7 +699,7 @@ func setupLabelFilter(ctx context.Context, store content.Store, fltrs filters.Ar
 			return nil, errFoundConfig
 		})), nil, image.Target)
 
-		if err == errFoundConfig {
+		if errors.Is(err, errFoundConfig) {
 			return true
 		}
 		if err != nil {

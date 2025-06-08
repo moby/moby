@@ -125,7 +125,7 @@ func waitForLocalDNSServer(t *testing.T) {
 		if err != nil {
 			if oerr, ok := err.(*net.OpError); ok {
 				// server is probably initializing
-				if oerr.Err == syscall.ECONNREFUSED {
+				if errors.Is(oerr.Err, syscall.ECONNREFUSED) {
 					continue
 				}
 			} else {

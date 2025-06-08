@@ -248,7 +248,7 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput progress
 
 	_, err = io.Copy(tmpFile, io.TeeReader(reader, ld.verifier))
 	if err != nil {
-		if err == transport.ErrWrongCodeForByteRange {
+		if errors.Is(err, transport.ErrWrongCodeForByteRange) {
 			if err := ld.truncateDownloadFile(); err != nil {
 				return nil, 0, xfer.DoNotRetry{Err: err}
 			}
@@ -421,7 +421,7 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 			if oldTagID == id {
 				return false, addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id)
 			}
-		} else if err != refstore.ErrDoesNotExist {
+		} else if !errors.Is(err, refstore.ErrDoesNotExist) {
 			return false, err
 		}
 

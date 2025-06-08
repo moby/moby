@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"net"
@@ -431,10 +432,10 @@ func programSP(fSA *netlink.XfrmState, rSA *netlink.XfrmState, add bool) error {
 
 func saExists(sa *netlink.XfrmState) (bool, error) {
 	_, err := ns.NlHandle().XfrmStateGet(sa)
-	switch err {
-	case nil:
+	switch {
+	case err == nil:
 		return true, nil
-	case syscall.ESRCH:
+	case errors.Is(err, syscall.ESRCH):
 		return false, nil
 	default:
 		err = fmt.Errorf("Error while checking for SA existence: %v", err)
@@ -445,10 +446,10 @@ func saExists(sa *netlink.XfrmState) (bool, error) {
 
 func spExists(sp *netlink.XfrmPolicy) (bool, error) {
 	_, err := ns.NlHandle().XfrmPolicyGet(sp)
-	switch err {
-	case nil:
+	switch {
+	case err == nil:
 		return true, nil
-	case syscall.ENOENT:
+	case errors.Is(err, syscall.ENOENT):
 		return false, nil
 	default:
 		err = fmt.Errorf("Error while checking for SP existence: %v", err)

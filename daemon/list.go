@@ -524,7 +524,7 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 			}
 			return nil
 		})
-		if err != volumeExist {
+		if !errors.Is(err, volumeExist) {
 			return excludeContainer
 		}
 	}
@@ -560,7 +560,7 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 			}
 			return nil
 		})
-		if err != networkExist {
+		if !errors.Is(err, networkExist) {
 			return excludeContainer
 		}
 	}

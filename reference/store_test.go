@@ -2,6 +2,7 @@ package reference
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -228,7 +229,7 @@ func TestAddDeleteGet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not parse reference: %v", err)
 	}
-	if _, err = store.Get(nonExistRepo); err != ErrDoesNotExist {
+	if _, err = store.Get(nonExistRepo); !errors.Is(err, ErrDoesNotExist) {
 		t.Fatal("Expected ErrDoesNotExist from Get")
 	}
 
@@ -237,7 +238,7 @@ func TestAddDeleteGet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not parse reference: %v", err)
 	}
-	if _, err = store.Get(nonExistTag); err != ErrDoesNotExist {
+	if _, err = store.Get(nonExistTag); !errors.Is(err, ErrDoesNotExist) {
 		t.Fatal("Expected ErrDoesNotExist from Get")
 	}
 
@@ -289,12 +290,12 @@ func TestAddDeleteGet(t *testing.T) {
 	}
 
 	// Delete should return ErrDoesNotExist for a nonexistent repo
-	if _, err = store.Delete(nonExistRepo); err != ErrDoesNotExist {
+	if _, err = store.Delete(nonExistRepo); !errors.Is(err, ErrDoesNotExist) {
 		t.Fatal("Expected ErrDoesNotExist from Delete")
 	}
 
 	// Delete should return ErrDoesNotExist for a nonexistent tag
-	if _, err = store.Delete(nonExistTag); err != ErrDoesNotExist {
+	if _, err = store.Delete(nonExistTag); !errors.Is(err, ErrDoesNotExist) {
 		t.Fatal("Expected ErrDoesNotExist from Delete")
 	}
 
@@ -302,19 +303,19 @@ func TestAddDeleteGet(t *testing.T) {
 	if deleted, err := store.Delete(ref1); err != nil || !deleted {
 		t.Fatal("Delete failed")
 	}
-	if _, err := store.Get(ref1); err != ErrDoesNotExist {
+	if _, err := store.Get(ref1); !errors.Is(err, ErrDoesNotExist) {
 		t.Fatal("Expected ErrDoesNotExist from Get")
 	}
 	if deleted, err := store.Delete(ref5); err != nil || !deleted {
 		t.Fatal("Delete failed")
 	}
-	if _, err := store.Get(ref5); err != ErrDoesNotExist {
+	if _, err := store.Get(ref5); !errors.Is(err, ErrDoesNotExist) {
 		t.Fatal("Expected ErrDoesNotExist from Get")
 	}
 	if deleted, err := store.Delete(nameOnly); err != nil || !deleted {
 		t.Fatal("Delete failed")
 	}
-	if _, err := store.Get(nameOnly); err != ErrDoesNotExist {
+	if _, err := store.Get(nameOnly); !errors.Is(err, ErrDoesNotExist) {
 		t.Fatal("Expected ErrDoesNotExist from Get")
 	}
 }

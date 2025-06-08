@@ -121,7 +121,7 @@ func (ds *Store) PutObjectAtomic(kvObject KVObject) error {
 
 		pair, err := ds.store.AtomicPut(Key(kvObject.Key()...), kvObjValue, previous)
 		if err != nil {
-			if err == store.ErrKeyExists {
+			if errors.Is(err, store.ErrKeyExists) {
 				return ErrKeyModified
 			}
 			return err
@@ -245,7 +245,7 @@ func (ds *Store) DeleteObjectAtomic(kvObject KVObject) error {
 
 	if !kvObject.Skip() {
 		if err := ds.store.AtomicDelete(Key(kvObject.Key()...), previous); err != nil {
-			if err == store.ErrKeyExists {
+			if errors.Is(err, store.ErrKeyExists) {
 				return ErrKeyModified
 			}
 			return err

@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -138,7 +139,7 @@ func ExampleClient_ServiceLogs_withTimeout() {
 	}
 
 	_, err = io.Copy(os.Stdout, reader)
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		log.Fatal(err)
 	}
 }

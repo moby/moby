@@ -164,15 +164,15 @@ func retryOnError(err error) error {
 			return xfer.DoNotRetry{Err: err}
 		}
 	case *url.Error:
-		switch v.Err {
-		case auth.ErrNoBasicAuthCredentials, auth.ErrNoToken:
+		switch {
+		case errors.Is(v.Err, auth.ErrNoBasicAuthCredentials), errors.Is(v.Err, auth.ErrNoToken):
 			return xfer.DoNotRetry{Err: v.Err}
 		}
 		return retryOnError(v.Err)
 	case *client.UnexpectedHTTPResponseError, unsupportedMediaTypeError:
 		return xfer.DoNotRetry{Err: err}
 	case error:
-		if err == distribution.ErrBlobUnknown {
+		if errors.Is(err, distribution.ErrBlobUnknown) {
 			return xfer.DoNotRetry{Err: err}
 		}
 		if strings.Contains(err.Error(), strings.ToLower(syscall.ENOSPC.Error())) {

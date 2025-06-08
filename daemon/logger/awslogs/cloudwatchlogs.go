@@ -431,7 +431,7 @@ func (l *logStream) Log(msg *logger.Message) error {
 	// (i.e. returns false) in this case.
 	ctx := context.TODO()
 	if err := l.messages.Enqueue(ctx, msg); err != nil {
-		if err == loggerutils.ErrQueueClosed {
+		if errors.Is(err, loggerutils.ErrQueueClosed) {
 			return errClosed
 		}
 		return err

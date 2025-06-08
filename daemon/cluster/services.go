@@ -513,7 +513,7 @@ func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector
 			default:
 			}
 			subscribeMsg, err := stream.Recv()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return
 			}
 			// if we're not io.EOF, push the message in and return

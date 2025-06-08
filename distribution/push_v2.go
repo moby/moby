@@ -525,8 +525,8 @@ attempts:
 		var err error
 		desc, err = pd.repo.Blobs(ctx).Stat(ctx, dgst)
 		pd.checkedDigests[meta.Digest] = struct{}{}
-		switch err {
-		case nil:
+		switch {
+		case err == nil:
 			if m, ok := digestToMetadata[desc.Digest]; !ok || m.SourceRepository != pd.repoName.Name() || !metadata.CheckV2MetadataHMAC(m, pd.hmacKey) {
 				// cache mapping from this layer's DiffID to the blobsum
 				if err := pd.metadataService.TagAndAdd(diffID, pd.hmacKey, metadata.V2Metadata{
@@ -539,7 +539,7 @@ attempts:
 			desc.MediaType = schema2.MediaTypeLayer
 			exists = true
 			break attempts
-		case distribution.ErrBlobUnknown:
+		case errors.Is(err, distribution.ErrBlobUnknown):
 			if meta.SourceRepository == pd.repoName.Name() {
 				// remove the mapping to the target repository
 				if err := pd.metadataService.Remove(*meta); err != nil {

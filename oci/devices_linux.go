@@ -1,6 +1,7 @@
 package oci
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -40,7 +41,7 @@ func DevicesFromPath(pathOnHost, pathInContainer, cgroupPermissions string) (dev
 
 	// if the device is not a device node
 	// try to see if it's a directory holding many devices
-	if err == coci.ErrNotADevice {
+	if errors.Is(err, coci.ErrNotADevice) {
 		// check if it is a directory
 		if src, e := os.Stat(resolvedPathOnHost); e == nil && src.IsDir() {
 			// mount the internal devices recursively

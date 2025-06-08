@@ -305,7 +305,7 @@ func (r *controller) Wait(pctx context.Context) error {
 	go func() {
 		ectx, cancel := context.WithCancel(ctx) // cancel event context on first event
 		defer cancel()
-		if err := r.checkHealth(ectx); err == ErrContainerUnhealthy {
+		if err := r.checkHealth(ectx); errors.Is(err, ErrContainerUnhealthy) {
 			healthErr <- ErrContainerUnhealthy
 			if err := r.Shutdown(ectx); err != nil {
 				log.G(ectx).WithError(err).Debug("shutdown failed on unhealthy")

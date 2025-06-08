@@ -4,6 +4,7 @@ package container
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -80,7 +81,7 @@ func TestHealthStates(t *testing.T) {
 
 		select {
 		case err := <-errChan:
-			if err != expectedErr {
+			if !errors.Is(err, expectedErr) {
 				t.Fatalf("expect error %v, but get %v", expectedErr, err)
 			}
 		case <-timer.C:

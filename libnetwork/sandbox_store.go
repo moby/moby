@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/containerd/log"
@@ -147,7 +148,7 @@ retry:
 	}
 
 	err := sb.controller.updateToStore(ctx, sbs)
-	if err == datastore.ErrKeyModified {
+	if errors.Is(err, datastore.ErrKeyModified) {
 		// When we get ErrKeyModified it is sufficient to just
 		// go back and retry.  No need to get the object from
 		// the store because we always regenerate the store
@@ -171,7 +172,7 @@ func (sb *Sandbox) storeDelete() error {
 func (c *Controller) sandboxRestore(activeSandboxes map[string]interface{}) error {
 	sandboxStates, err := c.store.List(&sbState{c: c})
 	if err != nil {
-		if err == datastore.ErrKeyNotFound {
+		if errors.Is(err, datastore.ErrKeyNotFound) {
 			// It's normal for no sandboxes to be found. Just bail out.
 			return nil
 		}

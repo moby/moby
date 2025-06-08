@@ -2,6 +2,7 @@ package vfs
 
 import (
 	"context"
+	"errors"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/quota"
@@ -15,7 +16,7 @@ type driverQuota struct {
 func setupDriverQuota(driver *Driver) {
 	if quotaCtl, err := quota.NewControl(driver.home); err == nil {
 		driver.quotaCtl = quotaCtl
-	} else if err != quota.ErrQuotaNotSupported {
+	} else if !errors.Is(err, quota.ErrQuotaNotSupported) {
 		log.G(context.TODO()).Warnf("Unable to setup quota: %v\n", err)
 	}
 }

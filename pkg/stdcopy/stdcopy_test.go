@@ -67,7 +67,7 @@ func TestWriteWithWriterError(t *testing.T) {
 	}, Stdout)
 	data := []byte("This won't get written, sigh")
 	n, err := writer.Write(data)
-	if err != expectedError {
+	if !errors.Is(err, expectedError) {
 		t.Fatalf("Didn't get expected error.")
 	}
 	if n != expectedReturnedBytes {
@@ -139,7 +139,7 @@ func TestStdCopyReturnsErrorReadingHeader(t *testing.T) {
 	if written != 0 {
 		t.Fatalf("Expected 0 bytes read, got %d", written)
 	}
-	if err != expectedError {
+	if !errors.Is(err, expectedError) {
 		t.Fatalf("Didn't get expected error")
 	}
 }
@@ -162,7 +162,7 @@ func TestStdCopyReturnsErrorReadingFrame(t *testing.T) {
 	if written != 0 {
 		t.Fatalf("Expected 0 bytes read, got %d", written)
 	}
-	if err != expectedError {
+	if !errors.Is(err, expectedError) {
 		t.Fatalf("Didn't get expected error")
 	}
 }
@@ -226,7 +226,7 @@ func TestStdCopyReturnsWriteErrors(t *testing.T) {
 	if written != 0 {
 		t.Fatalf("StdCopy should have written 0, but has written %d", written)
 	}
-	if err != expectedError {
+	if !errors.Is(err, expectedError) {
 		t.Fatalf("Didn't get expected error, got %v", err)
 	}
 }
@@ -244,7 +244,7 @@ func TestStdCopyDetectsNotFullyWrittenFrames(t *testing.T) {
 	if written != 0 {
 		t.Fatalf("StdCopy should have return 0 written bytes, but returned %d", written)
 	}
-	if err != io.ErrShortWrite {
+	if !errors.Is(err, io.ErrShortWrite) {
 		t.Fatalf("Didn't get expected io.ErrShortWrite error")
 	}
 }
