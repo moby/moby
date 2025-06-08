@@ -746,48 +746,80 @@ func TestBuildEmitsImageCreateEvent(t *testing.T) {
 				skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Buildkit is not supported on Windows")
 			}
 
-			ctx, cancel := context.WithCancel(ctx)
-			defer cancel()
+			for _, tt := range []struct {
+				name         string
+				opt          func(build.ImageBuildOptions) build.ImageBuildOptions
+				filterEvt    func(events.Message) bool
+				expectedEvts int
+			}{
+				{
+					name: "no tag",
+					filterEvt: func(evt events.Message) bool {
+						return evt.Action == events.ActionCreate
+					},
+					expectedEvts: 1,
+				},
+				{
+					name: "with tag",
+					filterEvt: func(evt events.Message) bool {
+						return evt.Action == events.ActionCreate || evt.Action == events.ActionTag
+					},
+					opt: func(ibo build.ImageBuildOptions) build.ImageBuildOptions {
+						ibo.Tags = []string{"testbuildemitsimagetagevent"}
+						return ibo
+					},
+					expectedEvts: 2,
+				},
+			} {
+				t.Run(tt.name, func(t *testing.T) {
+					ctx, cancel := context.WithCancel(ctx)
+					defer cancel()
 
-			since := time.Now()
-
-			resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), build.ImageBuildOptions{
-				Version: builderVersion,
-				NoCache: true,
-			})
-			assert.NilError(t, err)
-
-			defer resp.Body.Close()
-
-			out := bytes.NewBuffer(nil)
-			_, err = io.Copy(out, resp.Body)
-			assert.NilError(t, err)
-			buildLogs := out.String()
-
-			eventsChan, errs := apiClient.Events(ctx, events.ListOptions{
-				Since: since.Format(time.RFC3339Nano),
-				Until: time.Now().Format(time.RFC3339Nano),
-			})
-
-			var eventsReceived []string
-			imageCreateEvts := 0
-			finished := false
-			for !finished {
-				select {
-				case evt := <-eventsChan:
-					eventsReceived = append(eventsReceived, fmt.Sprintf("type: %v, action: %v", evt.Type, evt.Action))
-					if evt.Type == events.ImageEventType && evt.Action == events.ActionCreate {
-						imageCreateEvts++
+					since := time.Now()
+					ibo := build.ImageBuildOptions{
+						Version: builderVersion,
+						NoCache: true,
+						Tags:    []string{"testbuildemitsimagetagevent"},
 					}
-				case err := <-errs:
-					assert.Check(t, err == nil || err == io.EOF)
-					finished = true
-				}
-			}
+					if tt.opt != nil {
+						ibo = tt.opt(ibo)
+					}
+					resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), ibo)
+					assert.NilError(t, err)
 
-			if !assert.Check(t, is.Equal(1, imageCreateEvts)) {
-				t.Logf("build-logs:\n%s", buildLogs)
-				t.Logf("events received:\n%s", strings.Join(eventsReceived, "\n"))
+					defer resp.Body.Close()
+
+					out := bytes.NewBuffer(nil)
+					_, err = io.Copy(out, resp.Body)
+					assert.NilError(t, err)
+					buildLogs := out.String()
+
+					eventsChan, errs := apiClient.Events(ctx, events.ListOptions{
+						Since: since.Format(time.RFC3339Nano),
+						Until: time.Now().Add(time.Second).Format(time.RFC3339Nano),
+					})
+
+					var eventsReceived []string
+					imageCreateEvts := 0
+					finished := false
+					for !finished {
+						select {
+						case evt := <-eventsChan:
+							eventsReceived = append(eventsReceived, fmt.Sprintf("type: %v, action: %v", evt.Type, evt.Action))
+							if evt.Type == events.ImageEventType && tt.filterEvt(evt) {
+								imageCreateEvts++
+							}
+						case err := <-errs:
+							assert.Check(t, err == nil || err == io.EOF)
+							finished = true
+						}
+					}
+
+					if !assert.Check(t, is.Equal(tt.expectedEvts, imageCreateEvts)) {
+						t.Logf("build-logs:\n%s", buildLogs)
+						t.Logf("events received:\n%s", strings.Join(eventsReceived, "\n"))
+					}
+				})
 			}
 		})
 	}
