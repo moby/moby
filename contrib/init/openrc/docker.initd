@@ -18,7 +18,7 @@ rc_ulimit="${DOCKER_ULIMIT:--c unlimited -n 524288 -u unlimited}"
 retry="${DOCKER_RETRY:-TERM/60/KILL/10}"
 
 depend() {
-	need containerd
+	need ${CONTAINERD_SVC:-containerd}
 }
 
 start_pre() {
