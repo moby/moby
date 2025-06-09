@@ -9,7 +9,7 @@ import (
 
 func TestEnable(t *testing.T) {
 	t.Cleanup(func() {
-		_ = os.Setenv("DEBUG", "")
+		_ = os.Setenv("DEBUG", "") //nolint:usetesting // this is done on purpose
 		_ = log.SetLevel("info")
 	})
 	Enable()

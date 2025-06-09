@@ -46,6 +46,7 @@ linters:
     - unconvert                 # Detects unnecessary type conversions.
     - unused
     - usestdlibvars             # Detects the possibility to use variables/constants from the Go standard library.
+    - usetesting                # Detects the possibility to use functions from the testing package.
     - wastedassign              # Detects wasted assignment statements.
 
   disable:
@@ -194,6 +195,25 @@ linters:
       http-method: true
       # Suggest the use of http.StatusXX.
       http-status-code: true
+
+    usetesting:
+      # Enable/disable `os.CreateTemp("", ...)` detections.
+      os-create-temp: false
+      # Enable/disable `os.MkdirTemp()` detections.
+      os-mkdir-temp: false
+      # Enable/disable `os.Setenv()` detections.
+      os-setenv: true
+      # Enable/disable `os.TempDir()` detections.
+      os-temp-dir: false
+      # Enable/disable `os.Chdir()` detections.
+      # Disabled if Go < 1.24.
+      os-chdir: false
+      # Enable/disable `context.Background()` detections.
+      # Disabled if Go < 1.24.
+      context-background: false
+      # Enable/disable `context.TODO()` detections.
+      # Disabled if Go < 1.24.
+      context-todo: false
 
   exclusions:
     paths:
