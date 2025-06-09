@@ -719,7 +719,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
 		m := mount.Mount{
 			Type:   mount.TypeBind,
-			Source: os.TempDir(),
+			Source: os.TempDir(), //nolint:usetesting
 			Target: "/foo",
 		}
 		cID := container.Run(ctx, t, c, container.WithMount(m), container.WithCmd("top"))

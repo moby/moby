@@ -128,7 +128,7 @@ VERSION_ID=18.04`,
 func runEtcReleaseParsingTests(t *testing.T, tests []EtcReleaseParsingTest, parsingFunc func() (string, error)) {
 	backup := etcOsRelease
 
-	dir := os.TempDir()
+	dir := t.TempDir()
 	etcOsRelease = filepath.Join(dir, "etcOsRelease")
 
 	defer func() {
@@ -193,7 +193,7 @@ func TestIsContainerized(t *testing.T) {
 `)
 	)
 
-	dir := os.TempDir()
+	dir := t.TempDir()
 	proc1Cgroup = filepath.Join(dir, "proc1Cgroup")
 
 	defer func() {
@@ -249,7 +249,7 @@ func TestIsContainerized(t *testing.T) {
 func TestOsReleaseFallback(t *testing.T) {
 	backup := etcOsRelease
 	altBackup := altOsRelease
-	dir := os.TempDir()
+	dir := t.TempDir()
 	etcOsRelease = filepath.Join(dir, "etcOsRelease")
 	altOsRelease = filepath.Join(dir, "altOsRelease")
 

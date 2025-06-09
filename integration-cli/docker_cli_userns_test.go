@@ -38,7 +38,7 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Set a non-existent path
-	tmpDirNotExists := path.Join(os.TempDir(), "userns"+stringid.GenerateRandomID())
+	tmpDirNotExists := path.Join(c.TempDir(), "userns"+stringid.GenerateRandomID())
 	defer os.RemoveAll(tmpDirNotExists)
 
 	// we need to find the uid and gid of the remapped root from the daemon's root dir info

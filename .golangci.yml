@@ -204,7 +204,7 @@ linters:
       # Enable/disable `os.Setenv()` detections.
       os-setenv: true
       # Enable/disable `os.TempDir()` detections.
-      os-temp-dir: false
+      os-temp-dir: true
       # Enable/disable `os.Chdir()` detections.
       # Disabled if Go < 1.24.
       os-chdir: false

@@ -2107,13 +2107,13 @@ func (s *DockerCLIRunSuite) TestRunReuseBindVolumeThatIsSymlink(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, NotUserNamespace)
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
-	tmpDir, err := os.MkdirTemp(os.TempDir(), "testlink")
+	tmpDir, err := os.MkdirTemp(c.TempDir(), "testlink")
 	if err != nil {
 		c.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	linkPath := os.TempDir() + "/testlink2"
+	linkPath := c.TempDir() + "/testlink2"
 	if err := os.Symlink(tmpDir, linkPath); err != nil {
 		c.Fatal(err)
 	}
