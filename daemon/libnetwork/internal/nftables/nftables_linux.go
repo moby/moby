@@ -62,6 +62,8 @@ var (
 	// nftPath is the path of the "nft" tool, set by [Enable] and left empty if the tool
 	// is not present - in which case, nftables is disabled.
 	nftPath string
+	// Error returned by Enable if nftables could not be initialised.
+	nftEnableError error
 	// incrementalUpdateTempl is a parsed text/template, used to apply incremental updates.
 	incrementalUpdateTempl *template.Template
 	// reloadTempl is a parsed text/template, used to apply a whole table.
@@ -134,21 +136,23 @@ const (
 	nftTypeIfname      nftType = "ifname"
 )
 
-// Enable checks whether the "nft" tool is available, and returns true if it is.
-// Subsequent calls to [Enabled] will return the same result.
-func Enable() bool {
+// Enable tries once to initialise nftables.
+func Enable() error {
 	enableOnce.Do(func() {
 		path, err := exec.LookPath("nft")
 		if err != nil {
 			log.G(context.Background()).WithError(err).Warnf("Failed to find nft tool")
+			nftEnableError = fmt.Errorf("failed to find nft tool: %w", err)
+			return
 		}
 		if err := parseTemplate(); err != nil {
 			log.G(context.Background()).WithError(err).Error("Internal error while initialising nftables")
+			nftEnableError = fmt.Errorf("internal error while initialising nftables: %w", err)
 			return
 		}
 		nftPath = path
 	})
-	return nftPath != ""
+	return nftEnableError
 }
 
 // Enabled returns true if the "nft" tool is available and [Enable] has been called.

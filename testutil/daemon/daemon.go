@@ -234,10 +234,6 @@ func New(t testing.TB, ops ...Option) *Daemon {
 	}
 	ops = append(ops, WithOOMScoreAdjust(-500))
 
-	if val, ok := os.LookupEnv("DOCKER_FIREWALL_BACKEND"); ok {
-		ops = append(ops, WithEnvVars("DOCKER_FIREWALL_BACKEND="+val))
-	}
-
 	d, err := NewDaemon(dest, ops...)
 	assert.NilError(t, err, "could not create daemon at %q", dest)
 	if d.rootlessUser != nil && d.dockerdBinary != defaultDockerdBinary {
@@ -532,6 +528,15 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	}
 	if d.storageDriver != "" && !foundSd {
 		d.args = append(d.args, "--storage-driver", d.storageDriver)
+	}
+
+	hasFwBackendArg := !slices.ContainsFunc(providedArgs, func(s string) bool {
+		return strings.HasPrefix(s, "--firewall-backend")
+	})
+	if hasFwBackendArg {
+		if fw := os.Getenv("DOCKER_FIREWALL_BACKEND"); fw != "" {
+			d.args = append(d.args, "--firewall-backend="+fw)
+		}
 	}
 
 	d.args = append(d.args, providedArgs...)

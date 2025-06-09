@@ -148,6 +148,10 @@ type NetworkConfig struct {
 	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty"`
 	// Default options for newly created networks
 	DefaultNetworkOpts map[string]map[string]string `json:"default-network-opts,omitempty"`
+	// FirewallBackend overrides the daemon's default selection of firewall
+	// implementation. Currently only used on Linux, it is an error to
+	// supply a value for other platforms.
+	FirewallBackend string `json:"firewall-backend,omitempty"`
 }
 
 // TLSOptions defines TLS configuration for the daemon server.
