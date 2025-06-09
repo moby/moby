@@ -14,10 +14,11 @@ import (
 )
 
 func TestBuildDefault(t *testing.T) {
-	file, err := os.CreateTemp("", "")
+	file, err := os.CreateTemp(t.TempDir(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer file.Close()
 	defer os.Remove(file.Name())
 
 	// check that /etc/hosts has consistent ordering
@@ -61,10 +62,11 @@ func TestBuildNoIPv6(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	file, err := os.CreateTemp("", "")
+	file, err := os.CreateTemp(t.TempDir(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer file.Close()
 	defer os.Remove(file.Name())
 
 	if err := Build(file.Name(), []Record{
@@ -107,10 +109,11 @@ func TestUpdate(t *testing.T) {
 // with "prefix" should not be changed. For more information see
 // GitHub issue #603.
 func TestUpdateIgnoresPrefixedHostname(t *testing.T) {
-	file, err := os.CreateTemp("", "")
+	file, err := os.CreateTemp(t.TempDir(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer file.Close()
 	defer os.Remove(file.Name())
 
 	if err := Build(file.Name(), []Record{
@@ -158,10 +161,11 @@ func TestUpdateIgnoresPrefixedHostname(t *testing.T) {
 // "prefix", an unrelated host called "prefixAndMore" should not
 // be deleted. For more information see GitHub issue #603.
 func TestDeleteIgnoresPrefixedHostname(t *testing.T) {
-	file, err := os.CreateTemp("", "")
+	file, err := os.CreateTemp(t.TempDir(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer file.Close()
 	defer os.Remove(file.Name())
 
 	err = Build(file.Name(), nil)
@@ -206,10 +210,11 @@ func TestDeleteIgnoresPrefixedHostname(t *testing.T) {
 }
 
 func TestAddEmpty(t *testing.T) {
-	file, err := os.CreateTemp("", "")
+	file, err := os.CreateTemp(t.TempDir(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer file.Close()
 	defer os.Remove(file.Name())
 
 	err = Build(file.Name(), nil)
@@ -223,10 +228,11 @@ func TestAddEmpty(t *testing.T) {
 }
 
 func TestAdd(t *testing.T) {
-	file, err := os.CreateTemp("", "")
+	file, err := os.CreateTemp(t.TempDir(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer file.Close()
 	defer os.Remove(file.Name())
 
 	err = Build(file.Name(), nil)
@@ -254,10 +260,11 @@ func TestAdd(t *testing.T) {
 }
 
 func TestDeleteEmpty(t *testing.T) {
-	file, err := os.CreateTemp("", "")
+	file, err := os.CreateTemp(t.TempDir(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer file.Close()
 	defer os.Remove(file.Name())
 
 	err = Build(file.Name(), nil)
@@ -271,10 +278,11 @@ func TestDeleteEmpty(t *testing.T) {
 }
 
 func TestDeleteNewline(t *testing.T) {
-	file, err := os.CreateTemp("", "")
+	file, err := os.CreateTemp(t.TempDir(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer file.Close()
 	defer os.Remove(file.Name())
 
 	b := []byte("\n")
@@ -294,10 +302,11 @@ func TestDeleteNewline(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	file, err := os.CreateTemp("", "")
+	file, err := os.CreateTemp(t.TempDir(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer file.Close()
 	defer os.Remove(file.Name())
 
 	err = Build(file.Name(), nil)
@@ -350,10 +359,11 @@ func TestDelete(t *testing.T) {
 }
 
 func TestConcurrentWrites(t *testing.T) {
-	file, err := os.CreateTemp("", "")
+	file, err := os.CreateTemp(t.TempDir(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer file.Close()
 	defer os.Remove(file.Name())
 
 	err = Build(file.Name(), nil)
@@ -411,7 +421,7 @@ func TestConcurrentWrites(t *testing.T) {
 
 func benchDelete(b *testing.B) {
 	b.StopTimer()
-	file, err := os.CreateTemp("", "")
+	file, err := os.CreateTemp(b.TempDir(), "")
 	if err != nil {
 		b.Fatal(err)
 	}

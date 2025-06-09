@@ -198,7 +198,7 @@ linters:
 
     usetesting:
       # Enable/disable `os.CreateTemp("", ...)` detections.
-      os-create-temp: false
+      os-create-temp: true
       # Enable/disable `os.MkdirTemp()` detections.
       os-mkdir-temp: false
       # Enable/disable `os.Setenv()` detections.

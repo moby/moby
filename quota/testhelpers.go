@@ -38,7 +38,7 @@ func PrepareQuotaTestImage(t *testing.T) (string, error) {
 	}
 
 	// create a sparse image
-	imageFile, err := os.CreateTemp("", "xfs-image")
+	imageFile, err := os.CreateTemp(t.TempDir(), "xfs-image")
 	if err != nil {
 		return "", err
 	}

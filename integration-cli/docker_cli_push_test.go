@@ -105,8 +105,9 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *testing.T) {
 func (s *DockerRegistrySuite) TestPushEmptyLayer(c *testing.T) {
 	const imgRepo = privateRegistryURL + "/dockercli/emptylayer"
 
-	emptyTarball, err := os.CreateTemp("", "empty_tarball")
+	emptyTarball, err := os.CreateTemp(c.TempDir(), "empty_tarball")
 	assert.NilError(c, err, "Unable to create test file")
+	defer emptyTarball.Close()
 
 	tw := tar.NewWriter(emptyTarball)
 	err = tw.Close()

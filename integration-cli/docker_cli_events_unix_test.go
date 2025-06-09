@@ -27,8 +27,9 @@ func (s *DockerCLIEventSuite) TestEventsRedirectStdout(c *testing.T) {
 	since := daemonUnixTime(c)
 	cli.DockerCmd(c, "run", "busybox", "true")
 
-	file, err := os.CreateTemp("", "")
+	file, err := os.CreateTemp(c.TempDir(), "")
 	assert.NilError(c, err, "could not create temp file")
+	defer file.Close()
 	defer os.Remove(file.Name())
 
 	command := fmt.Sprintf("%s events --since=%s --until=%s > %s", dockerBinary, since, daemonUnixTime(c), file.Name())

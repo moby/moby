@@ -21,8 +21,9 @@ func TestDecode(t *testing.T) {
 }
 
 func testDecode(t *testing.T, buf []byte, split int) {
-	fw, err := os.CreateTemp("", t.Name())
+	fw, err := os.CreateTemp(t.TempDir(), t.Name())
 	assert.NilError(t, err)
+	defer fw.Close()
 	defer os.Remove(fw.Name())
 
 	fr, err := os.Open(fw.Name())

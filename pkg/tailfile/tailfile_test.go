@@ -14,7 +14,7 @@ import (
 )
 
 func TestTailFile(t *testing.T) {
-	f, err := os.CreateTemp("", "tail-test")
+	f, err := os.CreateTemp(t.TempDir(), "tail-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ truncated line`)
 }
 
 func TestTailFileManyLines(t *testing.T) {
-	f, err := os.CreateTemp("", "tail-test")
+	f, err := os.CreateTemp(t.TempDir(), "tail-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ truncated line`)
 }
 
 func TestTailEmptyFile(t *testing.T) {
-	f, err := os.CreateTemp("", "tail-test")
+	f, err := os.CreateTemp(t.TempDir(), "tail-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestTailEmptyFile(t *testing.T) {
 }
 
 func TestTailNegativeN(t *testing.T) {
-	f, err := os.CreateTemp("", "tail-test")
+	f, err := os.CreateTemp(t.TempDir(), "tail-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ truncated line`)
 }
 
 func BenchmarkTail(b *testing.B) {
-	f, err := os.CreateTemp("", "tail-test")
+	f, err := os.CreateTemp(b.TempDir(), "tail-test")
 	if err != nil {
 		b.Fatal(err)
 	}

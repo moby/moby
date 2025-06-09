@@ -286,8 +286,9 @@ func appendBaseEnv(isTLS bool, env ...string) []string {
 
 func createTmpFile(t *testing.T, content string) string {
 	t.Helper()
-	f, err := os.CreateTemp("", "testfile")
+	f, err := os.CreateTemp(t.TempDir(), "testfile")
 	assert.NilError(t, err)
+	defer f.Close()
 
 	filename := f.Name()
 

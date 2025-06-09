@@ -34,10 +34,11 @@ fe90::2	somehost.example.com somehost
 
 	ctrlr, nws := getTestEnv(t, opts)
 
-	hostsFile, err := os.CreateTemp("", "")
+	hostsFile, err := os.CreateTemp(t.TempDir(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer hostsFile.Close()
 	defer os.Remove(hostsFile.Name())
 
 	sbx, err := ctrlr.NewSandbox(context.Background(), "sandbox1", OptionHostsPath(hostsFile.Name()), OptionHostname("somehost.example.com"))

@@ -4066,7 +4066,7 @@ func (s *DockerCLIRunSuite) TestRunCredentialSpecWellFormed(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunDuplicateMount(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, NotUserNamespace)
 
-	tmpFile, err := os.CreateTemp("", "touch-me")
+	tmpFile, err := os.CreateTemp(c.TempDir(), "touch-me")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 

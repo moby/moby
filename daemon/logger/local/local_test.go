@@ -95,7 +95,7 @@ func TestReadLog(t *testing.T) {
 }
 
 func BenchmarkLogWrite(b *testing.B) {
-	f, err := os.CreateTemp("", b.Name())
+	f, err := os.CreateTemp(b.TempDir(), b.Name())
 	assert.Assert(b, err)
 	defer os.Remove(f.Name())
 	f.Close()

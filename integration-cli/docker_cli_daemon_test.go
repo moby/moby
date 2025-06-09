@@ -1635,7 +1635,7 @@ func (s *DockerDaemonSuite) TestDaemonDNSFlagsInHostMode(c *testing.T) {
 }
 
 func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
-	conf, err := os.CreateTemp("", "config-file-")
+	conf, err := os.CreateTemp(c.TempDir(), "config-file-")
 	assert.NilError(c, err)
 	configName := conf.Name()
 	conf.Close()
@@ -2135,7 +2135,7 @@ func testDaemonStartIpcMode(t *testing.T, from, mode string, valid bool) {
 	var serr error
 	switch from {
 	case "config":
-		f, err := os.CreateTemp("", "test-daemon-ipc-config")
+		f, err := os.CreateTemp(t.TempDir(), "test-daemon-ipc-config")
 		assert.NilError(t, err)
 		defer os.Remove(f.Name())
 		config := `{"default-ipc-mode": "` + mode + `"}`

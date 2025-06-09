@@ -425,7 +425,7 @@ func (s *DockerCLIEventSuite) TestEventsCopy(c *testing.T) {
 	id := getIDByName(c, "cpimg")
 
 	// Create an empty test file.
-	tempFile, err := os.CreateTemp("", "test-events-copy-")
+	tempFile, err := os.CreateTemp(c.TempDir(), "test-events-copy-")
 	assert.NilError(c, err)
 	defer os.Remove(tempFile.Name())
 

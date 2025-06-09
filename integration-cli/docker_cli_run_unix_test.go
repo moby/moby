@@ -763,7 +763,7 @@ func (s *DockerCLIRunSuite) TestRunWithShmSize(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestRunTmpfsMountsEnsureOrdered(c *testing.T) {
-	tmpFile, err := os.CreateTemp("", "test")
+	tmpFile, err := os.CreateTemp(c.TempDir(), "test")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 	out := cli.DockerCmd(c, "run", "--tmpfs", "/run", "-v", tmpFile.Name()+":/run/test", "busybox", "ls", "/run").Combined()
@@ -883,7 +883,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshare(c *testing.T) {
 		}
 	]
 }`
-	tmpFile, err := os.CreateTemp("", "profile.json")
+	tmpFile, err := os.CreateTemp(c.TempDir(), "profile.json")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -920,7 +920,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyChmod(c *testing.T) {
 		}
 	]
 }`
-	tmpFile, err := os.CreateTemp("", "profile.json")
+	tmpFile, err := os.CreateTemp(c.TempDir(), "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 
@@ -955,7 +955,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshareUserns(c *testing.T)
 		}
 	]
 }`, uint64(0x10000000))
-	tmpFile, err := os.CreateTemp("", "profile.json")
+	tmpFile, err := os.CreateTemp(c.TempDir(), "profile.json")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -1426,7 +1426,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *testing.T) {
 		}
 	]
 }`
-	tmpFile, err := os.CreateTemp("", "profile.json")
+	tmpFile, err := os.CreateTemp(c.TempDir(), "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 	_, err = tmpFile.WriteString(jsonData)
@@ -1453,7 +1453,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *testing.T) {
 		}
 	]
 }`
-	tmpFile, err := os.CreateTemp("", "profile.json")
+	tmpFile, err := os.CreateTemp(c.TempDir(), "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 	_, err = tmpFile.WriteString(jsonData)
@@ -1491,7 +1491,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *testing.T) {
 		}
 	]
 }`
-	tmpFile, err := os.CreateTemp("", "profile.json")
+	tmpFile, err := os.CreateTemp(c.TempDir(), "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 	_, err = tmpFile.WriteString(jsonData)
@@ -1525,7 +1525,7 @@ func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *testing.T)
 		}
 	]
 }`
-	tmpFile, err := os.CreateTemp("", "profile.json")
+	tmpFile, err := os.CreateTemp(c.TempDir(), "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 	_, err = tmpFile.WriteString(jsonData)

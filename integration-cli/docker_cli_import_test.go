@@ -59,8 +59,9 @@ func (s *DockerCLIImportSuite) TestImportFile(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	cli.DockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
-	temporaryFile, err := os.CreateTemp("", "exportImportTest")
+	temporaryFile, err := os.CreateTemp(c.TempDir(), "exportImportTest")
 	assert.Assert(c, err == nil, "failed to create temporary file")
+	defer temporaryFile.Close()
 	defer os.Remove(temporaryFile.Name())
 
 	icmd.RunCmd(icmd.Cmd{
@@ -80,7 +81,7 @@ func (s *DockerCLIImportSuite) TestImportGzipped(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	cli.DockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
-	temporaryFile, err := os.CreateTemp("", "exportImportTest")
+	temporaryFile, err := os.CreateTemp(c.TempDir(), "exportImportTest")
 	assert.Assert(c, err == nil, "failed to create temporary file")
 	defer os.Remove(temporaryFile.Name())
 
@@ -103,8 +104,9 @@ func (s *DockerCLIImportSuite) TestImportFileWithMessage(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	cli.DockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
-	temporaryFile, err := os.CreateTemp("", "exportImportTest")
+	temporaryFile, err := os.CreateTemp(c.TempDir(), "exportImportTest")
 	assert.Assert(c, err == nil, "failed to create temporary file")
+	defer temporaryFile.Close()
 	defer os.Remove(temporaryFile.Name())
 
 	icmd.RunCmd(icmd.Cmd{
@@ -139,8 +141,9 @@ func (s *DockerCLIImportSuite) TestImportWithQuotedChanges(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	cli.DockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
-	temporaryFile, err := os.CreateTemp("", "exportImportTest")
+	temporaryFile, err := os.CreateTemp(c.TempDir(), "exportImportTest")
 	assert.Assert(c, err == nil, "failed to create temporary file")
+	defer temporaryFile.Close()
 	defer os.Remove(temporaryFile.Name())
 
 	cli.Docker(cli.Args("export", "test-import"), cli.WithStdout(temporaryFile)).Assert(c, icmd.Success)
