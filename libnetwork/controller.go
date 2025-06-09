@@ -168,7 +168,9 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 		diagnosticServer: diagnostic.New(),
 	}
 
-	c.selectFirewallBackend()
+	if err := c.selectFirewallBackend(); err != nil {
+		return nil, err
+	}
 	c.drvRegistry.Notify = c
 
 	// External plugins don't need config passed through daemon. They can
