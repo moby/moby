@@ -120,7 +120,10 @@ func TestRaceUnbuffered(t *testing.T) {
 		writer.Add(devNullCloser(0))
 		c <- true
 	}()
-	writer.Write([]byte("hello"))
+	_, err := writer.Write([]byte("hello"))
+	if err != nil {
+		t.Error(err)
+	}
 	<-c
 }
 
