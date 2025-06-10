@@ -377,12 +377,10 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 	exporterAttrs := map[string]string{}
 	if len(opt.Options.Outputs) == 0 {
 		exporterName = exporter.Moby
-	} else {
+	} else if opt.Options.Outputs[0].Type != "cacheonly" {
 		// cacheonly is a special type for triggering skipping all exporters
-		if opt.Options.Outputs[0].Type != "cacheonly" {
-			exporterName = opt.Options.Outputs[0].Type
-			exporterAttrs = opt.Options.Outputs[0].Attrs
-		}
+		exporterName = opt.Options.Outputs[0].Type
+		exporterAttrs = opt.Options.Outputs[0].Attrs
 	}
 
 	if (exporterName == client.ExporterImage || exporterName == exporter.Moby) && len(opt.Options.Tags) > 0 {
