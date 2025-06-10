@@ -131,7 +131,7 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 
 	// Don't override
 	if req.Header.Get("Authorization") == "" {
-		if req.Header.Get("X-Docker-Token") == "true" && tr.authConfig != nil && len(tr.authConfig.Username) > 0 {
+		if req.Header.Get("X-Docker-Token") == "true" && tr.authConfig != nil && tr.authConfig.Username != "" {
 			req.SetBasicAuth(tr.authConfig.Username, tr.authConfig.Password)
 		} else if len(tr.token) > 0 {
 			req.Header.Set("Authorization", "Token "+strings.Join(tr.token, ","))
@@ -222,7 +222,7 @@ func (r *session) searchRepositories(ctx context.Context, term string, limit int
 	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(fmt.Sprintf("%d", limit))
 	log.G(ctx).WithField("url", u).Debug("searchRepositories")
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, http.NoBody)
 	if err != nil {
 		return nil, invalidParamWrapf(err, "error building request")
 	}

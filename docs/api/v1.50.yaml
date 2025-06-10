@@ -5863,7 +5863,7 @@ definitions:
         type: "integer"
         format: "uint64"
         x-nullable: true
-        example: 18446744073709551615
+        example: "18446744073709551615"
 
   ContainerThrottlingData:
     description: |

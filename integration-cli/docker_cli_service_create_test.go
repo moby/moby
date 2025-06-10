@@ -27,15 +27,15 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 	id := strings.TrimSpace(out)
 
 	var tasks []swarm.Task
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(ctx, c, id)
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
+		tasks = d.GetServiceTasks(ctx, t, id)
 		return len(tasks) > 0, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
-			task = d.GetTask(ctx, c, task.ID)
+			task = d.GetTask(ctx, t, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
@@ -143,15 +143,15 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTargetPaths(c *testi
 	assert.Equal(c, len(refs), len(testPaths))
 
 	var tasks []swarm.Task
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(ctx, c, serviceName)
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
+		tasks = d.GetServiceTasks(ctx, t, serviceName)
 		return len(tasks) > 0, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
-			task = d.GetTask(ctx, c, task.ID)
+			task = d.GetTask(ctx, t, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
@@ -194,15 +194,15 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *testing
 	assert.Equal(c, len(refs), 2)
 
 	var tasks []swarm.Task
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(ctx, c, serviceName)
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
+		tasks = d.GetServiceTasks(ctx, t, serviceName)
 		return len(tasks) > 0, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
-			task = d.GetTask(ctx, c, task.ID)
+			task = d.GetTask(ctx, t, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
@@ -293,15 +293,15 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSourceTargetPaths(c *testi
 	assert.Equal(c, len(refs), len(testPaths))
 
 	var tasks []swarm.Task
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(ctx, c, serviceName)
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
+		tasks = d.GetServiceTasks(ctx, t, serviceName)
 		return len(tasks) > 0, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
-			task = d.GetTask(ctx, c, task.ID)
+			task = d.GetTask(ctx, t, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
@@ -344,15 +344,15 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *testing
 	assert.Equal(c, len(refs), 2)
 
 	var tasks []swarm.Task
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(ctx, c, serviceName)
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
+		tasks = d.GetServiceTasks(ctx, t, serviceName)
 		return len(tasks) > 0, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
-			task = d.GetTask(ctx, c, task.ID)
+			task = d.GetTask(ctx, t, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
@@ -377,15 +377,15 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 	id := strings.TrimSpace(out)
 
 	var tasks []swarm.Task
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(ctx, c, id)
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
+		tasks = d.GetServiceTasks(ctx, t, id)
 		return len(tasks) > 0, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
-			task = d.GetTask(ctx, c, task.ID)
+			task = d.GetTask(ctx, t, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
@@ -434,15 +434,15 @@ func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *testing.T) {
 	id := strings.TrimSpace(out)
 
 	var tasks []swarm.Task
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(ctx, c, id)
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
+		tasks = d.GetServiceTasks(ctx, t, id)
 		return len(tasks) > 0, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
-			task = d.GetTask(ctx, c, task.ID)
+			task = d.GetTask(ctx, t, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))

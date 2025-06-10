@@ -1,6 +1,3 @@
-// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.23
-
 package portallocator
 
 import (
@@ -8,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"slices"
+	"net/netip"
 	"sync"
 
 	"github.com/containerd/log"
 )
 
-type ipMapping map[string]protoMap
+type ipMapping map[netip.Addr]protoMap
 
 var (
 	// errAllPortsAllocated is returned when no more ports are available
@@ -77,16 +74,36 @@ func Get() *PortAllocator {
 }
 
 func newInstance() *PortAllocator {
-	start, end, err := getDynamicPortRange()
+	begin, end := dynamicPortRange()
+	return &PortAllocator{
+		ipMap:     makeIpMapping(begin, end),
+		defaultIP: net.IPv4zero,
+		begin:     begin,
+		end:       end,
+	}
+}
+
+func dynamicPortRange() (start, end int) {
+	begin, end, err := getDynamicPortRange()
 	if err != nil {
 		log.G(context.TODO()).WithError(err).Infof("falling back to default port range %d-%d", defaultPortRangeStart, defaultPortRangeEnd)
-		start, end = defaultPortRangeStart, defaultPortRangeEnd
+		return defaultPortRangeStart, defaultPortRangeEnd
 	}
-	return &PortAllocator{
-		ipMap:     ipMapping{},
-		defaultIP: net.IPv4zero,
-		begin:     start,
-		end:       end,
+	return begin, end
+}
+
+func makeIpMapping(begin, end int) ipMapping {
+	return ipMapping{
+		netip.IPv4Unspecified(): makeProtoMap(begin, end),
+		netip.IPv6Unspecified(): makeProtoMap(begin, end),
+	}
+}
+
+func makeProtoMap(begin, end int) protoMap {
+	return protoMap{
+		"tcp":  newPortMap(begin, end),
+		"udp":  newPortMap(begin, end),
+		"sctp": newPortMap(begin, end),
 	}
 }
 
@@ -119,39 +136,82 @@ func (p *PortAllocator) RequestPortsInRange(ips []net.IP, proto string, portStar
 	if proto != "tcp" && proto != "udp" && proto != "sctp" {
 		return 0, errUnknownProtocol
 	}
-
 	if portStart != 0 || portEnd != 0 {
 		// Validate custom port-range
 		if portStart == 0 || portEnd == 0 || portEnd < portStart {
 			return 0, fmt.Errorf("invalid port range: %d-%d", portStart, portEnd)
 		}
 	}
+	if len(ips) == 0 {
+		return 0, fmt.Errorf("no IP addresses specified")
+	}
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	pMaps := make([]*portMap, len(ips))
-	for i, ip := range ips {
-		ipstr := ip.String()
-		if _, ok := p.ipMap[ipstr]; !ok {
-			p.ipMap[ipstr] = protoMap{
-				"tcp":  newPortMap(p.begin, p.end),
-				"udp":  newPortMap(p.begin, p.end),
-				"sctp": newPortMap(p.begin, p.end),
-			}
+	// Collect the portMap for the required proto and each of the IP addresses.
+	// If there's a new IP address, create portMap objects for each of the protocols
+	// and collect the one that's needed for this request.
+	// Mark these portMap objects as needing port allocations.
+	type portMapRef struct {
+		portMap  *portMap
+		allocate bool
+	}
+	ipToPortMapRef := map[netip.Addr]*portMapRef{}
+	var ips4, ips6 bool
+	for _, ip := range ips {
+		addr, ok := netip.AddrFromSlice(ip)
+		if !ok {
+			return 0, fmt.Errorf("invalid IP address: %s", ip)
 		}
-		pMaps[i] = p.ipMap[ipstr][proto]
+		addr = addr.Unmap()
+		if addr.Is4() {
+			ips4 = true
+		} else {
+			ips6 = true
+		}
+		// Make sure addr -> protoMap[proto] -> portMap exists.
+		if _, ok := p.ipMap[addr]; !ok {
+			p.ipMap[addr] = makeProtoMap(p.begin, p.end)
+		}
+		// Remember the protoMap[proto] portMap, it needs the port allocation.
+		ipToPortMapRef[addr] = &portMapRef{
+			portMap:  p.ipMap[addr][proto],
+			allocate: true,
+		}
+	}
+
+	// If ips includes an unspecified address, the port needs to be free in all ipMaps
+	// for that address family. Otherwise, the port needs only needs to be free in the
+	// per-address maps for ips, and the map for 0.0.0.0/::.
+	//
+	// Collect the additional portMaps where the port needs to be free, but
+	// don't mark them as needing port allocation.
+	for _, unspecAddr := range []netip.Addr{netip.IPv4Unspecified(), netip.IPv6Unspecified()} {
+		if _, ok := ipToPortMapRef[unspecAddr]; ok {
+			for addr, ipm := range p.ipMap {
+				if unspecAddr.Is4() == addr.Is4() {
+					if _, ok := ipToPortMapRef[addr]; !ok {
+						ipToPortMapRef[addr] = &portMapRef{portMap: ipm[proto]}
+					}
+				}
+			}
+		} else if (unspecAddr.Is4() && ips4) || (unspecAddr.Is6() && ips6) {
+			ipToPortMapRef[unspecAddr] = &portMapRef{portMap: p.ipMap[unspecAddr][proto]}
+		}
 	}
 
 	// Handle a request for a specific port.
 	if portStart > 0 && portStart == portEnd {
-		for i, pMap := range pMaps {
-			if _, allocated := pMap.p[portStart]; allocated {
-				return 0, alreadyAllocatedErr{ip: ips[i].String(), port: portStart}
+		for addr, pMap := range ipToPortMapRef {
+			if _, allocated := pMap.portMap.p[portStart]; allocated {
+				return 0, alreadyAllocatedErr{ip: addr.String(), port: portStart}
 			}
 		}
-		for _, pMap := range pMaps {
-			pMap.p[portStart] = struct{}{}
+		for _, pMap := range ipToPortMapRef {
+			if pMap.allocate {
+				pMap.portMap.p[portStart] = struct{}{}
+			}
 		}
 		return portStart, nil
 	}
@@ -159,27 +219,37 @@ func (p *PortAllocator) RequestPortsInRange(ips []net.IP, proto string, portStar
 	// Handle a request for a port range.
 
 	// Create/fetch ranges for each portMap.
-	pRanges := make([]*portRange, len(pMaps))
-	for i, pMap := range pMaps {
-		pRanges[i] = pMap.getPortRange(portStart, portEnd)
+	pRanges := map[netip.Addr]*portRange{}
+	for addr, pMap := range ipToPortMapRef {
+		pRanges[addr] = pMap.portMap.getPortRange(portStart, portEnd)
 	}
 
-	// Starting after the last port allocated for the first address, search
+	// Arbitrarily starting after the last port allocated for the first address, search
 	// for a port that's available in all ranges.
-	port := pRanges[0].last
-	for i := pRanges[0].begin; i <= pRanges[0].end; i++ {
+	firstAddr, _ := netip.AddrFromSlice(ips[0])
+	firstRange := pRanges[firstAddr.Unmap()]
+	port := firstRange.last
+	for i := firstRange.begin; i <= firstRange.end; i++ {
 		port++
-		if port > pRanges[0].end {
-			port = pRanges[0].begin
+		if port > firstRange.end {
+			port = firstRange.begin
 		}
 
-		if !slices.ContainsFunc(pMaps, func(pMap *portMap) bool {
-			_, allocated := pMap.p[port]
-			return allocated
-		}) {
-			for pi, pMap := range pMaps {
-				pMap.p[port] = struct{}{}
-				pRanges[pi].last = port
+		portAlreadyAllocated := func() bool {
+			for _, pMap := range ipToPortMapRef {
+				if _, ok := pMap.portMap.p[port]; ok {
+					return true
+				}
+			}
+			return false
+		}
+
+		if !portAlreadyAllocated() {
+			for addr, pMap := range ipToPortMapRef {
+				if pMap.allocate {
+					pMap.portMap.p[port] = struct{}{}
+					pRanges[addr].last = port
+				}
 			}
 			return port, nil
 		}
@@ -195,7 +265,11 @@ func (p *PortAllocator) ReleasePort(ip net.IP, proto string, port int) {
 	if ip == nil {
 		ip = p.defaultIP // FIXME(thaJeztah): consider making this a required argument and producing an error instead, or set default when constructing.
 	}
-	protomap, ok := p.ipMap[ip.String()]
+	addr, ok := netip.AddrFromSlice(ip)
+	if !ok {
+		return
+	}
+	protomap, ok := p.ipMap[addr.Unmap()]
 	if !ok {
 		return
 	}
@@ -204,8 +278,9 @@ func (p *PortAllocator) ReleasePort(ip net.IP, proto string, port int) {
 
 // ReleaseAll releases all ports for all ips.
 func (p *PortAllocator) ReleaseAll() {
+	begin, end := dynamicPortRange()
 	p.mutex.Lock()
-	p.ipMap = ipMapping{}
+	p.ipMap = makeIpMapping(begin, end)
 	p.mutex.Unlock()
 }
 

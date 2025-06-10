@@ -160,6 +160,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) network.Inspect {
 		ID:         n.ID,
 		Name:       n.Spec.Annotations.Name,
 		Scope:      scope.Swarm,
+		EnableIPv4: true,
 		EnableIPv6: spec.Ipv6Enabled,
 		IPAM:       ipam,
 		Internal:   spec.Internal,

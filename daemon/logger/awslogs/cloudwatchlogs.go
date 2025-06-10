@@ -857,7 +857,7 @@ func (b *eventBatch) add(event wrappedEvent, size int) bool {
 
 	// verify we are still within service limits
 	switch {
-	case len(b.batch)+1 > maximumLogEventsPerPut:
+	case len(b.batch) >= maximumLogEventsPerPut:
 		return false
 	case b.bytes+addBytes > maximumBytesPerPut:
 		return false

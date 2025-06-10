@@ -1051,14 +1051,14 @@ func (s *DockerSwarmSuite) TestDNSConfigUpdate(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), "{[1.2.3.4] [example.com] [timeout:3]}")
 }
 
-func getNodeStatus(c *testing.T, d *daemon.Daemon) swarm.LocalNodeState {
-	ctx := testutil.GetContext(c)
-	info := d.SwarmInfo(ctx, c)
+func getNodeStatus(t *testing.T, d *daemon.Daemon) swarm.LocalNodeState {
+	ctx := testutil.GetContext(t)
+	info := d.SwarmInfo(ctx, t)
 	return info.LocalNodeState
 }
 
 func checkKeyIsEncrypted(d *daemon.Daemon) func(*testing.T) (interface{}, string) {
-	return func(c *testing.T) (interface{}, string) {
+	return func(t *testing.T) (interface{}, string) {
 		keyBytes, err := os.ReadFile(filepath.Join(d.Folder, "root", "swarm", "certificates", "swarm-node.key"))
 		if err != nil {
 			return fmt.Errorf("error reading key: %v", err), ""
@@ -1073,20 +1073,20 @@ func checkKeyIsEncrypted(d *daemon.Daemon) func(*testing.T) (interface{}, string
 	}
 }
 
-func checkSwarmLockedToUnlocked(ctx context.Context, c *testing.T, d *daemon.Daemon) {
+func checkSwarmLockedToUnlocked(ctx context.Context, t *testing.T, d *daemon.Daemon) {
 	// Wait for the PEM file to become unencrypted
-	poll.WaitOn(c, pollCheck(c, checkKeyIsEncrypted(d), checker.Equals(false)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(t, pollCheck(t, checkKeyIsEncrypted(d), checker.Equals(false)), poll.WithTimeout(defaultReconciliationTimeout))
 
-	d.RestartNode(c)
-	poll.WaitOn(c, pollCheck(c, d.CheckLocalNodeState(ctx), checker.Equals(swarm.LocalNodeStateActive)), poll.WithTimeout(time.Second))
+	d.RestartNode(t)
+	poll.WaitOn(t, pollCheck(t, d.CheckLocalNodeState(ctx), checker.Equals(swarm.LocalNodeStateActive)), poll.WithTimeout(time.Second))
 }
 
-func checkSwarmUnlockedToLocked(ctx context.Context, c *testing.T, d *daemon.Daemon) {
+func checkSwarmUnlockedToLocked(ctx context.Context, t *testing.T, d *daemon.Daemon) {
 	// Wait for the PEM file to become encrypted
-	poll.WaitOn(c, pollCheck(c, checkKeyIsEncrypted(d), checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(t, pollCheck(t, checkKeyIsEncrypted(d), checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
-	d.RestartNode(c)
-	poll.WaitOn(c, pollCheck(c, d.CheckLocalNodeState(ctx), checker.Equals(swarm.LocalNodeStateLocked)), poll.WithTimeout(time.Second))
+	d.RestartNode(t)
+	poll.WaitOn(t, pollCheck(t, d.CheckLocalNodeState(ctx), checker.Equals(swarm.LocalNodeStateLocked)), poll.WithTimeout(time.Second))
 }
 
 func (s *DockerSwarmSuite) TestUnlockEngineAndUnlockedSwarm(c *testing.T) {
@@ -1293,7 +1293,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 	// (because we never want a manager TLS key to be on disk unencrypted if the cluster
 	// is set to autolock)
 	poll.WaitOn(c, pollCheck(c, d3.CheckControlAvailable(ctx), checker.False()), poll.WithTimeout(defaultReconciliationTimeout))
-	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
 		certBytes, err := os.ReadFile(filepath.Join(d3.Folder, "root", "swarm", "certificates", "swarm-node.crt"))
 		if err != nil {
 			return "", fmt.Sprintf("error: %v", err)
@@ -1801,21 +1801,21 @@ func (s *DockerSwarmSuite) TestSwarmJoinLeave(c *testing.T) {
 
 const defaultRetryCount = 10
 
-func waitForEvent(c *testing.T, d *daemon.Daemon, since string, filter string, event string, retry int) string {
+func waitForEvent(t *testing.T, d *daemon.Daemon, since string, filter string, event string, retry int) string {
 	if retry < 1 {
-		c.Fatalf("retry count %d is invalid. It should be no less than 1", retry)
+		t.Fatalf("retry count %d is invalid. It should be no less than 1", retry)
 		return ""
 	}
 	var out string
 	for i := 0; i < retry; i++ {
-		until := daemonUnixTime(c)
+		until := daemonUnixTime(t)
 		var err error
-		if len(filter) > 0 {
+		if filter != "" {
 			out, err = d.Cmd("events", "--since", since, "--until", until, filter)
 		} else {
 			out, err = d.Cmd("events", "--since", since, "--until", until)
 		}
-		assert.NilError(c, err, out)
+		assert.NilError(t, err, out)
 		if strings.Contains(out, event) {
 			return strings.TrimSpace(out)
 		}
@@ -1824,7 +1824,7 @@ func waitForEvent(c *testing.T, d *daemon.Daemon, since string, filter string, e
 			time.Sleep(200 * time.Millisecond)
 		}
 	}
-	c.Fatalf("docker events output '%s' doesn't contain event '%s'", out, event)
+	t.Fatalf("docker events output '%s' doesn't contain event '%s'", out, event)
 	return ""
 }
 
@@ -2023,14 +2023,14 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsConfig(c *testing.T) {
 	waitForEvent(c, d, t1, "-f type=config", "config remove "+id, defaultRetryCount)
 }
 
-func getUnlockKey(d *daemon.Daemon, c *testing.T, autolockOutput string) string {
+func getUnlockKey(d *daemon.Daemon, t *testing.T, autolockOutput string) string {
 	unlockKey, err := d.Cmd("swarm", "unlock-key", "-q")
-	assert.Assert(c, err == nil, unlockKey)
+	assert.Assert(t, err == nil, unlockKey)
 	unlockKey = strings.TrimSuffix(unlockKey, "\n")
 
 	// Check that "docker swarm init --autolock" or "docker swarm update --autolock"
 	// contains all the expected strings, including the unlock key
-	assert.Assert(c, strings.Contains(autolockOutput, "docker swarm unlock"), autolockOutput)
-	assert.Assert(c, strings.Contains(autolockOutput, unlockKey), autolockOutput)
+	assert.Assert(t, strings.Contains(autolockOutput, "docker swarm unlock"), autolockOutput)
+	assert.Assert(t, strings.Contains(autolockOutput, unlockKey), autolockOutput)
 	return unlockKey
 }

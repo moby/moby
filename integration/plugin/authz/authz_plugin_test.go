@@ -190,7 +190,7 @@ func TestAuthZPluginAPIDenyResponse(t *testing.T) {
 	socketClient, err := socketHTTPClient(daemonURL)
 	assert.NilError(t, err)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/version", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/version", http.NoBody)
 	assert.NilError(t, err)
 	req.URL.Scheme = "http"
 	req.URL.Host = client.DummyHost
@@ -486,7 +486,7 @@ func TestAuthZPluginHeader(t *testing.T) {
 	socketClient, err := socketHTTPClient(daemonURL)
 	assert.NilError(t, err)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/version", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/version", http.NoBody)
 	assert.NilError(t, err)
 	req.URL.Scheme = "http"
 	req.URL.Host = client.DummyHost

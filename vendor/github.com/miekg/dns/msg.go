@@ -136,18 +136,19 @@ var OpcodeToString = map[int]string{
 
 // RcodeToString maps Rcodes to strings.
 var RcodeToString = map[int]string{
-	RcodeSuccess:        "NOERROR",
-	RcodeFormatError:    "FORMERR",
-	RcodeServerFailure:  "SERVFAIL",
-	RcodeNameError:      "NXDOMAIN",
-	RcodeNotImplemented: "NOTIMP",
-	RcodeRefused:        "REFUSED",
-	RcodeYXDomain:       "YXDOMAIN", // See RFC 2136
-	RcodeYXRrset:        "YXRRSET",
-	RcodeNXRrset:        "NXRRSET",
-	RcodeNotAuth:        "NOTAUTH",
-	RcodeNotZone:        "NOTZONE",
-	RcodeBadSig:         "BADSIG", // Also known as RcodeBadVers, see RFC 6891
+	RcodeSuccess:                    "NOERROR",
+	RcodeFormatError:                "FORMERR",
+	RcodeServerFailure:              "SERVFAIL",
+	RcodeNameError:                  "NXDOMAIN",
+	RcodeNotImplemented:             "NOTIMP",
+	RcodeRefused:                    "REFUSED",
+	RcodeYXDomain:                   "YXDOMAIN", // See RFC 2136
+	RcodeYXRrset:                    "YXRRSET",
+	RcodeNXRrset:                    "NXRRSET",
+	RcodeNotAuth:                    "NOTAUTH",
+	RcodeNotZone:                    "NOTZONE",
+	RcodeStatefulTypeNotImplemented: "DSOTYPENI",
+	RcodeBadSig:                     "BADSIG", // Also known as RcodeBadVers, see RFC 6891
 	//	RcodeBadVers:        "BADVERS",
 	RcodeBadKey:    "BADKEY",
 	RcodeBadTime:   "BADTIME",
@@ -874,7 +875,6 @@ func (dns *Msg) unpack(dh Header, msg []byte, off int) (err error) {
 	// 	// println("dns: extra bytes in dns packet", off, "<", len(msg))
 	// }
 	return err
-
 }
 
 // Unpack unpacks a binary message to a Msg structure.

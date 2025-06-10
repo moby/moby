@@ -23,8 +23,11 @@ var StringToAlgorithm = reverseInt8(AlgorithmToString)
 // StringToHash is a map of names to hash IDs.
 var StringToHash = reverseInt8(HashToString)
 
-// StringToCertType is the reverseof CertTypeToString.
+// StringToCertType is the reverse of CertTypeToString.
 var StringToCertType = reverseInt16(CertTypeToString)
+
+// StringToStatefulType is the reverse of StatefulTypeToString.
+var StringToStatefulType = reverseInt16(StatefulTypeToString)
 
 // Reverse a map
 func reverseInt8(m map[uint8]string) map[string]uint8 {

@@ -254,7 +254,7 @@ func (c *containerConfig) labels() map[string]string {
 
 	// finally, we apply the system labels, which override all labels.
 	for k, v := range system {
-		labels[strings.Join([]string{systemLabelPrefix, k}, ".")] = v
+		labels[systemLabelPrefix+"."+k] = v
 	}
 
 	return labels

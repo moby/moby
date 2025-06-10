@@ -20,9 +20,9 @@ import (
 // TODO remove this once we removed the deprecated `ID`, `Status`, and `From` fields.
 func validateLegacyFields(t *testing.T, msg events.Message) {
 	t.Helper()
-	assert.Check(t, is.Equal(msg.Status, string(msg.Action)), "Legacy Status field does not match Action")
-	assert.Check(t, is.Equal(msg.ID, msg.Actor.ID), "Legacy ID field does not match Actor.ID")
-	assert.Check(t, is.Equal(msg.From, msg.Actor.Attributes["image"]), "Legacy From field does not match Actor.Attributes.image")
+	assert.Check(t, is.Equal(msg.Status, string(msg.Action)), "Legacy Status field does not match Action")                        //nolint:staticcheck // ignore SA1019: field is deprecated but set for backward compatibility.
+	assert.Check(t, is.Equal(msg.ID, msg.Actor.ID), "Legacy ID field does not match Actor.ID")                                    //nolint:staticcheck // ignore SA1019: field is deprecated but set for backward compatibility.
+	assert.Check(t, is.Equal(msg.From, msg.Actor.Attributes["image"]), "Legacy From field does not match Actor.Attributes.image") //nolint:staticcheck // ignore SA1019: field is deprecated but set for backward compatibility.
 }
 
 func TestEventsLog(t *testing.T) {

@@ -24,12 +24,12 @@ type DockerCLIPushSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIPushSuite) TearDownTest(ctx context.Context, c *testing.T) {
-	s.ds.TearDownTest(ctx, c)
+func (s *DockerCLIPushSuite) TearDownTest(ctx context.Context, t *testing.T) {
+	s.ds.TearDownTest(ctx, t)
 }
 
-func (s *DockerCLIPushSuite) OnTimeout(c *testing.T) {
-	s.ds.OnTimeout(c)
+func (s *DockerCLIPushSuite) OnTimeout(t *testing.T) {
+	s.ds.OnTimeout(t)
 }
 
 func (s *DockerRegistrySuite) TestPushBusyboxImage(c *testing.T) {
@@ -184,7 +184,7 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *testing.T) {
 	assert.Assert(c, !strings.Contains(out1, "Mounted from"))
 
 	digest1 := reference.DigestRegexp.FindString(out1)
-	assert.Assert(c, len(digest1) > 0, "no digest found for pushed manifest")
+	assert.Assert(c, digest1 != "", "no digest found for pushed manifest")
 
 	const destRepoName = privateRegistryURL + "/crossrepopush/img"
 
@@ -198,7 +198,7 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *testing.T) {
 	assert.Assert(c, is.Contains(out2, "Mounted from crossrepopush/busybox"))
 
 	digest2 := reference.DigestRegexp.FindString(out2)
-	assert.Assert(c, len(digest2) > 0, "no digest found for pushed manifest")
+	assert.Assert(c, digest2 != "", "no digest found for pushed manifest")
 	assert.Equal(c, digest1, digest2)
 
 	// ensure that pushing again produces the same digest
@@ -206,7 +206,7 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *testing.T) {
 	assert.NilError(c, err, "pushing the image to the private registry has failed: %s", out3)
 
 	digest3 := reference.DigestRegexp.FindString(out3)
-	assert.Assert(c, len(digest3) > 0, "no digest found for pushed manifest")
+	assert.Assert(c, digest3 != "", "no digest found for pushed manifest")
 	assert.Equal(c, digest3, digest2)
 
 	// ensure that we can pull and run the cross-repo-pushed repository

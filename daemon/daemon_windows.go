@@ -322,9 +322,11 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 	// discover and add HNS networks to windows
 	// network that exist are removed and added again
 	for _, v := range hnsresponse {
-		networkTypeNorm := strings.ToLower(v.Type)
-		if networkTypeNorm == "private" || networkTypeNorm == "internal" {
-			continue // workaround for HNS reporting unsupported networks
+		// Ignore HNS network types that are not supported by the Docker driver. This
+		// avoids trying to load a plugin named after the network type, which adds a 15s
+		// startup delay per network of this type on the host.
+		if !winlibnetwork.IsAdoptableNetworkType(v.Type) {
+			continue
 		}
 		var n *libnetwork.Network
 		daemon.netController.WalkNetworks(func(current *libnetwork.Network) bool {
@@ -358,6 +360,19 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 		netOption := map[string]string{
 			winlibnetwork.NetworkName: v.Name,
 			winlibnetwork.HNSID:       v.Id,
+		}
+
+		// If this network wasn't in the store, it's being adopted by docker - which
+		// makes it possible to run containers in networks that were defined on the host.
+		// Add a label to say that's what happened.
+		//
+		// Networks not created by docker should not be deleted by "docker network
+		// prune". (They can still be deleted by "docker network rm", but that's more
+		// likely to be intentional - preventing it may be a breaking change, it would
+		// become impossible to use docker commands to delete a network that was created
+		// by docker but got forgotten because the store somehow got deleted.)
+		if n == nil {
+			netOption[winlibnetwork.HNSOwned] = "true"
 		}
 
 		// add persisted driver options

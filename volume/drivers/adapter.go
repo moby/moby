@@ -98,7 +98,7 @@ func (a *volumeDriverAdapter) getCapabilities() volume.Capability {
 	}
 
 	// don't spam the warn log below just because the plugin didn't provide a scope
-	if len(cap.Scope) == 0 {
+	if cap.Scope == "" {
 		cap.Scope = volume.LocalScope
 	}
 
@@ -138,7 +138,7 @@ func (a *volumeAdapter) DriverName() string {
 }
 
 func (a *volumeAdapter) Path() string {
-	if len(a.eMount) == 0 {
+	if a.eMount == "" {
 		mountpoint, _ := a.proxy.Path(a.name)
 		a.eMount = a.scopePath(mountpoint)
 	}

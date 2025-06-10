@@ -25,7 +25,7 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 
 	var parentImg *image.Image
 	var parentChainID layer.ChainID
-	if len(parent) != 0 {
+	if parent != "" {
 		parentImg, err = i.imageStore.Get(image.ID(parent))
 		if err != nil {
 			return "", errors.Wrap(err, "error getting specified parent layer")
@@ -69,7 +69,7 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 
 	now := time.Now()
 	var historyComment string
-	if len(parent) > 0 {
+	if parent != "" {
 		historyComment = fmt.Sprintf("merge %s to %s", id, parent)
 	} else {
 		historyComment = fmt.Sprintf("create new from %s", id)
