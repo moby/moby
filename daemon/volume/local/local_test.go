@@ -147,10 +147,8 @@ func TestCreate(t *testing.T) {
 			if v.Name() != name {
 				t.Fatalf("Expected volume with name %s, got %s", name, v.Name())
 			}
-		} else {
-			if err == nil {
-				t.Fatalf("Expected error creating volume with name %s, got nil", name)
-			}
+		} else if err == nil {
+			t.Fatalf("Expected error creating volume with name %s, got nil", name)
 		}
 	}
 
