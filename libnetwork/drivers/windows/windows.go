@@ -129,6 +129,53 @@ func IsBuiltinLocalDriver(networkType string) bool {
 	return ok
 }
 
+var unadoptableNetworkTypes = map[string]struct{}{
+	// "internal" and "private" are included here to preserve the workarounds added
+	// in commits b91fd26 ("Ignore HNS networks with type Private") and 6a1a4f9 ("Fix
+	// long startup on windows, with non-hns governed Hyper-V networks").
+	//
+	// That long delay was caused by trying to load network driver plugins named
+	// "internal" and "private". The workaround doesn't seem necessary now, because
+	// those network types are both associated with the windows [driver] by the
+	// entries in [builtinLocalDrivers]. (The code has been refactored, but those
+	// network types were included at the time the workaround was added. Something
+	// else must have changed in the meantime.)
+	//
+	// TODO(robmry) - remove internal/private from this map? ...
+	//
+	// On startup the daemon tries to adopt all existing HNS networks by creating
+	// corresponding Docker networks. (HNS is the source of truth for Windows, not
+	// Docker's network store.)
+	//
+	// So, removing internal/private from this map would have two consequences
+	// (removing restrictions that were probably introduced unintentionally by the
+	// workarounds mentioned above):
+	// - internal/private networks created on the host would appear in Docker's list
+	//   of networks, and it'd be possible to create containers in those networks.
+	//   That would match the behaviour for other network types (including the other
+	//   currently-undocumented type "ics").
+	// - On startup, if an internal/private network originally created by Docker has
+	//   been reconfigured outside Docker, the network definition in Docker's store
+	//   will be updated to match the current HNS configuration (as it is for other
+	//   network types).
+	"internal": {},
+	"private":  {},
+
+	// "mirrored" is not currently in the list of HNS network types understood by
+	// Docker [builtinLocalDrivers]. So, it's not possible for Docker to create a
+	// network of this type. And, if the host has "mirrored" networks, Docker
+	// should not spend time on startup trying to load a plugin called "mirrored".
+	"mirrored": {},
+}
+
+// IsAdoptableNetworkType returns true if HNS networks of this type can be
+// adopted on startup when searching for networks created outside Docker
+// (these networks can be added to the network store).
+func IsAdoptableNetworkType(networkType string) bool {
+	_, ok := unadoptableNetworkTypes[strings.ToLower(networkType)]
+	return !ok
+}
+
 func newDriver(networkType string, store *datastore.Store) (*driver, error) {
 	d := &driver{
 		name:     networkType,
