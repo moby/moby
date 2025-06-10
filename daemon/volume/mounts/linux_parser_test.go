@@ -91,10 +91,8 @@ func TestLinuxParseMountRaw(t *testing.T) {
 	for path, expectedError := range invalid {
 		if mp, err := parser.ParseMountRaw(path, "local"); err == nil {
 			t.Errorf("ParseMountRaw(%q) should have failed validation. Err '%v' - MP: %v", path, err, mp)
-		} else {
-			if !strings.Contains(err.Error(), expectedError) {
-				t.Errorf("ParseMountRaw(%q) error should contain %q, got %v", path, expectedError, err.Error())
-			}
+		} else if !strings.Contains(err.Error(), expectedError) {
+			t.Errorf("ParseMountRaw(%q) error should contain %q, got %v", path, expectedError, err.Error())
 		}
 	}
 }
