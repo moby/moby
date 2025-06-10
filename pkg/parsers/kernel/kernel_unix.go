@@ -25,10 +25,8 @@ func GetKernelVersion() (*VersionInfo, error) {
 func CheckKernelVersion(k, major, minor int) bool {
 	if v, err := GetKernelVersion(); err != nil {
 		log.G(context.TODO()).Warnf("error getting kernel version: %s", err)
-	} else {
-		if CompareKernelVersion(*v, VersionInfo{Kernel: k, Major: major, Minor: minor}) < 0 {
-			return false
-		}
+	} else if CompareKernelVersion(*v, VersionInfo{Kernel: k, Major: major, Minor: minor}) < 0 {
+		return false
 	}
 	return true
 }
