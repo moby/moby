@@ -234,10 +234,8 @@ func TestValidateExtraHosts(t *testing.T) {
 	for extraHost, expectedError := range invalid {
 		if _, err := ValidateExtraHost(extraHost); err == nil {
 			t.Fatalf("ValidateExtraHost(`%q`) should have failed validation", extraHost)
-		} else {
-			if !strings.Contains(err.Error(), expectedError) {
-				t.Fatalf("ValidateExtraHost(`%q`) error should contain %q", extraHost, expectedError)
-			}
+		} else if !strings.Contains(err.Error(), expectedError) {
+			t.Fatalf("ValidateExtraHost(`%q`) error should contain %q", extraHost, expectedError)
 		}
 	}
 }

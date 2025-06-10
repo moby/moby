@@ -182,12 +182,10 @@ func (pm *Manager) reload() error { // todo: restore
 				continue
 			}
 			plugins[p.GetID()] = p
-		} else {
-			if validFullID.MatchString(strings.TrimSuffix(v.Name(), "-removing")) {
-				// There was likely some error while removing this plugin, let's try to remove again here
-				if err := containerfs.EnsureRemoveAll(v.Name()); err != nil {
-					log.G(context.TODO()).WithError(err).WithField("id", v.Name()).Warn("error while attempting to clean up previously removed plugin")
-				}
+		} else if validFullID.MatchString(strings.TrimSuffix(v.Name(), "-removing")) {
+			// There was likely some error while removing this plugin, let's try to remove again here
+			if err := containerfs.EnsureRemoveAll(v.Name()); err != nil {
+				log.G(context.TODO()).WithError(err).WithField("id", v.Name()).Warn("error while attempting to clean up previously removed plugin")
 			}
 		}
 	}
