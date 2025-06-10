@@ -154,11 +154,9 @@ func (d *driver) checkEncryption(nid string, rIP netip.Addr, isLocal, add bool) 
 				log.G(context.TODO()).Warnf("Failed to program network encryption between %s and %s: %v", lIP, rIP, err)
 			}
 		}
-	} else {
-		if len(nodes) == 0 {
-			if err := removeEncryption(lIP, rIP, d.secMap); err != nil {
-				log.G(context.TODO()).Warnf("Failed to remove network encryption between %s and %s: %v", lIP, rIP, err)
-			}
+	} else if len(nodes) == 0 {
+		if err := removeEncryption(lIP, rIP, d.secMap); err != nil {
+			log.G(context.TODO()).Warnf("Failed to remove network encryption between %s and %s: %v", lIP, rIP, err)
 		}
 	}
 
