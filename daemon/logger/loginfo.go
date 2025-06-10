@@ -30,7 +30,7 @@ type Info struct {
 func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string, error) {
 	extra := make(map[string]string)
 
-	if labels, ok := info.Config["labels"]; ok && len(labels) > 0 {
+	if labels, ok := info.Config["labels"]; ok && labels != "" {
 		for _, l := range strings.Split(labels, ",") {
 			if v, ok := info.ContainerLabels[l]; ok {
 				if keyMod != nil {
@@ -41,7 +41,7 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string
 		}
 	}
 
-	if labelsRegex, ok := info.Config["labels-regex"]; ok && len(labelsRegex) > 0 {
+	if labelsRegex, ok := info.Config["labels-regex"]; ok && labelsRegex != "" {
 		re, err := regexp.Compile(labelsRegex)
 		if err != nil {
 			return nil, err
@@ -68,7 +68,7 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string
 		return extra, nil
 	}
 
-	if env, ok := info.Config["env"]; ok && len(env) > 0 {
+	if env, ok := info.Config["env"]; ok && env != "" {
 		for _, l := range strings.Split(env, ",") {
 			if v, ok := envMapping[l]; ok {
 				if keyMod != nil {
@@ -79,7 +79,7 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string
 		}
 	}
 
-	if envRegex, ok := info.Config["env-regex"]; ok && len(envRegex) > 0 {
+	if envRegex, ok := info.Config["env-regex"]; ok && envRegex != "" {
 		re, err := regexp.Compile(envRegex)
 		if err != nil {
 			return nil, err

@@ -77,7 +77,7 @@ func TestParseDockerDaemonHost(t *testing.T) {
 		"udp://127.0.0.1":               "invalid bind address (udp://127.0.0.1): unsupported proto 'udp'",
 		"udp://127.0.0.1:5555":          "invalid bind address (udp://127.0.0.1:5555): unsupported proto 'udp'",
 		"tcp://unix:///run/docker.sock": "invalid bind address (tcp://unix:///run/docker.sock): should not contain a path element",
-		" tcp://:5555/path ":            "invalid bind address ( tcp://:5555/path ): unsupported proto ' tcp'",
+		" tcp://:5555/path ":            "invalid bind address ( tcp://:5555/path ): unsupported proto ' tcp'", //nolint:gocritic // This is a valid test case.
 		"":                              "invalid bind address (): unsupported proto ''",
 		":5555/path":                    "invalid bind address (:5555/path): should not contain a path element",
 		"0.0.0.1:5555/path":             "invalid bind address (0.0.0.1:5555/path): should not contain a path element",

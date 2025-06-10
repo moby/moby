@@ -70,7 +70,7 @@ func loginV2(ctx context.Context, authConfig *registry.AuthConfig, endpoint APIE
 	endpointStr := strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
 	log.G(ctx).WithField("endpoint", endpointStr).Debug("attempting v2 login to registry endpoint")
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpointStr, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpointStr, http.NoBody)
 	if err != nil {
 		return "", err
 	}
@@ -181,7 +181,7 @@ func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.M
 		Timeout:   15 * time.Second,
 	}
 	endpointStr := strings.TrimRight(endpoint.String(), "/") + "/v2/"
-	req, err := http.NewRequest(http.MethodGet, endpointStr, nil)
+	req, err := http.NewRequest(http.MethodGet, endpointStr, http.NoBody)
 	if err != nil {
 		return nil, err
 	}

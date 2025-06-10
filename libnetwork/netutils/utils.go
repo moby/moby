@@ -80,7 +80,7 @@ func ReverseIP(IP string) string {
 		// Reversed IPv6 is represented in dotted decimal instead of the typical
 		// colon hex notation
 		for key := range reverseIP {
-			if len(reverseIP[key]) == 0 { // expand the compressed 0s
+			if reverseIP[key] == "" { // expand the compressed 0s
 				reverseIP[key] = strings.Repeat("0000", 8-strings.Count(IP, ":"))
 			} else if len(reverseIP[key]) < 4 { // 0-padding needed
 				reverseIP[key] = strings.Repeat("0", 4-len(reverseIP[key])) + reverseIP[key]

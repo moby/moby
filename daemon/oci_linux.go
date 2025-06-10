@@ -715,7 +715,7 @@ func withCommonOptions(daemon *Daemon, daemonCfg *dconfig.Config, c *container.C
 			return err
 		}
 		cwd := c.Config.WorkingDir
-		if len(cwd) == 0 {
+		if cwd == "" {
 			cwd = "/"
 		}
 		if s.Process == nil {

@@ -99,7 +99,7 @@ type IpamConf struct {
 
 // Validate checks whether the configuration is valid
 func (c *IpamConf) Validate() error {
-	if c.Gateway != "" && nil == net.ParseIP(c.Gateway) {
+	if c.Gateway != "" && net.ParseIP(c.Gateway) == nil {
 		return types.InvalidParameterErrorf("invalid gateway address %s in Ipam configuration", c.Gateway)
 	}
 	return nil
@@ -421,7 +421,7 @@ func (n *Network) applyConfigurationTo(to *Network) error {
 			}
 		}
 	}
-	if len(n.ipamType) != 0 {
+	if n.ipamType != "" {
 		to.ipamType = n.ipamType
 	}
 	if len(n.ipamOptions) > 0 {
@@ -1051,7 +1051,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 			name: n.name,
 			id:   n.id,
 			endpoints: sliceutil.Map(eps, func(ep *Endpoint) string {
-				return fmt.Sprintf(`name:"%s" id:"%s"`, ep.name, stringid.TruncateID(ep.id))
+				return fmt.Sprintf(`name:%q id:%q`, ep.name, stringid.TruncateID(ep.id))
 			}),
 		}
 	}

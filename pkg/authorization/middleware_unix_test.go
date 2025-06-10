@@ -33,7 +33,7 @@ func TestMiddlewareWrapHandler(t *testing.T) {
 	assert.Assert(t, mdHandler != nil)
 
 	addr := "www.example.com/auth"
-	req, _ := http.NewRequest(http.MethodGet, addr, nil)
+	req, _ := http.NewRequest(http.MethodGet, addr, http.NoBody)
 	req.RequestURI = addr
 	req.Header.Add("header", "value")
 

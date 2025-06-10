@@ -33,7 +33,7 @@ func TestJsonContentType(t *testing.T) {
 
 func TestReadJSON(t *testing.T) {
 	t.Run("nil body", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "https://example.com/some/path", nil)
+		req, err := http.NewRequest(http.MethodPost, "https://example.com/some/path", http.NoBody)
 		if err != nil {
 			t.Error(err)
 		}

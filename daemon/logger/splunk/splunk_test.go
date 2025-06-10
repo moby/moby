@@ -103,7 +103,7 @@ func TestNewWithProxy(t *testing.T) {
 	proxyFunc := splunkLogger.transport.Proxy
 	assert.Assert(t, proxyFunc != nil)
 
-	req, err := http.NewRequest(http.MethodGet, splunkURL, nil)
+	req, err := http.NewRequest(http.MethodGet, splunkURL, http.NoBody)
 	assert.NilError(t, err)
 
 	proxyURL, err := proxyFunc(req)

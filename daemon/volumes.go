@@ -124,7 +124,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 				CopyData:    false,
 			}
 
-			if len(cp.Source) == 0 {
+			if cp.Source == "" {
 				v, err := daemon.volumes.Get(ctx, cp.Name, volumeopts.WithGetDriver(cp.Driver), volumeopts.WithGetReference(container.ID))
 				if err != nil {
 					return err
@@ -308,7 +308,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 // lazyInitializeVolume initializes a mountpoint's volume if needed.
 // This happens after a daemon restart.
 func (daemon *Daemon) lazyInitializeVolume(containerID string, m *volumemounts.MountPoint) error {
-	if len(m.Driver) > 0 && m.Volume == nil {
+	if m.Driver != "" && m.Volume == nil {
 		v, err := daemon.volumes.Get(context.TODO(), m.Name, volumeopts.WithGetDriver(m.Driver), volumeopts.WithGetReference(containerID))
 		if err != nil {
 			return err

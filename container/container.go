@@ -380,7 +380,7 @@ func (container *Container) GetResourcePath(path string) (string, error) {
 // The returned path is always prefixed with a [filepath.Separator].
 func cleanScopedPath(path string) string {
 	if len(path) >= 2 {
-		if v := filepath.VolumeName(path); len(v) > 0 {
+		if v := filepath.VolumeName(path); v != "" {
 			path = path[len(v):]
 		}
 	}

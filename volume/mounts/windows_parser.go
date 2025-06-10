@@ -213,7 +213,7 @@ func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, _ error
 }
 
 func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValidators ...mountValidator) error {
-	if len(mnt.Target) == 0 {
+	if mnt.Target == "" {
 		return &errMountConfig{mnt, errMissingField("Target")}
 	}
 	for _, v := range additionalValidators {
@@ -224,7 +224,7 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 
 	switch mnt.Type {
 	case mount.TypeBind:
-		if len(mnt.Source) == 0 {
+		if mnt.Source == "" {
 			return &errMountConfig{mnt, errMissingField("Source")}
 		}
 		// Don't error out just because the propagation mode is not supported on the platform
@@ -257,7 +257,7 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 			return &errMountConfig{mnt, errExtraField("BindOptions")}
 		}
 
-		anonymousVolume := len(mnt.Source) == 0
+		anonymousVolume := mnt.Source == ""
 		if mnt.VolumeOptions != nil && mnt.VolumeOptions.Subpath != "" {
 			if anonymousVolume {
 				return errAnonymousVolumeWithSubpath
@@ -273,13 +273,13 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 			return &errMountConfig{mnt, fmt.Errorf("must not set ReadOnly mode when using anonymous volumes")}
 		}
 
-		if len(mnt.Source) != 0 {
+		if mnt.Source != "" {
 			if err := p.ValidateVolumeName(mnt.Source); err != nil {
 				return &errMountConfig{mnt, err}
 			}
 		}
 	case mount.TypeNamedPipe:
-		if len(mnt.Source) == 0 {
+		if mnt.Source == "" {
 			return &errMountConfig{mnt, errMissingField("Source")}
 		}
 
@@ -423,7 +423,7 @@ func (p *windowsParser) parseMountSpec(cfg mount.Mount, convertTargetToBackslash
 }
 
 func (p *windowsParser) ParseVolumesFrom(spec string) (string, string, error) {
-	if len(spec) == 0 {
+	if spec == "" {
 		return "", "", fmt.Errorf("volumes-from specification cannot be an empty string")
 	}
 

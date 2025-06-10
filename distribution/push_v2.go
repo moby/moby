@@ -294,7 +294,7 @@ func (pd *pushDescriptor) Upload(ctx context.Context, progressOutput progress.Ou
 		log.G(ctx).Debugf("attempting to mount layer %s (%s) from %s", diffID, mountCandidate.Digest, mountCandidate.SourceRepository)
 		createOpts := []distribution.BlobCreateOption{}
 
-		if len(mountCandidate.SourceRepository) > 0 {
+		if mountCandidate.SourceRepository != "" {
 			namedRef, err := reference.ParseNormalizedNamed(mountCandidate.SourceRepository)
 			if err != nil {
 				log.G(ctx).WithError(err).Errorf("failed to parse source repository reference %v", reference.FamiliarString(namedRef))
@@ -359,10 +359,10 @@ func (pd *pushDescriptor) Upload(ctx context.Context, progressOutput progress.Ou
 
 		// when error is unauthorizedError and user don't hasAuthInfo that's the case user don't has right to push layer to register
 		// and he hasn't login either, in this case candidate cache should be removed
-		if len(mountCandidate.SourceRepository) > 0 &&
+		if mountCandidate.SourceRepository != "" &&
 			(!isUnauthorizedError || pd.pushState.hasAuthInfo) &&
 			(metadata.CheckV2MetadataHMAC(&mountCandidate, pd.hmacKey) ||
-				len(mountCandidate.HMAC) == 0) {
+				mountCandidate.HMAC == "") {
 			cause := "blob mount failure"
 			if err != nil {
 				cause = fmt.Sprintf("an error: %v", err.Error())
@@ -488,7 +488,7 @@ func (pd *pushDescriptor) layerAlreadyExists(
 	// filter the metadata
 	candidates := []metadata.V2Metadata{}
 	for _, meta := range v2Metadata {
-		if len(meta.SourceRepository) > 0 && !checkOtherRepositories && meta.SourceRepository != pd.repoName.Name() {
+		if meta.SourceRepository != "" && !checkOtherRepositories && meta.SourceRepository != pd.repoName.Name() {
 			continue
 		}
 		candidates = append(candidates, meta)

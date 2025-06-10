@@ -1810,7 +1810,7 @@ func waitForEvent(t *testing.T, d *daemon.Daemon, since string, filter string, e
 	for i := 0; i < retry; i++ {
 		until := daemonUnixTime(t)
 		var err error
-		if len(filter) > 0 {
+		if filter != "" {
 			out, err = d.Cmd("events", "--since", since, "--until", until, filter)
 		} else {
 			out, err = d.Cmd("events", "--since", since, "--until", until)

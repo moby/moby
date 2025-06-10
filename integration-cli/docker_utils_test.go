@@ -446,7 +446,7 @@ func reducedCheck(r reducer, funcs ...checkF) checkF {
 		for _, f := range funcs {
 			v, comment := f(t)
 			values = append(values, v)
-			if len(comment) > 0 {
+			if comment != "" {
 				comments = append(comments, comment)
 			}
 		}

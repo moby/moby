@@ -216,7 +216,7 @@ func (s *DockerCLILogsSuite) TestLogsSinceFutureFollow(c *testing.T) {
 
 	since := t.Unix() + 2
 	out := cli.DockerCmd(c, "logs", "-t", "-f", fmt.Sprintf("--since=%v", since), name).Combined()
-	assert.Assert(c, len(out) != 0, "cannot read from empty log")
+	assert.Assert(c, out != "", "cannot read from empty log")
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	for _, v := range lines {
 		ts, err := time.Parse(time.RFC3339Nano, strings.Split(v, " ")[0])

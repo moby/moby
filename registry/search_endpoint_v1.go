@@ -122,7 +122,7 @@ func (e *v1Endpoint) ping(ctx context.Context) (v1PingResult, error) {
 
 	pingURL := e.String() + "_ping"
 	log.G(ctx).WithField("url", pingURL).Debug("attempting v1 ping for registry endpoint")
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pingURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pingURL, http.NoBody)
 	if err != nil {
 		return v1PingResult{}, invalidParam(err)
 	}

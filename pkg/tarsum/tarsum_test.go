@@ -330,7 +330,7 @@ func TestTarSums(t *testing.T) {
 			fh  io.Reader
 			err error
 		)
-		if len(layer.filename) > 0 {
+		if layer.filename != "" {
 			fh, err = os.Open(layer.filename)
 			if err != nil {
 				t.Errorf("failed to open %s: %s", layer.filename, err)
@@ -380,7 +380,7 @@ func TestTarSums(t *testing.T) {
 			continue
 		}
 		var gotSum string
-		if len(layer.jsonfile) > 0 {
+		if layer.jsonfile != "" {
 			jfh, err := os.Open(layer.jsonfile)
 			if err != nil {
 				t.Errorf("failed to open %s: %s", layer.jsonfile, err)
