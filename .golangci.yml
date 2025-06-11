@@ -157,7 +157,6 @@ linters:
         - unnamedResult
         - unnecessaryDefer
         - unslice
-        - valSwap
         - whyNoLint
       enable-all: true
 
