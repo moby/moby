@@ -3138,13 +3138,7 @@ func (s *DockerCLIBuildSuite) TestBuildClearCmd(c *testing.T) {
    CMD []`))
 
 	cmd := inspectFieldJSON(c, name, "Config.Cmd")
-	// OCI types specify `omitempty` JSON annotation which doesn't serialize
-	// empty arrays and the Cmd will not be present at all.
-	if testEnv.UsingSnapshotter() {
-		assert.Check(c, is.Equal(cmd, "null"))
-	} else {
-		assert.Check(c, is.Equal(cmd, "[]"))
-	}
+	assert.Check(c, is.Equal(cmd, "null"))
 }
 
 func (s *DockerCLIBuildSuite) TestBuildEmptyCmd(c *testing.T) {
