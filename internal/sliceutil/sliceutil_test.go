@@ -23,7 +23,7 @@ func TestMap(t *testing.T) {
 
 func TestMap_TypeConvert(t *testing.T) {
 	s := []int{1, 2, 3}
-	m := sliceutil.Map(s, func(i int) string { return strconv.Itoa(i) })
+	m := sliceutil.Map(s, strconv.Itoa)
 	if len(m) != len(s) {
 		t.Fatalf("expected len %d, got %d", len(s), len(m))
 	}
