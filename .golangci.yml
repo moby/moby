@@ -146,7 +146,6 @@ linters:
         - sloppyReassign
         - stringXbytes
         - typeAssertChain
-        - typeDefFirst
         - uncheckedInlineErr
         - unnamedResult
         - whyNoLint

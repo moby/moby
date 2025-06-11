@@ -50,6 +50,17 @@ type EndpointResolver interface {
 	LookupPullEndpoints(hostname string) (endpoints []registry.APIEndpoint, err error)
 }
 
+// Manager controls the plugin subsystem.
+type Manager struct {
+	config    ManagerConfig
+	mu        sync.RWMutex // protects cMap
+	muGC      sync.RWMutex // protects blobstore deletions
+	cMap      map[*v2.Plugin]*controller
+	blobStore content.Store
+	publisher *pubsub.Publisher
+	executor  Executor
+}
+
 func (pm *Manager) restorePlugin(p *v2.Plugin, c *controller) error {
 	if p.IsEnabled() {
 		return pm.restore(p, c)
@@ -73,17 +84,6 @@ type ManagerConfig struct {
 
 // ExecutorCreator is used in the manager config to pass in an `Executor`
 type ExecutorCreator func(*Manager) (Executor, error)
-
-// Manager controls the plugin subsystem.
-type Manager struct {
-	config    ManagerConfig
-	mu        sync.RWMutex // protects cMap
-	muGC      sync.RWMutex // protects blobstore deletions
-	cMap      map[*v2.Plugin]*controller
-	blobStore content.Store
-	publisher *pubsub.Publisher
-	executor  Executor
-}
 
 // controller represents the manager's control on a plugin.
 type controller struct {
