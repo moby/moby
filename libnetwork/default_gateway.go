@@ -15,7 +15,7 @@ const (
 	gwEPlen = 12
 )
 
-var procGwNetwork = make(chan (bool), 1)
+var procGwNetwork = make(chan bool, 1)
 
 /*
    libnetwork creates a bridge network "docker_gw_bridge" for providing
