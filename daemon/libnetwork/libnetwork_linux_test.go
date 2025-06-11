@@ -939,9 +939,7 @@ func TestValidRemoteDriver(t *testing.T) {
 		}
 		return
 	}
-	defer func() {
-		assert.Check(t, n.Delete())
-	}()
+	assert.Check(t, n.Delete())
 }
 
 func makeTesthostNetwork(t *testing.T, c *libnetwork.Controller) *libnetwork.Network {
