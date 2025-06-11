@@ -169,13 +169,11 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 	}
 
 	nDB.Lock()
-	var entryPresent bool
-	prev, err := nDB.getEntry(tEvent.TableName, tEvent.NetworkID, tEvent.Key)
+	e, err := nDB.getEntry(tEvent.TableName, tEvent.NetworkID, tEvent.Key)
 	if err == nil {
-		entryPresent = true
 		// We have the latest state. Ignore the event
 		// since it is stale.
-		if prev.ltime >= tEvent.LTime {
+		if e.ltime >= tEvent.LTime {
 			nDB.Unlock()
 			return false
 		}
@@ -189,7 +187,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 		return false
 	}
 
-	e := &entry{
+	e = &entry{
 		ltime:    tEvent.LTime,
 		node:     tEvent.NodeName,
 		value:    tEvent.Value,
@@ -223,33 +221,18 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 	}
 
 	var op opType
-	value := tEvent.Value
 	switch tEvent.Type {
-	case TableEventTypeCreate, TableEventTypeUpdate:
-		// Gossip messages could arrive out-of-order so it is possible
-		// for an entry's UPDATE event to be received before its CREATE
-		// event. The local watchers should not need to care about such
-		// nuances. Broadcast events to watchers based only on what
-		// changed in the local NetworkDB state.
+	case TableEventTypeCreate:
 		op = opCreate
-		if entryPresent && !prev.deleting {
-			op = opUpdate
-		}
+	case TableEventTypeUpdate:
+		op = opUpdate
 	case TableEventTypeDelete:
-		if !entryPresent || prev.deleting {
-			goto SkipBroadcast
-		}
 		op = opDelete
-		// Broadcast the value most recently observed by watchers,
-		// which may be different from the value in the DELETE event
-		// (e.g. if the DELETE event was received out-of-order).
-		value = prev.value
 	default:
 		// TODO(thaJeztah): make switch exhaustive; add networkdb.TableEventTypeInvalid
 	}
 
-	nDB.broadcaster.Write(makeEvent(op, tEvent.TableName, tEvent.NetworkID, tEvent.Key, value))
-SkipBroadcast:
+	nDB.broadcaster.Write(makeEvent(op, tEvent.TableName, tEvent.NetworkID, tEvent.Key, tEvent.Value))
 	return network.inSync
 }
 
