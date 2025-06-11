@@ -321,10 +321,7 @@ func AddInterfaceFirewalld(intf string) error {
 
 	log.G(context.TODO()).Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
 	// Runtime
-	if err := connection.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
-		return err
-	}
-	return nil
+	return connection.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err
 }
 
 // DelInterfaceFirewalld removes the interface from the trusted zone It is a
@@ -346,10 +343,7 @@ func DelInterfaceFirewalld(intf string) error {
 
 	log.G(context.TODO()).Debugf("Firewalld: removing %s interface from %s zone", intf, dockerZone)
 	// Runtime
-	if err := connection.sysObj.Call(dbusInterface+".zone.removeInterface", 0, dockerZone, intf).Err; err != nil {
-		return err
-	}
-	return nil
+	return connection.sysObj.Call(dbusInterface+".zone.removeInterface", 0, dockerZone, intf).Err
 }
 
 type interfaceNotFound struct{ error }

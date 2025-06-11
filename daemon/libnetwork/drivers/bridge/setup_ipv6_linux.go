@@ -37,10 +37,7 @@ func setupBridgeIPv6(config *networkConfiguration, i *bridgeInterface) error {
 
 	// Remove unwanted addresses from the bridge, add required addresses, and assign
 	// values to "i.bridgeIPv6", "i.gatewayIPv6".
-	if err := i.programIPv6Addresses(config); err != nil {
-		return err
-	}
-	return nil
+	return i.programIPv6Addresses(config)
 }
 
 func setupGatewayIPv6(config *networkConfiguration, i *bridgeInterface) error {

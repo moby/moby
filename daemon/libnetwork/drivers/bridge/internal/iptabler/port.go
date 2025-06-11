@@ -113,11 +113,7 @@ func (n *network) setPerPortNAT(ipv iptables.IPVersion, b types.PortBinding, ena
 		"--dport", strconv.Itoa(int(b.Port)),
 		"-j", "MASQUERADE",
 	}}
-	if err := appendOrDelChainRule(rule, "MASQUERADE", n.ipt.config.Hairpin && enable); err != nil {
-		return err
-	}
-
-	return nil
+	return appendOrDelChainRule(rule, "MASQUERADE", n.ipt.config.Hairpin && enable)
 }
 
 // setPerPortForwarding opens access to a container's published port, as described by binding b.
@@ -136,11 +132,8 @@ func setPerPortForwarding(b types.PortBinding, ipv iptables.IPVersion, bridgeNam
 		"--dport", strconv.Itoa(int(b.Port)),
 		"-j", "ACCEPT",
 	}}
-	if err := programChainRule(rule, "OPEN PORT", enable); err != nil {
-		return err
-	}
-
-	return nil
+	err := programChainRule(rule, "OPEN PORT", enable)
+	return err
 }
 
 // filterPortMappedOnLoopback adds an iptables rule that drops remote
@@ -176,11 +169,7 @@ func filterPortMappedOnLoopback(ctx context.Context, b types.PortBinding, hostIP
 		"!", "-i", "lo",
 		"-j", "DROP",
 	}}
-	if err := appendOrDelChainRule(drop, "LOOPBACK FILTERING - DROP", enable); err != nil {
-		return err
-	}
-
-	return nil
+	return appendOrDelChainRule(drop, "LOOPBACK FILTERING - DROP", enable)
 }
 
 // dropLegacyFilterDirectAccess deletes a rule that was introduced in 28.0.0 to
@@ -228,11 +217,7 @@ func (n *network) dropLegacyFilterDirectAccess(ctx context.Context, b types.Port
 		"!", "-i", n.config.IfName,
 		"-j", "DROP",
 	}}
-	if err := appendOrDelChainRule(drop, "LEGACY DIRECT ACCESS FILTERING - DROP", false); err != nil {
-		return err
-	}
-
-	return nil
+	return appendOrDelChainRule(drop, "LEGACY DIRECT ACCESS FILTERING - DROP", false)
 }
 
 func rawRulesDisabled(ctx context.Context) bool {
