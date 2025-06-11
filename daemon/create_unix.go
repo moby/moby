@@ -123,9 +123,5 @@ func (daemon *Daemon) populateVolume(ctx context.Context, c *container.Container
 	}()
 
 	log.G(ctx).Debugf("copying image data from %s:%s, to %s", c.ID, mnt.Destination, volumePath)
-	if err := c.CopyImagePathContent(volumePath, ctrDestPath); err != nil {
-		return err
-	}
-
-	return nil
+	return c.CopyImagePathContent(volumePath, ctrDestPath)
 }

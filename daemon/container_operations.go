@@ -1056,11 +1056,7 @@ func (daemon *Daemon) DisconnectFromNetwork(ctx context.Context, ctr *container.
 		return err
 	}
 
-	if err := ctr.CheckpointTo(ctx, daemon.containersReplica); err != nil {
-		return err
-	}
-
-	return nil
+	return ctr.CheckpointTo(ctx, daemon.containersReplica)
 }
 
 // ActivateContainerServiceBinding puts this container into load balancer active rotation and DNS response
