@@ -324,9 +324,9 @@ func copyStringSlice(orig []string) []string {
 // shell-form of RUN, ENTRYPOINT and CMD instructions
 func getShell(c *container.Config, os string) []string {
 	if len(c.Shell) == 0 {
-		return append([]string{}, defaultShellForOS(os)[:]...)
+		return defaultShellForOS(os)
 	}
-	return append([]string{}, c.Shell[:]...)
+	return c.Shell
 }
 
 func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.Config) (bool, error) {
