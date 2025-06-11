@@ -338,6 +338,7 @@ func parseAdd(req parseRequest) (*AddCommand, error) {
 	flLink := req.flags.AddBool("link", false)
 	flKeepGitDir := req.flags.AddBool("keep-git-dir", false)
 	flChecksum := req.flags.AddString("checksum", "")
+	flUnpack := req.flags.AddBool("unpack", false)
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
@@ -345,6 +346,12 @@ func parseAdd(req parseRequest) (*AddCommand, error) {
 	sourcesAndDest, err := parseSourcesAndDest(req, "ADD")
 	if err != nil {
 		return nil, err
+	}
+
+	var unpack *bool
+	if _, ok := req.flags.used["unpack"]; ok {
+		b := flUnpack.Value == "true"
+		unpack = &b
 	}
 
 	return &AddCommand{
@@ -356,6 +363,7 @@ func parseAdd(req parseRequest) (*AddCommand, error) {
 		KeepGitDir:      flKeepGitDir.Value == "true",
 		Checksum:        flChecksum.Value,
 		ExcludePatterns: stringValuesFromFlagIfPossible(flExcludes),
+		Unpack:          unpack,
 	}, nil
 }
 

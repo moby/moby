@@ -77,8 +77,8 @@ func UnshareAfterEnterUserns(uidMap, gidMap string, unshareFlags uintptr, f func
 	// - https://github.com/golang/go/issues/68984
 	// - https://github.com/golang/go/milestone/371
 	if goVer := runtime.Version(); goVer == "go1.23.0" || goVer == "go1.23.1" {
-		dupPidfd, dupErr := unix.FcntlInt(uintptr(pidfd), syscall.F_DUPFD_CLOEXEC, 0)
-		if dupErr != nil {
+		dupPidfd, err := unix.FcntlInt(uintptr(pidfd), syscall.F_DUPFD_CLOEXEC, 0)
+		if err != nil {
 			proc.Kill()
 			proc.Wait()
 			return fmt.Errorf("failed to dupfd: %w", err)

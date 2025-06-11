@@ -29,7 +29,7 @@ const (
 	RuntimePlugin plugin.Type = "io.containerd.runtime.v1"
 	// RuntimePluginV2 implements a runtime v2
 	RuntimePluginV2 plugin.Type = "io.containerd.runtime.v2"
-	// ServicePlugin implements a internal service
+	// ServicePlugin implements an internal service
 	ServicePlugin plugin.Type = "io.containerd.service.v1"
 	// GRPCPlugin implements a grpc service
 	GRPCPlugin plugin.Type = "io.containerd.grpc.v1"
@@ -55,7 +55,7 @@ const (
 	LeasePlugin plugin.Type = "io.containerd.lease.v1"
 	// StreamingPlugin implements a stream manager
 	StreamingPlugin plugin.Type = "io.containerd.streaming.v1"
-	// TracingProcessorPlugin implements a open telemetry span processor
+	// TracingProcessorPlugin implements an open telemetry span processor
 	TracingProcessorPlugin plugin.Type = "io.containerd.tracing.processor.v1"
 	// NRIApiPlugin implements the NRI adaptation interface for containerd.
 	NRIApiPlugin plugin.Type = "io.containerd.nri.v1"

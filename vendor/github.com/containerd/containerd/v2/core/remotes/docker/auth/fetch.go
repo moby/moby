@@ -78,10 +78,10 @@ type TokenOptions struct {
 	// FetchRefreshToken enables fetching a refresh token (aka "identity token", "offline token") along with the bearer token.
 	//
 	// For HTTP GET mode (FetchToken), FetchRefreshToken sets `offline_token=true` in the request.
-	// https://docs.docker.com/registry/spec/auth/token/#requesting-a-token
+	// https://distribution.github.io/distribution/spec/auth/token/#requesting-a-token
 	//
 	// For HTTP POST mode (FetchTokenWithOAuth), FetchRefreshToken sets `access_type=offline` in the request.
-	// https://docs.docker.com/registry/spec/auth/oauth/#getting-a-token
+	// https://distribution.github.io/distribution/spec/auth/oauth/#getting-a-token
 	FetchRefreshToken bool
 }
 

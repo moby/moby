@@ -117,7 +117,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 
 	export := func(ctx context.Context, k string, ref cache.ImmutableRef, attestations []exporter.Attestation) func() error {
 		return func() error {
-			outputFS, cleanup, err := CreateFS(ctx, sessionID, k, ref, attestations, now, e.opts)
+			outputFS, cleanup, err := CreateFS(ctx, sessionID, k, ref, attestations, now, isMap, e.opts)
 			if err != nil {
 				return err
 			}
@@ -125,9 +125,10 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 				defer cleanup()
 			}
 
-			if !e.opts.PlatformSplit {
+			lbl := "copying files"
+			if !e.opts.UsePlatformSplit(isMap) {
 				// check for duplicate paths
-				err = outputFS.Walk(ctx, "", func(p string, entry os.DirEntry, err error) error {
+				err = fsWalk(ctx, outputFS, "", func(p string, entry os.DirEntry, err error) error {
 					if entry.IsDir() {
 						return nil
 					}
@@ -145,23 +146,18 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 				if err != nil {
 					return err
 				}
-			}
-
-			lbl := "copying files"
-			if isMap {
+			} else {
 				lbl += " " + k
-				if e.opts.PlatformSplit {
-					st := &fstypes.Stat{
-						Mode: uint32(os.ModeDir | 0755),
-						Path: strings.ReplaceAll(k, "/", "_"),
-					}
-					if e.opts.Epoch != nil {
-						st.ModTime = e.opts.Epoch.UnixNano()
-					}
-					outputFS, err = fsutil.SubDirFS([]fsutil.Dir{{FS: outputFS, Stat: st}})
-					if err != nil {
-						return err
-					}
+				st := &fstypes.Stat{
+					Mode: uint32(os.ModeDir | 0755),
+					Path: strings.ReplaceAll(k, "/", "_"),
+				}
+				if e.opts.Epoch != nil {
+					st.ModTime = e.opts.Epoch.UnixNano()
+				}
+				outputFS, err = fsutil.SubDirFS([]fsutil.Dir{{FS: outputFS, Stat: st}})
+				if err != nil {
+					return err
 				}
 			}
 

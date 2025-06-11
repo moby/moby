@@ -113,7 +113,7 @@ dockers:
 checksum:
   name_template: 'sha256sums.txt'
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 release:
   github:
     owner: pelletier

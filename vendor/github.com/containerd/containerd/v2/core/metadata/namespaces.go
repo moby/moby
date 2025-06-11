@@ -26,6 +26,7 @@ import (
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/errdefs"
 	bolt "go.etcd.io/bbolt"
+	errbolt "go.etcd.io/bbolt/errors"
 )
 
 type namespaceStore struct {
@@ -56,7 +57,7 @@ func (s *namespaceStore) Create(ctx context.Context, namespace string, labels ma
 	// provides the already exists error.
 	bkt, err := topbkt.CreateBucket([]byte(namespace))
 	if err != nil {
-		if err == bolt.ErrBucketExists {
+		if err == errbolt.ErrBucketExists {
 			return fmt.Errorf("namespace %q: %w", namespace, errdefs.ErrAlreadyExists)
 		}
 
@@ -155,7 +156,7 @@ func (s *namespaceStore) Delete(ctx context.Context, namespace string, opts ...n
 	}
 
 	if err := bkt.DeleteBucket([]byte(namespace)); err != nil {
-		if err == bolt.ErrBucketNotFound {
+		if err == errbolt.ErrBucketNotFound {
 			return fmt.Errorf("namespace %q: %w", namespace, errdefs.ErrNotFound)
 		}
 

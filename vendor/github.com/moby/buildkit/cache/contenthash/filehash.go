@@ -41,17 +41,8 @@ func NewFileHash(path string, fi os.FileInfo) (hash.Hash, error) {
 }
 
 func NewFromStat(stat *fstypes.Stat) (hash.Hash, error) {
-	// Clear the irregular file bit if this is some kind of special
-	// file. Pre-Go 1.23 behavior would only add the irregular file
-	// bit to regular files with non-handled reparse points.
-	// Current versions of Go now apply them to directories too.
-	// archive/tar.FileInfoHeader does not handle the irregular bit.
-	if stat.Mode&uint32(os.ModeType&^os.ModeIrregular) != 0 {
-		stat.Mode &^= uint32(os.ModeIrregular)
-	}
-
-	// Clear the socket bit since archive/tar.FileInfoHeader does not handle it
-	stat.Mode &^= uint32(os.ModeSocket)
+	// Clear the socket and irregular bits since archive/tar.FileInfoHeader does not handle them
+	stat.Mode &^= uint32(os.ModeSocket | os.ModeIrregular)
 
 	fi := &statInfo{stat}
 	hdr, err := tar.FileInfoHeader(fi, stat.Linkname)

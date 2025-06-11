@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/containerd/containerd/v2/core/containers"
@@ -35,6 +34,7 @@ import (
 	"github.com/containerd/errdefs"
 	"github.com/containerd/typeurl/v2"
 	bolt "go.etcd.io/bbolt"
+	errbolt "go.etcd.io/bbolt/errors"
 )
 
 const (
@@ -143,7 +143,7 @@ func (s *containerStore) Create(ctx context.Context, container containers.Contai
 
 		cbkt, err := bkt.CreateBucket([]byte(container.ID))
 		if err != nil {
-			if err == bolt.ErrBucketExists {
+			if err == errbolt.ErrBucketExists {
 				err = fmt.Errorf("container %q: %w", container.ID, errdefs.ErrAlreadyExists)
 			}
 			return err
@@ -294,13 +294,13 @@ func (s *containerStore) Delete(ctx context.Context, id string) error {
 		}
 
 		if err := bkt.DeleteBucket([]byte(id)); err != nil {
-			if err == bolt.ErrBucketNotFound {
+			if err == errbolt.ErrBucketNotFound {
 				err = fmt.Errorf("container %v: %w", id, errdefs.ErrNotFound)
 			}
 			return err
 		}
 
-		atomic.AddUint32(&s.db.dirty, 1)
+		s.db.dirty.Add(1)
 
 		return nil
 	})

@@ -37,6 +37,7 @@ import (
 	sandboxsapi "github.com/containerd/containerd/api/services/sandbox/v1"
 	snapshotsapi "github.com/containerd/containerd/api/services/snapshots/v1"
 	"github.com/containerd/containerd/api/services/tasks/v1"
+	transferapi "github.com/containerd/containerd/api/services/transfer/v1"
 	versionservice "github.com/containerd/containerd/api/services/version/v1"
 	apitypes "github.com/containerd/containerd/api/types"
 	"github.com/containerd/containerd/v2/core/containers"
@@ -55,6 +56,8 @@ import (
 	sandboxproxy "github.com/containerd/containerd/v2/core/sandbox/proxy"
 	"github.com/containerd/containerd/v2/core/snapshots"
 	snproxy "github.com/containerd/containerd/v2/core/snapshots/proxy"
+	"github.com/containerd/containerd/v2/core/transfer"
+	transferproxy "github.com/containerd/containerd/v2/core/transfer/proxy"
 	"github.com/containerd/containerd/v2/defaults"
 	"github.com/containerd/containerd/v2/pkg/dialer"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
@@ -140,6 +143,8 @@ func New(address string, opts ...Opt) (*Client, error) {
 		if len(copts.dialOptions) > 0 {
 			gopts = copts.dialOptions
 		}
+		gopts = append(gopts, copts.extraDialOpts...)
+
 		gopts = append(gopts, grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize),
 			grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)))
@@ -380,21 +385,25 @@ type RemoteContext struct {
 	// after it has completed transferring.
 	HandlerWrapper func(images.Handler) images.Handler
 
-	// ConvertSchema1 is whether to convert Docker registry schema 1
-	// manifests. If this option is false then any image which resolves
-	// to schema 1 will return an error since schema 1 is not supported.
-	//
-	// Deprecated: use Schema 2 or OCI images.
-	ConvertSchema1 bool
-
 	// Platforms defines which platforms to handle when doing the image operation.
 	// Platforms is ignored when a PlatformMatcher is set, otherwise the
 	// platforms will be used to create a PlatformMatcher with no ordering
 	// preference.
 	Platforms []string
 
-	// MaxConcurrentDownloads is the max concurrent content downloads for each pull.
+	DownloadLimiter *semaphore.Weighted
+
+	// MaxConcurrentDownloads restricts the total number of concurrent downloads
+	// across all layers during an image pull operation. This helps control the
+	// overall network bandwidth usage.
 	MaxConcurrentDownloads int
+
+	// ConcurrentLayerFetchBuffer sets the maximum size in bytes for each chunk
+	// when downloading layers in parallel. Larger chunks reduce coordination
+	// overhead but use more memory. When ConcurrentLayerFetchBuffer is above
+	// 512 bytes, parallel layer fetch is enabled. It can accelerate pulls for
+	// big images.
+	ConcurrentLayerFetchBuffer int
 
 	// MaxConcurrentUploadedLayers is the max concurrent uploaded layers for each push.
 	MaxConcurrentUploadedLayers int
@@ -755,6 +764,16 @@ func (c *Client) SandboxController(name string) sandbox.Controller {
 	c.connMu.Lock()
 	defer c.connMu.Unlock()
 	return sandboxproxy.NewSandboxController(sandboxsapi.NewControllerClient(c.conn), name)
+}
+
+// TranferService returns the underlying transferrer
+func (c *Client) TransferService() transfer.Transferrer {
+	if c.transferService != nil {
+		return c.transferService
+	}
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	return transferproxy.NewTransferrer(transferapi.NewTransferClient(c.conn), c.streamCreator())
 }
 
 // VersionService returns the underlying VersionClient

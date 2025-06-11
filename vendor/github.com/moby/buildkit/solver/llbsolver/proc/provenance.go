@@ -5,18 +5,18 @@ import (
 	"encoding/json"
 	"strconv"
 
-	slsa02 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2"
 	"github.com/moby/buildkit/executor/resources"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	gatewaypb "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver"
+	provenancetypes "github.com/moby/buildkit/solver/llbsolver/provenance/types"
 	"github.com/moby/buildkit/solver/result"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/pkg/errors"
 )
 
-func ProvenanceProcessor(attrs map[string]string) llbsolver.Processor {
+func ProvenanceProcessor(slsaVersion provenancetypes.ProvenanceSLSA, attrs map[string]string) llbsolver.Processor {
 	return func(ctx context.Context, res *llbsolver.Result, s *llbsolver.Solver, j *solver.Job, usage *resources.SysSampler) (*llbsolver.Result, error) {
 		span, ctx := tracing.StartSpan(ctx, "create provenance attestation")
 		defer span.End()
@@ -46,7 +46,7 @@ func ProvenanceProcessor(attrs map[string]string) llbsolver.Processor {
 				return nil, errors.Errorf("could not find ref %s", p.ID)
 			}
 
-			pc, err := llbsolver.NewProvenanceCreator(ctx, cp, ref, attrs, j, usage)
+			pc, err := llbsolver.NewProvenanceCreator(ctx, slsaVersion, cp, ref, attrs, j, usage)
 			if err != nil {
 				return nil, err
 			}
@@ -63,7 +63,7 @@ func ProvenanceProcessor(attrs map[string]string) llbsolver.Processor {
 					result.AttestationInlineOnlyKey: []byte(strconv.FormatBool(inlineOnly)),
 				},
 				InToto: result.InTotoAttestation{
-					PredicateType: slsa02.PredicateSLSAProvenance,
+					PredicateType: pc.PredicateType(),
 				},
 				Path: filename,
 				ContentFunc: func(ctx context.Context) ([]byte, error) {

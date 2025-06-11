@@ -29,8 +29,6 @@
 package console
 
 import (
-	"os"
-
 	"golang.org/x/sys/unix"
 )
 
@@ -39,10 +37,10 @@ const (
 	cmdTcSet = unix.TIOCSETA
 )
 
-func ptsname(f *os.File) (string, error) {
+func ptsname(f File) (string, error) {
 	panic("ptsname() support requires cgo.")
 }
 
-func unlockpt(f *os.File) error {
+func unlockpt(f File) error {
 	panic("unlockpt() support requires cgo.")
 }

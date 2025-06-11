@@ -32,6 +32,7 @@ import (
 	"github.com/containerd/errdefs"
 	"github.com/containerd/typeurl/v2"
 	"go.etcd.io/bbolt"
+	errbolt "go.etcd.io/bbolt/errors"
 )
 
 const (
@@ -266,7 +267,7 @@ func (s *sandboxStore) Delete(ctx context.Context, id string) error {
 		}
 
 		if err := buckets.DeleteBucket([]byte(id)); err != nil {
-			if err == bbolt.ErrBucketNotFound {
+			if err == errbolt.ErrBucketNotFound {
 				err = errdefs.ErrNotFound
 			}
 			return fmt.Errorf("failed to delete sandbox %q: %w", id, err)
@@ -299,7 +300,7 @@ func (s *sandboxStore) write(parent *bbolt.Bucket, instance *api.Sandbox, overwr
 	} else {
 		bucket, err = parent.CreateBucket(id)
 		if err != nil {
-			if err == bbolt.ErrBucketExists {
+			if err == errbolt.ErrBucketExists {
 				return fmt.Errorf("sandbox bucket %q already exists: %w", instance.ID, errdefs.ErrAlreadyExists)
 			}
 			return err

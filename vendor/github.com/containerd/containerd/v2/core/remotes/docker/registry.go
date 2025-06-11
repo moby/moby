@@ -17,9 +17,11 @@
 package docker
 
 import (
+	"crypto/tls"
 	"errors"
 	"net"
 	"net/http"
+	"time"
 )
 
 // HostCapabilities represent the capabilities of the registry
@@ -170,7 +172,9 @@ func ConfigureDefaultRegistries(ropts ...RegistryOpt) RegistryHosts {
 		}
 
 		if config.Client == nil {
-			config.Client = http.DefaultClient
+			config.Client = &http.Client{
+				Transport: DefaultHTTPTransport(nil),
+			}
 		}
 
 		if opts.plainHTTP != nil {
@@ -241,4 +245,20 @@ func MatchLocalhost(host string) (bool, error) {
 	ip := net.ParseIP(h)
 
 	return ip.IsLoopback(), nil
+}
+
+func DefaultHTTPTransport(defaultTLSConfig *tls.Config) *http.Transport {
+	return &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:       30 * time.Second,
+			KeepAlive:     30 * time.Second,
+			FallbackDelay: 300 * time.Millisecond,
+		}).DialContext,
+		MaxIdleConns:          10,
+		IdleConnTimeout:       30 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		TLSClientConfig:       defaultTLSConfig,
+		ExpectContinueTimeout: 5 * time.Second,
+	}
 }

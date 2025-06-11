@@ -166,8 +166,7 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 			}()
 		}
 
-		switch sc := resp.StatusCode; {
-		case sc >= 200 && sc <= 299:
+		if sc := resp.StatusCode; sc >= 200 && sc <= 299 {
 			// Success, do not retry.
 			// Read the partial success message, if any.
 			var respData bytes.Buffer
@@ -194,34 +193,33 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 				}
 			}
 			return nil
+		}
+		// Error cases.
 
-		case sc == http.StatusTooManyRequests,
-			sc == http.StatusBadGateway,
-			sc == http.StatusServiceUnavailable,
-			sc == http.StatusGatewayTimeout:
-			// Retry-able failures.
-			rErr := newResponseError(resp.Header, nil)
+		// server may return a message with the response
+		// body, so we read it to include in the error
+		// message to be returned. It will help in
+		// debugging the actual issue.
+		var respData bytes.Buffer
+		if _, err := io.Copy(&respData, resp.Body); err != nil {
+			return err
+		}
+		respStr := strings.TrimSpace(respData.String())
+		if len(respStr) == 0 {
+			respStr = "(empty)"
+		}
+		bodyErr := fmt.Errorf("body: %s", respStr)
 
-			// server may return a message with the response
-			// body, so we read it to include in the error
-			// message to be returned. It will help in
-			// debugging the actual issue.
-			var respData bytes.Buffer
-			if _, err := io.Copy(&respData, resp.Body); err != nil {
-				_ = resp.Body.Close()
-				return err
-			}
-
-			// overwrite the error message with the response body
-			// if it is not empty
-			if respStr := strings.TrimSpace(respData.String()); respStr != "" {
-				// Include response for context.
-				e := errors.New(respStr)
-				rErr = newResponseError(resp.Header, e)
-			}
-			return rErr
+		switch resp.StatusCode {
+		case http.StatusTooManyRequests,
+			http.StatusBadGateway,
+			http.StatusServiceUnavailable,
+			http.StatusGatewayTimeout:
+			// Retryable failure.
+			return newResponseError(resp.Header, bodyErr)
 		default:
-			return fmt.Errorf("failed to send to %s: %s", request.URL, resp.Status)
+			// Non-retryable failure.
+			return fmt.Errorf("failed to send to %s: %s (%w)", request.URL, resp.Status, bodyErr)
 		}
 	})
 }
@@ -278,7 +276,7 @@ func (d *client) MarshalLog() interface{} {
 		Endpoint string
 		Insecure bool
 	}{
-		Type:     "otlphttphttp",
+		Type:     "otlptracehttp",
 		Endpoint: d.cfg.Endpoint,
 		Insecure: d.cfg.Insecure,
 	}
@@ -328,7 +326,7 @@ func newResponseError(header http.Header, wrapped error) error {
 
 func (e retryableError) Error() string {
 	if e.err != nil {
-		return fmt.Sprintf("retry-able request failure: %s", e.err.Error())
+		return "retry-able request failure: " + e.err.Error()
 	}
 
 	return "retry-able request failure"

@@ -95,7 +95,7 @@ type DB struct {
 	// a garbage collection to ensure the database is clean. This tracks
 	// the number of dirty operations. This should be updated and read
 	// atomically if outside of wlock.Lock.
-	dirty uint32
+	dirty atomic.Uint32
 
 	// dirtySS and dirtyCS flags keeps track of datastores which have had
 	// deletions since the last garbage collection. These datastores will
@@ -262,7 +262,7 @@ func (m *DB) Update(fn func(*bolt.Tx) error) error {
 	defer m.wlock.RUnlock()
 	err := m.db.Update(fn)
 	if err == nil {
-		dirty := atomic.LoadUint32(&m.dirty) > 0
+		dirty := m.dirty.Load() > 0
 		for _, fn := range m.mutationCallbacks {
 			fn(dirty)
 		}
@@ -431,8 +431,9 @@ func (m *DB) GarbageCollect(ctx context.Context) (gc.Stats, error) {
 		wg.Done()
 	}()
 
-	// reset dirty, no need for atomic inside of wlock.Lock
-	m.dirty = 0
+	// Reset dirty. Truly don't need to be atomically stored inside of the wlock
+	// but we're using the atomic wrappers that guarantee atomic access everywhere.
+	m.dirty.Store(0)
 
 	if len(m.dirtySS) > 0 {
 		var sl sync.Mutex

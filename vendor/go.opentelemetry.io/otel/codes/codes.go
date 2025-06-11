@@ -5,6 +5,7 @@ package codes // import "go.opentelemetry.io/otel/codes"
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 )
@@ -63,7 +64,7 @@ func (c *Code) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 	if c == nil {
-		return fmt.Errorf("nil receiver passed to UnmarshalJSON")
+		return errors.New("nil receiver passed to UnmarshalJSON")
 	}
 
 	var x interface{}

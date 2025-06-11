@@ -30,3 +30,11 @@ type Reservoir interface {
 	// The Reservoir state is preserved after this call.
 	Collect(dest *[]Exemplar)
 }
+
+// ReservoirProvider creates new [Reservoir]s.
+//
+// The attributes provided are attributes which are kept by the aggregation, and
+// are exclusive with attributes passed to Offer. The combination of these
+// attributes and the attributes passed to Offer is the complete set of
+// attributes a measurement was made with.
+type ReservoirProvider func(attr attribute.Set) Reservoir

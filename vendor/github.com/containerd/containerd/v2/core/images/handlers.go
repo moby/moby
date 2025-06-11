@@ -154,8 +154,6 @@ func WalkNotEmpty(ctx context.Context, handler Handler, descs ...ocispec.Descrip
 func Dispatch(ctx context.Context, handler Handler, limiter *semaphore.Weighted, descs ...ocispec.Descriptor) error {
 	eg, ctx2 := errgroup.WithContext(ctx)
 	for _, desc := range descs {
-		desc := desc
-
 		if limiter != nil {
 			if err := limiter.Acquire(ctx, 1); err != nil {
 				return err

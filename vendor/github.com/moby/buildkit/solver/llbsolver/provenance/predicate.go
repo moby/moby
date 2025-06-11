@@ -83,12 +83,12 @@ func findMaterial(srcs provenancetypes.Sources, uri string) (*slsa.ProvenanceMat
 	return nil, false
 }
 
-func NewPredicate(c *Capture) (*provenancetypes.ProvenancePredicate, error) {
+func NewPredicate(c *Capture) (*provenancetypes.ProvenancePredicateSLSA02, error) {
 	materials, err := slsaMaterials(c.Sources)
 	if err != nil {
 		return nil, err
 	}
-	inv := provenancetypes.ProvenanceInvocation{}
+	inv := provenancetypes.ProvenanceInvocationSLSA02{}
 
 	contextKey := "context"
 	if v, ok := c.Args["contextkey"]; ok && v != "" {
@@ -154,13 +154,13 @@ func NewPredicate(c *Capture) (*provenancetypes.ProvenancePredicate, error) {
 		}
 	}
 
-	pr := &provenancetypes.ProvenancePredicate{
+	pr := &provenancetypes.ProvenancePredicateSLSA02{
 		Invocation: inv,
 		ProvenancePredicate: slsa02.ProvenancePredicate{
 			BuildType: provenancetypes.BuildKitBuildType,
 			Materials: materials,
 		},
-		Metadata: &provenancetypes.ProvenanceMetadata{
+		Metadata: &provenancetypes.ProvenanceMetadataSLSA02{
 			ProvenanceMetadata: slsa02.ProvenanceMetadata{
 				Completeness: slsa02.ProvenanceComplete{
 					Parameters:  c.Frontend != "",
