@@ -636,9 +636,7 @@ func updateNodeKey(lIP, aIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, pr
 
 	// swap
 	if priIdx > 0 {
-		swp := spis[0]
-		spis[0] = spis[priIdx]
-		spis[priIdx] = swp
+		spis[0], spis[priIdx] = spis[priIdx], spis[0]
 	}
 	// prune
 	if delIdx != -1 {
