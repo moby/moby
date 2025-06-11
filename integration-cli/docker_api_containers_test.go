@@ -668,7 +668,7 @@ func (s *DockerAPISuite) TestContainerAPIInvalidPortSyntax(c *testing.T) {
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, is.Contains(string(b[:]), "invalid port"))
+	assert.Assert(c, is.Contains(string(b), "invalid port"))
 }
 
 func (s *DockerAPISuite) TestContainerAPIRestartPolicyInvalidPolicyName(c *testing.T) {
@@ -688,7 +688,7 @@ func (s *DockerAPISuite) TestContainerAPIRestartPolicyInvalidPolicyName(c *testi
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, is.Contains(string(b[:]), "invalid restart policy"))
+	assert.Assert(c, is.Contains(string(b), "invalid restart policy"))
 }
 
 func (s *DockerAPISuite) TestContainerAPIRestartPolicyRetryMismatch(c *testing.T) {
@@ -708,7 +708,7 @@ func (s *DockerAPISuite) TestContainerAPIRestartPolicyRetryMismatch(c *testing.T
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, is.Contains(string(b[:]), "invalid restart policy: maximum retry count can only be used with 'on-failure'"))
+	assert.Assert(c, is.Contains(string(b), "invalid restart policy: maximum retry count can only be used with 'on-failure'"))
 }
 
 func (s *DockerAPISuite) TestContainerAPIRestartPolicyNegativeRetryCount(c *testing.T) {
@@ -728,7 +728,7 @@ func (s *DockerAPISuite) TestContainerAPIRestartPolicyNegativeRetryCount(c *test
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, is.Contains(string(b[:]), "maximum retry count cannot be negative"))
+	assert.Assert(c, is.Contains(string(b), "maximum retry count cannot be negative"))
 }
 
 func (s *DockerAPISuite) TestContainerAPIRestartPolicyDefaultRetryCount(c *testing.T) {
