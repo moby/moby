@@ -184,11 +184,7 @@ func addSomeRules(c *ChainInfo, ip net.IP, port int, proto, destAddr string, des
 		"--dport", strconv.Itoa(destPort),
 		"-j", "MASQUERADE",
 	}
-	if err := iptable.ProgramRule(Nat, "POSTROUTING", Append, args); err != nil {
-		return err
-	}
-
-	return nil
+	return iptable.ProgramRule(Nat, "POSTROUTING", Append, args)
 }
 
 func TestCleanup(t *testing.T) {

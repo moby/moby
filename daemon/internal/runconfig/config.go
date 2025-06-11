@@ -74,10 +74,8 @@ func validateCreateRequest(w container.CreateRequest, si *sysinfo.SysInfo) error
 	if err := validatePrivileged(w.HostConfig); err != nil {
 		return err
 	}
-	if err := validateReadonlyRootfs(w.HostConfig); err != nil {
-		return err
-	}
-	return nil
+	err := validateReadonlyRootfs(w.HostConfig)
+	return err
 }
 
 // loadJSON is similar to api/server/httputils.ReadJSON()
