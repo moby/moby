@@ -144,7 +144,6 @@ func demultiplexStreams(ctx context.Context, resp client.HijackedResponse) (stre
 	select {
 	case copyErr := <-outputDone:
 		err = copyErr
-		break
 	case <-ctx.Done():
 		err = ctx.Err()
 	}
