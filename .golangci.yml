@@ -155,7 +155,6 @@ linters:
         - typeDefFirst
         - typeUnparen
         - uncheckedInlineErr
-        - unlambda
         - unnamedResult
         - whyNoLint
       enable-all: true

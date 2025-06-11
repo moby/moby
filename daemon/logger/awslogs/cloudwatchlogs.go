@@ -531,9 +531,7 @@ func (l *logStream) createLogStream() error {
 
 // newTicker is used for time-based batching.  newTicker is a variable such
 // that the implementation can be swapped out for unit tests.
-var newTicker = func(freq time.Duration) *time.Ticker {
-	return time.NewTicker(freq)
-}
+var newTicker = time.NewTicker
 
 // collectBatch executes as a goroutine to perform batching of log events for
 // submission to the log stream.  If the awslogs-multiline-pattern or
