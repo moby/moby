@@ -457,7 +457,7 @@ func getSvcRecords(t *testing.T, n *Network, key string) (addrs []netip.Addr, fo
 	sr, ok := n.ctrlr.svcRecords[n.id]
 	assert.Assert(t, ok)
 
-	lookup := func(svcMap *setmatrix.SetMatrix[string, svcMapEntry]) bool {
+	lookup := func(svcMap *setmatrix.SetMatrix[svcMapEntry]) bool {
 		mapEntryList, ok := svcMap.Get(key)
 		if !ok {
 			return false
