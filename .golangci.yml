@@ -155,7 +155,6 @@ linters:
         - uncheckedInlineErr
         - unlambda
         - unnamedResult
-        - unnecessaryDefer
         - whyNoLint
       enable-all: true
 
