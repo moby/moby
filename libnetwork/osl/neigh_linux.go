@@ -51,9 +51,13 @@ func (n *Namespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr) error 
 		return NeighborSearchError{dstIP, dstMac, false}
 	}
 
+	n.mu.Lock()
+	nlh := n.nlHandle
+	n.mu.Unlock()
+
 	var linkIndex int
 	if nh.linkDst != "" {
-		iface, err := n.nlHandle.LinkByName(nh.linkDst)
+		iface, err := nlh.LinkByName(nh.linkDst)
 		if err != nil {
 			return fmt.Errorf("could not find interface with destination name %s: %v", nh.linkDst, err)
 		}
@@ -75,13 +79,13 @@ func (n *Namespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr) error 
 	// If the kernel deletion fails for the neighbor entry still remove it
 	// from the namespace cache, otherwise kernel update can fail if the
 	// neighbor moves back to the same host again.
-	if err := n.nlHandle.NeighDel(nlnh); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := nlh.NeighDel(nlnh); err != nil && !errors.Is(err, os.ErrNotExist) {
 		log.G(context.TODO()).Warnf("Deleting neighbor IP %s, mac %s failed, %v", dstIP, dstMac, err)
 	}
 
 	// Delete the dynamic entry in the bridge
 	if nh.family > 0 {
-		if err := n.nlHandle.NeighDel(&netlink.Neigh{
+		if err := nlh.NeighDel(&netlink.Neigh{
 			LinkIndex:    linkIndex,
 			IP:           dstIP,
 			Family:       nh.family,
@@ -120,6 +124,10 @@ func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, options .
 
 	nh.processNeighOptions(options...)
 
+	n.mu.Lock()
+	nlh := n.nlHandle
+	n.mu.Unlock()
+
 	nlnh := &netlink.Neigh{
 		IP:           dstIP,
 		HardwareAddr: dstMac,
@@ -137,14 +145,14 @@ func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, options .
 			return fmt.Errorf("could not find the interface with name %s", nh.linkName)
 		}
 
-		iface, err := n.nlHandle.LinkByName(nh.linkDst)
+		iface, err := nlh.LinkByName(nh.linkDst)
 		if err != nil {
 			return fmt.Errorf("could not find interface with destination name %s: %v", nh.linkDst, err)
 		}
 		nlnh.LinkIndex = iface.Attrs().Index
 	}
 
-	if err := n.nlHandle.NeighSet(nlnh); err != nil {
+	if err := nlh.NeighSet(nlnh); err != nil {
 		return fmt.Errorf("could not add neighbor entry:%+v error:%v", nlnh, err)
 	}
 
