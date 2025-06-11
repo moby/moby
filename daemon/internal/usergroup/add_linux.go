@@ -164,8 +164,8 @@ func findNextRangeStart(rangeList []user.SubID) (int, error) {
 	return int(startID), nil
 }
 
-func wouldOverlap(arange user.SubID, ID int64) bool {
-	low := ID
+func wouldOverlap(arange user.SubID, id int64) bool {
+	low := id
 	high := low + defaultRangeLen
 	if (low >= arange.SubID && low <= arange.SubID+arange.Count) ||
 		(high <= arange.SubID+arange.Count && high >= arange.SubID) {
