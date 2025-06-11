@@ -75,7 +75,7 @@ func (pm *Manager) registryHostsFn(auth *registry.AuthConfig, httpFallback bool)
 
 			caps := docker.HostCapabilityPull | docker.HostCapabilityResolve
 			if !ep.Mirror {
-				caps = caps | docker.HostCapabilityPush
+				caps |= docker.HostCapabilityPush
 			}
 
 			host, err := docker.DefaultHost(ep.URL.Host)
