@@ -144,7 +144,6 @@ linters:
         - rangeValCopy
         - redundantSprint
         - regexpMust
-        - regexpSimplify
         - sloppyReassign
         - stringXbytes
         - typeAssertChain
