@@ -27,8 +27,8 @@ func (s *DockerCLIHealthSuite) OnTimeout(t *testing.T) {
 }
 
 func waitForHealthStatus(t *testing.T, name string, prev string, expected string) {
-	prev = prev + "\n"
-	expected = expected + "\n"
+	prev += "\n"
+	expected += "\n"
 	for {
 		out := cli.DockerCmd(t, "inspect", "--format={{.State.Health.Status}}", name).Stdout()
 		if out == expected {

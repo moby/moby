@@ -75,7 +75,7 @@ func doCopyWithFileRange(srcFile, dstFile *os.File, fileinfo os.FileInfo) error 
 			return err
 		}
 
-		amountLeftToCopy = amountLeftToCopy - int64(n)
+		amountLeftToCopy -= int64(n)
 	}
 
 	return nil
