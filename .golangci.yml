@@ -136,7 +136,6 @@ linters:
         - methodExprCall
         - nestingReduce
         - nilValReturn
-        - octalLiteral
         - paramTypeCombine
         - preferStringWriter
         - ptrToRefParam
