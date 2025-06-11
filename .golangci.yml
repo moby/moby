@@ -152,7 +152,6 @@ linters:
         - stringXbytes
         - typeAssertChain
         - typeDefFirst
-        - typeUnparen
         - uncheckedInlineErr
         - unnamedResult
         - whyNoLint
