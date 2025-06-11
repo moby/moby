@@ -22,7 +22,7 @@ type infoResponse struct {
 // in API responses.
 func (sc *infoResponse) MarshalJSON() ([]byte, error) {
 	type tmp *system.Info
-	base, err := json.Marshal((tmp)(sc.Info))
+	base, err := json.Marshal(tmp(sc.Info))
 	if err != nil {
 		return nil, err
 	}
