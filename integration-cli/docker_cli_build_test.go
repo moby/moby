@@ -3521,7 +3521,7 @@ func (s *DockerCLIBuildSuite) TestBuildNotVerboseFailureRemote(c *testing.T) {
 	// when more than one nameserver is configured.
 	// While at it, also strip excessive newlines.
 	normalize := func(msg string) string {
-		return strings.TrimSpace(regexp.MustCompile("[1-9][0-9.]+:[0-9]+").ReplaceAllLiteralString(msg, "<ip:port>"))
+		return strings.TrimSpace(regexp.MustCompile(`[1-9][0-9.]+:\d+`).ReplaceAllLiteralString(msg, "<ip:port>"))
 	}
 
 	if normalize(quietResult.Stderr()) != normalize(result.Combined()) {

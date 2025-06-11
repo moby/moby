@@ -25,8 +25,8 @@ const (
 )
 
 var (
-	pushDigestRegex = regexp.MustCompile(`[\S]+: digest: ([\S]+) size: [0-9]+`)
-	digestRegex     = regexp.MustCompile(`Digest: ([\S]+)`)
+	pushDigestRegex = regexp.MustCompile(`\S+: digest: (\S+) size: \d+`)
+	digestRegex     = regexp.MustCompile(`Digest: (\S+)`)
 )
 
 func setupImage(t *testing.T) (digest.Digest, error) {
