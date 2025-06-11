@@ -121,7 +121,7 @@ func (s *DockerCLIImportSuite) TestImportFileWithMessage(c *testing.T) {
 	split := strings.Split(out, "\n")
 
 	assert.Equal(c, len(split), 3, "expected 3 lines from image history")
-	r := regexp.MustCompile(`[\s]{2,}`)
+	r := regexp.MustCompile(`\s{2,}`)
 	split = r.Split(split[1], -1)
 
 	assert.Equal(c, message, split[3], "didn't get expected value in commit message")
