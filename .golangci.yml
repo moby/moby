@@ -226,6 +226,7 @@ linters:
             - preserve-scope
         - name: use-any
         - name: use-errors-new
+        - name: useless-break
         - name: var-declaration
 
     staticcheck:
