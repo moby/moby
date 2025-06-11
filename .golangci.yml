@@ -145,7 +145,6 @@ linters:
         - redundantSprint
         - regexpMust
         - regexpSimplify
-        - singleCaseSwitch
         - sloppyReassign
         - stringXbytes
         - typeAssertChain

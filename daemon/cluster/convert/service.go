@@ -694,8 +694,7 @@ func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) (types.TaskSpec, error) {
 	case *swarmapi.TaskSpec_Generic:
 		g := taskSpec.GetGeneric()
 		if g != nil {
-			switch g.Kind {
-			case string(types.RuntimePlugin):
+			if g.Kind == string(types.RuntimePlugin) {
 				var p runtime.PluginSpec
 				if err := proto.Unmarshal(g.Payload.Value, &p); err != nil {
 					return t, errors.Wrap(err, "error unmarshalling plugin spec")
