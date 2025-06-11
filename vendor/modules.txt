@@ -25,9 +25,6 @@ dario.cat/mergo
 # github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
 ## explicit; go 1.20
 github.com/AdaLogics/go-fuzz-headers
-# github.com/AdamKorcz/go-118-fuzz-build v0.0.0-20231105174938-2b5cbb29f3e2
-## explicit; go 1.18
-github.com/AdamKorcz/go-118-fuzz-build/testing
 # github.com/Azure/azure-sdk-for-go/sdk/azcore v1.16.0
 ## explicit; go 1.18
 github.com/Azure/azure-sdk-for-go/sdk/azcore
@@ -86,8 +83,8 @@ github.com/Microsoft/go-winio/pkg/etwlogrus
 github.com/Microsoft/go-winio/pkg/fs
 github.com/Microsoft/go-winio/pkg/guid
 github.com/Microsoft/go-winio/vhd
-# github.com/Microsoft/hcsshim v0.12.9
-## explicit; go 1.22
+# github.com/Microsoft/hcsshim v0.13.0
+## explicit; go 1.23.0
 github.com/Microsoft/hcsshim
 github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options
 github.com/Microsoft/hcsshim/computestorage
@@ -114,16 +111,11 @@ github.com/Microsoft/hcsshim/internal/runhcs
 github.com/Microsoft/hcsshim/internal/safefile
 github.com/Microsoft/hcsshim/internal/security
 github.com/Microsoft/hcsshim/internal/timeout
-github.com/Microsoft/hcsshim/internal/vhdx
 github.com/Microsoft/hcsshim/internal/vmcompute
 github.com/Microsoft/hcsshim/internal/wclayer
-github.com/Microsoft/hcsshim/internal/wclayer/cim
 github.com/Microsoft/hcsshim/internal/winapi
 github.com/Microsoft/hcsshim/osversion
-github.com/Microsoft/hcsshim/pkg/cimfs
-github.com/Microsoft/hcsshim/pkg/cimfs/format
 github.com/Microsoft/hcsshim/pkg/ociwclayer
-github.com/Microsoft/hcsshim/pkg/ociwclayer/cim
 # github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
 ## explicit
 github.com/RackSec/srslog
@@ -331,7 +323,7 @@ github.com/containerd/containerd/api/types/runc/options
 github.com/containerd/containerd/api/types/runtimeoptions/v1
 github.com/containerd/containerd/api/types/task
 github.com/containerd/containerd/api/types/transfer
-# github.com/containerd/containerd/v2 v2.0.5
+# github.com/containerd/containerd/v2 v2.1.1
 ## explicit; go 1.23.0
 github.com/containerd/containerd/v2/client
 github.com/containerd/containerd/v2/cmd/containerd/server/config
@@ -358,7 +350,6 @@ github.com/containerd/containerd/v2/core/remotes
 github.com/containerd/containerd/v2/core/remotes/docker
 github.com/containerd/containerd/v2/core/remotes/docker/auth
 github.com/containerd/containerd/v2/core/remotes/docker/config
-github.com/containerd/containerd/v2/core/remotes/docker/schema1
 github.com/containerd/containerd/v2/core/remotes/errors
 github.com/containerd/containerd/v2/core/sandbox
 github.com/containerd/containerd/v2/core/sandbox/proxy
@@ -374,6 +365,7 @@ github.com/containerd/containerd/v2/defaults
 github.com/containerd/containerd/v2/internal/cleanup
 github.com/containerd/containerd/v2/internal/fsverity
 github.com/containerd/containerd/v2/internal/kmutex
+github.com/containerd/containerd/v2/internal/lazyregexp
 github.com/containerd/containerd/v2/internal/randutil
 github.com/containerd/containerd/v2/internal/userns
 github.com/containerd/containerd/v2/pkg/apparmor
@@ -382,7 +374,6 @@ github.com/containerd/containerd/v2/pkg/archive/compression
 github.com/containerd/containerd/v2/pkg/archive/tarheader
 github.com/containerd/containerd/v2/pkg/cap
 github.com/containerd/containerd/v2/pkg/cio
-github.com/containerd/containerd/v2/pkg/deprecation
 github.com/containerd/containerd/v2/pkg/dialer
 github.com/containerd/containerd/v2/pkg/epoch
 github.com/containerd/containerd/v2/pkg/filters
@@ -457,7 +448,7 @@ github.com/containerd/ttrpc
 # github.com/containerd/typeurl/v2 v2.2.3
 ## explicit; go 1.21
 github.com/containerd/typeurl/v2
-# github.com/containernetworking/cni v1.2.3
+# github.com/containernetworking/cni v1.3.0
 ## explicit; go 1.21
 github.com/containernetworking/cni/libcni
 github.com/containernetworking/cni/pkg/invoke
@@ -469,8 +460,8 @@ github.com/containernetworking/cni/pkg/types/create
 github.com/containernetworking/cni/pkg/types/internal
 github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
-# github.com/containernetworking/plugins v1.6.2
-## explicit; go 1.23
+# github.com/containernetworking/plugins v1.7.1
+## explicit; go 1.23.0
 github.com/containernetworking/plugins/pkg/ns
 # github.com/coreos/go-systemd/v22 v22.5.0
 ## explicit; go 1.12
@@ -725,12 +716,13 @@ github.com/hashicorp/memberlist
 ## explicit
 github.com/hashicorp/serf/coordinate
 github.com/hashicorp/serf/serf
-# github.com/in-toto/in-toto-golang v0.5.0
-## explicit; go 1.17
+# github.com/in-toto/in-toto-golang v0.9.0
+## explicit; go 1.20
 github.com/in-toto/in-toto-golang/in_toto
 github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/common
 github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.1
 github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2
+github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v1
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
@@ -765,7 +757,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.22.0
+# github.com/moby/buildkit v0.23.0-rc1
 ## explicit; go 1.23.0
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -1150,20 +1142,22 @@ github.com/sasha-s/go-deadlock
 # github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 ## explicit
 github.com/sean-/seed
-# github.com/secure-systems-lab/go-securesystemslib v0.4.0
-## explicit; go 1.17
+# github.com/secure-systems-lab/go-securesystemslib v0.6.0
+## explicit; go 1.20
 github.com/secure-systems-lab/go-securesystemslib/cjson
 github.com/secure-systems-lab/go-securesystemslib/dsse
+github.com/secure-systems-lab/go-securesystemslib/signerverifier
 # github.com/shibumi/go-pathspec v1.3.0
 ## explicit; go 1.17
 github.com/shibumi/go-pathspec
 # github.com/sirupsen/logrus v1.9.3
 ## explicit; go 1.13
 github.com/sirupsen/logrus
-# github.com/spdx/tools-golang v0.5.3
+# github.com/spdx/tools-golang v0.5.5
 ## explicit; go 1.13
 github.com/spdx/tools-golang/convert
 github.com/spdx/tools-golang/json
+github.com/spdx/tools-golang/json/marshal
 github.com/spdx/tools-golang/spdx
 github.com/spdx/tools-golang/spdx/common
 github.com/spdx/tools-golang/spdx/v2/common
@@ -1191,18 +1185,18 @@ github.com/tinylib/msgp/msgp
 # github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323
 ## explicit; go 1.21
 github.com/tonistiigi/dchapes-mode
-# github.com/tonistiigi/fsutil v0.0.0-20250417144416-3f76f8130144
+# github.com/tonistiigi/fsutil v0.0.0-20250605211040-586307ad452f
 ## explicit; go 1.21
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy
 github.com/tonistiigi/fsutil/types
-# github.com/tonistiigi/go-actions-cache v0.0.0-20250228231703-3e9a6642607f
-## explicit; go 1.22
+# github.com/tonistiigi/go-actions-cache v0.0.0-20250611155157-388a2ec8cdf8
+## explicit; go 1.23.0
 github.com/tonistiigi/go-actions-cache
 # github.com/tonistiigi/go-archvariant v1.0.0
 ## explicit; go 1.17
 github.com/tonistiigi/go-archvariant
-# github.com/tonistiigi/go-csvvalue v0.0.0-20240710180619-ddb21b71c0b4
+# github.com/tonistiigi/go-csvvalue v0.0.0-20240814133006-030d3b2625d0
 ## explicit; go 1.16
 github.com/tonistiigi/go-csvvalue
 # github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea
@@ -1535,7 +1529,7 @@ google.golang.org/api/support/bundler
 google.golang.org/api/transport/grpc
 google.golang.org/api/transport/http
 google.golang.org/api/transport/http/internal/propagation
-# google.golang.org/genproto v0.0.0-20240123012728-ef4313101c80
+# google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/logging/type
 # google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a

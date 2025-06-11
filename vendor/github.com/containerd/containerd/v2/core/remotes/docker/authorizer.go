@@ -70,9 +70,18 @@ func WithAuthCreds(creds func(string) (string, string, error)) AuthorizerOpt {
 }
 
 // WithAuthHeader provides HTTP headers for authorization
+//
+// We need to merge instead of replacing because header may be set by
+// a per-host hosts.toml or/AND by a global header config (e.g., cri.config.headers)
 func WithAuthHeader(hdr http.Header) AuthorizerOpt {
 	return func(opt *authorizerConfig) {
-		opt.header = hdr
+		if opt.header == nil {
+			opt.header = hdr.Clone()
+		} else {
+			for k, v := range hdr {
+				opt.header[k] = append(opt.header[k], v...)
+			}
+		}
 	}
 }
 
@@ -88,7 +97,7 @@ func WithFetchRefreshToken(f OnFetchRefreshToken) AuthorizerOpt {
 
 // NewDockerAuthorizer creates an authorizer using Docker's registry
 // authentication spec.
-// See https://docs.docker.com/registry/spec/auth/
+// See https://distribution.github.io/distribution/spec/auth/
 func NewDockerAuthorizer(opts ...AuthorizerOpt) Authorizer {
 	var ao authorizerConfig
 	for _, opt := range opts {
@@ -269,7 +278,7 @@ func (ah *authHandler) doBearerAuth(ctx context.Context) (token, refreshToken st
 
 	to.Scopes = GetTokenScopes(ctx, to.Scopes)
 
-	// Docs: https://docs.docker.com/registry/spec/auth/scope
+	// Docs: https://distribution.github.io/distribution/spec/auth/scope/
 	scoped := strings.Join(to.Scopes, " ")
 
 	// Keep track of the expiration time of cached bearer tokens so they can be

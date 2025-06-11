@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -204,5 +205,5 @@ func (c *Cache) newRequestV2(url string, body func() io.Reader) *request {
 }
 
 func (c *Cache) urlV2(p string) string {
-	return c.URL + "twirp/github.actions.results.api.v1.CacheService/" + p
+	return strings.TrimRight(c.URL, "/") + "/twirp/github.actions.results.api.v1.CacheService/" + p
 }

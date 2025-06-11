@@ -51,7 +51,7 @@ func GetLocalListener(path string, uid, gid int) (net.Listener, error) {
 
 	l, err := CreateUnixSocket(path)
 	if err != nil {
-		return l, err
+		return l, fmt.Errorf("failed to create unix socket on %s: %w", path, err)
 	}
 
 	if err := os.Chmod(path, 0660); err != nil {

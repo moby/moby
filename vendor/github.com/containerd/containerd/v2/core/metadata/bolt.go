@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	bolt "go.etcd.io/bbolt"
+	errbolt "go.etcd.io/bbolt/errors"
 )
 
 type transactionKey struct{}
@@ -56,7 +57,7 @@ func update(ctx context.Context, db Transactor, fn func(*bolt.Tx) error) error {
 	if !ok {
 		return db.Update(fn)
 	} else if !tx.Writable() {
-		return fmt.Errorf("unable to use transaction from context: %w", bolt.ErrTxNotWritable)
+		return fmt.Errorf("unable to use transaction from context: %w", errbolt.ErrTxNotWritable)
 	}
 	return fn(tx)
 }

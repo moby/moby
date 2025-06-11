@@ -23,4 +23,5 @@ const (
 	PTICHeartbeatStatus           PropertyType = "ICHeartbeatStatus"
 	PTProcessorTopology           PropertyType = "ProcessorTopology"
 	PTCPUGroup                    PropertyType = "CpuGroup"
+	PTSystemGUID                  PropertyType = "SystemGUID"
 )

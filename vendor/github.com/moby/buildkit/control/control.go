@@ -35,6 +35,7 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/llbsolver/proc"
+	provenancetypes "github.com/moby/buildkit/solver/llbsolver/provenance/types"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/db"
@@ -508,7 +509,19 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 	}
 
 	if attrs, ok := attests["provenance"]; ok {
-		procs = append(procs, proc.ProvenanceProcessor(attrs))
+		var slsaVersion provenancetypes.ProvenanceSLSA
+		params := make(map[string]string)
+		for k, v := range attrs {
+			if k == "version" {
+				slsaVersion = provenancetypes.ProvenanceSLSA(v)
+				if err := slsaVersion.Validate(); err != nil {
+					return nil, err
+				}
+			} else {
+				params[k] = v
+			}
+		}
+		procs = append(procs, proc.ProvenanceProcessor(slsaVersion, params))
 	}
 
 	resp, err := c.solver.Solve(ctx, req.Ref, req.Session, frontend.SolveRequest{

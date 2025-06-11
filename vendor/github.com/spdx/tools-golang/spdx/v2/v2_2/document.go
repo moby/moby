@@ -120,6 +120,14 @@ func (d *Document) UnmarshalJSON(b []byte) error {
 		return fmt.Sprintf("%v-%v->%v", common.RenderDocElementID(refA), rel, common.RenderDocElementID(refB))
 	}
 
+	// remove null relationships
+	for i := 0; i < len(d.Relationships); i++ {
+		if d.Relationships[i] == nil {
+			d.Relationships = append(d.Relationships[0:i], d.Relationships[i+1:]...)
+			i--
+		}
+	}
+
 	// index current list of relationships to ensure no duplication
 	for _, r := range d.Relationships {
 		relationshipExists[serializeRel(r)] = true

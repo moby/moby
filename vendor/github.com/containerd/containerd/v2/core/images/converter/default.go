@@ -165,8 +165,6 @@ func (c *defaultConverter) convertManifest(ctx context.Context, cs content.Store
 	var mu sync.Mutex
 	eg, ctx2 := errgroup.WithContext(ctx)
 	for i, l := range manifest.Layers {
-		i := i
-		l := l
 		oldDiffID, err := images.GetDiffID(ctx, cs, l)
 		if err != nil {
 			return nil, err
@@ -249,8 +247,6 @@ func (c *defaultConverter) convertIndex(ctx context.Context, cs content.Store, d
 	var mu sync.Mutex
 	eg, ctx2 := errgroup.WithContext(ctx)
 	for i, mani := range index.Manifests {
-		i := i
-		mani := mani
 		labelKey := fmt.Sprintf("containerd.io/gc.ref.content.m.%d", i)
 		eg.Go(func() error {
 			if mani.Platform != nil && !c.platformMC.Match(*mani.Platform) {

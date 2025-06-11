@@ -1,7 +1,7 @@
 #syntax=docker/dockerfile:1.8
 #check=error=true
 
-ARG GO_VERSION=1.22
+ARG GO_VERSION=1.23
 ARG XX_VERSION=1.4.0
 
 ARG COVER_FILENAME="cover.out"

@@ -85,7 +85,7 @@ func CalculateImageUsage(ctx context.Context, i images.Image, provider content.I
 
 	var (
 		handler   = images.ChildrenHandler(provider)
-		size      int64
+		size      atomic.Int64
 		mustExist bool
 	)
 
@@ -153,7 +153,7 @@ func CalculateImageUsage(ctx context.Context, i images.Image, provider content.I
 			usage += desc.Size
 		}
 
-		atomic.AddInt64(&size, usage)
+		size.Add(usage)
 
 		return children, nil
 	}
@@ -163,5 +163,5 @@ func CalculateImageUsage(ctx context.Context, i images.Image, provider content.I
 		return 0, err
 	}
 
-	return size, nil
+	return size.Load(), nil
 }

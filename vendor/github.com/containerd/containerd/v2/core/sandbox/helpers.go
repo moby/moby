@@ -53,7 +53,6 @@ func FromProto(sandboxpb *types.Sandbox) Sandbox {
 
 	extensions := make(map[string]typeurl.Any)
 	for k, v := range sandboxpb.Extensions {
-		v := v
 		extensions[k] = v
 	}
 

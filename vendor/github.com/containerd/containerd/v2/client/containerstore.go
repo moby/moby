@@ -181,7 +181,6 @@ func containerFromProto(containerpb *containersapi.Container) containers.Contain
 	}
 	extensions := make(map[string]typeurl.Any)
 	for k, v := range containerpb.Extensions {
-		v := v
 		extensions[k] = v
 	}
 	return containers.Container{
@@ -203,7 +202,6 @@ func containersFromProto(containerspb []*containersapi.Container) []containers.C
 	var containers []containers.Container
 
 	for _, container := range containerspb {
-		container := container
 		containers = append(containers, containerFromProto(container))
 	}
 

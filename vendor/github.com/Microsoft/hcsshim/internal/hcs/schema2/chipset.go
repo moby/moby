@@ -24,4 +24,6 @@ type Chipset struct {
 
 	// LinuxKernelDirect - Added in v2.2 Builds >=181117
 	LinuxKernelDirect *LinuxKernelDirect `json:"LinuxKernelDirect,omitempty"`
+
+	FirmwareFile *FirmwareFile `json:"FirmwareFile,omitempty"`
 }
