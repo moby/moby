@@ -213,6 +213,7 @@ linters:
         - name: early-return
           arguments:
             - preserve-scope
+        - name: if-return
         - name: indent-error-flow
           arguments:
             - preserve-scope
