@@ -371,7 +371,7 @@ func (w *LogFile) Close() error {
 	close(w.closed)
 	// Wait until any in-progress rotation is complete.
 	w.rotateMu.Lock()
-	w.rotateMu.Unlock() //nolint:staticcheck,gocritic
+	defer w.rotateMu.Unlock()
 	return nil
 }
 
