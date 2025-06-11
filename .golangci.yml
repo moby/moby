@@ -118,7 +118,6 @@ linters:
         - appendCombine
         - builtinShadow
         - builtinShadowDecl
-        - captLocal
         - commentedOutCode
         - deferInLoop
         - dupImport
