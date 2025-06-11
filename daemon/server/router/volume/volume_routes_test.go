@@ -714,7 +714,7 @@ func (c *fakeClusterBackend) CreateVolume(volumeCreate volume.CreateOptions) (*v
 		Spec: *volumeCreate.ClusterVolumeSpec,
 	}
 
-	c.idCount = c.idCount + 1
+	c.idCount++
 	if c.volumes == nil {
 		c.volumes = map[string]*volume.Volume{
 			v.Name: v,
@@ -754,7 +754,7 @@ func (c *fakeClusterBackend) UpdateVolume(nameOrID string, version uint64, _ vol
 		if v.ClusterVolume.Meta.Version.Index != version {
 			return errors.New("wrong version")
 		}
-		v.ClusterVolume.Meta.Version.Index = v.ClusterVolume.Meta.Version.Index + 1
+		v.ClusterVolume.Meta.Version.Index++
 		// for testing, we don't actually need to change anything about the
 		// volume object. let's just increment the version so we can see the
 		// call happened.
