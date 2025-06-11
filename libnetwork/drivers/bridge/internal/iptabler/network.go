@@ -76,10 +76,7 @@ func (n *network) configure(ctx context.Context, ipv iptables.IPVersion, conf fi
 		// This preserves https://github.com/moby/moby/commit/8cc4d1d4a2b6408232041f9ba4dff966eba80cc0
 		return setINC(ctx, ipv, n.config.IfName, conf.Routed, false)
 	}
-	if err := n.setupIPTables(ctx, ipv, conf); err != nil {
-		return err
-	}
-	return nil
+	return n.setupIPTables(ctx, ipv, conf)
 }
 
 func (n *network) registerCleanFunc(clean iptableCleanFunc) {
