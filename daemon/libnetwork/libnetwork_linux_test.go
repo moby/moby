@@ -1385,7 +1385,7 @@ func TestResolvConf(t *testing.T) {
 
 			finfo, err := os.Stat(resolvConfPath)
 			assert.NilError(t, err)
-			expFMode := (os.FileMode)(0o644)
+			expFMode := os.FileMode(0o644)
 			assert.Check(t, is.Equal(finfo.Mode().String(), expFMode.String()))
 			content, err := os.ReadFile(resolvConfPath)
 			assert.NilError(t, err)
