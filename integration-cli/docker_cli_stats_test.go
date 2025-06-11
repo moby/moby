@@ -155,8 +155,7 @@ func (s *DockerCLIStatsSuite) TestStatsAllNewContainersAdded(c *testing.T) {
 
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
-			switch {
-			case matchID.MatchString(scanner.Text()):
+			if matchID.MatchString(scanner.Text()) {
 				close(addedChan)
 				return
 			}
