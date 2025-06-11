@@ -22,7 +22,7 @@ consumes:
 basePath: "/v1.50"
 info:
   title: "Docker Engine API"
-  version: "1.50"
+  version: "1.51"
   x-logo:
     url: "https://docs.docker.com/assets/images/logo-docker-main.png"
   description: |

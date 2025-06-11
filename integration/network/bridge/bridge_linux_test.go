@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -574,6 +575,57 @@ func TestAllPortMappingsAreReturned(t *testing.T) {
 		},
 		"81/tcp": nil,
 	})
+}
+
+// TestInvalidPortBindings verifies the behavior of the daemon when an invalid
+// port binding is passed to the ContainerCreate endpoint.
+func TestInvalidPortBindings(t *testing.T) {
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+
+	testcases := []struct {
+		name        string
+		portBinding nat.PortMap
+		expErr      string // expErr is either the warning or the error message returned for this test case
+	}{
+		{
+			name:        "no protocol fragment",
+			portBinding: nat.PortMap{"80": {}},
+			expErr:      `port binding "80" has no protocol specified`,
+		},
+		{
+			name:        "empty protocol",
+			portBinding: nat.PortMap{"80/": {}},
+			expErr:      `port binding "80/" has no protocol specified`,
+		},
+		{
+			name:        "invalid container port spec",
+			portBinding: nat.PortMap{"80/tcp/foobar": {}},
+			expErr:      `invalid port binding "80/tcp/foobar"`,
+		},
+		{
+			name:        "empty container port spec",
+			portBinding: nat.PortMap{"": {}},
+			expErr:      `invalid port binding ""`,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			config := ctr.NewTestConfig(ctr.WithPortMap(tc.portBinding))
+			resp, err := c.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
+
+			if versions.LessThan(c.ClientVersion(), "1.52") {
+				assert.NilError(t, err)
+				assert.Check(t, slices.Contains(resp.Warnings, tc.expErr), "expected warning %q in: %+v", tc.expErr, resp.Warnings)
+			} else {
+				assert.Error(t, err, tc.expErr)
+			}
+		})
+	}
 }
 
 // TestFirewalldReloadNoZombies checks that when firewalld is reloaded, rules
