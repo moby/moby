@@ -77,7 +77,7 @@ func WrapMountTest(imageFileName string, enableQuota bool, testFunc func(t *test
 		mountOptions := "loop"
 
 		if enableQuota {
-			mountOptions = mountOptions + ",prjquota"
+			mountOptions += ",prjquota"
 		}
 
 		mountPoint := t.TempDir()
