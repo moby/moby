@@ -248,6 +248,7 @@ linters:
         - name: use-any
           disabled: true
         - name: use-errors-new
+        - name: useless-break
         - name: var-declaration
         - name: var-naming
           disabled: true
