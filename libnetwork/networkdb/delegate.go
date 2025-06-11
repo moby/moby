@@ -179,6 +179,14 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 			nDB.Unlock()
 			return false
 		}
+	} else if tEvent.Type == TableEventTypeDelete && !isBulkSync {
+		nDB.Unlock()
+		// We don't know the entry, the entry is being deleted and the message is an async message
+		// In this case the safest approach is to ignore it, it is possible that the queue grew so much to
+		// exceed the garbage collection time (the residual reap time that is in the message is not being
+		// updated, to avoid inserting too many messages in the queue).
+		// Instead the messages coming from TCP bulk sync are safe with the latest value for the garbage collection time
+		return false
 	}
 
 	e := &entry{
@@ -200,24 +208,18 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 	nDB.createOrUpdateEntry(tEvent.NetworkID, tEvent.TableName, tEvent.Key, e)
 	nDB.Unlock()
 
-	if !entryPresent && tEvent.Type == TableEventTypeDelete {
-		// We will rebroadcast the message for an unknown entry if all the conditions are met:
-		// 1) the message was received from a bulk sync
-		// 2) we had already synced this network (during the network join)
-		// 3) the residual reapTime is higher than 1/6 of the total reapTime.
-		//
-		// If the residual reapTime is lower or equal to 1/6 of the total reapTime
-		// don't bother broadcasting it around as most likely the cluster is already aware of it.
-		// This also reduces the possibility that deletion of entries close to their garbage collection
-		// ends up circling around forever.
-		//
-		// The safest approach is to not rebroadcast async messages for unknown entries.
-		// It is possible that the queue grew so much to exceed the garbage collection time
-		// (the residual reap time that is in the message is not being updated, to avoid
-		// inserting too many messages in the queue).
-
+	if err != nil && tEvent.Type == TableEventTypeDelete {
+		// Again we don't know the entry but this is coming from a TCP sync so the message body is up to date.
+		// We had saved the state so to speed up convergence and be able to avoid accepting create events.
+		// Now we will rebroadcast the message if 2 conditions are met:
+		// 1) we had already synced this network (during the network join)
+		// 2) the residual reapTime is higher than 1/6 of the total reapTime.
+		// If the residual reapTime is lower or equal to 1/6 of the total reapTime don't bother broadcasting it around
+		// most likely the cluster is already aware of it
+		// This also reduce the possibility that deletion of entries close to their garbage collection ends up circling around
+		// forever
 		// log.G(ctx).Infof("exiting on delete not knowing the obj with rebroadcast:%t", network.inSync)
-		return isBulkSync && network.inSync && e.reapTime > nDB.config.reapEntryInterval/6
+		return network.inSync && e.reapTime > nDB.config.reapEntryInterval/6
 	}
 
 	var op opType
