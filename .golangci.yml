@@ -134,7 +134,6 @@ linters:
         - hugeParam
         - ifElseChain
         - importShadow
-        - indexAlloc
         - methodExprCall
         - nestingReduce
         - nilValReturn
