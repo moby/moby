@@ -76,7 +76,7 @@ func doesSupportNativeDiff(d string) error {
 
 	mountFlags := "lowerdir=%s:%s,upperdir=%s,workdir=%s"
 	if userxattr {
-		mountFlags = mountFlags + ",userxattr"
+		mountFlags += ",userxattr"
 	}
 
 	opts := fmt.Sprintf(mountFlags, path.Join(td, "l2"), path.Join(td, "l1"), path.Join(td, "l3"), path.Join(td, workDirName))
