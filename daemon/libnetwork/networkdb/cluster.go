@@ -232,7 +232,7 @@ func (nDB *NetworkDB) clusterLeave() error {
 	return mlist.Shutdown()
 }
 
-func (nDB *NetworkDB) triggerFunc(stagger time.Duration, C <-chan time.Time, f func()) {
+func (nDB *NetworkDB) triggerFunc(stagger time.Duration, c <-chan time.Time, f func()) {
 	// Use a random stagger to avoid synchronizing
 	randStagger := time.Duration(uint64(rnd.Int63()) % uint64(stagger)) //nolint:gosec // gosec complains about the use of rand here. It should be fine.
 	select {
@@ -242,7 +242,7 @@ func (nDB *NetworkDB) triggerFunc(stagger time.Duration, C <-chan time.Time, f f
 	}
 	for {
 		select {
-		case <-C:
+		case <-c:
 			f()
 		case <-nDB.ctx.Done():
 			return
