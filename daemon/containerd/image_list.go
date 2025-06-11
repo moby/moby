@@ -179,7 +179,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 			if opts.SharedSize {
 				root = append(root, &multiSummary.AllChainIDs)
 				for _, id := range multiSummary.AllChainIDs {
-					layers[id] = layers[id] + 1
+					layers[id]++
 				}
 			}
 			resultsMut.Unlock()
