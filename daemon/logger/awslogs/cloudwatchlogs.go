@@ -386,8 +386,7 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 		) (
 			out smithymiddleware.BuildOutput, metadata smithymiddleware.Metadata, err error,
 		) {
-			switch v := in.Request.(type) {
-			case *smithyhttp.Request:
+			if v, ok := in.Request.(*smithyhttp.Request); ok {
 				v.Header.Add(logsFormatHeader, jsonEmfLogFormat)
 			}
 			return next.HandleBuild(ctx, in)
