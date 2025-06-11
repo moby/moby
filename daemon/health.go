@@ -427,7 +427,7 @@ func (b *limitedBuffer) String() string {
 
 	out := b.buf.String()
 	if b.truncated {
-		out = out + "..."
+		out += "..."
 	}
 	return out
 }

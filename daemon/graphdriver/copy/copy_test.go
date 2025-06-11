@@ -78,7 +78,7 @@ func TestCopyDir(t *testing.T) {
 
 func randomMode(baseMode int) os.FileMode {
 	for i := 0; i < 7; i++ {
-		baseMode = baseMode | (1&rand.Intn(2))<<uint(i)
+		baseMode |= (1 & rand.Intn(2)) << uint(i)
 	}
 	return os.FileMode(baseMode)
 }
