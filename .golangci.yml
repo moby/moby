@@ -158,7 +158,6 @@ linters:
         - unlambda
         - unnamedResult
         - unnecessaryDefer
-        - unslice
         - whyNoLint
       enable-all: true
 

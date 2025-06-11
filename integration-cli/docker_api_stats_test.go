@@ -145,7 +145,7 @@ func (s *DockerAPISuite) TestAPIStatsNetworkStats(c *testing.T) {
 		}
 	}
 	assert.NilError(c, err)
-	pingouts := string(pingout[:])
+	pingouts := string(pingout)
 	nwStatsPost := getNetworkStats(c, id)
 	for _, v := range nwStatsPost {
 		postRxPackets += v.RxPackets

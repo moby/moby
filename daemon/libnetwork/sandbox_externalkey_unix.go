@@ -105,7 +105,7 @@ func setExternalKey(ctx context.Context, shortCtlrID string, containerID string,
 
 func processReturn(r io.Reader) error {
 	buf := make([]byte, 1024)
-	n, err := r.Read(buf[:])
+	n, err := r.Read(buf)
 	if err != nil {
 		return fmt.Errorf("failed to read buf in processReturn : %v", err)
 	}
