@@ -864,8 +864,8 @@ func TestFlakyNetworkDBIslands(t *testing.T) {
 	_ = log.SetLevel("debug")
 	conf := DefaultConfig()
 	// Shorten durations to speed up test execution.
-	conf.rejoinClusterDuration = conf.rejoinClusterDuration / 10
-	conf.rejoinClusterInterval = conf.rejoinClusterInterval / 10
+	conf.rejoinClusterDuration /= 10
+	conf.rejoinClusterInterval /= 10
 	dbs := createNetworkDBInstances(t, 5, "node", conf)
 
 	// Get the node IP used currently
