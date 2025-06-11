@@ -142,7 +142,6 @@ linters:
         - preferStringWriter
         - ptrToRefParam
         - rangeValCopy
-        - redundantSprint
         - regexpMust
         - sloppyReassign
         - stringXbytes

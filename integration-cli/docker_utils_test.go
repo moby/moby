@@ -407,7 +407,7 @@ func reducedCheck(r reducer, funcs ...checkF) checkF {
 				comments = append(comments, comment)
 			}
 		}
-		return r(values...), fmt.Sprintf("%v", strings.Join(comments, ", "))
+		return r(values...), strings.Join(comments, ", ")
 	}
 }
 
