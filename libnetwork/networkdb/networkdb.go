@@ -429,11 +429,8 @@ type TableElem struct {
 // GetTableByNetwork walks the networkdb by the give table and network id and
 // returns a map of keys and values
 func (nDB *NetworkDB) GetTableByNetwork(tname, nid string) map[string]*TableElem {
-	nDB.RLock()
-	root := nDB.indexes[byNetwork].Root()
-	nDB.RUnlock()
 	entries := make(map[string]*TableElem)
-	root.WalkPrefix([]byte(fmt.Sprintf("/%s/%s", tname, nid)), func(k []byte, v *entry) bool {
+	nDB.indexes[byTable].Root().WalkPrefix([]byte(fmt.Sprintf("/%s/%s", tname, nid)), func(k []byte, v *entry) bool {
 		if v.deleting {
 			return false
 		}
@@ -588,14 +585,21 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 // value. The walk stops if the passed function returns a true.
 func (nDB *NetworkDB) WalkTable(tname string, fn func(string, string, []byte, bool) bool) error {
 	nDB.RLock()
-	root := nDB.indexes[byTable].Root()
+	values := make(map[string]*entry)
+	nDB.indexes[byTable].Root().WalkPrefix([]byte("/"+tname), func(path []byte, v *entry) bool {
+		values[string(path)] = v
+		return false
+	})
 	nDB.RUnlock()
-	root.WalkPrefix([]byte("/"+tname), func(path []byte, v *entry) bool {
-		params := strings.Split(string(path[1:]), "/")
+
+	for k, v := range values {
+		params := strings.Split(k[1:], "/")
 		nid := params[1]
 		key := params[2]
-		return fn(nid, key, v.value, v.deleting)
-	})
+		if fn(nid, key, v.value, v.deleting) {
+			return nil
+		}
+	}
 
 	return nil
 }
