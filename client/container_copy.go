@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -86,6 +87,13 @@ func (cli *Client) CopyFromContainer(ctx context.Context, containerID, srcPath s
 	if err != nil {
 		return nil, stat, fmt.Errorf("unable to get resource stat from response: %s", err)
 	}
+
+	// Strict validation: if path ends with "/", it must be a directory
+	if strings.HasSuffix(srcPath, "/") && stat.Mode&os.ModeDir == 0 {
+		resp.Body.Close()
+		return nil, stat, fmt.Errorf("path %q ends with '/', but is not a directory. The filename, directory name, or volume label syntax is incorrect", srcPath)
+	}
+
 	return resp.Body, stat, err
 }
 
