@@ -543,9 +543,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 	return d.initStore()
 }
 
-var newFirewaller = func(ctx context.Context, config firewaller.Config) (firewaller.Firewaller, error) {
-	return iptabler.NewIptabler(ctx, config)
-}
+var newFirewaller = iptabler.NewIptabler
 
 func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {
 	d.Lock()
