@@ -112,6 +112,10 @@ func (i *ImageService) getBestPresentImageManifest(ctx context.Context, img c8di
 	return best, nil
 }
 
+func (i *ImageService) ResolveDescriptor(ctx context.Context, refOrID string, options backend.GetImageOpts) (ocispec.Descriptor, error) {
+	return i.resolveDescriptor(ctx, refOrID)
+}
+
 // resolveDescriptor searches for a descriptor based on the given
 // reference or identifier. Returns the descriptor of
 // the image, which could be a manifest list, manifest, or config.

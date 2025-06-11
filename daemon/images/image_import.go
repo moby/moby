@@ -6,6 +6,7 @@ import (
 	"io"
 	"time"
 
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/container"
@@ -26,27 +27,27 @@ import (
 // If the platform is nil, the default host platform is used.
 // Message is used as the image's history comment.
 // Image configuration is derived from the dockerfile instructions in changes.
-func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error) {
+func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (ocispec.Descriptor, error) {
 	if platform == nil {
 		def := platforms.DefaultSpec()
 		platform = &def
 	}
 	if err := image.CheckOS(platform.OS); err != nil {
-		return "", err
+		return ocispec.Descriptor{}, err
 	}
 
 	config, err := dockerfile.BuildFromConfig(ctx, &container.Config{}, changes, platform.OS)
 	if err != nil {
-		return "", errdefs.InvalidParameter(err)
+		return ocispec.Descriptor{}, errdefs.InvalidParameter(err)
 	}
 
 	inflatedLayerData, err := compression.DecompressStream(layerReader)
 	if err != nil {
-		return "", err
+		return ocispec.Descriptor{}, err
 	}
 	l, err := i.layerStore.Register(inflatedLayerData, "")
 	if err != nil {
-		return "", err
+		return ocispec.Descriptor{}, err
 	}
 	defer layer.ReleaseAndLog(i.layerStore, l)
 
@@ -71,20 +72,25 @@ func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, 
 		}},
 	})
 	if err != nil {
-		return "", err
+		return ocispec.Descriptor{}, err
 	}
 
 	id, err := i.imageStore.Create(imgConfig)
 	if err != nil {
-		return "", err
+		return ocispec.Descriptor{}, err
+	}
+	desc := ocispec.Descriptor{
+		MediaType: c8dimages.MediaTypeDockerSchema2Config,
+		Digest:    id.Digest(),
+		Size:      int64(len(imgConfig)),
 	}
 
 	if newRef != nil {
-		if err := i.TagImage(ctx, id, newRef); err != nil {
-			return "", err
+		if err := i.TagImage(ctx, desc, newRef); err != nil {
+			return ocispec.Descriptor{}, err
 		}
 	}
 
 	i.LogImageEvent(ctx, id.String(), id.String(), events.ActionImport)
-	return id, nil
+	return desc, nil
 }

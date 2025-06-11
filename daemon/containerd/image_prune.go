@@ -166,7 +166,7 @@ func filterImagesUsedByContainers(ctx context.Context,
 	// Exclude images used by existing containers
 	for _, ctr := range allContainers {
 		// If the original image was force deleted, make sure we don't delete the dangling image
-		delete(imagesToPrune, danglingImageName(ctr.ImageID.Digest()))
+		delete(imagesToPrune, danglingImageName(digest.Digest(ctr.ImageID)))
 
 		// Config.Image is the image reference passed by user.
 		// Config.ImageID is the resolved content digest based on the user's Config.Image.
