@@ -1328,7 +1328,7 @@ func (s *DockerCLIRunSuite) TestRunNonRootUserResolvName(c *testing.T) {
 
 	cID := getIDByName(c, "testperm")
 
-	fmode := (os.FileMode)(0o644)
+	fmode := os.FileMode(0o644)
 	finfo, err := os.Stat(containerStorageFile(cID, "resolv.conf"))
 	if err != nil {
 		c.Fatal(err)
