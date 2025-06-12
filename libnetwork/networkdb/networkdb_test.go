@@ -6,11 +6,14 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
+	"text/tabwriter"
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
@@ -23,7 +26,7 @@ var dbPort int32 = 10000
 
 func TestMain(m *testing.M) {
 	os.WriteFile("/proc/sys/net/ipv6/conf/lo/disable_ipv6", []byte{'0', '\n'}, 0o644)
-	log.SetLevel("error")
+	log.SetLevel("debug")
 	os.Exit(m.Run())
 }
 
@@ -81,18 +84,14 @@ func (nDB *NetworkDB) verifyNodeExistence(t *testing.T, node string, present boo
 		nDB.RLock()
 		_, ok := nDB.nodes[node]
 		nDB.RUnlock()
-		if present && ok {
-			return
-		}
-
-		if !present && !ok {
+		if present == ok {
 			return
 		}
 
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	t.Errorf("%v(%v): Node existence verification for node %s failed", nDB.config.Hostname, nDB.config.NodeID, node)
+	t.Errorf("%v(%v): expected node %s existence in the cluster = %v, got %v", nDB.config.Hostname, nDB.config.NodeID, node, present, !present)
 }
 
 func (nDB *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string, present bool) {
@@ -105,6 +104,7 @@ func (nDB *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id strin
 	} else {
 		maxRetries = 80
 	}
+	var ok, leaving bool
 	for i := int64(0); i < maxRetries; i++ {
 		nDB.RLock()
 		var vn *network
@@ -119,35 +119,49 @@ func (nDB *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id strin
 				}
 			}
 		}
-		exists := vn != nil && !vn.leaving
+		ok = vn != nil
+		leaving = ok && vn.leaving
 		nDB.RUnlock()
 
-		if present == exists {
+		if present == (ok && !leaving) {
 			return
 		}
 
 		time.Sleep(sleepInterval)
 	}
 
-	t.Error("Network existence verification failed")
+	if present {
+		t.Errorf("%v(%v): want node %v to be a member of network %q, got that it is not a member (ok=%v, leaving=%v)",
+			nDB.config.Hostname, nDB.config.NodeID, node, id, ok, leaving)
+	} else {
+		t.Errorf("%v(%v): want node %v to not be a member of network %q, got that it is a member (ok=%v, leaving=%v)",
+			nDB.config.Hostname, nDB.config.NodeID, node, id, ok, leaving)
+	}
 }
 
 func (nDB *NetworkDB) verifyEntryExistence(t *testing.T, tname, nid, key, value string, present bool) {
 	t.Helper()
 	n := 80
+	var v []byte
 	for i := 0; i < n; i++ {
-		v, err := nDB.GetEntry(tname, nid, key)
+		var err error
+		v, err = nDB.GetEntry(tname, nid, key)
 		if present && err == nil && string(v) == value {
 			return
 		}
-		if err != nil && !present {
+		if errdefs.IsNotFound(err) && !present {
 			return
+		}
+		if err != nil && !errdefs.IsNotFound(err) {
+			t.Errorf("%v(%v): unexpected error while getting entry %v/%v in network %q: %v",
+				nDB.config.Hostname, nDB.config.NodeID, tname, key, nid, err)
 		}
 
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	t.Errorf("Entry existence verification test failed for %v(%v)", nDB.config.Hostname, nDB.config.NodeID)
+	t.Errorf("%v(%v): want entry %v/%v in network %q to be (present=%v, value=%q), got (present=%v, value=%q)",
+		nDB.config.Hostname, nDB.config.NodeID, tname, key, nid, present, value, !present, string(v))
 }
 
 func testWatch(t *testing.T, ch chan events.Event, ev interface{}, tname, nid, key, value string) {
@@ -270,6 +284,19 @@ func TestNetworkDBCRUDTableEntry(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
+func (nDB *NetworkDB) dumpTable(t *testing.T, tname string) {
+	t.Helper()
+	var b strings.Builder
+	tw := tabwriter.NewWriter(&b, 10, 1, 1, ' ', 0)
+	tw.Write([]byte("NetworkID\tKey\tValue\tFlags\n"))
+	nDB.WalkTable(tname, func(nid, key string, value []byte, deleting bool) bool {
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%v\n", nid, key, string(value), map[bool]string{true: "D"}[deleting])
+		return false
+	})
+	tw.Flush()
+	t.Logf("%s(%s): Table %s:\n%s", nDB.config.Hostname, nDB.config.NodeID, tname, b.String())
+}
+
 func TestNetworkDBCRUDTableEntries(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
@@ -298,18 +325,24 @@ func TestNetworkDBCRUDTableEntries(t *testing.T) {
 		assert.NilError(t, err)
 	}
 
+	for n := range dbs {
+		dbs[n].dumpTable(t, "test_table")
+	}
+
 	for i := 1; i <= n; i++ {
 		dbs[0].verifyEntryExistence(t, "test_table", "network1",
 			fmt.Sprintf("test_key1%d", i),
 			fmt.Sprintf("test_value1%d", i), true)
-		assert.NilError(t, err)
 	}
 
 	for i := 1; i <= n; i++ {
 		dbs[1].verifyEntryExistence(t, "test_table", "network1",
 			fmt.Sprintf("test_key0%d", i),
 			fmt.Sprintf("test_value0%d", i), true)
-		assert.NilError(t, err)
+	}
+
+	for n := range dbs {
+		dbs[n].dumpTable(t, "test_table")
 	}
 
 	// Verify deletes
@@ -328,13 +361,15 @@ func TestNetworkDBCRUDTableEntries(t *testing.T) {
 	for i := 1; i <= n; i++ {
 		dbs[0].verifyEntryExistence(t, "test_table", "network1",
 			fmt.Sprintf("test_key1%d", i), "", false)
-		assert.NilError(t, err)
 	}
 
 	for i := 1; i <= n; i++ {
 		dbs[1].verifyEntryExistence(t, "test_table", "network1",
 			fmt.Sprintf("test_key0%d", i), "", false)
-		assert.NilError(t, err)
+	}
+
+	for n := range dbs {
+		dbs[n].dumpTable(t, "test_table")
 	}
 
 	closeNetworkDBInstances(t, dbs)
