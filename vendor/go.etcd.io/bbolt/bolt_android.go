@@ -1,6 +1,3 @@
-//go:build aix
-// +build aix
-
 package bbolt
 
 import (
@@ -64,7 +61,9 @@ func mmap(db *DB, sz int) error {
 	}
 
 	// Advise the kernel that the mmap is accessed randomly.
-	if err := unix.Madvise(b, syscall.MADV_RANDOM); err != nil {
+	err = unix.Madvise(b, syscall.MADV_RANDOM)
+	if err != nil && err != syscall.ENOSYS {
+		// Ignore not implemented error in kernel because it still works.
 		return fmt.Errorf("madvise: %s", err)
 	}
 
