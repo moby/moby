@@ -39,9 +39,24 @@ const (
 // to shift the filesystem ownership (user namespace mapping) automatically; currently
 // supported by the fuse-overlayfs and overlay snapshotters
 func WithRemapperLabels(ctrUID, hostUID, ctrGID, hostGID, length uint32) snapshots.Opt {
+	uidMap := []specs.LinuxIDMapping{{ContainerID: ctrUID, HostID: hostUID, Size: length}}
+	gidMap := []specs.LinuxIDMapping{{ContainerID: ctrGID, HostID: hostGID, Size: length}}
+	return WithUserNSRemapperLabels(uidMap, gidMap)
+}
+
+// WithUserNSRemapperLabels creates the labels used by any supporting snapshotter
+// to shift the filesystem ownership (user namespace mapping) automatically; currently
+// supported by the fuse-overlayfs and overlay snapshotters
+func WithUserNSRemapperLabels(uidmaps, gidmaps []specs.LinuxIDMapping) snapshots.Opt {
+	idMap := userns.IDMap{
+		UidMap: uidmaps,
+		GidMap: gidmaps,
+	}
+	uidmapLabel, gidmapLabel := idMap.Marshal()
 	return snapshots.WithLabels(map[string]string{
-		snapshots.LabelSnapshotUIDMapping: fmt.Sprintf("%d:%d:%d", ctrUID, hostUID, length),
-		snapshots.LabelSnapshotGIDMapping: fmt.Sprintf("%d:%d:%d", ctrGID, hostGID, length)})
+		snapshots.LabelSnapshotUIDMapping: uidmapLabel,
+		snapshots.LabelSnapshotGIDMapping: gidmapLabel,
+	})
 }
 
 func resolveSnapshotOptions(ctx context.Context, client *Client, snapshotterName string, snapshotter snapshots.Snapshotter, parent string, opts ...snapshots.Opt) (string, error) {
@@ -89,27 +104,15 @@ func resolveSnapshotOptions(ctx context.Context, client *Client, snapshotterName
 		return "", fmt.Errorf("snapshotter %q doesn't support idmap mounts on this host, configure `slow_chown` to allow a slower and expensive fallback", snapshotterName)
 	}
 
-	var uidMap, gidMap specs.LinuxIDMapping
-	_, err = fmt.Sscanf(uidMapLabel, "%d:%d:%d", &uidMap.ContainerID, &uidMap.HostID, &uidMap.Size)
-	if err != nil {
-		return "", fmt.Errorf("uidMapLabel unparsable: %w", err)
-	}
-	_, err = fmt.Sscanf(gidMapLabel, "%d:%d:%d", &gidMap.ContainerID, &gidMap.HostID, &gidMap.Size)
-	if err != nil {
-		return "", fmt.Errorf("gidMapLabel unparsable: %w", err)
+	rsn := remappedSnapshot{Parent: parent}
+	if err = rsn.IDMap.Unmarshal(uidMapLabel, gidMapLabel); err != nil {
+		return "", fmt.Errorf("failed to unmarshal uid/gid map snapshotter labels: %w", err)
 	}
 
-	if uidMap.ContainerID != 0 || gidMap.ContainerID != 0 {
-		return "", fmt.Errorf("Container UID/GID of 0 only supported currently (%d/%d)", uidMap.ContainerID, gidMap.ContainerID)
+	if _, err := rsn.IDMap.RootPair(); err != nil {
+		return "", fmt.Errorf("container UID/GID mapping entries of 0 are required but not found")
 	}
 
-	rsn := remappedSnapshot{
-		Parent: parent,
-		IDMap: userns.IDMap{
-			UidMap: []specs.LinuxIDMapping{uidMap},
-			GidMap: []specs.LinuxIDMapping{gidMap},
-		},
-	}
 	usernsID, err := rsn.ID()
 	if err != nil {
 		return "", fmt.Errorf("failed to remap snapshot: %w", err)

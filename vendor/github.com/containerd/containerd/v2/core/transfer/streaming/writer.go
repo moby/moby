@@ -56,7 +56,7 @@ func WriteByteStream(ctx context.Context, stream streaming.Stream) io.WriteClose
 			}
 			switch v := i.(type) {
 			case *transferapi.WindowUpdate:
-				atomic.AddInt32(&wbs.remaining, v.Update)
+				wbs.remaining.Add(v.Update)
 				select {
 				case <-ctx.Done():
 					return
@@ -76,13 +76,13 @@ func WriteByteStream(ctx context.Context, stream streaming.Stream) io.WriteClose
 type writeByteStream struct {
 	ctx       context.Context
 	stream    streaming.Stream
-	remaining int32
+	remaining atomic.Int32
 	updated   chan struct{}
 }
 
 func (wbs *writeByteStream) Write(p []byte) (n int, err error) {
 	for len(p) > 0 {
-		remaining := atomic.LoadInt32(&wbs.remaining)
+		remaining := wbs.remaining.Load()
 		if remaining == 0 {
 			// Don't wait for window update since there are remaining
 			select {
@@ -120,7 +120,7 @@ func (wbs *writeByteStream) Write(p []byte) (n int, err error) {
 		}
 		n += int(max)
 		p = p[max:]
-		atomic.AddInt32(&wbs.remaining, -1*max)
+		wbs.remaining.Add(-1 * max)
 	}
 	return
 }

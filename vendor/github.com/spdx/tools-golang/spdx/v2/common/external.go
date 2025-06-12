@@ -21,10 +21,14 @@ const (
 	TypePackageManagerNuGet        string = "nuget"
 	TypePackageManagerBower        string = "bower"
 	TypePackageManagerPURL         string = "purl"
+
 	// F.4 Persistent-Id types
 	CategoryPersistentId   string = "PERSISTENT-ID"
 	TypePersistentIdSwh    string = "swh"
 	TypePersistentIdGitoid string = "gitoid"
+
+	// F.5 Other
+	CategoryOther string = "OTHER"
 
 	// 11.1 Relationship field types
 	TypeRelationshipDescribe                  string = "DESCRIBES"

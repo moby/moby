@@ -20,9 +20,9 @@ import (
 	"errors"
 	"net/url"
 	"path"
-	"regexp"
 	"strings"
 
+	"github.com/containerd/containerd/v2/internal/lazyregexp"
 	digest "github.com/opencontainers/go-digest"
 )
 
@@ -80,7 +80,7 @@ type Spec struct {
 	Object string
 }
 
-var splitRe = regexp.MustCompile(`[:@]`)
+var splitRe = lazyregexp.New(`[:@]`)
 
 // Parse parses the string into a structured ref.
 func Parse(s string) (Spec, error) {

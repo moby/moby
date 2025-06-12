@@ -7,6 +7,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containerd/platforms"
@@ -85,6 +86,7 @@ type Client struct {
 	localsSessionIDs map[string]string
 
 	dockerignore     []byte
+	dockerignoreMu   sync.Mutex
 	dockerignoreName string
 }
 
@@ -516,6 +518,8 @@ func WithInternalName(name string) llb.ConstraintsOpt {
 }
 
 func (bc *Client) dockerIgnorePatterns(ctx context.Context, bctx *buildContext) ([]string, error) {
+	bc.dockerignoreMu.Lock()
+	defer bc.dockerignoreMu.Unlock()
 	if bc.dockerignore == nil {
 		sessionID := bc.bopts.SessionID
 		if v, ok := bc.localsSessionIDs[bctx.contextLocalName]; ok {

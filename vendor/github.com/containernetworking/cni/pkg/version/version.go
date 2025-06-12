@@ -63,7 +63,7 @@ func NewResult(version string, resultBytes []byte) (types.Result, error) {
 
 // ParsePrevResult parses a prevResult in a NetConf structure and sets
 // the NetConf's PrevResult member to the parsed Result object.
-func ParsePrevResult(conf *types.NetConf) error {
+func ParsePrevResult(conf *types.PluginConf) error {
 	if conf.RawPrevResult == nil {
 		return nil
 	}

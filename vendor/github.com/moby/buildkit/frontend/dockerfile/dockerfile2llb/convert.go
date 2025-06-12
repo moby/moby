@@ -948,6 +948,7 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 			link:            c.Link,
 			keepGitDir:      c.KeepGitDir,
 			checksum:        c.Checksum,
+			unpack:          c.Unpack,
 			location:        c.Location(),
 			ignoreMatcher:   opt.dockerIgnoreMatcher,
 			opt:             opt,
@@ -1554,9 +1555,15 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 
 			st := llb.HTTP(src, llb.Filename(f), llb.WithCustomName(pgName), llb.Checksum(checksum), dfCmd(cfg.params))
 
+			var unpack bool
+			if cfg.unpack != nil {
+				unpack = *cfg.unpack
+			}
+
 			opts := append([]llb.CopyOption{&llb.CopyInfo{
 				Mode:           chopt,
 				CreateDestPath: true,
+				AttemptUnpack:  unpack,
 			}}, copyOpt...)
 
 			if a == nil {
@@ -1590,12 +1597,17 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 				return errors.Wrap(err, "removing drive letter")
 			}
 
+			unpack := cfg.isAddCommand
+			if cfg.unpack != nil {
+				unpack = *cfg.unpack
+			}
+
 			opts := append([]llb.CopyOption{&llb.CopyInfo{
 				Mode:                chopt,
 				FollowSymlinks:      true,
 				CopyDirContentsOnly: true,
 				IncludePatterns:     patterns,
-				AttemptUnpack:       cfg.isAddCommand,
+				AttemptUnpack:       unpack,
 				CreateDestPath:      true,
 				AllowWildcard:       true,
 				AllowEmptyWildcard:  true,
@@ -1684,6 +1696,7 @@ type copyConfig struct {
 	location        []parser.Range
 	ignoreMatcher   *patternmatcher.PatternMatcher
 	opt             dispatchOpt
+	unpack          *bool
 }
 
 func dispatchMaintainer(d *dispatchState, c *instructions.MaintainerCommand) error {

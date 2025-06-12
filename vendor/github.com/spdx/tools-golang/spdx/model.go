@@ -85,6 +85,9 @@ const (
 	TypePersistentIdSwh    = common.TypePersistentIdSwh
 	TypePersistentIdGitoid = common.TypePersistentIdGitoid
 
+	// F.5 Other
+	CategoryOther = common.CategoryOther
+
 	// 11.1 Relationship field types
 	RelationshipDescribes                 = common.TypeRelationshipDescribe
 	RelationshipDescribedBy               = common.TypeRelationshipDescribeBy

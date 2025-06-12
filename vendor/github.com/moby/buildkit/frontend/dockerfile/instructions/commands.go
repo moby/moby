@@ -246,6 +246,7 @@ type AddCommand struct {
 	ExcludePatterns []string
 	KeepGitDir      bool // whether to keep .git dir, only meaningful for git sources
 	Checksum        string
+	Unpack          *bool
 }
 
 func (c *AddCommand) Expand(expander SingleWordExpander) error {

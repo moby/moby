@@ -1,0 +1,12 @@
+Language: Cpp
+BasedOnStyle: Microsoft
+BreakBeforeBraces: Attach
+PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: All
+# match Go style
+IndentCaseLabels: false
+# don't break comments over line limit (needed for CodeQL exceptions)
+ReflowComments: false
+InsertNewlineAtEOF: true
+KeepEmptyLines:
+  AtEndOfFile: true

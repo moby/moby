@@ -545,7 +545,7 @@ func (c *Cache) doWithRetries(ctx context.Context, r *request) (*http.Response, 
 }
 
 func (c *Cache) url(p string) string {
-	return c.URL + "_apis/artifactcache/" + p
+	return strings.TrimRight(c.URL, "/") + "/_apis/artifactcache/" + p
 }
 
 func (c *Cache) AllKeys(ctx context.Context, api *RestAPI, prefix string) (map[string]struct{}, error) {

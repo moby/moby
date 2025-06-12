@@ -171,7 +171,6 @@ func startGCContext(ctx context.Context, collectors map[gc.ResourceType]Collecto
 	if len(collectors) > 0 {
 		contexts = map[gc.ResourceType]CollectionContext{}
 		for rt, collector := range collectors {
-			rt := rt
 			c, err := collector.StartCollection(ctx)
 			if err != nil {
 				// Only skipping this resource this round

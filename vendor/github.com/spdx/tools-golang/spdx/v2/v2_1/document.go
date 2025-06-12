@@ -4,7 +4,7 @@
 package v2_1
 
 import (
-	"github.com/anchore/go-struct-converter"
+	converter "github.com/anchore/go-struct-converter"
 
 	"github.com/spdx/tools-golang/spdx/v2/common"
 )

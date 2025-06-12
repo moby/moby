@@ -104,7 +104,7 @@ func execute(ctx gcontext.Context, timeout time.Duration, f func() error) error 
 	}()
 	select {
 	case <-ctx.Done():
-		if ctx.Err() == gcontext.DeadlineExceeded { //nolint:errorlint
+		if ctx.Err() == gcontext.DeadlineExceeded {
 			log.G(ctx).WithField(logfields.Timeout, trueTimeout).
 				Warning("Syscall did not complete within operation timeout. This may indicate a platform issue. " +
 					"If it appears to be making no forward progress, obtain the stacks and see if there is a syscall " +

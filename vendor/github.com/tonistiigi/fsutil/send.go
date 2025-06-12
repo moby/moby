@@ -148,7 +148,8 @@ func (s *sender) sendFile(h *sendHandle) error {
 
 func (s *sender) walk(ctx context.Context) error {
 	var i uint32 = 0
-	err := s.fs.Walk(ctx, "/", func(path string, entry os.DirEntry, err error) error {
+	target := string(filepath.Separator)
+	err := s.fs.Walk(ctx, target, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

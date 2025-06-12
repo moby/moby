@@ -3,6 +3,7 @@ package attestations
 import (
 	"strings"
 
+	provenancetypes "github.com/moby/buildkit/solver/llbsolver/provenance/types"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/go-csvvalue"
 )
@@ -14,6 +15,7 @@ const (
 
 const (
 	defaultSBOMGenerator = "docker/buildkit-syft-scanner:stable-1"
+	defaultSLSAVersion   = string(provenancetypes.ProvenanceSLSA02)
 )
 
 func Filter(v map[string]string) map[string]string {
@@ -57,8 +59,11 @@ func Parse(values map[string]string) (map[string]map[string]string, error) {
 	for k, v := range attests {
 		attrs := make(map[string]string)
 		out[k] = attrs
-		if k == KeyTypeSbom {
+		switch k {
+		case KeyTypeSbom:
 			attrs["generator"] = defaultSBOMGenerator
+		case KeyTypeProvenance:
+			attrs["version"] = defaultSLSAVersion
 		}
 		if v == "" {
 			continue

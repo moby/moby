@@ -27,7 +27,7 @@ import (
 	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
-	"github.com/containerd/containerd/v2/core/remotes/docker/schema1" //nolint:staticcheck // Ignore SA1019. Need to keep deprecated package for compatibility.
+	"github.com/containerd/containerd/v2/core/transfer"
 	"github.com/containerd/containerd/v2/core/unpack"
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/errdefs"
@@ -52,6 +52,14 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (_ Ima
 		}
 	}
 
+	if resolver, ok := pullCtx.Resolver.(remotes.ResolverWithOptions); ok {
+		resolver.SetOptions(
+			transfer.WithConcurrentLayerFetchBuffer(pullCtx.ConcurrentLayerFetchBuffer),
+			transfer.WithMaxConcurrentDownloads(pullCtx.MaxConcurrentDownloads),
+			transfer.WithDownloadLimiter(pullCtx.DownloadLimiter),
+		)
+	}
+
 	if pullCtx.PlatformMatcher == nil {
 		if len(pullCtx.Platforms) > 1 {
 			return nil, errors.New("cannot pull multiplatform image locally, try Fetch")
@@ -71,6 +79,7 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (_ Ima
 		tracing.Attribute("image.ref", ref),
 		tracing.Attribute("unpack", pullCtx.Unpack),
 		tracing.Attribute("max.concurrent.downloads", pullCtx.MaxConcurrentDownloads),
+		tracing.Attribute("concurrent.layer.fetch.buffer", pullCtx.ConcurrentLayerFetchBuffer),
 		tracing.Attribute("platforms.count", len(pullCtx.Platforms)),
 	)
 
@@ -109,9 +118,6 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (_ Ima
 			ApplyOpts:      uconfig.ApplyOpts,
 		}
 		uopts := []unpack.UnpackerOpt{unpack.WithUnpackPlatform(platform)}
-		if pullCtx.MaxConcurrentDownloads > 0 {
-			uopts = append(uopts, unpack.WithLimiter(semaphore.NewWeighted(int64(pullCtx.MaxConcurrentDownloads))))
-		}
 		if uconfig.DuplicationSuppressor != nil {
 			uopts = append(uopts, unpack.WithDuplicationSuppressor(uconfig.DuplicationSuppressor))
 		}
@@ -164,7 +170,7 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (_ Ima
 
 	if unpacker != nil && ur.Unpacks == 0 {
 		// Unpack was tried previously but nothing was unpacked
-		// This is at least required for schema 1 image.
+		// This was at least required for schema 1 image.
 		if err := i.Unpack(ctx, pullCtx.Snapshotter, pullCtx.UnpackOpts...); err != nil {
 			return nil, fmt.Errorf("failed to unpack image on snapshotter %s: %w", pullCtx.Snapshotter, err)
 		}
@@ -190,81 +196,63 @@ func (c *Client) fetch(ctx context.Context, rCtx *RemoteContext, ref string, lim
 	var (
 		handler images.Handler
 
-		isConvertible         bool
-		originalSchema1Digest string
-		converterFunc         func(context.Context, ocispec.Descriptor) (ocispec.Descriptor, error)
-		limiter               *semaphore.Weighted
+		isConvertible bool
+		converterFunc func(context.Context, ocispec.Descriptor) (ocispec.Descriptor, error)
+		limiter       *semaphore.Weighted
+	)
+	if desc.MediaType == images.MediaTypeDockerSchema1Manifest {
+		return images.Image{}, fmt.Errorf("%w: media type %q is no longer supported since containerd v2.1, please rebuild the image as %q or %q",
+			errdefs.ErrNotImplemented,
+			images.MediaTypeDockerSchema1Manifest, images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest)
+	}
+	// Get all the children for a descriptor
+	childrenHandler := images.ChildrenHandler(store)
+	// Set any children labels for that content
+	childrenHandler = images.SetChildrenMappedLabels(store, childrenHandler, rCtx.ChildLabelMap)
+	if rCtx.AllMetadata {
+		// Filter manifests by platforms but allow to handle manifest
+		// and configuration for not-target platforms
+		childrenHandler = remotes.FilterManifestByPlatformHandler(childrenHandler, rCtx.PlatformMatcher)
+	} else {
+		// Filter children by platforms if specified.
+		childrenHandler = images.FilterPlatforms(childrenHandler, rCtx.PlatformMatcher)
+	}
+	// Sort and limit manifests if a finite number is needed
+	if limit > 0 {
+		childrenHandler = images.LimitManifests(childrenHandler, rCtx.PlatformMatcher, limit)
+	}
+
+	// set isConvertible to true if there is application/octet-stream media type
+	convertibleHandler := images.HandlerFunc(
+		func(_ context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+			if desc.MediaType == docker.LegacyConfigMediaType {
+				isConvertible = true
+			}
+
+			return []ocispec.Descriptor{}, nil
+		},
 	)
 
-	if desc.MediaType == images.MediaTypeDockerSchema1Manifest && rCtx.ConvertSchema1 {
-		schema1Converter, err := schema1.NewConverter(store, fetcher)
-		if err != nil {
-			return images.Image{}, fmt.Errorf("failed to get converter for %q: %w", ref, err)
-		}
+	appendDistSrcLabelHandler, err := docker.AppendDistributionSourceLabel(store, ref)
+	if err != nil {
+		return images.Image{}, err
+	}
 
-		handler = images.Handlers(append(rCtx.BaseHandlers, schema1Converter)...)
+	handlers := append(rCtx.BaseHandlers,
+		remotes.FetchHandler(store, fetcher),
+		convertibleHandler,
+		childrenHandler,
+		appendDistSrcLabelHandler,
+	)
 
-		isConvertible = true
+	handler = images.Handlers(handlers...)
 
-		converterFunc = func(ctx context.Context, _ ocispec.Descriptor) (ocispec.Descriptor, error) {
-			return schema1Converter.Convert(ctx)
-		}
-
-		originalSchema1Digest = desc.Digest.String()
-	} else {
-		// Get all the children for a descriptor
-		childrenHandler := images.ChildrenHandler(store)
-		// Set any children labels for that content
-		childrenHandler = images.SetChildrenMappedLabels(store, childrenHandler, rCtx.ChildLabelMap)
-		if rCtx.AllMetadata {
-			// Filter manifests by platforms but allow to handle manifest
-			// and configuration for not-target platforms
-			childrenHandler = remotes.FilterManifestByPlatformHandler(childrenHandler, rCtx.PlatformMatcher)
-		} else {
-			// Filter children by platforms if specified.
-			childrenHandler = images.FilterPlatforms(childrenHandler, rCtx.PlatformMatcher)
-		}
-		// Sort and limit manifests if a finite number is needed
-		if limit > 0 {
-			childrenHandler = images.LimitManifests(childrenHandler, rCtx.PlatformMatcher, limit)
-		}
-
-		// set isConvertible to true if there is application/octet-stream media type
-		convertibleHandler := images.HandlerFunc(
-			func(_ context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-				if desc.MediaType == docker.LegacyConfigMediaType {
-					isConvertible = true
-				}
-
-				return []ocispec.Descriptor{}, nil
-			},
-		)
-
-		appendDistSrcLabelHandler, err := docker.AppendDistributionSourceLabel(store, ref)
-		if err != nil {
-			return images.Image{}, err
-		}
-
-		handlers := append(rCtx.BaseHandlers,
-			remotes.FetchHandler(store, fetcher),
-			convertibleHandler,
-			childrenHandler,
-			appendDistSrcLabelHandler,
-		)
-
-		handler = images.Handlers(handlers...)
-
-		converterFunc = func(ctx context.Context, desc ocispec.Descriptor) (ocispec.Descriptor, error) {
-			return docker.ConvertManifest(ctx, store, desc)
-		}
+	converterFunc = func(ctx context.Context, desc ocispec.Descriptor) (ocispec.Descriptor, error) {
+		return docker.ConvertManifest(ctx, store, desc)
 	}
 
 	if rCtx.HandlerWrapper != nil {
 		handler = rCtx.HandlerWrapper(handler)
-	}
-
-	if rCtx.MaxConcurrentDownloads > 0 {
-		limiter = semaphore.NewWeighted(int64(rCtx.MaxConcurrentDownloads))
 	}
 
 	if err := images.Dispatch(ctx, handler, limiter, desc); err != nil {
@@ -275,13 +263,6 @@ func (c *Client) fetch(ctx context.Context, rCtx *RemoteContext, ref string, lim
 		if desc, err = converterFunc(ctx, desc); err != nil {
 			return images.Image{}, err
 		}
-	}
-
-	if originalSchema1Digest != "" {
-		if rCtx.Labels == nil {
-			rCtx.Labels = make(map[string]string)
-		}
-		rCtx.Labels[images.ConvertedDockerSchema1LabelKey] = originalSchema1Digest
 	}
 
 	return images.Image{

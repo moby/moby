@@ -93,8 +93,8 @@ func ParseGitRef(ref string) (*GitRef, error) {
 	if res.IndistinguishableFromLocal {
 		_, res.Remote, _ = strings.Cut(res.Remote, "://")
 	}
-	if remote.Fragment != nil {
-		res.Commit, res.SubDir = remote.Fragment.Ref, remote.Fragment.Subdir
+	if remote.Opts != nil {
+		res.Commit, res.SubDir = remote.Opts.Ref, remote.Opts.Subdir
 	}
 
 	repoSplitBySlash := strings.Split(res.Remote, "/")

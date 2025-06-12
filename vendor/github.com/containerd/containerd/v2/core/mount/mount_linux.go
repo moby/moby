@@ -66,7 +66,12 @@ func prepareIDMappedOverlay(usernsFd int, options []string) ([]string, func(), e
 		return options, nil, fmt.Errorf("failed to parse overlay lowerdir's from given options")
 	}
 
-	tmpLowerdirs, idMapCleanUp, err := doPrepareIDMappedOverlay(lowerDirs, usernsFd)
+	tempRemountsLocation, err := os.MkdirTemp(tempMountLocation, "ovl-idmapped")
+	if err != nil {
+		return options, nil, fmt.Errorf("failed to create temporary overlay lowerdir mount location: %w", err)
+	}
+
+	tmpLowerdirs, idMapCleanUp, err := doPrepareIDMappedOverlay(tempRemountsLocation, lowerDirs, usernsFd)
 	if err != nil {
 		return options, idMapCleanUp, fmt.Errorf("failed to create idmapped mount: %w", err)
 	}
@@ -244,39 +249,35 @@ func getUnprivilegedMountFlags(path string) (int, error) {
 	return flags, nil
 }
 
-func doPrepareIDMappedOverlay(lowerDirs []string, usernsFd int) (tmpLowerDirs []string, _ func(), _ error) {
-	td, err := os.MkdirTemp(tempMountLocation, "ovl-idmapped")
-	if err != nil {
-		return nil, nil, err
-	}
+func doPrepareIDMappedOverlay(tempRemountsLocation string, lowerDirs []string, usernsFd int) ([]string, func(), error) {
+	tmpLowerDirs := make([]string, 0, len(lowerDirs))
+
 	cleanUp := func() {
 		for _, lowerDir := range tmpLowerDirs {
-			// Do a detached unmount so even if the resource is busy, the mount will be
-			// gone (eventually) and we can safely delete the directory too.
-			if err := unix.Unmount(lowerDir, unix.MNT_DETACH); err != nil {
+			if err := unix.Unmount(lowerDir, 0); err != nil {
 				log.L.WithError(err).Warnf("failed to unmount temp lowerdir %s", lowerDir)
 				continue
 			}
 			// Using os.Remove() so if it's not empty, we don't delete files in the
 			// rootfs.
 			if err := os.Remove(lowerDir); err != nil {
-				log.L.WithError(err).Warnf("failed to remove temporary overlay lowerdir's")
+				log.L.WithError(err).Warnf("failed to remove temporary overlay lowerdir")
 			}
 		}
 
 		// This dir should be empty now. Otherwise, we don't do anything.
-		if err := os.Remove(filepath.Join(tmpLowerDirs[0], "..")); err != nil {
+		if err := os.Remove(tempRemountsLocation); err != nil {
 			log.L.WithError(err).Infof("failed to remove temporary overlay dir")
 		}
 	}
 	for i, lowerDir := range lowerDirs {
-		tmpLowerDir := filepath.Join(td, strconv.Itoa(i))
+		tmpLowerDir := filepath.Join(tempRemountsLocation, strconv.Itoa(i))
 		tmpLowerDirs = append(tmpLowerDirs, tmpLowerDir)
 
-		if err = os.MkdirAll(tmpLowerDir, 0700); err != nil {
+		if err := os.MkdirAll(tmpLowerDir, 0700); err != nil {
 			return nil, cleanUp, fmt.Errorf("failed to create temporary dir: %w", err)
 		}
-		if err = IDMapMount(lowerDir, tmpLowerDir, usernsFd); err != nil {
+		if err := IDMapMountWithAttrs(lowerDir, tmpLowerDir, usernsFd, unix.MOUNT_ATTR_RDONLY, 0); err != nil {
 			return nil, cleanUp, err
 		}
 	}

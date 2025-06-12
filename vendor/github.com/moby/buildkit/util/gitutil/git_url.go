@@ -47,31 +47,31 @@ type GitURL struct {
 	Path string
 	// User is the username/password to access the host
 	User *url.Userinfo
-	// Fragment can contain additional metadata
-	Fragment *GitURLFragment
+	// Opts can contain additional metadata
+	Opts *GitURLOpts
 
 	// Remote is a valid URL remote to pass into the Git CLI tooling (i.e.
 	// without the fragment metadata)
 	Remote string
 }
 
-// GitURLFragment is the buildkit-specific metadata extracted from the fragment
+// GitURLOpts is the buildkit-specific metadata extracted from the fragment
 // of a remote URL.
-type GitURLFragment struct {
+type GitURLOpts struct {
 	// Ref is the git reference
 	Ref string
 	// Subdir is the sub-directory inside the git repository to use
 	Subdir string
 }
 
-// splitGitFragment splits a git URL fragment into its respective git
+// parseOpts splits a git URL fragment into its respective git
 // reference and subdirectory components.
-func splitGitFragment(fragment string) *GitURLFragment {
+func parseOpts(fragment string) *GitURLOpts {
 	if fragment == "" {
 		return nil
 	}
 	ref, subdir, _ := strings.Cut(fragment, ":")
-	return &GitURLFragment{Ref: ref, Subdir: subdir}
+	return &GitURLOpts{Ref: ref, Subdir: subdir}
 }
 
 // ParseURL parses a BuildKit-style Git URL (that may contain additional
@@ -106,27 +106,27 @@ func IsGitTransport(remote string) bool {
 }
 
 func fromURL(url *url.URL) *GitURL {
-	withoutFragment := *url
-	withoutFragment.Fragment = ""
+	withoutOpts := *url
+	withoutOpts.Fragment = ""
 	return &GitURL{
-		Scheme:   url.Scheme,
-		User:     url.User,
-		Host:     url.Host,
-		Path:     url.Path,
-		Fragment: splitGitFragment(url.Fragment),
-		Remote:   withoutFragment.String(),
+		Scheme: url.Scheme,
+		User:   url.User,
+		Host:   url.Host,
+		Path:   url.Path,
+		Opts:   parseOpts(url.Fragment),
+		Remote: withoutOpts.String(),
 	}
 }
 
 func fromSCPStyleURL(url *sshutil.SCPStyleURL) *GitURL {
-	withoutFragment := *url
-	withoutFragment.Fragment = ""
+	withoutOpts := *url
+	withoutOpts.Fragment = ""
 	return &GitURL{
-		Scheme:   SSHProtocol,
-		User:     url.User,
-		Host:     url.Host,
-		Path:     url.Path,
-		Fragment: splitGitFragment(url.Fragment),
-		Remote:   withoutFragment.String(),
+		Scheme: SSHProtocol,
+		User:   url.User,
+		Host:   url.Host,
+		Path:   url.Path,
+		Opts:   parseOpts(url.Fragment),
+		Remote: withoutOpts.String(),
 	}
 }

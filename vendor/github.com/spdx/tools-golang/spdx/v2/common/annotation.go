@@ -3,9 +3,10 @@
 package common
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/spdx/tools-golang/json/marshal"
 )
 
 type Annotator struct {
@@ -37,7 +38,7 @@ func (a *Annotator) UnmarshalJSON(data []byte) error {
 // This function is also used when marshalling to YAML
 func (a Annotator) MarshalJSON() ([]byte, error) {
 	if a.Annotator != "" {
-		return json.Marshal(fmt.Sprintf("%s: %s", a.AnnotatorType, a.Annotator))
+		return marshal.JSON(fmt.Sprintf("%s: %s", a.AnnotatorType, a.Annotator))
 	}
 
 	return []byte{}, nil

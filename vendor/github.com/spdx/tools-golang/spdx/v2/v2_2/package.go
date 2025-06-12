@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/spdx/tools-golang/json/marshal"
 	"github.com/spdx/tools-golang/spdx/v2/common"
 )
 
@@ -74,7 +75,7 @@ type Package struct {
 	// 7.14: All Licenses Info from Files: SPDX License Expression, "NONE" or "NOASSERTION"
 	// Cardinality: mandatory, one or many if filesAnalyzed is true / omitted;
 	//              zero (must be omitted) if filesAnalyzed is false
-	PackageLicenseInfoFromFiles []string `json:"licenseInfoFromFiles"`
+	PackageLicenseInfoFromFiles []string `json:"licenseInfoFromFiles,omitempty"`
 
 	// 7.15: Declared License: SPDX License Expression, "NONE" or "NOASSERTION"
 	// Cardinality: mandatory, one
@@ -122,6 +123,32 @@ type Package struct {
 	hasFiles []common.DocElementID
 }
 
+func (p Package) MarshalJSON() ([]byte, error) {
+	type pkg Package
+	p2 := pkg(p)
+
+	data, err := marshal.JSON(p2)
+	if err != nil {
+		return nil, err
+	}
+
+	// remove empty packageVerificationCode entries -- required by SPDX 2.2 but
+	// omitempty has no effect since it is a non-comparable struct and not a pointer, so we
+	// manually check to determine if there is a valid value to output and omit the field if not
+	// see: https://spdx.github.io/spdx-spec/v2.2.2/package-information/#79-package-verification-code-field
+	if p.PackageVerificationCode.Value == "" && p.PackageVerificationCode.ExcludedFiles == nil {
+		var values map[string]interface{}
+		err = json.Unmarshal(data, &values)
+		if err != nil {
+			return nil, err
+		}
+		delete(values, "packageVerificationCode")
+		return marshal.JSON(values)
+	}
+
+	return data, nil
+}
+
 func (p *Package) UnmarshalJSON(b []byte) error {
 	type pkg Package
 	type extras struct {
@@ -153,6 +180,7 @@ func (p *Package) UnmarshalJSON(b []byte) error {
 }
 
 var _ json.Unmarshaler = (*Package)(nil)
+var _ json.Marshaler = (*Package)(nil)
 
 // PackageExternalReference is an External Reference to additional info
 // about a Package, as defined in section 7.21 in version 2.2 of the spec.
@@ -199,5 +227,5 @@ func (r *PackageExternalReference) MarshalJSON() ([]byte, error) {
 	rr = ref(*r)
 	rr.Category = strings.ReplaceAll(rr.Category, "-", "_")
 
-	return json.Marshal(&rr)
+	return marshal.JSON(&rr)
 }
