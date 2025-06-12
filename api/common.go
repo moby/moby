@@ -3,7 +3,7 @@ package api
 // Common constants for daemon and client.
 const (
 	// DefaultVersion of the current REST API.
-	DefaultVersion = "1.50"
+	DefaultVersion = "1.51"
 
 	// MinSupportedAPIVersion is the minimum API version that can be supported
 	// by the API server, specified as "major.minor". Note that the daemon
