@@ -32,8 +32,8 @@ env:
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
-  WINDOWS_BASE_TAG_2019: ltsc2019
   WINDOWS_BASE_TAG_2022: ltsc2022
+  WINDOWS_BASE_TAG_2025: ltsc2025
   TEST_IMAGE_NAME: moby:test
   TEST_CTN_NAME: moby
   DOCKER_BUILDKIT: 0
@@ -65,8 +65,8 @@ jobs:
         run: |
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go-build"
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go\pkg\mod"
-          If ("${{ inputs.os }}" -eq "windows-2019") {
-            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2019 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          If ("${{ inputs.os }}" -eq "windows-2025") {
+            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2025 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           } ElseIf ("${{ inputs.os }}" -eq "windows-2022") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
@@ -145,8 +145,8 @@ jobs:
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go-build"
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go\pkg\mod"
           New-Item -ItemType "directory" -Path "bundles"
-          If ("${{ inputs.os }}" -eq "windows-2019") {
-            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2019 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          If ("${{ inputs.os }}" -eq "windows-2025") {
+            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2025 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           } ElseIf ("${{ inputs.os }}" -eq "windows-2022") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
@@ -319,8 +319,8 @@ jobs:
         name: Init
         run: |
           New-Item -ItemType "directory" -Path "bundles"
-          If ("${{ inputs.os }}" -eq "windows-2019") {
-            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2019 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          If ("${{ inputs.os }}" -eq "windows-2025") {
+            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2025 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           } ElseIf ("${{ inputs.os }}" -eq "windows-2022") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }

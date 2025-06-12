@@ -1,4 +1,4 @@
-name: windows-2019
+name: windows-2025
 
 # Default to 'contents: read', which grants actions to read commits.
 #
@@ -37,6 +37,6 @@ jobs:
       matrix:
         storage: ${{ fromJson(needs.test-prepare.outputs.matrix) }}
     with:
-      os: windows-2019
+      os: windows-2025
       storage: ${{ matrix.storage }}
       send_coverage: false
