@@ -3,9 +3,12 @@
 package overlay
 
 import (
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 	"net"
 	"net/netip"
 	"testing"
+	"time"
 )
 
 func TestMulticastIPToMAC(t *testing.T) {
@@ -64,8 +67,8 @@ func TestPeerAddMulticast(t *testing.T) {
 	}
 
 	n := &network{
-		id:      "test-network",
-		driver:  d,
+		id:     "test-network",
+		driver: d,
 		subnets: []*subnet{
 			{
 				vni:       100,
@@ -91,8 +94,8 @@ func TestPeerDeleteMulticast(t *testing.T) {
 	}
 
 	n := &network{
-		id:      "test-network",
-		driver:  d,
+		id:     "test-network",
+		driver: d,
 		subnets: []*subnet{
 			{
 				vni:       100,
@@ -115,7 +118,7 @@ func TestPeerDeleteMulticast(t *testing.T) {
 func TestHandleNeighborMiss(t *testing.T) {
 	// This test would require mocking netlink and network structures
 	// For now, we just ensure the functions compile and have the right signatures
-	n := &network{
+	_ = &network{
 		id:     "test-network",
 		stopCh: make(chan struct{}),
 		subnets: []*subnet{
@@ -180,7 +183,7 @@ func TestInterSubnetMulticastRouting(t *testing.T) {
 
 	subnet2 := &subnet{
 		vni:       200,
-		vxlanName: "vxlan200", 
+		vxlanName: "vxlan200",
 		brName:    "br200",
 		subnetIP:  netip.MustParsePrefix("10.0.2.0/24"),
 	}
@@ -318,3 +321,209 @@ func TestMulticastValidation(t *testing.T) {
 	}
 }
 
+// Integration tests with real netlink operations
+func TestMulticastNetlinkIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	// Requires root privileges
+	origNs, err := netns.Get()
+	if err != nil {
+		t.Skip("Cannot get current netns, skipping integration test")
+	}
+	defer origNs.Close()
+
+	// Create a new network namespace for testing
+	testNs, err := netns.New()
+	if err != nil {
+		t.Skip("Cannot create netns, skipping integration test (requires root)")
+	}
+	defer testNs.Close()
+	defer netns.Set(origNs)
+
+	// Create test VXLAN interface
+	vxlan := &netlink.Vxlan{
+		LinkAttrs: netlink.LinkAttrs{
+			Name: "vxlan-test",
+		},
+		VxlanId: 100,
+		Port:    4789,
+	}
+
+	if err := netlink.LinkAdd(vxlan); err != nil {
+		t.Fatalf("Failed to create VXLAN interface: %v", err)
+	}
+	defer netlink.LinkDel(vxlan)
+
+	// Create bridge
+	br := &netlink.Bridge{
+		LinkAttrs: netlink.LinkAttrs{
+			Name: "br-test",
+		},
+	}
+
+	if err := netlink.LinkAdd(br); err != nil {
+		t.Fatalf("Failed to create bridge: %v", err)
+	}
+	defer netlink.LinkDel(br)
+
+	// Test multicast FDB operations
+	t.Run("MulticastFDBOperations", func(t *testing.T) {
+		mcastMAC, _ := net.ParseMAC("01:00:5e:00:00:01")
+		vtep := net.ParseIP("192.168.1.10")
+
+		neigh := &netlink.Neigh{
+			LinkIndex:    vxlan.Attrs().Index,
+			Family:       afBridge,
+			State:        netlink.NUD_PERMANENT,
+			Flags:        netlink.NTF_SELF,
+			IP:           vtep,
+			HardwareAddr: mcastMAC,
+		}
+
+		// Add multicast FDB entry
+		if err := netlink.NeighSet(neigh); err != nil {
+			t.Errorf("Failed to add multicast FDB entry: %v", err)
+		}
+
+		// List and verify
+		neighs, err := netlink.NeighList(vxlan.Attrs().Index, afBridge)
+		if err != nil {
+			t.Errorf("Failed to list neighbors: %v", err)
+		}
+
+		found := false
+		for _, n := range neighs {
+			if n.HardwareAddr.String() == mcastMAC.String() {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			t.Error("Multicast FDB entry not found after adding")
+		}
+
+		// Delete FDB entry
+		if err := netlink.NeighDel(neigh); err != nil {
+			t.Errorf("Failed to delete multicast FDB entry: %v", err)
+		}
+	})
+}
+
+func TestMulticastFeatureDetection(t *testing.T) {
+	features, err := checkMulticastFeatures()
+	if err != nil {
+		t.Fatalf("Failed to check multicast features: %v", err)
+	}
+
+	// Basic sanity checks - these features should be available on most Linux systems
+	if features.KernelVersion == "" {
+		t.Error("Kernel version should not be empty")
+	}
+
+	t.Logf("Detected multicast features: %+v", features)
+}
+
+func TestMulticastCleanup(t *testing.T) {
+	d := &driver{
+		networks: make(networkTable),
+	}
+
+	n := &network{
+		id:      "test-network",
+		driver:  d,
+		stopCh:  make(chan struct{}),
+		subnets: []*subnet{},
+	}
+
+	// Start rate limiter
+	n.multicastRateLimiter = n.startMulticastRateLimiter()
+
+	// Add a subnet with IGMP proxy
+	subnet := &subnet{
+		vni:       100,
+		vxlanName: "vxlan100",
+		subnetIP:  netip.MustParsePrefix("10.0.1.0/24"),
+	}
+
+	proxy := &igmpProxy{
+		network:    n,
+		subnet:     subnet,
+		stopCh:     make(chan struct{}),
+		groupState: make(map[string]time.Time),
+	}
+	subnet.igmpProxy = proxy
+	n.subnets = append(n.subnets, subnet)
+
+	// Test cleanup
+	n.cleanupMulticast()
+
+	// Verify resources are cleaned up
+	if n.multicastRateLimiter != nil {
+		t.Error("Rate limiter should be nil after cleanup")
+	}
+
+	if subnet.igmpProxy != nil {
+		t.Error("IGMP proxy should be nil after cleanup")
+	}
+}
+
+func TestConcurrentMulticastOperations(t *testing.T) {
+	n := &network{
+		id:     "test-network",
+		stopCh: make(chan struct{}),
+	}
+
+	limiter := n.startMulticastRateLimiter()
+	defer limiter.stop()
+
+	// Run concurrent operations
+	done := make(chan bool)
+	groupIP, _ := netip.ParseAddr("239.1.1.1")
+
+	// Concurrent adds
+	for i := 0; i < 10; i++ {
+		go func() {
+			limiter.addGroup(groupIP)
+			done <- true
+		}()
+	}
+
+	// Wait for adds
+	for i := 0; i < 10; i++ {
+		<-done
+	}
+
+	// Check count
+	limiter.mu.RLock()
+	count := limiter.groupCounts[groupIP.String()]
+	limiter.mu.RUnlock()
+
+	if count != 10 {
+		t.Errorf("Expected count 10, got %d", count)
+	}
+
+	// Concurrent removes
+	for i := 0; i < 10; i++ {
+		go func() {
+			limiter.removeGroup(groupIP)
+			done <- true
+		}()
+	}
+
+	// Wait for removes
+	for i := 0; i < 10; i++ {
+		<-done
+	}
+
+	// Check count
+	limiter.mu.RLock()
+	count = limiter.groupCounts[groupIP.String()]
+	limiter.mu.RUnlock()
+
+	if count != 0 {
+		t.Errorf("Expected count 0 after removes, got %d", count)
+	}
+}

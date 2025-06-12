@@ -17,25 +17,20 @@ import (
 
 type netlinkMonitor struct {
 	network *network
-	ch      chan netlink.NeighborUpdate
+	ch      chan netlink.NeighUpdate
 	done    chan struct{}
 	stopCh  chan struct{}
 }
 
 func (n *network) startNetlinkMonitor() error {
-	nlh := ns.NlHandle()
-	if nlh == nil {
-		return fmt.Errorf("failed to get netlink handle")
-	}
-
 	monitor := &netlinkMonitor{
 		network: n,
-		ch:      make(chan netlink.NeighborUpdate),
+		ch:      make(chan netlink.NeighUpdate),
 		done:    make(chan struct{}),
 		stopCh:  make(chan struct{}),
 	}
 
-	if err := netlink.NeighborSubscribe(monitor.ch, monitor.done); err != nil {
+	if err := netlink.NeighSubscribe(monitor.ch, monitor.done); err != nil {
 		return fmt.Errorf("failed to subscribe to neighbor events: %v", err)
 	}
 
@@ -75,7 +70,7 @@ func (monitor *netlinkMonitor) run() {
 	}
 }
 
-func (monitor *netlinkMonitor) stop() {
+func (monitor *netlinkMonitor) Stop() {
 	select {
 	case <-monitor.stopCh:
 		// Already stopped
@@ -85,16 +80,15 @@ func (monitor *netlinkMonitor) stop() {
 	}
 }
 
-func (monitor *netlinkMonitor) handleNeighborEvent(event *netlink.NeighborUpdate) {
+func (monitor *netlinkMonitor) handleNeighborEvent(event *netlink.NeighUpdate) {
 	monitor.network.handleNeighborMiss(event)
 }
 
-
-func (n *network) handleNeighborMiss(event *netlink.NeighborUpdate) {
+func (n *network) handleNeighborMiss(event *netlink.NeighUpdate) {
 	if event.Type != unix.RTM_GETNEIGH {
 		return
 	}
-	
+
 	if event.Neigh.Flags&netlink.NTF_PROXY == 0 {
 		return
 	}
@@ -208,4 +202,3 @@ func (n *network) handleMulticastMiss(s *subnet, dstIP netip.Addr, dstMAC net.Ha
 		log.G(context.TODO()).Warnf("Failed to walk peer DB for multicast miss: %v", err)
 	}
 }
-

@@ -45,22 +45,25 @@ type subnet struct {
 	initErr   error
 	subnetIP  netip.Prefix
 	gwIP      netip.Prefix
+	igmpProxy *igmpProxy // IGMP proxy instance for this subnet
 }
 
 type network struct {
-	id        string
-	sbox      *osl.Namespace
-	endpoints endpointTable
-	driver    *driver
-	joinCnt   int
-	sboxInit  bool
-	initEpoch int
-	initErr   error
-	subnets        []*subnet
-	secure         bool
-	mtu            int
-	stopCh         chan struct{}
-	netlinkMonitor interface{} // Will be *netlinkMonitor from netlink_linux.go
+	id                   string
+	sbox                 *osl.Namespace
+	endpoints            endpointTable
+	driver               *driver
+	joinCnt              int
+	sboxInit             bool
+	initEpoch            int
+	initErr              error
+	subnets              []*subnet
+	secure               bool
+	mtu                  int
+	stopCh               chan struct{}
+	netlinkMonitor       interface{}           // Will be *netlinkMonitor from netlink_linux.go
+	multicastConfig      *MulticastConfig      // Multicast configuration
+	multicastRateLimiter *multicastRateLimiter // Rate limiter for multicast traffic
 	sync.Mutex
 }
 
@@ -141,6 +144,9 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 		return fmt.Errorf("insufficient vnis(%d) passed to overlay", len(vnis))
 	}
 
+	// Parse multicast configuration
+	n.multicastConfig = parseMulticastConfig(optMap)
+
 	for i, ipd := range ipV4Data {
 		s := &subnet{vni: vnis[i]}
 		s.subnetIP, _ = netiputil.ToPrefix(ipd.Pool)
@@ -216,13 +222,26 @@ func (d *driver) DeleteNetwork(nid string) error {
 	if n.stopCh != nil {
 		close(n.stopCh)
 	}
-	
+
 	// Stop netlink monitor if it exists
 	if n.netlinkMonitor != nil {
 		if monitor, ok := n.netlinkMonitor.(interface{ stop() }); ok {
 			monitor.stop()
 		}
 	}
+
+	// Cleanup multicast resources before deleting the network
+	n.cleanupMulticast()
+
+	// Stop netlink monitor if present
+	if n.netlinkMonitor != nil {
+		if monitor, ok := n.netlinkMonitor.(interface{ Stop() }); ok {
+			monitor.Stop()
+		}
+	}
+
+	// Close network stop channel
+	close(n.stopCh)
 
 	doPeerFlush = true
 	delete(d.networks, nid)
@@ -326,6 +345,14 @@ func (n *network) leaveSandbox() {
 
 // to be called while holding network lock
 func (n *network) destroySandbox() {
+	// Stop netlink monitor if present
+	if n.netlinkMonitor != nil {
+		if monitor, ok := n.netlinkMonitor.(interface{ Stop() }); ok {
+			monitor.Stop()
+		}
+		n.netlinkMonitor = nil
+	}
+
 	if n.sbox != nil {
 		for _, iface := range n.sbox.Interfaces() {
 			if err := iface.Remove(); err != nil {
@@ -541,14 +568,17 @@ func setDefaultVLAN(ns *osl.Namespace) error {
 }
 
 func (n *network) enableBridgeMulticast(sbox *osl.Namespace, brName string) error {
-	return sbox.InvokeFunc(func() error {
+	var invokeErr error
+	err := sbox.InvokeFunc(func() {
 		link, err := netlink.LinkByName(brName)
 		if err != nil {
-			return fmt.Errorf("failed to find bridge %s: %v", brName, err)
+			invokeErr = fmt.Errorf("failed to find bridge %s: %v", brName, err)
+			return
 		}
 
 		if err := netlink.LinkSetAllmulticastOn(link); err != nil {
-			return fmt.Errorf("failed to enable allmulticast on bridge %s: %v", brName, err)
+			invokeErr = fmt.Errorf("failed to enable allmulticast on bridge %s: %v", brName, err)
+			return
 		}
 
 		// Enable IGMP snooping
@@ -581,14 +611,16 @@ func (n *network) enableBridgeMulticast(sbox *osl.Namespace, brName string) erro
 			log.G(context.TODO()).Debugf("Failed to set last member query interval: %v", err)
 		}
 
-		// Set membership interval (default 260 seconds)  
+		// Set membership interval (default 260 seconds)
 		membershipIntervalPath := fmt.Sprintf("/sys/class/net/%s/bridge/multicast_membership_interval", brName)
 		if err := os.WriteFile(membershipIntervalPath, []byte("26000"), 0644); err != nil {
 			log.G(context.TODO()).Debugf("Failed to set membership interval: %v", err)
 		}
-
-		return nil
 	})
+	if err != nil {
+		return err
+	}
+	return invokeErr
 }
 
 // Must be called with the network lock
@@ -656,7 +688,7 @@ func (n *network) cleanupStaleSandboxes() {
 func (n *network) initSandbox(restore bool) error {
 	n.Lock()
 	defer n.Unlock()
-	
+
 	n.initEpoch++
 
 	// If there are any stale sandboxes related to this network

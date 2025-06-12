@@ -69,8 +69,8 @@ func createVxlan(name string, vni uint32, mtu int, vtepIPv6 bool) error {
 		L3miss:    true,
 		L2miss:    true,
 		// Enable multicast support
-		GBP:       false, // Group-based policy (disabled for multicast)
-		RSC:       false, // Route short-circuiting (disabled for multicast)
+		GBP: false, // Group-based policy (disabled for multicast)
+		RSC: false, // Route short-circuiting (disabled for multicast)
 	}
 
 	// The kernel restricts the destination VTEP (virtual tunnel endpoint) in
