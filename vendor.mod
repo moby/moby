@@ -237,7 +237,7 @@ require (
 	golang.org/x/crypto v0.37.0 // indirect
 	golang.org/x/oauth2 v0.29.0 // indirect
 	golang.org/x/tools v0.32.0 // indirect
-	google.golang.org/api v0.155.0 // indirect
+	google.golang.org/api v0.160.0 // indirect
 	google.golang.org/genproto v0.0.0-20240123012728-ef4313101c80 // indirect; TODO(thaJeztah): should we keep this one aligned with the other google.golang.org/genproto/xxx modules?
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250218202821-56aae31c358a // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
