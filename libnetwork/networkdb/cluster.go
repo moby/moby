@@ -469,14 +469,15 @@ func (nDB *NetworkDB) gossip() {
 			continue
 		}
 
-		msgs := network.tableBroadcasts.GetBroadcasts(compoundOverhead, bytesAvail)
+		msgs := getBroadcasts(compoundOverhead, bytesAvail, network.tableBroadcasts, network.tableRebroadcasts)
 		// Collect stats and print the queue info, note this code is here also to have a view of the queues empty
 		network.qMessagesSent.Add(int64(len(msgs)))
 		if printStats {
 			msent := network.qMessagesSent.Swap(0)
-			log.G(context.TODO()).Infof("NetworkDB stats %v(%v) - netID:%s leaving:%t netPeers:%d entries:%d Queue qLen:%d netMsg/s:%d",
+			log.G(context.TODO()).Infof("NetworkDB stats %v(%v) - netID:%s leaving:%t netPeers:%d entries:%d Queue qLen:%d+%d netMsg/s:%d",
 				nDB.config.Hostname, nDB.config.NodeID,
-				nid, network.leaving, network.tableBroadcasts.NumNodes(), network.entriesNumber.Load(), network.tableBroadcasts.NumQueued(),
+				nid, network.leaving, network.tableBroadcasts.NumNodes(), network.entriesNumber.Load(),
+				network.tableBroadcasts.NumQueued(), network.tableRebroadcasts.NumQueued(),
 				msent/int64((nDB.config.StatsPrintPeriod/time.Second)))
 		}
 
