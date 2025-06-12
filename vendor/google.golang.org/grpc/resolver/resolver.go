@@ -30,6 +30,7 @@ import (
 
 	"google.golang.org/grpc/attributes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/experimental/stats"
 	"google.golang.org/grpc/internal"
 	"google.golang.org/grpc/serviceconfig"
 )
@@ -175,6 +176,8 @@ type BuildOptions struct {
 	// Authority is the effective authority of the clientconn for which the
 	// resolver is built.
 	Authority string
+	// MetricsRecorder is the metrics recorder to do recording.
+	MetricsRecorder stats.MetricsRecorder
 }
 
 // An Endpoint is one network endpoint, or server, which may have multiple

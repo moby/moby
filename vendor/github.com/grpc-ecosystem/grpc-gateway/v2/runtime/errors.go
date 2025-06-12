@@ -81,6 +81,21 @@ func HTTPError(ctx context.Context, mux *ServeMux, marshaler Marshaler, w http.R
 	mux.errorHandler(ctx, mux, marshaler, w, r, err)
 }
 
+// HTTPStreamError uses the mux-configured stream error handler to notify error to the client without closing the connection.
+func HTTPStreamError(ctx context.Context, mux *ServeMux, marshaler Marshaler, w http.ResponseWriter, r *http.Request, err error) {
+	st := mux.streamErrorHandler(ctx, err)
+	msg := errorChunk(st)
+	buf, err := marshaler.Marshal(msg)
+	if err != nil {
+		grpclog.Errorf("Failed to marshal an error: %v", err)
+		return
+	}
+	if _, err := w.Write(buf); err != nil {
+		grpclog.Errorf("Failed to notify error to client: %v", err)
+		return
+	}
+}
+
 // DefaultHTTPErrorHandler is the default error handler.
 // If "err" is a gRPC Status, the function replies with the status code mapped by HTTPStatusFromCode.
 // If "err" is a HTTPStatusError, the function replies with the status code provide by that struct. This is

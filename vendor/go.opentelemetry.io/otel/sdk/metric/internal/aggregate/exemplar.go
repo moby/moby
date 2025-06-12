@@ -17,6 +17,7 @@ var exemplarPool = sync.Pool{
 func collectExemplars[N int64 | float64](out *[]metricdata.Exemplar[N], f func(*[]exemplar.Exemplar)) {
 	dest := exemplarPool.Get().(*[]exemplar.Exemplar)
 	defer func() {
+		clear(*dest) // Erase elements to let GC collect objects.
 		*dest = (*dest)[:0]
 		exemplarPool.Put(dest)
 	}()

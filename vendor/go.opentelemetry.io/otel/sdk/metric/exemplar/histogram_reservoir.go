@@ -12,13 +12,21 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+// HistogramReservoirProvider is a provider of [HistogramReservoir].
+func HistogramReservoirProvider(bounds []float64) ReservoirProvider {
+	cp := slices.Clone(bounds)
+	slices.Sort(cp)
+	return func(_ attribute.Set) Reservoir {
+		return NewHistogramReservoir(cp)
+	}
+}
+
 // NewHistogramReservoir returns a [HistogramReservoir] that samples the last
 // measurement that falls within a histogram bucket. The histogram bucket
 // upper-boundaries are define by bounds.
 //
-// The passed bounds will be sorted by this function.
+// The passed bounds must be sorted before calling this function.
 func NewHistogramReservoir(bounds []float64) *HistogramReservoir {
-	slices.Sort(bounds)
 	return &HistogramReservoir{
 		bounds:  bounds,
 		storage: newStorage(len(bounds) + 1),

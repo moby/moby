@@ -10,6 +10,7 @@ See the [Compatibility and Stability](#compatibility-and-stability) section for 
 
 - [Cardinality Limit](#cardinality-limit)
 - [Exemplars](#exemplars)
+- [Instrument Enabled](#instrument-enabled)
 
 ### Cardinality Limit
 
@@ -100,6 +101,24 @@ Revert to the default exemplar filter (`"trace_based"`)
 
 ```console
 unset OTEL_METRICS_EXEMPLAR_FILTER
+```
+
+### Instrument Enabled
+
+To help users avoid performing computationally expensive operations when recording measurements, synchronous instruments provide an `Enabled` method.
+
+#### Examples
+
+The following code shows an example of how to check if an instrument implements the `EnabledInstrument` interface before using the `Enabled` function to avoid doing an expensive computation:
+
+```go
+type enabledInstrument interface { Enabled(context.Context) bool }
+
+ctr, err := m.Int64Counter("expensive-counter")
+c, ok := ctr.(enabledInstrument)
+if !ok || c.Enabled(context.Background()) {
+    c.Add(expensiveComputation())
+}
 ```
 
 ## Compatibility and Stability

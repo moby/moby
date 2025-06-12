@@ -44,7 +44,7 @@ import (
 // should only use a single address.
 //
 // NOTICE: This interface is intended to be implemented by gRPC, or intercepted
-// by custom load balancing poilices.  Users should not need their own complete
+// by custom load balancing polices.  Users should not need their own complete
 // implementation of this interface -- they should always delegate to a SubConn
 // returned by ClientConn.NewSubConn() by embedding it in their implementations.
 // An embedded SubConn must never be nil, or runtime panics will occur.

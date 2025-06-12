@@ -1,5 +1,12 @@
 # Changes
 
+## [0.6.0](https://github.com/googleapis/google-cloud-go/compare/compute/metadata/v0.5.2...compute/metadata/v0.6.0) (2024-12-13)
+
+
+### Features
+
+* **compute/metadata:** Add debug logging ([#11078](https://github.com/googleapis/google-cloud-go/issues/11078)) ([a816814](https://github.com/googleapis/google-cloud-go/commit/a81681463906e4473570a2f426eb0dc2de64e53f))
+
 ## [0.5.2](https://github.com/googleapis/google-cloud-go/compare/compute/metadata/v0.5.1...compute/metadata/v0.5.2) (2024-09-20)
 
 

@@ -5,6 +5,7 @@ package otlpmetrichttp // import "go.opentelemetry.io/otel/exporters/otlp/otlpme
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -114,7 +115,7 @@ func (e *Exporter) Shutdown(ctx context.Context) error {
 	return err
 }
 
-var errShutdown = fmt.Errorf("HTTP exporter is shutdown")
+var errShutdown = errors.New("HTTP exporter is shutdown")
 
 type shutdownClient struct{}
 
