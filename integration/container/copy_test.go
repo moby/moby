@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -31,6 +32,8 @@ func TestCopyFromContainerPathDoesNotExist(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "Could not find the file /dne in container "+cid))
 }
 
+// TestCopyFromContainerPathIsNotDir tests that an error is returned when
+// trying to create a directory on a path that's a file.
 func TestCopyFromContainerPathIsNotDir(t *testing.T) {
 	skip.If(t, testEnv.UsingSnapshotter(), "FIXME: https://github.com/moby/moby/issues/47107")
 	ctx := setupTest(t)
@@ -38,14 +41,29 @@ func TestCopyFromContainerPathIsNotDir(t *testing.T) {
 	apiClient := testEnv.APIClient()
 	cid := container.Create(ctx, t, apiClient)
 
-	path := "/etc/passwd/"
-	expected := "not a directory"
+	// Pick a path that already exists as a file; on Linux "/etc/passwd"
+	// is expected to be there, so we pick that for convenience.
+	existingFile := "/etc/passwd/"
+	expected := []string{"not a directory"}
 	if testEnv.DaemonInfo.OSType == "windows" {
-		path = "c:/windows/system32/drivers/etc/hosts/"
-		expected = "The filename, directory name, or volume label syntax is incorrect."
+		existingFile = "c:/windows/system32/drivers/etc/hosts/"
+
+		// Depending on the version of Windows, this produces a "ERROR_INVALID_NAME" (Windows < 2025),
+		// or a "ERROR_DIRECTORY" (Windows 2025); https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-
+		expected = []string{
+			"The directory name is invalid.",                                     // ERROR_DIRECTORY
+			"The filename, directory name, or volume label syntax is incorrect.", // ERROR_INVALID_NAME
+		}
 	}
-	_, _, err := apiClient.CopyFromContainer(ctx, cid, path)
-	assert.Assert(t, is.ErrorContains(err, expected))
+	_, _, err := apiClient.CopyFromContainer(ctx, cid, existingFile)
+	var found bool
+	for _, expErr := range expected {
+		if err != nil && strings.Contains(err.Error(), expErr) {
+			found = true
+			break
+		}
+	}
+	assert.Check(t, found, "Expected error to be one of %v, but got %v", expected, err)
 }
 
 func TestCopyToContainerPathDoesNotExist(t *testing.T) {
