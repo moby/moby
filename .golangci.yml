@@ -238,6 +238,7 @@ linters:
         - name: superfluous-else
           arguments:
             - preserve-scope
+        - name: time-equal
         - name: time-naming
           disabled: true
         - name: unexported-return
