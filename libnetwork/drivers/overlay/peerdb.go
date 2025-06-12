@@ -251,6 +251,14 @@ func (d *driver) peerAddOp(nid, eid string, peerIP netip.Prefix, peerMac net.Har
 		log.G(context.TODO()).Warn(err)
 	}
 
+	// Handle multicast addresses
+	if peerIP.Addr().IsMulticast() {
+		if err := d.peerAddMulticast(nid, eid, peerIP, vtep); err != nil {
+			log.G(context.TODO()).Warnf("Failed to add multicast peer: %v", err)
+		}
+		return nil
+	}
+
 	// Add neighbor entry for the peer IP
 	if err := sbox.AddNeighbor(peerIP.Addr().AsSlice(), peerMac, osl.WithLinkName(s.vxlanName)); err != nil {
 		if _, ok := err.(osl.NeighborSearchError); ok && dbEntries > 1 {
@@ -302,6 +310,14 @@ func (d *driver) peerDeleteOp(nid, eid string, peerIP netip.Prefix, peerMac net.
 
 	if err := d.checkEncryption(nid, vtep, localPeer, false); err != nil {
 		log.G(context.TODO()).Warn(err)
+	}
+
+	// Handle multicast addresses
+	if peerIP.Addr().IsMulticast() {
+		if err := d.peerDeleteMulticast(nid, eid, peerIP, vtep); err != nil {
+			log.G(context.TODO()).Warnf("Failed to delete multicast peer: %v", err)
+		}
+		return nil
 	}
 
 	// Local peers do not have any local configuration to delete

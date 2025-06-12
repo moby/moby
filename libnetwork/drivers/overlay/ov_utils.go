@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"syscall"
 
 	"github.com/containerd/log"
@@ -67,6 +68,9 @@ func createVxlan(name string, vni uint32, mtu int, vtepIPv6 bool) error {
 		Proxy:     true,
 		L3miss:    true,
 		L2miss:    true,
+		// Enable multicast support
+		GBP:       false, // Group-based policy (disabled for multicast)
+		RSC:       false, // Route short-circuiting (disabled for multicast)
 	}
 
 	// The kernel restricts the destination VTEP (virtual tunnel endpoint) in
@@ -84,6 +88,37 @@ func createVxlan(name string, vni uint32, mtu int, vtepIPv6 bool) error {
 
 	if err := ns.NlHandle().LinkAdd(vxlan); err != nil {
 		return fmt.Errorf("error creating vxlan interface: %v", err)
+	}
+
+	// Enable multicast on the VXLAN interface after creation
+	if err := enableVxlanMulticast(name); err != nil {
+		log.G(context.TODO()).Warnf("Failed to enable multicast on VXLAN %s: %v", name, err)
+	}
+
+	return nil
+}
+
+func enableVxlanMulticast(name string) error {
+	link, err := ns.NlHandle().LinkByName(name)
+	if err != nil {
+		return fmt.Errorf("failed to find VXLAN interface %s: %v", name, err)
+	}
+
+	// Enable allmulticast on the VXLAN interface
+	if err := ns.NlHandle().LinkSetAllmulticastOn(link); err != nil {
+		return fmt.Errorf("failed to enable allmulticast on VXLAN %s: %v", name, err)
+	}
+
+	// Set multicast TTL to default value (1 for single hop)
+	ttlPath := fmt.Sprintf("/sys/class/net/%s/multicast_ttl", name)
+	if err := os.WriteFile(ttlPath, []byte("1"), 0644); err != nil {
+		log.G(context.TODO()).Debugf("Failed to set multicast TTL on VXLAN %s: %v", name, err)
+	}
+
+	// Enable multicast forwarding
+	forwardingPath := fmt.Sprintf("/proc/sys/net/ipv4/conf/%s/mc_forwarding", name)
+	if err := os.WriteFile(forwardingPath, []byte("1"), 0644); err != nil {
+		log.G(context.TODO()).Debugf("Failed to enable multicast forwarding on VXLAN %s: %v", name, err)
 	}
 
 	return nil

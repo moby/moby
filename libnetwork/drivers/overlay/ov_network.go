@@ -56,9 +56,11 @@ type network struct {
 	sboxInit  bool
 	initEpoch int
 	initErr   error
-	subnets   []*subnet
-	secure    bool
-	mtu       int
+	subnets        []*subnet
+	secure         bool
+	mtu            int
+	stopCh         chan struct{}
+	netlinkMonitor interface{} // Will be *netlinkMonitor from netlink_linux.go
 	sync.Mutex
 }
 
@@ -99,6 +101,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 		driver:    d,
 		endpoints: endpointTable{},
 		subnets:   []*subnet{},
+		stopCh:    make(chan struct{}),
 	}
 
 	vnis := make([]uint32, 0, len(ipV4Data))
@@ -210,6 +213,17 @@ func (d *driver) DeleteNetwork(nid string) error {
 		}
 	}
 
+	if n.stopCh != nil {
+		close(n.stopCh)
+	}
+	
+	// Stop netlink monitor if it exists
+	if n.netlinkMonitor != nil {
+		if monitor, ok := n.netlinkMonitor.(interface{ stop() }); ok {
+			monitor.stop()
+		}
+	}
+
 	doPeerFlush = true
 	delete(d.networks, nid)
 
@@ -262,7 +276,7 @@ func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
 	}()
 
 	if !n.sboxInit {
-		n.initErr = n.initSandbox()
+		n.initErr = n.initSandbox(false)
 		doInitPeerDB = n.initErr == nil
 		// If there was an error, we cannot recover it
 		n.sboxInit = true
@@ -463,6 +477,15 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 		// not a fatal error
 		log.G(context.TODO()).WithError(err).Error("set bridge default vlan failed")
 	}
+
+	if err := n.enableBridgeMulticast(sbox, brName); err != nil {
+		log.G(context.TODO()).WithError(err).Warnf("failed to enable multicast on bridge %s", brName)
+	}
+
+	if err := n.enableBridgeStormControl(sbox, brName); err != nil {
+		log.G(context.TODO()).WithError(err).Warnf("failed to enable storm control on bridge %s", brName)
+	}
+
 	return nil
 }
 
@@ -515,6 +538,57 @@ func setDefaultVLAN(ns *osl.Namespace) error {
 		return err
 	}
 	return innerErr
+}
+
+func (n *network) enableBridgeMulticast(sbox *osl.Namespace, brName string) error {
+	return sbox.InvokeFunc(func() error {
+		link, err := netlink.LinkByName(brName)
+		if err != nil {
+			return fmt.Errorf("failed to find bridge %s: %v", brName, err)
+		}
+
+		if err := netlink.LinkSetAllmulticastOn(link); err != nil {
+			return fmt.Errorf("failed to enable allmulticast on bridge %s: %v", brName, err)
+		}
+
+		// Enable IGMP snooping
+		snoopingPath := fmt.Sprintf("/sys/class/net/%s/bridge/multicast_snooping", brName)
+		if err := os.WriteFile(snoopingPath, []byte("1"), 0644); err != nil {
+			log.G(context.TODO()).Debugf("Failed to enable IGMP snooping: %v", err)
+		}
+
+		// Set multicast router mode (2 = auto)
+		routerPath := fmt.Sprintf("/sys/class/net/%s/bridge/multicast_router", brName)
+		if err := os.WriteFile(routerPath, []byte("2"), 0644); err != nil {
+			log.G(context.TODO()).Debugf("Failed to set multicast router mode: %v", err)
+		}
+
+		// Enable multicast querier
+		querierPath := fmt.Sprintf("/sys/class/net/%s/bridge/multicast_querier", brName)
+		if err := os.WriteFile(querierPath, []byte("1"), 0644); err != nil {
+			log.G(context.TODO()).Debugf("Failed to enable multicast querier: %v", err)
+		}
+
+		// Set query interval (default 125 seconds)
+		queryIntervalPath := fmt.Sprintf("/sys/class/net/%s/bridge/multicast_query_interval", brName)
+		if err := os.WriteFile(queryIntervalPath, []byte("12500"), 0644); err != nil {
+			log.G(context.TODO()).Debugf("Failed to set query interval: %v", err)
+		}
+
+		// Set last member query interval (default 1 second)
+		lastMemberIntervalPath := fmt.Sprintf("/sys/class/net/%s/bridge/multicast_last_member_interval", brName)
+		if err := os.WriteFile(lastMemberIntervalPath, []byte("100"), 0644); err != nil {
+			log.G(context.TODO()).Debugf("Failed to set last member query interval: %v", err)
+		}
+
+		// Set membership interval (default 260 seconds)  
+		membershipIntervalPath := fmt.Sprintf("/sys/class/net/%s/bridge/multicast_membership_interval", brName)
+		if err := os.WriteFile(membershipIntervalPath, []byte("26000"), 0644); err != nil {
+			log.G(context.TODO()).Debugf("Failed to set membership interval: %v", err)
+		}
+
+		return nil
+	})
 }
 
 // Must be called with the network lock
@@ -579,7 +653,10 @@ func (n *network) cleanupStaleSandboxes() {
 		})
 }
 
-func (n *network) initSandbox() error {
+func (n *network) initSandbox(restore bool) error {
+	n.Lock()
+	defer n.Unlock()
+	
 	n.initEpoch++
 
 	// If there are any stale sandboxes related to this network
@@ -594,6 +671,14 @@ func (n *network) initSandbox() error {
 
 	// this is needed to let the peerAdd configure the sandbox
 	n.sbox = sbox
+
+	if err := n.initMulticast(); err != nil {
+		log.G(context.TODO()).Errorf("failed to initialize multicast routing for overlay network %s: %v", n.id, err)
+	}
+
+	if err := n.startNetlinkMonitor(); err != nil {
+		log.G(context.TODO()).Warnf("failed to start netlink monitor for overlay network %s: %v", n.id, err)
+	}
 
 	return nil
 }
