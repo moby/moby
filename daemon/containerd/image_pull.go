@@ -214,7 +214,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	if err != nil {
 		if errors.Is(err, docker.ErrInvalidAuthorization) {
 			// Match error returned by containerd.
-			// https://github.com/containerd/containerd/blob/v1.7.8/remotes/docker/authorizer.go#L189-L191
+			// https://github.com/containerd/containerd/blob/v2.1.1/core/remotes/docker/authorizer.go#L201-L203
 			if strings.Contains(err.Error(), "no basic auth credentials") {
 				return err
 			}
