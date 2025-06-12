@@ -147,7 +147,15 @@ func Enabled() bool {
 	return nftPath != ""
 }
 
-// ////////////////////////////
+// Disable undoes Enable. Intended for unit testing.
+func Disable() {
+	nftPath = ""
+	incrementalUpdateTempl = nil
+	reloadTempl = nil
+	enableOnce = sync.Once{}
+}
+
+//////////////////////////////
 // Tables
 
 // table is the internal representation of an nftables table.
