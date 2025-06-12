@@ -116,10 +116,10 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 		p = platforms.Only(*platform)
 	}
 
-	jobs := newJobs()
+	pullJobs := newJobs()
 	opts = append(opts, containerd.WithImageHandler(c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		if showBlobProgress(desc) {
-			jobs.Add(desc)
+			pullJobs.Add(desc)
 		}
 		return nil, nil
 	})))
@@ -129,7 +129,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 		snapshotter: i.snapshotterService(i.snapshotter),
 		showExists:  true,
 	}
-	finishProgress := jobs.showProgress(ctx, out, pp)
+	finishProgress := pullJobs.showProgress(ctx, out, pp)
 
 	defer func() {
 		finishProgress()
@@ -214,7 +214,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	if err != nil {
 		if errors.Is(err, docker.ErrInvalidAuthorization) {
 			// Match error returned by containerd.
-			// https://github.com/containerd/containerd/blob/v1.7.8/remotes/docker/authorizer.go#L189-L191
+			// https://github.com/containerd/containerd/blob/v2.1.1/core/remotes/docker/authorizer.go#L201-L203
 			if strings.Contains(err.Error(), "no basic auth credentials") {
 				return err
 			}
