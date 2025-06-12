@@ -159,3 +159,18 @@ func (nDB *NetworkDB) sendTableEvent(event TableEvent_Type, nid string, tname st
 	})
 	return nil
 }
+
+func getBroadcasts(overhead, limit int, queues ...*memberlist.TransmitLimitedQueue) [][]byte {
+	var msgs [][]byte
+	for _, q := range queues {
+		b := q.GetBroadcasts(overhead, limit)
+		for _, m := range b {
+			limit -= overhead + len(m)
+		}
+		msgs = append(msgs, b...)
+		if limit <= 0 {
+			break
+		}
+	}
+	return msgs
+}

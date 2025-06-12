@@ -289,11 +289,11 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 		}
 
 		// if the queue is over the threshold, avoid distributing information coming from TCP sync
-		if isBulkSync && n.tableBroadcasts.NumQueued() > maxQueueLenBroadcastOnSync {
+		if isBulkSync && n.tableRebroadcasts.NumQueued() > maxQueueLenBroadcastOnSync {
 			return
 		}
 
-		n.tableBroadcasts.QueueBroadcast(&tableEventMessage{
+		n.tableRebroadcasts.QueueBroadcast(&tableEventMessage{
 			msg:   buf,
 			id:    tEvent.NetworkID,
 			tname: tEvent.TableName,
@@ -416,14 +416,7 @@ func (d *delegate) NotifyMsg(buf []byte) {
 }
 
 func (d *delegate) GetBroadcasts(overhead, limit int) [][]byte {
-	msgs := d.nDB.networkBroadcasts.GetBroadcasts(overhead, limit)
-	for _, m := range msgs {
-		limit -= overhead + len(m)
-	}
-	if limit > 0 {
-		msgs = append(msgs, d.nDB.nodeBroadcasts.GetBroadcasts(overhead, limit)...)
-	}
-	return msgs
+	return getBroadcasts(overhead, limit, d.nDB.networkBroadcasts, d.nDB.nodeBroadcasts)
 }
 
 func (d *delegate) LocalState(join bool) []byte {

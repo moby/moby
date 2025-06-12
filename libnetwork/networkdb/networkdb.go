@@ -149,9 +149,20 @@ type thisNodeNetwork struct {
 	// Gets set to true after the first bulk sync happens
 	inSync bool
 
-	// The broadcast queue for table event gossip. This is only
-	// initialized for this node's network attachment entries.
+	// The broadcast queue for this network's table event gossip
+	// for entries owned by this node.
 	tableBroadcasts *memberlist.TransmitLimitedQueue
+
+	// The broadcast queue for this network's table event gossip
+	// relayed from other nodes.
+	//
+	// Messages in this queue are broadcasted when there is space available
+	// in the gossip packet after filling it with tableBroadcast messages.
+	// Relayed messages are broadcasted at a lower priority than messages
+	// originating from this node to ensure that local messages are always
+	// broadcasted in a timely manner, irrespective of how many messages
+	// from other nodes are queued for rebroadcasting.
+	tableRebroadcasts *memberlist.TransmitLimitedQueue
 
 	// Number of gossip messages sent related to this network during the last stats collection period
 	qMessagesSent atomic.Int64
@@ -626,17 +637,22 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 		n.network = network{ltime: ltime}
 		n.inSync = false
 	} else {
+		numNodes := func() int {
+			// TODO fcrisciani this can be optimized maybe avoiding the lock?
+			// this call is done each GetBroadcasts call to evaluate the number of
+			// replicas for the message
+			nDB.RLock()
+			defer nDB.RUnlock()
+			return len(nDB.networkNodes[nid])
+		}
 		n = &thisNodeNetwork{
 			network: network{ltime: ltime},
 			tableBroadcasts: &memberlist.TransmitLimitedQueue{
-				NumNodes: func() int {
-					// TODO fcrisciani this can be optimized maybe avoiding the lock?
-					// this call is done each GetBroadcasts call to evaluate the number of
-					// replicas for the message
-					nDB.RLock()
-					defer nDB.RUnlock()
-					return len(nDB.networkNodes[nid])
-				},
+				NumNodes:       numNodes,
+				RetransmitMult: 4,
+			},
+			tableRebroadcasts: &memberlist.TransmitLimitedQueue{
+				NumNodes:       numNodes,
 				RetransmitMult: 4,
 			},
 		}
