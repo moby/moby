@@ -13,6 +13,14 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.51 API changes
+
+[Docker Engine API v1.51](https://docs.docker.com/reference/api/engine/version/v1.51/) documentation
+
+* Deprecated: The keys in `HostConfig.PortBindings` in `POST /containers/create`
+  should always specify the port protocol. Starting with v1.51, the API returns
+  a warning when that's not the case. This will be a hard error in v1.52.
+
 ## v1.50 API changes
 
 [Docker Engine API v1.50](https://docs.docker.com/reference/api/engine/version/v1.50/) documentation

@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/runconfig"
@@ -678,6 +679,12 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		warnings = append(warnings, warn)
 	}
 
+	if warns, err := validatePortBindings(hostConfig, version); err != nil {
+		return err
+	} else if len(warns) > 0 {
+		warnings = append(warnings, warns...)
+	}
+
 	if hostConfig.PidsLimit != nil && *hostConfig.PidsLimit <= 0 {
 		// Don't set a limit if either no limit was specified, or "unlimited" was
 		// explicitly set.
@@ -918,6 +925,43 @@ func epConfigForNetMode(
 	}
 
 	return ep, nil
+}
+
+// validatePortBindings checks that all PortBindings are valid, and have
+// a protocol specified.
+//
+// Up until v28.3, the Engine would accept port bindings with no protocol
+// specified. In that case, it would use TCP as the default protocol. This
+// wasn't specified in the API spec, leading to interoperability issues.
+//
+// Starting with Engine v28.3, a warning is returned when the protocol is
+// missing for all API versions up until v1.52. Starting with that API version,
+// it's a hard error.
+func validatePortBindings(hostConfig *container.HostConfig, version string) ([]string, error) {
+	if len(hostConfig.PortBindings) == 0 {
+		return nil, nil
+	}
+
+	var errs []error
+	for portSpec := range hostConfig.PortBindings {
+		parts := strings.Split(string(portSpec), "/")
+		if parts[0] == "" || len(parts) > 2 {
+			// This is a buggy port binding, and is silently ignored by
+			// libnetwork.
+			errs = append(errs, fmt.Errorf("invalid port binding %q", portSpec))
+		}
+		if len(parts) == 1 || parts[1] == "" {
+			errs = append(errs, fmt.Errorf("port binding %q has no protocol specified", portSpec))
+		}
+	}
+
+	if versions.LessThan(version, "1.52") {
+		return sliceutil.Map(errs, func(err error) string {
+			return err.Error()
+		}), nil
+	}
+
+	return []string{}, nil
 }
 
 func (c *containerRouter) deleteContainers(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
