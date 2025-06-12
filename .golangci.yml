@@ -224,6 +224,7 @@ linters:
         - name: superfluous-else
           arguments:
             - preserve-scope
+        - name: time-equal
         - name: use-any
         - name: use-errors-new
         - name: useless-break

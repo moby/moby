@@ -29,7 +29,7 @@ func TestChtimesModTime(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if f.ModTime() != unixEpochTime {
+		if !f.ModTime().Equal(unixEpochTime) {
 			t.Fatalf("Expected: %s, got: %s", unixEpochTime, f.ModTime())
 		}
 	})
@@ -45,7 +45,7 @@ func TestChtimesModTime(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if f.ModTime() != unixEpochTime {
+		if !f.ModTime().Equal(unixEpochTime) {
 			t.Fatalf("Expected: %s, got: %s", unixEpochTime, f.ModTime())
 		}
 	})
@@ -61,7 +61,7 @@ func TestChtimesModTime(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if f.ModTime() != unixEpochTime {
+		if !f.ModTime().Equal(unixEpochTime) {
 			t.Fatalf("Expected: %s, got: %s", unixEpochTime, f.ModTime())
 		}
 	})
@@ -77,7 +77,7 @@ func TestChtimesModTime(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if f.ModTime() != afterUnixEpochTime {
+		if !f.ModTime().Equal(afterUnixEpochTime) {
 			t.Fatalf("Expected: %s, got: %s", afterUnixEpochTime, f.ModTime())
 		}
 	})
@@ -93,7 +93,7 @@ func TestChtimesModTime(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if f.ModTime().Truncate(time.Second) != unixMaxTime.Truncate(time.Second) {
+		if !f.ModTime().Truncate(time.Second).Equal(unixMaxTime.Truncate(time.Second)) {
 			t.Fatalf("Expected: %s, got: %s", unixMaxTime.Truncate(time.Second), f.ModTime().Truncate(time.Second))
 		}
 	})
