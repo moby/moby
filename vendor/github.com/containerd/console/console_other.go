@@ -1,5 +1,5 @@
-//go:build !darwin && !freebsd && !linux && !netbsd && !openbsd && !solaris && !windows && !zos
-// +build !darwin,!freebsd,!linux,!netbsd,!openbsd,!solaris,!windows,!zos
+//go:build !darwin && !freebsd && !linux && !netbsd && !openbsd && !windows && !zos
+// +build !darwin,!freebsd,!linux,!netbsd,!openbsd,!windows,!zos
 
 /*
    Copyright The containerd Authors.

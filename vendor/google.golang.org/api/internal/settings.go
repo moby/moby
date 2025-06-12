@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	newAuthLibEnVar = "GOOGLE_API_GO_EXPERIMENTAL_USE_NEW_AUTH_LIB"
+	newAuthLibEnVar       = "GOOGLE_API_GO_EXPERIMENTAL_USE_NEW_AUTH_LIB"
+	universeDomainDefault = "googleapis.com"
 )
 
 // DialSettings holds information needed to establish a connection with a
@@ -160,4 +161,29 @@ func (ds *DialSettings) Validate() error {
 		return errors.New("WithImpersonatedCredentials requires scopes being provided")
 	}
 	return nil
+}
+
+// GetDefaultUniverseDomain returns the default service domain for a given Cloud
+// universe, as configured with internaloption.WithDefaultUniverseDomain.
+// The default value is "googleapis.com".
+func (ds *DialSettings) GetDefaultUniverseDomain() string {
+	if ds.DefaultUniverseDomain == "" {
+		return universeDomainDefault
+	}
+	return ds.DefaultUniverseDomain
+}
+
+// GetUniverseDomain returns the default service domain for a given Cloud
+// universe, as configured with option.WithUniverseDomain.
+// The default value is the value of GetDefaultUniverseDomain, as configured
+// with internaloption.WithDefaultUniverseDomain.
+func (ds *DialSettings) GetUniverseDomain() string {
+	if ds.UniverseDomain == "" {
+		return ds.GetDefaultUniverseDomain()
+	}
+	return ds.UniverseDomain
+}
+
+func (ds *DialSettings) IsUniverseDomainGDU() bool {
+	return ds.GetUniverseDomain() == ds.GetDefaultUniverseDomain()
 }

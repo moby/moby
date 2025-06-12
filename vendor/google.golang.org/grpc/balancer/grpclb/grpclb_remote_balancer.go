@@ -260,10 +260,11 @@ func (lb *lbBalancer) newRemoteBalancerCCWrapper() error {
 	// The grpclb server addresses will set field ServerName, and creds will
 	// receive ServerName as authority.
 	target := lb.manualResolver.Scheme() + ":///grpclb.subClientConn"
-	cc, err := grpc.Dial(target, dopts...)
+	cc, err := grpc.NewClient(target, dopts...)
 	if err != nil {
-		return fmt.Errorf("grpc.Dial(%s): %v", target, err)
+		return fmt.Errorf("grpc.NewClient(%s): %v", target, err)
 	}
+	cc.Connect()
 	ccw := &remoteBalancerCCWrapper{
 		cc:      cc,
 		lb:      lb,

@@ -11,10 +11,10 @@ import (
 	"strings"
 	"sync"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace/internal/semconv"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -125,6 +125,7 @@ type clientTracer struct {
 	redactedHeaders map[string]struct{}
 	addHeaders      bool
 	useSpans        bool
+	semconv         semconv.HTTPClient
 }
 
 // NewClientTrace returns an httptrace.ClientTrace implementation that will
@@ -148,6 +149,7 @@ func NewClientTrace(ctx context.Context, opts ...ClientTraceOption) *httptrace.C
 		},
 		addHeaders: true,
 		useSpans:   true,
+		semconv:    semconv.NewHTTPClient(nil),
 	}
 
 	if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
@@ -266,7 +268,7 @@ func (ct *clientTracer) span(hook string) trace.Span {
 }
 
 func (ct *clientTracer) getConn(host string) {
-	ct.start("http.getconn", "http.getconn", semconv.NetHostName(host))
+	ct.start("http.getconn", "http.getconn", ct.semconv.TraceAttributes(host)...)
 }
 
 func (ct *clientTracer) gotConn(info httptrace.GotConnInfo) {
@@ -291,7 +293,7 @@ func (ct *clientTracer) gotFirstResponseByte() {
 }
 
 func (ct *clientTracer) dnsStart(info httptrace.DNSStartInfo) {
-	ct.start("http.dns", "http.dns", semconv.NetHostName(info.Host))
+	ct.start("http.dns", "http.dns", ct.semconv.TraceAttributes(info.Host)...)
 }
 
 func (ct *clientTracer) dnsDone(info httptrace.DNSDoneInfo) {

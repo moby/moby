@@ -32,6 +32,10 @@ func unmarshalGoFeature(b []byte, parent EditionFeatures) EditionFeatures {
 			v, m := protowire.ConsumeVarint(b)
 			b = b[m:]
 			parent.GenerateLegacyUnmarshalJSON = protowire.DecodeBool(v)
+		case genid.GoFeatures_ApiLevel_field_number:
+			v, m := protowire.ConsumeVarint(b)
+			b = b[m:]
+			parent.APILevel = int(v)
 		case genid.GoFeatures_StripEnumPrefix_field_number:
 			v, m := protowire.ConsumeVarint(b)
 			b = b[m:]
@@ -65,6 +69,9 @@ func unmarshalFeatureSet(b []byte, parent EditionFeatures) EditionFeatures {
 				parent.IsDelimitedEncoded = v == genid.FeatureSet_DELIMITED_enum_value
 			case genid.FeatureSet_JsonFormat_field_number:
 				parent.IsJSONCompliant = v == genid.FeatureSet_ALLOW_enum_value
+			case genid.FeatureSet_EnforceNamingStyle_field_number:
+				// EnforceNamingStyle is enforced in protoc, languages other than C++
+				// are not supposed to do anything with this feature.
 			default:
 				panic(fmt.Sprintf("unkown field number %d while unmarshalling FeatureSet", num))
 			}

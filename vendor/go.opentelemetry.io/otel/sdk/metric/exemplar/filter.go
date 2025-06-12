@@ -27,3 +27,8 @@ func TraceBasedFilter(ctx context.Context) bool {
 func AlwaysOnFilter(ctx context.Context) bool {
 	return true
 }
+
+// AlwaysOffFilter is a [Filter] that never offers measurements.
+func AlwaysOffFilter(ctx context.Context) bool {
+	return false
+}

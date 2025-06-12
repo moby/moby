@@ -18,7 +18,6 @@ package console
 
 import (
 	"bytes"
-	"os"
 
 	"golang.org/x/sys/unix"
 )
@@ -31,12 +30,12 @@ const (
 // unlockpt unlocks the slave pseudoterminal device corresponding to the master pseudoterminal referred to by f.
 // unlockpt should be called before opening the slave side of a pty.
 // This does not exist on NetBSD, it does not allocate controlling terminals on open
-func unlockpt(f *os.File) error {
+func unlockpt(f File) error {
 	return nil
 }
 
 // ptsname retrieves the name of the first available pts for the given master.
-func ptsname(f *os.File) (string, error) {
+func ptsname(f File) (string, error) {
 	ptm, err := unix.IoctlGetPtmget(int(f.Fd()), unix.TIOCPTSNAME)
 	if err != nil {
 		return "", err

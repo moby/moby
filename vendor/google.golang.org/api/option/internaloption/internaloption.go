@@ -38,7 +38,10 @@ func (o defaultEndpointTemplateOption) Apply(settings *internal.DialSettings) {
 
 // WithDefaultEndpointTemplate provides a template for creating the endpoint
 // using a universe domain. See also WithDefaultUniverseDomain and
-// option.WithUniverseDomain.
+// option.WithUniverseDomain. The placeholder UNIVERSE_DOMAIN should be used
+// instead of a concrete universe domain such as "googleapis.com".
+//
+// Example: WithDefaultEndpointTemplate("https://logging.UNIVERSE_DOMAIN/")
 //
 // It should only be used internally by generated clients.
 func WithDefaultEndpointTemplate(url string) option.ClientOption {
@@ -163,6 +166,11 @@ func (w withDefaultUniverseDomain) Apply(o *internal.DialSettings) {
 
 // EnableJwtWithScope returns a ClientOption that specifies if scope can be used
 // with self-signed JWT.
+//
+// EnableJwtWithScope is ignored when option.WithUniverseDomain is set
+// to a value other than the Google Default Universe (GDU) of "googleapis.com".
+// For non-GDU domains, token exchange is impossible and services must
+// support self-signed JWTs with scopes.
 func EnableJwtWithScope() option.ClientOption {
 	return enableJwtWithScope(true)
 }

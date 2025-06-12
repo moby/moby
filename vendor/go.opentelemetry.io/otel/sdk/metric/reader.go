@@ -5,26 +5,26 @@ package metric // import "go.opentelemetry.io/otel/sdk/metric"
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 // errDuplicateRegister is logged by a Reader when an attempt to registered it
 // more than once occurs.
-var errDuplicateRegister = fmt.Errorf("duplicate reader registration")
+var errDuplicateRegister = errors.New("duplicate reader registration")
 
 // ErrReaderNotRegistered is returned if Collect or Shutdown are called before
 // the reader is registered with a MeterProvider.
-var ErrReaderNotRegistered = fmt.Errorf("reader is not registered")
+var ErrReaderNotRegistered = errors.New("reader is not registered")
 
 // ErrReaderShutdown is returned if Collect or Shutdown are called after a
 // reader has been Shutdown once.
-var ErrReaderShutdown = fmt.Errorf("reader is shutdown")
+var ErrReaderShutdown = errors.New("reader is shutdown")
 
 // errNonPositiveDuration is logged when an environmental variable
 // has non-positive value.
-var errNonPositiveDuration = fmt.Errorf("non-positive duration")
+var errNonPositiveDuration = errors.New("non-positive duration")
 
 // Reader is the interface used between the SDK and an
 // exporter.  Control flow is bi-directional through the
@@ -60,8 +60,8 @@ type Reader interface {
 	aggregation(InstrumentKind) Aggregation // nolint:revive  // import-shadow for method scoped by type.
 
 	// Collect gathers and returns all metric data related to the Reader from
-	// the SDK and stores it in out. An error is returned if this is called
-	// after Shutdown or if out is nil.
+	// the SDK and stores it in rm. An error is returned if this is called
+	// after Shutdown or if rm is nil.
 	//
 	// This method needs to be concurrent safe, and the cancellation of the
 	// passed context is expected to be honored.

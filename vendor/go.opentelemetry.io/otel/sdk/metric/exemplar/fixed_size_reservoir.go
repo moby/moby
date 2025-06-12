@@ -12,6 +12,13 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+// FixedSizeReservoirProvider returns a provider of [FixedSizeReservoir].
+func FixedSizeReservoirProvider(k int) ReservoirProvider {
+	return func(_ attribute.Set) Reservoir {
+		return NewFixedSizeReservoir(k)
+	}
+}
+
 // NewFixedSizeReservoir returns a [FixedSizeReservoir] that samples at most
 // k exemplars. If there are k or less measurements made, the Reservoir will
 // sample each one. If there are more than k, the Reservoir will then randomly
