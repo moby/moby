@@ -373,6 +373,16 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 						Type: local.Name,
 					}
 				}
+
+				// The logger option 'fluentd-async-connect' has been
+				// deprecated in v20.10 in favor of 'fluentd-async', and
+				// removed in v28.0.
+				if v, ok := c.HostConfig.LogConfig.Config["fluentd-async-connect"]; ok {
+					if _, ok := c.HostConfig.LogConfig.Config["fluentd-async"]; !ok {
+						c.HostConfig.LogConfig.Config["fluentd-async"] = v
+					}
+					delete(c.HostConfig.LogConfig.Config, "fluentd-async-connect")
+				}
 			}
 
 			if err := daemon.checkpointAndSave(c); err != nil {
