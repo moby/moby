@@ -25,7 +25,7 @@ func TestJSONLogsMarshalJSONBuf(t *testing.T) {
 		{}: `^{\"time\":"0001-01-01T00:00:00Z"}$`,
 		// These ones are a little weird
 		{Log: []byte("\u2028 \u2029")}: `^{\"log\":\"\\u2028 \\u2029\",\"time\":`,
-		{Log: []byte{0xaF}}:            `^{\"log\":\"\\ufffd\",\"time\":`,
+		{Log: []byte{0xaf}}:            `^{\"log\":\"\\ufffd\",\"time\":`,
 		{Log: []byte{0x7F}}:            `^{\"log\":\"\x7f\",\"time\":`,
 		// with raw attributes
 		{Log: []byte("A log line"), RawAttrs: []byte(`{"hello":"world","value":1234}`)}: `^{\"log\":\"A log line\",\"attrs\":{\"hello\":\"world\",\"value\":1234},\"time\":`,
