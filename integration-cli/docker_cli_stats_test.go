@@ -92,7 +92,7 @@ func (s *DockerCLIStatsSuite) TestStatsAllRunningNoStream(c *testing.T) {
 	}
 
 	// check output contains real data, but not all zeros
-	reg, _ := regexp.Compile("[1-9]+")
+	reg := regexp.MustCompile("[1-9]+")
 	// split output with "\n", outLines[1] is id2's output
 	// outLines[2] is id1's output
 	outLines := strings.Split(out, "\n")
@@ -122,7 +122,7 @@ func (s *DockerCLIStatsSuite) TestStatsAllNoStream(c *testing.T) {
 	}
 
 	// check output contains real data, but not all zeros
-	reg, _ := regexp.Compile("[1-9]+")
+	reg := regexp.MustCompile("[1-9]+")
 	// split output with "\n", outLines[1] is id2's output
 	outLines := strings.Split(out, "\n")
 	// check stat result of id2 contains real data
