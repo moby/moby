@@ -61,10 +61,6 @@ type NetworkAllocator interface {
 	// virtual IP and ports associated with the service.
 	DeallocateService(s *api.Service) error
 
-	// HostPublishPortsNeedUpdate returns true if the passed service needs
-	// allocations for its published ports in host (non ingress) mode
-	HostPublishPortsNeedUpdate(s *api.Service) bool
-
 	//
 	// Task Allocation
 	//
@@ -89,6 +85,35 @@ type NetworkAllocator interface {
 
 	// IsAttachmentAllocated If lb endpoint is allocated on the node
 	IsAttachmentAllocated(node *api.Node, networkAttachment *api.NetworkAttachment) bool
+}
+
+// Config is used to store network related cluster config in the Manager.
+type Config struct {
+	// DefaultAddrPool specifies default subnet pool for global scope networks
+	DefaultAddrPool []string
+
+	// SubnetSize specifies the subnet size of the networks created from
+	// the default subnet pool
+	SubnetSize uint32
+
+	// VXLANUDPPort specifies the UDP port number for VXLAN traffic
+	VXLANUDPPort uint32
+}
+
+// DriverValidator validates whether a network driver spec is supported by the
+// network provider.
+type DriverValidator interface {
+	ValidateNetworkDriver(*api.Driver) error
+	ValidateIngressNetworkDriver(*api.Driver) error
+	ValidateIPAMDriver(*api.Driver) error
+}
+
+// Provider provides network allocation functionality.
+type Provider interface {
+	DriverValidator
+	PredefinedNetworks() []PredefinedNetworkData
+	SetDefaultVXLANUDPPort(uint32) error
+	NewAllocator(*Config) (NetworkAllocator, error)
 }
 
 // IsIngressNetwork check if the network is an ingress network

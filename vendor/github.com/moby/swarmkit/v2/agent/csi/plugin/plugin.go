@@ -11,10 +11,10 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/internal/csi/capability"
 	"github.com/moby/swarmkit/v2/log"
+	"github.com/moby/swarmkit/v2/node/plugin"
 )
 
 // SecretGetter is a reimplementation of the exec.SecretGetter interface in the
@@ -88,17 +88,17 @@ const (
 	TargetPublishPath string = "/data/published"
 )
 
-func NewNodePlugin(name string, pc plugingetter.CompatPlugin, pa plugingetter.PluginAddr, secrets SecretGetter) NodePlugin {
-	return newNodePlugin(name, pc, pa, secrets)
+func NewNodePlugin(name string, p plugin.AddrPlugin, secrets SecretGetter) NodePlugin {
+	return newNodePlugin(name, p, secrets)
 }
 
 // newNodePlugin returns a raw nodePlugin object, not behind an interface. this
 // is useful for testing.
-func newNodePlugin(name string, pc plugingetter.CompatPlugin, pa plugingetter.PluginAddr, secrets SecretGetter) *nodePlugin {
+func newNodePlugin(name string, p plugin.AddrPlugin, secrets SecretGetter) *nodePlugin {
 	return &nodePlugin{
 		name:      name,
-		socket:    fmt.Sprintf("%s://%s", pa.Addr().Network(), pa.Addr().String()),
-		scopePath: pc.ScopedPath,
+		socket:    fmt.Sprintf("%s://%s", p.Addr().Network(), p.Addr().String()),
+		scopePath: p.ScopedPath,
 		secrets:   secrets,
 		volumeMap: map[string]*volumePublishStatus{},
 	}

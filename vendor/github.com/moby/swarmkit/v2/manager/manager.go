@@ -13,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-events"
 	gmetrics "github.com/docker/go-metrics"
 	gogotypes "github.com/gogo/protobuf/types"
@@ -24,7 +23,6 @@ import (
 	"github.com/moby/swarmkit/v2/identity"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/allocator"
-	"github.com/moby/swarmkit/v2/manager/allocator/cnmallocator"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	"github.com/moby/swarmkit/v2/manager/controlapi"
 	"github.com/moby/swarmkit/v2/manager/csi"
@@ -46,6 +44,7 @@ import (
 	"github.com/moby/swarmkit/v2/manager/state/raft/transport"
 	"github.com/moby/swarmkit/v2/manager/state/store"
 	"github.com/moby/swarmkit/v2/manager/watchapi"
+	"github.com/moby/swarmkit/v2/node/plugin"
 	"github.com/moby/swarmkit/v2/remotes"
 	"github.com/moby/swarmkit/v2/xnet"
 	"github.com/pkg/errors"
@@ -124,7 +123,7 @@ type Config struct {
 	Availability api.NodeSpec_Availability
 
 	// PluginGetter provides access to docker's plugin inventory.
-	PluginGetter plugingetter.PluginGetter
+	PluginGetter plugin.Getter
 
 	// FIPS is a boolean stating whether the node is FIPS enabled - if this is the
 	// first node in the cluster, this setting is used to set the cluster-wide mandatory
@@ -132,7 +131,16 @@ type Config struct {
 	FIPS bool
 
 	// NetworkConfig stores network related config for the cluster
-	NetworkConfig *cnmallocator.NetworkConfig
+	NetworkConfig *networkallocator.Config
+
+	NetworkProvider networkallocator.Provider
+}
+
+func (c *Config) networkProvider() networkallocator.Provider {
+	if c.NetworkProvider == nil {
+		return networkallocator.InertProvider{}
+	}
+	return c.NetworkProvider
 }
 
 // Manager is the cluster manager for Swarm.
@@ -464,7 +472,7 @@ func (m *Manager) Run(parent context.Context) error {
 		return err
 	}
 
-	baseControlAPI := controlapi.NewServer(m.raftNode.MemoryStore(), m.raftNode, m.config.SecurityConfig, m.config.PluginGetter, drivers.New(m.config.PluginGetter))
+	baseControlAPI := controlapi.NewServer(m.raftNode.MemoryStore(), m.raftNode, m.config.SecurityConfig, m.config.networkProvider(), drivers.New(m.config.PluginGetter))
 	baseResourceAPI := resourceapi.New(m.raftNode.MemoryStore())
 	healthServer := health.NewHealthServer()
 	localHealthServer := health.NewHealthServer()
@@ -993,7 +1001,7 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 		// are known to be present in each cluster node. This is needed
 		// in order to allow running services on the predefined docker
 		// networks like `bridge` and `host`.
-		for _, p := range allocator.PredefinedNetworks() {
+		for _, p := range m.config.networkProvider().PredefinedNetworks() {
 			if err := store.CreateNetwork(tx, newPredefinedNetwork(p.Name, p.Driver)); err != nil && err != store.ErrNameConflict {
 				log.G(ctx).WithError(err).Error("failed to create predefined network " + p.Name)
 			}
@@ -1026,25 +1034,26 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 		})
 		if cluster.DefaultAddressPool != nil {
 			if m.config.NetworkConfig == nil {
-				m.config.NetworkConfig = &cnmallocator.NetworkConfig{}
+				m.config.NetworkConfig = &networkallocator.Config{}
 			}
 			m.config.NetworkConfig.DefaultAddrPool = append(m.config.NetworkConfig.DefaultAddrPool, cluster.DefaultAddressPool...)
 			m.config.NetworkConfig.SubnetSize = cluster.SubnetSize
 		}
 		if cluster.VXLANUDPPort != 0 {
 			if m.config.NetworkConfig == nil {
-				m.config.NetworkConfig = &cnmallocator.NetworkConfig{}
+				m.config.NetworkConfig = &networkallocator.Config{}
 			}
 			m.config.NetworkConfig.VXLANUDPPort = cluster.VXLANUDPPort
 		}
 	}
 
-	m.allocator, err = allocator.New(s, m.config.PluginGetter, m.config.NetworkConfig)
+	na, err := m.config.networkProvider().NewAllocator(m.config.NetworkConfig)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("failed to create allocator")
 		// TODO(stevvooe): It doesn't seem correct here to fail
 		// creating the allocator but then use it anyway.
 	}
+	m.allocator = allocator.New(s, na)
 
 	if m.keyManager != nil {
 		go func(keyManager *keymanager.KeyManager) {

@@ -13,7 +13,7 @@ import (
 
 func copyFile(source, target string) error {
 	if err := unix.Clonefileat(unix.AT_FDCWD, source, unix.AT_FDCWD, target, unix.CLONE_NOFOLLOW); err != nil {
-		if err != unix.EINVAL {
+		if err != unix.EINVAL && err != unix.EXDEV {
 			return err
 		}
 	} else {

@@ -1,13 +1,12 @@
 package agent
 
 import (
-	"github.com/docker/docker/pkg/plugingetter"
-
 	"github.com/moby/swarmkit/v2/agent/configs"
 	"github.com/moby/swarmkit/v2/agent/csi"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/agent/secrets"
 	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/node/plugin"
 )
 
 type dependencyManager struct {
@@ -18,7 +17,7 @@ type dependencyManager struct {
 
 // NewDependencyManager creates a dependency manager object that wraps
 // objects which provide access to various dependency types.
-func NewDependencyManager(pg plugingetter.PluginGetter) exec.DependencyManager {
+func NewDependencyManager(pg plugin.Getter) exec.DependencyManager {
 	d := &dependencyManager{
 		secrets: secrets.NewManager(),
 		configs: configs.NewManager(),

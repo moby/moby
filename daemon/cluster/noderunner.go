@@ -10,10 +10,12 @@ import (
 
 	"github.com/containerd/log"
 	types "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/daemon/cluster/executor/container"
 	lncluster "github.com/docker/docker/libnetwork/cluster"
+	"github.com/docker/docker/libnetwork/cnmallocator"
 	swarmapi "github.com/moby/swarmkit/v2/api"
-	swarmallocator "github.com/moby/swarmkit/v2/manager/allocator/cnmallocator"
+	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	swarmnode "github.com/moby/swarmkit/v2/node"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -123,7 +125,7 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		ListenControlAPI:   control,
 		ListenRemoteAPI:    conf.ListenAddr,
 		AdvertiseRemoteAPI: conf.AdvertiseAddr,
-		NetworkConfig: &swarmallocator.NetworkConfig{
+		NetworkConfig: &networkallocator.Config{
 			DefaultAddrPool: conf.DefaultAddressPool,
 			SubnetSize:      conf.SubnetSize,
 			VXLANUDPPort:    conf.DataPathPort,
@@ -144,7 +146,8 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		ElectionTick:     n.cluster.config.RaftElectionTick,
 		UnlockKey:        conf.lockKey,
 		AutoLockManagers: conf.autolock,
-		PluginGetter:     n.cluster.config.Backend.PluginGetter(),
+		PluginGetter:     convert.SwarmPluginGetter(n.cluster.config.Backend.PluginGetter()),
+		NetworkProvider:  cnmallocator.NewProvider(n.cluster.config.Backend.PluginGetter()),
 	}
 	if conf.availability != "" {
 		avail, ok := swarmapi.NodeSpec_Availability_value[strings.ToUpper(string(conf.availability))]

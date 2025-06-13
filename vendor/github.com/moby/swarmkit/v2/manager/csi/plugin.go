@@ -4,16 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/internal/csi/capability"
 	"github.com/moby/swarmkit/v2/log"
+	mobyplugin "github.com/moby/swarmkit/v2/node/plugin"
 )
 
 // Plugin is the interface for a CSI controller plugin.
@@ -30,6 +31,7 @@ type Plugin interface {
 	UnpublishVolume(context.Context, *api.Volume, string) error
 	AddNode(swarmID, csiID string)
 	RemoveNode(swarmID string)
+	Addr() net.Addr
 }
 
 // plugin represents an individual CSI controller plugin
@@ -40,6 +42,7 @@ type plugin struct {
 
 	// socket is the unix socket to connect to this plugin at.
 	socket string
+	addr   net.Addr
 
 	// provider is the SecretProvider, which allows retrieving secrets for CSI
 	// calls.
@@ -74,12 +77,13 @@ type plugin struct {
 // the same object. By taking both parts here, we can push off the work of
 // assuring that the given plugin implements the PluginAddr interface without
 // having to typecast in this constructor.
-func NewPlugin(pc plugingetter.CompatPlugin, pa plugingetter.PluginAddr, provider SecretProvider) Plugin {
+func NewPlugin(p mobyplugin.AddrPlugin, provider SecretProvider) Plugin {
 	return &plugin{
-		name: pc.Name(),
+		name: p.Name(),
 		// TODO(dperny): verify that we do not need to include the Network()
 		// portion of the Addr.
-		socket:     fmt.Sprintf("%s://%s", pa.Addr().Network(), pa.Addr().String()),
+		socket:     fmt.Sprintf("%s://%s", p.Addr().Network(), p.Addr().String()),
+		addr:       p.Addr(),
 		provider:   provider,
 		swarmToCSI: map[string]string{},
 		csiToSwarm: map[string]string{},
@@ -340,4 +344,8 @@ func (p *plugin) makeControllerUnpublishVolumeRequest(v *api.Volume, nodeID stri
 		NodeId:   p.swarmToCSI[nodeID],
 		Secrets:  secrets,
 	}
+}
+
+func (p *plugin) Addr() net.Addr {
+	return p.addr
 }
