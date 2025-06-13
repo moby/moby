@@ -178,7 +178,7 @@ func windowsDetectMountType(p string) mount.Type {
 }
 
 func (p *windowsParser) ReadWrite(mode string) bool {
-	return strings.ToLower(mode) != "ro"
+	return !strings.EqualFold(mode, "ro")
 }
 
 // ValidateVolumeName checks a volume name in a platform specific manner.

@@ -122,7 +122,6 @@ linters:
         - dupImport
         - dupSubExpr
         - emptyFallthrough
-        - equalFold
         - exitAfterDefer
         - exposedSyncMutex
         - filepathJoin

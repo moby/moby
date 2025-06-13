@@ -494,7 +494,7 @@ func dispatchEntrypoint(ctx context.Context, d dispatchRequest, c *instructions.
 	// is only trying to give a helpful warning of possibly unexpected results.
 	if d.state.operatingSystem == "windows" &&
 		d.state.runConfig.ArgsEscaped != argsEscaped &&
-		((len(runConfig.Cmd) == 1 && strings.ToLower(runConfig.Cmd[0]) != `c:\windows\system32\cmd.exe` && len(runConfig.Shell) == 0) || (len(runConfig.Cmd) > 1)) {
+		((len(runConfig.Cmd) == 1 && !strings.EqualFold(runConfig.Cmd[0], `c:\windows\system32\cmd.exe`) && len(runConfig.Shell) == 0) || (len(runConfig.Cmd) > 1)) {
 		fmt.Fprintf(d.builder.Stderr, " ---> [Warning] Shell-form CMD and exec-form ENTRYPOINT may have unexpected results\n")
 	}
 
