@@ -115,7 +115,6 @@ linters:
     gocritic:
       disabled-checks:
         - appendAssign
-        - appendCombine
         - commentedOutCode
         - deferInLoop
         - dupImport

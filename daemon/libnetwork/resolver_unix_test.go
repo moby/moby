@@ -171,8 +171,9 @@ func TestDNSProxyServFail(t *testing.T) {
 	extTestDNSEntry := extDNSEntry{IPStr: "127.0.0.1", HostLoopback: true}
 
 	// configure two external DNS entries and point both to local DNS server thread
-	localDNSEntries = append(localDNSEntries, extTestDNSEntry)
-	localDNSEntries = append(localDNSEntries, extTestDNSEntry)
+	localDNSEntries = append(localDNSEntries,
+		extTestDNSEntry,
+		extTestDNSEntry)
 
 	// this should generate two requests: the first will fail leading to a retry
 	r.SetExtServers(localDNSEntries)

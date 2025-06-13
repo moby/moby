@@ -543,8 +543,9 @@ func TestSRVServiceQuery(t *testing.T) {
 		proto:    "_tcp",
 		target:   []serviceTarget{hTarget},
 	}
-	sr.service["web.swarm"] = append(sr.service["web.swarm"], httpPort)
-	sr.service["web.swarm"] = append(sr.service["web.swarm"], extHTTPPort)
+	sr.service["web.swarm"] = append(sr.service["web.swarm"],
+		httpPort,
+		extHTTPPort)
 
 	c.svcRecords[n.ID()] = sr
 

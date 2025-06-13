@@ -303,8 +303,9 @@ func TestCheckoutGit(t *testing.T) {
 		//	error: readlink("absolutelink"): Function not implemented
 		// 	error: unable to index file absolutelink
 		// 	fatal: adding files failed
-		cases = append(cases, singleCase{frag: "master:absolutelink", exp: "FROM scratch" + eol + "EXPOSE 5000", fail: false})
-		cases = append(cases, singleCase{frag: "master:parentlink", exp: "FROM scratch" + eol + "EXPOSE 5000", fail: false})
+		cases = append(cases,
+			singleCase{frag: "master:absolutelink", exp: "FROM scratch" + eol + "EXPOSE 5000", fail: false},
+			singleCase{frag: "master:parentlink", exp: "FROM scratch" + eol + "EXPOSE 5000", fail: false})
 	}
 
 	for _, c := range cases {
