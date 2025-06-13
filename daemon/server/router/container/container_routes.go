@@ -820,32 +820,34 @@ func handleSysctlBC(
 	var netIfSysctls []string
 	for k, v := range hostConfig.Sysctls {
 		// If the sysctl name matches "net.*.*.eth0.*" ...
-		if spl := strings.SplitN(k, ".", 5); len(spl) == 5 && spl[0] == "net" && strings.HasPrefix(spl[3], "eth") {
-			netIfSysctl := fmt.Sprintf("net.%s.%s.IFNAME.%s=%s", spl[1], spl[2], spl[4], v)
-			// Find the EndpointConfig to migrate settings to, if not already found.
-			if ep == nil {
-				// Per-endpoint sysctls were introduced in API version 1.46. Migration is
-				// needed, but refuse to do it automatically for API 1.48 and newer.
-				if versions.GreaterThan(version, "1.47") {
-					return "", fmt.Errorf("interface specific sysctl setting %q must be supplied using driver option '%s'",
-						k, netlabel.EndpointSysctls)
-				}
-				var err error
-				ep, err = epConfigForNetMode(version, hostConfig.NetworkMode, netConfig)
-				if err != nil {
-					return "", fmt.Errorf("unable to find a network for sysctl %s: %w", k, err)
-				}
-			}
-			// Only try to migrate settings for "eth0", anything else would always
-			// have behaved unpredictably.
-			if spl[3] != "eth0" {
-				return "", fmt.Errorf(`unable to determine network endpoint for sysctl %s, use driver option '%s' to set per-interface sysctls`,
+		spl := strings.SplitN(k, ".", 5)
+		if len(spl) != 5 || spl[0] != "net" || !strings.HasPrefix(spl[3], "eth") {
+			continue
+		}
+		netIfSysctl := fmt.Sprintf("net.%s.%s.IFNAME.%s=%s", spl[1], spl[2], spl[4], v)
+		// Find the EndpointConfig to migrate settings to, if not already found.
+		if ep == nil {
+			// Per-endpoint sysctls were introduced in API version 1.46. Migration is
+			// needed, but refuse to do it automatically for API 1.48 and newer.
+			if versions.GreaterThan(version, "1.47") {
+				return "", fmt.Errorf("interface specific sysctl setting %q must be supplied using driver option '%s'",
 					k, netlabel.EndpointSysctls)
 			}
-			// Prepare the migration.
-			toDelete = append(toDelete, k)
-			netIfSysctls = append(netIfSysctls, netIfSysctl)
+			var err error
+			ep, err = epConfigForNetMode(version, hostConfig.NetworkMode, netConfig)
+			if err != nil {
+				return "", fmt.Errorf("unable to find a network for sysctl %s: %w", k, err)
+			}
 		}
+		// Only try to migrate settings for "eth0", anything else would always
+		// have behaved unpredictably.
+		if spl[3] != "eth0" {
+			return "", fmt.Errorf(`unable to determine network endpoint for sysctl %s, use driver option '%s' to set per-interface sysctls`,
+				k, netlabel.EndpointSysctls)
+		}
+		// Prepare the migration.
+		toDelete = append(toDelete, k)
+		netIfSysctls = append(netIfSysctls, netIfSysctl)
 	}
 	if ep == nil {
 		return "", nil

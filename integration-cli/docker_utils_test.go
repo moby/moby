@@ -57,14 +57,15 @@ func getContainerCount(t *testing.T) int {
 
 	lines := strings.Split(result.Combined(), "\n")
 	for _, line := range lines {
-		if strings.Contains(line, containers) {
-			output := strings.TrimSpace(line)
-			output = strings.TrimPrefix(output, containers)
-			output = strings.Trim(output, " ")
-			containerCount, err := strconv.Atoi(output)
-			assert.NilError(t, err)
-			return containerCount
+		if !strings.Contains(line, containers) {
+			continue
 		}
+		output := strings.TrimSpace(line)
+		output = strings.TrimPrefix(output, containers)
+		output = strings.Trim(output, " ")
+		containerCount, err := strconv.Atoi(output)
+		assert.NilError(t, err)
+		return containerCount
 	}
 	return 0
 }
