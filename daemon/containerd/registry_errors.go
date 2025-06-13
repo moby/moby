@@ -14,6 +14,11 @@ import (
 )
 
 func translateRegistryError(ctx context.Context, err error) error {
+	if err == nil {
+		// Nothing to do
+		return nil
+	}
+
 	// Check for registry specific error
 	var derrs docker.Errors
 	if !errors.As(err, &derrs) {
