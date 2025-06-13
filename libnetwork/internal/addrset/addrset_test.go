@@ -29,6 +29,7 @@ func TestIPv4Pool(t *testing.T) {
 	bm := as.bitmaps[subnet.Masked()]
 	assert.Check(t, is.Equal(bm.Bits(), uint64(65536)))
 	assert.Check(t, is.Equal(bm.Unselected(), uint64(65534)))
+	assert.Check(t, is.Equal(as.Selected(), uint64(2)))
 
 	// Add an address that's already present. Expect an error.
 	err = as.Add(netip.MustParseAddr("10.20.255.255"))
@@ -44,6 +45,7 @@ func TestIPv4Pool(t *testing.T) {
 	err = as.Remove(netip.MustParseAddr("10.20.255.255"))
 	assert.Check(t, err)
 	assert.Check(t, is.Len(as.bitmaps, 0))
+	assert.Check(t, is.Equal(as.Selected(), uint64(0)))
 
 	// Remove an address that isn't in the set (now there's no bitmap). Expect no error.
 	err = as.Remove(netip.MustParseAddr("10.20.30.40"))
@@ -56,6 +58,7 @@ func TestIPv4Pool(t *testing.T) {
 	addr, err = as.AddAny(true)
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(addr, netip.MustParseAddr("10.20.0.1")))
+	assert.Check(t, is.Equal(as.Selected(), uint64(2)))
 
 	// Add any address in a range. It shouldn't matter that host bits are set in the
 	// range. Expect the first address in that range.
@@ -89,6 +92,7 @@ func TestIPv6Pool(t *testing.T) {
 	// Add an address that's already present in the "upper" bitmap. Expect an error.
 	err = as.Add(netip.MustParseAddr("fddd::ff:ffff:ffff:ffff:ffff"))
 	assert.Check(t, is.ErrorIs(err, ErrAllocated))
+	assert.Check(t, is.Equal(as.Selected(), uint64(2)))
 
 	// Remove an address that isn't in the set. Expect no error.
 	err = as.Remove(netip.MustParseAddr("fddd::f:0:0:0:0"))
@@ -100,6 +104,7 @@ func TestIPv6Pool(t *testing.T) {
 	err = as.Remove(netip.MustParseAddr("fddd::ff:ffff:ffff:ffff:ffff"))
 	assert.Check(t, err)
 	assert.Check(t, is.Len(as.bitmaps, 0))
+	assert.Check(t, is.Equal(as.Selected(), uint64(0)))
 
 	// Remove an address that isn't in the set (now there's no bitmap). Expect no error.
 	err = as.Remove(netip.MustParseAddr("fddd::f:0:0:0:0"))
@@ -112,6 +117,7 @@ func TestIPv6Pool(t *testing.T) {
 	addr, err = as.AddAny(true)
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(addr, netip.MustParseAddr("fddd::1")))
+	assert.Check(t, is.Equal(as.Selected(), uint64(2)))
 
 	// Add any address in a range, somewhere in the middle of the pool. Expect the first address in that range.
 	addr, err = as.AddAnyInRange(netip.MustParsePrefix("fddd:0:0:f0::/60"), true)
