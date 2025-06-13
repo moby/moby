@@ -33,11 +33,9 @@ By comparison with the [network with external access][1]:
 
 - In the DOCKER-FORWARD chain, there is no ACCEPT rule for outgoing packets (`-i bridgeINC`).
 - There are no rules for this network in the DOCKER chain.
-- In DOCKER-ISOLATION-STAGE-1:
+- In DOCKER-INTERNAL:
   - Rule 1 drops any packet routed to the network that does not have a source address in the network's subnet.
   - Rule 2 drops any packet routed out of the network that does not have a dest address in the network's subnet.
-  - There is no jump to DOCKER-ISOLATION-STAGE-2.
-- DOCKER-ISOLATION-STAGE-2 is unused.
 
 The only difference between `bridgeICC` and `bridgeNoICC` is the rule in the DOCKER-FORWARD
 chain. To enable ICC, the rule for packets looping through the bridge is ACCEPT. For

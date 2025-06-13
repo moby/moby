@@ -42,20 +42,13 @@ The filter and nat tables are identical to [nat mode][0]:
     Chain DOCKER-FORWARD (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DOCKER-CT  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    2        0     0 DOCKER-INTERNAL  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     3        0     0 DOCKER-BRIDGE  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     4        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
     5        0     0 ACCEPT     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0           
     
-    Chain DOCKER-ISOLATION-STAGE-1 (1 references)
+    Chain DOCKER-INTERNAL (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DOCKER-ISOLATION-STAGE-2  0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DOCKER-ISOLATION-STAGE-2  0    --  bridge1 !bridge1  0.0.0.0/0            0.0.0.0/0           
-    
-    Chain DOCKER-ISOLATION-STAGE-2 (2 references)
-    num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DROP       0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DROP       0    --  *      docker0  0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-USER (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -68,8 +61,7 @@ The filter and nat tables are identical to [nat mode][0]:
     -N DOCKER-BRIDGE
     -N DOCKER-CT
     -N DOCKER-FORWARD
-    -N DOCKER-ISOLATION-STAGE-1
-    -N DOCKER-ISOLATION-STAGE-2
+    -N DOCKER-INTERNAL
     -N DOCKER-USER
     -A FORWARD -j DOCKER-USER
     -A FORWARD -j DOCKER-FORWARD
@@ -81,14 +73,10 @@ The filter and nat tables are identical to [nat mode][0]:
     -A DOCKER-CT -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     -A DOCKER-CT -o bridge1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     -A DOCKER-FORWARD -j DOCKER-CT
-    -A DOCKER-FORWARD -j DOCKER-ISOLATION-STAGE-1
+    -A DOCKER-FORWARD -j DOCKER-INTERNAL
     -A DOCKER-FORWARD -j DOCKER-BRIDGE
     -A DOCKER-FORWARD -i docker0 -j ACCEPT
     -A DOCKER-FORWARD -i bridge1 -j ACCEPT
-    -A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
-    -A DOCKER-ISOLATION-STAGE-1 -i bridge1 ! -o bridge1 -j DOCKER-ISOLATION-STAGE-2
-    -A DOCKER-ISOLATION-STAGE-2 -o bridge1 -j DROP
-    -A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
     
 
 </details>
@@ -114,9 +102,7 @@ The filter and nat tables are identical to [nat mode][0]:
     
     Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 RETURN     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0           
-    2        0     0 RETURN     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
-    3        0     0 DNAT       6    --  !bridge1 *       0.0.0.0/0            127.0.0.1            tcp dpt:8080 to:192.0.2.2:80
+    1        0     0 DNAT       6    --  !bridge1 *       0.0.0.0/0            127.0.0.1            tcp dpt:8080 to:192.0.2.2:80
     
 
     -P PREROUTING ACCEPT
@@ -128,8 +114,6 @@ The filter and nat tables are identical to [nat mode][0]:
     -A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER
     -A POSTROUTING -s 192.0.2.0/24 ! -o bridge1 -j MASQUERADE
     -A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
-    -A DOCKER -i bridge1 -j RETURN
-    -A DOCKER -i docker0 -j RETURN
     -A DOCKER -d 127.0.0.1/32 ! -i bridge1 -p tcp -m tcp --dport 8080 -j DNAT --to-destination 192.0.2.2:80
     
 
