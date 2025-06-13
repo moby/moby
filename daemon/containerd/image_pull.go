@@ -46,7 +46,7 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 	defer done()
 
 	if !reference.IsNameOnly(baseRef) {
-		return i.pullTag(ctx, baseRef, platform, metaHeaders, authConfig, out)
+		return i.pullTag(ctx, baseRef, platform, authConfig, out)
 	}
 
 	tags, err := distribution.Tags(ctx, baseRef, &distribution.Config{
@@ -68,7 +68,7 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 			continue
 		}
 
-		if err := i.pullTag(ctx, ref, platform, metaHeaders, authConfig, out); err != nil {
+		if err := i.pullTag(ctx, ref, platform, authConfig, out); err != nil {
 			return fmt.Errorf("error pulling %s: %w", ref, err)
 		}
 	}
@@ -76,7 +76,7 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 	return nil
 }
 
-func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output) error {
+func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform, authConfig *registrytypes.AuthConfig, out progress.Output) error {
 	var opts []containerd.RemoteOpt
 	if platform != nil {
 		opts = append(opts, containerd.WithPlatform(platforms.FormatAll(*platform)))

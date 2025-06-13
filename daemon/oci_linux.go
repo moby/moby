@@ -59,7 +59,7 @@ func withRlimits(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Contain
 }
 
 // withRootless sets the spec to the rootless configuration
-func withRootless(daemon *Daemon, daemonCfg *dconfig.Config) coci.SpecOpts {
+func withRootless(daemonCfg *dconfig.Config) coci.SpecOpts {
 	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		var v2Controllers []string
 		if cgroupDriver(daemonCfg) == cgroupSystemdDriver {
@@ -87,7 +87,7 @@ func withRootless(daemon *Daemon, daemonCfg *dconfig.Config) coci.SpecOpts {
 
 // withRootfulInRootless is used for "rootful-in-rootless" dind;
 // the daemon is running in UserNS but has no access to RootlessKit API socket, host filesystem, etc.
-func withRootfulInRootless(daemon *Daemon, daemonCfg *dconfig.Config) coci.SpecOpts {
+func withRootfulInRootless() coci.SpecOpts {
 	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		specconv.ToRootfulInRootless(s)
 		return nil
@@ -1040,9 +1040,9 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 		opts = append(opts, coci.WithReadonlyPaths(c.HostConfig.ReadonlyPaths))
 	}
 	if daemonCfg.Rootless {
-		opts = append(opts, withRootless(daemon, &daemonCfg.Config))
+		opts = append(opts, withRootless(&daemonCfg.Config))
 	} else if userns.RunningInUserNS() {
-		opts = append(opts, withRootfulInRootless(daemon, &daemonCfg.Config))
+		opts = append(opts, withRootfulInRootless())
 	}
 
 	var snapshotter, snapshotKey string
