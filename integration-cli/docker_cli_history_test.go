@@ -98,7 +98,7 @@ func (s *DockerCLIHistorySuite) TestHistoryImageWithComment(c *testing.T) {
 func (s *DockerCLIHistorySuite) TestHistoryHumanOptionFalse(c *testing.T) {
 	out := cli.DockerCmd(c, "history", "--human=false", "busybox").Combined()
 	lines := strings.Split(out, "\n")
-	sizeColumnRegex, _ := regexp.Compile("SIZE +")
+	sizeColumnRegex := regexp.MustCompile("SIZE +")
 	indices := sizeColumnRegex.FindStringIndex(lines[0])
 	startIndex := indices[0]
 	endIndex := indices[1]
@@ -116,7 +116,7 @@ func (s *DockerCLIHistorySuite) TestHistoryHumanOptionFalse(c *testing.T) {
 func (s *DockerCLIHistorySuite) TestHistoryHumanOptionTrue(c *testing.T) {
 	out := cli.DockerCmd(c, "history", "--human=true", "busybox").Combined()
 	lines := strings.Split(out, "\n")
-	sizeColumnRegex, _ := regexp.Compile("SIZE +")
+	sizeColumnRegex := regexp.MustCompile("SIZE +")
 	humanSizeRegexRaw := "\\d+.*B" // Matches human sizes like 10 MB, 3.2 KB, etc
 	indices := sizeColumnRegex.FindStringIndex(lines[0])
 	startIndex := indices[0]
