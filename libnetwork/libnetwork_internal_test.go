@@ -808,7 +808,7 @@ func (b *badDriver) EndpointOperInfo(nid, eid string) (map[string]interface{}, e
 	return nil, nil
 }
 
-func (b *badDriver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]interface{}) error {
+func (b *badDriver) Join(_ context.Context, nid, eid, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]interface{}) error {
 	return fmt.Errorf("I will not allow any join")
 }
 
@@ -843,6 +843,6 @@ func (b *badDriver) NetworkFree(id string) error {
 func (b *badDriver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
 }
 
-func (b *badDriver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+func (b *badDriver) DecodeTableEntry(tablename, key string, value []byte) (string, map[string]string) {
 	return "", nil
 }

@@ -339,7 +339,7 @@ func parseStorageOpt(storageOpt map[string]string) (string, error) {
 	return "0", nil
 }
 
-func setQuota(name string, quota string) error {
+func setQuota(name, quota string) error {
 	if quota == "0" {
 		return nil
 	}

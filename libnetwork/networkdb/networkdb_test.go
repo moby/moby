@@ -99,7 +99,7 @@ func (nDB *NetworkDB) verifyNodeExistence(t *testing.T, node string, present boo
 	t.Errorf("%v(%v): Node existence verification for node %s failed", nDB.config.Hostname, nDB.config.NodeID, node)
 }
 
-func (nDB *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string, present bool) {
+func (nDB *NetworkDB) verifyNetworkExistence(t *testing.T, node, id string, present bool) {
 	t.Helper()
 
 	const sleepInterval = 50 * time.Millisecond
