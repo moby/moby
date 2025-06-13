@@ -52,9 +52,9 @@ type DownloadOption func(*LayerDownloadManager)
 
 // WithMaxDownloadAttempts configures the maximum number of download
 // attempts for a download manager.
-func WithMaxDownloadAttempts(max int) DownloadOption {
+func WithMaxDownloadAttempts(maxDownloadAttempts int) DownloadOption {
 	return func(dlm *LayerDownloadManager) {
-		dlm.maxDownloadAttempts = max
+		dlm.maxDownloadAttempts = maxDownloadAttempts
 	}
 }
 
@@ -200,7 +200,6 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		topDownload.transfer.release(watcher)
 		return rootFS, func() {}, ctx.Err()
 	case <-topDownload.done():
-		break
 	}
 
 	l, err := topDownload.result()

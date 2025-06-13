@@ -236,7 +236,7 @@ func (daemon *Daemon) setupIPCDirs(ctr *container.Container) error {
 
 	case ipcMode.IsHost():
 		if _, err := os.Stat("/dev/shm"); err != nil {
-			return fmt.Errorf("/dev/shm is not mounted, but must be for --ipc=host")
+			return errors.New("/dev/shm is not mounted, but must be for --ipc=host")
 		}
 		ctr.ShmPath = "/dev/shm"
 
@@ -294,7 +294,7 @@ func (daemon *Daemon) setupSecretDir(ctr *container.Container) (setupErr error) 
 	}()
 
 	if ctr.DependencyStore == nil {
-		return fmt.Errorf("secret store is not initialized")
+		return errors.New("secret store is not initialized")
 	}
 
 	// retrieve possible remapped range start for root UID, GID

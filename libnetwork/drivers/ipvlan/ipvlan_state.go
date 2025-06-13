@@ -4,6 +4,7 @@ package ipvlan
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/containerd/log"
@@ -80,10 +81,10 @@ func (n *network) getEndpoint(eid string) (*endpoint, error) {
 
 func validateID(nid, eid string) error {
 	if nid == "" {
-		return fmt.Errorf("invalid network id")
+		return errors.New("invalid network id")
 	}
 	if eid == "" {
-		return fmt.Errorf("invalid endpoint id")
+		return errors.New("invalid endpoint id")
 	}
 
 	return nil

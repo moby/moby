@@ -418,7 +418,7 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 
 	// memory subsystem checks and adjustments
 	if resources.Memory != 0 && resources.Memory < linuxMinMemory {
-		return warnings, fmt.Errorf("Minimum memory limit allowed is 6MB")
+		return warnings, errors.New("Minimum memory limit allowed is 6MB")
 	}
 	if resources.Memory > 0 && !sysInfo.MemoryLimit {
 		warnings = append(warnings, "Your kernel does not support memory limit capabilities or the cgroup is not mounted. Limitation discarded.")
@@ -430,10 +430,10 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 		resources.MemorySwap = -1
 	}
 	if resources.Memory > 0 && resources.MemorySwap > 0 && resources.MemorySwap < resources.Memory {
-		return warnings, fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage")
+		return warnings, errors.New("Minimum memoryswap limit should be larger than memory limit, see usage")
 	}
 	if resources.Memory == 0 && resources.MemorySwap > 0 && !update {
-		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage")
+		return warnings, errors.New("You should always set the Memory limit when using Memoryswap limit, see usage")
 	}
 	if resources.MemorySwappiness != nil && !sysInfo.MemorySwappiness {
 		warnings = append(warnings, "Your kernel does not support memory swappiness capabilities or the cgroup is not mounted. Memory swappiness discarded.")
@@ -450,10 +450,10 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 		resources.MemoryReservation = 0
 	}
 	if resources.MemoryReservation > 0 && resources.MemoryReservation < linuxMinMemory {
-		return warnings, fmt.Errorf("Minimum memory reservation allowed is 6MB")
+		return warnings, errors.New("Minimum memory reservation allowed is 6MB")
 	}
 	if resources.Memory > 0 && resources.MemoryReservation > 0 && resources.Memory < resources.MemoryReservation {
-		return warnings, fmt.Errorf("Minimum memory limit can not be less than memory reservation limit, see usage")
+		return warnings, errors.New("Minimum memory limit can not be less than memory reservation limit, see usage")
 	}
 	if resources.KernelMemory > 0 {
 		// Kernel memory limit is not supported on cgroup v2.
@@ -464,7 +464,7 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 			resources.KernelMemory = 0
 		}
 		if resources.KernelMemory > 0 && resources.KernelMemory < linuxMinMemory {
-			return warnings, fmt.Errorf("Minimum kernel memory limit allowed is 6MB")
+			return warnings, errors.New("Minimum kernel memory limit allowed is 6MB")
 		}
 	}
 	if resources.OomKillDisable != nil && !sysInfo.OomKillDisable {
@@ -487,13 +487,13 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 
 	// cpu subsystem checks and adjustments
 	if resources.NanoCPUs > 0 && resources.CPUPeriod > 0 {
-		return warnings, fmt.Errorf("Conflicting options: Nano CPUs and CPU Period cannot both be set")
+		return warnings, errors.New("Conflicting options: Nano CPUs and CPU Period cannot both be set")
 	}
 	if resources.NanoCPUs > 0 && resources.CPUQuota > 0 {
-		return warnings, fmt.Errorf("Conflicting options: Nano CPUs and CPU Quota cannot both be set")
+		return warnings, errors.New("Conflicting options: Nano CPUs and CPU Quota cannot both be set")
 	}
 	if resources.NanoCPUs > 0 && !sysInfo.CPUCfs {
-		return warnings, fmt.Errorf("NanoCPUs can not be set, as your kernel does not support CPU CFS scheduler or the cgroup is not mounted")
+		return warnings, errors.New("NanoCPUs can not be set, as your kernel does not support CPU CFS scheduler or the cgroup is not mounted")
 	}
 	// The highest precision we could get on Linux is 0.001, by setting
 	//   cpu.cfs_period_us=1000ms
@@ -519,10 +519,10 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 		resources.CPUQuota = 0
 	}
 	if resources.CPUPeriod != 0 && (resources.CPUPeriod < 1000 || resources.CPUPeriod > 1000000) {
-		return warnings, fmt.Errorf("CPU cfs period can not be less than 1ms (i.e. 1000) or larger than 1s (i.e. 1000000)")
+		return warnings, errors.New("CPU cfs period can not be less than 1ms (i.e. 1000) or larger than 1s (i.e. 1000000)")
 	}
 	if resources.CPUQuota > 0 && resources.CPUQuota < 1000 {
-		return warnings, fmt.Errorf("CPU cfs quota can not be less than 1ms (i.e. 1000)")
+		return warnings, errors.New("CPU cfs quota can not be less than 1ms (i.e. 1000)")
 	}
 	if resources.CPUPercent > 0 {
 		warnings = append(warnings, fmt.Sprintf("%s does not support CPU percent. Percent discarded.", runtime.GOOS))
@@ -556,7 +556,7 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 		resources.BlkioWeight = 0
 	}
 	if resources.BlkioWeight > 0 && (resources.BlkioWeight < 10 || resources.BlkioWeight > 1000) {
-		return warnings, fmt.Errorf("Range of blkio weight is from 10 to 1000")
+		return warnings, errors.New("Range of blkio weight is from 10 to 1000")
 	}
 	if resources.IOMaximumBandwidth != 0 || resources.IOMaximumIOps != 0 {
 		return warnings, fmt.Errorf("Invalid QoS settings: %s does not support Maximum IO Bandwidth or Maximum IO IOps", runtime.GOOS)
@@ -672,7 +672,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *configStore, hos
 		return warnings, errors.Errorf("invalid PID mode: %v", hostConfig.PidMode)
 	}
 	if hostConfig.ShmSize < 0 {
-		return warnings, fmt.Errorf("SHM size can not be less than 0")
+		return warnings, errors.New("SHM size can not be less than 0")
 	}
 	if !hostConfig.UTSMode.Valid() {
 		return warnings, errors.Errorf("invalid UTS mode: %v", hostConfig.UTSMode)
@@ -693,19 +693,19 @@ func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *configStore, hos
 	// check for various conflicting options with user namespaces
 	if daemonCfg.RemappedRoot != "" && hostConfig.UsernsMode.IsPrivate() {
 		if hostConfig.Privileged {
-			return warnings, fmt.Errorf("privileged mode is incompatible with user namespaces.  You must run the container in the host namespace when running privileged mode")
+			return warnings, errors.New("privileged mode is incompatible with user namespaces.  You must run the container in the host namespace when running privileged mode")
 		}
 		if hostConfig.NetworkMode.IsHost() && !hostConfig.UsernsMode.IsHost() {
-			return warnings, fmt.Errorf("cannot share the host's network namespace when user namespaces are enabled")
+			return warnings, errors.New("cannot share the host's network namespace when user namespaces are enabled")
 		}
 		if hostConfig.PidMode.IsHost() && !hostConfig.UsernsMode.IsHost() {
-			return warnings, fmt.Errorf("cannot share the host PID namespace when user namespaces are enabled")
+			return warnings, errors.New("cannot share the host PID namespace when user namespaces are enabled")
 		}
 	}
 	if hostConfig.CgroupParent != "" && UsingSystemd(&daemonCfg.Config) {
 		// CgroupParent for systemd cgroup should be named as "xxx.slice"
 		if len(hostConfig.CgroupParent) <= 6 || !strings.HasSuffix(hostConfig.CgroupParent, ".slice") {
-			return warnings, fmt.Errorf(`cgroup-parent for systemd cgroup should be a valid slice named as "xxx.slice"`)
+			return warnings, errors.New(`cgroup-parent for systemd cgroup should be a valid slice named as "xxx.slice"`)
 		}
 	}
 	if hostConfig.Runtime == "" {
@@ -742,17 +742,17 @@ func verifyDaemonSettings(conf *config.Config) error {
 	}
 	// Check for mutually incompatible config options
 	if conf.BridgeConfig.Iface != "" && conf.BridgeConfig.IP != "" {
-		return fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one")
+		return errors.New("You specified -b & --bip, mutually exclusive options. Please specify only one")
 	}
 	if conf.BridgeConfig.Iface != "" && conf.BridgeConfig.IP6 != "" {
-		return fmt.Errorf("You specified -b & --bip6, mutually exclusive options. Please specify only one")
+		return errors.New("You specified -b & --bip6, mutually exclusive options. Please specify only one")
 	}
 	if !conf.BridgeConfig.InterContainerCommunication {
 		if !conf.BridgeConfig.EnableIPTables {
-			return fmt.Errorf("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true")
+			return errors.New("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true")
 		}
 		if conf.BridgeConfig.EnableIPv6 && !conf.BridgeConfig.EnableIP6Tables {
-			return fmt.Errorf("You specified --ip6tables=false with --icc=false. ICC=false uses ip6tables to function. Please set --icc or --ip6tables to true")
+			return errors.New("You specified --ip6tables=false with --icc=false. ICC=false uses ip6tables to function. Please set --icc or --ip6tables to true")
 		}
 	}
 	if !conf.BridgeConfig.EnableIPTables && conf.BridgeConfig.EnableIPMasq {
@@ -763,12 +763,12 @@ func verifyDaemonSettings(conf *config.Config) error {
 	}
 	if conf.CgroupParent != "" && UsingSystemd(conf) {
 		if len(conf.CgroupParent) <= 6 || !strings.HasSuffix(conf.CgroupParent, ".slice") {
-			return fmt.Errorf(`cgroup-parent for systemd cgroup should be a valid slice named as "xxx.slice"`)
+			return errors.New(`cgroup-parent for systemd cgroup should be a valid slice named as "xxx.slice"`)
 		}
 	}
 
 	if conf.Rootless && UsingSystemd(conf) && cgroups.Mode() != cgroups.Unified {
-		return fmt.Errorf("exec-opt native.cgroupdriver=systemd requires cgroup v2 for rootless mode")
+		return errors.New("exec-opt native.cgroupdriver=systemd requires cgroup v2 for rootless mode")
 	}
 	return nil
 }
@@ -1357,7 +1357,7 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 
 func setupRemappedRoot(config *config.Config) (user.IdentityMapping, error) {
 	if runtime.GOOS != "linux" && config.RemappedRoot != "" {
-		return user.IdentityMapping{}, fmt.Errorf("User namespaces are only supported on Linux")
+		return user.IdentityMapping{}, errors.New("User namespaces are only supported on Linux")
 	}
 
 	// if the daemon was started with remapped root option, parse

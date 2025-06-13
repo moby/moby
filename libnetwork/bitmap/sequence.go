@@ -232,7 +232,7 @@ func (h *Bitmap) IsSet(ordinal uint64) bool {
 }
 
 // set/reset the bit
-func (h *Bitmap) set(ordinal, start, end uint64, any bool, release bool, serial bool) (uint64, error) {
+func (h *Bitmap) set(ordinal, start, end uint64, isAvailable bool, release bool, serial bool) (uint64, error) {
 	var (
 		bitPos  uint64
 		bytePos uint64
@@ -248,7 +248,7 @@ func (h *Bitmap) set(ordinal, start, end uint64, any bool, release bool, serial 
 	if release {
 		bytePos, bitPos = ordinalToPos(ordinal)
 	} else {
-		if any {
+		if isAvailable {
 			bytePos, bitPos, err = getAvailableFromCurrent(h.head, start, curr, end)
 			ret = posToOrdinal(bytePos, bitPos)
 			if err == nil {

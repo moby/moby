@@ -108,7 +108,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 	// Images considered for pruning.
 	imagesToPrune := map[string]c8dimages.Image{}
 	for _, img := range allImages {
-		digestRefCount[img.Target.Digest] += 1
+		digestRefCount[img.Target.Digest]++
 
 		if !danglingOnly || isDanglingImage(img) {
 			canBePruned := filterFunc(img)
@@ -138,7 +138,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 		dgst := img.Target.Digest
 
 		if digestRefCount[dgst] > 1 {
-			digestRefCount[dgst] -= 1
+			digestRefCount[dgst]--
 			continue
 		}
 

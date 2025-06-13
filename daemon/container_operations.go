@@ -92,7 +92,7 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 		// config variable
 		if ip == opts.HostGatewayName {
 			if len(cfg.HostGatewayIPs) == 0 {
-				return nil, fmt.Errorf("unable to derive the IP value for host-gateway")
+				return nil, errors.New("unable to derive the IP value for host-gateway")
 			}
 			for _, gip := range cfg.HostGatewayIPs {
 				sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, gip.String()))
@@ -1056,11 +1056,7 @@ func (daemon *Daemon) DisconnectFromNetwork(ctx context.Context, ctr *container.
 		return err
 	}
 
-	if err := ctr.CheckpointTo(ctx, daemon.containersReplica); err != nil {
-		return err
-	}
-
-	return nil
+	return ctr.CheckpointTo(ctx, daemon.containersReplica)
 }
 
 // ActivateContainerServiceBinding puts this container into load balancer active rotation and DNS response

@@ -2493,7 +2493,7 @@ func (s *DockerCLIRunSuite) TestRunTTYWithPipe(c *testing.T) {
 			expected += ".  If you are using mintty, try prefixing the command with 'winpty'"
 		}
 		if out, _, err := runCommandWithOutput(cmd); err == nil {
-			errChan <- fmt.Errorf("run should have failed")
+			errChan <- errors.New("run should have failed")
 			return
 		} else if !strings.Contains(out, expected) {
 			errChan <- fmt.Errorf("run failed with error %q: expected %q", out, expected)

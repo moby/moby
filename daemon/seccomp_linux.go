@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/containerd/containerd/v2/core/containers"
 	coci "github.com/containerd/containerd/v2/pkg/oci"
@@ -30,7 +30,7 @@ func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 		if !daemon.RawSysInfo().Seccomp {
 			if c.SeccompProfile != "" && c.SeccompProfile != dconfig.SeccompProfileDefault {
-				return fmt.Errorf("seccomp is not enabled in your kernel, cannot run a custom seccomp profile")
+				return errors.New("seccomp is not enabled in your kernel, cannot run a custom seccomp profile")
 			}
 			log.G(ctx).Warn("seccomp is not enabled in your kernel, running container without default profile")
 			c.SeccompProfile = dconfig.SeccompProfileUnconfined

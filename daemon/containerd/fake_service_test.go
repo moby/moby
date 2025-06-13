@@ -110,11 +110,11 @@ func (s *blobsDirContentStore) ReaderAt(ctx context.Context, desc ocispec.Descri
 }
 
 func (s *blobsDirContentStore) Writer(ctx context.Context, opts ...content.WriterOpt) (content.Writer, error) {
-	return nil, fmt.Errorf("read-only")
+	return nil, errors.New("read-only")
 }
 
 func (s *blobsDirContentStore) Status(ctx context.Context, _ string) (content.Status, error) {
-	return content.Status{}, fmt.Errorf("not implemented")
+	return content.Status{}, errors.New("not implemented")
 }
 
 func (s *blobsDirContentStore) Delete(ctx context.Context, dgst digest.Digest) error {
@@ -127,7 +127,7 @@ func (s *blobsDirContentStore) ListStatuses(ctx context.Context, filters ...stri
 }
 
 func (s *blobsDirContentStore) Abort(ctx context.Context, ref string) error {
-	return fmt.Errorf("not implemented")
+	return errors.New("not implemented")
 }
 
 func (s *blobsDirContentStore) Walk(ctx context.Context, fn content.WalkFunc, filters ...string) error {
@@ -181,7 +181,7 @@ func (s *blobsDirContentStore) Info(ctx context.Context, dgst digest.Digest) (co
 }
 
 func (s *blobsDirContentStore) Update(ctx context.Context, info content.Info, fieldpaths ...string) (content.Info, error) {
-	return content.Info{}, fmt.Errorf("read-only")
+	return content.Info{}, errors.New("read-only")
 }
 
 // delayedStore is a content store wrapper that adds a constant delay to all

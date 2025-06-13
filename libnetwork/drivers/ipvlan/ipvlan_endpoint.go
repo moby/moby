@@ -4,6 +4,7 @@ package ipvlan
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/containerd/log"
@@ -24,7 +25,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		return errdefs.System(fmt.Errorf("network id %q not found", nid))
 	}
 	if ifInfo.MacAddress() != nil {
-		return fmt.Errorf("ipvlan interfaces do not support custom mac address assignment")
+		return errors.New("ipvlan interfaces do not support custom mac address assignment")
 	}
 	ep := &endpoint{
 		id:     eid,
