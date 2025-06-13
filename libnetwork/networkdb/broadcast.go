@@ -142,31 +142,35 @@ func (nDB *NetworkDB) sendTableEvent(event TableEvent_Type, nid string, tname st
 		return err
 	}
 
-	var broadcastQ *memberlist.TransmitLimitedQueue
 	nDB.RLock()
-	thisNodeNetworks, ok := nDB.networks[nDB.config.NodeID]
-	if ok {
-		// The network may have been removed
-		network, networkOk := thisNodeNetworks[nid]
-		if !networkOk {
-			nDB.RUnlock()
-			return nil
-		}
-
-		broadcastQ = network.tableBroadcasts
-	}
+	n, ok := nDB.thisNodeNetworks[nid]
 	nDB.RUnlock()
 
 	// The network may have been removed
-	if broadcastQ == nil {
+	if !ok {
 		return nil
 	}
 
-	broadcastQ.QueueBroadcast(&tableEventMessage{
+	n.tableBroadcasts.QueueBroadcast(&tableEventMessage{
 		msg:   raw,
 		id:    nid,
 		tname: tname,
 		key:   key,
 	})
 	return nil
+}
+
+func getBroadcasts(overhead, limit int, queues ...*memberlist.TransmitLimitedQueue) [][]byte {
+	var msgs [][]byte
+	for _, q := range queues {
+		b := q.GetBroadcasts(overhead, limit)
+		for _, m := range b {
+			limit -= overhead + len(m)
+		}
+		msgs = append(msgs, b...)
+		if limit <= 0 {
+			break
+		}
+	}
+	return msgs
 }

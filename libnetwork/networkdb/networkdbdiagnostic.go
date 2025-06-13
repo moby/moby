@@ -439,8 +439,7 @@ func (nDB *NetworkDB) dbNetworkStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nDB.RLock()
-	networks := nDB.networks[nDB.config.NodeID]
-	network, ok := networks[r.Form["nid"][0]]
+	network, ok := nDB.thisNodeNetworks[r.Form["nid"][0]]
 
 	entries := -1
 	qLen := -1
