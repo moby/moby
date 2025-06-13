@@ -614,31 +614,41 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 		nDB.networks[nDB.config.NodeID] = nodeNetworks
 	}
 	n, ok := nodeNetworks[nid]
-	var entries int64
 	if ok {
-		entries = n.entriesNumber.Load()
-	}
-	nodeNetworks[nid] = &network{ltime: ltime}
-	nodeNetworks[nid].entriesNumber.Store(entries)
-	nodeNetworks[nid].tableBroadcasts = &memberlist.TransmitLimitedQueue{
-		NumNodes: func() int {
-			// TODO fcrisciani this can be optimized maybe avoiding the lock?
-			// this call is done each GetBroadcasts call to evaluate the number of
-			// replicas for the message
-			nDB.RLock()
-			defer nDB.RUnlock()
-			return len(nDB.networkNodes[nid])
-		},
-		RetransmitMult: 4,
+		if !n.leaving {
+			nDB.Unlock()
+			return fmt.Errorf("networkdb: network %s is already joined", nid)
+		}
+		n.ltime = ltime
+		n.inSync = false
+		n.leaving = false
+		n.reapTime = 0
+	} else {
+		n = &network{
+			ltime: ltime,
+			tableBroadcasts: &memberlist.TransmitLimitedQueue{
+				NumNodes: func() int {
+					// TODO fcrisciani this can be optimized maybe avoiding the lock?
+					// this call is done each GetBroadcasts call to evaluate the number of
+					// replicas for the message
+					nDB.RLock()
+					defer nDB.RUnlock()
+					return len(nDB.networkNodes[nid])
+				},
+				RetransmitMult: 4,
+			},
+		}
 	}
 	nDB.addNetworkNode(nid, nDB.config.NodeID)
-	networkNodes := nDB.networkNodes[nid]
-	n = nodeNetworks[nid]
-	nDB.Unlock()
 
 	if err := nDB.sendNetworkEvent(nid, NetworkEventTypeJoin, ltime); err != nil {
-		return fmt.Errorf("failed to send leave network event for %s: %v", nid, err)
+		nDB.Unlock()
+		return fmt.Errorf("failed to send join network event for %s: %v", nid, err)
 	}
+
+	nodeNetworks[nid] = n
+	networkNodes := nDB.networkNodes[nid]
+	nDB.Unlock()
 
 	log.G(context.TODO()).Debugf("%v(%v): joined network %s", nDB.config.Hostname, nDB.config.NodeID, nid)
 	if _, err := nDB.bulkSync(networkNodes, true); err != nil {
