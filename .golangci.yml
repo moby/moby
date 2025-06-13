@@ -125,7 +125,6 @@ linters:
         - exitAfterDefer
         - exposedSyncMutex
         - filepathJoin
-        - hexLiteral
         - hugeParam
         - ifElseChain
         - importShadow
