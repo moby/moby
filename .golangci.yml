@@ -126,7 +126,6 @@ linters:
         - hugeParam
         - ifElseChain
         - importShadow
-        - nestingReduce
         - nilValReturn
         - ptrToRefParam
         - rangeValCopy
