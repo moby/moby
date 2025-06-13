@@ -1802,7 +1802,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinLeave(c *testing.T) {
 
 const defaultRetryCount = 10
 
-func waitForEvent(t *testing.T, d *daemon.Daemon, since string, filter string, event string, retry int) string {
+func waitForEvent(t *testing.T, d *daemon.Daemon, since, filter, event string, retry int) string {
 	if retry < 1 {
 		t.Fatalf("retry count %d is invalid. It should be no less than 1", retry)
 		return ""

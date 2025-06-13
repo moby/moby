@@ -840,7 +840,7 @@ func (s *VolumeStore) Remove(ctx context.Context, v volume.Volume, rmOpts ...opt
 }
 
 // Release releases the specified reference to the volume
-func (s *VolumeStore) Release(ctx context.Context, name string, ref string) error {
+func (s *VolumeStore) Release(ctx context.Context, name, ref string) error {
 	s.locks.Lock(name)
 	defer s.locks.Unlock(name)
 	select {

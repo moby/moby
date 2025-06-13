@@ -124,7 +124,7 @@ func (m *tableEventMessage) Message() []byte {
 func (m *tableEventMessage) Finished() {
 }
 
-func (nDB *NetworkDB) sendTableEvent(event TableEvent_Type, nid string, tname string, key string, entry *entry) error {
+func (nDB *NetworkDB) sendTableEvent(event TableEvent_Type, nid, tname, key string, entry *entry) error {
 	tEvent := TableEvent{
 		Type:      event,
 		LTime:     entry.ltime,

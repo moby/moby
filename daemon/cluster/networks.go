@@ -178,7 +178,7 @@ func (c *Cluster) WaitForDetachment(ctx context.Context, networkName, networkID,
 }
 
 // AttachNetwork generates an attachment request towards the manager.
-func (c *Cluster) AttachNetwork(target string, containerID string, addresses []string) (*network.NetworkingConfig, error) {
+func (c *Cluster) AttachNetwork(target, containerID string, addresses []string) (*network.NetworkingConfig, error) {
 	aKey := attacherKey(target, containerID)
 	c.mu.Lock()
 	state := c.currentNodeState()
@@ -250,7 +250,7 @@ func (c *Cluster) AttachNetwork(target string, containerID string, addresses []s
 
 // DetachNetwork unblocks the waiters waiting on WaitForDetachment so
 // that a request to detach can be generated towards the manager.
-func (c *Cluster) DetachNetwork(target string, containerID string) error {
+func (c *Cluster) DetachNetwork(target, containerID string) error {
 	aKey := attacherKey(target, containerID)
 
 	c.mu.Lock()

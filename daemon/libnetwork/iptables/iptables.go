@@ -204,7 +204,7 @@ func (iptable IPTable) RemoveExistingChain(name string, table Table) error {
 
 // Link adds reciprocal ACCEPT rule for two supplied IP addresses.
 // Traffic is allowed from ip1 to ip2 and vice-versa
-func (c *ChainInfo) Link(action Action, ip1, ip2 netip.Addr, port int, proto string, bridgeName string) error {
+func (c *ChainInfo) Link(action Action, ip1, ip2 netip.Addr, port int, proto, bridgeName string) error {
 	iptable := GetIptable(c.IPVersion)
 	// forward
 	args := []string{

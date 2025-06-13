@@ -12,7 +12,7 @@ import (
 // in the given path, and resolvedSubpath will contain a relative path rooted
 // at the resolvedBasePath pointing to the concatenation after resolving all
 // symlinks.
-func evaluatePath(path, subpath string) (resolvedBasePath string, resolvedSubpath string, err error) {
+func evaluatePath(path, subpath string) (resolvedBasePath, resolvedSubpath string, err error) {
 	baseResolved, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {

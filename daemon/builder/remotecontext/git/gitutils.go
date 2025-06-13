@@ -119,7 +119,7 @@ func parseRemoteURL(remoteURL string) (gitRepo, error) {
 	return repo, nil
 }
 
-func getRefAndSubdir(fragment string) (ref string, subdir string) {
+func getRefAndSubdir(fragment string) (ref, subdir string) {
 	ref, subdir, _ = strings.Cut(fragment, ":")
 	if ref == "" {
 		ref = "master"
@@ -127,7 +127,7 @@ func getRefAndSubdir(fragment string) (ref string, subdir string) {
 	return ref, subdir
 }
 
-func fetchArgs(remoteURL string, ref string) []string {
+func fetchArgs(remoteURL, ref string) []string {
 	args := []string{"fetch"}
 
 	if supportsShallowClone(remoteURL) {

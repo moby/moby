@@ -29,7 +29,7 @@ func MultiLayer(dir string) (*ocispec.Index, error) {
 	})
 }
 
-func MultiLayerCustom(dir string, imageRef string, layers []SingleFileLayer) (*ocispec.Index, error) {
+func MultiLayerCustom(dir, imageRef string, layers []SingleFileLayer) (*ocispec.Index, error) {
 	var layerDescs []ocispec.Descriptor
 	var layerDgsts []digest.Digest
 	var layerBlobs []string
@@ -127,7 +127,7 @@ func ociImage(dir string, ref reference.Named, target ocispec.Descriptor) (*ocis
 	return &idx, nil
 }
 
-func fileArchive(dir string, name string, content []byte) (io.ReadCloser, error) {
+func fileArchive(dir, name string, content []byte) (io.ReadCloser, error) {
 	tmp, err := os.MkdirTemp("", "")
 	if err != nil {
 		return nil, err
@@ -140,7 +140,7 @@ func fileArchive(dir string, name string, content []byte) (io.ReadCloser, error)
 	return archive.Tar(tmp, archive.Uncompressed)
 }
 
-func writeLayerWithOneFile(dir string, filename string, content []byte) (ocispec.Descriptor, error) {
+func writeLayerWithOneFile(dir, filename string, content []byte) (ocispec.Descriptor, error) {
 	rd, err := fileArchive(dir, filename, content)
 	if err != nil {
 		return ocispec.Descriptor{}, err
@@ -150,7 +150,7 @@ func writeLayerWithOneFile(dir string, filename string, content []byte) (ocispec
 	return writeBlob(dir, ocispec.MediaTypeImageLayer, rd)
 }
 
-func writeJsonBlob(dir string, mt string, obj any) (ocispec.Descriptor, error) {
+func writeJsonBlob(dir, mt string, obj any) (ocispec.Descriptor, error) {
 	b, err := json.Marshal(obj)
 	if err != nil {
 		return ocispec.Descriptor{}, err
@@ -168,7 +168,7 @@ func writeJson(obj any, path string) error {
 	return os.WriteFile(path, b, 0o644)
 }
 
-func writeBlob(dir string, mt string, rd io.Reader) (_ ocispec.Descriptor, outErr error) {
+func writeBlob(dir, mt string, rd io.Reader) (_ ocispec.Descriptor, outErr error) {
 	digester := digest.Canonical.Digester()
 	hashTee := io.TeeReader(rd, digester.Hash())
 

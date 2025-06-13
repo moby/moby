@@ -81,7 +81,7 @@ func (s *importSpec) String() string {
 }
 
 // Parse parses the given file for an interface definition with the given name.
-func Parse(filePath string, objName string) (*ParsedPkg, error) {
+func Parse(filePath, objName string) (*ParsedPkg, error) {
 	fs := token.NewFileSet()
 	pkg, err := parser.ParseFile(fs, filePath, nil, parser.ParseComments)
 	if err != nil {

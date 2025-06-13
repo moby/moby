@@ -152,7 +152,7 @@ func (test *testEndpoint) InterfaceName() driverapi.InterfaceNameInfo {
 	return test
 }
 
-func compareIPs(t *testing.T, kind string, shouldBe string, supplied net.IP) {
+func compareIPs(t *testing.T, kind, shouldBe string, supplied net.IP) {
 	ip := net.ParseIP(shouldBe)
 	if ip == nil {
 		t.Fatalf(`Invalid IP to test against: "%s"`, shouldBe)
@@ -162,7 +162,7 @@ func compareIPs(t *testing.T, kind string, shouldBe string, supplied net.IP) {
 	}
 }
 
-func compareIPNets(t *testing.T, kind string, shouldBe string, supplied net.IPNet) {
+func compareIPNets(t *testing.T, kind, shouldBe string, supplied net.IPNet) {
 	_, ipNet, _ := net.ParseCIDR(shouldBe)
 	if ipNet == nil {
 		t.Fatalf(`Invalid IP network to test against: "%s"`, shouldBe)
@@ -208,7 +208,7 @@ func (test *testEndpoint) DisableGatewayService() {
 	test.disableGatewayService = true
 }
 
-func (test *testEndpoint) AddTableEntry(tableName string, key string, value []byte) error {
+func (test *testEndpoint) AddTableEntry(tableName, key string, value []byte) error {
 	return nil
 }
 

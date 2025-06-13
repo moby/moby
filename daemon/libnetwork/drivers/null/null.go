@@ -61,7 +61,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]any) error {
+func (d *driver) Join(_ context.Context, nid, eid, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]any) error {
 	return nil
 }
 

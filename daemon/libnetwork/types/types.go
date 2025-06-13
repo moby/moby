@@ -234,7 +234,7 @@ var v4inV6MaskPrefix = []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x
 // compareIPMask checks if the passed ip and mask are semantically compatible.
 // It returns the byte indexes for the address and mask so that caller can
 // do bitwise operations without modifying address representation.
-func compareIPMask(ip net.IP, mask net.IPMask) (is int, ms int, _ error) {
+func compareIPMask(ip net.IP, mask net.IPMask) (is, ms int, _ error) {
 	// Find the effective starting of address and mask
 	if len(ip) == net.IPv6len && ip.To4() != nil {
 		is = 12

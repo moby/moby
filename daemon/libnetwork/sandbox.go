@@ -453,7 +453,7 @@ func (sb *Sandbox) ResolveName(ctx context.Context, name string, ipType types.IP
 	return nil, false
 }
 
-func (sb *Sandbox) resolveName(ctx context.Context, nameOrAlias string, networkName string, epList []*Endpoint, lookupAlias bool, ipType types.IPFamily) ([]net.IP, bool) {
+func (sb *Sandbox) resolveName(ctx context.Context, nameOrAlias, networkName string, epList []*Endpoint, lookupAlias bool, ipType types.IPFamily) ([]net.IP, bool) {
 	ctx, span := otel.Tracer("").Start(ctx, "Sandbox.resolveName", trace.WithAttributes(
 		attribute.String("libnet.resolver.name-or-alias", nameOrAlias),
 		attribute.String("libnet.network.name", networkName),

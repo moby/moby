@@ -433,7 +433,7 @@ func (b *limitedBuffer) String() string {
 }
 
 // If configuredValue is zero, use defaultValue instead.
-func timeoutWithDefault(configuredValue time.Duration, defaultValue time.Duration) time.Duration {
+func timeoutWithDefault(configuredValue, defaultValue time.Duration) time.Duration {
 	if configuredValue == 0 {
 		return defaultValue
 	}

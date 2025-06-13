@@ -1286,7 +1286,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	checkSandbox(t, ep.Info())
 }
 
-func reexecSetKey(key string, containerID string, controllerID string) error {
+func reexecSetKey(key, containerID, controllerID string) error {
 	type libcontainerState struct {
 		NamespacePaths map[string]string
 	}
