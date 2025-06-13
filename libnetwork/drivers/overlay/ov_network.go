@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/netip"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
-	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl"
@@ -43,8 +42,8 @@ type subnet struct {
 	brName    string
 	vni       uint32
 	initErr   error
-	subnetIP  netip.Prefix
-	gwIP      netip.Prefix
+	subnetIP  *net.IPNet
+	gwIP      *net.IPNet
 }
 
 type network struct {
@@ -139,9 +138,11 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 	}
 
 	for i, ipd := range ipV4Data {
-		s := &subnet{vni: vnis[i]}
-		s.subnetIP, _ = netiputil.ToPrefix(ipd.Pool)
-		s.gwIP, _ = netiputil.ToPrefix(ipd.Gateway)
+		s := &subnet{
+			subnetIP: ipd.Pool,
+			gwIP:     ipd.Gateway,
+			vni:      vnis[i],
+		}
 
 		n.subnets = append(n.subnets, s)
 	}
@@ -426,7 +427,7 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 	// create a bridge and vxlan device for this subnet and move it to the sandbox
 	sbox := n.sbox
 
-	if err := sbox.AddInterface(context.TODO(), brName, "br", "", osl.WithIPv4Address(netiputil.ToIPNet(s.gwIP)), osl.WithIsBridge(true)); err != nil {
+	if err := sbox.AddInterface(context.TODO(), brName, "br", "", osl.WithIPv4Address(s.gwIP), osl.WithIsBridge(true)); err != nil {
 		return fmt.Errorf("bridge creation in sandbox failed for subnet %q: %v", s.subnetIP.String(), err)
 	}
 
@@ -613,13 +614,15 @@ func (n *network) sandbox() *osl.Namespace {
 }
 
 // getSubnetforIP returns the subnet to which the given IP belongs
-func (n *network) getSubnetforIP(ip netip.Prefix) *subnet {
+func (n *network) getSubnetforIP(ip *net.IPNet) *subnet {
 	for _, s := range n.subnets {
 		// first check if the mask lengths are the same
-		if s.subnetIP.Bits() != ip.Bits() {
+		i, _ := s.subnetIP.Mask.Size()
+		j, _ := ip.Mask.Size()
+		if i != j {
 			continue
 		}
-		if s.subnetIP.Contains(ip.Addr()) {
+		if s.subnetIP.Contains(ip.IP) {
 			return s
 		}
 	}

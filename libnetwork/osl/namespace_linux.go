@@ -232,6 +232,7 @@ type Namespace struct {
 	defRoute4SrcName    string
 	defRoute6SrcName    string
 	staticRoutes        []*types.StaticRoute
+	neighbors           []*neigh
 	isDefault           bool // isDefault is true when Namespace represents the host network namespace. It is safe to access it concurrently.
 	ipv6LoEnabledOnce   sync.Once
 	ipv6LoEnabledCached bool

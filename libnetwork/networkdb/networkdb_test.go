@@ -430,22 +430,6 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 
 	dbs := createNetworkDBInstances(t, n, "node", DefaultConfig())
 
-	// Shake out any data races.
-	done := make(chan struct{})
-	defer close(done)
-	for _, db := range dbs {
-		go func(db *NetworkDB) {
-			for {
-				select {
-				case <-done:
-					return
-				default:
-				}
-				_ = db.GetTableByNetwork("test_table", "network1")
-			}
-		}(db)
-	}
-
 	for i := 0; i < n; i++ {
 		for j := 0; j < n; j++ {
 			if i == j {
