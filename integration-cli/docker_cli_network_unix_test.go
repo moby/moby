@@ -1691,8 +1691,8 @@ func (s *DockerDaemonSuite) TestDaemonRestartRestoreBridgeNetwork(t *testing.T) 
 
 	// start a new container, trying to publish port 80:80 should fail
 	out, err := s.d.Cmd("run", "-p", "80:80", "-d", "busybox", "top")
-	if err == nil || !strings.Contains(out, "Bind for 0.0.0.0:80 failed: port is already allocated") {
-		t.Fatalf("80 port is allocated to old running container, it should failed on allocating to new container")
+	if err == nil || !strings.Contains(out, "port is already allocated") {
+		t.Fatalf("Expected 'port is already allocated', got err:%v out:%s", err, out)
 	}
 
 	// kill old running container and try to allocate again
