@@ -336,9 +336,10 @@ func (i *ImageService) getSameReferences(ctx context.Context, named reference.Na
 		allTags    bool
 	)
 	if named != nil {
-		if tagged, ok := named.(reference.Tagged); ok {
-			tag = tagged.Tag()
-		} else if _, ok := named.(reference.Digested); ok {
+		switch n := named.(type) {
+		case reference.Tagged:
+			tag = n.Tag()
+		case reference.Digested:
 			// If digest is explicitly provided, match all tags
 			allTags = true
 		}

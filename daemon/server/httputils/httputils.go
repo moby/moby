@@ -34,12 +34,11 @@ func HijackConnection(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 // CloseStreams ensures that a list for http streams are properly closed.
 func CloseStreams(streams ...any) {
 	for _, stream := range streams {
-		if tcpc, ok := stream.(interface {
-			CloseWrite() error
-		}); ok {
-			_ = tcpc.CloseWrite()
-		} else if closer, ok := stream.(io.Closer); ok {
-			_ = closer.Close()
+		switch s := stream.(type) {
+		case interface{ CloseWrite() error }:
+			_ = s.CloseWrite()
+		case io.Closer:
+			_ = s.Close()
 		}
 	}
 }
