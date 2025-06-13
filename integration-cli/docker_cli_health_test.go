@@ -26,7 +26,7 @@ func (s *DockerCLIHealthSuite) OnTimeout(t *testing.T) {
 	s.ds.OnTimeout(t)
 }
 
-func waitForHealthStatus(t *testing.T, name string, prev string, expected string) {
+func waitForHealthStatus(t *testing.T, name, prev, expected string) {
 	prev += "\n"
 	expected += "\n"
 	for {

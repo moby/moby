@@ -30,7 +30,7 @@ var rePolicy = regexp.MustCompile("policy ([A-Za-z]+)")
 // There's only one filter-FORWARD policy, so this won't behave well if used by
 // tests running in parallel in a single network namespace that expect different
 // behaviour.
-func SetFilterForwardPolicies(t *testing.T, firewallBackend string, policy string) {
+func SetFilterForwardPolicies(t *testing.T, firewallBackend, policy string) {
 	t.Helper()
 	if strings.HasPrefix(firewallBackend, "iptables") {
 		setIptablesFFP(t, policy)

@@ -36,7 +36,7 @@ const (
 )
 
 // Generates i multi-line events each with j lines
-func (l *logStream) logGenerator(lineCount int, multilineCount int) {
+func (l *logStream) logGenerator(lineCount, multilineCount int) {
 	for i := 0; i < multilineCount; i++ {
 		l.Log(&logger.Message{
 			Line:      []byte(multilineLogline),
