@@ -138,7 +138,6 @@ linters:
         - nestingReduce
         - nilValReturn
         - paramTypeCombine
-        - preferStringWriter
         - ptrToRefParam
         - rangeValCopy
         - sloppyReassign
