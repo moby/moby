@@ -44,14 +44,14 @@ var (
 func getDaemonUserAgent() string {
 	daemonUAOnce.Do(func() {
 		httpVersion := make([]useragent.VersionInfo, 0, 6)
-		httpVersion = append(httpVersion, useragent.VersionInfo{Name: "docker", Version: Version})
-		httpVersion = append(httpVersion, useragent.VersionInfo{Name: "go", Version: runtime.Version()})
-		httpVersion = append(httpVersion, useragent.VersionInfo{Name: "git-commit", Version: GitCommit})
+		httpVersion = append(httpVersion,
+			useragent.VersionInfo{Name: "docker", Version: Version},
+			useragent.VersionInfo{Name: "go", Version: runtime.Version()},
+			useragent.VersionInfo{Name: "git-commit", Version: GitCommit})
 		if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
 			httpVersion = append(httpVersion, useragent.VersionInfo{Name: "kernel", Version: kernelVersion.String()})
 		}
-		httpVersion = append(httpVersion, useragent.VersionInfo{Name: "os", Version: runtime.GOOS})
-		httpVersion = append(httpVersion, useragent.VersionInfo{Name: "arch", Version: runtime.GOARCH})
+		httpVersion = append(httpVersion, useragent.VersionInfo{Name: "os", Version: runtime.GOOS}, useragent.VersionInfo{Name: "arch", Version: runtime.GOARCH})
 		daemonUA = useragent.AppendVersions("", httpVersion...)
 	})
 	return daemonUA
