@@ -32,7 +32,7 @@ var allNvidiaCaps = map[nvidia.Capability]struct{}{
 	nvidia.Display:  {},
 }
 
-func init() {
+func registerNvidiaDriver() {
 	// Register Nvidia driver if Nvidia helper binary is present.
 	if _, err := exec.LookPath(nvidiaHook); err == nil {
 		capset := capabilities.Set{"gpu": struct{}{}, "nvidia": struct{}{}}

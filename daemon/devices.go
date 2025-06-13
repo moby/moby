@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/internal/capabilities"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
 var deviceDrivers = map[string]*deviceDriver{}
@@ -35,6 +36,19 @@ type deviceInstance struct {
 
 func registerDeviceDriver(name string, d *deviceDriver) {
 	deviceDrivers[name] = d
+}
+
+func registerDeviceDrivers(cfg *config.Config) *cdi.Cache {
+	registerNvidiaDriver()
+
+	// Register the CDI driver before the daemon starts, as it might try to restore containers that depend on the CDI driver.
+	// Note that CDI is not inherently linux-specific, there are some linux-specific assumptions / implementations in the code that
+	// queries the properties of device on the host as well as performs the injection of device nodes and their access permissions into the OCI spec.
+	//
+	// In order to lift this restriction the following would have to be addressed:
+	// - Support needs to be added to the cdi package for injecting Windows devices: https://tags.cncf.io/container-device-interface/issues/28
+	// - The DeviceRequests API must be extended to non-linux platforms.
+	return registerCDIDriver(cfg.CDISpecDirs...)
 }
 
 func (daemon *Daemon) handleDevice(req container.DeviceRequest, spec *specs.Spec) error {
