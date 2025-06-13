@@ -38,7 +38,7 @@ func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configSto
 
 	// Determine isolation. If not specified in the hostconfig, use daemon default.
 	actualIsolation := container.HostConfig.Isolation
-	if containertypes.Isolation.IsDefault(actualIsolation) {
+	if actualIsolation.IsDefault() {
 		actualIsolation = daemon.defaultIsolation
 	}
 
@@ -48,7 +48,7 @@ func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configSto
 	// (implying also on Windows) as the HCS must have exclusive
 	// access to mount the containers filesystem inside the utility
 	// VM.
-	if !containertypes.Isolation.IsHyperV(actualIsolation) {
+	if !actualIsolation.IsHyperV() {
 		if err := daemon.Mount(container); err == nil {
 			defer daemon.Unmount(container)
 		}
