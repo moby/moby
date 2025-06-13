@@ -341,20 +341,21 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 		mt          string
 		size        int64
 	)
-	if digested, isDigested := ref.(reference.Canonical); isDigested {
-		dgst = digested.Digest()
-		tagOrDigest = digested.String()
-	} else if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
+	switch r := ref.(type) {
+	case reference.Canonical:
+		dgst = r.Digest()
+		tagOrDigest = r.String()
+	case reference.NamedTagged:
 		tagService := p.repo.Tags(ctx)
-		desc, err := tagService.Get(ctx, tagged.Tag())
+		desc, err := tagService.Get(ctx, r.Tag())
 		if err != nil {
 			return false, err
 		}
 		dgst = desc.Digest
-		tagOrDigest = tagged.Tag()
+		tagOrDigest = r.Tag()
 		mt = desc.MediaType
 		size = desc.Size
-	} else {
+	default:
 		return false, fmt.Errorf("internal error: reference has neither a tag nor a digest: %s", reference.FamiliarString(ref))
 	}
 
