@@ -186,6 +186,19 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 				orgTarget := target
 				target = newTarget
 				pp.TurnNotStartedIntoUnavailable()
+
+				// Annotate ref with digest to push only push tag for single digest
+				ref := targetRef
+				if _, digested := ref.(reference.Digested); !digested {
+					ref, err = reference.WithDigest(ref, target.Digest)
+					if err != nil {
+						return err
+					}
+				}
+				pusher, err := resolver.Pusher(ctx, ref.String())
+				if err != nil {
+					return err
+				}
 				err = remotes.PushContent(ctx, pusher, target, store, limiter, platforms.All, handlerWrapper)
 
 				if err == nil {
