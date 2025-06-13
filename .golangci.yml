@@ -119,7 +119,6 @@ linters:
         - deferInLoop
         - dupImport
         - dupSubExpr
-        - equalFold
         - exitAfterDefer
         - exposedSyncMutex
         - filepathJoin

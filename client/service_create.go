@@ -136,7 +136,7 @@ func imageDigestAndPlatforms(ctx context.Context, cli DistributionAPIClient, ima
 			// to stop working with swarm mode. This patch removes the architecture
 			// constraint for arm images to ensure tasks get scheduled.
 			arch := p.Architecture
-			if strings.ToLower(arch) == "arm" {
+			if strings.EqualFold(arch, "arm") {
 				arch = ""
 			}
 			platforms = append(platforms, swarm.Platform{
