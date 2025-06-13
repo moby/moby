@@ -226,13 +226,6 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		} else {
 			return swarmapi.ServiceSpec{}, ErrMismatchedRuntime
 		}
-	case types.RuntimeNetworkAttachment:
-		// NOTE(dperny) I'm leaving this case here for completeness. The actual
-		// code is left out deliberately, as we should refuse to parse a
-		// Network Attachment runtime; it will cause weird behavior all over
-		// the system if we do. Instead, fallthrough and return
-		// ErrUnsupportedRuntime if we get one.
-		fallthrough
 	default:
 		return swarmapi.ServiceSpec{}, ErrUnsupportedRuntime
 	}
