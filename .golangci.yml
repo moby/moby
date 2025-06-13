@@ -143,7 +143,6 @@ linters:
         - rangeValCopy
         - regexpMust
         - sloppyReassign
-        - stringXbytes
         - typeAssertChain
         - uncheckedInlineErr
         - unnamedResult

@@ -714,7 +714,7 @@ func TestRawFormatWithoutTag(t *testing.T) {
 		splunkLoggerDriver.postMessagesBatchSize != defaultPostMessagesBatchSize ||
 		splunkLoggerDriver.bufferMaximum != defaultBufferMaximum ||
 		cap(splunkLoggerDriver.stream) != defaultStreamChannelSize ||
-		string(splunkLoggerDriver.prefix) != "" {
+		len(splunkLoggerDriver.prefix) != 0 {
 		t.Log(string(splunkLoggerDriver.prefix) + "a")
 		t.Fatal("Values do not match configuration.")
 	}
