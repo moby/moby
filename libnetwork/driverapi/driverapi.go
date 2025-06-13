@@ -222,11 +222,7 @@ const (
 // IsValidType validates the passed in type against the valid object types
 func IsValidType(objType ObjectType) bool {
 	switch objType {
-	case EndpointObject:
-		fallthrough
-	case NetworkObject:
-		fallthrough
-	case OpaqueObject:
+	case EndpointObject, NetworkObject, OpaqueObject:
 		return true
 	}
 	return false

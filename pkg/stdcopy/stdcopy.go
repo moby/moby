@@ -121,9 +121,8 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, _ error) {
 		stream := StdType(buf[stdWriterFdIndex])
 		// Check the first byte to know where to write
 		switch stream {
-		case Stdin:
-			fallthrough
-		case Stdout:
+		case Stdin,
+			Stdout:
 			// Write on stdout
 			out = dstout
 		case Stderr:
