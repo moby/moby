@@ -124,7 +124,7 @@ func (c *Client) Call(serviceMethod string, args, ret any) error {
 }
 
 // CallWithOptions is just like call except it takes options
-func (c *Client) CallWithOptions(serviceMethod string, args any, ret any, opts ...func(*RequestOpts)) error {
+func (c *Client) CallWithOptions(serviceMethod string, args, ret any, opts ...func(*RequestOpts)) error {
 	var buf bytes.Buffer
 	if args != nil {
 		if err := json.NewEncoder(&buf).Encode(args); err != nil {
@@ -253,7 +253,7 @@ func backoff(retries int) time.Duration {
 // testNonExistingPlugin is a special plugin-name, which overrides defaultTimeOut in tests.
 const testNonExistingPlugin = "this-plugin-does-not-exist"
 
-func abort(start time.Time, timeOff time.Duration, overrideTimeout time.Duration) bool {
+func abort(start time.Time, timeOff, overrideTimeout time.Duration) bool {
 	to := defaultTimeOut
 	if overrideTimeout > 0 {
 		to = overrideTimeout

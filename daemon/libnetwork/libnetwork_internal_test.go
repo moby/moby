@@ -809,7 +809,7 @@ func (b *badDriver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 	return nil, nil
 }
 
-func (b *badDriver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]any) error {
+func (b *badDriver) Join(_ context.Context, nid, eid, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]any) error {
 	return errors.New("I will not allow any join")
 }
 

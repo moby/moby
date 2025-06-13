@@ -415,7 +415,7 @@ func dispatchRun(ctx context.Context, d dispatchRequest, c *instructions.RunComm
 // remove any unreferenced built-in args from the environment variables.
 // These args are transparent so resulting image should be the same regardless
 // of the value.
-func prependEnvOnCmd(buildArgs *BuildArgs, buildArgVars []string, cmd []string) []string {
+func prependEnvOnCmd(buildArgs *BuildArgs, buildArgVars, cmd []string) []string {
 	tmpBuildEnv := make([]string, 0, len(buildArgVars))
 	for _, env := range buildArgVars {
 		key, _, _ := strings.Cut(env, "=")
