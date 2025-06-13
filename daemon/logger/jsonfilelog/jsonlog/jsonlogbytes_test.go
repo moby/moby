@@ -42,7 +42,7 @@ func TestJSONLogsMarshalJSONBuf(t *testing.T) {
 	}
 }
 
-func regexP(value string, pattern string) func() (bool, string) {
+func regexP(value, pattern string) func() (bool, string) {
 	return func() (bool, string) {
 		re := regexp.MustCompile(pattern)
 		msg := fmt.Sprintf("%q did not match pattern %q", value, pattern)

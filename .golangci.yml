@@ -130,7 +130,6 @@ linters:
         - importShadow
         - nestingReduce
         - nilValReturn
-        - paramTypeCombine
         - ptrToRefParam
         - rangeValCopy
         - sloppyReassign

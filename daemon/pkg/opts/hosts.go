@@ -124,7 +124,7 @@ func parseSimpleProtoAddr(proto, addr, defaultAddr string) (string, error) {
 // from tryAddr, or the contents of defaultAddr if tryAddr is a blank string.
 // tryAddr is expected to have already been Trim()'d
 // defaultAddr must be in the full `tcp://host:port` form
-func ParseTCPAddr(tryAddr string, defaultAddr string) (string, error) {
+func ParseTCPAddr(tryAddr, defaultAddr string) (string, error) {
 	def, err := parseTCPAddr(defaultAddr, true)
 	if err != nil {
 		return "", errors.Wrapf(err, "invalid default address (%s)", defaultAddr)

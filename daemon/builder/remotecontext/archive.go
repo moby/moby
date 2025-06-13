@@ -116,7 +116,7 @@ func (c *archiveContext) Hash(path string) (string, error) {
 	return path, nil // backwards compat TODO: see if really needed
 }
 
-func normalize(path string, root string) (cleanPath, fullPath string, _ error) {
+func normalize(path, root string) (cleanPath, fullPath string, _ error) {
 	cleanPath = filepath.Clean(string(filepath.Separator) + path)[1:]
 	fullPath, err := symlink.FollowSymlinkInScope(filepath.Join(root, path), root)
 	if err != nil {

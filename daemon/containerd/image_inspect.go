@@ -132,7 +132,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 	return resp, nil
 }
 
-func collectRepoTagsAndDigests(ctx context.Context, tagged []c8dimages.Image) (repoTags []string, repoDigests []string) {
+func collectRepoTagsAndDigests(ctx context.Context, tagged []c8dimages.Image) (repoTags, repoDigests []string) {
 	repoTags = make([]string, 0, len(tagged))
 	repoDigests = make([]string, 0, len(tagged))
 	for _, img := range tagged {

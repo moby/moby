@@ -665,7 +665,7 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 	return imageID, nil
 }
 
-func (p *puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *schema2.DeserializedManifest, platform *ocispec.Platform) (id digest.Digest, manifestDigest digest.Digest, _ error) {
+func (p *puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *schema2.DeserializedManifest, platform *ocispec.Platform) (id, manifestDigest digest.Digest, _ error) {
 	manifestDigest, err := schema2ManifestDigest(ref, mfst)
 	if err != nil {
 		return "", "", err
@@ -674,7 +674,7 @@ func (p *puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *sch
 	return id, manifestDigest, err
 }
 
-func (p *puller) pullOCI(ctx context.Context, ref reference.Named, mfst *ocischema.DeserializedManifest, platform *ocispec.Platform) (id digest.Digest, manifestDigest digest.Digest, _ error) {
+func (p *puller) pullOCI(ctx context.Context, ref reference.Named, mfst *ocischema.DeserializedManifest, platform *ocispec.Platform) (id, manifestDigest digest.Digest, _ error) {
 	manifestDigest, err := schema2ManifestDigest(ref, mfst)
 	if err != nil {
 		return "", "", err
@@ -704,7 +704,7 @@ func receiveConfig(configChan <-chan []byte, errChan <-chan error) ([]byte, *ima
 
 // pullManifestList handles "manifest lists" which point to various
 // platform-specific manifests.
-func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfstList *manifestlist.DeserializedManifestList, pp *ocispec.Platform) (id digest.Digest, manifestListDigest digest.Digest, _ error) {
+func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfstList *manifestlist.DeserializedManifestList, pp *ocispec.Platform) (id, manifestListDigest digest.Digest, _ error) {
 	manifestListDigest, err := schema2ManifestDigest(ref, mfstList)
 	if err != nil {
 		return "", "", err
