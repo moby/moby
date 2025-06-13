@@ -131,20 +131,21 @@ func isHostNS(spec *specs.Spec, nsType specs.LinuxNamespaceType) (bool, error) {
 		return false, nil
 	}
 	for _, ns := range spec.Linux.Namespaces {
-		if ns.Type == nsType {
-			if ns.Path == "" {
-				return false, nil
-			}
-			ns, err := os.Readlink(ns.Path)
-			if err != nil {
-				return false, err
-			}
-			selfNS, err := os.Readlink(filepath.Join("/proc/self/ns", string(nsType)))
-			if err != nil {
-				return false, err
-			}
-			return ns == selfNS, nil
+		if ns.Type != nsType {
+			continue
 		}
+		if ns.Path == "" {
+			return false, nil
+		}
+		ns, err := os.Readlink(ns.Path)
+		if err != nil {
+			return false, err
+		}
+		selfNS, err := os.Readlink(filepath.Join("/proc/self/ns", string(nsType)))
+		if err != nil {
+			return false, err
+		}
+		return ns == selfNS, nil
 	}
 	return true, nil
 }
