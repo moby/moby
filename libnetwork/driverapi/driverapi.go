@@ -56,14 +56,6 @@ type Driver interface {
 	// Leave method is invoked when a Sandbox detaches from an endpoint.
 	Leave(nid, eid string) error
 
-	// ProgramExternalConnectivity invokes the driver method which does the necessary
-	// programming to allow the external connectivity dictated by the passed options
-	ProgramExternalConnectivity(ctx context.Context, nid, eid string, options map[string]interface{}) error
-
-	// RevokeExternalConnectivity asks the driver to remove any external connectivity
-	// programming that was done so far
-	RevokeExternalConnectivity(nid, eid string) error
-
 	// EventNotify notifies the driver when a CRUD operation has
 	// happened on a table of its interest as soon as this node
 	// receives such an event in the gossip layer. This method is
@@ -85,6 +77,19 @@ type Driver interface {
 
 	// IsBuiltIn returns true if it is a built-in driver
 	IsBuiltIn() bool
+}
+
+// ExtConner is an optional interface for a network driver.
+type ExtConner interface {
+	// ProgramExternalConnectivity tells the driver the ids of the endpoints
+	// currently acting as the container's default gateway for IPv4 and IPv6 are
+	// passed as gw4Id/gw6Id. (Those endpoints may be managed by different network
+	// drivers. If there is no gateway, the id will be the empty string.)
+	//
+	// This method is called after Driver.Join, and when eid is or was equal to
+	// gw4Id or gw6Id, and there's a change. It may also be called when the
+	// gateways have not changed.
+	ProgramExternalConnectivity(ctx context.Context, nid, eid string, gw4Id, gw6Id string) error
 }
 
 // GwAllocChecker is an optional interface for a network driver.
