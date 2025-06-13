@@ -252,7 +252,7 @@ func DefaultConfig() *Config {
 // New creates a new instance of NetworkDB using the Config passed by
 // the caller.
 func New(c *Config) (*NetworkDB, error) {
-	nDB := new(c)
+	nDB := newNetworkDB(c)
 	log.G(context.TODO()).Infof("New memberlist node - Node:%v will use memberlist nodeID:%v with config:%+v", c.Hostname, c.NodeID, c)
 	if err := nDB.clusterInit(); err != nil {
 		return nil, err
@@ -261,7 +261,7 @@ func New(c *Config) (*NetworkDB, error) {
 	return nDB, nil
 }
 
-func new(c *Config) *NetworkDB {
+func newNetworkDB(c *Config) *NetworkDB {
 	// The garbage collection logic for entries leverage the presence of the network.
 	// For this reason the expiration time of the network is put slightly higher than the entry expiration so that
 	// there is at least 5 extra cycle to make sure that all the entries are properly deleted before deleting the network.
@@ -698,7 +698,7 @@ func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 // addNetworkNode adds the node to the list of nodes which participate
 // in the passed network only if it is not already present. Caller
 // should hold the NetworkDB lock while calling this
-func (nDB *NetworkDB) addNetworkNode(nid string, nodeName string) {
+func (nDB *NetworkDB) addNetworkNode(nid, nodeName string) {
 	nodes := nDB.networkNodes[nid]
 	for _, node := range nodes {
 		if node == nodeName {
@@ -712,7 +712,7 @@ func (nDB *NetworkDB) addNetworkNode(nid string, nodeName string) {
 // Deletes the node from the list of nodes which participate in the
 // passed network. Caller should hold the NetworkDB lock while calling
 // this
-func (nDB *NetworkDB) deleteNetworkNode(nid string, nodeName string) {
+func (nDB *NetworkDB) deleteNetworkNode(nid, nodeName string) {
 	nodes, ok := nDB.networkNodes[nid]
 	if !ok || len(nodes) == 0 {
 		return
@@ -757,7 +757,7 @@ func (nDB *NetworkDB) updateLocalNetworkTime() {
 
 // createOrUpdateEntry this function handles the creation or update of entries into the local
 // tree store. It is also used to keep in sync the entries number of the network (all tables are aggregated)
-func (nDB *NetworkDB) createOrUpdateEntry(nid, tname, key string, v *entry) (okTable bool, okNetwork bool) {
+func (nDB *NetworkDB) createOrUpdateEntry(nid, tname, key string, v *entry) (okTable, okNetwork bool) {
 	nDB.indexes[byTable], _, okTable = nDB.indexes[byTable].Insert([]byte(fmt.Sprintf("/%s/%s/%s", tname, nid, key)), v)
 	nDB.indexes[byNetwork], _, okNetwork = nDB.indexes[byNetwork].Insert([]byte(fmt.Sprintf("/%s/%s/%s", nid, tname, key)), v)
 	if !okNetwork {
@@ -772,7 +772,7 @@ func (nDB *NetworkDB) createOrUpdateEntry(nid, tname, key string, v *entry) (okT
 
 // deleteEntry this function handles the deletion of entries into the local tree store.
 // It is also used to keep in sync the entries number of the network (all tables are aggregated)
-func (nDB *NetworkDB) deleteEntry(nid, tname, key string) (okTable bool, okNetwork bool) {
+func (nDB *NetworkDB) deleteEntry(nid, tname, key string) (okTable, okNetwork bool) {
 	nDB.indexes[byTable], _, okTable = nDB.indexes[byTable].Delete([]byte(fmt.Sprintf("/%s/%s/%s", tname, nid, key)))
 	nDB.indexes[byNetwork], _, okNetwork = nDB.indexes[byNetwork].Delete([]byte(fmt.Sprintf("/%s/%s/%s", nid, tname, key)))
 	if okNetwork {

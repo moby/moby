@@ -117,10 +117,10 @@ func validateArgs(args ...string) error {
 	}
 	foundBusybox := -1
 	for key, value := range args {
-		if strings.ToLower(value) == "busybox" {
+		if strings.EqualFold(value, "busybox") {
 			foundBusybox = key
 		}
-		if (foundBusybox != -1) && (key == foundBusybox+1) && (strings.ToLower(value) == "top") {
+		if (foundBusybox != -1) && (key == foundBusybox+1) && (strings.EqualFold(value, "top")) {
 			return errors.New("cannot use 'busybox top' in tests on Windows. Use runSleepingContainer()")
 		}
 	}

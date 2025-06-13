@@ -30,7 +30,7 @@ func init() {
 // If the modified time is prior to the Unix Epoch (unixMinTime), or after the
 // end of Unix Time (unixEpochTime), os.Chtimes has undefined behavior. In this
 // case, Chtimes defaults to Unix Epoch, just in case.
-func Chtimes(name string, atime time.Time, mtime time.Time) error {
+func Chtimes(name string, atime, mtime time.Time) error {
 	if atime.Before(unixEpochTime) || atime.After(unixMaxTime) {
 		atime = unixEpochTime
 	}

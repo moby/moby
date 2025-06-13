@@ -35,7 +35,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
 }
 
-func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+func (d *driver) DecodeTableEntry(tablename, key string, value []byte) (string, map[string]string) {
 	return "", nil
 }
 
@@ -55,7 +55,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 	return nil, types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]interface{}) error {
+func (d *driver) Join(_ context.Context, nid, eid, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]interface{}) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 

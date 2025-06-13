@@ -13,7 +13,7 @@ import (
 )
 
 func TestWatch_out_of_order(t *testing.T) {
-	nDB := new(DefaultConfig())
+	nDB := newNetworkDB(DefaultConfig())
 	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{}
 	nDB.nodeBroadcasts = &memberlist.TransmitLimitedQueue{}
 	assert.Assert(t, nDB.JoinNetwork("network1"))
@@ -93,7 +93,7 @@ func TestWatch_out_of_order(t *testing.T) {
 }
 
 func TestWatch_filters(t *testing.T) {
-	nDB := new(DefaultConfig())
+	nDB := newNetworkDB(DefaultConfig())
 	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{}
 	nDB.nodeBroadcasts = &memberlist.TransmitLimitedQueue{}
 	assert.Assert(t, nDB.JoinNetwork("network1"))
