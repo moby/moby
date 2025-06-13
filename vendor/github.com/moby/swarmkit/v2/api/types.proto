@@ -90,6 +90,8 @@ message ResourceRequirements {
 	// to the container OS's default - generally 60, or the value predefined in
 	// the image; set to -1 to unset a previously set value
 	google.protobuf.Int64Value memory_swappiness = 4;
+
+
 }
 
 message Platform {
@@ -311,6 +313,9 @@ message Mount {
 		//
 		// If this is empty, no volume will be created if the volume is missing.
 		Driver driver_config = 3;
+
+		// subpath inside the volume to mount.
+		string subpath = 4 [(gogoproto.customname) = "Subpath"];
 	}
 
 	message TmpfsOptions {

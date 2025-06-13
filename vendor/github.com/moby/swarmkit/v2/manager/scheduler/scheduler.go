@@ -787,9 +787,11 @@ func (s *Scheduler) scheduleNTasksOnSubtree(ctx context.Context, n int, taskGrou
 
 	// Try to make branches even until either all branches are
 	// full, or all tasks have been scheduled.
-	for tasksScheduled != n && len(noRoom) != len(tree.next) {
+	converging := true
+	for tasksScheduled != n && len(noRoom) != len(tree.next) && converging {
 		desiredTasksPerBranch := (tasksInUsableBranches + n - tasksScheduled) / (len(tree.next) - len(noRoom))
 		remainder := (tasksInUsableBranches + n - tasksScheduled) % (len(tree.next) - len(noRoom))
+		converging = false
 
 		for _, subtree := range tree.next {
 			if noRoom != nil {
@@ -799,6 +801,7 @@ func (s *Scheduler) scheduleNTasksOnSubtree(ctx context.Context, n int, taskGrou
 			}
 			subtreeTasks := subtree.tasks
 			if subtreeTasks < desiredTasksPerBranch || (subtreeTasks == desiredTasksPerBranch && remainder > 0) {
+				converging = true
 				tasksToAssign := desiredTasksPerBranch - subtreeTasks
 				if remainder > 0 {
 					tasksToAssign++
