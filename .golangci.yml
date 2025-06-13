@@ -123,7 +123,6 @@ linters:
         - dupSubExpr
         - emptyFallthrough
         - equalFold
-        - evalOrder
         - exitAfterDefer
         - exposedSyncMutex
         - filepathJoin
