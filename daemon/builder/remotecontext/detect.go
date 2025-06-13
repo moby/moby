@@ -85,7 +85,7 @@ func withDockerfileFromContext(c modifiableContext, dockerfilePath string) (buil
 	return c, res, nil
 }
 
-func newGitRemote(gitURL string, dockerfilePath string) (builder.Source, *parser.Result, error) {
+func newGitRemote(gitURL, dockerfilePath string) (builder.Source, *parser.Result, error) {
 	c, err := MakeGitContext(gitURL) // TODO: change this to NewLazySource
 	if err != nil {
 		return nil, nil, err
@@ -93,7 +93,7 @@ func newGitRemote(gitURL string, dockerfilePath string) (builder.Source, *parser
 	return withDockerfileFromContext(c.(modifiableContext), dockerfilePath)
 }
 
-func newURLRemote(url string, dockerfilePath string, progressReader func(in io.ReadCloser) io.ReadCloser) (builder.Source, *parser.Result, error) {
+func newURLRemote(url, dockerfilePath string, progressReader func(in io.ReadCloser) io.ReadCloser) (builder.Source, *parser.Result, error) {
 	contentType, content, err := downloadRemote(url)
 	if err != nil {
 		return nil, nil, err

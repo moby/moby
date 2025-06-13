@@ -42,7 +42,7 @@ func dockerCmdWithError(args ...string) (string, int, error) {
 	return result.Combined(), result.ExitCode, result.Error
 }
 
-func findContainerIP(t *testing.T, id string, network string) string {
+func findContainerIP(t *testing.T, id, network string) string {
 	t.Helper()
 	out := cli.DockerCmd(t, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id).Stdout()
 	return strings.Trim(out, " \r\n'")
@@ -174,7 +174,7 @@ func containerStorageFile(containerID, basename string) string {
 }
 
 // docker commands that use this function must be run with the '-d' switch.
-func runCommandAndReadContainerFile(t *testing.T, filename string, command string, args ...string) []byte {
+func runCommandAndReadContainerFile(t *testing.T, filename, command string, args ...string) []byte {
 	t.Helper()
 	result := icmd.RunCommand(command, args...)
 	result.Assert(t, icmd.Success)

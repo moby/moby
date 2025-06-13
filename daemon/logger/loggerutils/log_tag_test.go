@@ -37,7 +37,7 @@ func buildContext(cfg map[string]string) logger.Info {
 	}
 }
 
-func assertTag(t *testing.T, e error, tag string, expected string) {
+func assertTag(t *testing.T, e error, tag, expected string) {
 	if e != nil {
 		t.Fatalf("Error generating tag: %q", e)
 	}

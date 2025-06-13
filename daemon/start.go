@@ -46,7 +46,7 @@ func validateState(ctr *container.Container) error {
 }
 
 // ContainerStart starts a container.
-func (daemon *Daemon) ContainerStart(ctx context.Context, name string, checkpoint string, checkpointDir string) error {
+func (daemon *Daemon) ContainerStart(ctx context.Context, name, checkpoint, checkpointDir string) error {
 	daemonCfg := daemon.config()
 	if checkpoint != "" && !daemonCfg.Experimental {
 		return errdefs.InvalidParameter(errors.New("checkpoint is only supported in experimental mode"))
@@ -73,7 +73,7 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, checkpoin
 // container needs, such as storage and networking, as well as links
 // between containers. The container is left waiting for a signal to
 // begin running.
-func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore, container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (retErr error) {
+func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore, container *container.Container, checkpoint, checkpointDir string, resetRestartManager bool) (retErr error) {
 	ctx, span := otel.Tracer("").Start(ctx, "daemon.containerStart", trace.WithAttributes(append(
 		labelsAsOTelAttributes(container.Config.Labels),
 		attribute.String("container.ID", container.ID),

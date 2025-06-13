@@ -56,7 +56,7 @@ func validateRepoName(name reference.Named) error {
 	return nil
 }
 
-func addDigestReference(store refstore.Store, ref reference.Named, dgst digest.Digest, id digest.Digest) error {
+func addDigestReference(store refstore.Store, ref reference.Named, dgst, id digest.Digest) error {
 	dgstRef, err := reference.WithDigest(reference.TrimNamed(ref), dgst)
 	if err != nil {
 		return err

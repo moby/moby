@@ -449,7 +449,7 @@ func (d *Driver) isParent(id, parent string) bool {
 }
 
 // ApplyDiff applies the new layer into a root
-func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64, _ error) {
+func (d *Driver) ApplyDiff(id, parent string, diff io.Reader) (size int64, _ error) {
 	if !d.isParent(id, parent) {
 		return d.naiveDiff.ApplyDiff(id, parent, diff)
 	}

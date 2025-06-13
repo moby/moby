@@ -146,7 +146,7 @@ func (s *VolumesService) Unmount(ctx context.Context, vol *volumetypes.Volume, r
 }
 
 // Release releases a volume reference
-func (s *VolumesService) Release(ctx context.Context, name string, ref string) error {
+func (s *VolumesService) Release(ctx context.Context, name, ref string) error {
 	return s.vs.Release(ctx, name, ref)
 }
 
