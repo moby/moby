@@ -391,8 +391,9 @@ func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, cre
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionInternalNetwork())
 	}
 	if agent {
-		nwOptions = append(nwOptions, libnetwork.NetworkOptionDynamic())
-		nwOptions = append(nwOptions, libnetwork.NetworkOptionPersist(false))
+		nwOptions = append(nwOptions,
+			libnetwork.NetworkOptionDynamic(),
+			libnetwork.NetworkOptionPersist(false))
 	}
 
 	if create.ConfigFrom != nil {

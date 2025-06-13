@@ -222,8 +222,9 @@ func lookupBinPath(binary string) (string, error) {
 	// According to FHS 3.0, it is not necessary to have a subdir here (see note and reference above).
 	// If the binary has a `docker-` prefix, let's look it up without the dir prefix.
 	if strings.HasPrefix(binary, "docker-") {
-		lookupPaths = append(lookupPaths, "/usr/local/libexec")
-		lookupPaths = append(lookupPaths, "/usr/libexec")
+		lookupPaths = append(lookupPaths,
+			"/usr/local/libexec",
+			"/usr/libexec")
 	}
 
 	for _, dir := range lookupPaths {
