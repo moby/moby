@@ -5,29 +5,9 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// allPlatformsWithPreferenceMatcher returns a platform matcher that matches all
-// platforms but orders platforms to match the preferred matcher first.
-// It implements the platforms.MatchComparer interface.
-type allPlatformsWithPreferenceMatcher struct {
-	preferred platforms.MatchComparer
-}
-
-func matchAllWithPreference(preferred platforms.MatchComparer) allPlatformsWithPreferenceMatcher {
-	return allPlatformsWithPreferenceMatcher{
-		preferred: preferred,
-	}
-}
-
-func (c allPlatformsWithPreferenceMatcher) Match(_ ocispec.Platform) bool {
-	return true
-}
-
-func (c allPlatformsWithPreferenceMatcher) Less(p1, p2 ocispec.Platform) bool {
-	return c.preferred.Less(p1, p2)
-}
-
 // platformsWithPreferenceMatcher is a platform matcher that matches any of the
-// given platforms, but orders platforms to match the preferred matcher first.
+// platforms in the platformList, but orders platforms to match the preferred matcher
+// first. If the platformList is empty, it matches all platforms.
 // It implements the platforms.MatchComparer interface.
 type platformsWithPreferenceMatcher struct {
 	platformList []ocispec.Platform
@@ -42,6 +22,9 @@ func matchAnyWithPreference(preferred platforms.MatchComparer, platformList []oc
 }
 
 func (c platformsWithPreferenceMatcher) Match(p ocispec.Platform) bool {
+	if len(c.platformList) == 0 {
+		return true
+	}
 	return platforms.Any(c.platformList...).Match(p)
 }
 
@@ -60,14 +43,16 @@ type platformMatcherWithRequestedPlatform struct {
 
 type matchComparerProvider func(ocispec.Platform) platforms.MatchComparer
 
-// TODO(ctalledo): move this to a more appropriate place (e.g., next to the other ImageService methods).
+// matchRequestedOrDefault returns a platform match comparer that matches the given platform
+// using the given match comparer. If no platform is given, matches any platform with
+// preference for the host platform.
 func (i *ImageService) matchRequestedOrDefault(
 	fpm matchComparerProvider, // function to create a platform matcher if platform is not nil
 	platform *ocispec.Platform, // input platform, nil if not specified
 ) platformMatcherWithRequestedPlatform {
 	var inner platforms.MatchComparer
 	if platform == nil {
-		inner = matchAllWithPreference(i.hostPlatformMatcher())
+		inner = matchAnyWithPreference(i.hostPlatformMatcher(), nil)
 	} else {
 		inner = fpm(*platform)
 	}
@@ -78,6 +63,7 @@ func (i *ImageService) matchRequestedOrDefault(
 	}
 }
 
+// hostPlatformMatcher returns a platform match comparer that matches the host platform.
 func (i *ImageService) hostPlatformMatcher() platforms.MatchComparer {
 	// Allow to override the host platform for testing purposes.
 	if i.defaultPlatformOverride != nil {
