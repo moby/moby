@@ -245,12 +245,11 @@ func (daemon *Daemon) setupIPCDirs(ctr *container.Container) error {
 		// Container's /dev/shm mount comes from OCI spec.
 		ctr.ShmPath = ""
 
-	case ipcMode.IsEmpty():
+	case
+		ipcMode.IsEmpty(),
 		// A container was created by an older version of the daemon.
 		// The default behavior used to be what is now called "shareable".
-		fallthrough
-
-	case ipcMode.IsShareable():
+		ipcMode.IsShareable():
 		uid, gid := daemon.idMapping.RootPair()
 		if !ctr.HasMountFor("/dev/shm") {
 			shmPath, err := ctr.ShmResourcePath()

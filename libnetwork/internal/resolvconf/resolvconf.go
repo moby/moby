@@ -435,10 +435,9 @@ func (rc *ResolvConf) processLine(line string) {
 		} else {
 			rc.nameServers = append(rc.nameServers, addr)
 		}
-	case "domain":
+	case "domain",
 		// 'domain' is an obsolete name for 'search'.
-		fallthrough
-	case "search":
+		"search":
 		if len(fields) < 2 {
 			return
 		}
