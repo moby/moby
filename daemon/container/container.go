@@ -321,7 +321,7 @@ func (container *Container) CommitInMemory(store *ViewDB) error {
 }
 
 // SetupWorkingDirectory sets up the container's working directory as set in container.Config.WorkingDir
-func (container *Container) SetupWorkingDirectory(uid int, gid int) error {
+func (container *Container) SetupWorkingDirectory(uid, gid int) error {
 	if container.Config.WorkingDir == "" {
 		return nil
 	}

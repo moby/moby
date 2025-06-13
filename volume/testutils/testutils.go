@@ -45,7 +45,7 @@ type FakeVolume struct {
 }
 
 // NewFakeVolume creates a new fake volume for testing
-func NewFakeVolume(name string, driverName string) volume.Volume {
+func NewFakeVolume(name, driverName string) volume.Volume {
 	return FakeVolume{name: name, driverName: driverName, createdAt: time.Now()}
 }
 

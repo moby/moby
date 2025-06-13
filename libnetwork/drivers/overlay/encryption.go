@@ -276,7 +276,7 @@ func (d *driver) programInput(vni uint32, add bool) error {
 	return nil
 }
 
-func programSA(localIP, remoteIP net.IP, spi spi, k *key, dir int, add bool) (fSA *netlink.XfrmState, rSA *netlink.XfrmState, lastErr error) {
+func programSA(localIP, remoteIP net.IP, spi spi, k *key, dir int, add bool) (fSA, rSA *netlink.XfrmState, lastErr error) {
 	var (
 		action      = "Removing"
 		xfrmProgram = ns.NlHandle().XfrmStateDel
@@ -354,7 +354,7 @@ func getMinimalIP(ip net.IP) net.IP {
 	return ip
 }
 
-func programSP(fSA *netlink.XfrmState, rSA *netlink.XfrmState, add bool) error {
+func programSP(fSA, rSA *netlink.XfrmState, add bool) error {
 	action := "Removing"
 	xfrmProgram := ns.NlHandle().XfrmPolicyDel
 	if add {

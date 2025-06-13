@@ -230,14 +230,14 @@ func (fms *fileMetadataStore) TarSplitReader(layer ChainID) (io.ReadCloser, erro
 	}), nil
 }
 
-func (fms *fileMetadataStore) SetMountID(mount string, mountID string) error {
+func (fms *fileMetadataStore) SetMountID(mount, mountID string) error {
 	if err := os.MkdirAll(fms.getMountDirectory(mount), 0o755); err != nil {
 		return err
 	}
 	return os.WriteFile(fms.getMountFilename(mount, "mount-id"), []byte(mountID), 0o644)
 }
 
-func (fms *fileMetadataStore) SetInitID(mount string, init string) error {
+func (fms *fileMetadataStore) SetInitID(mount, init string) error {
 	if err := os.MkdirAll(fms.getMountDirectory(mount), 0o755); err != nil {
 		return err
 	}
