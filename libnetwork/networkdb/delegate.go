@@ -135,7 +135,6 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 
 	// This remote network join is being seen the first time.
 	nodeNetworks[nEvent.NetworkID] = &network{
-		id:    nEvent.NetworkID,
 		ltime: nEvent.LTime,
 	}
 
@@ -449,10 +448,10 @@ func (d *delegate) LocalState(join bool) []byte {
 	}
 
 	for name, nn := range d.nDB.networks {
-		for _, n := range nn {
+		for nid, n := range nn {
 			pp.Networks = append(pp.Networks, &NetworkEntry{
 				LTime:     n.ltime,
-				NetworkID: n.id,
+				NetworkID: nid,
 				NodeName:  name,
 				Leaving:   n.leaving,
 			})

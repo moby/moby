@@ -128,9 +128,6 @@ type node struct {
 
 // network describes the node/network attachment.
 type network struct {
-	// Network ID
-	id string
-
 	// Lamport time for the latest state of the entry.
 	ltime serf.LamportTime
 
@@ -621,7 +618,7 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 	if ok {
 		entries = n.entriesNumber.Load()
 	}
-	nodeNetworks[nid] = &network{id: nid, ltime: ltime}
+	nodeNetworks[nid] = &network{ltime: ltime}
 	nodeNetworks[nid].entriesNumber.Store(entries)
 	nodeNetworks[nid].tableBroadcasts = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {
