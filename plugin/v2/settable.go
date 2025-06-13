@@ -61,7 +61,7 @@ func (set *settable) prettyName() string {
 	return set.name
 }
 
-func (set *settable) isSettable(allowedSettableFields []string, settable []string) (bool, error) {
+func (set *settable) isSettable(allowedSettableFields, settable []string) (bool, error) {
 	if set.field == "" {
 		if len(settable) == 1 {
 			// if field is not specified and there only one settable, default to it.

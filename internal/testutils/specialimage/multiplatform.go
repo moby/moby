@@ -7,7 +7,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-func MultiPlatform(dir string, imageRef string, imagePlatforms []ocispec.Platform) (*ocispec.Index, []ocispec.Descriptor, error) {
+func MultiPlatform(dir, imageRef string, imagePlatforms []ocispec.Platform) (*ocispec.Index, []ocispec.Descriptor, error) {
 	ref, err := reference.ParseNormalizedNamed(imageRef)
 	if err != nil {
 		return nil, nil, err
